@@ -57,7 +57,40 @@ mv ./docs/slices/123/slice-nnn.md ./docs/slices/123/slice-123.md
 - Present the choice to subject the plan to adversarial review (as described above) to the user. Create `plan-log.md` if necessary to record findings and dispositions, rather than accumulating revision history in `plan.md`.
 - Ask the user for their acceptance of the plan.
 
-## 
+### Phase plan
 
+- Do this **immediately before executing a phase**, not up front for all of them — a phase sheet written three phases early is fiction.
+- Expand the phase's `plan.md` entry into a phase sheet under `## Phase sheets` in `notes.md`: reading list (`path:line`, the binding design sections, prior art), assumptions, STOP conditions, and a task breakdown.
+- Verify the phase's entry criteria are actually met before starting. If they are not, the previous phase is not done.
+- If expanding the phase shows the plan is wrong, go back to plan (or design) rather than quietly repairing it in the sheet.
 
+### Execute
 
+- One phase, one agent, one session. Set the phase to `in progress` in the `notes.md` status table.
+- Red / green / **refactor**. The refactor step is not optional; it is where the design survives contact.
+- Stay inside the phase's declared surfaces. Touching anything else is either a design change or scope creep — in both cases, stop and ask.
+- STOP and consult the user on: an unanticipated obstacle, a tradeoff the design did not settle, a dependency addition, or any concession you are tempted to make on your own. Do not improvise past a decision that was not yours.
+- Keep the phase sheet current as you go — tasks, decisions taken, findings. Do not save the bookkeeping for the end; it will be lost.
+- End green: the phase's exit and verification criteria discharged, tests passing, nothing half-applied. Set the phase to `done`.
+- Update the `## Harvest` section of `notes.md` in place before handing off.
+
+### Audit & reconcile
+
+- Do this once, after the last phase. Fresh agent; a worktree if the tree must stay clean. Fill in `audit.md`.
+- Write the **Brief** before looking — what you intend to attack, and the invariants you will hold the slice to. Writing it afterwards means auditing only what was easy to find.
+- Gather **evidence**: run the tests and checks; walk each acceptance criterion in `slice-nnn.md` and each verification criterion in `plan.md`; diff the paths actually touched against the surfaces each phase declared. Undeclared paths are the strongest lead. Evidence is the basis for a verdict, not the verdict.
+- **Code review** the whole slice adversarially — a fresh agent where possible, otherwise a prompt for a fresh session. Findings are append-only with immutable ids, one row per finding, each with a severity and a disposition. Repeat rounds until the repairs are themselves reviewed and nothing serious remains.
+  - Confirm each disposition with the user before acting on it. Fix the class, not the instance.
+  - Do not downgrade a blocker to clear the gate, and do not defer a fix merely because it is large.
+- **Reconcile the record.** The code is what shipped; the documentation must now be true about it. For each divergence decide which side is wrong:
+  - document stale, code right → amend the spec / policy / ADR. This is **canon**: get explicit user endorsement before writing.
+  - code wrong → it is a finding, fix it in the slice.
+  - neither cleanly → it is a decision, so take it to the user.
+- `design.md` is a record of intent at a point in time. Do not retro-fit it to the code silently; where the implementation departed and the design stands as written, say so under **Design drift not reconciled**.
+
+### Close
+
+- Work the Closure checklist at the foot of `audit.md`.
+- Write the `## Summary` and `## Follow-ups` sections of `slice-nnn.md`. Follow-ups become future slices; do not leave them only in the audit.
+- Lift durable facts from `notes.md` Harvest into `docs/memory/` — anything a future agent would otherwise rediscover the hard way.
+- Set the slice stage to `done`.
