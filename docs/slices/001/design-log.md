@@ -165,6 +165,29 @@ supersede it with a later one.
   host tree and ADR-002's T1 did not fire.
 
 
+### 2026-08-23 — Which TypeScript runtime? (OQ-9)
+
+- **Asked:** OQ-9. deno, node, or bun. The choice reaches into `flake.nix` and
+  determines whether a test that shells out to a backend needs a compile step or
+  an installed `node_modules` first.
+- **Recommended:** deno, invoked with `-A`. Node was ruled out on hermeticity:
+  it needs `tsx` or a compile step plus an install before a backend runs, which
+  is hostile to `cargo test`. Between deno and bun the decisive point is that
+  **deno typechecks and bun strips types**. Brief §3.7 makes coding agents the
+  authors of these backends, so if TypeScript was chosen for authoring
+  ergonomics then the types should be enforced, or the annotations are
+  decoration.
+- **Decided:** deno. ("sold")
+- **Consequence:** `flake.nix` gains deno in `devToolPkgs`, so `flake.nix`
+  joins this slice's declared surfaces — it was not listed, and finding that out
+  during execution would have been scope creep rather than a decision. Backends
+  are invoked as `["deno", "run", "-A", "./backend.ts"]`, which the
+  command-array form of the config already supports. The example must state that
+  deno's default-deny permission model is *not* a security boundary here: brief
+  §14 has backends launching applications and reading arbitrary files as trusted
+  user programs, so `-A` is correct and nothing may imply isolation.
+
+
 ## Adversarial review
 
 <!-- One block per review round. Findings are append-only and keep their ids

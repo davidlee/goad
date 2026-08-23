@@ -39,7 +39,9 @@ Surfaces this slice may touch.
 - TOML configuration loading: backend command, backend timeout, default poll
   interval. Nothing else.
 - JSON fixture corpus and integration tests.
-- `examples/` — a minimal TypeScript backend.
+- `examples/` — a minimal TypeScript backend, run under deno.
+- `flake.nix` — adding deno to `devToolPkgs`. Added to scope by the OQ-9
+  answer; the dev shell is otherwise untouched.
 - Root `AGENTS.md` (currently empty; `CLAUDE.md` symlinks to it).
 - Declared verification commands.
 
@@ -169,9 +171,14 @@ written.
   wants several eventually; this slice needs at least one, and the fixture
   backend has different requirements from a showcase example.~~ **Answered:**
   TypeScript. Raises OQ-9 and OQ-10.
-- OQ-9 — Which TypeScript runtime? The choice reaches into `flake.nix` and
+- ~~OQ-9 — Which TypeScript runtime? The choice reaches into `flake.nix` and
   determines whether `cargo test` needs a compile step or a `node_modules`
-  before it can run a backend.
+  before it can run a backend.~~ **Answered:** deno, invoked with `-A`. It runs
+  `.ts` with no build step and no `node_modules`, and unlike bun it typechecks
+  rather than stripping types — which is the point of choosing TypeScript when
+  brief §3.7 makes agents the authors. The example must not present deno's
+  default-deny permissions as a security boundary; brief §14 is explicit that
+  backends are trusted.
 - OQ-10 — Are the deliberately-misbehaving fixtures behind AC-6 (timeout,
   non-zero exit, malformed stdout, command not found) also TypeScript, or
   minimal non-TypeScript helpers? They need to fail precisely, which is a
