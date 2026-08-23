@@ -188,6 +188,30 @@ supersede it with a later one.
   user programs, so `-A` is correct and nothing may imply isolation.
 
 
+### 2026-08-23 — Are the misbehaving fixtures TypeScript too? (OQ-10)
+
+- **Asked:** OQ-10. Whether AC-6's deliberately-failing fixtures — timeout,
+  non-zero exit, malformed stdout, protocol-invalid response, invalid scheduling
+  value, unsupported required primitive — are TypeScript like the example
+  backend, or minimal helpers in something else.
+- **Recommended:** TypeScript for all of them, since deno is already required by
+  AC-7 so they cost no new dependency and the suite keeps one mental model. With
+  two exceptions: command-not-found needs no fixture at all, only a path that
+  does not exist; and **one** backend in the suite should not be TypeScript,
+  because if every backend runs under deno the suite cannot distinguish "the
+  transport works with any command" from "the transport works with deno".
+- **Decided:** approved. Non-TypeScript guard in bash. ("whatever's easiest.
+  Bash or python is my guess")
+- **Consequence:** bash rather than python, because `bashInteractive` is already
+  in `devToolPkgs` (`flake.nix`) and python is not — python would mean a second
+  dependency added to the dev shell for a three-line fixture. The bash backend
+  ignores its request entirely and emits a canned response: shell-side JSON
+  matching is fragile, and the guard's only job is to show that the transport
+  spawns and pipes for an arbitrary command. Invoked as
+  `["bash", "./backend.sh"]` through the config command array, so no shebang is
+  involved.
+
+
 ## Adversarial review
 
 <!-- One block per review round. Findings are append-only and keep their ids

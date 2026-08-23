@@ -108,6 +108,11 @@ Surfaces this slice may touch.
 - [ ] AC-11 — No domain vocabulary (habit, streak, journal, site, goal,
       reminder, compliance) appears in host types or module names. Brief
       §21.16. Grep-checkable.
+- [ ] AC-12 — At least one backend exercised by the test suite is not
+      TypeScript. A bash script that ignores its request and emits a canned
+      response is sufficient: without it the suite cannot distinguish a
+      transport that works for any configured command from one that works for
+      deno. Brief §4.2.
 
 ## Governing canon
 
@@ -179,10 +184,13 @@ written.
   brief §3.7 makes agents the authors. The example must not present deno's
   default-deny permissions as a security boundary; brief §14 is explicit that
   backends are trusted.
-- OQ-10 — Are the deliberately-misbehaving fixtures behind AC-6 (timeout,
+- ~~OQ-10 — Are the deliberately-misbehaving fixtures behind AC-6 (timeout,
   non-zero exit, malformed stdout, command not found) also TypeScript, or
   minimal non-TypeScript helpers? They need to fail precisely, which is a
-  different job from demonstrating that no SDK is required.
+  different job from demonstrating that no SDK is required.~~ **Answered:**
+  TypeScript, except that command-not-found needs no fixture at all, and one
+  backend in the suite is bash — see AC-12. Bash rather than python because it
+  is already in the dev shell.
 - ~~OQ-6 — Does host operational state (outstanding `view_id`, resolved
   schedule) persist to disk in this slice, or stay in memory? Brief §20 phase 4
   says "if required", which defers the question rather than answering it.~~
