@@ -103,6 +103,68 @@ supersede it with a later one.
   the split happens, and combining them would drag the former through a rewrite
   it does not need.
 
+### 2026-08-23 — How much configuration lands now? (OQ-4)
+
+- **Asked:** OQ-4. Only the configuration this slice actually reads, or the
+  whole illustrative file in brief §5 including socket path, poll interval and
+  log path.
+- **Recommended:** none put; the user answered first.
+- **Decided:** just what this slice needs. ("just what this one needs")
+- **Consequence:** `[backend]` command and timeout, plus a default poll
+  interval — AC-4's schedule resolution takes the default as a parameter, so the
+  value has to exist even though nothing wakes on it until slice 003. Excluded:
+  the backend socket path (slice 005) and the log file path. Excluding the log
+  path is only coherent because of the OQ-6 answer: diagnostics live in memory
+  and surface on the host's own stderr, so there is no file to name. If that
+  changes, this decision needs revisiting.
+
+### 2026-08-23 — Which language for the example and fixture backends? (OQ-5)
+
+- **Asked:** OQ-5. Brief §15.2 wants several languages eventually; this slice
+  needs at least one, and a fixture backend has different requirements from a
+  showcase example.
+- **Recommended:** none put; the user answered first.
+- **Decided:** TypeScript. ("let's say typescript, the esperanto of our times")
+- **Consequence:** The AC-7 round trip runs against a real TypeScript backend,
+  which is what makes the language-agnostic claim in brief §4.2 load-bearing
+  rather than asserted. Raises OQ-9 (which TypeScript runtime, since the choice
+  reaches into `flake.nix` and into whether `cargo test` needs a build step) and
+  OQ-10 (whether the deliberately-misbehaving failure fixtures are also
+  TypeScript).
+
+### 2026-08-23 — Does host operational state persist to disk? (OQ-6)
+
+- **Asked:** OQ-6. Outstanding `view_id` and resolved schedule either persist or
+  stay in memory. Brief §20 phase 4 says "if required", which defers rather than
+  answers.
+- **Recommended:** none put; the user answered first.
+- **Decided:** in memory. ("in memory for now i think")
+- **Consequence:** No state store, no serialization format, no migration
+  concern in this slice. AC-8's stale-`view_id` rejection is therefore scoped to
+  a single process lifetime: a restart forgets the outstanding interaction
+  rather than rejecting a response to it. That is a real semantic limit and
+  belongs in the design's assumptions, not left implicit. Also settles the log
+  path question under OQ-4.
+
+### 2026-08-23 — What happens to the Slint spike? (OQ-7)
+
+- **Asked:** OQ-7. Four options: harvest the mechanics into `docs/memory/` and
+  let the code die with the session-local scratchpad; the same plus parking the
+  code on a `spike/slint` branch; discard and rely on `research.md`; or commit
+  it into `src/` as a skeleton.
+- **Recommended:** the first — the note is durable, and forty lines are
+  reconstructible from it.
+- **Decided:** commit the spike first so the findings have a referent, then
+  harvest and delete. ("is it in the commit history at all? if not I'd commit it
+  and then 1.") Confirmed absent from history beforehand.
+- **Consequence:** `99404f8` adds the spike; `c8ab319` removes it and adds
+  `docs/memory/slint-build-mechanics.md`, which cites the sha. This is strictly
+  better than the recommendation: the note is checkable against real code
+  instead of being taken on trust, with no orphan branch to remember and reap.
+  Committed at `spikes/slint/`, never `src/`, so no renderer ever entered the
+  host tree and ADR-002's T1 did not fire.
+
+
 ## Adversarial review
 
 <!-- One block per review round. Findings are append-only and keep their ids

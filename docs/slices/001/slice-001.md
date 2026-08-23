@@ -36,9 +36,10 @@ Surfaces this slice may touch.
   spawn-per-invocation implementation (stdin JSON, stdout JSON, stderr capture,
   timeout) on tokio.
 - Backend error model and diagnostics surface.
-- TOML configuration loading, to the extent this slice needs it.
+- TOML configuration loading: backend command, backend timeout, default poll
+  interval. Nothing else.
 - JSON fixture corpus and integration tests.
-- `examples/` — at least one minimal backend in a scripting language.
+- `examples/` — a minimal TypeScript backend.
 - Root `AGENTS.md` (currently empty; `CLAUDE.md` symlinks to it).
 - Declared verification commands.
 
@@ -158,17 +159,35 @@ written.
   Recommended, not yet decided.~~ **Answered:** tokio. Features for this slice
   are `process`, `time`, `rt`, `io-util`; `net` waits for slice 005. It is a
   stratum 2 dependency and stratum 1 must not acquire it.
-- OQ-4 — How much configuration lands now: only what this slice reads (backend
-  command, timeout), or the whole illustrative file in brief §5 including
-  socket path, poll interval and log path?
-- OQ-5 — Which language for the example and fixture backends? Brief §15.2 wants
-  several eventually; this slice needs at least one, and the fixture backend has
-  different requirements from a showcase example.
-- OQ-6 — Does host operational state (outstanding `view_id`, resolved schedule)
-  persist to disk in this slice, or stay in memory? Brief §20 phase 4 says "if
-  required", which defers the question rather than answering it.
-- OQ-7 — Is the Slint spike committed now as a skeleton, held for slice 002, or
-  discarded? It currently lives outside the repository.
+- ~~OQ-4 — How much configuration lands now: only what this slice reads
+  (backend command, timeout), or the whole illustrative file in brief §5
+  including socket path, poll interval and log path?~~ **Answered:** only what
+  this slice needs — backend command, timeout, default poll interval. AC-4 takes
+  the default interval as a parameter, so it must exist even though nothing
+  wakes on it until slice 003. No socket path, no log path.
+- ~~OQ-5 — Which language for the example and fixture backends? Brief §15.2
+  wants several eventually; this slice needs at least one, and the fixture
+  backend has different requirements from a showcase example.~~ **Answered:**
+  TypeScript. Raises OQ-9 and OQ-10.
+- OQ-9 — Which TypeScript runtime? The choice reaches into `flake.nix` and
+  determines whether `cargo test` needs a compile step or a `node_modules`
+  before it can run a backend.
+- OQ-10 — Are the deliberately-misbehaving fixtures behind AC-6 (timeout,
+  non-zero exit, malformed stdout, command not found) also TypeScript, or
+  minimal non-TypeScript helpers? They need to fail precisely, which is a
+  different job from demonstrating that no SDK is required.
+- ~~OQ-6 — Does host operational state (outstanding `view_id`, resolved
+  schedule) persist to disk in this slice, or stay in memory? Brief §20 phase 4
+  says "if required", which defers the question rather than answering it.~~
+  **Answered:** in memory. AC-8's stale-`view_id` rejection is therefore scoped
+  to one process lifetime — a restart forgets the outstanding interaction rather
+  than rejecting a response to it. Design must state this as an assumption.
+- ~~OQ-7 — Is the Slint spike committed now as a skeleton, held for slice 002,
+  or discarded? It currently lives outside the repository.~~ **Answered:**
+  committed at `spikes/slint/` in `99404f8` purely to give the findings a
+  referent, then deleted in `c8ab319`, which adds
+  `docs/memory/slint-build-mechanics.md`. Never entered `src/`; ADR-002's T1 did
+  not fire.
 
 ## Summary
 
