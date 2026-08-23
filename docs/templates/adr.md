@@ -3,9 +3,13 @@
 **Status:** proposed | accepted | superseded by ADR-NNN | rejected
 **Date:** YYYY-MM-DD
 
-<!-- An ADR records one decision at one moment. It is immutable once accepted:
-     a decision that changes is superseded by a new ADR, never rewritten. The
-     title states the decision, not the topic — "Backends speak JSON over
+<!-- An ADR records one decision at one moment. The decision is fixed; the
+     document is not. Update it as consequences are learned, references
+     accumulate, or the status changes — an ADR whose Consequences section still
+     reads as it did on day one is usually just stale. What may not change is
+     what was decided: reversing or narrowing it means a new ADR that supersedes
+     this one.
+     The title states the decision, not the topic — "Backends speak JSON over
      stdio", not "Backend protocol". -->
 
 ## Context

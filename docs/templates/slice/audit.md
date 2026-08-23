@@ -10,9 +10,12 @@ Written after the last phase is done. Two jobs in one document:
 ## Brief
 
 **Subject:** <commit range / branch under audit>
-**Lines of attack:** <what this audit probes, and the invariants it holds the
-slice to. Write this before looking, so the audit is not shaped by what is
-easy to find.>
+**Question:** <what would have to be true for this slice to be finished, and
+which of those the audit intends to actually check. Write it before looking, so
+the audit is not shaped by what turned out to be easy to find.>
+
+<!-- This is the audit's scope — evidence, criteria, canon. The code review's
+     own lines of attack belong in `review-code.md`'s Brief, not here. -->
 
 ## Evidence
 
@@ -31,29 +34,18 @@ easy to find.>
 
 ## Code review
 
-<!-- Adversarial, by a fresh agent where possible. Findings are append-only and
-     keep their ids across rounds. -->
+Findings live in `review-code.md`, copied from
+`docs/templates/review-ledger.md` — same ledger, same severity and disposition
+vocabulary, subject `implementation`. Do not restate findings here.
 
-### Round 1 — <reviewer> — YYYY-MM-DD
+- **Ledger:** `review-code.md`
+- **State:** open | resolved · outstanding blockers: none | <ids>
 
-| id | severity | location | finding | disposition | resolution |
-|----|----------|----------|---------|-------------|------------|
-| F-1 | blocker / major / minor / question | `path:line` | | | |
+## Verdict
 
-<!-- severity — blocker: must not ship. major: real defect or design breach.
-       minor: worth fixing, not urgent. question: needs an answer before it
-       can be graded.
-     disposition — aligned: observation correct, nothing to change.
-       fix-now: code fix, inside this slice. spec-wrong: the code is right and
-       the document is stale — goes to Reconciliation below. tolerated:
-       accepted drift, with a written rationale. deferred: becomes a follow-up
-       in `slice-nnn.md`.
-     No finding may be left undispositioned at close. Do not downgrade a
-     blocker to dodge the gate, and do not defer merely because the fix is
-     large. -->
-
-**Synthesis:** <the closure story: what the audit found, what it changed, and
-the risks it knowingly leaves standing.>
+<!-- The slice's closure story, written once, here. Draws on the ledger's
+     synthesis and on the evidence above; restates neither. Does this slice do
+     what it set out to do, and what is being accepted knowingly? -->
 
 ## Reconciliation
 
@@ -64,6 +56,7 @@ the risks it knowingly leaves standing.>
 | document | change | reason | done |
 |----------|--------|--------|------|
 | `specs/NNN-…md §4` | | code diverged at `path:line`; code is right | [ ] |
+| `draft-spec.md` → `specs/NNN-slug.md` | promote | drafted during this slice | [ ] |
 
 **Design drift not reconciled:** <where the implementation departs from
 `design.md` and the design was left as-is, with the reason. The design is a
@@ -76,6 +69,7 @@ without saying so.>
 - [ ] All acceptance criteria met, or explicitly waived by the user
 - [ ] Tests and checks green
 - [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
+- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
 - [ ] `slice-nnn.md` Summary and Follow-ups written
 - [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
 - [ ] `slice-nnn.md` stage set to `done`

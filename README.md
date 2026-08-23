@@ -16,4 +16,8 @@ The lovely [Slint](https://github.com/slint-ui/slint) builds the GUI.
 
 [Install the plugin](https://docs.slint.dev/latest/docs/slint/guide/tooling/ai-coding-assistants/) for your coding assistant of choice.
 
+## Development Methodology
+
+This repository employs a brutally minimalistic abbreviation of [Doctrine](https://doctrinal.systems), using pure markdown instruction and templates.
+
 

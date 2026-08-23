@@ -32,9 +32,15 @@ after the slice closes is lifted into the Harvest section.
 - [ ]
 
 **Decisions taken during execution**
+<!-- Small and local: how, within what the design already settled. A choice that
+     changes the design is not one of these — stop, consult the user, and record
+     it in `design-log.md`. -->
 
 **Findings**
-<!-- Surprises, defects found in passing, drift from the design. -->
+<!-- Things noticed in passing that are not this phase's job: a defect
+     elsewhere, drift from the design, a surprise. Defects in this phase's own
+     work get fixed, not recorded. These feed the audit; the ones that outlive
+     the slice become Follow-ups. -->
 
 ## Harvest
 
