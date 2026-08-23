@@ -38,9 +38,14 @@ that set.
 - `docs/policy/*` — empty directory, nothing to apply.
 - `docs/adr/*` — empty directory, nothing to apply.
 - `docs/memory/*` — empty directory, no prior facts to carry.
-- Root `AGENTS.md` / `CLAUDE.md` — the file is zero bytes ✓; `CLAUDE.md` is a
-  symlink to it ✓. It carries no instruction yet. Brief §15.1 says what it
-  should eventually contain.
+- Root `AGENTS.md` / `CLAUDE.md` — `CLAUDE.md` is a symlink to `AGENTS.md` ✓.
+  The file was zero bytes when this research ran and is no longer: as of
+  2026-08-23 it carries a pointer to `docs/AGENTS.md`, the canon rule, dev-shell
+  facts, and four working principles ✓. AC-10 is therefore additive. Still
+  absent, and still required by brief §15.1: the
+  host-does-not-understand-the-domain invariant, the permissive-wire /
+  canonical-internal rule, the warning against narrowing the protocol to the
+  current renderer, and the verification commands.
 
 ### Amendment candidates
 

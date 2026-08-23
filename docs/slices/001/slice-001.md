@@ -43,6 +43,10 @@ Surfaces this slice may touch.
 - `flake.nix` — adding deno to `devToolPkgs`. Added to scope by the OQ-9
   answer; the dev shell is otherwise untouched.
 - Root `AGENTS.md` (currently empty; `CLAUDE.md` symlinks to it).
+- `docs/slices/001/draft-spec.md` — the protocol specification while it is still
+  a draft, and `docs/specs/` at close when it is promoted. Added to scope by the
+  revised OQ-1 answer.
+- The strata-boundary test behind AC-15.
 - Declared verification commands.
 
 ## Non-goals
@@ -113,6 +117,25 @@ Surfaces this slice may touch.
       response is sufficient: without it the suite cannot distinguish a
       transport that works for any configured command from one that works for
       deno. Brief §4.2.
+- [ ] AC-13 — `docs/slices/001/draft-spec.md` exists, copied from
+      `docs/templates/spec.md`, with `**Status:** draft` and a first line
+      stating that it is not canon. It is normative about the protocol and
+      nothing else, its requirements carry immutable `R-N` ids, and every
+      requirement appears in its own §7 or is explicitly marked unverified with
+      a reason. It carries no SPEC id and nothing cites it as one.
+- [ ] AC-14 — At close, the draft has been reconciled against what actually
+      shipped, and promoted to `docs/specs/NNN-slug.md` with `**Status:**
+      active` and a SPEC id. Promotion is canon, so the user's explicit
+      endorsement is recorded before it happens; a divergence found during
+      reconciliation is dispositioned per `docs/AGENTS.md`, never promoted
+      as-is.
+- [ ] AC-15 — A test asserts ADR-001's one-way rule mechanically for the
+      strongest cases: no file under `src/semantics/` mentions `crate::shell`,
+      `crate::bin` or `tokio`. The test fails if it finds no files to inspect,
+      so a renamed or moved directory cannot pass vacuously. This is a partial
+      mitigation of the risk ADR-002 names as its own — that ADR-001 has no
+      compiler behind it during the one-crate period — and not a substitute for
+      the split.
 
 ## Governing canon
 
@@ -135,20 +158,22 @@ Surfaces this slice may touch.
 
 This slice also *adds* canon. ADR-001 and ADR-002 above were raised by it and
 accepted during its design. Per the OQ-1 decision a protocol specification is
-written into `docs/specs/` during audit, copied from `docs/templates/spec.md`
-and derived from what shipped rather than from intent. That obligation lives in
-`audit.md`'s reconciliation and needs explicit user endorsement before it is
-written.
+drafted in the slice folder as design, execution and audit settle it, and
+promoted into `docs/specs/` at close — see AC-13 and AC-14. While it remains a
+draft it is **not** canon and nothing may treat it as binding; the promotion is
+the act that makes it normative, and it needs the user's explicit endorsement.
 
 ## Open questions
 
 - ~~OQ-1 — Does this slice produce `docs/specs/` canon for the protocol, or does
   the protocol live only as Rust types plus fixtures until a later slice? Brief
   §15 treats a protocol document as authoritative; nothing in `docs/specs/`
-  exists to be authoritative yet.~~ **Answered:** yes, written during audit, so
-  the spec describes what shipped rather than what was intended. During
-  execution the Rust types plus the AC-9 fixture corpus are the only contract;
-  nothing may cite a spec that does not yet exist.
+  exists to be authoritative yet.~~ **Answered:** both, in sequence. A *draft*
+  spec at `docs/slices/001/draft-spec.md` is written incrementally across
+  design, execution and audit, and promoted to `docs/specs/` at close once it
+  has been reconciled against what shipped. The draft is not canon and carries
+  no SPEC id; it is cited by path, and its `R-N` requirement ids survive
+  promotion. See AC-13 and AC-14.
 - ~~OQ-2 — One crate, or a workspace (core library, plus binaries later)? The
   answer binds slices 002 and 004, which add a GUI binary and a CLI.~~
   **Answered:** one crate, with the strata as modules. Promoted to canon as
@@ -210,4 +235,26 @@ written.
 
 ## Follow-ups
 
-<!-- Written at close. -->
+<!-- Written at close. Entries raised earlier are marked with the stage that
+     raised them, so they are not lost between stages. -->
+
+- **No stderr from a timed-out backend** (raised in design, §5.4). The process
+  transport runs `wait_with_output()` inside a `tokio::time::timeout`, so on
+  elapse the output buffers drop with the future and the timeout diagnostic
+  carries no stderr — the most confusing failure gives the least information.
+  Fix: take `stderr` at spawn, drain it in a spawned task into a shared buffer,
+  and read that buffer on the timeout path. Deliberately accepted for slice 001;
+  it is worth doing when there is a surface to display diagnostics on.
+- **Unbounded backend stdout** (raised in design, §5.5). `wait_with_output()`
+  reads to EOF with no cap, so a backend in a print loop can exhaust host
+  memory — a direct contradiction of brief §13's "a backend failure must not take
+  down the host". The fix is the *same refactor* as the stderr-on-timeout item
+  above: replace `wait_with_output()` with a manual concurrent drain of both
+  pipes, bounded. Do the two together.
+- **Validation feedback round trip** (raised in design, §5.5). The backend
+  validates answers; the user must eventually see which fields were rejected and
+  why, retain what they entered, and possibly receive backend-corrected values.
+  Analysed during slice 001 and confirmed additive — `field.value`,
+  `field.error`, and a form-level message, with no protocol version bump. Depends
+  on a renderer, so it follows slice 002. Per-field errors are semantics and must
+  be typed fields, never keys in the `hints` map.

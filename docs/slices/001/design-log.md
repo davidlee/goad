@@ -212,7 +212,232 @@ supersede it with a later one.
   involved.
 
 
-## Adversarial review
+### 2026-08-23 — A draft spec during the slice, promoted at close (revises OQ-1)
 
-<!-- One block per review round. Findings are append-only and keep their ids
-     across rounds. -->
+- **Asked:** not asked — raised by the user against design §1, which stated that
+  this slice has no spec to cite because the OQ-1 answer put the protocol
+  specification in `docs/specs/` at audit.
+- **Recommended:** nothing; the standing position was the OQ-1 answer, and this
+  supersedes it.
+- **Decided:** a draft spec is written in the slice folder over the course of
+  design, execution and audit, and promoted to a real spec at the end. ("I
+  reckon we write a draft spec in the slice folder during the course of design /
+  execution / audit, and promote that to a 'real' spec at the end")
+- **Consequence:** strictly better than the OQ-1 answer it replaces. That answer
+  left execution with no prose contract at all — protocol semantics would be
+  invented in code, and every ambiguity settled silently by whoever was typing,
+  which is the failure brief §3.3 names. A draft closes that gap without making
+  the spec canon before it is true: a draft is not canon, so it can be edited
+  freely with no immutability constraint and no endorsement gate on each change.
+  Mechanics settled with it: the file is `docs/slices/001/draft-spec.md`, copied
+  from `docs/templates/spec.md` per the methodology's copy-never-write rule, and
+  carries `**Status:** draft` — a state the template already provides, so
+  promotion is a status flip plus a `git mv`, not a rewrite. It gets **no SPEC
+  id** until promotion, because an id invites citation of `SPEC-001` before
+  `SPEC-001` exists; until then it is cited by path. `R-N` requirement ids are
+  assigned in the draft and survive promotion unchanged. Its first line states
+  that it is not canon, because brief §3.7 makes agents the editors of this
+  repository and a spec-shaped file under `docs/` will otherwise be read as
+  normative. Adds AC-13 and AC-14. The residual risk the OQ-1 answer was
+  avoiding — a spec written early becoming intent that drifts from what shipped
+  — is now carried by audit: reconciliation compares the draft against the code
+  before promotion, and a divergence is dispositioned per `docs/AGENTS.md`
+  rather than promoted as-is.
+
+
+### 2026-08-23 — Failure granularity: whole-message or per-part? (P2)
+
+- **Asked:** by the user, against design §4's P2, which said an invalid value
+  costs the sender its effect but was silent on granularity: is an invalid
+  `next_check` inside an otherwise valid response accepted with the spurious
+  value disregarded, or does it reject the message?
+- **Recommended:** partial for `next_check` specifically, and — more usefully —
+  a general rule rather than a case list. Brief §13 lists "invalid scheduling
+  value" as a failure mode separate from "protocol-invalid response", which
+  would be redundant if a bad `next_check` invalidated the message; brief §9
+  says to report the error and preserve a sensible existing/default schedule.
+  The rule proposed: **a part may be discarded on its own only when its absence
+  is already a modelled state with defined semantics, distinct from "we failed
+  to read it."**
+- **Decided:** yes. ("yep")
+- **Consequence:** the rule is what settles the case, not the citation. Absent
+  `next_check` has a defined meaning (§9: retain existing valid, else default
+  poll interval), so discarding it lands the host in a state it already knows
+  how to occupy. `view` fails the same test: the only absent-view state is
+  `view: null`, which brief §11 makes a positive assertion that there is nothing
+  to show — degrading an unreadable view to `null` would have the host assert
+  that on the backend's behalf when the truth is that it could not tell, which
+  is exactly the invented semantics brief §3.3 forbids. So: whole-message
+  rejection for envelope, protocol version, `view`/`choice` structure and
+  unsupported required primitives; per-part discard for `next_check` alone.
+  P1 is not weakened, which was the live worry — the canonical response holds
+  `schedule: Option<CanonicalInstant>` where `None` means "no instruction
+  supplied", and an invalid value normalizes to `None` *plus* a reported error
+  carried alongside the canonical value rather than inside it. Normalization
+  stays a total function into a genuinely canonical type; what changes is that
+  its result carries a discard list instead of being a bare `Result`, which
+  §5.2 must specify and every caller must handle.
+
+
+### 2026-08-23 — Module layout, empty stratum 3, and a boundary test (§5.1)
+
+- **Asked:** how the three ADR-001 strata are laid out inside the single crate,
+  whether this slice ships a binary, and whether the one-way rule gets any
+  mechanical check during the one-crate period.
+- **Recommended:** group by stratum at the top of `src/` (`semantics/`,
+  `shell/`, stratum 3 empty), naming the directories with ADR-001's own words;
+  ship a library with no binary; and add a test asserting no file under
+  `src/semantics/` mentions `crate::shell`, `crate::bin` or `tokio`.
+- **Decided:** approved, including the new acceptance criterion. ("nod, add the
+  AC")
+- **Consequence:** AC-15 added, and the test plus the layout added to the
+  slice's declared surfaces. Grouping by stratum is chosen over grouping by
+  topic for two reasons that both trace to ADR-002's admitted weakness: an
+  upward `use` is wrong *on sight* in the import line without the reader having
+  to know which topic sits in which stratum, and the eventual split becomes a
+  literal `git mv` rather than a prior exercise in deciding which topic is
+  which — the redesign ADR-002 says must not be necessary. Stratum 3 is declared
+  but empty: no AC needs a binary, and P3 permits building only what the brief
+  names, which is a renderer (slice 002) and `goad emit` (slice 004). A useful
+  side effect is that integration tests can reach the crate only through its
+  public API. The AC-15 test is explicitly **not** a promotion of ADR-001's
+  verification from review gate to build gate — it checks three known tokens, so
+  it catches the common case rather than the class, and ADR-001's Verification
+  section stands as written. Recorded in design §10 so audit disposes of that
+  deliberately instead of finding it.
+
+
+### 2026-08-23 — Date/time dependency for stratum 1: jiff
+
+- **Asked:** `next_check` must normalize to a canonical instant (brief §9.1) and
+  RFC 3339 parsing therefore happens in the pure core, so stratum 1 needs a
+  wall-clock date/time crate. Which one, and with which features.
+- **Recommended:** jiff 0.2.35 with `default-features = false, features =
+  ["std", "serde"]`. Measured unique dependency counts, same method as the tokio
+  sizing: jiff minimal **3** (`jiff`, `jiff-core`, `serde_core`), jiff default
+  2, chrono 0.4.45 default 4, time 0.3.55 minimal 7 (including a proc macro).
+- **Decided:** approved. ("ok")
+- **Consequence:** three grounds, only the first of which is dependency count.
+  (1) jiff parses brief §9.1's `"45 minutes"` example natively, along with
+  `1h 30m`, `45m`, `2 hours` and ISO `PT45M` — verified by running it, not read
+  from documentation — so AC-3's relative-duration support costs no hand-rolled
+  parser. (2) Its failures are the right failures: `"tomorrow morning"`,
+  `"45 minutez"` and `""` are rejected, and an offset-less
+  `2026-08-22T18:00:00` is *refused* rather than assumed to be local time. That
+  is brief §3.3's prohibition on invented semantics enforced by the library
+  rather than by our vigilance. (3) Disabling default features is principled,
+  not merely smaller — the defaults pull the system timezone database, which
+  reads `/etc/localtime`, i.e. I/O inside stratum 1. Turning it off removes the
+  capability, so ADR-001's no-I/O rule holds by construction. It costs one
+  dependency (`serde_core`) relative to the default build, which is the right
+  trade.
+  Canonical instant is `jiff::Timestamp`; relative forms parse to `jiff::Span`
+  and resolve as `now.checked_add(span)`, with `now` taken from the request
+  envelope, so stratum 1 never reads a clock. The same duration grammar is
+  reused for the TOML config values, which brief §5 already writes as strings
+  (`timeout = "5s"`, `default_poll = "30m"`) — one duration grammar across the
+  whole product, and no seconds-versus-milliseconds ambiguity.
+  Edge case surfaced and carried to design §5.5: `"-45 minutes"` parses to an
+  instant in the past. That is coherent under brief §9, which says only "do not
+  evaluate *before* this point", so a past point is no constraint. Normalization
+  accepts it and schedule resolution clamps the resolved instant to no earlier
+  than `now`; a minimum wake interval to stop a backend busy-looping on it is
+  slice 003's timer problem, not this slice's.
+
+
+### 2026-08-23 — Protocol version is asymmetric between the directions (§5.2)
+
+- **Asked:** brief §13 says the envelope is versioned from day one, but §8.2's
+  response examples carry no `protocol` field. Must a response declare it?
+- **Recommended:** asymmetry. The host always writes `"protocol": 1` on
+  requests; a response may omit the field, but a response declaring a version
+  the host does not know is rejected.
+- **Decided:** accepted. ("reasonable. Accepted")
+- **Consequence:** the asymmetry follows from authorship, not from convenience —
+  the host controls what it emits and can always be strict with itself, whereas
+  requiring the field inbound would reject every backend written against the
+  brief's own examples. Ignoring a declared-but-unknown version was the other
+  candidate and is worse: it is guessing at semantics, which brief §3.3 forbids.
+  So "versioned from day one" is satisfied by the envelope carrying the field
+  and by unknown declared versions failing, not by compelling both sides to send
+  it. Recorded as a decision in design §7 because a later reader tidying the
+  protocol for symmetry would otherwise reverse it by accident.
+
+
+### 2026-08-23 — State ownership and `view_id` format (§5.3)
+
+- **Asked:** what the host holds, who may write it, and what a `view_id` looks
+  like — the one place the design chose legibility over the conventional answer.
+- **Recommended:** a plain `State` struct behind `&mut self` with no lock; a
+  non-optional `resolved_check` seeded from a `now` passed to `Host::new`;
+  per-call diagnostics that are not retained; one outstanding interaction that
+  is replaced rather than queued; and a `view_id` of `{now, RFC 3339}#{seq}`
+  rather than a v4 UUID.
+- **Decided:** accepted, `view_id` format included. ("I'm ok with it. accept")
+- **Consequence:** the no-lock choice follows brief §12, which serializes backend
+  exchanges and allows one outstanding interaction — a mutex would invent a state
+  space §12 explicitly says to avoid. Making `resolved_check` non-optional
+  removes an "unresolved" case that brief §9 never actually produces, and paying
+  for it with a `now` parameter on `Host::new` keeps this slice entirely
+  clock-free, leaving real time to slice 003's timer. Diagnostics are returned
+  and forgotten because retaining a history that nothing can display would build
+  the wrong half of brief §13's "discoverable diagnostic state"; retention lands
+  with the renderer. The `view_id` format trades opacity for a value that is
+  readable in a log (brief §13's debuggability), deterministic under a fixed
+  `now` so fixtures can assert exact ids, and free of a `uuid`/`getrandom`
+  dependency; nothing authenticates with it, and backends are trusted per brief
+  §14, so opacity buys nothing here.
+
+
+### 2026-08-23 — Accept the loss of stderr on timeout (§5.4)
+
+- **Asked:** with `wait_with_output()` inside a `tokio::time::timeout`, a
+  timed-out backend produces no stderr, because the output buffers drop with the
+  future. Spend roughly ten lines now to drain stderr into a shared buffer via a
+  spawned task, or accept the gap?
+- **Recommended:** accept it for this slice. AC-5 asks for stderr capture and
+  AC-6 for a distinct timeout error; neither requires both simultaneously, and
+  there is no logging surface in this slice on which to display it.
+- **Decided:** accept, and log the follow-up. ("accept it, log the follow-up.")
+- **Consequence:** recorded under `slice-001.md` Follow-ups rather than only
+  here, since `docs/AGENTS.md` is explicit that follow-ups must not be left
+  where a later stage will lose them; the Follow-ups heading now carries a note
+  that entries raised before close are marked with the raising stage. The design
+  text states the gap in §5.4 and §5.5 rather than leaving it implicit in the
+  code, with an explicit warning not to treat `kill_on_drop` as the thing to
+  simplify away — removing it would leak the child process, which is a worse
+  failure than the missing stderr.
+
+
+### 2026-08-23 — The backend validates answers, and validation feedback stays additive (§5.5)
+
+- **Asked:** whether `State` should retain the outstanding `View` so `respond`
+  can reject an answer naming an option the view never offered.
+- **Recommended:** retain the view and validate the option id — one field, buying
+  the invariant that the host never sends a backend an answer to a question it
+  did not ask — with a hard line at option id only, never field values.
+- **Decided:** the backend validates. The user also named the eventual product
+  requirement this implies: "host will need to (ultimately) retain entered
+  values, highlight offending field(s), possibly (?) accept replacement values
+  (eg stripped of invalid chars), and display any validation error messages."
+- **Consequence:** `State` stays minimal and `respond` checks only the `view_id`;
+  field values pass through opaque. The user's named requirement is a capability
+  the brief does not cover at all — grep confirms nothing on validation feedback,
+  line 1022's "configuration validation" being unrelated — so brief §22.3, *are
+  we narrowing the protocol to match the current v0 renderer?*, was applied to it
+  here where it is free. It is additive, and three decisions already taken are
+  what keep it so. `UserResponse.values` is opaque, so the host can retain and
+  echo entered values with no domain knowledge, which is what makes the user's
+  "host retains entered values" possible without crossing brief §22.5's
+  boundary. A returned view replaces the outstanding one and takes a fresh
+  `view_id`, so a validation rejection is just another view and the host never
+  needs a notion of "this is a retry of that" — the expensive version of the
+  feature. And no inbound wire type uses `deny_unknown_fields`, so `field.value`,
+  `field.error` and a form-level message can appear later with no protocol
+  version bump, which is the test of a genuinely additive extension. That third
+  property is now invariant I10 so it is not lost by someone tidying the wire
+  types. One thing settled in advance because the shortcut is tempting and wrong:
+  per-field validation errors are semantics, not presentation, so they must be
+  typed fields rather than keys in the open `hints` map — a renderer may ignore
+  `placeholder`, it must not be free to ignore a validation error. Recorded as a
+  follow-up slice, after 002 since it needs a renderer.
