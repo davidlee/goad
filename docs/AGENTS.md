@@ -15,6 +15,12 @@ Documentation in `./docs/`
 ls ./docs/{specs,policy,adr}/*
 ```
 
+Templates for all of these live in `./docs/templates/`. Create one by copying, never by writing from memory:
+```zsh
+cp ./docs/templates/{spec,adr,policy}.md ./docs/{specs,adr,policy}/NNN-slug.md   # pick one
+```
+Canon is normative and evergreen: it states what is true now. No changelogs, no revision history. An accepted `adr` is immutable — supersede it with a new one rather than editing it.
+
 ---
 
 ## Workflow
