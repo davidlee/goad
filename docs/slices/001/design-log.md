@@ -441,3 +441,109 @@ supersede it with a later one.
   typed fields rather than keys in the open `hints` map — a renderer may ignore
   `placeholder`, it must not be free to ignore a validation error. Recorded as a
   follow-up slice, after 002 since it needs a renderer.
+
+### 2026-08-23 — Reverse the deferred pipe refactor (F-2, F-3; reverses D18, D19)
+
+- **Raised by:** me, changing my own recommendation after the design review.
+  Presented as a reversal rather than applied quietly, because the user had
+  already approved the deferral: *"accept it, log the follow-up."*
+- **Question:** the review's F-2 and F-3 objected to the two things that were
+  accepted as a single deferred follow-up — unbounded stdout, and no stderr on
+  the timeout path. Hold the approved decision, or reverse it?
+- **Decided:** reverse it. The user's word was "reverse it".
+- **Why my recommendation changed:** the deferral rested on two claims. The first
+  — that both wants are one refactor, so doing them together is cheaper — was
+  correct and still is; the design says so. The second — that no acceptance
+  criterion demanded both at once, so the slice could ship without them — was
+  optimising slice size against a stated requirement. Brief §13 says a backend
+  failure must not take down the host, and an OOM against a looping backend is
+  the host going down. That is not a rough edge with a scheduling question
+  attached; it is the failure mode the brief names. F-2 is the same objection
+  arriving from outside, which is the useful thing about an adversarial review:
+  it does not have the sunk cost of the argument that produced the deferral.
+- **Consequence:** `wait_with_output()` is gone. Stdout is capped at 8 MiB and
+  exceeding it is fatal (`OutputTooLarge`); stderr is capped at 256 KiB and
+  exceeding it truncates rather than fails, because a chatty backend that works
+  is not broken and a truncated *stdout* would parse as malformed JSON and name
+  the wrong fault. Caps are module constants, not config keys — brief §5 names no
+  such keys and P3 forbids inventing configuration for an unrequested future.
+  Stderr drains in its own task so its buffer outlives a timeout on the exchange
+  future, and `BackendError::Timeout` now carries it. D18 and D19 are struck in
+  §7, R3 in §8 closes as fixed rather than mitigated, I11 and I12 are new, and
+  both follow-ups are withdrawn from `slice-001.md` with a note saying where they
+  went.
+- **A coupling worth recording:** this also killed D21. Its justification was
+  that `wait_with_output()` consumes the child, so an explicit kill is
+  unavailable and `kill_on_drop` is the only mechanism. Removing
+  `wait_with_output()` removes that constraint, so F-14's separate complaint —
+  that tokio's kill-on-drop is best-effort and needs a live runtime to reap —
+  becomes fixable rather than merely acknowledged. Two findings that looked
+  independent were coupled through one call. D26 supersedes D21: `start_kill()`
+  then `wait()` on the path we know about, with `kill_on_drop(true)` retained as
+  the backstop for panic and cancellation paths.
+
+### 2026-08-23 — How hard to enforce P1, and what P1 governs (F-9)
+
+- **Raised by:** the review. F-9 observed that the canonical types have public
+  fields and no bounds validation, so `Choice { options: … }` and
+  `Number { min: NaN, max: 1.0 }` are both constructible by anyone downstream —
+  which makes P1 ("canonical is a type, not a promise") a promise.
+- **Question:** enforce fully, or enforce and also scope what P1 covers?
+- **Decided:** the user chose *"that scoping"* — enforce, and state the scope.
+- **Enforcement.** Canonical fields become `pub(super)`, visible inside
+  `semantics::protocol` where normalization lives and read-only elsewhere through
+  accessors. The guarantee that buys is exact and worth stating in those terms:
+  outside that module, a canonical value can only have come out of
+  `normalize_response`. `NumberRange` replaces the bare `min`/`max` pair with a
+  checked constructor rejecting non-finite bounds and inverted ranges. Bounds are
+  semantics under brief §3.4 — they constrain which answers are valid — so an
+  inverted range makes every answer invalid and `NaN` makes every comparison
+  false. Neither is a state the protocol has a meaning for, so neither may be
+  representable.
+- **Scope, and why it was worth asking about.** Read literally, P1 covers every
+  field, which would oblige the host to parse a `Content::Uri` it never
+  dereferences and to give `hints` a closed type — the exact narrowing brief
+  §22.3 warns against, arrived at by way of a principle meant to prevent it. So
+  P1 is now stated as governing the values the host **interprets** — instants,
+  bounds, identifiers, kind discriminants — and not the payloads it merely
+  carries: `Content::Uri`, `hints`, `Event.data`, the `values` map of a response.
+  The line is not arbitrary and it is not permanent: it tracks brief §3.4 and
+  §14, and the moment the host starts interpreting one of those payloads it comes
+  under P1.
+- **Consequence:** D30 and D31; §4's P1 gains a *Scope* paragraph and an honest
+  note that the scoping costs uniformity — a reader must now ask which side of
+  the interpret/carry line a value sits on. I1 is restated in terms of the
+  visibility boundary rather than "checked constructors" alone. R10 records the
+  real risk, which is not the design but the erosion: `pub(super)` plus accessors
+  is boilerplate, and boilerplate under deadline gets widened back to `pub`.
+
+### 2026-08-23 — The bounded drain was built and run before being written down
+
+- **Why:** F-2 and F-3's fix is the largest piece of new design written under
+  review pressure, in the part of the system with the most ways to deadlock. A
+  sketch that reads correctly is not evidence, and `review-design.md`'s own
+  guardrail is to reject a finding on evidence rather than assertion — the same
+  standard applies to accepting one.
+- **What was built:** the whole §5.4 exchange as a throwaway binary in the
+  scratchpad — spawn with three pipes, stderr drained in its own task, stdin
+  written then dropped, stdout read through a capped reader, `wait()` inside one
+  `tokio::time::timeout`, explicit `start_kill()` and `wait()` on elapse. Run
+  against four backends: a well-behaved one, one that writes stderr then sleeps
+  past the timeout, one that floods stdout, and one that reads stdin to EOF.
+- **What it caught.** A borrow-checker defect in my own sketch:
+  `match timeout(dur, exchange).await { … }` does not compile when `exchange`
+  holds `&mut child` and an arm also needs `child`, because a temporary in a match
+  scrutinee lives to the end of the match. The fix is to bind the result before
+  the match. That is now in the design with the reason stated, because it is
+  invisible until you try it and someone would otherwise rediscover it in
+  execution.
+- **What it confirmed.** Stderr does survive the timeout path — the killed
+  backend's `boom` came back. A backend reading stdin to EOF completes, which is
+  the stdin-close trap §5.4 already warned about. And one thing better than
+  expected: hitting the stdout cap kills the flooding backend on its own, because
+  the capped reader drops the stdout handle, the pipe closes and the process takes
+  `SIGPIPE` — `wait()` returned a signal status immediately rather than blocking.
+  So the cap bounds the work and not just the buffer. We still kill explicitly on
+  that path, for a backend that ignores `SIGPIPE`.
+- **Consequence:** §5.4 gains both facts. Nothing about the decisions changed;
+  what changed is that they are now observed rather than argued.

@@ -85,11 +85,17 @@ Surfaces this slice may touch.
       than disabling anything. Brief §9.
 - [ ] AC-5 — The process transport spawns the configured command, writes one
       JSON request to stdin, reads one JSON response from stdout, enforces a
-      timeout, and captures stderr into diagnostics. Brief §6.2.
+      timeout, and captures stderr into diagnostics — **including when the
+      exchange times out**, which is the failure with the least other evidence.
+      Both streams are read concurrently and both reads are bounded, so no
+      backend can exhaust host memory or deadlock the host by being chatty.
+      Brief §6.2, §13. Revised in design per F-2 and F-3.
 - [ ] AC-6 — Each failure mode in brief §13 reachable by this transport —
       command not found, timeout, non-zero exit, malformed JSON,
       protocol-invalid response, invalid scheduling value, unsupported required
-      primitive — maps to a distinct typed error. No path panics. Per ADR-001,
+      primitive — maps to a distinct typed error, as do backend output exceeding
+      the read bound and an answer naming an interaction the host is not
+      holding. No path panics. Per ADR-001,
       the taxonomy splits at the stratum seam: parse and validation errors
       belong to the pure core, transport errors to the I/O shell wrapping the
       core's. Not one flat enum spanning both.
@@ -97,8 +103,12 @@ Surfaces this slice may touch.
       backend returns `view: null`; then returns a choice; the host assigns a
       `view_id` and records it; a `respond` carrying that id reaches the
       backend; the backend's reply is accepted.
-- [ ] AC-8 — A response bearing an unknown or stale `view_id` is rejected with
-      a named error. Brief §12.
+- [ ] AC-8 — An answer bearing an unknown or stale `view_id` is rejected with a
+      named error, and the backend is not contacted. The two cases are distinct
+      variants — nothing outstanding, versus answering a superseded
+      interaction — because they are different mistakes with different fixes.
+      Rejection leaves the outstanding interaction intact. Brief §12. Error type
+      specified in design per F-8 and F-15.
 - [ ] AC-9 — A JSON fixture corpus covers the protocol-level cases in brief
       §15.3 that fall inside this slice: valid evaluate request and response,
       `view: null`, a simple choice, response round trip, scheduling
@@ -238,23 +248,23 @@ the act that makes it normative, and it needs the user's explicit endorsement.
 <!-- Written at close. Entries raised earlier are marked with the stage that
      raised them, so they are not lost between stages. -->
 
-- **No stderr from a timed-out backend** (raised in design, §5.4). The process
-  transport runs `wait_with_output()` inside a `tokio::time::timeout`, so on
-  elapse the output buffers drop with the future and the timeout diagnostic
-  carries no stderr — the most confusing failure gives the least information.
-  Fix: take `stderr` at spawn, drain it in a spawned task into a shared buffer,
-  and read that buffer on the timeout path. Deliberately accepted for slice 001;
-  it is worth doing when there is a surface to display diagnostics on.
-- **Unbounded backend stdout** (raised in design, §5.5). `wait_with_output()`
-  reads to EOF with no cap, so a backend in a print loop can exhaust host
-  memory — a direct contradiction of brief §13's "a backend failure must not take
-  down the host". The fix is the *same refactor* as the stderr-on-timeout item
-  above: replace `wait_with_output()` with a manual concurrent drain of both
-  pipes, bounded. Do the two together.
 - **Validation feedback round trip** (raised in design, §5.5). The backend
   validates answers; the user must eventually see which fields were rejected and
   why, retain what they entered, and possibly receive backend-corrected values.
-  Analysed during slice 001 and confirmed additive — `field.value`,
-  `field.error`, and a form-level message, with no protocol version bump. Depends
-  on a renderer, so it follows slice 002. Per-field errors are semantics and must
-  be typed fields, never keys in the `hints` map.
+  Analysed during slice 001 and confirmed to need **no breaking restructure** —
+  `field.value`, `field.error`, and a form-level message are additive fields on a
+  view the host already carries. It will need a protocol version bump or a
+  capability declaration, because an older host that ignores `field.error` shows
+  a form with no sign anything was rejected: tolerating a field is not honouring
+  it. That correction is F-7; the original analysis claimed no version bump and
+  was wrong. Depends on a renderer, so it follows slice 002. Per-field errors are
+  semantics and must be typed fields, never keys in the `hints` map.
+
+**Withdrawn during design review**, recorded here so nobody looks for them:
+
+- ~~No stderr from a timed-out backend~~ — **fixed in slice 001** instead of
+  deferred. Reversed per F-3; see design §5.4 and D26.
+- ~~Unbounded backend stdout~~ — **fixed in slice 001** instead of deferred.
+  Reversed per F-2; see design §5.4 and D27. The claim that the two were one
+  refactor was correct; the conclusion that the refactor could wait was not,
+  since brief §13 says a backend failure must not take down the host.

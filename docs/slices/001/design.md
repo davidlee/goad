@@ -152,9 +152,23 @@ a distinct type that cannot be constructed except by normalization succeeding.
 Brief §3.3 draws this line and ADR-001 puts a stratum boundary on it; P1 is what
 makes the line checkable by the compiler instead of by review.
 
+*Scope.* P1 governs the values the host **interprets** — instants, numeric
+bounds, identifiers, kind discriminants: anything the host reads in order to
+decide something. It does not govern payloads the host only carries:
+`Content::Uri`, `hints`, `Event.data`, and the `values` map of a user response.
+Those are opaque by design — brief §3.4 hands `hints` to the renderer, and §14
+makes the backend a trusted user program rather than a sandboxed plugin.
+Extending P1 to them would have the host parse a URI it never dereferences, to
+satisfy a principle whose purpose is protecting decisions the host does not
+make. The boundary is not permanent: the moment the host starts interpreting one
+of them, that value comes under P1. Raised as F-9 in `review-design.md`.
+
 *What this loses:* the single-struct-with-optional-fields design, which is fewer
 types and less mapping code. It also loses the convenience of reaching for the
-raw wire value later, downstream of the seam, when it would be handy.
+raw wire value later, downstream of the seam, when it would be handy. The
+scoping above additionally loses uniformity — a reader must ask which side of
+the interpret/carry line a value falls on, rather than reading one rule off the
+type.
 
 **P2 — An invalid value costs the sender its effect, never the host its
 function.**
@@ -171,25 +185,44 @@ absorbing an error silently — every refusal is a named error and reaches
 diagnostics.
 
 *Granularity.* Failure is whole-message by default. A part may be discarded on
-its own only when:
+its own only when **both** of these hold:
 
-> its absence is already a modelled state with defined semantics, distinct from
-> "we failed to read it."
+> 1. its absence is already a modelled state with defined semantics, distinct
+>    from "we failed to read it"; and
+> 2. the **protocol** is what specifies the behaviour in that absence — not the
+>    host, and not the renderer.
 
-`next_check` satisfies this. An absent `next_check` is a real state with a
-defined meaning — brief §9's "retain an existing valid scheduled check, else use
-the configured default poll interval" — so discarding the field lands the host
-in a state it already knows how to occupy. Brief §13 corroborates by listing
-"invalid scheduling value" as a failure mode *distinct from* "protocol-invalid
-response"; the entry would be redundant if a bad `next_check` invalidated the
-message.
+The second clause is what keeps the rule from licensing invention. Clause 1 says
+there is somewhere to land; clause 2 says the destination was chosen by the
+contract rather than by whoever wrote the discard path. Without it, every
+`Option` field in the canonical types would qualify, because an `Option` always
+*has* an absent state — the question is whether that state's meaning was
+specified or improvised. (Raised as F-4 in `review-design.md`: the one-clause
+rule admitted `body`, which was never intended.)
 
-`view` fails the test, which is why an invalid view rejects the whole message.
-The only absent-view state is `view: null`, and per brief §11 that is a positive
-assertion — "nothing to show right now". Degrading an unreadable view to `null`
-would have the host assert on the backend's behalf that there is nothing to
-show, when the truth is that it could not tell. That is the invented semantics
-brief §3.3 forbids.
+`next_check` satisfies both. An absent `next_check` is a real state with a
+defined meaning, and brief §9 is the thing that defines it — "retain an existing
+valid scheduled check, else use the configured default poll interval" — so
+discarding the field lands the host in a state the protocol already told it how
+to occupy. Brief §13 corroborates by listing "invalid scheduling value" as a
+failure mode *distinct from* "protocol-invalid response"; the entry would be
+redundant if a bad `next_check` invalidated the message.
+
+`body` satisfies clause 1 and fails clause 2. An absent body is modelled — the
+field is optional and a view with no body is ordinary. But nothing in the brief
+says what a renderer does with a body that *was* sent and could not be read.
+Dropping it silently renders a view the backend did not author; substituting
+placeholder text invents content. Either way the host is choosing, so the whole
+message is rejected instead.
+
+`view` fails clause 1. Its only absent-view state is an explicit `view: null`,
+and per brief §11 that is a positive assertion — "nothing to show right now".
+Degrading an unreadable view to `null` would have the host assert on the
+backend's behalf that there is nothing to show, when the truth is that it could
+not tell. That is the invented semantics brief §3.3 forbids. This is also why
+`view` is a **required** field — see F-5 and §5.2: a message that omits it
+entirely has failed to say anything about the view, which is not the same claim
+as saying there is none, and the two must not normalize to one value.
 
 Applied to this slice:
 
@@ -197,7 +230,10 @@ Applied to this slice:
 |---|---|
 | `next_check` | discarded; §9 fallback applies; typed error to diagnostics; rest of the message accepted |
 | envelope or protocol version | whole message rejected |
+| `view` absent entirely | whole message rejected — `MissingField { field: "view" }` |
+| `view` explicitly `null` | accepted; nothing to show (brief §11) |
 | `view` or `choice` structure | whole message rejected |
+| `body` present but unreadable | whole message rejected — fails granularity clause 2 |
 | unsupported required primitive | whole message rejected — brief §13, "fail clearly" |
 | option-scoped field no renderer implements | not a normalization failure at all; admitted by the types, unimplemented downstream (brief §22.3) |
 
@@ -350,25 +386,109 @@ everything, and the asymmetry is principled — we control what we emit.
 // semantics/protocol/wire.rs
 #[derive(Deserialize)]
 pub struct WireResponse {
-  #[serde(default)] pub protocol:   Option<u32>,
-  #[serde(default)] pub view:       Option<WireView>,
+  #[serde(default)] pub protocol: Option<u32>,
+
+  /// Outer `Option`: was the field present at all. Inner: was it `null`.
+  /// `None` => omitted, `Some(None)` => explicit null, `Some(Some(v))` => a view.
+  #[serde(default, deserialize_with = "present")]
+  pub view: Option<Option<WireView>>,
+
   #[serde(default)] pub next_check: Option<serde_json::Value>,
 }
+
+/// serde maps both an absent field and an explicit `null` to `None`, so the
+/// outer layer has to be supplied rather than inferred from nesting.
+fn present<'de, T, D>(de: D) -> Result<Option<T>, D::Error>
+where T: Deserialize<'de>, D: Deserializer<'de>
+{ T::deserialize(de).map(Some) }
 ```
 
 Three deliberate choices here:
 
 - **No `deny_unknown_fields`, anywhere inbound.** Brief §13: unknown optional
   fields are ignored.
-- **`view` absent and `view: null` are the same state.** `#[serde(default)]` on
-  `Option` makes them identical without a code path. Brief §8.2 writes the
-  explicit null; being permissive about the omission costs nothing.
+- **`view` is required, and absent is distinguished from `null`.** These are
+  different claims: `null` asserts "nothing to show" (brief §11), while omission
+  asserts nothing at all. Collapsing them would have the host manufacture the
+  positive assertion on the backend's behalf — the invention P2's granularity
+  rule exists to prevent. An omitted `view` therefore yields
+  `MissingField { field: "view" }` and rejects the message. This was F-5.
+  The double-`Option` shape is load-bearing and was verified, not assumed: with
+  a bare `#[serde(default)] Option<Option<T>>`, serde returns `None` for `null`
+  as well as for absence, and the distinction is silently lost.
 - **`next_check` is typed `serde_json::Value`, not `Option<String>`.** This is
   the one place the wire type is looser than the JSON we expect, and P2 is the
   reason: if it were `Option<String>`, then `"next_check": 45` would be a serde
   failure that kills the whole message — violating the granularity rule, which
   requires that field to be discardable on its own. A loose wire type is what
   makes a precise error possible.
+
+Note what the first and second bullets do *together*: unknown fields are ignored,
+but a known-and-required field's absence is a named error rather than a serde
+message. Permissiveness is about fields we do not model, not about fields we do.
+
+**The rest of the inbound wire shape is fixed by the brief's own examples**, and
+this is F-31 and F-38. Those examples are what a backend author copies, so a wire
+type that rejects one is wrong regardless of how clean it reads.
+
+```rust
+// semantics/protocol/wire.rs
+#[derive(Deserialize)]
+pub struct WireField {
+  pub id:    String,
+  pub kind:  String,
+  pub label: String,
+  #[serde(default)] pub min:     Option<f64>,
+  #[serde(default)] pub max:     Option<f64>,
+  #[serde(default)] pub options: Option<serde_json::Value>,
+
+  /// Every other key on the field object. Brief §10.2 writes `multiline` flat,
+  /// alongside `id` and `kind` — hints are not a nested member on the wire.
+  #[serde(flatten)] pub hints: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+pub struct WireChoice {
+  pub title: String,
+  /// A bare string or a tagged object. Left untyped and dispatched in
+  /// `normalize`, so an unrecognised `kind` keeps its own named error.
+  #[serde(default)] pub body:    Option<serde_json::Value>,
+  #[serde(default)] pub options: Option<Vec<WireOpt>>,
+}
+```
+
+Two shapes, both verified by running them:
+
+- **`hints` is flattened, not nested.** Brief §10.2's field example is
+  `{"id":"notes","kind":"text","label":"Anything notable?","multiline":true}` —
+  `multiline` sits flat. With a nested `hints` member that key is unmodelled, so
+  the no-`deny_unknown_fields` rule *silently discards* it: the brief's own
+  example loses its presentation information and reports nothing, which is the
+  worst available outcome. Flattening makes "everything else on the field" the
+  definition of a hint, which is also the honest reading of brief §10.2's "likely
+  presentation hints over time".
+
+  The cost, stated precisely rather than as a worry: a misspelled **optional**
+  key (`minn` for `min`) becomes a hint instead of being noticed. A misspelled
+  **required** key still fails — `{"id":"x","kind":"text","labell":"typo"}`
+  errors with `missing field 'label'`, because the declared field is still
+  required after flattening. So the exposure is narrower than flattening usually
+  implies, and it is bounded by which keys are optional.
+
+  Rejected: accepting both a nested `hints` object and flat keys. Two spellings
+  for one thing is exactly the ambiguity brief §3.3 says must fail rather than be
+  guessed at, and it doubles the normalization paths for no gain.
+
+- **`body` is `serde_json::Value`, for the same reason `next_check` is.** Brief
+  §10.1's required v0 example is `"body": "Optional context"` — a bare string —
+  while §11.1's richer forms are tagged objects. A string-or-object type is the
+  contract, and the tempting encoding, `#[serde(untagged)]`, is wrong here: it
+  collapses every failure into "data did not match any variant", which destroys
+  F-6's `UnsupportedPrimitive { kind, at }`. So the wire stays untyped and
+  `normalize` dispatches: a string becomes `Content::Text`; an object is read for
+  its `kind`; an unrecognised `kind` is the named error with its path; anything
+  else is a typed shape error. A loose wire type is again what makes a precise
+  error possible.
 
 The protocol version is handled asymmetrically, because the two directions have
 different authorship. The host always **writes** `"protocol": 1` on requests. On
@@ -383,27 +503,49 @@ compelled to send it.
 
 ```rust
 // semantics/protocol/canonical.rs
-pub struct Response { pub view: Option<View>, pub schedule: Option<Timestamp> }
-//                              ^ None = nothing to show    ^ None = no instruction supplied
+//
+// Every field below is `pub(super)`: writable from within `semantics::protocol`,
+// which is where normalization lives, and read-only to everything else through
+// the accessors. Outside this module a canonical value can only have come out of
+// `normalize_response`. That is P1 with a compiler behind it rather than a
+// comment. Accessors are elided here for length; each field has one returning a
+// borrow, and the types derive `Debug`, `Clone`, `PartialEq`.
+
+pub struct Response { pub(super) view: Option<View>, pub(super) schedule: Option<Timestamp> }
+//                                     ^ None = nothing to show   ^ None = no instruction supplied
 
 pub enum View { Choice(Choice) }
 
 pub struct Choice {
-  pub title:   String,
-  pub body:    Option<Content>,
-  pub options: Options,            // newtype: >= 1, ids unique
+  pub(super) title:   String,
+  pub(super) body:    Option<Content>,
+  pub(super) options: Options,            // newtype: >= 1, ids unique
 }
 
-pub struct Opt { pub id: OptionId, pub label: String, pub fields: Vec<Field> }
+pub struct Opt { pub(super) id: OptionId, pub(super) label: String, pub(super) fields: Vec<Field> }
 
 pub enum Content { Text(String), Markdown(String), Html(String), Uri(String) }
 
-pub struct Field { pub id: FieldId, pub kind: FieldKind, pub label: String, pub hints: Hints }
+pub struct Field {
+  pub(super) id:    FieldId,
+  pub(super) kind:  FieldKind,
+  pub(super) label: String,
+  pub(super) hints: Hints,
+}
 
 pub enum FieldKind {
   Text, Boolean, DateTime,
-  Number { min: Option<f64>, max: Option<f64> },
+  Number(NumberRange),
   Choice { options: Options },
+}
+
+/// Checked: each bound finite, and `min <= max` when both are present.
+pub struct NumberRange { min: Option<f64>, max: Option<f64> }
+
+impl NumberRange {
+  pub fn new(min: Option<f64>, max: Option<f64>) -> Result<Self, BoundsError>;
+  pub fn min(&self) -> Option<f64>;
+  pub fn max(&self) -> Option<f64>;
 }
 ```
 
@@ -412,6 +554,19 @@ with zero options is unrenderable, and duplicate option ids make a later
 `respond` ambiguous about which option it names. Both are §3.3 ambiguities, so
 both are rejected at normalization rather than tolerated. P1 says the canonical
 type should not be *able* to hold either.
+
+`NumberRange` exists for the same reason, and it is the second half of F-9.
+`min: Option<f64>` admits `NaN` and it admits `min: 10, max: 1` — both of which
+the host *interprets*, since bounds are semantics under brief §3.4 and constrain
+what answer is valid. An inverted range makes every answer invalid, and `NaN`
+makes every comparison false; neither is a state the protocol has any meaning
+for, so neither may be representable. Rejecting them costs the sender the
+message, per P2 — bounds are not a discardable part.
+
+Note the asymmetry this creates with `hints`, `Content::Uri`, `Event.data` and
+the response `values` map, which stay `serde_json::Value` and `String`. That is
+P1's scope in §4 doing its job: the host constrains what it reads, and carries
+what it does not.
 
 **The line between `FieldKind` and `hints` is brief §3.4's line**: "the backend
 expresses semantics, the renderer chooses widgets". Bounds on a number are
@@ -428,12 +583,25 @@ All four `Content` variants and all `FieldKind`s are **admitted and rendered by
 nobody** in this slice. That is P3 with brief §11.1 and §22.3 naming the future
 implementor.
 
-An unrecognised `view.kind` must produce `ProtocolError::UnsupportedPrimitive`
-carrying the offending kind string, not a generic deserialization failure —
-AC-6 requires it as a distinct error and brief §13 wants it debuggable. The
-serde encoding that achieves this (a fallback variant, or reading `kind` before
-dispatching) is left to implementation; the contract is the named error and the
-retained string.
+**Any unrecognised `kind` discriminant, at any depth, produces
+`ProtocolError::UnsupportedPrimitive`** carrying both the offending string and
+the path at which it appeared — not a generic deserialization failure. AC-6
+requires the distinct error and brief §13 wants it debuggable. The rule is stated
+over the whole document rather than over `view.kind` because there are three
+discriminant sites, not one: the view, each field, and each content block. A
+future primitive is at least as likely to arrive as a new `FieldKind` as a new
+view type, and a backend that sends one deserves the same clear refusal wherever
+it put it. This was F-6.
+
+The path is what makes the error usable at depth: `unsupported primitive
+"slider"` is a puzzle in a view with nine fields, and
+`unsupported primitive "slider" at view.options[1].fields[2].kind` is not. It is
+a diagnostic string, not an interpreted value, so P1's scope leaves it a
+`String`; how normalization accumulates it is implementation.
+
+The serde encoding that achieves all this (a fallback variant, or reading `kind`
+before dispatching) is likewise left to implementation. The contract is the named
+error, the retained string, and the path.
 
 #### Outbound: requests
 
@@ -482,26 +650,43 @@ would let a discard slip in without the argument.
 pub enum ProtocolError {
   Json(serde_json::Error),
   UnsupportedProtocolVersion { found: u32 },
-  UnsupportedPrimitive { kind: String },
+  UnsupportedPrimitive { kind: String, at: String },   // path, per F-6
   MissingField { field: &'static str },
   EmptyOptions,
   DuplicateOptionId { id: String },
+  Bounds(BoundsError),
   Schedule(ScheduleError),
 }
 
-pub enum ScheduleError {
-  NotAString { found: &'static str },   // "next_check": 45
-  MissingOffset { raw: String },        // 2026-08-22T18:00:00
-  Unparseable { raw: String },          // "tomorrow morning"
+pub enum BoundsError {
+  NotFinite { bound: &'static str, found: f64 },   // NaN, +inf, -inf
+  Inverted  { min: f64, max: f64 },                // min > max
 }
 
-// shell/error.rs  — stratum 2: transport, wrapping the above
+pub enum ScheduleError {
+  NotAString   { found: &'static str },   // "next_check": 45
+  MissingOffset{ raw: String },           // 2026-08-22T18:00:00
+  CalendarUnit { raw: String },           // "1 month" — length is not fixed
+  OutOfRange   { raw: String },           // parses, but now + span leaves the representable range
+  Unparseable  { raw: String },           // "tomorrow morning"
+}
+
+// shell/error.rs  — stratum 2: transport and host state, wrapping the above
 pub enum BackendError {
   Spawn(std::io::Error),                        // command not found
-  Timeout { after: Duration },
+  Timeout { after: Duration, stderr: String },   // partial stderr survives — §5.4, F-3
   ExitStatus { code: Option<i32>, stderr: String },
+  OutputTooLarge { limit: usize },               // stdout cap exceeded — §5.4, F-2
   Io(std::io::Error),
   Protocol(semantics::ProtocolError),
+}
+
+/// Refusals that arise from host state rather than from the backend or the wire.
+/// Separate from `BackendError` because the backend did nothing wrong: the
+/// *caller* named an interaction the host is not holding.
+pub enum StateError {
+  NoOutstandingView { named: ViewId },
+  StaleViewId { named: ViewId, outstanding: ViewId },
 }
 ```
 
@@ -509,6 +694,20 @@ pub enum BackendError {
 timestamp is the single most likely backend mistake, and "you omitted the
 offset" is a debuggable message where "unparseable" is not. Brief §13 asks for
 enough information to debug the backend.
+
+`CalendarUnit` and `OutOfRange` are the F-10 additions, and they are behavioural
+rather than cosmetic — see §5.4 for what the schedule grammar actually accepts
+and why days resolve while months do not.
+
+`StateError` is what AC-8 was missing (F-8, F-15). AC-8 requires a stale
+`view_id` to be *rejected*, and there was no error in the taxonomy for it: the
+only candidate was `BackendError`, which would have blamed a backend that had not
+been consulted yet. Two variants rather than one because the diagnostics differ —
+"there is no interaction open" and "you answered the previous one" are different
+mistakes with different fixes. It sits in `shell/` and not `semantics/` because
+staleness is a fact about host state, not about the message: the same bytes are
+valid or stale depending on what the host is holding, so stratum 1 cannot
+adjudicate it.
 
 **One thing AC-6 needs stated plainly:** an invalid scheduling value is a
 distinct typed error (`ScheduleError`) but it does **not** arrive as an `Err`.
@@ -521,11 +720,21 @@ error" was never what it said, and P2 forbids it.
 ```rust
 // shell/backend/transport.rs
 pub trait Backend {
-  fn exchange(&self, request: &Request)
+  fn exchange(&mut self, request: &Request)
     -> impl Future<Output = Result<Vec<u8>, BackendError>> + Send;
 }
 ```
 
+- **`&mut self`, even though the process transport does not need it.** The
+  process transport is stateless — it spawns per exchange — so `&self` was
+  sufficient and was what this design originally specified. It was wrong anyway:
+  slice 005's socket transport holds a connection, and a connection is mutable
+  state that an exchange advances. `&self` would have forced that implementation
+  into interior mutability (a `Mutex` around the stream to satisfy a signature,
+  guarding against concurrency brief §12 says does not exist) or into changing
+  the trait — in the slice where two implementors already depend on it. Today the
+  change is one keyword. This was F-1, and P3 is the reason it counts: a seam
+  justified by a named future implementation has to fit that implementation.
 - **The trait owns framing, not just transmission.** It takes a canonical
   `Request` and serializes internally, because the two implementations differ in
   exactly that respect — one JSON body per process, versus one JSONL line per
@@ -555,11 +764,61 @@ impl<B: Backend> Host<B> {
 }
 ```
 
+```rust
+// shell/host.rs — Outcome is stratum 2 (F-15): it mixes canonical views from
+// stratum 1 with transport and host-state diagnostics that only exist up here.
+pub struct Outcome {
+  /// `Some` = render this, and answer it with the `view_id` inside.
+  /// `None` = nothing to show: either the backend's explicit `view: null` or a
+  /// failed exchange. `failure` says which.
+  pub view:       Option<Presented>,
+  /// Always concrete — brief §9 resolves in every case, including failure.
+  pub next_check: Timestamp,
+  /// Parts the message lost without losing the message. P2's discard list.
+  pub discarded:  Vec<Discarded>,
+  /// Whatever the backend wrote to stderr, whether or not the exchange worked.
+  pub stderr:     Captured,
+  /// `Some` = the host took no action on this exchange beyond reporting it.
+  /// It does **not** mean nothing happened: see below.
+  pub failure:    Option<Failure>,
+}
+
+/// A view and the identity minted for it, inseparable by construction.
+pub struct Presented { pub view_id: ViewId, pub view: View }
+
+pub enum Failure { Backend(BackendError), State(StateError) }
+```
+
 This is the composition point — transport, then `serde_json::from_slice`, then
 `normalize_response`, then schedule resolution and state update — and it is what
-`tests/integration/` drives for AC-7. `Outcome` carries what the caller must act
-on: the view to render if any, the resolved schedule, and the diagnostics
-accumulated from discards and errors.
+`tests/integration/` drives for AC-7.
+
+`Outcome` is a struct with a `failure` field rather than a
+`Result<Success, Failure>` because **every** call resolves a `next_check`, failed
+ones included. Brief §9's fallback is not conditional on the exchange working; a
+backend that times out must still leave the host with a concrete next wake, or
+the first failure ends polling forever. A `Result` would have put that instant on
+the success side and made the caller reconstruct it on the error path — the
+mistake P2 exists to prevent, expressed as a type. `view: None` with
+`failure: Some(_)` is precisely "we could not tell", which is the state §4 argues
+must stay distinguishable from "there is nothing to show".
+
+**`Presented` pairs the view with its `view_id`, and that is F-23.** The first
+draft of this struct listed `view: Option<View>` and kept the id private in
+`State`, which left a renderer holding a view it had no way to answer — AC-7
+requires exactly that round trip and brief §8.3 requires the answer to carry the
+id. Pairing them rather than adding a second `Option<ViewId>` field is the same
+move as `Options` and `NumberRange`: the invalid combination — a view with no id,
+an id with no view — is not representable, so no caller has to check for it.
+
+**`failure: Some(_)` says the host did nothing, not that nothing happened.** This
+is F-32, and the distinction matters because getting it wrong invites a retry.
+Brief §8.3 lets a backend perform arbitrary side effects while handling a
+response, and brief §14 gives it the user's own authority; a backend can write to
+a file, send a message, and *then* time out. So a failure means the host took no
+action and recorded no state change — it is not a statement about the backend's
+effects, and nothing may treat it as one. This is also why there is no retry
+(below): the host cannot know what a failed exchange already did.
 
 #### Config
 
@@ -601,7 +860,7 @@ struct Outstanding { view_id: ViewId, issued_at: Timestamp }
 |---|---|---|---|
 | `Config` | `Host` | loaded once at construction, immutable after | process |
 | `State` | `Host`, private | `Host::evaluate` / `Host::respond` only | process |
-| backend `B` | `Host` | never mutated | process |
+| backend `B` | `Host` | `Host::evaluate` / `Host::respond`, via `&mut` on `exchange` | process |
 | diagnostics | nobody | returned in `Outcome`, not retained | one call |
 
 No hot reload of config, and no shared mutability — `State` is a plain struct
@@ -672,15 +931,102 @@ has a specific way of going wrong:
    close is load-bearing: a backend that reads to EOF — which is the obvious way
    to write one — hangs forever if the host holds stdin open, and the symptom is
    a timeout on every call that looks like a slow backend rather than a host bug.
-3. **Drain stdout and stderr concurrently.** `child.wait_with_output()` does
-   this. Reading them in sequence deadlocks whenever a backend writes more than
-   a pipe buffer (64 KiB on Linux) to the stream we are not yet reading, and it
-   deadlocks only for chatty backends, which is the worst possible failure
-   distribution.
+3. **Drain stdout and stderr concurrently, into bounded buffers.** Reading them
+   in sequence deadlocks whenever a backend writes more than a pipe buffer
+   (64 KiB on Linux) to the stream we are not yet reading, and it deadlocks only
+   for chatty backends, which is the worst possible failure distribution.
+   `child.wait_with_output()` drains concurrently and would have been the whole
+   of this step, but it is unbounded and its buffers are unreachable on the
+   timeout path — see below.
 4. **Await exit.**
 5. All of the above inside **one `tokio::time::timeout`** covering the whole
-   exchange, not just the read. On elapse the future drops, and `kill_on_drop`
-   is what makes tokio SIGKILL and reap the child rather than leaving it behind.
+   exchange, not just the read. On elapse, kill the child explicitly and await
+   it.
+
+**Why not `wait_with_output()`.** It loses on both counts that brief §13 cares
+about, and it loses them together:
+
+- Its read is **unbounded**, so a backend stuck in a print loop exhausts host
+  memory. Brief §13 says "a backend failure must not take down the host"; an OOM
+  is the host going down.
+- Its buffers are **owned by the future**, so when the timeout drops that future
+  the partial stderr goes with it. A timeout is the failure mode with the least
+  obvious cause, and this hands it the least diagnostic information. AC-5 asks
+  for stderr capture and AC-6 for a distinct timeout error, and the combination —
+  a timeout that says why — is what a person debugging a backend actually needs.
+
+Both were originally accepted as one deferred follow-up (D18, D19) on the grounds
+that they are a single refactor and neither AC demanded them at once. That was
+optimising slice size against a stated requirement, and F-2 and F-3 in
+`review-design.md` are the same objection from the outside. The refactor is done
+here instead. It remains one refactor — that argument was sound, only its
+conclusion was wrong.
+
+```rust
+// shell/backend/process.rs — the shape, not the implementation
+const STDOUT_LIMIT: usize = 8 * 1024 * 1024;
+const STDERR_LIMIT: usize =      256 * 1024;
+
+let mut child  = cmd.spawn().map_err(BackendError::Spawn)?;   // kill_on_drop(true)
+let     stderr = child.stderr.take().expect("piped at spawn");
+
+// Stderr drains in its own task, so the buffer outlives a timeout on the
+// exchange future. Killing the child closes the pipe, the task sees EOF, and
+// the partial buffer arrives through the join handle.
+let draining_stderr = tokio::spawn(read_capped(stderr, STDERR_LIMIT));
+
+// Bound before the match, not inside its scrutinee: `exchange` holds `&mut child`,
+// and a temporary in a match scrutinee lives to the end of the match — so the
+// borrow would still be live in the arms that need `child`.
+let exchange = async { /* write stdin, drop it, read stdout capped, child.wait() */ };
+let result = tokio::time::timeout(config.timeout, exchange).await;
+
+match result {
+  Ok(res) => res,                       // stderr joined on the paths that need it
+  Err(_)  => {
+    child.start_kill()?;                // SIGKILL; uncatchable, so the pipe closes
+    let _ = child.wait().await;         // reap, deliberately, not via Drop
+    Err(BackendError::Timeout { after: config.timeout, stderr: draining_stderr.await? })
+  }
+}
+```
+
+Four things this makes explicit:
+
+- **The caps are asymmetric, because the streams are.** Over-long stdout is
+  `OutputTooLarge` and fails the exchange: the host cannot act on a response it
+  refused to finish reading, and truncated JSON would parse as malformed, naming
+  the wrong fault. Over-long stderr is **truncated and flagged**, not fatal:
+  stderr is diagnostic, and a chatty backend that works is not a broken one.
+- **The caps are constants, not config.** Brief §5 does not list them, and P3's
+  second half says do not add configuration for a future nobody has asked for.
+  8 MiB is orders of magnitude above any legitimate view — a view is prose and a
+  handful of fields — and failing at a stated limit beats swapping.
+- **`start_kill` then `wait`, rather than relying on `kill_on_drop`.** This is
+  F-14. `kill_on_drop` is a backstop, not a guarantee: tokio's own documentation
+  is explicit that the process is killed on a best-effort basis and that reaping
+  requires the runtime to still be alive to poll it, so a drop during shutdown
+  can leave a zombie. Killing and awaiting on the path we know about turns a
+  best-effort claim into an observed one. `kill_on_drop(true)` stays set, for the
+  panic and cancellation paths that do not run this code.
+- **Hitting the stdout cap kills the backend, and does so by itself.** Verified by
+  building and running this design against a `yes`-style flooding backend: when
+  the capped reader returns early it drops the stdout handle, the pipe closes, the
+  flooding process takes `SIGPIPE`, and `wait()` returns immediately with a
+  signal status. So the cap bounds the *work*, not merely the buffer — the host
+  does not sit waiting on a process whose output it has already refused. A backend
+  that ignores `SIGPIPE` would keep going, and the exchange timeout is what covers
+  that; on the cap path we therefore kill explicitly rather than rely on it, for
+  the same reason as F-14. The same run confirmed the borrow structure above, that
+  stderr survives the timeout path, and that a backend reading stdin to EOF
+  completes.
+- **Where this can still stall.** If the backend spawned a grandchild that
+  inherited the stderr fd, killing the backend does not close the pipe, and the
+  drain task does not reach EOF. The join therefore takes a short grace timeout
+  of its own, after which the host reports the timeout with no stderr rather than
+  waiting on a process it does not manage. We do not kill process groups: brief
+  §14 makes backends trusted user programs, and reaching past the process we
+  spawned is a bigger claim over the user's machine than this slice should make.
 
 ```mermaid
 sequenceDiagram
@@ -697,7 +1043,7 @@ sequenceDiagram
     P-->>H: Vec<u8>
     H->>H: from_slice → normalize_response(wire, now)
     H->>S: resolve schedule, issue view_id
-    H-->>T: Outcome { view: Some, view_id, resolved_check, diagnostics }
+    H-->>T: Outcome { view: Some, next_check, discarded, failure: None }
     T->>H: respond(now, view_id, answer)
     H->>S: check view_id matches outstanding
     H->>P: exchange(&Respond)
@@ -705,7 +1051,7 @@ sequenceDiagram
     B-->>P: {"view": null, "next_check": …}
     P-->>H: Vec<u8>
     H->>S: clear outstanding, resolve schedule
-    H-->>T: Outcome { view: None, resolved_check }
+    H-->>T: Outcome { view: None, next_check, failure: None }
 ```
 
 Note that `respond` checks `view_id` against `State` **before** touching the
@@ -738,15 +1084,12 @@ valid JSON, the host reports `ExitStatus` and discards the output. The backend
 told us it failed; trusting output it disclaimed would be the host deciding it
 knows better.
 
-**A timed-out backend yields no stderr.** `wait_with_output()`'s buffers drop
-with the timed-out future, so the most confusing failure mode gives the least
-diagnostic information. Accepted for this slice rather than fixed: AC-5 asks for
-stderr capture and AC-6 for a distinct timeout error, and neither requires both
-at once, and there is no logging surface here to display it on. The fix — take
-`stderr` at spawn, drain it in a spawned task into a shared buffer, read that
-buffer on the timeout path — is small and recorded as a follow-up in
-`slice-001.md`. Do not let it become the reason a later reader "simplifies"
-`kill_on_drop` away.
+**A timed-out backend yields whatever stderr it had produced.** That is the
+point of draining it in a separate task, and it is the diagnostic that makes a
+timeout debuggable. `BackendError::Timeout` therefore carries `stderr` alongside
+`after`. Do not let a later reader "simplify" this back into
+`wait_with_output()`; the drain task and the explicit kill are load-bearing, and
+§5.4 above says why.
 
 **Two things stated because they are lifecycle behaviour, not code detail:** the
 timeout is per exchange rather than per byte, so a backend that streams slowly
@@ -760,7 +1103,7 @@ transport, which is why slice 005 exists.
 
 | id | invariant | held by |
 |---|---|---|
-| I1 | No canonical type can hold an unnormalized value | P1; checked constructors |
+| I1 | No canonical type can hold an unnormalized value | P1; `pub(super)` fields plus checked constructors (D30) — outside `semantics::protocol`, values come only from `normalize_response` |
 | I2 | No file in `semantics/` names `crate::shell`, `crate::bin` or `tokio` | AC-15 test |
 | I3 | Stratum 1 never reads a clock, filesystem or network, and spawns nothing. `now` is always a parameter | ADR-001; jiff with default features off |
 | I4 | `resolved_check` always holds a concrete instant | non-`Option` field |
@@ -769,7 +1112,9 @@ transport, which is why slice 005 exists.
 | I7 | The host never branches on a `hints` key | review; brief §3.4 |
 | I8 | No domain vocabulary in types or module names | AC-11 grep |
 | I9 | No path panics on backend-derived data — no `unwrap`, `expect` or slicing on anything a backend produced | AC-6; clippy lints |
-| I10 | No inbound wire type is a closed contract: no `deny_unknown_fields`, and the absence of a field never means more than "not supplied" | review; see the validation-feedback analysis below |
+| I10 | No inbound wire type is a closed contract: no `deny_unknown_fields`, and the absence of an *unmodelled* field never means more than "not supplied" | review; see the validation-feedback analysis below |
+| I11 | No backend can cause unbounded host memory growth: every stream read from a backend is capped | D27; the stdout-flood integration test |
+| I12 | Every `Outcome`, including every failure, carries a concrete `next_check` | D23; non-`Option` field |
 
 **Assumptions.** Each is a place this design can break.
 
@@ -786,8 +1131,10 @@ transport, which is why slice 005 exists.
   which ADR-002 says would itself be the finding. Carried as a risk in §8.
 - **A3 — jiff's friendly duration grammar is stable across 0.2.x.** It is
   pre-1.0. `"45 minutes"`, `"1h 30m"`, `"2 hours"` and `PT45M` were verified
-  against 0.2.35 by running them; if the grammar changes under a patch bump, what
-  `next_check` accepts changes with it. Mitigated by the AC-9 fixture corpus
+  against 0.2.35 by running them, as were the rejections of `"1 month"` and of
+  offset-less timestamps and the exact resolution of days and weeks under
+  `SpanRelativeTo::days_are_24_hours()`. If the grammar changes under a patch
+  bump, what `next_check` accepts changes with it. Mitigated by the AC-9 fixture corpus
   pinning the accepted and rejected forms as tests.
 - **A4 — the brief is intent, not canon, and three of its ambiguities were
   resolved by choice**: the protocol-version asymmetry, non-zero exit taking
@@ -801,7 +1148,10 @@ transport, which is why slice 005 exists.
 |---|---|
 | `view: null` with a valid `next_check` | nothing to show; schedule updates; any outstanding interaction is left alone |
 | scheduled evaluate fires while an interaction is outstanding | permitted; a returned view replaces the outstanding one. *Whether* to poll while a prompt is unanswered is policy, and belongs to slice 003 |
-| `next_check` in the past, incl. `"-45 minutes"` | parses; resolution clamps to no earlier than `now`. A minimum wake interval is slice 003's |
+| `next_check` in the past, incl. `"-45 minutes"` | parses; stored **as given**, not clamped. A past instant means the next wake is due, which slice 003's timer expresses by firing immediately. Clamping would have the host silently rewrite the backend's instruction — F-13 |
+| `"next_check": "1 month"` | `ScheduleError::CalendarUnit`, discarded, message accepted. A month has no fixed length without a calendar, and stratum 1 has no time zone database by construction (§5.2, D4) |
+| `"next_check": "1 day"` / `"1 week"` / `"1d 2h"` | accepted; resolved as exactly 24h / 168h / 26h. Verified against jiff 0.2.35 — F-10 |
+| `next_check` that parses but overflows the instant range | `ScheduleError::OutOfRange`, discarded, message accepted |
 | `"next_check": 45` | `ScheduleError::NotAString`, discarded, message accepted |
 | `"next_check": "2026-08-22T18:00:00"` | `MissingOffset`, discarded, message accepted |
 | `options: []` | `EmptyOptions` — whole message rejected |
@@ -810,18 +1160,22 @@ transport, which is why slice 005 exists.
 | two JSON documents on stdout | `Protocol(Json)` on trailing content. Strictness is correct here: framing is the transport's job and this transport's frame is "one document" |
 | `command = []` in config | rejected at load — nothing to spawn |
 | `timeout = "0s"` or `default_poll = "0s"` | rejected at load. A zero timeout fails every exchange; a zero poll is a busy loop |
-| backend emits unbounded stdout | read unbounded — see below |
+| backend emits more than 8 MiB on stdout | `OutputTooLarge`; child killed; message rejected |
+| backend emits more than 256 KiB on stderr | truncated and flagged; not a failure in itself |
 
-**The unbounded-output edge is the one real gap.** `wait_with_output()` reads
-until EOF with no cap, so a backend stuck in a print loop can exhaust host
-memory — which contradicts brief §13's "a backend failure must not take down the
-host" directly, rather than merely being untidy.
-
-Bounding the read requires replacing `wait_with_output()` with a manual
-concurrent drain of both pipes — **the same change as the stderr-on-timeout
-follow-up**. Both wants are therefore one refactor, and doing it once with both
-requirements in hand beats doing it twice. Recorded as a single follow-up on
-those grounds, not because the risk is negligible.
+**Schedule resolution is where jiff's grammar has to be pinned, not assumed.**
+`"1 month"` and `"45 minutes"` both parse to a jiff `Span`, and only one of them
+can be converted to a duration without a calendar: months and years have no fixed
+length, and resolving them needs a time zone, which is the I/O stratum 1 does not
+have (D4 turns jiff's default features off precisely so this is impossible rather
+than merely avoided). Resolution therefore converts through
+`SpanRelativeTo::days_are_24_hours()`, which resolves days and weeks exactly and
+rejects calendar units cleanly — verified by running it, not read off the docs.
+A `Span` that converts but then leaves the representable instant range is
+`OutOfRange`. Both are `ScheduleError`s, so both are discards under P2 rather
+than message failures, and both are in the AC-9 corpus. This was F-10; the
+original design said only "parses with jiff", which quietly assumed a total
+function that does not exist.
 
 **The host does not validate answers; the backend does.** `respond` checks the
 `view_id` and nothing else. It does not verify that the answer names an option
@@ -830,10 +1184,10 @@ through opaque.
 
 That decision is only safe if the eventual validation-feedback round trip — the
 backend rejecting a submission, and the user seeing which fields were wrong and
-why — can be added without a protocol break. Checked here, while it is free,
-because brief §22.3 asks exactly this: *are we narrowing the protocol to match
-the current v0 renderer?* It is additive, and three decisions already made are
-what keep it so:
+why — can be added **without restructuring the protocol**. Checked here, while it
+is free, because brief §22.3 asks exactly this: *are we narrowing the protocol to
+match the current v0 renderer?* It needs no restructuring, and three decisions
+already made are what keep it so:
 
 1. **`UserResponse.values` is opaque.** The host can retain and echo submitted
    values without understanding any of them, so retention is a mechanical copy
@@ -847,10 +1201,25 @@ what keep it so:
    needs becomes additive fields on a view the host already carries: `field.value`
    for prefill or for a backend-corrected replacement, `field.error` for the
    per-field message, and a form-level message on the choice.
-3. **No `deny_unknown_fields` inbound**, so an older host tolerates a backend
-   already sending those fields and a newer host reads them. No protocol version
-   bump — which is the test of whether an extension is genuinely additive. I10
-   exists to keep this true.
+3. **No `deny_unknown_fields` inbound**, so an older host does not *reject* a
+   backend already sending those fields, and a newer host reads them. I10 exists
+   to keep this true.
+
+**One claim here was wrong and is worth keeping visible.** This analysis
+originally concluded "no protocol version bump", and F-7 refuted it. Tolerating
+an unknown field is not the same as honouring it: an older host silently ignoring
+`field.error` shows the user a form with no indication that anything was rejected,
+which is worse than refusing the message. Additive *at the wire* is not additive
+*in meaning*, and the second is what matters to the person looking at the screen.
+
+So the real conclusion is narrower and still sufficient: validation feedback
+needs **no breaking restructure** — no change to how a view is shaped, how
+responses are addressed, or how values are carried — and it will need either a
+protocol version bump or a capability declaration so a backend can tell whether
+the host it is talking to will honour the fields it sends. That is exactly what
+the versioned envelope (§5.2, D7) is for, and it is why the version is carried
+from day one rather than added when first needed. Slice 001's job was to avoid
+foreclosing the feature, not to ship it version-free.
 
 One thing is deliberately settled in advance, because the tempting shortcut is
 wrong: **per-field validation errors are semantics, not hints.** A renderer may
@@ -868,15 +1237,17 @@ audit (AC-13, AC-14).
 Two items are deliberately left to implementation rather than being open design
 questions:
 
-- The serde encoding that makes an unrecognised `view.kind` produce
-  `UnsupportedPrimitive { kind }` rather than a generic deserialization error.
-  The contract is fixed in §5.2; the attribute that achieves it is not.
+- The serde encoding that makes an unrecognised `kind` — at any of the three
+  discriminant sites — produce `UnsupportedPrimitive { kind, at }` rather than a
+  generic deserialization error, and how the `at` path is accumulated. The
+  contract is fixed in §5.2; the mechanism is not.
 - Whether `Hints` is a `BTreeMap<String, serde_json::Value>` or a thinner
   newtype over it. No behaviour depends on the answer.
 
-Two items are deferred *work*, not open questions, and are recorded as
-follow-ups in `slice-001.md`: the bounded/drained pipe refactor, and the
-validation-feedback round trip.
+One item is deferred *work*, not an open question, and is recorded as a follow-up
+in `slice-001.md`: the validation-feedback round trip. The bounded/drained pipe
+refactor was also a follow-up and no longer is — it is in this slice, per F-2 and
+F-3.
 
 ## 7. Decisions, rationale & alternatives
 
@@ -892,7 +1263,7 @@ reader needs so they do not reverse one by accident.
 | D5 | wire/canonical duality **inbound only** | mirroring both directions | requests are host-authored; nothing untrusted arrives on that path |
 | D6 | `next_check` typed `serde_json::Value` at the wire | `Option<String>` | a wrong-typed value must be *discardable*, not fatal — P2 |
 | D7 | protocol version asymmetric: always written, optional inbound, unknown-declared rejected | required inbound; ignored inbound | requiring it rejects backends written against brief §8.2; ignoring it is guessing |
-| D8 | unrecognised `view.kind` → `UnsupportedPrimitive { kind }` | generic serde failure | AC-6 wants a distinct error; brief §13 wants it debuggable |
+| D8 | unrecognised `kind` at **any** depth → `UnsupportedPrimitive { kind, at }` | the same error for `view.kind` only | AC-6 wants a distinct error; brief §13 wants it debuggable, and at depth that needs the path. Revised per F-6 |
 | D9 | semantics in `FieldKind`, presentation in an open `hints` map | one flat struct of hints | brief §3.4's line. §10.2 calls its hint list provisional, so fixing it in a struct narrows the protocol |
 | D10 | `Discarded` is a closed enum | `Vec<(String, Error)>` | adding a variant is the moment P2's eligibility test must be argued |
 | D11 | AFIT trait, static dispatch, generic `Host<B>` | `async_trait` + `Box<dyn>` | no dependency, no per-call boxing. Cost: slice 005 needs an enum, not `dyn` |
@@ -902,10 +1273,20 @@ reader needs so they do not reverse one by accident.
 | D15 | non-zero exit beats parseable stdout | trust the output | the backend disclaimed it; trusting it anyway is the host overruling the backend |
 | D16 | a second view replaces the outstanding one | queueing | brief §12 allows one active interaction; a queue is the concurrency it forbids |
 | D17 | host validates `view_id` only; the backend validates answers | retain the view, check option ids | user decision. Validation feedback confirmed additive, §5.5 |
-| D18 | accept: no stderr on timeout | drain via a spawned task | ~10 lines, but same refactor as D19; no surface to show it on yet |
-| D19 | accept: unbounded stdout read | bounded manual drain | folded into one future refactor with D18 |
+| ~~D18~~ | ~~accept: no stderr on timeout~~ | — | **reversed**, F-3. Stderr drains in its own task and `Timeout` carries it |
+| ~~D19~~ | ~~accept: unbounded stdout read~~ | — | **reversed**, F-2. Bounded manual drain; brief §13 forbids a backend taking down the host |
 | D20 | draft spec in the slice folder, promoted at close | spec written at audit | gives execution a prose contract without making it canon early |
-| D21 | `Command::kill_on_drop(true)` | explicit kill after timeout | `wait_with_output()` consumes the child, so explicit kill is unavailable. Removing this leaks the process |
+| ~~D21~~ | ~~`kill_on_drop` as the reaping mechanism~~ | — | **superseded by D26**, F-14. `kill_on_drop` stays set as a backstop but is not what we rely on |
+| D22 | `exchange(&mut self, …)` | `&self` | slice 005's socket holds mutable connection state; `&self` would force interior mutability or a trait change with two implementors. F-1 |
+| D23 | `Outcome` is a struct with an `Option<Failure>`, not a `Result` | `Result<Success, Failure>` | every call resolves a `next_check`, failures included; a `Result` puts it on the wrong side. F-8 |
+| D24 | `StateError` in `shell/`, two variants | reuse `BackendError`; one variant | staleness is a fact about host state, not the message; and "nothing open" ≠ "you answered the previous one". F-8, F-15 |
+| D25 | `view` is required; absent ≠ `null` | `#[serde(default)]`, both → `None` | omission asserts nothing; `null` asserts "nothing to show". Collapsing them invents the assertion. F-5 |
+| D26 | explicit `start_kill` + `wait` on the timeout path | rely on `kill_on_drop` | tokio's kill-on-drop is best-effort and needs a live runtime to reap. F-14 |
+| D27 | stdout capped at 8 MiB (fatal), stderr at 256 KiB (truncated) | one cap; caps in config | asymmetric because the streams are: truncated stdout misnames the fault, truncated stderr is still useful. Brief §5 names no such keys. F-2 |
+| D28 | schedule spans resolved via `SpanRelativeTo::days_are_24_hours()`; calendar units rejected | accept `"1 month"` | months need a time zone, i.e. the I/O stratum 1 does not have. Verified empirically. F-10 |
+| D29 | a past `next_check` is stored as given, not clamped to `now` | clamp to `now` | clamping rewrites the backend's instruction; "due now" is the timer's business. F-13 |
+| D30 | canonical fields are `pub(super)` with accessors; `NumberRange` is checked | `pub` fields | outside `semantics::protocol`, a canonical value can only come from normalization — P1 with a compiler behind it. F-9 |
+| D31 | P1 scoped to values the host interprets, not payloads it carries | P1 over every field | otherwise P1 demands a URI parser for a string nothing dereferences. User decision, F-9 |
 
 ## 8. Risks & mitigations
 
@@ -913,12 +1294,14 @@ reader needs so they do not reverse one by accident.
 |---|---|---|---|---|
 | R1 | ADR-001's one-way rule has no compiler behind it (A2), so the strata erode and ADR-002's split becomes a redesign | med / high | AC-15 test on the three strongest tokens; D1's stratum-visible paths; review | a `use crate::shell::…` under `semantics/`, `std::fs` there, or slice 002 finding the split hard |
 | R2 | jiff is pre-1.0; its friendly duration grammar could shift under a patch bump (A3) | low / med | AC-9 fixtures pin the accepted *and* rejected forms as tests | a dependency bump turns fixtures red |
-| R3 | unbounded stdout exhausts host memory — contradicts brief §13 outright | low / high | accepted (D19); follow-up recorded, paired with D18 | host OOM against a looping backend |
+| R3 | ~~unbounded stdout exhausts host memory~~ — **closed** by D27's cap | — | fixed, not mitigated | — |
+| R9 | a grandchild inheriting stderr keeps the pipe open after the backend is killed, so the stderr join stalls | low / low | grace timeout on the join; report the timeout without stderr rather than block (§5.4) | a timeout that itself takes longer than the timeout |
+| R10 | `pub(super)` fields plus accessors is boilerplate, and the pressure under deadline is to widen them back to `pub` | med / med | D30 states the reason on the type; AC-15's boundary tier is the place to add a visibility assertion if it recurs | a `pub` field appearing in `canonical.rs`, or an accessor returning `&mut` |
 | R4 | **the protocol gets narrowed to the first renderer anyway** — the failure this slice exists to prevent | med / high | fields and all `Content` variants admitted now; validation feedback proved additive; AC-10 puts the warning in `AGENTS.md` | slice 002 needing a protocol change, not just a renderer, to display something |
 | R5 | the draft spec drifts from the code and is promoted as intent — the exact risk OQ-1's original answer avoided | med / med | AC-14: reconcile before promotion, divergences dispositioned per `docs/AGENTS.md` | audit finding the draft easier to believe than the code |
 | R6 | the suite proves only that deno works, not that any command works | low / med | AC-12's bash backend | — mitigated by construction |
 | R7 | the field and content type surface is the largest chunk here and nothing renders it, inviting gold-plating | med / low | only brief-named vocabulary; P3's second half | a `FieldKind` or hint the brief never mentions |
-| R8 | the timeout diagnostic gap (D18) causes a hang to be misdiagnosed as a slow backend | med / low | §5.4 names the stdin-close trap explicitly, which is the usual cause | repeated timeouts against a backend that works when run by hand |
+| R8 | a hang is misdiagnosed as a slow backend | low / low | reduced by D18's reversal — the timeout now carries stderr; §5.4 also names the stdin-close trap explicitly, which is the usual cause | repeated timeouts against a backend that works when run by hand |
 
 ## 9. Validation
 
@@ -951,10 +1334,10 @@ reading the protocol rather than the tests, which matters for the draft spec.
 | AC-2 | protocol tier: version present, unknown optional ignored, unknown required rejected |
 | AC-3 | protocol tier: RFC 3339 and relative forms → one instant; `MissingOffset`, `Unparseable` rejected |
 | AC-4 | protocol tier: pure resolution over (existing, incoming, default), latest-valid-wins, invalid preserves |
-| AC-5 | integration: stdin write, stdout read, timeout, stderr captured |
-| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err` |
+| AC-5 | integration: stdin write, stdout read, timeout, stderr captured — **including on the timeout path** (F-3) |
+| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8) |
 | AC-7 | integration: `view: null` → choice → `view_id` → respond → accepted |
-| AC-8 | integration: stale and unknown `view_id` rejected, no backend spawn |
+| AC-8 | integration: stale and unknown `view_id` rejected as `StateError::StaleViewId` / `NoOutstandingView`, no backend spawn |
 | AC-9 | the corpus itself |
 | AC-10 | review against brief §15.1's list |
 | AC-11 | grep over `src/` for the named vocabulary |
@@ -964,11 +1347,14 @@ reading the protocol rather than the tests, which matters for the draft spec.
 | AC-15 | the boundary test |
 
 **Deliberately misbehaving backends** the integration tier needs: sleeps past the
-timeout; exits non-zero after writing valid JSON; writes malformed JSON; writes
-nothing; declares an unknown protocol version; returns `options: []`; returns
-duplicate option ids; returns an unknown `view.kind`; returns
-`"next_check": 45`. Command-not-found needs no fixture, only a path that does
-not exist.
+timeout; sleeps past the timeout **after writing to stderr** (F-3 — the assertion
+is that the stderr survives); floods stdout past the cap (F-2); exits non-zero
+after writing valid JSON; writes malformed JSON; writes nothing; declares an
+unknown protocol version; returns `options: []`; returns duplicate option ids;
+returns an unknown `kind` **nested inside a field** (F-6, asserting the `at`
+path); omits `view` entirely (F-5); returns `"next_check": 45`; returns
+`"next_check": "1 month"` (F-10); returns `min: 10, max: 1` (F-9).
+Command-not-found needs no fixture, only a path that does not exist.
 
 **Not validated here, and named so nobody assumes otherwise:** nothing renders,
 nothing wakes on a clock, no socket transport, and no cross-restart behaviour.
