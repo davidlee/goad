@@ -1,17 +1,20 @@
-# SPEC-NNN: The host/backend interaction protocol
+**This is not canon.** It is a draft held in `docs/slices/001/`, it carries no
+SPEC id, and nothing may cite it as one.
+
+# The host/backend interaction protocol
 
 **Status:** draft
 **Kind:** technical
 **Owns:** the wire contract between the goad host and a backend program, and the
 host-side behaviour that contract implies.
 
-> **This is not canon.** It is a draft held in `docs/slices/001/`, carrying no
-> SPEC id, and nothing may cite it as one. It becomes canon only when it is
-> reconciled against what shipped and promoted into `docs/specs/` with the user's
-> explicit endorsement (AC-13, AC-14). Until then it is authoritative about
-> *intent* and the tests are authoritative about *behaviour*; where the two
-> disagree, that is a finding to be dispositioned, not a licence to believe
-> whichever is convenient.
+> It becomes canon only when it is reconciled against what shipped and promoted
+> into `docs/specs/` with the user's explicit endorsement, at which point it is
+> given a SPEC id (AC-13, AC-14). Until then it is authoritative about *intent*
+> and the tests are authoritative about *behaviour*; where the two disagree, that
+> is a finding to be dispositioned, not a licence to believe whichever is
+> convenient. Raised as F-30: an earlier draft put a placeholder spec id in its
+> own title, which is precisely the identity it was claiming not to have.
 
 <!-- Requirement ids are already immutable: append, never renumber. -->
 
@@ -99,11 +102,12 @@ leave the host running and MUST leave it able to run the backend again.
 | R-12 | An unrecognised `kind` discriminant, at any depth, MUST produce a distinct error carrying both the offending string and the path at which it appeared, and MUST reject the whole message. | §7 |
 | R-13 | A `choice` view MUST carry a title and at least one option, and MAY carry a body. A choice with zero options MUST be rejected. | §7 |
 | R-14 | Option ids MUST be unique within a choice. Duplicates MUST be rejected. | §7 |
-| R-15 | An option MAY carry fields. Each field MUST carry an id, a kind and a label, and MAY carry hints. | §7 |
-| R-16 | Field kinds are `text`, `boolean`, `datetime`, `number` and `choice`. | §7 |
+| R-15 | An option MAY carry fields. Each field MUST carry an id, a kind and a label. Any key on the field object that this spec does not name is a hint. | §7 |
+| R-16 | Field kinds are `text`, `boolean`, `datetime`, `number` and `choice`, named by the field's `kind` key. A `number` MAY carry `min` and `max`; a `choice` field MUST carry its own `options`; the other three carry no additional protocol keys. | §7 |
 | R-17 | A `number` field's bounds MUST each be finite, and its minimum MUST NOT exceed its maximum. A violation rejects the message. | §7 |
-| R-18 | Hints are an open map. The host MUST NOT branch on any hint key. Anything the host must read is protocol, not a hint. | §7 |
-| R-19 | Content forms are `text`, `markdown`, `html` and `uri`. The host MUST NOT dereference a `uri`. | §7 |
+| R-50 | A key this spec names for one field kind, appearing on a field of another kind, MUST be rejected with a distinct error naming the key and the kind. It MUST NOT be treated as a hint and MUST NOT be ignored. R-15's "any key this spec does not name is a hint" is about keys the spec does not name at all — `min` on a `text` field is a named key used where it has no meaning, which is the ambiguity P-B says must fail. | §7 |
+| R-18 | Hints are an open map, carried as the field object's remaining keys. Only the renderer MAY branch on a hint key; nothing that normalizes, schedules, transports, or manages interaction state may. Anything one of those must read is protocol, not a hint. | §7 |
+| R-19 | Content forms are `text`, `markdown`, `html` and `uri`. A bare JSON string is `text`; any other form is an object naming its `kind` with its payload under `value`. The host MUST NOT dereference a `uri`. | §7 |
 | R-20 | A view part that the host cannot read MUST NOT be silently dropped. A part may be discarded on its own only where the protocol itself specifies the behaviour in its absence. | §7 |
 
 ### Responses: scheduling
@@ -124,7 +128,7 @@ leave the host running and MUST leave it able to run the backend again.
 
 | id | requirement | verified by |
 |----|-------------|-------------|
-| R-30 | The host mints every `view_id`. A backend MUST NOT supply one, and the host MUST NOT accept one if it does. | §7 |
+| R-30 | The host mints every `view_id`. The host MUST NOT read a `view_id` from a response; a backend that sends one has it ignored under R-4, like any other unmodelled field. | §7 |
 | R-31 | At most one interaction is outstanding at a time. | §7 |
 | R-32 | A `respond` naming a `view_id` that is not the outstanding one MUST be rejected, and the backend MUST NOT be contacted. | §7 |
 | R-33 | A view returned while an interaction is outstanding replaces it. The replaced `view_id` becomes stale immediately. | §7 |
@@ -141,8 +145,10 @@ leave the host running and MUST leave it able to run the backend again.
 | R-39 | The host MUST drain stdout and stderr concurrently. | §7 |
 | R-40 | A non-zero exit status MUST be reported as a failure and its stdout discarded, even if that stdout was valid. | §7 |
 | R-41 | A configured timeout covers the whole exchange. On elapse the host MUST terminate the child and reap it. | §7 |
-| R-42 | The host MUST capture stderr, including on the timeout path, and report it with the failure. | §7 |
-| R-43 | Every read from a backend MUST be bounded. Exceeding the stdout bound is a failure; exceeding the stderr bound truncates the diagnostic and is not itself a failure. | §7 |
+| R-42 | The host MUST capture stderr and report it with **every** outcome, successful or not — including a zero exit whose stdout then fails to parse, and including a timeout. | §7 |
+| R-43 | Every read from a backend MUST be bounded, and the two streams differ at the bound because their purposes do. Exceeding the **stdout** bound is a failure, and the host stops reading and closes the stream: it cannot act on a response it refused to finish, and leaving the pipe open only lets the flood continue. Exceeding the **stderr** bound is not a failure: the host retains the first bounded portion, flags the truncation, and MUST keep draining to EOF so a chatty backend cannot block on a full pipe. Corrected per F-43 — the earlier wording required both reads never to stop, which contradicted the stdout rule in the same sentence. | §7 |
+| R-48 | Every path that **returns** from an exchange MUST have terminated and reaped the backend first, including the paths that fail after spawning. Drop-time cleanup MUST NOT be the mechanism any returning path relies on. A failure to terminate or reap MUST itself be reported, unless the exchange already has a failure to report, in which case that one stands: the reason the host abandoned the child explains more than its inability to bury it. Where the exchange future is **dropped** rather than returning from — cancellation, a panic unwinding past it — no code of the host's runs, so drop-time cleanup is the only mechanism there is and the host relies on it explicitly. Narrowed per F-41: the earlier wording required every abandonment path to terminate and reap, which no implementation can satisfy for cancellation. | §7 |
+| R-49 | A reported failure means the host took no action. It MUST NOT be read as a claim that the backend produced no side effects. | §7 |
 
 ### Failure
 
@@ -151,15 +157,22 @@ leave the host running and MUST leave it able to run the backend again.
 | R-44 | Each of these MUST map to its own distinct error: command not spawnable; timeout; non-zero exit; malformed JSON; a protocol-invalid message; an invalid scheduling value; an unsupported required primitive; an answer naming an unknown or stale interaction. | §7 |
 | R-45 | No backend failure may terminate the host, and none may leave it unable to invoke the backend again. | §7 |
 | R-46 | The host MUST NOT panic on any value derived from a backend. | §7 |
-| R-47 | Every refusal MUST be reported. The host MUST NOT absorb an invalid value silently. | §7 |
+| R-47 | Every refusal of a backend-supplied value MUST be reported. The host MUST NOT absorb an invalid value silently. This governs what the backend sent — the sender can act on that — and not the host's internal cleanup telemetry: where the host both fails an exchange and then fails to clean up after it, R-48 says which of the two is reported. Scoped per F-42. | §7 |
 
 ## 5. Behaviour
 
 **The normal exchange.** The host resolves that a check is due, or a user answers
 a prompt. It serializes one request, invokes the backend, reads one response,
-normalizes it, resolves the next check, and updates its interaction state. A
-response carrying a view leaves an interaction outstanding; one carrying
-`view: null` does not.
+normalizes it, resolves the next check, and updates its interaction state.
+
+What `view: null` does depends on which request it answered, and the two must not
+be conflated (F-29). Answering an accepted `respond`, it closes the interaction:
+the user's answer was taken and there is nothing further to show. Answering an
+`evaluate` while an older interaction is still outstanding, it leaves that
+interaction exactly as it was — the backend was asked whether it had anything new,
+said no, and has not thereby withdrawn a question the user is still looking at.
+A response carrying a view always leaves an interaction outstanding, replacing any
+previous one.
 
 ```mermaid
 stateDiagram-v2
@@ -180,8 +193,9 @@ a renderer shows in place of a body that was sent, so dropping it would render a
 view the backend did not author.
 
 **Ambiguity is failure.** Zero options, duplicate option ids, an inverted numeric
-range, an unknown primitive, two JSON documents on stdout: each of these has more
-than one defensible reading, and the host takes none of them.
+range, an unknown primitive, a bound on a field that has no bounds, two JSON
+documents on stdout: each of these has more than one defensible reading, and the
+host takes none of them.
 
 **Absent is not null.** A response that omits `view` has said nothing about the
 view; a response with `"view": null` has said there is nothing to show. The first
@@ -221,7 +235,7 @@ and `response.values` are opaque to the host (R-9).
               { "id": "yes", "label": "Now" },
               { "id": "later", "label": "In a bit",
                 "fields": [ { "id": "minutes", "kind": "number", "label": "Minutes",
-                              "min": 5, "max": 120, "hints": { "units": "min" } } ] }
+                              "min": 5, "max": 120, "units": "min" } ] }
             ] },
   "next_check": "45 minutes" }
 ```
@@ -229,6 +243,46 @@ and `response.values` are opaque to the host (R-9).
 ```json
 { "view": null, "next_check": "2026-08-23T09:00:00+10:00" }
 ```
+
+**Content forms.** A bare string is `text`; everything else is tagged. These four
+are equivalent in status, and the first is the form brief §10.1 requires of v0:
+
+```json
+"body": "Optional context"
+"body": { "kind": "text",     "value": "Optional context" }
+"body": { "kind": "markdown", "value": "You have been at it **2h**." }
+"body": { "kind": "html",     "value": "<p>Careful now</p>" }
+"body": { "kind": "uri",      "value": "https://example.invalid/note" }
+```
+
+**Field forms.** The field object's own keys are `id`, `kind`, `label`, and —
+where the kind calls for them — `min`, `max` and `options`. **Every other key is a
+hint**, which is why `multiline` below sits flat rather than nested: that is how
+brief §10.2 writes it, and a nested `hints` object would leave it unmodelled and
+silently dropped.
+
+"Where the kind calls for them" is load-bearing rather than descriptive. `min` and
+`max` belong to `number` and `options` to `choice`; the same key on any other kind
+is an error and not a hint (R-50). The two rules are one rule seen from either
+side: a key the spec does not name is presentation, a key it does name is
+contract, and a contract key in a position where the contract gives it no meaning
+is neither.
+
+```json
+{ "id": "notes",  "kind": "text",     "label": "Anything notable?", "multiline": true }
+{ "id": "done",   "kind": "boolean",  "label": "Finished?" }
+{ "id": "when",   "kind": "datetime", "label": "When" }
+{ "id": "energy", "kind": "number",   "label": "Energy", "min": 1, "max": 10, "units": "kJ" }
+{ "id": "mood",   "kind": "choice",   "label": "Mood",
+  "options": [ { "id": "up", "label": "Good" }, { "id": "down", "label": "Bad" } ] }
+```
+
+A consequence worth stating rather than discovering: a misspelled **optional** key
+becomes a hint (`minn` is not `min`), while a misspelled **required** key is still
+an error. The spec accepts that asymmetry as the price of matching the brief's
+examples; the alternative — accepting both a flat key and a nested `hints`
+object — would give one thing two spellings, which P-B says must fail rather than
+be guessed at.
 
 ### 6.3 What the host owns versus uses
 
@@ -244,6 +298,12 @@ JSON document on stdout (R-38). Stderr is diagnostic and is captured whatever th
 outcome (R-42). The command is an argv vector (R-36). Nothing is inherited from a
 previous exchange: there is no warm process, no connection reuse and no retry.
 
+An exchange always completes: what can fail is the response, not the reporting of
+it, so a failure and the stderr captured before it arrive together rather than as
+alternatives. Every returning path kills and reaps the child before it returns
+(R-48); the runtime's kill-on-drop behaviour is a backstop for the paths where no
+host code runs at all, and the spec relies on it there and nowhere else.
+
 A backend is a **trusted user program**, not a sandboxed plugin. Nothing in this
 transport constitutes isolation, and no requirement here may be read as implying
 any.
@@ -255,10 +315,13 @@ any.
 | R-1, R-2, R-3 | protocol tier: a request snapshot asserts the emitted version; fixtures for absent, known and unknown inbound versions |
 | R-4, R-5 | protocol-tier fixtures carrying unmodelled fields at each level |
 | R-6, R-7, R-8 | request serialization snapshots for both kinds |
-| R-9, R-18, R-19 | source-level check that no host code reads a hint key, a data payload or a URI; review against P-A |
-| R-10, R-11 | fixtures: `view` omitted (error naming the field), `view: null` (accepted) |
+| R-9, R-19 | source-level check that no host code reads an event data payload or dereferences a URI; review against P-A |
+| R-18 | source-level check that no file outside the renderer reads a hint key. The renderer is the exception because presentation hints have no other consumer — see F-33 |
+| R-10, R-11 | fixtures: `view` omitted (error naming the field), `view: null` (accepted). Plus an integration case for each meaning of null — closing an answered interaction, and leaving an unrelated outstanding one alone (F-29) |
 | R-12 | fixtures: unknown kind at the view, at a field, and inside content — each asserting the reported path |
-| R-13, R-14, R-16, R-17 | fixtures: empty options, duplicate ids, each field kind, `NaN` and inverted bounds |
+| R-13, R-14, R-16 | fixtures: empty options, duplicate ids, and each field kind in its wire form |
+| R-50 | fixtures: `min` on a `text` field, `options` on a `number` field, `min` on a `choice` field — each asserting the error and the reported key, kind and path. Plus the negative: an *unnamed* key on the same field becoming a hint, so the two rules are shown not to collide |
+| R-17 | fixtures: inverted bounds → the bounds error; and `NaN` / `1e400` literals → a JSON parse error, since neither is expressible in JSON and so cannot reach bounds validation at all (F-36) |
 | R-15 | fixtures: an option with and without fields |
 | R-20 | review of every discard site against the two-clause test in §5; the discard type admits one variant, so a second requires the argument to be made |
 | R-21, R-22, R-23, R-24, R-25 | the scheduling fixture corpus: absolute with and without offset, spans in minutes/hours/days/weeks, calendar units, out-of-range, and wrong-typed values — each asserting its own variant |
@@ -275,11 +338,13 @@ any.
 | R-39 | integration: a backend writing more than one pipe buffer to stderr before its response completes |
 | R-40 | integration: exit 1 after writing valid JSON |
 | R-41 | integration: a backend sleeping past the timeout; the process is confirmed gone afterwards |
-| R-42 | integration: a backend that writes to stderr and then sleeps past the timeout; the failure carries the stderr |
-| R-43 | integration: a backend flooding stdout past the bound; and one flooding stderr, which succeeds with a truncation flag |
+| R-42 | integration: a backend that writes to stderr then sleeps past the timeout; and one that writes to stderr, exits zero, and emits unparseable stdout — both assert the stderr arrives |
+| R-43 | integration: a backend flooding stdout past the bound, which fails and whose stream the host closes — asserted by the backend observing the broken pipe; and one flooding stderr past the bound and then exiting zero with a valid response, which **succeeds** with the truncation flag set — the case that would deadlock if the stderr bound stopped that read |
+| R-48 | integration: after each misbehaving-backend case, no child of the test process remains, and no stderr-drain task or pipe descriptor survives the exchange that created it. The cancellation carve-out is reviewed, not tested: it states what the host relies on where no host code runs |
+| R-49 | review, and a spec-level statement rather than a test: the requirement constrains what the host may claim, and a test cannot observe a backend's side effects |
 | R-44 | one test per named failure mode, each asserting the specific variant |
 | R-45 | the whole integration tier runs every misbehaving backend against one host instance and asserts a later exchange still succeeds |
-| R-46 | clippy denying `unwrap_used` and `expect_used` outside tests |
+| R-46 | clippy denying `unwrap_used`, `expect_used`, `indexing_slicing` and `panicking arithmetic` in the modules that handle backend-derived data. Stated over those modules rather than over the whole crate, because the blanket form is what F-35 caught the design violating on a post-spawn stdio handle — a value the host itself created |
 | R-47 | every fixture asserts a reported error or discard, never a bare acceptance |
 
 Nothing here is marked unverified.

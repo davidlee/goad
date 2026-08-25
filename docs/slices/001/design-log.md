@@ -547,3 +547,168 @@ supersede it with a later one.
   that path, for a backend that ignores `SIGPIPE`.
 - **Consequence:** §5.4 gains both facts. Nothing about the decisions changed;
   what changed is that they are now observed rather than argued.
+
+### 2026-08-24 — The wire shape follows the brief's examples, flat keys and all (F-31, F-38)
+
+- **Raised by:** the review's F-31, that the draft spec did not define the wire
+  encoding of most admitted variants. Verifying it against brief §10 turned up a
+  second and worse instance, which I raised as F-38.
+- **What was wrong.** Brief §10.1's required v0 example writes
+  `"body": "Optional context"` — a bare string — which a tagged-only `Content`
+  rejects outright. Brief §10.2's field example writes
+  `{"id":"notes","kind":"text","label":"Anything notable?","multiline":true}`,
+  with `multiline` **flat on the field**; the design had `hints` as a nested
+  member, so that key arrived unmodelled and the no-`deny_unknown_fields` rule
+  discarded it *silently*. The brief's own worked examples were one rejection and
+  one silent loss. Those examples are what a backend author copies, so a wire type
+  that fails them is wrong however clean it reads.
+- **Question put to the user:** flat keys only, or accept both a flat key and a
+  nested `hints` object?
+- **Decided:** *"fix both"* — flat only. Two accepted spellings for one thing is
+  precisely the ambiguity brief §3.3 says must fail rather than be guessed at, and
+  it would have doubled the normalization paths to buy compatibility with a
+  spelling nothing uses.
+- **Consequence, and the cost stated precisely.** `WireField` uses
+  `#[serde(flatten)]`, so "every other key on the field object" is the definition
+  of a hint — which is also the honest reading of §10.2's "likely presentation
+  hints over time". Verified by running it: a misspelled **optional** key (`minn`)
+  becomes a hint silently, while a misspelled **required** key still fails with
+  `missing field 'label'`, because a declared field stays required after
+  flattening. So the exposure is bounded by which keys are optional, which is
+  narrower than flattening usually implies. Both cases are now edge-table rows.
+- **One encoding trap avoided.** The obvious way to accept string-or-object is
+  `#[serde(untagged)]`, and it is wrong here: it collapses every failure into
+  "data did not match any variant", destroying the `UnsupportedPrimitive
+  { kind, at }` error that F-6 was raised to obtain. So `body` stays
+  `serde_json::Value` at the wire and `normalize` dispatches — the same shape, and
+  the same reason, as `next_check`. D37, D38.
+
+### 2026-08-24 — Keep an error variant JSON cannot reach (F-36)
+
+- **Raised by:** the review. The spec asked for a fixture containing a `NaN`
+  bound, and JSON has no NaN literal.
+- **Verified before deciding**, because the disposition depends on where the
+  failure lands: serde_json rejects `{"min": NaN}` with `expected value` and
+  `{"min": 1e400}` with `number out of range` — both before any bounds check runs.
+  So `BoundsError::NotFinite` is unreachable from the wire, and the only reachable
+  bounds failure is `Inverted`.
+- **Question put to the user:** drop the variant, or keep it as a constructor
+  guard and fix the false claim?
+- **Decided:** *"keep and correct"*.
+- **Why that is the right way round.** `NumberRange::new` is public API, and P1's
+  claim is about what the *type* can hold rather than about which caller supplied
+  the value; one comparison now is cheaper than an argument in a later slice about
+  whether the invariant really holds. The defect was never the guard, it was the
+  claim: R-17's verification and §9's fixture now assert `Protocol(Json)` for a
+  NaN literal, and §5.2 records that the variant is a constructor guard and not a
+  wire failure mode.
+- **The general lesson, worth more than the case:** a test asserting an
+  unreachable error is a test that cannot fail, and it reads as coverage. That is
+  the more dangerous of the two available mistakes — dropping a cheap guard is
+  visible, a green test that proves nothing is not. D39.
+
+### 2026-08-25 — Round 3: nine findings, all of them mine (F-39…F-47)
+
+- **What the round was.** Nine findings, no blocker, and every one a defect in a
+  round-2 *repair* rather than in the original design. That is the fact worth
+  recording. The review is no longer finding design mistakes; it is finding the
+  wake of the fixes, which means the marginal value of another round is now about
+  my repair discipline rather than about the design.
+- **Six of the nine were one defect.** F-43, F-44, F-46, F-47 and (in a different
+  register) F-39 all have the same shape: a contract repaired at its primary site
+  and left standing in a restatement — an invariant row, a decision-index line, a
+  risk mitigation, an example, an acceptance criterion. F-34 had already named
+  this class in round 2 and I had already written it down, which is the
+  uncomfortable part: naming a failure mode does not fix it.
+- **So it became a procedure rather than a resolution.** §9 now carries a
+  restatement sweep as a review step: after any change to §5, re-read the
+  invariant and edge tables, the decision index, the risks, the AC map and
+  fixture list, the draft spec's requirements and examples, and the affected AC
+  text in the slice card. The redundancy that causes this is deliberate — each
+  contract is stated where a reader will meet it — so the answer is to pay its
+  cost every time, not to remove it. No test can observe that two English
+  sentences disagree.
+- **F-39 is the same class turned inward.** D23 argues that a value every path
+  produces must not live on the success branch of a `Result`; I applied it to
+  `Outcome` and then built `Outcome` from `Result<Exchange, BackendError>`, which
+  breaks it exactly. Restating a rule is not the same as applying it one level
+  down. The transport now returns a bare `Exchange { result, stderr }`. D40.
+
+### 2026-08-25 — Reap-failure precedence, and what R-47 is actually about (F-42)
+
+- **Raised by:** the review. `start_kill` and `wait` are both fallible; the sketch
+  called `reap` unconditionally and discarded its result, so a child that could
+  not be killed would be reported as a clean exchange.
+- **Question put to the user:** report both failures, or let the pre-existing one
+  win?
+- **Decided:** *"accept, narrow it to backend-supplied values"* — the proposed
+  rule, with R-47 scoped accordingly.
+- **The rule, in full.** *Already exited* is success: reaping unconditionally
+  means most reaps run against a process that has already gone, and "idempotent"
+  has to mean that or D35 is unimplementable. A reap failure with no prior error
+  becomes `BackendError::Reap`. A reap failure alongside an existing error is
+  dropped.
+- **Why the last clause rather than reporting both.** "We also could not kill it"
+  is a *consequence* of the timeout or overflow that made us abandon the child.
+  Reporting both buries the cause under its effect, and the person reading the
+  diagnostic needs the cause. This is an informational argument, not a tidiness
+  one — if the two failures were independent the answer would be different.
+- **The requirement had to move, and saying so is the point.** R-47's "every
+  refusal MUST be reported" governs values the *backend supplied*, because the
+  sender can act on those; that is the reason the requirement exists. It was never
+  about the host's own cleanup telemetry, and read literally it contradicted the
+  rule above. R-47 is now scoped, and **R-48 carries the reporting obligation for
+  reap failures instead** — the obligation moved rather than evaporated, which is
+  the difference between scoping a requirement and quietly weakening one. D42.
+
+### 2026-08-25 — A requirement I could not meet, and did not pretend to (F-41)
+
+- **Raised by:** the review, in two halves. The `?` on `PipeMissing` returned
+  after the child existed and before the unconditional reap — a straight bug, now
+  fixed with a `let … else` that reaps first, and a rule stated over the region:
+  no `?` past the spawn.
+- **The other half is not fixable.** If the exchange future is *dropped* —
+  cancellation, or a panic unwinding past it — no code of ours runs. There is
+  nothing to await a reap with. `kill_on_drop` is the only mechanism that exists
+  on that path, and no design changes that.
+- **Decided:** *"narrow it"*. R-48 now binds every path that **returns**, and
+  states plainly that cancellation relies on `kill_on_drop`.
+- **Why this is not the self-serving move it resembles.** Narrowing a requirement
+  until the design meets it is exactly what an adversarial review is supposed to
+  catch, so the distinction matters: the old wording was not merely unmet, it was
+  *unmeetable* — it forbade the only mechanism available on the path it governed.
+  A requirement no implementation can satisfy is not a high standard, it is a
+  defect in the requirement, and leaving it standing would have made every future
+  reader think the host does something it cannot. The half that *was* meetable
+  got fixed rather than written down, which is the test of whether a narrowing was
+  honest.
+
+### 2026-08-25 — A known key in the wrong place is a contradiction, not a hint (F-45)
+
+- **Raised by:** the review. `WireField` declares `min`, `max` and `options` for
+  all five kinds, because one struct deserializes all five and `kind` is only read
+  afterwards. Serde therefore consumes those keys *before* dispatch, so they can
+  no longer fall through to `hints` — and a `min` on a text field vanished with no
+  error and no hint.
+- **Question put to the user:** reject with a distinct error, or let them become
+  hints?
+- **Decided:** *"reject"*.
+- **Why, in D37's own terms.** The flatten decision rests on a division: unknown
+  keys are presentation, known keys are contract. A contract key in a position
+  where the contract gives it no meaning belongs to neither side of that division,
+  so admitting it as a hint would not extend the rule — it would dissolve it. It
+  is also the worse failure: `{"kind":"text","min":1}` would become a *successful*
+  parse carrying a hint the renderer is forbidden to branch on, which looks like
+  it worked. Silent absorption is what brief §3.3 and R-47 both forbid.
+- **Consequence.** `ProtocolError::InapplicableKey { key, kind, at }`, carrying
+  the path for the same reason `UnsupportedPrimitive` does. New requirement R-50,
+  written so it does not collide with R-15: R-15 governs keys the spec does not
+  name at all, R-50 governs named keys used where their kind gives them no
+  meaning. Fixtures assert both directions — the misplaced key rejected, the
+  unnamed key still becoming a hint — because a rule that only ever fires is
+  indistinguishable from one that fires too often.
+- **What this does to D37's cost statement, recorded because it was wrong.** D37
+  claimed the exposure from flattening was narrow, being limited to misspelled
+  *optional* keys. That was only true of a design in which misplaced *modelled*
+  keys were caught, and they were not. The claim described the design I intended
+  rather than the one I had written; it now describes the one I have. D43.

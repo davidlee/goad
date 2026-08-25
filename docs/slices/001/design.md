@@ -490,6 +490,24 @@ Two shapes, both verified by running them:
   else is a typed shape error. A loose wire type is again what makes a precise
   error possible.
 
+**A modelled key the field's kind does not admit is rejected, not absorbed —
+F-45.** `WireField` declares `min`, `max` and `options` for every kind, because
+one struct deserializes all five and the discriminant is only read afterwards.
+That is fine for deserialization and wrong for meaning: serde consumes those keys
+*before* `kind` is dispatched, so a `min` on a text field can no longer fall
+through to `hints` and simply vanishes. Silently absorbing a value the sender
+meant is the one outcome brief §3.3 and R-47 both forbid. Normalization therefore
+checks applicability — `min`/`max` only on `number`, `options` only on `choice` —
+and raises `InapplicableKey { key, kind, at }`, carrying the path for the same
+reason `UnsupportedPrimitive` does.
+
+Treating them as hints instead was the alternative, and it is worse. D37's whole
+basis is that unknown keys are presentation and *known* keys are contract; a known
+key appearing where its kind gives it no meaning is a contradiction, not a
+decoration. This is also the flatten decision's cost paid rather than deferred:
+the narrow exposure D37 claimed — misspelled *optional* keys — is only narrow if
+*misplaced modelled* keys are caught, and before F-45 they were not.
+
 The protocol version is handled asymmetrically, because the two directions have
 different authorship. The host always **writes** `"protocol": 1` on requests. On
 a response it **accepts** the field's absence — brief §8.2's own examples omit
@@ -554,6 +572,18 @@ with zero options is unrenderable, and duplicate option ids make a later
 `respond` ambiguous about which option it names. Both are §3.3 ambiguities, so
 both are rejected at normalization rather than tolerated. P1 says the canonical
 type should not be *able* to hold either.
+
+**`BoundsError::NotFinite` cannot be reached from the wire, and is kept anyway.**
+This is F-36. JSON has no `NaN` or infinity literal: verified, `{"min": NaN}` fails
+in serde_json with `expected value` and `{"min": 1e400}` with `number out of
+range`, both before any bounds check runs. So the only reachable wire failures are
+`Inverted` and a plain `Protocol(Json)`. The variant stays because
+`NumberRange::new` is public API and P1's claim is about what the *type* can hold,
+not about which caller supplied it — a guard that costs one comparison is cheaper
+than an argument in a later slice about whether the invariant really holds. What
+changes is the claim: §9's fixture asserts `Protocol(Json)` for a NaN literal, not
+`NotFinite`, because asserting the unreachable variant would be a test that cannot
+fail.
 
 `NumberRange` exists for the same reason, and it is the second half of F-9.
 `min: Option<f64>` admits `NaN` and it admits `min: 10, max: 1` — both of which
@@ -651,6 +681,7 @@ pub enum ProtocolError {
   Json(serde_json::Error),
   UnsupportedProtocolVersion { found: u32 },
   UnsupportedPrimitive { kind: String, at: String },   // path, per F-6
+  InapplicableKey { key: &'static str, kind: String, at: String },   // F-45
   MissingField { field: &'static str },
   EmptyOptions,
   DuplicateOptionId { id: String },
@@ -659,7 +690,7 @@ pub enum ProtocolError {
 }
 
 pub enum BoundsError {
-  NotFinite { bound: &'static str, found: f64 },   // NaN, +inf, -inf
+  NotFinite { bound: &'static str, found: f64 },   // unreachable from JSON — see below
   Inverted  { min: f64, max: f64 },                // min > max
 }
 
@@ -674,9 +705,11 @@ pub enum ScheduleError {
 // shell/error.rs  — stratum 2: transport and host state, wrapping the above
 pub enum BackendError {
   Spawn(std::io::Error),                        // command not found
-  Timeout { after: Duration, stderr: String },   // partial stderr survives — §5.4, F-3
-  ExitStatus { code: Option<i32>, stderr: String },
+  Timeout { after: Duration },
+  ExitStatus { code: Option<i32> },
   OutputTooLarge { limit: usize },               // stdout cap exceeded — §5.4, F-2
+  PipeMissing,                                   // stdio handle absent post-spawn — F-35
+  Reap(std::io::Error),                          // kill or wait failed — F-42
   Io(std::io::Error),
   Protocol(semantics::ProtocolError),
 }
@@ -699,6 +732,13 @@ enough information to debug the backend.
 rather than cosmetic — see §5.4 for what the schedule grammar actually accepts
 and why days resolve while months do not.
 
+**Stderr is not on the error, it is on the `Outcome`.** An earlier draft hung
+`stderr: String` off `Timeout` and `ExitStatus`, which made it reachable on
+exactly the two paths that already explain themselves and unreachable on the one
+that does not — a zero exit with an unparseable body. F-24 is that observation.
+Stderr now travels on `Exchange` and then on `Outcome`, uniformly, so no error
+variant carries a diagnostic that every path produces.
+
 `StateError` is what AC-8 was missing (F-8, F-15). AC-8 requires a stale
 `view_id` to be *rejected*, and there was no error in the taxonomy for it: the
 only candidate was `BackendError`, which would have blamed a backend that had not
@@ -720,9 +760,26 @@ error" was never what it said, and P2 forbids it.
 ```rust
 // shell/backend/transport.rs
 pub trait Backend {
-  fn exchange(&mut self, request: &Request)
-    -> impl Future<Output = Result<Vec<u8>, BackendError>> + Send;
+  fn exchange(&mut self, request: &Request) -> impl Future<Output = Exchange> + Send;
 }
+
+/// A completed exchange. `result` is the response body, or the reason there is
+/// none; `stderr` is diagnostic and is carried either way. Note there is no
+/// outer `Result`: the exchange itself always completes.
+pub struct Exchange {
+  pub result: Result<Vec<u8>, BackendError>,
+  pub stderr: Captured,
+}
+
+impl Exchange {
+  /// A failure with nothing captured — only for the paths where no process ever
+  /// ran, and so no stderr exists to have captured.
+  fn failed(error: BackendError) -> Self { /* Captured::default() */ }
+}
+
+/// Bounded capture. `truncated` is the flag AC-5's cap needs somewhere to live.
+#[derive(Default)]
+pub struct Captured { pub bytes: Vec<u8>, pub truncated: bool }
 ```
 
 - **`&mut self`, even though the process transport does not need it.** The
@@ -741,7 +798,22 @@ pub trait Backend {
   exchange on a persistent socket (brief §6). A trait taking pre-serialized
   bytes would have baked the process transport's framing into the seam, which is
   the P3 mistake.
-- **Returns `Vec<u8>`, not `String`.** Invalid UTF-8 then becomes a
+- **Returns `Exchange`, not bare bytes — F-24 — and returns it unconditionally,
+  which is F-39.** A `Vec<u8>` return could only carry stderr by attaching it to
+  an error, so stderr was reachable for `Timeout` and `ExitStatus` and
+  unreachable everywhere else, including the case that most needs it: the backend
+  exits zero, writes something unparseable, and has already explained itself on
+  stderr. It also left D27's truncation flag with nowhere to live. `Exchange`
+  fixed that at one level and reintroduced it at the next, because
+  `Result<Exchange, BackendError>` puts the capture on the `Ok` side and so loses
+  it on **every** `Err` — which is to say on exactly the paths stderr exists for.
+  That is D23's argument verbatim, one layer down: a value every path produces
+  must not live on the success branch. This design stated the rule for `Outcome`
+  and then failed to apply it to the type `Outcome` is built from. So the failure
+  travels *beside* the capture rather than around it. Three changes to one seam
+  in a single review, each because it was shaped to the process transport's
+  happy path.
+- **`stdout` is `Vec<u8>`, not `String`.** Invalid UTF-8 then becomes a
   `Protocol(Json)` error via `from_slice` rather than a lossy replacement. No
   silent mangling of backend output.
 - **Async fn in trait, static dispatch.** Rust 1.99 makes AFIT stable, so no
@@ -967,31 +1039,52 @@ conclusion was wrong.
 const STDOUT_LIMIT: usize = 8 * 1024 * 1024;
 const STDERR_LIMIT: usize =      256 * 1024;
 
-let mut child  = cmd.spawn().map_err(BackendError::Spawn)?;   // kill_on_drop(true)
-let     stderr = child.stderr.take().expect("piped at spawn");
+// No `?` past the spawn: once a child exists every return must reap it, and `?`
+// would quietly hand that job to `kill_on_drop` — the mechanism D26 says not to
+// rely on. This is F-41.
+let mut child = match cmd.spawn() {                          // kill_on_drop(true)
+  Ok(child) => child,
+  // Nothing spawned, so there is no stderr that could have been captured.
+  Err(e) => return Exchange::failed(BackendError::Spawn(e)),
+};
+let Some(stderr) = child.stderr.take() else {                // no expect — F-35
+  reap(&mut child).await;
+  return Exchange::failed(BackendError::PipeMissing);
+};
 
-// Stderr drains in its own task, so the buffer outlives a timeout on the
-// exchange future. Killing the child closes the pipe, the task sees EOF, and
-// the partial buffer arrives through the join handle.
-let draining_stderr = tokio::spawn(read_capped(stderr, STDERR_LIMIT));
+// Stderr accumulates into a buffer the *caller* owns, not one the task owns, so
+// bytes already read survive even if the task itself has to be abandoned (F-27).
+let seen: Arc<Mutex<Captured>> = Arc::default();
+let draining_stderr = tokio::spawn(drain_capped(stderr, STDERR_LIMIT, seen.clone()));
 
 // Bound before the match, not inside its scrutinee: `exchange` holds `&mut child`,
 // and a temporary in a match scrutinee lives to the end of the match — so the
 // borrow would still be live in the arms that need `child`.
 let exchange = async { /* write stdin, drop it, read stdout capped, child.wait() */ };
-let result = tokio::time::timeout(config.timeout, exchange).await;
+let raced = tokio::time::timeout(config.timeout, exchange).await;
 
-match result {
-  Ok(res) => res,                       // stderr joined on the paths that need it
-  Err(_)  => {
-    child.start_kill()?;                // SIGKILL; uncatchable, so the pipe closes
-    let _ = child.wait().await;         // reap, deliberately, not via Drop
-    Err(BackendError::Timeout { after: config.timeout, stderr: draining_stderr.await? })
-  }
-}
+// Every path from here reaps the child explicitly. `kill_on_drop` is the backstop
+// for panics and cancellation, never the mechanism we rely on (F-26).
+let body = match raced {
+  Ok(Ok(stdout)) => Ok(stdout),
+  Ok(Err(e))     => Err(e),                                  // cap exceeded, or I/O
+  Err(_)         => Err(BackendError::Timeout { after: config.timeout }),
+};
+
+// `reap` is start_kill + wait, and idempotent: an already-exited child is a
+// no-op success. It reports only when nothing else has — see the precedence
+// rule below (F-42).
+let result = match (body, reap(&mut child).await) {
+  (Ok(stdout), Ok(()))  => Ok(stdout),
+  (Ok(_),      Err(e))  => Err(BackendError::Reap(e)),
+  (Err(prior), _)       => Err(prior),
+};
+
+// Joins the drain under a short grace timeout, aborting it on elapse (F-40).
+Exchange { result, stderr: collect_stderr(&seen, draining_stderr).await }
 ```
 
-Four things this makes explicit:
+What this makes explicit:
 
 - **The caps are asymmetric, because the streams are.** Over-long stdout is
   `OutputTooLarge` and fails the exchange: the host cannot act on a response it
@@ -1009,6 +1102,52 @@ Four things this makes explicit:
   can leave a zombie. Killing and awaiting on the path we know about turns a
   best-effort claim into an observed one. `kill_on_drop(true)` stays set, for the
   panic and cancellation paths that do not run this code.
+- **`reap` runs on every path, not only the timeout — F-26.** The first version of
+  this design killed explicitly in the timeout arm and let `Ok(res) => res` carry
+  the cap-exceeded and I/O-error paths straight out, which left those paths
+  relying on precisely the mechanism the previous bullet says not to rely on. A
+  design that names a weak mechanism and then still uses it on three paths out of
+  four has not fixed anything. `reap` is therefore unconditional and idempotent —
+  a child that already exited makes it a no-op — and the exchange's own error is
+  decided before the reap rather than inside it.
+- **A `?` after the spawn is a bug, and the rule is stated over the region rather
+  than the line — F-41.** `child.stderr.take().ok_or(PipeMissing)?` returned after
+  the child existed and before the unconditional reap, which is the previous
+  bullet's mechanism quietly reintroduced by punctuation. The sketch uses
+  `let … else` and reaps first; the only return that skips the reap is the spawn
+  failure, where there is no child to reap. **No `?` past the spawn** is the rule,
+  because the next person to add a fallible step here will reach for one.
+- **A reap failure reports only when nothing else did — F-42.** `start_kill` and
+  `wait` are both fallible, and an unconditional reap that ignores its own result
+  would let a live child be reported as a clean exchange. The precedence rule, in
+  full: *already exited* is success, because reaping unconditionally means most
+  reaps run against a process that has already gone; any other reap failure with
+  no prior error becomes `BackendError::Reap`; and a reap failure alongside an
+  existing error is **dropped deliberately**. The last clause is the only one
+  that needs defending, and the defence is that "we also could not kill it" is
+  strictly less informative than the timeout or overflow that made us abandon it
+  — the second error explains the first, so reporting both would bury the cause
+  under its consequence. R-47's "every refusal MUST be reported" governs
+  backend-supplied *values*, which the sender can act on; it was never about
+  internal cleanup telemetry, and the draft spec now says so — the obligation
+  moves to R-48 rather than disappearing.
+
+  A reap failure on the *success* path discards a response that parsed, which
+  looks harsh until you notice it is close to unreachable: the success path
+  already awaited exit inside `exchange`, so its reap is a no-op by construction,
+  and a `wait` that errors for a child we believe has already exited is a
+  host-side inconsistency rather than a backend result. Reporting it costs one
+  exchange, which is cheap, and swallowing it would make I13 unobservable, which
+  is not.
+- **The two readers behave differently, because the two streams do — F-25.**
+  `read_capped` (stdout) stops at the limit and drops the handle: the exchange is
+  already failing, and closing the pipe is what makes the flood stop rather than
+  merely making our buffer stop growing. `drain_capped` (stderr) retains the first
+  256 KiB, sets `truncated`, and **keeps consuming to EOF**. That difference is the
+  whole point: a chatty-but-working backend blocks forever on a full pipe nobody
+  is reading, so "truncate" has to mean "stop storing", never "stop reading".
+  Collapsing both into one `read_capped` — which the previous draft did — turns
+  D27's "over-long stderr is not a failure" into a deadlock.
 - **Hitting the stdout cap kills the backend, and does so by itself.** Verified by
   building and running this design against a `yes`-style flooding backend: when
   the capped reader returns early it drops the stdout handle, the pipe closes, the
@@ -1020,13 +1159,33 @@ Four things this makes explicit:
   the same reason as F-14. The same run confirmed the borrow structure above, that
   stderr survives the timeout path, and that a backend reading stdin to EOF
   completes.
-- **Where this can still stall.** If the backend spawned a grandchild that
-  inherited the stderr fd, killing the backend does not close the pipe, and the
-  drain task does not reach EOF. The join therefore takes a short grace timeout
-  of its own, after which the host reports the timeout with no stderr rather than
-  waiting on a process it does not manage. We do not kill process groups: brief
-  §14 makes backends trusted user programs, and reaching past the process we
-  spawned is a bigger claim over the user's machine than this slice should make.
+- **Where this can still stall, what survives it, and what must be stopped —
+  F-27 and F-40.** If the backend spawned a grandchild that inherited the stderr
+  fd, killing the backend does not close the pipe and the drain task never
+  reaches EOF. The join therefore takes a short grace timeout of its own, after
+  which the host **aborts the task** and stops waiting on a process it does not
+  manage. Aborting rather than simply dropping the handle is F-40's correction,
+  and it is not a nicety: dropping a tokio `JoinHandle` *detaches* the task
+  rather than cancelling it, so a backend that arranges this on every exchange
+  accumulates one live task, one pipe descriptor and up to 256 KiB of buffer per
+  call, forever. That is a backend causing unbounded host resource growth, which
+  is exactly what I11 forbids and what the caps upstream exist to prevent — the
+  cap on the buffer is worth nothing if the buffers themselves are unbounded in
+  number. The stderr **is not lost**, which is the correction F-27
+  forced: the buffer is behind an `Arc<Mutex<Captured>>` owned by the caller, so
+  abandoning the task still leaves every byte it had already read readable. An
+  earlier draft returned the buffer through the task's join handle, which is
+  tidier and meant that abandoning the task discarded everything — including the
+  bytes that were the reason for capturing stderr at all.
+
+  This is the one place a lock is right, and it is worth saying why given that D14
+  refused one for `State`. There the concurrency was hypothetical and brief §12
+  says not to invent it; here there are genuinely two tasks reading and writing
+  one buffer, and the lock is uncontended in the normal case.
+
+  We do not kill process groups: brief §14 makes backends trusted user programs,
+  and reaching past the process we spawned is a bigger claim over the user's
+  machine than this slice should make.
 
 ```mermaid
 sequenceDiagram
@@ -1040,18 +1199,18 @@ sequenceDiagram
     H->>P: exchange(&Evaluate)
     P->>B: spawn, write JSON, close stdin
     B-->>P: stdout JSON, exit 0
-    P-->>H: Vec<u8>
+    P-->>H: Exchange { result, stderr }
     H->>H: from_slice → normalize_response(wire, now)
     H->>S: resolve schedule, issue view_id
-    H-->>T: Outcome { view: Some, next_check, discarded, failure: None }
+    H-->>T: Outcome { view: Some(Presented{view_id, view}), next_check, stderr, failure: None }
     T->>H: respond(now, view_id, answer)
     H->>S: check view_id matches outstanding
     H->>P: exchange(&Respond)
     P->>B: spawn, write JSON, close stdin
     B-->>P: {"view": null, "next_check": …}
-    P-->>H: Vec<u8>
+    P-->>H: Exchange { result, stderr }
     H->>S: clear outstanding, resolve schedule
-    H-->>T: Outcome { view: None, next_check, failure: None }
+    H-->>T: Outcome { view: None, next_check, stderr, failure: None }
 ```
 
 Note that `respond` checks `view_id` against `State` **before** touching the
@@ -1084,12 +1243,15 @@ valid JSON, the host reports `ExitStatus` and discards the output. The backend
 told us it failed; trusting output it disclaimed would be the host deciding it
 knows better.
 
-**A timed-out backend yields whatever stderr it had produced.** That is the
-point of draining it in a separate task, and it is the diagnostic that makes a
-timeout debuggable. `BackendError::Timeout` therefore carries `stderr` alongside
-`after`. Do not let a later reader "simplify" this back into
-`wait_with_output()`; the drain task and the explicit kill are load-bearing, and
-§5.4 above says why.
+**Every outcome yields whatever stderr the backend produced**, timeouts and
+successes alike, carried on `Outcome::stderr` rather than hung off particular
+error variants (F-24) — and the transport's own return type puts the failure
+*beside* the capture rather than around it, so there is no path on which the two
+can come apart (F-39, D40). For a timeout that is the diagnostic that makes it
+debuggable; for a zero exit with an unparseable body it is often the only
+explanation there is. Do not let a later reader "simplify" this back into
+`wait_with_output()`; the caller-owned buffer, the differing readers and the
+unconditional reap are all load-bearing, and §5.4 says why for each.
 
 **Two things stated because they are lifecycle behaviour, not code detail:** the
 timeout is per exchange rather than per byte, so a backend that streams slowly
@@ -1109,11 +1271,13 @@ transport, which is why slice 005 exists.
 | I4 | `resolved_check` always holds a concrete instant | non-`Option` field |
 | I5 | At most one outstanding interaction | `Option<Outstanding>` |
 | I6 | Only one exchange in flight | `&mut self` — compiler-enforced, not convention |
-| I7 | The host never branches on a `hints` key | review; brief §3.4 |
+| I7 | Nothing in `semantics/` or `shell/` branches on a `hints` key. The renderer may, and is the only thing that may | review; brief §3.4, §10.2. Corrected per F-33 |
 | I8 | No domain vocabulary in types or module names | AC-11 grep |
 | I9 | No path panics on backend-derived data — no `unwrap`, `expect` or slicing on anything a backend produced | AC-6; clippy lints |
 | I10 | No inbound wire type is a closed contract: no `deny_unknown_fields`, and the absence of an *unmodelled* field never means more than "not supplied" | review; see the validation-feedback analysis below |
-| I11 | No backend can cause unbounded host memory growth: every stream read from a backend is capped | D27; the stdout-flood integration test |
+| I11 | No backend can cause unbounded host resource growth: every stream read from a backend is capped; reaching the **stderr** cap stops storing but never stops reading; and no exchange leaves a task, buffer or descriptor behind. Qualified per F-43, extended per F-40 | D27, D34, D41; the stdout- and stderr-flood integration tests |
+| I13 | No exchange **returns** leaving a live or unreaped child. On the paths where the host runs no code at all — cancellation, unwinding — `kill_on_drop` is the backstop, and is named as one rather than relied on. Qualified per F-41 | D35, D42; `reap` is unconditional past the spawn, and no `?` short-circuits it |
+| I14 | A view never reaches a caller without the `view_id` that answers it | D32; `Presented` |
 | I12 | Every `Outcome`, including every failure, carries a concrete `next_check` | D23; non-`Option` field |
 
 **Assumptions.** Each is a place this design can break.
@@ -1146,7 +1310,8 @@ transport, which is why slice 005 exists.
 
 | case | behaviour |
 |---|---|
-| `view: null` with a valid `next_check` | nothing to show; schedule updates; any outstanding interaction is left alone |
+| `view: null` answering an **`evaluate`** | nothing to show; schedule updates; an outstanding interaction is left exactly as it was — the backend was asked whether it had anything new, not whether the open question still stands |
+| `view: null` answering an accepted **`respond`** | the interaction closes and the host returns to idle; the answer was taken and there is nothing further to show. F-46: the unqualified form of this row contradicted the state diagram |
 | scheduled evaluate fires while an interaction is outstanding | permitted; a returned view replaces the outstanding one. *Whether* to poll while a prompt is unanswered is policy, and belongs to slice 003 |
 | `next_check` in the past, incl. `"-45 minutes"` | parses; stored **as given**, not clamped. A past instant means the next wake is due, which slice 003's timer expresses by firing immediately. Clamping would have the host silently rewrite the backend's instruction — F-13 |
 | `"next_check": "1 month"` | `ScheduleError::CalendarUnit`, discarded, message accepted. A month has no fixed length without a calendar, and stratum 1 has no time zone database by construction (§5.2, D4) |
@@ -1160,8 +1325,16 @@ transport, which is why slice 005 exists.
 | two JSON documents on stdout | `Protocol(Json)` on trailing content. Strictness is correct here: framing is the transport's job and this transport's frame is "one document" |
 | `command = []` in config | rejected at load — nothing to spawn |
 | `timeout = "0s"` or `default_poll = "0s"` | rejected at load. A zero timeout fails every exchange; a zero poll is a busy loop |
-| backend emits more than 8 MiB on stdout | `OutputTooLarge`; child killed; message rejected |
-| backend emits more than 256 KiB on stderr | truncated and flagged; not a failure in itself |
+| backend emits more than 8 MiB on stdout | `OutputTooLarge`; reader closes, child reaped; message rejected |
+| backend emits more than 256 KiB on stderr | first 256 KiB retained, `truncated` set, **pipe drained to EOF**; the exchange succeeds normally |
+| backend exits 0, writes unparseable stdout, explains itself on stderr | `Protocol(Json)`, and `Outcome::stderr` carries the explanation — F-24 |
+| `"body": "Optional context"` (brief §10.1's own example) | accepted as `Content::Text` |
+| `{"id":"n","kind":"text","label":"L","multiline":true}` (brief §10.2's own example) | accepted; `multiline` becomes a hint |
+| `{"min": NaN}` or `{"min": 1e400}` | `Protocol(Json)` — JSON cannot express either, so bounds validation never runs. F-36 |
+| field object misspells an optional key (`minn`) | becomes a hint, silently. The stated cost of D37 |
+| field object misspells a required key (`labell`) | rejected — the declared field is still required after flattening |
+| `{"kind":"text","min":1}` — a modelled key its kind does not admit | `InapplicableKey { key: "min", kind: "text", at }` — whole message rejected. Serde consumes it before dispatch, so the alternative is losing it silently. F-45 |
+| `{"kind":"number","options":[…]}` / `{"kind":"choice","min":1}` | likewise `InapplicableKey` |
 
 **Schedule resolution is where jiff's grammar has to be pinned, not assumed.**
 `"1 month"` and `"45 minutes"` both parse to a jiff `Span`, and only one of them
@@ -1240,7 +1413,14 @@ questions:
 - The serde encoding that makes an unrecognised `kind` — at any of the three
   discriminant sites — produce `UnsupportedPrimitive { kind, at }` rather than a
   generic deserialization error, and how the `at` path is accumulated. The
-  contract is fixed in §5.2; the mechanism is not.
+  contract is fixed in §5.2; the mechanism is not. One encoding is known to work
+  and is offered rather than mandated: read the discriminant with
+  `struct WireView { kind: String, #[serde(flatten)] rest: serde_json::Value }`
+  and dispatch on `kind`, which was run against nested fields, a bare-string
+  `body`, a nested choice field carrying its own `options`, and both the absent
+  and explicit-null forms of `view`. It confirmed that `flatten` at depth does not
+  disturb the `deserialize_with` on `view` above it — the interaction worth
+  checking before relying on either.
 - Whether `Hints` is a `BTreeMap<String, serde_json::Value>` or a thinner
   newtype over it. No behaviour depends on the answer.
 
@@ -1267,13 +1447,13 @@ reader needs so they do not reverse one by accident.
 | D9 | semantics in `FieldKind`, presentation in an open `hints` map | one flat struct of hints | brief §3.4's line. §10.2 calls its hint list provisional, so fixing it in a struct narrows the protocol |
 | D10 | `Discarded` is a closed enum | `Vec<(String, Error)>` | adding a variant is the moment P2's eligibility test must be argued |
 | D11 | AFIT trait, static dispatch, generic `Host<B>` | `async_trait` + `Box<dyn>` | no dependency, no per-call boxing. Cost: slice 005 needs an enum, not `dyn` |
-| D12 | transport returns `Vec<u8>` | `String` | invalid UTF-8 becomes a JSON error, not a lossy replacement |
+| D12 | the response **body** is `Vec<u8>`, not `String` | `String` | invalid UTF-8 becomes a JSON error, not a lossy replacement. The body sits inside `Exchange` — see D33 and D40. Corrected per F-47 |
 | D13 | `view_id` = `{now}#{seq}` | uuid v4 | no dep; readable in diagnostics; deterministic in fixtures; nothing authenticates with it |
 | D14 | `State` behind `&mut self`, no lock | `Arc<Mutex<…>>` | brief §12 serializes exchanges; a lock invents a state space §12 says to avoid |
 | D15 | non-zero exit beats parseable stdout | trust the output | the backend disclaimed it; trusting it anyway is the host overruling the backend |
 | D16 | a second view replaces the outstanding one | queueing | brief §12 allows one active interaction; a queue is the concurrency it forbids |
-| D17 | host validates `view_id` only; the backend validates answers | retain the view, check option ids | user decision. Validation feedback confirmed additive, §5.5 |
-| ~~D18~~ | ~~accept: no stderr on timeout~~ | — | **reversed**, F-3. Stderr drains in its own task and `Timeout` carries it |
+| D17 | host validates `view_id` only; the backend validates answers | retain the view, check option ids | user decision. Validation feedback needs no breaking restructure, but does need a version bump or capability declaration — §5.5, corrected per F-7 and F-34 |
+| ~~D18~~ | ~~accept: no stderr on timeout~~ | — | **reversed**, F-3. Stderr drains in its own task into a caller-owned buffer, and the `Exchange` carries it on the timeout path like every other. `BackendError::Timeout` itself carries nothing — D33 is why. Corrected per F-47 |
 | ~~D19~~ | ~~accept: unbounded stdout read~~ | — | **reversed**, F-2. Bounded manual drain; brief §13 forbids a backend taking down the host |
 | D20 | draft spec in the slice folder, promoted at close | spec written at audit | gives execution a prose contract without making it canon early |
 | ~~D21~~ | ~~`kill_on_drop` as the reaping mechanism~~ | — | **superseded by D26**, F-14. `kill_on_drop` stays set as a backstop but is not what we rely on |
@@ -1287,6 +1467,18 @@ reader needs so they do not reverse one by accident.
 | D29 | a past `next_check` is stored as given, not clamped to `now` | clamp to `now` | clamping rewrites the backend's instruction; "due now" is the timer's business. F-13 |
 | D30 | canonical fields are `pub(super)` with accessors; `NumberRange` is checked | `pub` fields | outside `semantics::protocol`, a canonical value can only come from normalization — P1 with a compiler behind it. F-9 |
 | D31 | P1 scoped to values the host interprets, not payloads it carries | P1 over every field | otherwise P1 demands a URI parser for a string nothing dereferences. User decision, F-9 |
+| D32 | `Outcome::view` is `Option<Presented>`, pairing view and `view_id` | a separate `Option<ViewId>` field | a view with no id, or an id with no view, is not representable — so no caller checks for it. F-23 |
+| D33 | the transport returns `Exchange`, carrying stderr as a `Captured` beside the body | `Vec<u8>`, stderr hung off error variants | stderr must reach the caller on the zero-exit-unparseable-body path too, and the truncation flag needs a home. F-24, refined by D40 |
+| D34 | two readers: stdout stops-and-closes, stderr truncates but drains to EOF | one `read_capped` for both | "truncate" must mean stop *storing*, never stop *reading*, or a chatty backend deadlocks. F-25 |
+| D35 | `reap` on every path, idempotent | explicit kill only on timeout | naming `kill_on_drop` as too weak and then using it on three paths out of four fixes nothing. F-26 |
+| D36 | stderr accumulates in a caller-owned `Arc<Mutex<Captured>>` | return it through the drain task's join handle | abandoning the task must not discard bytes already read; the grandchild case makes abandonment real. F-27 |
+| D37 | wire `hints` are `#[serde(flatten)]`, not a nested member | nested `hints` object; or accept both | brief §10.2 writes `multiline` flat, so a nested member silently discards the brief's own example. Both spellings would be the §3.3 ambiguity. User decision, F-38 |
+| D38 | wire `body` is `serde_json::Value`, dispatched in normalize | `#[serde(untagged)]` enum | brief §10.1's `"body": "Optional context"` is a bare string; `untagged` would collapse every failure into "matched no variant" and destroy F-6's named error. F-31 |
+| D39 | keep `BoundsError::NotFinite` though JSON cannot express it | drop the variant | `NumberRange::new` is public API and P1 is about the type, not the caller. The fixture asserts `Protocol(Json)` instead. User decision, F-36 |
+| D40 | `exchange` returns a bare `Exchange { result, stderr }`, with no outer `Result` | `Result<Exchange, BackendError>` | an outer `Result` puts the capture on the `Ok` side, losing stderr on exactly the paths it exists for. D23's own argument, applied one level down. F-39 |
+| D41 | the abandoned stderr drain is **aborted** after its grace timeout | drop the `JoinHandle` | dropping a tokio handle detaches rather than cancels, so a backend could accumulate one task, descriptor and buffer per exchange — the unbounded growth I11 forbids. F-40 |
+| D42 | a reap failure is reported only when the exchange has no other failure; "already exited" is success | report both; ignore reap errors entirely | "we also could not kill it" is strictly less informative than the timeout that made us abandon it. Ignoring them entirely would let a live child be reported as a clean exchange. User decision, F-42 |
+| D43 | a modelled key its kind does not admit is rejected as `InapplicableKey`, not treated as a hint | ignore it; make it a hint | serde consumes it before `kind` is dispatched, so "ignore" means *silently lost*. D37's basis is that unknown keys are presentation and known keys are contract — a known key in the wrong place is a contradiction. User decision, F-45 |
 
 ## 8. Risks & mitigations
 
@@ -1295,13 +1487,13 @@ reader needs so they do not reverse one by accident.
 | R1 | ADR-001's one-way rule has no compiler behind it (A2), so the strata erode and ADR-002's split becomes a redesign | med / high | AC-15 test on the three strongest tokens; D1's stratum-visible paths; review | a `use crate::shell::…` under `semantics/`, `std::fs` there, or slice 002 finding the split hard |
 | R2 | jiff is pre-1.0; its friendly duration grammar could shift under a patch bump (A3) | low / med | AC-9 fixtures pin the accepted *and* rejected forms as tests | a dependency bump turns fixtures red |
 | R3 | ~~unbounded stdout exhausts host memory~~ — **closed** by D27's cap | — | fixed, not mitigated | — |
-| R9 | a grandchild inheriting stderr keeps the pipe open after the backend is killed, so the stderr join stalls | low / low | grace timeout on the join; report the timeout without stderr rather than block (§5.4) | a timeout that itself takes longer than the timeout |
+| R9 | a grandchild inheriting stderr keeps the pipe open after the backend is killed, so the stderr join stalls | low / low | grace timeout on the join, then **abort** the task (D41); the caller-owned buffer means the bytes read before the stall are still reported, so this degrades the capture rather than losing it (D36). Corrected per F-47 | a timeout that itself takes longer than the timeout |
 | R10 | `pub(super)` fields plus accessors is boilerplate, and the pressure under deadline is to widen them back to `pub` | med / med | D30 states the reason on the type; AC-15's boundary tier is the place to add a visibility assertion if it recurs | a `pub` field appearing in `canonical.rs`, or an accessor returning `&mut` |
-| R4 | **the protocol gets narrowed to the first renderer anyway** — the failure this slice exists to prevent | med / high | fields and all `Content` variants admitted now; validation feedback proved additive; AC-10 puts the warning in `AGENTS.md` | slice 002 needing a protocol change, not just a renderer, to display something |
+| R4 | **the protocol gets narrowed to the first renderer anyway** — the failure this slice exists to prevent | med / high | fields and all `Content` variants admitted now; validation feedback shown to need no breaking restructure (though it does need version or capability negotiation — F-7); the wire shape checked against the brief's own examples rather than against our types (F-31, F-38); AC-10 puts the warning in `AGENTS.md` | slice 002 needing a protocol change, not just a renderer, to display something |
 | R5 | the draft spec drifts from the code and is promoted as intent — the exact risk OQ-1's original answer avoided | med / med | AC-14: reconcile before promotion, divergences dispositioned per `docs/AGENTS.md` | audit finding the draft easier to believe than the code |
 | R6 | the suite proves only that deno works, not that any command works | low / med | AC-12's bash backend | — mitigated by construction |
 | R7 | the field and content type surface is the largest chunk here and nothing renders it, inviting gold-plating | med / low | only brief-named vocabulary; P3's second half | a `FieldKind` or hint the brief never mentions |
-| R8 | a hang is misdiagnosed as a slow backend | low / low | reduced by D18's reversal — the timeout now carries stderr; §5.4 also names the stdin-close trap explicitly, which is the usual cause | repeated timeouts against a backend that works when run by hand |
+| R8 | a hang is misdiagnosed as a slow backend | low / low | reduced by D18's reversal — a timed-out exchange now returns whatever stderr had accumulated, on the `Exchange` rather than on the error (D33, D40); §5.4 also names the stdin-close trap explicitly, which is the usual cause. Corrected per F-47 | repeated timeouts against a backend that works when run by hand |
 
 ## 9. Validation
 
@@ -1334,9 +1526,9 @@ reading the protocol rather than the tests, which matters for the draft spec.
 | AC-2 | protocol tier: version present, unknown optional ignored, unknown required rejected |
 | AC-3 | protocol tier: RFC 3339 and relative forms → one instant; `MissingOffset`, `Unparseable` rejected |
 | AC-4 | protocol tier: pure resolution over (existing, incoming, default), latest-valid-wins, invalid preserves |
-| AC-5 | integration: stdin write, stdout read, timeout, stderr captured — **including on the timeout path** (F-3) |
-| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8) |
-| AC-7 | integration: `view: null` → choice → `view_id` → respond → accepted |
+| AC-5 | integration: stdin write, stdout read, timeout, stderr captured on **every** path including timeout and zero-exit-unparseable (F-3, F-24, F-39); both reads bounded, the stdout bound ending its read and the stderr bound not (F-43); a stderr flood that succeeds with `truncated` set (F-25); and no child, task or descriptor outliving an exchange (F-40, F-41) |
+| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8); `InapplicableKey` for a modelled key its kind does not admit (F-45) |
+| AC-7 | integration: `view: null` → choice → `view_id` taken from `Outcome::view`'s `Presented` → respond → accepted (F-23) |
 | AC-8 | integration: stale and unknown `view_id` rejected as `StateError::StaleViewId` / `NoOutstandingView`, no backend spawn |
 | AC-9 | the corpus itself |
 | AC-10 | review against brief §15.1's list |
@@ -1353,8 +1545,28 @@ after writing valid JSON; writes malformed JSON; writes nothing; declares an
 unknown protocol version; returns `options: []`; returns duplicate option ids;
 returns an unknown `kind` **nested inside a field** (F-6, asserting the `at`
 path); omits `view` entirely (F-5); returns `"next_check": 45`; returns
-`"next_check": "1 month"` (F-10); returns `min: 10, max: 1` (F-9).
+`"next_check": "1 month"` (F-10); returns `min: 10, max: 1` (F-9); floods stderr
+past its cap **and then succeeds**, asserting `truncated` and no deadlock (F-25);
+returns a text field carrying `min` and a number field carrying `options`,
+asserting `InapplicableKey` with the offending key, kind and path (F-45);
+exits 0 with unparseable stdout after writing to stderr, asserting the stderr
+arrives (F-24); and the brief's own §10.1 and §10.2 examples verbatim, asserting
+they are accepted rather than merely not crashing (F-31, F-38).
 Command-not-found needs no fixture, only a path that does not exist.
+
+**A review step, not a test — the restatement sweep.** Six of the nine findings
+in review round 3 were one defect wearing six faces: a §5 contract repaired at
+its primary site and left standing in a restatement (F-43, F-44, F-46, F-47, and
+F-39's failure to carry D23's rule down a level). That is not a lapse more care
+fixes; it is a property of a document that deliberately states each contract in
+several places so a later reader meets it wherever they enter. The redundancy is
+worth keeping and it has a price, which is that it must be paid on every change.
+
+So: **after any change to §5, re-read** §5.5's invariant and edge tables, §7's
+decision index, §8's risks, §9's AC map and misbehaving-backend list,
+`draft-spec.md` §4's requirements and §6's examples, and the affected AC text in
+`slice-001.md`. This belongs to review rather than to CI because no test can
+observe that two English sentences disagree.
 
 **Not validated here, and named so nobody assumes otherwise:** nothing renders,
 nothing wakes on a clock, no socket transport, and no cross-restart behaviour.
@@ -1366,7 +1578,7 @@ nothing wakes on a clock, no socket transport, and no cross-restart behaviour.
 | ADR-001 | **decision unchanged; the record needs a line.** AC-15 mechanises part of what its Verification section calls "a review gate, not a build gate" | `canon-delta.md`. Per `docs/AGENTS.md` an ADR's *decision* is fixed while its record is kept accurate, so this is a delta entry, not a supersession — the one-way rule is untouched, only what verifies it. The delta must also state what AC-15 does *not* cover: three known tokens, so the common case rather than the class |
 | ADR-002 | **no change.** Its Verification requires the triggers be checked and recorded in the design of any slice adding a dependency or binary; done in §3, all three negative | nothing to settle |
 | protocol spec | **new canon, owed.** Drafted at `docs/slices/001/draft-spec.md`, promoted to `docs/specs/NNN-slug.md` with `Status: active` during audit | AC-13, AC-14. Promotion needs explicit user endorsement, and `docs/AGENTS.md` is explicit that a slice does not close holding an unpromoted draft |
-| `canon-delta.md` | **owed**, for the ADR-001 record line above. One entry: the document, the section, the change as it will be stated, and why | applied during reconciliation, with endorsement |
+| `canon-delta.md` | **exists** at `docs/slices/001/canon-delta.md`, one entry (CD-1) carrying the document, the section, the replacement text and why. What remains outstanding is its *application*, not its authorship | applied during reconciliation, with endorsement. F-37 |
 | `docs/policy/` | none created. Nothing here is a policy rather than a decision | — |
 | root `AGENTS.md` | not canon by `docs/AGENTS.md`'s definition, but a deliverable, and now additive rather than from-scratch | AC-10 |
 

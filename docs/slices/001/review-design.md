@@ -6,10 +6,14 @@ discharge
 **Reviewer:** fresh agent via codex MCP (GPT-5.5 Sol, default model), thread
 `01a02caa-83d2-7950-a2a7-60c2bdc017e0` — reusable for further rounds
 **Opened:** 2026-08-23
-**State:** open — round 1 closed (F-1…F-22 all `verified`), round 2 findings
-F-23…F-38 raised and awaiting disposition
-**Rounds:** 1 — 22 findings, 1 blocker. 2 — 15 findings from the reviewer, 1
-blocker, plus F-38 raised by me while verifying F-31.
+**State:** open — F-1…F-38 `verified`; F-39…F-47 dispositioned by the user and
+repaired, awaiting an independent re-review before they can be marked verified
+**Rounds:** 1 — 22 findings, 1 blocker, all repaired and verified. 2 — 15 findings,
+1 blocker, plus F-38 raised by me while verifying F-31; all repaired and verified.
+3 — 9 findings, no blocker, **every one a defect in a round-2 repair** rather than
+in the original design; all nine repaired. Round 4 will not use the codex thread
+above — the session is stale — so the re-review is being taken elsewhere and the
+findings stay `repaired` rather than `verified` until it lands.
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -166,22 +170,31 @@ the user.
 | F-20 | nit | `aligned` | `verified` |
 | F-21 | nit | `aligned` | `verified` |
 | F-22 | nit | `aligned` | `verified` |
-| F-23 | blocker | | |
-| F-24 | major | | |
-| F-25 | major | | |
-| F-26 | major | | |
-| F-27 | major | | |
-| F-28 | major | | |
-| F-29 | major | | |
-| F-30 | major | | |
-| F-31 | major | | |
-| F-32 | major | | |
-| F-33 | major | | |
-| F-34 | minor | | |
-| F-35 | minor | | |
-| F-36 | minor | | |
-| F-37 | minor | | |
-| F-38 | major | | |
+| F-23 | blocker | `fix-now` | `verified` |
+| F-24 | major | `fix-now` | `verified` |
+| F-25 | major | `fix-now` | `verified` |
+| F-26 | major | `fix-now` | `verified` |
+| F-27 | major | `fix-now` | `verified` |
+| F-28 | major | `fix-now` | `verified` |
+| F-29 | major | `fix-now` | `verified` |
+| F-30 | major | `fix-now` | `verified` |
+| F-31 | major | `fix-now` | `verified` |
+| F-32 | major | `fix-now` | `verified` |
+| F-33 | major | `fix-now` | `verified` |
+| F-34 | minor | `fix-now` | `verified` |
+| F-35 | minor | `fix-now` | `verified` |
+| F-36 | minor | `fix-now` | `verified` |
+| F-37 | minor | `fix-now` | `verified` |
+| F-38 | major | `fix-now` | `verified` |
+| F-39 | major | `fix-now` | `repaired` |
+| F-40 | major | `fix-now` | `repaired` |
+| F-41 | major | `fix-now` + `doc-wrong` | `repaired` |
+| F-42 | major | `fix-now` + `doc-wrong` | `repaired` |
+| F-43 | major | `fix-now` | `repaired` |
+| F-44 | major | `fix-now` | `repaired` |
+| F-45 | major | `fix-now` | `repaired` |
+| F-46 | major | `fix-now` | `repaired` |
+| F-47 | minor | `fix-now` | `repaired` |
 
 ### F-1 — The transport interface does not admit a stateful persistent socket without redesign
 
@@ -771,10 +784,22 @@ No change.
 **Observed:** `Outcome` exposes `view`, `next_check`, `discarded` and `failure`, but not `view_id`. The id remains private in `State`, so a renderer receiving the view has no value with which to answer it.
 **Evidence:** `design.md` §5.2 defines all four `Outcome` fields and omits `view_id`; `slice-001.md` AC-7 requires the host to assign and record a `view_id`; brief §8.3 requires the subsequent response request to carry that id. Review invariant 4 makes a slice-002 interface change a blocker.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, and this one is mine: the defect was introduced by the F-8 repair. The
+prose it replaced said `Outcome` "carries what the caller must act on", and the
+round-1 sequence diagram showed `view_id` in the outcome — I dropped it when I
+turned the prose into a field list, then edited the diagram to match the smaller
+struct rather than noticing the diagram was right.
+
+The fix is not an extra `Option<ViewId>` field. `Outcome::view` is now
+`Option<Presented>` with `Presented { view_id, view }`, so a view without its id
+and an id without its view are both unrepresentable. That is the same move as
+`Options` and `NumberRange` — the check no caller has to perform is the one the
+type forecloses. D32, I14.
+
+**Outcome:** `verified` (round 3)
 
 ### F-24 — The transport return type cannot carry the repaired stderr diagnostics
 
@@ -785,10 +810,24 @@ No change.
 **Observed:** `Backend::exchange` still returns only `Result<Vec<u8>, BackendError>`, and `Outcome` has no diagnostic or truncation field. Stderr from an exit-zero response is therefore unavailable — including when the JSON parse or normalization then fails — and the promised truncation flag has nowhere to go.
 **Evidence:** `design.md` §5.2 defines the transport output as `Vec<u8>` and `Outcome` without diagnostics; `BackendError` carries stderr only for `Timeout` and `ExitStatus`. `draft-spec.md` §6.4 says stderr is captured "whatever the outcome"; R-42 requires it with failures; R-43's verification requires a successful stderr flood to return "a truncation flag".
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted. `exchange` returns `Exchange { stdout: Vec<u8>, stderr: Captured }`,
+and `Outcome` carries `stderr` uniformly; `Captured { bytes, truncated }` is where
+D27's truncation flag lives.
+
+The finding is sharper than it looks. Hanging `stderr` off `Timeout` and
+`ExitStatus` made it reachable on exactly the two paths that already announce
+themselves, and unreachable on the one that does not: a backend exits zero, writes
+something unparseable, and has already explained why on stderr. That is the case
+where stderr is the only evidence, and it was the case with none.
+
+Worth recording, since it is a pattern rather than an incident: this is the second
+change to the transport seam in one review, after F-1. Both times the signature
+had been shaped to the process transport's happy path. D33.
+
+**Outcome:** `verified` (round 3)
 
 ### F-25 — The bounded stderr drain does not specify continued draining after truncation
 
@@ -799,10 +838,24 @@ No change.
 **Observed:** The design calls `read_capped(stderr, STDERR_LIMIT)` and says excess stderr is truncated, but never states whether bytes beyond the cap are consumed and discarded. Returning at the cap closes the reader and can give the backend `EPIPE`; leaving the pipe unread can block the backend into a timeout.
 **Evidence:** `slice-001.md` AC-5 requires concurrent bounded reads without chatty-backend deadlock. `design.md` §5.4 says over-limit stderr "is not a failure in itself", but the sketched `read_capped` contract does not define draining beyond the retained buffer.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted. Two readers, not one: `read_capped` for stdout stops at the limit and
+drops the handle; `drain_capped` for stderr retains the first 256 KiB, sets
+`truncated`, and keeps consuming to EOF.
+
+The distinction is the finding's real content and it is not cosmetic. D27 says
+over-long stderr is "truncated and flagged, not fatal", and a single `read_capped`
+that returns at the cap makes that sentence false — the backend blocks on a full
+pipe nobody is reading, and the exchange dies at the timeout instead of
+succeeding. So "truncate" has to mean *stop storing*, and never *stop reading*.
+Conversely stdout should stop reading, because closing the pipe is what makes a
+flood stop rather than merely making our buffer stop growing — verified in round 1
+when the flooding backend took `SIGPIPE`. One name for two behaviours hid a
+deadlock behind a word. D34.
+
+**Outcome:** `verified` (round 3)
 
 ### F-26 — Non-timeout failures fall back to the reaping mechanism D26 rejects
 
@@ -813,10 +866,20 @@ No change.
 **Observed:** Explicit `start_kill()` plus `wait()` occurs only in the timeout arm. `Ok(res) => res` propagates early stdout-cap, stdin-I/O and stdout-I/O errors without cleanup, leaving `kill_on_drop` as the only mechanism on those paths — the mechanism D26 rejects as best-effort.
 **Evidence:** `design.md` §5.4 shows `Ok(res) => res` with explicit cleanup only under `Err(_)`; D26 says `kill_on_drop` must not be relied upon; `draft-spec.md` R-45 requires every backend failure to leave the host able to invoke the backend again.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, and it is the more embarrassing half of F-14. Having argued that
+`kill_on_drop` is best-effort and must not be relied on, the design then relied on
+it for three of the four exits — the stdout-cap error, the stdin write error and
+the stdout read error — because only the timeout arm did anything explicit.
+
+`reap` is now unconditional and idempotent, called after the error has been
+decided rather than inside any one arm, so there is no path that abandons a live
+child. `kill_on_drop(true)` stays set for panics and cancellation, which are the
+paths that genuinely cannot run this code. D35, I13.
+
+**Outcome:** `verified` (round 3)
 
 ### F-27 — The timeout repair still has an admitted path that discards captured stderr
 
@@ -827,10 +890,25 @@ No change.
 **Observed:** If a grandchild inherits stderr, the grace timeout abandons the drain task and reports the timeout "with no stderr". Because the task owns the buffer, already-read bytes are lost too — not just the tail.
 **Evidence:** `design.md` §5.4 says the grace timeout reports "without stderr"; the same section later claims a timed-out backend yields "whatever stderr it had produced". `slice-001.md` AC-5 and `draft-spec.md` R-42 require stderr capture on the timeout path with no such exception.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, and it reverses a choice I made deliberately an hour earlier. I had the
+drain task return its buffer through the join handle specifically to avoid a
+mutex, and noted the grandchild-inherits-stderr case as a residual stall. F-27's
+point is that the join handle *is* the hole: abandoning the task discards
+everything it had read, not merely the bytes still to come — so the mitigation for
+the stall destroyed the diagnostic that was the reason for capturing stderr at
+all.
+
+The buffer is now an `Arc<Mutex<Captured>>` owned by the caller, so abandoning the
+task still leaves every byte already read readable. The lock is justified here in a
+way D14 refused for `State`: there the concurrency was hypothetical and brief §12
+says not to invent it, here there are genuinely two tasks and one buffer, and it is
+uncontended in the normal case. §5.4 now says that explicitly, so the two
+decisions do not read as inconsistent. D36.
+
+**Outcome:** `verified` (round 3)
 
 ### F-28 — R-30 contradicts permissive handling and is not implementable by the designed wire type
 
@@ -841,10 +919,22 @@ No change.
 **Observed:** R-30 requires rejection if a backend supplies `view_id`, while R-4 and R-5 require every unmodelled field to be ignored. `WireResponse` has no `view_id` member and uses no `deny_unknown_fields`, so serde discards it before normalization could enforce R-30.
 **Evidence:** `draft-spec.md` R-4, R-5 and R-30 state the contradictory requirements; `design.md` §5.2 shows the complete `WireResponse` fields and mandates no `deny_unknown_fields` anywhere inbound.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted; R-30 as written was unenforceable and contradicted R-4 and R-5. Since
+`WireResponse` has no `view_id` member and nothing inbound uses
+`deny_unknown_fields`, serde discards the field before normalization could refuse
+it — the requirement described a check that cannot happen.
+
+R-30 now states the property that actually matters and is actually testable: the
+host mints every `view_id` and **never reads one from a response**; a backend that
+sends one has it ignored under R-4, like any other unmodelled key. That is
+verifiable by inspection — no inbound type has the field — and it forecloses the
+real hazard, which was never a backend sending an id but the host one day
+believing one.
+
+**Outcome:** `verified` (round 3)
 
 ### F-29 — The draft spec and design disagree about `view: null` while another interaction is outstanding
 
@@ -855,10 +945,21 @@ No change.
 **Observed:** The design says `view: null` leaves any outstanding interaction alone. The draft spec says a response carrying `view: null` "does not" leave an interaction outstanding, without limiting that to an accepted `respond`.
 **Evidence:** `design.md` §5.5 edge-case table: "any outstanding interaction is left alone". `draft-spec.md` §5: "A response carrying a view leaves an interaction outstanding; one carrying `view: null` does not."
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted; the spec sentence was mine and it was careless. "A response carrying a
+view leaves an interaction outstanding; one carrying `view: null` does not" is
+true of an accepted `respond` and false of an `evaluate`, and the design's edge
+table already said the opposite for the second case.
+
+§5 now distinguishes them, and the distinction is worth the words: a `view: null`
+answering an `evaluate` means "nothing new", which is not a withdrawal of a
+question the user is still looking at. Reading it as one would clear a prompt off
+the screen because a *poll* came back empty. The AC-9 corpus and R-10/R-11's
+verification now carry a case for each meaning.
+
+**Outcome:** `verified` (round 3)
 
 ### F-30 — The new draft still fails AC-13's identity and first-line requirements
 
@@ -869,10 +970,20 @@ No change.
 **Observed:** Its first line is `# SPEC-NNN: The host/backend interaction protocol`; the non-canon warning appears later. The placeholder SPEC identifier contradicts the claimed absence of one.
 **Evidence:** `slice-001.md` AC-13 requires "a first line stating that it is not canon" and says "It carries no SPEC id". `draft-spec.md:1` contains `SPEC-NNN`.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, and the irony is the point: the draft asserted it carried no SPEC id
+while carrying one in its `<h1>`. I wrote the non-canon notice in the round-1 pass
+specifically to satisfy AC-13 and left the template's `SPEC-NNN:` prefix in the
+title above it.
+
+The non-canon statement is now the first line of the file, the title is the
+protocol's name with no id, and the only remaining reference to a placeholder id is
+the sentence explaining that one used to be there. AC-13 is checkable by grep
+again, which is how it was meant to be checkable.
+
+**Outcome:** `verified` (round 3)
 
 ### F-31 — The protocol spec does not define the wire encoding of most admitted variants
 
@@ -883,10 +994,29 @@ No change.
 **Observed:** The spec lists five field kinds and four content forms but shows only one number field and one tagged Markdown body. It does not define the text/boolean/datetime/choice field shapes, nor whether plain text is a string, `{"kind":"text",…}`, or both.
 **Evidence:** `brief.md` §10.1 shows `"body": "Optional context"` as the required basic-choice form. `draft-spec.md` §6.2 shows only `{"kind":"markdown","value":…}`; R-16 and R-19 enumerate variants without their JSON shapes.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, and verifying it turned up a second, worse instance which I raised as
+F-38 rather than fold in silently.
+
+The spec now defines every admitted shape rather than one example of each family:
+all five field kinds in their wire form, all four content forms, and the rule that
+a bare JSON string *is* `text`. That last is not a convenience — brief §10.1's
+required v0 example is `"body": "Optional context"`, so a tagged-only `Content`
+rejects the one interaction the brief says v0 must support.
+
+The design side matters too, and is the part the finding could not see: the
+tempting encoding for string-or-object is `#[serde(untagged)]`, and it is wrong
+here. `untagged` collapses every failure into "data did not match any variant",
+which destroys F-6's `UnsupportedPrimitive { kind, at }` — the error F-6 was raised
+to obtain. So `body` stays `serde_json::Value` at the wire and `normalize`
+dispatches, for the same reason `next_check` does. D38.
+
+R-15, R-16 and R-19 also gained the shape rules, so the enumeration and the
+encoding are no longer in different documents.
+
+**Outcome:** `verified` (round 3)
 
 ### F-32 — `failure: Some` falsely claims the backend call had no effect
 
@@ -897,10 +1027,23 @@ No change.
 **Observed:** The `failure` field is documented as "this call had no effect beyond being reported". A backend may perform arbitrary side effects and then time out, exit non-zero, or emit an invalid response.
 **Evidence:** `design.md` §5.2 contains the no-effect claim. Brief §8.3 says a backend may perform arbitrary side effects when handling a response; brief §14 grants it normal user authority.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted. "This call had no effect beyond being reported" was a false claim about
+a system the host does not control, and the danger is specific rather than
+theoretical: read that way, `failure: Some(_)` invites a retry, and a retry after
+a backend has already acted repeats whatever it did.
+
+The doc comment now says the *host* took no action and recorded no state change,
+and §5.2 states plainly that this is not a claim about the backend's effects.
+Brief §8.3 lets a backend do arbitrary work handling a response and §14 gives it
+the user's own authority, so a timeout can follow a completed side effect. This is
+also, stated properly for the first time, the real argument for D-no-retry — not
+just that nothing in the brief asks for retries, but that the host cannot know what
+a failed exchange already did.
+
+**Outcome:** `verified` (round 3)
 
 ### F-33 — The hints invariant forbids the renderer behaviour hints exist to control
 
@@ -911,10 +1054,22 @@ No change.
 **Observed:** Both documents prohibit the entire host from branching on hint keys. The renderer is part of the host and must inspect keys such as `multiline`, `placeholder` or `units` for them to affect presentation at all.
 **Evidence:** Brief §10.2 calls these "presentation hints" and §3.4 says the renderer chooses widgets. `design.md` I7 says "The host never branches on a `hints` key"; `draft-spec.md` R-18 repeats "The host MUST NOT branch on any hint key".
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted; I7 and R-18 were both wrong, and wrong in a way that would have been
+quoted back at slice 002. "The host never branches on a `hints` key" forbids the
+renderer from reading `multiline` — which is the entire reason hints exist, per
+brief §10.2 and §3.4's "the renderer chooses widgets".
+
+The invariant now names the strata it constrains: nothing in `semantics/` or
+`shell/` may branch on a hint key, and the renderer is the one thing that may. That
+is what the rule was always trying to say. It also makes the rule *checkable* in a
+way the blanket version was not — the blanket version would have been violated by
+the first correct renderer, so the only way to keep it green was to never write
+one.
+
+**Outcome:** `verified` (round 3)
 
 ### F-34 — The corrected validation conclusion is contradicted by surviving decision and risk text
 
@@ -925,10 +1080,21 @@ No change.
 **Observed:** §5.5 carries the correction, while D17 still says "Validation feedback confirmed additive" and R4 says it was "proved additive", without the qualification.
 **Evidence:** `design.md` §5.5 says the original no-version-bump conclusion was wrong; D17 and R4 retain the unqualified opposite claim.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted. Two sites survived the F-7 correction: D17's "validation feedback
+confirmed additive" and R4's "proved additive". Both now carry the qualification —
+no breaking restructure, but version or capability negotiation required.
+
+This is the ordinary failure mode of correcting a claim in prose: the argument gets
+fixed where it was made and not where it was summarised, and the summary is what a
+later reader skims. R4 in particular is a risk row, which is exactly where an
+over-confident "proved" does damage. Worth noting the class rather than just the
+two lines: any correction to §5's reasoning should be checked against §7's decision
+index and §8's risk table, because both restate it in one line.
+
+**Outcome:** `verified` (round 3)
 
 ### F-35 — The process sketch violates the draft's no-`expect` verification rule
 
@@ -939,10 +1105,22 @@ No change.
 **Observed:** The process sketch uses `child.stderr.take().expect("piped at spawn")`, while the spec requires clippy to deny `expect_used` outside tests.
 **Evidence:** `design.md` §5.4 contains the `expect`; `draft-spec.md` §7, R-46's verification, says "clippy denying `unwrap_used` and `expect_used` outside tests".
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, both halves — the sketch and the requirement it violated.
+
+The sketch's `expect` is gone; the handle is taken with `ok_or(BackendError::
+PipeMissing)?`. But R-46's verification was also overreaching, and that is the
+more useful half. R-46's *requirement* is that the host must not panic on any value
+derived from a backend; its verification said "clippy denying `unwrap_used` and
+`expect_used` outside tests", which is a broader rule about all values from any
+source, including ones the host itself just created. The verification now names the
+modules that handle backend-derived data, which is what the requirement is actually
+about. A verification that is stricter than its requirement will be either weakened
+under pressure or worked around, and both are worse than stating it correctly.
+
+**Outcome:** `verified` (round 3)
 
 ### F-36 — The specified NaN JSON fixture cannot exist
 
@@ -953,10 +1131,25 @@ No change.
 **Observed:** The spec calls for a JSON fixture containing a NaN bound, but JSON has no NaN literal; serde_json rejects it before `NumberRange` validation can produce `BoundsError::NotFinite`.
 **Evidence:** `draft-spec.md` §7 assigns R-17 to fixtures containing "`NaN` and inverted bounds". RFC 8259 §6 excludes NaN and infinity from JSON numbers.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted, and confirmed by running it rather than by reading RFC 8259: serde_json
+rejects `{"min": NaN}` with `expected value` and `{"min": 1e400}` with `number out
+of range`, both before any bounds check can execute. So `BoundsError::NotFinite` is
+unreachable from the wire and the fixture the spec asked for cannot be written.
+
+The user's call was keep-and-correct rather than drop the variant, which is the
+right way round: `NumberRange::new` is public API, P1's claim is about what the type
+can hold and not about which caller supplied the value, and one comparison is
+cheaper than a later argument over whether the invariant really holds. What was
+wrong was the *claim*, so R-17's verification and §9's fixture now assert
+`Protocol(Json)` for a NaN literal, and §5.2 records that the variant is a
+constructor guard rather than a wire failure mode. Asserting the unreachable
+variant would have been a test that cannot fail — the more dangerous of the two
+errors, since it looks like coverage. D39.
+
+**Outcome:** `verified` (round 3)
 
 ### F-37 — The canon-impact table still says the now-present delta is owed
 
@@ -967,10 +1160,19 @@ No change.
 **Observed:** The canon-impact table still labels `canon-delta.md` itself "owed".
 **Evidence:** `design.md` §10 says "`canon-delta.md` — owed"; `docs/slices/001/canon-delta.md` now exists with CD-1.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Accepted. §10 was written before `canon-delta.md` existed and still described it as
+owed. The row now says the file exists with CD-1 and that what remains outstanding
+is its *application* during reconciliation, not its authorship.
+
+Small, but the artefact is supposed to be current truth — a reader checking what
+this slice still owes would have gone looking for a file that was already there,
+and the methodology's whole separation of artefact from log depends on the artefact
+not lying about the present.
+
+**Outcome:** `verified` (round 3)
 
 ### F-38 — The wire `Field` shape rejects the brief's own flat presentation keys
 
@@ -981,10 +1183,310 @@ No change.
 **Observed:** Raised by me while verifying F-31, and not covered by it. Brief §10.2 places `multiline` **flat on the field object**, alongside `id`, `kind`, `label`, `min` and `max` — not inside a nested `hints` object. The design's `Field` carries `hints: Hints` as a distinct member, so `multiline: true` arrives as an unmodelled field and is silently discarded by R-4's ignore rule. The brief's example loses its presentation information with no error, which is the worst of both outcomes.
 **Evidence:** `brief.md` §10.2's field example: `{"id":"notes","kind":"text","label":"Anything notable?","multiline":true}`. `design.md` §5.2 defines `pub struct Field { id, kind, label, hints }` with no flattening, and states that unknown fields are ignored.
 
-**Disposition:** _pending_
+**Disposition:** `fix-now`
 **Response:**
 
-**Outcome:** _pending_
+Raised by me while verifying F-31; disposed of here as responder.
+
+Brief §10.2's field example puts `multiline` **flat on the field object**, beside
+`id`, `kind`, `label`, `min` and `max`. The design had `hints` as a nested member,
+so `multiline` arrived as an unmodelled field and the no-`deny_unknown_fields` rule
+discarded it *silently* — the brief's own example losing its presentation
+information with no error at all. That is worse than F-31's rejection, because a
+rejection is at least visible.
+
+`WireField` now uses `#[serde(flatten)]`, making "every other key on the field
+object" the definition of a hint — which is also the honest reading of brief
+§10.2's "likely presentation hints over time". Verified by running it, including
+the cost: a misspelled *optional* key (`minn`) becomes a hint, while a misspelled
+*required* key still fails with `missing field 'label'`. So the exposure is
+bounded by which keys are optional, which is narrower than flattening usually
+implies.
+
+The user chose flat-only over accepting both spellings. That is the right call for
+a reason worth writing down: two accepted spellings for one thing is the ambiguity
+brief §3.3 says must fail rather than be guessed at, and it would have doubled the
+normalization paths to buy nothing. D37.
+
+**Outcome:** `verified` (round 3)
+
+### F-39 — Transport failures still cannot return stderr
+
+**Severity:** major
+**Location:** `design.md` §5.2, Transport
+
+**Expected:** Every outcome, including timeout, non-zero exit, output overflow and transport I/O failure, carries the stderr captured before that failure.
+**Observed:** `Backend::exchange` returns `Result<Exchange, BackendError>`, but only the `Ok(Exchange)` variant contains `Captured`, and `BackendError` deliberately contains no stderr. Every transport-level `Err` therefore loses the only value from which `Outcome::stderr` could be populated.
+**Evidence:** `design.md` §5.2 specifies `Future<Output = Result<Exchange, BackendError>>`, `Exchange { stdout, stderr }`, and `BackendError::Timeout`, `ExitStatus`, `OutputTooLarge` and `Io` without capture. `draft-spec.md` R-42 requires stderr with every outcome, explicitly including timeout.
+
+**Disposition:** `fix-now`
+**Response:**
+
+Accepted without argument, because the argument was already in this document. D23
+says a value every path produces must not live on the success branch of a
+`Result`, and that is exactly what `Result<Exchange, BackendError>` does to
+`Captured`. I wrote the rule for `Outcome` and then built `Outcome` out of a type
+that breaks it — the repair for F-24 moved stderr off the error variants and left
+it stranded on `Ok`, which is the same defect one level up rather than a fix.
+
+`exchange` now returns a bare `Exchange { result: Result<Vec<u8>, BackendError>,
+stderr: Captured }`. The failure sits beside the capture rather than around it, so
+no path can produce one without the other. The two places that legitimately have
+no stderr — a command that never spawned, and a missing stdio handle — construct
+it through `Exchange::failed`, which names that fact instead of leaving a reader
+to wonder whether the empty capture is a bug. §5.2, D40, and the §5.4 sketch and
+sequence diagram follow it through.
+
+**Outcome:** `repaired` (round 3)
+
+### F-40 — Abandoned stderr drains accumulate live tasks and descriptors without bound
+
+**Severity:** major
+**Location:** `design.md` §5.4, "Where this can still stall"
+
+**Expected:** A backend cannot cause unbounded host resource growth, and a completed exchange leaves no transport work running indefinitely.
+**Observed:** After the grace timeout the stderr `JoinHandle` is abandoned while the task still owns the pipe and an `Arc` holding up to 256 KiB. Dropping a tokio `JoinHandle` detaches rather than cancels. A backend can repeatedly leave stderr inherited by long-lived grandchildren, accumulating one task, pipe descriptor, allocation and `Arc` per exchange.
+**Evidence:** `design.md` §5.4 says the grandchild can keep the pipe open indefinitely and that the host "abandon[s] the task". Tokio's `task::JoinHandle` contract says dropping the handle detaches the task. Contradicts `design.md` I11 and `draft-spec.md` R-45.
+
+**Disposition:** `fix-now`
+**Response:**
+
+Correct, and it defeats the cap it sits next to. Dropping a tokio `JoinHandle`
+detaches the task; it does not cancel it. So a backend that leaves a grandchild
+holding the stderr fd on every exchange accumulates one live task, one pipe
+descriptor and up to 256 KiB per call, indefinitely — a backend causing unbounded
+host resource growth, which is precisely what I11 forbids and what capping the
+buffers was meant to prevent. Bounding each buffer is worth nothing if the number
+of buffers is unbounded.
+
+The join now `abort()`s on the grace timeout. That this is safe rather than
+merely tidy is F-27's doing: the bytes live in a caller-owned
+`Arc<Mutex<Captured>>`, so aborting the task discards the task and not the
+capture. The two repairs are load-bearing together — either alone would be
+wrong. D41; I11 extended to name tasks and descriptors, not only memory.
+
+**Outcome:** `repaired` (round 3)
+
+### F-41 — The allegedly unconditional reap is bypassed by post-spawn return and cancellation paths
+
+**Severity:** major
+**Location:** `design.md` §5.4 process sketch; D35
+
+**Expected:** Every path that abandons a spawned backend explicitly terminates and reaps it; drop-time cleanup alone is insufficient.
+**Observed:** `child.stderr.take().ok_or(BackendError::PipeMissing)?` can return after spawning but before the unconditional `reap` site. Dropping the `exchange` future also bypasses all code after the timeout match, and the design expressly leaves cancellation to `kill_on_drop`, which cannot await reaping.
+**Evidence:** The process sketch places the `PipeMissing` `?` before `reap(&mut child).await`. The following prose keeps `kill_on_drop` as the backstop for "panic and cancellation paths". `draft-spec.md` R-48 requires termination and reaping on every abandonment path and says drop-time cleanup alone is insufficient.
+
+**Disposition:** `fix-now` on the return path; `doc-wrong` on R-48
+**Response:**
+
+Two halves, and only one of them is fixable.
+
+**The `?` is a straight bug.** `child.stderr.take().ok_or(PipeMissing)?` returns
+after the child exists and before `reap`, leaving the very cleanup D35 calls
+unconditional to the mechanism D26 says not to rely on. The sketch now uses a
+`let … else` that reaps before returning, and the spawn failure — the one case
+with no child — returns before any child exists. The rule is stated over the
+region rather than the line: no `?` past the spawn.
+
+**R-48 was unachievable as I wrote it**, and this is `doc-wrong` rather than a
+convenient narrowing, so it is worth being explicit about the difference. If the
+exchange future is dropped, no code of ours runs: there is nothing to await a
+reap with, and no amount of design changes that. A requirement that says
+"reliance on drop-time cleanup alone is insufficient" over *every* abandonment
+path therefore forbids the only mechanism that exists on one of them. R-48 now
+binds every path that **returns** — which is where the real bug was — and states
+plainly that cancellation relies on `kill_on_drop`, rather than pretending
+otherwise. Narrowing a requirement to meet it is the move round 3's instructions
+asked the reviewer to watch for; the defence here is that the old wording was not
+merely unmet but unmeetable, and the part that *was* meetable got fixed rather
+than written down.
+
+**Outcome:** `repaired` (round 3)
+
+### F-42 — Reaping failures are discarded after the outcome has already been fixed
+
+**Severity:** major
+**Location:** `design.md` §5.4 process sketch
+
+**Expected:** Failure to kill or wait for a child is reported, and cannot be returned as a successful, fully reaped exchange.
+**Observed:** The design decides `outcome` first and then calls `reap(&mut child).await` with no specified error path. Both `Child::start_kill` and `Child::wait` are fallible, so a kill or wait failure must either be swallowed or overwrite an already-selected error with no defined precedence.
+**Evidence:** `design.md` §5.4 says "the error is decided before the reap" and sketches `reap(&mut child).await; attach_stderr(outcome, …)`. `draft-spec.md` R-47 requires every refusal to be reported; R-48 requires the child actually to be terminated and reaped.
+
+**Disposition:** `fix-now`, with a user decision on precedence; `doc-wrong` on R-47
+**Response:**
+
+Real: `start_kill` and `wait` are both fallible and the sketch discarded their
+results, so a child that could not be killed would be reported as a clean
+exchange.
+
+The user chose the precedence rule. In full: *already exited* is success, since
+reaping unconditionally means most reaps run against a process that has already
+gone, and "idempotent" has to mean that or D35 is unimplementable; a reap failure
+with no prior error becomes `BackendError::Reap`; a reap failure alongside an
+existing error is dropped. The last clause is the one that needs defending, and
+the defence is informational rather than aesthetic — "we also could not kill it"
+is a consequence of the timeout or overflow that made us abandon the child, and
+reporting both buries the cause under its effect.
+
+That rule needs **R-47 narrowed**, and flagging it as `doc-wrong` rather than
+letting it pass is the point. R-47's "every refusal MUST be reported" is about
+values the *backend supplied*: the sender can act on those, which is the whole
+reason the requirement exists. It was never about the host's internal cleanup
+telemetry, and read literally it contradicts the rule above. R-47 now says so,
+and R-48 carries the reporting obligation for reap failures instead — so the
+obligation moved rather than evaporated. D42.
+
+**Outcome:** `repaired` (round 3)
+
+### F-43 — The stdout-cap contract requires both stopping and not stopping the read
+
+**Severity:** major
+**Location:** `design.md` I11, D34; `draft-spec.md` R-43; `slice-001.md` AC-5
+
+**Expected:** The design, the requirement and the acceptance criterion prescribe one consistent behaviour when stdout reaches its bound.
+**Observed:** D34 requires `read_capped` to stop reading and drop stdout at 8 MiB. I11, R-43 and AC-5 all state that reaching a bound never stops the read, without limiting that to stderr. These cannot all be implemented.
+**Evidence:** `design.md` D34: "stdout stops-and-closes". `design.md` I11: "capping never stops the read". `draft-spec.md` R-43: reaching a bound "MUST NOT stop the host reading the stream". `slice-001.md` AC-5 applies the same statement to both reads.
+
+**Disposition:** `fix-now`
+**Response:**
+
+My generalisation, and sloppy. D34's whole argument is that the two streams
+differ at the bound: stdout stops and closes, because the exchange is already
+failing and closing the pipe is what makes the flood stop; stderr truncates what
+it stores and keeps draining, because a chatty backend that works is not a broken
+one and a full pipe nobody reads is a deadlock. I then wrote the stderr half as
+though it were the rule for both, in I11, in R-43 and in AC-5 — three
+restatements of a contract that contradicted its own source.
+
+All three now qualify the claim to stderr and state the stdout behaviour beside
+it. R-43 in particular is now longer, because the honest form of this requirement
+is two sentences and the compressed form was the error.
+
+**Outcome:** `repaired` (round 3)
+
+### F-44 — The draft's canonical response example uses the rejected nested-hints spelling
+
+**Severity:** major
+**Location:** `draft-spec.md` §6.2
+
+**Expected:** Field hints are flat keys, and the nested `hints` spelling is not accepted as an alternative representation.
+**Observed:** The principal response example writes `"hints": { "units": "min" }`. With `WireField.hints` flattened, that is captured as one hint whose key is literally `"hints"` and whose value is an object — it neither produces the intended flat `units` hint nor is rejected as the forbidden nested spelling.
+**Evidence:** `draft-spec.md` §6.2's response example contains the nested form; the same section's field-forms subsection says every hint is flat and rejects supporting a nested `hints` object. `design.md` D37 makes the same flat-only decision.
+
+**Disposition:** `fix-now`
+**Response:**
+
+Embarrassing and exactly the class F-34 named: §6.2's principal response example
+still wrote `"hints": { "units": "min" }`, two subsections above the text that
+rejects the nested spelling. Under `#[serde(flatten)]` that example does not
+produce a `units` hint and is not rejected either — it produces one hint whose key
+is literally `"hints"`. The document's most-copied artefact contradicted the rule
+the document had just adopted.
+
+The example now writes `"units": "min"` flat. The field-forms subsection was
+already correct, which is the tell: I fixed the normative text and left the
+example, and the example is what a backend author actually reads.
+
+**Outcome:** `repaired` (round 3)
+
+### F-45 — Kind-inapplicable semantic keys have no defined rejection path
+
+**Severity:** major
+**Location:** `design.md` §5.2, `WireField`; `draft-spec.md` R-16
+
+**Expected:** `min` and `max` are protocol keys only for `number`, and `options` only for `choice`; using a modelled key with another kind is rejected rather than silently ignored.
+**Observed:** One shared `WireField` extracts `min`, `max` and `options` before dispatching on `kind`. No normalization check, error case or fixture exists for a text field carrying `min`, a number field carrying `options`, or a choice field carrying bounds. Those keys cannot become hints after serde has consumed them, so the input is silently lost.
+**Evidence:** `design.md` §5.2 defines all three members on `WireField`; its edge table and §9 fixture list contain no inapplicable-key case. `draft-spec.md` R-16 says the other field kinds carry no additional protocol keys, and R-47 forbids silently absorbing invalid values.
+
+**Disposition:** `fix-now`
+**Response:**
+
+Correct, and it undercuts the claim D37 rested on. `WireField` declares `min`,
+`max` and `options` for all five kinds because one struct deserializes all five
+and `kind` is only read afterwards — so serde consumes those keys *before*
+dispatch, and they can no longer fall through to `hints`. A `min` on a text field
+therefore vanishes with no error and no hint: silent absorption, which brief §3.3
+and R-47 both forbid.
+
+The user chose rejection over treating them as hints. That is the right call and
+the reason is D37's own: unknown keys are presentation, known keys are contract,
+so a contract key in a position where the contract gives it no meaning is a
+contradiction rather than a decoration. Treating it as a hint would also make
+`{"kind":"text","min":1}` a *successful* parse carrying a hint the renderer is
+forbidden to branch on — worse than losing it, because it looks like it worked.
+
+Normalization now checks applicability and raises
+`InapplicableKey { key, kind, at }`, with the path for the same reason
+`UnsupportedPrimitive` carries one. New requirement **R-50**, stated so it does
+not collide with R-15: R-15 governs keys the spec does not name at all; R-50
+governs named keys used where their kind gives them no meaning. Both edge-table
+rows and both fixture directions — the misplaced key rejected, the unnamed key
+still becoming a hint — are in §5.5 and §9. D43.
+
+Worth recording what this does to D37's cost statement. D37 claimed the exposure
+from flattening was narrow, being limited to misspelled *optional* keys. That was
+only true if misplaced *modelled* keys were caught, and they were not — so the
+claim was correct about a design that did not yet exist. It does now.
+
+**Outcome:** `repaired` (round 3)
+
+### F-46 — `view: null` still has two incompatible state-transition definitions
+
+**Severity:** major
+**Location:** `design.md` §5.4 state diagram and §5.5 edge table
+
+**Expected:** A null view answering `respond` clears the answered interaction; a null view answering `evaluate` preserves an existing one.
+**Observed:** The state diagram implements the request-dependent rule, but the edge table states without qualification that `view: null` leaves "any outstanding interaction" alone. An implementation following the table retains an interaction after its accepted answer.
+**Evidence:** `design.md` §5.4: `Outstanding --> Idle: respond(matching id), view: null`. `design.md` §5.5: `view: null` means "any outstanding interaction is left alone". `draft-spec.md` §5 distinguishes the two requests explicitly.
+
+**Disposition:** `fix-now`
+**Response:**
+
+Same class as F-44 and same cause. F-29 was repaired in the draft spec's §5, which
+now distinguishes what `view: null` means answering an `evaluate` from what it
+means answering a `respond`, and the design's state diagram already had it right.
+The design's edge table did not: it said flatly that any outstanding interaction
+is left alone, which an implementer following the table would read as "retain the
+interaction after its answer was accepted".
+
+The row is now two rows, one per request kind, each saying why. Splitting rather
+than qualifying because the two behaviours are genuinely different edges, not one
+edge with a caveat.
+
+**Outcome:** `repaired` (round 3)
+
+### F-47 — The decision and risk indexes retain mutually incompatible stderr contracts
+
+**Severity:** minor
+**Location:** `design.md` §7 D12, D18; §8 R8, R9
+
+**Expected:** Restatements consistently identify `Exchange` / `Outcome` as stderr's owner, and require partial stderr to survive a timeout.
+**Observed:** D12 still says the transport returns `Vec<u8>`. Struck D18 and risk R8 still say `Timeout` carries stderr, which that variant no longer does. R9 says the grandchild case reports the timeout "without stderr", contradicting the caller-owned-buffer repair.
+**Evidence:** `design.md` D33 says the transport returns `Exchange { stdout, stderr }`; `BackendError::Timeout` has no stderr field; §5.4 says the `Arc<Mutex<Captured>>` exists so accumulated stderr survives abandonment; §8 R9 says to report the timeout without stderr.
+
+**Disposition:** `fix-now`
+**Response:**
+
+Accepted, and the severity is generous — these are the same defect as F-43, F-44
+and F-46, found in the indexes instead of the tables. D12 still described the
+transport as returning `Vec<u8>`; struck D18 and risk R8 still said `Timeout`
+carries stderr, which it stopped doing when F-24 moved the capture onto
+`Exchange`; R9 still said the grandchild case reports without stderr, which F-27's
+caller-owned buffer had already made false.
+
+All four now match §5, and each carries the finding id that corrected it so the
+next reader can see it was swept rather than never wrong.
+
+The class matters more than the four instances, and it is now written into §9 as
+a review step rather than left as a resolution to be more careful: **after any
+change to §5, sweep the invariant and edge tables, the decision index, the risk
+table, the AC map and fixture list, the draft spec's requirements and examples,
+and the affected AC text in the slice card.** Six of round 3's nine findings were
+this one pattern. The redundancy that causes it is deliberate — each contract is
+stated where a reader will meet it — so the answer is to pay its cost on every
+change, not to remove it.
+
+**Outcome:** `repaired` (round 3)
 
 ## Synthesis
 

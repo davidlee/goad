@@ -86,10 +86,15 @@ Surfaces this slice may touch.
 - [ ] AC-5 — The process transport spawns the configured command, writes one
       JSON request to stdin, reads one JSON response from stdout, enforces a
       timeout, and captures stderr into diagnostics — **including when the
-      exchange times out**, which is the failure with the least other evidence.
-      Both streams are read concurrently and both reads are bounded, so no
-      backend can exhaust host memory or deadlock the host by being chatty.
-      Brief §6.2, §13. Revised in design per F-2 and F-3.
+      exchange times out** and when it exits zero with output that will not
+      parse. Both streams are read concurrently and both reads are bounded, and
+      the two bounds behave differently: the stdout bound fails the exchange and
+      closes the stream, while the stderr bound truncates what is stored and
+      keeps draining, so a chatty backend is truncated rather than deadlocked.
+      Every path that returns from an exchange has terminated and reaped the
+      backend first, and leaves no drain task or descriptor behind it. Brief
+      §6.2, §13. Revised in design per F-2, F-3, F-24, F-25, F-26, F-40, F-41
+      and F-43.
 - [ ] AC-6 — Each failure mode in brief §13 reachable by this transport —
       command not found, timeout, non-zero exit, malformed JSON,
       protocol-invalid response, invalid scheduling value, unsupported required
@@ -101,8 +106,10 @@ Surfaces this slice may touch.
       core's. Not one flat enum spanning both.
 - [ ] AC-7 — Round trip, driven by an integration test with no GUI: an example
       backend returns `view: null`; then returns a choice; the host assigns a
-      `view_id` and records it; a `respond` carrying that id reaches the
-      backend; the backend's reply is accepted.
+      `view_id`, records it, and **hands it to the caller alongside the view** so
+      the view can be answered without reaching into host state; a `respond`
+      carrying that id reaches the backend; the backend's reply is accepted.
+      Per F-23.
 - [ ] AC-8 — An answer bearing an unknown or stale `view_id` is rejected with a
       named error, and the backend is not contacted. The two cases are distinct
       variants — nothing outstanding, versus answering a superseded
@@ -113,7 +120,10 @@ Surfaces this slice may touch.
       §15.3 that fall inside this slice: valid evaluate request and response,
       `view: null`, a simple choice, response round trip, scheduling
       replacement, process transport, timeout and failure, malformed backend
-      output.
+      output. It includes brief §10.1's and §10.2's own examples **verbatim**:
+      a bare-string `body` and a field carrying `multiline` flat. A corpus that
+      rejects the brief's worked examples is a corpus that documents our types
+      rather than the protocol. Per F-31 and F-38.
 - [ ] AC-10 — Root `AGENTS.md` is a map plus invariant sheet per brief §15.1:
       it states that the host does not understand the user's domain, states the
       permissive-wire / canonical-internal rule, warns against narrowing the
