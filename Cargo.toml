@@ -1,0 +1,186 @@
+[package]
+name = "goad"
+version = "0.1.0"
+edition = "2024"
+description = "A programmable personal intervention shell"
+publish = false
+
+# Test targets are declared, not discovered, because one of them must be
+# feature-gated and `required-features` has nowhere else to live.
+autotests = false
+
+[dependencies]
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+jiff       = { version = "0.2", default-features = false }
+tokio      = { version = "1", optional = true,
+               features = ["process", "time", "rt", "io-util", "macros"] }
+
+[features]
+default = ["shell"]
+shell   = ["dep:tokio"]
+
+[[test]]
+name = "protocol"
+path = "tests/protocol/main.rs"
+
+[[test]]
+name = "integration"
+path = "tests/integration/main.rs"
+required-features = ["shell"]
+
+# ---- Rust lints ----
+[lints.rust]
+# Absolute nasties.
+#
+# `warnings = "deny"` is deliberately NOT set here, and no `priority` trick
+# recovers it: rustc applies the `warnings` pseudo-group over an explicit
+# per-lint `--warn` whatever the order, so with it on, `warn` is not a reachable
+# level and every lint below is deny-or-allow. Measured, not assumed.
+#
+# It is not lost, it moved: the clippy lines in `design.md` §9 pass
+# `-D warnings`, so unenumerated warn-by-default lints still fail the phase
+# gate. What changes is that they no longer fail every `cargo check` in the
+# inner loop.
+
+# `deny`, not `forbid`: `forbid` cannot be excepted at all, and an
+# `#[expect(unsafe_code, reason = …)]` with a stated reason is reviewable and
+# countable. Nothing in this crate is expected to need it.
+unsafe_code = "deny"
+
+# Public API hygiene.
+# missing_docs paused: doc-comment absence is rarely the defect in agent code,
+# and the tax slows exploratory work. Re-enable before publishing.
+# missing_docs = "deny"
+missing_debug_implementations = "deny"
+
+# Dead/unused things should not survive agent iterations — with two carve-outs.
+#
+# `dead_code` and `unreachable_pub` are transient *by construction* here, and
+# both cases are structural rather than sloppiness:
+#   - the `--no-default-features` column drops `shell`, so every stratum 1 item
+#     whose only caller lives in stratum 2 is dead in that column. That is
+#     ADR-001's feature gate working, not a defect.
+#   - a phased plan lands a type one phase before its caller.
+# At `deny` the only escape is peppering `#[cfg_attr(…, expect(dead_code, …))]`
+# across `semantics/`. At `warn` the noise stays visible and the build still
+# goes. `expect(dead_code, reason = …)` remains available for the cases worth
+# *recording*; it self-clears via `unfulfilled_lint_expectations`.
+#
+# Both are left at their default `warn` explicitly rather than by omission, so
+# that the carve-out is a decision on the page and not an oversight. The phase
+# gate still refuses dead code in the default-features column; only the
+# `--no-default-features` line allows it, because there it is structural.
+#
+# The rest of the group stays denied: `unused_imports`, `unused_variables`,
+# `unused_mut`, `path_statements` have no legitimate transient case, and
+# `unused_must_use` is a correctness lint wearing a tidiness costume.
+unused = { level = "deny", priority = -1 }
+dead_code = "warn"
+# unused_crate_dependencies paused: false-positives on test/bench/feature-only
+# deps; fights early scaffolding. Re-enable once the dep graph stabilises.
+# unused_crate_dependencies = "deny"
+unreachable_pub = "warn"
+
+# Future-proofing / edition hygiene.
+rust_2018_idioms = { level = "deny", priority = -1 }
+rust_2021_compatibility = { level = "warn", priority = -1 }
+rust_2024_compatibility = { level = "warn", priority = -1 }
+
+# Safety-sensitive.
+unsafe_op_in_unsafe_fn = "deny"
+elided_lifetimes_in_paths = "deny"
+explicit_outlives_requirements = "deny"
+
+# Avoid accidental cfg drift.
+unexpected_cfgs = "deny"
+
+# ---- Clippy lints ----
+[lints.clippy]
+# Broad groups first, with lower priority so individual overrides below win.
+all = { level = "deny", priority = -2 }
+pedantic = { level = "deny", priority = -2 }
+cargo = { level = "deny", priority = -2 }
+# nursery dropped: the gate's `-D warnings` promotes it to hard error, and
+# nursery lints are unstable/false-positive-prone. Re-add deliberately if you
+# want that churn.
+# nursery = { level = "warn", priority = -3 }
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+
+# Correctness / panic avoidance.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"
+integer_division = "deny"
+# `arithmetic_side_effects` is NOT here, and that is deliberate. I9 wants it on
+# the modules handling backend-derived data; crate-wide it fires on every loop
+# counter. It stays a module-level `#![deny(…)]` per D53/R-46.
+
+# Debug leftovers.
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+use_debug = "deny"
+
+# Sloppy error handling.
+map_err_ignore = "deny"
+let_underscore_must_use = "deny"
+let_underscore_future = "deny"
+# Doc-comment lints paused alongside missing_docs (see above). Re-enable before publishing.
+# missing_errors_doc = "deny"
+# missing_panics_doc = "deny"
+# missing_safety_doc = "deny"
+
+# Suspicious conversions / casts.
+checked_conversions = "deny"
+as_conversions = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_precision_loss = "deny"
+cast_sign_loss = "deny"
+
+# API/design pressure.
+module_name_repetitions = "deny"
+pub_use = "deny"
+wildcard_imports = "deny"
+enum_glob_use = "deny"
+default_trait_access = "deny"
+implicit_clone = "deny"
+clone_on_ref_ptr = "deny"
+
+# Performance and allocation discipline.
+large_futures = "deny"
+large_stack_arrays = "deny"
+large_types_passed_by_value = "deny"
+needless_pass_by_value = "deny"
+redundant_clone = "deny"
+
+# Async nastiness.
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
+future_not_send = "deny"
+async_yields_async = "deny"
+
+# Tests should not be garbage either.
+tests_outside_test_module = "deny"
+unwrap_in_result = "deny"
+
+# Agent-hostile ambiguity.
+shadow_unrelated = "deny"
+same_name_method = "deny"
+disallowed_methods = "deny"
+disallowed_types = "deny"
+
+# Some pedantic lints are too noisy for most real projects.
+must_use_candidate = "allow"
+missing_const_for_fn = "allow"
+return_self_not_must_use = "allow"
+similar_names = "allow"
+too_many_lines = "allow"
+struct_excessive_bools = "allow"
+multiple_crate_versions = "allow"
