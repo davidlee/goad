@@ -49,6 +49,7 @@
 
     projectPkgs =
       devToolPkgs
+      ++ [pkgs.deno]
       ++ guiLibs
       ++ [jailLib.agentsByName.claude jailLib.agentsByName.codex];
 
