@@ -1,7 +1,9 @@
 # Slice 001: Protocol core and process backend transport
 
-**Stage:** scoping
+**Stage:** design accepted 2026-08-26 — planning next
 **Depends on:** —
+**Design:** `design.md`, reviewed over five rounds (`review-design.md`, closed —
+read its Synthesis). Decisions in `design-log.md`. Progress in `notes.md`.
 
 ## Purpose
 
@@ -69,8 +71,10 @@ Surfaces this slice may touch.
 ## Acceptance criteria
 
 - [ ] AC-1 — From a clean clone in the nix dev shell: build, test, lint (zero
-      warnings) and format check all pass. The commands are named in
-      `AGENTS.md`.
+      warnings) and format check all pass — and test and lint pass in **both**
+      feature columns, with the `shell` feature and without it, since a
+      feature-gated crate checked in one column is unchecked. The commands are
+      named in `AGENTS.md`. Revised per F-51 and F-57.
 - [ ] AC-2 — Canonical Rust types exist for the `evaluate` and `respond`
       requests and their responses. The envelope carries a protocol version.
       Unknown optional fields are ignored; an unknown *required* semantic
@@ -91,16 +95,27 @@ Surfaces this slice may touch.
       the two bounds behave differently: the stdout bound fails the exchange and
       closes the stream, while the stderr bound truncates what is stored and
       keeps draining, so a chatty backend is truncated rather than deadlocked.
-      Every path that returns from an exchange has terminated and reaped the
-      backend first, and leaves no drain task or descriptor behind it. Brief
-      §6.2, §13. Revised in design per F-2, F-3, F-24, F-25, F-26, F-40, F-41
-      and F-43.
+      Every path that returns from an exchange initiates termination and waits a
+      bounded interval to observe the backend reaped and its stderr drained;
+      failing to observe that within the bound is reported on its own channel
+      rather than suppressed by whatever else went wrong. A call waits at most
+      the configured timeout plus that cleanup bound. A **cancelled** exchange is
+      narrower and is stated narrowly: the transport spawns no task, so no task,
+      buffer or descriptor of the host's survives it — that much is structural,
+      not best-effort — while the child itself falls to `kill_on_drop`, which
+      this design states plainly is best-effort and is not a reaping guarantee.
+      Cancellation is therefore the one path where disposal is *attempted* and
+      not *observed*, because no code of the host's runs on it. Brief §6.2, §13.
+      Revised in design per F-2, F-3, F-24, F-25, F-26, F-40, F-41, F-43, F-48,
+      F-49, F-53, F-59 and F-60.
 - [ ] AC-6 — Each failure mode in brief §13 reachable by this transport —
       command not found, timeout, non-zero exit, malformed JSON,
       protocol-invalid response, invalid scheduling value, unsupported required
       primitive — maps to a distinct typed error, as do backend output exceeding
-      the read bound and an answer naming an interaction the host is not
-      holding. No path panics. Per ADR-001,
+      the read bound, an answer naming an interaction the host is not holding,
+      duplicate field ids, and a modelled key used on a field kind that does not
+      admit it. A cleanup failure is reported too, but on its own channel: it is
+      a fact about the host, not about the backend's response. No path panics. Per ADR-001,
       the taxonomy splits at the stratum seam: parse and validation errors
       belong to the pure core, transport errors to the I/O shell wrapping the
       core's. Not one flat enum spanning both.
@@ -149,13 +164,16 @@ Surfaces this slice may touch.
       endorsement is recorded before it happens; a divergence found during
       reconciliation is dispositioned per `docs/AGENTS.md`, never promoted
       as-is.
-- [ ] AC-15 — A test asserts ADR-001's one-way rule mechanically for the
-      strongest cases: no file under `src/semantics/` mentions `crate::shell`,
-      `crate::bin` or `tokio`. The test fails if it finds no files to inspect,
-      so a renamed or moved directory cannot pass vacuously. This is a partial
-      mitigation of the risk ADR-002 names as its own — that ADR-001 has no
-      compiler behind it during the one-crate period — and not a substitute for
-      the split.
+- [ ] AC-15 — ADR-001's rule is mechanised in two parts, of different strength.
+      **Dependency graph:** the async runtime is an optional dependency behind a
+      `shell` feature, so `cargo test --no-default-features` builds and runs
+      stratum 1 with no runtime present and fails if that stops being true. This
+      is a build gate, and it holds inside the single crate rather than waiting
+      for the workspace split. **Direction:** a test asserts that no file under
+      `src/semantics/` mentions `crate::shell`, `crate::bin` or `tokio`, failing
+      if it finds no files to inspect so a renamed directory cannot pass
+      vacuously. That half remains a partial mitigation of the risk ADR-002 names
+      as its own, and not a substitute for the split. Revised per F-51.
 
 ## Governing canon
 

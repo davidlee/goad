@@ -99,11 +99,42 @@ cost a refactor.
 - **ADR-002** — one crate until a trigger fires. Its Verification section
   requires the triggers to be checked and the answer recorded in the design of
   any slice that adds a dependency or a binary. This slice adds dependencies, so:
-  **T1** (a dependency stratum 1 must not need) — does not fire; tokio is a
-  stratum 2 dependency and stratum 1 does not link it. **T2** (a second binary)
-  — does not fire; at most one binary. **T3** (renderer build dominating test
-  wall-clock) — does not fire; there is no renderer. **Verdict: one crate,
-  strata as modules.**
+  **T1** (a dependency required that stratum 1 must not need *in order to
+  build*) — does not fire, **but only because tokio is optional**; see below.
+  **T2** (a second binary) — does not fire; at most one binary. **T3** (renderer
+  build dominating test wall-clock) — does not fire; there is no renderer.
+  **Verdict: one crate, strata as modules, with the runtime behind a feature.**
+
+  An earlier draft of this section answered T1 with "tokio is a stratum 2
+  dependency and stratum 1 does not link it". That was false, and F-51 is the
+  finding. Cargo resolves dependencies per *crate target*, not per module: in a
+  single crate with a plain `tokio` dependency, `cargo test` builds one graph
+  containing tokio, and `semantics/` has no separately selectable graph at all.
+  ADR-001's Decision — stratum 1 "must remain buildable and testable with no
+  renderer and no runtime in its dependency graph" — was therefore not merely
+  unenforced, it was **untrue**, and AC-15's source-level grep proved only the
+  weaker claim that `semantics/` contains no `tokio` token.
+
+  The repair is one line of manifest, and it makes the constraint hold rather
+  than restating it: tokio is an **optional** dependency behind a `shell`
+  feature, and `shell/` is `#[cfg(feature = "shell")]`. Verified by building it —
+  `cargo tree --no-default-features` contains no tokio, and
+  `cargo test --no-default-features` compiles and runs stratum 1 against serde,
+  serde_json and jiff and nothing else. That converts ADR-001 from a review gate
+  into a build gate, which is what CD-1 was written to record, and it is why T1's
+  answer is now "does not fire" for a checkable reason rather than an asserted
+  one: with the feature off, nothing stratum 1 must not need is required in order
+  to build it.
+
+  Two consequences worth stating. ADR-002 names Slint as "the first such
+  dependency"; tokio arrived first and was admitted only by making it optional,
+  so that sentence needs a canon-delta line (§10). And ADR-002 rejected "a single
+  crate permanently, with the renderer behind a Cargo feature" as the *standing
+  position* — this is not that. The feature is how one slice keeps a binding
+  constraint true; the workspace split still happens when T1 genuinely fires,
+  which ADR-002 expects in slice 002, because a Slint **build**-dependency with a
+  conditional `build.rs` is not made clean by a feature in the way an optional
+  runtime is.
 
 **From the brief, as intent rather than canon.**
 
@@ -126,7 +157,8 @@ cost a refactor.
 **Technical and cost.**
 
 - tokio with `process`, `time`, `rt`, `io-util` resolves 14 unique dependencies;
-  the smol family for the same job needs 31 (`research.md`, verified). `net`
+  the smol family for the same job needs 31 (`research.md`, verified). `macros`
+  joins them for the `select!` §5.4 needs, and costs no additional crate. `net`
   waits for slice 005.
 - Slint's 411 dependencies and ~19s clean debug build are the number T1 will be
   paid in next slice. It constrains nothing today, but it is why module
@@ -283,7 +315,7 @@ src/
       normalize.rs    #   wire -> Normalized<canonical>
     schedule.rs       #   pure resolution: latest-valid-wins
     error.rs          #   parse and validation errors
-  shell/              # STRATUM 2 — I/O. May use semantics. Never uses bin.
+  shell/              # STRATUM 2 — I/O. #[cfg(feature = "shell")] — F-51.
     backend/
       transport.rs    #   the trait (async at its boundary)
       process.rs      #   spawn-per-invocation on tokio
@@ -292,9 +324,11 @@ src/
     host.rs           #   composition: transport -> normalize -> resolve -> state
     error.rs          #   transport errors, wrapping semantics::Error
 tests/
-  protocol/           # fixture-driven, stratum 1 only (AC-9)
-  integration/        # round trip through the process transport (AC-7)
-  backends/           # the deliberately-misbehaving fixtures + the bash guard
+  protocol/main.rs    # fixture-driven, stratum 1 only (AC-9). One cargo target
+  integration/main.rs # round trip through the process transport (AC-7). One
+                      #   cargo target, `required-features = ["shell"]`
+  backends/           # the deliberately-misbehaving fixtures + the bash guard;
+                      #   scripts and data, not a cargo target
 examples/
   typescript/         # the showcase backend, deno
 ```
@@ -330,9 +364,62 @@ flowchart TD
   style S3 fill:#f7f2ee,stroke:#a64,stroke-dasharray: 4 3
 ```
 
+**The runtime is optional, and that is what makes ADR-001 true rather than
+aspirational — F-51.**
+
+```toml
+[dependencies]
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+jiff       = { version = "0.2", default-features = false }
+tokio      = { version = "1", optional = true,
+               features = ["process", "time", "rt", "io-util", "macros"] }
+
+[features]
+default = ["shell"]
+shell   = ["dep:tokio"]
+
+# Test targets are declared, not discovered, because one of them must be
+# feature-gated and `required-features` has nowhere else to live.
+[[test]]
+name = "protocol"
+path = "tests/protocol/main.rs"
+
+[[test]]
+name = "integration"
+path = "tests/integration/main.rs"
+required-features = ["shell"]
+```
+
+With `#[cfg(feature = "shell")] pub mod shell;` in `lib.rs`. Cargo resolves
+dependencies per crate target, so without this a single crate cannot give
+stratum 1 a graph of its own at all, however the modules are arranged: ADR-001's
+"no runtime in its dependency graph" would be false rather than merely
+unenforced. With it, `cargo test --no-default-features` builds and runs stratum
+1 against serde, serde_json and jiff and nothing else — verified by building it,
+including `cargo tree --no-default-features` showing no tokio node.
+
+**The gate needs the test targets gated too, or it does not hold.** A feature
+selects dependencies; it does not stop `cargo test --no-default-features` from
+*building every test target in the package*. The integration tier spawns
+processes on tokio, so without `required-features = ["shell"]` that command
+fails to compile and the build gate is unrunnable the moment that tier exists —
+the F-51 probe passed only because the crate it ran in had no integration tests
+yet. With the gate declared, cargo skips the target whose features are unmet and
+the protocol tier runs alone, which is the property AC-15 is actually asserting.
+`autotests = false` sits in `[package]` beside them so these two targets are the
+only ones, rather than being configured here and discovered again as well.
+
+This is the difference between AC-15 proving `semantics/` contains no `tokio`
+token and the build proving stratum 1 does not depend on tokio. The first is a
+grep and can be defeated by a re-export; the second is Cargo's own resolution.
+AC-15 stays — it catches the upward `use crate::shell::…` that a feature flag
+cannot — but it is no longer carrying the constraint alone.
+
 **Why grouped by stratum rather than by topic.** Two reasons, both about the
 weakness ADR-002 admits — that until the split, ADR-001 has no compiler behind
-it.
+it for the *direction* of dependencies, whatever the feature does for the
+dependency graph.
 
 1. It makes a violation visible in the import line itself. `use crate::shell::…`
    inside `src/semantics/` is wrong on sight, without the reader needing to know
@@ -360,17 +447,20 @@ is partly fixable here for very little: a test that reads the files under
 `src/semantics/` and asserts none of them mentions `crate::shell`, `crate::bin`
 or `tokio`, failing if it finds no files to inspect so that a rename cannot pass
 it vacuously. Crude — it is a string search over source text — but it catches
-the actual failure mode, which is an agent writing an upward `use`. It also
-gives the no-tokio-in-stratum-1 constraint a check it could not otherwise have,
-since `cargo tree` cannot see a boundary inside a single crate. AC-11 already
+the actual failure mode, which is an agent writing an upward `use`. AC-11 already
 establishes grep-checkable structure as acceptable here, so this is the same
 instrument aimed at the other invariant.
 
-This does **not** promote ADR-001's verification from review gate to build gate.
-It checks three known tokens, so it catches the common case, not the class; the
-ADR's own statement that this is a review gate until the strata become crates
-stands as written. Recorded in §10 so audit disposes of it deliberately rather
-than discovering it.
+**What this half does and does not promote.** ADR-001's Verification section
+calls itself a review gate, and D49 has already moved *half* of it: the
+dependency-graph claim is now a build gate, held by the feature and checked by
+`cargo test --no-default-features`. This test is the **other** half — direction —
+and it does not promote that half. It checks three known tokens, so it catches
+the common case and not the class: a re-export that flattens the boundary, a
+downward type leak, or `std::fs` under `semantics/` all pass it. For direction,
+the ADR's statement that this is a review gate until the strata become crates
+stands as written. CD-1 records the split explicitly, so audit disposes of both
+halves deliberately rather than discovering them.
 
 ### 5.2 Interfaces & contracts
 
@@ -427,6 +517,32 @@ Note what the first and second bullets do *together*: unknown fields are ignored
 but a known-and-required field's absence is a named error rather than a serde
 message. Permissiveness is about fields we do not model, not about fields we do.
 
+**One rule governs `null` everywhere, and stating it was F-50.** For every
+modelled field, **an explicit `null` means exactly what omission means — except
+where the protocol defines a distinct meaning for `null`, which is `view` and
+only `view`.** That is not a description of what serde happens to do; it is the
+reason `view` needs a presence-preserving deserializer and the other fields do
+not.
+
+The review raised this as a defect, on the grounds that `{"next_check": null}`
+reaches `None` silently while `{"next_check": 45}` produces a reported
+`NotAString` discard — two non-string values, two treatments. The observation is
+exact and was verified: `{}` and `{"next_check": null}` both deserialize to
+`None`, as do `{}` and `{"protocol": null}`. The disposition is that the
+behaviour is right and the *silence about it* was the defect. Serializers in the
+languages backends will be written in emit `null` for an absent optional
+constantly — Python's `json.dumps({"next_check": None})` is the normal output of
+ordinary code — so treating it as an invalid value would report a discard against
+a backend doing nothing wrong, on most messages. `45` is different in kind: it is
+a value the backend meant, in a type the protocol cannot use.
+
+`view` is the exception because `null` there is a *positive assertion the
+protocol defines* — "there is nothing to show" (brief §11) — which omission does
+not make. Nowhere else does the protocol give `null` a meaning that differs from
+absence, so nowhere else is there anything to lose. If a later field needs one,
+the presence-preserving deserializer is how it says so, and this paragraph is the
+test it has to pass first.
+
 **The rest of the inbound wire shape is fixed by the brief's own examples**, and
 this is F-31 and F-38. Those examples are what a backend author copies, so a wire
 type that rejects one is wrong regardless of how clean it reads.
@@ -445,6 +561,14 @@ pub struct WireField {
   /// Every other key on the field object. Brief §10.2 writes `multiline` flat,
   /// alongside `id` and `kind` — hints are not a nested member on the wire.
   #[serde(flatten)] pub hints: BTreeMap<String, serde_json::Value>,
+}
+
+/// A **view's** option. The only wire type carrying `fields`.
+#[derive(Deserialize)]
+pub struct WireOpt {
+  pub id: String,
+  pub label: String,
+  #[serde(default)] pub fields: Option<Vec<WireField>>,
 }
 
 #[derive(Deserialize)]
@@ -529,6 +653,17 @@ compelled to send it.
 // comment. Accessors are elided here for length; each field has one returning a
 // borrow, and the types derive `Debug`, `Clone`, `PartialEq`.
 
+// The scalar newtypes every type below is written in terms of. Each is a
+// newtype rather than a bare `String` so that a view id, an option id and a
+// field id cannot be passed for one another — they are addresses in three
+// different namespaces (I15) and the compiler is the cheapest place to say so.
+pub struct ViewId(String);        // `{now}#{seq}` — D13
+pub struct OptionId(String);      // names a *view's* option; `UserResponse.option`
+pub struct AlternativeId(String); // a value a `choice` field may take — F-61
+pub struct FieldId(String);       // keys `UserResponse.values`
+pub struct Timestamp(jiff::Timestamp);   // an instant, always supplied as `now`
+pub struct Hints(BTreeMap<String, serde_json::Value>);  // opaque, never branched on (I7)
+
 pub struct Response { pub(super) view: Option<View>, pub(super) schedule: Option<Timestamp> }
 //                                     ^ None = nothing to show   ^ None = no instruction supplied
 
@@ -540,7 +675,7 @@ pub struct Choice {
   pub(super) options: Options,            // newtype: >= 1, ids unique
 }
 
-pub struct Opt { pub(super) id: OptionId, pub(super) label: String, pub(super) fields: Vec<Field> }
+pub struct Opt { pub(super) id: OptionId, pub(super) label: String, pub(super) fields: Fields }
 
 pub enum Content { Text(String), Markdown(String), Html(String), Uri(String) }
 
@@ -554,8 +689,22 @@ pub struct Field {
 pub enum FieldKind {
   Text, Boolean, DateTime,
   Number(NumberRange),
-  Choice { options: Options },
+  /// Not `Options`: an alternative is a value, not an action, and carries no
+  /// fields of its own. F-54.
+  Choice { alternatives: Alternatives },
 }
+
+/// A value a `choice` field may take. Deliberately id and label only, and
+/// deliberately **not** an `OptionId`: a view's option is *selected* — it is what
+/// `UserResponse.option` names — while an alternative is *submitted*, as the
+/// value at `values[field_id]`. Two namespaces, so two types. F-61.
+pub struct Alternative { pub(super) id: AlternativeId, pub(super) label: String }
+
+// Newtypes with checked constructors, all three for the same reason: >= 1
+// element, and ids unique within the collection.
+pub struct Options(Vec<Opt>);
+pub struct Alternatives(Vec<Alternative>);
+pub struct Fields(Vec<Field>);
 
 /// Checked: each bound finite, and `min <= max` when both are present.
 pub struct NumberRange { min: Option<f64>, max: Option<f64> }
@@ -572,6 +721,62 @@ with zero options is unrenderable, and duplicate option ids make a later
 `respond` ambiguous about which option it names. Both are §3.3 ambiguities, so
 both are rejected at normalization rather than tolerated. P1 says the canonical
 type should not be *able* to hold either.
+
+**`Fields` is the same newtype for the same reason, and its absence was F-52.**
+`UserResponse.values` is a `BTreeMap<FieldId, Value>`, so two fields in one
+option sharing an id have exactly one response key between them and cannot be
+answered independently — the identical defect to duplicate option ids, one level
+down, in a design that had already made the argument once and then used a bare
+`Vec<Field>`. The rule generalises and is worth stating as a rule rather than as
+three cases: **every identifier a response names must be unique within the scope
+that response names it in.** `Options`, `Fields` and `Alternatives` are that rule
+with a constructor behind it.
+
+The three do not all fail the same way, and the rule has to be stated over
+*naming* rather than over keys or it would only carry two of them. An option id
+and a field id are **keys**: `UserResponse.option` selects one, and
+`UserResponse.values` is keyed by the other, so a duplicate leaves the response
+unable to address one of the pair. An alternative id is a **value** — the answer
+to a `choice` field is that id, submitted as `values[field_id]` — so a duplicate
+does not collide a key; it makes the submitted value ambiguous about which
+alternative the user picked, which is the same defect arriving from the other
+side. "Unique within the scope that names it" covers both; "unique as a key"
+would have left `Alternatives` a newtype with no rule behind it.
+
+**That distinction is a type, not a remark — F-61.** If a selected id and a
+submitted id are different enough to need two clauses in the rule, they are
+different enough that the compiler should refuse to swap them, and `Alternative`
+originally carried an `OptionId`. It now carries an `AlternativeId`. The scalar
+newtypes exist precisely so that three namespaces cannot be passed for one
+another, so reusing one across two of them contradicted the reason they exist —
+and the design said so in a comment while doing the opposite. Two consequences
+fall out and are taken rather than argued around: `DuplicateAlternativeId` and
+`EmptyAlternatives` join the taxonomy, because `DuplicateOptionId` raised against
+an alternative asserts that the id *is* an option id, which is the F-48 naming
+mistake — a variant whose name states something the path never establishes.
+
+**A `choice` field's options are read as `Alternative`, and `fields` there is
+rejected rather than ignored — F-55.** `WireField.options` is
+`serde_json::Value` (see the wire types above), so normalization dispatches it
+rather than serde binding it, and the dispatch checks for `fields` explicitly.
+The first version of this repair said the key would be "ignored as unmodelled
+under I10", which confused two layers: whether a key is modelled is a fact about
+the *wire* type, and `fields` is a protocol key wherever the protocol admits it —
+just not here. Ignoring it would have been the F-45 defect reintroduced by the
+F-54 repair, on the same page that repairs F-45. R-53's "MUST NOT carry fields"
+needs an error behind it or it is unenforceable prose.
+
+**A `choice` field's alternatives are not `Options`, and this is F-54.** Reusing
+`Options` there let a choice field's option carry `fields` of its own,
+recursively — while `UserResponse` is one option id and one flat map, so there is
+no way to say *which* nested option was chosen, and a nested field's id shares a
+namespace with every outer field's id. That is admitted surface no requirement
+asked for and no response can express: brief §10.2 shows fields on a view's
+options, never on a field's. `Alternative` is therefore id and label only, which
+deletes the recursion rather than documenting it. F-20 examined this reuse and
+found no defect, having looked only at the view side; the response side is where
+it fails, which is the same lesson as F-31 — check the shape against the message
+that has to carry it, not against itself.
 
 **`BoundsError::NotFinite` cannot be reached from the wire, and is kept anyway.**
 This is F-36. JSON has no `NaN` or infinity literal: verified, `{"min": NaN}` fails
@@ -683,8 +888,11 @@ pub enum ProtocolError {
   UnsupportedPrimitive { kind: String, at: String },   // path, per F-6
   InapplicableKey { key: &'static str, kind: String, at: String },   // F-45
   MissingField { field: &'static str },
-  EmptyOptions,
-  DuplicateOptionId { id: String },
+  EmptyOptions { at: String },
+  DuplicateOptionId      { id: String, at: String },
+  DuplicateFieldId       { id: String, at: String },   // F-52
+  DuplicateAlternativeId { id: String, at: String },   // F-61
+  EmptyAlternatives      { at: String },               // F-61
   Bounds(BoundsError),
   Schedule(ScheduleError),
 }
@@ -709,9 +917,16 @@ pub enum BackendError {
   ExitStatus { code: Option<i32> },
   OutputTooLarge { limit: usize },               // stdout cap exceeded — §5.4, F-2
   PipeMissing,                                   // stdio handle absent post-spawn — F-35
-  Reap(std::io::Error),                          // kill or wait failed — F-42
   Io(std::io::Error),
   Protocol(semantics::ProtocolError),
+}
+
+/// Cleanup is a **second dimension**, not another `BackendError`. What the
+/// backend did and whether the host disposed of it are independent facts, and
+/// D42's mistake was forcing them into one precedence contest. F-48, F-53.
+pub enum CleanupFailure {
+  TimedOut { after: Duration },   // kill, reap and stderr drain did not finish
+  Io(std::io::Error),             // start_kill or wait failed outright
 }
 
 /// Refusals that arise from host state rather than from the backend or the wire.
@@ -722,6 +937,12 @@ pub enum StateError {
   StaleViewId { named: ViewId, outstanding: ViewId },
 }
 ```
+
+`EmptyOptions`, `EmptyAlternatives`, `DuplicateOptionId`, `DuplicateAlternativeId`
+and `DuplicateFieldId` all carry a path, for
+the reason F-6 gave `UnsupportedPrimitive` one: once `Alternatives` and `Fields`
+exist there are several sites a duplicate can occur at, and "duplicate option id
+'later'" is a puzzle in a view that has options at two depths.
 
 `MissingOffset` is broken out from `Unparseable` because an offset-less
 timestamp is the single most likely backend mistake, and "you omitted the
@@ -764,18 +985,30 @@ pub trait Backend {
 }
 
 /// A completed exchange. `result` is the response body, or the reason there is
-/// none; `stderr` is diagnostic and is carried either way. Note there is no
-/// outer `Result`: the exchange itself always completes.
+/// none; `stderr` is diagnostic and is carried either way; `cleanup` says
+/// whether the host disposed of the child. Note there is no outer `Result`: the
+/// exchange itself always completes.
 pub struct Exchange {
-  pub result: Result<Vec<u8>, BackendError>,
-  pub stderr: Captured,
+  pub result:  Result<Vec<u8>, BackendError>,
+  pub stderr:  Captured,
+  /// `Some` = the host could not establish that the child was killed, reaped
+  /// and its stderr drained within `CLEANUP_LIMIT`. Independent of `result`.
+  pub cleanup: Option<CleanupFailure>,
 }
 
 impl Exchange {
-  /// A failure with nothing captured — only for the paths where no process ever
-  /// ran, and so no stderr exists to have captured.
-  fn failed(error: BackendError) -> Self { /* Captured::default() */ }
+  /// A failure with nothing captured and nothing to dispose of — only for the
+  /// paths where no process ever ran, so no stderr exists to have captured and
+  /// `cleanup` is `None` because there was never a child to clean up after.
+  fn failed(error: BackendError) -> Self { /* stderr: default, cleanup: None */ }
 }
+
+/// The other constructor §5.4 reaches for: a child exists but the exchange
+/// cannot proceed — a missing stdio handle post-spawn. It runs the same bounded
+/// disposal as the normal path and reports it on the same channel, which is why
+/// it is a function rather than a second `Exchange::failed`: the whole point of
+/// I13 is that a child, once spawned, is disposed of on *every* returning path.
+async fn cleanup_only(child: &mut Child, error: BackendError) -> Exchange;
 
 /// Bounded capture. `truncated` is the flag AC-5's cap needs somewhere to live.
 #[derive(Default)]
@@ -853,6 +1086,10 @@ pub struct Outcome {
   /// `Some` = the host took no action on this exchange beyond reporting it.
   /// It does **not** mean nothing happened: see below.
   pub failure:    Option<Failure>,
+  /// `Some` = the host could not establish that it disposed of the backend
+  /// process. A *host* condition, orthogonal to `failure`, which is the
+  /// *backend's* outcome. F-48, F-53.
+  pub cleanup:    Option<CleanupFailure>,
 }
 
 /// A view and the identity minted for it, inseparable by construction.
@@ -901,6 +1138,15 @@ timeout = "5s"
 
 [schedule]
 default_poll = "30m"
+```
+
+```rust
+// shell/config.rs — the parsed form. Durations resolve at load, so nothing
+// downstream carries an unparsed string, and `Config` is the type §5.4's
+// sketch means by `config.timeout`.
+pub struct Config { pub backend: BackendConfig, pub schedule: ScheduleConfig }
+pub struct BackendConfig { pub command: Vec<String>, pub timeout: Duration }
+pub struct ScheduleConfig { pub default_poll: Duration }
 ```
 
 Section and key names are brief §5's, minus `socket` and `logging` per the OQ-4
@@ -1010,10 +1256,15 @@ has a specific way of going wrong:
    `child.wait_with_output()` drains concurrently and would have been the whole
    of this step, but it is unbounded and its buffers are unreachable on the
    timeout path — see below.
-4. **Await exit.**
-5. All of the above inside **one `tokio::time::timeout`** covering the whole
-   exchange, not just the read. On elapse, kill the child explicitly and await
-   it.
+4. **Await exit, and read the status.** Not "the read finished" — a non-zero
+   exit discards a body that parsed (D15, R-40), so the status has to be
+   observed before the body is trusted, and before anything kills the child.
+5. Steps 1–4 inside **one `tokio::time::timeout`**, which bounds the backend's
+   opportunity to respond — not just the read. Disposal cannot sit inside it:
+   killing the child and reaping it necessarily happen *after* the timeout that
+   gave up on it. So on elapse — and on every other returning path — the kill,
+   the reap and the drain's completion run under a **second** bound,
+   `CLEANUP_LIMIT`, and a call waits at most the sum. F-53, D48.
 
 **Why not `wait_with_output()`.** It loses on both counts that brief §13 cares
 about, and it loses them together:
@@ -1035,54 +1286,171 @@ here instead. It remains one refactor — that argument was sound, only its
 conclusion was wrong.
 
 ```rust
-// shell/backend/process.rs — the shape, not the implementation
-const STDOUT_LIMIT: usize = 8 * 1024 * 1024;
-const STDERR_LIMIT: usize =      256 * 1024;
+// shell/backend/process.rs — the shape, not the implementation. This structure
+// was built and run before being written down; §9 lists what the run showed.
+// The two readers, whose difference is D34 and whose signatures are the reason
+// the borrow structure below works: `read_capped` owns nothing past the call,
+// while `drain_capped` writes into a buffer the caller owns and outlives it.
+async fn read_capped(r: &mut impl AsyncRead, limit: usize) -> Result<Vec<u8>, BackendError>;
+async fn drain_capped(r: impl AsyncRead, limit: usize, into: &mut Captured);
 
-// No `?` past the spawn: once a child exists every return must reap it, and `?`
-// would quietly hand that job to `kill_on_drop` — the mechanism D26 says not to
-// rely on. This is F-41.
+const STDOUT_LIMIT:  usize    = 8 * 1024 * 1024;
+const STDERR_LIMIT:  usize    =      256 * 1024;
+const CLEANUP_LIMIT: Duration = Duration::from_millis(500);
+
+// No `?` past the spawn: once a child exists every return must clean up after
+// it, and `?` would quietly hand that job to `kill_on_drop` (F-41).
 let mut child = match cmd.spawn() {                          // kill_on_drop(true)
   Ok(child) => child,
-  // Nothing spawned, so there is no stderr that could have been captured.
-  Err(e) => return Exchange::failed(BackendError::Spawn(e)),
+  Err(e) => return Exchange::failed(BackendError::Spawn(e)),   // nothing spawned
 };
-let Some(stderr) = child.stderr.take() else {                // no expect — F-35
-  reap(&mut child).await;
-  return Exchange::failed(BackendError::PipeMissing);
-};
+let (Some(mut stdin), Some(mut stdout), Some(stderr)) =
+  (child.stdin.take(), child.stdout.take(), child.stderr.take()) else {
+    return cleanup_only(&mut child, BackendError::PipeMissing).await;
+  };
 
-// Stderr accumulates into a buffer the *caller* owns, not one the task owns, so
-// bytes already read survive even if the task itself has to be abandoned (F-27).
-let seen: Arc<Mutex<Captured>> = Arc::default();
-let draining_stderr = tokio::spawn(drain_capped(stderr, STDERR_LIMIT, seen.clone()));
+let mut seen = Captured::default();
+let (result, cleanup) = {
+  // The drain is a sub-future of *this* task, not a `tokio::spawn` — F-49. It
+  // borrows the caller's buffer, so no `Arc<Mutex<…>>`; and if the whole
+  // exchange is cancelled it is dropped with everything else, where a spawned
+  // task would have been detached and left running.
+  let drain = drain_capped(stderr, STDERR_LIMIT, &mut seen);
+  tokio::pin!(drain);
 
-// Bound before the match, not inside its scrutinee: `exchange` holds `&mut child`,
-// and a temporary in a match scrutinee lives to the end of the match — so the
-// borrow would still be live in the arms that need `child`.
-let exchange = async { /* write stdin, drop it, read stdout capped, child.wait() */ };
-let raced = tokio::time::timeout(config.timeout, exchange).await;
+  // Both make progress for the whole window. The `if !drained` guard is load-
+  // bearing: `select!` must not poll a future that has already completed.
+  let mut drained = false;
+  let raced = {
+    // `body` ends at **exit**, not at EOF on stdout — F-59. It therefore holds
+    // `&mut child`, which is why it lives in an inner scope: the borrow has to
+    // be released before the cleanup budget below can take `&mut child` again.
+    let body = async {
+      /* write stdin, drop it, read stdout capped */
+      let bytes  = read_capped(&mut stdout, STDOUT_LIMIT).await?;
+      let status = child.wait().await.map_err(BackendError::Io)?;
+      Ok::<_, BackendError>((bytes, status))
+    };
+    tokio::pin!(body);
 
-// Every path from here reaps the child explicitly. `kill_on_drop` is the backstop
-// for panics and cancellation, never the mechanism we rely on (F-26).
-let body = match raced {
-  Ok(Ok(stdout)) => Ok(stdout),
-  Ok(Err(e))     => Err(e),                                  // cap exceeded, or I/O
-  Err(_)         => Err(BackendError::Timeout { after: config.timeout }),
-};
+    tokio::time::timeout(config.timeout, async {
+      loop {
+        tokio::select! {
+          r = &mut body      => break r,
+          _ = &mut drain, if !drained => { drained = true; }
+        }
+      }
+    }).await
+  };  // `body` dropped here, releasing `&mut child`
 
-// `reap` is start_kill + wait, and idempotent: an already-exited child is a
-// no-op success. It reports only when nothing else has — see the precedence
-// rule below (F-42).
-let result = match (body, reap(&mut child).await) {
-  (Ok(stdout), Ok(()))  => Ok(stdout),
-  (Ok(_),      Err(e))  => Err(BackendError::Reap(e)),
-  (Err(prior), _)       => Err(prior),
-};
+  // A non-zero status discards the body it came with — D15, R-40. The status is
+  // read *before* the bytes are trusted, so there is no path on which a parsed
+  // response outlives the exit code that disclaimed it.
+  let result = match raced {
+    Ok(Ok((bytes, st))) if st.success() => Ok(bytes),
+    Ok(Ok((_, st)))                     => Err(BackendError::ExitStatus { code: st.code() }),
+    Ok(Err(e))                          => Err(e),           // cap or I/O error
+    Err(_)                              => Err(BackendError::Timeout { after: config.timeout }),
+  };
 
-// Joins the drain under a short grace timeout, aborting it on elapse (F-40).
-Exchange { result, stderr: collect_stderr(&seen, draining_stderr).await }
+  // ONE cleanup budget covering kill, reap and finishing the drain. Bounded
+  // because `wait` on a pathological child can block indefinitely, and a host
+  // that blocks is the host going down (brief §13).
+  let cleanup = tokio::time::timeout(CLEANUP_LIMIT, async {
+    child.start_kill().map_err(CleanupFailure::Io)?;
+    child.wait().await.map_err(CleanupFailure::Io)?;
+    if !drained { (&mut drain).await; }
+    Ok::<(), CleanupFailure>(())
+  }).await;
+
+  (result, match cleanup {
+    Ok(Ok(()))  => None,
+    Ok(Err(e))  => Some(e),
+    Err(_)      => Some(CleanupFailure::TimedOut { after: CLEANUP_LIMIT }),
+  })
+};  // `drain` dropped here, releasing the borrow of `seen`
+
+Exchange { result, stderr: seen, cleanup }
 ```
+
+**The two dimensions, and why they are two.** An exchange now reports what the
+*backend* did and what the *host* managed to do about it, separately:
+
+| `result` | `cleanup` | meaning |
+|---|---|---|
+| `Ok` | `None` | normal success |
+| `Err` | `None` | the backend failed; the host recovered fully |
+| `Ok` | `Some` | the response is good, but a process may still be about |
+| `Err` | `Some` | the backend failed **and** the host could not dispose of it |
+
+An earlier repair (D42) made these one channel and ranked them: a cleanup
+failure was dropped whenever the exchange had already failed, on the argument
+that "we also could not kill it" is a consequence of the timeout that explains
+it. F-48 is why that is wrong. A timeout says *this invocation failed*; a
+cleanup failure says *this invocation may still have consequences after the call
+returns*. The second outlives the first, and the first will recur on the next
+poll anyway. Once the reap is bounded — which F-53 forces — the case is
+reachable, and a precedence rule that hides it is actively misleading rather
+than merely lossy. Two dimensions make the whole precedence question disappear,
+which is the tell that it was the wrong shape and not the wrong ranking.
+
+**`CleanupFailure::TimedOut`, not `Orphaned`.** The name matters because the failure path
+does not establish what it would be claiming. When the cleanup budget elapses
+the child may be alive, dying, exited-but-unreaped, or perfectly fine with only
+its stderr held open by a grandchild — and the last of those is the case that
+actually occurs. Running it: a backend that answers correctly and leaves
+`(sleep 30) >/dev/null &` holding **stderr** delivers its response, the child
+exits and is reaped, and only the drain stalls — `result` is `Ok` and `cleanup`
+is `TimedOut`. A variant named `Orphaned` would have been a false statement about
+the most common way it fires.
+
+**Two grandchild cases, not one — F-63.** Which descriptor the grandchild
+inherits changes the outcome, and the design previously described one case while
+measuring the other:
+
+| the grandchild holds | `result` | `cleanup` | why |
+|---|---|---|---|
+| stderr only | `Ok(response)` | `TimedOut` | stdout reaches EOF, so the body completes and the response is delivered; only the drain is stuck |
+| stdout as well | `Err(Timeout)` | `TimedOut` | stdout never reaches EOF, so the body cannot complete — the host never sees a response the backend did write |
+
+Both were run. The second is the `Err` + `Some` row of the table above, which
+until now was a combination the design called meaningful without having observed
+one. It is also the honest reading of a limitation: **a host cannot distinguish
+"the backend is still writing" from "the backend exited and something else holds
+the pipe"**, because both look like a pipe with no EOF on it. `config.timeout` is
+the only answer available, and it is the right one — the alternative is to stop
+reading at the end of the first JSON document, which would silently accept a
+truncated response as complete.
+
+**Cancellation is where the two obligations part company — F-60.** Everything
+above concerns paths that *return*. On cancellation nothing here runs at all: the
+exchange future is dropped, and what the host holds goes with it — no task, no
+buffer, no descriptor, structurally, because after F-49 there is nothing to
+detach. The **child** is a different claim and a weaker one. Its disposal falls to
+`kill_on_drop`, which two bullets above is called a backstop precisely because
+tokio documents it as best-effort and needing a live runtime to reap. So AC-5
+says the narrow thing rather than the satisfying one: on cancellation, disposal is
+attempted and not observed.
+
+Making it observed would need a supervisor outside the exchange to reap
+abandoned children — which is the detached task F-49 deleted, arriving back
+wearing a different hat — or killing the process group, which brief §14 refuses
+because backends are trusted user programs. Both are worse than the gap. The gap
+is bounded in practice by `kill_on_drop` firing on the common path and by there
+being exactly one cancellation source in this slice, which is the caller
+dropping a future it owns; it is stated here so that slice 003, which introduces
+a timer that can cancel, meets it written down rather than discovers it.
+
+**Total time is bounded and stated, which is F-53.** `config.timeout` bounds the
+backend's opportunity to respond; `CLEANUP_LIMIT` bounds the disposal. A call
+waits at most the sum, and R-41 now says so instead of claiming the configured
+timeout covers everything — which it cannot, since killing a child and reaping it
+necessarily happen *after* the timeout that gave up on it. Measured on the worse grandchild case —
+the one where stdout is held too, so the exchange pays the full timeout and then
+the full cleanup budget: 902 ms against a stated 900 ms bound, the remainder
+being scheduling rather than waiting. The stderr-only case pays the cleanup
+budget alone, and the normal path pays neither. The requirement bounds what the host waits for,
+not what a machine guarantees.
 
 What this makes explicit:
 
@@ -1095,6 +1463,27 @@ What this makes explicit:
   second half says do not add configuration for a future nobody has asked for.
   8 MiB is orders of magnitude above any legitimate view — a view is prose and a
   handful of fields — and failing at a stated limit beats swapping.
+- **The timed region ends at exit, not at EOF on stdout — F-59.** The step above
+  is `wait`, not "the read finished", and the distinction is the whole of D15 and
+  R-40: a backend may write a perfectly good response and then exit non-zero to
+  disclaim it, and the host that has already committed to `Ok` cannot honour the
+  disclaimer. An earlier draft of this sketch — the one F-53 produced, by pulling
+  `wait` out of the timed region and into the cleanup budget — dropped the status
+  on the floor, which made `BackendError::ExitStatus` unreachable and R-40's own
+  fixture unpassable, while the prose four paragraphs above still listed "await
+  exit" as step 4. Two consequences worth stating, because the shape is easy to
+  get wrong twice:
+
+  - Cleanup **kills**, and a kill before the status is observed destroys it. So
+    the observation cannot live there. It belongs in the region that is bounded
+    by `config.timeout`, which is also where it belongs on the merits: waiting
+    for a backend to exit is the backend's opportunity to respond, not the
+    host's disposal of it. D48's total, `timeout + CLEANUP_LIMIT`, is unchanged.
+  - `body` therefore holds `&mut child`, and the cleanup budget needs it back.
+    Hence the inner scope: the borrow ends when `body` is dropped, which is
+    exactly where the timed region ends. `drain` stays pinned outside it because
+    it borrows `seen`, not `child`, and must survive into cleanup.
+
 - **`start_kill` then `wait`, rather than relying on `kill_on_drop`.** This is
   F-14. `kill_on_drop` is a backstop, not a guarantee: tokio's own documentation
   is explicit that the process is killed on a best-effort basis and that reaping
@@ -1107,9 +1496,11 @@ What this makes explicit:
   the cap-exceeded and I/O-error paths straight out, which left those paths
   relying on precisely the mechanism the previous bullet says not to rely on. A
   design that names a weak mechanism and then still uses it on three paths out of
-  four has not fixed anything. `reap` is therefore unconditional and idempotent —
-  a child that already exited makes it a no-op — and the exchange's own error is
-  decided before the reap rather than inside it.
+  four has not fixed anything. Cleanup is therefore unconditional, and idempotent
+  — verified: tokio's `start_kill` and `wait` both return `Ok` against a child
+  that has already exited and been waited on, because tokio caches the status. So
+  running it on the success path costs nothing and needs no "did we already?"
+  flag.
 - **A `?` after the spawn is a bug, and the rule is stated over the region rather
   than the line — F-41.** `child.stderr.take().ok_or(PipeMissing)?` returned after
   the child existed and before the unconditional reap, which is the previous
@@ -1117,28 +1508,14 @@ What this makes explicit:
   `let … else` and reaps first; the only return that skips the reap is the spawn
   failure, where there is no child to reap. **No `?` past the spawn** is the rule,
   because the next person to add a fallible step here will reach for one.
-- **A reap failure reports only when nothing else did — F-42.** `start_kill` and
-  `wait` are both fallible, and an unconditional reap that ignores its own result
-  would let a live child be reported as a clean exchange. The precedence rule, in
-  full: *already exited* is success, because reaping unconditionally means most
-  reaps run against a process that has already gone; any other reap failure with
-  no prior error becomes `BackendError::Reap`; and a reap failure alongside an
-  existing error is **dropped deliberately**. The last clause is the only one
-  that needs defending, and the defence is that "we also could not kill it" is
-  strictly less informative than the timeout or overflow that made us abandon it
-  — the second error explains the first, so reporting both would bury the cause
-  under its consequence. R-47's "every refusal MUST be reported" governs
-  backend-supplied *values*, which the sender can act on; it was never about
-  internal cleanup telemetry, and the draft spec now says so — the obligation
-  moves to R-48 rather than disappearing.
-
-  A reap failure on the *success* path discards a response that parsed, which
-  looks harsh until you notice it is close to unreachable: the success path
-  already awaited exit inside `exchange`, so its reap is a no-op by construction,
-  and a `wait` that errors for a child we believe has already exited is a
-  host-side inconsistency rather than a backend result. Reporting it costs one
-  exchange, which is cheap, and swallowing it would make I13 unobservable, which
-  is not.
+- **Cleanup is bounded, and that is what makes its failure reachable — F-53.**
+  `wait` is not guaranteed to return. A child wedged in uninterruptible sleep
+  will not die on `SIGKILL` until it leaves that state, and a host blocking
+  forever inside an exchange is the host going down, which brief §13 forbids as
+  squarely as an OOM does. So the disposal gets its own budget. That is also
+  what turns "we could not reap it" from a near-unreachable error return into an
+  outcome the design has to have an answer for — and the answer is the second
+  dimension above, not a precedence rule.
 - **The two readers behave differently, because the two streams do — F-25.**
   `read_capped` (stdout) stops at the limit and drops the handle: the exchange is
   already failing, and closing the pipe is what makes the flood stop rather than
@@ -1159,29 +1536,36 @@ What this makes explicit:
   the same reason as F-14. The same run confirmed the borrow structure above, that
   stderr survives the timeout path, and that a backend reading stdin to EOF
   completes.
-- **Where this can still stall, what survives it, and what must be stopped —
-  F-27 and F-40.** If the backend spawned a grandchild that inherited the stderr
-  fd, killing the backend does not close the pipe and the drain task never
-  reaches EOF. The join therefore takes a short grace timeout of its own, after
-  which the host **aborts the task** and stops waiting on a process it does not
-  manage. Aborting rather than simply dropping the handle is F-40's correction,
-  and it is not a nicety: dropping a tokio `JoinHandle` *detaches* the task
-  rather than cancelling it, so a backend that arranges this on every exchange
-  accumulates one live task, one pipe descriptor and up to 256 KiB of buffer per
-  call, forever. That is a backend causing unbounded host resource growth, which
-  is exactly what I11 forbids and what the caps upstream exist to prevent — the
-  cap on the buffer is worth nothing if the buffers themselves are unbounded in
-  number. The stderr **is not lost**, which is the correction F-27
-  forced: the buffer is behind an `Arc<Mutex<Captured>>` owned by the caller, so
-  abandoning the task still leaves every byte it had already read readable. An
-  earlier draft returned the buffer through the task's join handle, which is
-  tidier and meant that abandoning the task discarded everything — including the
-  bytes that were the reason for capturing stderr at all.
+- **Where this can still stall, and why there is no task to abandon — F-27,
+  F-40, F-49.** If the backend spawned a grandchild that inherited the stderr fd,
+  killing the backend does not close the pipe and the drain never reaches EOF.
+  If it inherited **stdout** as well, the body cannot complete either and the
+  exchange times out before any of this — the two cases and their different
+  outcomes are tabulated above, per F-63.
+  The cleanup budget is what stops the host waiting on a process it does not
+  manage, and the stderr **is not lost**: the buffer belongs to the caller's
+  stack frame, so every byte already read survives the drain being dropped.
 
-  This is the one place a lock is right, and it is worth saying why given that D14
-  refused one for `State`. There the concurrency was hypothetical and brief §12
-  says not to invent it; here there are genuinely two tasks reading and writing
-  one buffer, and the lock is uncontended in the normal case.
+  This design previously ran the drain as a `tokio::spawn`, which required an
+  `Arc<Mutex<Captured>>` to get the bytes back out (F-27) and then an explicit
+  `abort()` so the task did not outlive the exchange (F-40) — and still leaked on
+  the one path that runs no code of ours, cancellation, because dropping a
+  `JoinHandle` detaches rather than cancels (F-49). Three repairs to one mistake.
+  The mistake was spawning at all: the drain only ever needed to make progress
+  *concurrently*, which `select!` inside a single task does exactly as well.
+  Verified by building both — a sub-future is dropped the instant its parent is
+  cancelled, where a spawned task keeps running — and by draining 4000 stderr
+  lines past the 64 KiB pipe buffer with the body still reading stdout, which is
+  the deadlock the concurrency exists to avoid.
+
+  So the repair is a deletion: no `tokio::spawn`, no `Arc`, no `Mutex`, no
+  `abort`, no join handle, and a plain `&mut Captured`. D36's claim that this was
+  "the one place a lock is right" was true of a structure that did not need to
+  exist — there are not two tasks contending for a buffer; there was never a
+  reason for a second task. D14 refused a lock for `State` on the grounds that
+  brief §12 gives the host no concurrency to protect against, and the honest
+  reading is that the same answer applied here and this design talked itself out
+  of it.
 
   We do not kill process groups: brief §14 makes backends trusted user programs,
   and reaching past the process we spawned is a bigger claim over the user's
@@ -1199,18 +1583,18 @@ sequenceDiagram
     H->>P: exchange(&Evaluate)
     P->>B: spawn, write JSON, close stdin
     B-->>P: stdout JSON, exit 0
-    P-->>H: Exchange { result, stderr }
+    P-->>H: Exchange { result, stderr, cleanup: None }
     H->>H: from_slice → normalize_response(wire, now)
     H->>S: resolve schedule, issue view_id
-    H-->>T: Outcome { view: Some(Presented{view_id, view}), next_check, stderr, failure: None }
+    H-->>T: Outcome { view: Some(Presented{view_id, view}), next_check, stderr, failure: None, cleanup: None }
     T->>H: respond(now, view_id, answer)
     H->>S: check view_id matches outstanding
     H->>P: exchange(&Respond)
     P->>B: spawn, write JSON, close stdin
     B-->>P: {"view": null, "next_check": …}
-    P-->>H: Exchange { result, stderr }
+    P-->>H: Exchange { result, stderr, cleanup: None }
     H->>S: clear outstanding, resolve schedule
-    H-->>T: Outcome { view: None, next_check, stderr, failure: None }
+    H-->>T: Outcome { view: None, next_check, stderr, failure: None, cleanup: None }
 ```
 
 Note that `respond` checks `view_id` against `State` **before** touching the
@@ -1247,7 +1631,9 @@ knows better.
 successes alike, carried on `Outcome::stderr` rather than hung off particular
 error variants (F-24) — and the transport's own return type puts the failure
 *beside* the capture rather than around it, so there is no path on which the two
-can come apart (F-39, D40). For a timeout that is the diagnostic that makes it
+can come apart (F-39, D40). `cleanup` rides in the same position for the same
+reason: it is a fact any path can produce, so it cannot live inside the result of
+one of them. For a timeout that is the diagnostic that makes it
 debuggable; for a zero exit with an unparseable body it is often the only
 explanation there is. Do not let a later reader "simplify" this back into
 `wait_with_output()`; the caller-owned buffer, the differing readers and the
@@ -1273,12 +1659,14 @@ transport, which is why slice 005 exists.
 | I6 | Only one exchange in flight | `&mut self` — compiler-enforced, not convention |
 | I7 | Nothing in `semantics/` or `shell/` branches on a `hints` key. The renderer may, and is the only thing that may | review; brief §3.4, §10.2. Corrected per F-33 |
 | I8 | No domain vocabulary in types or module names | AC-11 grep |
-| I9 | No path panics on backend-derived data — no `unwrap`, `expect` or slicing on anything a backend produced | AC-6; clippy lints |
+| I9 | No path panics on backend-derived data — no `unwrap`, `expect` or slicing on anything a backend produced | AC-6; module-level `#![deny(clippy::unwrap_used, expect_used, indexing_slicing, arithmetic_side_effects)]` on the modules handling backend-derived data — restriction lints, so `-D warnings` alone does not enable them (§9, F-62) |
 | I10 | No inbound wire type is a closed contract: no `deny_unknown_fields`, and the absence of an *unmodelled* field never means more than "not supplied" | review; see the validation-feedback analysis below |
-| I11 | No backend can cause unbounded host resource growth: every stream read from a backend is capped; reaching the **stderr** cap stops storing but never stops reading; and no exchange leaves a task, buffer or descriptor behind. Qualified per F-43, extended per F-40 | D27, D34, D41; the stdout- and stderr-flood integration tests |
-| I13 | No exchange **returns** leaving a live or unreaped child. On the paths where the host runs no code at all — cancellation, unwinding — `kill_on_drop` is the backstop, and is named as one rather than relied on. Qualified per F-41 | D35, D42; `reap` is unconditional past the spawn, and no `?` short-circuits it |
-| I14 | A view never reaches a caller without the `view_id` that answers it | D32; `Presented` |
+| I11 | No backend can cause unbounded host resource growth: every stream read from a backend is capped; reaching the **stderr** cap stops storing but never stops reading; and an exchange spawns no task that could outlive it. Qualified per F-43, extended per F-40, made structural per F-49. **Scope, per F-60:** this invariant is about what the *host* holds, and it holds on the cancellation path too. It says nothing about the child process there, which no host code disposes of — I13 owns that, and concedes it | D27, D34, **D44** — the drain is a sub-future, so there is no task to outlive anything (D41, which held this by aborting one, is superseded); the stdout- and stderr-flood integration tests |
 | I12 | Every `Outcome`, including every failure, carries a concrete `next_check` | D23; non-`Option` field |
+| I13 | Every returning path initiates termination and waits for reaping and drain completion for a **bounded** interval; a failure to observe cleanup within it is reported as a distinct host-lifecycle outcome, never silently. On the paths where the host runs no code at all — cancellation, unwinding — `kill_on_drop` is the backstop and is named as one. Restated per F-48, F-53 | D35, **D47, D48** (D42, which held this by ranking the two failures, is reversed); cleanup is unconditional past the spawn, no `?` short-circuits it, and `Outcome::cleanup` is the report |
+| I14 | A view never reaches a caller without the `view_id` that answers it | D32; `Presented` |
+| I15 | Every identifier a response names — as a key it addresses by, or as a value it submits — is unique within the scope that names it | D45; `Options`, `Fields` and `Alternatives` are checked constructors. F-52, scope corrected per F-58 |
+| I16 | Every field the protocol admits into a view can be expressed in the response that answers it | D46; a choice field's alternatives carry no fields. F-54 |
 
 **Assumptions.** Each is a place this design can break.
 
@@ -1288,9 +1676,12 @@ transport, which is why slice 005 exists.
   across one. Nothing in this slice can answer an interaction that predates the
   process, because nothing renders one — the assumption becomes load-bearing in
   slice 002, when a user can be looking at a prompt when the host restarts.
-- **A2 — modules respect the strata beyond the three tokens AC-15 checks.** The
-  test catches an upward `use` naming `shell`; it does not catch a downward type
-  leak, a re-export that flattens the boundary, or `std::fs` in `semantics/`. If
+- **A2 — modules respect the strata in the *directions* the build cannot see.**
+  Narrowed per F-51. The dependency-graph half is no longer an assumption: D49's
+  feature gate makes `cargo test --no-default-features` fail if stratum 1
+  acquires a runtime dependency. What remains assumed is direction — AC-15's test
+  catches an upward `use` naming `shell`, but not a downward type leak, a
+  re-export that flattens the boundary, or `std::fs` in `semantics/`. If that
   discipline slips, ADR-002's split becomes a redesign rather than a file move,
   which ADR-002 says would itself be the finding. Carried as a risk in §8.
 - **A3 — jiff's friendly duration grammar is stable across 0.2.x.** It is
@@ -1318,15 +1709,24 @@ transport, which is why slice 005 exists.
 | `"next_check": "1 day"` / `"1 week"` / `"1d 2h"` | accepted; resolved as exactly 24h / 168h / 26h. Verified against jiff 0.2.35 — F-10 |
 | `next_check` that parses but overflows the instant range | `ScheduleError::OutOfRange`, discarded, message accepted |
 | `"next_check": 45` | `ScheduleError::NotAString`, discarded, message accepted |
+| `"next_check": null` | treated exactly as omission: no instruction supplied, so the existing or default schedule stands. Not a discard, and nothing is reported — the deliberate rule, F-50 |
+| `"protocol": null` | treated exactly as omission, which R-2 already permits. F-50 |
+| `"view": null` | **not** omission: the one field where `null` carries a meaning of its own. F-5, F-50 |
 | `"next_check": "2026-08-22T18:00:00"` | `MissingOffset`, discarded, message accepted |
-| `options: []` | `EmptyOptions` — whole message rejected |
-| duplicate option ids | `DuplicateOptionId` — whole message rejected |
+| `options: []` | `EmptyOptions { at }` — whole message rejected |
+| duplicate option ids | `DuplicateOptionId { id, at }` — whole message rejected |
+| duplicate field ids within one option | `DuplicateFieldId { id, at }` — whole message rejected. The response is a map keyed by field id, so two such fields cannot be answered separately. F-52 |
+| a `choice` field whose options carry `fields` | `InapplicableKey { key: "fields", kind: "choice", at }` — whole message rejected. `fields` is a protocol key everywhere it is admitted, so a choice field's option is the wrong *place* for it, not an unknown key. F-54, F-55 |
+| a `choice` field with no options, or duplicate alternative ids | `EmptyAlternatives { at }` / `DuplicateAlternativeId { id, at }` — the same rule as a view's options and **not** the same error, because after F-61 an alternative id is not an option id and an error that says otherwise asserts something false |
 | empty stdout, exit 0 | `Protocol(Json)` — unexpected EOF |
 | two JSON documents on stdout | `Protocol(Json)` on trailing content. Strictness is correct here: framing is the transport's job and this transport's frame is "one document" |
 | `command = []` in config | rejected at load — nothing to spawn |
 | `timeout = "0s"` or `default_poll = "0s"` | rejected at load. A zero timeout fails every exchange; a zero poll is a busy loop |
 | backend emits more than 8 MiB on stdout | `OutputTooLarge`; reader closes, child reaped; message rejected |
 | backend emits more than 256 KiB on stderr | first 256 KiB retained, `truncated` set, **pipe drained to EOF**; the exchange succeeds normally |
+| backend answers correctly, then leaves a grandchild holding **stderr** | response delivered, `failure` is `None`, `Outcome::cleanup` is `CleanupFailure::TimedOut`; whatever stderr was read survives. Observed — the child itself exits and is reaped, which is why the variant is not called `Orphaned`. F-48, F-53, F-63 |
+| the same, but the grandchild holds **stdout** too | `BackendError::Timeout` **and** `cleanup` is `CleanupFailure::TimedOut` — both dimensions failing, the only case observed to do so. Stdout never reaches EOF, so the response the backend wrote is never read. F-63 |
+| backend wedged so `wait` cannot return | cleanup budget elapses; `CleanupFailure::TimedOut` reported and the exchange returns. A host that waits forever is the host going down |
 | backend exits 0, writes unparseable stdout, explains itself on stderr | `Protocol(Json)`, and `Outcome::stderr` carries the explanation — F-24 |
 | `"body": "Optional context"` (brief §10.1's own example) | accepted as `Content::Text` |
 | `{"id":"n","kind":"text","label":"L","multiline":true}` (brief §10.2's own example) | accepted; `multiline` becomes a hint |
@@ -1438,7 +1838,7 @@ reader needs so they do not reverse one by accident.
 |---|---|---|---|
 | D1 | `src/` grouped by stratum (`semantics/`, `shell/`) | grouping by topic | an upward `use` is wrong on sight; ADR-002's split becomes a literal `git mv` |
 | D2 | library only, stratum 3 empty | a debug binary | no AC needs one; P3. Forces the public API to be usable by the tests |
-| D3 | tokio, features `process`/`time`/`rt`/`io-util` | smol family | 14 deps vs 31, measured; `tokio::process` has the mature child-reaping path |
+| D3 | tokio, features `process`/`time`/`rt`/`io-util`/`macros`, **optional, behind a `shell` feature** | smol family; a non-optional dependency | 14 deps vs 31, measured; `tokio::process` has the mature child-reaping path. Optional because a plain dependency makes ADR-001's dependency-graph rule false in a single crate — F-51 |
 | D4 | jiff, `default-features = false` | chrono, time | parses `"45 minutes"` natively; defaults would pull tzdb, i.e. I/O into stratum 1 |
 | D5 | wire/canonical duality **inbound only** | mirroring both directions | requests are host-authored; nothing untrusted arrives on that path |
 | D6 | `next_check` typed `serde_json::Value` at the wire | `Option<String>` | a wrong-typed value must be *discardable*, not fatal — P2 |
@@ -1471,23 +1871,35 @@ reader needs so they do not reverse one by accident.
 | D33 | the transport returns `Exchange`, carrying stderr as a `Captured` beside the body | `Vec<u8>`, stderr hung off error variants | stderr must reach the caller on the zero-exit-unparseable-body path too, and the truncation flag needs a home. F-24, refined by D40 |
 | D34 | two readers: stdout stops-and-closes, stderr truncates but drains to EOF | one `read_capped` for both | "truncate" must mean stop *storing*, never stop *reading*, or a chatty backend deadlocks. F-25 |
 | D35 | `reap` on every path, idempotent | explicit kill only on timeout | naming `kill_on_drop` as too weak and then using it on three paths out of four fixes nothing. F-26 |
-| D36 | stderr accumulates in a caller-owned `Arc<Mutex<Captured>>` | return it through the drain task's join handle | abandoning the task must not discard bytes already read; the grandchild case makes abandonment real. F-27 |
+| ~~D36~~ | ~~stderr accumulates in a caller-owned `Arc<Mutex<Captured>>`~~ | — | **superseded by D44**, F-49. The lock existed only to serve a spawned task; with no task there is no sharing, and a `&mut Captured` does the job |
 | D37 | wire `hints` are `#[serde(flatten)]`, not a nested member | nested `hints` object; or accept both | brief §10.2 writes `multiline` flat, so a nested member silently discards the brief's own example. Both spellings would be the §3.3 ambiguity. User decision, F-38 |
 | D38 | wire `body` is `serde_json::Value`, dispatched in normalize | `#[serde(untagged)]` enum | brief §10.1's `"body": "Optional context"` is a bare string; `untagged` would collapse every failure into "matched no variant" and destroy F-6's named error. F-31 |
 | D39 | keep `BoundsError::NotFinite` though JSON cannot express it | drop the variant | `NumberRange::new` is public API and P1 is about the type, not the caller. The fixture asserts `Protocol(Json)` instead. User decision, F-36 |
-| D40 | `exchange` returns a bare `Exchange { result, stderr }`, with no outer `Result` | `Result<Exchange, BackendError>` | an outer `Result` puts the capture on the `Ok` side, losing stderr on exactly the paths it exists for. D23's own argument, applied one level down. F-39 |
-| D41 | the abandoned stderr drain is **aborted** after its grace timeout | drop the `JoinHandle` | dropping a tokio handle detaches rather than cancels, so a backend could accumulate one task, descriptor and buffer per exchange — the unbounded growth I11 forbids. F-40 |
-| D42 | a reap failure is reported only when the exchange has no other failure; "already exited" is success | report both; ignore reap errors entirely | "we also could not kill it" is strictly less informative than the timeout that made us abandon it. Ignoring them entirely would let a live child be reported as a clean exchange. User decision, F-42 |
+| D40 | `exchange` returns a bare `Exchange { result, stderr, cleanup }`, with no outer `Result` | `Result<Exchange, BackendError>` | an outer `Result` puts the capture on the `Ok` side, losing stderr on exactly the paths it exists for. D23's own argument, applied one level down. F-39 |
+| ~~D41~~ | ~~the abandoned stderr drain is **aborted** after its grace timeout~~ | — | **superseded by D44**, F-49. Abort fixed the returning paths and not cancellation; deleting the task fixes both |
+| ~~D42~~ | ~~a reap failure is reported only when the exchange has no other failure~~ | — | **reversed by D47**, F-48. A precedence contest was the wrong shape: cleanup outlives the exchange, so it is a second dimension, not a lower-ranked error |
 | D43 | a modelled key its kind does not admit is rejected as `InapplicableKey`, not treated as a hint | ignore it; make it a hint | serde consumes it before `kind` is dispatched, so "ignore" means *silently lost*. D37's basis is that unknown keys are presentation and known keys are contract — a known key in the wrong place is a contradiction. User decision, F-45 |
+| D44 | the stderr drain is a **sub-future of the exchange task**, not a `tokio::spawn` | spawn plus `Arc<Mutex>` plus `abort` (D36, D41) | a sub-future is cancelled with its parent; a spawned task is detached. Deletes the lock, the abort and the leak together. Verified by building both. F-49 |
+| D45 | `Options`, `Fields` and `Alternatives` are all checked newtypes: non-empty, ids unique | a bare `Vec<Field>` | every identifier a response names must be unique in the scope that names it — option and field ids as keys it addresses by, alternative ids as the value it submits. The argument was already made for options and not carried down. F-52, F-58 |
+| D46 | a `choice` field's options are `Alternative { id, label }`, carrying no fields | reuse `Options` | reuse admitted recursive fields the flat `UserResponse` cannot express. Deleting the recursion beats documenting it. User decision, F-54 |
+| D47 | cleanup is a **second dimension** on `Exchange` and `Outcome`, not an error competing for one channel | precedence between reap and exchange errors (D42); a recursive `cause` | what the backend did and whether the host disposed of it are independent facts. Reviewer's formulation, adopted. F-48 |
+| D48 | one `CLEANUP_LIMIT` covers kill, reap and drain completion; total wait is `timeout + CLEANUP_LIMIT`, stated | unbounded `wait`; two separate hidden graces | `wait` can block indefinitely and a blocked host is a downed host. The bound must be in the stated contract, not hidden behind the configured timeout. F-53 |
+| D49 | tokio optional behind a `shell` feature; `shell/` is `#[cfg(feature)]` | plain dependency plus AC-15's grep; a workspace split now | Cargo resolves per crate target, so without this ADR-001's rule is false, not merely unenforced. Makes it a build gate. User decision, F-51 |
+| D51 | the exit status is observed **inside** `config.timeout`, and a non-zero status discards the body it came with | read stdout to EOF and return; wait only in cleanup | cleanup *kills*, so a status observed there does not exist; and waiting for a backend to exit is its opportunity to respond, not the host's disposal of it. Made `ExitStatus` reachable again — it was not. Verified by running it. F-59 |
+| D52 | `Alternative` carries an `AlternativeId`, with `DuplicateAlternativeId` and `EmptyAlternatives` behind it | reuse `OptionId` and its errors | an option id is *selected* and an alternative id is *submitted*; the scalar newtypes exist so namespaces cannot be swapped, and reusing one across two contradicted their reason for existing. An error named `DuplicateOptionId` for an alternative asserts what F-48 forbade a name to assert. F-61 |
+| D53 | the no-panic lints are module-level `#![deny(...)]` on the modules handling backend-derived data | `-D warnings`; crate-wide `[lints.clippy]` | they are restriction lints and allow-by-default, so `-D warnings` never enabled them and I9 rested on nothing. Per-module because the blanket form is what F-35 caught this design violating on a host-created value. F-62 |
+| D54 | on cancellation the host claims only what it can hold to: no task, buffer or descriptor, and `kill_on_drop` for the child | AC-5's unqualified "leaves nothing behind"; a supervisor task; process-group kill | no host code runs on that path, so the child claim cannot be made true — and the two mechanisms that would make it true are the detached task F-49 deleted and a process-group kill brief §14 refuses. User decision, F-60 |
+| D50 | explicit `null` means what omission means, except for `view` | report `null` as an invalid value; or say nothing | serializers emit `null` for absent optionals constantly; `view` is the one field where `null` asserts something omission does not. User decision, F-50 |
 
 ## 8. Risks & mitigations
 
 | id | risk | l/i | mitigation | signal it is happening |
 |---|---|---|---|---|
-| R1 | ADR-001's one-way rule has no compiler behind it (A2), so the strata erode and ADR-002's split becomes a redesign | med / high | AC-15 test on the three strongest tokens; D1's stratum-visible paths; review | a `use crate::shell::…` under `semantics/`, `std::fs` there, or slice 002 finding the split hard |
+| R1 | ADR-001's one-way rule has no compiler behind it for *direction* (A2), so the strata erode and ADR-002's split becomes a redesign | low / high | **reduced by D49**: the dependency-graph half is now a build gate — `cargo test --no-default-features` fails if `semantics/` acquires a runtime dependency. Direction is still AC-15's grep plus D1's stratum-visible paths and review | a `use crate::shell::…` under `semantics/`, `std::fs` there, or slice 002 finding the split hard |
 | R2 | jiff is pre-1.0; its friendly duration grammar could shift under a patch bump (A3) | low / med | AC-9 fixtures pin the accepted *and* rejected forms as tests | a dependency bump turns fixtures red |
 | R3 | ~~unbounded stdout exhausts host memory~~ — **closed** by D27's cap | — | fixed, not mitigated | — |
-| R9 | a grandchild inheriting stderr keeps the pipe open after the backend is killed, so the stderr join stalls | low / low | grace timeout on the join, then **abort** the task (D41); the caller-owned buffer means the bytes read before the stall are still reported, so this degrades the capture rather than losing it (D36). Corrected per F-47 | a timeout that itself takes longer than the timeout |
+| R9 | a grandchild inheriting stderr keeps the pipe open after the backend is killed, so the drain stalls — and if it inherited stdout too, the response is never read and the exchange times out as well (F-63) | low / low | the cleanup budget bounds it and `CleanupFailure::TimedOut` reports it (D48); the buffer is the caller's stack frame, so the bytes read before the stall are still reported — this degrades the capture rather than losing it (D44). Corrected per F-47, restated per F-49 | `Outcome::cleanup` appearing against a backend that otherwise works |
+| R11 | the cleanup dimension is ignored by callers, because nothing renders it yet and `failure: None` reads as "fine" | med / med | `Outcome::cleanup` is a separate field rather than a variant, so a caller must actively not look at it; §5.4's table states all four combinations | slice 002 surfacing `failure` and not `cleanup` |
 | R10 | `pub(super)` fields plus accessors is boilerplate, and the pressure under deadline is to widen them back to `pub` | med / med | D30 states the reason on the type; AC-15's boundary tier is the place to add a visibility assertion if it recurs | a `pub` field appearing in `canonical.rs`, or an accessor returning `&mut` |
 | R4 | **the protocol gets narrowed to the first renderer anyway** — the failure this slice exists to prevent | med / high | fields and all `Content` variants admitted now; validation feedback shown to need no breaking restructure (though it does need version or capability negotiation — F-7); the wire shape checked against the brief's own examples rather than against our types (F-31, F-38); AC-10 puts the warning in `AGENTS.md` | slice 002 needing a protocol change, not just a renderer, to display something |
 | R5 | the draft spec drifts from the code and is promoted as intent — the exact risk OQ-1's original answer avoided | med / med | AC-14: reconcile before promotion, divergences dispositioned per `docs/AGENTS.md` | audit finding the draft easier to believe than the code |
@@ -1502,17 +1914,82 @@ reader needs so they do not reverse one by accident.
 ```
 cargo build
 cargo test
+cargo test   --no-default-features                      # stratum 1 alone
 cargo clippy --all-targets -- -D warnings
+cargo clippy --all-targets --no-default-features -- \
+  -D warnings -A dead_code -A unreachable_pub          # see the dead-code note
 cargo fmt --check
 ```
+
+Six, and two of them are the same command run under a second feature set. That
+is deliberate: **a feature-gated crate has a build matrix, and a matrix checked
+in one column is unchecked.**
+
+- `cargo test --no-default-features` is the mechanical form of ADR-001's
+  dependency rule (D49, F-51): it fails to compile if anything under
+  `semantics/` acquires a runtime dependency, which no grep can guarantee.
+  `cargo tree --no-default-features` is the diagnostic when it does fail. It
+  only runs at all because the integration target declares
+  `required-features = ["shell"]` (§5.1) and is therefore skipped rather than
+  built.
+- The **second clippy line** exists because `--all-targets` alone lints only the
+  default feature set. Without it, every `#[cfg(not(feature = "shell"))]` path —
+  and stratum 1 compiled without the shell above it — is never linted, and AC-1's
+  "zero warnings" would be a claim about one column of two.
+- **The second clippy line allows `dead_code` and `unreachable_pub`, and only
+  the second one does.** In the `--no-default-features` column `shell` is gone,
+  so every `semantics/` item whose only caller lives in stratum 2 is genuinely
+  unused there. That is ADR-001's feature gate working as designed, not a
+  defect, and denying it would mean scattering
+  `#[cfg_attr(not(feature = "shell"), expect(dead_code, …))]` through stratum 1
+  to buy nothing. The first line stays strict, so dead code still fails a phase
+  gate — the carve-out is exactly the structural case and no wider. Measured:
+  with the carve-out that column still fails on `unused_imports`,
+  `unused_mut` and the rest of the `unused` group.
+- **`[lints]` does not set `warnings = "deny"`, and that is why `-D warnings`
+  stays on these lines.** rustc applies the `warnings` pseudo-group over an
+  explicit per-lint `--warn` whatever the order, so with it set in the manifest
+  `warn` stops being a reachable level and `dead_code` could only be denied or
+  hidden. Leaving it off puts the strictness at the gate rather than in every
+  `cargo check`: sloppiness the manifest names explicitly (`unused_imports`,
+  `unused_mut`, the clippy list) still hard-errors in the inner loop; dead code
+  warns there and blocks here.
+- **`-D warnings` does not reach the lints I9 depends on — F-62.**
+  `clippy::unwrap_used`, `expect_used`, `indexing_slicing` and the panicking
+  arithmetic lints are all *restriction* lints and allow-by-default; denying
+  warnings does not enable them, so neither command above was checking the thing
+  I9 named clippy as holding. They are turned on where R-46 says they belong —
+  **per module**, as inner attributes at the top of each module that handles
+  backend-derived data:
+
+  ```rust
+  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing,
+          clippy::arithmetic_side_effects)]
+  ```
+
+  **Partially superseded.** `unwrap_used`, `expect_used` and `indexing_slicing`
+  are now crate-wide denies in `[lints.clippy]`: they are cheap everywhere, and
+  `clippy::allow_attributes_without_reason = "deny"` blunts R-46's drift
+  argument by making a written reason the price of allowing one back.
+  `arithmetic_side_effects` is **not** crate-wide and stays a module-level
+  `#![deny(…)]` exactly as below — crate-wide it fires on every loop counter,
+  which is the case R-46 was actually right about.
+
+  Not crate-wide in `[lints.clippy]`, and that is R-46's own reasoning rather
+  than a preference: the blanket form is what F-35 caught this design violating,
+  on `child.stdin.take()` — a value the *host* created, where an `unwrap` is a
+  statement about our own code and not about anything a backend sent. A
+  restriction lint applied where it does not belong gets `#[allow]`ed at the
+  first inconvenience, and an allow-by-default lint that has been allowed back is
+  indistinguishable from one that was never on.
 
 **Three test tiers, with different dependency reach:**
 
 | tier | location | reaches | drives |
 |---|---|---|---|
-| protocol | `tests/protocol/` | stratum 1 only — no tokio, no subprocess | the AC-9 fixture corpus, table-driven |
+| protocol | `tests/protocol/` | stratum 1 only — no tokio, no subprocess, and this is now enforced by building it without the `shell` feature rather than asserted | the AC-9 fixture corpus, table-driven |
 | boundary | `tests/protocol/` | source text | AC-15 |
-| integration | `tests/integration/` | full stack, spawns deno and bash | AC-7, AC-5, AC-6, AC-12 |
+| integration | `tests/integration/` | full stack, spawns deno and bash. Declares `required-features = ["shell"]`, without which it would break the tier above it — §5.1 | AC-7, AC-5, AC-6, AC-12 |
 
 **Fixtures are data files, not Rust literals**, walked by a table-driven runner —
 AC-9 calls for a corpus, and a corpus in `.json` files is reviewable by someone
@@ -1522,12 +1999,12 @@ reading the protocol rather than the tests, which matters for the draft spec.
 
 | AC | discharged by |
 |---|---|
-| AC-1 | the four commands above, from a clean clone |
+| AC-1 | the six commands above, from a clean clone — both feature columns, not just the default one |
 | AC-2 | protocol tier: version present, unknown optional ignored, unknown required rejected |
 | AC-3 | protocol tier: RFC 3339 and relative forms → one instant; `MissingOffset`, `Unparseable` rejected |
 | AC-4 | protocol tier: pure resolution over (existing, incoming, default), latest-valid-wins, invalid preserves |
-| AC-5 | integration: stdin write, stdout read, timeout, stderr captured on **every** path including timeout and zero-exit-unparseable (F-3, F-24, F-39); both reads bounded, the stdout bound ending its read and the stderr bound not (F-43); a stderr flood that succeeds with `truncated` set (F-25); and no child, task or descriptor outliving an exchange (F-40, F-41) |
-| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8); `InapplicableKey` for a modelled key its kind does not admit (F-45) |
+| AC-5 | integration: stdin write, stdout read, timeout, stderr captured on **every** path including timeout and zero-exit-unparseable (F-3, F-24, F-39); both reads bounded, the stdout bound ending its read and the stderr bound not (F-43); a stderr flood that succeeds with `truncated` set (F-25); no child, task or descriptor outliving a **returning** exchange (F-40, F-41); a non-zero exit discarding a body that parsed (F-59); and on **cancellation** the narrower assertion AC-5 now makes — nothing the host holds survives, the child left to `kill_on_drop` (F-60) |
+| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8); `InapplicableKey` for a modelled key its kind does not admit (F-45); `DuplicateFieldId` (F-52); `DuplicateAlternativeId` and `EmptyAlternatives` (F-61); `ExitStatus` reachable at all, which needs the status observed inside the timed region (F-59); and `CleanupFailure` on its own channel rather than as a `BackendError` (F-48). No-panic is held by module-level restriction lints, not by `-D warnings` (F-62) |
 | AC-7 | integration: `view: null` → choice → `view_id` taken from `Outcome::view`'s `Presented` → respond → accepted (F-23) |
 | AC-8 | integration: stale and unknown `view_id` rejected as `StateError::StaleViewId` / `NoOutstandingView`, no backend spawn |
 | AC-9 | the corpus itself |
@@ -1536,7 +2013,7 @@ reading the protocol rather than the tests, which matters for the draft spec.
 | AC-12 | integration: the bash backend completes a round trip |
 | AC-13 | the draft exists, `R-N` ids present, every requirement in its §7 |
 | AC-14 | at close: reconciled, endorsed, promoted |
-| AC-15 | the boundary test |
+| AC-15 | the boundary test, **plus** `cargo test --no-default-features` as the dependency-graph half (F-51) |
 
 **Deliberately misbehaving backends** the integration tier needs: sleeps past the
 timeout; sleeps past the timeout **after writing to stderr** (F-3 — the assertion
@@ -1549,6 +2026,17 @@ path); omits `view` entirely (F-5); returns `"next_check": 45`; returns
 past its cap **and then succeeds**, asserting `truncated` and no deadlock (F-25);
 returns a text field carrying `min` and a number field carrying `options`,
 asserting `InapplicableKey` with the offending key, kind and path (F-45);
+returns two fields in one option sharing an id, asserting `DuplicateFieldId`
+with its path (F-52); returns `"next_check": null` and `"protocol": null`,
+asserting the schedule is untouched and **nothing is discarded** (F-50);
+answers correctly but leaves a grandchild holding **stderr only**, asserting
+`Outcome::cleanup` is `CleanupFailure::TimedOut` while `failure` is `None` and the
+response is still delivered (F-48, F-53, F-63); the same backend leaving a
+grandchild holding **stdout as well**, asserting both dimensions fail — a
+`Timeout` *and* a `CleanupFailure::TimedOut` — since stdout never reaches EOF
+(F-63); one that writes a valid response and then **exits non-zero**, asserting
+`ExitStatus { code: Some(1) }` with the parsed body discarded and the stderr kept
+(D15, R-40, F-59);
 exits 0 with unparseable stdout after writing to stderr, asserting the stderr
 arrives (F-24); and the brief's own §10.1 and §10.2 examples verbatim, asserting
 they are accepted rather than merely not crashing (F-31, F-38).
@@ -1562,11 +2050,50 @@ fixes; it is a property of a document that deliberately states each contract in
 several places so a later reader meets it wherever they enter. The redundancy is
 worth keeping and it has a price, which is that it must be paid on every change.
 
-So: **after any change to §5, re-read** §5.5's invariant and edge tables, §7's
-decision index, §8's risks, §9's AC map and misbehaving-backend list,
-`draft-spec.md` §4's requirements and §6's examples, and the affected AC text in
-`slice-001.md`. This belongs to review rather than to CI because no test can
-observe that two English sentences disagree.
+So: **before any repair batch is claimed complete, re-read** §5.5's invariant and
+edge tables, §7's decision index, §8's risks, §9's AC map and misbehaving-backend
+list, `draft-spec.md` §4's requirements and §6's examples, and the affected AC
+text in `slice-001.md`. This belongs to review rather than to CI because no test
+can observe that two English sentences disagree.
+
+The trigger is the **batch**, not the change, and that wording is F-56. Stated as
+"after any change to §5" this step failed against round 4 — a batch of eight
+repairs, none of whose individual changes was the one that obviously demanded the
+sweep, and nine sites were left stating contracts those repairs had replaced. A
+per-change obligation is one each change can plausibly disclaim; a per-batch one
+has a single owner and a single moment.
+
+Two checks belong to the same sweep, because both have now produced findings:
+every **struck or superseded** decision id must be chased to whatever cites it as
+holding an invariant (F-56 found D41 and D42 still cited), and every type or
+function **named** in §5 must be defined in §5 (F-55 found `WireOpt`, F-56 found
+`cleanup_only`). Both are mechanical enough to be worth doing as greps rather
+than as reading.
+
+**Built before being written, and what that showed.** §5.4's structure was
+compiled and run against seven backends — a normal exchange, a stderr flood past
+the pipe buffer, a hang past the timeout, a grandchild holding both pipes, a
+grandchild holding stderr only, a valid response followed by `exit 1`, and a
+plain success as a regression check.
+The run is what established that a `select!` sub-future drains concurrently
+without deadlock where a sequential read would block; that cancelling the parent
+drops a sub-future but *not* a `tokio::spawn`, which is F-49's whole substance;
+that the grandchild case fires `CleanupFailure::TimedOut` with the child itself exited and
+reaped, which is why that variant is not called `Orphaned`; and that total
+elapsed time on the worst case was 902 ms against a stated 900 ms bound.
+
+The last three runs were added at round 5 and two of them changed the design
+again. `exit 1` after a valid response returns `ExitStatus { code: Some(1) }`
+with the body discarded, which is F-59's repair executed rather than asserted —
+and the run also compiles the borrow structure that repair needs, where `body`
+holds `&mut child` inside an inner scope so the cleanup budget can take it back.
+The plain-success regression returns in 2.5 ms, confirming the cleanup budget is
+not paid on the normal path. And the stderr-only grandchild — the case the design
+had described in four places while measuring a different one — returns the
+response with `cleanup` set, in 303 ms rather than 902. That was F-63. Five of
+the seven runs have now changed the design. The general point, now four rounds old:
+where a claim can be executed, executing it has been worth more than reasoning
+about it every single time.
 
 **Not validated here, and named so nobody assumes otherwise:** nothing renders,
 nothing wakes on a clock, no socket transport, and no cross-restart behaviour.
@@ -1575,10 +2102,10 @@ nothing wakes on a clock, no socket transport, and no cross-restart behaviour.
 
 | canon | impact | settles how |
 |---|---|---|
-| ADR-001 | **decision unchanged; the record needs a line.** AC-15 mechanises part of what its Verification section calls "a review gate, not a build gate" | `canon-delta.md`. Per `docs/AGENTS.md` an ADR's *decision* is fixed while its record is kept accurate, so this is a delta entry, not a supersession — the one-way rule is untouched, only what verifies it. The delta must also state what AC-15 does *not* cover: three known tokens, so the common case rather than the class |
-| ADR-002 | **no change.** Its Verification requires the triggers be checked and recorded in the design of any slice adding a dependency or binary; done in §3, all three negative | nothing to settle |
+| ADR-001 | **decision unchanged; the record needs a line.** Its Verification section calls itself "a review gate, not a build gate"; half of it is now a build gate — the dependency-graph claim, held by D49's feature and checked by `cargo test --no-default-features`. Direction stays a review gate | `canon-delta.md` CD-1. Per `docs/AGENTS.md` an ADR's *decision* is fixed while its record is kept accurate, so this is a delta entry, not a supersession — the one-way rule is untouched, only what verifies it. The delta states which half is which, and what AC-15's direction test does *not* cover: three known tokens, so the common case rather than the class. F-51 |
+| ADR-002 | **decision unchanged; the record needs a line.** Triggers checked and recorded in §3, all three negative — but T1 only because tokio is optional (D49). ADR-002 names Slint as "the first such dependency"; tokio arrived a slice earlier and was admitted only by gating it, which the ADR's own rejected-alternatives section did not anticipate for a *runtime* as distinct from a renderer | `canon-delta.md` CD-2. A delta, not a supersession: the trigger set and the standing position are untouched, only the claim about which dependency comes first. F-51 |
 | protocol spec | **new canon, owed.** Drafted at `docs/slices/001/draft-spec.md`, promoted to `docs/specs/NNN-slug.md` with `Status: active` during audit | AC-13, AC-14. Promotion needs explicit user endorsement, and `docs/AGENTS.md` is explicit that a slice does not close holding an unpromoted draft |
-| `canon-delta.md` | **exists** at `docs/slices/001/canon-delta.md`, one entry (CD-1) carrying the document, the section, the replacement text and why. What remains outstanding is its *application*, not its authorship | applied during reconciliation, with endorsement. F-37 |
+| `canon-delta.md` | **exists** at `docs/slices/001/canon-delta.md`, two entries — CD-1 and CD-2 — each carrying the document, the section, the replacement text and why. What remains outstanding is its *application*, not its authorship | applied during reconciliation, with endorsement. F-37 |
 | `docs/policy/` | none created. Nothing here is a policy rather than a decision | — |
 | root `AGENTS.md` | not canon by `docs/AGENTS.md`'s definition, but a deliverable, and now additive rather than from-scratch | AC-10 |
 

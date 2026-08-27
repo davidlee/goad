@@ -1,4 +1,4 @@
-# Plan — Slice NNN: {title}
+# Plan — Slice 001: Protocol core and process backend transport
 
 The executable phase plan. Read with `design.md` — the plan never overrides the
 design or canon; if it seems to, the plan is wrong.
@@ -13,65 +13,801 @@ design or canon; if it seems to, the plan is wrong.
 
 ## Overview
 
-<!-- What the whole plan achieves and how the phases add up to the slice's
-     acceptance criteria. -->
+Nine phases take the repository from no Rust code to a library that completes an
+`evaluate`/`respond` round trip against a real user-written backend, headless,
+with every failure mode in `design.md` §5.5 reachable and asserted.
+
+The spine is the stratum boundary. Phases 01–04 build stratum 1 — the pure
+semantic core — and nothing in them may name tokio or touch a process. Phases
+05–08 build stratum 2 on top of it. Phase 09 is the documentary and consistency
+work the slice owes before audit.
+
+Three things are established in PHASE-01 and hold for every phase after it:
+
+1. **The build gate exists before the code it gates.** The `shell` feature, the
+   two declared test targets and the six verification commands are the first
+   thing that lands, so every subsequent phase is checked by them rather than
+   retrofitted into them. This is the design's own lesson from F-51 — a claim is
+   held by a mechanism or it is not held — applied to the plan's ordering.
+2. **The two greps are tests from the start.** AC-11 (domain vocabulary) and
+   AC-15's direction half (`src/semantics/` names no `crate::shell`,
+   `crate::bin` or `tokio`) both fail vacuously against an empty tree, so both
+   land with a guard that fails when they find nothing to inspect, and both run
+   in every phase's `cargo test` from PHASE-01 onward.
+3. **Both feature columns, every phase.** A phase is not green until all six
+   commands pass. `design.md` §9 is explicit that a matrix checked in one column
+   is unchecked, and the cost of discovering that at PHASE-08 is a rework of
+   everything between.
+4. **The no-panic lints follow the data, not the phase.** I9 and R-46 are held by
+   module-level `#![deny(clippy::unwrap_used, clippy::expect_used,
+   clippy::indexing_slicing, clippy::arithmetic_side_effects)]` inner attributes
+   on **every** module that handles backend-derived data — not on the first one
+   to do so. Any phase creating such a module places them there and proves it the
+   same way: add a temporary `unwrap()`, confirm clippy fails, revert. They are
+   restriction lints and allow-by-default, so `-D warnings` never enabled them
+   and a module that quietly lacks them looks identical to one that has them and
+   passes (F-62, D53). Raised as review finding F-2 against this plan, whose
+   first draft gave the obligation to PHASE-04 alone.
+
+`design.md` §5.4 — the process transport — is split across two phases (05, 06)
+rather than one. It has been restructured three times across review rounds 3, 4
+and 5 and the last restructure has had no independent review (`notes.md`, and
+`review-design.md`'s Synthesis, risk 1). Splitting it puts the working path and
+the failing paths in separate sessions with separate exit criteria, and both
+phases begin by re-running `transport-probe.local.rs` rather than trusting the
+sketch. That is where the plan spends its verification budget.
 
 ## Sequencing & rationale
 
-<!-- Why this order: what each phase unlocks, where the dependencies are, and
-     which phases could be reordered or dropped. Size each phase so one agent
-     can finish it in one session, bookkeeping included. -->
+**Why stratum 1 first.** It has no dependencies pointing upward by construction,
+so it can be finished and frozen. Building stratum 2 first would mean writing the
+transport against types that do not exist yet and then editing it when they do.
+
+**Why the errors land in PHASE-01.** `semantics/error.rs` is the one stratum 1
+file with no dependency on any other, and the design fixes its every variant in
+§5.2 — writing it is transcription, not speculation. It also gives the two grep
+tests real files to inspect on the day they are written, which is what keeps
+their vacuity guards honest rather than theoretical.
+
+**Why canonical before wire.** Normalization's output type has to exist before
+its input can be dispatched into it, and the checked constructors
+(`Options`, `Fields`, `Alternatives`, `NumberRange`) are what several of
+normalization's error paths *are*.
+
+**Why schedule before normalize.** `normalize_response` discards an invalid
+`next_check` into `Discarded::Schedule { raw, reason: ScheduleError }`, so the
+parse half of `schedule.rs` is a dependency of normalization, not a peer.
+PHASE-03 also introduces the fixture runner, because the scheduling corpus is
+the smallest corpus that exercises it and PHASE-04's much larger one should
+inherit a runner that already works rather than co-evolve with it.
+
+**Why the transport splits at "works" versus "fails".** PHASE-05 owns the
+structure and the paths a correct backend takes. PHASE-06 owns the bounds, the
+cleanup dimension and the two grandchild cases — the material F-2, F-3, F-25,
+F-43, F-48, F-53, F-59 and F-63 have all rewritten at least once. Each is a
+session's work on its own; together they are not.
+
+**Why Host comes after the transport and before the round trip.** `Host`
+composes a transport that exists; and AC-8's rejection paths must be provable
+against a backend that would fail if it ran, which needs `Host` in place before
+PHASE-08 can assert "and the backend was not contacted".
+
+**Why PHASE-08 splits, and why the id is 10.** The integration tier divides at the
+same seam PHASE-05 and PHASE-06 divide at: a backend that works, versus backends
+that fail. PHASE-08 keeps the round trip and the two example backends; **PHASE-10**
+takes the protocol-level failure matrix and R-45's one-`Host` reuse. Phase ids are
+immutable and edits append, so the new phase is 10 and the **execution order is
+01…08, 10, 09** — PHASE-09 is the documentary close-out and stays last. Raised as
+review finding F-6.
+
+**Reordering.** PHASE-02 and PHASE-03 could swap only if the fixture runner moved
+with the schedule work; nothing else in the sequence can be reordered without
+breaking a dependency. PHASE-09 could in principle be folded into audit — it is
+not, because AC-10 is a deliverable of this slice and audit is not the place to
+first write one.
+
+**Parallelism.** None of these phases have disjoint surfaces except 02 and 03,
+and their dependency ordering removes even that. One agent, one phase, in
+sequence.
+
+## Decisions taken during planning
+
+Recorded in `plan-log.md` with their reasoning. Both touch PHASE-01's manifest.
+
+- **The TOML parser is `toml`, optional, inside the `shell` feature.**
+  `design.md` §5.2 specifies TOML configuration and names no crate; §5.1's
+  manifest lists serde, serde_json, jiff and tokio only. Config lives in
+  `shell/config.rs`, so the parser is a stratum 2 dependency and is gated exactly
+  as tokio is (D49). ADR-002's T1 does not fire, for D49's reason and by D49's
+  mechanism. User decision, 2026-08-26.
+
+- **No `[dev-dependencies]` entry for tokio, and none is needed.** Raised as a
+  suspected gap in the build gate and **withdrawn after measurement**: a test
+  target has the package's *regular* dependencies in scope, optional ones
+  included, whenever the feature enabling them is on. So `tests/integration/`
+  uses `#[tokio::test]` directly in the default column, while in the
+  `--no-default-features` column `tests/protocol/` **cannot name tokio at all**
+  — `error[E0433]: cannot find module or crate 'tokio'`. `design.md` §5.1 and §9
+  and `canon-delta.md` CD-1 are correct as written, and plain `cargo tree
+  --no-default-features` stays clean.
+
+  The consequence is stronger than the design claimed and is worth carrying into
+  PHASE-01: the stratum 1 tier cannot be tested *with* an async runtime even by
+  accident. That is Cargo's resolution, not a grep and not review, so AC-15's
+  boundary test does not need extending to `tests/protocol/`.
 
 ## Coverage
 
-<!-- Every acceptance criterion in `slice-nnn.md`, mapped to the phase and
-     criterion that discharges it. A gap here is a gap in the plan. -->
+Every acceptance criterion in `slice-001.md`, mapped to the phase and criterion
+that discharges it. A gap here is a gap in the plan.
 
 | AC | discharged by |
 |----|---------------|
-| AC-1 | PHASE-01/EX-2 |
+| AC-1 | PHASE-01/EX-1 establishes both columns; every phase's VA-1 re-checks; PHASE-09/VA-1 is the final run |
+| AC-2 | PHASE-02/EX-1 (types, version on the envelope), PHASE-04/EX-8 and VT-4 (unknown optional ignored, at every inbound level), PHASE-04/EX-3 (unknown required primitive rejected) |
+| AC-3 | PHASE-03/EX-1, VT-1 |
+| AC-4 | PHASE-03/EX-2, VT-2 |
+| AC-5 | PHASE-05/EX-1…EX-4, PHASE-06/EX-1…EX-5; the cancellation clause specifically by PHASE-06/VT-6 |
+| AC-6 | PHASE-01/EX-2 (the stratum 1 taxonomy exists), PHASE-04/VT-2 (every `ProtocolError` reachable), PHASE-05/VT-3 and PHASE-06/VT-1…VT-4 (`BackendError`, `CleanupFailure`), PHASE-07/VT-3 (`StateError`), PHASE-10/VT-1 (each mode end to end). Its **no-panic** clause is the lint rule in Overview item 4, placed and proven by PHASE-04/EX-5, PHASE-05/EX-7 and PHASE-07/EX-7 |
+| AC-7 | PHASE-08/EX-1, VT-1 |
+| AC-8 | PHASE-07/EX-3, VT-3; PHASE-08/VT-2 adds the no-spawn assertion |
+| AC-9 | PHASE-03/EX-3 (the runner and the scheduling corpus), PHASE-04/EX-4 (the protocol corpus, including the brief's verbatim examples) |
+| AC-10 | PHASE-09/EX-1, VH-1 |
+| AC-11 | PHASE-01/EX-4, VT-2 — a test from the first phase, re-run by every phase after |
+| AC-12 | PHASE-08/EX-3, VT-3 |
+| AC-13 | already satisfied by `draft-spec.md` as it stands; PHASE-09/VA-2 re-checks it against what shipped |
+| AC-14 | **not in this plan.** It is discharged at audit and close, per `docs/AGENTS.md`, and needs explicit user endorsement |
+| AC-15 | PHASE-01/EX-3 (dependency-graph half, the build gate) and EX-4 (direction half, the boundary test) |
 
 ---
 
-## PHASE-01 — <name>
+## PHASE-01 — Crate skeleton, the build gate, and the stratum 1 error taxonomy
 
-**Objective:** <one sentence: what is true at the end that was not true at the
-start.>
+**Objective:** the crate exists, the six verification commands run green in both
+feature columns, the two boundary greps are tests rather than intentions, and
+every error type stratum 1 can raise is declared.
 
-**Surfaces:** <paths this phase may touch. Disjoint phases can run in
-parallel; overlapping ones cannot.>
+**Surfaces:** `Cargo.toml`, `clippy.toml`, `rustfmt.toml`, `justfile`,
+`.gitignore`, `src/lib.rs`,
+`src/semantics/mod.rs`, `src/semantics/error.rs`, `src/shell/mod.rs`,
+`tests/protocol/main.rs`, `tests/protocol/boundary.rs`,
+`tests/integration/main.rs`, `flake.nix`.
 
 **Entry**
-- EN-1 —
+- EN-1 — the plan is accepted by the user (`docs/AGENTS.md` §Plan; `CLAUDE.md`,
+  no code without an accepted plan).
+- EN-2 — none. Both planning decisions above are settled; the manifest content
+  they govern is written by this phase.
 
 **Exit**
-- EX-1 —
+- EX-1 — all six commands from `design.md` §9 pass: `cargo build`, `cargo test`,
+  `cargo test --no-default-features`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code
+  -A unreachable_pub`, `cargo fmt --check`. Take the second clippy line from §9
+  rather than from memory: the two `-A`s are load-bearing and the reason they are
+  on that line only is recorded there. `just lint` runs both clippy lines and is
+  the recipe that must stay in step with §9; it is not a substitute for running
+  the other four commands.
+- EX-2 — `src/semantics/error.rs` declares `ProtocolError`, `BoundsError` and
+  `ScheduleError` exactly as `design.md` §5.2 lists them, with `Display` and
+  `std::error::Error`. No variant is added that the design does not name, and
+  none is omitted — including `BoundsError::NotFinite`, which D39 keeps
+  deliberately as a constructor guard despite being unreachable from JSON.
+- EX-3 — the feature gate holds and is observed to, in three parts: `cargo tree
+  --no-default-features` shows no tokio node; `cargo test --no-default-features`
+  **skips** the `integration` target rather than failing to build it; and a
+  `tokio` token added temporarily to a `src/semantics/` file **or** to
+  `tests/protocol/` fails that column to compile with `E0433`. Observe the third
+  by breaking it and reverting, not by asserting it.
+- EX-4 — `tests/protocol/boundary.rs` carries both greps — AC-15's direction
+  check and AC-11's domain-vocabulary check — each with a guard that fails when
+  it inspects zero files.
+- EX-5 — **already discharged, 2026-08-26**: the user added `pkgs.deno` to
+  `flake.nix`. Note it went into `projectPkgs` rather than the `devToolPkgs`
+  attribute `slice-001.md`'s Scope names; the effect is identical, since
+  `projectPkgs` is `devToolPkgs` plus the GUI libs and the agents, and both the
+  dev shell and the agent jails take `projectPkgs`. The jails now get deno too,
+  which is what a jailed agent running the integration tier needs. This phase
+  confirms it in the shell rather than making the change.
 
 **Verification**
-- VT-1 — <test file / name, and what it asserts>
-- VA-1 — <what the agent must check, and against what>
-- VH-1 — <what the human must accept>
+- VT-1 — `boundary.rs`: no file under `src/semantics/` contains `crate::shell`,
+  `crate::bin` or `tokio`; plus a case pointing the same helper at an empty
+  directory and asserting it **fails**. The vacuity guard is the point — without
+  it a renamed directory turns the test green.
+- VT-2 — `boundary.rs`: no file under `src/` contains any of habit, streak,
+  journal, site, goal, reminder, compliance (AC-11, brief §21.16), with the same
+  empty-directory guard.
+- VT-3 — a case per `ScheduleError`, `BoundsError` and `ProtocolError` variant
+  asserting its `Display` names the value it carries. Cheap, and it is what stops
+  a variant being declared with a field nothing ever formats.
+- VA-1 — run all six commands and paste the output into the phase sheet. Not
+  "they should pass".
+- VA-2 — confirm by reading `Cargo.toml` that `autotests = false` is present in
+  `[package]`, that both `[[test]]` targets are declared with explicit paths, and
+  that `integration` carries `required-features = ["shell"]`. `design.md` §5.1's
+  manifest snippet states these in prose beneath the code block rather than
+  inside it; all three are load-bearing.
+- VH-1 — the user reloads the dev shell and confirms `deno --version`. A
+  `flake.nix` change does not reach a running shell on its own.
 
 **Notes for the implementer**
 
-<!-- Anything an agent who has read the design still would not know: prior art,
-     gotchas, the order to attack it in, what NOT to touch. -->
+- `rustfmt.toml` with `tab_spaces = 2`. Every Rust snippet in `design.md` is
+  written at two spaces and `CLAUDE.md` asks for it; without the file
+  `cargo fmt` will reformat to four and the design's sketches stop being
+  copy-able. Settle it here, before there is code to churn.
+- `.gitignore` does not exist yet — the repository has been documentation only.
+  It needs `/target`. `*.local.*` is already covered by the user's global
+  ignore file, so do not duplicate it.
+- Cargo will not parse a `[[test]]` target whose `path` does not exist, so both
+  `main.rs` files must be created in this phase even though they hold almost
+  nothing. `tests/integration/main.rs` may be an empty module until PHASE-05.
+- Do **not** write root `AGENTS.md` content here. AC-10 is PHASE-09's, and the
+  verification commands it must name are the thing this phase is establishing.
+- `edition` and the exact toolchain: `cargo 1.99.0-beta.1` from
+  `rust-bin.beta.latest.default` (`research.md`, verified). AFIT is relied on by
+  `design.md` §5.2 (D11), so do not pin backwards.
+- The design's §5.1 manifest is the contract for dependency *names and features*,
+  plus `toml` per the decision above. Do not add a `[dev-dependencies]` section:
+  it is unnecessary (a test target already sees the package's optional
+  dependencies when their feature is on) and an unconditional tokio entry there
+  would put a runtime back in reach of the stratum 1 test target, which is the
+  one thing this column exists to prevent.
 
 ---
 
-## PHASE-02 — <name>
+## PHASE-02 — Canonical types and their checked constructors
 
-**Objective:**
+**Objective:** every canonical type in `design.md` §5.2 exists, cannot be
+constructed in an invalid state from outside `semantics::protocol`, and the two
+request kinds serialize to the wire form the draft spec requires.
 
-**Surfaces:**
+**Surfaces:** `src/semantics/protocol/mod.rs`,
+`src/semantics/protocol/canonical.rs`, `src/semantics/error.rs` (extend only if a
+variant proves to need a field the design named and PHASE-01 missed).
 
 **Entry**
-- EN-1 —
+- EN-1 — PHASE-01/EX-1 and EX-2 discharged.
 
 **Exit**
-- EX-1 —
+- EX-1 — the scalar newtypes (`ViewId`, `OptionId`, `AlternativeId`, `FieldId`,
+  `Timestamp`, `Hints`), the response types (`Response`, `View`, `Choice`, `Opt`,
+  `Content`, `Field`, `FieldKind`, `Alternative`), the checked collection
+  newtypes (`Options`, `Fields`, `Alternatives`) and `NumberRange` all exist as
+  §5.2 states them, with `pub(super)` fields and read-only accessors (D30).
+- EX-2 — the outbound types (`Request`, `Evaluate`, `Respond`, `Event`,
+  `UserResponse`) exist and serialize with `"protocol": 1` and a `"type"`
+  discriminant of `evaluate` or `respond` (R-1, R-6).
+- EX-3 — each checked constructor rejects what §5.5's edge-case table says it
+  rejects: empty `Options`/`Alternatives`/`Fields`, duplicate ids within each,
+  and a `NumberRange` that is inverted or non-finite.
+- EX-4 — `AlternativeId` and `OptionId` are distinct types and neither can be
+  passed for the other (F-61, D52), and `DuplicateAlternativeId` /
+  `EmptyAlternatives` are the errors raised for alternatives — never
+  `DuplicateOptionId` / `EmptyOptions`.
 
 **Verification**
-- VT-1 —
+- VT-1 — one case per rejection in EX-3, asserting the specific error variant and
+  the path it carries.
+- VT-2 — request serialization snapshots for both kinds (draft spec §7, R-1,
+  R-6, R-7, R-8), asserted against literal expected JSON rather than a
+  round trip. A round trip would pass with the version field missing.
+- VT-3 — the same field id used by fields in **different** options is accepted.
+  The negative case is what shows I15's scope is per-option and not per-view
+  (draft spec §7, R-52).
+- VA-1 — six commands.
+- VA-2 — grep `canonical.rs` for `pub ` on a struct field. There should be none
+  outside the outbound request types, whose fields are host-authored and
+  deliberately public. R10 in `design.md` §8 is the risk this check exists for.
 
 **Notes for the implementer**
+
+- The accessors are boilerplate and the temptation to widen the fields to `pub`
+  is the named risk R10. D30 is the reason not to: outside
+  `semantics::protocol`, a canonical value must be provably the output of
+  normalization.
+- `Timestamp` wraps `jiff::Timestamp` and jiff is `default-features = false`
+  (D4). If something here wants a time zone, stop — that is stratum 1 acquiring
+  I/O, and the answer is a parameter, not a dependency feature.
+- Do not implement `Deserialize` for anything in this file. Canonical types are
+  reached only through `normalize_response` (P1); a derive here would open a
+  second door.
+- `Content` has four variants and a v0 renderer implements none of them. That is
+  P3 with brief §11.1 naming the future implementor — do not trim it to what
+  slice 002 will draw.
+
+---
+
+## PHASE-03 — Schedule resolution, and the fixture runner
+
+**Objective:** `next_check` parses to one canonical instant or to a named
+`ScheduleError`, resolution is a pure function implementing latest-valid-wins,
+and the protocol tier has a table-driven runner over data files that PHASE-04
+can extend without changing.
+
+**Surfaces:** `src/semantics/schedule.rs`, `tests/protocol/main.rs`,
+`tests/protocol/runner.rs`, `tests/protocol/fixtures/schedule/**`.
+
+**Entry**
+- EN-1 — PHASE-02/EX-1 discharged (`Timestamp` exists).
+
+**Exit**
+- EX-1 — parsing accepts an RFC 3339 instant with an offset and a jiff friendly
+  span, and rejects with the right variant: `NotAString`, `MissingOffset`,
+  `CalendarUnit`, `OutOfRange`, `Unparseable` (AC-3, R-21…R-25).
+- EX-2 — resolution is a pure function over (retained, incoming, default, now)
+  returning a concrete `Timestamp`: the latest **valid** instruction, else the
+  retained value, else `now + default_poll`. An invalid instruction preserves
+  rather than disables (AC-4, R-26, R-27).
+- EX-3 — the runner walks data files, and its fixture format is documented in
+  `notes.md` so PHASE-04 inherits it rather than inventing a second one.
+- EX-4 — a past instant, including a negative span, is stored as given and not
+  clamped (R-28, D29, F-13).
+
+**Verification**
+- VT-1 — the scheduling corpus: absolute with and without offset; spans in
+  minutes, hours, days and weeks; `"1 month"`; an out-of-range span; `45` (a
+  number, not a string); `"tomorrow morning"`. Each asserts its own variant.
+- VT-2 — resolution over the triple, including latest-valid-wins and
+  invalid-preserves-existing.
+- VT-3 — `"1 day"`, `"1 week"` and `"1d 2h"` resolve to exactly 24h, 168h and 26h
+  (F-10, D28).
+- VA-1 — six commands.
+- VA-2 — **re-run** the jiff behaviour rather than trusting `notes.md`:
+  `SpanRelativeTo::days_are_24_hours()` resolving days and weeks and rejecting
+  months and years, with no tzdb present. `notes.md` records it as established at
+  jiff 0.2.35 and instructs re-running where a phase depends on it. This phase
+  depends on it entirely.
+
+**Notes for the implementer**
+
+- `now` is a parameter everywhere. Stratum 1 reads no clock (I3), and this is the
+  file where that is most tempting.
+- The fixture format is this phase's most consequential decision because PHASE-04
+  inherits it for a much larger corpus. Design it for a reader who knows the
+  protocol and not the tests — `design.md` §9 says the corpus must be reviewable
+  as protocol documentation, which is what makes it usable to the draft spec.
+- `ScheduleError` variants already exist from PHASE-01. If one needs a field the
+  design did not give it, that is a design question, not a local repair.
+
+---
+
+## PHASE-04 — Wire types, normalization, and the protocol corpus
+
+**Objective:** a permissive wire response normalizes to a canonical one — total,
+with a discard list — and every `ProtocolError` the design names is reachable
+from a fixture.
+
+**Surfaces:** `src/semantics/protocol/wire.rs`,
+`src/semantics/protocol/normalize.rs`, `tests/protocol/fixtures/**`.
+
+**Entry**
+- EN-1 — PHASE-03/EX-1 and EX-3 discharged.
+
+**Exit**
+- EX-1 — the wire types are as §5.2 states: no `deny_unknown_fields` anywhere
+  inbound (I10, R-4, R-5); `view` present-preserving via the `present` helper so
+  omission and explicit `null` stay distinct (D25, F-5); `next_check` and `body`
+  typed `serde_json::Value` (D6, D38); `hints` `#[serde(flatten)]` (D37, F-38).
+- EX-2 — `normalize_response(wire, now) -> Result<Normalized<Response>,
+  ProtocolError>` with `Normalized { value, discarded }` and `Discarded` a closed
+  enum of one variant (D10).
+- EX-3 — an unrecognised `kind` at **any** of the three discriminant sites — the
+  view, a field, a content block — yields `UnsupportedPrimitive { kind, at }`
+  carrying the path (D8, F-6, R-12).
+- EX-4 — the corpus covers `design.md` §9's protocol-tier list, and includes
+  brief §10.1's bare-string `body` and §10.2's flat `multiline` **verbatim**
+  (AC-9, F-31, F-38).
+- EX-5 — `wire.rs` and `normalize.rs` carry the module-level `#![deny(...)]`
+  inner attributes per Overview item 4 (I9, D53, F-62, R-46). This phase is the
+  first to handle backend-derived data; it is **not** the only one, and PHASE-05
+  and PHASE-07 carry the same obligation for the modules they add.
+- EX-6 — `InapplicableKey` is raised for a modelled key its kind does not admit,
+  and a `choice` field's option carrying `fields` is **rejected** rather than
+  ignored (D43, D46, F-45, F-55, R-50, R-53).
+- EX-7 — `null` behaves per D50 and R-51: identical to omission everywhere except
+  `view`, reported as nothing, with `"next_check": 45` still discarded and
+  reported so the two are shown to be distinguished.
+- EX-8 — unmodelled fields are ignored **at every inbound level**, not merely
+  permitted by the absence of `deny_unknown_fields`: the envelope, the view, an
+  option, a field and a content block each accept one and normalize unchanged
+  (AC-2, R-4, R-5). Raised as review finding F-4 — the first draft mapped AC-2 to
+  a structural serde condition, which is not the behaviour R-5's own §7 row asks
+  to be verified.
+
+**Verification**
+- VT-1 — the corpus, table-driven through PHASE-03's runner.
+- VT-2 — a case constructing every `ProtocolError` variant from a fixture, with
+  exactly one documented exception: `BoundsError::NotFinite`, which JSON cannot
+  express, and whose fixture asserts `Protocol(Json)` instead (F-36, D39). Write
+  the exception down in the test, not only in the phase sheet.
+- VT-3 — the misspelling pair: an optional key (`minn`) becomes a hint; a
+  required key (`labell`) is rejected. Both are D37's stated cost, and asserting
+  them is what keeps the cost the size the design claimed.
+- VT-4 — one fixture per level in EX-8, each carrying an unmodelled field and
+  asserting the message is accepted, the field is absent from the canonical
+  value, and **nothing is discarded** — the assertion is the silence, since a
+  discard here would be the defect (R-4, R-5, and R-51's §7 row for the shape of
+  the assertion).
+- VA-1 — six commands. Note that clippy's second column is what proves EX-5's
+  lints are on: they are restriction lints and `-D warnings` never enabled them.
+- VA-2 — verify EX-5 by breaking it: add an `unwrap()` to one of those modules
+  and confirm clippy fails, then remove it. An allow-by-default lint that was
+  never switched on is indistinguishable from one that is switched on and
+  passing (F-62).
+
+**Notes for the implementer**
+
+- `#[serde(flatten)]` alongside declared optional fields is the shape D37 chose
+  and F-45 then constrained: serde binds `min`, `max` and `options` before `kind`
+  is dispatched, so they cannot fall through to `hints` and an inapplicable one
+  must be raised rather than lost. Get EX-6 red first.
+- The `at` path accumulation is explicitly left to implementation
+  (`design.md` §6). One encoding is offered there and was run — read the
+  discriminant with a `#[serde(flatten)] rest: Value` struct and dispatch — but
+  it is offered, not mandated. Whatever you choose, the contract is the named
+  error, the retained string and the path.
+- The corpus is a deliverable in its own right (AC-9) and it is what the draft
+  spec's §7 rows point at. Name the files for the requirement they verify.
+
+---
+
+## PHASE-05 — Process transport: the structure and the paths that work
+
+**Objective:** `Backend::exchange` exists and the §5.4 structure is implemented
+as written, with a correct backend completing an exchange and a non-zero exit
+discarding the body it came with.
+
+**Surfaces:** `src/shell/mod.rs`, `src/shell/error.rs`,
+`src/shell/backend/mod.rs`, `src/shell/backend/transport.rs`,
+`src/shell/backend/process.rs`, `tests/integration/main.rs`,
+`tests/integration/harness.rs`, `tests/backends/*.sh`.
+
+**Entry**
+- EN-1 — PHASE-02/EX-1 discharged (`Request` exists to be serialized).
+
+<!-- The probe run was EN-2 in the first draft. Review finding F-1: an entry
+     criterion means "the previous phase is not done" if unmet, and no previous
+     phase owes this. It is this phase's own first task, and EX-6 is where it
+     is discharged. -->
+
+**Exit**
+- EX-1 — `trait Backend { fn exchange(&mut self, request: &Request) -> impl
+  Future<Output = Exchange> + Send; }` with `Exchange { result, stderr, cleanup }`
+  and no outer `Result` (D22, D33, D40), and `Captured { bytes, truncated }`.
+- EX-2 — `process.rs` implements §5.4's sketch: spawn with `kill_on_drop(true)`;
+  write stdin and **drop the handle**; drain stdout and stderr concurrently via a
+  `select!` sub-future, never a `tokio::spawn` (D44, F-49); observe the exit
+  status **inside** `config.timeout` (D51, F-59); one `CLEANUP_LIMIT` budget
+  covering kill, reap and drain completion (D48).
+- EX-3 — a backend that reads stdin to EOF completes an exchange (R-37), and one
+  that writes a valid response and exits **non-zero** yields
+  `ExitStatus { code: Some(1) }` with the body discarded and the stderr kept
+  (D15, R-40, F-59).
+- EX-4 — stderr is carried on every path this phase reaches, including a timeout
+  and a zero exit with unparseable stdout (R-42, F-24).
+- EX-5 — there is no `?` between the spawn and the cleanup budget (F-41). The
+  only return that skips cleanup is the spawn failure itself, where no child
+  exists.
+- EX-6 — `transport-probe.local.rs` has been run **before any of `process.rs` was
+  written**, and its output is recorded in the phase sheet. Copy it and
+  `transport-probe-Cargo.local.toml` into a scratch crate and `cargo run`; its
+  seven cases are the fastest check on §5.4 and five of them changed the design.
+  This is the phase's first task, not a gate on the previous one.
+- EX-7 — `process.rs` and `shell/error.rs` carry the module-level `#![deny(...)]`
+  attributes per Overview item 4. `process.rs` is the module that reads a
+  backend's bytes; if any module in this crate needs them it does (review finding
+  F-2).
+
+**Verification**
+- VT-1 — a normal exchange against a bash backend: request in, response out,
+  exit 0, `cleanup: None`.
+- VT-2 — a backend sleeping past the timeout: `BackendError::Timeout`, and the
+  process confirmed gone afterwards (R-41).
+- VT-3 — one case per `BackendError` variant this phase can reach: `Spawn` (a
+  path that does not exist — no fixture needed), `Timeout`, `ExitStatus`,
+  `Protocol(Json)` via unparseable stdout, and `Io`.
+- VT-4 — a backend that writes to stderr and **then** sleeps past the timeout,
+  asserting the stderr survives (F-3). This is the case D18's reversal exists
+  for; it is not covered by VT-2.
+- VA-1 — six commands.
+- VT-5 — three of the four §5.4 regressions are greps and are asserted as a test
+  over `process.rs`'s source text, in the same tier and with the same
+  found-no-files guard as PHASE-01's boundary checks: no `tokio::spawn`, no
+  `Arc`/`Mutex`, and no `?` between the spawn and the cleanup budget. Each was a
+  repair in the design review (F-49, F-36's lock deletion at D44, F-41), so each
+  is a regression with a name. Review finding F-5.
+- VA-2 — the fourth is genuinely a read and stays one: `child.wait()` sits
+  **inside** the timed region rather than in the cleanup budget (F-59, D51). No
+  string distinguishes the two placements; the scope structure does.
+- VA-3 — assert the elapsed time on the timeout path is bounded by
+  `config.timeout + CLEANUP_LIMIT` and, on a prompt success, by neither (R-41).
+  The probe measured 2.5 ms for the success path; if this phase's success path
+  costs the cleanup budget, the structure is wrong.
+
+**Notes for the implementer**
+
+- This is the phase the design is least sure of. §5.4 is its fourth structure and
+  the last restructure has had no independent review. Where the sketch and a
+  measurement disagree, the measurement wins and the disagreement is a finding —
+  take it back to design rather than repairing it here.
+- The harness is this phase's other deliverable and PHASE-06 and PHASE-08 both
+  inherit it. It needs: locating `tests/backends/` from the test binary, building
+  a `Config` pointing at one, and running an async body from a `#[test]`. Keep
+  the backend scripts declarative — one behaviour each, named for it.
+- A backend script needs no shebang: `command` is an argv vector and the design's
+  own AC-12 case is `["bash", "./backend.sh"]` (R-36).
+- Do not reach for `wait_with_output()`. §5.4 says why at length, twice, and it
+  reads like a simplification.
+- Run the probe first (EX-6). Not after writing `process.rs` to check it, and not
+  instead of the tests — before, so the structure you write is the structure that
+  was observed rather than the one that was read.
+
+---
+
+## PHASE-06 — Process transport: bounds, disposal, and the two grandchild cases
+
+**Objective:** every bound in AC-5 behaves as the design distinguishes them, the
+cleanup dimension is reachable and reported independently of the exchange
+result, and both grandchild cases are observed rather than described.
+
+**Surfaces:** `src/shell/backend/process.rs`, `src/shell/error.rs`,
+`tests/integration/**`, `tests/backends/*.sh`.
+
+**Entry**
+- EN-1 — PHASE-05/EX-1…EX-7 discharged.
+
+<!-- The conditional probe re-run was EN-2 in the first draft; review finding F-1
+     applies to it as it does to PHASE-05's. It is EX-6 below. -->
+
+**Exit**
+- EX-1 — the stdout bound **fails** the exchange with `OutputTooLarge`, the
+  reader drops the handle, and the backend observes the broken pipe (D27, D34,
+  R-43).
+- EX-2 — the stderr bound **truncates and keeps draining**: a backend flooding
+  stderr past 256 KiB and then answering correctly **succeeds**, with
+  `truncated` set (D34, F-25, F-43). This is the case that deadlocks if the two
+  readers are collapsed into one.
+- EX-3 — `CleanupFailure` is reported on `Exchange::cleanup`, independent of
+  `result`, and all four combinations in §5.4's table are distinguishable
+  (D47, R-54).
+- EX-4 — both grandchild cases are asserted, and asserted **differently** (F-63):
+  a grandchild holding stderr only gives `Ok(response)` with
+  `cleanup: TimedOut`; a grandchild holding stdout as well gives `Err(Timeout)`
+  **and** `cleanup: TimedOut`.
+- EX-5 — after every misbehaving case, no child of the test process remains
+  (R-48). A cancelled exchange asserts the narrow claim AC-5 makes: nothing the
+  **host** holds survives it. It does not assert the child is gone (D54, F-60).
+- EX-6 — if `process.rs` changed at all in this phase, the probe was re-run and
+  its output recorded in the phase sheet, as PHASE-05/EX-6.
+
+**Verification**
+- VT-1 — the stdout flood, asserting `OutputTooLarge` and the backend's own
+  observation of the closed pipe.
+- VT-2 — the stderr flood past the pipe buffer **and** past the bound, asserting
+  success, `truncated`, and no deadlock. Run it with the body still reading
+  stdout — the deadlock this exists to prevent needs both.
+- VT-3 — the two grandchild cases, each asserting both dimensions and the elapsed
+  time (the probe measured 303 ms and 902 ms against a 900 ms bound).
+- VT-4 — a backend wedged so `wait` cannot return promptly: the cleanup budget
+  elapses, `CleanupFailure::TimedOut` is reported, and the exchange **returns**.
+- VT-5 — no-orphans: after the whole misbehaving suite, the test process has no
+  children.
+- VT-6 — the cancellation claim, in two mechanisms, because EX-5 had none in the
+  first draft (review finding F-3):
+  - **structural** — PHASE-05/VT-5's `tokio::spawn` grep already fails if the
+    transport acquires a task. Assert it here too against the finished module, so
+    the claim and its mechanism sit in the same phase as the criterion.
+  - **behavioural** — start an exchange against a backend that will not answer,
+    drop the future, then drop the runtime with `shutdown_timeout(Duration::ZERO)`
+    and assert it returns promptly. A detached task blocks that call, so the test
+    fails if the structure regresses. It asserts nothing about the child, which
+    is what D54 concedes and AC-5 states.
+- VA-1 — six commands.
+- VA-2 — re-read `design.md` §5.5's edge-case table and confirm every row this
+  phase owns has a test, and that the test asserts what the row says rather than
+  something adjacent. F-63 was exactly a test that measured one case while the
+  prose described another.
+
+**Notes for the implementer**
+
+- The asymmetry between the two readers is the whole of D34: "truncate" means
+  stop **storing**, never stop **reading**. If a refactor makes them one function
+  with a flag, EX-2 will hang rather than fail, which is the worst available
+  symptom.
+- `CleanupFailure::TimedOut` is deliberately not named `Orphaned` (F-48, F-63):
+  in the case that actually fires, the child has exited and been reaped. Do not
+  rename it to something that reads better and asserts more.
+- The cancellation assertion is structural, not timed. There is no task to
+  outlive the exchange because there is no `tokio::spawn` — if asserting it needs
+  a sleep, the structure has regressed.
+
+---
+
+## PHASE-07 — Config, host state, and composition
+
+**Objective:** `Host` composes the transport, normalization, schedule resolution
+and interaction state; configuration loads from TOML; a stale or unknown
+`view_id` is rejected before the backend is reached.
+
+**Surfaces:** `src/shell/config.rs`, `src/shell/state.rs`, `src/shell/host.rs`,
+`src/shell/error.rs` (add `StateError`), `Cargo.toml` (the TOML parser),
+`tests/integration/**`.
+
+**Entry**
+- EN-1 — PHASE-06/EX-1…EX-5 discharged.
+- EN-2 — the TOML parser is added under the `shell` feature, and
+  `cargo tree --no-default-features` still shows neither it nor tokio.
+
+**Exit**
+- EX-1 — `Config` loads brief §5's three values and rejects at load: `command =
+  []`, `timeout = "0s"`, `default_poll = "0s"`. Durations parse with jiff — one
+  duration grammar across the product.
+- EX-2 — `State` holds `Option<Outstanding>`, a non-`Option` `resolved_check` and
+  a sequence counter; `view_id` is `{now RFC 3339}#{seq}` (D13); `Host::new`
+  seeds `resolved_check` from `now + default_poll` (I4).
+- EX-3 — `StateError::NoOutstandingView` and `StaleViewId` are distinct variants,
+  raised before the transport is touched, and a rejection leaves the outstanding
+  interaction intact (AC-8, R-32, R-34, D24).
+- EX-4 — `Outcome` is a struct carrying `view: Option<Presented>`, a concrete
+  `next_check`, `discarded`, `stderr`, `failure` and `cleanup` — with `Presented`
+  pairing the view and its id inseparably (D23, D32, F-23, I12, I14).
+- EX-5 — a failed exchange leaves `resolved_check` exactly as it was (R-29, P2).
+- EX-6 — `view: null` answering an `evaluate` leaves an outstanding interaction
+  alone; answering an accepted `respond` closes it (F-46, §5.5's edge table).
+- EX-7 — `host.rs` carries the module-level `#![deny(...)]` attributes per
+  Overview item 4: it is where a backend's bytes are parsed, normalized and
+  composed into an `Outcome`, so it handles backend-derived data throughout
+  (review finding F-2). `config.rs` and `state.rs` do not — a config file is the
+  user's own and a `view_id` is host-minted — and the rule is about the data, not
+  the directory.
+
+**Verification**
+- VT-1 — host-level tests against a **fake** `Backend`, not a process: the
+  generic `Host<B>` exists so this is cheap, and it keeps these cases out of the
+  slow tier.
+- VT-2 — config rejection cases, one per EX-1 clause, each naming its error.
+- VT-3 — stale and unknown `view_id`, asserting the variant and that the
+  outstanding interaction survives.
+- VT-4 — schedule unchanged across a timeout, a non-zero exit and a
+  malformed-JSON exchange (R-29).
+- VT-5 — `view_id` determinism: a fixed `now` and counter produce the exact
+  documented id (D13's third reason).
+- VA-1 — six commands.
+
+**Notes for the implementer**
+
+- `State` is a plain struct behind `&mut self`. No `Arc`, no `Mutex` — D14, and
+  the same argument F-49 eventually applied to the drain. Brief §12 gives this
+  host no concurrency to protect against.
+- The fake backend belongs in the integration tier because `Host` is stratum 2.
+  It is still the right vehicle for EX-3, EX-5 and EX-6 — the process transport
+  adds nothing to those and costs a spawn each.
+- `Outcome::failure` says the **host** took no action. It is not a claim about
+  the backend's side effects (F-32, R-49). Whatever documentation this phase
+  writes on that field must say so.
+
+---
+
+## PHASE-08 — The round trip, the example backend, and the failure matrix end to end
+
+**Objective:** a backend written in TypeScript and a backend written in bash both
+complete a full `evaluate` → view → `respond` round trip against the real
+process transport, and every failure mode in AC-6 is asserted through the whole
+stack.
+
+**Surfaces:** `examples/typescript/**`, `tests/backends/**`,
+`tests/integration/**`.
+
+**Entry**
+- EN-1 — PHASE-07/EX-1…EX-6 discharged.
+- EN-2 — `deno` available in the dev shell (PHASE-01/EX-5, VH-1).
+
+**Exit**
+- EX-1 — the AC-7 round trip: the example backend returns `view: null`; then
+  returns a choice; the host mints a `view_id` and hands it to the caller inside
+  `Presented`; a `respond` carrying that id reaches the backend; the reply is
+  accepted (F-23).
+- EX-2 — `examples/typescript/` is a minimal showcase backend run as
+  `["deno", "run", "-A", …]`, with no build step and no `node_modules`. Its
+  comments must **not** present deno's default-deny permissions as a security
+  boundary — brief §14 makes backends trusted user programs, and `-A` is there
+  for that reason (OQ-9's answer).
+- EX-3 — at least one backend the suite exercises is **not** TypeScript: a bash
+  script invoked as `["bash", "./backend.sh"]`, with no shebang (AC-12, R-36).
+- EX-4 — the protocol-level misbehaving backends from `design.md` §9's list run
+  end to end and each asserts its own error: unknown protocol version, `options:
+  []`, duplicate option ids, duplicate field ids in one option, an unknown `kind`
+  nested inside a field with its path, `view` omitted, `"next_check": 45`,
+  `"next_check": "1 month"`, `min: 10, max: 1`, a text field carrying `min`, a
+  number field carrying `options`, and `"next_check": null` / `"protocol": null`
+  asserting **nothing** is discarded.
+- EX-5 — R-45: the whole misbehaving suite runs against **one** `Host` instance
+  and a later exchange still succeeds. A backend failure may not leave the host
+  unable to invoke a backend again.
+
+**Verification**
+- VT-1 — the AC-7 round trip against the deno example.
+- VT-2 — AC-8 through the real transport, asserting the backend was **not**
+  spawned: point the config at a backend that would fail if it ran.
+- VT-3 — the same round trip against the bash backend (AC-12).
+- VT-4 — one test per failure mode in EX-4, each asserting the specific variant
+  and, where the design gives one, the path.
+- VT-5 — an answer naming an option the view did not offer reaches the backend
+  unchanged (R-35, D17). The host validates `view_id` and nothing else, and this
+  is the test that says so.
+- VA-1 — six commands.
+- VA-2 — walk `design.md` §9's misbehaving-backend list item by item against the
+  tests that now exist and record any item with no test in the phase sheet. The
+  list is long and prose-shaped; a gap in it is invisible without this pass.
+
+**Notes for the implementer**
+
+- The example is documentation as much as it is a test fixture — brief §3.7 makes
+  agents the intended authors of backends. Write it to be copied.
+- `deno` is chosen because it runs `.ts` with no build step and typechecks rather
+  than stripping types (OQ-9). If a fixture needs to compile-fail, that is a
+  different fixture, not a change of runtime.
+- EX-5 is easy to satisfy accidentally by using a fresh `Host` per case. Do not:
+  the requirement is about reuse.
+
+---
+
+## PHASE-09 — `AGENTS.md`, the restatement sweep, and reconciliation of the draft
+
+**Objective:** the repository's own map is true, the slice's documents agree with
+each other and with the code, and the slice is in a state audit can start from.
+
+**Surfaces:** root `AGENTS.md`, `docs/slices/001/draft-spec.md`,
+`docs/slices/001/notes.md`, `docs/slices/001/slice-001.md`.
+
+**Entry**
+- EN-1 — PHASE-08/EX-1…EX-5 discharged.
+
+**Exit**
+- EX-1 — root `AGENTS.md` carries what brief §15.1 asks and it currently lacks:
+  that the host does not understand the user's domain, the permissive-wire /
+  canonical-internal rule, the warning against narrowing the protocol to the
+  current renderer, pointers to the authoritative documents, and the six
+  verification commands (AC-10). It is **additive** — the existing pointer,
+  canon rule, dev-shell facts and working principles stay.
+- EX-2 — the restatement sweep from `design.md` §9 has been run over this slice's
+  batch of work: §5.5's invariant and edge tables, §7's decision index, §8's
+  risks, §9's AC map and misbehaving-backend list, `draft-spec.md` §4 and §6, and
+  the AC text in `slice-001.md`. Divergences are recorded, not silently fixed —
+  a design that departed from the code is `audit.md`'s **Design drift**, and code
+  that departed from the design is a finding.
+- EX-3 — `draft-spec.md` §7's rows point at tests that exist, by name. A row
+  pointing at nothing is either a missing test or a requirement that shipped
+  unverified, and the second must say so explicitly with a reason (AC-13).
+- EX-4 — `notes.md`'s Harvest is current: what was produced, what was learned,
+  what is open. The `docs/memory/` candidates are listed but **not** moved —
+  lifting them is a close-stage act.
+- EX-5 — every phase in `notes.md`'s status table is `done` with a date, and each
+  phase sheet records what it actually did rather than what it planned to.
+
+**Verification**
+- VT-1 — the full suite, both columns, from a **clean clone** — not the working
+  tree. AC-1 says "from a clean clone in the nix dev shell" and a working tree
+  can pass on a file nobody committed.
+- VA-1 — six commands, on that clean clone.
+- VA-2 — AC-by-AC walk of `slice-001.md`, recording for each the test or check
+  that discharges it. This is the input audit's evidence-gathering starts from,
+  not a substitute for it.
+- VH-1 — the user accepts `AGENTS.md`'s content. It is the document every future
+  agent reads first, and its wording is a judgement call the plan should not make
+  alone.
+
+**Notes for the implementer**
+
+- AC-14 is **not** yours. Promoting `draft-spec.md` to `docs/specs/` and applying
+  `canon-delta.md`'s CD-1 and CD-2 happen at audit and close, with explicit user
+  endorsement. Leave both in the slice folder.
+- The sweep is a review step and not a test, for the reason §9 gives: no test can
+  observe that two English sentences disagree. Its trigger is the **batch** —
+  which this slice is, in its entirety — and it has one owner and one moment
+  (F-56).
+- Two mechanical checks belong to the sweep and are greps, not reading: every
+  struck or superseded decision id chased to whatever still cites it, and every
+  type or function named in `design.md` §5 confirmed to be defined in §5.

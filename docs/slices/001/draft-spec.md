@@ -83,6 +83,7 @@ leave the host running and MUST leave it able to run the backend again.
 | R-3 | The host MUST reject, with a distinct error naming the version found, a response declaring a `protocol` value it does not implement. | §7 |
 | R-4 | The host MUST ignore fields it does not model on any inbound message. | §7 |
 | R-5 | The host MUST NOT reject a message solely because it carries an unmodelled field. | §7 |
+| R-51 | For every modelled field, an explicit `null` means exactly what omitting the field means — **except** where this spec gives `null` a distinct meaning, which it does for `view` (R-11) and nowhere else. A `null` under this rule is not an invalid value: it MUST NOT be reported as a discard, because serializers in common backend languages emit `null` for an absent optional as ordinary output. A value of the wrong *type*, such as `"next_check": 45`, is a different case and R-25 governs it. | §7 |
 
 ### Requests
 
@@ -103,7 +104,9 @@ leave the host running and MUST leave it able to run the backend again.
 | R-13 | A `choice` view MUST carry a title and at least one option, and MAY carry a body. A choice with zero options MUST be rejected. | §7 |
 | R-14 | Option ids MUST be unique within a choice. Duplicates MUST be rejected. | §7 |
 | R-15 | An option MAY carry fields. Each field MUST carry an id, a kind and a label. Any key on the field object that this spec does not name is a hint. | §7 |
-| R-16 | Field kinds are `text`, `boolean`, `datetime`, `number` and `choice`, named by the field's `kind` key. A `number` MAY carry `min` and `max`; a `choice` field MUST carry its own `options`; the other three carry no additional protocol keys. | §7 |
+| R-52 | Every identifier a response names MUST be unique within the scope that names it: option ids within a view, field ids within an option, and the alternative ids of one `choice` field. Duplicates MUST be rejected with an error naming the id and the path. The first two are keys — a response selects one option id and is a map keyed by field id (R-8), so a duplicate leaves one of the pair unaddressable. The third is a value: the answer to a `choice` field is an alternative id submitted under that field's key, so a duplicate makes the submitted answer ambiguous instead. Both are the same defect and the rule covers both. | §7 |
+| R-53 | A `choice` field's options carry an id and a label only. That id is an **alternative** id and not an option id: an option id is what a response selects (R-8), while an alternative id is what a response submits as a field's value, so the two are separate namespaces and errors about them MUST name the right one. An option there carrying `fields` MUST be rejected with the same error as any other protocol key used where its position gives it no meaning — not ignored, since `fields` is a key this spec names. The response format addresses exactly one option and one flat map of field values (R-8), so a nested field could not be submitted, and a nested field id would share a namespace with every outer one. | §7 |
+| R-16 | Field kinds are `text`, `boolean`, `datetime`, `number` and `choice`, named by the field's `kind` key. A `number` MAY carry `min` and `max`; a `choice` field MUST carry its own `options`, whose shape R-53 constrains; the other three carry no additional protocol keys. | §7 |
 | R-17 | A `number` field's bounds MUST each be finite, and its minimum MUST NOT exceed its maximum. A violation rejects the message. | §7 |
 | R-50 | A key this spec names for one field kind, appearing on a field of another kind, MUST be rejected with a distinct error naming the key and the kind. It MUST NOT be treated as a hint and MUST NOT be ignored. R-15's "any key this spec does not name is a hint" is about keys the spec does not name at all — `min` on a `text` field is a named key used where it has no meaning, which is the ambiguity P-B says must fail. | §7 |
 | R-18 | Hints are an open map, carried as the field object's remaining keys. Only the renderer MAY branch on a hint key; nothing that normalizes, schedules, transports, or manages interaction state may. Anything one of those must read is protocol, not a hint. | §7 |
@@ -144,10 +147,11 @@ leave the host running and MUST leave it able to run the backend again.
 | R-38 | The host MUST read exactly one JSON document from stdout. Trailing content is an error. | §7 |
 | R-39 | The host MUST drain stdout and stderr concurrently. | §7 |
 | R-40 | A non-zero exit status MUST be reported as a failure and its stdout discarded, even if that stdout was valid. | §7 |
-| R-41 | A configured timeout covers the whole exchange. On elapse the host MUST terminate the child and reap it. | §7 |
+| R-41 | The configured timeout bounds the backend's opportunity to respond. Disposal — terminating the child, reaping it, and finishing the stderr drain — necessarily happens after that timeout has elapsed, and is bounded separately by a fixed cleanup limit. **A call therefore waits at most the configured timeout plus that cleanup limit**, and both MUST be stated rather than one hidden behind the other. Corrected per F-53: the earlier wording claimed the configured timeout covered disposal too, which no implementation can honour. | §7 |
 | R-42 | The host MUST capture stderr and report it with **every** outcome, successful or not — including a zero exit whose stdout then fails to parse, and including a timeout. | §7 |
 | R-43 | Every read from a backend MUST be bounded, and the two streams differ at the bound because their purposes do. Exceeding the **stdout** bound is a failure, and the host stops reading and closes the stream: it cannot act on a response it refused to finish, and leaving the pipe open only lets the flood continue. Exceeding the **stderr** bound is not a failure: the host retains the first bounded portion, flags the truncation, and MUST keep draining to EOF so a chatty backend cannot block on a full pipe. Corrected per F-43 — the earlier wording required both reads never to stop, which contradicted the stdout rule in the same sentence. | §7 |
-| R-48 | Every path that **returns** from an exchange MUST have terminated and reaped the backend first, including the paths that fail after spawning. Drop-time cleanup MUST NOT be the mechanism any returning path relies on. A failure to terminate or reap MUST itself be reported, unless the exchange already has a failure to report, in which case that one stands: the reason the host abandoned the child explains more than its inability to bury it. Where the exchange future is **dropped** rather than returning from — cancellation, a panic unwinding past it — no code of the host's runs, so drop-time cleanup is the only mechanism there is and the host relies on it explicitly. Narrowed per F-41: the earlier wording required every abandonment path to terminate and reap, which no implementation can satisfy for cancellation. | §7 |
+| R-48 | Every path that **returns** from an exchange MUST initiate termination of the backend and MUST wait, for a bounded interval, to observe it reaped and its stderr drained. Drop-time cleanup MUST NOT be the mechanism any returning path relies on. Failure to observe cleanup within that interval MUST be reported as a distinct outcome and MUST NOT be suppressed by any other failure the exchange is already reporting: what the backend did and whether the host disposed of it are independent facts, and the second outlives the call. Where the exchange is **dropped** rather than returned from — cancellation, a panic unwinding past it — no code of the host's runs, so drop-time cleanup is the only mechanism there is and the host relies on it explicitly; an exchange MUST NOT leave behind any task or handle that such a drop would fail to cancel. Restated per F-48, F-49 and F-53. | §7 |
+| R-54 | Cleanup failure and exchange failure are reported on separate channels. All four combinations are meaningful and each MUST be distinguishable: success with clean disposal; a failed backend the host disposed of; a good response the host could not fully dispose of; and both failing together. A cleanup failure MUST NOT be named in terms that assert a process state the host has not observed. | §7 |
 | R-49 | A reported failure means the host took no action. It MUST NOT be read as a claim that the backend produced no side effects. | §7 |
 
 ### Failure
@@ -157,7 +161,7 @@ leave the host running and MUST leave it able to run the backend again.
 | R-44 | Each of these MUST map to its own distinct error: command not spawnable; timeout; non-zero exit; malformed JSON; a protocol-invalid message; an invalid scheduling value; an unsupported required primitive; an answer naming an unknown or stale interaction. | §7 |
 | R-45 | No backend failure may terminate the host, and none may leave it unable to invoke the backend again. | §7 |
 | R-46 | The host MUST NOT panic on any value derived from a backend. | §7 |
-| R-47 | Every refusal of a backend-supplied value MUST be reported. The host MUST NOT absorb an invalid value silently. This governs what the backend sent — the sender can act on that — and not the host's internal cleanup telemetry: where the host both fails an exchange and then fails to clean up after it, R-48 says which of the two is reported. Scoped per F-42. | §7 |
+| R-47 | Every refusal of a backend-supplied value MUST be reported. The host MUST NOT absorb an invalid value silently. This governs what the backend sent — the sender can act on that — and is silent about the host's own cleanup telemetry, which is reported on its own channel and never in competition with it (R-48, R-54): where an exchange fails *and* cleanup fails, both are reported, so there is no precedence question for this requirement to answer. Scoped per F-42; the precedence clause removed per F-48 and F-56. | §7 |
 
 ## 5. Behaviour
 
@@ -192,15 +196,31 @@ message. In particular an unreadable body is not dropped: nothing specifies what
 a renderer shows in place of a body that was sent, so dropping it would render a
 view the backend did not author.
 
-**Ambiguity is failure.** Zero options, duplicate option ids, an inverted numeric
-range, an unknown primitive, a bound on a field that has no bounds, two JSON
-documents on stdout: each of these has more than one defensible reading, and the
-host takes none of them.
+**Ambiguity is failure.** Zero options, duplicate option ids, duplicate field ids
+within an option, an inverted numeric range, an unknown primitive, a bound on a
+field that has no bounds, two JSON documents on stdout: each of these has more
+than one defensible reading, and the host takes none of them.
 
-**Absent is not null.** A response that omits `view` has said nothing about the
-view; a response with `"view": null` has said there is nothing to show. The first
-is an error, the second is ordinary. Collapsing them would have the host
-manufacture the backend's assertion.
+**The host reports its own condition separately from the backend's.** An exchange
+answers two questions — what the backend did, and whether the host disposed of
+the process afterwards — and they are independent (R-54). A backend can fail
+while the host cleans up perfectly, and a backend can answer correctly while
+leaving a grandchild the host cannot wait out. Ranking these against each other
+loses the one that outlives the call.
+
+**Absent is not null — for `view`, and only for `view`.** A response that omits
+`view` has said nothing about the view; a response with `"view": null` has said
+there is nothing to show. The first is an error, the second is ordinary.
+Collapsing them would have the host manufacture the backend's assertion.
+
+Everywhere else the two *are* the same, deliberately (R-51). `null` is what an
+ordinary serializer emits for an absent optional — `json.dumps({"next_check":
+None})` is not a backend doing anything wrong — so treating it as an invalid
+value would report a discard against most well-formed messages. `view` is the
+exception because `null` there carries a meaning omission does not; no other
+field has one to lose. A wrong *type* is a different matter: `"next_check": 45`
+is a value the backend meant, in a shape the protocol cannot use, and R-25
+discards and reports it.
 
 **A broken backend is polled on its existing cadence.** Failures do not move the
 schedule (R-29), so a backend that fails every invocation keeps being tried. The
@@ -277,6 +297,14 @@ is neither.
   "options": [ { "id": "up", "label": "Good" }, { "id": "down", "label": "Bad" } ] }
 ```
 
+A `choice` field's options are id and label only (R-53). A view's options may
+carry fields; a field's options may not, because the response addresses one
+option and one flat map of field values and has no way to express a nested
+answer. Field ids must be unique within an option for the same reason (R-52).
+
+```json
+```
+
 A consequence worth stating rather than discovering: a misspelled **optional** key
 becomes a hint (`minn` is not `min`), while a misspelled **required** key is still
 an error. The spec accepts that asymmetry as the price of matching the brief's
@@ -298,6 +326,14 @@ JSON document on stdout (R-38). Stderr is diagnostic and is captured whatever th
 outcome (R-42). The command is an argv vector (R-36). Nothing is inherited from a
 previous exchange: there is no warm process, no connection reuse and no retry.
 
+**Two budgets, both stated.** The configured timeout bounds how long the backend
+has to answer. A separate, fixed cleanup limit bounds terminating it, reaping it
+and finishing the stderr drain. A call waits at most their sum (R-41). The
+cleanup budget exists because waiting for a child is not guaranteed to return —
+a process wedged in an uninterruptible state does not die on signal — and a host
+that blocks inside an exchange has been taken down by a backend, which P-C
+forbids.
+
 An exchange always completes: what can fail is the response, not the reporting of
 it, so a failure and the stderr captured before it arrive together rather than as
 alternatives. Every returning path kills and reaps the child before it returns
@@ -314,12 +350,15 @@ any.
 |---|---|
 | R-1, R-2, R-3 | protocol tier: a request snapshot asserts the emitted version; fixtures for absent, known and unknown inbound versions |
 | R-4, R-5 | protocol-tier fixtures carrying unmodelled fields at each level |
+| R-51 | fixtures: `next_check: null` and `protocol: null` alongside their omitted forms, asserting identical outcomes **and an empty discard list** — the assertion is the silence, since a discard here would be the defect. Paired with `next_check: 45`, which must still be discarded and reported, so the two cases are shown to be distinguished rather than merged |
 | R-6, R-7, R-8 | request serialization snapshots for both kinds |
 | R-9, R-19 | source-level check that no host code reads an event data payload or dereferences a URI; review against P-A |
 | R-18 | source-level check that no file outside the renderer reads a hint key. The renderer is the exception because presentation hints have no other consumer — see F-33 |
 | R-10, R-11 | fixtures: `view` omitted (error naming the field), `view: null` (accepted). Plus an integration case for each meaning of null — closing an answered interaction, and leaving an unrelated outstanding one alone (F-29) |
 | R-12 | fixtures: unknown kind at the view, at a field, and inside content — each asserting the reported path |
 | R-13, R-14, R-16 | fixtures: empty options, duplicate ids, and each field kind in its wire form |
+| R-52 | fixtures: two options in a view sharing an id, asserting `DuplicateOptionId`; two fields in one option sharing an id, asserting `DuplicateFieldId`; two alternatives of one `choice` field sharing an id, asserting `DuplicateAlternativeId` and **not** `DuplicateOptionId`, since after F-61 an alternative id is not an option id; a `choice` field with no alternatives, asserting `EmptyAlternatives`; and the same id used by a field in *different* options, which is legal and must be accepted — the negative case is what shows the scope is right |
+| R-53 | fixtures: a `choice` field whose option carries `fields`, asserting it is **rejected** with the key, the kind and the path — the earlier draft of this row said "ignored", which was F-55; and a round-trip showing an answer names one option and one flat value map |
 | R-50 | fixtures: `min` on a `text` field, `options` on a `number` field, `min` on a `choice` field — each asserting the error and the reported key, kind and path. Plus the negative: an *unnamed* key on the same field becoming a hint, so the two rules are shown not to collide |
 | R-17 | fixtures: inverted bounds → the bounds error; and `NaN` / `1e400` literals → a JSON parse error, since neither is expressible in JSON and so cannot reach bounds validation at all (F-36) |
 | R-15 | fixtures: an option with and without fields |
@@ -336,11 +375,12 @@ any.
 | R-37 | integration: a backend that reads stdin to EOF completes an exchange |
 | R-38 | fixtures: empty stdout, and two documents on stdout |
 | R-39 | integration: a backend writing more than one pipe buffer to stderr before its response completes |
-| R-40 | integration: exit 1 after writing valid JSON |
+| R-40 | integration: exit 1 after writing valid JSON, asserting `ExitStatus { code: Some(1) }`, that the parsed body is **discarded** rather than delivered, and that the stderr is still carried. The exit status must be observed inside the exchange's own timed region: a host that reads stdout to EOF and stops has already committed to a response the exit code disclaims, and a host that waits only in its cleanup path has killed the child before the status exists (F-59) |
 | R-41 | integration: a backend sleeping past the timeout; the process is confirmed gone afterwards |
 | R-42 | integration: a backend that writes to stderr then sleeps past the timeout; and one that writes to stderr, exits zero, and emits unparseable stdout — both assert the stderr arrives |
 | R-43 | integration: a backend flooding stdout past the bound, which fails and whose stream the host closes — asserted by the backend observing the broken pipe; and one flooding stderr past the bound and then exiting zero with a valid response, which **succeeds** with the truncation flag set — the case that would deadlock if the stderr bound stopped that read |
-| R-48 | integration: after each misbehaving-backend case, no child of the test process remains, and no stderr-drain task or pipe descriptor survives the exchange that created it. The cancellation carve-out is reviewed, not tested: it states what the host relies on where no host code runs |
+| R-48, R-54 | integration: after each misbehaving-backend case, no child of the test process remains. A backend that answers correctly but leaves a grandchild holding its **stderr** asserts all of — the response is delivered, the exchange reports no failure, the cleanup channel reports a timeout, and the call returns within the cleanup bound alone. The same backend leaving a grandchild holding **stdout as well** asserts both channels failing together: stdout never reaches EOF, so the response is never read, and the call pays the configured timeout *and* the cleanup bound. Two cases, not one, per F-63. A cancelled exchange asserts that nothing **the host holds** survives it — no task, buffer or descriptor — which is a structural property rather than a timing one, since the transport spawns no task and so leaves no handle a drop could fail to cancel. It does **not** assert the child is gone: on that path no host code runs and `kill_on_drop` is best-effort, which R-48 concedes and AC-5 states. Scoped per F-60 |
+| R-41 | integration: elapsed time on the worse grandchild case — stdout held, so the timeout and the cleanup bound are both paid — is bounded by their sum; the stderr-only case pays the cleanup bound alone; and a backend that answers promptly returns promptly, so neither is paid on the normal path. Measured at 902 ms, 303 ms and 2.5 ms against a 900 ms bound (F-63) |
 | R-49 | review, and a spec-level statement rather than a test: the requirement constrains what the host may claim, and a test cannot observe a backend's side effects |
 | R-44 | one test per named failure mode, each asserting the specific variant |
 | R-45 | the whole integration tier runs every misbehaving backend against one host instance and asserts a later exchange still succeeds |

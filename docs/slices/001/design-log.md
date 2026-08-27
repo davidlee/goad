@@ -712,3 +712,418 @@ supersede it with a later one.
   *optional* keys. That was only true of a design in which misplaced *modelled*
   keys were caught, and they were not. The claim described the design I intended
   rather than the one I had written; it now describes the one I have. D43.
+
+### 2026-08-25 — Round 4: the review reaches past its own wake (F-48…F-58)
+
+- **What changed about the round.** Rounds 2 and 3 found defects in repairs.
+  Round 4 found three blockers, two of them in the *original* design and
+  untouched by 47 prior findings: `null` collapsing into omission (F-50) and
+  ADR-001's dependency rule being false in a single crate (F-51). A fresh
+  reviewer with no thread history, handed the ledger index and told to verify the
+  round-3 repairs first, reached ground three rounds of an accumulating thread
+  had not. That is worth remembering next time a review starts feeling
+  exhausted: it was not the subject that was exhausted.
+- **Three round-3 repairs reopened**, and two of them were reversed rather than
+  extended. Repairing is where this design keeps failing, not designing.
+- **Built before written, again.** The §5.4 structure was compiled and run
+  against four backends before being described. Three of four facts it
+  established changed the design. Four rounds in, the record is that executing a
+  claim has been worth more than reasoning about it *every single time*, without
+  exception, and the cost is minutes.
+
+### 2026-08-25 — Cleanup is a second dimension, not a lower-ranked error (F-48, F-53)
+
+- **The contradiction the design was carrying.** It wanted the configured timeout
+  to bound the whole exchange *and* every returning path to have definitely
+  reaped the child. Those cannot both be unconditional: once a backend is wedged,
+  `wait` itself is something you have to bound. F-53 forced a third outcome into
+  existence — *cleanup did not complete within the time the host allows*.
+- **Question put to the user:** should an unreaped child outrank the exchange
+  failure, or does D42's precedence stand?
+- **Decided:** the user consulted the reviewer, and the reviewer's formulation was
+  adopted over my proposal on all three points. Recording them as theirs:
+  1. **Two channels, not a ranking.** `cleanup` sits beside `result`/`failure` on
+     `Exchange` and `Outcome`. D42's error was forcing two independent facts into
+     one precedence contest; with two dimensions the question stops existing
+     rather than getting an answer. All four combinations are meaningful.
+  2. **`CleanupTimeout`, not `Orphaned`.** My name asserted a process state the
+     failure path does not establish. Running it proved the point: the case that
+     actually fires is a backend that answered correctly and left a grandchild
+     holding the pipes — the child exits and is reaped, and only the drain
+     stalls. I had named the variant after the case I imagined rather than the
+     case that occurs.
+  3. **Keep the original failure too.** "Backend timed out, then cleanup also
+     timed out" is more diagnostic than either alone, and two fields carry both
+     without a recursive error type.
+- **On the narrowing.** I13/R-48/AC-5 go from "has reaped" to "initiates
+  termination and waits a bounded interval, and reports failure to observe
+  cleanup". The test of an honest narrowing is whether an obligation vanished.
+  Here *must reap, potentially forever* became *must attempt within a hard bound*
+  **and** *must report inability to establish cleanup* — a stronger operational
+  contract, because it also protects host liveness. Compare F-41's narrowing,
+  which was honest for a different reason: there the old wording was unmeetable.
+- **The deeper lesson, the reviewer's words:** backend outcome and host cleanup
+  outcome should not share an error channel. Most of the precedence reasoning
+  disappears once they are separated. D47, D48.
+
+### 2026-08-25 — Three repairs to one mistake, and the mistake was the spawn (F-49)
+
+- **The sequence, worth seeing whole.** F-27: the spawned task must not own the
+  stderr buffer → add `Arc<Mutex<Captured>>`. F-40: the task must not outlive the
+  exchange → add `abort()`. F-49: `abort()` cannot help on cancellation, because
+  dropping a `JoinHandle` detaches rather than cancels. Three findings, three
+  repairs, one decision underneath all of them.
+- **The signal I missed.** Three consecutive repairs to the same decision is
+  evidence about the decision, not about the repairs. I treated each as its own
+  defect because each *was* one.
+- **The mistake was `tokio::spawn`.** The drain never needed a task; it needed to
+  make progress concurrently, and `select!` inside the existing task does that
+  identically. So the repair is a deletion: no spawn, no `Arc`, no `Mutex`, no
+  `abort`, no join handle, and a plain `&mut Captured` on the caller's stack.
+- **Verified both shapes** rather than reasoning about cancellation semantics: a
+  sub-future's destructor runs the instant its parent is dropped; a spawned
+  task's is still not running 100 ms later. Also confirmed the concurrency the
+  whole thing exists for — 4000 stderr lines past the 64 KiB pipe buffer while
+  the body read stdout, no deadlock.
+- **D36 retired.** It claimed this was "the one place a lock is right". D14 had
+  already given the right answer — brief §12 gives the host no concurrency to
+  protect against — and this design manufactured the concurrency first and then
+  justified the lock. Inventing a state space and then defending it is exactly
+  what D14 exists to refuse. D44.
+
+### 2026-08-25 — `null` means omission, except once (F-50)
+
+- **Raised by:** the review, as a blocker. `{"next_check": null}` reaches `None`
+  silently while `{"next_check": 45}` produces a reported discard — two
+  non-string values, two treatments, one of them silent.
+- **Verified before deciding:** `{}` and `{"next_check": null}` both deserialize
+  to `None`; likewise `{}` and `{"protocol": null}`. Only `view` distinguishes
+  them, via its presence-preserving deserializer.
+- **Question put to the user:** is `null` an invalid value, or a synonym for
+  omission?
+- **Decided:** *"1.a"* — `null` ≡ omitted, stated explicitly.
+- **Why, and it is about the person on the other end.** `null` is what an
+  ordinary serializer emits for an absent optional. `json.dumps({"next_check":
+  None})` is not a backend doing anything wrong, and reporting a discard against
+  it would mean most well-formed messages carry a diagnostic. A wrong *type* is
+  different in kind: `45` is a value the backend meant, in a shape the protocol
+  cannot use.
+- **So the behaviour was right and the silence was the defect.** The repair is a
+  rule stated once: *an explicit `null` means what omission means, except where
+  the protocol defines a distinct meaning for `null`* — one exception, named.
+  That also explains, for the first time, why `view` carries machinery no other
+  field has. The fixture asserts an **empty** discard list, because here the
+  silence is the contract rather than the bug. R-51, D50.
+
+### 2026-08-25 — A binding constraint that was false, not merely unenforced (F-51)
+
+- **Raised by:** the review, as a blocker. ADR-001's Decision requires stratum 1
+  to "remain buildable and testable with no renderer and no runtime in its
+  dependency graph". The design answered ADR-002's T1 with "tokio is a stratum 2
+  dependency and stratum 1 does not link it".
+- **That was false.** Cargo resolves dependencies per crate target, not per
+  module. In one crate with a plain tokio dependency, `cargo test` builds one
+  graph containing tokio and `semantics/` has no separately selectable graph at
+  all. Worse: the design *had already written down* that `cargo tree` cannot
+  observe a module boundary inside one crate, and then leaned on precisely what
+  that sentence rules out. AC-15's grep proved only that `semantics/` contains no
+  `tokio` token.
+- **Question put to the user:** feature-gate the runtime, or split to a workspace
+  now on the literal reading of T1?
+- **Decided:** *"2.a"* — feature gate.
+- **What it costs and buys.** tokio becomes `optional = true` behind a `shell`
+  feature; `shell/` gets one `#[cfg]`. Verified by building it: `cargo tree
+  --no-default-features` has no tokio node, `cargo test --no-default-features`
+  compiles and runs stratum 1 against serde, serde_json and jiff alone. Half of
+  ADR-001 is now a **build gate**, inside one crate, which the ADR assumed had to
+  wait for the split — so CD-1 gets stronger rather than merely more accurate.
+- **Canon consequences, recorded rather than absorbed.** ADR-002 names Slint as
+  "the first such dependency"; tokio arrived a slice earlier and was admitted
+  only by gating it. CD-2 corrects that and records that "make it optional" is an
+  available answer to T1 — while noting, from ADR-002's own rejected
+  alternatives, why it does not extend to a Slint build-dependency and so does
+  not defer the split.
+- **The general lesson.** A constraint stated in canon can be *false* rather than
+  merely unenforced, and the two need different responses: an unenforced rule
+  wants a test, a false claim wants either a mechanism or an amendment. Three
+  rounds of review had read this sentence and checked whether the design honoured
+  it, rather than whether it was true. D49.
+
+### 2026-08-25 — Uniqueness, and a recursion no answer could express (F-52, F-54)
+
+- **F-52, raised by the review.** `Options` is a checked newtype because
+  duplicate option ids make `respond` ambiguous. `UserResponse.values` is a map
+  keyed by field id — and fields were a bare `Vec<Field>`. Identical defect,
+  identical consequence, my own argument left unapplied one level down. Same
+  shape as F-39.
+- **Repaired as a rule, not a case:** *every identifier a response names must be
+  unique within the scope that names it.* `Options`, `Fields` and `Alternatives`
+  are that rule with constructors behind it. The rule was first written as "uses
+  as a key", which covered the two cases in front of me and not the third — see
+  F-58 below. The
+  fixture that matters is the **negative** one — the same field id in two
+  different options is legal — because that is what shows the scope is right
+  rather than merely strict.
+- **F-54, raised by me while disposing F-52.** `FieldKind::Choice` reused
+  `Options`, whose `Opt` carries `fields`, so a choice field's options could
+  carry fields recursively — while a response addresses one option and one flat
+  value map. No way to say which nested option was chosen; nested field ids
+  sharing a namespace with outer ones.
+- **Question put to the user:** narrow the type, or define nested submission?
+- **Decided:** *"4.a"* — narrow it. `Alternative { id, label }`. Deleting the
+  recursion beats documenting it, brief §10.2 never puts fields on a field's
+  options, and this is R-7's gold-plating risk caught before it shipped.
+- **Worth recording against F-20**, which examined this same reuse and found no
+  defect. F-20 was not careless — it checked the view side, where the reuse is
+  harmless. The defect appears only when the type is read against the message
+  that must carry an answer to it, which is the method that found F-31 and F-38
+  as well. **Checking a type against itself is not checking it against its round
+  trip**, and three separate findings have now come from that one distinction.
+  D45, D46, I15, I16.
+
+
+### 2026-08-25 — Self-check before round 5: four findings against my own repairs (F-55…F-58)
+
+The round-4 batch was repaired, and then read again before the round-5 packet
+was built — against the round each repair came from rather than against the
+finding it answered. Four findings, all mine, none of which needed a user
+decision: each is a repair failing to be what it already claimed.
+
+- **F-55 — the F-54 repair silently dropped `fields` on a choice field's
+  option.** The edge row said the key was "unmodelled on `Alternative`, so
+  ignored under I10", which confuses layers: modelled-ness is a fact about the
+  *wire* type, and `WireOpt` was cited by `WireChoice.options` and defined
+  nowhere. `WireOpt` is now defined as the **view's** option type — the only
+  place `fields` is admitted — and because `WireField.options` is
+  `serde_json::Value`, dispatched by normalization rather than bound by serde,
+  the dispatch raises `InapplicableKey { key: "fields", kind: "choice", at }`.
+  This was F-45's defect reintroduced by the F-54 repair, on the same page that
+  repairs F-45. Two things it establishes: a dangling type name is a real defect,
+  because the question it leaves open — *does a choice field's option
+  deserialize through the same type as a view's?* — was the question the repair
+  turned on; and R-53 had been a `MUST NOT` with no error behind it, which is the
+  second time this ledger has produced that shape (R-30, at F-28). This entry is
+  itself late: F-55 was repaired in the batch and left out of this log, which
+  F-56 caught.
+- **F-56 — the round-4 repairs were never swept through their restatement
+  sites.** A dozen sites still stated the contracts those repairs replaced: §5.4's
+  step 5 still had one timeout "covering the whole exchange" (F-53's defect
+  verbatim, contradicting its own sketch 55 lines below); R-47 still carried
+  D42's reversed precedence rule; §5.1 still denied being a build gate 35 lines
+  after D49 made it one; I11 and I13 still cited D41 and D42, both retired; D40
+  still described a two-field `Exchange`; §10 still counted one canon-delta entry
+  beside a row citing the second; the AC map still counted four commands where
+  five were listed. Plus three dangling names, found by the two mechanical checks
+  the repair adds to §9: `cleanup_only`, called and never defined — F-55's
+  defect again, in the section F-55's repair had just touched;
+  `CleanupFailure::TimedOut`, which every piece of prose calls `CleanupTimeout`,
+  so the design argued a name in a whole paragraph and then did not use it; and
+  `ViewId`, `OptionId`, `FieldId`, `Timestamp`, `Hints` and `Config`, written
+  throughout §5 and declared nowhere.
+- **What that costs and what changed.** §9 already carried the sweep as a
+  standing review step, written after six of round 3's nine findings turned out
+  to be one contract restated. It failed here not through carelessness on one
+  change but because it was **phrased per-change against a batch of eight**, and
+  no single change in the batch obviously owned it. So the trigger is now the
+  batch: *before any repair batch is claimed complete*. Two mechanical checks
+  join it, both of which have now produced findings — chase every struck decision
+  id to whatever cites it, and check that every type or function named in §5 is
+  defined in §5.
+- **F-57 — the `shell` feature gate had no test-target plumbing.** A feature
+  selects dependencies; it does not stop cargo building every test target. With
+  the integration tier spawning processes on tokio and no `required-features`,
+  `cargo test --no-default-features` — AC-15's build gate — would fail to compile
+  the moment that tier existed. The F-51 probe passed only because the probe
+  crate had no integration tests. Declared test targets with
+  `required-features = ["shell"]`, `autotests = false`, `main.rs` entry points in
+  the layout, and a second clippy run under `--no-default-features`, because a
+  feature-gated crate has a build matrix and one column checked is a matrix
+  unchecked. **A constraint enforced by a build command acquires the build's
+  failure modes** — and a build gate that cannot run is worth less than the review
+  gate it replaced, because it reads as green.
+- **F-58 — the F-52 rule did not cover the newtype F-54 added.** R-52 and I15
+  both said *every identifier used as a **key** in a response*. An alternative id
+  is never a key: the answer to a `choice` field is an alternative id submitted
+  as the value at `values[field_id]`. So the rule justified `Options` and
+  `Fields` and not `Alternatives`, which D45 introduced under it. Widened, not
+  narrowed — the newtype is right and the sentence was wrong: *every identifier a
+  response names must be unique within the scope that names it*, with keys and
+  values named as the two ways it can be named. A duplicate key leaves one of a
+  pair unaddressable; a duplicate value leaves the answer ambiguous. Same defect
+  from opposite sides.
+- **Method, since three of the four came from one move.** F-55, F-56 and F-58 all
+  came from reading a repair against the round it came from, not against the
+  finding it answered — F-55 against F-45, F-56 against round 3's sweep lesson,
+  F-58 against F-52's own generalisation. The ledger's older lesson was *check a
+  type against the message that carries its answer*; this round's is the same
+  move one level up: **check a rule against the cases it did not come from.** A
+  rule that covers exactly the cases that produced it has not been generalised
+  yet, it has been summarised.
+
+### 2026-08-26 — Round 5: two blockers in repairs nobody had re-read (F-59…F-63)
+
+A second fresh reviewer, given the round-4 batch to verify. It found no defect in
+any round-4 repair. It found two blockers in round 3's, which rounds 3, 4 and the
+round-4 self-check had all walked past.
+
+- **F-59 — `ExitStatus` was unreachable.** F-53's repair collapsed two grace
+  timeouts into one cleanup budget, which was right, and took `child.wait()` out
+  of the timed region with them, which was not. Worse than the reviewer saw:
+  cleanup *kills* before it waits, so the status was destroyed on every path, not
+  merely unreported. D15 and R-40 both require a non-zero exit to discard a body
+  that parsed; the prose four paragraphs above the sketch still listed "await
+  exit" as step 4; R-40's fixture could not have passed.
+- **Repaired by putting the wait back inside `config.timeout`**, on the merits
+  rather than for symmetry: waiting for a backend to exit is the *backend's*
+  opportunity to respond, not the host's disposal of it. Disposal stays in
+  `CLEANUP_LIMIT`; D48's total is unchanged. The status is read before the bytes
+  are trusted, so no path lets a parsed response outlive the exit code that
+  disclaimed it.
+- **F-60 — AC-5 claimed what R-48 had already conceded.** F-41 narrowed R-48 for
+  cancellation: no host code runs on a dropped future, so `kill_on_drop` is the
+  only mechanism and the design says plainly it is best-effort. AC-5 was never
+  narrowed with it and still said a cancelled exchange "leaves nothing behind".
+  F-49's repair made the *task* half structural — there is nothing to detach — and
+  the child half was never held.
+- **Question put to the user:** narrow AC-5, or make it true?
+- **Decided:** narrow it, no follow-up. Making it true needs a supervisor task
+  outside the exchange — the detached task F-49 deleted, in a different hat — or a
+  process-group kill, which brief §14 refuses. Both cost more than the gap. So
+  the slice ships a stated, bounded gap on one path, and §5.4 names slice 003 as
+  the slice that meets it written down rather than discovers it, since a timer is
+  the first thing that can cancel an exchange. D54.
+- **F-61 — the namespace comment I added in round 4 was false three lines below
+  itself.** `Alternative` carried an `OptionId` while `UserResponse.option` also
+  carried one. F-58 had answered this from the rule end and stopped. Now
+  `AlternativeId`, plus `DuplicateAlternativeId` and `EmptyAlternatives`, because
+  `DuplicateOptionId` raised against an alternative asserts the id *is* an option
+  id — the F-48 naming mistake exactly. F-54, F-58, F-61: one defect, three
+  findings, each looking complete when it landed. The tell was there again, since
+  F-58's repair needed two clauses to describe one type.
+- **F-62 — the lints I9 named were never on.** `unwrap_used`, `expect_used`,
+  `indexing_slicing` and the arithmetic lints are restriction lints and
+  allow-by-default; `-D warnings` never enabled them. Turned on per module, as
+  R-46 already specified, because the blanket form is what F-35 caught this design
+  violating on a value the host itself created. D53.
+- **The shape all three share, now three rounds running:** *a claim is held by a
+  mechanism or it is not held.* F-51 was canon no build enforced. F-57 was a build
+  gate that could not run. F-62 is an invariant whose named enforcement was off by
+  default. Every one of them read as green.
+- **F-63, raised by me sweeping this batch — and the first finding against an
+  empirical claim.** The document's headline measurement describes a backend that
+  answers correctly while a grandchild holds the pipes: response delivered, only
+  cleanup fails, 902 ms. The probe's case D is `(sleep 30) &`, and a bare subshell
+  inherits stdout too — so stdout never reaches EOF, the body cannot complete, and
+  that case *times out*. Its 902 ms is timeout **plus** cleanup budget: the cost of
+  a failed exchange, not a delivered one. Five sites described a case that had
+  never been run.
+- **Run it, then.** `(sleep 30) >/dev/null &` holds stderr only: `Ok(response)`
+  with `cleanup` set, 303 ms. Both cases are now tabulated separately, and the
+  stdout-too case turns out to be the `Err` + `Some` row of §5.4's table, which
+  the design had called meaningful without ever producing one. F-48's naming
+  conclusion survives — the child exits and is reaped in both — and its evidence
+  is now the run that actually shows it.
+- **What that costs the method.** "Execute any claim that can be executed" has
+  been this review's best instrument for four rounds. It does not protect against
+  executing one case and describing another, and the gap was invisible precisely
+  because the numbers were real. The narrower rule: **a measurement is evidence
+  for the sentence next to it only if the sentence names the case that was run.**
+- **And an honest limitation, now stated rather than implied:** a host cannot
+  tell "the backend is still writing" from "the backend exited and something else
+  holds the pipe". Both are a pipe with no EOF. `config.timeout` is the only
+  answer available; stopping at the end of the first JSON document would silently
+  accept a truncated response as complete.
+
+### 2026-08-26 — Design accepted; review closed with repairs unverified
+
+- **Question put to the user:** run round 6 against the round-5 repairs, or stop?
+- **Decided:** stop. *"I think we're good"*, followed by an instruction to set up
+  the handover for planning. Taken as acceptance of the design and as the
+  authority to close `review-design.md`, per `docs/AGENTS.md`'s design stage,
+  which requires the user's acceptance before planning begins.
+- **What that accepts, stated plainly rather than left implicit.** The ledger's
+  own definition of done is *every finding `verified` or `withdrawn`*, and it does
+  not meet it. Sixteen repairs — F-48…F-63 — are `repaired` with no independent
+  confirmation. All seven blockers were repaired, so nothing is outstanding by
+  severity; what is outstanding is the second opinion. The ledger's State says
+  this in those words rather than recording a closure it did not earn.
+- **The magnitude, from the ledger's own base rate:** roughly 0.2 defects per
+  repair and falling across rounds 2–4, so two to four defects are likely still
+  resident, most of them in §5.4 — the section restructured three times in three
+  rounds and the one whose last restructure (F-59) nothing has reviewed.
+- **Why stopping is defensible anyway.** Round 5 found no defect in any round-4
+  repair; the yield has moved from the repairs to the original material and then
+  to nothing, which is what convergence looks like. The remaining defects are
+  cheap to find where it matters, because §5.4's structure is executable and the
+  probe that executes it is preserved. Planning is also not a one-way door: the
+  plan stage re-reads the design against the code, and `docs/AGENTS.md` says
+  explicitly that unresolved design issues emerging there go back to design.
+- **Recorded as a risk rather than as a resolution.** The next agent inherits it
+  in the handover, and audit inherits it in the Synthesis.
+
+### 2026-08-26 — Lint config adopted from `../doctrine`, with the dead-code lints softened
+
+- **Asked:** copy doctrine's lint configuration into goad, then soften the
+  no-dead-code lints "just a smidge".
+- **Landed:** `clippy.toml` verbatim minus doctrine's `std::fs::write` entry
+  (it names a `fsutil::write_atomic` that does not exist here), and doctrine's
+  `[workspace.lints.*]` tables de-workspaced into `Cargo.toml` `[lints.rust]` /
+  `[lints.clippy]`. `Cargo.toml` otherwise is §5.1's manifest snippet verbatim.
+  Writing it now runs ahead of PHASE-01/EX-1, which was the user's call when
+  asked where the tables should live.
+- **The mechanic, measured rather than assumed.** The first attempt demoted
+  `dead_code` to `warn` and gave `warnings = "deny"` a lower Cargo `priority` so
+  the per-lint level would win. It does not: rustc applies the `warnings`
+  pseudo-group over an explicit per-lint `--warn` regardless of the order Cargo
+  emits them, so `-D dead-code implied by -D warnings` and the build still fails.
+  Verified in a scratch crate carrying the real lint table. With
+  `warnings = "deny"` set, `warn` is not a reachable level for any lint below it
+  — every entry is deny-or-allow.
+- **Decided:** drop `warnings = "deny"` from the manifest entirely and leave the
+  strictness on the command line, where design §9 already puts it. Consequence:
+  lints the manifest names explicitly (`unused` minus the carve-outs, the whole
+  clippy list) still hard-error in the inner loop; unenumerated warn-by-default
+  lints warn locally and fail at the phase gate. That is the softening — it
+  moves *when* strictness bites, not whether.
+- **`dead_code` and `unreachable_pub` carved out of the `unused` group**, left
+  explicitly at `warn` so the carve-out reads as a decision rather than an
+  oversight. Both are transient by construction here: the
+  `--no-default-features` column drops `shell`, so any `semantics/` item whose
+  only caller is in stratum 2 is genuinely dead there. Denying it would buy
+  nothing but `#[cfg_attr(not(feature = "shell"), expect(dead_code, …))]`
+  scattered through stratum 1. The rest of the group stays denied —
+  `unused_imports`, `unused_variables`, `unused_mut`, `path_statements` have no
+  legitimate transient case, and `unused_must_use` is a correctness lint.
+- **Only the second clippy line carries `-A dead_code -A unreachable_pub`.**
+  The default-features line stays strict, so dead code still fails a phase gate;
+  the carve-out covers the structural case and nothing wider. Measured: that
+  column still fails on `unused_imports` and `unused_mut` with the carve-out in
+  place.
+- **D53 / R-46 partially superseded.** `unwrap_used`, `expect_used` and
+  `indexing_slicing` are now crate-wide denies rather than module-level: they
+  are cheap everywhere, and `allow_attributes_without_reason = "deny"` answers
+  R-46's drift argument by pricing an allow at a written reason.
+  `arithmetic_side_effects` stays module-level — crate-wide it fires on every
+  loop counter, which is the case R-46 was right about. §9 records this inline.
+- **`plan.md` PHASE-01 updated to match:** `clippy.toml` added to its surfaces,
+  and EX-1's second clippy line now carries the two `-A`s, with an instruction to
+  copy that line from §9 rather than from memory.
+
+### 2026-08-26 — `just lint` added
+
+- **Asked:** a lint task in the justfile. The file existed but was empty.
+- **Landed:** `default: lint`, and a `lint` recipe running both clippy columns
+  from §9 verbatim, with the reason the second column's two `-A`s are
+  load-bearing written above it and a pointer saying §9 changes first.
+  `justfile` added to PHASE-01's surfaces.
+- **Verified by executing it**, not by reading it: against a scratch crate
+  carrying the real lint table, `just lint` exits 101 on a dead private fn plus
+  an unused import and 0 once both are gone — so column 1 does refuse dead code
+  and just does abort before column 2 rather than reporting the last line's
+  status.
+- **Deliberately not added:** `fmt`, `test`, `build`, an aggregate `check`. Only
+  a lint task was asked for, and §9's six commands are the authority — a
+  half-populated `check` recipe that omits two of them is worse than none.
+- **Open:** `just` is on PATH from the user's nix profile, not from
+  `flake.nix` `devToolPkgs`, so the devshell is not self-contained for these
+  recipes. Not changed without asking.
