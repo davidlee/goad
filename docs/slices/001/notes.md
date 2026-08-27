@@ -261,6 +261,58 @@ feature, `autotests = false`, two `[[test]]` targets with the integration one
 carrying `required-features = ["shell"]`, then add a `tokio::` token to
 `tests/protocol/main.rs` and run both columns.
 
+## Open against the design — raised 2026-08-26, not dispositioned
+
+Scaffolding landed outside the phase flow (`Cargo.toml`, `clippy.toml`,
+`justfile`, `.gitignore`, `Cargo.lock`; commits `b76b75c`, `4fc8637`, `dda6bf2`)
+and `design.md` §9 was amended with it. Two things are open and both need the
+user.
+
+### D53 is partially superseded in one place and stated intact in four others
+
+`design.md` §9 now says `unwrap_used`, `expect_used` and `indexing_slicing` are
+**crate-wide** denies in `[lints.clippy]`, with
+`clippy::allow_attributes_without_reason = "deny"` answering the drift argument
+D53 rested on, and `arithmetic_side_effects` staying per-module. `Cargo.toml`
+matches that.
+
+Four sites still state the superseded form:
+
+| site | still says |
+|---|---|
+| `design.md` §5.5, I9's "held by" column | module-level, all four lints |
+| `design.md` §7, D53 | "module-level `#![deny(...)]`", with crate-wide as the *rejected* alternative |
+| `design.md` §9, the paragraph immediately below the "Partially superseded" note | "Not crate-wide in `[lints.clippy]`, and that is R-46's own reasoning rather than a preference" — directly contradicting the note four lines above it |
+| `draft-spec.md` §7, the R-46 row | "Stated over those modules rather than over the whole crate" |
+
+This is the F-56 defect exactly: a contract repaired at its primary site and left
+standing in its restatements. `design.md` §9's own restatement-sweep step exists
+for it and names §5.5, §7 and §9's AC map as the places to check.
+
+The **substance** looks right — a blanket deny plus a lint that forbids
+unreasoned `#[allow]` is a stronger mechanism than D53 imagined, and it answers
+F-35's objection rather than ignoring it. It is the record that is now
+inconsistent, and D53 is a design decision, so amending it is the user's.
+
+### The verification commands are moving to `just`, and three things follow
+
+`justfile` is to be the canonical task runner. It currently has one recipe,
+`lint`, mirroring `design.md` §9's two clippy lines including the
+`-A dead_code -A unreachable_pub` carve-out.
+
+1. **`just` is not in `flake.nix`.** The justfile says so itself: it comes from
+   the user's nix profile. AC-1 says the commands pass "from a clean clone in the
+   nix dev shell", so if `AGENTS.md` names `just` recipes, `just` has to be in
+   `devToolPkgs` or AC-1 is false for anyone but this machine.
+2. **The recipe set is incomplete.** `build`, `test`, `test --no-default-features`
+   and `fmt --check` have no recipes, so `just lint` is not yet a substitute for
+   the six commands and the plan says so at PHASE-01/EX-1.
+3. **AC-10 names the verification commands in `AGENTS.md`.** Whether that becomes
+   `just <recipe>` or stays the raw cargo lines is a decision, and PHASE-09 is
+   where it lands. If it becomes `just`, `design.md` §9's code block is the
+   canonical statement and the recipes mirror it — which is what the justfile's
+   own comment already asserts.
+
 ## Phase sheets
 
 <!-- One block per phase, written at phase-plan time, immediately before

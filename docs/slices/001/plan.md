@@ -13,14 +13,18 @@ design or canon; if it seems to, the plan is wrong.
 
 ## Overview
 
-Nine phases take the repository from no Rust code to a library that completes an
+Ten phases take the repository from no Rust code to a library that completes an
 `evaluate`/`respond` round trip against a real user-written backend, headless,
 with every failure mode in `design.md` §5.5 reachable and asserted.
 
 The spine is the stratum boundary. Phases 01–04 build stratum 1 — the pure
 semantic core — and nothing in them may name tokio or touch a process. Phases
-05–08 build stratum 2 on top of it. Phase 09 is the documentary and consistency
-work the slice owes before audit.
+05–08 and 10 build stratum 2 on top of it. Phase 09 is the documentary and
+consistency work the slice owes before audit, and it runs last.
+
+**Execution order is 01, 02, 03, 04, 05, 06, 07, 08, 10, 09.** PHASE-10 was split
+out of PHASE-08 after review; ids are immutable and edits append, so the sequence
+is non-monotonic and that is expected.
 
 Three things are established in PHASE-01 and hold for every phase after it:
 
@@ -39,15 +43,24 @@ Three things are established in PHASE-01 and hold for every phase after it:
    is unchecked, and the cost of discovering that at PHASE-08 is a rework of
    everything between.
 4. **The no-panic lints follow the data, not the phase.** I9 and R-46 are held by
-   module-level `#![deny(clippy::unwrap_used, clippy::expect_used,
-   clippy::indexing_slicing, clippy::arithmetic_side_effects)]` inner attributes
-   on **every** module that handles backend-derived data — not on the first one
-   to do so. Any phase creating such a module places them there and proves it the
-   same way: add a temporary `unwrap()`, confirm clippy fails, revert. They are
-   restriction lints and allow-by-default, so `-D warnings` never enabled them
-   and a module that quietly lacks them looks identical to one that has them and
-   passes (F-62, D53). Raised as review finding F-2 against this plan, whose
-   first draft gave the obligation to PHASE-04 alone.
+   `#![deny(...)]` on **every** module that handles backend-derived data — not
+   on the first one to do so. Any phase creating such a module carries the
+   obligation, and proves it the same way: add a temporary violation, confirm
+   clippy fails, revert. Restriction lints are allow-by-default, so `-D warnings`
+   never enabled them and a module that quietly lacks one looks identical to a
+   module that has it and passes (F-62). Raised as review finding F-2 against
+   this plan, whose first draft gave the obligation to PHASE-04 alone.
+
+   **What is left per-module is `clippy::arithmetic_side_effects`.** As of
+   2026-08-26 `unwrap_used`, `expect_used` and `indexing_slicing` are crate-wide
+   denies in `Cargo.toml`'s `[lints.clippy]`, with
+   `clippy::allow_attributes_without_reason = "deny"` making a written reason the
+   price of allowing one back — which is the drift argument D53 rested on,
+   answered by a mechanism. `arithmetic_side_effects` stays per-module because
+   crate-wide it fires on every loop counter. `design.md` §9 records this as
+   partially superseding D53; **I9, D53, §9's own AC-6 row and `draft-spec.md`
+   §7's R-46 row have not been updated to match, and that divergence is open** —
+   see `notes.md`.
 
 `design.md` §5.4 — the process transport — is split across two phases (05, 06)
 rather than one. It has been restructured three times across review rounds 3, 4
@@ -399,10 +412,12 @@ from a fixture.
 - EX-4 — the corpus covers `design.md` §9's protocol-tier list, and includes
   brief §10.1's bare-string `body` and §10.2's flat `multiline` **verbatim**
   (AC-9, F-31, F-38).
-- EX-5 — `wire.rs` and `normalize.rs` carry the module-level `#![deny(...)]`
-  inner attributes per Overview item 4 (I9, D53, F-62, R-46). This phase is the
-  first to handle backend-derived data; it is **not** the only one, and PHASE-05
-  and PHASE-07 carry the same obligation for the modules they add.
+- EX-5 — `wire.rs` and `normalize.rs` carry
+  `#![deny(clippy::arithmetic_side_effects)]` per Overview item 4 (I9, F-62,
+  R-46). The other three restriction lints are crate-wide and need no per-module
+  attribute. This phase is the first to handle backend-derived data; it is
+  **not** the only one, and PHASE-05 and PHASE-07 carry the same obligation for
+  the modules they add.
 - EX-6 — `InapplicableKey` is raised for a modelled key its kind does not admit,
   and a `choice` field's option carrying `fields` is **rejected** rather than
   ignored (D43, D46, F-45, F-55, R-50, R-53).
@@ -432,10 +447,11 @@ from a fixture.
   the assertion).
 - VA-1 — six commands. Note that clippy's second column is what proves EX-5's
   lints are on: they are restriction lints and `-D warnings` never enabled them.
-- VA-2 — verify EX-5 by breaking it: add an `unwrap()` to one of those modules
-  and confirm clippy fails, then remove it. An allow-by-default lint that was
-  never switched on is indistinguishable from one that is switched on and
-  passing (F-62).
+- VA-2 — verify EX-5 by breaking it, in **both** forms: an `unwrap()` anywhere
+  (the crate-wide deny) and an unchecked `+` inside `normalize.rs` (the
+  per-module one), confirming clippy fails on each, then reverting. An
+  allow-by-default lint that was never switched on is indistinguishable from one
+  that is switched on and passing (F-62).
 
 **Notes for the implementer**
 
@@ -495,10 +511,11 @@ discarding the body it came with.
   `transport-probe-Cargo.local.toml` into a scratch crate and `cargo run`; its
   seven cases are the fastest check on §5.4 and five of them changed the design.
   This is the phase's first task, not a gate on the previous one.
-- EX-7 — `process.rs` and `shell/error.rs` carry the module-level `#![deny(...)]`
-  attributes per Overview item 4. `process.rs` is the module that reads a
-  backend's bytes; if any module in this crate needs them it does (review finding
-  F-2).
+- EX-7 — `process.rs` carries `#![deny(clippy::arithmetic_side_effects)]` per
+  Overview item 4. It is the module that reads a backend's bytes and computes
+  over their lengths against `STDOUT_LIMIT` and `STDERR_LIMIT`, which is exactly
+  the arithmetic the lint exists for; if any module in this crate needs it, it
+  does (review finding F-2).
 
 **Verification**
 - VT-1 — a normal exchange against a bash backend: request in, response out,
@@ -656,12 +673,13 @@ and interaction state; configuration loads from TOML; a stale or unknown
 - EX-5 — a failed exchange leaves `resolved_check` exactly as it was (R-29, P2).
 - EX-6 — `view: null` answering an `evaluate` leaves an outstanding interaction
   alone; answering an accepted `respond` closes it (F-46, §5.5's edge table).
-- EX-7 — `host.rs` carries the module-level `#![deny(...)]` attributes per
+- EX-7 — `host.rs` carries `#![deny(clippy::arithmetic_side_effects)]` per
   Overview item 4: it is where a backend's bytes are parsed, normalized and
   composed into an `Outcome`, so it handles backend-derived data throughout
   (review finding F-2). `config.rs` and `state.rs` do not — a config file is the
   user's own and a `view_id` is host-minted — and the rule is about the data, not
-  the directory.
+  the directory. `State::next_seq` increments, so if that counter moves into a
+  module carrying the lint it needs a checked add rather than an `#[expect]`.
 
 **Verification**
 - VT-1 — host-level tests against a **fake** `Backend`, not a process: the
@@ -690,12 +708,16 @@ and interaction state; configuration loads from TOML; a stale or unknown
 
 ---
 
-## PHASE-08 — The round trip, the example backend, and the failure matrix end to end
+## PHASE-08 — The round trip and the example backends
 
 **Objective:** a backend written in TypeScript and a backend written in bash both
 complete a full `evaluate` → view → `respond` round trip against the real
-process transport, and every failure mode in AC-6 is asserted through the whole
-stack.
+process transport.
+
+<!-- Split per review finding F-6: this phase also owned the whole end-to-end
+     failure matrix and R-45's one-`Host` reuse, which is not one session's work.
+     Those are PHASE-10, which runs immediately after this phase and before
+     PHASE-09. EX-4 and EX-5 below are struck and re-stated there. -->
 
 **Surfaces:** `examples/typescript/**`, `tests/backends/**`,
 `tests/integration/**`.
@@ -716,31 +738,20 @@ stack.
   for that reason (OQ-9's answer).
 - EX-3 — at least one backend the suite exercises is **not** TypeScript: a bash
   script invoked as `["bash", "./backend.sh"]`, with no shebang (AC-12, R-36).
-- EX-4 — the protocol-level misbehaving backends from `design.md` §9's list run
-  end to end and each asserts its own error: unknown protocol version, `options:
-  []`, duplicate option ids, duplicate field ids in one option, an unknown `kind`
-  nested inside a field with its path, `view` omitted, `"next_check": 45`,
-  `"next_check": "1 month"`, `min: 10, max: 1`, a text field carrying `min`, a
-  number field carrying `options`, and `"next_check": null` / `"protocol": null`
-  asserting **nothing** is discarded.
-- EX-5 — R-45: the whole misbehaving suite runs against **one** `Host` instance
-  and a later exchange still succeeds. A backend failure may not leave the host
-  unable to invoke a backend again.
+- ~~EX-4~~ — moved to PHASE-10/EX-1. F-6.
+- ~~EX-5~~ — moved to PHASE-10/EX-2. F-6.
 
 **Verification**
 - VT-1 — the AC-7 round trip against the deno example.
 - VT-2 — AC-8 through the real transport, asserting the backend was **not**
   spawned: point the config at a backend that would fail if it ran.
 - VT-3 — the same round trip against the bash backend (AC-12).
-- VT-4 — one test per failure mode in EX-4, each asserting the specific variant
-  and, where the design gives one, the path.
+- ~~VT-4~~ — moved to PHASE-10/VT-1. F-6.
 - VT-5 — an answer naming an option the view did not offer reaches the backend
   unchanged (R-35, D17). The host validates `view_id` and nothing else, and this
   is the test that says so.
 - VA-1 — six commands.
-- VA-2 — walk `design.md` §9's misbehaving-backend list item by item against the
-  tests that now exist and record any item with no test in the phase sheet. The
-  list is long and prose-shaped; a gap in it is invisible without this pass.
+- ~~VA-2~~ — moved to PHASE-10/VA-2. F-6.
 
 **Notes for the implementer**
 
@@ -749,7 +760,60 @@ stack.
 - `deno` is chosen because it runs `.ts` with no build step and typechecks rather
   than stripping types (OQ-9). If a fixture needs to compile-fail, that is a
   different fixture, not a change of runtime.
-- EX-5 is easy to satisfy accidentally by using a fresh `Host` per case. Do not:
+- Leave the harness able to run a **sequence** of exchanges against one `Host`.
+  PHASE-10/EX-2 needs it and retrofitting it is worse than allowing for it.
+
+---
+
+## PHASE-10 — The failure matrix end to end
+
+<!-- Split out of PHASE-08 per review finding F-6. Runs immediately after
+     PHASE-08 and before PHASE-09; the id is 10 rather than 09 because phase ids
+     are immutable and edits append. -->
+
+**Objective:** every failure mode AC-6 names is asserted through the whole stack,
+and a host that has seen all of them can still complete an exchange.
+
+**Surfaces:** `tests/backends/**`, `tests/integration/**`.
+
+**Entry**
+- EN-1 — PHASE-08/EX-1…EX-3 discharged. The harness can run a sequence of
+  exchanges against one `Host` (PHASE-08's implementer notes).
+
+**Exit**
+- EX-1 — the protocol-level misbehaving backends from `design.md` §9's list run
+  end to end and each asserts its own error: unknown protocol version,
+  `options: []`, duplicate option ids, duplicate field ids in one option, an
+  unknown `kind` nested inside a field with its path, `view` omitted,
+  `"next_check": 45`, `"next_check": "1 month"`, `min: 10, max: 1`, a text field
+  carrying `min`, a number field carrying `options`, and `"next_check": null` /
+  `"protocol": null` asserting **nothing** is discarded. Was PHASE-08/EX-4.
+- EX-2 — R-45: the whole misbehaving suite runs against **one** `Host` instance
+  and a later exchange still succeeds. A backend failure may not leave the host
+  unable to invoke a backend again. Was PHASE-08/EX-5.
+- EX-3 — the schedule is unchanged across a timeout, a non-zero exit and a
+  malformed-JSON exchange, asserted here through the real transport rather than
+  through PHASE-07's fake (R-29).
+
+**Verification**
+- VT-1 — one test per failure mode in EX-1, each asserting the specific variant
+  and, where the design gives one, the path. Was PHASE-08/VT-4.
+- VT-2 — EX-2 as a single test: construct one `Host`, run the whole suite through
+  it, then assert a well-behaved exchange still succeeds.
+- VA-1 — six commands.
+- VA-2 — walk `design.md` §9's misbehaving-backend list item by item against the
+  tests that now exist and record any item with no test in the phase sheet. The
+  list is long and prose-shaped; a gap in it is invisible without this pass. Was
+  PHASE-08/VA-2.
+
+**Notes for the implementer**
+
+- Most of these cases already exist as **fixtures** in the protocol tier from
+  PHASE-04. That is not duplication: the protocol tier proves normalization
+  refuses them, this tier proves the refusal survives the transport, the `Host`
+  and the `Outcome`. Where a case adds nothing beyond the fixture, say so in the
+  phase sheet rather than writing a test that asserts the same call twice.
+- EX-2 is easy to satisfy accidentally by using a fresh `Host` per case. Do not:
   the requirement is about reuse.
 
 ---
@@ -763,7 +827,8 @@ each other and with the code, and the slice is in a state audit can start from.
 `docs/slices/001/notes.md`, `docs/slices/001/slice-001.md`.
 
 **Entry**
-- EN-1 — PHASE-08/EX-1…EX-5 discharged.
+- EN-1 — PHASE-08/EX-1…EX-3 and PHASE-10/EX-1…EX-3 discharged. This phase runs
+  last, after PHASE-10.
 
 **Exit**
 - EX-1 — root `AGENTS.md` carries what brief §15.1 asks and it currently lacks:
@@ -792,9 +857,18 @@ each other and with the code, and the slice is in a state audit can start from.
   tree. AC-1 says "from a clean clone in the nix dev shell" and a working tree
   can pass on a file nobody committed.
 - VA-1 — six commands, on that clean clone.
+- VT-2 — the two mechanical halves of the sweep, run as commands with their
+  output recorded rather than as reading (review finding F-5): every struck or
+  superseded decision id in `design.md` §7 grepped for elsewhere in the slice's
+  documents, and every type or function named in §5 grepped for a definition in
+  §5. Both have produced findings before — F-56 found D41 and D42 still cited as
+  holding invariants, F-55 found `WireOpt` named and undefined, F-56 found
+  `cleanup_only`. A non-empty result is a gap, not a pass.
 - VA-2 — AC-by-AC walk of `slice-001.md`, recording for each the test or check
   that discharges it. This is the input audit's evidence-gathering starts from,
-  not a substitute for it.
+  not a substitute for it. It stays a read: `design.md` §9 says outright that no
+  test can observe that two English sentences disagree, which is the reason the
+  restatement sweep belongs to review and not to CI.
 - VH-1 — the user accepts `AGENTS.md`'s content. It is the document every future
   agent reads first, and its wording is a judgement call the plan should not make
   alone.
@@ -808,6 +882,6 @@ each other and with the code, and the slice is in a state audit can start from.
   observe that two English sentences disagree. Its trigger is the **batch** —
   which this slice is, in its entirety — and it has one owner and one moment
   (F-56).
-- Two mechanical checks belong to the sweep and are greps, not reading: every
-  struck or superseded decision id chased to whatever still cites it, and every
-  type or function named in `design.md` §5 confirmed to be defined in §5.
+- The two mechanical halves of the sweep are VT-2 and are commands. What is left
+  for VA-2 is the part that is irreducibly a read — whether two statements of the
+  same contract, in different sections, still say the same thing.

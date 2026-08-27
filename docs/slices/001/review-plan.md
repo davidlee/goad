@@ -127,12 +127,12 @@ reason to restructure the plan.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | | |
-| F-2 | major | | |
-| F-3 | major | | |
-| F-4 | major | | |
-| F-5 | major | | |
-| F-6 | major | | |
+| F-1 | major | fix-now | |
+| F-2 | major | fix-now | |
+| F-3 | major | fix-now | |
+| F-4 | major | fix-now | |
+| F-5 | major | fix-now / aligned | |
+| F-6 | major | fix-now | |
 
 ### F-1 — Probe execution is used as an entry criterion without an earlier phase discharging it
 
@@ -149,8 +149,14 @@ they are not prior-phase gates.
 **Evidence:** `docs/slices/001/plan.md` PHASE-05 Entry, PHASE-06 Entry;
 `docs/AGENTS.md` §Phase plan; `review-plan.md` §Brief axis 1.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct, and it matters for the reason the finding gives rather
+than as bookkeeping: `docs/AGENTS.md` gives an unmet entry criterion one meaning
+— *the previous phase is not done* — and neither PHASE-04 nor PHASE-05 owes a
+probe run. The probe stays, and stays first; it moves from Entry to PHASE-05/EX-6
+and PHASE-06/EX-6, where discharging it is this phase's job and the phase sheet
+records the output. PHASE-05's implementer notes now say to run it *before*
+writing `process.rs`, which the Entry placement left ambiguous.
 
 **Outcome:**
 
@@ -172,8 +178,19 @@ not at the R-46 lint mechanism for the later modules.
 `draft-spec.md` R-46 and its §7 row; `plan.md` PHASE-04/EX-5, PHASE-05 Surfaces,
 PHASE-07 Surfaces, Coverage AC-6.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct, and the most consequential of the six. The first draft's
+wording — PHASE-04 "is the first to handle such data and therefore owns placing
+them" — states an ownership rule that expires the moment a second module handles
+that data, and `process.rs` and `host.rs` both do. The class fix, not the
+instance: the rule is now stated once in the plan's Overview as item 4, over the
+*data* rather than over a phase or a directory, with the break-it-and-revert
+proof attached to it. PHASE-04/EX-5 is narrowed to the two modules it actually
+writes; PHASE-05/EX-7 and PHASE-07/EX-7 carry the same obligation for
+`process.rs`, `shell/error.rs` and `host.rs`. `config.rs` and `state.rs` are
+excluded and the exclusion is argued: a config file is the user's own and a
+`view_id` is host-minted. AC-6's coverage row now names the lint rule as its
+no-panic mechanism rather than leaving that clause pointing at tests.
 
 **Outcome:**
 
@@ -194,8 +211,17 @@ retained a task, buffer, descriptor or handle after drop.
 **Evidence:** `slice-001.md` AC-5; `draft-spec.md` §7's R-48/R-54 row; `plan.md`
 PHASE-06/EX-5 and VT-1…VT-5.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct. EX-5 asserted the clause and nothing could falsify it,
+which is the design review's own F-51/F-57/F-62 defect wearing plan clothing.
+PHASE-06/VT-6 now holds it in two ways. Structural: the `tokio::spawn` grep from
+PHASE-05/VT-5 is asserted again here against the finished module, so the
+criterion and its mechanism live in the same phase. Behavioural: start an
+exchange against a backend that will not answer, drop the future, then drop the
+runtime with `shutdown_timeout(Duration::ZERO)` and assert it returns promptly —
+a detached task blocks that call, so the test fails if the structure regresses.
+Neither asserts anything about the child, which is what D54 concedes and AC-5
+states.
 
 **Outcome:**
 
@@ -215,8 +241,16 @@ unmodelled fields at each inbound level.
 **Evidence:** `slice-001.md` AC-2; `draft-spec.md` R-4/R-5 and their §7 row;
 `plan.md` Coverage AC-2, PHASE-04/EX-1, EX-3, VT-3.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct. "No `deny_unknown_fields`" is a property of the type
+declaration; R-5's §7 row asks for fixtures carrying unmodelled fields **at each
+level**, which is a property of the behaviour, and the two are not the same
+claim — a `#[serde(flatten)]` map or a dispatch site could swallow or reject one
+without the structural condition changing. PHASE-04/EX-8 now requires the
+behaviour at envelope, view, option, field and content level, and VT-4 asserts
+each: accepted, absent from the canonical value, and **nothing discarded** — the
+silence being the assertion, borrowed from R-51's own §7 row. The Coverage row
+for AC-2 points at EX-8 and VT-4 rather than at EX-1.
 
 **Outcome:**
 
@@ -237,8 +271,28 @@ by recording the walk rather than by a falsifying mechanism.
 **Evidence:** `review-plan.md` §Brief axis 2; `plan.md` PHASE-05/VA-2,
 PHASE-06/VA-2, PHASE-08/VA-2, PHASE-09/VA-2.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now on the mechanisable half; aligned on the residue, with
+the reason recorded.
+**Response:** The finding is half right and the half it is right about was worth
+raising. Three of PHASE-05/VA-2's four checks are string searches being done by
+eye — no `tokio::spawn`, no `Arc`/`Mutex`, no `?` past the spawn — and each names
+a regression that a design review round actually had to repair (F-49, D44's lock
+deletion, F-41). They are now PHASE-05/VT-5, a source-text test in the same tier
+and with the same found-no-files guard as PHASE-01's boundary checks. Two of
+PHASE-09/VA-2's halves are likewise greps and are now PHASE-09/VT-2: struck or
+superseded decision ids still cited elsewhere, and types named in `design.md` §5
+with no definition in §5. Both have produced findings before — F-56 found D41 and
+D42 still cited, F-55 found `WireOpt` named and undefined.
+
+What stays a `VA` stays deliberately. `VA` is a verification mode the plan
+template defines — "agent check" — not an absence of one, and the residue is
+irreducibly a read: whether `child.wait()` sits inside the timed region or in the
+cleanup budget is a scope structure that no string distinguishes (F-59), and
+whether two statements of one contract in different sections still agree is what
+`design.md` §9 says outright no test can observe. Mechanising those would replace
+judgement with box-ticking, which is the failure mode F-56 already found in this
+slice once. The plan now says which is which and why, so a later reader does not
+read a `VA` as a `VT` that someone gave up on.
 
 **Outcome:**
 
@@ -259,8 +313,18 @@ assertions and a checklist over a long prose list, in one phase.
 naming PHASE-08 as likely over-packed; `plan.md` PHASE-08/EX-1…EX-5, VT-1…VT-5,
 VA-2.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct. Split at the seam PHASE-05 and PHASE-06 already use — a
+backend that works, versus backends that fail. PHASE-08 keeps the AC-7 round
+trip, the deno showcase example and the bash backend; the new **PHASE-10** takes
+the protocol-level failure matrix, R-45's one-`Host` reuse and the prose-list
+walk, plus R-29's schedule-unchanged assertions moved up from PHASE-07's fake
+transport to the real one. Phase ids are immutable and edits append, so the new
+phase is 10 and the execution order is 01…08, 10, 09; PHASE-08's EX-4, EX-5, VT-4
+and VA-2 are struck in place with pointers rather than deleted. PHASE-08's
+implementer notes now require the harness to support a sequence of exchanges
+against one `Host`, which is what PHASE-10/EX-2 needs and what would otherwise be
+a retrofit.
 
 **Outcome:**
 

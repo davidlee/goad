@@ -39,6 +39,7 @@
       rust-bin.beta.latest.default
       rust-analyzer
       pkg-config
+      just
 
       # Claude Code runs Bash-tool commands under bash or zsh only; give it a
       # real bash (see CLAUDE_CODE_SHELL below).
