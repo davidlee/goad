@@ -1,13 +1,38 @@
 # goad — task runner.
 #
-# `just` comes from the user's nix profile, not `flake.nix` devToolPkgs. Add it
-# there if these recipes become load-bearing for anyone else.
+# `just` is in `flake.nix` `devToolPkgs`, so these recipes work from a clean
+# clone in the dev shell (AC-1). A shell entered before that landed will resolve
+# `just` from the user's nix profile instead; reload it.
+#
+# `docs/slices/001/design.md` §9's command block is canonical. Every recipe here
+# runs the same command with the same arguments as a line of it, in the same
+# order — not the same characters: §9 carries inline comments and wraps the
+# second clippy line, and neither survives into a recipe. Change §9 first, then
+# mirror. `just -n check` prints the sequence for comparison (PHASE-01/VA-3).
 
-default: lint
+# Run the whole phase gate — §9's six commands, in §9's order.
+default: check
+
+# The phase gate. A phase is not green until this exits 0.
+check: build test test-stratum1 lint fmt-check
+
+build:
+  cargo build
+
+test:
+  cargo test
+
+# The mechanical half of ADR-001's dependency rule (D49, F-51): fails to compile
+# if anything under `semantics/` acquires a runtime dependency.
+# `cargo tree --no-default-features` is the diagnostic when it does.
+
+# Stratum 1 alone.
+test-stratum1:
+  cargo test --no-default-features
 
 # `lint`, in full — the doc comment just above the recipe is the short form.
 #
-# Both feature columns, per `docs/slices/001/design.md` §9 (AC-1).
+# Both feature columns, per `design.md` §9 (AC-1).
 #
 # Two columns because `--all-targets` alone lints only the default feature set,
 # so every `#[cfg(not(feature = "shell"))]` path — and stratum 1 compiled
@@ -24,3 +49,10 @@ default: lint
 lint:
   cargo clippy --all-targets -- -D warnings
   cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+
+fmt-check:
+  cargo fmt --check
+
+# Not in the gate: it writes. Here so the gate's failure has an obvious answer.
+fmt:
+  cargo fmt

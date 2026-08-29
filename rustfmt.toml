@@ -1,0 +1,4 @@
+# Two spaces, per `CLAUDE.md`. Settled before there is code to churn: every Rust
+# snippet in `design.md` is written at two, and without this file `cargo fmt`
+# reformats to four and the design's sketches stop being copy-able.
+tab_spaces = 2

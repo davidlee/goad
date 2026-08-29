@@ -1659,7 +1659,7 @@ transport, which is why slice 005 exists.
 | I6 | Only one exchange in flight | `&mut self` — compiler-enforced, not convention |
 | I7 | Nothing in `semantics/` or `shell/` branches on a `hints` key. The renderer may, and is the only thing that may | review; brief §3.4, §10.2. Corrected per F-33 |
 | I8 | No domain vocabulary in types or module names | AC-11 grep |
-| I9 | No path panics on backend-derived data — no `unwrap`, `expect` or slicing on anything a backend produced | AC-6; module-level `#![deny(clippy::unwrap_used, expect_used, indexing_slicing, arithmetic_side_effects)]` on the modules handling backend-derived data — restriction lints, so `-D warnings` alone does not enable them (§9, F-62) |
+| I9 | No path panics on backend-derived data — no `unwrap`, `expect` or slicing on anything a backend produced | AC-6; `unwrap_used`, `expect_used` and `indexing_slicing` crate-wide in `[lints.clippy]` under `allow_attributes_without_reason = "deny"`, plus module-level `#![deny(clippy::arithmetic_side_effects)]` on the modules handling backend-derived data — restriction lints, so `-D warnings` alone does not enable them. Crate-wide stops at the test targets, carved out in `clippy.toml`; I9 is about run-time paths handling backend-derived data, and a test is not one (§9, F-62, F-14, D53 as amended) |
 | I10 | No inbound wire type is a closed contract: no `deny_unknown_fields`, and the absence of an *unmodelled* field never means more than "not supplied" | review; see the validation-feedback analysis below |
 | I11 | No backend can cause unbounded host resource growth: every stream read from a backend is capped; reaching the **stderr** cap stops storing but never stops reading; and an exchange spawns no task that could outlive it. Qualified per F-43, extended per F-40, made structural per F-49. **Scope, per F-60:** this invariant is about what the *host* holds, and it holds on the cancellation path too. It says nothing about the child process there, which no host code disposes of — I13 owns that, and concedes it | D27, D34, **D44** — the drain is a sub-future, so there is no task to outlive anything (D41, which held this by aborting one, is superseded); the stdout- and stderr-flood integration tests |
 | I12 | Every `Outcome`, including every failure, carries a concrete `next_check` | D23; non-`Option` field |
@@ -1887,7 +1887,7 @@ reader needs so they do not reverse one by accident.
 | D49 | tokio optional behind a `shell` feature; `shell/` is `#[cfg(feature)]` | plain dependency plus AC-15's grep; a workspace split now | Cargo resolves per crate target, so without this ADR-001's rule is false, not merely unenforced. Makes it a build gate. User decision, F-51 |
 | D51 | the exit status is observed **inside** `config.timeout`, and a non-zero status discards the body it came with | read stdout to EOF and return; wait only in cleanup | cleanup *kills*, so a status observed there does not exist; and waiting for a backend to exit is its opportunity to respond, not the host's disposal of it. Made `ExitStatus` reachable again — it was not. Verified by running it. F-59 |
 | D52 | `Alternative` carries an `AlternativeId`, with `DuplicateAlternativeId` and `EmptyAlternatives` behind it | reuse `OptionId` and its errors | an option id is *selected* and an alternative id is *submitted*; the scalar newtypes exist so namespaces cannot be swapped, and reusing one across two contradicted their reason for existing. An error named `DuplicateOptionId` for an alternative asserts what F-48 forbade a name to assert. F-61 |
-| D53 | the no-panic lints are module-level `#![deny(...)]` on the modules handling backend-derived data | `-D warnings`; crate-wide `[lints.clippy]` | they are restriction lints and allow-by-default, so `-D warnings` never enabled them and I9 rested on nothing. Per-module because the blanket form is what F-35 caught this design violating on a host-created value. F-62 |
+| D53 | the no-panic lints are split by cost: `unwrap_used`, `expect_used` and `indexing_slicing` crate-wide in `[lints.clippy]`; `arithmetic_side_effects` module-level `#![deny(...)]` on the modules handling backend-derived data. **Amended 2026-08-27**; the original decision put all four per-module | `-D warnings` alone; all four per-module (D53 as first written); all four crate-wide | they are restriction lints and allow-by-default, so `-D warnings` never enabled them and I9 rested on nothing. Per-module was to stop F-35's case — an `unwrap` on a host-created value — being `#[allow]`ed away silently; `allow_attributes_without_reason = "deny"` answers that with a mechanism, so the three cheap lints go blanket. `arithmetic_side_effects` stays scoped because crate-wide it fires on every loop counter. F-62; user decision 2026-08-27 |
 | D54 | on cancellation the host claims only what it can hold to: no task, buffer or descriptor, and `kill_on_drop` for the child | AC-5's unqualified "leaves nothing behind"; a supervisor task; process-group kill | no host code runs on that path, so the child claim cannot be made true — and the two mechanisms that would make it true are the detached task F-49 deleted and a process-group kill brief §14 refuses. User decision, F-60 |
 | D50 | explicit `null` means what omission means, except for `view` | report `null` as an invalid value; or say nothing | serializers emit `null` for absent optionals constantly; `view` is the one field where `null` asserts something omission does not. User decision, F-50 |
 
@@ -1909,7 +1909,9 @@ reader needs so they do not reverse one by accident.
 
 ## 9. Validation
 
-**Verification commands** (AC-1, and named in `AGENTS.md` per AC-10):
+**Verification commands** (AC-1). This block is **canonical**; `justfile`
+mirrors it, and `AGENTS.md` names the `just` recipes per AC-10 — user decision
+2026-08-27. Change this block first, then the recipes.
 
 ```
 cargo build
@@ -1924,6 +1926,17 @@ cargo fmt --check
 Six, and two of them are the same command run under a second feature set. That
 is deliberate: **a feature-gated crate has a build matrix, and a matrix checked
 in one column is unchecked.**
+
+- **`just` is the canonical runner.** `just check` is the phase gate and runs
+  exactly these six, in this order; `build`, `test`, `test-stratum1`, `lint` and
+  `fmt-check` are the individual recipes, `lint` holding both clippy columns.
+  `just` is in `flake.nix` `devToolPkgs`, so AC-1's "clean clone in the dev
+  shell" holds. The mirroring is checkable rather than asserted: `just -n check`
+  prints the command list, and it must be the **same commands with the same
+  arguments in the same order** as this block. Not the same characters — this
+  block carries inline comments and wraps the second clippy line across two
+  physical lines, and `just -n` prints neither, so a literal comparison fails on
+  a correct justfile (review finding F-13).
 
 - `cargo test --no-default-features` is the mechanical form of ADR-001's
   dependency rule (D49, F-51): it fails to compile if anything under
@@ -1958,30 +1971,43 @@ in one column is unchecked.**
   `clippy::unwrap_used`, `expect_used`, `indexing_slicing` and the panicking
   arithmetic lints are all *restriction* lints and allow-by-default; denying
   warnings does not enable them, so neither command above was checking the thing
-  I9 named clippy as holding. They are turned on where R-46 says they belong —
-  **per module**, as inner attributes at the top of each module that handles
-  backend-derived data:
+  I9 named clippy as holding. They are turned on in **two** places, split by
+  whether the blanket form costs anything — D53, amended 2026-08-27.
+
+  **Crate-wide, in `[lints.clippy]`:** `unwrap_used`, `expect_used`,
+  `indexing_slicing`. Cheap everywhere, and — with `allow_attributes = "deny"`
+  alongside it — `clippy::allow_attributes_without_reason = "deny"` prices an
+  allow back at a written reason. That is what answers R-46's drift argument
+  rather than dodging it. The original objection was that a restriction lint
+  applied where it does not belong gets `#[allow]`ed at the first inconvenience,
+  and an allow-by-default lint that has been allowed back is indistinguishable
+  from one that was never on. Under `allow_attributes_without_reason` it is
+  distinguishable: the allow is an `#[expect(…, reason = …)]`, greppable and
+  countable, and F-35's case — `child.stdin.take()`, a value the *host* created,
+  where an `unwrap` is a statement about our own code and not about anything a
+  backend sent — gets written down at the site instead of avoided by scoping.
+
+  **Tests are carved out, in `clippy.toml`, not by scope.**
+  `allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests` and
+  `allow-indexing-slicing-in-tests` are all `true`. Crate-wide includes both test
+  targets, and without them ordinary test code — `unwrap()` on a fixture, `v[0]`
+  on a known vector, `panic!` in a should-not-reach arm — fails the gate, with an
+  `#[expect(…, reason = …)]` on every asserting test as the only way out.
+  Measured: a scratch crate carrying this lint table fails with five errors
+  across a `#[cfg(test)]` module and a `tests/` target, and exits 0 with the four
+  keys present (2026-08-27). Nothing is given up — I9 is about paths handling
+  backend-derived data at run time, a test is not one, and a test that unwraps is
+  asserting. `unwrap_in_result = "deny"` is **not** scoped away and still catches
+  the case worth catching.
+
+  **Module-level `#![deny(…)]`, on each module handling backend-derived data:**
+  `arithmetic_side_effects`, and only it. Crate-wide it fires on every loop
+  counter, which is the case R-46 was right about and which no reason-carrying
+  allow makes tolerable — the allows would outnumber the catches.
 
   ```rust
-  #![deny(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing,
-          clippy::arithmetic_side_effects)]
+  #![deny(clippy::arithmetic_side_effects)]
   ```
-
-  **Partially superseded.** `unwrap_used`, `expect_used` and `indexing_slicing`
-  are now crate-wide denies in `[lints.clippy]`: they are cheap everywhere, and
-  `clippy::allow_attributes_without_reason = "deny"` blunts R-46's drift
-  argument by making a written reason the price of allowing one back.
-  `arithmetic_side_effects` is **not** crate-wide and stays a module-level
-  `#![deny(…)]` exactly as below — crate-wide it fires on every loop counter,
-  which is the case R-46 was actually right about.
-
-  Not crate-wide in `[lints.clippy]`, and that is R-46's own reasoning rather
-  than a preference: the blanket form is what F-35 caught this design violating,
-  on `child.stdin.take()` — a value the *host* created, where an `unwrap` is a
-  statement about our own code and not about anything a backend sent. A
-  restriction lint applied where it does not belong gets `#[allow]`ed at the
-  first inconvenience, and an allow-by-default lint that has been allowed back is
-  indistinguishable from one that was never on.
 
 **Three test tiers, with different dependency reach:**
 
@@ -1999,12 +2025,12 @@ reading the protocol rather than the tests, which matters for the draft spec.
 
 | AC | discharged by |
 |---|---|
-| AC-1 | the six commands above, from a clean clone — both feature columns, not just the default one |
+| AC-1 | `just check` — the six commands above, from a clean clone in the dev shell, both feature columns and not just the default one |
 | AC-2 | protocol tier: version present, unknown optional ignored, unknown required rejected |
 | AC-3 | protocol tier: RFC 3339 and relative forms → one instant; `MissingOffset`, `Unparseable` rejected |
 | AC-4 | protocol tier: pure resolution over (existing, incoming, default), latest-valid-wins, invalid preserves |
 | AC-5 | integration: stdin write, stdout read, timeout, stderr captured on **every** path including timeout and zero-exit-unparseable (F-3, F-24, F-39); both reads bounded, the stdout bound ending its read and the stderr bound not (F-43); a stderr flood that succeeds with `truncated` set (F-25); no child, task or descriptor outliving a **returning** exchange (F-40, F-41); a non-zero exit discarding a body that parsed (F-59); and on **cancellation** the narrower assertion AC-5 now makes — nothing the host holds survives, the child left to `kill_on_drop` (F-60) |
-| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8); `InapplicableKey` for a modelled key its kind does not admit (F-45); `DuplicateFieldId` (F-52); `DuplicateAlternativeId` and `EmptyAlternatives` (F-61); `ExitStatus` reachable at all, which needs the status observed inside the timed region (F-59); and `CleanupFailure` on its own channel rather than as a `BackendError` (F-48). No-panic is held by module-level restriction lints, not by `-D warnings` (F-62) |
+| AC-6 | integration + protocol: each failure mode to its own variant; `ScheduleError` via `discarded`, not `Err`; `StateError` for stale ids (F-8); `InapplicableKey` for a modelled key its kind does not admit (F-45); `DuplicateFieldId` (F-52); `DuplicateAlternativeId` and `EmptyAlternatives` (F-61); `ExitStatus` reachable at all, which needs the status observed inside the timed region (F-59); and `CleanupFailure` on its own channel rather than as a `BackendError` (F-48). No-panic is held by restriction lints — three crate-wide, `arithmetic_side_effects` per-module — not by `-D warnings` (F-62, D53 as amended) |
 | AC-7 | integration: `view: null` → choice → `view_id` taken from `Outcome::view`'s `Presented` → respond → accepted (F-23) |
 | AC-8 | integration: stale and unknown `view_id` rejected as `StateError::StaleViewId` / `NoOutstandingView`, no backend spawn |
 | AC-9 | the corpus itself |

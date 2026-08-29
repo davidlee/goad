@@ -3,6 +3,15 @@ name = "goad"
 version = "0.1.0"
 edition = "2024"
 description = "A programmable personal intervention shell"
+license = "MIT"
+repository = "https://github.com/davidlee/goad"
+readme = "README.md"
+keywords = ["intervention", "desktop", "protocol", "programmable"]
+categories = ["gui"]
+
+# `publish = false` is not provisional: nothing here is meant for crates.io.
+# It also silences `clippy::cargo_common_metadata` on its own — measured — so
+# the metadata above is carried for correct attribution, not to pass the gate.
 publish = false
 
 # Test targets are declared, not discovered, because one of them must be
@@ -16,9 +25,21 @@ jiff       = { version = "0.2", default-features = false }
 tokio      = { version = "1", optional = true,
                features = ["process", "time", "rt", "io-util", "macros"] }
 
+# Backend configuration parsing, first used at PHASE-07. Optional and inside
+# `shell` for exactly tokio's reason: nothing stratum 1 must not need may be
+# required in order to build stratum 1, so ADR-002's T1 does not fire.
+#
+# It is declared here rather than at PHASE-07 because the manifest is PHASE-01's
+# surface, and an entry criterion may not require work the entering phase owns
+# (plan review finding F-7). Unused for six phases, which costs nothing:
+# `unused_crate_dependencies` is deliberately off in `[lints.rust]` below.
+toml       = { version = "1", optional = true }
+
 [features]
 default = ["shell"]
-shell   = ["dep:tokio"]
+# `dep:` on both, not a bare name: a bare `toml` would also mint an implicit
+# `toml` feature, which is a second way into the graph that nothing gates.
+shell   = ["dep:tokio", "dep:toml"]
 
 [[test]]
 name = "protocol"
@@ -145,7 +166,17 @@ cast_precision_loss = "deny"
 cast_sign_loss = "deny"
 
 # API/design pressure.
-module_name_repetitions = "deny"
+# `module_name_repetitions` is `allow`, and that is a decision rather than an
+# omission — user decision 2026-08-29, PHASE-01. `design.md` §5.2 chooses
+# `…Error` inside an `error` module as this crate's convention for the AC-6
+# taxonomy: `ProtocolError`, `BoundsError` and `ScheduleError` in
+# `semantics/error.rs`, and `BackendError` and `StateError` in `shell/error.rs`.
+# The lint forbids that convention wholesale, so every error type in the design
+# violates it by construction. An `#[expect(…, reason = …)]` per module was the
+# alternative and was rejected as an instance fix for a class defect: §9 built
+# that hatch for rare, individually argued exceptions like `unwrap_used`, not
+# for a convention that is violated deliberately every time.
+module_name_repetitions = "allow"
 pub_use = "deny"
 wildcard_imports = "deny"
 enum_glob_use = "deny"

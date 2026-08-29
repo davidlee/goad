@@ -2,6 +2,26 @@
 
 avoid-breaking-exported-api = false
 
+# The no-panic restriction lints are crate-wide as of D53 (amended 2026-08-27),
+# and crate-wide includes both test targets. Without these four keys ordinary
+# test code — `unwrap()` on a fixture, `v[0]` on a known vector, `panic!` in a
+# should-not-reach arm — fails the phase gate, and the only escape is an
+# `#[expect(…, reason = …)]` on every test that asserts anything.
+#
+# Measured, not assumed: a scratch crate carrying goad's lint table fails
+# `cargo clippy --all-targets -- -D warnings` with five errors across a
+# `#[cfg(test)]` module and a `tests/` target, and exits 0 with these four keys
+# present. This toolchain accepts all four; none is an unknown key.
+#
+# Nothing is given up. I9 is about paths that handle backend-derived data at
+# run time, and a test is not one of them — a test that unwraps is asserting,
+# and its panic is the reporting mechanism. `unwrap_in_result = "deny"` still
+# covers the case worth catching, and it is not scoped away here.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+
 disallowed-methods = [
   { path = "std::env::var", reason = "Use typed configuration loading instead" },
   { path = "std::env::set_var", reason = "Global process mutation is test-hostile" },

@@ -74,3 +74,93 @@ produces one of each, cited to one another.
   review both used a fresh reviewer and both reached past what the accumulating
   thread of rounds 1-3 managed; round 5's thread
   (`01a03af5-bc55-79a1-a216-ff9c7e7ee4e1`) is spent and is not reused.
+
+### 2026-08-27 — Closing the plan review: four rounds, closed on a clean one
+
+- **Asked:** whether round 4 closes `review-plan.md`, or whether the residual
+  rate justifies a fifth.
+- **Decided:** closed. Round 4 raised **no findings**, confirmed F-12, F-13 and
+  F-14 individually with cited evidence, found the tests carve-out's *reasoning*
+  sound on its first attack, and judged `plan.md` **executable as it stands**.
+- **Why not a fifth round.** The defect rate per repair fell 4/6 → 2/5 → 0/3 and
+  the round that produced the zero was the first run against text the author had
+  already restatement-swept. A fifth round would be testing the sweep, not the
+  plan, and the review's stated close condition — no blocker, nothing a repair
+  cannot close — was met. The one review decision that cost this slice most was
+  the *design* review's opposite: closing with sixteen repairs unverified.
+- **Consequence:** `review-plan.md` `State: closed`, Synthesis written. Two risks
+  are recorded there and carried into `notes.md`'s handover rather than resolved:
+  round 4 verified PHASE-06/VT-6's mechanism on the documents and did **not**
+  re-run the tokio metrics probe, and priority 3's sites — the author's five
+  self-sweep repairs, PHASE-08's split comment, PHASE-06's cancellation note —
+  got no per-site verdict, only the round's overall silence.
+- **Also recorded, not as a finding:** the round 4 packet itself carried two
+  stale restatements, found at dispatch — its reading list still named rounds 1
+  and 2 and pointed the reviewer at F-7…F-11, and its finding-format example was
+  headed `F-7` against an instruction to number from F-15. Author-found,
+  author-repaired before dispatch. The document written to hunt the restatement
+  defect had it. That is the strongest argument in this slice for making the
+  sweep mechanical rather than intentional.
+- **Next:** `plan.md` to the user for acceptance. No code before it.
+
+### 2026-08-29 — Plan accepted
+
+- **Asked:** acceptance of `plan.md`, per `docs/AGENTS.md` §Plan and `CLAUDE.md`'s
+  "no code without an accepted plan".
+- **Decided:** accepted. The user's instruction to write PHASE-01's phase sheet
+  is the acceptance; there was no separate ceremony and none is owed.
+- **Consequence:** PHASE-01/EN-1 is discharged. The phase sheet is in `notes.md`
+  under `## Phase sheets`; execution may begin. Sheets stay one at a time,
+  immediately before each phase — `docs/AGENTS.md` §Phase plan, and a sheet
+  written three phases early is fiction.
+- **Raised while expanding the phase, and owed back to the plan:** two of
+  PHASE-01's *Notes for the implementer* describe a tree that has since changed.
+  The plan says `.gitignore` does not exist — it has since commit `4fc8637` —
+  and says not to duplicate the user's global `*.local.*` ignore, which that
+  commit already did, narrower, as `*.local.md`. `docs/AGENTS.md` §Phase plan
+  forbids repairing this in the sheet, so it is recorded and left to the user.
+  Neither is a criterion and neither blocks PHASE-01.
+
+### 2026-08-29 — Package metadata and licence
+
+- **Asked:** whether to carry `[package]` metadata now, and under what licence.
+- **Decided:** yes, now. **MIT**, repository `https://github.com/davidlee/goad`,
+  fields lifted from `~/dev/doctrine`'s manifest. `LICENSE` written at the
+  repository root, © 2026 David Lee. `publish = false` stays and is not
+  provisional.
+- **Consequence:** `Cargo.toml` `[package]` gains `license`, `repository`,
+  `readme`, `keywords` and `categories`. `LICENSE` is a new root file, outside
+  PHASE-01's declared surfaces — a user-directed scaffolding change of the same
+  kind as `Cargo.toml`, `clippy.toml` and `justfile` before it, not phase work.
+- **The reason it was raised was wrong, and the correction matters more than the
+  change.** PHASE-01's sheet flagged `clippy::cargo_common_metadata` as an
+  anticipated gate failure. It cannot fire: **`publish = false` silences it
+  outright.** Measured in a scratch crate carrying `cargo = "deny"` — clean with
+  `publish = false`, five errors without it (`license`, `repository`, `readme`,
+  `keywords`, `categories`). The metadata is therefore carried for correct
+  attribution, not to pass the gate, and the STOP condition is withdrawn.
+- **A positive control was run rather than assumed**, per the review's own
+  lesson that a mechanism needs one: the same probe with goad's new `[package]`
+  block and `publish = false` **removed** also passes clean. So the metadata is
+  complete on the lint's terms, not merely hidden behind `publish = false`.
+
+### 2026-08-29 — The two stale `.gitignore` notes in PHASE-01
+
+- **Asked:** disposition of two stale *Notes for the implementer* surfaced while
+  expanding PHASE-01 — `plan.md` claimed `.gitignore` did not exist (false since
+  `4fc8637`) and told the implementer not to duplicate the user's global
+  `*.local.*` ignore, which that commit had already done, narrower, as
+  `*.local.md`.
+- **Decided:** widen the repository `.gitignore` to `*.local.*`, and rewrite the
+  plan's note to describe the tree as it is.
+- **Why widen rather than defer to the global file.** A rule that lives only in
+  one machine's global config is not a property of the repository. Under
+  `*.local.md` alone, `transport-probe.local.rs` and
+  `transport-probe-Cargo.local.toml` were ignored by `~/.gitignore_global` and by
+  nothing in the repo, so a clean clone elsewhere would track them — and AC-1 is
+  a claim about a clean clone.
+- **Consequence:** `.gitignore` now carries `*.local.*` with the reason written
+  at the site. `git ls-files` was checked first: no tracked file matched, so
+  nothing was silently un-tracked. `git check-ignore -v` now resolves all three
+  probe and packet files to `.gitignore:4` rather than to the global file.
+  `plan.md:282` rewritten; PHASE-01's sheet records the closure.

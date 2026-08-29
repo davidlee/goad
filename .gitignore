@@ -1,2 +1,6 @@
-*.local.md
+# `*.local.*` — scratch files that stay out of the repository: review packets,
+# probes, capsules. The user's global ignore file covers this too, but the rule
+# belongs here as well so a clean clone on another machine behaves the same.
+*.local.*
+
 target/

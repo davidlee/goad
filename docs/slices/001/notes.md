@@ -9,11 +9,117 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | design | **accepted** — review closed at round 5, 16 repairs unverified | 2026-08-26 |
-| plan | **drafted, not accepted** — nine phases in `plan.md`; two design gaps found and closed; adversarial review agreed, not yet run | 2026-08-26 |
-| PHASE-01…09 | not started; phase sheets are written one at a time, immediately before execution | — |
+| plan | **accepted 2026-08-29** — ten phases in `plan.md` (01…08, 10, 09); two design gaps found and closed; **four review rounds run**, fourteen findings, all repaired and all confirmed; round 4 clean, plan judged executable | 2026-08-29 |
+| PHASE-01 | **done** — `just check` exits 0 in both feature columns. All six EX and all seven V criteria discharged; see `## Phase sheets` | 2026-08-29 |
+| PHASE-02…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
-**No code exists.** No `Cargo.toml`, `src/` and `tests/` empty. Every file this
-slice touches is a new file.
+**Code exists as of PHASE-01, 2026-08-29.** `src/lib.rs`,
+`src/semantics/{mod,error}.rs`, `src/shell/mod.rs`,
+`tests/protocol/{main,boundary}.rs`, `tests/integration/main.rs` and
+`rustfmt.toml`; `just check` exits 0 in both feature columns. The rest of the
+scaffolding landed outside the phase flow and PHASE-01 inherited rather than
+created it: `Cargo.toml`, `clippy.toml`, `justfile`, `.gitignore`, `Cargo.lock`,
+`LICENSE`. PHASE-01 amended `Cargo.toml` twice — `toml` as an optional
+dependency (EX-6) and `module_name_repetitions = "allow"` (user decision).
+
+## Handover — plan review closed, plan awaiting acceptance, 2026-08-27
+
+<!-- Written after round 4 came back clean. The 2026-08-26 handover below is
+     still the map for a *phase* agent; this one says where the slice stands. -->
+
+### The one job
+
+~~Ask the user to accept `plan.md`.~~ **Accepted 2026-08-29**, and PHASE-01's
+sheet is written under `## Phase sheets`. **Execute PHASE-01**: one phase, one
+agent, one session; set it `in progress` in the Status table first. Order is
+**01…08, 10, 09**, and phase sheets stay one-at-a-time — never write PHASE-02's
+until PHASE-01 is done.
+
+Nothing is outstanding before execution. The two stale `.gitignore` notes in
+`plan.md` PHASE-01 were disposed 2026-08-29 (`plan-log.md`), and `[package]`
+metadata plus `LICENSE` landed the same day as user-directed scaffolding.
+**Use a fresh session** — `docs/AGENTS.md` §Execute: one phase, one agent, one
+session.
+
+### What just happened
+
+Round 4 ran fresh (gpt-5.5 via MCP, thread
+`01a04244-8fe2-7630-9d38-784ed05b4fa7`, spent) and came back **clean: no
+findings**. F-12, F-13 and F-14 all **confirmed** with cited evidence, and the
+carve-out's *reasoning* — priority 2, never previously attacked — was found to
+hold. Verdict: the plan is **executable as it stands**.
+
+`review-plan.md` is **closed** and its **Synthesis is written**. Read that rather
+than the fourteen findings; it is the closure story and it names the risks the
+review knowingly leaves standing.
+
+Four rounds, fourteen findings, all `major`, none contested, all repaired, all
+confirmed. This is a stronger closure than the design's, which the user closed
+with sixteen repairs unverified.
+
+### Risks the closure leaves standing — carry these into execution
+
+- **PHASE-06/VT-6 is confirmed on paper only.** Round 4 verified the documents
+  and dependency features and did not re-run the tokio metrics probe behind the
+  positive control. VT-6 has been rewritten three times. **PHASE-06 should run
+  it before trusting it** — `transport-probe.local.rs` is the fastest route.
+- **The self-sweep's five sites, PHASE-08's split comment and PHASE-06's
+  cancellation note got no per-site verdict**, only the round's overall "no new
+  findings". Weakest link in the closure.
+- The design's **sixteen unverified repairs** are untouched by the plan review.
+  Expect two to four residual defects, most likely `design.md` §5.4 — which the
+  plan splits across PHASE-05 and PHASE-06. Verify those hardest.
+
+### The number that should still govern how you work
+
+**Roughly four repairs in five in this slice produced a new finding**, until the
+sweep was applied deliberately.
+
+| round | repairs checked | found defective |
+|---|---|---|
+| 2 | 6 | 4 |
+| 3 | 5 | 2 |
+| author's self-sweep after round 3 | 3 | 5 stale sites |
+| 4 | 3 | **0** |
+
+One failure mode, every time: **a repair applied at the site the finding named,
+and left standing at the sites that restate the same contract.** F-13 is the
+purest case — a repair made in direct response to a finding *about* unswept
+restatements, itself unswept at two sites. The round 4 packet, written to hunt
+that defect, then carried two of them itself.
+
+So, in code as in documents: **after you repair anything, grep for every other
+statement of the contract you just changed, before you report the repair done.**
+`design.md` §9's restatement sweep names §5.5, §7 and §9's AC map. Add
+`draft-spec.md` §7, `plan.md`'s Overview and Coverage table, `design-log.md`,
+this file, and `justfile` — every one has held a stale restatement in this slice.
+
+The second habit: **a criterion that names a mechanism does not yet have one.**
+Two criteria in this plan were written to be falsifiable and were not —
+`shutdown_timeout(ZERO)`, which cannot fail, and a line-for-line justfile match a
+correct justfile fails. Both were caught by a reviewer, not by their author.
+
+### State, as of this handover
+
+- `plan.md` — ten phases, order **01…08, 10, 09**. Drafted, **not accepted**.
+- `review-plan.md` — **closed**, 14 findings across 4 rounds, Synthesis written.
+- Two user decisions of 2026-08-27 in `design-log.md`: D53 amended, `just`
+  adopted as canonical runner. Both swept.
+- One **author** decision under them, also in `design-log.md`: the tests
+  carve-out in `clippy.toml`. Reversible; its reasoning is now reviewed and
+  holds. Reverting costs an `#[expect]` per asserting test.
+- `canon-delta.md` — CD-1 and CD-2 still await user endorsement, at audit.
+- Working tree: modified files, uncommitted. Nothing staged for a reason.
+
+### Things that are settled and should not be re-litigated
+
+- `just` **is** in `flake.nix` `devToolPkgs` (since `6489521`) and `deno` is in
+  `projectPkgs` (since `b76b75c`). Both verified as store paths in a fresh
+  `nix develop`, 2026-08-27. Earlier notes claiming otherwise were observing a
+  **stale shell**. PHASE-01/VH-1 covers the reload and is not optional.
+- `just -n check` prints §9's six commands in §9's order. Checked.
+- The four `allow-*-in-tests` keys are accepted by this toolchain and do silence
+  the five errors ordinary test code otherwise produces. Measured, twice.
 
 ## Handover — design accepted, plan drafted, 2026-08-26
 
@@ -29,7 +135,8 @@ it is the closure story and it names the risks the review knowingly left
 standing. `design-log.md` holds the user decisions, dated, each against a finding
 id. This section is the map for a planner, not a summary of either.
 
-`plan.md` is now written — nine phases, coverage complete, not yet accepted.
+`plan.md` is now written — ten phases (01…08, 10, 09), coverage complete, not
+yet accepted.
 `docs/AGENTS.md` §Plan is the process and it is binding: research first if `research.md` has gaps,
 then read the design closely and **trace its dependencies against the code** —
 except there is no code, so every trace lands on a design claim instead, which is
@@ -62,13 +169,12 @@ working, not you exceeding your brief.
 2. **Check `research.md` for gaps** against what the plan needs. It covers Slint,
    the tokio-vs-smol dependency count, and the deno decision. It does not cover
    anything about test harness shape or fixture-corpus mechanics.
-3. ~~**Write `plan.md`.**~~ Done 2026-08-26 — nine phases. Two design gaps
+3. ~~**Write `plan.md`.**~~ Done 2026-08-26 — nine phases, since split to ten. Two design gaps
    surfaced while writing it, A-P1 and A-P2, and are with the user.
-4. **Offer the user adversarial review of the plan** — `review-plan.md`,
-   decisions in `plan-log.md`. Their call, not yours. Given how this design's
-   review went, say what it would cost and what it has historically caught.
+4. ~~**Offer the user adversarial review of the plan.**~~ Done — accepted, run
+   over four rounds, closed clean 2026-08-27. See `review-plan.md`'s Synthesis.
 5. **Ask the user to accept the plan.** Then phase sheets, one at a time,
-   immediately before each phase — never up front.
+   immediately before each phase — never up front. **Still outstanding.**
 
 ### What planning must not re-open
 
@@ -261,67 +367,662 @@ feature, `autotests = false`, two `[[test]]` targets with the integration one
 carrying `required-features = ["shell"]`, then add a `tokio::` token to
 `tests/protocol/main.rs` and run both columns.
 
-## Open against the design — raised 2026-08-26, not dispositioned
+## Open against the design — raised 2026-08-26, **both dispositioned 2026-08-27**
 
 Scaffolding landed outside the phase flow (`Cargo.toml`, `clippy.toml`,
 `justfile`, `.gitignore`, `Cargo.lock`; commits `b76b75c`, `4fc8637`, `dda6bf2`)
-and `design.md` §9 was amended with it. Two things are open and both need the
-user.
+and `design.md` §9 was amended with it. Two things were open. Both are now user
+decisions, recorded in `design-log.md` under 2026-08-27.
 
-### D53 is partially superseded in one place and stated intact in four others
+### D53 — amended to the crate-wide/per-module split. Closed.
 
-`design.md` §9 now says `unwrap_used`, `expect_used` and `indexing_slicing` are
-**crate-wide** denies in `[lints.clippy]`, with
-`clippy::allow_attributes_without_reason = "deny"` answering the drift argument
-D53 rested on, and `arithmetic_side_effects` staying per-module. `Cargo.toml`
-matches that.
+`unwrap_used`, `expect_used` and `indexing_slicing` are crate-wide denies in
+`[lints.clippy]`; `arithmetic_side_effects` stays module-level. The four sites
+that still stated the superseded form — `design.md` §5.5's I9 row, §7's D53, the
+§9 paragraph that contradicted the supersession note four lines above it, §9's
+AC-6 row, and `draft-spec.md` §7's R-46 row — are swept. `plan.md`'s Overview
+item 4 no longer reports a divergence. Reasoning in `design-log.md`.
 
-Four sites still state the superseded form:
+### `just` — adopted as the canonical runner. Closed.
 
-| site | still says |
-|---|---|
-| `design.md` §5.5, I9's "held by" column | module-level, all four lints |
-| `design.md` §7, D53 | "module-level `#![deny(...)]`", with crate-wide as the *rejected* alternative |
-| `design.md` §9, the paragraph immediately below the "Partially superseded" note | "Not crate-wide in `[lints.clippy]`, and that is R-46's own reasoning rather than a preference" — directly contradicting the note four lines above it |
-| `draft-spec.md` §7, the R-46 row | "Stated over those modules rather than over the whole crate" |
+Recipes: `build`, `test`, `test-stratum1`, `lint`, `fmt-check`, `check` (the
+gate, and `default`), `fmt` (outside it). `design.md` §9's block stays canonical
+and the recipes mirror it; `just -n check` prints the list, and it must be the
+same commands with the same arguments in the same order — **not** the same
+characters, since §9 carries comments and a line continuation `just -n` does not
+print. That is PHASE-01/VA-3, and the literal-match wording was review finding
+F-13.
 
-This is the F-56 defect exactly: a contract repaired at its primary site and left
-standing in its restatements. `design.md` §9's own restatement-sweep step exists
-for it and names §5.5, §7 and §9's AC map as the places to check.
+**The claim that `just` was missing from `flake.nix` was false.** It has been in
+`devToolPkgs` since commit `6489521`; the justfile's own header said otherwise
+and this file repeated it. What the claim was actually observing is a *stale
+shell*: a session entered before a `flake.nix` change does not see it, which is
+true of `deno` too. Checked with `nix develop --command`: `just` 1.58.0 and
+`deno` 2.9.4, both store paths. No `flake.nix` change was needed and AC-1 holds.
 
-The **substance** looks right — a blanket deny plus a lint that forbids
-unreasoned `#[allow]` is a stronger mechanism than D53 imagined, and it answers
-F-35's objection rather than ignoring it. It is the record that is now
-inconsistent, and D53 is a design decision, so amending it is the user's.
-
-### The verification commands are moving to `just`, and three things follow
-
-`justfile` is to be the canonical task runner. It currently has one recipe,
-`lint`, mirroring `design.md` §9's two clippy lines including the
-`-A dead_code -A unreachable_pub` carve-out.
-
-1. **`just` is not in `flake.nix`.** The justfile says so itself: it comes from
-   the user's nix profile. AC-1 says the commands pass "from a clean clone in the
-   nix dev shell", so if `AGENTS.md` names `just` recipes, `just` has to be in
-   `devToolPkgs` or AC-1 is false for anyone but this machine.
-2. **The recipe set is incomplete.** `build`, `test`, `test --no-default-features`
-   and `fmt --check` have no recipes, so `just lint` is not yet a substitute for
-   the six commands and the plan says so at PHASE-01/EX-1.
-3. **AC-10 names the verification commands in `AGENTS.md`.** Whether that becomes
-   `just <recipe>` or stays the raw cargo lines is a decision, and PHASE-09 is
-   where it lands. If it becomes `just`, `design.md` §9's code block is the
-   canonical statement and the recipes mirror it — which is what the justfile's
-   own comment already asserts.
+PHASE-01/EX-1 and every phase's VA-1 are now `just check`. PHASE-09/EX-1 has
+`AGENTS.md` naming the recipes (AC-10) and its VA-1 runs the gate from a clean
+clone entered through `nix develop`.
 
 ## Phase sheets
 
 <!-- One block per phase, written at phase-plan time, immediately before
-     execution. Nothing here yet: the slice has no accepted plan. -->
+     execution. Kept in place after the phase is done. -->
+
+### PHASE-01 — Crate skeleton, the build gate, and the stratum 1 error taxonomy
+
+**State:** sheet written 2026-08-29 · **done** 2026-08-29 — `just check` exits 0
+**Plan entry:** `docs/slices/001/plan.md:184`
+**Surfaces (from the plan, nothing added):** `Cargo.toml`, `clippy.toml`,
+`rustfmt.toml`, `justfile`, `.gitignore`, `src/lib.rs`, `src/semantics/mod.rs`,
+`src/semantics/error.rs`, `src/shell/mod.rs`, `tests/protocol/main.rs`,
+`tests/protocol/boundary.rs`, `tests/integration/main.rs`, `flake.nix`.
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | plan accepted by the user | **met** — the user asked for this sheet on 2026-08-29, which is acceptance of `plan.md`; recorded in `plan-log.md` |
+| EN-2 | none | met vacuously |
+
+#### What already exists — inspected 2026-08-29, not taken from the plan
+
+The plan was written before some of this scaffolding landed. Checked against the
+working tree, not against the plan's description of it:
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `Cargo.toml` | **exists**, commit `472e4d3`; `[package]` metadata added 2026-08-29 (`license = "MIT"`, `repository`, `readme`, `keywords`, `categories`) on user instruction, lifted from `~/dev/doctrine`. Carries `autotests = false`; both `[[test]]` targets declared with explicit paths, `integration` with `required-features = ["shell"]`; `[dependencies]` matches `design.md:371`'s snippet exactly; `[lints.rust]` and `[lints.clippy]` populated, with `unwrap_used`/`expect_used`/`indexing_slicing` crate-wide | VA-2 is a **read** of an existing file, and it passes as written. EX-6 is the only manifest edit this phase owes |
+| `clippy.toml` | **exists**, `472e4d3` + the carve-out. All four `allow-*-in-tests` keys present | no change |
+| `justfile` | **exists**, `472e4d3` + the §9 mirror. Six commands, §9's order | no change; VA-3 verifies it |
+| `.gitignore` | **exists**, commit `4fc8637`, holding `*.local.md` and `target/` | **the plan says it does not exist.** See below |
+| `LICENSE` | **added 2026-08-29** — MIT, © 2026 David Lee | outside the plan's declared surfaces; a user-directed scaffolding change, not phase work. Recorded in `plan-log.md` |
+| `rustfmt.toml` | **missing** | this phase creates it. `tab_spaces = 2` |
+| `Cargo.lock` | exists, `dda6bf2` | inherited |
+| `src/`, `tests/` | **empty directories** | every file is new. Cargo cannot parse a `[[test]]` whose `path` is absent, so **no cargo command runs at all** until both `main.rs` files exist. That orders task 1 |
+| `flake.nix` | `just` in `devToolPkgs:42`, `deno` in `projectPkgs:53` | EX-5 already discharged; confirm in-shell only (VH-1) |
+
+#### Two stale implementer notes in `plan.md` — raised, and now closed
+
+Found while expanding this phase, both in PHASE-01's *Notes for the implementer*.
+Neither was a criterion, so neither blocked. Both were the slice's own recurring
+defect: a statement of current state left standing after the state changed.
+
+1. **"`.gitignore` does not exist yet."** False since commit `4fc8637`.
+2. **"`*.local.*` is already covered by the user's global ignore file, so do not
+   duplicate it."** The global file does cover it —
+   `~/.gitignore_global:10`, confirmed with `git check-ignore -v` — but the
+   repository `.gitignore` already duplicated it **narrower**, as `*.local.md`,
+   so `*.local.rs` and `*.local.toml` (the transport probe's two files) rested on
+   one machine's config.
+
+**Disposed 2026-08-29, by user decision.** `.gitignore` widened to `*.local.*`
+with the reason written at the site; no tracked file matched, checked before the
+change; all three probe and packet files now resolve to `.gitignore:4` rather
+than to the global file. `plan.md`'s note is rewritten to describe the tree as it
+is. Recorded in `plan-log.md`.
+
+#### Reading list
+
+Read before writing anything. `path:line`.
+
+| what | where | why |
+|---|---|---|
+| the phase itself | `docs/slices/001/plan.md:184` | criteria are binding as written |
+| **the manifest contract** | `docs/slices/001/design.md:371` | dependency names and features; the prose at `:394` states `required-features`, `autotests` and why the gate needs them — VA-2's three load-bearing facts are in the prose, not the code block |
+| **the verification block** | `docs/slices/001/design.md:1910` | canonical. EX-1 and VA-3 both compare against it. Take the second clippy line from here, never from memory |
+| the error taxonomy | `docs/slices/001/design.md:885` | EX-2 transcribes it. Every variant, no additions |
+| why `NotFinite` stays | `docs/slices/001/design.md:781` | D39. It is unreachable from JSON and kept anyway; do not "tidy" it |
+| I9 | `docs/slices/001/design.md:1662` | what the lints are actually holding |
+| D53 as amended | `docs/slices/001/design.md:1890` | crate-wide three / per-module `arithmetic_side_effects` |
+| R-46 | `docs/slices/001/draft-spec.md:387` | the spec's form of the same, including the tests carve-out |
+| AC-1 | `docs/slices/001/slice-001.md:73` | clean clone, dev shell, zero warnings |
+| AC-11 | `docs/slices/001/slice-001.md:147` | the vocabulary list VT-2 greps for |
+| AC-15 | `docs/slices/001/slice-001.md:167` | two parts, different strength — the grep and the build gate |
+| AC-10 | `docs/slices/001/slice-001.md:142` | read only to know it is **not** yours: root `AGENTS.md` is PHASE-09's |
+| the strata rule | `docs/adr/001-one-way-strata.md` | binding canon; EX-3 is its mechanical form |
+| the crate rule | `docs/adr/002-single-crate-until-triggered.md` | binding canon; T1 does not fire here |
+| the tokio dev-dependency finding | `docs/slices/001/plan-log.md:33` | measured. Explains why there is no `[dev-dependencies]` section and why adding one is a regression |
+| prior art | none — `src/` and `tests/` are empty | |
+
+#### Assumptions
+
+Each is checkable; check it rather than proceeding on it.
+
+- **A1** — the dev shell in use was entered after `6489521` and `b76b75c`. If not,
+  `just` and `deno` resolve from the user's profile or not at all. VH-1 settles it
+  and it is the first thing to do, not the last.
+- **A2** — `cargo 1.99.0-beta.1` from `rust-bin.beta.latest.default`
+  (`flake.nix:39`, `research.md`). Do not pin backwards: `design.md` §5.2's D11
+  relies on AFIT.
+- **A3** — `edition = "2024"` as already committed in `Cargo.toml`.
+- **A4** — no module created in this phase handles backend-derived data **at run
+  time**. `semantics/error.rs` declares error types; it parses nothing and does no
+  arithmetic. So no module-level `#![deny(clippy::arithmetic_side_effects)]`
+  lands this phase, and PHASE-02 is the first to owe one. The crate-wide three
+  apply from the moment `[lints.clippy]` is in force, which is already.
+  **Re-check this before ending the phase** — if `error.rs` acquires so much as a
+  `From<serde_json::Error>` that inspects a value, the obligation moves.
+
+#### STOP conditions
+
+Stop and consult the user; do not improvise past any of these.
+
+- ~~The `cargo` clippy group / `cargo_common_metadata`.~~ **Withdrawn 2026-08-29,
+  by measurement — it cannot fire here.** `publish = false` silences
+  `cargo_common_metadata` outright: a scratch crate carrying `cargo = "deny"` and
+  no metadata at all passes `cargo clippy --all-targets -- -D warnings` with
+  `publish = false` present, and fails with five errors (`license`, `repository`,
+  `readme`, `keywords`, `categories`) the moment it is removed. The metadata was
+  added anyway, on the user's instruction, and a **positive control** confirms it
+  is complete on the lint's own terms rather than merely hidden: the same probe
+  with goad's `[package]` block and **no** `publish = false` passes clean. If a
+  *different* `cargo`-group lint ever fires, the STOP still stands — a lint
+  carve-out is `design.md` §9's business, not this phase's.
+- Any temptation to add `[dev-dependencies]`. It is unnecessary — a test target
+  already sees the package's optional dependencies when their feature is on
+  (`plan-log.md:33`, measured) — and an unconditional `tokio` entry there would
+  put a runtime back in reach of the stratum 1 test target, silently, without
+  failing anything. That is the one property this column exists to prevent.
+- Any variant added to or removed from the §5.2 enums, including "obviously
+  unreachable" ones. `NotFinite` is D39, a user decision.
+- Any change to `design.md` §9's command block, or to the `justfile` recipes that
+  mirror it. §9 changes first, by user decision, then the recipes.
+- Root `AGENTS.md` content. AC-10 is PHASE-09's, and the commands it must name
+  are what this phase is establishing.
+- Anything outside the declared surfaces above.
+
+#### Tasks
+
+Red / green / **refactor**. The refactor step is not optional.
+
+1. **VH-1 first, not last.** `nix develop`, then `deno --version` and
+   `just --version`; confirm both resolve to store paths. A stale shell has
+   already produced one false claim in this slice (`notes.md` Status). Paste the
+   output below.
+2. **Make cargo able to run at all.** `src/lib.rs` with
+   `pub mod semantics;` and `#[cfg(feature = "shell")] pub mod shell;`
+   (`design.md:394`), empty `src/semantics/mod.rs` and `src/shell/mod.rs`,
+   `tests/protocol/main.rs` and `tests/integration/main.rs`. The integration
+   `main.rs` may be an empty module until PHASE-05. Nothing else — no error types
+   yet.
+3. **`rustfmt.toml`**, `tab_spaces = 2`. Before there is code to churn: without
+   it `cargo fmt` reformats to four and every snippet in `design.md` stops being
+   copy-able. `CLAUDE.md` asks for two.
+4. **RED — VT-1's vacuity guard first.** Write the empty-directory case before
+   the real grep: point the helper at a directory with no files and assert it
+   **fails**. A guard written after the passing case is a guard written to agree
+   with it.
+5. **RED/GREEN — VT-1.** No file under `src/semantics/` contains `crate::shell`,
+   `crate::bin` or `tokio`. Green against the modules from task 2.
+6. **RED/GREEN — VT-2.** No file under `src/` contains habit, streak, journal,
+   site, goal, reminder, compliance (AC-11, `slice-001.md:147`), with the same
+   empty-directory guard.
+7. **REFACTOR** — the two greps are one walk-and-match helper with two
+   configurations, not two copies. `boundary.rs` is where the duplication would
+   be cheapest to leave and most expensive to keep, since PHASE-09's sweep
+   extends it.
+8. **RED — VT-3.** A case per `ScheduleError`, `BoundsError` and `ProtocolError`
+   variant asserting its `Display` names the value it carries. Write these
+   against the taxonomy at `design.md:885` before `error.rs` exists.
+9. **GREEN — EX-2.** `src/semantics/error.rs`: the three enums exactly as §5.2
+   lists them, with `Display` and `std::error::Error`. `#[derive(Debug)]` on each
+   — `missing_debug_implementations = "deny"` is on.
+10. **EX-6.** `toml` into `[dependencies]` as `optional = true`, pulled in by the
+    `shell` feature exactly as tokio is. Then confirm `cargo tree
+    --no-default-features` shows neither it nor tokio. It is an unused dependency
+    for six phases and that costs nothing — `unused_crate_dependencies` is
+    deliberately off (`Cargo.toml`, commented with the reason).
+11. **EX-3, all three parts, by observation.** (a) `cargo tree
+    --no-default-features` — no tokio node. (b) `cargo test
+    --no-default-features` **skips** the `integration` target rather than failing
+    to build it. (c) add a `tokio` token temporarily to a `src/semantics/` file
+    **or** to `tests/protocol/`, confirm that column fails with `E0433`, revert.
+    Break-and-revert, not assertion. Paste all three.
+12. **VA-2.** Read `Cargo.toml` and confirm `autotests = false`, both `[[test]]`
+    targets with explicit paths, and `required-features = ["shell"]` on
+    `integration`. Already true; confirm rather than write.
+13. **VA-3.** `just -n check` against `design.md:1913`'s block. Compare the
+    **command sequence** — same commands, same arguments, same order — not the
+    characters: §9 carries inline comments and wraps the second clippy line, and
+    `just -n` prints neither, so a correct justfile fails a literal comparison
+    (F-9, F-13). Paste both.
+14. **EX-1 / VA-1.** `just check` exits 0. Paste the output. Not "they should
+    pass".
+15. **Bookkeeping before handing off** — Status table to `done`, this sheet kept
+    current as you go, `## Harvest` updated in place.
+
+#### Verification record
+
+Filled in during execution, not after. Empty until then.
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| VH-1 | human | **pass, in a fresh shell — and A1 was false** | see Log, 2026-08-29 VH-1 |
+| VT-1 | test | **pass**, and seen to fail | `boundary.rs::stratum_1_names_neither_the_shell_a_binary_nor_the_runtime`; red by planting `crate::shell` — Log, VT-1/VT-2 |
+| VT-2 | test | **pass**, and seen to fail | `boundary.rs::no_host_source_file_names_the_user_s_domain`; red by planting `habit` — Log, VT-1/VT-2 |
+| VT-3 | test | **pass**, and seen to fail twice over | four cases in `error.rs`; red once as a missing type, then by break-and-revert on both gates — Log, VT-3 |
+| VA-1 | agent | **pass** | `just check` exits 0; full output pasted in the Log under *the gate* |
+| VA-2 | agent | **pass** — read, not written | `Cargo.toml:19` `autotests = false`; `:44–46` protocol with explicit path; `:48–51` integration with path and `required-features = ["shell"]` |
+| VA-3 | agent | **pass** — same six commands, same arguments, same order | both blocks pasted in the Log, VA-3 |
+| EX-1 | — | **pass** — six of six, both feature columns | Log, *the gate*. Unblocked by the user's decision on `module_name_repetitions` |
+| EX-2 | — | **pass** | `src/semantics/error.rs`; 12 + 2 + 5 variants, `Display` and `std::error::Error`, `NotFinite` kept per D39 |
+| EX-3 | — | **pass**, all three parts by observation | Log, EX-3 — tree, skip, and break-and-revert at two sites |
+| EX-4 | — | **pass** | `tests/protocol/boundary.rs`; both greps, both with the vacuity guard, guard written first |
+| EX-5 | — | **pass** — discharged 2026-08-26 (`b76b75c`), confirmed in-shell | Log, VH-1: `deno` at `/nix/store/pn1qbka…-deno-2.9.4/bin/deno` |
+| EX-6 | — | **pass** | `toml v1.1.4`, `optional = true`, in `shell` via `dep:`; stratum 1 tree carries neither it nor tokio — Log, EX-6 |
+
+#### Log
+
+<!-- Append as you go: decisions taken, obstacles, anything noticed in passing.
+     Do not save the bookkeeping for the end; it will be lost. -->
+
+- 2026-08-29 — sheet written. Entry criteria checked. Two stale implementer
+  notes in `plan.md` raised for the user (`.gitignore`); no criterion affected.
+- 2026-08-29 — `[package]` metadata added and `LICENSE` written, on user
+  instruction; fields lifted from `~/dev/doctrine`, licence MIT, repository
+  `davidlee/goad`. The anticipated `cargo_common_metadata` obstacle was
+  **wrong and is withdrawn** — `publish = false` silences that lint on its own.
+  Measured both directions plus a positive control; see the STOP list above.
+
+- 2026-08-29 — **VH-1, run first. A1 was false and the sheet was right to
+  distrust it.** The shell this phase's agent inherited was entered before
+  `6489521`/`b76b75c`: `just` resolved from `/home/david/.nix-profile/bin/just`
+  — the user's profile, not the flake — and `deno` did not resolve at all. Had
+  VH-1 been left to the end, every command in this phase would have run under
+  the wrong toolchain and the phase would have closed on a false claim, which is
+  the exact failure `notes.md` Status already records once.
+
+  ```
+  $ echo "IN_NIX_SHELL=$IN_NIX_SHELL"; command -v just deno cargo; just --version; deno --version
+  IN_NIX_SHELL=impure
+  /home/david/.nix-profile/bin/just
+  /nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/cargo
+  just 1.58.0
+  bash: line 1: deno: command not found
+  ```
+
+  The **flake is correct**; only the shell was stale. Entered fresh, both
+  resolve to store paths:
+
+  ```
+  $ nix develop --command bash -c 'command -v just deno cargo rustc; just --version; deno --version; cargo --version'
+  /nix/store/ni2dxycnhsp34y4qy6q44nw6pp6bj0l0-just-1.58.0/bin/just
+  /nix/store/pn1qbka1qfxw0wfbh1scsd2gvhv0dhj2-deno-2.9.4/bin/deno
+  /nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/cargo
+  /nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/rustc
+  just 1.58.0
+  deno 2.9.4 (stable, release, x86_64-unknown-linux-gnu)
+  cargo 1.99.0-beta.1 (eb98b54bc 2026-08-11)
+  ```
+
+  EX-5 confirmed in-shell, as the plan asked. A2 confirmed at the same time:
+  `cargo 1.99.0-beta.1`, matching `flake.nix:39`.
+
+  **Consequence, and it is a working rule for the rest of this phase:** every
+  command below is run as `nix develop --command bash -c '…'`. An agent's shell
+  is not the user's and cannot be reloaded in place; wrapping each command is
+  the only way to be sure which toolchain answered. **The human half of VH-1 is
+  outstanding** — the user's own interactive shell is still the stale one and
+  needs reloading before they run anything by hand.
+
+- 2026-08-29 — tasks 2, 3 done. `src/lib.rs`, `src/semantics/mod.rs`,
+  `src/shell/mod.rs`, `tests/protocol/main.rs`, `tests/integration/main.rs`,
+  `rustfmt.toml` (`tab_spaces = 2`). `cargo build` runs for the first time.
+  `src/` and `tests/` were empty *directories* with no subdirectories, so the
+  `mkdir -p` is part of the task; the phase sheet's "every file is new" is
+  accurate but understates it.
+
+- 2026-08-29 — **VT-1, VT-2 and the vacuity guard: red observed, then green.**
+  Both reds were made by planting, not by absence of code, so each assertion has
+  been seen to fail for its own reason.
+
+  *The guard's red was the instructive one.* Written against a walk with no
+  `inspected == 0` check, the no-Rust-files case returned **`Ok(0)`** — the
+  vacuous pass, exactly as specified. The renamed-directory case failed too, but
+  only incidentally, via `Unreadable`; had the guard been written after the
+  passing case, that incidental failure would have been mistaken for the guard
+  working. This is why the sheet put task 4 before task 5.
+
+  ```
+  ---- a_scan_that_inspects_no_rust_files_fails ----
+  a scan inspecting nothing must fail: 0
+  ---- a_scan_whose_directory_was_renamed_away_fails ----
+  expected a vacuity breach, got:
+  …/src/semantics-renamed: could not be read, so was not inspected: No such file or directory (os error 2)
+  ```
+
+  With the guard added, both pass. Then VT-1 and VT-2, red by planting
+  `use crate::shell::Backend;` in a comment in `semantics/mod.rs` and `habit` in
+  a comment in `lib.rs`:
+
+  ```
+  …/src/semantics/mod.rs:4: forbidden token `crate::shell`
+  …/src/lib.rs:13: forbidden token `habit`
+  ```
+
+  Plants reverted (`git diff --stat src/` clean of them), all four green.
+
+- 2026-08-29 — **two decisions taken inside `boundary.rs`, both narrowing.**
+  Neither is a design change; both make the criterion mean what it says.
+  1. **Matching is case-insensitive.** AC-11 is about *type names*, which are
+     `CamelCase`; a literal lower-case `contains` would miss `Habit` entirely
+     and the check would be theatre. Tokens are held lower-case and each line is
+     lowered before comparison.
+  2. **Substring, not word-boundary.** `site` will match `composite` if one ever
+     appears. That over-approximates deliberately: a false positive costs a
+     rename, a false negative costs the invariant. If it ever fires falsely that
+     is a decision to take then, not a loophole to pre-cut now.
+
+  Also: `run` reports **every** breach rather than the first, and cannot return
+  `Ok(0)` — so arriving at `Ok` *is* the guard discharging, which is why
+  `assert_clean` needs no count assertion. Failure text goes through `Display`
+  rather than `{:?}`: `clippy::use_debug` is `deny` and has no test carve-out in
+  `clippy.toml`, so `{:?}` in a test would fail the gate.
+
+- 2026-08-29 — task 7 (refactor) is satisfied by construction rather than by a
+  later pass: one `Scan { root, forbidden }` walk with four configurations, one
+  `assert_clean`. PHASE-09 extends it by adding a `Scan`, not a walk.
+
+- 2026-08-29 — **`clippy::tests_outside_test_module` applies to `tests/`
+  targets, not only to unit tests.** It is `deny` in `Cargo.toml`, so the four
+  `#[test]` functions in `boundary.rs` failed the first clippy column outright.
+  Resolved by **complying, not carving out**: `main.rs` declares
+  `#[cfg(test)] mod boundary;`, and clippy reads the `cfg(test)` on the
+  declaration as marking the module. A `tests/` target is always built with
+  `--test`, so the attribute never actually switches anything off — verified,
+  all four tests still run in both columns. No lint change was needed, which
+  keeps §9 out of it.
+
+- 2026-08-29 — **VT-3 placement: `src/semantics/error.rs`, in a
+  `#[cfg(test)] mod tests`.** The natural home was a new
+  `tests/protocol/errors.rs`, and that is **outside the phase's declared
+  surfaces** — a STOP. Of the two surfaces that could hold it,
+  `tests/protocol/main.rs` is the target root that PHASE-02 will fill with
+  protocol fixtures, so putting the taxonomy's `Display` cases there is
+  borrowing a room. `error.rs` is named in the surfaces, is cohesive with the
+  types, satisfies `tests_outside_test_module`, and runs in both columns.
+
+- 2026-08-29 — **VT-3: red, green, and then proved to bite.** Written before the
+  types existed, so the first red was `E0432: unresolved imports
+  super::BoundsError, super::ProtocolError, super::ScheduleError`. A compile
+  error is a weak red, so both of the test's gates were then broken and
+  reverted:
+
+  1. **Display stops naming its value.** `MissingField`'s arm rewritten to
+     `write!(f, "missing a required field")`:
+     ```
+     `missing a required field` never names the `protocol_version` it carries
+     ```
+  2. **A variant is added with no case.** `AddedWithoutACase { unformatted }`
+     appended to `ProtocolError`:
+     ```
+     error[E0004]: non-exhaustive patterns: `&ProtocolError::AddedWithoutACase { .. }` not covered
+     ```
+     Twice — once for the test's `must_name` table and once for the `Display`
+     impl itself.
+
+  That second gate is the one worth keeping. VT-3's stated purpose is "what
+  stops a variant being declared with a field nothing ever formats"; a table of
+  hand-written cases cannot do that on its own, so `must_name` is a
+  **wildcard-free match** and a new variant fails to compile until it has an
+  arm. **Residual gap, stated rather than hidden:** a variant could still gain a
+  `must_name` arm and no *instance* in `every_protocol_error()`. Nothing in the
+  type system catches that; it is a review point, and it is the reason the three
+  instance lists are ordered exactly as §5.2 lists the variants.
+
+- 2026-08-29 — **EX-6.** `toml v1.1.4`, `optional = true`, pulled in by `shell`.
+  Written as `dep:toml` rather than a bare name deliberately: a bare entry also
+  mints an implicit `toml` feature, which is a second, ungated way into the
+  graph. Stratum 1's tree is jiff, serde, serde_json and their transitives, and
+  nothing else:
+
+  ```
+  $ cargo tree --no-default-features
+  goad v0.1.0 (/home/david/dev/goad)
+  ├── jiff v0.2.35
+  ├── serde v1.0.229
+  └── serde_json v1.0.151
+  (no tokio node, no toml node)
+
+  $ cargo tree --depth 1
+  goad v0.1.0 (/home/david/dev/goad)
+  ├── jiff v0.2.35
+  ├── serde v1.0.229
+  ├── serde_json v1.0.151
+  ├── tokio v1.53.1
+  └── toml v1.1.4+spec-1.1.0
+  ```
+
+- 2026-08-29 — **EX-3, all three parts observed.**
+
+  **(a)** `cargo tree --no-default-features` — no tokio node. Above.
+
+  **(b)** `cargo test --no-default-features` runs `lib` (4) and
+  `tests/protocol/main.rs` (4) and **does not list `tests/integration/main.rs`
+  at all** — skipped for unmet `required-features`, not built and not failed.
+  The default column does run it. That contrast is the criterion.
+
+  **(c) Break-and-revert, at both sites the plan offers, because they prove
+  different things.**
+
+  ```
+  # tokio named in src/semantics/mod.rs, stratum 1 column
+  error[E0433]: cannot find module or crate `tokio` in this scope
+   --> src/semantics/mod.rs:7:41
+  # the same file, same token, default column
+  Finished `dev` profile [unoptimized] target(s) in 0.04s
+
+  # tokio named in tests/protocol/main.rs, stratum 1 column
+  error[E0433]: cannot find module or crate `tokio` in this scope
+    --> tests/protocol/main.rs:13:5
+  ```
+
+  The middle line is the one worth reading: **a `semantics/` module that uses
+  tokio compiles perfectly well in the default column.** The build gate catches
+  it only in the column where the runtime is absent, which is exactly why AC-15
+  keeps VT-1's grep as well and why removing either half would be a loss.
+
+  The protocol-target result confirms `plan-log.md:33` on its own terms: the
+  stratum 1 *test* target cannot name a runtime either, with no
+  `[dev-dependencies]` section in the manifest — and none was added.
+
+- 2026-08-29 — **VA-3.** `just -n check` against `design.md:1913`. Same six
+  commands, same arguments, same order; the differences are §9's inline comments
+  and its wrapped second clippy line, neither of which `just -n` prints (F-9,
+  F-13).
+
+  ```
+  $ just -n check                        │  design.md §9
+  cargo build                            │  cargo build
+  cargo test                             │  cargo test
+  cargo test --no-default-features       │  cargo test   --no-default-features   # stratum 1 alone
+  cargo clippy --all-targets -- -D warnings
+                                         │  cargo clippy --all-targets -- -D warnings
+  cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+                                         │  cargo clippy --all-targets --no-default-features -- \
+                                         │    -D warnings -A dead_code -A unreachable_pub
+  cargo fmt --check                      │  cargo fmt --check
+  ```
+
+- 2026-08-29 — **noticed in passing, not acted on.** `rustfmt.toml` carries only
+  `tab_spaces = 2`, as the sheet specified, and that fixes indentation — but
+  stock rustfmt still explodes any struct literal wider than `struct_lit_width`
+  (default 18) across lines. So `design.md` §5.2's
+  `UnsupportedPrimitive { kind: String, at: String },` is one line in the design
+  and four in `error.rs`. Task 3's stated aim was that the design's snippets stay
+  copy-able; indentation was the half it named, and this is the half it did not.
+  A `struct_lit_width` setting would close it. **Not done** — the sheet fixed
+  `rustfmt.toml`'s content precisely, and widening it is a decision, not an
+  implementation detail. Raised for the user; carried to Harvest.
+
+- 2026-08-29 — **STOP. `clippy::module_name_repetitions` and the §5.2 type
+  names are incompatible, and the phase gate cannot go green until that is
+  decided.** Raised to the user; not improvised past.
+
+  `Cargo.toml:157` sets `module_name_repetitions = "deny"`. In
+  `src/semantics/error.rs` it fires three times — `ProtocolError`, `BoundsError`
+  and `ScheduleError` all end with their module's name:
+
+  ```
+  error: item name ends with its containing module's name
+    --> src/semantics/error.rs:17:10  |  pub enum ProtocolError {
+    --> src/semantics/error.rs:41:10  |  pub enum BoundsError {
+    --> src/semantics/error.rs:56:10  |  pub enum ScheduleError {
+  ```
+
+  **This is the whole of what is failing.** Five of the gate's six commands are
+  green; `lint` fails on this and nothing else, in both columns. `cargo fmt`
+  applied and clean, `cargo test` green in both columns.
+
+  **It is a class, not an instance.** §5.2 puts `BackendError`, `CleanupFailure`
+  and `StateError` in `shell/error.rs`, so two more fire at PHASE-04/05. The
+  design has chosen `…Error` inside an `error` module as its convention; this
+  lint forbids that convention.
+
+  **Neither escape the phase could take on its own is free:**
+  - Renaming to `error::{Protocol, Bounds, Schedule}` contradicts EX-2's "exactly
+    as §5.2 lists them", and reads badly — `Protocol::Bounds(Bounds)`.
+  - A `pub use` re-export at `semantics::` is forbidden by
+    `clippy::pub_use = "deny"` (`Cargo.toml:158`).
+  - Turning the lint off, or `#[expect]`ing it, is a lint-table change, which the
+    sheet's STOP list assigns to `design.md` §9 and the user, not to this phase.
+
+  Both viable resolutions were **probed and both work**, so the decision is about
+  which is right, not about whether either lands:
+  `module_name_repetitions = "allow"` in `[lints.clippy]` → `just check` exits 0;
+  a module-level `#![expect(clippy::module_name_repetitions, reason = …)]` →
+  clippy clean.
+
+  **Found alongside it, for audit rather than for now.** `design.md:921` writes
+  the wrapped type as `Protocol(semantics::ProtocolError)` — the path
+  `semantics::ProtocolError`, not `semantics::error::ProtocolError`. Reaching
+  that path needs a re-export from `semantics/mod.rs`, which
+  `clippy::pub_use = "deny"` forbids. So the design's own spelling of the path
+  is unreachable under the design's own lint table. Nothing this phase does
+  depends on it — no caller exists yet — and it is a reconciliation item, not a
+  phase repair.
+
+- 2026-08-29 — **STOP resolved, user decision: allow the lint crate-wide.**
+  `module_name_repetitions = "allow"` in `[lints.clippy]`, with the argument
+  written at the site: §5.2 has chosen `…Error`-inside-`error` as this crate's
+  convention, so every error type in the design violates the lint by
+  construction. A per-module `#[expect(…, reason = …)]` was the alternative and
+  was rejected as an instance fix for a class defect — §9 built that hatch for
+  rare, individually argued exceptions like `unwrap_used`, not for a convention
+  broken deliberately every time. §9's lint prose should gain a sentence at
+  audit; the lint table and §9 are now one line apart.
+
+- 2026-08-29 — **the `rustfmt` question, investigated and answered *against*
+  changing anything.** The user asked what works better long term rather than
+  picking, so it was measured.
+
+  `struct_variant_width` (default 35) is the option that governs enum variant
+  definitions — not `struct_lit_width`, which governs construction sites. Raised
+  to 60 it does exactly what was wanted:
+
+  ```
+  tab_spaces = 2 only                 |  + struct_variant_width = 60
+    UnsupportedPrimitive {            |    UnsupportedPrimitive { kind: String, at: String },
+      kind: String,                   |    InapplicableKey { key: usize, kind: String, at: String },
+      at: String,                     |
+    },                                |
+  ```
+
+  **And then it does not.** A doc comment on *any* variant makes rustfmt abandon
+  the compact form for the **whole enum**, whatever the width. Same enum, same
+  config, doc comments the only difference:
+
+  ```
+  ### verbatim §5.2 enum ###          ### same, doc comments stripped ###
+    UnsupportedProtocolVersion {        UnsupportedProtocolVersion { found: u32 },
+      found: u32,                       UnsupportedPrimitive { kind: String, at: String },
+    },                                  InapplicableKey { key: &'static str, kind: String, at: String },
+  ```
+
+  So the setting cannot deliver the thing it was for. The enums that most need
+  line-for-line correspondence with §5.2 are precisely the ones carrying
+  per-variant rationale — `NotFinite` holds D39's argument, `MissingOffset`
+  holds brief §13's. What would remain is config that looks load-bearing and is
+  not, with an enum's layout flipping silently the first time someone documents
+  a variant. **Reverted; `rustfmt.toml` holds `tab_spaces = 2` and nothing
+  else, exactly as the sheet specified.** The observation goes to Harvest so
+  this is not re-litigated.
+
+  Two rustfmt behaviours were tripped over on the way and are worth writing
+  down: `rustfmt --print-config current .` does **not** read the project's
+  `rustfmt.toml` (it reported `tab_spaces = 4` against a tree that formats at
+  two), so it is useless as a diagnostic here; and rustfmt **never rejoins** an
+  already-split item, so a width option looks inert when tested against source
+  the previous `cargo fmt` had already exploded. Both cost time.
+
+- 2026-08-29 — **A4 re-checked before closing, as the sheet required.**
+  `src/semantics/error.rs` declares types and formats them. It does no
+  arithmetic, acquires no `From<serde_json::Error>`, and inspects no value at
+  run time. So no module-level `#![deny(clippy::arithmetic_side_effects)]` lands
+  this phase and **PHASE-02 is still the first to owe one**. The only `+` under
+  `src/semantics/` is inside a doc comment (`now + span`, on
+  `ScheduleError::OutOfRange`). `boundary.rs` does `offset + 1`, which is a test
+  target and outside I9's scope in any case.
+
+- 2026-08-29 — **the gate. EX-1 / VA-1.** `just check` exits 0, six of six
+  commands, both feature columns. Blank lines stripped, nothing else.
+
+```
+cargo build
+    Finished `dev` profile [unoptimized] target(s) in 0.03s
+cargo test
+    Finished `test` profile [unoptimized] target(s) in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/goad-b2dc77c978f22f5c)
+running 4 tests
+test semantics::error::tests::the_taxonomy_implements_error_and_wrapping_variants_expose_their_source ... ok
+test semantics::error::tests::every_bounds_error_display_names_what_it_carries ... ok
+test semantics::error::tests::every_schedule_error_display_names_what_it_carries ... ok
+test semantics::error::tests::every_protocol_error_display_names_what_it_carries ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/integration/main.rs (target/debug/deps/integration-4e1a897ae41c6ffc)
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/protocol/main.rs (target/debug/deps/protocol-faa3768803807cf7)
+running 4 tests
+test boundary::a_scan_that_inspects_no_rust_files_fails ... ok
+test boundary::a_scan_whose_directory_was_renamed_away_fails ... ok
+test boundary::stratum_1_names_neither_the_shell_a_binary_nor_the_runtime ... ok
+test boundary::no_host_source_file_names_the_user_s_domain ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests goad
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test --no-default-features
+    Finished `test` profile [unoptimized] target(s) in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/goad-8f2b0ee03f1fa567)
+running 4 tests
+test semantics::error::tests::every_bounds_error_display_names_what_it_carries ... ok
+test semantics::error::tests::every_protocol_error_display_names_what_it_carries ... ok
+test semantics::error::tests::the_taxonomy_implements_error_and_wrapping_variants_expose_their_source ... ok
+test semantics::error::tests::every_schedule_error_display_names_what_it_carries ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/protocol/main.rs (target/debug/deps/protocol-ad9a7db0a1b8b441)
+running 4 tests
+test boundary::a_scan_that_inspects_no_rust_files_fails ... ok
+test boundary::a_scan_whose_directory_was_renamed_away_fails ... ok
+test boundary::stratum_1_names_neither_the_shell_a_binary_nor_the_runtime ... ok
+test boundary::no_host_source_file_names_the_user_s_domain ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests goad
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo clippy --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized] target(s) in 0.03s
+cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+    Finished `dev` profile [unoptimized] target(s) in 0.01s
+cargo fmt --check
+```
 
 ## Harvest
 
-**Fresh as of:** 2026-08-26 · design accepted, review closed, planning not
-started · working tree, uncommitted (7 files)
+**Fresh as of:** 2026-08-29 · plan accepted, **PHASE-01 done** · working tree,
+uncommitted
 
 ### Produced
 
@@ -335,7 +1036,18 @@ started · working tree, uncommitted (7 files)
   responder-raised. **Closed**, with a written Synthesis; read that rather than
   the findings.
 - `design-log.md` — user decisions and the reasoning behind each round.
-- `plan.md` — **empty template.** This is the next artefact.
+- `plan.md` — ten phases (01…08, 10, 09), coverage map complete. Drafted, not
+  accepted.
+- `plan-log.md` — the planning decisions and what they rested on.
+- `review-plan.md` — **closed 2026-08-27**, with a written Synthesis. Four
+  rounds, fourteen findings, all `major`, all repaired, **all confirmed**. Read
+  the Synthesis rather than the findings.
+- **The crate, from PHASE-01.** `src/lib.rs`, `src/semantics/{mod,error}.rs`,
+  `src/shell/mod.rs`, `tests/protocol/{main,boundary}.rs`,
+  `tests/integration/main.rs`, `rustfmt.toml`. `just check` exits 0 in both
+  feature columns. The §5.2 stratum 1 taxonomy is complete — 12 + 2 + 5
+  variants, `Display` and `std::error::Error`. `toml` is in the manifest,
+  optional, inside `shell`.
 
 ### Learned
 
@@ -348,22 +1060,100 @@ empirically** above, plus:
 - tokio at 14 unique deps versus the smol family's 31, measured — the opposite of
   the intuitive reading of "smallest reasonable" (`research.md`).
 
+**From PHASE-01, all measured here rather than assumed:**
+
+- **`clippy::tests_outside_test_module` applies to `tests/` targets, not only to
+  `#[cfg(test)]` unit modules.** With it at `deny`, every `#[test]` in an
+  integration target is an error. The fix needs no lint carve-out: declare the
+  module as `#[cfg(test)] mod name;` in the target root and clippy is satisfied.
+  A `tests/` target is always built with `--test`, so the attribute switches
+  nothing off.
+- **A doc comment on any enum variant defeats `struct_variant_width` for the
+  whole enum**, so no rustfmt width setting can keep a *documented* taxonomy
+  line-for-line with `design.md`. This was investigated and rejected in PHASE-01;
+  do not re-open it without new evidence.
+- **`rustfmt --print-config current .` does not read the project's
+  `rustfmt.toml`.** It reports defaults against a tree that is formatted
+  otherwise, which makes it actively misleading. Use
+  `rustfmt --config-path ./rustfmt.toml --emit stdout <file>` instead.
+- **rustfmt never rejoins an already-split item.** Width options therefore look
+  inert when tested against source a previous `cargo fmt` exploded. Test them on
+  source written the compact way.
+- **The feature gate catches a runtime in `semantics/` only in the column where
+  the runtime is absent.** A `semantics/` module that uses tokio compiles
+  perfectly well under default features — observed. That is the whole reason
+  AC-15 keeps VT-1's grep alongside the build gate, and why dropping either half
+  is a real loss rather than tidying.
+- **`clippy::module_name_repetitions` is incompatible with §5.2's naming**, and
+  `clippy::pub_use = "deny"` blocks the re-export that would dodge it. Settled
+  2026-08-29 by allowing the lint crate-wide, with the argument at the site.
+
 ### Open
 
 - **Sixteen repairs unverified** — F-48…F-58, never re-examined, and F-59…F-63,
   round 5's own. Accepted knowingly; see the ledger's Synthesis. Expect two to
   four residual defects, most likely in §5.4.
-- `plan.md` **drafted** — nine phases, coverage map complete. Not accepted;
-  adversarial review of it not yet offered. No phase sheets.
+- `plan.md` **accepted 2026-08-29**, review closed — ten phases, coverage map
+  complete. PHASE-01's sheet is written; the rest are written one at a time,
+  immediately before their phase.
 - **Two design gaps surfaced during planning** and both are closed — the TOML
   parser by user decision, the suspected build-gate defect by measurement that
   withdrew it. See *Found while planning* above and `plan-log.md`. No canon or
   design text changes; `design.md` §5.1 and §3 owe a `toml` line at audit.
-- **Plan review agreed** — one round, fresh reviewer, ledger `review-plan.md`.
-  Not yet run.
+- ~~**Plan review: three rounds … F-12…F-14 unconfirmed.**~~ **Closed 2026-08-27
+  on a clean round 4**, ledger `review-plan.md`, Synthesis written. Four rounds,
+  fourteen findings, all `major`, none contested, all repaired, **all
+  confirmed**. Each round confirmed the last one's repairs: round 2 found **4 of
+  6** defective, round 3 **2 of 5**, round 4 **0 of 3**. The rate fell to zero
+  only after the author applied the restatement sweep deliberately. Two risks
+  the closure leaves standing, both in the Synthesis: round 4 did not re-run the
+  tokio metrics probe behind PHASE-06/VT-6, and the self-sweep's five sites got
+  no per-site verdict, only the round's overall silence.
+- **The recurring defect in this slice is unswept restatements.** The design
+  review found it three times (its F-56); round 2 found it three times more —
+  a rule applied at the named site and not at the sites that restate it, and an
+  enumeration inherited stale from before the decision that changed it. Anything
+  written here should be swept before it is believed.
+- **Two criteria have now been written to be falsifiable and were not.**
+  PHASE-06/VT-6 was `shutdown_timeout(ZERO)`, which cannot fail — measured —
+  and PHASE-01/VA-3 demanded a line-for-line match a correct justfile fails.
+  Both are repaired — and F-8's replacement was itself vacuous until F-12, because
+  a lazy future dropped before its first poll spawns nothing however the transport
+  is written. The pattern is worth carrying into execution: a criterion that
+  *names* a mechanism is not yet a criterion that *has* one, and a mechanism needs
+  a positive control saying it would have seen the thing it is looking for.
 - CD-1 and CD-2 unapplied, awaiting endorsement at audit.
+- **Three reconciliation items opened by PHASE-01**, none of them phase repairs:
+  1. `design.md:921` writes the wrapped type as `Protocol(semantics::ProtocolError)`
+     — the path `semantics::ProtocolError`, not `semantics::error::ProtocolError`.
+     Reaching it needs a re-export from `semantics/mod.rs`, which
+     `clippy::pub_use = "deny"` forbids. The design's own spelling is unreachable
+     under the design's own lint table. No caller exists yet.
+  2. §9's lint prose and `[lints.clippy]` are one line apart: `module_name_repetitions`
+     is now `allow` by user decision and §9 does not say so.
+  3. §5.1's manifest and §3's trigger analysis still owe the `toml` line
+     (already noted at `plan-log.md`); PHASE-01 wrote it into `Cargo.toml`.
+- **VH-1's human half is outstanding.** The agent verified the flake in a fresh
+  `nix develop`; the user's own interactive shell was stale at the time of the
+  phase (`just` from `~/.nix-profile`, no `deno`) and needs reloading before they
+  run anything by hand.
 - Whether to promote `transport-probe.local.rs` to a tracked spike — a user call.
-- `flake.nix` `devToolPkgs` still lacks deno. **Raised with the user 2026-08-26**
-  and assigned to PHASE-01 (EX-5, VH-1) — it was already in the slice's Scope per
-  OQ-9, so it needed a phase, not a decision. The dev shell must be reloaded
-  after the change or a running session will not see it.
+- ~~`flake.nix` `devToolPkgs` lacks deno.~~ **Closed.** `deno` landed in
+  `projectPkgs` at commit `b76b75c`, and `just` has been in `devToolPkgs` since
+  `6489521`. Both verified as store paths in a fresh `nix develop`, 2026-08-27.
+  What remains is PHASE-01/VH-1: a shell entered before those commits does not
+  see them, so it must be reloaded. **PHASE-01 found exactly that**, on its first
+  task — see the phase sheet's Log.
+- **Two design decisions taken 2026-08-27** — D53 amended, `just` adopted as the
+  canonical runner. Both in `design-log.md`; the Open section above is the short
+  form. Round 2 found no defect in either as stated, but found one in how
+  PHASE-01 verified the `just` mirroring (F-9).
+- **The crate-wide lints fire inside tests, and `clippy.toml` now carves that
+  out** — `allow-unwrap-in-tests`, `allow-expect-in-tests`,
+  `allow-panic-in-tests`, `allow-indexing-slicing-in-tests`. Measured: a scratch
+  crate with goad's lint table fails the gate with five errors on ordinary test
+  code and exits 0 with the four keys. `unwrap_in_result = "deny"` is
+  deliberately not scoped away. Round 3 reviewed it and found F-14: the plan
+  still told an implementer to prove the crate-wide lints by breaking them
+  "anywhere", which the carve-out had made false for `tests/`. The carve-out's
+  *reasoning* has still not been attacked — only its restatements.

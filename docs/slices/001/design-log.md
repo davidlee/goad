@@ -1127,3 +1127,92 @@ round-4 self-check had all walked past.
 - **Open:** `just` is on PATH from the user's nix profile, not from
   `flake.nix` `devToolPkgs`, so the devshell is not self-contained for these
   recipes. Not changed without asking.
+
+### 2026-08-27 — D53 amended, and `just` adopted as the canonical runner
+
+Two decisions, both raised in `notes.md` as open against the design after
+scaffolding landed outside the phase flow.
+
+**D53 amended — the no-panic lints split by cost.**
+
+- **Asked:** `Cargo.toml` and `design.md` §9 said `unwrap_used`, `expect_used`
+  and `indexing_slicing` were crate-wide; I9, D53, §9's own AC-6 row and
+  `draft-spec.md` §7's R-46 row still said module-level. Three ways out: amend
+  D53 to the crate-wide form, revert the manifest to D53 as written, or defer to
+  audit.
+- **Decided:** amend. D53 now reads: `unwrap_used`, `expect_used` and
+  `indexing_slicing` crate-wide in `[lints.clippy]`; `arithmetic_side_effects`
+  module-level `#![deny(…)]` on the modules handling backend-derived data.
+- **Why the substance is better than D53 as first written.** D53's per-module
+  scoping existed to stop F-35's case — an `unwrap` on `child.stdin.take()`, a
+  value the *host* created — being `#[allow]`ed away silently, on the argument
+  that an allow-by-default lint that has been allowed back is indistinguishable
+  from one that was never on. `allow_attributes_without_reason = "deny"`, with
+  `allow_attributes = "deny"` beside it, answers that with a mechanism rather
+  than with scope: the exception becomes an `#[expect(…, reason = …)]` that is
+  greppable and countable. The F-35 case gets written down at the site instead
+  of avoided. `arithmetic_side_effects` stays scoped because crate-wide it fires
+  on every loop counter, where the allows would outnumber the catches — that is
+  the case R-46 was right about, and no reason-carrying allow makes it tolerable.
+- **Swept, this being the F-56 defect exactly — a contract repaired at its
+  primary site and left standing in its restatements:** `design.md` §5.5 (I9's
+  "held by"), §7 (D53), §9 (the passage, which had a supersession note four
+  lines above a paragraph contradicting it — both are gone, replaced by one
+  statement of the split), §9's AC-6 row, and `draft-spec.md` §7's R-46 row.
+  `plan.md`'s Overview item 4 no longer reports the divergence as open.
+
+**The crate-wide form fires inside tests, and `clippy.toml` carves that out.**
+
+- **Found while implementing the amendment**, not decided: crate-wide includes
+  both test targets, so `unwrap()` on a fixture, `v[0]` on a known vector or a
+  `panic!` in a should-not-reach arm fails the phase gate, and the only escape is
+  an `#[expect(…, reason = …)]` on every asserting test.
+- **Measured, not assumed.** A scratch crate carrying goad's lint table fails
+  `cargo clippy --all-targets -- -D warnings` with five errors across a
+  `#[cfg(test)]` module and a `tests/` target, and exits 0 with
+  `allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests` and
+  `allow-indexing-slicing-in-tests` in `clippy.toml`. All four are accepted by
+  this toolchain; none is an unknown key.
+- **Nothing is given up.** I9 is about paths handling backend-derived data at run
+  time; a test is not one, and a test that unwraps is asserting — the panic is
+  the reporting mechanism. `unwrap_in_result = "deny"` is deliberately **not**
+  carved out.
+- **Consequence for every break-it-and-revert proof:** it must break the lint in
+  host code. An `unwrap()` under `tests/` passes and proves nothing. That was
+  review finding F-14, which found `plan.md` still saying "anywhere".
+- **This is an author decision under a user decision**, taken because the
+  amendment is unimplementable without it. Reversible: reverting the four keys
+  restores the strict reading at the cost of an `#[expect]` per asserting test.
+
+**`just` adopted as the canonical runner, in full.**
+
+- **Asked:** `AGENTS.md` must name the verification commands (AC-10), and the
+  justfile had one recipe. Adopt `just` fully, keep raw cargo, or adopt without
+  fixing the dev shell.
+- **Decided:** adopt fully.
+- **`just` was never missing from the dev shell.** `notes.md` recorded it as
+  coming from the user's nix profile, and the justfile's own header said so.
+  Both were wrong: `just` has been in `flake.nix` `devToolPkgs` since commit
+  `6489521`. Checked, not read — `nix develop --command` resolves both `just`
+  (1.58.0) and `deno` (2.9.4) to store paths. A shell entered before those
+  landed does not see them, which is what the stale claim was actually
+  observing. So AC-1's "clean clone in the nix dev shell" holds with `just` in
+  it, and no `flake.nix` change was needed.
+- **Recipes:** `build`, `test`, `test-stratum1`, `lint` (both clippy columns),
+  `fmt-check`, plus `check` as the phase gate and `fmt` outside it. `default` is
+  now `check` rather than `lint`. This reverses 2026-08-26's "deliberately not
+  added" — that entry's reasoning was that a half-populated `check` omitting two
+  of the six is worse than none, and the answer is that it is no longer
+  half-populated.
+- **The mirroring is checkable rather than asserted.** `just -n check` prints
+  the command list without running it, and it must be the same commands with the
+  same arguments in the same order as §9's block. **Not the same characters** —
+  §9 carries inline comments and wraps the second clippy line, and `just -n`
+  prints neither, so a literal comparison fails on a correct justfile. That was
+  this entry's first wording and PHASE-01/VA-3's, and review finding F-13 caught
+  both. Verified: it emits §9's six, in §9's order.
+- **`design.md` §9** now says outright that its block is canonical, that the
+  justfile mirrors it, and that `AGENTS.md` names the recipes. **`plan.md`**:
+  PHASE-01/EX-1 and every phase's VA-1 are `just check`; PHASE-09/EX-1 has
+  `AGENTS.md` naming the recipes and VA-1 running the gate from a clean clone
+  entered through `nix develop`.
