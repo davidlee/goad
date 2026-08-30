@@ -11,7 +11,8 @@ after the slice closes is lifted into the Harvest section.
 | design | **accepted** — review closed at round 5, 16 repairs unverified | 2026-08-26 |
 | plan | **accepted 2026-08-29** — ten phases in `plan.md` (01…08, 10, 09); two design gaps found and closed; **four review rounds run**, fourteen findings, all repaired and all confirmed; round 4 clean, plan judged executable | 2026-08-29 |
 | PHASE-01 | **done** — `just check` exits 0 in both feature columns. All six EX and all seven V criteria discharged; see `## Phase sheets` | 2026-08-29 |
-| PHASE-02…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-02 | **sheet written 2026-08-29**, execution not started. Two plan gaps raised by the expansion and both closed the same day by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors. See `## Phase sheets` | 2026-08-29 |
+| PHASE-03…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **Code exists as of PHASE-01, 2026-08-29.** `src/lib.rs`,
 `src/semantics/{mod,error}.rs`, `src/shell/mod.rs`,
@@ -1019,6 +1020,273 @@ cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A 
 cargo fmt --check
 ```
 
+### PHASE-02 — Canonical types and their checked constructors
+
+**State:** sheet written 2026-08-29 · **not started** — both open items closed by
+user decision 2026-08-29; the sheet is executable as it stands
+**Plan entry:** `docs/slices/001/plan.md:305`
+**Surfaces (from the plan, as amended 2026-08-29):** `src/semantics/mod.rs` (one
+line, `pub mod protocol;`), `src/semantics/protocol/mod.rs`,
+`src/semantics/protocol/canonical.rs`, `src/semantics/error.rs` (extend only if a
+variant proves to need a field the design named and PHASE-01 missed). This
+phase's tests are colocated `#[cfg(test)]` modules in those files;
+`tests/protocol/` is PHASE-03's.
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-01/EX-1 and EX-2 discharged | **met**, re-verified 2026-08-29 rather than read off the status table. `just check` exits 0 on all six commands in a fresh `nix develop` (EX-1). `src/semantics/error.rs` carries the §5.2 taxonomy complete — `ProtocolError` 12 variants (`:17`), `BoundsError` 2 (`:65`), `ScheduleError` 5 (`:80`), each with `Display` and `std::error::Error` (EX-2) |
+
+#### What already exists — inspected 2026-08-29
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `src/semantics/error.rs` | exists, 353 lines. Every variant this phase raises is already declared with the field set §5.2 gives it, including `at: String` on the five collection errors | EX-3 and EX-4 **assert against** this file; the parenthesis in the plan's Surfaces line ("extend only if…") is not expected to fire |
+| `src/semantics/mod.rs` | exists, 5 lines: doc comment and `pub mod error;` | needs `pub mod protocol;` — one line. It was missing from the declared surfaces and was added to them on 2026-08-29 |
+| `src/semantics/protocol/` | **does not exist** | every file in it is new |
+| `tests/protocol/` | `main.rs` declaring `#[cfg(test)] mod boundary;`, plus `boundary.rs` | PHASE-03 owns extending this target (`plan.md:374`). This phase does not touch it — see the test-home decision below |
+| `Cargo.toml` | `jiff = { version = "0.2", default-features = false }`, no `serde` feature | measured below; no manifest change is needed and none is authorised here |
+| the colocated-test pattern | `src/semantics/error.rs:163` — `#[cfg(test)] mod tests` inside the module under test, which is what satisfies `clippy::tests_outside_test_module` | prior art for where this phase's tests go |
+
+#### Two things the plan did not settle — raised, and **both closed 2026-08-29**
+
+Both surfaced by expanding the phase; neither was a repair this sheet could make
+on its own (`AGENTS.md`, *Phase plan*: if expanding the phase shows the plan is
+wrong, go back to the plan). Both went to the user, both were decided as
+recommended, and `plan.md:311` and its EX-1 now carry the outcome. The reasoning
+is kept below because it is the argument the phase will be judged against; the
+decisions themselves are in `plan-log.md`.
+
+**1. The declared surfaces have no home for this phase's tests, and no line for
+`src/semantics/mod.rs`.** PHASE-02 is the only phase in `plan.md` whose Surfaces
+name no test path; every other phase that writes a test names the file. It also
+cannot declare `src/semantics/protocol` without editing `src/semantics/mod.rs`.
+
+The test home is not a free choice, and this is the substantive half. **VT-1 and
+VT-3 cannot live in `tests/protocol/`.** That target is an external crate, and
+under D30 (`design.md:1868`) `Opt`, `Field` and `Alternative` have `pub(super)`
+fields and no public constructor — so an external test cannot build the `Vec<Opt>`
+that `Options::new` rejects, nor the two same-id `Field`s VT-3 needs. Making them
+constructible from outside would be exactly R10 (`design.md:1903`), the risk this
+phase's VA-2 exists to catch. So VT-1 and VT-3 are `#[cfg(test)]` unit tests in
+`canonical.rs`, following `error.rs:163`.
+
+VT-2 could go either way — the outbound types have public fields by design — and
+the recommendation is to colocate it with the other two: one home for the phase's
+tests, no collision with PHASE-03's ownership of the `tests/protocol/` scaffolding,
+and PHASE-04's corpus is where the protocol tier gets exercised from outside.
+
+**Amendment applied to `plan.md:311`:** surfaces are now
+`src/semantics/mod.rs`, `src/semantics/protocol/mod.rs`,
+`src/semantics/protocol/canonical.rs`, `src/semantics/error.rs` (extend only
+if…), with a sentence saying this phase's tests are colocated `#[cfg(test)]`
+modules and that `tests/protocol/` is PHASE-03's.
+
+**2. Which scalar newtypes get a public constructor.** The design gives the
+scalars no constructors at all, and two downstream phases need some of them:
+PHASE-07 mints `view_id` as `{now RFC 3339}#{seq}` in `src/shell/state.rs`
+(`plan.md:732`, D13) and its surfaces do not include `canonical.rs`, so whatever
+it needs must ship here; and stratum 2 reads the clock, so it must be able to
+build a `Timestamp` from a `jiff::Timestamp`.
+
+Recommended split, on the host-authored / backend-authored line:
+
+- **`ViewId` and `Timestamp` get public constructors.** Both name values the
+  *host* authors — a minted id and a clock read. Nothing about them is a claim
+  that a backend said something.
+- **`OptionId`, `FieldId` and `AlternativeId` do not.** They are backend-authored
+  addresses; a caller answering a view clones the one the view carries, through
+  the accessor. A public constructor would let a caller mint an id no backend ever
+  sent, which is the same hole D30 closes on the canonical types.
+- Every scalar gets a public read accessor regardless, and `Clone` (already in
+  the design's derive list), which is what makes the second bullet workable.
+
+**Decided as recommended**, 2026-08-29. `plan.md`'s EX-1 now states the split and
+its reason, so PHASE-07 inherits it rather than rediscovering it.
+
+#### Reading list
+
+Read before writing anything. `path:line`.
+
+| what | where | why |
+|---|---|---|
+| the phase itself | `docs/slices/001/plan.md:305` | criteria are binding as written |
+| **the canonical types** | `docs/slices/001/design.md:644` | EX-1 transcribes this block. Every type, every field, no additions |
+| the argument behind the three collection newtypes | `docs/slices/001/design.md:717` | why `Options`, `Fields` and `Alternatives` are one rule and not three cases — the refactor in task 9 is this argument in code |
+| `Alternative` is not an `Opt` | `docs/slices/001/design.md:697`, `:757` | F-61 and F-54. EX-4 is these two paragraphs |
+| **the outbound types** | `docs/slices/001/design.md:841` | EX-2 transcribes this block |
+| why `NotFinite` stays and what a NaN literal actually produces | `docs/slices/001/design.md:781` | D39/F-36. Do not write a test asserting `NotFinite` from JSON; there is no JSON that reaches it |
+| the error taxonomy as landed | `src/semantics/error.rs:17` | the variants EX-3 asserts. Read the file, not §5.2, for field names |
+| the edge-case rows this phase implements | `docs/slices/001/design.md:1716`–`1720`, `:1733` | one VT-1 case per row |
+| I1, I15, I16 | `docs/slices/001/design.md:1654`, `:1668`, `:1669` | what the constructors are holding |
+| D30 | `docs/slices/001/design.md:1868` | `pub(super)` plus accessors; the reason, not just the rule |
+| D45, D46, D52 | `docs/slices/001/design.md:1883`–`1889` | the three newtypes, the no-recursion rule, and the separate alternative namespace |
+| D4 | `docs/slices/001/design.md:1842` | jiff default features off. If something wants a time zone, stop |
+| D13 | `docs/slices/001/design.md:1851` | `view_id` shape — read only to know what PHASE-07 will need of `ViewId` |
+| R10 | `docs/slices/001/design.md:1903` | VA-2's reason for existing |
+| R-1, R-6, R-7, R-8 | `docs/slices/001/draft-spec.md:81`, `:92`–`:94` | what a request must carry |
+| R-52, R-53, R-16 | `docs/slices/001/draft-spec.md:107`–`:109` | the uniqueness rule and the shape of a `choice` field |
+| **the request wire forms** | `docs/slices/001/draft-spec.md:232` | VT-2 asserts against these two documents literally |
+| the spec's own verification rows | `docs/slices/001/draft-spec.md:354`, `:360` | VT-2 and VT-3 are these rows |
+| the module layout | `docs/slices/001/design.md:303` | `protocol/{wire,canonical,normalize}.rs`; this phase writes one of the three |
+| the lint table | `Cargo.toml:57` onwards | `dead_code` is `warn` in the manifest and the first clippy line passes `-D warnings`, so it still fails the gate. See A3 |
+| D53 as amended | `docs/slices/001/design.md:1890` | the module-level `arithmetic_side_effects` obligation this phase inherits (A4 on PHASE-01's sheet) |
+| prior art | `src/semantics/error.rs` | the whole file: doc-comment register, two-space indent, `#[cfg(test)] mod tests`, exhaustive matches used as compile-time guards |
+
+#### Assumptions
+
+Each is checkable; check it rather than proceeding on it.
+
+- **A1 — the dev shell.** Same as PHASE-01/A1 and it was false there. Run
+  `nix develop --command bash -c '…'` for every command, or verify the shell
+  first. `just` must resolve to a store path, not to `~/.nix-profile/bin/just`.
+- **A2 — jiff with `default-features = false` is enough for everything this phase
+  needs.** **Checked 2026-08-29, by running it**, in a scratch crate carrying the
+  same three dependencies:
+  - `jiff::Timestamp::from_str("2026-08-23T04:12:00Z")` parses;
+  - `Display` prints `2026-08-23T04:12:00Z`, which is `draft-spec.md:232`'s form
+    exactly;
+  - a hand-written `Serialize for Timestamp` doing `s.collect_str(&self.0)`
+    produces `"2026-08-23T04:12:00Z"` in the JSON;
+  - `"45 minutes".parse::<jiff::Span>()` works too, which is PHASE-03's problem
+    and is recorded here because the probe was already running.
+
+  So **no jiff `serde` feature is needed and none may be added** — jiff's `serde`
+  feature is a `dep:serde_core` edge, and adding it is a dependency change, which
+  is a STOP. The newtype is ours; its `Serialize` is ours to write.
+- **A3 — nothing this phase lands is dead in the default-features column.**
+  `dead_code` is `warn` in `Cargo.toml` but the first clippy line passes
+  `-D warnings`, so a private item with no caller fails `just check` (`design.md`
+  §9). Public items on public types in public modules are reachable and do not
+  fire; a `pub(super)` field read by its accessor does not fire. A private helper
+  written before its caller does. Order the work so nothing sits uncalled.
+- **A4 — this is the phase that owes a module-level
+  `#![deny(clippy::arithmetic_side_effects)]`.** PHASE-01 recorded the obligation
+  as moving here (`src/semantics/error.rs:8` says so in the file). `canonical.rs`
+  validates backend-derived values, so it takes the attribute. If the implementer
+  concludes it does not — the file does no arithmetic today — that judgement is
+  written down here and the obligation moves to PHASE-04's `normalize.rs`, which
+  certainly does.
+- **A5 — the checked constructors take the path they are constructing at.**
+  `EmptyOptions`, `DuplicateOptionId`, `DuplicateFieldId`, `DuplicateAlternativeId`
+  and `EmptyAlternatives` all carry `at: String` (`src/semantics/error.rs:39`
+  onwards) and a constructor called in isolation has no path context, so the
+  caller supplies it. `NumberRange::new` is the exception and stays as §5.2 writes
+  it — `BoundsError` carries no path, deliberately.
+
+#### STOP conditions
+
+Stop and consult the user; do not improvise past any of these.
+
+- Any dependency or dependency-feature change, jiff's `serde` feature
+  specifically. A2 says it is not needed; if something appears to need it, the
+  something is wrong.
+- Any `impl Deserialize` in `canonical.rs`. Canonical values are reached through
+  `normalize_response` (P1); a derive here is a second door and it is PHASE-04's
+  work in the wrong file.
+- Any `pub` field on a canonical type, or an accessor returning `&mut`. That is
+  R10 and VA-2 is looking for it.
+- Any type, variant or field added to or removed from `design.md:644` and `:841`.
+  `Content`'s four variants and every `FieldKind` are admitted and rendered by
+  nobody this slice — that is P3, not dead weight to trim.
+- A time zone, a clock read, or anything that wants jiff's default features.
+- `HashMap`/`HashSet` — `clippy.toml` disallows both. `Hints` is a `BTreeMap` in
+  the design and the uniqueness checks want `BTreeSet`.
+- Anything outside the declared surfaces, including `src/semantics/mod.rs` until
+  the decision above is taken.
+
+#### Tasks
+
+Red / green / **refactor**. The refactor step is not optional.
+
+1. **Entry check, then the two open items.** Confirm the shell (A1) and re-run
+   `just check` green before touching anything, so a later failure is this
+   phase's. The surfaces and constructor-visibility decisions are settled —
+   `plan-log.md`, 2026-08-29 — so there is nothing to wait on.
+2. **RED — VT-1, one case per rejection, before any constructor exists.** Empty
+   `Options`/`Fields`/`Alternatives`; a duplicate id in each; a `NumberRange`
+   that is inverted; a `NumberRange` with a non-finite bound. Each asserts the
+   **variant and the `at` path it carries** — `EmptyAlternatives` and
+   `DuplicateAlternativeId` for alternatives, never `EmptyOptions` /
+   `DuplicateOptionId` (EX-4). A missing type is a weak red; treat it as the
+   first red and plan the break-and-revert in task 8 as the real one.
+3. **GREEN, part one — the scalars.** `ViewId`, `OptionId`, `AlternativeId`,
+   `FieldId`, `Timestamp`, `Hints`, with the constructor visibility the user
+   settled and a read accessor each. `Ord`/`Eq` on `FieldId` — it keys a
+   `BTreeMap` in `UserResponse`.
+4. **GREEN, part two — the canonical types.** `Response`, `View`, `Choice`,
+   `Opt`, `Content`, `Field`, `FieldKind`, `Alternative`, then the three checked
+   collection newtypes and `NumberRange`. `pub(super)` fields, read-only
+   accessors, `Debug`/`Clone`/`PartialEq`. VT-1 goes green here.
+5. **GREEN, part three — the outbound types.** `Request`, `Evaluate`, `Respond`,
+   `Event`, `UserResponse`, with public fields (this is the one place VA-2
+   permits them) and `Serialize`. The encoding is left to implementation by
+   §5.2; a shape measured to produce the spec's bytes exactly is a private
+   envelope `struct { protocol: u32, #[serde(flatten)] kind }` over an
+   internally-tagged `#[serde(tag = "type", rename_all = "lowercase")]` enum,
+   with `Serialize for Timestamp` doing `collect_str`.
+6. **VT-2 — the two request snapshots.** Assert against the literal JSON at
+   `draft-spec.md:232`, compared as parsed `serde_json::Value` so that key order
+   is not asserted but a **missing `protocol` or `type` is**. A round trip would
+   pass with the version field absent, which is the whole point of the criterion.
+7. **VT-3 — the negative case.** The same `FieldId` used by fields in *different*
+   options is accepted. This is what shows I15's scope is per-option, not
+   per-view (`draft-spec.md:360`).
+8. **RED again, by break-and-revert.** Weaken one uniqueness check and one
+   emptiness check, confirm the specific VT-1 case fails and nothing else, revert.
+   PHASE-01's standard: a criterion that names a mechanism is not yet a criterion
+   that has one.
+9. **REFACTOR — the three collection constructors are one rule.** `design.md:717`
+   states it as one rule deliberately; three copies of a `BTreeSet` walk is the
+   same restatement defect this slice keeps producing, in code. One checked
+   helper, parameterized by the error each collection raises, is the shape. Watch
+   A3 while doing it: a helper with no caller yet fails the gate.
+10. **VA-2.** Grep `canonical.rs` for `pub ` on a struct field. None outside the
+    outbound request types. Paste the grep and its output, not a claim.
+11. **VA-1.** `just check` exits 0, both feature columns. Paste it.
+12. **Bookkeeping before handing off** — Status table, this sheet kept current as
+    you go, `## Harvest` updated in place.
+
+#### Verification record
+
+Filled in during execution, not after. Empty until then.
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| VT-1 | test | — | |
+| VT-2 | test | — | |
+| VT-3 | test | — | |
+| VA-1 | agent | — | |
+| VA-2 | agent | — | |
+| EX-1 | — | — | |
+| EX-2 | — | — | |
+| EX-3 | — | — | |
+| EX-4 | — | — | |
+
+#### Log
+
+<!-- Append as you go: decisions taken, obstacles, anything noticed in passing.
+     Do not save the bookkeeping for the end; it will be lost. -->
+
+- 2026-08-29 — sheet written. EN-1 re-verified rather than read off the status
+  table: `just check` green on all six commands, taxonomy complete in
+  `src/semantics/error.rs`.
+- 2026-08-29 — **A2 measured before it could become an assumption.** A scratch
+  crate with `jiff = { version = "0.2", default-features = false }`, serde and
+  serde_json: parse, `Display`, `collect_str` and `Span` parsing all work, and
+  both request forms serialize byte-identical to `draft-spec.md:232` — including
+  a newtype-of-`String` `FieldId` used as a `BTreeMap` key, which serde_json
+  renders as a plain JSON object key. Written up under A2; the consequence is
+  that the jiff `serde` feature is unnecessary, so the dependency STOP does not
+  need to fire.
+- 2026-08-29 — two plan gaps raised and **both closed by user decision the same
+  day**: surfaces amended to include `src/semantics/mod.rs` with the phase's
+  tests colocated, and `ViewId`/`Timestamp` alone getting public constructors.
+  `plan.md:311` and EX-1 rewritten; reasoning in `plan-log.md`.
+
+---
+
 ## Harvest
 
 **Fresh as of:** 2026-08-29 · plan accepted, **PHASE-01 done** · working tree,
@@ -1123,6 +1391,11 @@ empirically** above, plus:
   *names* a mechanism is not yet a criterion that *has* one, and a mechanism needs
   a positive control saying it would have seen the thing it is looking for.
 - CD-1 and CD-2 unapplied, awaiting endorsement at audit.
+- **`plan.md` was amended after acceptance**, 2026-08-29, at PHASE-02 only:
+  surfaces gained `src/semantics/mod.rs` and the colocated-test rule, and EX-1
+  gained the constructor-visibility split. Both were user decisions taken while
+  expanding the phase sheet (`plan-log.md`), not agent repairs. Audit should read
+  the PHASE-02 entry as amended rather than as accepted on 2026-08-29.
 - **Three reconciliation items opened by PHASE-01**, none of them phase repairs:
   1. `design.md:921` writes the wrapped type as `Protocol(semantics::ProtocolError)`
      — the path `semantics::ProtocolError`, not `semantics::error::ProtocolError`.

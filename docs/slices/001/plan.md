@@ -308,16 +308,28 @@ every error type stratum 1 can raise is declared.
 constructed in an invalid state from outside `semantics::protocol`, and the two
 request kinds serialize to the wire form the draft spec requires.
 
-**Surfaces:** `src/semantics/protocol/mod.rs`,
+**Surfaces:** `src/semantics/mod.rs` (one line, `pub mod protocol;`),
+`src/semantics/protocol/mod.rs`,
 `src/semantics/protocol/canonical.rs`, `src/semantics/error.rs` (extend only if a
 variant proves to need a field the design named and PHASE-01 missed).
+
+This phase's tests are **colocated `#[cfg(test)]` modules** in the files above,
+not a `tests/protocol/` target, and that is forced rather than preferred: under
+D30 `Opt`, `Field` and `Alternative` have `pub(super)` fields and no public
+constructor, so an external test crate cannot build the values VT-1 and VT-3
+reject and accept. Making it able to would be R10. `tests/protocol/` remains
+PHASE-03's surface.
 
 **Entry**
 - EN-1 — PHASE-01/EX-1 and EX-2 discharged.
 
 **Exit**
 - EX-1 — the scalar newtypes (`ViewId`, `OptionId`, `AlternativeId`, `FieldId`,
-  `Timestamp`, `Hints`), the response types (`Response`, `View`, `Choice`, `Opt`,
+  `Timestamp`, `Hints`) — `ViewId` and `Timestamp` with a **public** constructor
+  because the host authors both (PHASE-07 mints `view_id`, and stratum 2 reads
+  the clock), the other three constructible only within `semantics::protocol`
+  because a backend authors them and a caller obtains one by cloning it out of a
+  canonical value — the response types (`Response`, `View`, `Choice`, `Opt`,
   `Content`, `Field`, `FieldKind`, `Alternative`), the checked collection
   newtypes (`Options`, `Fields`, `Alternatives`) and `NumberRange` all exist as
   §5.2 states them, with `pub(super)` fields and read-only accessors (D30).

@@ -164,3 +164,36 @@ produces one of each, cited to one another.
   nothing was silently un-tracked. `git check-ignore -v` now resolves all three
   probe and packet files to `.gitignore:4` rather than to the global file.
   `plan.md:282` rewritten; PHASE-01's sheet records the closure.
+
+### 2026-08-29 — Two gaps in PHASE-02, surfaced by expanding its phase sheet
+
+- **Asked:** disposition of two things `plan.md`'s PHASE-02 entry did not settle.
+  (1) Its declared surfaces name no test file and no line for
+  `src/semantics/mod.rs`, which the phase must edit to declare
+  `semantics::protocol` at all — it is the only phase in the plan that writes
+  tests and names none. (2) The design gives the scalar newtypes no constructors,
+  while PHASE-07 mints `view_id` in `shell/state.rs` (D13) and its surfaces
+  exclude `canonical.rs`, so whatever it needs must ship in PHASE-02.
+- **Decided:** (1) surfaces gain `src/semantics/mod.rs`, and the phase's tests are
+  **colocated `#[cfg(test)]` modules**; `tests/protocol/` stays PHASE-03's.
+  (2) **`ViewId` and `Timestamp` get public constructors; `OptionId`, `FieldId`
+  and `AlternativeId` do not.**
+- **Why the test home is forced rather than chosen.** `tests/protocol/` is an
+  external crate. Under D30, `Opt`, `Field` and `Alternative` have `pub(super)`
+  fields and no public constructor, so an external test cannot build the
+  `Vec<Opt>` that `Options::new` must reject or the two same-id `Field`s VT-3
+  must accept. The only way to write VT-1 and VT-3 there is to widen the
+  canonical types, which is R10 — the exact risk the same phase's VA-2 exists to
+  detect. VT-2 could have gone either way and is colocated with them: one home
+  per phase, and no early touch on the target PHASE-03 owns.
+- **Why the constructor split falls on host-authored versus backend-authored.**
+  A `ViewId` is minted by the host and a `Timestamp` is a clock read; neither
+  asserts that a backend said anything, and stratum 2 must be able to build both.
+  An `OptionId`, `FieldId` or `AlternativeId` is an address a backend chose, so a
+  public constructor would let a caller mint an id no backend ever sent — the
+  same hole D30 closes one level up on the canonical types. A caller answering a
+  view clones the id out of the view through its accessor, which is what the
+  design's `Clone` derive is already for.
+- **Consequence:** `plan.md:311` rewritten — surfaces amended and the colocation
+  rule stated with its reason; EX-1 amended to name which scalars carry a public
+  constructor and why. PHASE-02's sheet in `notes.md` records both as closed.
