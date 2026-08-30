@@ -11,8 +11,13 @@ after the slice closes is lifted into the Harvest section.
 | design | **accepted** — review closed at round 5, 16 repairs unverified | 2026-08-26 |
 | plan | **accepted 2026-08-29** — ten phases in `plan.md` (01…08, 10, 09); two design gaps found and closed; **four review rounds run**, fourteen findings, all repaired and all confirmed; round 4 clean, plan judged executable | 2026-08-29 |
 | PHASE-01 | **done** — `just check` exits 0 in both feature columns. All six EX and all seven V criteria discharged; see `## Phase sheets` | 2026-08-29 |
-| PHASE-02 | **sheet written 2026-08-29**, execution not started. Two plan gaps raised by the expansion and both closed the same day by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors. See `## Phase sheets` | 2026-08-29 |
+| PHASE-02 | **done** — `just check` exits 0 in both feature columns; 17 unit tests, 13 of them this phase's. All four EX and both VT criteria discharged, VA-1 and VA-2 pasted. **Three** plan gaps raised by the expansion and by execution, all closed by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors, and `Fields` permitting empty. See `## Phase sheets` | 2026-08-30 |
 | PHASE-03…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+
+**PHASE-02 landed** `src/semantics/protocol/{mod,canonical}.rs` and one line in
+`src/semantics/mod.rs`. `canonical.rs` is the whole of the tier's types: six
+scalars, the eight inbound types, three checked collections, `NumberRange`, and
+the five outbound request types with their `Serialize`. Nothing else was touched.
 
 **Code exists as of PHASE-01, 2026-08-29.** `src/lib.rs`,
 `src/semantics/{mod,error}.rs`, `src/shell/mod.rs`,
@@ -1049,8 +1054,9 @@ cargo fmt --check
 
 ### PHASE-02 — Canonical types and their checked constructors
 
-**State:** sheet written 2026-08-29 · **not started** — both open items closed by
-user decision 2026-08-29; the sheet is executable as it stands
+**State:** **done 2026-08-30.** `just check` exits 0 in both feature columns.
+Three plan gaps raised in all — two while writing the sheet, one during task 2 —
+and all three closed by user decision before any code depended on them.
 **Plan entry:** `docs/slices/001/plan.md:305`
 **Surfaces (from the plan, as amended 2026-08-29):** `src/semantics/mod.rs` (one
 line, `pub mod protocol;`), `src/semantics/protocol/mod.rs`,
@@ -1076,7 +1082,7 @@ phase's tests are colocated `#[cfg(test)]` modules in those files;
 | `Cargo.toml` | `jiff = { version = "0.2", default-features = false }`, no `serde` feature | measured below; no manifest change is needed and none is authorised here |
 | the colocated-test pattern | `src/semantics/error.rs:163` — `#[cfg(test)] mod tests` inside the module under test, which is what satisfies `clippy::tests_outside_test_module` | prior art for where this phase's tests go |
 
-#### Two things the plan did not settle — raised, and **both closed 2026-08-29**
+#### Three things the plan did not settle — raised, and **all closed**
 
 Both surfaced by expanding the phase; neither was a repair this sheet could make
 on its own (`AGENTS.md`, *Phase plan*: if expanding the phase shows the plan is
@@ -1131,6 +1137,29 @@ Recommended split, on the host-authored / backend-authored line:
 
 **Decided as recommended**, 2026-08-29. `plan.md`'s EX-1 now states the split and
 its reason, so PHASE-07 inherits it rather than rediscovering it.
+
+**3. EX-3 required `Fields` to reject empty, and it must not.** Found during
+task 2, writing VT-1's rejection cases: the empty-`Fields` case had no error
+variant to assert, because there is no `EmptyFields` in the taxonomy and never
+was one. R-15 (`draft-spec.md:106`) says an option **MAY** carry fields; R-15's
+verification row (`:364`) asks for "an option with and without fields";
+`brief.md:131` and `:567` say it twice; and the spec's example response (`:232`)
+carries `{ "id": "yes", "label": "Now" }` with no `fields` key. §5.5's edge table
+has rows for `options: []`, duplicate option ids, duplicate field ids and empty
+alternatives, and **no empty-fields row**. `Opt.fields` is a `Fields` and not an
+`Option<Fields>`, so an option with no fields is a `Fields` holding none —
+rejecting that would have made the spec's own example unnormalizable at PHASE-04.
+
+The source is `design.md:704`'s comment over the three newtypes — "all three for
+the same reason: >= 1 element, and ids unique" — where the F-52 paragraph beneath
+it argues only duplicates for fields and never argues non-emptiness. EX-3
+restated the blanket comment instead of the argument. **The slice's recurring
+defect, third instance.**
+
+**Decided 2026-08-30:** `Fields::new` checks uniqueness only; `Options::new` and
+`Alternatives::new` keep both checks; no `EmptyFields` is invented. `plan.md`'s
+EX-3 rewritten; `design.md:704` left as written and carried to audit
+reconciliation, like the `toml` line before it (`plan-log.md`).
 
 #### Reading list
 
@@ -1232,8 +1261,9 @@ Red / green / **refactor**. The refactor step is not optional.
    phase's. The surfaces and constructor-visibility decisions are settled —
    `plan-log.md`, 2026-08-29 — so there is nothing to wait on.
 2. **RED — VT-1, one case per rejection, before any constructor exists.** Empty
-   `Options`/`Fields`/`Alternatives`; a duplicate id in each; a `NumberRange`
-   that is inverted; a `NumberRange` with a non-finite bound. Each asserts the
+   `Options` and `Alternatives` — **not** `Fields`, which permits zero elements
+   (item 3 above, decided 2026-08-30); a duplicate id in all three; a
+   `NumberRange` that is inverted; a `NumberRange` with a non-finite bound. Each asserts the
    **variant and the `at` path it carries** — `EmptyAlternatives` and
    `DuplicateAlternativeId` for alternatives, never `EmptyOptions` /
    `DuplicateOptionId` (EX-4). A missing type is a weak red; treat it as the
@@ -1264,10 +1294,14 @@ Red / green / **refactor**. The refactor step is not optional.
    emptiness check, confirm the specific VT-1 case fails and nothing else, revert.
    PHASE-01's standard: a criterion that names a mechanism is not yet a criterion
    that has one.
-9. **REFACTOR — the three collection constructors are one rule.** `design.md:717`
-   states it as one rule deliberately; three copies of a `BTreeSet` walk is the
-   same restatement defect this slice keeps producing, in code. One checked
-   helper, parameterized by the error each collection raises, is the shape. Watch
+9. **REFACTOR — the three collection constructors share one rule, not two.**
+   `design.md:717` states uniqueness as one rule deliberately, and three copies
+   of a `BTreeSet` walk is the same restatement defect this slice keeps
+   producing, in code. **Uniqueness covers all three; non-emptiness covers two**
+   (item 3), so a single helper bundling both checks would be the same
+   over-generalisation the plan just shed. One uniqueness helper parameterized by
+   the error each collection raises, with the emptiness check layered on the two
+   that have one, is the shape. Watch
    A3 while doing it: a helper with no caller yet fails the gate.
 10. **VA-2.** Grep `canonical.rs` for `pub ` on a struct field. None outside the
     outbound request types. Paste the grep and its output, not a claim.
@@ -1277,17 +1311,17 @@ Red / green / **refactor**. The refactor step is not optional.
 
 #### Verification record
 
-Filled in during execution, not after. Empty until then.
-
 | id | mode | result | evidence |
 |---|---|---|---|
-| VT-1 | test | — | |
-| VT-2 | test | — | |
-| VT-3 | test | — | |
-| VA-1 | agent | — | |
-| VA-2 | agent | — | |
-| EX-1 | — | — | |
-| EX-2 | — | — | |
+| VT-1 | test | **pass**, and seen to fail twice over | eight cases in `canonical.rs`: empty `Options`, empty `Alternatives`, duplicate option / field / alternative ids, an inverted range, a non-finite bound at each end, plus the one-bound and no-bound acceptances. Red once as eleven unresolved types, then by break-and-revert — see Log, task 8 |
+| VT-2 | test | **pass**, first run | `an_evaluate_serializes_to_the_spec_s_wire_form` and `a_respond_serializes_to_the_spec_s_wire_form`, each against the literal JSON at `draft-spec.md:232` parsed to `serde_json::Value`, so key order is not asserted and a missing `protocol` or `type` is. A third test, `every_request_kind_carries_the_version_and_a_discriminant`, asserts R-1 and R-6 over both kinds at once so a third request kind added without an envelope fails here rather than at PHASE-04 |
+| VT-3 | test | **pass** | `the_same_field_id_in_different_options_is_accepted` — two options each carrying a `minutes` field. A per-view uniqueness check would pass every VT-1 case and still be wrong; this is the case that separates them |
+| VA-1 | agent | **pass** | `just check` exits 0, six commands, both feature columns. Full output in the Log under *the gate*. 17 unit tests in each column, plus the four boundary tests in the default column |
+| VA-2 | agent | **pass** — grep pasted, not claimed | Log, task 10. Eleven `pub` struct fields, all four owners identified mechanically as `Evaluate`, `Respond`, `Event` and `UserResponse` — the outbound types, where `pub` is the design's own exception. Fourteen `pub(super)` fields on the inbound types, and **no `&mut` anywhere in the file** |
+| EX-1 | — | **pass** | six scalars with the constructor split the user settled (`ViewId`/`Timestamp` public, the three backend-authored ids `pub(super)`), the eight inbound types, `Options`/`Fields`/`Alternatives`, `NumberRange`. All `pub(super)` fields, read accessors, `Debug`/`Clone`/`PartialEq` |
+| EX-2 | — | **pass** | `Request`, `Evaluate`, `Respond`, `Event`, `UserResponse` with public fields and `Serialize`; `"protocol": 1` and a `"type"` of `evaluate`/`respond` asserted by three tests |
+| EX-3 | — | **pass, as amended** | every §5.5 row this phase owns has a case. **`Fields` permits empty** — the criterion was over-general and was rewritten before code depended on it; see item 3 above and `plan-log.md`, 2026-08-30 |
+| EX-4 | — | **pass, and the two halves pass differently** | the *error* half is tested: `duplicate_alternative_ids_are_rejected_as_alternatives_never_as_options` and its empty counterpart assert `DuplicateAlternativeId` / `EmptyAlternatives` and would fail on the `Options` variants. The *type* half is *structural, not tested*: `Alternative.id` is an `AlternativeId` and `Opt.id` an `OptionId`, both newtypes over a private `String` with no conversion between them, so passing one for the other does not compile. Asserting a **non**-compilation needs `trybuild`, which is a dependency addition and therefore a STOP — so this is recorded as compiler-enforced by construction rather than dressed up as a test that exists |
 | EX-3 | — | — | |
 | EX-4 | — | — | |
 
@@ -1313,6 +1347,156 @@ Filled in during execution, not after. Empty until then.
   `plan.md:311` and EX-1 rewritten; reasoning in `plan-log.md`.
 
 ---
+
+- 2026-08-30 — **task 1, entry check.** Shell verified before anything else
+  (A1's lesson from PHASE-01): `just`, `cargo` and `rustc` all resolve to store
+  paths, `rustc 1.99.0-beta.1`. `just check` green before a line was written, so
+  any later failure is this phase's.
+
+- 2026-08-30 — **task 2, RED, and it found the third plan gap.** Writing the
+  rejection cases before the constructors existed is what surfaced it: the
+  empty-`Fields` case had no error variant to assert against, because there is
+  no `EmptyFields` in the taxonomy and never was. Chased it to four sources
+  saying an option may carry no fields — R-15, R-15's own verification row,
+  `brief.md` twice, and the spec's example response — and to the absence of an
+  empty-fields row in §5.5. Raised, decided, `plan.md` EX-3 rewritten before any
+  code depended on it. **Written up as item 3 above and in `plan-log.md`.**
+
+  The red itself: eleven unresolved types plus `AlternativeId`, which I had left
+  out of the import list. Weak, as the sheet predicted — task 8 is the real one.
+
+- 2026-08-30 — **tasks 3–7, GREEN.** Scalars, inbound types, checked
+  collections, outbound types and their `Serialize`, then VT-2 and VT-3. Both
+  VT-2 snapshots matched the spec's JSON on the **first run** — the envelope
+  shape was not guessed at, it came out of A2's probe, which is the whole return
+  on having measured it during planning.
+
+- 2026-08-30 — **A3 fired, exactly where the sheet said it would.** Four
+  `pub(super) fn new` — on `OptionId`, `AlternativeId`, `FieldId` and `Hints` —
+  have no caller until PHASE-04's `normalize.rs`, so `dead_code` failed the
+  first clippy column. Three things worth recording:
+
+  1. The manifest already names this case — "a phased plan lands a type one
+     phase before its caller" — and blesses `expect(dead_code, reason = …)` for
+     it, self-clearing via `unfulfilled_lint_expectations`. Used as designed.
+     Widening to `pub` was the alternative and would have undone EX-1's
+     constructor split, which is the whole point of that decision.
+  2. A plain `#[expect]` then failed the *other* way: clean under `cargo build`,
+     unfulfilled under `cargo test`, because the colocated tests call those
+     constructors. Scoped to `#[cfg_attr(not(test), expect(…))]`. This is a
+     consequence of the colocation decision that nothing anticipated, and it is
+     the kind of thing an external test target would not have produced.
+  3. `unfulfilled_lint_expectations` makes the attributes self-removing: when
+     PHASE-04 calls these, the gate fails until they come off. So this is a
+     dated obligation with a mechanism, not a comment.
+
+- 2026-08-30 — **`missing_errors_doc` fires, and the manifest says it does not.**
+  `Cargo.toml`'s `[lints.clippy]` carries `# missing_errors_doc = "deny"`
+  commented out under "Doc-comment lints paused alongside missing_docs", but
+  `pedantic = "deny"` re-enables it, so the pause is real only for `missing_docs`
+  itself — a rustc lint, in the other table. PHASE-01 never met this because
+  `error.rs` returns no `Result`. Answered by writing the four `# Errors`
+  sections, which the constructors wanted anyway; the lint table was not
+  touched. **The stale comment is for audit, not a phase repair** — see Harvest.
+
+- 2026-08-30 — **A4 discharged: `canonical.rs` takes the deny.** The file does
+  no arithmetic today, so the sheet allowed the obligation to move on to
+  PHASE-04's `normalize.rs` if the implementer judged it should. It should not:
+  this is where backend-derived values first land and where the bounds and
+  uniqueness checks live, the attribute costs nothing while there is no
+  arithmetic, and PHASE-04 will add some here. `error.rs:10` said the first
+  module handling backend-derived data owes one; `canonical.rs:16` now says it
+  is that module, so the pointer resolves rather than dangling.
+
+- 2026-08-30 — **task 8, the real RED, by break-and-revert.** Two mutations, one
+  at a time, each reverted before the next:
+
+  ```
+  Options::new       `if !seen.insert(…)` → `… && false`
+    → 1 failed: duplicate_option_ids_are_rejected_naming_the_id_and_where
+      16 passed
+  Alternatives::new  `if alternatives.is_empty()` → `if false && …`
+    → 1 failed: an_empty_alternatives_is_rejected_as_alternatives_never_as_options
+      16 passed
+  reverted           → 17 passed
+  ```
+
+  Exactly one test each, and the right one — so the cases are specific, not a
+  suite that happens to be red for any reason.
+
+- 2026-08-30 — **task 9, REFACTOR, and the finding changed its shape.** The
+  sheet framed this as "three copies of one rule collapse into one helper".
+  After the `Fields` decision it is two rules: uniqueness over all three,
+  non-emptiness over two. `ensure_unique_ids` takes the id projection and the
+  error constructor and covers all three; the emptiness check stays inline in
+  the two constructors that have one. **Bundling both into one helper would have
+  been the same over-generalisation that got `Fields` wrong**, in code this
+  time — so the plan gap improved the refactor rather than complicating it.
+
+- 2026-08-30 — **the refactor tripped PHASE-01's AC-11 grep, on a doc comment.**
+  `tests/protocol/boundary.rs` failed with ``forbidden token `site` `` against
+  `canonical.rs:356` — my own phrase "call sites". `site` is in the
+  domain-vocabulary list and the scan matches substrings. Reworded. Recorded
+  because it is a false positive of a *canon* test, not of this phase's code:
+  ordinary English can carry those tokens, and `reminder` is the next one likely
+  to bite. **For audit** — see Harvest. Also worth saying plainly: PHASE-01's
+  test caught text written by a later phase, unprompted, which is the test
+  working.
+
+- 2026-08-30 — **task 10, VA-2, pasted rather than claimed.**
+
+  ```
+  $ grep -nE "^[[:space:]]+pub [a-z_]+:" src/semantics/protocol/canonical.rs
+  534:  pub now: Timestamp,
+  535:  pub event: Event,
+  540:  pub view_id: ViewId,
+  541:  pub now: Timestamp,
+  542:  pub response: UserResponse,
+  547:  pub source: String,
+  548:  pub kind: String,
+  549:  pub timestamp: Timestamp,
+  551:  pub data: serde_json::Value,
+  556:  pub option: OptionId,
+  558:  pub values: BTreeMap<FieldId, serde_json::Value>,
+
+  $ awk '/^pub struct|^struct/ {name=$0} /^  pub [a-z_]+:/ {print NR": "name}' …
+  534: pub struct Evaluate {
+  540: pub struct Respond {
+  547: pub struct Event {
+  556: pub struct UserResponse {
+
+  $ grep -nE "^[[:space:]]+pub\(super\) [a-z_]+:" … | wc -l
+  14
+
+  $ grep -n "&mut" src/semantics/protocol/canonical.rs
+  (none)
+  ```
+
+  The owners are resolved mechanically rather than by eye: all eleven `pub`
+  fields belong to the four outbound types, which is the design's own exception
+  (D5 — requests are host-authored). Fourteen `pub(super)` on the inbound side,
+  and no `&mut` accessor anywhere, which is R10's other signal.
+
+- 2026-08-30 — **task 11, VA-1, the gate.** `just check` exits 0. Six commands,
+  both feature columns, 17 unit tests in each plus PHASE-01's four boundary
+  tests in the default column. Full output pasted below.
+
+  ```
+  cargo build            Finished `dev` profile
+  cargo test             17 passed · integration 0 · protocol 4 · doc 0
+  cargo test --no-default-features
+                         17 passed · protocol 4 · doc 0   (integration skipped)
+  cargo clippy --all-targets -- -D warnings
+                         Finished
+  cargo clippy --all-targets --no-default-features -- -D warnings \
+        -A dead_code -A unreachable_pub
+                         Finished
+  cargo fmt --check      (silent)
+  ```
+
+  The `--no-default-features` column runs the same 17: nothing in this phase is
+  behind `shell`, which is what stratum 1 being stratum 1 looks like.
+
 
 ## Harvest
 
@@ -1385,6 +1569,39 @@ empirically** above, plus:
 
 ### Open
 
+**Raised by PHASE-02, 2026-08-30 — all three are audit business, none is a phase
+repair.**
+
+- **`design.md:704` over-generalises the collection rule.** The comment over
+  `Options`, `Alternatives` and `Fields` reads "all three for the same reason:
+  >= 1 element, and ids unique within the collection", but the F-52 paragraph
+  directly beneath it argues only duplicates for fields, and R-15, R-15's
+  verification row, `brief.md` twice and the spec's own example response all say
+  an option may carry none. The comment is left as written and goes to
+  reconciliation, on the same footing as the `toml` line: the design is a record
+  of intent at a point in time. **`plan.md` EX-3 is already corrected**
+  (`plan-log.md`, 2026-08-30) — the criterion had to be right before code
+  depended on it; the design's prose did not.
+
+- **`Cargo.toml`'s "doc-comment lints paused" comment is false for three of the
+  four.** `missing_errors_doc`, `missing_panics_doc` and `missing_safety_doc`
+  are commented out in `[lints.clippy]` under a note saying they are paused —
+  but `pedantic = "deny"` enables all three regardless, so only `missing_docs`
+  (a rustc lint, in the other table) is actually paused. PHASE-02 met
+  `missing_errors_doc` as a hard error on its four checked constructors and
+  answered it by writing the docs, which were wanted anyway. Nothing is broken;
+  the comment states the opposite of what the table does, and the next phase to
+  return a `Result` will re-discover it.
+
+- **AC-11's domain-vocabulary scan matches substrings, and `site` is in the
+  list.** `tests/protocol/boundary.rs` failed this phase on the phrase "call
+  sites" in a doc comment. Reworded, and the test was right to be strict — but
+  the token list contains ordinary English fragments (`site`, and `reminder` is
+  the next likely one), so this will recur in prose rather than in code. Whether
+  to anchor the scan on word boundaries is an audit call, not a phase one: the
+  scan is PHASE-01's surface and tightening it silently would weaken a canon
+  test to suit a comment.
+
 - **Sixteen repairs unverified** — F-48…F-58, never re-examined, and F-59…F-63,
   round 5's own. Accepted knowingly; see the ledger's Synthesis. Expect two to
   four residual defects, most likely in §5.4.
@@ -1418,11 +1635,14 @@ empirically** above, plus:
   *names* a mechanism is not yet a criterion that *has* one, and a mechanism needs
   a positive control saying it would have seen the thing it is looking for.
 - CD-1 and CD-2 unapplied, awaiting endorsement at audit.
-- **`plan.md` was amended after acceptance**, 2026-08-29, at PHASE-02 only:
-  surfaces gained `src/semantics/mod.rs` and the colocated-test rule, and EX-1
-  gained the constructor-visibility split. Both were user decisions taken while
-  expanding the phase sheet (`plan-log.md`), not agent repairs. Audit should read
-  the PHASE-02 entry as amended rather than as accepted on 2026-08-29.
+- **`plan.md` was amended after acceptance, three times, all at PHASE-02.**
+  2026-08-29: surfaces gained `src/semantics/mod.rs` and the colocated-test rule,
+  and EX-1 gained the constructor-visibility split — both raised while expanding
+  the phase sheet. 2026-08-30: EX-3 was rewritten so `Fields` checks uniqueness
+  only, raised while writing that criterion's own rejection cases. All three were
+  user decisions (`plan-log.md`), not agent repairs, and all three were taken
+  before any code depended on them. Audit should read the PHASE-02 entry as
+  amended rather than as accepted on 2026-08-29.
 - **Three reconciliation items opened by PHASE-01**, none of them phase repairs:
   1. `design.md:921` writes the wrapped type as `Protocol(semantics::ProtocolError)`
      — the path `semantics::ProtocolError`, not `semantics::error::ProtocolError`.

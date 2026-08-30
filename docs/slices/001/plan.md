@@ -337,8 +337,16 @@ PHASE-03's surface.
   `UserResponse`) exist and serialize with `"protocol": 1` and a `"type"`
   discriminant of `evaluate` or `respond` (R-1, R-6).
 - EX-3 — each checked constructor rejects what §5.5's edge-case table says it
-  rejects: empty `Options`/`Alternatives`/`Fields`, duplicate ids within each,
-  and a `NumberRange` that is inverted or non-finite.
+  rejects: empty `Options` and `Alternatives`, duplicate ids within all three
+  collections, and a `NumberRange` that is inverted or non-finite. **`Fields`
+  checks uniqueness only and permits zero elements**, amended 2026-08-30: R-15
+  says an option MAY carry fields and its verification row (`draft-spec.md:364`)
+  asks for fixtures with and without; §5.5's table has no empty-fields row and
+  the taxonomy no `EmptyFields`; and `Opt.fields` is a `Fields`, not an
+  `Option<Fields>`, so an option with no fields is a `Fields` holding none. The
+  earlier wording generalised `design.md:704`'s blanket comment over the three
+  newtypes, which the F-52 paragraph beneath it does not support — F-52 argues
+  duplicates for fields and never argues non-emptiness.
 - EX-4 — `AlternativeId` and `OptionId` are distinct types and neither can be
   passed for the other (F-61, D52), and `DuplicateAlternativeId` /
   `EmptyAlternatives` are the errors raised for alternatives — never

@@ -197,3 +197,43 @@ produces one of each, cited to one another.
 - **Consequence:** `plan.md:311` rewritten — surfaces amended and the colocation
   rule stated with its reason; EX-1 amended to name which scalars carry a public
   constructor and why. PHASE-02's sheet in `notes.md` records both as closed.
+
+### 2026-08-30 — `Fields` may be empty; EX-3 was over-general
+
+- **Asked:** PHASE-02's EX-3 required the checked constructors to reject "empty
+  `Options`/`Alternatives`/`Fields`". Raised while writing VT-1's rejection
+  cases, before any constructor existed — the empty-`Fields` case had no error
+  variant to assert.
+- **Decided:** `Fields::new` checks id-uniqueness only and permits zero
+  elements. `Options::new` and `Alternatives::new` keep both checks. No
+  `EmptyFields` variant is invented.
+- **Why.** Four sources say an option may carry no fields: R-15
+  (`draft-spec.md:106`) states it normatively; R-15's own verification row
+  (`:364`) asks for "an option with and without fields"; `brief.md:131` and
+  `:567` say it twice; and the spec's example response (`:232`) contains
+  `{ "id": "yes", "label": "Now" }` with no `fields` key. The negative evidence
+  agrees — §5.5's edge table has rows for `options: []`, duplicate option ids,
+  duplicate field ids and empty alternatives, but **no empty-fields row**, and
+  the landed taxonomy has `EmptyOptions` and `EmptyAlternatives` and no
+  `EmptyFields`. `Opt.fields` is a `Fields` rather than an `Option<Fields>`, so
+  an option with no fields must be a `Fields` holding none. Implementing EX-3
+  literally would have made the spec's own example unnormalizable at PHASE-04.
+- **Where the error came from, which is the part worth keeping.**
+  `design.md:704`'s comment over the three newtypes reads "all three for the
+  same reason: >= 1 element, and ids unique within the collection." The F-52
+  paragraph immediately beneath it argues only about *duplicates* — two fields
+  sharing an id have one response key between them — and never argues
+  non-emptiness for fields. The blanket comment over-generalised a rule that
+  holds for two of the three, and EX-3 restated the blanket comment rather than
+  the argument. **That is this slice's recurring defect for the third time**: a
+  rule applied at the named site and restated too broadly where it is repeated.
+- **Consequence:** `plan.md`'s EX-3 rewritten with the rule and its evidence.
+  PHASE-02's sheet records it as the third thing the plan did not settle, and
+  task 2's case list drops the empty-`Fields` case. `design.md:704`'s comment is
+  **left as written** and goes to audit reconciliation, on the same footing as
+  the `toml` line: the design is a record of intent at a point in time and this
+  finding post-dates it.
+- **It improves task 9 rather than complicating it.** The refactor was framed as
+  "three copies of one rule collapse into one helper". The rule is now genuinely
+  two: uniqueness over all three, non-emptiness over two. A helper that takes
+  both checks as one lump would have been the same over-generalisation in code.

@@ -3,3 +3,4 @@
 //! parameter (ADR-001; `design.md` I3).
 
 pub mod error;
+pub mod protocol;
