@@ -1500,8 +1500,8 @@ Red / green / **refactor**. The refactor step is not optional.
 
 ## Harvest
 
-**Fresh as of:** 2026-08-29 · plan accepted, **PHASE-01 done** · working tree,
-uncommitted
+**Fresh as of:** 2026-08-30 · plan accepted, **PHASE-01 and PHASE-02 done** ·
+committed through `76a9485`, tree clean
 
 ### Produced
 
@@ -1527,6 +1527,13 @@ uncommitted
   feature columns. The §5.2 stratum 1 taxonomy is complete — 12 + 2 + 5
   variants, `Display` and `std::error::Error`. `toml` is in the manifest,
   optional, inside `shell`.
+- **The protocol tier's types, from PHASE-02.** `src/semantics/protocol/mod.rs`
+  and `canonical.rs` (863 lines), plus one line in `src/semantics/mod.rs`. Six
+  scalars, the eight inbound types, `Options`/`Fields`/`Alternatives`,
+  `NumberRange`, and the five outbound request types with a hand-written
+  `Serialize`. Inbound fields `pub(super)` with read accessors; the outbound
+  types are the design's own `pub` exception (D5). 17 unit tests, 13 of them this
+  phase's, and the `--no-default-features` column runs all 17.
 
 ### Learned
 
@@ -1566,6 +1573,39 @@ empirically** above, plus:
 - **`clippy::module_name_repetitions` is incompatible with §5.2's naming**, and
   `clippy::pub_use = "deny"` blocks the re-export that would dodge it. Settled
   2026-08-29 by allowing the lint crate-wide, with the argument at the site.
+
+**From PHASE-02, all measured here rather than assumed:**
+
+- **`#[expect(dead_code)]` and a colocated `#[cfg(test)]` module are in direct
+  conflict.** The lib target sees the item as dead and the expectation is
+  fulfilled; the test target sees the tests calling it and the expectation is
+  *unfulfilled*, which `-D warnings` turns into an error via
+  `unfulfilled_lint_expectations`. Clean under `cargo build`, failing under
+  `cargo test`, from one attribute. `#[cfg_attr(not(test), expect(…))]` is the
+  form that works. Anything that lands an item one phase before its caller and
+  tests it in the same file will hit this.
+- **Commenting out a lint in `[lints.clippy]` does not disable it if a group
+  enables it.** `missing_errors_doc` is commented out with a note saying the
+  doc-comment lints are paused, and `pedantic = "deny"` re-enables it anyway.
+  Only `missing_docs` is genuinely paused, and only because it is a *rustc* lint
+  in the other table. A commented-out entry silences nothing on its own.
+- **jiff at `default-features = false` needs no `serde` feature to hit the
+  wire.** It has none available, and none is wanted: `serializer.collect_str(&t)`
+  over jiff's own `Display` produces `2026-08-23T04:12:00Z` — the spec's exact
+  RFC 3339 form. Ten lines of hand-written `Serialize` in place of a dependency
+  edge into stratum 1.
+- **The envelope shape that produces `{"protocol": 1, "type": "…", …payload}`**
+  is a private `struct { protocol: u32, #[serde(flatten)] body }` over an
+  internally-tagged `#[serde(tag = "type", rename_all = "lowercase")]` enum. The
+  payload's own keys land at the top level beside the two envelope keys. Probed
+  during planning and correct on its first run in code.
+- **A newtype over `String` serializes as a plain JSON object key** when used as
+  a `BTreeMap` key — `BTreeMap<FieldId, Value>` renders as `{"minutes": 20}`
+  with no key-serializer work.
+- **A forbidden-token scan that matches substrings will fire on prose.** AC-11's
+  domain list contains `site`, which caught the phrase "call sites" in a doc
+  comment. `reminder` is the next one likely to bite. Worth knowing before
+  writing the next such scan, in this project or another.
 
 ### Open
 
