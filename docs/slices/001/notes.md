@@ -599,7 +599,7 @@ Filled in during execution, not after. Empty until then.
 
 | id | mode | result | evidence |
 |---|---|---|---|
-| VH-1 | human | **pass, in a fresh shell — and A1 was false** | see Log, 2026-08-29 VH-1 |
+| VH-1 | human | **pass, both halves.** Agent's in a fresh shell 2026-08-29 (A1 was false); the user's own interactive shell 2026-08-30 | Log, 2026-08-29 VH-1 and 2026-08-30 VH-1 — human half |
 | VT-1 | test | **pass**, and seen to fail | `boundary.rs::stratum_1_names_neither_the_shell_a_binary_nor_the_runtime`; red by planting `crate::shell` — Log, VT-1/VT-2 |
 | VT-2 | test | **pass**, and seen to fail | `boundary.rs::no_host_source_file_names_the_user_s_domain`; red by planting `habit` — Log, VT-1/VT-2 |
 | VT-3 | test | **pass**, and seen to fail twice over | four cases in `error.rs`; red once as a missing type, then by break-and-revert on both gates — Log, VT-3 |
@@ -1020,6 +1020,33 @@ cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A 
 cargo fmt --check
 ```
 
+- 2026-08-30 — **VH-1's human half, discharged.** Recorded here rather than in
+  PHASE-02's sheet because the criterion is PHASE-01's; the phase's verification
+  record now carries both halves and the Harvest item is closed. The user
+  reloaded and all four tools resolve into `/nix/store/`:
+
+  ```
+  just   /nix/store/ni2dxycnhsp34y4qy6q44nw6pp6bj0l0-just-1.58.0/bin/just
+  deno   /nix/store/pn1qbka1qfxw0wfbh1scsd2gvhv0dhj2-deno-2.9.4/bin/deno
+  cargo  /nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/cargo
+  rustc  /nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/rustc
+  ```
+
+  The `deno` store hash is **identical** to the one the agent saw on 2026-08-29,
+  so the two halves are not merely both green — they agree on the same flake
+  evaluation, which is what makes the human half worth running at all.
+
+  Two things noticed in passing, neither a criterion:
+
+  - the toolchain is `rust-default-1.99.0-beta.1-2026-08-18`, a **beta** pinned
+    by `flake.lock`. Fine while pinned; it is the thing that would move under
+    the slice if the lock is ever floated, so a gate failure that appears with
+    no source change should suspect it first.
+  - the user's interactive shell is **nu**, not bash. `&&` is not nu syntax, so
+    a bash-style chain handed over for a `!` line runs as separate commands or
+    not at all. Affects how commands are handed to the user; the agent's own
+    `nix develop --command bash -c '…'` is unaffected.
+
 ### PHASE-02 — Canonical types and their checked constructors
 
 **State:** sheet written 2026-08-29 · **not started** — both open items closed by
@@ -1406,17 +1433,19 @@ empirically** above, plus:
      is now `allow` by user decision and §9 does not say so.
   3. §5.1's manifest and §3's trigger analysis still owe the `toml` line
      (already noted at `plan-log.md`); PHASE-01 wrote it into `Cargo.toml`.
-- **VH-1's human half is outstanding.** The agent verified the flake in a fresh
-  `nix develop`; the user's own interactive shell was stale at the time of the
-  phase (`just` from `~/.nix-profile`, no `deno`) and needs reloading before they
-  run anything by hand.
+- ~~**VH-1's human half is outstanding.**~~ **Closed 2026-08-30.** The user
+  reloaded; `just`, `deno`, `cargo` and `rustc` all resolve into `/nix/store/`,
+  and `deno`'s store hash matches the one the agent saw on 2026-08-29 — the same
+  flake evaluation, not just two green checks. PHASE-01's Log and verification
+  record carry the evidence.
 - Whether to promote `transport-probe.local.rs` to a tracked spike — a user call.
 - ~~`flake.nix` `devToolPkgs` lacks deno.~~ **Closed.** `deno` landed in
   `projectPkgs` at commit `b76b75c`, and `just` has been in `devToolPkgs` since
   `6489521`. Both verified as store paths in a fresh `nix develop`, 2026-08-27.
-  What remains is PHASE-01/VH-1: a shell entered before those commits does not
-  see them, so it must be reloaded. **PHASE-01 found exactly that**, on its first
-  task — see the phase sheet's Log.
+  A shell entered before those commits does not see them and must be reloaded;
+  **PHASE-01 found exactly that** on its first task, in its own shell. The
+  reload it left owing — VH-1's human half — is also closed, 2026-08-30. See
+  the phase sheet's Log for both.
 - **Two design decisions taken 2026-08-27** — D53 amended, `just` adopted as the
   canonical runner. Both in `design-log.md`; the Open section above is the short
   form. Round 2 found no defect in either as stated, but found one in how
