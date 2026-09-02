@@ -15,3 +15,6 @@ mod normalize;
 
 #[cfg(test)]
 mod runner;
+
+#[cfg(test)]
+mod transport_shape;

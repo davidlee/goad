@@ -426,3 +426,33 @@ and `from_slice` runs in `Host`.
 - **Alternative rejected:** having the transport parse purely to validate
   framing and still return raw bytes. Two parses of every response, and two
   places that can raise the same error.
+
+### 2026-09-03 — PHASE-05's fourth gap, raised at the end of execution
+
+Found by diffing the paths PHASE-05 touched against its declared Surfaces, which
+`docs/AGENTS.md` calls the strongest lead an audit has. The phase was otherwise
+green; the sheet's STOP list names "a fourth gap of the same kind" explicitly, so
+it was raised rather than repaired in the sheet.
+
+**Decision: PHASE-05's Surfaces name `tests/integration/**` rather than
+`tests/integration/main.rs` and `tests/integration/harness.rs`.**
+
+The phase's cases live in `tests/integration/transport.rs`, which nothing
+declared. Same class as the five before it — a phase's Surfaces naming what it
+adds and not the file that carries it — except that here the undeclared file is
+the phase's own deliverable rather than the `mod` line that reaches it.
+
+- **The glob is not a widening, it is the form the plan already uses.**
+  PHASE-06's Surfaces say `tests/integration/**` and always did. Two phases
+  writing into one directory under two different conventions is what let this
+  through, and after the amendment there is one convention.
+- **Fixed as a class, not an instance.** Naming `transport.rs` alone was the
+  cheaper edit and was rejected: the next integration file — PHASE-08 adds
+  one — walks into the same wall.
+- **Alternative rejected:** moving the cases into `tests/integration/main.rs`,
+  which is already a Surface. It needs no plan amendment and costs the
+  convention the protocol tier established, where a target root declares its
+  modules and asserts nothing. `tests/protocol/main.rs` is four `mod` lines and
+  a doc comment for that reason.
+- The scripts under `tests/backends/` were already declared as `*.sh` and are
+  untouched by this.

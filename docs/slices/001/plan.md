@@ -565,15 +565,20 @@ discarding the body it came with.
 
 **Surfaces:** `src/shell/mod.rs`, `src/shell/error.rs`,
 `src/shell/backend/mod.rs`, `src/shell/backend/transport.rs`,
-`src/shell/backend/process.rs`, `tests/integration/main.rs`,
-`tests/integration/harness.rs`, `tests/backends/*.sh`,
+`src/shell/backend/process.rs`, `tests/integration/**`, `tests/backends/*.sh`,
 `tests/protocol/transport_shape.rs`, `tests/protocol/main.rs`.
 
-<!-- The last two were added by user decision 2026-09-02, from PHASE-05's
-     expansion: VT-5's source-text checks belong to the boundary tier, and
-     neither the file that holds them nor the `main.rs` that declares it was
-     named. Fifth instance of a phase's Surfaces naming what it adds and not
-     the file that reaches it; `plan-log.md` carries the argument. -->
+<!-- The two `tests/protocol/` paths were added by user decision 2026-09-02,
+     from PHASE-05's expansion: VT-5's source-text checks belong to the boundary
+     tier, and neither the file that holds them nor the `main.rs` that declares
+     it was named. Fifth instance of a phase's Surfaces naming what it adds and
+     not the file that reaches it; `plan-log.md` carries the argument.
+
+     `tests/integration/**` replaced `main.rs` and `harness.rs` by user decision
+     2026-09-03, raised at the end of PHASE-05's execution: the cases themselves
+     live in `tests/integration/transport.rs` and nothing declared it. The glob
+     is the form PHASE-06's Surfaces already use, so this makes one convention
+     of two rather than widening anything. Sixth instance, fixed as a class. -->
 
 **Entry**
 - EN-1 — PHASE-02/EX-1 discharged (`Request` exists to be serialized).
