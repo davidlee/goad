@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-52"],
+  "description":  "Two fields in one option sharing an id have one response key between them and cannot be answered independently, so the message is rejected naming the id and the path.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "note", "kind": "text", "label": "A" }, { "id": "note", "kind": "text", "label": "B" } ] } ] } },
+  "expect":       { "error": { "DuplicateFieldId": { "id": "note", "at": "view.options[0].fields" } } }
+}

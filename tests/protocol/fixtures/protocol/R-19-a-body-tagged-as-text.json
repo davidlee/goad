@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-19"],
+  "description":  "A body written as an object names its own kind and carries its payload under `value`; the text form is admitted, and the host does not interpret it.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "body": { "kind": "text", "value": "Optional context" }, "options": [ { "id": "ok", "label": "Fine" } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": { "text": "Optional context" }, "options": [ { "id": "ok", "label": "Fine", "fields": [] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

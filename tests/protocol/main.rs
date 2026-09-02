@@ -11,4 +11,7 @@
 mod boundary;
 
 #[cfg(test)]
+mod normalize;
+
+#[cfg(test)]
 mod runner;

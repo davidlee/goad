@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-53"],
+  "description":  "An alternative carries an id and a label only. `fields` is a key this spec names, so an alternative carrying one is the wrong place for it rather than an unknown key, and the message is rejected rather than the key ignored — a response names one option and one flat map of field values, so a nested field could never be submitted.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "choice", "label": "L", "options": [ { "id": "red", "label": "Red", "fields": [ { "id": "why", "kind": "text", "label": "Why?" } ] } ] } ] } ] } },
+  "expect":       { "error": { "InapplicableKey": { "key": "fields", "kind": "choice", "at": "view.options[0].fields[0].options[0]" } } }
+}

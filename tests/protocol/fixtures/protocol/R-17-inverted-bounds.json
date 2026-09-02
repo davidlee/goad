@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-17"],
+  "description":  "A minimum above its maximum makes every answer invalid, which is a state the protocol has no meaning for, so the message is rejected rather than the bounds discarded.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "number", "label": "L", "min": 10, "max": 1 } ] } ] } },
+  "expect":       { "error": { "Bounds": { "Inverted": { "min": 10.0, "max": 1.0 } } } }
+}

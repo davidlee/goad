@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-14", "R-52"],
+  "description":  "Two options sharing an id leave the answer unable to say which one was selected, so the message is rejected naming the id and the path.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "later", "label": "Ask me later" }, { "id": "later", "label": "Not now" } ] } },
+  "expect":       { "error": { "DuplicateOptionId": { "id": "later", "at": "view.options" } } }
+}

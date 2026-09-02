@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-18", "R-50"],
+  "description":  "A key this spec does not name at all is a hint, even when it is a misspelling of one that is named. That is the stated cost of hints being the field object's remaining keys, and it is bounded by which keys are optional.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "text", "label": "L", "minn": 1 } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "text", "label": "L", "hints": { "minn": 1 } } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

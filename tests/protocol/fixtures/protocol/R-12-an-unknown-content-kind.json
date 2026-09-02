@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-12", "R-19"],
+  "description":  "A content block naming a kind the host does not implement is rejected the same way an unknown view kind is, and the path says where it was found.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "body": { "kind": "latex", "value": "\\alpha" }, "options": [ { "id": "ok", "label": "Fine" } ] } },
+  "expect":       { "error": { "UnsupportedPrimitive": { "kind": "latex", "at": "view.body.kind" } } }
+}

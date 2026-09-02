@@ -1,7 +1,10 @@
 //! The protocol tier: wire types, canonical types, and the normalization that
 //! is the only path between them.
 //!
-//! `canonical` is the whole of this module in PHASE-02. `wire` and `normalize`
-//! arrive in PHASE-03 and PHASE-04; the layout is `design.md` §5.1's.
+//! `wire` is permissive and `canonical` is not; `normalize` is the one function
+//! that crosses between them, so a canonical value outside this module can only
+//! have come from it (P1, I1). The layout is `design.md` §5.1's.
 
 pub mod canonical;
+pub mod normalize;
+pub mod wire;

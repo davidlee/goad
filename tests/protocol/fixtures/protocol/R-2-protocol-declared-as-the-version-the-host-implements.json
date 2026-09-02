@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-2"],
+  "description":  "A response declaring protocol version 1 is accepted, since that is the version the host implements.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "protocol": 1, "view": null },
+  "expect":       { "accepted": { "canonical": { "view": null, "schedule": null }, "discarded": [] } }
+}

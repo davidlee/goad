@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | **done** — `just check` exits 0 in both feature columns. All six EX and all seven V criteria discharged; see `## Phase sheets` | 2026-08-29 |
 | PHASE-02 | **done** — `just check` exits 0 in both feature columns; 17 unit tests, 13 of them this phase's. All four EX and both VT criteria discharged, VA-1 and VA-2 pasted. **Three** plan gaps raised by the expansion and by execution, all closed by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors, and `Fields` permitting empty. See `## Phase sheets` | 2026-08-30 |
 | PHASE-03 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 5 of them this phase's, plus a 16-file fixture corpus running in **both** columns. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. **Five** break-and-revert runs, not the two the sheet asked for, because the fixture format makes three property claims; two of them found real defects in the runner, both fixed at the refactor step. No plan gap raised during execution — the four found at expansion were all closed beforehand. See `## Phase sheets` | 2026-09-02 |
-| PHASE-04 | **sheet written; ready to execute.** Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. See `## Phase sheets` | 2026-09-02 |
+| PHASE-04 | **done** — `just check` exits 0 in both feature columns; 22 unit tests and 9 protocol tests, 4 of the latter this phase's, over a **54-file** corpus in two directories. All eight EX and all four VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. **A fourth was raised during execution** — `canonical.rs` joined the Surfaces, scoped to removing four `expect(dead_code)` attributes PHASE-02 wrote as temporary, without which the lib does not compile once normalization calls the constructors. See `## Phase sheets` | 2026-09-02 |
 | PHASE-05…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
@@ -2264,11 +2264,15 @@ No undeclared path. Nothing else in `src/` or `tests/` was edited.
 
 ### PHASE-04 — Wire types, normalization, and the protocol corpus
 
-**State:** **sheet written 2026-09-02; not started; nothing blocking.** Entry
-criteria checked and met. Three plan gaps were found at expansion and **all three
-are closed** — items 1 and 2 by user decision on 2026-09-02, which amended
-`plan.md` and is recorded in `plan-log.md`; item 3 is implementer latitude and is
-settled in item 4.
+**State:** **done 2026-09-02.** `just check` exits 0 in both feature columns.
+All eight EX and all four VT criteria discharged; VA-1 and VA-2 pasted in the
+Verification record. The three plan gaps found at expansion were closed before
+execution, and execution raised **one more** — `canonical.rs` had to join the
+Surfaces so four `expect(dead_code)` attributes PHASE-02 left could come off —
+closed by user decision the same day. A2, A3, A4 and A5 were re-measured before
+a wire type was written and all four hold. Six break-and-reverts plus two
+naive-expectation reds; the refactor step found one real defect in a doc comment
+that claimed the opposite of the code.
 **Plan entry:** `docs/slices/001/plan.md:449`
 **Surfaces (from the plan):** `src/semantics/protocol/mod.rs` (the two `pub mod`
 lines, and its doc comment), `src/semantics/protocol/wire.rs`,
@@ -2517,12 +2521,438 @@ transport rows are marked as not this phase's.
 Name each file for the requirement it verifies, as PHASE-03 did: `ls` over the
 directory is then a coverage report against §4.
 
+#### Verification record
+
+All discharged 2026-09-02. Evidence is pasted below the table, not summarised
+in it.
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| VT-1 | test | **pass** | the corpus: **52** fixtures under `tests/protocol/fixtures/protocol/` and **2** under `tests/protocol/fixtures/protocol-text/`, run by two `#[test]`s through PHASE-03's runner with the shared half unchanged. E1, E5 |
+| VT-2 | test | **pass** | `normalize::every_reachable_error_in_the_taxonomy_is_named_by_a_fixture` reads the corpora back and asserts every `ProtocolError` variant is named by a fixture. **Two** documented exceptions, not one, and both are the design's — see the Log. Written down *in the test*, as the criterion asks, in the block comment above it. E3, E5 |
+| VT-3 | test | **pass** | `R-50-a-misspelled-optional-key-becomes-a-hint.json` (`minn` lands in `hints`) and `R-15-a-misspelled-required-key.json` (`labell` is rejected). Both were red against the `normalize_field` stub. E1, E2 |
+| VT-4 | test | **pass** | six `R-4-an-unmodelled-key-on-*.json`, one per level including `Alternative`. Each asserts acceptance and an **empty** discard list; the whole canonical value is asserted, so an unmodelled key surviving anywhere would break the case. Driven red by break (d), which put `deny_unknown_fields` on five of the six levels. VT-4's third clause does not hold at the field level and the sheet's own inventory says why — Log. E2 |
+| VA-1 | agent | **pass** | `just check` exits 0, six commands, both feature columns. 22 unit tests and 9 protocol tests in each. E4 |
+| VA-2 | agent | **pass** | four break-and-reverts, in **host** code at the corrected path: `unwrap()` and an unchecked `+` in `normalize.rs`, an unchecked `+` in `wire.rs`, and the same `unwrap()` under `tests/` confirming the F-14 carve-out lets it pass. E2 |
+| EX-1 | review + test | **pass** | `wire.rs`: no `deny_unknown_fields` anywhere (break (d) is the proof it is load-bearing rather than merely absent); `view` present-preserving through `present`, with all three states distinguished by fixture; `next_check`, `body` and a `choice` field's `options` typed `serde_json::Value`; `hints` flattened. `clippy::option_option` had to be excepted with a written reason — Log. E1, E2 |
+| EX-2 | test | **pass** | `normalize_response(wire, now) -> Result<Normalized<Response>, ProtocolError>`, `Normalized { value, discarded }`, `Discarded` closed at one variant. `now` is a parameter; nothing in the module reads a clock. `src/semantics/protocol/normalize.rs:82` |
+| EX-3 | test | **pass** | `R-12-an-unknown-view-kind.json` (`view.kind`), `R-12-an-unknown-field-kind.json` (`view.options[1].fields[2].kind`) and `R-12-an-unknown-content-kind.json` (`view.body.kind`) — each asserting the path **literally**. A fourth, `R-12-a-misplaced-key-on-an-unknown-field-kind.json`, holds the ordering: the kind is reported, not the misplaced key. E2 break (f) |
+| EX-4 | review | **pass** | the corpus covers every row of the sheet's inventory. Brief §10.1's `"body": "Optional context"` and brief §10.2's `{"id":…,"multiline":true}` are both carried **verbatim**, in `R-19-a-body-written-as-a-bare-string.json` and `R-18-brief-10-2-s-own-field-example.json`. E1 |
+| EX-5 | agent | **pass** | `#![deny(clippy::arithmetic_side_effects)]` at the top of both `wire.rs` and `normalize.rs`, each verified **by breaking it** — E2 breaks (b) and (c). The other three restriction lints are crate-wide and break (a) confirms they reach this module |
+| EX-6 | test | **pass** | `R-50-min-on-a-text-field.json`, `R-50-options-on-a-number-field.json` and `R-50-min-on-a-choice-field.json` assert `InapplicableKey` with the key, the kind and the path; `R-53-an-alternative-carrying-fields.json` asserts a `choice` field's option carrying `fields` is **rejected**, not ignored. All four were red against the stub. A3 was measured before any of it was written, and it holds |
+| EX-7 | test | **pass** | `R-51-next-check-omitted.json` and `R-51-next-check-null.json` produce **identical** outcomes with an empty discard list; `R-51-protocol-null.json` likewise; `R-25-next-check-of-the-wrong-type.json` is still discarded and reported, so the two are shown to be distinguished. Three further `null` cases the rule reaches were added from the refactor review — a nulled body, a nulled modelled key on a field, a nulled `fields` on an alternative |
+| EX-8 | test | **pass** | six levels, six fixtures, one unmodelled key each — envelope, view, option, field, content block, alternative. The field level is D37's stronger claim: the key is **kept as a hint**. E2 break (d) |
+
+**E0 — task 1, the four assumptions measured before a wire type was written.**
+Scratch crate under the session scratchpad, `serde = "=1.0.229"`,
+`serde_json = "=1.0.151"` — the versions `Cargo.lock` pins.
+
+```
+== A2: flatten at depth vs deserialize_with on `view` above it ==
+  view absent                        OK  protocol=Some(1) view=ABSENT next_check=None
+  view null                          OK  protocol=None view=NULL next_check=None
+  view choice, nested                OK  protocol=None view=VIEW(kind=choice) next_check=None
+  view choice, body string           OK  protocol=None view=VIEW(kind=choice) next_check=None
+  view choice + next_check           OK  protocol=None view=VIEW(kind=choice) next_check=Some(String("45 minutes"))
+  view unknown kind                  OK  protocol=None view=VIEW(kind=slider) next_check=None
+  view not an object                 ERR invalid type: integer `45`, expected struct WireView
+  unmodelled at envelope             OK  protocol=None view=NULL next_check=None
+
+  -- the nested WireView.rest, re-read as a WireChoice --
+  choice title=T body=Some(String("Optional context"))
+    options=Some([WireOpt { id: "a", label: "A", fields: Some([WireField {
+      id: "n", kind: "text", label: "L", min: None, max: None, options: None,
+      hints: {"multiline": Bool(true)} }]) }])
+
+== A3: does serde bind min/max/options before `kind` is dispatched? ==
+  text + min                         OK  kind=text min=Some(1.0) max=None options=None hints={}
+  number + options                   OK  kind=number min=None max=None options=Some(Array [...]) hints={}
+  choice + min                       OK  kind=choice min=Some(1.0) max=None options=None hints={}
+  number + min/max                   OK  kind=number min=Some(1.0) max=Some(10.0) options=None hints={}
+  text + minn (misspelt)             OK  kind=text min=None max=None options=None hints={"minn": Number(1)}
+  text + multiline                   OK  kind=text min=None max=None options=None hints={"multiline": Bool(true)}
+
+== A4: a misspelled REQUIRED key after flattening ==
+  labell instead of label            ERR missing field `label` at line 1 column 40
+  kindd instead of kind              ERR missing field `kind` at line 1 column 37
+  idd instead of id                  ERR missing field `id` at line 1 column 37
+
+== A5: from_str vs from_value ==
+  they agree on which failure occurs for every document tried; a from_value
+  error carries no line and column, and fixtures assert variant names rather
+  than error strings. `1e400` fails when the Value itself is parsed.
+
+== the null elision (item 5), measured separately ==
+  all omitted        protocol=None view=None      next_check=None
+  next_check null    protocol=None view=Some(false) next_check=None
+  next_check 45      protocol=None view=Some(false) next_check=Some(Number(45))
+  protocol null      protocol=None view=Some(false) next_check=None
+  protocol 2         protocol=Some(2) view=Some(false) next_check=None
+
+  serde_json Number equality is spelling-sensitive: parsed "10" != parsed "10.0",
+  so a fixture asserting an f64 bound writes `10.0`.
+```
+
+All four hold. A3 holding is what makes EX-6 reachable; had it been false, the
+design's cost argument for D37 would have changed and this would have been a
+STOP.
+
+**E1 — the corpus, as `ls` reads it.** The filename is the index, so this is the
+coverage report against `draft-spec.md` §4.
+
+```
+tests/protocol/fixtures/protocol/            (52)
+  R-2-protocol-omitted / -declared-as-the-version-the-host-implements
+  R-3-protocol-declared-as-a-version-the-host-does-not-implement
+  R-4-an-unmodelled-key-on-{the-envelope,a-view,an-option,a-field,
+                            a-content-block,an-alternative}
+  R-10-view-omitted
+  R-11-view-null-is-nothing-to-show
+  R-12-an-unknown-{view,field,content}-kind
+  R-12-a-misplaced-key-on-an-unknown-field-kind
+  R-13-a-choice-view / -with-no-options / -omitting-options-entirely
+  R-14-duplicate-option-ids
+  R-15-an-option-with-no-fields / -carrying-fields / -a-misspelled-required-key
+  R-16-a-{text,boolean,datetime}-field
+  R-16-a-number-field-{with,without}-bounds
+  R-16-a-choice-field
+  R-17-inverted-bounds
+  R-18-brief-10-2-s-own-field-example
+  R-19-a-body-written-as-a-bare-string
+  R-19-a-body-tagged-as-{text,markdown,html,uri}
+  R-21-next-check-as-a-relative-span
+  R-25-next-check-of-the-wrong-type
+  R-50-min-on-a-text-field / -options-on-a-number-field / -min-on-a-choice-field
+  R-50-a-misspelled-optional-key-becomes-a-hint
+  R-51-next-check-omitted / -next-check-null / -protocol-null
+  R-51-a-nulled-body / -a-nulled-modelled-key-on-a-field
+  R-51-a-nulled-fields-key-on-an-alternative
+  R-52-duplicate-field-ids-within-one-option
+  R-52-the-same-field-id-in-different-options
+  R-52-duplicate-alternative-ids / -a-choice-field-with-no-alternatives
+  R-53-an-alternative-carrying-fields
+
+tests/protocol/fixtures/protocol-text/       (2)
+  R-17-a-nan-literal-for-a-bound
+  R-17-an-infinite-literal-for-a-bound
+```
+
+**E2 — the breaks. Six, plus two naive-expectation reds.** Every break was
+reverted and the gate re-run green after each.
+
+*(a) `unwrap()` in `src/semantics/protocol/normalize.rs`* — the crate-wide
+restriction lint, at the path VA-2 was corrected to:
+
+```
+error: used `unwrap()` on a `Result` value
+  --> src/semantics/protocol/normalize.rs:96:21
+   = help: …#unwrap_used
+error: docs for function which may panic missing `# Panics` section
+  --> src/semantics/protocol/normalize.rs:75:1
+```
+
+The second line was not asked for and is worth keeping: `missing_panics_doc` is
+commented as "paused" in the manifest, and `pedantic = deny` re-enables it — the
+same surprise PHASE-03 met with `missing_errors_doc`.
+
+*(b) an unchecked `+` in `normalize.rs`* — the module-level deny, and the trace
+names the attribute:
+
+```
+error: arithmetic operation that can potentially result in unexpected side-effects
+   --> src/semantics/protocol/normalize.rs:152:16
+   --> src/semantics/protocol/normalize.rs:20:9
+ 20 | #![deny(clippy::arithmetic_side_effects)]
+```
+
+*(c) the same in `wire.rs`* — a separate claim, because EX-5 names two files:
+
+```
+error: arithmetic operation that can potentially result in unexpected side-effects
+   --> src/semantics/protocol/wire.rs:191:3
+   --> src/semantics/protocol/wire.rs:29:9
+ 29 | #![deny(clippy::arithmetic_side_effects)]
+```
+
+*(d) the identical `unwrap()` under `tests/`* — `clippy exit=0`. F-14 is real:
+an `unwrap()` there proves nothing, which is why (a) is where it belongs.
+
+*(e) I10 broken — `deny_unknown_fields` on `WireResponse`, `WireChoice`,
+`WireOpt`, `WireAlternative`, `WireContent` and `WireContentValue`.* Five of the
+six EX-8 levels failed, and so did every tagged-content fixture, because
+`WireContent` and `WireContentValue` each see the other'"'"'s key as unknown — the
+two-struct split of a content block **depends** on permissiveness rather than
+merely coexisting with it. `WireView` and `WireField` cannot take the attribute
+at all: `flatten` and `deny_unknown_fields` do not compose.
+
+*(f) the corpus root of the second corpus renamed away* — the vacuity guard
+covers each directory on its own, which is the small gain item 4 claimed for
+splitting them:
+
+```
+…/fixtures/protocol-text-renamed-away: the corpus directory could not be read: No such file or directory (os error 2)
+…/fixtures/protocol-text-renamed-away: ran no fixtures — renamed, emptied, or misspelled
+```
+
+*(g) applicability judged before the kind dispatch* — the ordering claim, and
+the fixture it earned stayed in the corpus:
+
+```
+R-12-a-misplaced-key-on-an-unknown-field-kind.json: A modelled key misplaced on a
+  kind the host does not implement reports the kind, not the key.
+    expected { "UnsupportedPrimitive": { "at": "view.options[0].fields[0].kind", "kind": "slider" } }
+    got      { "InapplicableKey": { "at": …, "key": "min", "kind": "slider" } }
+```
+
+*(h) two naive-expectation reds*, where no ordinary red exists because the claim
+is about a dependency or about a `null` serde already elides. The `NaN` and
+`1e400` fixtures were written expecting `Bounds(NotFinite)` — the reading F-36
+refutes — and came back:
+
+```
+    expected { "Bounds": { "NotFinite": { "bound": "min", "found": null } } }
+    got      { "Json": null }
+    (malformed JSON: expected value at line 1 column 150)
+    (malformed JSON: number out of range at line 1 column 154)
+```
+
+The nulled `min` on a text field was written expecting `InapplicableKey` and
+came back accepted, which is R-51 refuting R-50 for that one case. Both were
+then corrected to what the protocol does.
+
+**E3 — VT-2, the coverage test.** `every_reachable_error_in_the_taxonomy_is_named_by_a_fixture`
+derives the tag set from one instance of each `ProtocolError` variant, reads
+both corpora back, and fails on a variant no fixture names. Two exemptions, each
+asserted in the negative rather than merely skipped:
+
+- `ProtocolError::Schedule` — asserted **not** to appear as an error, because an
+  unusable `next_check` is a discard on an accepted message (P2, R-25). The
+  companion test `a_schedule_failure_is_named_by_a_fixture_as_a_discard` asserts
+  it appears on that channel instead.
+- `BoundsError::NotFinite` — asserted **not** to appear, because a fixture
+  claiming it would be a test that cannot fail (F-36, D39). `Inverted` is
+  asserted present.
+
+**E4 — VA-1, `just check`.** Six commands, both columns, exit 0:
+
+```
+cargo build
+cargo test                          22 passed (lib) · 9 passed (protocol) · 0 doc-tests
+cargo test --no-default-features    22 passed (lib) · 9 passed (protocol)
+cargo clippy --all-targets -- -D warnings
+cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+cargo fmt --check
+just check exit=0
+```
+
+9 protocol tests, 4 of them this phase's — two corpora and two coverage tests.
+Both corpora run in the `--no-default-features` column, so the new checker
+reaches nothing above stratum 1.
+
+**E5 — the surfaces actually touched**, against the plan's list as amended:
+
+```
+M src/semantics/protocol/canonical.rs   (four lint attributes removed, nothing else)
+M src/semantics/protocol/mod.rs         (two `pub mod` lines, and the stale doc comment)
+M tests/protocol/main.rs                (three lines, `#[cfg(test)] mod normalize;`)
+M tests/protocol/runner.rs              (five items to `pub(crate)`, and a doc paragraph)
+? src/semantics/protocol/wire.rs
+? src/semantics/protocol/normalize.rs
+? tests/protocol/normalize.rs
+? tests/protocol/fixtures/protocol/*.json         (52 files)
+? tests/protocol/fixtures/protocol-text/*.json    (2 files)
+```
+
+No undeclared path. Nothing else in `src/` or `tests/` was edited.
+
+#### Log
+
+<!-- Append as you go: decisions taken, obstacles, anything noticed in passing. -->
+
+- **2026-09-02, task 1 — entry check.** `nix develop --command bash -c 'which
+  just cargo rustc; just check'` — `just` at
+  `/nix/store/ni2dxycnhsp34y4qy6q44nw6pp6bj0l0-just-1.58.0/bin/just`, `cargo` and
+  `rustc` at
+  `/nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/`.
+  A1 verified. `just check` exits 0 — 22 unit tests, 5 protocol tests, both
+  clippy columns clean. Any failure from here is this phase's.
+- **2026-09-02, task 1 — A2, A3, A4 and A5 measured before a wire type was
+  written.** Scratch crate under the session scratchpad, `serde = "=1.0.229"`
+  and `serde_json = "=1.0.151"`, the versions `Cargo.lock` pins. **All four
+  hold.** Output pasted under the Verification record as E0.
+  - **A2 holds.** `#[serde(flatten)]` inside `WireView` and inside `WireField`
+    does not disturb the `deserialize_with = "present"` on `view` above them.
+    All three states stay distinct — absent, `null`, a view — with a nested
+    field carrying a hint two levels below the flatten.
+  - **A3 holds, and EX-6 is therefore reachable.** `{"kind":"text","min":1}`
+    binds `min: Some(1.0)` with `hints` **empty**. Serde binds the declared
+    optional before `kind` is more than a string, so a misplaced modelled key
+    cannot fall through to `hints`: it is raised or it is lost.
+  - **A4 holds.** `labell` gives ``missing field `label` ``; so do `kindd` and
+    `idd`. Required keys stay required after flattening.
+  - **A5 holds where the corpora need it, with one difference worth writing
+    down.** `from_str` and `from_value` agree on *which* failure occurs for
+    every document tried; they differ only in that a `from_value` error carries
+    no line and column. Fixtures assert a variant name and never an error
+    string, so nothing depends on it. The case that is not a difference at all:
+    `1e400` fails when the `serde_json::Value` is *parsed*, before any struct is
+    involved — item 3's finding arriving from the other direction, and why both
+    it and `NaN` need the raw-text corpus.
+- **2026-09-02, one plan gap raised and closed mid-execution — `canonical.rs`
+  joins the Surfaces, scoped to four lint attributes.** PHASE-02 put
+  `#[cfg_attr(not(test), expect(dead_code, …))]` on `OptionId::new`,
+  `AlternativeId::new`, `FieldId::new` and `Hints::new`, and each reason text
+  says the attribute comes off once PHASE-04 calls it. Measured rather than
+  predicted: one `OptionId::new` call from a stub `normalize.rs` gives
+  `error: this lint expectation is unfulfilled` and the lib does not compile.
+  The tuple fields are private, so `new` is the only construction path and there
+  is no `normalize.rs` that avoids it. **Not R10** — nothing is added and nothing
+  widened; four temporary attributes are deleted. User decision 2026-09-02:
+  remove them and amend `plan.md`, recorded in `plan-log.md`.
+- **2026-09-02, tasks 2 and 3 — `protocol/mod.rs` and `wire.rs`.** The doc
+  comment's PHASE-03 claim is gone; both modules are declared. `wire.rs` is
+  §5.2's shape with two additions §5.2 does not name and §6 leaves open:
+  `WireAlternative` (id and label only — `fields` is deliberately **not**
+  declared, so R-53's rejection is a check on the raw object rather than a field
+  this type carries), and the split of a tagged content block into `WireContent`
+  (its `kind`) and `WireContentValue` (its `value`), for the reason `WireView` is
+  split from `WireChoice`: an unrecognised content kind must be
+  `UnsupportedPrimitive` naming the string it found, which needs the
+  discriminant read before anything beside it is bound.
+- **2026-09-02, task 4 — normalization, in four red/green batches.** Each batch
+  was driven red against a deliberate stub before it was written.
+  1. **The envelope.** Ten fixtures red against a `normalize_response` returning
+     `MissingField` unconditionally; green once version, `view` presence and
+     `next_check` were real. Confirmed by measurement that serde maps *both* an
+     omitted and an explicitly null `next_check` to `None`, and the same for
+     `protocol` — so item 5's elision is structural, and the fixture pair proves
+     the behaviour rather than the intention.
+  2. **The two literals JSON cannot express.** Written first with the *naive*
+     expectation — `Bounds(NotFinite)` — precisely so the red would be the
+     design's own claim being demonstrated: both come back `Json`
+     (`expected value at line 1 column 150`, `number out of range at line 1
+     column 154`), F-36 executed rather than cited. Then corrected to `Json`.
+     This is the one group with no ordinary red available: the claim is about
+     `serde_json`'s parser, so no version of this crate's code makes it fail.
+  3. **The view.** Eleven fixtures red against a `normalize_view` stub; green
+     with the choice dispatch, options, body and content.
+  4. **Fields.** Eighteen fixtures red against a `normalize_field` stub; green
+     with kind dispatch, applicability, bounds and alternatives.
+- **2026-09-02, EX-8's six levels went green on arrival, so they were driven red
+  by breaking I10.** `#[serde(deny_unknown_fields)]` was added to
+  `WireResponse`, `WireChoice`, `WireOpt`, `WireAlternative`, `WireContent` and
+  `WireContentValue`, and reverted. Five of the six levels failed, plus two
+  groups worth recording: the nulled-`fields` case, and **every tagged-content
+  fixture** — because `WireContent` and `WireContentValue` each see the other's
+  key as unknown, so the two-struct split of a content block *depends* on
+  permissiveness rather than merely coexisting with it. The field level does not
+  move under that break, and needs none: its fixtures were red in batch 4
+  against the stub, and its claim is D37's stronger one — an unmodelled key
+  there is **kept as a hint**, not ignored.
+- **2026-09-02, VT-4's third clause does not hold at the field level, and the
+  sheet's own inventory already says so.** VT-4 asks each of the six levels to
+  assert "the field is absent from the canonical value". On a *field object*
+  that is false by design: D37 makes every unnamed key a hint, so it survives
+  into `Field.hints`. The corpus inventory row for R-4/R-5/R-51 states only the
+  two clauses that hold at all six — acceptance and an empty discard list — and
+  those are what every level asserts. The field-level fixture then asserts the
+  **stronger** thing, that the key lands in `hints`, which is what D37 claims and
+  what VT-3's `minn` case says from the other side. Recorded rather than raised:
+  D37 settles it and there is no decision left in it. Same shape as
+  `design.md:704`'s blanket comment over the three checked collections, which
+  PHASE-02 found over-general for `Fields`.
+- **2026-09-02, `clippy::option_option` refuses the shape §5.2 mandates.**
+  `Option<Option<WireView>>` is a pedantic lint failure, and the lint's own
+  suggestion is "a custom enum if you need to distinguish all 3 cases" — which is
+  a design change made to satisfy a style lint, since §5.2 fixes both the shape
+  and the `present` helper and EX-1 requires both. Taken as §9's
+  reason-carrying exception instead: an `#[expect(…, reason = …)]` at the field,
+  greppable and self-clearing. This is exactly the hatch D53 built for F-35's
+  `child.stdin.take()`, used for the second time and for the same kind of reason.
+- **2026-09-02, one local decision the design did not reach: `"fields": null`
+  on an alternative is accepted.** R-53 rejects a `fields` an alternative
+  carries; D50/R-51 say an explicit `null` means what omission means *for every
+  modelled field*, and `fields` is a key the spec names. A null one carries
+  nothing to reject and a serializer emitting `null` for an absent optional is
+  doing nothing wrong — which is R-51's own argument. Applying the stated rule
+  rather than inventing one, with a fixture that says so. Worth an audit note:
+  the design states R-51 over "modelled fields" and R-53 over position, and this
+  is where the two meet.
+- **2026-09-02, two further local decisions, both applications of a stated
+  rule.** An **absent** `options` on a view is `EmptyOptions` and an absent
+  `options` on a `choice` field is `EmptyAlternatives`, because absent and empty
+  are the same offer — nothing to pick — and R-13 rejects the second. The wire
+  types make both optional precisely so the decision is normalization's rather
+  than serde's. And applicability is judged **inside** each kind's arm rather
+  than before the match, so `{"kind":"slider","min":1}` reports the *kind*:
+  naming the key would send a backend author to fix the wrong thing.
+- **2026-09-02, task 5 — the corpus's `expect` tags, for a reader who inherits
+  them.** *The fixture format* says PHASE-04 adds its tags to its own checker
+  rather than to the shared table, so they are recorded here. Two, both
+  externally tagged like everything else in the format:
+  `{"error": {"<Variant>": {<its fields>}}}` and
+  `{"accepted": {"canonical": ..., "discarded": [...]}}`.
+  - **An accepting fixture states the whole canonical value**, not a probe into
+    one part of it. `canonical` is the entire normalized response rendered back
+    to JSON, so a fixture says what a wire document *means* — which is what
+    makes the corpus usable to `draft-spec.md` §7, and what discharges R-4/R-5
+    without a second mechanism: a key that survived normalization would appear
+    in the rendering and break the case.
+  - **`discarded` is required on every accepting fixture**, never optional. For
+    most cases the assertion *is* the empty list, and a corpus where silence was
+    the default would assert it nowhere.
+  - Rendering is externally tagged throughout — `{"markdown": ...}`,
+    `{"number": {"min": ..., "max": ...}}`, `{"choice": [...]}` — so a reader
+    meets one convention rather than three. Every renderer is an exhaustive
+    match: a variant added to `canonical.rs` or to the taxonomy cannot reach the
+    corpus without an arm.
+  - One sharp edge, measured: `serde_json`'s `Number` equality is
+    spelling-sensitive, so a fixture asserting an `f64` bound writes `10.0` and
+    not `10`.
+- **2026-09-02, task 5 — `runner.rs` split, which was PHASE-04's call to take.**
+  Taken: the shared half stays in `runner.rs` with the scheduling corpus below
+  its divider, exactly as PHASE-03 left it, and this phase's two corpora live in
+  `tests/protocol/normalize.rs`. Five items became `pub(crate)` and one doc
+  paragraph was added; **no logic above the divider changed**, which is the
+  property the seam was built for. Extending `runner.rs` instead would have
+  grown one file from two halves to four; moving PHASE-03's corpus out would
+  have rewritten a phase that is done.
+- **2026-09-02, task 7 — the refactor, and what it found.** Three extractions
+  and one real defect.
+  1. **`each_indexed`** replaces three near-identical loops — a view's options,
+     an option's fields, a `choice` field's alternatives all walk a list, index
+     it into the path, and hand the result to a checked constructor. The gain is
+     not line count: `{at}[{index}]` is now written **once**, so the path
+     grammar cannot drift between the three, and the corpus asserts those paths
+     literally.
+  2. **`normalize_alternative`** came out of `normalize_alternatives`, which is
+     what makes the first extraction fit.
+  3. On the test side, `render_normalized` replaced two copies of the same
+     `{canonical, discarded}` shape; `sole_tag` now reads through the shared
+     half's `outcome_tag` rather than walking the map a second way; and one
+     directory walk serves both coverage tests.
+  4. **The defect: `normalize_response`'s `# Errors` section said `Json` is not
+     raised here.** It is, in three places — a view's payload, a content block
+     and a `choice` field's alternatives are each deserialized *inside* this
+     module, because their discriminants have to be dispatched before anything
+     beside them is bound. The doc comment described the design's composition
+     (transport, then `from_slice`, then normalize) and not the code under it.
+     Corrected to say both. The same refactor pass added three fixtures the
+     review turned up — a nulled body, a nulled modelled key on a field, a
+     nulled `fields` on an alternative.
+- **2026-09-02, AC-11's vocabulary scan did not fire.** PHASE-03 predicted it
+  would, on the word "site", which is hard to avoid when writing about where a
+  rule applies. It was avoided deliberately — "place", "position", "level" — at
+  no cost to the prose. Worth carrying: the word to reach for is "place".
+
 
 ## Harvest
 
-**Fresh as of:** 2026-09-02 · plan accepted, **PHASE-01, PHASE-02 and PHASE-03
-done** · committed through `2648a17`, the tree clean · **PHASE-04's sheet is written, its three
-plan gaps closed, and the phase is ready to execute**
+**Fresh as of:** 2026-09-02 · plan accepted, **PHASE-01 through PHASE-04
+done** · `just check` exits 0 in both feature columns · **stratum 1 is complete:
+the wire types, the canonical types, normalization and schedule resolution, with
+a 70-file fixture corpus across three directories.** PHASE-05 is next, and is the
+first phase in stratum 2
 
 ### Produced
 
@@ -2566,6 +2996,26 @@ plan gaps closed, and the phase is ready to execute**
   envelope, the discovery, the external-tag read and the vacuity guard, and
   supplies only a `Check` function. It is written up under PHASE-03's sheet,
   *The fixture format*, reconciled against the code that shipped.
+- **The wire types, normalization and the protocol corpus, from PHASE-04.**
+  `src/semantics/protocol/wire.rs` and `normalize.rs`, `tests/protocol/normalize.rs`,
+  and **54 fixtures** across `tests/protocol/fixtures/protocol/` (52) and
+  `fixtures/protocol-text/` (2), plus two `pub mod` lines in
+  `src/semantics/protocol/mod.rs`, three in `tests/protocol/main.rs`, five
+  `pub(crate)`s in `runner.rs`, and the removal of four spent `expect(dead_code)`
+  attributes in `canonical.rs`.
+  `normalize_response(wire, now)` is the only path from wire to canonical;
+  `now` is a parameter and nothing reads a clock. Every `ProtocolError` variant
+  the wire can reach is named by a fixture, held by a coverage test that reads
+  the corpus back — with two exemptions asserted **in the negative**:
+  `ProtocolError::Schedule`, which is a discard rather than an error, and
+  `BoundsError::NotFinite`, which JSON cannot express.
+  9 protocol tests, 4 of them this phase's, and both new corpora run in **both**
+  feature columns.
+  **The durable artefact beyond the code is the corpus's `expect` shape** — an
+  accepting fixture states the *whole* canonical value rendered back to JSON,
+  not a probe into part of it, which is what makes `ls` over the directory a
+  coverage report and the files themselves readable as protocol documentation.
+  PHASE-05 and PHASE-10 inherit it, written up under PHASE-04's sheet.
 
 ### Learned
 
@@ -2680,7 +3130,95 @@ empirically** above, plus:
   silently unverified. Rejecting the second key is a three-line function and it
   belongs where every corpus inherits it.
 
+**From PHASE-04, all measured here rather than assumed:**
+
+- **`#[serde(flatten)]` at depth does not disturb a `deserialize_with` above
+  it.** The whole wire shape rests on this: `WireResponse.view` is
+  `Option<Option<WireView>>` with a presence-preserving deserializer, and both
+  `WireView` and `WireField` flatten beneath it. All three states stay distinct
+  with a hint two levels down. Re-measured rather than cited, as the design's §6
+  says it was.
+- **Serde binds a declared optional *before* the discriminant beside it is
+  read.** `{"kind":"text","min":1}` yields `min: Some(1.0)` with an **empty**
+  `hints` map. There is no encoding in which a misplaced modelled key falls
+  through to a flattened catch-all, so normalization must reject it or lose it —
+  F-45's premise, and it holds.
+- **A misspelled *required* key still fails after flattening.** `labell` gives
+  ``missing field `label` ``; so do `kindd` and `idd`. D37's stated cost really
+  is bounded to the optional keys.
+- **`serde_json::Number` equality is spelling-sensitive.** Parsed `10` does not
+  equal parsed `10.0`. Any fixture comparing an `f64` by JSON equality has to
+  write the float spelling.
+- **`from_str` and `from_value` agree on which failure occurs, and differ only
+  in that `from_value` errors carry no line and column.** `1e400` is the case
+  that looks like a difference and is not: it fails when the `Value` itself is
+  parsed, before any struct is involved.
+- **`clippy::option_option` (pedantic) forbids the shape §5.2 mandates**, and
+  its own suggested alternative is a custom enum — a design change to satisfy a
+  style lint. Taken as an `#[expect(…, reason = …)]` at the field. Second use of
+  D53's reason-carrying hatch; expect a third.
+- **`clippy::missing_panics_doc` is live, for the same reason
+  `missing_errors_doc` is.** The manifest comments the doc lints out and says
+  they are paused; `pedantic = "deny"` re-enables both. An `unwrap()` in host
+  code therefore fails the gate *twice* — once for the unwrap and once for the
+  missing `# Panics` section.
+- **`deny_unknown_fields` and `flatten` do not compose**, so I10's permissiveness
+  cannot be broken uniformly to test it. More useful: splitting a tagged object
+  into a discriminant struct and a payload struct — the encoding §6 offers, and
+  the one that makes a named error possible at all — **depends** on
+  permissiveness, because each struct sees the other's key as unknown.
+- **A corpus that asserts the whole canonical value discharges "unknown fields
+  are ignored" for free.** No second mechanism, no probe language: a key that
+  survived normalization appears in the rendering and breaks the case.
+- **Where no ordinary red exists, write the naive expectation first.** Two
+  groups had no failing state reachable from this crate's code — the `NaN` and
+  `1e400` literals, whose claim is about `serde_json`'s parser, and the `null`
+  cases serde elides structurally. Asserting the *wrong* reading first and
+  watching it be refuted is the available red, and it puts the design's own
+  argument in the run log.
+- **The AC-11 scan can be lived with by word choice.** "Place", "position" and
+  "level" carry everything "site" would have, so the predicted recurrence did
+  not happen.
+
 ### Open
+
+**Raised by PHASE-04, 2026-09-02 — all four are audit business, none is a phase
+repair.**
+
+- **R-51 and R-53 meet, and the design does not say what happens.** R-51 states
+  that an explicit `null` means what omission means *for every modelled field*;
+  R-53 rejects a `fields` key on a `choice` field's alternative, and R-50 rejects
+  a modelled key on a kind that does not admit it. So what does
+  `{"id": "red", "label": "Red", "fields": null}` mean? PHASE-04 applied R-51 —
+  the sender asserted nothing, so nothing is lost by reading it as omission, and
+  a serializer emitting `null` for an absent optional is doing nothing wrong,
+  which is R-51's own argument. **Shipped as
+  `R-51-a-nulled-fields-key-on-an-alternative.json` and
+  `R-51-a-nulled-modelled-key-on-a-field.json`**, both stating the reading in
+  their descriptions. If audit prefers strictness, those two fixtures are what
+  change. Note the second case is structural rather than chosen: serde maps
+  `"min": null` to `None` before normalization sees it, so rejecting it would
+  need a wire-type change, not a normalization one.
+- **VT-4's third clause is false at one of its six levels.** It asks each
+  unmodelled-key fixture to assert "the field is absent from the canonical
+  value". On a *field object* D37 makes every unnamed key a hint, so it survives
+  into `Field.hints` deliberately. The sheet's own corpus inventory states only
+  the two clauses that hold at all six — acceptance and an empty discard list —
+  and those are what the fixtures assert, with the field level asserting the
+  stronger D37 claim instead. Same shape as `design.md:704`'s blanket comment
+  over the three checked collections, which PHASE-02 raised.
+- **VT-2 names one documented exception and there are two.**
+  `BoundsError::NotFinite` is the one it names. The second is
+  `ProtocolError::Schedule`, which by the design's own P2 rule never arrives as
+  an `Err` at all — `design.md` §5.2 says so under AC-6. Both are asserted **in
+  the negative** by the coverage test rather than skipped, so neither can quietly
+  become reachable without the corpus noticing.
+- **`design.md` §5.2 names `WireView` and defines it only in §6**, alongside
+  `WireOpt` (F-55) and `cleanup_only` (F-56). PHASE-04 also added two wire types
+  §5 names nowhere — `WireAlternative`, and the split of a content block into
+  `WireContent` and `WireContentValue`. All are §6 latitude being exercised, not
+  holes; they are listed because §9's "every type named in §5 is defined in §5"
+  sweep would otherwise find `WireView` a third time and stop there.
 
 **Raised by PHASE-03's expansion, 2026-09-02 — audit business, not a phase
 repair.**

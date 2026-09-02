@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-50"],
+  "description":  "A `choice` field constrains its answer by listing alternatives, not by bounding it, so `min` there is rejected too.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "choice", "label": "L", "min": 1, "options": [ { "id": "red", "label": "Red" } ] } ] } ] } },
+  "expect":       { "error": { "InapplicableKey": { "key": "min", "kind": "choice", "at": "view.options[0].fields[0]" } } }
+}

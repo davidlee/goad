@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-2", "R-51"],
+  "description":  "An explicit `\"protocol\": null` means exactly what omitting it means, and is accepted for the same reason omission is.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "protocol": null, "view": null },
+  "expect":       { "accepted": { "canonical": { "view": null, "schedule": null }, "discarded": [] } }
+}

@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-12"],
+  "description":  "A view naming a kind the host does not implement is rejected, and the error carries both the offending string and the path at which it appeared.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "slider", "title": "How did it go?" } },
+  "expect":       { "error": { "UnsupportedPrimitive": { "kind": "slider", "at": "view.kind" } } }
+}

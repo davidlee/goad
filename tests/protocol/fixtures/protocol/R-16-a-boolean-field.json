@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-16"],
+  "description":  "A `boolean` field carries an id, a kind and a label, and no additional protocol keys.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "boolean", "label": "L" } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "boolean", "label": "L", "hints": {} } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

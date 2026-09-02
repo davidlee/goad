@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-51", "R-53"],
+  "description":  "An explicit `\"fields\": null` on an alternative asserts nothing, so it means what omitting the key means and the message is accepted. R-53 rejects a `fields` an alternative actually carries; a null one carries nothing to reject, and a serializer emitting null for an absent optional is doing nothing wrong.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "choice", "label": "L", "options": [ { "id": "red", "label": "Red", "fields": null } ] } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": { "choice": [ { "id": "red", "label": "Red" } ] }, "label": "L", "hints": {} } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

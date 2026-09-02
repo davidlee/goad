@@ -1,0 +1,12 @@
+{
+  "requirement":  ["R-25", "R-51"],
+  "description":  "A `next_check` of the wrong type is a value the backend meant in a type the protocol cannot use: the instruction is discarded and reported, and the rest of the message is accepted. This is what `null` above is distinguished from.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": null, "next_check": 45 },
+  "expect":       {
+    "accepted": {
+      "canonical": { "view": null, "schedule": null },
+      "discarded": [ { "schedule": { "raw": 45, "reason": "NotAString" } } ]
+    }
+  }
+}

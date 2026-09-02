@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-4", "R-5", "R-51", "R-53"],
+  "description":  "A key the host does not model on a `choice` field's alternative is ignored. An alternative is a level of its own: it is not an option and does not share its shape, so permissiveness has to hold here separately.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "choice", "label": "L", "options": [ { "id": "red", "label": "Red", "swatch": "#c00" } ] } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": { "choice": [ { "id": "red", "label": "Red" } ] }, "label": "L", "hints": {} } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

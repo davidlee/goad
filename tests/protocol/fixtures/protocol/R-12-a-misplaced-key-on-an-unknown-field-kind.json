@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-12", "R-50"],
+  "description":  "A modelled key misplaced on a kind the host does not implement reports the kind, not the key.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "T", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "slider", "label": "L", "min": 1 } ] } ] } },
+  "expect":       { "error": { "UnsupportedPrimitive": { "kind": "slider", "at": "view.options[0].fields[0].kind" } } }
+}

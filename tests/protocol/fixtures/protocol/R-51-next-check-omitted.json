@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-51"],
+  "description":  "Omitting `next_check` supplies no scheduling instruction, so the existing or default schedule stands and nothing is discarded.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": null },
+  "expect":       { "accepted": { "canonical": { "view": null, "schedule": null }, "discarded": [] } }
+}

@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-3"],
+  "description":  "A response declaring a protocol version the host does not implement is rejected with an error naming the version found, because proceeding would be guessing at semantics.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "protocol": 2, "view": null },
+  "expect":       { "error": { "UnsupportedProtocolVersion": { "found": 2 } } }
+}

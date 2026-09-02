@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-16"],
+  "description":  "A `number` field need not carry bounds; an unbounded number is a number with no constraint on the answer.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "number", "label": "L" } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": { "number": { "min": null, "max": null } }, "label": "L", "hints": {} } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

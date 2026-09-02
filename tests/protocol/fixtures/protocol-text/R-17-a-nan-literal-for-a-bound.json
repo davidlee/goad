@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-17"],
+  "description":  "NaN is not expressible in JSON, so a bound written as one is a malformed document: it fails at parse and never reaches bounds validation, which is why the unreachable bounds error is not what this asserts.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "{\"view\":{\"kind\":\"choice\",\"title\":\"How did it go?\",\"options\":[{\"id\":\"ok\",\"label\":\"Fine\",\"fields\":[{\"id\":\"score\",\"kind\":\"number\",\"label\":\"Score\",\"min\":NaN}]}]}}",
+  "expect":       {"error": {"Json": null}}
+}

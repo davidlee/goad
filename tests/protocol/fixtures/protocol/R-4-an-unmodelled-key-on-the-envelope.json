@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-4", "R-5", "R-51"],
+  "description":  "A key the host does not model on the response envelope is ignored, and its presence alone never rejects the message: an unmodelled key is a backend written against a newer host, not a mistake.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": null, "trace_id": "9f2c" },
+  "expect":       { "accepted": { "canonical": { "view": null, "schedule": null }, "discarded": [] } }
+}

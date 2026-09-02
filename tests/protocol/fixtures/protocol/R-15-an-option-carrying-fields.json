@@ -1,0 +1,18 @@
+{
+  "requirement":  ["R-15"],
+  "description":  "An option carrying fields keeps them in order, and each field carries an id, a kind and a label.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "note", "kind": "text", "label": "Anything notable?" }, { "id": "again", "kind": "boolean", "label": "Ask again?" } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [
+          { "id": "note", "kind": "text", "label": "Anything notable?", "hints": {} },
+          { "id": "again", "kind": "boolean", "label": "Ask again?", "hints": {} }
+        ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

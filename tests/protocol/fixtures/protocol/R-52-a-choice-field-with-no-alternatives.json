@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-52", "R-53"],
+  "description":  "A `choice` field offering no alternatives is unanswerable, so it is rejected — by the same rule a view's options obey, and with an error that names alternatives rather than options.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "choice", "label": "L", "options": [] } ] } ] } },
+  "expect":       { "error": { "EmptyAlternatives": { "at": "view.options[0].fields[0].options" } } }
+}

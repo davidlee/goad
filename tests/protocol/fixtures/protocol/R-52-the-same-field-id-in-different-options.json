@@ -1,0 +1,18 @@
+{
+  "requirement":  ["R-52"],
+  "description":  "A field id need only be unique within the option that carries it: a response names one option and is a map keyed by that option's field ids, so the same id under two different options is unambiguous and is accepted.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "note", "kind": "text", "label": "A" } ] }, { "id": "no", "label": "Badly", "fields": [ { "id": "note", "kind": "text", "label": "B" } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [
+          { "id": "ok", "label": "Fine", "fields": [ { "id": "note", "kind": "text", "label": "A", "hints": {} } ] },
+          { "id": "no", "label": "Badly", "fields": [ { "id": "note", "kind": "text", "label": "B", "hints": {} } ] }
+        ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

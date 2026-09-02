@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-10"],
+  "description":  "A response that omits `view` is rejected, naming the missing field: omission asserts nothing, and the host may not manufacture the assertion on the backend's behalf.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "next_check": "45 minutes" },
+  "expect":       { "error": { "MissingField": { "field": "view" } } }
+}

@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-19", "R-51"],
+  "description":  "An explicit `\"body\": null` means what omitting the body means: a view with no body, and nothing discarded.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine" } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

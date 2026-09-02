@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-16", "R-17"],
+  "description":  "A `number` field may carry a minimum and a maximum. Bounds are semantics rather than presentation: they constrain which answers are valid.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "number", "label": "L", "min": 1, "max": 10 } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": { "number": { "min": 1.0, "max": 10.0 } }, "label": "L", "hints": {} } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

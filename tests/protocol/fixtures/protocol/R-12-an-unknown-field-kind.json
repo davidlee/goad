@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-12", "R-16"],
+  "description":  "A field naming a kind the host does not implement is rejected, and the path names the field it was found on — a diagnostic rather than a puzzle in a view with nine fields.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine" }, { "id": "no", "label": "Badly", "fields": [ { "id": "a", "kind": "text", "label": "A" }, { "id": "b", "kind": "text", "label": "B" }, { "id": "c", "kind": "slider", "label": "C" } ] } ] } },
+  "expect":       { "error": { "UnsupportedPrimitive": { "kind": "slider", "at": "view.options[1].fields[2].kind" } } }
+}

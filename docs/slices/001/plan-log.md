@@ -311,3 +311,39 @@ measurement confirms F-36 and D39 hold exactly as written — neither literal
 reaches bounds validation, so `NotFinite` stays unreachable from the wire. This
 is implementer latitude and is settled in the phase sheet: a second `Corpus`
 whose `input` is raw document text, over the shared half unchanged.
+
+
+### 2026-09-02 — PHASE-04's Surfaces gain `canonical.rs`, scoped to four lint attributes
+
+Raised during PHASE-04's execution, from a measurement rather than a reading.
+
+**Decision: PHASE-04 removes the four `#[cfg_attr(not(test), expect(dead_code,
+…))]` attributes in `src/semantics/protocol/canonical.rs`, and the file joins
+the phase's Surfaces with that scope written into the line.**
+
+PHASE-02 landed those attributes on `OptionId::new`, `AlternativeId::new`,
+`FieldId::new` and `Hints::new` — the four `pub(super)` constructors whose only
+caller is normalization. Each reason text says, in as many words, that the
+attribute comes off once PHASE-04 calls the constructor, because
+`unfulfilled_lint_expectations` fails the gate until it does.
+
+Measured, not predicted: a single `OptionId::new` call from a stub
+`normalize.rs` gives `error: this lint expectation is unfulfilled`, and the lib
+does not compile. The tuple fields are private to `canonical`, so `new` is the
+only construction path from a sibling module — there is no way to write
+`normalize.rs` that avoids this.
+
+- **Why it is not R10.** R10 is a constructor added to `canonical.rs`, or a
+  field widened to `pub`. This adds nothing and widens nothing; it deletes four
+  attributes that PHASE-02 wrote as temporary and said so. The phase sheet's
+  STOP condition — "wanting a constructor or a wider field on `canonical.rs`" —
+  stands exactly as written.
+- **Why the plan is amended rather than the sheet alone.** Same class as the
+  parent-`mod` omission and the test-target Rust: a phase's Surfaces naming what
+  it adds and not the declaration that reaches it. Fourth instance in this plan,
+  and the second where the previous phase left the obligation in a comment that
+  the Surfaces line did not carry.
+- **Alternative rejected:** removing them without amending `plan.md`, on the
+  grounds that PHASE-02 wrote the obligation into the code. It would leave the
+  audit's surface diff showing an undeclared path, which `docs/AGENTS.md` calls
+  the strongest lead.

@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-13"],
+  "description":  "A choice view carries a title and at least one option; an option carries an id and a label, and need not carry fields.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine" } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

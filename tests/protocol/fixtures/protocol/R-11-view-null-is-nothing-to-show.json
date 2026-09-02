@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-10", "R-11"],
+  "description":  "An explicit `\"view\": null` is accepted and means there is nothing to show — a positive assertion by the backend, and the one place `null` differs from omission.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": null },
+  "expect":       { "accepted": { "canonical": { "view": null, "schedule": null }, "discarded": [] } }
+}

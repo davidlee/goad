@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-50"],
+  "description":  "A key this spec names for one field kind, appearing on a field of another kind, is rejected naming the key, the kind and the path. It is neither treated as a hint nor ignored: the sender meant it, and no meaning is available for it here.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "text", "label": "L", "min": 1 } ] } ] } },
+  "expect":       { "error": { "InapplicableKey": { "key": "min", "kind": "text", "at": "view.options[0].fields[0]" } } }
+}

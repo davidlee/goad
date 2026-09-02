@@ -455,7 +455,18 @@ from a fixture.
 its doc comment, which says `wire` arrives at PHASE-03 and does not),
 `src/semantics/protocol/wire.rs`, `src/semantics/protocol/normalize.rs`,
 `tests/protocol/runner.rs`, `tests/protocol/main.rs`,
-`tests/protocol/fixtures/**`.
+`tests/protocol/fixtures/**`, and `src/semantics/protocol/canonical.rs` —
+**for the removal of four lint attributes and nothing else**.
+
+<!-- `canonical.rs` was added by user decision 2026-09-02, scoped in the line
+     above. PHASE-02 put `#[cfg_attr(not(test), expect(dead_code, …))]` on
+     `OptionId::new`, `AlternativeId::new`, `FieldId::new` and `Hints::new`, and
+     each reason text says the attribute comes off once PHASE-04 calls it —
+     `unfulfilled_lint_expectations` then fails the gate until it does. The
+     tuple fields are private, so `new` is the only construction path and the
+     phase cannot complete without removing all four. Neither a constructor nor
+     a widened field, so R10 is untouched, and the STOP condition in the phase
+     sheet stands unchanged. `plan-log.md`. -->
 
 <!-- `runner.rs` and `main.rs` were added by user decision 2026-09-02: a
      fixture file asserts nothing on its own, so the corpus needs a checker, a

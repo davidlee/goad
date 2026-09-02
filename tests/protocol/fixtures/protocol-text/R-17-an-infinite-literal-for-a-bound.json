@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-17"],
+  "description":  "An infinite magnitude is not expressible in JSON either, so it too is a malformed document rather than an invalid bound.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "{\"view\":{\"kind\":\"choice\",\"title\":\"How did it go?\",\"options\":[{\"id\":\"ok\",\"label\":\"Fine\",\"fields\":[{\"id\":\"score\",\"kind\":\"number\",\"label\":\"Score\",\"min\":1e400}]}]}}",
+  "expect":       {"error": {"Json": null}}
+}

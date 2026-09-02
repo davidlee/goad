@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-15"],
+  "description":  "A misspelled required key is still missing, so the message is rejected. Hints absorb the keys this spec does not name; they do not make a declared key optional.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "text", "labell": "typo" } ] } ] } },
+  "expect":       { "error": { "Json": null } }
+}

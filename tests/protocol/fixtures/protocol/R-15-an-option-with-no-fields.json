@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-15"],
+  "description":  "An option may carry fields; an option that carries none is accepted, because there is nothing about an unanswered choice that needs a field to express it.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

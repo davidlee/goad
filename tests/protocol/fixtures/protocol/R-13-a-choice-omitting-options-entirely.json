@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-13"],
+  "description":  "Omitting `options` offers nothing to pick, which is the same defect as offering an empty list and is refused the same way.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?" } },
+  "expect":       { "error": { "EmptyOptions": { "at": "view.options" } } }
+}

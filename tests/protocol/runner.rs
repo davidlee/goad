@@ -1,4 +1,5 @@
-//! The table-driven corpus runner, and this phase's scheduling corpus.
+//! The table-driven corpus runner, and the scheduling corpus PHASE-03 wrote it
+//! for.
 //!
 //! `design.md` §9: fixtures are data files rather than Rust literals, so the
 //! corpus is reviewable by someone who knows the protocol and not the tests.
@@ -17,6 +18,11 @@
 //! reason `boundary.rs` states: a walk over a directory that has been renamed
 //! away finds no failures, and reporting success for that has stopped testing
 //! anything.
+//!
+//! PHASE-04 took the split *The fixture format* left open: its two corpora live
+//! in `normalize.rs` and reach the shared half through `pub(crate)`. Nothing
+//! above the divider changed to admit them, which is the property this seam was
+//! built for.
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -56,10 +62,10 @@ struct Envelope {
 
 /// What a case hands its checker: the payload, plus the `now` the envelope
 /// already parsed.
-struct Fixture<'a> {
-  now: Timestamp,
-  input: &'a serde_json::Value,
-  expect: &'a serde_json::Value,
+pub(crate) struct Fixture<'a> {
+  pub(crate) now: Timestamp,
+  pub(crate) input: &'a serde_json::Value,
+  pub(crate) expect: &'a serde_json::Value,
 }
 
 /// Why a corpus run failed. Three kinds, and they are different questions:
@@ -113,13 +119,13 @@ fn report(faults: &[Fault]) -> String {
 /// What a corpus supplies: the reading of its own payload. `Ok(())` is the
 /// protocol behaving as the fixture says; `Err` is the sentence a failure
 /// report prints under the description.
-type Check = fn(&Fixture<'_>) -> Result<(), String>;
+pub(crate) type Check = fn(&Fixture<'_>) -> Result<(), String>;
 
 /// A directory of fixtures and the checker that reads their payloads.
-struct Corpus {
+pub(crate) struct Corpus {
   /// Relative to the crate root.
-  root: &'static str,
-  check: Check,
+  pub(crate) root: &'static str,
+  pub(crate) check: Check,
 }
 
 impl Corpus {
@@ -240,7 +246,9 @@ fn read_envelope(path: &Path) -> Result<Envelope, Fault> {
 /// the tags are the corpus's. Rejecting a second key is the point: an `expect`
 /// carrying both `instant` and `error` claims two things, and a checker that
 /// reads whichever it looks for first would silently verify one of them.
-fn outcome_tag(expect: &serde_json::Value) -> Result<(&str, &serde_json::Value), String> {
+pub(crate) fn outcome_tag(
+  expect: &serde_json::Value,
+) -> Result<(&str, &serde_json::Value), String> {
   let object = expect
     .as_object()
     .ok_or_else(|| "`expect` is not an object".to_owned())?;
@@ -256,7 +264,7 @@ fn outcome_tag(expect: &serde_json::Value) -> Result<(&str, &serde_json::Value),
 
 /// Fails naming *every* fault, not the first. `run` cannot return `Ok(0)`, so
 /// arriving at `Ok` at all is the vacuity guard discharging.
-fn assert_corpus(corpus: &Corpus) {
+pub(crate) fn assert_corpus(corpus: &Corpus) {
   if let Err(faults) = corpus.run() {
     panic!("{}", report(&faults));
   }

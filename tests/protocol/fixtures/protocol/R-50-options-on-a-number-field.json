@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-50"],
+  "description":  "A `number` field has no alternatives to offer, so `options` there is rejected the same way.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "number", "label": "L", "options": [ { "id": "red", "label": "Red" } ] } ] } ] } },
+  "expect":       { "error": { "InapplicableKey": { "key": "options", "kind": "number", "at": "view.options[0].fields[0]" } } }
+}

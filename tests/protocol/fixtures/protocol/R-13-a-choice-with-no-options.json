@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-13"],
+  "description":  "A choice offering nothing to pick is unrenderable, so it is rejected rather than shown.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [] } },
+  "expect":       { "error": { "EmptyOptions": { "at": "view.options" } } }
+}

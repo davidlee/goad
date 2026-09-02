@@ -1,0 +1,15 @@
+{
+  "requirement":  ["R-15", "R-18"],
+  "description":  "Presentation hints are the field object's remaining keys, written flat alongside its protocol keys. This is brief §10.2's own example, carried verbatim, and `multiline` becomes a hint.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "How did it go?", "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "text", "label": "L", "multiline": true } ] } ] } },
+  "expect":       {
+    "accepted": {
+      "canonical": {
+        "view": { "choice": { "title": "How did it go?", "body": null, "options": [ { "id": "ok", "label": "Fine", "fields": [ { "id": "f", "kind": "text", "label": "L", "hints": { "multiline": true } } ] } ] } },
+        "schedule": null
+      },
+      "discarded": []
+    }
+  }
+}

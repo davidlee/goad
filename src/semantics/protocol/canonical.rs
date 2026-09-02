@@ -57,20 +57,6 @@ impl ViewId {
 pub struct OptionId(String);
 
 impl OptionId {
-  #[cfg_attr(
-    not(test),
-    expect(
-      dead_code,
-      reason = "the caller is `normalize.rs`, which PHASE-04 lands; the colocated \
-               tests below call it already, so the expectation is scoped to the \
-               non-test build or it goes unfulfilled there. The manifest's lint table \
-               names this case — a phased plan landing a type one phase before its \
-               caller — and self-clears it: once PHASE-04 calls this, \
-               `unfulfilled_lint_expectations` fails the gate until the attribute \
-               comes off. Widening to `pub` instead would undo the constructor split \
-               (`plan.md` EX-1): these ids are backend-authored."
-    )
-  )]
   pub(super) fn new(raw: impl Into<String>) -> Self {
     Self(raw.into())
   }
@@ -86,20 +72,6 @@ impl OptionId {
 pub struct AlternativeId(String);
 
 impl AlternativeId {
-  #[cfg_attr(
-    not(test),
-    expect(
-      dead_code,
-      reason = "the caller is `normalize.rs`, which PHASE-04 lands; the colocated \
-               tests below call it already, so the expectation is scoped to the \
-               non-test build or it goes unfulfilled there. The manifest's lint table \
-               names this case — a phased plan landing a type one phase before its \
-               caller — and self-clears it: once PHASE-04 calls this, \
-               `unfulfilled_lint_expectations` fails the gate until the attribute \
-               comes off. Widening to `pub` instead would undo the constructor split \
-               (`plan.md` EX-1): these ids are backend-authored."
-    )
-  )]
   pub(super) fn new(raw: impl Into<String>) -> Self {
     Self(raw.into())
   }
@@ -114,20 +86,6 @@ impl AlternativeId {
 pub struct FieldId(String);
 
 impl FieldId {
-  #[cfg_attr(
-    not(test),
-    expect(
-      dead_code,
-      reason = "the caller is `normalize.rs`, which PHASE-04 lands; the colocated \
-               tests below call it already, so the expectation is scoped to the \
-               non-test build or it goes unfulfilled there. The manifest's lint table \
-               names this case — a phased plan landing a type one phase before its \
-               caller — and self-clears it: once PHASE-04 calls this, \
-               `unfulfilled_lint_expectations` fails the gate until the attribute \
-               comes off. Widening to `pub` instead would undo the constructor split \
-               (`plan.md` EX-1): these ids are backend-authored."
-    )
-  )]
   pub(super) fn new(raw: impl Into<String>) -> Self {
     Self(raw.into())
   }
@@ -169,20 +127,6 @@ impl Serialize for Timestamp {
 pub struct Hints(BTreeMap<String, serde_json::Value>);
 
 impl Hints {
-  #[cfg_attr(
-    not(test),
-    expect(
-      dead_code,
-      reason = "the caller is `normalize.rs`, which PHASE-04 lands; the colocated \
-               tests below call it already, so the expectation is scoped to the \
-               non-test build or it goes unfulfilled there. The manifest's lint table \
-               names this case — a phased plan landing a type one phase before its \
-               caller — and self-clears it: once PHASE-04 calls this, \
-               `unfulfilled_lint_expectations` fails the gate until the attribute \
-               comes off. Widening to `pub` instead would undo the constructor split \
-               (`plan.md` EX-1): these ids are backend-authored."
-    )
-  )]
   pub(super) fn new(map: BTreeMap<String, serde_json::Value>) -> Self {
     Self(map)
   }
