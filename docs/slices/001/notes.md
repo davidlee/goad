@@ -14,7 +14,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 | **done** — `just check` exits 0 in both feature columns; 17 unit tests, 13 of them this phase's. All four EX and both VT criteria discharged, VA-1 and VA-2 pasted. **Three** plan gaps raised by the expansion and by execution, all closed by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors, and `Fields` permitting empty. See `## Phase sheets` | 2026-08-30 |
 | PHASE-03 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 5 of them this phase's, plus a 16-file fixture corpus running in **both** columns. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. **Five** break-and-revert runs, not the two the sheet asked for, because the fixture format makes three property claims; two of them found real defects in the runner, both fixed at the refactor step. No plan gap raised during execution — the four found at expansion were all closed beforehand. See `## Phase sheets` | 2026-09-02 |
 | PHASE-04 | **done** — `just check` exits 0 in both feature columns; 22 unit tests and 9 protocol tests, 4 of the latter this phase's, over a **54-file** corpus in two directories. All eight EX and all four VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. **A fourth was raised during execution** — `canonical.rs` joined the Surfaces, scoped to removing four `expect(dead_code)` attributes PHASE-02 wrote as temporary, without which the lib does not compile once normalization calls the constructors. See `## Phase sheets` | 2026-09-02 |
-| PHASE-05 | **sheet written 2026-09-02, not started.** Entry criterion checked and met. EX-6 discharged ahead of code — the probe was run at expansion and all seven cases reproduce, including the 902 ms / 303 ms / 2.5 ms timings, with nothing disagreeing with §5.4. Three further measurements taken, each of which would have been a STOP: the declared tokio feature set is sufficient (no `rt-multi-thread`), the AFIT exchange future is `Send`, and the probe's own code fails goad's `indexing_slicing` at four places. **Three plan gaps raised and open** — VT-5's source-text test has no declared home and needs a shape `Scan` was not built for; the harness is told to build a `Config` that belongs to PHASE-07; and `BackendError::Protocol` is not reachable from a transport that returns bytes. See `## Phase sheets` | 2026-09-02 |
+| PHASE-05 | **sheet written 2026-09-02, not started.** Entry criterion checked and met. EX-6 discharged ahead of code — the probe was run at expansion and all seven cases reproduce, including the 902 ms / 303 ms / 2.5 ms timings, with nothing disagreeing with §5.4. Three further measurements taken, each of which would have been a STOP: the declared tokio feature set is sufficient (no `rt-multi-thread`), the AFIT exchange future is `Send`, and the probe's own code fails goad's `indexing_slicing` at four places. **Three plan gaps raised at expansion, all three closed by user decision the same day** — VT-5's source-text checks gain `tests/protocol/transport_shape.rs` and `tests/protocol/main.rs`, on PHASE-05's Surfaces and PHASE-06's, because `Scan` is a directory token-walk and two of the three checks are not that shape; no `Config` in this phase, the transport holding its own command and timeout; and `BackendError::Protocol` moves to PHASE-07/EX-8 with R-38's framing, since a transport that returns bytes parses nothing. Nothing outstanding — ready to execute. See `## Phase sheets` | 2026-09-02 |
 | PHASE-06…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
@@ -2951,15 +2951,16 @@ No undeclared path. Nothing else in `src/` or `tests/` was edited.
 
 **State:** **sheet written 2026-09-02, not started.** Entry criterion checked and
 met. The probe is run and its output recorded below, which discharges EX-6 ahead
-of any code. **Three plan gaps found at expansion, all three open** — VT-5's
-source-text test has no declared home, the harness is told to build a `Config`
-that belongs to PHASE-07, and `BackendError::Protocol` is not reachable from the
-transport this phase builds. None is repaired here.
+of any code. **Three plan gaps found at expansion, all three closed by user
+decision the same day** — `plan.md` and `plan-log.md` carry them. Nothing is
+outstanding: this phase is ready to execute.
 **Plan entry:** `docs/slices/001/plan.md:560`
-**Surfaces (from the plan):** `src/shell/mod.rs`, `src/shell/error.rs`,
-`src/shell/backend/mod.rs`, `src/shell/backend/transport.rs`,
-`src/shell/backend/process.rs`, `tests/integration/main.rs`,
-`tests/integration/harness.rs`, `tests/backends/*.sh`.
+**Surfaces (from the plan, as amended 2026-09-02):** `src/shell/mod.rs`,
+`src/shell/error.rs`, `src/shell/backend/mod.rs`,
+`src/shell/backend/transport.rs`, `src/shell/backend/process.rs`,
+`tests/integration/main.rs`, `tests/integration/harness.rs`,
+`tests/backends/*.sh`, and — added by the gap 1 decision —
+`tests/protocol/transport_shape.rs` and `tests/protocol/main.rs`.
 
 #### Reading list
 
@@ -3073,7 +3074,7 @@ stated bound is 900 ms, not the crate's. Four readings worth carrying:
   crate's is 256 KiB. The flood case that asserts `truncated` against the real
   limit is PHASE-06/EX-2; B here only shows the concurrency works.
 
-#### Three plan gaps found at expansion — all three open
+#### Three plan gaps found at expansion — all three closed 2026-09-02
 
 **1. VT-5's source-text test has no declared home, and the shape it needs is not
 the shape `boundary.rs` was built for.** VT-5 asks for three checks over
@@ -3099,16 +3100,16 @@ three checks is that shape:
 configuration, not the walk", and two of the three cannot be expressed as
 configuration.
 
-**Recommended:** a new `tests/protocol/transport_shape.rs`, plus
+**Decided 2026-09-02:** a new `tests/protocol/transport_shape.rs`, plus
 `tests/protocol/main.rs` for the `mod` line, both joining the Surfaces; nothing
 lifted from `boundary.rs` beyond the idea of the guard, whose form here is
 "the file was found and read" rather than "the walk inspected files". The
 alternative — generalising `Scan` to carry a per-line predicate and a region
-state machine — reworks PHASE-01's surface to fit a different job, and would
-leave one type serving two unrelated questions. **PHASE-06/VT-6 re-asserts the
-spawn grep against the finished module and has the same omission**, so the
-amendment should cover both phases at once, as the `mod`-line amendment covered
-three.
+state machine — was rejected: it reworks PHASE-01's surface to fit a different
+job, and would leave one type serving two unrelated questions. **PHASE-06/VT-6
+re-asserts the spawn grep against the finished module and had the same
+omission**, so both phases were amended at once, as the `mod`-line amendment
+covered three.
 
 **2. The harness is told to build a `Config`, and `Config` is PHASE-07's.**
 The plan's notes for this phase say the harness needs "building a `Config`
@@ -3116,7 +3117,7 @@ pointing at one". But `src/shell/config.rs` is **PHASE-07's** surface, and
 PHASE-07/EX-1 owns `Config` whole, including its rejection rules and its TOML
 loading. Nothing in this phase's Surfaces can define it.
 
-**Recommended:** no `Config` in this phase. `ProcessBackend` holds
+**Decided 2026-09-02:** no `Config` in this phase. `ProcessBackend` holds
 `command: Vec<String>` and `timeout: Duration` directly, which is what §5.4's
 sketch actually needs — `Backend::exchange` takes only `&mut self` and the
 request, so the timeout must already be on the transport. PHASE-07 then
@@ -3142,11 +3143,13 @@ sheet passed R-38's two fixtures here on the grounds that framing is the
 transport's; that is right about the *tier* and wrong about the *phase*, because
 this phase's transport hands the bytes on unparsed.
 
-**Recommended:** VT-3 drops the `Protocol(Json)` clause and PHASE-07 gains it.
-The backend script stays here regardless — EX-4 names "a zero exit with
-unparseable stdout" as a **stderr** claim, and this phase asserts exactly that:
-`result` is `Ok(bytes)`, those bytes do not parse, and the stderr survived. Only
-the variant claim moves.
+**Decided 2026-09-02:** VT-3 drops the `Protocol(Json)` clause; PHASE-07 gains
+it as **EX-8 and VT-6**, R-38's framing rule with it. The backend script stays
+here regardless — EX-4 names "a zero exit with unparseable stdout" as a
+**stderr** claim, and this phase asserts exactly that: `result` is `Ok(bytes)`,
+those bytes do not parse, and the stderr survived. Only the variant claim moved,
+and it got cheaper doing so: PHASE-07 asserts it against the fake `Backend` it
+already builds, where this phase would have paid a spawn per case.
 
 #### Settled here — implementer latitude
 
@@ -3230,8 +3233,8 @@ does.
 - **Wanting a constructor or a field on anything under `semantics/`.** Not a
   surface here. The transport serializes a `Request` and returns bytes; it needs
   nothing else from stratum 1.
-- **Any of the three gaps above being resolved by the implementer rather than by
-  the user.** They are plan text.
+- **A fourth gap of the same kind.** The three found at expansion are closed;
+  a new one is a return to plan, not a repair in this sheet.
 
 #### Tasks
 
@@ -3251,9 +3254,10 @@ does.
 7. **One test per remaining VT**, each red against a deliberate stub before it is
    green: VT-2 (timeout, and `cleanup: None` — see case C), VT-3 (`Spawn`,
    `ExitStatus`, `Io`), VT-4 (stderr survives the timeout).
-8. **VT-5 and VA-2** — the source-text checks, pending gap 1; and the read that
-   confirms `child.wait()` sits inside the timed region rather than in the
-   cleanup budget.
+8. **VT-5 and VA-2** — the three source-text checks, in
+   `tests/protocol/transport_shape.rs` with its `mod` line in
+   `tests/protocol/main.rs`; and the read that confirms `child.wait()` sits
+   inside the timed region rather than in the cleanup budget.
 9. **VA-3** — the elapsed-time assertions, as bounds with stated slack.
 10. **Break-and-revert** each source-text check and at least one behavioural
     claim, and record what the broken run said. A check that cannot be made to
@@ -3271,8 +3275,8 @@ does.
 done** · `just check` exits 0 in both feature columns · **stratum 1 is complete:
 the wire types, the canonical types, normalization and schedule resolution, with
 a 70-file fixture corpus across three directories.** PHASE-05 is next, and is the
-first phase in stratum 2 — **its sheet is written, the probe is run, and three
-plan gaps are open against it**
+first phase in stratum 2 — **its sheet is written, the probe is run, and the
+three plan gaps it raised are closed**
 
 ### Produced
 

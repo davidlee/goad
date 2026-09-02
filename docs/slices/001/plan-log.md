@@ -347,3 +347,82 @@ only construction path from a sibling module — there is no way to write
   grounds that PHASE-02 wrote the obligation into the code. It would leave the
   audit's surface diff showing an undeclared path, which `docs/AGENTS.md` calls
   the strongest lead.
+
+
+### 2026-09-02 — PHASE-05's three expansion gaps, all closed the same day
+
+Raised by PHASE-05's expansion, before any of stratum 2 was written. All three
+are plan text; none was repaired in the sheet.
+
+**1. Decision: VT-5's source-text checks land in a new
+`tests/protocol/transport_shape.rs`, and that file plus `tests/protocol/main.rs`
+join PHASE-05's Surfaces. PHASE-06 gains the same file, since VT-6 re-asserts
+one of the checks against the finished module.**
+
+VT-5 asks for three greps over `process.rs`'s source text "in the same tier and
+with the same found-no-files guard as PHASE-01's boundary checks". That tier is
+`tests/protocol/`, and neither the file that would hold them nor the `main.rs`
+that declares it was named. **Fifth instance** of a phase's Surfaces naming what
+it adds and not the file that reaches it, and the second where the omission
+spans two phases at once.
+
+- **Why a new file rather than `boundary.rs`.** `Scan` is a forbidden-token walk
+  over a *directory*: `{ root, forbidden }`, matched case-insensitively per
+  line. Only one of VT-5's three checks is that shape. The first permits the
+  token `spawn` but constrains its occurrence *shape* to `Command::spawn`; the
+  third is *region*-scoped — no `?` between the spawn and the cleanup budget.
+  Neither is expressible as configuration, and `boundary.rs`'s own doc comment
+  instructs the next phase to extend the configuration and not the walk.
+- **Alternative rejected:** generalising `Scan` to carry a per-line predicate
+  and a region state machine. It reworks PHASE-01's surface so one type can
+  serve two unrelated questions, which trades a small duplication for a large
+  coupling. The guard is what is worth sharing, and it is an idea rather than
+  code: here its form is "the file was found and read".
+- **Fixed as a class, not an instance:** both phases amended in one edit, as the
+  parent-`mod` omission was applied to three phases at once on 2026-09-02.
+
+**2. Decision: PHASE-05 defines no `Config`. The transport holds
+`command: Vec<String>` and `timeout: Duration` directly, and PHASE-07
+constructs one from a loaded `Config`.**
+
+PHASE-05's implementer notes told the harness to build "a `Config` pointing at
+one", but `src/shell/config.rs` is PHASE-07's surface and PHASE-07/EX-1 owns the
+type whole — brief §5's three values, the three load-time rejections, and the
+jiff duration grammar. Nothing in PHASE-05's Surfaces can define it.
+
+- §5.4 needs no `Config` anyway. `Backend::exchange` takes only `&mut self` and
+  the request, so the timeout is already the transport's state; `config.timeout`
+  in the sketch is where the value *came from*, not where it lives.
+- **Alternative rejected:** adding `config.rs` to PHASE-05 with `BackendConfig`
+  only. It splits one type across two phases and hands PHASE-07 a
+  half-built surface to finish, for no gain — the harness constructs a transport
+  either way.
+- This is the one of the three that is closest to a reading rather than a
+  defect. It was raised because it is plan text and because it settles the
+  constructor's signature.
+
+**3. Decision: `BackendError::Protocol` is not PHASE-05's. VT-3 drops the
+`Protocol(Json)` clause; PHASE-07 gains EX-8 and VT-6, and R-38's framing rule
+goes with them.**
+
+EX-1 fixes `Exchange.result` as `Result<Vec<u8>, BackendError>`. The transport
+returns bytes and parses nothing, so it has no way to raise a `Json` error, and
+VT-3 required a case for one. The design is specific where it matters: invalid
+UTF-8 "becomes a `Protocol(Json)` error **via `from_slice`**" (`design.md:1052`),
+and `from_slice` runs in `Host`.
+
+- **R-38 travels with it.** Exactly one JSON document, trailing content an
+  error — `from_slice` refuses trailing content by itself, so the requirement is
+  discharged by the same call. PHASE-04's sheet passed R-38 to PHASE-05 on the
+  grounds that framing is the transport's; that is right about the *tier* and
+  wrong about the *phase*.
+- **The backend script stays in PHASE-05.** EX-4's claim about a zero exit with
+  unparseable stdout is that the **stderr** survives, which is a transport fact.
+  The test asserts `result` is `Ok(bytes)`, that those bytes do not parse, and
+  that the stderr arrived. Only the variant claim moved.
+- **It gets cheaper by moving.** PHASE-07 asserts it against the fake `Backend`
+  it already builds for VT-1 — handing `Host` a byte string needs no spawn,
+  where PHASE-05 would have paid one per case.
+- **Alternative rejected:** having the transport parse purely to validate
+  framing and still return raw bytes. Two parses of every response, and two
+  places that can raise the same error.

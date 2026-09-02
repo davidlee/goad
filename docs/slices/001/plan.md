@@ -168,7 +168,7 @@ that discharges it. A gap here is a gap in the plan.
 | AC-3 | PHASE-03/EX-1, VT-1 |
 | AC-4 | PHASE-03/EX-2, VT-2 |
 | AC-5 | PHASE-05/EX-1…EX-4, PHASE-06/EX-1…EX-5; the cancellation clause specifically by PHASE-06/VT-6 |
-| AC-6 | PHASE-01/EX-2 (the stratum 1 taxonomy exists), PHASE-04/VT-2 (every `ProtocolError` reachable), PHASE-05/VT-3 and PHASE-06/VT-1…VT-4 (`BackendError`, `CleanupFailure` — at the transport), PHASE-07/VT-3 (`StateError`), PHASE-10/VT-1 (each **protocol-level** mode end to end) and PHASE-10/VT-3 (the transport and lifecycle modes as the `Outcome` a caller receives). The split is deliberate and was an overclaim before review finding F-10: PHASE-10 does not re-assert at the host what PHASE-05 and PHASE-06 assert at the transport, it asserts what reaches the caller. Its **no-panic** clause is the lint rule in Overview item 4, placed and proven by PHASE-04/EX-5, PHASE-05/EX-7 and PHASE-07/EX-7 |
+| AC-6 | PHASE-01/EX-2 (the stratum 1 taxonomy exists), PHASE-04/VT-2 (every `ProtocolError` reachable), PHASE-05/VT-3 and PHASE-06/VT-1…VT-4 (`BackendError`, `CleanupFailure` — at the transport), PHASE-07/VT-3 (`StateError`), PHASE-07/EX-8 and VT-6 (`Protocol(Json)` and R-38's framing, at the one place `from_slice` runs — moved from PHASE-05 by user decision 2026-09-02), PHASE-10/VT-1 (each **protocol-level** mode end to end) and PHASE-10/VT-3 (the transport and lifecycle modes as the `Outcome` a caller receives). The split is deliberate and was an overclaim before review finding F-10: PHASE-10 does not re-assert at the host what PHASE-05 and PHASE-06 assert at the transport, it asserts what reaches the caller. Its **no-panic** clause is the lint rule in Overview item 4, placed and proven by PHASE-04/EX-5, PHASE-05/EX-7 and PHASE-07/EX-7 |
 | AC-7 | PHASE-08/EX-1, VT-1 |
 | AC-8 | PHASE-07/EX-3, VT-3; PHASE-08/VT-2 adds the no-spawn assertion |
 | AC-9 | PHASE-03/EX-3 (the runner and the scheduling corpus), PHASE-04/EX-4 (the protocol corpus, including the brief's verbatim examples) |
@@ -566,7 +566,14 @@ discarding the body it came with.
 **Surfaces:** `src/shell/mod.rs`, `src/shell/error.rs`,
 `src/shell/backend/mod.rs`, `src/shell/backend/transport.rs`,
 `src/shell/backend/process.rs`, `tests/integration/main.rs`,
-`tests/integration/harness.rs`, `tests/backends/*.sh`.
+`tests/integration/harness.rs`, `tests/backends/*.sh`,
+`tests/protocol/transport_shape.rs`, `tests/protocol/main.rs`.
+
+<!-- The last two were added by user decision 2026-09-02, from PHASE-05's
+     expansion: VT-5's source-text checks belong to the boundary tier, and
+     neither the file that holds them nor the `main.rs` that declares it was
+     named. Fifth instance of a phase's Surfaces naming what it adds and not
+     the file that reaches it; `plan-log.md` carries the argument. -->
 
 **Entry**
 - EN-1 — PHASE-02/EX-1 discharged (`Request` exists to be serialized).
@@ -611,8 +618,15 @@ discarding the body it came with.
 - VT-2 — a backend sleeping past the timeout: `BackendError::Timeout`, and the
   process confirmed gone afterwards (R-41).
 - VT-3 — one case per `BackendError` variant this phase can reach: `Spawn` (a
-  path that does not exist — no fixture needed), `Timeout`, `ExitStatus`,
-  `Protocol(Json)` via unparseable stdout, and `Io`.
+  path that does not exist — no fixture needed), `Timeout`, `ExitStatus`, and
+  `Io`.
+
+  <!-- `Protocol(Json)` was in this list and is not reachable here: EX-1 fixes
+       `Exchange.result` as `Result<Vec<u8>, _>`, so the transport parses
+       nothing. It moves to PHASE-07/EX-8, where `from_slice` runs, and R-38's
+       framing goes with it. User decision 2026-09-02. The backend script for
+       a zero exit with unparseable stdout stays here, because EX-4's claim
+       about that case is that the **stderr** survives. -->
 - VT-4 — a backend that writes to stderr and **then** sleeps past the timeout,
   asserting the stderr survives (F-3). This is the case D18's reversal exists
   for; it is not covered by VT-2.
@@ -623,6 +637,15 @@ discarding the body it came with.
   `Arc`/`Mutex`, and no `?` between the spawn and the cleanup budget. Each was a
   repair in the design review (F-49, F-36's lock deletion at D44, F-41), so each
   is a regression with a name. Review finding F-5.
+
+  **In `tests/protocol/transport_shape.rs`, not in `boundary.rs`** — user
+  decision 2026-09-02. `Scan` is a forbidden-token walk over a *directory*, and
+  only the `Arc`/`Mutex` check is that shape: the first constrains an occurrence
+  *shape* and the third a *region*. Generalising `Scan` to carry a per-line
+  predicate and a region state would rework PHASE-01's surface to serve an
+  unrelated question, against that file's own instruction to extend the
+  configuration and not the walk. The guard is kept in spirit and changes form
+  with the subject: here it is that the file was found and read.
 
   The first check greps the token `spawn` and permits exactly one occurrence
   shape, `Command::spawn` — the child. `tokio::spawn` alone would let
@@ -644,9 +667,17 @@ discarding the body it came with.
   measurement disagree, the measurement wins and the disagreement is a finding —
   take it back to design rather than repairing it here.
 - The harness is this phase's other deliverable and PHASE-06 and PHASE-08 both
-  inherit it. It needs: locating `tests/backends/` from the test binary, building
-  a `Config` pointing at one, and running an async body from a `#[test]`. Keep
-  the backend scripts declarative — one behaviour each, named for it.
+  inherit it. It needs: locating `tests/backends/` from the test binary,
+  constructing the transport against one, and running an async body from a
+  `#[test]`. Keep the backend scripts declarative — one behaviour each, named
+  for it.
+- **No `Config` in this phase** — user decision 2026-09-02. `config.rs` is
+  PHASE-07's surface and PHASE-07/EX-1 owns the type whole, loading and
+  rejection rules included. The transport holds `command: Vec<String>` and
+  `timeout: Duration` directly, which is what §5.4 needs anyway: `exchange`
+  takes only `&mut self` and the request, so the timeout is already the
+  transport's. PHASE-07 constructs one *from* a loaded `Config`, which is the
+  direction "durations resolve at load" (`design.md:1152`) implies.
 - A backend script needs no shebang: `command` is an argv vector and the design's
   own AC-12 case is `["bash", "./backend.sh"]` (R-36).
 - Do not reach for `wait_with_output()`. §5.4 says why at length, twice, and it
@@ -664,7 +695,8 @@ cleanup dimension is reachable and reported independently of the exchange
 result, and both grandchild cases are observed rather than described.
 
 **Surfaces:** `src/shell/backend/process.rs`, `src/shell/error.rs`,
-`tests/integration/**`, `tests/backends/*.sh`.
+`tests/integration/**`, `tests/backends/*.sh`,
+`tests/protocol/transport_shape.rs`.
 
 **Entry**
 - EN-1 — **PHASE-05 discharged** — every exit criterion it carries, not a
@@ -797,6 +829,15 @@ and interaction state; configuration loads from TOML; a stale or unknown
   user's own and a `view_id` is host-minted — and the rule is about the data, not
   the directory. `State::next_seq` increments, so if that counter moves into a
   module carrying the lint it needs a checked add rather than an `#[expect]`.
+- EX-8 — `Host` reads the transport's bytes with `serde_json::from_slice`, and
+  that is where `BackendError::Protocol` arises and where R-38's framing rule is
+  enforced: a body that is not **exactly one** JSON document is a `Json` error
+  and reaches normalization not at all. Three cases — empty stdout, trailing
+  content after one document, and invalid UTF-8, the last per `design.md:1052`,
+  which is why `Exchange.result` carries `Vec<u8>` rather than `String`. Moved
+  here from PHASE-05/VT-3 by user decision 2026-09-02: the transport returns
+  bytes and parses nothing, so the variant was unreachable in the phase that
+  claimed it.
 
 **Verification**
 - VT-1 — host-level tests against a **fake** `Backend`, not a process: the
@@ -809,6 +850,10 @@ and interaction state; configuration loads from TOML; a stale or unknown
   malformed-JSON exchange (R-29).
 - VT-5 — `view_id` determinism: a fixed `now` and counter produce the exact
   documented id (D13's third reason).
+- VT-6 — EX-8's three framing cases, against the **fake** backend rather than a
+  process: handing `Host` a byte string needs no spawn, and the fake is already
+  VT-1's vehicle. Each asserts `Protocol(Json)` and that the schedule did not
+  move (R-29, and EX-5's rule applied to this failure).
 - VA-1 — `just check`.
 
 **Notes for the implementer**
