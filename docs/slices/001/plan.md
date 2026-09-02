@@ -391,8 +391,15 @@ PHASE-03's surface.
 and the protocol tier has a table-driven runner over data files that PHASE-04
 can extend without changing.
 
-**Surfaces:** `src/semantics/schedule.rs`, `tests/protocol/main.rs`,
+**Surfaces:** `src/semantics/mod.rs` (one line, `pub mod schedule;`),
+`src/semantics/schedule.rs`, `tests/protocol/main.rs`,
 `tests/protocol/runner.rs`, `tests/protocol/fixtures/schedule/**`.
+
+<!-- The parent `mod` file was added to this phase, to PHASE-04 and to PHASE-07
+     by user decision 2026-09-02: a phase that adds a module edits its parent's
+     `mod` list, and only PHASE-01 and PHASE-05 wrote that down. PHASE-02 had
+     the same omission amended on 2026-08-29; this closes the class rather than
+     the third instance. `plan-log.md`. -->
 
 **Entry**
 - EN-1 — PHASE-02/EX-1 discharged (`Timestamp` exists).
@@ -444,8 +451,10 @@ can extend without changing.
 with a discard list — and every `ProtocolError` the design names is reachable
 from a fixture.
 
-**Surfaces:** `src/semantics/protocol/wire.rs`,
-`src/semantics/protocol/normalize.rs`, `tests/protocol/fixtures/**`.
+**Surfaces:** `src/semantics/protocol/mod.rs` (the two `pub mod` lines, and
+its doc comment, which says `wire` arrives at PHASE-03 and does not),
+`src/semantics/protocol/wire.rs`, `src/semantics/protocol/normalize.rs`,
+`tests/protocol/fixtures/**`.
 
 **Entry**
 - EN-1 — PHASE-03/EX-1 and EX-3 discharged.
@@ -733,7 +742,8 @@ result, and both grandchild cases are observed rather than described.
 and interaction state; configuration loads from TOML; a stale or unknown
 `view_id` is rejected before the backend is reached.
 
-**Surfaces:** `src/shell/config.rs`, `src/shell/state.rs`, `src/shell/host.rs`,
+**Surfaces:** `src/shell/mod.rs` (three `pub mod` lines), `src/shell/config.rs`,
+`src/shell/state.rs`, `src/shell/host.rs`,
 `src/shell/error.rs` (add `StateError`), `tests/integration/**`. **Not**
 `Cargo.toml` — `toml` is declared at PHASE-01/EX-6 (F-7).
 

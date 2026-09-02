@@ -9,3 +9,6 @@
 // lint without a carve-out.
 #[cfg(test)]
 mod boundary;
+
+#[cfg(test)]
+mod runner;

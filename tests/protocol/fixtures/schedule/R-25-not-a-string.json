@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-25"],
+  "description":  "A next_check that is not a string at all is rejected, and the error names the JSON type that was found instead.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        45,
+  "expect":       { "error": "NotAString" }
+}

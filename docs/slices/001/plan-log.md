@@ -237,3 +237,37 @@ produces one of each, cited to one another.
   "three copies of one rule collapse into one helper". The rule is now genuinely
   two: uniqueness over all three, non-emptiness over two. A helper that takes
   both checks as one lump would have been the same over-generalisation in code.
+
+### 2026-09-02 — A phase that adds a module owns its parent's `mod` line; three Surfaces amended
+
+Raised while expanding PHASE-03's phase sheet. `src/semantics/schedule.rs`
+cannot exist without `pub mod schedule;` in `src/semantics/mod.rs`, and
+PHASE-03's Surfaces did not name that file.
+
+**Decision:** amend the Surfaces of **PHASE-03, PHASE-04 and PHASE-07** in one
+edit rather than one phase at a time — `src/semantics/mod.rs`,
+`src/semantics/protocol/mod.rs` and `src/shell/mod.rs` respectively. Chosen from
+three options; the alternatives were amending PHASE-03 alone and re-raising
+later, or dropping the rule that a parent `mod` line must be declared at all.
+
+- **Why fix the class.** This is the **second** instance of the same omission —
+  PHASE-02's Surfaces were amended for exactly this on 2026-08-29 — and three
+  more were latent. The slice's recurring defect is a rule applied at the named
+  site and not at the sites that restate it; the same shape appears here in the
+  plan's own structure, so closing it at the class is the consistent move.
+- **Why not drop the rule.** Undeclared paths are the audit's strongest lead
+  (`AGENTS.md`, *Audit & reconcile*). A convention that a `mod` line is
+  implicitly in scope makes every phase's diff carry one path the Surfaces list
+  does not, which is exactly the signal audit reads. The cost of declaring it is
+  one clause.
+- **Scope, corrected while applying it.** The question named PHASE-03, 04 and 05;
+  the actual remaining instances are **03, 04 and 07**. PHASE-05 already declares
+  both `src/shell/mod.rs` and `src/shell/backend/mod.rs`, and PHASE-07 — which
+  adds `config`, `state` and `host` to `src/shell/` — did not. PHASE-01 and
+  PHASE-05 were the only two phases that had written it down.
+- **One thing found by the same edit.** `src/semantics/protocol/mod.rs`'s doc
+  comment says "`wire` and `normalize` arrive in PHASE-03 and PHASE-04". Both
+  arrive in PHASE-04; PHASE-03 writes `semantics/schedule.rs` and nothing under
+  `protocol/`. PHASE-04's amended Surfaces line names the file and the comment,
+  so the phase that makes the sentence true is the one that can fix it.
+

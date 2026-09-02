@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-28"],
+  "description":  "A negative span resolves to an instant in the past and is stored as given, exactly as a past absolute instant is.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "-45 minutes",
+  "expect":       { "instant": "2026-08-23T03:27:00Z" }
+}

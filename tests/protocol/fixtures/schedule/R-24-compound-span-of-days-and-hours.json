@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-24"],
+  "description":  "A span combining days and hours resolves as their exact sum, here twenty-six hours.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "1d 2h",
+  "expect":       { "instant": "2026-08-24T06:12:00Z" }
+}

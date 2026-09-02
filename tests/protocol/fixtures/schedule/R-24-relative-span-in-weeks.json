@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-24"],
+  "description":  "A span of one week resolves as exactly one hundred and sixty-eight hours.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "1 week",
+  "expect":       { "instant": "2026-08-30T04:12:00Z" }
+}

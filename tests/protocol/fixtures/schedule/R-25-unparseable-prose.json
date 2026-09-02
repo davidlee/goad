@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-25"],
+  "description":  "A string that is neither an absolute instant nor a relative span is rejected as unparseable.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "tomorrow morning",
+  "expect":       { "error": "Unparseable" }
+}

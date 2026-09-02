@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-22", "R-25"],
+  "description":  "An absolute instant with no UTC offset is rejected distinctly from a general parse failure.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "2026-08-22T18:00:00",
+  "expect":       { "error": "MissingOffset" }
+}

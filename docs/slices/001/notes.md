@@ -12,7 +12,16 @@ after the slice closes is lifted into the Harvest section.
 | plan | **accepted 2026-08-29** — ten phases in `plan.md` (01…08, 10, 09); two design gaps found and closed; **four review rounds run**, fourteen findings, all repaired and all confirmed; round 4 clean, plan judged executable | 2026-08-29 |
 | PHASE-01 | **done** — `just check` exits 0 in both feature columns. All six EX and all seven V criteria discharged; see `## Phase sheets` | 2026-08-29 |
 | PHASE-02 | **done** — `just check` exits 0 in both feature columns; 17 unit tests, 13 of them this phase's. All four EX and both VT criteria discharged, VA-1 and VA-2 pasted. **Three** plan gaps raised by the expansion and by execution, all closed by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors, and `Fields` permitting empty. See `## Phase sheets` | 2026-08-30 |
-| PHASE-03…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-03 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 5 of them this phase's, plus a 16-file fixture corpus running in **both** columns. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. **Five** break-and-revert runs, not the two the sheet asked for, because the fixture format makes three property claims; two of them found real defects in the runner, both fixed at the refactor step. No plan gap raised during execution — the four found at expansion were all closed beforehand. See `## Phase sheets` | 2026-09-02 |
+| PHASE-04…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+
+**PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
+16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
+`src/semantics/mod.rs` and three in `tests/protocol/main.rs`. `schedule.rs` is
+two pure functions — `parse`, which reads a wire `next_check` as one instant or
+one of five named `ScheduleError`s, and `resolve`, which is brief §9's three
+arms. `runner.rs` is the table-driven corpus runner PHASE-04 inherits, plus this
+phase's own corpus below a divider. Nothing else was touched.
 
 **PHASE-02 landed** `src/semantics/protocol/{mod,canonical}.rs` and one line in
 `src/semantics/mod.rs`. `canonical.rs` is the whole of the tier's types: six
@@ -1498,10 +1507,764 @@ Red / green / **refactor**. The refactor step is not optional.
   behind `shell`, which is what stratum 1 being stratum 1 looks like.
 
 
+### PHASE-03 — Schedule resolution, and the fixture runner
+
+**State:** **done 2026-09-02.** `just check` exits 0 in both feature columns.
+All four EX and all three VT criteria discharged; VA-1 and VA-2 pasted in the
+Verification record. Entry criterion was checked, not assumed, and the baseline
+was green before anything was touched. The four plan gaps found at expansion
+were all closed before execution began, and **execution raised no new one** —
+the first phase in this slice to need nothing from the user mid-flight.
+Two defects were found in this phase's own runner at the refactor step and fixed
+there; both are in the Log, and both now have a break-and-revert holding them.
+**Plan entry:** `docs/slices/001/plan.md:387`
+**Surfaces (from the plan):** `src/semantics/schedule.rs`,
+`tests/protocol/main.rs`, `tests/protocol/runner.rs`,
+`tests/protocol/fixtures/schedule/**`, and `src/semantics/mod.rs` (one line,
+`pub mod schedule;`) — **added to the plan's list 2026-09-02**; see item 1.
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-02/EX-1 discharged (`Timestamp` exists) | **met**, verified by reading the file rather than the status table. `src/semantics/protocol/canonical.rs:145` — `pub struct Timestamp(jiff::Timestamp)`, `Debug + Clone + Copy + PartialEq + Eq`, with the public `new(jiff::Timestamp)` and `instant() -> jiff::Timestamp` the 2026-08-29 constructor split gave it. `Serialize` at `:160` |
+
+Baseline re-run 2026-08-30, in a fresh `nix develop`: `just check` exits 0 on all
+six commands, both feature columns — 17 unit tests, 4 boundary tests, integration
+skipped in the stratum 1 column. `just` and `cargo` both resolve into
+`/nix/store/` (A1). Any failure from here is this phase's.
+
+#### What already exists — inspected 2026-08-30
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `src/semantics/protocol/canonical.rs` | 530 lines; `Timestamp` at `:145`, `Response.schedule: Option<Timestamp>` at `:205` with a `schedule()` accessor | the type this phase's two functions return. Not a surface here — nothing in it needs changing |
+| `src/semantics/error.rs` | `ScheduleError` at `:80`, all five variants — `NotAString { found: &'static str }`, `MissingOffset { raw }`, `CalendarUnit { raw }`, `OutOfRange { raw }`, `Unparseable { raw }` | EX-1 asserts **against this file**, not against §5.2. The field names are the contract |
+| `src/semantics/mod.rs` | 6 lines: doc comment, `pub mod error;`, `pub mod protocol;` | needs `pub mod schedule;`. One line, and it is item 1 |
+| `tests/protocol/main.rs` | 11 lines; declares `#[cfg(test)] mod boundary;` with the comment explaining why the attribute is there | gains `#[cfg(test)] mod runner;`. The same attribute for the same reason — `clippy::tests_outside_test_module` is `deny` and reaches `tests/` targets |
+| `tests/protocol/boundary.rs` | the AC-11 / AC-15 scans | **prior art for the vacuity guard**, which the corpus runner needs for the same reason: a walk over a directory that has been renamed away reports success. `Breach::Vacuous` is the shape to copy |
+| `tests/protocol/fixtures/` | **does not exist** | every file in it is new |
+| `Cargo.toml` | `jiff = { version = "0.2", default-features = false }`; resolved to **0.2.35** in `Cargo.lock`, the version the F-10 probe measured | no manifest change is needed and none is authorised here |
+| the colocated-test pattern | `src/semantics/error.rs:163`, `canonical.rs` | where VT-2 goes — see item 3 |
+| `#![deny(clippy::arithmetic_side_effects)]` | `canonical.rs:17` | `schedule.rs` takes the same attribute; A4 |
+
+#### Four things the plan did not settle — one decided, three settled here
+
+The first needed a user decision because it changes `plan.md`; the other three
+are implementer latitude and are settled here so that PHASE-04 and PHASE-07
+inherit them rather than rediscover them.
+
+**1. The declared surfaces had no line for `src/semantics/mod.rs`. Raised, and
+closed by user decision 2026-09-02.** `src/semantics/schedule.rs` cannot exist without
+`pub mod schedule;` in `src/semantics/mod.rs`, and the plan's Surfaces line does
+not name that file. This is **the same omission PHASE-02 hit** and it was closed
+the same way on 2026-08-29 by amending `plan.md:311` — the third patch in the
+same place would be evidence about the decision underneath it, but two is a
+pattern in phase-plan *drafting*, not in the design: a phase that adds a module
+always edits its parent's `mod` list, and only PHASE-01 wrote that down.
+
+**Decided 2026-09-02: fix the class, not the instance.** The Surfaces of
+PHASE-03, **PHASE-04** and **PHASE-07** were amended in one edit —
+`src/semantics/mod.rs`, `src/semantics/protocol/mod.rs` and `src/shell/mod.rs`.
+The proposal named PHASE-05; on applying it, PHASE-05 already declares both its
+`mod` files and **PHASE-07** did not, so the third instance moved. PHASE-01 and
+PHASE-05 were the only phases that had written it down. `plan-log.md`,
+2026-09-02.
+
+The same edit found one stale sentence: `src/semantics/protocol/mod.rs`'s doc
+comment says `wire` arrives at PHASE-03. It arrives at PHASE-04, which now
+declares that file and can make the sentence true.
+
+**2. `resolve`'s signature, and what type `default_poll` arrives as.** EX-2 fixes
+the arguments as `(retained, incoming, default, now)` and the return as a
+concrete `Timestamp`; it fixes no types, and PHASE-07 inherits whatever this
+phase picks. Settled here as:
+
+```rust
+pub fn resolve(
+  retained:     Option<Timestamp>,
+  incoming:     Option<Timestamp>,
+  default_poll: jiff::SignedDuration,
+  now:          Timestamp,
+) -> Timestamp
+```
+
+- **`retained` is `Option`, not `Timestamp`.** §5.3's `State::resolved_check` is
+  deliberately not an `Option` and is seeded by `Host::new`, so at run time it is
+  always `Some`. Making the parameter optional is what lets `Host::new` **seed
+  through this same function** instead of writing `now + default_poll` a second
+  time in stratum 2. Brief §9's three arms then exist in exactly one place, which
+  is what R-26 and R-27 are asking for.
+- **`incoming: Option<Timestamp>`, and `None` means "no usable instruction".**
+  An invalid `next_check` has already become `None` plus a `Discarded::Schedule`
+  inside `normalize_response` (§5.2, P2), so resolution never sees invalidity and
+  must not be given a `Result`. VT-2's "invalid preserves existing" case is
+  therefore `incoming = None` at this layer; name the test so it says that, or a
+  later reader will think the criterion is untested.
+- **Latest-valid-wins is *issue order*, not `max()`.** Brief §9 and §22's
+  point 8 — "a later valid `next_check` supersedes an earlier one" — mean the
+  most recent *instruction*, so a valid `incoming` wins even when it is **earlier**
+  than `retained`. `max(retained, incoming)` passes the obvious tests and is
+  wrong; it also contradicts R-28, since a backend that says "check me sooner"
+  would be silently overridden. VT-2 owes a case where `incoming < retained` and
+  `incoming` still wins.
+- **`jiff::SignedDuration`, not `std::time::Duration`.** Stratum 1 is jiff-native
+  and `now` is a `jiff::Timestamp` under the newtype; taking a std `Duration`
+  would put a fallible conversion inside a function that must be total. §5.2's
+  `ScheduleConfig { default_poll: Duration }` does not say **which** `Duration`,
+  so nothing is contradicted — PHASE-07 converts at the config boundary, which is
+  where the TOML string is parsed anyway.
+- **Totality at the range edge.** `now + default_poll` can overflow jiff's
+  representable range, and R-27 forbids an unresolved state, so the third arm
+  **saturates** at `jiff::Timestamp::MAX` rather than returning a `Result`.
+  Reachable only from a `now` already at the edge of representable time; written
+  down because `checked_add` returning `None` needs *some* answer and the choice
+  should be on the page rather than in a `.unwrap_or(…)` a reviewer has to
+  reverse-engineer. Note `unwrap_or` is fine — it is `unwrap()` that is denied.
+
+**3. Which tests are fixtures and which are Rust.** VT-1 and VT-3 are parse
+cases with a JSON input and one expected outcome each: fixtures, per §9
+("fixtures are data files, not Rust literals"). **VT-2 is not** — resolution
+takes four typed arguments, two of them `Option`, and encoding a `None` and a
+`SignedDuration` as JSON buys nothing a reader of the protocol can use. VT-2 goes
+in a colocated `#[cfg(test)] mod tests` in `schedule.rs`, following
+`error.rs:163` and PHASE-02's precedent. That is inside the declared surfaces and
+needs no amendment.
+
+**4. `"next_check": null` is normalization's case, not this file's.** D50/R-51
+make an explicit `null` identical to omission everywhere but `view`, and F-50
+requires that it produce **no** discard. If `parse` were handed a `Value::Null`
+it would return `NotAString { found: "null" }` — a discard, and the defect F-50
+names. The rule is a *normalization-wide* one (D50 covers every modelled field),
+so it belongs in `normalize.rs` where PHASE-04/EX-7 already owns it, not
+per-field here. `parse`'s doc comment says so explicitly, so PHASE-04 meets the
+obligation at the call site; PHASE-04/VT-4 and EX-7 are what hold it.
+
+**An observation for PHASE-04, not a repair here.** PHASE-04's Surfaces
+(`plan.md:447`) name `tests/protocol/fixtures/**` but neither `runner.rs` nor
+`main.rs`. Its corpus needs a different harness function — `normalize_response`
+rather than `parse` — which no fixture file can supply, so it will touch at least
+one of them. EX-3 asks that PHASE-04 inherit the **format** without inventing a
+second one, not that it add zero lines of Rust; the runner below is split so that
+the format and the discovery are inherited and only the per-corpus checker is
+new. Raise it at PHASE-04's expansion, not now.
+
+#### Measured 2026-09-02, before the phase starts — the parse mechanism
+
+Run in a scratch crate on jiff 0.2.35, `default-features = false`, in the dev
+shell. Three things the sheet had left open are settled by measurement rather
+than by reasoning. **This does not discharge VA-2** — that criterion asks the
+*phase* to re-run the jiff behaviour, and it still must. What it does is remove
+the unknowns that would otherwise have been met with fixtures already written
+against them.
+
+**1. `OutOfRange` is reachable. The risk is retired.** It was the `NotFinite`
+shape (F-36, D39) — a named variant whose input JSON might not admit — and it is
+not. jiff bounds each `Span` unit (`days` to `±7304484`), so a big enough span
+fails at *parse* and lands in `Unparseable`; but between the parse bound and the
+instant range there is a live window:
+
+| input | outcome |
+|---|---|
+| `"1000000 days"` | ok — `4764-07-20T04:12:00Z` |
+| `"2900000 days"` | ok — `9966-07-29T04:12:00Z` |
+| `"3000000 days"`, `"7304484 days"`, `"1000000 weeks"` | **`OutOfRange`** — parses, converts, `checked_add` fails |
+| `"10000000 days"` | `Unparseable` — outside the `Span` unit bound, so it never reaches the add |
+
+`"1000000 weeks"` is the fixture: legible, and on the right side of both
+boundaries. `Timestamp::MAX` is `9999-12-30T22:00:00.999999999Z`.
+
+**2. The three failure kinds separate structurally, with no error-string
+matching.** This is the part that would otherwise have been guessed:
+
+- `Timestamp::from_str` fails on an offsetless instant with *"failed to find
+  offset component"* — but the discriminator is not that message.
+  `"2026-08-22T18:00:00"` parses cleanly as a `jiff::civil::DateTime` and
+  `"tomorrow morning"` does not, so **`MissingOffset` is "civil parse succeeds
+  where timestamp parse failed"** — a mechanism rather than a string comparison.
+- `Span::to_duration(SpanRelativeTo::days_are_24_hours())` fails **only** for
+  calendar units: `"1 month"`, `"1 year"`, `"1mo"` and `"1y"` all reach it and
+  nothing else does. So `to_duration` erroring **is** `CalendarUnit`.
+- `checked_add` erroring **is** `OutOfRange`.
+
+Which fixes the dispatch order, unambiguously, because **no string parses as both
+a civil datetime and a span**: absolute → civil (⇒ `MissingOffset`) → span
+(⇒ `CalendarUnit` / `OutOfRange` / an instant) → `Unparseable`. A date with no
+time, `"2026-08-22"`, parses civil and so lands in `MissingOffset`, which is the
+right variant for it.
+
+Confirmed alongside: `"1 day"`, `"1 week"` and `"1d 2h"` give exactly 24h, 168h
+and 26h (VT-3); `"-45 minutes"` resolves to a past instant (EX-4); and
+`Value::as_str()` is `None` for `45`, `null`, `true`, `[]`, `{}` and `45.5`
+alike — which is A5, and is also why item 4 matters, since `null` would otherwise
+become `NotAString`.
+
+**3. One thing nobody asked about: `"18:00:00"` parses as a span of eighteen
+hours.** A bare wall-clock time is neither of R-21's two forms, but jiff reads it
+as `PT18H` under **either** dispatch order — it fails the civil parse, so
+reordering does not help. A backend author writing `"18:00:00"` and meaning *six
+this evening* gets *eighteen hours from now*, silently and successfully.
+
+That is `MissingOffset`'s own argument — the most likely backend mistake deserves
+a name — applied to a case §5.2 did not consider, and a sixth `ScheduleError`
+variant is a design question rather than a phase repair (a STOP, and
+`plan.md:437` says so). **Not invented here.** The phase adds a fixture asserting
+the accepted behaviour, so it is a documented accept rather than a latent
+surprise, and carries the question to audit.
+
+#### Reading list
+
+Read before writing anything. `path:line`.
+
+| what | where | why |
+|---|---|---|
+| the phase itself | `docs/slices/001/plan.md:387` | criteria are binding as written |
+| **what the schedule grammar accepts, and why days resolve while months do not** | `docs/slices/001/design.md:1739` | EX-1 is this paragraph. `SpanRelativeTo::days_are_24_hours()` is named there, and VA-2 re-runs it |
+| the §5.5 edge rows this phase implements | `docs/slices/001/design.md:1707`–`:1715` | one VT-1 fixture per row |
+| P2, and the two-clause granularity test | `docs/slices/001/design.md:205`, `:220` | why an invalid `next_check` is a discard and not an `Err`. The table at `:263` is the short form |
+| brief §9 | `docs/brief.md:472` | the three arms of resolution, in the words R-26 restates. `:1040`–`:1041` is the "later supersedes earlier" half |
+| `ScheduleError` as landed | `src/semantics/error.rs:80` | the five variants and their field names. Read the file, not §5.2 |
+| why `MissingOffset` is broken out | `docs/slices/001/design.md:961` | it is a debuggability decision, not a taxonomy accident (brief §13) |
+| `resolved_check` is not an `Option` | `docs/slices/001/design.md:1192` | why `resolve` takes `Option` anyway — item 2 |
+| `Normalized` and `Discarded` | `docs/slices/001/design.md:858` | the caller this phase's `parse` is written for. Do not build it here |
+| **fixtures are data files, and why** | `docs/slices/001/design.md:2022` | the corpus is reviewable protocol documentation, which is what makes it usable to the draft spec |
+| the three test tiers | `docs/slices/001/design.md:2013` | this phase writes in the protocol tier, which reaches stratum 1 only |
+| R-21…R-29 | `docs/slices/001/draft-spec.md:120`–`:128` | the requirements the fixtures are named for |
+| their verification rows | `docs/slices/001/draft-spec.md:366`–`:368` | VT-1, VT-2 and EX-4 are these three rows |
+| R-51 | `docs/slices/001/draft-spec.md:86` | the `null` rule — item 4. Read it to know what this file must **not** do |
+| D4 | `docs/slices/001/design.md:1842` | jiff default features off. If something wants a time zone, stop |
+| D53 as amended | `docs/slices/001/design.md:1890` | the module-level `arithmetic_side_effects` obligation. A4 |
+| the vacuity guard, in code | `tests/protocol/boundary.rs` | the whole file. `Breach::Vacuous` and the aggregate report are what the runner copies |
+| prior art for the module | `src/semantics/error.rs`, `src/semantics/protocol/canonical.rs` | doc-comment register, two-space indent, `#[cfg(test)] mod tests`, module-level lint attribute at the top |
+
+#### Assumptions
+
+Each is checkable; check it rather than proceeding on it.
+
+- **A1 — the dev shell.** False on PHASE-01, and still a live trap: outside
+  `nix develop` `just` resolves to `~/.nix-profile/bin/just`. Run every command
+  as `nix develop --command bash -c '…'`, or verify `just` and `cargo` resolve
+  into `/nix/store/` first. Verified 2026-08-30 for the baseline run above.
+- **A2 — jiff 0.2.35 resolves days and weeks and rejects calendar units, with no
+  tzdb.** Recorded from the F-10 probe (`notes.md`, *Established empirically*).
+  **VA-2 requires re-running it, not citing it**, and this phase depends on it
+  entirely. `Cargo.lock` still says 0.2.35, so the re-run is a confirmation
+  rather than a re-derivation — but it is the confirmation the criterion asks
+  for, and "the lockfile is unchanged" is not it.
+- **A3 — nothing this phase lands is dead in the default-features column.**
+  `dead_code` is `warn` in the manifest and the first clippy line passes
+  `-D warnings`, so a private helper written before its caller fails `just check`
+  (`design.md` §9). `resolve` and `parse` are `pub` in a `pub mod` and are
+  reachable; a private helper is not. Order the work so nothing sits uncalled.
+- **A4 — `schedule.rs` takes `#![deny(clippy::arithmetic_side_effects)]`.** It
+  handles backend-derived data *and* does time arithmetic — it is the clearest
+  case in the crate, and the reason the lint is per-module rather than crate-wide
+  (D53 as amended). `canonical.rs:17` is the form. Consequence to expect: bare
+  `+` on a `jiff::Timestamp` will not pass, which is correct — the overflow path
+  **is** `OutOfRange`, so `checked_add` is the required spelling and the lint is
+  what makes forgetting it impossible.
+- **A5 — `parse` takes `&serde_json::Value`, not `&str`.** `NotAString` exists to
+  report `"next_check": 45`, which means the function must see the untyped value
+  to name what it found. `serde_json::Value::as_str` gives the string case;
+  everything else is `NotAString { found: <the JSON type name> }`. `found` is
+  `&'static str`, so the name comes from a match on the `Value` variant, not
+  from formatting.
+- **A6 — the fixture corpus runs in both feature columns.** `tests/protocol/` is
+  built with `--no-default-features` too, so nothing in `runner.rs` may reach for
+  tokio, and the fixture loader must be `std` plus `serde_json` plus `jiff`. That
+  is the same rule the tier exists to enforce, applied to the harness itself.
+
+#### STOP conditions
+
+Stop and consult the user; do not improvise past any of these.
+
+- Any dependency or dependency-feature change. A file-walking corpus loader is
+  the obvious place a `walkdir`, `glob`, `insta` or `rstest` gets reached for;
+  `std::fs::read_dir` over one flat directory is enough and is what the boundary
+  scan already does.
+- A clock read anywhere in `semantics/` — `Timestamp::now()`, `SystemTime::now()`,
+  a default `now`. `now` is a parameter (I3), and this is the file where it is
+  most tempting.
+- A time zone, `jiff::tz`, or anything wanting jiff's default features (D4).
+- Clamping a past `next_check` to `now`, or "correcting" a resolved instant in
+  any direction. EX-4 and R-28 are exactly this, and F-13 is the finding that put
+  them there.
+- `max(retained, incoming)` as the latest-valid-wins rule. See item 2 — it is a
+  semantics change, not a refactor.
+- Any new `ScheduleError` variant, or a field added to one. §5.2 fixes the five;
+  a sixth is a design question (the plan says so at `:437`).
+- `parse` returning `Result<Option<Timestamp>, _>` to absorb `null` — item 4.
+  That is PHASE-04's rule in the wrong file.
+- Making `resolve` fallible, or `retained` non-optional in a way that forces
+  `Host::new` to compute `now + default_poll` itself. R-27 and item 2.
+- Anything outside the declared surfaces, including `src/semantics/mod.rs` until
+  item 1 is decided.
+- `HashMap`/`HashSet` — `clippy.toml` disallows both.
+
+#### The fixture format
+
+EX-3 requires this written down here, because PHASE-04 inherits it for a much
+larger corpus. Designed for a reader who knows the protocol and not the tests.
+
+**Reconciled with the code 2026-09-02, which is what discharges EX-3.** This
+section describes `tests/protocol/runner.rs` as it shipped, not as it was
+proposed; where execution changed the design the change is marked *(as landed)*.
+
+**One case per file**, in a flat directory per corpus, named for the requirement
+it verifies: `tests/protocol/fixtures/schedule/R-22-absolute-without-offset.json`.
+The filename is the index — `ls` over the directory is a coverage report against
+`draft-spec.md` §4, which is what makes the corpus usable as spec verification
+rather than only as tests.
+
+```json
+{
+  "requirement":  ["R-22", "R-25"],
+  "description":  "An absolute instant with no UTC offset is rejected distinctly from a general parse failure.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "2026-08-22T18:00:00",
+  "expect":       { "error": "MissingOffset" }
+}
+```
+
+Five keys, and every one of them is required:
+
+| key | shape | why |
+|---|---|---|
+| `requirement` | array of `R-N` ids, **non-empty** | a case may verify more than one, and an empty array is a case nobody can justify. *(as landed: the runner rejects the empty array rather than only discouraging it)* |
+| `description` | one sentence, present tense, about the **protocol** | this is the half that makes the corpus documentation. "rejects an offsetless instant", not "asserts MissingOffset". It is what a failure report prints above the reason |
+| `now` | RFC 3339 with offset | every case is deterministic. *(as landed: the runner parses it and hands the checker a `Timestamp`, so no corpus parses it twice.)* PHASE-04 needs it too — `normalize_response` takes `now` |
+| `input` | any JSON value | corpus-specific: the raw `next_check` value here, a whole wire response at PHASE-04. Untyped, so `45` and `null` are expressible without a second key |
+| `expect` | object of **exactly one** key | externally tagged, so the key names the outcome kind: `{"instant": …}` or `{"error": …}` here. PHASE-04 adds its own tags **to its own checker**, not to this table |
+
+The **envelope is shared and the payload is not**. `runner.rs` owns
+`requirement`, `description`, `now` and file discovery, and hands `input` and
+`expect` back as `serde_json::Value`; each corpus supplies the function that
+interprets them. That is what lets PHASE-04 add a corpus whose input is a whole
+response without editing a single line that PHASE-03's cases go through — and it
+is the reason `expect` is not a closed Rust enum in the runner.
+
+*(as landed)* The seam is three items, and PHASE-04 needs no more:
+
+```rust
+type Check = fn(&Fixture<'_>) -> Result<(), String>;   // a corpus reads its own payload
+struct Fixture<'a> { now: Timestamp, input: &'a Value, expect: &'a Value }
+struct Corpus { root: &'static str, check: Check }     // + `assert_corpus(&CORPUS)`
+```
+
+`Ok(())` is the protocol behaving as the fixture says; the `Err` string is the
+sentence printed under the description. One `#[test]` per corpus calls
+`assert_corpus`.
+
+*(as landed)* **The external tag is read by the shared half, not by each
+corpus** — `outcome_tag` returns the single key and its value, and rejects an
+`expect` carrying two. The tagging is the format's; only the tag *names* are the
+corpus's. Without this a fixture claiming both `instant` and `error` would have
+had one of its two claims silently unverified, since a checker looks for its
+tags in some order and stops.
+
+*(as landed)* **Failures are three kinds, because they are three different
+questions**: `Vacuous` (nothing was found to run), `Malformed` (a file is not a
+fixture, or the directory could not be enumerated — nothing was asserted, so no
+protocol claim broke), and `Mismatch` (a fixture was read and the protocol did
+not do what it says). Only `Mismatch` prints a `description`; the others have no
+protocol claim to print.
+
+Three properties the runner must have, all of them lessons already paid for.
+Each was verified by breaking it — see the Log:
+
+1. **A vacuity guard.** An empty or missing corpus directory **fails**, the way
+   `boundary.rs` fails a scan that inspected nothing. A walk that finds no files
+   and reports success is the defect this slice has already met once.
+   *(as landed: the guard counts fixtures **found**, not fixtures **passed**. The
+   obvious spelling — `if ran == 0`, incrementing `ran` on success — makes a
+   corpus whose every case failed also claim to have run nothing, which is a
+   second and false accusation on top of a real one.)*
+2. **Unknown keys in a fixture are rejected** — `#[serde(deny_unknown_fields)]`
+   on the envelope. Fixtures are ours, so strictness is free and it catches
+   `expct` on the day it is typed. This is **not** in tension with I10/R-4: that
+   rule is about the inbound *protocol*, where an unknown key is a backend using
+   a newer host. A fixture is not a backend.
+3. **Every failing case is reported, not the first.** The report names the file
+   path and the `description`, so a run tells you which protocol claim broke
+   without opening anything.
+
+*(as landed)* **Where the corpus checker lives.** `check_schedule` and its
+`#[test]` are in `runner.rs`, under a divider, below the shared half. The
+declared surfaces give this phase no third file in `tests/protocol/`, and adding
+one would have been a surface change rather than an implementation choice. The
+file therefore has two halves and says so. If PHASE-04's corpus makes that
+uncomfortable — and it is the more likely outcome — splitting the per-corpus
+halves out is PHASE-04's call, taken with its own surfaces in hand. See the
+observation for PHASE-04 above, which anticipated touching this file.
+
+#### Tasks
+
+Red / green / **refactor**. The refactor step is not optional.
+
+1. **Entry check.** Confirm the shell (A1) and re-run `just check` green before
+   touching anything, so a later failure is this phase's. All four items above
+   are closed; there is nothing to wait on.
+2. **VA-2 first, not last — re-run the jiff behaviour.** Scratch crate, jiff
+   0.2.35, `default-features = false`. The 2026-09-02 measurement above says what
+   to expect; VA-2 asks the phase to confirm it, and *expected* is not *observed*.
+   Re-run all of it: the 24h / 168h / 26h exactness, `"1 month"` and `"1 year"`
+   rejected with no tzdb, `"45 minutes"` and `"-45 minutes"` both resolving, the
+   offsetless-instant / civil-parse discrimination, and `"1000000 weeks"` reaching
+   `OutOfRange` while `"10000000 days"` reaches `Unparseable`. Paste the outputs
+   into the Log. Every fixture in task 4 is written against what **this** run
+   measured; if it disagrees with the table above, the table is what is wrong.
+3. **GREEN — `parse`, one variant at a time, red first.** `pub fn parse(value:
+   &serde_json::Value, now: Timestamp) -> Result<Timestamp, ScheduleError>`, with
+   `#![deny(clippy::arithmetic_side_effects)]` at the top of the file (A4) and the
+   doc comment that says `Value::Null` is normalization's case and not this
+   function's (item 4). `NotAString` comes first, off `Value::as_str`; the string
+   cases then take the measured dispatch — absolute → civil (⇒ `MissingOffset`)
+   → span (⇒ `CalendarUnit` from `to_duration`, `OutOfRange` from `checked_add`,
+   else an instant) → `Unparseable`. **No branch reads an error message.**
+4. **RED then GREEN — the runner and the corpus, in that order.** Write
+   `runner.rs` against a corpus of one, so the vacuity guard is exercised while
+   the directory is genuinely nearly empty; then the corpus. VT-1's cases are
+   §5.5's rows and `draft-spec.md:366`'s list: absolute with offset, absolute
+   without; spans in minutes, hours, days and weeks; `"1 month"`;
+   `"1000000 weeks"` for `OutOfRange`; `45`; `"tomorrow morning"`. Two more the
+   measurement earned: `"10000000 days"`, which is `Unparseable` rather than
+   `OutOfRange` and so shows the two boundaries are different; and `"18:00:00"`,
+   accepted as eighteen hours — asserted so the behaviour is documented rather
+   than latent (item 3 of the measurement). VT-3 is
+   three of those asserting the **exact** resolved instants. EX-4 is a past
+   absolute and `"-45 minutes"`, each asserting the instant is stored as given.
+5. **GREEN — `resolve`, with VT-2 colocated.** The signature at item 2. Cases:
+   incoming wins over retained; incoming wins **even when earlier** than retained
+   (the `max()` trap); no incoming falls back to retained; neither present falls
+   back to `now + default_poll`; and the invalid-preserves-existing case, named so
+   it says that `None` here means "discarded upstream".
+6. **RED again, by break-and-revert.** Two breaks, because two mechanisms are
+   being claimed. (a) Weaken `parse` so `MissingOffset` returns `Unparseable`;
+   confirm exactly the offsetless fixture fails and nothing else; revert.
+   (b) **Break the runner, not a fixture** — point the corpus at a directory that
+   does not exist and confirm the vacuity guard fails rather than passing with
+   zero cases; revert. PHASE-01's standard: a criterion that names a mechanism is
+   not yet a criterion that has one, and the guard is the mechanism the whole
+   corpus rests on.
+7. **REFACTOR.** The span path and the absolute path share `now` and share the
+   overflow check; the three arms of `resolve` are brief §9's three sentences and
+   should read as them. Watch A3 — a helper extracted before its second caller
+   exists is dead code and fails the gate.
+8. **VA-1.** `just check` exits 0, six commands, both feature columns. Paste it.
+   The `--no-default-features` column is the one that proves the corpus runner
+   reaches nothing it should not.
+9. **Bookkeeping before handing off.** EX-3 is discharged by *The fixture format*
+   above being true of what shipped — reconcile it with the code rather than
+   leaving it as a proposal. Status table, this sheet kept current as you go,
+   `## Harvest` updated in place.
+
+#### Verification record
+
+All discharged 2026-09-02. Evidence is pasted below the table, not summarised in
+it.
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| VT-1 | test | **pass** | the corpus: 16 fixtures under `tests/protocol/fixtures/schedule/`, one `#[test]` (`runner::every_scheduling_fixture_states_what_the_protocol_does`). Every case in the plan's list is present — absolute with offset and without; spans in minutes, hours, days and weeks; `"1 month"`; out of range; `45`; `"tomorrow morning"` — each asserting its own variant. E1, E2 |
+| VT-2 | test | **pass** | five colocated tests in `schedule.rs`, all five red before `resolve` had a body and green after. Includes the `max()` trap (`incoming < retained` and `incoming` still wins) and invalid-preserves-existing. E3, E5 |
+| VT-3 | test | **pass** | `R-24-relative-span-in-days.json`, `R-24-relative-span-in-weeks.json`, `R-24-compound-span-of-days-and-hours.json` assert the **exact** resolved instants — `2026-08-24T04:12:00Z`, `2026-08-30T04:12:00Z`, `2026-08-24T06:12:00Z` from `now = 2026-08-23T04:12:00Z`, i.e. exactly 24h, 168h and 26h. E1 |
+| VA-1 | agent | **pass** | `just check` exits 0, six commands, both feature columns. The corpus runs in the `--no-default-features` column too, which is A6 discharged rather than asserted. E4 |
+| VA-2 | agent | **pass** | re-run, not cited: scratch crate on jiff 0.2.35 with `default-features = false`, every row of *Measured 2026-09-02* reproduced. `SpanRelativeTo::days_are_24_hours()` resolves days and weeks exactly and rejects months and years, with no tzdb. E0 |
+| EX-1 | test | **pass** | all five `ScheduleError` variants reachable from a fixture, plus the accepting cases. Asserted against `error.rs`'s variant names via `error_name`'s exhaustive match, so a sixth variant cannot be added without an arm. Break (a) confirms the `MissingOffset` branch is load-bearing. E1, E2 |
+| EX-2 | test | **pass** | `resolve(retained, incoming, default_poll, now) -> Timestamp` — pure, total, concrete return, no clock. Three arms, `schedule.rs:146`. VT-2 covers all three plus the two traps. E3 |
+| EX-3 | review | **pass** | *The fixture format* above was reconciled with the shipped `runner.rs` rather than left as a proposal; four *(as landed)* corrections are marked in it. The runner's three required properties were each verified **by breaking them** — E2 |
+| EX-4 | test | **pass** | `R-28-absolute-instant-already-past.json` (a past absolute stored unchanged) and `R-28-negative-span.json` (`"-45 minutes"` → `2026-08-23T03:27:00Z`). Nothing clamps: `parse_instruction` returns the parsed instant directly and the only arithmetic is the span addition. E1 |
+
+**E0 — VA-2, the jiff re-run.** Scratch crate, `jiff = { version = "=0.2.35",
+default-features = false }`; its `Cargo.lock` and goad's both say 0.2.35.
+
+```
+Timestamp::MAX = 9999-12-30T22:00:00.999999999Z
+
+-- 1. exactness: 1 day / 1 week / 1d 2h (VT-3, F-10, D28) --
+       1 day -> 86400s  (24h) expected 24h  exact=true
+      1 week -> 604800s  (168h) expected 168h  exact=true
+       1d 2h -> 93600s  (26h) expected 26h  exact=true
+
+-- 2. calendar units rejected, no tzdb (R-23, D4) --
+     1 month -> to_duration Err: using unit 'month' in span or configuration requires that a relative reference time be given (`jiff::SpanRelativeTo::days_are_24_hours()` was given but this only permits using days and weeks without a relative reference time)
+      1 year -> to_duration Err: using unit 'year' … (same)
+         1mo -> to_duration Err: … (same)
+          1y -> to_duration Err: … (same)
+
+-- 3. minutes, both signs (EX-4, R-28) --
+    45 minutes -> instant 2026-08-23T04:57:00Z
+   -45 minutes -> instant 2026-08-23T03:27:00Z
+
+-- 4. the structural discrimination (no error-string matching) --
+      2026-08-23T05:00:00Z  timestamp=true  civil=false span=false -> instant 2026-08-23T05:00:00Z
+  2026-08-23T05:00:00+10:00  timestamp=true  civil=true  span=false -> instant 2026-08-22T19:00:00Z
+       2026-08-22T18:00:00  timestamp=false civil=true  span=false -> MissingOffset
+                2026-08-22  timestamp=false civil=true  span=false -> MissingOffset
+          tomorrow morning  timestamp=false civil=false span=false -> Unparseable
+                  18:00:00  timestamp=false civil=false span=true  -> instant 2026-08-23T22:12:00Z
+
+-- 5. the two range boundaries are different (OutOfRange vs Unparseable) --
+      1000000 days -> instant 4764-07-20T04:12:00Z
+      2900000 days -> instant 9966-07-29T04:12:00Z
+      3000000 days -> OutOfRange (parameter 'Unix timestamp seconds' is not in the required range of -377705023201..=253402207200)
+      7304484 days -> OutOfRange (same)
+     1000000 weeks -> OutOfRange (same)
+     10000000 days -> Unparseable (parameter 'days' is not in the required range of -7304484..=7304484)
+
+-- 6. as_str is None for every non-string JSON value (A5) --
+          45 -> as_str = None  (variant number)
+        null -> as_str = None  (variant null)
+        true -> as_str = None  (variant boolean)
+          [] -> as_str = None  (variant array)
+          {} -> as_str = None  (variant object)
+        45.5 -> as_str = None  (variant number)
+     "1 day" -> as_str = Some("1 day")  (variant string)
+```
+
+Every row matches *Measured 2026-09-02*. The table is not wrong. The one thing
+it did not say is the `timestamp=true civil=true` row — see the Log.
+
+**E1 — the corpus, as `ls` reads it.** The filename is the index, so this is the
+coverage report against `draft-spec.md` §4:
+
+```
+R-21-absolute-with-offset.json
+R-21-bare-wall-clock-time.json
+R-21-relative-span-in-hours.json
+R-21-relative-span-in-minutes.json
+R-22-absolute-without-offset.json
+R-23-calendar-unit-months.json
+R-23-calendar-unit-years.json
+R-24-compound-span-of-days-and-hours.json
+R-24-relative-span-in-days.json
+R-24-relative-span-in-weeks.json
+R-25-not-a-string.json
+R-25-span-beyond-the-grammar-s-unit-bound.json
+R-25-span-leaving-the-representable-range.json
+R-25-unparseable-prose.json
+R-28-absolute-instant-already-past.json
+R-28-negative-span.json
+```
+
+**E2 — task 6, break and revert. Five breaks, not two**, because the format
+section makes three property claims and each needed one. Every break was
+reverted and the gate re-run green after each.
+
+*(a) `MissingOffset` weakened to `Unparseable`* — exactly one fixture fails, and
+the report names the file and the protocol claim rather than a line number:
+
+```
+tests/protocol/fixtures/schedule/R-22-absolute-without-offset.json: An absolute instant with no UTC offset is rejected distinctly from a general parse failure.
+    expected MissingOffset, got Unparseable (unparseable schedule: 2026-08-22T18:00:00)
+test result: FAILED. 4 passed; 1 failed
+```
+
+*(b) the corpus root pointed at a directory that does not exist* — the vacuity
+guard, in the literal shape `boundary.rs` was written for. Both faults are
+reported, because a directory can fail to be read **and** yield nothing:
+
+```
+tests/protocol/fixtures/schedule-renamed-away: the corpus directory could not be read: No such file or directory (os error 2)
+tests/protocol/fixtures/schedule-renamed-away: ran no fixtures — renamed, emptied, or misspelled
+```
+
+Run again against a directory that **exists and holds no fixtures**, the second
+line appears alone. Both shapes fail; neither passes with zero cases.
+
+*(c) `CalendarUnit` weakened* — two fixtures claim it, and **both** are named in
+one run. That is property 3, which break (a) could not have shown:
+
+```
+…/R-23-calendar-unit-months.json: A span in months is rejected with its own error: …
+    expected CalendarUnit, got Unparseable (unparseable schedule: 1 month)
+…/R-23-calendar-unit-years.json: A span in years is rejected for the same reason as one in months, …
+    expected CalendarUnit, got Unparseable (unparseable schedule: 1 year)
+```
+
+*(d) six deliberately malformed fixtures added* — property 2, and the envelope's
+other guards. All six rejected, all six reported in one run:
+
+```
+ZZ-typo.json:           not a fixture: unknown field `expct`, expected one of `requirement`, `description`, `now`, `input`, `expect` at line 6 column 9
+ZZ-no-requirement.json: not a fixture: `requirement` names no R-N id
+ZZ-bad-now.json:        not a fixture: `now` is not an RFC 3339 instant: sometime
+ZZ-empty-expect.json:   `expect` must be an object of exactly one key naming the outcome kind, found 0
+ZZ-two-claims.json:     `expect` must be an object of exactly one key naming the outcome kind, found 2
+ZZ-unknown-tag.json:    `expect` names `discard`, which this corpus does not read
+```
+
+*(e) `parse` short-circuited so that every case fails* — the guard must **not**
+also claim vacuity, because the corpus did run. 14 fixtures reported (the two
+that expect `Unparseable` still pass), and no `ran no fixtures` line. This break
+is what found the defect the refactor fixed; see the Log.
+
+**E3 — VT-2 red, before `resolve` had a body.** With the body replaced by
+`now`, all five fail and nothing else does:
+
+```
+test …::a_valid_incoming_instruction_supersedes_the_retained_one ... FAILED
+test …::a_valid_incoming_instruction_wins_even_when_it_is_earlier_than_the_retained_one ... FAILED
+test …::an_instruction_discarded_upstream_arrives_as_none_and_preserves_the_retained_value ... FAILED
+test …::with_no_incoming_instruction_the_retained_value_stands ... FAILED
+test …::with_nothing_retained_and_nothing_incoming_the_default_poll_is_added_to_now ... FAILED
+test result: FAILED. 7 passed; 5 failed
+```
+
+**E4 — VA-1, `just check`.** Six commands, both columns, exit 0:
+
+```
+cargo build
+cargo test                          22 passed (lib) · 5 passed (protocol) · 0 doc-tests
+cargo test --no-default-features    22 passed (lib) · 5 passed (protocol)
+cargo clippy --all-targets -- -D warnings
+cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+cargo fmt --check
+just check exit=0
+```
+
+22 lib tests, 5 of them this phase's (VT-2). 5 protocol tests, 1 of them this
+phase's — the corpus is one `#[test]` over 16 files. The
+`--no-default-features` column running the corpus is A6 discharged: the runner
+reaches nothing above stratum 1.
+
+**E5 — the surfaces actually touched**, against the plan's list:
+
+```
+M src/semantics/mod.rs        (one line, `pub mod schedule;`)
+M tests/protocol/main.rs      (three lines, `#[cfg(test)] mod runner;`)
+? src/semantics/schedule.rs
+? tests/protocol/runner.rs
+? tests/protocol/fixtures/schedule/*.json   (16 files)
+```
+
+No undeclared path. Nothing else in `src/` or `tests/` was edited.
+
+#### Log
+
+<!-- Append as you go: decisions taken, obstacles, anything noticed in passing.
+     Do not save it for the end. -->
+
+- **2026-08-30, sheet written.** Entry criterion EN-1 checked against
+  `canonical.rs:145` rather than the status table; baseline `just check` green in
+  a fresh `nix develop`, `just` and `cargo` both store paths. Four plan gaps
+  found while expanding — three settled in the sheet and recorded so PHASE-04 and
+  PHASE-07 inherit them, one taken to the user.
+- **2026-09-02, item 1 closed.** User decided the class fix: PHASE-03, PHASE-04
+  and PHASE-07 Surfaces all gained their parent `mod` file in one edit
+  (`plan-log.md`). PHASE-05 needed none — it already declared both.
+- **2026-09-02, the jiff unknowns measured before starting.** `OutOfRange` is
+  reachable — `"1000000 weeks"` — so the F-36-shaped risk is retired rather than
+  carried into the corpus. The three failure kinds separate structurally
+  (`to_duration` ⇒ `CalendarUnit`, `checked_add` ⇒ `OutOfRange`, civil-parse
+  success ⇒ `MissingOffset`), so no branch reads an error message. Found in
+  passing: `"18:00:00"` is accepted as a span of eighteen hours. Full table under
+  *Measured 2026-09-02* above; VA-2 still re-runs it in the phase. One risk pre-flagged: `OutOfRange` may be
+  unreachable from the wire, in the shape F-36 already established for
+  `NotFinite`, and task 2 settles it by measurement before any fixture asserts it.
+
+- **2026-09-02, entry check (task 1).** `nix develop --command bash -c 'which
+  just cargo; just check'` — `just` at
+  `/nix/store/ni2dxycnhsp34y4qy6q44nw6pp6bj0l0-just-1.58.0/bin/just`, `cargo` at
+  `/nix/store/cyn97lq74y3lx15y95gyzplnmmx451g9-rust-default-1.99.0-beta.1-2026-08-18/bin/cargo`.
+  A1 verified. `just check` exits 0 — 17 unit tests, 4 boundary tests, both
+  clippy columns clean, `cargo fmt --check` silent. Any failure from here is
+  this phase's.
+- **2026-09-02, VA-2 re-run (task 2), before a line of the corpus was written.**
+  Scratch crate under the session scratchpad, `jiff = { version = "=0.2.35",
+  default-features = false }`, lockfile confirmed at 0.2.35 — the same version
+  `Cargo.lock` pins. **Every row of *Measured 2026-09-02* reproduced.** Output
+  pasted under the Verification record.
+  - One thing the measurement table did not say, found by printing all three
+    parse results per input rather than only the classification:
+    `"2026-08-23T05:00:00+10:00"` parses as a `Timestamp` **and** as a
+    `civil::DateTime`. So it is not true that the three parsers partition the
+    input space — only that *civil* and *span* do. The dispatch is unaffected,
+    because absolute is tried first and wins, which is the order the sheet
+    already fixes; but "absolute first" is therefore load-bearing rather than
+    incidental, and `parse` carries a comment saying so. The sheet's claim as
+    written — "no string parses as both a civil datetime and a span" — is
+    accurate; it just is not the whole partition story.
+- **2026-09-02, tasks 3 and 5 — the red/green record.** Seven cycles, each red
+  before it was green: `NotAString`; an absolute instant with an offset (which
+  killed the deliberate `Ok(now)` stub); `MissingOffset`; a span resolving
+  against `now`; `CalendarUnit`; `OutOfRange` **with** its `Unparseable`
+  neighbour in the same test, so the two boundaries are asserted to be
+  different; then `resolve`'s five VT-2 cases.
+  - **Two branches were written ahead of their tests and backed out.** The span
+    cycle landed `CalendarUnit` and `OutOfRange` in one edit because they sit in
+    the same dispatch. Both were reverted to `Unparseable`, driven red
+    separately, and restored. `resolve` got the same treatment for the same
+    reason — it arrived during a doc-comment pass, so its body was replaced by
+    `now` until VT-2 was red against it (E3). Cheap, and the alternative is a
+    branch nothing ever proved was load-bearing.
+- **2026-09-02, AC-11's vocabulary scan fired twice, on the word "site".** Not a
+  false positive worth carving out — the scan is deliberately blunt and
+  substring-matched, and it reaches doc comments and ordinary comments under
+  `src/`, which is where prose lives. Both hits were mine, both in the ordinary
+  software sense ("the one site that can apply it", "left standing at half its
+  sites"), and both were reworded. Cost about a minute each; the alternative is
+  a `#[allow]` on a scan whose whole value is that it has no exceptions.
+  **PHASE-04 and PHASE-09 will hit this**, because "site" is unavoidable when
+  writing about where a rule is applied. Harvested.
+- **2026-09-02, task 4 — the runner, and where its corpus lives.** The declared
+  surfaces give this phase no third file under `tests/protocol/`, so
+  `check_schedule` and its `#[test]` are in `runner.rs` below a divider, with
+  the shared half above it. That is inside the surfaces; a new file would not
+  have been. Recorded in *The fixture format* so PHASE-04 inherits the split
+  rather than the accident, and it is PHASE-04's call whether to separate them
+  once its own corpus is in hand.
+- **2026-09-02, task 7 — the refactor found two real defects, not just tidying.**
+  This is the step the sheet says is not optional, and it earned its place:
+  1. **`expect` was documented as a single-key object and enforced as neither.**
+     The checker looked for `instant`, then for `error`, and returned on the
+     first it found. A fixture carrying both would have had one claim silently
+     unverified. Fixed by moving the external-tag read into the shared half —
+     `outcome_tag` returns the one key or refuses — which also puts the tagging
+     discipline where PHASE-04 inherits it instead of reimplementing it. Break
+     (d) is the proof.
+  2. **The vacuity guard counted the wrong thing.** It incremented on cases that
+     *passed* and fired when that count was zero, so a corpus whose every case
+     failed would have been accused of running nothing as well — a false second
+     finding stacked on a real one, in the report a reader trusts to tell them
+     what broke. Now it counts fixtures **found**. Break (e) exists to hold this,
+     and it is the break the sheet did not ask for.
+  - The sheet's refactor prompt is half wrong about the code, and the note
+    belongs here rather than silently ignored: "the span path and the absolute
+    path share `now` and share the overflow check" — they do not. The absolute
+    path does no arithmetic at all; it parses to an instant and returns it, which
+    is precisely why R-28 is free rather than enforced. The only `checked_add` on
+    the parse side is the span one. Nothing was extracted, because extracting a
+    helper with one caller is dead code and A3 fails the gate on it.
+- **2026-09-02, `-D warnings` over `pedantic` cost three fixes worth knowing.**
+  `missing_errors_doc` fires on any `pub fn` returning `Result` — the manifest
+  comments say the doc lints are "paused", but `pedantic = deny` re-enables this
+  one, so `parse` needed an `# Errors` section (`canonical.rs:380` is the
+  house form). `unused_self` on a method that never touched `self`, and
+  `type_complexity` on `Corpus<fn(&Fixture<'_>) -> Result<(), String>>`. The
+  second and third were fair: the method became a free function and the generic
+  parameter became a `type Check` alias, which left `Corpus` non-generic and
+  simpler than it started.
+- **2026-09-02, observation for the audit, not a repair.** `report()` in
+  `runner.rs` is identical to `report()` in `boundary.rs`, and the two
+  aggregate-then-panic shapes are the same shape. `boundary.rs` is **not** a
+  declared surface here, so factoring it out would have been a surface change;
+  it is left duplicated deliberately. PHASE-09 extends `boundary.rs` and is the
+  natural place to take it, if anyone judges two copies worth removing.
+- **2026-09-02, one bookkeeping mishap, recorded because the fix is generic.**
+  An edit to *The fixture format* anchored its end on `"#### Tasks"`, which
+  matched **PHASE-01's** heading rather than PHASE-03's — the sheets all share
+  the same subheadings, so the first match is nine hundred lines too early. The
+  result was a duplicated tail, caught immediately by re-reading the heading map
+  and repaired by reconstruction; verified against `git show HEAD` that no
+  section was lost. In a file of repeated section names, anchor on the enclosing
+  `### PHASE-NN` first, or on a unique string.
+
+
 ## Harvest
 
-**Fresh as of:** 2026-08-30 · plan accepted, **PHASE-01 and PHASE-02 done** ·
-committed through `76a9485`, tree clean
+**Fresh as of:** 2026-09-02 · plan accepted, **PHASE-01, PHASE-02 and PHASE-03
+done** · committed through `f98c421`, PHASE-03's work uncommitted in the tree
 
 ### Produced
 
@@ -1534,6 +2297,17 @@ committed through `76a9485`, tree clean
   `Serialize`. Inbound fields `pub(super)` with read accessors; the outbound
   types are the design's own `pub` exception (D5). 17 unit tests, 13 of them this
   phase's, and the `--no-default-features` column runs all 17.
+- **Schedule resolution and the fixture runner, from PHASE-03.**
+  `src/semantics/schedule.rs` (`parse` and `resolve`, both pure, `now` a
+  parameter on each), `tests/protocol/runner.rs`, and 16 fixtures under
+  `tests/protocol/fixtures/schedule/`, plus one line in `src/semantics/mod.rs`
+  and three in `tests/protocol/main.rs`. All five `ScheduleError` variants are
+  reachable from a fixture. 22 lib tests, 5 of them this phase's; the corpus is
+  one `#[test]` over the 16 files and runs in **both** feature columns.
+  **The fixture format is the durable artefact** — PHASE-04 inherits the
+  envelope, the discovery, the external-tag read and the vacuity guard, and
+  supplies only a `Check` function. It is written up under PHASE-03's sheet,
+  *The fixture format*, reconciled against the code that shipped.
 
 ### Learned
 
@@ -1606,8 +2380,68 @@ empirically** above, plus:
   domain list contains `site`, which caught the phrase "call sites" in a doc
   comment. `reminder` is the next one likely to bite. Worth knowing before
   writing the next such scan, in this project or another.
+  **It recurred twice in PHASE-03**, on "the one site that can apply it" and "at
+  half its sites" — so this is not a one-off but the predictable cost of a blunt
+  scan over prose, and the word is near-unavoidable when writing about *where* a
+  rule is applied. Both were reworded in about a minute each; the carve-out was
+  not taken, and should not be, because the scan's value is that it has no
+  exceptions. Expect it again in PHASE-04 and PHASE-09.
+
+**From PHASE-03, all measured here rather than assumed:**
+
+- **jiff's three parsers do not partition the input, and the dispatch order is
+  load-bearing because of it.** An RFC 3339 string *with* an offset parses as a
+  `jiff::Timestamp` **and** as a `jiff::civil::DateTime`. Trying civil first
+  would therefore report `MissingOffset` for a value that carries one. Civil and
+  span *do* partition, so below the absolute arm the order is only naming. The
+  rule: absolute → civil → span → unparseable.
+- **The three schedule failure kinds separate structurally, so no branch reads an
+  error message.** `Span::to_duration(days_are_24_hours())` fails **only** for
+  calendar units, so that error *is* `CalendarUnit`; `Timestamp::checked_add`
+  failing *is* `OutOfRange`; a civil parse succeeding where the timestamp parse
+  failed *is* `MissingOffset`. Verified against jiff 0.2.35.
+- **jiff bounds each `Span` unit and the instant range separately, and the two
+  boundaries are different.** `"1000000 weeks"` parses and then overflows
+  (`OutOfRange`); `"10000000 days"` exceeds the `days` unit bound of ±7304484 and
+  never reaches the addition (`Unparseable`). This is what retired the F-36-shaped
+  risk that `OutOfRange` might be unreachable from the wire — it is reachable.
+- **`clippy::missing_errors_doc` is live despite being commented out**, for the
+  same reason PHASE-02 found for the other doc lints: `pedantic = "deny"`
+  re-enables it. Any `pub fn` returning `Result` needs an `# Errors` section.
+  This is the third phase to trip over the commented-out-but-grouped pattern.
+- **A vacuity guard must count what was *found*, not what *passed*.** The
+  obvious spelling — increment on success, fire when the count is zero — makes a
+  corpus whose every case failed also report that it ran nothing: a false second
+  accusation stacked on a real one, in the report a reader trusts. Found by
+  breaking `parse` so that everything failed, which is a break worth running on
+  any aggregate-and-report harness. `boundary.rs` counts files inspected and is
+  correct; the runner's first draft was not.
+- **An externally-tagged `expect` must be read by the shared half, not by each
+  corpus.** Reading tags per-corpus means looking for one, then the other, and
+  returning on the first hit — so a fixture claiming two outcomes has one of them
+  silently unverified. Rejecting the second key is a three-line function and it
+  belongs where every corpus inherits it.
 
 ### Open
+
+**Raised by PHASE-03's expansion, 2026-09-02 — audit business, not a phase
+repair.**
+
+- **`"next_check": "18:00:00"` is accepted as a span of eighteen hours.**
+  Measured on jiff 0.2.35 while retiring PHASE-03's `OutOfRange` risk. A bare
+  wall-clock time is neither of R-21's two forms, and jiff reads it as `PT18H`
+  under either dispatch order — it fails the civil parse, so no ordering avoids
+  it. A backend author writing `"18:00:00"` and meaning *six this evening* gets
+  *eighteen hours from now*, silently and successfully. This is exactly
+  `MissingOffset`'s own argument (`design.md:961` — the most likely backend
+  mistake deserves a name) applied to a case §5.2 did not consider. A sixth
+  `ScheduleError` variant is a design question and a STOP, so PHASE-03 asserted
+  the accepted behaviour in a fixture — documented rather than latent — and the
+  question goes to audit. **Shipped as
+  `tests/protocol/fixtures/schedule/R-21-bare-wall-clock-time.json`**, which
+  states the behaviour in the description so a reader of the corpus meets it
+  rather than discovering it. If audit adds the sixth variant, that fixture is
+  the one to change.
 
 **Raised by PHASE-02, 2026-08-30 — all three are audit business, none is a phase
 repair.**

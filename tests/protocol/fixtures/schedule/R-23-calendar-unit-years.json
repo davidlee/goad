@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-23", "R-25"],
+  "description":  "A span in years is rejected for the same reason as one in months, and with the same error.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "1 year",
+  "expect":       { "error": "CalendarUnit" }
+}

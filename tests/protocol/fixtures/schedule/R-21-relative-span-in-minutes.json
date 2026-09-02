@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21"],
+  "description":  "A relative span in minutes is resolved against the current instant.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "45 minutes",
+  "expect":       { "instant": "2026-08-23T04:57:00Z" }
+}

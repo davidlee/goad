@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-25"],
+  "description":  "A span whose magnitude exceeds what the duration grammar itself admits never reaches resolution, and so is a parse failure rather than an out-of-range one: the two boundaries are different, and this case is what shows it.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "10000000 days",
+  "expect":       { "error": "Unparseable" }
+}

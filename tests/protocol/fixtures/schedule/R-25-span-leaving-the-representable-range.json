@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-25"],
+  "description":  "A span that is well formed but lands beyond the representable range of instants is rejected as out of range.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "1000000 weeks",
+  "expect":       { "error": "OutOfRange" }
+}

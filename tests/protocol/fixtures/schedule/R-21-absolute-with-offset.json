@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21"],
+  "description":  "An absolute instant carrying a UTC offset is accepted, and the offset is honoured rather than ignored.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "2026-08-23T05:00:00+10:00",
+  "expect":       { "instant": "2026-08-22T19:00:00Z" }
+}

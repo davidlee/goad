@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-23", "R-25"],
+  "description":  "A span in months is rejected with its own error: a month has no fixed length without a calendar, and the host resolves instants without one.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "1 month",
+  "expect":       { "error": "CalendarUnit" }
+}
