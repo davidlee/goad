@@ -14,7 +14,8 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 | **done** — `just check` exits 0 in both feature columns; 17 unit tests, 13 of them this phase's. All four EX and both VT criteria discharged, VA-1 and VA-2 pasted. **Three** plan gaps raised by the expansion and by execution, all closed by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors, and `Fields` permitting empty. See `## Phase sheets` | 2026-08-30 |
 | PHASE-03 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 5 of them this phase's, plus a 16-file fixture corpus running in **both** columns. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. **Five** break-and-revert runs, not the two the sheet asked for, because the fixture format makes three property claims; two of them found real defects in the runner, both fixed at the refactor step. No plan gap raised during execution — the four found at expansion were all closed beforehand. See `## Phase sheets` | 2026-09-02 |
 | PHASE-04 | **done** — `just check` exits 0 in both feature columns; 22 unit tests and 9 protocol tests, 4 of the latter this phase's, over a **54-file** corpus in two directories. All eight EX and all four VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. **A fourth was raised during execution** — `canonical.rs` joined the Surfaces, scoped to removing four `expect(dead_code)` attributes PHASE-02 wrote as temporary, without which the lib does not compile once normalization calls the constructors. See `## Phase sheets` | 2026-09-02 |
-| PHASE-05…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-05 | **sheet written 2026-09-02, not started.** Entry criterion checked and met. EX-6 discharged ahead of code — the probe was run at expansion and all seven cases reproduce, including the 902 ms / 303 ms / 2.5 ms timings, with nothing disagreeing with §5.4. Three further measurements taken, each of which would have been a STOP: the declared tokio feature set is sufficient (no `rt-multi-thread`), the AFIT exchange future is `Send`, and the probe's own code fails goad's `indexing_slicing` at four places. **Three plan gaps raised and open** — VT-5's source-text test has no declared home and needs a shape `Scan` was not built for; the harness is told to build a `Config` that belongs to PHASE-07; and `BackendError::Protocol` is not reachable from a transport that returns bytes. See `## Phase sheets` | 2026-09-02 |
+| PHASE-06…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -2946,13 +2947,332 @@ No undeclared path. Nothing else in `src/` or `tests/` was edited.
   no cost to the prose. Worth carrying: the word to reach for is "place".
 
 
+### PHASE-05 — Process transport: the structure and the paths that work
+
+**State:** **sheet written 2026-09-02, not started.** Entry criterion checked and
+met. The probe is run and its output recorded below, which discharges EX-6 ahead
+of any code. **Three plan gaps found at expansion, all three open** — VT-5's
+source-text test has no declared home, the harness is told to build a `Config`
+that belongs to PHASE-07, and `BackendError::Protocol` is not reachable from the
+transport this phase builds. None is repaired here.
+**Plan entry:** `docs/slices/001/plan.md:560`
+**Surfaces (from the plan):** `src/shell/mod.rs`, `src/shell/error.rs`,
+`src/shell/backend/mod.rs`, `src/shell/backend/transport.rs`,
+`src/shell/backend/process.rs`, `tests/integration/main.rs`,
+`tests/integration/harness.rs`, `tests/backends/*.sh`.
+
+#### Reading list
+
+| what | where | why |
+|---|---|---|
+| the structure, in full | `design.md:1234` §5.4 | the sketch this phase implements. Read the prose after the code block too: nine of its bullets are repairs with findings attached, and each names a way of getting the structure wrong |
+| the transport seam | `design.md:983` | `Backend`, `Exchange`, `Exchange::failed`, `cleanup_only`, `Captured` — EX-1 is this block |
+| the error taxonomy | `design.md:914` (`BackendError`), `:927` (`CleanupFailure`) | what may be returned, and the argument that cleanup is a second dimension rather than a variant |
+| invariants | `design.md:1648` — I9, I11, I13 | I13 is the "no `?` past the spawn" rule stated as an invariant; I11 is the no-task claim |
+| the edge table | `design.md:1690`–`1730` | rows this phase owns: non-zero exit, zero exit with unparseable stdout, and the two grandchild cases (the last two are PHASE-06's to assert) |
+| the misbehaving-backend list | `design.md:2044` §9 | the script inventory, minus the ones PHASE-06 and PHASE-08 own |
+| the requirements | `draft-spec.md:146`–`152` (R-36…R-43), `:373`–`:383` | R-41's corrected wording — the call waits at most `timeout + CLEANUP_LIMIT`, both stated |
+| the probe | `docs/slices/001/transport-probe.local.rs` | seven cases; five changed the design. Gitignored, so it is copied out to run |
+| prior art — source-text tests | `tests/protocol/boundary.rs:14` (`Scan`), `:75` (`run`, holding the vacuity guard) | VT-5's shape, and the guard the plan names |
+| prior art — reaching the crate root from a test binary | `tests/protocol/boundary.rs:69` | `env!("CARGO_MANIFEST_DIR")`; the harness locates `tests/backends/` the same way |
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-02/EX-1 discharged — `Request` exists to be serialized | **met.** `Request` at `src/semantics/protocol/canonical.rs:471`, its two payloads at `:477` and `:483`, the hand-written `Serialize` at `:537`, and two unit tests asserting the exact wire form at `:727` and `:775`. All fields are `pub`, and the doc comment at `:465` says why — requests are host-authored, so stratum 2 constructs them directly |
+
+Baseline, 2026-09-02: `just check` exits 0 on all six commands, both feature
+columns — 22 unit tests, 9 protocol tests, integration skipped in the stratum 1
+column because it declares `required-features = ["shell"]`. PHASE-04 is committed
+at `588ccd1`. Any failure from here is this phase's.
+
+#### What already exists — inspected 2026-09-02
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `src/shell/mod.rs` | 3 lines, doc comment only, no `pub mod` | every module this phase adds is declared here. It is in the Surfaces, so the PHASE-03 omission does not recur |
+| `src/lib.rs:11` | `#[cfg(feature = "shell")] pub mod shell;` | already gated. Nothing here changes |
+| `src/semantics/error.rs:17` | `ProtocolError`, twelve variants | `BackendError::Protocol` wraps this. See gap 3: nothing in this phase raises it |
+| `tests/integration/main.rs` | 4 lines, doc comment only, "Empty until PHASE-05" | the target exists and is already feature-gated in `Cargo.toml:47`. This phase makes the comment false, which is what it is for |
+| `tests/backends/` | does not exist | new directory. Not a Cargo target and needs no declaration — the scripts are data, read by argv |
+| `Cargo.toml:23` | `tokio` optional, features `process`, `time`, `rt`, `io-util`, `macros` | **sufficient** — measured below. `Cargo.toml` is not in this phase's Surfaces, so a missing feature would have been a STOP |
+| `clippy.toml:24`–`27` | the four `…-in-tests` keys | the integration tier may `unwrap` and index. `process.rs` may not |
+| `clippy.toml:36` | `disallowed-types` bans `HashMap` and `HashSet` | `BTreeMap`/`BTreeSet` if the harness needs a map |
+| `#![deny(clippy::arithmetic_side_effects)]` | `canonical.rs:17`, `schedule.rs:14`, `wire.rs:29`, `normalize.rs:20` | `process.rs` takes the same attribute — EX-7. `transport.rs` and `error.rs` are declarations and take none |
+
+#### Measured at expansion, before any of it was written
+
+Three questions whose answers would each have been a STOP, settled in a scratch
+crate rather than reasoned about.
+
+**1. `Cargo.toml`'s tokio feature list is sufficient, and `rt-multi-thread` is not
+needed.** A crate carrying goad's exact feature list compiles the whole of §5.4's
+structure — `Command`, `kill_on_drop`, `tokio::pin!`, `select!`,
+`tokio::time::timeout`, `AsyncReadExt`/`AsyncWriteExt` — and `#[tokio::test]`
+runs against it. `#[tokio::test]` defaults to the current-thread flavour, which
+`rt` alone provides; the probe's manifest carries `rt-multi-thread` only because
+`#[tokio::main]` defaults the other way. **Consequence:** `Cargo.toml` stays out
+of this phase, as its Surfaces require.
+
+**2. The AFIT future is `Send`, so EX-1's signature is honest.** `clippy::future_not_send`
+is denied crate-wide, and `fn exchange(&mut self, …) -> impl Future<Output = Exchange> + Send`
+is a promise the implementation has to keep. Measured by writing the trait with
+`+ Send`, implementing it with §5.4's exact borrow structure, and calling it
+through a generic `fn assert_send<B: Backend>(b: &mut B) -> impl Future<…> + Send`.
+It compiles. Nothing in the pinned sub-future, the `select!` or the two nested
+`timeout`s is non-`Send`.
+
+**3. The probe's own code does not survive goad's lint table, in four places.**
+This matters because the probe is the thing being transcribed. Under
+`-D clippy::indexing_slicing`:
+
+```
+error: slicing may panic       src/lib.rs:27:58   &buf[..room]
+error: slicing may panic       src/lib.rs:28:46   &buf[..n]
+error: indexing may panic      src/lib.rs:36:49   &self.command[0]
+error: slicing may panic       src/lib.rs:37:15   &self.command[1..]
+```
+
+`indexing_slicing` is crate-wide and carved out only for tests, so `process.rs`
+must reach for `buf.get(..room)` and `command.split_first()` instead. The gate
+would catch all four; they are recorded so the phase does not spend a cycle
+discovering that its reference implementation is not lint-clean.
+
+#### EX-6 — the probe, run 2026-09-02, before any of `process.rs` existed
+
+Copied to a scratch crate with its own manifest and run with `cargo run --release`.
+All seven cases reproduce, and the three timings the design records — 902 ms,
+303 ms and 2.5 ms — reproduce within noise.
+
+| case | elapsed | `result` | `stderr` | `cleanup` |
+|---|---|---|---|---|
+| A. normal | 2.6 ms | `Ok("{\"view\":null}")` | `"hi\n"` | `None` |
+| B. stderr flood then answer | 10.3 ms | `Ok("{\"view\":null}")` | first 8 KiB, `truncated=true` | `None` |
+| C. stderr then hang past timeout | 601.3 ms | `Err("timeout")` | `"about to hang\n"` | `None` |
+| D. grandchild holds both pipes | 902.1 ms | `Err("timeout")` | `"parent\n"` | `Some(TimedOut { after: 300ms })` |
+| E. grandchild holds stderr only | 303.7 ms | `Ok("{\"view\":null}")` | `"parent\n"` | `Some(TimedOut { after: 300ms })` |
+| F. valid JSON then exit 1 | 3.2 ms | `Err("exit status Some(1)")` | `"why\n"` | `None` |
+| G. valid JSON, exit 0 | 2.3 ms | `Ok("{\"view\":null}")` | `""` | `None` |
+
+The probe's constants are `TIMEOUT = 600ms` and `CLEANUP_LIMIT = 300ms`, so its
+stated bound is 900 ms, not the crate's. Four readings worth carrying:
+
+- **No case disagrees with §5.4.** The plan's "where the sketch and a measurement
+  disagree, the measurement wins and the disagreement is a finding" does not fire.
+- **C is the case that separates the two bounds.** A backend that hangs with no
+  grandchild pays the timeout and then cleans up *inside* the budget —
+  `cleanup: None` at 601 ms, not 901. So a timeout does not imply a cleanup
+  failure, and VT-2 must assert `cleanup: None` rather than ignoring the field.
+- **D is 902 ms against a 900 ms bound.** VA-3's assertion is therefore a bound
+  with headroom, not an equality, and not a tight ceiling either: 2 ms of it is
+  scheduling. Assert `<= timeout + CLEANUP_LIMIT + slack` with slack stated, and
+  on the success path assert `< timeout`, which G clears by two orders of
+  magnitude.
+- **B truncates at 8 KiB because the probe's `STDERR_LIMIT` is 8 KiB.** The
+  crate's is 256 KiB. The flood case that asserts `truncated` against the real
+  limit is PHASE-06/EX-2; B here only shows the concurrency works.
+
+#### Three plan gaps found at expansion — all three open
+
+**1. VT-5's source-text test has no declared home, and the shape it needs is not
+the shape `boundary.rs` was built for.** VT-5 asks for three checks over
+`process.rs`'s source text "in the same tier and with the same found-no-files
+guard as PHASE-01's boundary checks". PHASE-01's boundary checks are
+`tests/protocol/boundary.rs`, which is in the protocol target and therefore runs
+in **both** feature columns. That file is not in this phase's Surfaces, and
+neither is `tests/protocol/main.rs`, which declares it. Same class as the two
+omissions already closed in this plan — a phase's Surfaces naming what it adds
+and not the file that reaches it — and the **fifth** instance.
+
+There is a second half. `Scan` is a *forbidden-token walk over a directory*:
+`{ root, forbidden }`, matched case-insensitively per line. Only one of VT-5's
+three checks is that shape:
+
+| check | shape | fits `Scan`? |
+|---|---|---|
+| no `Arc`, no `Mutex` | token absent | yes |
+| the only `spawn` is `Command::spawn` | token present, occurrence **shape** constrained | no |
+| no `?` between the spawn and the cleanup budget | **region**-scoped | no |
+
+`boundary.rs`'s own doc comment says "PHASE-09 extends this file — extend the
+configuration, not the walk", and two of the three cannot be expressed as
+configuration.
+
+**Recommended:** a new `tests/protocol/transport_shape.rs`, plus
+`tests/protocol/main.rs` for the `mod` line, both joining the Surfaces; nothing
+lifted from `boundary.rs` beyond the idea of the guard, whose form here is
+"the file was found and read" rather than "the walk inspected files". The
+alternative — generalising `Scan` to carry a per-line predicate and a region
+state machine — reworks PHASE-01's surface to fit a different job, and would
+leave one type serving two unrelated questions. **PHASE-06/VT-6 re-asserts the
+spawn grep against the finished module and has the same omission**, so the
+amendment should cover both phases at once, as the `mod`-line amendment covered
+three.
+
+**2. The harness is told to build a `Config`, and `Config` is PHASE-07's.**
+The plan's notes for this phase say the harness needs "building a `Config`
+pointing at one". But `src/shell/config.rs` is **PHASE-07's** surface, and
+PHASE-07/EX-1 owns `Config` whole, including its rejection rules and its TOML
+loading. Nothing in this phase's Surfaces can define it.
+
+**Recommended:** no `Config` in this phase. `ProcessBackend` holds
+`command: Vec<String>` and `timeout: Duration` directly, which is what §5.4's
+sketch actually needs — `Backend::exchange` takes only `&mut self` and the
+request, so the timeout must already be on the transport. PHASE-07 then
+constructs a `ProcessBackend` *from* a loaded `Config`, which is the direction
+"durations resolve at load, so nothing downstream carries an unparsed string"
+(`design.md:1152`) already implies. Read that way the plan's sentence is loose
+advice rather than a contradiction — raised because it is plan text and because
+it decides the constructor's signature.
+
+**3. `BackendError::Protocol` is not reachable from the transport this phase
+builds, and VT-3 requires a case for it.** VT-3 asks for "one case per
+`BackendError` variant this phase can reach: `Spawn` …, `Timeout`, `ExitStatus`,
+`Protocol(Json)` via unparseable stdout, and `Io`". But EX-1 fixes
+`Exchange.result` as `Result<Vec<u8>, BackendError>` — the transport returns
+**bytes** and parses nothing, so it has no way to produce a `Json` error. The
+design agrees where it is specific: "invalid UTF-8 then becomes a
+`Protocol(Json)` error **via `from_slice`**" (`design.md:1052`), and `from_slice`
+runs in `Host`, which is PHASE-07.
+
+R-38 — exactly one JSON document, trailing content an error — is discharged by
+that same `from_slice`, which refuses trailing content by itself. PHASE-04's
+sheet passed R-38's two fixtures here on the grounds that framing is the
+transport's; that is right about the *tier* and wrong about the *phase*, because
+this phase's transport hands the bytes on unparsed.
+
+**Recommended:** VT-3 drops the `Protocol(Json)` clause and PHASE-07 gains it.
+The backend script stays here regardless — EX-4 names "a zero exit with
+unparseable stdout" as a **stderr** claim, and this phase asserts exactly that:
+`result` is `Ok(bytes)`, those bytes do not parse, and the stderr survived. Only
+the variant claim moves.
+
+#### Settled here — implementer latitude
+
+**4. The harness is three functions, not a framework.** `tests/integration/harness.rs`,
+declared from `main.rs`:
+
+- `backend(name: &str) -> Vec<String>` — `vec!["bash", "<manifest>/tests/backends/<name>.sh"]`,
+  rooted with `env!("CARGO_MANIFEST_DIR")` exactly as `boundary.rs:69` does. No
+  shebang, no executable bit: the command is an argv vector and `bash` is
+  argv[0] (R-36, AC-12).
+- a constructor for the transport under test, taking the script name and a
+  timeout.
+- `#[tokio::test]` per case, current-thread flavour. Measured above as sufficient.
+
+Tests name their own timeout rather than sharing one constant: VT-2 wants a
+short one so the suite stays fast, and VT-1 wants one long enough that a healthy
+exchange cannot flake.
+
+**5. Backend scripts are declarative, one behaviour each, named for it.** This
+phase's five, from §9's list minus what PHASE-06 and PHASE-08 own:
+
+| script | behaviour | serves |
+|---|---|---|
+| `reads-stdin-then-answers.sh` | `cat >/dev/null`, then a valid response, exit 0 | VT-1, R-37, AC-12 |
+| `hangs-past-the-timeout.sh` | `sleep`, well past any test timeout | VT-2, R-41 |
+| `writes-stderr-then-hangs.sh` | write to stderr, then `sleep` | VT-4, R-42, F-3 |
+| `answers-then-exits-non-zero.sh` | valid JSON to stdout, note to stderr, `exit 1` | VT-3, EX-3, R-40 |
+| `exits-zero-with-unparseable-stdout.sh` | note to stderr, garbage to stdout, `exit 0` | EX-4, R-42, F-24 |
+
+`Spawn` needs no script — a path that does not exist. `Io` needs no script
+either if the EPIPE route works; see A3.
+
+**6. What "no `?` past the spawn" is checked as.** The region runs from the
+`cmd.spawn()` match to the closing brace of the cleanup budget. The check finds
+the line holding `spawn()`, finds the line holding `CLEANUP_LIMIT`, and asserts
+no `?` appears in a code position between them. Comments and string literals are
+excluded crudely — the file is ours, and a check that is easy to read beats one
+that is hard to fool. This is the one of the three that can produce a false
+positive as `process.rs` grows; the sheet's Open section is where that goes if it
+does.
+
+#### Assumptions — each a place this phase can break
+
+- **A1 — the probe's seven cases are the whole of what §5.4 was built against.**
+  Run at expansion; all seven reproduce and none disagrees. If `process.rs`
+  departs from the probe's shape in any way that is not a lint repair, re-run it
+  and record the output again — that is what EX-6 exists for, and PHASE-06/EX-6
+  restates it.
+- **A2 — timings are bounds, not values.** D measured 902 ms against a 900 ms
+  bound on an unloaded machine. Under `cargo test` the suite runs cases in
+  parallel by default; a tight ceiling will flake. State the slack, and if a case
+  needs the machine to itself, say so rather than widening the bound until it
+  passes.
+- **A3 — `BackendError::Io` is reachable, and the route is EPIPE on stdin.** A
+  backend that exits before reading stdin makes `write_all` fail with
+  `BrokenPipe`. Unverified — Rust ignores `SIGPIPE` at startup, so the write
+  should return `Err` rather than killing the test process, but this has not been
+  run. **Measure it before writing the test**, and if it is racy rather than
+  deterministic, `Io` has no honest case and that is a finding for VT-3 the same
+  way gap 3 is.
+- **A4 — `bash` is present and `tests/backends/*.sh` need no executable bit.**
+  Both follow from the argv vector (R-36). The devshell provides bash.
+- **A5 — the exchange future stays `Send`.** Measured. It stops being true the
+  moment something non-`Send` is held across an `await`; `future_not_send` is
+  denied, so the gate says so rather than the trait quietly failing to be
+  implementable.
+
+#### STOP conditions
+
+- **The measurement and §5.4 disagree.** The plan says it in as many words: the
+  measurement wins and the disagreement is a **finding for design**, not a repair
+  here. This is the phase the design is least sure of.
+- **Wanting `wait_with_output()`.** §5.4 refuses it twice and gives two reasons.
+  It reads like a simplification and is a redesign.
+- **Wanting a `tokio::spawn`, an `Arc`, a `Mutex`, or a `?` past the spawn.**
+  Each was a repair with a finding attached (F-49, F-41). VT-5 exists so that a
+  regression is a test failure; wanting one now is a STOP.
+- **Wanting to widen `Cargo.toml`.** It is not in the Surfaces, and the feature
+  set is measured sufficient. A new dependency is a STOP under `AGENTS.md`
+  regardless.
+- **Wanting a constructor or a field on anything under `semantics/`.** Not a
+  surface here. The transport serializes a `Request` and returns bytes; it needs
+  nothing else from stratum 1.
+- **Any of the three gaps above being resolved by the implementer rather than by
+  the user.** They are plan text.
+
+#### Tasks
+
+1. **EX-6 — the probe.** Done at expansion; recorded above. Re-run only if the
+   structure departs from it.
+2. **`src/shell/error.rs`** — `BackendError` and `CleanupFailure`, exactly
+   `design.md:914`. `StateError` is PHASE-07's and is not added here.
+3. **`src/shell/backend/transport.rs`** — EX-1: the trait, `Exchange`,
+   `Exchange::failed`, `Captured`. `cleanup_only` lives with the thing that
+   disposes of a child, so it goes in `process.rs`.
+4. **`src/shell/mod.rs` and `src/shell/backend/mod.rs`** — the declarations.
+5. **The harness and the first backend script** — red against no transport, then
+   green: VT-1, the normal exchange. This is the case that proves stdin is closed.
+6. **`process.rs`** — the structure, transcribed from the probe and repaired for
+   the lint table (three sites named above, plus `command.split_first()`).
+   `#![deny(clippy::arithmetic_side_effects)]` at the top (EX-7).
+7. **One test per remaining VT**, each red against a deliberate stub before it is
+   green: VT-2 (timeout, and `cleanup: None` — see case C), VT-3 (`Spawn`,
+   `ExitStatus`, `Io`), VT-4 (stderr survives the timeout).
+8. **VT-5 and VA-2** — the source-text checks, pending gap 1; and the read that
+   confirms `child.wait()` sits inside the timed region rather than in the
+   cleanup budget.
+9. **VA-3** — the elapsed-time assertions, as bounds with stated slack.
+10. **Break-and-revert** each source-text check and at least one behavioural
+    claim, and record what the broken run said. A check that cannot be made to
+    fail is not a check.
+11. **Refactor**, then `just check`, then the sheet, the status table and the
+    Harvest.
+
+#### Verification record
+
+*Empty until the phase runs.*
+
 ## Harvest
 
 **Fresh as of:** 2026-09-02 · plan accepted, **PHASE-01 through PHASE-04
 done** · `just check` exits 0 in both feature columns · **stratum 1 is complete:
 the wire types, the canonical types, normalization and schedule resolution, with
 a 70-file fixture corpus across three directories.** PHASE-05 is next, and is the
-first phase in stratum 2
+first phase in stratum 2 — **its sheet is written, the probe is run, and three
+plan gaps are open against it**
 
 ### Produced
 
