@@ -271,3 +271,43 @@ later, or dropping the rule that a parent `mod` line must be declared at all.
   `protocol/`. PHASE-04's amended Surfaces line names the file and the comment,
   so the phase that makes the sentence true is the one that can fix it.
 
+
+### 2026-09-02 — PHASE-04's Surfaces gain the test-target Rust; VA-2's path corrected
+
+Both raised while expanding PHASE-04's phase sheet, and both amend `plan.md`
+rather than being absorbed into the sheet.
+
+**Decision 1: add `tests/protocol/runner.rs` and `tests/protocol/main.rs` to
+PHASE-04's Surfaces.** The entry named `tests/protocol/fixtures/**` and no Rust
+under `tests/`, but a fixture file asserts nothing on its own — the protocol
+corpus needs a checker reading its own `expect` tags, a `Corpus` const and a
+`#[test]`. Chosen from three options; the alternatives were naming `runner.rs`
+alone, and leaving the plan unchanged to be raised mid-execution.
+
+- **Why both files.** Naming `runner.rs` alone commits PHASE-04 to extending
+  that file, growing it from two halves to four. *The fixture format* in
+  `notes.md` deliberately left the split to "PHASE-04's call, taken with its own
+  surfaces in hand", and a new file under `tests/protocol/` needs `main.rs` to
+  declare it. Naming both is what puts the call in hand without taking it.
+- **Why not defer.** A STOP mid-execution is the cost, and the phase sheet
+  exists to pay it in advance. PHASE-03's expansion found four gaps, closed all
+  four before starting, and was the first phase to need nothing mid-flight.
+- **Same class as the parent-`mod` omission** closed earlier the same day: a
+  phase's Surfaces listing the artefact it adds and not the declaration that
+  reaches it. Third instance of that shape in this plan.
+
+**Decision 2: VA-2's path corrected to `src/semantics/protocol/normalize.rs`.**
+It read `src/semantics/normalize.rs`, which is not a file — `normalize` is under
+`protocol/`, as EX-1 and the Surfaces line in the same phase entry both say. No
+change of intent: the criterion still asks for both break-and-revert forms in
+host code. Recorded rather than silently fixed because it is plan text.
+
+**One thing found by the same expansion, needing no decision.** VT-2's `NaN`
+fixture cannot be written in the inherited fixture format. Measured rather than
+reasoned: `serde_json` refuses `NaN` with *expected value* and `1e400` with
+*number out of range*, and does so when the **envelope** is parsed, so such a
+file lands as `Fault::Malformed` and never asserts its protocol claim. The same
+measurement confirms F-36 and D39 hold exactly as written — neither literal
+reaches bounds validation, so `NotFinite` stays unreachable from the wire. This
+is implementer latitude and is settled in the phase sheet: a second `Corpus`
+whose `input` is raw document text, over the shared half unchanged.

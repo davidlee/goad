@@ -454,7 +454,16 @@ from a fixture.
 **Surfaces:** `src/semantics/protocol/mod.rs` (the two `pub mod` lines, and
 its doc comment, which says `wire` arrives at PHASE-03 and does not),
 `src/semantics/protocol/wire.rs`, `src/semantics/protocol/normalize.rs`,
+`tests/protocol/runner.rs`, `tests/protocol/main.rs`,
 `tests/protocol/fixtures/**`.
+
+<!-- `runner.rs` and `main.rs` were added by user decision 2026-09-02: a
+     fixture file asserts nothing on its own, so the corpus needs a checker, a
+     `Corpus` const and a `#[test]`, and a new file under `tests/protocol/`
+     needs `main.rs` to declare it. Whether the per-corpus halves split out of
+     `runner.rs` is left to execution — `notes.md`, *The fixture format*.
+     Same class as the parent-`mod` omission closed the same day.
+     `plan-log.md`. -->
 
 **Entry**
 - EN-1 — PHASE-03/EX-1 and EX-3 discharged.
@@ -513,7 +522,7 @@ its doc comment, which says `wire` arrives at PHASE-03 and does not),
 - VA-1 — `just check`. Note that clippy's second column is what proves EX-5's
   lints are on: they are restriction lints and `-D warnings` never enabled them.
 - VA-2 — verify EX-5 by breaking it, in **both** forms: an `unwrap()` in
-  `src/semantics/normalize.rs` (the crate-wide deny) and an unchecked `+` in the
+  `src/semantics/protocol/normalize.rs` (the crate-wide deny) and an unchecked `+` in the
   same file (the per-module one), confirming clippy fails on each, then
   reverting. **Not "anywhere"** — `clippy.toml` carves the no-panic lints out of
   both test targets, so an `unwrap()` in `tests/` is expected to pass and would

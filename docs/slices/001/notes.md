@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | **done** — `just check` exits 0 in both feature columns. All six EX and all seven V criteria discharged; see `## Phase sheets` | 2026-08-29 |
 | PHASE-02 | **done** — `just check` exits 0 in both feature columns; 17 unit tests, 13 of them this phase's. All four EX and both VT criteria discharged, VA-1 and VA-2 pasted. **Three** plan gaps raised by the expansion and by execution, all closed by user decision — surfaces amended, tests colocated, `ViewId`/`Timestamp` alone with public constructors, and `Fields` permitting empty. See `## Phase sheets` | 2026-08-30 |
 | PHASE-03 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 5 of them this phase's, plus a 16-file fixture corpus running in **both** columns. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. **Five** break-and-revert runs, not the two the sheet asked for, because the fixture format makes three property claims; two of them found real defects in the runner, both fixed at the refactor step. No plan gap raised during execution — the four found at expansion were all closed beforehand. See `## Phase sheets` | 2026-09-02 |
-| PHASE-04 | **sheet written, not started.** Entry criteria checked and met. **Three plan gaps found at expansion, all awaiting a user decision** — the Surfaces name no Rust under `tests/`, so the corpus has nowhere to be asserted from; VA-2 names `src/semantics/normalize.rs`, which is not the file; and VT-2's `NaN` fixture cannot be written in the inherited format, because serde_json refuses the literal at *envelope* parse. The third is settled in the sheet as implementer latitude; the first two amend `plan.md`. See `## Phase sheets` | 2026-09-02 |
+| PHASE-04 | **sheet written; ready to execute.** Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. See `## Phase sheets` | 2026-09-02 |
 | PHASE-05…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
@@ -2264,17 +2264,17 @@ No undeclared path. Nothing else in `src/` or `tests/` was edited.
 
 ### PHASE-04 — Wire types, normalization, and the protocol corpus
 
-**State:** **sheet written 2026-09-02; not started.** Entry criteria checked and
-met. **Three plan gaps found at expansion, all needing a user decision before
-execution begins** — two amend `plan.md`'s Surfaces and one corrects a path in a
-verification criterion. They are items 1–3 below. Nothing else in the phase is
-blocked on them.
+**State:** **sheet written 2026-09-02; not started; nothing blocking.** Entry
+criteria checked and met. Three plan gaps were found at expansion and **all three
+are closed** — items 1 and 2 by user decision on 2026-09-02, which amended
+`plan.md` and is recorded in `plan-log.md`; item 3 is implementer latitude and is
+settled in item 4.
 **Plan entry:** `docs/slices/001/plan.md:449`
 **Surfaces (from the plan):** `src/semantics/protocol/mod.rs` (the two `pub mod`
 lines, and its doc comment), `src/semantics/protocol/wire.rs`,
 `src/semantics/protocol/normalize.rs`, `tests/protocol/fixtures/**`.
-**Surfaces the expansion says are missing:** `tests/protocol/runner.rs` and
-`tests/protocol/main.rs` — item 1.
+**Surfaces added by user decision 2026-09-02:** `tests/protocol/runner.rs` and
+`tests/protocol/main.rs` — item 1. The list above is `plan.md` as amended.
 
 #### Entry criteria — checked, not assumed
 
@@ -2301,10 +2301,11 @@ column. PHASE-03 is committed at `2648a17`. Any failure from here is this phase'
 | `tests/protocol/fixtures/schedule/` | 16 files, flat, filename-indexed | the naming convention this phase follows: `R-N-what-it-verifies.json` |
 | `#![deny(clippy::arithmetic_side_effects)]` | `canonical.rs:17`, `schedule.rs:14` | `wire.rs` and `normalize.rs` take the same attribute — EX-5 |
 
-#### Three plan gaps — user decision needed before execution
+#### Three plan gaps found at expansion — all three closed
 
-**1. The Surfaces do not name `tests/protocol/runner.rs` or
-`tests/protocol/main.rs`, and the corpus cannot exist without them.** The plan
+**1. The Surfaces did not name `tests/protocol/runner.rs` or
+`tests/protocol/main.rs`, and the corpus cannot exist without them. Closed by
+user decision 2026-09-02 — both added.** The plan
 gives this phase `tests/protocol/fixtures/**` and no Rust under `tests/`. But a
 fixture file asserts nothing on its own: the protocol corpus needs a checker
 function reading its own `expect` tags, a `const` naming its directory, and a
@@ -2316,21 +2317,22 @@ phase's Surfaces listing the data it adds and not the declaration that reaches
 it. PHASE-03's sheet anticipated exactly this and deferred it here rather than
 patching the plan early ("*An observation for PHASE-04, not a repair here*").
 
-Recommendation: **amend PHASE-04's Surfaces to add `tests/protocol/runner.rs`
-and `tests/protocol/main.rs`**, and leave the split between them to execution.
+**Decided: both added, and the split between them left to execution.**
 *The fixture format* already says the one-file-two-halves arrangement is
 "PHASE-04's call, taken with its own surfaces in hand" — naming both files is
 what puts that call in hand. Adding a third file (`tests/protocol/normalize.rs`,
 say) then needs `main.rs`, which is why it is named too.
 
-**2. VA-2 names a file that does not exist.** It reads "an `unwrap()` in
-`src/semantics/normalize.rs`". The file is `src/semantics/protocol/normalize.rs`
+**2. VA-2 named a file that does not exist. Corrected by user decision
+2026-09-02.** It read "an `unwrap()` in `src/semantics/normalize.rs`". The file
+is `src/semantics/protocol/normalize.rs`
 — `normalize` is under `protocol/`, per EX-1 and the Surfaces line three
 paragraphs above it in the same phase entry. A path correction, not a change of
 intent; raised rather than absorbed because it is plan text.
 
 **3. VT-2's `NaN` fixture cannot be written in the format this phase inherits —
-and this is not a wording problem.** VT-2 requires a fixture asserting
+and this is not a wording problem. Settled here as implementer latitude; no plan
+change.** VT-2 requires a fixture asserting
 `Protocol(Json)` for a `NaN` literal, per F-36/D39. The envelope's `input` is a
 `serde_json::Value`, and the whole fixture file is read with
 `serde_json::from_str`. So a file containing `"input": {"min": NaN}` **fails at
@@ -2354,7 +2356,7 @@ written. And the reason it holds is the same reason the fixture cannot be
 structured — serde_json refuses both at *parse*, wherever the text sits.
 
 This one is **implementer latitude, not a plan change**, and it is settled in
-item 6 below. It is listed here because it changes what the corpus looks like and
+item 4 below. It is listed here because it changes what the corpus looks like and
 because the plan's VT-2 reads as though one uniform corpus discharges it.
 
 #### Settled here — implementer latitude PHASE-05 and PHASE-10 inherit
@@ -2443,7 +2445,6 @@ shape as F-55's `WireOpt` and F-56's `cleanup_only`.
 
 Stop and consult the user, do not improvise past:
 
-- Any of items 1–3 not yet decided when execution reaches the work they govern.
 - A `ProtocolError` variant that turns out to need a field the design did not
   give it — that is a design question, as it was at PHASE-03.
 - A2, A3 or A4 measuring false. Each is a design premise, not an implementation
@@ -2520,8 +2521,8 @@ directory is then a coverage report against §4.
 ## Harvest
 
 **Fresh as of:** 2026-09-02 · plan accepted, **PHASE-01, PHASE-02 and PHASE-03
-done** · committed through `2648a17`, the tree clean · **PHASE-04's sheet is
-written and holds three plan gaps awaiting a user decision**
+done** · committed through `2648a17`, the tree clean · **PHASE-04's sheet is written, its three
+plan gaps closed, and the phase is ready to execute**
 
 ### Produced
 
