@@ -1072,7 +1072,10 @@ that has seen all of them can still complete an exchange.
 each other and with the code, and the slice is in a state audit can start from.
 
 **Surfaces:** root `AGENTS.md`, `docs/slices/001/draft-spec.md`,
-`docs/slices/001/notes.md`, `docs/slices/001/slice-001.md`.
+`docs/slices/001/notes.md`, `docs/slices/001/slice-001.md`, and — added by user
+decision 2026-09-04, **comments only** — `src/semantics/protocol/canonical.rs`,
+whose citations of `draft-spec.md` by line number this phase's own §7 rewrite
+invalidated (`plan-log.md`, PHASE-09/S-9).
 
 **Entry**
 - EN-1 — **PHASE-08 and PHASE-10 discharged.** This phase runs

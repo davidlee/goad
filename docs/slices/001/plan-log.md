@@ -637,3 +637,26 @@ amended to name both additions to `error.rs`; nothing else in the plan moves.
   - deno is now on the phase gate's critical path. It is already an AC-1
     dev-shell dependency — `flake.nix` `projectPkgs`, and PHASE-08/EN-2 checked
     it — so the gate acquires no new tool.
+
+### 2026-09-04 — PHASE-09: `src/` added to the Surfaces, for four comments
+
+- **Raised by** the sweep, as finding S-9. Four comments in
+  `src/semantics/protocol/canonical.rs` cite `draft-spec.md` by **line number**.
+  PHASE-09/EX-3 rewrote §7, so `canonical.rs:706`'s `draft-spec.md:360` — R-52's
+  row — now lands on a table header. The other three cite §6.1's request JSON at
+  `:232` and still resolve, and `schedule.rs:2` cites `R-21…R-28` and needed
+  nothing.
+- **Why it is a plan gap and not a repair.** PHASE-09's Surfaces are the root
+  `AGENTS.md` and three slice documents. `src/` is not among them, and the plan's
+  own note says the phase writes no code. A comment is still a file under `src/`.
+- **Options put:** (1) fix the four sites now, citing the requirement id or the
+  section each already names in prose; (2) record it and leave it to audit, which
+  must revisit every one of them anyway when promotion moves the file to
+  `docs/specs/NNN-slug.md`.
+- **Decided: option 1**, with `src/semantics/protocol/canonical.rs` added to
+  PHASE-09's Surfaces for comment edits only. The class — a citation by line into
+  a document that is about to move — is what breaks; fixing the instance and
+  leaving the class would have audit find the same four sites again. Gate re-run
+  after: exit 0, both columns, same counts.
+- **Consequence:** `plan.md` PHASE-09's Surfaces line is amended in place, and
+  the phase sheet records the amendment against S-9.

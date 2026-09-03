@@ -44,7 +44,8 @@ Surfaces this slice may touch.
 - `examples/` — a minimal TypeScript backend, run under deno.
 - `flake.nix` — adding deno to `devToolPkgs`. Added to scope by the OQ-9
   answer; the dev shell is otherwise untouched.
-- Root `AGENTS.md` (currently empty; `CLAUDE.md` symlinks to it).
+- Root `AGENTS.md` (`CLAUDE.md` symlinks to it, so what it holds is loaded into
+  every agent session).
 - `docs/slices/001/draft-spec.md` — the protocol specification while it is still
   a draft, and `docs/specs/` at close when it is promoted. Added to scope by the
   revised OQ-1 answer.
@@ -242,9 +243,14 @@ the act that makes it normative, and it needs the user's explicit endorsement.
 - ~~OQ-9 — Which TypeScript runtime? The choice reaches into `flake.nix` and
   determines whether `cargo test` needs a compile step or a `node_modules`
   before it can run a backend.~~ **Answered:** deno, invoked with `-A`. It runs
-  `.ts` with no build step and no `node_modules`, and unlike bun it typechecks
-  rather than stripping types — which is the point of choosing TypeScript when
-  brief §3.7 makes agents the authors. The example must not present deno's
+  `.ts` with no build step and no `node_modules`, and it can typecheck the
+  example — which is the point of choosing TypeScript when brief §3.7 makes
+  agents the authors. **Corrected at PHASE-08:** the original answer said deno
+  "typechecks rather than stripping types", and `deno run` does not — measured,
+  deno 2.9.4, where a type error runs to exit 0. So the checking is not free
+  with running: `deno check examples/typescript/backend.ts` is the seventh
+  command of the gate, and it is what makes this answer's reason true. The
+  decision — deno, `-A` — is unaffected. The example must not present deno's
   default-deny permissions as a security boundary; brief §14 is explicit that
   backends are trusted.
 - ~~OQ-10 — Are the deliberately-misbehaving fixtures behind AC-6 (timeout,

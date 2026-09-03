@@ -19,7 +19,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-07 | **done** — `just check` exits 0 in both feature columns; 35 unit, 27 integration, 15 protocol. All eight EX, all six VT and VA-1 discharged. Entry criteria checked and met. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — `design.md` §5.2's taxonomy named no error type for a rejected config, which VT-2 requires (`ConfigError` added, five variants); and the config duration grammar would restate `schedule.rs:96`–`:106`, which `CLAUDE.md` forbids without a decision (restated deliberately, recorded for audit). **A third decision was taken during execution**: EX-2 names `Option<Outstanding>` and `design.md:1167` gives it an `issued_at` nothing in this slice reads — the gate refuses an unread field, so it is kept under a self-clearing `#[expect(dead_code, reason = …)]` rather than dropped. **Assumption A1 fired on the first run** and cost a fixture: serde never decodes a value it skips, so the invalid-UTF-8 case parsed cleanly against `WireResponse`; re-measured and moved into a view's title, which is the case `design.md:1052` is about. **Five break-and-revert runs, plus a sixth on the lint expectation.** See `## Phase sheets` | 2026-09-03 |
 | PHASE-08 | **done** — `just check` exits 0 on all **seven** commands in both feature columns; 35 unit, 32 integration (5 of them this phase's), 15 protocol. All four EX and all four V criteria discharged. Entry criteria checked and met. **One plan gap found at expansion and closed by user decision 2026-09-03** — `deno run` does not typecheck, which is the reason OQ-9 gives for choosing deno; the gate now runs `deno check`, so `design.md` §9 and `justfile` joined the Surfaces and the plan gained **EX-6**. **A defect in this phase's own test mechanism was found by breaking it**: VT-2's plan-suggested vehicle — a config pointing at a command that cannot be spawned — is **vacuous**, because a host that spawns and then refuses still returns the refusal; the case now uses an invocation log passed as argv, which catches both reordering breaks. **clippy rejected the log's first design** (a process-wide file behind a `std::sync::Mutex` held across an await) and the argv form that replaced it is simpler. **Six break-and-revert runs.** See `## Phase sheets` | 2026-09-03 |
 | PHASE-10 | **done** — `just check` exits 0 on all seven commands in both feature columns; 35 unit, **52** integration (20 of them this phase's), 15 protocol. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **One question of scope closed by user decision 2026-09-03** — EX-2's "whole misbehaving suite" spans the transport modes as well as the protocol ones, because R-45 is a claim about host state surviving *process* failure and a protocol refusal never touches a process lifecycle. **Two of this phase's own assertions were vacuous and both were found by breaking them**: the seeded check and a re-resolved one are the same instant, so thirteen cases could not tell R-29 from a recomputation; and a one-`Host` suite that only asserts the last exchange passes against a `Host` rebuilt every time. Both repaired and both re-broken. **Six break-and-revert runs.** VA-2's walk found **two items of `design.md` §9's list with no end-to-end case** — a backend that writes nothing, and the brief's own §10.1/§10.2 examples — neither in EX-1's list, both recorded for audit. See `## Phase sheets` | 2026-09-03 |
-| PHASE-09 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-09 | **done** — `just check` exits 0 on all seven commands in both feature columns **from a clean clone under `nix develop`**; 35 unit, 52 integration, 15 protocol. All five EX, both VT, both VA and VH-1 discharged. Entry criteria checked and met. The restatement sweep recorded **ten divergences** — eight repaired here, two left as design drift for audit — and both mechanical halves (struck decision ids, types named in §5) came back **clean**, the first round of the sweep to do so. `draft-spec.md` §7 now **names the tests** for all 54 requirements, checked by script in both directions; five rows are held by review and say so. **One surface added by user decision 2026-09-04**: four comments in `canonical.rs` cited `draft-spec.md` by line number, one of which this phase's own §7 rewrite invalidated (S-9). `AGENTS.md` accepted at VH-1 as written. See `## Phase sheets` | 2026-09-04 |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -1337,8 +1337,6 @@ Red / green / **refactor**. The refactor step is not optional.
 | EX-2 | — | **pass** | `Request`, `Evaluate`, `Respond`, `Event`, `UserResponse` with public fields and `Serialize`; `"protocol": 1` and a `"type"` of `evaluate`/`respond` asserted by three tests |
 | EX-3 | — | **pass, as amended** | every §5.5 row this phase owns has a case. **`Fields` permits empty** — the criterion was over-general and was rewritten before code depended on it; see item 3 above and `plan-log.md`, 2026-08-30 |
 | EX-4 | — | **pass, and the two halves pass differently** | the *error* half is tested: `duplicate_alternative_ids_are_rejected_as_alternatives_never_as_options` and its empty counterpart assert `DuplicateAlternativeId` / `EmptyAlternatives` and would fail on the `Options` variants. The *type* half is *structural, not tested*: `Alternative.id` is an `AlternativeId` and `Opt.id` an `OptionId`, both newtypes over a private `String` with no conversion between them, so passing one for the other does not compile. Asserting a **non**-compilation needs `trybuild`, which is a dependency addition and therefore a STOP — so this is recorded as compiler-enforced by construction rather than dressed up as a test that exists |
-| EX-3 | — | — | |
-| EX-4 | — | — | |
 
 #### Log
 
@@ -5051,10 +5049,280 @@ themselves. **Audit or a plan amendment owns the scope decision.**
   `harness.rs`, one line in `main.rs`, and the two helpers' removal from
   `round_trip.rs`.
 
+### PHASE-09 — `AGENTS.md`, the restatement sweep, and reconciliation of the draft
+
+**State:** **done 2026-09-04.** `just check` exits 0 on all seven commands in
+both feature columns, **from a clean clone under `nix develop`** — 35 unit, 52
+integration, 15 protocol. All five EX, both VT, both VA and VH-1 discharged in
+the Verification record below; entry criteria checked and met. The sweep found
+ten divergences and repaired the eight in documents this phase owns. **One
+surface was added by user decision 2026-09-04** — four comments in
+`src/semantics/protocol/canonical.rs`, which cited `draft-spec.md` by line
+number (sweep record S-9). This is the last phase in the slice and the only one
+that writes no test.
+**Plan entry:** `docs/slices/001/plan.md:1069`
+**Surfaces (from the plan, as amended by the S-9 decision):** root `AGENTS.md`,
+`docs/slices/001/draft-spec.md`, `docs/slices/001/notes.md`,
+`docs/slices/001/slice-001.md`, and — added 2026-09-04, comments only —
+`src/semantics/protocol/canonical.rs`. Nothing under `tests/`, and **nothing in
+`docs/specs`, `docs/policy` or `docs/adr`** — canon is amended at audit, with the
+user's endorsement, never here.
+
+**`design.md` is not a surface, and that is deliberate.** The sweep reads it and
+records what it finds. A design that departed from the code is `audit.md`'s
+*Design drift*; code that departed from the design is a finding. Neither is
+repaired by editing the design in this phase.
+
+#### Reading list
+
+| what | where | why |
+|---|---|---|
+| the phase | `plan.md:1069`–`:1141` | the five EX, VT-1, VT-2, VA-1, VA-2 and VH-1 this sheet expands, and the two implementer notes |
+| what `AGENTS.md` must carry | `brief.md:732`–`:746` (§15.1) | EX-1's list, verbatim: the four quoted guidance lines, the pointer to authoritative documents, and the verification commands. §15.1 also says **short — a map plus invariant sheet, not a duplicate specification** |
+| AC-10's own wording | `slice-001.md:142`–`:146` | the AC is narrower than §15.1's prose and is what VA-2 walks |
+| the canonical command block | `design.md:1912`–`:1926` | the seven commands. `AGENTS.md` names the **`just` recipes** and cites this block as where the underlying seven live — user decision 2026-08-27, restated at `design.md:1946` |
+| the restatement sweep, and why it is a review step | `design.md:2092`–`:2117` | EX-2's charter. The trigger is the **batch**; the two mechanical halves are VT-2's greps |
+| the sweep's targets | `design.md:1648`–`:1801` (§5.5), `:1832`–`:1893` (§7), `:1894`–`:1909` (§8), `:1975`–`:2090` (§9) | the invariant and edge tables, the decision index, the risks, the AC map and the misbehaving-backend list |
+| the draft's targets | `draft-spec.md:75`–`:229` (§4), `:230`–`:346` (§6) | the requirements and the interface statements the sweep re-reads against what shipped |
+| the draft's verification table | `draft-spec.md:347`–`:391` (§7) | EX-3's whole substance. Thirty-five rows, none of which names a test |
+| the fixture corpus | `tests/protocol/fixtures/{protocol,protocol-text,schedule}/` | 70 files, each already named `R-N-…`, so a §7 row citing fixtures cites filenames that exist |
+| the test names | `tests/{integration,protocol}/*.rs` | 129 `fn`s. EX-3's integration rows name these |
+| what is already known to be stale | `notes.md` Harvest / **Open** | PHASE-05 through PHASE-10 recorded fifteen items. Three are explicitly PHASE-09's: OQ-9's deno claim, R-45's verification row, and §5.2's five-vs-six error types |
+| the status table and the sheets | `notes.md:7`–`:45`, `## Phase sheets` | EX-5 |
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-08 and PHASE-10 discharged; this phase runs last | **met.** PHASE-08 `done` at `d7312aa`, PHASE-10 `done` at `30d834f`; both sheets carry a full Verification record, all criteria `pass`. The status table has every other phase `done` with a date |
+
+Baseline, 2026-09-04: `just check` exits 0 on all seven commands, both feature
+columns — 35 unit, 52 integration, 15 protocol. Working tree clean at `30d834f`.
+
+#### What already exists — inspected 2026-09-04
+
+| path | state | consequence for this phase |
+|---|---|---|
+| root `AGENTS.md` | 41 lines: the pointer to `docs/AGENTS.md`, the canon rule, the dev-shell facts, four working principles. **None of brief §15.1's four guidance lines, no document map, no commands** | EX-1 is additive to a file that is currently a *methodology* pointer and not a map of the system |
+| `CLAUDE.md` | a **symlink to `AGENTS.md`** | the file is loaded into every Claude session as project instructions. §15.1's "short" is a live constraint, not a style preference: everything added is paid for on every future turn |
+| `docs/specs/`, `docs/policy/` | **empty** | `AGENTS.md`'s pointer at authoritative documents cannot name a spec yet. The protocol contract lives at `docs/slices/001/draft-spec.md`, which nothing outside the slice may cite — so the pointer names the brief and the ADRs, and says where the protocol contract *will* be |
+| `docs/adr/` | `001-one-way-strata.md`, `002-single-crate-until-triggered.md` | the two invariants an agent most needs before touching `src/` |
+| `draft-spec.md` §7 | 35 rows, prose only — "protocol tier: …", "integration: …". Two rows are numbered **R-41** | EX-3 rewrites every row to name files and tests. The duplicate id is a finding to raise, not to silently renumber: ids are immutable |
+| the fixtures | already `R-N`-prefixed by filename | half of EX-3 is mechanical: a fixture row cites `ls tests/protocol/fixtures/*/R-N-*` |
+| `notes.md` Harvest | *Produced*, *Learned*, *Open* all populated; Open carries fifteen items across five phases | EX-4 is an update and a `docs/memory/` candidate list, not a rewrite |
+
+#### Settled here — implementer latitude
+
+**The sweep is a read that produces a written record, and the record is this
+sheet.** `design.md` §9 says no test can observe that two English sentences
+disagree; what it does not say is where the disagreements go. They go in a table
+below, each tagged **drift** (design stands, code differs — `audit.md`'s
+business), **finding** (code is wrong — a repair, and this phase writes no code,
+so it is raised and left), or **repair** (a document this phase owns is wrong —
+fixed here). Only the third is acted on.
+
+**EX-3's rows name paths and test functions, not descriptions of tests.** A row
+that says "integration: schedule asserted identical across timeout, non-zero
+exit and malformed-JSON exchanges" is a claim about a test that may or may not
+exist; a row that says `failure_matrix.rs::the_schedule_survives_a_timeout` can
+be checked by `grep`. The prose stays where it argues *why* the test is the
+right one — R-40 and R-48/R-54 are the two rows where the prose is the substance
+— and gains the name.
+
+**`AGENTS.md` gets §15.1's four lines close to verbatim.** They are quoted prose
+in the brief and paraphrasing them would be a restatement in the exact sense §9
+warns about — a contract stated twice, in two wordings, drifting apart. Quoting
+costs nothing and cannot drift.
+
+**The commands are named as `just` recipes and not spelled out.** User decision
+2026-08-27 (`design.md:1946`): `just check` is the gate, `design.md` §9's block
+is where the seven live. Spelling the seven into `AGENTS.md` would be a third
+copy after §9 and the `justfile`, and the one nothing checks.
+
+#### Assumptions — each a place this phase can break
+
+- **A1 — a clean clone can build.** VT-1 clones to a temp directory and runs the
+  gate there. `Cargo.lock` is committed and the registry cache is the user's, so
+  this needs no network; if it does, the assumption is false and VT-1 says so
+  rather than being skipped.
+- **A2 — nothing outside the slice cites `draft-spec.md`.** EX-3 rewrites its §7
+  freely on that basis. Checked by grep before editing, not assumed.
+- **A3 — every §7 row has a test.** The plan says a row pointing at nothing is
+  either a missing test or a requirement that shipped unverified. Both outcomes
+  are the user's call, not this phase's — see STOP.
+
+#### STOP conditions
+
+- A §7 row with **no** test behind it. Writing the test is a code change outside
+  this phase's surfaces; declaring the requirement unverified is a claim about
+  what shipped. Both go to the user.
+- A sweep divergence where the **code** is wrong. This phase writes no code; it
+  raises the finding and stops.
+- Any temptation to edit `design.md`, `docs/adr/`, or to promote the draft. The
+  first is drift for audit; the second and third are canon, and AC-14 is
+  explicitly not this phase's.
+- `AGENTS.md` growing past a page, or restating a contract that lives in the
+  brief or the draft. §15.1's constraint is "map, not duplicate specification".
+
+#### Tasks
+
+1. Entry criteria and baseline gate. **Done** — above.
+2. **VT-2a** — grep every struck or superseded decision id (`D18`, `D19`, `D21`,
+   `D36`, `D41`, `D42`) across the slice's documents; a citation that treats one
+   as holding is a finding.
+3. **VT-2b** — grep every type and function named in `design.md` §5 for a
+   definition in §5. Precedent: F-55 found `WireOpt`, F-56 found `cleanup_only`.
+4. **EX-2** — the read half of the sweep, over §5.5, §7, §8, §9, `draft-spec.md`
+   §4 and §6, and `slice-001.md`'s AC text. Every divergence into the table
+   below, tagged drift / finding / repair.
+5. **EX-3** — rewrite `draft-spec.md` §7 so every row names its tests. Raise the
+   duplicate `R-41` row.
+6. **EX-1** — draft root `AGENTS.md`, additive, and put it to the user (VH-1)
+   before writing it.
+7. **EX-5** — status table and phase sheets: every phase `done`, each sheet
+   recording what it did.
+8. **EX-4** — Harvest current; `docs/memory/` candidates listed, not moved.
+9. **VT-1 / VA-1** — clean clone, `nix develop`, `just check`.
+10. **VA-2** — the AC-by-AC walk, recorded as the input audit starts from.
+
+#### Sweep record — divergences found
+
+Each is tagged **repair** (a document this phase owns was wrong — fixed here),
+**drift** (the design stands as written and the code went elsewhere —
+`audit.md`'s business) or **finding** (something else is wrong and this phase
+does not own the fix).
+
+| # | where | what | tag |
+|---|---|---|---|
+| S-1 | `design.md` §5.2 | the taxonomy block lists **six** error types and **seven** shipped: `ConfigError` was added by user decision at PHASE-07 and is not in the block. This also **corrects the PHASE-07 Open note**, which said five and six | drift |
+| S-2 | `draft-spec.md` §2, §4 | the same note's second half — "`draft-spec.md`'s R-44 has the same omission" — is **withdrawn**. §2 puts the config file out of scope explicitly, and R-44 is about ways *an exchange* fails. A config-load error is not one, so its absence is the scope working, not an omission | repair (of the note) |
+| S-3 | `draft-spec.md` §7, R-45 | the row described PHASE-08's pre-split scope — "the whole integration tier runs every misbehaving backend against one host instance" — which no test ever had. Now names `failure_matrix.rs::one_host_survives_every_misbehaving_backend_and_still_works` and says what witnesses the reuse. Recorded Open by PHASE-08 and assigned here | repair |
+| S-4 | `draft-spec.md` §7, R-38 | the row cited "fixtures: empty stdout, and two documents on stdout". There are no such fixtures and there cannot be: framing is stratum 2's and a corpus reads documents, not streams. The tests are in `host.rs`. The row now names them, and carries PHASE-07's scope note — invalid UTF-8 is rejected only where serde decodes it, so the row no longer claims the stronger property | repair |
+| S-5 | `draft-spec.md` §7 | **two rows were numbered R-41**, one about the two budgets and one about their measured elapsed times. Requirement ids are immutable and a table keyed by id cannot key twice; merged into one R-41 row carrying both, plus the timeout case that shows a timeout does **not** imply a cleanup failure | repair |
+| S-6 | `draft-spec.md` §6 | an empty ` ```json ` fence sat between the field forms and the misspelling note — an artefact of an edit, rendering as a blank box | repair |
+| S-7 | `slice-001.md` OQ-9 | the answer said deno "typechecks rather than stripping types". It does not; `deno run` has not typechecked since deno 1.23, measured at PHASE-08 against deno 2.9.4. The **decision** (deno, `-A`) is unaffected — only its stated reason, which is now true because the gate runs `deno check`. Recorded Open by PHASE-08 and assigned here | repair |
+| S-8 | `slice-001.md` Scope | "Root `AGENTS.md` (currently empty…)" — it has not been empty since before PHASE-01. Now states the fact that matters: `CLAUDE.md` symlinks to it, so its contents are loaded into every agent session | repair |
+| S-9 | `src/semantics/protocol/canonical.rs:706` | cites `draft-spec.md:360`, a **line number** into §7. This phase rewrote §7, so that citation now lands on a table header; and promotion moves the file to `docs/specs/` at close, which breaks every line citation in `src/` regardless (`canonical.rs:117`, `:511`, `:716`, `schedule.rs:2`). The fix is to cite the requirement id, or the section, which each site already names in prose. **Closed 2026-09-04 by user decision**, which added the file to this phase's surfaces for four comment edits; `schedule.rs:2` already cited `R-21…R-28` and needed nothing. Gate re-run, exit 0 | finding, fixed |
+| S-10 | `design.md` §5.4, §9 | three items earlier phases recorded and this sweep re-confirms: the "backend wedged so `wait` cannot return" row names a mechanism no test can arrange (PHASE-06); `design.md:1528`'s claim that the stdout cap kills the backend "by itself" describes the mechanism that does not fire, though both now agree on the outcome (PHASE-06); and two items of §9's misbehaving-backend list — a backend that writes nothing, and the brief's §10.1/§10.2 examples — have no **end-to-end** case, though both are tested at other tiers (PHASE-10) | drift |
+
+Everything else in the sweep's scope agreed. Specifically checked and found
+consistent: §5.5's sixteen invariants against the shipped signatures (I4, I5, I6,
+I12 and I14 are structural and were re-read at their types); §5.5's edge table,
+every row of which has a fixture or an integration case; §7's decision index
+(VT-2a); §8's risks, where R3 is marked closed and the rest name mitigations that
+exist; and §9's AC map, which VA-2 below walks independently.
+
+#### VT-2 — the two mechanical halves, as commands
+
+**VT-2a — struck and superseded decision ids.** `D18`, `D19`, `D21`, `D36`,
+`D41`, `D42`, grepped across `design.md`, `plan.md`, `notes.md`, `draft-spec.md`,
+`slice-001.md`, both logs and both ledgers:
+
+```zsh
+for d in D18 D19 D21 D36 D41 D42; do grep -rn "\b$d\b" docs/slices/001/*.md docs/brief.md docs/adr/*.md; done
+```
+
+**Clean.** Thirty-one hits, every one of them either the struck row itself, a
+history sentence in a log or ledger, a `rejected` column naming the superseded
+form as the alternative, or an invariant explicitly saying the id is superseded —
+`I11` names D44 and adds "(D41, which held this by aborting one, is
+superseded)", `I13` names D47 and D48 the same way. **No live claim rests on a
+struck decision**, which is what F-56 found last time and does not find now.
+
+**VT-2b — every type or function named in §5, defined in §5.** Mechanised as:
+split §5 into prose and fenced code, take every inline-code identifier from the
+prose that looks like a type (CamelCase) or a call (`name(`), and report those
+absent from §5's code blocks.
+
+**95 identifiers named, 11 absent, none of them a gap.** Two are words inside
+JSON string literals (`Anything`, `Optional`); six are external API named in
+argument — `JoinHandle`, `abort()`, `wait_with_output()`, `ok_or()`,
+`days_are_24_hours()`, `dumps()`; `deny()` is the attribute in I9's line; and two
+are names §5 uses precisely to say it does **not** use them — `Orphaned`, which
+is the name the cleanup variant is deliberately not given, and `Success`, from
+D23's rejected `Result<Success, Failure>`. F-55's `WireOpt` and F-56's
+`cleanup_only` have no counterpart this round.
+
+#### VA-2 — the AC-by-AC walk
+
+Recorded as the input audit's evidence-gathering starts from, not as a
+substitute for it.
+
+| AC | discharged by | state |
+|---|---|---|
+| AC-1 | `just check` on a **clean clone** under `nix develop`, exit 0: seven commands, both feature columns, 35 unit + 52 integration + 15 protocol and 22 unit + 15 protocol | **met** |
+| AC-2 | `canonical.rs`'s three serialization tests for the envelope; fixtures `R-2-*`, `R-3-*` for the version, `R-4-*` at all six inbound levels for unknown optional, `R-12-*` for an unknown required primitive with its path | **met** |
+| AC-3 | the schedule corpus — 16 fixtures under `fixtures/schedule/` — run by `runner.rs::every_scheduling_fixture_states_what_the_protocol_does`; RFC 3339 with offset and four span forms accepted, five named errors rejected | **met** |
+| AC-4 | `schedule.rs`'s five resolution tests over (retained, incoming, default), including latest-valid-wins and invalid-preserves | **met** |
+| AC-5 | `transport.rs`'s thirteen cases, plus `transport_shape.rs`'s three structural checks and `::the_capped_reader_owns_the_stdout_handle`. The cancellation clause is `::a_cancelled_exchange_leaves_nothing_of_the_host_behind`, scoped to what the host holds per D54 | **met** |
+| AC-6 | `failure_matrix.rs` — thirteen protocol modes and five transport modes as the `Outcome` a caller receives — plus `round_trip.rs`'s two `StateError` cases, `normalize.rs::every_reachable_error_in_the_taxonomy_is_named_by_a_fixture`, and the four `error.rs` display tests. No-panic is the lint table, proven at PHASE-04, PHASE-05 and PHASE-07 | **met** |
+| AC-7 | `round_trip.rs::the_deno_example_completes_a_round_trip`: `view: null`, then a choice, the `view_id` taken from `Outcome::view`, a `respond` carrying it, accepted | **met** |
+| AC-8 | `round_trip.rs::an_answer_no_view_asked_for_never_reaches_the_backend` and `::a_superseded_answer_never_reaches_the_backend`, both with the invocation-log witness; `host.rs` and `state.rs` for the two variants | **met** |
+| AC-9 | 70 fixtures across three corpora, including brief §10.1's bare-string body (`R-19-a-body-written-as-a-bare-string`) and §10.2's flat `multiline` (`R-18-brief-10-2-s-own-field-example`) verbatim | **met** |
+| AC-10 | this phase's `AGENTS.md`, all five of brief §15.1's items | **met** — accepted at VH-1 |
+| AC-11 | `boundary.rs::no_host_source_file_names_the_user_s_domain`, with `::a_scan_that_inspects_no_rust_files_fails` as its vacuity guard | **met** |
+| AC-12 | `round_trip.rs::the_bash_backend_completes_the_same_round_trip`, invoked as `["bash", <script>]` with no shebang | **met** |
+| AC-13 | the draft exists, says it is not canon in its first line, carries `**Status:** draft` and no SPEC id; 54 `R-N` requirements, **all 54** now named by a §7 row — checked mechanically, both directions, and every test and fixture a row names verified to exist | **met** |
+| AC-14 | close, with the user's endorsement | **not this phase** |
+| AC-15 | `cargo test --no-default-features` in the gate (dependency graph) and `boundary.rs::stratum_1_names_neither_the_shell_a_binary_nor_the_runtime` (direction), the second guarded against a vacuous pass by `::a_scan_whose_directory_was_renamed_away_fails` | **met** |
+
+#### Verification record
+
+Filled in during execution, not after. Empty until then.
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| EX-1 | — | **pass** — accepted as written | root `AGENTS.md`, additive: three new sections (*The invariants*, *The authoritative documents*, *Verifying*) around the four existing ones. All five of brief §15.1's items present; commands named as `just` recipes with `design.md` §9 cited as canonical, per the 2026-08-27 decision. 41 lines → 89 |
+| EX-2 | — | **pass** — ten divergences recorded, none silently fixed | the Sweep record above. Eight repairs to documents this phase owns, two drift items for `audit.md`, one finding against `src/` |
+| EX-3 | — | **pass** — all 54 requirements | `draft-spec.md` §7 rewritten: every row names files, test functions and fixtures. Checked mechanically both ways — no requirement without a row, no row naming a test or fixture that does not exist, no id in two rows. Five rows are review rather than test and say so with a reason; nothing is unverified |
+| EX-4 | — | **pass** | Harvest gains PHASE-09 under *Produced*; *Open* gains this phase's finding and the four `docs/memory/` candidates, **listed and not moved**; two PHASE-08 items and half of a PHASE-07 item closed against their sweep entries |
+| EX-5 | — | **pass** | every phase `done` with a date in the status table. PHASE-10's sheet said *in progress* and now records what it did; PHASE-02's sheet carried two leftover template rows duplicating EX-3 and EX-4 with empty cells, removed |
+| VT-1 | test | **pass** — clean clone, not the working tree | `git clone` of `30d834f` to a temp directory, `just check` under `nix develop`, **exit 0**: 35 unit + 52 integration + 15 protocol in the default column, 22 unit + 15 protocol without `shell` |
+| VT-2 | test | **pass**, both halves, and both were run as commands | VT-2a: 31 hits across six struck ids, every one historical or explicitly marking the supersession — no live claim rests on one. VT-2b: 95 identifiers named in §5 prose, 11 absent from §5's code blocks, all eleven external API, JSON string content, or names §5 uses to say it does *not* use them. Both commands and both result sets are recorded above |
+| VA-1 | agent | **pass** | the same clean-clone run, entered via `nix develop`: `just` from `/nix/store/…-just-1.58.0`, `deno` from `…-deno-2.9.4`, `cargo` from `…-rust-default-1.99.0-beta.1`. `just -n check` prints §9's seven commands in §9's order |
+| VA-2 | agent | **pass** — walked, one AC pending and one not this phase's | the table above. Fourteen of fifteen met with the test or check named; AC-14 is close's |
+| VH-1 | human | **pass** | `AGENTS.md` put to the user 2026-09-04 and **accepted as written**, including the decision not to point at `draft-spec.md`: it is not canon and `docs/AGENTS.md` says nothing outside the slice may cite it. The document table names `docs/specs/` and says it is empty until promotion |
+
+#### Log
+
+- 2026-09-04 — sheet written; entry criteria checked and met, baseline gate
+  green at `30d834f`.
+- 2026-09-04 — **VT-2, both halves, before any reading.** Mechanical first so the
+  read half knew where to look. Both clean; the commands and their full result
+  sets are recorded above. This is the first round of the sweep to find nothing
+  mechanically, against F-55's and F-56's precedent.
+- 2026-09-04 — **EX-3.** §7 rewritten row by row, then checked by script in both
+  directions: 54 requirements, 54 covered, no id in two rows, every named `fn`
+  present in `src/` or `tests/`, every named fixture present on disk. The script
+  caught two of my own errors — a fixture brace form expanding to
+  `R-15-an-option-with-fields`, which does not exist (the file is
+  `-carrying-fields`), and two fixtures no row cited,
+  `R-18-brief-10-2-s-own-field-example` and
+  `protocol/R-21-next-check-as-a-relative-span`. Both now cited, the second
+  showing that the schedule corpus is about the value and the protocol corpus
+  about the message carrying it.
+- 2026-09-04 — **the sweep found the two documents that record it were both
+  wrong about it.** The PHASE-07 Open note said §5.2 lists five error types
+  against six shipped; it is six against seven. The same note said
+  `draft-spec.md` R-44 shares the omission; it does not, because the draft's §2
+  puts the config file out of scope. A note about a restatement drifting is
+  itself a restatement.
+- 2026-09-04 — **VT-1 and VA-1, on a clean clone.** `git clone` of `30d834f` to
+  a temp directory, `nix develop` from the repo, `just check` inside the clone:
+  exit 0, seven commands, both columns, 35 + 52 + 15 and 22 + 15. `just`, `deno`
+  and `cargo` all resolve to `/nix/store/…`, so this is AC-1's claim and not a
+  claim about this machine's profile. A working tree can pass on a file nobody
+  committed; this cannot.
+- 2026-09-04 — **VH-1 and S-9, both put to the user.** `AGENTS.md` accepted as
+  written. S-9 fixed rather than deferred: four comments in `canonical.rs` now
+  cite `draft-spec.md` §6.1 and R-52 instead of line numbers, which survives
+  both this phase's §7 rewrite and the file's move at promotion. `src/` was
+  added to the Surfaces for it. Gate re-run: exit 0, same counts.
+
 ## Harvest
 
-**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-08 and
-PHASE-10 done — every code phase in the slice** · `just check` exits 0 in both
+**Fresh as of:** 2026-09-04 · plan accepted, **every phase done — PHASE-01
+through PHASE-08, PHASE-10, and PHASE-09 last; the slice is ready for audit** · `just check` exits 0 in both
 feature columns, and it is now **seven** commands — the seventh typechecks the
 example, because `deno run` does not · stratum 1 is complete — the wire types,
 the canonical types, normalization and schedule resolution, with a 70-file
@@ -5220,6 +5488,30 @@ reconciliation of the draft. Then audit
   touch**: an outstanding view and a moved schedule, both established before the
   failures and both checked after. Asserting only that the last exchange
   succeeded passes against a `Host` rebuilt every time.
+
+- **The repository's map and the record, from PHASE-09.** Root `AGENTS.md` gains
+  brief §15.1's five items — the domain rule with its "could this live in the
+  backend?" test, permissive-wire / canonical-internal, the warning against
+  narrowing to the current renderer, the no-takedown rule, and ADR-001's
+  direction — plus a table of authoritative documents and `just check` as the
+  gate. It is additive: the methodology pointer, the canon rule, the dev-shell
+  facts and the working principles are untouched. **`CLAUDE.md` symlinks to it**,
+  so everything added is paid for on every agent turn, which is why the commands
+  are named as recipes rather than spelled out a third time after `design.md` §9
+  and the `justfile`.
+  `draft-spec.md` §7 now **names the tests**: all 54 requirements, each row
+  citing files, test functions and fixtures by name, checked mechanically in both
+  directions. Five rows are held by review rather than by a test and each says so
+  and why — the subject is a property of the source text or of the contract, not
+  a behaviour anything can execute. **The durable artefact is the check itself**:
+  a §7 of prose descriptions cannot be falsified, and one of names can be, by two
+  greps that take a minute. Both are in this sheet.
+  The sweep found ten divergences, eight of them repairs to documents this phase
+  owns, and — the part worth carrying — **two of the three items earlier phases
+  had recorded as PHASE-09's turned out to be less than they claimed**: the
+  `ConfigError` omission is six-versus-seven and not five-versus-six, and the
+  draft spec was never missing a config requirement, because its §2 puts the
+  config file out of scope.
 
 ### Learned
 
@@ -5516,6 +5808,32 @@ empirically** above, plus:
 
 ### Open
 
+**Raised by PHASE-09, 2026-09-04 — one finding, one list. Neither is a phase
+repair; the first is outside this phase's surfaces and the second is close
+business.**
+
+- **`src/` cites `draft-spec.md` by line number, and one citation is now
+  wrong.** `canonical.rs:706` points at `draft-spec.md:360` for R-52; PHASE-09
+  rewrote §7 and that line is now a table header. Three more sites cite lines
+  into §6 (`canonical.rs:117`, `:511`, `:716`) and one cites the file
+  (`schedule.rs:2`). **Promotion breaks all of them anyway** — at close the file
+  moves to `docs/specs/NNN-slug.md` — so the fix is one class, not one instance:
+  cite the requirement id, which every site already names in its prose. `src/`
+  is not PHASE-09's surface.
+- **`docs/memory/` candidates, listed and not moved** (lifting them is a close
+  act, per `docs/AGENTS.md`). Four, all from the Learned section: **a bound is
+  not tested by asserting the outcome at the bound** — a reader that stops and
+  one that keeps draining produce the same outcome, so each case needs a
+  question the host cannot answer for it; **`bash -c` execs its last command and
+  a script file forks**, which is the difference between the transport's own
+  case and a grandchild case, and it invalidated a probe measurement; **`deno
+  run` does not typecheck** (since 1.23, measured against 2.9.4), so a gate that
+  wants types checked runs `deno check`; and **the fixture-corpus format** —
+  envelope, discovery, external-tag read, vacuity guard, a `Check` per corpus —
+  which three phases inherited unchanged. The first two are the kind a future
+  agent would otherwise rediscover by writing a passing test that proves
+  nothing.
+
 **Raised by PHASE-10, 2026-09-03 — both are scope decisions for audit or a plan
 amendment, neither is a phase repair.**
 
@@ -5533,24 +5851,23 @@ amendment, neither is a phase repair.**
   view as its reuse witness. `host.rs` asserts R-34 for a *refusal*, which is a
   different path. If VT-2 is ever simplified, the rule loses its only test.
 
-**Raised by PHASE-08, 2026-09-03 — one belongs to PHASE-09, two to audit.**
+**Raised by PHASE-08, 2026-09-03 — one remains; two were PHASE-09's and are
+closed.**
 
-- **`slice-001.md`'s OQ-9 answer is false as written.** It says deno
-  "typechecks rather than stripping types". It does not, and the correction is
-  PHASE-09's restatement sweep — PHASE-08's Surfaces do not reach that file.
-  `design.md` §9 and `plan.md` are already corrected, and the *decision* OQ-9
-  records (deno, `-A`) is unaffected: only its stated reason was wrong.
+- ~~**`slice-001.md`'s OQ-9 answer is false as written.**~~ **Closed by
+  PHASE-09**, sweep record S-7: the answer now says deno *can* typecheck the
+  example and that `deno check` is what does it, since `deno run` does not. The
+  decision (deno, `-A`) was never in question.
 - **The example's README config is not exercised.** It uses a relative path,
   `["deno", "run", "-A", "./examples/typescript/backend.ts"]`, which is right
   for a user's own config and is why no test uses it — the suite roots every
   path at `CARGO_MANIFEST_DIR`. So the one config a reader will copy is the one
   nothing runs. Audit should decide whether that is worth a case that sets a
   working directory, or whether `config.rs`'s existing parse cases cover it.
-- **`draft-spec.md` R-45's verification row still describes PHASE-08's original
-  scope** — "the whole integration tier runs every misbehaving backend against
-  one host instance". That is PHASE-10/EX-2 after the F-6 split. The row is
-  accurate about the requirement and stale about where it is proven; PHASE-09/EX-3
-  owns pointing it at the test that exists.
+- ~~**`draft-spec.md` R-45's verification row still describes PHASE-08's original
+  scope.**~~ **Closed by PHASE-09**, sweep record S-3: the row names
+  `failure_matrix.rs::one_host_survives_every_misbehaving_backend_and_still_works`
+  and states what witnesses the reuse.
 
 **Raised by PHASE-07, 2026-09-03 — six are audit or reconciliation business,
 none is a phase repair.** The phase sheet's *Noticed, not this phase's* section
@@ -5560,10 +5877,16 @@ states each in full; in short:
   bytes are never decoded, so `{"a":"\xff"}` parses. `design.md:1052`'s argument
   for `Vec<u8>` stands and is vindicated by the case that matters — a *read*
   value, where lossy conversion would have substituted U+FFFD silently — but
-  R-38's verification row claims more than the implementation does.
-- **`design.md` §5.2 lists five error types and there are six.** `ConfigError`
-  is new by user decision. `draft-spec.md`'s R-44 has the same omission.
-  Reconciliation: the code is right, the documents are stale.
+  R-38's verification row claims more than the implementation does. **Row
+  repaired by PHASE-09 (S-4)**; whether `design.md:1052`'s prose should say the
+  same is audit's, since the design is not that phase's surface.
+- **`design.md` §5.2's taxonomy block is short of what shipped.** `ConfigError`
+  is new by user decision. **Corrected by PHASE-09's sweep (S-1, S-2):** the
+  block lists **six** types and **seven** shipped, not five and six; and the
+  second half of this item — that `draft-spec.md`'s R-44 has the same omission —
+  is **withdrawn**, because the draft's §2 puts the config file out of scope and
+  R-44 is about ways an *exchange* fails. Reconciliation: the code is right and
+  `design.md` §5.2 is stale, which is audit's to amend.
 - **`design.md:1167`'s `issued_at` is read by nothing** and is kept under a
   self-clearing `#[expect]`. Audit gives it a reader or removes it.
 - **A config file's unknown keys and section names are ignored silently.**
