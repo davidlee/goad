@@ -8,10 +8,11 @@
 use std::collections::BTreeMap;
 
 use crate::fake::{Calls, FakeBackend, answering, failing, failing_noisily};
+use crate::harness::{backend_error, describe_outcome, instant, presented, state_error};
 use goad::semantics::protocol::canonical::{Event, Timestamp, UserResponse, View, ViewId};
 use goad::shell::config::Config;
 use goad::shell::error::{BackendError, CleanupFailure, StateError};
-use goad::shell::host::{Failure, Host, Outcome};
+use goad::shell::host::Host;
 
 /// The design's own example, minus the command — no process is ever spawned
 /// here, and a command that could not run would be a misleading fixture.
@@ -23,10 +24,6 @@ timeout = "5s"
 [schedule]
 default_poll = "30m"
 "#;
-
-fn instant(rfc3339: &str) -> Timestamp {
-  Timestamp::new(rfc3339.parse().expect("the fixture must be an instant"))
-}
 
 /// The `now` every case starts from, and the seeded check that follows from it:
 /// `04:12:00Z` plus the 30-minute default poll.
@@ -82,40 +79,11 @@ async fn an_answer() -> UserResponse {
 const A_CHOICE: &[u8] =
   br#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine"}]}}"#;
 
-/// What an outcome came back with, as a sentence. The tier's `Display`-not-
-/// `Debug` rule, as `harness::describe` states it for the transport.
-fn describe_outcome(outcome: &Outcome) -> String {
-  match (&outcome.failure, &outcome.view) {
-    (Some(Failure::Backend(error)), _) => format!("a backend failure: {error}"),
-    (Some(Failure::State(error)), _) => format!("a refusal: {error}"),
-    (None, Some(presented)) => format!("a view carrying {}", presented.view_id.as_str()),
-    (None, None) => "nothing to show, and no failure".to_owned(),
-  }
-}
-
-fn presented(outcome: &Outcome) -> &ViewId {
-  match &outcome.view {
-    Some(presented) => &presented.view_id,
-    None => panic!("expected a view; got {}", describe_outcome(outcome)),
-  }
-}
-
-fn backend_error(outcome: &Outcome) -> &BackendError {
-  match &outcome.failure {
-    Some(Failure::Backend(error)) => error,
-    _ => panic!(
-      "expected a backend failure; got {}",
-      describe_outcome(outcome)
-    ),
-  }
-}
-
-fn state_error(outcome: &Outcome) -> &StateError {
-  match &outcome.failure {
-    Some(Failure::State(error)) => error,
-    _ => panic!("expected a refusal; got {}", describe_outcome(outcome)),
-  }
-}
+// The describers this file shares with `round_trip.rs` — `instant`,
+// `describe_outcome`, `presented`, `backend_error` and `state_error` — live in
+// `harness.rs`. They were written here first and moved when the second file
+// needed them, which is the refactor step doing its job rather than a second
+// copy appearing.
 
 // ---------------------------------------------------------------------------
 // EX-4 — what a caller is handed

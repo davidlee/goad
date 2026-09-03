@@ -17,7 +17,8 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-05 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 7 integration and 14 protocol, 5 of the latter this phase's. All seven EX, all five VT and all three VA criteria discharged. **Three plan gaps were closed at expansion and none was raised during execution.** Two assumptions broke, both measured rather than reasoned about: **A3 is false as stated** — `Io` is deterministic, but only for a request past the 64 KiB pipe buffer, since a smaller one is accepted by the kernel and outlives the reader — and **the probe misleads about `bash`**, which drove its backends with `bash -c` and so exec'd their last command; a script *file* forks, turning the same two lines into PHASE-06's grandchild case. One departure from §5.4's sketch, recorded and argued: `body` is an `async fn` rather than an inline block, so VT-5's region check asserts F-41's rule instead of tripping over the sketch's own nested `?`s. Five break-and-revert runs, the strongest of which — holding stdin open — fails three tests at once with R-37's symptom verbatim. **A fourth gap was raised at the end and closed by user decision 2026-09-03**: `tests/integration/transport.rs`, which holds this phase's cases, was not in the Surfaces; they now read `tests/integration/**`, the form PHASE-06 already used. See `## Phase sheets` | 2026-09-03 |
 | PHASE-06 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 15 integration and 15 protocol, one of the latter this phase's. All six EX, all six VT and both VA criteria discharged. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — VT-4 asked for a wedged `wait`, which no test can arrange, and VT-5's suite-level no-orphans claim is unsound under libtest's in-process parallelism. A finding against `process.rs` as shipped was closed with them and repaired here: `read_capped` borrowed rather than owned, so the stdout handle dropped when the exchange **returned** rather than at the bound — measured 500 ms apart, and the first red of the phase. **Five break-and-revert runs, and two of them found defects in this phase's own test mechanism** — a stderr fixture that passed against the reader it was meant to catch, and a `/proc` filter blind to the two backends that `exec`. Both repaired and both re-broken. See `## Phase sheets` | 2026-09-03 |
 | PHASE-07 | **done** — `just check` exits 0 in both feature columns; 35 unit, 27 integration, 15 protocol. All eight EX, all six VT and VA-1 discharged. Entry criteria checked and met. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — `design.md` §5.2's taxonomy named no error type for a rejected config, which VT-2 requires (`ConfigError` added, five variants); and the config duration grammar would restate `schedule.rs:96`–`:106`, which `CLAUDE.md` forbids without a decision (restated deliberately, recorded for audit). **A third decision was taken during execution**: EX-2 names `Option<Outstanding>` and `design.md:1167` gives it an `issued_at` nothing in this slice reads — the gate refuses an unread field, so it is kept under a self-clearing `#[expect(dead_code, reason = …)]` rather than dropped. **Assumption A1 fired on the first run** and cost a fixture: serde never decodes a value it skips, so the invalid-UTF-8 case parsed cleanly against `WireResponse`; re-measured and moved into a view's title, which is the case `design.md:1052` is about. **Five break-and-revert runs, plus a sixth on the lint expectation.** See `## Phase sheets` | 2026-09-03 |
-| PHASE-08…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-08 | **done** — `just check` exits 0 on all **seven** commands in both feature columns; 35 unit, 32 integration (5 of them this phase's), 15 protocol. All four EX and all four V criteria discharged. Entry criteria checked and met. **One plan gap found at expansion and closed by user decision 2026-09-03** — `deno run` does not typecheck, which is the reason OQ-9 gives for choosing deno; the gate now runs `deno check`, so `design.md` §9 and `justfile` joined the Surfaces and the plan gained **EX-6**. **A defect in this phase's own test mechanism was found by breaking it**: VT-2's plan-suggested vehicle — a config pointing at a command that cannot be spawned — is **vacuous**, because a host that spawns and then refuses still returns the refusal; the case now uses an invocation log passed as argv, which catches both reordering breaks. **clippy rejected the log's first design** (a process-wide file behind a `std::sync::Mutex` held across an await) and the argv form that replaced it is simpler. **Six break-and-revert runs.** See `## Phase sheets` | 2026-09-03 |
+| PHASE-10, PHASE-09 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -4375,17 +4376,376 @@ would have silently turned into U+FFFD, which is why `Exchange.result` carries
   `tests/integration/{fake,host}.rs` and two lines in
   `tests/integration/main.rs`. Nothing else was touched.
 
+### PHASE-08 — The round trip and the example backends
+
+**State:** **done 2026-09-03.** `just check` exits 0 on all seven commands in
+both feature columns — 35 unit, 32 integration, 15 protocol. All four EX and all
+four V criteria are discharged in the Verification record below; entry criteria
+checked and met, and the expansion's measurements are recorded. **One plan gap
+raised at expansion and closed the same day by user decision**: `deno run` does not typecheck, which
+is the reason OQ-9 gives for choosing deno — the gate now runs `deno check`, and
+the plan gained **EX-6** for it.
+**Plan entry:** `docs/slices/001/plan.md:924`
+**Surfaces (from the plan, as amended by the EX-6 decision):**
+`examples/typescript/**`, `tests/backends/**`, `tests/integration/**`,
+`justfile`, and `design.md` §9's command block. **Not** `slice-001.md` — its
+OQ-9 answer still carries the wrong claim and PHASE-09's sweep owns it.
+
+#### Reading list
+
+| what | where | why |
+|---|---|---|
+| the phase | `plan.md:918`–`:975` | the three EX and the four VT this sheet expands, and the three implementer notes |
+| the round trip, as a sequence | `design.md:1574`–`1599` | the order EX-1 asserts, and the one diagram in the design that names deno |
+| the host validates nothing but the id | `design.md:1753`–`1757` | VT-5 exactly. `respond` checks the `view_id` and **nothing else**; field values pass through opaque |
+| backends are trusted user programs | `design.md:147`–`:151`, brief §14 | EX-2's prohibition: `-A` is not a sandbox and the example's comments may not imply one |
+| hermeticity | `design.md:166`–`:169` | "`cargo test` must be able to spawn a backend with no build step and no `node_modules`" — the constraint the example is written against |
+| the tree the design fixes | `design.md:332`–`:333` | `examples/typescript/` — the showcase backend, deno |
+| the config the design writes | `design.md:1136` | `command = ["deno", "run", "-A", "./backend.ts"]`, which EX-2 names as argv |
+| the scenario the example should read like | brief §18, `docs/brief.md:866`–`:905` | the interstitial journal: evaluate → choice with `next_check`, respond → `view: null`. The example is documentation (plan's first implementer note) and this is the brief's own worked example |
+| what a backend receives | `src/semantics/protocol/canonical.rs:507`–`:555`, and the two wire-form tests at `:726` and `:747` | the exact request JSON, both kinds. The example parses this, so it is written against the snapshots rather than against prose |
+| what a backend may answer | `tests/protocol/fixtures/protocol/R-15-an-option-carrying-fields.json`, `R-16-a-number-field-with-bounds.json` | an accepting fixture states the whole canonical value, so these are the readable statement of the response shape the example emits |
+| the requirements | `draft-spec.md:139` (R-35), `:145` (R-36), `:162` (R-45) | R-35 is VT-5, R-36 is EX-3's shape, R-45 is PHASE-10's and is why the harness must reuse a `Host` |
+| the verification rows | `draft-spec.md:373` (R-35), `:374` (R-36), `:386` (R-45) | what the spec says each is proven by |
+| the harness this phase extends | `tests/integration/harness.rs` | `backend`, `transport`, `evaluate`/`padded_evaluate`, `describe`, `stderr`, `marker`/`clear`, and the `Display`-not-`Debug` rule for panic messages |
+| the host tier's own shape | `tests/integration/host.rs:1`–`:120` | `describe_outcome`, `presented`, `state_error`, and `an_answer()` — the precedent for harvesting an `OptionId` from a view, which VT-5 needs a foreign one of |
+| the fake | `tests/integration/fake.rs` | the call count that PHASE-07 used for AC-8, and the note that says VT-2 makes the same claim through a real process |
+| the transport tier's case style | `tests/integration/transport.rs:1`–`:70` | per-case timeouts rather than a shared constant, and what a discriminating assertion looks like here |
+| the backend scripts | `tests/backends/reads-stdin-then-answers.sh` | the declarative one-behaviour-per-script convention, the echo-to-stderr trick, and the no-shebang rule |
+| spawn, as it happens | `src/shell/backend/process.rs:53`–`:95` | no `env_clear`, no `current_dir`: the child inherits the test binary's environment and cwd, which is what makes `$PPID` and `$TMPDIR` usable below |
+| what PHASE-10 will need from here | `plan.md:995`–`:1050` | EX-2 runs a **sequence** against **one** `Host`, so this phase's harness owes a reusable `Host<ProcessBackend>` |
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-07 discharged, EX-7 included | **met.** EX-1…EX-8, VT-1…VT-6 and VA-1 are all recorded `pass` with named evidence in PHASE-07's Verification record. EX-7 is the `#![deny(clippy::arithmetic_side_effects)]` at `src/shell/host.rs:13`, seen to fail under break 1 |
+| EN-2 | `deno` available in the dev shell | **met.** `deno 2.9.4 (stable, release, x86_64-unknown-linux-gnu)`, `/nix/store/pn1qbka1qfxw0wfbh1scsd2gvhv0dhj2-deno-2.9.4/bin/deno`; `flake.nix:53` puts `pkgs.deno` in `projectPkgs` |
+
+Baseline, 2026-09-03: `just check` exits 0 on all six commands, both feature
+columns — 35 unit, 27 integration, 15 protocol. PHASE-07 is committed at
+`bc06d6d`. Any failure from here is this phase's.
+
+#### What already exists — inspected 2026-09-03
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `examples/` | **does not exist** | the whole of EX-2 is new. `design.md:332` fixes the directory name |
+| `tests/backends/` | twelve scripts, every one a *misbehaviour* | EX-3's is the first well-behaved bash backend other than `reads-stdin-then-answers.sh`, which answers `{"view":null}` and nothing else — it cannot carry a round trip |
+| `tests/integration/harness.rs` | `backend(name)` → `["bash", <abs>/tests/backends/<name>.sh]`; `transport(name, timeout)`; the `/proc` cluster; `marker`/`clear` | `backend` is the pattern the deno example's argv follows. Nothing here builds a `Config` or a `Host` — that is this phase's addition, and PHASE-10 inherits it |
+| `tests/integration/host.rs` | twelve cases, all against the fake; `CONFIG` is a `parse`d string with a command that cannot run | a config for a *real* process is new. The `Config::parse`-from-a-string route is the one to copy — no temp file needed |
+| `tests/integration/fake.rs` | `FakeBackend`, `Calls`, `answering`/`failing`/`failing_noisily` | the cheapest source of a canonical `OptionId` that no real view offered, which is VT-5's fixture |
+| `src/shell/config.rs:97` | `Config::parse(text)` is `pub` | a case builds its config from a literal, and the command can be built by the harness rather than written into the TOML |
+| `src/shell/host.rs:105` | `Host::new(config, backend, now)` | `Host<ProcessBackend>` needs nothing new in host code |
+
+#### Measured at expansion, before anything was written
+
+deno 2.9.4, in the dev shell, against a two-line `echo.ts` that reads stdin to
+EOF and writes one JSON document. Every row decides something the example or a
+test would otherwise have been written wrong.
+
+**Startup, and hermeticity.** No imports, so nothing is fetched and nothing is
+cached.
+
+| what | measured |
+|---|---|
+| `deno run -A ./echo.ts`, warm | ~15–20 ms per run (5 runs, 77 ms wall) |
+| the same with `DENO_DIR` pointed at an empty directory | 24 ms, and no output on stderr — there is no cold-cache penalty and no download line to confuse a stderr assertion |
+| the same with `DENO_DIR` **read-only** (`chmod 500`) | exit 0, correct output. The example needs no writable cache |
+| `deno run -A --check ./echo.ts`, warm | ~87 ms per run (5 runs, 433 ms wall) |
+| stderr on a clean run | empty. What the script writes is all that arrives |
+
+So a 5-second timeout is four orders of magnitude of headroom, and the example
+is hermetic in the sense `design.md:166` requires.
+
+**`deno run` does not typecheck.** This is the plan gap below, and it is a
+measurement rather than a reading of the docs.
+
+| file | `deno run -A` | `deno check` |
+|---|---|---|
+| `const n: number = "not a number"` | **exit 0**, and the value printed as the string it is | `TS2322 [ERROR]: Type 'string' is not assignable to type 'number'`, exit 1 |
+
+**`$PPID` inside a spawned script is the test binary, and `$TMPDIR` is what
+`std::env::temp_dir()` reads.** Both measured against a direct `bash script`
+spawn, which is what `ProcessBackend` performs — no shell interposes (R-36).
+
+| what | measured |
+|---|---|
+| caller pid `1117701`, script's `$PPID` | `1117701` |
+| `${TMPDIR:-/tmp}` with `TMPDIR` unset / set to `/tmp/foo` | `/tmp` / `/tmp/foo`, matching `std::env::temp_dir()`'s own rule |
+
+That is what lets a script and a test agree on a filename with no environment
+variable to pass and no JSON to parse in bash: `harness::marker` already names
+its files after `std::process::id()`, and `$PPID` is the same number.
+
+#### One plan gap found at expansion — **closed 2026-09-03**
+
+**`deno run` does not typecheck, and OQ-9 says it does.** `slice-001.md:244`
+answers OQ-9 with deno because "it runs `.ts` directly with no build step and
+typechecks rather than stripping types — which is the point of choosing
+TypeScript when brief §3.7 makes agents the authors." The first half is true and
+the second is false: deno has not typechecked `deno run` by default since 1.23,
+and the measurement above shows a type error running to completion. `plan.md`
+PHASE-08's second implementer note repeats the claim.
+
+EX-2 names the argv — `["deno", "run", "-A", …]` — so the phase as written ships
+a backend nothing typechecks, and the stated reason for preferring TypeScript to
+JavaScript does not hold. Three ways out, and the choice is the user's:
+
+1. **Correct the record, add nothing.** EX-2's argv stands; OQ-9's answer and the
+   plan's note are amended at PHASE-09 to say deno was chosen for zero-build
+   execution, and that typechecking is a separate command. The example ships
+   unchecked, and an agent editing it gets no type feedback from running it.
+2. **`--check` in the argv.** `["deno", "run", "-A", "--check", "./backend.ts"]`
+   restores the claim exactly, and costs ~70 ms per exchange — every exchange,
+   for every user of the example config, not just in the suite.
+3. **Typecheck in the gate.** `just check` gains `deno check
+   examples/typescript/backend.ts`, so the claim holds where it is useful (at
+   edit time) and costs nothing at run time. `justfile` and `design.md` §9's
+   command block are **not** in this phase's Surfaces, so this is a plan
+   amendment as well as a decision — and it puts deno on the critical path of
+   the phase gate, which AC-1 says must work from a clean clone in the dev
+   shell.
+
+**Recommendation: 3, with 1's correction to the record made anyway.** The reason
+OQ-9 gives for TypeScript is real — an agent author wants the types checked —
+and option 3 is the only one that delivers it where an author is, rather than on
+every exchange forever. It is one line in the `justfile`, and deno is already an
+AC-1 dev-shell dependency (EN-2), so the gate acquires no new tool. Option 1
+alone leaves the slice shipping a documentary example whose types are decoration.
+
+**Decided: option 3, 2026-09-03** (`plan-log.md`, `design-log.md`). `design.md`
+§9 is seven commands, `justfile` mirrors it as `typecheck`, and `plan.md`
+PHASE-08 gained **EX-6** plus the two extra Surfaces. PHASE-01's discharged
+criteria still enumerate six and are deliberately not restated; a comment above
+PHASE-01 says so and points at the decision. The gate is red until
+`examples/typescript/backend.ts` exists, which is why task 1 is task 1.
+
+#### Settled here — implementer latitude
+
+Four choices the design and plan leave open. None is a plan gap; each is
+recorded because a later reader will ask why.
+
+**The example decides from the request, and owns no state.** EX-1 wants one
+backend to answer `view: null` and then a choice, and this transport spawns a
+fresh process per exchange (`design.md` §5.4) — so a stateless backend can only
+vary its answer by reading the request. The example therefore keys on
+`event.data`, which is opaque to the host (R-9) and is exactly what an emitter
+supplies. Brief §18's backend "checks whatever state it owns"; the example says
+in a comment where that state would live and that the host never learns of it,
+rather than writing a file the suite would then have to clean up. The
+alternative — a state file — would make the example's behaviour depend on
+filesystem residue between exchanges, which is a worse thing to hand an agent to
+copy.
+
+**The bash backend matches strings, and says so.** It exists for AC-12 — to
+distinguish a transport that works for any configured command from one that
+works for deno — not to be a showcase. Bash has no JSON parser, and adding one
+would be a dependency the dev shell does not declare, so it selects its answer
+with a `case` over the raw request text. The comment says the test controls the
+request, which is what makes a string match sound here and unsound in an example.
+
+**"The backend was not spawned" is witnessed by a file, not by the host.** VT-2's
+first case points the config at a program that does not exist, so a spawn that
+happened would arrive as `Failure::Backend(Spawn)` rather than
+`Failure::State(_)` — the error variant is the discriminator. Its second case
+cannot do that: the host must reach the backend once to obtain a view before a
+stale answer can be refused. There the script appends one line per invocation to
+`${TMPDIR:-/tmp}/goad-invocations-$PPID`, which the measurement above shows is
+the path `harness::marker` builds, and the test asserts the count did not move
+across the refusal — with a *subsequent* accepted answer as the positive
+control, because a witness that never moves proves nothing. This is PHASE-06's
+lesson applied: a bound, or a non-event, needs a question the host cannot answer
+for itself.
+
+**VT-5's foreign `OptionId` comes from the fake.** `OptionId` is deliberately not
+publicly constructible (D30), so an answer naming an option no view offered still
+has to be harvested from *some* view. The cheapest source in this tier is a
+`Host<FakeBackend>` answering a canned body whose option id is spelled
+`an-option-no-view-offered`, which also makes the test's intent legible at the
+assertion. `host.rs::an_answer` is the precedent.
+
+#### Assumptions — each a place this phase can break
+
+- **A1 — the test binary's cwd is the crate root, and nothing relies on it.**
+  Every path this phase builds is rooted at `CARGO_MANIFEST_DIR`, as
+  `harness::backend` already does, so the assumption is only that the *example's
+  own documentation* may use a relative path (`design.md:1136`'s `./backend.ts`)
+  while the suite does not. If a case is written with a relative path it will
+  pass from `cargo test` at the root and fail from elsewhere.
+- **A2 — `$PPID` in a script spawned by tokio is the test binary.** Measured
+  against a direct spawn, and `ProcessBackend` spawns directly. If tokio's
+  `Command` ever forks an intermediary, the invocation witness silently stops
+  matching and VT-2's second case becomes vacuous — so the case asserts the
+  positive control first.
+- **A3 — one `Host` can be driven through a sequence with `#[tokio::test]`'s
+  single-threaded runtime.** `evaluate` and `respond` take `&mut self` (I6), so a
+  sequence is sequential by construction; nothing here needs `spawn`.
+- **A4 — deno reads stdin to EOF and exits.** `new Response(Deno.stdin.readable)`
+  resolves when the host closes stdin, which is R-37's rule and what
+  `reads-stdin-then-answers.sh` already relies on. Measured above.
+- **A5 — the `next_check` the example emits is one the host accepts.** It writes
+  brief §18's own `"45 minutes"`, which `R-21-next-check-as-a-relative-span.json`
+  covers. If it did not, the outcome would carry a discard and EX-1 would still
+  pass — so the round-trip cases assert `discarded.is_empty()`.
+
+#### STOP conditions
+
+- The plan gap above is **not** settled by the user. EX-2's argv is the phase's
+  first line of code; do not write it, or the example's comments, either way.
+- The example needs anything that is not a `.ts` file — an import map, a
+  `deno.json`, a lockfile, a `node_modules` — which is EX-2's own prohibition and
+  `design.md:166`'s constraint.
+- A case needs the host to grow an accessor, an env-passing config key, or a cwd
+  setting. That is a design change, not a test fixture.
+- The bash round-trip backend needs a shebang or an executable bit (R-36, AC-12).
+- Anything wants to touch `justfile`, `design.md` or `slice-001.md`. The
+  documentary correction the gap asks for belongs to PHASE-09; only a plan
+  amendment endorsed by the user puts the `justfile` in this phase's Surfaces.
+
+#### Tasks
+
+1. `examples/typescript/backend.ts` — the showcase. Reads one JSON document,
+   answers one. Brief §18's shape, keyed on `event.data`, with the §14 note about
+   `-A` and a comment saying where a real backend's state would live.
+2. `examples/typescript/README.md` — how to point a config at it, and nothing
+   else. Documentation for a copier, not a second specification.
+3. `tests/backends/answers-a-round-trip.sh` — EX-3's bash backend: echoes the
+   request to stderr, appends one line to the invocation witness, and selects its
+   answer with a `case`.
+4. `harness.rs` — `example(name)` for a deno argv, `config(command, timeout,
+   default_poll)` for a `Config` built around a command, `host(...)` returning a
+   reusable `Host<ProcessBackend>`, and `invocations()` for the witness. The
+   `Host` constructor is what PHASE-10/EX-2 inherits.
+5. `tests/integration/round_trip.rs` — VT-1, VT-2, VT-3 and VT-5, red first.
+6. Break and revert each claim, one at a time, recorded against its criterion.
+7. EX-6's break-and-revert: a type error in the example must take `just check`
+   red at the `typecheck` recipe. A check nobody has seen fail is not a check.
+8. `just check`, both columns. Update this sheet, the Status table and the
+   Harvest.
+
+#### The plan's suggested mechanism for VT-2 was vacuous — found by breaking it
+
+VT-2 says to assert the backend was not spawned by "pointing the config at a
+backend that would fail if it ran". The first draft did exactly that — a command
+naming `/nonexistent/goad-must-not-spawn-this` — and the case **stayed green
+under both breaks that reorder the check**, which is the class of defect it
+exists to catch:
+
+| break | what it does | the nonexistent-command case | the invocation log |
+|---|---|---|---|
+| 4 | `respond` verifies the id *after* the exchange | **passed** | count 1, expected 0 — red |
+| 5 | `respond` verifies first, then forwards the answer anyway | **passed** | count 1, expected 0 — red |
+
+The reason is the same both times: a host that spawns and refuses afterwards
+still *returns* the refusal, so `Failure::Backend(Spawn)` never reaches the
+caller and there is nothing for the variant assertion to catch. The criterion's
+claim — "the backend was **not** spawned" — is about something that did not
+happen, and only a witness outside the host can speak to it. The case now runs
+the logging backend and asserts a count of zero, which catches both breaks. This
+is PHASE-06's own lesson arriving a second time: a bound is not tested by
+asserting the outcome at the bound.
+
+#### Verification record
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| EX-1 | — | **pass** | `round_trip.rs::the_deno_example_completes_a_round_trip`: one `Host`, three processes. `view: null` on the quiet event; a choice on the prompting one, arriving as `Presented { view_id, view }`; a `respond` carrying that id accepted, with `view: null` and a moved schedule; and a fourth exchange refused as `NoOutstandingView`, so the interaction is seen to have closed. The id is checked **through the backend**, not through host state: the example writes `answered <view_id> with yes` to stderr, and the case asserts that string exactly (F-23, AC-7) |
+| EX-2 | — | **pass** | `examples/typescript/` is two files — `backend.ts` and `README.md`. No `deno.json`, no lockfile, no `node_modules`, no build step; run as `["deno", "run", "-A", <path>]` by `harness::example`. Measured hermetic at expansion: 24 ms against an empty `DENO_DIR`, and exit 0 against a **read-only** one. Both the script's header and the README's *Trust* section say `-A` grants the user's full authority and that deno's default-deny permissions are not a security boundary here (brief §14, OQ-9) |
+| EX-3 | — | **pass**, and the shape is load-bearing | `tests/backends/answers-a-round-trip.sh`, invoked as `["bash", <script>, <log>]` — no shebang, no executable bit. Break 3 removed `bash` from argv and all three bash cases went red with `backend could not be spawned: Permission denied (os error 13)` while the deno case stayed green, which is AC-12's argument stated in the negative: a suite that only ran deno would not have noticed |
+| EX-6 | — | **pass**, and seen to fail | `justfile`'s `typecheck` recipe runs `deno check examples/typescript/backend.ts`, and `just -n check` prints §9's seven commands in §9's order. Break 1 is the one that matters: `const PROMPT_AFTER_MINUTES: string = 45;` is a **behaviour-preserving** type error, so `cargo test` stayed green and the gate failed at `typecheck` with `TS2322` and `TS2365` — the recipe catches what the suite cannot. Its first attempt (`: number = "forty five"`) was rejected as a break because it changed the runtime answer and the round trip caught it first |
+| VT-1 | test | **pass** | EX-1's case, against the deno example. Break 2 — `respond` forwarding a freshly minted id instead of the caller's — failed **only** this case, and only on the stderr assertion: `left: "answered 2026-08-23T04:14:00Z#1 with yes"`, `right: "…04:12:00Z#0 with yes"` |
+| VT-2 | test | **pass**, after the repair above | `::an_answer_no_view_asked_for_never_reaches_the_backend` (`NoOutstandingView`, invocations 0, empty stderr, `cleanup: None`, schedule still the seeded `04:42:00Z`) and `::a_superseded_answer_never_reaches_the_backend` (`StaleViewId`, invocations unmoved at 2, then 3 for the accepted answer as the positive control). Break 5 — refuse, then forward anyway — is caught by **nothing but the counts**, at both tiers: `left: 3, right: 2` here and in `host.rs`'s fake |
+| VT-3 | test | **pass** | `::the_bash_backend_completes_the_same_round_trip`: the identical three-exchange sequence, the bash view's own title, the request echoed back on stderr, and `invocations == 3` — one process per exchange and no more. Red under break 3 |
+| VT-5 | test | **pass**, and seen to fail | `::an_answer_the_view_did_not_offer_reaches_the_backend_unchanged`: an answer naming `an-option-no-view-offered`, with a value under `a-field-no-option-offered`, against the bash view that offered `log`/`skip`. Both reach the backend verbatim and the exchange is **accepted** — the host validates the `view_id` and nothing else (R-35, D17). Break 6 stripped `values` before serializing and failed only this case, printing the request the backend actually saw |
+| VA-1 | agent | **pass** | `just check` exits 0 on all **seven** commands, both feature columns — 35 unit, 32 integration, 15 protocol. Pasted in the Log |
+
+#### Log
+
+- 2026-09-03 — `just check` exits 0 on all seven commands, both feature columns:
+
+  ```
+  cargo build
+  cargo test                     35 unit, 32 integration, 15 protocol, 0 doc
+  cargo test --no-default-features   22 unit, 15 protocol, 0 doc
+  deno check examples/typescript/backend.ts
+  cargo clippy --all-targets -- -D warnings
+  cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+  cargo fmt --check
+  ```
+
+  Landed: `examples/typescript/{backend.ts,README.md}`,
+  `tests/backends/answers-a-round-trip.sh`, `tests/integration/round_trip.rs`,
+  one line in `tests/integration/main.rs`, the additions and the five lifted
+  describers in `tests/integration/harness.rs`, their removal from
+  `tests/integration/host.rs`, the `typecheck` recipe in `justfile`, and
+  `design.md` §9's seventh command. Nothing else was touched.
+
+- 2026-09-03 — sheet written. Entry criteria checked and met; baseline green at
+  `bc06d6d`, 35 unit / 27 integration / 15 protocol. Three measurement groups
+  taken against deno 2.9.4 and a spawned script, tabulated above. **One plan gap
+  raised**: `deno run` does not typecheck, which is the reason OQ-9 gives for
+  choosing deno. Four latitude choices settled and recorded.
+
+- 2026-09-03 — **PHASE-08's code landed.** `examples/typescript/{backend.ts,README.md}`,
+  `tests/backends/answers-a-round-trip.sh`, `tests/integration/round_trip.rs`
+  with its `main.rs` line, and additions to `harness.rs`. **A refactor moved
+  five describers** — `instant`, `describe_outcome`, `presented`,
+  `backend_error`, `state_error` — out of `host.rs` and into `harness.rs`, plus
+  a new `stderr_of`: the second file needing them is what the harness is for,
+  and a second copy would have been a parallel implementation. `host.rs` carries
+  a comment saying where they went.
+
+- 2026-09-03 — **clippy found the witness design, not a review.** The first
+  invocation log was one file per *process*, named from `$PPID`, with a
+  `std::sync::Mutex` serializing the cases that read it —
+  `clippy::await_holding_lock` refused it, correctly. The replacement is
+  strictly better and needed no lock: the log path travels as **argv[2]**, which
+  is how a command is parameterized when nothing interposes a shell (R-36), so
+  each case has its own log and the `$PPID` measurement is no longer load-bearing
+  for anything. A2 is therefore retired rather than discharged.
+
+- 2026-09-03 — **the assumptions, at the end.** A1 held and was never tested,
+  because every path is rooted at `CARGO_MANIFEST_DIR`. **A2 is retired, not
+  discharged** — the argv-passed log removed the need for `$PPID` to mean
+  anything. A3 held: three exchanges through one `Host` under
+  `#[tokio::test]`'s single-threaded runtime, no `spawn` anywhere. A4 held. A5
+  held and its assertion is load-bearing: every accepting case asserts
+  `discarded.is_empty()`, so a `next_check` the host could not use would fail
+  rather than pass quietly.
+
+- 2026-09-03 — **six break-and-revert runs.** Each is recorded against the
+  criterion it falsifies: (1) a behaviour-preserving type error fails only
+  `typecheck`; (2) a minted `view_id` in the `respond` request fails only VT-1's
+  stderr assertion; (3) `bash` removed from argv fails all three bash cases and
+  none of deno's; (4) the id verified after the exchange fails nine cases across
+  both tiers; (5) verify-then-forward-anyway is caught **only** by the two
+  counts; (6) `values` stripped before serialization fails only VT-5. All six
+  reverted, `git diff src/` empty, and the gate green.
+
+- 2026-09-03 — **the gap closed on the recommended option.** §9's command block
+  gains `deno check examples/typescript/backend.ts` and the `justfile` mirrors
+  it; `just -n check` re-checked against the block, seven commands in §9's
+  order. `plan.md` PHASE-08 gained EX-6, `justfile` and `design.md` §9 joined its
+  Surfaces, its second implementer note was corrected in place, and PHASE-09/EX-1
+  now says seven. The restatement sweep for "six" was run across the slice:
+  `plan.md`'s Overview item 1, PHASE-01's objective and PHASE-09/EX-1 amended;
+  `justfile`'s header comment amended; PHASE-01's discharged criteria, the
+  verification records, both review ledgers and the earlier log entries left
+  alone as the historical record they are.
+
 ## Harvest
 
-**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-07
-done** · `just check` exits 0 in both feature columns · stratum 1 is complete —
-the wire types, the canonical types, normalization and schedule resolution, with
-a 70-file fixture corpus across three directories — **the process transport is
-complete with it**: every bound, both grandchild cases, disposal on its own
-channel, and cancellation — and **the host now composes the two**: configuration
-loads and rejects, state mints and adjudicates `view_id`s, and one `Outcome`
-carries every path. PHASE-08 is next: the round trip and the example backends,
-against real processes
+**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-08
+done** · `just check` exits 0 in both feature columns, and it is now **seven**
+commands — the seventh typechecks the example, because `deno run` does not ·
+stratum 1 is complete — the wire types, the canonical types, normalization and
+schedule resolution, with a 70-file fixture corpus across three directories —
+**the process transport is complete with it**: every bound, both grandchild
+cases, disposal on its own channel, and cancellation — **the host composes the
+two**, and **the round trip now runs end to end against two real backends**, one
+TypeScript and one bash. **PHASE-10 is next**: the protocol-level failure matrix
+end to end, and R-45's one-`Host` reuse. Then PHASE-09
 
 ### Produced
 
@@ -4503,7 +4863,48 @@ against real processes
   with no process at all, and the fake's **call count** is the only thing that
   can assert AC-8's "the backend is not contacted".
 
+- **The round trip and the example backends, from PHASE-08.**
+  `examples/typescript/backend.ts` (a whole backend in about eighty lines, no
+  build step and no `node_modules`) with its `README.md`;
+  `tests/backends/answers-a-round-trip.sh`, the first well-behaved bash backend
+  that can carry a sequence; `tests/integration/round_trip.rs`, five cases; the
+  harness's host-tier half — `example`, `config`, `host`, `quiet_event`,
+  `prompting_event`, `logging_backend`, `invocations`, and the five describers
+  lifted out of `host.rs`; and the `typecheck` recipe with §9's seventh command.
+  32 integration tests.
+  **Three things worth carrying.** `harness::host(command, timeout, now)` is the
+  composition stratum 3 will perform — the transport is built *from* the
+  config's own command, so a case cannot point the two at different backends —
+  and it is what PHASE-10/EX-2 drives a sequence through. **A backend is
+  parameterized through argv, not through the environment**: `cargo test` runs a
+  target's cases in one process, so `std::env::set_var` is both unsafe and
+  racy, while an extra argv element costs nothing and is exactly what R-36's
+  argument vector is for. And the **example decides from the request** rather
+  than owning state, because this transport spawns per exchange: a stateless
+  backend can only vary its answer by reading what it was asked, and the example
+  says in a comment where a real backend's state would live.
+
 ### Learned
+
+**A criterion can name a mechanism that cannot hold it, and only breaking it
+says so — PHASE-08.** VT-2 asked for "the backend was not spawned" to be shown
+by pointing the config at a command that would fail if it ran. It cannot: a host
+that spawns and *then* refuses still returns the refusal, so the spawn failure
+never reaches the caller, and the case stayed green under both breaks that
+reorder the check. The claim is about something that did not happen, and only a
+witness outside the host — here a log the backend appends to, one line per
+invocation — can speak to it. This is the third time in this slice that a case
+passed for the wrong reason and a break found it; the pattern is now explicit:
+**an assertion about a non-event is vacuous unless something other than the code
+under test records the event.**
+
+**A gate command is worth more than an argv flag when the check is about the
+source — PHASE-08.** `deno run` does not typecheck, and the two ways to restore
+OQ-9's reason for TypeScript are not equivalent: `--check` in the backend's argv
+pays ~70 ms on **every exchange for every user of the example**, while
+`deno check` in `just check` pays it once per edit, where the author is. The
+general form: put a check where the thing it checks is *written*, not where it
+is *run*.
 
 **A typed deserialization target fails differently from an untyped one, and the
 difference decides fixtures — PHASE-07.** `serde_json::from_slice::<Value>` and
@@ -4766,6 +5167,25 @@ empirically** above, plus:
   not happen.
 
 ### Open
+
+**Raised by PHASE-08, 2026-09-03 — one belongs to PHASE-09, two to audit.**
+
+- **`slice-001.md`'s OQ-9 answer is false as written.** It says deno
+  "typechecks rather than stripping types". It does not, and the correction is
+  PHASE-09's restatement sweep — PHASE-08's Surfaces do not reach that file.
+  `design.md` §9 and `plan.md` are already corrected, and the *decision* OQ-9
+  records (deno, `-A`) is unaffected: only its stated reason was wrong.
+- **The example's README config is not exercised.** It uses a relative path,
+  `["deno", "run", "-A", "./examples/typescript/backend.ts"]`, which is right
+  for a user's own config and is why no test uses it — the suite roots every
+  path at `CARGO_MANIFEST_DIR`. So the one config a reader will copy is the one
+  nothing runs. Audit should decide whether that is worth a case that sets a
+  working directory, or whether `config.rs`'s existing parse cases cover it.
+- **`draft-spec.md` R-45's verification row still describes PHASE-08's original
+  scope** — "the whole integration tier runs every misbehaving backend against
+  one host instance". That is PHASE-10/EX-2 after the F-6 split. The row is
+  accurate about the requirement and stale about where it is proven; PHASE-09/EX-3
+  owns pointing it at the test that exists.
 
 **Raised by PHASE-07, 2026-09-03 — six are audit or reconciliation business,
 none is a phase repair.** The phase sheet's *Noticed, not this phase's* section

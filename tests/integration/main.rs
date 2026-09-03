@@ -16,4 +16,7 @@ mod fake;
 mod host;
 
 #[cfg(test)]
+mod round_trip;
+
+#[cfg(test)]
 mod transport;

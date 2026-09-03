@@ -1216,3 +1216,22 @@ scaffolding landed outside the phase flow.
   PHASE-01/EX-1 and every phase's VA-1 are `just check`; PHASE-09/EX-1 has
   `AGENTS.md` naming the recipes and VA-1 running the gate from a clean clone
   entered through `nix develop`.
+
+### 2026-09-03 — §9's command block gains a seventh command
+
+- **Asked:** PHASE-08's expansion measured that `deno run` does not typecheck,
+  which is the reason OQ-9 gives for choosing deno. The fix the user chose puts
+  `deno check` in the phase gate, and the justfile's own header rule is "change
+  §9 first, then mirror" — so this is a change to the design, taken during
+  execution rather than during design.
+- **Decided:** §9's block is now **seven** commands, with
+  `deno check examples/typescript/backend.ts` sitting with the tests rather than
+  with the two style lines, because it is a correctness check. §9 carries the
+  measurement and the reason; the AC-1 row now says seven. `justfile` mirrors it
+  as the `typecheck` recipe, and `just -n check` was re-checked against the block
+  — same commands, same arguments, same order (PHASE-01/VA-3's rule, still
+  holding).
+- **Scope:** this is the only change to `design.md` in PHASE-08. The rest of the
+  restatement sweep — `slice-001.md`'s OQ-9 answer, `AGENTS.md`'s command list —
+  belongs to PHASE-09, which owns those surfaces. `plan-log.md`'s entry of the
+  same date holds the options and the plan-side consequences.

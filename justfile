@@ -10,11 +10,11 @@
 # second clippy line, and neither survives into a recipe. Change §9 first, then
 # mirror. `just -n check` prints the sequence for comparison (PHASE-01/VA-3).
 
-# Run the whole phase gate — §9's six commands, in §9's order.
+# Run the whole phase gate — §9's seven commands, in §9's order.
 default: check
 
 # The phase gate. A phase is not green until this exits 0.
-check: build test test-stratum1 lint fmt-check
+check: build test test-stratum1 typecheck lint fmt-check
 
 build:
   cargo build
@@ -29,6 +29,13 @@ test:
 # Stratum 1 alone.
 test-stratum1:
   cargo test --no-default-features
+
+# The example backend is documentation agents edit (brief §3.7), and `deno run`
+# does not typecheck it — measured at PHASE-08, a type error runs to exit 0. So
+# the gate does. deno is in `flake.nix` `projectPkgs`, so AC-1's clean clone in
+# the dev shell still holds.
+typecheck:
+  deno check examples/typescript/backend.ts
 
 # `lint`, in full — the doc comment just above the recipe is the short form.
 #

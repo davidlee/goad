@@ -1,18 +1,22 @@
 //! What every case in this tier needs: a backend script located from the test
-//! binary, a transport pointed at it, and a request to send.
+//! binary, a transport or a whole host pointed at it, a request to send, and
+//! the diagnostics that describe what came back.
 //!
-//! Three functions, not a framework. Cases name their own timeout rather than
-//! sharing a constant — the timeout cases want a short one so the suite stays
-//! fast, and the success cases want one long enough that a healthy exchange
-//! cannot flake.
+//! Helpers, not a framework. Cases name their own timeout rather than sharing a
+//! constant — the timeout cases want a short one so the suite stays fast, and
+//! the success cases want one long enough that a healthy exchange cannot
+//! flake. Anything two of the three case files need lives here; anything one
+//! of them needs stays there.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use goad::semantics::protocol::canonical::{Evaluate, Event, Request, Timestamp};
+use goad::semantics::protocol::canonical::{Evaluate, Event, Request, Timestamp, ViewId};
 use goad::shell::backend::process::ProcessBackend;
 use goad::shell::backend::transport::Exchange;
-use goad::shell::error::{BackendError, CleanupFailure};
+use goad::shell::config::{BackendConfig, Config, ScheduleConfig};
+use goad::shell::error::{BackendError, CleanupFailure, StateError};
+use goad::shell::host::{Failure, Host, Outcome};
 
 /// The argument vector for one of `tests/backends/`'s scripts.
 ///
@@ -180,4 +184,170 @@ pub(crate) fn clear(path: &Path) {
   match std::fs::remove_file(path) {
     Ok(()) | Err(_) => (),
   }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-08 — a whole host over the real transport, and the invocation witness
+// ---------------------------------------------------------------------------
+
+/// The argument vector for the deno example — `examples/typescript/backend.ts`.
+///
+/// Rooted at the crate for the reason `backend` gives: a test binary's working
+/// directory is not something to rely on. The example's own README uses a
+/// relative path, which is right for a user's config and wrong here.
+///
+/// `-A` grants the script the user's full authority, which is what brief §14
+/// says a backend has. It is not a sandbox with a hole in it; there is no
+/// sandbox.
+pub(crate) fn example() -> Vec<String> {
+  let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/typescript/backend.ts");
+  vec![
+    "deno".to_owned(),
+    "run".to_owned(),
+    "-A".to_owned(),
+    script.display().to_string(),
+  ]
+}
+
+/// The default poll every host here is seeded with, so a case that asserts a
+/// `next_check` has one number to reason about.
+pub(crate) const DEFAULT_POLL: jiff::SignedDuration = jiff::SignedDuration::from_mins(30);
+
+/// A `Config` built around one command.
+///
+/// Constructed rather than parsed: `Config`'s fields are `pub` and the TOML
+/// route would mean quoting an absolute path into a document, which is a
+/// property of the grammar `config.rs`'s own tests already hold. Nothing here
+/// is about configuration parsing.
+pub(crate) fn config(command: Vec<String>, timeout: Duration) -> Config {
+  Config {
+    backend: BackendConfig { command, timeout },
+    schedule: ScheduleConfig {
+      default_poll: DEFAULT_POLL,
+    },
+  }
+}
+
+/// A host over the **real** process transport, pointed at one command.
+///
+/// This is the composition stratum 3 will perform: the transport is built from
+/// the configuration's own command and timeout, so a case cannot accidentally
+/// point the two at different backends. Returned by value and driven through as
+/// many exchanges as a case likes — `evaluate` and `respond` take `&mut self`
+/// (I6), so a sequence is sequential by construction and PHASE-10/EX-2's
+/// one-host requirement needs nothing further.
+pub(crate) fn host(
+  command: Vec<String>,
+  timeout: Duration,
+  now: Timestamp,
+) -> Host<ProcessBackend> {
+  let config = config(command, timeout);
+  let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);
+  Host::new(config, backend, now)
+}
+
+/// An event the example backend has nothing to say about.
+///
+/// `data` is opaque to the host (R-9) and is where these two events differ.
+/// Both scripted backends read the same key, and `answers-a-round-trip.sh`
+/// matches these exact two values — it has no JSON parser, so a third value is
+/// a broken fixture and it says so on stderr.
+pub(crate) fn quiet_event(now: Timestamp) -> Event {
+  event(now, 0)
+}
+
+/// An event the example backend answers with a view.
+pub(crate) fn prompting_event(now: Timestamp) -> Event {
+  event(now, 90)
+}
+
+fn event(now: Timestamp, minutes_since_entry: u32) -> Event {
+  Event {
+    source: "test".to_owned(),
+    kind: "scheduled".to_owned(),
+    timestamp: now,
+    data: serde_json::json!({ "minutes_since_entry": minutes_since_entry }),
+  }
+}
+
+/// A backend script that keeps a log of its invocations, and the path to it.
+///
+/// The path travels as **argv[2]**, which is how a command is parameterized
+/// when nothing interposes a shell (R-36): no environment variable to set — a
+/// process-wide, racy thing to do under `cargo test`'s in-process parallelism —
+/// and no JSON for bash to parse. Each case names its own log, so concurrent
+/// cases cannot read each other's lines.
+///
+/// The log is the only evidence of a *non*-event — "the backend was not
+/// spawned" — that does not come from the host's own report of itself, which is
+/// PHASE-06's lesson about bounds applied to a refusal.
+pub(crate) fn logging_backend(name: &str, case: &str) -> (Vec<String>, PathBuf) {
+  let log = marker(&format!("invocations-{case}"));
+  let mut command = backend(name);
+  command.push(log.display().to_string());
+  (command, log)
+}
+
+/// How many times the script has run. Absent is zero: a log with no lines and a
+/// log that was never created are the same claim.
+pub(crate) fn invocations(log: &Path) -> usize {
+  std::fs::read_to_string(log)
+    .unwrap_or_default()
+    .lines()
+    .count()
+}
+
+// ---------------------------------------------------------------------------
+// The host tier's own diagnostics
+// ---------------------------------------------------------------------------
+
+/// An instant from its RFC 3339 spelling, for a fixture that states one.
+pub(crate) fn instant(rfc3339: &str) -> Timestamp {
+  Timestamp::new(rfc3339.parse().expect("the fixture must be an instant"))
+}
+
+/// What an outcome came back with, as a sentence.
+///
+/// The tier's `Display`-not-`Debug` rule, as `describe` states it for the
+/// transport. Shared by `host.rs` and `round_trip.rs`, which make the same
+/// claims against a fake and against a process.
+pub(crate) fn describe_outcome(outcome: &Outcome) -> String {
+  match (&outcome.failure, &outcome.view) {
+    (Some(Failure::Backend(error)), _) => format!("a backend failure: {error}"),
+    (Some(Failure::State(error)), _) => format!("a refusal: {error}"),
+    (None, Some(presented)) => format!("a view carrying {}", presented.view_id.as_str()),
+    (None, None) => "nothing to show, and no failure".to_owned(),
+  }
+}
+
+/// The id of the view an outcome carries, or a panic naming what came instead.
+pub(crate) fn presented(outcome: &Outcome) -> &ViewId {
+  match &outcome.view {
+    Some(presented) => &presented.view_id,
+    None => panic!("expected a view; got {}", describe_outcome(outcome)),
+  }
+}
+
+pub(crate) fn backend_error(outcome: &Outcome) -> &BackendError {
+  match &outcome.failure {
+    Some(Failure::Backend(error)) => error,
+    _ => panic!(
+      "expected a backend failure; got {}",
+      describe_outcome(outcome)
+    ),
+  }
+}
+
+pub(crate) fn state_error(outcome: &Outcome) -> &StateError {
+  match &outcome.failure {
+    Some(Failure::State(error)) => error,
+    _ => panic!("expected a refusal; got {}", describe_outcome(outcome)),
+  }
+}
+
+/// Whatever the backend wrote to stderr on the exchange behind this outcome.
+/// Lossy for the reason `stderr` gives: what a case asserts is that a message
+/// arrived, and nothing here writes bytes that are not UTF-8.
+pub(crate) fn stderr_of(outcome: &Outcome) -> String {
+  String::from_utf8_lossy(&outcome.stderr.bytes).into_owned()
 }

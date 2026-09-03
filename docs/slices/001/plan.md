@@ -29,7 +29,7 @@ is non-monotonic and that is expected.
 Three things are established in PHASE-01 and hold for every phase after it:
 
 1. **The build gate exists before the code it gates.** The `shell` feature, the
-   two declared test targets and the six verification commands are the first
+   two declared test targets and the verification commands are the first
    thing that lands, so every subsequent phase is checked by them rather than
    retrofitted into them. This is the design's own lesson from F-51 — a claim is
    held by a mechanism or it is not held — applied to the plan's ordering.
@@ -183,7 +183,13 @@ that discharges it. A gap here is a gap in the plan.
 
 ## PHASE-01 — Crate skeleton, the build gate, and the stratum 1 error taxonomy
 
-**Objective:** the crate exists, the six verification commands run green in both
+<!-- The gate this phase landed was six commands and its criteria below say so.
+     It is **seven** from PHASE-08 onwards: `deno check` over the example
+     backend, user decision 2026-09-03 (`plan-log.md`, PHASE-08/EX-6). The
+     criteria here are discharged and are not restated — PHASE-01 is done and
+     what it delivered does not change retroactively. -->
+
+**Objective:** the crate exists, the verification commands run green in both
 feature columns, the two boundary greps are tests rather than intentions, and
 every error type stratum 1 can raise is declared.
 
@@ -930,7 +936,8 @@ process transport.
      re-assertion of everything PHASE-05 and PHASE-06 hold. -->
 
 **Surfaces:** `examples/typescript/**`, `tests/backends/**`,
-`tests/integration/**`.
+`tests/integration/**`, **`justfile`** and **`design.md` §9's command block** —
+the last two per the EX-6 decision below, 2026-09-03 (`plan-log.md`).
 
 **Entry**
 - EN-1 — **PHASE-07 discharged**, EX-7 included — the `host.rs` lint attribute
@@ -951,6 +958,12 @@ process transport.
   script invoked as `["bash", "./backend.sh"]`, with no shebang (AC-12, R-36).
 - ~~EX-4~~ — moved to PHASE-10/EX-1. F-6.
 - ~~EX-5~~ — moved to PHASE-10/EX-2. F-6.
+- EX-6 — the example is **typechecked by the phase gate**: `design.md` §9 gains
+  `deno check examples/typescript/backend.ts` and `justfile` mirrors it, so
+  `just check` is seven commands. Added 2026-09-03 by user decision after the
+  expansion measured that `deno run` does not typecheck — see the corrected note
+  below. Verified by VA-1, which runs the recipe; the sheet additionally requires
+  a break-and-revert, since a check nobody has seen fail is not yet a check.
 
 **Verification**
 - VT-1 — the AC-7 round trip against the deno example.
@@ -968,9 +981,15 @@ process transport.
 
 - The example is documentation as much as it is a test fixture — brief §3.7 makes
   agents the intended authors of backends. Write it to be copied.
-- `deno` is chosen because it runs `.ts` with no build step and typechecks rather
-  than stripping types (OQ-9). If a fixture needs to compile-fail, that is a
-  different fixture, not a change of runtime.
+- `deno` is chosen because it runs `.ts` with no build step (OQ-9). It does
+  **not** typecheck: `deno run` has stripped types rather than checking them
+  since deno 1.23, measured at PHASE-08's expansion — a type error runs to exit
+  0. OQ-9's stated reason for TypeScript over JavaScript is nonetheless real,
+  since brief §3.7 makes agents the authors, so EX-6 puts `deno check` in the
+  gate rather than `--check` in every exchange's argv (~70 ms each, measured).
+  `slice-001.md`'s OQ-9 answer still carries the wrong claim and PHASE-09's
+  restatement sweep owns correcting it. If a fixture needs to compile-fail, that
+  is a different fixture, not a change of runtime.
 - Leave the harness able to run a **sequence** of exchanges against one `Host`.
   PHASE-10/EX-2 needs it and retrofitting it is worse than allowing for it.
 
@@ -1065,7 +1084,7 @@ each other and with the code, and the slice is in a state audit can start from.
   canonical-internal rule, the warning against narrowing the protocol to the
   current renderer, pointers to the authoritative documents, and the
   verification commands (AC-10) — named as **`just` recipes**, `just check` for
-  the gate, with `design.md` §9's block cited as where the underlying six live
+  the gate, with `design.md` §9's block cited as where the underlying seven live
   (user decision 2026-08-27). It is **additive** — the existing pointer,
   canon rule, dev-shell facts and working principles stay.
 - EX-2 — the restatement sweep from `design.md` §9 has been run over this slice's

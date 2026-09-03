@@ -601,3 +601,39 @@ coding choice.
 
 Neither decision changes a criterion. `plan.md` PHASE-07's Surfaces line is
 amended to name both additions to `error.rs`; nothing else in the plan moves.
+
+### 2026-09-03 — `deno run` does not typecheck: where does the check go?
+
+- **Asked:** PHASE-08's expansion measured deno 2.9.4 and found `deno run` runs
+  a type error to exit 0 — it has stripped types rather than checked them since
+  deno 1.23. `slice-001.md:244` answers OQ-9 with deno *because* it "typechecks
+  rather than stripping types — which is the point of choosing TypeScript when
+  brief §3.7 makes agents the authors", and `plan.md` PHASE-08's second
+  implementer note repeats the claim. EX-2 names the argv
+  `["deno", "run", "-A", …]`, so the phase as written ships a documentary
+  example nothing typechecks.
+- **Options put:** (1) correct the record and add nothing; (2) `--check` in the
+  argv, restoring the claim literally at ~70 ms per exchange, measured, for
+  every user of the example config forever; (3) `deno check` in the phase gate,
+  so the claim holds at edit time and costs nothing at run time.
+- **Decided: option 3.** `design.md` §9's canonical command block gains
+  `deno check examples/typescript/backend.ts`, `justfile` mirrors it, and
+  `just check` is now **seven** commands. The reason OQ-9 gives for TypeScript
+  is real — an agent author wants the types checked — and only option 3 delivers
+  it where an author is.
+- **Consequences recorded, not left implicit:**
+  - `plan.md` PHASE-08 gains **EX-6** (ids are append-only) and its Surfaces line
+    now names `justfile` and `design.md` §9's block, neither of which the phase
+    could otherwise touch.
+  - PHASE-08's second implementer note is corrected in place, because leaving a
+    false statement in the entry an agent executes from is worse than the churn.
+  - PHASE-01's criteria enumerate the **six** commands it landed and are **not**
+    restated: they are discharged, and what a done phase delivered does not
+    change retroactively. A comment above PHASE-01 says the gate is seven from
+    PHASE-08 onwards and points here.
+  - PHASE-09/EX-1's "the underlying six" is now "seven".
+  - `slice-001.md`'s OQ-9 answer still carries the wrong claim. PHASE-09's
+    restatement sweep owns correcting it; PHASE-08's Surfaces do not reach it.
+  - deno is now on the phase gate's critical path. It is already an AC-1
+    dev-shell dependency — `flake.nix` `projectPkgs`, and PHASE-08/EN-2 checked
+    it — so the gate acquires no new tool.

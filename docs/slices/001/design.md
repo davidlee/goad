@@ -1917,19 +1917,31 @@ mirrors it, and `AGENTS.md` names the `just` recipes per AC-10 — user decision
 cargo build
 cargo test
 cargo test   --no-default-features                      # stratum 1 alone
+deno check   examples/typescript/backend.ts             # `deno run` does not
 cargo clippy --all-targets -- -D warnings
 cargo clippy --all-targets --no-default-features -- \
   -D warnings -A dead_code -A unreachable_pub          # see the dead-code note
 cargo fmt --check
 ```
 
-Six, and two of them are the same command run under a second feature set. That
-is deliberate: **a feature-gated crate has a build matrix, and a matrix checked
-in one column is unchecked.**
+Seven. Six are cargo's, two of those are the same command run under a second
+feature set, and that much is deliberate: **a feature-gated crate has a build
+matrix, and a matrix checked in one column is unchecked.**
+
+- **The seventh typechecks the example, because running it does not.** Measured
+  at PHASE-08: `deno run` has not typechecked since deno 1.23, so a type error
+  in `examples/typescript/backend.ts` runs to exit 0. OQ-9 chose TypeScript
+  because brief §3.7 makes agents the authors and an author wants the types
+  checked; that only holds if something checks them, and `deno check` is where.
+  It sits with the tests rather than with the two style lines because it is a
+  correctness check, and it costs ~90 ms. deno is already an AC-1 dev-shell
+  dependency (`flake.nix` `projectPkgs`), so the gate acquires no new tool —
+  user decision 2026-09-03, `design-log.md`.
 
 - **`just` is the canonical runner.** `just check` is the phase gate and runs
-  exactly these six, in this order; `build`, `test`, `test-stratum1`, `lint` and
-  `fmt-check` are the individual recipes, `lint` holding both clippy columns.
+  exactly these seven, in this order; `build`, `test`, `test-stratum1`,
+  `typecheck`, `lint` and `fmt-check` are the individual recipes, `lint` holding
+  both clippy columns.
   `just` is in `flake.nix` `devToolPkgs`, so AC-1's "clean clone in the dev
   shell" holds. The mirroring is checkable rather than asserted: `just -n check`
   prints the command list, and it must be the **same commands with the same
@@ -2025,7 +2037,7 @@ reading the protocol rather than the tests, which matters for the draft spec.
 
 | AC | discharged by |
 |---|---|
-| AC-1 | `just check` — the six commands above, from a clean clone in the dev shell, both feature columns and not just the default one |
+| AC-1 | `just check` — the seven commands above, from a clean clone in the dev shell, both feature columns and not just the default one |
 | AC-2 | protocol tier: version present, unknown optional ignored, unknown required rejected |
 | AC-3 | protocol tier: RFC 3339 and relative forms → one instant; `MissingOffset`, `Unparseable` rejected |
 | AC-4 | protocol tier: pure resolution over (existing, incoming, default), latest-valid-wins, invalid preserves |
