@@ -18,7 +18,8 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-06 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 15 integration and 15 protocol, one of the latter this phase's. All six EX, all six VT and both VA criteria discharged. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — VT-4 asked for a wedged `wait`, which no test can arrange, and VT-5's suite-level no-orphans claim is unsound under libtest's in-process parallelism. A finding against `process.rs` as shipped was closed with them and repaired here: `read_capped` borrowed rather than owned, so the stdout handle dropped when the exchange **returned** rather than at the bound — measured 500 ms apart, and the first red of the phase. **Five break-and-revert runs, and two of them found defects in this phase's own test mechanism** — a stderr fixture that passed against the reader it was meant to catch, and a `/proc` filter blind to the two backends that `exec`. Both repaired and both re-broken. See `## Phase sheets` | 2026-09-03 |
 | PHASE-07 | **done** — `just check` exits 0 in both feature columns; 35 unit, 27 integration, 15 protocol. All eight EX, all six VT and VA-1 discharged. Entry criteria checked and met. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — `design.md` §5.2's taxonomy named no error type for a rejected config, which VT-2 requires (`ConfigError` added, five variants); and the config duration grammar would restate `schedule.rs:96`–`:106`, which `CLAUDE.md` forbids without a decision (restated deliberately, recorded for audit). **A third decision was taken during execution**: EX-2 names `Option<Outstanding>` and `design.md:1167` gives it an `issued_at` nothing in this slice reads — the gate refuses an unread field, so it is kept under a self-clearing `#[expect(dead_code, reason = …)]` rather than dropped. **Assumption A1 fired on the first run** and cost a fixture: serde never decodes a value it skips, so the invalid-UTF-8 case parsed cleanly against `WireResponse`; re-measured and moved into a view's title, which is the case `design.md:1052` is about. **Five break-and-revert runs, plus a sixth on the lint expectation.** See `## Phase sheets` | 2026-09-03 |
 | PHASE-08 | **done** — `just check` exits 0 on all **seven** commands in both feature columns; 35 unit, 32 integration (5 of them this phase's), 15 protocol. All four EX and all four V criteria discharged. Entry criteria checked and met. **One plan gap found at expansion and closed by user decision 2026-09-03** — `deno run` does not typecheck, which is the reason OQ-9 gives for choosing deno; the gate now runs `deno check`, so `design.md` §9 and `justfile` joined the Surfaces and the plan gained **EX-6**. **A defect in this phase's own test mechanism was found by breaking it**: VT-2's plan-suggested vehicle — a config pointing at a command that cannot be spawned — is **vacuous**, because a host that spawns and then refuses still returns the refusal; the case now uses an invocation log passed as argv, which catches both reordering breaks. **clippy rejected the log's first design** (a process-wide file behind a `std::sync::Mutex` held across an await) and the argv form that replaced it is simpler. **Six break-and-revert runs.** See `## Phase sheets` | 2026-09-03 |
-| PHASE-10, PHASE-09 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-10 | **done** — `just check` exits 0 on all seven commands in both feature columns; 35 unit, **52** integration (20 of them this phase's), 15 protocol. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **One question of scope closed by user decision 2026-09-03** — EX-2's "whole misbehaving suite" spans the transport modes as well as the protocol ones, because R-45 is a claim about host state surviving *process* failure and a protocol refusal never touches a process lifecycle. **Two of this phase's own assertions were vacuous and both were found by breaking them**: the seeded check and a re-resolved one are the same instant, so thirteen cases could not tell R-29 from a recomputation; and a one-`Host` suite that only asserts the last exchange passes against a `Host` rebuilt every time. Both repaired and both re-broken. **Six break-and-revert runs.** VA-2's walk found **two items of `design.md` §9's list with no end-to-end case** — a backend that writes nothing, and the brief's own §10.1/§10.2 examples — neither in EX-1's list, both recorded for audit. See `## Phase sheets` | 2026-09-03 |
+| PHASE-09 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -4734,18 +4735,337 @@ asserting the outcome at the bound.
   verification records, both review ledgers and the earlier log entries left
   alone as the historical record they are.
 
+### PHASE-10 — The failure matrix end to end
+
+**State:** **done 2026-09-03.** `just check` exits 0 on all seven commands in
+both feature columns — 35 unit, **52** integration, 15 protocol. All four EX and
+all three VT criteria are discharged in the Verification record below, VA-1 and
+VA-2 pasted; entry criteria checked and met. **One question of scope was put to
+the user at expansion and closed the same day** — EX-2's "whole misbehaving
+suite" spans the transport modes as well as the protocol ones, which is what
+R-45 claims. Four choices of test mechanism are settled below. Two of this
+phase's own assertions were vacuous and both were found by breaking them; six
+break-and-revert runs in all, and VA-2's walk recorded two gaps under Harvest /
+Open.
+**Plan entry:** `docs/slices/001/plan.md:998`
+**Surfaces (from the plan):** `tests/backends/**`, `tests/integration/**`.
+Nothing under `src/`, nothing in `docs/` but this sheet.
+
+#### Reading list
+
+| what | where | why |
+|---|---|---|
+| the phase | `plan.md:998`–`:1067` | the four EX, the three VT and two VA this sheet expands, and the two implementer notes |
+| the misbehaving-backend list | `design.md:2056`–`:2090` | VA-2 walks this prose item by item. It is the only statement of the set, and it is a paragraph rather than a table |
+| the three tiers and what each drives | `design.md:1975`–`:1985` | integration drives AC-5, AC-6, AC-7 and AC-12; the protocol tier drives the corpus. The overlap this phase creates is deliberate and this table is why |
+| failure does not move the schedule | `design.md:1615`–`:1619` | EX-3 exactly, and the reason: a failed exchange that cleared the schedule turns a broken backend into a silent host |
+| non-zero exit beats parseable stdout | `design.md:1625`–`:1628` | one of EX-4's six modes, and the one where the body must be discarded rather than used |
+| one exchange in flight, one concrete `next_check` | `design.md:1663` (I6), `:1666` (I12) | I6 is what makes EX-2's sequence sequential by construction; I12 is why every case below can assert a `next_check` even on a failure |
+| the stratum 1 taxonomy | `src/semantics/error.rs:17`–`:93` | the exact variants and field names VT-1 asserts. `ScheduleError` is the one that never arrives as an `Err` |
+| the stratum 2 taxonomy | `src/shell/error.rs:23`–`:100` | `BackendError`'s seven variants and `StateError`'s two — what VT-3 asserts a caller receives |
+| where each failure becomes an `Outcome` | `src/shell/host.rs:167`–`:230` | `exchange`'s four steps and `no_action`. Reading this is how a case knows which variant to expect before it is written |
+| the thirteen bodies, verbatim | `tests/protocol/fixtures/protocol/` — `R-3-…`, `R-13-a-choice-with-no-options`, `R-14-…`, `R-52-duplicate-field-ids-within-one-option`, `R-12-an-unknown-field-kind`, `R-10-view-omitted`, `R-25-next-check-of-the-wrong-type`, `R-17-inverted-bounds`, `R-50-min-on-a-text-field`, `R-50-options-on-a-number-field`, `R-51-next-check-null`, `R-51-protocol-null`, and `schedule/R-23-calendar-unit-months` | each fixture's `input` is the body to emit and its `expect` is the variant and path to assert. Copying them keeps the two tiers making the same claim about the same bytes |
+| the harness | `tests/integration/harness.rs:186`–`:300` | `host`, `config`, `logging_backend`, `invocations`, and the five describers. This phase adds to it and rewrites none of it |
+| what EX-4 already has | `tests/integration/round_trip.rs:220`, `:257` | the two `StateError` modes, through `Host`, over the real transport, asserting the variant a caller sees — PHASE-08 wrote them for AC-8 |
+| the same claim against the fake | `tests/integration/host.rs:298`, `:326` | `no_failure_moves_the_schedule` and its positive control. EX-3 is this through the real transport (R-29), not a second copy of it |
+| the parameterization precedent | `tests/backends/answers-a-round-trip.sh` | argv[2] as the invocation log, and why not an environment variable |
+| the requirements | `draft-spec.md:124` (R-25), `:128` (R-29), `:162` (R-45) | R-45 is EX-2's whole substance |
+| the verification rows | `draft-spec.md:369` (R-29), `:386` (R-45) | R-45's row still describes PHASE-08's pre-split scope. Recorded Open by PHASE-08; **PHASE-09/EX-3 owns the correction**, not this phase |
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-08 discharged; the harness can run a sequence of exchanges against one `Host` | **met.** PHASE-08's Verification record has all four EX and all four V criteria `pass`. `harness::host(command, timeout, now)` at `tests/integration/harness.rs:246` returns a `Host<ProcessBackend>` by value, and `round_trip.rs:257` already drives four exchanges through one |
+
+Baseline, 2026-09-03: `just check` exits 0 on all seven commands, both feature
+columns — 35 unit, 32 integration, 15 protocol. PHASE-08 is committed at
+`d7312aa`. Any failure from here is this phase's.
+
+#### What already exists — inspected 2026-09-03
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `tests/backends/` | thirteen scripts. Every one names a *transport-level* behaviour — hang, flood, exit non-zero, unparseable stdout, grandchild — and none emits a protocol-level misbehaviour | all thirteen EX-1 bodies are new. Four of EX-4's six modes are already scripted and this phase writes no new script for them |
+| `tests/integration/round_trip.rs` | five cases, all well-behaved or refused | EX-4's two `StateError` modes are here and discharged; the other four are not |
+| `tests/integration/transport.rs` | the same four transport modes, asserted as `BackendError` at the transport | EX-4 is the other end of these: not the transport's error, but the `Outcome` a caller receives. Not a duplicate — a different subject |
+| `tests/protocol/fixtures/protocol/` | 52 fixtures; every EX-1 mode is among them, with its expected variant and path stated | the bodies and the assertions are copied from here rather than invented |
+| `src/shell/backend/process.rs:41` | `ProcessBackend` holds a command and a timeout and nothing else | EX-2's one-`Host` reuse needs no transport change: there is no per-exchange state to corrupt. That the *host* survives is the claim, and it is not free — `State` and the schedule are mutable |
+
+#### Settled here — implementer latitude
+
+Four choices the design and plan leave open. None is a plan gap.
+
+**One parameterized script, not thirteen.** EX-2 requires a *single* command to
+emit a different misbehaviour on each of thirteen consecutive exchanges: a
+`Host` is built around one command at construction, and the transport spawns a
+fresh process per exchange with no state between them. So a backend that varies
+its answer by invocation index is not a convenience, it is the only shape EX-2
+admits. Giving VT-1 a *second* mechanism — thirteen one-line scripts — would then
+be two mechanisms for one claim, and the individual cases would no longer be
+running what the suite case runs. So:
+`tests/backends/answers-as-instructed.sh`, argv[2] the invocation log and
+argv[3…] the instructions, one per invocation, falling back to a well-behaved
+response once the list is exhausted. The index is the line count of the log,
+which is state on disk because the process cannot hold it. Its behaviour — "do
+what you were told to, in the order you were told" — is one behaviour, so the
+one-behaviour-per-script convention survives.
+
+An instruction is a **response body**, or one of four sentinels naming a
+transport-level misbehaviour, which is the scope decision below:
+`@hang` (never answer), `@exit1` (a valid body, then exit 1), `@flood` (`exec
+yes` past the stdout cap) and `@garbage` (exit 0 with a body that will not
+parse). Each is the behaviour an existing script already has, quoted from it,
+because those scripts are where the `exec` reasoning is written down — a bare
+`yes` would fork and become PHASE-06's grandchild case instead of this one.
+
+**The bodies are Rust literals beside their assertions, not fixture files.** A
+fixture is an envelope with the body nested under `input`, and bash has no JSON
+parser to lift it out. Reading the file whole would also couple the two tiers the
+wrong way round: an edit to a protocol fixture would silently change what an
+integration case asserts, and the two tiers exist to make the *same* claim
+*independently* — normalization refuses these bytes; the refusal survives the
+transport, the host and the `Outcome`. The fixtures are the source the literals
+are copied from, named per case in a comment.
+
+**EX-3 is discharged inside VT-3's cases, not by a fourth test.** EX-3 asks that
+the schedule be unchanged across a timeout, a non-zero exit and a
+malformed-JSON exchange, through the real transport. VT-3 already runs exactly
+those three exchanges through a `Host` to assert the `Outcome` variant, so each
+of them also asserts `next_check` is the seeded instant. A separate test would
+spawn the same three processes to assert half as much. `host.rs:298` makes the
+same claim against the fake; this is R-29 through a real fork and a real pipe.
+
+**EX-4's stale and unknown `view_id` modes are already discharged, and this
+phase writes no third case.** `round_trip.rs:220` and `:257` run them through
+`Host` over the real transport, assert `NoOutstandingView` and `StaleViewId`
+respectively, and carry an invocation-log witness that no process was spawned —
+which is more than EX-4 asks for. The plan's first implementer note governs:
+where a case adds nothing, say so here rather than assert the same call twice.
+The Verification record cites them by name.
+
+#### One question of scope, put to the user at expansion — **closed 2026-09-03**
+
+**EX-2's "whole misbehaving suite" is ambiguous, and one `Host` is built around
+one command.** So what the suite can contain is bounded by what a single command
+can be made to do. Two readings: EX-1's thirteen protocol bodies (EX-2 sits
+directly after EX-1, so that is the literal one), or every misbehaving mode
+including the transport ones.
+
+The literal reading is the weaker half of R-45. "No backend failure may leave the
+host unable to invoke the backend again" is a claim about *host* state surviving
+*process* failure, and a protocol-level refusal never touches a process
+lifecycle — the transport spawned, read and reaped cleanly, and a pure function
+declined the bytes. The failures that could plausibly wedge a host are the ones
+that leave a child, a reader or a descriptor behind.
+
+**Decision, user, 2026-09-03: span the transport modes too.** The emitter honours
+the four sentinels above, so the one-`Host` sequence runs a timeout, a non-zero
+exit, an output flood and malformed stdout alongside the thirteen bodies. VT-3
+still gives each transport mode its own case and its own `Host`, because VT-3
+asserts a *variant* and the suite case asserts *survival*; those are different
+claims and the suite case is a poor place to read either. No plan text changes —
+this settles which reading EX-2 has, and the Verification record will say so.
+
+#### Assumptions — each a place this phase can break
+
+- **A1 — a JSON body survives argv verbatim.** Nothing interposes a shell
+  (R-36), so the body is one argv element and `printf '%s\n' "$body"` writes it
+  back byte for byte. If any quoting or word-splitting appears, every VT-1 case
+  fails at once and loudly — a mangled body is a `Json` error, not the variant
+  the case expects.
+- **A2 — the invocation log is a reliable sequence counter.** PHASE-08 measured
+  the mechanism; what is new is reading it as an *index* rather than a count.
+  Each case names its own log through `harness::marker`, so concurrent cases
+  cannot advance each other's index.
+- **A3 — thirteen failed exchanges leave the host able to spawn.** This is EX-2's
+  claim rather than a background assumption, and it is stated here because the
+  case is worthless if a fresh `Host` is used by accident. The final well-behaved
+  exchange is the positive control, and it asserts the schedule *moved* — a
+  success that changes nothing is indistinguishable from a fourteenth failure.
+- **A4 — every EX-1 mode reaches the caller as `Failure::Backend(Protocol(_))`,
+  except the three schedule ones.** `read` maps `from_slice` and
+  `normalize_response` alike into `BackendError::Protocol`. An invalid
+  `next_check` is not an error at all: it travels in `Outcome::discarded` on an
+  accepted message (P2, R-25), so those cases assert `failure.is_none()` and
+  inspect `discarded`. If this is wrong for any one mode, the design's list and
+  the taxonomy disagree — a finding, not a repair.
+- **A5 — a body with a trailing newline is one document.** `host.rs:280` says
+  trailing whitespace is not trailing content. The script writes `printf '%s\n'`,
+  so every case depends on it.
+
+#### STOP conditions
+
+- Any EX-1 mode turns out not to reach the caller as the design's list says it
+  does. That is a disagreement between the taxonomy and §9's prose, and it is the
+  user's to settle — not a case rewritten until it passes.
+- EX-2 will not pass without a fresh `Host` per case. The requirement is reuse;
+  a suite that satisfies it by construction has stopped testing it.
+- A case needs `Host`, `State` or the transport to grow anything — an accessor, a
+  reset, a constructor. That is a design change.
+- Anything wants to touch `src/`, `design.md`, `plan.md`, `draft-spec.md` or
+  `slice-001.md`. R-45's stale verification row in particular belongs to PHASE-09.
+- VA-2's walk finds an item in §9's list that nothing anywhere tests. Record it
+  and stop; whether it is this phase's to build is a scope decision.
+
+#### Tasks
+
+1. `tests/backends/answers-as-instructed.sh` — the emitter: a body, or one of
+   the four sentinels. Bash builtins for the index, `cat >/dev/null` to drain
+   stdin as its siblings do, and the `exec` note carried across from
+   `floods-stdout-past-the-cap.sh`.
+2. `harness.rs` — `scripted(case, bodies)` returning the argv and the log, on
+   `logging_backend`'s shape; and two describers, one for the `ProtocolError`
+   inside an `Outcome` and one for a `Discarded::Schedule`, so a failing case
+   says what came instead. `Display`, not `Debug`, as the tier requires.
+3. `tests/integration/failure_matrix.rs` — VT-1's thirteen cases, red first, each
+   naming the fixture its body came from.
+4. VT-2 — one `Host`; the thirteen bodies and the four sentinels in sequence,
+   then a well-behaved eighteenth asserting the schedule moved. The timeout
+   sentinel wants a short per-case timeout, as `transport.rs` does it, so the
+   sequence stays fast.
+5. VT-3 — the five remaining EX-4 modes — a command that cannot be spawned, a
+   timeout, a non-zero exit, malformed stdout and output past the cap — each
+   asserting the `Outcome` variant and that `next_check` did not move. Three of
+   them are EX-3.
+6. Break and revert each claim, one at a time, recorded against its criterion.
+   At minimum: the index made constant (VT-1 passes, VT-2 must not); the
+   final body made a failure (VT-2's positive control must fire); a `Host`
+   rebuilt per case in VT-2 (must not be detectable — if it is not, the case is
+   vacuous and needs a witness).
+7. VA-2 — walk `design.md:2056`'s list item by item, tabulate item → test,
+   record every gap.
+8. `just check`, both columns. Update this sheet, the Status table and the
+   Harvest.
+
+#### Two of this phase's own assertions were vacuous — both found by breaking
+
+**The seeded check and a re-resolved one are the same instant.** Every case
+started at `now` and asserted `next_check == seeded_check()`, which is `now`
+plus the default poll — and a host that *re-resolved* the schedule on a failure
+would compute exactly that. Break 3 (`no_action` resolving fresh instead of
+reporting the retained value) left thirteen of this file's cases green,
+including all three of EX-3's. The fix is one line of setup: `instructed` now
+runs a well-behaved exchange first, so the schedule is at `04:57` before the
+case's own body arrives and "unchanged" is distinguishable from "recomputed".
+Re-run, break 3 fails seven cases here. `host.rs:326` had already found this
+against the fake — its `a_successful_exchange_does_move_the_schedule` exists for
+exactly this reason, and this tier had to learn it again.
+
+**A one-`Host` suite that only asserts the last exchange is not a test of
+reuse.** The plan warns that a fresh `Host` per case satisfies EX-2 by
+construction. Asserting that the final exchange succeeds does not catch it,
+because a fresh host succeeds too — break 2 (a `Host` rebuilt inside the loop)
+passed against the first draft. VT-2 now begins by putting a view outstanding
+and moving the schedule, and reads both back after the seventeen failures: a
+rebuilt host reports the seeded check and refuses the answer with
+`NoOutstandingView`. Break 2 now fails on the first misbehaving exchange.
+
+That is the third and fourth time in this slice a case has passed for the wrong
+reason. Both were found the same way, and neither by reading.
+
+#### VA-2 — `design.md:2056`'s list, item by item
+
+Every item, and the test that holds it. "end to end" means through `Host` over a
+real process; the protocol tier means a fixture through `normalize_response`.
+
+| § 9's item | where |
+|---|---|
+| sleeps past the timeout | `transport.rs::a_backend_that_never_answers_times_out_and_is_disposed_of`; **end to end** `failure_matrix::a_backend_that_never_answers_reaches_the_caller_as_a_timeout`, and `@hang` in VT-2 |
+| sleeps past the timeout **after writing to stderr** (F-3) | `transport.rs::stderr_written_before_a_hang_survives_the_timeout` — the transport tier's, and the assertion is about the capture |
+| floods stdout past the cap (F-2) | `transport.rs::a_stdout_flood_is_refused_and_the_backend_sees_the_stream_close`; **end to end** `failure_matrix::output_past_the_cap_reaches_the_caller_as_output_too_large`, and `@flood` in VT-2 |
+| exits non-zero after writing valid JSON | `transport.rs`; **end to end** `failure_matrix::a_non_zero_exit…`, and `@exit1` in VT-2. Same item as "writes a valid response and then exits non-zero" below — §9 names it twice |
+| writes malformed JSON | `host.rs` (fake); **end to end** `failure_matrix::a_body_that_will_not_parse…`, and `@garbage` in VT-2 |
+| writes nothing | `host.rs:167` against the fake — empty stdout is an unexpected EOF, so `Protocol(Json)`. **Not end to end.** Not in EX-1's list; recorded below |
+| declares an unknown protocol version | protocol tier; **end to end** VT-1 |
+| returns `options: []` | protocol tier; **end to end** VT-1 |
+| returns duplicate option ids | protocol tier; **end to end** VT-1 |
+| returns an unknown `kind` nested in a field, asserting `at` (F-6) | protocol tier; **end to end** VT-1, path asserted |
+| omits `view` entirely (F-5) | protocol tier; **end to end** VT-1 |
+| `"next_check": 45` | protocol tier; **end to end** VT-1, as a discard |
+| `"next_check": "1 month"` (F-10) | schedule corpus; **end to end** VT-1, as a discard |
+| `min: 10, max: 1` (F-9) | protocol tier; **end to end** VT-1 |
+| floods stderr past its cap **and then succeeds** (F-25) | `transport.rs::a_stderr_flood_is_truncated_and_the_exchange_still_succeeds` |
+| a text field carrying `min`, a number field carrying `options` (F-45) | protocol tier; **end to end** VT-1, both, key/kind/path asserted |
+| two fields in one option sharing an id (F-52) | protocol tier; **end to end** VT-1, path asserted |
+| `"next_check": null` and `"protocol": null`, nothing discarded (F-50) | protocol tier; **end to end** VT-1, both |
+| grandchild holding **stderr only** (F-48, F-53, F-63) | `transport.rs::a_grandchild_holding_stderr_costs_the_cleanup_budget_and_nothing_else` |
+| the same leaving a grandchild holding **stdout too** (F-63) | `transport.rs::a_grandchild_holding_stdout_too_fails_both_dimensions` |
+| a valid response then `exit 1` (D15, R-40, F-59) | as above — **end to end** in `failure_matrix`, body discarded and stderr kept |
+| exits 0 with unparseable stdout after writing to stderr (F-24) | `transport.rs::a_zero_exit_with_an_unparseable_body_still_carries_its_stderr`; **end to end** in `failure_matrix`, stderr asserted |
+| brief §10.1's and §10.2's own examples, accepted verbatim (F-31, F-38) | protocol tier: `R-19-a-body-written-as-a-bare-string.json` and `R-18-brief-10-2-s-own-field-example.json`. **Not end to end.** Not in EX-1's list; recorded below |
+| command not found | `transport.rs::a_command_that_does_not_exist_fails_to_spawn`; **end to end** `failure_matrix::a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure`. No fixture, as §9 says |
+
+**Two items have no end-to-end case**, and neither is in EX-1's list, so neither
+was built here: a backend that **writes nothing**, and the brief's **§10.1 /
+§10.2 examples**. Both are tested — the first against the fake, the second as
+fixtures — so nothing is untested; what is missing is the journey through a real
+process. §9 introduces the list as backends "the integration tier needs", which
+is a stronger claim than EX-1 makes. Three cases would close it, and the
+instructed backend already emits arbitrary bodies, so the cost is the cases
+themselves. **Audit or a plan amendment owns the scope decision.**
+
+#### Verification record
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| EX-1 | — | **pass** — thirteen bodies, each its own case | `failure_matrix.rs`, VT-1's thirteen `#[tokio::test]`s plus a well-behaved control. Each names the fixture its body came from; the three schedule modes assert a discard rather than a failure, which is what the design says they are |
+| EX-2 | — | **pass** — one `Host`, nineteen exchanges | `one_host_survives_every_misbehaving_backend_and_still_works`: a view, then all thirteen bodies and all four sentinels, then the answer to that view. Reuse is witnessed by state the failures did not touch, not by the last exchange working — break 2 |
+| EX-3 | — | **pass** — through the real transport | the timeout, non-zero-exit and malformed-JSON cases each assert `next_check` is the instant the *previous* exchange set. Seen to fail: break 3 |
+| EX-4 | — | **pass** — six modes, five new | spawn, timeout, non-zero exit, malformed stdout and output past the cap in `failure_matrix.rs`; the stale and unknown `view_id` at `round_trip.rs:220` and `:257`, which already assert the `StateError` a caller sees and carry an invocation witness. No third copy written |
+| VT-1 | test | **pass**, and seen to fail | thirteen cases; red before the emitter script existed, then break 1 (a constant instruction index) and break 4 (a non-zero exit ignored) |
+| VT-2 | test | **pass**, and seen to fail three times | break 1 (no sequencing: 0 refusals against 13), break 2 (a rebuilt `Host`: the schedule back at its seed), break 6 (a failed exchange closing the outstanding interaction — **caught here and nowhere else**, so R-34 across a real backend failure is this case's alone) |
+| VT-3 | test | **pass**, and seen to fail | five cases; break 3 (the schedule re-resolved), break 4 (the exit status ignored), break 5 (the stderr dropped on a failure) |
+| VA-1 | agent | **pass** | `just check` exits 0 on all seven commands, both feature columns — 35 unit, **52** integration, 15 protocol |
+| VA-2 | agent | **pass** — walked, and two gaps recorded | the table above. Twenty-four items; twenty-two have an end-to-end case or belong to a tier that owns them, two have no end-to-end case and are named |
+
+#### Log
+
+- 2026-09-03 — sheet written. Entry criterion checked against PHASE-08's record
+  and against the code; baseline gate green at `d7312aa`.
+- 2026-09-03 — **EX-2's scope settled by the user**: the one-`Host` sequence
+  spans the transport modes as well as the protocol ones. Recorded above.
+- 2026-09-03 — **red, then green.** The thirteen VT-1 cases were written against
+  a script that did not exist; fourteen red. `answers-as-instructed.sh` turned
+  them green with no change to any assertion.
+- 2026-09-03 — **refactor.** The bodies moved out of the assertions into named
+  constants, because VT-2 sends the same thirteen and a second copy is a place
+  for the two claims to drift. `choice` and `answer_first_option` moved from
+  `round_trip.rs` into `harness.rs` when VT-2 needed to answer a view — the
+  harness's own rule is that what two case files need lives there.
+- 2026-09-03 — **six break-and-revert runs**, each against the criterion it
+  falsifies. (1) the instruction index made constant: VT-2 alone, 0 refusals
+  against 13 — VT-1 cannot see it, since each sends one instruction. (2) a
+  `Host` rebuilt inside VT-2's loop: caught only after VT-2 acquired a state
+  witness; see above. (3) `no_action` re-resolving the schedule: 7 cases here
+  plus `host.rs`'s control — and it was this break that exposed the vacuous
+  assertion. (4) a non-zero exit ignored: VT-3's case, VT-2's refusal count, and
+  `transport.rs`. (5) the stderr dropped on a failure: VT-3's two stderr cases
+  and `host.rs`. (6) a failed exchange closing the outstanding interaction: VT-2
+  alone. All six reverted; `git diff src/` empty and the gate green.
+- 2026-09-03 — **the gate.** `just check` exits 0 on all seven commands in both
+  feature columns. 35 unit, 52 integration (20 of them this phase's), 15
+  protocol. `src/` untouched: this phase landed
+  `tests/backends/answers-as-instructed.sh`,
+  `tests/integration/failure_matrix.rs`, three helpers and two moved ones in
+  `harness.rs`, one line in `main.rs`, and the two helpers' removal from
+  `round_trip.rs`.
+
 ## Harvest
 
-**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-08
-done** · `just check` exits 0 in both feature columns, and it is now **seven**
-commands — the seventh typechecks the example, because `deno run` does not ·
-stratum 1 is complete — the wire types, the canonical types, normalization and
-schedule resolution, with a 70-file fixture corpus across three directories —
-**the process transport is complete with it**: every bound, both grandchild
-cases, disposal on its own channel, and cancellation — **the host composes the
-two**, and **the round trip now runs end to end against two real backends**, one
-TypeScript and one bash. **PHASE-10 is next**: the protocol-level failure matrix
-end to end, and R-45's one-`Host` reuse. Then PHASE-09
+**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-08 and
+PHASE-10 done — every code phase in the slice** · `just check` exits 0 in both
+feature columns, and it is now **seven** commands — the seventh typechecks the
+example, because `deno run` does not · stratum 1 is complete — the wire types,
+the canonical types, normalization and schedule resolution, with a 70-file
+fixture corpus across three directories — **the process transport is complete
+with it**: every bound, both grandchild cases, disposal on its own channel, and
+cancellation — **the host composes the two**, **the round trip runs end to end
+against two real backends**, one TypeScript and one bash, and **every failure
+mode the design names now reaches a caller as the `Outcome` it should**, with
+R-45's one-`Host` reuse witnessed by state that seventeen failures did not
+touch. **PHASE-09 is next and last**: `AGENTS.md`, the restatement sweep, and
+reconciliation of the draft. Then audit
 
 ### Produced
 
@@ -4884,7 +5204,35 @@ end to end, and R-45's one-`Host` reuse. Then PHASE-09
   backend can only vary its answer by reading what it was asked, and the example
   says in a comment where a real backend's state would live.
 
+- **The failure matrix, from PHASE-10.**
+  `tests/backends/answers-as-instructed.sh` — one backend that emits the body it
+  was handed, or one of four sentinels naming a transport-level misbehaviour —
+  and `tests/integration/failure_matrix.rs`, twenty cases: thirteen protocol
+  modes each to its own variant and path, five transport modes as the `Outcome`
+  a caller receives, one nineteen-exchange suite through a single `Host`, and a
+  control. Plus three harness helpers (`scripted`, `protocol_error`,
+  `only_discard`) and two lifted out of `round_trip.rs` (`choice`,
+  `answer_first_option`). 52 integration tests. **Two things worth carrying.**
+  **One parameterized backend beats N scripts** when a criterion needs a single
+  command to misbehave differently on consecutive exchanges — which any
+  one-`Host` requirement does, since a `Host` is built around one command. And
+  **a suite that proves reuse has to read back state the failures did not
+  touch**: an outstanding view and a moved schedule, both established before the
+  failures and both checked after. Asserting only that the last exchange
+  succeeded passes against a `Host` rebuilt every time.
+
 ### Learned
+
+**Two instants that happen to be equal hide a whole rule — PHASE-10.** Every
+case in the new tier started at `now` and asserted the schedule was still
+`seeded_check()`, which is `now` plus the default poll — the exact value a host
+that *re-resolved* the schedule on failure would produce. Thirteen cases,
+including all three the plan pointed at R-29, could not tell the rule from its
+negation, and the gate could not either. The fix is setup rather than assertion:
+move the schedule off its seed before the case begins. The general form is worth
+keeping — **an assertion against a value the defect would also produce is not an
+assertion** — and it is why the fake tier's positive control at `host.rs:326`
+exists. This tier had to rediscover it.
 
 **A criterion can name a mechanism that cannot hold it, and only breaking it
 says so — PHASE-08.** VT-2 asked for "the backend was not spawned" to be shown
@@ -5167,6 +5515,23 @@ empirically** above, plus:
   not happen.
 
 ### Open
+
+**Raised by PHASE-10, 2026-09-03 — both are scope decisions for audit or a plan
+amendment, neither is a phase repair.**
+
+- **Two items of `design.md` §9's misbehaving-backend list have no end-to-end
+  case.** A backend that **writes nothing** is asserted against the fake
+  (`host.rs:167`, empty stdout as an unexpected EOF) and the brief's **§10.1 and
+  §10.2 examples** are asserted as protocol fixtures — so nothing is untested,
+  but neither travels through a real process. Neither is in PHASE-10/EX-1's
+  list, which is why neither was built. §9 introduces the list as backends "the
+  integration tier needs", which claims more than EX-1 does. Three cases would
+  close it and the instructed backend already emits arbitrary bodies.
+- **R-34 across a *backend* failure is asserted in exactly one place.** Break 6
+  — a failed exchange closing the outstanding interaction — is caught only by
+  PHASE-10/VT-2, and there only incidentally, because VT-2 needs an outstanding
+  view as its reuse witness. `host.rs` asserts R-34 for a *refusal*, which is a
+  different path. If VT-2 is ever simplified, the rule loses its only test.
 
 **Raised by PHASE-08, 2026-09-03 — one belongs to PHASE-09, two to audit.**
 

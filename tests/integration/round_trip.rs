@@ -11,12 +11,12 @@ use std::time::Duration;
 
 use crate::fake::{Calls, FakeBackend, answering};
 use crate::harness::{
-  config, describe_outcome, example, host, instant, invocations, logging_backend, presented,
-  prompting_event, quiet_event, state_error, stderr_of,
+  answer_first_option, choice, config, describe_outcome, example, host, instant, invocations,
+  logging_backend, presented, prompting_event, quiet_event, state_error, stderr_of,
 };
-use goad::semantics::protocol::canonical::{Choice, Timestamp, UserResponse, View, ViewId};
+use goad::semantics::protocol::canonical::{Timestamp, UserResponse, ViewId};
 use goad::shell::error::StateError;
-use goad::shell::host::{Host, Outcome};
+use goad::shell::host::Host;
 
 /// Long enough that a healthy exchange cannot flake, and short enough that a
 /// hung one does not stall the suite. deno's own startup was measured at 15–20
@@ -33,45 +33,6 @@ fn now() -> Timestamp {
 /// resolved from the wrong one pass unnoticed.
 fn answered_at() -> Timestamp {
   instant("2026-08-23T04:14:00Z")
-}
-
-/// The choice a backend returned, or a diagnostic naming what came instead.
-fn choice(outcome: &Outcome) -> &Choice {
-  match &outcome.view {
-    Some(presented) => {
-      let View::Choice(choice) = &presented.view;
-      choice
-    }
-    None => panic!("expected a view; got {}", describe_outcome(outcome)),
-  }
-}
-
-/// An answer naming an option of the view just presented, with a value for
-/// whichever field that option carried.
-///
-/// `OptionId` and `FieldId` have no public constructor (D30, I15), so an answer
-/// is assembled out of the view it answers — which is what a renderer does.
-fn answer_first_option(outcome: &Outcome) -> UserResponse {
-  let option = choice(outcome)
-    .options()
-    .as_slice()
-    .first()
-    .expect("a choice carries at least one option");
-  let values = option
-    .fields()
-    .as_slice()
-    .iter()
-    .map(|field| {
-      (
-        field.id().clone(),
-        serde_json::json!("whatever the user typed"),
-      )
-    })
-    .collect();
-  UserResponse {
-    option: option.id().clone(),
-    values,
-  }
 }
 
 // ---------------------------------------------------------------------------

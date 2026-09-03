@@ -11,7 +11,11 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use goad::semantics::protocol::canonical::{Evaluate, Event, Request, Timestamp, ViewId};
+use goad::semantics::error::ProtocolError;
+use goad::semantics::protocol::canonical::{
+  Choice, Evaluate, Event, Request, Timestamp, UserResponse, View, ViewId,
+};
+use goad::semantics::protocol::normalize::Discarded;
 use goad::shell::backend::process::ProcessBackend;
 use goad::shell::backend::transport::Exchange;
 use goad::shell::config::{BackendConfig, Config, ScheduleConfig};
@@ -298,6 +302,32 @@ pub(crate) fn invocations(log: &Path) -> usize {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE-10 — the instructed backend
+// ---------------------------------------------------------------------------
+
+/// A backend told what to do, one instruction per invocation.
+///
+/// The instructions travel as argv[3…], behind the invocation log argv[2] that
+/// `logging_backend` supplies — the same parameterization for the same reason
+/// (R-36). An instruction is a response body, or one of the four sentinels
+/// `tests/backends/answers-as-instructed.sh` documents.
+///
+/// One script rather than one per misbehaviour, because a `Host` is built
+/// around one command and EX-2 runs the whole misbehaving suite through a
+/// single `Host`: a backend that varies by invocation is the only shape that
+/// admits. Giving the per-mode cases a second mechanism would then mean the
+/// suite case and the individual cases were running different backends.
+pub(crate) fn scripted(case: &str, instructions: &[&str]) -> (Vec<String>, PathBuf) {
+  let (mut command, log) = logging_backend("answers-as-instructed", case);
+  command.extend(
+    instructions
+      .iter()
+      .map(|instruction| (*instruction).to_owned()),
+  );
+  (command, log)
+}
+
+// ---------------------------------------------------------------------------
 // The host tier's own diagnostics
 // ---------------------------------------------------------------------------
 
@@ -317,6 +347,49 @@ pub(crate) fn describe_outcome(outcome: &Outcome) -> String {
     (Some(Failure::State(error)), _) => format!("a refusal: {error}"),
     (None, Some(presented)) => format!("a view carrying {}", presented.view_id.as_str()),
     (None, None) => "nothing to show, and no failure".to_owned(),
+  }
+}
+
+/// The choice a backend returned, or a diagnostic naming what came instead.
+///
+/// `View` has one variant today, so this is a projection rather than a match —
+/// but it is the projection every case that reads a view needs, and the
+/// exhaustive `let` is what will point at them all when a second kind arrives.
+pub(crate) fn choice(outcome: &Outcome) -> &Choice {
+  match &outcome.view {
+    Some(presented) => {
+      let View::Choice(choice) = &presented.view;
+      choice
+    }
+    None => panic!("expected a view; got {}", describe_outcome(outcome)),
+  }
+}
+
+/// An answer naming an option of the view just presented, with a value for
+/// whichever field that option carried.
+///
+/// `OptionId` and `FieldId` have no public constructor (D30, I15), so an answer
+/// is assembled out of the view it answers — which is what a renderer does.
+pub(crate) fn answer_first_option(outcome: &Outcome) -> UserResponse {
+  let option = choice(outcome)
+    .options()
+    .as_slice()
+    .first()
+    .expect("a choice carries at least one option");
+  let values = option
+    .fields()
+    .as_slice()
+    .iter()
+    .map(|field| {
+      (
+        field.id().clone(),
+        serde_json::json!("whatever the user typed"),
+      )
+    })
+    .collect();
+  UserResponse {
+    option: option.id().clone(),
+    values,
   }
 }
 
@@ -342,6 +415,32 @@ pub(crate) fn state_error(outcome: &Outcome) -> &StateError {
   match &outcome.failure {
     Some(Failure::State(error)) => error,
     _ => panic!("expected a refusal; got {}", describe_outcome(outcome)),
+  }
+}
+
+/// The `ProtocolError` inside an outcome's failure, or a panic naming what came
+/// instead. Every wire and validation refusal reaches a caller this way: `read`
+/// maps both `from_slice` and `normalize_response` into `BackendError::Protocol`.
+pub(crate) fn protocol_error(outcome: &Outcome) -> &ProtocolError {
+  match backend_error(outcome) {
+    BackendError::Protocol(error) => error,
+    other => panic!("expected a protocol failure; got {other}"),
+  }
+}
+
+/// The one discard an outcome carries, or a panic saying how many there were.
+///
+/// Every case that reads a discard expects exactly one, and "the first of
+/// several" is a different claim from "the only one" — a second discard nobody
+/// looked at is the kind of thing this tier exists to notice.
+pub(crate) fn only_discard(outcome: &Outcome) -> &Discarded {
+  match outcome.discarded.as_slice() {
+    [discarded] => discarded,
+    other => panic!(
+      "expected exactly one discard; got {}, on {}",
+      other.len(),
+      describe_outcome(outcome)
+    ),
   }
 }
 

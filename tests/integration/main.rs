@@ -13,6 +13,9 @@ mod harness;
 mod fake;
 
 #[cfg(test)]
+mod failure_matrix;
+
+#[cfg(test)]
 mod host;
 
 #[cfg(test)]
