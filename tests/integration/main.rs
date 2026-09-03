@@ -10,4 +10,10 @@
 mod harness;
 
 #[cfg(test)]
+mod fake;
+
+#[cfg(test)]
+mod host;
+
+#[cfg(test)]
 mod transport;

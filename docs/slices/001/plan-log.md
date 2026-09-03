@@ -530,3 +530,74 @@ reap, after the drain.
 - **Alternative rejected:** amending the design to match the code. It would
   withdraw the design's own argument that closing the pipe is what stops the
   flood, in exchange for keeping a line of code as it was.
+
+---
+
+### 2026-09-03 — PHASE-07's expansion: two plan gaps, both closed the same day
+
+Raised while expanding PHASE-07's phase sheet, before any code. Both are
+decisions the plan and the design left unmade, not repairs; the user took the
+recommended option on each.
+
+**1. Decision: `ConfigError` is added to `src/shell/error.rs`, five variants.**
+
+EX-1 requires three rejections at load and VT-2 requires each to name its error,
+but `design.md` §5.2's taxonomy has no error about configuration. Its five types
+are each about something else: `ProtocolError`, `BoundsError` and `ScheduleError`
+are stratum 1's and are about a *backend's* message; `BackendError` is about an
+exchange that ran; `CleanupFailure` is about disposal; `StateError` is about an id
+a *caller* named. A config file is the user's own, read before any backend exists.
+`design.md:1236` says only that a malformed or missing config is "fatal at
+construction" — what happens to the process, not what the caller is handed. The
+plan's Surfaces say `src/shell/error.rs` **(add `StateError`)**, naming one
+addition where the phase needs two.
+
+- **Not narrowable.** `Config::load` returns something. The alternatives to a
+  typed error are a `String` or a panic, and the crate's lint table refuses the
+  second outright.
+- **Five variants, one per mistake a user can make:** `Read(std::io::Error)` for
+  a missing or unreadable file, `Syntax(toml::de::Error)` for bad TOML and for a
+  missing section or a mistyped value, `Duration { key, raw }` for a string jiff
+  refuses, `EmptyCommand`, and `NonPositive { key }` for `"0s"` and for the
+  negatives the same check catches. Three discharge EX-1's named clauses; two are
+  the structural failures above them.
+- **Same shape as its neighbours** — `Display`, `Error::source`, a doc comment
+  per variant saying what mistake it names. `toml::de::Error`'s own `Display`
+  already carries line, column and a caret excerpt, so `Syntax` adds nothing.
+- **Alternative rejected:** reusing `BackendError`. That is the argument
+  `design.md:966` already made for `StateError` — it blames a backend that has
+  not been consulted — and here it blames one that does not exist yet.
+- **Alternative rejected:** three variants with a single `Load(...)` for
+  everything structural. It collapses the one diagnostic a user most needs: which
+  *key* held the duration that would not parse.
+
+**2. Decision: the config duration grammar is restated in `config.rs`, not
+extracted into stratum 1.**
+
+`design.md:1152` requires "the same grammar as `next_check`, one duration syntax
+across the product", and that grammar is already written —
+`src/semantics/schedule.rs:96`–`:106` parses a `jiff::Span` and converts it with
+`SpanRelativeTo::days_are_24_hours()`. `CLAUDE.md` forbids parallel
+implementations, so restating it is a decision about the standard rather than a
+coding choice.
+
+- **What makes sharing awkward.** The existing function is private, tries an
+  **absolute instant first** — a form config must not accept — and reports
+  `ScheduleError`, whose variants are about a backend's `next_check`.
+  `ScheduleError::CalendarUnit` raised against a config key names the wrong
+  subject.
+- **The duplication is two lines**, and the thing that must not diverge is the
+  *grammar*, which is jiff's and not this crate's. A divergence would be a defect;
+  the restatement as such is not.
+- **`src/semantics/schedule.rs` is not PHASE-07's Surface.** Extracting would
+  amend the Surfaces to reach into stratum 1 for a two-line helper.
+- **Alternative rejected:** a public `duration(raw) -> Option<SignedDuration>` in
+  `schedule.rs`, with each caller naming its own error. Better factoring on paper.
+  It buys a shared vocabulary between a backend-derived value and a user-authored
+  one, which is the seam ADR-001 and `design.md:966` both argue for keeping
+  apart, and it costs a Surfaces amendment.
+- **Recorded for audit** in the phase sheet and the Harvest, so the duplication is
+  a judged decision rather than a discovery.
+
+Neither decision changes a criterion. `plan.md` PHASE-07's Surfaces line is
+amended to name both additions to `error.rs`; nothing else in the plan moves.

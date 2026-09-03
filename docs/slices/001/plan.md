@@ -835,8 +835,14 @@ and interaction state; configuration loads from TOML; a stale or unknown
 
 **Surfaces:** `src/shell/mod.rs` (three `pub mod` lines), `src/shell/config.rs`,
 `src/shell/state.rs`, `src/shell/host.rs`,
-`src/shell/error.rs` (add `StateError`), `tests/integration/**`. **Not**
-`Cargo.toml` — `toml` is declared at PHASE-01/EX-6 (F-7).
+`src/shell/error.rs` (add `StateError` **and `ConfigError`** — user decision
+2026-09-03: EX-1 rejects at load and VT-2 requires each rejection to name its
+error, and `design.md` §5.2's taxonomy has no error about configuration at all),
+`tests/integration/**`. **Not**
+`Cargo.toml` — `toml` is declared at PHASE-01/EX-6 (F-7). **Not**
+`src/semantics/schedule.rs` — the config duration grammar is restated in
+`config.rs` rather than extracted, user decision 2026-09-03; `plan-log.md` carries
+both.
 
 **Entry**
 - EN-1 — **PHASE-06 discharged**, EX-6 included — the probe re-run the F-1

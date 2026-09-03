@@ -16,7 +16,8 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-04 | **done** — `just check` exits 0 in both feature columns; 22 unit tests and 9 protocol tests, 4 of the latter this phase's, over a **54-file** corpus in two directories. All eight EX and all four VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. **A fourth was raised during execution** — `canonical.rs` joined the Surfaces, scoped to removing four `expect(dead_code)` attributes PHASE-02 wrote as temporary, without which the lib does not compile once normalization calls the constructors. See `## Phase sheets` | 2026-09-02 |
 | PHASE-05 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 7 integration and 14 protocol, 5 of the latter this phase's. All seven EX, all five VT and all three VA criteria discharged. **Three plan gaps were closed at expansion and none was raised during execution.** Two assumptions broke, both measured rather than reasoned about: **A3 is false as stated** — `Io` is deterministic, but only for a request past the 64 KiB pipe buffer, since a smaller one is accepted by the kernel and outlives the reader — and **the probe misleads about `bash`**, which drove its backends with `bash -c` and so exec'd their last command; a script *file* forks, turning the same two lines into PHASE-06's grandchild case. One departure from §5.4's sketch, recorded and argued: `body` is an `async fn` rather than an inline block, so VT-5's region check asserts F-41's rule instead of tripping over the sketch's own nested `?`s. Five break-and-revert runs, the strongest of which — holding stdin open — fails three tests at once with R-37's symptom verbatim. **A fourth gap was raised at the end and closed by user decision 2026-09-03**: `tests/integration/transport.rs`, which holds this phase's cases, was not in the Surfaces; they now read `tests/integration/**`, the form PHASE-06 already used. See `## Phase sheets` | 2026-09-03 |
 | PHASE-06 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 15 integration and 15 protocol, one of the latter this phase's. All six EX, all six VT and both VA criteria discharged. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — VT-4 asked for a wedged `wait`, which no test can arrange, and VT-5's suite-level no-orphans claim is unsound under libtest's in-process parallelism. A finding against `process.rs` as shipped was closed with them and repaired here: `read_capped` borrowed rather than owned, so the stdout handle dropped when the exchange **returned** rather than at the bound — measured 500 ms apart, and the first red of the phase. **Five break-and-revert runs, and two of them found defects in this phase's own test mechanism** — a stderr fixture that passed against the reader it was meant to catch, and a `/proc` filter blind to the two backends that `exec`. Both repaired and both re-broken. See `## Phase sheets` | 2026-09-03 |
-| PHASE-07…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-07 | **done** — `just check` exits 0 in both feature columns; 35 unit, 27 integration, 15 protocol. All eight EX, all six VT and VA-1 discharged. Entry criteria checked and met. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — `design.md` §5.2's taxonomy named no error type for a rejected config, which VT-2 requires (`ConfigError` added, five variants); and the config duration grammar would restate `schedule.rs:96`–`:106`, which `CLAUDE.md` forbids without a decision (restated deliberately, recorded for audit). **A third decision was taken during execution**: EX-2 names `Option<Outstanding>` and `design.md:1167` gives it an `issued_at` nothing in this slice reads — the gate refuses an unread field, so it is kept under a self-clearing `#[expect(dead_code, reason = …)]` rather than dropped. **Assumption A1 fired on the first run** and cost a fixture: serde never decodes a value it skips, so the invalid-UTF-8 case parsed cleanly against `WireResponse`; re-measured and moved into a view's title, which is the case `design.md:1052` is about. **Five break-and-revert runs, plus a sixth on the lint expectation.** See `## Phase sheets` | 2026-09-03 |
+| PHASE-08…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -3884,15 +3885,507 @@ see, which is the answer this re-run existed to get.
   It is bounded to one per failing run and only appears when the phase is red.
 
 
+### PHASE-07 — Config, host state, and composition
+
+**State:** **done 2026-09-03.** `just check` exits 0 in both feature columns —
+35 unit, 27 integration, 15 protocol. All eight EX, all six VT and VA-1 are
+discharged in the Verification record below. Entry criteria checked and met, and
+the expansion's measurements are recorded below. **Two plan gaps were found at
+expansion and both were closed by user decision the same day** — `plan.md` and
+`plan-log.md` carry them. **A third decision was taken during execution**:
+EX-2's `Outstanding` names a field nothing in this slice reads, and the gate
+refuses an unread field — kept under a self-clearing lint expectation rather than
+dropped. **Five break-and-revert runs, plus a sixth on that expectation.** One
+assumption fired exactly as written (A1) and cost a fixture; one held with a
+qualification (A3).
+**Plan entry:** `docs/slices/001/plan.md:830`
+**Surfaces (from the plan):** `src/shell/mod.rs` (three `pub mod` lines),
+`src/shell/config.rs`, `src/shell/state.rs`, `src/shell/host.rs`,
+`src/shell/error.rs` (add `StateError` **and `ConfigError`**, per the gap-1
+decision), `tests/integration/**`. **Not** `Cargo.toml` — `toml` was declared at
+PHASE-01/EX-6. **Not** `src/semantics/schedule.rs`, per the gap-2 decision.
+
+#### Reading list
+
+| what | where | why |
+|---|---|---|
+| `Host`, `Outcome`, `Presented`, `Failure` | `design.md:1060`–`1131` | the whole public surface this phase lands, and the four paragraphs arguing each field's position. EX-4 is this block |
+| `Config`, and the TOML it parses | `design.md:1132`–`1158` | EX-1's three values, the argv-not-shell rule (R-36), and "durations resolve at load" |
+| `State`, its three owners, and `resolved_check` | `design.md:1159`–`1210` | EX-2. The ownership table is where "no `Arc`, no `Mutex`" is argued (D14) |
+| `view_id` — the value and its four reasons | `design.md:1211`–`1233` | D13. VT-5 asserts reason 3 |
+| startup, and what is fatal | `design.md:1236`–`1241` | "a malformed or missing config is **fatal at construction**"; a backend that cannot spawn is not |
+| the round trip, as a sequence | `design.md:1574`–`1599` | the order this phase composes: exchange → `from_slice` → `normalize_response` → resolve → state update |
+| `respond` checks before it transports | `design.md:1600`–`1604` | EX-3's "before the transport is touched", and why forwarding a stale answer would be wrong |
+| the state machine | `design.md:1605`–`1614` | five transitions, and EX-6 is two of them |
+| failure does not move the schedule | `design.md:1615`–`1620` | EX-5, and P2 at the lifecycle level |
+| the two `view: null` rows | `design.md:1725`, `:1726` (edge table, first two rows) | EX-6 exactly — `evaluate` leaves an outstanding interaction alone, `respond` closes it (F-46) |
+| the framing rows | `design.md:1741`, `:1742` | EX-8's first two cases, and "framing is the transport's job and this transport's frame is one document" |
+| the config rejection rows | `design.md:1743`, `:1744` | EX-1's three rejections, stated as edge cases |
+| the host validates nothing but the id | `design.md:1753`–`1757` | what `respond` may **not** do. PHASE-08/VT-5 tests it; this phase must not foreclose it |
+| the requirements | `draft-spec.md:125` (R-26), `:127` (R-27), `:128` (R-29), `:134` (R-30), `:135` (R-31), `:136` (R-32), `:137` (R-33), `:138` (R-34), `:139` (R-35), `:147` (R-38), `:155` (R-49) | R-30 is the one with no test anywhere in the plan — see *Noticed, not this phase's* below |
+| the verification rows | `draft-spec.md:367`–`377` | what the spec says each of the above is proven by |
+| schedule resolution as it shipped | `src/semantics/schedule.rs:146` and its doc comment at `:120`–`:145` | `resolve`'s four arguments, why `default_poll` is a `jiff::SignedDuration`, and the sentence "converting at the config boundary" that decides EX-1's storage types |
+| the duration grammar, as it is already written | `src/semantics/schedule.rs:96`–`:106` | the two lines config must either reuse or restate. Gap 2 |
+| normalization's entry point | `src/semantics/protocol/normalize.rs:80` and its doc comment | `normalize_response(wire, now) -> Result<Normalized<Response>, ProtocolError>`, and the `Json`-arrives-here-too paragraph |
+| the transport seam | `src/shell/backend/transport.rs` | what a fake has to implement, and `Exchange`'s three fields — all `pub`, so a test can build one |
+| the error taxonomy as it shipped | `src/shell/error.rs` | the `Display`/`Error`/doc-comment conventions `StateError` must match |
+| the harness this phase extends | `tests/integration/harness.rs` | `backend`, `transport`, `evaluate`, `describe` — and the `Display`-not-`Debug` rule for panic messages |
+| prior art — colocated unit tests in stratum 2 | `src/shell/backend/process.rs` (none) and `src/semantics/schedule.rs:164` | there is **no** colocated test in `shell/` yet. `schedule.rs` is the pattern to copy |
+| the lint obligation | `plan.md:14` Overview item 4, and `src/shell/backend/process.rs:1`–`:6` | EX-7: `host.rs` gets the module deny, `config.rs` and `state.rs` do not, and the proof is break-it-and-revert **in host code** |
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-06 discharged, EX-6 included | **met.** EX-1…EX-6, VT-1…VT-6 and both VA rows are all recorded `pass` with named evidence in PHASE-06's Verification record. EX-6 — the probe re-run after `process.rs` changed — is the seven-case table in that sheet |
+| EN-2 | PHASE-01/EX-6 discharged: `toml` declared under `shell`, and absent from stratum 1's graph | **met.** `Cargo.toml` declares `toml = { version = "1", optional = true }` and `shell = ["dep:tokio", "dep:toml"]`. `cargo tree --no-default-features` shows five crates — jiff, serde, serde_json and their own — and neither `tokio` nor `toml`. Pasted in the Log |
+
+Baseline, 2026-09-03: `just check` exits 0 on all six commands, both feature
+columns — 22 unit, 15 integration, 15 protocol. PHASE-06 is committed at
+`532c244`. Any failure from here is this phase's.
+
+#### What already exists — inspected 2026-09-03
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `src/shell/mod.rs` | two `pub mod` lines — `backend`, `error` | three more: `config`, `host`, `state`. That is the whole of this file's change |
+| `src/shell/error.rs` | `BackendError` (7 variants), `CleanupFailure` (2), both with `Display` and `Error::source` | `StateError` is added here in the same shape. **`BackendError::Protocol` already exists and is unreachable** — EX-8 is what reaches it |
+| `src/shell/backend/transport.rs` | `Backend` trait, `Exchange { result, stderr, cleanup }`, `Captured` | all three `Exchange` fields are `pub`, so the fake constructs one literally. `Exchange::failed` is `pub(super)` and is **not** available to `tests/` |
+| `src/shell/backend/process.rs:34`–`:50` | `ProcessBackend::new(command: Vec<String>, timeout: std::time::Duration)` | the construction `Config` feeds. Its doc comment already says loading and rejection are configuration's job — this phase makes that true |
+| `src/semantics/schedule.rs:146` | `resolve(retained, incoming, default_poll: jiff::SignedDuration, now)` | fixes `ScheduleConfig::default_poll`'s type. Seeding is the `(None, None)` arm, so `Host::new` calls `resolve` rather than adding `now + default_poll` a second time |
+| `src/semantics/protocol/canonical.rs:43`, `:103` | `ViewId::new(impl Into<String>)` and `Timestamp::new`/`instant`, both **public** | PHASE-02/EX-1 made them public for exactly this phase |
+| `src/semantics/protocol/canonical.rs:147`–`:161` | `Response::view() -> Option<&View>`, `Response::schedule() -> Option<Timestamp>` | what the host reads out of a normalized response. `schedule()` is `resolve`'s `incoming` |
+| `tests/integration/main.rs` | two `#[cfg(test)] mod` lines | two more: the fake and this phase's cases |
+| `tests/integration/harness.rs` | nine helpers, all `pub(crate)` | `describe` takes `&Result<Vec<u8>, BackendError>` — the transport's shape, not the host's. This phase adds its own describer rather than widening that one |
+
+#### Measured at expansion, before any test was written
+
+A scratch crate with a path dependency on this repo, against jiff 0.2.35,
+toml 1.0 and serde_json 1.0.151 — the versions in `Cargo.lock`. Every row below
+decides something a test or a type would otherwise have been written wrong.
+
+**`jiff::Timestamp`'s `Display` is already RFC 3339, and D13 needs nothing else.**
+
+| input | `Display` |
+|---|---|
+| `2026-08-23T04:12:00Z` | `2026-08-23T04:12:00Z` |
+| `2026-08-23T04:12:00.5+10:00` | `2026-08-22T18:12:00.5Z` |
+| `Timestamp::UNIX_EPOCH` | `1970-01-01T00:00:00Z` |
+
+So `format!("{}#{}", now.instant(), seq)` **is** D13's value, and D13's own
+example is reproduced exactly. Two consequences: the id is always UTC-normalized
+whatever offset the caller's instant carried, and it is **not fixed width** —
+a sub-second `now` renders fractional seconds. Nothing parses a `view_id`, so
+neither matters; both are stated so VT-5's fixture is chosen deliberately.
+
+**The config duration grammar, through `Span` + `days_are_24_hours()` — the same
+two lines `schedule.rs:96`–`:106` already runs.**
+
+| raw | result |
+|---|---|
+| `5s`, `30m`, `500ms`, `1h 30m`, `45 minutes`, `PT45M` | accepted — `5s`, `30m`, `500ms`, `1h 30m`, `45m`, `45m` |
+| `1 day` | accepted as `24h` |
+| `0s` | accepted, `is_zero()` |
+| `-1s` | accepted, `is_negative()` |
+| `1 month` | `to_duration` fails — the calendar-unit case |
+| `""`, `abc` | `Span` parse fails |
+
+So **zero and negative both parse** and neither is refused by the grammar. EX-1's
+`"0s"` rejection is therefore an explicit check, not a fallout of parsing, and
+the same check covers `-1s`, which EX-1 does not name and which is the same
+mistake. `std::time::Duration::try_from(SignedDuration)` errors only on the
+negative — `0s` converts to `0ns` happily — so ordering the check **before** the
+conversion is what makes `timeout = "0s"` reachable as its own error rather than
+as a conversion failure.
+
+**toml 1.0.**
+
+| input | outcome |
+|---|---|
+| the design's own example (`design.md:1134`) | parses to the three values |
+| `[schedule]` absent | `TOML parse error at line 1, column 1 … missing field \`schedule\`` |
+| `command = "x"` | `TOML parse error at line 2, column 9 … invalid type: string "x", expected a sequence` |
+| an unknown top-level key | **accepted silently** — see the latitude section |
+| `{{{` | `TOML parse error … invalid key-value pair, expected key` |
+
+`toml::de::Error`'s `Display` already carries line, column and a caret excerpt,
+so a config error that wraps it needs to add nothing.
+
+**`serde_json::from_slice` is exactly R-38's framing rule, with one qualification.**
+
+| bytes | outcome |
+|---|---|
+| `` (empty) | `Err(EOF while parsing a value at line 1 column 0)` |
+| `{"view":null}` | `Ok` |
+| `{"view":null} {"view":null}` | `Err(trailing characters at line 1 column 15)` |
+| `{"view":null} x` | `Err(trailing characters at line 1 column 15)` |
+| `{"view":null}\n  ` | **`Ok`** — trailing whitespace is not trailing content |
+| `{"a":"\xff"}` | `Err(invalid unicode code point at line 1 column 8)` |
+
+All three of EX-8's cases are `serde_json::Error`, so all three are
+`ProtocolError::Json` and none needs a new variant. The qualification is the
+fifth row: R-38 says "trailing content is an error" and serde's reading is
+"trailing **non-whitespace**", which is the right reading — a backend ending its
+document with a newline is not sending two — and is worth stating because a
+fixture built out of `echo` produces exactly that byte. Measured against
+`serde_json::Value`; **re-measure against `WireResponse` at the first red**, since
+the typed path is what ships.
+
+#### Two plan gaps found at expansion — **both closed 2026-09-03**
+
+**1. Nothing in the design names an error type for a rejected config.** EX-1
+requires three rejections and VT-2 requires each to "name its error", but
+`design.md` §5.2's taxonomy has five error types and none of them is about
+configuration: `ProtocolError`, `BoundsError` and `ScheduleError` are stratum 1's
+and are about a *backend's* message; `BackendError` is about an exchange that ran;
+`CleanupFailure` is about disposal; `StateError` is about an id a *caller* named.
+A config file is none of those — it is the user's own file, read before any
+backend exists. The plan's Surfaces say `src/shell/error.rs` **(add `StateError`)**,
+naming one addition where the phase needs two, and `draft-spec.md` R-44's list of
+distinct errors does not mention configuration either. `design.md:1236` says only
+that a malformed or missing config is "fatal at construction", which says what
+happens to the process and nothing about what the caller is handed.
+
+This is not a criterion that can be narrowed: without a type, `Config::load`
+returns something, and the choices are a `ConfigError`, a `String`, or a panic.
+The last two are refused by AC-6's own ethos and by the crate's lint table.
+
+**Recommended:** add `ConfigError` to `src/shell/error.rs`, in the shape the two
+types there already have — `Display`, `Error::source`, one variant per mistake a
+user can make:
+
+| variant | for |
+|---|---|
+| `Read(std::io::Error)` | the file is missing or unreadable (`design.md:1236`'s "missing") |
+| `Syntax(toml::de::Error)` | not TOML, a mistyped value, a missing section or key |
+| `Duration { key: &'static str, raw: String }` | a duration string jiff refuses — `"1 month"`, `"abc"` |
+| `EmptyCommand` | `command = []` |
+| `NonPositive { key: &'static str }` | `timeout = "0s"`, `default_poll = "0s"`, and the negatives the same check catches |
+
+Five variants discharge EX-1's three named clauses and the two structural ones
+above them. **Closed by user decision 2026-09-03: add `ConfigError`, five
+variants.** `plan.md`'s Surfaces line now names both additions to `error.rs`.
+
+**2. The duration grammar would be stated twice.** `schedule.rs:96`–`:106` already
+parses a span and converts it with `SpanRelativeTo::days_are_24_hours()`, and
+config needs the same two lines. `design.md:1152` is explicit that this is
+deliberate — "the same grammar as `next_check`, one duration syntax across the
+product" — which makes a *divergence* the defect, not the duplication as such.
+
+Three things make sharing awkward rather than obvious. The existing function is
+`parse_instruction`, which is private, tries an **absolute instant first** (a form
+config must not accept), and reports `ScheduleError` — a taxonomy whose variants
+are about a backend's `next_check`, so `ScheduleError::CalendarUnit` on a config
+key would name the wrong subject. And `src/semantics/schedule.rs` is **not** in
+this phase's Surfaces.
+
+**Recommended: (a) restate the two lines in `config.rs`** with config's own
+errors, and record it. The alternative, **(b) extract a stratum 1 helper** —
+`schedule.rs` gaining a `pub fn` returning `SignedDuration` and a caller-chosen
+error — is the better factoring on paper and costs a surface amendment plus a
+shared error vocabulary between a backend-derived value and a user-authored one.
+A third option, **(c)**, is to defer the question to audit with the duplication
+recorded, which is (a) plus a note.
+
+The reason this is a gap rather than latitude: `CLAUDE.md` forbids parallel
+implementations outright, so choosing (a) is a decision about the standard, not
+a coding choice. **Closed by user decision 2026-09-03: (a), restate in
+`config.rs`, and record the duplication for audit.** The thing that must not
+diverge is the grammar, which is jiff's rather than this crate's; the two lines
+are not. `plan.md`'s Surfaces line now says `src/semantics/schedule.rs` is
+**not** a surface here, so the decision cannot be quietly reversed later.
+
+#### Settled here — implementer latitude
+
+1. **`Config` stores two different duration types, and the design's unqualified
+   `Duration` does not say which.** `BackendConfig::timeout` is a
+   `std::time::Duration` because `ProcessBackend::new` takes one and tokio's
+   timeout takes one; `ScheduleConfig::default_poll` is a `jiff::SignedDuration`
+   because `resolve` takes one and `schedule.rs:141` says the conversion belongs
+   "at the config boundary". Both are what "durations resolve at load" means for
+   their one consumer.
+2. **A wire/canonical split for the config file, mirroring `semantics`.** A
+   `#[derive(Deserialize)]` struct with `String` durations, and a validating
+   conversion into `Config`. The alternative — a custom `Deserialize` — puts
+   validation inside serde's error channel, where `EmptyCommand` would have to
+   be spelled as a deserialization failure.
+3. **No `deny_unknown_fields` on the config types.** Measured above: an unknown
+   key is accepted silently, so `default_poll` misspelled as `defualt_poll` is a
+   missing-field error (caught) but a stray `[logging]` section is not (ignored).
+   Strictness is arguably right for a file the user wrote — I10's no-closed-contract
+   rule is about *inbound wire types* and does not reach here — but no criterion
+   asks for it and P3 forbids building what nobody asked for. **Recorded for
+   audit, not built.**
+4. **`Host` keeps `config` and reads `default_poll` on every call.** `resolve`'s
+   `default_poll` argument is only consulted on the `(None, None)` arm, so after
+   seeding it can never change the answer; passing it anyway keeps R-26's three
+   arms stated in one place and keeps the field read. An unread field would fail
+   the gate — `dead_code` is `warn`, and `cargo clippy -- -D warnings` promotes it.
+5. **Where each test lives.** VT-2 (config rejections) and VT-5 (`view_id`
+   determinism) are colocated `#[cfg(test)] mod tests` in `config.rs` and
+   `state.rs`: both are pure functions over host-authored input and neither needs
+   a backend. VT-1, VT-3, VT-4 and VT-6 are `tests/integration/`, against the
+   fake. This is `schedule.rs`'s split — fixtures for what a wire document means,
+   colocated units for what a typed function computes — applied one stratum up.
+   Note the colocated tests run in the `shell` column only, which is correct:
+   the modules do not exist in the other one.
+6. **The fake is scripted, and counts its calls.** `Vec<Exchange>` popped in
+   order plus a call count, because EX-3's claim is that the backend was **not
+   contacted** and a count is the only way to say so. PHASE-08/VT-2 makes the
+   same claim through a real process that would fail if run; these are the same
+   assertion at two costs, not a duplication.
+7. **`Outcome` needs a describer of its own.** `harness::describe` takes the
+   transport's `Result<Vec<u8>, BackendError>`. The host tier's panic messages
+   want `Failure` and `Option<Presented>`, so this phase adds `describe_outcome`
+   beside it rather than generalising the existing one.
+
+#### Assumptions — each a place this phase can break
+
+| id | assumption | how it breaks, and what tells us |
+|---|---|---|
+| A1 | `serde_json::from_slice::<WireResponse>` reports empty input, trailing content and invalid UTF-8 the same way the `Value` probe did | a typed target can fail *earlier* — a missing `view` field is `MissingField`, not `Json`. Every EX-8 fixture is therefore a *well-shaped* document plus the framing defect, never a shapeless one. Re-measured at the first red |
+| A2 | `Exchange`'s three public fields are enough to build every case the fake needs | `Exchange::failed` is `pub(super)`; if a case needs a constructor `tests/` cannot reach, the fake cannot express it and that is a finding against the seam, not a reason to widen it quietly |
+| A3 | a `Host<B>` generic over `Backend` compiles against a fake whose `exchange` is an `async fn` | AFIT plus the `+ Send` bound on the trait's return. If the fake needs a `Box::pin`, the seam is harder to implement than the design claims and PHASE-08's own backends inherit that |
+| A4 | nothing in this phase does arithmetic on backend-derived data except through `semantics` | EX-7 puts the deny on `host.rs`. If `config.rs` or `state.rs` turns out to need one, the lint table's placement rule (D53, "about the data, not the directory") is what decides, and the sheet records why |
+| A5 | `State::next_seq` incrementing is the only arithmetic in `state.rs` | EX-7 says if the counter moves into a module carrying the lint it needs a `checked_add`. It does not move; if the increment ends up in `host.rs`, it does |
+
+#### STOP conditions
+
+- **Either open gap answered by the agent rather than the user.** Both are
+  decisions about what the design and the standard say, not about code.
+- Anything requiring an edit under `src/semantics/**` — not a Surface. Gap 2's
+  option (b) is exactly this and is why it is a question.
+- Anything requiring an edit to `Cargo.toml` — not a Surface, and `toml` is
+  already declared.
+- A measurement disagreeing with `design.md` §5.3, §5.4 or the §5.5 edge table.
+  PHASE-06's precedent: the measurement wins, the disagreement is a finding, and
+  the finding goes to the user before any repair.
+- `Outcome`, `Presented` or `Failure` turning out not to be buildable as
+  `design.md:1063`–`1096` states them.
+- The round trip needing anything of `respond` beyond the `view_id` check
+  (`design.md:1753`). PHASE-08/VT-5 asserts the host validates nothing else.
+
+#### Tasks
+
+Red / green / **refactor** throughout. Break-and-revert on every claim whose
+mechanism is not obvious from the assertion.
+
+1. **Sheet, entry criteria, baseline, measurements.** Done — above.
+2. ~~**Both gaps to the user.**~~ **Done 2026-09-03** — both closed on the
+   recommended option, `plan-log.md`.
+3. **`config.rs`** — the wire/canonical split, the three values, the three
+   rejections, `ConfigError`. Red first: one rejection case per EX-1 clause,
+   colocated (VT-2). EX-1.
+4. **`state.rs`** — `State`, `Outstanding`, `issue`, `next_seq`. Red first:
+   VT-5's exact-id assertion against a fixed `now` and counter. EX-2.
+5. **`error.rs`** — `StateError`'s two variants, `Display`, `Error::source`, in
+   `BackendError`'s shape. EX-3's vocabulary.
+6. **The fake backend and the host tier's harness additions.** No host code yet;
+   this is the vehicle everything below is red against.
+7. **`host.rs`** — `Host`, `Outcome`, `Presented`, `Failure`, `new`, `evaluate`,
+   `respond`. In criterion order, red each: EX-4 (the shape), EX-8 + VT-6 (the
+   three framing cases), EX-3 + VT-3 (stale and unknown ids, outstanding
+   survives), EX-5 + VT-4 (the schedule across three failures), EX-6 (the two
+   `view: null` rows). EX-7's module deny lands with the file and is proven by
+   break-and-revert **in host code**, per Overview item 4.
+8. **Refactor.** The step that is not optional. Particular attention to whether
+   `evaluate` and `respond` are two functions over one shared body or two bodies
+   that drifted — they differ in exactly two places, the request they build and
+   what they do to `outstanding`.
+9. **Break-and-revert.** At minimum: the `view_id` check moved *after* the
+   exchange (VT-3 must fail, and the call count is what catches it); the failure
+   path allowed to write `resolved_check` (VT-4); `from_slice` replaced by a
+   reader that stops at the first document (VT-6's trailing-content case); the
+   `respond` success path leaving `outstanding` set (EX-6).
+10. **`just check`, both columns.** VA-1. Then the Verification record, the
+    Harvest, and the status table.
+
+#### Noticed, not this phase's
+
+All six are audit or reconciliation business, and none is a phase repair. They
+are restated in the Harvest's *Open* section.
+
+- **Invalid UTF-8 in a value serde *skips* is accepted.** `{"a":"\xff"}` parses
+  as a `WireResponse`, because every field is `#[serde(default)]` and a skipped
+  value is never decoded. So "the host rejects a body that is not UTF-8" is true
+  only of bytes serde actually reads — keys, and values it binds.
+  `design.md:1052`'s argument for `Vec<u8>` over `String` **stands** and is in
+  fact vindicated: the case that matters is a *read* value, where
+  `String::from_utf8_lossy` would have silently substituted U+FFFD, and that case
+  is rejected. But the rejection is not total, and R-38's verification row does
+  not say so. Audit should decide whether that is a qualification worth writing
+  down or a case the host should refuse outright — the latter would mean
+  validating the whole body before parsing it, which costs a pass over 8 MiB.
+- **`design.md` §5.2's error taxonomy is now incomplete as written.**
+  `ConfigError` exists and §5.2 lists five error types, not six. Straight
+  reconciliation: the code is right and the document is stale.
+  `draft-spec.md`'s R-44 has the same shape — its list of distinct errors names
+  nothing about configuration.
+- **`design.md:1167`'s `issued_at` is read by nothing.** Kept under
+  `#[expect(dead_code, reason = …)]` by user decision. Audit should either give
+  it a reader or remove it from the design; the expectation self-clears if a
+  reader appears, so the record cannot go stale in the other direction.
+- **A config file's unknown keys are ignored silently.** A stray `[logging]`
+  section or a misspelled section name is accepted; a misspelled *key* is caught,
+  because it presents as a missing field. `deny_unknown_fields` would close it
+  and no criterion asks for it, so it was recorded rather than built (P3). I10's
+  no-closed-contract rule is about *inbound wire types* and does not reach a file
+  the user wrote, so nothing forbids the strictness either.
+- **Half of PHASE-05's second Open item is now closed structurally.**
+  `command = []` is rejected at load, so `ProcessBackend`'s synthesized
+  `Spawn(InvalidInput)` is unreachable *through `Config`*. It remains reachable
+  by a caller that builds a `ProcessBackend` directly, which
+  `tests/integration/transport.rs` does. Audit's question is unchanged in kind
+  and smaller in scope.
+- **R-30's verification row has no owner in the plan.** `draft-spec.md:370` asks
+  for a "source check that no inbound type has a `view_id` field", and the
+  Coverage map allocates it to no phase — it is a spec row rather than an AC, and
+  the map is by AC. The requirement's first half ("the host mints every
+  `view_id`") is discharged here by EX-2; the source check is unwritten, and its
+  natural home is `tests/protocol/boundary.rs`, which is PHASE-01's surface.
+  Audit business, or PHASE-09's sweep. Recorded rather than fixed, because
+  `tests/protocol/` is not this phase's surface.
+
+#### Re-measured during execution — A1 was right, and the fixture it named was wrong
+
+The expansion measured framing against `serde_json::Value`. A1 said a typed
+target can fail *earlier* and that every EX-8 fixture must therefore be a
+well-shaped document plus the framing defect. It fired on the first run: the
+invalid-UTF-8 case was `{"a":"\xff"}`, and against `WireResponse` that **parses**
+— every field is `#[serde(default)]`, so `"a"` is an unknown key whose value
+serde skips without decoding it. The case failed on `missing required field
+"view"`, which is a different claim entirely.
+
+Re-measured against `WireResponse` itself:
+
+| bytes | outcome |
+|---|---|
+| empty | `Err(EOF while parsing a value at line 1 column 0)` |
+| `{"view":null}` | `Ok` |
+| `{"view":null}\n  ` | `Ok` — trailing whitespace is not trailing content |
+| `{"view":null} {"view":null}` | `Err(trailing characters at line 1 column 15)` |
+| `{"a":"\xff"}` — bad byte in a **skipped** value | **`Ok`** |
+| `{"view\xff":null}` — bad byte in a **key** | `Err(invalid unicode code point at line 1 column 8)` |
+| `{"view":{…,"title":"\xff",…}}` — bad byte in a **read** value | `Err(invalid unicode code point at line 1 column 36)` |
+| `{"view":null}\xff` — bad byte **after** the document | `Err(trailing characters at line 1 column 14)` |
+
+The fixture is now the seventh row — the bad byte sits in a view's title. That is
+the case `design.md:1052` is actually about: a title `String::from_utf8_lossy`
+would have silently turned into U+FFFD, which is why `Exchange.result` carries
+`Vec<u8>`. The fifth row is a finding and is in *Open* below.
+
+#### Verification record
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| EX-1 | — | **pass** | `config.rs::the_design_s_own_example_loads` reads `design.md:1134` verbatim into the three values, with `timeout` a `std::time::Duration` and `default_poll` a `jiff::SignedDuration` — the two consumers' types, resolved at load. The three rejections are VT-2's cases below. Durations go through `jiff::Span` + `SpanRelativeTo::days_are_24_hours()`, `next_check`'s own grammar, restated deliberately per the gap-2 decision |
+| EX-2 | — | **pass**, and it needed a decision | `State` holds `Option<Outstanding>`, a non-`Option` `resolved_check` and a `u64` counter. `Host::new` seeds through `schedule::resolve`'s `(None, None)` arm rather than adding `now + default_poll` a second time (I4). `view_id` is VT-5's case. `Outstanding.issued_at` is read by nothing in this slice and is kept under an `#[expect(dead_code, reason = …)]` — user decision 2026-09-03; see the Log's fourth entry, and *Open* |
+| EX-3 | — | **pass** | `StateError::NoOutstandingView` and `StaleViewId` are distinct variants in `shell/error.rs`, raised by `State::verify`, which `Host::respond` calls **before** it builds a request. `state.rs`'s five colocated cases and `host.rs`'s two integration cases; the rejection-leaves-it-intact half is asserted by a *subsequent* exchange succeeding, not by inspecting state |
+| EX-4 | — | **pass** | `Outcome` carries all six fields as `design.md:1063` states them, and `Presented` pairs the view with its id inseparably. `host.rs::a_returned_view_arrives_with_its_id_and_a_concrete_next_check` asserts view, id, `next_check`, empty discards and `cleanup`; `::an_unusable_next_check_is_discarded_and_the_view_still_arrives` is the only case that exercises `discarded`; `::stderr_and_the_cleanup_verdict_survive_a_failed_exchange` asserts the two fields that must survive whatever the result was (R-42, R-54) |
+| EX-5 | — | **pass**, and the mechanism is the signature | `Host::no_action` takes `&self`, so a failure path *cannot* write `resolved_check` — the same move as `State::verify(&self)` for R-34, and break 3 had to change the signature to `&mut self` before it could break the rule. VT-4's three cases plus its positive control |
+| EX-6 | — | **pass** | `WhenNothingToShow` is the one place the two entry points differ after the bytes are in. `::a_null_view_answering_an_evaluate_leaves_the_interaction_open` (the interaction survives, proven by a later `respond` succeeding) and `::a_null_view_answering_a_respond_closes_the_interaction` (proven by a later `respond` being refused as `NoOutstandingView`). `::a_view_returned_by_a_respond_replaces_the_one_it_answered` covers the state diagram's self-transition (R-33) |
+| EX-7 | — | **pass**, and seen to fail | `host.rs:13` carries `#![deny(clippy::arithmetic_side_effects)]`; `config.rs` and `state.rs` do not, and each says why in its own module doc — the rule is about the data, not the directory. Break 1: one `discarded.len() + 1` in `host.rs` fails the gate, naming line 13. In **host code**, which is what F-14 requires: the same expression under `tests/` proves nothing |
+| EX-8 | — | **pass**, with the qualification the re-measurement found | `read()` in `host.rs` is the crate's only `from_slice` over a backend's bytes. `::a_body_that_is_not_exactly_one_json_document_is_a_protocol_failure` asserts all three cases as `Protocol(Json)`, and `::a_document_followed_by_whitespace_is_still_one_document` asserts the other half of R-38 — trailing whitespace is not trailing content. The qualification is *Open*'s first item: a byte serde **skips** is never decoded |
+| VT-1 | test | **pass** | twelve cases in `tests/integration/host.rs`, all against `fake::FakeBackend`. No case in this phase spawns a process |
+| VT-2 | test | **pass**, one per clause, each naming its error | `::an_empty_command_is_rejected_because_there_is_nothing_to_spawn` (`EmptyCommand`), `::a_zero_timeout_is_rejected_because_it_fails_every_exchange` and `::a_zero_default_poll_is_rejected_because_it_is_a_busy_loop` (`NonPositive`, each matching its own key). Two more than the criterion asks for: `::a_missing_section_is_refused_by_the_parser_rather_than_by_a_check` (`Syntax`) and the missing-file half of `::a_configuration_is_read_from_a_file_and_a_missing_one_says_so` (`Read`), so every `ConfigError` variant but `Duration` has a case |
+| VT-3 | test | **pass**, and seen to fail | `::an_answer_against_an_idle_host_is_refused_and_no_exchange_happens` asserts `NoOutstandingView` **and** `calls.count() == 0`; `::a_superseded_id_is_refused_and_the_outstanding_interaction_survives` asserts `StaleViewId` naming both ids, an unchanged call count, and that the live interaction still answers. Red under break 2 with the count doing the catching: `a stale answer must not reach the backend, left: 3, right: 2` |
+| VT-4 | test | **pass**, and not vacuous | `::no_failure_moves_the_schedule` over a timeout, a non-zero exit and malformed JSON. `::a_successful_exchange_does_move_the_schedule` is its positive control and is load-bearing: without it the case would pass against a host that never updates the schedule at all, which is F-8's mistake in this phase's shape |
+| VT-5 | test | **pass**, and seen to fail | `state.rs::a_fixed_now_and_counter_produce_the_id_the_design_documents` asserts four exact ids and reaches `design.md:1216`'s own worked example, `2026-08-23T04:12:00Z#3`, by the counter alone. Red under the format break with `left: "2026-08-23T04:12:00Z-0", right: "2026-08-23T04:12:00Z#0"` |
+| VT-6 | test | **pass**, and seen to fail | the same case as EX-8, asserting for each of the three that `next_check` is still the seeded value — EX-5's rule applied to this failure. Red under break 4, which failed **only** this case: a reader that stops at the first document accepts two |
+| VA-1 | agent | **pass** | `just check` exits 0, both feature columns — 35 unit, 27 integration, 15 protocol. Pasted in the Log |
+
+#### Log
+
+- 2026-09-03 — sheet written. Entry criteria checked and met; baseline green at
+  `532c244`, 22 unit / 15 integration / 15 protocol. `cargo tree
+  --no-default-features` shows `jiff`, `serde`, `serde_json` and their own
+  dependencies, and neither `tokio` nor `toml`. Four measurement groups taken
+  against the real crates and tabulated above. **Two plan gaps raised, both
+  open**: no error type exists for a rejected config, and the duration grammar
+  would be stated twice.
+
+- 2026-09-03 — **both gaps closed on the recommended option** (`plan-log.md`).
+  `ConfigError` joins `StateError` in `shell/error.rs`, five variants; the
+  duration grammar is restated in `config.rs` and the duplication recorded.
+  `plan.md`'s Surfaces line amended for both, including the explicit **not**
+  `src/semantics/schedule.rs` so the second decision cannot be quietly reversed.
+
+- 2026-09-03 — `error.rs`, `config.rs`, `state.rs`. Red first on all three of
+  VT-2's clauses: a `parse` that deserialized and checked nothing failed each of
+  them, and the design's own example, for the right reason each time. Two
+  departures found while writing them, both measured rather than reasoned about:
+  **`jiff::Error` does not implement `std::error::Error`** under
+  `default-features = false` (D4), so `ConfigError::Duration` carries jiff's
+  message in a `detail` field that `Display` reads and `Error::source` does not
+  chain — named `detail` rather than `source` so the signature does not imply a
+  chain it cannot provide. And **`std::time::Duration::try_from` accepts zero and
+  refuses only the negative**, so the positivity check has to run *before* the
+  conversion or `timeout = "0s"` would be reachable only as a conversion failure.
+  `state.rs`'s two claims were both seen to fail: the id format break, and a
+  `verify` that clears on rejection, which took `R-34: refusing an answer must
+  not close the interaction it was not for` red.
+
+- 2026-09-03 — `host.rs`, the fake, and the host tier. **A1 fired on the first
+  run** and is the phase's most useful assumption: the invalid-UTF-8 fixture
+  parsed cleanly against `WireResponse` because serde never decodes a value it
+  skips. Re-measured, table above; the fixture is now a bad byte in a view's
+  title, which is the case `design.md:1052` is about. **A3 holds with a
+  qualification** — an `async fn` impl of the AFIT seam compiles, but `clippy`
+  refuses an `async` with no `.await` in it, so the fake returns
+  `std::future::ready`. That is the honest description of a scripted answer and
+  needed no `Box::pin`, which was A3's actual risk. **A2, A4 and A5 all held.**
+
+- 2026-09-03 — **five break-and-revert runs, plus a sixth on the lint
+  expectation.** Each is recorded against the criterion it falsifies in the
+  Verification record: (1) arithmetic in `host.rs` fails the gate at line 13;
+  (2) the `view_id` check moved after the exchange takes three cases red, and the
+  **call count** is what catches it — `left: 3, right: 2`; (3) a failure path
+  that extends the schedule takes four cases red, and had to change
+  `no_action(&self)` to `&mut self` before it could even be written; (4) a reader
+  that stops at the first document instead of requiring exactly one fails
+  **only** the framing case; (5) an accepted `respond` that leaves the
+  interaction open fails only the close case. All five reverted and the gate is
+  green.
+
+- 2026-09-03 — **EX-2's `Outstanding` restored by user decision.** The first
+  implementation was `Option<ViewId>`: `design.md:1167`'s `issued_at` is read by
+  nothing in this slice, and an unread private field fails the gate because
+  `cargo clippy -- -D warnings` promotes rustc's `dead_code`. EX-2 names
+  `Option<Outstanding>` explicitly, so shipping the narrower type was a
+  criterion-level divergence rather than a coding choice. The decision was to
+  keep the design's shape under `#[expect(dead_code, reason = …)]` — the hatch
+  `Cargo.toml` preserves for cases worth recording. **The expectation is live,
+  not decoration:** adding a read of `issued_at` produces `this lint expectation
+  is unfulfilled` at `state.rs:40`, so the record clears itself the moment the
+  field acquires a reader.
+
+- 2026-09-03 — `just check` exits 0 on all six commands, both feature columns:
+
+  ```
+  cargo build
+  cargo test                     35 unit, 27 integration, 15 protocol, 0 doc
+  cargo test --no-default-features   22 unit, 15 protocol, 0 doc
+  cargo clippy --all-targets -- -D warnings
+  cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+  cargo fmt --check
+  ```
+
+  Landed: `src/shell/{config,state,host}.rs`, `ConfigError` and `StateError` in
+  `src/shell/error.rs`, three `pub mod` lines in `src/shell/mod.rs`,
+  `tests/integration/{fake,host}.rs` and two lines in
+  `tests/integration/main.rs`. Nothing else was touched.
+
 ## Harvest
 
-**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-06
+**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-07
 done** · `just check` exits 0 in both feature columns · stratum 1 is complete —
 the wire types, the canonical types, normalization and schedule resolution, with
-a 70-file fixture corpus across three directories — and **the process transport
-is complete with it: every bound, both grandchild cases, disposal on its own
-channel, and cancellation.** PHASE-07 is next: `Config`, host state, and
-composition
+a 70-file fixture corpus across three directories — **the process transport is
+complete with it**: every bound, both grandchild cases, disposal on its own
+channel, and cancellation — and **the host now composes the two**: configuration
+loads and rejects, state mints and adjudicates `view_id`s, and one `Outcome`
+carries every path. PHASE-08 is next: the round trip and the example backends,
+against real processes
 
 ### Produced
 
@@ -3993,7 +4486,41 @@ composition
   written by a grandchild that outlives the kill, a stderr write after the bound
   whose success picks the response body, a `/proc` enumeration that settles.
 
+- **Configuration, host state and the composition point, from PHASE-07.**
+  `src/shell/{config,state,host}.rs`, `ConfigError` and `StateError` in
+  `src/shell/error.rs`, and `tests/integration/{fake,host}.rs`. `config.rs` is
+  the design's three values with a wire/canonical split and five rejections;
+  `state.rs` is `Option<Outstanding>`, a concrete `resolved_check` and the
+  `view_id` mint; `host.rs` is `Host<B>`, `Outcome`, `Presented`, `Failure`, and
+  the four steps that follow an exchange — `from_slice`, `normalize_response`,
+  schedule resolution, state update. 35 unit tests and 27 integration.
+  **Two structural facts are worth carrying rather than rediscovering.** The
+  failure rules are held by *signatures*, not by discipline: `Host::no_action`
+  takes `&self` and `State::verify` takes `&self`, so neither a failed exchange
+  nor a refused answer can move the schedule or close an interaction — break 3
+  had to change a signature before it could break R-29. And `Host` is generic
+  over `Backend` for a reason that paid immediately: twelve host-level cases run
+  with no process at all, and the fake's **call count** is the only thing that
+  can assert AC-8's "the backend is not contacted".
+
 ### Learned
+
+**A typed deserialization target fails differently from an untyped one, and the
+difference decides fixtures — PHASE-07.** `serde_json::from_slice::<Value>` and
+`from_slice::<WireResponse>` disagree about `{"a":"\xff"}`: the first reports an
+invalid code point, the second returns `Ok`, because every field is
+`#[serde(default)]` and **serde never decodes a value it skips**. A framing
+fixture must therefore be a well-shaped document plus exactly the defect it
+names — anything else is caught by a different rule and asserts a different
+claim. The measurement that matters is against the type that ships.
+
+**A lint expectation is a self-clearing record, and that is what makes it
+better than a comment — PHASE-07.** `#[expect(dead_code, reason = …)]` on a field
+the design names and nothing reads holds the design's shape *and* fails the
+build the moment the situation changes: adding a read produces `this lint
+expectation is unfulfilled`. Verified by adding one. A stale `#[allow]` is
+invisible; a stale `#[expect]` is a warning.
+
 
 Candidates for `docs/memory/` at close — all listed under **Established
 empirically** above, plus:
@@ -4239,6 +4766,30 @@ empirically** above, plus:
   not happen.
 
 ### Open
+
+**Raised by PHASE-07, 2026-09-03 — six are audit or reconciliation business,
+none is a phase repair.** The phase sheet's *Noticed, not this phase's* section
+states each in full; in short:
+
+- **Invalid UTF-8 is rejected only where serde reads it.** A skipped value's
+  bytes are never decoded, so `{"a":"\xff"}` parses. `design.md:1052`'s argument
+  for `Vec<u8>` stands and is vindicated by the case that matters — a *read*
+  value, where lossy conversion would have substituted U+FFFD silently — but
+  R-38's verification row claims more than the implementation does.
+- **`design.md` §5.2 lists five error types and there are six.** `ConfigError`
+  is new by user decision. `draft-spec.md`'s R-44 has the same omission.
+  Reconciliation: the code is right, the documents are stale.
+- **`design.md:1167`'s `issued_at` is read by nothing** and is kept under a
+  self-clearing `#[expect]`. Audit gives it a reader or removes it.
+- **A config file's unknown keys and section names are ignored silently.**
+  `deny_unknown_fields` would close it; no criterion asks for it, so it was
+  recorded rather than built.
+- **Half of PHASE-05's synthesized-`Spawn` item closes structurally**, since
+  `command = []` is now rejected at load. It stays reachable for a caller that
+  builds a `ProcessBackend` without a `Config`.
+- **R-30's verification row has no owner in the plan.** The Coverage map is by
+  AC and this is a spec row; the source check it asks for is unwritten, and its
+  home is PHASE-01's surface.
 
 **Raised by PHASE-06, 2026-09-03 — three are audit business, none is a phase
 repair.**
