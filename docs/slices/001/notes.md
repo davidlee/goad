@@ -15,7 +15,8 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-03 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 5 of them this phase's, plus a 16-file fixture corpus running in **both** columns. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. **Five** break-and-revert runs, not the two the sheet asked for, because the fixture format makes three property claims; two of them found real defects in the runner, both fixed at the refactor step. No plan gap raised during execution — the four found at expansion were all closed beforehand. See `## Phase sheets` | 2026-09-02 |
 | PHASE-04 | **done** — `just check` exits 0 in both feature columns; 22 unit tests and 9 protocol tests, 4 of the latter this phase's, over a **54-file** corpus in two directories. All eight EX and all four VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **Three plan gaps found at expansion, all closed before execution** — the Surfaces named no Rust under `tests/`, so the corpus had nowhere to be asserted from, and VA-2 named `src/semantics/normalize.rs`, which is not the file: both amended by user decision 2026-09-02. The third — VT-2's `NaN` fixture is unwritable in the inherited format, because serde_json refuses the literal at *envelope* parse — is settled in the sheet as a second corpus over raw text. **A fourth was raised during execution** — `canonical.rs` joined the Surfaces, scoped to removing four `expect(dead_code)` attributes PHASE-02 wrote as temporary, without which the lib does not compile once normalization calls the constructors. See `## Phase sheets` | 2026-09-02 |
 | PHASE-05 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 7 integration and 14 protocol, 5 of the latter this phase's. All seven EX, all five VT and all three VA criteria discharged. **Three plan gaps were closed at expansion and none was raised during execution.** Two assumptions broke, both measured rather than reasoned about: **A3 is false as stated** — `Io` is deterministic, but only for a request past the 64 KiB pipe buffer, since a smaller one is accepted by the kernel and outlives the reader — and **the probe misleads about `bash`**, which drove its backends with `bash -c` and so exec'd their last command; a script *file* forks, turning the same two lines into PHASE-06's grandchild case. One departure from §5.4's sketch, recorded and argued: `body` is an `async fn` rather than an inline block, so VT-5's region check asserts F-41's rule instead of tripping over the sketch's own nested `?`s. Five break-and-revert runs, the strongest of which — holding stdin open — fails three tests at once with R-37's symptom verbatim. **A fourth gap was raised at the end and closed by user decision 2026-09-03**: `tests/integration/transport.rs`, which holds this phase's cases, was not in the Surfaces; they now read `tests/integration/**`, the form PHASE-06 already used. See `## Phase sheets` | 2026-09-03 |
-| PHASE-06…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
+| PHASE-06 | **done** — `just check` exits 0 in both feature columns; 22 unit tests, 15 integration and 15 protocol, one of the latter this phase's. All six EX, all six VT and both VA criteria discharged. **Two plan gaps found at expansion, both closed by user decision 2026-09-03** — VT-4 asked for a wedged `wait`, which no test can arrange, and VT-5's suite-level no-orphans claim is unsound under libtest's in-process parallelism. A finding against `process.rs` as shipped was closed with them and repaired here: `read_capped` borrowed rather than owned, so the stdout handle dropped when the exchange **returned** rather than at the bound — measured 500 ms apart, and the first red of the phase. **Five break-and-revert runs, and two of them found defects in this phase's own test mechanism** — a stderr fixture that passed against the reader it was meant to catch, and a `/proc` filter blind to the two backends that `exec`. Both repaired and both re-broken. See `## Phase sheets` | 2026-09-03 |
+| PHASE-07…10 | not started; phase sheets are written one at a time, immediately before execution. Execution order is 01…08, **10**, 09 | — |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -3483,14 +3484,415 @@ does.
   assertion properly; this is the informal version, and it is the reason the
   `exec` finding above mattered before PHASE-06 rather than during it.
 
+### PHASE-06 — Process transport: bounds, disposal, and the two grandchild cases
+
+**State:** **done 2026-09-03.** `just check` exits 0 in both feature columns —
+22 unit, 15 integration, 15 protocol. All six EX, all six VT and both VA criteria
+are discharged in the Verification record below. Entry criterion checked and met,
+and the expansion's measurements are recorded below. **Two plan gaps were found at
+expansion and both were closed by user decision the same day** — `plan.md` and
+`plan-log.md` carry them. One finding against code PHASE-05 shipped was raised
+with them and is *not* a gap: EX-1 requires behaviour `process.rs` does not have,
+`design.md` §5.4 and R-43 already mandate that behaviour, and `process.rs` is in
+this phase's Surfaces — so it is this phase's work. The user's decision was to
+repair the code rather than narrow the criterion.
+**Plan entry:** `docs/slices/001/plan.md:696`
+**Surfaces (from the plan):** `src/shell/backend/process.rs`,
+`src/shell/error.rs`, `tests/integration/**`, `tests/backends/*.sh`,
+`tests/protocol/transport_shape.rs`.
+
+#### Reading list
+
+| what | where | why |
+|---|---|---|
+| the two bounds and their asymmetry | `design.md:1457`, `:1520`–`:1527` | D34 in full: "truncate" means stop **storing**, never stop **reading**. EX-2 is this bullet |
+| the stdout cap's second half | `design.md:1528` | the claim EX-1 asserts — the reader closes the stream, and the backend is what observes it |
+| the two grandchild cases | `design.md:1407`–`1424` | the table EX-4 asserts, and the argument for why they differ |
+| cancellation, scoped | `design.md:1425`–`1440` | what VT-6 may claim and what it may not: nothing the **host** holds survives; the child is `kill_on_drop`'s, best-effort |
+| the edge rows this phase owns | `design.md:1725`–`1729` | four rows: the stdout cap, the stderr cap, the two grandchild cases. VA-2 is a re-read of these against the tests |
+| the two dimensions | `design.md:1380`–`1406` (the four-combination table), `:927` (`CleanupFailure`) | EX-3. `TimedOut` is named for what was observed, not for what it might mean |
+| the requirements | `draft-spec.md:152` (R-43), `:153` (R-48), `:154` (R-54), `:381`–`:383` (their verification rows) | R-43's verification row is where "asserted by the backend observing the broken pipe" comes from |
+| the transport as shipped | `src/shell/backend/process.rs` | `read_capped`/`drain_capped` at `:223`/`:247`, the cleanup budget at `:140`, `body` at `:167` |
+| the harness this phase inherits whole | `tests/integration/harness.rs` | `backend`, `transport`, `evaluate`/`padded_evaluate`, `describe`/`describe_cleanup`/`stderr` |
+| prior art — a pid asserted gone | `tests/integration/transport.rs:98`–`127` | VT-2's `alive()`, and the pattern EX-5 extends |
+| prior art — source-text checks | `tests/protocol/transport_shape.rs` | `Source`, `Code`, `Breach`, and the two guard tests. VT-6's structural half re-asserts `the_only_spawn_is_the_child` here |
+| the `exec` finding, and its inverse | `notes.md` PHASE-05 Log 2026-09-02, and the Harvest | **the single most important thing to read before writing a script.** PHASE-05's hanging scripts need `exec`; this phase's grandchild scripts need its absence |
+
+#### Entry criteria — checked, not assumed
+
+| id | criterion | state |
+|---|---|---|
+| EN-1 | PHASE-05 discharged — every exit criterion it carries | **met.** EX-1…EX-7 are all recorded `pass` in PHASE-05's Verification record, each with named evidence; the fourth gap raised at the end of that phase was closed by user decision 2026-09-03 (the `tests/integration/**` glob) and needed no code |
+
+Baseline, 2026-09-03: `just check` exits 0 on all six commands, both feature
+columns — 22 unit, 7 integration, 14 protocol. PHASE-05 is committed at
+`b3ac51c`. Any failure from here is this phase's.
+
+#### What already exists — inspected 2026-09-03
+
+| path | state | consequence for this phase |
+|---|---|---|
+| `src/shell/backend/process.rs` | the whole §5.4 structure, 267 lines | both bounds are already implemented and neither is tested. `STDOUT_LIMIT` 8 MiB (`:22`), `STDERR_LIMIT` 256 KiB (`:26`), `CLEANUP_LIMIT` 500 ms (`:30`) |
+| `read_capped` (`process.rs:223`) | takes `&mut (impl AsyncRead …)` | **does not drop the stdout handle at the bound** — see the finding below. EX-1's second clause is about this line |
+| `src/shell/error.rs` | `BackendError` with `OutputTooLarge`, `CleanupFailure` with `TimedOut` | both variants exist and neither is reachable from a test yet. This phase is expected to add nothing here |
+| `tests/backends/` | six scripts, PHASE-05's | four more, and the two hanging ones are the trap: they carry `exec` and this phase's grandchild scripts must not |
+| `tests/integration/transport.rs` | 7 cases, `CLEANUP_LIMIT` and `SLACK` restated at `:18` and `:24` | the constants are already local to the tier; this phase reuses them rather than restating them again |
+| `tests/protocol/transport_shape.rs` | 3 checks + 2 guards, runs in **both** columns | VT-6's structural half is `the_only_spawn_is_the_child`, already written and already green |
+
+#### Measured at expansion, before any test was written
+
+A scratch crate with a path dependency on this repo, driving the **real**
+`ProcessBackend` against candidate scripts. Three runs of each; the numbers below
+are stable to a millisecond or two. This is the harness's own bash-script route,
+not the probe's `bash -c`, which is the divergence PHASE-05 paid for.
+
+| case | script shape | timeout | elapsed | `result` | `stderr` | `cleanup` |
+|---|---|---|---|---|---|---|
+| grandchild holds stderr | `sleep 2 >/dev/null &` then answer | 5000 ms | **503 ms** | `Ok(14)` | 0 B | `TimedOut { 500ms }` |
+| grandchild holds stdout too | `sleep 2 &` then answer | 300 ms | **802 ms** | `Err(Timeout)` | 0 B | `TimedOut { 500ms }` |
+| stderr flood then answer | 300 KB to stderr, then answer | 5000 ms | **5 ms** | `Ok(14)` | 262144 B, `truncated` | `None` |
+| stdout flood, `exec`'d | `exec yes …` | 5000 ms | **6 ms** | `Err(OutputTooLarge)` | 15 B | `None` |
+| stdout flood, **not** `exec`'d | `yes …` as a grandchild | 5000 ms | 507 ms | `Err(OutputTooLarge)` | 15 B | `TimedOut { 500ms }` |
+
+Five readings, each of which changes a test this phase would otherwise have
+written wrong:
+
+- **Both grandchild cases reproduce exactly as `design.md:1407` tabulates them,
+  and the timings separate them.** The stderr-only case pays the cleanup budget
+  *alone* — 503 ms against a 5-second timeout, so a test whose timeout is long
+  proves the timeout was not paid. The stdout-too case pays both, 802 ms against
+  300 + 500. Assert the first as `< 1 s` with a long timeout and the second as
+  `>= timeout` and `< timeout + CLEANUP_LIMIT + SLACK`.
+- **The `exec` inversion is real and it is silent.** The stdout flood written the
+  obvious way — `yes` as the script's last command with other lines after it —
+  makes the flooder a *grandchild* holding stderr, which turns `cleanup: None`
+  into `TimedOut` and quietly converts the flood case into a grandchild case.
+  Same defect as F-63, arrived at from the other direction. The flooder must be
+  `exec`'d, or its stderr must be closed.
+- **The stderr flood does not deadlock and truncates at exactly 256 KiB**, with
+  the body still reading stdout — 262144 bytes, `truncated`, 5 ms. The flood is
+  written past the 64 KiB pipe buffer *and* past the bound, which is what EX-2
+  asks for; `yes … | head -c 300000 >&2` is enough and costs nothing.
+- **`num_alive_tasks()` works under this crate's exact tokio feature list** —
+  `process`, `time`, `rt`, `io-util`, `macros`; no `rt-multi-thread`, no
+  `tokio_unstable`. Measured on a current-thread runtime the measurement built
+  itself: 0 with nothing spawned, 1 with a detached exchange in flight, 0 after
+  `abort()`. That is VT-6's positive control and its assertion, in that order.
+- **Children of the test process can be enumerated without an external tool.**
+  `/proc/self/task/*/children` lists them, `/proc/<pid>/cmdline` names them, and
+  a grandchild whose parent has died is **not** in the list — it reparents. So
+  the `sleep 2` a grandchild case leaves behind is not an orphan by EX-5's
+  definition, and EX-5 does not need it to be gone.
+
+#### The finding that is not a gap — `read_capped` does not drop the handle
+
+EX-1 requires three things of the stdout bound: `OutputTooLarge`, **the reader
+drops the handle**, and the backend observing the broken pipe. The second is
+false of `process.rs` as shipped. `read_capped` borrows (`&mut`), so `stdout`
+lives in `exchange`'s frame until the exchange **returns** — after the kill,
+after the reap, after the drain.
+
+This is not a reading of the source; it is measured, and the difference is
+observable. A flooding backend that reports its own `EPIPE` out of band — a
+grandchild that writes a marker file, so it outlives the host's kill — with a
+second grandchild holding stderr so that disposal stalls for the whole 500 ms
+budget and widens the window:
+
+| `read_capped` takes | marker written, relative to the exchange returning |
+|---|---|
+| `&mut` — as shipped | **+1.8 ms** — the pipe closed because the call ended |
+| by value — as §5.4 states | **−500.1 ms** — the pipe closed because the bound was hit |
+
+`design.md:1520` says the reader "stops at the limit and **drops the handle**",
+`design.md:1528` says that is what makes the flood stop, R-43 says the host
+"stops reading and **closes the stream**", and `process.rs:220`'s own doc comment
+already claims it. The code is the only thing that disagrees, `process.rs` is in
+this phase's Surfaces, and EX-1 asks for exactly this. **Closed by user decision 2026-09-03: repair the code.** So it is phase work:
+`read_capped` takes its reader **by value**, `body` takes `stdout` by value, and
+the handle drops where the bound is hit. `drain_capped` already has that shape,
+so the lint table has been shown to accept it.
+
+Two consequences to carry into the tasks: **EX-6 fires** — `process.rs` changes,
+so the probe is re-run and its output recorded — and the claim needs a
+regression guard that is not a timing race, which is the fourth source-text check
+in the latitude section below.
+
+#### Two plan gaps found at expansion — **both closed 2026-09-03**
+
+**1. VT-4's arrangement cannot be built.** It asks for "a backend wedged so
+`wait` cannot return". `dispose` is `start_kill` then `wait`; `start_kill` sends
+`SIGKILL`, and the only thing that defers `SIGKILL` is uninterruptible kernel
+sleep, which a test cannot arrange without a device to block on. What *is*
+reachable — and what §5.5's row at `design.md:1729` actually cares about — is
+that **the cleanup budget elapses, `TimedOut` is reported, and the exchange
+returns** rather than blocking. Three cases in this phase produce that, and in
+all three the stall is the **drain**, not `wait`.
+
+Options: (a) reword VT-4 to the reachable claim — disposal that cannot complete
+within the budget — and discharge it on the case that already exists, with the
+elapsed bound as its content; (b) keep VT-4 as a distinct case and give it the
+stdout-flood-plus-stalled-drain backend, which stalls disposal for a different
+reason than the grandchild cases do; (c) leave the wording and accept a test that
+asserts something it did not arrange. **Recommendation: (a)**, with §5.5's row
+wording — "wedged so `wait` cannot return" — recorded for audit as a case the
+design describes and no test can build. **Closed as (a) by user decision
+2026-09-03**; `plan.md` VT-4 is amended and `plan-log.md` carries the argument.
+
+**2. VT-5's "after the whole misbehaving suite" is unsound under `cargo test`.**
+libtest runs a target's tests as threads of **one** process, so a global "the
+test process has no children" assertion sees the children of every case running
+concurrently, and fails on other people's work. EX-5's own wording is per-case
+("after every misbehaving case"), which is sound; VT-5's suite-level wording is
+not.
+
+Options: (a) read EX-5 literally — every misbehaving case asserts its own child
+is gone, the way VT-2 already does with `kill -0` — and give VT-5 an aggregate
+that **settles**: poll `/proc/self/task/*/children`, filtered to processes whose
+`cmdline` names `tests/backends/`, until none remains or a deadline passes, so a
+concurrent case cannot false-fail it and a genuine leak still does; (b) move the
+aggregate into its own test target, which needs a `[[test]]` entry and so needs
+`Cargo.toml`, which is **not** in this phase's Surfaces; (c) drop the aggregate
+and keep only the per-case assertions. **Recommendation: (a).** **Closed as (a)
+by user decision 2026-09-03**; `plan.md` VT-5 is amended in two parts.
+
+#### Settled here — implementer latitude
+
+1. **Scripts are declarative, named for the behaviour**, per PHASE-05's rule.
+   Four were foreseen — `floods-stdout-past-the-cap.sh`,
+   `floods-stderr-then-answers.sh`, `leaves-a-grandchild-holding-stderr.sh`,
+   `leaves-a-grandchild-holding-stdout-too.sh` — and execution added two more,
+   both inside `tests/backends/*.sh` and both argued in the Log:
+   `floods-stdout-and-reports-the-broken-pipe.sh`, because EX-1's third clause
+   has no in-band channel, and `hangs-without-exec.sh`, because an `exec`'d
+   backend is not named by its script in `/proc`. Each carries the measurement
+   that constrains its shape in a comment — for the grandchild pair, that a bare
+   `sleep` is required and `exec` would destroy the case, which is the inverse of
+   the note the two hanging scripts carry.
+2. **Grandchild sleeps are 2 seconds**, not 30. They must outlive the 500 ms
+   cleanup budget and nothing more; a 30-second sleep leaves a process about for
+   half a minute after every run for no gain.
+3. **The flood's marker path is an argv element, not an environment variable.**
+   `ProcessBackend` takes a `Vec<String>`, so a test can pass the path as `$1`;
+   `std::env::set_var` is `unsafe` in edition 2024 and `unsafe_code` is denied.
+   The file goes in `std::env::temp_dir()`, is named with the process id, and is
+   removed by the test.
+4. **A fourth source-text check in `transport_shape.rs`**: `read_capped` takes
+   its reader by value. That is the regression guard for the finding above —
+   ownership is what drops the handle, and it is visible in the signature, where
+   a timing assertion would be a race.
+5. **EX-5's mechanism is `/proc`, not `pgrep`.** The devshell declares neither
+   `procps` nor `coreutils`; `tests/integration/transport.rs:120` already shells
+   out to `kill`, which resolves ambiently. Reading `/proc/self/task/*/children`
+   needs no tool at all. Whether to convert `alive()` to the same mechanism is a
+   refactor-step call, not a criterion.
+6. **Nothing in `src/shell/error.rs` is expected to change.** It is in the
+   Surfaces because `OutputTooLarge` and `CleanupFailure::TimedOut` are this
+   phase's to reach; both already exist. Wanting to *rename* `TimedOut` is a STOP
+   (F-48, F-63).
+
+#### Assumptions — each a place this phase can break
+
+- **A1 — the five measurements above hold under `cargo test`'s parallelism.**
+  They were taken sequentially in one process. A loaded machine moves the
+  timings, not the outcomes; the bounds are asserted with `SLACK` already stated
+  at `transport.rs:24` for exactly this.
+- **A2 — a grandchild reparents rather than staying a child.** Measured. If it
+  did not, EX-5's aggregate would fail on cases that are behaving correctly.
+- **A3 — `read_capped` taking its reader by value survives the lint table.**
+  `drain_capped` already does, so `needless_pass_by_value` is not expected to
+  fire. If it does, the reason goes at the site under D53's hatch — the drop *is*
+  the point of the ownership.
+- **A4 — 300 KB written to stderr by `yes | head -c` outruns nothing.** The flood
+  has to pass the 64 KiB pipe buffer while the body is reading stdout, which is
+  the deadlock the concurrency exists to prevent; measured at 5 ms.
+- **A5 — the marker file is written by a process the host's kill cannot reach.**
+  It is a grandchild, and its stderr is closed so it does not hold the drain open.
+  If either changes, the flood case silently becomes a grandchild case.
+
+#### STOP conditions
+
+- **A third plan gap.** The two above are open; a new one is a return to plan.
+- **Wanting to change `CLEANUP_LIMIT`, `STDOUT_LIMIT` or `STDERR_LIMIT` to make a
+  test pass.** They are constants by decision (`design.md:1457`), and a test that
+  needs one moved has found something the design should hear about.
+- **Wanting to rename `CleanupFailure::TimedOut`.** F-48 and F-63 both.
+- **Wanting a `tokio::spawn`, an `Arc`, a `Mutex`, or a `?` past the spawn** —
+  unchanged from PHASE-05, and now with three green checks that will say so.
+- **Wanting `Cargo.toml`.** Not in the Surfaces. A second test target, a dev
+  dependency, or a tokio feature would all need it, and each is a STOP.
+- **A grandchild case that needs a sleep to assert cancellation.** VT-6's
+  behavioural half is a task-count assertion on a runtime the test owns; if it
+  needs timing, the structure has regressed.
+
+#### Tasks
+
+1. **Close the two gaps** with the user, and amend `plan.md` / `plan-log.md`.
+   **Done 2026-09-03** — both took the recommendation, as did the `read_capped`
+   finding.
+2. **`read_capped` and `body` take their readers by value** (the finding above),
+   red first: the flood case's marker assertion fails against the shipped
+   signature.
+3. **EX-6 — re-run the probe** once `process.rs` has changed, and record its
+   seven cases here.
+4. **EX-1 / VT-1** — `floods-stdout-past-the-cap.sh` and its case:
+   `OutputTooLarge`, and the marker written before the exchange returned.
+5. **EX-2 / VT-2** — `floods-stderr-then-answers.sh`: success, `truncated`, and
+   the body still reading stdout. Break it by making `drain_capped` stop at the
+   bound and record the hang.
+6. **EX-4 / VT-3** — the two grandchild scripts and their two cases, asserting
+   both dimensions and the elapsed bounds that separate them.
+7. **EX-3 / VA-2** — the four-combination table: two rows are PHASE-05's cases,
+   two are this phase's. State where each row is asserted rather than adding a
+   fifth test to restate them.
+8. **VT-4** — as gap 1 settles it.
+9. **EX-5 / VT-5** — the per-case assertions and the settling aggregate.
+10. **VT-6** — the structural half re-asserted against the finished module, and
+    the behavioural half on a runtime the test owns: spawn, wait for `>= 1`,
+    abort, assert `0`.
+11. **Break-and-revert** every new check and at least two behavioural claims;
+    record what each broken run said.
+12. **Refactor**, then `just check`, then this sheet, the status table and the
+    Harvest.
+
+#### EX-6 — the probe, re-run 2026-09-03 after `process.rs` changed
+
+Copied to a scratch crate and run with `cargo run --release`, as PHASE-05 did.
+All seven cases reproduce, and every timing is within noise of the run recorded
+under PHASE-05's sheet — so the ownership repair changed nothing the probe can
+see, which is the answer this re-run existed to get.
+
+| case | elapsed | `result` | `cleanup` |
+|---|---|---|---|
+| A. normal | 2.5 ms | `Ok("{\"view\":null}")` | `None` |
+| B. stderr flood then answer | 10.8 ms | `Ok("{\"view\":null}")`, `truncated` | `None` |
+| C. stderr then hang past timeout | 601.3 ms | `Err("timeout")` | `None` |
+| D. grandchild holds both pipes | 901.8 ms | `Err("timeout")` | `Some(TimedOut { after: 300ms })` |
+| E. grandchild holds stderr only | 303.4 ms | `Ok("{\"view\":null}")` | `Some(TimedOut { after: 300ms })` |
+| F. valid JSON then exit 1 | 3.0 ms | `Err("exit status Some(1)")` | `None` |
+| G. valid JSON, exit 0 | 2.1 ms | `Ok("{\"view\":null}")` | `None` |
+
+#### Verification record
+
+| id | mode | result | evidence |
+|---|---|---|---|
+| EX-1 | — | **pass**, and it needed the repair | `transport.rs::a_stdout_flood_is_refused_and_the_backend_sees_the_stream_close` — `OutputTooLarge { limit: 8 MiB }`, and the backend's own out-of-band report that the stream closed, written 500 ms before the exchange returned. The "reader drops the handle" half is asserted structurally by `transport_shape.rs::the_capped_reader_owns_the_stdout_handle`, because ownership is the mechanism and a timing assertion would be a race |
+| EX-2 | — | **pass**, and the fixture had to be repaired twice to make it mean anything | `::a_stderr_flood_is_truncated_and_the_exchange_still_succeeds` — `Ok(body)`, `truncated`, exactly `STDERR_LIMIT` kept, `cleanup: None`, and no deadlock with the body still reading stdout. See the Log: the first two versions of the script passed against a reader that stops at the bound |
+| EX-3 | — | **pass**, all four combinations | the table under *EX-3* in `transport.rs` names the case that asserts each row: `Ok`/`None` and `Err`/`None` are PHASE-05's two, `Ok`/`Some` and `Err`/`Some` are this phase's grandchild pair. Every case asserts **both** fields, so no row is carried by a test that ignores the other dimension |
+| EX-4 | — | **pass**, and asserted differently, which is F-63's whole point | `::a_grandchild_holding_stderr_costs_the_cleanup_budget_and_nothing_else` (`Ok(response)`, `TimedOut`, elapsed in `[CLEANUP_LIMIT, CLEANUP_LIMIT + SLACK)` against a 5 s timeout that is never approached) and `::a_grandchild_holding_stdout_too_fails_both_dimensions` (`Timeout { after: 300ms }`, `TimedOut`, elapsed `>= timeout + CLEANUP_LIMIT`). The scripts differ by one redirection |
+| EX-5 | — | **pass**, per case and in aggregate | every misbehaving case ends with `alive(reported_pid(&exchange))` false; `::the_misbehaving_suite_leaves_no_child_behind` drives all five and then settles over `/proc`. The cancelled exchange asserts only what AC-5 claims — nothing the **host** holds — and says nothing about the child |
+| EX-6 | — | **pass** — re-run because `process.rs` changed | the seven-case table above |
+| VT-1 | test | **pass**, two cases | the flood with a reporter, and `::a_stdout_flood_with_nothing_behind_it_is_disposed_of_cleanly`, which is the `cleanup: None` claim the first case cannot make because it stalls disposal on purpose |
+| VT-2 | test | **pass**, and seen to fail | `::a_stderr_flood_is_truncated_and_the_exchange_still_succeeds`; red under break 2 with `ExitStatus { code: None }` — the backend killed by `SIGPIPE`, which is what a bounded *reader* on that stream produces |
+| VT-3 | test | **pass** | the two grandchild cases above, both dimensions and the elapsed bounds |
+| VT-4 | test | **pass**, as reworded 2026-09-03 | the flood-with-a-reporter case: disposal cannot complete inside the budget, `TimedOut` is reported, and the exchange **returns** in `< CLEANUP_LIMIT + SLACK`. The grandchild pair asserts the same shape at its own two bounds |
+| VT-5 | test | **pass**, both parts, and seen to fail | per-case `alive` assertions and `::the_misbehaving_suite_leaves_no_child_behind`, with `::a_backend_that_is_running_is_seen_as_a_child` as the enumerator's positive control. Red under break 3: `3 process(es) still a child of this one after 3s` |
+| VT-6 | test | **pass**, both halves, both seen to fail | structural: `transport_shape.rs::the_only_spawn_is_the_child`, red under break 5c naming both occurrences. Behavioural: `::a_cancelled_exchange_leaves_nothing_of_the_host_behind` on a runtime it builds itself, red under break 5a with `left: 1, right: 0`. Break 5b shows the positive control is load-bearing — with it removed the same leak passes |
+| VA-1 | agent | **pass** | `just check` exits 0, both columns — 22 unit, 15 integration, 15 protocol. Pasted in the Log |
+| VA-2 | agent | **pass** — the four rows this phase owns, re-read against the tests | `design.md:1725` (8 MiB: refused, reader closes, child reaped — all three asserted, the middle one structurally); `:1726` (256 KiB: retained, flagged, **drained to EOF**, succeeds — the last clause is what the fixture's final write exists to assert); `:1727` and `:1728` (the grandchild pair, each asserting the row's own `result`/`cleanup`/timing); `:1729` (wedged `wait`, reworded — see gap 1) |
+
+#### Log
+
+- 2026-09-03 — sheet written. Entry criterion checked and met; baseline green at
+  `b3ac51c`. Five measurements taken against the real transport, tabulated above.
+  One finding recorded against `process.rs` as shipped — `read_capped` does not
+  drop the stdout handle, and the marker measurement separates the two
+  structures by 500 ms. Two plan gaps raised.
+
+- 2026-09-03 — **both gaps closed by user decision, and the finding with them.**
+  VT-4 reworded to disposal that cannot complete within the budget; VT-5 split
+  into per-case assertions and a settling aggregate; `read_capped` repaired to
+  own its reader. `plan.md` and `plan-log.md` carry all three. Status set to
+  **in progress**.
+
+- 2026-09-03 — **the ownership repair, red first.** The flood-with-a-reporter
+  case was written against the shipped signature and failed with "the backend
+  never saw the stream close, so the reader is holding the handle past the
+  bound". `read_capped` and `body` then took their handles by value and it went
+  green. The probe was re-run afterwards, as EX-6 requires; nothing it measures
+  moved.
+
+- 2026-09-03 — **break-and-revert found two defects, and both were in this
+  phase's own test mechanism rather than in the transport.** That is the whole
+  argument for the step: the code under test was right each time and the thing
+  asserting it was not.
+
+  1. *`drain_capped` stops reading at the bound.* The stderr fixture **passed**.
+     Two reasons, and both had to be fixed. The flood was 300 KB, so the part
+     left after the 256 KiB bound was ~37 KB — inside the 64 KiB pipe buffer, so
+     nothing blocked. And the deeper one: a bounded reader that stops also
+     **drops its handle**, so the flooder dies of `EPIPE` rather than blocking,
+     and the answer still arrives. "Truncated, and it succeeded" is therefore
+     true of a host that stops reading, and the design's predicted symptom — a
+     deadlock — never appears. The fixture now writes 400 KB and then asks the
+     pipe a question the host cannot answer for it: one more line to stderr,
+     after the bound, whose success decides which body is written. Red under the
+     same break with `ExitStatus { code: None }` — the backend killed by
+     `SIGPIPE`.
+  2. *Disposal kills nothing.* Three cases failed, and the aggregate — the one
+     whose entire job is to catch a leak nothing else sees — **passed**. Its
+     `/proc` filter matched `tests/backends/` against the child's command line,
+     and two of the scripts `exec`, so a leaked `sleep 30` is not named by the
+     script it came from. The same blindness made the enumerator's positive
+     control race the `exec`. The filter is gone: the aggregate settles over
+     *all* children, which is sound because a concurrent case's child leaves on
+     its own and a leak does not. Re-run under the same break: `3 process(es)
+     still a child of this one after 3s`.
+
+- 2026-09-03 — **the cancellation control is load-bearing, shown rather than
+  argued** (F-12). With a real `tokio::spawn` leaked into `exchange`: with the
+  wait-for-the-child control in place the case fails `left: 1, right: 0`; with
+  the control removed the *same leak passes*, because a future dropped before
+  its first poll never spawns anything. The control waits on a marker unique to
+  the case in `/proc`, so another case's backend cannot satisfy it — which
+  needed a seventh script, `hangs-without-exec.sh`: an `exec`'d backend is no
+  longer named by its script in `/proc`, and this is the one case that must see
+  the child *while* the exchange is in flight.
+
+- 2026-09-03 — **three lint repairs and one refactor.**
+  `clippy::let_underscore_must_use` caught all three of the phase's `let _ =`
+  sites. Two were marker-file removals and became `harness::clear`, whose doc
+  comment says why absence is normal at both ends; the third was
+  `let _ = task.await` and became an assertion worth making —
+  `task.await.is_err()`, which says the exchange really was cancelled rather
+  than allowed to finish. The refactor: the "first line of stderr is the pid"
+  convention every misbehaving script follows moved into
+  `harness::reported_pid`, which also refuses an empty pid — `alive("")` would
+  otherwise ask `/proc` about itself and answer yes. PHASE-05's timeout case
+  uses it too, so the convention has one statement. `alive` moved with it and
+  now reads `/proc` rather than shelling out to `kill`, which removes an ambient
+  tool dependency **and** the child it spawned on every call, which the
+  unfiltered enumeration would have had to watch go by.
+
+- 2026-09-03 — **the gate.**
+
+  ```
+  $ just check                      # exit 0
+  cargo build
+  cargo test                        # 22 unit, 15 integration, 15 protocol, 0 doc
+  cargo test --no-default-features  # 22 unit, 15 protocol — integration skipped
+  cargo clippy --all-targets -- -D warnings
+  cargo clippy --all-targets --no-default-features -- -D warnings -A dead_code -A unreachable_pub
+  cargo fmt --check
+  ```
+
+  Five consecutive suite runs at 1.43 s, no timing flake. Afterwards: no child of
+  the test process, and the only processes left are `sleep 2` grandchildren
+  reparented to init, which is what the two grandchild fixtures are for and what
+  EX-5 explicitly does not claim. One piece of untidiness worth naming: on a
+  **failing** flood run the marker file is written a millisecond or two after the
+  case has already cleared it, so a stale `/tmp/goad-broken-pipe-<pid>` survives.
+  It is bounded to one per failing run and only appears when the phase is red.
+
+
 ## Harvest
 
-**Fresh as of:** 2026-09-02 · plan accepted, **PHASE-01 through PHASE-04
-done** · `just check` exits 0 in both feature columns · **stratum 1 is complete:
+**Fresh as of:** 2026-09-03 · plan accepted, **PHASE-01 through PHASE-06
+done** · `just check` exits 0 in both feature columns · stratum 1 is complete —
 the wire types, the canonical types, normalization and schedule resolution, with
-a 70-file fixture corpus across three directories.** PHASE-05 is next, and is the
-first phase in stratum 2 — **its sheet is written, the probe is run, and the
-three plan gaps it raised are closed**
+a 70-file fixture corpus across three directories — and **the process transport
+is complete with it: every bound, both grandchild cases, disposal on its own
+channel, and cancellation.** PHASE-07 is next: `Config`, host state, and
+composition
 
 ### Produced
 
@@ -3575,6 +3977,22 @@ three plan gaps it raised are closed**
   `hangs-past-the-timeout.sh` is the one PHASE-06 must read before writing the
   grandchild cases.
 
+- **The bounds, disposal and the two grandchild cases, from PHASE-06.** Seven
+  cases in `tests/integration/transport.rs` and a fourth check in
+  `tests/protocol/transport_shape.rs`, over **five new backend scripts** plus
+  `hangs-without-exec.sh`; `harness.rs` gained the process-inspection cluster —
+  `children`, `children_running`, `alive`, `reported_pid`, `marker`, `clear`.
+  One change to `process.rs`: `read_capped` and `body` take their stdout handle
+  **by value**, so the bound closes the pipe rather than the exchange returning
+  doing it. 15 integration tests and 15 protocol.
+  **The durable artefact beyond the code is what makes each of these cases
+  discriminating**, because three of them passed for the wrong reason first: a
+  bound is not tested by asserting the outcome at the bound, since a bounded
+  reader that *stops* produces the same outcome as one that *keeps draining*.
+  Each case now carries a question the host cannot answer for it — a marker file
+  written by a grandchild that outlives the kill, a stderr write after the bound
+  whose success picks the response body, a `/proc` enumeration that settles.
+
 ### Learned
 
 Candidates for `docs/memory/` at close — all listed under **Established
@@ -3625,6 +4043,48 @@ empirically** above, plus:
   exact. The general form: when a source-text check and a structure disagree,
   the structure is usually the cheaper thing to move — provided every claim it
   makes survives the move.
+
+**From PHASE-06, all measured:**
+
+- **A bounded reader that stops also closes the pipe, so "truncated and it
+  succeeded" does not distinguish draining from stopping.** The writer takes
+  `EPIPE` and carries on instead of blocking, and the answer still arrives. The
+  design predicts a *deadlock* from collapsing the two readers; that prediction
+  holds only for a reader that stops **without** dropping its handle, which is
+  not the shape anyone writes. A truncation test therefore needs the backend to
+  attempt one more write after the bound and to say, in the body the host does
+  read, whether it succeeded.
+- **What must exceed the pipe buffer is the remainder after the bound, not the
+  flood.** At 300 KB against a 256 KiB bound the leftover is ~37 KB, fits the
+  64 KiB buffer, and nothing blocks. 400 KB is the smallest honest fixture.
+- **The `exec` finding runs in both directions, and the second one is quieter.**
+  A backend that must be the child needs `exec`; a backend that must leave a
+  grandchild must not have it. Two of `tests/backends/`'s scripts `exec` — and
+  so **lose their script name from `/proc/<pid>/cmdline`**, because the argv is
+  the exec'd program's. Any check that identifies our processes by command line
+  is therefore blind to exactly the leaks that matter. Found by breaking the
+  kill and watching the leak detector pass.
+- **`cargo test` runs a target's cases as threads of one process**, so any global
+  assertion about the process — children, task counts, open descriptors — sees
+  every concurrently running case. Two mechanisms make such a claim assertable:
+  **settling** (poll until quiet, so a concurrent case's transient child clears
+  and a leak does not) and **owning the thing measured** (build the runtime the
+  task count is about).
+- **A grandchild whose parent has died reparents to init**, so it is not a child
+  of the test process. That is what lets a grandchild fixture and a no-orphans
+  assertion coexist, and it is why R-48's claim is about *children*.
+- **`num_alive_tasks()` needs no `tokio_unstable` and no `rt-multi-thread`** —
+  it works on a current-thread runtime under this crate's exact feature list.
+  Its positive control must wait for the future to have done real work: the
+  spawned task registers at `spawn`, so a count of 1 proves nothing about the
+  exchange. Waiting until the **child process exists** does.
+- **`clippy::let_underscore_must_use` is denied and is not carved out for
+  tests.** Every `let _ = fallible()` in a test is an error. Two of the three
+  sites became a named helper whose doc comment says why the failure is
+  uninteresting; the third became an assertion worth making.
+- **`/proc` beats shelling out for process questions in tests**, and not only for
+  the missing tool: `kill -0` spawns a child of its own on every call, which any
+  enumeration of children then has to watch go past.
 
 **From PHASE-01, all measured here rather than assumed:**
 
@@ -3779,6 +4239,30 @@ empirically** above, plus:
   not happen.
 
 ### Open
+
+**Raised by PHASE-06, 2026-09-03 — three are audit business, none is a phase
+repair.**
+
+- **`design.md:1729`'s row — "backend wedged so `wait` cannot return" — names a
+  mechanism no test can arrange.** `dispose` is `start_kill` then `wait`, and
+  only uninterruptible kernel sleep defers `SIGKILL`. Every case that does make
+  the cleanup budget elapse stalls on the **drain**. VT-4 was reworded to the
+  reachable claim by user decision 2026-09-03 and is discharged; the design's row
+  stands as written, and audit should decide whether it says something the
+  implementation cannot honour or simply describes a case the tier cannot build.
+- **The stdout cap's second effect is now true and still not the one the design
+  describes.** `design.md:1528` says the cap kills the backend "by itself" —
+  the reader drops the handle, the flooder takes `SIGPIPE`, and `wait()` returns
+  with a signal status. With the ownership repair the pipe does close at the
+  bound, but disposal still `start_kill`s before observing anything, so what the
+  host actually sees is its own kill. Both mechanisms now agree on the outcome
+  and the sentence describes the one that does not fire. Reconciliation business,
+  not a defect.
+- **A failing flood run leaves a stale marker in the temp directory.** The
+  backend writes it a millisecond or two after the case has cleared it, so
+  `/tmp/goad-broken-pipe-<pid>` survives — one per failing run, never on a green
+  one. Cheap to live with; audit may prefer the case to clear on the way in only,
+  which it already does, and to say so rather than clearing twice.
 
 **Raised by PHASE-05, 2026-09-02 — three are audit business, none is a phase
 repair.**

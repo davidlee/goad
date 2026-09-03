@@ -88,7 +88,7 @@ impl Backend for ProcessBackend {
       Ok(child) => child,
       Err(error) => return Exchange::failed(BackendError::Spawn(error)),
     };
-    let (Some(stdin), Some(mut stdout), Some(stderr)) =
+    let (Some(stdin), Some(stdout), Some(stderr)) =
       (child.stdin.take(), child.stdout.take(), child.stderr.take())
     else {
       return cleanup_only(&mut child, BackendError::PipeMissing).await;
@@ -109,7 +109,7 @@ impl Backend for ProcessBackend {
       let raced = {
         // `body` holds `&mut child`, so it lives in an inner scope: the borrow
         // has to be released before the cleanup budget can take it again.
-        let body = body(stdin, &mut stdout, &mut child, &payload);
+        let body = body(stdin, stdout, &mut child, &payload);
         tokio::pin!(body);
 
         tokio::time::timeout(self.timeout, async {
@@ -166,7 +166,7 @@ impl Backend for ProcessBackend {
 /// rather than one sitting in the region F-41 is about.
 async fn body(
   mut stdin: ChildStdin,
-  stdout: &mut ChildStdout,
+  stdout: ChildStdout,
   child: &mut Child,
   payload: &[u8],
 ) -> Result<(Vec<u8>, std::process::ExitStatus), BackendError> {
@@ -217,11 +217,18 @@ async fn cleanup_only(child: &mut Child, error: BackendError) -> Exchange {
 
 /// Read to EOF, or fail on exceeding `limit`.
 ///
-/// Stops reading the moment the bound is passed and leaves the stream behind:
+/// Stops reading the moment the bound is passed and **closes the stream**:
 /// there is nothing to be gained by finishing a response that is already
 /// refused, and leaving the pipe open only lets the flood continue (R-43).
+///
+/// The reader is taken **by value**, and that is the mechanism rather than a
+/// convenience — dropping the handle here is what closes the pipe at the bound
+/// instead of at the end of the exchange. Measured: with a borrow, a flooding
+/// backend observes the close 1.8 ms *after* the call returns; with ownership,
+/// 500 ms *before* it, on a case whose disposal stalls. `transport_shape.rs`
+/// asserts the signature for that reason.
 async fn read_capped(
-  reader: &mut (impl AsyncRead + Unpin + Send),
+  mut reader: impl AsyncRead + Unpin + Send,
   limit: usize,
 ) -> Result<Vec<u8>, BackendError> {
   let mut out = Vec::new();

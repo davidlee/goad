@@ -741,10 +741,35 @@ result, and both grandchild cases are observed rather than described.
   stdout — the deadlock this exists to prevent needs both.
 - VT-3 — the two grandchild cases, each asserting both dimensions and the elapsed
   time (the probe measured 303 ms and 902 ms against a 900 ms bound).
-- VT-4 — a backend wedged so `wait` cannot return promptly: the cleanup budget
-  elapses, `CleanupFailure::TimedOut` is reported, and the exchange **returns**.
-- VT-5 — no-orphans: after the whole misbehaving suite, the test process has no
-  children.
+- VT-4 — **disposal that cannot complete within the budget**: the cleanup budget
+  elapses, `CleanupFailure::TimedOut` is reported, and the exchange **returns**,
+  within `timeout + CLEANUP_LIMIT` plus stated slack. The elapsed bound is the
+  content — a host that blocks is the host going down.
+
+<!-- Amended by user decision 2026-09-03, from PHASE-06's expansion. The first
+     wording asked for "a backend wedged so `wait` cannot return promptly", and
+     no test can build one: `dispose` is `start_kill` then `wait`, `start_kill`
+     sends `SIGKILL`, and only uninterruptible kernel sleep defers `SIGKILL`.
+     Every case that does make the budget elapse stalls on the **drain**, not on
+     `wait`. §5.5's row at `design.md:1729` keeps its wording and goes to audit
+     as a case the design describes and no test can arrange. -->
+
+- VT-5 — no-orphans, in **two** parts:
+  - **per case** — every misbehaving case asserts that the child it spawned is
+    gone, which is EX-5's own wording and the pattern PHASE-05/VT-2 established.
+  - **aggregate** — a check that **settles**: poll the test process's children,
+    filtered to those whose command line names `tests/backends/`, until none
+    remains or a deadline passes.
+
+<!-- Amended by user decision 2026-09-03, from PHASE-06's expansion. The first
+     wording — "after the whole misbehaving suite, the test process has no
+     children" — is unsound under `cargo test`: libtest runs a target's tests as
+     threads of one process, so a global instantaneous check sees the children of
+     every case running concurrently and fails on their work. Settling rather
+     than sampling keeps the claim that catches a leaked child no test knows
+     about, which is the one R-48 is about. A separate test target would also
+     have worked and needs `Cargo.toml`, which is not in this phase's
+     Surfaces. -->
 - VT-6 — the cancellation claim, in two mechanisms, because EX-5 had none in the
   first draft (review finding F-3):
   - **structural** — PHASE-05/VT-5's spawn grep already fails if the transport
@@ -790,6 +815,15 @@ result, and both grandchild cases are observed rather than described.
   outlive the exchange because the transport spawns none — no `tokio::spawn`, and
   none of the other spawn APIs VT-5's grep covers. If asserting it needs a sleep,
   the structure has regressed.
+- **`read_capped` owns the stdout handle**, so it drops where the bound is hit.
+  Measured at expansion 2026-09-03: as PHASE-05 shipped it the reader *borrowed*,
+  which drops the handle when the exchange **returns** — 500 ms later on a case
+  whose disposal stalls, and observable from the backend. `design.md:1520` and
+  `:1528`, R-43 and `process.rs`'s own doc comment all state the close happens at
+  the bound, and EX-1 requires it; user decision 2026-09-03 repairs the code
+  rather than narrowing the criterion. Ownership is the mechanism, so a
+  source-text check over the signature is the regression guard — a timing
+  assertion would be a race.
 
 ---
 

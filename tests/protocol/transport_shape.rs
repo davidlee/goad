@@ -1,11 +1,15 @@
-//! Three regressions in `process.rs`, asserted against its source text.
+//! Four properties of `process.rs`, asserted against its source text.
 //!
-//! Each was a repair in the design review, so each is a regression with a name:
+//! Three were repairs in the design review, so each is a regression with a name:
 //! the drain is a sub-future and not a task (F-49), there is no lock around the
 //! buffer it writes into (F-36, D44), and no `?` sits between the spawn and the
-//! cleanup budget where it could skip disposal (F-41). None of the three is
-//! observable from a passing exchange — a transport that spawns a task still
-//! answers correctly — which is why they are read rather than run.
+//! cleanup budget where it could skip disposal (F-41). The fourth is PHASE-06's,
+//! and it is a repair too: the capped reader **owns** the stdout handle, which is
+//! what closes the pipe at the bound rather than when the exchange returns.
+//!
+//! None of the four is observable from a passing exchange — a transport that
+//! spawns a task still answers correctly, and a borrowing reader still refuses a
+//! flood with the same error — which is why they are read rather than run.
 //!
 //! **Not in `boundary.rs`**, and not by extending it. `Scan` there is a
 //! forbidden-token walk over a *directory*, and only the first of these is that
@@ -41,6 +45,7 @@ enum Breach {
   Token { line: usize, token: &'static str },
   Spawn { found: Vec<String> },
   QuestionMark { line: usize },
+  Borrowed { line: usize, text: String },
   Unreadable { path: PathBuf, error: String },
   NoAnchor { path: PathBuf, anchor: &'static str },
 }
@@ -62,6 +67,10 @@ impl fmt::Display for Breach {
       Self::QuestionMark { line } => write!(
         f,
         "line {line}: `?` between the spawn and the cleanup budget — a return there skips disposal (F-41)"
+      ),
+      Self::Borrowed { line, text } => write!(
+        f,
+        "line {line}: `{text}` — the capped reader must **own** the stdout handle, or the pipe closes when the exchange returns rather than when the bound is hit (R-43)"
       ),
       Self::Unreadable { path, error } => {
         write!(f, "{}: could not be read: {error}", path.display())
@@ -276,5 +285,50 @@ fn a_region_with_no_anchors_in_it_fails() {
       .any(|breach| matches!(breach, Breach::NoAnchor { .. })),
     "{}",
     report(&breaches)
+  );
+}
+
+/// The capped reader owns the stdout handle, so hitting the bound closes the
+/// pipe.
+///
+/// Ownership is the whole mechanism, and it is invisible from a passing
+/// exchange: a borrowing reader refuses the flood with exactly the same error
+/// and leaves the stream open until the call returns. It is visible from
+/// *outside* — a flooding backend sees the close 500 ms later on a case whose
+/// disposal stalls, which is how this was found — but an integration case that
+/// asserted the timing would be racing a scheduler. The signature is the honest
+/// place to assert it (R-43, `design.md:1520`).
+#[test]
+fn the_capped_reader_owns_the_stdout_handle() {
+  let code = TRANSPORT.code().unwrap_or_else(|breach| panic!("{breach}"));
+  let signature = code
+    .iter()
+    .position(|line| line.text.contains("async fn read_capped("))
+    .unwrap_or_else(|| {
+      panic!(
+        "{}",
+        Breach::NoAnchor {
+          path: PathBuf::from(TRANSPORT.path),
+          anchor: "async fn read_capped(",
+        }
+      )
+    });
+  let parameters: Vec<&Code> = code
+    .iter()
+    .skip(signature)
+    .take_while(|line| !line.text.contains("->"))
+    .collect();
+  let breaches: Vec<Breach> = parameters
+    .iter()
+    .filter(|line| line.text.contains('&'))
+    .map(|line| Breach::Borrowed {
+      line: line.number,
+      text: line.text.trim().to_owned(),
+    })
+    .collect();
+  assert!(breaches.is_empty(), "{}", report(&breaches));
+  assert!(
+    parameters.iter().any(|line| line.text.contains("reader")),
+    "the parameter list has no reader in it, so the check above proves nothing"
   );
 }

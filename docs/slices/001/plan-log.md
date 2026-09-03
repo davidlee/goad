@@ -456,3 +456,77 @@ the phase's own deliverable rather than the `mod` line that reaches it.
   a doc comment for that reason.
 - The scripts under `tests/backends/` were already declared as `*.sh` and are
   untouched by this.
+
+### 2026-09-03 — PHASE-06's expansion: two plan gaps and one finding
+
+Raised while writing PHASE-06's phase sheet, against measurements taken on the
+real transport rather than on the probe. All three were put to the user together
+and all three took the recommendation.
+
+**1. Decision: VT-4 is reworded to the claim a test can arrange — disposal that
+cannot complete within the budget, bounded by `timeout + CLEANUP_LIMIT` plus
+stated slack.**
+
+VT-4 asked for "a backend wedged so `wait` cannot return promptly". `dispose` is
+`start_kill` then `wait`; `start_kill` sends `SIGKILL`, and the only thing that
+defers `SIGKILL` is uninterruptible kernel sleep, which needs a device to block
+on. Three cases in this phase do make the budget elapse, and in every one the
+stall is the **drain**, not `wait`.
+
+- **What the row is actually about survives the rewording.** `design.md:1729`
+  cares that the budget elapses, `TimedOut` is reported, and the exchange
+  *returns* rather than blocking — a host that waits forever is the host going
+  down. The elapsed bound is the content, and it is assertable.
+- **§5.5's wording stands and goes to audit**, as a case the design describes and
+  no test can build. Retro-fitting the design to the test would be the wrong
+  direction: the design's claim is about a real failure mode, only one this
+  test tier cannot manufacture.
+- **Alternative rejected:** writing a test under the old words that asserts an
+  outcome it did not arrange. It would pass, and the record would be false.
+
+**2. Decision: VT-5 becomes per-case assertions plus an aggregate that settles.**
+
+"After the whole misbehaving suite, the test process has no children" is unsound
+under `cargo test`: libtest runs a target's tests as threads of one process, so a
+global instantaneous check sees the children of every concurrently running case.
+EX-5's own wording is per-case and is sound as written.
+
+- **Settling, not sampling.** The aggregate polls the test process's children,
+  filtered to those whose command line names `tests/backends/`, until none
+  remains or a deadline passes. A concurrent case cannot false-fail it; a genuine
+  leak still does, because a leaked child does not go away.
+- **The mechanism is `/proc`, not `pgrep`.** `/proc/self/task/*/children` and
+  `/proc/<pid>/cmdline`, measured working; the devshell declares neither `procps`
+  nor `coreutils`, so a tool dependency here would be ambient.
+- **Alternative rejected:** an own test target, which runs alone and needs no
+  settling. It needs a `[[test]]` entry, so it needs `Cargo.toml`, which is not
+  in PHASE-06's Surfaces — a second plan amendment to avoid a poll loop.
+- A grandchild whose parent has died reparents and is **not** a child of the test
+  process, measured. So the `sleep 2` a grandchild case leaves behind is not an
+  orphan by this criterion, and the criterion does not need it to be gone.
+
+**3. Decision: `read_capped` takes its reader by value, so the stdout handle
+drops at the bound. `process.rs` is repaired rather than EX-1 narrowed.**
+
+Not a gap — a finding against code PHASE-05 shipped, in a file PHASE-06 already
+declares. EX-1 requires the reader to drop the handle; `read_capped` borrowed,
+so the handle lived until the exchange **returned** — after the kill, after the
+reap, after the drain.
+
+- **Measured, not read.** A flooding backend that reports its own `EPIPE` out of
+  band, with a second grandchild stalling disposal for the whole 500 ms budget to
+  widen the window: with the borrow, the backend observes the close **1.8 ms
+  after** the exchange returns; with ownership, **500 ms before** it. The two
+  structures are distinguishable from outside.
+- **Every other statement of this already says ownership.** `design.md:1520`
+  ("stops at the limit and drops the handle"), `:1528` (that is what makes the
+  flood stop), R-43 ("stops reading and closes the stream"), and
+  `process.rs:220`'s own doc comment. The code was the only dissenter.
+- **The guard is the signature, not the clock.** A fourth source-text check in
+  `transport_shape.rs` asserts `read_capped` takes its reader by value; a timing
+  assertion would be a race on an unloaded machine and a flake on a loaded one.
+- **EX-6 fires.** `process.rs` changes, so the probe is re-run and its output
+  recorded in the phase sheet.
+- **Alternative rejected:** amending the design to match the code. It would
+  withdraw the design's own argument that closing the pipe is what stops the
+  flood, in exchange for keeping a line of code as it was.
