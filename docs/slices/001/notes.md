@@ -20,6 +20,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-08 | **done** — `just check` exits 0 on all **seven** commands in both feature columns; 35 unit, 32 integration (5 of them this phase's), 15 protocol. All four EX and all four V criteria discharged. Entry criteria checked and met. **One plan gap found at expansion and closed by user decision 2026-09-03** — `deno run` does not typecheck, which is the reason OQ-9 gives for choosing deno; the gate now runs `deno check`, so `design.md` §9 and `justfile` joined the Surfaces and the plan gained **EX-6**. **A defect in this phase's own test mechanism was found by breaking it**: VT-2's plan-suggested vehicle — a config pointing at a command that cannot be spawned — is **vacuous**, because a host that spawns and then refuses still returns the refusal; the case now uses an invocation log passed as argv, which catches both reordering breaks. **clippy rejected the log's first design** (a process-wide file behind a `std::sync::Mutex` held across an await) and the argv form that replaced it is simpler. **Six break-and-revert runs.** See `## Phase sheets` | 2026-09-03 |
 | PHASE-10 | **done** — `just check` exits 0 on all seven commands in both feature columns; 35 unit, **52** integration (20 of them this phase's), 15 protocol. All four EX and all three VT criteria discharged, VA-1 and VA-2 pasted. Entry criteria checked and met. **One question of scope closed by user decision 2026-09-03** — EX-2's "whole misbehaving suite" spans the transport modes as well as the protocol ones, because R-45 is a claim about host state surviving *process* failure and a protocol refusal never touches a process lifecycle. **Two of this phase's own assertions were vacuous and both were found by breaking them**: the seeded check and a re-resolved one are the same instant, so thirteen cases could not tell R-29 from a recomputation; and a one-`Host` suite that only asserts the last exchange passes against a `Host` rebuilt every time. Both repaired and both re-broken. **Six break-and-revert runs.** VA-2's walk found **two items of `design.md` §9's list with no end-to-end case** — a backend that writes nothing, and the brief's own §10.1/§10.2 examples — neither in EX-1's list, both recorded for audit. See `## Phase sheets` | 2026-09-03 |
 | PHASE-09 | **done** — `just check` exits 0 on all seven commands in both feature columns **from a clean clone under `nix develop`**; 35 unit, 52 integration, 15 protocol. All five EX, both VT, both VA and VH-1 discharged. Entry criteria checked and met. The restatement sweep recorded **ten divergences** — eight repaired here, two left as design drift for audit — and both mechanical halves (struck decision ids, types named in §5) came back **clean**, the first round of the sweep to do so. `draft-spec.md` §7 now **names the tests** for all 54 requirements, checked by script in both directions; five rows are held by review and say so. **One surface added by user decision 2026-09-04**: four comments in `canonical.rs` cited `draft-spec.md` by line number, one of which this phase's own §7 rewrite invalidated (S-9). `AGENTS.md` accepted at VH-1 as written. See `## Phase sheets` | 2026-09-04 |
+| audit | **done** — six review rounds, F-1…F-57, 0 blockers; reconciliation worked, SPEC-001 promoted, CD-1/CD-2 applied, five `docs/memory/` files lifted, slice stage `done`. See `audit.md` | 2026-09-04 |
 
 **PHASE-03 landed** `src/semantics/schedule.rs`, `tests/protocol/runner.rs` and
 16 fixtures under `tests/protocol/fixtures/schedule/`, plus one line in
@@ -42,6 +43,43 @@ scaffolding landed outside the phase flow and PHASE-01 inherited rather than
 created it: `Cargo.toml`, `clippy.toml`, `justfile`, `.gitignore`, `Cargo.lock`,
 `LICENSE`. PHASE-01 amended `Cargo.toml` twice — `toml` as an optional
 dependency (EX-6) and `module_name_repetitions = "allow"` (user decision).
+
+## Handover — audit closed, session 3, 2026-09-04
+
+**Stage: done.** Reconciliation worked from both handover lists and the
+ledger Synthesis; every item is a row or a decision in `audit.md`
+§Reconciliation. Endorsed by the user in one interview: the draft promoted to
+`docs/specs/001-host-backend-protocol.md` as **SPEC-001** (`git mv`, ten
+requirement rewordings, eight revision-history sentences struck, `F-N` cites
+qualified in §9); CD-1 and CD-2 applied to the ADRs; `design.md` left as
+written with thirteen drift entries; the six `draft-spec.md` path citations in
+`src/` and `tests/` changed to `SPEC-001` with a round-7 fresh reviewer over
+that comment-only diff, which confirmed all six and raised one nit of the
+same class beside them (F-58, fix-now by user decision, repaired). `just
+check` exit 0 in both columns after the change.
+`slice-001.md` Summary and Follow-ups written, all fifteen ACs checked, stage
+`done`. Five `docs/memory/` files lifted (citation convention, grammar-seam
+lesson, bound-testing lesson, `bash -c` exec, `deno check`); the fixture-corpus
+format candidate was not lifted — `tests/protocol/runner.rs` documents itself
+and the repo already records it.
+
+**The §7 two-direction check**, re-run this session and kept for the next
+spec: `check7.sh <spec.md>` — direction 1, every `R-N` in §4 has exactly one
+§7 row and no row names an id §4 lacks; direction 2, every `::fn` named in §7
+exists under `src/` or `tests/`, every fixture named (brace forms expanded)
+exists under `tests/protocol/fixtures/*/`, and every fixture on disk is cited.
+The script found 22 uncited fixtures, 2 renamed tests and one `R-21-*` glob
+before the rewrite; CLEAN after. Its shape, for re-creation:
+
+```bash
+sec7=$(awk '/^## 7\./{p=1} /^## 8\./{p=0} p' "$spec"); sec4=$(awk '/^## 4\./{p=1} /^## 5\./{p=0} p' "$spec")
+# ids: grep -o 'R-[0-9]+' on the first cell of each '| R-' row of §7, count per id, compare with §4's '^| R-N '
+# fns: grep -o '::[a-z_][a-z_0-9]*' on §7, then grep -rqE "fn $f\b" src tests
+# fixtures: grep -o '`[a-z-]*/?R-[0-9]+-[^`]*`' on §7, eval-expand braces, ls tests/protocol/fixtures/*/$x.json; then the reverse over the directory
+```
+
+**Not done, deliberately:** `flake.lock` (dirty before the session, not this
+slice's) left out of the commit.
 
 ## Handover — audit in progress, session 2b closed 2026-09-04
 
@@ -6042,15 +6080,19 @@ empirically** above, plus:
 repair; the first is outside this phase's surfaces and the second is close
 business.**
 
-- **`src/` cites `draft-spec.md` by line number, and one citation is now
-  wrong.** `canonical.rs:706` points at `draft-spec.md:360` for R-52; PHASE-09
+- ~~**`src/` cites `draft-spec.md` by line number, and one citation is now
+  wrong.**~~ **Closed at audit:** PHASE-09 (S-9) rewrote the line-number cites to
+  ids; session 3 changed the six remaining path cites to `SPEC-001` at promotion,
+  round 7 reviewed the diff. `canonical.rs:706` points at `draft-spec.md:360` for R-52; PHASE-09
   rewrote §7 and that line is now a table header. Three more sites cite lines
   into §6 (`canonical.rs:117`, `:511`, `:716`) and one cites the file
   (`schedule.rs:2`). **Promotion breaks all of them anyway** — at close the file
   moves to `docs/specs/NNN-slug.md` — so the fix is one class, not one instance:
   cite the requirement id, which every site already names in its prose. `src/`
   is not PHASE-09's surface.
-- **`docs/memory/` candidates, listed and not moved** (lifting them is a close
+- ~~**`docs/memory/` candidates, listed and not moved**~~ **Lifted at close,
+  session 3** — three of the four (bound, `bash -c`, `deno check`) plus two from
+  the code review; the fixture-corpus format stays in `runner.rs`'s own docs. (lifting them is a close
   act, per `docs/AGENTS.md`). Four, all from the Learned section: **a bound is
   not tested by asserting the outcome at the bound** — a reader that stops and
   one that keeps draining produce the same outcome, so each case needs a

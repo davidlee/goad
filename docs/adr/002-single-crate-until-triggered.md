@@ -31,7 +31,12 @@ holds, and split it into a workspace along the ADR-001 strata as soon as any one
 of them does:
 
 - **T1** — a dependency is required that stratum 1 must not need in order to
-  build. Slint is the first such dependency, expected in slice 002.
+  build. A dependency that can be made *optional*, behind a feature that gates
+  the stratum needing it, does not fire T1: slice 001 admits the async runtime
+  that way, and verifies it with `cargo test --no-default-features`. Slint is
+  expected to fire T1 in slice 002, because a build-dependency with a
+  conditional `build.rs` cannot be gated as cleanly — see the rejected
+  alternatives below.
 - **T2** — a second binary is required. `goad emit` is expected in slice 004.
 - **T3** — headless test wall-clock becomes dominated by renderer build time.
 

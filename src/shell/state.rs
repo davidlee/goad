@@ -25,8 +25,8 @@ pub struct State {
   next_seq: u64,
 }
 
-/// `design.md:1172`'s sketch, minus its `issued_at`: nothing in the brief, the
-/// draft spec or this slice reads when a view was issued, so the field is not
+/// `design.md:1172`'s sketch, minus its `issued_at`: nothing in the brief,
+/// SPEC-001 or this slice reads when a view was issued, so the field is not
 /// carried (F-6, audit).
 #[derive(Debug)]
 struct Outstanding {

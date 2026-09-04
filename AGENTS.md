@@ -62,7 +62,7 @@ convention.
 |---|---|
 | what the product is for, and the protocol as briefed | `docs/brief.md` |
 | why the code is shaped as it is | `docs/adr/` — one-way strata, single crate until triggered |
-| the normative protocol contract | `docs/specs/` — empty until slice 001 promotes its draft; until then the brief and the slice are what exist |
+| the normative protocol contract | `docs/specs/` — SPEC-001, the host/backend interaction protocol: wire formats, scheduling, interaction identity, the process transport, the failure taxonomy |
 | how work is done here | `docs/AGENTS.md` |
 
 ## Verifying

@@ -1,5 +1,5 @@
 //! `next_check`: one canonical instant, or one named `ScheduleError` —
-//! `design.md` §5.2 and §5.5, brief §9, `draft-spec.md` R-21…R-28.
+//! `design.md` §5.2 and §5.5, brief §9, `SPEC-001` R-21…R-28.
 //!
 //! Three pure functions, and the clock is not one of them. `now` is a parameter
 //! on both (I3): stratum 1 reads no clock, and this is the module where that

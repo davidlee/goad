@@ -180,8 +180,28 @@ columns.
 findings, F-34…F-44: **0 blockers**, 1 major (F-34 — F-1's guard bypassed on
 the failure path), 6 minor, 4 nit; every round-1 repair but F-9's confirmed
 red-on-revert. All eleven dispositioned by user decision 2026-09-04 (9
-fix-now, F-44 tolerated); **none repaired yet** — session 2 closed at its
-context bound. Outstanding blockers: 0. Outstanding fix-now: 9.
+fix-now, F-44 tolerated); all nine repaired in session 2b.
+
+**Rounds 3–6** — 2026-09-04, session 2b — each a fresh reviewer over the
+previous round's repairs only. Round 3: F-45…F-51 (7, none above minor);
+round 4: F-52…F-54 (3); round 5: F-55…F-56 (2); round 6: **no findings**, its
+one aside self-raised as F-57, a doc nit, and repaired. Every finding
+dispositioned by user decision in one interview per round and repaired
+red/green before the next round opened. Rounds 3–5 each found the time-of-day
+seam one shape further along; the rule is now two conjuncts and a trim, and
+twelve schedule fixtures pin it.
+
+**Round 7** — 2026-09-04, session 3 — opened because reconciliation changed
+code: the six comment lines under `src/` and `tests/` that cite the spec by
+path, renamed at promotion. A fresh reviewer over that diff only confirmed all
+six and found one nit of the same class beside them, F-58, dispositioned
+fix-now by the user and repaired.
+
+**Totals.** Fifty-eight findings over seven rounds: 0 blocker, 5 major, 33
+minor, 20 nit. Fifty-five fix-now and repaired; three tolerated by user
+decision (F-13, F-15, F-44). Every Outcome set. **Outstanding blockers: 0.
+Outstanding fix-now: 0.** `just check` exits 0 in both columns at every
+round's commit and on the closing tree.
 
 <!-- severity — blocker: must not ship. major: real defect or design breach.
        minor: worth fixing, not urgent. question: needs an answer before it
@@ -195,8 +215,36 @@ context bound. Outstanding blockers: 0. Outstanding fix-now: 9.
      blocker to dodge the gate, and do not defer merely because the fix is
      large. -->
 
-**Synthesis:** <the closure story: what the audit found, what it changed, and
-the risks it knowingly leaves standing.>
+**Synthesis:** the ledger's own Synthesis is the closure story for the review
+and is not copied here. What the audit adds is the verdict on its ten lines of
+attack. **Coherence with the brief** was the line that produced the findings
+that mattered, and every one of them went the brief's way against an
+execution-time decision or an unexamined default: an elapsed check is consumed
+(brief §9's "existing *valid* check"), a time of day is refused (brief §3.3), a
+failure accepts no instruction, shape refusals are typed and total. **The
+design** holds: all sixteen §5.5 invariants are held by the mechanism the table
+names, and the departures — listed under *Design drift not reconciled* — are
+each a case where the code went further than the design or the design guessed
+a mechanism that measurement replaced. **Canon**: ADR-001's direction half was
+reviewed here as the ADR asks, both compile columns and the scans clean; no
+ADR-002 trigger fired. **The draft spec** was walked requirement by
+requirement and is reworded where the code is now right and the draft was
+behind; §7 names a test or fixture for all 54 requirements, checked by script
+in both directions. **Test honesty**: two vacuous assertions were found by the
+phases themselves and one by the review (F-43); none survives. **Execution-time
+decisions**: two changed the shipped shape and both were re-opened as findings
+rather than inherited — one stood (`ConfigError`, a drift entry) and one fell
+(the restated duration grammar, F-4). **Surface delta**: clean. **Simplicity**:
+the transport is the smallest structure found that holds AC-5's five clauses;
+what accreted under review was tests, not mechanism. **PHASE-09's items**: each
+dispositioned in the Reconciliation section. **Closure mechanics**: the
+endorsement decisions are posed below.
+
+Risks knowingly left standing are the ledger Synthesis's list, unchanged:
+a text-scan boundary test; a handful of colon strings the shape rule names as
+a time of day that no author writes on purpose; an unbounded `raw` in a
+discard line; a doubled chain in one `Display`; `PipeMissing` reachable by no
+test; and this slice's code citing its own ledger ids.
 
 ## Reconciliation
 
@@ -204,21 +252,130 @@ the risks it knowingly leaves standing.>
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
+Two lists were worked: the session-2 and session-2b handovers in `notes.md`,
+and the ledger Synthesis's "For reconciliation" paragraph. Each item below is
+one of **document stale** (code right, document amended), **code wrong** (a
+finding — none remained; every one had been raised in the ledger already), or
+**decision** (neither cleanly; taken to the user).
+
+**Canon — each needs the user's explicit endorsement, recorded in the row.**
+
 | document | change | reason | done |
 |----------|--------|--------|------|
-| `specs/NNN-…md §4` | | code diverged at `path:line`; code is right | [ ] |
+| `docs/specs/001-host-backend-protocol.md` | `draft-spec.md` promoted as **SPEC-001**, `Status: active`, the not-canon preamble removed. Six revision-history sentences struck (R-41, R-43, R-47, R-48 "Corrected/Restated/Scoped per…", the R-53 and R-45 rows' "earlier draft"/"previously described"), because canon carries no changelog (`docs/AGENTS.md`). The `F-N` ids that remain as rationale are qualified once in §9 as `review-design.md`'s | AC-14; promotion is what makes it normative | [x] endorsed by the user 2026-09-04 (session 3 interview); `git mv`, so history follows the file |
+| `docs/adr/001-one-way-strata.md` §Verification | CD-1 applied as stated in `canon-delta.md` | record accuracy; checked against the code in Evidence | [x] endorsed 2026-09-04, applied as stated |
+| `docs/adr/002-single-crate-until-triggered.md` §Decision, T1 | CD-2 applied as stated in `canon-delta.md` | record accuracy; checked against the code in Evidence | [x] endorsed 2026-09-04, applied as stated |
 
-**Design drift not reconciled:** <where the implementation departs from
-`design.md` and the design was left as-is, with the reason. The design is a
-record of intent at a point in time; it is not retro-fitted to the code
-without saying so.>
+**The draft, reconciled before promotion — document stale, code right.** All
+done this session; endorsed as part of the promotion above.
+
+| document | change | reason | done |
+|----------|--------|--------|------|
+| `draft-spec.md` R-26 | the retained instant stands only while still ahead of `now`; an elapsed one is consumed | `schedule::resolve` consumes `retained <= now` (F-1, user decision) | [x] |
+| `draft-spec.md` R-29 | "MUST NOT accept a new instruction"; resolves as if none arrived; reports what it retains | `Host::no_action` resolves through `resolve_from` and writes state (F-34, F-48) | [x] |
+| `draft-spec.md` R-21 | trim on both forms, errors quote the value as sent; the time of day stated as a shape (colon groups, optional fraction) or a clock-grammar read behind a colon/`T` gate; signed colon forms are spans, unitless integers unparseable; one duration grammar | `schedule::parse_instruction`, `parse_span`, `looks_like_a_time_of_day` (F-2, F-37, F-46, F-50, F-52, F-53, F-55) | [x] |
+| `draft-spec.md` R-25 | names the six distinct ways a value fails | `ScheduleError` has six variants; `TimeOfDay` was unnamed | [x] |
+| `draft-spec.md` R-44 | adds stdout past its bound; splits malformed from protocol-invalid with the line stated; adds duplicate key at any depth and the nested `hints` object | `ProtocolError::{Shape, DuplicateKey, NestedHints}`, one `From` door (F-19, F-22, F-25) | [x] |
+| `draft-spec.md` R-18 | nested `hints` object rejected with its path; `null` there is omission | `normalize_field` (F-25, F-38) | [x] |
+| `draft-spec.md` R-19 | a content block neither string nor object is a shape error | `Object<WireContent>` (F-35) | [x] |
+| `draft-spec.md` R-51 | nulled `hints` on a field and nulled `fields` on an alternative named as omission | fixtures `R-51-a-nulled-{hints-key-on-a-field,fields-key-on-an-alternative}` (F-38) | [x] |
+| `draft-spec.md` R-36 | the vector's first element names the program; empty vector or empty program refused at load | `Command::from_argv` (F-3, F-41) | [x] |
+| `draft-spec.md` §5 "A broken backend is polled on its existing cadence" | restated in R-29's terms, with why an elapsed instant is not reported | same as R-26/R-29 | [x] |
+| `draft-spec.md` §7 | PHASE-09's two-direction check re-run (script in the session-3 handover, `notes.md`): 22 fixtures no row cited, 2 tests renamed (`what_a_json_value_cannot_carry_is_refused_from_the_document_text`; the never-reads case), 6 tests added in review; intro names the `protocol-text` runner; the `R-21-*` glob replaced by names. Result **CLEAN** — 54 of 54, no id in two rows, every fn and fixture present, every fixture cited | rows written before rounds 1–6 | [x] |
+
+**Code — comments only, pending the promotion.**
+
+| document | change | reason | done |
+|----------|--------|--------|------|
+| `src/semantics/schedule.rs:2`, `src/semantics/protocol/canonical.rs:117`, `:511`, `:721`, `tests/protocol/normalize.rs:21`, `tests/protocol/runner.rs:48` | `draft-spec.md` → `SPEC-001` | promotion moves the file, so the path citations dangle. A round-7 fresh reviewer over this diff only, per the standing rule | [x] endorsed 2026-09-04; `just check` exit 0 both columns; round 7 below |
+| root `AGENTS.md`, document table | `docs/specs/` no longer "empty until slice 001 promotes its draft" | promotion | [x] |
+
+**Decisions — neither side cleanly wrong; taken to the user.**
+
+- **`design.md` §9's two misbehaving-backend items with no end-to-end case**
+  (a backend that writes nothing; brief §10.1/§10.2's examples through a real
+  process). *Tolerated, no case added:* both are held at other tiers
+  (`host.rs::a_body_that_is_not_exactly_one_json_document_is_a_protocol_failure`
+  over empty stdout; the two brief fixtures), and since F-22 both corpora and
+  the host read through the one door `normalize::read_response`, so a process
+  vehicle would exercise the transport, which its own suite already covers. The
+  §9 claim "the integration tier needs" is a drift entry below. User decision 2026-09-04.
+- **`BackendError::PipeMissing` and `cleanup_only` reachable by no test.**
+  *Tolerated* (F-15): a guard for a handle the host itself requested, which no
+  backend can arrange; the design states it as a guard.
+- **`design.md`'s departures.** *Left as written* (below), not amended — user decision 2026-09-04: the
+  design is a record of intent at a point in time, the promoted spec is now the
+  living truth for every item here, and each departure is one the code
+  documents at its site.
+- **`transport-probe.local.rs`** stays untracked under `.gitignore`'s
+  `*.local.*` (user decision 2026-09-04): the measurement it made (`design.md` §9) is recorded; the code
+  was a probe.
+
+**PHASE-09's handed-forward items**, each dispositioned rather than inherited:
+the two §9 list items — above; R-34 across a backend failure — now two tests
+(F-7 added `host.rs::a_backend_failure_during_respond_leaves_the_interaction_answerable`);
+the README config — run by `round_trip.rs::the_readme_s_own_config_loads_and_runs_the_example`
+(F-16); §5.2's taxonomy — drift, below; the wedged-`wait` row — drift, below;
+the stdout-cap sentence — drift, below; `PipeMissing` — above; `issued_at` —
+removed (F-6); the `Cargo.toml` lint comment — corrected (F-12); the AC-11 scan
+— matches words (F-14); config unknown keys — refused (F-5); `design.md:1052`
+— drift, below.
+
+**Design drift not reconciled.** `design.md` stands as written at each of
+these; the code went elsewhere, and the promoted spec or the code's own
+comments say so.
+
+- **§5.2 error taxonomy.** `ProtocolError` gained `Shape`, `DuplicateKey`,
+  `NestedHints` (F-19, F-22, F-25); `ScheduleError` gained `TimeOfDay` (F-2);
+  `SpanFault` is new, the shared duration grammar's refusal (F-4);
+  `ConfigError` is a seventh type the design lacks (user decision 2026-09-03);
+  `:921` spells `semantics::ProtocolError`, unreachable under
+  `pub_use = "deny"` — the path is `semantics::error::ProtocolError`.
+- **§5.2 `Command`.** The config boundary yields `Command { program,
+  arguments }`, not `Vec<String>`, so an empty command cannot reach the
+  transport (F-3, F-41). `Fields` and `Hints` no longer derive `Default`
+  (F-11); the protocol version is one `pub const` (F-27).
+- **§5.3 `resolved_check`.** Still not an `Option`, as the prose says; but
+  "else the retained one" holds only while the retained instant is ahead of
+  `now` (F-1). `Outstanding.issued_at` (`:1172`) was removed — nothing read it
+  (F-6).
+- **§5.4 "Failure does not move the schedule"** (`:1615`–`:1619`) and the
+  state diagram's `respond(stale id) — state untouched` (`:1611`). A failure
+  resolves through the same arm as success with no instruction and writes what
+  it reports; the outstanding interaction is untouched, the resolved check may
+  move from an elapsed instant to the default poll (F-34, F-48, F-54). R-29
+  and §5 of the spec state the rule as it is.
+- **§5.4 `read_capped(r: &mut impl AsyncRead)`** (`:1294`, `:1330`). The
+  reader owns the handle, as the prose and
+  `transport_shape.rs::the_capped_reader_owns_the_stdout_handle` require.
+- **§5.4 "the cap kills the backend by itself"** (`:1528`). The pipe does
+  close at the bound, but disposal `start_kill`s before observing anything, so
+  the host sees its own kill; the sentence names the mechanism that does not
+  fire.
+- **§5.4 step 3.** The stdin write and the stdout read are concurrent and a
+  broken pipe on the write is tolerated (F-10, F-24); the sketch writes then
+  reads.
+- **§5.5 edge table, `backend wedged so wait cannot return`** (`:1729`).
+  Names a mechanism no test can arrange — only uninterruptible sleep defers
+  `SIGKILL`; every observed cleanup timeout stalls on the drain.
+- **§5.2 `:704`** "all three ≥ 1": `Fields` may be empty (user decision
+  2026-08-30; brief and spec agree).
+- **§5.1 manifest and §3 trigger analysis** omit `toml`; **§9's lint prose**
+  omits `module_name_repetitions = "allow"` (user decision 2026-08-27).
+- **`:1052`** "invalid UTF-8 becomes a `Protocol(Json)` error": true only for
+  a value serde decodes; a skipped value's bytes are never read. The spec's
+  R-38 row states the narrower claim.
+- **§9's misbehaving-backend list** says "the integration tier needs" where
+  two items are held at other tiers — the decision above.
+- **Not drift:** `WireAlternative`, `WireContent`, `WireContentValue` are named
+  nowhere in §5 — §6 latitude exercised, as PHASE-04 recorded.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `slice-nnn.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+- [x] All findings dispositioned; no blockers outstanding — F-1…F-58, ledger Synthesis
+- [x] All acceptance criteria met — AC-1…AC-15 checked in `slice-001.md`; AC-14 by the promotion above
+- [x] Tests and checks green — `just check` exit 0, both columns, closing tree
+- [x] Specs / policy / ADRs reconciled, with user endorsement where amended — SPEC-001, CD-1, CD-2; `docs/policy/` empty
+- [x] `slice-001.md` Summary and Follow-ups written
+- [x] `notes.md` Harvest current; five facts lifted to `docs/memory/`
+- [x] `slice-001.md` stage set to `done`

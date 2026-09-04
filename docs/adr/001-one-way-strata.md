@@ -92,8 +92,24 @@ downward?
 
 ## Verification
 
-By inspection during review, and by the placement discipline recorded in each
-slice's design.
+This decision makes two claims, and since slice 001 they are verified
+differently.
+
+**Stratum 1's dependency graph** is a build gate. The async runtime is an
+optional dependency behind a `shell` feature, so
+`cargo test --no-default-features` builds and tests the semantic core with no
+runtime present, and fails if that stops being true. `cargo tree
+--no-default-features` is the diagnostic. This holds inside a single crate and
+does not wait for the workspace split.
+
+**The direction of dependencies** remains a review gate: inspection during
+review, the placement discipline recorded in each slice's design, and a test
+asserting that no file under `src/semantics/` names `crate::shell`,
+`crate::bin` or `tokio`. That test catches the common upward reference, not the
+class — it cannot see a downward type leak, a re-export that flattens the
+boundary, or I/O reaching stratum 1 through `std` rather than through a named
+crate. Treat a green run as the absence of the obvious violation, not as
+compliance.
 
 If the strata ever become separate crates, verification becomes mechanical: the
 crate dependency graph either points one way or does not compile. Until then,

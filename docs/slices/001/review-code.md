@@ -1318,13 +1318,33 @@ Not verified beyond the above: nothing. `just check` exit 0.
 
 **Outcome:** `repaired` (round 6, self-raised) — a doc; no test names it
 
+### Round 7, fresh reviewer — one nit
+
+Raised by a fresh Claude subagent (no thread history) against the uncommitted working tree over `cbc7570`, scoped to `git diff -- src tests` only: the six comment lines changing `draft-spec.md` to `SPEC-001` at promotion (audit session 3), held to `docs/specs/001-host-backend-protocol.md` §4, §6.1, §7.
+
+**Method.** `git diff --stat -- src tests`: four files, 6 insertions, 6 deletions; `git diff -w --stat` identical. Every changed line inside a `///`, `//!` or `//` comment; the only token changed is the literal. Each rewritten citation checked against the promoted spec — `canonical.rs:117`, `:511`, `:721` (§6.1's RFC 3339 form and its two request literals, byte-for-byte the test literals at `:745`–`:747` and `:766`–`:768`), `schedule.rs:2` (R-21…R-28 is the range the module implements; R-29 is the host's and appears nowhere in the module), `normalize.rs:21` (§7 names both corpus tests), `runner.rs:48` (§4 is the `R-N` table) — all true. Sweep `grep -rn "draft-spec\|spec.*:[0-9]\{2,\}" src tests examples` → empty: no citation by path or by line number remains. Broader `grep -rni 'draft'` → `host.rs:29` (an earlier draft of the code, not the spec) and the one below. Not verified: the gate — run by the audit agent, exit 0 in both columns.
+
+### F-58 — `state.rs` names the spec as "the draft spec" in prose
+
+**Severity:** nit
+**Location:** `src/shell/state.rs:28`–`:30`
+**Expected:** after promotion, code names the spec `SPEC-001`; the diff fixed the hyphenated `draft-spec.md` form everywhere and this is the one unhyphenated instance the grep did not match.
+**Observed:** `/// draft spec or this slice reads when a view was issued, so the field is not` — the claim holds (`grep -n issued docs/specs/001-host-backend-protocol.md` → empty; `design.md:1172` is still the `Outstanding { view_id, issued_at }` line); only the name is stale.
+**Evidence:** `sed -n 28,30p src/shell/state.rs`; `grep -rni 'draft' src tests examples`.
+**Disposition:** fix-now — **user decision 2026-09-04.** Same class as the six lines round 7 confirmed; no further round.
+**Response:** repaired. `state.rs:28`–`:30` now reads "nothing in the brief, SPEC-001 or this slice reads when a view was issued". `grep -rni 'draft' src tests examples` → `host.rs:29` only, which is about the code. `just check` exit 0 in both columns.
+
+**Outcome:** `verified` — by the raiser's own grep; a comment names no test
+
 ## Synthesis
 
-Written by the raiser once the ledger resolved, 2026-09-04. Fifty-seven
-findings over six rounds: five major, thirty-three minor, nineteen nit, no
-blocker. Fifty-four fix-now and repaired, three tolerated by user decision
+Written by the raiser once the ledger resolved, 2026-09-04. Fifty-eight
+findings over seven rounds: five major, thirty-three minor, twenty nit, no
+blocker. Fifty-five fix-now and repaired, three tolerated by user decision
 (F-13, F-15, F-44). Round 6 came back with no findings; its one aside became
-F-57, a doc nit the raiser repaired itself. Every repair was confirmed by a later fresh reviewer
+F-57, a doc nit the raiser repaired itself. Round 7 was opened at
+reconciliation over the six comment lines that renamed the spec at promotion,
+and found one nit of the same class beside them (F-58). Every repair was confirmed by a later fresh reviewer
 reverting it and watching the named test go red; F-9 alone needed a third
 round to be pinned (F-43), and one first-draft test for it passed against
 both implementations before it was made to fill the buffer it was offered.

@@ -1,5 +1,7 @@
 # Canon delta — Slice 001
 
+**Applied 2026-09-04** with the user's endorsement — `audit.md` Reconciliation. Kept as the record of what was changed and why.
+
 Changes this slice makes to canon that **already exists**. New canon is drafted
 in `draft-spec.md`, not here.
 

@@ -45,7 +45,7 @@ use goad::semantics::schedule::parse;
 #[serde(deny_unknown_fields)]
 struct Envelope {
   /// The `R-N` ids this case verifies. `ls` over the directory is then a
-  /// coverage report against `draft-spec.md` §4.
+  /// coverage report against `SPEC-001` §4.
   requirement: Vec<String>,
   /// One sentence, present tense, about the protocol — not about the assertion.
   /// This is the half that makes the corpus documentation.

@@ -114,7 +114,7 @@ impl Timestamp {
 
 /// Written by hand rather than derived: jiff's own `serde` support is a
 /// dependency-feature change, and A2 measured that `collect_str` over jiff's
-/// `Display` already produces the RFC 3339 form `draft-spec.md` §6.1 requires.
+/// `Display` already produces the RFC 3339 form `SPEC-001` §6.1 requires.
 impl Serialize for Timestamp {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.collect_str(&self.0)
@@ -508,7 +508,7 @@ pub struct UserResponse {
 /// payload, so it cannot live on `Evaluate` or `Respond`; flattening an
 /// internally-tagged enum beside it is what produces
 /// `{"protocol": 1, "type": "evaluate", …}` with the payload's own keys at the
-/// top level, which is the form `draft-spec.md` §6.1 gives.
+/// top level, which is the form `SPEC-001` §6.1 gives.
 #[derive(Serialize)]
 struct Envelope<'a> {
   protocol: u32,
@@ -718,7 +718,7 @@ mod tests {
 
   // -- VT-2: request wire form ---------------------------------------------
   //
-  // Asserted against the literal JSON of `draft-spec.md` §6.1, parsed to
+  // Asserted against the literal JSON of `SPEC-001` §6.1, parsed to
   // `serde_json::Value` so key order is not asserted but a missing `protocol`
   // or `type` is. A round trip would pass with the version field absent, which
   // is the whole point of the criterion.

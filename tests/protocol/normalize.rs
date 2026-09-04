@@ -18,7 +18,7 @@
 //! it.** `expect.accepted.canonical` is the entire normalized response rendered
 //! back to JSON, so a fixture says what a wire document *means* rather than what
 //! one of its parts does — which is what makes the corpus usable to
-//! `draft-spec.md` §7. It also discharges R-4/R-5 without a second mechanism: an
+//! `SPEC-001` §7. It also discharges R-4/R-5 without a second mechanism: an
 //! unmodelled field that survived normalization would appear in the rendering
 //! and break the case.
 //!

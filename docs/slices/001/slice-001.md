@@ -1,6 +1,6 @@
 # Slice 001: Protocol core and process backend transport
 
-**Stage:** audit in progress since 2026-09-04 — evidence gathered, `review-code.md` round 1 open; see `notes.md` handover
+**Stage:** done — closed 2026-09-04; `audit.md` is the verdict, `review-code.md` the review, SPEC-001 the canon it produced
 **Depends on:** —
 **Design:** `design.md`, reviewed over five rounds (`review-design.md`, closed —
 read its Synthesis). Decisions in `design-log.md`. Progress in `notes.md`.
@@ -71,24 +71,24 @@ Surfaces this slice may touch.
 
 ## Acceptance criteria
 
-- [ ] AC-1 — From a clean clone in the nix dev shell: build, test, lint (zero
+- [x] AC-1 — From a clean clone in the nix dev shell: build, test, lint (zero
       warnings) and format check all pass — and test and lint pass in **both**
       feature columns, with the `shell` feature and without it, since a
       feature-gated crate checked in one column is unchecked. The commands are
       named in `AGENTS.md`. Revised per F-51 and F-57.
-- [ ] AC-2 — Canonical Rust types exist for the `evaluate` and `respond`
+- [x] AC-2 — Canonical Rust types exist for the `evaluate` and `respond`
       requests and their responses. The envelope carries a protocol version.
       Unknown optional fields are ignored; an unknown *required* semantic
       primitive is rejected with a named error. Brief §13.
-- [ ] AC-3 — `next_check` accepts an RFC 3339 timestamp and a simple relative
+- [x] AC-3 — `next_check` accepts an RFC 3339 timestamp and a simple relative
       duration, normalizing both to one canonical instant. An ambiguous or
       unparseable value yields a protocol error and never an invented instant.
       Brief §3.3, §9.1.
-- [ ] AC-4 — Schedule resolution is a pure function over (existing schedule,
+- [x] AC-4 — Schedule resolution is a pure function over (existing schedule,
       incoming instruction, default interval) implementing latest-valid-wins;
       an invalid instruction preserves the existing or default schedule rather
       than disabling anything. Brief §9.
-- [ ] AC-5 — The process transport spawns the configured command, writes one
+- [x] AC-5 — The process transport spawns the configured command, writes one
       JSON request to stdin, reads one JSON response from stdout, enforces a
       timeout, and captures stderr into diagnostics — **including when the
       exchange times out** and when it exits zero with output that will not
@@ -109,7 +109,7 @@ Surfaces this slice may touch.
       not *observed*, because no code of the host's runs on it. Brief §6.2, §13.
       Revised in design per F-2, F-3, F-24, F-25, F-26, F-40, F-41, F-43, F-48,
       F-49, F-53, F-59 and F-60.
-- [ ] AC-6 — Each failure mode in brief §13 reachable by this transport —
+- [x] AC-6 — Each failure mode in brief §13 reachable by this transport —
       command not found, timeout, non-zero exit, malformed JSON,
       protocol-invalid response, invalid scheduling value, unsupported required
       primitive — maps to a distinct typed error, as do backend output exceeding
@@ -120,19 +120,19 @@ Surfaces this slice may touch.
       the taxonomy splits at the stratum seam: parse and validation errors
       belong to the pure core, transport errors to the I/O shell wrapping the
       core's. Not one flat enum spanning both.
-- [ ] AC-7 — Round trip, driven by an integration test with no GUI: an example
+- [x] AC-7 — Round trip, driven by an integration test with no GUI: an example
       backend returns `view: null`; then returns a choice; the host assigns a
       `view_id`, records it, and **hands it to the caller alongside the view** so
       the view can be answered without reaching into host state; a `respond`
       carrying that id reaches the backend; the backend's reply is accepted.
       Per F-23.
-- [ ] AC-8 — An answer bearing an unknown or stale `view_id` is rejected with a
+- [x] AC-8 — An answer bearing an unknown or stale `view_id` is rejected with a
       named error, and the backend is not contacted. The two cases are distinct
       variants — nothing outstanding, versus answering a superseded
       interaction — because they are different mistakes with different fixes.
       Rejection leaves the outstanding interaction intact. Brief §12. Error type
       specified in design per F-8 and F-15.
-- [ ] AC-9 — A JSON fixture corpus covers the protocol-level cases in brief
+- [x] AC-9 — A JSON fixture corpus covers the protocol-level cases in brief
       §15.3 that fall inside this slice: valid evaluate request and response,
       `view: null`, a simple choice, response round trip, scheduling
       replacement, process transport, timeout and failure, malformed backend
@@ -140,32 +140,32 @@ Surfaces this slice may touch.
       a bare-string `body` and a field carrying `multiline` flat. A corpus that
       rejects the brief's worked examples is a corpus that documents our types
       rather than the protocol. Per F-31 and F-38.
-- [ ] AC-10 — Root `AGENTS.md` is a map plus invariant sheet per brief §15.1:
+- [x] AC-10 — Root `AGENTS.md` is a map plus invariant sheet per brief §15.1:
       it states that the host does not understand the user's domain, states the
       permissive-wire / canonical-internal rule, warns against narrowing the
       protocol to the current renderer, points at the authoritative documents,
       and names the verification commands.
-- [ ] AC-11 — No domain vocabulary (habit, streak, journal, site, goal,
+- [x] AC-11 — No domain vocabulary (habit, streak, journal, site, goal,
       reminder, compliance) appears in host types or module names. Brief
       §21.16. Grep-checkable.
-- [ ] AC-12 — At least one backend exercised by the test suite is not
+- [x] AC-12 — At least one backend exercised by the test suite is not
       TypeScript. A bash script that ignores its request and emits a canned
       response is sufficient: without it the suite cannot distinguish a
       transport that works for any configured command from one that works for
       deno. Brief §4.2.
-- [ ] AC-13 — `docs/slices/001/draft-spec.md` exists, copied from
+- [x] AC-13 — `docs/slices/001/draft-spec.md` exists, copied from
       `docs/templates/spec.md`, with `**Status:** draft` and a first line
       stating that it is not canon. It is normative about the protocol and
       nothing else, its requirements carry immutable `R-N` ids, and every
       requirement appears in its own §7 or is explicitly marked unverified with
       a reason. It carries no SPEC id and nothing cites it as one.
-- [ ] AC-14 — At close, the draft has been reconciled against what actually
+- [x] AC-14 — At close, the draft has been reconciled against what actually
       shipped, and promoted to `docs/specs/NNN-slug.md` with `**Status:**
       active` and a SPEC id. Promotion is canon, so the user's explicit
       endorsement is recorded before it happens; a divergence found during
       reconciliation is dispositioned per `docs/AGENTS.md`, never promoted
       as-is.
-- [ ] AC-15 — ADR-001's rule is mechanised in two parts, of different strength.
+- [x] AC-15 — ADR-001's rule is mechanised in two parts, of different strength.
       **Dependency graph:** the async runtime is an optional dependency behind a
       `shell` feature, so `cargo test --no-default-features` builds and runs
       stratum 1 with no runtime present and fails if that stops being true. This
@@ -275,13 +275,90 @@ the act that makes it normative, and it needs the user's explicit endorsement.
 
 ## Summary
 
-<!-- Written at close. -->
+Landed 2026-09-04, at the close of a six-round code review. One crate,
+`goad`, in two strata that the compiler keeps apart: `src/semantics/` (the
+protocol's canonical types, wire types and normalization, and schedule
+resolution — pure, jiff-native, no runtime) and `src/shell/` (config, host
+state, the process transport, the `Host` that composes them — tokio behind a
+`shell` feature). `cargo test --no-default-features` is the proof that the
+core builds without the shell; a boundary test holds the direction.
+
+**What a backend can now do.** Be any program that reads one JSON request on
+stdin and writes one JSON response on stdout — the suite runs one in
+TypeScript under deno and one in bash. Answer "nothing to show" or return a
+`choice` view with options, option-scoped fields of five kinds, hints carried
+flat, and content in four forms. Ask to be checked again at an instant or
+after a span, and be refused — reported, never guessed at — for a time of
+day, a calendar unit, an offsetless instant, or a wrong type, while the rest
+of its message is still accepted. Fail in every way user code fails: not
+spawnable, timing out, exiting non-zero, flooding either stream, leaving a
+grandchild holding a pipe, writing bytes that are not JSON or JSON that is not
+the protocol — each a distinct typed outcome, none a panic, none leaving the
+host unable to try again, and the host's own cleanup reported on its own
+channel beside whatever the backend did.
+
+**What the review changed.** Three things of substance, all coherence with the
+brief against an execution-time reading: an elapsed check is consumed rather
+than carried, so a backend that stops instructing the host is polled on
+cadence and a timer is never handed a past instant; a bare time of day is
+refused rather than read as hours, a rule that took five rounds to state as a
+shape and is pinned by twelve fixtures; and every shape refusal is typed and
+total — duplicate keys at any depth, arrays never bound positionally,
+malformed distinct from protocol-invalid, a nested `hints` object refused.
+Fifty-seven findings, none a blocker, fifty-four repaired and three tolerated
+by decision. `review-code.md`'s Synthesis is the story; `audit.md` is the
+verdict.
+
+**Canon.** `SPEC-001` (`docs/specs/001-host-backend-protocol.md`) is the
+protocol, promoted from this slice's draft after reconciliation; ADR-001 and
+ADR-002 have their records corrected (CD-1, CD-2). Five facts lifted to
+`docs/memory/`. `design.md` stands as written, with its departures listed
+under *Design drift not reconciled* in `audit.md`.
+
+**Numbers, at close:** 35 unit, 52 integration, 15 protocol tests; 88 fixtures
+in three corpora; `just check` exit 0 in both columns, seven commands.
 
 ## Follow-ups
 
 <!-- Written at close. Entries raised earlier are marked with the stage that
      raised them, so they are not lost between stages. -->
 
+- **The timer (slice 003) consumes a resolved instant that is always ahead of
+  the `now` it was resolved at**, on success and on failure alike (R-26,
+  R-29). It must not retry a failed exchange faster than that instant — the
+  host has already fallen back to the default poll where the check had
+  elapsed — and it must not re-resolve on its own. Raised at audit (F-1,
+  F-34, F-48).
+- **Diagnostics retention and rendering (slice 002).** `Outcome` is per-call
+  and forgotten. Whatever surfaces it must bound what it prints: a discarded
+  `next_check`'s `raw` value renders verbatim and unbounded, newlines
+  included, and `ConfigError::Duration` both renders its fault and chains it
+  as `source()`, so a chain-walking logger prints it twice. Raised at audit
+  (F-42, F-47).
+- **Capability declaration** (spec OQ-1) and **validation feedback** (spec
+  OQ-2, and the design-stage entry below). Both are additive fields on a view
+  and both need a version bump or a capability declaration, because an older
+  host that ignores `field.error` shows a form with no sign anything was
+  rejected. After slice 002.
+- **A stale `view_id` across a host restart** (spec OQ-3): R-32 is scoped to
+  one process lifetime while nothing persists. Reopens with persistence.
+- **The boundary scanner is a text scan.** A `//` inside a string literal
+  hides the rest of its line, `/* */` is not cut, all-caps compounds do not
+  split, path tokens match as substrings. Latent today; the build gate holds
+  the stratum property independently. Revisit the first time `src/` acquires
+  one of those forms. Raised at audit (F-45, F-49).
+- **Time-of-day strings no author writes on purpose** — `1:2:3:4:5` and
+  `99:99` are "a time of day", `T1:30` is unparseable where `T18:00` is a time
+  of day, and a config `timeout` written as a full datetime is told it is a
+  time of day. Recorded, not acted on; a fixture per case if any is ever
+  reported. Raised at audit, round 5.
+- **`BackendError::PipeMissing` and `cleanup_only` are reachable by no test**
+  (F-15, tolerated). A unit test that fabricates the state, or removing the
+  variant, if the transport is reworked for slice 005's socket.
+- **No end-to-end case for a backend that writes nothing, or for brief
+  §10.1/§10.2 through a real process** — held at other tiers through the one
+  read site; tolerated at audit. Cheap to add with the instructed backend if
+  slice 005 rebuilds the failure matrix.
 - **Validation feedback round trip** (raised in design, §5.5). The backend
   validates answers; the user must eventually see which fields were rejected and
   why, retain what they entered, and possibly receive backend-corrected values.
