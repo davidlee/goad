@@ -43,6 +43,68 @@ created it: `Cargo.toml`, `clippy.toml`, `justfile`, `.gitignore`, `Cargo.lock`,
 `LICENSE`. PHASE-01 amended `Cargo.toml` twice — `toml` as an optional
 dependency (EX-6) and `module_name_repetitions = "allow"` (user decision).
 
+## Handover — audit in progress, session 1 closed 2026-09-04
+
+**Stage:** audit, evidence gathered, code review round 1 open. Nothing
+dispositioned, nothing repaired, no canon touched, draft not promoted.
+
+**What session 1 did.** Wrote `audit.md` Brief before looking, then Evidence
+(gate run, grep-based invariant checks, AC and VT/VA walks, surface delta, CD-1
+and CD-2 checked against the code, every execution-time decision re-examined).
+Read all of `src/`, all of `tests/`, the example, the brief, the design, the
+draft spec, the plan and the plan log. Raised F-1…F-16 in `review-code.md` as
+the audit agent, then launched a fresh reviewer subagent whose findings append
+from F-17. The user's standing instruction for this audit: execution-time
+decisions are **not** binding; the question is coherence with the brief and the
+design.
+
+**The two findings that need the user before anything else** — both are
+decisions, not repairs, and both touch what `draft-spec.md` would promote as
+canon:
+- **F-1** — `schedule::resolve` retains an elapsed check indefinitely; brief
+  §9's "existing *valid* check … otherwise the default poll" is not what R-26
+  or the code say. Slice 003's timer would busy-loop the first time a backend
+  omits `next_check` after a scheduled poll. **Decided 2026-09-04: option (a)**
+  — `retained <= now` is consumed in `resolve` and the default applies. Fix-now
+  in session 2; R-26 and `design.md` §5.3 reworded at reconciliation.
+- **F-2** — `"18:00:00"` is accepted as eighteen hours. Brief §3.3 forbids
+  exactly this. Reject; the user chooses the variant.
+
+**Proposed session split**, so no session carries more than one job:
+- *Session 2 — dispositions and repairs.* Read `review-code.md` whole (F-1…F-16
+  plus the fresh reviewer's). Put every disposition to the user before acting.
+  Fix-now items are small (F-2, F-3, F-4, F-5, F-6, F-7, F-8, F-12, F-14 are
+  each under an hour); F-1 is small in code and large in meaning. Re-run
+  `just check`. Then a **round 2** reviewer over the repairs only, appended to
+  the same ledger.
+- *Session 3 — reconciliation and close.* `audit.md` Reconciliation table:
+  the design-drift list below; CD-1 and CD-2 applied with endorsement; the
+  draft promoted to `docs/specs/001-<slug>.md` as `SPEC-001`, `Status: active`,
+  with F-1/F-2's outcomes reflected in R-21…R-26 first; `slice-001.md` Summary
+  and Follow-ups; `docs/memory/` lift (four candidates listed under Open);
+  stage `done`.
+
+**Design drift the audit has already identified** (design stands, code went
+elsewhere; for `audit.md`'s *Design drift not reconciled* unless the user
+prefers to amend the design): `toml` absent from §5.1's manifest and §3's
+trigger analysis; `ConfigError` absent from §5.2's taxonomy; `design.md:704`'s
+"all three ≥ 1" comment (`Fields` may be empty); §5.4's sketch takes
+`read_capped(r: &mut impl AsyncRead)` at `:1294`/`:1330` while its prose and
+the code own the handle; `:1528` "the cap kills the backend by itself" names
+the mechanism that does not fire; `:921` spells `semantics::ProtocolError`,
+unreachable under `pub_use = "deny"`; §9's lint prose omits
+`module_name_repetitions = "allow"`; `:1729`'s wedged-`wait` row describes a
+case no test can arrange; `:1052`'s invalid-UTF-8 claim holds only for values
+serde decodes; §9's misbehaving-backend list says "the integration tier needs"
+where two items are held at other tiers; `WireAlternative`, `WireContent`,
+`WireContentValue` are named nowhere in §5 (§6 latitude, not a hole); and, if
+F-6 is taken, `issued_at`.
+
+**Reviewer subagent.** Launched from session 1 with the reading list and lines
+of attack in `review-code.md`'s Brief. Its report lands only in session 1; if
+this handover is read and F-17 onward are absent from the ledger, the report was
+lost and a fresh reviewer should be dispatched with the same brief.
+
 ## Handover — plan review closed, plan awaiting acceptance, 2026-08-27
 
 <!-- Written after round 4 came back clean. The 2026-08-26 handover below is

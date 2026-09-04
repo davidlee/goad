@@ -1235,3 +1235,20 @@ scaffolding landed outside the phase flow.
   restatement sweep — `slice-001.md`'s OQ-9 answer, `AGENTS.md`'s command list —
   belongs to PHASE-09, which owns those surfaces. `plan-log.md`'s entry of the
   same date holds the options and the plan-side consequences.
+
+### 2026-09-04 — Audit, F-1: an elapsed `next_check` is consumed, not retained
+
+- **Asked:** `schedule::resolve` returns the retained check whenever no valid
+  instruction arrives, even when that check has already elapsed; brief §9 says
+  "retain an existing **valid** scheduled check … otherwise use the configured
+  default poll interval". After a scheduled poll answered without `next_check`
+  the host would report a past instant forever. Raised as `review-code.md` F-1.
+- **Options:** (a) `resolve` treats `retained <= now` as consumed and the
+  default poll applies — one comparison in stratum 1, a fixture, and R-26
+  reworded; (b) leave `resolve` as is and make slice 003's timer own the rule,
+  with R-26 saying so.
+- **Decided:** (a).
+- **Consequence:** a backend-supplied past instant (R-28) still stores as given
+  and fires once; the following exchange without an instruction falls back to
+  cadence rather than firing again. R-26, `design.md` §5.3 and the AC-4 text
+  are reconciled at audit; the code change is session 2's.

@@ -1,6 +1,6 @@
 # Slice 001: Protocol core and process backend transport
 
-**Stage:** design accepted 2026-08-26 — planning next
+**Stage:** audit in progress since 2026-09-04 — evidence gathered, `review-code.md` round 1 open; see `notes.md` handover
 **Depends on:** —
 **Design:** `design.md`, reviewed over five rounds (`review-design.md`, closed —
 read its Synthesis). Decisions in `design-log.md`. Progress in `notes.md`.
