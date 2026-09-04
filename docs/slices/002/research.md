@@ -1165,3 +1165,56 @@ requirement the design had only implied: **`Wire::send` must be `try_send`,
 never `send().await`.** A Slint callback is synchronous and on the UI thread; an
 awaiting send against a loop that is not reading would block the thread the loop
 needs. `Full` is only reportable because the send does not wait.
+
+---
+
+## Thread 8 — §5.2's markup, compiled (added at review round 3)
+
+Added to discharge A-7 rather than carry it, after F-27 showed what carrying a
+cheap assumption costs. §5.2's markup block was extracted **verbatim** from
+`design.md` into a crate with `slint = "=1.17.1"`, `slint-build = "=1.17.1"` and
+a `build.rs` calling
+`compile_with_config(.., CompilerConfiguration::new().with_debug_info(true))`.
+
+**It compiles** ✓, and the check is not vacuous ✓: replacing `accessible-role:
+list` with a nonsense role fails the *build script* with
+`error: Unknown unqualified identifier` at the exact `.slint` line, plus
+`The accessible-role property must be a constant expression`. Restoring it
+builds clean.
+
+**The generated API is what §5.3 and §5.4 assume** ✓ — `set_mode`,
+`set_heading`, `set_body`, `set_options`, `set_body_degraded`, `set_busy`,
+`set_notice`, `set_diagnostic_lines`, `on_chosen`, `on_close_diagnostics`, and
+the tray's `on_check_now`, `on_show_diagnostics`, `on_quit`.
+
+**A-6 is discharged** ✓: `title: root.mode == WindowMode.prompt ? "goad" :
+"goad — diagnostics"` compiles. The fallback of moving the two literals into
+`diagnostics.rs` is not needed.
+
+### What it found — the tray had no way to be written (F-28)
+
+The first version of the block *set* the tray's inherited `icon`, `tooltip` and
+`visible` rather than declaring them, on the reasoning that a redeclaration is
+an error. Both halves of that reasoning are right and the conclusion was wrong:
+
+| what the markup does | result |
+|---|---|
+| `in property <image> icon;` on a `SystemTrayIcon`-inheriting component | `error: Cannot override property 'icon'` (same for `tooltip`, `visible`) |
+| `visible: true;` — setting the inherited property to a literal | compiles, and the generated code calls `set_constant()` on `icon`, `title`, `tooltip` **and** `visible`; **no `set_icon`/`set_tooltip` accessor is generated at all** |
+| declare `image` / `hover-text` / `shown`, then bind `icon: root.image;` etc. | compiles; generates `set_image`, `set_hover_text`, `set_shown`; **zero** `set_constant()` on `visible` |
+
+Two consequences, neither reachable by reading `builtins.slint`:
+
+1. **Inheriting a builtin property does not expose it to Rust.** A
+   `SystemTrayIcon`-rooted component's `icon` and `tooltip` are settable from
+   markup only. Anything the host must write at runtime needs a declared
+   property of its own with the builtin bound to it.
+2. **E-4's constant-folding trap is wider than recorded.** `visible: true` is
+   *not* "carrying a binding" — a literal folds. Only a binding to something
+   that can change leaves the property live. The earlier note that the tray
+   "declares the binding anyway" would have shipped the panic it was written to
+   avoid.
+
+The corrected block is what `design.md` §5.2 now carries; it was re-extracted
+from the design after the edit and rebuilt, and generates the eleven setters
+above with `visible` unfolded.

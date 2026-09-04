@@ -5,7 +5,7 @@
 **Reviewer:** rounds 1 and 2 — codex, `gpt-5.6-sol`, read-only, briefed for
 implementation feasibility rather than intent.
 **Opened:** 2026-09-05
-**State:** open — twenty-seven findings raised over three rounds, all currently
+**State:** open — twenty-eight findings raised over three rounds, all currently
 `verified`. It stays open because round 3's repairs have not themselves been
 reviewed. Round 3 exists because round 2's had not been, and round 2 because
 round 1's had not been; the pattern is the point, and the ledger says so rather
@@ -115,11 +115,10 @@ That reading list was set by round 2's own synthesis, which named them as what i
 had not reached.
 
 It **held ten** of the fourteen round-2 repairs, reopened **four** under their
-original ids — F-6, F-9, F-16, F-17 — and raised **seven** more, F-20…F-26. An
-eighth, **F-27**, was raised by the responder during the repair of F-22, by
-building the thing rather than reasoning about it; it is recorded under the
-raiser's hat with its measurement, because a defect found while repairing is
-still a defect.
+original ids — F-6, F-9, F-16, F-17 — and raised **seven** more, F-20…F-26. Two more — **F-27** and **F-28** — were raised by the responder while repairing
+F-22 and F-17, by building the things rather than reasoning about them. Both are
+recorded under the raiser's hat with their measurements, because a defect found
+while repairing is still a defect, and both were in *this round's own new text*.
 
 The pattern shifted again, and the shift is worth naming. Round 1 found a design
 written from summaries rather than from source. Round 2 found repairs written at
@@ -171,6 +170,7 @@ fresh disposition and outcome are appended below it.
 | F-25 | minor | r3 | — | — | — | — | fix-now | verified |
 | F-26 | minor | r3 | — | — | — | — | fix-now | verified |
 | F-27 | major | r3 | — | — | — | — | fix-now | verified |
+| F-28 | major | r3 | — | — | — | — | fix-now | verified |
 
 **held** = round 3 audited that repair against the code and did not reopen it.
 The finding's terminal outcome stays the one in its own round's column; "held"
@@ -1654,9 +1654,68 @@ deadlock the same spike found); `research.md` Thread 7.
 **Outcome:** verified
 
 
+### F-28 — The tray cannot be written, and E-4's trap is wider than recorded
+
+**Severity:** major
+**Location:** `design.md` §5.2 markup (`Tray`), §5.3 `Glass::present`, E-4
+**Raised by:** the responder, wearing the raiser's hat, while discharging A-7 —
+by compiling §5.2's markup and reading the generated Rust.
+
+**Expected:** `SlintGlass::present` can write the tray's icon and tooltip, which
+is the whole of the two-state tray the design rests on.
+**Observed:** it cannot. The markup as written generates **no `set_icon` and no
+`set_tooltip` on `Tray` at all**, and marks `icon`, `title`, `tooltip` and
+`visible` `set_constant()`. Every tray behaviour in the design — the icon
+changing with `TrayState`, the four-form tooltip, `Diagnostics::state()` read on
+every `present` — had no route to the component.
+
+This is a defect **this round introduced**, and it was introduced by a repair
+that was right about its premise. F-17's repair removed
+`in property <image> icon;` from `Tray` because redeclaring an inherited
+property is an error — true, `error: Cannot override property 'icon'` — and
+replaced it with `visible: true;` on the reasoning that setting rather than
+declaring gives E-4's required binding. Also wrong: a literal is
+constant-folded.
+
+**Evidence** (`research.md` Thread 8), three variants through
+`slint_build::compile`:
+
+| markup | result |
+|---|---|
+| redeclare `icon` / `tooltip` / `visible` | `error: Cannot override property` ×3 |
+| set them to literals | compiles; `set_constant()` on all four; **no setter generated** |
+| declare `image` / `hover-text` / `shown` and bind `icon: root.image;` etc. | compiles; `set_image`, `set_hover_text`, `set_shown`; **zero** `set_constant()` on `visible` |
+
+**Disposition:** fix-now
+**Response:** the third variant, in §5.2's markup. `Tray` declares `image`,
+`hover-text` and `shown`, and binds the three builtins to them.
+`Glass::present` writes `image` and `hover-text`; E-4 is genuinely closed
+because `visible` is bound to something that can change, and the generated code
+confirms it is not folded. §5.3's `present` description, §5.5 E-4 and §5.2's
+notes are all restated against the measurement rather than against
+`builtins.slint`, which does not mention either behaviour.
+
+The corrected block was re-extracted from `design.md` after the edit and rebuilt,
+and generates the eleven setters the design's Rust names.
+
+**What this says about the round, and it is the second time in an hour.** F-27
+came from building the loop; F-28 came from compiling the markup. Both were in
+text this round wrote, both were invisible to careful reading of the upstream
+sources, and both changed the design rather than merely confirming it. A-7 was
+listed as "settled by the first renderer commit" ninety minutes before it was
+settled by a scratch crate in twenty seconds of compile time — and had it been
+left, the first renderer phase would have met a tray it could not write, mid-
+phase, with a standing instruction to stop.
+
+`design.md` §5.2 markup and its notes, §5.3 `Glass::present`, §5.5 E-4, A-7;
+`research.md` Thread 8.
+
+**Outcome:** verified
+
+
 ## Synthesis
 
-Twenty-seven findings over three rounds — five blockers, nineteen majors, three
+Twenty-eight findings over three rounds — five blockers, twenty majors, three
 minors — all `fix-now` but two `doc-wrong`, all currently `verified`. No blocker
 outstanding. The ledger does **not** read done: round 3's repairs have not been
 reviewed, and the whole lesson of rounds 2 and 3 is that unreviewed repairs are
@@ -1742,19 +1801,23 @@ generalises: *"the first renderer commit will tell us"* is a real mitigation and
 also a way of not finding out, and it should be spent only on things a scratch
 crate cannot reach.
 
-What remains, with that in mind:
+So the two that a scratch crate could reach were measured rather than carried,
+and both paid:
 
-| assumption | what it is | can a scratch crate reach it? |
-|---|---|---|
-| **A-2** | ~75 unproven lints against hand-written renderer code — now including the stderr-outlet spelling and the six-clone `install` | **partly**, and cheaply: both of those named instances are ordinary Rust |
-| **A-4** | `just check` wall-clock with 411 crates (ADR-002 T3) | no — needs the real tree |
-| **A-6** | a conditional over an enum in a `Window.title` binding | **yes**, with one `.slint` file |
-| **A-7** | §5.2's markup compiles as a whole; every *API* fact in it is already cited to the Slint compiler's sources | **yes**, with one `.slint` file and `slint_build` |
+| assumption | outcome |
+|---|---|
+| **A-5** | **false.** `future_not_send` fires; the shape chosen to dodge it also trips `manual_async_fn`. `serve` becomes an `async fn` with one expectation (F-27) |
+| **A-6** | **discharged.** The `Window.title` conditional compiles; the fallback is dropped |
+| **A-7** | **discharged, and it found F-28** — the tray had no icon or tooltip setter, and E-4's constant-folding trap is wider than recorded |
+| **A-2** | still standing: ~75 unproven lints against hand-written renderer code. Two named instances — the stderr-outlet spelling and the six-clone `install` — are ordinary Rust and cheap to check; the rest needs the real crate. One of the three permitted expectations is already spent (F-27) |
+| **A-4** | still standing: `just check` wall-clock with 411 crates (ADR-002 T3). Needs the real tree; not answerable by a spike |
 
-A-7 is stated rather than left implicit precisely because F-17 was raised twice
-on markup that read complete. Two of the four are answerable before a phase
-starts, and after F-27 the honest recommendation is to answer them rather than
-to carry them.
+Three assumptions measured, two of them wrong, both wrong in ways that would
+have stopped a phase. That is the round's most transferable result, and it is
+not about any one of them: **an assumption a scratch crate can reach should be
+reached before a phase starts, not listed as a risk.** A-2 and A-4 are the two
+that genuinely need the real tree, and they are the two the first renderer
+commit is actually for.
 
 **The residue that is not a risk but an admission.** No instrument in the gate
 rejects a feature switched on by stratum 2 or 3 in a dependency shared with
@@ -1769,7 +1832,13 @@ against the repaired design, which is what let F-23 stand. Round 3 read all
 three artefacts, but **it has not read its own repairs** — and four of the seven
 new findings are in passages round 3 itself caused to be rewritten from scratch:
 the entry point, the loop body, the failure-matrix schema, the startup strings.
-A round 4 should read exactly those four, plus the two documents this round
-created or restructured — `draft-policy.md`, and `canon-delta.md` CD-5 against
-`design.md` §10 C-5 — and should treat F-27 as its brief: **every remaining
-assumption that a scratch crate could settle, and has not.**
+Two of those four are now measured — the loop (Thread 7) and the markup
+(Thread 8) — and measuring them produced F-27 and F-28. The two that are
+**not** are the failure-matrix `Case` schema and the startup strings: both are
+ordinary Rust that no spike has compiled and no reviewer has read.
+
+A round 4 should read those two, plus the two documents this round created or
+restructured — `draft-policy.md`, and `canon-delta.md` CD-5 against `design.md`
+§10 C-5 — and should treat F-27 and F-28 as its brief: **two of this round's own
+repairs were wrong in ways only building them revealed, and the reviewer should
+assume the same rate applies to the two that were not built.**

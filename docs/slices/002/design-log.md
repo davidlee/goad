@@ -1109,3 +1109,38 @@ open.*
   minutes and moved a signature at the centre of the design. Of the four
   remaining assumptions, A-6 and A-7 are reachable by one `.slint` file and
   should be measured before a phase starts rather than carried into one.
+
+### 2026-09-05 — Round 3: the markup was compiled, and the tray could not be written
+
+*Autonomy grant. Review round 3, F-17's repair, which produced F-28.*
+
+- **Asked:** F-27 showed that carrying a cheap assumption costs a signature.
+  A-7 — "§5.2's markup compiles as written" — is reachable by one `.slint` file.
+  Measure it, or carry it?
+- **Decided:** measure it. §5.2's block was extracted verbatim into a crate with
+  `slint`/`slint-build` 1.17.1 and a `build.rs` calling
+  `compile_with_config(.., with_debug_info(true))` (`research.md` Thread 8).
+- **What held:** it compiles; the negative control (a nonsense
+  `accessible-role`) fails the *build script*, so the check is not vacuous; the
+  generated API is exactly what §5.3 and §5.4 name; and A-6 — the
+  `Window.title` conditional over a `WindowMode` property — compiles, so its
+  fallback is dropped rather than carried.
+- **What did not:** the tray. `Tray` as written generated **no `set_icon` and no
+  `set_tooltip`**, and the compiler marked `icon`, `title`, `tooltip` and
+  `visible` constant. Every tray behaviour in the design had no route to the
+  component. The repair that caused it was right about its premise —
+  redeclaring an inherited property is `error: Cannot override property` — and
+  wrong about the remedy: setting `visible: true` to a *literal* is not
+  "carrying a binding", it folds.
+- **Decided:** `Tray` declares `image`, `hover-text` and `shown` and binds the
+  three builtins to them. Measured: `set_image`, `set_hover_text`, `set_shown`
+  are generated and `visible` is not folded, so E-4's panic trap is closed by
+  evidence rather than by belief. *Rejected:* naming them `tray-icon` /
+  `tray-tooltip` (stutters against the component name); and leaving the tray
+  statically configured, which would delete the two-state icon the diagnostic
+  surface rests on.
+- **The pattern, twice in one session:** F-27 came from building the loop, F-28
+  from compiling the markup. Both were in text this round wrote. Both were
+  invisible to careful reading of the upstream sources — `builtins.slint`
+  documents neither behaviour. Two of the three assumptions a spike could reach
+  were wrong, and both would have stopped a phase mid-flight.

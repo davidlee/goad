@@ -524,11 +524,19 @@ export component PromptWindow inherits Window {
 }
 
 export component Tray inherits SystemTrayIcon {
-  // `icon`, `tooltip` and `visible` are SystemTrayIcon's own and are **not**
-  // redeclared — a redeclaration is a compile error, and the earlier sketch
-  // carried one. `visible` is *set* here, so it holds a binding rather than a
-  // constant (§5.5 E-4).
-  visible: true;
+  // `icon`, `tooltip` and `visible` are SystemTrayIcon's own. They cannot be
+  // redeclared ("Cannot override property") **and** inheriting them exposes no
+  // Rust setter, so the values the glass must write get their own properties
+  // and the builtins are *bound* to them. Binding is also what stops the
+  // compiler folding `visible` into a constant — E-4's panic trap, closed by
+  // measurement rather than by belief (F-28).
+  in property <image> image;
+  in property <string> hover-text;
+  in property <bool> shown: true;
+
+  icon: root.image;
+  tooltip: root.hover-text;
+  visible: root.shown;
 
   callback check-now();
   callback show-diagnostics();
@@ -552,13 +560,17 @@ read from the compiler's own sources rather than inferred:
   `MenuItem` carries `title`, `enabled`, `checkable`, `checked`, `icon` and one
   `activated()` callback (`i-slint-compiler-1.17.1/builtins.slint:1296-1319`,
   `:3121-3134`). A `shortcut` on a tray `MenuItem` is ignored, so none is set.
-- **`SystemTrayIcon` already declares `icon`, `tooltip` and `visible`, and
-  `visible` already defaults to `true`** (`builtins.slint:3241-3252`), so `Tray`
-  sets them and declares none of them. It also states the fact the glass depends
-  on: *"the tray icon is only created once a non-empty image has been
-  assigned"* — which is why `SlintGlass::new` writes the icon and tooltip before
-  the loop runs, rather than leaving the first write to the loop's first
-  `present`.
+- **`SystemTrayIcon` already declares `icon`, `tooltip` and `visible`**
+  (`builtins.slint:3241-3252`), and neither redeclaring nor merely *setting*
+  them works: redeclaring is `error: Cannot override property`, and a plain
+  literal binding is folded to a constant with **no Rust setter generated at
+  all**. Both measured (`research.md` Thread 8). So `Tray` declares three
+  properties of its own and binds the builtins to them, which yields
+  `set_image`, `set_hover_text` and `set_shown` and leaves `visible` unfolded.
+  `builtins.slint` also states the fact the glass depends on: *"the tray icon is
+  only created once a non-empty image has been assigned"* — which is why
+  `SlintGlass::new` writes the icon and tooltip before the loop runs, rather
+  than leaving the first write to the loop's first `present`.
 - **`Button` already declares `accessible-role: button`,
   `accessible-label: root.text`, `accessible-enabled` and
   `accessible-action-default`, and its inner `Text` declares
@@ -928,7 +940,9 @@ One method, because a partial update is the bug this seam exists to prevent:
 writes only what changed is correct only if properties survive that. `SlintGlass`
 does not care which is true — on every call it `set_vec`s the process-lifetime
 `VecModel`, re-hands the `ModelRc`, writes heading, body, degradation, busy,
-notice, mode and the diagnostic lines, writes the tray icon and tooltip, and
+notice, mode and the diagnostic lines, writes the tray's `image` and
+`hover-text` — the two properties `Tray` declares for exactly this, because the
+inherited `icon` and `tooltip` generate no setter (F-28) — and
 then shows or hides. The component itself is created once at startup and never
 recreated, so no callback is ever reinstalled and no `Wire` is ever re-minted.
 The design does not rest on properties surviving a hide; a total, idempotent
@@ -2227,25 +2241,23 @@ above draws, and the two statements are required to agree.
   F-16's second raising. `Cancel::stopped` keeps its `-> impl Future` shape and
   trips nothing, because `manual_async_fn` fires only when the body is a single
   `async` block and `stopped` clones its receiver first.
-- **A-6.** `Window.title` can be bound to a conditional over a `WindowMode`
-  property in `.slint`. Unmeasured. If it must be set from Rust, the two title
-  literals move into `diagnostics.rs` beside the other user-visible strings;
-  nothing else changes.
-- **A-7.** §5.2's markup compiles as written. Every *API* fact in it is read from
-  the Slint compiler's own sources and cited there — the tray's `Menu`/`MenuItem`
-  shape, `Button`'s built-in accessible declarations, the reserved `accessible-*`
-  properties and the rule about setting them on a component instance,
-  `StyledText`'s property name and callback, and `SystemTrayIcon`'s own
-  `icon`/`tooltip`/`visible`. What is **not** measured is the whole block through
-  `slint_build::compile`: layout nesting, `if`/`for` placement, and whether a
-  role on a `VerticalLayout` inside a `ScrollView` is accepted. The mitigation is
-  the one F-11's repair already put in the plan — **the first phase compiles one
-  root `.slint` before anything else is written**, so this class of error
-  surfaces in the build script at the cheapest possible point
-  (`docs/memory/slint-build-mechanics.md`) rather than by inspection. A
-  correction here is a markup edit, not a design change; a correction that
-  changed *which control produces which callback* would be a design change, and
-  none of the facts that decide that is unmeasured.
+- **A-6 is discharged, not assumed.** `Window.title` bound to a conditional over
+  a `WindowMode` property compiles (`research.md` Thread 8). The fallback — the
+  two literals moving into `diagnostics.rs` — is no longer needed and is not
+  carried.
+- **A-7 is discharged, not assumed — and discharging it found a defect.**
+  §5.2's markup was extracted verbatim, compiled through
+  `slint_build::compile_with_config(.., with_debug_info(true))`, and the
+  generated Rust read back (`research.md` Thread 8). It compiles; the negative
+  control (a bad `accessible-role`) fails the build script, so the check is not
+  vacuous; and the generated API is exactly what §5.3 and §5.4 assume —
+  `set_mode`, `set_heading`, `set_body`, `set_options`, `set_body_degraded`,
+  `set_busy`, `set_notice`, `set_diagnostic_lines`, `on_chosen`,
+  `on_close_diagnostics`, and the tray's `on_check_now`, `on_show_diagnostics`,
+  `on_quit`. What it found is F-28: the tray exposed **no** icon or tooltip
+  setter, which no amount of reading `builtins.slint` had revealed. The
+  first-phase compile F-11's repair put in the plan stays, as a regression check
+  rather than as this block's only proof.
 
 **Edge cases.**
 
@@ -2268,10 +2280,14 @@ above draws, and the two statements are required to agree.
   for the other. The parse result is retained in `Body::Rich`, so the decision is
   taken once.
 - **E-4. `SystemTrayIcon::hide()` panics** — "Constant property being changed" —
-  unless `visible` carries a binding. The tray is never hidden in this slice, but
-  `Tray` binds `visible: true` in its body anyway (setting the inherited
-  property, never redeclaring it), because the panic is a constant-folding trap
-  rather than a rule, and others of its shape are unaudited.
+  unless `visible` carries a binding, and **`visible: true` is not one**: a
+  literal is constant-folded, verified in the generated code (`research.md`
+  Thread 8, F-28). `Tray` therefore binds `visible: root.shown` to a declared
+  property, which the generated code confirms is not folded. The tray is never
+  hidden in this slice; the binding is there because the panic is a
+  constant-folding trap rather than a rule, and others of its shape are
+  unaudited — this one was found by reading the generated code rather than by
+  hitting it.
 - **E-5. A link inside a rendered body.** `StyledText` fires `link-clicked` with
   the URL verbatim; `from_markdown` accepts `javascript:`, `file:///…` and
   argument-injection-shaped URLs, and Slint's `webbrowser` dependency filters no
