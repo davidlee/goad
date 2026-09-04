@@ -168,9 +168,11 @@ live there and are not copied here.
 
 **Round 1** — 2026-09-04 — two raisers: the audit agent (F-1…F-16, raised while
 gathering evidence, before any fresh-reviewer output was seen) and a fresh
-reviewer agent whose findings append after. Outstanding blockers: **0** raised
-by the audit agent; the fresh reviewer's count is recorded in the ledger when
-it lands.
+reviewer subagent (F-17…F-33). Thirty-three findings, **0 blockers**, 4 major
+(F-1, F-2 and their independent confirmations F-17, F-18), 20 minor, 9 nit.
+Six of the reviewer's findings confirm audit-agent findings independently and
+with probe output. Dispositioned so far: F-1 (fix-now, user decision, option
+(a)). Everything else awaits session 2.
 
 <!-- severity — blocker: must not ship. major: real defect or design breach.
        minor: worth fixing, not urgent. question: needs an answer before it

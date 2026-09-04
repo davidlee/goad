@@ -100,10 +100,16 @@ where two items are held at other tiers; `WireAlternative`, `WireContent`,
 `WireContentValue` are named nowhere in §5 (§6 latitude, not a hole); and, if
 F-6 is taken, `issued_at`.
 
-**Reviewer subagent.** Launched from session 1 with the reading list and lines
-of attack in `review-code.md`'s Brief. Its report lands only in session 1; if
-this handover is read and F-17 onward are absent from the ledger, the report was
-lost and a fresh reviewer should be dispatched with the same brief.
+**Reviewer subagent.** Reported in session 1; its seventeen findings are in
+the ledger as F-17…F-33 (0 blocker, 2 major — both confirming F-1 and F-2 with
+probe output). New material worth reading first: F-19 (duplicate keys inside
+`view` resolve last-wins while the envelope refuses them), F-20 (JSON arrays
+accepted positionally as structs), F-22 (well-formed-but-invalid shapes
+collapse into `ProtocolError::Json`, against R-44's distinct "protocol-invalid"
+mode), F-24 (a failed stdin write is fatal even when the backend answered and
+exited 0 — contradicts AC-12's "ignores its request"), F-25 (a nested `hints`
+object is absorbed as a hint named `hints`), F-27 (the protocol version is two
+private constants).
 
 ## Handover — plan review closed, plan awaiting acceptance, 2026-08-27
 
