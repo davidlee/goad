@@ -4,3 +4,6 @@
 *.local.*
 
 target/
+
+# agent worktrees, never committed
+.claude/worktrees/
