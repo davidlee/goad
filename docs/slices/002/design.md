@@ -152,8 +152,8 @@ graph TD
     RCV["reception.rs<br/>receive — one consumption point"]
     MAP["view_model.rs<br/>one exhaustive match"]
     DIAG["diagnostics.rs<br/>every user-visible string"]
-    GEN["generated/<br/>include_modules! quarantine"]
-    UI["ui/*.slint<br/>window + tray"]
+    GEN["generated.rs<br/>include_modules! quarantine"]
+    UI["ui/app.slint<br/>window + tray"]
   end
   subgraph s2["crates/goad-shell — stratum 2"]
     HOST["Host&lt;B&gt;<br/>evaluate / respond → Outcome"]
@@ -190,17 +190,40 @@ graph TD
 ```
 
 Direction is one-way, and the split moves *part* of its enforcement from a grep
-to the compiler. **Four** mechanisms now hold what one grep held. They are not
-interchangeable, and their sum is not "purity, enforced" — the overstatement
-F-6 has now been raised on three times. Each row's third column is the
-load-bearing one:
+to the compiler.
+
+**The counting rule, stated once and used everywhere.** F-6 has been raised four
+times, every time on a count that differed between two documents. The vocabulary
+this project uses from here — in §5.6, in §9 item 3, in §10 C-7, in
+`slice-002.md` AC-3, in `canon-delta.md` CD-7 and in `draft-policy.md` — is:
+
+> **Four ADR-001 instruments**, plus **the domain-vocabulary scan**, which holds
+> a different invariant, plus **one residue nothing enforces**.
+
+Three things, not one number. They are not interchangeable, their sum is not
+"purity, enforced", and no document may merge them. Each row's third column is
+the load-bearing one:
+
+| # | what it holds | instrument | where it stops |
+|---|---|---|---|
+| 1 | a stratum 1 **source file** naming `goad_shell` or `tokio` | Cargo resolution — `error[E0433]`, confirmed by negative control (`research.md` Thread 6) | crate edges only |
+| 2 | a runtime, renderer or filesystem-shaped **dependency entry** in a stratum 1 or 2 manifest | the manifest allowlist test, §5.6 | names, not versions or features |
+| 3 | a **direct `std` reach** for the filesystem, a process, a socket, a thread, the environment or a clock, in stratum 1's sources | the stratum 1 purity scan, §5.6 | the spellings a line-based scan sees |
+| 4 | stratum 1 **compiled with its own feature set**, so the three above are checking a configuration that stands on its own | `cargo test -p goad-semantics`, §5.6 | it **rejects nothing** — it is not a purity check |
+
+Those four are ADR-001's. **The domain-vocabulary scan is not one of them**, and
+this is the distinction every prior raising of F-6 lost. ADR-001 is about
+*direction*; `CLAUDE.md` invariant 1 is about *vocabulary*, and no compiler
+objects to a type called `Habit` either. It is a fifth check in the same gate,
+holding a different invariant, over every member rather than over stratum 1:
 
 | what it holds | instrument | where it stops |
 |---|---|---|
-| a stratum 1 **source file** naming `goad_shell` or `tokio` | Cargo resolution — `error[E0433]`, confirmed by negative control (`research.md` Thread 6) | crate edges only |
-| a runtime, renderer or filesystem-shaped **dependency entry** in a stratum 1 or 2 manifest | the manifest allowlist test, §5.6 | names, not versions or features |
-| a **direct `std` reach** for the filesystem, a process, a socket, a thread, the environment or a clock, in stratum 1's sources | the stratum 1 purity scan, §5.6 | the spellings a line-based scan sees |
-| a **domain word** anywhere in any member's sources | the vocabulary scan, §5.6 | line-based lexing, D13 |
+| a **domain word** anywhere in any member's sources or markup | the vocabulary scan, §5.6 | line-based lexing, D13 |
+
+And **one residue, which nothing in the gate rejects**: a feature switched on in
+a shared dependency by stratum 2 or 3 unifies into stratum 1's build under
+`--workspace`. It is a review obligation, written down as one (§5.6, D25).
 
 Two boundaries the design has repeatedly overstated, stated once here and
 repeated nowhere.
@@ -222,9 +245,6 @@ available, by reading the source. It is a **tripwire over the obvious
 spellings**, not a proof: `use std::{fs, process};`, an alias, and I/O performed
 on stratum 1's behalf by a permitted dependency all pass it. §5.6 says so, and
 D25 records why a weak instrument in the gate beats an unwritten rule.
-
-And the domain-vocabulary scan is not made redundant by any of the three,
-because no compiler objects to a type called `Habit` either.
 
 **Crate names.** `goad-semantics`, `goad-shell`, `goad`, and `goad-boundary`.
 The bare name goes to stratum 3 because that is the binary the user runs and the
@@ -267,6 +287,161 @@ The consequence is not free and is not hidden: those items are public API, so
 `clippy::missing_errors_doc` (pedantic, `Cargo.toml:123`) fires on every one
 that returns `Result`. The `# Errors` sections in §5.4 are obligations, not
 courtesies.
+
+#### The artifact map
+
+Every path, target and module the split and the renderer create. It is here
+because a phase that has to invent a file name has to invent a module boundary
+with it, and that is a design decision taken by whoever happens to type first
+(F-37). Nothing below is discovered at execution time.
+
+**The split: source → destination.** The dry run recorded 111 renames, 91 of
+them byte-identical, and exactly one file with a substantive content change
+(`research.md:779-800`). AC-2 obliges an argument for any content change beyond
+the "change permitted" column.
+
+| from | to | change permitted |
+|---|---|---|
+| `Cargo.toml` | `Cargo.toml` — a `[workspace]` root — plus four member manifests | rewritten; it stops being a package |
+| `src/lib.rs` | *deleted* | its twelve lines are the feature-gated module tree, which crate edges replace |
+| `src/semantics/mod.rs` | `crates/goad-semantics/src/lib.rs` | the `mod` list |
+| `src/semantics/{error,schedule}.rs` | `crates/goad-semantics/src/{error,schedule}.rs` | imports |
+| `src/semantics/protocol/{mod,canonical,normalize,wire}.rs` | `crates/goad-semantics/src/protocol/…` | imports; `mod.rs` keeps its name |
+| `src/shell/mod.rs` | `crates/goad-shell/src/lib.rs` | the `mod` list; every `#[cfg(feature = "shell")]` goes |
+| `src/shell/{config,error,host,state}.rs` | `crates/goad-shell/src/…` | `crate::semantics::` → `goad_semantics::` |
+| `src/shell/backend/{mod,process,transport}.rs` | `crates/goad-shell/src/backend/…` | the same |
+| `tests/protocol/{main,normalize,runner}.rs` | `crates/goad-semantics/tests/protocol/…` | the fixture-path constant, which now resolves through `CARGO_MANIFEST_DIR/../../tests/fixtures` |
+| `tests/protocol/fixtures/**` (77 files) | `tests/fixtures/**`, at the workspace root | none — byte-identical. This is CD-4 |
+| `tests/protocol/transport_shape.rs` | `crates/goad-shell/tests/shape/main.rs`, as `#[cfg(test)] mod transport_shape;` beside it | imports. It names a stratum 2 source and cannot stay in a stratum 1 target (`research.md:798-804`) |
+| `tests/protocol/boundary.rs` | `crates/goad-boundary/`, split across `src/` and `tests/` — below | **substantively rewritten.** The one file AC-2 obliges an argument for; D13, D17 and two new scans are the argument |
+| `tests/integration/{main,fake,host,round_trip,transport,failure_matrix}.rs` | `crates/goad-shell/tests/integration/…` | imports |
+| `tests/integration/harness.rs` | splits — the host-driving half to `tests/support/driving.rs` at the workspace root, the rest stays as `crates/goad-shell/tests/integration/harness.rs` | §12.8 states the cut |
+| `tests/backends/*.sh` (14 files) | `tests/backends/*.sh`, at the workspace root | none, except `answers-as-instructed.sh`, which gains the three `@lingers*` arms §12.1 writes out |
+| `justfile`, `clippy.toml`, `rustfmt.toml`, `flake.nix`, `examples/**` | unchanged paths | `justfile` loses a command and a clippy column (§5.6); `flake.nix` gains the font (§5.5); the rest unchanged |
+
+**The four members, and who owns which dependency.** `[workspace.dependencies]`
+declares `jiff`, `serde`, `serde_json`, `tokio`, `toml`, `slint` and
+`slint-build` with the versions and the base feature sets; every member entry is
+`{ workspace = true }`, adding features where the table says so. `slint` and
+`slint-build` are pinned **exactly** — `= 1.17.1`, the version every measurement
+in `research.md` Threads 3, 7 and 8 was taken on — so A-1's twelve-lint list and
+A-3's `with_debug_info` change under a deliberate upgrade rather than under a
+resolver drift. The existing five keep the ranges `Cargo.toml:22-36` already
+carries. `[workspace.lints]`
+carries today's `[lints.rust]` and `[lints.clippy]` blocks verbatim and every
+member writes `lints.workspace = true` and nothing else (D8). Each member sets
+`autotests = false` and declares its test targets, as the root does today
+(`Cargo.toml:23`).
+
+| member | `[dependencies]` | `[dev-dependencies]` | `[build-dependencies]` | `[features]` |
+|---|---|---|---|---|
+| `goad-semantics` | `jiff` (`default-features = false`), `serde` (`derive`), `serde_json` | — | — | none |
+| `goad-shell` | `goad-semantics`, `jiff`, `serde`, `serde_json`, `tokio` (`process`, `time`, `rt`, `io-util`, `macros`), `toml` | — | — | none — the `shell` feature is retired, not relocated |
+| `goad` | `goad-semantics`, `goad-shell`, `slint`, `tokio` (`rt-multi-thread`, `sync`) | `slint` with its testing feature | `slint-build` | none |
+| `goad-boundary` | `toml` | — | — | none |
+
+`goad-boundary` depends on **no** member: it reads manifests and sources as
+text, which is what lets it scan every stratum without reaching up into one
+(D17). `goad`'s tokio features are additive over `goad-shell`'s and unify into
+one build, which is fine and is not the D25 residue — tokio is not a stratum 1
+dependency.
+
+**Test targets, by name and path.** Six, across four members.
+
+| member | `[[test]] name` | `path` | `main.rs` declares |
+|---|---|---|---|
+| `goad-semantics` | `protocol` | `tests/protocol/main.rs` | `#[cfg(test)] mod {normalize, runner};` |
+| `goad-shell` | `integration` | `tests/integration/main.rs` | `#[cfg(test)] mod {harness, fake, host, round_trip, transport, failure_matrix};` and `#[cfg(test)] #[path = "../../../../tests/support/driving.rs"] mod driving;` |
+| `goad-shell` | `shape` | `tests/shape/main.rs` | `#[cfg(test)] mod transport_shape;` |
+| `goad` | `renderer` | `tests/renderer/main.rs` | `#[cfg(test)] mod {mapper, tree, wiring, table, reception, tray, startup};` and the same `#[path]` line for `driving` |
+| `goad` | `event_loop` | `tests/event_loop/main.rs` | `#[cfg(test)] mod closing;` |
+| `goad-boundary` | `checks` | `tests/checks/main.rs` | `#[cfg(test)] mod {vocabulary, purity, allowlist};` |
+
+Every one is a `main.rs` with `#[cfg(test)]` module declarations, never a bare
+`tests/thing.rs`, and the `#[path]`-included helper carries the attribute at its
+declaration site — §9's preamble states why, and it is measured.
+
+**The shared helper is `tests/support/driving.rs`, at the workspace root**, and
+it is reached by `#[path = "../../../../tests/support/driving.rs"]`: four levels
+from `crates/<member>/tests/<target>/` is the repository root, uniform because
+every member sits at depth two. It resolves the fixture and script directories
+from `CARGO_MANIFEST_DIR` joined with `../../tests/…` for the same reason
+(§12.8). It is not a crate and has no manifest; nothing outside a `#[path]`
+include may name it.
+
+**Which validation item runs in which target.** §9's numbering, placed.
+
+| items | target |
+|---|---|
+| 1, 2, 3 | the gate itself, and `goad-boundary`'s `checks` |
+| 4, 5 | `renderer::mapper` |
+| 6, 7, 8, 9, 10 | `renderer::tree` |
+| 11 | `renderer::wiring` |
+| 12 | `renderer::table` |
+| 13 | `renderer::reception` |
+| 14a–d | `renderer::wiring` |
+| 14e | `event_loop::closing` |
+| 14f | a source scan, in `goad-boundary::checks` |
+| 15 | `goad-boundary::checks` |
+| 16 | `renderer::tray` |
+| 17 | `renderer::startup` |
+
+**The renderer's tree, in full.**
+
+```
+crates/goad/
+  Cargo.toml
+  build.rs                 # slint_build::compile_with_config("ui/app.slint", ..)
+  README.md                # the compositor window rule (§5.4)
+  ui/
+    app.slint              # ONE file: OptionRow, WindowMode, PromptWindow, Tray
+  src/
+    lib.rs                 # the module tree, and nothing else
+    generated.rs           # the include_modules!() quarantine, re-exporting
+    view_model.rs          # present, Presentation, PresentationOption, Body,
+                           #   ContentForm, Undrawn
+    reception.rs           # receive, Received
+    diagnostics.rs         # Diagnostics, Refused, every user-visible string,
+                           #   the two stderr/stdout outlets, tray_icon
+    controller.rs          # Controller, Frame, Surface, Shift, Prepared,
+                           #   Exchanged, Ending, Served, Pending, stamp, serve
+    wire.rs                # Wire, Cancel, Command, Stimulus
+    glass.rs               # the Glass trait and SlintGlass, its only impl
+    startup.rs             # Launch, StartupError, arguments
+    clock.rs               # Clock, ClockError, wall_clock
+    install.rs             # install
+    main.rs                # main, run, start — and nothing else
+  tests/
+    renderer/main.rs       # + mapper.rs tree.rs wiring.rs table.rs
+                           #   reception.rs tray.rs startup.rs
+    event_loop/main.rs     # + closing.rs
+```
+
+```rust
+// crates/goad/src/lib.rs — the whole file
+pub mod clock;
+pub mod controller;
+pub mod diagnostics;
+pub mod generated;
+pub mod glass;
+pub mod install;
+pub mod reception;
+pub mod startup;
+pub mod view_model;
+pub mod wire;
+```
+
+**One `.slint` file, not three**, and the reason is evidence rather than taste:
+§5.2's block was compiled as one file and its generated API read back
+(`research.md` Thread 8), so one file is the shape that is measured. `build.rs`
+passes exactly `ui/app.slint` to `compile_with_config`. Splitting it later costs
+a rebuild and nothing else, but it would be a shape nobody has compiled.
+
+**`main.rs` is not in `lib.rs`.** It is the binary target, and the three
+functions it holds — `main`, `run`, `start` — are the only items in the crate no
+test drives. Everything else is a `pub mod` above, which is what makes
+`install` (item 14e), `serve` (item 11h) and `arguments` (item 17) reachable
+from a `tests/` target at all (D28, F-30).
 
 ### 5.2 Interfaces & contracts
 
@@ -613,9 +788,10 @@ read from the compiler's own sources rather than inferred:
 - **`accessible-item-count` is an `int`**, and `options.length` is one, so the
   count crosses without a numeric conversion — I-3 is untouched, and E-2's
   virtualisation-proof count has a source.
-- **The title is a conditional over `mode`**, which is an ordinary Slint
-  expression rather than the enum binding A-6 was unsure of; if the compiler
-  refuses it, A-6's fallback moves the two literals into `diagnostics.rs`.
+- **The title is a conditional over `mode`**, and it compiles: the exact
+  expression `title: root.mode == WindowMode.prompt ? "goad" : "goad — diagnostics"`
+  was built through `slint_build` (`research.md` Thread 8). A-6 is discharged and
+  the fallback it once carried is not carried (F-34).
 - **`StyledText`'s property is `text`, of type `styled-text`, and it carries
   `link-clicked(link)`** (`builtins.slint:731-755`). It declares **no**
   accessible role, and `accessible-label` takes a `string`, so the body's value
@@ -651,10 +827,10 @@ retained value: the prompt's heading has to survive a trip through diagnostic
 mode and back (DT-4).
 
 **The window title is a conditional on `mode` in markup**, `"goad"` in prompt
-mode and `"goad — diagnostics"` in diagnostic mode. Both are constants, not
-values, so principle 2 is untouched. If Slint 1.17.1 turns out not to permit the
-conditional, the two literals move into `diagnostics.rs` beside the other
-user-visible strings, which is where they would rather be anyway (§5.5, A-6).
+mode and `"goad — diagnostics"` in diagnostic mode, and it **stays in markup**.
+Both are constants, not values, so principle 2 is untouched. There is no
+fallback: A-6 was discharged by compiling the expression, not by reasoning about
+it (§5.5 A-6, `research.md` Thread 8, F-34).
 
 **`notice` is not a diagnostic.** It is one transient host-authored line — the
 busy message of §5.3 is its only producer in this slice — shown in either mode.
@@ -683,9 +859,12 @@ The wrapper works because `clippy::allow_attributes` does not fire on inner
 module attributes — a standing hole, not a Slint-specific concession, and it is
 recorded as such because it is load-bearing.
 
-**`build.rs`** returns `Result` — the gate rejects `.unwrap()` and `.expect()` in
-build scripts — and passes
-`CompilerConfiguration::new().with_debug_info(true)`. Without debug info the
+**`build.rs`** is `crates/goad/build.rs`, passes exactly one path —
+`ui/app.slint`, the whole of §5.2's block and the shape `research.md` Thread 8
+compiled — to
+`slint_build::compile_with_config(path, CompilerConfiguration::new().with_debug_info(true))`,
+and returns `Result` because the gate rejects `.unwrap()` and `.expect()` in
+build scripts. Without debug info the
 element query API returns empty and every test passes vacuously. Debug info stays
 on in release; it costs +0.05%.
 
@@ -963,16 +1142,69 @@ host-side refusal with a user-visible rendering, and the precedent is
 `StateError`, which lives in `error.rs` rather than in `state.rs` for exactly
 that reason.
 
-**The glass is one total method.**
+**The glass is one total method, and it has exactly one implementation.** Both
+are declared here; an entry point calling a constructor no section declares is
+the shape F-17 was raised on three times (F-17, fourth raising).
 
 ```rust
+// crates/goad/src/glass.rs — stratum 3, and the ONLY file in the crate that
+// names a generated type.
+
 pub trait Glass {
   /// Write **every** property from the frame, then show the window in the
   /// frame's mode or hide it. Total and idempotent. `notice` is written `""`
   /// here and set from nowhere else in this trait.
   fn present(&mut self, frame: Frame<'_>);
 }
+
+/// The production glass. Fields are private; the three handles are strong
+/// clones taken in `start` (§5.4) and live for the process.
+pub struct SlintGlass {
+  window: PromptWindow,
+  tray: Tray,
+  options: Rc<VecModel<OptionRow>>,
+}
+
+impl SlintGlass {
+  /// Infallible: every property setter returns `()`. It writes the tray's
+  /// `image` and `hover-text` **before returning**, because the tray registers
+  /// nothing until a non-empty image is assigned
+  /// (`builtins.slint:3241-3244`) and the loop's first `present` happens only
+  /// after the event loop has started.
+  pub fn new(window: PromptWindow, tray: Tray, options: Rc<VecModel<OptionRow>>) -> Self;
+}
+
+impl Glass for SlintGlass {
+  fn present(&mut self, frame: Frame<'_>);
+}
 ```
+
+**What a `show()` or `hide()` failure does, decided rather than left open.**
+Both return `Result<(), slint::PlatformError>` (`i-slint-core-1.17.1/api.rs:523`,
+`:530`), and the lint table denies discarding either. The trait stays
+**infallible**, and `SlintGlass::present` reports the error on **stderr**
+through `diagnostics::report_platform(&error)` — the same `line_to` outlet
+`report_startup` uses, in the host's own voice — and returns. The process keeps
+running.
+
+Three reasons, and the third is the one that decides it. A display failure is
+not a fact about an interaction, so it does not belong in `Diagnostics`, which
+is the reduction of an `Outcome`. The surface that would otherwise carry it is
+the window that just failed to appear, so stderr is the only outlet left —
+which is exactly the argument `line_to`'s "best effort" comment already makes.
+And making the trait fallible would put a `Result` on the one method whose
+totality is load-bearing: `present` is called from six places in the loop and
+every one of them would have to decide what to do with it, which is how a
+partial update gets written. *Rejected:* `Glass::present -> Result<(), PlatformError>`
+with the loop ending on `Err`, because a failed `hide()` is harmless and ending
+the loop on it would take the host down for a cosmetic failure — the shape
+`CLAUDE.md`'s third invariant forbids for backends and that is no better here;
+and swallowing the `Result`, which the lint table refuses and which would make a
+dead window indistinguishable from an idle one.
+
+It is reported **every time it happens**, with no de-duplication. The surface
+that would deduplicate it is the one that failed, and a display server that is
+broken for two consecutive presents is a fact worth two lines.
 
 One method, because a partial update is the bug this seam exists to prevent:
 `hide()` destroys the Wayland surface (`research.md:701`), and a renderer that
@@ -1163,7 +1395,13 @@ them — the control that produces the event — is in §5.2's markup, so the pa
 can be read together rather than assumed to exist (F-17).
 
 ```rust
-fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
+// crates/goad/src/install.rs — stratum 3.
+//
+// `pub`, and in the library rather than in `main.rs`, because validation item
+// 14e drives it from a `tests/` target and a `tests/` target cannot reach a
+// binary crate or a private item (D28, F-30). `install` returns `()`: every
+// setter it calls is infallible.
+pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
   let chosen = wire.clone();
   window.on_chosen(move |view, option| {
     chosen.send(Command::Choose { view: view.into(), option: option.into() });
@@ -1690,6 +1928,10 @@ deliberate rather than forgotten.
 `OsString` and never decoded, so there is no case to handle.
 
 ```rust
+// crates/goad/src/startup.rs — stratum 3. `Launch`, `StartupError` and
+// `arguments` are one module: they are the three things `run` needs and the
+// three things item 17 drives, and none of them names a Slint type (F-17).
+
 /// What the arguments asked for. Two outcomes, and `--help` is one of them
 /// rather than an early `exit` hidden inside argument parsing — so `main` keeps
 /// its single exit-code decision (§5.4's entry point).
@@ -1748,6 +1990,30 @@ place, raise or focus a window on Wayland — all three are verified no-ops
 (`research.md:936-944`) — so the recommended compositor window rule keyed on that
 id is documented in `crates/goad/README.md`, beside the thing it configures, and
 harvested to `docs/memory/` at close.
+
+**The documented rule, literally** (F-40). `crates/goad/README.md` carries this
+block under a heading naming niri, with the two sentences below it and nothing
+else. It was **validated**, not written from memory: `niri validate` against
+niri 26.04 reports *config is valid*.
+
+```kdl
+window-rule {
+    match app-id="^goad$"
+    open-floating true
+    open-focused true
+}
+```
+
+The two sentences: *goad cannot place, raise or focus its own window — on
+Wayland all three are the compositor's, and a client asking for them is a no-op.
+A rule like the one above is how a prompt reaches you; the only part goad
+guarantees is the app id, which is `goad` and will not change.* And: *This is
+niri's syntax. Another compositor matches the same app id its own way.*
+
+Only the `app-id` is goad's to state. `open-floating` and `open-focused` are a
+**recommendation**, not a requirement — a person who wants the prompt tiled
+deletes two lines — and the README says so rather than presenting a preference
+as a dependency.
 
 #### The diagnostic surface
 
@@ -2058,7 +2324,23 @@ pub fn print_usage() {
 pub fn report_startup(error: &StartupError) {
   line_to(std::io::stderr().lock(), &format!("goad: {error}"));
 }
+
+/// stderr, and the process keeps running. The only caller is
+/// `SlintGlass::present`, when `show()` or `hide()` fails after the loop has
+/// started — at which point the window that would carry a diagnostic is the
+/// thing that failed, so stderr is the outlet that is left (§5.3, F-17).
+///
+/// It takes the **rendered** detail rather than `&slint::PlatformError`, for
+/// `Refused::NoClock`'s reason (§5.4): the `Display` happens at the one site
+/// that has the value, and this module then names no Slint type and stays
+/// testable with a literal. `glass.rs` calls `report_platform(&error.to_string())`.
+pub fn report_platform(detail: &str) {
+  line_to(std::io::stderr().lock(), &format!("goad: the window could not be drawn: {detail}"));
+}
 ```
+
+Three outlets, one `line_to`, one voice: every line this process writes to a
+terminal begins `goad: `, and none of the three walks a `source()` chain.
 
 The usage block is a `const` with no trailing newline; `line_to`'s `writeln!`
 supplies the one. Two sources of that newline would be a fact stated twice.
@@ -2092,7 +2374,11 @@ twice. `StartupError` implements `std::error::Error` with the **default**
 surface has already rendered.
 
 The eight variants, and their exact text. Two come from argument and environment
-handling, six from the steps after it.
+handling, six from the steps after it. `StartupError` is declared in
+`crates/goad/src/startup.rs` beside `Launch` and `arguments`, is `pub`, derives
+`Debug`, implements `Display` and `std::error::Error` with the **default**
+`source()`, and derives no `PartialEq` — a `slint::PlatformError` inside it has
+none (F-17).
 
 All eight must be *constructed* in the phase that lands them. `dead_code` is
 `warn` in the table (`Cargo.toml:100`) and fatal under the gate's `-D warnings`,
@@ -2417,6 +2703,16 @@ not fire on them (§5.4, *Installing the callbacks*).
   UI that trips only eleven fails via `unfulfilled_lint_expectations`, so the
   list is corrected on the first renderer commit rather than taken from
   `research.md` unchanged.
+
+  **Which corrections are the phase's, and which stop it** (F-38). Adding or
+  removing an entry in the quarantine module's `#![expect(…)]` is an
+  **authorised local adjustment**, recorded in the phase sheet with the
+  diagnostic that forced it, provided **both** hold: the lint is one the
+  workspace table already sets, and the attribute stays on the single module
+  wrapping `include_modules!()`. Anything else is a **STOP**: a suppression
+  outside that module, a lint the workspace table does not set, or a
+  `[lints]` table in `crates/goad/Cargo.toml`. Those three are D8 being wrong
+  for generated code, which is a design question and not a phase's to answer.
 - **A-2 is measured, not assumed**, for every passage of hand-written renderer
   code a scratch crate can reach without Slint. The design's own text for
   `install`, `Wire`, `Cancel`, `Controller`, `Diagnostics`, the mapper,
@@ -2445,10 +2741,44 @@ not fire on them (§5.4, *Installing the callbacks*).
 - **A-3.** `with_debug_info` is `#[doc(hidden)]` and depended on. The
   environment-variable fallback is worse, not safer. If it disappears in a Slint
   upgrade, the guard test (below) fails rather than the suite going quiet.
+
+  **It is a STOP, not a local adjustment** (F-38). If
+  `CompilerConfiguration::with_debug_info` is absent from the `slint-build`
+  version that resolves, or the guard test of §9 item 6 fails against a build
+  that used it, the phase stops. Every element-tree assertion in §9 — items
+  6–11, item 12's four tree rows, and item 14e — rests on the query API being
+  live, so the choice between pinning an older Slint, reaching for the
+  environment-variable fallback A-3 rejects, and rewriting the test strategy is
+  a design decision. The versions are pinned exactly (`= 1.17.1`) for both
+  `slint` and `slint-build`, so this fires on a deliberate upgrade rather than
+  on a resolver drift.
 - **A-4.** `just check` stays tolerable with 411 crates in the tree. Nobody has
   run it in the goad tree; the spike's own gate was 36 s wall, 4m28s user. The
   six-command gate now runs clippy over the Slint tree in one column instead of
   two, which helps. This is ADR-002's T3 and it is currently borderline.
+
+  **The measurement protocol and its thresholds, so T3 firing is a reading and
+  not a judgement** (F-38, R2). On the first commit that puts `slint` in the
+  dependency graph, and before anything else in that phase is done:
+
+  1. **Cold**, once: `cargo clean` in a worktree, then `time just check`.
+     Recorded in `notes.md`, **not** thresholded — a cold build happens once per
+     clone and is not what a phase pays.
+  2. **Warm**, three consecutive runs with no source change between them:
+     `time just check`. The **median wall-clock** of the three is the number.
+
+  | median warm wall-clock | what the phase does |
+  |---|---|
+  | **≤ 120 s** | record it and continue. T3 has not fired |
+  | **> 120 s and ≤ 300 s** | record it, continue, and raise a follow-up in `slice-002.md`. T3 has fired on the letter and the gate is still usable |
+  | **> 300 s** | **STOP.** T3 has fired and what to do about it — a split gate, a `just check-fast`, a leaner lint column — is a design decision, not a phase's |
+
+  The floor those numbers sit on: the pre-split gate is 11.1 s and the
+  post-split gate 6.9 s in this tree (`research.md:779-800`); the spike's clean
+  build of all test binaries was 25.6–26.6 s and a warm clippy re-check of the
+  whole Slint tree 9.1 s (`research.md:1495-1502`). 120 s is roughly three times
+  the spike's own 36 s gate, which is the slack the goad tree's own targets need;
+  300 s is where a gate stops being something an agent runs after every file.
 - **A-5 is no longer an assumption. It is measured, and it came out the other
   way** (F-27). `clippy::future_not_send` **does** reach `serve`, and the
   plain-`fn`-returning-`impl Future` shape does not dodge it. Measured on a
@@ -2502,6 +2832,22 @@ not fire on them (§5.4, *Installing the callbacks*).
   setter, which no amount of reading `builtins.slint` had revealed. The
   first-phase compile F-11's repair put in the plan stays, as a regression check
   rather than as this block's only proof.
+
+**The STOP conditions, in one list.** A phase runs with no user present, so
+every one of these is a condition an agent can recognise without judgement. On
+any of them: stop, write what happened into `notes.md`, and return a stop
+status. None is a threshold to relax (F-38).
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). Two remain unspent |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | every element-tree assertion rests on it (A-3) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | shutdown is awaiting the exchange, which AC-12 forbids |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | A-7's evidence no longer covers the markup |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about |
 
 **Edge cases.**
 
@@ -2648,15 +2994,67 @@ rejection rather than the test's decision procedure.
 `goad` is unconstrained — stratum 3 may name both strata below it — and
 `goad-boundary` has no allowlist, because it is not a stratum.
 
-Shape, in `crates/goad-boundary/src/`:
+**`goad-boundary`'s whole public API**, three modules, stated once so no phase
+invents a signature (F-8, F-37):
 
 ```rust
+// crates/goad-boundary/src/lib.rs
+pub mod members;    // who to scan
+pub mod scan;       // the walk, and the comment cut
+pub mod manifest;   // the allowlist
+
+// crates/goad-boundary/src/scan.rs
+
+/// Why a check failed. `Vacuous` is the reason this crate exists; the two new
+/// variants are D13's and D17's — a member that names no scannable source, and
+/// a `workspace.members` entry a reader cannot enumerate.
+#[derive(Debug)]
+pub enum Breach {
+  Token { path: PathBuf, line: usize, token: &'static str },
+  Vacuous { root: PathBuf },
+  Unreadable { path: PathBuf, error: String },
+  /// A glob in `workspace.members`. It hides from a reader exactly what this
+  /// crate exists to make visible, so it fails rather than being expanded.
+  GlobMember { entry: String },
+}
+
+pub struct Scan {
+  pub root: PathBuf,                          // a workspace member directory
+  pub extensions: &'static [&'static str],    // ["rs", "slint"]
+  pub excluded_dirs: &'static [&'static str], // ["tests", "target"]
+  pub forbidden: &'static [&'static str],
+}
+
+impl Scan {
+  /// `Ok(n)` = files inspected. `Err` lists **every** breach, not the first.
+  /// Unchanged in contract from `boundary.rs:78-92`; what changed is `Scan`.
+  pub fn run(&self) -> Result<usize, Vec<Breach>>;
+}
+
+pub fn code_of(line: &str) -> Cow<'_, str>;   // D13
+
+// crates/goad-boundary/src/members.rs
+
+/// Every `workspace.members` entry, as a directory relative to the workspace
+/// root, in manifest order. `Err` on a glob entry, on an unreadable manifest,
+/// and on an empty list — a workspace with no members is the vacuity guard one
+/// level up.
+pub fn members(root_manifest: &Path) -> Result<Vec<PathBuf>, Vec<Breach>>;
+
+// crates/goad-boundary/src/manifest.rs
+
+/// `Ok(n)` = dependency entries inspected.
 pub fn unpermitted(
   manifest: &Path,          // for the message only
   text: &str,               // so a control can pass a literal
   permitted: &[&str],
-) -> Result<usize, Vec<Breach>>;   // Ok(n) = dependency entries inspected
+) -> Result<usize, Vec<Breach>>;
 ```
+
+The workspace root is `CARGO_MANIFEST_DIR` joined with `../..`, the same rule
+every other target uses (§5.1's artifact map, §12.8). `Breach` is shared by all
+three modules so one `report(&[Breach])` names every failure of every check —
+which is `boundary.rs:63-70`, kept.
 
 Rules it applies, each closing a way past it:
 
@@ -2888,9 +3286,42 @@ Carried from `slice-002.md`. None remains open at design acceptance.
 - **D11 — No URL is opened.** OQ-6. *Rejected:* wiring `link-clicked` to the
   platform opener, which would ship an unfiltered scheme surface —
   `javascript:` and `file:///` both parse — on a decision nobody took.
-- **D12 — The devshell supplies a font.** `design-log.md` 2026-09-05.
+- **D12 — The devshell supplies a font, and the font is
+  `pkgs.dejavu_fonts`, made discoverable through `pkgs.makeFontsConf`.**
+  `design-log.md` 2026-09-05, and the package name is F-39's repair: "a font"
+  is not a name a phase can type. Two lines in `flake.nix` and no more —
+
+  ```nix
+  fontsConf = pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; };
+  # and, in the devshell's env:
+  FONTCONFIG_FILE = fontsConf;
+  ```
+
+  **Adding a font package to `buildInputs` alone does nothing**, and that is the
+  trap: fontconfig discovers fonts through a configuration file, not through
+  `PATH` or `buildInputs`. `makeFontsConf` writes a `fonts.conf` naming the
+  store paths it was given.
+
+  Measured rather than reasoned, on this machine, against
+  `nixpkgs/nixos-unstable`: `makeFontsConf { fontDirectories = [ dejavu_fonts ]; }`
+  evaluates and builds; the resulting `fonts.conf` carries
+  `<dir>/nix/store/…-dejavu-fonts-2.37</dir>` as an explicit entry; and
+  `FONTCONFIG_FILE=<that> fc-list` reports **39 DejaVu faces**. The explicit
+  `<dir>` is what makes the guarantee hold in a container with an empty home and
+  no system profile — the generated file also includes `/etc/fonts/conf.d` and
+  `~/.local/share/fonts`, which is why `fc-list` on a developer machine reports
+  thousands; the pinned directory is the floor, and the floor is what a clean
+  clone gets. The phase's own check is
+  `FONTCONFIG_FILE=$FONTCONFIG_FILE fc-list | grep -c DejaVu` inside
+  `nix develop`, and the real proof is the cheap test tier not panicking inside
+  `fontique`.
+
   *Rejected:* documenting the dependency and leaving the clean-clone guarantee
-  false.
+  false; adding the package to `buildInputs` without `makeFontsConf`, which
+  looks right and changes nothing; and a larger family such as
+  `noto-fonts`, which is the same mechanism at ten times the closure for a
+  headless test tier that needs one face. A **second** font package is S-8,
+  not a convenience.
 - **D13 — The vocabulary scan gains an extension set, a string-aware comment cut,
   and members it enumerates for itself.** The file's header prescribes extending
   configuration rather than the walk, but `Scan` has no extension field and the
@@ -2929,6 +3360,31 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   opens a lifetime (`&'static str`) as often as a char. String **contents** are
   scanned throughout: a label is exactly where domain vocabulary hides, so the cut
   removes comments only.
+
+  **The return type changes, and that is the whole of F-8's second raising.**
+  `code_of(&str) -> &str` (`tests/protocol/boundary.rs:170`, `:182`) can return
+  exactly one contiguous slice, and a `Block` that *closes* mid-line leaves code
+  on both sides of the cut. So:
+
+  ```rust
+  // crates/goad-boundary/src/scan.rs
+
+  /// The line with comments removed, string literals intact. Borrowed when
+  /// nothing was cut or the cut ran to end of line — the common case, and every
+  /// line in the tree today; owned only when an interior `/* … */` closed and
+  /// left code behind it.
+  pub fn code_of(line: &str) -> Cow<'_, str>;
+  ```
+
+  A removed interior block is replaced by **one space**, never by nothing:
+  `Site/*x*/View` must not become the single word `SiteView`, and a joined pair
+  is a false negative in the direction that matters. `mentions(line, token) ->
+  bool` keeps its signature exactly — it binds `let code = code_of(line);` and
+  every method it then calls (`contains`, `split`) is on the `Deref` target, so
+  `Cow` costs it nothing. *Rejected:* returning `String` unconditionally, which
+  allocates once per line per token for a cut that almost never happens; and
+  returning `Vec<&str>` of surviving spans, which pushes the join decision into
+  every caller and would let two callers disagree about the separator.
 
   Four costs, named rather than assumed away:
 
@@ -3128,9 +3584,12 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   turns the third `expect` into a phase stop rather than a habit. *Signal:* the
   first `just check` after the renderer crate exists.
 - **R2 — `just check` becomes intolerable** (A-4, ADR-002 T3). *Likelihood
-  medium, impact medium.* *Mitigation:* measure in a worktree immediately after
-  the dependency lands, and record the number; T3 firing is a decision, not a
-  surprise. *Signal:* wall-clock on the first post-Slint gate run.
+  medium, impact medium.* *Mitigation:* A-4's measurement protocol — one cold
+  run recorded, three warm runs, the median against a stated threshold — run in
+  a worktree on the first commit that puts `slint` in the graph. *Signal:* the
+  median warm wall-clock. **≤ 120 s continue; > 120 s continue and raise a
+  follow-up; > 300 s stop.** T3 firing is then a reading, not a judgement
+  (F-38).
 - **R3 — A vacuous test tier.** Three mechanisms produce it (E-1), and this
   project has twice found vacuous assertions in its own suite. *Likelihood high
   if unguarded, impact high:* a green suite that proves nothing, which is worse
@@ -3192,7 +3651,10 @@ against the real table and both cheap to meet and expensive to discover
    a reason for each content change (AC-2).
 3. ADR-001's stratum 1 rule is held by **four** instruments in the gate, doing
    four different jobs, and the validation must not merge them or add their
-   guarantees together (AC-3, F-6):
+   guarantees together (AC-3, F-6). §5.1's counting rule is the vocabulary:
+   these four are ADR-001's; the **domain-vocabulary scan is item 15**, not one
+   of these four, because it holds `CLAUDE.md` invariant 1 rather than ADR-001's
+   direction rule; and the feature residue below is neither:
    - Cargo resolution — a stratum 1 source naming `goad_shell` or `tokio` does
      not compile. Crate edges only; already demonstrated by negative control
      (`research.md` Thread 6).
@@ -3351,9 +3813,16 @@ against the real table and both cheap to meet and expensive to discover
 
     *Cheap tier, with `serve` under `block_on`:*
 
-    a. With an exchange in flight against `@hang` and a 2 s configured timeout,
-       tripping `Cancel` ends the task in far less than the timeout — the
-       assertion is a bound well below it, and it fails if shutdown ever waits.
+    a. With an exchange in flight against `@hang` and a **2 s** configured
+       timeout, tripping `Cancel` ends the task in **under 250 ms**, measured
+       from the `Cancel::stop()` call to `serve` returning. The number is the
+       assertion, not "far less" (F-38): 250 ms is an eighth of the timeout, so
+       the test fails if shutdown ever waits for the exchange, and it is ~25×
+       the 9 ms the built loop actually took against a 10 ms exchange
+       (`research.md` Thread 7), so it does not flake on a loaded machine. If
+       the real measurement lands between 250 ms and the timeout, that is not a
+       threshold to relax — it means shutdown is awaiting something, and it is a
+       **STOP**.
     b. `serve` **returns** a `Served`, so the exchange future was dropped rather
        than abandoned unpolled.
     c. A stop request arriving in the same poll as a ready command wins
@@ -3992,6 +4461,13 @@ and the restated `CLEANUP_LIMIT` — into one file both test crates include by
 `padded_evaluate`, `example`, and the `Outcome` accessors) stay with the shell
 tier.
 
+**The file is `tests/support/driving.rs`, at the workspace root**, included by
+`#[path = "../../../../tests/support/driving.rs"]` from each target's `main.rs`
+— four levels up from `crates/<member>/tests/<target>/` is the repository root,
+uniform because every member sits at depth two. §5.1's artifact map is the one
+statement of that path and of the six targets that exist; this subsection states
+the *cut*, and the map states the *placement*.
+
 The cut is the intersection of what the two tiers use, and it has to be: an
 included helper neither tier calls is dead code, and dead code fails
 `clippy --workspace --all-targets -- -D warnings`. The shared file resolves the
@@ -4013,6 +4489,486 @@ nothing updates (D23's rule, applied to a test). The suite's 500 ms *deadline* i
 a separate constant even though it is the same number: they are the same by
 coincidence, and deriving one from the other would make a change to either
 silently rewrite four rows.
+
+
+#### 12.9 The array itself, preserved
+
+12.4 gives the schema; this is the **instance**, and it is here because "the
+schema can state it" is not the same claim as "these are the rows" (F-9, third
+raising). An implementer given only 12.3's prose and 12.4's types has to derive
+thirty-three `id`s, `turn`s, `shift`s, `refused` bits, `schedule`s and
+`invocations` counts from sentences — which is thirty-three chances to derive one
+of them differently.
+
+**This array was built, not written.** It is the file `research.md` Thread 9
+instantiated: a crate carrying `Cargo.toml`'s `[lints.rust]` and
+`[lints.clippy]` blocks verbatim plus `rustfmt.toml`, with the real `Display`
+impls vendored, `cargo clippy --all-targets -- -D warnings` at exit 0,
+`cargo fmt --check` clean, and eight tests green — including
+`every_arm_of_the_schema_has_a_row`, `every_moved_instant_is_distinct`,
+`instruction_accounting_closes`, `the_two_channel_rows_state_both_of_their_lines`
+and `only_lines_owned_outside_this_repository_are_unpinned`. It is reproduced
+below unchanged rather than paraphrased, because a paraphrase of a compiled
+artefact is an uncompiled artefact.
+
+**Three things to read before copying it.**
+
+1. **`<A>` in S2 is a placeholder, and the one thing in this array that is not
+   literal.** S2's line names the outstanding `ViewId`, which is `{now}#{seq}`
+   (`state.rs:76`) and is minted by exchange 1 at run time; hard-coding it would
+   couple the row to where the sequence counter starts. The driver substitutes
+   the id the last `Replaced` fold installed before comparing. The scratch crate
+   held `const OUTSTANDING_A: &str = "<A>";` for the same reason and could not
+   do better, having no `Host`. **A phase that compares S2's text literally is
+   wrong**, and this is the sentence that says so.
+2. **`Channel` has five variants and the reducer has four.** `Channel::prefix()`
+   is the one statement of every prefix in the driver; `Channel::emitted()` maps
+   `Failure` and `Protocol` onto the *same* reducer channel, because
+   `no action taken: backend response rejected: ` is `BackendError::Protocol`'s
+   own prefix folded into `Failure`'s. The partition over `Diagnostics::lines()`
+   is by `emitted()`, not by `Channel`. The reducer additionally emits
+   `Undrawn`, which **no** row names — which is the whole of 12.4's "the channel
+   partition is total".
+3. **`\\n` in a Rust literal is the two characters a backslash and an `n`**,
+   which is what §5.4's escape step renders the newline `echo` appends as. The
+   two rows that carry it, T3 and P2, are the two whose strings were wrong before
+   they were compiled.
+
+```rust
+// crates/goad/tests/renderer/table.rs — the array, in the order 12.2 sends it.
+// --- the bodies, each the `input` of the fixture named above it -------------
+
+/// The view exchange 1 mints, and the schedule every later row asserts.
+const PRESENTS_A_VIEW: &str = r#"{"view":{"kind":"choice","title":"Still here?","options":[{"id":"yes","label":"Yes"}]},"next_check":"45 minutes"}"#;
+/// What the backend answers view **A** with.
+const ACCEPTS_A: &str = r#"{"view":null,"next_check":"90 minutes"}"#;
+/// What it answers view **B** with — a fourth instant, set by nothing else.
+const ACCEPTS_B: &str = r#"{"view":null,"next_check":"150 minutes"}"#;
+
+const UNSUPPORTED_VERSION: &str = r#"{"protocol":2,"view":null}"#;
+const TITLE_NOT_A_STRING: &str =
+  r#"{"view":{"kind":"choice","title":5,"options":[{"id":"ok","label":"Fine"}]}}"#;
+const VIEW_OMITTED: &str = r#"{"next_check":"45 minutes"}"#;
+const DUPLICATE_ENVELOPE_KEY: &str = r#"{"view":null,"next_check":"1h","next_check":"2h"}"#;
+const NESTED_HINTS: &str = r#"{"view":{"kind":"choice","title":"T","options":[{"id":"ok","label":"Fine","fields":[{"id":"f","kind":"text","label":"L","hints":{"multiline":true}}]}]}}"#;
+const UNKNOWN_NESTED_KIND: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine"},{"id":"no","label":"Badly","fields":[{"id":"a","kind":"text","label":"A"},{"id":"b","kind":"text","label":"B"},{"id":"c","kind":"slider","label":"C"}]}]}}"#;
+const MIN_ON_A_TEXT_FIELD: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine","fields":[{"id":"f","kind":"text","label":"L","min":1}]}]}}"#;
+const OPTIONS_ON_A_NUMBER_FIELD: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine","fields":[{"id":"f","kind":"number","label":"L","options":[{"id":"red","label":"Red"}]}]}]}}"#;
+const NO_OPTIONS: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[]}}"#;
+const DUPLICATE_OPTION_IDS: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"later","label":"Ask me later"},{"id":"later","label":"Not now"}]}}"#;
+const DUPLICATE_FIELD_IDS: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine","fields":[{"id":"note","kind":"text","label":"A"},{"id":"note","kind":"text","label":"B"}]}]}}"#;
+const DUPLICATE_ALTERNATIVE_IDS: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine","fields":[{"id":"f","kind":"choice","label":"L","options":[{"id":"red","label":"Red"},{"id":"red","label":"Also red"}]}]}]}}"#;
+const NO_ALTERNATIVES: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine","fields":[{"id":"f","kind":"choice","label":"L","options":[]}]}]}}"#;
+const INVERTED_BOUNDS: &str = r#"{"view":{"kind":"choice","title":"How did it go?","options":[{"id":"ok","label":"Fine","fields":[{"id":"f","kind":"number","label":"L","min":10,"max":1}]}]}}"#;
+
+const NEXT_CHECK_WRONG_TYPE: &str = r#"{"view":null,"next_check":45}"#;
+const NEXT_CHECK_NO_OFFSET: &str = r#"{"view":null,"next_check":"2026-08-22T18:00:00"}"#;
+const NEXT_CHECK_TIME_OF_DAY: &str = r#"{"view":null,"next_check":"18:00:00"}"#;
+const NEXT_CHECK_CALENDAR_UNIT: &str = r#"{"view":null,"next_check":"1 month"}"#;
+const NEXT_CHECK_OUT_OF_RANGE: &str = r#"{"view":null,"next_check":"1000000 weeks"}"#;
+const NEXT_CHECK_PROSE: &str = r#"{"view":null,"next_check":"tomorrow morning"}"#;
+
+/// The one restatement of `process.rs:30`'s private budget, in the shared
+/// harness (12.8). A change there invalidates every C row.
+const DISPOSAL: &str = "backend was not disposed of within 500ms";
+
+/// The suite's configured deadline (12.1). Not the cleanup budget, which
+/// happens to be the same number for a different reason.
+const DEADLINE: &str = "backend did not respond within 500ms";
+
+/// A pid on stderr, written by five fixtures as R-41 bookkeeping.
+const PID: Observed = Observed {
+  channel: Channel::Stderr,
+  text: Expect::Unpinned,
+};
+
+const fn nothing() -> &'static [Observed] {
+  &[]
+}
+
+macro_rules! observed {
+  ($($channel:ident : $form:ident ( $text:expr )),* $(,)?) => {
+    &[$(Observed { channel: Channel::$channel, text: Expect::$form($text) }),*]
+  };
+}
+
+const fn retained(
+  id: &'static str,
+  instruction: &'static str,
+  observed: &'static [Observed],
+) -> Case {
+  Case {
+    id,
+    cohort: Cohort::Retained,
+    instruction: Some(instruction),
+    turn: Turn::Evaluate,
+    observed,
+    shift: Shift::Retained,
+    refused: true,
+    schedule: Schedule::Unchanged,
+    invocations: 1,
+  }
+}
+
+const fn discard(
+  id: &'static str,
+  instruction: &'static str,
+  observed: &'static [Observed],
+) -> Case {
+  Case {
+    refused: false,
+    ..retained(id, instruction, observed)
+  }
+}
+
+pub static CASES: &[Case] = &[
+  // exchange 0 — the only state in which `NoOutstandingView` is reachable
+  Case {
+    id: "S1",
+    cohort: Cohort::Retained,
+    instruction: None,
+    turn: Turn::RespondFabricated,
+    observed: observed![Failure: Exact(
+      "no interaction is outstanding, so 2026-08-23T04:12:00Z#9 answers nothing"
+    )],
+    shift: Shift::Retained,
+    refused: true,
+    schedule: Schedule::Seed,
+    invocations: 0,
+  },
+  // exchange 1 — mints A and moves the schedule off its seed
+  Case {
+    id: "A",
+    cohort: Cohort::Retained,
+    instruction: Some(PRESENTS_A_VIEW),
+    turn: Turn::Evaluate,
+    observed: nothing(),
+    shift: Shift::Replaced,
+    refused: false,
+    schedule: Schedule::MovedTo("2026-08-23T04:57:00Z"),
+    invocations: 1,
+  },
+  // A. protocol refusals
+  retained(
+    "P1",
+    UNSUPPORTED_VERSION,
+    observed![Protocol: Exact("unsupported protocol version 2")],
+  ),
+  retained(
+    "P2",
+    "@garbage",
+    observed![
+      Protocol: Prefixed("malformed JSON: "),
+      Stderr: Exact("config is missing, so this is all you get\\n"),
+    ],
+  ),
+  retained(
+    "P3",
+    TITLE_NOT_A_STRING,
+    observed![Protocol: Prefixed("protocol-invalid message: ")],
+  ),
+  retained(
+    "P4",
+    VIEW_OMITTED,
+    observed![Protocol: Exact("missing required field `view`")],
+  ),
+  retained(
+    "P5",
+    DUPLICATE_ENVELOPE_KEY,
+    observed![Protocol: Exact("duplicate key `next_check`")],
+  ),
+  retained(
+    "P6",
+    NESTED_HINTS,
+    observed![Protocol: Exact(
+      "hints are the field's own keys, not a nested `hints` key, at view.options[0].fields[0]"
+    )],
+  ),
+  retained(
+    "P7",
+    UNKNOWN_NESTED_KIND,
+    observed![Protocol: Exact(
+      "unsupported primitive `slider` at view.options[1].fields[2].kind"
+    )],
+  ),
+  retained(
+    "P8",
+    MIN_ON_A_TEXT_FIELD,
+    observed![Protocol: Exact(
+      "key `min` does not apply to a `text` at view.options[0].fields[0]"
+    )],
+  ),
+  retained(
+    "P9",
+    OPTIONS_ON_A_NUMBER_FIELD,
+    observed![Protocol: Exact(
+      "key `options` does not apply to a `number` at view.options[0].fields[0]"
+    )],
+  ),
+  retained(
+    "P10",
+    NO_OPTIONS,
+    observed![Protocol: Exact("no options at view.options")],
+  ),
+  retained(
+    "P11",
+    DUPLICATE_OPTION_IDS,
+    observed![Protocol: Exact(
+      "duplicate option id `later` at view.options"
+    )],
+  ),
+  retained(
+    "P12",
+    DUPLICATE_FIELD_IDS,
+    observed![Protocol: Exact(
+      "duplicate field id `note` at view.options[0].fields"
+    )],
+  ),
+  retained(
+    "P13",
+    DUPLICATE_ALTERNATIVE_IDS,
+    observed![Protocol: Exact(
+      "duplicate alternative id `red` at view.options[0].fields[0].options"
+    )],
+  ),
+  retained(
+    "P14",
+    NO_ALTERNATIVES,
+    observed![Protocol: Exact(
+      "no alternatives at view.options[0].fields[0].options"
+    )],
+  ),
+  retained(
+    "P15",
+    INVERTED_BOUNDS,
+    observed![Protocol: Exact("invalid bounds: min 10 is above max 1")],
+  ),
+  // E. the second state refusal, mid-sequence, with A outstanding
+  Case {
+    id: "S2",
+    cohort: Cohort::Retained,
+    instruction: None,
+    turn: Turn::RespondFabricated,
+    observed: observed![Failure: Exact(
+      "2026-08-23T04:12:00Z#9 is superseded; the outstanding interaction is <A>"
+    )],
+    shift: Shift::Retained,
+    refused: true,
+    schedule: Schedule::Unchanged,
+    invocations: 0,
+  },
+  // B. transport failures
+  Case {
+    id: "T1",
+    cohort: Cohort::Own {
+      command: "/nonexistent/goad-has-no-such-backend",
+    },
+    instruction: None,
+    turn: Turn::Evaluate,
+    observed: observed![Failure: Prefixed("backend could not be spawned: ")],
+    shift: Shift::Retained,
+    refused: true,
+    schedule: Schedule::NotAsserted,
+    invocations: 0,
+  },
+  retained(
+    "T2",
+    "@hang",
+    &[
+      Observed {
+        channel: Channel::Failure,
+        text: Expect::Exact(DEADLINE),
+      },
+      PID,
+    ],
+  ),
+  retained(
+    "T3",
+    "@exit1",
+    observed![
+      Failure: Exact("backend exited with status 1"),
+      Stderr: Exact("that answer is not to be trusted\\n"),
+    ],
+  ),
+  retained(
+    "T4",
+    "@flood",
+    &[
+      Observed {
+        channel: Channel::Failure,
+        text: Expect::Exact("backend wrote more than 8388608 bytes to stdout"),
+      },
+      PID,
+    ],
+  ),
+  // C. cleanup
+  discard(
+    "C1",
+    "@lingers",
+    &[
+      Observed {
+        channel: Channel::Cleanup,
+        text: Expect::Exact(DISPOSAL),
+      },
+      PID,
+    ],
+  ),
+  retained(
+    "C2",
+    "@lingers-and-hangs",
+    &[
+      Observed {
+        channel: Channel::Failure,
+        text: Expect::Exact(DEADLINE),
+      },
+      Observed {
+        channel: Channel::Cleanup,
+        text: Expect::Exact(DISPOSAL),
+      },
+      PID,
+    ],
+  ),
+  // D. discards
+  discard(
+    "D1",
+    NEXT_CHECK_WRONG_TYPE,
+    observed![Discard: Exact(
+      "next_check 45 discarded: schedule must be a string, found number"
+    )],
+  ),
+  discard(
+    "D2",
+    NEXT_CHECK_NO_OFFSET,
+    observed![Discard: Exact(
+      "next_check discarded: schedule has no UTC offset: 2026-08-22T18:00:00"
+    )],
+  ),
+  discard(
+    "D3",
+    NEXT_CHECK_TIME_OF_DAY,
+    observed![Discard: Exact(
+      "next_check discarded: schedule is a time of day, which is neither an instant nor a span: 18:00:00"
+    )],
+  ),
+  discard(
+    "D4",
+    NEXT_CHECK_CALENDAR_UNIT,
+    observed![Discard: Exact(
+      "next_check discarded: schedule uses a calendar unit, which has no fixed length: 1 month"
+    )],
+  ),
+  discard(
+    "D5",
+    NEXT_CHECK_OUT_OF_RANGE,
+    observed![Discard: Exact(
+      "next_check discarded: schedule leaves the representable range: 1000000 weeks"
+    )],
+  ),
+  discard(
+    "D6",
+    NEXT_CHECK_PROSE,
+    observed![Discard: Exact(
+      "next_check discarded: unparseable schedule: tomorrow morning"
+    )],
+  ),
+  // the coda
+  Case {
+    id: "answer-A",
+    cohort: Cohort::Retained,
+    instruction: Some(ACCEPTS_A),
+    turn: Turn::RespondOutstanding,
+    observed: nothing(),
+    shift: Shift::Closed,
+    refused: false,
+    schedule: Schedule::MovedTo("2026-08-23T05:44:00Z"),
+    invocations: 1,
+  },
+  Case {
+    id: "C3",
+    cohort: Cohort::Retained,
+    instruction: Some("@lingers-with-a-view"),
+    turn: Turn::Evaluate,
+    observed: &[
+      Observed {
+        channel: Channel::Cleanup,
+        text: Expect::Exact(DISPOSAL),
+      },
+      PID,
+    ],
+    shift: Shift::Replaced,
+    refused: false,
+    schedule: Schedule::MovedTo("2026-08-23T06:12:00Z"),
+    invocations: 1,
+  },
+  Case {
+    id: "answer-B",
+    cohort: Cohort::Retained,
+    instruction: Some(ACCEPTS_B),
+    turn: Turn::RespondOutstanding,
+    observed: nothing(),
+    shift: Shift::Closed,
+    refused: false,
+    schedule: Schedule::MovedTo("2026-08-23T06:44:00Z"),
+    invocations: 1,
+  },
+];
+```
+
+**The three sentinel arms `answers-as-instructed.sh` gains**, written out
+because "quoted from the grandchild scripts" is provenance and not a body. Each
+is its named script's whole behaviour, with the `cat >/dev/null` that reads the
+request kept and the `exec` deliberately absent — bash running a script *file*
+forks, so `sleep 2 &` is a grandchild that outlives the kill, and an `exec`
+here would destroy every C row
+(`tests/backends/leaves-a-grandchild-holding-stderr.sh`):
+
+```bash
+@lingers) # leaves-a-grandchild-holding-stderr.sh
+  cat >/dev/null
+  echo "$$" >&2
+  sleep 2 >/dev/null &
+  printf '{"view":null}\n'
+  ;;
+@lingers-and-hangs) # leaves-a-grandchild-holding-stdout-too.sh
+  cat >/dev/null
+  echo "$$" >&2
+  sleep 2 &
+  printf '{"view":null}\n'
+  ;;
+@lingers-with-a-view) # the first, with the body 12.1 pins
+  cat >/dev/null
+  echo "$$" >&2
+  sleep 2 >/dev/null &
+  printf '{"view":{"kind":"choice","title":"Still here?","options":[{"id":"yes","label":"Yes"}]},"next_check":"120 minutes"}\n'
+  ;;
+```
+
+The one redirection that separates the first two is the whole of the difference:
+`sleep 2 >/dev/null &` leaves the grandchild holding **stderr** only, so stdout
+still reaches EOF and the body completes — `result` is `Ok`, `cleanup` is
+`TimedOut`, which is C1. Without the redirection the grandchild holds stdout
+too, stdout never reaches EOF, the exchange pays the deadline *and* disposal
+pays the cleanup budget — which is C2, the only case observed to fail both
+dimensions.
+
+`@lingers-with-a-view`'s body is 12.1's pin made literal: one title, exactly one
+option, **no** `fields` and **no** body `content`, and `"120 minutes"` from
+04:12:00Z, which is the 06:12:00Z its row asserts. Fields would produce an
+`Undrawn::OptionFields` line and a body could produce a degradation line, and
+C3's `observed` states neither — so either would fail the row, and 12.4's total
+channel partition is what would report it.
+
+**Where the bodies came from.** Nine of the constants above are already in the
+tree as `tests/integration/failure_matrix.rs:96-133`, each carrying the fixture
+name it is the `input` of; the array reuses those names. The six that are new —
+`TITLE_NOT_A_STRING`, `DUPLICATE_ENVELOPE_KEY`, `NESTED_HINTS`,
+`DUPLICATE_ALTERNATIVE_IDS`, `NO_ALTERNATIVES` and the five `NEXT_CHECK_*`
+schedule bodies — were copied from
+`tests/fixtures/{protocol,protocol-text,schedule}/` and checked against them.
+`PRESENTS_A_VIEW` and `ACCEPTS_A` are slice 001's own, verbatim
+(`failure_matrix.rs:165`, `:169`); `ACCEPTS_B` is new and its span is chosen so
+that no two `MovedTo` instants collide, which the array's own
+`every_moved_instant_is_distinct` test asserts rather than a reader.
 
 ## 10. Canon impact
 
@@ -4044,6 +5000,32 @@ endorsement; none is written into `docs/` mid-slice.
   under the currently-empty `docs/policy/`, carrying §5.6's six commands with no
   feature matrix and no column added back by the renderer.
 
+  **What that policy may say, derived rather than assumed** (F-36). A policy
+  that lists commands and stops is not a gate: nothing in it distinguishes a
+  gate that exits 0 from a gate that was *made* to exit 0. So the policy carries
+  exactly four things, and each is derived from a document that already exists:
+
+  1. **The six commands, in order** — §5.6, and the block `CLAUDE.md` already
+     calls canonical.
+  2. **That the `justfile` mirrors it, policy first and recipe second** —
+     `CLAUDE.md`'s existing rule about `docs/slices/001/design.md` §9, moved
+     with the pointer.
+  3. **That no command may be removed, weakened or made conditional, and no
+     failing check converted into a passing one, in order to get a phase past
+     the gate** — this is what "`just check` is the gate" *means*, and without
+     it the policy states a list rather than a rule. `docs/AGENTS.md` already
+     requires a phase to end green and forbids downgrading a blocker to clear a
+     gate; the policy states the same rule about the one command that runs it.
+  4. **What each enforcement instrument holds and does not** — §5.1's counting
+     rule, so the policy cannot be read as claiming the gate proves purity.
+
+  It carries nothing else. In particular it does **not** legislate lint
+  discipline: whether a given `#[expect]` is legitimate is the workspace lint
+  table's business and the deciding slice's, and §5.5's A-2 is where this slice
+  decides it. A policy forbidding `expect` outright would contradict both the
+  generated-code quarantine D8 requires and the site-local mechanism A-2
+  authorises (F-16).
+
   That is **canon creation**, so it is not drafted in `canon-delta.md`, which
   covers changes to canon that already exists (`docs/AGENTS.md`, "Canon that does
   not exist yet, or must change"; review F-24). It is drafted as
@@ -4060,6 +5042,8 @@ endorsement; none is written into `docs/` mid-slice.
   both feature columns" and "a matrix checked in one column is unchecked" both
   become false, and nothing fails when they do — they quietly instruct every
   future agent to check something that cannot be checked. Replaced by a pointer
-  to C-5's policy and a statement of the three mechanisms that replaced the
-  matrix, kept separate rather than merged into one sentence that would carry the
-  overclaim CD-1 was repaired to remove.
+  to C-5's policy and by §5.1's counting rule stated in full — **four ADR-001
+  instruments, plus the domain-vocabulary scan, plus one residue nothing
+  enforces** — kept as three separate statements rather than merged into one
+  sentence that would carry the overclaim CD-1 was repaired to remove (F-6,
+  fourth raising).

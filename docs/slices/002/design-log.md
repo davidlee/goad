@@ -1329,3 +1329,194 @@ them has to give.*
   target this slice adds. *Rejected:* an `#[expect]` per test, which would spend
   the A-2 budget on a house convention; and threading a pointless `?` through
   every test to satisfy the letter of the standard against its purpose.
+
+### 2026-09-05 — Round 5: the count has one home, and every other document cites it
+
+*Autonomy grant. F-6, fourth raising. Three repairs each fixed the count in the
+document they were looking at; five documents ended up with four counts.*
+
+- **Asked:** how many instruments hold ADR-001's stratum 1 rule, and is the
+  domain-vocabulary scan one of them?
+- **Decided:** **four ADR-001 instruments** — Cargo resolution, the manifest
+  allowlist, the stratum 1 purity scan, `cargo test -p goad-semantics` — plus
+  **the domain-vocabulary scan**, which holds a different invariant, plus **one
+  residue nothing enforces**. Three things, not one number.
+- **Why:** ADR-001 is about *direction*; `CLAUDE.md` invariant 1 is about
+  *vocabulary*. Merging them is what produced four different counts, because
+  each document merged a different pair. And the fix that matters is not the
+  fifth restatement: the rule is written **once**, in `design.md` §5.1, marked
+  as the vocabulary every other document uses, and §5.6, §9 item 3, §10 C-7,
+  `slice-002.md` AC-3, `draft-policy.md` and `canon-delta.md` CD-1/CD-7 now cite
+  it rather than restate it. A sixth raising is possible only by editing §5.1.
+- **Rejected:** counting five (hides that one of them holds a different
+  invariant); counting three by dropping `-p goad-semantics` (it is in the gate
+  and it does a job the other three cannot); and leaving each document its own
+  wording with a note that they agree, which is what the last three repairs did.
+
+### 2026-09-05 — Round 5: a display failure goes to stderr, and the glass stays total
+
+*Autonomy grant. F-17, fourth raising — and the first raising to find the thing
+the omission was hiding.*
+
+- **Asked:** `Window::show()` and `hide()` both return
+  `Result<(), slint::PlatformError>` (`i-slint-core-1.17.1/api.rs:523`, `:530`),
+  `Glass::present` returns `()`, and the lint table denies discarding a
+  `Result`. So what does a runtime `show`/`hide` failure do?
+- **Decided:** the trait stays **infallible**. `SlintGlass::present` reports the
+  error on stderr through a third outlet, `diagnostics::report_platform(detail)`
+  — the same `line_to`, the same `goad: ` voice — and returns. The process keeps
+  running, and the failure is reported **every time it happens**.
+- **Why:** three grounds and the third decides it. A display failure is not a
+  fact about an interaction, so it does not belong in `Diagnostics`, which is
+  the reduction of an `Outcome`. The surface that would otherwise carry it is
+  the window that just failed to appear, so stderr is the outlet left — the same
+  argument `line_to`'s "best effort" comment already makes. And a fallible
+  `present` would put a `Result` on the one method whose *totality* is
+  load-bearing, at six call sites in the loop, each of which would then have to
+  decide what to do with it — which is how a partial update gets written, and a
+  partial update is the bug this seam exists to prevent.
+- **Rejected:** `Glass::present -> Result<(), PlatformError>` with the loop
+  ending on `Err` (a failed `hide()` is harmless, and ending the loop on it
+  takes the host down for a cosmetic failure — the shape `CLAUDE.md`'s third
+  invariant forbids for backends, and no better here); swallowing the `Result`,
+  which the lint table refuses and which makes a dead window indistinguishable
+  from an idle one; and de-duplicating the report, since the surface that would
+  deduplicate it is the one that failed.
+- **Consequence:** `report_platform` takes the **rendered** detail rather than
+  `&slint::PlatformError`, for `Refused::NoClock`'s reason — the `Display`
+  happens at the one site holding the value, `diagnostics.rs` names no Slint
+  type, and item 17 can drive it with a literal.
+
+### 2026-09-05 — Round 5: the artifact map, and the two decisions writing it forced
+
+*Autonomy grant. F-37, a blocker in a design that had survived four rounds. Four
+rounds asked "does this work?" and none asked "can this be typed?"*
+
+- **Asked:** what are the file paths, target names, module lists and manifest
+  contents this slice creates?
+- **Decided:** all of them, in one place — `design.md` §5.1, *The artifact map*:
+  the split's source→destination table with a "change permitted" column, the
+  four member manifests dependency by dependency, six `[[test]]` targets by name
+  and path with each `main.rs`'s module list, the shared helper's exact path and
+  its literal `#[path]`, which validation item runs in which target, the
+  renderer's tree, and `crates/goad/src/lib.rs` written out.
+- **Why §5.1 and not a new §5.7:** it *is* the system model, and a reader must
+  not reach it last. It also puts the rule and its consumers one lookup apart,
+  which is round 5's other lesson (F-30, F-34, F-8 are all a rule and its site
+  hundreds of lines apart).
+- **Two decisions the map forced rather than recorded:**
+  - **One `.slint` file, `ui/app.slint`**, not three. `research.md` Thread 8
+    compiled §5.2's block as one file and read the generated API back from it,
+    so one file is the shape that is measured. *Rejected:* a per-component split,
+    which is tidier and is a shape nobody has compiled; splitting later costs a
+    rebuild and nothing else.
+  - **`slint` and `slint-build` pinned `= 1.17.1`.** Every measurement in
+    Threads 3, 7 and 8 was taken there, and A-1's twelve-lint list and A-3's
+    `with_debug_info` are both version-sensitive. *Rejected:* a caret range,
+    which turns A-1 and A-3 into resolver luck.
+- **Consequence:** a file that must move and is not in the map is STOP S-6, and
+  `slice-002.md`'s Scope now points at the map rather than restating it.
+
+### 2026-09-05 — Round 5: every threshold is a number, and the stops are one table
+
+*Autonomy grant. F-38. Under the 2026-09-04 scope extension a phase runs with no
+user present, so "a decision" with no criterion is a phase that improvises.*
+
+- **Asked:** what does "tolerable", "far less than the timeout", "corrected" and
+  "a guard failure" mean to an agent with nobody to ask?
+- **Decided:**
+  - **`just check` (A-4, R2):** one cold run after `cargo clean`, recorded and
+    **not** thresholded — a cold build happens once per clone. Then three
+    consecutive warm runs; the **median wall-clock** is the number. **≤ 120 s**
+    continue; **> 120 s and ≤ 300 s** continue and raise a follow-up, T3 having
+    fired on the letter; **> 300 s** stop.
+  - **Cancellation (item 14a):** **under 250 ms** from `Cancel::stop()` to
+    `serve` returning, against a 2 s configured timeout. A measurement between
+    250 ms and the timeout is not a threshold to relax — it means shutdown is
+    awaiting something, and it is a stop.
+  - **A-1:** adding or removing a quarantine `#![expect]` entry is an authorised
+    local adjustment recorded in the phase sheet, provided the lint is one the
+    workspace table sets and the attribute stays on the one module. Anything
+    else is a stop, because it is D8 being wrong.
+  - **A-3:** a lost `with_debug_info` is a **stop**, not an adjustment.
+- **Why those numbers:** derived from what is already measured, not picked. The
+  gate is 11.1 s pre-split and 6.9 s post-split in this tree; the spike's clean
+  build of all test binaries was 25.6–26.6 s and a warm clippy re-check of the
+  Slint tree 9.1 s; the spike's own gate was 36 s. 120 s is roughly three times
+  that, which is the slack goad's own targets need; 300 s is where a gate stops
+  being something an agent runs after every file. 250 ms is an eighth of the
+  timeout and ~25× the 9 ms the built loop actually took (Thread 7).
+- **And the stops are collected**: `design.md` §5.5 gains one table, S-1…S-8,
+  each phrased as a condition rather than a judgement, with A-2's existing stop
+  rule folded in as S-1. *Rejected:* leaving them scattered across three
+  sections, which is where four of them were.
+
+### 2026-09-05 — Round 5: the font is `dejavu_fonts`, and `buildInputs` alone does nothing
+
+*Autonomy grant. F-39. The dependency was endorsed and never named, so the phase
+would have chosen it — the one class of thing `CLAUDE.md` requires be asked
+about.*
+
+- **Asked:** which package, and how is it made discoverable?
+- **Decided:** `pkgs.dejavu_fonts`, plus
+  `pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }` and
+  `FONTCONFIG_FILE` in the devshell env. Two lines in `flake.nix`.
+- **Why, and it is measured rather than reasoned:** on this machine against
+  `nixpkgs/nixos-unstable`, `makeFontsConf` evaluates and builds; the resulting
+  `fonts.conf` carries `<dir>/nix/store/…-dejavu-fonts-2.37</dir>` as an
+  **explicit** entry, which is what holds in a container with an empty home; and
+  `FONTCONFIG_FILE=<that> fc-list` reports 39 DejaVu faces. The trap the design
+  would otherwise have left standing: **adding a font package to `buildInputs`
+  does nothing**, because fontconfig discovers fonts through a configuration
+  file. The honest limit is written down too — the generated file also includes
+  `/etc/fonts/conf.d` and `~/.local/share/fonts`, so the pinned `<dir>` is the
+  floor rather than the whole set.
+- **Rejected:** `noto-fonts` and other families — the same mechanism at ten times
+  the closure for a headless tier that needs one face; and `buildInputs` alone,
+  which looks right and changes nothing. A **second** font package is STOP S-8.
+
+### 2026-09-05 — Round 5: the window rule is validated KDL, not remembered KDL
+
+*Autonomy grant. F-40.*
+
+- **Asked:** what does `crates/goad/README.md` actually say?
+- **Decided:** a four-line niri `window-rule` matching `app-id="^goad$"` with
+  `open-floating` and `open-focused`, written into `design.md` §5.4 literally,
+  plus two sentences: what goad cannot do on Wayland, what it does guarantee
+  (the app id), and that this is niri's syntax and another compositor spells the
+  same match its own way.
+- **Why it is trustworthy:** it was **validated**, not recalled — `niri validate`
+  against niri 26.04 on this machine reports *config is valid*. Writing KDL from
+  memory into a file whose whole purpose is to be copied is the exact failure
+  this slice has now paid for six times.
+- **And one thing the finding did not ask for:** only the `app-id` is goad's to
+  state. The two `open-*` lines are a **recommendation**, and the README says so
+  rather than presenting a preference as a dependency.
+
+### 2026-09-05 — Round 5: the phase-gate policy's scope is derived, clause by clause
+
+*Autonomy grant. F-36, and the half of F-16 that lives in the draft.*
+
+- **Asked:** `design.md` §10 C-5 derives three things for the policy; the draft
+  legislated four, repository-wide. Derive the extra, or cut it?
+- **Decided:** derive three of the four and cut the fourth. C-5 now states the
+  derivation clause by clause — the six commands (§5.6); the
+  `justfile`-mirrors-policy rule (`CLAUDE.md`'s existing rule, moved with the
+  pointer); the **gate-integrity** rule; and what each instrument holds (§5.1's
+  counting rule). **Lint discipline is cut**, and both C-5 and the draft's Scope
+  say the policy does not legislate it.
+- **Why the gate-integrity rule is derived rather than new:** it is what
+  "`just check` is the gate" *means*. Without it the policy states a list rather
+  than a rule, because nothing in it distinguishes a gate that exits 0 from a
+  gate that was made to exit 0. `docs/AGENTS.md` already requires a phase to end
+  green and forbids downgrading a blocker to clear a gate; the policy states the
+  same rule about the one command that runs it.
+- **Why lint discipline is cut:** the draft's blanket prohibition on
+  `allow`/`expect` contradicted both mechanisms this design authorises — A-2's
+  site-local `#[expect(lint, reason = …)]` and D8's twelve-entry generated-code
+  quarantine. A policy that forbids what the design requires is worse than one
+  that says nothing, because it will be cited. The **Don't** block is rewritten
+  to put the weight on the motive (*in order to make a phase green*) and is
+  followed by an explicit statement of what it does not forbid.
+- **Unchanged:** this is still a canon act awaiting endorsement. Nothing under
+  `docs/policy/`, `docs/specs/` or `docs/adr/` was created or edited.

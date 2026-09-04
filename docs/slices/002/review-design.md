@@ -5,11 +5,12 @@
 **Reviewer:** rounds 1 and 2 — codex, `gpt-5.6-sol`, read-only, briefed for
 implementation feasibility rather than intent.
 **Opened:** 2026-09-05
-**State:** open — twenty-eight findings raised over three rounds, all currently
-`verified`. It stays open because round 3's repairs have not themselves been
-reviewed. Round 3 exists because round 2's had not been, and round 2 because
-round 1's had not been; the pattern is the point, and the ledger says so rather
-than declaring itself finished.
+**State:** open — **forty findings raised over five rounds**, all currently
+`verified` or terminal, and **no blocker outstanding**. It stays open because
+round 5's repairs have not themselves been reviewed. Round 5 exists because
+round 4's had not been, round 4 because round 3's had not been, and so back to
+round 1; the pattern is the point, and the ledger says so rather than declaring
+itself finished.
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -141,41 +142,48 @@ Severity is the raiser's, at raise time. A finding reopened in a later round
 keeps its id and its severity; its earlier outcome became `contested` and the
 fresh disposition and outcome are appended below it.
 
-| id | severity | raised | r1 disp | r1 out | r2 disp | r2 out | r3 disp | r3 out | r4 disp | r4 out |
-|----|----------|--------|---------|--------|---------|--------|---------|--------|---------|--------|
-| F-1 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
-| F-2 | blocker | r1 | fix-now | verified | — | — | — | — | — | — |
-| F-3 | blocker | r1 | fix-now | verified | — | — | — | — | — | — |
-| F-4 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
-| F-5 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
-| F-6 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified | — | — |
-| F-7 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
-| F-8 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
-| F-9 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified | fix-now | **verified (built)** |
-| F-10 | major | r1 | fix-now | verified | — | — | — | — | — | — |
-| F-11 | minor | r1 | fix-now | verified | — | — | — | — | — | — |
-| F-12 | minor | r1 | fix-now | verified | — | — | — | — | — | — |
-| F-13 | blocker | r2 | — | — | fix-now | verified | — | held | — | — |
-| F-14 | major | r2 | — | — | doc-wrong | verified | — | held | — | — |
-| F-15 | major | r2 | — | — | fix-now | verified | — | held | — | — |
-| F-16 | major | r2 | — | — | fix-now | **contested** | fix-now | verified | — | — |
-| F-17 | major | r2 | — | — | fix-now | **contested** | fix-now | verified | — | — |
-| F-18 | major | r2 | — | — | fix-now | verified | — | held | — | — |
-| F-19 | minor | r2 | — | — | fix-now | verified | — | held | — | — |
-| F-20 | major | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-21 | major | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-22 | major | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-23 | major | r3 | — | — | — | — | doc-wrong | verified | — | — |
-| F-24 | major | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-25 | minor | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-26 | minor | r3 | — | — | — | — | fix-now | verified | fix-now | **verified (built)** |
-| F-27 | major | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-28 | major | r3 | — | — | — | — | fix-now | verified | — | — |
-| F-29 | blocker | r4 | — | — | — | — | — | — | fix-now | verified |
-| F-30 | blocker | r4 | — | — | — | — | — | — | fix-now | verified |
-| F-31 | major | r4 | — | — | — | — | — | — | fix-now | verified |
-| F-32 | major | r4 | — | — | — | — | — | — | fix-now | verified |
-| F-33 | major | r4 | — | — | — | — | — | — | fix-now | verified |
+| id | severity | raised | r1 disp | r1 out | r2 disp | r2 out | r3 disp | r3 out | r4 disp | r4 out | r5 disp | r5 out |
+|----|----------|--------|---------|--------|---------|--------|---------|--------|---------|--------|---------|--------|
+| F-1 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — | — | — |
+| F-2 | blocker | r1 | fix-now | verified | — | — | — | — | — | — | — | — |
+| F-3 | blocker | r1 | fix-now | verified | — | — | — | — | — | — | — | — |
+| F-4 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — | — | — |
+| F-5 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — | — | — |
+| F-6 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified | — | — | fix-now | verified |
+| F-7 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — | — | — |
+| F-8 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — | fix-now | verified |
+| F-9 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified | fix-now | **verified (built)** | fix-now | verified |
+| F-10 | major | r1 | fix-now | verified | — | — | — | — | — | — | — | — |
+| F-11 | minor | r1 | fix-now | verified | — | — | — | — | — | — | — | — |
+| F-12 | minor | r1 | fix-now | verified | — | — | — | — | — | — | — | — |
+| F-13 | blocker | r2 | — | — | fix-now | verified | — | held | — | — | — | — |
+| F-14 | major | r2 | — | — | doc-wrong | verified | — | held | — | — | — | — |
+| F-15 | major | r2 | — | — | fix-now | verified | — | held | — | — | — | — |
+| F-16 | major | r2 | — | — | fix-now | **contested** | fix-now | verified | — | — | fix-now | verified |
+| F-17 | major | r2 | — | — | fix-now | **contested** | fix-now | verified | — | — | fix-now | verified |
+| F-18 | major | r2 | — | — | fix-now | verified | — | held | — | — | — | — |
+| F-19 | minor | r2 | — | — | fix-now | verified | — | held | — | — | — | — |
+| F-20 | major | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-21 | major | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-22 | major | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-23 | major | r3 | — | — | — | — | doc-wrong | verified | — | — | — | held |
+| F-24 | major | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-25 | minor | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-26 | minor | r3 | — | — | — | — | fix-now | verified | fix-now | **verified (built)** | — | held |
+| F-27 | major | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-28 | major | r3 | — | — | — | — | fix-now | verified | — | — | — | held |
+| F-29 | blocker | r4 | — | — | — | — | — | — | fix-now | verified | — | held |
+| F-30 | blocker | r4 | — | — | — | — | — | — | fix-now | verified | fix-now | verified |
+| F-31 | major | r4 | — | — | — | — | — | — | fix-now | verified | — | held |
+| F-32 | major | r4 | — | — | — | — | — | — | fix-now | verified | — | held |
+| F-33 | major | r4 | — | — | — | — | — | — | fix-now | verified | — | held |
+| F-34 | major | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
+| F-35 | minor | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
+| F-36 | major | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
+| F-37 | blocker | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
+| F-38 | major | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
+| F-39 | major | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
+| F-40 | minor | r5 | — | — | — | — | — | — | — | — | fix-now | verified |
 
 **held** = round 3 audited that repair against the code and did not reopen it.
 The finding's terminal outcome stays the one in its own round's column; "held"
@@ -2231,3 +2239,591 @@ run the real gate against a real renderer crate, because none exists. And it did
 not review its own repairs — the same debt every round in this ledger has left,
 and the reason the ledger stays `open`. The difference is that this round's
 repairs are the first to have been compiled before they were written down.
+
+## Round 5 — brief
+
+**Round 5** — 2026-09-05 — *the repairs of round 4, plus the two artefacts no
+round had read.* Round 4's own synthesis named what it had not reached:
+`draft-policy.md` and `canon-delta.md` CD-5 against `design.md` §10 C-5, which
+round 3's synthesis had also asked for and which had by then been owed for two
+rounds.
+
+**Reviewer:** codex `gpt-5.6-sol`, read-only, same materials, briefed with F-27,
+F-28 and F-29 as the frame — *the last two rounds measured six things and five
+were wrong, so assume the same rate applies to whatever has not been built.*
+
+Four questions, in order:
+
+1. Is there a remaining defect in F-20…F-28, round 3's repairs, now that round 4
+   has been over the same ground?
+2. Is there a defect in round 4's own new text — the nine lint-forced shapes,
+   the rewritten A-2 and A-5, §9's two test-target rules, D28?
+3. Does the `draft-policy.md` / `canon-delta.md` CD-5 / `design.md` §10 C-5
+   triple cohere, and does it stay inside what the design derives?
+4. Is any ordering, string, path, signature or threshold still unchosen — the
+   class of thing an unattended phase agent would have to invent?
+
+**Numbering.** The brief handed to the responder said "append as F-29 onward".
+The ledger already held F-1…F-33, so the reviewer numbered its new findings
+F-34…F-40 and reopened six under their existing ids. The reviewer's numbering
+stands: ids are immutable and a collision would have been worse than a gap.
+
+## Round 5 — re-dispositions
+
+Six reopened. Five of the six (F-6, F-8, F-9, F-16, F-17) were repaired at
+round 3 **on reading**, held at round 3 or 4 on reading, and had never been
+audited by anyone but their author. The sixth, F-30, is different and worse: it
+was repaired at round 4 on built evidence and **regressed under integration**.
+
+### F-6 — re-disposed, fourth raising (round 3 outcome: verified)
+
+Not contested; the finding is exactly right and the reason it keeps coming back
+is now legible. Each repair fixed the count *in the document it was looking at*.
+Five documents ended up with four different counts: `design.md` §5.1 counted
+Cargo resolution, the manifest allowlist, the purity scan and the **vocabulary
+scan**; `design.md` §9 item 3 and `slice-002.md` AC-3 counted the first three
+plus **`cargo test -p goad-semantics`**, putting the vocabulary scan outside;
+`draft-policy.md` listed **five** rows undifferentiated; and `design.md` §10 C-7
+said **three** while `canon-delta.md` CD-7 said four.
+
+The reviewer supplied the coherent reading and it is adopted verbatim: **four
+ADR-001 instruments — Cargo resolution, the manifest allowlist, the purity scan,
+the isolated semantics test — plus the separate domain-vocabulary check, plus
+one unenforced feature-unification residue.**
+
+**Disposition:** fix-now
+**Response:** the reading is written into `design.md` §5.1 as *the counting
+rule*, marked as the vocabulary every other document uses, and then applied:
+§5.1's table gains a numbered fourth row for `-p goad-semantics` and loses the
+vocabulary row, which becomes its own table under a paragraph saying in terms
+that it is **not** one of the four and why (ADR-001 is about direction;
+`CLAUDE.md` invariant 1 is about vocabulary); §9 item 3 gains a sentence
+pointing at the counting rule and naming item 15 as the vocabulary scan's home;
+§10 C-7's "three mechanisms" becomes the counting rule in full; `slice-002.md`
+AC-3 gains the same, and says the vocabulary scan is AC-13's; `draft-policy.md`'s
+Verification section splits its five-row table into a four-row ADR-001 table, a
+one-row vocabulary table with the distinction stated, and the residue;
+`canon-delta.md` CD-7 quotes the counting rule as a block and CD-1's ADR wording
+is corrected — it had listed the vocabulary scan as one of the four.
+
+The class fix, rather than the fifth instance fix: the count now has **one**
+home and every other site cites it instead of restating it. A sixth raising is
+possible only by editing §5.1.
+
+`design.md` §5.1, §9 item 3, §10 C-7; `slice-002.md` AC-3; `draft-policy.md`
+Scope/Verification/References; `canon-delta.md` CD-1, CD-7.
+
+**Outcome:** verified
+
+### F-8 — re-disposed, third raising (round 2 outcome: verified, held at round 3)
+
+Not contested, and the miss is precise. Round 2 replaced the comment cut's
+*algorithm* — a three-state per-line machine — and never touched its
+*signature*. `code_of(&str) -> &str` (`tests/protocol/boundary.rs:170`, `:182`)
+returns one contiguous slice, which the old algorithm could always produce
+because every cut ran to end of line. The new machine has a `Block → Code`
+transition, so a `/* … */` that closes mid-line leaves code on **both** sides of
+the removed region and there is no single slice that is the answer.
+
+This is the round-3 pattern one level down: a repair correct in itself, beside an
+unrepaired neighbour — where the neighbour is the return type.
+
+**Disposition:** fix-now
+**Response:** `code_of(line: &str) -> Cow<'_, str>` — borrowed when nothing was
+cut or the cut ran to end of line, which is every line in the tree today; owned
+only when an interior block closed. A removed interior block is replaced by
+**one space**, never by nothing, because `Site/*x*/View` must not become the
+single word `SiteView`. `mentions` keeps its signature exactly: it binds
+`code_of(line)` and every method it then calls is on the `Deref` target.
+Rejected alternatives are recorded — `String` unconditionally (an allocation per
+line per token for a cut that almost never happens) and `Vec<&str>` of surviving
+spans (pushes the join decision into every caller, where two callers can
+disagree).
+
+The finding also asked for the `Breach` and member-reader API, which no section
+owned. `goad-boundary`'s **whole** public API is now written out in §5.6: three
+modules (`members`, `scan`, `manifest`), `Breach` with its fourth variant
+`GlobMember`, `Scan` with its four configured fields, `Scan::run`, `code_of`,
+`members(root_manifest) -> Result<Vec<PathBuf>, Vec<Breach>>` and `unpermitted`.
+
+`design.md` D13, §5.6.
+
+**Outcome:** verified
+
+### F-9 — re-disposed, fourth raising (round 4 outcome: verified on built evidence)
+
+Not contested, and the distinction the reviewer drew is the right one and was
+not visible from inside round 4. Round 4 **built** the schema, corrected fourteen
+things with it, and then wrote the *corrections* into the design while leaving
+the built instance in a scratch directory. What §9 item 12 carried afterwards was
+a schema, a sequence in prose, and 12.3's per-row `Display` text — and **not**
+the thirty-three rows' `id`, `turn`, `shift`, `refused`, `schedule` or
+`invocations`, nor the four success bodies, nor the three sentinel bodies. An
+implementer would have had to derive all of that from sentences: thirty-three
+chances to derive one differently.
+
+"Built elsewhere" is not an executable design when the built instance is absent.
+
+**Disposition:** fix-now
+**Response:** the built array is **preserved**, not paraphrased. `design.md`
+gains §12.9, carrying `cases.rs` from round 4's scratch crate verbatim — the
+body constants, the `retained`/`discard`/`observed!` helpers, and all
+thirty-three rows in sequence order. It was re-run before being copied in:
+`cargo test --test table` is 8/8 green and `cargo clippy --all-targets -- -D
+warnings` exits 0 as of this round.
+
+Three things are stated above the array because copying it without them would be
+wrong. **`<A>` in S2 is a placeholder** — the outstanding `ViewId` is minted at
+run time and the scratch crate, having no `Host`, held
+`const OUTSTANDING_A: &str = "<A>";`; the driver substitutes before comparing,
+and a phase that compares S2 literally is wrong. **`Channel` has five variants
+and the reducer has four** — `Channel::emitted()` maps `Failure` and `Protocol`
+onto one reducer channel, and the reducer's fifth, `Undrawn`, is named by no
+row, which is the whole of 12.4's total partition. And `\n` written in a Rust
+literal as `\\n` is the two characters the escape step produces.
+
+The three `@lingers*` arms are written out as bash, each its named script's whole
+behaviour with the `exec` deliberately absent and the one redirection that
+separates C1 from C2 called out; `@lingers-with-a-view`'s body is 12.1's pin made
+literal. The provenance of every constant is recorded — nine already exist at
+`tests/integration/failure_matrix.rs:96-133`, six are new and were copied from
+`tests/fixtures/`.
+
+`design.md` §9 item 12.9.
+
+**Outcome:** verified
+
+### F-16 — re-disposed, third raising (round 3 outcome: verified)
+
+Not contested. Round 3 repaired F-16 in `design.md` — D8, A-2 and A-5 all stopped
+pointing at a crate-level `[lints]` override — and then round 3 *also* drafted
+`draft-policy.md`, into which the un-nuanced form of the rule was written fresh:
+"Don't … add an `allow`/`expect` attribute to silence a lint … in order to make a
+phase green." As stated it forbids the two mechanisms the same design authorises
+— A-2's site-local `#[expect(lint, reason = …)]`, and D8's twelve-entry
+generated-code quarantine, which is itself twelve `#![expect(...)]` entries.
+
+A policy that forbids the thing the design requires is worse than one that says
+nothing, because it will be cited.
+
+**Disposition:** fix-now
+**Response:** the **Don't** block is rewritten to put the weight on the motive
+rather than the mechanism — *in order to make a phase green* — and is followed by
+an explicit "what that does not forbid" naming both authorised mechanisms with
+their conditions: a reason written, the narrowest scope that works, never
+`allow`, never a crate-level override; and one module-scoped attribute over a
+generated tree. The Scope section then says lint discipline is **outside** this
+policy altogether — the workspace lint table's business and the deciding slice's
+design — which is the structural version of the fix and the one that stops this
+being raised a fourth time.
+
+`draft-policy.md` Statement, Scope, Compliance.
+
+**Outcome:** verified
+
+### F-17 — re-disposed, fourth raising (round 3 outcome: verified)
+
+Not contested, and this is the fourth time an entry point has been found calling
+something no section declares. Round 3 wrote `start`'s body as real Rust
+precisely so that an omission would be visible, and the omission moved one level
+out: `SlintGlass::new(window, tray, options)` is called and `SlintGlass` is
+declared nowhere — no module, no fields, no constructor signature, no visibility,
+no `impl Glass`. The only formal glass API is the abstract, infallible
+`Glass::present`. `StartupError` had the same shape of omission: eight variants
+and their exact text, and no module owning the declaration.
+
+And the reviewer's second half is the part reading would not have reached. The
+omission **concealed an undecided failure path**: `show()` and `hide()` both
+return `Result<(), PlatformError>` (`i-slint-core-1.17.1/api.rs:523`, `:530`),
+`Glass::present` returns `()`, and the lint table denies discarding a `Result` —
+so the design had specified a method that cannot be written as specified.
+
+**Disposition:** fix-now
+**Response:** §5.3 declares `SlintGlass` beside the trait — module
+(`crates/goad/src/glass.rs`, and the only file in the crate that names a
+generated type), three private fields, `pub fn new(window, tray, options) -> Self`
+stated infallible with the reason (every property setter returns `()`), and
+`impl Glass for SlintGlass`. `StartupError` is declared in
+`crates/goad/src/startup.rs` beside `Launch` and `arguments`, with its derives
+stated — no `PartialEq`, because a `slint::PlatformError` inside it has none.
+
+The failure path is **decided**: the trait stays infallible and
+`SlintGlass::present` reports on stderr through a third outlet,
+`diagnostics::report_platform(detail)`, then returns; the process keeps running.
+Three grounds, and the third decides it — a display failure is not a fact about
+an interaction, so it does not belong in `Diagnostics`; the surface that would
+carry it is the window that just failed; and a fallible `present` would put a
+`Result` on the one method whose totality is load-bearing, at six call sites,
+which is how a partial update gets written. The rejected alternatives are
+recorded, including ending the loop on `Err`, which would take the host down for
+a failed `hide()`. `report_platform` takes the **rendered** detail rather than
+`&slint::PlatformError`, for `Refused::NoClock`'s reason: `diagnostics.rs` then
+names no Slint type and stays testable with a literal.
+
+`design.md` §5.3, §5.4 (the outlets, the variant table), §5.1's artifact map.
+
+**Outcome:** verified
+
+### F-30 — re-disposed, second raising (round 4 outcome: verified, on built evidence)
+
+Not contested, and this one is the sharpest thing in the round. F-30 was raised
+at round 4 by a compiler — `unreachable_pub` fires on every `pub` item in a
+private module, nine of them — and repaired correctly: D28 makes `crates/goad` a
+library plus a thin binary, and §5.1 says in terms that *"everything a test can
+reach, `install` included (item 14e drives it), lives in the library."*
+
+And 900 lines later the prescription still reads `fn install(window: &PromptWindow,
+tray: &Tray, wire: &Wire)`. Private, in a block with no module header, reachable
+from neither `src/main.rs` — a separate binary crate — nor a `tests/` target.
+
+**A repair that states a rule and does not apply it to the one site the rule was
+derived from.** Round 3's characteristic defect, in a round 4 repair, found by
+round 5.
+
+**Disposition:** fix-now
+**Response:** the block becomes `pub fn install(…)` under a
+`// crates/goad/src/install.rs` header carrying the reason (item 14e drives it;
+a `tests/` target reaches neither a binary crate nor a private item) and stating
+that it returns `()` because every setter it calls is infallible. §5.1's artifact
+map then lists `install.rs` in `lib.rs`'s ten-module `pub mod` list, so the site
+and the rule are one edit apart rather than 900 lines apart.
+
+`design.md` §5.4 (*Installing the callbacks*), §5.1's artifact map.
+
+**Outcome:** verified
+
+## Round 5 — new findings
+
+### F-34 — a discharged fallback still contradicts the compiled markup decision
+
+**Severity:** major
+**Where:** `design.md` §5.2 (two passages), against §5.5 A-6
+
+Round 3 compiled `title: root.mode == WindowMode.prompt ? "goad" : "goad —
+diagnostics"` and discharged A-6, writing at §5.5 that the fallback "is no longer
+needed and is not carried". Two passages in §5.2 still carried it: *"if the
+compiler refuses it, A-6's fallback moves the two literals into
+`diagnostics.rs`"*, and *"If Slint 1.17.1 turns out not to permit the
+conditional, the two literals move into `diagnostics.rs` … which is where they
+would rather be anyway"*.
+
+The second is worse than a stale sentence: it argues the fallback is *preferable*,
+so a phase reading §5.2 alone would take it.
+
+**Disposition:** fix-now
+**Response:** both deleted. The first becomes a statement that the expression
+compiles, quoting it, citing `research.md` Thread 8. The second states that the
+title **stays in markup** and that there is no fallback, "because A-6 was
+discharged by compiling the expression, not by reasoning about it".
+
+**Outcome:** verified
+
+### F-35 — the promoted policy will contain a context-dependent evidence path
+
+**Severity:** minor
+**Where:** `draft-policy.md`
+
+`draft-policy.md` cited `research.md:806`. After promotion to
+`docs/policy/NNN-the-phase-gate.md` that path names nothing; the evidence is
+`docs/slices/002/research.md:806`. The draft's other references are already
+repository-relative, so it is an inconsistency as well as a future dead link.
+
+**Disposition:** fix-now
+**Response:** expanded. And the **class** rather than the instance:
+`canon-delta.md` has ten more of them, and its entries are transcribed into
+`docs/adr/` and `CLAUDE.md` at promotion, where they will break the same way. Its
+preamble now carries the rule — every bare slice-folder reference is expanded to
+a full repository-relative path as the text is transcribed, and the promoter
+checks that before applying the entry — with F-35 cited as the instance that
+found it.
+
+**Outcome:** verified
+
+### F-36 — the draft policy creates repository-wide rules the design never derived
+
+**Severity:** major
+**Where:** `draft-policy.md` Scope and Compliance, against `design.md` §10 C-5
+
+C-5 derives three things for the policy: it carries the six commands, it removes
+the feature matrix, and it becomes the gate's canonical home. The draft
+additionally legislated, for every phase of every slice, against deleting or
+`#[ignore]`-ing a test, against suppressing a lint, and against weakening or
+conditioning a command. Some of that is right and none of it was derived — and
+this is new canon being written by momentum, which is exactly what
+`docs/AGENTS.md` puts a promotion gate in front of.
+
+**Disposition:** fix-now
+**Response:** the reviewer offered two exits — derive the broader scope, or cut
+it — and the first is correct for three of the four clauses and the second for
+the fourth.
+
+**Derived**, in a new block under §10 C-5, clause by clause: the six commands
+(§5.6); the `justfile`-mirrors-policy rule (`CLAUDE.md`'s existing rule about
+`docs/slices/001/design.md` §9, moved with the pointer); the gate-integrity rule
+(this is what *"`just check` is the gate"* means — without it the policy states a
+list rather than a rule, and `docs/AGENTS.md` already requires a phase to end
+green and forbids downgrading a blocker to clear a gate); and what each
+instrument holds (§5.1's counting rule). The argument is stated as a
+consequence, not asserted: *a policy that lists commands and stops is not a gate,
+because nothing in it distinguishes a gate that exits 0 from a gate that was made
+to exit 0.*
+
+**Cut**: lint discipline. §10 C-5 and `draft-policy.md`'s Scope both now say the
+policy does not legislate it — which is also F-16's structural fix.
+
+The scope sentence changes from "applies to every phase of every slice" asserted,
+to the four derived clauses plus *"because the gate runs on every phase, these
+bind every phase"* — the same reach, now with a derivation under it.
+
+This remains a **canon act awaiting endorsement**, unchanged: nothing under
+`docs/policy/` was created or edited.
+
+**Outcome:** verified
+
+### F-37 — the artifact map is not specific enough to write phase surfaces
+
+**Severity:** blocker
+**Where:** `slice-002.md` Scope; `design.md` §5.2, §5.6, §9 item 12.8
+
+The design specifies behaviour to the signature and leaves the *artefacts*
+underspecified. `slice-002.md` said only that `src/**` and `tests/**` are
+relocated. `research.md`'s dry run recorded counts, not a map. Two `[[test]]`
+targets were required with neither a name nor a manifest path. §12.8 required a
+shared `#[path]` helper and a `main.rs` and named neither file. `build.rs` did
+not name the file it passes to `compile_with_config`, and markup was `ui/*.slint`.
+
+An executing agent would have invented a dozen paths — and a file name is a
+module boundary, so those are design decisions taken by whoever typed first. It
+is a blocker because PHASE-01 is the split and the split *is* the artifact map.
+
+**Disposition:** fix-now
+**Response:** a new subsection, `design.md` §5.1 *The artifact map*, in §5.1
+rather than a §5.7 because it is the system model and a reader must not reach it
+last. It carries, as tables:
+
+- **the split's source→destination map**, every current path to its new one,
+  with a "change permitted" column AC-2 is read against;
+- **the four member manifests**, dependency by dependency, with feature sets,
+  who owns which, and `[workspace.dependencies]`/`[workspace.lints]` stated;
+- **six test targets** by `[[test]]` name, path, and the exact `#[cfg(test)] mod`
+  list each `main.rs` declares;
+- **the shared helper**, `tests/support/driving.rs`, with its literal
+  `#[path = "../../../../tests/support/driving.rs"]` and the arithmetic that
+  makes four levels right for every member;
+- **which validation item runs in which target**, all seventeen;
+- **the renderer's tree in full**, and `crates/goad/src/lib.rs` written out as
+  ten `pub mod` lines.
+
+Two decisions the map forced rather than recorded, both stated with their
+grounds: **one** `.slint` file, `ui/app.slint`, because that is the shape
+`research.md` Thread 8 compiled and read the generated API back from — a
+three-file split would be a shape nobody has compiled; and `slint`/`slint-build`
+pinned `= 1.17.1`, so A-1's twelve-lint list and A-3's `with_debug_info` change
+under a deliberate upgrade rather than a resolver drift.
+
+`slice-002.md`'s Scope is rewritten against the map and now points at it rather
+than restating it, and a file that must move and is not in the map is STOP S-6.
+
+**Outcome:** verified
+
+### F-38 — risk signals and timing tests lack executable thresholds or STOP conditions
+
+**Severity:** major
+**Where:** `design.md` §5.5 A-1/A-3/A-4, §8 R2, §9 item 14a
+
+Four places where the design says *decide* and gives an unattended agent nothing
+to decide with. A-4 and R2 required the gate to stay "tolerable" and made T3
+firing "a decision" with no wall-clock number and no measurement protocol. Item
+14a asserted cancellation in "far less" than a 2 s timeout and "a bound well
+below it", which is not an assertion. A-1 said a changed generated-lint list is
+"corrected" and A-3 turned a lost `with_debug_info` into a guard failure, and
+neither said whether that is a local adjustment or a stop.
+
+Under the 2026-09-04 scope extension every phase runs with no user present, so
+"a decision" with no criterion is a phase that improvises.
+
+**Disposition:** fix-now
+**Response:** numbers everywhere, and one consolidated list.
+
+- **A-4/R2** gain a protocol — one cold run after `cargo clean`, recorded and
+  **not** thresholded because a cold build happens once per clone; then three
+  consecutive warm runs, median wall-clock — and three bands: **≤ 120 s**
+  continue; **> 120 s ≤ 300 s** continue and raise a follow-up, T3 having fired
+  on the letter; **> 300 s** stop. The floor the numbers sit on is stated
+  (11.1 s and 6.9 s in this tree; 25.6–26.6 s clean build and 9.1 s warm clippy
+  in the spike; the spike's own 36 s gate) so the bands are derived rather than
+  picked.
+- **Item 14a** becomes **under 250 ms** from `Cancel::stop()` to `serve`
+  returning — an eighth of the timeout, ~25× the 9 ms the built loop measured
+  (`research.md` Thread 7) — with the explicit rule that a measurement between
+  250 ms and the timeout is not a threshold to relax: it means shutdown is
+  awaiting something, and it is a stop.
+- **A-1** gains the local/stop line: adding or removing an entry in the
+  quarantine's `#![expect]` is authorised and recorded, provided the lint is one
+  the workspace table sets and the attribute stays on the one module; anything
+  else — a suppression elsewhere, a lint the table does not set, a member
+  `[lints]` table — is a stop, because those three are D8 being wrong.
+- **A-3** becomes a stop outright, with the reason: every element-tree assertion
+  in §9 rests on the query API being live, so choosing between an older Slint,
+  the environment-variable fallback A-3 rejects, and a different test strategy is
+  a design decision.
+
+And **the STOP conditions are collected into one table in §5.5**, S-1…S-8, each
+phrased as a condition rather than a judgement, with the existing A-2 stop rule
+folded in as S-1 and F-37's artifact-map rule as S-6. A phase reads eight rows
+instead of finding four of them scattered across three sections.
+
+**Outcome:** verified
+
+### F-39 — the endorsed font dependency has no package name
+
+**Severity:** major
+**Where:** `design.md` D12; `design-log.md` 2026-09-05; `flake.nix:34`
+
+The devshell font was endorsed as a decision and never named. "A font" is not
+something a phase can type, so the phase would have chosen a dependency — the one
+class of thing `CLAUDE.md` requires be asked about rather than assumed.
+
+**Disposition:** fix-now
+**Response:** named, and **measured rather than reasoned**, because F-39's whole
+shape is a phase guessing at an environment. On this machine, against
+`nixpkgs/nixos-unstable`:
+
+- `pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }` evaluates and
+  builds → `/nix/store/…-fonts.conf`;
+- that file carries `<dir>/nix/store/…-dejavu-fonts-2.37</dir>` as an **explicit**
+  entry, which is what makes the guarantee hold in a container with an empty home
+  and no system profile;
+- `FONTCONFIG_FILE=<that> fc-list` reports **39 DejaVu faces**.
+
+D12 now names `pkgs.dejavu_fonts` plus `pkgs.makeFontsConf` and `FONTCONFIG_FILE`,
+and states the trap the finding would otherwise have left standing: **adding a
+font package to `buildInputs` alone does nothing**, because fontconfig discovers
+fonts through a configuration file, not through `buildInputs`. The phase's own
+check is given, and so is the honest limit — the generated file also includes
+`/etc/fonts/conf.d` and `~/.local/share/fonts`, which is why `fc-list` on a
+developer machine reports thousands; the pinned `<dir>` is the floor, and the
+floor is what a clean clone gets. A **second** font package is STOP S-8, not a
+convenience.
+
+**Outcome:** verified
+
+### F-40 — the required compositor documentation's content is unwritten
+
+**Severity:** minor
+**Where:** `design-log.md` 2026-09-05; `slice-002.md` Scope; `design.md` §5.4
+
+`design-log.md` requires a recommended niri window rule in `crates/goad/README.md`
+keyed on the `"goad"` app id, and `slice-002.md` makes that README part of the
+renderer surface. Neither gives a line of it. A phase would have written KDL from
+memory into a file whose whole purpose is to be copied by a reader.
+
+**Disposition:** fix-now
+**Response:** the literal block is written into §5.4 and it was **validated, not
+recalled**: `niri validate` against niri 26.04 on this machine reports *config is
+valid* for
+
+```kdl
+window-rule {
+    match app-id="^goad$"
+    open-floating true
+    open-focused true
+}
+```
+
+with the two sentences that go under it — what goad cannot do on Wayland, what
+it does guarantee (the app id), and that this is niri's syntax and another
+compositor spells the same match its own way. One thing is said that the finding
+did not ask for and that a reader needs: only the `app-id` is goad's to state;
+the two `open-*` lines are a recommendation, and the README says so rather than
+presenting a preference as a dependency.
+
+**Outcome:** verified
+
+## Round 5 — synthesis
+
+**Forty findings over five rounds.** Seven raised here — one blocker, four
+majors, two minors — and six reopened, including one blocker that had regressed.
+All thirteen `fix-now`, all `verified`. **No blocker outstanding.**
+
+This synthesis is appended rather than replacing the earlier ones. The ledger is
+append-only and each round's synthesis is a record of what that round believed;
+rewriting them would destroy the only evidence this project has about its own
+defect rate.
+
+**The five-round shape, in one line each.**
+
+| round | pattern |
+|---|---|
+| 1 | the design was written from `research.md`'s summaries rather than from `src/` |
+| 2 | repairs written at the level of *intent* rather than of signatures |
+| 3 | repairs correct in place, contradicting an **unrepaired neighbour** |
+| 4 | **the compiler as raiser.** Three passages built; all three defective |
+| 5 | repairs that state a rule and do not apply it to the site the rule came from — and **artefacts**, as distinct from behaviour, never specified at all |
+
+**Round 5's own two findings about the process, and they are different findings.**
+
+1. **A rule stated is not a rule applied.** F-30 is the clean instance: round 4
+   wrote *"everything a test can reach, `install` included, lives in the
+   library"* and left `fn install` private 900 lines later. F-34 is the same
+   shape (A-6 discharged in §5.5, the fallback still argued for in §5.2), and so
+   is F-8 (the algorithm replaced, the return type it forces left alone). The
+   defence is not more care; it is **distance**. Every one of these is a rule and
+   its site separated by hundreds of lines, and the repairs that held — §5.1's
+   counting rule, §5.1's artifact map, §5.5's STOP table — are the ones that put
+   the rule and its consumers one lookup apart.
+2. **Behaviour was specified and artefacts were not.** F-37 is a blocker in a
+   design that had already survived four rounds, and nothing in those four rounds
+   would have found it, because every one of them asked *does this work?* and
+   none asked *can this be typed?* The design could state the exact `Display` of
+   thirty-three diagnostic lines and could not say what the two test targets were
+   called. That asymmetry is worth carrying forward as a review question in its
+   own right.
+
+**What was built this round, and what was only read.**
+
+| repair | evidence |
+|---|---|
+| F-9's array | **built.** Round 4's scratch crate re-run: `--test table` 8/8, clippy `-D warnings` exit 0. Copied in verbatim |
+| F-39's font | **built.** `makeFontsConf` evaluated and built; `fc-list` reports 39 DejaVu faces; the `<dir>` entry inspected |
+| F-40's window rule | **validated.** `niri validate` against niri 26.04: *config is valid* |
+| F-30, F-34, F-35 | deletions and a visibility keyword. Nothing to build |
+| F-6, F-36, F-16 | prose consistency across five documents. Not buildable; checked by grep for the count words across all four slice documents |
+| F-8, F-17, F-37, F-38 | **read, not built.** New signatures, a new module, an artifact map, four thresholds |
+
+Four of the thirteen repairs rest on reading, and the ledger says so rather than
+letting five rounds of accumulated rigour imply otherwise. What makes them a
+different bet from round 3's is what they *are*: F-37 is a table of file paths, a
+class of claim that fails visibly on the first `cargo build` rather than silently;
+F-38 is four numbers, which are wrong only if the measurement disagrees, and the
+measurement is the first thing PHASE-01 does; F-8 and F-17 are two signatures,
+which is the smallest surface a wrong repair can have. None is a *behaviour*
+specified from summaries, which is what rounds 1–4 kept finding.
+
+**The honest residue, and the recommendation.**
+
+The reviewer's verdict was *not ready for `plan.md`* on the strength of two
+blockers, F-30 and F-37, both now closed. The ledger's own gate — every finding
+`verified` or `withdrawn`, no blocker outstanding — is met.
+
+What no round has done, and what a sixth would do, is audit **round 5's own
+repairs**, which is the debt every round in this ledger has left and the reason
+it stays `open`. The argument for stopping is not that the debt is discharged; it
+is that its character has changed. Rounds 1–4 each found a defect that would have
+stopped a phase mid-flight — a signature that does not compile, a string that
+does not match a file, a lint that fires. Round 5 found one of those (F-30) and
+six that would have made a phase *invent* something. The remaining unbuilt
+repairs are of the inventing kind, and the first phase — the split, which moves
+111 files and builds nothing new — is the cheapest possible place to discover an
+artifact map is wrong.
+
+**Assumptions, after five rounds:**
+
+| assumption | outcome |
+|---|---|
+| **A-1** | standing, now with a stated local/stop line (F-38, S-2) |
+| **A-2** | measured and largely discharged; budget unspent, three remain |
+| **A-3** | standing, now a **stop** rather than a decision (F-38, S-3) |
+| **A-4** | standing, now with a protocol and three numbered bands (F-38, S-4) |
+| **A-5** | measured twice; `serve` is an `async fn` with no attribute |
+| **A-6, A-7** | discharged at round 3, and A-6's residual fallback deleted here (F-34) |

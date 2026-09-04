@@ -38,21 +38,29 @@ Surfaces this slice may touch.
 - `Cargo.toml` → a workspace root; `crates/goad-semantics/`, `crates/goad-shell/`,
   and `crates/goad-boundary/` — a test-only member owning the workspace-wide
   invariant checks, which belong to no stratum (`design.md` D17).
-- `src/**` → relocated under those two crates. Relocation, not redesign.
-- `tests/**` → retiered against the new members; fixtures to `tests/fixtures/`.
-  The host-driving half of slice 001's `harness.rs` becomes one file both test
-  crates include by `#[path]` (`design.md` §9 item 12.8).
+- `src/**` → relocated under those two crates. Relocation, not redesign. The
+  source→destination table is `design.md` §5.1, *The artifact map*; a file that
+  has to move and is not in it is a STOP (S-6).
+- `tests/**` → retiered against the new members; fixtures to `tests/fixtures/`
+  and the fake backends to `tests/backends/`, both at the workspace root. The
+  host-driving half of slice 001's `harness.rs` becomes
+  `tests/support/driving.rs`, one file both test crates include by `#[path]`
+  (`design.md` §9 item 12.8, and the artifact map for the six test targets by
+  name and path).
 - `justfile` and the gate's command list.
 - `clippy.toml`, `[workspace.dependencies]`, `[workspace.lints]`.
 
 **The renderer**:
 
-- `crates/goad/` — stratum 3: `ui/**.slint`, `build.rs`, the `slint` dependency,
-  a **library plus a thin binary** (`main`, `run` and `start` are the whole of
-  `main.rs`; everything a test reaches is a `pub mod` of the library —
-  `design.md` §5.1), and `README.md` carrying the recommended compositor window
-  rule. It inherits `[workspace.lints]` unchanged; the only laxity is the
-  module-scoped `#![expect(...)]` around `include_modules!()`.
+- `crates/goad/` — stratum 3: one `ui/app.slint`, `build.rs`, the `slint`
+  dependency pinned `= 1.17.1`, a **library plus a thin binary** (`main`, `run`
+  and `start` are the whole of `main.rs`; everything a test reaches — `install`
+  included — is a `pub mod` of the library, and `design.md` §5.1's artifact map
+  lists the eleven modules by name), and `README.md` carrying the recommended
+  compositor window rule, whose literal `window-rule` block `design.md` §5.4
+  gives and which was validated against niri 26.04. It inherits
+  `[workspace.lints]` unchanged; the only laxity is the module-scoped
+  `#![expect(...)]` around `include_modules!()`.
 - The view mapper: canonical types → row structs the markup consumes.
 - The reception seam: the one function that consumes an `Outcome`.
 - The runtime seam: the tokio runtime, the Slint event loop, and the one
@@ -61,7 +69,10 @@ Surfaces this slice may touch.
 
 **Supporting**:
 
-- `flake.nix` — a font package for the devshell, and nothing else.
+- `flake.nix` — a font package for the devshell, and nothing else:
+  `pkgs.dejavu_fonts`, made discoverable by `pkgs.makeFontsConf` and
+  `FONTCONFIG_FILE` (`design.md` D12; adding it to `buildInputs` alone does
+  nothing). A second font package is a STOP.
 - `tests/protocol/boundary.rs` — re-homed into `crates/goad-boundary` and its
   configuration extended to `.slint`, with members read from `workspace.members`.
 - `canon-delta.md` — drafted here, promoted at audit.
@@ -108,8 +119,13 @@ Surfaces this slice may touch.
       paths and manifest entries are evidence of redesign and must be argued.
 - [ ] AC-3 — Four instruments hold four different parts of ADR-001's stratum 1
       rule, and the slice states each one's boundary rather than claiming their
-      sum is "purity, enforced" (F-6, third raising). Every one of them is inside
-      the gate:
+      sum is "purity, enforced" (F-6, third and fourth raisings). The count is
+      `design.md` §5.1's counting rule and it is used unchanged in `design.md`
+      §5.6 and §9 item 3, `canon-delta.md` CD-7 and `draft-policy.md`: **four
+      ADR-001 instruments, plus the domain-vocabulary scan, plus one residue
+      nothing enforces.** The vocabulary scan is **not** one of the four — it
+      holds `CLAUDE.md` invariant 1 rather than ADR-001's direction rule, and it
+      is AC-13's. Every one of the four is inside the gate:
       1. **Cargo resolution** — a `goad-semantics` source naming `goad_shell` or
          `tokio` is `error[E0433]`. Crate edges only.
       2. **The manifest allowlist test** — reads the dependency tables of

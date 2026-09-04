@@ -18,6 +18,14 @@ split is a canon event the design could not take on its own. Endorsement of the
 *decision* is not endorsement of the *wording*; the wording is still promoted at
 audit like every other entry here.
 
+**Citations are expanded at promotion.** Every bare `research.md`, `design.md`,
+`design-log.md` or `slice-002.md` reference below resolves against *this folder*
+and stops resolving the moment the wording lands in `docs/adr/` or `CLAUDE.md`.
+Each becomes a full repository-relative path — `docs/slices/002/research.md:806`,
+not `research.md:806` — as the text is transcribed, and the promoter checks that
+before the entry is applied. It is a small rule and it was missed once already,
+in `draft-policy.md` (review `F-35`).
+
 ---
 
 ## CD-1 — ADR-002 is superseded
@@ -60,10 +68,15 @@ A new ADR — `docs/adr/003-*.md` — recording:
   `tokio.workspace = true` line in stratum 1's *manifest* still leaves `cargo
   build --workspace` at exit 0 (`research.md:806`), so the manifest is held by a
   test rather than by the compiler; a direct `std::fs` call needs no manifest
-  entry at all and is held by a source scan; and the domain-vocabulary scan is
-  not made redundant either, because no compiler objects to a type called
-  `Habit`. The ADR states the four instruments and their boundaries, and does
-  **not** claim their sum is "stratum 1's purity, enforced".
+  entry at all and is held by a source scan; and stratum 1 is built with its own
+  feature set by exactly one gate command, which is what makes the other three
+  checks about a configuration that stands on its own. Those are the **four**.
+  Separately, and holding a different invariant, the domain-vocabulary scan is
+  not made redundant by any of them, because no compiler objects to a type
+  called `Habit`. The ADR states the four instruments and their boundaries,
+  states the vocabulary scan beside rather than among them, and does **not**
+  claim their sum is "stratum 1's purity, enforced" (review `F-6`). CD-7 carries
+  the counting rule in full.
 - **What the split cost:** measured, not estimated — 111 renames, 91
   byte-identical, one substantive file change, ~6 minutes to a green gate. The
   error-taxonomy split ADR-002 flagged as a real cost was two lines.
@@ -264,9 +277,16 @@ agent to check something that cannot be checked.
 
 Replace both sentences with a pointer to the phase-gate policy — drafted as
 `draft-policy.md` and promoted under CD-5's neighbour endorsement — and an
-accurate statement of what replaced the matrix. **Four** mechanisms, each with a
-different job, and the wording must not merge them or claim their sum is
-"purity enforced":
+accurate statement of what replaced the matrix. That statement is **three
+things, not one number** — the counting rule of `design.md` §5.1, used
+identically in `design.md` §5.6, §9 item 3 and §10 C-7, in `slice-002.md` AC-3
+and in `draft-policy.md`'s Verification section (review `F-6`, fourth raising):
+
+> **Four ADR-001 instruments**, plus **the domain-vocabulary scan**, which holds
+> a different invariant, plus **one residue nothing enforces.**
+
+The wording must not merge them or claim their sum is "purity enforced". The
+four ADR-001 instruments, each with a different job:
 
 - **Cargo, at crate edges** — a stratum 1 source file naming `goad_shell` or
   `tokio` does not compile.
@@ -283,10 +303,18 @@ different job, and the wording must not merge them or claim their sum is
   unifies features across every member it builds. This one is not a purity
   check and must not be described as one.
 
-And one residue, stated as residue rather than omitted: a feature switched on in
-a shared dependency by stratum 2 or 3 unifies into stratum 1's build under
+**And the domain-vocabulary scan** (`crates/goad-boundary`), stated separately
+because it is **not** one of the four: it holds `CLAUDE.md`'s *own* first
+invariant — no domain word in any crate name, module, type, markup component,
+accessible label or user-visible string — rather than ADR-001's direction rule,
+and it runs over every member rather than over stratum 1. CD-6 is the entry that
+grows it to `.slint`. Merging it into the four is how three documents ended up
+with three different counts.
+
+**And one residue**, stated as residue rather than omitted: a feature switched on
+in a shared dependency by stratum 2 or 3 unifies into stratum 1's build under
 `--workspace`, and nothing in the gate rejects it. That is a review obligation,
-and `CLAUDE.md` says so rather than implying the four mechanisms are exhaustive.
+and `CLAUDE.md` says so rather than implying the instruments are exhaustive.
 
 `docs/AGENTS.md` and any slice document repeating the two-column wording are
 checked for the same phrase at reconciliation.

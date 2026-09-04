@@ -397,3 +397,108 @@ because the repair came from a compiler.
    `StartupError` must land a construction site for all eight variants in the
    same commit; and §5.4's *shapes* table plus §9's preamble are the two lists a
    phase reads before writing renderer code or a test target.
+
+---
+
+## Handover addendum — session 3, 2026-09-05
+
+**Written:** end of session 3. **Branch:** `slice-002`. **Gate:** `just check`
+exits 0. **Tree:** clean apart from the same pre-existing unstaged `flake.lock`
+edit, still untouched. **Stage:** still the design gate; `plan.md` is still the
+template and **no code has changed** in three sessions.
+
+Session 3 ran **review round 5** and repaired what it found. Thirteen repairs:
+seven new findings (F-34…F-40) and six reopened under their existing ids (F-6,
+F-8, F-9, F-16, F-17, F-30). No blocker outstanding.
+
+### The two blockers, and why one of them matters more than its severity
+
+**F-30 regressed.** It was raised at round 4 *by a compiler*, repaired
+correctly — D28, the lib-plus-thin-binary shape — and §5.1 was made to say
+*"everything a test can reach, `install` included, lives in the library."* Nine
+hundred lines later the prescription still read `fn install(…)`. Private. A rule
+stated and not applied to the site the rule came from.
+
+**F-37 was never raised at all**, by four rounds. The design could state the
+exact `Display` of thirty-three diagnostic lines and could not say what the two
+test targets were called, where `build.rs`'s input lived, or which modules
+`lib.rs` declares. Four rounds asked *does this work?*; none asked *can this be
+typed?*
+
+Both are now closed. F-37's repair — `design.md` §5.1, *The artifact map* — is
+the largest single addition this slice has made and is what PHASE-01 executes
+against.
+
+### What is now specified that was not
+
+| what | where |
+|---|---|
+| the split's source→destination table, 111 files | `design.md` §5.1, the artifact map |
+| four member manifests, dependency by dependency, with features | same |
+| six `[[test]]` targets by name, path and `main.rs` module list | same |
+| the shared helper `tests/support/driving.rs` and its literal `#[path]` | same |
+| `crates/goad/src/lib.rs`, ten `pub mod` lines | same |
+| which of §9's seventeen validation items runs in which target | same |
+| `SlintGlass` — module, fields, constructor, `impl Glass` — and what a `show`/`hide` failure does | `design.md` §5.3 |
+| `StartupError`'s module and derives | `design.md` §5.4 |
+| `pub fn install`, in `install.rs` | `design.md` §5.4 |
+| `code_of -> Cow<'_, str>`, and `goad-boundary`'s whole public API | `design.md` D13, §5.6 |
+| the 33-row `CASES` array, verbatim from the crate that compiled it | `design.md` §9 item 12.9 |
+| the three `@lingers*` bash arms, and the four success bodies | same |
+| four numeric thresholds and eight STOP conditions, S-1…S-8 | `design.md` §5.5, §8 R2, §9 item 14a |
+| the font: `pkgs.dejavu_fonts` + `makeFontsConf` + `FONTCONFIG_FILE` | `design.md` D12 |
+| the niri `window-rule`, validated | `design.md` §5.4 |
+| the counting rule — four instruments, plus the vocabulary scan, plus one residue — with **one** home | `design.md` §5.1 |
+
+### What was measured this session, and what was only read
+
+Three things were **built or validated**, and all three found something:
+
+| # | measurement | result |
+|---|---|---|
+| 1 | round 4's `f9-schema` scratch crate re-run | still green — `--test table` 8/8, clippy `-D warnings` exit 0. The array is preserved verbatim in §12.9, and its `<A>` placeholder is now documented as a placeholder rather than left to be copied literally |
+| 2 | `makeFontsConf { fontDirectories = [ dejavu_fonts ]; }` evaluated, built, and `fc-list`'d | 39 DejaVu faces; the conf carries the store path as an explicit `<dir>`. It also found the trap: **`buildInputs` alone does nothing** |
+| 3 | `niri validate` on the proposed `window-rule`, niri 26.04 | *config is valid* |
+
+**Four repairs rest on reading**: F-8's `Cow` signature, F-17's `SlintGlass`
+declaration, F-37's artifact map, F-38's four thresholds. The ledger's round-5
+synthesis argues why that is a different bet from round 3's — these are paths,
+numbers and two signatures, all of which fail visibly on the first `cargo build`
+rather than silently — but it is a bet, and it is written down as one.
+
+### The running score, which is this slice's best evidence about itself
+
+| session | measured | wrong |
+|---|---|---|
+| 1 (round 3) | 3 assumptions | 2 |
+| 2 (round 4) | 3 passages built | 3 |
+| 3 (round 5) | 3 artefacts built/validated | 1 (the `buildInputs` trap) — and the other two confirmed |
+
+Six of nine, across three sessions, in text written by agents with the sources
+open. The rate is dropping, which is what convergence looks like, and it is the
+first session where a measurement mostly **confirmed** rather than corrected.
+
+### What is still open
+
+- **The canon decisions are untouched**, for the third session running. Nothing
+  under `docs/specs/`, `docs/policy/` or `docs/adr/` was created or edited.
+  CD-1…CD-7 and `draft-policy.md` still need the user; session 1's handover §4
+  is the list and it is still accurate. **`plan.md` waits on this and on nothing
+  else.**
+- **Round 5's own repairs are unreviewed**, which is the debt every round in this
+  ledger has left and why it stays `open`.
+- **A-4 is still the only assumption the first renderer commit is genuinely
+  for**, and it now has a protocol and three numbered bands rather than the word
+  "tolerable".
+
+### What the next session does first
+
+1. **Put the canon decisions to the user** (session 1's handover §4, unchanged).
+   They are the one thing the autonomy grant withholds.
+2. **Then `plan.md`.** PHASE-01 is the split. Its surface is `design.md` §5.1's
+   artifact map, read top to bottom; its exit is `just check` at 0 and AC-2's
+   content-change list; and the first thing PHASE-02 does after `slint` lands is
+   A-4's timing protocol, because that number decides whether T3 has fired.
+3. **Read §5.5's STOP table (S-1…S-8) into every phase sheet.** It is the list a
+   phase agent needs to recognise a condition it is not allowed to improvise
+   past.
