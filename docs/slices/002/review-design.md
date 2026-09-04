@@ -5,7 +5,7 @@
 **Reviewer:** rounds 1 and 2 — codex, `gpt-5.6-sol`, read-only, briefed for
 implementation feasibility rather than intent.
 **Opened:** 2026-09-05
-**State:** open — twenty-six findings raised over three rounds, all currently
+**State:** open — twenty-seven findings raised over three rounds, all currently
 `verified`. It stays open because round 3's repairs have not themselves been
 reviewed. Round 3 exists because round 2's had not been, and round 2 because
 round 1's had not been; the pattern is the point, and the ledger says so rather
@@ -115,7 +115,11 @@ That reading list was set by round 2's own synthesis, which named them as what i
 had not reached.
 
 It **held ten** of the fourteen round-2 repairs, reopened **four** under their
-original ids — F-6, F-9, F-16, F-17 — and raised **seven** more, F-20…F-26.
+original ids — F-6, F-9, F-16, F-17 — and raised **seven** more, F-20…F-26. An
+eighth, **F-27**, was raised by the responder during the repair of F-22, by
+building the thing rather than reasoning about it; it is recorded under the
+raiser's hat with its measurement, because a defect found while repairing is
+still a defect.
 
 The pattern shifted again, and the shift is worth naming. Round 1 found a design
 written from summaries rather than from source. Round 2 found repairs written at
@@ -166,6 +170,7 @@ fresh disposition and outcome are appended below it.
 | F-24 | major | r3 | — | — | — | — | fix-now | verified |
 | F-25 | minor | r3 | — | — | — | — | fix-now | verified |
 | F-26 | minor | r3 | — | — | — | — | fix-now | verified |
+| F-27 | major | r3 | — | — | — | — | fix-now | verified |
 
 **held** = round 3 audited that repair against the code and did not reopen it.
 The finding's terminal outcome stays the one in its own round's column; "held"
@@ -1592,9 +1597,66 @@ D26; §9 item 17.
 **Outcome:** verified
 
 
+### F-27 — `serve`'s shape does not avoid the lint it was chosen to avoid
+
+**Severity:** major
+**Location:** `design.md` §5.4 `serve`, A-5, D18
+**Raised by:** the responder, wearing the raiser's hat, while repairing F-22 —
+by compiling the loop rather than reasoning about it.
+
+**Expected:** `serve`'s signature is the shape that passes goad's lint table.
+**Observed:** it is not, and the assumption that it was survived two rounds of
+review because the earlier reading tested a `Send` future, against which
+`future_not_send` has nothing to fire.
+
+`clippy::future_not_send` **does** reach a plain `fn` returning an `async` block
+once that future is genuinely `!Send`. Worse, that shape additionally trips
+`clippy::manual_async_fn`, which is in `clippy::all` and therefore `deny`
+(`Cargo.toml:120`). So the signature chosen to avoid one deny-level lint trips
+two, and A-5 — an assumption carried unchanged through rounds 1, 2 and 3 — is
+false.
+
+**Evidence:** a standalone crate of exactly this shape, run offline against
+tokio 1 under `deny(clippy::all)` + `deny(clippy::future_not_send)`
+(`research.md` Thread 7): `fn -> impl Future` with a `Send` future is clean;
+with an `Rc`-bearing `!Send` future it produces **two** errors; `async fn` plus
+one `#[expect(clippy::future_not_send, reason = …)]` is clean **and** the
+expectation is fulfilled, so it self-clears if the situation ever changes.
+
+**Disposition:** fix-now
+**Response:** `serve` becomes an ordinary `async fn` carrying one
+`#[expect(clippy::future_not_send, reason = "the loop owns Rc-bearing Slint
+handles and is driven by slint::spawn_local, which never moves it between
+threads")]`. That is exactly the answer F-16's repair had already specified for
+"if it fires"; what changes is that "if" is now "does". It is the **first** of
+A-2's three permitted expectations outside the generated-code quarantine, and
+A-2's stop rule is updated to say two remain.
+
+A-5 stops being an assumption and becomes a measured fact with a table. D18
+drops the shape from its rationale. `Cancel::stopped()` keeps
+`-> impl Future<Output = ()> + use<>` and trips nothing, because
+`manual_async_fn` fires only when the body *is* a single `async` block and
+`stopped` clones its receiver first — recorded so the next reader does not
+"fix" it.
+
+**What this says about the review, and it is the useful part.** A-5 was listed
+as a *risk knowingly left standing* in two synthesis sections, on the grounds
+that it "is settled by running the gate on the first renderer commit". That was
+true and it was also a way of not finding out: the thing was cheap to measure —
+a scratch crate, minutes — and measuring it changed a signature at the centre of
+the design. Three of the four remaining assumptions (A-2, A-6, A-7) are of the
+same kind. The stated mitigation for all of them is still "the first renderer
+commit", and that is now a weaker answer than it looked.
+
+`design.md` §5.4 `serve`, A-2, A-5, D18; §5.3 `Wire::send` (`try_send`, the
+deadlock the same spike found); `research.md` Thread 7.
+
+**Outcome:** verified
+
+
 ## Synthesis
 
-Twenty-six findings over three rounds — five blockers, eighteen majors, three
+Twenty-seven findings over three rounds — five blockers, nineteen majors, three
 minors — all `fix-now` but two `doc-wrong`, all currently `verified`. No blocker
 outstanding. The ledger does **not** read done: round 3's repairs have not been
 reviewed, and the whole lesson of rounds 2 and 3 is that unreviewed repairs are
@@ -1672,18 +1734,27 @@ those are the ones least likely to rot:
   arithmetic a test can assert** rather than a description two rasterisers could
   both satisfy (F-25).
 
-**Risks knowingly left standing.** A-2 (goad's ~75 unproven lints against
-hand-written renderer code, now including the stderr-outlet spelling and the
-six-clone `install`), A-5 (whether `future_not_send` reaches a `fn` returning
-`impl Future` — now with a site-local answer that counts toward A-2's stop rule),
-A-4 (`just check` wall-clock with 411 crates, ADR-002's T3) and A-6 (a
-conditional on an enum in a `Window.title` binding) are unchanged in kind by any
-round. Round 3 adds **A-7**: §5.2's markup block has every *API* fact cited to
-the Slint compiler's sources, and has not been through `slint_build::compile` as
-a whole. All five are settled by running the gate — or, for A-7, by compiling one
-root `.slint` — on the first renderer commit, and none is answerable from a
-document. A-7 is stated rather than left implicit precisely because F-17 was
-raised twice on markup that read complete.
+**Risks left standing, and one that should not have been.** A-5 was on this
+list for two rounds — "settled by running the gate on the first renderer commit"
+— and it was false. Measuring it cost minutes and changed a signature at the
+centre of the design (F-27). That is the sharpest lesson of round 3, and it
+generalises: *"the first renderer commit will tell us"* is a real mitigation and
+also a way of not finding out, and it should be spent only on things a scratch
+crate cannot reach.
+
+What remains, with that in mind:
+
+| assumption | what it is | can a scratch crate reach it? |
+|---|---|---|
+| **A-2** | ~75 unproven lints against hand-written renderer code — now including the stderr-outlet spelling and the six-clone `install` | **partly**, and cheaply: both of those named instances are ordinary Rust |
+| **A-4** | `just check` wall-clock with 411 crates (ADR-002 T3) | no — needs the real tree |
+| **A-6** | a conditional over an enum in a `Window.title` binding | **yes**, with one `.slint` file |
+| **A-7** | §5.2's markup compiles as a whole; every *API* fact in it is already cited to the Slint compiler's sources | **yes**, with one `.slint` file and `slint_build` |
+
+A-7 is stated rather than left implicit precisely because F-17 was raised twice
+on markup that read complete. Two of the four are answerable before a phase
+starts, and after F-27 the honest recommendation is to answer them rather than
+to carry them.
 
 **The residue that is not a risk but an admission.** No instrument in the gate
 rejects a feature switched on by stratum 2 or 3 in a dependency shared with
@@ -1699,5 +1770,6 @@ three artefacts, but **it has not read its own repairs** — and four of the sev
 new findings are in passages round 3 itself caused to be rewritten from scratch:
 the entry point, the loop body, the failure-matrix schema, the startup strings.
 A round 4 should read exactly those four, plus the two documents this round
-created or restructured: `draft-policy.md`, and `canon-delta.md` CD-5 against
-`design.md` §10 C-5.
+created or restructured — `draft-policy.md`, and `canon-delta.md` CD-5 against
+`design.md` §10 C-5 — and should treat F-27 as its brief: **every remaining
+assumption that a scratch crate could settle, and has not.**

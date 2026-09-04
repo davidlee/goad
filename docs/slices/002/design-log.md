@@ -1070,3 +1070,42 @@ open.*
   would leave the slice unable to make its first call; and leaving the non-goal
   standing as an unremarked contradiction, which `docs/AGENTS.md` explicitly
   forbids — a design change obliges revising the slice for consistency.
+
+### 2026-09-05 — Round 3: the loop was built, and it changed `serve`'s signature
+
+*Autonomy grant. Review round 3, F-22's repair, which produced F-27.*
+
+- **Asked:** F-22's repair specifies a `Pending` enum and one `async` block
+  raced against cancellation. The borrow analysis was reasoned. Is it right?
+- **Decided:** build it. A standalone crate reproduced the loop shape —
+  `Cancel` over `watch`, an `mpsc::Receiver`, `Pending`, an `Rc`-bearing glass
+  presented across the loop, both `select!`s `biased` — and ran offline against
+  tokio 1 (`research.md` Thread 7).
+- **What held:** the borrow (released by `break`, so `Served { host, .. }` after
+  the loop compiles); cancellation dropping the exchange (under 9 ms against a
+  10 ms exchange, nothing folded); the level-held `Cancel`; and F-21's `busy`
+  returning to false.
+- **What did not, and is the reason this entry exists:** A-5. Under
+  `deny(clippy::all)` + `deny(clippy::future_not_send)`, the plain-`fn`-
+  returning-`impl Future` shape produces **two** errors once the future is
+  really `!Send` — `future_not_send`, which A-5 assumed it dodged, and
+  `manual_async_fn`, which nobody had considered and which `clippy::all` denies.
+  `async fn` plus one `#[expect(clippy::future_not_send, reason = …)]` is clean
+  and the expectation is fulfilled. So `serve` is an `async fn`, and that
+  expectation is the first of A-2's three.
+- **Why the assumption survived three rounds:** the earlier reading measured a
+  `Send` future, against which the lint has nothing to fire. A vacuous
+  measurement, in a lint costume —
+  `docs/memory/a-bound-is-not-tested-at-the-bound.md` in yet another form.
+- **Also found, by hitting it:** a capacity-1 channel with `send().await`
+  deadlocks a producer that runs before the loop. Production never does this,
+  but it pins a requirement the design had only implied: `Wire::send` is
+  `try_send`, never `send().await`, because a Slint callback is synchronous and
+  on the UI thread.
+- **The generalisable lesson, recorded because it should change what the next
+  round does:** "settled by running the gate on the first renderer commit" is a
+  real mitigation and also a way of not finding out. A-5 sat on the
+  risks-left-standing list for two rounds and was false; measuring it cost
+  minutes and moved a signature at the centre of the design. Of the four
+  remaining assumptions, A-6 and A-7 are reachable by one `.slint` file and
+  should be measured before a phase starts rather than carried into one.

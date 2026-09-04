@@ -747,6 +747,13 @@ impl Wire {
   /// `Full` writes `diagnostics::BUSY_NOTICE` to the window's `notice` property
   /// through the weak handle.
   ///
+  /// **It is `try_send`, never `send().await`.** A Slint callback is
+  /// synchronous and runs on the UI thread; an awaiting send on a full
+  /// capacity-1 channel would block that thread against a loop that is not
+  /// reading — measured as a deadlock while building the loop spike
+  /// (`research.md` Thread 7). `Full` is the case the notice exists for, and it
+  /// only exists because the send does not wait.
+  ///
   /// **`Closed` does nothing, deliberately** (F-20). It is not reachable while
   /// there is anything to serve: `Wire` holds a `Sender`, so the channel is
   /// closed only when the **receiver** is gone, and the receiver is owned by
@@ -1176,20 +1183,37 @@ pub struct Served<B: Backend, G: Glass> {
 /// the identical call under `block_on` (D9). There is no second implementation
 /// of the loop and no test-only harness for it.
 ///
-/// A plain fn returning `impl Future`, not an `async fn`: the future holds
+/// An ordinary `async fn` carrying **one** narrow expectation. The future holds
 /// `Rc`-bearing Slint handles and can never be `Send`, and `future_not_send` is
-/// `deny` (`Cargo.toml:197`, A-5).
+/// `deny` (`Cargo.toml:197`), so the lint fires — **measured**, not assumed
+/// (A-5, F-27). The plain-`fn`-returning-`impl Future` shape an earlier draft
+/// chose to dodge it does not dodge it, and costs a second denied lint:
+/// `clippy::manual_async_fn` is in `clippy::all`, which is `deny`
+/// (`Cargo.toml:120`), and it fires on exactly that shape when the body is a
+/// single `async` block. One `expect` on an `async fn` is strictly cheaper than
+/// one `expect` on a `fn` plus a second for the shape.
+///
+/// ```rust
+/// #[expect(
+///   clippy::future_not_send,
+///   reason = "the loop owns Rc-bearing Slint handles and is driven by \
+///             slint::spawn_local, which never moves it between threads"
+/// )]
+/// ```
+///
+/// This is the **first** of A-2's three permitted expectations outside the
+/// generated-code quarantine.
 ///
 /// Everything is taken by value because `slint::spawn_local` needs a `'static`
 /// future, and handed back in `Served` so a test can read what it did.
-pub fn serve<B, G>(
+pub async fn serve<B, G>(
   host: Host<B>,
   controller: Controller,
   commands: mpsc::Receiver<Command>,
   cancel: Cancel,
   clock: Clock,
   glass: G,
-) -> impl Future<Output = Served<B, G>>
+) -> Served<B, G>
 where
   B: Backend + 'static,
   G: Glass + 'static;
@@ -1282,6 +1306,16 @@ let ending = loop {
 };
 Served { ending, host, controller, glass }
 ```
+
+**All of this is measured, not reasoned.** The shape above — a `Cancel` over
+`watch`, an `mpsc::Receiver`, this `Pending` enum, and an `Rc`-bearing glass
+presented across the loop — was built as a standalone crate and run
+(`research.md` Thread 7). Three properties hold: the `async` block's mutable
+borrow of `host` is released by `break`, so `Served { host, .. }` after the loop
+compiles; tripping `Cancel` mid-exchange returns `Served` with nothing folded, in
+under 9 ms against a 10 ms exchange, so the exchange future is dropped rather
+than awaited; and a `Cancel` tripped *before* the first `stopped()` await still
+ends the loop, which is the level-held property.
 
 Three things about that shape, each a choice the placeholder left to the
 implementer (F-22).
@@ -2164,7 +2198,8 @@ above draws, and the two statements are required to agree.
   never a crate-level `[lints]` override (D8). **Stop rule:** the third distinct
   lint needing an `expect` outside the generated-code quarantine is not an
   implementation detail; it is the table being wrong for this stratum, and it
-  stops the phase.
+  stops the phase. **One is already spent**: `clippy::future_not_send` on
+  `serve`, measured rather than predicted (A-5, F-27). Two remain.
 - **A-3.** `with_debug_info` is `#[doc(hidden)]` and depended on. The
   environment-variable fallback is worse, not safer. If it disappears in a Slint
   upgrade, the guard test (below) fails rather than the suite going quiet.
@@ -2172,23 +2207,26 @@ above draws, and the two statements are required to agree.
   run it in the goad tree; the spike's own gate was 36 s wall, 4m28s user. The
   six-command gate now runs clippy over the Slint tree in one column instead of
   two, which helps. This is ADR-002's T3 and it is currently borderline.
-- **A-5.** `clippy::future_not_send` (deny, `Cargo.toml:197`) does not reach
-  `serve`. Research measured the lint as live and as *not* reaching the inline
-  `async {}` handed to `spawn_local` (`research.md:536-540`); the lint inspects
-  `async fn` items, so `serve` is a plain `fn` returning `impl Future`. That is
-  unproven for a `fn` item returning an `async` block. **If it fires, the answer
-  is A-2's answer**, because this is an instance of A-2 and not an exception to
-  it: the narrowest `#[expect(clippy::future_not_send, reason = …)]` that works —
-  on `serve` itself, whose future is `!Send` by construction because it owns
-  `Rc`-bearing Slint handles and is driven by `spawn_local`, which never moves it
-  between threads. It **counts toward A-2's three-exception stop rule**, and a
-  crate-level `[lints]` override is not available: D8 requires
-  `lints.workspace = true` and nothing else in every member, and A-2 already
-  forbids a crate table in the same breath. The earlier wording pointed at a
-  crate-level override and contradicted both (F-16, second raising). If a
-  site-local `expect` genuinely will not do, that is not an implementation
-  detail — it is D8 and AC-1 being wrong for this stratum, and it stops the
-  phase.
+- **A-5 is no longer an assumption. It is measured, and it came out the other
+  way** (F-27). `clippy::future_not_send` **does** reach `serve`, and the
+  plain-`fn`-returning-`impl Future` shape does not dodge it. Measured on a
+  standalone crate of exactly this shape — a `Cancel` over `watch`, an
+  `mpsc::Receiver`, a `Pending` enum, an `Rc`-bearing glass held across the
+  awaits, under `deny(clippy::all)` and `deny(clippy::future_not_send)`:
+
+  | shape | result |
+  |---|---|
+  | `fn serve(..) -> impl Future`, future **is** `Send` | clean — which is why the earlier reading looked settled: the lint had nothing to fire on |
+  | `fn serve(..) -> impl Future`, future `!Send` | **two errors** — `future_not_send` *and* `manual_async_fn`, the latter from `clippy::all` |
+  | `async fn serve(..) -> Served` + one `#[expect(future_not_send, reason)]` | clean, and the expectation is **fulfilled** |
+
+  So `serve` is an ordinary `async fn` carrying one expectation, and it is the
+  **first** of A-2's three. A crate-level `[lints]` override remains unavailable:
+  D8 requires `lints.workspace = true` and nothing else in every member, and A-2
+  forbids a crate table in the same breath — the wording that pointed at one was
+  F-16's second raising. `Cancel::stopped` keeps its `-> impl Future` shape and
+  trips nothing, because `manual_async_fn` fires only when the body is a single
+  `async` block and `stopped` clones its receiver first.
 - **A-6.** `Window.title` can be bound to a conditional over a `WindowMode`
   property in `.slint`. Unmeasured. If it must be set from Rust, the two title
   literals move into `diagnostics.rs` beside the other user-visible strings;
@@ -2694,9 +2732,12 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   tiers call.** A level-held `Cancel` over `tokio::sync::watch::<bool>` is
   separately pollable, so the loop selects on it both while idle and while
   awaiting an exchange; `Command` therefore has no `Shutdown` variant. `serve`
-  holds the whole loop and is taken by value, so production wraps it in one
-  `spawn_local` block and the cheap tier drives the identical call under
-  `block_on`. *Rejected:* `Shutdown` as a queued command (the loop cannot receive
+  holds the whole loop and takes everything by value, so production wraps it in
+  one `spawn_local` block and the cheap tier drives the identical call under
+  `block_on`. It is an ordinary `async fn` carrying one
+  `#[expect(clippy::future_not_send, reason = …)]`, because the plain-`fn`-
+  returning-`impl Future` shape chosen to avoid that lint does not avoid it and
+  costs a second denied lint (A-5, F-27). *Rejected:* `Shutdown` as a queued command (the loop cannot receive
   it while awaiting an exchange, which is the one moment it must be heard — F-4);
   a bare `Notify` (a waiter arriving after the trip never completes);
   `tokio_util::sync::CancellationToken` (a new dependency — a hard stop); a loop

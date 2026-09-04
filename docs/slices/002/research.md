@@ -1104,3 +1104,64 @@ Honest gaps. Each names how it would be settled.
   workspace member: whether `slint_build::compile("ui/main.slint")` resolves
   relative to the member (it uses `CARGO_MANIFEST_DIR`, so it should) and what
   411 crates do to workspace feature unification.
+
+---
+
+## Thread 7 — the `serve` loop, built and run (added at review round 3)
+
+Added during round 3's repair of F-22, and it refuted an assumption two rounds
+of review had left standing. A standalone crate reproducing the design's exact
+loop shape — `Cancel` over `tokio::sync::watch::<bool>`, an `mpsc::Receiver`, the
+`Pending` enum, an `Rc`-bearing glass presented across the loop, and both
+`select!`s `biased` — compiled and run offline against tokio 1.
+
+**The borrow holds** ✓. The `async` block's mutable borrow of `host` is released
+by `break`, so `Served { ending, host, controller, glass }` after the loop
+compiles. `select!` binding the exchange future in one arm while the other arm's
+handler takes `&mut controller` is accepted: they are different locals.
+
+**Cancellation drops the exchange** ✓. Tripping `Cancel` 1 ms into a 10 ms
+exchange returns `Served { ending: Stopped, .. }` with nothing folded, in under
+9 ms. The un-polled branch's future is dropped by `select!`.
+
+**The level-held property holds** ✓. A `Cancel` tripped *before* `stopped()` is
+first awaited still ends the loop on the first iteration, with zero backend
+calls — the failure mode a bare `Notify` has.
+
+**`busy` returns to `false`** ✓, with the clear in `absorb` (F-21).
+
+### The lint result, which is the part that changed the design
+
+Under `#![deny(clippy::all)]` + `#![deny(clippy::future_not_send)]`, matching
+goad's table for these two:
+
+| shape | result |
+|---|---|
+| `fn serve(..) -> impl Future`, future **is** `Send` | clean |
+| `fn serve(..) -> impl Future`, future `!Send` | **2 errors** — `future_not_send` **and** `clippy::manual_async_fn` |
+| `async fn serve(..) -> Served` + one `#[expect(clippy::future_not_send, reason = …)]` | clean, expectation **fulfilled** |
+
+Two consequences:
+
+1. **`future_not_send` does reach a `fn` returning an `async` block.** A-5
+   assumed it did not. The earlier reading looked settled because the future
+   under test was `Send` and the lint had nothing to fire on — the same
+   vacuous-assertion shape `docs/memory/a-bound-is-not-tested-at-the-bound.md`
+   describes, in a lint costume.
+2. **The dodge costs a second denied lint.** `clippy::manual_async_fn` is in
+   `clippy::all`, which goad denies, and it fires on a `fn` returning a single
+   `async` block. So the shape chosen to avoid one deny-level lint trips two.
+
+`Cancel::stopped()` keeps `-> impl Future<Output = ()> + use<>` and trips
+nothing: `manual_async_fn` fires only when the body *is* a single `async` block,
+and `stopped` clones its receiver first.
+
+### One deadlock, found by hitting it
+
+The first spike harness pre-loaded two commands into a capacity-1 channel with
+`send().await` before running the loop, and hung on the second send. Production
+never does this — `main` sends once and callbacks use `try_send` — but it pins a
+requirement the design had only implied: **`Wire::send` must be `try_send`,
+never `send().await`.** A Slint callback is synchronous and on the UI thread; an
+awaiting send against a loop that is not reading would block the thread the loop
+needs. `Full` is only reportable because the send does not wait.
