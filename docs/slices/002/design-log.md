@@ -1591,3 +1591,56 @@ reconciled.*
   claim is replaced, for the purpose of every phase, by the one that is true and
   load-bearing: **`glass.rs` is the only file that reads or writes a generated
   component's properties.** No phase may treat the wider claim as a constraint.
+
+### 2026-09-05 — the artifact map is repaired against the real tree, and only against the real tree
+
+- **Asked:** the plan's adversarial review (`review-plan.md`, round 1) walked
+  `git ls-files` rather than `research.md` and found §5.1's artifact map wrong in
+  seven places. Does the map get amended mid-slice, against `docs/AGENTS.md:137`
+  and this slice's own rule that `design.md` is a record of intent?
+- **Decided:** yes, for the map and nothing else. §5.1 exists so that no phase
+  invents a file name (F-37); a map that is wrong about the tree does not record
+  an intent, it records a measurement that was taken somewhere else. Seven rows
+  and one paragraph are corrected, each from a command run on this branch:
+  - the totals. The dry run's **111 renames / 91 byte-identical / 77 fixtures /
+    14 scripts** (`research.md:775-781`) is arithmetically impossible here.
+    `git ls-files tests/protocol/fixtures | wc -l` → **88**;
+    `git ls-files tests/backends | wc -l` → **15**; both hold at `ba6fb16`,
+    `a6ae617` and `24b1c3e`, so the dry run's tree is not this branch's. And the
+    backend scripts **cannot be renames of any similarity index**, because the
+    map's own row sends them to the path they already occupy. The byte-identical
+    renames the split produces are the 88 fixtures and nothing else. The total is
+    now derived from the rows (~115) rather than asserted.
+  - `Cargo.lock` gains a row. It is tracked, the split rewrites it, and it was in
+    no row — so the backward map walk would have fired S-6 on cargo's own output.
+  - `tests/protocol/{main,normalize,runner}.rs` — "the fixture-path constant" is
+    **three** constants in two files, one per corpus.
+  - `transport_shape.rs` — the destination is `tests/shape/transport_shape.rs`
+    with a **new** `main.rs` beside it, not `main.rs` itself; and the permitted
+    change includes the three subject-path constants (`:32`, `:257`, `:276`),
+    which are data joined to `CARGO_MANIFEST_DIR`, not imports.
+  - `tests/integration/*.rs` — `round_trip.rs:49` carries an `include_str!`,
+    which resolves against the source file and must be re-rooted.
+  - `harness.rs` — `example()` (`:207`) carries a second `examples/`
+    re-rooting.
+  - the `goad` member row — it names `jiff` and `serde_json` directly
+    (`clock.rs`, `Stimulus::event`, and the shared `driving.rs`), and a
+    transitive dependency is not in the extern prelude. Both are already in
+    `[workspace.dependencies]`, so this is not an S-8 dependency addition, and
+    the design now says so rather than leaving PHASE-03 to decide.
+- **Why:** the standing brief's own lesson. An assumption a command can reach
+  should be reached before a phase starts. Every one of these was reachable by
+  `git ls-files` or `grep` at any point in five review rounds, and five rounds of
+  reading produced none of them. Repairing the map is measurement, not a sixth
+  round.
+- **Rejected:** leaving the map as written and carrying all seven as DF entries
+  in `plan.md`. That is the right treatment for a design *judgement* the plan
+  departs from; it is the wrong treatment for a count that is false. A DF entry
+  says "the design stands as written" — here it does not stand, and PHASE-01
+  would have executed against numbers it could not meet.
+- **Consequence:** §5.1 is the only section touched. §5.6's `pub struct Scan`
+  (which needs a `#[derive(Debug)]` it does not have), §12.8's two helper lists
+  (which do not partition `harness.rs`), and §5.5's A-2 / S-1 disagreement about
+  the expectation budget are **not** repaired: each is a design judgement or an
+  internal inconsistency rather than a false measurement, and each is carried as
+  a DF entry in `plan.md` for the audit's *Design drift not reconciled*.

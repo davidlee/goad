@@ -204,3 +204,107 @@ The findings themselves are `plan.md`'s DF-1, DF-2 and DF-3.
   a stated reason. If `dead_code` fires anyway despite `start` constructing every
   variant, that is PHASE-08's **PS-4** stop, because the fix would be a design
   question rather than a phase's.
+
+### 2026-09-05 — PL-9: `boundary.rs`'s PHASE-01 destination is stated, not discovered
+
+- **Asked:** `review-plan.md` F-10. §5.1's map row for the one file it marks
+  *substantively rewritten* gives its destination as "`crates/goad-boundary/`,
+  split across `src/` and `tests/` — below". "Below" is §5.6's three-module API,
+  which is PHASE-02's shape. So PHASE-01/EX-3's forward walk had nothing to check
+  for the row it matters most for, and PHASE-01 would have invented a file layout
+  inside `crates/goad-boundary/src/` — the class of decision §5.1 exists to
+  prevent (F-37).
+- **Decided:** PHASE-02's shape **minus `manifest.rs`**, which needs a `toml`
+  PHASE-01 does not have. `src/lib.rs` declares `pub mod scan;` and nothing else.
+  `src/scan.rs` carries today's `Scan`, `Breach`, `mentions`, `report` and
+  `Scan::run`, changed only as PHASE-01/EX-5c permits. `tests/checks/` carries
+  `main.rs`, `vocabulary.rs` and `direction.rs`.
+- **Why:** PHASE-02/EX-1 is then a restructure of a known starting point — add
+  `members.rs`, add `manifest.rs`, move `code_of` in — rather than a discovery.
+  And a two-module `src/` at PHASE-01 is honest about what exists: there is no
+  allowlist yet, so there is no `manifest.rs` to put an empty file in.
+- **Rejected:** a single `src/lib.rs` that PHASE-02 splits — it makes PHASE-02's
+  first act a file split rather than a feature, and it puts the D17 division the
+  map calls for at PHASE-02 instead of PHASE-01. Also rejected: creating an empty
+  `manifest.rs` to match §5.6 exactly, which is a module with no content and no
+  test, i.e. a vacuous shape.
+- **Consequence:** PHASE-01/EX-3 has a destination to check for this row, and
+  PHASE-02/EX-1's "declares exactly three modules" is a change to a known two.
+
+### 2026-09-05 — PL-10: PHASE-07 splits at the seam its own objective states; the second half is PHASE-10
+
+- **Asked:** `review-plan.md` F-12. PHASE-07 as written landed `glass.rs`,
+  `install.rs`, the second half of `wire.rs` (`Wire`, `Cancel`, a hand-written
+  `Debug`, back-pressure) **and** the whole `serve` loop with `select! { biased; }`
+  in two places, then discharged thirteen verification groups including a
+  real-process reducer walk, R-33 staleness with a negative control, back-pressure,
+  two simultaneous-ready races, a 250 ms latency measurement and two
+  break-and-revert transcripts. The plan's own Size paragraph named PHASE-01,
+  PHASE-06 and PHASE-08 as the heavy sessions and did not name it.
+- **Decided:** split at the seam the objective already stated. PHASE-07 keeps
+  `glass.rs`, `install.rs` and `wire.rs`'s `Wire` / `Cancel` — items 11e, 11f,
+  11g, 11i. **PHASE-10** takes `serve` and cancellation — items 11a–d, 11h,
+  14a–d. Ids are immutable and are never renumbered (`plan.md`'s own preamble
+  anticipates this), so PHASE-10 executes between PHASE-07 and PHASE-08 and
+  PHASE-08/EN-1 names it.
+- **Why:** a phase that overruns is a phase whose bookkeeping is done badly at
+  the end, and this one had the highest verification density in the plan. The
+  seam is real rather than arbitrary: everything in PHASE-07 is what `serve`
+  composes, and PHASE-10's entry criterion is mechanical — those five items exist
+  and the gate is green.
+- **Rejected:** naming PHASE-07 a fourth heavy session and saying what gets
+  dropped if it overruns. Nothing in it is droppable: every VT is an acceptance
+  criterion's only evidence, and "drop something" is a concession
+  `docs/AGENTS.md` §Execute forbids an agent to make alone.
+- **Consequence:** ten phases, non-monotonic order, and one stated cost — `Wire`
+  and `Cancel` land at PHASE-07 with no production consumer until PHASE-10.
+  `crates/goad` is a library (D28), so `dead_code` does not fire on `pub` items;
+  PHASE-07's notes say so rather than leaving it to be discovered.
+
+### 2026-09-05 — PL-11: the member manifest skeleton is written out once
+
+- **Asked:** `review-plan.md` F-28. PHASE-01's notes *offered* `publish = false`
+  two ways ("on every member, or once in `[workspace.package]`"), called
+  `edition`, `version`, `license` and `repository` "worth inheriting", and said
+  nothing at all about the root's `description`, `keywords`, `categories` and
+  `readme` — in the one place `clippy::cargo` at `deny` bites, and where under
+  `CLAUDE.md` invariant 1 a member `description` is a place domain vocabulary
+  could enter a file no scan reads.
+- **Decided:** PHASE-01/EX-8a writes the skeleton out key for key, the way §5.6
+  writes `goad-boundary`'s API out once so no phase invents a signature. Five
+  keys inherited from `[workspace.package]` — `version`, `edition`, `license`,
+  `repository`, `publish` — with `publish = false` stated **once**. No member
+  carries `description`, `keywords`, `categories` or `readme`.
+- **Why:** `publish = false` is what silences `cargo_common_metadata`
+  (`Cargo.toml:12-15`, measured in slice 001), so the metadata keys buy nothing
+  and cost an unscanned surface. Inheriting once beats repeating four times
+  across four members.
+- **Rejected:** carrying the root's metadata into `goad` alone as "the real
+  package". Nothing is published; it would be the only member shaped differently,
+  for no gain.
+- **Consequence:** PHASE-03/EX-3 and PHASE-08's manifest work both cite EX-8a
+  rather than restating keys.
+
+### 2026-09-05 — PL-12: `boundary.rs`'s three member scans are one `#[test]` over three `Scan`s
+
+- **Asked:** `review-plan.md` F-26. PHASE-01/VT-1 asked that
+  `cargo test --workspace` run "the same total number of tests as the pre-split
+  tree", while PHASE-01's own notes had `boundary.rs`'s two configured scans
+  become three. Whether the count moves depends on a shape nobody had chosen, and
+  a count equality is defeated by any legitimate change and satisfied by an
+  illegitimate one that balances.
+- **Decided:** two things. The criterion becomes a **set equality over test
+  names** — `cargo test --workspace -- --list` after, diffed against the two
+  pre-split `--list` runs, module prefixes stripped. And the shape is settled:
+  **one `#[test]` iterating three `Scan`s**, so `boundary.rs` stays at five test
+  functions.
+- **Why:** the property VT-1 is proxying is "no test file silently failed to be
+  re-declared in its new `main.rs`". A name-set diff states that directly,
+  catches a missing `mod`, and tolerates a deliberate split. Settling the shape as
+  well means the diff has nothing legitimate to absorb at PHASE-01 — the cheapest
+  possible first run of the check.
+- **Rejected:** three `#[test]` functions, one per member, which reads better in
+  a failure line but multiplies the R7 shape PHASE-02 immediately retires;
+  `Breach` carries the path, so a failure names the member either way.
+- **Consequence:** PHASE-01/VT-1 is a diff of two command outputs rather than two
+  numbers, and PHASE-02/EX-6 replaces the whole thing with enumeration anyway.

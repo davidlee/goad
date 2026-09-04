@@ -295,14 +295,25 @@ because a phase that has to invent a file name has to invent a module boundary
 with it, and that is a design decision taken by whoever happens to type first
 (F-37). Nothing below is discovered at execution time.
 
-**The split: source → destination.** The dry run recorded 111 renames, 91 of
-them byte-identical, and exactly one file with a substantive content change
-(`research.md:779-800`). AC-2 obliges an argument for any content change beyond
-the "change permitted" column.
+**The split: source → destination.** Counted against this branch rather than
+against the dry run (plan review F-1, F-17). `tests/protocol/fixtures/` holds
+**88** files and `tests/backends/` **15**, at every commit on this branch. The
+byte-identical (`R100`) renames the split produces are **the 88 fixtures and
+nothing else**: the backend scripts do not move, because the row below sends
+them to the path they already occupy. The total is **derived from the rows, not
+asserted** — 15 from `src/` (16 files, `lib.rs` deleted), the 88 fixtures, 3
+protocol `.rs`, `transport_shape.rs`, `boundary.rs`, and 7 under
+`tests/integration/`, so about 115, exact only once git has resolved the two
+rows that split one file into two. The dry run's 111 / 91 / 77 / 14
+(`research.md:775-781`) was measured on a tree this branch never had; it is not
+a number to hold a phase to. Exactly one file has a substantive content change.
+AC-2 obliges an argument for any content change beyond the "change permitted"
+column.
 
 | from | to | change permitted |
 |---|---|---|
 | `Cargo.toml` | `Cargo.toml` — a `[workspace]` root — plus four member manifests | rewritten; it stops being a package |
+| `Cargo.lock` | `Cargo.lock` | rewritten **by cargo** — the one `goad` package becomes three. It is tracked, it is manifest-derived, and it is not a rename; it is here so a map walk does not read it as an undeclared path |
 | `src/lib.rs` | *deleted* | its twelve lines are the feature-gated module tree, which crate edges replace |
 | `src/semantics/mod.rs` | `crates/goad-semantics/src/lib.rs` | the `mod` list |
 | `src/semantics/{error,schedule}.rs` | `crates/goad-semantics/src/{error,schedule}.rs` | imports |
@@ -310,13 +321,13 @@ the "change permitted" column.
 | `src/shell/mod.rs` | `crates/goad-shell/src/lib.rs` | the `mod` list; every `#[cfg(feature = "shell")]` goes |
 | `src/shell/{config,error,host,state}.rs` | `crates/goad-shell/src/…` | `crate::semantics::` → `goad_semantics::` |
 | `src/shell/backend/{mod,process,transport}.rs` | `crates/goad-shell/src/backend/…` | the same |
-| `tests/protocol/{main,normalize,runner}.rs` | `crates/goad-semantics/tests/protocol/…` | the fixture-path constant, which now resolves through `CARGO_MANIFEST_DIR/../../tests/fixtures` |
-| `tests/protocol/fixtures/**` (77 files) | `tests/fixtures/**`, at the workspace root | none — byte-identical. This is CD-4 |
-| `tests/protocol/transport_shape.rs` | `crates/goad-shell/tests/shape/main.rs`, as `#[cfg(test)] mod transport_shape;` beside it | imports. It names a stratum 2 source and cannot stay in a stratum 1 target (`research.md:798-804`) |
+| `tests/protocol/{main,normalize,runner}.rs` | `crates/goad-semantics/tests/protocol/…` | **the three** fixture-path constants — `normalize.rs:266` (`…/protocol`), `normalize.rs:273` (`…/protocol-text`) and `runner.rs:332` (`…/schedule`) — each of which now resolves through `CARGO_MANIFEST_DIR/../../tests/fixtures`. Three corpora, three constants; one missed leaves a corpus unrun |
+| `tests/protocol/fixtures/**` (88 files) | `tests/fixtures/**`, at the workspace root | none — byte-identical. This is CD-4 |
+| `tests/protocol/transport_shape.rs` | `crates/goad-shell/tests/shape/transport_shape.rs`, with a **new** `crates/goad-shell/tests/shape/main.rs` beside it carrying `#[cfg(test)] mod transport_shape;`. The `main.rs` is an added file, not this rename's destination | imports, **and the three subject-path constants**: `:32`, `:257` and `:276` name `src/shell/…`, and from `crates/goad-shell` the `shell/` segment is gone — `src/backend/process.rs`, `src/backend/process-renamed.rs`, `src/error.rs`. They are data joined to `CARGO_MANIFEST_DIR` (`:104`, `:126`), not imports, and if they are missed the file's own vacuity guard is all that stands between the split and a silently-passing shape check. It names a stratum 2 source and cannot stay in a stratum 1 target (`research.md:798-804`) |
 | `tests/protocol/boundary.rs` | `crates/goad-boundary/`, split across `src/` and `tests/` — below | **substantively rewritten.** The one file AC-2 obliges an argument for; D13, D17 and two new scans are the argument |
-| `tests/integration/{main,fake,host,round_trip,transport,failure_matrix}.rs` | `crates/goad-shell/tests/integration/…` | imports |
-| `tests/integration/harness.rs` | splits — the host-driving half to `tests/support/driving.rs` at the workspace root, the rest stays as `crates/goad-shell/tests/integration/harness.rs` | §12.8 states the cut |
-| `tests/backends/*.sh` (14 files) | `tests/backends/*.sh`, at the workspace root | none, except `answers-as-instructed.sh`, which gains the three `@lingers*` arms §12.1 writes out |
+| `tests/integration/{main,fake,host,round_trip,transport,failure_matrix}.rs` | `crates/goad-shell/tests/integration/…` | imports, **and `round_trip.rs:49`'s `include_str!` argument**: `include_str!` resolves against the source file, so `../../examples/typescript/README.md` becomes `../../../../examples/typescript/README.md`. `transport.rs` additionally gains a `use` line for `CLEANUP_LIMIT`, which §12.8 moves out of it |
+| `tests/integration/harness.rs` | splits — the host-driving half to `tests/support/driving.rs` at the workspace root, the rest stays as `crates/goad-shell/tests/integration/harness.rs` | §12.8 states the cut, and the plan states it item by item because §12.8's two lists do not partition the file. Also `example()`'s path constant (`:207`): `examples/typescript/backend.ts` becomes `../../examples/typescript/backend.ts` |
+| `tests/backends/*.sh` (15 files) | `tests/backends/*.sh`, at the workspace root — **the same path. These are not renames and must not appear in a rename walk at all** | none, except `answers-as-instructed.sh`, which gains the three `@lingers*` arms §12.1 writes out |
 | `justfile`, `clippy.toml`, `rustfmt.toml`, `flake.nix`, `examples/**` | unchanged paths | `justfile` loses a command and a clippy column (§5.6); `flake.nix` gains the font (§5.5); the rest unchanged |
 
 **The four members, and who owns which dependency.** `[workspace.dependencies]`
@@ -337,8 +348,19 @@ member writes `lints.workspace = true` and nothing else (D8). Each member sets
 |---|---|---|---|---|
 | `goad-semantics` | `jiff` (`default-features = false`), `serde` (`derive`), `serde_json` | — | — | none |
 | `goad-shell` | `goad-semantics`, `jiff`, `serde`, `serde_json`, `tokio` (`process`, `time`, `rt`, `io-util`, `macros`), `toml` | — | — | none — the `shell` feature is retired, not relocated |
-| `goad` | `goad-semantics`, `goad-shell`, `slint`, `tokio` (`rt-multi-thread`, `sync`) | `slint` with its testing feature | `slint-build` | none |
+| `goad` | `goad-semantics`, `goad-shell`, `jiff`, `serde_json`, `slint`, `tokio` (`rt-multi-thread`, `sync`) | `slint` with its testing feature | `slint-build` | none |
 | `goad-boundary` | `toml` | — | — | none |
+
+`goad` names `jiff` and `serde_json` **directly**, and they are in its row for
+that reason and not by inheritance: a transitive dependency is not in the extern
+prelude. `clock.rs` writes `jiff::Timestamp::from_nanosecond` and
+`ClockError::OutOfRange(jiff::Error)`; `Stimulus::event` builds
+`Event { … data: Value::Null }` (`canonical.rs:495` types `data` as
+`serde_json::Value`); and `tests/support/driving.rs`, which the `renderer`
+target includes, carries `DEFAULT_POLL: jiff::SignedDuration`, `instant() ->
+jiff::Timestamp` and `serde_json::json!`. Both are already in
+`[workspace.dependencies]`, so a `{ workspace = true }` entry adds nothing to
+the graph and **S-8 does not fire** (plan review F-4).
 
 `goad-boundary` depends on **no** member: it reads manifests and sources as
 text, which is what lets it scan every stratum without reaching up into one

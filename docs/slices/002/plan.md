@@ -13,17 +13,21 @@ design or canon; if it seems to, the plan is wrong.
 
 ## Overview
 
-Nine phases take the repository from one crate with no renderer to a workspace of
+Ten phases take the repository from one crate with no renderer to a workspace of
 four members whose stratum 3 draws a `choice` view, answers it, reports every
 failure in SPEC-001's taxonomy, and stops without waiting for an exchange it has
-abandoned.
+abandoned. **They run in the order 01, 02, 03, 04, 05, 06, 07, 10, 08, 09.**
+PHASE-10 is PHASE-07 split in two at the seam its own objective states
+(review-plan F-12, PL-10); phase ids are immutable, so the sequence goes
+non-monotonic and that is expected.
 
 The spine is D1: **the split lands first and alone, on a tree with no renderer in
 it.** PHASE-01 is that split and nothing else. PHASE-02 rebuilds the
 workspace-wide invariant checks the split displaces. PHASE-03 puts `slint` in the
 dependency graph for the first time. PHASE-04 through PHASE-08 build stratum 3
-inward-out — the pure functions first, the loop next, the process entry point
-last. PHASE-09 is the documentary close-out the slice owes before audit.
+inward-out — the pure functions first, the glass, then the loop, and the process
+entry point last. PHASE-09 is the documentary close-out the slice owes before
+audit.
 
 Six things are established early and hold for every phase after.
 
@@ -58,17 +62,23 @@ Six things are established early and hold for every phase after.
 6. **The lint shapes are applied, not rediscovered.** `design.md` §5.4's *The
    shapes the lint table requires* is nine rules measured against the real table,
    plus §9's two rules for test targets. A phase reads that table before it writes
-   renderer code; A-2's expectation budget is **three, all unspent**, and the
-   third distinct `#[expect]` outside the generated-code quarantine is S-1.
+   renderer code. **A-2's expectation budget is two spendable**, stated
+   arithmetically because the design states it twice and differently: §5.5's S-1
+   fires on the **third** distinct `#[expect]` outside the generated-code
+   quarantine and says "Two remain unspent", while §5.5's A-2 prose says "three
+   remain". The stop's trigger governs — two may be spent, the third stops the
+   phase (DF-7).
 
 ## Sequencing & rationale
 
 **Why the split is alone.** D1. Every measurement behind it was taken on a tree
 with no renderer; putting the split's failures and the renderer's failures in one
 diff leaves no way to tell them apart. It is also the cheapest audit available of
-the least-audited passage in the design: §5.1's artifact map states 111 renames
+the least-audited passage in the design: §5.1's artifact map states ~115 renames
 file by file, and executing it either succeeds or fails loudly on the first
-`cargo build`. PHASE-01's exit criteria are written to **catch a wrong map**
+`cargo build`. Round 1 of `review-plan.md` walked that map against
+`git ls-files` and found seven rows wrong; the map is repaired, and the totals it
+now carries are derived by command rather than quoted (F-1, F-33). PHASE-01's exit criteria are written to **catch a wrong map**
 rather than route around one — EX-3 walks the map row by row in both directions,
 and a file that has to move and is not in it is S-6.
 
@@ -94,12 +104,14 @@ mean writing it against types that do not exist and editing it when they do.
 PHASE-04 and PHASE-05 are testable with no component and no runtime; PHASE-06's
 controller is testable with no glass; only PHASE-07 needs all three at once.
 
-**Why the failure table sits at PHASE-06 and the loop at PHASE-07.** §12.1 folds
+**Why the failure table sits at PHASE-06 and the loop at PHASE-10.** §12.1 folds
 every row through `Controller::absorb` and reads
 `controller.frame().diagnostics.lines()`. It needs no glass and no event loop, so
 it lands with the controller it drives. Item 11 needs the element tree and the
 production `serve`, so it lands with them. Splitting there puts thirty-three rows
-of transcription in one session and nine loop observables in another.
+of transcription in one session and nine loop observables in another. Item 11
+splits again at the PHASE-07 / PHASE-10 seam (PL-10): 11e, 11f, 11g and 11i need
+a glass and a wire but no loop; 11a–d and 11h need `serve`.
 
 **Why startup lands with the entry point.** `design.md` §5.4: all eight
 `StartupError` variants must be *constructed* in the phase that lands them, and
@@ -114,13 +126,19 @@ dependency. PHASE-09 could in principle fold into audit — it is not, because
 place to first make one true.
 
 **Parallelism.** None. Every renderer phase touches `crates/goad/src/lib.rs` and
-`crates/goad/tests/renderer/main.rs`. One agent, one phase, in sequence.
+`crates/goad/tests/renderer/main.rs`. One agent, one phase, in sequence — and
+the sequence is 01…07, **10**, 08, 09.
 
-**Size.** PHASE-01, PHASE-06 and PHASE-08 are the three heavy sessions — a
-111-file relocation, a 33-row table, and the entry point plus the event-loop
-tier. PHASE-04 is the lightest. None is expected to exceed one session including
-bookkeeping; if one does, that is a finding for `notes.md`, not a reason to skip
-the sheet.
+**Size.** PHASE-01, PHASE-06, PHASE-08 and PHASE-10 are the four heavy
+sessions — a ~115-file relocation, a 33-row table, the entry point plus the
+event-loop tier, and `serve` plus cancellation. PHASE-04 is the lightest. The
+fourth is why PHASE-07 was split: as originally written it landed five source
+modules and discharged thirteen verification groups, among them a real-process
+reducer walk, R-33 staleness with a negative control, back-pressure, two
+simultaneous-ready races and a 250 ms latency measurement — more than PHASE-06,
+which the plan already called heavy, and it was not on the list (review-plan
+F-12). None is now expected to exceed one session including bookkeeping; if one
+does, that is a finding for `notes.md`, not a reason to skip the sheet.
 
 ## Decisions taken during planning
 
@@ -141,9 +159,14 @@ because each one decides where a phase boundary falls.
   together with the allowlist that replaces them.
 - **PL-3 — `answers-as-instructed.sh` gains its three `@lingers*` arms at
   PHASE-06,** not at the split. The map permits the change in the split row; it
-  does not require it there, and item 12 is its only consumer. PHASE-01 therefore
-  exits with **91** byte-identical renames, which is the dry run's own number and
-  the cleanest AC-2 evidence available.
+  does not require it there, and item 12 is its only consumer. **The original
+  rationale is void and is not the reason:** it read "PHASE-01 therefore exits
+  with 91 byte-identical renames", and the backend scripts are not renames at
+  all — §5.1 sends them to the path they already occupy, so the byte-identical
+  set is the 88 fixtures whenever the arms land (review-plan F-1, F-17). What
+  stands is the reason that never depended on a count: the arms exist for §12.1's
+  table, the table is PHASE-06's, and the phase whose whole value is being a pure
+  relocation should not also be authoring test fixtures.
 - **PL-4 — the `driving.rs` cut is made at PHASE-01 and re-settled at PHASE-06.**
   §12.8's cut is *the intersection of what the two tiers use*, and the second tier
   does not exist until PHASE-06. At PHASE-01 the file has one consumer and every
@@ -158,12 +181,60 @@ because each one decides where a phase boundary falls.
   `structure.rs`.** §5.1 places item 14f in that target but its module list names
   three, one per ADR-001 instrument, and a `quit_event_loop` call-site count is
   none of them.
+- **PL-9 — `boundary.rs`'s PHASE-01 destination is stated, not discovered.**
+  §5.1's row gives it as "`crates/goad-boundary/`, split across `src/` and
+  `tests/` — below", and "below" is §5.6's three-module API, which is PHASE-02's
+  shape. So the forward map walk had nothing to check for the one row it matters
+  most for, and PHASE-01 would have invented a file layout — the class of
+  decision §5.1 exists to prevent (F-37). *Decided:* PHASE-02's shape **minus
+  `manifest.rs`**, which needs a `toml` this phase does not have.
+  `crates/goad-boundary/src/lib.rs` declares `pub mod scan;` and nothing else;
+  `src/scan.rs` carries today's `Scan`, `Breach`, `mentions`, `report` and
+  `Scan::run`, changed only as EX-5c permits; `tests/checks/` carries `main.rs`,
+  `vocabulary.rs` and `direction.rs` — the token lists and the controls.
+  PHASE-02/EX-1 is then a restructure of a known starting point, adding
+  `members.rs` and `manifest.rs`, rather than a discovery.
+- **PL-10 — PHASE-07 splits at the seam its own objective states, and the second
+  half is PHASE-10.** PHASE-07 keeps `glass.rs`, `install.rs` and `wire.rs`'s
+  `Wire` / `Cancel` (items 11e, 11f, 11g, 11i); PHASE-10 takes `serve` and
+  cancellation (items 11a–d, 11h, 14a–d). Ids are immutable and never renumbered,
+  so PHASE-10 executes between PHASE-07 and PHASE-08 and PHASE-08's EN-1 names
+  it. PHASE-10's entry criterion is mechanical, which is what makes the seam
+  usable: `Glass`, `SlintGlass`, `install`, `Wire` and `Cancel` all exist and the
+  gate is green.
+- **PL-11 — the member manifest skeleton is written out once (EX-8a).** The plan
+  previously *offered* `publish = false` two ways and called four inherited keys
+  "worth inheriting", in the one place `clippy::cargo` at `deny` bites; and it
+  said nothing about the root's `description`, `keywords`, `categories` and
+  `readme`, which die with the root package. *Decided:* inherit five keys from
+  `[workspace.package]`, carry no metadata keys at all in members. A member
+  `description` is also a place `CLAUDE.md` invariant 1 could be breached by a
+  string no scan reads — PHASE-02/EX-11 scans sources, not manifests.
+- **PL-12 — `boundary.rs`'s three member scans are one `#[test]` over three
+  `Scan`s.** PHASE-01/VT-1 asks whether the test population survived the split,
+  and the answer depends on a shape the plan had not chosen. One test iterating
+  three `Scan`s keeps `boundary.rs` at five test functions, so VT-1's name-set
+  diff has nothing legitimate to absorb; and it keeps the hand-written R7 shape
+  PHASE-02 retires visible as one thing rather than three. `Breach` carries the
+  path, so a failure still names which member.
 
 ## Findings against the design
 
 Raised during planning, not repaired in `design.md` (`docs/AGENTS.md:137` — the
 design is a record of intent). Each is resolved here so no phase has to invent an
 answer, and each is a candidate for the audit's *Design drift not reconciled*.
+
+**The one exception is §5.1's artifact map, which *was* repaired**, on
+2026-09-05, against `git ls-files` on this branch: seven rows and one paragraph
+(the rename totals, `Cargo.lock`, three fixture-path constants,
+`transport_shape.rs`'s destination and subject paths, `round_trip.rs`'s
+`include_str!`, `harness.rs`'s `example()`, and the `goad` member's `jiff` and
+`serde_json`). A DF entry says "the design stands as written"; these did not
+stand, and PHASE-01 would have executed against numbers it could not meet. The
+reasoning and the rejected alternative are in `design-log.md`; the findings are
+`review-plan.md` F-1, F-4, F-5, F-6, F-8, F-9, F-13, F-17, F-33. That is
+measurement, not a review round, and it belongs in the audit's *Reconciliation*
+rather than its *Design drift*.
 
 - **DF-1 — the design states two different homes for the tray rasteriser.**
   §5.4's block is headed `// crates/goad/src/tray_icon.rs`; §5.1's map puts
@@ -195,6 +266,26 @@ answer, and each is a candidate for the audit's *Design drift not reconciled*.
   library target. *Not resolved by reading:* PHASE-08 lands `startup.rs` and
   `main.rs` together, which satisfies the constraint whether or not it still
   binds, so nothing in the plan rests on the answer.
+- **DF-5 — §12.8's two helper lists neither partition `harness.rs` nor close
+  over their own dependencies.** Eight of the file's 35 items are in neither list
+  (`evaluate`, `clear`, `children_running`, `command_line`, `DEFAULT_POLL`,
+  `host_from`, `prompting_event`, `event`), four of those are called by helpers
+  the host-driving list moves, and `CLEANUP_LIMIT` — which §12.8 sends to
+  `driving.rs` — is not in `harness.rs` at all; it is
+  `tests/integration/transport.rs:22`. Read literally, §12.8 deletes four live
+  helpers and fails to compile. *Resolved:* PHASE-01/EX-7 states the cut item by
+  item, dependency-closed, with §12.8 as its source rather than its
+  specification. The design stands as written.
+- **DF-6 — §5.6's `pub struct Scan` has no `#[derive(Debug)]`, and
+  `missing_debug_implementations` is `deny`.** The block derives `Debug` on
+  `Breach` only. It is a test-local private struct today, so the lint does not
+  fire; the moment it leaves a test target it is compile-stopping.
+  *Resolved:* PHASE-01/EX-5c names the derive as one of four permitted changes.
+- **DF-7 — the design states A-2's expectation budget twice and differently.**
+  §5.5's A-2 prose says "the budget is therefore unspent: three remain"; §5.5's
+  S-1 row says the **third** distinct `#[expect]` fires the stop and "Two remain
+  unspent". *Resolved arithmetically:* the stop fires on the third, so two are
+  spendable. The Overview and PHASE-10/VA-3 say two; S-1's trigger is unchanged.
 
 ## Coverage
 
@@ -204,20 +295,20 @@ that discharges it. A gap here is a gap in the plan.
 | AC | discharged by |
 |----|---------------|
 | AC-1 | PHASE-01/EX-2 establishes the six-command gate at the split commit; every phase's VA-1 re-runs it; PHASE-09/EX-5 is the clean-clone run under `nix develop` |
-| AC-2 | PHASE-01/EX-3, EX-4 and EX-11 (the map walked in both directions, the evidence list written); PHASE-02/EX-12 supplies the argument for the one substantively rewritten file |
+| AC-2 | PHASE-01/EX-3 and EX-4 (the map walked in both directions, a predicate per row kind), EX-5a/EX-5b/EX-5c (the permitted-change vocabulary and every named exception), **EX-13** (the hunks checked against that vocabulary — the only criterion that looks at content) and EX-11 (the evidence pasted, not transcribed); PHASE-02/EX-12 supplies the argument for the one substantively rewritten file |
 | AC-3 | instrument 1 — PHASE-01/EX-10 (negative control, broken and reverted); instrument 4 — PHASE-01/EX-2 (the gate's third command); instruments 2 and 3 — PHASE-02/EX-4, EX-7, EX-8, VT-1, VT-2; the counting rule and the unenforced residue — PHASE-02/VA-3 |
-| AC-4 | PHASE-03/VT-2 (item 7, at the element tree); PHASE-07/VT-1 (item 11a, end to end through `serve`) |
-| AC-5 | PHASE-03/VT-3 (item 8, the markup half: the right `OptionId` and the right view token, two options sharing a label); PHASE-07/VT-4 (item 11d, R-33 staleness and its negative control) |
-| AC-6 | PHASE-03/VT-4 (item 9, the empty state); PHASE-07/VT-2 (item 11b, both `view: null` readings in one test) |
-| AC-7 | PHASE-06/VT-1 (item 12, the whole taxonomy through one retained `Host`, with §12.6's stated exemption); PHASE-07/VT-3 (item 11c, a failed `respond` keeps the question and a retry succeeds) |
+| AC-4 | PHASE-03/VT-2 (item 7, at the element tree); PHASE-10/VT-1 (item 11a, end to end through `serve`) |
+| AC-5 | PHASE-03/VT-3 (item 8, the markup half: the right `OptionId` and the right view token, two options sharing a label); PHASE-10/VT-4 (item 11d, R-33 staleness and its negative control) |
+| AC-6 | PHASE-03/VT-4 (item 9, the empty state); PHASE-10/VT-2 (item 11b, both `view: null` readings in one test) |
+| AC-7 | PHASE-06/VT-1 (item 12, the whole taxonomy through one retained `Host`, with §12.6's stated exemption); PHASE-10/VT-3 (item 11c, a failed `respond` keeps the question and a retry succeeds) |
 | AC-8 | PHASE-05/VT-4, VT-6, VT-7, VT-8 (items 13d, 13f, 13g, 13h — the bound at the bound, the ordering of decode/escape/bound, once-exactly, two distinguishable truncations); PHASE-08/VT-1 (item 17's `source()` clauses) |
 | AC-9 | PHASE-04/VT-1, VT-2 (items 4 and 5); PHASE-05/VT-11, VT-12 (items 13k, 13l) |
 | AC-10 | PHASE-03/VT-1 (item 6, the guard test) and EX-8 (the cheap tier runs with no display server) |
 | AC-11 | PHASE-03/VT-4 and VT-5 (items 9 and 10 — presence *and* absence, each demonstrated against a deliberately broken implementation) |
-| AC-12 | PHASE-07/VT-10…VT-13 (items 14a–d, cheap tier); PHASE-08/VT-2 (item 14e, the event-loop tier) and VT-3 (item 14f, the structural count) |
+| AC-12 | PHASE-10/VT-10…VT-13 (items 14a–d, cheap tier); PHASE-08/VT-2 (item 14e, the event-loop tier) and VT-3 (item 14f, the structural count) |
 | AC-13 | PHASE-02/EX-6 and VT-3 (members enumerated, `.slint` and `.rs`, the string-aware cut, all six positive controls) |
 | AC-14 | PHASE-02/VT-3 places the scan; every phase's VA-1 re-runs it, and PHASE-04/EX-3's "no file under `crates/goad/` is an image" is its neighbour (PHASE-04/VT-3) |
-| AC-15 | **not fully in this plan.** PHASE-09/EX-1 makes `canon-delta.md` and `draft-policy.md` true about what shipped and records every divergence; promotion and endorsement are audit's, per `docs/AGENTS.md:38` and HARD STOP 1 |
+| AC-15 | **not fully in this plan.** PHASE-09/EX-1 makes `canon-delta.md` and `draft-policy.md` true about what shipped and records every divergence; promotion and endorsement are audit's, per `docs/AGENTS.md:38` and HARD STOP 1. PHASE-09's Objective says so too, so that a reader of the status table does not read "all phases green" as "all acceptance criteria discharged" |
 
 ---
 
@@ -227,9 +318,10 @@ that discharges it. A gap here is a gap in the plan.
 §5.1's artifact map moves has moved, the gate is §5.6's six commands, and the map
 has been walked in both directions against what actually happened.
 
-**Surfaces:** `Cargo.toml` (becomes the workspace root), `crates/goad-semantics/**`,
-`crates/goad-shell/**`, `crates/goad-boundary/**`, `src/**` (removed),
-`tests/**`, `justfile`, `docs/slices/002/notes.md`, `docs/slices/002/plan-log.md`.
+**Surfaces:** `Cargo.toml` (becomes the workspace root), `Cargo.lock` (rewritten
+by cargo, not by hand), `crates/goad-semantics/**`, `crates/goad-shell/**`,
+`crates/goad-boundary/**`, `src/**` (removed), `tests/**`, `justfile`,
+`docs/slices/002/notes.md`, `docs/slices/002/plan-log.md`.
 
 **Not touched:** `flake.nix` (PHASE-03), `clippy.toml`, `rustfmt.toml`,
 `examples/**`, `README.md`, `CLAUDE.md`, `docs/specs/`, `docs/policy/`,
@@ -245,7 +337,17 @@ has been walked in both directions against what actually happened.
   1.836 s warm on 2026-09-05; re-measure rather than quote it.)
 - EN-4 — the PHASE-01 sheet exists under `## Phase sheets` in `notes.md`, carrying
   `design.md` §5.5's S-1…S-8 table verbatim and a reading list of `design.md`
-  §5.1 (whole), §5.6, §12.8, and `research.md`'s dry-run section.
+  §5.1 (whole), §5.6, §12.8, and `research.md`'s dry-run section — the last of
+  those read as *what the dry run did*, never as *what this tree contains*
+  (`research.md`'s counts are wrong for this branch; §5.1 is repaired and is the
+  authority).
+- EN-5 — **the git anchors are bound before anything moves.**
+  `git rev-parse HEAD` is recorded in the sheet as `<pre-split>`; every
+  `<pre-split>` below is that sha. `git merge-base main HEAD` is recorded as
+  `<slice base>`, which PHASE-09/VA-3 uses. **The commit protocol is one commit
+  for the whole phase**, made after the gate is green, so `<pre-split>` cannot
+  drift as the phase makes commits of its own and EX-4's backward walk covers
+  the whole relocation in one diff.
 
 **Exit**
 - EX-1 — `cargo metadata --no-deps --format-version 1` lists exactly three
@@ -260,66 +362,273 @@ has been walked in both directions against what actually happened.
   -D warnings`, `cargo fmt --all --check`. The recipe names are unchanged —
   `build`, `test`, `test-stratum1`, `typecheck`, `lint`, `fmt-check` — and `lint`
   has one line.
-- EX-3 — **the map, walked forward.** For every row of §5.1's split table, the
-  destination path exists and the source path does not. Recorded row by row.
-- EX-4 — **the map, walked backward.** `git diff --find-renames --name-status
-  <pre-split commit> HEAD` names no path the map does not. A file that had to
-  move and is not a row of the map is **S-6**, not an improvisation.
-- EX-5 — exactly **91** of the renames are byte-identical (`R100`): the 77
-  protocol fixtures and the 14 backend scripts, `answers-as-instructed.sh`
-  included (PL-3). Every other changed file's change is confined to `use`/`mod`
-  lines, a path constant, or a manifest entry — the map's "change permitted"
-  column — with the sole exception of `boundary.rs`, whose change here is the
-  `src/` ÷ `tests/` division D17 requires and nothing else.
+- EX-3 — **the map, walked forward, with a predicate per row kind.** §5.1's
+  split table has four kinds of row and one predicate does not fit them all;
+  classify each row by its own columns and check the matching predicate,
+  recording the class beside the row.
+  - **moved** — `src/semantics/**`, `src/shell/**`,
+    `tests/protocol/{main,normalize,runner}.rs`, `tests/protocol/fixtures/**`,
+    `tests/protocol/transport_shape.rs`, `tests/protocol/boundary.rs`,
+    `tests/integration/*.rs`: the destination path exists **and** the source path
+    does not.
+  - **deleted** — `src/lib.rs`: the path is gone, and nothing claims to be its
+    destination.
+  - **rewritten in place** — `Cargo.toml`, `Cargo.lock`, `justfile`: the path
+    exists and `git diff <pre-split> HEAD -- <path>` is non-empty.
+  - **unchanged in place** — `tests/backends/*.sh` (all 15), `clippy.toml`,
+    `rustfmt.toml`, `flake.nix`, `examples/**`: the path exists and
+    `git diff <pre-split> HEAD -- <path>` is **empty**.
+  The last two kinds are why the old single predicate could not be discharged:
+  four rows send a file to the path it already occupies, and one row has no
+  destination at all.
+- EX-4 — **the map, walked backward, from a pinned baseline.**
+  `git diff --find-renames --name-status <pre-split> HEAD`, minus the exclusion
+  set below, names no path §5.1 does not. The walk is **commit to commit**,
+  never against the working tree, which is what keeps the pre-existing
+  ` M flake.lock` edit out of it. The exclusion set is exactly
+  `docs/slices/002/**` — this phase's own bookkeeping, which is in its Surfaces
+  and in no map row, and which the map is not the place to enumerate. `Cargo.lock`
+  is **not** excluded: it is now a map row of its own, because it is tracked, the
+  split rewrites it, and a walk that meets it without a row fires S-6 on cargo's
+  own output. A file that had to move, is outside the exclusion set, and is not a
+  row of the map is **S-6**, not an improvisation.
+- EX-5 — **the rename ledger, derived rather than quoted.**
+  `git diff --find-renames --name-status -M <pre-split> HEAD | grep -c '^R100'`
+  equals the number of files under `tests/protocol/fixtures/` at entry —
+  `git ls-files tests/protocol/fixtures | wc -l`, **88** on 2026-09-05.
+  Re-measure it; do not quote it. Those 88 are the fixtures, and they are the
+  only byte-identical renames the split produces. Separately:
+  **`tests/backends/**` appears in the walk not at all** — the map sends the 15
+  scripts to the path they already occupy, so a `tests/backends` line of any
+  status is a defect. (The dry run's *91 = 77 fixtures + 14 scripts*
+  (`research.md:775-781`) is wrong on all three terms and was measured on a tree
+  this branch never had; §5.1 is repaired, and review-plan F-1 and F-17 carry the
+  measurement.) Every other renamed file's change is confined to EX-5a's
+  vocabulary, and EX-13 is what confirms it.
+- EX-5a — **the permitted-change vocabulary, stated once** so a diff can be
+  checked against it instead of argued about. A `+` or `-` line in a renamed,
+  non-identical file must be one of: a `use` line; a `mod` line; a `#[path]` or
+  `#[cfg…]` attribute; a **path string literal** — a fixture root, a script root,
+  an `examples/` path, or a `transport_shape.rs` subject path; an `include_str!`
+  argument; or a manifest key. Anything else is **PS-1 / S-6**.
+- EX-5b — **the named non-identical changes**, listed here so that none is
+  discovered by a red test and EX-11's evidence line already exists for each.
+
+  | file (post-split path) | change |
+  |---|---|
+  | `crates/goad-semantics/tests/protocol/normalize.rs` | `:266` → `../../tests/fixtures/protocol`; `:273` → `../../tests/fixtures/protocol-text` |
+  | `crates/goad-semantics/tests/protocol/runner.rs` | `:332` → `../../tests/fixtures/schedule` |
+  | `crates/goad-shell/tests/shape/transport_shape.rs` | `:32` `src/shell/backend/process.rs` → `src/backend/process.rs`; `:257` `…/process-renamed.rs` → `src/backend/process-renamed.rs`; `:276` `src/shell/error.rs` → `src/error.rs`. `CARGO_MANIFEST_DIR` is now `crates/goad-shell`, so the `shell/` segment is gone |
+  | `crates/goad-shell/tests/integration/round_trip.rs` | `:49` `include_str!("../../examples/typescript/README.md")` → `"../../../../examples/typescript/README.md"`. `include_str!` resolves against the **source file**, not the manifest |
+  | `crates/goad-shell/tests/integration/harness.rs` | `:207` `examples/typescript/backend.ts` → `../../examples/typescript/backend.ts`; plus the §12.8 cut of EX-7 |
+  | `crates/goad-shell/tests/integration/transport.rs` | gains `use crate::driving::CLEANUP_LIMIT;` — `CLEANUP_LIMIT` lives here today (`:22`, six further sites) and EX-7 moves it |
+  | `tests/support/driving.rs` | `backend()`'s `tests/backends` → `../../tests/backends` (§12.8's rule for the shared file) |
+  | `crates/goad-boundary/**` | EX-5c |
+
+- EX-5c — **`boundary.rs`'s change at PHASE-01 is exactly four things**, and a
+  fifth is S-6. "The `src/` ÷ `tests/` division and nothing else" is not
+  achievable: two of the four are compile-stopping under the gate.
+  1. the `src/` ÷ `tests/` division D17 requires. PL-9 states the file layout, so
+     the phase does not invent one.
+  2. **`#[derive(Debug)]` on `Scan`.** It becomes public API and
+     `missing_debug_implementations` is `deny` (`Cargo.toml:76`); §5.6's block
+     derives `Debug` on `Breach` only (DF-6).
+  3. **a `# Errors` section on `Scan::run`.** `clippy::missing_errors_doc` is
+     pedantic-at-deny and fires on a public fallible fn. An `#[expect]` here is
+     S-1 budget spent for nothing.
+  4. **the workspace-root rebase.** `Scan::root()` is
+     `Path::new(env!("CARGO_MANIFEST_DIR")).join(self.root)`
+     (`boundary.rs:69-71`), and from `crates/goad-boundary` that resolves
+     *inside the member*. It becomes `CARGO_MANIFEST_DIR` joined with `../..`
+     and then `self.root` — §5.6's own rule, applied one phase earlier than §5.6
+     states it — and the four configured roots (`:236` `src/semantics`, `:243`
+     `src`, `:269` `docs/adr`, `:275` `src/semantics-renamed`) are rewritten for
+     the new tree: three member `src/` directories (PL-2), and the two controls
+     per EX-14. Without this every scan resolves to a directory that does not
+     exist, all four return `Breach::Vacuous`, and the gate is red.
 - EX-6 — four `[[test]]` targets exist, with the map's names and paths:
   `goad-semantics` / `protocol` / `tests/protocol/main.rs`; `goad-shell` /
   `integration` / `tests/integration/main.rs`; `goad-shell` / `shape` /
   `tests/shape/main.rs`; `goad-boundary` / `checks` / `tests/checks/main.rs`.
-  Each is a `main.rs` of `#[cfg(test)] mod` declarations and nothing else, with
-  the map's module lists. The map's other two targets — `renderer` and
+  Each is a `main.rs` of `#[cfg(test)] mod` declarations and nothing else. Three
+  carry the map's module lists:
+  - `protocol` — `#[cfg(test)] mod {normalize, runner};`
+  - `integration` — `#[cfg(test)] mod {harness, fake, host, round_trip,
+    transport, failure_matrix};` and the literal
+    `#[cfg(test)] #[path = "../../../../tests/support/driving.rs"] mod driving;`
+  - `shape` — `#[cfg(test)] mod transport_shape;`, beside
+    `crates/goad-shell/tests/shape/transport_shape.rs`. That `main.rs` is an
+    **added file**, not the rename's destination: the 6-test body lands at
+    `transport_shape.rs`, which is what makes EX-3, EX-4 and EX-6 satisfiable at
+    once. §5.1 states both paths, so neither is a path the map does not name.
+
+  `checks` is the exception, and **PL-1's deferral extends to modules as well as
+  members and targets**: at PHASE-01 it declares
+  `#[cfg(test)] mod {vocabulary, direction};` — today's two configured scans and
+  their controls, relocated. The map's list, `#[cfg(test)] mod {vocabulary,
+  purity, allowlist};`, is **PHASE-02/EX-5's**: `allowlist` reads TOML and this
+  phase's `goad-boundary` has no dependencies, and `purity` is new code
+  PHASE-02/EX-8 lands. Declaring either here means an empty module, which is a
+  vacuous test with no guard. The map's other two targets — `renderer` and
   `event_loop` — are **deliberately deferred to PHASE-03 and PHASE-08**, because
   D1 forbids `crates/goad` existing before Slint does (PL-1).
-- EX-7 — `tests/support/driving.rs` exists at the workspace root and is included
-  by `crates/goad-shell/tests/integration/main.rs` through the literal
+- EX-7 — **the shared helper exists and the §12.8 cut is made item by item.**
+  `tests/support/driving.rs` exists at the workspace root and is included by
+  `crates/goad-shell/tests/integration/main.rs` through the literal
   `#[path = "../../../../tests/support/driving.rs"]`, with `#[cfg(test)]` at the
-  declaration site. It holds exactly §12.8's host-driving list — `scripted` and
-  what it rests on (`backend`, `marker`, `logging_backend`), `invocations`,
-  `config`, `host`, `instant`, `quiet_event`, `describe_outcome`, `choice`,
-  `answer_first_option`, `presented`, and the single restated `CLEANUP_LIMIT`
-  with its keep-in-sync note — and `crates/goad-shell/tests/integration/harness.rs`
-  holds exactly §12.8's transport list.
+  declaration site. §12.8's two lists are neither exhaustive of `harness.rs` nor
+  dependency-closed — eight of its 35 items are in neither list, four of those
+  are called by helpers the host-driving list moves, and `CLEANUP_LIMIT` is not
+  in the file at all — so the cut is stated here in full and §12.8 is its source
+  rather than its specification (DF-5).
+
+  | item | goes to | why |
+  |---|---|---|
+  | `scripted`, `logging_backend`, `backend`, `marker` | `driving.rs` | §12.8 |
+  | `clear` | `driving.rs` | **closure** — `marker` calls it (`harness.rs:178-182`) |
+  | `invocations`, `config`, `host`, `instant` | `driving.rs` | §12.8 |
+  | `DEFAULT_POLL` | `driving.rs` | **closure** — `config` reads it (`:228-237`; const at `:220`) |
+  | `host_from` | `driving.rs` | **closure** — `host` calls it (`:245-251`) |
+  | `quiet_event` | `driving.rs` | §12.8 |
+  | `event` (private today) | `driving.rs`, as **`pub(crate)`** | **closure** — `quiet_event` calls it (`:262-271`). `prompting_event` stays behind and will call `crate::driving::event`, which is why the visibility changes |
+  | `describe_outcome`, `choice`, `answer_first_option`, `presented` | `driving.rs` | §12.8. The last three all call `describe_outcome`, so the four are closed |
+  | `CLEANUP_LIMIT` | `driving.rs`, with its keep-in-sync note | §12.8 — but it is **not in `harness.rs`.** It is `tests/integration/transport.rs:22`, with six further sites there. `transport.rs` gains a `use` line (EX-5b), which is inside EX-5a's vocabulary |
+  | `transport`, `describe`, `describe_cleanup`, `stderr`, `children`, `alive`, `reported_pid`, `padded_evaluate`, `example` | `harness.rs` | §12.8's transport list |
+  | `backend_error`, `state_error`, `protocol_error`, `only_discard`, `stderr_of` | `harness.rs` | §12.8's "the `Outcome` accessors" |
+  | `evaluate` (56 sites), `children_running` (1), `prompting_event` (6), `command_line` (private; `children` calls it) | `harness.rs` | **named explicitly as staying.** In neither §12.8 list, and each is transport- or integration-local |
+
+  Nothing in `harness.rs` is unaccounted for after this table, which is the
+  property "exactly §12.8's list" did not have.
 - EX-8 — `[workspace.lints]` carries the pre-split `[lints.rust]` and
-  `[lints.clippy]` blocks **verbatim** (diff them against `git show
-  <pre-split>:Cargo.toml`), and every member manifest carries
-  `lints.workspace = true` and no other `[lints]` content (D8). Every member sets
-  `autotests = false` and declares its test targets explicitly.
+  `[lints.clippy]` **levels** verbatim: diff the lint *lines* against
+  `git show <pre-split>:Cargo.toml` and expect no difference. The **comments are
+  not verbatim, and must not be**: `Cargo.toml:78-104`'s `dead_code` /
+  `unreachable_pub` carve-out is justified in-comment by "the
+  `--no-default-features` column drops `shell`", and EX-9 retires that column in
+  this same commit. Rewrite that block to match the one-column gate and paste its
+  diff into the sheet; shipping the old rationale is shipping a false statement
+  about the gate. Every member manifest carries `lints.workspace = true` and no
+  other `[lints]` content (D8). Every member sets `autotests = false` and declares
+  its test targets explicitly.
+- EX-8a — **the member manifest skeleton, written out once** so no phase invents
+  a key, the way §5.6 writes `goad-boundary`'s API out once so no phase invents a
+  signature. In the root:
+
+  ```toml
+  [workspace.package]
+  version    = "0.1.0"
+  edition    = "2024"
+  license    = "MIT"
+  repository = "https://github.com/davidlee/goad"
+  publish    = false
+  ```
+
+  and in every member, identically but for the name and the dependency block:
+
+  ```toml
+  [package]
+  name              = "goad-…"        # or "goad"
+  version.workspace = true
+  edition.workspace = true
+  license.workspace = true
+  repository.workspace = true
+  publish.workspace = true
+  autotests         = false
+
+  [dependencies]      # §5.1's member table; every entry `{ workspace = true }`
+  [lints]
+  workspace = true
+  [[test]]            # §5.1's test-target table
+  ```
+
+  Two things this settles rather than offers. **`publish = false` is inherited
+  once from `[workspace.package]`**, not repeated per member — it is what
+  silences `clippy::cargo_common_metadata`, which is in the `cargo` group at
+  `deny` (the root manifest's own comment, `Cargo.toml:12-15`, carried forward).
+  And **no member carries `description`, `keywords`, `categories` or `readme`**:
+  the root's metadata (`Cargo.toml:5-10`) dies with the root package, `publish =
+  false` already discharges the lint, and a member `description` is a place
+  `CLAUDE.md` invariant 1 could be breached by a string no scan reads —
+  PHASE-02/EX-11's vocabulary scan reads sources, not manifests (PL-11).
 - EX-9 — the `shell` feature is gone, not relocated: no member declares a
   `[features]` table, `grep -rn 'feature *= *"shell"'` over `Cargo.toml`,
   `crates/` and `tests/` returns nothing, and no `[[test]]` carries
-  `required-features`.
+  `required-features`. **`tokio` and `toml` lose `optional = true`** as they move
+  into `[workspace.dependencies]` (`Cargo.toml:25`, `:36`): the key belonged to
+  the feature, `optional` is not meaningful in `[workspace.dependencies]`, and a
+  member inheriting it would carry an optional dependency with no feature to
+  enable it. `grep -n optional Cargo.toml crates/*/Cargo.toml` returns nothing.
 - EX-10 — **instrument 1, observed rather than asserted.** Add
   `use goad_shell::host::Host;` to a `crates/goad-semantics/src/` file and confirm
   `cargo build -p goad-semantics` fails with `error[E0433]`; revert. Repeat with
   `use tokio::process::Command;`. Both outputs pasted into the sheet.
-- EX-11 — the AC-2 evidence list is written into the phase sheet: every moved
-  path with its similarity index, and one line per non-identical file naming the
-  map row that permits its change.
+- EX-11 — the AC-2 evidence list is the **pasted output** of
+  `git diff --find-renames --name-status -M <pre-split> HEAD`, plus one
+  hand-written line per file whose status is not `R100`, naming the map row that
+  permits its change and the EX-5b entry it matches. The command is the evidence;
+  the prose is only for the exceptions. Hand-transcribing ~115 similarity indices
+  is the largest single cost in a phase whose mechanical work the dry run put at
+  ~6 minutes, and it is where a wrong number gets copied forward — which is
+  exactly how the dry run's 77 and 14 survived five review rounds.
 - EX-12 — the `justfile` header comment cites `docs/slices/002/draft-policy.md`
   (the slice's working authority, `docs/AGENTS.md:36`) and `design.md` §5.6, and
   no longer cites `docs/slices/001/design.md` §9. `CLAUDE.md` is **not** edited:
   repointing it is CD-5 and lands at audit, paired with the policy's promotion.
+- EX-13 — **the content check, mechanical.** This is the criterion AC-2 actually
+  turns on, and until now nothing in the phase compared the *content* of a moved
+  file against its source: EX-3 and EX-4 check paths, EX-5 checks byte-identity
+  only for the `R100` set, and `--name-status` prints a similarity index and no
+  hunks — `R091` looks the same whether the 9% is an import block or a rewritten
+  function body. The gate cannot tell either: a semantically equivalent but
+  different body passes every test.
+  So: for every renamed file whose status is not `R100`, run
+  `git diff --find-renames -M <pre-split> HEAD -- '<old path>' '<new path>'` —
+  **full hunks**, not `--name-status` — and confirm every `+` and `-` line
+  matches EX-5a's vocabulary. Paste the hunks into the sheet. A line outside the
+  vocabulary is **PS-1 / S-6**, detected rather than self-reported.
+- EX-14 — **the relocated checks are demonstrated non-vacuous, not assumed so.**
+  Three of them are guarded only by a vacuity check, and a re-rooting that breaks
+  them leaves the guard passing for the wrong reason.
+  - **All three fixture corpora report a non-zero inspected count.**
+    `runner.rs:98` fails with *"ran no fixtures — renamed, emptied, or
+    misspelled"* when one does not; that message appearing for none of the three
+    is the evidence, and it is why EX-5b lists three constants and not one.
+  - **The `shape` target's negative control still fails for its own reason.** The
+    `process-renamed.rs` row (`transport_shape.rs:257`) must still fail when
+    pointed at a path that does not exist. Otherwise the re-rooting of the three
+    subject paths is unwitnessed, and the file's vacuity guard is all that stands
+    between the split and a silently-passing shape check.
+  - **Both of `boundary.rs`'s vacuity controls still fail for the reason each was
+    written for.** `RENAMED_AWAY` (const `:274-277`, test `:293-305`) fails
+    because its root is missing. `NOTHING_TO_INSPECT` (const `:265-270`, test
+    `:279-291`) must fail because `docs/adr` **exists and holds no Rust** — its doc comment says so. Rebased member-relative it would
+    resolve to `crates/goad-boundary/docs/adr`, which does not exist: the test
+    would still pass, as an exact duplicate of `RENAMED_AWAY`, and the only
+    control for the *no-scannable-files* case would be silently gone. Assert on
+    the `Breach::Vacuous` payload's `root`, or point the control at a directory
+    that provably exists post-split.
 
 **Verification**
-- VT-1 — `cargo test --workspace` runs the same total number of tests as the
-  pre-split tree. Record both numbers. A test file that fails to be re-declared
-  in its new `main.rs` disappears silently, and this is what catches it.
+- VT-1 — **the test *names* survive the split, not a total.**
+  `cargo test --workspace -- --list` after, diffed against
+  `cargo test -- --list` plus `cargo test --no-default-features -- --list`
+  before, is equal as a **set of test names with module prefixes stripped**. A
+  test file that fails to be re-declared in its new `main.rs` disappears
+  silently, and this is what catches it. An equality of *counts* does not, in
+  either direction: PL-2 turns `boundary.rs`'s two configured scans into three,
+  so the count moves legitimately, and a real loss that happens to balance
+  passes. **Decided so the phase does not have to (PL-12): three `Scan`s, one
+  `#[test]` iterating them** — `boundary.rs`'s five test functions stay five, and
+  the R7 shape PHASE-02 retires stays visible as one thing rather than three.
 - VT-2 — `goad-boundary`'s `checks` target runs the domain-vocabulary scan over
-  the `src/` of all three members and still carries the vacuity guard that fails
-  when pointed at a renamed-away root (`boundary.rs:293-305`, retained).
+  the `src/` of all three members and still carries **both** vacuity controls —
+  `RENAMED_AWAY` (`boundary.rs:293-305`) *and* `NOTHING_TO_INSPECT`
+  (`:279-291`) — each failing for its own distinct reason, per EX-14.
 - VA-1 — `just check` run and its output pasted into the phase sheet, with the
   warm wall-clock beside the EN-3 baseline.
-- VA-2 — the two map walks (EX-3, EX-4) and the `git diff --find-renames
-  --name-status` output pasted.
+- VA-2 — the two map walks (EX-3, EX-4) pasted, **together with EX-13's full
+  hunk output**. `--name-status` alone is a list of names and a similarity index;
+  it is not evidence about content, and content is what AC-2 is a claim about.
 - VA-3 — `just -n check` output pasted beside §5.6's block. Compare the **command
   sequence**, not the characters: §5.6 is a fenced block and `just -n` prints
   neither comments nor line wrapping (slice 001's plan-review F-9, against this
@@ -330,12 +639,22 @@ has been walked in both directions against what actually happened.
 **STOP**
 S-6 and S-8 from `design.md` §5.5, plus two the design does not name because they
 are local to this phase:
-- **PS-1** — a production source under `crates/goad-semantics/src` or
-  `crates/goad-shell/src` needs a change beyond its `use`/`mod` lines or a path
-  constant. The dry run says no production file needed one; a file that does is
-  R4's signal that the split is a redesign, and AC-2 says so.
-- **PS-2** — `just check` will not reach 0 and the remaining failure is not an
-  import path, a manifest entry, or a test-target declaration.
+- **PS-1** — a `+` or `-` line in **EX-13's hunks**, in a production source under
+  `crates/goad-semantics/src` or `crates/goad-shell/src`, falls outside EX-5a's
+  vocabulary. The trigger is EX-13's output, not the agent's judgement about what
+  a file "needs" — a self-report with no detection procedure is not a stop
+  condition. The dry run says no production file needed a change beyond its
+  import block; a file that does is R4's signal that the split is a redesign, and
+  AC-2 says so.
+- **PS-2** — `just check` is still red after **five** distinct repair attempts,
+  or **45 minutes** from the first attempt, whichever comes first; or, at any
+  attempt, the failure names a file the map marks change-forbidden. On reaching
+  the count or the clock, paste the failing output into the sheet **before**
+  deciding anything. The earlier wording — "the remaining failure is not an
+  import path, a manifest entry, or a test-target declaration" — is not a trigger
+  an agent can apply to itself: almost any compile failure in a 115-file
+  relocation can be narrated as one of those three, and the agent doing the
+  narrating is the one who wants to keep going.
 
 **Notes for the implementer**
 
@@ -348,27 +667,38 @@ are local to this phase:
   depth two, which is what makes the one literal uniform.
 - Cargo will not parse a `[[test]]` whose `path` does not exist, so all four
   `main.rs` files must exist before the manifests do.
-- **`publish = false` on every member**, or once in `[workspace.package]` with
-  `publish.workspace = true` in each. `clippy::cargo_common_metadata` is in the
-  `cargo` group at `deny`, and `publish = false` is what silences it — the
-  existing root manifest says so in a comment worth carrying forward. `edition`,
-  `version`, `license` and `repository` are worth inheriting the same way.
+- The member manifests are **EX-8a's skeleton**, key for key. It is written out
+  so the phase transcribes rather than chooses; `publish`, `edition`, `version`,
+  `license` and `repository` are inherited from `[workspace.package]`, and the
+  four metadata keys the root package carries today are not carried anywhere.
 - `clippy.toml` and `rustfmt.toml` stay at the workspace root and are read from
   there for every member. Do not copy them into members.
 - `crates/goad-boundary` has **no dependencies** in this phase. `toml` arrives at
   PHASE-02 with the allowlist that needs it; it is already in
   `[workspace.dependencies]`.
+- **The workspace root is `CARGO_MANIFEST_DIR` joined with `../..`** — §5.6's
+  rule, and it binds *this* phase, not just PHASE-02, because `Scan::root()`
+  resolves against `CARGO_MANIFEST_DIR` today and after the move that is
+  `crates/goad-boundary/`. EX-5c item 4 is the change; missing it turns all four
+  scans vacuous and the gate red. A test binary's working directory is not
+  something to rely on.
 - `boundary.rs`'s two configured scans become three, one per member's `src/`,
-  written out by hand. That is the R7 shape the design retires — PHASE-02/EX-6
-  replaces it with enumeration, and this phase does not attempt it.
-- Moving `Scan`, `Breach`, `mentions`, `code_of` and `report` into a library
-  makes them public API, so `clippy::missing_errors_doc` fires on `Scan::run`.
-  A `# Errors` section is the answer; an `#[expect]` is S-1 budget spent for
-  nothing.
+  written out by hand, as **one `#[test]` over three `Scan`s** (PL-12). That is
+  the R7 shape the design retires — PHASE-02/EX-6 replaces it with enumeration,
+  and this phase does not attempt it.
+- Moving `Scan`, `Breach`, `mentions` and `report` into a library makes them
+  public API, so `clippy::missing_errors_doc` fires on `Scan::run` and
+  `missing_debug_implementations` fires on `Scan`. A `# Errors` section and a
+  `#[derive(Debug)]` are the answers; an `#[expect]` for either is S-1 budget
+  spent for nothing. Both are in EX-5c.
 - `tests/protocol/transport_shape.rs` cannot stay in a stratum 1 target: it names
-  a stratum 2 source. It becomes `crates/goad-shell/tests/shape/main.rs` with
-  `#[cfg(test)] mod transport_shape;` beside it. This is the upward reach the
-  single crate hid, and finding it is ADR-002's Verification section working.
+  a stratum 2 source. The 6-test body becomes
+  `crates/goad-shell/tests/shape/transport_shape.rs`, with a **new**
+  `crates/goad-shell/tests/shape/main.rs` carrying
+  `#[cfg(test)] mod transport_shape;` beside it — an added file, not the rename's
+  destination, so EX-5's count is not polluted. Its three subject-path constants
+  move with it (EX-5b). This is the upward reach the single crate hid, and
+  finding it is ADR-002's Verification section working.
 - Run `cargo fmt --all` last, and re-run the whole gate after it.
 
 ---
@@ -515,13 +845,26 @@ test that proves the query API is live, and A-4 has a number.
   nothing else. Verified in-shell, not by reading:
   `nix develop --command sh -c 'fc-list | grep -c DejaVu'` prints a non-zero
   count. Adding the package to `buildInputs` alone does nothing (D12).
-- EX-3 — `crates/goad/Cargo.toml` matches §5.1's member row exactly:
-  `[dependencies]` `goad-semantics`, `goad-shell`, `slint`, `tokio` with
-  `rt-multi-thread` and `sync`; `[dev-dependencies]` `slint` with its testing
-  feature; `[build-dependencies]` `slint-build`. `slint` and `slint-build` are
-  pinned **exactly** `= 1.17.1` in `[workspace.dependencies]`. `lints.workspace =
-  true` and nothing else; `autotests = false`; `[[test]] name = "renderer" path =
-  "tests/renderer/main.rs"`.
+- EX-3 — `crates/goad/Cargo.toml` matches §5.1's member row exactly, and it is
+  EX-8a's skeleton: `[dependencies]` `goad-semantics`, `goad-shell`, **`jiff`**,
+  **`serde_json`**, `slint`, `tokio` with `rt-multi-thread` and `sync`;
+  `[dev-dependencies]` `slint` with its testing feature; `[build-dependencies]`
+  `slint-build`. Every entry is `{ workspace = true }`. `slint` and `slint-build`
+  are pinned **exactly** `= 1.17.1` in `[workspace.dependencies]`.
+  `lints.workspace = true` and nothing else; `autotests = false`;
+  `[[test]] name = "renderer" path = "tests/renderer/main.rs"`.
+
+  `jiff` and `serde_json` are named because `crates/goad` names them directly and
+  **a transitive dependency is not in the extern prelude**: `clock.rs` writes
+  `jiff::Timestamp::from_nanosecond` and `ClockError::OutOfRange(jiff::Error)`
+  (PHASE-06/EX-1); `Stimulus::event` builds `Event { … data: Value::Null }`, and
+  `canonical.rs:495` types `data` as `serde_json::Value`; and
+  `tests/support/driving.rs`, which PHASE-06/EX-9 includes into this target,
+  carries `DEFAULT_POLL: jiff::SignedDuration`, `instant() -> jiff::Timestamp`
+  and `serde_json::json!`. Without them PHASE-06 does not compile, and no
+  manifest is in PHASE-06's Surfaces. **This is not S-8:** both are already in
+  `[workspace.dependencies]`, so a `{ workspace = true }` entry adds nothing to
+  the graph. §5.1's member row and this criterion both say so (review-plan F-4).
 - EX-4 — `crates/goad/build.rs` passes exactly `ui/app.slint` to
   `slint_build::compile_with_config(path, CompilerConfiguration::new().with_debug_info(true))`,
   returns `Result`, and contains no `.unwrap()` and no `.expect()`.
@@ -871,19 +1214,25 @@ S-1, S-8.
 
 ---
 
-## PHASE-07 — The glass, `serve`, and the wiring
+## PHASE-07 — The glass, the wiring, and back-pressure
 
-**Objective:** one total `present`, one loop both tiers call, and a stop request
-that drops the exchange it interrupts rather than waiting for it.
+**Objective:** one total `present`, one `Wire` that refuses to block, and a
+`Cancel` that is level-held — everything `serve` composes, before `serve`
+exists.
 
-**Surfaces:** `crates/goad/src/{lib.rs, wire.rs, controller.rs, glass.rs,
-install.rs}`, `crates/goad/tests/renderer/{main.rs, wiring.rs}`,
+**Split from the original PHASE-07 at the seam its own objective stated
+(PL-10).** `serve`, cancellation and items 11a–d, 11h and 14a–d are **PHASE-10**,
+which executes next. This phase writes no loop.
+
+**Surfaces:** `crates/goad/src/{lib.rs, wire.rs, glass.rs, install.rs}`,
+`crates/goad/tests/renderer/{main.rs, wiring.rs}`,
 `docs/slices/002/notes.md`.
 
 **Entry**
 - EN-1 — PHASE-06's exit criteria are discharged and `just check` exits 0.
 - EN-2 — `Controller`, `Frame`, `Command`, `Stimulus`, `Clock` and `Diagnostics`
-  all exist; `serve` composes them and adds nothing to them.
+  all exist; this phase composes them into a glass and a wire and adds nothing to
+  them.
 
 **Exit**
 - EX-1 — `glass.rs` carries the `Glass` trait with one **infallible, total**
@@ -908,13 +1257,85 @@ install.rs}`, `crates/goad/tests/renderer/{main.rs, wiring.rs}`,
 - EX-4 — `install.rs` carries `pub fn install(&PromptWindow, &Tray, &Wire)` with
   §5.4's six installations, each owning its own named `Wire` clone. It is `pub`
   and in the library, because item 14e drives it from a `tests/` target.
+- EX-6 — `lib.rs` gains `pub mod glass;` and `pub mod install;`.
+- EX-7 — items **11e, 11f, 11g and 11i** pass. Items 11a–d and 11h need `serve`
+  and are PHASE-10/EX-7's.
+
+**Verification**
+- VT-5 — item 11e: `Refused::UnknownOption` and `Refused::NoClock`, each with no
+  backend contact, the presentation retained, and one diagnostic line.
+- VT-6 — item 11f: the five DT transitions, read as `Surface` from the frame
+  **and** as the element tree.
+- VT-7 — item 11g: back-pressure. A second command sent while the channel is full
+  sets `notice` to `BUSY_NOTICE`, does not enter `Diagnostics`, and the next
+  `present` clears it.
+- VT-9 — item 11i: `busy` returns to `false` after a successful exchange and after
+  a failed one, with the option controls reading `accessible_enabled == true`.
+- VA-1 — `just check` under `nix develop`, pasted.
+- VA-2 — break-and-revert on VT-9's negative control: an `absorb` that does not
+  clear `engaged` leaves every control disabled. Pasted.
+- VA-3 — the expectation budget: `crates/goad/src/` contains **no** `#[expect]`
+  outside `generated.rs`. If it contains one, the sheet argues it and the count is
+  recorded against S-1, **which leaves two spendable** — the stop fires on the
+  third (DF-7).
+
+**STOP**
+S-1, S-8.
+
+**Notes for the implementer**
+
+- `Cancel::stopped` keeps its `-> impl Future` shape and trips
+  `manual_async_fn` on nothing, because it clones its receiver before the async
+  block.
+- The six `install` clones get six distinct binding names for **readability**, not
+  because a lint requires it: `let wire = wire.clone();` compiles clean under this
+  table. That is written down so the next reader does not "simplify" it and be
+  right.
+- Nothing is read back out of a Slint property to build a response. The two option
+  strings are the only values that travel outward and back, and both are matched
+  against retained state.
+- `Cancel` lands here with **no consumer in production code** until PHASE-10.
+  `crates/goad` is a library (D28), so `dead_code` does not fire on `pub` items;
+  but item 11g exercises `Wire` and nothing this phase exercises `Cancel` beyond
+  its own construction, so `Cancel` has unit coverage only until PHASE-10's
+  items 14a–d arrive. That is the price of the seam, and it is stated rather than
+  discovered.
+
+---
+
+## PHASE-10 — `serve`, and the stop that drops the exchange
+
+**Objective:** one loop both tiers call, and a stop request that drops the
+exchange it interrupts rather than waiting for it.
+
+**PHASE-07 split in two (PL-10).** This phase executes **after PHASE-07 and
+before PHASE-08**; the id is 10 because ids are immutable and are never
+renumbered. PHASE-07 landed everything `serve` composes; this phase writes the
+loop and nothing else.
+
+**Surfaces:** `crates/goad/src/{controller.rs, wire.rs}`,
+`crates/goad/tests/renderer/{main.rs, wiring.rs}`, `docs/slices/002/notes.md`.
+
+**On the criterion ids below.** They are the ones these criteria carried in the
+original PHASE-07, kept rather than renumbered so that anything citing
+PHASE-07/VT-10 needs only its phase corrected. The gaps — no EX-1…EX-4, no
+EX-6, no VT-5…VT-7, no VT-9, no VA-2 — are PHASE-07's criteria, not missing ones.
+
+**Entry**
+- EN-1 — PHASE-07's exit criteria are discharged and `just check` exits 0.
+- EN-2 — **mechanical, which is what makes the seam usable:** `Glass`,
+  `SlintGlass`, `install`, `Wire` and `Cancel` all exist and are reachable from a
+  `tests/` target; `Controller`, `Frame`, `Command`, `Stimulus`, `Clock` and
+  `Diagnostics` exist from PHASE-06. `serve` composes them and adds nothing to
+  them.
+
+**Exit**
 - EX-5 — `controller.rs` gains `Pending`, `Ending`, `Served` and `serve` as an
   ordinary `async fn` carrying **no attribute at all**, with §5.4's loop body:
   `select! { biased; … }` in both places, `Pending` built before the borrow, the
   exchange future built from it, and `Served { ending, host, controller, glass }`
   after the loop.
-- EX-6 — `lib.rs` gains `pub mod glass;` and `pub mod install;`.
-- EX-7 — items 11a–i and 14a–d pass.
+- EX-7 — items **11a–d, 11h and 14a–d** pass.
 
 **Verification**
 - VT-1 — item 11a: the seven reducer rows folded through `Controller::absorb` and
@@ -931,17 +1352,8 @@ install.rs}`, `crates/goad/tests/renderer/{main.rs, wiring.rs}`,
   view **B**, then the queued `Choose` refused as `Refused::SupersededView` with
   the invocation log not advancing. The negative control is the same sequence
   without the intervening evaluate, where the click is answered.
-- VT-5 — item 11e: `Refused::UnknownOption` and `Refused::NoClock`, each with no
-  backend contact, the presentation retained, and one diagnostic line.
-- VT-6 — item 11f: the five DT transitions, read as `Surface` from the frame
-  **and** as the element tree.
-- VT-7 — item 11g: back-pressure. A second command sent while the channel is full
-  sets `notice` to `BUSY_NOTICE`, does not enter `Diagnostics`, and the next
-  `present` clears it.
 - VT-8 — item 11h: the test calls `serve` — the same function `main` wraps — so a
   loop-body change cannot pass here and fail in production.
-- VT-9 — item 11i: `busy` returns to `false` after a successful exchange and after
-  a failed one, with the option controls reading `accessible_enabled == true`.
 - VT-10 — item 14a: with an exchange in flight against `@hang` and a **2 s**
   configured timeout, tripping `Cancel` ends the task in **under 250 ms**,
   measured from `Cancel::stop()` to `serve` returning.
@@ -952,11 +1364,10 @@ install.rs}`, `crates/goad/tests/renderer/{main.rs, wiring.rs}`,
 - VT-13 — item 14d: on `Ending::Stopped` the receiver's buffer is left unread — a
   command queued behind the exchange produces no further invocation.
 - VA-1 — `just check` under `nix develop`, pasted.
-- VA-2 — break-and-revert on VT-9's negative control: an `absorb` that does not
-  clear `engaged` leaves every control disabled. Pasted.
 - VA-3 — the expectation budget: `crates/goad/src/` contains **no** `#[expect]`
   outside `generated.rs`. If it contains one, the sheet argues it and the count is
-  recorded against S-1's budget of three.
+  recorded against S-1, **which leaves two spendable** — the stop fires on the
+  third (DF-7).
 
 **STOP**
 S-1, S-5, S-8. **S-5 is this phase's**: item 14a measuring above 250 ms against a
@@ -971,20 +1382,10 @@ is not a threshold to relax.
   would be *unfulfilled*, and `unfulfilled_lint_expectations` is an error under
   `-D warnings`. The plain-`fn`-returning-`impl Future` shape does not dodge the
   lint either and costs `clippy::manual_async_fn` as well. Both measured.
-- `Cancel::stopped` keeps its `-> impl Future` shape and trips
-  `manual_async_fn` on nothing, because it clones its receiver before the async
-  block.
-- The six `install` clones get six distinct binding names for **readability**, not
-  because a lint requires it: `let wire = wire.clone();` compiles clean under this
-  table. That is written down so the next reader does not "simplify" it and be
-  right.
 - One future, not two branches. Duplicating the cancellation `select!` per entry
   point states the contract twice; boxing it puts a wrapper between `select!` and
   the exchange, which weakens "the exchange future is dropped" into a claim about
   the box.
-- Nothing is read back out of a Slint property to build a response. The two option
-  strings are the only values that travel outward and back, and both are matched
-  against retained state.
 - What AC-12 can honestly observe is what the host holds. That the child is gone
   is **not** asserted: it would be a race, and a flaky gate is worse than an
   honest one.
@@ -1005,7 +1406,8 @@ window-close gesture ends the loop through the one path the design allows.
 `docs/slices/002/notes.md`.
 
 **Entry**
-- EN-1 — PHASE-07's exit criteria are discharged and `just check` exits 0.
+- EN-1 — **PHASE-10's** exit criteria are discharged and `just check` exits 0.
+  PHASE-10 executes between PHASE-07 and PHASE-08 (PL-10).
 - EN-2 — `serve`, `install`, `SlintGlass`, `Wire`, `Cancel` and `wall_clock` all
   exist, because `start` constructs every one of them and constructs nothing else.
 
@@ -1104,6 +1506,12 @@ S-1, S-2, S-8. Additionally:
 harvest is written, and `just check` exits 0 from a clean clone under
 `nix develop` — the second half of AC-1.
 
+**The slice is not closeable at PHASE-09/EX-6.** AC-15 is discharged only by the
+audit's Reconciliation table: promoting `canon-delta.md` and `draft-policy.md`
+needs explicit user endorsement and happens at audit (`docs/AGENTS.md:38`, HARD
+STOP 1). Ten phases green is not the same event as fifteen acceptance criteria
+discharged, and the status table must not be read as though it were.
+
 **Surfaces:** `docs/slices/002/{slice-002.md, canon-delta.md, draft-policy.md,
 notes.md, plan.md, plan-log.md, design-log.md}`, `crates/goad/README.md` if it
 has drifted.
@@ -1152,7 +1560,9 @@ nothing is promoted: that is audit's, with explicit endorsement (HARD STOP 1,
   recorded. An AC whose named criterion did not in fact discharge it is a finding
   for `audit.md`, not a repair here.
 - VA-3 — the surfaces diff: `git diff --name-only <slice base> HEAD` against the
-  union of every phase's declared Surfaces. Undeclared paths are the audit's
+  union of every phase's declared Surfaces. `<slice base>` is the sha
+  PHASE-01/EN-5 recorded — `git merge-base main HEAD`, taken before the split —
+  and is read from the PHASE-01 sheet, not re-derived. Undeclared paths are the audit's
   strongest lead and this phase hands them over rather than tidying them away.
 
 **STOP**

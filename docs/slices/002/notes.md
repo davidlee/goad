@@ -9,19 +9,20 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | design | **accepted** — five review rounds, F-1…F-40, all terminal. Discharged by the replacement criterion in §5 of the Handover below: *every claim is either built, or its failure mode is loud at first compile* | 2026-09-05 |
-| plan | **accepted 2026-09-05** — nine phases in `plan.md`; eight planning decisions in `plan-log.md`; four findings against the design (DF-1…DF-4) recorded and planned around, none repaired in `design.md`. No adversarial review round run: five have run on the design and the plan's own two unbuilt claims are PHASE-01's and PHASE-03's to measure | 2026-09-05 |
+| plan | **accepted 2026-09-05, revised after review** — ten phases in `plan.md` (PHASE-07 split at its own seam, so the execution order is 01…07, 10, 08, 09); twelve planning decisions in `plan-log.md`; seven findings against the design (DF-1…DF-7). One adversarial round has now run — `review-plan.md`, F-1…F-33, nine blockers, all terminal — and it repaired §5.1's artifact map against the real tree rather than reading it a sixth time | 2026-09-05 |
 | PHASE-01 — the workspace split | todo | 2026-09-05 |
 | PHASE-02 — the workspace invariant checks | todo | 2026-09-05 |
 | PHASE-03 — `crates/goad`, Slint, the markup and the element tree | todo | 2026-09-05 |
 | PHASE-04 — the mapper and the tray rasteriser | todo | 2026-09-05 |
 | PHASE-05 — the diagnostic surface and the reception seam | todo | 2026-09-05 |
 | PHASE-06 — the controller, the fold, and the failure case table | todo | 2026-09-05 |
-| PHASE-07 — the glass, `serve`, and the wiring | todo | 2026-09-05 |
+| PHASE-07 — the glass, the wiring, and back-pressure | todo | 2026-09-05 |
+| PHASE-10 — `serve`, and the stop that drops the exchange | todo — **executes between PHASE-07 and PHASE-08**; ids are immutable, so the sequence is non-monotonic (PL-10) | 2026-09-05 |
 | PHASE-08 — startup, the entry point, and the event-loop tier | todo | 2026-09-05 |
 | PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | todo | 2026-09-05 |
 | audit | todo — CD-1…CD-7 and `draft-policy.md` are promoted here, with explicit endorsement, and nowhere earlier (`docs/AGENTS.md:38`) | 2026-09-05 |
 
-**Execution order is 01…09, in sequence.** No two phases have disjoint surfaces:
+**Execution order is 01, 02, 03, 04, 05, 06, 07, 10, 08, 09.** No two phases have disjoint surfaces:
 every renderer phase touches `crates/goad/src/lib.rs` and
 `crates/goad/tests/renderer/main.rs`. One agent, one phase, one session.
 
@@ -455,12 +456,20 @@ outside, and the review's own numbers do not promise a sixth round would end it.
    `StartupError` must land a construction site for all eight variants in the
    same commit; and §5.4's *shapes* table plus §9's preamble are the two lists a
    phase reads before writing renderer code or a test target.
-4. **The first thing PHASE-02 does after `slint` lands is A-4's timing
-   protocol.** That number decides whether ADR-002's T3 has fired. Baseline
-   measured 2026-09-05, pre-split: `just check` 1.836 s warm.
+4. **The first thing PHASE-03 does after `slint` lands is A-4's timing
+   protocol** — `plan.md` PHASE-03/EX-1, run before any renderer content. (This
+   item said *PHASE-02* when it was written, before the phase numbering existed;
+   PHASE-02 is the boundary rewrite and has no `slint` in it. Corrected
+   2026-09-05, `review-plan.md` F-32.) That number decides whether ADR-002's T3
+   has fired. Baseline measured 2026-09-05, pre-split: `just check` 1.836 s
+   warm.
 5. **Read §5.5's STOP table (S-1…S-8) into every phase sheet.** It is the list a
    phase agent needs in order to recognise a condition it is not allowed to
    improvise past.
+
+**This Handover section predates `plan.md` and is superseded by it wherever the
+two disagree.** It is kept as the record of what was known at the design gate;
+`plan.md` is the executable authority for phase numbering, ordering and criteria.
 
 **Reading list for whoever picks this up:** `docs/AGENTS.md`;
 `docs/slices/002/slice-002.md` (15 acceptance criteria, Stage: design);
