@@ -245,6 +245,29 @@ pure code and no protocol code. The renderer does **not** get a laxer lint
 table: every member writes `lints.workspace = true`, and the suppression is
 scoped to the one module that wraps `include_modules!()` (D8, F-16).
 
+**`crates/goad` is a library plus a thin binary**, and that is a lint decision
+before it is a testing one. `unreachable_pub` is `warn` in the table
+(`Cargo.toml:104`) and fatal under the gate's `-D warnings`, and it refuses a
+`pub` item inside a **private** module — measured, nine errors on the first
+compile of the design's own text, one per `pub` item §5.4 declares. The
+boundary was measured too: `pub` at the crate root of a binary does not fire;
+`pub` below a private `mod` does, in a library exactly as in a binary.
+
+There are therefore two shapes that pass, and only one of them is compatible
+with §9. `pub(crate)` on every item satisfies the lint and puts every one of
+them out of reach of a `tests/` target — which is where item 11, item 12, item
+13 and item 17 all run (D9, §12.8). So: `src/lib.rs` declares the module tree,
+each module is a `pub mod`, and every item the design writes `pub` is genuinely
+reachable, which is what the lint is asking for. `src/main.rs` holds `main`,
+`run` and `start` — the three functions that choose an exit code and construct
+the process, which no test drives — and nothing else. Everything a test can
+reach, `install` included (item 14e drives it), lives in the library.
+
+The consequence is not free and is not hidden: those items are public API, so
+`clippy::missing_errors_doc` (pedantic, `Cargo.toml:123`) fires on every one
+that returns `Result`. The `# Errors` sections in §5.4 are obligations, not
+courtesies.
+
 ### 5.2 Interfaces & contracts
 
 **Two row types, not one.** This is the seam where a canonical value becomes a
@@ -735,8 +758,9 @@ host is busy and cannot ask the loop to quit, and both are required (F-5):
 ///
 /// The window handle is **weak**: the component owns the callback, so a strong
 /// capture is a reference cycle that leaks the window. `Debug` is hand-written
-/// if `slint::Weak` does not derive it, because `missing_debug_implementations`
-/// is `deny` (`Cargo.toml:76`).
+/// — not "hand-written if": `slint::Weak` implements no `Debug` in 1.17.1, by
+/// derive or by impl, anywhere in `i-slint-core` or `slint`, and
+/// `missing_debug_implementations` is `deny` (`Cargo.toml:76`). Measured.
 #[derive(Clone)]
 pub struct Wire {
   commands: mpsc::Sender<Command>,
@@ -772,8 +796,15 @@ impl Wire {
   /// `serve` and dropped when `serve` returns — one line before the task's own
   /// `quit_event_loop`. So a `Closed` arm that quit the loop would be a second
   /// call site for a quit that is already in flight, and §5.4 requires exactly
-  /// one. The arm is written out, matched, and commented with that argument, so
-  /// that "it does nothing" is a decision on the page rather than a `_ =>`.
+  /// one. The pattern is written out, matched, and commented with that
+  /// argument, so that "it does nothing" is a decision on the page rather than
+  /// a `_ =>`.
+  ///
+  /// It shares one arm with `Ok(())`: `Ok(()) | Err(TrySendError::Closed(_))
+  /// => ()`. Two arms with identical bodies is `clippy::match_same_arms`
+  /// (pedantic, `Cargo.toml:123`) — measured on this exact shape. F-20's
+  /// requirement survives intact, because what F-20 asked for is that the
+  /// pattern be *named* rather than swept into a wildcard, and it is.
   pub fn send(&self, command: Command);
   /// Trip the stop signal. Every shutdown source is exactly this call (§5.4).
   pub fn stop(&self);
@@ -870,6 +901,10 @@ or lose.
 
 ```rust
 impl Controller {
+  /// `clippy::new_without_default` is in `clippy::all` (`Cargo.toml:122`,
+  /// `deny`) and fires on any argument-less `new() -> Self`, so this comes
+  /// with an `impl Default for Controller` that calls it. Measured. The same
+  /// obligation lands on `Cancel::new` (§5.4).
   pub fn new() -> Self;
 
   /// Fold one completed exchange. The **only** place host state and renderer
@@ -888,8 +923,12 @@ impl Controller {
   /// presentation is untouched — the same rule `no_action` follows (R-34).
   pub fn refuse(&mut self, refused: &Refused);
 
-  /// Resolve a click against retained state. `Err` is a `Refused`, and nothing
-  /// is sent.
+  /// Resolve a click against retained state.
+  ///
+  /// # Errors
+  /// [`Refused::SupersededView`] when `view` is not the retained token;
+  /// [`Refused::UnknownOption`] when `option` is not one the retained
+  /// presentation carries. Nothing is sent in either case.
   pub fn answer(&self, view: &str, option: &str) -> Result<(ViewId, UserResponse), Refused>;
 
   pub fn open_diagnostics(&mut self);
@@ -996,7 +1035,13 @@ fn main() -> ExitCode {
 /// `main` cannot use `?`, because it returns `ExitCode`. This is the fallible
 /// half, and it is the only place a `StartupError` is produced.
 fn run() -> Result<(), StartupError> {
-  match arguments(std::env::args_os())? {
+  // The environment is passed in, not reached for, because `arguments` is pure
+  // over both (§9 item 17). The closure is not redundant and cannot be replaced
+  // by `&std::env::var_os`: `var_os` is generic over `K: AsRef<OsStr>`, and a
+  // generic fn item does not coerce to `&dyn Fn(&str) -> Option<OsString>`.
+  // Measured — as was the arity, which the earlier one-argument call site got
+  // wrong against its own two-argument signature (`research.md` Thread 10).
+  match arguments(std::env::args_os(), &|name| std::env::var_os(name))? {
     Launch::Help => {
       diagnostics::print_usage();            // stdout, and `run` returns Ok
       Ok(())
@@ -1052,8 +1097,12 @@ fn start(path: &Path) -> Result<(), StartupError> {
   // 6. The first evaluation enters through the ordinary channel, so item 11
   //    exercises the real path. The channel is empty and holds one, so this
   //    cannot fail; an `Err` is still reported rather than unwrapped.
+  //    The binding is named, not `|_|`: `clippy::map_err_ignore` is `deny`
+  //    (`Cargo.toml:152`) and fires on the wildcard. `TrySendError` hands the
+  //    command back and carries nothing this surface renders, so the discard is
+  //    deliberate and the name says so.
   tx.try_send(Command::Evaluate(Stimulus::Startup))
-    .map_err(|_| StartupError::Enqueue)?;
+    .map_err(|_returned| StartupError::Enqueue)?;
 
   // 7. One task, one loop, one quit. The `JoinHandle` is bound and dropped:
   //    dropping it does not drop the future (`research.md:500-510`), which is
@@ -1062,7 +1111,7 @@ fn start(path: &Path) -> Result<(), StartupError> {
     let _served = serve(host, Controller::new(), rx, cancel, clock::wall_clock, glass).await;
     // The crate's ONLY `quit_event_loop` call site (F-20). Its `Err` says only
     // that the loop is already gone, and is matched rather than discarded
-    // because `let _ =` trips `let_underscore_must_use` (`Cargo.toml:152`).
+    // because `let _ =` trips `let_underscore_must_use` (`Cargo.toml:153`).
     match slint::quit_event_loop() {
       Ok(()) | Err(_) => (),
     }
@@ -1142,18 +1191,26 @@ fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
 }
 ```
 
-Six distinct binding names rather than six `let wire = wire.clone()`:
-`shadow_unrelated` is `deny` (`Cargo.toml:203`) and a clone does not read the
-binding it shadows, so the idiomatic rebinding is a lint error here. Naming each
-clone after the callback it feeds is what the lint costs, and it reads better
-anyway.
+Six distinct binding names rather than six `let wire = wire.clone()`, **and the
+reason is readability, not the lint table.** The earlier text said
+`shadow_unrelated` refused the rebinding; measured, it does not. A clone whose
+initialiser reads the binding it shadows is `clippy::shadow_reuse`, a
+restriction lint this table does not enable, and `let wire = wire.clone();`
+compiles clean under goad's own `Cargo.toml` — confirmed under
+`-W clippy::shadow_reuse`, which reports it and names that lint. The six names
+stay because naming each clone after the callback it feeds says which callback
+owns which handle, and six identically-named bindings say nothing. Written down
+because a repair that rests on a false lint claim invites the next reader to
+"simplify" it and be right.
+
+`shadow_unrelated` (`deny`, `Cargo.toml:205`) is a real constraint on this
+renderer, just not here: it fires on a **loop** binding that reuses the name of
+the thing it iterates, which is `Diagnostics::of`'s shape (§5.4's *shapes*
+table, rule 7).
 
 `SharedString` → `String` is `.into()`, and it is the only conversion at this
 seam: both strings are opaque selectors matched against retained state, never
-parsed (I-3). `shadow_unrelated` is `deny` (`Cargo.toml:203`), so the repeated
-`let w` above is written with distinct bindings or a block per installation —
-the shape is settled on the first renderer commit under A-2, and the six
-installations are the contract.
+parsed (I-3).
 
 **Closing the window quits goad, in either mode.** The alternative — close means
 hide — would leave an interaction `Host` still considers outstanding with no way
@@ -1197,26 +1254,24 @@ pub struct Served<B: Backend, G: Glass> {
 /// the identical call under `block_on` (D9). There is no second implementation
 /// of the loop and no test-only harness for it.
 ///
-/// An ordinary `async fn` carrying **one** narrow expectation. The future holds
-/// `Rc`-bearing Slint handles and can never be `Send`, and `future_not_send` is
-/// `deny` (`Cargo.toml:197`), so the lint fires — **measured**, not assumed
-/// (A-5, F-27). The plain-`fn`-returning-`impl Future` shape an earlier draft
-/// chose to dodge it does not dodge it, and costs a second denied lint:
-/// `clippy::manual_async_fn` is in `clippy::all`, which is `deny`
-/// (`Cargo.toml:120`), and it fires on exactly that shape when the body is a
-/// single `async` block. One `expect` on an `async fn` is strictly cheaper than
-/// one `expect` on a `fn` plus a second for the shape.
+/// An ordinary `async fn`, carrying **no** attribute at all. The
+/// plain-`fn`-returning-`impl Future` shape an earlier draft chose to dodge
+/// `clippy::future_not_send` does not dodge it and costs a second denied lint —
+/// `clippy::manual_async_fn`, from `clippy::all` (`Cargo.toml:122`) — which is
+/// why the shape is an `async fn` (A-5, F-27).
 ///
-/// ```rust
-/// #[expect(
-///   clippy::future_not_send,
-///   reason = "the loop owns Rc-bearing Slint handles and is driven by \
-///             slint::spawn_local, which never moves it between threads"
-/// )]
-/// ```
-///
-/// This is the **first** of A-2's three permitted expectations outside the
-/// generated-code quarantine.
+/// The `#[expect(clippy::future_not_send, …)]` an earlier repair put here is
+/// **deleted**, and that too is measured: `future_not_send` does not fire on
+/// **this** signature. It deliberately drops `Send` obligations that mention a
+/// type parameter at the top level, and `serve`'s future is `!Send` only
+/// through `B` and `G`; everything else it holds across an await is `Send`,
+/// `slint::StyledText` included (`SharedVector`-backed,
+/// `i-slint-core-1.17.1/sharedvector.rs:97`). The earlier spike measured a
+/// **concrete** `Rc`-bearing glass, and the negative here is not vacuous: the
+/// same loop non-generic over a concrete `Rc`-bearing glass, and the same loop
+/// generic with one concrete `Rc` local, both fire. An unfulfilled `#[expect]`
+/// is `unfulfilled_lint_expectations` under the gate's `-D warnings`, so the
+/// attribute would have failed the gate for the opposite reason (§5.5, A-5).
 ///
 /// Everything is taken by value because `slint::spawn_local` needs a `'static`
 /// future, and handed back in `Served` so a test can read what it did.
@@ -1390,6 +1445,9 @@ pub struct Cancel {
 }
 
 impl Cancel {
+  /// With an `impl Default for Cancel` beside it, for
+  /// `clippy::new_without_default`'s sake — the same obligation `Controller`
+  /// carries (§5.3).
   pub fn new() -> Self;              // watch::channel(false), both halves kept
   /// Trip it. Synchronous, idempotent, callable from a Slint callback.
   /// `send` cannot fail: `self` holds a receiver, so one always exists.
@@ -1597,6 +1655,17 @@ pub enum ClockError {
 /// needs jiff's `std` feature — and enabling it in stratum 3 unifies it into
 /// stratum 1's build, weakening the purity claim in a way the manifest test
 /// cannot see (`Cargo.toml:23`).
+///
+/// The `SystemTimeError` `duration_since` returns is discarded with a **named**
+/// binding, `.map_err(|_negative| ClockError::BeforeEpoch)?`: it carries only
+/// the size of the negative offset, `BeforeEpoch`'s sentence already says
+/// everything a reader needs, and `clippy::map_err_ignore` (`Cargo.toml:152`)
+/// refuses the wildcard. Two sites in this crate need this, and they take the
+/// same shape — the other is the entry point's `Enqueue`.
+///
+/// # Errors
+/// [`ClockError::BeforeEpoch`] when the system clock reads before the Unix
+/// epoch; [`ClockError::OutOfRange`] when the instant is outside jiff's range.
 pub fn wall_clock() -> Result<Timestamp, ClockError>;
 ```
 
@@ -1632,6 +1701,17 @@ pub enum Launch {
 
 /// Pure over the arguments and the environment it is handed, so the table below
 /// is a test rather than a claim (§9 item 17).
+///
+/// `argv` is `std::env::args_os()` **whole**, program name included: the skip
+/// lives here, inside the function the table tests, rather than at a call site
+/// no test covers. The rows below count what is left after it. Nothing said
+/// this before, and every row of the table was off by one for it
+/// (`research.md` Thread 10).
+///
+/// # Errors
+/// [`StartupError::Usage`] for two or more positional arguments;
+/// [`StartupError::NoConfigPath`] when none is given and neither variable
+/// names a directory.
 pub fn arguments(
   argv: impl Iterator<Item = OsString>,
   env: &dyn Fn(&str) -> Option<OsString>,
@@ -1640,15 +1720,25 @@ pub fn arguments(
 
 | arguments | behaviour |
 |---|---|
-| none | `$XDG_CONFIG_HOME/goad/config.toml` when that variable is set, non-empty **and absolute**; otherwise `$HOME/.config/goad/config.toml`. `HOME` unset or empty ⇒ `StartupError::NoConfigPath`, whose text names both variables. |
+| none | `$XDG_CONFIG_HOME/goad/config.toml` when that variable is set and **absolute**; otherwise `$HOME/.config/goad/config.toml`. `HOME` unset or empty ⇒ `StartupError::NoConfigPath`, whose text names both variables. |
 | `-h` or `--help` | the usage block on stdout, exit 0 — its text is §5.4's, and `--help` is its only destination |
 | exactly one, anything else | that path, verbatim; `$XDG_CONFIG_HOME` is not consulted |
 | two or more | `StartupError::Usage` on stderr, exit 2 — the host does not guess which was meant |
 
 Unset, empty and relative all fall back, which is the XDG basedir rule as
-written rather than an invention. A file literally named `--help` is reachable as
-`./--help`; there is no `--` escape, and no other flag exists — a flag set is a
-decision per flag.
+written rather than an invention. The rule is **one** test, not three: an empty
+path is not absolute, so `is_absolute` subsumes non-emptiness. The usage block
+still says "unset, empty, or not absolute", because those are the three
+environments a person actually has.
+
+`HOME` is used as given and is **not** required to be absolute. The basedir
+spec states the absoluteness rule for `XDG_CONFIG_HOME` and states nothing of
+the kind for `HOME`; a relative `HOME` is a broken environment the host cannot
+repair and should not silently reinterpret. Written down because the asymmetry
+looks like an oversight and is not.
+
+A file literally named `--help` is reachable as `./--help`; there is no `--`
+escape, and no other flag exists — a flag set is a decision per flag.
 
 **The xdg app id is `"goad"`**, set before any component is constructed,
 because the app icon comes from the app id and the `icon` property is silently
@@ -1708,6 +1798,12 @@ impl Diagnostics {
   /// because it is the mapper's fact and `Outcome` has no field for it
   /// (`host.rs:70-96`) — and it is passed by the one function that has both in
   /// hand, so it cannot be forgotten (F-7).
+  ///
+  /// `reported` is by value and the body **destructures it in the first
+  /// statement**. A body that only reads a by-value parameter is
+  /// `clippy::needless_pass_by_value` (`Cargo.toml:191`, `deny`) — measured on
+  /// this signature — and consuming it is what the design wants anyway: an
+  /// `Outcome`'s parts are owned and not `Clone`.
   pub fn of(reported: Reported, undrawn: &[Undrawn]) -> Self;
 
   /// A refusal the host made with no backend involved, so there is no `Outcome`
@@ -1746,7 +1842,9 @@ order, and the order is the contract:
    every other `char::is_control()` — C0, DEL and C1 — → `\u{…}` in Rust's own
    lowercase-hex form. Everything else passes verbatim, including non-Latin
    text, which `str::escape_debug` would have mangled by escaping combining
-   marks. Escaping is not optional decoration: a hostile `raw` with newlines
+   marks. **It is a `Display` adapter, not a `String` accumulator**, and that is
+   a lint result rather than a preference — §5.4's *shapes* table, rule 8.
+   Escaping is not optional decoration: a hostile `raw` with newlines
    would otherwise restructure the surface, `StyledText` has no `overflow`
    property to clip it with, and `StyledTextFromMarkdownError` joins multiple
    parse errors **with `\n`** (`i-slint-core-1.17.1/styled_text.rs:24-27`), so a
@@ -1911,10 +2009,35 @@ Every string of it is written out here, because an implementer who has to author
 the wording is authoring user-facing policy during execution (F-26).
 
 **The two outlets, and how they are written.** `print_stdout` and `print_stderr`
-are both `deny` (`Cargo.toml:143-144`), so neither `println!` nor `eprintln!` is
-available; both go through `writeln!` on a locked handle. The write's own
-`Result` is discarded by matching, because `let _ = …` trips
-`let_underscore_must_use` (`:152`) and `.ok();` trips `unused_must_use`:
+are both `deny` (`Cargo.toml:147-148`), so neither `println!` nor `eprintln!` is
+available; both go through `writeln!` on a locked handle. Nine spellings of the
+discard were compiled against the real table before one was chosen
+(`research.md` Thread 10), and the losing four are recorded so that nobody walks
+the same road:
+
+| spelling | lint |
+|---|---|
+| `eprintln!` / `println!` | `clippy::print_stderr` / `clippy::print_stdout` |
+| `let _ = writeln!(..);` | `clippy::let_underscore_must_use` |
+| `let _: io::Result<()> = writeln!(..);` | `clippy::let_underscore_must_use` — the annotation does not help |
+| `writeln!(..);` | `unused_must_use`, via `unused` |
+| `writeln!(..).ok();` | **none** |
+| `drop(writeln!(..));` | **none** |
+| `match writeln!(..) { Ok(()) \| Err(_) => () }` | **none** — chosen |
+
+`.ok();` is clean, and the earlier text's claim that it trips `unused_must_use`
+is false: `Result::ok` is not `#[must_use]` and `Option` is not a must-use type,
+so the lint has nothing to fire on. The `match` is chosen over it on one ground
+and it is not a lint: `.ok()` and `drop(..)` both say *discard*, and only the
+`match` says *both outcomes were considered and both are nothing*. That is the
+difference between a line a reviewer has to trust and a line a reviewer can
+read. It is written here rather than left implicit because `.ok();` is shorter
+and will otherwise be offered as a simplification — correctly, if the design
+still claimed a lint forbade it.
+
+`std::io::Write` is **not** imported. The `impl std::io::Write` bound supplies
+`write_fmt`, and the import an implementer reaches for trips `unused_imports`
+(`deny`, via `unused`, `Cargo.toml:99`).
 
 ```rust
 // crates/goad/src/diagnostics.rs
@@ -1927,10 +2050,18 @@ fn line_to(mut sink: impl std::io::Write, line: &str) {
 }
 
 /// stdout, exit 0. The only caller is `--help`.
-pub fn print_usage();
+pub fn print_usage() {
+  line_to(std::io::stdout().lock(), USAGE);
+}
+
 /// stderr, and `main` returns `ExitCode::from(2)`.
-pub fn report_startup(error: &StartupError);
+pub fn report_startup(error: &StartupError) {
+  line_to(std::io::stderr().lock(), &format!("goad: {error}"));
+}
 ```
+
+The usage block is a `const` with no trailing newline; `line_to`'s `writeln!`
+supplies the one. Two sources of that newline would be a fact stated twice.
 
 *The usage block*, on **stdout**, one trailing newline, exit 0. It is one
 `const`, and it has exactly one destination — `--help`. A usage error does not
@@ -1961,7 +2092,13 @@ twice. `StartupError` implements `std::error::Error` with the **default**
 surface has already rendered.
 
 The eight variants, and their exact text. Two come from argument and environment
-handling, six from the steps after it:
+handling, six from the steps after it.
+
+All eight must be *constructed* in the phase that lands them. `dead_code` is
+`warn` in the table (`Cargo.toml:100`) and fatal under the gate's `-D warnings`,
+so a variant whose call site arrives a phase later fails the gate on the day it
+is written. That is a constraint on where the phase boundary falls, not a
+detail — it bit twice while this enum was being built (`research.md` Thread 10).
 
 | variant | `Display` |
 |---|---|
@@ -2007,7 +2144,10 @@ the system clock is outside the range this host represents: {jiff error}
 `source()` for the same reason `StartupError` does: `OutOfRange` already names
 `jiff`'s message inside its own sentence, and a `source()` that returned the
 `jiff::Error` would let a chain-walker print it twice — F-47's defect, avoided
-rather than inherited.
+rather than inherited. Both `None`-returning `source()` impls were asserted
+against the real `Error` trait, and `ConfigError`'s own real `source()` chain
+(`src/shell/error.rs:177-186`) was confirmed not to leak through
+`StartupError::Config`.
 
 No string above contains domain vocabulary. `boundary.rs`'s successor scans
 `.slint` as well as `.rs` after D13, so the markup literals are covered by the
@@ -2109,13 +2249,35 @@ so that a 4×4 sample grid has integral sample centres:
 
 For pixel `(x, y)` with `x, y` in `0..32`, sample `(i, j)` with `i, j` in `0..4`
 sits at `(8x + 2i + 1, 8y + 2j + 1)`. With `dx` and `dy` the offsets from the
-centre and `d2 = dx*dx + dy*dy`, a sample is **covered** iff
+centre and `d2 = dx² + dy²`, a sample is **covered** iff
 `d2 <= OUTER_SQ && d2 >= inner_sq`. Both comparisons are inclusive: a sample
 exactly on either boundary is inside, stated so that two implementations cannot
 differ by one sample on the rim. `covered` counts 0…16, and the pixel is the
-state's RGB with `alpha = u8::try_from(covered * 255 / 16).unwrap_or(u8::MAX)`;
+state's RGB with
+
+```rust
+let alpha = u8::try_from(covered.saturating_mul(255).checked_div(16).unwrap_or(0))
+  .unwrap_or(u8::MAX);
+```
+
 an uncovered pixel is that same RGB with `alpha = 0`, so no colour is
 manufactured at the edge.
+
+**Not one bare arithmetic operator appears in this module**, and the earlier
+text's `covered * 255 / 16` was two denied lints in one expression —
+`clippy::integer_division` (`Cargo.toml:140`, crate-wide `deny`) and
+`clippy::arithmetic_side_effects`, the module's own. Measured: eight errors
+across the sample-grid arithmetic. So every product and sum is `saturating_mul`
+/ `saturating_add` / `saturating_sub`, and the one division is
+`checked_div(16).unwrap_or(0)` because division has no saturating form. The
+module already promised `saturating_` operations and then wrote `*` and `/`;
+this is that promise made literal. `unwrap_or` is not `unwrap` and is untouched
+by `unwrap_used`.
+
+The rewrite is value-preserving where it matters, and that was asserted rather
+than argued: with the saturating spelling, pixel `(16, 16)` is still fully
+transparent for `Idle` (`covered = 0`) and fully opaque for `Fault`
+(`covered = 16` ⇒ `4080 / 16 = 255`).
 
 The consequence the tests turn on falls out of the numbers rather than out of a
 description: pixel `(16, 16)`'s samples all have `d2 <= 98`, which is below
@@ -2125,9 +2287,11 @@ description: pixel `(16, 16)`'s samples all have `d2 <= 98`, which is below
 All arithmetic is integer and no expression uses `as`: goad's table refuses
 `as_conversions` and `cast_possible_truncation`, the same lint that made
 `range.min() as f32` fail in `research.md` Thread 5. Widths are chosen so the
-products cannot overflow — the largest `d2` is `2 × 127²` — and the module
-carries `#![deny(clippy::arithmetic_side_effects)]` with `saturating_` operations
-for the same reason `process.rs` and `diagnostics.rs` do.
+products cannot overflow — the largest `d2` is `2 × 127²` — so the saturating
+spelling never actually saturates; it is there because the lint is, and because
+the day a radius changes is the day the claim would otherwise need re-checking.
+The module carries `#![deny(clippy::arithmetic_side_effects)]` for the same
+reason `process.rs` and `diagnostics.rs` do.
 
 `TrayState` is derived, not stored: the glass reads `Diagnostics::state()` on
 every `present`. The **initial** icon and tooltip are written by
@@ -2173,6 +2337,58 @@ above draws, and the two statements are required to agree.
   when the person or an incoming view moves it. They are allowed to disagree, and
   DT-1 is the case where they do.
 
+#### The shapes the lint table requires
+
+Nine rules, each one a lint that fires on this design's own text under
+`cargo clippy --all-targets -- -D warnings`. They are here rather than in a
+phase sheet because they are properties of the code the design specifies, and a
+phase that meets them costs nothing while a phase that discovers them costs a
+compile each. **Every one is a code shape; none needs an `#[expect]`** — which
+is why A-2's expectation budget is now unspent (§5.5).
+
+The evidence is a scratch crate carrying `Cargo.toml`'s `[lints.rust]` and
+`[lints.clippy]` blocks verbatim, plus `clippy.toml` and `rustfmt.toml`, into
+which §5.2's, §5.3's and §5.4's own text was transcribed as written. It failed
+with **thirteen errors across nine lints**, and the rasteriser with eight more
+(`research.md` Thread 11).
+
+| # | shape | the lint that forces it |
+|---|---|---|
+| 1 | `serve` carries **no** `#[expect]`. Its future is `!Send` only through its type parameters, which `future_not_send` ignores | `unfulfilled_lint_expectations`, under `-D warnings` |
+| 2 | every argument-less `new() -> Self` has an `impl Default` beside it — `Controller::new`, `Cancel::new` | `clippy::new_without_default`, in `clippy::all` |
+| 3 | `Wire::send` writes `Ok(()) \| Err(TrySendError::Closed(_)) => ()` as **one** arm. F-20 is satisfied: the pattern is still written out, and only the body is shared | `clippy::match_same_arms`, pedantic |
+| 4 | a discarded error is named, never `_`: `.map_err(\|_returned\| StartupError::Enqueue)`, `.map_err(\|_negative\| ClockError::BeforeEpoch)` | `clippy::map_err_ignore` |
+| 5 | every exported fn returning `Result` carries a `# Errors` section — `arguments`, `Controller::answer`, `wall_clock`. Measured firing in a lib target and a bin target alike | `clippy::missing_errors_doc`, pedantic |
+| 6 | `Diagnostics::of` destructures `Reported` by value in its first statement. A body that only reads it makes the by-value parameter a lint | `clippy::needless_pass_by_value` |
+| 7 | a loop binding never reuses the name of the thing it iterates: `for part in undrawn`, not `for undrawn in undrawn` | `clippy::shadow_unrelated` |
+| 8 | the escape step is a `Display` adapter, not a `String` accumulator | `clippy::format_push_string`, then `clippy::let_underscore_must_use` |
+| 9 | the rasteriser has no bare arithmetic operator at all | `clippy::integer_division`; `clippy::arithmetic_side_effects`, the module's own |
+
+**Rule 8 is the one with a trap in it, so it is written out.** The accumulating
+spellings are both denied and each is the other's suggested repair:
+`out.push_str(&format!(…))` is `clippy::format_push_string` (pedantic), clippy
+suggests `let _ = write!(out, …)`, and that is `clippy::let_underscore_must_use`
+(`Cargo.toml:153`), whose own suggestion is the first. Two spellings do pass —
+`match write!(out, …) { Ok(()) | Err(_) => () }` with `use std::fmt::Write as _`,
+measured clean; and a `Display` adapter, a struct wrapping the source `&str`
+whose `fmt` writes each escaped char into the formatter and propagates
+`fmt::Result` with `?`, from which the line is materialised once. The adapter is
+chosen, because it discards **nothing**: writing into a `String` cannot fail, so
+the `match` spelling asks a reader to reason about an arm that cannot occur, and
+the outlets' `match` (which discards a real I/O error) then means two different
+things in two places. Every expected string in §9 item 12 depends on this step
+existing, which is why the constraint is recorded at design time rather than
+rediscovered at the phase.
+
+Two rules further govern the **test** targets this slice adds, and they are
+stated once, in §9's preamble.
+
+Two things this settles that the design had written as conditionals, both
+now measured and both stated at their own sites: `Wire`'s hand-written `Debug`
+is required, not conditional (§5.3), and the six distinct clone bindings in
+`install` stay for readability rather than for `shadow_unrelated`, which does
+not fire on them (§5.4, *Installing the callbacks*).
+
 ### 5.5 Invariants, assumptions & edge cases
 
 **Invariants.**
@@ -2201,19 +2417,31 @@ above draws, and the two statements are required to agree.
   UI that trips only eleven fails via `unfulfilled_lint_expectations`, so the
   list is corrected on the first renderer commit rather than taken from
   `research.md` unchanged.
-- **A-2.** The workspace lint table accepts hand-written renderer code. Only the
-  five async lints were proven against the runtime shape; `pedantic`,
-  `needless_pass_by_value`, `shadow_unrelated` and ~75 others are unproven
-  against a Slint-driving `main`, an escape loop and a rasteriser. Settled by
-  running `cargo clippy --workspace --all-targets -- -D warnings` on the first
-  renderer commit, before the phase commits to a shape. If a hand-written file
-  genuinely cannot satisfy a lint, the answer is `#[expect(lint, reason = …)]` at
-  the narrowest scope that works, argued in the phase sheet — never `allow`, and
-  never a crate-level `[lints]` override (D8). **Stop rule:** the third distinct
-  lint needing an `expect` outside the generated-code quarantine is not an
-  implementation detail; it is the table being wrong for this stratum, and it
-  stops the phase. **One is already spent**: `clippy::future_not_send` on
-  `serve`, measured rather than predicted (A-5, F-27). Two remain.
+- **A-2 is measured, not assumed**, for every passage of hand-written renderer
+  code a scratch crate can reach without Slint. The design's own text for
+  `install`, `Wire`, `Cancel`, `Controller`, `Diagnostics`, the mapper,
+  `receive`, `arguments`, the two startup outlets, `wall_clock`, `serve` and the
+  tray rasteriser was transcribed into a crate carrying `Cargo.toml`'s
+  `[lints.rust]` and `[lints.clippy]` blocks verbatim, plus `clippy.toml` and
+  `rustfmt.toml`, and checked with `cargo clippy --all-targets -- -D warnings`.
+  **As written it failed with thirteen errors across nine lints**, and the
+  rasteriser with eight more (`research.md` Thread 11). Every one is a code
+  change. **No expectation is needed anywhere, and the budget is therefore
+  unspent: three remain.** The shapes are stated in §5.4's *The shapes the lint
+  table requires*, so a phase applies them rather than rediscovering them one
+  compile at a time.
+
+  What is still unproven is only what needs Slint in the dependency graph:
+  `SlintGlass`, the `include_modules!()` quarantine (A-1), the
+  `slint::spawn_local` call site, `Image` and `SharedPixelBuffer`, and `start`'s
+  body. Those settle on the first renderer commit, under the same command.
+
+  If a hand-written file genuinely cannot satisfy a lint, the answer is
+  `#[expect(lint, reason = …)]` at the narrowest scope that works, argued in the
+  phase sheet — never `allow`, and never a crate-level `[lints]` override (D8).
+  **Stop rule, unchanged:** the third distinct lint needing an `expect` outside
+  the generated-code quarantine is not an implementation detail; it is the table
+  being wrong for this stratum, and it stops the phase.
 - **A-3.** `with_debug_info` is `#[doc(hidden)]` and depended on. The
   environment-variable fallback is worse, not safer. If it disappears in a Slint
   upgrade, the guard test (below) fails rather than the suite going quiet.
@@ -2232,14 +2460,30 @@ above draws, and the two statements are required to agree.
   |---|---|
   | `fn serve(..) -> impl Future`, future **is** `Send` | clean — which is why the earlier reading looked settled: the lint had nothing to fire on |
   | `fn serve(..) -> impl Future`, future `!Send` | **two errors** — `future_not_send` *and* `manual_async_fn`, the latter from `clippy::all` |
-  | `async fn serve(..) -> Served` + one `#[expect(future_not_send, reason)]` | clean, and the expectation is **fulfilled** |
+  | `async fn serve(..) -> Served` + one `#[expect(future_not_send, reason)]` | clean, and the expectation is **fulfilled** — but only for the spike's **concrete** glass; see below |
 
-  So `serve` is an ordinary `async fn` carrying one expectation, and it is the
-  **first** of A-2's three. A crate-level `[lints]` override remains unavailable:
-  D8 requires `lints.workspace = true` and nothing else in every member, and A-2
-  forbids a crate table in the same breath — the wording that pointed at one was
-  F-16's second raising. `Cancel::stopped` keeps its `-> impl Future` shape and
-  trips nothing, because `manual_async_fn` fires only when the body is a single
+  So `serve` is an ordinary `async fn` — and it carries **no** expectation. The
+  third row above does not transfer to the design's signature, and that was
+  measured too: the spike held a **concrete** `Rc`-bearing glass, while `serve`
+  is generic over `B: Backend` and `G: Glass`, and `clippy::future_not_send`
+  deliberately drops `Send` obligations that mention a type parameter at the top
+  level. Every other value the future holds across an await is `Send` —
+  `Controller`, `Cancel`, the `mpsc::Receiver`, the `fn`-pointer clock — and
+  `slint::StyledText` is `Send` as well, being `SharedVector`-backed
+  (`i-slint-core-1.17.1/sharedvector.rs:97`), so `Controller` does not make the
+  future `!Send` either. The lint does not fire, an `#[expect]` there is
+  *unfulfilled*, and `unfulfilled_lint_expectations` is an error under the
+  gate's `-D warnings`: **the attribute F-27's repair added would have failed
+  the gate for the opposite reason.** Two controls prove the negative is real
+  rather than vacuous — the same loop non-generic over a concrete `Rc`-bearing
+  glass, and the same loop generic with one concrete `Rc` local, both fire
+  (`research.md` Thread 11).
+
+  A crate-level `[lints]` override remains unavailable: D8 requires
+  `lints.workspace = true` and nothing else in every member, and A-2 forbids a
+  crate table in the same breath — the wording that pointed at one was F-16's
+  second raising. `Cancel::stopped` keeps its `-> impl Future` shape and trips
+  nothing, because `manual_async_fn` fires only when the body is a single
   `async` block and `stopped` clones its receiver first.
 - **A-6 is discharged, not assumed.** `Window.title` bound to a conditional over
   a `WindowMode` property compiles (`research.md` Thread 8). The fallback — the
@@ -2531,10 +2775,12 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   function wide, whose only job is to stamp a call. It is not a timer, and D15
   says so, so that slice 003 does not inherit it as one.
 
-  - **Config path.** §5.4's table: zero arguments → `$XDG_CONFIG_HOME` when set,
-    non-empty and absolute, else `$HOME/.config`; one argument → that path
-    verbatim; `-h`/`--help` → usage, exit 0; two or more → usage error, exit 2.
-    Read with `args_os`/`var_os`, so non-Unicode is never decoded.
+  - **Config path.** §5.4's table: zero arguments → `$XDG_CONFIG_HOME` when set
+    and absolute (which subsumes non-empty), else `$HOME/.config`, with `HOME`
+    used as given; one argument → that path verbatim; `-h`/`--help` → usage,
+    exit 0; two or more → usage error, exit 2. The counts are of arguments
+    **after** the program name, which `arguments` skips itself. Read with
+    `args_os`/`var_os`, so non-Unicode is never decoded.
     `Config::load` takes the path (`config.rs:115`); nothing else about discovery
     exists yet, so this is where it is decided.
   - **The clock.** `pub type Clock = fn() -> Result<Timestamp, ClockError>`,
@@ -2750,10 +2996,12 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   awaiting an exchange; `Command` therefore has no `Shutdown` variant. `serve`
   holds the whole loop and takes everything by value, so production wraps it in
   one `spawn_local` block and the cheap tier drives the identical call under
-  `block_on`. It is an ordinary `async fn` carrying one
-  `#[expect(clippy::future_not_send, reason = …)]`, because the plain-`fn`-
-  returning-`impl Future` shape chosen to avoid that lint does not avoid it and
-  costs a second denied lint (A-5, F-27). *Rejected:* `Shutdown` as a queued command (the loop cannot receive
+  `block_on`. It is an ordinary `async fn` carrying **no**
+  attribute: the plain-`fn`-returning-`impl Future` shape chosen to avoid
+  `clippy::future_not_send` does not avoid it and costs a second denied lint
+  (A-5, F-27) — and the lint does not reach this signature anyway, because
+  `future_not_send` drops `Send` obligations that mention a type parameter and
+  `serve` is generic over `B` and `G` (F-29). *Rejected:* `Shutdown` as a queued command (the loop cannot receive
   it while awaiting an exchange, which is the one moment it must be heard — F-4);
   a bare `Notify` (a waiter arriving after the trip never completes);
   `tokio_util::sync::CancellationToken` (a new dependency — a hard stop); a loop
@@ -2830,10 +3078,14 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   argument rather than on evidence.
 - **D26 — every startup string is written out, and both outlets go through
   `writeln!`.** §5.4. `print_stdout` and `print_stderr` are `deny`
-  (`Cargo.toml:143-144`), so the outlet spelling is not a free choice, and the
-  write's `Result` is discarded by matching because `let _ =` and `.ok();` are
-  both refused by the table. The usage block is one `const` with one destination
-  — `--help` — and a usage error names the flag instead of reprinting it.
+  (`Cargo.toml:147-148`), so the outlet spelling is not a free choice. Nine
+  spellings of the discard were then compiled against the real table, and three
+  pass: `.ok();`, `drop(..)`, and the `match`. The `match` is chosen on
+  **explicitness** — it is the only one that says both outcomes were considered
+  — and not because the table refuses the other two, which is what an earlier
+  draft of this entry claimed of `.ok();` and which is measurably false. The
+  usage block is one `const` with one destination — `--help` — and a usage error
+  names the flag instead of reprinting it.
   *Rejected:* leaving the wording to execution, which is authoring user-facing
   policy inside a phase (F-26); reprinting usage beside every usage error, which
   is the same fact in two places (principle 4); and a `source()` chain on
@@ -2849,15 +3101,32 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   is dropped" into a claim about the box); and leaving the choice to the
   implementer, which is what F-22 found — it decides borrowing, cancellation and
   `future_not_send` all at once, and is therefore a design decision.
+- **D28 — `crates/goad` is a library plus a thin binary.** §5.1, F-30.
+  `unreachable_pub` refuses a `pub` item inside a private module, and nine of
+  them fired on the design's own text; two shapes answer it, and only one is
+  compatible with §9 running four validation items in `tests/…` targets of this
+  crate. So `src/lib.rs` declares the module tree, each module is a `pub mod`,
+  and `src/main.rs` holds `main`, `run` and `start` — the three functions that
+  choose an exit code and construct the process — and nothing else. *Rejected:*
+  `pub(crate)` on every item, which is what the scratch crate that found the
+  defect prescribed and which locks items 11, 12, 13 and 17 out of the crate
+  they test; and moving the cheap tier into `#[cfg(test)]` modules under `src/`
+  to make that work, which contradicts D9 and §12.8 to satisfy a lint that a
+  `pub mod` satisfies for free. ADR-002's T2 is untouched: a library target is
+  not a second binary.
 
 ## 8. Risks & mitigations
 
 - **R1 — The lint table rejects hand-written renderer code** (A-2, A-5).
-  *Likelihood medium, impact medium:* a phase spent satisfying ~75 unproven lints
-  instead of building. *Mitigation:* run the clippy command on the first renderer
-  commit, before committing to a shape; A-2's stop rule turns the third
-  `expect` into a phase stop rather than a habit. *Signal:* the first `just
-  check` after the renderer crate exists.
+  *Likelihood, revised: low for everything a scratch crate can reach, and
+  measured rather than guessed.* Nine lints fired on the design's own text and
+  all nine are answered by a code shape §5.4 now writes down; no expectation is
+  needed and the budget is unspent. What remains is the Slint-dependent half —
+  `SlintGlass`, the quarantine, `spawn_local`, the image types, `start`'s body.
+  *Mitigation:* apply §5.4's *shapes* table rather than rediscovering it; run
+  the clippy command on the first renderer commit for the rest; A-2's stop rule
+  turns the third `expect` into a phase stop rather than a habit. *Signal:* the
+  first `just check` after the renderer crate exists.
 - **R2 — `just check` becomes intolerable** (A-4, ADR-002 T3). *Likelihood
   medium, impact medium.* *Mitigation:* measure in a worktree immediately after
   the dependency lands, and record the number; T3 firing is a decision, not a
@@ -2893,6 +3162,26 @@ it.
 
 What the plan must produce. Each maps to an acceptance criterion in
 `slice-002.md`.
+
+**Two lint rules govern every test target this slice adds**, both measured
+against the real table and both cheap to meet and expensive to discover
+(`research.md` Threads 9 and 11):
+
+- **A `tests/…` target is a `main.rs` with `#[cfg(test)]` module declarations**,
+  never a bare `tests/thing.rs` holding `#[test]` functions at its root.
+  `clippy::tests_outside_test_module` is `deny` (`Cargo.toml:201`) and fires on
+  every one of them — measured, nine diagnostics from one file.
+  `tests/integration/main.rs:6-24` already carries this arrangement and states
+  the reason: a `tests/` target is always built with `--test`, so the `cfg` is
+  never off. A `#[path]`-included shared helper needs the attribute too.
+- **A `#[test]` returning `Result` must actually use `?`.**
+  `clippy::unnecessary_wraps` is pedantic and `deny`, and it refuses a `Result`
+  return with nothing fallible under it — measured, six diagnostics in one
+  file. This is in tension with the house standard "tests return `Result` and
+  use `?`", and the resolution is the standard's own intent: the standard
+  exists so that a test never reaches for `.unwrap()`, and a test with nothing
+  to unwrap returns `()`. `unwrap_used`, `expect_used` and `unwrap_in_result`
+  remain `deny`, so the standard's actual purpose is held by the table.
 
 **At the split, before Slint:**
 
@@ -3135,9 +3424,14 @@ What the plan must produce. Each maps to an acceptance criterion in
       chain-walking reporter cannot print an inner message a second time — the
       test that fails if `source()` is implemented later (AC-8, F-47);
     - argument handling: zero arguments with `XDG_CONFIG_HOME` set/unset/empty/
-      relative, one argument, `-h`, `--help`, and two arguments, each yielding
-      the `Launch` or the `StartupError` §5.4's table names. Reading is through
-      `args_os`/`var_os`, so a non-Unicode argument is carried and never decoded.
+      relative/absolute, `HOME` unset/empty/relative/absolute, one argument,
+      `-h`, `--help`, and two arguments, each yielding the `Launch` or the
+      `StartupError` §5.4's table names. Every row counts arguments **after**
+      the program name, which `arguments` skips itself — so `argv` in a test is
+      written the way `std::env::args_os()` actually yields it, program name
+      first, and a test that omits it is testing a different function. Reading
+      is through `args_os`/`var_os`, so a non-Unicode argument — and a
+      non-Unicode `XDG_CONFIG_HOME` — is carried and never decoded.
 
     **No test asserts the exit code by running the binary.** That would need a
     built binary and a process, and the code is chosen in one `match` in `main`
@@ -3148,7 +3442,10 @@ What the plan must produce. Each maps to an acceptance criterion in
 ### Item 12 in full — the failure case table
 
 Nothing here is left to the plan: the rows, the vehicle, the sequence, the
-expected text and the exemptions are settled (F-9).
+expected text and the exemptions are settled (F-9). Every string below was
+compiled against the real `Display` impls and the real lint table before this
+section was written (`research.md` Thread 9); where the code and an earlier
+draft of this table disagreed, the code won.
 
 #### 12.1 The vehicle — slice 001's, unchanged
 
@@ -3166,12 +3463,17 @@ This is the only mechanism, because a `Host` is built around one command and
 AC-7 requires the whole taxonomy through one retained `Host`: a backend that
 varies by invocation is the only shape that admits.
 
-Each row's `Outcome` is folded through **`receive`** — the production reduction,
-not a copy — and the assertions read `Diagnostics::lines()`. Rows S1 and S2
-hand a fabricated `ViewId` straight to `Host::respond`, which is why this table
-drives the `Host` rather than the command channel: `Controller::answer` would
-refuse a fabricated token locally and the row would never reach `State::verify`.
-Item 11 is where the channel is driven.
+Each row's `Outcome` is folded through **`Controller::absorb`** — the production
+reduction, not a copy — and the assertions read
+`controller.frame().diagnostics.lines()`. `absorb` calls `receive` and returns
+the `Shift`; `receive` alone returns no `Shift`, and an `Outcome` is not `Clone`
+(`host.rs:70-96`), so calling both is not available. That is a correction: the
+earlier text folded through `receive` here and read a `Shift` off `absorb` two
+subsections later, and only one of the two can run. Rows S1 and S2 hand a
+fabricated `ViewId` straight to `Host::respond`, which is why this table drives
+the `Host` rather than the command channel: `Controller::answer` would refuse a
+fabricated token locally and the row would never reach `State::verify`. Item 11
+is where the channel is driven.
 
 **Three sentinels are added** to `answers-as-instructed.sh`, quoted from the two
 grandchild scripts, whose *absence* of `exec` is the whole fixture — bash running
@@ -3187,7 +3489,21 @@ a script file forks, so `sleep 2 &` is a grandchild that outlives the kill, and
 
 `@lingers-with-a-view` exists for F-1 alone: a successful exchange that mints a
 view **and** fails cleanup is the one case that falsifies a reducer treating
-cleanup as a selector of the presentation transition.
+cleanup as a selector of the presentation transition. **Its body is pinned
+here**, because "the first, with a view in the body" admits bodies that would
+break the row: a title, exactly one option, **no fields** and **no body
+content**, plus `"next_check": "120 minutes"`. Fields would produce an
+`Undrawn::OptionFields` line and a body would risk a degradation line, and C3
+states neither; the span is what puts C3's schedule at 06:12:00Z.
+
+**Five sentinels write the child's pid to stderr**, and that is not incidental to
+this table. `@hang`, `@flood` and all three `@lingers*` quote scripts whose first
+act is `echo "$$" >&2` — R-41 bookkeeping, so a test can confirm the process is
+gone independently of the host's own report (`hangs-past-the-timeout.sh:2-4`).
+The drain borrows the caller's `Captured` (`process.rs:88-145`), so a drain that
+times out still yields what it captured. Rows T2, T4, C1, C2 and C3 therefore
+each carry a `stderr:` line whose text is a pid, and 12.4's `Expect::Unpinned`
+exists for exactly those five.
 
 **Instruction accounting is the trap in this vehicle.** The script hands out
 instructions by *invocation* index, and the two state refusals never invoke it
@@ -3198,20 +3514,43 @@ refusal leaked a spawn.
 
 #### 12.2 The sequence, through one retained `Host`
 
+Every exchange is a row of 12.4's array, including the four that carry no
+expected line. A sequence half in the array and half in prose beside it is the
+defect F-9 was raised on; the only thing left after the loop is the trailing
+count.
+
 | # | exchange | why here |
 |---|---|---|
-| 0 | `respond`, fabricated id, host idle | the only state in which `NoOutstandingView` is reachable. Consumes no instruction; asserts the schedule is still the seed |
-| 1 | `evaluate` → a view | mints **A** and moves the schedule off its seed. Without this the suite cannot tell "unchanged" from "recomputed", and cannot tell one `Host` from thirty |
+| 0 | `respond`, fabricated id, host idle | the only state in which `NoOutstandingView` is reachable. Consumes no instruction; asserts the schedule is still the **seed** |
+| 1 | `evaluate` → a view | mints **A** and moves the schedule to 04:57:00Z. Without this the suite cannot tell "unchanged" from "recomputed", and cannot tell one `Host` from thirty |
 | 2…n | the taxonomy, in table order | one `evaluate` per row. `respond` with a second fabricated id sits mid-sequence for `StaleViewId` and consumes no instruction |
-| n+1 | `respond(A)` → accepted | the view none of the failures closed (R-34), through a backend still invocable (R-45). AC-7's assertion, as written |
-| n+2 | `evaluate` → `@lingers-with-a-view` | mints **B** *with* a cleanup failure (F-1) |
-| n+3 | `respond(B)` → accepted | ends on a success after a cleanup failure, proving cleanup closed nothing |
+| n+1 | `respond(A)` → accepted, 05:44:00Z | the view none of the failures closed (R-34), through a backend still invocable (R-45). AC-7's assertion, as written |
+| n+2 | `evaluate` → `@lingers-with-a-view`, 06:12:00Z | mints **B** *with* a cleanup failure (F-1). This is row C3 |
+| n+3 | `respond(B)` → accepted, 06:44:00Z | ends on a success after a cleanup failure, proving cleanup closed nothing |
 
-Every row additionally asserts the schedule stands at the instant exchange 1
-asked for (R-29) — the reuse witness: a `Host` reconstructed anywhere in the
-loop reports the seeded instant instead. Each accepted `respond` moves the
-schedule to an instant no other body in the file sets, so a success is
-distinguishable from another failure that left it alone
+The last four are rows of the array like every other, in this order. The earlier
+text placed C3 in 12.3 and at n+2 simultaneously while asserting `respond(A)`
+"once, after the sequence", and named `respond(B)` nowhere — so a loop in array
+order ran C3 before `respond(A)`, contradicting the sequence it was reading.
+
+**`now` is 2026-08-23T04:12:00Z for every `evaluate` and 04:14:00Z for every
+`respond`**, for slice 001's reason: a `respond` sharing the evaluate's instant
+would let a `next_check` resolved from the wrong one pass unnoticed
+(`failure_matrix.rs:47-52`). The seed is `now + default_poll` = 04:42:00Z, with
+`DEFAULT_POLL` 30 minutes (`harness.rs:220`) — slice 001's own `seeded_check()`
+(`failure_matrix.rs:44-46`). The four accepted instants are reached by the spans
+the four accepted bodies carry: `"45 minutes"` from 04:12 ⇒ 04:57, `"90
+minutes"` from 04:14 ⇒ 05:44, `"120 minutes"` from 04:12 ⇒ 06:12, `"150
+minutes"` from 04:14 ⇒ 06:44. All four are distinct and none is the seed.
+
+The schedule expectation is therefore **per row and not one rule**, which is why
+12.4 gives it a field. Exchange 0 stands at the seed — nothing has moved it yet,
+and `schedule::resolve(Some(seed), None, poll, now)` returns the retained
+instant while it is ahead of `now` (`schedule.rs:221-237`, read). Exchanges 2…n
+stand at 04:57:00Z, the instant exchange 1 asked for: that is R-29 and the reuse
+witness, because a `Host` reconstructed anywhere in the loop reports the seed
+instead. Each accepted exchange moves it to an instant no other body in the file
+sets, so a success is distinguishable from another failure that left it alone
 (`tests/integration/failure_matrix.rs:510-599`).
 
 #### 12.3 The rows
@@ -3221,10 +3560,10 @@ from *verbatim* (bash has no JSON parser, so bodies are Rust literals beside the
 fixture name, as slice 001 does); the expected Rust value; the exact `Display`
 text the diagnostics must carry; whether a process is contacted.
 
-Each row asserts the exact `Display` text, present in the reduced diagnostics
-exactly once. It does **not** re-assert the Rust variant, which slice 001's
-`failure_matrix.rs` already does: slice 001's four `error.rs` display tests prove
-every variant's `Display` names every value it carries
+Each row asserts the exact `Display` text, on its channel, and asserts that the
+channel carries nothing else. It does **not** re-assert the Rust variant, which
+slice 001's `failure_matrix.rs` already does: slice 001's four `error.rs` display
+tests prove every variant's `Display` names every value it carries
 (`src/semantics/error.rs:270-286`), so a distinct rendered line implies a
 distinct variant, while a `matches!` on the variant proves nothing about what a
 person is shown. AC-7's claim is about the diagnostic surface, not about the
@@ -3234,8 +3573,8 @@ in the three cleanup rows, where slice 001 has no equivalent.
 **A. Protocol refusals** — `Failure::Backend(BackendError::Protocol(_))`, so
 every line carries the prefix `no action taken: backend response rejected: `
 (`diagnostics.rs`'s prefix, then `BackendError`'s own,
-`src/shell/error.rs:188-204`). The prefix is written once in the driver, not
-fifteen times in the table.
+`src/shell/error.rs:188-204`). That whole prefix is `Channel::Protocol`'s, and
+is written once in the driver, not fifteen times in the table.
 
 | # | instruction / fixture | expected value | diagnostic line (after the prefix) | process |
 |---|---|---|---|---|
@@ -3255,34 +3594,63 @@ fifteen times in the table.
 | P14 | `R-52-a-choice-field-with-no-alternatives` | `EmptyAlternatives { at }` | `no alternatives at view.options[0].fields[0].options` | yes |
 | P15 | `R-17-inverted-bounds` | `Bounds(Inverted { min: 10.0, max: 1.0 })` | `invalid bounds: min 10 is above max 1` | yes |
 
+Every one of those fifteen strings was compiled against the real `Display`
+impls, `f64` rendering (`10.0` prints as `10`) included, and the three `at`
+paths were checked against the fixtures they name.
+
 P2 and P3 carry `Expect::Prefixed`: the text after the colon is `serde_json`'s
 and moves with the dependency. They assert the prefix and a non-empty tail, and
 they are the pair that makes R-44's "malformed and protocol-invalid are distinct"
-observable at the glass — the distinction has no other witness there. **T1 is the
-third `Prefixed` row**, for the same reason with a different owner: its tail is
-the OS's spawn message. Those three are the whole of `Prefixed`; every other row
-is `Exact`.
+observable at the glass — the distinction has no other witness there.
 
 **B. Transport failures.**
 
 | # | instruction | expected value | diagnostic line | process |
 |---|---|---|---|---|
-| T1 | *its own `Host`*, command `/nonexistent/goad-has-no-such-backend` | `Spawn(_)` | `backend could not be spawned: ` + the OS's message | attempted; nothing spawned |
-| T2 | `@hang` (`hangs-past-the-timeout.sh`) | `Timeout { after }` | `backend did not respond within 500ms` | yes |
-| T3 | `@exit1` (`answers-then-exits-non-zero.sh`) | `ExitStatus { code: Some(1) }` | `backend exited with status 1` | yes |
-| T4 | `@flood` (`floods-stdout-past-the-cap.sh`) | `OutputTooLarge { limit }` | `backend wrote more than 8388608 bytes to stdout` | yes |
+| T1 | *its own `Host`*, command `/nonexistent/goad-has-no-such-backend` | `Spawn(_)` | `backend could not be spawned: ` + the OS's message (`Prefixed`) | attempted; nothing spawned |
+| T2 | `@hang` (`hangs-past-the-timeout.sh`) | `Timeout { after }` | `backend did not respond within 500ms`, and a pid on stderr (`Unpinned`) | yes |
+| T3 | `@exit1` (`answers-then-exits-non-zero.sh`) | `ExitStatus { code: Some(1) }` | `backend exited with status 1`, and stderr `that answer is not to be trusted\n` | yes |
+| T4 | `@flood` (`floods-stdout-past-the-cap.sh`) | `OutputTooLarge { limit }` | `backend wrote more than 8388608 bytes to stdout`, and a pid on stderr (`Unpinned`) | yes |
 
 T2's `after` is the suite's configured deadline, 500 ms — short because one
 instruction hangs and the suite pays for it once, and long enough that
-`@lingers-and-hangs` costs deadline plus the cleanup budget and no more.
+`@lingers-and-hangs` costs deadline plus the cleanup budget and no more. It is
+the same number as `CLEANUP_LIMIT` for an unrelated reason, so the two strings
+are separate constants in the driver and neither is derived from the other.
 
-T3 and P2 double as the rows that prove **captured stderr travels with a
-failure**: T3's backend writes `that answer is not to be trusted` and P2's
-writes `config is missing`. Each of those two rows therefore carries **two**
-`Observed` entries — one on `Channel::Failure` and one on `Channel::Stderr` —
-and both are asserted, which is R-42 at the glass and is the assertion a
-single-line schema could not express (F-9). No sentinel is added for the stderr
-*display* bound — that is item 13's, on constructed values.
+T3 and P2 are the rows that prove **captured stderr travels with a failure**,
+and both of their expected strings were wrong before they were compiled. T3's
+backend writes `that answer is not to be trusted`; P2's writes `config is
+missing, so this is all you get` — not `config is missing`, which is not even a
+prefix the row could have matched under `Exact`
+(`exits-zero-with-unparseable-stdout.sh:5`, and the `@garbage` arm). Both are
+followed by the newline `echo` appends, which §5.4's escape step renders as the
+two characters `\n`. So the pinned lines are
+
+```
+stderr: that answer is not to be trusted\n
+stderr: config is missing, so this is all you get\n
+```
+
+— written as Rust literals, `"stderr: that answer is not to be trusted\\n"` and
+its pair. The row that omitted the escaped newline is exactly the defect this
+measurement existed to find. Each of those two rows carries **two** `Observed`
+entries — one on `Channel::Failure` or `Channel::Protocol` and one on
+`Channel::Stderr` — and both are asserted, which is R-42 at the glass and is the
+assertion a single-line schema could not express (F-9). No sentinel is added for
+the stderr *display* bound — that is item 13's, on constructed values.
+
+**Three forms of `Expect`, and who owns each tail.** `Exact` is the default and
+covers every line this repository authors. `Prefixed` is for a line whose tail
+belongs to something outside it: `serde_json`'s message (P2, P3) and the OS's
+(T1). `Unpinned` is for a line whose whole text belongs outside it: the child pid
+that `@hang`, `@flood`, `@lingers`, `@lingers-and-hangs` and
+`@lingers-with-a-view` write to stderr as R-41 bookkeeping, on rows T2, T4, C1,
+C2 and C3. Eight rows in total cannot pin their whole text, and the driver
+asserts that list is exactly those eight — a row quietly downgraded from `Exact`
+is then a test failure rather than a slackening nobody notices. The earlier
+text's "those three are the whole of `Prefixed`; every other row is `Exact`" was
+false in both halves.
 
 **C. Cleanup.** `CleanupFailure` is a second channel, never a `Failure`
 (`src/shell/error.rs:48-74`). All three lines are
@@ -3290,21 +3658,24 @@ single-line schema could not express (F-9). No sentinel is added for the stderr
 private `CLEANUP_LIMIT` (`process.rs:30`), restated once in the shared harness
 with the note that a change there invalidates these bounds.
 
-| # | instruction | `failure` | `view` | presentation | why the row exists | process |
+| # | instruction | `refused` | `view` | presentation | why the row exists | process |
 |---|---|---|---|---|---|---|
-| C1 | `@lingers` | none | `None` | **retained**, window unchanged | cleanup-only: the exchange succeeded and disposal did not | yes |
-| C2 | `@lingers-and-hangs` | `Timeout` | `None` | retained, window unchanged | cleanup **and** exchange, both reported, neither suppressing the other (R-54, R-47). **Two `Observed` entries**, one per channel, both asserted | yes |
-| C3 | `@lingers-with-a-view` (coda) | none | `Some` | **replaced**, window shown | F-1: cleanup is diagnostic metadata, not a selector of the transition | yes |
+| C1 | `@lingers` | false | `None` | **retained**, window unchanged | cleanup-only: the exchange succeeded and disposal did not | yes |
+| C2 | `@lingers-and-hangs` | true (`Timeout`) | `None` | retained, window unchanged | cleanup **and** exchange, both reported, neither suppressing the other (R-54, R-47). Three `Observed` entries — failure, cleanup, pid | yes |
+| C3 | `@lingers-with-a-view` (exchange n+2) | false | `Some` | **replaced**, window shown | F-1: cleanup is diagnostic metadata, not a selector of the transition | yes |
 
-C1 and C3 differ only in the body and disagree about the presentation
-transition, which is the whole of F-1's argument. C2 is the only combination
-observed to fail both dimensions.
+All three also carry a pid on stderr. C1 and C3 differ only in the body and
+disagree about the presentation transition, which is the whole of F-1's argument.
+C2 is the only combination observed to fail both dimensions. `refused` is the
+field that carries the old `failure` column: C1 and C3 assert there is no failure
+line at all, which a containment-only schema could not say.
 
 **D. Discards — not failures.** An unusable `next_check` is discarded and the
-rest of the message accepted (R-25, P2). Every row asserts `failure.is_none()`,
-exactly one discard, and the presentation retained. The `Display` is
-`Discarded`'s, which names the raw value for `NotAString` only — the other five
-reasons already carry it, and rendering it twice is principle 4
+rest of the message accepted (R-25, P2). Every row is `refused: false`, states
+exactly one line and states it on `Channel::Discard`, so "exactly one discard and
+no failure" is the row rather than prose beside it. The presentation is retained.
+The `Display` is `Discarded`'s, which names the raw value for `NotAString` only —
+the other five reasons already carry it, and rendering it twice is principle 4
 (`src/semantics/protocol/normalize.rs:64-74`).
 
 | # | `next_check` / fixture | expected value | diagnostic line | process |
@@ -3319,7 +3690,8 @@ reasons already carry it, and rendering it twice is principle 4
 Six rows, not one: R-25 requires each form to be its own distinct error, and the
 six are the R-44 phrase "an invalid scheduling value, in each of R-25's forms"
 enumerated. The body is `{"view":null,"next_check":<value>}`, so each is an
-`evaluate` that leaves the interaction outstanding.
+`evaluate` that leaves the interaction outstanding — and leaves the schedule at
+04:57:00Z, because a discarded instruction resolves as no instruction at all.
 
 **E. State refusals** — `Failure::State(_)`. Neither contacts a backend (R-32),
 and the witness is the invocation log not advancing, which is the one question
@@ -3333,93 +3705,174 @@ the host is not the one answering (`tests/integration/round_trip.rs:200-238`).
 S2's expectation is *computed* from the id exchange 1 minted, not written as a
 literal: the id is `{now}#{seq}` (`state.rs:76`) and hard-coding it would couple
 the row to the counter's start. The fabricated id carries a sequence number the
-suite cannot mint, so it cannot collide.
+suite cannot mint, so it cannot collide. S1 is exchange 0 and is the one row
+whose schedule expectation is `Schedule::Seed`.
 
 #### 12.4 What every row asserts
 
 One loop over one array of rows; the per-row work is data, not code. The schema
 has to be able to state every assertion the rows above make, or the loop becomes
 a loop plus a pile of special cases outside it — which is the defect F-9 was
-raised on twice:
+raised on twice. This schema was instantiated for all thirty-three rows and
+compiled clean under the real lint table before it was written down here:
 
 ```rust
 /// Which `Host` a row runs against. Not decoration: AC-7's "one retained
 /// `Host`" is a claim about a cohort, and one row is honestly outside it.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Cohort {
   /// The retained `Host` of 12.2, in sequence order.
   Retained,
-  /// Its own `Host`, with the reason recorded in 12.6. T1 alone.
+  /// Its own `Host`. T1 alone, with the reason recorded in 12.6. The driver
+  /// runs an `Own` row's turn **twice** and asserts the same `observed` both
+  /// times — that rule lives here rather than in a sentence beside the array,
+  /// so the loop stays one loop.
   Own { command: &'static str },
 }
 
+/// Which prefix the driver writes before a row's text, so no row writes one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Channel {
+  /// `no action taken: ` — `Outcome::failure`, through `Failure`'s `Display`.
+  Failure,
+  /// `no action taken: backend response rejected: ` — the same channel, with
+  /// `BackendError::Protocol`'s own prefix folded in, so 12.3's fifteen rows
+  /// do not write it fifteen times and T1–T4, S1 and S2 do not inherit it.
+  Protocol,
+  /// `cleanup unverified: `
+  Cleanup,
+  /// No prefix: `Discarded`'s `Display` is already a whole sentence.
+  Discard,
+  /// `stderr: `
+  Stderr,
+}
+
 /// One expected diagnostic line, on one channel.
+#[derive(Debug, Clone, Copy)]
 struct Observed {
-  channel: Channel,    // Failure | Cleanup | Discard | Stderr
-  text: Expect,        // Exact(&str) | Prefixed(&str)
+  channel: Channel,
+  text: Expect,
 }
 
-/// How much of the line is pinned. `Prefixed` is for any line whose tail is
-/// owned by something outside this repository — serde's message (P2, P3) and
-/// the OS's (T1) — and nowhere else.
+/// How much of a line is pinned, and who owns the rest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Expect {
+  /// The whole line after the channel prefix. Every line this repository
+  /// authors.
   Exact(&'static str),
+  /// The line begins with this and the tail is owned outside this repository:
+  /// serde's message (P2, P3) and the OS's (T1).
   Prefixed(&'static str),
+  /// The line is there and none of its text is this table's to pin: the child
+  /// pid five fixtures write to stderr as R-41 bookkeeping (T2, T4, C1–C3).
+  Unpinned,
 }
 
+/// Which entry point the row drives, and with which token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Turn {
+  Evaluate,
+  /// The id the suite cannot mint — S1 and S2.
+  RespondFabricated,
+  /// The token the last `Replaced` fold installed.
+  RespondOutstanding,
+}
+
+/// What this exchange must leave `next_check` standing at. 12.2 needs three
+/// different answers and a fourth for the exempt cohort, so it is a field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Schedule {
+  /// `now + default_poll`, untouched. Exchange 0 only.
+  Seed,
+  /// Whatever the last `MovedTo` set — R-29, and the one-`Host` witness.
+  Unchanged,
+  /// This exchange moved it, to an instant no other row sets.
+  MovedTo(&'static str),
+  /// The `Own` cohort has its own seed; 12.6 says why.
+  NotAsserted,
+}
+
+#[derive(Debug, Clone, Copy)]
 struct Case {
+  /// Names the row in a failure message. Thirty-three rows through one loop,
+  /// and a row without a name is reported by index.
+  id: &'static str,
   cohort: Cohort,
-  /// `None` = this row sends no request to a backend, so it consumes no
-  /// instruction (S1, S2).
+  /// `None` = this row consumes no instruction from the scripted list: either
+  /// it sends no request at all (S1, S2) **or** it runs against its own `Host`
+  /// (T1, which does spawn — or tries to).
   instruction: Option<&'static str>,
-  turn: Turn,                    // Evaluate | Respond(which id)
-  /// **A list**, because several rows have more than one thing to say: C2
-  /// reports a timeout *and* a cleanup failure, and T3 and P2 report a failure
-  /// *and* the stderr their backend wrote. A single `expect` could not state
-  /// either (F-9).
+  turn: Turn,
+  /// The **complete** list of lines this row produces, per channel — not a
+  /// sample. A channel a row does not name must be empty, and that is how
+  /// "no failure" (C1, C3) and "exactly one discard" (D1–D6) are stated at
+  /// all. Several rows have more than one thing to say: C2 reports a timeout,
+  /// a cleanup failure and a pid; T3 and P2 report a failure and the stderr
+  /// their backend wrote. A single `expect` could state none of it (F-9).
   observed: &'static [Observed],
-  /// What the fold did to the outstanding interaction — assertion 3, which had
-  /// no field at all and was therefore per-row prose.
-  shift: Shift,                  // Replaced | Retained | Closed
+  /// What the fold did to the outstanding interaction.
+  shift: Shift,                  // §5.4: Replaced | Retained | Closed
+  /// `Outcome::failure.is_some()` — `Received::refused`, the one bit of the
+  /// diagnostic half the presentation reducer reads. Carries 12.3's C and D
+  /// "no failure" columns.
+  refused: bool,
+  schedule: Schedule,
   /// How far the invocation log moves across this exchange: 1 for every row
   /// that reaches a process, 0 for S1, S2 and T1's refusal-shaped attempt.
   invocations: usize,
 }
 ```
 
-Every row's whole expectation is now inside the array. The four things each row
-asserts, in order:
+Every row's whole expectation is inside the array, and every exchange of 12.2 is
+a row — including exchange 1, `respond(A)` and `respond(B)`, which state no line
+and are rows because a sequence half in the array and half in prose is the thing
+F-9 was raised on. The five things each row asserts, in order:
 
-1. For **each** `Observed`: the reduced diagnostics contain that line on that
-   channel, **exactly once** — the occurrence count is the assertion, not merely
-   presence, and it is what fails if a `source()` walk is added (AC-8, F-42,
-   F-47). A row with two observations asserts both, independently.
-2. `next_check` is the instant exchange 1 asked for (R-29, and the one-Host
-   witness) — asserted for the `Retained` cohort only, because the `Own` cohort
-   has its own seed and 12.6 says why.
+1. **The diagnostics are exactly `observed`, per channel, in order.** Equality,
+   not containment: the occurrence count falls out of it — which is what fails
+   if a `source()` walk is added (AC-8, F-42, F-47) — and so does the absence of
+   any line the row did not name, which containment could never state.
+2. `next_check` stands where `schedule` says. `Seed` for exchange 0, `Unchanged`
+   for the taxonomy rows (R-29, and the one-`Host` witness), `MovedTo` for the
+   four accepted exchanges, and `NotAsserted` for the `Own` cohort, which has its
+   own seed and 12.6 says why. The driver checks that no two `MovedTo` instants
+   are equal, so an accepted exchange is never mistaken for a failure that left
+   the schedule alone.
 3. `shift` matches what `Controller::absorb` returned, and the retained
-   presentation matches it: `Retained` leaves the previous `Prepared` identical,
-   `Replaced` installs a new one with a different `ViewId`, `Closed` leaves
-   none.
-4. `invocations(&log)` advances by exactly `invocations`. For S1 and S2 that is
+   presentation agrees with it — read as the `ViewId`, which is the only part of
+   a `Prepared` that supports `==`: `Presentation` derives `Debug` alone (§5.2),
+   so "leaves the previous `Prepared` identical" was not expressible as written.
+   `Retained` leaves the previous `view_id` in place, `Replaced` installs a
+   different one, `Closed` leaves none.
+4. `refused` matches `Received::refused`.
+5. `invocations(&log)` advances by exactly `invocations`. For S1 and S2 that is
    zero, and it is the witness that a state refusal reached no process; for T1 it
-   is zero for a different reason — nothing was spawned — and 12.6 records that
-   the two zeros mean different things.
+   is zero for a different reason — nothing was spawned, and against a different
+   log — and 12.6 records that the two zeros mean different things.
 
-And once, after the sequence: the trailing `respond(A)` succeeds, and
-`invocations(&log) == instructions.len()`.
+And once, after the sequence: `invocations(&log) == instructions.len()`. Nothing
+else is left outside the loop.
+
+**The channel partition is total, and there is no sixth variant.** The driver
+assigns every rendered line to a channel by its prefix and fails the row on a
+line it cannot assign. That is deliberate rather than an omission: no row in
+this table produces an undrawn line — which is why `@lingers-with-a-view`'s
+body is pinned in 12.1 — so a `Channel::Undrawn` would be a variant no row
+names, and an undrawn line appearing here is a defect the table should report
+rather than absorb. `Channel::prefix()` is the one statement of every prefix in
+the driver.
 
 **T1's cohort, and what AC-7 means for it.** `Cohort::Own` exists for exactly
-one row, and the exemption is now in the data rather than in a sentence beside
-it. A `Host` owns one command (`host.rs:119-133`, `process.rs:46-49`), so a
-command that cannot be spawned cannot first have succeeded, and no sequence
-through the retained `Host` can reach `BackendError::Spawn`. For that row
-"the backend is invocable again" is asserted in the only form available: a
-**second** `evaluate` on the same `Host` attempts a second spawn and fails with
-the same variant and the same prefix. That proves what AC-7 is actually about —
-the host neither died nor latched into an unusable state — and it does not
-pretend to the stronger claim the other rows make. `slice-002.md` AC-7 states the
-exemption; this is where it is executed.
+one row, and the exemption is in the data rather than in a sentence beside it. A
+`Host` owns one command (`host.rs:119-133`, `process.rs:46-49`), so a command
+that cannot be spawned cannot first have succeeded, and no sequence through the
+retained `Host` can reach `BackendError::Spawn`. For that row "the backend is
+invocable again" is asserted in the only form available, and the driver applies
+it to every `Own` row rather than to T1 by name: run the turn **twice** against
+the same `Host` and require the same `observed` both times. That proves what AC-7
+is actually about — the host neither died nor latched into an unusable state —
+and it does not pretend to the stronger claim the other rows make.
+`slice-002.md` AC-7 states the exemption; this is where it is executed.
 
 **Four rows also read the element tree**, in the same `block_on` — one per
 channel, so each is proved to be *bound* to the surface at all: P4 (a backend
@@ -3427,30 +3880,38 @@ failure), S1 (a state refusal), C1 (a cleanup failure), D4 (a discard). They
 share **one** `PromptWindow`, created once and driven into `Surface::Diagnostics`
 by `Controller::open_diagnostics`, because the component is created once at
 startup and `Glass::present` is total — the same arrangement production uses. The
-remaining rows stop at the reduced value. Rendering thirty rows onto the glass
-exercises one property binding thirty times; what varies per row is the
-reduction, and that is what every row asserts. Item 11's transitions already read
-the tree for the presentation half.
+remaining rows stop at the reduced value. Rendering thirty-three rows onto the
+glass exercises one property binding thirty-three times; what varies per row is
+the reduction, and that is what every row asserts. Item 11's transitions already
+read the tree for the presentation half.
 
 **Division of labour with item 13.** Item 13 asserts the *whole* rendering of
 constructed outcomes — bounds, lossy decoding, the truncation marker, escaped
 newlines, ordering, clearing. This table asserts that every member of the
 taxonomy survives the real journey and arrives on its channel exactly once.
-Neither restates the other.
+Neither restates the other. The one place they touch is the escape of the
+newline `echo` appends to T3's and P2's stderr, which this table pins as text
+because a row that omitted it would pass against a reducer that had dropped the
+escape step altogether.
 
 #### 12.5 What this table rests on, all of it settled
 
 1. The reducer renders each fact as the `Display` of the underlying value. Rows
-   quote `Display` output verbatim and assert containment, so the channel
-   prefixes and ordering §5.4 chooses are compatible.
+   quote `Display` output verbatim, so the channel prefixes and ordering §5.4
+   chooses are compatible.
 2. `Diagnostics::lines()` exposes the rendered lines to a test without
-   instantiating a component. Without that the count-once assertion cannot be
-   written.
+   instantiating a component. Without that neither the per-channel equality nor
+   the count can be written.
 3. The reduction is **one function** that production and this table both call —
-   `receive` (§5.2, D16). A table that reimplemented the reduction would assert
-   its own copy.
+   `receive`, reached through `Controller::absorb` (§5.2, D16). A table that
+   reimplemented the reduction would assert its own copy.
 4. Cleanup is a channel of its own and never suppresses, or is suppressed by, a
    failure (R-54). C2 is the row that fails if it is folded in.
+5. §5.4's escape step exists and is a `Display` adapter rather than a `String`
+   accumulator — a lint result, not a preference, stated once in §5.4's *shapes*
+   table as rule 8. Every expected string in 12.3 depends on the step, and two
+   of them (T3's and P2's stderr) depend on its exact output, which is why the
+   dependency is named here rather than left to be rediscovered at the phase.
 
 #### 12.6 Exemptions, and the reason for each
 
@@ -3459,18 +3920,21 @@ Exempt from the real-process requirement:
 - **S1, S2** — never reach a backend, by R-32. They run through the same
   real-process `Host`; what they are exempt from is *inducing* a process
   behaviour, and the invocation log is what makes the exemption checkable
-  rather than assumed.
+  rather than assumed. S1 is additionally the one row whose `Schedule` is
+  `Seed`: it runs before anything has moved the schedule.
 - **T1** — runs a real spawn attempt, but in its own `Host` (`Cohort::Own`),
   because a `Host` owns one command and a command that does not exist cannot
   first succeed. Slice 001 reached the same conclusion and recorded that this row
   alone cannot make the stronger R-29 claim
-  (`tests/integration/failure_matrix.rs:420-435`), which is why assertion 2 is
-  skipped for it. Its `invocations` delta is 0 — nothing was spawned — and that
-  zero means something different from S1's and S2's, where a process was never
-  attempted: **the two are distinguished by the cohort, not by the count**. What
-  T1 asserts in place of the trailing success is a *second* failing `evaluate` on
-  the same `Host`, which is what "invocable again" can honestly mean for a
-  command that does not exist (12.4, `slice-002.md` AC-7).
+  (`tests/integration/failure_matrix.rs:420-435`), which is why its `Schedule` is
+  `NotAsserted`. Its `invocations` delta is 0 — nothing was spawned, and the log
+  it is measured against is the retained cohort's, which it never touches — and
+  that zero means something different from S1's and S2's, where a process was
+  never attempted: **the two are distinguished by the cohort, not by the count**.
+  What T1 asserts in place of the trailing success is the second failing
+  `evaluate` `Cohort::Own` obliges the driver to run, which is what "invocable
+  again" can honestly mean for a command that does not exist (12.4,
+  `slice-002.md` AC-7).
 
 No row at all, because nothing a backend can do reaches them:
 
@@ -3515,7 +3979,7 @@ No row at all, because nothing a backend can do reaches them:
 | an answer naming an unknown or stale interaction | S1, S2 | **does not collapse.** Different host states, different variants, different fixes |
 | *(beyond R-44's prose)* | P1, P8–P15 | AC-7 says *every* failure in the taxonomy, and R-44's prose does not enumerate the identity and applicability rules (R-3, R-13, R-14, R-17, R-50, R-52). Each is one array entry and one expected string |
 
-#### 12.8 Prerequisite: where the driving helpers live
+#### 12.8 Prerequisites: where the driving helpers live, and how the target is declared
 
 The table runs in the cheap tier, which is a test target of `crates/goad`, while
 slice 001's helpers are a module of the shell tier's test crate. They are shared
@@ -3535,10 +3999,20 @@ script directory as `CARGO_MANIFEST_DIR` joined with `../../tests/…`, uniform
 because both members sit at depth two — a test binary's working directory is not
 something to rely on, which is `boundary.rs`'s rule and slice 001's.
 
+**The target is a `main.rs` with `#[cfg(test)]` module declarations**, which is
+§9's preamble rule applied here: the table's own module and the
+`#[path]`-included shared helper each need the attribute, and without it
+`clippy::tests_outside_test_module` produces one error per `#[test]` function —
+measured, nine from one file. `tests/integration/main.rs:6-24` is the existing
+instance and the reason.
+
 `CLEANUP_LIMIT` is restated **once**, in that shared file, with its keep-in-sync
 note. `process.rs`'s budget is private and two tiers assert against it; a second
 `const` in the glass tier would be a third statement of one number, two of which
-nothing updates (D23's rule, applied to a test).
+nothing updates (D23's rule, applied to a test). The suite's 500 ms *deadline* is
+a separate constant even though it is the same number: they are the same by
+coincidence, and deriving one from the other would make a change to either
+silently rewrite four rows.
 
 ## 10. Canon impact
 

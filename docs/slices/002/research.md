@@ -1141,6 +1141,16 @@ goad's table for these two:
 | `fn serve(..) -> impl Future`, future `!Send` | **2 errors** — `future_not_send` **and** `clippy::manual_async_fn` |
 | `async fn serve(..) -> Served` + one `#[expect(clippy::future_not_send, reason = …)]` | clean, expectation **fulfilled** |
 
+**The third row does not transfer to the design's signature, and Thread 11
+measured that.** Every shape in this table is *concrete*: the spike's glass was
+a concrete `Rc`-bearing type, and `clippy::future_not_send` drops `Send`
+obligations that mention a type parameter at the top level. `serve` is generic
+over `B: Backend` and `G: Glass`, so the lint does not fire on it at all, the
+`#[expect]` this row justified is *unfulfilled*, and
+`unfulfilled_lint_expectations` fails the gate. Rows 1 and 2 stand — they are
+why `serve` is an `async fn` — and row 3's attribute is deleted (Thread 11,
+`design.md` §5.5 A-5).
+
 Two consequences:
 
 1. **`future_not_send` does reach a `fn` returning an `async` block.** A-5
@@ -1218,3 +1228,301 @@ Two consequences, neither reachable by reading `builtins.slint`:
 The corrected block is what `design.md` §5.2 now carries; it was re-extracted
 from the design after the edit and rebuilt, and generates the eleven setters
 above with `visible` unfolded.
+
+---
+
+## Thread 9 — F-9's failure-matrix schema, instantiated (added at review round 4)
+
+Built to settle the two passages the round-3 handover named as *unbuilt and
+unreviewed*, on the lesson round 3 drew about itself: an assumption a scratch
+crate can reach should be reached before a phase starts. A crate carrying
+`Cargo.toml`'s `[lints.rust]` and `[lints.clippy]` blocks **verbatim** (lines
+53-218) plus the repo's `rustfmt.toml`, with the real `Display` impls vendored
+from `src/semantics/error.rs`, `src/shell/error.rs`, `src/shell/host.rs`,
+`src/semantics/protocol/normalize.rs` and `src/semantics/protocol/canonical.rs`,
+and all 33 rows of §9 item 12.3 instantiated against them.
+
+**Final state green** ✓: `cargo clippy --all-targets -- -D warnings` exits 0,
+`cargo fmt --check` clean, 8/8 tests pass.
+
+### The design's own strings, compiled against the code
+
+Two defects, both in one row pair, and both of the kind reading cannot find ✓:
+
+| row | design said | the code writes |
+|---|---|---|
+| T3 | `stderr: that answer is not to be trusted` | `stderr: that answer is not to be trusted\n` |
+| P2 | `stderr: config is missing` | `stderr: config is missing, so this is all you get\n` |
+
+`tests/backends/exits-zero-with-unparseable-stdout.sh:5` and the `@garbage` arm
+of `answers-as-instructed.sh` both write `config is missing, so this is all you
+get` ✓ — the design's string is not even a prefix the row could have matched
+under `Exact`. And `echo … >&2` appends U+000A, which §5.4's escape step renders
+as the two characters `\n` ✓, so an `Expect::Exact` on either design string
+fails.
+
+**All 15 protocol lines, T1–T4, the three cleanup lines and all six discard
+lines were checked and are correct** ✓, including `invalid bounds: min 10 is
+above max 1` (`f64` `10.0` prints as `10`), `backend wrote more than 8388608
+bytes to stdout`, `backend did not respond within 500ms` and `backend was not
+disposed of within 500ms`. The `at` paths in P6, P13 and P14 were checked
+against their named fixtures; the six D-row raw values against
+`tests/protocol/fixtures/schedule/`; P5's key against
+`protocol-text/R-44-a-duplicate-key-on-the-envelope.json`.
+
+### Five rows carry a stderr line the table did not mention
+
+`hangs-past-the-timeout.sh:2`, `floods-stdout-past-the-cap.sh`,
+`leaves-a-grandchild-holding-stderr.sh` and
+`leaves-a-grandchild-holding-stdout-too.sh` each open with `echo "$$" >&2` ✓ —
+R-41 bookkeeping. `process.rs:88-145` shows `seen` is a `&mut Captured` the
+drain borrows ✓, so a drain that times out still yields what it captured. T2,
+T4, C1, C2 and C3 therefore each produce `stderr: <pid>`, whose text no table
+can pin. §12.3's "those three are the whole of `Prefixed`" was false, and
+`Expect::Unpinned` is the third form.
+
+### The lint table, twice, on code the design implies
+
+The escape step cannot be a `String` accumulator ✓. Both accumulating spellings
+are denied, and each is the other's suggested repair:
+
+```
+error: `format!(..)` appended to existing `String`
+   = note: `-D clippy::format-push-string` implied by `-D clippy::pedantic`
+error: non-binding `let` on an expression with `#[must_use]` type
+   = note: requested on the command line with `-D clippy::let-underscore-must-use`
+```
+
+### Two rules for the test target itself
+
+- `clippy::tests_outside_test_module` fires on every `#[test]` at the root of a
+  `tests/…` target ✓ — nine diagnostics from one file. Fixed by
+  `tests/table/main.rs` + `#[cfg(test)] mod f9;`, which is what
+  `tests/integration/main.rs:6-24` already does and says why.
+- `clippy::unnecessary_wraps` refuses a `#[test]` returning `Result` with no `?`
+  in it ✓ — six diagnostics. Six of the eight tests had to return `()`.
+
+### Schema corrections the instantiation forced
+
+Fourteen, listed in the ledger's F-9 round-4 entry and carried into `design.md`
+§9 item 12. The load-bearing ones: the fold is `Controller::absorb`, not
+`receive` (an `Outcome` is not `Clone`, `host.rs:70-96`, so only one of the two
+can run) ✓; `observed` is the **complete** per-channel line list rather than a
+containment list, which is the only way "no failure" and "exactly one discard"
+can be stated; `Channel` gains `Protocol`, because
+`no action taken: backend response rejected: ` is `BackendError::Protocol`'s own
+prefix and is not derivable from the channel T1–T4, S1 and S2 also use; `Case`
+gains `id` and `schedule`; `Presentation` derives `Debug` alone, so assertion
+3's "leaves the previous `Prepared` identical" is not expressible and is
+restated on `ViewId`, which derives `PartialEq` (`canonical.rs:42`) ✓.
+
+### Not executed
+
+The scratch crate does not run a `Host`, so S1's `Schedule::Seed` was reasoned
+rather than run. It is now corroborated by reading:
+`schedule::resolve(Some(retained), None, poll, now)` returns the retained
+instant while it is ahead of `now` (`schedule.rs:221-237`) ✓, `DEFAULT_POLL` is
+30 minutes (`harness.rs:220`) ✓, and slice 001's `seeded_check()` is
+`2026-08-23T04:42:00Z` (`failure_matrix.rs:44-46`) ✓ — the same value from the
+same construction instant.
+
+---
+
+## Thread 10 — F-26's startup surface, compiled (added at review round 4)
+
+562 lines across `src/{main,startup,diagnostics,clock,stubs}.rs` in a crate
+whose `Cargo.toml` carries the `[lints.rust]` and `[lints.clippy]` blocks
+byte-for-byte from `Cargo.toml:53-218`, plus the project's `rustfmt.toml` and
+one dependency, `jiff 0.2 default-features = false`, matching the real manifest.
+rustc/clippy 1.99.0-beta.3.
+
+**Final state** ✓: `cargo clippy --offline --all-targets -- -D warnings` exit 0;
+18 tests pass, none using `.unwrap()` or `.expect()`; `cargo fmt --check` clean.
+
+### The outlet survives, and one of its three stated grounds was false
+
+All nine candidate spellings were compiled simultaneously in one probe module
+(independent lints, so each reports its own failure) ✓:
+
+| spelling | lint |
+|---|---|
+| `eprintln!` / `println!` | `clippy::print_stderr` / `clippy::print_stdout` |
+| `let _ = writeln!(..);` | `clippy::let_underscore_must_use` |
+| `let _: io::Result<()> = writeln!(..);` | the same — the annotation does not help |
+| `writeln!(..);` | `unused_must_use`, via `unused` |
+| `writeln!(..).ok();` | **none** |
+| `drop(writeln!(..));` | **none** |
+| `match writeln!(..) { Ok(()) \| Err(_) => () }` | **none** — the design's choice |
+
+`Result::ok` is not `#[must_use]` and `Option` is not a must-use type, so
+nothing fires on `.ok();` ✓. The design claimed it trips `unused_must_use`; it
+does not. Two of three grounds hold, the third is false, and the rejection of
+`.ok()` is now an explicitness argument — otherwise the next reader shortens the
+line believing the table forbade it, and is right.
+
+Also measured: `use std::io::Write` must **not** be imported ✓. The
+`impl std::io::Write` bound supplies `write_fmt`, and the import trips
+`unused_imports`.
+
+### `unreachable_pub` is gate-fatal for every `pub` item in a renderer module
+
+Nine errors on the first compile — one per `pub` item §5.4 declares ✓:
+
+```
+error: unreachable `pub` item
+  --> src/diagnostics.rs:24:1
+   | help: consider restricting its visibility: `pub(crate)`
+   = note: requested on the command line with `-W unreachable-pub`
+```
+
+The boundary was measured, because it decides the fix: a `pub` item at the
+**crate root** of a bin does not fire, and does not trip `dead_code` either;
+the lint fires only for `pub` inside a **private** module ✓.
+
+This is a **class** defect, not an instance: it reaches every `pub` the design
+writes anywhere under `crates/goad/src/` — §5.3's `Wire`, `SlintGlass`,
+`Reported`, `Discarded`, §5.4's `tray_icon.rs` consts, all of it. It is confined
+to `crates/goad`; `crates/goad-semantics` is a lib and unaffected.
+
+*The prescription this thread drew from it — `pub(crate)`, not a lib target —
+was not adopted, and the reason is recorded in `design-log.md` 2026-09-05,
+"Round 4: the renderer crate is a library plus a thin binary". The scratch crate
+had no `tests/` target, so it could choose private modules freely; `design.md`
+§9 runs four of its validation items in `tests/…` targets of `crates/goad`,
+which `pub(crate)` puts out of reach. The measurement stands; the crate shape it
+implied does not.*
+
+### Three more, each a code change
+
+- `.map_err(|_| StartupError::Enqueue)?` is `clippy::map_err_ignore` ✓, whose
+  own documented escape is a named-underscore binding. `wall_clock`'s
+  `SystemTimeError` needs the same.
+- `arguments` had **no callable call site**: §5.4's `run()` passed one argument
+  to a two-argument signature ✓. The call site that compiles is
+  `arguments(std::env::args_os(), &|name| std::env::var_os(name))?`, and the
+  closure is load-bearing — `var_os` is generic over `K: AsRef<OsStr>`, so
+  `&std::env::var_os` does not coerce to `&dyn Fn(&str) -> Option<OsString>` ✓
+  (`redundant_closure` does not fire).
+- **Nobody skipped `argv[0]`.** `std::env::args_os()` yields the program name
+  first ✓, so every row of the four-row table was off by one. The skip now lives
+  inside `arguments`, where the table's tests cover it.
+
+### Confirmed rather than assumed
+
+- `let _entered = …` and `let _task = …` survive
+  `clippy::no_effect_underscore_binding` because their initialisers are calls ✓.
+  The lint does fire on `let _x = some_place;`, so the shape matters and the
+  design has the right one.
+- `StartupError::source()` and `ClockError::source()` are `None` under the
+  default `Error` impl ✓, and `ConfigError`'s own real `source()` chain
+  (`src/shell/error.rs:177-186`) does not leak through.
+- `missing_errors_doc` does not fire on `pub(crate)` items ✓ (public-API only) —
+  which, under the lib shape actually adopted, means it **does** fire on all of
+  them.
+- `dead_code = "warn"` is gate-fatal via `-D warnings` ✓, so every one of the
+  eight `StartupError` variants needs a construction site in the phase that
+  lands the enum. This bit twice during the exercise.
+
+### Not measured
+
+`slint::PlatformError`'s and `slint::EventLoopError`'s `Display` text — slint is
+not in the scratch crate, and the design carries those verbatim by policy, so
+only the wrapper sentences were pinned. `ConfigError` was stood in for rather
+than linked. `Path::is_absolute` was exercised on Linux only; goad is
+Wayland-only, so that is a note, not a gap.
+
+---
+
+## Thread 11 — the design's own text under the real lint table (added at review round 4)
+
+A-2 said the workspace lint table was unproven against ~75 lints and would be
+settled "on the first renderer commit". This thread settles everything a scratch
+crate can reach without Slint, which is most of it.
+
+Two trees, both preserved. The first holds the design's own text for `install`,
+`Wire`, `Cancel`, `Controller`, `Diagnostics`, the mapper, `receive`,
+`arguments`, the two outlets, `wall_clock`, `serve` and the tray rasteriser,
+transcribed **as written**, with `[lints.rust]` and `[lints.clippy]`
+`diff`-confirmed byte-identical to the goad tree, plus goad's own `clippy.toml`
+and `rustfmt.toml`.
+
+```
+$ cargo clippy --all-targets -- -D warnings
+error: could not compile `a2-instances` (lib) due to 13 previous errors
+```
+
+**Thirteen errors across nine lints** ✓, and the rasteriser eight more:
+
+| n | lint | where |
+|---|---|---|
+| 2 | `clippy::map_err_ignore` | §5.4's step-6 `Enqueue`, and `wall_clock` |
+| 2 | `clippy::missing_errors_doc` | `arguments`, `Controller::answer` |
+| 2 | `clippy::new_without_default` | `Controller::new`, `Cancel::new` |
+| 2 | `clippy::shadow_unrelated` | `for undrawn in undrawn` inside `Diagnostics::of` — **not** `install()` |
+| 1 | `clippy::needless_pass_by_value` | `Diagnostics::of(reported: Reported, …)` |
+| 1 | `clippy::match_same_arms` | `Wire::send`'s `Ok(())` and `Err(Closed(_))` arms |
+| 1 | `clippy::format_push_string` | the escape step |
+| 1 | `unused_imports` | consequence of the above |
+| 1 | `unfulfilled_lint_expectations` | the `#[expect(clippy::future_not_send)]` on `serve` |
+| 8 | `clippy::integer_division`, `clippy::arithmetic_side_effects` | the rasteriser's sample grid; `alpha = u8::try_from(covered * 255 / 16)…` is two denied lints in one expression |
+
+The second tree is the same code with the nine repairs applied: clippy clean,
+`cargo fmt --check` clean, 6 tests pass, **zero `#[expect]` on renderer code** ✓.
+The centre-pixel property §9 item 16 turns on survives the saturating rewrite —
+asserted by test, not argued ✓.
+
+### `serve` and `future_not_send`, with controls
+
+The measurement that matters most, because it reverses round 3's:
+
+| shape | `future_not_send` |
+|---|---|
+| `serve<B: Backend, G: Glass>` — the design's signature | does **not** fire |
+| `serve_concrete(.., glass: RcGlass)` — non-generic, concrete `Rc` | **fires** |
+| `serve_generic_with_concrete_rc<G>(..)` — generic + one concrete `Rc` local | **fires** |
+
+Clippy drops `Send` obligations that mention a type parameter at the top level ✓,
+so `B` and `G` being unbound is not enough on its own; the two controls prove the
+negative is not vacuous. Everything else `serve` holds across an await is `Send`,
+`slint::StyledText` included: it is `SharedVector`-backed and
+`unsafe impl<T: Send + Sync> Send for SharedVector<T>`
+(`i-slint-core-1.17.1/sharedvector.rs:97`) ✓, so `Controller` does not make the
+future `!Send` either.
+
+**Consequence:** the `#[expect]` F-27's repair added to `serve` is *unfulfilled*,
+and `unfulfilled_lint_expectations` is an error under the gate's `-D warnings`.
+The attribute would have failed the gate for the opposite reason. Thread 7's
+third row measured a **concrete** shape and does not transfer.
+
+### Two things the design had written as conditionals
+
+- **The rejected rebinding shape is clean.** `let wire = wire.clone();` passes
+  goad's table ✓; under `-W clippy::shadow_reuse` it is reported, and that is a
+  restriction lint this table does not enable. It is never
+  `shadow_unrelated` — that lint fires on a **loop** binding reusing the
+  collection's name. The six distinct clone bindings in `install` stay on
+  readability grounds; `design.md`'s stated lint reason was wrong.
+- **`Wire`'s `Debug` is not conditional.** `slint::Weak<T>` implements no
+  `Debug` in 1.17.1 — no derive, and no impl anywhere in `i-slint-core-1.17.1`
+  or `slint-1.17.1` ✓ — so the hand-written impl is required.
+
+### Corroboration
+
+Thread 10, built independently in the same session, reached the same repair for
+the outlet (`|_negative|`, `|_returned|` in place of `|_|`) and left `line_to`'s
+`match writeln!(sink, "{line}") { Ok(()) | Err(_) => () }` unchanged. The two
+runs agree.
+
+### Still unproven, and it is only what needs Slint
+
+`SlintGlass::present`, the `include_modules!()` quarantine and A-1's twelve-lint
+list, the `slint::spawn_local` call site, `slint::Image` /
+`SharedPixelBuffer` / `Rgba8Pixel`, and `build.rs`. The Slint API stand-ins here
+carry the real signatures (`FnMut` callback setters, `on_close_requested`,
+`as_weak`/`clone_strong`, no `Debug` on `Weak`) but not the real types. The
+rasteriser was measured over a `Vec<u8>` rather than a
+`SharedPixelBuffer<Rgba8Pixel>`; the arithmetic — where every lint fired — is the
+design's own, the buffer type is not. `serve`'s future holds a real
+`Host<ProcessBackend>` future in production and a stub here, which cannot change
+the `future_not_send` result (a generic `B` is filtered out either way) but has
+not been compiled. **A-4 is untouched** and still needs the real tree.

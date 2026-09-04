@@ -141,40 +141,49 @@ Severity is the raiser's, at raise time. A finding reopened in a later round
 keeps its id and its severity; its earlier outcome became `contested` and the
 fresh disposition and outcome are appended below it.
 
-| id | severity | raised | r1 disp | r1 out | r2 disp | r2 out | r3 disp | r3 out |
-|----|----------|--------|---------|--------|---------|--------|---------|--------|
-| F-1 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held |
-| F-2 | blocker | r1 | fix-now | verified | — | — | — | — |
-| F-3 | blocker | r1 | fix-now | verified | — | — | — | — |
-| F-4 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held |
-| F-5 | major | r1 | fix-now | **contested** | fix-now | verified | — | held |
-| F-6 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified |
-| F-7 | major | r1 | fix-now | **contested** | fix-now | verified | — | held |
-| F-8 | major | r1 | fix-now | **contested** | fix-now | verified | — | held |
-| F-9 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified |
-| F-10 | major | r1 | fix-now | verified | — | — | — | — |
-| F-11 | minor | r1 | fix-now | verified | — | — | — | — |
-| F-12 | minor | r1 | fix-now | verified | — | — | — | — |
-| F-13 | blocker | r2 | — | — | fix-now | verified | — | held |
-| F-14 | major | r2 | — | — | doc-wrong | verified | — | held |
-| F-15 | major | r2 | — | — | fix-now | verified | — | held |
-| F-16 | major | r2 | — | — | fix-now | **contested** | fix-now | verified |
-| F-17 | major | r2 | — | — | fix-now | **contested** | fix-now | verified |
-| F-18 | major | r2 | — | — | fix-now | verified | — | held |
-| F-19 | minor | r2 | — | — | fix-now | verified | — | held |
-| F-20 | major | r3 | — | — | — | — | fix-now | verified |
-| F-21 | major | r3 | — | — | — | — | fix-now | verified |
-| F-22 | major | r3 | — | — | — | — | fix-now | verified |
-| F-23 | major | r3 | — | — | — | — | doc-wrong | verified |
-| F-24 | major | r3 | — | — | — | — | fix-now | verified |
-| F-25 | minor | r3 | — | — | — | — | fix-now | verified |
-| F-26 | minor | r3 | — | — | — | — | fix-now | verified |
-| F-27 | major | r3 | — | — | — | — | fix-now | verified |
-| F-28 | major | r3 | — | — | — | — | fix-now | verified |
+| id | severity | raised | r1 disp | r1 out | r2 disp | r2 out | r3 disp | r3 out | r4 disp | r4 out |
+|----|----------|--------|---------|--------|---------|--------|---------|--------|---------|--------|
+| F-1 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
+| F-2 | blocker | r1 | fix-now | verified | — | — | — | — | — | — |
+| F-3 | blocker | r1 | fix-now | verified | — | — | — | — | — | — |
+| F-4 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
+| F-5 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
+| F-6 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified | — | — |
+| F-7 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
+| F-8 | major | r1 | fix-now | **contested** | fix-now | verified | — | held | — | — |
+| F-9 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified | fix-now | **verified (built)** |
+| F-10 | major | r1 | fix-now | verified | — | — | — | — | — | — |
+| F-11 | minor | r1 | fix-now | verified | — | — | — | — | — | — |
+| F-12 | minor | r1 | fix-now | verified | — | — | — | — | — | — |
+| F-13 | blocker | r2 | — | — | fix-now | verified | — | held | — | — |
+| F-14 | major | r2 | — | — | doc-wrong | verified | — | held | — | — |
+| F-15 | major | r2 | — | — | fix-now | verified | — | held | — | — |
+| F-16 | major | r2 | — | — | fix-now | **contested** | fix-now | verified | — | — |
+| F-17 | major | r2 | — | — | fix-now | **contested** | fix-now | verified | — | — |
+| F-18 | major | r2 | — | — | fix-now | verified | — | held | — | — |
+| F-19 | minor | r2 | — | — | fix-now | verified | — | held | — | — |
+| F-20 | major | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-21 | major | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-22 | major | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-23 | major | r3 | — | — | — | — | doc-wrong | verified | — | — |
+| F-24 | major | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-25 | minor | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-26 | minor | r3 | — | — | — | — | fix-now | verified | fix-now | **verified (built)** |
+| F-27 | major | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-28 | major | r3 | — | — | — | — | fix-now | verified | — | — |
+| F-29 | blocker | r4 | — | — | — | — | — | — | fix-now | verified |
+| F-30 | blocker | r4 | — | — | — | — | — | — | fix-now | verified |
+| F-31 | major | r4 | — | — | — | — | — | — | fix-now | verified |
+| F-32 | major | r4 | — | — | — | — | — | — | fix-now | verified |
+| F-33 | major | r4 | — | — | — | — | — | — | fix-now | verified |
 
 **held** = round 3 audited that repair against the code and did not reopen it.
 The finding's terminal outcome stays the one in its own round's column; "held"
 is evidence about the repair, not a fresh disposition.
+
+**verified (built)** = round 4 compiled the repair rather than reading it. The
+finding was not contested; the disposition is fresh because the build corrected
+the repair, and the evidence changed kind.
 
 ### F-1 — The outcome reducer destroys a still-live interaction
 
@@ -1842,3 +1851,383 @@ restructured — `draft-policy.md`, and `canon-delta.md` CD-5 against `design.md
 §10 C-5 — and should treat F-27 and F-28 as its brief: **two of this round's own
 repairs were wrong in ways only building them revealed, and the reviewer should
 assume the same rate applies to the two that were not built.**
+
+---
+
+## Round 4 — brief
+
+**Round 4** — 2026-09-05 — *measurement, not reading.* Round 3 ended with two
+of its own repairs measured and two not, and its synthesis said what to do about
+that: **an assumption a scratch crate can reach should be reached before a phase
+starts, not listed as a risk.** Round 4 is that instruction executed.
+
+**The raiser is the compiler.** Three scratch crates were built, each carrying
+`Cargo.toml`'s `[lints.rust]` and `[lints.clippy]` blocks copied verbatim, plus
+`clippy.toml` and `rustfmt.toml`: F-9's `Case` schema instantiated for all 33
+rows against the real `Display` impls (`research.md` Thread 9); F-26's startup
+surface, 562 lines, 18 tests (Thread 10); and the design's own text for
+`install`, `Wire`, `Cancel`, `Controller`, `Diagnostics`, the mapper, `receive`,
+`arguments`, the outlets, `wall_clock`, `serve` and the rasteriser, transcribed
+as written (Thread 11).
+
+**What that changes about severity.** A finding here is not an argument about a
+design; it is a diagnostic the phase would have hit. Where a build corrected the
+design, the build wins — that is what building it was for.
+
+Two of the three measurements corrected the passage they were pointed at, and
+the third corrected passages nobody had pointed at: nine lints fire on the
+design's own text, and one of them fires on a **round 3 repair**. Findings F-29
+… F-33 are those, raised under their own ids because they are defects in
+passages F-9 and F-26 do not own.
+
+## Round 4 — re-dispositions
+
+### F-9 — re-verified on built evidence (round 3 outcome: verified, on reading)
+
+Not contested. The round-3 repair was **built** rather than read, and the build
+corrected it in fourteen places. The schema itself held: `Cohort`, the
+`Observed` list, `Expect`, the per-row `shift` and `invocations` all survived
+instantiation for 33 rows, clippy-clean under the real table with `cargo fmt
+--check` clean and 8/8 tests passing. What did not hold was the surrounding
+specification.
+
+**Two expected strings were wrong**, and neither was findable by reading. T3's
+stderr line omitted the newline `echo` appends, which §5.4's escape step renders
+as the two characters `\n`; P2's was `config is missing` where both writers
+actually write `config is missing, so this is all you get`
+(`exits-zero-with-unparseable-stdout.sh:5`) — not even a prefix the row could
+have matched under `Exact`. Every other string in 12.3 was checked against the
+real `Display` impls and is correct, `invalid bounds: min 10 is above max 1`
+included.
+
+**Five rows carry a line the table did not mention.** `@hang`, `@flood` and all
+three `@lingers*` open with `echo "$$" >&2` as R-41 bookkeeping, and
+`process.rs:88-145` keeps what a timed-out drain captured, so T2, T4, C1, C2 and
+C3 each carry a `stderr: <pid>` no table can pin. `Expect::Unpinned` is the
+third form, and "those three are the whole of `Prefixed`" was false in both
+halves.
+
+**The fold contradicted itself.** 12.1 folded through `receive` and 12.4 read a
+`Shift` off `Controller::absorb`; an `Outcome` is not `Clone` (`host.rs:70-96`),
+so only one of the two can run. It is `absorb`, which calls `receive`.
+
+**The sequence contradicted the array.** C3 was a row of 12.3 *and* at n+2,
+after a `respond(A)` asserted "once, after the sequence", and `respond(B)`
+appeared nowhere — so a loop in array order ran C3 first. All four coda
+exchanges are now rows, in order.
+
+**Disposition:** fix-now
+**Response:** all fourteen corrections applied to `design.md` §9 item 12, which
+is rewritten end to end. Beyond the four above: `observed` becomes the
+**complete** per-channel line list rather than a containment list, which is the
+only way C1/C3's "no failure" and D1–D6's "exactly one discard" can be stated at
+all; `Channel` gains `Protocol`, because
+`no action taken: backend response rejected: ` is `BackendError::Protocol`'s own
+prefix and is not derivable from the channel T1–T4, S1 and S2 also use; `Case`
+gains `id` and a `schedule` field, because 12.2 needs three different schedule
+answers and a fourth for the exempt cohort; `Channel` and `Turn` are defined
+rather than left as trailing comments; assertion 3 is restated on `ViewId`,
+since `Presentation` derives `Debug` alone and `==` on a `Prepared` does not
+exist; `instruction: None`'s stated meaning is corrected (it excluded T1, which
+must also be `None`); and `Cohort::Own`'s second exchange moves into the driver
+as a rule so the loop stays one loop.
+
+Three things were added that the build flagged as underspecified rather than
+wrong, and each would have stopped a phase: `@lingers-with-a-view`'s body is
+pinned (a title, one option, **no fields, no body**, `"120 minutes"`), because
+fields or a degradable body would produce an undrawn line C3 does not state; the
+four `MovedTo` instants are pinned with the spans that produce them and are
+distinct by construction; and the channel partition is declared **total** — the
+driver fails a row on a line it cannot assign — which is why no
+`Channel::Undrawn` is added.
+
+`design.md` §9 item 12.1–12.8; `research.md` Thread 9.
+
+**Outcome:** verified — this time on built evidence.
+
+### F-26 — re-verified on built evidence (round 3 outcome: verified, on reading)
+
+Not contested, and built for the same reason: round 3 wrote the startup surface
+from scratch and nobody had compiled it. The wording survived. The code did not.
+
+**The outlet survives, and one of its three stated grounds is false.** All nine
+candidate spellings were compiled at once. `print_stdout`, `print_stderr` and
+`let_underscore_must_use` fire exactly as the design claimed; **`.ok();` does
+not** — `Result::ok` is not `#[must_use]` and `Option` is not a must-use type —
+and `drop(..)` is clean too. The `match` stays, on explicitness; its rejection of
+`.ok()` is no longer a lint claim, because a repair resting on a false lint claim
+invites the next reader to simplify it and be right.
+
+**`arguments` had no callable call site.** §5.4's `run()` passed one argument to
+a two-argument signature 130 lines below it. And nothing anywhere skipped
+`argv[0]`, which `std::env::args_os()` yields first — so every row of the
+four-row table was off by one.
+
+**`.map_err(|_| StartupError::Enqueue)?` is `clippy::map_err_ignore`**, `deny`.
+So is `wall_clock`'s discarded `SystemTimeError`.
+
+**Disposition:** fix-now
+**Response:** the call site becomes
+`arguments(std::env::args_os(), &|name| std::env::var_os(name))?` — the closure
+is load-bearing, because `var_os` is generic over `K: AsRef<OsStr>` and does not
+coerce to `&dyn Fn`. The `argv[0]` skip moves **inside** `arguments`, so it sits
+in the pure function the table tests rather than at an uncovered call site, and
+the doc comment says so. Both discards are named — `|_returned|`, `|_negative|`.
+`use std::io::Write` is stated as *not* imported, because the bound supplies
+`write_fmt` and the import an implementer reaches for is `unused_imports`.
+`print_usage` and `report_startup` gain bodies, and the usage `const` is stated
+to carry no trailing newline, since `writeln!` supplies it.
+
+Two things the build forced a decision on rather than merely correcting: `HOME`
+is used **as given** and is not required to be absolute (the basedir spec states
+the rule for `XDG_CONFIG_HOME` and states nothing of the kind for `HOME`), and
+XDG's "non-empty" is subsumed by "absolute" so the implementation is one test,
+not two — while the usage block keeps all three words, because those are the
+three environments a person has. And `dead_code`, `warn` in the table and fatal
+under `-D warnings`, means the phase that lands `StartupError` must land a
+construction site for all eight variants in the same commit: a constraint on
+where the phase boundary falls, recorded on the variant table.
+
+`design.md` §5.4 (the entry point, config discovery, the two outlets, the
+variant table, `ClockError`), §9 item 17; `research.md` Thread 10.
+
+**Outcome:** verified — this time on built evidence.
+
+## Round 4 — new findings
+
+### F-29 — `serve` carries an expectation the lint does not fulfil
+
+**Severity:** blocker
+**Raised by:** the compiler (`research.md` Thread 11)
+
+F-27's repair put `#[expect(clippy::future_not_send, reason = …)]` on `serve`
+and called it the first of A-2's three permitted expectations. Measured against
+the design's actual signature, `clippy::future_not_send` **does not fire**: it
+deliberately drops `Send` obligations that mention a type parameter at the top
+level, and `serve` is generic over `B: Backend` and `G: Glass`. Everything else
+the future holds across an await is `Send`, `slint::StyledText` included
+(`SharedVector`-backed, `i-slint-core-1.17.1/sharedvector.rs:97`). An
+unfulfilled `#[expect]` is `unfulfilled_lint_expectations`, an error under the
+gate's `-D warnings`. **The attribute added to satisfy the gate would have
+failed it.**
+
+The negative is not vacuous. Two controls in the same crate fire: the same loop
+non-generic over a concrete `Rc`-bearing glass, and the same loop generic with
+one concrete `Rc` local. Thread 7's third row measured a concrete shape, which
+is why the reading looked settled — the same vacuous-measurement shape
+`docs/memory/a-bound-is-not-tested-at-the-bound.md` describes, now in its third
+costume.
+
+**Disposition:** fix-now
+**Response:** the attribute is deleted, `serve`'s doc comment states the
+measured reason and both controls, and A-2's budget goes back to **three**.
+`serve` stays an `async fn` — rows 1 and 2 of Thread 7's table are unaffected
+and are the reason for the shape. Thread 7's table row 3 is corrected in place
+rather than left standing beside a refutation, and §5.5 A-5's closing paragraph
+is rewritten.
+
+`design.md` §5.4 (`serve`), §5.5 A-5, §5.5 A-2; `research.md` Threads 7 and 11.
+
+**Outcome:** verified
+
+### F-30 — every `pub` item in the renderer is a lint error, and the crate's shape was never stated
+
+**Severity:** blocker
+**Raised by:** the compiler (`research.md` Threads 10 and 11)
+
+`unreachable_pub` is `warn` in the table (`Cargo.toml:104`) and fatal under the
+gate's `-D warnings`, and it refuses a `pub` item inside a **private** module.
+The design declares `pub` on essentially everything it specifies —
+`Launch`, `arguments`, `StartupError`, `ClockError`, `Clock`, `wall_clock`,
+`USAGE`, `print_usage`, `report_startup`, and in §5.2 and §5.3 `Wire`,
+`SlintGlass`, `Reported`, `Refused`, `Controller`, `Diagnostics`, the mapper's
+types — while saying nothing about whether `crates/goad` is a bin, a lib, or
+both, or whether its modules are `pub`. Nine errors on the first compile of the
+startup surface alone. This is a class defect: it reaches every `pub` the design
+writes anywhere under `crates/goad/src/`.
+
+**Disposition:** fix-now
+**Response:** the scratch crate's own prescription — `pub(crate)` throughout,
+not a lib target — is **rejected**, and the reason is the neighbour it could not
+see. §9 runs four validation items (11, 12, 13, 17) in `tests/…` targets of
+`crates/goad`, and §12.8 says so explicitly; `pub(crate)` puts every one of
+those items out of reach. So `crates/goad` is a **library plus a thin binary**:
+`src/lib.rs` declares the module tree, each module is a `pub mod`, every `pub`
+item is genuinely reachable, and `src/main.rs` holds `main`, `run` and `start`
+and nothing else. The measurement stands; the crate shape it implied does not.
+
+The consequence is stated rather than hidden: those items are public API, so
+`clippy::missing_errors_doc` fires on every one returning `Result` — measured
+firing in a lib target and a bin target alike — which makes §5.4's `# Errors`
+sections obligations rather than courtesies.
+
+Recorded as a decision in `design-log.md`, because it is a choice between two
+shapes that both satisfy the compiler and only one of which satisfies §9.
+
+`design.md` §5.1, §5.4, §9 preamble; `slice-002.md` scope; `research.md`
+Thread 10.
+
+**Outcome:** verified
+
+### F-31 — the tray rasteriser's arithmetic is two denied lints in one expression
+
+**Severity:** major
+**Raised by:** the compiler (`research.md` Thread 11)
+
+F-25's repair pinned the geometry in integers and then wrote
+`alpha = u8::try_from(covered * 255 / 16).unwrap_or(u8::MAX)`. `/` is
+`clippy::integer_division`, `deny` crate-wide (`Cargo.toml:140`); `*` and the
+whole sample-grid arithmetic are `clippy::arithmetic_side_effects`, which the
+module denies **itself**. Eight errors. The same paragraph already promised
+`saturating_` operations and then used bare operators — the promise and the code
+were two statements of one rule, and they disagreed.
+
+**Disposition:** fix-now
+**Response:** every product and sum becomes `saturating_mul` / `saturating_add`
+/ `saturating_sub`, and the one division becomes `checked_div(16).unwrap_or(0)`
+because division has no saturating form. The centre-pixel property §9 item 16
+turns on — transparent for `Idle`, opaque for `Fault` — was **asserted by test**
+against the rewritten arithmetic, not argued. The widths still make overflow
+unreachable, so the saturating spelling never saturates; the paragraph now says
+that, rather than implying the arithmetic needs it.
+
+`design.md` §5.4 (the geometry).
+
+**Outcome:** verified
+
+### F-32 — nine lint shapes fire on the design's own text, and one stated lint reason is false
+
+**Severity:** major
+**Raised by:** the compiler (`research.md` Thread 11)
+
+Beyond F-29 and F-31: `Controller::new` and `Cancel::new` need `impl Default`
+(`new_without_default`, in `clippy::all`); `Wire::send`'s `Ok(())` and
+`Err(Closed(_))` arms must share one arm (`match_same_arms`, pedantic);
+`Controller::answer` and `arguments` and `wall_clock` need `# Errors`
+(`missing_errors_doc`); `Diagnostics::of` must destructure its by-value
+`Reported` in its first statement (`needless_pass_by_value`); `Diagnostics::of`'s
+loop bindings must not reuse the collection's name (`shadow_unrelated` — which
+fires **there**, not where the design said); and the escape step cannot be a
+`String` accumulator, because `format_push_string` and `let_underscore_must_use`
+are each the other's suggested repair.
+
+And one stated reason is simply wrong: the six distinct `Wire` clone bindings in
+`install()` were justified by `shadow_unrelated`. `let wire = wire.clone();`
+passes goad's table; it is `clippy::shadow_reuse`, a restriction lint this table
+does not enable, confirmed by running with it turned on. The six names are good;
+the reason given for them was not, and a repair resting on a false lint claim is
+one a reader is right to undo.
+
+**Disposition:** fix-now
+**Response:** every shape is applied at its own site, and the nine are also
+tabulated once in a new §5.4 subsection, *The shapes the lint table requires*,
+so a phase applies them rather than rediscovering them one compile at a time.
+Two conditionals become facts in the same pass: `Wire`'s hand-written `Debug` is
+required (`slint::Weak` implements none in 1.17.1, by derive or impl, anywhere
+in `i-slint-core` or `slint`), and the six clone bindings stay on readability
+grounds with the false lint claim removed.
+
+Rule 8 is written out rather than tabulated, because two clean spellings exist
+and the design must choose one: `match write!(out, …) { Ok(()) | Err(_) => () }`
+with `use std::fmt::Write as _` (Thread 11) and a `Display` adapter propagating
+`fmt::Result` with `?` (Thread 9). The adapter is chosen — it discards
+**nothing**, where the `match` spelling asks a reader to reason about an arm
+that cannot occur while the *outlets'* identical-looking `match` discards a real
+I/O error. One spelling, two meanings, is worse than one spelling.
+
+`design.md` §5.2, §5.3, §5.4 (*The shapes the lint table requires* and each
+site).
+
+**Outcome:** verified
+
+### F-33 — two lint rules govern every test target this slice adds, and neither was stated
+
+**Severity:** major
+**Raised by:** the compiler (`research.md` Threads 9 and 11)
+
+`clippy::tests_outside_test_module` is `deny` (`Cargo.toml:201`) and fires on
+every `#[test]` function at the root of a `tests/…` target — nine diagnostics
+from one file. §12.8 covered the `#[path]` helper share and not this, and the
+phase would have hit it on the first clippy run;
+`tests/integration/main.rs:6-24` already carries the workaround and states the
+reason.
+
+And `clippy::unnecessary_wraps` (pedantic, `deny`) refuses a `#[test]` returning
+`Result` with nothing fallible under it — six diagnostics in one file. That is
+in direct tension with the house standard "tests return `Result` and use `?`",
+and it is a standing constraint on every test this slice writes, not just item
+12's.
+
+**Disposition:** fix-now
+**Response:** both are stated once, in §9's preamble, because they govern every
+test target the slice adds and not one of them; §12.8 cites the rule rather than
+restating it. The tension with the house standard is resolved in the standard's
+own terms, and written down: the standard exists so that a test never reaches
+for `.unwrap()`, `unwrap_used` / `expect_used` / `unwrap_in_result` are all
+`deny` and hold that, and a test with nothing to unwrap returns `()`.
+
+`design.md` §9 preamble, §9 item 12.8.
+
+**Outcome:** verified
+
+## Round 4 — synthesis
+
+**Thirty-three findings over four rounds.** Five raised here — two blockers,
+three majors — all `fix-now`, all `verified`. No blocker outstanding. Two
+existing findings, F-9 and F-26, moved from *verified on reading* to *verified
+on built evidence*, which is the whole point of the round.
+
+**The defect rate held.** Round 3 measured three assumptions and two were false.
+Round 4 built the three passages round 3 left unbuilt, and **all three were
+defective** — F-9's table in fourteen places, F-26's startup surface in five,
+and A-2's claim about the lint table in nine. One of the nine
+(F-29) is a defect *in a round 3 repair that was itself made on measured
+evidence*: measuring the right thing about the wrong shape produced a confident
+wrong answer, which is the same failure `a-bound-is-not-tested-at-the-bound.md`
+names, now on its third outing.
+
+**What reading cannot reach, stated plainly.** Every defect this round found is
+of one of two kinds, and neither is visible to careful reading:
+
+1. **A string that disagrees with a file** — T3's missing `\n`, P2's truncated
+   sentence, five rows' unmentioned pid line. Reading compares text to
+   *remembered* text; the compiler compares it to the file.
+2. **A lint that fires, or does not.** Both directions bit: seven lints fired
+   where the design assumed silence, and one lint stayed silent where the design
+   assumed it fired (F-29) — and *that* one is the more dangerous, because the
+   design's response to an expected lint was an attribute that then fails the
+   gate on its own.
+
+**What the schema held.** F-9's `Case`/`Observed`/`Cohort` design survived
+instantiation for 33 rows essentially intact; what failed was everything
+*around* it. That is the same result rounds 2 and 3 kept getting: the structural
+repairs — the ones that turn a rule into a shape the types enforce — hold, and
+the prose that specifies their inputs is where the defects live. It is an
+argument for more schemas, not fewer.
+
+**The one place a build's prescription was rejected**, and it is worth naming
+because it is the round-3 pattern arriving inside round 4: Thread 10 measured
+`unreachable_pub` correctly and prescribed `pub(crate)`, which is right for the
+crate it was measured in and wrong for goad, because §12.8 runs the cheap tier
+in a `tests/` target that `pub(crate)` locks out. **A measurement is evidence
+about the shape it was taken on.** The finding was accepted; the prescription
+was checked against its neighbours and replaced.
+
+**Assumptions, after four rounds:**
+
+| assumption | outcome |
+|---|---|
+| **A-1** | still standing — the twelve-lint list needs Slint in the graph |
+| **A-2** | **measured and largely discharged.** Thirteen errors across nine lints on the design's own text, all answered by code shapes; the expectation budget is **unspent, three remain**. What is left is only what needs Slint: `SlintGlass`, the quarantine, `spawn_local`, the image types, `start`'s body |
+| **A-3** | still standing — `with_debug_info` is `#[doc(hidden)]` and depended on |
+| **A-4** | still standing, and now the *only* assumption the first renderer commit is genuinely for: `just check` wall-clock with 411 crates (ADR-002 T3) |
+| **A-5** | **measured twice, and the second measurement reversed the first's consequence** (F-29). `serve` is an `async fn` with **no** attribute |
+| **A-6, A-7** | discharged at round 3 |
+
+**What round 4 has not reached.** It did not read `draft-policy.md` or
+`canon-delta.md` CD-5 against `design.md` §10 C-5, which round 3's synthesis
+also asked for; those remain unreviewed by anyone but their author. It did not
+run the real gate against a real renderer crate, because none exists. And it did
+not review its own repairs — the same debt every round in this ledger has left,
+and the reason the ledger stays `open`. The difference is that this round's
+repairs are the first to have been compiled before they were written down.

@@ -312,3 +312,88 @@ round 4 is reading text worth reading.
 `docs/slices/002/slice-002.md` (15 acceptance criteria, Stage: design);
 `design.md` §5.4 and §9 item 12; `review-design.md` Brief and Synthesis;
 `design-log.md` from 2026-09-04; `research.md` Threads 6, 7 and 8.
+
+---
+
+## Handover addendum — session 2, 2026-09-05
+
+**Written:** end of session 2. **Branch:** `slice-002`. **Gate:** `just check`
+exits 0. **Tree:** clean apart from the same pre-existing unstaged `flake.lock`
+edit, still untouched. **Stage:** still the design gate; `plan.md` is still the
+template and no code has changed.
+
+Session 2 did one thing: it executed the instruction session 1's handover wrote
+for it. **Item 6's first three steps are done, and all three found defects.**
+
+| step | thread | verdict |
+|---|---|---|
+| 1. build F-9's `Case` schema | `research.md` Thread 9 | corrected — 14 changes, two of them expected strings that disagree with the fixtures |
+| 2. build F-26's startup surface | Thread 10 | corrected — 5 changes, including an `arguments` call site that does not compile |
+| 3. check A-2's named instances | Thread 11 | corrected — 13 errors across 9 lints on the design's own text, plus 8 in the rasteriser |
+
+**The score, carried forward as the thing to brief round 5 with.** Round 3
+measured three assumptions and two were false. Round 4 built three passages and
+all three were defective. That is five out of six across two sessions, in text
+written by agents with the sources open. The handover's lesson — *an assumption
+a scratch crate can reach should be reached before a phase starts* — has now
+been paid for twice and is the strongest empirical claim this slice has made
+about its own process.
+
+### What changed, and where to read it
+
+- **`design.md`** — §5.1 gains the crate shape (D28: lib plus thin bin); §5.2,
+  §5.3 and §5.4 gain nine lint-forced shapes, tabulated once in a new §5.4
+  subsection *The shapes the lint table requires*; §5.4's startup surface is
+  corrected end to end; §5.5's A-2 and A-5 are rewritten (both were refuted, and
+  neither is left standing with a note beside it); §9 gains a preamble stating
+  two test-target lint rules; §9 item 12 is rewritten in full.
+- **`review-design.md`** — round 4 appended: brief, F-9 and F-26 re-verified on
+  built evidence, F-29 … F-33 raised and verified, synthesis. Thirty-three
+  findings, no blocker outstanding, ledger still `open`.
+- **`research.md`** — Threads 9, 10 and 11 appended; Thread 7's third table row
+  corrected in place, because it was refuted rather than merely dated.
+- **`design-log.md`** — seven entries, all under the autonomy grant.
+- **`slice-002.md`** — the renderer surface names the lib/bin shape.
+
+### The one judgement call worth flagging to a reader
+
+**Thread 10's prescription was rejected and its measurement kept.** It measured
+`unreachable_pub` correctly and concluded "`pub(crate)`, not a lib target",
+which is right for a crate with no integration tests and wrong for this one:
+§12.8 runs the cheap tier in a `tests/` target that `pub(crate)` locks out. A
+measurement is evidence about the shape it was taken on. Every other correction
+this session was greped against the whole design before it was applied, for
+exactly that reason — round 3's failure mode is a repair correct in place
+against an unrepaired neighbour, and it does not stop being available just
+because the repair came from a compiler.
+
+### What is still open, unchanged from session 1 except where noted
+
+- **A-4** is now the *only* assumption the first renderer commit is genuinely
+  for: `just check` wall-clock with 411 crates (ADR-002 T3). A-1 and A-3 also
+  need Slint in the graph. A-2 is largely discharged; its expectation budget is
+  **unspent, three remain** — F-27's spend was refunded by F-29.
+- **The canon decisions in §4 of session 1's handover are untouched.** Nothing
+  under `docs/specs/`, `docs/policy/` or `docs/adr/` was created or edited this
+  session either. CD-1 … CD-7 and `draft-policy.md` still need the user.
+- **Round 4 did not read `draft-policy.md` or `canon-delta.md` CD-5 against
+  `design.md` §10 C-5.** Round 3's synthesis asked for that and round 4's brief
+  was narrower on purpose — it was a measurement round. That reading is still
+  owed, and it is the cheapest remaining item.
+- **`plan.md` is still not begun**, for the same reason as before: the canon
+  decisions come first, and PHASE-01 is the split.
+
+### What the next session does first
+
+1. **Read `draft-policy.md` and `canon-delta.md` CD-5 against `design.md` §10
+   C-5.** The last unreviewed artefact pair, and a reading job rather than a
+   building one.
+2. **Put the canon decisions to the user** (session 1's handover, §4). They are
+   the one thing the autonomy grant withholds, and `plan.md` waits on them.
+3. **Then `plan.md`.** PHASE-01 is the split, because it moves 111 files and
+   nothing else should move at the same time. Two constraints the builds added
+   to phase planning, both of which decide where a boundary can fall:
+   `dead_code` is fatal under `-D warnings`, so the phase that lands
+   `StartupError` must land a construction site for all eight variants in the
+   same commit; and §5.4's *shapes* table plus §9's preamble are the two lists a
+   phase reads before writing renderer code or a test target.

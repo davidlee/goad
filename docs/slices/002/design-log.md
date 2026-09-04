@@ -1144,3 +1144,188 @@ open.*
   invisible to careful reading of the upstream sources — `builtins.slint`
   documents neither behaviour. Two of the three assumptions a spike could reach
   were wrong, and both would have stopped a phase mid-flight.
+
+### 2026-09-05 — Round 4: the three unbuilt passages were built, and all three were wrong
+
+*Autonomy grant. Round 4, the round that measures rather than reads.*
+
+- **Asked:** round 3's handover named three things as unbuilt — F-9's `Case`
+  schema, F-26's startup surface, and A-2's claim about the lint table — and
+  drew its own lesson: an assumption a scratch crate can reach should be reached
+  before a phase starts. Spend a session measuring, or write `plan.md`?
+- **Decided:** measure. Three scratch crates, each carrying `Cargo.toml`'s
+  `[lints.rust]` and `[lints.clippy]` blocks copied verbatim plus `clippy.toml`
+  and `rustfmt.toml` (`research.md` Threads 9, 10, 11).
+- **What came back:** all three were defective. F-9's table in fourteen places,
+  including two expected strings that disagree with the fixtures and a fold that
+  contradicted itself across two subsections. F-26's startup surface in five,
+  including an `arguments` call site that does not compile against its own
+  signature and a four-row table off by one because nobody skipped `argv[0]`.
+  A-2 in nine: thirteen errors on the design's own text, plus eight more in the
+  rasteriser.
+- **The rate, stated because it is the point:** round 3 measured three
+  assumptions and two were false. Round 4 measured three passages and three were
+  defective. Reading has now failed against a compiler five times out of six on
+  this design, in text written by careful agents who had the sources open.
+- **Consequence:** every finding is `fix-now` and applied; F-9 and F-26 move
+  from *verified on reading* to *verified on built evidence*; F-29 … F-33 are
+  raised for the defects in passages neither of them owned. The gate for
+  `plan.md` is unchanged — it was always "the design converges" — but the
+  evidence behind it is now of a different kind.
+- **Rejected:** writing `plan.md` against unbuilt text, which is the bet round
+  3's handover argued against and which would have put a phase against a
+  signature that does not compile.
+
+### 2026-09-05 — Round 4: the renderer crate is a library plus a thin binary
+
+*Autonomy grant. F-30. A decision the measurement forced and did not settle.*
+
+- **Asked:** `unreachable_pub` (`Cargo.toml:104`, `warn`, fatal under
+  `-D warnings`) refuses a `pub` item inside a private module, and the design
+  declares `pub` on essentially everything it specifies while never saying what
+  shape `crates/goad` is. Nine errors on the first compile. Which shape?
+- **Two shapes pass the compiler**, and the scratch crate that found the defect
+  could not tell them apart because it had no `tests/` target:
+  `pub(crate)` on every item, or a library whose modules are `pub mod`.
+- **Decided:** the library, plus a binary holding `main`, `run` and `start` and
+  nothing else. §9 runs four validation items — 11, 12, 13, 17 — in `tests/…`
+  targets of `crates/goad`, and §12.8 says so; `pub(crate)` locks every one of
+  them out. `install` lives in the library too, because item 14e drives it.
+- **Why the build's own prescription was rejected:** *a measurement is evidence
+  about the shape it was taken on.* Thread 10 measured `unreachable_pub`
+  correctly and prescribed `pub(crate)`, which is right for a crate with no
+  integration tests and wrong for this one. This is round 3's pattern — a repair
+  correct in place, contradicting a neighbour — arriving inside round 4, and it
+  is the reason every correction this round was greped against the whole design
+  before it was applied.
+- **The cost, stated rather than hidden:** those items are public API, so
+  `clippy::missing_errors_doc` fires on every one returning `Result` — measured
+  firing in a lib target and a bin target alike. §5.4's `# Errors` sections are
+  obligations, not courtesies.
+- **Rejected:** `pub(crate)` throughout with the cheap tier moved into
+  `#[cfg(test)]` modules under `src/`, which would contradict D9, §12.8 and four
+  validation items to satisfy a lint that a `pub mod` satisfies for free.
+
+### 2026-09-05 — Round 4: `serve` carries no attribute, and A-2's budget is unspent
+
+*Autonomy grant. F-29. This supersedes the consequence drawn in "Round 3: the
+loop was built, and it changed `serve`'s signature" — the signature stands; the
+attribute does not.*
+
+- **Asked:** F-27 put `#[expect(clippy::future_not_send, reason = …)]` on
+  `serve` and called it the first of A-2's three permitted expectations. Does
+  the lint fire on the design's actual signature?
+- **Decided by measurement:** no. `clippy::future_not_send` deliberately drops
+  `Send` obligations that mention a type parameter at the top level, and `serve`
+  is generic over `B: Backend` and `G: Glass`. Everything else the future holds
+  across an await is `Send`, `slint::StyledText` included — it is
+  `SharedVector`-backed (`i-slint-core-1.17.1/sharedvector.rs:97`).
+- **So the attribute would have failed the gate**, for the opposite reason to
+  the one it was added for: an unfulfilled `#[expect]` is
+  `unfulfilled_lint_expectations`, an error under `-D warnings`.
+- **Why the earlier measurement was wrong about this:** the spike held a
+  **concrete** `Rc`-bearing glass. Two controls confirm the negative is not
+  vacuous — the same loop non-generic over a concrete glass, and the same loop
+  generic with one concrete `Rc` local, both fire. This is
+  `docs/memory/a-bound-is-not-tested-at-the-bound.md` on its third outing, and
+  the first time it has bitten a measurement rather than a test.
+- **Consequence:** the attribute is deleted; `serve` stays an `async fn` for
+  `manual_async_fn`'s sake, which is unaffected; A-2's expectation budget goes
+  back to **three**; and Thread 7's table row 3 is corrected in place rather
+  than left standing beside its own refutation.
+- **Rejected:** keeping the attribute "in case a future change makes the future
+  concretely `!Send`", which fails the gate today for a hypothesis about
+  tomorrow.
+
+### 2026-09-05 — Round 4: the escape step is a `Display` adapter, and the outlet is not
+
+*Autonomy grant. F-32. Two clean spellings, and the design must own the choice.*
+
+- **Asked:** `out.push_str(&format!(…))` is `clippy::format_push_string` and
+  clippy's suggested repair, `let _ = write!(out, …)`, is
+  `clippy::let_underscore_must_use` — each is the other's fix. Two spellings do
+  pass, measured independently in two crates: `match write!(out, …) { Ok(()) |
+  Err(_) => () }` with `use std::fmt::Write as _`, and a `Display` adapter
+  propagating `fmt::Result` with `?`. Which?
+- **Decided:** the adapter. It discards **nothing**. Writing into a `String`
+  cannot fail, so the `match` spelling asks a reader to reason about an arm that
+  cannot occur — and the *outlets* use an identical-looking `match` that
+  discards a real I/O error. One spelling meaning two different things, twelve
+  hundred lines apart, is worse than two spellings.
+- **Note the asymmetry is deliberate:** the outlet keeps its `match` because
+  there the discard is real and the explicitness is the point (D26).
+- **Rejected:** the `match` in both places, which would make the escape step
+  look like it were guarding against something; and a `#[expect]` on
+  `format_push_string`, which would spend a budget on a shape that has two clean
+  answers.
+- **Corrected in the same pass:** D26's claim that `.ok();` trips
+  `unused_must_use`. It does not — `Result::ok` is not `#[must_use]`. The
+  `match` at the outlets is now chosen on explicitness and says so, because a
+  repair resting on a false lint claim invites the next reader to undo it and be
+  right.
+
+### 2026-09-05 — Round 4: `HOME` as given, XDG absoluteness as one test, and the `argv[0]` skip
+
+*Autonomy grant. F-26's build forced three small decisions the design had left
+open by not noticing they were open.*
+
+- **`HOME` is used as given and is not required to be absolute.** The basedir
+  spec states the absoluteness rule for `XDG_CONFIG_HOME` and states nothing of
+  the kind for `HOME`. A relative `HOME` is a broken environment the host cannot
+  repair and should not silently reinterpret. Written into the design because
+  the asymmetry looks like an oversight and is not. *Rejected:* requiring both
+  to be absolute "for symmetry", which invents a rule and fails an environment
+  the spec admits.
+- **XDG's "non-empty" is subsumed by "absolute"**, so the implementation is one
+  test rather than two. The user-facing usage block keeps all three words —
+  "unset, empty, or not absolute" — because those are the three environments a
+  person actually has, and the block is prose for a person, not a predicate.
+- **`arguments` skips `argv[0]` itself.** `std::env::args_os()` yields the
+  program name first and nothing in the design said who dropped it, so every row
+  of the four-row table was off by one. The skip goes **inside** the pure
+  function the table tests, not at a call site no test covers. *Rejected:*
+  skipping at the call site, which would leave the one uncovered line in the
+  process holding the correctness of four tested rows.
+
+### 2026-09-05 — Round 4: the failure table's instants, its sentinel body, and a total channel partition
+
+*Autonomy grant. Three things F-9's build flagged as underspecified rather than
+wrong. Each would have stopped a phase.*
+
+- **The four accepted instants are pinned, with the spans that produce them.**
+  §12.2 required them to be distinct and named none. They are 04:57, 05:44,
+  06:12 and 06:44, from `"45 minutes"`, `"90 minutes"`, `"120 minutes"` and
+  `"150 minutes"` against evaluates at 04:12 and responds at 04:14 — slice 001's
+  own two instants (`failure_matrix.rs:47-52`), and 05:44 is slice 001's own
+  value for the same body. The seed, 04:42, is `DEFAULT_POLL`'s 30 minutes from
+  the construction instant, which is `seeded_check()` (`harness.rs:220`,
+  `failure_matrix.rs:44-46`).
+- **`@lingers-with-a-view`'s body is pinned:** a title, exactly one option, **no
+  fields and no body content**, plus `"next_check": "120 minutes"`. "The first,
+  with a view in the body" admitted bodies that break the row — fields produce
+  an `Undrawn::OptionFields` line and a body risks a degradation line, and C3
+  states neither.
+- **The channel partition is total, and there is no sixth `Channel` variant.**
+  The driver assigns every rendered line to a channel by prefix and **fails the
+  row on a line it cannot assign**. *Rejected:* a `Channel::Undrawn` for the two
+  undrawn prefixes, which would be a variant no row names and would let a stray
+  undrawn line be absorbed rather than reported. With the body pinned above, an
+  undrawn line here is a defect, and the table should say so.
+
+### 2026-09-05 — Round 4: the house test standard yields to `unnecessary_wraps`, on the standard's own terms
+
+*Autonomy grant. F-33. A house standard and the lint table disagree, and one of
+them has to give.*
+
+- **Asked:** `clippy::unnecessary_wraps` (pedantic, `deny`) refuses a `#[test]`
+  returning `Result` with nothing fallible under it — six diagnostics in one
+  file. The house standard is "tests return `Result` and use `?`". Which wins?
+- **Decided:** the lint, and it is not a weakening. The standard exists so that
+  a test never reaches for `.unwrap()` or `.expect()`; that purpose is held by
+  the table directly — `unwrap_used`, `expect_used` and `unwrap_in_result` are
+  all `deny` — and a test with nothing to unwrap has nothing to propagate. So a
+  test returns `Result` when it uses `?` and `()` when it does not.
+- **Recorded in §9's preamble**, not in item 12, because it governs every test
+  target this slice adds. *Rejected:* an `#[expect]` per test, which would spend
+  the A-2 budget on a house convention; and threading a pointless `?` through
+  every test to satisfy the letter of the standard against its purpose.

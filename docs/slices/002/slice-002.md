@@ -48,8 +48,10 @@ Surfaces this slice may touch.
 **The renderer**:
 
 - `crates/goad/` — stratum 3: `ui/**.slint`, `build.rs`, the `slint` dependency,
-  the binary, and `README.md` carrying the recommended compositor window rule.
-  It inherits `[workspace.lints]` unchanged; the only laxity is the
+  a **library plus a thin binary** (`main`, `run` and `start` are the whole of
+  `main.rs`; everything a test reaches is a `pub mod` of the library —
+  `design.md` §5.1), and `README.md` carrying the recommended compositor window
+  rule. It inherits `[workspace.lints]` unchanged; the only laxity is the
   module-scoped `#![expect(...)]` around `include_modules!()`.
 - The view mapper: canonical types → row structs the markup consumes.
 - The reception seam: the one function that consumes an `Outcome`.
