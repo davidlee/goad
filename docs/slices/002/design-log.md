@@ -903,3 +903,170 @@ whether a renderer refusal raises the tray fault (it does); and whether a full
 channel is reported through `busy` or through a separate `notice` (a separate
 `notice`, because `busy` is already set). Each is recorded above with its
 argument.
+
+### 2026-09-05 — Round 3: four instruments for stratum 1, and the claim narrowed to fit
+
+*Autonomy grant. Review round 3, F-6 — third raising of one defect.*
+
+- **Asked:** does the gate enforce stratum 1's purity, and if not, what does it
+  do?
+- **Decided:** it does not, and no document says it does any more. Four
+  instruments, each with a stated boundary: Cargo at crate edges; the manifest
+  allowlist over dependency *names*; a new **stratum 1 purity scan** over
+  stratum 1's sources for direct `std` reaches; and `cargo test -p
+  goad-semantics`, which builds stratum 1 in isolation and rejects nothing. The
+  feature residue is written down as a rule nothing enforces.
+- **Why:** the previous two repairs each narrowed a word and left the *sum*
+  implying the whole, which is how one defect got raised three times. And one of
+  the boundaries turned out not to be residue but a gap: `std::fs` needs no
+  manifest entry and is not a crate edge, so nothing was looking. The scan is one
+  more configured `Scan` — `mentions` already matches `::`-bearing tokens as
+  substrings (`boundary.rs:166-176`) and `code_of` already cuts comments, so the
+  tree's one existing `std::time::` mention (a doc comment at
+  `schedule.rs:215`) is not a hit. Verified against the tree before deciding.
+- **Rejected:** narrowing the claim alone and leaving direct I/O as an unwritten
+  review rule — an unwritten rule catches nothing, and a weak tripwire in the
+  gate catches the regression people actually make; presenting the scan as proof
+  — its three misses (`use std::{fs, process};`, aliases, I/O by a permitted
+  dependency) are named beside it; and inventing a feature-graph test, which
+  would be a fifth instrument arriving on argument rather than measurement,
+  which is how this finding was created.
+
+### 2026-09-05 — Round 3: the entry point is Rust, not a numbered list
+
+*Autonomy grant. Review round 3, F-17 — second raising.*
+
+- **Asked:** why did a repair that added a fifteen-step ordered sequence still
+  omit the host construction?
+- **Decided:** because a numbered sequence is a format that can omit a step and
+  still read complete. The entry point is now Rust — `main -> ExitCode` over
+  `run` over `start(&Path)` — and the markup carries the controls that produce
+  every callback the Rust side installs.
+- **Why:** the omissions were structural, not careless. A list has no compiler
+  and no reader-side check that a value it uses was ever produced; code has both,
+  even unread. Writing it forced three facts into the open that prose had been
+  eliding: the command must be **cloned** before the config moves into
+  `Host::new`; `main` cannot use `?`; and `Wire`'s fields are private, so a field
+  literal was never going to compile.
+- **Rejected:** another pass over the numbered sequence, which is the format that
+  failed twice.
+
+### 2026-09-05 — Round 3: the Slint API is read from the compiler, not inferred
+
+*Autonomy grant. Review round 3, F-17's markup half.*
+
+- **Asked:** how much of the markup can be pinned without a spike?
+- **Decided:** all of it that this slice needs, from
+  `i-slint-compiler-1.17.1`'s own sources in the cargo registry — `builtins.slint`
+  for `SystemTrayIcon`'s single `Menu` child and `MenuItem`'s `activated()`,
+  `widgets/fluent/button.slint` for `Button`'s built-in accessible role, label,
+  default action and `FocusScope`, `typeregister.rs` for the reserved
+  `accessible-*` properties, and `tests/syntax/accessibility/` for the rule that
+  a component instance accepts `accessible-description` only when its own root
+  declares a role.
+- **Why:** the alternative was writing plausible Slint into a design an agent
+  will type, which is the F-17 class of defect in a new place. Reading the
+  compiler cost minutes and settled T-D and T-E as a by-product: stock `Button`
+  already answers both, so the design owes neither a per-option `FocusScope` nor
+  a disambiguating selector rule.
+- **Found while reading, and recorded:** `StyledText` declares no accessible
+  role and its property is `text`, so the body's value is not addressable through
+  the accessibility tree. The body's content is therefore asserted on
+  `Presentation`, not through the element tree. *Rejected:* a second
+  `body-text: string` property carrying a plain copy for the label — one value
+  rendered twice, which principle 4 forbids.
+
+### 2026-09-05 — Round 3: the new gate policy is drafted from the policy template
+
+*Autonomy grant. Review round 3, F-24. A methodology deviation, taken in the
+open.*
+
+- **Asked:** `docs/AGENTS.md` says new canon is drafted in `draft-spec.md`. The
+  new canon here is a *policy*. Which template, and which filename?
+- **Decided:** `docs/slices/002/draft-policy.md`, copied from
+  `docs/templates/policy.md`. `canon-delta.md` CD-5 becomes the amendment it
+  should always have been — repointing `CLAUDE.md` off a closed slice's design
+  and onto the promoted policy — and says explicitly that it does not create the
+  policy.
+- **Why:** AGENTS.md names `draft-spec.md` because it assumes new canon is a
+  specification; the rule that matters is that new canon is drafted in the slice
+  folder from its governing template and never written into `docs/` mid-slice.
+  A policy drafted from the spec template would be the wrong document in the
+  right place. Two promotions, two endorsements, two Reconciliation rows: both
+  land or neither does, because applying one alone leaves either a dangling
+  pointer or two claimants to the gate.
+- **Rejected:** stretching `canon-delta.md` to hold new canon, which its own
+  preamble forbids; and deferring the policy to audit, which would leave the
+  slice running with no stated authority for a gate it changes.
+
+### 2026-09-05 — Round 3: three seams closed, one shape each
+
+*Autonomy grant. Review round 3, F-20, F-21, F-22.*
+
+- **Asked:** three defects at seams between a repaired passage and an unrepaired
+  neighbour. Is there one repair, or three?
+- **Decided:** three, but each is chosen to remove the *seam* rather than to
+  patch the symptom.
+  - **F-20, the quit:** the completion path owns it and `Wire::send`'s `Closed`
+    arm does nothing — not by preference, but because `Wire` holds a `Sender`, so
+    `Closed` can only be observed after the receiver is dropped, which happens one
+    line before the completion path's own quit. A second call was never a first
+    one.
+  - **F-21, `engaged`:** `absorb` clears it, unconditionally. One setter, one
+    clearer, one pair, in one place. *Rejected:* a separate `disengage()` (a third
+    call the loop can forget) and moving `busy` into a `frame(busy)` parameter
+    (it would make the caller own a fact `Controller` is otherwise sole owner of).
+  - **F-22, the pending exchange:** a `Pending` enum and one `async` block, so
+    `select!` races the exchange itself rather than a wrapper. *Rejected:*
+    duplicated `select!`s per entry point, and boxing.
+- **Why:** each of the three was a decision the design had left to the
+  implementer while claiming to have settled it — and each decides borrowing,
+  cancellation or the shape of a validation item, so none of them is local.
+
+### 2026-09-05 — Round 3: the icon has numbers and the startup surface has strings
+
+*Autonomy grant. Review round 3, F-25, F-26.*
+
+- **Asked:** two "a rule, not an artefact / a controlled string surface" claims
+  with no values behind them. What are the values?
+- **Decided:** integer eighth-of-a-pixel geometry for the icon — centre 128,
+  outer radius² 14 400, idle inner radius² 5 184, 4×4 sample centres at
+  `(8x + 2i + 1, 8y + 2j + 1)`, both boundary comparisons inclusive. And every
+  startup string written out: the usage block on stdout with `--help` as its only
+  destination, `StartupError`'s eight variants, `ClockError`'s two, and
+  `source()` returning `None` on both.
+- **Why:** "a rule that regenerates the exact asset" is only true if the rule has
+  numbers in it, and the pinning pays for itself — the centre-pixel assertion
+  becomes arithmetic rather than a description. And a string nobody pinned is a
+  string an implementer authors mid-phase, which is user-facing policy taken by
+  whoever happened to be typing.
+- **Decided alongside, because the lint table does not leave it free:**
+  `print_stdout` and `print_stderr` are both `deny`, so both outlets go through
+  `writeln!` on a locked handle, and the write's `Result` is discarded by
+  matching — `let _ =` trips `let_underscore_must_use` and `.ok();` trips
+  `unused_must_use`. Three lint interactions settled here rather than met one at
+  a time inside a phase; A-2's stop rule is the fallback if the first `cargo
+  clippy` disagrees.
+- **Rejected:** reprinting the usage block beside a usage error (one fact in two
+  places); and a `source()` chain on either error type, which is F-47's inherited
+  defect re-introduced at the one outlet with no window to lose.
+
+### 2026-09-05 — Round 3: the slice document was wrong about the clock, not the design
+
+*Autonomy grant. Review round 3, F-23. The round's one `doc-wrong`.*
+
+- **Asked:** the non-goal says slice 003 owns the clock; the design adds a
+  wall-clock adapter. Which is wrong?
+- **Decided:** the slice document. Slice 003 owns **scheduling and timers**;
+  slice 002 reads wall time solely to stamp the events it sends and the calls
+  that carry them. The non-goal, the slice's OQ-7, `design.md` §1 and §6's OQ-7
+  are all restated in those terms.
+- **Why:** every `Host` entry point has always required a caller-supplied
+  `Timestamp`, including slice 001's tests, so supplying one is not owning a
+  schedule — D15 drew that distinction correctly two rounds ago and is unchanged.
+  The inconsistency was manufactured by OQ-7 having been *asked* with the wrong
+  word ("with no clock"), and it propagated into the non-goal from there.
+- **Rejected:** removing the adapter to satisfy the non-goal as written, which
+  would leave the slice unable to make its first call; and leaving the non-goal
+  standing as an unremarked contradiction, which `docs/AGENTS.md` explicitly
+  forbids — a design change obliges revising the slice for consistency.

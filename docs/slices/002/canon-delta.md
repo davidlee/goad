@@ -4,8 +4,14 @@
 explicit user endorsement, and recorded in `audit.md`'s Reconciliation table.
 
 Changes this slice makes to canon that **already exists**. New canon is drafted
-in `draft-spec.md`, not here. One entry per affected document: the document, the
-section, the change as it will be stated, and why.
+in the slice folder from its governing template, not here — this slice's new
+canon is `draft-policy.md`, the phase gate, drafted from
+`docs/templates/policy.md` (review `F-24`). One entry per affected document: the
+document, the section, the change as it will be stated, and why.
+
+Two promotions, kept separate: the entries below are applied to the documents
+they name, and `draft-policy.md` is moved into `docs/policy/` under its own
+endorsement. Neither implies the other.
 
 CD-1 carries a user endorsement already (`design-log.md` 2026-09-05) because the
 split is a canon event the design could not take on its own. Endorsement of the
@@ -53,8 +59,11 @@ A new ADR — `docs/adr/003-*.md` — recording:
   a single crate, and it covers only the half a compiler can see. A
   `tokio.workspace = true` line in stratum 1's *manifest* still leaves `cargo
   build --workspace` at exit 0 (`research.md:806`), so the manifest is held by a
-  test rather than by the compiler; and the domain-vocabulary scan is not made
-  redundant at all, because no compiler objects to a type called `Habit`.
+  test rather than by the compiler; a direct `std::fs` call needs no manifest
+  entry at all and is held by a source scan; and the domain-vocabulary scan is
+  not made redundant either, because no compiler objects to a type called
+  `Habit`. The ADR states the four instruments and their boundaries, and does
+  **not** claim their sum is "stratum 1's purity, enforced".
 - **What the split cost:** measured, not estimated — 111 renames, 91
   byte-identical, one substantive file change, ~6 minutes to a green gate. The
   error-taxonomy split ADR-002 flagged as a real cost was two lines.
@@ -144,59 +153,45 @@ mechanical.
 
 ---
 
-## CD-5 — the gate's canonical command block
+## CD-5 — `CLAUDE.md` points at a closed slice's design for the gate
 
-**Document:** `docs/slices/001/design.md` §9 → new canon
-**Section:** the command block, and the prose describing the two feature columns
-**Kind:** canon creation. Needs its own endorsement, separate from CD-1's.
+**Document:** `CLAUDE.md` (project instructions), the Verifying section
+**Section:** "The command block in `docs/slices/001/design.md` §9 is canonical
+and the `justfile` mirrors it: change §9 first, then the recipe."
+**Kind:** an amendment to an existing document, repointing it at new canon.
 
 ### Why
 
-`CLAUDE.md` states that the block in `docs/slices/001/design.md` §9 is canonical
-and the `justfile` mirrors it: change §9 first, then the recipe. But §9 is a
-*closed slice's design*, and `docs/AGENTS.md` says a design is a record of
-intent at a point in time and must not be retro-fitted.
+`CLAUDE.md` makes a *closed slice's design* the canonical source of the phase
+gate. `docs/AGENTS.md` says a design is a record of intent at a point in time and
+must not be retro-fitted, so that pointer has always obliged a future agent to
+either edit a closed design or leave `CLAUDE.md` stale.
 
-Slice 002 changes the gate: a workspace changes every command's scope, and the
+Slice 002 forces the choice: a workspace changes every command's scope, and the
 split *retires* the feature matrix rather than adding to it. The renderer adds no
 column — it is a workspace member, built and linted by the same `--workspace`
-commands as every other. Under the current arrangement recording that means
-editing a closed slice's design, which the methodology forbids, or leaving
-`CLAUDE.md` pointing at a stale block.
+commands as every other.
 
 ### The change
 
-Promote the command block and its rationale into canon of its own — a policy
-under `docs/policy/`, which is currently empty and is the natural home for a
-verification obligation. `CLAUDE.md` then points there, `docs/slices/001/design.md`
-§9 stands untouched as the record of what slice 001 intended, and the closed
-slice stops being load-bearing.
+`CLAUDE.md`'s pointer moves from `docs/slices/001/design.md` §9 to the promoted
+phase-gate policy under `docs/policy/`; `docs/slices/001/design.md` §9 stands
+untouched as the record of what slice 001 intended, and the closed slice stops
+being load-bearing.
 
-The block the policy carries is the post-split one (`design.md` §5.6), which is
-**six commands, not seven**, and has no feature matrix:
+### What this entry does *not* do
 
-```
-cargo build --workspace
-cargo test --workspace
-cargo test -p goad-semantics
-deno check examples/typescript/backend.ts
-cargo clippy --workspace --all-targets -- -D warnings
-cargo fmt --all --check
-```
-
-`cargo test -p goad-semantics` is inside the gate rather than beside it as a
-diagnostic, and its job is narrow, measured, and not the one first claimed for
-it. `cargo test --workspace` unifies Cargo features across every member it
-builds, so stratum 1 is compiled *there* with whatever features stratum 2 and
-stratum 3 switch on in shared dependencies. `-p goad-semantics` is the only
-command in the gate that builds and runs stratum 1 with exactly the features its
-own manifest asks for. Measured: in a two-member probe where member `b` enables
-`serde/derive` and member `a` does not, `cargo build --workspace` and `cargo test
--p b` succeed while `cargo test -p a` fails `error[E0433]` on
-`serde::Serialize`. It is **not** a purity check — a `tokio` entry in stratum 1's
-manifest passes it — and the manifest test is what holds that.
-
----
+It does not create the policy. **New canon is not drafted here** — this file
+covers changes to canon that already exists (see the preamble, and AGENTS.md
+*"Canon that does not exist yet, or must change"*). The policy itself is drafted
+as `docs/slices/002/draft-policy.md` and promoted separately, under its own
+explicit endorsement, and it is the draft that carries the six-command block, the
+rationale for `cargo test -p goad-semantics`, and the statement of what each
+enforcement instrument does and does not hold. Applying this entry without
+promoting that draft would leave `CLAUDE.md` pointing at nothing; promoting the
+draft without applying this entry would leave two claimants to the gate. Both
+moves land, or neither does, and each is recorded in `audit.md`'s Reconciliation
+table on its own row (review `F-24`).
 
 ## CD-6 — the boundary test and `.slint`
 
@@ -267,19 +262,31 @@ agent to check something that cannot be checked.
 
 ### The change
 
-Replace both sentences with a pointer to the promoted policy (CD-5) and an
-accurate statement of what replaced the matrix. Three mechanisms, each with a
-different job, and the wording must not merge them:
+Replace both sentences with a pointer to the phase-gate policy — drafted as
+`draft-policy.md` and promoted under CD-5's neighbour endorsement — and an
+accurate statement of what replaced the matrix. **Four** mechanisms, each with a
+different job, and the wording must not merge them or claim their sum is
+"purity enforced":
 
 - **Cargo, at crate edges** — a stratum 1 source file naming `goad_shell` or
   `tokio` does not compile.
-- **The manifest test** (`crates/goad-boundary`) — the only instrument that
-  rejects a runtime, renderer or filesystem-shaped *dependency entry*, which no
-  compiler and no source scan can see.
+- **The manifest allowlist test** (`crates/goad-boundary`) — the only instrument
+  that rejects a runtime, renderer or filesystem-shaped *dependency entry*,
+  which no compiler and no source scan can see. It reads names, not versions and
+  not features.
+- **The stratum 1 purity scan** (`crates/goad-boundary`) — the only instrument
+  that rejects a *direct* `std` reach for the filesystem, processes, sockets,
+  threads, the environment or a clock, none of which needs a manifest entry. A
+  line-based source scan with the limits its own design names.
 - **`cargo test -p goad-semantics`** — the only gate command that builds stratum
   1 with exactly the features its own manifest asks for, because `--workspace`
   unifies features across every member it builds. This one is not a purity
   check and must not be described as one.
+
+And one residue, stated as residue rather than omitted: a feature switched on in
+a shared dependency by stratum 2 or 3 unifies into stratum 1's build under
+`--workspace`, and nothing in the gate rejects it. That is a review obligation,
+and `CLAUDE.md` says so rather than implying the four mechanisms are exhaustive.
 
 `docs/AGENTS.md` and any slice document repeating the two-column wording are
 checked for the same phrase at reconciliation.

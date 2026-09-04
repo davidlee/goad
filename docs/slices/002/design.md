@@ -26,8 +26,12 @@ heard because the loop is awaiting the very exchange it wants to abandon. Three
 of the four were found by building them (`research.md` Thread 4).
 
 The boundary of this design: everything from the canonical types outward to the
-glass, plus the workspace split that must precede it. It does not design the
-clock (slice 003), ingress (004), or the socket transport (005).
+glass, plus the workspace split that must precede it. It does not design
+**scheduling** (slice 003), ingress (004), or the socket transport (005). It
+*does* read a wall clock, because every `Host` entry point has always required a
+caller-supplied `Timestamp` and something has to supply it; reading a clock and
+owning a schedule are different jobs, and D15 keeps them apart so slice 003 does
+not inherit a timer that was never built (F-23).
 
 ## 2. Current state
 
@@ -186,21 +190,40 @@ graph TD
 ```
 
 Direction is one-way, and the split moves *part* of its enforcement from a grep
-to the compiler. Three mechanisms now hold what one grep held, and they are not
-interchangeable:
+to the compiler. **Four** mechanisms now hold what one grep held. They are not
+interchangeable, and their sum is not "purity, enforced" — the overstatement
+F-6 has now been raised on three times. Each row's third column is the
+load-bearing one:
 
 | what it holds | instrument | where it stops |
 |---|---|---|
-| a stratum 1 **source file** naming `goad_shell` or `tokio` | Cargo resolution — `error[E0433]`, confirmed by negative control (`research.md` Thread 6) | source only |
+| a stratum 1 **source file** naming `goad_shell` or `tokio` | Cargo resolution — `error[E0433]`, confirmed by negative control (`research.md` Thread 6) | crate edges only |
 | a runtime, renderer or filesystem-shaped **dependency entry** in a stratum 1 or 2 manifest | the manifest allowlist test, §5.6 | names, not versions or features |
+| a **direct `std` reach** for the filesystem, a process, a socket, a thread, the environment or a clock, in stratum 1's sources | the stratum 1 purity scan, §5.6 | the spellings a line-based scan sees |
 | a **domain word** anywhere in any member's sources | the vocabulary scan, §5.6 | line-based lexing, D13 |
 
-The boundary of the compiler's half is the part the design most easily
-overstates (F-6). Adding `tokio.workspace = true` to stratum 1's **manifest**
-still builds clean (`research.md:806`) — the fact moved out of the source and
-into the manifest, where no compiler objects. So `boundary.rs`'s `tokio` grep is
-retired as the wrong instrument and replaced by a test that reads stratum 1's
-dependency tables; and the domain-vocabulary scan is not made redundant at all,
+Two boundaries the design has repeatedly overstated, stated once here and
+repeated nowhere.
+
+**The compiler's half is crate edges, and nothing else.** Adding
+`tokio.workspace = true` to stratum 1's **manifest** still builds clean
+(`research.md:806`) — the fact moved out of the source and into the manifest,
+where no compiler objects. That is why `boundary.rs`'s `tokio` grep is retired
+as the wrong instrument and replaced by a test that reads stratum 1's dependency
+tables.
+
+**A manifest cannot see `std`.** ADR-001 asks for more than the absence of a
+dependency: "No I/O and no async runtime." `std::fs::read_to_string`,
+`std::process::Command`, `std::net::TcpStream`, `std::thread::spawn`,
+`std::env::var` and `SystemTime::now` all need no manifest entry at all, so the
+allowlist test is blind to every one of them and the compiler has no opinion.
+That is the half the third instrument holds — and it holds it the only way
+available, by reading the source. It is a **tripwire over the obvious
+spellings**, not a proof: `use std::{fs, process};`, an alias, and I/O performed
+on stratum 1's behalf by a permitted dependency all pass it. §5.6 says so, and
+D25 records why a weak instrument in the gate beats an unwritten rule.
+
+And the domain-vocabulary scan is not made redundant by any of the three,
 because no compiler objects to a type called `Habit` either.
 
 **Crate names.** `goad-semantics`, `goad-shell`, `goad`, and `goad-boundary`.
@@ -418,6 +441,8 @@ They do **not** share globals — each gets its own copy — so nothing passes
 between them that way.
 
 ```slint
+import { Button, ScrollView } from "std-widgets.slint";
+
 export struct OptionRow { id: string, label: string, view: string }
 
 export enum WindowMode { prompt, diagnostic }
@@ -440,19 +465,134 @@ export component PromptWindow inherits Window {
 
   callback chosen(string, string);       // (view token, OptionId.as_str())
   callback close-diagnostics();          // leave diagnostic mode
+
+  title: root.mode == WindowMode.prompt ? "goad" : "goad — diagnostics";
+
+  VerticalLayout {
+    if root.mode == WindowMode.prompt: VerticalLayout {
+      Text { text: root.heading; }
+      StyledText {
+        text: root.body;
+        // E-5: the link is handled and ignored. This slice opens no URL, and an
+        // unhandled callback is not the same statement as a handled one.
+        link-clicked(link) => { }
+      }
+      if root.body-degraded: Text { text: "shown as plain text"; }
+
+      ScrollView {
+        VerticalLayout {
+          accessible-role: list;
+          accessible-label: "options";
+          accessible-item-count: root.options.length;
+
+          for option[index] in root.options: Button {
+            text: option.label;
+            enabled: !root.busy;
+            // The identity the tests select on, and the only unambiguous one:
+            // R-14 permits two options to share a label (D10, T-E).
+            accessible-description: option.id;
+            accessible-item-index: index;
+            clicked => { root.chosen(option.view, option.id); }
+          }
+        }
+      }
+    }
+
+    if root.mode == WindowMode.diagnostic: VerticalLayout {
+      Text { text: "Diagnostics"; }
+      if root.diagnostic-lines.length == 0: Text { text: "Nothing to report."; }
+      ScrollView {
+        VerticalLayout {
+          accessible-role: list;
+          accessible-label: "diagnostics";
+          accessible-item-count: root.diagnostic-lines.length;
+          for line[index] in root.diagnostic-lines: Text {
+            text: line;
+            accessible-item-index: index;
+          }
+        }
+      }
+      Button {
+        text: "Close";
+        accessible-description: "close-diagnostics";
+        clicked => { root.close-diagnostics(); }
+      }
+    }
+
+    if root.notice != "": Text { text: root.notice; }
+  }
 }
 
 export component Tray inherits SystemTrayIcon {
-  in property <image> icon;
-  in property <string> tooltip;
-  in property <bool> visible;            // a binding, not a constant — §5.5 E-4
+  // `icon`, `tooltip` and `visible` are SystemTrayIcon's own and are **not**
+  // redeclared — a redeclaration is a compile error, and the earlier sketch
+  // carried one. `visible` is *set* here, so it holds a binding rather than a
+  // constant (§5.5 E-4).
+  visible: true;
+
   callback check-now();
   callback show-diagnostics();
   callback quit();
+
+  Menu {
+    MenuItem { title: "Check now";   activated => { root.check-now(); } }
+    MenuItem { title: "Diagnostics"; activated => { root.show-diagnostics(); } }
+    MenuSeparator { }
+    MenuItem { title: "Quit";        activated => { root.quit(); } }
+  }
 }
 ```
 
-Six things about that block are load-bearing.
+Every callback the Rust side installs has a producer above, and every producer
+is one the testing tier can drive (F-17). The Slint facts that block rests on are
+read from the compiler's own sources rather than inferred:
+
+- **`SystemTrayIcon` takes exactly one `Menu` child**, not inside an `if` or a
+  `for`, with `MenuItem`, nested `Menu` and `MenuSeparator` as its entries;
+  `MenuItem` carries `title`, `enabled`, `checkable`, `checked`, `icon` and one
+  `activated()` callback (`i-slint-compiler-1.17.1/builtins.slint:1296-1319`,
+  `:3121-3134`). A `shortcut` on a tray `MenuItem` is ignored, so none is set.
+- **`SystemTrayIcon` already declares `icon`, `tooltip` and `visible`, and
+  `visible` already defaults to `true`** (`builtins.slint:3241-3252`), so `Tray`
+  sets them and declares none of them. It also states the fact the glass depends
+  on: *"the tray icon is only created once a non-empty image has been
+  assigned"* — which is why `SlintGlass::new` writes the icon and tooltip before
+  the loop runs, rather than leaving the first write to the loop's first
+  `present`.
+- **`Button` already declares `accessible-role: button`,
+  `accessible-label: root.text`, `accessible-enabled` and
+  `accessible-action-default`, and its inner `Text` declares
+  `accessible-role: none`** (`widgets/fluent/button.slint:29-34`, `:86`). That
+  is what makes it addressable by one handle rather than two — T-E's ambiguity
+  is a property of hand-rolled controls, and the stock widget has already
+  answered it. It also wraps a `FocusScope` and activates on `" "` or `"\n"`
+  (`:104-117`), so keyboard operation is free rather than owed to a per-option
+  `FocusScope` (T-D).
+- **`accessible-description` and `accessible-item-index` / `-count` are
+  reserved properties settable on any element that has a role**
+  (`i-slint-compiler-1.17.1/typeregister.rs:256-283`) — and settable on a
+  *component instance* only when that component's own root declares a role,
+  which `Button` does and a bare `Rectangle` does not
+  (`tests/syntax/accessibility/accessible_properties.slint:24-41`). `list` is a
+  real `AccessibleRole` (`i-slint-common-1.17.1/enums.rs:475-486`).
+- **`accessible-item-count` is an `int`**, and `options.length` is one, so the
+  count crosses without a numeric conversion — I-3 is untouched, and E-2's
+  virtualisation-proof count has a source.
+- **The title is a conditional over `mode`**, which is an ordinary Slint
+  expression rather than the enum binding A-6 was unsure of; if the compiler
+  refuses it, A-6's fallback moves the two literals into `diagnostics.rs`.
+- **`StyledText`'s property is `text`, of type `styled-text`, and it carries
+  `link-clicked(link)`** (`builtins.slint:731-755`). It declares **no**
+  accessible role, and `accessible-label` takes a `string`, so the body's value
+  is *not* addressable through the accessibility tree the way a `Text`'s is
+  (`:599-600`). That decides where the body is asserted: its **content** is
+  asserted on `Presentation` in the mapper tier (§9 items 4, 5, 13l), and the
+  element tree asserts only that a `StyledText` is present in prompt mode. The
+  alternative — a second `body-text: string` property carrying a plain copy for
+  the label — would render one value twice, which principle 4 forbids, and would
+  put a second statement of the body one property away from the first.
+
+Eight things about that block are load-bearing.
 
 **`chosen` carries two strings, and the first is the view token.** Without it a
 delayed click answers whichever interaction happens to be outstanding when it is
@@ -475,12 +615,11 @@ shows the literal `"Diagnostics"` from the markup. A mode must not overwrite a
 retained value: the prompt's heading has to survive a trip through diagnostic
 mode and back (DT-4).
 
-**The window title is bound to `mode` in markup**, `"goad"` in prompt mode and
-`"goad — diagnostics"` in diagnostic mode. Both are constants, not values, so
-principle 2 is untouched. If Slint 1.17.1 turns out not to permit binding
-`Window.title` to an enum, the two literals move into `diagnostics.rs` beside
-the other user-visible strings, which is where they would rather be anyway
-(§5.5, A-6).
+**The window title is a conditional on `mode` in markup**, `"goad"` in prompt
+mode and `"goad — diagnostics"` in diagnostic mode. Both are constants, not
+values, so principle 2 is untouched. If Slint 1.17.1 turns out not to permit the
+conditional, the two literals move into `diagnostics.rs` beside the other
+user-visible strings, which is where they would rather be anyway (§5.5, A-6).
 
 **`notice` is not a diagnostic.** It is one transient host-authored line — the
 busy message of §5.3 is its only producer in this slice — shown in either mode.
@@ -488,10 +627,13 @@ It does not enter `Diagnostics` and does not touch the tray, and it is the one
 property `Glass::present` does not read from the frame (§5.3).
 
 **Accessibility properties are the test surface**, not decoration. Every
-interactive element declares `accessible-role`, `accessible-label`,
-`accessible-description`, `accessible-action-default`, and
-`accessible-item-count` on the options container. A bare `Rectangle` is invisible
-to every query the tests use. The accessibility story arrives as a by-product.
+interactive element carries `accessible-role`, `accessible-label`,
+`accessible-description` and `accessible-action-default`, and each list
+container carries `accessible-item-count` with `accessible-item-index` on its
+rows. Stock `Button` and `Text` supply role, label and default action
+themselves; what the markup adds is the description that carries the identity,
+the index, and the count. A bare `Rectangle` is invisible to every query the
+tests use. The accessibility story arrives as a by-product.
 
 **Selection is by `accessible_description`, carrying the `OptionId`** — never by
 label, and never by component-type-plus-label. SPEC-001 R-14 permits two options
@@ -541,6 +683,17 @@ pub enum Command {
 /// strings one for one (§6, OQ-7): `"startup"`, `"requested"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stimulus { Startup, Requested }
+
+impl Stimulus {
+  /// `"startup"` | `"requested"`. The host's own vocabulary, naming a stimulus
+  /// and never a domain.
+  fn kind(self) -> &'static str;
+
+  /// The whole envelope, so the loop builds no `Event` by hand: `Event {
+  /// source: "host", kind: self.kind(), timestamp: now, data: Value::Null }`.
+  /// Every field is `pub` (`canonical.rs:490-497`), so no accessor is owed.
+  pub fn event(self, now: Timestamp) -> Event;
+}
 ```
 
 `Choose` carrying its view token is the whole of F-13's repair, and it is worth
@@ -580,13 +733,28 @@ pub struct Wire {
 }
 
 impl Wire {
+  /// The one constructor. The fields are private, so `main` cannot assemble a
+  /// `Wire` by literal — which is what the earlier entry-point sketch tried to
+  /// do with field names that did not exist (F-17).
+  pub fn new(
+    commands: mpsc::Sender<Command>,
+    cancel: Cancel,
+    window: slint::Weak<PromptWindow>,
+  ) -> Self;
+
   /// Enqueue, or say why not. A person's action is never discarded in silence.
   ///
   /// `Full` writes `diagnostics::BUSY_NOTICE` to the window's `notice` property
-  /// through the weak handle. `Closed` can only mean the host task has already
-  /// ended, so there is nothing left to serve and the loop is asked to quit;
-  /// the `Err` from `quit_event_loop` is matched and ignored, because it says
-  /// only that the loop is already gone.
+  /// through the weak handle.
+  ///
+  /// **`Closed` does nothing, deliberately** (F-20). It is not reachable while
+  /// there is anything to serve: `Wire` holds a `Sender`, so the channel is
+  /// closed only when the **receiver** is gone, and the receiver is owned by
+  /// `serve` and dropped when `serve` returns — one line before the task's own
+  /// `quit_event_loop`. So a `Closed` arm that quit the loop would be a second
+  /// call site for a quit that is already in flight, and §5.4 requires exactly
+  /// one. The arm is written out, matched, and commented with that argument, so
+  /// that "it does nothing" is a decision on the page rather than a `_ =>`.
   pub fn send(&self, command: Command);
   /// Trip the stop signal. Every shutdown source is exactly this call (§5.4).
   pub fn stop(&self);
@@ -650,6 +818,18 @@ canonical options (inside `Prepared`), the diagnostics, the window mode and its
 visibility (`Surface`, derived — below), and whether an exchange is in flight.
 Nothing else is retained anywhere in the renderer.
 
+**`engaged` has exactly one setter and one clearer, and they are one pair.**
+`engage()` sets it immediately before the exchange future is built; `absorb()`
+clears it as it folds that exchange's outcome, whatever the outcome is. Nothing
+else touches it. The consequence is the one the loop rests on: every
+top-of-loop `present` carries `busy = false`, and the only frame carrying
+`busy = true` is the one written between those two calls. The single path that
+sets it and does not clear it is `Ending::Stopped` arriving mid-exchange — and
+there `serve` breaks out of the loop and never presents again, so the flag dies
+with the `Controller` it is returned inside. Leaving it set would otherwise
+disable every control for the rest of the process after the first exchange
+(F-21).
+
 **The surface is derived, never stored.** This is what makes F-15's cases total
 instead of undefined:
 
@@ -677,6 +857,12 @@ impl Controller {
   /// state are reconciled, and the function §5.4's table specifies. It calls
   /// `receive` and folds the `Received`, so the `Outcome` is consumed exactly
   /// once, here.
+  ///
+  /// **It clears `engaged` before it returns**, unconditionally and whatever the
+  /// `Shift` — the exchange it is folding is the exchange that has just ended,
+  /// and there is no outcome for which the controls should stay disabled. Set in
+  /// one method, cleared in one method, and the pair is what makes the next
+  /// top-of-loop frame carry `busy = false` (F-21).
   pub fn absorb(&mut self, exchanged: Exchanged, outcome: Outcome) -> Shift;
 
   /// Fold a refusal the renderer made itself. No backend was contacted, so the
@@ -691,6 +877,9 @@ impl Controller {
   pub fn close_diagnostics(&mut self);
 
   /// An exchange is starting. Sets `engaged`, which the next frame carries.
+  /// `absorb` clears it; nothing else sets or clears it. The two calls are one
+  /// pair, in one place — `serve`'s exchange arm — so an exchange cannot leave
+  /// the controls disabled for the rest of the process (F-21).
   pub fn engage(&mut self);
 
   /// Everything the glass needs, borrowed. Total: every property but `notice`
@@ -763,67 +952,187 @@ value is what is used.
 
 ### 5.4 Lifecycle & dynamics
 
-**The entry point, in order.** Every step's failure before the loop starts is
-reported on stderr in the host's own voice and exits **2** — one code for every
-startup failure, kept distinct from a future non-zero meaning "ran, then failed".
+**The entry point, in full.** Written as Rust rather than as a numbered
+sequence, because the sequence was where F-17 hid twice: an ordered list can
+omit a construction and still read complete. Every failure before the loop
+starts is reported on stderr in the host's own voice and exits **2** — one code
+for every startup failure, kept distinct from a future non-zero meaning "ran,
+then failed".
 
+```rust
+// crates/goad/src/main.rs — stratum 3
+
+fn main() -> ExitCode {
+  match run() {
+    Ok(()) => ExitCode::SUCCESS,
+    Err(error) => {
+      diagnostics::report_startup(&error);   // "goad: {error}" on stderr
+      ExitCode::from(2)
+    }
+  }
+}
+
+/// `main` cannot use `?`, because it returns `ExitCode`. This is the fallible
+/// half, and it is the only place a `StartupError` is produced.
+fn run() -> Result<(), StartupError> {
+  match arguments(std::env::args_os())? {
+    Launch::Help => {
+      diagnostics::print_usage();            // stdout, and `run` returns Ok
+      Ok(())
+    }
+    Launch::Config(path) => start(&path),
+  }
+}
+
+fn start(path: &Path) -> Result<(), StartupError> {
+  // 1. The host, complete, before any UI exists. This is `harness::host_from`'s
+  //    composition (`tests/integration/harness.rs:249-254`) and nothing else:
+  //    the command and timeout are cloned out of the config, the transport is
+  //    built from them, and the config is then *moved* into the host.
+  let config = Config::load(path).map_err(StartupError::Config)?;
+  let now = clock::wall_clock().map_err(StartupError::Clock)?;
+  let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);
+  let host = Host::new(config, backend, now);
+
+  // 2. The runtime, entered for the whole of the loop's life. Without the guard
+  //    the first poll of a `tokio::process` future on the Slint thread panics
+  //    with *there is no reactor running* (`research.md:481-487`).
+  let runtime = tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .map_err(StartupError::Runtime)?;
+  let _entered = runtime.enter();            // dropped after the loop returns
+
+  // 3. The components. The app id is set before anything is shown, because the
+  //    app icon comes from it and the `icon` property is silently dropped
+  //    (`research.md:696-697`).
+  slint::set_xdg_app_id("goad").map_err(StartupError::Platform)?;
+  let window = PromptWindow::new().map_err(StartupError::Platform)?;
+  let tray = Tray::new().map_err(StartupError::Platform)?;
+
+  // 4. The bridge. One `Wire`, cloned into each callback and nowhere else.
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let wire = Wire::new(tx.clone(), cancel.clone(), window.as_weak());
+  install(&window, &tray, &wire);            // the callback table, below
+
+  // 5. The glass. The `VecModel` is created once and lives for the process;
+  //    `present` re-hands its `ModelRc` on every call, so no property has to
+  //    survive a hide. `new` also writes the initial tray icon and tooltip,
+  //    because the tray registers nothing until a non-empty image is assigned
+  //    (`builtins.slint:3241-3244`) and the loop's first `present` happens
+  //    after the event loop starts.
+  let glass = SlintGlass::new(
+    window.clone_strong(),
+    tray.clone_strong(),
+    Rc::new(VecModel::<OptionRow>::default()),
+  );
+
+  // 6. The first evaluation enters through the ordinary channel, so item 11
+  //    exercises the real path. The channel is empty and holds one, so this
+  //    cannot fail; an `Err` is still reported rather than unwrapped.
+  tx.try_send(Command::Evaluate(Stimulus::Startup))
+    .map_err(|_| StartupError::Enqueue)?;
+
+  // 7. One task, one loop, one quit. The `JoinHandle` is bound and dropped:
+  //    dropping it does not drop the future (`research.md:500-510`), which is
+  //    why nothing is retained.
+  let _task = slint::spawn_local(async move {
+    let _served = serve(host, Controller::new(), rx, cancel, clock::wall_clock, glass).await;
+    // The crate's ONLY `quit_event_loop` call site (F-20). Its `Err` says only
+    // that the loop is already gone, and is matched rather than discarded
+    // because `let _ =` trips `let_underscore_must_use` (`Cargo.toml:152`).
+    match slint::quit_event_loop() {
+      Ok(()) | Err(_) => (),
+    }
+  })
+  .map_err(StartupError::EventLoop)?;
+
+  slint::run_event_loop_until_quit().map_err(StartupError::Platform)?;
+  Ok(())
+}
 ```
-  main() -> ExitCode
-   1  arguments → config path (below)          err ⇒ usage on stderr, exit 2
-   2  Config::load(path)                       err ⇒ stderr, exit 2
-   3  wall_clock()                             err ⇒ stderr, exit 2
-   4  Runtime::new_multi_thread().enable_all() err ⇒ stderr, exit 2
-   5  let _guard = rt.enter();                 ← binds here, dropped after 15.
-   6  slint::set_xdg_app_id("goad")            ← before any component is shown
-   7  let window = PromptWindow::new()?        err ⇒ stderr, exit 2 (E-6)
-      let tray   = Tray::new()?
-   8  tray icon + tooltip; visible = true (a binding, E-4)
-   9  let options = Rc::new(VecModel::<OptionRow>::default());
-  10  let (tx, rx) = mpsc::channel::<Command>(1);
-      let cancel   = Cancel::new();
-      let wire     = Wire { tx.clone(), cancel.clone(), window.as_weak() };
-  11  install callbacks (below) — every one owns a `Wire` clone and nothing else
-  12  let glass = SlintGlass::new(window.clone_strong(), tray.clone_strong(), options);
-  13  tx.try_send(Command::Evaluate(Stimulus::Startup))   ← empty, capacity 1
-  14  slint::spawn_local(async move {
-        let _served = serve(host, Controller::new(), rx, cancel, wall_clock, glass).await;
-        slint::quit_event_loop()          ← the crate's ONLY call site
-      })?
-  15  slint::run_event_loop_until_quit()?
-```
 
-Five things this settles.
+Seven things this settles, beyond simply being constructible.
 
-- **The component is `PromptWindow`.** `MainWindow` was a name from an earlier
-  draft and appears nowhere (F-17).
-- **The startup evaluation enters through the ordinary channel** (step 13), not
-  through a private path. There is one way into the loop, so item 11's tests
-  exercise the real one. The channel is empty and its capacity is 1, so the send
-  cannot fail; an `Err` is nevertheless treated as a startup failure rather than
-  unwrapped.
-- **The `EnterGuard` outlives the loop.** Without it the first poll of a
-  `tokio::process` future on the Slint thread panics with *there is no reactor
-  running* and the process exits 101 — CLAUDE.md invariant 4 failing
-  (`research.md:481-487`).
+- **`Host<ProcessBackend>` is constructed here, and this is the composition
+  slice 001 already wrote.** `ProcessBackend::new` takes the command and the
+  timeout (`process.rs:46-49`) and `Host::new` takes the `Config` by value
+  (`host.rs:119-133`), so the command must be **cloned** before the config
+  moves — `config::Command` derives `Clone` (`config.rs:47-51`). The earlier
+  sequence passed an undefined `host` into `serve` and never built one (F-17,
+  second raising).
+- **`Wire` is constructed through `Wire::new`, not through a field literal.**
+  Its fields are private and its field names are `commands`, `cancel`, `window`
+  (§5.3); the earlier literal named none of them and would not compile.
+- **`main` returns `ExitCode`, so nothing in it uses `?`.** The fallible work is
+  `run`/`start`, and the one place an exit code is chosen is `main`. `--help`
+  returns `Ok(())` and therefore exits 0 without a second exit path.
+- **`StartupError` is one enum, and it is the `{error}` §5.4's startup line
+  interpolates.** Its variants are exactly the failures above —
+  `Usage`, `Config(ConfigError)`, `Clock(ClockError)`, `Runtime(io::Error)`,
+  `Platform(slint::PlatformError)`, `EventLoop(slint::EventLoopError)`,
+  `Enqueue` — and each renders once, with no `source()` walk (F-26, §5.4's
+  "The exact strings").
+- **The `EnterGuard` outlives the loop.** `_entered` is a named binding with a
+  leading underscore, not `_`: `let _ = …` would drop the guard immediately, and
+  `let_underscore_must_use` refuses it anyway.
 - **`run_event_loop_until_quit()`**, so process lifetime depends on an explicit
   quit rather than on the incidental visibility of any component. With a visible
   tray the loop would not die with the last window (F-12); the reason is the
   stronger one, and it survives the tray becoming hideable.
 - **`quit_event_loop` has exactly one call site in the crate** — the task's
-  completion path. "The host task ends, and only then does the loop quit" is
-  therefore structural, not a comment. `Wire::send`'s `Closed` arm is the single
-  exception, and it can only fire *after* the task has ended.
+  completion path, above. "The host task ends, and only then does the loop quit"
+  is structural, not a comment. There is **no exception**: `Wire::send`'s
+  `Closed` arm does nothing (§5.3, F-20), which is what makes the source-level
+  count of one in validation item 14f a check that can actually pass.
 
-**Callbacks, and what each one produces:**
+**Installing the callbacks, exactly.** One function, six installations, each
+owning its own `Wire` clone and nothing else. The `.slint` side of every one of
+them — the control that produces the event — is in §5.2's markup, so the pair
+can be read together rather than assumed to exist (F-17).
 
-| callback | produces |
-|---|---|
-| `PromptWindow::on_chosen(view, option)` | `Command::Choose { view, option }` |
-| `PromptWindow::on_close_diagnostics()` | `Command::CloseDiagnostics` |
-| `window().on_close_requested()` | `wire.stop()`, then `CloseRequestResponse::KeepWindowShown` |
-| `Tray::on_check_now()` | `Command::Evaluate(Stimulus::Requested)` |
-| `Tray::on_show_diagnostics()` | `Command::OpenDiagnostics` |
-| `Tray::on_quit()` | `wire.stop()` |
+```rust
+fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
+  let chosen = wire.clone();
+  window.on_chosen(move |view, option| {
+    chosen.send(Command::Choose { view: view.into(), option: option.into() });
+  });
+
+  let closing = wire.clone();
+  window.on_close_diagnostics(move || closing.send(Command::CloseDiagnostics));
+
+  // A built-in, not one of ours: closing the window quits, in either mode, and
+  // the window is kept shown because the quit path is `serve` returning.
+  let quitting = wire.clone();
+  window.window().on_close_requested(move || {
+    quitting.stop();
+    CloseRequestResponse::KeepWindowShown
+  });
+
+  let checking = wire.clone();
+  tray.on_check_now(move || checking.send(Command::Evaluate(Stimulus::Requested)));
+
+  let showing = wire.clone();
+  tray.on_show_diagnostics(move || showing.send(Command::OpenDiagnostics));
+
+  let stopping = wire.clone();
+  tray.on_quit(move || stopping.stop());
+}
+```
+
+Six distinct binding names rather than six `let wire = wire.clone()`:
+`shadow_unrelated` is `deny` (`Cargo.toml:203`) and a clone does not read the
+binding it shadows, so the idiomatic rebinding is a lint error here. Naming each
+clone after the callback it feeds is what the lint costs, and it reads better
+anyway.
+
+`SharedString` → `String` is `.into()`, and it is the only conversion at this
+seam: both strings are opaque selectors matched against retained state, never
+parsed (I-3). `shadow_unrelated` is `deny` (`Cargo.toml:203`), so the repeated
+`let w` above is written with distinct bindings or a block per installation —
+the shape is settled on the first renderer commit under A-2, and the six
+installations are the contract.
 
 **Closing the window quits goad, in either mode.** The alternative — close means
 hide — would leave an interaction `Host` still considers outstanding with no way
@@ -886,37 +1195,119 @@ where
   G: Glass + 'static;
 ```
 
+**What is pending, as a value.** The loop's central future cannot be written as
+a comment: `evaluate` and `respond` take different arguments and have distinct
+opaque future types while both borrow `&mut Host`, so *how* the two are joined
+decides borrowing, cancellation and which future `select!` actually drops
+(F-22). It is one enum and one `async` block:
+
+```rust
+/// One exchange, resolved but not yet started: the arguments a `Host` entry
+/// point needs, and nothing else. It exists so that the loop has **one** future
+/// to select against the stop signal rather than two duplicated `select!`s, and
+/// so that the thing cancellation drops is the exchange itself rather than a
+/// wrapper around it.
+#[derive(Debug)]
+enum Pending {
+  Evaluate { now: Timestamp, event: Event },
+  Respond { now: Timestamp, view_id: ViewId, answer: UserResponse },
+}
+
+impl Pending {
+  /// Which entry point this is, for the reducer. Derived rather than carried,
+  /// so the two cannot disagree.
+  fn exchanged(&self) -> Exchanged {
+    match self {
+      Self::Evaluate { .. } => Exchanged::Evaluation,
+      Self::Respond { .. } => Exchanged::Answer,
+    }
+  }
+}
+```
+
 Its body, exactly:
 
-```
-  let ending = loop {
-    glass.present(controller.frame());          // busy = false here
-    let command = select! { biased;
-      () = cancel.stopped()       => break Ending::Stopped,
-      received = commands.recv()  => match received {
-        None          => break Ending::Closed,
-        Some(command) => command,
+```rust
+let ending = loop {
+  glass.present(controller.frame());          // busy = false here
+  let command = select! { biased;
+    () = cancel.stopped()       => break Ending::Stopped,
+    received = commands.recv()  => match received {
+      None          => break Ending::Closed,
+      Some(command) => command,
+    },
+  };
+
+  // Exhaustive, no `_` arm, and every refusal path `continue`s to the top —
+  // which presents with `busy = false` and clears `notice` in the same call.
+  // Identity is checked before the clock: a superseded click is refused for the
+  // reason that is true of it, and a broken clock does not relabel it.
+  let pending = match command {
+    Command::OpenDiagnostics => { controller.open_diagnostics(); continue; }
+    Command::CloseDiagnostics => { controller.close_diagnostics(); continue; }
+    Command::Evaluate(stimulus) => match stamp(clock) {
+      Ok(now) => Pending::Evaluate { now, event: stimulus.event(now) },
+      Err(refused) => { controller.refuse(&refused); continue; }
+    },
+    Command::Choose { view, option } => match controller.answer(&view, &option) {
+      Err(refused) => { controller.refuse(&refused); continue; }
+      Ok((view_id, answer)) => match stamp(clock) {
+        Ok(now) => Pending::Respond { now, view_id, answer },
+        Err(refused) => { controller.refuse(&refused); continue; }
       },
-    };
+    },
+  };
+  let exchanged = pending.exchanged();
 
-    // OpenDiagnostics / CloseDiagnostics: fold and `continue` — no clock, no
-    //   backend, no exchange.
-    // Choose / Evaluate: stamp with `clock`; a clock error is
-    //   `controller.refuse(&Refused::NoClock { .. })` and `continue`.
-    //   `Choose` resolves through `controller.answer(..)`; an `Err` is
-    //   `controller.refuse(..)` and `continue` — no backend is contacted.
-    //   What survives is an `exchanged: Exchanged` and the arguments for it.
+  controller.engage();
+  glass.present(controller.frame());          // busy = true, controls disabled
 
-    controller.engage();
-    glass.present(controller.frame());          // busy = true, controls disabled
-    let call = /* host.evaluate(now, event) | host.respond(now, view_id, answer) */;
-    select! { biased;
-      () = cancel.stopped() => break Ending::Stopped,   // ← the exchange future
-                                                        //   is DROPPED here
-      outcome = call        => { controller.absorb(exchanged, outcome); },
+  // One future, built from the enum. `host` is borrowed mutably for exactly as
+  // long as this block lives, which is this iteration; `break` in the other arm
+  // drops it, which is what releases the borrow before `Served` hands `host`
+  // back.
+  let call = async {
+    match pending {
+      Pending::Evaluate { now, event } => host.evaluate(now, event).await,
+      Pending::Respond { now, view_id, answer } => host.respond(now, view_id, answer).await,
     }
   };
-  Served { ending, host, controller, glass }
+
+  select! { biased;
+    () = cancel.stopped() => break Ending::Stopped,   // ← `call` is DROPPED here,
+                                                      //   and `call` *is* the
+                                                      //   exchange future
+    outcome = call        => { controller.absorb(exchanged, outcome); },
+  }
+};
+Served { ending, host, controller, glass }
+```
+
+Three things about that shape, each a choice the placeholder left to the
+implementer (F-22).
+
+- **One future, not two branches.** Duplicating the cancellation `select!` per
+  entry point would state the cancellation contract twice, and the second copy
+  is the one that rots. Boxing the future (`Pin<Box<dyn Future>>`) would add an
+  allocation and, worse, put a wrapper between `select!` and the exchange —
+  making "the exchange future is dropped" a claim about the wrapper.
+- **The `async` block borrows, and that is why nothing is `Send`.** `host` is a
+  local of `serve`; the block borrows it mutably. Combined with the
+  `Rc`-bearing glass, the whole `serve` future is `!Send` by construction, which
+  is A-5's subject.
+- **`exchanged` is read off `Pending` before the block consumes it**, so the
+  reducer's key and the call that produced it cannot diverge — the failure mode
+  a separately-tracked `Exchanged` variable would have.
+
+The one helper the dispatch needs, so that the clock's error becomes a refusal
+in one place rather than in two arms:
+
+```rust
+/// A stamp, or the refusal that says why there is none. `Refused::NoClock`
+/// renders `ClockError`'s `Display` once, at the one site that has it.
+fn stamp(clock: Clock) -> Result<Timestamp, Refused> {
+  clock().map_err(|error| Refused::NoClock { detail: error.to_string() })
+}
 ```
 
 Every `continue` returns to the top, which presents with `busy = false` — so a
@@ -1146,8 +1537,10 @@ pub type Clock = fn() -> Result<Timestamp, ClockError>;
 #[derive(Debug)]
 pub enum ClockError {
   /// The system clock reads before the Unix epoch.
+  /// Displays: `the system clock reads before 1970-01-01T00:00:00Z`
   BeforeEpoch,
   /// The instant is outside the range jiff represents.
+  /// Displays: `the system clock is outside the range this host represents: {0}`
   OutOfRange(jiff::Error),
 }
 
@@ -1179,19 +1572,37 @@ deliberate rather than forgotten.
 `args_os` and `var_os`: a non-Unicode argument or variable is carried as an
 `OsString` and never decoded, so there is no case to handle.
 
+```rust
+/// What the arguments asked for. Two outcomes, and `--help` is one of them
+/// rather than an early `exit` hidden inside argument parsing — so `main` keeps
+/// its single exit-code decision (§5.4's entry point).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Launch {
+  Help,
+  Config(PathBuf),
+}
+
+/// Pure over the arguments and the environment it is handed, so the table below
+/// is a test rather than a claim (§9 item 17).
+pub fn arguments(
+  argv: impl Iterator<Item = OsString>,
+  env: &dyn Fn(&str) -> Option<OsString>,
+) -> Result<Launch, StartupError>;
+```
+
 | arguments | behaviour |
 |---|---|
-| none | `$XDG_CONFIG_HOME/goad/config.toml` when that variable is set, non-empty **and absolute**; otherwise `$HOME/.config/goad/config.toml`. `HOME` unset or empty ⇒ startup failure naming both variables. |
-| `-h` or `--help` | one usage block on stdout, exit 0 |
+| none | `$XDG_CONFIG_HOME/goad/config.toml` when that variable is set, non-empty **and absolute**; otherwise `$HOME/.config/goad/config.toml`. `HOME` unset or empty ⇒ `StartupError::NoConfigPath`, whose text names both variables. |
+| `-h` or `--help` | the usage block on stdout, exit 0 — its text is §5.4's, and `--help` is its only destination |
 | exactly one, anything else | that path, verbatim; `$XDG_CONFIG_HOME` is not consulted |
-| two or more | usage error on stderr, exit 2 — the host does not guess which was meant |
+| two or more | `StartupError::Usage` on stderr, exit 2 — the host does not guess which was meant |
 
 Unset, empty and relative all fall back, which is the XDG basedir rule as
 written rather than an invention. A file literally named `--help` is reachable as
 `./--help`; there is no `--` escape, and no other flag exists — a flag set is a
 decision per flag.
 
-**The xdg app id is `"goad"`**, set at step 6 before any component is shown,
+**The xdg app id is `"goad"`**, set before any component is constructed,
 because the app icon comes from the app id and the `icon` property is silently
 dropped (`research.md:696-697`). It equals the binary name so it stays stable
 when a `.desktop` file arrives; there is no owned domain to reverse. goad cannot
@@ -1447,19 +1858,93 @@ Back-pressure, not a fault: it does not enter `Diagnostics` and does not touch
 the tray. Discarding a person's click silently is the failure the bounded channel
 exists to prevent, and this is what "never dropped" means at the glass.
 
-*Startup failure*, the surface's other outlet, before a tray or a window exists
-(OQ-7):
+*Startup, the surface's other outlet, before a tray or a window exists* (OQ-7).
+Every string of it is written out here, because an implementer who has to author
+the wording is authoring user-facing policy during execution (F-26).
+
+**The two outlets, and how they are written.** `print_stdout` and `print_stderr`
+are both `deny` (`Cargo.toml:143-144`), so neither `println!` nor `eprintln!` is
+available; both go through `writeln!` on a locked handle. The write's own
+`Result` is discarded by matching, because `let _ = …` trips
+`let_underscore_must_use` (`:152`) and `.ok();` trips `unused_must_use`:
+
+```rust
+// crates/goad/src/diagnostics.rs
+fn line_to(mut sink: impl std::io::Write, line: &str) {
+  // Best effort: if the handle cannot be written there is nowhere left to
+  // report that, and the exit code still carries the fact.
+  match writeln!(sink, "{line}") {
+    Ok(()) | Err(_) => (),
+  }
+}
+
+/// stdout, exit 0. The only caller is `--help`.
+pub fn print_usage();
+/// stderr, and `main` returns `ExitCode::from(2)`.
+pub fn report_startup(error: &StartupError);
+```
+
+*The usage block*, on **stdout**, one trailing newline, exit 0. It is one
+`const`, and it has exactly one destination — `--help`. A usage error does not
+reprint it; it names the flag instead, which keeps one fact in one place
+(principle 4):
+
+```
+usage: goad [<config-path>]
+       goad -h | --help
+
+With no argument the configuration is read from
+$XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when
+XDG_CONFIG_HOME is unset, empty, or not absolute.
+```
+
+*The startup failure line*, on **stderr**, exit code **2**:
 
 ```
 goad: {error}
 ```
 
-on stderr, exit code **2**. `{error}` is the `Display` of a `ConfigError`, a
-`ClockError`, a usage error or the display failure — one rendering, no `source()`
-walk, the same rule as every line above. This is where F-47's
-`ConfigError::Duration` instance actually lands: `Duration` renders its fault
-*and* chains it as `source()` (`error.rs:160-165`, `:182`), so a
-chain-walking reporter prints it twice.
+`{error}` is `StartupError`'s `Display`, one rendering, no `source()` walk — the
+same rule as every line above. This is where F-47's `ConfigError::Duration`
+instance actually lands: `Duration` renders its fault *and* chains it as
+`source()` (`error.rs:160-165`, `:182`), so a chain-walking reporter prints it
+twice. `StartupError` implements `std::error::Error` with the **default**
+`source()`, returning `None`, so nothing downstream can walk into a chain this
+surface has already rendered.
+
+The seven variants, and their exact text:
+
+| variant | `Display` |
+|---|---|
+| `Usage` | `too many arguments: goad takes at most one, the path of the configuration file; run \`goad --help\` for usage` |
+| `Config(ConfigError)` | `{ConfigError}` — stratum 2's own, unwrapped and unprefixed (`error.rs:154-172`) |
+| `Clock(ClockError)` | `{ClockError}` — below |
+| `Runtime(std::io::Error)` | `the async runtime could not be started: {io error}` |
+| `Platform(slint::PlatformError)` | `the window could not be created: {platform error}` |
+| `EventLoop(slint::EventLoopError)` | `the event loop would not accept the host task: {event loop error}` |
+| `Enqueue` | `the first request could not be enqueued` |
+
+There is **no** `HomeUnset` variant, because the missing-environment case is a
+`Usage`-adjacent fact about discovery rather than about arguments, and it gets
+its own:
+
+| variant | `Display` |
+|---|---|
+| `NoConfigPath` | `neither XDG_CONFIG_HOME nor HOME names a directory, so there is no configuration path; pass one as the single argument` |
+
+*`ClockError`'s two renderings*, used identically at startup and inside the loop
+(where they are wrapped by `Refused::NoClock`'s sentence):
+
+```
+the system clock reads before 1970-01-01T00:00:00Z
+the system clock is outside the range this host represents: {jiff error}
+```
+
+`ClockError` implements `Display` and `std::error::Error` with the default
+`source()` for the same reason `StartupError` does: `OutOfRange` already names
+`jiff`'s message inside its own sentence, and a `source()` that returned the
+`jiff::Error` would let a chain-walker print it twice — F-47's defect, avoided
+rather than inherited.
 
 No string above contains domain vocabulary. `boundary.rs`'s successor scans
 `.slint` as well as `.rs` after D13, so the markup literals are covered by the
@@ -1511,7 +1996,9 @@ ordinary quiet case.
 | stderr bytes | decode → escape → bound | one `stderr:` line | in the tooltip except as the line-0 projection |
 | `Captured::truncated` | a fixed sentence | its own line | merged into the stderr line |
 | a display truncation | the marker | appended to the line it cut | as a separate line |
-| `ConfigError` at startup | its own `Display` | one stderr line | via `source()` |
+| `ConfigError` at startup | its own `Display`, inside `StartupError`'s | one stderr line | via `source()` |
+| `ClockError` | its own `Display` | one stderr line at startup, or one `no action taken:` line inside the loop | via `source()`, which is `None` by construction |
+| the usage block | one `const` | stdout, on `--help`, and nowhere else | reprinted beside a usage error |
 
 **The reducer renders `Display` and does not walk `source()` chains.** Being a
 rule about what the code must *not* do, it needs a test that fails when someone
@@ -1543,16 +2030,47 @@ filled disc. One rasteriser, one parameter — the inner radius, zero for the di
 That is what makes the pair survive a colour-blind viewer and a monochrome panel
 theme, and it is why the design does not rest on the colours alone.
 
-Coverage is 4×4 supersampled and computed in **integer** arithmetic throughout —
-squared distances in doubled pixel units, alpha as `u8::try_from(covered * 255 /
-16).unwrap_or(u8::MAX)`. No `as`, because goad's lint table refuses
-`as_conversions` and `cast_possible_truncation`; that is the same lint that made
-`range.min() as f32` fail in `research.md` Thread 5, met here rather than
-rediscovered.
+**The geometry, pinned.** "A rule that regenerates the exact asset" is only true
+if the rule has numbers in it, and the earlier text fixed the edge, the colours,
+the form, the supersampling and the alpha arithmetic while leaving the centre,
+the radii and the sample grid unstated — so many visibly different rasterisers
+conformed (F-25). All of it is integer, in **eighth-of-a-pixel units**, chosen
+so that a 4×4 sample grid has integral sample centres:
+
+| quantity | value (⅛ px) | in pixels |
+|---|---|---|
+| centre, both axes | `128` | 16.0 |
+| outer radius, squared — `OUTER_SQ` | `14_400` | 15.0 |
+| inner radius, squared, `Idle` — `INNER_SQ` | `5_184` | 9.0 |
+| inner radius, squared, `Fault` | `0` | 0.0 |
+
+For pixel `(x, y)` with `x, y` in `0..32`, sample `(i, j)` with `i, j` in `0..4`
+sits at `(8x + 2i + 1, 8y + 2j + 1)`. With `dx` and `dy` the offsets from the
+centre and `d2 = dx*dx + dy*dy`, a sample is **covered** iff
+`d2 <= OUTER_SQ && d2 >= inner_sq`. Both comparisons are inclusive: a sample
+exactly on either boundary is inside, stated so that two implementations cannot
+differ by one sample on the rim. `covered` counts 0…16, and the pixel is the
+state's RGB with `alpha = u8::try_from(covered * 255 / 16).unwrap_or(u8::MAX)`;
+an uncovered pixel is that same RGB with `alpha = 0`, so no colour is
+manufactured at the edge.
+
+The consequence the tests turn on falls out of the numbers rather than out of a
+description: pixel `(16, 16)`'s samples all have `d2 <= 98`, which is below
+`Idle`'s `INNER_SQ` and at or above `Fault`'s `0`, so the centre pixel is
+**fully transparent for `Idle` and fully opaque for `Fault`** (§9 item 16).
+
+All arithmetic is integer and no expression uses `as`: goad's table refuses
+`as_conversions` and `cast_possible_truncation`, the same lint that made
+`range.min() as f32` fail in `research.md` Thread 5. Widths are chosen so the
+products cannot overflow — the largest `d2` is `2 × 127²` — and the module
+carries `#![deny(clippy::arithmetic_side_effects)]` with `saturating_` operations
+for the same reason `process.rs` and `diagnostics.rs` do.
 
 `TrayState` is derived, not stored: the glass reads `Diagnostics::state()` on
-every `present`. The icon is assigned before `visible = true`, because the tray
-shows nothing until a non-empty image is set.
+every `present`. The **initial** icon and tooltip are written by
+`SlintGlass::new`, before the event loop runs, because the tray registers
+nothing until a non-empty image is assigned (`builtins.slint:3241-3244`) and the
+loop's first `present` happens after the loop has started.
 
 *Rejected:* two checked-in PNGs — the two binaries nobody can regenerate that
 this repair exists to remove. A build-time generator emitting PNG — it needs an
@@ -1643,12 +2161,38 @@ above draws, and the two statements are required to agree.
   `serve`. Research measured the lint as live and as *not* reaching the inline
   `async {}` handed to `spawn_local` (`research.md:536-540`); the lint inspects
   `async fn` items, so `serve` is a plain `fn` returning `impl Future`. That is
-  unproven for a `fn` item returning an `async` block. If it fires, the answer is
-  the renderer crate's own `[lints]` — the per-crate decision D8 settles — and
-  never an attribute at the site.
-- **A-6.** `Window.title` can be bound to a `WindowMode` enum in `.slint`.
-  Unmeasured. If it must be set from Rust, the two title literals move into
-  `diagnostics.rs` beside the other user-visible strings; nothing else changes.
+  unproven for a `fn` item returning an `async` block. **If it fires, the answer
+  is A-2's answer**, because this is an instance of A-2 and not an exception to
+  it: the narrowest `#[expect(clippy::future_not_send, reason = …)]` that works —
+  on `serve` itself, whose future is `!Send` by construction because it owns
+  `Rc`-bearing Slint handles and is driven by `spawn_local`, which never moves it
+  between threads. It **counts toward A-2's three-exception stop rule**, and a
+  crate-level `[lints]` override is not available: D8 requires
+  `lints.workspace = true` and nothing else in every member, and A-2 already
+  forbids a crate table in the same breath. The earlier wording pointed at a
+  crate-level override and contradicted both (F-16, second raising). If a
+  site-local `expect` genuinely will not do, that is not an implementation
+  detail — it is D8 and AC-1 being wrong for this stratum, and it stops the
+  phase.
+- **A-6.** `Window.title` can be bound to a conditional over a `WindowMode`
+  property in `.slint`. Unmeasured. If it must be set from Rust, the two title
+  literals move into `diagnostics.rs` beside the other user-visible strings;
+  nothing else changes.
+- **A-7.** §5.2's markup compiles as written. Every *API* fact in it is read from
+  the Slint compiler's own sources and cited there — the tray's `Menu`/`MenuItem`
+  shape, `Button`'s built-in accessible declarations, the reserved `accessible-*`
+  properties and the rule about setting them on a component instance,
+  `StyledText`'s property name and callback, and `SystemTrayIcon`'s own
+  `icon`/`tooltip`/`visible`. What is **not** measured is the whole block through
+  `slint_build::compile`: layout nesting, `if`/`for` placement, and whether a
+  role on a `VerticalLayout` inside a `ScrollView` is accepted. The mitigation is
+  the one F-11's repair already put in the plan — **the first phase compiles one
+  root `.slint` before anything else is written**, so this class of error
+  surfaces in the build script at the cheapest possible point
+  (`docs/memory/slint-build-mechanics.md`) rather than by inspection. A
+  correction here is a markup edit, not a design change; a correction that
+  changed *which control produces which callback* would be a design change, and
+  none of the facts that decide that is unmeasured.
 
 **Edge cases.**
 
@@ -1672,7 +2216,8 @@ above draws, and the two statements are required to agree.
   taken once.
 - **E-4. `SystemTrayIcon::hide()` panics** — "Constant property being changed" —
   unless `visible` carries a binding. The tray is never hidden in this slice, but
-  the binding is declared anyway, because the panic is a constant-folding trap
+  `Tray` binds `visible: true` in its body anyway (setting the inherited
+  property, never redeclaring it), because the panic is a constant-folding trap
   rather than a rule, and others of its shape are unaudited.
 - **E-5. A link inside a rendered body.** `StyledText` fires `link-clicked` with
   the URL verbatim; `from_markdown` accepts `javascript:`, `file:///…` and
@@ -1766,9 +2311,12 @@ cargo test  -p a          → error: could not compile `a` (lib test)
 
 It is **not** a purity check, and the earlier claim that it "holds purity" is
 withdrawn (F-6, round 2): a `tokio` entry in stratum 1's manifest passes it
-cleanly. The manifest test below is what holds that.
+cleanly. It rejects **nothing**; what it does is *build* stratum 1 in isolation,
+so that the other instruments are checking a configuration that actually
+compiles on its own. The manifest test and the purity scan below are what hold
+the rest, each within the boundary stated for it.
 
-#### The two enforcement residues, made concrete
+#### The three enforcement residues, made concrete
 
 **The manifest allowlist test.** `boundary.rs`'s three forbidden tokens for
 stratum 1 become two compile errors (`crate::shell`, `crate::bin` →
@@ -1816,6 +2364,55 @@ no dependency table at all (`Vacuous`); and the real stratum 1 manifest, clean.
 Reading the manifests needs `toml`, taken from `[workspace.dependencies]` — an
 entry that already exists in this tree (`Cargo.toml:36`), not a new dependency.
 
+**The stratum 1 purity scan.** ADR-001 asks for "no I/O and no async runtime",
+and neither the compiler nor the manifest test can see a direct `std` reach: it
+needs no dependency entry and it is not a crate edge (F-6, third raising). The
+only instrument available is a source scan, and one already exists — so this is
+**one more configured `Scan`**, not a new program:
+
+```
+root:       crates/goad-semantics/src
+extensions: ["rs"]
+forbidden:  ["std::fs", "std::process", "std::net", "std::os", "std::env",
+             "std::thread", "std::io", "std::time::SystemTime",
+             "std::time::Instant"]
+```
+
+`mentions` already matches a token containing `::` as a **substring** rather
+than as a word (`boundary.rs:166-176`, F-45), which is exactly the shape these
+are, so the machinery is unchanged. `code_of` cuts comments, including doc
+comments, which is why the tree's one existing occurrence —
+`schedule.rs:215`'s `` `std::time::` `` inside a doc comment — is not a hit
+today. `std::time::Duration` is deliberately **not** forbidden: a duration is a
+quantity, not a clock, and blocking it would refuse a pure value.
+
+Its limits are named rather than assumed away, because a scan that is trusted
+past its reach is worse than one that is not trusted at all:
+
+- `use std::{fs, process};` contains neither token, and passes.
+- `use std::fs as f;` is caught at the `use`, but a later alias introduced any
+  other way is not.
+- I/O performed on stratum 1's behalf by a permitted dependency is invisible to
+  it; that is the allowlist's job, and the allowlist reads names only.
+- It is a **regression tripwire**, and the design says so wherever it is cited.
+
+Positive controls: each forbidden token planted in a stratum 1 source, and one
+planted inside a comment to prove the cut still applies; the vacuity guard is
+the one `Scan` already carries.
+
+**And the residue that no instrument holds: dependency features.** `cargo test
+--workspace` unifies features across members, so a feature switched on by
+stratum 2 or 3 in a shared dependency is compiled into stratum 1 — and nothing
+above rejects it. The concrete instance is already known and already avoided:
+`jiff::Timestamp::now()` needs jiff's `std` feature, and enabling it in stratum 3
+would unify it into stratum 1's build, which is why §5.4's clock does not call it
+(`Cargo.toml:23`). The **rule** is therefore stated even though nothing enforces
+it: a dependency shared with stratum 1 is declared `default-features = false`
+where it already is, and adding a feature to one is a design decision argued in
+the slice that takes it, never an incidental manifest edit. That is a review
+obligation, and it is written down as one rather than folded into a claim that
+the gate holds purity (D25).
+
 **One scan per member, enumerated rather than listed.** The vocabulary walk is
 not configured per member by hand. It reads `workspace.members` from the root
 manifest and applies one scan template to every entry, so a new member cannot
@@ -1852,8 +2449,11 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   link inside a body activated by a person is the adjacent case, and it needs a
   scheme policy before it needs an answer. Deferred as a follow-up, in writing,
   rather than settled by an implementation nobody decided.
-- **OQ-7 — What stimulus drives an evaluation with no clock.** *Answered:* two,
-  and the answer has to reach the level of values an agent can write (F-2).
+- **OQ-7 — What stimulus drives an evaluation with no *schedule*.** *Answered:*
+  two, and the answer has to reach the level of values an agent can write (F-2).
+  The question was originally asked "with no clock", which was the wrong framing
+  and produced the non-goal F-23 caught: slice 003 owns **scheduling and
+  timers**, and this slice reads wall time solely to stamp the calls it makes.
 
   **Reading a clock is not owning a schedule.** Slice 003 owns the schedule —
   when to evaluate, how `next_check` is consumed, what happens on failure. Every
@@ -2135,6 +2735,48 @@ Carried from `slice-002.md`. None remains open at design acceptance.
   clicked sees nothing change, which is the silent discard the bounded channel
   exists to prevent; and putting the busy line into `Diagnostics` — back-pressure
   is not a fault and must not colour the tray.
+- **D25 — ADR-001's stratum 1 rule is held by four instruments, each with a
+  stated boundary, and the residue is written down rather than covered.** §5.1,
+  §5.6. The addition is the **stratum 1 purity scan**: a direct `std::fs` call
+  needs no manifest entry and is not a crate edge, so neither of the two
+  instruments already present can see it, and a source scan is the only one that
+  can. It reuses the existing `Scan` and the existing `mentions` path-token
+  matching (`boundary.rs:166-176`) rather than adding a program. *Rejected:*
+  saying "purity is enforced" and letting three instruments carry a fourth
+  instrument's claim, which is the overstatement F-6 was raised on three times;
+  leaving the direct-`std` half as an unwritten review rule, since an unwritten
+  rule catches nothing and a weak tripwire in the gate catches the regression
+  everyone actually makes; and a denylist of `std` modules dressed up as a proof,
+  which is the same overclaim in a new costume — the scan's three misses are
+  named beside it. The **feature residue** stays residue: nothing in the gate
+  rejects a feature switched on by stratum 2 or 3 in a shared dependency, so the
+  design states the rule (`default-features = false` where it already is; a new
+  feature on a shared dependency is a slice decision) and states that nothing
+  enforces it. *Rejected:* claiming `cargo test -p goad-semantics` covers it —
+  it rejects nothing — and inventing a feature-graph test, which is a program
+  this slice has not measured and would be a fifth instrument arriving on
+  argument rather than on evidence.
+- **D26 — every startup string is written out, and both outlets go through
+  `writeln!`.** §5.4. `print_stdout` and `print_stderr` are `deny`
+  (`Cargo.toml:143-144`), so the outlet spelling is not a free choice, and the
+  write's `Result` is discarded by matching because `let _ =` and `.ok();` are
+  both refused by the table. The usage block is one `const` with one destination
+  — `--help` — and a usage error names the flag instead of reprinting it.
+  *Rejected:* leaving the wording to execution, which is authoring user-facing
+  policy inside a phase (F-26); reprinting usage beside every usage error, which
+  is the same fact in two places (principle 4); and a `source()` chain on
+  `StartupError` or `ClockError`, which is F-47's defect re-introduced at the one
+  outlet that has no window to lose.
+- **D27 — the loop's pending exchange is a value, not a comment.** `Pending`
+  carries the arguments of whichever `Host` entry point is about to be called, so
+  the loop has **one** future to select the stop signal against, and that future
+  *is* the exchange rather than a wrapper around it. *Rejected:* two duplicated
+  cancellation `select!`s, one per entry point (the cancellation contract stated
+  twice, and the second copy rots); boxing the future (an allocation, and a
+  wrapper between `select!` and the exchange, which weakens "the exchange future
+  is dropped" into a claim about the box); and leaving the choice to the
+  implementer, which is what F-22 found — it decides borrowing, cancellation and
+  `future_not_send` all at once, and is therefore a design decision.
 
 ## 8. Risks & mitigations
 
@@ -2187,19 +2829,31 @@ What the plan must produce. Each maps to an acceptance criterion in
    five.
 2. A recorded list of every file moved and every file whose content changed, with
    a reason for each content change (AC-2).
-3. Stratum 1's purity is held by two instruments in the gate, doing two different
-   jobs, and the validation must not merge them (AC-3):
-   - `cargo test -p goad-semantics` passes — the only command that builds stratum
-     1 with the features its own manifest asks for, since `--workspace` unifies
-     features across members. Not a purity check; §5.6 says so.
+3. ADR-001's stratum 1 rule is held by **four** instruments in the gate, doing
+   four different jobs, and the validation must not merge them or add their
+   guarantees together (AC-3, F-6):
+   - Cargo resolution — a stratum 1 source naming `goad_shell` or `tokio` does
+     not compile. Crate edges only; already demonstrated by negative control
+     (`research.md` Thread 6).
    - the manifest allowlist test passes, with its seven controls: `tokio` in
      `[dependencies]`, in `[dev-dependencies]`, in `[build-dependencies]`, in
      `[target.'cfg(unix)'.dependencies]`, renamed behind `package`; a manifest
      with no dependency table (`Vacuous`); and the real stratum 1 manifest,
-     clean.
+     clean. **Names only.**
+   - the stratum 1 purity scan passes, with one positive control per forbidden
+     token planted in a stratum 1 source, one planted inside a comment (to prove
+     the cut still applies and the control is therefore not vacuous), and the
+     real `crates/goad-semantics/src`, clean. A **tripwire**, whose three named
+     misses are recorded beside it in §5.6 and are not claimed as covered.
+   - `cargo test -p goad-semantics` passes — the only command that builds stratum
+     1 with the features its own manifest asks for, since `--workspace` unifies
+     features across members. It rejects nothing; §5.6 says so.
 
    The retired `tokio` source grep is removed in the same change, so the claim is
-   never carried by two mechanisms of different strength.
+   never carried by two mechanisms of different strength. **The feature residue
+   is validated by being written down, not by a command:** no test in this slice
+   rejects a feature added to a dependency shared with stratum 1, and the
+   validation says so rather than leaving a reader to infer coverage (D25).
 
 **Mapper, without a component:**
 
@@ -2270,6 +2924,14 @@ What the plan must produce. Each maps to an acceptance criterion in
     h. **One `serve`, no duplicate.** The test calls `serve` — the same function
        `main` wraps — so a loop-body change cannot pass here and fail in
        production.
+    i. **`busy` returns to `false`, on both outcomes** (F-21). After a
+       *successful* exchange and after a *failed* one, the next frame the loop
+       presents carries `busy = false` and the option controls read
+       `accessible_enabled == true` in the element tree. The negative control is
+       the one that matters: an `absorb` that does not clear `engaged` leaves
+       every control disabled for the rest of the process, and this pair is what
+       fails when it does. A refusal path — `SupersededView`, `UnknownOption`,
+       `NoClock` — never sets it, and the same assertion holds trivially there.
 
 **Wiring, cheap tier, the failure taxonomy:**
 
@@ -2352,7 +3014,10 @@ What the plan must produce. Each maps to an acceptance criterion in
 
     f. `quit_event_loop` has exactly one call site in `crates/goad/src/`, and the
        renderer holds no `tokio::spawn` handle — mirroring slice 001's
-       `the_only_spawn_is_the_child`.
+       `the_only_spawn_is_the_child`. The count is **one**, with no exception
+       carved out for `Wire::send`'s `Closed` arm, because that arm no longer
+       calls it (F-20). A source scan asserting "one" against a design that
+       admits two is a check that cannot pass, and that was the contradiction.
 
 **Boundary:**
 
@@ -2372,11 +3037,39 @@ What the plan must produce. Each maps to an acceptance criterion in
 
 **The tray:**
 
-16. **The tray icon is a rule.** `tray_icon(Idle)` and `tray_icon(Fault)` both
-    return a 32×32 image; the centre pixel differs between them (ring versus
-    disc), so the two states are distinguishable without reading a colour; and
-    no file under `crates/goad/` is an image (AC-14's neighbour — an asset that
-    exists is an asset that can rot).
+16. **The tray icon is a rule, and the rule has numbers.** `tray_icon(Idle)` and
+    `tray_icon(Fault)` both return a 32×32 image; and because §5.4 pins the
+    centre, both squared radii, the sample grid and the boundary comparison, the
+    assertions are values rather than descriptions (F-25):
+    - the centre pixel `(16, 16)` has `alpha == 0` for `Idle` and `alpha == 255`
+      for `Fault` — form, not hue, so the pair survives a monochrome panel;
+    - a pixel on the idle ring — one whose samples straddle neither boundary,
+      e.g. `(16, 4)` at 12 px from centre — is fully opaque in **both** states;
+    - a corner pixel `(0, 0)` has `alpha == 0` in both;
+    - no file under `crates/goad/` is an image (AC-14's neighbour — an asset that
+      exists is an asset that can rot).
+
+**The startup surface, as pure functions with no window:**
+
+17. **Every startup string, asserted as text** (F-26, D26). `StartupError`'s
+    `Display` for each of its variants, and `ClockError`'s for both of its, are
+    asserted verbatim against §5.4's table — the same treatment every other
+    user-visible string in this renderer gets, and for the same reason: a string
+    nobody pinned is a string an implementer authored. Plus:
+    - the usage block is produced by one `const` and is byte-identical wherever
+      it appears;
+    - a usage error's text does **not** contain the usage block (principle 4);
+    - `StartupError::source()` and `ClockError::source()` are both `None`, so a
+      chain-walking reporter cannot print an inner message a second time — the
+      test that fails if `source()` is implemented later (AC-8, F-47);
+    - argument handling: zero arguments with `XDG_CONFIG_HOME` set/unset/empty/
+      relative, one argument, `-h`, `--help`, and two arguments, each yielding
+      the `Launch` or the `StartupError` §5.4's table names. Reading is through
+      `args_os`/`var_os`, so a non-Unicode argument is carried and never decoded.
+
+    **No test asserts the exit code by running the binary.** That would need a
+    built binary and a process, and the code is chosen in one `match` in `main`
+    over a value these tests already cover.
 
 ---
 
@@ -2490,11 +3183,13 @@ fifteen times in the table.
 | P14 | `R-52-a-choice-field-with-no-alternatives` | `EmptyAlternatives { at }` | `no alternatives at view.options[0].fields[0].options` | yes |
 | P15 | `R-17-inverted-bounds` | `Bounds(Inverted { min: 10.0, max: 1.0 })` | `invalid bounds: min 10 is above max 1` | yes |
 
-P2 and P3 are the only rows whose tail is not pinned: the text after the colon
-is `serde_json`'s and moves with the dependency. They assert the prefix and a
-non-empty tail, and they are the pair that makes R-44's "malformed and
-protocol-invalid are distinct" observable at the glass — the distinction has no
-other witness there.
+P2 and P3 carry `Expect::Prefixed`: the text after the colon is `serde_json`'s
+and moves with the dependency. They assert the prefix and a non-empty tail, and
+they are the pair that makes R-44's "malformed and protocol-invalid are distinct"
+observable at the glass — the distinction has no other witness there. **T1 is the
+third `Prefixed` row**, for the same reason with a different owner: its tail is
+the OS's spawn message. Those three are the whole of `Prefixed`; every other row
+is `Exact`.
 
 **B. Transport failures.**
 
@@ -2509,11 +3204,13 @@ T2's `after` is the suite's configured deadline, 500 ms — short because one
 instruction hangs and the suite pays for it once, and long enough that
 `@lingers-and-hangs` costs deadline plus the cleanup budget and no more.
 
-T3 and T4 double as the rows that prove **captured stderr travels with a
+T3 and P2 double as the rows that prove **captured stderr travels with a
 failure**: T3's backend writes `that answer is not to be trusted` and P2's
-writes `config is missing`, and both must appear on the stderr channel beside
-the failure (R-42). No sentinel is added for the stderr *display* bound — that
-is item 13's, on constructed values.
+writes `config is missing`. Each of those two rows therefore carries **two**
+`Observed` entries — one on `Channel::Failure` and one on `Channel::Stderr` —
+and both are asserted, which is R-42 at the glass and is the assertion a
+single-line schema could not express (F-9). No sentinel is added for the stderr
+*display* bound — that is item 13's, on constructed values.
 
 **C. Cleanup.** `CleanupFailure` is a second channel, never a `Failure`
 (`src/shell/error.rs:48-74`). All three lines are
@@ -2524,7 +3221,7 @@ with the note that a change there invalidates these bounds.
 | # | instruction | `failure` | `view` | presentation | why the row exists | process |
 |---|---|---|---|---|---|---|
 | C1 | `@lingers` | none | `None` | **retained**, window unchanged | cleanup-only: the exchange succeeded and disposal did not | yes |
-| C2 | `@lingers-and-hangs` | `Timeout` | `None` | retained, window unchanged | cleanup **and** exchange, both reported, neither suppressing the other (R-54, R-47) | yes |
+| C2 | `@lingers-and-hangs` | `Timeout` | `None` | retained, window unchanged | cleanup **and** exchange, both reported, neither suppressing the other (R-54, R-47). **Two `Observed` entries**, one per channel, both asserted | yes |
 | C3 | `@lingers-with-a-view` (coda) | none | `Some` | **replaced**, window shown | F-1: cleanup is diagnostic metadata, not a selector of the transition | yes |
 
 C1 and C3 differ only in the body and disagree about the presentation
@@ -2568,32 +3265,89 @@ suite cannot mint, so it cannot collide.
 
 #### 12.4 What every row asserts
 
-One loop over one array of rows; the per-row work is data, not code.
+One loop over one array of rows; the per-row work is data, not code. The schema
+has to be able to state every assertion the rows above make, or the loop becomes
+a loop plus a pile of special cases outside it — which is the defect F-9 was
+raised on twice:
 
 ```rust
+/// Which `Host` a row runs against. Not decoration: AC-7's "one retained
+/// `Host`" is a claim about a cohort, and one row is honestly outside it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Cohort {
+  /// The retained `Host` of 12.2, in sequence order.
+  Retained,
+  /// Its own `Host`, with the reason recorded in 12.6. T1 alone.
+  Own { command: &'static str },
+}
+
+/// One expected diagnostic line, on one channel.
+struct Observed {
+  channel: Channel,    // Failure | Cleanup | Discard | Stderr
+  text: Expect,        // Exact(&str) | Prefixed(&str)
+}
+
+/// How much of the line is pinned. `Prefixed` is for any line whose tail is
+/// owned by something outside this repository — serde's message (P2, P3) and
+/// the OS's (T1) — and nowhere else.
+enum Expect {
+  Exact(&'static str),
+  Prefixed(&'static str),
+}
+
 struct Case {
+  cohort: Cohort,
   /// `None` = this row sends no request to a backend, so it consumes no
   /// instruction (S1, S2).
   instruction: Option<&'static str>,
-  turn: Turn,          // Evaluate | Respond(which id)
-  expect: Expect,      // Exact(&str) | Prefixed(&str) for the two serde rows
-  channel: Channel,    // Failure | Discard | Cleanup — which line to count
+  turn: Turn,                    // Evaluate | Respond(which id)
+  /// **A list**, because several rows have more than one thing to say: C2
+  /// reports a timeout *and* a cleanup failure, and T3 and P2 report a failure
+  /// *and* the stderr their backend wrote. A single `expect` could not state
+  /// either (F-9).
+  observed: &'static [Observed],
+  /// What the fold did to the outstanding interaction — assertion 3, which had
+  /// no field at all and was therefore per-row prose.
+  shift: Shift,                  // Replaced | Retained | Closed
+  /// How far the invocation log moves across this exchange: 1 for every row
+  /// that reaches a process, 0 for S1, S2 and T1's refusal-shaped attempt.
+  invocations: usize,
 }
 ```
 
-For each row, in order:
+Every row's whole expectation is now inside the array. The four things each row
+asserts, in order:
 
-1. The reduced diagnostics contain the row's line, **exactly once** — the
-   occurrence count is the assertion, not merely presence, and it is what fails
-   if a `source()` walk is added (AC-8, F-42, F-47).
+1. For **each** `Observed`: the reduced diagnostics contain that line on that
+   channel, **exactly once** — the occurrence count is the assertion, not merely
+   presence, and it is what fails if a `source()` walk is added (AC-8, F-42,
+   F-47). A row with two observations asserts both, independently.
 2. `next_check` is the instant exchange 1 asked for (R-29, and the one-Host
-   witness).
-3. The presentation transition the row's column names, read from the retained
-   presentation — retained for A, B, C1, C2, D, E; replaced for C3.
-4. For S1 and S2 only: `invocations(&log)` is unchanged across the exchange.
+   witness) — asserted for the `Retained` cohort only, because the `Own` cohort
+   has its own seed and 12.6 says why.
+3. `shift` matches what `Controller::absorb` returned, and the retained
+   presentation matches it: `Retained` leaves the previous `Prepared` identical,
+   `Replaced` installs a new one with a different `ViewId`, `Closed` leaves
+   none.
+4. `invocations(&log)` advances by exactly `invocations`. For S1 and S2 that is
+   zero, and it is the witness that a state refusal reached no process; for T1 it
+   is zero for a different reason — nothing was spawned — and 12.6 records that
+   the two zeros mean different things.
 
 And once, after the sequence: the trailing `respond(A)` succeeds, and
 `invocations(&log) == instructions.len()`.
+
+**T1's cohort, and what AC-7 means for it.** `Cohort::Own` exists for exactly
+one row, and the exemption is now in the data rather than in a sentence beside
+it. A `Host` owns one command (`host.rs:119-133`, `process.rs:46-49`), so a
+command that cannot be spawned cannot first have succeeded, and no sequence
+through the retained `Host` can reach `BackendError::Spawn`. For that row
+"the backend is invocable again" is asserted in the only form available: a
+**second** `evaluate` on the same `Host` attempts a second spawn and fails with
+the same variant and the same prefix. That proves what AC-7 is actually about —
+the host neither died nor latched into an unusable state — and it does not
+pretend to the stronger claim the other rows make. `slice-002.md` AC-7 states the
+exemption; this is where it is executed.
 
 **Four rows also read the element tree**, in the same `block_on` — one per
 channel, so each is proved to be *bound* to the surface at all: P4 (a backend
@@ -2634,10 +3388,17 @@ Exempt from the real-process requirement:
   real-process `Host`; what they are exempt from is *inducing* a process
   behaviour, and the invocation log is what makes the exemption checkable
   rather than assumed.
-- **T1** — runs a real spawn attempt, but in its own `Host`, because a `Host`
-  owns one command and a command that does not exist cannot first succeed.
-  Slice 001 reached the same conclusion and recorded that this row alone cannot
-  make the stronger R-29 claim (`tests/integration/failure_matrix.rs:420-435`).
+- **T1** — runs a real spawn attempt, but in its own `Host` (`Cohort::Own`),
+  because a `Host` owns one command and a command that does not exist cannot
+  first succeed. Slice 001 reached the same conclusion and recorded that this row
+  alone cannot make the stronger R-29 claim
+  (`tests/integration/failure_matrix.rs:420-435`), which is why assertion 2 is
+  skipped for it. Its `invocations` delta is 0 — nothing was spawned — and that
+  zero means something different from S1's and S2's, where a process was never
+  attempted: **the two are distinguished by the cohort, not by the count**. What
+  T1 asserts in place of the trailing success is a *second* failing `evaluate` on
+  the same `Host`, which is what "invocable again" can honestly mean for a
+  command that does not exist (12.4, `slice-002.md` AC-7).
 
 No row at all, because nothing a backend can do reaches them:
 
@@ -2733,10 +3494,18 @@ endorsement; none is written into `docs/` mid-slice.
   it. A file move on disk; a canon change on paper.
 - **C-5 — The gate's canonical command block lives in a closed slice's design**
   (`docs/slices/001/design.md` §9), and this slice changes the gate. AGENTS.md
-  otherwise forbids retro-fitting a closed design. Promoting §9 into canon — a
-  policy under the currently-empty `docs/policy/` — is a canon creation, and it
-  is the honest fix. The block it carries is §5.6's six commands, with no
+  otherwise forbids retro-fitting a closed design. The honest fix is a policy
+  under the currently-empty `docs/policy/`, carrying §5.6's six commands with no
   feature matrix and no column added back by the renderer.
+
+  That is **canon creation**, so it is not drafted in `canon-delta.md`, which
+  covers changes to canon that already exists (`docs/AGENTS.md`, "Canon that does
+  not exist yet, or must change"; review F-24). It is drafted as
+  `docs/slices/002/draft-policy.md`, from `docs/templates/policy.md`, and is the
+  slice's working authority for the gate until promotion. `canon-delta.md` CD-5
+  is the *other half*: the amendment that repoints `CLAUDE.md` away from the
+  closed slice's §9 and at the promoted policy. Two moves, two endorsements, two
+  rows in the Reconciliation table; both land or neither does.
 - **C-6 — CLAUDE.md invariant 1 claims a boundary test greps for domain
   vocabulary.** True today for `.rs`, false for `.slint` the day this lands
   unless D13 is implemented. Either the test grows or the claim narrows; the

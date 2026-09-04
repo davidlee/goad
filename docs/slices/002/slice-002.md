@@ -63,12 +63,21 @@ Surfaces this slice may touch.
 - `tests/protocol/boundary.rs` — re-homed into `crates/goad-boundary` and its
   configuration extended to `.slint`, with members read from `workspace.members`.
 - `canon-delta.md` — drafted here, promoted at audit.
+- `draft-policy.md` — the phase gate as new canon, drafted here from
+  `docs/templates/policy.md` and promoted separately at audit. New canon is not
+  drafted in `canon-delta.md` (`docs/AGENTS.md`; review `F-24`).
 
 ## Non-goals
 
 - **Scheduling.** No timer, no `next_check` consumption, no default poll. Slice
-  003 owns the clock. This slice takes its stimulus from process start and from
-  an explicit tray action, which is a stimulus, not a schedule.
+  003 owns **scheduling and timers** — when to evaluate, how `next_check` is
+  consumed, what happens on failure. This slice takes its stimulus from process
+  start and from an explicit tray action, which is a stimulus, not a schedule.
+  It **is** authorized to read wall time, solely to stamp the two events it
+  sends and the calls that carry them: every `Host` entry point has always
+  required a caller-supplied `Timestamp`, including slice 001's tests, and
+  supplying one is not owning a schedule. The adapter that does it is one
+  function wide and is not a timer (`design.md` D15, F-23).
 - **Fields.** SPEC-001 admits option-scoped fields; this renderer draws options
   and their labels and nothing else. That is a renderer subset, and the design
   states in writing how the mapper stays a subset rather than becoming a
@@ -95,16 +104,35 @@ Surfaces this slice may touch.
 - [ ] AC-2 — Every file that moved in the split moved unchanged, or its content
       change is named in `audit.md` with a reason. Content changes beyond import
       paths and manifest entries are evidence of redesign and must be argued.
-- [ ] AC-3 — Stratum 1's purity is enforced inside the gate by two instruments
-      with two different jobs: `cargo test -p goad-semantics` passes, which is
-      the only command that builds stratum 1 with the features its own manifest
-      asks for — `--workspace` unifies features across members, so it is not
-      itself a purity check; and a test reads the dependency tables of
-      `crates/goad-semantics/Cargo.toml` against an **allowlist** and fails on
-      anything else, including in `dev-` and `build-dependencies`, in a
-      target-specific table, and behind a `package` rename. `boundary.rs`'s
-      `tokio` source grep is retired in the same change — the fact it checked
-      now lives in a manifest, where no compiler and no source scan can see it.
+- [ ] AC-3 — Four instruments hold four different parts of ADR-001's stratum 1
+      rule, and the slice states each one's boundary rather than claiming their
+      sum is "purity, enforced" (F-6, third raising). Every one of them is inside
+      the gate:
+      1. **Cargo resolution** — a `goad-semantics` source naming `goad_shell` or
+         `tokio` is `error[E0433]`. Crate edges only.
+      2. **The manifest allowlist test** — reads the dependency tables of
+         `crates/goad-semantics/Cargo.toml` against an allowlist and fails on
+         anything else, including in `dev-` and `build-dependencies`, in a
+         target-specific table, and behind a `package` rename. **Names only** —
+         not versions, not features, and not what a permitted dependency does.
+      3. **The stratum 1 purity scan** — the same walk as the vocabulary scan,
+         over `crates/goad-semantics/src` with a path-token list, failing on a
+         direct `std` reach for the filesystem, processes, sockets, threads, the
+         environment, or a clock. This is the half no manifest entry and no
+         compiler can see: `std::fs` needs neither. Its limits are named, not
+         assumed away — a brace-grouped `use std::{fs}`, an alias, and I/O
+         performed on stratum 1's behalf by a permitted dependency all pass it.
+      4. **`cargo test -p goad-semantics`** — the only command that builds
+         stratum 1 with the features its own manifest asks for, because
+         `--workspace` unifies features across members. It **rejects nothing**
+         and is not a purity check.
+
+      And one residue, recorded as a review obligation rather than as an
+      enforced rule: a feature switched on in a shared dependency by stratum 2
+      or 3 unifies into stratum 1's build, and no instrument above sees it
+      (`design.md` §5.6, D25). `boundary.rs`'s `tokio` source grep is retired in
+      the same change — the fact it checked now lives in a manifest, where
+      instrument 2 reads it.
 - [ ] AC-4 — A backend returning a `choice` view has it drawn: title, body, and
       one activatable control per option, in the order the backend sent them.
 - [ ] AC-5 — Activating a control sends a `respond` carrying that option's
@@ -126,6 +154,17 @@ Surfaces this slice may touch.
       host still considers outstanding: a failed `respond` leaves the question
       on screen, because the answer failed to deliver and the question did not
       go away.
+
+      **One cohort is exempt from "one retained `Host`", and the exemption is
+      stated rather than improvised** (F-9): `BackendError::Spawn` needs a
+      command that does not exist, and a `Host` owns exactly one command
+      (`config.rs:47-51`, `process.rs:46-49`), so a command that cannot be
+      spawned cannot first have succeeded. That row runs in its own `Host`, as
+      slice 001's does, and for it "the backend is invocable again" means the
+      weaker, checkable thing: a **second** `evaluate` on that same `Host`
+      attempts a second spawn and fails the same way, so the host neither died
+      nor latched. Every other row is in the retained-`Host` cohort, and the
+      trailing success is theirs.
 - [ ] AC-8 — Both arbitrary values are bounded at the glass: captured stderr and
       a discarded scheduling instruction's verbatim `raw`. The bound is applied
       to the **displayed** form — after lossy decoding and escaping — and counted
@@ -208,11 +247,13 @@ Surfaces this slice may touch.
   dereferencing a `uri` under R-19.~~ **The question does not arise: no URL is
   opened.** A scheme policy is a decision, and it is a follow-up rather than an
   implementation nobody took. `design.md` E-5, D11.
-- ~~OQ-7 — What stimulus drives an evaluation in a slice with no clock.~~ **Two,
-  as values an agent can write** — `Stimulus::Startup` and
+- ~~OQ-7 — What stimulus drives an evaluation in a slice with no *schedule*.~~
+  **Two, as values an agent can write** — `Stimulus::Startup` and
   `Stimulus::Requested`, a wall-clock adapter one function wide that is not a
-  timer, and a config-path rule with no guessing in it. `design.md` §5.4, OQ-7,
-  D15.
+  timer, and a config-path rule with no guessing in it. The question was
+  originally written "with no clock", which the non-goal above now corrects:
+  slice 003 owns scheduling, and stamping a call is not scheduling it (F-23).
+  `design.md` §5.4, OQ-7, D15.
 - ~~OQ-8 — What the diagnostic surface actually says.~~ **Written out
   literally** — every string, three character-counted bounds applied after
   escaping, two distinguishable truncations, a deterministic order, and two tray

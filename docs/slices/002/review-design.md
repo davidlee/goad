@@ -5,9 +5,11 @@
 **Reviewer:** rounds 1 and 2 — codex, `gpt-5.6-sol`, read-only, briefed for
 implementation feasibility rather than intent.
 **Opened:** 2026-09-05
-**State:** open — nineteen findings raised over two rounds, all currently
-`verified`. It stays open because round 2's repairs have not themselves been
-reviewed, and round 2 exists because round 1's had not been.
+**State:** open — twenty-six findings raised over three rounds, all currently
+`verified`. It stays open because round 3's repairs have not themselves been
+reviewed. Round 3 exists because round 2's had not been, and round 2 because
+round 1's had not been; the pattern is the point, and the ledger says so rather
+than declaring itself finished.
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -104,33 +106,70 @@ field its contract promises, a case table handed to the plan.
 
 Closed at round 2: F-2, F-3, F-10, F-11, F-12.
 
+**Round 3** — 2026-09-05 — the round-2 repairs, on the same terms.
+
+Same reviewer, same materials, pointed at what round 2 changed, and additionally
+at the three things round 2 had not reached: the repaired `canon-delta.md`, the
+rewritten acceptance criteria, and §9 item 12 read against the fixtures it names.
+That reading list was set by round 2's own synthesis, which named them as what it
+had not reached.
+
+It **held ten** of the fourteen round-2 repairs, reopened **four** under their
+original ids — F-6, F-9, F-16, F-17 — and raised **seven** more, F-20…F-26.
+
+The pattern shifted again, and the shift is worth naming. Round 1 found a design
+written from summaries rather than from source. Round 2 found repairs written at
+the level of intent rather than of signatures. Round 3 found something narrower
+and more specific: **repairs that are correct where they are written and
+contradict something else that was left alone.** A-5 still pointing at the crate
+override D8 had just forbidden; a `Closed` arm still quitting a loop the same
+paragraph says has exactly one quit; an `engaged` flag with a setter and no
+clearer; a slice non-goal that says slice 003 owns the clock beside a design
+that adds one. Every one of those is a *seam* between a repaired passage and an
+unrepaired neighbour — which is the failure mode a repair round creates, and the
+reason a fourth round is owed rather than assumed.
+
+Closed at round 3: nothing new closes, because every round-2 finding that was
+held was already `verified`; what closes is the *class* — see the Synthesis.
+
 ## Findings
 
-Severity is the raiser's, at raise time. A finding reopened in round 2 keeps its
-id and its severity; its round-1 outcome became `contested` and the round-2
-disposition and outcome are appended below it.
+Severity is the raiser's, at raise time. A finding reopened in a later round
+keeps its id and its severity; its earlier outcome became `contested` and the
+fresh disposition and outcome are appended below it.
 
-| id | severity | raised | r1 disposition | r1 outcome | r2 disposition | r2 outcome |
-|----|----------|--------|----------------|------------|----------------|------------|
-| F-1 | blocker | r1 | fix-now | **contested** | fix-now | verified |
-| F-2 | blocker | r1 | fix-now | verified | — | — |
-| F-3 | blocker | r1 | fix-now | verified | — | — |
-| F-4 | blocker | r1 | fix-now | **contested** | fix-now | verified |
-| F-5 | major | r1 | fix-now | **contested** | fix-now | verified |
-| F-6 | major | r1 | fix-now | **contested** | fix-now | verified |
-| F-7 | major | r1 | fix-now | **contested** | fix-now | verified |
-| F-8 | major | r1 | fix-now | **contested** | fix-now | verified |
-| F-9 | major | r1 | fix-now | **contested** | fix-now | verified |
-| F-10 | major | r1 | fix-now | verified | — | — |
-| F-11 | minor | r1 | fix-now | verified | — | — |
-| F-12 | minor | r1 | fix-now | verified | — | — |
-| F-13 | blocker | r2 | — | — | fix-now | verified |
-| F-14 | major | r2 | — | — | doc-wrong | verified |
-| F-15 | major | r2 | — | — | fix-now | verified |
-| F-16 | major | r2 | — | — | fix-now | verified |
-| F-17 | major | r2 | — | — | fix-now | verified |
-| F-18 | major | r2 | — | — | fix-now | verified |
-| F-19 | minor | r2 | — | — | fix-now | verified |
+| id | severity | raised | r1 disp | r1 out | r2 disp | r2 out | r3 disp | r3 out |
+|----|----------|--------|---------|--------|---------|--------|---------|--------|
+| F-1 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held |
+| F-2 | blocker | r1 | fix-now | verified | — | — | — | — |
+| F-3 | blocker | r1 | fix-now | verified | — | — | — | — |
+| F-4 | blocker | r1 | fix-now | **contested** | fix-now | verified | — | held |
+| F-5 | major | r1 | fix-now | **contested** | fix-now | verified | — | held |
+| F-6 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified |
+| F-7 | major | r1 | fix-now | **contested** | fix-now | verified | — | held |
+| F-8 | major | r1 | fix-now | **contested** | fix-now | verified | — | held |
+| F-9 | major | r1 | fix-now | **contested** | fix-now | **contested** | fix-now | verified |
+| F-10 | major | r1 | fix-now | verified | — | — | — | — |
+| F-11 | minor | r1 | fix-now | verified | — | — | — | — |
+| F-12 | minor | r1 | fix-now | verified | — | — | — | — |
+| F-13 | blocker | r2 | — | — | fix-now | verified | — | held |
+| F-14 | major | r2 | — | — | doc-wrong | verified | — | held |
+| F-15 | major | r2 | — | — | fix-now | verified | — | held |
+| F-16 | major | r2 | — | — | fix-now | **contested** | fix-now | verified |
+| F-17 | major | r2 | — | — | fix-now | **contested** | fix-now | verified |
+| F-18 | major | r2 | — | — | fix-now | verified | — | held |
+| F-19 | minor | r2 | — | — | fix-now | verified | — | held |
+| F-20 | major | r3 | — | — | — | — | fix-now | verified |
+| F-21 | major | r3 | — | — | — | — | fix-now | verified |
+| F-22 | major | r3 | — | — | — | — | fix-now | verified |
+| F-23 | major | r3 | — | — | — | — | doc-wrong | verified |
+| F-24 | major | r3 | — | — | — | — | fix-now | verified |
+| F-25 | minor | r3 | — | — | — | — | fix-now | verified |
+| F-26 | minor | r3 | — | — | — | — | fix-now | verified |
+
+**held** = round 3 audited that repair against the code and did not reopen it.
+The finding's terminal outcome stays the one in its own round's column; "held"
+is evidence about the repair, not a fresh disposition.
 
 ### F-1 — The outcome reducer destroys a still-live interaction
 
@@ -1095,80 +1134,570 @@ instead, which would write the shared sentence twice.
 
 **Outcome:** verified
 
+## Round 3 — re-dispositions
+
+Four of the fourteen round-2 repairs were reopened. Ids are immutable and
+findings are append-only, so both earlier blocks stand unedited: their round-2
+outcome became **contested**, and the fresh disposition and outcome are recorded
+here.
+
+*Raiser:* codex `gpt-5.6-sol`, round 3. *Responder:* the design agent under the
+autonomy grant (`design-log.md` 2026-09-05). The outcome is again set wearing the
+raiser's hat, deliberately and with the switch stated — which is why round 4 is
+owed and why this ledger does not read done.
+
+### F-6 — re-disposed (round 2 outcome: contested)
+
+**Round 3's objection.** The gate still does not enforce stratum 1's purity, and
+AC-3 still says it does. Both instruments AC-3 names constrain only Cargo:
+dependency resolution and dependency *names*. Neither rejects `std::fs`,
+`std::process`, `std::time::SystemTime`, a socket, or any other I/O reachable
+with no manifest entry — while ADR-001 asks for "No I/O and no async runtime"
+(`adr/001-one-way-strata.md:34-35`). The design's own §5.4 acknowledges a
+feature-unification hole the manifest test cannot see.
+
+**Disposition:** fix-now
+**Response:** round 3 is right, and the fix takes **both** halves of the
+alternative it offered rather than choosing between them.
+
+**The claim is narrowed, everywhere it is made.** §5.1's table, §5.6, §9 item 3
+and `slice-002.md` AC-3 now enumerate instruments with a stated boundary each,
+and none of them says "purity is enforced". This is the third raising of one
+defect and the pattern in it is the useful part: each repair narrowed the *word*
+and left the *sum* implying the whole. So the documents now say what the sum is
+**not**, in the same breath as what it is.
+
+**And a third instrument is added, because one boundary was not residue but a
+gap.** A direct `std::fs` call needs no manifest entry and is not a crate edge,
+so neither Cargo nor the allowlist can see it, and no source scan was looking.
+The instrument is **one more configured `Scan`** in `crates/goad-boundary` —
+root `crates/goad-semantics/src`, forbidden `std::fs`, `std::process`,
+`std::net`, `std::os`, `std::env`, `std::thread`, `std::io`,
+`std::time::SystemTime`, `std::time::Instant`. It needs no new machinery:
+`mentions` already matches a `::`-bearing token as a substring
+(`boundary.rs:166-176`, slice 001's F-45), and `code_of` already cuts comments,
+which is why `schedule.rs:215`'s doc-comment mention of `` std::time:: `` is not
+a hit today — verified against the tree. `std::time::Duration` is deliberately
+not forbidden: a duration is a quantity, not a clock.
+
+Its three misses are named beside it rather than assumed away —
+`use std::{fs, process};`, an alias introduced by any other route, and I/O a
+permitted dependency performs on stratum 1's behalf — and it is described as a
+**regression tripwire** wherever it is cited, never as a proof.
+
+**The feature residue stays residue, in writing.** Nothing in the gate rejects a
+feature switched on by stratum 2 or 3 in a shared dependency. The design states
+the *rule* (a dependency shared with stratum 1 keeps `default-features = false`
+where it already has it; adding a feature to one is a slice decision) and states
+that nothing enforces it. §9 item 3 says so explicitly, so a reader cannot infer
+coverage from the list's length. *Rejected:* inventing a feature-graph test —
+a fifth instrument arriving on argument rather than on measurement, which is how
+this finding was created in the first place.
+
+`design.md` §5.1, §5.6 "The three enforcement residues", §9 item 3; D25;
+`slice-002.md` AC-3; `canon-delta.md` CD-1, CD-7; `draft-policy.md` Verification.
+
+**Outcome:** verified
+
+### F-9 — re-disposed (round 2 outcome: contested)
+
+**Round 3's objection.** The failure matrix's schema cannot express its own
+assertions. `Case` has one expected line and one channel, but C2 requires a
+timeout **and** a cleanup failure; T3 and P2 require a failure line **and**
+captured stderr; T1's tail is the OS's, although `Prefixed` was described as
+being for the two serde rows only; assertion 3 requires a per-row presentation
+transition and there is no field for it; and T1 runs in "its own `Host`" while
+AC-7 requires every failure through one retained `Host`. An implementer must
+invent special cases outside the claimed one-loop data model.
+
+**Disposition:** fix-now
+**Response:** the schema is replaced by one that can state every assertion the
+rows make, and the AC-7 exemption is written into the data instead of into prose
+beside it.
+
+`Case` now carries: `cohort` (`Retained` | `Own { command }`), the instruction,
+the turn, a **list** of `Observed { channel, text }` rather than one expectation,
+the `shift` the fold must produce, and the `invocations` delta. `Channel` gains
+`Stderr`, which is what lets T3 and P2 assert R-42 at the glass — the assertion
+that had no field. `Expect::Prefixed` is redefined as *any line whose tail is
+owned outside this repository*, which is the three rows P2, P3 and T1, and the
+12.3 note is corrected to say so.
+
+**T1's exemption is now a cohort with a checkable meaning.** A `Host` owns one
+command (`host.rs:119-133`, `process.rs:46-49`), so a command that cannot be
+spawned cannot first have succeeded and no sequence through the retained `Host`
+reaches `BackendError::Spawn`. For that one row, "the backend is invocable
+again" is asserted in the only form available: a **second** `evaluate` on the
+same `Host` attempts a second spawn and fails identically — the host neither
+died nor latched. AC-7 in `slice-002.md` now states the cohort and that weaker
+meaning, so the criterion no longer claims something one of its rows cannot do.
+Assertion 2 (`next_check` unchanged since exchange 1) is skipped for `Own`,
+which is what slice 001 already recorded for its equivalent row
+(`failure_matrix.rs:420-435`); and the two zero-invocation cases are
+distinguished by cohort rather than by the count, because they mean different
+things.
+
+`design.md` §9 12.3, 12.4, 12.6; `slice-002.md` AC-7.
+
+**Outcome:** verified
+
+### F-16 — re-disposed (round 2 outcome: contested)
+
+**Round 3's objection.** A-5 directly contradicts D8. D8 requires
+`lints.workspace = true` "and nothing else" and rejects a laxer crate table;
+A-2 says "never a crate-level `[lints]` override"; and A-5 says that if
+`future_not_send` fires, the answer is precisely such an override.
+
+**Disposition:** fix-now
+**Response:** the contradiction is real and the repair went to the wrong half of
+it — round 2 rewrote §5.1 and D8 and left A-5 pointing at the thing they had
+just forbidden.
+
+A-5 now says the answer is **A-2's** answer, because this is an instance of A-2
+and not an exception to it: the narrowest `#[expect(clippy::future_not_send,
+reason = …)]` that works, on `serve`, whose future is `!Send` by construction —
+it owns `Rc`-bearing Slint handles and is driven by `spawn_local`, which never
+moves it across threads. It **counts toward A-2's three-exception stop rule**,
+and a crate-level override is stated as unavailable. If a site-local `expect`
+genuinely will not do, that is not an implementation detail: it is D8 and AC-1
+being wrong for this stratum, and it stops the phase.
+
+`design.md` A-5 (and A-2, D8 unchanged — they were already right).
+
+**Outcome:** verified
+
+### F-17 — re-disposed (round 2 outcome: contested)
+
+**Round 3's objection.** The entry point is still incomplete and internally
+unconstructible. The ordered sequence never constructs `ProcessBackend` or
+`Host`, yet passes an undefined `host` into `serve`; its `Wire` literal names no
+`commands` field; and the markup declares callbacks but defines none of the
+controls or event bindings that produce them — so AC-4's "one activatable
+control per option" has no producer and `close-diagnostics()`'s claimed producer
+does not exist.
+
+**Disposition:** fix-now
+**Response:** round 3 is right twice over, and the second half is the one that
+matters: a *numbered sequence* is a format that can omit a step and still read
+complete. The repair changes the format as well as the content.
+
+**The entry point is now Rust**, not a list: `main -> ExitCode` over
+`run() -> Result<(), StartupError>` over `start(&Path)`. It loads the `Config`,
+reads the clock, **clones the command out of the config**, builds
+`ProcessBackend::new(command, timeout)`, and **moves** the config into
+`Host::new(config, backend, now)` — which is exactly the composition slice 001
+already wrote and this design had been paraphrasing
+(`harness.rs:249-254`, `process.rs:46-49`, `host.rs:119-133`,
+`config.rs:47-51` for the `Clone`). It builds the runtime and holds the
+`EnterGuard`, sets the app id, constructs both components, mints one `Wire`
+through `Wire::new` — not a field literal over private fields — installs the six
+callbacks, builds the glass, enqueues the startup command through the ordinary
+channel, spawns the one task, and runs the loop. `main` uses no `?`, because it
+returns `ExitCode`.
+
+**The markup now contains the controls**, and each is grounded in the Slint
+compiler's own sources rather than inferred: a `for` repeater over `options`
+producing a stock `Button` per row, with `accessible-description` carrying the
+`OptionId` and `clicked => root.chosen(option.view, option.id)`; a `Close`
+`Button` invoking `close-diagnostics()`; and the tray's single `Menu` child with
+three `MenuItem`s whose `activated` callbacks are `check-now`,
+`show-diagnostics` and `quit`. `Button` already declares `accessible-role:
+button`, `accessible-label: root.text` and `accessible-action-default`, and its
+inner `Text` declares `accessible-role: none`
+(`widgets/fluent/button.slint:29-34`, `:86`) — which is what makes it one handle
+rather than T-E's two, and gives keyboard operation without a per-option
+`FocusScope` (`:104-117`, T-D). `SystemTrayIcon` takes exactly one `Menu` child
+and `MenuItem` carries `title` and `activated()`
+(`builtins.slint:1296-1319`, `:3121-3134`). `accessible-description` and
+`accessible-item-index`/`-count` are reserved properties settable on any element
+with a role, and on a *component instance* only when its own root declares one —
+which `Button` does and a bare `Rectangle` does not
+(`typeregister.rs:256-283`; `tests/syntax/accessibility/accessible_properties.slint:24-41`).
+
+One consequence found while writing it, and recorded rather than left to the
+phase: `StyledText`'s property is `text`, it carries `link-clicked(link)`, and
+it declares **no** accessible role (`builtins.slint:731-755`), unlike `Text`
+(`:599-600`). So the body's *value* is not addressable through the accessibility
+tree, and the design says where it is asserted instead — on `Presentation`, in
+the mapper tier — rather than adding a second `body-text` property that would
+render one value twice.
+
+`design.md` §5.2 markup, §5.4 "The entry point, in full" and "Installing the
+callbacks, exactly"; F-26's strings; §9 item 17.
+
+**Outcome:** verified
+
+## Round 3 — new findings
+
+### F-20 — The design requires both one and two `quit_event_loop` call sites
+
+**Severity:** major
+**Location:** `design.md` §5.3 `Wire::send`, §5.4 the entry point, §9 item 14f
+
+**Expected:** one owner for the event-loop quit.
+**Observed:** `Wire::send` is required to call `quit_event_loop` on `Closed`
+while the task's completion path also calls it; the prose calls the first "the
+single exception" to having exactly one site, and validation requires a
+source-level count of exactly one. Both cannot pass.
+
+**Evidence:** the two passages, mutually exclusive as written, against a
+validation item that counts call sites in `crates/goad/src/`.
+
+**Disposition:** fix-now
+**Response:** the completion path owns the quit, and `Wire::send`'s `Closed` arm
+does nothing.
+
+The argument is stronger than "pick one". `Wire` holds a `Sender`, so the
+channel is closed only when the **receiver** is gone — and the receiver is owned
+by `serve` and dropped when `serve` returns, one line before the task's own
+`quit_event_loop`. A `Closed` arm that quit would therefore be a second call for
+a quit already in flight, never a first one. The arm is written out and matched
+with that reasoning as its comment, so "it does nothing" is a decision on the
+page rather than a `_ =>`; and item 14f now says the count is one **with no
+exception**, because a source scan asserting "one" against a design admitting
+two is a check that cannot pass.
+
+`design.md` §5.3 `Wire::send`, §5.4 entry point, §9 item 14f.
+
+**Outcome:** verified
+
+### F-21 — `engaged` is set and never cleared
+
+**Severity:** major
+**Location:** `design.md` §5.3 `Controller`, §5.4 the loop
+
+**Expected:** the controls are re-enabled after an exchange.
+**Observed:** `engage()` sets `engaged`; no method is specified to clear it; and
+the loop asserts the next top-of-loop frame carries `busy = false`. An
+implementation following only the stated mutations disables every control
+permanently after the first exchange.
+
+**Evidence:** `absorb` is documented only as consuming and reconciling an
+outcome, and the loop returns directly to `glass.present(controller.frame());
+// busy = false here`.
+
+**Disposition:** fix-now
+**Response:** `absorb` clears `engaged` before it returns, unconditionally and
+whatever the `Shift`: the exchange it is folding is the exchange that has just
+ended, and there is no outcome for which the controls should stay disabled. One
+setter, one clearer, one pair, in one place — `serve`'s exchange arm.
+
+*Rejected:* a separate `disengage()`, which is a third call the loop can forget
+on a path it does not take; and moving `busy` out of `Controller` into a
+parameter of `frame()`, which would make the caller responsible for a fact the
+controller is otherwise the sole owner of, and would break the "everything the
+glass needs, from one value" property `Frame` exists for.
+
+The one path that sets and does not clear is `Ending::Stopped` arriving
+mid-exchange, and it is unobservable: `serve` breaks out and never presents
+again. That is stated rather than left as a hole. Validation item 11i asserts
+`busy = false` and `accessible_enabled == true` after **both** a successful and a
+failed exchange, which is the pair that fails if the clear is dropped.
+
+`design.md` §5.3 (`absorb`, `engage`, and the retained-state paragraph); §9 item
+11i.
+
+**Outcome:** verified
+
+### F-22 — The "exact" loop body contains an untyped placeholder
+
+**Severity:** major
+**Location:** `design.md` §5.4 the loop
+
+**Expected:** a body described as exact is one an agent can type.
+**Observed:** `let call = /* host.evaluate(...) | host.respond(...) */;`.
+`evaluate` and `respond` take different arguments and have distinct opaque
+future types while both borrow `&mut Host`, so the implementer must choose
+between duplicating the cancellation `select!`, boxing, an operation enum, or an
+`async` block — a choice that controls borrowing, cancellation and lint
+behaviour.
+
+**Evidence:** `src/shell/host.rs:136-170`, the two signatures.
+
+**Disposition:** fix-now
+**Response:** `Pending` — an enum carrying the exact arguments of whichever
+entry point is about to be called, plus `exchanged()` derived from it — and one
+`async` block that matches on it. `select!` therefore has **one** future to race
+the stop signal against, and that future *is* the exchange rather than a wrapper
+around it, which is what makes "the exchange future is dropped" a statement
+about the exchange.
+
+The command dispatch that produces the `Pending` is written out too, exhaustive
+and with no `_` arm: `OpenDiagnostics`/`CloseDiagnostics` fold and `continue`;
+`Evaluate` stamps; `Choose` resolves identity **before** stamping, so a
+superseded click is refused for the reason that is true of it and a broken clock
+does not relabel it. One `stamp(clock) -> Result<Timestamp, Refused>` helper, so
+`ClockError` becomes a refusal in one place.
+
+*Rejected:* two duplicated cancellation `select!`s (the contract stated twice,
+and the copy rots); `Pin<Box<dyn Future>>` (an allocation, and a wrapper between
+`select!` and the exchange); and leaving it to the implementer, which is the
+finding.
+
+`design.md` §5.4 "What is pending, as a value" and the loop body; D27.
+
+**Outcome:** verified
+
+### F-23 — The design violates the slice's stated clock non-goal
+
+**Severity:** major
+**Location:** `slice-002.md` non-goals and OQ-7; `design.md` §1, §5.4, §6 OQ-7
+
+**Expected:** the slice document accepts the design's behaviour.
+**Observed:** the non-goal says "Slice 003 owns the clock"; the design adds a
+production wall-clock adapter to slice 002, and OQ-7 calls this "a slice with no
+clock" while introducing that adapter in the same answer.
+
+**Evidence:** `slice-002.md:69-71` against `design.md`'s `Clock` /
+`wall_clock()`. `docs/AGENTS.md:90-95` requires the slice to be revised for
+consistency after a design change.
+
+**Disposition:** doc-wrong
+**Response:** the slice document is the defect, not the design. Slice 003 owns
+**scheduling and timers** — when to evaluate, how `next_check` is consumed, what
+happens on failure — and slice 002 is authorized to read wall time solely to
+stamp the events it sends and the calls that carry them. Every `Host` entry point
+has always required a caller-supplied `Timestamp`, including slice 001's tests
+(`host.rs:119`, `:136`, `:152`), so supplying one is not owning a schedule.
+
+The non-goal is restated in those terms, and the same distinction is used in the
+slice's OQ-7, in `design.md` §1, and in §6's OQ-7 — where the original question
+was itself asked with the wrong word, which is how the inconsistency was
+manufactured. D15 already drew the distinction correctly and is unchanged.
+
+`slice-002.md` non-goals and OQ-7; `design.md` §1, §6 OQ-7.
+
+**Outcome:** verified
+
+### F-24 — New policy canon is drafted in the wrong vehicle
+
+**Severity:** major
+**Location:** `canon-delta.md` preamble and CD-5; `docs/AGENTS.md:29-40`
+
+**Expected:** promoting the delta puts nothing in the wrong place.
+**Observed:** `canon-delta.md` says it covers existing canon only and that new
+canon belongs in a slice-local draft; CD-5 then defines an entirely new policy
+under `docs/policy/`.
+
+**Evidence:** `canon-delta.md:6-8` against CD-5's own "canon creation" label.
+AGENTS.md assigns new canon to the slice's draft artefact and `canon-delta.md`
+to changes to existing canon.
+
+**Disposition:** fix-now
+**Response:** the policy is drafted where the methodology puts it, and CD-5
+becomes the amendment it should always have been.
+
+`docs/slices/002/draft-policy.md` is created from `docs/templates/policy.md` —
+copied, not written from memory — carrying the six-command block, the rationale
+for `cargo test -p goad-semantics`, what each of the four enforcement instruments
+holds and where it stops, and the feature residue stated as residue. It is
+`POL-NNN` until promotion, says in its own header that it is not canon, and is
+the slice's working authority for the gate in the meantime.
+
+AGENTS.md names `draft-spec.md` because it assumes new canon is a specification;
+this new canon is a policy, so it is drafted from the policy template and named
+`draft-policy.md`. The rule that matters — new canon is drafted in the slice
+folder from its governing template, never written into `docs/` mid-slice — is
+honoured. The deviation and its reason are recorded in `design-log.md` rather
+than taken silently.
+
+CD-5 is rewritten as an amendment to `CLAUDE.md`: its pointer moves off
+`docs/slices/001/design.md` §9 and onto the promoted policy. It states
+explicitly that it does not create the policy, and that the two moves are two
+endorsements and two Reconciliation rows — both land, or neither does, since
+applying one alone leaves either a dangling pointer or two claimants to the gate.
+`design.md` §10 C-5 says the same, once.
+
+`canon-delta.md` preamble and CD-5; `docs/slices/002/draft-policy.md`;
+`design.md` §10 C-5; `slice-002.md` Scope.
+
+**Outcome:** verified
+
+### F-25 — The tray-icon "rule" omits its geometry
+
+**Severity:** minor
+**Location:** `design.md` §5.4 the tray icon; D21
+
+**Expected:** a rule that can regenerate the exact asset.
+**Observed:** edge size, colours, form, supersampling and alpha arithmetic are
+fixed; the centre, the outer radius, the idle inner radius, the sample positions
+and the boundary comparison are not — so many visibly different rasterisers
+conform, while D21 calls it a rule intended to regenerate the exact asset.
+
+**Evidence:** "idle is an annulus, fault is a filled disc. One rasteriser, one
+parameter — the inner radius", with no value for that parameter or for the outer
+radius.
+
+**Disposition:** fix-now
+**Response:** the geometry is pinned, in integer eighth-of-a-pixel units chosen
+so a 4×4 sample grid has integral sample centres: centre `128`, `OUTER_SQ`
+`14_400` (15 px), `INNER_SQ` `5_184` (9 px) for `Idle` and `0` for `Fault`;
+sample `(i, j)` of pixel `(x, y)` at `(8x + 2i + 1, 8y + 2j + 1)`; covered iff
+`d2 <= OUTER_SQ && d2 >= inner_sq`, **both comparisons inclusive**, stated so two
+implementations cannot differ by one sample on the rim.
+
+The pinning pays for itself immediately: the centre pixel's assertion stops being
+a description and becomes arithmetic — every sample of pixel `(16, 16)` has
+`d2 <= 98`, below `Idle`'s inner radius and at or above `Fault`'s zero, so the
+centre is fully transparent for one and fully opaque for the other. Validation
+item 16 now asserts three pixels with computed values rather than "the centre
+differs".
+
+`design.md` §5.4 "The tray icon"; §9 item 16.
+
+**Outcome:** verified
+
+### F-26 — Startup, usage and clock-error text is undefined
+
+**Severity:** minor
+**Location:** `design.md` §5.4 (the clock, argument handling, the startup line)
+
+**Expected:** every user-visible string in this renderer is written out, which
+is what the design claims of its own surface.
+**Observed:** `ClockError` has no `Display` text, the usage block has no content,
+and the usage error has no wording — while all three are interpolated into the
+visible `goad: {error}` line. An implementer must author user-facing policy
+during execution.
+
+**Evidence:** the `ClockError` variants and "carries a `Display`"; "one usage
+block" and "usage error" with no text; `goad: {error}`.
+
+**Disposition:** fix-now
+**Response:** all of it is written out, and the outlet is decided with it —
+because the outlet is not a free choice here.
+
+`StartupError` is named as the type `{error}` renders, with its eight variants
+and their exact text; `ClockError`'s two renderings are given; the usage block is
+written verbatim, on **stdout**, one trailing newline, exit 0, produced by one
+`const` with `--help` as its only destination — a usage error names the flag
+rather than reprinting the block, so one fact stays in one place. Both
+`StartupError` and `ClockError` implement `std::error::Error` with the default
+`source()` returning `None`, which is F-47's defect refused at the one outlet
+that has no window to lose.
+
+The outlet: `print_stdout` and `print_stderr` are both `deny`
+(`Cargo.toml:143-144`), so neither `println!` nor `eprintln!` is available, and
+the write's own `Result` is discarded by matching because `let _ =` trips
+`let_underscore_must_use` (`:152`) and `.ok();` trips `unused_must_use`. That is
+three lint interactions an implementer would otherwise meet one at a time inside
+a phase; it is settled here, with A-2's stop rule as the fallback if the first
+`cargo clippy` disagrees.
+
+`Launch` and `arguments(argv, env)` are given signatures, so §5.4's discovery
+table becomes a test (§9 item 17) rather than a claim.
+
+`design.md` §5.4 (the clock, "Config discovery, exactly", "The exact strings");
+D26; §9 item 17.
+
+**Outcome:** verified
+
+
 ## Synthesis
 
-Nineteen findings over two rounds — five blockers, eleven majors, three minors —
-all `fix-now` but one `doc-wrong`, all currently `verified`. No blocker
-outstanding. The ledger does **not** read done: round 2's repairs have not been
-reviewed, and the whole lesson of round 2 is that unreviewed repairs are where
-this design fails.
+Twenty-six findings over three rounds — five blockers, eighteen majors, three
+minors — all `fix-now` but two `doc-wrong`, all currently `verified`. No blocker
+outstanding. The ledger does **not** read done: round 3's repairs have not been
+reviewed, and the whole lesson of rounds 2 and 3 is that unreviewed repairs are
+where this design fails.
 
-**What round 1 found, and why.** `design.md` had been written from
-`research.md`'s summaries where it should have been written from the source. F-1
-described `Host`'s state machine from the brief rather than from
-`WhenNothingToShow`. F-3 and F-5 dropped details — `SharedString`, an `mpsc`
-channel — that research had verified and a summary had smoothed away. F-6
-described a gate the split deletes. Each was cheap to find with the code open and
-would have been expensive to find with an agent halfway through a phase.
+**Three rounds, three different failure modes.** Naming them separately is the
+useful part, because each round's pattern is what the next round should be
+briefed against.
 
-**What round 2 found, and why it is a different failure.** Round 1's repairs were
-written at the level of *intent*, and intent reads as settled. Seven of them did
-not survive being asked "could an agent type this?":
+- **Round 1 — written from summaries, not from source.** `design.md` described
+  `Host`'s state machine from the brief rather than from `WhenNothingToShow`
+  (F-1); dropped details research had verified and a summary had smoothed away —
+  `SharedString`, an `mpsc` channel (F-3, F-5); and described a gate the split
+  deletes (F-6). Cheap to find with the code open; expensive to find with an
+  agent halfway through a phase.
+- **Round 2 — repairs written at the level of intent.** Intent reads as settled.
+  Seven of twelve did not survive "could an agent type this?": a four-row table
+  that reads correct and is not disjoint (F-1); a shutdown travelling as a
+  queued message in a loop that cannot receive one (F-4); "the UI reports that it
+  is busy" with nothing behind it (F-5); a reducer whose signature provably
+  cannot honour its contract (F-7); "string-literal aware" as a phrase rather
+  than a transition table (F-8); a case table handed to the plan (F-9).
+- **Round 3 — repairs correct in place, contradicting an unrepaired
+  neighbour.** This is the failure mode a repair round *creates*, and it is
+  narrower and easier to miss than either of the others. A-5 still pointing at
+  the crate-level override D8 had just forbidden (F-16). A `Closed` arm still
+  quitting a loop the same page says has exactly one quit (F-20). An `engaged`
+  flag with a setter and no clearer, three sections after the flag was introduced
+  (F-21). A slice non-goal saying slice 003 owns the clock, beside a design that
+  adds one (F-23). New canon drafted in the file whose own preamble forbids it
+  (F-24). Every one is a **seam**: repaired passage against untouched
+  neighbour.
 
-- **F-1** — a four-row table that reads correct and is not disjoint, because
-  cleanup is orthogonal to success and two rows claimed the same outcome.
-- **F-4** — a shutdown that travels as a queued command, in a loop that cannot
-  receive one while awaiting the very exchange it wants to abandon.
-- **F-5** — "the UI reports that it is busy" with nothing behind it, and a
-  capacity-1 channel doing a job capacity 1 does not do.
-- **F-6** — a gate that contradicted its own command count in three places, and a
-  command defended by a claim measurement refutes.
-- **F-7** — a reducer whose signature provably cannot honour its own contract,
-  because the field it must report is not in the type it receives.
-- **F-8** — "string-literal aware" as a phrase rather than a transition table.
-- **F-9** — the case table handed to the plan, which is where this slice's
-  autonomy grant says the design must not put things down.
+**What round 3 held.** Ten of fourteen round-2 repairs were audited against the
+code and stood: F-1's seven-row reducer against `Host::respond` and its
+pre-transport refusal path; F-4's `serve` owning and dropping the exchange
+future; F-5's `Wire`; F-7's single `Outcome` consumption point; F-8's line
+scanner; F-13's two-token `Choose`; F-14's restated AC-6; F-15's derived
+`Surface`; F-18's narrowed canon delta; F-19's `ContentForm`. That is the
+strongest evidence in the ledger that the structural repairs — the ones that
+turned a rule into a shape the types enforce — are the ones that hold.
 
-The seven new findings are the same class caught earlier: F-13's delayed click
-answering the wrong question, F-15's undefined window modes, F-16's three
-mutually exclusive lint contracts, F-17's entry point naming a type that does not
-exist. F-14 and F-18 are the two that point outward — an acceptance criterion and
-a canon draft that the repaired design had made false, which is exactly the drift
-that reopened F-6 and F-16 in the first place.
+**What the three rounds did to F-6, and what it cost to stop.** F-6 was raised
+three times on one defect: the gate's guarantees, overstated. Round 1 narrowed
+"both feature columns"; round 2 withdrew "holds purity" from one command; round 3
+observed that the *sum* still implied the whole and that one boundary was not
+residue at all but a gap — direct `std` I/O, which no manifest and no compiler
+can see. The repair takes both halves: the claim is narrowed everywhere it is
+made **and** a third instrument closes the gap, with its three misses named. The
+generalisable lesson is in the shape of the failure: narrowing a claim one word
+at a time leaves the reader adding the instruments up, and the fix is to say what
+the sum is *not*, in the same breath as what it is.
 
-**What both rounds confirmed.** The three user decisions of 2026-09-05 were never
-challenged on their merits, and no finding touched the guiding principles. The
-mapper as one exhaustive `match`, `OptionRow` as a struct row, degrade-and-report,
-the crate split, the tray-plus-window shape, and the two test tiers all survived.
-Round 2 sharpened how they are expressed — a third column on the row, a fourth
-member in the workspace, a moved tier boundary — without disturbing what they
-decide.
+**What all three rounds confirmed.** The three user decisions of 2026-09-05 were
+never challenged on their merits, and no finding touched the guiding principles.
+The mapper as one exhaustive `match`, `OptionRow` as a struct row,
+degrade-and-report, the crate split, the tray-plus-window shape, and the two test
+tiers all survived unchanged. What the rounds did was force each of them down to
+signatures, values and numbers.
 
-**What changed structurally, and is the real yield.** Four repairs turned a rule
-an agent must remember into a shape the types enforce, and those are the ones
-least likely to rot:
+**What changed structurally, and is the real yield.** Six repairs turned a rule
+an agent must remember into a shape the types or the arithmetic enforce, and
+those are the ones least likely to rot:
 
-- `receive` is the only consumer of an `Outcome`, so **I-2 cannot be forgotten**
-  — the mapper's `undrawn` and the outcome's residue are joined by the function
-  that produces both.
+- `receive` is the only consumer of an `Outcome`, so **I-2 cannot be forgotten**.
 - `Surface` is derived from `(focus, shown)`, so **"window unchanged" has no two
-  meanings** and F-15's five cases have no undefined corner.
+  meanings**.
 - `serve` is one function production and the cheap tier both call, so **a
   loop-body change cannot pass in test and fail in production**.
 - `Command::Choose` carries its view token, so **a stale answer is refused by a
   comparison rather than by timing**.
+- `Pending` makes the raced future *be* the exchange, so **"cancellation drops
+  the exchange" is a fact about the code rather than about a wrapper** (F-22).
+- The tray icon's geometry is integers, so **"a rule regenerates the asset" is
+  arithmetic a test can assert** rather than a description two rasterisers could
+  both satisfy (F-25).
 
-**Risks knowingly left standing.** A-2 and A-5 (goad's ~75 unproven lints against
-hand-written renderer code, and whether `future_not_send` reaches a `fn` returning
-`impl Future`), A-4 (`just check` wall-clock with 411 crates, ADR-002's T3) and
-A-6 (binding `Window.title` to an enum) are unchanged by either round. All four
-are settled by running the gate on the first renderer commit, and none is
-answerable from a document. A-2 gained a stop rule so that the answer, when it
-comes, is a decision rather than a habit.
+**Risks knowingly left standing.** A-2 (goad's ~75 unproven lints against
+hand-written renderer code, now including the stderr-outlet spelling and the
+six-clone `install`), A-5 (whether `future_not_send` reaches a `fn` returning
+`impl Future` — now with a site-local answer that counts toward A-2's stop rule),
+A-4 (`just check` wall-clock with 411 crates, ADR-002's T3) and A-6 (a
+conditional on an enum in a `Window.title` binding) are unchanged in kind by any
+round. Round 3 adds **A-7**: §5.2's markup block has every *API* fact cited to
+the Slint compiler's sources, and has not been through `slint_build::compile` as
+a whole. All five are settled by running the gate — or, for A-7, by compiling one
+root `.slint` — on the first renderer commit, and none is answerable from a
+document. A-7 is stated rather than left implicit precisely because F-17 was
+raised twice on markup that read complete.
 
-**What the review did not reach.** It read the design against slice 001's code
-and against `research.md`. It did not attack `research.md`'s own claims — the
-three spikes and two adversarial verifiers did that — and round 1 did not review
-the canon delta's wording, which is what let F-18 stand for a whole round. Round
-3 should read the repaired `canon-delta.md`, the rewritten acceptance criteria,
-and §9 item 12 against the fixtures it names.
+**The residue that is not a risk but an admission.** No instrument in the gate
+rejects a feature switched on by stratum 2 or 3 in a dependency shared with
+stratum 1. The design states the rule and states that nothing enforces it (D25).
+That is the honest shape: an unenforced rule written down beats an enforced-
+sounding claim, and it is exactly the trade F-6 was raised three times to get
+right.
+
+**What this review has not reached.** Round 1 did not read the canon delta, which
+is what let F-18 stand for a round. Round 2 did not read the acceptance criteria
+against the repaired design, which is what let F-23 stand. Round 3 read all
+three artefacts, but **it has not read its own repairs** — and four of the seven
+new findings are in passages round 3 itself caused to be rewritten from scratch:
+the entry point, the loop body, the failure-matrix schema, the startup strings.
+A round 4 should read exactly those four, plus the two documents this round
+created or restructured: `draft-policy.md`, and `canon-delta.md` CD-5 against
+`design.md` §10 C-5.
