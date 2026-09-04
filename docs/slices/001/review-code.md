@@ -1203,6 +1203,87 @@ Each Response's claim, checked by reverting the repair in the scratch copy and r
 
 Not verified beyond the above: nothing. The round is clean apart from F-52…F-54.
 
+### Round 5, fresh reviewer — F-55…F-56
+
+Raised by a fresh Claude subagent (general-purpose, no thread history) against `d6cc44a`, the round-4 repairs only, given the ledger, the brief, the draft spec and the diff. Method, in its own words: Ran `just check` on `d6cc44a`: exit 0 (default column 42 lib + 58 integration + 16 protocol; `--no-default-features` 25 lib + 16 protocol; `deno check`, clippy in both columns, `cargo fmt --check` clean). Copied the repo minus `target` and `.git` to `scratchpad/r5/repo` and worked only there: a probe test in the protocol target over `parse_span`, `civil::Time` and `schedule::parse` for 44 strings, one in the integration target over `Config::parse` with `timeout` set to 19 of them, and three edit-run-restore cycles on `schedule.rs` (revert the F-52 trim; revert the F-53 conjunct; try one candidate repair for F-55), each ending with `cmp` clean against the working tree. jiff is 0.2.35. Every output quoted below is my own run. No repository file was edited (`git status`: only the pre-existing `flake.lock` change).
+
+Probe results on `d6cc44a`, by group. Right, and as the dispositions say: `"\n18:00:00\n"`, `"18:00:00\u{a0}"` (NBSP is Unicode `White_Space`, so `trim` strips it), `"18:00:00\u{2003}"`, `"18:00:00\u{85}"`, `"1:30 "`, `"t18:00"`, `"T18:00"`, `"T18"`, `"T18:00:00"`, `"18:00:00+10:00"`, `"18:00:00[Australia/Sydney]"` → `TimeOfDay`. `"T"`, `"T:"`, `"t"`, `"Tuesday"`, `"today"`, `"tomorrow"`, `"true"`, `"ten minutes"` → `Unparseable` with jiff's "expected duration to start with a unit value … no integer was found". `"18"`, `"1800"` → `Unparseable` with "expected to find unit designator suffix". `"18:00:00Z"`, `"18:00:00 +10:00"`, `"18:00:00\u{200b}"` → `Unparseable` with "parsed value, but unparsed input remains"; `"\u{feff}18:00:00"` (BOM, not whitespace) → `Unparseable`. `" 90m "`, `"12h "`, `"PT1H30M "`, `" 1h 30m "`, `"-18:00:00 "`, `" +18:00:00"` → spans, the last two signed per F-46. `""`, `" "`, `"\t"` → jiff's "an empty string is not a valid duration", which after the trim is what they are. Config: `timeout = "18:00:00 "`, `"18:00:00\n"`, `"18:00:00 "`, `"1:30 "`, `"T18"`, `"18:00:00+10:00"` → "a time of day is not a span"; `"18"`, `"1800"` → "expected to find unit designator suffix"; `"T"`, `"Tuesday"`, `"today"` → "no integer was found"; `" 90m "` → 5400 s, `"12h "` → 43200 s; `""`, `" "` → "an empty string is not a valid duration". Observed and not raised because pre-existing at `83d1b77` and untouched by either repair: `"T1:30"` is `Unparseable` where `"T18:00"` is `TimeOfDay` (F-37's padding seam survives on the designator form, which the disposition's two rules do not cover); a `raw` holding newlines is rendered verbatim into the diagnostic (F-47's territory); config `timeout = "2026-08-23T05:00:00"` says "a time of day is not a span" because `civil::Time` reads the time out of a datetime string (F-46's arm, unchanged by the conjunct since the string carries a colon).
+
+### F-55 — The trim forgives whitespace on R-21's span form only, and turns an absolute instant with a stray space into a false "time of day"
+
+**Severity:** minor
+**Location:** `src/semantics/schedule.rs:72`–`:84` (`parse_instruction`, the two absolute arms), `:127`–`:130` (`parse_span`, the trim), `:153`–`:159` (`looks_like_a_time_of_day`, `could_be_a_clock_form`)
+**Expected:** F-52's disposition: "whitespace is not part of what the author wrote". R-21 admits two forms, an absolute instant and a relative span; R-22: an offsetless instant "MUST be rejected with an error distinct from a general parse failure". Brief §13: a diagnostic the backend author can act on; F-50's principle, "the message honest".
+**Observed:** the trim lives in `parse_span`, so only the span arm sees the trimmed string. The two absolute arms in `parse_instruction` still see the raw one and refuse it on the whitespace; the value then falls through to `parse_span`, which trims it, finds a colon, and hands it to `civil::Time` — and `civil::Time` reads the time out of a full datetime string. So `"2026-08-23T05:00:00+10:00 "`, a valid instant with a trailing space, is reported as "a time of day, which is neither an instant nor a span", and `"2026-08-23T05:00:00 "` — R-22's own case with a trailing space — is reported as a time of day instead of as missing its offset. `" 90m "` is accepted while `" 2026-08-23T05:00:00Z"` is `Unparseable`: the same stray byte is forgiven on one of R-21's forms and not the other. Before `d6cc44a` both datetime cases were `Unparseable`, which was uninformative but not false; the trim plus the retained `civil::Time` arm made the diagnostic name something the author did not write, which is the F-53 defect on another shape. The config path is not affected by the whitespace half (an instant is not a config duration either way), but see the pre-existing note in Method.
+**Evidence:**
+On `d6cc44a`:
+```
+R5 "2026-08-23T05:00:00Z"       civil=Err                    parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or   wire=Ok(Timestamp(2026-08-23T05:00:00Z))
+R5 "2026-08-23T05:00:00Z "      civil=Err                    parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or   wire=Err[unparseable schedule: 2026-08-23T05:00:00Z ]
+R5 " 2026-08-23T05:00:00Z"      civil=Err                    parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or   wire=Err[unparseable schedule:  2026-08-23T05:00:00Z]
+R5 "2026-08-23T05:00:00 "       civil=Err                    parse_span=Err(TimeOfDay)                                                              wire=Err[schedule is a time of day, which is neither an instant nor a span: 2026-08-23T05:00:00 ]
+R5 "2026-08-23T05:00:00"        civil=Ok(05:00:00)           parse_span=Err(TimeOfDay)                                                              wire=Err[schedule has no UTC offset: 2026-08-23T05:00:00]
+R5 "2026-08-23T05:00:00+10:00 " civil=Err                    parse_span=Err(TimeOfDay)                                                              wire=Err[schedule is a time of day, which is neither an instant nor a span: 2026-08-23T05:00:00+10:00 ]
+R5 " 90m "                      civil=Err                    parse_span=Ok(1h 30m)                                                                  wire=Ok(Timestamp(2026-08-23T05:42:00Z))
+```
+Same probe with the F-52 trim reverted (the `83d1b77` behaviour for these two):
+```
+R5 "2026-08-23T05:00:00 "       civil=Err                    parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or   wire=Err[unparseable schedule: 2026-08-23T05:00:00 ]
+R5 "2026-08-23T05:00:00+10:00 " civil=Err                    parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or   wire=Err[unparseable schedule: 2026-08-23T05:00:00+10:00 ]
+```
+Candidate repair, tried in the scratch copy: trim once at the top of `parse_instruction` so both of R-21's forms see the same string (`parse_span` keeps its own trim for the config path). All 17 protocol tests pass and the probe reads:
+```
+R5 "2026-08-23T05:00:00Z "      … wire=Ok(Timestamp(2026-08-23T05:00:00Z))
+R5 " 2026-08-23T05:00:00Z"      … wire=Ok(Timestamp(2026-08-23T05:00:00Z))
+R5 "2026-08-23T05:00:00 "       … wire=Err[schedule has no UTC offset: 2026-08-23T05:00:00]
+R5 "2026-08-23T05:00:00+10:00 " … wire=Ok(Timestamp(2026-08-22T19:00:00Z))
+R5 "2026-08-23 "                … wire=Err[schedule has no UTC offset: 2026-08-23]
+```
+One caution for whoever repairs it: my one-line trial shadowed `raw`, so the `raw` carried in every `ScheduleError` became the trimmed value (`"\n18:00:00\n"` rendered as `18:00:00`). The error should keep quoting what was sent; bind the trimmed string under another name. Fixtures: `"2026-08-23T05:00:00+10:00 "` accepted as the instant, `"2026-08-23T05:00:00 "` refused as `MissingOffset`.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** `parse_instruction` trims once, so both of R-21's forms see the same string; every `ScheduleError` keeps quoting the untrimmed value as sent. `parse_span` keeps its own trim for the config path. Fixtures: an instant with a trailing space accepted; an offsetless instant with a trailing space refused as `MissingOffset`.
+**Response:** repaired. `parse_instruction` binds `written = raw.trim()` and parses `written` on all three arms, while every `ScheduleError` still carries `raw` as sent; `parse_span` keeps its own trim for the config path, and its comment says why there are two. Held by fixtures `schedule/R-21-absolute-with-trailing-whitespace.json` (`"2026-08-23T05:00:00+10:00 "` → the instant) and `R-22-absolute-without-offset-with-trailing-whitespace.json` (`"2026-08-22T18:00:00 "` → `MissingOffset`), both red before the change (`TimeOfDay`).
+
+**Outcome:**
+
+### F-56 — F-48's and F-54's Responses say three items are on `notes.md`'s reconciliation list, and none is
+
+**Severity:** minor
+**Location:** `docs/slices/001/review-code.md:1032` (F-48 Response), `:1188` (F-54 Response); `docs/slices/001/notes.md:84`–`:105` (the session-3 reconciliation list); `docs/slices/001/audit.md:201`–`:209` (the Reconciliation table, still the template)
+**Expected:** F-48's Response: "R-29's rewording is on session 3's reconciliation list." F-54's Disposition: "`design.md` §5.4's paragraph and the diagram row join R-29 on session 3's reconciliation list"; its Response: they "are on the session-3 reconciliation list in `notes.md` beside R-29." `AGENTS.md`'s review protocol: a Response states what was done, and a claim in it is checkable.
+**Observed:** `notes.md` was last changed at `ad811c6` (round 2); `d6cc44a` touches only `review-code.md`, `schedule.rs`, `state.rs` and two fixtures, and the working tree has no uncommitted change to it. Its reconciliation list carries R-26 and §5.3 for F-1 and, on R-29's row, session 2's elapsed-instant note — nothing about "must not accept a new instruction" (F-34, F-48), nothing about §5.4's "Failure does not move the schedule" paragraph, nothing about the `respond(stale id)` diagram row. `audit.md`'s Reconciliation table is the unfilled template. The only record of the three items is the Disposition and Response lines themselves, so a session 3 that works from the list `notes.md` names as the list will miss them. The code doc repair itself is as dispositioned (see the confirmation below); this is the ledger claim, not the code.
+**Evidence:**
+```
+$ git show --stat d6cc44a | grep -i notes            → (no output)
+$ git log --oneline -3 -- docs/slices/001/notes.md
+ad811c6 audit 001.2: round 1 dispositioned and repaired, round 2 raised and dispositioned
+2fe3bb4 audit 001.1: fresh reviewer's round-1 findings appended, F-17..F-33
+41af112 audit 001.1: brief, evidence, code review round 1 opened
+$ git status --short                                  →  M flake.lock
+$ grep -rn -i 'must not accept a new instruction' docs/slices/001/   → only review-code.md:723, :725, :1029, :1031 (the F-34 and F-48 finding text)
+$ grep -n -i 'diagram row\|stale.id\|5\.4.*R-29\|R-29.*5\.4' docs/slices/001/notes.md docs/slices/001/audit.md   → (no output)
+notes.md:86-90:  … Add to §7 or R-29's row: a *failed* exchange at an elapsed check still reports the
+                 elapsed instant (R-29 holds; slice 003's timer must retry on cadence, not spin) — noted in session 2, not changed.
+audit.md:207-208: | document | change | reason | done |
+                  | `specs/NNN-…md §4` | | code diverged at `path:line`; code is right | [ ] |
+```
+Repair: three lines under `notes.md:84`'s list — R-29's rewording to "must not accept a new instruction" (F-34, F-48); `design.md:1615`–`:1619`'s paragraph (F-54); the `respond(stale id)` diagram row at `design.md:1611` (F-54) — or the Responses corrected to say where the items actually are.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** The three lines are added to `notes.md`'s session-3 reconciliation list now, ahead of the handover rewrite, so F-48's and F-54's Responses become true.
+**Response:** repaired. `notes.md`'s session-3 reconciliation list now carries R-29's rewording (F-34, F-48), `design.md` §5.4's "Failure does not move the schedule" paragraph (F-54) and the `respond(stale id)` diagram row (F-54), each with the line numbers the reviewer gave. F-48's and F-54's Responses are true as written.
+
+**Outcome:**
+
+### Round 5 — confirmed round-4 repairs
+
+Each Response's claim, checked by reverting the repair in the scratch copy and running the test it names. Results verbatim.
+
+- **F-52** — `parse_span` trims before either rule. Revert (delete `let raw = raw.trim();`): `test runner::every_scheduling_fixture_states_what_the_protocol_does ... FAILED` — `R-21-wall-clock-time-with-trailing-whitespace.json: … expected TimeOfDay, got 2026-08-23T22:12:00Z`. Restored, `cmp` clean. The Response's probes hold: after, `"\n18:00:00\n"`, `"18:00:00\u{a0}"`, `"1:30 "` → `TimeOfDay`; `" 90m "`, `"12h "`, `"PT1H30M "` → spans, and in the reverted copy `" 90m "` is `Unparseable` ("expected duration to start with a unit value"), as the Response says of the leading form. Config `timeout = "18:00:00 "` and `"18:00:00\n"` → "a time of day is not a span". What the trim newly does to the absolute form is F-55.
+- **F-53** — `civil::Time` consulted only behind `could_be_a_clock_form`. Revert (drop the conjunct and the function, back to `|| raw.parse::<jiff::civil::Time>().is_ok()`): `test runner::every_scheduling_fixture_states_what_the_protocol_does ... FAILED` — `R-25-unitless-integer.json: … expected Unparseable, got TimeOfDay (schedule is a time of day, which is neither an instant nor a span: 18)`. Restored, `cmp` clean. In the reverted copy `18`, `1800`, `T18` are all `TimeOfDay`; on `d6cc44a` `18` and `1800` are `Unparseable` with "expected to find unit designator suffix", `T18`, `T18:00:00`, `t18:00` are `TimeOfDay`, and `T`, `T:`, `Tuesday`, `today`, `tomorrow`, `true` reach the span parse and get "no integer was found" — the designator gate admits a word beginning with `t` to the clock parser and the clock parser refuses it, so nothing English is called a time of day. Config `timeout = "18"` → "expected to find unit designator suffix"; `"T18"` → "a time of day is not a span".
+- **F-54** — `State::resolve_to`'s doc. No test names it; checked against the callers instead. `grep -n resolve_to src`: `host.rs:229` inside `accept`, `host.rs:290` inside `no_action`, `state.rs:60` the definition. `Outcome` is constructed at exactly those two sites (`host.rs:246`, `:291`), `evaluate` and `respond` both return through `exchange` → `accept`/`no_action` or straight through `no_action` (`host.rs:162`, the stale-id refusal), and `Host::new` seeds through `State::new` without reporting. "Every path that reports a schedule writes it" is true of every caller. The `notes.md` half of the Response is F-56.
+
+Not verified beyond the above: nothing. `just check` exit 0.
+
 ## Synthesis
 
 <!-- Written when the ledger resolves. The closure story: what the review

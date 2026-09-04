@@ -66,19 +66,22 @@ pub fn parse(value: &serde_json::Value, now: Timestamp) -> Result<Timestamp, Sch
 /// string parses as both a civil datetime and a span — so the remaining order
 /// is a matter of naming rather than of correctness.
 fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleError> {
-  if let Ok(instant) = raw.parse::<jiff::Timestamp>() {
+  // Whitespace is not part of what the author wrote, on either form (F-52,
+  // F-55). `raw` stays what was sent: every error below quotes it as sent.
+  let written = raw.trim();
+  if let Ok(instant) = written.parse::<jiff::Timestamp>() {
     // Stored exactly as given, past or future. Clamping to `now` would have the
     // host rewrite the backend's instruction (R-28, D29, F-13).
     return Ok(Timestamp::new(instant));
   }
   // R-22: an offsetless instant is the most likely backend mistake, and "you
   // omitted the offset" is debuggable where "unparseable" is not (brief §13).
-  if raw.parse::<jiff::civil::DateTime>().is_ok() {
+  if written.parse::<jiff::civil::DateTime>().is_ok() {
     return Err(ScheduleError::MissingOffset {
       raw: raw.to_owned(),
     });
   }
-  let duration = parse_span(raw).map_err(|fault| {
+  let duration = parse_span(written).map_err(|fault| {
     let raw = raw.to_owned();
     match fault {
       SpanFault::TimeOfDay => ScheduleError::TimeOfDay { raw },
@@ -126,7 +129,8 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
 pub fn parse_span(raw: &str) -> Result<jiff::SignedDuration, SpanFault> {
   // Whitespace is not part of what the author wrote. jiff's span grammar
   // tolerates a trailing space where the time-of-day rules do not, and that
-  // gap is `"18:00:00 "` read as eighteen hours (F-52).
+  // gap is `"18:00:00 "` read as eighteen hours (F-52). Trimmed here as well
+  // as in `parse_instruction` because the config path enters here directly.
   let raw = raw.trim();
   if looks_like_a_time_of_day(raw) {
     return Err(SpanFault::TimeOfDay);

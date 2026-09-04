@@ -88,6 +88,18 @@ document says otherwise, beyond the drift list in the session-1 handover:
   R-29's row: a *failed* exchange at an elapsed check still reports the
   elapsed instant (R-29 holds; slice 003's timer must retry on cadence, not
   spin) — noted in session 2, not changed.
+- `draft-spec.md` R-29: reword to "a failed exchange must not accept a new
+  instruction" — the host now resolves through `schedule::resolve` with no
+  instruction on every failure path and writes what it reports, so an elapsed
+  check is consumed on failure too (F-34, F-48). Replaces the session-2 note
+  on R-29's row above.
+- `design.md` §5.4 "**Failure does not move the schedule.**" paragraph
+  (`design.md:1615`–`:1619`): stale for the same reason (F-54) — *Design
+  drift not reconciled* entry, or amend with endorsement.
+- `design.md` §5.4 state diagram, `respond(stale id)` row (`design.md:1611`):
+  "state untouched" is no longer literally true — the resolved check is
+  re-resolved and written, the outstanding interaction is untouched (F-48,
+  F-54).
 - `draft-spec.md` R-21/R-25: a bare time of day is refused (`TimeOfDay`).
 - `draft-spec.md` R-44 and §5.2's taxonomy: `Shape`, `DuplicateKey`,
   `NestedHints`, `TimeOfDay`, `SpanFault` are new names; "malformed JSON" and

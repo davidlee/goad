@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21"],
+  "description":  "Whitespace around a value is not part of what the author wrote, on either of R-21's forms: an absolute instant with a trailing space is the instant it names. Forgiving the space on a span and refusing it on an instant would be one rule stated twice with different answers (F-55).",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "2026-08-23T05:00:00+10:00 ",
+  "expect":       { "instant": "2026-08-22T19:00:00Z" }
+}
