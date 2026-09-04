@@ -1644,3 +1644,56 @@ reconciled.*
   the expectation budget are **not** repaired: each is a design judgement or an
   internal inconsistency rather than a false measurement, and each is carried as
   a DF entry in `plan.md` for the audit's *Design drift not reconciled*.
+
+### 2026-09-05 — §5.1's artifact map, repaired again — this time by executing it
+
+*Autonomy grant.* The split ran; four of its claims were false and the compiler,
+clippy and `git diff` said so. `review-plan.md` round 2 (F-34…F-37) holds the
+findings and the evidence; this entry holds the design decision.
+
+- **Asked:** PHASE-01 was written to be §5.1's audit — the brief's own words,
+  *"executing PHASE-01 IS their audit"*. It found four defects the previous round
+  did not. Repair `design.md`, or carry them as DF entries?
+- **Decided:** repair §5.1, and **only** §5.1, exactly as the previous round
+  did, on the same test: a *false measurement* is repaired; a design *judgement*
+  the implementation departed from is a DF entry. Four repairs:
+  - **the R100 sentence** (F-37). "The 88 fixtures and nothing else" is 92.
+    `src/semantics/error.rs`, `src/semantics/mod.rs`,
+    `src/semantics/protocol/mod.rs` and `src/shell/backend/mod.rs` moved
+    byte-identical, because the change their rows permit turned out not to be
+    needed. The number the map should have carried is not a bigger equality: the
+    property is **⊇** — every fixture is an `R100`, and every `R100` that is not
+    a fixture is named.
+  - **the `tests/integration/**` row** (F-35). `round_trip.rs`'s README case
+    rests on cargo's *working directory*, which the split moves from the
+    repository root to `crates/goad-shell`. No import change reaches the literal:
+    it is in `examples/typescript/README.md`, which the map marks unchanged. The
+    row now names the rebase — `CARGO_MANIFEST_DIR` + `../..`, §12.8's own rule.
+  - **the `boundary.rs` row** (F-36). The `src/` ÷ `tests/` division costs three
+    lint repairs, not two. `clippy.toml`'s four `allow-*-in-tests` keys stop
+    applying the moment an item moves from a test target into a library, so
+    `indexing_slicing` joins the two the plan foresaw.
+  - **the "change permitted" column, as a class** (F-34). A comment that names a
+    path the map moves, or that states the `shell` feature and the two-column
+    gate §5.6 retires, is false the moment the split lands. Correcting it is
+    permitted in every row and bounded to exactly that.
+- **Why:** the same test as before, and the same lesson one turn later. Round 1
+  of the plan review derived `88` **by command** and then wrote *"and nothing
+  else"* **by reading** — and the assertion beside the measurement is what was
+  wrong. Every one of these four was reachable only by running the split; none
+  was reachable by reading it, which is why five design rounds and one plan round
+  did not find them. That is the argument for executing rather than reviewing,
+  restated with new evidence rather than asserted again.
+- **Rejected:** carrying F-35 as a DF entry and leaving the map to say the
+  `include_str!` is `round_trip.rs`'s only change. The gate is **red** on that
+  reading — the case fails — so the map does not stand as written and a DF entry
+  would be a false claim that it does. Also rejected: editing
+  `examples/typescript/README.md` so the relative path suits the new package
+  root. Its path is right for the reader it is written for, and F-16's claim is
+  precisely that *the config a reader copies* works; rewriting the README to
+  suit the test would have inverted the test's whole subject.
+- **Consequence:** §5.1 is again the only section touched, and the three DF
+  entries the previous round left standing (DF-5, DF-6, DF-7) are untouched —
+  though DF-6 is now half-discharged in code: `Scan` carries the
+  `#[derive(Debug)]` §5.6's block omits, so §5.6 and the tree disagree, and that
+  is the audit's *Design drift not reconciled*.

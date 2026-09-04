@@ -1,0 +1,29 @@
+[package]
+name                 = "goad-shell"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+repository.workspace = true
+publish.workspace    = true
+autotests            = false
+
+# The stratum that is allowed a runtime and a filesystem. No `slint`, and never
+# `goad` (§5.6's allowlist, which PHASE-02 turns into a test).
+[dependencies]
+goad-semantics = { workspace = true }
+jiff           = { workspace = true }
+serde          = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }
+toml           = { workspace = true }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "integration"
+path = "tests/integration/main.rs"
+
+[[test]]
+name = "shape"
+path = "tests/shape/main.rs"

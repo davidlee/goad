@@ -5,7 +5,8 @@
 **Reviewer:** fresh agent, walking the real tree with `git ls-files`, `grep` and
 `just check` rather than re-reading the design.
 **Opened:** 2026-09-05
-**State:** resolved
+**State:** resolved — round 1 (`F-1`…`F-33`, reading the tree) and round 2
+(`F-34`…`F-37`, executing PHASE-01) both closed
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -1173,3 +1174,193 @@ commands were cheap: `git ls-files`, `git ls-tree` at three commits, `grep -n`,
 `grep -c`, and one `just check`. The measured defect rate in `plan.md`'s freshly
 written text was high, and the highest-yield target was the passage five previous
 rounds had read most often. Reading was not evidence. It still is not.
+
+---
+
+## Round 2 — the execution round (PHASE-01)
+
+**Raised by:** the compiler, `cargo clippy`, `cargo test` and
+`git diff --find-renames`, during PHASE-01's execution on 2026-09-05.
+**Why it is in this ledger and not a new one:** this round's subject is the same
+as round 1's — `plan.md` PHASE-01 and, through it, `design.md` §5.1's artifact
+map. Round 1 closed with the map "correct at `ba6fb16`" and the split
+deliberately not rehearsed, on the argument that *executing PHASE-01 is the audit
+of the map*. This is that audit's findings. Ids continue from F-33; they are
+immutable, and the protocol above is unchanged.
+
+**Method:** nothing here was read. Every finding is a command's output — a failed
+compile, a clippy error, a failing test, or `git diff --find-renames --name-status
+-M 54a76aa`. Round 1's closing sentence was *"reading was not evidence; it still
+is not."* Four findings in a passage two rounds had just repaired says the same
+thing one level down: **round 1 derived `88` by command and then asserted
+`and nothing else` by reading, and the assertion is what was wrong.**
+
+### F-34 — EX-5a's permitted-change vocabulary has no entry for a comment the split falsifies
+
+**Severity:** major
+**Location:** `plan.md` PHASE-01/EX-5a and PS-1; `design.md` §5.1, the "change
+permitted" column
+
+**Expected:** every `+`/`-` line in a renamed non-identical file is a `use` line,
+a `mod` line, a `#[path]`/`#[cfg…]` attribute, a path string literal, an
+`include_str!` argument, or a manifest key. Anything else is PS-1 / S-6.
+**Observed:** nine comment lines across seven files fall outside that list and
+are false the moment the split lands, because they state the very thing the
+split removes — the `shell` feature, the two-column gate, or a path the map
+moves. Three of them are in **production sources**, which is exactly PS-1's
+trigger; none of the nine is a redesign, or even a change to code.
+**Evidence:** `grep -rn 'no-default-features\|feature = "shell"\|required-features'
+src/ tests/` at `<pre-split>` → four files. `grep -rn 'tests/protocol\|tests/integration\|src/shell\|src/semantics' src/ tests/*/*.rs` → seven further sites.
+The nine, by post-split path:
+
+| file | line | what it named |
+|---|---|---|
+| `crates/goad-shell/src/lib.rs` | 2–3 | "Compiled only with the `shell` feature" |
+| `crates/goad-semantics/src/schedule.rs` | 254 | `tests/protocol/fixtures/schedule/` |
+| `crates/goad-shell/src/backend/process.rs` | 327 | `tests/integration/transport.rs` |
+| `crates/goad-semantics/tests/protocol/main.rs` | 1–3 | "both feature columns", `--no-default-features` |
+| `crates/goad-shell/tests/integration/main.rs` | 2–3, 7 | `required-features = ["shell"]`; `tests/protocol/main.rs` |
+| `crates/goad-shell/tests/integration/failure_matrix.rs` | 4 | `tests/protocol/fixtures/protocol/` |
+| `crates/goad-shell/tests/integration/harness.rs` | 29, 70 | `tests/protocol/boundary.rs` |
+| `crates/goad-shell/tests/integration/transport.rs` | 585, 621 | `tests/protocol/boundary.rs`, `tests/protocol/transport_shape.rs` |
+| `crates/goad-shell/tests/shape/transport_shape.rs` | 260 | `src/shell/backend/process.rs` |
+
+**Disposition:** doc-wrong
+**Response:** the vocabulary gains a seventh entry, and it is EX-8's own
+principle generalised rather than a new indulgence. EX-8 already *requires* the
+`dead_code`/`unreachable_pub` carve-out comment in `Cargo.toml` to be rewritten,
+on the ground that "shipping the old rationale is shipping a false statement
+about the gate" — a comment is not exempt from being true. The entry is
+deliberately narrow: **a comment or doc comment whose change is confined to
+naming a path the map moves, or to dropping a statement about the feature matrix
+EX-9 retires.** Every such change is listed file by file in the phase sheet with
+its hunk, so it is detected by EX-13 rather than self-reported. Anything wider —
+a comment that changes what the code *means* — is still PS-1.
+
+**PS-1's letter was engaged and the phase did not stop.** Three of the nine are
+in production sources, which is PS-1's exact trigger. Recorded rather than
+narrated away: PS-1's stated purpose is that "a production file that needs a
+change beyond its import block is R4's signal that the split is a redesign", and
+deleting a sentence that documents a feature the same commit deletes is the
+opposite of a redesign. The three lines are in the phase sheet with their hunks
+so the audit can disagree.
+
+**Outcome:** verified
+
+### F-35 — the README-config case rests on cargo's working directory, which the split moves
+
+**Severity:** blocker
+**Location:** `plan.md` PHASE-01/EX-5b; `design.md` §5.1, the
+`tests/integration/{…}` row
+
+**Expected:** `round_trip.rs`'s only named non-identical change is
+`:49`'s `include_str!` argument, re-rooted four levels.
+**Observed:** re-rooting the `include_str!` is necessary and not sufficient. The
+case is `the_readme_s_own_config_loads_and_runs_the_example`, and it **fails**
+after the split. The README's config is
+`command = ["deno", "run", "-A", "./examples/typescript/backend.ts"]` — a path
+relative to the *process working directory*. Cargo runs a test binary with the
+**package** root as its cwd; before the split that was the repository root, and
+after it is `crates/goad-shell`. No `use` line, `mod` line, path literal or
+`include_str!` argument in any file the map may change repairs this: the offending
+literal lives in `examples/typescript/README.md`, which the map marks **unchanged**
+and PHASE-01's Surfaces mark **not touched**.
+**Evidence:** `cargo test --workspace` after the relocation —
+`round_trip.rs:56 panicked: a failure: backend exited with status 1`, with every
+other case in the target green. The map's row and EX-5b's table name six
+non-identical changes for this tier; this is a seventh, and the only one that a
+green gate could not be reached without.
+
+**Disposition:** fix-now, and §5.1 repaired
+**Response:** the test rebases the README's relative argument onto the workspace
+root before running it — `CARGO_MANIFEST_DIR` joined with `../..`, which is the
+rule §12.8 and §5.6 already state for every other path in this tier, and state
+for exactly this reason: *a test binary's working directory is not something to
+rely on*. Slice 001 never needed it here because the package root and the
+repository root were the same directory; the split separates them, and the case
+was resting on the coincidence. The README is **not** edited: its path is right
+for the reader it is written for, and F-16's claim — that the config a reader
+copies works — is preserved rather than weakened. §5.1's `tests/integration/**`
+row gains the change; EX-5b's table gains a seventh row.
+**Rejected:** editing the README's toml (wrong for its reader, and outside this
+phase's surfaces); `std::env::set_current_dir` in the test (process-global and
+racy under `cargo test`'s in-process parallelism); deleting the case (weakening
+the gate, which is a hard stop).
+
+**Outcome:** verified
+
+### F-36 — EX-5c's "exactly four things" is five, and the fifth is the same class as the second and third
+
+**Severity:** major
+**Location:** `plan.md` PHASE-01/EX-5c; `clippy.toml:20-23`
+
+**Expected:** "`boundary.rs`'s change at PHASE-01 is exactly four things, and a
+fifth is S-6": the `src/` ÷ `tests/` division, `#[derive(Debug)]` on `Scan`, a
+`# Errors` section on `Scan::run`, and the workspace-root rebase.
+**Observed:** a fifth is compile-stopping under the gate, and it is the same kind
+of thing as the second and third — a lint that was exempt in a test target and is
+not exempt in a library. `camel_segments` reads `bytes[offset - 1]` and
+`bytes[offset - 2]`; `clippy::indexing_slicing` is `deny`, and
+`clippy.toml`'s `allow-indexing-slicing-in-tests = true` stopped applying the
+moment the function moved from `tests/protocol/boundary.rs` into
+`crates/goad-boundary/src/scan.rs`.
+**Evidence:** `cargo clippy --workspace --all-targets -- -D warnings` →
+`error: indexing may panic` at `crates/goad-boundary/src/scan.rs:219` and `:225`,
+`= note: requested on the command line with -D clippy::indexing-slicing`.
+
+**Disposition:** fix-now, and the class named
+**Response:** the reads become a self-zip and a `.get`, which is the same two
+bytes and no `#[expect]` — EX-5c's own argument for items 2 and 3 ("an
+`#[expect]` here is S-1 budget spent for nothing") applies unchanged, and the
+A-2 budget is still **two unspent**. The class, which is the part worth keeping:
+**`clippy.toml`'s four `allow-*-in-tests` keys are a hidden boundary, and every
+item relocated from a test target into a library crosses all four at once** —
+`unwrap_used`, `expect_used`, `panic` and `indexing_slicing`. EX-5c enumerated
+the lints it thought of and did not consult `clippy.toml`. `assert_clean`, which
+`panic!`s, was placed in `tests/checks/` for this reason and not in the library.
+PHASE-02, which moves more of this file, inherits the class.
+
+**Outcome:** verified
+
+### F-37 — the R100 set is 92, not 88; four module roots move byte-identical
+
+**Severity:** major
+**Location:** `plan.md` PHASE-01/EX-5; `design.md` §5.1, the split table preamble
+
+**Expected:** "`git diff --find-renames --name-status -M <pre-split> HEAD |
+grep -c '^R100'` **equals** `git ls-files tests/protocol/fixtures | wc -l`", and
+§5.1's "the byte-identical (`R100`) renames the split produces are **the 88
+fixtures and nothing else**".
+**Observed:** the count is **92**. The four extra are not fixtures and are not a
+defect — they are module roots whose content named nothing the split changes:
+
+```
+R100  src/semantics/error.rs           -> crates/goad-semantics/src/error.rs
+R100  src/semantics/mod.rs             -> crates/goad-semantics/src/lib.rs
+R100  src/semantics/protocol/mod.rs    -> crates/goad-semantics/src/protocol/mod.rs
+R100  src/shell/backend/mod.rs         -> crates/goad-shell/src/backend/mod.rs
+```
+
+`error.rs` had no cross-stratum import to rewrite; the three `mod.rs` files
+carried a `mod` list that is already exactly right in its new home, so the map's
+own "change permitted" column — "the `mod` list", "imports; `mod.rs` keeps its
+name" — permitted a change that turned out not to be needed.
+**Evidence:** `grep -c '^R100'` on the walk → 92;
+`grep '^R100' | grep -c 'tests/protocol/fixtures'` → 88;
+`git ls-files tests/fixtures | wc -l` → 88.
+
+**Disposition:** doc-wrong
+**Response:** §5.1's sentence is repaired to state 92 and to say what the four
+are. EX-5's equality is the wrong shape and the repair is not a bigger number:
+the property worth asserting is **⊇**, not **=** — *every fixture is an `R100`,
+and every `R100` that is not a fixture is named*. An equality on this number
+punishes the split for moving a file more cleanly than predicted, which is the
+opposite of what the criterion is for. `tests/backends/**` appearing in the walk
+not at all — the half of EX-5 that is a genuine detector — holds exactly: **0
+rows**.
+
+This is the same defect as F-1 and F-17, one level down. Round 1 measured `88` by
+command and then wrote "and nothing else" from reading. The number was right and
+the universal beside it was not.
+
+**Outcome:** verified

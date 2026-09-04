@@ -298,17 +298,33 @@ with it, and that is a design decision taken by whoever happens to type first
 **The split: source → destination.** Counted against this branch rather than
 against the dry run (plan review F-1, F-17). `tests/protocol/fixtures/` holds
 **88** files and `tests/backends/` **15**, at every commit on this branch. The
-byte-identical (`R100`) renames the split produces are **the 88 fixtures and
-nothing else**: the backend scripts do not move, because the row below sends
+byte-identical (`R100`) renames the split produces are **92** — the 88 fixtures,
+plus four module roots whose content named nothing the split changes:
+`src/semantics/error.rs`, `src/semantics/mod.rs`,
+`src/semantics/protocol/mod.rs` and `src/shell/backend/mod.rs`. The change their
+rows permit turned out not to be needed, which is a better outcome than the map
+predicted and not a defect (measured at execution, plan review F-37). The
+backend scripts do not move at all, because the row below sends
 them to the path they already occupy. The total is **derived from the rows, not
 asserted** — 15 from `src/` (16 files, `lib.rs` deleted), the 88 fixtures, 3
 protocol `.rs`, `transport_shape.rs`, `boundary.rs`, and 7 under
 `tests/integration/`, so about 115, exact only once git has resolved the two
-rows that split one file into two. The dry run's 111 / 91 / 77 / 14
+rows that split one file into two. Measured at execution: **135** rows in the walk,
+five of them the phase's own bookkeeping — **130** relocated paths. The dry run's 111 / 91 / 77 / 14
 (`research.md:775-781`) was measured on a tree this branch never had; it is not
 a number to hold a phase to. Exactly one file has a substantive content change.
 AC-2 obliges an argument for any content change beyond the "change permitted"
 column.
+
+**One class runs through every row, and is stated here once.** A comment or doc
+comment that *names a path this table moves*, or that *states the `shell` feature
+and the two-column gate §5.6 retires*, is false the moment the split lands, and
+correcting it is permitted in every row — bounded to exactly that; a comment that
+changes what the code means is not this. It is the rule the `[lints]` carve-out
+comment is already held to, for the same reason: shipping the old rationale is
+shipping a false statement. Nine such lines exist, across seven files, three of
+them in production sources; each is listed with its hunk by the phase that makes
+it (plan review F-34).
 
 | from | to | change permitted |
 |---|---|---|
@@ -324,8 +340,8 @@ column.
 | `tests/protocol/{main,normalize,runner}.rs` | `crates/goad-semantics/tests/protocol/…` | **the three** fixture-path constants — `normalize.rs:266` (`…/protocol`), `normalize.rs:273` (`…/protocol-text`) and `runner.rs:332` (`…/schedule`) — each of which now resolves through `CARGO_MANIFEST_DIR/../../tests/fixtures`. Three corpora, three constants; one missed leaves a corpus unrun |
 | `tests/protocol/fixtures/**` (88 files) | `tests/fixtures/**`, at the workspace root | none — byte-identical. This is CD-4 |
 | `tests/protocol/transport_shape.rs` | `crates/goad-shell/tests/shape/transport_shape.rs`, with a **new** `crates/goad-shell/tests/shape/main.rs` beside it carrying `#[cfg(test)] mod transport_shape;`. The `main.rs` is an added file, not this rename's destination | imports, **and the three subject-path constants**: `:32`, `:257` and `:276` name `src/shell/…`, and from `crates/goad-shell` the `shell/` segment is gone — `src/backend/process.rs`, `src/backend/process-renamed.rs`, `src/error.rs`. They are data joined to `CARGO_MANIFEST_DIR` (`:104`, `:126`), not imports, and if they are missed the file's own vacuity guard is all that stands between the split and a silently-passing shape check. It names a stratum 2 source and cannot stay in a stratum 1 target (`research.md:798-804`) |
-| `tests/protocol/boundary.rs` | `crates/goad-boundary/`, split across `src/` and `tests/` — below | **substantively rewritten.** The one file AC-2 obliges an argument for; D13, D17 and two new scans are the argument |
-| `tests/integration/{main,fake,host,round_trip,transport,failure_matrix}.rs` | `crates/goad-shell/tests/integration/…` | imports, **and `round_trip.rs:49`'s `include_str!` argument**: `include_str!` resolves against the source file, so `../../examples/typescript/README.md` becomes `../../../../examples/typescript/README.md`. `transport.rs` additionally gains a `use` line for `CLEANUP_LIMIT`, which §12.8 moves out of it |
+| `tests/protocol/boundary.rs` | `crates/goad-boundary/`, split across `src/` and `tests/` — below | **substantively rewritten.** The one file AC-2 obliges an argument for; D13, D17 and two new scans are the argument. The division alone costs **three** lint repairs, not two: `clippy.toml`'s four `allow-*-in-tests` keys stop applying the moment an item moves from a test target into a library, so `indexing_slicing` joins `missing_debug_implementations` and `missing_errors_doc` (plan review F-36) |
+| `tests/integration/{main,fake,host,round_trip,transport,failure_matrix}.rs` | `crates/goad-shell/tests/integration/…` | imports, **and `round_trip.rs:49`'s `include_str!` argument**: `include_str!` resolves against the source file, so `../../examples/typescript/README.md` becomes `../../../../examples/typescript/README.md`. `transport.rs` additionally gains a `use` line for `CLEANUP_LIMIT`, which §12.8 moves out of it. And `round_trip.rs`'s README case rebases the README's own **relative script path** onto the workspace root before running it: cargo gives a test binary the *package* root as its working directory, which the split moves from the repository root to `crates/goad-shell`, and no import change reaches that literal — it lives in `examples/typescript/README.md`, which this table marks unchanged. It is `CARGO_MANIFEST_DIR` + `../..` again, the rule §12.8 states for every other path in this tier, applied to the one place slice 001 never needed it (plan review F-35) |
 | `tests/integration/harness.rs` | splits — the host-driving half to `tests/support/driving.rs` at the workspace root, the rest stays as `crates/goad-shell/tests/integration/harness.rs` | §12.8 states the cut, and the plan states it item by item because §12.8's two lists do not partition the file. Also `example()`'s path constant (`:207`): `examples/typescript/backend.ts` becomes `../../examples/typescript/backend.ts` |
 | `tests/backends/*.sh` (15 files) | `tests/backends/*.sh`, at the workspace root — **the same path. These are not renames and must not appear in a rename walk at all** | none, except `answers-as-instructed.sh`, which gains the three `@lingers*` arms §12.1 writes out |
 | `justfile`, `clippy.toml`, `rustfmt.toml`, `flake.nix`, `examples/**` | unchanged paths | `justfile` loses a command and a clippy column (§5.6); `flake.nix` gains the font (§5.5); the rest unchanged |

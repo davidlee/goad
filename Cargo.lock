@@ -62,9 +62,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "goad"
+name = "goad-boundary"
+version = "0.1.0"
+
+[[package]]
+name = "goad-semantics"
 version = "0.1.0"
 dependencies = [
+ "jiff",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "goad-shell"
+version = "0.1.0"
+dependencies = [
+ "goad-semantics",
  "jiff",
  "serde",
  "serde_json",

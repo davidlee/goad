@@ -1,0 +1,20 @@
+[package]
+name                 = "goad-boundary"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+repository.workspace = true
+publish.workspace    = true
+autotests            = false
+
+# No dependencies, and none on any member: it reads manifests and sources as
+# text, which is what lets it scan every stratum without reaching up into one
+# (D17). `toml` arrives at PHASE-02 with the allowlist that needs it.
+[dependencies]
+
+[lints]
+workspace = true
+
+[[test]]
+name = "checks"
+path = "tests/checks/main.rs"

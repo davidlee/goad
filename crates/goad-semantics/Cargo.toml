@@ -1,0 +1,26 @@
+[package]
+name                 = "goad-semantics"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+repository.workspace = true
+publish.workspace    = true
+
+# Test targets are declared, not discovered, so a target's name and path are a
+# statement in the manifest rather than a consequence of where a file landed.
+autotests = false
+
+# No I/O, no async runtime and no clock (ADR-001). What holds that here is the
+# absence of an entry: `tokio` and `toml` are not reachable from this crate, and
+# `error[E0433]` is the instrument.
+[dependencies]
+jiff       = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "protocol"
+path = "tests/protocol/main.rs"

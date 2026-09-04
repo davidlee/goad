@@ -1,57 +1,48 @@
-[package]
-name = "goad"
-version = "0.1.0"
-edition = "2024"
-description = "A programmable personal intervention shell"
-license = "MIT"
+[workspace]
+resolver = "3"
+
+# Enumerated, never a glob. A glob hides from a reader exactly what
+# `goad-boundary` exists to make visible, and its own check fails on one
+# (`Breach::GlobMember`, `design.md` §5.6). The order is the strata, then the
+# member that is not one.
+members = [
+  "crates/goad-semantics",
+  "crates/goad-shell",
+  "crates/goad-boundary",
+]
+
+[workspace.package]
+version    = "0.1.0"
+edition    = "2024"
+license    = "MIT"
 repository = "https://github.com/davidlee/goad"
-readme = "README.md"
-keywords = ["intervention", "desktop", "protocol", "programmable"]
-categories = ["gui"]
 
 # `publish = false` is not provisional: nothing here is meant for crates.io.
-# It also silences `clippy::cargo_common_metadata` on its own — measured — so
-# the metadata above is carried for correct attribution, not to pass the gate.
+# It also silences `clippy::cargo_common_metadata` on its own — measured — which
+# is why no member carries `description`, `keywords`, `categories` or `readme`:
+# they would buy nothing and cost an unscanned surface (PL-11).
 publish = false
 
-# Test targets are declared, not discovered, because one of them must be
-# feature-gated and `required-features` has nowhere else to live.
-autotests = false
-
-[dependencies]
+# Versions and base feature sets live here; every member entry is
+# `{ workspace = true }`, adding features where `design.md` §5.1's member table
+# says so.
+[workspace.dependencies]
+goad-semantics = { path = "crates/goad-semantics" }
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
 jiff       = { version = "0.2", default-features = false }
-tokio      = { version = "1", optional = true,
+tokio      = { version = "1",
                features = ["process", "time", "rt", "io-util", "macros"] }
 
-# Backend configuration parsing, first used at PHASE-07. Optional and inside
-# `shell` for exactly tokio's reason: nothing stratum 1 must not need may be
-# required in order to build stratum 1, so ADR-002's T1 does not fire.
-#
-# It is declared here rather than at PHASE-07 because the manifest is PHASE-01's
-# surface, and an entry criterion may not require work the entering phase owns
-# (plan review finding F-7). Unused for six phases, which costs nothing:
-# `unused_crate_dependencies` is deliberately off in `[lints.rust]` below.
-toml       = { version = "1", optional = true }
-
-[features]
-default = ["shell"]
-# `dep:` on both, not a bare name: a bare `toml` would also mint an implicit
-# `toml` feature, which is a second way into the graph that nothing gates.
-shell   = ["dep:tokio", "dep:toml"]
-
-[[test]]
-name = "protocol"
-path = "tests/protocol/main.rs"
-
-[[test]]
-name = "integration"
-path = "tests/integration/main.rs"
-required-features = ["shell"]
+# Backend configuration parsing. The gating key it carried is gone with the
+# `shell` feature it belonged to: that key is not meaningful in
+# `[workspace.dependencies]`, and a member inheriting it would carry a
+# dependency no feature can switch on (§5.6, PHASE-01/EX-9). `goad-boundary`
+# takes it at PHASE-02, with the manifest allowlist that needs it.
+toml       = { version = "1" }
 
 # ---- Rust lints ----
-[lints.rust]
+[workspace.lints.rust]
 # Absolute nasties.
 #
 # `warnings = "deny"` is deliberately NOT set here, and no `priority` trick
@@ -75,23 +66,22 @@ unsafe_code = "deny"
 # missing_docs = "deny"
 missing_debug_implementations = "deny"
 
-# Dead/unused things should not survive agent iterations — with two carve-outs.
+# Dead/unused things should not survive agent iterations — with one carve-out.
 #
-# `dead_code` and `unreachable_pub` are transient *by construction* here, and
-# both cases are structural rather than sloppiness:
-#   - the `--no-default-features` column drops `shell`, so every stratum 1 item
-#     whose only caller lives in stratum 2 is dead in that column. That is
-#     ADR-001's feature gate working, not a defect.
-#   - a phased plan lands a type one phase before its caller.
-# At `deny` the only escape is peppering `#[cfg_attr(…, expect(dead_code, …))]`
-# across `semantics/`. At `warn` the noise stays visible and the build still
-# goes. `expect(dead_code, reason = …)` remains available for the cases worth
+# `dead_code` and `unreachable_pub` are transient *by construction* here: a
+# phased plan lands a type one phase before its caller. At `deny` the only
+# escape is peppering `#[cfg_attr(…, expect(dead_code, …))]` across a member.
+# At `warn` the noise stays visible and the build still goes.
+# `expect(dead_code, reason = …)` remains available for the cases worth
 # *recording*; it self-clears via `unfulfilled_lint_expectations`.
 #
 # Both are left at their default `warn` explicitly rather than by omission, so
-# that the carve-out is a decision on the page and not an oversight. The phase
-# gate still refuses dead code in the default-features column; only the
-# `--no-default-features` line allows it, because there it is structural.
+# that the carve-out is a decision on the page and not an oversight. It buys
+# **nothing at the gate**: the gate is one column now, `cargo clippy --workspace
+# --all-targets -- -D warnings`, and `-D warnings` promotes both back to errors
+# there. The second column and its `-A dead_code -A unreachable_pub` are retired
+# with the `shell` feature (`design.md` §5.6); what `warn` still buys is a
+# `cargo check` in the inner loop that reports rather than stops.
 #
 # The rest of the group stays denied: `unused_imports`, `unused_variables`,
 # `unused_mut`, `path_statements` have no legitimate transient case, and
@@ -117,7 +107,7 @@ explicit_outlives_requirements = "deny"
 unexpected_cfgs = "deny"
 
 # ---- Clippy lints ----
-[lints.clippy]
+[workspace.lints.clippy]
 # Broad groups first, with lower priority so individual overrides below win.
 all = { level = "deny", priority = -2 }
 pedantic = { level = "deny", priority = -2 }
