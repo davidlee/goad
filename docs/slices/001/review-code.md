@@ -1115,6 +1115,94 @@ Each Response's claim, checked by reverting the repair in the scratch copy and r
 
 Not verified: F-44 (tolerated, no change).
 
+### Round 4, fresh reviewer — F-52…F-54
+
+Raised by a fresh Claude subagent (general-purpose, no thread history) against `83d1b77`, the round-3 repairs only, given the ledger, the brief, the design, the draft spec and the diff. Method, in its own words: Ran `just check` on `83d1b77`: exit 0 (default column 42 lib + 58 integration + 16 protocol; `--no-default-features` 25 lib + 16 protocol; `deno check`, clippy in both columns, `cargo fmt --check` clean). Copied the repo minus `target` and `.git` to `scratchpad/r4/repo` and worked only there: a probe test in the protocol target over `parse_span` and `read_response`, one in the integration target over `Config::parse` and a stale-`respond` sequence against `Host`, a probe appended to `boundary.rs` over `mentions` and `camel_segments`, and `revert.sh`, which reverts each round-3 repair in turn, runs the test its Response names, and restores the file from the working tree (`cmp` clean afterwards). jiff is 0.2.35. Every output quoted below is my own run. No repository file was edited.
+
+### F-52 — Trailing whitespace defeats the time-of-day refusal: `"18:00:00 "` is an eighteen-hour span on the wire and in config
+
+**Severity:** minor
+**Location:** `src/semantics/schedule.rs:126`–`:134` (`parse_span`), `:145`–`:163` (`looks_like_a_time_of_day`, `has_the_shape_of_a_time_of_day`, `all_digits`)
+**Expected:** F-2: a bare wall-clock time is refused as ambiguous rather than read as hours; F-37 and F-46's own standard, "a seam … is one no backend author could predict"; `parse_span`'s doc: jiff "would read `\"18:00:00\"` as eighteen hours, and a backend author who wrote it almost certainly meant six this evening".
+**Observed:** both rules see the raw string and both fail on a trailing space or tab — the last group `"00 "` is not all digits, and `civil::Time` refuses it — but jiff's span grammar tolerates trailing whitespace, so the value falls through to the parse F-2 exists to keep it from. Leading whitespace is refused by jiff too, so the hole is one-sided. Pre-existing under every rule since F-2's repair (the `civil::Time` rule and the round-2 shape rule both fail on the same byte); round 3 probed leading whitespace only. The config grammar inherits it.
+**Evidence:**
+```
+R4span 18:00:00               civil=false parse_span=Ok(18h)   wire=Ok(schedule=Some("2026-08-23T22:12:00Z"))   ← "18:00:00 " (trailing space)
+R4span 18:00:00	              civil=false parse_span=Ok(18h)   wire=Ok(schedule=Some("2026-08-23T22:12:00Z"))   ← "18:00:00\t"
+R4span 1:30:00                civil=false parse_span=Ok(1h 30m) wire=Ok(schedule=Some("2026-08-23T05:42:00Z"))  ← "1:30:00 "
+R4span  18:00:00              civil=false parse_span=Err(Unparseable(expected duration to start with a unit value …))   ← " 18:00:00" (leading)
+R4config timeout=18:00:00         Ok(timeout=64800s)   ← timeout = "18:00:00 "
+R4config timeout=18:00:00	        Ok(timeout=64800s)   ← timeout = "18:00:00\t"
+```
+Cheapest repair: apply both rules to `raw.trim_end()` (or `trim()`), since the question is what the author wrote and whitespace is not part of it; fixture `18:00:00 ` refused as `TimeOfDay`.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** `parse_span` trims the string before either time-of-day rule or the span parse sees it: whitespace is not part of what the author wrote. Fixture `"18:00:00 "` refused as `TimeOfDay`.
+**Response:** repaired. `parse_span` binds `raw = raw.trim()` before either time-of-day rule or the span parse. Held by fixture `schedule/R-21-wall-clock-time-with-trailing-whitespace.json` (`"18:00:00 "` → `TimeOfDay`), red before the change (parsed as eighteen hours). Probed after: `"18:00:00\t"` and `" 18:00:00"` → `TimeOfDay`; `"90m "` and `" 90m"` → `PT1H30M`, where the leading form was `Unparseable` before — a widening, and the one the disposition asked for.
+
+**Outcome:**
+
+### F-53 — The `civil::Time` arm names unitless integers as times of day, and the diagnostic for `"18"` got worse than it was
+
+**Severity:** minor
+**Location:** `src/semantics/schedule.rs:146`
+**Expected:** brief §13: a diagnostic a backend author can act on; F-50's principle, "the message honest"; F-46's disposition reads "whatever `civil::Time` parses" as a clock form beside the colon shape, and its fixtures are `18:00:00.000` and `T18:00:00`.
+**Observed:** jiff's `civil::Time` also reads a bare hour and ISO basic forms, so `"18"`, `"00"`, `"1200"`, `"1800"`, `"180000"` and `"T18"` are now `TimeOfDay`, while `"5"`, `"24"`, `"123"` are `Unparseable` with jiff's "expected to find unit designator suffix" — the message that tells the author what was missing. Before F-46, `"18"` got that message too. So a two-digit integer under 24 is told it wrote a time of day and one of 24 or more is told it forgot a unit. Nothing is guessed, but the refusal names something the author did not write, which is the F-50 defect on the other arm. The config path inherits it: `timeout = "18"` says "a time of day is not a span".
+**Evidence:**
+```
+R4span 18                     civil=true  parse_span=Err(TimeOfDay)   wire=Discard[… schedule is a time of day, which is neither an instant nor a span: 18]
+R4span 00                     civil=true  parse_span=Err(TimeOfDay)
+R4span 1200                   civil=true  parse_span=Err(TimeOfDay)
+R4span 1800                   civil=true  parse_span=Err(TimeOfDay)
+R4span 180000                 civil=true  parse_span=Err(TimeOfDay)
+R4span T18                    civil=true  parse_span=Err(TimeOfDay)
+R4span 5                      civil=false parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or `secs`) after parsing integer))
+R4span 24                     civil=false parse_span=Err(Unparseable(expected to find unit designator suffix (e.g., `years` or `secs`) after parsing integer))
+R4config timeout=18               Err(backend.timeout = "18" is not a duration this host can resolve: a time of day is not a span)
+R4config timeout=5                Err(backend.timeout = "5" is not a duration this host can resolve: expected to find unit designator suffix (e.g., `years` or `secs`) after parsing integer)
+```
+One conjunct: consult `civil::Time` only when the string carries a `:` or a `T`/`t` designator (`T18:00:00` stays caught; `T18` and `1800` become `Unparseable`), plus a fixture for `18` asserting `Unparseable`.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** The clock parser is consulted only when the string carries a `:` or begins with `T`/`t`, so a unitless integer reaches the span parse and gets jiff's "expected unit designator" message; `T18:00:00` stays a time of day. Fixture `"18"` asserting `Unparseable`.
+**Response:** repaired. `looks_like_a_time_of_day` consults `civil::Time` only when `could_be_a_clock_form` — the string contains `:` or starts with `T`/`t`. Held by fixture `schedule/R-25-unitless-integer.json` (`"18"` → `Unparseable`), red before the change (`TimeOfDay`). Probed after: `18`, `1800`, `180000`, `5`, `24` → jiff's "expected to find unit designator suffix"; `T18`, `T18:00:00` → `TimeOfDay`.
+
+**Outcome:**
+
+### F-54 — F-48's repair left `State::resolve_to`'s doc and design §5.4 stating the rule it replaced
+
+**Severity:** nit
+**Location:** `src/shell/state.rs:56`–`:58`; `docs/slices/001/design.md:1611`, `:1615`–`:1619`
+**Expected:** F-48's Response: "`no_action` … writes the result with `state.resolve_to` … its doc says so and says why." The disposition puts R-29's rewording on the reconciliation list; the same rule is stated in two other places the disposition does not name.
+**Observed:** `resolve_to`'s doc still reads "Only a *successful* exchange may call this: every failure path leaves the resolved check exactly as it was (R-29, P2)", and `no_action` now calls it on every failure path including the stale-`respond` refusal. Design §5.4's paragraph "**Failure does not move the schedule.** Every failure path leaves `resolved_check` exactly as it was" and its state-diagram row "respond(stale id) — rejected, no backend call, state untouched" say the same. The behaviour is as dispositioned; the words around it are not.
+**Evidence:**
+```
+src/shell/state.rs:56:  /// Move the schedule. Only a *successful* exchange may call this: every
+src/shell/state.rs:57:  /// failure path leaves the resolved check exactly as it was (R-29, P2).
+src/shell/host.rs:290:    self.state.resolve_to(next_check);          ← inside no_action
+R4f48 t=04:12 ok(view,30m)      reported=Timestamp(2026-08-23T04:42:00Z)
+R4f48 t=04:42 stale respond      reported=Timestamp(2026-08-23T05:12:00Z) calls=1
+R4f48 t=04:50 ok(no next_check)  reported=Timestamp(2026-08-23T05:12:00Z) failure=false
+```
+The `resolve_to` doc is one sentence ("Every path that reports a schedule writes it — a failure resolves with no instruction, F-48"); §5.4 and the diagram row join R-29 on the reconciliation list.
+
+**Disposition:** fix-now for the code doc — **user decision 2026-09-04.** `State::resolve_to`'s doc says every path that reports a schedule writes it. `design.md` §5.4's paragraph and the diagram row join R-29 on session 3's reconciliation list; `design.md` is not touched mid-audit.
+**Response:** repaired for the code doc. `State::resolve_to`'s doc reads: every path that reports a schedule writes it, so the stored check is always the one the caller was last told. `design.md` §5.4's paragraph and the `respond(stale id)` diagram row are on the session-3 reconciliation list in `notes.md` beside R-29.
+
+**Outcome:**
+
+### Round 4 — confirmed round-3 repairs
+
+Each Response's claim, checked by reverting the repair in the scratch copy and running the test it names (`revert.sh`). Results verbatim.
+
+- **F-45** — path tokens matched by `contains` on `code_of(line)`. Revert (drop the `::` branch): `test boundary::a_token_matches_a_word_and_not_a_substring_of_one ... FAILED — "use crate::shell::host::Host;" names the domain and was missed`. Probes: `crate::shell`, `use crate::shell::x` → caught; `// crate::shell` → clean. Substring consequences, all latent (no such module or literal in `src/`): `crate::shells`, `crate::shell_x`, `mycrate::shell` and `let s = "use crate::shell::x";` are all caught — over-eager, so they fail loudly rather than pass silently; `let s = "// crate::shell"; use crate::shell::x;` is hidden by the documented `//`-in-a-string blind spot, which now covers path tokens too.
+- **F-46** — shape with fraction, `||` `civil::Time`. Full revert to the round-2 rule: `runner::every_scheduling_fixture_states_what_the_protocol_does ... FAILED` naming `R-21-wall-clock-time-with-a-fraction.json: expected TimeOfDay, got 2026-08-23T22:12:00Z`, `R-21-wall-clock-time-with-the-iso-designator.json: expected TimeOfDay, got Unparseable`, and `R-25-colons-with-nothing-between-them.json: expected Unparseable, got TimeOfDay`. Reverting the `civil::Time` arm alone: `FAILED` naming the iso-designator fixture only — so each half is pinned by its own fixture. Probes after: `1:30`, `1:30:00.5`, `18:00:00,5`, `18:00:00.000`, `T18:00`, `T18:00:00`, `18:00:00+10:00`, `0:0` → `TimeOfDay`; `1:30:00.`, `.5:00`, `1:30:00.5.5`, `18:00:00Z`, `18:00:00.5Z`, `1:30:00+1h`, `٣:٣٠`, `1 :30`, ` 1:30`, `::` → `Unparseable` with jiff's message; `-18:00:00` → `18h ago`, `+18:00:00` → `18h` (signed spans, per the Response — and `+18:00:00` loads as a config timeout, `-18:00:00` is refused as non-positive); `2026-08-23` → `Unparseable` from `parse_span`, `MissingOffset` on the wire (`civil::DateTime` reads a bare date); `1,5h` and `1.5h` → `1h 30m`. Coherent with F-2 as dispositioned, with two exceptions raised above: trailing whitespace (F-52) and unitless integers (F-53). `1:2:3:4:5` and `99:99` are `TimeOfDay` by the disposition's own `digits(:digits)+`; noted, not raised.
+- **F-47** — `NotAString` renders `raw`. Revert (drop the arm): `host::a_failure_and_a_discard_render_as_their_leaves_do ... FAILED — left: 0 right: 1`. Renders: `next_check 45 discarded: schedule must be a string, found number`; `true`, `[1,2,3]`, `{"a":1,"b":[1,{"c":null}]}` compact, `4.5`, `-0.0`, `1e+300` as serde prints them; an object holding a 200-byte string renders it whole. Unbounded, as the five `raw: String` variants already are; the line is sane.
+- **F-48** — `no_action` writes what it reports. Revert (drop `resolve_to`): `host::a_failure_at_an_elapsed_check_reports_the_default_poll_from_now ... FAILED — left: Timestamp(2026-08-23T05:20:00Z) right: Timestamp(2026-08-23T05:12:00Z)` at the second failure. `&mut self` changes nothing in `exchange`: the transport's result is destructured before either `no_action` call, so no borrow overlaps. The stale-`respond` path writes too (probe above: stale at `04:42` reports and stores `05:12`, a later no-instruction success stands on it). Neither `no_failure_moves_the_schedule` nor `a_successful_exchange_does_move_the_schedule` nor the R-29 rows of `failure_matrix.rs` becomes vacuous: every one runs its failure before the retained instant, where `resolve_from(None, now)` returns the retained value and writing it back is a no-op — `failure_matrix.rs:40`–`:44` already records that the seed cannot distinguish "unchanged" from "recomputed" and moves the check first. What is stale is the prose (F-54).
+- **F-49** — letter/digit boundary. Revert: `boundary::a_token_matches_a_word_and_not_a_substring_of_one ... FAILED — "let habit2 = 1;" names the domain and was missed`. `camel_segments`: `Site2Habit` → `Site, 2, Habit` (both tokens caught); `2site` → `2, site`; `site2site` → `site, 2, site`; `x86Site` → `x, 86, Site`; `H2O` → `H, 2, O`. `SITEID` → not caught, `/* a habit */` → caught, as the doc now says.
+- **F-50** — every group non-empty. Revert (`all_digits` without the emptiness check): `runner::every_scheduling_fixture_states_what_the_protocol_does ... FAILED` naming `R-25-colons-with-nothing-between-them.json: expected Unparseable, got TimeOfDay`. `::` renders `unparseable schedule: ::`.
+- **F-51** — documentation. `examples/typescript/backend.ts:104`: "They are stricter than the host about `null` on purpose: the host reads a nulled modelled key as omission, and a backend written from these types omits it." `deno check examples/typescript/backend.ts` exit 0. The claim it rests on — a nulled `hints`/`min` is omission — is held by the `R-51` fixtures round 3 already confirmed.
+
+Not verified beyond the above: nothing. The round is clean apart from F-52…F-54.
+
 ## Synthesis
 
 <!-- Written when the ledger resolves. The closure story: what the review

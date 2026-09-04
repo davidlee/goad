@@ -124,6 +124,10 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
 ///
 /// One `SpanFault` per way of not being a span.
 pub fn parse_span(raw: &str) -> Result<jiff::SignedDuration, SpanFault> {
+  // Whitespace is not part of what the author wrote. jiff's span grammar
+  // tolerates a trailing space where the time-of-day rules do not, and that
+  // gap is `"18:00:00 "` read as eighteen hours (F-52).
+  let raw = raw.trim();
   if looks_like_a_time_of_day(raw) {
     return Err(SpanFault::TimeOfDay);
   }
@@ -141,9 +145,17 @@ pub fn parse_span(raw: &str) -> Result<jiff::SignedDuration, SpanFault> {
 /// `"::"` unparseable rather than a time nobody wrote (F-50). The clock
 /// grammar is consulted as well because the shape is not all of it — `civil::
 /// Time` also reads the `T` designator — and because the question is what the
-/// author was writing, not which parser would take it.
+/// author was writing, not which parser would take it. It is consulted only
+/// for a value that carries a colon or the designator: it would also read a
+/// bare `18` or `1800` as an hour, and what the author of `"18"` needs to
+/// hear is that a unit is missing, not that they wrote a clock time (F-53).
 fn looks_like_a_time_of_day(raw: &str) -> bool {
-  has_the_shape_of_a_time_of_day(raw) || raw.parse::<jiff::civil::Time>().is_ok()
+  has_the_shape_of_a_time_of_day(raw)
+    || (could_be_a_clock_form(raw) && raw.parse::<jiff::civil::Time>().is_ok())
+}
+
+fn could_be_a_clock_form(raw: &str) -> bool {
+  raw.contains(':') || raw.starts_with(['T', 't'])
 }
 
 fn has_the_shape_of_a_time_of_day(raw: &str) -> bool {

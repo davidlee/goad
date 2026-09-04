@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-25"],
+  "description":  "Whitespace around a value is not part of what the author wrote. `\"18:00:00 \"` is the same time of day as `\"18:00:00\"` and is refused as one, rather than slipping past the refusal on a trailing space into an eighteen-hour span (F-52).",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "18:00:00 ",
+  "expect":       { "error": "TimeOfDay" }
+}

@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-25"],
+  "description":  "`\"18\"` is a number with no unit, and the useful thing to tell its author is that a unit is missing. It is not named as a time of day merely because a clock parser would take a bare hour: the clock is consulted only for a value that carries a colon or the `T` designator (F-53).",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "18",
+  "expect":       { "error": "Unparseable" }
+}

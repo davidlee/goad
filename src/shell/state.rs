@@ -53,8 +53,10 @@ impl State {
     self.resolved_check
   }
 
-  /// Move the schedule. Only a *successful* exchange may call this: every
-  /// failure path leaves the resolved check exactly as it was (R-29, P2).
+  /// Move the schedule. Every path that reports a schedule writes it, so the
+  /// stored check is always the one the caller was last told: an accepted
+  /// message resolves with its instruction, a failure resolves with none
+  /// (R-29, P2, F-48).
   pub fn resolve_to(&mut self, instant: Timestamp) {
     self.resolved_check = instant;
   }
