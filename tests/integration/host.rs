@@ -380,6 +380,7 @@ async fn a_failure_and_a_discard_render_as_their_leaves_do() {
   let (mut host, _calls) = host(vec![
     failing(BackendError::ExitStatus { code: Some(3) }),
     answering(br#"{"view":null,"next_check":"1 month"}"#),
+    answering(br#"{"view":null,"next_check":45}"#),
   ]);
 
   let failed = host.evaluate(now(), event()).await;
@@ -395,6 +396,12 @@ async fn a_failure_and_a_discard_render_as_their_leaves_do() {
   // The reason already ends with the raw value; the discard does not repeat it
   // (F-42).
   assert_eq!(discard.matches("1 month").count(), 1, "{discard}");
+
+  // The one reason that names only the type: the discard supplies the value
+  // (F-47).
+  let wrong_type = host.evaluate(now(), event()).await;
+  let typed_discard = only_discard(&wrong_type).to_string();
+  assert_eq!(typed_discard.matches("45").count(), 1, "{typed_discard}");
 }
 
 /// F-1: a scheduled check that has fired is not an "existing valid" check
@@ -426,15 +433,17 @@ async fn an_elapsed_check_is_consumed_and_the_default_poll_applies_from_now() {
 /// F-34: F-1's rule holds on the failure path too. A failure *at* the
 /// scheduled instant reports `now + default_poll`, not the instant that has
 /// just elapsed — otherwise a backend that cannot be spawned would have the
-/// timer respawn it in a tight loop until it recovered. The stored check does
-/// not move on failure (R-29): the instant reported is resolved for the
-/// caller, and only an accepted message writes state.
+/// timer respawn it in a tight loop until it recovered. F-48: what is reported
+/// is what is retained, so a later failure and a later success that brings no
+/// instruction both stand on the instant the caller was already told to wake
+/// at, rather than drifting it forward from each call's own `now`.
 #[tokio::test]
 async fn a_failure_at_an_elapsed_check_reports_the_default_poll_from_now() {
   let (mut host, _calls) = host(vec![
     answering(br#"{"view":null,"next_check":"30m"}"#),
     failing(BackendError::ExitStatus { code: Some(1) }),
     failing(BackendError::ExitStatus { code: Some(1) }),
+    answering(br#"{"view":null}"#),
   ]);
 
   let scheduled = host.evaluate(now(), event()).await;
@@ -443,18 +452,24 @@ async fn a_failure_at_an_elapsed_check_reports_the_default_poll_from_now() {
 
   let failed_at_the_instant = host.evaluate(fired_at, event()).await;
   assert!(failed_at_the_instant.failure.is_some());
+  let told_to_wake_at = instant("2026-08-23T05:12:00Z");
   assert_eq!(
-    failed_at_the_instant.next_check,
-    instant("2026-08-23T05:12:00Z"),
+    failed_at_the_instant.next_check, told_to_wake_at,
     "a failure at an elapsed check must report now + default_poll, not the past"
   );
 
   let later = instant("2026-08-23T04:50:00Z");
   let failed_later = host.evaluate(later, event()).await;
   assert_eq!(
-    failed_later.next_check,
-    instant("2026-08-23T05:20:00Z"),
-    "each failed exchange past the instant resolves from its own now"
+    failed_later.next_check, told_to_wake_at,
+    "a second failure before the reported wake must not push it later"
+  );
+
+  let succeeded_without_instruction = host.evaluate(later, event()).await;
+  assert!(succeeded_without_instruction.failure.is_none());
+  assert_eq!(
+    succeeded_without_instruction.next_check, told_to_wake_at,
+    "a success bringing no instruction stands on the wake the caller was told"
   );
 }
 

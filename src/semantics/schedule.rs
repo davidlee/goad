@@ -107,14 +107,14 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
 /// jiff without one (R-23). The conversion failing *is* the calendar-unit case —
 /// there is no other way for it to fail.
 ///
-/// A bare colon form is refused before the span parse sees it. jiff's friendly
+/// A time of day is refused before the span parse sees it. jiff's friendly
 /// grammar would read `"18:00:00"` as eighteen hours, and a backend author who
 /// wrote it almost certainly meant six this evening: brief §3.3 says that is a
-/// failure, not a guess (F-2). The rule is the *shape* — digits and colons
-/// only, at least one colon — not a clock grammar, so `"1:30:00"` is refused
-/// exactly as `"01:30:00"` is; a seam on the leading zero is one no backend
-/// author could predict (F-37). `"1 day 18:00:00"` is not bare and still
-/// parses as the span it is.
+/// failure, not a guess (F-2). Two rules say what a time of day is, because
+/// neither covers the other: the bare colon *shape*, so that `"1:30:00"` is
+/// refused exactly as `"01:30:00"` is (F-37); and whatever jiff's clock
+/// grammar accepts, so that `"T18:00:00"` and `"18:00:00.5"` are too (F-46).
+/// `"1 day 18:00:00"` is neither and still parses as the span it is.
 ///
 /// Sign and magnitude are the caller's business — a negative span is a valid
 /// `next_check` (R-28) and an invalid `timeout`, and only the caller knows
@@ -133,12 +133,33 @@ pub fn parse_span(raw: &str) -> Result<jiff::SignedDuration, SpanFault> {
     .map_err(SpanFault::CalendarUnit)
 }
 
-/// ASCII digits and colons only, with at least one colon: `18:00`, `1:30:00`,
-/// `00:00:05`. Whether jiff would accept it as a clock time is beside the
-/// point — the question is what the author was writing, and this is the shape
-/// of a time of day rather than of a span.
+/// The shape of a time of day, or jiff's reading of one.
+///
+/// The shape is two or more colon-separated groups of ASCII digits, each
+/// non-empty, with an optional `.` or `,` fraction after the last: `18:00`,
+/// `1:30:00`, `00:00:05`, `1:30:00.5`. Every group non-empty is what keeps
+/// `"::"` unparseable rather than a time nobody wrote (F-50). The clock
+/// grammar is consulted as well because the shape is not all of it — `civil::
+/// Time` also reads the `T` designator — and because the question is what the
+/// author was writing, not which parser would take it.
 fn looks_like_a_time_of_day(raw: &str) -> bool {
-  raw.contains(':') && raw.bytes().all(|b| b.is_ascii_digit() || b == b':')
+  has_the_shape_of_a_time_of_day(raw) || raw.parse::<jiff::civil::Time>().is_ok()
+}
+
+fn has_the_shape_of_a_time_of_day(raw: &str) -> bool {
+  let (groups, fraction) = match raw.split_once(['.', ',']) {
+    Some((groups, fraction)) => (groups, Some(fraction)),
+    None => (raw, None),
+  };
+  let mut groups = groups.split(':');
+  let first = groups.next().is_some_and(all_digits);
+  let mut rest = groups.peekable();
+  let has_more = rest.peek().is_some();
+  first && has_more && rest.all(all_digits) && fraction.is_none_or(all_digits)
+}
+
+fn all_digits(group: &str) -> bool {
+  !group.is_empty() && group.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// Brief §9's three arms, in one place: the latest **valid** instruction, else

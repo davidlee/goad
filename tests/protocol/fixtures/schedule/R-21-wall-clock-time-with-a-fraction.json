@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-25"],
+  "description":  "A wall-clock time with fractional seconds is still a wall-clock time. The refusal is about what the author wrote, not the grammar of one clock parser: `18:00:00.000` is refused as `18:00:00` is, rather than slipping through as an eighteen-hour span because a fraction is not a digit (F-46).",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "18:00:00.000",
+  "expect":       { "error": "TimeOfDay" }
+}

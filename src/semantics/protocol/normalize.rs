@@ -57,12 +57,17 @@ pub enum Discarded {
 }
 
 /// Names what was lost and why, so a discard can be logged as it is handed
-/// over (brief §13, R-47) without the caller matching on it (F-33). The reason
-/// already names the raw value, so this does not render it a second time
-/// (F-42); `raw` is carried for a caller that wants the value itself.
+/// over (brief §13, R-47) without the caller matching on it (F-33). Every
+/// reason but one already names the raw value, so it is not rendered a second
+/// time (F-42); `NotAString` names only the type it found, by design, so the
+/// discard supplies the value there (F-47).
 impl fmt::Display for Discarded {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
+      Self::Schedule {
+        raw,
+        reason: reason @ ScheduleError::NotAString { .. },
+      } => write!(f, "next_check {raw} discarded: {reason}"),
       Self::Schedule { reason, .. } => write!(f, "next_check discarded: {reason}"),
     }
   }

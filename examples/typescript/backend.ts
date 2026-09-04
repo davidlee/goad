@@ -101,6 +101,9 @@ interface Option {
  * The `never` members are what make the refusals typecheck: the index
  * signature admits any key, and `never` narrows the ones the host would
  * reject on this kind, so `deno check` refuses them where the host would.
+ * They are stricter than the host about `null` on purpose: the host reads a
+ * nulled modelled key as omission, and a backend written from these types
+ * omits it.
  */
 type Field = {
   id: string;

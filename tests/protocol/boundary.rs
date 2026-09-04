@@ -148,23 +148,31 @@ impl Scan {
   }
 }
 
-/// Does a line of code name the token as an identifier **word** rather than as
-/// a substring? `site` must catch `SiteView`, `site_id`, `Sites` and `HTTPSite`,
-/// and must not catch `websites` or `offsite` (F-14, F-36).
+/// Does a line of code name the token? A path token — one containing `::` —
+/// is matched as a substring, since no identifier word can contain one (F-45).
+/// A word token must appear as an identifier **word** rather than as a
+/// substring: `site` must catch `SiteView`, `site_id`, `Sites`, `HTTPSite` and
+/// `site2`, and must not catch `websites` or `offsite` (F-14, F-36, F-49).
 ///
 /// Comment text is cut off first — AC-11 is about what the code names, and
 /// "call sites" in prose is not a domain type. Words are then split on every
 /// non-alphanumeric byte — which separates identifier segments (`_`, `::`,
-/// `.`) — and at each case boundary, which is what separates `Site` from
-/// `View` and `HTTP` from `Site`. A word matches the token or its plural:
-/// `Habits` names the domain as plainly as `Habit`. Lowercasing happens after
-/// the split, so the case boundaries are still there to split on.
+/// `.`) — at each case boundary, which is what separates `Site` from `View`
+/// and `HTTP` from `Site`, and between a letter and a digit. A word matches the
+/// token or its plural: `Habits` names the domain as plainly as `Habit`.
+/// Lowercasing happens after the split, so the case boundaries are still there
+/// to split on.
 ///
-/// The comment cut is a `//` search, so a `//` inside a string literal hides
-/// the rest of that line. Nothing in `src/` writes one; the price is accepted
-/// over parsing Rust here.
+/// Known and accepted, because nothing in `src/` has any of them: the comment
+/// cut is a `//` search, so a `//` inside a string literal hides the rest of
+/// that line and a `/* */` block is not cut at all; an all-caps compound such
+/// as `SITEID` has no boundary to split on (F-49).
 fn mentions(line: &str, token: &str) -> bool {
-  code_of(line)
+  let code = code_of(line);
+  if token.contains("::") {
+    return code.contains(token);
+  }
+  code
     .split(|c: char| !c.is_ascii_alphanumeric())
     .flat_map(camel_segments)
     .any(|word| is_singular_or_plural_of(word, token))
@@ -188,8 +196,8 @@ fn is_es_plural(stem: &str, token: &str) -> bool {
     .is_some_and(|stem| stem.eq_ignore_ascii_case(token))
 }
 
-/// `SiteView` → `Site`, `View`; `HTTPSite` → `HTTP`, `Site`. A segment with no
-/// case boundary is itself.
+/// `SiteView` → `Site`, `View`; `HTTPSite` → `HTTP`, `Site`; `habit2` →
+/// `habit`, `2`. A segment with no boundary is itself.
 fn camel_segments(segment: &str) -> Vec<&str> {
   let mut words = Vec::new();
   let mut start = 0;
@@ -197,11 +205,12 @@ fn camel_segments(segment: &str) -> Vec<&str> {
   for (offset, &c) in bytes.iter().enumerate().skip(1) {
     let previous = bytes[offset - 1];
     let lower_to_upper = c.is_ascii_uppercase() && previous.is_ascii_lowercase();
+    let letter_to_digit = c.is_ascii_digit() != previous.is_ascii_digit();
     let acronym_ends = c.is_ascii_lowercase()
       && previous.is_ascii_uppercase()
       && offset >= 2
       && bytes[offset - 2].is_ascii_uppercase();
-    if lower_to_upper {
+    if lower_to_upper || letter_to_digit {
       words.push(&segment[start..offset]);
       start = offset;
     } else if acronym_ends {
@@ -309,6 +318,9 @@ fn a_token_matches_a_word_and_not_a_substring_of_one() {
     ("struct Sites;", "site"),
     ("pub struct HTTPSite", "site"),
     ("SITE_ID", "site"),
+    ("let habit2 = 1;", "habit"),
+    ("use crate::shell::host::Host;", "crate::shell"),
+    ("  crate::shell::config::Command::new(x)", "crate::shell"),
   ] {
     assert!(
       mentions(caught, token),
@@ -323,6 +335,7 @@ fn a_token_matches_a_word_and_not_a_substring_of_one() {
     ("let websites = 1;", "site"),
     ("let offsite = 1;", "site"),
     ("let habitat = 1;", "habit"),
+    ("// see crate::shell for the composition", "crate::shell"),
   ] {
     assert!(
       !mentions(clean, token),

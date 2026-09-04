@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-25"],
+  "description":  "`::` is not a time of day, whatever its punctuation says: a time has digits in every group. It is unparseable, and is named as such rather than as a time the author did not write (F-50).",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "::",
+  "expect":       { "error": "Unparseable" }
+}

@@ -937,6 +937,184 @@ The reviewer's verification of each round-1 Response, verbatim:
 
 Not verified by the reviewer: F-13 and F-15 (tolerated, no change); F-14 (superseded by F-36); the R-26 / design §5.3 rewording (session 3).
 
+### Round 3, fresh reviewer — F-45…F-51
+
+Raised by a fresh Claude subagent (general-purpose, no thread history) against `3ee96f9`, the round-2 repairs only, given the ledger, the brief, the design, the draft spec and the diff. Method, in its own words: Ran `just check` on `3ee96f9`: exit 0. Default column 42 lib + 58 integration + 16 protocol tests; `--no-default-features` column 25 lib + 16 protocol; `deno check`, clippy in both columns and `cargo fmt --check` all clean. Copied the repo (minus `target`, `.git`) to `scratchpad/r3/repo` and worked only there: probe tests appended to the protocol and integration targets and to `process.rs`, a compiled-out `use crate::shell::host::Host;` in `src/semantics/mod.rs` for the scanner, five `deno check` scratch copies of `backend.ts`, and a script that reverts each round-2 repair in turn, runs the test its Response names, and restores the file from the working tree. Every output quoted below is my own run. No repository file was edited.
+
+### F-45 — The stratum-direction scan cannot match `crate::shell` or `crate::bin`, so two of its three tokens are vacuous
+
+**Severity:** minor
+**Location:** `tests/protocol/boundary.rs:166`–`:171` (`mentions`), `:225`–`:229` (`STRATUM_1_LOOKS_ONLY_DOWN`)
+**Expected:** the scan's own doc: "AC-15's direction half … this catches the `use crate::shell::…` a feature flag cannot see." F-14's disposition was a word-boundary match to stop matching prose, not to blind the stratum scan; F-36 rewrote `mentions` and its test and left this standing.
+**Observed:** words are produced by splitting on every non-alphanumeric byte, so no word can ever equal a token containing `::`. `tokio` still matches. The vacuity predates the round-2 repair — `ad811c6`'s matcher has the same property, and `2fe3bb4`'s `contains` did not — and round 2 recorded F-14 as "not verified". The build gate (`--no-default-features`) still holds the underlying property, which is why this is minor and not major.
+**Evidence:** probe over a verbatim copy of `mentions`, and the real test with a `use` line in stratum 1 (under `#[cfg(any())]` so it compiles):
+```
+F36-vacuity use crate::shell::host::Host;        token=crate::shell  mentions=false
+F36-vacuity use crate::bin::x;                   token=crate::bin    mentions=false
+F36-vacuity use tokio::io;                       token=tokio         mentions=true
+### boundary vacuity: stratum scan with a real 'use crate::shell' line in src/semantics/mod.rs
+10:use crate::shell::host::Host;
+test boundary::stratum_1_names_neither_the_shell_a_binary_nor_the_runtime ... ok
+```
+Cheapest repair: a path token (one containing `::`) matches by `contains` on `code_of(line)`, a word token by the word rule; `a_token_matches_a_word_and_not_a_substring_of_one` gains `use crate::shell::host::Host;` as a caught case. There is no `crate::bin` module in `src/`, so that token has never had anything to catch.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** A token containing `::` is a path and matches by `contains` on the comment-cut line; a word token keeps the word rule. `use crate::shell::host::Host;` pinned as caught. `crate::bin` stays as a guard against a future binary module.
+**Response:** repaired. `mentions` matches a token containing `::` by `contains` on `code_of(line)`; word tokens keep the word rule. Held by `boundary.rs::a_token_matches_a_word_and_not_a_substring_of_one`, which now catches `use crate::shell::host::Host;` and `crate::shell::config::Command::new(x)` for `crate::shell` and keeps `// see crate::shell …` clean; red on the `use` line before the change. `stratum_1_names_neither_the_shell_a_binary_nor_the_runtime` still green over `src/semantics`.
+
+**Outcome:**
+
+### F-46 — F-37's shape rule does not subsume `civil::Time`: fractional-second wall-clock forms F-2 refused now parse as spans
+
+**Severity:** minor
+**Location:** `src/semantics/schedule.rs:126`–`:143` (`parse_span`, `looks_like_a_time_of_day`)
+**Expected:** F-37's disposition: "the `civil::Time` parse goes, since this rule subsumes it." F-2: a bare wall-clock time is refused as ambiguous, and the function's own doc: "a seam … is one no backend author could predict."
+**Observed:** `civil::Time` accepts fractional seconds and the shape rule (digits and colons only) does not, so every such form was `TimeOfDay` before the repair and is a span after it. The seam has moved rather than gone: it is now on a fractional tail and on a sign (`+1:30:00` is a span, `1:30:00` is not). The config grammar inherits it (`timeout = "18:00:00.000"` loads as eighteen hours). No fixture pins any of these.
+**Evidence:** probe over `parse_span` on `3ee96f9`:
+```
+F37frac 18:00:00.5             civil::Time=true  parse_span=Ok(PT18H0.5S)
+F37frac 18:00:00.000           civil::Time=true  parse_span=Ok(PT18H)
+F37frac 18:00:00.123456789     civil::Time=true  parse_span=Ok(PT18H0.123456789S)
+F37frac 06:30:00.5             civil::Time=true  parse_span=Ok(PT6H30M0.5S)
+F37frac 18:00:00,5             civil::Time=true  parse_span=Ok(PT18H0.5S)
+F37 -1:30:00               civil::Time=false parse_span=Ok(-PT1H30M)
+F37 +1:30:00               civil::Time=false parse_span=Ok(PT1H30M)
+F37 1:30:00                civil::Time=false parse_span=Err(TimeOfDay)
+```
+Either the `civil::Time` parse comes back beside the shape rule (`||`, one line), or the shape admits an optional sign and a `.`/`,` fraction after the last group; a fixture for `18:00:00.000`, refused, pins whichever is chosen.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** With F-50: `TimeOfDay` is the shape `digits(:digits)+` with an optional `.`/`,` fraction, every group non-empty, **or** whatever `civil::Time` parses — the two rules together, since neither subsumes the other. Fixtures: `18:00:00.000` refused as `TimeOfDay`, `T18:00:00` refused as `TimeOfDay`.
+**Response:** repaired, with F-50. `looks_like_a_time_of_day` is `has_the_shape_of_a_time_of_day(raw) || raw.parse::<jiff::civil::Time>().is_ok()`; the shape is two or more non-empty digit groups separated by `:` with an optional `.`/`,` digit fraction. Held by fixtures `schedule/R-21-wall-clock-time-with-a-fraction.json` (`18:00:00.000` → `TimeOfDay`) and `R-21-wall-clock-time-with-the-iso-designator.json` (`T18:00:00` → `TimeOfDay`), both red before the change. Probed after: `1:30:00.5`, `18:00:00,5`, `24:00:00` → `TimeOfDay`; `-1:30:00`, `+1:30:00` → signed spans, since a sign is not something a time of day carries; `1 day 18:00:00`, `PT1H30M`, `90m`, `1.5h` parse.
+
+**Outcome:**
+
+### F-47 — F-42 dropped the raw value from the rendered discard for `NotAString`, the one variant whose reason does not carry it
+
+**Severity:** minor
+**Location:** `src/semantics/protocol/normalize.rs:63`–`:68` (`Discarded`'s `Display`); `src/semantics/error.rs:119`, `:197` (`NotAString`)
+**Expected:** F-42's disposition rests on "the reason already ends with the raw value". That is true of the five `raw: String` variants and false of `NotAString { found: &'static str }`, which by design names only the type. R-47 and brief §13 ("log enough information to debug the backend"): before the repair the line read `next_check 45 discarded: …`.
+**Observed:** a wrong-typed `next_check` now renders with no trace of what was sent. `Discarded` still carries `raw`, so the value is not lost, only unrendered; `a_failure_and_a_discard_render_as_their_leaves_do` asserts only the calendar-unit case, where the reason does carry it.
+**Evidence:**
+```
+F42 next_check=45                       discard renders: next_check discarded: schedule must be a string, found number
+F42 next_check=true                     discard renders: next_check discarded: schedule must be a string, found boolean
+F42 next_check=[1]                      discard renders: next_check discarded: schedule must be a string, found array
+F42 next_check={"a":1}                  discard renders: next_check discarded: schedule must be a string, found object
+F42 next_check="1 month"                discard renders: next_check discarded: schedule uses a calendar unit, which has no fixed length: 1 month
+```
+One arm: render `raw` when `reason` is `NotAString` (or let `NotAString` carry the value and keep `Discarded` as it is). The existing test should gain the `45` case asserting the value appears exactly once.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** `Discarded`'s `Display` renders `raw` when the reason is `NotAString`, the one variant whose message does not carry it; the other five stay as F-42 left them. The rendering test gains the `45` case asserting the value appears exactly once.
+**Response:** repaired. `Discarded`'s `Display` has one extra arm: a `NotAString` reason renders `next_check {raw} discarded: {reason}`; every other reason renders as F-42 left it. Held by `host.rs::a_failure_and_a_discard_render_as_their_leaves_do`, whose `next_check: 45` case asserts `45` appears exactly once; red before the change (zero).
+
+**Outcome:**
+
+### F-48 — After F-34 the stored check no longer tracks what the host reported, so a no-instruction success after an elapsed-instant failure resolves from a stale value and every no-action call drifts the reported wake forward
+
+**Severity:** minor
+**Location:** `src/shell/host.rs:258`–`:265` (`resolve_from`), `:282`–`:297` (`no_action`); `src/shell/state.rs:51`–`:54` (`resolved_check`'s doc)
+**Expected:** brief §9: "retain an existing valid scheduled check if one exists"; design §5.5: a broken backend "still gets polled on its existing cadence"; `State::resolved_check`'s doc: "The instant the host will next ask the backend for something." F-34's disposition chose not to write state on failure; this records what that choice does downstream.
+**Observed:** once the retained instant has elapsed, a failed exchange reports `now + default_poll` but leaves `resolved_check` at the elapsed instant. Two consequences. (1) The next *successful* exchange that omits `next_check` resolves against the elapsed value, consumes it, and reports its own `now + default_poll` — not the instant the caller was already told to wake at. (2) Every further no-action call (a failure, or a stale `respond` that never touches the backend) reports a fresh `now + default_poll`, so a caller that re-arms on each `Outcome` has its routine check pushed later by each one. Had state been written on failure, the retained `05:12` would have stood in both cases. Nothing before the instant changed: a failure and a stale `respond` before it still report the retained value unchanged. `resolved_check`'s doc is now false after such a failure.
+**Evidence:** probe driving `Host` (seeded `04:12`, `default_poll = 30m`):
+```
+F34 t=04:12 ok(30m)            reported=Timestamp(2026-08-23T04:42:00Z)
+F34 t=04:42 FAIL                reported=Timestamp(2026-08-23T05:12:00Z)
+F34 t=04:50 ok(no next_check)   reported=Timestamp(2026-08-23T05:20:00Z)  failure=false
+F34 t=04:55 FAIL                reported=Timestamp(2026-08-23T05:20:00Z)
+F34b t=04:12 ok(view,30m)       reported=Timestamp(2026-08-23T04:42:00Z)
+F34b t=04:20 FAIL (before)      reported=Timestamp(2026-08-23T04:42:00Z)
+F34b t=04:30 stale respond      reported=Timestamp(2026-08-23T04:42:00Z) calls=2
+F34b t=04:42 stale respond (at) reported=Timestamp(2026-08-23T05:12:00Z) calls=2
+F34b t=04:50 stale respond      reported=Timestamp(2026-08-23T05:20:00Z) calls=2
+```
+Two readings: (a) `no_action` also calls `state.resolve_to` with what it reports, so stored and reported agree and R-29 is reworded exactly as the disposition already plans ("must not accept a new instruction"); (b) the drift is accepted and `resolved_check`'s doc says it is the last *accepted* resolution rather than the next wake. (a) is one line and no new test shape; (b) is a doc change. Either way `a_failure_at_an_elapsed_check_reports_the_default_poll_from_now` should gain the 04:50 success step so the choice is pinned.
+
+**Disposition:** fix-now, reading (a) — **user decision 2026-09-04.** `no_action` writes what it reports, so stored and reported never differ; R-29 is reworded at reconciliation to "must not accept a new instruction", as F-34's disposition already planned. The test gains the later failure and the no-instruction success, both reporting the retained `05:12`.
+**Response:** repaired, reading (a). `no_action` takes `&mut self`, resolves through `resolve_from(None, now)` and writes the result with `state.resolve_to` before reporting it, so stored and reported never differ; its doc says so and says why. Held by `host.rs::a_failure_at_an_elapsed_check_reports_the_default_poll_from_now`, which now continues: a failure at `04:50` and a no-instruction success at `04:50` both report the `05:12` the caller was told; red on the second failure before the change (`05:20`). R-29's rewording is on session 3's reconciliation list.
+
+**Outcome:**
+
+### F-49 — F-36 leftovers: block comments are not cut, and digit-glued or all-caps compounds still pass
+
+**Severity:** nit
+**Location:** `tests/protocol/boundary.rs:155`–`:176` (`mentions`, `code_of`), `:193`–`:213` (`camel_segments`)
+**Expected:** the doc: "Comment text is cut off first"; F-36's own evidence listed `let habit2 = 1;` as a miss and the disposition did not address it.
+**Observed:** only `//` is cut, so `/* … */` prose trips the scan; digits are alphanumeric so `habit2` is one word; an all-caps compound has no case boundary to split on. Nothing in `src/` hits any of these today (no block comment, no `//` inside a string literal — checked by grep — so the documented blind spot is latent). The plural rule also admits non-words (`habites`, `Sitees`) and misses `Habitss`, which is harmless.
+**Evidence:**
+```
+F36 /* a habit */ let x = 1;                         token=habit       mentions=true
+F36 let x = 1; /* call sites */                      token=site        mentions=true
+F36 habit2                                           token=habit       mentions=false
+F36 habits2                                          token=habit       mentions=false
+F36 SITEID                                           token=site        mentions=false
+F36 HTTPSITE                                         token=site        mentions=false
+F36 SITEs                                            token=site        mentions=false
+F36 let s = "http://x"; let site_id = 1;             token=site        mentions=false
+F36 camel … SITEs=["SIT", "Es"] … Site1Habit=["Site1Habit"]
+```
+Splitting at a letter/digit boundary closes the digit case for one extra arm; the rest is documentation or accepted.
+
+**Disposition:** fix-now for the digit boundary only — **user decision 2026-09-04.** `camel_segments` also splits between a letter and a digit, so `habit2` is caught. Block comments, all-caps compounds and the `//`-in-a-string blind spot are tolerated as documented and latent (nothing in `src/` has any of them).
+**Response:** repaired for the digit boundary. `camel_segments` splits where a digit follows a letter or a letter follows a digit, so `habit2` → `habit`, `2`. Held by the same boundary test's `let habit2 = 1;` case, red before the change. Block comments, all-caps compounds and the string-literal blind spot are named in `mentions`'s doc as accepted and latent.
+
+**Outcome:**
+
+### F-50 — The shape rule reports strings that are not times as "a time of day"
+
+**Severity:** nit
+**Location:** `src/semantics/schedule.rs:140`–`:142`
+**Expected:** brief §13: a diagnostic a backend author can act on. F-2's rule is about `hh:mm[:ss]`; `ScheduleError::TimeOfDay`'s doc gives `"18:00:00"`.
+**Observed:** any string of digits and colons with a colon is `TimeOfDay`, including ones with no digits at all. These were `Unparseable` before the repair.
+**Evidence:**
+```
+F37 ::                     civil::Time=false parse_span=Err(TimeOfDay)
+F37 :                      civil::Time=false parse_span=Err(TimeOfDay)
+F37 123:                   civil::Time=false parse_span=Err(TimeOfDay)
+F37 :30                    civil::Time=false parse_span=Err(TimeOfDay)
+F37 1::30                  civil::Time=false parse_span=Err(TimeOfDay)
+```
+rendered as `schedule is a time of day, which is neither an instant nor a span: ::`. Requiring `\d+(:\d+)+` — every group non-empty — keeps the disposition's rule and the message honest.
+
+**Disposition:** fix-now — **user decision 2026-09-04.** Closed by F-46's rule: every colon-separated group must be non-empty digits, so `::`, `:`, `123:` and `:30` are `Unparseable` again. Fixture for `::`.
+**Response:** repaired with F-46: every group must be non-empty digits, so `::`, `:`, `123:`, `:30`, `1::30` fall through to the span parse and are `Unparseable` with jiff's own message. Held by fixture `schedule/R-25-colons-with-nothing-between-them.json` (`::` → `Unparseable`), red before the change (`TimeOfDay`).
+
+**Outcome:**
+
+### F-51 — The example's `never` members refuse `null`s the host reads as omission, including the `hints: null` F-38 accepted in the same commit
+
+**Severity:** nit
+**Location:** `examples/typescript/backend.ts:105`–`:115`
+**Expected:** the file's own claim: "The types below are the whole of what the host accepts, not the subset this file happens to use." R-51: an explicit `null` on a modelled key is omission; fixtures `R-51-a-nulled-hints-key-on-a-field` and `R-51-a-nulled-modelled-key-on-a-field` accept `hints: null` and `min: null`.
+**Observed:** `hints?: never` and `min?: never` admit only `undefined`, so a backend author writing what the host accepts is refused by `deno check`. This follows the pre-existing `next_check?: string`, which also refuses `null`, so it is a consistency note rather than new drift.
+**Evidence:**
+```
+== hints_null      TS2322 [ERROR]: Type 'null' is not assignable to type 'undefined'.   exit=1
+== min_null_text   TS2322 [ERROR]: Type 'null' is not assignable to type 'number | undefined'.   exit=1
+== options_undef   exit=0
+```
+Either `?: never | null` where the host reads `null` as omission, or one sentence in the comment saying the types are stricter than the host about `null` on purpose.
+
+**Disposition:** fix-now as documentation — **user decision 2026-09-04.** One sentence in the example's comment: the types are stricter than the host about `null` on purpose — the host reads a nulled modelled key as omission, and a backend written from these types simply omits it.
+**Response:** repaired as documentation. `Field`'s comment in `examples/typescript/backend.ts` says the `never` members are stricter than the host about `null` on purpose, and that a backend written from these types omits the key instead. `deno check` passes.
+
+**Outcome:**
+
+### Round 3 — confirmed round-2 repairs
+
+Each Response's claim, checked by reverting the repair in the scratch copy and running the test it names. Results verbatim.
+
+- **F-34** — repair as dispositioned: `no_action` takes `now` and reports `resolve_from(None, now)`; state unwritten on failure (`resolve_to` is called only in `accept`). Revert (`next_check: self.state.resolved_check()`): `test host::a_failure_at_an_elapsed_check_reports_the_default_poll_from_now ... FAILED — left: Timestamp(2026-08-23T04:42:00Z) right: Timestamp(2026-08-23T05:12:00Z)`. Before-the-instant behaviour unchanged (probe: 04:20 failure and 04:30 stale respond both report `04:42`). The stale-`respond` path reporting a resolved instant is consistent with the disposition; its downstream drift is F-48.
+- **F-35** — `Object<WireContent>` and `Object<WireContentValue>` at both reads. Probe: `["text"]`, `["markdown","x"]`, `1`, `true` → `Shape` "expected an object, found a JSON array/number/boolean"; `{"kind":["text"],"value":"x"}` → `Shape`; `{"kind":"text","value":"x"}` accepted. Revert: `every_protocol_fixture_states_what_a_wire_document_means ... FAILED` naming `R-19-a-body-written-as-an-array.json`.
+- **F-36** — comment cut, plural, acronym split all present. Full revert to `ad811c6`'s matcher: `FAILED — "pub struct Habits" names the domain and was missed`. Partial reverts: plural only → same; acronym split only → `"pub struct HTTPSite" … was missed`; comment cut only → `"// the call sites" does not name the domain and was caught`. So each of the three parts is pinned by its own case. `no_host_source_file_names_the_user_s_domain` green. The `//`-in-a-string blind spot is real (four probe lines hidden) and latent (grep finds no such literal in `src/`). Leftovers are F-49; the stratum scan's vacuity is F-45.
+- **F-37** — `civil::Time` parse gone, shape rule in. Probe: `1:30`, `1:30:00`, `01:30:00`, `18:00`, `00:00:05`, `24:00:00`, `0:0` → `TimeOfDay`; `1 day 18:00:00` → `PT42H`; `90m`, `1h30m`, `PT1H`, `PT1H30M`, `1 hour 30 minutes` → parse; `1h:30m`, ` 1:30`, `1.5:00`, `T18:00:00`, `٣:٣٠` → `Unparseable`. Revert: `every_scheduling_fixture_states_what_the_protocol_does ... FAILED` naming `R-21-bare-wall-clock-time-unpadded.json`. Fractional/signed seam is F-46; non-time strings named as times is F-50.
+- **F-38** — `hints: null` accepted with `hints: {}`; `"x"`, `1`, `[]`, `false`, `{}`, `{"multiline":true}` refused as `NestedHints … at view.options[0].fields[0]`, and on a second field `… fields[1]`; message says "key". Revert (`contains_key`): `every_protocol_fixture_states_what_a_wire_document_means ... FAILED` naming `R-51-a-nulled-hints-key-on-a-field.json`.
+- **F-39** — `grep -rn json_type_name src`: one definition (`semantics/error.rs:18`), two imports, two calls. `Object`'s message reads "expected an object, found a JSON array".
+- **F-40** — `deno check`: the four negatives each `TS2322` (exit 1); the positives (a hint on `text`, bounds on `number`, `max` alone, alternatives on `choice`, `options: undefined`) exit 0. `null` handling is F-51.
+- **F-41** — Revert (`argv.next()?`): `shell::config::tests::an_empty_command_is_rejected_because_there_is_nothing_to_spawn ... FAILED` (panicked at the `[""]` case). `EmptyCommand` renders "names no program".
+- **F-42** — Revert (`next_check {raw} discarded: {reason}`): `host::a_failure_and_a_discard_render_as_their_leaves_do ... FAILED — left: 2 right: 1`. `NotAString`'s lost value is F-47.
+- **F-43** — Assumptions checked against tokio 1.53.1 source: `Take::poll_read` clamps every buffer to its remaining limit (`buf.take(limit_)`), and `read_to_end` grows its offer adaptively — measured offers on the refused path `[32, 32, 64, 128, 256, 489]`, total 1001; with `limit = 100000`, `[32, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, …]`, total 100001. The assertion therefore holds by `Take`'s clamp and is independent of how much `read_to_end` offers. Revert to the `2fe3bb4` growing loop: `a_refused_read_takes_exactly_one_byte_past_the_bound ... FAILED — left: 4096 right: 1001`.
+
+Not verified: F-44 (tolerated, no change).
+
 ## Synthesis
 
 <!-- Written when the ledger resolves. The closure story: what the review

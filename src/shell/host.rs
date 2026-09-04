@@ -157,8 +157,8 @@ impl<B: Backend> Host<B> {
   ) -> Outcome {
     if let Err(refusal) = self.state.verify(&view_id) {
       // No backend was consulted, so there is no stderr to carry and nothing to
-      // have disposed of — and the stored schedule does not move, exactly as it
-      // does not for a failed exchange (R-29, R-34).
+      // have disposed of — and no instruction is accepted, exactly as none is
+      // for a failed exchange (R-29, R-34).
       return self.no_action(now, Failure::State(refusal), Captured::default(), None);
     }
     let request = Request::Respond(Respond {
@@ -264,31 +264,33 @@ impl<B: Backend> Host<B> {
     )
   }
 
-  /// An outcome on which the host changed nothing.
+  /// An outcome on which the host acted on nothing.
   ///
-  /// Every failure path leaves `resolved_check` exactly as it was, because the
-  /// alternative — a failed exchange accepting or clearing a schedule — turns a
-  /// broken backend into a silent host (R-29, P2, EX-5). The outstanding
-  /// interaction is untouched for the same reason (R-34).
+  /// No failure path accepts an instruction: the schedule is resolved through
+  /// the same arm the accept path uses with `incoming: None`, so a retained
+  /// check still ahead of `now` stands, and one that has elapsed is consumed
+  /// for the default poll (F-1, F-34). The alternative — a failed exchange
+  /// accepting or clearing a schedule — turns a broken backend into a silent
+  /// host (R-29, P2, EX-5); reporting an elapsed instant bare would have a
+  /// backend that fails at its scheduled check — cannot be spawned, say —
+  /// respawned by the timer in a tight loop until it recovered.
   ///
-  /// What is *reported* is resolved through the same arm the accept path uses,
-  /// with no instruction: a retained check still ahead of `now` is reported as
-  /// it stands, and one that has elapsed is consumed for the default poll
-  /// (F-1, F-34). Reporting the elapsed instant bare would have a backend that
-  /// fails at its scheduled check — cannot be spawned, say — respawned by the
-  /// timer in a tight loop until it recovered. The stored check is not written:
-  /// the reported instant is the caller's, and only an accepted message moves
-  /// state.
+  /// What is reported is what is retained (F-48). Otherwise a later exchange
+  /// would resolve from an instant the caller was never told, and every
+  /// further failure would push the wake later from its own `now`. The
+  /// outstanding interaction is untouched (R-34).
   fn no_action(
-    &self,
+    &mut self,
     now: Timestamp,
     failure: Failure,
     stderr: Captured,
     cleanup: Option<CleanupFailure>,
   ) -> Outcome {
+    let next_check = self.resolve_from(None, now);
+    self.state.resolve_to(next_check);
     Outcome {
       view: None,
-      next_check: self.resolve_from(None, now),
+      next_check,
       discarded: Vec::new(),
       stderr,
       failure: Some(failure),

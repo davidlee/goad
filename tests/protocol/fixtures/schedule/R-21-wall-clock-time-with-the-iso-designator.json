@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-25"],
+  "description":  "`T18:00:00` is ISO 8601's own spelling of a time of day, and it is refused as one. Not every time of day is a bare colon form, which is why the clock parser is consulted beside the shape rule (F-46).",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "T18:00:00",
+  "expect":       { "error": "TimeOfDay" }
+}
