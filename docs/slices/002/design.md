@@ -1070,10 +1070,10 @@ Seven things this settles, beyond simply being constructible.
   returns `Ok(())` and therefore exits 0 without a second exit path.
 - **`StartupError` is one enum, and it is the `{error}` §5.4's startup line
   interpolates.** Its variants are exactly the failures above —
-  `Usage`, `Config(ConfigError)`, `Clock(ClockError)`, `Runtime(io::Error)`,
-  `Platform(slint::PlatformError)`, `EventLoop(slint::EventLoopError)`,
-  `Enqueue` — and each renders once, with no `source()` walk (F-26, §5.4's
-  "The exact strings").
+  `Usage`, `NoConfigPath`, `Config(ConfigError)`, `Clock(ClockError)`,
+  `Runtime(io::Error)`, `Platform(slint::PlatformError)`,
+  `EventLoop(slint::EventLoopError)`, `Enqueue` — eight, and each renders once,
+  with no `source()` walk (F-26, §5.4's "The exact strings").
 - **The `EnterGuard` outlives the loop.** `_entered` is a named binding with a
   leading underscore, not `_`: `let _ = …` would drop the guard immediately, and
   `let_underscore_must_use` refuses it anyway.
@@ -1912,25 +1912,40 @@ twice. `StartupError` implements `std::error::Error` with the **default**
 `source()`, returning `None`, so nothing downstream can walk into a chain this
 surface has already rendered.
 
-The seven variants, and their exact text:
-
-| variant | `Display` |
-|---|---|
-| `Usage` | `too many arguments: goad takes at most one, the path of the configuration file; run \`goad --help\` for usage` |
-| `Config(ConfigError)` | `{ConfigError}` — stratum 2's own, unwrapped and unprefixed (`error.rs:154-172`) |
-| `Clock(ClockError)` | `{ClockError}` — below |
-| `Runtime(std::io::Error)` | `the async runtime could not be started: {io error}` |
-| `Platform(slint::PlatformError)` | `the window could not be created: {platform error}` |
-| `EventLoop(slint::EventLoopError)` | `the event loop would not accept the host task: {event loop error}` |
-| `Enqueue` | `the first request could not be enqueued` |
-
-There is **no** `HomeUnset` variant, because the missing-environment case is a
-`Usage`-adjacent fact about discovery rather than about arguments, and it gets
-its own:
+The eight variants, and their exact text. Two come from argument and environment
+handling, six from the steps after it:
 
 | variant | `Display` |
 |---|---|
 | `NoConfigPath` | `neither XDG_CONFIG_HOME nor HOME names a directory, so there is no configuration path; pass one as the single argument` |
+| `Usage` | `too many arguments: goad takes at most one, the path of the configuration file; run \`goad --help\` for usage` |
+| `Config(ConfigError)` | `{ConfigError}` — stratum 2's own, unwrapped and unprefixed (`error.rs:154-172`) |
+| `Clock(ClockError)` | `{ClockError}` — below |
+| `Runtime(std::io::Error)` | `the async runtime could not be started: {io error}` |
+| `Platform(slint::PlatformError)` | `the display could not be opened: {platform error}` |
+| `EventLoop(slint::EventLoopError)` | `the event loop would not accept the host task: {event loop error}` |
+| `Enqueue` | `the first request could not be enqueued` |
+
+`NoConfigPath` is a variant of its own rather than a shade of `Usage`: the two
+are different faults with different fixes — one is about the arguments given,
+the other about the environment they were given in — and one sentence naming
+both would be true of neither.
+
+**`Platform` covers four sites and its sentence names none of them.**
+`set_xdg_app_id`, `PromptWindow::new`, `Tray::new` and
+`run_event_loop_until_quit` all return `slint::PlatformError`, and a message
+saying "the window could not be created" would be false at three of the four.
+`slint::PlatformError`'s own `Display` is what distinguishes them, and it is
+carried verbatim — the same rule every other line on this surface follows.
+
+One honest edge, named rather than glossed: `run_event_loop_until_quit`'s `Err`
+is the one `Platform` site that is **not** a startup failure — the loop ran and
+then failed — and it still exits 2. That is the code's stated meaning stretched
+by one case, and the alternative (a ninth variant and a second non-zero code)
+buys a distinction nothing consumes: a person reading `goad: the display could
+not be opened: …` on stderr is told what happened either way. Recorded here so
+that a future slice adding "ran, then failed" as a code knows this case is
+sitting in the wrong bucket by decision.
 
 *`ClockError`'s two renderings*, used identically at startup and inside the loop
 (where they are wrapped by `Refused::NoClock`'s sentence):
