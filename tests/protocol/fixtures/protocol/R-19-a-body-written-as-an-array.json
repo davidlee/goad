@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-19", "R-44"],
+  "description":  "A tagged content block is an object with a kind and a value. A one-element array in its place is not read positionally as both — `[\"text\"]` would otherwise become the text \"text\" — it is refused as protocol-invalid, as an array is refused at every other object site.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        { "view": { "kind": "choice", "title": "T", "body": ["text"], "options": [ { "id": "ok", "label": "Fine" } ] } },
+  "expect":       { "error": { "Shape": null } }
+}

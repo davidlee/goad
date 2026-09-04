@@ -723,7 +723,7 @@ t=04:31 FAIL  next_check=2026-08-23T04:30:00Z  past=true   (a day later)
 No test covers a failure at or after the resolved instant; `stderr_and_the_cleanup_verdict_survive_a_failed_exchange` and EX-5's case run before it. Two readings, as with F-1: (a) `no_action` also goes through `resolve(Some(retained), None, default_poll, now)`, so an elapsed check is consumed on failure too and R-29 is reworded to "must not accept a new instruction"; (b) R-29 stands literally and the timer owns it. (a) is one call; (b) is the reading F-1 already rejected.
 
 **Disposition:** fix-now — **user decision 2026-09-04.** `no_action` reports `resolve(Some(retained), None, default_poll, now)` rather than the retained value bare, so an elapsed check is consumed on the failure path too; a failure *before* the instant still reports it unchanged. Host state is not written on failure — the reported instant is the caller's, the stored one moves only on acceptance — so R-29's letter about state holds and its wording gains "must not accept a new instruction" at reconciliation.
-**Response:**
+**Response:** repaired. `Host::no_action` takes `now` and reports `resolve_from(None, now)`, a new private method both the accept path and the failure path call — `schedule::resolve(Some(self.state.resolved_check()), incoming, default_poll, now)` written once. State is not written on failure. Held by `tests/integration/host.rs::a_failure_at_an_elapsed_check_reports_the_default_poll_from_now`: a good exchange scheduling `30m`, a failure *at* that instant reporting `now + 30m`, and a failure eight minutes later reporting from its own `now`. Red before the change (reported `04:42`), green after. `no_failure_moves_the_schedule` and `a_successful_exchange_does_move_the_schedule` still hold the before-the-instant case.
 
 **Outcome:**
 
@@ -744,7 +744,7 @@ field as array            ERR … invalid type: sequence, expected struct WireFi
 No fixture carries an array body. Fix is `Object<WireContent>` / `Object<WireContentValue>` at the two `from_value` calls, plus one fixture.
 
 **Disposition:** fix-now — `Object<WireContent>` and `Object<WireContentValue>` at the two `from_value` calls, plus a fixture.
-**Response:**
+**Response:** repaired. `normalize_content` reads `Object<WireContent>` and `Object<WireContentValue>`; `Object`'s doc now lists the content pair among its sites. Held by fixture `R-19-a-body-written-as-an-array.json` (`"body": ["text"]` → `Shape`), red before the change (accepted as `Text("text")`).
 
 **Outcome:**
 
@@ -770,7 +770,7 @@ call sites               token=site      mentions=false
 Cheapest repair that keeps F-14's prose fix: a word matches when it equals the token or the token plus `s`/`es`; and split camel at an upper→upper-then-lower boundary as well (`HTTPSite` → `HTTP`, `Site`). "call sites" then trips again, which is the price of the plural; if that is unwanted, restrict the plural rule to identifier-shaped lines. The test `a_token_matches_a_word_and_not_a_substring_of_one` should gain `Habits`, `mod habits;` and `HTTPSite` so the class is pinned.
 
 **Disposition:** fix-now — **user decision 2026-09-04.** The scan strips comment text (`//`, `///`, `//!`) before matching, so prose cannot trip it; a word then matches the token or the token plus `s`/`es`; `camel_segments` also splits at an upper-upper-lower boundary. `Habits`, `mod habits;`, `HTTPSite` pinned in the test alongside the clean cases.
-**Response:**
+**Response:** repaired. `mentions` runs on `code_of(line)` — the line cut at its first `//` — then splits identifier segments and matches `is_singular_or_plural_of` (token, token+`s`, token+`es`); `camel_segments` also splits where an upper-case run ends before a lower-case letter (`HTTPSite` → `HTTP`, `Site`). The `//`-in-a-string-literal blind spot is documented on the function. Held by `boundary.rs::a_token_matches_a_word_and_not_a_substring_of_one`, now eight caught and seven clean cases including `Habits`, `mod habits;`, `Sites`, `HTTPSite`, `SITE_ID`, and `habitat`/`websites`/`offsite` plus comment-only lines as clean. Red on `Habits` before the change. `no_host_source_file_names_the_user_s_domain` still passes over `src/`.
 
 **Outcome:**
 
@@ -795,7 +795,7 @@ T18:00:00    civil::Time=true  Span=false  parse_span=Err(a time of day is not a
 Nothing that was a legitimate span *and not* a time of day is lost (`PT18H`, `1h30m`, `90m`, `1 hour 30 minutes`, `1d 2h` all parse), so the user's decision holds; the seam is the question. Options: refuse the bare `H:MM:SS` colon form outright as ambiguous whatever the padding (the `1 day 18:00:00` form still parses because it is not bare), or keep jiff's line and pin `1:30:00` accepted / `01:30:00` refused as fixtures so the seam is documented rather than latent.
 
 **Disposition:** fix-now — **user decision 2026-09-04.** Every bare colon form — a string of ASCII digits and colons containing a colon — is `TimeOfDay`, whatever the padding; the `civil::Time` parse goes, since this rule subsumes it. `1 day 18:00:00`, `90m`, `1h30m`, `PT1H30M` are unaffected. Fixture for the unpadded form.
-**Response:**
+**Response:** repaired. `parse_span` refuses `looks_like_a_time_of_day(raw)` — ASCII digits and colons only, containing a colon — and the `civil::Time` parse is gone. Held by fixture `schedule/R-21-bare-wall-clock-time-unpadded.json` (`1:30:00` → `TimeOfDay`), red before the change (parsed as `PT1H30M`). The padded fixture, `1 day 18:00:00`, `90m`, `1h30m` and the config duration tests all still hold.
 
 **Outcome:**
 
@@ -814,7 +814,7 @@ fields null on alt   ACCEPTED … alternatives: [Alternative { id: "a", label: "
 Either `null` is exempted as it is for `fields`, or R-51's exception list grows a second entry. The first is the one line the alternative path already has.
 
 **Disposition:** fix-now — `null` exempted, as `normalize_alternative` exempts `"fields": null` (R-51); the message says "key" rather than "object". Fixture for the nulled key, accepted.
-**Response:**
+**Response:** repaired. `normalize_field` removes the `hints` key and refuses only a non-`null` value; the message and the variant's doc say "key" rather than "object". Held by fixture `R-51-a-nulled-hints-key-on-a-field.json` (accepted, `hints: {}`), red before the change (`NestedHints`). `R-18-a-nested-hints-object.json` still refuses the object.
 
 **Outcome:**
 
@@ -827,7 +827,7 @@ Either `null` is exempted as it is for `fields`, or R-51's exception list grows 
 **Evidence:** `grep -rn json_type_name src` → two definitions, one call each. One `pub(crate)` function in `wire.rs` (or `semantics::error`) with the article added at the one call site that wants it.
 
 **Disposition:** fix-now — One `pub(crate) fn json_type_name` in `semantics::error`; `wire.rs`'s copy goes and its message drops the article.
-**Response:**
+**Response:** repaired. One `pub(crate) fn json_type_name` in `semantics::error`; `schedule.rs` and `wire.rs` import it. `Object`'s message reads "expected an object, found a JSON array" so the shared table's bare noun still reads. No test asserted either message; the corpus's `Shape` fixtures hold the refusal.
 
 **Outcome:**
 
@@ -847,7 +847,7 @@ const nestedHints: Field = { id: "f", kind: "text", label: "L", hints: { multili
 and with `kind: "slider"` added: `TS2322 Type '"slider"' is not assignable …` (exit 1), which confirms the Response's own probe while showing it was the only one that could fail. `min?: never; max?: never; options?: never` on the kinds that lack them, and `hints?: never` on the base, close it — the index signature stays, and `never` narrows the intersection.
 
 **Disposition:** fix-now — `min?: never; max?: never; options?: never` on the kinds that lack them and `hints?: never` on the base, as the reviewer suggests. Break-tested with `deno check`.
-**Response:**
+**Response:** repaired. `Field`'s base carries `hints?: never` and each kind carries `never` for the modelled keys it lacks. Break-tested with `deno check` over scratch copies: `options` on `text`, `min` on `choice`, `options` on `number` and a nested `hints` object each fail with TS2322; a hint on `text`, bounds on `number` and alternatives on `choice` still typecheck, and `just check`'s `deno check` of the file itself passes.
 
 **Outcome:**
 
@@ -860,7 +860,7 @@ and with `kind: "slider"` added: `TS2322 Type '"slider"' is not assignable …` 
 **Evidence:** probe: `Config::parse` with `command=[""]` → `Ok("")`.
 
 **Disposition:** fix-now — `Command::from_argv` refuses an empty program as it refuses the empty vector, so `EmptyCommand` covers both at load.
-**Response:**
+**Response:** repaired. `Command::from_argv` filters an empty program as it filters the empty vector; `EmptyCommand`'s doc and `Display` name both spellings. Held by `config.rs::an_empty_command_is_rejected_because_there_is_nothing_to_spawn`, now over `[]`, `[""]` and `["", "./backend.ts"]`; red on `[""]` before the change.
 
 **Outcome:**
 
@@ -878,7 +878,7 @@ ConfigError: backend.timeout = "1 month" is not a duration this host can resolve
 ```
 
 **Disposition:** fix-now — `Discarded` renders `next_check discarded: {reason}`; the reason already ends with the raw value. The `source()` chain on `ConfigError::Duration` stays — it is the crate's convention for every wrapping variant, and a chain-walking logger printing a wrapped message twice is that convention's known cost, not this finding's.
-**Response:**
+**Response:** repaired. `Discarded` renders `next_check discarded: {reason}`; `raw` stays on the variant for a caller that wants the value. Held by `host.rs::a_failure_and_a_discard_render_as_their_leaves_do`, which now asserts the raw value appears exactly once; red before the change (twice). `ConfigError::Duration`'s `source()` chain untouched, as dispositioned.
 
 **Outcome:**
 
@@ -891,7 +891,7 @@ ConfigError: backend.timeout = "1 month" is not a duration this host can resolve
 **Evidence:** revert run: `F-9 revert (whole integration) :: test result: ok. 57 passed; 0 failed`. A unit test inside `process.rs` with a counting `AsyncRead` (one byte per poll, total bytes served recorded) asserting `served == limit + 1` on the refused path would pin it.
 
 **Disposition:** fix-now — A unit test in `process.rs` with a counting `AsyncRead` that serves one byte per poll and records the total, asserting exactly `limit + 1` bytes are read on the refused path.
-**Response:**
+**Response:** repaired. `process.rs::tests::a_refused_read_takes_exactly_one_byte_past_the_bound`: a `Counting(&AtomicUsize)` `AsyncRead` that **fills every buffer it is offered** and counts, against `limit = 1000`, asserting `served == 1001` on the refused path. Confirmed by revert to the growing-buffer loop: `left: 4096, right: 1001`. A first draft served one byte per poll and passed against both implementations — a trickle cannot expose a reader that takes its spare capacity — which is why the reader fills the buffer. The counter is borrowed, not `Arc`, because `transport_shape.rs`'s share-nothing scan covers the test module too.
 
 **Outcome:**
 

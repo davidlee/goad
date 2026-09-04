@@ -58,10 +58,12 @@ impl Command {
     }
   }
 
-  /// `None` for the empty vector, which is `EmptyCommand`'s case.
+  /// `None` for the empty vector and for an empty program, which are the two
+  /// spellings of `EmptyCommand`'s case: neither names anything to spawn
+  /// (F-41).
   fn from_argv(argv: Vec<String>) -> Option<Self> {
     let mut argv = argv.into_iter();
-    let program = argv.next()?;
+    let program = argv.next().filter(|program| !program.is_empty())?;
     Some(Self::new(program, argv.collect()))
   }
 }
@@ -268,14 +270,19 @@ default_poll = "30m"
     );
   }
 
+  /// Both spellings of nothing to spawn: no argv at all, and an argv whose
+  /// program is the empty string (F-41). The second would otherwise load and
+  /// fail at every exchange as a spawn error in the backend's voice.
   #[test]
   fn an_empty_command_is_rejected_because_there_is_nothing_to_spawn() {
-    let text = GOOD.replace(r#"["deno", "run", "-A", "./backend.ts"]"#, "[]");
-    assert!(
-      matches!(rejection(&text), ConfigError::EmptyCommand),
-      "an empty command was not rejected as such: {}",
-      rejection(&text)
-    );
+    for empty in ["[]", r#"[""]"#, r#"["", "./backend.ts"]"#] {
+      let text = GOOD.replace(r#"["deno", "run", "-A", "./backend.ts"]"#, empty);
+      assert!(
+        matches!(rejection(&text), ConfigError::EmptyCommand),
+        "command {empty} was not rejected as empty: {}",
+        rejection(&text)
+      );
+    }
   }
 
   #[test]

@@ -13,21 +13,8 @@
 //! merely discouraged.
 #![deny(clippy::arithmetic_side_effects)]
 
-use crate::semantics::error::{ScheduleError, SpanFault};
+use crate::semantics::error::{ScheduleError, SpanFault, json_type_name};
 use crate::semantics::protocol::canonical::Timestamp;
-
-/// The JSON type name `NotAString` reports. `&'static str` by construction, so
-/// the diagnostic names a type and never formats the offending value.
-fn json_type_name(value: &serde_json::Value) -> &'static str {
-  match value {
-    serde_json::Value::Null => "null",
-    serde_json::Value::Bool(_) => "boolean",
-    serde_json::Value::Number(_) => "number",
-    serde_json::Value::String(_) => "string",
-    serde_json::Value::Array(_) => "array",
-    serde_json::Value::Object(_) => "object",
-  }
-}
 
 /// Read a wire `next_check` as one instant, or name why it is not one.
 ///
@@ -120,11 +107,14 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
 /// jiff without one (R-23). The conversion failing *is* the calendar-unit case —
 /// there is no other way for it to fail.
 ///
-/// A bare `hh:mm:ss` is refused before the span parse sees it. jiff's friendly
+/// A bare colon form is refused before the span parse sees it. jiff's friendly
 /// grammar would read `"18:00:00"` as eighteen hours, and a backend author who
 /// wrote it almost certainly meant six this evening: brief §3.3 says that is a
-/// failure, not a guess (F-2). `"1 day 18:00:00"` is not a time of day and
-/// still parses as the span it is.
+/// failure, not a guess (F-2). The rule is the *shape* — digits and colons
+/// only, at least one colon — not a clock grammar, so `"1:30:00"` is refused
+/// exactly as `"01:30:00"` is; a seam on the leading zero is one no backend
+/// author could predict (F-37). `"1 day 18:00:00"` is not bare and still
+/// parses as the span it is.
 ///
 /// Sign and magnitude are the caller's business — a negative span is a valid
 /// `next_check` (R-28) and an invalid `timeout`, and only the caller knows
@@ -134,13 +124,21 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
 ///
 /// One `SpanFault` per way of not being a span.
 pub fn parse_span(raw: &str) -> Result<jiff::SignedDuration, SpanFault> {
-  if raw.parse::<jiff::civil::Time>().is_ok() {
+  if looks_like_a_time_of_day(raw) {
     return Err(SpanFault::TimeOfDay);
   }
   let span = raw.parse::<jiff::Span>().map_err(SpanFault::Unparseable)?;
   span
     .to_duration(jiff::SpanRelativeTo::days_are_24_hours())
     .map_err(SpanFault::CalendarUnit)
+}
+
+/// ASCII digits and colons only, with at least one colon: `18:00`, `1:30:00`,
+/// `00:00:05`. Whether jiff would accept it as a clock time is beside the
+/// point — the question is what the author was writing, and this is the shape
+/// of a time of day rather than of a span.
+fn looks_like_a_time_of_day(raw: &str) -> bool {
+  raw.contains(':') && raw.bytes().all(|b| b.is_ascii_digit() || b == b':')
 }
 
 /// Brief §9's three arms, in one place: the latest **valid** instruction, else

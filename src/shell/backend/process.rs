@@ -290,3 +290,53 @@ async fn drain_capped(
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use std::pin::Pin;
+  use std::sync::atomic::{AtomicUsize, Ordering};
+  use std::task::{Context, Poll};
+
+  use tokio::io::{AsyncRead, ReadBuf};
+
+  use super::read_capped;
+  use crate::shell::error::BackendError;
+
+  /// An endless stream that fills every buffer it is offered — as a pipe with
+  /// more waiting does — and counts what it served, so a test can see exactly
+  /// how far a reader went. One byte per poll would not do: a buffer that reads
+  /// its whole spare capacity looks exact against a trickle.
+  struct Counting<'a>(&'a AtomicUsize);
+
+  impl AsyncRead for Counting<'_> {
+    fn poll_read(
+      self: Pin<&mut Self>,
+      _: &mut Context<'_>,
+      buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+      let offered = buf.remaining();
+      buf.put_slice(&vec![b'x'; offered]);
+      self.0.fetch_add(offered, Ordering::SeqCst);
+      Poll::Ready(Ok(()))
+    }
+  }
+
+  /// F-9's claim, pinned (F-43): the refused path reads one byte past the
+  /// bound and not one more. A growing buffer read as much as its spare
+  /// capacity offered — 4096 here, against a bound of 1000 — and both flood
+  /// cases in `tests/integration/transport.rs` pass against that
+  /// implementation too; only the count tells them apart.
+  #[tokio::test]
+  async fn a_refused_read_takes_exactly_one_byte_past_the_bound() {
+    let served = AtomicUsize::new(0);
+    let limit = 1000;
+
+    let refused = read_capped(Counting(&served), limit).await;
+
+    assert!(
+      matches!(refused, Err(BackendError::OutputTooLarge { limit: 1000 })),
+      "an endless stream must be refused as too large"
+    );
+    assert_eq!(served.load(Ordering::SeqCst), limit.saturating_add(1));
+  }
+}

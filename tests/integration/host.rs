@@ -392,6 +392,9 @@ async fn a_failure_and_a_discard_render_as_their_leaves_do() {
     discard.contains("1 month") && discard.contains("calendar unit"),
     "{discard}"
   );
+  // The reason already ends with the raw value; the discard does not repeat it
+  // (F-42).
+  assert_eq!(discard.matches("1 month").count(), 1, "{discard}");
 }
 
 /// F-1: a scheduled check that has fired is not an "existing valid" check
@@ -417,6 +420,41 @@ async fn an_elapsed_check_is_consumed_and_the_default_poll_applies_from_now() {
     elapsed.next_check,
     instant("2026-08-23T05:12:00Z"),
     "an elapsed check must fall back to now + default_poll, not stand"
+  );
+}
+
+/// F-34: F-1's rule holds on the failure path too. A failure *at* the
+/// scheduled instant reports `now + default_poll`, not the instant that has
+/// just elapsed — otherwise a backend that cannot be spawned would have the
+/// timer respawn it in a tight loop until it recovered. The stored check does
+/// not move on failure (R-29): the instant reported is resolved for the
+/// caller, and only an accepted message writes state.
+#[tokio::test]
+async fn a_failure_at_an_elapsed_check_reports_the_default_poll_from_now() {
+  let (mut host, _calls) = host(vec![
+    answering(br#"{"view":null,"next_check":"30m"}"#),
+    failing(BackendError::ExitStatus { code: Some(1) }),
+    failing(BackendError::ExitStatus { code: Some(1) }),
+  ]);
+
+  let scheduled = host.evaluate(now(), event()).await;
+  let fired_at = scheduled.next_check;
+  assert_eq!(fired_at, instant("2026-08-23T04:42:00Z"));
+
+  let failed_at_the_instant = host.evaluate(fired_at, event()).await;
+  assert!(failed_at_the_instant.failure.is_some());
+  assert_eq!(
+    failed_at_the_instant.next_check,
+    instant("2026-08-23T05:12:00Z"),
+    "a failure at an elapsed check must report now + default_poll, not the past"
+  );
+
+  let later = instant("2026-08-23T04:50:00Z");
+  let failed_later = host.evaluate(later, event()).await;
+  assert_eq!(
+    failed_later.next_check,
+    instant("2026-08-23T05:20:00Z"),
+    "each failed exchange past the instant resolves from its own now"
   );
 }
 

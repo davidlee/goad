@@ -11,6 +11,21 @@
 
 use std::fmt;
 
+/// The name a diagnostic gives a JSON value's type. `&'static str` by
+/// construction, so a message names a type and never formats the offending
+/// value. The one such table in the crate: `NotAString` reports it and
+/// `Object`'s refusal of a non-object does (F-39).
+pub(crate) fn json_type_name(value: &serde_json::Value) -> &'static str {
+  match value {
+    serde_json::Value::Null => "null",
+    serde_json::Value::Bool(_) => "boolean",
+    serde_json::Value::Number(_) => "number",
+    serde_json::Value::String(_) => "string",
+    serde_json::Value::Array(_) => "array",
+    serde_json::Value::Object(_) => "object",
+  }
+}
+
 /// Stratum 1: the wire was malformed, or it was well-formed and said something
 /// the protocol does not admit.
 #[derive(Debug)]
@@ -30,9 +45,11 @@ pub enum ProtocolError {
     key: String,
   },
   /// `"hints": { … }` on a field. Hints are the field's own remaining keys,
-  /// flat (R-18); a nested object is the other spelling of the same thing,
+  /// flat (R-18); a nested `hints` key is the other spelling of the same thing,
   /// and the one `design.md` §5.2 refused. Absorbing it as a hint named
-  /// `hints` would lose every hint inside it silently (F-25, R-47).
+  /// `hints` would lose every hint inside it silently (F-25, R-47). An explicit
+  /// `null` there is not this case: it asserts nothing, and is read as
+  /// omission like every other nulled key (R-51, F-38).
   NestedHints {
     at: String,
   },
@@ -139,7 +156,7 @@ impl fmt::Display for ProtocolError {
       Self::NestedHints { at } => {
         write!(
           f,
-          "hints are the field's own keys, not a nested `hints` object, at {at}"
+          "hints are the field's own keys, not a nested `hints` key, at {at}"
         )
       }
       Self::UnsupportedProtocolVersion { found } => {

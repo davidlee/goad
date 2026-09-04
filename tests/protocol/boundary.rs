@@ -148,31 +148,66 @@ impl Scan {
   }
 }
 
-/// Does a line name the token as a **word** — an identifier segment or a word of
-/// prose — rather than as a substring? `site` must catch `SiteView`, `site_id`
-/// and `site` alone, and must not catch "call sites" or "websites" (F-14).
-/// Words are split on every non-alphanumeric byte — which separates identifier
-/// segments (`_`, `::`, `.`) and prose alike — and at each lower-to-upper case
-/// boundary, which is what separates `Site` from `View`. Lowercasing happens
-/// after the split, so the case boundary is still there to split on.
+/// Does a line of code name the token as an identifier **word** rather than as
+/// a substring? `site` must catch `SiteView`, `site_id`, `Sites` and `HTTPSite`,
+/// and must not catch `websites` or `offsite` (F-14, F-36).
+///
+/// Comment text is cut off first — AC-11 is about what the code names, and
+/// "call sites" in prose is not a domain type. Words are then split on every
+/// non-alphanumeric byte — which separates identifier segments (`_`, `::`,
+/// `.`) — and at each case boundary, which is what separates `Site` from
+/// `View` and `HTTP` from `Site`. A word matches the token or its plural:
+/// `Habits` names the domain as plainly as `Habit`. Lowercasing happens after
+/// the split, so the case boundaries are still there to split on.
+///
+/// The comment cut is a `//` search, so a `//` inside a string literal hides
+/// the rest of that line. Nothing in `src/` writes one; the price is accepted
+/// over parsing Rust here.
 fn mentions(line: &str, token: &str) -> bool {
-  line
+  code_of(line)
     .split(|c: char| !c.is_ascii_alphanumeric())
     .flat_map(camel_segments)
-    .any(|word| word.eq_ignore_ascii_case(token))
+    .any(|word| is_singular_or_plural_of(word, token))
 }
 
-/// `SiteView` → `Site`, `View`. A segment with no case boundary is itself.
+/// The line with any `//` comment removed.
+fn code_of(line: &str) -> &str {
+  line.find("//").map_or(line, |comment| &line[..comment])
+}
+
+fn is_singular_or_plural_of(word: &str, token: &str) -> bool {
+  word.eq_ignore_ascii_case(token)
+    || word
+      .strip_suffix(['s', 'S'])
+      .is_some_and(|stem| stem.eq_ignore_ascii_case(token) || is_es_plural(stem, token))
+}
+
+fn is_es_plural(stem: &str, token: &str) -> bool {
+  stem
+    .strip_suffix(['e', 'E'])
+    .is_some_and(|stem| stem.eq_ignore_ascii_case(token))
+}
+
+/// `SiteView` → `Site`, `View`; `HTTPSite` → `HTTP`, `Site`. A segment with no
+/// case boundary is itself.
 fn camel_segments(segment: &str) -> Vec<&str> {
   let mut words = Vec::new();
   let mut start = 0;
-  let mut previous_lower = false;
-  for (offset, c) in segment.char_indices() {
-    if c.is_ascii_uppercase() && previous_lower {
+  let bytes = segment.as_bytes();
+  for (offset, &c) in bytes.iter().enumerate().skip(1) {
+    let previous = bytes[offset - 1];
+    let lower_to_upper = c.is_ascii_uppercase() && previous.is_ascii_lowercase();
+    let acronym_ends = c.is_ascii_lowercase()
+      && previous.is_ascii_uppercase()
+      && offset >= 2
+      && bytes[offset - 2].is_ascii_uppercase();
+    if lower_to_upper {
       words.push(&segment[start..offset]);
       start = offset;
+    } else if acronym_ends {
+      words.push(&segment[start..offset - 1]);
+      start = offset - 1;
     }
-    previous_lower = c.is_ascii_lowercase();
   }
   words.push(&segment[start..]);
   words
@@ -260,24 +295,37 @@ fn a_scan_whose_directory_was_renamed_away_fails() {
   );
 }
 
-/// F-14: AC-11 is about names, so the match is by word — an identifier segment
-/// or a word of prose — and not by substring.
+/// F-14: AC-11 is about names, so the match is by word — an identifier
+/// segment — and not by substring. F-36: a plural or an all-caps prefix still
+/// names the domain, and comment text is not code, so it is not scanned.
 #[test]
 fn a_token_matches_a_word_and_not_a_substring_of_one() {
-  for caught in [
-    "pub struct SiteView",
-    "let site_id = 1;",
-    "// the Site",
-    "mod site;",
+  for (caught, token) in [
+    ("pub struct SiteView", "site"),
+    ("let site_id = 1;", "site"),
+    ("mod site;", "site"),
+    ("pub struct Habits", "habit"),
+    ("mod habits;", "habit"),
+    ("struct Sites;", "site"),
+    ("pub struct HTTPSite", "site"),
+    ("SITE_ID", "site"),
   ] {
     assert!(
-      mentions(caught, "site"),
+      mentions(caught, token),
       "{caught:?} names the domain and was missed"
     );
   }
-  for clean in ["// the call sites", "// websites", "let offsite = 1;"] {
+  for (clean, token) in [
+    ("// the call sites", "site"),
+    ("/// the Site", "site"),
+    ("//! habits", "habit"),
+    ("let x = 1; // a habit", "habit"),
+    ("let websites = 1;", "site"),
+    ("let offsite = 1;", "site"),
+    ("let habitat = 1;", "habit"),
+  ] {
     assert!(
-      !mentions(clean, "site"),
+      !mentions(clean, token),
       "{clean:?} does not name the domain and was caught"
     );
   }

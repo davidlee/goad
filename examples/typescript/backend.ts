@@ -95,12 +95,22 @@ interface Option {
  * A field on an option. `min`, `max` and `options` belong to the kinds that
  * give them meaning and are refused on any other; every key the protocol does
  * not name is a presentation hint, carried flat on the field — `multiline`,
- * say — and passed through to the renderer untouched.
+ * say — and passed through to the renderer untouched. A nested `hints` object
+ * is the other spelling of the same thing and is refused.
+ *
+ * The `never` members are what make the refusals typecheck: the index
+ * signature admits any key, and `never` narrows the ones the host would
+ * reject on this kind, so `deno check` refuses them where the host would.
  */
-type Field = { id: string; label: string; [hint: string]: unknown } & (
-  | { kind: "text" | "boolean" | "datetime" }
-  | { kind: "number"; min?: number; max?: number }
-  | { kind: "choice"; options: Alternative[] }
+type Field = {
+  id: string;
+  label: string;
+  hints?: never;
+  [hint: string]: unknown;
+} & (
+  | { kind: "text" | "boolean" | "datetime"; min?: never; max?: never; options?: never }
+  | { kind: "number"; min?: number; max?: number; options?: never }
+  | { kind: "choice"; options: Alternative[]; min?: never; max?: never }
 );
 
 /** A value a `choice` field may take. Not an option: it carries no fields. */

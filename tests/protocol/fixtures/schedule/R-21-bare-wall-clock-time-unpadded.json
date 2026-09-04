@@ -1,0 +1,7 @@
+{
+  "requirement":  ["R-21", "R-25"],
+  "description":  "The time-of-day refusal is about the colon form, not the padding: `1:30:00` is refused exactly as `01:30:00` is. Reading the unpadded form as ninety minutes while refusing the padded one would put the seam between a time and a span on a leading zero, which no backend author can be expected to predict.",
+  "now":          "2026-08-23T04:12:00Z",
+  "input":        "1:30:00",
+  "expect":       { "error": "TimeOfDay" }
+}

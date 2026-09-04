@@ -34,7 +34,7 @@ use std::fmt;
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 
-use crate::semantics::error::ProtocolError;
+use crate::semantics::error::{ProtocolError, json_type_name};
 
 /// A `T` that must have been written as a JSON object.
 ///
@@ -42,8 +42,10 @@ use crate::semantics::error::ProtocolError;
 /// order, so without this `[null, null]` is `{"view": null}` and `["x", "X"]`
 /// is an option. That is the host manufacturing the backend's assertion (R-11,
 /// P-B). The wrapper reads the value first and refuses anything but an object,
-/// then hands the object to `T` (F-20). `WireView` and `WireField` need no
-/// wrapper: `#[serde(flatten)]` already forces map access.
+/// then hands the object to `T` (F-20). Every other object the protocol reads
+/// through its own type goes through it — the envelope, an option, an
+/// alternative, and both halves of a content block (F-35). `WireView` and
+/// `WireField` need no wrapper: `#[serde(flatten)]` already forces map access.
 #[derive(Debug)]
 pub struct Object<T>(pub T);
 
@@ -52,24 +54,13 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Object<T> {
     let value = serde_json::Value::deserialize(deserializer)?;
     if !value.is_object() {
       return Err(serde::de::Error::custom(format!(
-        "expected an object, found {}",
+        "expected an object, found a JSON {}",
         json_type_name(&value)
       )));
     }
     T::deserialize(value)
       .map(Object)
       .map_err(serde::de::Error::custom)
-  }
-}
-
-fn json_type_name(value: &serde_json::Value) -> &'static str {
-  match value {
-    serde_json::Value::Null => "null",
-    serde_json::Value::Bool(_) => "a boolean",
-    serde_json::Value::Number(_) => "a number",
-    serde_json::Value::String(_) => "a string",
-    serde_json::Value::Array(_) => "an array",
-    serde_json::Value::Object(_) => "an object",
   }
 }
 

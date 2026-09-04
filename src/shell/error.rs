@@ -122,7 +122,7 @@ pub enum ConfigError {
     raw: String,
     fault: SpanFault,
   },
-  /// `command = []`. There is nothing to spawn.
+  /// `command = []`, or `command = [""]`. There is nothing to spawn (F-41).
   EmptyCommand,
   /// A duration that parsed but is zero or negative. A zero timeout fails every
   /// exchange and a zero poll is a busy loop, so neither is a configuration the
@@ -163,7 +163,10 @@ impl fmt::Display for ConfigError {
           "{key} = \"{raw}\" is not a duration this host can resolve: {fault}"
         )
       }
-      Self::EmptyCommand => write!(f, "backend.command is empty, so there is nothing to spawn"),
+      Self::EmptyCommand => write!(
+        f,
+        "backend.command names no program, so there is nothing to spawn"
+      ),
       Self::NonPositive { key } => write!(f, "{key} must be greater than zero"),
     }
   }

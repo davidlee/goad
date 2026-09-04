@@ -57,11 +57,13 @@ pub enum Discarded {
 }
 
 /// Names what was lost and why, so a discard can be logged as it is handed
-/// over (brief §13, R-47) without the caller matching on it (F-33).
+/// over (brief §13, R-47) without the caller matching on it (F-33). The reason
+/// already names the raw value, so this does not render it a second time
+/// (F-42); `raw` is carried for a caller that wants the value itself.
 impl fmt::Display for Discarded {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Schedule { raw, reason } => write!(f, "next_check {raw} discarded: {reason}"),
+      Self::Schedule { reason, .. } => write!(f, "next_check discarded: {reason}"),
     }
   }
 }
@@ -224,9 +226,10 @@ fn normalize_content(raw: &serde_json::Value, at: &str) -> Result<Content, Proto
   if let Some(text) = raw.as_str() {
     return Ok(Content::Text(text.to_owned()));
   }
-  let tag: WireContent = serde_json::from_value(raw.clone())?;
+  let Object(tag) = serde_json::from_value::<Object<WireContent>>(raw.clone())?;
   let payload = || -> Result<String, ProtocolError> {
-    Ok(serde_json::from_value::<WireContentValue>(raw.clone())?.value)
+    let Object(content) = serde_json::from_value::<Object<WireContentValue>>(raw.clone())?;
+    Ok(content.value)
   };
   match tag.kind.as_str() {
     "text" => Ok(Content::Text(payload()?)),
@@ -262,14 +265,18 @@ fn normalize_field(wire: WireField, at: &str) -> Result<Field, ProtocolError> {
     min,
     max,
     options,
-    hints,
+    mut hints,
   } = wire;
   // The flatten collects every unmodelled key, so the nested spelling the
   // design refused does not fail on its own: it arrives as a hint named
   // `hints`. Two spellings for one thing is the ambiguity that must fail, and
-  // absorbing this one loses everything inside it silently (F-25, R-47).
-  if hints.contains_key("hints") {
-    return Err(ProtocolError::NestedHints { at: at.to_owned() });
+  // absorbing this one loses everything inside it silently (F-25, R-47). An
+  // explicit `null` is exempt for the reason every other `null` is: it asserts
+  // nothing, so nothing is lost by reading it as omission (D50, R-51, F-38).
+  match hints.remove("hints") {
+    None => (),
+    Some(nested) if nested.is_null() => (),
+    Some(_) => return Err(ProtocolError::NestedHints { at: at.to_owned() }),
   }
   Ok(Field {
     kind: normalize_field_kind(&kind, min, max, options, at)?,
