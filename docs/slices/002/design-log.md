@@ -1520,3 +1520,38 @@ about.*
   followed by an explicit statement of what it does not forbid.
 - **Unchanged:** this is still a canon act awaiting endorsement. Nothing under
   `docs/policy/`, `docs/specs/` or `docs/adr/` was created or edited.
+
+### 2026-09-05 — The drafts are the working authority: canon endorsement never blocked `plan.md`
+
+*Autonomy grant. A correction to the record, not a change of decision. No design
+content moves.*
+
+- **Asked:** session 3's handover recorded the canon endorsement (CD-1…CD-7 and
+  `draft-policy.md`) as *"the only genuine blocker"*, and recorded `plan.md` as
+  waiting on it "by the methodology's own rule". Which rule?
+- **There is no such rule.** `docs/AGENTS.md:36` says the opposite, in terms:
+  *"While the slice runs, the draft is its working authority: design, plan and
+  execution cite it exactly as they would the real thing."* Promotion is an
+  audit act (`docs/AGENTS.md:38`), and `:40` only forbids **closing** a slice
+  that still holds an unpromoted draft. Nothing anywhere makes endorsement a
+  precondition of planning or of executing.
+- **Decided:** the misreading is corrected in `notes.md` — §2 item 3 and item 4,
+  §3a's preamble, §5's *What must change* item 3, and §6 item 1 — and this entry
+  exists so the next session does not re-derive it. `plan.md` and every phase
+  cite `canon-delta.md` and `draft-policy.md` as binding, and keep them current
+  as the work changes, exactly as they would cite `docs/specs/` or `docs/adr/`.
+- **What is unchanged, and it matters:** the canon **debt** is real and it is
+  still the one thing the autonomy grant withholds. Nothing under `docs/specs/`,
+  `docs/policy/` or `docs/adr/` may be created, edited or promoted before audit,
+  and CD-5 and the phase-gate policy still land together or not at all. The debt
+  moved from *blocker* to *audit obligation*; it did not shrink.
+- **Where the misreading came from:** an over-broad instruction in the driving
+  prompt, not from the methodology — the two were conflated because both say
+  "canon stops and waits", and only one of them says what it stops.
+- **Rejected:** leaving it and putting the canon movements to the user first,
+  which is what three sessions did. It cost three sessions and produced five
+  review rounds of substitute work; §5's arithmetic is the bill.
+- **Consequence:** the design gate is discharged by §5's replacement criterion —
+  *every claim in the design is either built, or its failure mode is loud at
+  first compile* — and the next act is `plan.md`, then PHASE-01, which is the
+  audit of F-37's artifact map that no amount of further reading can be.

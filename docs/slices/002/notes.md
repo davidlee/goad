@@ -170,8 +170,8 @@ Session 2's handover left four. Checked against the tree, not against the report
 |---|---|---|
 | 1 | **`draft-policy.md` and `canon-delta.md` CD-5 read against `design.md` §10 C-5** — the last unreviewed artefact pair | **CLOSED.** Round 5 did exactly this reading and it produced two findings. F-36: the draft legislated repository-wide rules the design never derived — three of four clauses are now derived clause by clause in a new block under §10 C-5, and the fourth (lint discipline) is **cut**, which is also F-16's structural fix. F-35 corrected a context-dependent evidence path in `canon-delta.md`, and the class fix went into its preamble |
 | 2 | **A-4** — `just check` wall-clock with 411 crates in the tree (ADR-002 T3) | **OPEN, and not closable by a spike.** It needs `slint` in the graph. It now has a protocol and three numbered bands instead of the word "tolerable" (S-4: ≤ 120 s local, ≤ 300 s, stop). Today's baseline, measured this session: **1.836 s warm, pre-split** |
-| 3 | **The canon decisions, CD-1…CD-7 and `draft-policy.md`** | **OPEN, for the third session running — and larger than it was.** See §3 |
-| 4 | **`plan.md` is not begun** | **OPEN.** It waits on item 3 and on nothing else |
+| 3 | **The canon decisions, CD-1…CD-7 and `draft-policy.md`** | **OPEN, for the third session running — and larger than it was.** A debt discharged at audit, not a gate on the work in front of it. See §3 |
+| 4 | **`plan.md` is not begun** | **OPEN, and blocked by nothing.** Session 3 recorded it as waiting on item 3. That was a misreading of the methodology: `docs/AGENTS.md:36` — *"while the slice runs, the draft is its working authority: design, plan and execution cite it exactly as they would the real thing"* — and promotion happens at audit (`:38`). `plan.md` therefore cites `canon-delta.md` and `draft-policy.md` as binding, and keeps them current |
 
 Round 5 **enlarged** item 3 rather than shrinking it. F-36's repair rewrote
 `draft-policy.md`'s Scope and Compliance and added a derived scope block to §10
@@ -187,7 +187,9 @@ read, not as session 1 described them.
 
 Nothing under `docs/specs/`, `docs/policy/` or `docs/adr/` has been created or
 edited on this branch. Verified: the diff is empty. Every movement below is
-drafted in the slice folder and waits.
+drafted in the slice folder and waits **for audit** — `docs/AGENTS.md:38`. None
+of them gates `plan.md` or a phase: for the duration of the slice the drafts are
+the working authority and are cited as canon would be (`docs/AGENTS.md:36`).
 
 | # | movement | vehicle | needed |
 |---|---|---|---|
@@ -401,9 +403,13 @@ built, or its failure mode is loud at first compile.** By that criterion the
 design is met on everything except the four repairs in §3b, and step 1
 discharges all four.
 
-**3. Clear the canon endorsement**, which is the only genuine blocker and is not
-the agent's to clear. It has been open for three sessions while the agent found
-five rounds of other work to do. That sequencing is itself a symptom.
+**3. Carry the canon debt; do not wait behind it.** CD-1…CD-7 and
+`draft-policy.md` are real, they are the user's alone to endorse, and they are
+endorsed **at audit** (`docs/AGENTS.md:38`). They are not a blocker on planning
+or on execution, because `docs/AGENTS.md:36` makes the drafts the slice's
+working authority for precisely this interval. Session 3 called the endorsement
+*"the only genuine blocker"* and let three sessions pass behind it; the debt was
+real and the blockage was not.
 
 **The risk of the status quo, stated plainly.** An endless design gate is a
 failure mode of the same family as a half-built tree. Five rounds, three
@@ -414,16 +420,19 @@ outside, and the review's own numbers do not promise a sixth round would end it.
 
 ### 6. What the next session does first
 
-1. **Put §3a's canon decisions to the user.** They are the one thing the autonomy
-   grant withholds, `plan.md` waits on them by the methodology's own rule, and
-   they are now three sessions old. CD-5 and `draft-policy.md` go together or not
-   at all.
+1. **Do not wait on canon.** §3a's movements are the one thing the autonomy grant
+   withholds, and they are three sessions old — but they are put to the user **at
+   audit** (`docs/AGENTS.md:38`), not before. Until then the drafts *are* this
+   slice's working authority (`docs/AGENTS.md:36`): `plan.md` and every phase
+   cite `canon-delta.md` and `draft-policy.md` exactly as they would cite canon,
+   and keep them current as the work changes. CD-5 and `draft-policy.md` still
+   go together or not at all — at audit.
 2. **Execute the artifact map in a worktree**, per §5's recommendation — *not* a
    round 6 reading pass. Entry: `design.md` §5.1 *The artifact map*, top to
    bottom. Exit: `just check` at 0, and AC-2's content-change list matching the
    map's "change permitted" column. If it comes back green, the last unbuilt
    repair of consequence is built rather than read, and nothing stands between
-   the slice and `plan.md` except item 1.
+   the slice and `plan.md`.
 3. **Then `plan.md`.** PHASE-01 is the split, because it moves 111 files and
    nothing else should be moving at the same time. Two constraints the builds
    added to phase planning, both of which decide where a boundary can fall:
