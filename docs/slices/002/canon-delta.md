@@ -33,17 +33,28 @@ branch: the split happened, so ADR-002 is retired.
 
 A new ADR — `docs/adr/003-*.md` — recording:
 
-- **The decision as taken:** three crates along the ADR-001 strata.
-  `crates/goad-semantics` (stratum 1), `crates/goad-shell` (stratum 2),
-  `crates/goad` (stratum 3, the binary). `[workspace.dependencies]`,
-  `[workspace.lints]`, one root `clippy.toml`, fixtures at `tests/fixtures/`.
+- **The decision as taken:** three crates along the ADR-001 strata, plus one
+  that sits above all of them. `crates/goad-semantics` (stratum 1),
+  `crates/goad-shell` (stratum 2), `crates/goad` (stratum 3, the binary), and
+  `crates/goad-boundary` — a test-only member that owns the workspace-wide
+  invariant checks and depends on no other member, because a scan over every
+  member's sources belongs to none of them. `[workspace.dependencies]`,
+  `[workspace.lints]` inherited by every member with `lints.workspace = true`
+  and no crate-level override, one root `clippy.toml`, fixtures at
+  `tests/fixtures/`.
 - **The four things ADR-002 deliberately did not decide**, now decided with the
   code in view, which is the condition ADR-002 set: crate names, the `crates/`
   directory, the workspace dependency table, and the fixture corpus location.
-- **What the split bought beyond satisfying the trigger:** ADR-001's direction
-  rule is now enforced by Cargo's resolution rather than by a grep in
-  `boundary.rs`. That is the consequence ADR-001's own Verification section
-  said was unavailable in a single crate.
+- **What the split bought beyond satisfying the trigger, and exactly where the
+  claim stops:** ADR-001's direction rule is enforced by Cargo's resolution **at
+  crate edges** — a `goad-semantics` source file naming `goad_shell` or `tokio`
+  is `error[E0433]`, confirmed by negative control (`research.md` Thread 6).
+  That is the consequence ADR-001's Verification section said was unavailable in
+  a single crate, and it covers only the half a compiler can see. A
+  `tokio.workspace = true` line in stratum 1's *manifest* still leaves `cargo
+  build --workspace` at exit 0 (`research.md:806`), so the manifest is held by a
+  test rather than by the compiler; and the domain-vocabulary scan is not made
+  redundant at all, because no compiler objects to a type called `Habit`.
 - **What the split cost:** measured, not estimated — 111 renames, 91
   byte-identical, one substantive file change, ~6 minutes to a green gate. The
   error-taxonomy split ADR-002 flagged as a real cost was two lines.
@@ -146,10 +157,12 @@ and the `justfile` mirrors it: change §9 first, then the recipe. But §9 is a
 *closed slice's design*, and `docs/AGENTS.md` says a design is a record of
 intent at a point in time and must not be retro-fitted.
 
-Slice 002 changes the gate — a workspace changes the commands, and the renderer
-adds a column. Under the current arrangement that means editing a closed slice's
-design, which the methodology forbids, or leaving `CLAUDE.md` pointing at a
-stale block.
+Slice 002 changes the gate: a workspace changes every command's scope, and the
+split *retires* the feature matrix rather than adding to it. The renderer adds no
+column — it is a workspace member, built and linted by the same `--workspace`
+commands as every other. Under the current arrangement recording that means
+editing a closed slice's design, which the methodology forbids, or leaving
+`CLAUDE.md` pointing at a stale block.
 
 ### The change
 
@@ -172,8 +185,16 @@ cargo fmt --all --check
 ```
 
 `cargo test -p goad-semantics` is inside the gate rather than beside it as a
-diagnostic: it is the only remaining executable statement that stratum 1 stands
-up without the runtime, and a purity claim that is not run is not a claim.
+diagnostic, and its job is narrow, measured, and not the one first claimed for
+it. `cargo test --workspace` unifies Cargo features across every member it
+builds, so stratum 1 is compiled *there* with whatever features stratum 2 and
+stratum 3 switch on in shared dependencies. `-p goad-semantics` is the only
+command in the gate that builds and runs stratum 1 with exactly the features its
+own manifest asks for. Measured: in a two-member probe where member `b` enables
+`serde/derive` and member `a` does not, `cargo build --workspace` and `cargo test
+-p b` succeed while `cargo test -p a` fails `error[E0433]` on
+`serde::Serialize`. It is **not** a purity check — a `tokio` entry in stratum 1's
+manifest passes it — and the manifest test is what holds that.
 
 ---
 
@@ -192,18 +213,30 @@ domain vocabulary is *most* tempting, because it is the text a person reads.
 
 ### The change
 
-None to `CLAUDE.md`, if D13 is implemented — but D13's shape is not the one this
-entry first assumed. `Scan` has no extension field and the walk hard-codes `.rs`
-(`tests/protocol/boundary.rs:13-20`, `:116`), so "extend the configuration, not
-the walk" is not available: the walk changes **once**, to consult a configured
-extension set. The header's rule is about vocabulary, and generalising it to file
-types was the error (review `F-8`).
+None to `CLAUDE.md`, if D13 and D17 are implemented — but D13's shape is not the
+one this entry first assumed. `Scan` has no extension field and the walk
+hard-codes `.rs` (`tests/protocol/boundary.rs:13-20`, `:116`), so "extend the
+configuration, not the walk" is not available: the walk changes **once**, to
+consult a configured extension set. The header's rule is about vocabulary, and
+generalising it to file types was the error (review `F-8`).
+
+Two further shape corrections, both from round 2:
+
+- The scan is no longer configured per member by hand. It reads
+  `workspace.members` from the root manifest and applies one scan template to
+  every member it finds, so a new member cannot arrive unscanned. That closes
+  R7 in this slice instead of deferring it to slice 004.
+- The scans move out of `tests/protocol/` and into `crates/goad-boundary`, a
+  test-only workspace member that depends on no other member (D17). Their old
+  home made a stratum-1 test target scan stratum 2 and, once the renderer
+  exists, stratum 3 — the upward reach the split exposed
+  (`research.md:798-804`).
 
 The same finding makes slice 001's tolerated text-scan follow-up reachable rather
 than hypothetical. `code_of` truncates at the first `//` (`:181`), accepted
 because nothing in `src/` contained one — and markup contains URLs. The comment
 cut becomes string-literal aware for both languages here, rather than being
-deferred a second time.
+deferred a second time. It stays **line-based**, and D13 names what that costs.
 
 This entry exists so that the alternative — narrowing `CLAUDE.md`'s claim instead
 of growing the test — is a decision taken in the open. If D13 is dropped, this
@@ -234,8 +267,19 @@ agent to check something that cannot be checked.
 
 ### The change
 
-Replace both sentences with a pointer to the promoted policy (CD-5) and a
-statement of what replaced the matrix: stratum 1's purity is now held by
-`cargo test -p goad-semantics` plus a manifest-reading test, not by a feature
-column. `docs/AGENTS.md` and any slice document repeating the two-column wording
-are checked for the same phrase at reconciliation.
+Replace both sentences with a pointer to the promoted policy (CD-5) and an
+accurate statement of what replaced the matrix. Three mechanisms, each with a
+different job, and the wording must not merge them:
+
+- **Cargo, at crate edges** — a stratum 1 source file naming `goad_shell` or
+  `tokio` does not compile.
+- **The manifest test** (`crates/goad-boundary`) — the only instrument that
+  rejects a runtime, renderer or filesystem-shaped *dependency entry*, which no
+  compiler and no source scan can see.
+- **`cargo test -p goad-semantics`** — the only gate command that builds stratum
+  1 with exactly the features its own manifest asks for, because `--workspace`
+  unifies features across every member it builds. This one is not a purity
+  check and must not be described as one.
+
+`docs/AGENTS.md` and any slice document repeating the two-column wording are
+checked for the same phrase at reconciliation.
