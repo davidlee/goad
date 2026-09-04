@@ -1,7 +1,7 @@
 {
-  "requirement":  ["R-21"],
-  "description":  "A bare wall-clock time is read as a span of that many hours, not as a time of day: \"18:00:00\" means eighteen hours from now. It is neither of the two forms next_check offers, and this case documents the accepted behaviour rather than leaving it latent.",
+  "requirement":  ["R-21", "R-25"],
+  "description":  "A bare wall-clock time is neither of the two forms next_check offers — it is not an instant, and reading it as a span of that many hours would be a guess — so it is discarded and named as a time of day (brief §3.3, P-B).",
   "now":          "2026-08-23T04:12:00Z",
   "input":        "18:00:00",
-  "expect":       { "instant": "2026-08-23T22:12:00Z" }
+  "expect":       { "error": "TimeOfDay" }
 }

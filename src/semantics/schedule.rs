@@ -1,7 +1,7 @@
 //! `next_check`: one canonical instant, or one named `ScheduleError` —
 //! `design.md` §5.2 and §5.5, brief §9, `draft-spec.md` R-21…R-28.
 //!
-//! Two pure functions, and the clock is not one of them. `now` is a parameter
+//! Three pure functions, and the clock is not one of them. `now` is a parameter
 //! on both (I3): stratum 1 reads no clock, and this is the module where that
 //! would be most tempting.
 //!
@@ -13,7 +13,7 @@
 //! merely discouraged.
 #![deny(clippy::arithmetic_side_effects)]
 
-use crate::semantics::error::ScheduleError;
+use crate::semantics::error::{ScheduleError, SpanFault};
 use crate::semantics::protocol::canonical::Timestamp;
 
 /// The JSON type name `NotAString` reports. `&'static str` by construction, so
@@ -91,20 +91,14 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
       raw: raw.to_owned(),
     });
   }
-  let Ok(span) = raw.parse::<jiff::Span>() else {
-    return Err(ScheduleError::Unparseable {
-      raw: raw.to_owned(),
-    });
-  };
-  // R-23/R-24: days and weeks resolve as exactly 24 and 168 hours; months and
-  // years do not resolve at all, because their length needs a calendar and D4
-  // leaves jiff without one. This conversion failing *is* the calendar-unit
-  // case — there is no other way for it to fail.
-  let Ok(duration) = span.to_duration(jiff::SpanRelativeTo::days_are_24_hours()) else {
-    return Err(ScheduleError::CalendarUnit {
-      raw: raw.to_owned(),
-    });
-  };
+  let duration = parse_span(raw).map_err(|fault| {
+    let raw = raw.to_owned();
+    match fault {
+      SpanFault::TimeOfDay => ScheduleError::TimeOfDay { raw },
+      SpanFault::CalendarUnit(_) => ScheduleError::CalendarUnit { raw },
+      SpanFault::Unparseable(_) => ScheduleError::Unparseable { raw },
+    }
+  })?;
   // A span can be well-formed and still land outside representable time. That
   // is a different boundary from the per-unit bound the span parser enforces,
   // and the two report differently.
@@ -116,15 +110,59 @@ fn parse_instruction(raw: &str, now: Timestamp) -> Result<Timestamp, ScheduleErr
   }
 }
 
+/// The product's one duration grammar (`design.md` §5.2): R-21's relative form,
+/// and the config file's `timeout` and `default_poll` (F-4). Public so that the
+/// config reader in stratum 2 shares it rather than restating the two jiff
+/// calls.
+///
+/// Days and weeks resolve as exactly 24 and 168 hours (R-24); months and years
+/// do not resolve at all, because their length needs a calendar and D4 leaves
+/// jiff without one (R-23). The conversion failing *is* the calendar-unit case —
+/// there is no other way for it to fail.
+///
+/// A bare `hh:mm:ss` is refused before the span parse sees it. jiff's friendly
+/// grammar would read `"18:00:00"` as eighteen hours, and a backend author who
+/// wrote it almost certainly meant six this evening: brief §3.3 says that is a
+/// failure, not a guess (F-2). `"1 day 18:00:00"` is not a time of day and
+/// still parses as the span it is.
+///
+/// Sign and magnitude are the caller's business — a negative span is a valid
+/// `next_check` (R-28) and an invalid `timeout`, and only the caller knows
+/// which it is reading.
+///
+/// # Errors
+///
+/// One `SpanFault` per way of not being a span.
+pub fn parse_span(raw: &str) -> Result<jiff::SignedDuration, SpanFault> {
+  if raw.parse::<jiff::civil::Time>().is_ok() {
+    return Err(SpanFault::TimeOfDay);
+  }
+  let span = raw.parse::<jiff::Span>().map_err(SpanFault::Unparseable)?;
+  span
+    .to_duration(jiff::SpanRelativeTo::days_are_24_hours())
+    .map_err(SpanFault::CalendarUnit)
+}
+
 /// Brief §9's three arms, in one place: the latest **valid** instruction, else
-/// the retained value, else `now + default_poll` (R-26). The result is always a
-/// concrete instant — there is no unresolved state (R-27).
+/// the retained value **if it is still ahead of `now`**, else `now +
+/// default_poll` (R-26). The result is always a concrete instant — there is no
+/// unresolved state (R-27).
 ///
 /// `incoming` is `Option`, not `Result`, because an invalid `next_check` never
 /// reaches here: normalization has already turned it into `None` plus a
 /// `Discarded::Schedule` (P2). So `None` means "no usable instruction supplied"
 /// and the retained value stands — which is R-25's "preserves rather than
 /// disables", expressed as a type rather than as a comment.
+///
+/// A retained value at or before `now` does **not** stand: brief §9 retains an
+/// *existing valid* check, and one that has already fired is neither. It is
+/// consumed and the default poll applies, otherwise a backend that omits
+/// `next_check` after a scheduled check — which R-21 permits indefinitely —
+/// leaves the host reporting an elapsed instant on every exchange, and a timer
+/// that fires on a past instant busy-loops (F-1). A backend-supplied past
+/// instant (R-28) is therefore stored as given, fires once, and then falls back
+/// to cadence. `<=` rather than `<`: an exchange run *at* the resolved instant
+/// is that check firing, which is the common case rather than the edge.
 ///
 /// Latest-valid-wins is **issue order, not `max`**. A valid `incoming` wins even
 /// when it is earlier than `retained`: brief §9 and §22's point 8 say a later
@@ -151,8 +189,8 @@ pub fn resolve(
 ) -> Timestamp {
   match (incoming, retained) {
     (Some(instruction), _) => instruction,
-    (None, Some(resolved)) => resolved,
-    (None, None) => Timestamp::new(
+    (None, Some(pending)) if pending.instant() > now.instant() => pending,
+    (None, _) => Timestamp::new(
       now
         .instant()
         .checked_add(default_poll)
@@ -225,6 +263,25 @@ mod tests {
   #[test]
   fn with_nothing_retained_and_nothing_incoming_the_default_poll_is_added_to_now() {
     let resolved = resolve(None, None, HOUR, now());
+    assert_eq!(resolved, instant("2026-08-23T05:12:00Z"));
+  }
+
+  /// Brief §9 retains an existing **valid** check, and a check that has already
+  /// fired is not one: it is consumed, and the default poll applies (F-1).
+  /// Retaining it would hand slice 003's timer an instant in the past on every
+  /// exchange that omits `next_check`, which R-21 lets a backend do forever.
+  #[test]
+  fn an_elapsed_retained_check_is_consumed_and_the_default_poll_applies() {
+    let resolved = resolve(Some(instant("2026-08-23T03:00:00Z")), None, HOUR, now());
+    assert_eq!(resolved, instant("2026-08-23T05:12:00Z"));
+  }
+
+  /// The boundary is `<=`, not `<`: an exchange that runs *at* the resolved
+  /// instant is the scheduled check firing, and that is the common case rather
+  /// than the edge — a timer wakes at the instant, not after it.
+  #[test]
+  fn a_retained_check_equal_to_now_is_consumed_too() {
+    let resolved = resolve(Some(now()), None, HOUR, now());
     assert_eq!(resolved, instant("2026-08-23T05:12:00Z"));
   }
 

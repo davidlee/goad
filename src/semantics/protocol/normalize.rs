@@ -19,14 +19,16 @@
 //! deny D53 leaves to such modules (I9, R-46).
 #![deny(clippy::arithmetic_side_effects)]
 
+use std::fmt;
+
 use crate::semantics::error::{ProtocolError, ScheduleError};
 use crate::semantics::protocol::canonical::{
   Alternative, AlternativeId, Alternatives, Choice, Content, Field, FieldId, FieldKind, Fields,
-  Hints, NumberRange, Opt, OptionId, Options, Response, Timestamp, View,
+  Hints, NumberRange, Opt, OptionId, Options, PROTOCOL_VERSION, Response, Timestamp, View,
 };
 use crate::semantics::protocol::wire::{
-  WireAlternative, WireChoice, WireContent, WireContentValue, WireField, WireOpt, WireResponse,
-  WireView,
+  Object, WireAlternative, WireChoice, WireContent, WireContentValue, WireField, WireOpt,
+  WireResponse, WireView, reject_duplicate_keys,
 };
 use crate::semantics::schedule;
 
@@ -54,9 +56,42 @@ pub enum Discarded {
   },
 }
 
-/// The protocol version this host implements. A response may omit it (R-2); it
-/// may not declare another one (R-3).
-const PROTOCOL_VERSION: u32 = 1;
+/// Names what was lost and why, so a discard can be logged as it is handed
+/// over (brief §13, R-47) without the caller matching on it (F-33).
+impl fmt::Display for Discarded {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Schedule { raw, reason } => write!(f, "next_check {raw} discarded: {reason}"),
+    }
+  }
+}
+
+/// The bytes a backend wrote, as a canonical response.
+///
+/// The one place in the product that reads what a backend wrote: the transport
+/// returns bytes and parses nothing, and the corpus runs its documents through
+/// here too, so a fixture asserts against the path the host runs. R-38's
+/// framing rule is enforced by `from_slice`: a body that is not **exactly one**
+/// JSON document never reaches normalization — empty stdout is an unexpected
+/// EOF, a second document is trailing content, and bytes that are not UTF-8 are
+/// an invalid code point. All three are `Json`. Trailing *whitespace* is not
+/// trailing content, which is serde's reading and the right one: a backend
+/// ending its document with a newline is not sending two.
+///
+/// The duplicate-key walk runs first because it is the only reader that can see
+/// one (F-19); the envelope is then read as an `Object` so that an array is
+/// refused rather than bound by position (F-20).
+///
+/// # Errors
+///
+/// `Json` for bytes that are not a document, `DuplicateKey` for a document
+/// that says one thing twice, `Shape` for a document the envelope refuses, and
+/// then whatever [`normalize_response`] reports.
+pub fn read_response(bytes: &[u8], now: Timestamp) -> Result<Normalized<Response>, ProtocolError> {
+  reject_duplicate_keys(bytes)?;
+  let Object(wire) = serde_json::from_slice::<Object<WireResponse>>(bytes)?;
+  normalize_response(wire, now)
+}
 
 /// Read a permissive wire response as a canonical one.
 ///
@@ -71,12 +106,13 @@ const PROTOCOL_VERSION: u32 = 1;
 /// Every `ProtocolError` but `Schedule`, which by construction never arrives
 /// here as an `Err`: an unusable `next_check` is a discard (P2, R-25).
 ///
-/// `Json` does arrive, and not only from the caller that deserialized the
-/// bytes. The wire types leave a view's payload, a content block and a `choice`
-/// field's alternatives untyped so their discriminants can be dispatched before
-/// anything beside them is bound, which means each of those is deserialized
-/// *here* — and a shape serde refuses at that point is the typed shape error
-/// `design.md` §5.2 calls for.
+/// `Shape` arises here as well as at the envelope. The wire types leave a
+/// view's payload, a content block and a `choice` field's alternatives untyped
+/// so their discriminants can be dispatched before anything beside them is
+/// bound, which means each of those is deserialized *here* — and a shape serde
+/// refuses at that point is the typed shape error `design.md` §5.2 calls for.
+/// Every serde failure enters the taxonomy through `ProtocolError::from`, which
+/// is what keeps `Json` for the bytes and `Shape` for the document (F-22).
 pub fn normalize_response(
   wire: WireResponse,
   now: Timestamp,
@@ -133,7 +169,7 @@ pub fn normalize_response(
 fn normalize_view(wire: WireView) -> Result<View, ProtocolError> {
   match wire.kind.as_str() {
     "choice" => {
-      let choice: WireChoice = serde_json::from_value(wire.rest).map_err(ProtocolError::Json)?;
+      let choice: WireChoice = serde_json::from_value(wire.rest)?;
       Ok(View::Choice(normalize_choice(choice)?))
     }
     _ => Err(ProtocolError::UnsupportedPrimitive {
@@ -188,11 +224,9 @@ fn normalize_content(raw: &serde_json::Value, at: &str) -> Result<Content, Proto
   if let Some(text) = raw.as_str() {
     return Ok(Content::Text(text.to_owned()));
   }
-  let tag: WireContent = serde_json::from_value(raw.clone()).map_err(ProtocolError::Json)?;
+  let tag: WireContent = serde_json::from_value(raw.clone())?;
   let payload = || -> Result<String, ProtocolError> {
-    serde_json::from_value::<WireContentValue>(raw.clone())
-      .map(|content| content.value)
-      .map_err(ProtocolError::Json)
+    Ok(serde_json::from_value::<WireContentValue>(raw.clone())?.value)
   };
   match tag.kind.as_str() {
     "text" => Ok(Content::Text(payload()?)),
@@ -208,7 +242,7 @@ fn normalize_content(raw: &serde_json::Value, at: &str) -> Result<Content, Proto
   }
 }
 
-fn normalize_opt(wire: WireOpt, at: &str) -> Result<Opt, ProtocolError> {
+fn normalize_opt(Object(wire): Object<WireOpt>, at: &str) -> Result<Opt, ProtocolError> {
   let at = format!("{at}.fields");
   let fields = each_indexed(wire.fields.unwrap_or_default(), &at, normalize_field)?;
   Ok(Opt {
@@ -230,6 +264,13 @@ fn normalize_field(wire: WireField, at: &str) -> Result<Field, ProtocolError> {
     options,
     hints,
   } = wire;
+  // The flatten collects every unmodelled key, so the nested spelling the
+  // design refused does not fail on its own: it arrives as a hint named
+  // `hints`. Two spellings for one thing is the ambiguity that must fail, and
+  // absorbing this one loses everything inside it silently (F-25, R-47).
+  if hints.contains_key("hints") {
+    return Err(ProtocolError::NestedHints { at: at.to_owned() });
+  }
   Ok(Field {
     kind: normalize_field_kind(&kind, min, max, options, at)?,
     id: FieldId::new(id),
@@ -347,7 +388,7 @@ fn normalize_alternatives(
   // Absent is the same offer as empty — nothing to answer with — and reaches
   // the same `EmptyAlternatives`, as an absent `options` on a view does.
   let raw = options.unwrap_or_else(|| serde_json::Value::Array(Vec::new()));
-  let items: Vec<serde_json::Value> = serde_json::from_value(raw).map_err(ProtocolError::Json)?;
+  let items: Vec<serde_json::Value> = serde_json::from_value(raw)?;
   let alternatives = each_indexed(items, &at, normalize_alternative)?;
   Alternatives::new(alternatives, &at)
 }
@@ -361,7 +402,7 @@ fn normalize_alternative(raw: serde_json::Value, at: &str) -> Result<Alternative
   if raw.get("fields").is_some_and(|nested| !nested.is_null()) {
     return Err(inapplicable("fields", "choice", at));
   }
-  let wire: WireAlternative = serde_json::from_value(raw).map_err(ProtocolError::Json)?;
+  let Object(wire) = serde_json::from_value::<Object<WireAlternative>>(raw)?;
   Ok(Alternative {
     id: AlternativeId::new(wire.id),
     label: wire.label,

@@ -1,0 +1,16 @@
+{
+  "requirement": [
+    "R-52",
+    "R-44"
+  ],
+  "description": "Two `id` keys on one option is an ambiguity about the identifier a response names. It is refused naming the key, at every depth of the document, rather than resolved last-wins below the envelope and refused on it.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": "{\"view\":{\"kind\":\"choice\",\"title\":\"T\",\"options\":[{\"id\":\"x\",\"id\":\"y\",\"label\":\"X\"}]}}",
+  "expect": {
+    "error": {
+      "DuplicateKey": {
+        "key": "id"
+      }
+    }
+  }
+}

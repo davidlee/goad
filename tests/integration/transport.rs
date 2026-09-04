@@ -13,6 +13,7 @@ use crate::harness::{
 };
 use goad::shell::backend::process::ProcessBackend;
 use goad::shell::backend::transport::Backend;
+use goad::shell::config::Command;
 use goad::shell::error::{BackendError, CleanupFailure};
 
 /// The transport's own cleanup budget, restated because it is private to
@@ -132,7 +133,7 @@ async fn a_backend_that_never_answers_times_out_and_is_disposed_of() {
 #[tokio::test]
 async fn a_command_that_does_not_exist_fails_to_spawn() {
   let mut backend = ProcessBackend::new(
-    vec!["./no-such-backend-exists".to_owned()],
+    Command::new("./no-such-backend-exists", Vec::new()),
     Duration::from_secs(5),
   );
 
@@ -177,31 +178,66 @@ async fn a_non_zero_exit_discards_the_body_it_came_with() {
   );
 }
 
-/// `Io`, by the only deterministic route there is: the request must still be
-/// being written when the read end closes.
+/// A backend that never reads its request has done nothing the protocol
+/// forbids: R-37 obliges the host to write and close, and AC-12 names "a bash
+/// script that ignores its request and emits a canned response" as sufficient.
+/// Its exit status and body decide the exchange, not the fate of a write it
+/// chose not to read (F-24, R-40).
 ///
-/// A request that fits the pipe buffer is accepted by the kernel and outlives
-/// the reader, so a backend exiting before reading produces a perfectly normal
-/// exchange — measured, 20/20 either way. So the payload is padded past the
-/// buffer, which `Event.data` permits because it is opaque to the host (R-9).
+/// The request is padded past the pipe buffer so that the write *cannot*
+/// complete before the reader is gone — `Event.data` permits it because it is
+/// opaque to the host (R-9). A small request can land before the child has
+/// finished starting, and then nothing is being tested. With the padding, the
+/// write fails with `EPIPE` every time, and the host must report the answer
+/// regardless.
 #[tokio::test]
-async fn a_backend_that_exits_before_reading_breaks_the_pipe() {
+async fn a_backend_that_answers_without_reading_its_request_is_still_answered() {
   let request = padded_evaluate(&"x".repeat(1024 * 1024));
   let mut backend = transport("exits-without-reading-stdin", Duration::from_secs(5));
 
   let exchange = backend.exchange(&request).await;
 
   match &exchange.result {
-    Err(BackendError::Io(error)) => {
-      assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe, "{error}");
-    }
-    other => panic!("expected a broken pipe, got {}", describe(other)),
+    Ok(bytes) => assert_eq!(bytes, br#"{"view":null}"#),
+    other => panic!("expected the canned answer, got {}", describe(other)),
   }
   assert!(
     exchange.cleanup.is_none(),
     "{}",
     describe_cleanup(exchange.cleanup.as_ref())
   );
+}
+
+/// `design.md` §5.4 step 3's deadlock, on the write side: a backend that fills
+/// its stdout pipe before it reads a request that does not fit the stdin pipe.
+/// Both sides block on a full pipe until the host's timeout — unless the host
+/// reads stdout while it is still writing stdin (F-10, F-23). The timeout is
+/// generous and the assertion is on the result, not the clock: a deadlock
+/// here is a `Timeout`, and the answer is what a working host receives.
+#[tokio::test]
+async fn a_backend_that_floods_stdout_before_reading_its_request_is_still_answered() {
+  let request = padded_evaluate(&"x".repeat(1024 * 1024));
+  let mut backend = transport(
+    "floods-stdout-then-reads-then-answers",
+    Duration::from_secs(5),
+  );
+
+  let exchange = backend.exchange(&request).await;
+
+  match &exchange.result {
+    Ok(bytes) => {
+      assert!(
+        bytes.len() > 200_000,
+        "the flood arrived: {} bytes",
+        bytes.len()
+      );
+      assert!(bytes.ends_with(br#"{"view":null}"#));
+    }
+    other => panic!(
+      "expected the answer after the flood, got {}",
+      describe(other)
+    ),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +319,7 @@ const STDERR_LIMIT: usize = 256 * 1024;
 async fn a_stdout_flood_is_refused_and_the_backend_sees_the_stream_close() {
   let marker = harness::marker("broken-pipe");
   let mut command = harness::backend("floods-stdout-and-reports-the-broken-pipe");
-  command.push(marker.display().to_string());
+  command.arguments.push(marker.display().to_string());
   let mut backend = ProcessBackend::new(command, Duration::from_secs(5));
 
   let started = Instant::now();
@@ -550,8 +586,9 @@ async fn the_misbehaving_suite_leaves_no_child_behind() {
 /// these, and for the same reason.
 #[test]
 fn a_backend_that_is_running_is_seen_as_a_child() {
-  let mut child = std::process::Command::new("bash")
-    .args(harness::backend("hangs-past-the-timeout").split_off(1))
+  let script = harness::backend("hangs-past-the-timeout");
+  let mut child = std::process::Command::new(script.program)
+    .args(script.arguments)
     .stdin(std::process::Stdio::null())
     .stdout(std::process::Stdio::null())
     .stderr(std::process::Stdio::null())
@@ -620,7 +657,7 @@ fn a_cancelled_exchange_leaves_nothing_of_the_host_behind() {
       // `bash` ignores the trailing argument; it is here to be found in
       // `/proc/<pid>/cmdline`.
       let mut argv = harness::backend("hangs-without-exec");
-      argv.push(command);
+      argv.arguments.push(command);
       let mut backend = ProcessBackend::new(argv, Duration::from_secs(30));
       backend.exchange(&evaluate()).await
     });

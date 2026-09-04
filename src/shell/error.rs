@@ -11,7 +11,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use crate::semantics::error::ProtocolError;
+use crate::semantics::error::{ProtocolError, SpanFault};
 use crate::semantics::protocol::canonical::ViewId;
 
 /// Why an exchange produced no response body.
@@ -112,18 +112,15 @@ pub enum ConfigError {
   /// column and a caret excerpt, so nothing is added to it here.
   Syntax(Box<toml::de::Error>),
   /// A duration string the grammar refuses — `"1 month"`, whose length is not
-  /// fixed without a calendar, or something that is not a duration at all. The
-  /// key is carried because which one it was is half the diagnostic, and jiff's
-  /// own message is the other half: it names what it expected and where.
-  ///
-  /// `detail` and not `source`: jiff runs with `default-features = false` (D4),
-  /// which is what keeps a time zone database out of stratum 1 — and without
-  /// jiff's `std` feature `jiff::Error` does not implement
-  /// `std::error::Error`, so it can be displayed but not chained.
+  /// fixed without a calendar, `"09:00:00"`, which is a time of day, or
+  /// something that is not a duration at all. The key is carried because which
+  /// one it was is half the diagnostic, and the fault is the other half: it is
+  /// `schedule::parse_span`'s own, so the config file and `next_check` refuse
+  /// the same strings for the same reasons (F-4).
   Duration {
     key: &'static str,
     raw: String,
-    detail: jiff::Error,
+    fault: SpanFault,
   },
   /// `command = []`. There is nothing to spawn.
   EmptyCommand,
@@ -160,10 +157,10 @@ impl fmt::Display for ConfigError {
     match self {
       Self::Read(inner) => write!(f, "configuration could not be read: {inner}"),
       Self::Syntax(inner) => write!(f, "configuration is not valid: {inner}"),
-      Self::Duration { key, raw, detail } => {
+      Self::Duration { key, raw, fault } => {
         write!(
           f,
-          "{key} = \"{raw}\" is not a duration this host can resolve: {detail}"
+          "{key} = \"{raw}\" is not a duration this host can resolve: {fault}"
         )
       }
       Self::EmptyCommand => write!(f, "backend.command is empty, so there is nothing to spawn"),
@@ -179,9 +176,8 @@ impl std::error::Error for ConfigError {
     match self {
       Self::Read(inner) => Some(inner),
       Self::Syntax(inner) => Some(inner),
-      // `Duration` carries jiff's message in `detail` and is not chained here;
-      // see the variant's own comment.
-      Self::Duration { .. } | Self::EmptyCommand | Self::NonPositive { .. } => None,
+      Self::Duration { fault, .. } => Some(fault),
+      Self::EmptyCommand | Self::NonPositive { .. } => None,
     }
   }
 }

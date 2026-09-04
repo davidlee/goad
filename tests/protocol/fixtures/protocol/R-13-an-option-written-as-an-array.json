@@ -1,0 +1,25 @@
+{
+  "requirement": [
+    "R-13",
+    "R-44"
+  ],
+  "description": "An option is an object with an id and a label. A two-element array in its place is not read positionally as one; it is refused as protocol-invalid.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": {
+    "view": {
+      "kind": "choice",
+      "title": "T",
+      "options": [
+        [
+          "ok",
+          "Fine"
+        ]
+      ]
+    }
+  },
+  "expect": {
+    "error": {
+      "Shape": null
+    }
+  }
+}

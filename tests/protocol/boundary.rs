@@ -13,8 +13,9 @@ use std::path::{Path, PathBuf};
 /// One walk, configured twice. `root` is relative to the crate root.
 struct Scan {
   root: &'static str,
-  /// Lower-case; matched case-insensitively, so a `Habit` type cannot hide
-  /// behind its capital.
+  /// Lower-case; matched case-insensitively and by word, so a `Habit` type
+  /// cannot hide behind its capital and `HabitView` cannot hide behind its
+  /// suffix.
   forbidden: &'static [&'static str],
 }
 
@@ -134,9 +135,8 @@ impl Scan {
     };
     *inspected += 1;
     for (offset, line) in text.lines().enumerate() {
-      let line = line.to_lowercase();
       for token in self.forbidden {
-        if line.contains(token) {
+        if mentions(line, token) {
           breaches.push(Breach::Token {
             path: path.to_owned(),
             line: offset + 1,
@@ -146,6 +146,36 @@ impl Scan {
       }
     }
   }
+}
+
+/// Does a line name the token as a **word** — an identifier segment or a word of
+/// prose — rather than as a substring? `site` must catch `SiteView`, `site_id`
+/// and `site` alone, and must not catch "call sites" or "websites" (F-14).
+/// Words are split on every non-alphanumeric byte — which separates identifier
+/// segments (`_`, `::`, `.`) and prose alike — and at each lower-to-upper case
+/// boundary, which is what separates `Site` from `View`. Lowercasing happens
+/// after the split, so the case boundary is still there to split on.
+fn mentions(line: &str, token: &str) -> bool {
+  line
+    .split(|c: char| !c.is_ascii_alphanumeric())
+    .flat_map(camel_segments)
+    .any(|word| word.eq_ignore_ascii_case(token))
+}
+
+/// `SiteView` → `Site`, `View`. A segment with no case boundary is itself.
+fn camel_segments(segment: &str) -> Vec<&str> {
+  let mut words = Vec::new();
+  let mut start = 0;
+  let mut previous_lower = false;
+  for (offset, c) in segment.char_indices() {
+    if c.is_ascii_uppercase() && previous_lower {
+      words.push(&segment[start..offset]);
+      start = offset;
+    }
+    previous_lower = c.is_ascii_lowercase();
+  }
+  words.push(&segment[start..]);
+  words
 }
 
 /// Fails naming *every* breach, not the first. `run` cannot return `Ok(0)`, so
@@ -228,4 +258,27 @@ fn a_scan_whose_directory_was_renamed_away_fails() {
     "expected a vacuity breach, got:\n{}",
     report(&breaches)
   );
+}
+
+/// F-14: AC-11 is about names, so the match is by word — an identifier segment
+/// or a word of prose — and not by substring.
+#[test]
+fn a_token_matches_a_word_and_not_a_substring_of_one() {
+  for caught in [
+    "pub struct SiteView",
+    "let site_id = 1;",
+    "// the Site",
+    "mod site;",
+  ] {
+    assert!(
+      mentions(caught, "site"),
+      "{caught:?} names the domain and was missed"
+    );
+  }
+  for clean in ["// the call sites", "// websites", "let offsite = 1;"] {
+    assert!(
+      !mentions(clean, "site"),
+      "{clean:?} does not name the domain and was caught"
+    );
+  }
 }

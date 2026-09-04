@@ -171,8 +171,17 @@ gathering evidence, before any fresh-reviewer output was seen) and a fresh
 reviewer subagent (F-17…F-33). Thirty-three findings, **0 blockers**, 4 major
 (F-1, F-2 and their independent confirmations F-17, F-18), 20 minor, 9 nit.
 Six of the reviewer's findings confirm audit-agent findings independently and
-with probe output. Dispositioned so far: F-1 (fix-now, user decision, option
-(a)). Everything else awaits session 2.
+with probe output. **All dispositioned by user decision 2026-09-04** (session
+2): 29 fix-now, F-13 and F-15 tolerated, six duplicates following their
+primaries. **All 29 repaired** in session 2; `just check` exits 0 in both
+columns.
+
+**Round 2** — 2026-09-04 — a fresh reviewer over the repairs only. Eleven
+findings, F-34…F-44: **0 blockers**, 1 major (F-34 — F-1's guard bypassed on
+the failure path), 6 minor, 4 nit; every round-1 repair but F-9's confirmed
+red-on-revert. All eleven dispositioned by user decision 2026-09-04 (9
+fix-now, F-44 tolerated); **none repaired yet** — session 2 closed at its
+context bound. Outstanding blockers: 0. Outstanding fix-now: 9.
 
 <!-- severity — blocker: must not ship. major: real defect or design breach.
        minor: worth fixing, not urgent. question: needs an answer before it

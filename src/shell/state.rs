@@ -25,23 +25,12 @@ pub struct State {
   next_seq: u64,
 }
 
-/// `design.md:1167`, as written.
+/// `design.md:1172`'s sketch, minus its `issued_at`: nothing in the brief, the
+/// draft spec or this slice reads when a view was issued, so the field is not
+/// carried (F-6, audit).
 #[derive(Debug)]
 struct Outstanding {
   view_id: ViewId,
-  /// Not read anywhere in slice 001: no `Outcome` field carries it, no
-  /// diagnostic names it, and no criterion asks for it. Kept because
-  /// `design.md:1167` and PHASE-07/EX-2 both name it, and dropping it would be
-  /// a design change made to satisfy a lint — user decision 2026-09-03,
-  /// `plan-log.md`. The expectation self-clears via
-  /// `unfulfilled_lint_expectations` the moment something reads it, so this is
-  /// a recorded gap rather than a silent one.
-  #[expect(
-    dead_code,
-    reason = "design.md:1167 names it and nothing in slice 001 reads it yet; \
-              the expectation clears itself when a reader appears"
-  )]
-  issued_at: Timestamp,
 }
 
 impl State {
@@ -86,7 +75,6 @@ impl State {
     self.next_seq = self.next_seq.saturating_add(1);
     self.outstanding = Some(Outstanding {
       view_id: minted.clone(),
-      issued_at: now,
     });
     minted
   }

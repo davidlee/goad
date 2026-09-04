@@ -123,7 +123,7 @@ impl Serialize for Timestamp {
 
 /// Opaque presentation hints. Nothing in `semantics/` or `shell/` branches on a
 /// key here; the renderer is the only thing that may (I7).
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Hints(BTreeMap<String, serde_json::Value>);
 
 impl Hints {
@@ -376,7 +376,7 @@ impl Alternatives {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Fields(Vec<Field>);
 
 impl Fields {
@@ -530,9 +530,10 @@ enum Body<'a> {
   },
 }
 
-/// R-1: every request carries `"protocol": 1`. R-6: every request carries a
-/// `"type"` of `evaluate` or `respond`.
-const PROTOCOL_VERSION: u32 = 1;
+/// The one protocol version this host speaks. R-1: every request carries it;
+/// R-3: a response declaring any other is refused. One constant for both, so
+/// a bump cannot leave the host emitting a version it refuses (F-27).
+pub const PROTOCOL_VERSION: u32 = 1;
 
 impl Serialize for Request {
   fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -584,6 +585,10 @@ mod tests {
     }
   }
 
+  fn no_fields() -> Fields {
+    Fields::new(Vec::new(), AT).unwrap()
+  }
+
   fn alternative(id: &str) -> Alternative {
     Alternative {
       id: AlternativeId::new(id),
@@ -613,7 +618,7 @@ mod tests {
 
   #[test]
   fn duplicate_option_ids_are_rejected_naming_the_id_and_where() {
-    let options = vec![opt("yes", Fields::default()), opt("yes", Fields::default())];
+    let options = vec![opt("yes", no_fields()), opt("yes", no_fields())];
     let error = Options::new(options, AT).unwrap_err();
     assert!(
       matches!(&error, ProtocolError::DuplicateOptionId { id, at }

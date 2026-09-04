@@ -11,10 +11,11 @@ use std::time::Duration;
 
 use crate::fake::{Calls, FakeBackend, answering};
 use crate::harness::{
-  answer_first_option, choice, config, describe_outcome, example, host, instant, invocations,
-  logging_backend, presented, prompting_event, quiet_event, state_error, stderr_of,
+  answer_first_option, choice, config, describe_outcome, example, host, host_from, instant,
+  invocations, logging_backend, presented, prompting_event, quiet_event, state_error, stderr_of,
 };
 use goad::semantics::protocol::canonical::{Timestamp, UserResponse, ViewId};
+use goad::shell::config::{Command, Config};
 use goad::shell::error::StateError;
 use goad::shell::host::Host;
 
@@ -38,6 +39,35 @@ fn answered_at() -> Timestamp {
 // ---------------------------------------------------------------------------
 // VT-1 — AC-7, against the deno example
 // ---------------------------------------------------------------------------
+
+/// The README's own config — the one a reader copies — loads and runs (F-16,
+/// brief §15.2). Its path is relative, and resolves because cargo runs a test
+/// binary with the crate root as its working directory, which is also where a
+/// reader following the README would be standing.
+#[tokio::test]
+async fn the_readme_s_own_config_loads_and_runs_the_example() {
+  let readme = include_str!("../../examples/typescript/README.md");
+  let toml = fenced_block(readme, "toml");
+  let config = Config::parse(toml).unwrap_or_else(|error| panic!("the README's config: {error}"));
+  let mut host = host_from(config, now());
+
+  let quiet = host.evaluate(now(), quiet_event(now())).await;
+  assert!(quiet.failure.is_none(), "{}", describe_outcome(&quiet));
+  assert!(quiet.view.is_none(), "{}", describe_outcome(&quiet));
+}
+
+/// The body of the first fenced code block tagged with `language`.
+fn fenced_block<'a>(markdown: &'a str, language: &str) -> &'a str {
+  let opening = format!("```{language}\n");
+  let start = markdown
+    .find(&opening)
+    .unwrap_or_else(|| panic!("no ```{language} block in the document"))
+    .saturating_add(opening.len());
+  let length = markdown[start..]
+    .find("```")
+    .expect("an unterminated fence");
+  &markdown[start..start.saturating_add(length)]
+}
 
 /// The round trip, end to end: nothing to show, then a choice, then an answer
 /// the backend accepts.
@@ -310,7 +340,7 @@ async fn foreign() -> UserResponse {
   let calls = Calls::default();
   let backend = FakeBackend::new(vec![answering(A_VIEW_NOBODY_OFFERED)], &calls);
   let mut fake_host = Host::new(
-    config(vec!["never-spawned".to_owned()], TIMEOUT),
+    config(Command::new("never-spawned", Vec::new()), TIMEOUT),
     backend,
     now(),
   );

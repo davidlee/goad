@@ -1,0 +1,37 @@
+{
+  "requirement": [
+    "R-18",
+    "R-47"
+  ],
+  "description": "Hints are the field object's own remaining keys, flat. A nested `hints` object is the other spelling of the same thing, and two spellings for one thing is the ambiguity that fails rather than being guessed at — it is refused, not absorbed as a hint named `hints`.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": {
+    "view": {
+      "kind": "choice",
+      "title": "T",
+      "options": [
+        {
+          "id": "ok",
+          "label": "Fine",
+          "fields": [
+            {
+              "id": "f",
+              "kind": "text",
+              "label": "L",
+              "hints": {
+                "multiline": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "expect": {
+    "error": {
+      "NestedHints": {
+        "at": "view.options[0].fields[0]"
+      }
+    }
+  }
+}

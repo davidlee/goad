@@ -12,12 +12,12 @@
 //! is about the data rather than the directory.
 #![deny(clippy::arithmetic_side_effects)]
 
-use crate::semantics::error::ProtocolError;
+use std::fmt;
+
 use crate::semantics::protocol::canonical::{
   Evaluate, Event, Request, Respond, Response, Timestamp, UserResponse, View, ViewId,
 };
-use crate::semantics::protocol::normalize::{Discarded, Normalized, normalize_response};
-use crate::semantics::protocol::wire::WireResponse;
+use crate::semantics::protocol::normalize::{Discarded, Normalized, read_response};
 use crate::semantics::schedule;
 use crate::shell::backend::transport::{Backend, Captured, Exchange};
 use crate::shell::config::Config;
@@ -45,6 +45,18 @@ pub struct Presented {
 pub enum Failure {
   Backend(BackendError),
   State(StateError),
+}
+
+/// Each leaf already says which side was wrong and why; this adds nothing and
+/// takes nothing away, so a caller logging a refusal (brief §13) does not have
+/// to match on the two strata to render it (F-33).
+impl fmt::Display for Failure {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Backend(error) => write!(f, "{error}"),
+      Self::State(error) => write!(f, "{error}"),
+    }
+  }
 }
 
 /// What one call produced.
@@ -181,7 +193,7 @@ impl<B: Backend> Host<B> {
       Err(error) => return self.no_action(Failure::Backend(error), stderr, cleanup),
     };
 
-    let normalized = match read(&bytes, now) {
+    let normalized = match read_response(&bytes, now) {
       Ok(normalized) => normalized,
       Err(error) => {
         return self.no_action(
@@ -207,8 +219,11 @@ impl<B: Backend> Host<B> {
     let Normalized { value, discarded } = normalized;
 
     // The retained value is always `Some` — `resolved_check` is seeded at
-    // construction and is not an `Option` (I4) — so this is R-26's first two
-    // arms. The third is reachable only from `new`.
+    // construction and is not an `Option` (I4). R-26's third arm is still
+    // reached from here: `resolve` consumes a retained check at or before `now`
+    // (F-1), so an exchange that runs at the scheduled instant and brings no
+    // new instruction falls back to the default poll rather than standing on an
+    // instant that has already elapsed.
     let next_check = schedule::resolve(
       Some(self.state.resolved_check()),
       value.schedule(),
@@ -264,22 +279,4 @@ impl<B: Backend> Host<B> {
       cleanup,
     }
   }
-}
-
-/// The bytes a backend wrote, as a canonical response.
-///
-/// `from_slice` is where `BackendError::Protocol` arises and where R-38's
-/// framing rule is enforced: the transport returns bytes and parses nothing, so
-/// this is the one place in the host that reads what a backend wrote. A body
-/// that is not **exactly one** JSON document never reaches normalization —
-/// empty stdout is an unexpected EOF, a second document is trailing content, and
-/// bytes that are not UTF-8 are an invalid code point. All three are
-/// `serde_json::Error`, so all three are `ProtocolError::Json`.
-///
-/// Trailing *whitespace* is not trailing content, which is serde's reading and
-/// the right one: a backend ending its document with a newline is not sending
-/// two.
-fn read(bytes: &[u8], now: Timestamp) -> Result<Normalized<Response>, ProtocolError> {
-  let wire: WireResponse = serde_json::from_slice(bytes).map_err(ProtocolError::Json)?;
-  normalize_response(wire, now)
 }

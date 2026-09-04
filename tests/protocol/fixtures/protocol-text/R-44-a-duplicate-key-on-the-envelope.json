@@ -1,0 +1,15 @@
+{
+  "requirement": [
+    "R-44"
+  ],
+  "description": "The envelope refuses a duplicate key the same way and with the same error as everything beneath it.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": "{\"view\":null,\"next_check\":\"1h\",\"next_check\":\"2h\"}",
+  "expect": {
+    "error": {
+      "DuplicateKey": {
+        "key": "next_check"
+      }
+    }
+  }
+}

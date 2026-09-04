@@ -1,0 +1,25 @@
+{
+  "requirement": [
+    "R-44",
+    "R-13"
+  ],
+  "description": "A well-formed document whose title is a number is protocol-invalid, and is reported as such rather than as malformed JSON: the two are distinct failure modes with distinct fixes.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": {
+    "view": {
+      "kind": "choice",
+      "title": 5,
+      "options": [
+        {
+          "id": "ok",
+          "label": "Fine"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "error": {
+      "Shape": null
+    }
+  }
+}

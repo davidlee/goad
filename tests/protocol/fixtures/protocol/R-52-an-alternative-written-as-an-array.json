@@ -1,0 +1,38 @@
+{
+  "requirement": [
+    "R-52",
+    "R-44"
+  ],
+  "description": "A `choice` field's alternative is an object with an id and a label, and an array in its place is refused as protocol-invalid rather than bound by position.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": {
+    "view": {
+      "kind": "choice",
+      "title": "T",
+      "options": [
+        {
+          "id": "ok",
+          "label": "Fine",
+          "fields": [
+            {
+              "id": "f",
+              "kind": "choice",
+              "label": "L",
+              "options": [
+                [
+                  "a",
+                  "A"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "expect": {
+    "error": {
+      "Shape": null
+    }
+  }
+}

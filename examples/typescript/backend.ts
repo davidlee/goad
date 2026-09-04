@@ -58,18 +58,29 @@ type Request = EvaluateRequest | RespondRequest;
  *
  * `view: null` means "nothing to show" — a positive answer, and not the same as
  * leaving `view` out, which asserts nothing. `next_check` is when to ask again:
- * a duration like `"45 minutes"` or an absolute instant. Both are optional.
+ * a duration like `"45 minutes"` or an absolute instant with a UTC offset.
+ * Both are optional.
+ *
+ * The types below are the whole of what the host accepts, not the subset this
+ * file happens to use — so extending this backend is a matter of writing more
+ * of them, never of loosening them. The normative statement is the protocol
+ * spec; these follow it.
  */
 interface Response {
   view?: View | null;
   next_check?: string;
 }
 
+/** A bare string is text; an object names its own kind. */
+type Content =
+  | string
+  | { kind: "text" | "markdown" | "html" | "uri"; value: string };
+
 interface View {
   kind: "choice";
   title: string;
-  /** Optional context. A bare string is text; an object may tag markdown. */
-  body?: string;
+  /** Optional context. */
+  body?: Content;
   options: Option[];
 }
 
@@ -80,12 +91,22 @@ interface Option {
   fields?: Field[];
 }
 
-interface Field {
+/**
+ * A field on an option. `min`, `max` and `options` belong to the kinds that
+ * give them meaning and are refused on any other; every key the protocol does
+ * not name is a presentation hint, carried flat on the field — `multiline`,
+ * say — and passed through to the renderer untouched.
+ */
+type Field = { id: string; label: string; [hint: string]: unknown } & (
+  | { kind: "text" | "boolean" | "datetime" }
+  | { kind: "number"; min?: number; max?: number }
+  | { kind: "choice"; options: Alternative[] }
+);
+
+/** A value a `choice` field may take. Not an option: it carries no fields. */
+interface Alternative {
   id: string;
-  kind: "text" | "boolean" | "datetime" | "number";
   label: string;
-  /** Anything the protocol does not name is a presentation hint. */
-  multiline?: boolean;
 }
 
 /**

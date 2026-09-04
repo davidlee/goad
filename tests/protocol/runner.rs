@@ -275,11 +275,14 @@ pub(crate) fn assert_corpus(corpus: &Corpus) {
 // ---------------------------------------------------------------------------
 
 /// The variant name a fixture's `{"error": …}` names. An exhaustive match by
-/// design: a sixth `ScheduleError` cannot be added without an arm here.
-fn error_name(error: &ScheduleError) -> &'static str {
+/// design: a seventh `ScheduleError` cannot be added without an arm here.
+/// Shared with the discard checker in `normalize.rs`, which names the same
+/// variants on the discard channel.
+pub(crate) fn schedule_error_name(error: &ScheduleError) -> &'static str {
   match error {
     ScheduleError::NotAString { .. } => "NotAString",
     ScheduleError::MissingOffset { .. } => "MissingOffset",
+    ScheduleError::TimeOfDay { .. } => "TimeOfDay",
     ScheduleError::CalendarUnit { .. } => "CalendarUnit",
     ScheduleError::OutOfRange { .. } => "OutOfRange",
     ScheduleError::Unparseable { .. } => "Unparseable",
@@ -302,7 +305,7 @@ fn check_schedule(fixture: &Fixture<'_>) -> Result<(), String> {
         Ok(actual) => Err(format!("expected {expected}, got {}", actual.instant())),
         Err(error) => Err(format!(
           "expected {expected}, got {} ({error})",
-          error_name(&error)
+          schedule_error_name(&error)
         )),
       }
     }
@@ -311,10 +314,10 @@ fn check_schedule(fixture: &Fixture<'_>) -> Result<(), String> {
         .as_str()
         .ok_or_else(|| "`expect.error` is not a string".to_owned())?;
       match outcome {
-        Err(error) if error_name(&error) == expected => Ok(()),
+        Err(error) if schedule_error_name(&error) == expected => Ok(()),
         Err(error) => Err(format!(
           "expected {expected}, got {} ({error})",
-          error_name(&error)
+          schedule_error_name(&error)
         )),
         Ok(actual) => Err(format!("expected {expected}, got {}", actual.instant())),
       }

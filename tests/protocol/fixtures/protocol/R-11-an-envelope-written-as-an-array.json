@@ -1,0 +1,17 @@
+{
+  "requirement": [
+    "R-11",
+    "R-44"
+  ],
+  "description": "A response that is an array has not said what its fields are. Binding its elements to the envelope's fields by position would have the host manufacture the assertion R-11 reserves to the backend, so it is refused as protocol-invalid.",
+  "now": "2026-08-23T04:12:00Z",
+  "input": [
+    null,
+    null
+  ],
+  "expect": {
+    "error": {
+      "Shape": null
+    }
+  }
+}

@@ -28,9 +28,132 @@
 //! deny costs nothing, so it carries one (D53 as amended, I9).
 #![deny(clippy::arithmetic_side_effects)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 
+use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+
+use crate::semantics::error::ProtocolError;
+
+/// A `T` that must have been written as a JSON object.
+///
+/// serde's derived `Deserialize` binds a sequence to a struct by declaration
+/// order, so without this `[null, null]` is `{"view": null}` and `["x", "X"]`
+/// is an option. That is the host manufacturing the backend's assertion (R-11,
+/// P-B). The wrapper reads the value first and refuses anything but an object,
+/// then hands the object to `T` (F-20). `WireView` and `WireField` need no
+/// wrapper: `#[serde(flatten)]` already forces map access.
+#[derive(Debug)]
+pub struct Object<T>(pub T);
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for Object<T> {
+  fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    if !value.is_object() {
+      return Err(serde::de::Error::custom(format!(
+        "expected an object, found {}",
+        json_type_name(&value)
+      )));
+    }
+    T::deserialize(value)
+      .map(Object)
+      .map_err(serde::de::Error::custom)
+  }
+}
+
+fn json_type_name(value: &serde_json::Value) -> &'static str {
+  match value {
+    serde_json::Value::Null => "null",
+    serde_json::Value::Bool(_) => "a boolean",
+    serde_json::Value::Number(_) => "a number",
+    serde_json::Value::String(_) => "a string",
+    serde_json::Value::Array(_) => "an array",
+    serde_json::Value::Object(_) => "an object",
+  }
+}
+
+/// Refuse a document carrying the same key twice in any object (F-19).
+///
+/// `serde_json::Value` collapses a duplicate before any struct reads it, and
+/// everything under `view` passes through a `Value`, so the derived types
+/// cannot see one. This walks the raw document instead, once, before anything
+/// is bound. The envelope's own duplicate — which serde did refuse — is caught
+/// here too, so one error names the case at every depth.
+///
+/// # Errors
+///
+/// `DuplicateKey` naming the key; `Json` if the bytes are not a document at
+/// all, which the same walk discovers first.
+pub fn reject_duplicate_keys(bytes: &[u8]) -> Result<(), ProtocolError> {
+  let mut duplicate = None;
+  let mut deserializer = serde_json::Deserializer::from_slice(bytes);
+  match Unique(&mut duplicate).deserialize(&mut deserializer) {
+    Ok(()) => Ok(()),
+    Err(error) => Err(match duplicate {
+      Some(key) => ProtocolError::DuplicateKey { key },
+      None => ProtocolError::from(error),
+    }),
+  }
+}
+
+/// The walk. A seed rather than a `Deserialize`, so the offending key can be
+/// carried out through the slot instead of being parsed back out of a message.
+struct Unique<'a>(&'a mut Option<String>);
+
+impl<'de> DeserializeSeed<'de> for Unique<'_> {
+  type Value = ();
+
+  fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
+    deserializer.deserialize_any(self)
+  }
+}
+
+impl<'de> Visitor<'de> for Unique<'_> {
+  type Value = ();
+
+  fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str("a JSON value with no duplicate keys")
+  }
+
+  fn visit_bool<E>(self, _: bool) -> Result<(), E> {
+    Ok(())
+  }
+  fn visit_i64<E>(self, _: i64) -> Result<(), E> {
+    Ok(())
+  }
+  fn visit_u64<E>(self, _: u64) -> Result<(), E> {
+    Ok(())
+  }
+  fn visit_f64<E>(self, _: f64) -> Result<(), E> {
+    Ok(())
+  }
+  fn visit_str<E>(self, _: &str) -> Result<(), E> {
+    Ok(())
+  }
+  fn visit_unit<E>(self) -> Result<(), E> {
+    Ok(())
+  }
+
+  fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<(), A::Error> {
+    while seq.next_element_seed(Unique(self.0))?.is_some() {}
+    Ok(())
+  }
+
+  fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<(), A::Error> {
+    let mut seen = BTreeSet::new();
+    while let Some(key) = map.next_key::<String>()? {
+      if seen.contains(&key) {
+        let message = format!("duplicate key `{key}`");
+        *self.0 = Some(key);
+        return Err(serde::de::Error::custom(message));
+      }
+      map.next_value_seed(Unique(self.0))?;
+      seen.insert(key);
+    }
+    Ok(())
+  }
+}
 
 /// The inbound envelope.
 ///
@@ -48,7 +171,14 @@ pub struct WireResponse {
   /// view.
   #[expect(
     clippy::option_option,
-    reason = "the three states are the requirement, not an accident of nesting: `null` asserts               there is nothing to show and omission asserts nothing at all, and collapsing them               would have the host manufacture the backend's assertion (D25, F-5, R-10, R-11).               The lint's own suggested alternative is a custom enum; `design.md` §5.2 fixes this               shape and names the `present` helper, and EX-1 requires both, so replacing them               would be a design change made to satisfy a style lint. Written here rather than               scoped away, which is what §9's reason-carrying exception exists for."
+    reason = "the three states are the requirement, not an accident of nesting: `null` \
+              asserts there is nothing to show and omission asserts nothing at all, and \
+              collapsing them would have the host manufacture the backend's assertion \
+              (D25, F-5, R-10, R-11). The lint's own suggested alternative is a custom \
+              enum; `design.md` §5.2 fixes this shape and names the `present` helper, \
+              and EX-1 requires both, so replacing them would be a design change made to \
+              satisfy a style lint. Written here rather than scoped away, which is what \
+              §9's reason-carrying exception exists for."
   )]
   #[serde(default, deserialize_with = "present")]
   pub view: Option<Option<WireView>>,
@@ -103,7 +233,7 @@ pub struct WireChoice {
   #[serde(default)]
   pub body: Option<serde_json::Value>,
   #[serde(default)]
-  pub options: Option<Vec<WireOpt>>,
+  pub options: Option<Vec<Object<WireOpt>>>,
 }
 
 /// A **view's** option — what a response selects (R-8). The only wire type
@@ -181,7 +311,7 @@ pub struct WireContent {
 ///
 /// A well-named kind whose `value` is missing or is not a string is the typed
 /// shape error `design.md` §5.2 calls for — serde's own message, reaching the
-/// caller as `ProtocolError::Json`.
+/// caller as `ProtocolError::Shape`.
 #[derive(Debug, Deserialize)]
 pub struct WireContentValue {
   pub value: String,

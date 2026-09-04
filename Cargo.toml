@@ -152,10 +152,10 @@ use_debug = "deny"
 map_err_ignore = "deny"
 let_underscore_must_use = "deny"
 let_underscore_future = "deny"
-# Doc-comment lints paused alongside missing_docs (see above). Re-enable before publishing.
-# missing_errors_doc = "deny"
-# missing_panics_doc = "deny"
-# missing_safety_doc = "deny"
+# missing_errors_doc, missing_panics_doc and missing_safety_doc are pedantic
+# lints, so `pedantic = "deny"` above already enables them — they are not paused
+# with missing_docs, and the `# Errors` sections in the crate exist because they
+# fire (F-12).
 
 # Suspicious conversions / casts.
 checked_conversions = "deny"

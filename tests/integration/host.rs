@@ -8,7 +8,9 @@
 use std::collections::BTreeMap;
 
 use crate::fake::{Calls, FakeBackend, answering, failing, failing_noisily};
-use crate::harness::{backend_error, describe_outcome, instant, presented, state_error};
+use crate::harness::{
+  backend_error, describe_outcome, instant, only_discard, presented, state_error,
+};
 use goad::semantics::protocol::canonical::{Event, Timestamp, UserResponse, View, ViewId};
 use goad::shell::config::Config;
 use goad::shell::error::{BackendError, CleanupFailure, StateError};
@@ -287,6 +289,37 @@ async fn a_superseded_id_is_refused_and_the_outstanding_interaction_survives() {
   );
 }
 
+/// R-34's other half (F-7): a backend *failure* on the `respond` path leaves
+/// the outstanding interaction where a *refusal* leaves it — open, and
+/// answerable again with the same id. The host cannot know whether the failed
+/// exchange consumed the answer, so it does not guess that it did.
+#[tokio::test]
+async fn a_backend_failure_during_respond_leaves_the_interaction_answerable() {
+  let (mut host, _calls) = host(vec![
+    answering(A_CHOICE),
+    failing(BackendError::Timeout {
+      after: std::time::Duration::from_secs(5),
+    }),
+    answering(br#"{"view":null}"#),
+  ]);
+
+  let issued = presented(&host.evaluate(now(), event()).await).clone();
+
+  let failed = host.respond(now(), issued.clone(), an_answer().await).await;
+  assert!(
+    matches!(backend_error(&failed), BackendError::Timeout { .. }),
+    "the arrangement is a backend failure; got {}",
+    describe_outcome(&failed)
+  );
+
+  let retried = host.respond(now(), issued, an_answer().await).await;
+  assert!(
+    retried.failure.is_none(),
+    "a failed respond closed the interaction it did not answer: {}",
+    describe_outcome(&retried)
+  );
+}
+
 // ---------------------------------------------------------------------------
 // EX-5, VT-4 — a failed exchange does not move the schedule
 // ---------------------------------------------------------------------------
@@ -337,6 +370,53 @@ async fn a_successful_exchange_does_move_the_schedule() {
     failed.next_check,
     instant("2026-08-23T06:12:00Z"),
     "a failure reports the check as it stood, not as it was seeded"
+  );
+}
+
+/// F-33: what a caller is handed renders without being matched on. `Failure`
+/// says what its leaf says, and `Discarded` names the value and the reason.
+#[tokio::test]
+async fn a_failure_and_a_discard_render_as_their_leaves_do() {
+  let (mut host, _calls) = host(vec![
+    failing(BackendError::ExitStatus { code: Some(3) }),
+    answering(br#"{"view":null,"next_check":"1 month"}"#),
+  ]);
+
+  let failed = host.evaluate(now(), event()).await;
+  let rendered = failed.failure.as_ref().expect("a failure").to_string();
+  assert_eq!(rendered, backend_error(&failed).to_string());
+
+  let discarded = host.evaluate(now(), event()).await;
+  let discard = only_discard(&discarded).to_string();
+  assert!(
+    discard.contains("1 month") && discard.contains("calendar unit"),
+    "{discard}"
+  );
+}
+
+/// F-1: a scheduled check that has fired is not an "existing valid" check
+/// (brief §9). The second exchange runs *at* the instant the first resolved to
+/// and omits `next_check`; the host must fall back to the default poll from
+/// there, not hand the caller the instant that has just elapsed. Two exchanges,
+/// because the seeded check is the only retained value a one-exchange case can
+/// see, and the defect is in what the host retains from its *own* previous
+/// resolution.
+#[tokio::test]
+async fn an_elapsed_check_is_consumed_and_the_default_poll_applies_from_now() {
+  let (mut host, _calls) = host(vec![
+    answering(br#"{"view":null,"next_check":"30m"}"#),
+    answering(br#"{"view":null}"#),
+  ]);
+
+  let scheduled = host.evaluate(now(), event()).await;
+  assert_eq!(scheduled.next_check, instant("2026-08-23T04:42:00Z"));
+
+  let fired_at = scheduled.next_check;
+  let elapsed = host.evaluate(fired_at, event()).await;
+  assert_eq!(
+    elapsed.next_check,
+    instant("2026-08-23T05:12:00Z"),
+    "an elapsed check must fall back to now + default_poll, not stand"
   );
 }
 

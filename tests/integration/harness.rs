@@ -18,7 +18,7 @@ use goad::semantics::protocol::canonical::{
 use goad::semantics::protocol::normalize::Discarded;
 use goad::shell::backend::process::ProcessBackend;
 use goad::shell::backend::transport::Exchange;
-use goad::shell::config::{BackendConfig, Config, ScheduleConfig};
+use goad::shell::config::{BackendConfig, Command, Config, ScheduleConfig};
 use goad::shell::error::{BackendError, CleanupFailure, StateError};
 use goad::shell::host::{Failure, Host, Outcome};
 
@@ -28,11 +28,11 @@ use goad::shell::host::{Failure, Host, Outcome};
 /// own example — so the scripts need neither a shebang nor an executable bit.
 /// Rooted at the crate, not the cwd, exactly as `tests/protocol/boundary.rs`
 /// does it: a test binary's working directory is not something to rely on.
-pub(crate) fn backend(name: &str) -> Vec<String> {
+pub(crate) fn backend(name: &str) -> Command {
   let script = Path::new(env!("CARGO_MANIFEST_DIR"))
     .join("tests/backends")
     .join(format!("{name}.sh"));
-  vec!["bash".to_owned(), script.display().to_string()]
+  Command::new("bash", vec![script.display().to_string()])
 }
 
 /// A transport pointed at one script, with the timeout this case wants.
@@ -203,14 +203,16 @@ pub(crate) fn clear(path: &Path) {
 /// `-A` grants the script the user's full authority, which is what brief §14
 /// says a backend has. It is not a sandbox with a hole in it; there is no
 /// sandbox.
-pub(crate) fn example() -> Vec<String> {
+pub(crate) fn example() -> Command {
   let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/typescript/backend.ts");
-  vec![
-    "deno".to_owned(),
-    "run".to_owned(),
-    "-A".to_owned(),
-    script.display().to_string(),
-  ]
+  Command::new(
+    "deno",
+    vec![
+      "run".to_owned(),
+      "-A".to_owned(),
+      script.display().to_string(),
+    ],
+  )
 }
 
 /// The default poll every host here is seeded with, so a case that asserts a
@@ -223,7 +225,7 @@ pub(crate) const DEFAULT_POLL: jiff::SignedDuration = jiff::SignedDuration::from
 /// route would mean quoting an absolute path into a document, which is a
 /// property of the grammar `config.rs`'s own tests already hold. Nothing here
 /// is about configuration parsing.
-pub(crate) fn config(command: Vec<String>, timeout: Duration) -> Config {
+pub(crate) fn config(command: Command, timeout: Duration) -> Config {
   Config {
     backend: BackendConfig { command, timeout },
     schedule: ScheduleConfig {
@@ -240,12 +242,13 @@ pub(crate) fn config(command: Vec<String>, timeout: Duration) -> Config {
 /// many exchanges as a case likes — `evaluate` and `respond` take `&mut self`
 /// (I6), so a sequence is sequential by construction and PHASE-10/EX-2's
 /// one-host requirement needs nothing further.
-pub(crate) fn host(
-  command: Vec<String>,
-  timeout: Duration,
-  now: Timestamp,
-) -> Host<ProcessBackend> {
-  let config = config(command, timeout);
+pub(crate) fn host(command: Command, timeout: Duration, now: Timestamp) -> Host<ProcessBackend> {
+  host_from(config(command, timeout), now)
+}
+
+/// The same composition from a `Config` that came from somewhere else — a file
+/// a reader would copy, for instance (F-16).
+pub(crate) fn host_from(config: Config, now: Timestamp) -> Host<ProcessBackend> {
   let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);
   Host::new(config, backend, now)
 }
@@ -285,10 +288,10 @@ fn event(now: Timestamp, minutes_since_entry: u32) -> Event {
 /// The log is the only evidence of a *non*-event — "the backend was not
 /// spawned" — that does not come from the host's own report of itself, which is
 /// PHASE-06's lesson about bounds applied to a refusal.
-pub(crate) fn logging_backend(name: &str, case: &str) -> (Vec<String>, PathBuf) {
+pub(crate) fn logging_backend(name: &str, case: &str) -> (Command, PathBuf) {
   let log = marker(&format!("invocations-{case}"));
   let mut command = backend(name);
-  command.push(log.display().to_string());
+  command.arguments.push(log.display().to_string());
   (command, log)
 }
 
@@ -317,9 +320,9 @@ pub(crate) fn invocations(log: &Path) -> usize {
 /// single `Host`: a backend that varies by invocation is the only shape that
 /// admits. Giving the per-mode cases a second mechanism would then mean the
 /// suite case and the individual cases were running different backends.
-pub(crate) fn scripted(case: &str, instructions: &[&str]) -> (Vec<String>, PathBuf) {
+pub(crate) fn scripted(case: &str, instructions: &[&str]) -> (Command, PathBuf) {
   let (mut command, log) = logging_backend("answers-as-instructed", case);
-  command.extend(
+  command.arguments.extend(
     instructions
       .iter()
       .map(|instruction| (*instruction).to_owned()),
@@ -343,8 +346,7 @@ pub(crate) fn instant(rfc3339: &str) -> Timestamp {
 /// claims against a fake and against a process.
 pub(crate) fn describe_outcome(outcome: &Outcome) -> String {
   match (&outcome.failure, &outcome.view) {
-    (Some(Failure::Backend(error)), _) => format!("a backend failure: {error}"),
-    (Some(Failure::State(error)), _) => format!("a refusal: {error}"),
+    (Some(failure), _) => format!("a failure: {failure}"),
     (None, Some(presented)) => format!("a view carrying {}", presented.view_id.as_str()),
     (None, None) => "nothing to show, and no failure".to_owned(),
   }

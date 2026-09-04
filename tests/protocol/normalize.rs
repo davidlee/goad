@@ -32,10 +32,9 @@ use goad::semantics::error::{BoundsError, ProtocolError, ScheduleError};
 use goad::semantics::protocol::canonical::{
   Alternative, Choice, Content, Field, FieldKind, NumberRange, Opt, Response, View,
 };
-use goad::semantics::protocol::normalize::{Discarded, Normalized, normalize_response};
-use goad::semantics::protocol::wire::WireResponse;
+use goad::semantics::protocol::normalize::{Discarded, Normalized, read_response};
 
-use crate::runner::{Corpus, Fixture, assert_corpus, outcome_tag};
+use crate::runner::{Corpus, Fixture, assert_corpus, outcome_tag, schedule_error_name};
 
 // ---------------------------------------------------------------------------
 // The canonical value, rendered back to JSON
@@ -145,6 +144,9 @@ fn render_discarded(discarded: &[Discarded]) -> Value {
 fn render_error(error: &ProtocolError) -> Value {
   match error {
     ProtocolError::Json(_) => json!({ "Json": Value::Null }),
+    ProtocolError::Shape(_) => json!({ "Shape": Value::Null }),
+    ProtocolError::DuplicateKey { key } => json!({ "DuplicateKey": { "key": key } }),
+    ProtocolError::NestedHints { at } => json!({ "NestedHints": { "at": at } }),
     ProtocolError::UnsupportedProtocolVersion { found } => {
       json!({ "UnsupportedProtocolVersion": { "found": found } })
     }
@@ -180,32 +182,9 @@ fn render_bounds(bounds: &BoundsError) -> Value {
   }
 }
 
-fn schedule_error_name(error: &ScheduleError) -> &'static str {
-  match error {
-    ScheduleError::NotAString { .. } => "NotAString",
-    ScheduleError::MissingOffset { .. } => "MissingOffset",
-    ScheduleError::CalendarUnit { .. } => "CalendarUnit",
-    ScheduleError::OutOfRange { .. } => "OutOfRange",
-    ScheduleError::Unparseable { .. } => "Unparseable",
-  }
-}
-
 // ---------------------------------------------------------------------------
 // The two checkers
 // ---------------------------------------------------------------------------
-
-/// What the host does with a backend's bytes: deserialize, then normalize.
-///
-/// The serde failure becomes `ProtocolError::Json` here rather than inside
-/// `normalize_response`, because that is where it happens in the host too — the
-/// composition is stratum 2's (`design.md` §5.2, *Host*), and a corpus that
-/// wrapped it differently would be asserting against a path nothing runs.
-fn outcome(
-  wire: Result<WireResponse, serde_json::Error>,
-  fixture: &Fixture<'_>,
-) -> Result<Normalized<Response>, ProtocolError> {
-  normalize_response(wire.map_err(ProtocolError::Json)?, fixture.now)
-}
 
 fn render_normalized(normalized: &Normalized<Response>) -> Value {
   json!({
@@ -263,21 +242,24 @@ fn compare(
   }
 }
 
-/// `input` is the wire response as a JSON value — what a backend emits.
+/// `input` is the wire response as a JSON value — what a backend emits. It is
+/// serialized back to bytes and handed to `read_response`, which is the path
+/// the host runs: a corpus that wrapped the steps differently would be
+/// asserting against a path nothing runs (`design.md` §5.2, *Host*).
 fn check_protocol(fixture: &Fixture<'_>) -> Result<(), String> {
-  let wire = serde_json::from_value::<WireResponse>(fixture.input.clone());
-  compare(outcome(wire, fixture), fixture.expect)
+  let bytes = serde_json::to_vec(fixture.input).map_err(|error| error.to_string())?;
+  compare(read_response(&bytes, fixture.now), fixture.expect)
 }
 
-/// `input` is a JSON **string** holding the document text verbatim, for the two
-/// literals a `serde_json::Value` cannot carry.
+/// `input` is a JSON **string** holding the document text verbatim, for what a
+/// `serde_json::Value` cannot carry: the two numeric literals JSON has no
+/// spelling for, and a duplicate key, which a `Value` has already collapsed.
 fn check_protocol_text(fixture: &Fixture<'_>) -> Result<(), String> {
   let text = fixture
     .input
     .as_str()
     .ok_or_else(|| "`input` is not a string of document text".to_owned())?;
-  let wire = serde_json::from_str::<WireResponse>(text);
-  compare(outcome(wire, fixture), fixture.expect)
+  compare(read_response(text.as_bytes(), fixture.now), fixture.expect)
 }
 
 const PROTOCOL: Corpus = Corpus {
@@ -298,7 +280,7 @@ fn every_protocol_fixture_states_what_a_wire_document_means() {
 }
 
 #[test]
-fn the_two_numeric_literals_json_cannot_express_are_refused_before_normalization() {
+fn what_a_json_value_cannot_carry_is_refused_from_the_document_text() {
   assert_corpus(&PROTOCOL_TEXT);
 }
 
@@ -335,6 +317,13 @@ fn every_protocol_error() -> Vec<ProtocolError> {
   let id = "later".to_owned();
   vec![
     ProtocolError::Json(json_error()),
+    ProtocolError::Shape(shape_error()),
+    ProtocolError::DuplicateKey {
+      key: "id".to_owned(),
+    },
+    ProtocolError::NestedHints {
+      at: "view.options[0].fields[0]".to_owned(),
+    },
     ProtocolError::UnsupportedProtocolVersion { found: 2 },
     ProtocolError::UnsupportedPrimitive {
       kind: "slider".to_owned(),
@@ -365,6 +354,10 @@ fn every_protocol_error() -> Vec<ProtocolError> {
       raw: "tomorrow morning".to_owned(),
     }),
   ]
+}
+
+fn shape_error() -> serde_json::Error {
+  serde_json::from_str::<u32>("\"1\"").unwrap_err()
 }
 
 fn json_error() -> serde_json::Error {

@@ -1,9 +1,13 @@
-# Exits before reading a byte of the request, which closes the read end of the
-# host's stdin pipe.
+# Answers without reading a byte of its request, then exits 0. Nothing in the
+# protocol obliges a backend to read what it is sent (R-37 obliges the host to
+# write and close, no more), and AC-12 names exactly this backend as sufficient.
 #
-# That alone is not enough to fail a write: a request smaller than the pipe
-# buffer (64 KiB on Linux) is accepted by the kernel and sits there whether or
-# not anyone will ever read it — measured, 20/20. `BackendError::Io` needs the
-# write to be *in progress* when the reader goes, which is why the test that
-# uses this script sends a padded request.
+# Exiting closes the read end of the host's stdin pipe. Whether the host's
+# write then fails with EPIPE depends on timing alone — a write that lands
+# before this script has finished starting succeeds, one after it fails — and
+# a request past the pipe buffer (64 KiB on Linux) makes the failure certain,
+# since the write cannot complete until something reads. The test that uses
+# this script sends such a request so the case is deterministic, and asserts
+# that the answer below is what the host reports either way (F-24).
+printf '{"view":null}'
 exit 0

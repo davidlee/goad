@@ -12,9 +12,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::error::Elapsed;
 
-use crate::semantics::error::ProtocolError;
 use crate::semantics::protocol::canonical::Request;
 use crate::shell::backend::transport::{Backend, Captured, Exchange};
+use crate::shell::config;
 use crate::shell::error::{BackendError, CleanupFailure};
 
 /// Exceeding this **fails** the exchange: the host cannot act on a response it
@@ -39,40 +39,31 @@ const READ_CHUNK: usize = 4096;
 /// configuration's job and happens before one of these is built.
 #[derive(Debug)]
 pub struct ProcessBackend {
-  command: Vec<String>,
+  command: config::Command,
   timeout: Duration,
 }
 
 impl ProcessBackend {
-  pub fn new(command: Vec<String>, timeout: Duration) -> Self {
+  pub fn new(command: config::Command, timeout: Duration) -> Self {
     Self { command, timeout }
   }
 }
 
 impl Backend for ProcessBackend {
   async fn exchange(&mut self, request: &Request) -> Exchange {
-    // Before the spawn, so a failure here has no child to clean up after.
-    // Unreachable in practice — a `Request` is host-authored and its fields
-    // serialize infallibly — but `unwrap` is not available to say so, and the
-    // honest name for "these bytes are not a JSON document" is this one. It is
-    // not the response-parsing claim that moved to PHASE-07: nothing here
-    // parses what a backend wrote.
-    let payload = match serde_json::to_vec(request) {
-      Ok(payload) => payload,
-      Err(error) => return Exchange::failed(BackendError::Protocol(ProtocolError::Json(error))),
-    };
-    // Configuration rejects `command = []` at load, so this is the belt to that
-    // brace — and `split_first` is how the program is separated from its
-    // arguments without indexing, which the lint table forbids.
-    let Some((program, arguments)) = self.command.split_first() else {
-      return Exchange::failed(BackendError::Spawn(std::io::Error::new(
-        std::io::ErrorKind::InvalidInput,
-        "backend command is empty",
-      )));
-    };
-    let mut command = Command::new(program);
+    // A `Request` is host-authored and every field of it serializes infallibly,
+    // so this `unwrap` is a statement about our own code — the case D53 (as
+    // amended) keeps the reason-carrying exception for. Reporting it as a
+    // `BackendError` would name a backend that had done nothing yet (F-3).
+    #[expect(
+      clippy::unwrap_used,
+      reason = "a host-authored `Request` serializes infallibly; a failure here is a defect \
+                in this crate, not a backend outcome, and must not be reported as one (F-3)"
+    )]
+    let payload = serde_json::to_vec(request).unwrap();
+    let mut command = Command::new(&self.command.program);
     command
-      .args(arguments)
+      .args(&self.command.arguments)
       .stdin(Stdio::piped())
       .stdout(Stdio::piped())
       .stderr(Stdio::piped())
@@ -165,20 +156,45 @@ impl Backend for ProcessBackend {
 /// needs is one that returns *here* — where there is nothing to clean up —
 /// rather than one sitting in the region F-41 is about.
 async fn body(
-  mut stdin: ChildStdin,
+  stdin: ChildStdin,
   stdout: ChildStdout,
   child: &mut Child,
   payload: &[u8],
 ) -> Result<(Vec<u8>, std::process::ExitStatus), BackendError> {
-  stdin.write_all(payload).await.map_err(BackendError::Io)?;
-  // Taken by value and dropped here rather than at the end of the exchange.
-  // The close is load-bearing: a backend that reads to EOF — the obvious way to
-  // write one — hangs forever if the host holds stdin open, and the symptom is
-  // a timeout on every call that looks like a slow backend (R-37).
-  drop(stdin);
-  let bytes = read_capped(stdout, STDOUT_LIMIT).await?;
+  // The write and the stdout read run together, for the reason §5.4 gives for
+  // the two reads: a backend that fills its stdout pipe before it reads a
+  // request that does not fit the stdin pipe blocks on one while the host
+  // blocks on the other, and only the timeout ends it (F-10, F-23).
+  let (delivered, received) =
+    tokio::join!(deliver(stdin, payload), read_capped(stdout, STDOUT_LIMIT));
+  match delivered {
+    // A backend that never reads its request has broken no rule — R-37 obliges
+    // the host to write and close, nothing obliges the backend to read — so the
+    // read end closing under the write is not this exchange's failure. The
+    // exit status and the body decide it, as they do for every other backend
+    // (F-24, R-40, AC-12).
+    Ok(()) => (),
+    Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe => (),
+    Err(error) => return Err(BackendError::Io(error)),
+  }
+  let bytes = received?;
   let status = child.wait().await.map_err(BackendError::Io)?;
   Ok((bytes, status))
+}
+
+/// Write the request and close stdin.
+///
+/// `stdin` is taken by value and dropped here rather than at the end of the
+/// exchange. The close is load-bearing: a backend that reads to EOF — the
+/// obvious way to write one — hangs forever if the host holds stdin open, and
+/// the symptom is a timeout on every call that looks like a slow backend
+/// (R-37). Its own function so that the drop is unconditional and visible: an
+/// early return from a `?` inside the write would skip a drop written after
+/// it, and this way there is no such return.
+async fn deliver(mut stdin: ChildStdin, payload: &[u8]) -> std::io::Result<()> {
+  let written = stdin.write_all(payload).await;
+  drop(stdin);
+  written
 }
 
 /// Kill and reap, without waiting on either unboundedly — the caller owns the
@@ -220,27 +236,29 @@ async fn cleanup_only(child: &mut Child, error: BackendError) -> Exchange {
 /// Stops reading the moment the bound is passed and **closes the stream**:
 /// there is nothing to be gained by finishing a response that is already
 /// refused, and leaving the pipe open only lets the flood continue (R-43).
+/// `take` is what makes the bound exact: it reads one byte past `limit` and no
+/// more, where a growing buffer read as much as its spare capacity and could
+/// hold nearly twice the bound before checking it (F-9).
 ///
 /// The reader is taken **by value**, and that is the mechanism rather than a
 /// convenience — dropping the handle here is what closes the pipe at the bound
 /// instead of at the end of the exchange. Measured: with a borrow, a flooding
 /// backend observes the close 1.8 ms *after* the call returns; with ownership,
-/// 500 ms *before* it, on a case whose disposal stalls. `transport_shape.rs`
-/// asserts the signature for that reason.
+/// 500 ms *before* it, on a case whose disposal stalls.
 async fn read_capped(
-  mut reader: impl AsyncRead + Unpin + Send,
+  reader: impl AsyncRead + Unpin + Send,
   limit: usize,
 ) -> Result<Vec<u8>, BackendError> {
   let mut out = Vec::new();
-  loop {
-    out.reserve(READ_CHUNK);
-    if reader.read_buf(&mut out).await.map_err(BackendError::Io)? == 0 {
-      return Ok(out);
-    }
-    if out.len() > limit {
-      return Err(BackendError::OutputTooLarge { limit });
-    }
+  reader
+    .take(u64::try_from(limit.saturating_add(1)).unwrap_or(u64::MAX))
+    .read_to_end(&mut out)
+    .await
+    .map_err(BackendError::Io)?;
+  if out.len() > limit {
+    return Err(BackendError::OutputTooLarge { limit });
   }
+  Ok(out)
 }
 
 /// Read to EOF, keeping at most `limit` of it.

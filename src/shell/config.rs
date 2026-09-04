@@ -14,6 +14,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::semantics::schedule::parse_span;
 use crate::shell::error::ConfigError;
 
 /// The parsed form.
@@ -31,11 +32,38 @@ pub struct Config {
 
 #[derive(Debug)]
 pub struct BackendConfig {
-  /// An argument vector, never a shell string: no quoting rules and no
-  /// injection surface, and it is what makes `["bash", "./backend.sh"]` work
-  /// without a shebang (R-36).
-  pub command: Vec<String>,
+  pub command: Command,
   pub timeout: std::time::Duration,
+}
+
+/// What to spawn: a program and its arguments.
+///
+/// An argument vector, never a shell string: no quoting rules and no injection
+/// surface, and it is what makes `["bash", "./backend.sh"]` work without a
+/// shebang (R-36). Split rather than kept as one `Vec` so that the empty
+/// command — the one argv with nothing to spawn — is not representable past
+/// this boundary, and the transport has no `else` arm to report it in the
+/// backend's voice (F-3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Command {
+  pub program: String,
+  pub arguments: Vec<String>,
+}
+
+impl Command {
+  pub fn new(program: impl Into<String>, arguments: Vec<String>) -> Self {
+    Self {
+      program: program.into(),
+      arguments,
+    }
+  }
+
+  /// `None` for the empty vector, which is `EmptyCommand`'s case.
+  fn from_argv(argv: Vec<String>) -> Option<Self> {
+    let mut argv = argv.into_iter();
+    let program = argv.next()?;
+    Some(Self::new(program, argv.collect()))
+  }
 }
 
 #[derive(Debug)]
@@ -49,19 +77,28 @@ pub struct ScheduleConfig {
 /// permissive form is what serde can express, and the checks that make a value
 /// usable do not fit in a `Deserialize`. `EmptyCommand` spelled as a
 /// deserialization failure would name the wrong subject.
+///
+/// `deny_unknown_fields` throughout, and that is the opposite of the wire's
+/// rule on purpose: I10's permissiveness is for a backend written against a
+/// newer host, and a config file is the user's own, read once, with its author
+/// at the keyboard. A key the host does not read is a mistake to report, and
+/// `toml` reports it by name and line (F-5).
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct File {
   backend: FileBackend,
   schedule: FileSchedule,
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FileBackend {
   command: Vec<String>,
   timeout: String,
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FileSchedule {
   default_poll: String,
 }
@@ -90,12 +127,10 @@ impl Config {
   /// values that parse and still cannot be honoured.
   pub fn parse(text: &str) -> Result<Self, ConfigError> {
     let file: File = toml::from_str(text).map_err(|error| ConfigError::Syntax(Box::new(error)))?;
-    if file.backend.command.is_empty() {
-      return Err(ConfigError::EmptyCommand);
-    }
+    let command = Command::from_argv(file.backend.command).ok_or(ConfigError::EmptyCommand)?;
     Ok(Self {
       backend: BackendConfig {
-        command: file.backend.command,
+        command,
         timeout: unsigned("backend.timeout", &file.backend.timeout)?,
       },
       schedule: ScheduleConfig {
@@ -105,28 +140,22 @@ impl Config {
   }
 }
 
-/// One duration string, in `next_check`'s own grammar, that must also be usable.
+/// One duration string, in the product's one grammar, that must also be usable.
 ///
-/// The two jiff calls restate `semantics::schedule`'s conversion deliberately —
-/// user decision 2026-09-03, `plan-log.md`. What must not diverge is the
-/// *grammar*, which is jiff's rather than this crate's; sharing the code would
-/// have meant either a `ScheduleError` naming a config key, or a public helper
-/// in stratum 1 that this phase's Surfaces do not reach. Config admits only the
-/// relative form: `next_check`'s absolute-instant branch is not a duration.
+/// The grammar is `schedule::parse_span`'s — shared, not restated, so the
+/// config file and `next_check` refuse the same strings for the same reasons
+/// (F-4). Config admits only the relative form: `next_check`'s
+/// absolute-instant branch is not a duration.
 ///
 /// The positivity check is not a fallout of parsing. Both `"0s"` and `"-1s"`
 /// parse — measured, `notes.md` PHASE-07 — so each rejection EX-1 asks for is a
 /// check that had to be written.
 fn signed(key: &'static str, raw: &str) -> Result<jiff::SignedDuration, ConfigError> {
-  let named = |detail| ConfigError::Duration {
+  let resolved = parse_span(raw).map_err(|fault| ConfigError::Duration {
     key,
     raw: raw.to_owned(),
-    detail,
-  };
-  let span = raw.parse::<jiff::Span>().map_err(named)?;
-  let resolved = span
-    .to_duration(jiff::SpanRelativeTo::days_are_24_hours())
-    .map_err(named)?;
+    fault,
+  })?;
   if resolved.is_zero() || resolved.is_negative() {
     return Err(ConfigError::NonPositive { key });
   }
@@ -135,16 +164,13 @@ fn signed(key: &'static str, raw: &str) -> Result<jiff::SignedDuration, ConfigEr
 
 /// The same, for the one value whose consumer is tokio rather than jiff.
 ///
-/// The conversion runs *after* the positivity check, so the only way it can fail
-/// is a magnitude jiff can represent and `std` cannot — which is a duration the
-/// host cannot honour, and is reported as one rather than silently clamped.
+/// `std::time::Duration` holds every non-negative `SignedDuration`, so after the
+/// positivity check the conversion can fail only for a value that check has
+/// already refused — which is why its failure is reported as that refusal and
+/// not as a second error nothing can reach.
 fn unsigned(key: &'static str, raw: &str) -> Result<std::time::Duration, ConfigError> {
   let resolved = signed(key, raw)?;
-  std::time::Duration::try_from(resolved).map_err(|detail| ConfigError::Duration {
-    key,
-    raw: raw.to_owned(),
-    detail,
-  })
+  std::time::Duration::try_from(resolved).or(Err(ConfigError::NonPositive { key }))
 }
 
 #[cfg(test)]
@@ -174,9 +200,10 @@ default_poll = "30m"
   #[test]
   fn the_design_s_own_example_loads() {
     let config = Config::parse(GOOD).expect("the example in the design must load");
+    assert_eq!(config.backend.command.program, "deno");
     assert_eq!(
-      config.backend.command,
-      ["deno", "run", "-A", "./backend.ts"]
+      config.backend.command.arguments,
+      ["run", "-A", "./backend.ts"]
     );
     assert_eq!(config.backend.timeout, std::time::Duration::from_secs(5));
     assert_eq!(
@@ -201,6 +228,35 @@ default_poll = "30m"
   }
 
   // ---- VT-2: one case per EX-1 rejection clause, each naming its error ----
+
+  /// F-5: a config file is the user's own, read once, with its author at the
+  /// keyboard — so an unknown key is a mistake to report, not a newer backend
+  /// to tolerate (which is what I10's permissiveness is about, on the wire).
+  /// Brief §5's own illustrative file carries `socket` and `[logging]`, both
+  /// outside this slice; a user who copies it must hear that they did nothing.
+  #[test]
+  fn an_unknown_key_is_refused_and_named() {
+    for (text, key) in [
+      (
+        GOOD.replace(
+          "timeout = \"5s\"",
+          "timeout = \"5s\"\nsocket = \"/tmp/goad.sock\"",
+        ),
+        "socket",
+      ),
+      (format!("{GOOD}\n[logging]\nlevel = \"info\"\n"), "logging"),
+      (
+        GOOD.replace("default_poll", "poll_interval"),
+        "poll_interval",
+      ),
+    ] {
+      let refused = rejection(&text);
+      assert!(
+        matches!(&refused, ConfigError::Syntax(_)) && refused.to_string().contains(key),
+        "unknown key `{key}` was not refused naming it: {refused}"
+      );
+    }
+  }
 
   #[test]
   fn a_missing_section_is_refused_by_the_parser_rather_than_by_a_check() {
@@ -233,6 +289,42 @@ default_poll = "30m"
         }
       ),
       "a zero timeout was not rejected as such: {}",
+      rejection(&text)
+    );
+  }
+
+  /// F-28: the grammar's own refusals, each surfacing as `Duration` naming
+  /// the key, and the negative case as `NonPositive` — because `"-30m"` parses.
+  #[test]
+  fn a_duration_the_grammar_refuses_is_rejected_naming_the_key() {
+    for (raw, what) in [
+      ("1 month", "a calendar unit"),
+      ("soon", "prose"),
+      ("09:00:00", "a time of day"),
+    ] {
+      let text = GOOD.replace(r#"timeout = "5s""#, &format!(r#"timeout = "{raw}""#));
+      let refused = rejection(&text);
+      assert!(
+        matches!(
+          &refused,
+          ConfigError::Duration { key: "backend.timeout", raw: found, .. } if found == raw
+        ),
+        "{what} was not refused as a duration fault naming the key: {refused}"
+      );
+    }
+  }
+
+  #[test]
+  fn a_negative_duration_is_rejected_as_non_positive() {
+    let text = GOOD.replace(r#"default_poll = "30m""#, r#"default_poll = "-30m""#);
+    assert!(
+      matches!(
+        rejection(&text),
+        ConfigError::NonPositive {
+          key: "schedule.default_poll"
+        }
+      ),
+      "a negative default poll was not rejected as such: {}",
       rejection(&text)
     );
   }

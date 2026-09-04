@@ -22,6 +22,7 @@ use crate::harness::{
 use goad::semantics::error::{BoundsError, ProtocolError, ScheduleError};
 use goad::semantics::protocol::canonical::Timestamp;
 use goad::semantics::protocol::normalize::Discarded;
+use goad::shell::config::Command;
 use goad::shell::error::BackendError;
 use goad::shell::host::Outcome;
 
@@ -415,7 +416,7 @@ async fn the_same_backend_told_to_behave_is_accepted() {
 #[tokio::test]
 async fn a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure() {
   let mut host = host(
-    vec!["/nonexistent/goad-has-no-such-backend".to_owned()],
+    Command::new("/nonexistent/goad-has-no-such-backend", Vec::new()),
     TIMEOUT,
     now(),
   );

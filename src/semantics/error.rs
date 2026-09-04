@@ -15,7 +15,27 @@ use std::fmt;
 /// the protocol does not admit.
 #[derive(Debug)]
 pub enum ProtocolError {
+  /// The bytes are not a JSON document: a syntax error, a truncated document,
+  /// bytes that are not UTF-8. Brief §13's "malformed JSON".
   Json(serde_json::Error),
+  /// A JSON document whose shape the protocol refuses — a missing required
+  /// key, a value of the wrong type, an array where an object is required.
+  /// Brief §13's "protocol-invalid response", and R-44 keeps it distinct from
+  /// `Json` because the fixes are different: one is a serializer bug, the
+  /// other a backend that misread the spec (F-22).
+  Shape(serde_json::Error),
+  /// The same key twice in one object, at any depth. An ambiguity about which
+  /// value was meant, and P-B says an ambiguous message fails (F-19).
+  DuplicateKey {
+    key: String,
+  },
+  /// `"hints": { … }` on a field. Hints are the field's own remaining keys,
+  /// flat (R-18); a nested object is the other spelling of the same thing,
+  /// and the one `design.md` §5.2 refused. Absorbing it as a hint named
+  /// `hints` would lose every hint inside it silently (F-25, R-47).
+  NestedHints {
+    at: String,
+  },
   UnsupportedProtocolVersion {
     found: u32,
   },
@@ -84,6 +104,10 @@ pub enum ScheduleError {
   /// single most likely backend mistake and "you omitted the offset" is
   /// debuggable where "unparseable" is not (brief §13).
   MissingOffset { raw: String },
+  /// `"18:00:00"` — reads as a time of day, which is neither of R-21's forms.
+  /// The span grammar would take it as eighteen hours, and brief §3.3 says an
+  /// ambiguous value fails rather than acquiring invented semantics (F-2).
+  TimeOfDay { raw: String },
   /// `"1 month"` — a calendar unit has no fixed length.
   CalendarUnit { raw: String },
   /// Parses, but `now + span` leaves the representable range.
@@ -92,10 +116,32 @@ pub enum ScheduleError {
   Unparseable { raw: String },
 }
 
+/// Why a string is not a relative span. The product has one duration grammar
+/// (`design.md` §5.2), and this is its refusal, shared by `next_check`'s span
+/// form and the config file's durations (F-4). The callers name the value; this
+/// names the fault, and carries jiff's own message where there is one.
+#[derive(Debug)]
+pub enum SpanFault {
+  /// Parses as a span of hours, reads as a time of day. Refused as ambiguous.
+  TimeOfDay,
+  /// Months or years, whose length needs a calendar (R-23).
+  CalendarUnit(jiff::Error),
+  /// Not a span at all, or one whose magnitude the grammar's unit bound refuses.
+  Unparseable(jiff::Error),
+}
+
 impl fmt::Display for ProtocolError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Json(inner) => write!(f, "malformed JSON: {inner}"),
+      Self::Shape(inner) => write!(f, "protocol-invalid message: {inner}"),
+      Self::DuplicateKey { key } => write!(f, "duplicate key `{key}`"),
+      Self::NestedHints { at } => {
+        write!(
+          f,
+          "hints are the field's own keys, not a nested `hints` object, at {at}"
+        )
+      }
       Self::UnsupportedProtocolVersion { found } => {
         write!(f, "unsupported protocol version {found}")
       }
@@ -133,6 +179,12 @@ impl fmt::Display for ScheduleError {
     match self {
       Self::NotAString { found } => write!(f, "schedule must be a string, found {found}"),
       Self::MissingOffset { raw } => write!(f, "schedule has no UTC offset: {raw}"),
+      Self::TimeOfDay { raw } => {
+        write!(
+          f,
+          "schedule is a time of day, which is neither an instant nor a span: {raw}"
+        )
+      }
       Self::CalendarUnit { raw } => {
         write!(
           f,
@@ -145,10 +197,25 @@ impl fmt::Display for ScheduleError {
   }
 }
 
+/// The one door from a serde failure into the taxonomy, so that the split R-44
+/// requires holds at every call rather than at the ones a test reached (F-22):
+/// a document that could not be *parsed* is `Json`; one that parsed and whose
+/// *shape* was refused is `Shape`. `serde_json`'s own category is the line.
+impl From<serde_json::Error> for ProtocolError {
+  fn from(error: serde_json::Error) -> Self {
+    match error.classify() {
+      serde_json::error::Category::Data => Self::Shape(error),
+      serde_json::error::Category::Io
+      | serde_json::error::Category::Syntax
+      | serde_json::error::Category::Eof => Self::Json(error),
+    }
+  }
+}
+
 impl std::error::Error for ProtocolError {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
-      Self::Json(inner) => Some(inner),
+      Self::Json(inner) | Self::Shape(inner) => Some(inner),
       Self::Bounds(inner) => Some(inner),
       Self::Schedule(inner) => Some(inner),
       _ => None,
@@ -159,6 +226,20 @@ impl std::error::Error for ProtocolError {
 impl std::error::Error for BoundsError {}
 
 impl std::error::Error for ScheduleError {}
+
+impl fmt::Display for SpanFault {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::TimeOfDay => write!(f, "a time of day is not a span"),
+      Self::CalendarUnit(detail) => write!(f, "a calendar unit has no fixed length: {detail}"),
+      Self::Unparseable(detail) => write!(f, "{detail}"),
+    }
+  }
+}
+
+/// No `source`: jiff runs with `default-features = false` (D4), and without its
+/// `std` feature `jiff::Error` is displayable but not a `std::error::Error`.
+impl std::error::Error for SpanFault {}
 
 #[cfg(test)]
 mod tests {
@@ -171,7 +252,9 @@ mod tests {
   /// variant being declared with a field nothing ever formats.
   fn must_name(error: &ProtocolError) -> Vec<String> {
     match error {
-      ProtocolError::Json(inner) => vec![inner.to_string()],
+      ProtocolError::Json(inner) | ProtocolError::Shape(inner) => vec![inner.to_string()],
+      ProtocolError::DuplicateKey { key } => vec![key.clone()],
+      ProtocolError::NestedHints { at } => vec![at.clone()],
       ProtocolError::UnsupportedProtocolVersion { found } => vec![found.to_string()],
       ProtocolError::UnsupportedPrimitive { kind, at } => vec![kind.clone(), at.clone()],
       ProtocolError::InapplicableKey { key, kind, at } => {
@@ -200,6 +283,7 @@ mod tests {
     match error {
       ScheduleError::NotAString { found } => vec![(*found).to_owned()],
       ScheduleError::MissingOffset { raw }
+      | ScheduleError::TimeOfDay { raw }
       | ScheduleError::CalendarUnit { raw }
       | ScheduleError::OutOfRange { raw }
       | ScheduleError::Unparseable { raw } => vec![raw.clone()],
@@ -228,10 +312,35 @@ mod tests {
     serde_json::from_str::<serde_json::Value>("{").unwrap_err()
   }
 
+  fn shape_error() -> serde_json::Error {
+    serde_json::from_str::<u32>("\"1\"").unwrap_err()
+  }
+
+  /// F-22: the door classifies. Nothing else in the crate may decide which of
+  /// the two a serde failure is.
+  #[test]
+  fn a_serde_failure_enters_the_taxonomy_by_category() {
+    assert!(matches!(
+      ProtocolError::from(json_error()),
+      ProtocolError::Json(_)
+    ));
+    assert!(matches!(
+      ProtocolError::from(shape_error()),
+      ProtocolError::Shape(_)
+    ));
+  }
+
   /// One instance per `ProtocolError` variant, in `design.md` §5.2's order.
   fn every_protocol_error() -> Vec<ProtocolError> {
     vec![
       ProtocolError::Json(json_error()),
+      ProtocolError::Shape(shape_error()),
+      ProtocolError::DuplicateKey {
+        key: "id".to_owned(),
+      },
+      ProtocolError::NestedHints {
+        at: "$.view.fields[0]".to_owned(),
+      },
       ProtocolError::UnsupportedProtocolVersion { found: 7 },
       ProtocolError::UnsupportedPrimitive {
         kind: "slider".to_owned(),
@@ -292,6 +401,9 @@ mod tests {
       ScheduleError::MissingOffset {
         raw: "2026-08-22T18:00:00".to_owned(),
       },
+      ScheduleError::TimeOfDay {
+        raw: "18:00:00".to_owned(),
+      },
       ScheduleError::CalendarUnit {
         raw: "1 month".to_owned(),
       },
@@ -341,7 +453,10 @@ mod tests {
     for error in every_protocol_error() {
       let wrapping = matches!(
         error,
-        ProtocolError::Json(_) | ProtocolError::Bounds(_) | ProtocolError::Schedule(_)
+        ProtocolError::Json(_)
+          | ProtocolError::Shape(_)
+          | ProtocolError::Bounds(_)
+          | ProtocolError::Schedule(_)
       );
       assert_eq!(
         std::error::Error::source(&error).is_some(),

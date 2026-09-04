@@ -43,6 +43,95 @@ created it: `Cargo.toml`, `clippy.toml`, `justfile`, `.gitignore`, `Cargo.lock`,
 `LICENSE`. PHASE-01 amended `Cargo.toml` twice — `toml` as an optional
 dependency (EX-6) and `module_name_repetitions = "allow"` (user decision).
 
+## Handover — audit in progress, session 2 closed 2026-09-04
+
+**Stage:** audit, code review round 2 open — its findings dispositioned, not
+repaired. Every round-1 finding dispositioned by user decision and every
+fix-now repaired; `just check` exits 0 in both columns. No canon touched, `design.md` untouched, draft not promoted.
+
+**What session 2 did.** Dispositioned F-1…F-33 with the user (one interview
+loop, decisions recorded in each finding's Disposition line): 29 fix-now, 2
+tolerated (F-13 the F-N/D-N citations, F-15 `PipeMissing`), 6 duplicates
+following their primaries. Repaired all 29 red/green/refactor, in clusters,
+gate-checked between clusters. Each Response in `review-code.md` names the
+test that holds the repair. Then a fresh round-2 reviewer subagent over the
+repairs only, appended from F-34 — see below.
+
+**Shape changes a session-3 reader must know** (all inside `src/`, `tests/`,
+`examples/`, plus one comment in `Cargo.toml` for F-12):
+- `schedule::resolve` consumes a retained check `<= now` (F-1).
+- `schedule::parse_span` is the product's one duration grammar; `SpanFault`
+  (`TimeOfDay`, `CalendarUnit`, `Unparseable`) in `semantics::error`;
+  `ScheduleError::TimeOfDay` is a sixth variant; `ConfigError::Duration`
+  carries `fault: SpanFault` and chains it (F-2, F-4).
+- `shell::config::Command { program, arguments }` replaces `Vec<String>`
+  past the config boundary; `ProcessBackend::new(Command, timeout)` (F-3).
+- `ProtocolError` gained `Shape`, `DuplicateKey { key }`, `NestedHints { at }`;
+  `From<serde_json::Error>` is the one door and classifies by category
+  (F-19, F-22, F-25). `normalize::read_response(bytes, now)` is the one read
+  site; `host::read` is gone; both fixture corpora run through it.
+- `wire::Object<T>` refuses non-objects; `wire::reject_duplicate_keys` is the
+  pre-pass (F-19, F-20).
+- `process.rs::body` joins the stdin write with the stdout read and tolerates
+  `BrokenPipe` on the write; `read_capped` uses `take` (F-9, F-10, F-24).
+- `Outstanding.issued_at` removed (F-6). `Fields`/`Hints` no longer `Default`
+  (F-11). `PROTOCOL_VERSION` is one `pub const` in `canonical.rs` (F-27).
+- `Display` for `host::Failure` and `normalize::Discarded` (F-33).
+- Config refuses unknown keys (F-5). The example's types are the full protocol
+  (F-8). The README's config is run by a test (F-16). The domain scan matches
+  words, not substrings (F-14).
+
+**For session 3's reconciliation** — things now true of the code that a
+document says otherwise, beyond the drift list in the session-1 handover:
+- `draft-spec.md` R-26 and `design.md` §5.3's "`resolved_check` is not an
+  `Option`" prose: reword for the consumed elapsed check (F-1). Add to §7 or
+  R-29's row: a *failed* exchange at an elapsed check still reports the
+  elapsed instant (R-29 holds; slice 003's timer must retry on cadence, not
+  spin) — noted in session 2, not changed.
+- `draft-spec.md` R-21/R-25: a bare time of day is refused (`TimeOfDay`).
+- `draft-spec.md` R-44 and §5.2's taxonomy: `Shape`, `DuplicateKey`,
+  `NestedHints`, `TimeOfDay`, `SpanFault` are new names; "malformed JSON" and
+  "protocol-invalid" are now distinct variants as R-44 asks.
+- `draft-spec.md` §7 test-name rows: several tests were renamed or added —
+  re-run PHASE-09's two-direction script before promotion (the schedule
+  corpus's `error_name` is now `runner.rs::schedule_error_name`; the
+  protocol-text corpus's test is
+  `what_a_json_value_cannot_carry_is_refused_from_the_document_text`).
+- `design.md` §5.2: `Command`, `SpanFault`, `ConfigError` shape; §5.3:
+  `issued_at` — all *Design drift not reconciled* entries.
+- `design.md` §5.4 step 3 now describes what the code does (write and read
+  concurrent); `:1528`'s cap sentence still does not.
+- `docs/memory/` candidate from F-13: new code cites `R-N` and spec sections,
+  not slice-local `F-N`/`D-N` ids.
+
+**Round 2 — open; repairs NOT started.** The fresh reviewer reported F-34…F-44
+(1 major, 6 minor, 4 nit) and confirmed every round-1 repair by revert except
+F-9's, which no test pins (F-43). All eleven are **dispositioned by user
+decision 2026-09-04** (9 fix-now, F-44 tolerated, see each Disposition line)
+and **none is repaired**: the session hit its context bound right after the
+decisions. Every Response for F-34…F-43 is empty and every Outcome for
+F-1…F-44 is empty.
+
+**The next session's first job, before any reconciliation:**
+1. Repair F-34…F-43 as dispositioned, red/green/refactor, inside `src/`,
+   `tests/`, `examples/`. F-34 is the one that matters: `Host::no_action`
+   reports `schedule::resolve(Some(self.state.resolved_check()), None,
+   default_poll, now)` and does not write state; test = good exchange
+   scheduling `30m`, then a failure *at* that instant, expecting
+   `now + default_poll`. F-37 replaces the `civil::Time` parse in
+   `schedule::parse_span` with "digits and colons only, containing a colon →
+   `TimeOfDay`". F-36 reworks `boundary.rs::mentions` (strip comments; plural;
+   `HTTPSite` split). F-43 needs a `#[tokio::test]` inside `process.rs`
+   (tokio has `macros` and `rt`).
+2. `just check` exit 0, both columns.
+3. Fill the Responses; then a **round 3** fresh reviewer over the round-2
+   repairs only, appended from F-45; disposition and repair the same way
+   until a round comes back with nothing above nit. Then set Outcomes
+   (`verified`) as the raiser, and write the ledger's Synthesis.
+4. Only then session 3's reconciliation (list above), promotion, close.
+
+
+
 ## Handover — audit in progress, session 1 closed 2026-09-04
 
 **Stage:** audit, evidence gathered, code review round 1 open. Nothing
