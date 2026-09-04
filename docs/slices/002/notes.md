@@ -817,406 +817,397 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
 - **A-1, A-2, A-3, A-4 all still stand** and all still need `slint` in the graph.
   The A-2 expectation budget is **unspent** — PHASE-01 added no `#[expect]`
   anywhere.
+- **The three moved boundary files carry slice 001's AC numbers.**
+  `tests/checks/main.rs` says "`direction` is AC-15's direction half; `vocabulary`
+  is AC-11's", and the two modules repeat it. Inherited verbatim from
+  `tests/protocol/boundary.rs`, so not a PHASE-01 defect — but in slice 002's
+  numbering AC-11 is the empty state and AC-15 is canon-delta accounting, while
+  these tests hold 002's AC-3, AC-13 and AC-14. PHASE-02 rewrites all three files
+  and should renumber in the same change.
 
 ---
 
 ## Handover
 
-**Written:** 2026-09-05, end of session 3. This section **replaces** the session-1
-handover and the session-2 and session-3 addenda. It is the whole state, not a
-delta; nothing earlier in this file needs reading first.
+**Written:** 2026-09-05, end of session 4. This section **replaces** the session-3
+handover entirely. It is the whole state, not a delta; nothing earlier in this
+file needs reading first.
+
+**What changed tonight: the code did.** For two sessions the answer to "what
+landed" was *nothing*. Tonight PHASE-01 executed. The single crate is a
+workspace of three members, 130 paths moved, and `just check` exits 0 — verified
+by a fresh run at the top of this session, not inherited from the executing
+agent's report. Executing the phase was also the audit §5.1's artifact map had
+never had, and it found **four defects that five design review rounds and one
+plan review round of reading did not**. That is section 3, and it is the night's
+most valuable output.
 
 | | |
 |---|---|
-| branch | `slice-002`, 9 commits ahead of `a6ae617` (slice 001's close) |
-| head | `d880801` — *review round 5: seven findings raised, six reopened, all repaired* |
-| gate | **verified this session:** `just check` exits 0, 1.836 s warm |
-| tree | clean apart from the pre-existing unstaged `flake.lock` edit (a `bun2nix` input repointed to a `Mic92` fork). Untouched for three sessions. Leave it alone |
-| canon | **untouched.** `git diff a6ae617..HEAD -- docs/specs docs/policy docs/adr CLAUDE.md` is empty |
-| stage | the design gate. `plan.md` is still the template. **No code has changed in three sessions** |
-
-The slice has produced 12,569 lines of documentation and 0 lines of code. That
-is the fact this handover has to justify or condemn, and §5 does the arithmetic.
+| branch | `slice-002`, 14 commits ahead of `a6ae617` (slice 001's close) |
+| head | `e3170b1` — *PHASE-01: the workspace split — three members, the relocation, and the six-command gate* |
+| gate | **verified this session, independently:** `just check` exits 0. Warm wall-clock 1.809 / 1.797 / 1.792 s over three runs |
+| tree | clean apart from the pre-existing unstaged `flake.lock` edit (a `bun2nix` input repointed to a `Mic92` fork). Untouched for four sessions. Leave it alone |
+| canon | **untouched.** `git diff a6ae617..HEAD -- docs/specs docs/policy docs/adr CLAUDE.md` is empty. No draft promoted |
+| stage | PHASE-01 done. PHASE-02 is next and its entry conditions are met (§8) |
 
 ---
 
-### 1. What rounds 4 and 5 built, and what the compiler said
+### 1. What landed, measured
 
-Round 3 ended by writing itself a lesson: *an assumption a scratch crate can
-reach should be reached before a phase starts, not listed as a risk.* Rounds 4
-and 5 spent themselves discharging it. Six scratch measurements, all recorded in
-`research.md` as numbered threads.
+Everything below is from this session's own commands, not from the phase's
+report. Where the phase's numbers and mine differ it is stated.
 
-**Round 4 — three passages built, three defective.** This is the round where the
-compiler became the raiser rather than the reviewer.
+**The split commit `e3170b1`, in isolation** (`git diff --find-renames
+--name-status 54a76aa e3170b1`):
 
-| built | thread | what the compiler said |
-|---|---|---|
-| F-9's failure-matrix `Case`/`Observed`/`Cohort` schema | Thread 9 | **14 corrections**, two of them expected strings that disagree with the fixtures on disk |
-| F-26's startup surface — `StartupError`'s eight variants, `arguments(argv, env)`, the `writeln!` outlet | Thread 10 | **5 corrections**, including an `arguments` call site that does not compile |
-| A-2's two named lint instances — the stderr outlet, six `Wire` clone bindings against `shadow_unrelated` | Thread 11 | **13 errors across 9 lints** on the design's own text, plus 8 more in the rasteriser |
-
-Five findings followed (F-29…F-33), two of them blockers: `serve` carried an
-`#[expect]` for a lint that does not fire (F-29), and **every `pub` item in the
-renderer was a lint error because the crate's shape had never been stated**
-(F-30). F-30's repair is D28 — a library plus a thin binary — and it is load
-bearing for the whole test strategy.
-
-One judgement call from that round is worth a reader's attention. **Thread 10's
-prescription was rejected and its measurement kept.** It measured
-`unreachable_pub` correctly and concluded *"`pub(crate)`, not a lib target"*,
-which is right for a crate with no integration tests and wrong for this one:
-§12.8 runs the cheap tier in a `tests/` target that `pub(crate)` locks out. A
-measurement is evidence about the shape it was taken on, not about a shape it
-never saw.
-
-**Round 5 — three artefacts built or validated, one corrected.** The first round
-in which measurement mostly *confirmed*.
-
-| measured | result |
+| | rows |
 |---|---|
-| round 4's `f9-schema` scratch crate, re-run | **still green.** `--test table` 8/8, clippy `-D warnings` exit 0. The 33-row `CASES` array is now copied into `design.md` §9 item 12.9 **verbatim from the crate that compiled it**, not paraphrased; its `<A>` placeholder is documented as a placeholder |
-| `makeFontsConf { fontDirectories = [ dejavu_fonts ]; }` evaluated, built, `fc-list`'d | 39 DejaVu faces; the conf carries the store path as an explicit `<dir>`. **Found the trap: adding the font to `buildInputs` alone does nothing** — this is the one correction |
-| `niri validate` on the proposed `window-rule`, niri 26.04 | *config is valid* |
+| renames | **113** — of which **92** are `R100`, byte-identical |
+| additions | 11 |
+| deletions | 3 |
+| modifications | 8 — five of them the slice's own documents |
+| **total** | **135**, less 5 bookkeeping docs = **130 relocated paths** |
 
-Round 5 raised seven findings (F-34…F-40) and reopened six under their existing
-ids (F-6, F-8, F-9, F-16, F-17, F-30). All thirteen `fix-now`, all `verified`.
-Two were blockers, and the second is the one that matters:
+`130 files changed, 1049 insertions(+), 834 deletions(-)` excluding `docs/`.
+The phase's claim of 130 relocated paths out of 135 walk rows reproduces exactly.
 
-- **F-30 regressed under integration.** Round 4 raised it with a compiler,
-  repaired it correctly, and made §5.1 say *"everything a test can reach,
-  `install` included, lives in the library."* Nine hundred lines later the
-  prescription still read `fn install(…)` — private, reachable from neither the
-  binary crate nor a `tests/` target. A rule stated and not applied to the site
-  the rule came from.
-- **F-37 was never raised by four rounds.** The design could state the exact
-  `Display` of thirty-three diagnostic lines and could not say what its two test
-  targets were called, where `build.rs`'s input lived, or which modules `lib.rs`
-  declares. Four rounds asked *does this work?*; none asked *can this be typed?*
+**The shape of the workspace** (`cargo metadata --no-deps`):
 
-**What is now specified that was not.** F-37's repair, `design.md` §5.1 *The
-artifact map* (`design.md`:291–445, ~155 lines), is the largest single addition
-this slice has made and is what PHASE-01 executes directly against.
+```
+goad-semantics   lib + [[test]] protocol
+goad-shell       lib + [[test]] integration + [[test]] shape
+goad-boundary    lib + [[test]] checks
+```
 
-| what | where |
+Three members, four `[[test]]` targets, as `plan.md` PL-1 specifies. `crates/goad`
+and the `renderer` / `event_loop` targets are PHASE-03's and PHASE-08's and do
+not exist yet, correctly.
+
+**Behaviour is unchanged, and this is the load-bearing check.** `cargo test
+--workspace -- --list`, leaf names, sorted and uniqued: **116 names.** The same
+extraction against a clean worktree at `a6ae617` (`cargo test -- --list` plus
+`cargo test --no-default-features -- --list`, the pre-split two columns):
+**116 names, and `diff` is empty.** Nothing was renamed, dropped or absorbed by
+the split. `cargo test --workspace` reports **0 ignored** across all ten result
+lines, so the gate was not weakened to reach green.
+
+> **A note on that measurement, because it is this slice's own lesson turned on
+> me.** My first attempt at the before-set read a stale `pre/` directory left in
+> the scratchpad by an earlier session — not a worktree, not `a6ae617`. It
+> produced a confident 102-vs-116 diff naming two test functions as deleted.
+> Both names turned out not to exist in `a6ae617` at all. *Verifying against an
+> artifact you did not just create is reading, not measuring.* Redone against a
+> fresh `git worktree add` at `a6ae617`, the sets are identical.
+
+---
+
+### 2. The gate, from my own run
+
+`just -n check` prints six commands, and they match `draft-policy.md`'s command
+block line for line:
+
+```
+cargo build --workspace
+cargo test --workspace
+cargo test -p goad-semantics
+deno check examples/typescript/backend.ts
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+```
+
+One clippy column, not two. The `shell` feature is gone from the tree entirely —
+`grep -rn 'feature = "shell"\|cfg(feature'` over `Cargo.toml` and `crates/`
+returns nothing — so the two-column matrix has no subject left, which is what
+CD-7 will make permanent in `CLAUDE.md`. No `optional` key survives in any
+manifest.
+
+`justfile`'s header now cites `docs/slices/002/draft-policy.md` as the slice's
+working authority with the `docs/AGENTS.md:36` / `:38` citation, and §5.6 as
+where it is derived. The non-gate `fmt` recipe became `cargo fmt --all`, which
+is not one of the six but is the obvious companion to a three-member
+`fmt --check`.
+
+---
+
+### 3. The four artifact-map rows that were wrong
+
+§5.1's artifact map survived five design rounds and one plan round. Executing it
+took under an hour and found four defects in it. All four are raised in
+`review-plan.md` round 2 as F-34…F-37, verified, and repaired in `design.md`
+§5.1 — §5.1 and nowhere else.
+
+**F-35 — `tests/integration/round_trip.rs`. Blocker, and invisible to every
+instrument the map had.**
+`round_trip.rs` reads the config out of `examples/typescript/README.md` and runs
+it, because the review's F-16 is precisely the claim that the config a reader copies works.
+That case rests on cargo's **working directory**, which the split moves from the
+repository root to `crates/goad-shell`. The README's relative script path then
+resolves nowhere and the case fails. No `use`, no `mod`, no `#[path]`, no path
+literal and no `include_str!` change reaches it — the literal lives in the
+README, which the map marks *unchanged* and the phase marks *not touched*. The
+test now rebases onto the workspace root (`CARGO_MANIFEST_DIR` + `../..`), which
+is §12.8's own rule applied to the one place slice 001 never needed it. Rejected:
+editing the README (wrong for its reader, and it inverts the subject of the test
+that reads it), `set_current_dir` (process-global and racy), deleting the case
+(weakening the gate).
+
+**F-37 — the split-table preamble.** "The byte-identical (`R100`) renames are the
+88 fixtures and nothing else" is wrong: measured **92**. `src/semantics/error.rs`,
+`src/semantics/mod.rs`, `src/semantics/protocol/mod.rs` and
+`src/shell/backend/mod.rs` all moved byte-identical, because the change their
+rows *permitted* turned out not to be *needed*. This is F-1/F-17 one level down:
+88 was derived by command, "and nothing else" was written by reading. EX-5's
+equality is amended to a **containment** — every fixture is `R100`; every
+non-fixture `R100` is named — because an equality punishes the split for being
+cleaner than forecast. All four are confirmed by
+`git diff --find-renames --name-status | grep '^R100' | grep -v fixtures`.
+
+**F-36 — `tests/protocol/boundary.rs`.** EX-5c's "exactly four things, and a
+fifth is S-6" is five. `clippy.toml`'s four `allow-*-in-tests` keys —
+`unwrap_used`, `expect_used`, `panic`, `indexing_slicing` — all stop applying the
+moment an item moves from a test target into a library, so
+`clippy::indexing_slicing` fires on `camel_segments`. Repaired by rewrite
+(self-zip plus `.get`), **not** by an `#[expect]`. The class, not the instance,
+is the finding: *every item relocated from a test target into a library crosses
+four lint boundaries at once, silently, until the gate says so.* PHASE-02 does
+exactly that again.
+
+**F-34 — the "change permitted" column, as a class.** Nine comment lines across
+seven files state the `shell` feature, the two-column gate, or a path the map
+moves. Three are in **production sources**, which is PS-1's exact trigger. I read
+all three hunks; they are exactly and only these:
+
+| file | the one line beyond import vocabulary |
 |---|---|
-| the split's source→destination table, 111 files, with a "change permitted" column AC-2 reads against | `design.md` §5.1, the artifact map |
-| four member manifests, dependency by dependency, with per-member feature sets | same |
-| six `[[test]]` targets by name, path and `main.rs` module list | same |
-| the shared helper `tests/support/driving.rs` and its literal `#[path = "../../../../tests/support/driving.rs"]` | same |
-| `crates/goad/src/lib.rs`, ten `pub mod` lines | same |
-| which of §9's seventeen validation items runs in which target | same |
-| `SlintGlass` — module, fields, constructor, `impl Glass` — and what a `show`/`hide` failure does | `design.md` §5.3 |
-| `pub fn install`, in `install.rs`; `StartupError`'s module and derives | `design.md` §5.4 |
-| `code_of -> Cow<'_, str>`, and `goad-boundary`'s whole public API | `design.md` D13, §5.6 |
-| four numeric thresholds and eight STOP conditions, S-1…S-8 | `design.md` §5.5, §8 R2, §9 item 14a |
-| the font — `pkgs.dejavu_fonts` + `makeFontsConf` + `FONTCONFIG_FILE` | `design.md` D12 |
-| the validated niri `window-rule` | `design.md` §5.4 |
-| the counting rule — four ADR-001 instruments, the vocabulary scan, one named residue — with **one** home, cited by six documents | `design.md` §5.1 |
+| `crates/goad-shell/src/lib.rs` | "Compiled only with the `shell` feature…" → "A crate of its own…" |
+| `crates/goad-semantics/src/schedule.rs` | `tests/protocol/fixtures/schedule/` → `tests/fixtures/schedule/` |
+| `crates/goad-shell/src/backend/process.rs` | `tests/integration/transport.rs` → `crates/goad-shell/tests/integration/transport.rs` |
 
-Writing the artifact map forced two design decisions: **one** `ui/app.slint`
-(the shape `research.md` Thread 8 actually compiled), and `slint`/`slint-build`
-pinned `= 1.17.1`, so A-1 and A-3 change on a deliberate upgrade rather than on
-resolver drift.
+PS-1's letter was engaged and the phase did **not** stop. That judgement is
+recorded in the ledger and the sheet with all three hunks, on the ground that
+PS-1's stated purpose is to catch redesign and EX-8 already requires the
+identical rewrite for `Cargo.toml`'s carve-out comment. The vocabulary gains a
+bounded seventh entry. **This is the one place where a STOP condition was
+engaged and not taken, and it is yours to overturn if you disagree.**
+
+The three amended criteria are `plan-log.md` PL-13. In each case the criterion's
+purpose survives, its letter does not, and the underlying detector — EX-13's
+hunks, EX-4's walk, PS-1 — is left exactly as sharp.
 
 ---
 
-### 2. The previous handover's four open items — one closed, three not
+### 4. AC-2 — every file whose content changed, and why
 
-Session 2's handover left four. Checked against the tree, not against the report:
+AC-2 says every moved file moved unchanged, or its content change is named with
+a reason. The split commit's content-changed set is 38 rows. It partitions
+cleanly:
 
-| # | item | state |
-|---|---|---|
-| 1 | **`draft-policy.md` and `canon-delta.md` CD-5 read against `design.md` §10 C-5** — the last unreviewed artefact pair | **CLOSED.** Round 5 did exactly this reading and it produced two findings. F-36: the draft legislated repository-wide rules the design never derived — three of four clauses are now derived clause by clause in a new block under §10 C-5, and the fourth (lint discipline) is **cut**, which is also F-16's structural fix. F-35 corrected a context-dependent evidence path in `canon-delta.md`, and the class fix went into its preamble |
-| 2 | **A-4** — `just check` wall-clock with 411 crates in the tree (ADR-002 T3) | **OPEN, and not closable by a spike.** It needs `slint` in the graph. It now has a protocol and three numbered bands instead of the word "tolerable" (S-4: ≤ 120 s local, ≤ 300 s, stop). Today's baseline, measured this session: **1.836 s warm, pre-split** |
-| 3 | **The canon decisions, CD-1…CD-7 and `draft-policy.md`** | **OPEN, for the third session running — and larger than it was.** A debt discharged at audit, not a gate on the work in front of it. See §3 |
-| 4 | **`plan.md` is not begun** | **OPEN, and blocked by nothing.** Session 3 recorded it as waiting on item 3. That was a misreading of the methodology: `docs/AGENTS.md:36` — *"while the slice runs, the draft is its working authority: design, plan and execution cite it exactly as they would the real thing"* — and promotion happens at audit (`:38`). `plan.md` therefore cites `canon-delta.md` and `draft-policy.md` as binding, and keeps them current |
+**92 `R100` — no content change at all.** 88 fixtures
+(`tests/protocol/fixtures/**` → `tests/fixtures/**`, CD-4) plus the four named
+in F-37 above.
 
-Round 5 **enlarged** item 3 rather than shrinking it. F-36's repair rewrote
-`draft-policy.md`'s Scope and Compliance and added a derived scope block to §10
-C-5; F-6's repair changed the wording that CD-1 and CD-7 will transcribe into a
-new ADR and into `CLAUDE.md`. The user must endorse the movements as they now
-read, not as session 1 described them.
+**21 non-`R100` renames.** I classified all 21 by counting diff lines that are
+not `use` lines:
 
----
+- **9 are pure import-path rewrites and nothing else** — zero non-`use` lines
+  changed: `protocol/{canonical,normalize,wire}.rs`, `backend/transport.rs`,
+  `config.rs`, `error.rs`, `host.rs`, `state.rs`, `tests/integration/fake.rs`.
+- **3 rebase a fixture root**, which is CD-4's move showing up as data:
+  `tests/protocol/{normalize,runner}.rs` carry `root: "tests/protocol/fixtures/…"`
+  → `"../../tests/fixtures/…"`, and `failure_matrix.rs` says the same path in a
+  doc comment.
+- **1 rebases four path literals**: `tests/shape/transport_shape.rs`, whose whole
+  job is to read `src/backend/process.rs` as text.
+- **3 carry F-34's comment lines** — `shell/src/lib.rs`, `semantics/schedule.rs`,
+  `shell/backend/process.rs`, tabulated in §3.
+- **2 lose helpers to the §12.8 cut**: `failure_matrix.rs` and
+  `tests/integration/host.rs` have their `use crate::driving::{…}` groups
+  shortened; `host.rs` additionally re-spells two call-site type paths
+  (`goad::shell::` → `goad_shell::`).
+- **1 is F-35's repair**: `round_trip.rs`, §3.
+- **1 relocates a constant**: `tests/integration/transport.rs`. `CLEANUP_LIMIT`
+  and its doc comment move into `tests/support/driving.rs` and come back as an
+  import. **This is a real content change beyond the import vocabulary and it is
+  argued at the site**: the constant restates a budget private to `process.rs`,
+  and stating it once at the workspace root rather than once per tier is D23
+  applied to a test. Worth your eye, because it is the one place the split
+  changed *what a test reads* rather than *where it reads it from*.
+- **3 are structural**, and all three are argued:
+  - `src/shell/mod.rs` → `crates/goad-shell/src/lib.rs` at `R051` — a module root
+    becomes a crate root; the `#[cfg(feature = "shell")]` scaffolding goes.
+  - `tests/protocol/boundary.rs` → `crates/goad-boundary/src/scan.rs` at `R057` —
+    a test module becomes a library. This is the one file whose full AC-2
+    argument PHASE-02/EX-12 owes; F-36 is the part PHASE-01 had to pay early.
+  - `tests/protocol/main.rs` → `crates/goad-semantics/tests/protocol/main.rs` at
+    `R058` — the target loses the `boundary` and `transport_shape` module
+    declarations to the two targets that now own them, and its doc comment stops
+    describing a second feature column that no longer exists.
 
-### 3. What is open, and what only the user can decide
+**3 deletions and 11 additions**, which are the target-root split: `src/lib.rs`
+(the crate root that no longer has a crate), and `tests/integration/{harness,
+main}.rs` re-emerging as `crates/goad-shell/tests/integration/{harness,main}.rs`
+plus `tests/support/driving.rs` at the workspace root — §12.8's cut, included by
+one literal `#[path]`. The remaining additions are the three new member
+manifests, `goad-boundary/src/lib.rs`, the three `tests/checks/` modules, and
+`crates/goad-shell/tests/shape/main.rs`.
 
-#### 3a. Canon — the one thing the autonomy grant withholds
+**3 modifications:** `Cargo.toml` (virtual manifest), `Cargo.lock`, `justfile`.
+`.gitignore` was modified in an earlier commit, not this one. `tests/backends/**`
+— the fifteen shell scripts — was not touched at all.
 
-Nothing under `docs/specs/`, `docs/policy/` or `docs/adr/` has been created or
-edited on this branch. Verified: the diff is empty. Every movement below is
-drafted in the slice folder and waits **for audit** — `docs/AGENTS.md:38`. None
-of them gates `plan.md` or a phase: for the duration of the slice the drafts are
-the working authority and are cited as canon would be (`docs/AGENTS.md:36`).
+Two checks worth having in front of you:
 
-| # | movement | vehicle | needed |
-|---|---|---|---|
-| CD-1 | a new ADR **superseding** ADR-002 (the split) | `canon-delta.md` | the *decision* is endorsed (`design-log.md`, 2026-09-05); the **wording** is not, and F-6 changed it |
-| CD-2 | ADR-002's stated reason for expecting T1 is measurably false; the superseding ADR states the real ground | `canon-delta.md` | with CD-1 |
-| CD-3 | SPEC-001 has no rule at the glass — R-20's no-silent-dropping stops before the renderer | `canon-delta.md` | at audit |
-| CD-4 | SPEC-001 §7 names the fixture directory normatively; moving it is a canon change | `canon-delta.md` | at audit |
-| CD-5 | `CLAUDE.md`'s gate pointer moves off a **closed slice's design** (`docs/slices/001/design.md` §9) | `canon-delta.md` | **lands with the policy below, or neither lands** |
-| CD-6 | `CLAUDE.md` invariant 1 — the boundary test must grow to grep `.slint` | `canon-delta.md` | at audit |
-| CD-7 | `CLAUDE.md`'s "both feature columns" becomes false the day the split lands | `canon-delta.md` | at audit; F-6 changed the wording |
-| — | **new** policy: the phase gate — six commands, four enforcement instruments, one named residue, and a scope now derived clause by clause | `draft-policy.md` | **paired with CD-5** |
-
-**Two things to decide, and the first is a pair by construction.** Applying CD-5
-alone leaves `CLAUDE.md` pointing at nothing; promoting the draft alone leaves
-two claimants to the gate.
-
-1. **Endorse the canon movements**, or their timing.
-2. **Decide what discharges the design gate** — §5 argues that "no reviewer
-   objects" has no fixed point here and proposes a replacement.
-
-Already granted and needing nothing further: the crate split, the
-tray-plus-window shape, the font package in `flake.nix`, and the dependency set
-(`slint`, `slint-build`, the Slint testing dev-dependency).
-
-#### 3b. Unbuilt claims the design still rests on
-
-Four of round 5's thirteen repairs rest on **reading by their own author**, and
-the ledger says so rather than letting five rounds of accumulated rigour imply
-otherwise:
-
-| repair | what it is | why it is a smaller bet than round 3's |
-|---|---|---|
-| **F-37**, the artifact map | ~155 lines: 111 paths, four manifests, six target names, one literal `#[path]`, `lib.rs` | a table of file paths fails **loudly** on the first `cargo build` |
-| **F-38**, four thresholds | four numbers and the S-1…S-8 STOP table | wrong only if a measurement disagrees, and the measurement is the first thing PHASE-01 does |
-| **F-8**, `code_of -> Cow<'_, str>` + `goad-boundary`'s public API | two signatures | the smallest surface a wrong repair can have |
-| **F-17**, `SlintGlass` + the third stderr outlet | one module declaration | same |
-
-None is a *behaviour* specified from summaries, which is what rounds 1–4 kept
-finding. That is the honest case for them, and it is written down as a bet.
-
-#### 3c. Standing assumptions
-
-- **A-1, A-3** — standing; A-1 now has a local/stop line, A-3 is now a **stop**
-  rather than a decision (F-38, S-2 and S-3). Both need `slint` in the graph.
-- **A-2** — ~75 unproven lints against hand-written renderer code. Largely
-  discharged by Thread 11. **Expectation budget unspent; three remain.** F-27's
-  spend was refunded by F-29. The stop rule stands: the third distinct `expect`
-  outside the generated-code quarantine stops the phase.
-- **A-4** — see §2. The only assumption the first renderer commit is genuinely
-  for.
-- **A-5, A-6, A-7** — discharged. A-5 measured twice; `serve` is an `async fn`
-  with no attribute. A-6's residual fallback deleted at F-34.
-- **D25 is an admission, not a risk.** No instrument in the gate rejects a
-  feature switched on by stratum 2 or 3 in a dependency shared with stratum 1.
-  The design states the rule and states that nothing enforces it. That shape is
-  deliberate — it is what F-6 was raised four times to get right.
+- **The A-2 expectation budget is unspent.** `#[expect(` appears at exactly two
+  sites in code before the split and exactly two after, at the same line numbers:
+  `protocol/wire.rs:163` and `backend/process.rs:58`. **PHASE-01 added no
+  `#[expect]` and no `#[allow]` anywhere.** Two of A-2's three remain.
+- **VA-4 holds.** `goad-semantics`' full resolved dependency closure is 23
+  packages and contains neither `tokio` nor `toml`. Stratum 1 cannot name the
+  runtime because the runtime is not in its graph — instrument 1, by
+  construction.
 
 ---
 
-### 4. Every decision taken under the autonomy grant
+### 5. Crate counts, gate wall-clock, ADR-002 T3 and A-4
 
-The grant is `design-log.md`, 2026-09-04, *"Gate autonomy: an explicit deviation
-from `docs/AGENTS.md`"* — decide everything except canon, and record it as a
-user decision would be recorded. Four vehicles were used and nothing was decided
-outside them.
+| | |
+|---|---|
+| packages in the resolved graph | **46** |
+| `goad-semantics` closure | 23, no `tokio`, no `toml` |
+| warm `just check`, pre-split (`a6ae617` worktree) | 1.813, 1.805 s |
+| warm `just check`, post-split | 1.809, 1.797, 1.792 s |
 
-| vehicle | count | holds |
-|---|---|---|
-| `design-log.md` | **55** design decisions, each marked *Autonomy grant* with Asked / Decided / Why / Rejected / Consequence | the decisions themselves |
-| `review-design.md` | **59** dispositions over five rounds — 40 findings, 19 of them re-dispositions — ids immutable, each with its reason | finding dispositions |
-| `canon-delta.md` + `draft-policy.md` | **7** movements + 1 new policy, **drafted, not applied** | canon consequences |
-| `notes.md` | 0 | phase-local decisions — there are none, because there are no phases |
+**A workspace split of this shape costs nothing at the gate.** Median 1.809 s
+before, 1.797 s after — inside the noise, and if anything faster. S-4's threshold
+is a median warm `just check` above **300 s**; we are two and a half orders of
+magnitude below it.
 
-`design-log.md` holds 61 entries. Six are **not** the agent's: three frame the
-grant itself (*How the slice is driven*, *Gate autonomy*, *Scope extended*) and
-three are the **user's own** and marked as such — the ADR-002 T1 split, the
-tray-not-window empty state, and the devshell font. No review round has
-challenged any of the three on its merits, and no finding has touched the
-guiding principles.
+**ADR-002 T3 has not fired and cannot be judged yet.** T3 is *headless test
+wall-clock dominated by renderer build time*, and A-4's forecast is 411 crates
+once `slint` enters the graph, against 46 today. The measurement A-4 specifies —
+one cold, three warm, on the first commit that puts `slint` in the dependency
+graph and before anything else in that phase is done — is **PHASE-03's first
+act**, and it is still owed. Tonight's number is the baseline that measurement
+will be read against, not the measurement.
 
-The 55, by heading. `grep -n '^### ' docs/slices/002/design-log.md` gives line
-numbers.
-
-*The split and the gate* — the gate is six commands and `-p goad-semantics`
-earns its place · the workspace invariant checks get their own member · members
-are enumerated, not listed; R7 is retired · the renderer inherits the workspace
-lint table unchanged · R3: four instruments for stratum 1, and the claim
-narrowed to fit · R3: the new gate policy is drafted from the policy template.
-
-*The state machine* — the presentation transition is a total function, and
-cleanup is not one of its inputs · `(view: Some, failure: Some)` is unreachable
-and is still written total · `Command::Choose` carries the view token · the
-window has one derived surface value, and a new question outranks a record · one
-consumption point for an `Outcome`, and it runs the mapper.
-
-*The runtime seam* — shutdown leaves the command channel; `serve` is one
-function both tiers call · the queue policy is four mechanisms, and only one is
-the safety mechanism · a callback holds a `Wire`, and `busy` and `notice` are
-two properties · four shutdown sources, one path; `dismissed()` is deleted ·
-`serve` is a plain fn returning `impl Future` **(superseded)** · R3: the loop
-was built, and it changed `serve`'s signature · R3: three seams closed, one
-shape each.
-
-*The glass* — the glass is one total method, and the component is never
-recreated · Markdown is parsed once and the parse is retained · `ContentForm` is
-two variants and no payload · the tray icon is a rule with no artefact · R3: the
-icon has numbers and the startup surface has strings · R3: the Slint API is read
-from the compiler, not inferred · R3: the markup was compiled, and the tray
-could not be written.
-
-*The diagnostic surface* — the display bound is applied last, and counted in
-characters · two truncations, two statements · stderr alone reports without
-raising fault; a renderer refusal does raise it.
-
-*Startup and the clock* — the clock is a `fn` pointer returning `Result` ·
-config discovery, exactly; and one startup exit code · the xdg app id is
-`"goad"`, and the window rule lives beside the binary · R3: the entry point is
-Rust, not a numbered list · R3: the slice document was wrong about the clock,
-not the design.
-
-*Validation* — the failure case table is written into the design, not delegated
-· rows assert the rendered text, not the Rust variant · four rows read the
-element tree, one per channel · where the exemptions, the refusals and the F-1
-coda sit in the sequence · the failure table drives the `Host`, and item 11
-drives the channel · the driving helpers are shared by one included file, cut at
-the intersection · integration: one vocabulary, one pair type, one home for
-`Refused` · AC-12 asserts what the host holds, not that the child is gone.
-
-*Round 4 — what the compiler decided* — the three unbuilt passages were built,
-and all three were wrong · the renderer crate is a library plus a thin binary
-(D28) · `serve` carries no attribute, and A-2's budget is unspent · the escape
-step is a `Display` adapter, and the outlet is not · `HOME` as given, XDG
-absoluteness as one test, and the `argv[0]` skip · the failure table's instants,
-its sentinel body, and a total channel partition · the house test standard
-yields to `unnecessary_wraps`, on the standard's own terms.
-
-*Round 5* — the count has one home, and every other document cites it · a
-display failure goes to stderr, and the glass stays total · the artifact map,
-and the two decisions writing it forced · every threshold is a number, and the
-stops are one table · the font is `dejavu_fonts`, and `buildInputs` alone does
-nothing · the window rule is validated KDL, not remembered KDL · the phase-gate
-policy's scope is derived, clause by clause.
+`slint` and `slint-build` were deliberately **not** added to
+`[workspace.dependencies]` tonight. The map lists them because it describes the
+slice's end state; D1 says the split lands before Slint enters the tree; an
+unused workspace dependency would make T3's trigger a claim about a manifest
+rather than about a graph.
 
 ---
 
-### 5. Is this converging? — the numbers, and the honest answer
+### 6. Acceptance criteria: what is discharged
 
-The question a reader is owed after five rounds and no code: **is the design
-converging, or is the review finding new work as fast as it closes old work?**
-
-#### The raise rate
-
-| round | new | reopened | total dispositions | new blockers | rested on built evidence |
-|---|---|---|---|---|---|
-| 1 | 12 (F-1…F-12) | — | 12 | 4 | 0 of 12 |
-| 2 | 7 (F-13…F-19) | 7 | 14 | 1 | 0 of 14 |
-| 3 | 9 (F-20…F-28) | 4 | 13 | 0 | 2 of 13 |
-| 4 | 5 (F-29…F-33) | 2 | 7 | 2 | **7 of 7** |
-| 5 | 7 (F-34…F-40) | 6 | 13 | 1 | 3 of 13 |
-| **total** | **40** | **19** | **59** | **8** | **12 of 59** |
-
-New findings per round: **12, 7, 9, 5, 7.** That is flat, not falling.
-Re-dispositions per round: **0, 7, 4, 2, 6.** Also flat. A **blocker** was raised
-at round 5 (F-37) that four earlier rounds did not see. Nineteen of fifty-nine
-dispositions — **32%** — were reopenings of findings a previous round had
-already marked `verified`. `F-9` has been disposed five separate times; `F-6`
-four; `F-8`, `F-16` and `F-17` three each.
-
-**On the raw counts the answer is: the review is finding new work about as fast
-as it closes old work, and has been for four rounds. As a reading process it is
-not terminating, and there is no number in the table that predicts round 6 would
-be the last.**
-
-#### The one series that does fall
-
-| session | measurements taken | wrong |
-|---|---|---|
-| 1 (round 3) | 3 assumptions | 2 |
-| 2 (round 4) | 3 passages built | 3 |
-| 3 (round 5) | 3 artefacts built/validated | 1 |
-
-Six of nine, then 1 of 3. **Building converges. Reading does not.** That is the
-whole finding, and it is consistent with the other thing the record shows: round
-4, the only round where every disposition rested on built evidence, is also the
-only round whose raise count dropped.
-
-#### Why the raise rate stayed flat — and why that is not an excuse
-
-Each round asked a different question. Rounds 1–3 asked *is this right?*; round 4
-asked *does this compile?*; round 5 asked *can this be typed?* Every new question
-opened a fresh seam, which explains a flat rate without redeeming it — because
-the corollary is that **there is no evidence the current question set is
-complete.** A sixth question would plausibly find a sixth seam. That is precisely
-why "run another round until it comes back clean" cannot be the exit criterion:
-the criterion has no fixed point, and five rounds is the evidence.
-
-#### What must change
-
-**1. Stop reviewing by reading; execute instead.** The four unbuilt repairs
-(§3b) are paths, two signatures and four numbers — the class that fails loudly at
-first compile. Do not spend a session reading them. **Execute the artifact map in
-a worktree.** `research.md`'s dry run put the split at about six minutes to a
-green gate; `git reset --hard` reverses it; and performing it proves every path,
-every manifest, every target name and the `#[path]` arithmetic at once. It is
-also PHASE-01's actual work, so the cost is not a review round — it is the first
-phase, done where a mistake is free.
-
-**2. Replace the design gate's exit criterion.** Not *"no reviewer objects"* —
-that has no fixed point here. Instead: **every claim in the design is either
-built, or its failure mode is loud at first compile.** By that criterion the
-design is met on everything except the four repairs in §3b, and step 1
-discharges all four.
-
-**3. Carry the canon debt; do not wait behind it.** CD-1…CD-7 and
-`draft-policy.md` are real, they are the user's alone to endorse, and they are
-endorsed **at audit** (`docs/AGENTS.md:38`). They are not a blocker on planning
-or on execution, because `docs/AGENTS.md:36` makes the drafts the slice's
-working authority for precisely this interval. Session 3 called the endorsement
-*"the only genuine blocker"* and let three sessions pass behind it; the debt was
-real and the blockage was not.
-
-**The risk of the status quo, stated plainly.** An endless design gate is a
-failure mode of the same family as a half-built tree. Five rounds, three
-sessions, 5,049 lines of design and zero lines of code is what it looks like from
-outside, and the review's own numbers do not promise a sixth round would end it.
+| AC | state |
+|---|---|
+| **AC-1** — `just check` exits 0 from a clean clone, at the split commit | **half discharged.** The gate is the six commands and it exits 0, verified this session. The *clean clone under `nix develop`* half is PHASE-09's, and AC-1 requires it again at slice close |
+| **AC-2** — every moved file moved unchanged or its change is argued | **discharged for PHASE-01**, by EX-3/EX-4's two-directional walk, EX-5a/b/c's vocabulary, EX-13's hunks and EX-11's pasted evidence — with the three amendments PL-13 records. `boundary.rs`'s full argument is PHASE-02/EX-12's and is the one piece outstanding |
+| **AC-3** — four stratum 1 instruments, four stated boundaries | **two of four.** Instrument 1 (cargo resolution → `E0433`) is discharged: EX-10's two break-and-revert controls, and VA-4's closure above. Instrument 4 (`cargo test -p goad-semantics`) is discharged: it is the gate's third command. **Instruments 2 (manifest allowlist) and 3 (purity scan) do not exist yet** — PHASE-02 |
+| **AC-13**, **AC-14** — the vocabulary scan | **not discharged, and running on borrowed shape.** The scan exists and passes, but over a *hand-written three-member list*, not `workspace.members`, and over `.rs` only, not `.slint`. PHASE-02/EX-6 replaces it. The code says so at the site |
+| AC-4…AC-12, AC-15 | untouched; renderer, canon and later phases |
 
 ---
 
-### 6. What the next session does first
+### 7. Canon debt — a debt, not a blocker
 
-1. **Do not wait on canon.** §3a's movements are the one thing the autonomy grant
-   withholds, and they are three sessions old — but they are put to the user **at
-   audit** (`docs/AGENTS.md:38`), not before. Until then the drafts *are* this
-   slice's working authority (`docs/AGENTS.md:36`): `plan.md` and every phase
-   cite `canon-delta.md` and `draft-policy.md` exactly as they would cite canon,
-   and keep them current as the work changes. CD-5 and `draft-policy.md` still
-   go together or not at all — at audit.
-2. **Execute the artifact map in a worktree**, per §5's recommendation — *not* a
-   round 6 reading pass. Entry: `design.md` §5.1 *The artifact map*, top to
-   bottom. Exit: `just check` at 0, and AC-2's content-change list matching the
-   map's "change permitted" column. If it comes back green, the last unbuilt
-   repair of consequence is built rather than read, and nothing stands between
-   the slice and `plan.md`.
-3. **Then `plan.md`.** PHASE-01 is the split, because it moves 111 files and
-   nothing else should be moving at the same time. Two constraints the builds
-   added to phase planning, both of which decide where a boundary can fall:
-   `dead_code` is fatal under `-D warnings`, so the phase that lands
-   `StartupError` must land a construction site for all eight variants in the
-   same commit; and §5.4's *shapes* table plus §9's preamble are the two lists a
-   phase reads before writing renderer code or a test target.
-4. **The first thing PHASE-03 does after `slint` lands is A-4's timing
-   protocol** — `plan.md` PHASE-03/EX-1, run before any renderer content. (This
-   item said *PHASE-02* when it was written, before the phase numbering existed;
-   PHASE-02 is the boundary rewrite and has no `slint` in it. Corrected
-   2026-09-05, `review-plan.md` F-32.) That number decides whether ADR-002's T3
-   has fired. Baseline measured 2026-09-05, pre-split: `just check` 1.836 s
-   warm.
-5. **Read §5.5's STOP table (S-1…S-8) into every phase sheet.** It is the list a
-   phase agent needs in order to recognise a condition it is not allowed to
-   improvise past.
+Nothing under `docs/specs/`, `docs/policy/` or `docs/adr/` was created or edited,
+and no draft was promoted. `CLAUDE.md` is byte-identical. This is correct:
+`docs/AGENTS.md:36` makes the drafts the slice's **working authority** while it
+runs, and `:38` puts promotion at audit. The plan and the phases cite
+`canon-delta.md` and `draft-policy.md` as binding, and PHASE-01 did. The two
+previous sessions recorded canon endorsement as a blocker; it never was one.
 
-**This Handover section predates `plan.md` and is superseded by it wherever the
-two disagree.** It is kept as the record of what was known at the design gate;
-`plan.md` is the executable authority for phase numbering, ordering and criteria.
+What is genuinely owed to you, at audit and only there:
 
-**Reading list for whoever picks this up:** `docs/AGENTS.md`;
-`docs/slices/002/slice-002.md` (15 acceptance criteria, Stage: design);
-`design.md` §5.1 *The artifact map* (`:291–445`), §5.4, §5.5's STOP table, §9
-item 12, §10 C-5; `review-design.md` Brief and the round-4 and round-5
-syntheses; `design-log.md` from 2026-09-04; `research.md` Threads 7–11;
-`canon-delta.md` and `draft-policy.md`.
+- **CD-1 — ADR-002 is superseded.** The workspace exists now, so ADR-002's
+  "single crate until triggered" describes a tree that is gone. The superseding
+  ADR is a canon act and waits for you.
+- **CD-2** — ADR-002's stated reason for T1 was false.
+- **CD-3** — SPEC-001 has no rule at the glass.
+- **CD-4** — the fixture directory path. Already true in the tree
+  (`tests/fixtures/**`); the canon text still says otherwise.
+- **CD-5** — `CLAUDE.md` points at a closed slice's design for the gate. The
+  `justfile` now points at `draft-policy.md` instead; `CLAUDE.md` still points at
+  `docs/slices/001/design.md` §9. **Live inconsistency in the tree until audit.**
+- **CD-6** — the boundary test and `.slint`.
+- **CD-7** — `CLAUDE.md`'s "both feature columns". The second column no longer
+  exists; `CLAUDE.md` still requires it. **Live inconsistency until audit.**
+- **`draft-policy.md`** — the gate's command block, unpromoted.
+
+CD-5 and CD-7 are the two where the tree and canon now visibly disagree. Neither
+breaks anything; both are exactly the movement `canon-delta.md` exists to
+account for, and AC-15 is the criterion that closes them.
+
+---
+
+### 8. What PHASE-02 needs before it starts
+
+PHASE-02 is *the workspace invariant checks* — `plan.md:706-820`. Its entry
+conditions are **met**:
+
+- **EN-1** — PHASE-01's exit criteria are discharged and recorded in the sheet
+  above; `just check` exits 0.
+- **EN-2** — `crates/goad-boundary` exists as a member with an empty
+  `[dependencies]` table and no dependency on any other member. Verified.
+
+Its starting point is on disk: `crates/goad-boundary/src/{lib,scan}.rs` and
+`tests/checks/{main,direction,vocabulary}.rs`, in PL-9's layout. PHASE-02
+restructures a known shape rather than inventing one.
+
+**What PHASE-02 must carry in, that no criterion states:**
+
+1. **F-36's class is inherited, and PHASE-02 triggers it three more times.**
+   `manifest.rs` and `members.rs` are new library code doing what was test code;
+   `code_of` indexes strings. `unwrap_used`, `expect_used`, `panic` and
+   `indexing_slicing` are all `deny` in a library and all exempted in a test
+   target. Write library code as library code from the first line. `assert_clean`
+   already had to live in `tests/checks/vocabulary.rs` for exactly this reason —
+   it `panic!`s.
+2. **`toml` enters `goad-boundary`'s manifest** (EX-4, EX-10). It is already in
+   `[workspace.dependencies]` and is not a new dependency, so S-8 does not fire.
+3. **PS-3 stands:** `members()` fails on a glob by design. If the workspace
+   genuinely needs one, that is a design question about D13.
+4. **A finding this verification pass raised, not previously logged.** The three
+   moved boundary files carry **slice 001's** AC numbers in their doc comments —
+   `checks/main.rs` says "`direction` is AC-15's direction half; `vocabulary` is
+   AC-11's", and `direction.rs` and `vocabulary.rs` repeat them. That text is
+   inherited verbatim from `tests/protocol/boundary.rs` and is not a PHASE-01
+   defect. But in slice 002's tree those numbers now name **different criteria**:
+   002's AC-11 is the empty state and AC-15 is canon-delta accounting, while the
+   criteria these tests actually hold are 002's AC-3, AC-13 and AC-14. PHASE-02
+   rewrites all three files; it should renumber them in the same change, or state
+   the namespace explicitly. Left unfixed, a reader chasing AC-15 from
+   `direction.rs` lands on the wrong criterion.
+
+**Carried forward, not PHASE-02's to fix:**
+
+- **DF-6 has diverged in code.** `Scan` carries a `#[derive(Debug)]` that §5.6's
+  block omits. Audit's *Design drift not reconciled*.
+- **`plan-log.md` PL-3's Consequence still says "exactly 91 byte-identical
+  renames"** — twice superseded, now measured at 92. `plan-log.md` is append-only
+  so it stands; a reader arriving there out of order is misled.
+- **PHASE-06** inherits the `harness.rs` re-export of `backend` / `marker` /
+  `clear` when PL-4's re-settlement runs.
+
+---
+
+### 9. The methodology question, answered by the night
+
+Session 3's handover asked whether the slice was converging and answered *not by
+reading*. Five design rounds and one plan round produced 40 + 33 findings and no
+code. Tonight's single phase of execution produced **four** findings against
+documents those seven rounds had already declared terminal — including one
+blocker (F-35) that no amount of further reading could have reached, because the
+thing it depends on is cargo's working directory and not any text in the tree.
+
+The ratio is the point. Reading a map found nothing in round 6 that walking it
+did not find in the first hour. **The next phase's audit is the next phase.**
+
+**Reading list for whoever picks this up:** `docs/AGENTS.md`; `plan.md` §PHASE-02
+(`:706-820`) and its Coverage table (`:290-314`); `review-plan.md` round 2
+(F-34…F-37); `plan-log.md` PL-13; `design.md` §5.1 as repaired, §5.6, and §5.5's
+STOP table; the PHASE-01 sheet above (`:35-754`) for the pasted evidence;
+`canon-delta.md` CD-5 and CD-7; `draft-policy.md`.
