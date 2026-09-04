@@ -43,6 +43,67 @@ created it: `Cargo.toml`, `clippy.toml`, `justfile`, `.gitignore`, `Cargo.lock`,
 `LICENSE`. PHASE-01 amended `Cargo.toml` twice — `toml` as an optional
 dependency (EX-6) and `module_name_repetitions = "allow"` (user decision).
 
+## Handover — audit in progress, session 2b closed 2026-09-04
+
+**Stage:** audit, code review **resolved**. Six rounds run; the last came
+back with **no findings**; its one aside became F-57, a doc nit, self-raised and repaired. Every finding F-1…F-56 dispositioned by user decision,
+every fix-now repaired, every repair confirmed by a later fresh reviewer's
+revert, every Outcome set, the ledger's Synthesis written. `just check` exits
+0 in both columns at `HEAD`. No canon touched, `design.md` untouched, draft
+not promoted, `audit.md` still holds only Brief and Evidence.
+
+**What session 2b did.** Repaired F-34…F-43 (round 2's fix-nows), then ran
+rounds 3, 4, 5 and 6 as fresh general-purpose subagents over each round's
+repairs only — F-45…F-51, F-52…F-54, F-55…F-56, then round 6 clean (F-57 self-raised) — each
+dispositioned with the user in one interview and repaired red/green before
+the next round. Commits `3ee96f9`, `83d1b77`, `d6cc44a`, `24b1c3e`, and this
+one. Rounds 3–5 each kept finding the time-of-day seam one shape further
+along (fraction, sign, unitless integer, trailing whitespace, the absolute
+form); the rule is now stable and twelve fixtures pin it. See the ledger's
+Synthesis for the closure story.
+
+**Shape changes since session 2's list** (all inside `src/`, `tests/`,
+`examples/`; read that list first):
+- `Host::no_action` takes `now` and `&mut self`; both paths resolve through
+  `Host::resolve_from(incoming, now)` and both write `state.resolve_to` —
+  what the caller is told is what is stored (F-34, F-48).
+- `schedule::parse_instruction` trims once into `written`; `parse_span`
+  trims too (config path) and refuses `looks_like_a_time_of_day`: the colon
+  shape (`has_the_shape_of_a_time_of_day`) or `civil::Time` behind
+  `could_be_a_clock_form` (F-37, F-46, F-50, F-52, F-53, F-55).
+- `semantics::error::json_type_name` is `pub(crate)`, the one table (F-39).
+- `normalize_field` removes the `hints` key and refuses only a non-null one;
+  `normalize_content` reads both halves through `Object<_>` (F-35, F-38).
+- `Discarded` renders `raw` only for `NotAString` (F-42, F-47).
+- `Command::from_argv` refuses an empty program (F-41).
+- `process.rs` has a `#[cfg(test)]` module: `a_refused_read_takes_exactly_one_byte_past_the_bound` with a
+  buffer-filling `Counting(&AtomicUsize)` reader (F-43).
+- `boundary.rs::mentions`: comment cut, plural, acronym and digit splits,
+  path tokens by `contains` (F-36, F-45, F-49).
+- `backend.ts`: `never` members on `Field`, and a sentence on `null` (F-40,
+  F-51).
+
+**Session 3's job, in order** — the review is done; do not open a round 7
+unless reconciliation changes code:
+1. `audit.md`: link the ledger, state the outstanding-blocker count (zero),
+   fill the Reconciliation table. Work the two drift lists — session 2's,
+   below, and the three F-48/F-54 lines added to it in this session — and
+   the Synthesis's "For reconciliation" paragraph. Additions this session:
+   - `draft-spec.md` R-19/R-44: a content block written as an array is
+     `Shape` (F-35). R-51: `"hints": null` on a field is omission (F-38).
+     R-36 or R-44: an argv whose program is `""` is `EmptyCommand` at load
+     (F-41). R-21/R-25: the time-of-day rule as now written, whitespace
+     trimmed on both forms, signed colon forms are spans (F-37…F-55).
+   - `draft-spec.md` §7: re-run PHASE-09's two-direction script; new
+     tests/fixtures this session are named in each Response.
+   - `design.md` §5.4 `:1528` cap sentence (session 2 list) still stands.
+2. Promotion of `draft-spec.md` and `canon-delta.md` with endorsement.
+3. `slice-001.md` Summary and Follow-ups; `docs/memory/` lift (F-13/F-44's
+   citation convention; the fixture-driven grammar-seam lesson from rounds
+   3–5: a rule stated as "what a parser accepts" has a seam wherever two
+   parsers disagree, so state it as a shape and pin every edge as a fixture);
+   stage `done`.
+
 ## Handover — audit in progress, session 2 closed 2026-09-04
 
 **Stage:** audit, code review round 2 open — its findings dispositioned, not

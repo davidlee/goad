@@ -40,11 +40,13 @@ use crate::semantics::protocol::canonical::Timestamp;
 /// because brief §13 wants a backend author to be able to act on the message:
 /// `NotAString` when the value is not a string at all, naming the JSON type
 /// found instead (R-25); `MissingOffset` for an absolute instant written
-/// without one, which is the single most likely mistake (R-22); `CalendarUnit`
-/// for months or years, whose length is not fixed without a calendar (R-23);
-/// `OutOfRange` for a span that is well formed but lands outside representable
-/// time; and `Unparseable` for everything else, including a span whose
-/// magnitude the duration grammar itself refuses.
+/// without one, which is the single most likely mistake (R-22); `TimeOfDay`
+/// for a bare wall-clock time, which is neither of R-21's forms and must not
+/// be guessed at as a span of hours (brief §3.3); `CalendarUnit` for months or
+/// years, whose length is not fixed without a calendar (R-23); `OutOfRange`
+/// for a span that is well formed but lands outside representable time; and
+/// `Unparseable` for everything else, including a span whose magnitude the
+/// duration grammar itself refuses.
 ///
 /// None of these fails a message. Every one is a discard under P2 — the
 /// instruction is lost, scheduling is not (R-25).

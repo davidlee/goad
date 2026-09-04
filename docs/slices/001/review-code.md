@@ -7,7 +7,7 @@ session 1, F-1…F-16, raised from its own evidence pass before reading any
 fresh-reviewer output) and a fresh Claude subagent with no thread history
 (F-17 onward, appended when its report landed)
 **Opened:** 2026-09-04
-**State:** open
+**State:** resolved — round 6 (2026-09-04) returned no findings; every Outcome set, Synthesis written
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -169,7 +169,7 @@ comment; the fixture corpus covers `parse`, which F-1 does not touch. `just
 check` exits 0 in both columns. R-26's text and `design.md` §5.3's prose are
 session 3's.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-2 — `"next_check": "18:00:00"` is accepted as eighteen hours from now
 
@@ -183,7 +183,7 @@ session 3's.
 **Disposition:** fix-now — **user decision 2026-09-04.** Rejected with a new `ScheduleError::TimeOfDay { raw }` — a `jiff::civil::Time` parse attempt before the span parse — rather than a broadened `MissingOffset`, because adding an offset to `18:00:00+10:00` still yields no instant, so "no offset" would mislead. Lands through F-4's shared span parser, so config refuses the same form. Fixture flips from `instant` to `error`.
 **Response:** repaired. `schedule::parse_span` tries `jiff::civil::Time` before the span parse and refuses on success with `SpanFault::TimeOfDay`; `parse_instruction` maps it to `ScheduleError::TimeOfDay { raw }`. Fixture `R-21-bare-wall-clock-time` flipped to `{"error": "TimeOfDay"}` and its description rewritten; `runner.rs::schedule_error_name` and both `every_schedule_error` lists gained the arm. Config refuses `timeout = "09:00:00"` by the same call (`config.rs::a_duration_the_grammar_refuses_is_rejected_naming_the_key`).
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-3 — two host-side impossibilities are reported as the backend's fault
 
@@ -197,7 +197,7 @@ session 3's.
 **Disposition:** fix-now — **user decision 2026-09-04.** The empty command is made unrepresentable: `BackendConfig` splits into `program` and `arguments` at load, `ProcessBackend::new(program, arguments, timeout)`, and the `else` arm goes. Serialization of a host-authored `Request` moves under `#[expect(clippy::unwrap_used, reason = …)]`, the case D53 (as amended) exists for. Closes F-30.
 **Response:** repaired. `shell::config::Command { program, arguments }` replaces `Vec<String>` past the config boundary; `Command::from_argv` returns `None` for the empty vector and `Config::parse` maps that to `EmptyCommand`, so `ProcessBackend` holds a `Command` and the `split_first` arm is gone. The request serialization is `serde_json::to_vec(request).unwrap()` under `#[expect(clippy::unwrap_used, reason = …)]`. The test harness's `backend`, `example`, `logging_backend`, `scripted`, `config` and `host` all take or return `Command`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-4 — the duration grammar is implemented twice
 
@@ -211,7 +211,7 @@ session 3's.
 **Disposition:** fix-now — The span half is extracted as `pub fn schedule::parse_span(&str) -> Result<SignedDuration, SpanFault>`; `parse_instruction` maps it into `ScheduleError` and `config::signed` into `ConfigError::Duration`. The "must not diverge" comment at `config.rs:110` is deleted with the duplicate it guarded. Carries F-2's rejection and F-28's tests.
 **Response:** repaired. `pub fn schedule::parse_span(&str) -> Result<SignedDuration, SpanFault>` is the one grammar; `SpanFault { TimeOfDay, CalendarUnit(jiff::Error), Unparseable(jiff::Error) }` lives in `semantics::error` with `Display` and `Error`. `config::signed` calls it and maps into `ConfigError::Duration { key, raw, fault }`, whose `source()` now chains the fault. The restatement comment is gone. A side finding closed with it: `config::unsigned`'s `Duration::try_from` failure was documented as "a magnitude std cannot hold", which is false — a non-negative `SignedDuration` always converts — so it now reports `NonPositive`, the only refusal that can reach it.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-5 — a config file's unknown keys are ignored silently
 
@@ -225,7 +225,7 @@ session 3's.
 **Disposition:** fix-now — `deny_unknown_fields` on `File`, `FileBackend`, `FileSchedule`, with a test that brief §5's `socket` key is refused and the refusal names it.
 **Response:** repaired. `#[serde(deny_unknown_fields)]` on `File`, `FileBackend`, `FileSchedule`; `config.rs::an_unknown_key_is_refused_and_named` asserts brief §5's `socket` and `[logging]`, and a misspelled optional key, each refused as `Syntax` with the key in the message.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-6 — `Outstanding.issued_at` is written and never read
 
@@ -239,7 +239,7 @@ session 3's.
 **Disposition:** fix-now — **user decision 2026-09-04**, after checking canon: `issued_at` appears only in `design.md:1172`'s struct sketch — no prose, not in the brief, not in the draft spec. Removed with its `#[expect]`. Design-drift entry for session 3.
 **Response:** repaired. `Outstanding` is `{ view_id }`; the field and its `#[expect]` are gone. Design-drift entry for session 3 (`design.md:1172`).
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-7 — R-34 across a backend failure during `respond` has no direct test
 
@@ -253,7 +253,7 @@ session 3's.
 **Disposition:** fix-now — One fake-backed `host.rs` case: view issued, `respond` meets `failing(Timeout)`, the outstanding interaction survives, and a second `respond` with the same id succeeds.
 **Response:** repaired. `host.rs::a_backend_failure_during_respond_leaves_the_interaction_answerable`: view issued, `respond` meets `failing(Timeout)`, a second `respond` with the same id succeeds. Broken and re-run: closing the interaction on a failed exchange fails it.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-8 — the example backend's types are narrower than the protocol
 
@@ -267,7 +267,7 @@ session 3's.
 **Disposition:** fix-now — `backend.ts` gains the protocol's full unions: tagged `Content`, `"choice"` among the field kinds, `min`/`max`/`options`, open hints. `deno check` in the gate holds it. Closes F-26.
 **Response:** repaired. `backend.ts` declares `Content` (bare string or tagged `text`/`markdown`/`html`/`uri`), `Field` as a discriminated union over the five kinds with `min`/`max` on `number` and `options: Alternative[]` on `choice`, an open index signature for hints, and `Alternative`. The doc says the types are the whole of what the host accepts. Broken and re-run: `kind: "slider"` in the example fails `deno check`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-9 — `read_capped` can hold roughly twice the stated bound before it checks it
 
@@ -281,7 +281,7 @@ session 3's.
 **Disposition:** fix-now — `reader.take(limit + 1).read_to_end(&mut out)` — exact bound, fewer lines, same ownership.
 **Response:** repaired. `read_capped` is `reader.take(limit + 1).read_to_end(&mut out)` then one length check; `READ_CHUNK` remains for `drain_capped` only. The stdout-flood case still passes and still sees the close.
 
-**Outcome:**
+**Outcome:** `verified` (round 3) — the repair held from round 2; the bound is pinned by F-43's test
 
 ### F-10 — the request write is not concurrent with the stdout read
 
@@ -295,7 +295,7 @@ session 3's.
 **Disposition:** fix-now — Inside `body`, the write-then-close of stdin and `read_capped(stdout)` run under `tokio::join!`, so a full stdout pipe no longer blocks the request write. Closes F-23. Repaired together with F-24 because both are the same `body`.
 **Response:** repaired. `body` runs `deliver(stdin, payload)` — write, then drop — under `tokio::join!` with `read_capped(stdout)`. New script `floods-stdout-then-reads-then-answers.sh` (200 000 bytes of whitespace, then reads stdin, then answers) and `transport.rs::a_backend_that_floods_stdout_before_reading_its_request_is_still_answered`, which timed out at the old code and receives the answer at the new.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-11 — `Fields` and `Hints` derive `Default`, a second door past `new`
 
@@ -309,7 +309,7 @@ session 3's.
 **Disposition:** fix-now — The two `Default` derives are removed; the test helpers use `new`. Closes F-29.
 **Response:** repaired. Both derives removed; `canonical.rs`'s test helper builds through `Fields::new`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-12 — `Cargo.toml` says the doc-comment lints are paused; `pedantic = "deny"` enables three of them
 
@@ -323,7 +323,7 @@ session 3's.
 **Disposition:** fix-now — The manifest comment now says the three lints are enabled by `pedantic`.
 **Response:** repaired. The comment now states that the three lints are pedantic and enabled by `pedantic = "deny"`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-13 — `src/` cites 46 review-finding ids and 61 design-decision ids, none of which survive the slice
 
@@ -337,7 +337,7 @@ session 3's.
 **Disposition:** tolerated — **user decision 2026-09-04.** The ids stay. `docs/slices/001/` is a permanent record and every id greps to its ledger entry; a sweep would trade a greppable pointer for a paraphrase and risks losing the reasoning. Convention forward, recorded for `docs/memory/` at close: new code cites `R-N` and spec sections, not slice-local `F-N`/`D-N` ids.
 **Response:** no change, per disposition. Convention recorded for `docs/memory/` at close.
 
-**Outcome:**
+**Outcome:** `tolerated` — no change, by user decision
 
 ### F-14 — the domain-vocabulary scan matches substrings
 
@@ -351,7 +351,7 @@ session 3's.
 **Disposition:** fix-now — Word-boundary match on the token.
 **Response:** repaired. `boundary.rs::mentions` splits a line on non-alphanumerics and at lower-to-upper case boundaries and compares each word case-insensitively; `a_token_matches_a_word_and_not_a_substring_of_one` asserts `SiteView`, `site_id`, `mod site;` caught and `call sites`, `websites`, `offsite` clean. The scan caught one of this session's own comments ("at every site") the moment it landed, which is the AC working.
 
-**Outcome:**
+**Outcome:** `superseded` by F-36 (round 2), whose repair keeps the word rule; F-45 and F-49 finished it
 
 ### F-15 — `PipeMissing` and `cleanup_only` are reachable by no test
 
@@ -365,7 +365,7 @@ session 3's.
 **Disposition:** tolerated — tokio hands back `Option`s for the three handles and populates them exactly when piped, which `process.rs` requests unconditionally. Unreachable by construction; the argument is on the page at `error.rs:38`, and `let … else { unreachable!() }` is forbidden by the lint table. Option (a) of the finding.
 **Response:** no change, per disposition.
 
-**Outcome:**
+**Outcome:** `tolerated` — no change, by user decision
 
 ### F-16 — the README's config, the one a reader copies, is exercised by nothing
 
@@ -379,7 +379,7 @@ session 3's.
 **Disposition:** fix-now — A test reads the README's fenced TOML, parses it with `Config::parse`, and runs one exchange. cargo runs integration tests with the crate root as working directory, so the README's relative path resolves as written.
 **Response:** repaired. `round_trip.rs::the_readme_s_own_config_loads_and_runs_the_example` reads the README's fenced TOML with `include_str!`, parses it with `Config::parse`, builds the host through the new `harness::host_from(config, now)` — which `harness::host` now also calls — and runs one quiet exchange.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### Round 1, fresh reviewer — F-17…F-33
 
@@ -410,7 +410,7 @@ A slice-003 timer that "fires immediately" on a past instant would spawn the bac
 **Disposition:** fix-now — follows F-1.
 **Response:** see F-1.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-1
 
 ### F-18 — A bare wall-clock time is accepted as a span of hours, and the corpus pins the invented meaning as R-21 behaviour
 
@@ -434,7 +434,7 @@ The same shape that motivated `MissingOffset` (`design.md` §5.2: "the single mo
 **Disposition:** fix-now — follows F-2.
 **Response:** see F-2.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-2
 
 ### F-19 — Duplicate keys inside a view, option or field are resolved last-wins, while the same duplicate on the envelope is refused
 
@@ -457,7 +457,7 @@ The fixture corpus cannot state this either way: `check_protocol` deserializes f
 **Disposition:** fix-now — **user decision 2026-09-04.** A pre-pass over the raw bytes — a serde visitor that walks the document and refuses a duplicate key at any depth — runs before `from_slice`, in `semantics::protocol`. Pure, and the one read site calls it.
 **Response:** repaired. `wire::reject_duplicate_keys(bytes)` walks the raw document with a `DeserializeSeed` visitor that carries the offending key out through a slot, and `normalize::read_response` calls it before `from_slice`; a duplicate at any depth, envelope included, is `ProtocolError::DuplicateKey { key }`. Two fixtures in the text corpus (`protocol-text/R-52-a-duplicate-key-inside-an-option`, `R-44-a-duplicate-key-on-the-envelope`), whose runner now goes through `read_response` too.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-20 — JSON arrays are accepted positionally as the envelope, an option and an alternative
 
@@ -478,7 +478,7 @@ The fixture corpus cannot state this either way: `check_protocol` deserializes f
 **Disposition:** fix-now — An `Object<T>` newtype whose `Deserialize` requires a JSON object and then delegates, applied to the envelope, `WireOpt` and `WireAlternative` — the three sites the derive accepts a sequence at.
 **Response:** repaired. `wire::Object<T>` deserializes a `Value`, refuses anything but an object naming the JSON type found, and delegates to `T`; applied to the envelope in `read_response`, to `WireChoice.options`, and to the alternative read in `normalize_alternative`. Three fixtures (`R-11-an-envelope-written-as-an-array`, `R-13-an-option-written-as-an-array`, `R-52-an-alternative-written-as-an-array`), each `Shape`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-21 — A `protocol` value of the wrong JSON type is refused as malformed JSON, not as an unsupported version
 
@@ -498,7 +498,7 @@ The fixture corpus cannot state this either way: `check_protocol` deserializes f
 **Disposition:** fix-now — **user decision 2026-09-04**: closed by F-22's classification rather than by widening `protocol` to a `Value`. `"1"`, `1.0` and `-1` become `ProtocolError::Shape`, whose message names what was found; a non-integer is not a version the host lacks, it is not a version.
 **Response:** repaired through F-22: fixture `R-3-protocol-declared-as-a-string` asserts `Shape`, whose message is serde's `invalid type: string "1", expected u32`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-22
 
 ### F-22 — "Malformed JSON" and "protocol-invalid message" are one variant for every shape error the taxonomy does not name
 
@@ -519,7 +519,7 @@ The fixture corpus cannot state this either way: `check_protocol` deserializes f
 **Disposition:** fix-now — One `ProtocolError::from(serde_json::Error)` classifying by `Category`: `Data` → new `Shape(serde_json::Error)`, the rest → `Json`. Every `map_err(ProtocolError::Json)` goes through it, so the split holds at every site rather than at the ones a test happened to reach.
 **Response:** repaired. `ProtocolError::Shape(serde_json::Error)` added; `impl From<serde_json::Error> for ProtocolError` classifies `Category::Data` as `Shape` and the rest as `Json`, and every former `map_err(ProtocolError::Json)` in `normalize.rs` is now `?`. The one read site is `normalize::read_response(bytes, now)`, which `host.rs` calls and both corpora run through — `host::read` is gone. `R-15-a-misspelled-required-key` flipped to `Shape`; `R-44-a-title-that-is-not-a-string` added. `error.rs::a_serde_failure_enters_the_taxonomy_by_category` pins the door; `failure_matrix.rs`'s garbage body still asserts `Json`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-23 — The request is written to stdin before stdout is read, so a backend that emits more than a pipe buffer before consuming a request larger than a pipe buffer deadlocks until the timeout
 
@@ -539,7 +539,7 @@ Both sides were blocked on a full pipe; the backend's valid response was never r
 **Disposition:** fix-now — follows F-10.
 **Response:** see F-10.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-10
 
 ### F-24 — A failed stdin write is fatal even when the backend answers correctly and exits zero
 
@@ -553,7 +553,7 @@ Both sides were blocked on a full pipe; the backend's valid response was never r
 **Disposition:** fix-now — **user decision 2026-09-04.** `BrokenPipe` on the request write is not a failure of the exchange; the exit status and body decide, per R-40 and AC-12. Every other write error stays `Io`. `a_backend_that_exits_before_reading_breaks_the_pipe` flips to assert success. Repaired with F-10.
 **Response:** repaired. In `body`, a `BrokenPipe` from `deliver` is not a failure; any other write error is `Io`. `exits-without-reading-stdin.sh` now prints `{"view":null}` before exiting, and `transport.rs::a_backend_that_answers_without_reading_its_request_is_still_answered` sends the padded request and asserts the answer — it received `Io(BrokenPipe)` at the old code.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-25 — A nested `hints` object is silently absorbed as a hint named `hints`
 
@@ -572,7 +572,7 @@ No fixture covers a `hints` key; `R-50-a-misspelled-optional-key-becomes-a-hint`
 **Disposition:** fix-now — `normalize_field` refuses a hint named `hints` with a new `ProtocolError::NestedHints { at }`, whose message says hints are flat keys on the field.
 **Response:** repaired. `normalize_field` refuses a hint named `hints` with `ProtocolError::NestedHints { at }`; fixture `R-18-a-nested-hints-object` asserts it at `view.options[0].fields[0]`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-26 — The example backend's TypeScript types admit a strict subset of the protocol
 
@@ -588,7 +588,7 @@ No fixture covers a `hints` key; `R-50-a-misspelled-optional-key-becomes-a-hint`
 **Disposition:** fix-now — follows F-8.
 **Response:** see F-8.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-8
 
 ### F-27 — The protocol version is two constants in two modules
 
@@ -602,7 +602,7 @@ No fixture covers a `hints` key; `R-50-a-misspelled-optional-key-becomes-a-hint`
 **Disposition:** fix-now — One `pub const PROTOCOL_VERSION` in `canonical.rs`; `normalize.rs` imports it.
 **Response:** repaired. `pub const PROTOCOL_VERSION` in `canonical.rs`, imported by `normalize.rs`; the private copy is gone.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-28 — Config's negative-duration and unparseable-duration branches have no test
 
@@ -616,7 +616,7 @@ No fixture covers a `hints` key; `R-50-a-misspelled-optional-key-becomes-a-hint`
 **Disposition:** fix-now — Lands with F-4: `"-30m"`, `"1 month"` and prose each refused at load, asserted by name.
 **Response:** repaired with F-4: `config.rs::a_duration_the_grammar_refuses_is_rejected_naming_the_key` (`1 month`, prose, a time of day) and `::a_negative_duration_is_rejected_as_non_positive`.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-4
 
 ### F-29 — `Fields` and `Hints` derive `Default`, a public constructor beside the checked one
 
@@ -632,7 +632,7 @@ No fixture covers a `hints` key; `R-50-a-misspelled-optional-key-becomes-a-hint`
 **Disposition:** fix-now — follows F-11.
 **Response:** see F-11.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-11
 
 ### F-30 — Two host-side impossibilities are reported in the backend's voice
 
@@ -648,7 +648,7 @@ No fixture covers a `hints` key; `R-50-a-misspelled-optional-key-becomes-a-hint`
 **Disposition:** fix-now — follows F-3.
 **Response:** see F-3.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-3
 
 ### F-31 — The broken-pipe fixture and its test explain the kernel wrongly
 
@@ -666,7 +666,7 @@ The test's outcome is unaffected; the recorded reason is what is wrong, and a re
 **Disposition:** fix-now — Rewritten with F-24, whose repair changes that test's assertion anyway.
 **Response:** repaired with F-24: the script's comment and the test's doc now say that `EPIPE` depends on whether the write lands before the child exits, and that padding past the pipe buffer makes the failure certain rather than being what the kernel does.
 
-**Outcome:**
+**Outcome:** `verified` (round 2) — with F-24
 
 ### F-32 — The `option_option` expectation's reason string carries runs of embedded whitespace
 
@@ -680,7 +680,7 @@ The test's outcome is unaffected; the recorded reason is what is wrong, and a re
 **Disposition:** fix-now — Trailing `\` continuations.
 **Response:** repaired. The reason is a `\`-continued literal with single spaces.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### F-33 — `Outcome`, `Failure` and `Discarded` carry errors that implement `Display`, but none of the three does
 
@@ -694,7 +694,7 @@ The test's outcome is unaffected; the recorded reason is what is wrong, and a re
 **Disposition:** fix-now — **user decision 2026-09-04**: `Display` for `Failure` and `Discarded`, delegating to the leaf types. `Outcome` stays `Debug`-only — rendering an outcome is the renderer's job, and a `Display` here would be a second renderer.
 **Response:** repaired. `impl Display for Failure` delegates to the leaf; `impl Display for Discarded` renders `next_check {raw} discarded: {reason}`. `harness::describe_outcome` uses the former in place of its own two arms, and `host.rs::a_failure_and_a_discard_render_as_their_leaves_do` asserts both.
 
-**Outcome:**
+**Outcome:** `verified` (round 2)
 
 ### Round 2, fresh reviewer — F-34…F-44
 
@@ -725,7 +725,7 @@ No test covers a failure at or after the resolved instant; `stderr_and_the_clean
 **Disposition:** fix-now — **user decision 2026-09-04.** `no_action` reports `resolve(Some(retained), None, default_poll, now)` rather than the retained value bare, so an elapsed check is consumed on the failure path too; a failure *before* the instant still reports it unchanged. Host state is not written on failure — the reported instant is the caller's, the stored one moves only on acceptance — so R-29's letter about state holds and its wording gains "must not accept a new instruction" at reconciliation.
 **Response:** repaired. `Host::no_action` takes `now` and reports `resolve_from(None, now)`, a new private method both the accept path and the failure path call — `schedule::resolve(Some(self.state.resolved_check()), incoming, default_poll, now)` written once. State is not written on failure. Held by `tests/integration/host.rs::a_failure_at_an_elapsed_check_reports_the_default_poll_from_now`: a good exchange scheduling `30m`, a failure *at* that instant reporting `now + 30m`, and a failure eight minutes later reporting from its own `now`. Red before the change (reported `04:42`), green after. `no_failure_moves_the_schedule` and `a_successful_exchange_does_move_the_schedule` still hold the before-the-instant case.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-35 — F-20 is not closed at the content block: `"body": ["text"]` is accepted positionally
 
@@ -746,7 +746,7 @@ No fixture carries an array body. Fix is `Object<WireContent>` / `Object<WireCon
 **Disposition:** fix-now — `Object<WireContent>` and `Object<WireContentValue>` at the two `from_value` calls, plus a fixture.
 **Response:** repaired. `normalize_content` reads `Object<WireContent>` and `Object<WireContentValue>`; `Object`'s doc now lists the content pair among its sites. Held by fixture `R-19-a-body-written-as-an-array.json` (`"body": ["text"]` → `Shape`), red before the change (accepted as `Text("text")`).
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-36 — The word matcher misses plural and suffixed domain identifiers that the substring scan caught
 
@@ -772,7 +772,7 @@ Cheapest repair that keeps F-14's prose fix: a word matches when it equals the t
 **Disposition:** fix-now — **user decision 2026-09-04.** The scan strips comment text (`//`, `///`, `//!`) before matching, so prose cannot trip it; a word then matches the token or the token plus `s`/`es`; `camel_segments` also splits at an upper-upper-lower boundary. `Habits`, `mod habits;`, `HTTPSite` pinned in the test alongside the clean cases.
 **Response:** repaired. `mentions` runs on `code_of(line)` — the line cut at its first `//` — then splits identifier segments and matches `is_singular_or_plural_of` (token, token+`s`, token+`es`); `camel_segments` also splits where an upper-case run ends before a lower-case letter (`HTTPSite` → `HTTP`, `Site`). The `//`-in-a-string-literal blind spot is documented on the function. Held by `boundary.rs::a_token_matches_a_word_and_not_a_substring_of_one`, now eight caught and seven clean cases including `Habits`, `mod habits;`, `Sites`, `HTTPSite`, `SITE_ID`, and `habitat`/`websites`/`offsite` plus comment-only lines as clean. Red on `Habits` before the change. `no_host_source_file_names_the_user_s_domain` still passes over `src/`.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-37 — The time-of-day refusal is jiff's `civil::Time` grammar, so the same span is refused zero-padded and accepted unpadded
 
@@ -797,7 +797,7 @@ Nothing that was a legitimate span *and not* a time of day is lost (`PT18H`, `1h
 **Disposition:** fix-now — **user decision 2026-09-04.** Every bare colon form — a string of ASCII digits and colons containing a colon — is `TimeOfDay`, whatever the padding; the `civil::Time` parse goes, since this rule subsumes it. `1 day 18:00:00`, `90m`, `1h30m`, `PT1H30M` are unaffected. Fixture for the unpadded form.
 **Response:** repaired. `parse_span` refuses `looks_like_a_time_of_day(raw)` — ASCII digits and colons only, containing a colon — and the `civil::Time` parse is gone. Held by fixture `schedule/R-21-bare-wall-clock-time-unpadded.json` (`1:30:00` → `TimeOfDay`), red before the change (parsed as `PT1H30M`). The padded fixture, `1 day 18:00:00`, `90m`, `1h30m` and the config duration tests all still hold.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-38 — `"hints": null` is refused as a nested hints object, against the crate's own `null` rule
 
@@ -816,7 +816,7 @@ Either `null` is exempted as it is for `fields`, or R-51's exception list grows 
 **Disposition:** fix-now — `null` exempted, as `normalize_alternative` exempts `"fields": null` (R-51); the message says "key" rather than "object". Fixture for the nulled key, accepted.
 **Response:** repaired. `normalize_field` removes the `hints` key and refuses only a non-`null` value; the message and the variant's doc say "key" rather than "object". Held by fixture `R-51-a-nulled-hints-key-on-a-field.json` (accepted, `hints: {}`), red before the change (`NestedHints`). `R-18-a-nested-hints-object.json` still refuses the object.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-39 — `json_type_name` is now implemented twice in stratum 1
 
@@ -829,7 +829,7 @@ Either `null` is exempted as it is for `fields`, or R-51's exception list grows 
 **Disposition:** fix-now — One `pub(crate) fn json_type_name` in `semantics::error`; `wire.rs`'s copy goes and its message drops the article.
 **Response:** repaired. One `pub(crate) fn json_type_name` in `semantics::error`; `schedule.rs` and `wire.rs` import it. `Object`'s message reads "expected an object, found a JSON array" so the shared table's bare noun still reads. No test asserted either message; the corpus's `Shape` fixtures hold the refusal.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-40 — The example's `Field` type admits keys the host refuses, so `deno check` cannot hold what its comment claims
 
@@ -849,7 +849,7 @@ and with `kind: "slider"` added: `TS2322 Type '"slider"' is not assignable …` 
 **Disposition:** fix-now — `min?: never; max?: never; options?: never` on the kinds that lack them and `hints?: never` on the base, as the reviewer suggests. Break-tested with `deno check`.
 **Response:** repaired. `Field`'s base carries `hints?: never` and each kind carries `never` for the modelled keys it lacks. Break-tested with `deno check` over scratch copies: `options` on `text`, `min` on `choice`, `options` on `number` and a nested `hints` object each fail with TS2322; a hint on `text`, bounds on `number` and alternatives on `choice` still typecheck, and `just check`'s `deno check` of the file itself passes.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-41 — `command = [""]` passes config; the empty program is the empty command one level down
 
@@ -862,7 +862,7 @@ and with `kind: "slider"` added: `TS2322 Type '"slider"' is not assignable …` 
 **Disposition:** fix-now — `Command::from_argv` refuses an empty program as it refuses the empty vector, so `EmptyCommand` covers both at load.
 **Response:** repaired. `Command::from_argv` filters an empty program as it filters the empty vector; `EmptyCommand`'s doc and `Display` name both spellings. Held by `config.rs::an_empty_command_is_rejected_because_there_is_nothing_to_spawn`, now over `[]`, `[""]` and `["", "./backend.ts"]`; red on `[""]` before the change.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-42 — `Discarded` renders `raw` twice; `ConfigError::Duration` now renders its fault in `Display` and returns it from `source()`
 
@@ -880,7 +880,7 @@ ConfigError: backend.timeout = "1 month" is not a duration this host can resolve
 **Disposition:** fix-now — `Discarded` renders `next_check discarded: {reason}`; the reason already ends with the raw value. The `source()` chain on `ConfigError::Duration` stays — it is the crate's convention for every wrapping variant, and a chain-walking logger printing a wrapped message twice is that convention's known cost, not this finding's.
 **Response:** repaired. `Discarded` renders `next_check discarded: {reason}`; `raw` stays on the variant for a caller that wants the value. Held by `host.rs::a_failure_and_a_discard_render_as_their_leaves_do`, which now asserts the raw value appears exactly once; red before the change (twice). `ConfigError::Duration`'s `source()` chain untouched, as dispositioned.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-43 — F-9's exact bound is asserted by no test
 
@@ -893,7 +893,7 @@ ConfigError: backend.timeout = "1 month" is not a duration this host can resolve
 **Disposition:** fix-now — A unit test in `process.rs` with a counting `AsyncRead` that serves one byte per poll and records the total, asserting exactly `limit + 1` bytes are read on the refused path.
 **Response:** repaired. `process.rs::tests::a_refused_read_takes_exactly_one_byte_past_the_bound`: a `Counting(&AtomicUsize)` `AsyncRead` that **fills every buffer it is offered** and counts, against `limit = 1000`, asserting `served == 1001` on the refused path. Confirmed by revert to the growing-buffer loop: `left: 4096, right: 1001`. A first draft served one byte per poll and passed against both implementations — a trickle cannot expose a reader that takes its spare capacity — which is why the reader fills the buffer. The counter is borrowed, not `Arc`, because `transport_shape.rs`'s share-nothing scan covers the test module too.
 
-**Outcome:**
+**Outcome:** `verified` (round 3)
 
 ### F-44 — The repairs add some twenty new slice-local `F-N` citations to `src/` under a disposition that records the convention as R-N and spec sections
 
@@ -906,7 +906,7 @@ ConfigError: backend.timeout = "1 month" is not a duration this host can resolve
 **Disposition:** tolerated — **user decision 2026-09-04.** This slice's code cites this slice's ledger, consistently with what was already there; the convention F-13 records applies from slice 002 and is lifted into `docs/memory/` at close.
 **Response:**
 
-**Outcome:**
+**Outcome:** `tolerated` — no change, by user decision
 
 ### Round 2 — confirmed round-1 repairs
 
@@ -961,7 +961,7 @@ Cheapest repair: a path token (one containing `::`) matches by `contains` on `co
 **Disposition:** fix-now — **user decision 2026-09-04.** A token containing `::` is a path and matches by `contains` on the comment-cut line; a word token keeps the word rule. `use crate::shell::host::Host;` pinned as caught. `crate::bin` stays as a guard against a future binary module.
 **Response:** repaired. `mentions` matches a token containing `::` by `contains` on `code_of(line)`; word tokens keep the word rule. Held by `boundary.rs::a_token_matches_a_word_and_not_a_substring_of_one`, which now catches `use crate::shell::host::Host;` and `crate::shell::config::Command::new(x)` for `crate::shell` and keeps `// see crate::shell …` clean; red on the `use` line before the change. `stratum_1_names_neither_the_shell_a_binary_nor_the_runtime` still green over `src/semantics`.
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### F-46 — F-37's shape rule does not subsume `civil::Time`: fractional-second wall-clock forms F-2 refused now parse as spans
 
@@ -985,7 +985,7 @@ Either the `civil::Time` parse comes back beside the shape rule (`||`, one line)
 **Disposition:** fix-now — **user decision 2026-09-04.** With F-50: `TimeOfDay` is the shape `digits(:digits)+` with an optional `.`/`,` fraction, every group non-empty, **or** whatever `civil::Time` parses — the two rules together, since neither subsumes the other. Fixtures: `18:00:00.000` refused as `TimeOfDay`, `T18:00:00` refused as `TimeOfDay`.
 **Response:** repaired, with F-50. `looks_like_a_time_of_day` is `has_the_shape_of_a_time_of_day(raw) || raw.parse::<jiff::civil::Time>().is_ok()`; the shape is two or more non-empty digit groups separated by `:` with an optional `.`/`,` digit fraction. Held by fixtures `schedule/R-21-wall-clock-time-with-a-fraction.json` (`18:00:00.000` → `TimeOfDay`) and `R-21-wall-clock-time-with-the-iso-designator.json` (`T18:00:00` → `TimeOfDay`), both red before the change. Probed after: `1:30:00.5`, `18:00:00,5`, `24:00:00` → `TimeOfDay`; `-1:30:00`, `+1:30:00` → signed spans, since a sign is not something a time of day carries; `1 day 18:00:00`, `PT1H30M`, `90m`, `1.5h` parse.
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### F-47 — F-42 dropped the raw value from the rendered discard for `NotAString`, the one variant whose reason does not carry it
 
@@ -1006,7 +1006,7 @@ One arm: render `raw` when `reason` is `NotAString` (or let `NotAString` carry t
 **Disposition:** fix-now — **user decision 2026-09-04.** `Discarded`'s `Display` renders `raw` when the reason is `NotAString`, the one variant whose message does not carry it; the other five stay as F-42 left them. The rendering test gains the `45` case asserting the value appears exactly once.
 **Response:** repaired. `Discarded`'s `Display` has one extra arm: a `NotAString` reason renders `next_check {raw} discarded: {reason}`; every other reason renders as F-42 left it. Held by `host.rs::a_failure_and_a_discard_render_as_their_leaves_do`, whose `next_check: 45` case asserts `45` appears exactly once; red before the change (zero).
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### F-48 — After F-34 the stored check no longer tracks what the host reported, so a no-instruction success after an elapsed-instant failure resolves from a stale value and every no-action call drifts the reported wake forward
 
@@ -1031,7 +1031,7 @@ Two readings: (a) `no_action` also calls `state.resolve_to` with what it reports
 **Disposition:** fix-now, reading (a) — **user decision 2026-09-04.** `no_action` writes what it reports, so stored and reported never differ; R-29 is reworded at reconciliation to "must not accept a new instruction", as F-34's disposition already planned. The test gains the later failure and the no-instruction success, both reporting the retained `05:12`.
 **Response:** repaired, reading (a). `no_action` takes `&mut self`, resolves through `resolve_from(None, now)` and writes the result with `state.resolve_to` before reporting it, so stored and reported never differ; its doc says so and says why. Held by `host.rs::a_failure_at_an_elapsed_check_reports_the_default_poll_from_now`, which now continues: a failure at `04:50` and a no-instruction success at `04:50` both report the `05:12` the caller was told; red on the second failure before the change (`05:20`). R-29's rewording is on session 3's reconciliation list.
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### F-49 — F-36 leftovers: block comments are not cut, and digit-glued or all-caps compounds still pass
 
@@ -1056,7 +1056,7 @@ Splitting at a letter/digit boundary closes the digit case for one extra arm; th
 **Disposition:** fix-now for the digit boundary only — **user decision 2026-09-04.** `camel_segments` also splits between a letter and a digit, so `habit2` is caught. Block comments, all-caps compounds and the `//`-in-a-string blind spot are tolerated as documented and latent (nothing in `src/` has any of them).
 **Response:** repaired for the digit boundary. `camel_segments` splits where a digit follows a letter or a letter follows a digit, so `habit2` → `habit`, `2`. Held by the same boundary test's `let habit2 = 1;` case, red before the change. Block comments, all-caps compounds and the string-literal blind spot are named in `mentions`'s doc as accepted and latent.
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### F-50 — The shape rule reports strings that are not times as "a time of day"
 
@@ -1077,7 +1077,7 @@ rendered as `schedule is a time of day, which is neither an instant nor a span: 
 **Disposition:** fix-now — **user decision 2026-09-04.** Closed by F-46's rule: every colon-separated group must be non-empty digits, so `::`, `:`, `123:` and `:30` are `Unparseable` again. Fixture for `::`.
 **Response:** repaired with F-46: every group must be non-empty digits, so `::`, `:`, `123:`, `:30`, `1::30` fall through to the span parse and are `Unparseable` with jiff's own message. Held by fixture `schedule/R-25-colons-with-nothing-between-them.json` (`::` → `Unparseable`), red before the change (`TimeOfDay`).
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### F-51 — The example's `never` members refuse `null`s the host reads as omission, including the `hints: null` F-38 accepted in the same commit
 
@@ -1096,7 +1096,7 @@ Either `?: never | null` where the host reads `null` as omission, or one sentenc
 **Disposition:** fix-now as documentation — **user decision 2026-09-04.** One sentence in the example's comment: the types are stricter than the host about `null` on purpose — the host reads a nulled modelled key as omission, and a backend written from these types simply omits it.
 **Response:** repaired as documentation. `Field`'s comment in `examples/typescript/backend.ts` says the `never` members are stricter than the host about `null` on purpose, and that a backend written from these types omits the key instead. `deno check` passes.
 
-**Outcome:**
+**Outcome:** `verified` (round 4)
 
 ### Round 3 — confirmed round-2 repairs
 
@@ -1139,7 +1139,7 @@ Cheapest repair: apply both rules to `raw.trim_end()` (or `trim()`), since the q
 **Disposition:** fix-now — **user decision 2026-09-04.** `parse_span` trims the string before either time-of-day rule or the span parse sees it: whitespace is not part of what the author wrote. Fixture `"18:00:00 "` refused as `TimeOfDay`.
 **Response:** repaired. `parse_span` binds `raw = raw.trim()` before either time-of-day rule or the span parse. Held by fixture `schedule/R-21-wall-clock-time-with-trailing-whitespace.json` (`"18:00:00 "` → `TimeOfDay`), red before the change (parsed as eighteen hours). Probed after: `"18:00:00\t"` and `" 18:00:00"` → `TimeOfDay`; `"90m "` and `" 90m"` → `PT1H30M`, where the leading form was `Unparseable` before — a widening, and the one the disposition asked for.
 
-**Outcome:**
+**Outcome:** `verified` (round 5)
 
 ### F-53 — The `civil::Time` arm names unitless integers as times of day, and the diagnostic for `"18"` got worse than it was
 
@@ -1165,7 +1165,7 @@ One conjunct: consult `civil::Time` only when the string carries a `:` or a `T`/
 **Disposition:** fix-now — **user decision 2026-09-04.** The clock parser is consulted only when the string carries a `:` or begins with `T`/`t`, so a unitless integer reaches the span parse and gets jiff's "expected unit designator" message; `T18:00:00` stays a time of day. Fixture `"18"` asserting `Unparseable`.
 **Response:** repaired. `looks_like_a_time_of_day` consults `civil::Time` only when `could_be_a_clock_form` — the string contains `:` or starts with `T`/`t`. Held by fixture `schedule/R-25-unitless-integer.json` (`"18"` → `Unparseable`), red before the change (`TimeOfDay`). Probed after: `18`, `1800`, `180000`, `5`, `24` → jiff's "expected to find unit designator suffix"; `T18`, `T18:00:00` → `TimeOfDay`.
 
-**Outcome:**
+**Outcome:** `verified` (round 5)
 
 ### F-54 — F-48's repair left `State::resolve_to`'s doc and design §5.4 stating the rule it replaced
 
@@ -1187,7 +1187,7 @@ The `resolve_to` doc is one sentence ("Every path that reports a schedule writes
 **Disposition:** fix-now for the code doc — **user decision 2026-09-04.** `State::resolve_to`'s doc says every path that reports a schedule writes it. `design.md` §5.4's paragraph and the diagram row join R-29 on session 3's reconciliation list; `design.md` is not touched mid-audit.
 **Response:** repaired for the code doc. `State::resolve_to`'s doc reads: every path that reports a schedule writes it, so the stored check is always the one the caller was last told. `design.md` §5.4's paragraph and the `respond(stale id)` diagram row are on the session-3 reconciliation list in `notes.md` beside R-29.
 
-**Outcome:**
+**Outcome:** `verified` (round 5) — by caller walk, no test names a doc
 
 ### Round 4 — confirmed round-3 repairs
 
@@ -1244,7 +1244,7 @@ One caution for whoever repairs it: my one-line trial shadowed `raw`, so the `ra
 **Disposition:** fix-now — **user decision 2026-09-04.** `parse_instruction` trims once, so both of R-21's forms see the same string; every `ScheduleError` keeps quoting the untrimmed value as sent. `parse_span` keeps its own trim for the config path. Fixtures: an instant with a trailing space accepted; an offsetless instant with a trailing space refused as `MissingOffset`.
 **Response:** repaired. `parse_instruction` binds `written = raw.trim()` and parses `written` on all three arms, while every `ScheduleError` still carries `raw` as sent; `parse_span` keeps its own trim for the config path, and its comment says why there are two. Held by fixtures `schedule/R-21-absolute-with-trailing-whitespace.json` (`"2026-08-23T05:00:00+10:00 "` → the instant) and `R-22-absolute-without-offset-with-trailing-whitespace.json` (`"2026-08-22T18:00:00 "` → `MissingOffset`), both red before the change (`TimeOfDay`).
 
-**Outcome:**
+**Outcome:** `verified` (round 6)
 
 ### F-56 — F-48's and F-54's Responses say three items are on `notes.md`'s reconciliation list, and none is
 
@@ -1272,7 +1272,7 @@ Repair: three lines under `notes.md:84`'s list — R-29's rewording to "must not
 **Disposition:** fix-now — **user decision 2026-09-04.** The three lines are added to `notes.md`'s session-3 reconciliation list now, ahead of the handover rewrite, so F-48's and F-54's Responses become true.
 **Response:** repaired. `notes.md`'s session-3 reconciliation list now carries R-29's rewording (F-34, F-48), `design.md` §5.4's "Failure does not move the schedule" paragraph (F-54) and the `respond(stale id)` diagram row (F-54), each with the line numbers the reviewer gave. F-48's and F-54's Responses are true as written.
 
-**Outcome:**
+**Outcome:** `verified` (round 6)
 
 ### Round 5 — confirmed round-4 repairs
 
@@ -1284,8 +1284,110 @@ Each Response's claim, checked by reverting the repair in the scratch copy and r
 
 Not verified beyond the above: nothing. `just check` exit 0.
 
+### Round 6, fresh reviewer — no findings
+
+Raised by a fresh Claude subagent (no thread history) against `24b1c3e`, the round-5 repairs only: `git diff d6cc44a..24b1c3e -- src tests docs/slices/001/notes.md`, the F-55 and F-56 Disposition and Response lines, draft-spec R-21…R-28 and brief §13.
+
+**Method.** Ran `just check` on the working tree at `24b1c3e`: exit 0 (default column 42 lib + 58 integration + 16 protocol; `--no-default-features` 25 lib + 16 protocol; `deno check`, clippy in both columns, `cargo fmt --check` clean). The protocol count is 16 in both columns because the two new fixtures join the one corpus test rather than adding tests. Copied the repo minus `target` and `.git` to `scratchpad/r6/repo` and worked only there: one edit-run-restore cycle on `schedule.rs` (revert the `written` trim), ending with `cmp` clean against the working tree, and a probe test in the protocol target over `schedule::parse` (through `serde_json::Value`), `Discarded`'s `Display`, and the real wire path `read_response` with `{"view": null, "next_check": <string>}` for 15 strings. Every output quoted below is my own run. No repository file was edited by me. `git status` shows `flake.lock` (pre-existing) and an uncommitted change to `review-code.md` that fills earlier rounds' `**Outcome:**` lines — not mine, not in scope, and not what I reviewed.
+
+Probe results on `24b1c3e`, wire path. Accepted as the instant: `"2026-08-23T05:00:00+10:00 "` → `2026-08-22T19:00:00Z`; `" 2026-08-23T05:00:00Z"`, `"\t2026-08-23T05:00:00Z\t"`, `"\r\n2026-08-23T05:00:00Z\r\n"`, `"\u{a0}2026-08-23T05:00:00Z"` → `2026-08-23T05:00:00Z`. `" 90m "` → `2026-08-23T05:42:00Z`. `MissingOffset`: `"2026-08-22T18:00:00 "`, `"2026-08-23 "`, `"2026-08-23 05:00:00 "`. `TimeOfDay`: `"\n18:00:00\n"`. `CalendarUnit`: `" 1 month "`. `Unparseable`: `"  "`, `""`, `"2026-08-23T05:00:00 +10:00"` (interior space, not trimmed — correct), `"\n100000000 days\n"` (the grammar's unit bound, as R-25's fixture says). In every error case the `raw` carried by the `ScheduleError` is byte-equal to the string as sent, untrimmed — the probe asserts it and passed — and `Discarded`'s rendering carries the same string, e.g. `next_check discarded: schedule has no UTC offset: 2026-08-22T18:00:00 ` with the trailing space. A `raw` holding newlines renders verbatim: `next_check discarded: schedule is a time of day, which is neither an instant nor a span: ⏎18:00:00⏎` — one diagnostic across three lines, not broken, and identical to `d6cc44a` (round 5 observed and did not raise it; F-47's territory).
+
+Observed and not raised, because pre-existing and untouched by the repair: `""` and `"  "` render as `unparseable schedule: ` and `unparseable schedule:   `, the value invisible — a consequence of F-42's verbatim rendering plus the untrimmed `raw`, and already so at `d6cc44a`. `parse`'s `# Errors` doc (`schedule.rs:39`–`:47`) lists five variants and omits `TimeOfDay`, which F-2 added in round 1. The new comment at `schedule.rs:69`–`:70` and both new fixture descriptions cite `F-52`/`F-55` where F-13's disposition records "new code cites `R-N`… not slice-local `F-N`" as the convention forward; every round-2…4 repair does the same and was confirmed, so this reads as the audit's own convention until close, and is for the user to say. `draft-spec.md:377`'s corpus list names neither new fixture, nor any fixture added since round 1; `notes.md:105`–`:111` already schedules re-running PHASE-09's two-direction script before promotion.
+
+No findings.
+
+### Round 6 — confirmed round-5 repairs
+
+Each Response's claim, checked against the code and by reverting the repair in the scratch copy. Results verbatim.
+
+- **F-55** — `parse_instruction` binds `written = raw.trim()` and parses `written` on all three arms (`schedule.rs:71`, `:72`, `:79`, `:84`); every `ScheduleError` constructor still takes `raw` (`:81`, `:85`, `:98`). `parse_span` keeps its own trim (`:134`) and its comment says why there are two (`:132`–`:133`). Revert (`let written = raw;`), `cargo test --test protocol every_scheduling`: `test runner::every_scheduling_fixture_states_what_the_protocol_does ... FAILED` — `R-21-absolute-with-trailing-whitespace.json: … expected 2026-08-22T19:00:00Z, got TimeOfDay (schedule is a time of day, which is neither an instant nor a span: 2026-08-23T05:00:00+10:00 )` and `R-22-absolute-without-offset-with-trailing-whitespace.json: … expected MissingOffset, got TimeOfDay (schedule is a time of day, which is neither an instant nor a span: 2026-08-22T18:00:00 )`. Both red before the change with `TimeOfDay`, as the Response says. Restored, `cmp` clean. Probe: the eight strings the brief asked for behave as listed in Method; `raw` is the untrimmed string as sent in all nine error cases probed; round 5's caution (a shadowed `raw` trimming the diagnostic) did not recur — `"\n18:00:00\n"` renders with both newlines.
+- **F-56** — `grep -n "must not accept\|1615\|1611" docs/slices/001/notes.md` → `91:- \`draft-spec.md\` R-29: reword to "a failed exchange must not accept a new`, `97:  (\`design.md:1615\`–\`:1619\`): stale for the same reason (F-54) — *Design`, `99:- \`design.md\` §5.4 state diagram, \`respond(stale id)\` row (\`design.md:1611\`):`. The three bullets sit at `notes.md:91`–`:102`, directly under R-29's session-2 bullet, and cite F-34/F-48, F-54, and F-48/F-54 respectively. The line numbers they carry are right: `design.md:1611` is the `Outstanding --> Outstanding: respond(stale id) — rejected, no backend call, state untouched` row and `:1615`–`:1619` is the `**Failure does not move the schedule.**` paragraph. F-48's Response ("R-29's rewording is on session 3's reconciliation list") and F-54's ("are on the session-3 reconciliation list in `notes.md` beside R-29") are now true as written. `git show --stat 24b1c3e`: `notes.md` +12, `review-code.md` +81, `schedule.rs` +8/−4, two fixtures — the five files the Responses account for, nothing else.
+
+Not verified beyond the above: nothing. `just check` exit 0.
+
+### F-57 — `schedule::parse`'s `# Errors` doc lists five variants and omits `TimeOfDay`
+
+**Severity:** nit
+**Location:** `src/semantics/schedule.rs:39`–`:47`
+**Expected:** the doc enumerates "one `ScheduleError` per way of not being an instant"; F-2 added a sixth in round 1.
+**Observed:** `TimeOfDay` is absent from the list. Raised by the audit agent from the round-6 reviewer's "observed and not raised" note, so that the ledger records it rather than a silent tidy.
+**Evidence:** `sed -n 39,47p src/semantics/schedule.rs` on `24b1c3e` — five variants named.
+
+**Disposition:** fix-now — self-raised nit, the doc gains the sixth variant with its R-21 / brief §3.3 reason. No user decision needed: a doc restating what the code and F-2's disposition already say.
+**Response:** repaired. The list names `TimeOfDay` between `MissingOffset` and `CalendarUnit`. `just check` exit 0, both columns.
+
+**Outcome:** `repaired` (round 6, self-raised) — a doc; no test names it
+
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+Written by the raiser once the ledger resolved, 2026-09-04. Fifty-seven
+findings over six rounds: five major, thirty-three minor, nineteen nit, no
+blocker. Fifty-four fix-now and repaired, three tolerated by user decision
+(F-13, F-15, F-44). Round 6 came back with no findings; its one aside became
+F-57, a doc nit the raiser repaired itself. Every repair was confirmed by a later fresh reviewer
+reverting it and watching the named test go red; F-9 alone needed a third
+round to be pinned (F-43), and one first-draft test for it passed against
+both implementations before it was made to fill the buffer it was offered.
+`just check` exits 0 in both feature columns at every round's commit.
+
+**What the review changed.** Three things of substance, all coherence with
+the brief rather than with any execution-time decision:
+
+1. *The schedule survives a backend that stops instructing it* (F-1, F-17,
+   F-34, F-48). `schedule::resolve` consumes a retained check at or before
+   `now` and falls back to the default poll; the host resolves through that
+   one arm on every path, failure included, and writes what it reports. Slice
+   003's timer will never be handed an elapsed instant. R-26 and R-29 must be
+   reworded at reconciliation: a failed exchange "must not accept a new
+   instruction", not "must not alter the resolved check".
+2. *A time of day is refused, not read as hours* (F-2, F-18, F-37, F-46,
+   F-50, F-52, F-53, F-55). The rule took five rounds to converge and is now
+   two conjuncts and a trim: the bare colon shape with non-empty groups and an
+   optional fraction, or jiff's clock grammar behind a colon-or-`T` gate,
+   applied to the trimmed string on both of R-21's forms while every error
+   quotes the value as sent. Signed colon forms are spans; unitless integers
+   get jiff's "unit missing" message. Twelve schedule fixtures pin the seam.
+3. *Shape refusals are typed and total* (F-19, F-20, F-22, F-25, F-35, F-38).
+   Duplicate keys are refused at every depth by a pre-pass; every object the
+   protocol reads through its own type is an `Object<T>` so arrays are never
+   bound positionally; `Shape` and `Json` are distinct variants entered through
+   one `From`; a nested `hints` object is refused and a nulled one is omission.
+
+Around those: one duration grammar shared by the wire and the config (F-4,
+F-28); `Command { program, arguments }` so the empty command — and the empty
+program (F-41) — cannot reach the transport (F-3, F-30); the request write
+concurrent with the stdout read and a broken pipe tolerated (F-10, F-23,
+F-24); the stdout bound exact and pinned (F-9, F-43); config refusing unknown
+keys (F-5) and its README example run by a test (F-16); the example's
+TypeScript types the whole protocol, with `never` members so `deno check`
+refuses what the host refuses (F-8, F-26, F-40, F-51); `Display` on every
+handed-over value rendering each fact once (F-33, F-42, F-47); and the
+boundary scans made to match words, plurals, acronyms, digits and paths while
+ignoring comment prose (F-14, F-36, F-45, F-49).
+
+**What it confirmed.** The strata hold in both compile columns and by scan;
+the transport disposes on every path; host state survives every failure mode
+in the matrix; the fixture corpora run through the same read site the host
+uses. No finding touched canon, `design.md` or the draft's promotion.
+
+**Risks knowingly left standing.**
+- The boundary scanner is a text scan, not a parser: a `//` inside a string
+  literal hides the rest of its line, `/* */` blocks are not cut, all-caps
+  compounds do not split, and path tokens match as substrings. All latent —
+  nothing in `src/` has any of them — and the build gate holds the stratum
+  property independently (F-45, F-49).
+- `1:2:3:4:5` and `99:99` are "a time of day" by the shape rule; `T1:30` is
+  unparseable where `T18:00` is a time of day; a config `timeout` written as a
+  full datetime is told it is a time of day. None is a value a backend author
+  writes on purpose; all are noted in round 5's method paragraph.
+- A `raw` value renders unbounded and verbatim in a discard line, newlines
+  included (F-47, round 5 note). The five string variants always did.
+- `ConfigError::Duration` renders its fault and chains it as `source()`, so a
+  chain-walking logger prints it twice — the crate's convention (F-42).
+- `PipeMissing` and `cleanup_only` are reachable by no test (F-15).
+- This slice's code cites its own ledger ids; from slice 002 the convention is
+  R-N and spec sections (F-13, F-44), lifted to `docs/memory/` at close.
+
+**For reconciliation** — the record is now behind the code in the places
+listed under "Handover — session 2b" in `notes.md`: R-26, R-29, R-21/R-25,
+R-44, R-51, R-19, R-36, §7's test-name rows, and `design.md` §5.2/§5.3/§5.4.
