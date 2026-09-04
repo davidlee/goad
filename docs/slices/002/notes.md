@@ -8,7 +8,22 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| — | no phases. `plan.md` is not begun; the slice is still at the design gate. | 2026-09-05 |
+| design | **accepted** — five review rounds, F-1…F-40, all terminal. Discharged by the replacement criterion in §5 of the Handover below: *every claim is either built, or its failure mode is loud at first compile* | 2026-09-05 |
+| plan | **accepted 2026-09-05** — nine phases in `plan.md`; eight planning decisions in `plan-log.md`; four findings against the design (DF-1…DF-4) recorded and planned around, none repaired in `design.md`. No adversarial review round run: five have run on the design and the plan's own two unbuilt claims are PHASE-01's and PHASE-03's to measure | 2026-09-05 |
+| PHASE-01 — the workspace split | todo | 2026-09-05 |
+| PHASE-02 — the workspace invariant checks | todo | 2026-09-05 |
+| PHASE-03 — `crates/goad`, Slint, the markup and the element tree | todo | 2026-09-05 |
+| PHASE-04 — the mapper and the tray rasteriser | todo | 2026-09-05 |
+| PHASE-05 — the diagnostic surface and the reception seam | todo | 2026-09-05 |
+| PHASE-06 — the controller, the fold, and the failure case table | todo | 2026-09-05 |
+| PHASE-07 — the glass, `serve`, and the wiring | todo | 2026-09-05 |
+| PHASE-08 — startup, the entry point, and the event-loop tier | todo | 2026-09-05 |
+| PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | todo | 2026-09-05 |
+| audit | todo — CD-1…CD-7 and `draft-policy.md` are promoted here, with explicit endorsement, and nowhere earlier (`docs/AGENTS.md:38`) | 2026-09-05 |
+
+**Execution order is 01…09, in sequence.** No two phases have disjoint surfaces:
+every renderer phase touches `crates/goad/src/lib.rs` and
+`crates/goad/tests/renderer/main.rs`. One agent, one phase, one session.
 
 ## Phase sheets
 

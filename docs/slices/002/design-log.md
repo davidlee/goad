@@ -1555,3 +1555,39 @@ content moves.*
   *every claim in the design is either built, or its failure mode is loud at
   first compile* — and the next act is `plan.md`, then PHASE-01, which is the
   audit of F-37's artifact map that no amount of further reading can be.
+
+### 2026-09-05 — Three file placements the design states twice, decided; and one claim about `glass.rs` withdrawn
+
+*Autonomy grant. Taken during planning; cross-posted from `plan-log.md` PL-5,
+where the full reasoning and the rejected alternatives sit. Raised as `plan.md`
+DF-1, DF-2 and DF-3. `design.md` is **not** edited — it is a record of intent
+(`docs/AGENTS.md:137`) and these are candidates for the audit's Design drift not
+reconciled.*
+
+- **Asked:** §5.1's artifact map and the `// crates/goad/src/….rs` headers on
+  §5.2–§5.4's code blocks name different files for the same three items. A phase
+  that has to choose is taking a design decision by typing first, which is
+  exactly what F-37's map exists to prevent.
+- **Decided, item by item, because no blanket rule is honest — each disagreement
+  is settled by a different fact:**
+  - the tray rasteriser, `ICON_EDGE`, `IDLE`, `FAULT` and `TrayState` live in
+    **`diagnostics.rs`**. §5.1 quotes `lib.rs` as *the whole file* with ten
+    `pub mod` lines, so an eleventh `tray_icon` module contradicts it, and
+    `diagnostics.rs` already carries the `#![deny(clippy::arithmetic_side_effects)]`
+    the rasteriser needs.
+  - `Prepared` lives in **`reception.rs`**, where §5.2 declares its shape beside
+    the `Received` that owns it. The map's reading would make the reception phase
+    depend on a type the controller phase lands, inverting the plan's order for
+    no gain.
+  - `Wire`, `Cancel`, `Command` and `Stimulus` live in **`wire.rs`**, per the map.
+    §5.3's `controller.rs` header would leave `lib.rs` declaring an empty `wire`
+    module.
+- **Rejected:** "the map always wins" and "the declaring code block always wins" —
+  each is right twice and wrong once; and amending `design.md` mid-slice.
+- **Consequence, and it is a withdrawal:** §5.3's *"glass.rs is the ONLY file in
+  the crate that names a generated type"* is false as the design itself writes
+  it — `install.rs` takes `&PromptWindow` and `&Tray`, and `Wire` holds a
+  `slint::Weak<PromptWindow>`, both before this decision touches anything. The
+  claim is replaced, for the purpose of every phase, by the one that is true and
+  load-bearing: **`glass.rs` is the only file that reads or writes a generated
+  component's properties.** No phase may treat the wider claim as a constraint.
