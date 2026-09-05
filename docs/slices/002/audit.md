@@ -231,11 +231,46 @@ Findings live in `review-code.md`, copied from
 vocabulary, subject `implementation`. Do not restate findings here.
 
 - **Ledger:** `review-code.md`
-- **State:** open · outstanding blockers: <see ledger>
+- **State:** open — round 2 verified · outstanding blockers: none · awaiting endorsement: F-5 (follow-up), F-6 (doc-wrong, drop `named`), F-7 (contested: the raiser's route runs the binary, which `design.md` §9 item 17 forbids; a sink seam for `report_platform` needs endorsement)
 
 ## Verdict
 
-<!-- written after the ledger closes -->
+The slice does what it set out to do. The split landed first and alone, and
+it was a relocation: 113 renames, 92 byte-identical, every content change
+argued (AC-2). Slint entered on its own commit at a warm gate cost of 2.1 s
+(5.3 s on the finished tree), nowhere near S-4's band. A `choice` view is
+drawn, answered, and its stale click refused locally; `view: null` follows the
+interaction; every row of SPEC-001's failure taxonomy has been driven through
+one retained `Host` and read off the production reducer; a stop drops the
+in-flight exchange in ~100 µs against a 2 s timeout. Fourteen acceptance
+criteria are met on evidence re-run here rather than copied. AC-15 is open
+because promotion is this document's own last act.
+
+Two adversarial rounds raised no blocker. The two majors were the same shape:
+code that worked and a suite that did not hold it — the drawn body and the
+degradation marker, and one 100 ms sleep standing in for an observed
+precondition. Both are repaired and re-verified, with a named residual:
+Slint's testing API exposes no accessor for a `StyledText`'s content, so the
+"still shown" half of AC-9 is held to the `Presentation` boundary and argued
+for the last hop.
+
+Accepted knowingly, pending the user's word:
+
+- **F-5** — the production runtime topology is instantiated by the
+  `event_loop` tier and never drives an exchange. A follow-up slice, not this
+  one.
+- **F-6** — `Refused`'s `named` field is written and never read; the design
+  declares it and its exact strings do not render it. Drop it (`doc-wrong`).
+- **F-7** — the two stderr outlets' exact strings are asserted nowhere. The
+  raiser's route runs the binary, which `design.md` §9 item 17 forbids; the
+  alternative is a sink seam for `report_platform`. Either is a decision.
+- **Two `git stash` incidents** by executors, both recovered read-only and
+  verified byte-for-byte; `stash@{0}` and `stash@{1}` are redundant with HEAD
+  and are the user's to drop.
+
+The five invariants hold, and four of them hold by instruments inside the
+gate rather than by argument. The residue is stated: D25's feature
+unification, one feature wide, and the last hop from property to pixel.
 
 ## Reconciliation
 

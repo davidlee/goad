@@ -172,17 +172,17 @@ command, constructing an input, or reading the path end to end.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | fix-now | |
-| F-2 | major | fix-now | |
-| F-3 | minor | fix-now | |
-| F-4 | minor | fix-now | |
-| F-5 | minor | \<proposed\> follow-up | |
-| F-6 | minor | \<proposed\> doc-wrong | |
-| F-7 | minor | \<proposed\> | |
-| F-8 | nit | fix-now | |
-| F-9 | nit | fix-now | |
-| F-10 | nit | fix-now | |
-| F-11 | nit | doc-wrong | |
+| F-1 | major | fix-now | verified |
+| F-2 | major | fix-now | verified |
+| F-3 | minor | fix-now | verified |
+| F-4 | minor | fix-now | verified |
+| F-5 | minor | \<proposed\> follow-up | pending endorsement |
+| F-6 | minor | \<proposed\> doc-wrong | pending endorsement |
+| F-7 | minor | \<proposed\> | contested |
+| F-8 | nit | fix-now | verified |
+| F-9 | nit | fix-now | verified |
+| F-10 | nit | fix-now | verified |
+| F-11 | nit | doc-wrong | verified |
 
 ### F-1 — the body and its degradation marker are drawn by markup nothing asserts
 
@@ -300,7 +300,45 @@ Break-and-revert, both re-run against the expanded suite (`nix develop
 
 Both breaks reverted; `git status --short crates/goad/ui/app.slint` is clean.
 
-**Outcome:**
+**Outcome:** verified, with the residual accepted as stated.
+
+I re-ran both breaks. Deleting the marker turns
+`tree::the_degradation_marker_is_present_only_when_the_body_is_degraded` red at
+`tree.rs:189` — 120 passed, 1 failed — so the marker half now goes red where it
+went green in round 1. The residual is real, and I confirmed it independently
+rather than on the responder's word: with a body of `"BODYMARKERTEXT"` set on a
+live `PromptWindow`, `ElementQuery::from_root(&w).match_predicate(|_| true)`
+returns ten elements, and none of `accessible_label`, `accessible_value`,
+`accessible_description` or `accessible_placeholder_text` carries the text on
+the `StyledText`:
+
+```
+type=Some("Text")        label=Some("HEADINGTEXT")   value=None desc=None
+type=Some("StyledText")  label=None                  value=None desc=None
+ANY ACCESSOR CARRIES THE BODY TEXT: false
+```
+
+The sibling `Text` element does expose its content, which is what makes the
+`StyledText` result a capability gap rather than a query mistake. So the
+responder's trace to `lower_accessibility.rs` is borne out at the API surface,
+and the fallback they took is the only one available in 1.17.1.
+
+**What AC-9 now holds, precisely.** Two chains, one complete and one not. The
+*degradation* chain is complete: `body_content`'s
+`rejected_markdown_reaches_the_window_as_plain_and_is_degraded` proves
+`SlintGlass::present` writes `body-degraded`, and `tree.rs`'s marker test
+proves the markup draws a marker exactly when that property is set — glass to
+property to element, with a break-and-revert at each end. The *shown* chain
+stops at the property: three tests prove the right `StyledText` reaches
+`window.get_body()`, and nothing proves an element still binds to it. So AC-9's
+"the degradation is reported" is held, and "is still shown" is held as far as
+the renderer's own code and argued for the last hop. That is a smaller residual
+than the finding raised — round 1 had neither chain — and it is the right place
+to stop given the library.
+
+I do not ask for `follow-up`: closing the last hop needs a production property
+that exists only to be tested, which is a worse trade than the residual. If the
+user prefers it recorded, `tolerated` with this rationale is the honest label.
 
 
 ### F-2 — item 14d's in-flight precondition is a bare 100 ms sleep, the exact race PL-17 repaired in 14a
@@ -359,7 +397,18 @@ ms, unrelated to this precondition). Ran the test in isolation and inside the
 full `cancellation` module ten times (`cargo test -p goad --test renderer
 cancellation:: -- --test-threads=1`, looped): 30/30 pass.
 
-**Outcome:**
+**Outcome:** verified.
+
+The precondition is now observed, not slept:
+`until(Duration::from_secs(1), || invocations(&log) >= 1).await;` at
+`wiring.rs:1216-1219`, identical to VT-10's, with `run_until(async move {…})`
+relaxed to `run_until(async {…})` so `log` can be borrowed. The round-1
+experiment no longer applies because there is no duration left to shrink — the
+test now waits on the fact it depends on, and fails with `until`'s own
+"condition did not become true" message if the backend never spawns, which
+names the precondition instead of misreporting it as the property. The
+comment records the lineage to PL-17. `cargo test -p goad --test renderer`
+passes.
 
 ### F-3 — AC-14 names "crate name" as a covered surface; no instrument reads a manifest
 
@@ -415,7 +464,22 @@ real workspace member's manifest and checks its `[package].name` against
 fixture manifest text with `name = "goad-habits"` is caught naming "habit" —
 never a file on disk, matching `crate_name`'s text-in shape.
 
-**Outcome:**
+**Outcome:** verified.
+
+The positive control is a fixture, so I checked the real direction too:
+renaming `crates/goad/Cargo.toml`'s `[package].name` to `goad-habits` fails the
+new check, naming both the value and the manifest —
+
+```
+panicked at crates/goad-boundary/tests/checks/vocabulary.rs:75:7:
+"goad-habits" (…/crates/goad/Cargo.toml) names the domain word "habit"
+```
+
+— reverted after. Half my Fix was applied and the omitted half is right to
+omit: I asked for `mentions` over each `workspace.members` *entry* as well, and
+a directory name is not a crate name, which is what AC-14 lists. `crate_name`
+taking text rather than a path matches `unpermitted`'s existing shape and keeps
+the control off disk.
 
 ### F-4 — a char literal holding a quote desynchronises `code_of`, and the cost is not among the four it names
 
@@ -489,7 +553,34 @@ checks vocabulary`: passes (this finding's own module; the whole-binary
 count is stated once, at the end of the ledger's Response note, since it
 moves as later findings' tests join it).
 
-**Outcome:**
+**Outcome:** verified — closed rather than merely named, which is more than
+the finding asked for.
+
+Fourteen inputs through the shipped `mentions`/`code_of`, all as expected:
+
+```
+ok  F-4 case 1                          let q = '"'; let s = "//"; let habit = 1;   → true
+ok  F-4 case 2 (byte char)              if b == b'"' { let s = "//"; … site …   }   → true
+ok  escaped-quote char literal          let q = '\''; let s = "//"; let habit = 1;  → true
+ok  escaped double-quote char literal   let q = '\"'; let s = "//"; let habit = 1;  → true
+ok  real comment past a char literal    let q = '"'; // the call sites              → false
+ok  lifetime opens no string            let x: &'static str = "ok"; // habit        → false
+ok  two lifetimes / impl<'a> Foo<'a>                                                → false
+ok  multi-byte, hex-escape, ordinary char literals                                  → true
+```
+
+Both directions are fixed: the false negative that hid the rest of a line, and
+the false positive where a real `//` past a char literal was not cut. Lifetimes
+are untouched, including the pre-existing control. `char_literal_len`'s two
+shapes are the only Rust constructs that put a bare `"` in code, so the class is
+closed, not just the instances I supplied.
+
+**One input that still defeats it, and D13 names it.** Line two of a
+multi-line string: `   continued string line // habit` returns `false`, because
+the cut is per-line and does not track a string across the break. That is cost
+one of the four in `code_of`'s own list and in D13, unchanged and correctly
+named. The doc now records the char-literal case as a fifth cost *and* says it
+is closed, which is the right way round.
 
 ### F-5 — the production runtime topology is exercised by no shipped test
 
@@ -566,7 +657,23 @@ the reviewer's Fix already gives: extend `closing.rs` to enqueue one
 `tests/backends/answers-as-instructed.sh` with a pinned view, assert the
 heading, then dispatch `CloseRequested`.
 
-**Outcome:**
+**Outcome:** pending endorsement — I would accept `follow-up`.
+
+The reasoning is sound and I do not contest it. A test that drives one exchange
+through a real event loop and a real spawned process is a new flakiness surface,
+and PL-14's rule puts that with the user. Two things for whoever endorses it.
+
+First, the gap is narrower than "untested": my round-1 reproduction shows the
+shipped code is correct in the arrangement it ships in, including cancellation
+mid-exchange with no orphaned child. What is missing is a regression test, not a
+working path.
+
+Second, the flakiness objection is smaller than it looks. `closing.rs` already
+runs a real headless event loop and already awaits an unbounded
+`run_event_loop_until_quit`; adding one `@slow-view`-style instruction adds a
+process spawn to a file that already blocks on the loop. If the user declines,
+`tolerated` with the reproduction recorded would be honest; abandoning it with
+no note would not.
 
 ### F-6 — two `Refused` variants carry a payload nothing renders
 
@@ -638,7 +745,25 @@ oversight, not the reverse. Held rather than fixed, since it is a design's
 declared shape and canon is amended only with explicit endorsement — never
 mid-slice on the responder's own initiative.
 
-**Outcome:**
+**Outcome:** pending endorsement — I would accept `doc-wrong` in the
+drop-the-field direction, which is the responder's own pick.
+
+Their argument is better than the one in my Fix. I reasoned from the asymmetry
+with `StateError::NoOutstandingView`, which renders its `named`; they point out
+that the two are addressed to different readers — a backend integrator who can
+act on a stale identifier, versus a person watching a host-internal race — and
+that "no action taken" is the whole of what the second reader can use. That is
+the right distinction and it settles which half of `design.md` is stale.
+
+One correction to their reasoning, which does not change the conclusion: line
+order in a document is not evidence of which statement is later in time.
+`design.md:2082-2090` and `:2186-2188` are one document written and rewritten
+across four review rounds. The conclusion stands on the reader argument alone.
+
+If endorsed, the change is: drop `named` from `Refused::SupersededView` and
+`::UnknownOption`, drop the three `to_owned()` sites in `controller.rs::answer`,
+and amend `design.md:2082-2090` to match. The two pinned sentences do not
+move.
 
 ### F-7 — the two stderr outlets' exact strings are asserted nowhere
 
@@ -709,7 +834,48 @@ Two new `pub` functions, additive, no existing string or signature disturbed
 — but new production surface, which is why I did not add it unilaterally.
 Changed nothing in `src/`.
 
-**Outcome:**
+**Outcome:** contested — narrowly, and I withdraw two-thirds of my own Fix.
+
+The responder is right twice and wrong once.
+
+Right that `line_to` is not the seam. It receives an already-composed string —
+`report_startup` calls `line_to(sink, &format!("goad: {error}"))` — so a test
+driving `line_to` would assert that it writes what it is handed, which is the
+vacuous shape I named in the brief's own item 9. Right, too, that `pub(crate)`
+is unreachable from `tests/renderer/startup.rs`, which is a separate crate. Both
+halves of my Fix are withdrawn.
+
+Wrong that this "needs a real, if small, signature change to be testable at
+all". For `report_startup` it needs none. Cargo sets `CARGO_BIN_EXE_goad` for
+every integration test target in the crate, so `startup.rs` can run the real
+binary and assert the real stderr and the real exit code:
+
+```
+$ ./target/debug/goad a b
+goad: too many arguments: goad takes at most one, the path of the configuration
+file; run `goad --help` for usage
+exit=2
+$ ./target/debug/goad /nonexistent/goad.toml
+goad: configuration could not be read: No such file or directory (os error 2)
+exit=2
+```
+
+Both were run against the built binary. That is stronger than a sink test: it
+covers the `goad: ` prefix, `StartupError`'s `Display`, the `ExitCode::from(2)`
+decision, and the fact that a usage error does not reprint the usage block —
+and it is the only route that touches `main`, `run` and `start`, which
+`design.md:475-477` records as "the only items in the crate no test drives".
+Nothing in production changes.
+
+`report_platform` is a different case and the responder's proposal is the right
+one there: it fires only when `show()`/`hide()` fails after the loop starts,
+which no test can induce and no subprocess can reach, so `report_platform_to`
+(or an equivalent sink parameter) is the only way. That half stays held.
+
+**What I am handing back:** split the finding's repair. `report_startup` is a
+`fix-now` with no production change, by subprocess. `report_platform` remains
+`<proposed>` for endorsement, and the proposal should say it is one function,
+not two — the case for `report_startup_to` is gone.
 
 ### F-8 — `driving.rs::no_view` restates `describe_outcome`'s sentences, against the file's own rule
 
@@ -761,7 +927,16 @@ changed. Ran both consumers: `cargo test -p goad-shell --test integration`
 (58 passed) and `cargo test -p goad --test renderer` (121 passed) — the
 second confirms `driving.rs`'s other consumer is unaffected.
 
-**Outcome:**
+**Outcome:** verified.
+
+The two sentences are stated once, in `driving.rs::failure_or_nothing`, and
+`harness.rs::describe_outcome` now calls it for both arms rather than restating
+them; the third arm, `"a view carrying {id}"`, stays with the tier that is its
+only user. The rewritten match is behaviour-preserving: `(Some(_), _)` and
+`(None, None)` both fall to the wildcard, which is exactly what
+`failure_or_nothing` distinguishes. The file's own D23 citation is now
+consistent with what the file does. `cargo test -p goad-shell --test
+integration`: 58 passed, unchanged.
 
 ### F-9 — `clock.rs` attributes `serve` to the wrong phase
 
@@ -783,7 +958,8 @@ exchange`.
 **Disposition:** fix-now
 **Response:** `crates/goad/src/clock.rs:12`: "PHASE-07's" → "PHASE-10's".
 
-**Outcome:**
+**Outcome:** verified. `clock.rs:12` reads PHASE-10, matching `wire.rs:5-6`
+and `controller.rs:1-5` and the commit that landed `serve`.
 
 ### F-10 — `structure.rs` is non-recursive and says that is not a silent gap
 
@@ -831,7 +1007,14 @@ actually descends rather than only being written to, the same discipline
 the reviewer's own finding named. `cargo test -p goad-boundary --test
 checks structure`: 8 passed, 0 failed (up from 7).
 
-**Outcome:**
+**Outcome:** verified, and the stronger of the two repairs I offered was
+taken. `subject_files()` now descends, so the check keeps working when a
+subdirectory arrives rather than refusing to run once one does, and
+`the_walk_descends_into_a_subdirectory` is the presence control E-1 pairs with
+the existing vacuity guard — it finds `nested/marker.rs` one level down, so the
+recursion is demonstrated rather than asserted. The docstring no longer claims
+that a human reading a diff closes the gap. `cargo test -p goad-boundary --test
+checks`: 32 passed.
 
 ### F-11 — the design still heads the rasteriser block with a file that does not exist
 
@@ -867,7 +1050,10 @@ the brief — `design.md` is out of scope this round, and reconciliation is
 this project's own named later step, not mid-slice on the responder's
 initiative.
 
-**Outcome:**
+**Outcome:** verified. `audit.md:257-262` names this drift under *Design
+drift not reconciled*, including the confirmation that no `tray_icon.rs` exists
+in the tree, so it is owned by the step that owns design reconciliation.
+Nothing more is owed here.
 
 ## Round 1 — response
 
@@ -913,6 +1099,40 @@ unchanged (F-8 is a rewrite). `just check` exits 0.
 introduced. No dependency added. `flake.lock` untouched by any of the
 above — its modification predates this response and is left exactly as
 found, per instruction.
+
+## Round 2 — verification
+
+Raiser's note, 2026-09-05. Subject: commit `a2f3a7e` on `slice-002`, and the
+working tree at it. Every claim below was re-run rather than read.
+
+**Verified: eight.** F-1 (with a named residual), F-2, F-3, F-4, F-8, F-9,
+F-10, F-11. **Contested: one.** F-7, narrowly — see its Outcome; two-thirds of
+my own round-1 Fix is withdrawn there, and the part I hand back is that
+`report_startup` needs no signature change to be tested. **Pending the user:
+two.** F-5 and F-6, both held correctly under PL-14, both of which I would
+accept as proposed.
+
+**Nothing new raised.** No F-12. I looked for defects the repairs introduced and
+found none worth a finding: `crate_name` is additive `pub` API in the test-only
+member; `walk_rs_files` is a local recursion that lists paths and cannot collect
+a breach, so it does not duplicate `Scan::walk`'s contract; the rewritten
+`describe_outcome` match is behaviour-preserving; and `char_literal_len` leaves
+every lifetime shape in the tree untouched, which the pre-existing control and
+three new ones assert.
+
+**Independent re-runs.**
+
+| what | result |
+|---|---|
+| `just check` after all repairs | exits 0, 301 tests (was 293), no compiler warning |
+| marker deleted from `app.slint` | `the_degradation_marker_is_present_only_when_the_body_is_degraded` fails at `tree.rs:189`; reverted |
+| `[package].name` set to `goad-habits` | `no_member_manifest_names_the_users_domain_in_its_own_crate_name` fails naming the word and the manifest; reverted |
+| every accessible accessor on a live `StyledText` | all four `None`; the sibling `Text` returns its content |
+| fourteen `code_of` inputs, both directions | all as expected; the one remaining miss is D13's named cost one |
+| `./target/debug/goad a b` and a missing config path | both print `goad: …` on stderr and exit 2 |
+
+`git status --short` is `M flake.lock` only. Two stashes on the stack, untouched.
+Nothing committed.
 
 ## Synthesis
 
@@ -967,3 +1187,40 @@ filesystem and no runtime, so the residue is real and currently harmless.
 `just check` under `nix develop`, exits 0 with 293 tests passing and no source
 file missing from the archive.
 
+**Round 2, raiser's synthesis** — 2026-09-05.
+
+**No blockers, and none were ever raised.** Both majors are closed. F-1's
+degradation chain now runs end to end — the glass writes `body-degraded`, the
+markup draws a marker exactly when it is set, and deleting either end turns a
+test red — where in round 1 the whole body path could be deleted without the
+suite noticing. F-2's precondition is observed rather than slept, so the gate no
+longer carries a race. The three minors that were `fix-now` are closed and, in
+two cases, closed harder than asked: F-4 fixes the lexer instead of documenting
+the blind spot, and F-10 recurses instead of asserting flatness.
+
+**What is left standing.** One residual inside a verified finding: the shipped
+markup's `text: root.body` binding can be severed without any test noticing,
+because `i-slint-backend-testing` 1.17.1 exposes no accessor on a `StyledText`
+element and the language has no `styled-text`-to-`string` conversion to build
+one. I verified that ceiling directly. Closing it needs a production property
+whose only purpose is to be tested, which is the worse trade; so AC-9's "the
+degradation is reported" is held by test and "is still shown" is held to the
+property boundary and argued for the last hop. That is the honest statement of
+where the renderer's evidence stops.
+
+**What awaits the user: three decisions, none of them urgent.** F-5, whether the
+production runtime topology earns a regression test in `closing.rs` — the code
+is correct there today, verified by reproduction; only the guard is missing.
+F-6, whether to drop `named` from two `Refused` variants and amend the design's
+declared shape, or to render it and amend two pinned sentences; both the
+responder and I would drop the field. F-7, now split: `report_startup`'s exact
+string and exit code can be asserted by running the built binary with no
+production change at all, which is a `fix-now`; only `report_platform` needs a
+new sink seam and needs endorsement.
+
+**The five invariants stand where round 1 left them, with invariant 1 better
+held than before.** The vocabulary scan now reads each member's crate name as
+well as its sources, closing the one surface AC-14 named and nothing checked,
+and its comment cut no longer loses a line to a char literal. Nothing in the
+repairs touched production behaviour: `crates/goad/src` is byte-identical to the
+commit round 1 reviewed apart from one word in a doc comment.
