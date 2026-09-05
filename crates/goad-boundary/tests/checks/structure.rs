@@ -27,21 +27,35 @@ struct Occurrence {
   line: usize,
 }
 
-/// Every `.rs` file directly under `SUBJECT_DIR`, sorted so a failure reads
-/// the same way twice. Non-recursive — the directory is flat today
-/// (`find crates/goad/src -type f`, measured) — so a subdirectory arriving
-/// unscanned is a defect the next `git ls-files` diff surfaces, not a silent
-/// gap.
+/// Every `.rs` file under `SUBJECT_DIR`, at any depth, sorted so a failure
+/// reads the same way twice. Recursive (F-10, review-code 002 round 1): the
+/// directory being flat today is not a build-checked fact, only a fact a
+/// human happened to measure, and `ADR-001`'s Verification section is
+/// explicit about not trusting that arrangement — a second
+/// `quit_event_loop` under a subdirectory must not leave every assertion
+/// below passing on a count of one it never saw.
 fn subject_files() -> Vec<PathBuf> {
   let dir = workspace_root().join(SUBJECT_DIR);
-  let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
-    .unwrap_or_else(|error| panic!("{}: {error}", dir.display()))
-    .filter_map(Result::ok)
-    .map(|entry| entry.path())
-    .filter(|path| path.extension().and_then(std::ffi::OsStr::to_str) == Some("rs"))
-    .collect();
+  let mut files = Vec::new();
+  walk_rs_files(&dir, &mut files);
   files.sort();
   files
+}
+
+/// The recursion `crate::scan::Scan::walk` demonstrates, restated here
+/// rather than reused: that walk is private, and coupled to `Scan`'s own
+/// token-breach collection — this one only lists paths.
+fn walk_rs_files(dir: &Path, files: &mut Vec<PathBuf>) {
+  for entry in std::fs::read_dir(dir).unwrap_or_else(|error| panic!("{}: {error}", dir.display())) {
+    let path = entry
+      .unwrap_or_else(|error| panic!("{}: {error}", dir.display()))
+      .path();
+    if path.is_dir() {
+      walk_rs_files(&path, files);
+    } else if path.extension().and_then(std::ffi::OsStr::to_str) == Some("rs") {
+      files.push(path);
+    }
+  }
 }
 
 fn production_lines(path: &Path) -> Vec<(usize, String)> {
@@ -78,6 +92,26 @@ fn report(found: &[Occurrence]) -> String {
     .map(|occurrence| format!("{}:{}", occurrence.path.display(), occurrence.line))
     .collect::<Vec<_>>()
     .join("\n")
+}
+
+/// F-10 (review-code 002, round 1), the presence half E-1 pairs with the
+/// vacuity guard below: a `.rs` file one directory down is found, not just
+/// one directly under the root — proving the walk actually descends rather
+/// than merely being written to.
+#[test]
+fn the_walk_descends_into_a_subdirectory() {
+  let root = workspace_root().join("crates/goad-boundary/tests/fixtures/structure");
+  let mut files = Vec::new();
+  walk_rs_files(&root, &mut files);
+  assert!(
+    files.iter().any(|path| path.ends_with("nested/marker.rs")),
+    "found:\n{}",
+    files
+      .iter()
+      .map(|path| path.display().to_string())
+      .collect::<Vec<_>>()
+      .join("\n")
+  );
 }
 
 /// The guard: a scan of a renamed-away directory finds nothing and would

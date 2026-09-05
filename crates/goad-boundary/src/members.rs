@@ -1,6 +1,9 @@
 //! Every `workspace.members` entry, read from the root manifest — who the
 //! vocabulary scan applies to (`crate::scan`), enumerated rather than
-//! hand-listed so a new member cannot arrive unscanned (D13, D17).
+//! hand-listed so a new member cannot arrive unscanned (D13, D17). Also a
+//! member's own `[package].name` — the crate name AC-14 names as a covered
+//! surface, and the one part of that name no scanned `.rs`/`.slint` file is
+//! obliged to repeat (F-3, review-code 002 round 1).
 
 use std::path::{Path, PathBuf};
 
@@ -62,4 +65,33 @@ pub fn members(root_manifest: &Path) -> Result<Vec<PathBuf>, Vec<Breach>> {
   } else {
     Err(breaches)
   }
+}
+
+/// A member's own `[package].name`, out of its manifest's already-read text
+/// — text in, not a path read internally, the same shape
+/// `crate::manifest::unpermitted` takes, so a fixture can supply literal
+/// text with no file on disk.
+///
+/// # Errors
+///
+/// An unparsable manifest, or one with no `[package].name`, is a breach
+/// rather than a panic: this is library code, and a manifest's shape is not
+/// this crate's to assume (D17).
+pub fn crate_name(manifest: &Path, text: &str) -> Result<String, Breach> {
+  let table: toml::Table = text
+    .parse()
+    .map_err(|error: toml::de::Error| Breach::Unreadable {
+      path: manifest.to_owned(),
+      error: error.to_string(),
+    })?;
+  table
+    .get("package")
+    .and_then(toml::Value::as_table)
+    .and_then(|package| package.get("name"))
+    .and_then(toml::Value::as_str)
+    .map(str::to_owned)
+    .ok_or_else(|| Breach::Unreadable {
+      path: manifest.to_owned(),
+      error: "no [package].name".to_owned(),
+    })
 }

@@ -239,8 +239,11 @@ pub fn mentions(line: &str, token: &str) -> bool {
 /// `"` (a plain string), an `r` opening a raw string (`r"…"`, `r#"…"#`, …), a
 /// `//` (the rest of the line is a comment), or a `/*` (a block comment). A
 /// plain string ends at an unescaped `"`; a raw string ends at a `"` followed
-/// by exactly as many `#`s as it opened with. `'` is never a delimiter,
-/// because in Rust it opens a lifetime (`&'static str`) as often as a char.
+/// by exactly as many `#`s as it opened with. `'` opens a string state only
+/// when it closes a char literal three or four bytes later (`char_literal_len`)
+/// — `'"'`, `'\''`, `b'"'` — so a quote inside one cannot be mistaken for a
+/// string's own open quote; otherwise it is a lifetime (`&'static str`) and
+/// is skipped, not a delimiter (F-4, review-code 002 round 1).
 ///
 /// Ending a line still inside a string returns the line intact — an
 /// unterminated string is content, and content is scanned. A block comment
@@ -261,6 +264,14 @@ pub fn mentions(line: &str, token: &str) -> bool {
 /// `r"` is recognised in `.slint` too, where the construct does not exist,
 /// which is inert there; and an all-caps compound has no case boundary for
 /// `mentions` to split on.
+///
+/// A fifth cost stood here unnamed (F-4, review-code 002 round 1): a char
+/// literal holding a quote (`'"'`, `b'"'`, `'\''`) desynchronised the cut —
+/// the *next* real string's opening quote was read as a spurious close,
+/// re-entering `Code` inside that string, and a `//` there truncated the
+/// line early. It is now closed, not merely named: `char_literal_len` gives
+/// `'` a fifth transition, so it opens no string state when it closes a char
+/// literal three or four bytes later.
 pub fn code_of(line: &str) -> Cow<'_, str> {
   #[derive(Clone, Copy)]
   enum State {
@@ -285,6 +296,14 @@ pub fn code_of(line: &str) -> Cow<'_, str> {
         let hashes = raw_hash_count(bytes, i);
         state = State::RawStr(hashes);
         i += hashes + 2; // `r`, the hashes, the opening quote
+      }
+      State::Code if b == b'\'' => {
+        // A char literal's own quote is not a lifetime's `'` (F-4): skip
+        // past it whole, so the quote it carries cannot be mistaken for a
+        // string's opening one. A lifetime has no closing `'` at either
+        // offset a char literal's content leaves it at, so it falls
+        // through to the plain `i += 1` below, unconsumed.
+        i += char_literal_len(bytes, i).unwrap_or(1);
       }
       State::Code if b == b'/' && bytes.get(i + 1) == Some(&b'/') => {
         return finish(line, owned, copied_up_to, i);
@@ -360,6 +379,24 @@ fn raw_hash_count(bytes: &[u8], r_pos: usize) -> usize {
 /// a raw string opened with that many?
 fn closes_raw_string(bytes: &[u8], quote_pos: usize, hashes: usize) -> bool {
   (0..hashes).all(|offset| bytes.get(quote_pos + 1 + offset) == Some(&b'#'))
+}
+
+/// The byte length of a char literal opening at `bytes[at]` (a `'`), if this
+/// is one rather than a lifetime — `&'static`, `'a` — which has no closing
+/// `'` at either offset a literal's content leaves it at (F-4). Two shapes:
+/// an escape (`'\''`, `'\n'`) at four bytes, quote-backslash-char-quote; a
+/// single byte at three, quote-char-quote (`'"'`, `'x'`, and `b'"'`'s
+/// quoted half, the `b` itself being ordinary code one byte earlier). A
+/// multi-byte escape (`'\u{1F600}'`) or character is not one of the two
+/// shapes and is left as a lifetime — D13's cost, unchanged by this fix.
+fn char_literal_len(bytes: &[u8], at: usize) -> Option<usize> {
+  if bytes.get(at + 1) == Some(&b'\\') && bytes.get(at + 3) == Some(&b'\'') {
+    return Some(4);
+  }
+  if bytes.get(at + 1).is_some_and(|&c| c != b'\\') && bytes.get(at + 2) == Some(&b'\'') {
+    return Some(3);
+  }
+  None
 }
 
 fn is_singular_or_plural_of(word: &str, token: &str) -> bool {

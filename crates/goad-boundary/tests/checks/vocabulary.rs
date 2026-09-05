@@ -10,7 +10,7 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
-use goad_boundary::members::members;
+use goad_boundary::members::{crate_name, members};
 use goad_boundary::scan::{Breach, Scan, code_of, mentions, report, workspace_root};
 
 /// `slice-001.md:147`. Lower-case; the walk matches case-insensitively and by
@@ -55,6 +55,45 @@ fn no_workspace_member_names_the_users_domain() {
   for member in member_dirs {
     assert_clean(&domain_scan(member));
   }
+}
+
+/// F-3 (review-code 002, round 1): AC-14 names "crate name" as a covered
+/// surface, and a crate name lives in `Cargo.toml`, which `domain_scan`
+/// above never opens (`extensions: &["rs", "slint"]`). A member declared
+/// and depended on by manifest alone would otherwise carry no source-side
+/// obligation to repeat its own name.
+#[test]
+fn no_member_manifest_names_the_users_domain_in_its_own_crate_name() {
+  let root_manifest = workspace_root().join("Cargo.toml");
+  let member_dirs = members(&root_manifest).expect("the real workspace root has real members");
+  for member in member_dirs {
+    let manifest = workspace_root().join(&member).join("Cargo.toml");
+    let text = std::fs::read_to_string(&manifest)
+      .unwrap_or_else(|error| panic!("{}: {error}", manifest.display()));
+    let name = crate_name(&manifest, &text).unwrap_or_else(|breach| panic!("{breach}"));
+    for token in DOMAIN {
+      assert!(
+        !mentions(&name, token),
+        "{name:?} ({}) names the domain word {token:?}",
+        manifest.display()
+      );
+    }
+  }
+}
+
+/// Positive control for the check above: a fixture manifest whose
+/// `[package].name` carries a forbidden word is caught the same way a real
+/// member's would be — never a file on disk, since `crate_name` takes text,
+/// not a path to read.
+#[test]
+fn a_forbidden_word_in_a_crate_name_is_caught() {
+  let text = "[package]\nname = \"goad-habits\"\n";
+  let name = crate_name(PathBuf::from("fixture/Cargo.toml").as_path(), text)
+    .expect("the fixture manifest has a `[package].name`");
+  assert!(
+    mentions(&name, "habit"),
+    "{name:?} must be caught as naming \"habit\""
+  );
 }
 
 /// A directory that exists and holds files, none of them `.rs` or `.slint`.
@@ -218,6 +257,29 @@ fn a_string_hides_no_token_that_follows_it_on_the_same_line() {
 fn a_same_line_block_comment_is_cut_and_a_lifetime_opens_no_string() {
   assert!(!mentions("/* habit */ let x = 1;", "habit"));
   assert!(!mentions("let x: &'static str = \"ok\"; // habit", "habit"));
+}
+
+/// F-4 (review-code 002, round 1): a char literal holding a quote used to
+/// desynchronise the cut — the *next* real string's opening quote was read
+/// as this one's spurious close, re-entering `Code` inside that string, so
+/// a `//` there truncated the line early and hid what followed. Each fixture
+/// is the reviewer's own evidence, restated as a control: `mentions` must
+/// still reach the token past the char literal, on both sides of it.
+#[test]
+fn a_char_literal_holding_a_quote_does_not_desynchronise_the_cut() {
+  for (line, token) in [
+    (r#"let q = '"'; let s = "//"; let habit = 1;"#, "habit"),
+    (r#"if b == b'"' { let s = "//"; let site = 1; }"#, "site"),
+    (r#"let q = '\''; let s = "//"; let habit = 1;"#, "habit"),
+  ] {
+    assert!(
+      mentions(line, token),
+      "{line:?} should have caught {token} past the char literal"
+    );
+  }
+  // The false-positive direction the same defect opened: a real `//`
+  // comment, past a char literal, must still be cut.
+  assert!(!mentions(r#"let q = '"'; // the call sites"#, "site"));
 }
 
 /// The reason `code_of` returns `Cow` rather than `&str`: an interior block

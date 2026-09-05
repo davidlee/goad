@@ -172,17 +172,17 @@ command, constructing an input, or reading the path end to end.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | | |
-| F-2 | major | | |
-| F-3 | minor | | |
-| F-4 | minor | | |
-| F-5 | minor | | |
-| F-6 | minor | | |
-| F-7 | minor | | |
-| F-8 | nit | | |
-| F-9 | nit | | |
-| F-10 | nit | | |
-| F-11 | nit | | |
+| F-1 | major | fix-now | |
+| F-2 | major | fix-now | |
+| F-3 | minor | fix-now | |
+| F-4 | minor | fix-now | |
+| F-5 | minor | \<proposed\> follow-up | |
+| F-6 | minor | \<proposed\> doc-wrong | |
+| F-7 | minor | \<proposed\> | |
+| F-8 | nit | fix-now | |
+| F-9 | nit | fix-now | |
+| F-10 | nit | fix-now | |
+| F-11 | nit | doc-wrong | |
 
 ### F-1 — the body and its degradation marker are drawn by markup nothing asserts
 
@@ -243,10 +243,65 @@ a known plain body reads that text back (`set_body(StyledText::from_plain_text
 round-tripped). Both are element-tree claims the query API already supports —
 `accessible_label` is what every other assertion in the file selects on.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Two tests added, and a documented residual.
+
+`tree.rs::the_degradation_marker_is_present_only_when_the_body_is_degraded`
+(`crates/goad/tests/renderer/tree.rs:167-193`) asserts the marker absent at
+`body_degraded(false)` and present at `body_degraded(true)`, both by
+`accessible_label` — the same pairing `the_diagnostic_empty_state_is_present_
+only_when_empty` uses. Break-and-revert below.
+
+The `accessible_label` predicate for the *body* half does not work: verified
+directly (`init_no_event_loop`, set a body, query
+`ElementQuery::from_root(&window).match_inherits("StyledText").find_first()`,
+call `.accessible_label()`) that it returns `None` regardless of content.
+Traced to source: `i-slint-compiler` 1.17.1's `lower_accessibility.rs::
+apply_builtin` only synthesizes a default `accessible-role`/`accessible-label`
+for `Text`, `TextInput` and `Image` — not for `StyledText` — and the
+language's `styled-text` type has no `Type::StyledText` member function or
+string conversion (`typeregister.rs`) to bind one by hand. Upstream's own
+`slint-1.17.1/tests/styled_text.rs` confirms the ceiling: it asserts
+`component.get_text() == greeting`, the property round trip, never an
+element's rendered content. So the raiser's own fallback —
+`get_body()` round-tripped — is what's actually implementable without
+touching `app.slint`.
+
+Added `wiring::body_content` (`crates/goad/tests/renderer/wiring.rs`,
+after `mod rows`): three tests drive a real view through
+`read_response` → `present` → `Glass::present` (not `Prepared::presentation`,
+which `mapper.rs`/`reception.rs` already cover) and read `window.get_body()`/
+`get_body_degraded()` off the window `SlintGlass` actually wrote —
+`a_plain_body_reaches_the_window_and_is_not_degraded`,
+`accepted_markdown_reaches_the_window_rich_and_is_not_degraded`,
+`rejected_markdown_reaches_the_window_as_plain_and_is_degraded`. This closes
+`glass.rs::styled`'s two live arms and the `body-degraded` flag end to end,
+which nothing previously exercised past `Prepared`.
+
+**Residual, not closed:** neither addition detects `app.slint`'s
+`StyledText { text: root.body; }` binding itself being severed.
+`PromptWindow::get_body()` reads the `in property` `set_body` wrote,
+independently of whether any element still binds to it — confirmed by
+re-running the break below. Closing that specific break needs either a new
+production property carrying the plain text alongside `body` (a design-shape
+change) or an `i-slint-backend-testing` capability that does not exist in
+1.17.1. I did not make an app.slint change beyond the break-and-revert itself,
+per the brief. Recommend `follow-up` once a fix is possible, or accepting the
+residual as `tolerated` with this rationale — the raiser's call.
+
+Break-and-revert, both re-run against the expanded suite (`nix develop
+--command cargo test -p goad --test renderer`):
+- Marker deleted (`if root.body-degraded: Text { text: "shown as plain text"; }`
+  removed): `the_degradation_marker_is_present_only_when_the_body_is_degraded`
+  **fails** — `"the marker must appear once the body is degraded"`. Goes red.
+- `text: root.body;` commented out: all 118 tests, including the three new
+  `body_content` ones, **still pass** — confirmed still green, the residual
+  above.
+
+Both breaks reverted; `git status --short crates/goad/ui/app.slint` is clean.
 
 **Outcome:**
+
 
 ### F-2 — item 14d's in-flight precondition is a bare 100 ms sleep, the exact race PL-17 repaired in 14a
 
@@ -285,8 +340,24 @@ duration is the only thing separating the shipped test from that failure, and
 `until(Duration::from_secs(1), || invocations(&log) >= 1).await;` — then
 `stopper.stop()`. Same three lines as `wiring.rs:1090-1094`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Applied exactly as prescribed
+(`crates/goad/tests/renderer/wiring.rs:1207-1219`, in
+`on_stop_a_command_queued_behind_the_exchange_is_left_unread`): the sleep is
+replaced with `until(Duration::from_secs(1), || invocations(&log) >= 1).await`
+ahead of `stopper.stop()`. The outer `run_until(async move { ... })` block
+lost its `move` (to `async { ... }`) so `log` is borrowed by the `until`
+closure rather than captured by value — it is still needed by the assertion
+after the block returns; the inner `tokio::task::spawn_local(async move
+{ ... })` keeps its own `move` and still takes ownership of `backend`,
+`controller`, `rx`, `cancel`, `glass` as before. No other line changed.
+
+There is no sleep left in this test for the 1 ms-shrink experiment to apply
+to — confirmed by grep: the only `tokio::time::sleep` remaining in
+`wiring.rs` is inside the `until` helper's own poll loop (`wiring.rs:145`, 5
+ms, unrelated to this precondition). Ran the test in isolation and inside the
+full `cancellation` module ten times (`cargo test -p goad --test renderer
+cancellation:: -- --test-threads=1`, looped): 30/30 pass.
 
 **Outcome:**
 
@@ -328,8 +399,21 @@ member manifest's `[package] name` inside `members()`, or narrow AC-14's
 sentence to drop "crate name". The first is four lines and keeps the criterion
 honest.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Added `goad_boundary::members::crate_name(manifest: &Path, text:
+&str) -> Result<String, Breach>` (`crates/goad-boundary/src/members.rs`) —
+text in, not a path read internally, the same shape
+`crate::manifest::unpermitted` already takes, so a fixture can supply literal
+text with no file on disk. Parses `[package].name`; an unparsable manifest or
+one with no name is a `Breach::Unreadable`, never a panic (library code).
+
+Test `vocabulary::no_member_manifest_names_the_users_domain_in_its_own_crate_
+name` (`crates/goad-boundary/tests/checks/vocabulary.rs:60-81`) reads every
+real workspace member's manifest and checks its `[package].name` against
+`DOMAIN` with `mentions`. Positive control,
+`a_forbidden_word_in_a_crate_name_is_caught` (`vocabulary.rs:83-96`): a
+fixture manifest text with `name = "goad-habits"` is caught naming "habit" —
+never a file on disk, matching `crate_name`'s text-in shape.
 
 **Outcome:**
 
@@ -375,8 +459,35 @@ D13, alongside the all-caps compound. The fuller one is a fifth transition —
 handles `'"'` and `b'"'` and still leaves `&'static` alone, since a lifetime has
 no closing quote at that offset.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Built the fuller fix, the fifth transition, not just the doc
+note — kept the four-state design, no lexer.
+
+`char_literal_len(bytes, at)` (`crates/goad-boundary/src/scan.rs:384-399`)
+gives the byte length of a char literal opening at a `'`, if it is one rather
+than a lifetime: an escape (`'\''`, `'\n'`) at four bytes
+(quote-backslash-char-quote), a single byte at three (`'"'`, `'x'`, and
+`b'"'`'s quoted half — the `b` itself is ordinary code one byte earlier).
+Neither shape matches a lifetime (`'a`, `'static`), which has no closing `'`
+at either offset, so it falls through unconsumed as before. Wired into
+`code_of` as a new `State::Code if b == b'\''` arm (`scan.rs:300-306`) ahead
+of the `//` and `/*` arms, consuming `char_literal_len(...).unwrap_or(1)`
+bytes without ever entering `State::Str`.
+
+Doc updated in place (`scan.rs:242-245`, `:260-275`) rather than D13 itself
+(design.md is out of scope this round): the "Four costs" list is unchanged,
+and a new paragraph states the fifth was open and is now closed, not merely
+named, naming `char_literal_len`.
+
+Positive controls, `vocabulary::a_char_literal_holding_a_quote_does_not_
+desynchronise_the_cut` (`crates/goad-boundary/tests/checks/vocabulary.rs:
+261-286`): the reviewer's own two false-negative fixtures (`'"'` and `b'"'`
+hiding `habit`/`site` behind a `"//"`), plus `'\''` doing the same, all now
+caught by `mentions`; and the false-positive fixture (`'"'; // the call
+sites`) still correctly cut as a comment. `cargo test -p goad-boundary --test
+checks vocabulary`: passes (this finding's own module; the whole-binary
+count is stated once, at the end of the ledger's Response note, since it
+moves as later findings' tests join it).
 
 **Outcome:**
 
@@ -433,8 +544,27 @@ then assert the heading before dispatching `CloseRequested`. That turns the
 file's existing claim into a true one at the cost of two lines and one
 instruction.
 
-**Disposition:**
-**Response:**
+**Disposition:** <proposed> follow-up — awaiting user endorsement
+**Response:** Not repaired here, per the brief: a test driving one exchange
+through the real production topology (multi-thread runtime, `runtime.enter()`
+held, `slint::spawn_local`, `run_event_loop_until_quit`) in the `event_loop`
+target is a new test tier this crate does not otherwise carry — every other
+test either runs headless with no event loop (`renderer`) or, per
+`closing.rs`'s own header, exercises the composition minus the part that
+actually drives an exchange. Adding it is a real flakiness surface (a real
+event loop, a real spawned process, real wall-clock scheduling) that the
+brief's dispositioning rule reserves for the user rather than a unilateral
+`fix-now`.
+
+Rationale for `follow-up` over `tolerated`: the reviewer's own reproduction
+shows the gap is real and cheap to close (their scratch binary already proves
+the shape works), so the risk is worth carrying forward as owned work rather
+than accepted permanently with no plan to close it. If endorsed, the
+follow-up note belongs in `slice-002.md`'s Follow-ups at close, in the shape
+the reviewer's Fix already gives: extend `closing.rs` to enqueue one
+`Command::Evaluate(Stimulus::Startup)` against
+`tests/backends/answers-as-instructed.sh` with a pinned view, assert the
+heading, then dispatch `CloseRequested`.
 
 **Outcome:**
 
@@ -480,8 +610,33 @@ from both variants, or render it — bounded, since it is a string the markup
 handed back. Dropping it is the smaller change and matches the sentences already
 pinned.
 
-**Disposition:**
-**Response:**
+**Disposition:** <proposed> doc-wrong — awaiting user endorsement
+**Response:** Changed nothing, per the brief. Both options, and my pick:
+
+- **Drop `named`** from `Refused::SupersededView`/`::UnknownOption`
+  (`diagnostics.rs:54,57`) and from the three construction sites in
+  `controller.rs::answer` (`:177-192`). Matches the two rendered sentences
+  design.md already pins (`:2186-2188`) exactly as they stand; the design's
+  own declared shape for the two variants (`:2082-2090`) is what would need
+  correcting to match.
+- **Render `named`**, bounded the way a markup-supplied string already is
+  elsewhere (R-14's label bound, say), in both sentences. Matches the
+  declared shape; the two pinned sentences (`:2186-2188`) are what would
+  need correcting.
+
+**My pick: doc-wrong, in the drop-the-field direction.** The design's two
+declared sentences are dated `:2186-2188`, after the field's own declaration
+at `:2082-2090` in the same document — nothing suggests the sentences are the
+stale half. And the asymmetry with `StateError::NoOutstandingView`
+(stratum 2, host-side) rendering its own `named` is not obviously a mistake:
+that error reaches a person positioned to act on a stale identifier (a
+backend integrator debugging a protocol mismatch), where `SupersededView`/
+`UnknownOption` are host-internal races a user cannot act on regardless of
+which id is named — "no action taken" is the whole of what matters to them.
+So I read this as the sentences being right and the field being the
+oversight, not the reverse. Held rather than fixed, since it is a design's
+declared shape and canon is amended only with explicit endorsement — never
+mid-slice on the responder's own initiative.
 
 **Outcome:**
 
@@ -522,8 +677,37 @@ crates/goad/src/glass.rs  crates/goad/src/diagnostics.rs  crates/goad/src/wire.r
 no new surface outside the crate. `report_platform` becomes `pub(crate)` in the
 same change.
 
-**Disposition:**
-**Response:**
+**Disposition:** <proposed> — awaiting user endorsement
+**Response:** Checked the prescribed fix against the actual visibility
+boundary, and it does not reach: `report_startup(error: &StartupError)` and
+`report_platform(detail: &str)` (`diagnostics.rs:296,313`) hardcode
+`std::io::stderr().lock()` internally — neither takes a sink at all, only
+`line_to` does, and `line_to` is a lower-level primitive with no
+`"goad: {error}"`/`"goad: the window could not be drawn: {detail}"`
+formatting of its own. A test that calls `line_to` directly with a
+hand-written expected string would test that `line_to` writes what it is
+given, not that `report_startup`/`report_platform` compute the right string
+— exactly the vacuous-test shape review brief item 9 warns against.
+
+Also: `pub(crate)` would not be reachable from where the brief says to put
+the test. `tests/renderer/startup.rs` is an integration test — a separate
+crate that already writes `use goad::diagnostics::{USAGE, print_usage};` —
+and `pub(crate)` items in `goad`'s lib crate are invisible across that crate
+boundary. Confirmed by the same pattern already established throughout this
+codebase: every existing seam these tests reach (`USAGE`, `print_usage`,
+`StartupError`, `arguments`) is `pub`, not `pub(crate)`, for exactly this
+reason.
+
+So this needs a real, if small, signature change to be testable at all,
+which the brief's own fallback covers: propose it and hold rather than
+`fix-now`. Smallest proposal: add `pub fn report_startup_to(sink: impl
+std::io::Write, error: &StartupError)` and `pub fn report_platform_to(sink:
+impl std::io::Write, detail: &str)`, each one line delegating to `line_to`;
+`report_startup`/`report_platform` become one-line callers of these with
+`std::io::stderr().lock()`, unchanged in their own signature and behaviour.
+Two new `pub` functions, additive, no existing string or signature disturbed
+— but new production surface, which is why I did not add it unilaterally.
+Changed nothing in `src/`.
 
 **Outcome:**
 
@@ -552,8 +736,30 @@ identical text, no shared constant, no test comparing them.
 call it, or lift the two sentences into `pub(crate) const`s there. The third arm
 (`"a view carrying {id}"`) is `harness.rs`'s alone and can stay.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Took the `const`-lift option's spirit rather than moving
+`describe_outcome` wholesale: PL-4 moved it to `harness.rs` specifically
+because `driving.rs`'s own callers stopped needing it, so moving it back
+would reopen that. Instead, extracted the two sentences `no_view` and
+`describe_outcome` actually share into one function, `driving.rs`'s own
+`no_view` renamed to `pub(crate) fn failure_or_nothing(outcome: &Outcome) ->
+String` (`tests/support/driving.rs:190-204`) — legitimately shared, since
+both files really do call it, unlike the third arm.
+
+`harness.rs::describe_outcome` (`crates/goad-shell/tests/integration/
+harness.rs:200-215`) now matches `(&outcome.failure, &outcome.view)`: its
+`(None, Some(presented))` arm keeps "a view carrying {id}" locally, and the
+`(_, _)` arm calls `crate::driving::failure_or_nothing(outcome)` — this
+preserves the original three-way match's exact precedence (a failure
+present, with or without a view, still reports the failure first) since
+`failure_or_nothing`'s own two arms are exactly the other two original
+sentences.
+
+`crate::driving::choice`/`presented` (`driving.rs:210-256`) call
+`failure_or_nothing` at their two former `no_view` call sites; no text
+changed. Ran both consumers: `cargo test -p goad-shell --test integration`
+(58 passed) and `cargo test -p goad --test renderer` (121 passed) — the
+second confirms `driving.rs`'s other consumer is unaffected.
 
 **Outcome:**
 
@@ -574,8 +780,8 @@ exchange`.
 
 **Fix:** one word.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** `crates/goad/src/clock.rs:12`: "PHASE-07's" → "PHASE-10's".
 
 **Outcome:**
 
@@ -604,8 +810,26 @@ descent, and no test asserting the directory is flat.
 demonstrates; or assert that `crates/goad/src` contains no subdirectory, so the
 premise fails loudly when it stops being true.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Recursed rather than asserting flatness — a walk that keeps
+working when a subdirectory arrives is stronger than one that refuses to
+run once it does. `subject_files()` now calls a new `walk_rs_files(dir,
+files)` (`crates/goad-boundary/tests/checks/structure.rs:29-59`), a small
+recursive descent restated locally rather than reusing `Scan::walk`:
+that method is private and coupled to `Scan`'s own token-breach collection,
+where this one only lists paths (checked directly — `walk` is not `pub`,
+so `crate::scan::Scan::walk` is not reachable from this test target at all).
+The prior non-vacuity control, `the_subject_directory_is_found_and_is_not_
+empty`, is unchanged.
+
+Added the presence half E-1 pairs with it:
+`the_walk_descends_into_a_subdirectory` (`structure.rs:96-115`) runs
+`walk_rs_files` against a new fixture,
+`crates/goad-boundary/tests/fixtures/structure/nested/marker.rs` (a `.rs`
+file one directory down), and asserts it is found — proving the recursion
+actually descends rather than only being written to, the same discipline
+the reviewer's own finding named. `cargo test -p goad-boundary --test
+checks structure`: 8 passed, 0 failed (up from 7).
 
 **Outcome:**
 
@@ -636,10 +860,59 @@ lib.rs main.rs reception.rs startup.rs view_model.rs wire.rs
 **Fix:** retitle the block `// crates/goad/src/diagnostics.rs` at design
 reconciliation.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Confirmed already tracked: `audit.md`'s *Design drift not
+reconciled* list already names this exact drift. Changed nothing here, per
+the brief — `design.md` is out of scope this round, and reconciliation is
+this project's own named later step, not mid-slice on the responder's
+initiative.
 
 **Outcome:**
+
+## Round 1 — response
+
+Responder's note, 2026-09-05. Six findings repaired (`fix-now`): F-2, F-3,
+F-4, F-8, F-9, F-10 — each verified green against the affected test
+binaries, and the workspace-wide gate (`just check`) re-run after all of
+them together, exiting 0. F-1 (`fix-now`) is repaired for the
+degradation-marker half and partially for the body-content half; a residual
+is documented in its own Response rather than hidden, since closing it fully
+hit a real limit in the testing library this repair could not lift without a
+production markup or property change outside the scope given.
+
+Three findings are held for the user rather than dispositioned unilaterally,
+each because the repair (or the only repair that actually closes the gap)
+would change something canon or the brief reserved to the user:
+
+- **F-5** (`<proposed> follow-up`) — the fix is a new test tier (a real event
+  loop, a real spawned process), which is a standing risk this project treats
+  as a call for the user, not the responder.
+- **F-6** (`<proposed> doc-wrong`) — both repairs (drop the field, or render
+  it) change a shape or a sentence `design.md` itself declares; I say which
+  I'd pick and why, but change nothing.
+- **F-7** (`<proposed>`, no doc-wrong/fix-now call made) — the prescribed
+  repair does not actually work as specified (the visibility level named is
+  unreachable from the crate the test would need to live in, and the two
+  functions in question take no sink to begin with), so this is a smallest-
+  signature-change proposal, not a disposition choice.
+
+One finding is disposed with no repair needed: **F-11** (`doc-wrong`) is
+already tracked in `audit.md`'s own drift list, so nothing further is added
+by this response.
+
+Test totals after every `fix-now` repair above, each binary run whole and
+each verified against the original commit (`git archive 226a923`, run
+unmodified, for the "was" figure — not estimated): `cargo test -p
+goad-boundary --test checks` — 32 passed (was 28: F-3 +2, F-4 +1, F-10 +1);
+`cargo test -p goad --test renderer` — 121 passed (was 117: F-1 +4 — the
+marker test plus three `body_content` tests; F-2 is a rewrite, no count
+change); `cargo test -p goad-shell --test integration` — 58 passed,
+unchanged (F-8 is a rewrite). `just check` exits 0.
+
+`#[expect]` count outside `generated.rs`: 0 (unchanged). No `#[allow]`
+introduced. No dependency added. `flake.lock` untouched by any of the
+above — its modification predates this response and is left exactly as
+found, per instruction.
 
 ## Synthesis
 

@@ -9,7 +9,7 @@ use goad_semantics::protocol::canonical::Timestamp;
 use std::time::SystemTime;
 
 /// A wall clock. A `fn` pointer, so it is `Copy`, `Send`, needs no trait and
-/// no lifetime — a test supplies a fixed instant in one line, and PHASE-07's
+/// no lifetime — a test supplies a fixed instant in one line, and PHASE-10's
 /// `serve` takes one of these rather than a `dyn Fn`.
 pub type Clock = fn() -> Result<Timestamp, ClockError>;
 

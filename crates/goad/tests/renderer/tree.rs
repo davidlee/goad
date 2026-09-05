@@ -164,3 +164,33 @@ fn the_diagnostic_empty_state_is_present_only_when_empty() -> TestResult {
   );
   Ok(())
 }
+
+/// F-1 (review-code 002, round 1). AC-9's degradation half: the "shown as
+/// plain text" marker is present exactly when `body-degraded` is set, and
+/// absent otherwise — the same presence/absence pairing E-1 requires,
+/// applied to `app.slint:37` rather than to the diagnostic empty state.
+///
+/// Broken by deleting `if root.body-degraded: Text { text: "shown as plain
+/// text"; }` from `ui/app.slint`: this test fails (the presence half, once
+/// `body_degraded` is true, finds nothing). Reverted after; output pasted
+/// in `notes.md`.
+#[test]
+fn the_degradation_marker_is_present_only_when_the_body_is_degraded() -> TestResult {
+  let window = window()?;
+  window.set_body_degraded(false);
+  assert!(
+    ElementHandle::find_by_accessible_label(&window, "shown as plain text")
+      .next()
+      .is_none(),
+    "the marker must not appear when the body is not degraded"
+  );
+
+  window.set_body_degraded(true);
+  assert!(
+    ElementHandle::find_by_accessible_label(&window, "shown as plain text")
+      .next()
+      .is_some(),
+    "the marker must appear once the body is degraded"
+  );
+  Ok(())
+}

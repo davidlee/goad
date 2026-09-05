@@ -677,6 +677,106 @@ mod rows {
   }
 }
 
+/// F-1 (review-code 002, round 1). AC-9's body half, driven through the
+/// full pipeline `mapper.rs` stops short of: `read_response` → `present` →
+/// `Glass::present`, read back off the window `SlintGlass` actually wrote
+/// to, not off `Prepared::presentation` (which `mapper.rs` and
+/// `reception.rs` already cover). Closes `glass.rs::styled`'s two live
+/// arms — `Body::Plain` and the accepted-markdown half of `Body::Rich` —
+/// and the `body-degraded` flag the marker in `tree.rs` reads.
+///
+/// Residual, recorded rather than hidden: this cannot detect
+/// `ui/app.slint`'s `StyledText { text: root.body; }` binding itself being
+/// severed — `PromptWindow::get_body()` reads the `in property` `set_body`
+/// wrote, independently of whether any element still binds to it, and
+/// `i-slint-backend-testing` 1.17.1 has no element-tree readback for a
+/// `styled-text`-typed element (`StyledText` gets no default
+/// `accessible-role`/`accessible-label`, unlike `Text`, and the language
+/// has no `styled-text`-to-`string` conversion to construct one — checked
+/// against the Slint compiler's `lower_accessibility.rs` and against
+/// upstream's own `styled_text.rs` test, which stops at the same property
+/// round trip). Closing that residual needs either a new production
+/// property (a design-shape change) or an upstream capability that does
+/// not exist today; left for the ledger rather than papered over.
+mod body_content {
+  use goad::controller::{Controller, Exchanged};
+  use goad::glass::Glass;
+  use slint::StyledText;
+
+  use super::{TIMEOUT, glass_over, host, now, quiet_event, scripted, window_and_tray};
+
+  const A_PLAIN_BODY: &str = r#"{"view":{"kind":"choice","title":"T","options":[{"id":"ok","label":"OK"}],"body":{"kind":"text","value":"a plain body"}},"next_check":"45 minutes"}"#;
+  const AN_ACCEPTED_MARKDOWN_BODY: &str = r#"{"view":{"kind":"choice","title":"T","options":[{"id":"ok","label":"OK"}],"body":{"kind":"markdown","value":"**bold**"}},"next_check":"45 minutes"}"#;
+  /// U+E541 is Slint's private-use interpolation placeholder (mapper.rs's
+  /// `rejected_markdown_degrades_to_plain_and_is_reported_undrawn`):
+  /// `StyledText::from_markdown` rejects it, so the body degrades to plain.
+  const A_REJECTED_MARKDOWN_BODY: &str = "{\"view\":{\"kind\":\"choice\",\"title\":\"T\",\"options\":[{\"id\":\"ok\",\"label\":\"OK\"}],\"body\":{\"kind\":\"markdown\",\"value\":\"\u{e541}\"}},\"next_check\":\"45 minutes\"}";
+
+  /// A plain body reaches the window unchanged, and is never reported
+  /// degraded.
+  #[tokio::test]
+  async fn a_plain_body_reaches_the_window_and_is_not_degraded() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("body-content-plain", &[A_PLAIN_BODY]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
+
+    assert_eq!(
+      window.get_body(),
+      StyledText::from_plain_text("a plain body")
+    );
+    assert!(!window.get_body_degraded());
+  }
+
+  /// Markdown the parser accepts is retained rich, and is not degraded.
+  #[tokio::test]
+  async fn accepted_markdown_reaches_the_window_rich_and_is_not_degraded() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("body-content-rich", &[AN_ACCEPTED_MARKDOWN_BODY]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
+
+    assert_eq!(
+      window.get_body(),
+      StyledText::from_markdown("**bold**").expect("this markdown must parse")
+    );
+    assert!(!window.get_body_degraded());
+  }
+
+  /// Markdown the parser rejects still reaches the window, as literal
+  /// text, and `body-degraded` is written `true` — the property `tree.rs`'s
+  /// marker test reads.
+  #[tokio::test]
+  async fn rejected_markdown_reaches_the_window_as_plain_and_is_degraded() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("body-content-degraded", &[A_REJECTED_MARKDOWN_BODY]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
+
+    assert_eq!(
+      window.get_body(),
+      StyledText::from_plain_text("\u{e541}"),
+      "a rejected body still reaches the window, as literal text"
+    );
+    assert!(window.get_body_degraded());
+  }
+}
+
 /// VT-2 — item 11b, the row AC-6 turns on (F-14). A successful `respond`
 /// with `view: None` closes the interaction and the window goes away; a
 /// successful `evaluate` with `view: None` while an interaction is
@@ -1109,11 +1209,14 @@ mod cancellation {
 
     let local = LocalSet::new();
     let served = local
-      .run_until(async move {
+      .run_until(async {
         let handle = tokio::task::spawn_local(async move {
           serve(backend, controller, rx, cancel, stub_clock, glass).await
         });
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Observed rather than assumed in flight, the same repair PL-17
+        // recorded for VT-10 above (F-2, review-code 002 round 1): this
+        // precondition previously rested on a bare 100 ms sleep.
+        until(Duration::from_secs(1), || invocations(&log) >= 1).await;
         stopper.stop();
         handle.await.expect("serve must not panic")
       })
