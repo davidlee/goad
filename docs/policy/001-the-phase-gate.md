@@ -1,21 +1,7 @@
-# POL-NNN: The phase gate
+# POL-001: The phase gate
 
 **Status:** required
 **Date:** 2026-09-05
-
-> **DRAFT.** This is slice 002's draft of new canon, held in the slice folder
-> under `docs/AGENTS.md` *"Canon that does not exist yet, or must change"*. It is
-> **not canon**: it is numbered `POL-NNN` until promotion, it is the slice's
-> working authority for the duration, and nothing outside slice 002 may cite it.
-> It is promoted to `docs/policy/NNN-the-phase-gate.md` at audit, with explicit
-> user endorsement, and recorded in `audit.md`'s Reconciliation table. If it is
-> not promoted it is abandoned in writing.
->
-> Drafted from `docs/templates/policy.md` rather than from `docs/templates/spec.md`:
-> AGENTS.md names `draft-spec.md` because it assumes new canon is a
-> specification, and this new canon is a policy. The rule that matters — new
-> canon is drafted in the slice folder from its governing template, never
-> written into `docs/` mid-slice — is honoured (review `F-24`).
 
 ## Statement
 
@@ -126,9 +112,10 @@ commands as every other.
 The gate verifies itself: it exits 0 or it does not. What each command holds, and
 what it does not, is the part that must not be overstated.
 
-**The count is three things, not one number**, and no document may merge them:
-**four ADR-001 instruments**, plus **the domain-vocabulary check**, plus **one
-residue nothing enforces**.
+**The count follows `docs/slices/002/design.md` §5.1's counting rule**, and no
+document may merge its parts into a single number: **four ADR-001
+instruments**, plus **the domain-vocabulary check**, plus **one residue
+nothing enforces**.
 
 **The four ADR-001 instruments.** They hold four different parts of ADR-001's
 one-way-strata rule, and their sum is not "purity, enforced":

@@ -1,6 +1,6 @@
 # ADR-002: The host stays one crate until a renderer or a second binary arrives
 
-**Status:** accepted
+**Status:** superseded by ADR-003
 **Date:** 2026-08-23
 
 ## Context
@@ -91,6 +91,11 @@ are chosen when the split happens, with the code in view.
 
 - Nothing here changes what slice 001 builds. It changes only whether the
   strata are enforced by the compiler or by review.
+
+T1 fired in slice 002, on grounds this ADR did not name — its own stated reason
+("a build-dependency with a conditional `build.rs` cannot be gated as cleanly")
+is measurably false. See ADR-003, which supersedes this ADR and records both the
+split taken and the correction.
 
 ## Verification
 

@@ -1,7 +1,15 @@
 # Canon delta — Slice 002
 
-**Status: drafted, not applied.** Applied during audit and reconciliation, with
-explicit user endorsement, and recorded in `audit.md`'s Reconciliation table.
+**Status: applied.** Every entry below (CD-1…CD-7) was applied to the documents
+it names on 2026-09-05, under the user's endorsement recorded at `plan-log.md`
+PL-18, and each is recorded in `audit.md`'s Reconciliation table: CD-1 and CD-2
+landed as `docs/adr/003-the-host-splits-into-a-workspace-of-strata.md`, with
+`docs/adr/002-single-crate-until-triggered.md`'s status changed to superseded;
+CD-3 and CD-4 landed in `docs/specs/001-host-backend-protocol.md`; CD-5, CD-6
+(no wording change needed) and CD-7 landed in `CLAUDE.md`; and
+`draft-policy.md` (see below) was promoted to `docs/policy/001-the-phase-gate.md`
+as POL-001. This file is left in place as the slice's record of what was
+promoted — it is not itself canon.
 
 Changes this slice makes to canon that **already exists**. New canon is drafted
 in the slice folder from its governing template, not here — this slice's new

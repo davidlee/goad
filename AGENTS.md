@@ -61,19 +61,24 @@ convention.
 | for | read |
 |---|---|
 | what the product is for, and the protocol as briefed | `docs/brief.md` |
-| why the code is shaped as it is | `docs/adr/` — one-way strata, single crate until triggered |
+| why the code is shaped as it is | `docs/adr/` — one-way strata; the host as a workspace of strata (ADR-003, superseding ADR-002) |
 | the normative protocol contract | `docs/specs/` — SPEC-001, the host/backend interaction protocol: wire formats, scheduling, interaction identity, the process transport, the failure taxonomy |
 | how work is done here | `docs/AGENTS.md` |
 
 ## Verifying
 
-`just check` is the gate — build, both test tiers, the example typecheck, clippy
-in **both** feature columns, and a format check. Nothing is green until it exits
-0, and a matrix checked in one column is unchecked.
+`just check` is the gate — build, both test tiers, the example typecheck, a
+lint pass, and a format check. Nothing is green until it exits 0.
 
 `just -n check` prints the sequence. The command block in
-`docs/slices/001/design.md` §9 is canonical and the `justfile` mirrors it:
-change §9 first, then the recipe.
+`docs/policy/001-the-phase-gate.md` is canonical and the `justfile` mirrors it:
+change the policy first, then the recipe.
+
+What the gate holds is not one number: **four ADR-001 instruments**, plus **the
+domain-vocabulary scan**, which holds a different invariant from ADR-001's, plus
+**one residue nothing enforces**. `docs/policy/001-the-phase-gate.md` states
+each instrument's boundary; no document may compress the three into a single
+count of "purity, enforced".
 
 ## Environment
 
