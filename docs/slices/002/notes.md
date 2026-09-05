@@ -14,7 +14,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — the workspace invariant checks | **done** — gate green, three instruments each break-and-reverted independently, F-38 found and repaired | 2026-09-05 |
 | PHASE-03 — `crates/goad`, Slint, the markup and the element tree | **done** — gate green, A-4 measured (cold 26.258 s, warm median 2.128 s, band ≤120 s), F-39 found and repaired | 2026-09-05 |
 | PHASE-04 — the mapper and the tray rasteriser | **done** — gate green, `view_model.rs`/`diagnostics.rs` landed, 14 new tests, no findings, no STOP | 2026-09-05 |
-| PHASE-05 — the diagnostic surface and the reception seam | todo | 2026-09-05 |
+| PHASE-05 — the diagnostic surface and the reception seam | **done** — gate green (5.343 s), 35 new tests, `receive` confirmed the only `Outcome`-destructuring site, VA-2 break-and-revert pasted, no findings, no STOP | 2026-09-05 |
 | PHASE-06 — the controller, the fold, and the failure case table | todo | 2026-09-05 |
 | PHASE-07 — the glass, the wiring, and back-pressure | todo | 2026-09-05 |
 | PHASE-10 — `serve`, and the stop that drops the exchange | todo — **executes between PHASE-07 and PHASE-08**; ids are immutable, so the sequence is non-monotonic (PL-10) | 2026-09-05 |
@@ -1605,13 +1605,248 @@ exact post-repair expression as
   the design text itself is unreconciled — audit's *Design drift not
   reconciled*, alongside the PHASE-02/03 entries already there.
 
+### PHASE-05 — The diagnostic surface and the reception seam
+
+**Status:** done
+
+**Objective:** every fact an exchange produces has exactly one renderer and
+one place, the three display bounds are applied last and counted in
+characters, and `receive` is the only consumer of an `Outcome` in the
+process. `plan.md:1014-1115`.
+
+**Commit protocol:** one commit for the whole phase, made after the gate is
+green.
+
+**Entry criteria, verified before starting:**
+
+- EN-1 — `just check` under `nix develop`: exit 0, wall-clock **2.336 s**
+  (`build test test-stratum1 typecheck lint fmt-check`, all green). PHASE-04's
+  row in the Status table above reads `done`.
+- EN-2 — `crates/goad/src/view_model.rs` declares `pub struct Presentation`
+  (`view_model.rs:14`) and `pub enum Undrawn` (`view_model.rs:68`), both
+  public. Confirmed by reading the file.
+
+**Reading list**
+
+- `plan.md:1014-1115` (PHASE-05 entry), `plan.md:14-142` (six standing rules),
+  `plan.md:247-256` (DF-2 — `Prepared` lives in `reception.rs`, not
+  `controller.rs`; the map's reading would invert the phase order).
+- `design.md:2056-2663` — §5.4 *The diagnostic surface*, in full: the
+  `Reported`/`Refused`/`Diagnostics`/`tooltip`/`BUSY_NOTICE`/`TrayState` block
+  (`:2062-2076`), the one-pipeline-three-limits rule and the bound table
+  (`:2084-2122`), *the exact strings* (`:2124-2254`), the two outlets and
+  `line_to`/`report_platform` (`:2260-2323`; `print_usage`/`report_startup`/
+  `USAGE` are PHASE-08's), ordering/severity/retention (`:2425-2457`), *once,
+  exactly* (`:2459-477`).
+- `design.md:2609-2663` — *the shapes the lint table requires*, all nine
+  rules, rule 8 (the `Display` adapter, not a `String` accumulator) especially.
+- `design.md:2716-2731` — I-1, **I-2** (every `Undrawn` reaches the surface,
+  held structurally because `receive` is the only consumer of an `Outcome`).
+- `design.md:2825-2851` — A-2, the expectation budget (two spendable, S-1
+  fires on the third).
+- `design.md:2905-2944` — the STOP table, S-1…S-8, copied verbatim below.
+- `design.md:606-666` — the reception seam block: `receive`, `Received`,
+  `Prepared`, and why `receive` is the one consumption point.
+- `design.md:3803-3847` — §9 item 13, a–l, in full (the reception seam's
+  verification list) — transcribed into VT-1…VT-12 in `plan.md`, read
+  together.
+- `design.md:441-444` — the artifact-map rows: `reception.rs` carries
+  `receive, Received`; `diagnostics.rs` carries `Diagnostics, Refused`, the
+  two outlets, `tray_icon`. Per DF-2, `Prepared` is built here despite the
+  map listing it under `controller.rs` — the map loses that one row.
+- `docs/memory/a-bound-is-not-tested-at-the-bound.md` — VT-4's shape: name
+  the two implementations a bound test must tell apart before trusting the
+  assertion.
+- `plan-log.md:312-410` — PL-13 (criteria amended by their own execution,
+  the shape an amendment here would take), PL-14 (the STOP policy: an
+  executor that hits a STOP writes it up and returns a stop status; only the
+  orchestrator adjudicates continuing), PL-15 (an EX-3 amendment's shape).
+- Code read: `crates/goad/src/{lib.rs, diagnostics.rs, view_model.rs}` (all);
+  `crates/goad/tests/renderer/{main.rs, mapper.rs, tray.rs}` (style); `Outcome`,
+  `Failure` (`goad-shell/src/host.rs:41-96`); `BackendError`, `CleanupFailure`,
+  `StateError` (`goad-shell/src/error.rs:19-107`), with their `Display` impls
+  (`:188-220`, `:133-153`); `Discarded` and its `Display`
+  (`goad-semantics/src/protocol/normalize.rs:52-70`); `ScheduleError` and its
+  `Display` (`goad-semantics/src/error.rs:117-134`, `:194-214`); `Captured`
+  (`goad-shell/src/backend/transport.rs:74-78`). `Outcome` is confirmed not
+  `Clone`, and none of `Failure`/`CleanupFailure`/`Discarded`/`Captured`
+  derives `Clone` or `PartialEq` either — reducer code must consume, not copy.
+
+**Assumptions**
+
+- `Refused::UnknownOption` and `Refused::SupersededView`'s exact strings
+  (design.md's *exact strings* block) do not interpolate `named` — the field
+  exists on the variant but is not rendered by this reducer. Read literally
+  three times against the design text; not an oversight to "fix".
+- The capture-truncated sentence and the discard lines go through the same
+  compose→escape→bound(1024) pipeline as every other line, for uniformity —
+  the design says "every line is produced the same way" and neither string
+  is long enough or control-character-bearing enough for this to change
+  anything observable, so it costs nothing and avoids a second code path.
+- `line_to` and `report_platform` land now because `report_platform`'s only
+  caller (`SlintGlass`, PHASE-07) needs it and a `pub` item in a library is
+  not dead code; `print_usage`, `report_startup` and `USAGE` stay out
+  (PHASE-08's, per the design's own note).
+
+**STOP conditions — `design.md` §5.5, verbatim**
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). Two remain unspent |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | every element-tree assertion rests on it (A-3) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | shutdown is awaiting the exchange, which AC-12 forbids |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | A-7's evidence no longer covers the markup |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about |
+
+Only S-1 and S-8 are named as live for this phase (`plan.md:1112-1113`); the
+others are structurally unreachable here (no `.slint`, no element tree, no
+event loop, no new dependency need). Copied in full anyway, per the standing
+rule (`plan.md:14-142` item 3).
+
+**Task breakdown**
+
+1. Red: write `crates/goad/tests/renderer/reception.rs` against the not-yet-
+   existing `Diagnostics`/`Refused`/`receive` API, covering VT-1…VT-12 and
+   VA-2's break-and-revert. Declare `mod reception;` in
+   `tests/renderer/main.rs`.
+2. Green: extend `diagnostics.rs` with `Reported`, `Refused`, `Diagnostics`,
+   `tooltip`, `BUSY_NOTICE`, the escape `Display` adapter, `bound`, `line_to`,
+   `report_platform`, and the three limit consts. Write `reception.rs` with
+   `receive`, `Received`, `Prepared`. Add `pub mod reception;` to `lib.rs`.
+3. Refactor: re-read against the nine lint shapes and the *once, exactly*
+   table; run `cargo clippy --workspace --all-targets -- -D warnings` and
+   `cargo fmt --all` and repeat until clean.
+4. VA-2: break-and-revert — add a `.source()` walk to the reducer, confirm
+   VT-7 goes red, revert, paste both outputs into this sheet.
+5. `just check`, pasted. Grep confirming `receive` is the only `Outcome`
+   destructuring site in `crates/goad/src/`. Update Status table and Harvest.
+   Commit.
+
+**Results**
+
+- EX-1 — `diagnostics.rs` carries `Reported` (`:34-39`), `Refused` with its
+  three variants (`:49-57`), `Diagnostics` with private `lines`/`fault`
+  (`:63-66`), `of` (`:91`), `refused` (`:137`), `is_clear` (`:157`), `lines`
+  (`:162`), `state` (`:167`), `tooltip` (`:245`, a free fn beside the other
+  user-visible strings, per the design's own signature), `BUSY_NOTICE`
+  (`:264`), `line_to` (`:271`), `report_platform` (`:285`), and the `Escaped`
+  `Display` adapter (`:202-218`) — not a `String` accumulator.
+- EX-2 — the pipeline is compose → decode (stderr only, `from_utf8_lossy`,
+  `diagnostics.rs:125`) → escape (`Escaped`, `:239`) → bound last (`bound`,
+  `:224-232`, `chars().count()`). Limits: stderr 4096 (`STDERR_LIMIT`,
+  `:70`), every other line 1024 (`LINE_LIMIT`, `:73`), tooltip 120
+  (`TOOLTIP_LIMIT`, `:75`). VT-4/VT-6 below are the automated evidence.
+- EX-3 — every exact string transcribed verbatim from design.md §5.4 (the
+  refusal, cleanup, undrawn ×3, discard-passthrough, two stderr lines,
+  marker, four tooltip forms). VT-2, VT-9, VT-10 assert them; `Refused`'s
+  two field-less strings (`UnknownOption`/`SupersededView` do not interpolate
+  `named`) match the design's text exactly, checked three times against it.
+  *Once, exactly*: no `source()` walk anywhere in `diagnostics.rs` (grep
+  clean); VT-7 (below) is the test that would catch one added later.
+- EX-4 — ordering (failure, cleanup, undrawn, discarded, capture, stderr) is
+  `Diagnostics::of`'s literal statement order (`:102-127`); VT-2 asserts all
+  six at once. Severity — `state()` is `Fault` iff `fault`, set by every
+  branch but the two stderr ones (`:104,111,115,119`; unset at `:121-127`);
+  VT-3 asserts each in isolation plus stderr-alone. Retention is structural:
+  `Diagnostics` has no in-place mutator, only `of`/`refused`, so a caller can
+  only ever replace one wholesale — nothing to test beyond that absence.
+- EX-5 — `reception.rs` carries `receive` (`:50`), `Received` (`:31-45`),
+  `Prepared` (`:24-28`, per DF-2). Grep confirms `receive` is the only place
+  an `Outcome` is destructured in `crates/goad/src/`:
+  ```
+  $ grep -rn 'let Outcome\|Outcome {' crates/goad/src/
+  crates/goad/src/reception.rs:51:  let Outcome {
+  ```
+- EX-6 — `lib.rs` gained `pub mod reception;`, alphabetised by `cargo fmt`
+  between `generated` and `view_model`.
+- VT-1…VT-12 — all in `crates/goad/tests/renderer/reception.rs`, 35 tests
+  total, most tied to one item and a handful not tied to any single one —
+  `BUSY_NOTICE`'s exact string and `receive`'s pass-through fields.
+  VT-4's three bounds are each three tests (limit − 1,
+  limit, limit + 1), per `docs/memory/a-bound-is-not-tested-at-the-bound.md`:
+  the marker's *presence* and the kept prefix's *exact length* are asserted
+  separately, not "it looks truncated". VT-6's ordering test uses an
+  all-backslash stderr (every byte escapes to two characters) so the raw
+  byte length sits under the bound while the escaped length does not —
+  the assertion that fails if the bound were applied to bytes.
+  VT-7 (13g) covers both the `Discarded::Schedule` "once" case (`NotAString`
+  and a raw-carrying arm) and the `Failure::Backend(BackendError::Io)` case.
+- VA-1 — `just check` under `nix develop`, exit 0, wall-clock **5.343 s**:
+  ```
+  $ time just check
+  ...
+  cargo fmt --all --check
+
+  real  0m5.343s
+  user  0m5.321s
+  sys   0m1.004s
+  ```
+  53 tests in the `renderer` target (18 pre-existing + 35 new this phase), 0
+  failed.
+- VA-2 — break-and-revert on VT-7's `a_backend_io_failure_…` test. Added a
+  `source()` walk to the `failure` branch of `Diagnostics::of` (appending
+  every `BackendError::source()` in parentheses); the test went red:
+  ```
+  assertion `left == right` failed: "no action taken: backend I/O failed: goad-test-marker-boom (goad-test-marker-boom)"
+    left: 2
+   right: 1
+  ```
+  Reverted; the same test then passed:
+  ```
+  test reception::a_backend_io_failure_renders_the_os_message_once_and_not_again_from_source ... ok
+  ```
+  `git status --short` after the revert shows no stray edit in
+  `diagnostics.rs` beyond the phase's intended content (confirmed by
+  re-running `just check` clean, above).
+
+**Judgements**
+
+- **Rule 8's `Display` adapter is `Escaped`, materialised once via
+  `.to_string()` inside `finish`** (`diagnostics.rs:238-240`). This is not
+  the same restriction as "never build a `String`" — the design's own rule
+  is about the *accumulation* shape (`push_str(&format!(..))` /
+  `let _ = write!(..)`), not about ever calling `.to_string()` on a
+  `Display` value, which is how every `Display` impl in Rust is ultimately
+  consumed. Clippy's clean run under `-D warnings` is the check, not my
+  reading of the rule.
+- **`Refused::UnknownOption`/`SupersededView`'s `named` field is carried but
+  not rendered.** Read design.md's *exact strings* block (`:2124-2136`)
+  three times before writing `Diagnostics::refused` — neither of those two
+  template lines interpolates a value. Left as designed; not a phase-level
+  decision to make.
+- **The capture-truncated sentence and every discard line go through the
+  same `finish(..., LINE_LIMIT)` pipeline as the failure/cleanup/undrawn
+  lines**, per the phase-sheet assumption above. No divergent code path was
+  needed or added.
+- No STOP fired. S-1 (a third `#[expect]`) and S-8 (a new dependency) were
+  the only two named live for this phase; neither condition arose — no
+  `#[expect]` was added anywhere (`grep -rn '#\[expect' crates/goad/src/
+  crates/goad/tests/renderer/` on the touched files returns nothing), and no
+  `Cargo.toml` changed.
+
+**Findings:** none raised against `plan.md` or `design.md` this phase.
+
+**Carried forward, not this phase's to fix:**
+
+- The same carry-forwards PHASE-04 left: the stray `stash@{0}`, DF-1's
+  `tray_icon.rs` header comment, DF-6's `Scan`/`Breach` `Debug` derive
+  asymmetry, `Breach::Token`'s `Cow<'static, str>` drift from `design.md:3050`,
+  and `design.md:367`'s stale "`slint` with its testing feature" line — all
+  audit's *Design drift not reconciled*, unchanged by this phase.
+- `print_usage`, `report_startup` and `USAGE` remain unwritten — PHASE-08's,
+  per the design's own note (they need `StartupError`, landed with its
+  construction sites).
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-04 · the mapper-and-tray-rasteriser commit
-on `slice-002`
+**Fresh as of:** 2026-09-05 · PHASE-05 · the diagnostic-surface-and-reception-seam
+commit on `slice-002`
 
 ### Produced
 
@@ -1647,6 +1882,16 @@ on `slice-002`
 - `review-plan.md` round 3, F-38 (`Breach::Token`'s field type); `docs/slices/002/notes.md`
   §"AC-2's argument for `boundary.rs`" — the substantive-rewrite justification
   AC-2 obliges.
+- `crates/goad/src/diagnostics.rs` grew `Reported`, `Refused`, `Diagnostics`,
+  `tooltip`, `BUSY_NOTICE`, the `Escaped` `Display` adapter, `bound`,
+  `finish`, `line_to`, `report_platform` and the three limit consts — the
+  whole diagnostic surface except the tray rasteriser it already carried.
+  `crates/goad/src/reception.rs` — new file: `receive`, `Received`,
+  `Prepared` (DF-2's resolution: `Prepared` lives here, not in
+  `controller.rs`). `tests/renderer/reception.rs` — 35 new tests, all green,
+  zero new dependencies, zero `#[expect]` spent (A-2 still at two
+  spendable). `receive` confirmed by grep the only place an `Outcome` is
+  destructured in `crates/goad/src/`.
 
 ### Learned
 
@@ -1743,6 +1988,21 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   round-trips correctly through `json!({"value": source}).to_string()`; a
   raw `br#"..."#` literal would need the escaping done by hand and got nothing
   checked by the compiler.
+- **A bound test at an exact character count needs the pre-bound length
+  measured, not guessed.** To hit *limit − 1*/*limit*/*limit + 1* precisely
+  through a real reducer (rather than calling a private `bound` fn
+  directly), build the shortest instance of the fact once, measure its
+  *composed* length, then grow the one variable-length part (an ASCII
+  `ViewId`/stderr byte string, which adds one char per byte with no
+  escaping) by the difference. Generalises
+  `docs/memory/a-bound-is-not-tested-at-the-bound.md` from "name the two
+  implementations" to "measure the baseline instead of asserting it" —
+  worth folding into that memory file at audit.
+- **`i-slint-core-1.17.1`'s `StyledTextFromMarkdownError` genuinely joins
+  multiple parse errors with a real `\n`** — confirmed on contact with
+  `"# Heading\n\n> a quote"` (a heading plus a block quote), not merely read
+  from the source comment design.md cites. This is the corpus that exercises
+  the escaping rule's stated reason rather than a synthetic newline.
 
 ### Open
 
@@ -1758,9 +2018,11 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   str` there, `Cow<'static, str>` in the tree) — F-38, `verified`, not yet
   reconciled into the design text itself. Audit's *Design drift not
   reconciled*, alongside DF-6.
-- **A-1, A-3, A-4 discharged this phase; A-2's budget remains unspent** — no
-  hand-written renderer code exists yet that could need an `#[expect]`
-  outside the generated-code quarantine (PHASE-04 onward writes it).
+- **A-1, A-3, A-4 discharged at PHASE-03; A-2's budget remains unspent
+  through PHASE-05.** PHASE-04 and PHASE-05 both wrote hand-written renderer
+  code against the nine lint shapes and neither needed an `#[expect]`
+  outside the generated-code quarantine — the shapes are being applied as
+  design.md §5.4 predicted, not rediscovered.
 - **`design.md:367`'s member table still reads "`slint` with its testing
   feature."** F-39, `verified`, not yet reconciled into the design text.
   Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.

@@ -2,4 +2,5 @@
 // §5.1). One `pub mod` line per phase; ten at PHASE-08. No `main.rs` yet.
 pub mod diagnostics;
 pub mod generated;
+pub mod reception;
 pub mod view_model;
