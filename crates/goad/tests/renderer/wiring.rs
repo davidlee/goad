@@ -1,7 +1,10 @@
-//! design.md §9 item 11: the wiring surfaces reachable with no `serve` and
-//! no event loop — 11e (local refusals), 11f (the five DT transitions),
-//! 11g (back-pressure) and 11i (`busy` clearing). Items 11a-d, 11h and
-//! 14a-d are PHASE-10's, once `serve` exists (PL-10, plan.md:1217-1305).
+//! design.md §9 item 11: every wiring surface reachable with no component and
+//! no event loop is not this file's claim — 11e (local refusals), 11f (the
+//! five DT transitions), 11g (back-pressure) and 11i (`busy` clearing) are,
+//! and PHASE-07 built them with no `serve` and no loop. PHASE-10 adds item
+//! 11a-d and 11h (the reducer's seven rows and the one production `serve`,
+//! `mod rows`/`interaction`/`serving`) and item 14a-d (cancellation,
+//! `mod cancellation`) — the surfaces that need `serve` to exist.
 //!
 //! `#[cfg(test)]` on the declaration, not on the file, for the same reason
 //! every other module here carries it (`clippy::tests_outside_test_module`).
@@ -9,6 +12,7 @@
 use std::rc::Rc;
 use std::time::Duration;
 
+use goad::clock::ClockError;
 use goad::controller::{Controller, Exchanged, Surface};
 use goad::diagnostics::{BUSY_NOTICE, Refused};
 use goad::generated::{OptionRow, PromptWindow, Tray};
@@ -27,6 +31,21 @@ fn now() -> Timestamp {
   instant("2026-01-01T00:00:00Z")
 }
 
+/// A `Clock` (`fn() -> Result<Timestamp, ClockError>`) fixed to [`now`]. A
+/// plain top-level `fn`, not a closure: `Clock` is a `fn` pointer type
+/// (`clock.rs`), the same reason `serve` itself takes one rather than a
+/// `dyn Fn`. Shared by `mod serving` and `mod cancellation`, both of which
+/// call `serve` directly.
+#[expect(
+  clippy::unnecessary_wraps,
+  reason = "must match `Clock`'s `fn() -> Result<Timestamp, ClockError>` \
+    signature to be passed to `serve`; a test fixture never needs to \
+    exercise the error arm (test code, outside VA-3's src/-only budget)"
+)]
+fn stub_clock() -> Result<Timestamp, ClockError> {
+  Ok(now())
+}
+
 /// Two named options, so a `Choose` can name the wrong one (VT-5) or the
 /// right one, and so `busy`'s controls (VT-9) have something to be
 /// enabled or disabled.
@@ -36,6 +55,12 @@ const A_SECOND_VIEW: &str = r#"{"view":{"kind":"choice","title":"Still there?","
 /// A failure with no view — an unsupported protocol version, the same
 /// shape `table.rs`'s `UNSUPPORTED_VERSION` uses.
 const A_PROTOCOL_FAILURE: &str = r#"{"protocol":2,"view":null}"#;
+/// A successful exchange with nothing new to show — `table.rs`'s
+/// `ACCEPTS_A`, restated: `view: null` with no failure. What `view: null`
+/// means for the outstanding interaction depends on which entry point
+/// produced it (VT-2, AC-6) — this fixture is silent on that; the caller
+/// picks `evaluate` or `respond`.
+const CLEAN_NO_VIEW: &str = r#"{"view":null,"next_check":"90 minutes"}"#;
 
 fn window_and_tray() -> (PromptWindow, Tray) {
   init_no_event_loop();
@@ -401,5 +426,542 @@ mod busy {
     assert!(!window.get_busy());
     assert_eq!(accessible_enabled_of(&window, "yes"), Some(true));
     assert_eq!(accessible_enabled_of(&window, "no"), Some(true));
+  }
+}
+
+/// VT-1 — item 11a (AC-7). design.md §5.4's seven-row reducer table
+/// (`Exchanged`, whether a view came back, whether a failure came with it),
+/// each row's `Shift` read straight off `Controller::absorb`'s fold.
+///
+/// Rows 1-4 and 6 are driven by a real backend (`tokio::process::Command`);
+/// row 5 and row 7 are, per the design's own text, unreachable *through the
+/// controller* — the renderer's token and `Host`'s state are written in the
+/// same fold and cannot diverge — and are asserted on a constructed
+/// `Outcome`, still folded through the production `absorb`.
+mod rows {
+  use goad::controller::{Controller, Exchanged, Shift};
+  use goad_semantics::protocol::canonical::ViewId;
+  use goad_semantics::protocol::normalize::read_response;
+  use goad_shell::backend::transport::Captured;
+  use goad_shell::error::{BackendError, StateError};
+  use goad_shell::host::{Failure, Outcome, Presented};
+
+  use super::{
+    A_PROTOCOL_FAILURE, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, host, invocations, now, quiet_event,
+    scripted,
+  };
+
+  /// Row 1: either entry point, a view in hand, no failure — `Replaced`,
+  /// whatever was on the glass before is dropped whole.
+  #[tokio::test]
+  async fn row_1_a_view_in_hand_always_replaces() {
+    let (command, _log) = scripted("row-1", &[TWO_OPTIONS]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+
+    assert_eq!(shift, Shift::Replaced);
+    assert!(controller.frame().shown.is_some());
+  }
+
+  /// Row 2: `Evaluation`, no view, no failure — nothing to add, `Retained`.
+  #[tokio::test]
+  async fn row_2_an_evaluation_with_nothing_new_is_retained() {
+    let (command, _log) = scripted("row-2", &[CLEAN_NO_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+
+    assert_eq!(shift, Shift::Retained);
+    assert!(controller.frame().shown.is_none());
+  }
+
+  /// Row 3: `Answer`, no view, no failure — the answer was taken and there
+  /// is nothing further to show, so the interaction `Closed`.
+  #[tokio::test]
+  async fn row_3_an_answer_with_nothing_further_closes() {
+    let (command, _log) = scripted("row-3", &[TWO_OPTIONS, CLEAN_NO_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let presented = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, presented);
+    let view = controller
+      .frame()
+      .shown
+      .expect("a view must be retained")
+      .view_id
+      .as_str()
+      .to_owned();
+    let (view_id, answer) = controller
+      .answer(&view, "yes")
+      .expect("the retained option must answer");
+
+    let outcome = backend.respond(now(), view_id, answer).await;
+    let shift = controller.absorb(Exchanged::Answer, outcome);
+
+    assert_eq!(shift, Shift::Closed);
+    assert!(controller.frame().shown.is_none());
+  }
+
+  /// Row 4: `Evaluation`, no view, a failure — nothing to add and nothing
+  /// to blame the person for, `Retained`.
+  #[tokio::test]
+  async fn row_4_an_evaluation_with_a_failure_and_no_view_is_retained() {
+    let (command, _log) = scripted("row-4", &[A_PROTOCOL_FAILURE]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+
+    assert_eq!(shift, Shift::Retained);
+    assert!(controller.frame().shown.is_none());
+  }
+
+  /// Row 5: `Answer`, no view, `Failure::State` — not reachable through the
+  /// controller, because `answer()` refuses a stale or absent view before a
+  /// backend is ever contacted (that is `Refused::SupersededView`, a
+  /// renderer-local refusal, not this row). Constructed directly, still
+  /// folded through the production `absorb`, exactly as design.md directs.
+  #[tokio::test]
+  async fn row_5_an_answer_refused_by_host_state_is_retained_with_no_backend_contact() {
+    let (_command, log) = scripted("row-5", &[]);
+    let mut controller = Controller::new();
+    let outcome = Outcome {
+      view: None,
+      next_check: now(),
+      discarded: Vec::new(),
+      stderr: Captured::default(),
+      failure: Some(Failure::State(StateError::NoOutstandingView {
+        named: ViewId::new("row-5"),
+      })),
+      cleanup: None,
+    };
+
+    let shift = controller.absorb(Exchanged::Answer, outcome);
+
+    assert_eq!(shift, Shift::Retained);
+    assert_eq!(
+      invocations(&log),
+      0,
+      "row 5 is constructed, not driven — the backend is never spawned"
+    );
+  }
+
+  /// Row 6: `Answer`, no view, `Failure::Backend` — the same `Retained`
+  /// shift as row 5, from the other stratum (design.md: "one `Shift` and two
+  /// tests, because the diagnostics differ and item 11 must show both").
+  #[tokio::test]
+  async fn row_6_an_answer_with_a_backend_failure_and_no_view_is_retained() {
+    let (command, _log) = scripted("row-6", &[TWO_OPTIONS, A_PROTOCOL_FAILURE]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let presented = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, presented);
+    let view = controller
+      .frame()
+      .shown
+      .expect("a view must be retained")
+      .view_id
+      .as_str()
+      .to_owned();
+    let (view_id, answer) = controller
+      .answer(&view, "yes")
+      .expect("the retained option must answer");
+
+    let outcome = backend.respond(now(), view_id, answer).await;
+    let shift = controller.absorb(Exchanged::Answer, outcome);
+
+    assert_eq!(shift, Shift::Retained);
+    assert!(
+      controller.frame().shown.is_some(),
+      "the prior presentation stays"
+    );
+  }
+
+  /// Row 7: either entry point, a view **and** a failure together —
+  /// unreachable in production (`accept` never mints a view alongside a
+  /// failure), and written as `Replaced` rather than a panic on a value the
+  /// host itself produced. The view is a real parse of `TWO_OPTIONS`
+  /// (`read_response`, the same function a live exchange uses), not a
+  /// hand-built `Choice` — `Choice`'s fields are private to `canonical.rs`
+  /// on purpose (I14).
+  #[tokio::test]
+  async fn row_7_a_view_and_a_failure_together_still_replaces() {
+    let now = now();
+    let parsed =
+      read_response(TWO_OPTIONS.as_bytes(), now).expect("the fixture is a valid response");
+    let view = parsed
+      .value
+      .view()
+      .cloned()
+      .expect("the fixture carries a view");
+    let mut controller = Controller::new();
+    let outcome = Outcome {
+      view: Some(Presented {
+        view_id: ViewId::new("row-7"),
+        view,
+      }),
+      next_check: now,
+      discarded: Vec::new(),
+      stderr: Captured::default(),
+      failure: Some(Failure::Backend(BackendError::ExitStatus { code: Some(1) })),
+      cleanup: None,
+    };
+
+    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+
+    assert_eq!(shift, Shift::Replaced);
+    assert!(controller.frame().shown.is_some());
+  }
+}
+
+/// VT-2 — item 11b, the row AC-6 turns on (F-14). A successful `respond`
+/// with `view: None` closes the interaction and the window goes away; a
+/// successful `evaluate` with `view: None` while an interaction is
+/// outstanding leaves the question on screen. Both, in one test, or AC-6 is
+/// being asserted in the shape F-14 showed wrong.
+///
+/// VT-3 — item 11c. A failed `respond` keeps the window, and a retry on the
+/// same `ViewId` then succeeds.
+///
+/// VT-4 — item 11d (R-33). A `Choose` bearing a superseded view's token is
+/// refused with no backend contact and the invocation log unmoved; the
+/// negative control is the same sequence with no intervening `evaluate`,
+/// where the click is answered.
+mod interaction {
+  use goad::controller::{Controller, Exchanged, Shift, Surface};
+  use goad::diagnostics::Refused;
+
+  use super::{
+    A_PROTOCOL_FAILURE, A_SECOND_VIEW, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, host, invocations, now,
+    quiet_event, scripted,
+  };
+
+  /// VT-2 / AC-6, both halves.
+  #[tokio::test]
+  async fn view_null_follows_the_interaction_not_the_message() {
+    let (command, _log) = scripted("vt2", &[TWO_OPTIONS, CLEAN_NO_VIEW, CLEAN_NO_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    assert!(controller.frame().shown.is_some());
+
+    // Half one: an `evaluate` returning `view: null` while a question is
+    // outstanding leaves it exactly as it was.
+    let cleared = backend.evaluate(now(), quiet_event(now())).await;
+    assert_eq!(
+      controller.absorb(Exchanged::Evaluation, cleared),
+      Shift::Retained
+    );
+    assert_eq!(controller.frame().surface, Surface::Prompt);
+
+    // Half two: a `respond` returning `view: null` closes the interaction —
+    // the answer was taken and there is nothing further to show.
+    let view = controller
+      .frame()
+      .shown
+      .expect("half one must not have cleared it")
+      .view_id
+      .as_str()
+      .to_owned();
+    let (view_id, answer) = controller
+      .answer(&view, "yes")
+      .expect("the retained option must answer");
+    let closing = backend.respond(now(), view_id, answer).await;
+
+    assert_eq!(controller.absorb(Exchanged::Answer, closing), Shift::Closed);
+    assert_eq!(controller.frame().surface, Surface::Hidden);
+  }
+
+  /// VT-3.
+  #[tokio::test]
+  async fn a_failed_respond_keeps_the_window_and_a_retry_on_the_same_view_succeeds() {
+    let (command, _log) = scripted("vt3", &[TWO_OPTIONS, A_PROTOCOL_FAILURE, CLEAN_NO_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    let view = controller
+      .frame()
+      .shown
+      .expect("a view must be retained")
+      .view_id
+      .as_str()
+      .to_owned();
+
+    let (view_id, answer) = controller
+      .answer(&view, "yes")
+      .expect("the retained option must answer");
+    let failing = backend.respond(now(), view_id, answer).await;
+    assert_eq!(
+      controller.absorb(Exchanged::Answer, failing),
+      Shift::Retained
+    );
+    assert_eq!(
+      controller.frame().surface,
+      Surface::Prompt,
+      "the window stays after a failed respond"
+    );
+
+    let (retry_view_id, retry_answer) = controller
+      .answer(&view, "yes")
+      .expect("the same view answers again");
+    let succeeding = backend.respond(now(), retry_view_id, retry_answer).await;
+
+    assert_eq!(
+      controller.absorb(Exchanged::Answer, succeeding),
+      Shift::Closed,
+      "the retry succeeds"
+    );
+  }
+
+  /// VT-4, positive: the queued click names a view an intervening `evaluate`
+  /// has already superseded.
+  #[tokio::test]
+  async fn a_click_naming_a_superseded_view_is_refused_with_no_backend_contact() {
+    let (command, log) = scripted("vt4-positive", &[TWO_OPTIONS, A_SECOND_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let first = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, first);
+    let stale_view = controller
+      .frame()
+      .shown
+      .expect("a view must be retained")
+      .view_id
+      .as_str()
+      .to_owned();
+
+    // The intervening evaluate: a new view supersedes the one the queued
+    // click named.
+    let second = backend.evaluate(now(), quiet_event(now())).await;
+    let shift = controller.absorb(Exchanged::Evaluation, second);
+    assert_eq!(shift, Shift::Replaced);
+    let contacted_before = invocations(&log);
+
+    let refusal = controller
+      .answer(&stale_view, "yes")
+      .expect_err("a click naming a superseded view must be refused");
+    assert!(matches!(refusal, Refused::SupersededView { .. }));
+    controller.refuse(&refusal);
+
+    assert_eq!(
+      invocations(&log),
+      contacted_before,
+      "a superseded click must not reach the backend, and the invocation log must not advance"
+    );
+  }
+
+  /// VT-4, negative control: the same sequence with no intervening
+  /// `evaluate` — the click names the view that is still retained, and it is
+  /// answered.
+  #[tokio::test]
+  async fn the_negative_control_with_no_intervening_evaluate_the_click_is_answered() {
+    let (command, log) = scripted("vt4-negative", &[TWO_OPTIONS, CLEAN_NO_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let first = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, first);
+    let view = controller
+      .frame()
+      .shown
+      .expect("a view must be retained")
+      .view_id
+      .as_str()
+      .to_owned();
+    let contacted_before = invocations(&log);
+
+    let (view_id, answer) = controller
+      .answer(&view, "yes")
+      .expect("with no intervening evaluate the click answers the retained view");
+    let outcome = backend.respond(now(), view_id, answer).await;
+    let shift = controller.absorb(Exchanged::Answer, outcome);
+
+    assert_eq!(shift, Shift::Closed);
+    assert_eq!(
+      invocations(&log),
+      contacted_before + 1,
+      "the click did reach the backend"
+    );
+  }
+}
+
+/// VT-8 — item 11h. One `serve`, no duplicate: the test calls `serve` —
+/// the same function `main` wraps — so a loop-body change cannot pass here
+/// and fail in production.
+mod serving {
+  use goad::controller::{Controller, Ending, serve};
+  use goad::wire::{Cancel, Command, Stimulus};
+  use tokio::sync::mpsc;
+
+  use super::{
+    TIMEOUT, TWO_OPTIONS, glass_over, host, in_prompt_mode, now, scripted, stub_clock,
+    window_and_tray,
+  };
+
+  #[tokio::test]
+  async fn serve_drives_one_exchange_through_the_production_loop() {
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("vt8", &[TWO_OPTIONS]);
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(1);
+    tx.try_send(Command::Evaluate(Stimulus::Requested))
+      .expect("room in a fresh capacity-1 channel");
+    drop(tx); // closes the channel once the one command is dequeued
+
+    let served = serve(backend, controller, rx, Cancel::new(), stub_clock, glass).await;
+
+    assert_eq!(served.ending, Ending::Closed);
+    assert!(served.controller.frame().shown.is_some());
+    assert_eq!(window.get_heading(), "Proceed?");
+    assert!(in_prompt_mode(&window));
+  }
+}
+
+/// Item 14, cheap tier, with `serve` under `block_on` (design.md §5.4). What
+/// AC-12 can honestly observe is what the host holds; that the child is gone
+/// is explicitly **not** asserted (§5.4, R-48).
+///
+/// `serve`'s future is `!Send` (generic over `B` and `G`), so driving it
+/// concurrently with the test's own `Cancel::stop()` call needs
+/// `tokio::task::LocalSet` — `tokio::spawn` requires `Send` and does not
+/// apply here.
+mod cancellation {
+  use std::time::{Duration, Instant};
+
+  use goad::controller::{Controller, Ending, serve};
+  use goad::wire::{Cancel, Command, Stimulus};
+  use tokio::sync::mpsc;
+  use tokio::task::LocalSet;
+
+  use super::{TIMEOUT, glass_over, host, invocations, now, scripted, stub_clock, window_and_tray};
+
+  /// VT-10 — item 14a. With an exchange in flight against `@hang` and a
+  /// **2 s** configured timeout (`TIMEOUT`), tripping `Cancel` ends the task
+  /// in **under 250 ms**, measured from the `Cancel::stop()` call to `serve`
+  /// returning.
+  ///
+  /// VT-11 — item 14b, in the same run: `serve` **returns** a `Served`
+  /// (rather than the task hanging or panicking), so the exchange future was
+  /// dropped rather than abandoned unpolled.
+  #[tokio::test]
+  async fn tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout() {
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("vt10", &["@hang"]);
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(1);
+    tx.try_send(Command::Evaluate(Stimulus::Requested))
+      .expect("room in a fresh capacity-1 channel");
+    let cancel = Cancel::new();
+    let stopper = cancel.clone();
+
+    let local = LocalSet::new();
+    let (elapsed, served) = local
+      .run_until(async move {
+        let handle = tokio::task::spawn_local(async move {
+          serve(backend, controller, rx, cancel, stub_clock, glass).await
+        });
+        // Let the exchange actually start — the process spawned and past
+        // its first read — before tripping cancel. This is setup time, not
+        // part of the measured interval.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let start = Instant::now();
+        stopper.stop();
+        let served = handle.await.expect("serve must not panic");
+        (start.elapsed(), served)
+      })
+      .await;
+
+    // Measured (`notes.md`, PHASE-10 sheet): ~130-150 µs across repeated
+    // runs — three orders of magnitude under the 250 ms bound.
+    assert!(
+      elapsed < Duration::from_millis(250),
+      "cancellation took {elapsed:?}, which is not well under the 2 s timeout (S-5)"
+    );
+    assert_eq!(served.ending, Ending::Stopped);
+  }
+
+  /// VT-12 — item 14c. A stop request arriving in the same poll as a ready
+  /// command wins (`biased`), and a stop request that arrives *before*
+  /// `stopped()` is first awaited still ends the loop — the level-held
+  /// property a bare `Notify` lacks. Tripping `Cancel` **before** `serve` is
+  /// even called demonstrates both at once: the first `select!` sees a
+  /// tripped signal and a ready command together, and `stopped()`'s very
+  /// first poll already observes the trip.
+  #[tokio::test]
+  async fn a_stop_tripped_before_the_first_poll_wins_over_a_ready_command() {
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
+    let (command, log) = scripted("vt12", &[]);
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(1);
+    tx.try_send(Command::Evaluate(Stimulus::Requested))
+      .expect("room in a fresh capacity-1 channel");
+    let cancel = Cancel::new();
+    cancel.stop(); // tripped before `serve` is even called
+
+    let served = serve(backend, controller, rx, cancel, stub_clock, glass).await;
+
+    assert_eq!(served.ending, Ending::Stopped);
+    assert!(
+      served.controller.frame().shown.is_none(),
+      "the queued command was never processed"
+    );
+    assert_eq!(invocations(&log), 0, "the backend was never contacted");
+  }
+
+  /// VT-13 — item 14d. On `Ending::Stopped` the receiver's buffer is left
+  /// unread: a command queued **behind** the in-flight exchange produces no
+  /// further invocation.
+  #[tokio::test]
+  async fn on_stop_a_command_queued_behind_the_exchange_is_left_unread() {
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
+    let (command, log) = scripted("vt13", &["@hang"]);
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(2);
+    tx.try_send(Command::Evaluate(Stimulus::Requested))
+      .expect("room for the exchange's own command"); // starts the @hang exchange
+    tx.try_send(Command::Evaluate(Stimulus::Requested))
+      .expect("room for the one queued behind it"); // never dequeued
+    let cancel = Cancel::new();
+    let stopper = cancel.clone();
+
+    let local = LocalSet::new();
+    let served = local
+      .run_until(async move {
+        let handle = tokio::task::spawn_local(async move {
+          serve(backend, controller, rx, cancel, stub_clock, glass).await
+        });
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        stopper.stop();
+        handle.await.expect("serve must not panic")
+      })
+      .await;
+
+    assert_eq!(served.ending, Ending::Stopped);
+    assert_eq!(
+      invocations(&log),
+      1,
+      "the queued second command must never reach the backend"
+    );
   }
 }

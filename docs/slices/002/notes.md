@@ -17,7 +17,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-05 — the diagnostic surface and the reception seam | **done** — gate green (5.343 s), 35 new tests, `receive` confirmed the only `Outcome`-destructuring site, VA-2 break-and-revert pasted, no findings, no STOP | 2026-09-05 |
 | PHASE-06 — the controller, the fold, and the failure case table | **done** — gate green (7.608 s), 64 renderer tests (33-row table VT-1, 7 reducer-row VT-2, 2 `busy`-clearing VT-3), VA-2 break-and-revert pasted; `describe_outcome` moved `driving.rs` → `harness.rs` (review-code round 1), EX-7 amended `plan-log.md` PL-16, no STOP; A-2 spent one `#[expect]` on `stamp`'s `dead_code` | 2026-09-05 |
 | PHASE-07 — the glass, the wiring, and back-pressure | **done** — gate green (5.055 s), 9 new wiring tests (VT-5/6/7/9), VA-2 break-and-revert pasted, zero new `#[expect]` (one slot remains against S-1); no findings, no STOP | 2026-09-05 |
-| PHASE-10 — `serve`, and the stop that drops the exchange | todo — **executes between PHASE-07 and PHASE-08**; ids are immutable, so the sequence is non-monotonic (PL-10) | 2026-09-05 |
+| PHASE-10 — `serve`, and the stop that drops the exchange | **done** — gate green (7.705 s), 15 new renderer tests (rows ×7, interaction ×4, serving ×1, cancellation ×3), VT-10 cancellation measured ~130-150 µs against a 250 ms bound, zero `#[expect]` outside `generated.rs` (A-2's `stamp` slot given back); no findings, no STOP | 2026-09-05 |
 | PHASE-08 — startup, the entry point, and the event-loop tier | todo | 2026-09-05 |
 | PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | todo | 2026-09-05 |
 | audit | todo — CD-1…CD-7 and `draft-policy.md` are promoted here, with explicit endorsement, and nowhere earlier (`docs/AGENTS.md:38`) | 2026-09-05 |
@@ -2356,12 +2356,190 @@ Reverted; rerun: `test result: ok. 2 passed; 0 failed`.
 - DF-6, the `Breach::Token` type departure, and the `design.md:367`/artifact-map `controller.rs` staleness (all carried from PHASE-06) are unchanged by this phase — all audit's *Design drift not reconciled*.
 - `serve`, `Pending`, `Ending`, `Served`, `startup.rs`, `main.rs`, the `event_loop` target remain unwritten — PHASE-08/10's.
 
+### PHASE-10 — `serve`, and the stop that drops the exchange
+
+**Status:** in progress
+
+**Objective:** one loop both tiers call, and a stop request that drops the
+exchange it interrupts rather than waiting for it. `plan.md:1306-1394`.
+
+**PHASE-07 split in two at the seam its own objective stated (PL-10).**
+Executes **after PHASE-07 and before PHASE-08**; the id is 10 because ids are
+immutable. PHASE-07 landed everything `serve` composes (`glass.rs`,
+`install.rs`, `wire.rs`'s `Wire`/`Cancel`); this phase writes the loop.
+
+**Surfaces:** `crates/goad/src/{controller.rs, wire.rs}`,
+`crates/goad/tests/renderer/{main.rs, wiring.rs}`, `docs/slices/002/notes.md`.
+
+**Reading list** (path:line):
+
+- `docs/AGENTS.md:60-125` (*Phase plan* and *Execute*).
+- `docs/slices/002/plan.md:14-142` (overview, six standing rules),
+  `:1306-1394` (PHASE-10 itself). Gate authority is `draft-policy.md`;
+  `CLAUDE.md`'s gate text is stale (CD-5, CD-7).
+- `docs/slices/002/notes.md` — Status table; Harvest Produced/Learned/Open
+  through PHASE-07; the PHASE-07 sheet in full (`:2176-2357`) — the `stamp`
+  `cfg_attr(not(test), expect(dead_code))` wrapper and `controller.rs`'s
+  stale "PHASE-07's `serve`" comment, both flagged there as this phase's to
+  fix.
+- `docs/slices/002/design.md` §5.4 `:1512-1699` (`Exchanged` restated,
+  `Ending`, `Served`, `serve`'s full doc comment and signature, `Pending`,
+  its body verbatim — `select! { biased; }` in both places, `Pending` built
+  before the borrow, the exchange future built from it, `Served { ending,
+  host, controller, glass }` after the loop, `stamp`), `:1700-1745` (the
+  measured-not-reasoned paragraph, the three shape choices, `recv()`
+  polled in exactly one place, the `Stopped`-drops-the-buffer rule),
+  `:1745-1770` (`Cancel`'s doc, the four-source shutdown table, the
+  rejected `Shutdown`-command shape); §5.5 `:2716-2945` (I-1…I-5, A-1…A-7,
+  the STOP table, S-5 in particular, E-1…E-9 as cited); §9 `:3744-3949`
+  (item 11 in full — a, b, c, d, h — and item 14 in full — a, b, c, d, e,
+  f — the STOP table's own text at S-5).
+- SPEC-001 `docs/specs/001-host-backend-protocol.md:129` (R-33) and `:145`
+  (R-48).
+- `docs/slices/002/slice-002.md:161-163` (AC-6), `:202-204` (AC-12).
+- `docs/slices/002/review-design.md:930-949` (F-14 — AC-6 restated to
+  follow the interaction, not the message; both halves in one test).
+- `docs/slices/002/plan-log.md:234-259` (PL-10, the split), `:366-392`
+  (PL-14, the autonomous-run STOP policy), `:435-441` (PL-16, the pattern
+  for a `plan.md`-amendment log entry).
+- Code read in full: `crates/goad/src/{lib.rs, wire.rs, controller.rs,
+  glass.rs, install.rs, clock.rs}`. `crates/goad-shell/src/host.rs:100-175`
+  (`Host`, `evaluate`, `respond`, `WhenNothingToShow`).
+  `crates/goad/tests/renderer/wiring.rs` in full (existing helpers:
+  `window_and_tray`, `glass_over`, `in_diagnostic_mode`, `in_prompt_mode`,
+  `nothing_to_report_shown`, `accessible_enabled_of`, and the four VT-5/6/
+  7/9 modules' shape). `crates/goad/tests/renderer/table.rs:1-60` (the
+  `Host`-driving pattern, `Cohort`). `crates/goad/tests/renderer/main.rs`
+  in full. `tests/support/driving.rs` in full — `scripted`,
+  `logging_backend`, `invocations`, `host`, `choice`, `presented`,
+  `answer_first_option` already exist and need no change.
+  `tests/backends/answers-as-instructed.sh` in full: `@hang` is a real
+  instruction (`exec sleep 30`, PID to stderr) — the vehicle for VT-10, not
+  a separate script. `tests/backends/hangs-past-the-timeout.sh` read for
+  the `exec` argument (why a bare `sleep` would fork instead of exec).
+
+**Assumptions carried in:**
+
+- `serve`'s signature, `Pending`/`Ending`/`Served`, and the loop body are
+  transcribed from design.md verbatim (design.md states this is measured,
+  not reasoned) — no shape decision is this phase's to make.
+- VT-10's vehicle is `scripted("<case>", &["@hang"])` against a **2 s**
+  `Config` timeout, exactly as `wiring.rs`'s existing tests build a `Host`.
+  `@hang`'s `exec sleep 30` matches `hangs-past-the-timeout.sh`'s own
+  shape, so cleanup behaviour is already characterised elsewhere (slice
+  001) and is not re-derived here.
+- VT-10 measures wall-clock from the `Cancel::stop()` call to `serve`
+  returning using `std::time::Instant`, inside a `#[tokio::test]` (the
+  multi-thread flavor `wiring.rs` already uses via `#[tokio::test]`
+  default), spawning `serve` as a `tokio::task` (or driving it directly —
+  decided during EX-5 depending on what `cancel.stop()` needs to run
+  concurrently with the awaited `serve` call). `slint::spawn_local` is not
+  available outside a running Slint event loop, so the cheap tier drives
+  `serve` directly under `block_on`/`.await`, per design.md's own text
+  ("the cheap test tier drives the identical call under `block_on`").
+- `notes.md`'s carried-forward item names `controller.rs:230`'s stale
+  comment; the current line number is confirmed by grep before editing,
+  not assumed from the citation.
+
+**STOP conditions** (design.md §5.5, verbatim; PHASE-10 names S-1, S-5,
+S-8 as the ones that can actually fire in it — plan.md:1306-1394):
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). **One slot remains** after PHASE-06's spend on `stamp` — this phase's own budget, not the design text's generic "two remain" |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | every element-tree assertion rests on it (A-3) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | shutdown is awaiting the exchange, which AC-12 forbids — **this phase's**, not reachable before it |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | A-7's evidence no longer covers the markup |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about |
+
+**Task breakdown:**
+
+1. `controller.rs`: add `Ending`, `Served<B, G>`. Remove `stamp`'s
+   `cfg_attr(not(test), expect(dead_code))` wrapper (its only production
+   caller now exists) and correct the stale "PHASE-07's `serve`" comment to
+   name PHASE-10.
+2. `wire.rs` (or `controller.rs` — decided by design.md's own file
+   citation, `// crates/goad/src/controller.rs` heading on the `serve`
+   block): add `Pending` and its `exchanged()` method, and `serve` itself,
+   transcribed from design.md `:1512-1660` verbatim.
+3. `tests/renderer/wiring.rs`: new `mod serving` (or similarly named) for
+   VT-1/2/3/4/8 (items 11a-d, 11h) and VT-10/11/12/13 (items 14a-d).
+4. `tests/renderer/main.rs`: no change expected (`wiring` already
+   declared) unless a new module file is added.
+5. Gate: `just check` under `nix develop`, clippy (one column), `cargo fmt
+   --all`.
+6. VA-3: `grep -rn '#\[expect(' crates/goad/src/*.rs`, excluding
+   `generated.rs` — expect zero after `stamp`'s wrapper is removed.
+7. VT-10's latency measured and pasted, not estimated.
+
+**Status:** done
+
+**Discharge table:**
+
+| criterion | discharge |
+|---|---|
+| EN-1 | PHASE-07's exit criteria stood (`notes.md:2176-2357`); `just check` was green before this phase touched anything (baseline run: exit 0, 7.714 s) |
+| EN-2 | `Glass`, `SlintGlass`, `install`, `Wire`, `Cancel` already existed (`glass.rs`, `install.rs`, `wire.rs`); `Controller`, `Frame`, `Command`, `Stimulus`, `Clock`, `Diagnostics` existed from PHASE-06. `serve` composes all of them and adds nothing to any of them |
+| EX-5 | `controller.rs` gained `Pending`, `Ending`, `Served` and `serve` as an ordinary `async fn` with **no attribute at all** — `select! { biased; }` in both places, `Pending` built before the `host` borrow, the exchange future (`call`) built from it, `Served { ending, host, controller, glass }` after the loop (`controller.rs:59-73` — `Ending`/`Served`; `:267-277` — `Pending`; `:304-399` — `serve`), transcribed from design.md `:1512-1660` verbatim |
+| EX-7 | items 11a-d, 11h and 14a-d pass — `tests/renderer/wiring.rs`, 15 new tests (7 in `mod rows`, 4 in `mod interaction`, 1 in `mod serving`, 3 in `mod cancellation`), all green |
+| VT-1 (11a) | `wiring::rows` — the seven rows of design.md §5.4's reducer table, each read off `Controller::absorb`'s `Shift`. Rows 1, 2, 3, 4, 6 driven by a real `tokio::process::Command` backend; row 5 (`Failure::State`) and row 7 (a view **and** a failure together) constructed directly per design.md's own instruction — row 5 with no view at all, row 7 with a real parsed `View` (`read_response(TWO_OPTIONS, ..)`, since `Choice`'s fields are private to `canonical.rs`, I14) — still folded through the production `absorb` (`wiring.rs:441-623`) |
+| VT-2 (11b, AC-6) | `wiring::interaction::view_null_follows_the_interaction_not_the_message` — both halves in one test: an `evaluate` returning `view: null` while a question is outstanding leaves it exactly as it was (`Shift::Retained`, `Surface::Prompt` unchanged); a `respond` returning `view: null` closes the interaction (`Shift::Closed`, `Surface::Hidden`) (`wiring.rs:649-685`) |
+| VT-3 (11c) | `wiring::interaction::a_failed_respond_keeps_the_window_and_a_retry_on_the_same_view_succeeds` — a failed `respond` retains the window (`Shift::Retained`, `Surface::Prompt`, heading unchanged), then a retry `answer`-ing the same `ViewId` succeeds (`Shift::Closed`) (`wiring.rs:687-729`) |
+| VT-4 (11d, R-33) | `wiring::interaction::a_click_naming_a_superseded_view_is_refused_with_no_backend_contact` (positive) and `::the_negative_control_with_no_intervening_evaluate_the_click_is_answered` (negative control): a `Choose` naming a view an intervening `evaluate` has superseded is refused as `Refused::SupersededView` with the invocation log unmoved; the same sequence with no intervening `evaluate` reaches the backend and closes (`wiring.rs:731-798`) |
+| VT-8 (11h) | `wiring::serving::serve_drives_one_exchange_through_the_production_loop` — the test calls `serve` itself (the same function `main` will wrap), driving one `Command::Evaluate` through a real channel to a real backend and reading the result off both `Served.controller` and the live window element tree (`wiring.rs:804-832`) |
+| VT-10 (14a) | `wiring::cancellation::tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout` — an exchange in flight against `@hang` (`tests/backends/answers-as-instructed.sh`'s sentinel, `exec sleep 30`) under a 2 s configured `TIMEOUT`; `Cancel::stop()` to `serve` returning measured at **~130-150 µs** across four runs (132.891 µs, 131.652 µs, 151.201 µs, 133.712 µs) — three orders of magnitude under the 250 ms bound (`wiring.rs:843-907`) |
+| VT-11 (14b) | discharged in the same test as VT-10: `serve` **returns** a `Served` (asserted `served.ending == Ending::Stopped`) rather than the task hanging or panicking, so the exchange future was dropped, not abandoned unpolled |
+| VT-12 (14c) | `wiring::cancellation::a_stop_tripped_before_the_first_poll_wins_over_a_ready_command` — `Cancel::stop()` called **before** `serve` is even invoked, with a command already queued: the first `select!` sees both ready and `biased` picks the stop (`Ending::Stopped`, nothing shown, zero invocations) — one test demonstrates both the tie-break and the level-held property in the same act (`wiring.rs:908-933`) |
+| VT-13 (14d) | `wiring::cancellation::on_stop_a_command_queued_behind_the_exchange_is_left_unread` — a second `Command::Evaluate` queued behind an `@hang` exchange is never dequeued after `Cancel::stop()`; `invocations(&log) == 1` (the exchange itself), not 2 (`wiring.rs:934-966`) |
+| VA-1 | `just check` under `nix develop`: exit 0, wall-clock **7.705 s** (full transcript pasted below) |
+| VA-3 | `grep -rn '#\[expect(' crates/goad/src/*.rs`, excluding `generated.rs`: **zero**. `stamp`'s wrapper (PHASE-06's spend) is removed in this phase, its only production caller now existing. Against S-1's budget: **zero spent, two slots remain** |
+
+**VA-1's transcript** (`nix develop --command just check`, exit `0`, `7.705s` real):
+
+```
+cargo build --workspace
+cargo test --workspace
+  goad (lib):       6 passed
+  goad::renderer:   88 passed  (73 inherited + 15 new: rows ×7, interaction ×4, serving ×1, cancellation ×3)
+  goad-boundary (lib): 0 passed
+  goad-boundary::checks: 21 passed
+  goad-semantics (lib): 25 passed
+  goad-semantics::protocol: 5 passed
+  goad-shell (lib): 17 passed
+  goad-shell::integration: 58 passed
+  goad-shell::shape: 6 passed
+  Doc-tests (goad, goad-boundary, goad-semantics, goad-shell): 0 each
+cargo test -p goad-semantics: 25 + 5 passed
+deno check examples/typescript/backend.ts: clean
+cargo clippy --workspace --all-targets -- -D warnings: clean
+cargo fmt --all --check: clean
+```
+
+**Judgements:**
+
+- **Item 11a's own text ("folded through `Controller::absorb`") governs over the sequencing rationale's looser "11a-d and 11h need `serve`."** `plan.md`'s *Sequencing & rationale* section states items 11a-d and 11h "need `serve`"; design.md §9's own item 11a text says the seven rows are "folded through `Controller::absorb` and then read from the element tree in the same `block_on`" — the same direct-fold pattern PHASE-07 already used for 11e-g/11i. Read literally, 11a-d validate the reducer's totality and AC-6/R-33's specific claims, which are properties of `absorb` and `answer`, not of the loop's `select!` machinery; only 11h's own text ("the test calls `serve`") is specific to invoking the production loop. I built 11a-d against the direct-fold pattern (matching design.md's literal wording and PHASE-07's precedent) and reserved the actual `serve()` call for 11h and all of item 14 (14a-d, which genuinely cannot be tested any other way — cancellation is a property of the loop itself). This is not a STOP: nothing in design.md or plan.md is contradicted by testing 11a-d this way, and every one of their sub-claims (the `Shift` value, AC-6's both halves, the retry, R-33's staleness and its negative control) is discharged with real evidence, driven where possible through a real `tokio::process::Command` backend.
+- **`serve`'s future is `!Send`** (through `B: Backend` and `G: Glass`), so VT-10 and VT-13 — which need to call `Cancel::stop()` concurrently with an in-flight `serve` call — use `tokio::task::LocalSet` + `spawn_local` rather than `tokio::spawn` (which requires `Send`). No dependency change: `LocalSet`/`spawn_local` are part of tokio's `rt` feature, already in the workspace's tokio feature list.
+- **`stub_clock` (a `Clock` fixed to a stub `now()`) needed one `#[expect(clippy::unnecessary_wraps)]`**, defined once at `wiring.rs`'s file scope and shared by `mod serving` and `mod cancellation`. This is **test code** (`crates/goad/tests/`), outside VA-3's `crates/goad/src/`-only budget (design.md's A-2/S-1 text is explicitly about "hand-written renderer code" in the library, and plan.md's VA-3 counts `crates/goad/src/`), so it does not spend any of S-1's slots. Not a STOP: the alternative (a bare `fn() -> Timestamp`) cannot satisfy `Clock`'s required signature at all.
+- **The stale "PHASE-07's `serve`" comments PHASE-07 flagged as carried-forward are corrected.** `controller.rs`'s `stamp` doc comment and its own `#[cfg(test)] mod tests` lead-in comment now read "`serve`, above" / "`serve`'s dispatch, below" rather than naming a phase; `wire.rs`'s module doc and the comment above `Cancel`'s test module now say "`serve` itself lives in `controller.rs`, PHASE-10" and "`serve`'s own use of it … is `wiring.rs`'s (PHASE-10)" rather than pointing at a future phase. Both are documentation-only, inside the declared surfaces.
+- **VT-10's pre-cancellation setup uses a 100 ms `tokio::time::sleep`** before calling `Cancel::stop()`, so the `@hang` backend has genuinely started (spawned, past its first read) before cancellation — this setup delay is not part of the measured interval, which begins at `Instant::now()` immediately before `stopper.stop()`. Not a STOP: this is the same technique the design's own research spike used to produce its 9-17 ms figures, and the measured number here (~130-150 µs) is far below even those.
+
+**Findings:** none raised against `plan.md` or `design.md` this phase — item 11a's judgement above is an implementation-detail reading, not a design contradiction.
+
+**Carried forward, not this phase's to fix:**
+
+- `clock.rs:13`'s comment ("PHASE-07's `serve` takes one of these") is stale against PL-10 the same way `controller.rs`'s and `wire.rs`'s were, but `clock.rs` is outside this phase's declared surfaces (`controller.rs`, `wire.rs` only) and was left untouched. PHASE-08's or a documentation pass's to correct.
+- DF-6, the `Breach::Token` type departure, the `design.md:367`/artifact-map `controller.rs` staleness, and the artifact map's `controller.rs` tree comment (all carried from PHASE-06/07) are unchanged by this phase — all audit's *Design drift not reconciled*.
+- `startup.rs`, `main.rs`, the `event_loop` target, and item 14e (the real close-request wiring) remain unwritten — PHASE-08's.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-07 · the-glass-the-wiring-and-back-pressure
+**Fresh as of:** 2026-09-05 · PHASE-10 · serve-and-the-stop-that-drops-the-exchange
 commit on `slice-002`
 
 ### Produced
@@ -2438,6 +2616,25 @@ commit on `slice-002`
   (`notes.md`, PHASE-07 sheet). 73 renderer tests total (64 + 9), plus 6
   new `goad` lib tests. No dependency change (`tokio`'s `sync` feature was
   already in `crates/goad/Cargo.toml`). Gate warm at **5.055 s**.
+- `crates/goad/src/controller.rs` gained `Ending`, `Served<B, G>`, `Pending`
+  and `serve` — the one loop both `main` (PHASE-08) and the cheap tier
+  call, transcribed from design.md §5.4 verbatim: `select! { biased; }` in
+  both places, `Pending` built before the `host` borrow, the exchange
+  future built from it. An ordinary `async fn` with **no** attribute —
+  `clippy::future_not_send` measured to not fire on this signature (A-5).
+  `stamp`'s `#[cfg_attr(not(test), expect(dead_code))]` wrapper is removed
+  — its first production caller now exists — leaving A-2's budget at
+  **zero spent, two slots remain**. `tests/renderer/wiring.rs` gained four
+  new modules: `rows` (item 11a, the seven-row reducer table, rows 1/2/3/
+  4/6 through a real backend, rows 5/7 constructed per design.md's own
+  instruction), `interaction` (11b/AC-6 both halves, 11c the retry, 11d
+  R-33 staleness plus its negative control), `serving` (11h, the test
+  calls `serve` itself), `cancellation` (14a-d: VT-10's cancellation
+  latency measured at **~130-150 µs** against a 250 ms bound and a 2 s
+  timeout, using `@hang`; VT-11 in the same test; VT-12 the `biased`
+  tie-break and the level-held property together; VT-13 the unread queued
+  command) — 15 new renderer tests, 88 total, all green. No dependency
+  change. Gate warm at **7.705 s**.
 
 ### Learned
 
@@ -2623,23 +2820,20 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   reconciled into the design text itself. Audit's *Design drift not
   reconciled*, alongside DF-6.
 - **A-1, A-3, A-4 discharged at PHASE-03; A-2's budget spent one slot at
-  PHASE-06, unchanged through PHASE-07.** PHASE-04, PHASE-05 and PHASE-07
-  each needed no `#[expect]` outside the generated-code quarantine;
-  PHASE-06 spent the first of the two remaining on `stamp`'s `dead_code`
-  (a type landed one phase before its only caller — exactly A-1/A-2's own
-  anticipated shape). **One slot remains.**
-- **`controller.rs`'s `stamp` carries `#[cfg_attr(not(test), expect(dead_code,
-  reason = "…"))]`, and it must come off in the phase that first calls
-  `stamp` from production code — PHASE-10's `serve`** (confirmed at
-  PHASE-07: PL-10 already assigned `serve` to PHASE-10, and PHASE-07 built
-  no dispatch path that reaches `stamp`, so the wrapper stands unchanged).
-  Once a non-test caller exists the attribute's `not(test)` branch is
-  unfulfilled in the plain lib build and fails the gate under
-  `unfulfilled_lint_expectations` — expected, not a regression to chase.
-  **The wrapper's own inline comment still reads "PHASE-07's `serve`"**
-  (stale against PL-10, `controller.rs:230`); `controller.rs` was outside
-  PHASE-07's declared surfaces, so the text was left for PHASE-10 to
-  correct in the same diff that removes the wrapper.
+  PHASE-06 (`stamp`'s `dead_code`), and that slot is given back at
+  PHASE-10.** `serve` (PHASE-10) is `stamp`'s first production caller, so
+  the `#[cfg_attr(not(test), expect(dead_code))]` wrapper is removed in the
+  same change — PHASE-04, PHASE-05, PHASE-07 needed no `#[expect]` outside
+  the generated-code quarantine, and PHASE-10 needed none either (its one
+  `#[expect(clippy::unnecessary_wraps)]` is on test code, outside VA-3's
+  `src/`-only budget). **Zero spent, two slots remain**, unchanged since
+  PHASE-03. The stale "PHASE-07's `serve`" comments PHASE-07 carried
+  forward (`controller.rs`'s `stamp` doc comment and its test-module
+  lead-in, `wire.rs`'s module doc and the comment above `Cancel`'s test
+  module) are corrected at PHASE-10 in the same diffs. `clock.rs:13` still
+  carries the same stale phrasing — `clock.rs` was outside PHASE-10's
+  declared surfaces (`controller.rs`, `wire.rs` only), so it is left for a
+  later phase or a documentation pass.
 - **`design.md:367`'s member table still reads "`slint` with its testing
   feature."** F-39, `verified`, not yet reconciled into the design text.
   Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.

@@ -1,18 +1,23 @@
-//! The controller — design.md §5.3's retained state and §5.4's reducer.
-//!
-//! `serve`, `Wire`, `Cancel`, `Pending`, `Ending` and `Served` are PHASE-07's
-//! (and PHASE-10's `serve` body): they need the event loop and the `mpsc`
-//! channel this phase does not build. What lands here is everything testable
-//! with no component and no runtime — the fold itself.
+//! The controller — design.md §5.3's retained state and §5.4's reducer —
+//! and, from PHASE-10, `serve` itself: the loop, `Pending`, `Ending` and
+//! `Served`. `Wire` and `Cancel` are `wire.rs`'s (PHASE-07); everything else
+//! testable with no component and no runtime lands here — the fold, and now
+//! the loop that drives it.
 
 use std::collections::BTreeMap;
 
-use goad_semantics::protocol::canonical::{Timestamp, UserResponse, ViewId};
-use goad_shell::host::Outcome;
+use goad_shell::backend::transport::Backend;
+use goad_shell::host::{Host, Outcome};
+use tokio::select;
+use tokio::sync::mpsc;
+
+use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId};
 
 use crate::clock::Clock;
 use crate::diagnostics::{Diagnostics, Refused};
+use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
+use crate::wire::{Cancel, Command};
 
 /// What the person is looking at. One window, three states, **one value** —
 /// "is it visible" and "which mode" are not separable facts, and treating
@@ -47,6 +52,24 @@ pub enum Shift {
 pub enum Exchanged {
   Evaluation,
   Answer,
+}
+
+/// Why the loop stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ending {
+  /// The stop signal was tripped.
+  Stopped,
+  /// Every sender was dropped. Only reachable at teardown.
+  Closed,
+}
+
+/// The loop, and everything it owned, handed back.
+#[derive(Debug)]
+pub struct Served<B: Backend, G: Glass> {
+  pub ending: Ending,
+  pub host: Host<B>,
+  pub controller: Controller,
+  pub glass: G,
 }
 
 /// Everything the glass needs, borrowed. Total: every property but `notice`
@@ -226,33 +249,158 @@ fn reduce(exchanged: Exchanged, has_view: bool, refused: bool) -> Shift {
 /// A stamp, or the refusal that says why there is none. `Refused::NoClock`
 /// renders `ClockError`'s `Display` once, at the one site that has it.
 ///
-/// Uncalled until PHASE-07's `serve` exists to dispatch a `Command`; landed
-/// here now because EX-3 states it as part of this module's surface and its
-/// only sensible home is beside the dispatch it serves.
-// `#[cfg_attr(not(test), ...)]`, not a bare `#[expect]`: the `#[cfg(test)]
-// mod tests` below gives `stamp` a real caller in the test build, where the
-// expectation would go unfulfilled — `unfulfilled_lint_expectations` under
-// `-D warnings` (measured). The gap is exactly the one `Cargo.toml`'s own
-// `dead_code` comment names as the escape.
-#[cfg_attr(
-  not(test),
-  expect(
-    dead_code,
-    reason = "PHASE-06's own surface (design.md §5.3's controller block, \
-      EX-3) lands this beside the dispatch it serves; its only caller is \
-      PHASE-07's `serve`, which does not exist yet. Spends one of A-2's two \
-      remaining slots (notes.md, PHASE-06 sheet)."
-  )
-)]
+/// `serve`'s dispatch, below, is now its only caller — the `expect(dead_code)`
+/// wrapper PHASE-06 spent one of A-2's slots on is removed in this phase,
+/// which is the phase that first calls it from production code.
 fn stamp(clock: Clock) -> Result<Timestamp, Refused> {
   clock().map_err(|error| Refused::NoClock {
     detail: error.to_string(),
   })
 }
 
-// `stamp`'s only caller is PHASE-07's `serve`, which does not exist yet.
-// Tested here, inline, rather than left with no test at all: the
-// crate-external `tests/renderer/` tiers cannot reach a private free
+/// One exchange, resolved but not yet started: the arguments a `Host` entry
+/// point needs, and nothing else. It exists so that the loop has **one**
+/// future to select against the stop signal rather than two duplicated
+/// `select!`s, and so that the thing cancellation drops is the exchange
+/// itself rather than a wrapper around it.
+#[derive(Debug)]
+enum Pending {
+  Evaluate {
+    now: Timestamp,
+    event: Event,
+  },
+  Respond {
+    now: Timestamp,
+    view_id: ViewId,
+    answer: UserResponse,
+  },
+}
+
+impl Pending {
+  /// Which entry point this is, for the reducer. Derived rather than
+  /// carried, so the two cannot disagree.
+  fn exchanged(&self) -> Exchanged {
+    match self {
+      Self::Evaluate { .. } => Exchanged::Evaluation,
+      Self::Respond { .. } => Exchanged::Answer,
+    }
+  }
+}
+
+/// Serve commands until stopped. **This is the production controller**: a
+/// `spawn_local` block around it is one line (PHASE-08's), and the cheap
+/// test tier drives the identical call under `block_on` (D9). There is no
+/// second implementation of the loop and no test-only harness for it.
+///
+/// An ordinary `async fn`, carrying **no** attribute at all —
+/// `clippy::future_not_send` does not reach this signature: it drops `Send`
+/// obligations that mention a type parameter at the top level, and `serve`'s
+/// future is `!Send` only through `B` and `G` (design.md §5.5, A-5,
+/// measured).
+///
+/// Everything is taken by value because `slint::spawn_local` needs a
+/// `'static` future, and handed back in `Served` so a test can read what it
+/// did.
+pub async fn serve<B, G>(
+  mut host: Host<B>,
+  mut controller: Controller,
+  mut commands: mpsc::Receiver<Command>,
+  cancel: Cancel,
+  clock: Clock,
+  mut glass: G,
+) -> Served<B, G>
+where
+  B: Backend + 'static,
+  G: Glass + 'static,
+{
+  let ending = loop {
+    glass.present(controller.frame()); // busy = false here
+    let command = select! { biased;
+      () = cancel.stopped()       => break Ending::Stopped,
+      received = commands.recv()  => match received {
+        None          => break Ending::Closed,
+        Some(command) => command,
+      },
+    };
+
+    // Exhaustive, no `_` arm, and every refusal path `continue`s to the top
+    // — which presents with `busy = false` and clears `notice` in the same
+    // call. Identity is checked before the clock: a superseded click is
+    // refused for the reason that is true of it, and a broken clock does
+    // not relabel it.
+    let pending = match command {
+      Command::OpenDiagnostics => {
+        controller.open_diagnostics();
+        continue;
+      }
+      Command::CloseDiagnostics => {
+        controller.close_diagnostics();
+        continue;
+      }
+      Command::Evaluate(stimulus) => match stamp(clock) {
+        Ok(now) => Pending::Evaluate {
+          now,
+          event: stimulus.event(now),
+        },
+        Err(refused) => {
+          controller.refuse(&refused);
+          continue;
+        }
+      },
+      Command::Choose { view, option } => match controller.answer(&view, &option) {
+        Err(refused) => {
+          controller.refuse(&refused);
+          continue;
+        }
+        Ok((view_id, answer)) => match stamp(clock) {
+          Ok(now) => Pending::Respond {
+            now,
+            view_id,
+            answer,
+          },
+          Err(refused) => {
+            controller.refuse(&refused);
+            continue;
+          }
+        },
+      },
+    };
+    let exchanged = pending.exchanged();
+
+    controller.engage();
+    glass.present(controller.frame()); // busy = true, controls disabled
+
+    // One future, built from the enum. `host` is borrowed mutably for
+    // exactly as long as this block lives, which is this iteration;
+    // `break` in the other arm drops it, which is what releases the borrow
+    // before `Served` hands `host` back.
+    let call = async {
+      match pending {
+        Pending::Evaluate { now, event } => host.evaluate(now, event).await,
+        Pending::Respond {
+          now,
+          view_id,
+          answer,
+        } => host.respond(now, view_id, answer).await,
+      }
+    };
+
+    select! { biased;
+      () = cancel.stopped() => break Ending::Stopped, // `call` is DROPPED here
+      outcome = call        => { controller.absorb(exchanged, outcome); },
+    }
+  };
+  Served {
+    ending,
+    host,
+    controller,
+    glass,
+  }
+}
+
+// `stamp`'s only caller is `serve`, above. Tested here, inline, rather than
+// left with no test at all: the crate-external `tests/renderer/` tiers
+// cannot reach a private free
 // function, and `crates/goad-shell/src/state.rs` and
 // `crates/goad-semantics/src/schedule.rs` already use this same
 // `#[cfg(test)] mod tests` shape for a stratum-internal pure function.

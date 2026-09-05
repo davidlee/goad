@@ -2,8 +2,8 @@
 //!
 //! `Wire` and `Cancel`, below, are the callback-facing halves of this
 //! module: everything a Slint callback may touch, and the level-held stop
-//! signal both `serve`'s `select!` arms watch (PHASE-10's `serve` body;
-//! this phase writes no loop).
+//! signal both of `serve`'s `select!` arms watch (`serve` itself lives in
+//! `controller.rs`, PHASE-10).
 
 use std::fmt;
 use std::future::Future;
@@ -180,8 +180,8 @@ impl Cancel {
 // `Wire`'s synchronous paths (`Ok`, `Closed`) need no component and no
 // runtime; `Full` writing `notice` through a live weak handle is
 // `tests/renderer/wiring.rs`'s (VT-7, item 11g), which has a real window to
-// assert against. `Cancel` gets its only coverage here — item 11h/PHASE-10
-// is its first production caller (`notes.md`, PHASE-07 sheet).
+// assert against. `Cancel`'s level-held property is unit-tested here;
+// `serve`'s own use of it (item 11h, 14a-d) is `wiring.rs`'s (PHASE-10).
 #[cfg(test)]
 mod tests {
   use tokio::sync::mpsc;
