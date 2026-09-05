@@ -1,0 +1,5 @@
+# Fixture: `workspace.members` hides behind a glob. Scanned by
+# `vocabulary.rs`'s `a_glob_in_workspace_members_fails`; never a real
+# manifest.
+[workspace]
+members = ["crates/*"]

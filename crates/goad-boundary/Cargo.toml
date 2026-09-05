@@ -7,10 +7,12 @@ repository.workspace = true
 publish.workspace    = true
 autotests            = false
 
-# No dependencies, and none on any member: it reads manifests and sources as
-# text, which is what lets it scan every stratum without reaching up into one
-# (D17). `toml` arrives at PHASE-02 with the allowlist that needs it.
+# No dependency on any member: it reads manifests and sources as text, which
+# is what lets it scan every stratum without reaching up into one (D17).
+# `toml` is the manifest allowlist's own parser (§5.6) — already in
+# `[workspace.dependencies]` (`Cargo.toml:36`), not a new dependency.
 [dependencies]
+toml = { workspace = true }
 
 [lints]
 workspace = true

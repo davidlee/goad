@@ -5,8 +5,9 @@
 **Reviewer:** fresh agent, walking the real tree with `git ls-files`, `grep` and
 `just check` rather than re-reading the design.
 **Opened:** 2026-09-05
-**State:** resolved — round 1 (`F-1`…`F-33`, reading the tree) and round 2
-(`F-34`…`F-37`, executing PHASE-01) both closed
+**State:** resolved — round 1 (`F-1`…`F-33`, reading the tree), round 2
+(`F-34`…`F-37`, executing PHASE-01) and round 3 (`F-38`, executing PHASE-02)
+all closed
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -1362,5 +1363,46 @@ rows**.
 This is the same defect as F-1 and F-17, one level down. Round 1 measured `88` by
 command and then wrote "and nothing else" from reading. The number was right and
 the universal beside it was not.
+
+**Outcome:** verified
+
+## Round 3 — the execution round (PHASE-02)
+
+### F-38 — `Breach::Token`'s `token: &'static str` cannot hold a name `manifest::unpermitted` reads at runtime
+
+**Severity:** major
+**Location:** `design.md:3050` (the `Breach` block in §5.6's public-API
+statement); `plan.md` PHASE-02/EX-2, EX-4
+
+**Expected:** `design.md`'s `Breach` enum declares `Token { path: PathBuf, line:
+usize, token: &'static str }`, shared verbatim by `scan.rs` and `manifest.rs`
+per EX-2 and EX-4.
+**Observed:** `scan.rs`'s own use is fine — `forbidden: &'static [&'static
+str]` supplies a `&'static str` token for every line-based breach it raises.
+But `manifest::unpermitted(manifest: &Path, text: &str, permitted: &[&str])`
+discovers an unpermitted dependency's name by parsing `text` at runtime — a
+`String` in production, borrowed for exactly the call's duration — and cannot
+produce a `&'static str` naming it without leaking. The type as declared
+cannot compile for the one caller that needs it.
+**Evidence:** attempted implementation; `rustc` rejects any borrow of `text`
+or of a parsed `toml::Value` assigned to a field typed `&'static str` (lifetime
+mismatch — the borrow does not outlive `'static`).
+
+**Disposition:** fix-now, and the class named
+**Response:** `Token`'s `token` field becomes `Cow<'static, str>`. `scan.rs`
+wraps its existing `&'static str` in `Cow::Borrowed` at each of its two call
+sites (no allocation, no behaviour change); `manifest.rs` wraps the owned name
+it parsed in `Cow::Owned`. `Display` is unaffected (`Cow<str>` formats
+identically to `str`), `report`'s signature is unchanged, and no existing
+`scan.rs` caller changes shape. The class: a field the design declares
+`&'static` is safe only for a **module that already holds its data as
+compile-time constants**; the moment a second module needs the same enum for
+data it discovers at runtime, `'static` is the wrong bound. `code_of`'s own
+`Cow` return (D13) is the precedent this reuses rather than invents.
+*Rejected:* `Box::leak`ing the name (a real memory leak per call, for no
+benefit `Cow::Owned` doesn't already give); a `String` field unconditionally
+(gives up the zero-allocation path `scan.rs` already had); a second `Breach`
+variant duplicating `Token`'s shape with an owned name (two variants for one
+concept, and every match arm across three modules would need both).
 
 **Outcome:** verified

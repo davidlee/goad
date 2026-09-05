@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | design | **accepted** — five review rounds, F-1…F-40, all terminal. Discharged by the replacement criterion in §5 of the Handover below: *every claim is either built, or its failure mode is loud at first compile* | 2026-09-05 |
 | plan | **accepted 2026-09-05, revised after review** — ten phases in `plan.md` (PHASE-07 split at its own seam, so the execution order is 01…07, 10, 08, 09); twelve planning decisions in `plan-log.md`; seven findings against the design (DF-1…DF-7). One adversarial round has now run — `review-plan.md`, F-1…F-33, nine blockers, all terminal — and it repaired §5.1's artifact map against the real tree rather than reading it a sixth time | 2026-09-05 |
 | PHASE-01 — the workspace split | **done** — gate green, 130 paths relocated, four map defects found and repaired (`review-plan.md` F-34…F-37) | 2026-09-05 |
-| PHASE-02 — the workspace invariant checks | todo | 2026-09-05 |
+| PHASE-02 — the workspace invariant checks | **done** — gate green, three instruments each break-and-reverted independently, F-38 found and repaired | 2026-09-05 |
 | PHASE-03 — `crates/goad`, Slint, the markup and the element tree | todo | 2026-09-05 |
 | PHASE-04 — the mapper and the tray rasteriser | todo | 2026-09-05 |
 | PHASE-05 — the diagnostic surface and the reception seam | todo | 2026-09-05 |
@@ -752,12 +752,337 @@ Carried forward, not this phase's to fix:
   that: a future member could add it as a module the ordinary way and nothing
   would object. Noted, not instrumented.
 
+### PHASE-02 — The workspace invariant checks: `goad-boundary`'s three instruments
+
+**Objective:** ADR-001's stratum 1 rule is held by four instruments with four
+stated boundaries, `CLAUDE.md` invariant 1 is held by a fifth that enumerates
+its own members and reads `.slint`, and the `tokio` source grep is retired in
+the same change that lands what replaces it. `plan.md:706-819`.
+
+**Commit protocol:** one commit for the whole phase, made after the gate is
+green.
+
+**Entry criteria, run rather than read**
+
+| # | evidence |
+|---|---|
+| EN-1 | `git status --porcelain` at session start → ` M docs/slices/002/plan-log.md` (PL-14, pre-existing, not this phase's), ` M flake.lock`. `just check` exit 0, wall-clock **1.852 s** (`build`+`test`+`test-stratum1`+`typecheck`+`lint`+`fmt-check`, one `time just check` run) |
+| EN-2 | `crates/goad-boundary/Cargo.toml` has an empty `[dependencies]` table and no member dependency; `cargo metadata` shows it depends on nothing in the workspace |
+
+**Reading list**
+
+- `docs/AGENTS.md:107-123` — phase plan and execute.
+- `plan.md:706-819` — PHASE-02 in full: Objective, Surfaces, EN/EX/VT/VA, STOP,
+  implementer notes.
+- `plan.md:290-314` — the Coverage table, AC-3/AC-13/AC-14's discharge points.
+- `design.md` §5.5 (`:2716-2945`) — the STOP table, transcribed below.
+- `design.md` §5.6 (`:2945-3176`) — the six-command gate (unchanged this
+  phase), the three enforcement residues, `goad-boundary`'s whole public API
+  (the three-module `Rust` block at `:3038-3090`), D13's cut and D17's member
+  rationale, D25's residue.
+- `design.md` §9 item 3 (`:3690-3717`) — the four ADR-001 instruments, the
+  counting rule, the unenforced feature residue.
+- `design.md` §9 item 15 (`:3892-3904`) — the vocabulary scan's full control
+  set: six positive, three negative, three vacuity.
+- `plan-log.md` PL-9 (`boundary.rs`'s PHASE-01 destination — the two-module
+  starting point this phase restructures), PL-12 (one `#[test]` over three
+  `Scan`s — the shape PHASE-02/EX-6 replaces with enumeration), PL-13
+  (PHASE-01's three amended criteria — the precedent for fixing a class found
+  on contact and continuing), PL-14 (the STOP-adjudication policy binding this
+  run).
+- `notes.md` §8 "What PHASE-02 needs before it starts" (`:1146-1195`) — the
+  four things to carry in, transcribed into Assumptions below.
+- Code: `crates/goad-boundary/{Cargo.toml,src/lib.rs,src/scan.rs}`,
+  `crates/goad-boundary/tests/checks/{main,direction,vocabulary}.rs`, root
+  `Cargo.toml`, `crates/goad-{semantics,shell}/Cargo.toml`, `clippy.toml`,
+  `justfile`.
+
+**Assumptions**
+
+- A-boundary — PL-9's starting shape (`src/lib.rs` declaring only `pub mod
+  scan;`, two test modules `direction`/`vocabulary`) is exactly what is on
+  disk. Verified by reading, above.
+- A-lint (handover §8 item 1) — `manifest.rs` and `members.rs` are new library
+  code; `unwrap_used`, `expect_used`, `panic`, `indexing_slicing` are `deny`
+  outside test targets (F-36's class). Written as library code from the first
+  line: no `unwrap`/`expect`/`panic`/indexing in `src/`.
+- A-toml (handover §8 item 2) — `toml` is already in
+  `[workspace.dependencies]` (`Cargo.toml:36`); adding it to
+  `goad-boundary/Cargo.toml`'s `[dependencies]` is not a new dependency, so
+  S-8 does not fire.
+- A-glob (handover §8 item 3, PS-3) — `members()` fails on a glob by design.
+  If the workspace needs one, that is a design question about D13, not this
+  phase's.
+- A-ac (handover §8 item 4) — the three moved boundary files carry slice
+  001's AC numbers in their doc comments. This phase rewrites all three files
+  and renumbers to slice 002's AC-3 (instruments 2 and 3 of the four),
+  AC-13 (member enumeration, `.slint` and `.rs`), AC-14 (the scan sits beside
+  PHASE-04's "no image" check) in the same change.
+- A-static — `Breach::Token`'s `token` field is declared `&'static str` in
+  `design.md:3050`. `scan.rs`'s own forbidden-token lists are `&'static
+  [&'static str]` so this is free there; `manifest.rs`'s `unpermitted` reads a
+  dependency's name out of manifest **text** supplied at runtime (a `String`
+  in production, tied to that call's lifetime), which cannot be coerced to
+  `&'static str` without leaking. Flagged as a probable signature gap to
+  confirm on contact and fix by class (Cow, not leak) rather than routed
+  around — see Findings if it fires.
+
+**STOP conditions — `design.md` §5.5, verbatim**
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). Two remain unspent |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | every element-tree assertion rests on it (A-3) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | shutdown is awaiting the exchange, which AC-12 forbids |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | A-7's evidence no longer covers the markup |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about |
+
+Plus this phase's own, from `plan.md:793-797`:
+
+- **PS-3** — the root `Cargo.toml` cannot list members without a glob.
+  `members()` fails on a glob by design; if the workspace genuinely needs
+  one, that is a design question about D13, not a phase's.
+
+**STOP adjudication for this run (PL-14):** an executor that hits a STOP
+writes what happened here and returns a stop status; only the orchestrating
+session may judge a condition's purpose not engaged, and it records that
+judgement here and in the ledger. This phase does not decide to continue past
+a STOP on its own.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+- [x] EN-1, EN-2 verified; this sheet, before any code changes
+- [x] red: wrote `tests/checks/allowlist.rs` and `tests/checks/purity.rs`
+  against the target API — confirmed failing to compile until the library
+  side landed
+- [x] green: `src/members.rs`, `src/manifest.rs`, `src/scan.rs`'s extension /
+  excluded-dirs / `code_of` rewrite, `src/lib.rs`'s three-module declaration
+- [x] rewrite `tests/checks/vocabulary.rs` to enumerate `members()` (EX-6),
+  retire `tests/checks/direction.rs` (EX-9), renumber AC references (A-ac)
+- [x] `.slint` fixture files for VT-3's markup controls, and a fixture
+  manifest for the glob control, under `crates/goad-boundary/tests/fixtures/`
+- [x] `crates/goad-boundary/Cargo.toml`: added `toml = { workspace = true }`
+- [x] `just check` green; `cargo fmt --all`; re-ran gate
+- [x] EX-1…EX-12 walked and recorded; VT-1…VT-4 and VA-1…VA-3 discharged with
+  pasted evidence
+- [x] bookkeeping: this sheet, `review-plan.md` (F-38 raised), Harvest,
+  status table; one commit
+
+**Exit criteria, discharged**
+
+- **EX-1.** `crates/goad-boundary/src/lib.rs` declares exactly `pub mod
+  manifest;`, `pub mod members;`, `pub mod scan;` and nothing else (rustfmt's
+  `reorder_modules` alphabetised the three lines; the design's own ordering
+  carries no semantic weight and none of EX-1…EX-12 tests order).
+- **EX-2.** `scan.rs` carries `Scan { root: PathBuf, extensions, excluded_dirs,
+  forbidden }`; `Breach`'s four variants (`Token`, `Vacuous`, `Unreadable`,
+  `GlobMember`); `Scan::run -> Result<usize, Vec<Breach>>` reporting every
+  breach; `pub fn code_of(line: &str) -> Cow<'_, str>` implementing D13's
+  four-state cut (`Code`, `Str`, `RawStr(n)`, and an inline block-close that
+  never becomes a persisted fourth state). `mentions`' signature is
+  unchanged. **Departure, F-38:** `Breach::Token.token` is `Cow<'static,
+  str>`, not `&'static str` — see Findings.
+- **EX-3.** `members.rs` carries `pub fn members(root_manifest: &Path) ->
+  Result<Vec<PathBuf>, Vec<Breach>>`, returning entries in manifest order
+  (built by iterating the parsed array in order), failing on a glob entry, an
+  unreadable/unparsable manifest, and an empty list. All three covered by
+  `vocabulary.rs`'s `a_glob_in_workspace_members_fails` and
+  `a_member_directory_with_no_rust_or_slint_file_fails_naming_itself`
+  (vacuity via the enumeration path) plus `members.rs`'s own `?`-propagated
+  I/O and parse errors (not separately unit-tested — no VT names one, and
+  `Scan::run`'s own vacuity/unreadable paths are already covered).
+- **EX-4.** `manifest.rs` carries `pub fn unpermitted(manifest: &Path, text:
+  &str, permitted: &[&str]) -> Result<usize, Vec<Breach>>`, reading every
+  `dependencies`/`dev-dependencies`/`build-dependencies` table at any depth
+  via a recursive walk of the parsed `toml::Table` (`collect_dependency_tables`),
+  checking a renamed entry by its `package` value as well as its key, and
+  treating zero entries across all tables as `Vacuous`. All seven VT-1
+  controls pass (below).
+- **EX-5.** `tests/checks/main.rs` declares `#[cfg(test)] mod allowlist; mod
+  purity; mod vocabulary;` — three separate declarations (Rust has no
+  brace-list `mod` syntax; the design's `{vocabulary, purity, allowlist}` is
+  the three names, not literal syntax).
+- **EX-6.** `vocabulary.rs`'s `domain_scan` is the one configured template
+  (`extensions: &["rs", "slint"]`, `excluded_dirs: &["tests", "target"]`),
+  applied to every path `members(&workspace_root/Cargo.toml)` returns in
+  `no_workspace_member_names_the_users_domain`. No hand-written per-member
+  list remains.
+- **EX-7.** `allowlist.rs`'s `the_real_stratum_1_manifest_is_clean` runs
+  against `crates/goad-semantics/Cargo.toml` with `["jiff", "serde",
+  "serde_json"]`; `the_real_stratum_2_manifest_is_clean` against
+  `crates/goad-shell/Cargo.toml` with that list plus `["goad-semantics",
+  "tokio", "toml"]`. The module doc states why `goad` and `goad-boundary`
+  carry no allowlist here.
+- **EX-8.** `purity.rs`'s `FORBIDDEN` is §5.6's nine tokens verbatim,
+  `std::time::Duration` absent with the D25 reason restated beside it; scanned
+  over `crates/goad-semantics/src` in `the_real_stratum_1_source_names_none_of_the_nine`.
+- **EX-9.** `grep -rn 'crate::shell\|crate::bin\|"tokio"' crates/goad-boundary/`
+  → only `manifest.rs`'s doc comment and `allowlist.rs`'s manifest-name
+  assertions (the allowlist checking the *name* `"tokio"` in a dependency
+  table, which is exactly what replaces the retired grep). No test points a
+  `Scan` at a stratum 1 source with these three as `forbidden` any more;
+  `direction.rs` is deleted (`git rm`).
+- **EX-10.** `cargo tree -p goad-boundary` → `toml` and its own transitive
+  deps only (`serde_core`, `serde_spanned`, `toml_datetime`, `toml_parser`,
+  `toml_writer`, `winnow`); no `goad-*` node. `cargo metadata`'s own
+  dependency list for the package: `["toml"]`.
+- **EX-11.** `crates/goad-boundary/src/` is itself scanned by
+  `no_workspace_member_names_the_users_domain` (it is a `workspace.members`
+  entry); passes clean. Break-and-revert below shows the scan does fire on a
+  planted word, so passing here is not vacuous.
+- **EX-12.** AC-2's argument, below.
+
+**AC-2's argument for `boundary.rs`.** The map marks this file
+*substantively rewritten*, the one row AC-2 obliges an argument for rather
+than a rename check. What changed and why: the single `Scan` with a
+hard-coded `.rs` walk and three ad-hoc configured instances became three
+modules with a stated division of labour — `scan.rs` is the walk and the
+string-aware comment cut, now configurable by extension and exclusion (D13);
+`members.rs` and `manifest.rs` are new, and together they are D17's "own
+member" made concrete: a workspace-wide enumeration and an allowlist that
+neither `goad-semantics` nor `goad-shell` could host without reaching upward.
+Two scans became four independently-controlled instruments (Cargo
+resolution, the allowlist, the purity scan, `cargo test -p goad-semantics`)
+plus the vocabulary scan, each argued to its own boundary in §5.6 rather than
+one scan asked to prove more than a line-based walk can support.
+
+**Verification**
+
+- **VT-1**, seven controls, `allowlist.rs`: `tokio` in `[dependencies]`
+  (`tokio_in_the_plain_dependencies_table_is_refused`), `[dev-dependencies]`,
+  `[build-dependencies]`, `[target.'cfg(unix)'.dependencies]`, renamed behind
+  `package`, a manifest with no dependency table (`Vacuous`), and the real
+  stratum 1 manifest, clean. All seven pass; see the gate output (VA-1).
+- **VT-2**, `purity.rs`: one control per forbidden token, all nine planted in
+  `tests/fixtures/purity/planted/lib.rs` and all nine caught
+  (`each_forbidden_token_planted_in_a_stratum_1_source_is_caught`); one
+  planted inside a comment only, in `tests/fixtures/purity/commented/lib.rs`,
+  and not caught (`a_forbidden_token_named_only_inside_a_comment_is_not_caught`)
+  — proving the cut still applies and the first control is not vacuous; the
+  real `crates/goad-semantics/src`, clean.
+- **VT-3**, `vocabulary.rs`, in full: positive — component name and
+  accessible-label (`.slint` fixtures, `a_forbidden_word_in_slint_markup_is_caught`),
+  ordinary string / URL-in-string / escaped-quote / raw-string
+  (`a_string_hides_no_token_that_follows_it_on_the_same_line`, all four of
+  D13's examples); negative — `// the call sites` and the others
+  (`a_token_matches_a_word_and_not_a_substring_of_one`), the lifetime case
+  (`a_same_line_block_comment_is_cut_and_a_lifetime_opens_no_string`);
+  vacuity — a member directory with no `.rs`/`.slint`
+  (`a_member_directory_with_no_rust_or_slint_file_fails_naming_itself`, reusing
+  `docs/adr`), a glob in `workspace.members`
+  (`a_glob_in_workspace_members_fails`, fixture manifest), a renamed-away
+  root (`a_scan_whose_directory_was_renamed_away_fails`).
+- **VT-4**, `vocabulary.rs`'s `code_of_borrows_unless_an_interior_block_closed_mid_line`:
+  `Cow::Borrowed` asserted by exact string match for a plain line, a
+  trailing-`//` cut, and an unterminated `/*`; `Cow::Owned("let x = site
+  view;")` asserted for an interior block that closes mid-line — the `Owned`
+  variant checked explicitly, not merely that a `bool` came out right.
+
+**VA-1 — `just check`, three consecutive warm runs, no source change between:**
+
+```
+$ time just check   (×3)
+real 0m1.845s / 0m1.825s / 0m1.818s   → median 1.825s
+```
+
+All three exit 0. (PHASE-01's own warm baseline was 1.808s; no regression at
+this member count.)
+
+**VA-2 — break-and-revert, one instrument at a time, `cargo test -p
+goad-boundary` between each plant and its revert:**
+
+1. **Vocabulary.** Planted `fn habit_marker() {}` at the end of
+   `crates/goad-semantics/src/lib.rs`. Result: `vocabulary::no_workspace_member_names_the_users_domain`
+   FAILED, `.../crates/goad-semantics/src/lib.rs:10: forbidden token
+   \`habit\``; 19 other tests still passed. Reverted (`git checkout --`); 20/20
+   green.
+2. **Purity.** Planted `let _ = std::fs::metadata(".");` in the same file.
+   Result: `purity::the_real_stratum_1_source_names_none_of_the_nine` FAILED,
+   naming `.../crates/goad-semantics/src/lib.rs:10: forbidden token
+   \`std::fs\``; 19 others passed. Reverted; 20/20 green.
+3. **Allowlist.** Added `tokio = { workspace = true }` to
+   `crates/goad-semantics/Cargo.toml`. Result:
+   `allowlist::the_real_stratum_1_manifest_is_clean` FAILED, naming
+   `.../crates/goad-semantics/Cargo.toml:0: forbidden token \`tokio\`` (line 0
+   — `manifest.rs`'s parser carries no span; see Findings/decisions); 19
+   others passed. Reverted; full `just check` re-run green, 1.845s.
+
+Each plant moved exactly one instrument from green to red and named the
+planted file (and, for the two source-scan instruments, the exact line);
+each revert restored 20/20 (later 21/21 after VT-4's test was added) with no
+other change.
+
+**VA-3.** `design.md:200-226` (§5.1) is the sole statement of "four ADR-001
+instruments, plus the domain-vocabulary scan, plus one residue nothing
+enforces"; `§9 item 3` (`:3690-3717`) restates the same four-plus-one-plus-
+residue shape for validation. `tests/checks/main.rs`'s module doc cites both
+(`design.md §5.6, §9 item 3`) rather than deriving its own count independent
+of them. The D25 feature residue is written down in `manifest.rs`'s module
+doc reference and in this sheet's reading list; no test in this crate
+asserts anything about a dependency feature shared with stratum 1 —
+confirmed by reading every `#[test]` in `allowlist.rs`, `purity.rs` and
+`vocabulary.rs` above.
+
+**Decisions taken during execution**
+
+- **Manifest breach line numbers are `0`, not tracked.** `manifest.rs`
+  parses with the `toml` crate's ordinary `Table`/`Value` API, which carries
+  no span information (unlike `toml_edit`, not this crate's dependency, or
+  the `toml::Spanned` wrapper, which needs a typed `Deserialize` target this
+  walk does not have). No VT asserts a manifest breach's line number: VT-1's
+  seven controls all assert on breach *kind* and *token*, never on `line`.
+  Recorded rather than silently defaulted; a future slice wanting real line
+  numbers would need `toml_edit` or a hand-rolled table-header scan, both
+  bigger than this phase's brief.
+- **`toml::from_str`/`text.parse::<toml::Table>()` failures reuse
+  `Breach::Unreadable`.** The design's four variants have no fifth for "read
+  but did not parse"; `Unreadable`'s own wording ("could not be read, so was
+  not inspected") covers a parse failure by the same logic it covers an I/O
+  failure — either way the manifest was not usable. Not separately
+  unit-tested (no VT asks for it); exercised implicitly by every `unpermitted`
+  call that does parse successfully.
+- **`members()` silently drops a non-string `workspace.members` entry**
+  rather than raising a breach for it. Not in EX-3's three named failure
+  modes (glob, unreadable, empty) and not in VT-3's vacuity list; a
+  `workspace.members` array holding something other than a string is not a
+  shape Cargo itself would accept, so this is defensive rather than a
+  documented contract.
+- **AC references renumbered (A-ac).** `main.rs`, `allowlist.rs`, `purity.rs`
+  and `vocabulary.rs` all cite slice 002's own AC-3 (the four-plus-one
+  instrument shape), AC-13 (member enumeration) and AC-14 (the scan sits
+  beside PHASE-04's "no image" check) rather than the inherited slice 001
+  numbers PHASE-01 carried over untouched.
+
+**Findings**
+
+One, in `review-plan.md` round 3 — **F-38**: `design.md:3050`'s `Breach::Token
+{ token: &'static str }` cannot hold a dependency name `manifest::unpermitted`
+discovers at runtime; `verified`, fixed by changing the field to `Cow<'static,
+str>` (`scan.rs` wraps its own `&'static str` in `Cow::Borrowed`, no behaviour
+change there). No other departure from `plan.md`'s PHASE-02 text was found on
+contact.
+
+Carried forward, not this phase's to fix:
+
+- **DF-6's `#[derive(Debug)]` divergence stands**, now on the enlarged `Scan`
+  and `Breach` too. Audit's *Design drift not reconciled*.
+- **PHASE-06 still inherits the `harness.rs` re-export**, untouched by this
+  phase.
+- **`Cargo.lock`'s only change is `goad-boundary` gaining `toml` in its own
+  `dependencies` list** (`git diff Cargo.lock` — three lines). `toml` and its
+  whole transitive tree were already resolved for `goad-shell`; no new crate
+  entered the graph.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-01 · the split commit on `slice-002`
+**Fresh as of:** 2026-09-05 · PHASE-02 · the invariant-checks commit on
+`slice-002`
 
 ### Produced
 
@@ -769,10 +1094,16 @@ Carried forward, not this phase's to fix:
 - `tests/fixtures/**` at the workspace root — 88 files, byte-identical. CD-4.
 - The six-command gate in the `justfile`, header repointed to `draft-policy.md`
   and §5.6. `CLAUDE.md` untouched; CD-5 is still audit's.
-- `crates/goad-boundary/src/{lib,scan}.rs` and `tests/checks/{main,direction,
-  vocabulary}.rs` — PL-9's layout, PHASE-02's starting point.
-- `review-plan.md` round 2, F-34…F-37; `design.md` §5.1 repaired at four rows;
-  `plan-log.md` PL-13.
+- `crates/goad-boundary/src/{lib,scan,members,manifest}.rs` — the three-module
+  public API §5.6 states, `manifest.rs` new, `toml` now a real (not merely
+  workspace-declared) dependency of `goad-boundary`.
+- `crates/goad-boundary/tests/checks/{main,allowlist,purity,vocabulary}.rs` —
+  `direction.rs` retired (`git rm`, EX-9); 21 tests where PHASE-01 left 5.
+  `tests/fixtures/{purity,vocabulary,manifests}/**` — the fixture files the
+  new controls need, all excluded from production scans by directory name.
+- `review-plan.md` round 3, F-38 (`Breach::Token`'s field type); `docs/slices/002/notes.md`
+  §"AC-2's argument for `boundary.rs`" — the substantive-rewrite justification
+  AC-2 obliges.
 
 ### Learned
 
@@ -782,8 +1113,10 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   `unwrap_used`, `expect_used`, `panic` and `indexing_slicing` are all `deny`
   here and all exempted in test code, so **every item relocated from a test
   target into a library crosses four lint boundaries at once** — silently, until
-  the gate says so. F-36 is the instance; the class costs a phase a compile every
-  time it moves test-shaped code into a crate. PHASE-02 does it again.
+  the gate says so. F-36 is the instance; PHASE-02 crossed it again for
+  `members.rs`/`manifest.rs`/`code_of` and found no new violation — the shapes
+  in §5.4's lint table (`.get()` over `[]`, no `unwrap`/`expect`/`panic`
+  outside `tests/`) held on the first compile this time.
 - **Cargo runs a test binary with the *package* root as its working directory.**
   Before a workspace split that is the repository root; after it, it is
   `crates/<member>`. Anything resting on the two being the same — a config with a
@@ -799,31 +1132,48 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   re-export is available for keeping a call site's module path stable across a
   helper's move.
 - **A workspace split of this shape costs nothing at the gate.** Warm `just
-  check`: **1.808 s** pre-split, **1.797 s** post-split, three runs each. The
+  check`: **1.808 s** pre-split, **1.797 s** post-split (PHASE-01), **1.825 s**
+  median with `goad-boundary` at four source files and 21 tests (PHASE-02). The
   number A-4 and ADR-002 T3 turn on is PHASE-03's, when `slint` enters the graph.
 - **The name-set diff is the right shape for VT-1.** It caught a test function
   this phase renamed in passing, which a count equality would have absorbed
   (PL-12).
+- **A `Breach`-shaped enum built for one module's compile-time data breaks the
+  moment a second module needs the same shape for runtime data.** `Token`'s
+  `token: &'static str` was fine for `scan.rs`'s own `&'static [&'static str]`
+  forbidden lists; `manifest.rs` discovers a dependency's name by parsing text
+  at runtime and cannot produce a `&'static str` without leaking it. `Cow<
+  'static, str>` costs the `'static` case nothing and gives the runtime case
+  an owned value (F-38) — the same shape `code_of`'s own return type already
+  uses, for the same reason.
+- **The `toml` crate's ordinary `Table`/`Value` parse carries no span
+  information.** A manifest breach's `line` is `0`, not tracked; getting a
+  real line number would need `toml_edit` (a different dependency) or a typed
+  `Deserialize` target wrapped in `toml::Spanned`, either bigger than this
+  phase's brief and not asked for by any VT.
+- **`rustfmt`'s `reorder_modules` alphabetises adjacent `pub mod` lines with
+  no blank line between them.** `lib.rs`'s declared order (`members`, `scan`,
+  `manifest`, matching `design.md`) became `manifest`, `members`, `scan` on
+  the first `cargo fmt --all`. Harmless — nothing tests declaration order —
+  but worth knowing before assuming a file's `mod` order reflects intent.
 
 ### Open
 
 - **CD-1…CD-7 and `draft-policy.md`** — unchanged, unpromoted, audit's, and the
   user's alone. The `justfile` now cites the draft as the slice's working
   authority (`docs/AGENTS.md:36`), which is what CD-5 will make permanent.
-- **DF-6 has diverged in code:** `Scan` carries a `#[derive(Debug)]` §5.6's block
-  omits. Audit's *Design drift not reconciled*.
+- **DF-6 has diverged in code, and PHASE-02 widened it.** `Scan` and now
+  `Breach` both carry a `#[derive(Debug)]` that §5.6's block omits. Audit's
+  *Design drift not reconciled*.
 - **`plan-log.md` PL-3's Consequence carries the twice-superseded 91.**
   Append-only, so it stands; a reader arriving there out of order is misled.
 - **A-1, A-2, A-3, A-4 all still stand** and all still need `slint` in the graph.
-  The A-2 expectation budget is **unspent** — PHASE-01 added no `#[expect]`
-  anywhere.
-- **The three moved boundary files carry slice 001's AC numbers.**
-  `tests/checks/main.rs` says "`direction` is AC-15's direction half; `vocabulary`
-  is AC-11's", and the two modules repeat it. Inherited verbatim from
-  `tests/protocol/boundary.rs`, so not a PHASE-01 defect — but in slice 002's
-  numbering AC-11 is the empty state and AC-15 is canon-delta accounting, while
-  these tests hold 002's AC-3, AC-13 and AC-14. PHASE-02 rewrites all three files
-  and should renumber in the same change.
+  The A-2 expectation budget is **unspent** — neither PHASE-01 nor PHASE-02
+  added a `#[expect]` anywhere.
+- **`Breach::Token.token`'s type departs from `design.md:3050`** (`&'static
+  str` there, `Cow<'static, str>` in the tree) — F-38, `verified`, not yet
+  reconciled into the design text itself. Audit's *Design drift not
+  reconciled*, alongside DF-6.
 
 ---
 
