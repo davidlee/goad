@@ -15,7 +15,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-03 — `crates/goad`, Slint, the markup and the element tree | **done** — gate green, A-4 measured (cold 26.258 s, warm median 2.128 s, band ≤120 s), F-39 found and repaired | 2026-09-05 |
 | PHASE-04 — the mapper and the tray rasteriser | **done** — gate green, `view_model.rs`/`diagnostics.rs` landed, 14 new tests, no findings, no STOP | 2026-09-05 |
 | PHASE-05 — the diagnostic surface and the reception seam | **done** — gate green (5.343 s), 35 new tests, `receive` confirmed the only `Outcome`-destructuring site, VA-2 break-and-revert pasted, no findings, no STOP | 2026-09-05 |
-| PHASE-06 — the controller, the fold, and the failure case table | **done** — gate green (7.143 s), 64 renderer tests (33-row table VT-1, 7 reducer-row VT-2, 2 `busy`-clearing VT-3), VA-2 break-and-revert pasted, no items moved in the `driving.rs` cut, no findings, no STOP; A-2 spent one `#[expect]` on `stamp`'s `dead_code` | 2026-09-05 |
+| PHASE-06 — the controller, the fold, and the failure case table | **done** — gate green (7.608 s), 64 renderer tests (33-row table VT-1, 7 reducer-row VT-2, 2 `busy`-clearing VT-3), VA-2 break-and-revert pasted; `describe_outcome` moved `driving.rs` → `harness.rs` (review-code round 1), EX-7 amended `plan-log.md` PL-16, no STOP; A-2 spent one `#[expect]` on `stamp`'s `dead_code` | 2026-09-05 |
 | PHASE-07 — the glass, the wiring, and back-pressure | todo | 2026-09-05 |
 | PHASE-10 — `serve`, and the stop that drops the exchange | todo — **executes between PHASE-07 and PHASE-08**; ids are immutable, so the sequence is non-monotonic (PL-10) | 2026-09-05 |
 | PHASE-08 — startup, the entry point, and the event-loop tier | todo | 2026-09-05 |
@@ -1968,20 +1968,22 @@ live):
 
 **Status:** done
 
-**VA-1 — `just check` under `nix develop`, pasted (exit 0):**
+**VA-1 — `just check` under `nix develop`, pasted (exit 0, final run after the
+`describe_outcome` move and PL-16):**
 
 ```
 $ time nix develop --command just check
 [build, test, test-stratum1, typecheck, lint, fmt-check all pass]
-real	0m7.143s
-user	0m3.367s
-sys	0m0.745s
+real	0m7.608s
+user	0m4.788s
+sys	0m1.140s
 ```
 
 `renderer` target: 64 tests, 0 failed (`cargo test -p goad --test renderer`).
-`goad-shell`'s `integration`/`shape` targets, `goad-semantics`'s `protocol`
-target and every lib's unit tests: unaffected, all green (same numbers as
-PHASE-05's run plus this phase's own).
+`goad-shell`'s `integration` target: 58 tests, 0 failed, unchanged in count
+after the `describe_outcome` move (mechanical relocation, no test added or
+removed). `shape`, `goad-semantics`'s `protocol` target and every lib's unit
+tests: untouched, still green.
 
 **Discharge table:**
 
@@ -1995,9 +1997,9 @@ PHASE-05's run plus this phase's own).
 | EX-4 | `controller.rs:surface()` — `match (self.focus, self.shown.is_some())`, three arms, no `_` |
 | EX-5 | `reduce()` (`controller.rs`) — total match on `(Exchanged, bool, bool)`, 8 combinations across 3 arms (grouped by resulting `Shift` to avoid `clippy::match_same_arms`), no `_`, no `unreachable!()`; row 7 → `Replaced` |
 | EX-6 | `engage()` is the only setter; `absorb()` clears unconditionally — VT-3 break-and-revert below |
-| EX-7 | `answer()` returns `UserResponse{option, values: BTreeMap::new()}` with the retained `ViewId`; `ViewId::new`/`OptionId::new` called from nowhere in `crates/goad` (`OptionId::new` is `pub(super)` to `goad_semantics::protocol` — compiler-enforced, confirmed by the crate boundary itself, not merely by grep) |
+| EX-7 | `answer()` returns `UserResponse{option, values: BTreeMap::new()}` with the retained `ViewId`; `ViewId::new` called from nowhere in `crates/goad/src` (amended from "`crates/goad`", `plan-log.md` PL-16 — `tests/renderer/{table,reception}.rs` both call it to construct a fixture, which is the letter's own vocabulary but not its purpose); `OptionId::new` called from nowhere in `crates/goad` at all, including its tests — it is `pub(super)` to `goad_semantics::protocol`, compiler-enforced |
 | EX-8 | `tests/backends/answers-as-instructed.sh` — the three `@lingers*` arms added verbatim from design.md §12.9, `@lingers-with-a-view`'s body pinned (one title, one option, no fields, no body content, `"next_check":"120 minutes"`) |
-| EX-9 | `tests/renderer/main.rs` — `#[cfg(test)] mod table;` and the literal `#[path = "../../../../tests/support/driving.rs"] mod driving;`. Re-settlement: **no item moved** — see VA-2 |
+| EX-9 | `tests/renderer/main.rs` — `#[cfg(test)] mod table;` and the literal `#[path = "../../../../tests/support/driving.rs"] mod driving;`. Re-settlement: `describe_outcome` moved into `harness.rs` (not called by `table.rs`, so not called by both including targets — the sheet's first pass over-claimed "no item moved"; corrected on review) — see VA-2 |
 | EX-10 | `tests/renderer/table.rs::every_failure_in_the_taxonomy_is_read_off_one_retained_host` — §12.9's array in §12.2's sequence, one retained `Host`, `Cohort::Own` exemption for T1, ends on `invocations(&log) == instructions.len()` |
 | EX-11 | `crates/goad/src/lib.rs` — `pub mod clock;`, `pub mod controller;`, `pub mod wire;` added |
 | VT-1 | `table.rs`'s driver: 33 rows, every row's `Display` text on its channel, `shift`, `refused`, schedule instant and invocation count; the trailing `respond(A)`/`evaluate(@lingers-with-a-view)`/`respond(B)` are rows `answer-A`, `C3`, `answer-B` — passing |
@@ -2008,42 +2010,50 @@ PHASE-05's run plus this phase's own).
 
 **VA-2 — the `driving.rs`/`harness.rs` cut, as it now stands:**
 
-No item moved in either direction. `tests/support/driving.rs` is unchanged
-(`git diff --stat` confirms zero lines touched). Accounting, item by item,
-against §12.8's enumerated host-driving list:
+**One item moved.** `describe_outcome` relocated from `tests/support/
+driving.rs` into `crates/goad-shell/tests/integration/harness.rs`
+(review-code round 1: the sheet's first pass claimed "no item moved" while
+its own text noted `describe_outcome` as unused by `table.rs` — a
+self-contradiction, corrected here rather than argued around). Accounting,
+item by item, against §12.8's enumerated host-driving list:
 
 - `scripted`, `backend`, `marker`, `logging_backend`, `clear` — called by
   `table.rs` (the retained cohort's backend, and the inert-option
   throwaway) and by `goad-shell`'s `failure_matrix.rs`/`transport.rs`/etc.
-  (unchanged, pre-existing).
+  (unchanged, pre-existing). **Stay.**
 - `config`, `host`, `host_from`, `DEFAULT_POLL` — `table.rs` calls `host`
   directly (both the retained `Host` and T1's own); `host_from` and
-  `DEFAULT_POLL` remain reachable through it, as before.
-- `instant`, `invocations` — called directly by `table.rs`'s driver.
+  `DEFAULT_POLL` remain reachable through it, as before. **Stay** — both
+  targets reach them transitively through `host()`/`config()`, which is
+  why they are not moved despite `table.rs` never naming them directly.
+- `instant`, `invocations` — called directly by `table.rs`'s driver. **Stay.**
 - `quiet_event`, `event` — `table.rs` uses `quiet_event` for every
-  `evaluate` call, matching `failure_matrix.rs`'s own idiom.
-- `describe_outcome` — not called by `table.rs` in the end (every panic
-  message names the row id instead, which reads better against a 33-row
-  table); still used throughout `goad-shell`'s tier. **Candidate for a
-  future move**, noted under Open below rather than acted on, since moving
-  it needs no `renderer` change and touching `harness.rs`/its four callers
-  for one item outside this phase's declared need is scope the design
-  did not ask for.
+  `evaluate` call, matching `failure_matrix.rs`'s own idiom. **Stay.**
+- `describe_outcome` — **moved to `harness.rs`.** Not called by `table.rs`
+  (every panic message there names the row id instead), so no longer
+  called by both including targets — exactly PL-4's condition for moving an
+  item out. `driving.rs`'s own `choice`/`presented`, which called it for
+  their "no view" panic, now call a new private `no_view` helper local to
+  `driving.rs` that reproduces the same text for the case they need (a
+  narrower restatement, not a lesser one — see `tests/support/driving.rs`).
+  `harness.rs` and its four callers (`host.rs`, `round_trip.rs`,
+  `failure_matrix.rs`, and `harness.rs` itself) updated to import it from
+  `crate::harness` instead of `crate::driving`; body unchanged.
 - `choice`, `answer_first_option` — `table.rs` calls `answer_first_option`
   directly (the coda rows, and the inert-option throwaway); `choice` is
   reachable through it (`answer_first_option` calls `choice` internally).
   Both remain used directly by `goad-shell`'s `round_trip.rs`/`host.rs`/
-  `failure_matrix.rs`, unchanged.
+  `failure_matrix.rs`, unchanged. **Stay.**
 - `presented` — `table.rs` calls it directly for the coda rows' `ViewId`.
+  **Stay.**
 - `CLEANUP_LIMIT` — `table.rs` asserts `CLEANUP_LIMIT.as_millis() == 500`
   at the top of the driver, the keep-in-sync witness §12.8 asks for so that
   `DISPOSAL`'s pinned literal cannot drift from the real budget silently;
   `goad-shell`'s `transport.rs` asserts against it directly as before.
+  **Stay.**
 
-Every symbol in `tests/support/driving.rs` is therefore called by **both**
-including targets. The re-settlement's outcome is "confirmed unchanged", not
-"nothing to settle" — `describe_outcome` came within one design choice of
-needing to move, and the accounting above is what would have said so.
+Every symbol remaining in `tests/support/driving.rs` is now called by
+**both** including targets — `just check` green after the move (VA-1).
 
 **Break-and-revert (VT-3, S-3-shaped negative control, F-21):**
 
@@ -2115,16 +2125,28 @@ Reverted; both tests pass. `git diff` after the revert shows no stray edit
   `ViewId` (exchange "A"'s) is captured as a `String` and substituted for
   `<A>` before comparison. Confirmed as intended by design.md's own text,
   not an adjustment.
+- **EX-7's letter ("nowhere in `crates/goad`") is falsified by
+  `tests/renderer/table.rs` and `tests/renderer/reception.rs`, both of which
+  call `ViewId::new`** to construct a fixture `Host::respond` or a
+  constructed `Outcome` needs and cannot obtain any other way — S1/S2's
+  fabricated id and row 5's reached-by-construction path are both
+  design-mandated, not incidental. Amended in `plan-log.md` PL-16 to
+  "nowhere in `crates/goad/src`", whose purpose (production never mints an
+  id) the two test fixtures do not engage. `OptionId::new` is unaffected —
+  it remains unreachable from `crates/goad` at all, `pub(super)` and
+  compiler-enforced, including from these same fixtures.
 - No STOP fired. S-1 (a third `#[expect]`) and S-8 (a new dependency) were
   the only two named live for this phase. S-1 came within one spend of
   firing (`stamp`'s `#[cfg_attr(not(test), expect(dead_code, ...))]` is the
   first of two remaining); S-8 did not fire — no `Cargo.toml` in this
   phase's diff (`git diff --stat '*.toml'` empty).
 
-**Findings:** none raised against `plan.md` or `design.md` this phase. One
-observation carried to Open below (`describe_outcome`'s no-longer-exclusive
-use is a latent, undamaging drift from a literal reading of §12.8's
-enumeration, not a defect).
+**Findings:** none raised against `plan.md` or `design.md` this phase.
+Review-code round 1 found this sheet's own first pass self-contradicted on
+EX-9/VA-2 (`describe_outcome` noted as unused by `table.rs`, then EX-9
+reported as "no item moved") and found EX-7's letter falsified by two test
+fixtures. Both are corrected in place above: `describe_outcome` moved to
+`harness.rs` (VA-2), EX-7 amended by `plan-log.md` PL-16.
 
 **Carried forward, not this phase's to fix:**
 
@@ -2140,6 +2162,16 @@ enumeration, not a defect).
   `glass.rs`, `startup.rs`, `main.rs` remain unwritten — PHASE-07/08/10's.
 - A-2's `#[expect]` budget: **one slot remains** (this phase spent one, on
   `stamp`'s `dead_code`).
+- **`controller.rs`'s `#[cfg_attr(not(test), expect(dead_code, reason =
+  "…"))]` on `stamp` must be removed by whichever phase first calls `stamp`
+  from production code** (PHASE-10's `serve`, or PHASE-07 if it reaches for
+  it sooner). The moment a non-test caller exists, `stamp` is used in the
+  plain lib build too, the `not(test)` branch's `#[expect(dead_code)]` goes
+  **unfulfilled** there, and `unfulfilled_lint_expectations` is denied under
+  `-D warnings` — the same trap this phase measured and is documented under
+  Judgements above. Whoever lands `stamp`'s first production call site
+  should expect the gate to fail until the attribute comes off, not read it
+  as a regression.
 
 ## Harvest
 
@@ -2204,10 +2236,11 @@ commit on `slice-002`
   §12.9), the driver (VT-1), 7 reducer-row tests (VT-2), 2 `busy`-clearing
   tests (VT-3, break-and-revert pasted) — 64 renderer tests total, all
   green. `tests/backends/answers-as-instructed.sh` gained the three
-  `@lingers*` arms. `tests/support/driving.rs` unchanged — every symbol in
-  it confirmed called by both including targets (VA-2), no move needed.
-  A-2's budget: one `#[expect(dead_code)]` spent, on `stamp` (uncalled
-  until PHASE-07's `serve`); one slot remains.
+  `@lingers*` arms. `tests/support/driving.rs`'s cut re-settled: `describe_
+  outcome` moved out to `crates/goad-shell/tests/integration/harness.rs`
+  (unused by `table.rs`), every remaining symbol confirmed called by both
+  including targets (VA-2). A-2's budget: one `#[expect(dead_code)]` spent,
+  on `stamp` (uncalled until PHASE-07's `serve`); one slot remains.
 
 ### Learned
 
@@ -2367,6 +2400,12 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   generated-code quarantine; PHASE-06 spent the first of the two remaining
   on `stamp`'s `dead_code` (a type landed one phase before its only
   caller — exactly A-1/A-2's own anticipated shape). **One slot remains.**
+- **`controller.rs`'s `stamp` carries `#[cfg_attr(not(test), expect(dead_code,
+  reason = "…"))]`, and it must come off in the phase that first calls
+  `stamp` from production code** (PHASE-10's `serve`, or PHASE-07 if it gets
+  there first). Once a non-test caller exists the attribute's `not(test)`
+  branch is unfulfilled in the plain lib build and fails the gate under
+  `unfulfilled_lint_expectations` — expected, not a regression to chase.
 - **`design.md:367`'s member table still reads "`slint` with its testing
   feature."** F-39, `verified`, not yet reconciled into the design text.
   Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.
@@ -2376,13 +2415,14 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   and `Wire`/`Cancel`/`Command`/`Stimulus` in `wire.rs`, and PHASE-05/06
   built it that way. Audit's *Design drift not reconciled*, alongside DF-6,
   `Breach::Token` and the testing-feature line.
-- **`describe_outcome` is, as of this phase, one design choice away from
-  being `goad-shell`-exclusive.** PHASE-06's `table.rs` ended up not
-  needing it (every panic message names the row id instead); every other
-  §12.8-enumerated host-driving helper is now called by both including
-  targets. Not acted on — moving one helper for one caller's naming
-  preference is not this phase's to do — but worth a look if a later
-  phase's `tests/support/driving.rs` re-settlement ever needs a nudge.
+- **`describe_outcome` moved from `tests/support/driving.rs` to
+  `crates/goad-shell/tests/integration/harness.rs` at PHASE-06** (review-code
+  round 1, PL-4's condition: `table.rs`'s panic messages name the row id
+  instead, so it stopped being called by both including targets).
+  `driving.rs`'s own `choice`/`presented` now call a private `no_view`
+  helper that restates only the "no view" case they need. Landed, not
+  merely noted — recorded here as the map to the mechanical relocation,
+  should a later phase's own `driving.rs` re-settlement need the pattern.
 - **A process incident, self-corrected: `git stash@{0}` sits on the stack**
   ("WIP on slice-002: 128df95…"), fully redundant with the working tree
   (verified byte-identical, `docs/slices/002/notes.md` PHASE-03 sheet).

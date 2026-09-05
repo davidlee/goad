@@ -21,7 +21,7 @@ use goad_shell::config::Command;
 use goad_shell::error::{BackendError, CleanupFailure, StateError};
 use goad_shell::host::{Failure, Outcome};
 
-use crate::driving::{describe_outcome, event};
+use crate::driving::event;
 
 /// Re-exported so the transport cases keep naming one module. `backend`,
 /// `marker` and `clear` are `scripted`'s dependencies and moved with it (§12.8);
@@ -196,6 +196,24 @@ pub(crate) fn prompting_event(now: Timestamp) -> Event {
 // ---------------------------------------------------------------------------
 // The host tier's own diagnostics
 // ---------------------------------------------------------------------------
+
+/// What an outcome came back with, as a sentence.
+///
+/// Moved here from `tests/support/driving.rs` at PHASE-06 (PL-4, review-code
+/// round 1): it was declared "host-driving" by §12.8's original enumeration,
+/// but the `renderer` target's own `table.rs` ended up not calling it —
+/// every panic message there names the row id instead — so it is no longer
+/// called by both including targets, and belongs with the tier that does
+/// call it. `driving.rs`'s own `choice`/`presented` no longer call this: a
+/// private `no_view` there restates just the "no view" half they need,
+/// since that shared file cannot reach into `harness.rs` (§12.8).
+pub(crate) fn describe_outcome(outcome: &Outcome) -> String {
+  match (&outcome.failure, &outcome.view) {
+    (Some(failure), _) => format!("a failure: {failure}"),
+    (None, Some(presented)) => format!("a view carrying {}", presented.view_id.as_str()),
+    (None, None) => "nothing to show, and no failure".to_owned(),
+  }
+}
 
 pub(crate) fn backend_error(outcome: &Outcome) -> &BackendError {
   match &outcome.failure {

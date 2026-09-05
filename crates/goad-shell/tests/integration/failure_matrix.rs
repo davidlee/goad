@@ -16,10 +16,9 @@
 use std::time::Duration;
 
 use crate::driving::{
-  answer_first_option, describe_outcome, host, instant, invocations, presented, quiet_event,
-  scripted,
+  answer_first_option, host, instant, invocations, presented, quiet_event, scripted,
 };
-use crate::harness::{backend_error, only_discard, protocol_error, stderr_of};
+use crate::harness::{backend_error, describe_outcome, only_discard, protocol_error, stderr_of};
 use goad_semantics::error::{BoundsError, ProtocolError, ScheduleError};
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_semantics::protocol::normalize::Discarded;

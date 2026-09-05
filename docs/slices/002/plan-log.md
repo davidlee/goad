@@ -431,3 +431,46 @@ records the amended form it ran against (PL-13's shape).
   imprecise phrase; `docs/slices/002/notes.md`'s PHASE-03 sheet records the
   corrected manifest and this entry. Audit's *Design drift not reconciled* if
   the design text is not tightened at reconciliation.
+
+### 2026-09-05 — PL-16: PHASE-06/EX-7's "nowhere in `crates/goad`" is "nowhere in `crates/goad/src`"
+
+*Autonomy grant, review-code round 1.* `plan.md` itself is **not** in
+PHASE-06's Surfaces, so the criterion is amended here and the phase sheet
+records the amended form it ran against (PL-13's shape).
+
+- **Asked:** `plan.md`'s PHASE-06/EX-7 states `ViewId::new` "is called from
+  nowhere in `crates/goad`". As executed, `tests/renderer/table.rs` and
+  `tests/renderer/reception.rs` both call it — `table.rs` to fabricate the
+  id S1 and S2 hand to `Host::respond` (a value the suite must mint because
+  no `Host` will), and `reception.rs` to build a `Presented` for a
+  constructed `Outcome`. Both are `tests/` fixtures, not production code,
+  and `crates/goad` as a path includes `tests/` as well as `src/`.
+- **Decided:** the criterion is amended to "from nowhere in
+  `crates/goad/src/`". The phase sheet's discharge line for EX-7 is rewritten
+  to state the narrower, accurate claim.
+- **Why:** the criterion's purpose survives the narrowing and its letter does
+  not. EX-7's purpose, read against I-3 and the surrounding prose ("the
+  controller compares the incoming string to the retained `Prepared::
+  view_id.as_str()` and, on a match, answers with the retained `ViewId`.
+  `ViewId::new` is never called from a callback"), is that **production
+  code** never mints an id — the renderer always answers with the one the
+  host issued. A test fixture that needs an `Outcome` carrying a view, or a
+  fabricated id the suite itself cannot obtain any other way (S1/S2's
+  design-mandated "the id the suite cannot mint" — meaning cannot mint via
+  `State::issue`, not "cannot construct a `ViewId` value at all"), has no
+  other way to get one: `ViewId::new` is the type's only constructor, public
+  for exactly this reason (design.md §5.3's "the token is a `String`, not a
+  number", and `state.rs`'s own tests construct fabricated ids by the same
+  route). `crates/goad/src` — every file this table.rs test actually
+  exercises for the claim — names it nowhere.
+- **Rejected:** rewriting the two test call sites to avoid `ViewId::new`,
+  which is not possible: `Host::respond`'s signature takes an owned `ViewId`
+  and nothing else can produce a fabricated one, and `reception.rs`'s
+  `Presented` construction needs one for the same reason `host.rs`'s own
+  `state.rs` test fixtures do. Also rejected: reading the criterion literally
+  and raising it as a defect requiring code change, which would ask the test
+  suite to stop testing S1/S2's fabricated-id path and row 5's
+  reached-by-construction path — both explicitly required elsewhere in
+  design.md (§12.3, §5.4's reducer table).
+- **Consequence:** `docs/slices/002/notes.md`'s PHASE-06 sheet cites this
+  entry against EX-7's discharge line. No code changed.

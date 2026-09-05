@@ -187,16 +187,18 @@ pub(crate) fn instant(rfc3339: &str) -> Timestamp {
   Timestamp::new(rfc3339.parse().expect("the fixture must be an instant"))
 }
 
-/// What an outcome came back with, as a sentence.
-///
-/// The tier's `Display`-not-`Debug` rule, as `describe` states it for the
-/// transport. Shared by `host.rs` and `round_trip.rs`, which make the same
-/// claims against a fake and against a process.
-pub(crate) fn describe_outcome(outcome: &Outcome) -> String {
-  match (&outcome.failure, &outcome.view) {
-    (Some(failure), _) => format!("a failure: {failure}"),
-    (None, Some(presented)) => format!("a view carrying {}", presented.view_id.as_str()),
-    (None, None) => "nothing to show, and no failure".to_owned(),
+/// The "no view" half of what `harness.rs`'s `describe_outcome` says, for the
+/// two panics below. `describe_outcome` itself moved to `harness.rs` at
+/// PHASE-06 (§12.8's cut re-settled, review-code round 1): the `renderer`
+/// target's `table.rs` does not call it, so it is no longer used by both
+/// including targets, and this file cannot reach into `harness.rs` to keep
+/// calling it from here. Both call sites below are already inside the "no
+/// view" arm, so this reproduces `describe_outcome`'s text exactly for the
+/// case they need — not a lesser message, a narrower one.
+fn no_view(outcome: &Outcome) -> String {
+  match &outcome.failure {
+    Some(failure) => format!("a failure: {failure}"),
+    None => "nothing to show, and no failure".to_owned(),
   }
 }
 
@@ -211,7 +213,7 @@ pub(crate) fn choice(outcome: &Outcome) -> &Choice {
       let View::Choice(choice) = &presented.view;
       choice
     }
-    None => panic!("expected a view; got {}", describe_outcome(outcome)),
+    None => panic!("expected a view; got {}", no_view(outcome)),
   }
 }
 
@@ -247,6 +249,6 @@ pub(crate) fn answer_first_option(outcome: &Outcome) -> UserResponse {
 pub(crate) fn presented(outcome: &Outcome) -> &ViewId {
   match &outcome.view {
     Some(presented) => &presented.view_id,
-    None => panic!("expected a view; got {}", describe_outcome(outcome)),
+    None => panic!("expected a view; got {}", no_view(outcome)),
   }
 }

@@ -7,9 +7,9 @@
 
 use std::collections::BTreeMap;
 
-use crate::driving::{describe_outcome, instant, presented};
+use crate::driving::{instant, presented};
 use crate::fake::{Calls, FakeBackend, answering, failing, failing_noisily};
-use crate::harness::{backend_error, only_discard, state_error};
+use crate::harness::{backend_error, describe_outcome, only_discard, state_error};
 use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, View, ViewId};
 use goad_shell::config::Config;
 use goad_shell::error::{BackendError, CleanupFailure, StateError};

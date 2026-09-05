@@ -11,11 +11,11 @@ use std::path::Path;
 use std::time::Duration;
 
 use crate::driving::{
-  answer_first_option, choice, config, describe_outcome, host, host_from, instant, invocations,
-  logging_backend, presented, quiet_event,
+  answer_first_option, choice, config, host, host_from, instant, invocations, logging_backend,
+  presented, quiet_event,
 };
 use crate::fake::{Calls, FakeBackend, answering};
-use crate::harness::{example, prompting_event, state_error, stderr_of};
+use crate::harness::{describe_outcome, example, prompting_event, state_error, stderr_of};
 use goad_semantics::protocol::canonical::{Timestamp, UserResponse, ViewId};
 use goad_shell::config::{Command, Config};
 use goad_shell::error::StateError;
