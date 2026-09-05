@@ -53,6 +53,24 @@ case "$instruction" in
   echo "config is missing, so this is all you get" >&2
   printf 'not JSON at all\n'
   ;;
+@lingers) # leaves-a-grandchild-holding-stderr.sh
+  cat >/dev/null
+  echo "$$" >&2
+  sleep 2 >/dev/null &
+  printf '{"view":null}\n'
+  ;;
+@lingers-and-hangs) # leaves-a-grandchild-holding-stdout-too.sh
+  cat >/dev/null
+  echo "$$" >&2
+  sleep 2 &
+  printf '{"view":null}\n'
+  ;;
+@lingers-with-a-view) # the first, with the body design.md §12.1 pins
+  cat >/dev/null
+  echo "$$" >&2
+  sleep 2 >/dev/null &
+  printf '{"view":{"kind":"choice","title":"Still here?","options":[{"id":"yes","label":"Yes"}]},"next_check":"120 minutes"}\n'
+  ;;
 *)
   cat >/dev/null
   printf '%s\n' "$instruction"
