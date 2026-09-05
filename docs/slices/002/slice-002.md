@@ -1,6 +1,6 @@
 # Slice 002: The workspace split, and the first renderer
 
-**Stage:** audit
+**Stage:** done
 **Depends on:** slice 001 (closed) — SPEC-001, the canonical protocol types, the
 process transport, and `Host`.
 **Research:** `research.md` — 5 survey threads, 3 spikes, 2 adversarial
@@ -109,15 +109,15 @@ Surfaces this slice may touch.
 
 ## Acceptance criteria
 
-- [ ] AC-1 — The workspace builds and `just check` exits 0 from a clean clone
+- [x] AC-1 — The workspace builds and `just check` exits 0 from a clean clone
       under `nix develop`, at the split commit and again at slice close. The
       gate is the **six** commands in `design.md` §5.6; the pre-split two-column
       matrix no longer exists, because the split retires the `shell` feature
       that created it, and the renderer adds no column back.
-- [ ] AC-2 — Every file that moved in the split moved unchanged, or its content
+- [x] AC-2 — Every file that moved in the split moved unchanged, or its content
       change is named in `audit.md` with a reason. Content changes beyond import
       paths and manifest entries are evidence of redesign and must be argued.
-- [ ] AC-3 — Four instruments hold four different parts of ADR-001's stratum 1
+- [x] AC-3 — Four instruments hold four different parts of ADR-001's stratum 1
       rule, and the slice states each one's boundary rather than claiming their
       sum is "purity, enforced" (F-6, third and fourth raisings). The count is
       `design.md` §5.1's counting rule and it is used unchanged in `design.md`
@@ -151,21 +151,21 @@ Surfaces this slice may touch.
       (`design.md` §5.6, D25). `boundary.rs`'s `tokio` source grep is retired in
       the same change — the fact it checked now lives in a manifest, where
       instrument 2 reads it.
-- [ ] AC-4 — A backend returning a `choice` view has it drawn: title, body, and
+- [x] AC-4 — A backend returning a `choice` view has it drawn: title, body, and
       one activatable control per option, in the order the backend sent them.
-- [ ] AC-5 — Activating a control sends a `respond` carrying that option's
+- [x] AC-5 — Activating a control sends a `respond` carrying that option's
       `OptionId` and the `ViewId` the host assigned, and the exchange completes.
       The control carries the view token it was drawn with, and a click whose
       token names a presentation that has since been replaced is refused
       locally, with no backend contact.
-- [ ] AC-6 — `view: null` means what `Host` means by it, and the window follows
+- [x] AC-6 — `view: null` means what `Host` means by it, and the window follows
       the interaction rather than the message. A successful `respond` returning
       `view: null` closes the interaction and leaves goad with no window. A
       successful `evaluate` returning `view: null` leaves any outstanding
       interaction — and therefore the question on screen — exactly as it was;
       with nothing outstanding it leaves goad a tray icon and no window. In every
       case goad remains running and answerable.
-- [ ] AC-7 — Every failure in SPEC-001's taxonomy leaves the process running,
+- [x] AC-7 — Every failure in SPEC-001's taxonomy leaves the process running,
       the diagnostic surface showing the failure, and the backend invocable
       again — asserted by a successful exchange after the sequence, through one
       retained `Host`. No failure ends the loop, and no failure hides a view the
@@ -183,23 +183,23 @@ Surfaces this slice may touch.
       attempts a second spawn and fails the same way, so the host neither died
       nor latched. Every other row is in the retained-`Host` cohort, and the
       trailing success is theirs.
-- [ ] AC-8 — Both arbitrary values are bounded at the glass: captured stderr and
+- [x] AC-8 — Both arbitrary values are bounded at the glass: captured stderr and
       a discarded scheduling instruction's verbatim `raw`. The bound is applied
       to the **displayed** form — after lossy decoding and escaping — and counted
       in characters, so a truncation cannot split a codepoint; the display
       truncation and the transport's own capture truncation are two distinct
       statements. Each fact the diagnostic surface reports is rendered exactly
       once (F-42, F-47).
-- [ ] AC-9 — A `markdown` body that the renderer's parser rejects is still
+- [x] AC-9 — A `markdown` body that the renderer's parser rejects is still
       shown, degraded, and the degradation is reported. No legal view is refused
       because the renderer cannot draw part of it.
-- [ ] AC-10 — The renderer's tests run under `cargo test` with no display
+- [x] AC-10 — The renderer's tests run under `cargo test` with no display
       server, and a guard test proves the query API is live — so a `build.rs`
       regression fails loudly instead of turning the suite into vacuous passes.
-- [ ] AC-11 — The empty state is asserted by presence *and* absence: a test
+- [x] AC-11 — The empty state is asserted by presence *and* absence: a test
       names both what must be there and what must not, and each assertion is
       shown to fail against a deliberately broken implementation.
-- [ ] AC-12 — A stop request while an exchange is in flight ends the exchange
+- [x] AC-12 — A stop request while an exchange is in flight ends the exchange
       rather than waiting for it: the in-flight future is dropped — not awaited —
       inside the still-entered tokio runtime, `serve` returns, and only then is
       the event loop asked to quit. What is asserted is what the host holds: the
@@ -209,16 +209,16 @@ Surfaces this slice may touch.
       `kill_on_drop`'s, which R-48 concedes is best-effort and which no test
       asserts. Stopping travels out of band, not as a queued command, because a
       loop awaiting an exchange cannot receive one.
-- [ ] AC-13 — The vocabulary scan reads `workspace.members` and scans `.slint`
+- [x] AC-13 — The vocabulary scan reads `workspace.members` and scans `.slint`
       and `.rs` across every member it finds, so a new member cannot arrive
       unscanned; and its comment cut respects string literals in both languages —
       so a URL in markup cannot hide the user-visible strings after it on the
       same line. Positive controls plant a forbidden word in a component name,
       an accessible label, an ordinary string, a string after a URL, a string
       after an escaped quote, and a string after a raw string.
-- [ ] AC-14 — No domain vocabulary appears in any crate name, module name, type,
+- [x] AC-14 — No domain vocabulary appears in any crate name, module name, type,
       markup component, accessible label, or user-visible string.
-- [ ] AC-15 — `canon-delta.md` accounts for every canon movement this slice
+- [x] AC-15 — `canon-delta.md` accounts for every canon movement this slice
       obliges, and each is promoted or abandoned in writing at audit.
 
 ## Governing canon
@@ -280,8 +280,51 @@ Surfaces this slice may touch.
 
 ## Summary
 
-<!-- Written at close. -->
+The single crate split into a workspace of four — `goad-semantics`,
+`goad-shell`, `goad-boundary` (test-only, workspace-wide invariants), and
+`goad` (the renderer) — landing first and alone, ahead of Slint: 113 renames,
+92 byte-identical, every other change argued (AC-2). The renderer then drew a
+`choice` view, answered it, followed `view: null` per interaction, and drove
+SPEC-001's whole failure taxonomy through one retained `Host`; a stop drops
+the in-flight exchange in ~100 µs. Stratum 1's purity is held by four
+instruments plus the domain-vocabulary scan, each stating its own boundary
+rather than a claimed sum, and confirmed live by break-and-revert. Fourteen
+of fifteen acceptance criteria are met on evidence re-run at audit; AC-15 is
+discharged by this document's own Reconciliation table, worked below.
+
+Two adversarial code-review rounds raised no blocker; two majors (an
+untested degradation marker, a sleep-gated race) were repaired and
+re-verified. Accepted knowingly: `Refused`'s dead `named` field is dropped
+(F-6); a sink seam for `report_platform`'s stderr outlet is added (F-7); the
+production runtime topology gets no regression test yet (F-5). AC-9's last
+hop — that a degraded body is still *shown*, not only reported — is held to
+the `Presentation` boundary: Slint's testing API exposes no accessor for a
+`StyledText`'s rendered content, so that hop is argued rather than asserted.
 
 ## Follow-ups
 
-<!-- Written at close. -->
+- **Drive one exchange through the production runtime topology.** `closing.rs`
+  instantiates the real arrangement — Slint's executor polling a
+  `tokio::process` future under an `EnterGuard` — but never drives an
+  exchange through it; the panic `research.md` Thread 4 measured as
+  invariant 4 failing has no regression test (F-5, `review-code.md`).
+- **The AC-9 last hop.** "A degraded body is still shown" is held at the
+  `Presentation` boundary and argued, not asserted at the glass:
+  `i-slint-backend-testing` 1.17.1 gives a `StyledText` element no content
+  accessor. Either an upstream accessor lands, or a renderer-side probe
+  (a production property whose only purpose is to be tested) is judged
+  worth its cost — a decision for a future slice, not this one.
+- **The vocabulary scan's line-based cut carries four named costs** (D13): a
+  multi-line string literal, a multi-line block comment, `r"` recognised in
+  `.slint` where it does not exist, and an all-caps compound. A fifth case
+  (a char literal holding a quote) surfaced and was fixed during review
+  (F-4); the four D13 names, and the multi-line string case in particular,
+  remain open risk in a scan that trusts line boundaries.
+- **D25's feature-unification residue** — a feature switched on elsewhere in
+  the workspace can unify into stratum 1's build with no instrument seeing
+  it. Currently one feature wide and harmless (`serde_core`'s `alloc`); a
+  `cargo tree -e features` check as a fifth instrument, if the residue ever
+  grows enough to be worth automating.
+- **A scheme policy for links inside rendered bodies.** No URL is ever
+  opened today, so R-19 does not arise in practice, but no policy has been
+  decided either (OQ-6, `design.md` E-5/D11).

@@ -231,7 +231,7 @@ Findings live in `review-code.md`, copied from
 vocabulary, subject `implementation`. Do not restate findings here.
 
 - **Ledger:** `review-code.md`
-- **State:** open — round 2 verified · outstanding blockers: none · awaiting endorsement: F-5 (follow-up), F-6 (doc-wrong, drop `named`), F-7 (contested: the raiser's route runs the binary, which `design.md` §9 item 17 forbids; a sink seam for `report_platform` needs endorsement)
+- **State:** resolved · round 3 verified · outstanding blockers: none. F-5 endorsed as a follow-up (PL-18); F-6 endorsed (`doc-wrong`, `named` dropped); F-7 endorsed (a sink seam for `report_platform`, `design.md` §9 item 17 kept — no test runs the binary).
 
 ## Verdict
 
@@ -254,7 +254,7 @@ Slint's testing API exposes no accessor for a `StyledText`'s content, so the
 "still shown" half of AC-9 is held to the `Presentation` boundary and argued
 for the last hop.
 
-Accepted knowingly, pending the user's word:
+Accepted knowingly, endorsed by the user (`plan-log.md` PL-18):
 
 - **F-5** — the production runtime topology is instantiated by the
   `event_loop` tier and never drives an exchange. A follow-up slice, not this
@@ -295,6 +295,13 @@ unification, one feature wide, and the last hop from property to pixel.
 
 **Design drift not reconciled:**
 
+- `design.md:444-447`'s artifact-map comment still places `Prepared`, `Wire`,
+  `Cancel`, `Command` and `Stimulus` under `controller.rs`; PL-5 settled them in
+  `reception.rs` and `wire.rs`, and the tree follows PL-5.
+- `design.md:3943` (§9 item 17) forbids asserting *the exit code* by running the
+  binary; PL-18 endorsed the wider reading — no test runs the binary at all —
+  and `crates/goad/tests/renderer/startup.rs:10-11` restates the wider rule.
+  The code follows PL-18; §9 is the half to widen if the rule is ever revisited.
 - `design.md:2538`'s artifact-map header comment reads `// crates/goad/src/
   tray_icon.rs — stratum 3`; DF-1 resolved the tray rasteriser's actual home as
   `diagnostics.rs` at plan time, and the code was built to that resolution
@@ -332,14 +339,19 @@ unification, one feature wide, and the last hop from property to pixel.
   nit rather than a canon or design-drift item properly speaking — raised
   here because PHASE-09 carried it forward, but it is `review-code.md`'s to
   dispose, not this table's.
+- `design.md` §5.4 declares `Refused`'s variants carrying a `named` field;
+  the shipped enum (`crates/goad/src/diagnostics.rs:52-59`) has none —
+  `SupersededView`, `UnknownOption`, and `NoClock { detail }` only. Dropped
+  at F-6 (`review-code.md`) and endorsed at PL-18 (`doc-wrong`); the design
+  text itself was not amended.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `slice-nnn.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+- [x] All findings dispositioned; no blockers outstanding
+- [x] All acceptance criteria met, or explicitly waived by the user
+- [x] Tests and checks green
+- [x] Specs / policy / ADRs reconciled, with user endorsement where amended
+- [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
+- [x] `slice-nnn.md` Summary and Follow-ups written
+- [x] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
+- [x] `slice-nnn.md` stage set to `done`

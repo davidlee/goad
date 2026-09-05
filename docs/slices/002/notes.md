@@ -3412,67 +3412,55 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
     untouched for the run's whole duration rather than being dropped on a
     phase's own initiative.
 
-### Open
+### Open — closed out at audit, lifted where noted
 
-- **CD-1…CD-7 and `draft-policy.md`** — unpromoted, audit's, and the user's
-  alone. CD-1 was repaired in place by PHASE-09 (a stale dry-run citation
-  corrected against the executed split's own measurement, F-1); CD-2…CD-7 and
-  `draft-policy.md` were checked and found to already read true. The
-  `justfile` now cites the draft as the slice's working authority
-  (`docs/AGENTS.md:36`), which is what CD-5 will make permanent.
-- **DF-6 has diverged in code, and PHASE-02 widened it.** `Scan` and now
-  `Breach` both carry a `#[derive(Debug)]` that §5.6's block omits. Audit's
-  *Design drift not reconciled*.
+- **CD-1…CD-7 and `draft-policy.md`** — promoted. PL-18 endorsed all seven;
+  `audit.md`'s Reconciliation table is worked, `draft-policy.md` is now
+  `docs/policy/001-the-phase-gate.md`, and ADR-003 supersedes ADR-002.
+- **DF-6 has diverged in code** (`Scan`/`Breach` both derive `Debug`,
+  §5.6's block omits it) — stands in `audit.md`'s *Design drift not
+  reconciled*, unchanged.
 - **`plan-log.md` PL-3's Consequence carries the twice-superseded 91.**
-  Append-only, so it stands; a reader arriving there out of order is misled.
-- **`Breach::Token.token`'s type departs from `design.md:3050`** (`&'static
-  str` there, `Cow<'static, str>` in the tree) — F-38, `verified`, not yet
-  reconciled into the design text itself. Audit's *Design drift not
-  reconciled*, alongside DF-6.
-- **A-1, A-3, A-4 discharged at PHASE-03; A-2's budget spent one slot at
-  PHASE-06 (`stamp`'s `dead_code`), and that slot is given back at
-  PHASE-10.** `serve` (PHASE-10) is `stamp`'s first production caller, so
-  the `#[cfg_attr(not(test), expect(dead_code))]` wrapper is removed in the
-  same change — PHASE-04, PHASE-05, PHASE-07 needed no `#[expect]` outside
-  the generated-code quarantine, and PHASE-10 needed none either (its one
-  `#[expect(clippy::unnecessary_wraps)]` is on test code, outside VA-3's
-  `src/`-only budget). **Zero spent, two slots remain**, unchanged since
-  PHASE-03. The stale "PHASE-07's `serve`" comments PHASE-07 carried
-  forward (`controller.rs`'s `stamp` doc comment and its test-module
-  lead-in, `wire.rs`'s module doc and the comment above `Cancel`'s test
-  module) are corrected at PHASE-10 in the same diffs. `clock.rs:13` still
-  carries the same stale phrasing — `clock.rs` was outside PHASE-10's
-  declared surfaces (`controller.rs`, `wire.rs` only), outside PHASE-08's
-  (`lib.rs`, `startup.rs`, `diagnostics.rs`, `main.rs` only), and outside
-  PHASE-09's (`docs/slices/002/*` and `crates/goad/README.md` only) — three
-  phases in a row have left it correctly untouched. Audit's or a dedicated
-  documentation pass's to correct; no phase's declared surfaces reach it.
-- **`design.md:396`'s test-target table omits `goad-boundary/checks`'s
-  fourth module, `structure`** (PHASE-08, item 14f) — the module's own
-  header comment states it holds neither ADR-001's rule nor `CLAUDE.md`'s,
-  so it is not a `canon-delta.md`/`draft-policy.md` inaccuracy, only a
-  `design.md` one (PHASE-09, F-2). Audit's *Design drift not reconciled*.
+  Not lifted anywhere — append-only, stands as a known trap for a reader
+  arriving there out of order.
+- **`Breach::Token.token`'s type departs from `design.md:3050`** (F-38) —
+  stands in `audit.md`'s *Design drift not reconciled*, unchanged.
+- **A-2's budget: zero spent, two slots remain.** Resolved fact, no further
+  action; the stale "PHASE-07's `serve`" phrasing in `clock.rs:13` is named
+  in `audit.md`'s Verdict discussion as untouched by any phase's declared
+  surfaces — left for a future documentation pass, not this audit's to fix
+  unilaterally.
+- **`design.md:396`'s test-target table omits `structure`** (F-2) — stands
+  in `audit.md`'s *Design drift not reconciled*, unchanged.
 - **`design.md:367`'s member table still reads "`slint` with its testing
-  feature."** F-39, `verified`, not yet reconciled into the design text.
-  Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.
+  feature"** (F-39) — stands in `audit.md`'s *Design drift not
+  reconciled*, unchanged.
 - **The artifact map's `controller.rs` tree comment (`design.md:444-447`)
-  is stale against PL-5.** It lists `Prepared`, `Wire`, `Cancel`, `Command`,
-  `Stimulus` under `controller.rs`; PL-5 places `Prepared` in `reception.rs`
-  and `Wire`/`Cancel`/`Command`/`Stimulus` in `wire.rs`, and PHASE-05/06
-  built it that way. Audit's *Design drift not reconciled*, alongside DF-6,
-  `Breach::Token` and the testing-feature line.
-- **`describe_outcome` moved from `tests/support/driving.rs` to
-  `crates/goad-shell/tests/integration/harness.rs` at PHASE-06** (review-code
-  round 1, PL-4's condition: `table.rs`'s panic messages name the row id
-  instead, so it stopped being called by both including targets).
-  `driving.rs`'s own `choice`/`presented` now call a private `no_view`
-  helper that restates only the "no view" case they need. Landed, not
-  merely noted — recorded here as the map to the mechanical relocation,
-  should a later phase's own `driving.rs` re-settlement need the pattern.
-- **A process incident, self-corrected: `git stash@{0}` sits on the stack**
-  ("WIP on slice-002: 128df95…"), fully redundant with the working tree
-  (verified byte-identical, `docs/slices/002/notes.md` PHASE-03 sheet).
-  Dropping it needs the user's or orchestrator's say-so, not a phase's.
+  is stale against PL-5.** **Not lifted into `audit.md`'s Design drift
+  list** — flagged by this closing pass as a gap: the Harvest named it for
+  that table alongside DF-6/`Breach::Token`/the testing-feature line, but
+  it is not there. Left for the next document touching `audit.md`'s
+  Reconciliation or Design-drift sections to add.
+- **`describe_outcome` relocation (PHASE-06)** — landed, no further action;
+  the pattern is generalised in
+  `docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md`.
+- **`git stash@{0}` and the second incident's `stash@{1}`** — both
+  endorsed for drop at PL-18; the recovery method (never pop/apply) is
+  lifted to `docs/memory/git-stash-forbidden-recover-read-only.md`.
+
+Durable facts otherwise lifted to `docs/memory/` by this closing pass:
+`wayland-window-placement-is-the-compositors.md`,
+`fontconfig-needs-makefontsconf-not-just-buildinputs.md`,
+`shared-test-helper-lives-at-workspace-root-via-path.md`,
+`clippy-toml-test-exemptions-are-a-hidden-boundary.md`,
+`cargo-test-cwd-is-package-root-not-workspace-root.md`,
+`slint-markdown-subset.md`,
+`expect-dead-code-ahead-of-caller-needs-cfg-attr.md`,
+`git-stash-forbidden-recover-read-only.md`,
+`assert-superset-not-equality-on-a-rename-set.md`,
+`stop-letter-vs-purpose-is-a-plan-log-adjudication.md`; the character-count
+bound-measurement lesson is folded into the existing
+`a-bound-is-not-tested-at-the-bound.md` as instructed above.
 
 ---
 

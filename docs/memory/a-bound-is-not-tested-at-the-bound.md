@@ -41,3 +41,17 @@ apart and check that its assertion differs between them. If it does not,
 the assertion is about the outcome, not the bound; find the observable that
 differs — a count, a timing, a side effect the other party reports — and
 assert that.
+
+## Hitting an exact character count (slice 002, PHASE-05)
+
+The same failure mode shows up one level up, when the bound is a character
+count rather than a byte count: a test that wants *limit − 1*/*limit*/
+*limit + 1* through a real reducer (not by calling a private `bound`
+function directly) cannot get there by guessing a string length. Build the
+shortest instance of the fact once, measure its **composed** length after
+escaping, then grow the one variable-length part (an ASCII byte string,
+which adds one character per byte with no escaping) by the difference.
+
+This generalises the rule above: name the two implementations it must tell
+apart, *or*, when the two implementations are "off by one" versions of the
+same bound, measure the real baseline instead of asserting a guessed one.

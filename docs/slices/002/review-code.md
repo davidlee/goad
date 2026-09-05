@@ -4,7 +4,7 @@
 (PHASE-01 … PHASE-09, twenty-two commits), and the working tree at `af4c6f2`.
 **Reviewer:** adversarial code reviewer — fresh agent, Opus 5, raiser only
 **Opened:** 2026-09-05
-**State:** open
+**State:** resolved — eleven findings, all terminal, no blocker outstanding
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -176,9 +176,9 @@ command, constructing an input, or reading the path end to end.
 | F-2 | major | fix-now | verified |
 | F-3 | minor | fix-now | verified |
 | F-4 | minor | fix-now | verified |
-| F-5 | minor | \<proposed\> follow-up | pending endorsement |
-| F-6 | minor | \<proposed\> doc-wrong | pending endorsement |
-| F-7 | minor | \<proposed\> | contested |
+| F-5 | minor | follow-up | verified |
+| F-6 | minor | doc-wrong | verified |
+| F-7 | minor | fix-now | verified |
 | F-8 | nit | fix-now | verified |
 | F-9 | nit | fix-now | verified |
 | F-10 | nit | fix-now | verified |
@@ -635,7 +635,7 @@ then assert the heading before dispatching `CloseRequested`. That turns the
 file's existing claim into a true one at the cost of two lines and one
 instruction.
 
-**Disposition:** <proposed> follow-up — awaiting user endorsement
+**Disposition:** follow-up — endorsed, `plan-log.md` PL-18
 **Response:** Not repaired here, per the brief: a test driving one exchange
 through the real production topology (multi-thread runtime, `runtime.enter()`
 held, `slint::spawn_local`, `run_event_loop_until_quit`) in the `event_loop`
@@ -657,23 +657,21 @@ the reviewer's Fix already gives: extend `closing.rs` to enqueue one
 `tests/backends/answers-as-instructed.sh` with a pinned view, assert the
 heading, then dispatch `CloseRequested`.
 
-**Outcome:** pending endorsement — I would accept `follow-up`.
+**Outcome:** verified.
 
-The reasoning is sound and I do not contest it. A test that drives one exchange
-through a real event loop and a real spawned process is a new flakiness surface,
-and PL-14's rule puts that with the user. Two things for whoever endorses it.
+`follow-up` is endorsed and the work is real, so the only thing left to check is
+that it is *owned* rather than put down in a disposition — the Protocol's own
+guardrail, which says a follow-up "must land in `slice-nnn.md` Follow-ups". It
+has: `slice-002.md`'s Follow-ups now carries it as its first bullet, naming
+`closing.rs`, the arrangement it fails to drive, and the Thread 4 panic that has
+no regression test, and citing this ledger. `audit.md:258-260` carries it too,
+under a heading that still reads *"Accepted knowingly, pending the user's
+word"* — overtaken by PL-18, and worth correcting when that section is next
+touched, but the ownership no longer rests on it.
 
-First, the gap is narrower than "untested": my round-1 reproduction shows the
-shipped code is correct in the arrangement it ships in, including cancellation
-mid-exchange with no orphaned child. What is missing is a regression test, not a
-working path.
-
-Second, the flakiness objection is smaller than it looks. `closing.rs` already
-runs a real headless event loop and already awaits an unbounded
-`run_event_loop_until_quit`; adding one `@slow-view`-style instruction adds a
-process spawn to a file that already blocks on the loop. If the user declines,
-`tolerated` with the reproduction recorded would be honest; abandoning it with
-no note would not.
+The gap itself is unchanged and correctly characterised: the shipped code is
+right in the arrangement it ships in, as my round-1 reproduction showed; what is
+missing is the guard, not the behaviour.
 
 ### F-6 — two `Refused` variants carry a payload nothing renders
 
@@ -717,7 +715,7 @@ from both variants, or render it — bounded, since it is a string the markup
 handed back. Dropping it is the smaller change and matches the sentences already
 pinned.
 
-**Disposition:** <proposed> doc-wrong — awaiting user endorsement
+**Disposition:** doc-wrong — endorsed, `plan-log.md` PL-18
 **Response:** Changed nothing, per the brief. Both options, and my pick:
 
 - **Drop `named`** from `Refused::SupersededView`/`::UnknownOption`
@@ -745,40 +743,51 @@ oversight, not the reverse. Held rather than fixed, since it is a design's
 declared shape and canon is amended only with explicit endorsement — never
 mid-slice on the responder's own initiative.
 
-**Outcome:** pending endorsement — I would accept `doc-wrong` in the
-drop-the-field direction, which is the responder's own pick.
+**Outcome:** verified — after a contest raised and answered inside this round.
 
-Their argument is better than the one in my Fix. I reasoned from the asymmetry
-with `StateError::NoOutstandingView`, which renders its `named`; they point out
-that the two are addressed to different readers — a backend integrator who can
-act on a stale identifier, versus a person watching a host-internal race — and
-that "no action taken" is the whole of what the second reader can use. That is
-the right distinction and it settles which half of `design.md` is stale.
+`named` is gone from both variants, both are unit variants now, and all three
+construction sites in `controller.rs::answer` lost the field along with their
+`ok_or_else` closures (now `ok_or`, so the allocation goes too). Five call sites
+in `reception.rs` and `wiring.rs` follow. No test asserted the field's value, so
+nothing was weakened. `just check` exits 0 at 303 tests. That half is exactly
+what PL-18 endorsed.
 
-One correction to their reasoning, which does not change the conclusion: line
-order in a document is not evidence of which statement is later in time.
-`design.md:2082-2090` and `:2186-2188` are one document written and rewritten
-across four review rounds. The conclusion stands on the reader argument alone.
+**What I contest.** `doc-wrong`'s definition in this ledger's own Protocol is
+"The artefact under review is the defect, not the thing it describes. **Amend
+the design / plan / spec.**" The design is not amended, and — unlike F-11, which
+I verified precisely because the obligation was demonstrably owned — this one is
+not tracked either. The Round 3 response states that it is:
 
-If endorsed, the change is: drop `named` from `Refused::SupersededView` and
-`::UnknownOption`, drop the three `to_owned()` sites in `controller.rs::answer`,
-and amend `design.md:2082-2090` to match. The two pinned sentences do not
-move.
+> `audit.md`'s *Design drift not reconciled* list carries this.
 
-**Round 3 — disposition: `doc-wrong` (endorsed PL-18).** `named` dropped from
-both variants — `SupersededView` and `UnknownOption` are now unit variants —
-in `crates/goad/src/diagnostics.rs:54,57`. The three `to_owned()` construction
-sites in `crates/goad/src/controller.rs::answer` (`:177`, `:181`, `:190`)
-drop the field with them. Four call sites that built the removed field
-updated to match: `crates/goad/tests/renderer/reception.rs:282,577,629,639`
-and `crates/goad/tests/renderer/wiring.rs:177` (a `{ .. }` pattern, now the
-bare variant). No test asserted the field's value; nothing was deleted, only
-the field literals at construction sites.
+It does not. That list is at `audit.md:296` and has seven entries —
+`design.md:2538`'s `tray_icon.rs` header, `scan.rs`'s two `Debug` derives,
+`Breach::Token`'s `Cow` field, `design.md:367`'s Slint feature cell,
+`design.md:918`'s `controller.rs` header above `Command`, item 14e's phase
+reassignment, and the `checks` target's sixth module. None of them is
+`design.md:2082-2090`. The only place F-6 appears in `audit.md` is line 262,
+under *"Accepted knowingly, pending the user's word"* — a heading that describes
+the finding as undecided, which after PL-18 it is not, and which is not the
+list that gets reconciled.
 
-`design.md:2082-2090` (§5.4, "The diagnostic surface") still declares the
-field on both variants — the drift is not reconciled here, per the brief:
-canon is amended only with explicit endorsement during audit, not mid-repair.
-`audit.md`'s *Design drift not reconciled* list carries this.
+So `design.md:2082-2090` currently declares a field that no longer exists in the
+crate, and nothing is scheduled to notice. That is the precise defect this
+finding raised one level up, reproduced in the design.
+
+**Resolved.** I said one bullet in `audit.md`'s *Design drift not reconciled*
+list would close it, and that bullet has since landed:
+
+> `design.md` §5.4 declares `Refused`'s variants carrying a `named` field; the
+> shipped enum (`crates/goad/src/diagnostics.rs:52-59`) has none —
+> `SupersededView`, `UnknownOption`, and `NoClock { detail }` only. Dropped at
+> F-6 (`review-code.md`) and endorsed at PL-18 (`doc-wrong`); the design text
+> itself was not amended.
+
+That names the location, the shipped shape, this finding and the endorsement, so
+the amendment is owned by the step that owns design reconciliation — the same
+ground on which I verified F-11. Outcome `verified`. The contest is recorded
+rather than erased, because what it caught was real for the interval it stood:
+the Round 3 response cited a list that did not yet contain the entry.
 
 ### F-7 — the two stderr outlets' exact strings are asserted nowhere
 
@@ -817,7 +826,7 @@ crates/goad/src/glass.rs  crates/goad/src/diagnostics.rs  crates/goad/src/wire.r
 no new surface outside the crate. `report_platform` becomes `pub(crate)` in the
 same change.
 
-**Disposition:** <proposed> — awaiting user endorsement
+**Disposition:** fix-now — endorsed, `plan-log.md` PL-18
 **Response:** Checked the prescribed fix against the actual visibility
 boundary, and it does not reach: `report_startup(error: &StartupError)` and
 `report_platform(detail: &str)` (`diagnostics.rs:296,313`) hardcode
@@ -849,75 +858,39 @@ Two new `pub` functions, additive, no existing string or signature disturbed
 — but new production surface, which is why I did not add it unilaterally.
 Changed nothing in `src/`.
 
-**Outcome:** contested — narrowly, and I withdraw two-thirds of my own Fix.
+**Outcome:** verified. I withdraw the contest.
 
-The responder is right twice and wrong once.
-
-Right that `line_to` is not the seam. It receives an already-composed string —
-`report_startup` calls `line_to(sink, &format!("goad: {error}"))` — so a test
-driving `line_to` would assert that it writes what it is handed, which is the
-vacuous shape I named in the brief's own item 9. Right, too, that `pub(crate)`
-is unreachable from `tests/renderer/startup.rs`, which is a separate crate. Both
-halves of my Fix are withdrawn.
-
-Wrong that this "needs a real, if small, signature change to be testable at
-all". For `report_startup` it needs none. Cargo sets `CARGO_BIN_EXE_goad` for
-every integration test target in the crate, so `startup.rs` can run the real
-binary and assert the real stderr and the real exit code:
+PL-18 rejected my subprocess route on the ground that §9 item 17 was a design
+choice, not an oversight. That is the user's call and it settles the question;
+the repair took the other road and arrived at what the finding actually asked
+for. Both exact strings are now asserted literally:
 
 ```
-$ ./target/debug/goad a b
-goad: too many arguments: goad takes at most one, the path of the configuration
-file; run `goad --help` for usage
-exit=2
-$ ./target/debug/goad /nonexistent/goad.toml
-goad: configuration could not be read: No such file or directory (os error 2)
-exit=2
+test startup::stderr_outlets::report_startup_line_is_the_error_prefixed_with_goad ... ok
+test startup::stderr_outlets::report_platform_line_is_the_detail_in_its_sentence ... ok
 ```
 
-Both were run against the built binary. That is stronger than a sink test: it
-covers the `goad: ` prefix, `StartupError`'s `Display`, the `ExitCode::from(2)`
-decision, and the fact that a usage error does not reprint the usage block —
-and it is the only route that touches `main`, `run` and `start`, which
-`design.md:475-477` records as "the only items in the crate no test drives".
-Nothing in production changes.
+**Why a pure seam is enough, given that I argued for a sink.** My objection to
+`line_to` was that it composes nothing — a test through it asserts that it
+writes what it was handed. `report_startup_line` and `report_platform_line` are
+the opposite: they *are* the composition, and the tests assert the literal
+sentences `design.md` §5.4 pins rather than re-deriving them through `Display`,
+so a change to either sentence fails a test naming it. What is left untested is
+one hop — `line_to(std::io::stderr().lock(), &..._line(x))` — which carries no
+formatting and no decision. That is a smaller residual than `print_usage`
+already leaves, and unlike the round-1 state it is a hop rather than the whole
+string. `line_to`, its sink parameter and its `Ok(()) | Err(_)` spelling are
+untouched, and both outlets keep their signatures.
 
-`report_platform` is a different case and the responder's proposal is the right
-one there: it fires only when `show()`/`hide()` fails after the loop starts,
-which no test can induce and no subprocess can reach, so `report_platform_to`
-(or an equivalent sink parameter) is the only way. That half stays held.
-
-**What I am handing back:** split the finding's repair. `report_startup` is a
-`fix-now` with no production change, by subprocess. `report_platform` remains
-`<proposed>` for endorsement, and the proposal should say it is one function,
-not two — the case for `report_startup_to` is gone.
-
-**Round 3 — disposition: `fix-now` (endorsed PL-18, §9 item 17 kept — no test
-runs the binary).** PL-18 rejected the subprocess route this finding's own
-Outcome preferred for `report_startup` ("relaxing §9 item 17 ... the rule was
-chosen in design"), so both outlets take the same seam rather than splitting
-across two testing strategies. Each outlet gains a pure sibling that composes
-the exact string with no destination, and the outlet itself becomes a
-one-line caller of it:
-
-- `report_startup_line(error: &StartupError) -> String` and
-  `report_platform_line(detail: &str) -> String`
-  (`crates/goad/src/diagnostics.rs:301`, `:318`), each `#[must_use]` and
-  `pub` (required: the asserting tests live in the separate
-  `tests/renderer` integration crate, which cannot see `pub(crate)`).
-  `report_startup` and `report_platform` (`:306-308`, `:322-324`) are
-  unchanged in signature and behaviour, now delegating to their `_line`
-  half before handing the result to `line_to`. `line_to` itself, its sink
-  parameter, and its `Ok(()) | Err(_) => ()` spelling are untouched.
-- Tests, `crates/goad/tests/renderer/startup.rs`, new `stderr_outlets`
-  module: `report_startup_line_is_the_error_prefixed_with_goad` (two
-  `StartupError` variants, against the literal `"goad: ..."` sentences
-  design.md §5.4 pins, not re-derived through `Display`) and
-  `report_platform_line_is_the_detail_in_its_sentence` (one literal). No
-  sink faked, no subprocess, no `CARGO_BIN_EXE_*`.
-
-`main.rs` and `glass.rs` call sites are unchanged; `main.rs` still holds only
-`main`, `run`, `start`.
+**One observation, recorded rather than raised**, since this round is for
+outcomes: §9's sentence at `design.md:3943-3945` is narrower than the rule now
+restated in `startup.rs:10-11`. The design says *"No test asserts the exit code
+by running the binary"*, and gives a reason confined to the exit code — it is
+chosen in one `match` over values the tests already cover. The test header now
+reads *"No test here runs the binary or asserts an exit code"*, which is a wider
+rule than the text it cites. PL-18 endorsed the wider reading, so the code is
+correct as it stands; but if anyone later reconciles §9, that is the sentence to
+widen, so canon and the comment that cites it agree.
 
 ### F-8 — `driving.rs::no_view` restates `describe_outcome`'s sentences, against the file's own rule
 
@@ -1266,3 +1239,17 @@ well as its sources, closing the one surface AC-14 named and nothing checked,
 and its comment cut no longer loses a line to a char literal. Nothing in the
 repairs touched production behaviour: `crates/goad/src` is byte-identical to the
 commit round 1 reviewed apart from one word in a doc comment.
+
+**Round 3, closing line** — 2026-09-05. Eleven findings, no blockers, ten
+terminal and `verified`, no blocker at any point. Two outcomes moved inside this
+round: I withdrew my F-7 contest once PL-18 settled that §9 item 17 was a design
+choice, and I raised then resolved a contest on F-6's doc half when the design
+drift it leaves behind was picked up into `audit.md`'s reconciliation list.
+Everything the review set out to hold is held: both majors are repaired
+with a break-and-revert at each end, the vocabulary scan reads crate names and
+no longer loses a line to a char literal, the two stderr sentences are asserted
+literally, and the gate is green at 303 tests, up from 293 when the review
+opened. Two things are knowingly carried forward: the last hop from property to
+pixel, which Slint 1.17.1 gives no way to assert, and the production runtime
+topology's missing regression test, endorsed as a follow-up and verified by
+reproduction to be a missing guard rather than a broken path.
