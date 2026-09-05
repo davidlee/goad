@@ -501,3 +501,23 @@ finding.
   sleep does not keep the exchange in flight.
 - **Consequence:** `answers-as-instructed.sh` now carries four instruction arms
   beyond §12.1's; audit's surfaces diff (PHASE-09/VA-3) should expect it.
+
+### 2026-09-05 — PL-18: the audit's endorsements
+
+*User decision*, session 5, on `audit.md`'s verdict and `review-code.md` round 2.
+
+- **Asked:** three things held for the user by `docs/AGENTS.md:38` and the
+  ledger's guardrails: promotion of the slice's drafts; the dispositions of
+  F-5, F-6 and F-7; and the two redundant stashes left by executor incidents.
+- **Decided:** all endorsed as proposed. CD-1…CD-7 are applied to the documents
+  they name, `draft-policy.md` is promoted to `docs/policy/`, and a new ADR-003
+  supersedes ADR-002 (CD-1, CD-2). F-5 becomes a follow-up slice; F-6 drops the
+  dead `named` field (`doc-wrong`); F-7 adds a sink seam for `report_platform`
+  and keeps `design.md` §9 item 17 — no test runs the binary. Both stashes
+  dropped.
+- **Rejected:** relaxing §9 item 17 so a test could assert the outlet string by
+  running the binary; the rule was chosen in design and the seam costs one
+  parameter.
+- **Consequence:** the audit's Reconciliation table is worked, `slice-002.md`
+  gains a Summary and Follow-ups, the Harvest is lifted to `docs/memory/`, and
+  the slice closes.
