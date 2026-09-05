@@ -362,3 +362,31 @@ amended here and the phase sheet records the amended form it ran against.
   library and inherits the `clippy.toml` class; its notes should say so. And
   PHASE-06, which re-settles the `driving.rs` cut, inherits the re-export
   `harness.rs` now carries for `backend`, `marker` and `clear`.
+
+### 2026-09-05 — PL-14: PS-1's PHASE-01 judgement confirmed, and the STOP policy for the autonomous run
+
+*User decision*, session 5, on the session-4 handover.
+
+- **Asked:** two things. First, PHASE-01 engaged PS-1's letter — three
+  comment-only hunks in production sources (`review-plan.md` F-34, PL-13) — and
+  did not stop; the handover marked the judgement as the user's to overturn.
+  Second, the remaining phases run autonomously with no user present, so a STOP
+  condition that fires cannot be consulted on mid-run.
+- **Decided:** the PS-1 judgement is **confirmed** as logged: the hunks are
+  path and feature-name literals, and PS-1's stated purpose — catching a
+  redesign — was not engaged. For the run, the orchestrating session
+  **adjudicates narrowly**: an executor that hits a STOP writes what happened
+  into `notes.md` and returns a stop status; the orchestrator may continue
+  only where the condition's stated purpose is plainly not engaged, and records
+  that judgement in the phase sheet and the ledger exactly as PL-13 did. Every
+  other STOP halts the run for the user.
+- **Rejected:** halting on any STOP by the letter — slower, and PL-13 is the
+  precedent that a purpose-not-engaged judgement is auditable after the fact.
+  Also rejected: letting the executor itself decide to continue past a STOP; the
+  judgement sits one level up, with the session that can be held to it.
+- **Consequence:** PHASE-02…09 run in sequence without a checkpoint, then the
+  audit — brief, evidence, `review-code.md` rounds and repairs — in the same
+  manner. Only the promotion of CD-1…CD-7 and `draft-policy.md` is held for the
+  user's explicit endorsement (`docs/AGENTS.md:38`); the audit is written up to
+  that step and hands the drafts over. `flake.lock`'s unstaged change is left as is
+  and is in no phase commit.
