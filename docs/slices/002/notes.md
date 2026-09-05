@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 — the workspace split | **done** — gate green, 130 paths relocated, four map defects found and repaired (`review-plan.md` F-34…F-37) | 2026-09-05 |
 | PHASE-02 — the workspace invariant checks | **done** — gate green, three instruments each break-and-reverted independently, F-38 found and repaired | 2026-09-05 |
 | PHASE-03 — `crates/goad`, Slint, the markup and the element tree | **done** — gate green, A-4 measured (cold 26.258 s, warm median 2.128 s, band ≤120 s), F-39 found and repaired | 2026-09-05 |
-| PHASE-04 — the mapper and the tray rasteriser | todo | 2026-09-05 |
+| PHASE-04 — the mapper and the tray rasteriser | **done** — gate green, `view_model.rs`/`diagnostics.rs` landed, 14 new tests, no findings, no STOP | 2026-09-05 |
 | PHASE-05 — the diagnostic surface and the reception seam | todo | 2026-09-05 |
 | PHASE-06 — the controller, the fold, and the failure case table | todo | 2026-09-05 |
 | PHASE-07 — the glass, the wiring, and back-pressure | todo | 2026-09-05 |
@@ -1347,13 +1347,271 @@ Carried forward, not this phase's to fix:
   outside this phase's authority to take alone; it is the orchestrating
   session's or the user's to clear.
 
+### PHASE-04 — The mapper and the tray rasteriser
+
+**Status:** in progress
+
+**Objective:** a canonical `View` becomes a `Presentation` through one
+exhaustive match that degrades and reports but never refuses, and the tray
+icon is a rule with numbers rather than an asset. `plan.md:938-1013`.
+
+**Commit protocol:** one commit for the whole phase, made after the gate is
+green.
+
+**Entry criteria, run rather than read**
+
+| # | evidence |
+|---|---|
+| EN-1 | PHASE-03's exit criteria are discharged and `git log --oneline -1` is `03138da`. `just check` under `nix develop` — run below, before any code change |
+| EN-2 | `cargo test -p goad` (cheap tier, `renderer` target) runs and PHASE-03/VT-1's guard test (`a_known_element_is_found`) passes — run below |
+
+**Reading list**
+
+- `docs/AGENTS.md:107-123` — phase plan and execute.
+- `CLAUDE.md` — invariants; its gate text (CD-5, CD-7) is stale, the working
+  authority is `docs/slices/002/draft-policy.md` (`just -n check` prints it).
+- `plan.md:14-142` — overview and the six standing rules (the gate, the STOP
+  table, the A-2 budget arithmetic, "absence is never asserted alone").
+- `plan.md:938-1013` — PHASE-04 in full: Objective, Surfaces, EN/EX/VT/VA,
+  STOP, implementer notes.
+- `plan.md:290-314` — Coverage table: this phase discharges part of AC-9
+  (VT-1/VT-2 — items 4, 5); AC-4/AC-5/AC-6/AC-10/AC-11 are PHASE-03's,
+  already done.
+- `design.md` §5.2 (`:484-909`) — the mapper in full: `present`,
+  `Presentation`, `PresentationOption`, `Body`, `Undrawn`, `ContentForm`,
+  `body_is_degraded`, the six-row content table, the markup surface (context
+  only — not this phase's surface).
+- `design.md` §5.4, *the diagnostic surface* (`:2056-2135`) — `TrayState` is
+  declared here for PHASE-05, but this phase must not anticipate the rest of
+  that block (`Reported`, `Refused`, `Diagnostics`, `tooltip`,
+  `BUSY_NOTICE` are PHASE-05's, not this phase's Surfaces).
+- `design.md` §5.4, *the tray icon* (`:2534-2624`) — the rasteriser in full:
+  `ICON_EDGE`, `IDLE`, `FAULT`, the geometry table (`centre 128`, `OUTER_SQ
+  14_400`, `INNER_SQ 5_184`/`0`), the 4×4 sample grid formula, the inclusive
+  boundary comparison, the exact `alpha` expression, and the DT-1…DT-5
+  transitions (context only — PHASE-05/06's, not drawn on here).
+- `design.md` §5.4 *the shapes the lint table requires* (`:2664-2716`) — all
+  nine rules; rules 5, 7, 9 are this phase's own (VA-2).
+- `design.md` §5.5 (`:2716-2945`) — STOP table S-1…S-8 verbatim, A-2's
+  arithmetic (two spendable, none spent to date), A-1 (twelve-lint list,
+  already settled in PHASE-03's `generated.rs`).
+- `plan.md:239-247` — DF-1: the tray rasteriser's home is `diagnostics.rs`,
+  not a separate `tray_icon.rs` — §5.4's own header comment
+  (`// crates/goad/src/tray_icon.rs`) is superseded by this resolution.
+- `plan-log.md` PL-13, PL-14 (STOP adjudication for the autonomous run),
+  PL-15 (amendment shape to follow if this phase needs one).
+- `design.md:427-459` — the artifact map's `crates/goad/` tree and `lib.rs`
+  end state: `view_model.rs` and `diagnostics.rs` are both declared;
+  `tests/renderer/main.rs` gains `mapper.rs` and `tray.rs` alongside
+  `tree.rs`.
+- Code: `crates/goad/src/lib.rs`, `crates/goad/tests/renderer/{main,tree}.rs`
+  (existing shape to extend, not disturb), `crates/goad-semantics/src/protocol/canonical.rs`
+  (`View`, `Choice`, `Opt`, `Content`, `Fields`, `OptionId` — `OptionId::new`
+  is `pub(super)`, `Opt::fields()` returns `&Fields`, `Fields::as_slice()` is
+  the only accessor), `clippy.toml` (the four `allow-*-in-tests` keys —
+  library code here is held to `deny`).
+- `slint` 1.17.1 sources (read, not modified): `i-slint-core-1.17.1/styled_text.rs`
+  (`StyledText::from_plain_text`, `from_markdown` returning
+  `Result<Self, StyledTextFromMarkdownError>`, both `#[cfg(feature = "std")]`
+  and both re-exported at `slint::StyledText`); `i-slint-core-1.17.1/graphics/image.rs`
+  (`SharedPixelBuffer::new`/`make_mut_slice`, `Rgba8Pixel = rgb::RGBA8` with
+  `r,g,b,a: u8`, `Image::from_rgba8`).
+
+**Assumptions**
+
+- A-1 — settled in PHASE-03; untouched here (no new Slint markup).
+- A-2 — measured at two spendable, none spent through PHASE-03. This phase's
+  own text (mapper, `ContentForm`'s `Display`, the rasteriser) is exactly the
+  hand-written code A-2's scratch-crate measurement covered — the shapes in
+  §5.4 are applied, not rediscovered, so the expectation is zero more are
+  needed, confirmed by the first clippy run (VA-2).
+- Nothing in this phase touches Slint's generated code or a component; the
+  mapper and the rasteriser are both plain-Rust, component-free (§5.2, §5.4)
+  — so A-3/A-4/A-7 (debug info, gate timing, markup compile) do not engage.
+
+**STOP conditions — `design.md` §5.5, verbatim**
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). Two remain unspent |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | not reachable this phase (no build.rs/markup change) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | not reachable this phase (no `serve` yet) |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | not reachable this phase (no markup change) |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about — this phase adds none |
+
+Per plan.md's PHASE-04 entry, the subset that can actually fire here is
+**S-1, S-8**. The others are listed for completeness (methodology requires
+the table verbatim) and are noted not-reachable above.
+
+**STOP adjudication for this run (PL-14):** an executor that hits a STOP
+writes what happened here and returns a stop status; only the orchestrating
+session may judge a condition's purpose not engaged, and it records that
+judgement here and in the ledger. This phase does not decide to continue past
+a STOP on its own.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+- [x] EN-1, EN-2 verified; this sheet, before any code changes
+- [x] Red: `tests/renderer/mapper.rs` — VT-1 (item 4, six-row content table +
+  `OptionFields`), VT-2 (item 5, markdown parse/reject boundary, retention)
+- [x] Red: `tests/renderer/tray.rs` — VT-3 (item 16, both states' geometry,
+  no image file under `crates/goad/`)
+- [x] Green: `src/view_model.rs` — `present`, `Presentation`,
+  `PresentationOption`, `Body`, `Undrawn`, `ContentForm`, `body_is_degraded`
+- [x] Green: `src/diagnostics.rs` — `#![deny(clippy::arithmetic_side_effects)]`,
+  `TrayState`, `ICON_EDGE`, `IDLE`, `FAULT`, `tray_icon`
+- [x] `src/lib.rs` — `pub mod diagnostics;` `pub mod view_model;`
+- [x] `tests/renderer/main.rs` — `mod mapper; mod tray;` alongside `mod tree;`
+- [x] Refactor pass (`cargo fmt --all`; a clippy-forced `assert!(..is_empty())`
+  → `assert_eq!` fix in `mapper.rs`, see VA-2 below)
+- [x] VA-2 — read shapes rules 5, 7, 9 against the written code, confirm
+  before first clippy run; pasted
+- [x] VA-1 — `just check` under `nix develop`, pasted
+- [x] Harvest, Status row, commit
+
+**Exit / Verification criteria — discharged with evidence.**
+
+**EN-1 / EN-2, run before any code change.** `git log --oneline -1` →
+`03138da`. `just check` under `nix develop` → exit 0, **4.600 s**. `cargo test
+-p goad --test renderer` → 4 passed (PHASE-03's `tree` tests, including the
+guard test `a_known_element_is_found`).
+
+**EX-1 — `view_model.rs`.** Declares `present`, `Presentation`,
+`PresentationOption`, `Body`, `Undrawn`, `ContentForm` and
+`Presentation::body_is_degraded` exactly as §5.2 writes them. `present`'s
+`match view { View::Choice(choice) => { … } }` has no `_` arm — `View` has
+one variant, so a second is a compile error naming this file.
+
+**EX-2 — the six-row content table.** Implemented in `present`'s inner
+`match choice.body()`, one arm per row, and is the only statement of the
+rule: `None` → `Body::None`, no undrawn; `Content::Text` → `Body::Plain`, no
+undrawn; `Content::Markdown` accepted → `Body::Rich(parsed)` via
+`StyledText::from_markdown`, no undrawn — the parse is stored, not the
+source; `Content::Markdown` rejected → `Body::Plain(source)` **and**
+`Undrawn::MarkdownUnsupported { detail }`; `Content::Html` /
+`Content::Uri` → `Body::Plain(source)` and `Undrawn::ContentForm`. Every arm
+carries the backend's bytes into `Body::Plain` or `Body::Rich` — nothing is
+omitted. `tests/renderer/mapper.rs` asserts all six rows plus the bare-string
+implicit-text case (VT-1); `a_markdown_corpus_straddles_the_parse_reject_boundary`
+is VT-2 — four accepted forms (plain text, `**bold** and *italic*`, a list,
+a link), each asserted equal to an independent `StyledText::from_markdown`
+call on the same source (proving retention rather than re-parse), and two
+rejected forms carrying U+E541 (E-7), each degrading to `Body::Plain` with
+exactly one `Undrawn::MarkdownUnsupported`.
+
+**EX-3 — `diagnostics.rs`.** Carries
+`#![deny(clippy::arithmetic_side_effects)]`, `TrayState`, `ICON_EDGE = 32`,
+`IDLE`/`FAULT` and `tray_icon(TrayState) -> slint::Image`, DF-1's resolution
+(no separate `tray_icon.rs`). Geometry pinned exactly: centre `128`,
+`OUTER_SQ` `14_400`, `INNER_SQ_IDLE` `5_184`, the fault inner radius `0`, a
+4×4 sample grid at `(8x + 2i + 1, 8y + 2j + 1)` via `sample_covered`, both
+boundary comparisons inclusive (`<= OUTER_SQ && >= inner_sq`).
+`tests/renderer/tray.rs` — VT-3 (item 16): centre pixel `(16,16)` alpha `0`
+for `Idle` / `255` for `Fault`; ring pixel `(16,4)` alpha `255` in both; corner
+`(0,0)` alpha `0` in both; a recursive walk of `crates/goad/` finds no
+`png`/`svg`/`ico`/`bmp`/`jpg`/`jpeg` file.
+
+**EX-4 — no bare arithmetic operator in the rasteriser.** Every product and
+sum in `pixel_at`/`sample_covered` is `saturating_mul`/`saturating_add`, the
+one division is `covered.saturating_mul(255).checked_div(16).unwrap_or(0)`
+exactly as §5.4 states it, distances use `abs_diff` rather than subtraction,
+and no expression uses `as` (`u32::try_from`/`u8::try_from` throughout).
+Confirmed by reading (VA-2, rule 9) and by the clean clippy run below —
+`clippy::integer_division` and `clippy::arithmetic_side_effects` are both
+live over this module and neither fired.
+
+**EX-5 — `lib.rs`.** Gains `pub mod diagnostics;` and `pub mod view_model;`,
+alphabetised alongside `pub mod generated;` by `rustfmt`'s
+`reorder_modules` (the same behaviour PHASE-01's Harvest already recorded).
+
+**VT-1 / VT-2 (item 4, item 5) — `mapper.rs`, 10 tests, all green** (see
+EX-2 above for the coverage each discharges).
+
+**VT-3 (item 16) — `tray.rs`, 4 tests, all green** (see EX-3 above).
+
+**VA-2 — the shapes read before the first clippy run.**
+
+- **Rule 5** (`missing_errors_doc`): neither `present` nor `tray_icon`
+  returns `Result`, so the rule does not engage this phase — confirmed by
+  reading both signatures before running clippy.
+- **Rule 7** (`shadow_unrelated`, a loop binding never reuses the name of
+  the thing it iterates): no `for` loop in either new file reuses its
+  source's name; the one loop (`tray_icon`'s `for (slot, pixel) in
+  buffer.make_mut_slice().iter_mut().zip(pixels)`) binds two fresh names
+  against an iterator expression, and `pixel_at`'s `let covered = …; let
+  covered = u32::try_from(covered)…` is a same-name **refinement** of the
+  prior value (measured clean — not `shadow_unrelated`, which needs the new
+  binding to be independent of the old).
+- **Rule 9** (no bare arithmetic in the rasteriser): confirmed by reading
+  `diagnostics.rs` end to end before the run — see EX-4 above.
+
+First clippy run, clean on the first pass (`clippy::assert_is_empty`, a
+pedantic lint on the **test** file rather than a shape rule, was the only
+diagnostic and is not one of the nine — fixed by turning
+`assert!(x.is_empty())` into `assert_eq!(x, Vec::<Undrawn>::new())` in
+`mapper.rs`, which is what clippy's own suggestion recommends):
+
+```
+$ nix develop --command cargo clippy --workspace --all-targets -- -D warnings
+    Checking goad v0.1.0 (/home/david/dev/goad/crates/goad)
+    Finished `dev` profile [unoptimized] target(s) in 0.18s
+```
+
+A-2's budget: **unspent** — no `#[expect]` was added anywhere in this
+phase; two remain spendable.
+
+**VA-1 — `just check` under `nix develop`, final run, pasted:**
+
+```
+$ nix develop --command bash -c 'just check; echo "EXIT: $?"'
+…
+cargo test -p goad-semantics
+…
+deno check examples/typescript/backend.ts
+cargo clippy --workspace --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized] target(s) in 0.11s
+cargo fmt --all --check
+EXIT: 0
+```
+
+Wall-clock: **6.585 s** real (5.821 s user, 1.066 s sys) — up from
+PHASE-03's 2.128 s median because this is a cold-ish run right after
+`cargo fmt --all`; well inside the ≤120 s band, T3 untouched.
+
+**STOP conditions encountered:** none. S-1 (a third `#[expect]`) and S-8
+(an undeclared dependency) were the two reachable per plan.md's own
+statement, and neither fired — no `#[expect]` was written outside the
+generated-code quarantine, and no `Cargo.toml` in this phase's surfaces was
+touched.
+
+**Findings.** None against `plan.md`'s or `design.md`'s text for this phase.
+One local correction, not risen to a finding: `plan.md:938-1013`'s
+implementer notes give `covered * 255 / 16` as the pre-repair form and the
+exact post-repair expression as
+`u8::try_from(covered.saturating_mul(255).checked_div(16).unwrap_or(0)).unwrap_or(u8::MAX)`
+— implemented verbatim in `pixel_at`.
+
+**Carried forward, not this phase's to fix:**
+
+- The stray `stash@{0}` PHASE-03 left on the stack is still present,
+  untouched, and still the orchestrating session's or the user's to clear
+  (confirmed still there via `git stash list` at this phase's start).
+- `design.md`'s own header comment on the tray-icon block
+  (`// crates/goad/src/tray_icon.rs`) still names the wrong file; DF-1
+  resolved this at plan time and this phase built to the resolution, but
+  the design text itself is unreconciled — audit's *Design drift not
+  reconciled*, alongside the PHASE-02/03 entries already there.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-03 · the Slint-in-the-graph commit on
-`slice-002`
+**Fresh as of:** 2026-09-05 · PHASE-04 · the mapper-and-tray-rasteriser commit
+on `slice-002`
 
 ### Produced
 
@@ -1365,6 +1623,12 @@ Carried forward, not this phase's to fix:
   `slint-build` pinned `= 1.17.1`, `i-slint-backend-testing` newly named in
   `[workspace.dependencies]` (F-39/PL-15). Four tests in the cheap tier,
   headless, zero sockets (`strace`-confirmed).
+- `crates/goad/src/{view_model,diagnostics}.rs` — `present` (the mapper, no
+  `_` arm over `View`), `Presentation`/`Body`/`Undrawn`/`ContentForm`, and
+  the tray rasteriser (`TrayState`, `tray_icon`, DF-1's home for it). Both
+  plain-Rust, component-free, no Slint event loop needed to test either.
+  `tests/renderer/{mapper,tray}.rs` — 14 new tests, all green, zero new
+  dependencies, zero `#[expect]` spent (A-2 still at two spendable).
 - A-4 has a number: cold **26.258 s**, warm median **2.128 s**, band **≤120 s**
   — T3 has not fired. `review-plan.md` round 4, F-39 (the testing
   dev-dependency's real shape); `plan-log.md` PL-15.
@@ -1461,6 +1725,24 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   confirmed necessary in this tree too**: the platform is thread-local
   (`research.md` T-B) and `cargo test` runs each `#[test]` fn on its own
   thread by default.
+- **`SharedPixelBuffer::clone_from_slice` cannot convert a slice into its
+  own pixel type.** `rgb::AsPixels<Rgba8Pixel>` is implemented for slices of
+  *other* pixel formats (`Bgra`, `Argb`, …), not for `[Rgba8Pixel]` itself —
+  measured as a compile error (`AsPixels<Rgba<u8>> is not implemented for
+  [Rgba<u8>]`). `SharedPixelBuffer::new` + `make_mut_slice().iter_mut().zip(..)`
+  fills a same-type buffer without indexing and without this trap.
+- **Slint's markdown subset rejects headings, images, block quotes, code
+  blocks, tables, HTML blocks, footnotes, definition lists and
+  super/subscript** (`i-slint-common-1.17.1/styled_text.rs`'s
+  `unsupported_tag_name`) — measured on contact when a mapper test's
+  "accepted" corpus included `"# Heading"` and got
+  `StyledTextFromMarkdownError("Markdown headings are not supported")`
+  instead. Plain paragraphs, emphasis/strong, lists and links parse.
+- **A JSON fixture built with `serde_json::json!` is safer than a hand-typed
+  byte string for content carrying an unusual code point.** U+E541 (E-7)
+  round-trips correctly through `json!({"value": source}).to_string()`; a
+  raw `br#"..."#` literal would need the escaping done by hand and got nothing
+  checked by the compiler.
 
 ### Open
 

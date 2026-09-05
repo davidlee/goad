@@ -4,8 +4,12 @@
 //! `tests/` target is always built with `--test`, so the `cfg` is never off
 //! (`crates/goad-boundary/tests/checks/main.rs` states the same reason).
 //!
-//! One module today: `tree`, items 6-10 (PHASE-03). `mapper`, `wiring`,
-//! `table`, `reception`, `tray` and `startup` arrive with the phases that
-//! give them something to test.
+//! Two modules today: `tree`, items 6-10 (PHASE-03), and `mapper`/`tray`,
+//! items 4, 5 and 16 (PHASE-04). `wiring`, `table`, `reception` and
+//! `startup` arrive with the phases that give them something to test.
+#[cfg(test)]
+mod mapper;
+#[cfg(test)]
+mod tray;
 #[cfg(test)]
 mod tree;
