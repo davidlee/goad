@@ -51,10 +51,10 @@ pub struct Reported {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refused {
   /// The click named a presentation that is no longer outstanding (F-13).
-  SupersededView { named: String },
+  SupersededView,
   /// The click named an option the retained presentation does not carry. A
   /// renderer bug rather than an answer: reported, never sent.
-  UnknownOption { named: String },
+  UnknownOption,
   /// The wall clock could not be read, so no request can be stamped.
   NoClock { detail: String },
 }
@@ -139,10 +139,10 @@ impl Diagnostics {
   #[must_use]
   pub fn refused(refused: &Refused) -> Self {
     let composed = match refused {
-      Refused::SupersededView { .. } => {
+      Refused::SupersededView => {
         "no action taken: that answer belongs to a question that has since been replaced".to_owned()
       }
-      Refused::UnknownOption { .. } => {
+      Refused::UnknownOption => {
         "no action taken: the host could not match that control to the question it is holding"
           .to_owned()
       }
@@ -293,26 +293,37 @@ pub fn print_usage() {
   line_to(std::io::stdout().lock(), USAGE);
 }
 
-/// stderr, and `main` returns `ExitCode::from(2)`. `{error}` is
+/// The exact string `report_startup` writes, with no destination — the pure
+/// half, so a test can assert it with no sink to fake (F-7). `{error}` is
 /// `StartupError`'s `Display`, one rendering, no `source()` walk — the same
 /// rule every other line on this surface follows.
-pub fn report_startup(error: &StartupError) {
-  line_to(std::io::stderr().lock(), &format!("goad: {error}"));
+#[must_use]
+pub fn report_startup_line(error: &StartupError) -> String {
+  format!("goad: {error}")
 }
 
-/// stderr, and the process keeps running. The only caller is
-/// `SlintGlass::present`, when `show()` or `hide()` fails after the loop has
-/// started.
+/// stderr, and `main` returns `ExitCode::from(2)`.
+pub fn report_startup(error: &StartupError) {
+  line_to(std::io::stderr().lock(), &report_startup_line(error));
+}
+
+/// The exact string `report_platform` writes, with no destination — the pure
+/// half, so a test can assert it with no sink to fake (F-7).
 ///
 /// It takes the **rendered** detail rather than a Slint error type, for
 /// `Refused::NoClock`'s reason above: the `Display` happens at the one site
 /// that has the value, so this module names no Slint error type and stays
 /// testable with a literal.
+#[must_use]
+pub fn report_platform_line(detail: &str) -> String {
+  format!("goad: the window could not be drawn: {detail}")
+}
+
+/// stderr, and the process keeps running. The only caller is
+/// `SlintGlass::present`, when `show()` or `hide()` fails after the loop has
+/// started.
 pub fn report_platform(detail: &str) {
-  line_to(
-    std::io::stderr().lock(),
-    &format!("goad: the window could not be drawn: {detail}"),
-  );
+  line_to(std::io::stderr().lock(), &report_platform_line(detail));
 }
 
 /// Physical pixels. `StatusNotifierItem` consumers scale what they are

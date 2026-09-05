@@ -3,7 +3,8 @@
 //! for each of its eight variants and `ClockError`'s for both of its,
 //! asserted verbatim; the usage block produced by one `const` and
 //! byte-identical wherever it appears; a usage error's text not containing
-//! the usage block; both `source()`s `None`; and the argument table's rows.
+//! the usage block; both `source()`s `None`; the argument table's rows; and
+//! the two stderr outlets' exact strings, via their pure `_line` half (F-7).
 //!
 //! No test here runs the binary or asserts an exit code (§9's own rule) —
 //! `main`'s one `match` over `run()`'s `Result` is what chooses the code,
@@ -12,7 +13,7 @@
 use std::ffi::OsString;
 
 use goad::clock::ClockError;
-use goad::diagnostics::{USAGE, print_usage};
+use goad::diagnostics::{USAGE, print_usage, report_platform_line, report_startup_line};
 use goad::startup::{Launch, StartupError, arguments};
 use goad_shell::error::ConfigError;
 
@@ -152,6 +153,32 @@ mod usage_block {
   #[test]
   fn print_usage_does_not_panic() {
     print_usage();
+  }
+}
+
+/// F-7: the two stderr outlets' exact strings (design.md §5.4), asserted
+/// against the pure half of each — no sink to fake, no subprocess.
+mod stderr_outlets {
+  use super::{StartupError, report_platform_line, report_startup_line};
+
+  #[test]
+  fn report_startup_line_is_the_error_prefixed_with_goad() {
+    assert_eq!(
+      report_startup_line(&StartupError::Usage),
+      "goad: too many arguments: goad takes at most one, the path of the configuration file; run `goad --help` for usage"
+    );
+    assert_eq!(
+      report_startup_line(&StartupError::NoConfigPath),
+      "goad: neither XDG_CONFIG_HOME nor HOME names a directory, so there is no configuration path; pass one as the single argument"
+    );
+  }
+
+  #[test]
+  fn report_platform_line_is_the_detail_in_its_sentence() {
+    assert_eq!(
+      report_platform_line("no display"),
+      "goad: the window could not be drawn: no display"
+    );
   }
 }
 

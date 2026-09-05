@@ -280,9 +280,7 @@ fn an_undrawn_alone_raises_fault() {
 
 #[test]
 fn a_refused_alone_raises_fault() {
-  let refused = Refused::UnknownOption {
-    named: "opt".to_owned(),
-  };
+  let refused = Refused::UnknownOption;
   assert_eq!(Diagnostics::refused(&refused).state(), TrayState::Fault);
 }
 
@@ -575,9 +573,7 @@ fn the_tooltip_has_four_forms() {
   assert_eq!(tooltip(&clear, false), "goad — nothing to show");
   assert_eq!(tooltip(&clear, true), "goad — waiting for an answer");
 
-  let one_line = Diagnostics::refused(&Refused::UnknownOption {
-    named: "x".to_owned(),
-  });
+  let one_line = Diagnostics::refused(&Refused::UnknownOption);
   assert_eq!(
     tooltip(&one_line, false),
     "goad — no action taken: the host could not match that control to the question it is holding"
@@ -627,9 +623,7 @@ fn the_tooltip_summary_is_a_120_character_projection_of_line_zero() {
 
 #[test]
 fn every_refused_variant_renders_one_line_with_the_failure_prefix() {
-  let superseded = Diagnostics::refused(&Refused::SupersededView {
-    named: "v1".to_owned(),
-  });
+  let superseded = Diagnostics::refused(&Refused::SupersededView);
   assert_eq!(
     superseded.lines().to_vec(),
     vec![
@@ -637,9 +631,7 @@ fn every_refused_variant_renders_one_line_with_the_failure_prefix() {
     ]
   );
 
-  let unknown = Diagnostics::refused(&Refused::UnknownOption {
-    named: "opt".to_owned(),
-  });
+  let unknown = Diagnostics::refused(&Refused::UnknownOption);
   assert_eq!(
     unknown.lines().to_vec(),
     vec![

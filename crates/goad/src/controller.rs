@@ -174,22 +174,16 @@ impl Controller {
   /// not one the retained presentation carries. Nothing is sent in either
   /// case.
   pub fn answer(&self, view: &str, option: &str) -> Result<(ViewId, UserResponse), Refused> {
-    let prepared = self.shown.as_ref().ok_or_else(|| Refused::SupersededView {
-      named: view.to_owned(),
-    })?;
+    let prepared = self.shown.as_ref().ok_or(Refused::SupersededView)?;
     if prepared.view_id.as_str() != view {
-      return Err(Refused::SupersededView {
-        named: view.to_owned(),
-      });
+      return Err(Refused::SupersededView);
     }
     let matched = prepared
       .presentation
       .options
       .iter()
       .find(|candidate| candidate.id.as_str() == option)
-      .ok_or_else(|| Refused::UnknownOption {
-        named: option.to_owned(),
-      })?;
+      .ok_or(Refused::UnknownOption)?;
 
     Ok((
       prepared.view_id.clone(),

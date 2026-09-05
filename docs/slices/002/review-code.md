@@ -765,6 +765,21 @@ If endorsed, the change is: drop `named` from `Refused::SupersededView` and
 and amend `design.md:2082-2090` to match. The two pinned sentences do not
 move.
 
+**Round 3 — disposition: `doc-wrong` (endorsed PL-18).** `named` dropped from
+both variants — `SupersededView` and `UnknownOption` are now unit variants —
+in `crates/goad/src/diagnostics.rs:54,57`. The three `to_owned()` construction
+sites in `crates/goad/src/controller.rs::answer` (`:177`, `:181`, `:190`)
+drop the field with them. Four call sites that built the removed field
+updated to match: `crates/goad/tests/renderer/reception.rs:282,577,629,639`
+and `crates/goad/tests/renderer/wiring.rs:177` (a `{ .. }` pattern, now the
+bare variant). No test asserted the field's value; nothing was deleted, only
+the field literals at construction sites.
+
+`design.md:2082-2090` (§5.4, "The diagnostic surface") still declares the
+field on both variants — the drift is not reconciled here, per the brief:
+canon is amended only with explicit endorsement during audit, not mid-repair.
+`audit.md`'s *Design drift not reconciled* list carries this.
+
 ### F-7 — the two stderr outlets' exact strings are asserted nowhere
 
 **Severity:** minor
@@ -876,6 +891,33 @@ which no test can induce and no subprocess can reach, so `report_platform_to`
 `fix-now` with no production change, by subprocess. `report_platform` remains
 `<proposed>` for endorsement, and the proposal should say it is one function,
 not two — the case for `report_startup_to` is gone.
+
+**Round 3 — disposition: `fix-now` (endorsed PL-18, §9 item 17 kept — no test
+runs the binary).** PL-18 rejected the subprocess route this finding's own
+Outcome preferred for `report_startup` ("relaxing §9 item 17 ... the rule was
+chosen in design"), so both outlets take the same seam rather than splitting
+across two testing strategies. Each outlet gains a pure sibling that composes
+the exact string with no destination, and the outlet itself becomes a
+one-line caller of it:
+
+- `report_startup_line(error: &StartupError) -> String` and
+  `report_platform_line(detail: &str) -> String`
+  (`crates/goad/src/diagnostics.rs:301`, `:318`), each `#[must_use]` and
+  `pub` (required: the asserting tests live in the separate
+  `tests/renderer` integration crate, which cannot see `pub(crate)`).
+  `report_startup` and `report_platform` (`:306-308`, `:322-324`) are
+  unchanged in signature and behaviour, now delegating to their `_line`
+  half before handing the result to `line_to`. `line_to` itself, its sink
+  parameter, and its `Ok(()) | Err(_) => ()` spelling are untouched.
+- Tests, `crates/goad/tests/renderer/startup.rs`, new `stderr_outlets`
+  module: `report_startup_line_is_the_error_prefixed_with_goad` (two
+  `StartupError` variants, against the literal `"goad: ..."` sentences
+  design.md §5.4 pins, not re-derived through `Display`) and
+  `report_platform_line_is_the_detail_in_its_sentence` (one literal). No
+  sink faked, no subprocess, no `CARGO_BIN_EXE_*`.
+
+`main.rs` and `glass.rs` call sites are unchanged; `main.rs` still holds only
+`main`, `run`, `start`.
 
 ### F-8 — `driving.rs::no_view` restates `describe_outcome`'s sentences, against the file's own rule
 

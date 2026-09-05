@@ -174,7 +174,7 @@ mod refusals {
     let refusal = controller
       .answer(&view, "not-an-option")
       .expect_err("an option the presentation does not carry must be refused");
-    assert!(matches!(refusal, Refused::UnknownOption { .. }));
+    assert!(matches!(refusal, Refused::UnknownOption));
     controller.refuse(&refusal);
 
     let frame = controller.frame();
