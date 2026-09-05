@@ -4,14 +4,14 @@
 //! `tests/` target is always built with `--test`, so the `cfg` is never off
 //! (`crates/goad-boundary/tests/checks/main.rs` states the same reason).
 //!
-//! Four modules today: `tree`, items 6-10 (PHASE-03); `mapper`/`tray`,
+//! Five modules today: `tree`, items 6-10 (PHASE-03); `mapper`/`tray`,
 //! items 4, 5 and 16 (PHASE-04); `reception`, item 13 (PHASE-05); `table`,
-//! item 12 (PHASE-06). `wiring` and `startup` arrive with the phases that
-//! give them something to test.
+//! item 12 (PHASE-06); `wiring`, item 11e/11f/11g/11i (PHASE-07). `startup`
+//! arrives with the phase that gives it something to test.
 //!
 //! `driving` is the host-driving half of slice 001's test helpers
 //! (design.md §12.8), shared with `crates/goad-shell/tests/integration`;
-//! `table` is its only caller in this target.
+//! `table` and `wiring` are its callers in this target.
 #[cfg(test)]
 mod mapper;
 #[cfg(test)]
@@ -22,6 +22,8 @@ mod table;
 mod tray;
 #[cfg(test)]
 mod tree;
+#[cfg(test)]
+mod wiring;
 
 #[cfg(test)]
 #[path = "../../../../tests/support/driving.rs"]

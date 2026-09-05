@@ -4,6 +4,8 @@ pub mod clock;
 pub mod controller;
 pub mod diagnostics;
 pub mod generated;
+pub mod glass;
+pub mod install;
 pub mod reception;
 pub mod view_model;
 pub mod wire;

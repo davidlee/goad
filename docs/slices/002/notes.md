@@ -16,7 +16,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-04 — the mapper and the tray rasteriser | **done** — gate green, `view_model.rs`/`diagnostics.rs` landed, 14 new tests, no findings, no STOP | 2026-09-05 |
 | PHASE-05 — the diagnostic surface and the reception seam | **done** — gate green (5.343 s), 35 new tests, `receive` confirmed the only `Outcome`-destructuring site, VA-2 break-and-revert pasted, no findings, no STOP | 2026-09-05 |
 | PHASE-06 — the controller, the fold, and the failure case table | **done** — gate green (7.608 s), 64 renderer tests (33-row table VT-1, 7 reducer-row VT-2, 2 `busy`-clearing VT-3), VA-2 break-and-revert pasted; `describe_outcome` moved `driving.rs` → `harness.rs` (review-code round 1), EX-7 amended `plan-log.md` PL-16, no STOP; A-2 spent one `#[expect]` on `stamp`'s `dead_code` | 2026-09-05 |
-| PHASE-07 — the glass, the wiring, and back-pressure | todo | 2026-09-05 |
+| PHASE-07 — the glass, the wiring, and back-pressure | **done** — gate green (5.055 s), 9 new wiring tests (VT-5/6/7/9), VA-2 break-and-revert pasted, zero new `#[expect]` (one slot remains against S-1); no findings, no STOP | 2026-09-05 |
 | PHASE-10 — `serve`, and the stop that drops the exchange | todo — **executes between PHASE-07 and PHASE-08**; ids are immutable, so the sequence is non-monotonic (PL-10) | 2026-09-05 |
 | PHASE-08 — startup, the entry point, and the event-loop tier | todo | 2026-09-05 |
 | PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | todo | 2026-09-05 |
@@ -2173,12 +2173,195 @@ fixtures. Both are corrected in place above: `describe_outcome` moved to
   should expect the gate to fail until the attribute comes off, not read it
   as a regression.
 
+### PHASE-07 — The glass, the wiring, and back-pressure
+
+**Status:** in progress
+
+**Objective:** one total `present`, one `Wire` that refuses to block, and a
+`Cancel` that is level-held — everything `serve` composes, before `serve`
+exists. `plan.md:1217-1305`.
+
+**Split from the original PHASE-07 at the seam its own objective stated
+(PL-10).** `serve`, cancellation and items 11a–d, 11h and 14a–d are
+PHASE-10, which executes next. This phase writes no loop.
+
+**Commit protocol:** one commit for the whole phase, made after the gate is
+green.
+
+**Reading list** (path:line):
+
+- `docs/AGENTS.md:60-125` (*Phase plan* and *Execute*).
+- `CLAUDE.md` — invariants (gate text stale; `draft-policy.md`/`justfile`
+  are the working authority).
+- `docs/slices/002/plan.md:14-142` (overview, six standing rules), `:1217-1305`
+  (PHASE-07 itself).
+- `docs/slices/002/notes.md` — Status table; Harvest through PHASE-06 (the
+  `stamp`/`cfg_attr(not(test), expect(dead_code))` hook, restated below);
+  PHASE-06 sheet headings.
+- `docs/slices/002/design.md` §5.3 `:960-1130` (`Wire`, the queue policy in
+  four parts, `Controller`'s retained state — read for continuity, not
+  changed here); `:1690-1770` (`Cancel`, level-held over `watch::<bool>`,
+  the shutdown-source table — read for continuity; the four-source table is
+  PHASE-10's to wire up); §5.3 `:1188-1300` (`glass.rs` in full: `Glass`,
+  `SlintGlass`, the show/hide failure argument, the ownership table); §5.4
+  `:1430-1470` (`install.rs` in full, the six-clone-names argument); §5.4
+  `:2620-2662` (DT-1…DT-5); `:2100-2135` (`Diagnostics`'s surface,
+  `BUSY_NOTICE`); `:2280-2310` (the window/tooltip/notice strings); §5.5
+  `:2716-2945` (A-1, A-2, the STOP table, E-1); §9 `:3658-3949` (the lint
+  preamble; items 11e, 11f, 11g, 11i; the target-placement table); artifact
+  map `:291-484` (the `glass.rs`/`install.rs`/`wire.rs` rows, the renderer
+  tree, the `renderer::wiring` target row); D28 `:3598-3609`.
+- `docs/slices/002/plan-log.md` PL-10 (`:234-259`, the PHASE-07/10 split),
+  PL-14 (`:366-392`, the autonomous-run STOP policy), PL-16 (`:435-`,
+  EX-7's "nowhere in `crates/goad/src`" amendment — read for the pattern,
+  not the fact itself).
+- Code read in full: `crates/goad/src/{lib.rs, wire.rs, controller.rs,
+  diagnostics.rs, reception.rs, view_model.rs}`, `crates/goad/ui/app.slint`,
+  `crates/goad/tests/renderer/{main.rs, tree.rs}`, `tests/support/driving.rs`.
+  `crates/goad/tests/renderer/table.rs` read in the parts showing how a
+  `Host` is built and driven and how an `Outcome` is folded through
+  `Controller::absorb`/`frame()`. `crates/goad/Cargo.toml`, the workspace
+  `Cargo.toml` lint tables (`[workspace.lints.rust]`/`[workspace.lints.clippy]`),
+  `clippy.toml`.
+- `i-slint-core-1.17.1` read directly (registry source) for API shapes not
+  fully spelled out in the design: `Weak<T>` (`Default`, no `Debug`, `api.rs
+  :1090-1224`), `ComponentHandle` (`show`/`hide`/`as_weak`/`window`,
+  `api.rs:1047-1082`), `StyledText` (`Clone`, `Default`, `from_plain_text`,
+  `styled_text.rs:1-45`), `VecModel::set_vec` and `ModelRc::from(Rc<M>)`
+  (`model.rs:404`, `:774`), `Window::on_close_requested`
+  (`window.rs:2116`). `tokio-1.43.0`'s `watch::{Sender, Receiver}` both
+  derive `Debug`/`Clone` (`sync/watch.rs:133-150`).
+
+**Assumptions carried in:**
+
+- `tokio`'s `sync` feature (hence `mpsc` and `watch`) is already in
+  `crates/goad/Cargo.toml`'s `[dependencies]` tokio feature list
+  (`rt-multi-thread`, `sync`) from the artifact map — no dependency change,
+  S-8 does not fire.
+- `waiting` in `diagnostics::tooltip(diagnostics, waiting)` is "an
+  interaction is outstanding", i.e. `frame.shown.is_some()` — **not**
+  `frame.busy`. Read from design.md:2281 ("whether an interaction is
+  outstanding") against `Frame`'s two separate fields (`shown`, `busy`);
+  `busy` is engaged-in-exchange, a different fact.
+- `present`'s per-frame writes to `heading`/`body`/`options`/`body-degraded`
+  come from `frame.shown` when `Some`; when `None` (nothing retained), the
+  literal empty/default values are written (`""`, an empty `StyledText`, an
+  empty options vec, `false`). The design does not spell this branch out
+  explicitly, but EX-2's "every property from the frame on every call" and
+  "total" require some value in the `None` case, and no other value is
+  available.
+- `SlintGlass::new` writes only the tray's `image`/`hover-text` before
+  returning (EX-1's literal wording); it does not also seed the window's
+  `options` model, because the window is not shown until the loop's first
+  `present`, which is PHASE-10's concern.
+- Six `install` clones, named per callback (`chosen`, `closing`, `quitting`,
+  `checking`, `showing`, `stopping`) — transcribed from design.md:1442-1467.
+
+**STOP conditions** (design.md §5.5, verbatim; PHASE-07 names S-1, S-8 as
+the ones that can actually fire in it — plan.md:1217-1305):
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). One slot remains after PHASE-06's spend on `stamp` |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | every element-tree assertion rests on it (A-3) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | shutdown is awaiting the exchange, which AC-12 forbids (not reachable this phase — no `serve`) |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | A-7's evidence no longer covers the markup |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about |
+
+**Task breakdown:**
+
+1. `wire.rs`: add `Wire` (hand-written `Debug`, `new`, `send` via
+   `try_send`, `stop`) and `Cancel` (`new` + `Default`, `stop`,
+   `stopped() -> impl Future<Output = ()> + use<>` over `watch::<bool>`).
+   Unit tests inline (`#[cfg(test)] mod tests`) for `Cancel`'s level-held
+   property and `Wire::send`'s three outcomes against a `Weak::default()`
+   window handle (no component needed for the `Closed`/`Ok` arms; the
+   `Full` → `notice` arm needs a real window, so it moves to `wiring.rs`).
+2. `glass.rs`: `Glass` trait (`present`, infallible, total) and
+   `SlintGlass` (`new`, `present`). No tests inline — `SlintGlass` needs a
+   component, so its behaviour is `wiring.rs`'s.
+3. `install.rs`: `pub fn install(&PromptWindow, &Tray, &Wire)`, transcribed
+   from design.md, six named clones.
+4. `lib.rs`: add `pub mod glass;` and `pub mod install;`.
+5. `tests/renderer/wiring.rs` (new): VT-5 (11e), VT-6 (11f), VT-7 (11g),
+   VT-9 (11i) — driven directly against `Controller`/`SlintGlass`/`Wire`,
+   no `serve` (none exists yet), so each test builds its own sequence of
+   `absorb`/`refuse` calls and asserts through `present` and the element
+   tree.
+6. `tests/renderer/main.rs`: add `mod wiring;`.
+7. Gate: `just check` under `nix develop`, clippy in both feature columns
+   (there is only one column now), `cargo fmt --all`.
+8. VA-2 break-and-revert on VT-9's negative control.
+9. VA-3: count `#[expect]` in `crates/goad/src/` outside `generated.rs`.
+
+**Status:** done
+
+**Discharge table:**
+
+| criterion | discharge |
+|---|---|
+| EN-1 | PHASE-06's exit criteria stood (`notes.md:1843-2174`); `just check` was green before this phase touched anything |
+| EN-2 | `Controller`, `Frame`, `Command`, `Stimulus`, `Clock`, `Diagnostics` already existed (`controller.rs`, `wire.rs`, `clock.rs`, `diagnostics.rs`); this phase composed them into `glass.rs`/`install.rs` and `wire.rs`'s `Wire`/`Cancel`, adding nothing to any of the six |
+| EX-1 | `glass.rs`: `Glass` trait, one `present`, `SlintGlass` as its only impl holding `window`/`tray`/`Rc<VecModel<OptionRow>>`; `SlintGlass::new` writes the tray's `image`/`hover-text` before returning (`crates/goad/src/glass.rs:43-58`) |
+| EX-2 | `present` writes every property every call — `set_vec` then the re-handed `ModelRc` (`Rc::clone`, not `.clone()`, for `clone_on_ref_ptr`), heading, body, degradation, busy, the diagnostic lines, the tray's image/hover-text, `notice` written `""` unconditionally, then show or hide; a `show`/`hide` `Err` goes to `report_platform` and `present` returns (`glass.rs:60-117`) |
+| EX-3 | `wire.rs`: `Wire` with a hand-written `Debug`, `Wire::new` the only constructor, `send` via `try_send` with `Full` → `BUSY_NOTICE` through the weak handle and `Ok(()) \| Err(TrySendError::Closed(_)) => ()` as one arm, `stop`; `Cancel` level-held over `watch::<bool>` with `new` + `impl Default`, `stop`, `stopped(&self) -> impl Future<Output = ()> + use<>` cloning its receiver before the async block (`wire.rs:63-179`) |
+| EX-4 | `install.rs`: `pub fn install(&PromptWindow, &Tray, &Wire)`, six installations, six named clones (`chosen`, `closing`, `quitting`, `checking`, `showing`, `stopping`) (`install.rs:17-45`) |
+| EX-6 | `lib.rs` gained `pub mod glass;` and `pub mod install;` (`lib.rs:8-9`) |
+| EX-7 | 11e, 11f, 11g, 11i pass — `tests/renderer/wiring.rs`, 9 tests, all green. 11a-d, 11h are PHASE-10's (`serve` does not exist) |
+| VT-5 (11e) | `wiring::refusals` — `UnknownOption` and `NoClock`, each with no backend contact (`invocations(&log)` unchanged), presentation retained (`frame.shown.is_some()`), exactly one diagnostic line (`wiring.rs:92-147`) |
+| VT-6 (11f) | `wiring::transitions` — DT-1/DT-5 together (`dt1_…`, clears diagnostics, tray idle, window stays open on "Nothing to report.", disagreeing with the still-open window), DT-2 (`dt2_…`, `Shift::Replaced`, `Surface::Prompt`, new heading, options count 1), DT-3 (`dt3_…`, `Shift::Retained`, `Surface::Prompt` unchanged, heading unchanged, tray fault), DT-4 (`dt4_…`, `close_diagnostics()` returns to the retained prompt intact) — each read from both `Frame` and the element tree (`wiring.rs:150-296`) |
+| VT-7 (11g) | `wiring::back_pressure::a_full_channel_sets_notice_and_the_next_present_clears_it` — a `Full` `try_send` sets `notice` to `BUSY_NOTICE`, `Diagnostics` stays clear, the next `present` clears `notice` (`wiring.rs:299-329`) |
+| VT-9 (11i) | `wiring::busy` — both outcomes (success, failure) clear `busy` and re-enable both option controls, read via `accessible_enabled` in the element tree (`wiring.rs:355-401`) |
+| VA-1 | `just check` under `nix develop`: exit 0, wall-clock **5.055s** (warm; the run pasted into this sheet's evidence). Full run: `cargo build --workspace`, `cargo test --workspace` (goad: 6 lib + 73 renderer; goad-boundary: 21; goad-semantics: 25 + 5; goad-shell: 17 + 58; shape: 6 — all green), `cargo test -p goad-semantics` (30 green), `deno check` (clean), `cargo clippy --workspace --all-targets -- -D warnings` (clean), `cargo fmt --all --check` (clean) |
+| VA-2 | Break-and-revert on VT-9's negative control: `controller.rs`'s `absorb`, the line `self.engaged = false;` commented out, `cargo test -p goad --test renderer wiring::busy` rerun — both `busy_clears_and_controls_re_enable_after_a_success` and `_after_a_failure` **FAILED** (`assertion failed: !controller.frame().busy`, `wiring.rs:356` and `:382`); line restored, rerun green. Transcript below |
+| VA-3 | `grep -rn '#\[expect(' crates/goad/src/*.rs` outside `generated.rs`: **one** — `controller.rs`'s `stamp` wrapper, spent at PHASE-06 (`stamp`'s dead-code `expect`, PHASE-06 sheet). This phase added **zero** new `#[expect]`s. Against S-1's budget: one slot spent, **one slot remains** before the third fires the stop (unchanged from PHASE-06's exit state) |
+
+**VA-2's break-and-revert transcript** (`self.engaged = false;` commented out in `controller.rs`'s `absorb`, then reverted):
+
+```
+running 2 tests
+test wiring::busy::busy_clears_and_controls_re_enable_after_a_success ... FAILED
+test wiring::busy::busy_clears_and_controls_re_enable_after_a_failure ... FAILED
+
+---- wiring::busy::busy_clears_and_controls_re_enable_after_a_success stdout ----
+thread '...' panicked at crates/goad/tests/renderer/wiring.rs:356:5:
+assertion failed: !controller.frame().busy
+
+---- wiring::busy::busy_clears_and_controls_re_enable_after_a_failure stdout ----
+thread '...' panicked at crates/goad/tests/renderer/wiring.rs:382:5:
+assertion failed: !controller.frame().busy
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 71 filtered out
+```
+Reverted; rerun: `test result: ok. 2 passed; 0 failed`.
+
+**Judgements:**
+
+- **`SlintGlass` needed its own hand-written `Debug`, not stated in design.md's `glass.rs` snippet.** The same rule that forces `Wire`'s hand-written `Debug` (the generated component handles carry none, `missing_debug_implementations` is `deny`) applies to any struct holding `PromptWindow`/`Tray`, and `SlintGlass` is the second one. Not filed as a finding: it changes no interface, decides no open question, and is the same rule already on the page for `Wire` — applying it, not inventing it.
+- **`waiting` in `tooltip(diagnostics, waiting)` is `frame.shown.is_some()`**, not `frame.busy` — confirmed against design.md:2281 ("whether an interaction is outstanding") before writing `glass.rs`. Recorded as an assumption above; restated here because it is easy to misread from the field's proximity to `busy` in `Frame`.
+- **11e's `Refused::NoClock` case has no natural production trigger yet** (the only call site, `stamp`, is uncalled until PHASE-10's `serve`). `wiring::refusals::a_broken_clock_is_refused_…` constructs the `Refused::NoClock` value directly and drives it through `Controller::refuse`, which is the same public surface a real caller would use — `Refused`'s fields are `pub`, and `controller.refuse(&Refused)` is `pub`. This demonstrates 11e's actual claim (no backend contact, presentation retained, one line) without inventing a dispatch path that is not this phase's to build.
+- **`install()` gets no dedicated test this phase.** Its six bodies call already-tested `Wire::send`/`Wire::stop`; the one case with genuine risk — a real close request through `on_close_requested`, `serve` returning, `quit_event_loop` running — is explicitly item 14e, PHASE-10's `event_loop::closing` target, which needs `init_integration_test_*` this phase does not have. Testing the other five callbacks via `invoke_<name>()` was considered and skipped for scope discipline: PHASE-07's declared VT's are 11e/11f/11g/11i, and `install`'s wiring is EX-4 (existence), not a VT of its own.
+- **`controller.rs` is outside this phase's declared surfaces**, but VA-2 requires a break-and-revert on `absorb()`, which lives there. Read the same way PHASE-06 read its own VA-2 obligation: the edit is transient and reverted before commit (confirmed identical via `git diff` showing no change), so nothing lands outside the declared surfaces. Not a STOP.
+- **`controller.rs:230`'s comment on `stamp` still reads "Uncalled until PHASE-07's `serve` exists"**, stale since PL-10 moved `serve` to PHASE-10. `controller.rs` is not a PHASE-07 surface, so this is left for PHASE-10 to correct in the same diff that removes the `expect` wrapper (that phase's own first production call to `stamp`), rather than touched here. Carried forward below.
+- **The headless testing backend prints `Slint: Failed to create system tray icon: 0` on stderr** for every `Tray::new()` this phase's `wiring.rs` tests construct (6 occurrences across the 9-test run). Benign: it is the *Slint* library's own diagnostic about the fake platform having no real tray protocol to register with, not a `clippy::print_stderr` violation in this crate's code, and no test result is affected. Not a defect; recorded under Learned.
+
+**Findings:** none raised against `plan.md` or `design.md` this phase.
+
+**Carried forward, not this phase's to fix:**
+
+- `controller.rs`'s `stamp` still carries `#[cfg_attr(not(test), expect(dead_code, …))]`; PHASE-07 calls nothing in `serve`'s place, so the wrapper is correctly left in place. Its inline comment's "PHASE-07's `serve`" reference is now stale against PL-10 and should be corrected to "PHASE-10's `serve`" in the same diff that removes the wrapper, once `serve` exists and calls it.
+- DF-6, the `Breach::Token` type departure, and the `design.md:367`/artifact-map `controller.rs` staleness (all carried from PHASE-06) are unchanged by this phase — all audit's *Design drift not reconciled*.
+- `serve`, `Pending`, `Ending`, `Served`, `startup.rs`, `main.rs`, the `event_loop` target remain unwritten — PHASE-08/10's.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-06 · the-controller-the-fold-and-the-failure-case-table
+**Fresh as of:** 2026-09-05 · PHASE-07 · the-glass-the-wiring-and-back-pressure
 commit on `slice-002`
 
 ### Produced
@@ -2240,7 +2423,21 @@ commit on `slice-002`
   outcome` moved out to `crates/goad-shell/tests/integration/harness.rs`
   (unused by `table.rs`), every remaining symbol confirmed called by both
   including targets (VA-2). A-2's budget: one `#[expect(dead_code)]` spent,
-  on `stamp` (uncalled until PHASE-07's `serve`); one slot remains.
+  on `stamp` (uncalled until PHASE-10's `serve`); one slot remains.
+- `crates/goad/src/{glass,install}.rs` — `Glass`/`SlintGlass` (one total,
+  infallible `present`; a hand-written `Debug`, the same rule `Wire`'s
+  carries); `install(&PromptWindow, &Tray, &Wire)`, six named clones.
+  `crates/goad/src/wire.rs` grew `Wire` (hand-written `Debug`, `new`,
+  `send` via `try_send`, `stop`) and `Cancel` (`new`/`Default`, `stop`,
+  `stopped`), with inline unit tests for both — 6 new lib tests, all
+  green, zero new `#[expect]`. `lib.rs` now carries nine `pub mod` lines
+  (ten at PHASE-08). `tests/renderer/wiring.rs` — items 11e, 11f, 11g,
+  11i: two local-refusal tests, four DT-transition tests (DT-1…DT-5, DT-5
+  folded into DT-1's), one back-pressure test, two `busy`-clearing tests
+  — 9 new renderer tests, all green, VA-2 break-and-revert pasted
+  (`notes.md`, PHASE-07 sheet). 73 renderer tests total (64 + 9), plus 6
+  new `goad` lib tests. No dependency change (`tokio`'s `sync` feature was
+  already in `crates/goad/Cargo.toml`). Gate warm at **5.055 s**.
 
 ### Learned
 
@@ -2380,6 +2577,36 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   uses — mint a disposable view on a private log, extract the option —
   generalises cleanly to a second tier via the same shared `driving.rs`
   helpers (`scripted`, `host`, `answer_first_option`).
+- **A generated component-holding struct needs its own hand-written
+  `Debug` for the same reason `Wire` does — every such struct, not just
+  the first.** `SlintGlass` (`window: PromptWindow, tray: Tray, options:
+  Rc<VecModel<OptionRow>>`) fails `missing_debug_implementations` with no
+  derive path, because none of the three fields implements `Debug`.
+  `design.md`'s `glass.rs` snippet did not show this; the rule was already
+  on the page for `Wire` and applies unchanged.
+- **`tokio::sync::watch::{Sender, Receiver}` both derive `Debug` and
+  `Clone`** (measured, `tokio-1.43.0/src/sync/watch.rs:133-150`), so
+  `Cancel`'s own `#[derive(Debug, Clone)]` needs no hand-written impl,
+  unlike `Wire`'s `slint::Weak` field.
+  `slint::Weak<T>::default()` exists (`i-slint-core-1.17.1/api.rs:1110`)
+  and upgrades to `None` with no platform/component behind it — enough to
+  unit-test `Wire::send`'s `Ok`/`Closed` arms with no window at all; the
+  `Full` arm (which writes through the weak handle) needs a real one, and
+  moved to `wiring.rs` for that reason.
+- **A test target's own `tokio`-feature reliance is transitive, and that
+  is already this codebase's practice, not a new one.** `crates/goad/
+  Cargo.toml` declares only `rt-multi-thread`/`sync` for `tokio`, with no
+  `macros`; `#[tokio::test]` still compiles in both `crates/goad/src/wire.rs`'s
+  unit tests and `tests/renderer/`, because `goad-shell`'s own `tokio`
+  dependency (which does declare `macros`) is in the same build graph and
+  Cargo unifies features per package across a build. `table.rs`'s existing
+  `#[tokio::test]` (PHASE-06) already relied on this; PHASE-07 confirms it
+  holds for `crates/goad/src/`'s own test module too.
+- **Slint's testing backend logs `Failed to create system tray icon: 0` to
+  stderr on every headless `Tray::new()`.** Benign — it is the fake
+  platform's own diagnostic about having no real tray protocol, not this
+  crate's `clippy::print_stderr` surface, and no assertion is affected.
+  Worth knowing before reading it as a new failure mode.
 
 ### Open
 
@@ -2396,16 +2623,23 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   reconciled into the design text itself. Audit's *Design drift not
   reconciled*, alongside DF-6.
 - **A-1, A-3, A-4 discharged at PHASE-03; A-2's budget spent one slot at
-  PHASE-06.** PHASE-04 and PHASE-05 needed no `#[expect]` outside the
-  generated-code quarantine; PHASE-06 spent the first of the two remaining
-  on `stamp`'s `dead_code` (a type landed one phase before its only
-  caller — exactly A-1/A-2's own anticipated shape). **One slot remains.**
+  PHASE-06, unchanged through PHASE-07.** PHASE-04, PHASE-05 and PHASE-07
+  each needed no `#[expect]` outside the generated-code quarantine;
+  PHASE-06 spent the first of the two remaining on `stamp`'s `dead_code`
+  (a type landed one phase before its only caller — exactly A-1/A-2's own
+  anticipated shape). **One slot remains.**
 - **`controller.rs`'s `stamp` carries `#[cfg_attr(not(test), expect(dead_code,
   reason = "…"))]`, and it must come off in the phase that first calls
-  `stamp` from production code** (PHASE-10's `serve`, or PHASE-07 if it gets
-  there first). Once a non-test caller exists the attribute's `not(test)`
-  branch is unfulfilled in the plain lib build and fails the gate under
+  `stamp` from production code — PHASE-10's `serve`** (confirmed at
+  PHASE-07: PL-10 already assigned `serve` to PHASE-10, and PHASE-07 built
+  no dispatch path that reaches `stamp`, so the wrapper stands unchanged).
+  Once a non-test caller exists the attribute's `not(test)` branch is
+  unfulfilled in the plain lib build and fails the gate under
   `unfulfilled_lint_expectations` — expected, not a regression to chase.
+  **The wrapper's own inline comment still reads "PHASE-07's `serve`"**
+  (stale against PL-10, `controller.rs:230`); `controller.rs` was outside
+  PHASE-07's declared surfaces, so the text was left for PHASE-10 to
+  correct in the same diff that removes the wrapper.
 - **`design.md:367`'s member table still reads "`slint` with its testing
   feature."** F-39, `verified`, not yet reconciled into the design text.
   Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.
