@@ -6,8 +6,8 @@
 `just check` rather than re-reading the design.
 **Opened:** 2026-09-05
 **State:** resolved — round 1 (`F-1`…`F-33`, reading the tree), round 2
-(`F-34`…`F-37`, executing PHASE-01) and round 3 (`F-38`, executing PHASE-02)
-all closed
+(`F-34`…`F-37`, executing PHASE-01), round 3 (`F-38`, executing PHASE-02) and
+round 4 (`F-39`, executing PHASE-03) all closed
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -1406,3 +1406,51 @@ variant duplicating `Token`'s shape with an owned name (two variants for one
 concept, and every match arm across three modules would need both).
 
 **Outcome:** verified
+
+## Round 4 — the execution round (PHASE-03)
+
+### F-39 — EX-3's "`slint` with its testing feature" names neither a real feature nor the crate the API lives in
+
+**Severity:** minor
+**Location:** `plan.md:851` (PHASE-03/EX-3); `design.md:367` (§5.1's member
+table, `goad` row, `[dev-dependencies]` column)
+
+**Expected:** `crates/goad`'s `[dev-dependencies]` carries `slint` with a
+feature literally named "testing", sufficient on its own to reach
+`init_no_event_loop()` and the element query API used throughout §9 items
+6-11.
+**Observed:** `cargo build -p goad` with `slint = { workspace = true,
+features = ["testing"] }` refuses to resolve — `slint` 1.17.1 has no feature
+named `testing`; the real name is `system-testing`. And `system-testing`
+alone is not sufficient: it only wires `i-slint-backend-selector` to prefer
+the testing platform. `init_no_event_loop()`, the function every test in this
+phase calls, is defined in a separate crate, `i-slint-backend-testing`, and
+is not re-exported through `slint` at any feature level (confirmed by
+grepping both crates' registry sources: the function has exactly one
+definition site, and `slint`'s own `lib.rs` never mentions it). `research.md`
+Thread 3 already used the two-crate shape; the member table's prose
+collapsed it to one.
+**Evidence:** `cargo build -p goad` error naming the unknown feature and
+listing `slint`'s real feature set; `grep -rn init_no_event_loop
+~/.cargo/registry/src/*/i-slint-backend-testing-1.17.1/` (one hit, the
+definition) and the same over `slint-1.17.1/` (no hits).
+
+**Disposition:** fix-now, autonomy grant (`plan-log.md` PL-15)
+**Response:** `[dev-dependencies]` carries both:
+`slint = { workspace = true, features = ["system-testing"] }` and
+`i-slint-backend-testing = { workspace = true }`, the latter added to
+`[workspace.dependencies]` pinned `= 1.17.1` alongside `slint` and
+`slint-build`. Not a fifth dependency under S-8: S-8's own text already names
+"the Slint testing dev-dependency" as one of exactly four permitted
+additions; this is that dependency, spelled correctly rather than invented.
+*Rejected:* stopping the phase over S-8 — the phrase in S-8 was never claimed
+to be a specific crate name, and the manifest allowlist this phase does not
+touch has no opinion on crate count, only on stratum.
+
+**Outcome:** verified
+
+## Findings, round 4
+
+| id | severity | disposition | outcome |
+|----|----------|-------------|---------|
+| F-39 | minor | fix-now | verified |

@@ -1,0 +1,108 @@
+import { Button, ScrollView } from "std-widgets.slint";
+
+export struct OptionRow { id: string, label: string, view: string }
+
+export enum WindowMode { prompt, diagnostic }
+
+export component PromptWindow inherits Window {
+  in property <WindowMode> mode;
+
+  // prompt mode
+  in property <string> heading;
+  in property <styled-text> body;        // the Slint type is `styled-text` (F-11)
+  in property <[OptionRow]> options;
+  in property <bool> body-degraded;
+  in property <bool> busy;               // an exchange is in flight; controls disabled
+
+  // either mode
+  in property <string> notice;           // transient, host-authored; "" = none
+
+  // diagnostic mode
+  in property <[string]> diagnostic-lines;   // ordered, escaped and bounded in Rust
+
+  callback chosen(string, string);       // (view token, OptionId.as_str())
+  callback close-diagnostics();          // leave diagnostic mode
+
+  title: root.mode == WindowMode.prompt ? "goad" : "goad — diagnostics";
+
+  VerticalLayout {
+    if root.mode == WindowMode.prompt: VerticalLayout {
+      Text { text: root.heading; }
+      StyledText {
+        text: root.body;
+        // E-5: the link is handled and ignored. This slice opens no URL, and an
+        // unhandled callback is not the same statement as a handled one.
+        link-clicked(link) => { }
+      }
+      if root.body-degraded: Text { text: "shown as plain text"; }
+
+      ScrollView {
+        VerticalLayout {
+          accessible-role: list;
+          accessible-label: "options";
+          accessible-item-count: root.options.length;
+
+          for option[index] in root.options: Button {
+            text: option.label;
+            enabled: !root.busy;
+            // The identity the tests select on, and the only unambiguous one:
+            // R-14 permits two options to share a label (D10, T-E).
+            accessible-description: option.id;
+            accessible-item-index: index;
+            clicked => { root.chosen(option.view, option.id); }
+          }
+        }
+      }
+    }
+
+    if root.mode == WindowMode.diagnostic: VerticalLayout {
+      Text { text: "Diagnostics"; }
+      if root.diagnostic-lines.length == 0: Text { text: "Nothing to report."; }
+      ScrollView {
+        VerticalLayout {
+          accessible-role: list;
+          accessible-label: "diagnostics";
+          accessible-item-count: root.diagnostic-lines.length;
+          for line[index] in root.diagnostic-lines: Text {
+            text: line;
+            accessible-item-index: index;
+          }
+        }
+      }
+      Button {
+        text: "Close";
+        accessible-description: "close-diagnostics";
+        clicked => { root.close-diagnostics(); }
+      }
+    }
+
+    if root.notice != "": Text { text: root.notice; }
+  }
+}
+
+export component Tray inherits SystemTrayIcon {
+  // `icon`, `tooltip` and `visible` are SystemTrayIcon's own. They cannot be
+  // redeclared ("Cannot override property") **and** inheriting them exposes no
+  // Rust setter, so the values the glass must write get their own properties
+  // and the builtins are *bound* to them. Binding is also what stops the
+  // compiler folding `visible` into a constant — E-4's panic trap, closed by
+  // measurement rather than by belief (F-28).
+  in property <image> image;
+  in property <string> hover-text;
+  in property <bool> shown: true;
+
+  icon: root.image;
+  tooltip: root.hover-text;
+  visible: root.shown;
+
+  callback check-now();
+  callback show-diagnostics();
+  callback quit();
+
+  Menu {
+    MenuItem { title: "Check now";   activated => { root.check-now(); } }
+    MenuItem { title: "Diagnostics"; activated => { root.show-diagnostics(); } }
+    MenuSeparator { }
+    MenuItem { title: "Quit";        activated => { root.quit(); } }
+  }
+}

@@ -8,6 +8,7 @@ resolver = "3"
 members = [
   "crates/goad-semantics",
   "crates/goad-shell",
+  "crates/goad",
   "crates/goad-boundary",
 ]
 
@@ -28,6 +29,7 @@ publish = false
 # says so.
 [workspace.dependencies]
 goad-semantics = { path = "crates/goad-semantics" }
+goad-shell     = { path = "crates/goad-shell" }
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
 jiff       = { version = "0.2", default-features = false }
@@ -40,6 +42,17 @@ tokio      = { version = "1",
 # dependency no feature can switch on (§5.6, PHASE-01/EX-9). `goad-boundary`
 # takes it at PHASE-02, with the manifest allowlist that needs it.
 toml       = { version = "1" }
+
+# Pinned exactly, not a range: design.md §5.1 — A-1's twelve-lint list and
+# A-3's `with_debug_info` change under a deliberate upgrade rather than a
+# resolver drift. `i-slint-backend-testing` is "the Slint testing
+# dev-dependency" S-8 names as one of the four permitted additions
+# (`init_no_event_loop()` is defined there, not re-exported through `slint`
+# itself — research.md Thread 3) and is pinned to the same version for the
+# same reason.
+slint                    = "=1.17.1"
+slint-build              = "=1.17.1"
+i-slint-backend-testing  = "=1.17.1"
 
 # ---- Rust lints ----
 [workspace.lints.rust]

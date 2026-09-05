@@ -390,3 +390,44 @@ amended here and the phase sheet records the amended form it ran against.
   user's explicit endorsement (`docs/AGENTS.md:38`); the audit is written up to
   that step and hands the drafts over. `flake.lock`'s unstaged change is left as is
   and is in no phase commit.
+
+### 2026-09-05 — PL-15: EX-3's "`slint` with its testing feature" is two things, named precisely
+
+*Autonomy grant.* Raised while executing PHASE-03; `plan.md` itself is **not**
+in PHASE-03's Surfaces, so the criterion is amended here and the phase sheet
+records the amended form it ran against (PL-13's shape).
+
+- **Asked:** `plan.md:851` and `design.md:367`'s member table both write
+  `crates/goad`'s `[dev-dependencies]` as "`slint` with its testing feature".
+  Neither compiles as written: `slint` 1.17.1 has no feature named `testing`
+  (`cargo` lists the real name, `system-testing`), and `system-testing` only
+  wires the backend *selector* to prefer the testing platform — the function
+  that actually installs it, `init_no_event_loop()`, is defined in a separate
+  crate, `i-slint-backend-testing`, and is not re-exported through `slint`
+  itself (`research.md` Thread 3, measured against the real crate: `cargo
+  build -p goad` refuses the literal feature name; `grep` over both crates'
+  registry sources confirms the function's only definition site).
+- **Decided:** `[dev-dependencies]` carries both, exactly:
+  `slint = { workspace = true, features = ["system-testing"] }` and
+  `i-slint-backend-testing = { workspace = true }`, the latter pinned `=
+  1.17.1` in `[workspace.dependencies]` for the same reason `slint` and
+  `slint-build` are (A-1, A-3 — the version the twelve-lint list and
+  `with_debug_info` were measured against).
+- **Why:** the criterion's purpose survives the correction. S-8 and EN-2 both
+  name "the Slint testing dev-dependency" as one of exactly four permitted
+  additions — singular in prose, but never claimed to be zero new crates.
+  `i-slint-backend-testing` **is** that dependency, not a fifth one: it is the
+  crate S-8's own phrase describes, and the manifest allowlist this phase
+  does not touch has no opinion on crate count, only on stratum. Naming it
+  precisely is not a design change; leaving the literal, non-compiling text
+  in place and reaching for an `#[expect]` or a workaround would have been.
+- **Rejected:** treating this as S-8 (a dependency add needing an ask) — S-8's
+  own text already names this dependency; what changed is only its precise
+  crate name, discovered by contact with the real crate rather than assumed
+  from the design's prose. Also rejected: dropping `i-slint-backend-testing`
+  and calling `init_no_event_loop()` through some re-export that does not
+  exist, which would not compile.
+- **Consequence:** `design.md`'s member table and `plan.md:851` both carry the
+  imprecise phrase; `docs/slices/002/notes.md`'s PHASE-03 sheet records the
+  corrected manifest and this entry. Audit's *Design drift not reconciled* if
+  the design text is not tightened at reconciliation.

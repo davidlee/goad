@@ -35,6 +35,13 @@
       stdenv.cc.cc.lib
     ];
 
+    # fontconfig discovers fonts through a configuration file, not through
+    # PATH or buildInputs — a font package in `guiLibs` alone does nothing
+    # (D12, design.md §5.5 D12). `makeFontsConf` writes a `fonts.conf` naming
+    # this store path explicitly, and the Slint cheap test tier needs a real
+    # font to construct a component at all.
+    fontsConf = pkgs.makeFontsConf {fontDirectories = [pkgs.dejavu_fonts];};
+
     devToolPkgs = with pkgs; [
       rust-bin.beta.latest.default
       rust-analyzer
@@ -115,6 +122,7 @@
         ++ lib.attrValues jailPkgs;
 
       LD_LIBRARY_PATH = lib.makeLibraryPath guiLibs;
+      FONTCONFIG_FILE = fontsConf;
 
       shellHook = ''
         alias jcl='jailed-claude --dangerously-skip-permissions'
