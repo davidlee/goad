@@ -77,9 +77,15 @@ A new ADR — `docs/adr/003-*.md` — recording:
   states the vocabulary scan beside rather than among them, and does **not**
   claim their sum is "stratum 1's purity, enforced" (review `F-6`). CD-7 carries
   the counting rule in full.
-- **What the split cost:** measured, not estimated — 111 renames, 91
-  byte-identical, one substantive file change, ~6 minutes to a green gate. The
-  error-taxonomy split ADR-002 flagged as a real cost was two lines.
+- **What the split cost:** measured against the executed split, not the dry
+  run's estimate (PHASE-09 repair, 2026-09-05) — **113** renames, **92**
+  byte-identical (`R100`), plus 24 additions, 3 deletions and 4 modifications
+  elsewhere in the diff, and one substantive file change
+  (`review-plan.md` F-34…F-37, `plan-log.md` PL-13). The dry run's own figures
+  — 111 renames, 91 byte-identical (`research.md:881`) — were measured on a
+  tree this branch never had, exactly the trap PL-13 named for §5.1's artifact
+  map; this entry had quoted them uncorrected. The error-taxonomy split
+  ADR-002 flagged as a real cost was two lines.
 - **Where ADR-001's discipline actually slipped:** not in production code, but
   in the test layout, in two places, and the split is what found them. ADR-002's
   Negative consequences predicted the opposite distribution.

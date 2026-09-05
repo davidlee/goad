@@ -1,6 +1,6 @@
 # Slice 002: The workspace split, and the first renderer
 
-**Stage:** design
+**Stage:** audit
 **Depends on:** slice 001 (closed) — SPEC-001, the canonical protocol types, the
 process transport, and `Host`.
 **Research:** `research.md` — 5 survey threads, 3 spikes, 2 adversarial

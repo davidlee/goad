@@ -19,7 +19,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-07 — the glass, the wiring, and back-pressure | **done** — gate green (5.055 s), 9 new wiring tests (VT-5/6/7/9), VA-2 break-and-revert pasted, zero new `#[expect]` (one slot remains against S-1); no findings, no STOP | 2026-09-05 |
 | PHASE-10 — `serve`, and the stop that drops the exchange | **done** — gate green (7.705 s), 15 new renderer tests (rows ×7, interaction ×4, serving ×1, cancellation ×3), VT-10 cancellation measured ~130-150 µs against a 250 ms bound, zero `#[expect]` outside `generated.rs` (A-2's `stamp` slot given back); no findings, no STOP | 2026-09-05 |
 | PHASE-08 — startup, the entry point, and the event-loop tier | **done** — gate green, `goad` is a runnable binary with all eight `StartupError` variants constructed, the `event_loop` target lands (VT-2 real-close-request), 34 new tests (27 startup, 7 structure), niri-validated README, zero `#[expect]` (A-2's two slots untouched); no findings, no STOP | 2026-09-05 |
-| PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | todo | 2026-09-05 |
+| PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | **done** — clean-clone gate exit 0 (57.648 s cold, `nix develop`), A-4 warm median 5.276 s (band unchanged, ≤120 s), CD-1 repaired (stale dry-run counts), Stage advanced to `audit`, VA-2's full 15-AC walk recorded, VA-3 found 8 undeclared paths (all pre-PHASE-01 scaffolding or this phase's own surfaces), two findings (F-1, F-2) handed to audit, no STOP | 2026-09-05 |
 | audit | todo — CD-1…CD-7 and `draft-policy.md` are promoted here, with explicit endorsement, and nowhere earlier (`docs/AGENTS.md:38`) | 2026-09-05 |
 
 **Execution order is 01, 02, 03, 04, 05, 06, 07, 10, 08, 09.** No two phases have disjoint surfaces:
@@ -2830,13 +2830,229 @@ INFO niri: config is valid
   comment (all carried from PHASE-06/07/10) are unchanged by this phase —
   all audit's *Design drift not reconciled*.
 
+### PHASE-09 — The drafts, the restatement sweep, and the clean-clone gate
+
+**Objective:** every document this slice owns is true about what shipped, the
+harvest is written, and `just check` exits 0 from a clean clone under
+`nix develop` — the second half of AC-1. **Not** a close: AC-15 is audit's
+alone (`plan.md:1509-1513`, `docs/AGENTS.md:38`).
+
+**Reading list:** `docs/AGENTS.md:20-45,60-125`; `plan.md:14-142,290-314,
+1503-1581`; `slice-002.md` whole; `canon-delta.md` and `draft-policy.md`
+whole; `notes.md` Status table and every phase sheet's discharge rows and
+Carried-forward bullets; `plan-log.md` PL-13…PL-17; `design.md` §5.1's member
+and test-target tables (`:363-399`), §5.5's A-4 bands (`:2793-2819`), §5.6's
+six-command block (`:2976-2985`); `justfile`, root `Cargo.toml`,
+`crates/*/Cargo.toml`, `crates/goad/src/lib.rs`, `crates/goad/README.md`.
+
+**Assumptions:** none beyond PHASE-08's — this phase adds no code and
+composes nothing; it reads the tree and corrects prose against it.
+
+**STOP conditions (design.md §5.5, transcribed):** S-4 (median warm `just
+check` > 300 s), S-8 (an undisclosed dependency addition — not applicable, no
+manifest touched), and the standing one this phase's own brief adds: nothing
+under `docs/specs/`, `docs/policy/` or `docs/adr/` is created or edited, and
+no draft is promoted; `design.md` is not touched.
+
+**Entry**
+
+| # | evidence |
+|---|---|
+| EN-1 | PHASE-08's exit criteria are discharged (Status table, above) and `just check` exits 0 — reconfirmed by this phase's own three warm runs below (EX-6) |
+| EN-2 | every phase's sheet (PHASE-01…08, PHASE-10) records `done` and its exit/verification criteria discharged — Status table, above; no recorded stop |
+
+**Exit**
+
+- **EX-1** — `canon-delta.md`'s seven entries and `draft-policy.md` checked
+  against the tree as shipped. **One divergence found and repaired in the
+  draft:** CD-1's "What the split cost" bullet quoted `research.md:881`'s
+  dry-run figures (111 renames, 91 byte-identical) verbatim — exactly the
+  citation trap PL-13 named for §5.1's own artifact map, applied here to a
+  second document that copied the same pre-execution numbers and was never
+  corrected once the split actually ran. Measured against the executed
+  split (`git diff --name-status -M100% <slice base> e3170b1`, this
+  session): **113** renames, **92** `R100` (byte-identical), plus 24
+  additions, 3 deletions, 4 modifications, one substantive file change —
+  reproducing PHASE-01's own EX-3/EX-4 walk (`notes.md:3248-3251`) exactly.
+  Repaired in `canon-delta.md` CD-1 directly (a draft is the slice's working
+  authority and may be kept current, `docs/AGENTS.md:36`); nothing else in
+  the seven entries or in `draft-policy.md` diverges — CD-2 through CD-7 and
+  the whole of `draft-policy.md`'s Statement/Rationale/Scope/Compliance/
+  Verification read true against the tree, checked clause by clause below
+  (EX-3). Neither document is promoted.
+- **EX-2** — `slice-002.md`: Scope paths, Governing canon and every AC's
+  wording read against what shipped — no divergence found (the "eleven
+  modules" in Scope and `plan.md:1437`'s "ten `pub mod` lines" are not in
+  tension: eleven files under `crates/goad/src/` including `lib.rs` itself,
+  ten `pub mod` declarations inside it). **Stage advanced** `design` →
+  `audit`, which the template's stage vocabulary
+  (`docs/templates/slice/slice-nnn.md:3`) names as the value between
+  `executing` and `done`. Summary and Follow-ups left blank — close's, not
+  this phase's.
+- **EX-3** — the restatement sweep, by command:
+  - `cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name'`
+    → `goad-semantics`, `goad-shell`, `goad`, `goad-boundary` — the four
+    members, matching §5.1.
+  - the six `[[test]]` targets, read from every member's `Cargo.toml`:
+    `goad-semantics/protocol` (`tests/protocol/main.rs`),
+    `goad-shell/integration` (`tests/integration/main.rs`),
+    `goad-shell/shape` (`tests/shape/main.rs`), `goad/renderer`
+    (`tests/renderer/main.rs`), `goad/event_loop`
+    (`tests/event_loop/main.rs`), `goad-boundary/checks`
+    (`tests/checks/main.rs`) — six names and six paths, exact match against
+    `design.md:389-396`.
+  - `just -n check` prints the same six lines, same order, as
+    `draft-policy.md` §Compliance's block and `design.md:2979-2984` —
+    byte-for-byte.
+  - `crates/goad/src/lib.rs` carries exactly §5.1's ten `pub mod` lines, in
+    §5.1's order: `clock, controller, diagnostics, generated, glass, install,
+    reception, startup, view_model, wire`.
+  - one member table field checked and confirmed true, not merely quoted:
+    every member's `Cargo.toml` carries `[lints]\nworkspace = true` and no
+    crate-level override; one root `clippy.toml`, none per-member; fixtures
+    at `tests/fixtures/` (88 files, matching PHASE-08's harvest count).
+  - `crates/goad-boundary/tests/checks/main.rs` declares a fourth module,
+    `structure`, beyond `design.md:396`'s `{vocabulary, purity, allowlist}`
+    — not a `canon-delta.md`/`draft-policy.md` divergence (its own header
+    comment, `main.rs:22-26`, states it holds neither ADR-001's rule nor
+    `CLAUDE.md`'s, so it is outside CD-7/`draft-policy.md`'s "three things,
+    not one number" count by the documents' own terms) but **is** a
+    `design.md` §5.1 test-target-table omission — recorded below as a
+    finding for audit's *Design drift not reconciled*, since `design.md` is
+    this phase's explicit not-touched surface.
+  - `plan.md:77,133,569`'s "~115 renames" is the pre-execution artifact
+    map's own estimate, explicitly hedged with "~"; not restated as a fact
+    and not a divergence. No other count, path, target name or command
+    named in `plan.md` or `slice-002.md` was found to diverge from the tree.
+- **EX-4** — Harvest rewritten in place, below.
+- **EX-5 / VA-1** — clean-clone gate. `git worktree add --detach
+  <scratchpad>/goad-clean HEAD` (branch already checked out here, so
+  detached at `3802ee7`), `nix develop --command bash -c 'time just check'`:
+
+  ```
+  ...
+  Checking i-slint-backend-selector v1.17.1
+  Checking slint v1.17.1
+      Finished `dev` profile [unoptimized] target(s) in 10.15s
+  cargo fmt --all --check
+
+  real	0m57.648s
+  user	5m34.255s
+  sys	0m53.675s
+  ```
+
+  Exit code confirmed **0** on a second invocation in the same worktree
+  (`just check; echo "EXITCODE=$?"` → `EXITCODE=0`, deno/clippy/fmt lines all
+  clean). `git worktree remove` after. AC-1's second half discharged.
+- **EX-6** — A-4 re-measured, main tree, three consecutive warm runs, no
+  source change between: **5.276 s / 5.285 s / 5.265 s → median 5.276 s**,
+  against §5.5's bands (`≤ 120 s`: T3 has not fired) and beside PHASE-03/EX-1's
+  **2.128 s**. Within the same band, no boundary crossed — S-4 does not fire
+  (5.276 s ≪ 300 s) — but worth recording as a real move: PHASE-04 through
+  PHASE-08 added five renderer source files, five test modules and roughly
+  200 tests between the two measurements, and the warm gate grew
+  proportionately (≈2.5×) while staying two orders of magnitude under the
+  120 s ceiling.
+
+**Verification**
+
+- **VA-1** — EX-5's clean-clone transcript, pasted above in full.
+- **VA-2** — the acceptance-criterion walk, all fifteen, against the
+  Coverage table's named criterion (`plan.md:295-311`):
+
+  | AC | criterion (plan.md Coverage) | met/open/finding | evidence |
+  |----|---|---|---|
+  | AC-1 | PHASE-01/EX-2; every VA-1; PHASE-09/EX-5 | **met** | `notes.md:151` (six-command gate at split); PHASE-01/07/08/10 VA-1 rows, e.g. `notes.md:2497,2721`; this sheet's EX-5/EX-6 above |
+  | AC-2 | PHASE-01/EX-3,4,5a,5b,5c,11,13; PHASE-02/EX-12 | **met** | `notes.md:152-153,155-157,164,166` (PHASE-01); `notes.md:936` (PHASE-02/EX-12, "AC-2's argument, below") |
+  | AC-3 | instr.1 PHASE-01/EX-10; instr.4 PHASE-01/EX-2; instr.2,3 PHASE-02/EX-4,7,8,VT-1,2; residue PHASE-02/VA-3 | **met** | `notes.md:163` (EX-10 break-and-revert), `notes.md:151` (EX-2), PHASE-02 sheet `EX-4`/`EX-7`/`EX-8`/`VT-1`/`VT-2` (`notes.md` PHASE-02 range, relative lines 143,159,165,200,205 → abs. ≈897,913,919,954,959), `notes.md:1018` (VA-3, the counting rule) |
+  | AC-4 | PHASE-03/VT-2 (item 7); PHASE-10/VT-1 (item 11a) | **met** | `notes.md:1242` (PHASE-03 VT-2); `notes.md:2488` (PHASE-10 VT-1, "Repaired", element tree) |
+  | AC-5 | PHASE-03/VT-3 (item 8); PHASE-10/VT-4 (item 11d, R-33) | **met** | `notes.md:1250` (PHASE-03 VT-3); `notes.md:2491` (PHASE-10 VT-4, "Repaired — now through the real `mpsc` channel and `serve`") |
+  | AC-6 | PHASE-03/VT-4 (item 9); PHASE-10/VT-2 (item 11b) | **met** | `notes.md:1256` (PHASE-03 VT-4); `notes.md:2489` (PHASE-10 VT-2, both halves, real window) |
+  | AC-7 | PHASE-06/VT-1 (item 12); PHASE-10/VT-3 (item 11c) | **met** | `notes.md:2005` (33-row table, one retained `Host`); `notes.md:2490` (PHASE-10 VT-3, failed-respond retry) |
+  | AC-8 | PHASE-05/VT-4,6,7,8; PHASE-08/VT-1 (item 17) | **met** | PHASE-05 sheet VT-4/6/7/8 (`notes.md` PHASE-05 range); `notes.md:2718` (PHASE-08 VT-1, `source()` clauses) |
+  | AC-9 | PHASE-04/VT-1,2; PHASE-05/VT-11,12 | **met** | `notes.md:1530` (PHASE-04 VT-1/2, markdown parse/reject + degradation reported); PHASE-05 sheet VT-11/12 |
+  | AC-10 | PHASE-03/VT-1; EX-8 | **met** | `notes.md:1238` (VT-1 guard test); `notes.md:1150` (EX-8, cheap tier, no display server) |
+  | AC-11 | PHASE-03/VT-4,5 | **met** | `notes.md:1256` (VT-4, presence); `notes.md:1260` (VT-5, absence against a deliberately broken build) |
+  | AC-12 | PHASE-10/VT-10…13; PHASE-08/VT-2,3 | **met** | `notes.md:2493-2496` (cancellation ~79-106 µs, biased tie-break, unread queued command); `notes.md:2719-2720` (real close request, structural count) |
+  | AC-13 | PHASE-02/EX-6,VT-3 | **met** | `notes.md:966-977` (VT-3, all six positive-control cases named in AC-13's own words, plus vacuity controls) |
+  | AC-14 | PHASE-02/VT-3; PHASE-04/EX-3,VT-3 | **met** | `notes.md:966-977`; PHASE-04 sheet EX-3/VT-3 (tray rasteriser, no image asset file under `crates/goad/`) |
+  | AC-15 | not fully in this plan (`plan.md:311`) | **open, by design** | promotion is audit's alone, with explicit user endorsement (`docs/AGENTS.md:38`); this phase's own EX-1 makes the drafts promotable but does not promote them |
+
+  No AC's named criterion failed to discharge it. AC-15 is the plan's own
+  stated exception, not a finding.
+- **VA-3** — the surfaces diff. `<slice base>` from PHASE-01/EN-5
+  (`notes.md:46`): `a6ae61764b80f843b53b642e598ea71b69d43a94` (`git
+  merge-base main HEAD`, confirmed identical this session).
+  `git diff --name-only <slice base> HEAD` against the union of every
+  phase's declared Surfaces (`plan.md:321-324,713-715,826-827,944-946,
+  1020-1022,1123-1126,1227-1229,1316-1317,1401-1406`, PL-17's
+  `tests/backends/answers-as-instructed.sh` extension already inside
+  PHASE-06's own declared set). Every `crates/**`, `tests/**`, `Cargo.toml`,
+  `Cargo.lock`, `flake.nix`, `justfile` path in the diff falls inside some
+  phase's declared surface. **Undeclared paths, all outside `crates/` and
+  `tests/`, classified:**
+
+  | path | classification |
+  |---|---|
+  | `.gitignore` | bookkeeping — one line (`.claude/worktrees/`), added in the design-stage commit `e5aff57`, before PHASE-01; agent-tooling hygiene, not phase work |
+  | `docs/roadmap.md` | bookkeeping doc — new, 205 lines, added in `e5aff57`; the repo-wide slice sequence, predates phase execution |
+  | `docs/slices/002/audit.md` | bookkeeping — unfilled template scaffold (`docs/templates/slice/audit.md`'s shape, all placeholders), added in `e5aff57` |
+  | `docs/slices/002/design.md` | bookkeeping doc — the design record; predates PHASE-01, and explicitly this phase's own "Not touched" (`plan.md:1519-1521`) |
+  | `docs/slices/002/research.md` | bookkeeping doc — predates PHASE-01 |
+  | `docs/slices/002/review-design.md` | bookkeeping — design-review ledger, predates PHASE-01 |
+  | `docs/slices/002/review-plan.md` | bookkeeping — plan-review ledger, predates PHASE-01 |
+  | `docs/slices/002/design-log.md` | plan-log class — declared in this phase's own Surfaces (`plan.md:1515-1517`), populated earlier by the design conversation |
+
+  None is a phase-execution surface violation: all eight predate PHASE-01
+  (added in the slice's design-stage commit, before `<slice base>`'s
+  successor `<pre-split>` even branches) or are declared by this phase's own
+  Surfaces. Handed to audit rather than tidied away, per this phase's brief.
+
+**Findings (for `audit.md`):**
+
+- **F-1 (this phase).** `canon-delta.md` CD-1 quoted `research.md`'s
+  pre-execution dry-run figures instead of the executed split's own —
+  **repaired in the draft** (EX-1 above), not merely flagged, since the
+  draft is the slice's working authority and the fix is a citation
+  correction with no design content.
+- **F-2 (this phase).** `design.md`'s §5.1 test-target table
+  (`design.md:396`) does not list `goad-boundary/checks`'s fourth module,
+  `structure` — landed at PHASE-08 for item 14f and self-documented there as
+  a sixth instrument outside CD-7/`draft-policy.md`'s counting rule
+  (`crates/goad-boundary/tests/checks/main.rs:22-26`). Not a canon-delta or
+  draft-policy inaccuracy (neither claims the module list is exhaustive);
+  it is `design.md` drift not reconciled, and `design.md` is this phase's
+  own not-touched surface. For audit's Reconciliation table.
+
+**Carried forward, not this phase's to fix:**
+
+- `clock.rs:13`'s stale "PHASE-07's `serve`" comment — PHASE-08's sheet
+  suggested "PHASE-09's or a documentation pass's to correct", but
+  `crates/goad/src/clock.rs` is production code and is in **no** phase's
+  declared Surfaces, this phase's included (`plan.md:1515-1517` names only
+  `docs/slices/002/*` and, conditionally, `crates/goad/README.md`). Left
+  untouched here on the same "stay inside declared surfaces" rule every
+  other phase followed; restated for audit, not fixed.
+- DF-6, the `Breach::Token` type departure, the `design.md:367` testing-
+  feature phrase, the artifact map's `controller.rs` tree comment, and this
+  phase's own F-2 above — all audit's *Design drift not reconciled*.
+- `stash@{0}` ("WIP on slice-002: 128df95…") — confirmed still present,
+  still byte-identical to the working tree (PHASE-03 established this;
+  reconfirmed by `git stash list` this session). Not touched — dropping it
+  is the user's or the orchestrator's call, never a phase's
+  (`CLAUDE.md` — never `git stash` without explicit agreement).
+- CD-5 and `draft-policy.md` land together or not at all, restated once
+  more for audit: applying CD-5 alone leaves `CLAUDE.md` pointing at
+  nothing promoted; promoting `draft-policy.md` alone leaves two claimants
+  to the gate.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-08 · startup-the-entry-point-and-the-event-loop-tier
-commit on `slice-002`
+**Fresh as of:** 2026-09-05 · PHASE-09 · the drafts, the restatement sweep,
+and the clean-clone gate — commit on `slice-002`
 
 ### Produced
 
@@ -2950,6 +3166,18 @@ commit on `slice-002`
   tie-break and the level-held property together; VT-13 the unread queued
   command) — 15 new renderer tests, 88 total, all green. No dependency
   change. Gate warm at **7.705 s**.
+- **PHASE-09 — no code.** `canon-delta.md` CD-1 repaired (stale dry-run
+  rename counts → the executed split's own, `research.md:881` superseded).
+  `slice-002.md`'s Stage advanced `design` → `audit`. `just check` confirmed
+  exit 0 from a clean clone under `nix develop` (57.648 s cold, transcript
+  above) — AC-1's second half. A-4 re-measured in the main tree: warm
+  median **5.276 s** (PHASE-03's was 2.128 s), same `≤ 120 s` band. VA-2's
+  full AC-1…14 walk found every named criterion discharging its AC; AC-15
+  stands open by the plan's own design. VA-3's surfaces diff found eight
+  undeclared paths, all pre-PHASE-01 slice-folder scaffolding or this
+  phase's own declared docs — none a phase-execution violation. Two items
+  for `audit.md`: CD-1's repair (F-1) and `design.md`'s test-target table
+  missing `goad-boundary/checks`'s `structure` module (F-2).
 
 ### Learned
 
@@ -3150,12 +3378,48 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   platform's own diagnostic about having no real tray protocol, not this
   crate's `clippy::print_stderr` surface, and no assertion is affected.
   Worth knowing before reading it as a new failure mode.
+- **`docs/memory/` candidates (PHASE-09, named not written — ids and hooks
+  only):**
+  - *the compositor window rule* — a Wayland client cannot place, raise or
+    focus its own window; the fix is a documented compositor-side rule
+    (`crates/goad/README.md`'s niri `window-rule` block, validated against
+    niri 26.04), not application code.
+  - *the `makeFontsConf` trap* — adding a font package to `buildInputs` alone
+    does nothing; a devshell needs `pkgs.makeFontsConf` plus `FONTCONFIG_FILE`
+    pointed at its output (`flake.nix`, PHASE-03/EX-2, `notes.md:1173-1175`).
+  - *the `#[path]`-into-workspace-root helper pattern* — a helper shared by
+    two test targets in different members lives at the workspace root and is
+    pulled in by a literal `#[path = "../../../../tests/support/driving.rs"]
+    mod driving;` in each target's `main.rs`, rather than becoming its own
+    crate.
+  - *the `clippy.toml` test-exemption boundary* — `unwrap_used`, `expect_used`,
+    `panic` and `indexing_slicing` are all exempted in test code and denied
+    outside it, so relocating an item from a test target into a library
+    crosses four lint boundaries at once, silently, until the gate says so.
+  - *cargo's cwd after a split* — a test binary's working directory is its
+    own package root, not the workspace root; anything resting on the two
+    coinciding breaks the moment a single-crate repo becomes a workspace.
+  - *Slint's markdown subset* — headings, images, block quotes, code blocks,
+    tables, HTML blocks, footnotes, definition lists and super/subscript are
+    all rejected; plain paragraphs, emphasis/strong, lists and links parse.
+  - *`#[expect(dead_code)]` on a helper landed ahead of its caller* — needs
+    `#[cfg_attr(not(test), expect(dead_code, reason = "…"))]`, not a bare
+    `#[expect]`, whenever a `#[cfg(test)]` module also exercises the same
+    item — otherwise one build variant's expectation goes unfulfilled under
+    `-D warnings`.
+  - *`git stash` in an autonomous session* — never taken without explicit
+    agreement (`CLAUDE.md`); a stray `stash@{0}` from an earlier session sat
+    untouched for the run's whole duration rather than being dropped on a
+    phase's own initiative.
 
 ### Open
 
-- **CD-1…CD-7 and `draft-policy.md`** — unchanged, unpromoted, audit's, and the
-  user's alone. The `justfile` now cites the draft as the slice's working
-  authority (`docs/AGENTS.md:36`), which is what CD-5 will make permanent.
+- **CD-1…CD-7 and `draft-policy.md`** — unpromoted, audit's, and the user's
+  alone. CD-1 was repaired in place by PHASE-09 (a stale dry-run citation
+  corrected against the executed split's own measurement, F-1); CD-2…CD-7 and
+  `draft-policy.md` were checked and found to already read true. The
+  `justfile` now cites the draft as the slice's working authority
+  (`docs/AGENTS.md:36`), which is what CD-5 will make permanent.
 - **DF-6 has diverged in code, and PHASE-02 widened it.** `Scan` and now
   `Breach` both carry a `#[derive(Debug)]` that §5.6's block omits. Audit's
   *Design drift not reconciled*.
@@ -3178,9 +3442,16 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   lead-in, `wire.rs`'s module doc and the comment above `Cancel`'s test
   module) are corrected at PHASE-10 in the same diffs. `clock.rs:13` still
   carries the same stale phrasing — `clock.rs` was outside PHASE-10's
-  declared surfaces (`controller.rs`, `wire.rs` only), and outside
-  PHASE-08's too (`lib.rs`, `startup.rs`, `diagnostics.rs`, `main.rs`
-  only), so it is left again for a later phase or a documentation pass.
+  declared surfaces (`controller.rs`, `wire.rs` only), outside PHASE-08's
+  (`lib.rs`, `startup.rs`, `diagnostics.rs`, `main.rs` only), and outside
+  PHASE-09's (`docs/slices/002/*` and `crates/goad/README.md` only) — three
+  phases in a row have left it correctly untouched. Audit's or a dedicated
+  documentation pass's to correct; no phase's declared surfaces reach it.
+- **`design.md:396`'s test-target table omits `goad-boundary/checks`'s
+  fourth module, `structure`** (PHASE-08, item 14f) — the module's own
+  header comment states it holds neither ADR-001's rule nor `CLAUDE.md`'s,
+  so it is not a `canon-delta.md`/`draft-policy.md` inaccuracy, only a
+  `design.md` one (PHASE-09, F-2). Audit's *Design drift not reconciled*.
 - **`design.md:367`'s member table still reads "`slint` with its testing
   feature."** F-39, `verified`, not yet reconciled into the design text.
   Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.
