@@ -1,12 +1,14 @@
 //! Everything a person reads, in one module (design.md §5.2, principle 4).
 //!
 //! PHASE-04 landed the tray rasteriser: `TrayState`, `ICON_EDGE`, `IDLE`,
-//! `FAULT` and `tray_icon`. PHASE-05 adds the rest: `Reported`, `Refused`,
+//! `FAULT` and `tray_icon`. PHASE-05 added `Reported`, `Refused`,
 //! `Diagnostics`, `tooltip`, `BUSY_NOTICE`, the two remaining outlets
 //! (`line_to`, `report_platform`) and the escape/bound pipeline every line on
-//! this surface goes through. The module carries the arithmetic deny because
-//! both halves compute over lengths a backend or a transport chose (D53,
-//! design.md §5.4).
+//! this surface goes through. PHASE-08 adds the startup surface's own two
+//! outlets, `USAGE`, `print_usage` and `report_startup`, before a tray or a
+//! window exists. The module carries the arithmetic deny because both halves
+//! compute over lengths a backend or a transport chose (D53, design.md
+//! §5.4).
 #![deny(clippy::arithmetic_side_effects)]
 
 use std::fmt::{self, Write as _};
@@ -17,6 +19,7 @@ use goad_shell::error::CleanupFailure;
 use goad_shell::host::Failure;
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
+use crate::startup::StartupError;
 use crate::view_model::Undrawn;
 
 /// The tray's severity, derived from the diagnostic surface rather than
@@ -272,6 +275,29 @@ fn line_to(mut sink: impl std::io::Write, line: &str) {
   match writeln!(sink, "{line}") {
     Ok(()) | Err(_) => (),
   }
+}
+
+/// One `const`, no trailing newline — `line_to`'s `writeln!` supplies the
+/// one, and two sources of that newline would be a fact stated twice. Its
+/// only destination is `--help`; a usage error names the flag instead and
+/// does not reprint this block (principle 4).
+pub const USAGE: &str = "usage: goad [<config-path>]
+       goad -h | --help
+
+With no argument the configuration is read from
+$XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when
+XDG_CONFIG_HOME is unset, empty, or not absolute.";
+
+/// stdout, exit 0. The only caller is `--help`.
+pub fn print_usage() {
+  line_to(std::io::stdout().lock(), USAGE);
+}
+
+/// stderr, and `main` returns `ExitCode::from(2)`. `{error}` is
+/// `StartupError`'s `Display`, one rendering, no `source()` walk — the same
+/// rule every other line on this surface follows.
+pub fn report_startup(error: &StartupError) {
+  line_to(std::io::stderr().lock(), &format!("goad: {error}"));
 }
 
 /// stderr, and the process keeps running. The only caller is

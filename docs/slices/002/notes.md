@@ -18,7 +18,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-06 — the controller, the fold, and the failure case table | **done** — gate green (7.608 s), 64 renderer tests (33-row table VT-1, 7 reducer-row VT-2, 2 `busy`-clearing VT-3), VA-2 break-and-revert pasted; `describe_outcome` moved `driving.rs` → `harness.rs` (review-code round 1), EX-7 amended `plan-log.md` PL-16, no STOP; A-2 spent one `#[expect]` on `stamp`'s `dead_code` | 2026-09-05 |
 | PHASE-07 — the glass, the wiring, and back-pressure | **done** — gate green (5.055 s), 9 new wiring tests (VT-5/6/7/9), VA-2 break-and-revert pasted, zero new `#[expect]` (one slot remains against S-1); no findings, no STOP | 2026-09-05 |
 | PHASE-10 — `serve`, and the stop that drops the exchange | **done** — gate green (7.705 s), 15 new renderer tests (rows ×7, interaction ×4, serving ×1, cancellation ×3), VT-10 cancellation measured ~130-150 µs against a 250 ms bound, zero `#[expect]` outside `generated.rs` (A-2's `stamp` slot given back); no findings, no STOP | 2026-09-05 |
-| PHASE-08 — startup, the entry point, and the event-loop tier | todo | 2026-09-05 |
+| PHASE-08 — startup, the entry point, and the event-loop tier | **done** — gate green, `goad` is a runnable binary with all eight `StartupError` variants constructed, the `event_loop` target lands (VT-2 real-close-request), 34 new tests (27 startup, 7 structure), niri-validated README, zero `#[expect]` (A-2's two slots untouched); no findings, no STOP | 2026-09-05 |
 | PHASE-09 — the drafts, the restatement sweep, and the clean-clone gate | todo | 2026-09-05 |
 | audit | todo — CD-1…CD-7 and `draft-policy.md` are promoted here, with explicit endorsement, and nowhere earlier (`docs/AGENTS.md:38`) | 2026-09-05 |
 
@@ -2534,19 +2534,334 @@ cargo fmt --all --check: clean
 - DF-6, the `Breach::Token` type departure, the `design.md:367`/artifact-map `controller.rs` staleness, and the artifact map's `controller.rs` tree comment (all carried from PHASE-06/07) are unchanged by this phase — all audit's *Design drift not reconciled*.
 - `startup.rs`, `main.rs`, the `event_loop` target, and item 14e (the real close-request wiring) remain unwritten — PHASE-08's.
 
+### PHASE-08 — Startup, the entry point, and the event-loop tier
+
+**Status:** in progress
+
+**Objective:** goad is a process a person can run: it finds its configuration,
+reports every startup failure in its own voice on stderr and exits 2, and a
+window-close gesture ends the loop through the one path the design allows.
+`plan.md:1395-1502`.
+
+**Surfaces:** `crates/goad/src/{lib.rs, startup.rs, diagnostics.rs, main.rs}`,
+`crates/goad/Cargo.toml` (the `event_loop` test target),
+`crates/goad/tests/renderer/{main.rs, startup.rs}`,
+`crates/goad/tests/event_loop/{main.rs, closing.rs}`, `crates/goad/README.md`,
+`crates/goad-boundary/tests/checks/{main.rs, structure.rs}`,
+`docs/slices/002/notes.md`.
+
+**Reading list** (path:line):
+
+- `docs/AGENTS.md:60-125` (*Phase plan* and *Execute*).
+- `docs/slices/002/plan.md:14-142` (overview, six standing rules, PHASE-07/
+  PHASE-10 split rationale), `:1395-1502` (PHASE-08 itself), `:263-268`
+  (DF-4 — the `dead_code`/library-target doubt).
+- `docs/slices/002/draft-policy.md` in full — the six-command gate's working
+  authority; `CLAUDE.md`'s gate text is stale (CD-5, CD-7).
+- `docs/slices/002/notes.md` — Status table; Harvest Produced/Learned/Open
+  through PHASE-10; the PHASE-10 sheet's "Carried forward" note that
+  `clock.rs:13`'s stale "PHASE-07's `serve`" comment is outstanding.
+  **`clock.rs` is not in this phase's surfaces, so it is left untouched here
+  too** — restated again rather than fixed, for whichever phase or
+  documentation pass owns `clock.rs` next.
+- `docs/slices/002/design.md` §5.4 `:1969-2054` (`startup.rs` block:
+  `Launch`, `StartupError::arguments` doc, the four-row argument table, the
+  XDG/`HOME` asymmetry, the validated `window-rule` block and its two
+  sentences), `:1283-1435` (`main.rs` block: `main`, `run`, `start` verbatim,
+  and the seven things it settles), `:2280-2420` (the two outlets, the
+  discard-spelling table, `line_to`/`print_usage`/`report_startup`/
+  `report_platform`, the usage block, the startup failure line), `:2420-2477`
+  (the eight `StartupError` variants table, `Platform`'s four sites,
+  `ClockError`'s two renderings); §5.1 `:460-469` (the ten `pub mod` lines,
+  in order); §5.5 `:2716-2945` (A-2's measured budget — "two remain
+  unspent" per S-1's own text, not plan.md's paraphrase — the STOP table
+  verbatim, S-3/A-3's guard-test dependency); §9 `:3877-3949` (item 14e/14f/
+  17 in full, and "no test asserts the exit code by running the binary");
+  `:3658-3667` (the two lint rules governing every `tests/…` target:
+  `clippy::tests_outside_test_module`, `clippy::unnecessary_wraps`);
+  `:389-398` (the six `[[test]]` targets, `event_loop`'s `main.rs` declares
+  `#[cfg(test)] mod closing;`).
+- `docs/slices/002/plan-log.md` PL-6 (`structure.rs`'s placement and reason),
+  PL-8 (DF-4's resolution — land `startup.rs`/`main.rs` together regardless),
+  PL-14 (the autonomous-run STOP policy), PL-16 (a criterion's purpose survives
+  its letter — precedent for any narrowing this phase needs), PL-17 (the
+  PHASE-10 precedent for a minimal test-fixture addition outside the
+  declared surfaces, logged rather than escalated, when a STOP's purpose is
+  not engaged).
+- `docs/slices/002/slice-002.md:161-166` (AC-6), `:202-206` (AC-12).
+- Code read in full: `crates/goad/src/{lib.rs, wire.rs, glass.rs, install.rs,
+  clock.rs, diagnostics.rs}`, `crates/goad/Cargo.toml`,
+  `crates/goad-boundary/tests/checks/main.rs`,
+  `crates/goad-boundary/src/{scan.rs, members.rs}` (`workspace_root`,
+  `code_of`, `Scan`/`Breach`/`report` — `code_of` strips comments and string
+  contents per line and is reused for `structure.rs`'s own scan rather than
+  re-deriving `transport_shape.rs`'s bespoke mini-parser).
+  `crates/goad/src/controller.rs`'s `serve`/`Served`/`Ending`/`Pending` in
+  full (already landed, PHASE-10) — `serve` is transcribed verbatim from
+  design.md and this phase adds nothing to it, only the `spawn_local` wrapper
+  around the one call site in `main.rs`.
+  `crates/goad/tests/renderer/wiring.rs`'s `serving` and `cancellation`
+  modules (how a test builds a real `SlintGlass`/`Wire`/`Cancel`/channel and
+  drives `serve` — `serving::serve_drives_one_exchange_through_the_production_loop`
+  is the closest existing pattern to `start`'s own composition, minus the
+  runtime/event-loop wrapper).
+  `crates/goad-shell/tests/shape/transport_shape.rs` in full — the
+  `the_only_spawn_is_the_child` shape VT-3 mirrors: token is `spawn`, not
+  `tokio::spawn`, to catch `Handle::spawn`/`spawn_blocking`/`JoinSet::spawn`
+  too; permitted shape named explicitly rather than swept into a wildcard.
+  `tests/support/driving.rs` in full — `host_from`'s composition
+  (`config.rs:79-104`) matches `start`'s §5.4 text exactly: command cloned,
+  `ProcessBackend::new`, `Host::new(config, backend, now)`.
+  `crates/goad-shell/src/{config.rs, host.rs, backend/process.rs}` —
+  `Config::load`, `Host::new`, `ProcessBackend::new` signatures, confirmed
+  matching §5.4's `start` verbatim.
+- Library research (not in the repo, read directly from the pinned crate
+  sources under `~/.cargo/registry/src/…`, version `1.17.1`): `slint`'s
+  `lib.rs` (`run_event_loop_until_quit`, `spawn_local`'s Tokio-compatibility
+  doc, `pub use i_slint_core::api::*`, `pub mod platform` re-exporting
+  `i_slint_core::platform::*`); `i-slint-core`'s `api.rs`
+  (`quit_event_loop`, `set_xdg_app_id`, `Window::dispatch_event`, and
+  `WindowEvent::CloseRequested`'s handling at `:746`); `i-slint-backend-testing`'s
+  `lib.rs` (`init_no_event_loop` vs `init_integration_test_with_mock_time`/
+  `_with_system_time` — the latter two "can only be called once per
+  process", which is why `event_loop::closing` is a single `#[test]` fn, and
+  both set `threading: true` so `run_event_loop_until_quit` and
+  `quit_event_loop` work headless with no real display).
+
+**Assumptions carried in:**
+
+- `startup.rs`, `main.rs`'s `main`/`run`/`start`, and the diagnostic outlets
+  are transcribed from design.md §5.4 verbatim — no shape decision is this
+  phase's to make. The seven "what this settles" bullets after the `main.rs`
+  block are read as binding, not merely explanatory.
+- DF-4 is not resolved by this phase (PL-8): `startup.rs` and `main.rs` land
+  together regardless of whether `dead_code` still fires on a `pub`
+  `StartupError` variant in a library-plus-thin-binary target. If PS-4 fires
+  anyway, that is the STOP it names.
+- VT-2 (item 14e)'s vehicle is `i_slint_backend_testing::init_integration_test_with_mock_time()`
+  (or `_with_system_time`, decided during EX-6 by whichever avoids a mock-time
+  surprise on `run_event_loop_until_quit`'s own timing) plus
+  `window.window().dispatch_event(slint::platform::WindowEvent::CloseRequested)`
+  to raise the real `on_close_requested` callback `install` wires — confirmed
+  both are `pub` and reachable with no new dependency (measured against the
+  pinned crate sources, above).
+- VT-3 (item 14f) lands as `crates/goad-boundary/tests/checks/structure.rs`
+  (PL-6's placement), a bespoke scan over `crates/goad/src/`'s flat file list
+  (confirmed no subdirectories) using `code_of` to strip comments/strings per
+  line before counting — not `Scan`, whose contract is presence-forbidding
+  over a directory and does not express "exactly one".
+- The `renderer` target's `main.rs` gains `#[cfg(test)] mod startup;`
+  (design.md §5.1's table, `:394`); no other existing module declaration
+  changes.
+
+**STOP conditions** (design.md §5.5, verbatim; PHASE-08 names S-1, S-2, S-8
+as the ones that can actually fire in it — plan.md:1395-1502):
+
+| # | condition | why it is not a phase's to decide |
+|---|---|---|
+| S-1 | a **third** distinct lint needs an `#[expect]` outside the generated-code quarantine | the table is wrong for this stratum (A-2). **Two slots remain** after PHASE-10 gave back the `stamp` slot — this phase's own budget |
+| S-2 | a lint suppression outside the quarantine module, a lint the workspace table does not set, or a `[lints]` table in a member manifest | D8 is wrong for generated code (A-1) |
+| S-3 | `CompilerConfiguration::with_debug_info` is gone, or item 6's guard test fails | every element-tree assertion rests on it (A-3) |
+| S-4 | median warm `just check` **> 300 s** | ADR-002 T3 has fired hard (A-4) |
+| S-5 | item 14a measures shutdown at **> 250 ms** against a 2 s timeout | shutdown is awaiting the exchange, which AC-12 forbids — already discharged by PHASE-10, not reachable here |
+| S-6 | a file has to move that §5.1's artifact map does not name, or a content change beyond that table's "change permitted" column | it is a redesign, and AC-2 says so (R4) |
+| S-7 | a `.slint` compile error the markup in §5.2 did not have | A-7's evidence no longer covers the markup |
+| S-8 | any dependency beyond `slint`, `slint-build`, the Slint testing dev-dependency and the named font package | `CLAUDE.md` requires a dependency be asked about |
+
+Additionally:
+
+- **PS-4** — `dead_code` fires on a `StartupError` variant despite `start`
+  constructing it. That means DF-4 is wrong in a direction nothing here
+  anticipated, and the shape of the fix — an `#[expect]`, a restructure, or a
+  design change — is not a phase's to choose.
+
+**Task breakdown:**
+
+1. `startup.rs`: `Launch`, `StartupError` (eight variants, `Display`,
+   `std::error::Error` default `source()`, no `PartialEq`), `arguments`.
+2. `diagnostics.rs`: `USAGE` const, `print_usage`, `report_startup`; confirm
+   `report_platform`/`line_to` need no change (already landed PHASE-05).
+3. `main.rs`: `main`, `run`, `start` — nothing else — transcribed verbatim,
+   constructing all eight `StartupError` variants.
+4. `lib.rs`: add `pub mod startup;` — the only addition to the nine lines
+   already there (§5.1's ten `pub mod` lines are `clock, controller,
+   diagnostics, generated, glass, install, reception, startup, view_model,
+   wire`; `main.rs` is the binary target and is not a library module).
+5. `crates/goad/README.md`: the validated `window-rule` block, heading naming
+   niri, the two sentences, nothing else.
+6. `Cargo.toml`: `[[test]] name = "event_loop" path = "tests/event_loop/main.rs"`.
+7. `tests/event_loop/{main.rs, closing.rs}`: VT-2, one `#[test]` fn.
+8. `tests/renderer/startup.rs` + `main.rs`'s `mod startup;`: VT-1 (item 17).
+9. `crates/goad-boundary/tests/checks/{main.rs, structure.rs}`: VT-3
+   (item 14f) — `mod structure;` added to `main.rs`.
+10. Gate: `just check` under `nix develop`; clippy; `cargo fmt --all`.
+11. VA-2 by hand, pasted, not as a test.
+12. VA-3: grep the two named-binding discard sites.
+
+**Status:** done
+
+**Discharge table:**
+
+| criterion | discharge |
+|---|---|
+| EN-1 | PHASE-10's exit criteria stood; baseline `just check` before any edit: exit 0 |
+| EN-2 | `serve`, `install`, `SlintGlass`, `Wire`, `Cancel`, `wall_clock` all pre-existed (PHASE-06/07/10) and are used unchanged by `main.rs`'s `start` |
+| EX-1 | `startup.rs` carries exactly `Launch`, `StartupError` (eight variants, `Display`, `std::error::Error` with the default `source()`, no `PartialEq`), `arguments` (`startup.rs:1-110`) |
+| EX-2 | `arguments(argv, env)` skips `argv[0]` itself (`.skip(1)`), honours `XDG_CONFIG_HOME` only when `Path::is_absolute()` (subsuming emptiness), uses `HOME` as given — 27 tests in `tests/renderer/startup.rs::arguments_table` cover the four-row table including the `./--help` case |
+| EX-3 | `diagnostics.rs` gains `USAGE` (one `const`, no trailing newline), `print_usage`, `report_startup` (`diagnostics.rs:277-300`); a usage error's text does not contain `USAGE` (`tests/renderer/startup.rs::usage_error_does_not_reprint_the_block`) |
+| EX-4 | `main.rs` holds exactly `main`, `run`, `start` (`grep -n '^fn '` → three lines); `main` returns `ExitCode`, uses no `?`; all eight `StartupError` variants constructed across `arguments` (`NoConfigPath`, `Usage`) and `start` (`Config`, `Clock`, `Runtime`, `Platform` ×4 sites, `EventLoop`, `Enqueue`) |
+| EX-5 | `quit_event_loop` has exactly one call site in `crates/goad/src/` — `goad-boundary::checks::structure::quit_event_loop_has_exactly_one_call_site`, and confirmed by direct grep |
+| EX-6 | `crates/goad/Cargo.toml` declares `[[test]] name = "event_loop" path = "tests/event_loop/main.rs"`; its `main.rs` is `#[cfg(test)] mod closing;`; `closing.rs` uses `i_slint_backend_testing::init_integration_test_with_mock_time` |
+| EX-7 | `crates/goad/README.md` — validated: `nix develop --command niri validate -c <the block>` → `config is valid` (niri 26.04, pasted below); heading names niri, code block first, then the two sentences below it verbatim, nothing else |
+| EX-8 | `lib.rs`'s ten `pub mod` lines, in §5.1's order: `clock, controller, diagnostics, generated, glass, install, reception, startup, view_model, wire` (`lib.rs:3-12`) |
+| EX-9 | `crates/goad-boundary/tests/checks/main.rs` gains `#[cfg(test)] mod structure;`; items 14e, 14f, 17 all pass |
+| VT-1 (item 17) | `tests/renderer/startup.rs`, 27 tests: `display_text` (all 8 `StartupError` variants + both `ClockError` variants, verbatim), `source_walk` (both `source()`s `None`), `usage_block` (byte-exact `USAGE`, no trailing newline), `usage_error_does_not_reprint_the_block`, `arguments_table` (14 rows: zero args × 9 XDG/HOME combinations, one argument, `-h`, `--help`, `./--help`, two arguments, program-name-first) |
+| VT-2 (item 14e) | `tests/event_loop/closing.rs::a_real_close_request_ends_serve_and_then_the_loop` — a real `PromptWindow`/`Tray`/`Wire`/`Cancel`/`SlintGlass`/`serve`, a real `Window::dispatch_event(WindowEvent::CloseRequested)` (which runs `install`'s own `on_close_requested` callback), asserting `served.ending == Ending::Stopped`, under a real (headless, `init_integration_test_with_mock_time`) event loop that then quits via the one `quit_event_loop` call site |
+| VT-3 (item 14f) | `goad-boundary::checks::structure`, 7 tests: the vacuity guard, `quit_event_loop_has_exactly_one_call_site`, `the_renderer_holds_no_tokio_spawn_handle`, `slint_spawn_local_is_the_one_spawn_this_crate_uses`, and three controls on the check's own counting and its production-code cut (the cut is proven non-vacuous against `wire.rs`'s own post-`#[cfg(test)]` `tokio::spawn`) |
+| VA-1 | `just check` under `nix develop`: **exit 0**, transcript below |
+| VA-2 | by hand, pasted below: `--help` exits 0, `USAGE` byte-identical on stdout, stderr empty; `a b` exits 2, exact `goad: too many arguments: …` on stderr, stdout empty |
+| VA-3 | `grep -rn 'map_err(|_' crates/goad/src/*.rs` → exactly `main.rs:92: .map_err(|_returned| StartupError::Enqueue)` and `clock.rs:62: .map_err(|_negative| ClockError::BeforeEpoch)` |
+
+**VA-1's transcript** (`nix develop --command just check`, exit `0`):
+
+```
+cargo build --workspace
+cargo test --workspace
+  goad (lib):            6 passed   (unchanged — controller/wire unit tests)
+  goad (bin, main.rs):   0 passed
+  goad::event_loop:      1 passed   (new target)
+  goad::renderer:      115 passed   (88 inherited + 27 new: startup's display_text,
+                                      source_walk, usage_block, usage_error_does_not_
+                                      reprint_the_block, arguments_table)
+  goad-boundary (lib):    0 passed
+  goad-boundary::checks: 28 passed  (21 inherited + 7 new: structure)
+  goad-semantics (lib):  25 passed
+  goad-semantics::protocol: 5 passed
+  goad-shell (lib):      17 passed
+  goad-shell::integration: 58 passed
+  goad-shell::shape:      6 passed
+  Doc-tests (goad, goad-boundary, goad-semantics, goad-shell): 0 each
+cargo test -p goad-semantics: 25 + 5 passed
+deno check examples/typescript/backend.ts: clean
+cargo clippy --workspace --all-targets -- -D warnings: clean
+cargo fmt --all --check: clean
+```
+
+**VA-2's transcript**, streams separated (`target/debug/goad`, built by `cargo build -p goad --bin goad`):
+
+```
+$ ./goad --help >stdout.txt 2>stderr.txt; echo "exit: $?"
+exit: 0
+$ cat stdout.txt
+usage: goad [<config-path>]
+       goad -h | --help
+
+With no argument the configuration is read from
+$XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when
+XDG_CONFIG_HOME is unset, empty, or not absolute.
+$ cat stderr.txt
+(empty)
+
+$ ./goad a b >stdout.txt 2>stderr.txt; echo "exit: $?"
+exit: 2
+$ cat stdout.txt
+(empty)
+$ cat stderr.txt
+goad: too many arguments: goad takes at most one, the path of the configuration file; run `goad --help` for usage
+```
+
+**EX-7's niri validation** (`nix develop --command niri validate -c window-rule-check.kdl`, the file containing exactly the README's `kdl` block):
+
+```
+INFO niri: config is valid
+```
+
+**Judgements:**
+
+- **`startup.rs` carries no inline `#[cfg(test)]` module.** Every other pure,
+  component-free module this crate has added since PHASE-04
+  (`view_model.rs`, `diagnostics.rs`, `clock.rs`) tests entirely from the
+  external `renderer` target rather than inline; `wire.rs` and
+  `controller.rs` are the two exceptions, and both exceptions are for a
+  named reason stated in their own comments (a private function in
+  `controller.rs`'s case; complementary no-component/no-runtime coverage
+  beside `wiring.rs`'s real-glass tests in `wire.rs`'s case). §9's own
+  placement table puts all of item 17 in `renderer::startup`, so
+  `startup.rs`'s `arguments`/`StartupError`/`ClockError` tests were written
+  there and only there — first drafted inline during the reading pass, then
+  moved out once the placement table and the established convention were
+  both read closely, to avoid testing the same function in two places (DRY,
+  CLAUDE.md).
+- **`tests/event_loop/closing.rs` builds its own `Host`/`Config` rather than
+  including `tests/support/driving.rs`.** design.md §5.1's target table
+  (`:389-398`) declares this target's `main.rs` as `#[cfg(test)] mod
+  closing;` only — no `#[path]` line for `driving` — unlike every other
+  target's row, which all carry one. Read literally rather than assumed:
+  the one command this test ever hands the host (`"true"`) is never
+  actually run, since no exchange enters the channel before the close
+  request trips `Cancel`, so nothing here needed `driving.rs`'s scripted
+  backends.
+- **The window-visibility half of a first draft of VT-2 was dropped.**
+  Design's own item 14e text asserts only `Wire::stop`, `serve` returning,
+  `quit_event_loop` running, and `run_event_loop_until_quit` returning —
+  nothing about window visibility. A first draft additionally asserted the
+  window stayed visible after the close request, which failed: with no
+  exchange ever presented, the window was never shown in the first place
+  (`Surface::Hidden` is `Controller::new()`'s own start state), so the
+  failure was the test's premise, not a defect. Removed rather than
+  patched with a synthetic exchange, since VT-2's text does not ask for it
+  and constructing one (a real `ProcessBackend` exchange, or a fabricated
+  `Outcome` fed some other way) would test something item 14e was not
+  written to test.
+
+**Findings:** none raised against `plan.md` or `design.md`.
+
+**Carried forward, not this phase's to fix:**
+
+- `clock.rs:13`'s comment ("PHASE-07's `serve` takes one of these") is
+  stale against PL-10 the same way `controller.rs`'s and `wire.rs`'s were
+  before PHASE-10 corrected those two. `clock.rs` is **not** in this
+  phase's declared surfaces (`crates/goad/src/{lib.rs, startup.rs,
+  diagnostics.rs, main.rs}` only) and is left untouched. Restated, not
+  fixed, exactly as PHASE-10's own sheet asked — PHASE-09's or a
+  documentation pass's to correct.
+- DF-6, the `Breach::Token` type departure, the `design.md:367`/artifact-map
+  `controller.rs` staleness, and the artifact map's `controller.rs` tree
+  comment (all carried from PHASE-06/07/10) are unchanged by this phase —
+  all audit's *Design drift not reconciled*.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-05 · PHASE-10 · serve-and-the-stop-that-drops-the-exchange
+**Fresh as of:** 2026-09-05 · PHASE-08 · startup-the-entry-point-and-the-event-loop-tier
 commit on `slice-002`
 
 ### Produced
 
-- Four members — `goad-semantics`, `goad-shell`, `goad`, `goad-boundary` —
-  and five `[[test]]` targets: `protocol`, `integration`, `shape`, `checks`,
-  `renderer`. The `event_loop` target is PHASE-08's (PL-1).
+- **`goad` is a runnable binary.** `crates/goad/src/{startup,main}.rs` —
+  `Launch`, `StartupError` (eight variants, all constructed), `arguments`
+  (pure, `argv`/`env`-injected); `main`/`run`/`start` transcribed from
+  design.md §5.4 verbatim, composing every stratum-3 piece PHASE-04…10 built.
+  `diagnostics.rs` gains `USAGE`, `print_usage`, `report_startup`.
+  `crates/goad/README.md` — the niri `window-rule` block, validated
+  (`niri validate`, niri 26.04, "config is valid"). Six `[[test]]` targets
+  now: `protocol`, `integration`, `shape`, `checks`, `renderer`,
+  `event_loop` — the last new this phase, one `#[test]` fn
+  (`i_slint_backend_testing::init_integration_test_with_mock_time` may run
+  only once per process), discharging item 14e: a real
+  `Window::dispatch_event(WindowEvent::CloseRequested)` runs `install`'s
+  callback, trips `Cancel`, `serve` returns `Ending::Stopped`, and the one
+  `quit_event_loop` call site ends a real headless event loop.
+  `crates/goad-boundary/tests/checks/structure.rs` — item 14f, a source
+  *count* (not `Scan`'s presence-forbidding shape): `quit_event_loop`
+  exactly once and no `tokio::spawn` handle in `crates/goad/src/`'s
+  production code, cut at each file's own `#[cfg(test)]` line so `wire.rs`'s
+  legitimate test-only `tokio::spawn` does not false-positive it. 34 new
+  tests (27 in `tests/renderer/startup.rs` for item 17, 7 in `structure.rs`),
+  zero new `#[expect]` (A-2 still at two spendable), zero new dependencies.
+  `lib.rs` now carries all ten `pub mod` lines §5.1 names.
 - `crates/goad/{Cargo.toml,build.rs,ui/app.slint,src/{lib,generated}.rs,
   tests/renderer/{main,tree}.rs}` — the renderer crate exists, `slint` and
   `slint-build` pinned `= 1.17.1`, `i-slint-backend-testing` newly named in
@@ -2640,6 +2955,37 @@ commit on `slice-002`
 
 Durable enough for `docs/memory/`, and none of it reachable by reading:
 
+- **`i_slint_backend_testing::init_integration_test_with_mock_time` (and its
+  `_with_system_time` sibling) may be called only once per process** — its
+  own doc comment says so, and it is why item 14e needs a dedicated
+  `[[test]]` target with exactly one `#[test]` fn rather than a module
+  folded into `renderer`, whose every other test calls
+  `init_no_event_loop()` (which each test thread may call for itself).
+  Confirmed by reading the pinned crate source
+  (`i-slint-backend-testing-1.17.1/lib.rs`) rather than assumed from the
+  design's own placement table, which states the split but not why.
+- **A real close request is dispatched with
+  `window.window().dispatch_event(slint::platform::WindowEvent::
+  CloseRequested)`, not through `i_slint_backend_testing`'s search API**,
+  which has no close-request affordance (only pointer/key events).
+  `Window::dispatch_event` and `slint::platform::WindowEvent` are both
+  `pub`, reachable with no new dependency; `dispatch_event(CloseRequested)`
+  calls the window's internal `request_close()`, which is exactly what
+  runs the callback a component's own `.window().on_close_requested(..)`
+  registered (`i-slint-core-1.17.1/window.rs`, `request_close`;
+  `api.rs:746`, the `CloseRequested` dispatch arm) — so this exercises the
+  identical callback `install` wires in production, not a stand-in.
+- **A source-count check (item 14f: "exactly one") cannot be `goad-boundary`'s
+  `Scan`, whose contract is presence-forbidding over a directory** (PL-6).
+  It also cannot naively scan a whole file: an inline `#[cfg(test)] mod
+  tests` legitimately uses APIs a *production*-code claim forbids —
+  `wire.rs`'s own unit tests call `tokio::spawn` to drive
+  `Cancel::stopped()`, which would false-positive a whole-file
+  `tokio::spawn` search for item 14f's "the renderer holds no `tokio::spawn`
+  handle". Every inline test module in this crate starts at its own
+  `#[cfg(test)]` line and runs to the file's end (measured: `wire.rs`,
+  `controller.rs`, the only two with one), so cutting a file's scan there
+  is both sufficient and simple — no smarter block-scoped parser needed.
 - **`clippy.toml`'s four `allow-*-in-tests` keys are a hidden boundary.**
   `unwrap_used`, `expect_used`, `panic` and `indexing_slicing` are all `deny`
   here and all exempted in test code, so **every item relocated from a test
@@ -2832,8 +3178,9 @@ Durable enough for `docs/memory/`, and none of it reachable by reading:
   lead-in, `wire.rs`'s module doc and the comment above `Cancel`'s test
   module) are corrected at PHASE-10 in the same diffs. `clock.rs:13` still
   carries the same stale phrasing — `clock.rs` was outside PHASE-10's
-  declared surfaces (`controller.rs`, `wire.rs` only), so it is left for a
-  later phase or a documentation pass.
+  declared surfaces (`controller.rs`, `wire.rs` only), and outside
+  PHASE-08's too (`lib.rs`, `startup.rs`, `diagnostics.rs`, `main.rs`
+  only), so it is left again for a later phase or a documentation pass.
 - **`design.md:367`'s member table still reads "`slint` with its testing
   feature."** F-39, `verified`, not yet reconciled into the design text.
   Audit's *Design drift not reconciled*, alongside DF-6 and `Breach::Token`.

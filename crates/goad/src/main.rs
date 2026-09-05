@@ -1,0 +1,117 @@
+// crates/goad/src/main.rs — stratum 3
+
+use std::path::Path;
+use std::process::ExitCode;
+use std::rc::Rc;
+
+use goad::clock;
+use goad::controller::Controller;
+use goad::diagnostics;
+use goad::generated::{OptionRow, PromptWindow, Tray};
+use goad::glass::SlintGlass;
+use goad::install::install;
+use goad::startup::{self, Launch, StartupError};
+use goad::wire::{Cancel, Command, Stimulus, Wire};
+use goad_shell::backend::process::ProcessBackend;
+use goad_shell::config::Config;
+use goad_shell::host::Host;
+use slint::{ComponentHandle, VecModel};
+use tokio::sync::mpsc;
+
+fn main() -> ExitCode {
+  match run() {
+    Ok(()) => ExitCode::SUCCESS,
+    Err(error) => {
+      diagnostics::report_startup(&error); // "goad: {error}" on stderr
+      ExitCode::from(2)
+    }
+  }
+}
+
+/// `main` cannot use `?`, because it returns `ExitCode`. This is the fallible
+/// half, and it is the only place a `StartupError` is produced.
+fn run() -> Result<(), StartupError> {
+  // The environment is passed in, not reached for, because `arguments` is pure
+  // over both (§9 item 17). The closure is not redundant and cannot be replaced
+  // by `&std::env::var_os`: `var_os` is generic over `K: AsRef<OsStr>`, and a
+  // generic fn item does not coerce to `&dyn Fn(&str) -> Option<OsString>`.
+  match startup::arguments(std::env::args_os(), &|name| std::env::var_os(name))? {
+    Launch::Help => {
+      diagnostics::print_usage(); // stdout, and `run` returns Ok
+      Ok(())
+    }
+    Launch::Config(path) => start(&path),
+  }
+}
+
+fn start(path: &Path) -> Result<(), StartupError> {
+  // 1. The host, complete, before any UI exists. The command and timeout are
+  //    cloned out of the config, the transport is built from them, and the
+  //    config is then *moved* into the host.
+  let config = Config::load(path).map_err(StartupError::Config)?;
+  let now = clock::wall_clock().map_err(StartupError::Clock)?;
+  let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);
+  let host = Host::new(config, backend, now);
+
+  // 2. The runtime, entered for the whole of the loop's life. Without the guard
+  //    the first poll of a `tokio::process` future on the Slint thread panics
+  //    with *there is no reactor running*.
+  let runtime = tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .map_err(StartupError::Runtime)?;
+  let _entered = runtime.enter(); // dropped after the loop returns
+
+  // 3. The components. The app id is set before anything is shown, because the
+  //    app icon comes from it and the `icon` property is silently dropped.
+  slint::set_xdg_app_id("goad").map_err(StartupError::Platform)?;
+  let window = PromptWindow::new().map_err(StartupError::Platform)?;
+  let tray = Tray::new().map_err(StartupError::Platform)?;
+
+  // 4. The bridge. One `Wire`, cloned into each callback and nowhere else.
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let wire = Wire::new(tx.clone(), cancel.clone(), window.as_weak());
+  install(&window, &tray, &wire); // the callback table
+
+  // 5. The glass. The `VecModel` is created once and lives for the process;
+  //    `present` re-hands its `ModelRc` on every call, so no property has to
+  //    survive a hide. `new` also writes the initial tray icon and tooltip,
+  //    because the tray registers nothing until a non-empty image is assigned
+  //    and the loop's first `present` happens after the event loop starts.
+  let glass = SlintGlass::new(
+    window.clone_strong(),
+    tray.clone_strong(),
+    Rc::new(VecModel::<OptionRow>::default()),
+  );
+
+  // 6. The first evaluation enters through the ordinary channel, so item 11
+  //    exercises the real path. The channel is empty and holds one, so this
+  //    cannot fail; an `Err` is still reported rather than unwrapped.
+  tx.try_send(Command::Evaluate(Stimulus::Startup))
+    .map_err(|_returned| StartupError::Enqueue)?;
+
+  // 7. One task, one loop, one quit. The `JoinHandle` is bound and dropped:
+  //    dropping it does not drop the future, which is why nothing is retained.
+  let _task = slint::spawn_local(async move {
+    let _served = goad::controller::serve(
+      host,
+      Controller::new(),
+      rx,
+      cancel,
+      clock::wall_clock,
+      glass,
+    )
+    .await;
+    // The crate's ONLY `quit_event_loop` call site (F-20). Its `Err` says only
+    // that the loop is already gone, and is matched rather than discarded
+    // because `let _ =` trips `let_underscore_must_use`.
+    match slint::quit_event_loop() {
+      Ok(()) | Err(_) => (),
+    }
+  })
+  .map_err(StartupError::EventLoop)?;
+
+  slint::run_event_loop_until_quit().map_err(StartupError::Platform)?;
+  Ok(())
+}

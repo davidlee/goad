@@ -18,6 +18,12 @@
 //! in this change: the allowlist and the purity scan are what replace it, and
 //! carrying both the old grep and its replacement would claim the rule twice
 //! at different strengths (§5.6, EX-9).
+//!
+//! `structure` is a sixth, later instrument, holding neither ADR-001's rule
+//! nor `CLAUDE.md`'s: item 14f, a source **count** over `crates/goad/src/`
+//! (`quit_event_loop` exactly once, no `tokio::spawn` handle). It is not a
+//! `Scan`, whose contract is presence-forbidding over a directory and cannot
+//! express "exactly one" (`plan-log.md` PL-6).
 
 // `#[cfg(test)]` on the declarations for `clippy::tests_outside_test_module`, as
 // `crates/goad-semantics/tests/protocol/main.rs` explains: a `tests/` target is
@@ -26,5 +32,7 @@
 mod allowlist;
 #[cfg(test)]
 mod purity;
+#[cfg(test)]
+mod structure;
 #[cfg(test)]
 mod vocabulary;

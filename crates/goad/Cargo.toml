@@ -34,3 +34,7 @@ workspace = true
 [[test]]
 name = "renderer"
 path = "tests/renderer/main.rs"
+
+[[test]]
+name = "event_loop"
+path = "tests/event_loop/main.rs"
