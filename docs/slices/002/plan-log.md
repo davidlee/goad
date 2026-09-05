@@ -474,3 +474,30 @@ records the amended form it ran against (PL-13's shape).
   design.md (§12.3, §5.4's reducer table).
 - **Consequence:** `docs/slices/002/notes.md`'s PHASE-06 sheet cites this
   entry against EX-7's discharge line. No code changed.
+
+### 2026-09-05 — PL-17: PHASE-10's surfaces gain `tests/backends/answers-as-instructed.sh`, one arm
+
+*Orchestrator adjudication under PL-14*, on the PHASE-10 verification's RED
+finding.
+
+- **Asked:** verification found items 11a–d asserted `Controller`'s internal
+  `Frame` rather than the window, and 11d never queued a `Choose` behind a real
+  exchange. Discharging 11d honestly needs a backend that holds an exchange in
+  flight and then answers with a view; no `answers-as-instructed.sh` arm did
+  (the `@lingers*` arms background their sleep). The script is PHASE-06's
+  surface, not PHASE-10's.
+- **Decided:** PHASE-10's Surfaces gain `tests/backends/answers-as-instructed.sh`
+  for exactly one arm, `@slow-view` — a foreground `sleep 0.2` then a pinned
+  choice view. The 11a–d tests are rebuilt to read the element tree, 11d and
+  its negative control run through the real channel and `serve`, and 14a's
+  precondition observes the invocation log rather than sleeping.
+- **Why:** the purpose of a surface list is to catch redesign; a test-fixture
+  arm that lets a stated verification item be asserted as written is not one.
+  S-6's letter (a file that must change and is not in the surfaces) is engaged;
+  its purpose is not.
+- **Rejected:** discharging 11d by a synchronous `answer` after two sequential
+  evaluates — the original shape — which cannot assert "queued behind a slow
+  exchange". Also rejected: reusing `@lingers-with-a-view`, whose backgrounded
+  sleep does not keep the exchange in flight.
+- **Consequence:** `answers-as-instructed.sh` now carries four instruction arms
+  beyond §12.1's; audit's surfaces diff (PHASE-09/VA-3) should expect it.
