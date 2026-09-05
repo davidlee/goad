@@ -20,7 +20,7 @@ use goad::glass::{Glass, SlintGlass};
 use goad::wire::{Cancel, Command, Stimulus, Wire};
 use goad_semantics::protocol::canonical::Timestamp;
 use i_slint_backend_testing::{ElementHandle, ElementQuery, init_no_event_loop};
-use slint::{ComponentHandle, VecModel};
+use slint::{ComponentHandle, Model, VecModel};
 use tokio::sync::mpsc;
 
 use crate::driving::{host, instant, invocations, quiet_event, scripted};
@@ -34,8 +34,8 @@ fn now() -> Timestamp {
 /// A `Clock` (`fn() -> Result<Timestamp, ClockError>`) fixed to [`now`]. A
 /// plain top-level `fn`, not a closure: `Clock` is a `fn` pointer type
 /// (`clock.rs`), the same reason `serve` itself takes one rather than a
-/// `dyn Fn`. Shared by `mod serving` and `mod cancellation`, both of which
-/// call `serve` directly.
+/// `dyn Fn`. Shared by `mod serving`, `mod interaction` and `mod
+/// cancellation`, all of which call `serve` directly.
 #[expect(
   clippy::unnecessary_wraps,
   reason = "must match `Clock`'s `fn() -> Result<Timestamp, ClockError>` \
@@ -104,6 +104,46 @@ fn accessible_enabled_of(window: &PromptWindow, description: &str) -> Option<boo
     })
     .find_first()
     .and_then(|element| element.accessible_enabled())
+}
+
+/// AC-6's "no window" / "the window follows the interaction", read off the
+/// window itself rather than `Controller::frame().surface` — `Surface::Prompt`
+/// is set whenever the mode is not `Diagnostic`, view or no view, so it alone
+/// cannot distinguish "shown" from "hidden" the way `show()`/`hide()` does
+/// (PHASE-10 repair, VT-2/VT-3).
+fn window_shown(window: &PromptWindow) -> bool {
+  window.window().is_visible()
+}
+
+/// The view token a real click would carry, read off the options model
+/// exactly as `app.slint`'s `chosen` callback does (`option.view`) — so a
+/// test builds a `Command::Choose` from what the window actually holds,
+/// never from a second, independent minting of the same value (PHASE-10
+/// repair, VT-4).
+fn current_view_token(window: &PromptWindow) -> Option<String> {
+  window
+    .get_options()
+    .row_data(0)
+    .map(|row| row.view.to_string())
+}
+
+/// Poll `predicate` on a short fixed interval until it is true, panicking if
+/// it never is within `bound`. The one shape every `serve`-driven test needs
+/// to observe an event the driving code does not control directly — an
+/// invocation landing, a view arriving — rather than assume a fixed delay
+/// covers it (PHASE-10 repair, VT-4/VT-10).
+async fn until(bound: Duration, mut predicate: impl FnMut() -> bool) {
+  let deadline = std::time::Instant::now() + bound;
+  loop {
+    if predicate() {
+      return;
+    }
+    assert!(
+      std::time::Instant::now() < deadline,
+      "condition did not become true within {bound:?}"
+    );
+    tokio::time::sleep(Duration::from_millis(5)).await;
+  }
 }
 
 /// VT-5 — item 11e (AC-6, F-13). Both refusals: no backend contact, the
@@ -440,6 +480,7 @@ mod busy {
 /// `Outcome`, still folded through the production `absorb`.
 mod rows {
   use goad::controller::{Controller, Exchanged, Shift};
+  use goad::glass::Glass;
   use goad_semantics::protocol::canonical::ViewId;
   use goad_semantics::protocol::normalize::read_response;
   use goad_shell::backend::transport::Captured;
@@ -447,80 +488,90 @@ mod rows {
   use goad_shell::host::{Failure, Outcome, Presented};
 
   use super::{
-    A_PROTOCOL_FAILURE, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, host, invocations, now, quiet_event,
-    scripted,
+    A_PROTOCOL_FAILURE, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, current_view_token, glass_over, host,
+    invocations, now, quiet_event, scripted, window_and_tray, window_shown,
   };
 
   /// Row 1: either entry point, a view in hand, no failure — `Replaced`,
-  /// whatever was on the glass before is dropped whole.
+  /// whatever was on the glass before is dropped whole. Read off the window
+  /// a real glass presented, not `Controller::frame().shown` (PHASE-10
+  /// repair).
   #[tokio::test]
   async fn row_1_a_view_in_hand_always_replaces() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("row-1", &[TWO_OPTIONS]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Replaced);
-    assert!(controller.frame().shown.is_some());
+    assert!(window_shown(&window));
+    assert_eq!(window.get_heading(), "Proceed?");
   }
 
   /// Row 2: `Evaluation`, no view, no failure — nothing to add, `Retained`.
   #[tokio::test]
   async fn row_2_an_evaluation_with_nothing_new_is_retained() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("row-2", &[CLEAN_NO_VIEW]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
-    assert!(controller.frame().shown.is_none());
+    assert!(!window_shown(&window), "nothing was ever shown");
   }
 
   /// Row 3: `Answer`, no view, no failure — the answer was taken and there
   /// is nothing further to show, so the interaction `Closed`.
   #[tokio::test]
   async fn row_3_an_answer_with_nothing_further_closes() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("row-3", &[TWO_OPTIONS, CLEAN_NO_VIEW]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let presented = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, presented);
-    let view = controller
-      .frame()
-      .shown
-      .expect("a view must be retained")
-      .view_id
-      .as_str()
-      .to_owned();
+    glass.present(controller.frame());
+    let view = current_view_token(&window).expect("a view must be retained");
     let (view_id, answer) = controller
       .answer(&view, "yes")
       .expect("the retained option must answer");
 
     let outcome = backend.respond(now(), view_id, answer).await;
     let shift = controller.absorb(Exchanged::Answer, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Closed);
-    assert!(controller.frame().shown.is_none());
+    assert!(!window_shown(&window));
   }
 
   /// Row 4: `Evaluation`, no view, a failure — nothing to add and nothing
   /// to blame the person for, `Retained`.
   #[tokio::test]
   async fn row_4_an_evaluation_with_a_failure_and_no_view_is_retained() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("row-4", &[A_PROTOCOL_FAILURE]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
-    assert!(controller.frame().shown.is_none());
+    assert!(!window_shown(&window));
   }
 
   /// Row 5: `Answer`, no view, `Failure::State` — not reachable through the
@@ -530,6 +581,8 @@ mod rows {
   /// folded through the production `absorb`, exactly as design.md directs.
   #[tokio::test]
   async fn row_5_an_answer_refused_by_host_state_is_retained_with_no_backend_contact() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (_command, log) = scripted("row-5", &[]);
     let mut controller = Controller::new();
     let outcome = Outcome {
@@ -544,8 +597,10 @@ mod rows {
     };
 
     let shift = controller.absorb(Exchanged::Answer, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
+    assert!(!window_shown(&window));
     assert_eq!(
       invocations(&log),
       0,
@@ -558,31 +613,27 @@ mod rows {
   /// tests, because the diagnostics differ and item 11 must show both").
   #[tokio::test]
   async fn row_6_an_answer_with_a_backend_failure_and_no_view_is_retained() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("row-6", &[TWO_OPTIONS, A_PROTOCOL_FAILURE]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let presented = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, presented);
-    let view = controller
-      .frame()
-      .shown
-      .expect("a view must be retained")
-      .view_id
-      .as_str()
-      .to_owned();
+    glass.present(controller.frame());
+    let view = current_view_token(&window).expect("a view must be retained");
     let (view_id, answer) = controller
       .answer(&view, "yes")
       .expect("the retained option must answer");
 
     let outcome = backend.respond(now(), view_id, answer).await;
     let shift = controller.absorb(Exchanged::Answer, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
-    assert!(
-      controller.frame().shown.is_some(),
-      "the prior presentation stays"
-    );
+    assert!(window_shown(&window), "the prior presentation stays");
+    assert_eq!(window.get_heading(), "Proceed?");
   }
 
   /// Row 7: either entry point, a view **and** a failure together —
@@ -594,6 +645,8 @@ mod rows {
   /// on purpose (I14).
   #[tokio::test]
   async fn row_7_a_view_and_a_failure_together_still_replaces() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let now = now();
     let parsed =
       read_response(TWO_OPTIONS.as_bytes(), now).expect("the fixture is a valid response");
@@ -616,9 +669,11 @@ mod rows {
     };
 
     let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Replaced);
-    assert!(controller.frame().shown.is_some());
+    assert!(window_shown(&window));
+    assert_eq!(window.get_heading(), "Proceed?");
   }
 }
 
@@ -636,24 +691,37 @@ mod rows {
 /// negative control is the same sequence with no intervening `evaluate`,
 /// where the click is answered.
 mod interaction {
-  use goad::controller::{Controller, Exchanged, Shift, Surface};
-  use goad::diagnostics::Refused;
+  use std::time::Duration;
+
+  use goad::controller::{Controller, Ending, Exchanged, Shift, serve};
+  use goad::glass::Glass;
+  use goad::wire::{Cancel, Command, Stimulus};
+  use tokio::sync::mpsc;
+  use tokio::task::LocalSet;
 
   use super::{
-    A_PROTOCOL_FAILURE, A_SECOND_VIEW, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, host, invocations, now,
-    quiet_event, scripted,
+    A_PROTOCOL_FAILURE, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, current_view_token, glass_over, host,
+    in_prompt_mode, invocations, now, quiet_event, scripted, stub_clock, until, window_and_tray,
+    window_shown,
   };
 
-  /// VT-2 / AC-6, both halves.
+  /// VT-2 / AC-6, both halves. Read off a real `SlintGlass`'s window — "no
+  /// window" and "the question on screen" are element-tree claims, not
+  /// `Controller::frame().surface` (PHASE-10 repair).
   #[tokio::test]
   async fn view_null_follows_the_interaction_not_the_message() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("vt2", &[TWO_OPTIONS, CLEAN_NO_VIEW, CLEAN_NO_VIEW]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    assert!(controller.frame().shown.is_some());
+    glass.present(controller.frame());
+    assert!(window_shown(&window), "the question must be on screen");
+    assert!(in_prompt_mode(&window));
+    assert_eq!(window.get_heading(), "Proceed?");
 
     // Half one: an `evaluate` returning `view: null` while a question is
     // outstanding leaves it exactly as it was.
@@ -662,42 +730,47 @@ mod interaction {
       controller.absorb(Exchanged::Evaluation, cleared),
       Shift::Retained
     );
-    assert_eq!(controller.frame().surface, Surface::Prompt);
+    glass.present(controller.frame());
+    assert!(
+      window_shown(&window),
+      "an evaluate returning view:null must not close an outstanding question"
+    );
+    assert!(in_prompt_mode(&window));
+    assert_eq!(
+      window.get_heading(),
+      "Proceed?",
+      "the question did not move"
+    );
 
     // Half two: a `respond` returning `view: null` closes the interaction —
     // the answer was taken and there is nothing further to show.
-    let view = controller
-      .frame()
-      .shown
-      .expect("half one must not have cleared it")
-      .view_id
-      .as_str()
-      .to_owned();
+    let view = current_view_token(&window).expect("half one must not have cleared it");
     let (view_id, answer) = controller
       .answer(&view, "yes")
       .expect("the retained option must answer");
     let closing = backend.respond(now(), view_id, answer).await;
 
     assert_eq!(controller.absorb(Exchanged::Answer, closing), Shift::Closed);
-    assert_eq!(controller.frame().surface, Surface::Hidden);
+    glass.present(controller.frame());
+    assert!(
+      !window_shown(&window),
+      "a respond returning view:null must leave goad with no window (AC-6)"
+    );
   }
 
   /// VT-3.
   #[tokio::test]
   async fn a_failed_respond_keeps_the_window_and_a_retry_on_the_same_view_succeeds() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
     let (command, _log) = scripted("vt3", &[TWO_OPTIONS, A_PROTOCOL_FAILURE, CLEAN_NO_VIEW]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    let view = controller
-      .frame()
-      .shown
-      .expect("a view must be retained")
-      .view_id
-      .as_str()
-      .to_owned();
+    glass.present(controller.frame());
+    let view = current_view_token(&window).expect("a view must be retained");
 
     let (view_id, answer) = controller
       .answer(&view, "yes")
@@ -707,10 +780,16 @@ mod interaction {
       controller.absorb(Exchanged::Answer, failing),
       Shift::Retained
     );
-    assert_eq!(
-      controller.frame().surface,
-      Surface::Prompt,
+    glass.present(controller.frame());
+    assert!(
+      window_shown(&window),
       "the window stays after a failed respond"
+    );
+    assert!(in_prompt_mode(&window));
+    assert_eq!(
+      window.get_heading(),
+      "Proceed?",
+      "the question did not go away"
     );
 
     let (retry_view_id, retry_answer) = controller
@@ -723,77 +802,153 @@ mod interaction {
       Shift::Closed,
       "the retry succeeds"
     );
+    glass.present(controller.frame());
+    assert!(
+      !window_shown(&window),
+      "the retry's success finally closes the interaction"
+    );
   }
 
   /// VT-4, positive: the queued click names a view an intervening `evaluate`
-  /// has already superseded.
+  /// has already superseded — R-33's staleness, driven through the real
+  /// `mpsc` channel and the production `serve`, not a direct
+  /// `Controller::absorb` fold (PHASE-10 repair). View **A** goes on screen;
+  /// a slow exchange is sent and, while it is provably still in flight (the
+  /// backend's own invocation observed via the log — not a fixed delay), a
+  /// `Choose` naming view A's token is queued behind it; the slow exchange
+  /// lands view **B**; the queued click is then dequeued and refused as
+  /// `Refused::SupersededView`, read off the tray tooltip the production
+  /// glass wrote and off `Served.controller`'s retained diagnostics.
   #[tokio::test]
   async fn a_click_naming_a_superseded_view_is_refused_with_no_backend_contact() {
-    let (command, log) = scripted("vt4-positive", &[TWO_OPTIONS, A_SECOND_VIEW]);
-    let mut backend = host(command, TIMEOUT, now());
-    let mut controller = Controller::new();
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
+    let (command, log) = scripted("vt4-positive", &[TWO_OPTIONS, "@slow-view"]);
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(2);
+    let cancel = Cancel::new();
+    let stopper = cancel.clone();
 
-    let first = backend.evaluate(now(), quiet_event(now())).await;
-    controller.absorb(Exchanged::Evaluation, first);
-    let stale_view = controller
-      .frame()
-      .shown
-      .expect("a view must be retained")
-      .view_id
-      .as_str()
-      .to_owned();
+    let local = LocalSet::new();
+    let served = local
+      .run_until(async {
+        let handle = tokio::task::spawn_local(async move {
+          serve(backend, controller, rx, cancel, stub_clock, glass).await
+        });
 
-    // The intervening evaluate: a new view supersedes the one the queued
-    // click named.
-    let second = backend.evaluate(now(), quiet_event(now())).await;
-    let shift = controller.absorb(Exchanged::Evaluation, second);
-    assert_eq!(shift, Shift::Replaced);
-    let contacted_before = invocations(&log);
+        tx.send(Command::Evaluate(Stimulus::Requested))
+          .await
+          .expect("the channel must accept the first send");
+        until(Duration::from_secs(2), || {
+          window.get_heading() == "Proceed?"
+        })
+        .await;
+        let stale_view = current_view_token(&window).expect("view A must be on screen");
 
-    let refusal = controller
-      .answer(&stale_view, "yes")
-      .expect_err("a click naming a superseded view must be refused");
-    assert!(matches!(refusal, Refused::SupersededView { .. }));
-    controller.refuse(&refusal);
+        // The intervening evaluate: a slow exchange that will land view B
+        // while the queued click still names view A.
+        tx.send(Command::Evaluate(Stimulus::Requested))
+          .await
+          .expect("the channel must accept the second send");
+        until(Duration::from_secs(2), || invocations(&log) >= 2).await;
 
+        tx.send(Command::Choose {
+          view: stale_view,
+          option: "yes".to_owned(),
+        })
+        .await
+        .expect("the channel must accept the queued click");
+
+        // The refusal, read off the tray tooltip the production glass wrote
+        // — the element tree, not a peek at the controller mid-flight.
+        until(Duration::from_secs(2), || {
+          tray.get_hover_text().contains("since been replaced")
+        })
+        .await;
+        assert_eq!(
+          window.get_heading(),
+          "Still there?",
+          "the intervening evaluate's view B must have landed"
+        );
+
+        stopper.stop();
+        handle.await.expect("serve must not panic")
+      })
+      .await;
+
+    assert_eq!(served.ending, Ending::Stopped);
     assert_eq!(
       invocations(&log),
-      contacted_before,
-      "a superseded click must not reach the backend, and the invocation log must not advance"
+      2,
+      "the superseded click must never reach the backend, and the invocation log must not advance"
+    );
+    assert!(
+      served
+        .controller
+        .frame()
+        .diagnostics
+        .lines()
+        .iter()
+        .any(|line| line.contains("since been replaced")),
+      "the retained diagnostic must be the superseded-answer line"
     );
   }
 
   /// VT-4, negative control: the same sequence with no intervening
   /// `evaluate` — the click names the view that is still retained, and it is
-  /// answered.
+  /// answered. Through `serve` and the real channel, exactly as the positive
+  /// case (PHASE-10 repair).
   #[tokio::test]
   async fn the_negative_control_with_no_intervening_evaluate_the_click_is_answered() {
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
     let (command, log) = scripted("vt4-negative", &[TWO_OPTIONS, CLEAN_NO_VIEW]);
-    let mut backend = host(command, TIMEOUT, now());
-    let mut controller = Controller::new();
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(2);
+    let cancel = Cancel::new();
+    let stopper = cancel.clone();
 
-    let first = backend.evaluate(now(), quiet_event(now())).await;
-    controller.absorb(Exchanged::Evaluation, first);
-    let view = controller
-      .frame()
-      .shown
-      .expect("a view must be retained")
-      .view_id
-      .as_str()
-      .to_owned();
-    let contacted_before = invocations(&log);
+    let local = LocalSet::new();
+    let served = local
+      .run_until(async {
+        let handle = tokio::task::spawn_local(async move {
+          serve(backend, controller, rx, cancel, stub_clock, glass).await
+        });
 
-    let (view_id, answer) = controller
-      .answer(&view, "yes")
-      .expect("with no intervening evaluate the click answers the retained view");
-    let outcome = backend.respond(now(), view_id, answer).await;
-    let shift = controller.absorb(Exchanged::Answer, outcome);
+        tx.send(Command::Evaluate(Stimulus::Requested))
+          .await
+          .expect("the channel must accept the first send");
+        until(Duration::from_secs(2), || {
+          window.get_heading() == "Proceed?"
+        })
+        .await;
+        let view = current_view_token(&window)
+          .expect("with no intervening evaluate the retained view is still on screen");
 
-    assert_eq!(shift, Shift::Closed);
+        tx.send(Command::Choose {
+          view,
+          option: "yes".to_owned(),
+        })
+        .await
+        .expect("the channel must accept the click");
+        until(Duration::from_secs(2), || !window_shown(&window)).await;
+
+        stopper.stop();
+        handle.await.expect("serve must not panic")
+      })
+      .await;
+
+    assert_eq!(served.ending, Ending::Stopped);
     assert_eq!(
       invocations(&log),
-      contacted_before + 1,
-      "the click did reach the backend"
+      2,
+      "the click did reach the backend, unlike the positive control"
+    );
+    assert!(
+      !window_shown(&window),
+      "the answered click closed the interaction"
     );
   }
 }
@@ -848,7 +1003,9 @@ mod cancellation {
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;
 
-  use super::{TIMEOUT, glass_over, host, invocations, now, scripted, stub_clock, window_and_tray};
+  use super::{
+    TIMEOUT, glass_over, host, invocations, now, scripted, stub_clock, until, window_and_tray,
+  };
 
   /// VT-10 — item 14a. With an exchange in flight against `@hang` and a
   /// **2 s** configured timeout (`TIMEOUT`), tripping `Cancel` ends the task
@@ -862,7 +1019,7 @@ mod cancellation {
   async fn tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout() {
     let (window, tray) = window_and_tray();
     let glass = glass_over(&window, &tray);
-    let (command, _log) = scripted("vt10", &["@hang"]);
+    let (command, log) = scripted("vt10", &["@hang"]);
     let backend = host(command, TIMEOUT, now());
     let controller = Controller::new();
     let (tx, rx) = mpsc::channel::<Command>(1);
@@ -873,14 +1030,18 @@ mod cancellation {
 
     let local = LocalSet::new();
     let (elapsed, served) = local
-      .run_until(async move {
+      .run_until(async {
         let handle = tokio::task::spawn_local(async move {
           serve(backend, controller, rx, cancel, stub_clock, glass).await
         });
-        // Let the exchange actually start — the process spawned and past
-        // its first read — before tripping cancel. This is setup time, not
-        // part of the measured interval.
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // The exchange is in flight, observed rather than assumed: `@hang`
+        // writes its invocation to `log` (`answers-as-instructed.sh`)
+        // before it execs into `sleep 30`, so the count advancing is the
+        // process having actually started and begun hanging (PHASE-10
+        // repair — this precondition previously rested on a bare 100 ms
+        // sleep). This wait is setup time, not part of the measured
+        // interval.
+        until(Duration::from_secs(1), || invocations(&log) >= 1).await;
         let start = Instant::now();
         stopper.stop();
         let served = handle.await.expect("serve must not panic");
@@ -888,8 +1049,9 @@ mod cancellation {
       })
       .await;
 
-    // Measured (`notes.md`, PHASE-10 sheet): ~130-150 µs across repeated
-    // runs — three orders of magnitude under the 250 ms bound.
+    // Measured (`notes.md`, PHASE-10 sheet, after the repair below): ~79-106
+    // µs across repeated runs, now that the exchange is observed rather than
+    // assumed in flight — three orders of magnitude under the 250 ms bound.
     assert!(
       elapsed < Duration::from_millis(250),
       "cancellation took {elapsed:?}, which is not well under the 2 s timeout (S-5)"

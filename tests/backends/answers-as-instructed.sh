@@ -71,6 +71,15 @@ case "$instruction" in
   sleep 2 >/dev/null &
   printf '{"view":{"kind":"choice","title":"Still here?","options":[{"id":"yes","label":"Yes"}]},"next_check":"120 minutes"}\n'
   ;;
+@slow-view) # PHASE-10 repair (VT-4/R-33): a *foreground* delay before
+  # answering with a pinned view — unlike @lingers*, nothing is backgrounded,
+  # so the exchange itself is provably still in flight for as long as the
+  # sleep runs. The vehicle for queuing a `Choose` behind a slow exchange
+  # that then supersedes it.
+  cat >/dev/null
+  sleep 0.2
+  printf '{"view":{"kind":"choice","title":"Still there?","options":[{"id":"ok","label":"OK"}]},"next_check":"45 minutes"}\n'
+  ;;
 *)
   cat >/dev/null
   printf '%s\n' "$instruction"
