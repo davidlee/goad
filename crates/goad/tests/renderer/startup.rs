@@ -81,6 +81,20 @@ mod display_text {
   }
 
   #[test]
+  fn platform() {
+    let platform_error = slint::PlatformError::from("no display");
+    let expected = format!("the display could not be opened: {platform_error}");
+    assert_eq!(StartupError::Platform(platform_error).to_string(), expected);
+  }
+
+  #[test]
+  fn event_loop() {
+    let loop_error = slint::EventLoopError::EventLoopTerminated;
+    let expected = format!("the event loop would not accept the host task: {loop_error}");
+    assert_eq!(StartupError::EventLoop(loop_error).to_string(), expected);
+  }
+
+  #[test]
   fn enqueue() {
     assert_eq!(
       StartupError::Enqueue.to_string(),
