@@ -434,7 +434,7 @@ records the amended form it ran against (PL-13's shape).
 
 ### 2026-09-05 — PL-16: PHASE-06/EX-7's "nowhere in `crates/goad`" is "nowhere in `crates/goad/src`"
 
-*Autonomy grant, review-code round 1.* `plan.md` itself is **not** in
+*Autonomy grant, PHASE-06 verification.* `plan.md` itself is **not** in
 PHASE-06's Surfaces, so the criterion is amended here and the phase sheet
 records the amended form it ran against (PL-13's shape).
 
