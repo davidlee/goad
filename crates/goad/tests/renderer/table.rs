@@ -668,7 +668,7 @@ async fn every_failure_in_the_taxonomy_is_read_off_one_retained_host() {
           Turn::Evaluate => Exchanged::Evaluation,
           Turn::RespondFabricated | Turn::RespondOutstanding => Exchanged::Answer,
         };
-        let shift = controller.absorb(exchanged, outcome);
+        let shift = controller.absorb(exchanged, outcome).shift;
         let lines = controller.frame().diagnostics.lines().to_vec();
 
         assert_eq!(shift, case.shift, "row {}: wrong Shift", case.id);
@@ -717,7 +717,7 @@ async fn every_failure_in_the_taxonomy_is_read_off_one_retained_host() {
             .evaluate(evaluate_now(), quiet_event(evaluate_now()))
             .await;
           let refused = outcome.failure.is_some();
-          let shift = scratch.absorb(Exchanged::Evaluation, outcome);
+          let shift = scratch.absorb(Exchanged::Evaluation, outcome).shift;
           let lines = scratch.frame().diagnostics.lines().to_vec();
 
           assert_eq!(
@@ -789,7 +789,7 @@ mod reducer {
         ..bare()
       };
       assert_eq!(
-        Controller::new().absorb(exchanged, outcome),
+        Controller::new().absorb(exchanged, outcome).shift,
         Shift::Replaced
       );
     }
@@ -798,7 +798,9 @@ mod reducer {
   #[test]
   fn row_2_an_evaluation_with_nothing_to_show_retains() {
     assert_eq!(
-      Controller::new().absorb(Exchanged::Evaluation, bare()),
+      Controller::new()
+        .absorb(Exchanged::Evaluation, bare())
+        .shift,
       Shift::Retained
     );
   }
@@ -806,7 +808,7 @@ mod reducer {
   #[test]
   fn row_3_an_accepted_answer_with_nothing_further_closes() {
     assert_eq!(
-      Controller::new().absorb(Exchanged::Answer, bare()),
+      Controller::new().absorb(Exchanged::Answer, bare()).shift,
       Shift::Closed
     );
   }
@@ -820,7 +822,9 @@ mod reducer {
       ..bare()
     };
     assert_eq!(
-      Controller::new().absorb(Exchanged::Evaluation, outcome),
+      Controller::new()
+        .absorb(Exchanged::Evaluation, outcome)
+        .shift,
       Shift::Retained
     );
   }
@@ -834,7 +838,7 @@ mod reducer {
       ..bare()
     };
     assert_eq!(
-      Controller::new().absorb(Exchanged::Answer, outcome),
+      Controller::new().absorb(Exchanged::Answer, outcome).shift,
       Shift::Retained
     );
   }
@@ -846,7 +850,7 @@ mod reducer {
       ..bare()
     };
     assert_eq!(
-      Controller::new().absorb(Exchanged::Answer, outcome),
+      Controller::new().absorb(Exchanged::Answer, outcome).shift,
       Shift::Retained
     );
   }
@@ -863,7 +867,9 @@ mod reducer {
       ..bare()
     };
     assert_eq!(
-      Controller::new().absorb(Exchanged::Evaluation, outcome),
+      Controller::new()
+        .absorb(Exchanged::Evaluation, outcome)
+        .shift,
       Shift::Replaced
     );
   }

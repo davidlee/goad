@@ -9,42 +9,19 @@
 //! `#[cfg(test)]` on the declaration, not on the file, for the same reason
 //! every other module here carries it (`clippy::tests_outside_test_module`).
 
-use std::rc::Rc;
-use std::time::Duration;
-
-use goad::clock::ClockError;
 use goad::controller::{Controller, Exchanged, Surface};
 use goad::diagnostics::{BUSY_NOTICE, Refused};
-use goad::generated::{OptionRow, PromptWindow, Tray};
-use goad::glass::{Glass, SlintGlass};
+use goad::generated::PromptWindow;
+use goad::glass::Glass;
 use goad::wire::{Cancel, Command, Stimulus, Wire};
-use goad_semantics::protocol::canonical::Timestamp;
-use i_slint_backend_testing::{ElementHandle, ElementQuery, init_no_event_loop};
-use slint::{ComponentHandle, Model, VecModel};
+use i_slint_backend_testing::{ElementHandle, ElementQuery};
+use slint::ComponentHandle;
 use tokio::sync::mpsc;
 
-use crate::driving::{host, instant, invocations, quiet_event, scripted};
-
-const TIMEOUT: Duration = Duration::from_secs(2);
-
-fn now() -> Timestamp {
-  instant("2026-01-01T00:00:00Z")
-}
-
-/// A `Clock` (`fn() -> Result<Timestamp, ClockError>`) fixed to [`now`]. A
-/// plain top-level `fn`, not a closure: `Clock` is a `fn` pointer type
-/// (`clock.rs`), the same reason `serve` itself takes one rather than a
-/// `dyn Fn`. Shared by `mod serving`, `mod interaction` and `mod
-/// cancellation`, all of which call `serve` directly.
-#[expect(
-  clippy::unnecessary_wraps,
-  reason = "must match `Clock`'s `fn() -> Result<Timestamp, ClockError>` \
-    signature to be passed to `serve`; a test fixture never needs to \
-    exercise the error arm (test code, outside VA-3's src/-only budget)"
-)]
-fn stub_clock() -> Result<Timestamp, ClockError> {
-  Ok(now())
-}
+use crate::driving::{host, invocations, quiet_event, scripted};
+use crate::harness::{
+  TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
+};
 
 /// Two named options, so a `Choose` can name the wrong one (VT-5) or the
 /// right one, and so `busy`'s controls (VT-9) have something to be
@@ -61,22 +38,6 @@ const A_PROTOCOL_FAILURE: &str = r#"{"protocol":2,"view":null}"#;
 /// produced it (VT-2, AC-6) — this fixture is silent on that; the caller
 /// picks `evaluate` or `respond`.
 const CLEAN_NO_VIEW: &str = r#"{"view":null,"next_check":"90 minutes"}"#;
-
-fn window_and_tray() -> (PromptWindow, Tray) {
-  init_no_event_loop();
-  (
-    PromptWindow::new().expect("a headless window must construct"),
-    Tray::new().expect("a headless tray must construct"),
-  )
-}
-
-fn glass_over(window: &PromptWindow, tray: &Tray) -> SlintGlass {
-  SlintGlass::new(
-    window.clone_strong(),
-    tray.clone_strong(),
-    Rc::new(VecModel::<OptionRow>::default()),
-  )
-}
 
 fn in_diagnostic_mode(window: &PromptWindow) -> bool {
   ElementHandle::find_by_accessible_label(window, "diagnostics")
@@ -113,37 +74,6 @@ fn accessible_enabled_of(window: &PromptWindow, description: &str) -> Option<boo
 /// (PHASE-10 repair, VT-2/VT-3).
 fn window_shown(window: &PromptWindow) -> bool {
   window.window().is_visible()
-}
-
-/// The view token a real click would carry, read off the options model
-/// exactly as `app.slint`'s `chosen` callback does (`option.view`) — so a
-/// test builds a `Command::Choose` from what the window actually holds,
-/// never from a second, independent minting of the same value (PHASE-10
-/// repair, VT-4).
-fn current_view_token(window: &PromptWindow) -> Option<String> {
-  window
-    .get_options()
-    .row_data(0)
-    .map(|row| row.view.to_string())
-}
-
-/// Poll `predicate` on a short fixed interval until it is true, panicking if
-/// it never is within `bound`. The one shape every `serve`-driven test needs
-/// to observe an event the driving code does not control directly — an
-/// invocation landing, a view arriving — rather than assume a fixed delay
-/// covers it (PHASE-10 repair, VT-4/VT-10).
-async fn until(bound: Duration, mut predicate: impl FnMut() -> bool) {
-  let deadline = std::time::Instant::now() + bound;
-  loop {
-    if predicate() {
-      return;
-    }
-    assert!(
-      std::time::Instant::now() < deadline,
-      "condition did not become true within {bound:?}"
-    );
-    tokio::time::sleep(Duration::from_millis(5)).await;
-  }
 }
 
 /// VT-5 — item 11e (AC-6, F-13). Both refusals: no backend contact, the
@@ -287,7 +217,7 @@ mod transitions {
     assert!(in_diagnostic_mode(&window));
 
     let replacing = backend.evaluate(now(), quiet_event(now())).await;
-    let shift = controller.absorb(Exchanged::Evaluation, replacing);
+    let shift = controller.absorb(Exchanged::Evaluation, replacing).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, goad::controller::Shift::Replaced);
@@ -320,7 +250,7 @@ mod transitions {
     assert_eq!(window.get_heading(), "Proceed?");
 
     let failing = backend.evaluate(now(), quiet_event(now())).await;
-    let shift = controller.absorb(Exchanged::Evaluation, failing);
+    let shift = controller.absorb(Exchanged::Evaluation, failing).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, goad::controller::Shift::Retained);
@@ -505,7 +435,7 @@ mod rows {
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
-    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Replaced);
@@ -523,7 +453,7 @@ mod rows {
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
-    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
@@ -549,7 +479,7 @@ mod rows {
       .expect("the retained option must answer");
 
     let outcome = backend.respond(now(), view_id, answer).await;
-    let shift = controller.absorb(Exchanged::Answer, outcome);
+    let shift = controller.absorb(Exchanged::Answer, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Closed);
@@ -567,7 +497,7 @@ mod rows {
     let mut controller = Controller::new();
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
-    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
@@ -596,7 +526,7 @@ mod rows {
       cleanup: None,
     };
 
-    let shift = controller.absorb(Exchanged::Answer, outcome);
+    let shift = controller.absorb(Exchanged::Answer, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
@@ -628,7 +558,7 @@ mod rows {
       .expect("the retained option must answer");
 
     let outcome = backend.respond(now(), view_id, answer).await;
-    let shift = controller.absorb(Exchanged::Answer, outcome);
+    let shift = controller.absorb(Exchanged::Answer, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Retained);
@@ -668,7 +598,7 @@ mod rows {
       cleanup: None,
     };
 
-    let shift = controller.absorb(Exchanged::Evaluation, outcome);
+    let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
     glass.present(controller.frame());
 
     assert_eq!(shift, Shift::Replaced);
@@ -827,7 +757,7 @@ mod interaction {
     // outstanding leaves it exactly as it was.
     let cleared = backend.evaluate(now(), quiet_event(now())).await;
     assert_eq!(
-      controller.absorb(Exchanged::Evaluation, cleared),
+      controller.absorb(Exchanged::Evaluation, cleared).shift,
       Shift::Retained
     );
     glass.present(controller.frame());
@@ -850,7 +780,10 @@ mod interaction {
       .expect("the retained option must answer");
     let closing = backend.respond(now(), view_id, answer).await;
 
-    assert_eq!(controller.absorb(Exchanged::Answer, closing), Shift::Closed);
+    assert_eq!(
+      controller.absorb(Exchanged::Answer, closing).shift,
+      Shift::Closed
+    );
     glass.present(controller.frame());
     assert!(
       !window_shown(&window),
@@ -877,7 +810,7 @@ mod interaction {
       .expect("the retained option must answer");
     let failing = backend.respond(now(), view_id, answer).await;
     assert_eq!(
-      controller.absorb(Exchanged::Answer, failing),
+      controller.absorb(Exchanged::Answer, failing).shift,
       Shift::Retained
     );
     glass.present(controller.frame());
@@ -898,7 +831,7 @@ mod interaction {
     let succeeding = backend.respond(now(), retry_view_id, retry_answer).await;
 
     assert_eq!(
-      controller.absorb(Exchanged::Answer, succeeding),
+      controller.absorb(Exchanged::Answer, succeeding).shift,
       Shift::Closed,
       "the retry succeeds"
     );

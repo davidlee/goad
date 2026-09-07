@@ -12,12 +12,13 @@ use tokio::select;
 use tokio::sync::mpsc;
 
 use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId};
+use goad_semantics::schedule::wait_for;
 
 use crate::clock::Clock;
 use crate::diagnostics::{Diagnostics, Refused};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
-use crate::wire::{Cancel, Command};
+use crate::wire::{Cancel, Command, Stimulus};
 
 /// What the person is looking at. One window, three states, **one value** —
 /// "is it visible" and "which mode" are not separable facts, and treating
@@ -44,6 +45,16 @@ pub enum Shift {
   Replaced,
   Retained,
   Closed,
+}
+
+/// What one folded exchange tells the loop. `next_check` is **not** an
+/// `Option`: `Outcome::next_check` is concrete on every outcome including
+/// failures (`goad-shell/src/host.rs:76`), so an exchange that completed
+/// always resolved one (design.md §5.2, D-15).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Absorbed {
+  pub shift: Shift,
+  pub next_check: Timestamp,
 }
 
 /// Which entry point produced an `Outcome`. The reducer needs it because
@@ -80,6 +91,7 @@ pub struct Frame<'a> {
   pub shown: Option<&'a Prepared>,
   pub diagnostics: &'a Diagnostics,
   pub busy: bool,
+  pub next_check: Option<Timestamp>,
 }
 
 /// What the controller retains. One value, no Slint types, so it is testable
@@ -94,6 +106,11 @@ pub struct Controller {
   diagnostics: Diagnostics,
   focus: Focus,
   engaged: bool,
+  /// The last resolved next check, for display only. Written by `absorb`,
+  /// read by `frame()`. `None` until the first exchange completes; there is
+  /// no accessor beyond `frame()` — it would exist only to be unwrapped
+  /// (design.md §5.2, D-15).
+  next_check: Option<Timestamp>,
 }
 
 impl Default for Controller {
@@ -110,6 +127,7 @@ impl Controller {
       diagnostics: Diagnostics::default(),
       focus: Focus::Automatic,
       engaged: false,
+      next_check: None,
     }
   }
 
@@ -133,13 +151,11 @@ impl Controller {
   /// the `Shift` — the exchange it is folding is the exchange that has just
   /// ended, and there is no outcome for which the controls should stay
   /// disabled (F-21).
-  pub fn absorb(&mut self, exchanged: Exchanged, outcome: Outcome) -> Shift {
+  pub fn absorb(&mut self, exchanged: Exchanged, outcome: Outcome) -> Absorbed {
     let Received {
       prepared,
       refused,
-      // Resolved on every outcome, but nothing in this slice retains a
-      // schedule — slice 003 fills that seam (design.md §5.4).
-      next_check: _,
+      next_check,
       diagnostics,
     } = receive(outcome);
 
@@ -155,7 +171,8 @@ impl Controller {
 
     self.diagnostics = diagnostics;
     self.engaged = false;
-    shift
+    self.next_check = Some(next_check);
+    Absorbed { shift, next_check }
   }
 
   /// Fold a refusal the renderer made itself. No backend was contacted, so
@@ -218,6 +235,7 @@ impl Controller {
       shown: self.shown.as_ref(),
       diagnostics: &self.diagnostics,
       busy: self.engaged,
+      next_check: self.next_check,
     }
   }
 }
@@ -279,6 +297,31 @@ impl Pending {
       Self::Respond { .. } => Exchanged::Answer,
     }
   }
+
+  /// The instant `stamp` resolved this exchange's request against. The
+  /// re-arm computes the wait from this, not from a fresh clock read
+  /// (design.md §5.2, D-11).
+  fn now(&self) -> Timestamp {
+    match self {
+      Self::Evaluate { now, .. } | Self::Respond { now, .. } => *now,
+    }
+  }
+}
+
+/// The host's own floor on how often it evaluates of its own accord
+/// (SPEC-002/R-4). Not configurable, not visible to a backend, and never
+/// applied to anything a person asked for — only to a scheduled evaluation
+/// the loop began on its own (design.md §5.2/§5.4, D-2, D-3).
+const MINIMUM_SPACING: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Which arm of the first `select!` produced a command to dispatch. A bare
+/// `Command` carries no provenance, and the conditional re-arm after a
+/// refusal (EX-7) has nothing to be true of without this discriminant
+/// (design.md §5.4, F-12).
+#[derive(Debug)]
+enum Fired {
+  Command(Command),
+  Scheduled,
 }
 
 /// Serve commands until stopped. **This is the production controller**: a
@@ -307,14 +350,36 @@ where
   B: Backend + 'static,
   G: Glass + 'static,
 {
+  let started = tokio::time::Instant::now();
+  // Always armed (D-5): if the startup evaluation is never dispatched or is
+  // refused, this initial arm fires at `MINIMUM_SPACING` and the host
+  // recovers by itself.
+  let mut sleep = Box::pin(tokio::time::sleep_until(started + MINIMUM_SPACING));
+  // Nothing scheduled has fired yet, so nothing is floored: the first
+  // scheduled firing of the process is unfloored (D-5, D-3).
+  let mut floor_until = started;
+
   let ending = loop {
     glass.present(controller.frame()); // busy = false here
-    let command = select! { biased;
+    let fired = select! { biased;
       () = cancel.stopped()       => break Ending::Stopped,
       received = commands.recv()  => match received {
         None          => break Ending::Closed,
-        Some(command) => command,
+        Some(command) => Fired::Command(command),
       },
+      () = &mut sleep => {
+        // The one and only write site (design.md §5.3/§5.4, D-3).
+        floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
+        Fired::Scheduled
+      }
+    };
+    // A refusal that came from this arm re-arms at the floor (EX-7); every
+    // other refusal leaves the deadline untouched.
+    let refusal_re_arms = matches!(fired, Fired::Scheduled);
+    let command = match fired {
+      Fired::Command(command) => command,
+      // Goes through the same `stamp` as every other command (EX-6).
+      Fired::Scheduled => Command::Evaluate(Stimulus::Scheduled),
     };
 
     // Exhaustive, no `_` arm, and every refusal path `continue`s to the top
@@ -338,12 +403,18 @@ where
         },
         Err(refused) => {
           controller.refuse(&refused);
+          if refusal_re_arms {
+            sleep.as_mut().reset(floor_until);
+          }
           continue;
         }
       },
       Command::Choose { view, option } => match controller.answer(&view, &option) {
         Err(refused) => {
           controller.refuse(&refused);
+          if refusal_re_arms {
+            sleep.as_mut().reset(floor_until);
+          }
           continue;
         }
         Ok((view_id, answer)) => match stamp(clock) {
@@ -354,11 +425,15 @@ where
           },
           Err(refused) => {
             controller.refuse(&refused);
+            if refusal_re_arms {
+              sleep.as_mut().reset(floor_until);
+            }
             continue;
           }
         },
       },
     };
+    let requested_at = pending.now();
     let exchanged = pending.exchanged();
 
     controller.engage();
@@ -381,7 +456,12 @@ where
 
     select! { biased;
       () = cancel.stopped() => break Ending::Stopped, // `call` is DROPPED here
-      outcome = call        => { controller.absorb(exchanged, outcome); },
+      outcome = call        => {
+        let absorbed = controller.absorb(exchanged, outcome);
+        let wait = wait_for(absorbed.next_check, requested_at);
+        let deadline = std::cmp::max(tokio::time::Instant::now() + wait, floor_until);
+        sleep.as_mut().reset(deadline);
+      },
     }
   };
   Served {

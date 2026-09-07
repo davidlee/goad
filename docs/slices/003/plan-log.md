@@ -379,3 +379,17 @@ planning are cross-posted to `design-log.md`.
   executors, one phase per session, a stage commit per phase, Opus on a
   failed phase; STOP conditions come to the user through the orchestrator.
 - **Consequence:** `slice-003.md` stage → `executing`. PHASE-01 begins.
+
+### 2026-09-07 — PL-16: two PHASE-02 executor calls confirmed
+
+- **Asked:** (1) EX-12's `use`-line bill in `wiring.rs` named eight lines; a
+  ninth, `use std::time::Duration;`, was also consumed only by the moved
+  fixtures and had to go (`unused_imports` denied). (2) PHASE-02's
+  must-not-touch list names `tests/backends/`, but its own implementer notes
+  pre-authorise the one new script VT-3/VT-7 need.
+- **Decided (orchestrator, under the grant):** both confirmed as within the
+  phase. (1) is PL-14's class — a bounded surface is billed by the compiler;
+  the bill was one line short. (2) is a plan self-contradiction; the
+  implementer note is the intent. PHASE-06's restatement sweep corrects
+  PHASE-02's EX-12 prose/table and its must-not-touch list in `plan.md`.
+- **Consequence:** no STOP; PHASE-02 committed as reported.
