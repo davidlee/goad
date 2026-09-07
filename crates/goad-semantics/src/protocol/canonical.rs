@@ -732,7 +732,7 @@ mod tests {
     let request = Request::Evaluate(Evaluate {
       now: instant("2026-08-23T04:12:00Z"),
       event: Event {
-        source: "timer".to_owned(),
+        source: "host".to_owned(),
         kind: "scheduled".to_owned(),
         timestamp: instant("2026-08-23T04:12:00Z"),
         data: json("{}"),
@@ -742,7 +742,7 @@ mod tests {
       serde_json::to_value(&request).unwrap(),
       json(
         r#"{ "protocol": 1, "type": "evaluate", "now": "2026-08-23T04:12:00Z",
-              "event": { "source": "timer", "kind": "scheduled",
+              "event": { "source": "host", "kind": "scheduled",
                          "timestamp": "2026-08-23T04:12:00Z", "data": {} } }"#
       )
     );
@@ -780,7 +780,7 @@ mod tests {
         Request::Evaluate(Evaluate {
           now: instant("2026-08-23T04:12:00Z"),
           event: Event {
-            source: "timer".to_owned(),
+            source: "host".to_owned(),
             kind: "scheduled".to_owned(),
             timestamp: instant("2026-08-23T04:12:00Z"),
             data: json("{}"),

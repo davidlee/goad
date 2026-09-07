@@ -9,13 +9,21 @@ Revise it in place whenever the answer changes. No changelog.
 
 ## Where this stands
 
-**2026-09-04.** Slice 001 is closed: canonical protocol types, permissive
-normalization, pure schedule resolution, the spawn-per-invocation process
-transport, and the failure taxonomy. It produced SPEC-001. `just check` is green
-in both feature columns.
+**2026-09-08.** Slices 001, 002 and 003 are closed. 001 produced SPEC-001 and
+the semantic core: canonical protocol types, permissive normalization, pure
+schedule resolution, the spawn-per-invocation process transport, and the failure
+taxonomy. 002 split the single crate into a workspace of one member per stratum
+(ADR-003) and drew the first renderer. 003 gave the host a clock: a resolved
+next check now makes it evaluate, in both directions, bounded by a three-second
+floor (SPEC-002, ADR-004).
 
-Nothing renders. Nothing keeps time. Nothing listens. The host cannot yet be run
-by a person — only by a test.
+`just check` is **six commands and one column** — the crate split retired the
+feature matrix (POL-001). Purity is held by four ADR-001 instruments plus the
+domain-vocabulary scan, plus one residue nothing enforces.
+
+The host renders, keeps time, and can be run by a person. **Nothing listens**:
+there is no way for anything outside the host to prompt an evaluation, which is
+slice 004.
 
 ## Sequence
 
@@ -25,8 +33,8 @@ Brief §20 suggests eight implementation phases; slices 001–007 carry them, wi
 ```mermaid
 graph LR
   S1["001 ✔<br/>protocol core<br/>+ process transport"]
-  S2["002<br/>minimal renderer"]
-  S3["003<br/>scheduling"]
+  S2["002 ✔<br/>minimal renderer"]
+  S3["003 ✔<br/>scheduling"]
   S4["004<br/>event ingress"]
   S5["005<br/>socket transport"]
   S6["006<br/>starter experience"]
@@ -41,7 +49,7 @@ graph LR
 
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
-  class S1 done
+  class S1,S2,S3 done
   class T1,T2 trigger
 ```
 
@@ -59,9 +67,9 @@ The chain is mostly hard dependency, not preference:
 
 ## The slices
 
-### 002 — minimal renderer
+### 002 — minimal renderer ✔
 
-Brief §20 phase 3, §10.1, §11.1.
+Brief §20 phase 3, §10.1, §11.1. **Closed 2026-09-05.**
 
 A Slint window that draws a `choice` view, collects an option, and shows the
 empty and diagnostic states. Host-generated `view_id` reaches the screen.
@@ -81,24 +89,41 @@ empty and diagnostic states. Host-generated `view_id` reaches the screen.
   Not implementing them is correct. *Narrowing the protocol to match* is the
   failure this project exists to avoid — CLAUDE.md invariant 3, brief §22.3.
 
-### 003 — scheduling
+### 003 — scheduling ✔
 
-Brief §20 phase 4, §9.
+Brief §20 phase 4, §9. **Closed 2026-09-08.**
 
-The timer that turns a resolved instant into an evaluation. Default poll,
-`next_check` from either direction, latest-valid-wins observable over real time.
+`serve` gained a third `select!` arm holding a pinned `tokio::time::Sleep`, so a
+resolved next check now makes the host evaluate without being asked. An
+instruction from either an `evaluate` or a `respond` moves the wait, in both
+directions; an elapsed instant fires once without underflowing or spinning; a
+failing backend keeps its cadence and no faster; an unreadable clock loses
+neither the schedule nor its liveness. A three-second minimum spacing, anchored
+to the previous scheduled firing on the monotonic clock and cleared by nothing,
+is the only thing between the host and a backend that instructs the past on
+every response. It adjusts nothing the host stores or reports. The next check is
+one line in the diagnostic surface, and a scheduled `evaluate` is
+distinguishable on the wire as `event.kind` = `"scheduled"`.
 
-- **Carries from 001 — the sharp one.** The timer consumes a resolved instant
-  that is **always ahead of the `now` it was resolved at**, on success and on
-  failure alike (R-26, R-29). It must not retry a failed exchange faster than
-  that instant — where the check had elapsed, the host has already fallen back
-  to the default poll — and it must not re-resolve on its own. Raised three
-  times at audit (F-1, F-34, F-48). `notes.md:266` names the failure mode: a
-  busy-loop the first time a backend fails.
-- **May introduce persistence** of operational schedule state (brief §20 phase
-  4 says "if required"). If it does, **SPEC-001 OQ-3 reopens** — R-32's
-  rejection of a stale `view_id` is scoped to one process lifetime, and that
-  scoping is only true while nothing persists.
+It produced **SPEC-002** (the host's scheduling behaviour) and **ADR-004** (the
+floor's anchor), and added **R-56** to SPEC-001 — the three event kinds, their
+meanings fixed, the set left open and a backend required to tolerate a kind it
+does not know. All twelve acceptance criteria met on evidence re-run at audit;
+one code review over four rounds, 22 findings, none outstanding.
+
+- **The 001 carry is discharged.** The timer re-resolves nothing: two structural
+  scans in `crates/goad-boundary` hold it, one asserting the identifier
+  `resolve` names no production line in stratum 3 and one asserting
+  `schedule::resolve` is called from exactly two places, both in `host.rs`. The
+  busy-loop failure mode F-1, F-34 and F-48 kept raising is bounded by
+  SPEC-002/R-4.
+- **Nothing persists** — decided by the user at design. SPEC-001 OQ-3 stays
+  shut, and SPEC-002/R-11 records the catch-up rule for the slice that changes
+  that.
+- **Left open:** a scheduled firing can supersede a view a person is
+  mid-answering (SPEC-002 OQ-4). Both candidate repairs put domain judgement in
+  the host, so the likely answer is a backend affordance and therefore a
+  protocol question.
 
 ### 004 — external event ingress
 
@@ -108,6 +133,11 @@ A Unix socket accepting an opaque event envelope, and a `goad emit` CLI. The
 event is forwarded verbatim; the host interprets nothing beyond the envelope.
 
 - **Fires ADR-002 T2** (a second binary) if 002 has not already split the crate.
+- **Read ADR-004 before touching the floor.** An ingested event is the first
+  stimulus that is not a person and not a due check. SPEC-002/R-5 says in terms
+  that the scheduled-firing spacing bounds it in no way and that this slice must
+  decide separately how it is bounded; ADR-004 says why the anchor is written so
+  that an event cannot clear it.
 - The whole risk is scope: event *interpretation*, debouncing, and filtering are
   the backend's and the user's watcher's, per brief §7. A host that learns what
   an event means has crossed the boundary.
@@ -155,12 +185,12 @@ Brief §21. Where each criterion is discharged.
 |---|---|---|
 | 1 | clone and run the native Linux GUI | 002 runs it; 007 packages it |
 | 2 | configuration points at a trivial scripting backend | 001 ✔ (config + example); observable at 002 |
-| 3 | host periodically asks the backend | 003 |
+| 3 | host periodically asks the backend | 003 ✔ |
 | 4 | backend returns no view without error | 001 ✔ |
 | 5 | simple choice rendered correctly | 002 |
 | 6 | selection delivers a response to the backend | 002 |
 | 7 | `next_check` from evaluation and from response | 001 ✔ |
-| 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; observable over time at 003 |
+| 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
 | 9 | an external script sends an opaque event | 004 |
 | 10 | the event reaches the backend uninterpreted | 004 |
 | 11 | backend may run as a persistent JSONL socket service | 005 |
@@ -200,6 +230,3 @@ condition rather than a position.
   errors are semantics and must be typed fields, never keys in `hints`.
   *Recommendation:* slice 006, alongside the field-capable renderer work the
   examples will want. They could equally be their own slice after 002.
-- **Whether 003 persists schedule state.** Brief §20 phase 4 leaves it open. The
-  answer decides whether OQ-3 reopens in 003 or stays shut until something else
-  persists.

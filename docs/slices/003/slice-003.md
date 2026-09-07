@@ -1,14 +1,17 @@
 # Slice 003: Scheduling — the timer that turns a resolved instant into an evaluation
 
-**Stage:** audit
+**Stage:** done
 **Depends on:** slice 001 (closed) — SPEC-001, `schedule::resolve`, `Host` and
 the resolved next check. Slice 002 (closed) — the renderer, the `serve` loop,
 the wall clock, and the one observable surface a scheduled evaluation can show
 its work on.
 **Research:** `research.md` — five threads, and spike S-1 run and recorded
 (Thread 5, *Spike S-1 result*).
-**Decisions:** `design-log.md`. Design: `design.md`. Canon: `canon-delta.md`
-(SPEC-001) and `draft-spec.md` (SPEC-002, the host's scheduling behaviour).
+**Decisions:** `design-log.md`. Design: `design.md`. Canon produced:
+`docs/specs/002-host-scheduling-behaviour.md` (SPEC-002) and
+`docs/adr/004-scheduled-firings-are-spaced-from-the-previous-scheduled-firing.md`
+(ADR-004); `canon-delta.md` CD-1..CD-3 applied to SPEC-001. All at
+reconciliation 2026-09-08, endorsed at `plan-log.md` PL-17.
 
 ## Purpose
 
@@ -355,11 +358,37 @@ with its alternatives, and appears as a decision D-N in `design.md` §7.
 
 ## Summary
 
-<!-- Written at close. -->
+`serve` gained a third `select!` arm holding a pinned `tokio::time::Sleep`, and
+the resolved next check now makes the host evaluate without being asked. An
+instruction from either an `evaluate` or a `respond` moves the wait in both
+directions; an elapsed instant fires once, without underflow and without
+spinning; a failing backend keeps its existing cadence and no faster; an
+unreadable clock loses neither the schedule nor its liveness. A three-second
+minimum spacing, anchored to the previous scheduled firing on the monotonic
+clock and cleared by nothing, is the only bound on a backend that instructs the
+past on every response, and it adjusts nothing the host stores or reports. The
+pure arithmetic (`wait_for`) is stratum 1's and takes no clock; the floor is
+stratum 3's, beside the loop that applies it; stratum 2 gained nothing at all.
+
+All twelve acceptance criteria met on evidence the audit re-ran itself: 303
+tests, `just check` exit 0 idle and at loadavg 164, and AC-6's two structural
+scans holding "the timer never resolves a schedule" mechanically rather than by
+review. AC-10 discharges slice 002's follow-up F-5 — a scheduled evaluation
+driven through the production topology, the one substitution being the Slint
+platform, which no headless test can install.
+
+One adversarial code review over four rounds: 22 findings, all `verified`, none
+outstanding. Its one blocker was its own round-1 repair, a test synchronised on
+a log line written before the request was read, and it closed as a class across
+six sites. It also produced the slice's most consequential document change:
+CD-1's original wording closed the set of `event.kind` values against every
+conforming host, which is the narrowing this project exists to avoid, and R-56
+landed with the set open and a backend tolerance clause instead.
+
+The slice produced **SPEC-002** (the host's scheduling behaviour) and
+**ADR-004** (the floor's anchor), and added **R-56** to SPEC-001.
 
 ## Follow-ups
-
-<!-- Written at close. -->
 
 - **A scheduled evaluation can supersede a view a person is mid-answering.**
   Raised at code review (`review-code.md` F-6) and dispositioned
@@ -373,3 +402,50 @@ with its alternatives, and appears as a decision D-N in `design.md` §7.
   outstanding, or deferring it — both ask the host to judge that a view matters,
   which is domain meaning it does not hold; the likeliest answer is a backend
   affordance, which makes this a protocol question rather than a loop one.
+  Carried as SPEC-002 OQ-4.
+
+- **The production Slint platform is still unproven by any test here.** AC-10
+  drives a scheduled evaluation through every other component of the production
+  arrangement — the multi-thread runtime, the `EnterGuard` held for the loop's
+  life, `install`'s callback table, a real window and tray, a real child
+  process, production `serve`, `slint::spawn_local` — but the **platform** is
+  the testing backend's, because there is no headless way to install the
+  production one (design §5.5 A-1, `review-code.md` F-8, slice 002 F-8). This is
+  not closable in this repository. Either an upstream affordance appears, or the
+  residue is discharged by something outside the test suite; it should not be
+  quietly re-claimed as covered by a future slice.
+
+- **The vocabulary scan's four line-based costs are still open** (slice 002
+  D-13), unchanged by this slice's scan work: a Rust string literal spanning
+  lines hides a `//` after the break; a `/* */` block spanning lines cuts line
+  one and scans the next as code; `r"` is recognised in `.slint`, where the
+  construct does not exist, which is inert; and an all-caps compound such as
+  `SITEID` has no case boundary to split on. Each is named in
+  `crates/goad-boundary/src/scan.rs` rather than assumed away. The condition for
+  acting is unchanged: the first time `src/` acquires one of those forms.
+
+- **What this slice's own scan work did and did not close.** `review-code.md`
+  F-17 added `scan::code_without_literals`, so a scan that counts **structure**
+  no longer desynchronises on an unbalanced brace inside a literal. That is a
+  new instrument beside `code_of`, not a repair of the four costs above, which
+  belong to the scan that reads **words**. Two residues remain named and open:
+  a rename-import (`use … as r;`) in stratum 2 is outside both AC-6 instruments
+  (design §5.5 I-1a), and `FLOOR_MILLIS` in the renderer test tier is a
+  hand-copy of the private `controller::MINIMUM_SPACING`, so changing the floor
+  leaves the compile-time assertion that protects VT-6 passing against a stale
+  number.
+
+- **`CLAUDE.md`'s *authoritative documents* table names only SPEC-001** as the
+  normative protocol contract. SPEC-002 now exists beside it. The reconciliation
+  did not amend that row because PL-17 endorsed one sentence and not this one;
+  it is a one-line edit for the next slice that touches canon, and
+  `audit.md`'s Reconciliation table records it as deliberately not applied.
+
+- **The break-and-revert criteria are one-shot experiments, not standing
+  tests.** PHASE-02/VA-3, PHASE-03/VA-3 and PHASE-04/VA-2 and VA-3 each
+  established that an instrument fails when the thing it holds is removed, and
+  each was reverted. If the floor were deleted tomorrow the standing suite would
+  catch it through the anti-spin windows, but the *necessity* argument lives in
+  prose — SPEC-002 §7 R-4 and ADR-004 say so rather than implying a test holds
+  it. Worth a cheap mechanism, if one is ever found, for re-running a
+  break-and-revert as part of a gate rather than as a phase-time ritual.

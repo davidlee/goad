@@ -1,13 +1,30 @@
 # Canon delta — Slice 003
 
-**Status: proposed.** Nothing here is applied. Changes are applied during audit
-and reconciliation, with explicit user endorsement, and recorded in `audit.md`'s
-Reconciliation table.
+**Status: applied.** CD-1, CD-2 and CD-3 were applied to
+`docs/specs/001-host-backend-protocol.md` **at reconciliation 2026-09-08**,
+under the user's endorsement recorded at `plan-log.md` PL-17, and each is
+recorded in `audit.md`'s Reconciliation table. CD-1 is stated below in its
+**redrafted** form — the kind set left open, with the backend-tolerance clause —
+which is what `review-code.md` F-2 and `design-log.md` D-19 produced and what
+the user endorsed. The earlier closed-set wording, which bound every conforming
+host to exactly three kinds, exists only in that finding. CD-3's condition was
+met:
+`draft-spec.md` was promoted to `docs/specs/002-host-scheduling-behaviour.md` in
+the same reconciliation. This file is left in place as the slice's record of
+what was promoted — it is not itself canon.
+
+**Citations were expanded at promotion**, as slice 002's delta requires: every
+bare `notes.md`, `design.md`, `design-log.md` or `slice-003.md` reference
+resolves against *this folder* and stops resolving once wording lands in
+`docs/specs/`. SPEC-002 §7's one dependency on `notes.md` — a file the Close step
+empties — was removed rather than rewritten, and the clause it carried is now
+stated as *review, not a test*.
 
 Changes this slice makes to canon that **already exists**. New canon is drafted
 in `draft-spec.md`, not here — SPEC-002, the host's scheduling behaviour, is
 this slice's new document, and the reason the entries below are as small as they
-are.
+are. That draft is now `docs/specs/002-host-scheduling-behaviour.md`; `git mv`
+carried its history, so this folder no longer holds it.
 
 One entry per affected document and section: the document, the section, the
 change as it will be stated, and why.
@@ -15,6 +32,8 @@ change as it will be stated, and why.
 ---
 
 ## CD-1 — SPEC-001 §4, Requests: a new requirement R-56
+
+**Applied at reconciliation 2026-09-08.**
 
 **Document:** `docs/specs/001-host-backend-protocol.md`
 **Section:** §4 Requirements → Requests
@@ -63,6 +82,8 @@ inspection, like SPEC-001's other backend-side obligations.
 
 ## CD-2 — SPEC-001 §6.1: the request illustration's event source
 
+**Applied at reconciliation 2026-09-08.**
+
 **Document:** `docs/specs/001-host-backend-protocol.md`
 **Section:** §6.1 Request messages
 **Kind:** record accuracy. No requirement changes.
@@ -94,6 +115,8 @@ later reader does not mistake it for an oversight.
 ---
 
 ## CD-3 — SPEC-001 §2, Boundaries: where the timer's own rules are written
+
+**Applied at reconciliation 2026-09-08.**
 
 **Document:** `docs/specs/001-host-backend-protocol.md`
 **Section:** §2 Scope → Boundaries

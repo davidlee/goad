@@ -1,12 +1,15 @@
-# SPEC-NNN (draft): The host's scheduling behaviour
+# SPEC-002: The host's scheduling behaviour
 
-**Status:** draft — this slice's working authority, not canon. It is numbered
-`SPEC-002` only at promotion, during slice 003's audit and reconciliation, with
-explicit user endorsement. Nothing outside `docs/slices/003/` may cite it.
+**Status:** active
 **Kind:** technical
 **Owns:** what the host does with a resolved next-check instant it already
 holds — when it fires, how often it may fire, and what it does when the instant
 has already passed.
+
+<!-- A spec is evergreen and normative: it describes what is true now, not how
+     it came to be true. No changelog, no revision history. Amending it requires
+     explicit user endorsement. Requirement ids (R-N) are immutable — append,
+     never renumber. Cite from elsewhere as SPEC-002/R-N. -->
 
 ## 1. Intent
 
@@ -181,21 +184,27 @@ the instruction as a prediction of when it will fire.
 
 Each row states the kind of verification, then names the test that discharges
 it, by file and function, so the claim is checkable rather than asserted
-(PHASE-06/EX-1). All paths are relative to the repository root.
+(`docs/slices/003/plan.md` PHASE-06/EX-1). All paths are relative to the
+repository root.
 
 | requirement | verified by |
 |---|---|
 | R-1 | integration: a running host with a backend that supplies no `next_check` performs a second `evaluate` about one default poll after the first, evidenced by the backend's own invocation record — `crates/goad/tests/renderer/scheduling.rs::a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_check` |
 | R-2 | structural: a scan asserting the resolution function has no call site outside the one the host reports from — `crates/goad-boundary/tests/checks/structure.rs::no_production_line_in_the_renderer_names_the_identifier_resolve` (absence, stratum 3) and `::schedule_resolve_is_called_only_from_host` (the call count, plus the assertion that the path is nowhere taken as a value, stratum 2) |
 | R-3 | unit, on the pure wait computation: an instant at `now`, before `now`, and at the edge of representable time, at both floors — `crates/goad-semantics/src/schedule.rs::wait_for_an_instant_at_now_is_zero`, `::wait_for_a_past_instant_is_zero_not_an_underflow`, `::wait_for_is_total_at_the_past_edge_of_representable_time`, `::wait_for_is_total_at_the_future_edge_of_representable_time`, `::wait_for_a_future_instant_is_the_exact_difference`. Integration: a backend answering with a past instant every time is invoked a bounded number of times over an interval far shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor` (repeated); the one-off successor case — `scheduling.rs::a_one_off_past_instruction_is_consumed_and_cadence_resumes` |
-| R-4 | integration: a backend answering with a past instant every time yields a bounded invocation count over a window far shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor`; a person acting in the middle of a scheduled cadence does not raise that count — `scheduling.rs::a_person_acting_mid_cadence_does_not_clear_the_floor`. The floor's own necessity is a break-and-revert (`MINIMUM_SPACING` zeroed), not a standing test: `notes.md` PHASE-03 sheet, VA-3 |
+| R-4 | integration: a backend answering with a past instant every time yields a bounded invocation count over a window far shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor`; a person acting in the middle of a scheduled cadence does not raise that count — `scheduling.rs::a_person_acting_mid_cadence_does_not_clear_the_floor`. The floor's *necessity* is **review, not a test**: it was established by zeroing the spacing and watching the anti-spin assertions fail, which is an experiment rather than a standing assertion, and the standing argument for it is §3 P-D and ADR-004 |
 | R-5 | integration: the first scheduled evaluation of the process honours a default poll shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_check`; an evaluation a person asks for is dispatched without waiting for it — `scheduling.rs::a_person_acting_mid_cadence_does_not_clear_the_floor` |
 | R-6 | integration: what the host reports as its next check after a past instruction is the instruction, unchanged — the SPEC-001/R-28 assertion, re-read after this document exists — `crates/goad/tests/renderer/scheduling.rs::a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor`'s retained-`next_check` assertion |
 | R-7 | integration: an instruction earlier than the pending check shortens the wait, observed as a firing inside a bound — `crates/goad/tests/renderer/scheduling.rs::an_earlier_instruction_supersedes_a_pending_far_deadline`; one later lengthens it, observed as no firing inside a window — `scheduling.rs::a_later_instruction_supersedes_and_the_earlier_deadline_does_not_fire` |
 | R-8 | integration: a clock that fails produces the refusal and a bounded invocation count, and the retained check is unchanged — `crates/goad/tests/renderer/scheduling.rs::a_clock_that_fails_after_the_startup_exchange_refuses_and_holds`, with its vacuity control — `scheduling.rs::the_same_shape_with_a_working_clock_reaches_a_second_invocation` |
 | R-9 | structural and by construction: the wait is one arm of a loop that runs one exchange at a time. No standing test asserts this directly; it is witnessed by six pre-existing `serve` tests continuing to pass with unchanged bodies once the timer arm was added — `crates/goad/tests/renderer/wiring.rs::a_click_naming_a_superseded_view_is_refused_with_no_backend_contact`, `::the_negative_control_with_no_intervening_evaluate_the_click_is_answered`, `::serve_drives_one_exchange_through_the_production_loop`, `::tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout`, `::a_stop_tripped_before_the_first_poll_wins_over_a_ready_command`, `::on_stop_a_command_queued_behind_the_exchange_is_left_unread` |
 | R-10 | integration: a stop request while a wait is pending ends the loop promptly — `crates/goad/tests/renderer/scheduling.rs::a_stop_issued_while_parked_on_the_timer_arm_ends_serve_well_inside_the_timeout`, alongside the three existing cancellation tests among R-9's six (`tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout`, `a_stop_tripped_before_the_first_poll_wins_over_a_ready_command`, `on_stop_a_command_queued_behind_the_exchange_is_left_unread`) |
-| R-11 | **review, not a test** — nothing persists, so there is no record of a missed interval to catch up from. The requirement records the intent for the slice that adds persistence. Named as such rather than left to look discharged (PHASE-06/EX-1) |
+| R-11 | **review, not a test** — nothing persists, so there is no record of a missed interval to catch up from. The requirement records the intent for the slice that adds persistence. Named as such rather than left to look discharged (`docs/slices/003/plan.md` PHASE-06/EX-1) |
+
+Nothing here is marked unverified. R-11, and R-4's necessity clause, are held
+by **review** rather than by a test, each for the reason its row states: one has
+no state a test could set up to falsify it, and the other is an argument for why
+a bound exists rather than a behaviour anything can execute.
 
 ## 8. Open questions
 
@@ -207,6 +216,11 @@ it, by file and function, so the claim is checkable rather than asserted
 - **OQ-2.** Whether the minimum spacing should be reported to a backend that
   asked for something faster. Nothing in SPEC-001 carries host policy toward a
   backend, and inventing a channel for it here would be the wrong place.
+- **OQ-3.** Whether a host should report *when it will fire* alongside the
+  instruction it holds, for the three states in which they differ. Deferred:
+  the firing instant is measured monotonically and has no wall-clock rendering
+  without a second clock read, and the cheap repair — saying which of the two
+  the reported value is — is already required by §6.
 - **OQ-4.** Whether a host should suppress or defer a scheduled evaluation
   while a presentation is outstanding, so that a person's answer cannot be
   refused on account of a firing they did not cause. Suppression asks the host
@@ -214,17 +228,15 @@ it, by file and function, so the claim is checkable rather than asserted
   hold; deferral needs a second pending state and a second writer of the
   deadline. Left open because the answer plausibly belongs to the backend —
   which knows what the view is for — rather than to the host.
-- **OQ-3.** Whether a host should report *when it will fire* alongside the
-  instruction it holds, for the three states in which they differ. Deferred:
-  the firing instant is measured monotonically and has no wall-clock rendering
-  without a second clock read, and the cheap repair — saying which of the two
-  the reported value is — is already required by §6.
 
 ## 9. References
 
 - SPEC-001 §2, §4 (*Responses: scheduling*), §5, R-26 to R-29, R-45, R-48, R-56.
 - ADR-001 (one-way strata) — the wait is I/O against real time and is not
   stratum 1's; the arithmetic behind it is.
+- ADR-004 (the minimum spacing is anchored to the previous scheduled firing) —
+  the decision behind R-4's anchor, and the record that its premise about
+  non-scheduled stimuli is one a later slice will be tempted to reverse.
 - `docs/slices/003/design.md` §5.4 — the loop shape this document describes in
   prose, and §7 D-2, D-3, D-8 for the decisions behind R-4, R-5 and the suspend
   behaviour. D-3 records why R-4 is anchored to the previous scheduled firing

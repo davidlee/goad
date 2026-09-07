@@ -47,7 +47,9 @@ received a view does not (R-55).
 one and produces a user response, and it may not see wire types. The timer abuts
 it at the resolved next-check instant — it consumes one and calls `evaluate`.
 The backend abuts it at the process boundary. A future socket transport replaces
-§6.4 and nothing else.
+§6.4 and nothing else. What the host does with a resolved instant once it holds
+one — including the minimum spacing it places between its own scheduled
+firings, which adjusts no stored instruction — is SPEC-002's.
 
 ## 3. Principles
 
@@ -86,6 +88,7 @@ leave the host running and MUST leave it able to run the backend again.
 | R-7 | An `evaluate` request MUST carry the host's current instant and an event with a source, a kind, a timestamp and a data payload. | §7 |
 | R-8 | A `respond` request MUST carry the `view_id` being answered, the host's current instant, the chosen option id, and a map of field id to submitted value. | §7 |
 | R-9 | The host MUST NOT interpret an event's data payload or a submitted field value. It carries both verbatim. | §7 |
+| R-56 | Every `evaluate` the host originates carries `event.source` of `"host"`, and an `event.kind` naming why the host is asking. Three kinds are named by this requirement and mean what it says they mean: `"startup"`, once, when a host starts; `"requested"`, when a person asked; `"scheduled"`, when a resolved next check came due. A host MUST NOT reuse one of these three for anything else, and a backend MAY branch on them. The set is **open**: a host MAY originate an `evaluate` whose kind is none of the three, and a backend MUST tolerate a kind it does not recognise — treating it as an evaluation whose reason it does not know, never as a protocol error. | §7 |
 
 ### Responses: views
 
@@ -241,7 +244,7 @@ that failed at its scheduled check in a tight loop.
 
 ```json
 { "protocol": 1, "type": "evaluate", "now": "2026-08-23T04:12:00Z",
-  "event": { "source": "timer", "kind": "scheduled",
+  "event": { "source": "host", "kind": "scheduled",
              "timestamp": "2026-08-23T04:12:00Z", "data": {} } }
 ```
 
@@ -374,6 +377,7 @@ behaviour.
 | R-4, R-5 | fixtures `R-4-an-unmodelled-key-on-{the-envelope,a-view,an-option,a-field,an-alternative,a-content-block}` — one per inbound level, `Alternative` included |
 | R-51 | fixtures `R-51-{next-check-null,next-check-omitted,protocol-null,a-nulled-body,a-nulled-modelled-key-on-a-field,a-nulled-fields-key-on-an-alternative,a-nulled-hints-key-on-a-field}`, asserting identical outcomes to their omitted forms **and an empty discard list** — the assertion is the silence, since a discard here would be the defect. Paired with `R-25-next-check-of-the-wrong-type`, which must still be discarded and reported, so the two cases are shown to be distinguished rather than merged. End to end: `failure_matrix.rs::an_explicit_null_next_check_discards_nothing` and `::an_explicit_null_protocol_discards_nothing` |
 | R-6, R-7, R-8 | unit: the three `canonical.rs` serialization tests above, each against the literal JSON of §6.1 parsed to a `serde_json::Value`, so key order is not asserted and a missing `protocol` or `type` is |
+| R-56 | unit, at the one place the host names a kind: `crates/goad/src/wire.rs::a_scheduled_stimulus_names_itself_scheduled` and `::a_scheduled_stimulus_s_event_carries_the_three_normative_fields`, the second asserting `source`, `kind`, `timestamp` and payload together, against `Stimulus::kind`, which returns exactly `"startup"`, `"requested"` and `"scheduled"` and nothing else. Over the wire a backend actually reads: `crates/goad/tests/renderer/scheduling.rs::a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_check` reads `event.kind` off the request a scripted backend logged and asserts `"scheduled"` on the firing that came due, and `::a_later_instruction_supersedes_and_the_earlier_deadline_does_not_fire` asserts `"requested"` on the one a person asked for — the two kinds discriminating each other rather than each being asserted alone. The **tolerance** clause is an obligation on backends, which no host test can observe, and is **review, not a test**, like this spec's other backend-side obligations. What the host emits for each kind is SPEC-002's subject once the kind is `"scheduled"` (SPEC-002/R-1) |
 | R-9, R-19 | **review, not a test** — the requirement is that host code never *reads* a payload, and a test can only observe code that does. The wire forms are fixtures `R-19-a-body-{tagged-as-text,tagged-as-markdown,tagged-as-html,tagged-as-uri,written-as-a-bare-string}`, and `R-19-a-body-written-as-an-array` is the form that is neither, refused as a shape; the payload-opacity half is a source check against P-A, re-run at every audit: no file under `src/` dereferences a `uri` or branches on `event.data` or `response.values`, all three of which are carried as `serde_json::Value` |
 | R-18 | **review, not a test**, and the same reason: `hints` is read in `src/` only by `normalize.rs::normalize_field`, where the remaining keys are collected and passed through. Nothing normalizing, scheduling, transporting or holding state reads a key from it (I7). The renderer, the one component that may, does not exist yet. The wire half is fixtures: `R-18-brief-10-2-s-own-field-example` carries brief §10.2's `multiline` flat and asserts it becomes a hint; `R-18-a-nested-hints-object` asserts the nested spelling is refused with its path; `R-51-a-nulled-hints-key-on-a-field` (cited under R-51) that `null` there is omission |
 | R-10, R-11 | fixtures `R-10-view-omitted` (error naming the field) and `R-11-view-null-is-nothing-to-show` (accepted), with `R-11-an-envelope-written-as-an-array` showing a response that is not an object is a shape error and not a missing `view`. Both meanings of `null` are integration tests, since the difference is a state transition rather than a parse: `host.rs::a_null_view_answering_an_evaluate_leaves_the_interaction_open` and `::a_null_view_answering_a_respond_closes_the_interaction` (F-29). End to end: `failure_matrix.rs::a_response_omitting_view_is_refused` |
@@ -412,7 +416,10 @@ behaviour.
 Nothing here is marked unverified. Five rows — R-9/R-19, R-18, R-20, R-30 and
 R-49 — are held by review rather than by a test, each for a reason stated in the
 row: the subject is a property of the source text or of the contract, not a
-behaviour anything can execute.
+behaviour anything can execute. R-56 is a sixth only in part: what the host
+emits is tested, and the clause requiring a *backend* to tolerate an unknown
+kind is held by review for the same reason R-49 is — it constrains the other
+side of the seam.
 
 ## 8. Open questions
 
@@ -431,6 +438,8 @@ behaviour anything can execute.
 
 - `docs/brief.md` §3.3, §3.4, §5–§14, §22.3.
 - ADR-001 (one-way strata), ADR-002 (single crate until triggered).
+- SPEC-002 (the host's scheduling behaviour) — the other side of the timer seam
+  §2 names: what the host does with a resolved instant once it holds one.
 - `docs/slices/001/design.md` — the design this spec was written alongside;
   §5.2 for the type-level expression of §6, §7 for the decisions behind the
   choices §4 states as requirements.

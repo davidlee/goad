@@ -1192,7 +1192,19 @@ schedule` 1/1 green at 0.26 s/0.28 s/0.27 s per run):
 | AC-10 event loop (PHASE-05/VT-1) | liveness | ~105 ms | `until(2s)` | 104.4/102.7/97.6 ms | 19.1x-20.5x |
 
 No row is below the 5x liveness floor; the closest is AC-2 from a respond at
-~6.9x (S-19 not triggered). Gate wall time: three consecutive working-tree
+~6.9x (S-19 not triggered).
+
+> **Superseded twice, and the figures above are left as what this phase
+> actually measured.** First by the code review: F-7 moved the liveness bound
+> from 2 s to 5 s at every renderer-tier call site, so the same assertions
+> re-measure at ~17x-18x (see *Repairs after review*, below). Second by the
+> audit: the span this table measures is the **test's** elapsed time, which
+> includes the child process spawn preceding the wait, not the elapsed time
+> inside the `until` bound that actually governs the assertion. Measured at
+> that bound, under five-fold CPU oversubscription, the AC-2-from-a-respond
+> case is **15.2x** and the worst margin anywhere in the suite is **10.8x**
+> (`audit.md` §The load evidence). The lesson, not the number, is lifted to
+> `docs/memory/timed-test-margins-are-measured-at-the-bound.md`. Gate wall time: three consecutive working-tree
 `just check` runs this phase — **5.630 s / 5.582 s / 5.634 s**, all exit 0,
 against slice 002's 5.276 s baseline (band: ≤ 8.276 s) — no breach.
 
@@ -1273,6 +1285,19 @@ the closest of any row to the 5x floor) under a loaded machine; the AC-9
 design-row/test-shape mismatch (Design drift, above); and the stray `(F-1)`
 citation at `schedule.rs:327`, which is a source-file fix no phase's surfaces
 have covered yet.
+
+**All three attacked, at the audit (2026-09-08).** The margin was the wrong
+quantity: measured at the bound that governs, under loadavg 164-170, it is
+15.2x, and ten further full-suite runs at that load were 13/13 green each time.
+The AC-9 mismatch stands as design drift, with `design.md` not retro-fitted —
+the test's shape is the better one. The `(F-1)` citation stays: it is slice
+001-era residue that greps to that slice's own ledger, and
+`docs/memory/cite-requirements-not-finding-ids.md` records the user's decision
+to tolerate the existing eighty-four rather than trade a pointer for a
+paraphrase. What the audit did treat as a finding is the same memory's next
+sentence — *"do not extend the practice"* — which this slice did eight times in
+production source; the code review removed every one (`review-code.md` F-9,
+F-16).
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->

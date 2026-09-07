@@ -267,7 +267,7 @@ pub fn tooltip(diagnostics: &Diagnostics, waiting: bool) -> String {
 /// and putting it among the tray's own rows would retire the "Nothing to
 /// report." sentinel by side effect. It names what it renders — the resolved
 /// next check the host holds and reports, which is the **instruction**,
-/// never a prediction of when the host will actually fire (draft-spec.md §6:
+/// never a prediction of when the host will actually fire (SPEC-002 §6:
 /// a host surfacing its next check MUST NOT present the instruction as a
 /// prediction) — because the spacing, a refused firing, or a suspend can each
 /// move the real deadline later without moving this value (SPEC-002/R-6).
@@ -464,7 +464,7 @@ mod tests {
   /// **later** than the one the host holds, and one it never stored. What is
   /// reported is the instruction the host holds (SPEC-002/R-6), and the line
   /// must not read as a promise about when the check will happen
-  /// (draft-spec.md §6); erring later is the one direction that can.
+  /// (SPEC-002 §6); erring later is the one direction that can.
   #[test]
   fn an_ordinary_instant_is_truncated_to_second_precision_never_rounded_up() {
     let at = Timestamp::new("2026-09-07T04:34:14.987654321Z".parse().unwrap());

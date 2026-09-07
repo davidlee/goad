@@ -53,8 +53,11 @@ wrong.
 
 **Strata run one way** (ADR-001): `src/semantics/` is pure — no clock, no
 filesystem, no subprocess, no async runtime — and never names `src/shell/`.
-`cargo test --no-default-features` is the compiler enforcing it, not a
-convention.
+`cargo test -p goad-semantics` is the gate command that builds stratum 1 with
+its own feature set, so the crate-edge, manifest and purity instruments are
+checking a configuration that stands alone — it rejects nothing by itself, and
+`docs/policy/001-the-phase-gate.md` §Verification states what each of the four
+instruments holds and what it does not reach.
 
 ## The authoritative documents
 

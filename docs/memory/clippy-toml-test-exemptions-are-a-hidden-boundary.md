@@ -23,6 +23,23 @@ PL-13) named `clippy.toml`'s four keys as a fifth class of permitted change
 beyond the four literal ones already listed, because a `bytes[i]` that was
 fine in test code needed to become `bytes.get(i)` the moment it moved.
 
+## The other half: four lints that are *never* test-exempt
+
+Confirmed again at slice 003, PHASE-05 and PHASE-06, directly against both
+files. `clippy.toml`'s `allow-*-in-tests` keys cover the four above and **only**
+those four. `dbg_macro`, `print_stdout`, `print_stderr` and `use_debug` are
+`deny` in `Cargo.toml` with no test carve-out at all.
+
+The practical consequence: a temporary `eprintln!("…{:?}", …)` dropped into a
+test as instrumentation trips **two** of them at once, and has to come back out
+before the gate runs. `println!` and `dbg!` are the same. There is no exemption
+to reach for, and reaching for `#[allow]` instead is what
+`docs/policy/001-the-phase-gate.md` §Compliance forbids.
+
+Slice 003 hit this while measuring timed-test margins, and it is why those
+margins had to be re-taken in a detached worktree rather than in the tree
+(`docs/memory/timed-test-margins-are-measured-at-the-bound.md`).
+
 ## How to apply
 
 - Before moving any code from a test target into a library (or vice versa),
@@ -35,3 +52,6 @@ fine in test code needed to become `bytes.get(i)` the moment it moved.
 - When auditing a relocation's diff for "moved unchanged vs. argued", treat
   a lint-driven micro-rewrite at this boundary as an expected, nameable
   class rather than a surprise finding each time.
+- For temporary instrumentation in a test, expect no exemption: `eprintln!`,
+  `println!`, `dbg!` and `{:?}` are all denied everywhere. Instrument in a
+  throwaway worktree, or assert on a value instead of printing one.

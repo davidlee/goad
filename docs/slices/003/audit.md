@@ -149,7 +149,7 @@ Each criterion's own named test, run with `--exact` by the audit.
 | AC-4 | a one-off past instruction | `renderer scheduling::a_one_off_past_instruction_is_consumed_and_cadence_resumes` | **met**, 0.68 s |
 | AC-5 | a failing backend keeps its cadence, no faster | `renderer scheduling::a_failing_backend_is_retried_unprompted_never_faster_than_the_floor` | **met**, 0.76 s |
 | AC-6 (a) | `resolve` names no production line under `crates/goad/src` | `checks structure::no_production_line_in_the_renderer_names_the_identifier_resolve` | **met** |
-| AC-6 (b) | `schedule::resolve` occurs exactly twice, both in `host.rs` | `checks structure::schedule_resolve_is_called_only_from_host` | **met** |
+| AC-6 (b) | `schedule::resolve` is **called** from exactly two places, both in `host.rs`, and is nowhere taken as a value without being called | `checks structure::schedule_resolve_is_called_only_from_host` | **met** |
 | AC-7 | a timer does not defeat cancellation | `renderer scheduling::a_stop_issued_while_parked_on_the_timer_arm_ends_serve_well_inside_the_timeout` | **met**, 0.19 s |
 | AC-8 | a failure does not stop the clock | the AC-5 test, read for liveness | **met** |
 | AC-9 | an unreadable clock loses nothing and does not spin | `renderer scheduling::a_clock_that_fails_after_the_startup_exchange_refuses_and_holds`, with `::the_same_shape_with_a_working_clock_reaches_a_second_invocation` as its vacuity control | **met**, 0.67 s / 0.26 s |
@@ -162,6 +162,14 @@ absence or the count, so neither can pass on a walk that inspected nothing.
 AC-6 (b) asserts `len == 2` before comparing the file-name set, so the set
 equality is safe rather than the trap `docs/memory/assert-superset-not-equality-on-a-rename-set.md`
 describes.
+
+**Corrected after the code review** (`review-code.md` F-18, F-19, which asked
+the audit to correct its own line): AC-6 (b) counts the resolving **call** over
+literal-stripped code, not the occurrences of the path, and carries a second
+assertion for the path taken as a value without being called. The measured
+figures are 0 over 12 files and **2 calls** over 8. The test name above is the
+one the tree carries — round 1 renamed it and round 2 restored it, the count
+having become true again.
 
 ### Verification criteria in `plan.md`
 
@@ -302,11 +310,30 @@ Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
 vocabulary, subject `implementation`. Do not restate findings here.
 
-- **Ledger:** `review-code.md`
-- **State:** open · **round count: pending** — a reviewer is working the ledger
-  in parallel with this audit and had not reported when the audit was written.
-- **Outstanding blockers:** *pending the code review.* The audit itself raises
-  no blocker; see the Verdict.
+- **Ledger:** `docs/slices/003/review-code.md`
+- **State:** resolved · **four rounds** · **22 findings**, every one `verified`.
+- **Outstanding blockers: 0.**
+
+**One blocker, in round 3, and it was the review's own repair.** F-22:
+`an_instruction_at_the_far_edge_of_time_arms_the_sleep_without_panicking`, added
+in round 1 for F-5, synchronised on the scripted backend's invocation log and
+stopped the loop at once. The log line is written *before* the request is read,
+so the stop raced the exchange — the cancel arm dropped the call, `absorb` never
+ran, and `next_check` read `None`. It reproduced at 3 red in 5 full renderer
+runs and 12 of 12 green in isolation, which is the shape of a defect that gets
+blamed on the machine. It closed as a **class** rather than an instance: six
+sites now wait on the rendered next-check line, which `glass.present` writes at
+the top of the iteration *after* `absorb` and so cannot be read early, and five
+of those six had a fixed 20 ms or 500 ms sleep standing in for synchronisation.
+Two `@hang` cases keep the log line deliberately, because they need the exchange
+still in flight when the stop lands, which is the opposite requirement. Ten
+consecutive full renderer runs afterwards: 10 green at 138/138.
+
+The two majors, both round 1, are in the Synthesis and not restated here: AC-6's
+stratum 2 instrument was a path substring a brace-grouped `use` walked past, and
+canon-delta CD-1 closed the set of event kinds against every future host — the
+narrowing `CLAUDE.md`'s third invariant exists to forbid. Both were repaired at
+the root. CD-1's redraft is what this document's Reconciliation table applied.
 
 ## Verdict
 
@@ -360,9 +387,11 @@ it as outstanding.
   suite would catch it through the anti-spin windows, but the *necessity*
   argument itself lives in prose.
 
-**The audit raises no blocker.** It raises one code-hygiene finding for the
-code reviewer (below), and a set of record corrections that need the user's
-endorsement.
+**The audit raises no blocker, and the code review left none.** Twenty-two
+findings over four rounds, all `verified`; **outstanding blockers: 0**. The
+audit raised one code-hygiene finding for the code reviewer (below), and a set
+of record corrections, all since endorsed (`plan-log.md` PL-17) and applied —
+see Reconciliation.
 
 **For the code reviewer.** The slice introduced **eight `D-N` design-decision
 citations and one new `F-N` review-finding citation into production source** —
@@ -379,19 +408,41 @@ not fixed here.
 
 ## Reconciliation
 
-Nothing in this table is applied. Each row needs the user's explicit
-endorsement, and the audit does not write canon.
+**Applied at reconciliation, 2026-09-08**, under the user's endorsement recorded
+at `plan-log.md` PL-17 — promote SPEC-002; apply CD-1 (in its redrafted,
+open-set form), CD-2 and CD-3; amend `CLAUDE.md`; write ADR-004 for the floor's
+anchor; **no** ADR for "nothing persists", the roadmap's open decision closing
+instead. Every row below is done, and every citation the promoted text carries
+was expanded to a repository-relative path as it landed, on slice 002's
+precedent (`docs/slices/002/canon-delta.md` head).
 
 | document | change | reason | done |
 |----------|--------|--------|------|
-| `draft-spec.md` → `docs/specs/002-host-scheduling-behaviour.md` | promote | drafted during this slice as its working authority; §7's 22 named tests all exist in the tree | [ ] |
-| `docs/specs/001-host-backend-protocol.md` §4 *Requests* | apply CD-1 — add R-56 fixing `event.source` at `"host"` and `event.kind` at exactly `"startup"` / `"requested"` / `"scheduled"` | the host now emits three kinds and a backend can only branch on strings the contract fixes; R-55 verified as the current highest id | [ ] |
-| `docs/specs/001-host-backend-protocol.md` §7 | apply CD-1's second half — a verification row for R-56 | every requirement needs a §7 row | [ ] |
-| `docs/specs/001-host-backend-protocol.md` §6.1 | apply CD-2 — the illustration's `"source": "timer"` becomes `"host"` | no host build has ever emitted `"timer"`; CD-1 makes the field normative, so the example must show what the host sends | [ ] |
-| `docs/specs/001-host-backend-protocol.md` §2 *Boundaries* | apply CD-3 — one sentence pointing at SPEC-002 for the minimum spacing | without it, R-28 reads as forbidding a floor it does not govern. Conditional on SPEC-002 landing | [ ] |
-| `CLAUDE.md` §Strata run one way | replace `cargo test --no-default-features` with `cargo test -p goad-semantics` as the named instrument | no workspace manifest declares `[features]`; the command passes the identical 303 tests and rejects nothing. POL-001 §Compliance already records that the feature column was retired at the crate split. `CLAUDE.md` is stale against its own canon | [ ] |
-| `docs/roadmap.md` §003, §*v0.1.0 acceptance coverage* rows 3 and 8, §*Open decisions*, §*Where this stands* | mark 003 closed; coverage rows 3 and 8 discharged; close the "whether 003 persists schedule state" decision; refresh the standing paragraph | the roadmap is stale at 2026-09-04 and still describes the gate as "green in both feature columns" | [ ] |
-| `docs/memory/` | lift the durable facts from `notes.md` Harvest | Close step; the load-margin correction in particular is a fact a future slice would otherwise rediscover | [ ] |
+| `draft-spec.md` → `docs/specs/002-host-scheduling-behaviour.md` | promote | drafted during this slice as its working authority; §7's 22 named tests all exist in the tree | **applied** 2026-09-08 · `git mv`, so the history follows. Title and status became `SPEC-002` / `active`; SPEC-001's evergreen front-matter comment added with the `SPEC-002/R-N` citation form; R-1..R-11 unrenumbered; §8's questions put in numeric order, ids untouched. The 22 test citations were re-resolved against the post-review tree: all 22 still exist |
+| `docs/specs/002-host-scheduling-behaviour.md` §7, R-4 | drop the `notes.md` citation for the floor's break-and-revert | canon may not depend on a file the Close step empties (`docs/AGENTS.md`'s own table calls `notes.md` disposable) | **applied** 2026-09-08 · the clause is now stated as **review, not a test**, the way R-11 already was, with the standing argument in §3 P-D and ADR-004. §7 gains a closing paragraph naming both review-held rows, in SPEC-001's manner |
+| `docs/specs/001-host-backend-protocol.md` §4 *Requests* | apply CD-1 — add R-56 | the host now emits three kinds and a backend can only branch on strings the contract fixes; R-55 verified as the current highest id | **applied** 2026-09-08 · in the **redrafted** form (`review-code.md` F-2, `design-log.md` D-19): three kinds named and their meanings fixed, the **set left open**, and a backend required to tolerate a kind it does not recognise. The closed form was the narrowing `CLAUDE.md`'s third invariant forbids |
+| `docs/specs/001-host-backend-protocol.md` §7 | apply CD-1's second half — a verification row for R-56 | every requirement needs a §7 row | **applied** 2026-09-08 · the row names `wire.rs`'s two `Stimulus` unit tests and the two `renderer/scheduling.rs` cases that read `event.kind` off a logged request and discriminate `"scheduled"` from `"requested"`. §7's closing paragraph now says R-56 is a **sixth review row only in part** — what the host emits is tested; the backend-tolerance clause is not, for R-49's reason |
+| `docs/specs/001-host-backend-protocol.md` §6.1 | apply CD-2 — the illustration's `"source": "timer"` becomes `"host"` | no host build has ever emitted `"timer"`; CD-1 makes the field normative, so the example must show what the host sends | **applied** 2026-09-08. **Consequential, and applied with it:** §7's R-6/R-7/R-8 row claims the three `canonical.rs` serialization tests assert *"against the literal JSON of §6.1"*, and those tests construct `source: "timer"` (`crates/goad-semantics/src/protocol/canonical.rs:735, 745, 783`). Left alone, applying CD-2 would have made that §7 claim false. The three literals are now `"host"` — behaviour-neutral for a field stratum 1 carries verbatim, and the only change to code this reconciliation made. `"data": {}` is left as CD-2 says, both spellings satisfying R-7 and R-51 |
+| `docs/specs/001-host-backend-protocol.md` §2 *Boundaries* | apply CD-3 — one sentence pointing at SPEC-002 for the minimum spacing | without it, R-28 reads as forbidding a floor it does not govern. Conditional on SPEC-002 landing | **applied** 2026-09-08 · the condition was met by the promotion above. §9 also gains SPEC-002 as the other side of the timer seam §2 names |
+| `docs/adr/004-scheduled-firings-are-spaced-from-the-previous-scheduled-firing.md` | **new** — the floor's anchor | recommended above and endorsed at PL-17: a requirement states the rule, but not that the rule's premise is about to move. `review-design.md` F-2 records that the "every other stimulus is a person" premise expires when slice 004 adds event ingress, and the anchor is what makes that safe | **applied** 2026-09-08 · from `docs/templates/adr.md`. Decision: 3 s, anchored to the previous **scheduled** firing on the monotonic clock, cleared by nothing, binding scheduled firings only. Alternatives per `design.md` D-3; consequences per D-3, D-14 and SPEC-002; the anchor itself is held by review, since no test today can separate it from the boolean alternative. Cited from SPEC-002 §7 R-4 and §9, and from `docs/roadmap.md` §004 |
+| `CLAUDE.md` §Strata run one way | replace `cargo test --no-default-features` with `cargo test -p goad-semantics` as the named instrument | no workspace manifest declares `[features]`; the command passes the identical 303 tests and rejects nothing. POL-001 §Compliance already records that the feature column was retired at the crate split. `CLAUDE.md` is stale against its own canon | **applied** 2026-09-08 · one sentence, and it does **not** repeat the old sentence's error of calling one command "the compiler enforcing it": it says the command builds stratum 1 on its own feature set so the other instruments check a configuration that stands alone, that it rejects nothing by itself, and it points at POL-001 §Verification for what each of the four holds |
+| `docs/roadmap.md` §003, §*v0.1.0 acceptance coverage* rows 3 and 8, §*Open decisions*, §*Where this stands* | mark 003 closed; coverage rows 3 and 8 discharged; close the "whether 003 persists schedule state" decision; refresh the standing paragraph | the roadmap is stale at 2026-09-04 and still describes the gate as "green in both feature columns" | **applied** 2026-09-08 · §003 closed with what landed; rows 3 and 8 ticked; the persistence decision deleted, answered by "nothing persists"; the standing paragraph rewritten to 2026-09-08 and to six commands in one column; the mermaid marks S1, S2 and S3 done, and §002's heading was marked closed with them. §004 gains a pointer to ADR-004 for the slice that meets the anchor's premise. The roadmap is advisory, not canon |
+| `docs/memory/` | lift the durable facts from `notes.md` Harvest | Close step; the load-margin correction in particular is a fact a future slice would otherwise rediscover | **applied** 2026-09-08 · five files, listed under Closure below |
+| `docs/slices/003/canon-delta.md` | mark applied rather than delete | slice 002's precedent: the file stays as the slice's record of what was promoted, its header restated to say so | **applied** 2026-09-08 |
+| `CLAUDE.md` §*The authoritative documents* | **not applied** — the table's *normative protocol contract* row still names only SPEC-001 | outside PL-17's endorsement, which named one sentence. Recorded here rather than taken silently; carried as a follow-up in `slice-003.md` | **not applied**, deliberately |
+
+**Two code touches, both forced by the promotion, both behaviour-neutral.**
+Recorded here rather than left to be found: the three `"timer"` literals in
+`crates/goad-semantics/src/protocol/canonical.rs`, which CD-2 made stale (see
+the CD-2 row); and two doc comments in `crates/goad/src/diagnostics.rs` citing
+`draft-spec.md §6`, a path that stopped resolving the moment the draft moved
+into `docs/specs/`. Both now read `SPEC-002 §6`. This is slice 002's
+citations-expanded-at-promotion rule applied to the code rather than to the
+delta's own prose.
+
+**The gate after reconciliation.** `just check` was re-run afterwards and exits
+**0** in 11.4 s cold, six commands, zero warnings. Nothing about the tree's
+behaviour changed.
 
 **Edits promotion needs, beyond moving the file.** The draft matches
 `docs/templates/spec.md` section for section (1-9), and its cross-references are
@@ -464,6 +515,14 @@ retro-fitted. Four departures stand:
    assertions landed in `wiring.rs`. Not a drift in behaviour, only in the
    plan's guess about where a test would go.
 
+**All four stand as drift, and `design.md` is not retro-fitted.** None is a
+defect in the code: three are predicted numbers the tree beat or measured
+differently, and the fourth is a file a test did not need. The measured figures
+that supersede them live where measurements belong — the corrected margins in
+`notes.md` and in the Evidence section above, and the load evidence in
+`docs/memory/timed-test-margins-are-measured-at-the-bound.md`. `design.md`
+remains the record of what slice 003 intended, which is its job.
+
 **The stray `(F-1)` citation at `crates/goad-semantics/src/schedule.rs:327`.**
 Disposition: **leave it, and treat the class as the finding.** It is slice
 001-era residue on a test doc comment, and
@@ -477,11 +536,48 @@ it is recorded in the Verdict above rather than dressed up as a fix to line 327.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding — *pending the code review*
-- [x] All acceptance criteria met, or explicitly waived by the user — twelve of twelve, evidenced above
-- [x] Tests and checks green — `just check` exits 0 idle and under loadavg 164; 303 tests, 0 ignored
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended — the Reconciliation table is proposed, not applied
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `slice-nnn.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+Worked 2026-09-08, each item on evidence rather than on assertion.
+
+- [x] **All findings dispositioned; no blockers outstanding.** `review-code.md`
+      Synthesis: 22 findings over four rounds, every one `verified`,
+      **outstanding: 0**. The one blocker, F-22, closed as a class — see
+      §Code review. `review-design.md` and `review-plan.md` both resolved
+      before execution began.
+- [x] **All acceptance criteria met, or explicitly waived by the user** —
+      twelve of twelve, each re-run by the audit with `--exact`, evidenced
+      above. AC-10 carries its own stated limit (the Slint platform), which is
+      the criterion's wording and not a waiver.
+- [x] **Tests and checks green** — `just check` exits 0 idle and at loadavg
+      164; 303 tests, 0 failed, 0 ignored, no `#[ignore]` anywhere; the six
+      commands unchanged from POL-001 §Compliance. Re-run after this
+      reconciliation's edits — see *The gate after reconciliation* under
+      §Reconciliation — exit 0 in 11.4 s.
+- [x] **Specs / policy / ADRs reconciled, with user endorsement where
+      amended.** Endorsement at `plan-log.md` PL-17. SPEC-001 gained R-56 and
+      two record corrections; SPEC-002 was promoted; ADR-004 was written;
+      `CLAUDE.md`'s stale instrument sentence was replaced. No policy changed.
+      One item recorded as **deliberately not applied** (`CLAUDE.md`'s
+      authoritative-documents table), because PL-17 did not endorse it.
+- [x] **`draft-spec.md` / `canon-delta.md` promoted, or abandoned with the
+      reason written down.** `draft-spec.md` moved by `git mv` to
+      `docs/specs/002-host-scheduling-behaviour.md`; `canon-delta.md`'s three
+      entries applied and the file marked applied in place, on slice 002's
+      precedent. Nothing was abandoned.
+- [x] **`slice-nnn.md` Summary and Follow-ups written.** Six follow-ups, each
+      naming what would have to happen for it to close: the mid-answer
+      supersession (SPEC-002 OQ-4), the unproven production Slint platform, the
+      four vocabulary-scan costs still open from slice 002 D-13, the two scan
+      residues this slice's own instrument work leaves, `CLAUDE.md`'s spec
+      table, and the break-and-revert criteria that are experiments rather than
+      standing tests.
+- [x] **`notes.md` Harvest current; durable facts lifted to `docs/memory/`.**
+      Five new files — the tokio/Slint executor result, the Slint testing
+      backend's once-per-process platform, a log line written before the work
+      is not an observable of it, a bounded surface billed from the compiler,
+      and measuring a timed test's margin at the bound that governs. Two
+      existing files extended rather than duplicated: the `clippy.toml`
+      exemption boundary gains the four lints that are *never* test-exempt, and
+      the shared-`#[path]`-helper file gains FD-3's every-includer rule. One
+      further file records that a substring scan and a word-boundary scan are
+      different instruments.
+- [x] **`slice-nnn.md` stage set to `done`.**
