@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 — The arithmetic, and the third stimulus | done | 2026-09-07 |
 | PHASE-02 — The wait, and the cadence it keeps | done | 2026-09-07 |
 | PHASE-03 — What the floor bounds, and what a failure does not stop | done | 2026-09-07 |
-| PHASE-04 — What the person sees, and what the scan holds | pending | |
+| PHASE-04 — What the person sees, and what the scan holds | done | 2026-09-07 |
 | PHASE-05 — The topology | pending | |
 | PHASE-06 — Restatement, re-measurement, and the gate | pending | |
 
@@ -644,12 +644,167 @@ this phase, as PHASE-02 also noted). No file outside this phase's declared
 surfaces; `crates/goad/src/controller.rs` unmodified;
 `tests/backends/`/`tests/support/`/`Cargo.toml` untouched.
 
+### PHASE-04 — What the person sees, and what the scan holds
+
+**Objective:** the host reports the next check it holds, saying which of the
+two instants it is; two instruments in `goad-boundary` hold the claim that
+the timer resolves nothing.
+
+**Reading list**
+- `plan.md:958-1084` — the whole PHASE-04 entry (EN-1/2, EX-1..EX-5,
+  VT-1..VT-5, VA-1..VA-3, S-10..S-12, S-24, implementer notes); `plan.md`
+  FD-2 (`:170-192` approx) — the two mechanical gaps in `structure.rs`;
+  Coverage tables' AC-6/R-2 rows.
+- `design.md` §5.2 `:263-291` (D-9, D-17, the next-check line and its own
+  window property); §5.5 I-1/I-1a `:471-500` (AC-6's two resolution sites,
+  the identifier-not-path reasoning); §9 AC-6 row `:676` (the two
+  instruments, measured counts).
+- `draft-spec.md` `:150-166` — R-2, and the closing clause forbidding the
+  line from presenting the instruction as a prediction.
+- `docs/policy/001-the-phase-gate.md` (instruments; never `allow`).
+  `docs/memory/slint-build-mechanics.md` (build.rs/generated setter
+  mechanics), `clippy-toml-test-exemptions-are-a-hidden-boundary.md`,
+  `cargo-test-cwd-is-package-root-not-workspace-root.md`,
+  `expect-dead-code-ahead-of-caller-needs-cfg-attr.md` — read, none bite
+  this phase (no relocation, no cwd-relative path, no ahead-of-caller
+  helper).
+- Code read whole or by grep: `crates/goad-boundary/tests/checks/
+  structure.rs` (whole — the file plan/team-lead call `src/structure.rs`
+  does not exist; this is the one FD-2/EX-2 describe); `crates/goad-boundary/
+  src/scan.rs` `mentions` (`:208-232`) and `workspace_root`; `crates/goad/
+  ui/app.slint` (whole); `crates/goad/src/diagnostics.rs` (whole — the
+  escape/bound `finish` pipeline); `crates/goad/src/glass.rs` (whole);
+  `crates/goad/src/controller.rs` `Frame`/`Absorbed`/`next_check` (grep —
+  `Frame::next_check` already `Option<Timestamp>` from PHASE-02, untouched
+  here); `crates/goad/tests/renderer/wiring.rs` `mod transitions` and the
+  DT-5 test (`:147-201`); `crates/goad-semantics/src/protocol/canonical.rs`
+  `Timestamp` (`:103-117`, `Display` via jiff, `instant()`/`new()`).
+
+**Assumptions**
+- The team-lead brief's surface path `crates/goad-boundary/src/structure.rs`
+  is a misstatement; the real file is `crates/goad-boundary/tests/checks/
+  structure.rs`, matching `plan.md`'s own Surfaces line and FD-2. Proceeding
+  on the file that exists.
+- VT-2 (the renderer test) goes in `wiring.rs`'s `mod transitions`, beside
+  DT-1/DT-5, per the plan's own note that its fixtures already live there.
+  `tree.rs` (also listed as a surface) is read but not touched unless VT-2
+  needs a headless-tier assertion it turns out `wiring.rs` cannot make —
+  not anticipated, since `window.get_next_check()` is a direct generated
+  getter exactly like `window.get_notice()`.
+- AC-6 (b)'s matcher is the same `mentions`-based function as (a)'s: FD-2
+  says "two matchers" total (the old `str::contains` one, kept for the
+  three existing needles, and one built on `goad_boundary::scan::mentions`)
+  — `mentions` itself already branches on `::` to become a path-substring
+  match for `"schedule::resolve"`, so instrument (b) reuses the same
+  function as instrument (a) rather than needing a third.
+
+**STOP conditions watched:** S-10 (markup beyond one property/one line),
+S-11 (renaming a `wire.rs` test fn), S-12 (either instrument needs
+`goad-boundary/src/` to change), S-24 (VT-2 needs a `harness.rs` fixture).
+
+**Tasks**
+- [x] (a) `structure.rs`: directory-parameterise `subject_files`/
+      `occurrences_of`; add `mentions_occurrences_of`; two new tests
+      (VT-3, VT-4) plus vacuity guard over both directories (EX-3) plus
+      `counting_itself` controls (VT-5).
+- [x] (b) `diagnostics.rs`: `next_check_line` + VT-1 unit tests.
+- [x] (c) `app.slint`: `next-check` property + one markup line (EX-4).
+- [x] (d) `glass.rs`: write `next-check` on every `present`.
+- [x] (e) `wiring.rs`: VT-2.
+- [x] (f) refactor, lint, fmt, `just check` final.
+
+**Findings**
+- None against the design or plan. FD-2's own resolution (one
+  `mentions`-based matcher covering both AC-6 instruments, since `mentions`
+  itself branches on `::`) held exactly as the plan's Notes for the
+  implementer anticipated — no third matcher was needed.
+- The team-lead brief's stated surface `crates/goad-boundary/src/
+  structure.rs` does not exist; the real file, matching `plan.md`'s own
+  Surfaces line, is `crates/goad-boundary/tests/checks/structure.rs`. Noted
+  as an assumption above; no design/plan defect, just an imprecise brief.
+
+**Criteria discharged**
+- EX-1 — `diagnostics.rs::next_check_line(at: Timestamp) -> String` renders
+  second precision via `jiff::Timestamp::round(jiff::Unit::Second)`, falls
+  back to the unrounded instant on a rounding error (`unwrap_or`, proven at
+  `jiff::Timestamp::MIN`/`MAX`), names the instruction not the deadline
+  ("next check (instructed): …"), and goes through `finish`
+  (escape/bound).
+- EX-2 — `structure.rs` is directory-parameterised
+  (`subject_files(dir)`/`occurrences_of(dir, needle)`); two matchers, named:
+  `occurrences_of` (substring, `str::contains`, the three existing needles
+  unchanged in what they assert) and `mentions_occurrences_of`
+  (`goad_boundary::scan::mentions`, both AC-6 instruments — see FD-2 note
+  above).
+- EX-3 — `the_subject_directories_are_found_and_are_not_empty` runs the
+  vacuity guard for both `SUBJECT_DIR` and `SHELL_SUBJECT_DIR`;
+  `no_production_line_in_the_renderer_names_the_identifier_resolve` and
+  `schedule_resolve_is_called_only_from_host` each assert their own
+  directory's file count is non-zero before asserting on occurrences.
+- EX-4 — `PromptWindow` gains `in property <string> next-check`; one
+  markup line (`Text { text: root.next-check; }`) renders it below the
+  diagnostic `ScrollView`, above the Close button; `glass.rs`'s `present`
+  writes it from `Frame::next_check` on every call
+  (`frame.next_check.map(next_check_line).unwrap_or_default()`), `""` when
+  `None`. Not appended to `diagnostic-lines`; the empty-state sentinel's
+  condition (`app.slint`'s `if root.diagnostic-lines.length == 0`) is
+  byte-for-byte unchanged.
+- EX-5 — neither new instrument pins a line number: VT-4 asserts a count
+  and a `BTreeSet` of file names.
+- VT-1 — four unit tests in `diagnostics.rs`'s own `#[cfg(test)] mod tests`:
+  an ordinary instant to second precision (verified against the exact
+  string); `jiff::Timestamp::MIN` and `::MAX` both render with no panic;
+  the pipeline assertion (`LINE_LIMIT` respected).
+- VT-2 — `wiring.rs::vt2_the_next_check_line_has_its_own_property_and_
+  leaves_the_sentinel_and_the_tray_alone`, in `mod transitions` beside DT-1:
+  `""` before any exchange, non-empty after one; `Diagnostics::state() ==
+  Idle`; `nothing_to_report_shown` still true. `just check` confirms DT-5
+  (`dt1_a_...`) unchanged and green in the same run.
+- VT-3 — `no_production_line_in_the_renderer_names_the_identifier_resolve`:
+  0 occurrences over 12 `.rs` files under `crates/goad/src` (file count
+  confirmed non-zero via `find … | wc -l` = 12, matching design.md §9).
+- VT-4 — `schedule_resolve_is_called_only_from_host`: 2 occurrences over 8
+  `.rs` files under `crates/goad-shell/src`, both `host.rs` (file count
+  confirmed non-zero, `find … | wc -l` = 8).
+- VT-5 — three new `counting_itself` tests: a comment-only `resolve` is not
+  counted by the word matcher; a brace-grouped
+  `use goad_semantics::schedule::{resolve, wait_for};` **is** counted (I-1a,
+  F-3); `resolved` (the participle) is **not** counted — asserted, per
+  `mentions`'s own contract (token or its plural only).
+- VA-1 — `just check` exit 0, 14.716s real
+  (`/tmp/…/scratchpad/gate-final-phase04.log`).
+- VA-2 — break-and-revert on VT-3: added
+  `use goad_semantics::schedule::{resolve, wait_for};` to `controller.rs`,
+  confirmed `no_production_line_in_the_renderer_names_the_identifier_resolve`
+  failed naming `controller.rs:15`, reverted (`git diff` empty after).
+- VA-3 — break-and-revert on VT-4: added a third
+  `schedule::resolve(None, None, …)` call site to `host.rs::new`, confirmed
+  the count assertion failed `left: 3, right: 2` naming `host.rs:128`,
+  `:129`, `:260`, reverted (`git diff` empty after).
+- S-10, S-11, S-12, S-24 — none triggered. `app.slint` carries exactly one
+  new property and one new markup line; no `wire.rs` test fn was renamed;
+  `goad-boundary/src/` is untouched (`mentions`, `code_of`, `workspace_root`
+  were already `pub`); VT-2 needed no `harness.rs` fixture —
+  `window.get_next_check()` is a direct generated getter, the same pattern
+  `window.get_notice()` already uses.
+
+**`just check` (final):** exit 0, 14.716s real
+(`/tmp/…/scratchpad/gate-final-phase04.log`).
+
+**`git status --short`:** `crates/goad-boundary/tests/checks/structure.rs`,
+`crates/goad/src/{diagnostics.rs,glass.rs}`, `crates/goad/tests/renderer/
+wiring.rs`, `crates/goad/ui/app.slint`, `docs/slices/003/notes.md` modified;
+`flake.lock` modified but pre-dates this session (untouched by this phase,
+as PHASE-02/03 also noted). `controller.rs`, `goad-boundary/src/`,
+`harness.rs`/`scheduling.rs`/`table.rs`, `tests/support/`, every manifest —
+all confirmed untouched (`git diff --stat` empty for each).
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-07 · PHASE-03 done · tree not yet committed for this
+**Fresh as of:** 2026-09-07 · PHASE-04 done · tree not yet committed for this
 phase
 
 ### Produced
@@ -680,6 +835,19 @@ phase
   `logs-the-request-then-answers.sh` covered every case.
 - `crates/goad-shell/src/config.rs`: `ScheduleConfig::default_poll`'s doc
   comment (PHASE-03/EX-2), citing SPEC-002/R-5 and SPEC-001/R-21.
+- `crates/goad/src/diagnostics.rs::next_check_line` — the standing
+  schedule's own rendered line, second precision, through the escape/bound
+  pipeline (PHASE-04/EX-1). `PromptWindow`'s new `next-check` property
+  (`app.slint`) and `glass.rs`'s total write of it on every `present`
+  (PHASE-04/EX-4) — kept out of `diagnostic-lines` per D-17, so the
+  "Nothing to report." sentinel and DT-5 survive unchanged.
+- `crates/goad-boundary/tests/checks/structure.rs`: directory-parameterised
+  (`SUBJECT_DIR`, `SHELL_SUBJECT_DIR`); AC-6's two instruments —
+  `mentions_occurrences_of`, built on `goad_boundary::scan::mentions`,
+  asserting no production line in `crates/goad/src` names the identifier
+  `resolve` (0/12 files) and that `schedule::resolve` occurs exactly twice
+  in `crates/goad-shell/src`, both in `host.rs` (2/8 files) (PHASE-04/EX-2,
+  EX-3).
 
 ### Learned
 - The design's exact `wait_for` body (`design.md:155-160`) compiles clean

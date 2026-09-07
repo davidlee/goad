@@ -8,7 +8,9 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, StyledText, VecModel};
 
 use crate::controller::{Frame, Surface};
-use crate::diagnostics::{Diagnostics, TrayState, report_platform, tooltip, tray_icon};
+use crate::diagnostics::{
+  Diagnostics, TrayState, next_check_line, report_platform, tooltip, tray_icon,
+};
 use crate::generated::{OptionRow, PromptWindow, Tray, WindowMode};
 use crate::reception::Prepared;
 use crate::view_model::Body;
@@ -98,6 +100,9 @@ impl Glass for SlintGlass {
     self
       .window
       .set_diagnostic_lines(ModelRc::new(VecModel::from(lines)));
+
+    let next_check = frame.next_check.map(next_check_line).unwrap_or_default();
+    self.window.set_next_check(next_check.into());
 
     self.window.set_notice(SharedString::new());
 

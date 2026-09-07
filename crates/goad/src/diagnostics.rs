@@ -13,6 +13,7 @@
 
 use std::fmt::{self, Write as _};
 
+use goad_semantics::protocol::canonical::Timestamp;
 use goad_semantics::protocol::normalize::Discarded;
 use goad_shell::backend::transport::Captured;
 use goad_shell::error::CleanupFailure;
@@ -261,6 +262,26 @@ pub fn tooltip(diagnostics: &Diagnostics, waiting: bool) -> String {
   }
 }
 
+/// The standing schedule's own line (D-9, D-17). Not a `Diagnostics` line
+/// and not one `Diagnostics` renders: a standing schedule is not an
+/// exchange's product. It names what it renders — the resolved next check
+/// the host holds and reports, which is the **instruction**, never a
+/// prediction of when the host will actually fire (draft-spec.md R-2's
+/// closing clause) — because the floor, a refused firing, or a suspend can
+/// each move the real deadline later without moving this value.
+///
+/// Second precision: sub-second detail is not meaningful to a person
+/// reading a clock. Falls back to the unrounded instant if rounding errors
+/// at the edge of representable time, rather than panicking (VT-1).
+#[must_use]
+pub fn next_check_line(at: Timestamp) -> String {
+  let rounded = at
+    .instant()
+    .round(jiff::Unit::Second)
+    .unwrap_or(at.instant());
+  finish(&format!("next check (instructed): {rounded}"), LINE_LIMIT)
+}
+
 /// The transient back-pressure line. `Wire::send` is its only writer
 /// (design.md §5.3). Back-pressure, not a fault: it never enters
 /// `Diagnostics` and never touches the tray.
@@ -418,4 +439,49 @@ fn sample_covered(x: u32, y: u32, i: u32, j: u32, inner_sq: u32) -> bool {
   let dy = sample_y.abs_diff(CENTRE);
   let distance_sq = dx.saturating_mul(dx).saturating_add(dy.saturating_mul(dy));
   distance_sq <= OUTER_SQ && distance_sq >= inner_sq
+}
+
+// `next_check_line` is tested here, inline, alongside every other pure
+// rendering function on this surface (VT-1) — `mod tests`'s cut is also
+// what `goad-boundary`'s AC-6 (a) instrument relies on to stay clear of
+// this file's own test fixtures.
+#[cfg(test)]
+mod tests {
+  use super::next_check_line;
+  use goad_semantics::protocol::canonical::Timestamp;
+
+  #[test]
+  fn an_ordinary_instant_renders_to_second_precision() {
+    let at = Timestamp::new("2026-09-07T04:34:14.987654321Z".parse().unwrap());
+    assert_eq!(
+      next_check_line(at),
+      "next check (instructed): 2026-09-07T04:34:15Z"
+    );
+  }
+
+  #[test]
+  fn the_line_names_the_instruction_not_a_deadline() {
+    let at = Timestamp::new("2026-09-07T04:34:14Z".parse().unwrap());
+    assert!(next_check_line(at).starts_with("next check (instructed): "));
+  }
+
+  #[test]
+  fn rounding_at_the_edge_of_representable_time_does_not_panic() {
+    let at = Timestamp::new(jiff::Timestamp::MAX);
+    let line = next_check_line(at);
+    assert!(line.starts_with("next check (instructed): "), "{line}");
+  }
+
+  #[test]
+  fn the_line_goes_through_the_escape_and_bound_pipeline() {
+    // `jiff::Timestamp`'s `Display` contains no control character and is
+    // far short of `LINE_LIMIT`, so this asserts the pipeline ran (the
+    // fixed prefix survives verbatim) rather than that it changed anything
+    // — `Escaped`/`bound` are exercised for real by `Diagnostics::of`'s and
+    // `refused`'s own tests elsewhere on this surface.
+    let at = Timestamp::new(jiff::Timestamp::MIN);
+    let line = next_check_line(at);
+    assert!(line.starts_with("next check (instructed): "), "{line}");
+    assert!(line.chars().count() <= super::LINE_LIMIT);
+  }
 }

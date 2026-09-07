@@ -148,9 +148,9 @@ mod transitions {
   use i_slint_backend_testing::ElementHandle;
 
   use super::{
-    A_PROTOCOL_FAILURE, A_SECOND_VIEW, Controller, Exchanged, Glass, Surface, TIMEOUT, TWO_OPTIONS,
-    accessible_enabled_of, glass_over, host, in_diagnostic_mode, in_prompt_mode,
-    nothing_to_report_shown, now, quiet_event, scripted, window_and_tray,
+    A_PROTOCOL_FAILURE, A_SECOND_VIEW, CLEAN_NO_VIEW, Controller, Exchanged, Glass, Surface,
+    TIMEOUT, TWO_OPTIONS, accessible_enabled_of, glass_over, host, in_diagnostic_mode,
+    in_prompt_mode, nothing_to_report_shown, now, quiet_event, scripted, window_and_tray,
   };
 
   /// DT-1 and DT-5 together: a clean outcome clears diagnostics and the
@@ -197,6 +197,49 @@ mod transitions {
       controller.frame().diagnostics.state(),
       goad::diagnostics::TrayState::Idle,
       "the tray returns to idle immediately — disagreeing with the still-open window (DT-5)"
+    );
+  }
+
+  /// PHASE-04/VT-2: the standing next-check line reaches its own window
+  /// property, "" before any exchange has resolved one; it does not
+  /// affect `Diagnostics::state()` (a standing schedule is not a fault);
+  /// and — the regression D-17 exists to prevent — "Nothing to report."
+  /// still renders on a clean outcome with a next check standing, because
+  /// the line is not a `diagnostic-lines` row.
+  #[tokio::test]
+  async fn vt2_the_next_check_line_has_its_own_property_and_leaves_the_sentinel_and_the_tray_alone()
+  {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("wiring-vt2", &[CLEAN_NO_VIEW]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    controller.open_diagnostics();
+    glass.present(controller.frame());
+    assert_eq!(
+      window.get_next_check(),
+      "",
+      "no exchange has resolved a next check yet"
+    );
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    glass.present(controller.frame());
+
+    assert_ne!(
+      window.get_next_check(),
+      "",
+      "an exchange has resolved a next check"
+    );
+    assert_eq!(
+      controller.frame().diagnostics.state(),
+      goad::diagnostics::TrayState::Idle,
+      "a standing schedule is not a fault"
+    );
+    assert!(
+      nothing_to_report_shown(&window),
+      "the next-check line is not a diagnostic-lines row, so the sentinel still renders (D-17)"
     );
   }
 
