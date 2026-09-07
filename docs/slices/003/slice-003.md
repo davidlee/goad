@@ -1,6 +1,6 @@
 # Slice 003: Scheduling — the timer that turns a resolved instant into an evaluation
 
-**Stage:** design
+**Stage:** planned
 **Depends on:** slice 001 (closed) — SPEC-001, `schedule::resolve`, `Host` and
 the resolved next check. Slice 002 (closed) — the renderer, the `serve` loop,
 the wall clock, and the one observable surface a scheduled evaluation can show
@@ -68,8 +68,15 @@ Surfaces this slice may touch.
 - `crates/goad/src/wire.rs` — `Stimulus` gains `Scheduled`, `kind` =
   `"scheduled"` (D-10). `Command` gains nothing; see Non-goals.
 - `crates/goad/src/diagnostics.rs` — one new pure function rendering the
-  next-check line, and `crates/goad/src/glass.rs` appends it to the diagnostic
-  model it already builds (D-9).
+  next-check line, and `crates/goad/src/glass.rs` writes it to the window
+  (D-9).
+- `crates/goad/ui/app.slint` — **one property and one markup line.**
+  `PromptWindow` gains `in property <string> next-check`, rendered below the
+  diagnostic list. It is deliberately **not** appended to `diagnostic-lines`:
+  the markup derives the surface's empty state from that model's length, so an
+  appended row would delete "Nothing to report." and retire slice 002's DT-1
+  and DT-5 by side effect (design D-17). Nothing else in the markup changes,
+  and a second markup change is a STOP.
 
 **Configuration:**
 
@@ -83,13 +90,28 @@ Surfaces this slice may touch.
 **Tests:**
 
 - `crates/goad/tests/renderer/` — the cheap tier, where scheduled behaviour over
-  simulated or short real time is asserted.
+  simulated or short real time is asserted. Two new modules: `scheduling.rs`,
+  the timer's own tests, and `harness.rs`, which takes the seven fixtures two
+  modules of this target now share — on the pattern
+  `crates/goad-shell/tests/integration/harness.rs` already sets, where what two
+  or more case files need lives in the target and what one needs stays where it
+  is.
 - **A new `[[test]]` target** for AC-10 — `crates/goad/tests/event_loop_schedule/`,
   its own process because the Slint testing backend initialises once per
   process, which is why `tests/event_loop/` already holds exactly one test
   (D-12). `crates/goad/tests/event_loop/` itself is unchanged.
 - `tests/support/driving.rs` and `tests/backends/` — helpers and scripted
   backends extended, not duplicated.
+- **A new shared helper file, `tests/support/scripting.rs`,** and the
+  `#[path]` and `use` lines of the two existing targets that consume it —
+  `crates/goad/tests/renderer/{main.rs, wiring.rs, table.rs, scheduling.rs}` and
+  `crates/goad-shell/tests/integration/{main.rs, harness.rs, round_trip.rs,
+  failure_matrix.rs, transport.rs, host.rs}`. Six scripted-backend helpers move
+  out of `driving.rs` **unchanged** so the AC-10 target can include only what it
+  uses: `dead_code` is `warn` and the gate's `-D warnings` promotes it, so every
+  `pub(crate)` symbol in a `#[path]`-shared file must be reachable from every
+  includer (design D-18). **Include and import lines only** in the ten existing
+  files; no symbol renamed and no body changed, and a changed body is a STOP.
 - `crates/goad-boundary/tests/checks/` — AC-6's two instruments, which is where
   every scan in the workspace lives (ADR-003 §Decision). No change to
   `crates/goad-boundary/src/`: both are configurations of machinery that

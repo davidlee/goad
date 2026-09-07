@@ -8,7 +8,12 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 — The arithmetic, and the third stimulus | pending | |
+| PHASE-02 — The wait, and the cadence it keeps | pending | |
+| PHASE-03 — What the floor bounds, and what a failure does not stop | pending | |
+| PHASE-04 — What the person sees, and what the scan holds | pending | |
+| PHASE-05 — The topology | pending | |
+| PHASE-06 — Restatement, re-measurement, and the gate | pending | |
 
 ## Phase sheets
 

@@ -335,3 +335,92 @@ other, citing the finding id.
   the tests; `slice-003.md` AC-6 and AC-9 match. F-19 and F-20 are corrections
   inside §9 alone: AC-3's row now describes the test the margin table describes,
   its margin is 3x rather than 200x, and AC-7's timed assertion is in the table.
+
+### 2026-09-07 — FD-1: the next-check line gets its own window property, not a row in `diagnostic-lines`
+
+- **Asked:** the plan stage (`plan.md` FD-1) found that §5.2's placement —
+  `glass.rs` appending the next-check line to the model it already builds from
+  `Diagnostics::lines()` — silently deletes the diagnostic surface's
+  empty-state sentinel. The markup renders it on that model's length
+  (`crates/goad/ui/app.slint:60`, `if root.diagnostic-lines.length == 0: Text {
+  text: "Nothing to report."; }`), so once any exchange has completed the model
+  is never empty and the sentence can never appear. The assertion that fails is
+  `crates/goad/tests/renderer/wiring.rs::dt1_a_clean_outcome_under_diagnostic_
+  mode_clears_lines_but_leaves_the_window_open`, which holds slice 002's DT-1
+  and DT-5 — *"the one case the tray (now) and the window (what happened) are
+  allowed to disagree"*. Two answers: a dedicated window property for the line,
+  or accept the loss and rewrite the assertion.
+- **Recommended (plan agent):** the dedicated property.
+- **Decided (agent, under the standing grant):** **the dedicated property.**
+  `PromptWindow` gains `in property <string> next-check`, rendered as its own
+  line on the diagnostic surface, separate from `diagnostic-lines`. The
+  sentinel and DT-5's behaviour are untouched. `crates/goad/ui/app.slint`
+  enters the slice's Scope **for that property and its one markup line only**;
+  anything further in the markup is a STOP.
+- **Rejected:** appending to `diagnostic-lines` and rewriting `dt1`'s
+  assertion. It retires a user-visible behaviour by side effect, in a slice
+  whose charter does not propose to touch the diagnostic surface's empty state
+  at all — and it does so by conflating two facts the design has already
+  separated everywhere else. D-9 keeps the line out of `Diagnostics` precisely
+  because a standing schedule is not an exchange's product and carries no fault
+  bit; putting it back into the same rendered model undoes that argument at the
+  last step. The cost of the repair is two lines of markup and one setter.
+- **Consequence:** D-17 (§7). §5.2's *Stratum 3 — the sentence* names the
+  property rather than the model; §5.3's ownership table is unchanged (the fact
+  and its owner do not move — only where the glass writes it); D-9's row is
+  amended to say *outside `Diagnostics` and outside `diagnostic-lines`*;
+  `slice-003.md`'s Scope gains the markup file with its bound. `plan.md`
+  PHASE-04 declares `app.slint` unconditionally and its FD-1 entry criterion is
+  discharged here rather than at the phase.
+
+### 2026-09-07 — FD-3: the AC-10 target's helpers, and the scope it widens
+
+- **Asked:** `review-plan.md` F-3, second limb. `plan.md`'s FD-3 found that a
+  third target including `tests/support/driving.rs` fails the gate —
+  `dead_code` is `warn` (`Cargo.toml:103`) and the gate's `-D warnings` promotes
+  it, so every `pub(crate)` symbol in a `#[path]`-shared file must be reachable
+  from every includer, and thirteen of the file's nineteen would not be.
+  `plan-log.md` PL-5 answered by splitting the file, and decided it under the
+  standing grant as a plan question. But PL-8 escalated FD-1 rather than
+  deciding it, on the stated reason *"Either answer also widens the slice's
+  declared scope by one file."* FD-3's answer widens it by **eight**, including
+  an entire test target of another crate. Same test, opposite treatment. So:
+  does the split stand, and is it a plan decision or a design one?
+- **Recommended (plan agent):** the split stands; the widening is a design
+  decision and is recorded as one.
+- **Decided (agent, under the standing grant):** **both.** The split stands, and
+  it is recorded here as **D-18** rather than left as a plan decision.
+- **Why the split stands.** The finding is right that PL-5 never evaluated the
+  cheapest alternative — `#[allow(dead_code)]` on the new target's own `#[path]`
+  module declaration, one line against ten files — and right that PL-5's
+  objection to the per-symbol `#[expect]` does not reach it. Evaluated now, it
+  is refused by canon rather than by taste. POL-001 §Compliance states what lint
+  discipline the gate permits: *"a **site-local** `#[expect(lint, reason = …)]`
+  at the narrowest scope that works, argued where it is written, on code that
+  genuinely cannot satisfy a lint — **never `allow`**, which is silent when it
+  stops being true."* `docs/memory/expect-dead-code-ahead-of-caller-needs-cfg-
+  attr.md` says the same from experience: *"treat any other spelling (a plain
+  `#[allow]`, a bare `#[expect]`) as a defect."* Substituting `#[expect]` does
+  not rescue it: a module-wide expectation over a hand-written shared helper is
+  not site-local, and POL-001's one module-scoped carve-out is the generated-code
+  quarantine. Against that, the split is the pattern this repository already
+  records —
+  `docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md`: *"When a
+  later change makes a shared symbol unused by one includer, move it out
+  immediately … this re-settlement is expected maintenance, not a sign the split
+  was wrong."* The closure was re-traced at HEAD and is exactly six symbols:
+  `scripted` → `logging_backend` → `backend` and `marker` → `clear`, with
+  `invocations` called directly.
+- **Why it is a design decision.** `slice-003.md`'s Scope is explicit to the
+  file for tests as well as for source, and a whole test target of another crate
+  is not a detail. Consistency with PL-8 is the point rather than the file
+  count: a plan may not widen a slice's charter on its own recognisance.
+- **Rejected:** the `#[allow]`, the module-wide `#[expect]`, restating the six
+  helpers in the new target (`CLAUDE.md` forbids a parallel implementation), and
+  leaving the widening as a plan decision on the ground that it is test-only.
+- **Consequence:** D-18 (§7). `slice-003.md`'s Scope gains
+  `tests/support/scripting.rs` and the include-and-import lines of the
+  `renderer` and `integration` targets. `plan.md`'s FD-3 carries the argument on
+  the page and PHASE-05's surfaces are unchanged — they were already correct.
+  `plan-log.md` PL-10 records the alternative and PL-13 the escalation. No
+  `canon-delta.md` entry: POL-001 is applied here, not amended.

@@ -259,8 +259,22 @@ pub fn next_check_line(at: Timestamp) -> String
 
 Second precision, via `jiff::Timestamp::round(jiff::Unit::Second)` falling back
 to the unrounded instant if rounding errors at the edge of representable time.
-`glass.rs` appends the line to the model it already builds from
-`Diagnostics::lines()`, after the diagnostic lines and before nothing.
+
+**It gets its own window property, not a row in `diagnostic-lines`** (D-17).
+`PromptWindow` gains `in property <string> next-check`, written by `glass.rs`
+from `Frame::next_check` on every `present` and rendered as its own line on the
+diagnostic surface, below the diagnostic list. It is **not** appended to the
+model `glass.rs` builds from `Diagnostics::lines()`, because the markup derives
+the surface's empty state from that model's length
+(`crates/goad/ui/app.slint`, `if root.diagnostic-lines.length == 0: Text {
+text: "Nothing to report."; }`): a line appended there would mean the sentence
+could never appear again after the first exchange, retiring slice 002's DT-1
+and DT-5 — *the one case the tray and the window are allowed to disagree* — by
+side effect. The separation is the same one D-9 already makes in the types: a
+standing schedule is not an exchange's product, so it is neither a
+`Diagnostics` line nor one of the lines a `Diagnostics` renders. It costs two
+lines of markup and one setter. `crates/goad/ui/app.slint` is in scope for that
+property and its one markup line, and for nothing else.
 
 **The line says which of the two instants it is** (D-9, F-10). What it renders
 is the resolved next check the host *holds and reports* — the value R-28
@@ -611,8 +625,9 @@ All nine are closed. OQ-1 to OQ-4 by the user, OQ-5 to OQ-9 by the agent under
 the standing grant recorded in `design-log.md`. Their answers are D-1 to D-13
 below. D-14 to D-16 answer no open question: they are decisions taken in
 response to adversarial review round 1, dispositioned under the same grant and
-recorded in `design-log.md` citing the finding ids. Nothing remains open at
-design acceptance.
+recorded in `design-log.md` citing the finding ids. D-17 is later still — it
+answers a defect the *plan* stage found in this design (`plan.md` FD-1), taken
+under the same grant and recorded the same way. Nothing remains open.
 
 ## 7. Decisions, rationale & alternatives
 
@@ -626,7 +641,7 @@ design acceptance.
 | D-6 | `tokio::time::Sleep`, pinned, re-armed with `reset` | `slint::Timer` | Slint timers do not run under `init_no_event_loop()`, which is the cheap tier's harness; and it would be a second time source | OQ-7 |
 | D-7 | No mock clock, in either tier | tokio `test-util`; Slint mock time | tokio's auto-advance fires the transport's own timeout instantly against a real child; Slint's clock cannot advance tokio's timers | OQ-8 |
 | D-8 | A past instant fires, and does not re-fire on account of having elapsed. Whether cadence resumes is the backend's to determine (E-1); the minimum spacing is what bounds the host when it does not. No wake stimulus, no jump detection | A wake stimulus; discontinuity detection; bounded slices | Keeps one resolution site and adds no state. The monotonic-suspend consequence is stated as R3 rather than hidden | OQ-5, F-1 |
-| D-9 | One line on the diagnostic surface, outside `Diagnostics`, naming what it renders: the instruction, not the deadline | A field inside `Diagnostics`; a tray countdown; a second `Frame` field carrying the deadline | `Diagnostics` is an exchange's product and carries a fault bit; a standing schedule is neither. The deadline is a monotonic `tokio::time::Instant` with no wall-clock rendering, so showing it would need a second clock read per frame; the honest cheap repair is for the line to say which instant it is (F-10) | OQ-3, F-10 |
+| D-9 | One line on the diagnostic surface, outside `Diagnostics` — and, per D-17, outside `diagnostic-lines` too — naming what it renders: the instruction, not the deadline | A field inside `Diagnostics`; a tray countdown; a second `Frame` field carrying the deadline | `Diagnostics` is an exchange's product and carries a fault bit; a standing schedule is neither. The deadline is a monotonic `tokio::time::Instant` with no wall-clock rendering, so showing it would need a second clock read per frame; the honest cheap repair is for the line to say which instant it is (F-10) | OQ-3, F-10 |
 | D-10 | `Stimulus::Scheduled`, `kind` = `"scheduled"`, `source` stays `"host"` | `"poll"` with source `"scheduler"` (brief §8.1); source `"timer"` (SPEC-001 §6.1) | The spec is the contract and already writes `"scheduled"`; the host has always emitted `"host"` as the source, and the spec's example is what is wrong | OQ-4 |
 | D-11 | The wait is computed from the `now` the request carried | A fresh clock read after the exchange | No added clock read, no added failure path, and the error is always in the safe direction — later, never sooner | OQ-8 |
 | D-12 | AC-10 gets its own `[[test]]` target under `init_integration_test_with_system_time()` | A second `#[test]` in `event_loop` | The testing backend initialises once per process, which is why that target already holds exactly one test | OQ-8 |
@@ -634,6 +649,8 @@ design acceptance.
 | D-14 | `MINIMUM_SPACING` lives in stratum 3 beside the loop that applies it; `wait_for` takes no floor and stratum 1 holds arithmetic only | The constant in `goad-semantics::schedule`, passed to `wait_for` | Three seconds is a host operational budget, read only by stratum 3, and its siblings (`default_poll`, the backend timeout, the transport's cleanup budget) all live above stratum 1. None of ADR-001's four instruments sees a policy constant placed downward, so placement is held by argument, not by scan (F-12). D-3's anchor makes it forced as well as tidy: the floor is now a `max` against a monotonic instant, a type stratum 1 cannot name | F-12 |
 | D-15 | `absorb` returns `Absorbed { shift, next_check }`; the loop reads the total return value, never the `Option` field | `.expect` at the re-arm; an `Option`-returning accessor; a `Controller` method owning the re-arm | `expect_used = "deny"` is workspace-wide and carved out for tests only (`clippy.toml:20-23`), and POL-001 forbids suppressing a lint to make a phase green. `Outcome::next_check` is concrete on every outcome (`host.rs:76`), so a completed exchange always has one — the totality is real, not asserted (F-4) | F-4 |
 | D-16 | AC-6 is two instruments, both built on `structure.rs`'s production-code walk (cut at `#[cfg(test)]`, comments stripped): identifier-absence over stratum 3, and a count-by-file over stratum 2. No line numbers | One grep for the path `schedule::resolve` across the tree; a `scan::Scan` for the identifier; renaming the two stratum 3 test functions that trip it | A path grep is defeated by the brace-grouped import this slice makes natural, admits five sites rather than two, and pins lines that move (F-3). An item cannot be called without being named, so forbidding the identifier holds regardless of import style. `Scan` reads every line of every file and has no `#[cfg(test)]` cutoff, so it is red on the tree today (F-17); renaming the test functions would buy a green gate with an instrument that forbids an English word in test code | F-3, F-17 |
+| D-18 | The AC-10 test target's shared helpers come from a **split** of `tests/support/driving.rs`, not from a lint suppression: `backend`, `marker`, `clear`, `logging_backend`, `invocations` and `scripted` move to a new `tests/support/scripting.rs`, and the slice's Scope widens to name it and the include-and-import lines of the two existing targets that consume it | `#[allow(dead_code)]` on the new target's own `#[path]` module declaration (one line against ten files); `#[expect(dead_code)]` in the same place; restating the six helpers in the new target; making AC-10 a second `#[test]` in `tests/event_loop/` | `dead_code` is `warn` (`Cargo.toml:103`) and the gate's `-D warnings` promotes it, so every `pub(crate)` symbol in a `#[path]`-shared file must be reachable from every includer, and thirteen of nineteen would not be. POL-001 §Compliance authorises a site-local `#[expect(…, reason)]` and says **never `allow`**; a module-wide `#[expect]` over a hand-written helper is not site-local, and POL-001's one module-scoped carve-out is the generated-code quarantine. `docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md` already records the split as *"expected maintenance"*, and `CLAUDE.md` forbids restating the helpers. The widening is recorded here rather than decided in the plan because FD-1's one-file widening was escalated on that reasoning and this is eight | FD-3, PL-10, PL-13 |
+| D-17 | The next-check line is written to a dedicated `next-check` property on `PromptWindow`, rendered below the diagnostic list; `crates/goad/ui/app.slint` is in scope for that property and its one markup line only | Appending it to the model built from `Diagnostics::lines()`, and rewriting the DT-1 assertion that then fails | The markup derives the diagnostic surface's empty state from `diagnostic-lines.length`, so an appended row deletes "Nothing to report." for the life of the process and retires slice 002's DT-1 and DT-5 by side effect. D-9 keeps the line out of `Diagnostics` because a standing schedule is not an exchange's product; putting it back into the same rendered model undoes that argument at the last step. Two lines of markup and one setter | FD-1 |
 
 ## 8. Risks & mitigations
 
