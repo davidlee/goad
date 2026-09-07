@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-03 — What the floor bounds, and what a failure does not stop | done | 2026-09-07 |
 | PHASE-04 — What the person sees, and what the scan holds | done | 2026-09-07 |
 | PHASE-05 — The topology | done | 2026-09-07 |
-| PHASE-06 — Restatement, re-measurement, and the gate | pending | |
+| PHASE-06 — Restatement, re-measurement, and the gate | done | 2026-09-07 |
 
 ## Phase sheets
 
@@ -1052,13 +1052,233 @@ restatement. The VA-1 binary-count finding above ("six", plan said "seven")
 is cosmetic and needs no repair, but PHASE-06's own restatement should not
 copy the plan's "seven" figure forward uncritically.
 
+### PHASE-06 — Restatement, re-measurement, and the gate
 
+**Objective:** every document in the slice folder is true about the tree, the
+margin table is measured rather than estimated, and the gate is green from a
+clean clone.
+
+**Reading list**
+- `plan.md:1212-1306` — the whole PHASE-06 entry: EN-1/EN-2; EX-1..EX-6;
+  VA-1..VA-5; S-16..S-19; implementer notes.
+- `plan-log.md` PL-14, PL-15, PL-16 — the two `plan.md` corrections billed to
+  this phase (PHASE-02's EX-12 prose/table, and its "Must not touch" list vs.
+  its own implementer note on `tests/backends/`).
+- `design.md` §9 (`:665-736`) — the margin table (not retro-fitted; measured
+  numbers live here in `notes.md` instead, per PL-6/PL-11) and R1's own
+  framing of what the anti-spin floors cost.
+- `slice-003.md` Acceptance criteria (`:164-261`); `draft-spec.md` (whole,
+  SPEC-002 draft); `canon-delta.md` (whole, CD-1..CD-3).
+- `docs/policy/001-the-phase-gate.md` — the six-command gate, the four
+  ADR-001 instruments + vocabulary scan + residue counting rule.
+- `docs/memory/*.md`, all 16 read across PHASE-01..05's sheets; this phase
+  adds a durable-fact candidate on `print_stderr`/`use_debug` having no test
+  exemption (PHASE-05 Findings, confirmed against `Cargo.toml:151-152` and
+  `clippy.toml`'s four `allow-*-in-tests` keys, neither of which names them).
+- PHASE-01..05's phase sheets above (whole) — Findings and handover notes are
+  this phase's restatement-sweep worklist, not re-derived.
+
+**Assumptions & STOP conditions**
+- S-16 — a document cannot be made true without a code change: STOP, finding
+  for audit, not a documentation edit.
+- S-17 — tempted to retro-fit `design.md` to match what shipped: STOP, record
+  under Design drift instead.
+- S-18 — any `just check` run is red or intermittently red: STOP.
+- S-19 — a collected margin is below threshold (liveness < 5x, or gate wall
+  time > 8.276s = slice 002's 5.276s baseline + 3s): STOP, consult, do not
+  widen/shorten/pass over.
+- Surfaces: `docs/slices/003/{plan.md, notes.md, slice-003.md, draft-spec.md,
+  canon-delta.md}`. No source file, no manifest, no markup. Must not touch
+  `docs/specs/`, `docs/policy/`, `docs/adr/`, `CLAUDE.md`, `design.md`.
+
+**Tasks**
+- [x] Verify EN-1/EN-2 before editing.
+- [x] Restatement sweep over `docs/slices/003/*.md` prose only (EX-1..EX-6);
+      source-file doc comments/test names are outside this phase's Surfaces
+      line ("No source file, no manifest, no markup") — a document truth
+      that needs a code change is S-16, named as a finding, not fixed here.
+- [x] The two `plan-log.md`-billed `plan.md` corrections (PHASE-02 EX-12,
+      PHASE-02 Must-not-touch), plus the two PL-16-named restatement notes
+      (PHASE-05 "seven"→"six", PHASE-03 VA-2 "~105 ms" mismatch).
+- [x] Collect the measured margin table from PHASE-02/03/05's sheets into one
+      table here; re-run the timed targets three times.
+- [x] Clean-clone gate (VA-1) on HEAD; working-tree gate for this phase's own
+      edits.
+- [x] Vocabulary scan (VA-2/AC-11).
+- [x] `slice-003.md` AC pointers (EX-3); `canon-delta.md` CD-1 re-read
+      (EX-2); `draft-spec.md` R-1..R-11 verified-by check (EX-1).
+- [x] Harvest updated; Status → `done`.
+
+**Findings**
+- The stray `(F-1)` citation PHASE-01 flagged at `schedule.rs:327` (inside
+  `#[cfg(test)] mod tests`, pre-dating this slice at `ad811c6d`) is **not**
+  repaired here: `schedule.rs` is a source file, and this phase's Surfaces
+  line is explicit — "No source file, no manifest, no markup." This is
+  S-16's case exactly (a document/comment cannot be made true without
+  touching code outside the declared surface), so it stays a finding for
+  audit rather than a fix taken on this phase's own initiative. Already
+  named in the Open section above (PHASE-01/Learned); restated here so the
+  restatement sweep's own scope is clear — it covers `docs/slices/003/*.md`
+  prose, not source-file doc comments or test names, which PHASE-06's plan
+  entry never lists among its exit criteria (EX-1..EX-6 name only the five
+  markdown files).
+
+**`plan.md` corrections made (PL-16), one line each:**
+- PHASE-02/EX-12: the bill's lead sentence "ten imported items across eight
+  `use` lines... four go, four narrow" corrected to "eleven imported items
+  across nine `use` lines... four deleted, five narrow" (matching its own
+  table, which already had 3 deleted + 5 narrowed + 1 added), and the missing
+  ninth line, `:13 use std::time::Duration;` (deleted), added as its own
+  table row — `harness.rs`'s mirror-image list already named `Duration`, only
+  the bill's own table and count were short.
+- PHASE-02's "Must not touch" list: `tests/backends/` narrowed to except the
+  one new script PHASE-02's own implementer note pre-authorises, so the list
+  no longer contradicts itself.
+- PHASE-05/VA-1: "seven test binaries" corrected to "six", naming them.
+- PHASE-03/VA-2: the "~105 ms liveness... same shape as VT-1's" note for
+  VT-5/VT-6 corrected — VT-1's own shape is ~6-12 ms (unfloored), not
+  ~105 ms (`default_poll`-gated); the note had copied the wrong template.
+
+**Criteria discharged**
+- EX-1 — `draft-spec.md` §7 rewritten: every requirement R-1..R-11's *verified
+  by* row now names the test that holds it, by file and function, checked to
+  exist by grep against the tree before citing (23 function names across
+  `crates/goad-semantics/src/schedule.rs`, `crates/goad/tests/renderer/
+  {scheduling.rs, wiring.rs}`, `crates/goad-boundary/tests/checks/
+  structure.rs`). R-11 stays recorded as review, not a test. R-9's row states
+  plainly that no standing test asserts the construction directly — it is
+  witnessed by six pre-existing `serve` tests continuing to pass unchanged.
+- EX-2 — `canon-delta.md` CD-1's R-56 re-read against `crates/goad/src/
+  wire.rs:42-67`: `Stimulus::event` writes `source: "host"` unconditionally
+  and `kind()` returns exactly `"startup"` | `"requested"` | `"scheduled"` —
+  matches CD-1 verbatim, no correction needed. CD-2 (the SPEC-001 §6.1
+  illustration) and CD-3 (the Boundaries pointer) are prose changes with
+  nothing in the tree to drift against; both re-read, both stand as written.
+- EX-3 — `slice-003.md`'s twelve acceptance criteria each now carry a
+  **Discharged by:** pointer naming the phase/criterion (matching this plan's
+  Coverage table exactly) and are checked `[x]`.
+- EX-4 — Harvest updated below (Produced/Learned/Open), current as of this
+  phase.
+- EX-5 — the measured margin table, below. No row breaches 5x; no gate wall
+  time breaches baseline+3s (S-19 not triggered).
+- EX-6 — `just -n check` prints the same six commands, same order, as
+  `docs/policy/001-the-phase-gate.md` §Compliance. Confirmed this session.
+
+**The measured margin table** (collected from PHASE-02/§VA-2, PHASE-03/§VA-2,
+PHASE-05/§VA-3 above; re-verified stable by three fresh runs each this phase —
+`scheduling::` 12/12 green at 0.80 s/0.80 s/0.80 s per run, `event_loop_
+schedule` 1/1 green at 0.26 s/0.28 s/0.27 s per run):
+
+| assertion | kind | expected | bound | observed | margin |
+|---|---|---|---|---|---|
+| AC-1 2nd invocation (VT-2/VT-3) | liveness | ~105 ms | `until(2s)` | ~270 ms | ~7.4x |
+| AC-2 from an evaluate (VT-4) | liveness | ~105 ms | `until(2s)` | ~250 ms | ~8x |
+| AC-2 from a respond (VT-5) | liveness | ~105 ms | `until(2s)` | ~290 ms | ~6.9x — closest margin measured |
+| AC-3 earlier supersedes (VT-6) | liveness | ~105 ms | `until(2s)` | ~260 ms | ~7.7x |
+| AC-3 later supersedes (VT-7) | anti-fire | no firing | 300 ms window | no firing, all runs | structural, not a race (F-19) |
+| AC-4 past instant/every response, liveness (PHASE-03/VT-1) | liveness | "at once" | `until(2s)` | ~11.2/13.5/11.8 ms | ~150-180x |
+| AC-4 past instant/every response, anti-spin | anti-spin | 2 invocations | 500 ms window | held at 2, 3/3 runs | 6x (window vs. 3s floor) |
+| AC-5 failing backend, liveness (PHASE-03/VT-2) | liveness | ~105 ms | `until(2s)` | ~108.8/113.2/110.8 ms | ~18x |
+| AC-5 failing backend, anti-spin | anti-spin | count unchanged | 500 ms window | held at 2, 3/3 runs | 6x |
+| AC-7 stop while waiting (VT-8) | liveness | at once | `TIMEOUT` (2s) | 99.991 µs (elapsed) | ~20 000x |
+| AC-9 succeed-once clock, startup liveness (VT-3) | liveness | ~5-10 ms | `until(2s)` | ~6.2/6.3/5.5 ms | ~300x |
+| AC-9 succeed-once clock, refusal window (sanity check) | anti-spin | window ≈ 500 ms | — | 501.4/500.7/501.6 ms | confirms the window, not a margin |
+| AC-9 succeed-once clock, `CLOCK_READS` spin witness | anti-spin | 2 reads | 500 ms window | 2, 3/3 runs (381 under VA-3 zeroed) | the assertion that actually holds "does not spin" |
+| AC-9 vacuity control, working clock (VT-4) | liveness | ~105 ms | `until(2s)` | ~108.6/110.1/109.5 ms | ~18x |
+| R-3 one-off past instruction (PHASE-03/VT-5) | liveness | no `design.md` row — plan's own, corrected this phase | `until(2s)` | ~11.5/11.7/12.2 ms | ~166x |
+| R-3 one-off past instruction, anti-spin | anti-spin | 2 invocations | 500 ms window | held at 2, 3/3 runs | 6x |
+| R-4/R-5 person mid-cadence (PHASE-03/VT-6) | liveness | no `design.md` row — plan's own, corrected this phase | `until(2s)` | ~6.3/6.2/5.4 ms | ~330x |
+| R-4/R-5 person mid-cadence, anti-spin | anti-spin | count unchanged | 500 ms window from send | held at 3, 3/3 runs | 6x |
+| AC-10 event loop (PHASE-05/VT-1) | liveness | ~105 ms | `until(2s)` | 104.4/102.7/97.6 ms | 19.1x-20.5x |
+
+No row is below the 5x liveness floor; the closest is AC-2 from a respond at
+~6.9x (S-19 not triggered). Gate wall time: three consecutive working-tree
+`just check` runs this phase — **5.630 s / 5.582 s / 5.634 s**, all exit 0,
+against slice 002's 5.276 s baseline (band: ≤ 8.276 s) — no breach.
+
+**Design drift not reconciled (S-17 — for audit, `design.md` not edited):**
+- `design.md` §9 states a uniform "~105 ms / 19x" expectation for the four
+  `default_poll = 100 ms`-driven liveness rows (AC-1, AC-2×2, AC-3-earlier).
+  Measured, all four land between ~250-290 ms with margins ~6.9x-8x — real,
+  not a rounding error, and the closest (AC-2 from a respond, ~6.9x) sits
+  materially nearer the 5x STOP floor than the design's own confidence
+  implied. Every run stayed green across this phase's re-verification; still
+  worth the audit's attention as the margin the slice is actually running on.
+- `design.md` §9's AC-9 row predicts one liveness figure ("~105 ms/19x") for
+  "refusal after the succeed-once clock fails." The test that discharges it
+  does not produce a single comparable number: it measures the *startup*
+  exchange's liveness (~6 ms/~300x) and verifies the refusal itself through a
+  500 ms anti-spin window plus the `CLOCK_READS` spin witness, not through a
+  liveness bound. The design's row and the test's actual shape do not
+  correspond one-to-one.
+- AC-7's design row predicts ~2000x; measured is ~20 000x (99.991 µs against
+  a 2 s `TIMEOUT`) — an order of magnitude looser than predicted, in the safe
+  direction. Not a risk; recorded because §9's own numbers are otherwise
+  fairly tight.
+
+**Verification**
+- VA-1 — **clean-clone gate.** `git clone` of HEAD (`43b0f95`) into the
+  scratchpad, `just check` run there: **exit 0, 60.047 s real** (cold,
+  `/tmp/.../scratchpad/clean-clone-gate.log`) — comparable to slice 002's own
+  cold clean-clone figure (57.648 s, `notes.md` PHASE-09), no numeric bound
+  stated for this figure in this slice's plan. `grep -rn "#\[ignore\]"
+  crates/ tests/` returns nothing (confirmed, exit 1/no matches).
+- VA-2 — **vocabulary scan (AC-11).** `cargo test -p goad-boundary --test
+  checks vocabulary`: 13 passed, 0 failed, including
+  `no_workspace_member_names_the_users_domain` and
+  `no_member_manifest_names_the_users_domain_in_its_own_crate_name`. Walked
+  by hand against `crates/goad-boundary/tests/checks/vocabulary.rs:18-25`'s
+  `DOMAIN` list (`habit, streak, journal, site, goal, reminder, compliance`):
+  `schedule`, `check`, `poll`, `spacing`, `scheduled`, `next_check` appear in
+  none of it. Recorded, not assumed.
+- VA-3 — the four ADR-001 instruments and the domain-vocabulary scan, five
+  separate results (POL-001 §Verification): (1) crate-edge direction — `cargo
+  build --workspace` exits 0, no `error[E0433]`; (2) manifest allowlist —
+  held by `cargo test -p goad-boundary` (part of `--workspace`), passing;
+  (3) stratum-1 `std` purity scan — same, passing; (4) `cargo test -p
+  goad-semantics` standalone — exit 0, 30 passed (this phase's own gate
+  runs, above); (5) domain-vocabulary scan — VA-2 above, 13 passed. Five
+  results, not one count.
+- VA-4 — three consecutive working-tree `just check` runs, this phase's own
+  edits included: **5.630 s / 5.582 s / 5.634 s**, all exit 0
+  (`/tmp/.../scratchpad/gate-wt-{1,2,3}.log`).
+- VA-5 — `git diff --stat` from the plan commit (`0b2e50f`) to PHASE-05's
+  head (`43b0f95`) against every phase's declared Surfaces: every touched
+  path maps to a named surface (PHASE-01: `schedule.rs`, `wire.rs`; PHASE-02:
+  `controller.rs`, `renderer/{main,scheduling,harness,wiring,table}.rs`,
+  the one pre-authorised `tests/backends/` script; PHASE-03: `config.rs`,
+  `scheduling.rs`; PHASE-04: `structure.rs`, `diagnostics.rs`, `glass.rs`,
+  `app.slint`, `wiring.rs`; PHASE-05: `driving.rs`→`scripting.rs` split,
+  `Cargo.toml`, `event_loop_schedule/*`, the four `goad-shell/tests/
+  integration/*` import-site edits, `renderer/main.rs`). No undeclared path.
+
+**STOP conditions encountered:** none. S-16 named one case (the stray F-1
+citation, Findings above) as a finding for audit rather than a halt — it is
+outside this phase's own surfaces, which is exactly what S-16 describes. S-17
+named three Design-drift items above rather than retro-fitting `design.md`.
+S-18 and S-19 did not trigger — every gate run this phase was green, and no
+margin or gate-wall-time threshold was crossed.
+
+**`just check` (this phase, working tree, final):** exit 0, 5.634 s real
+(third of the three VA-4 runs above).
+
+**`git status --short` (this phase's own edits):** `docs/slices/003/
+{draft-spec.md, notes.md, plan.md, slice-003.md}` modified. `flake.lock`
+modified but pre-dates this session, as every prior phase also noted. No
+source file, manifest or markup touched — confirmed by `git diff --stat`
+against the four files above.
+
+**For the auditor to attack first:** the AC-2-from-a-respond margin (~6.9x,
+the closest of any row to the 5x floor) under a loaded machine; the AC-9
+design-row/test-shape mismatch (Design drift, above); and the stray `(F-1)`
+citation at `schedule.rs:327`, which is a source-file fix no phase's surfaces
+have covered yet.
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-07 · PHASE-05 done · tree not yet committed for this
-phase
+**Fresh as of:** 2026-09-07 · PHASE-06 done · all six phases done, gate green,
+tree not yet committed for this phase
 
 ### Produced
 - `goad_semantics::schedule::wait_for` — total, zero-arithmetic-operator wait
@@ -1113,6 +1333,15 @@ phase
   `init_integration_test_with_system_time()`, the one substitution being
   the Slint platform itself (PHASE-05/EX-3..EX-6, A-1, F-8). Measured
   margin 19.1x-20.5x against design.md §9's predicted 19x.
+- PHASE-06: `draft-spec.md` §7 now names, per requirement, the test that
+  holds it by file and function (23 citations, each grep-confirmed against
+  the tree before being written); `slice-003.md`'s twelve acceptance
+  criteria each carry a **Discharged by:** pointer and are checked; the
+  measured margin table (19 rows) and three Design-drift items live in this
+  phase's own sheet above, collected from PHASE-02/03/05's separately-taken
+  measurements rather than re-measured from scratch (the per-test wall
+  times cannot be re-taken without reintroducing the `print_stderr`-denied
+  instrumentation PHASE-05 already had to remove).
 
 ### Learned
 - The design's exact `wait_for` body (`design.md:155-160`) compiles clean
@@ -1204,4 +1433,41 @@ phase
   named as such in the restatement rather than implied closed. The VA-1
   "seven vs. six" binary-count drift (Learned) needs no repair but should
   not be copied forward into PHASE-06's own count.
+- **Resolved at PHASE-06:** the stray `(F-1)` citation (`schedule.rs:327`)
+  stays open — outside every phase's surfaces including this one (S-16,
+  PHASE-06 Findings above); the two PHASE-02 plan-gap findings were
+  confirmed as within-phase by the orchestrator (`plan-log.md` PL-16) and
+  the two corresponding `plan.md` corrections are made (PHASE-06's own
+  sheet); PHASE-03's VA-2 "~105 ms" mismatch is corrected in `plan.md` and
+  is **not** inherited by `design.md` (which is not retro-fitted, S-17) —
+  the correct expectation for VT-5/VT-6 is recorded directly in the measured
+  margin table instead; the `CLOCK_READS` addition stands unquestioned — no
+  reviewer has raised it since PHASE-03, and PHASE-06's own re-runs confirm
+  it is still the only assertion that fails under VA-3's break-and-revert.
+- **Memory candidates for close** (named here per EX-4; not written into
+  `docs/memory/` by this phase):
+  1. `clippy.toml`'s `allow-*-in-tests` carve-out (`unwrap_used`,
+     `expect_used`, `panic`, `indexing_slicing`) does **not** cover
+     `dbg_macro`, `print_stdout`, `print_stderr` or `use_debug`
+     (`Cargo.toml:149-152`, all `deny`, no test exemption) — confirmed
+     again this phase directly against both files. A future phase reaching
+     for `eprintln!`/`dbg!`/`{:?}` as temporary test instrumentation will
+     hit this immediately; worth a memory file of its own, or widening
+     `docs/memory/clippy-toml-test-exemptions-are-a-hidden-boundary.md`
+     with a second section for the never-exempt class.
+  2. **FD-3's rule**, an extension of `docs/memory/shared-test-helper-lives-
+     at-workspace-root-via-path.md`: every `pub(crate)` symbol in a file
+     shared via `#[path]` must be reachable from **every** includer, not
+     just the includers that existed when the file was written — a third
+     includer (PHASE-05's new `event_loop_schedule` target) that uses only
+     part of a shared file's surface still compiles fine; a third includer
+     that needs a symbol the file doesn't export is what fails, and only
+     at that includer's own build.
+  3. **FD-2's rule**: a scan built on `str::contains` and a scan built on
+     `goad_boundary::scan::mentions` (word/path-boundary matching) are
+     different instruments: a `contains`-based scan cannot safely assert
+     "no production line names the identifier X" (it would also catch `X`
+     as a substring of a longer identifier), and neither substitutes for
+     the other. `structure.rs` now carries one of each, named separately
+     (PHASE-04/EX-2).
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

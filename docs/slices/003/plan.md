@@ -512,7 +512,10 @@ which would be no bound at all.
 **Must not touch:** `crates/goad/src/{glass.rs, diagnostics.rs, reception.rs,
 wire.rs, install.rs, main.rs}`; `crates/goad/ui/app.slint`; anything under
 `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
-`tests/backends/`; `crates/goad/tests/event_loop/`;
+`tests/backends/` **except for adding one new script**, pre-authorised below
+(*Notes for the implementer*, "Reading the request's kind") for the one case
+that needs `event.kind` and that no existing script can discharge — editing
+any of the ten existing scripts is still forbidden; `crates/goad/tests/event_loop/`;
 `crates/goad/tests/renderer/{tree.rs, mapper.rs, tray.rs, reception.rs,
 startup.rs}`; any manifest. Within `wiring.rs` and `table.rs`, **any edit that
 is not one of the two named above** — including a change to a test body, an
@@ -596,12 +599,13 @@ assertion, a fixture that stays, or a module's `use super::` line.
   is, and what both *tiers* need lives in `tests/support/`.
 - EX-12 — `wiring.rs`'s import block is the compiler's bill for EX-11 and
   nothing more. Measured at HEAD: the seven moved fixtures are the sole
-  consumers of **ten** imported items across **eight** `use` lines. Four lines
-  go, four narrow, one is added:
+  consumers of **eleven** imported items across **nine** `use` lines. Four
+  lines are deleted, five narrow, one is added:
 
   | `wiring.rs` | after |
   |---|---|
   | `:12` `use std::rc::Rc;` | **deleted** — only use is `glass_over` (`:77`) |
+  | `:13` `use std::time::Duration;` | **deleted** — only uses are `TIMEOUT`'s type (`const TIMEOUT: Duration = …`) and `until`'s signature/body (`bound: Duration`, `Duration::from_millis(5)`), both moved fixtures |
   | `:15` `use goad::clock::ClockError;` | **deleted** — only use is `stub_clock` (`:45`) |
   | `:21` `use goad_semantics::protocol::canonical::Timestamp;` | **deleted** — `now` (`:30`) and `stub_clock` (`:45`) |
   | `:18` `use goad::generated::{OptionRow, PromptWindow, Tray};` | `use goad::generated::PromptWindow;` — loses `OptionRow` (`:77`) and `Tray` (`:65`, `:69`, `:73`) |
@@ -892,9 +896,15 @@ PHASE-02's mechanism, and may not extend it.
   for AC-4, AC-5 (×2) and AC-9 (×2), and `cargo test --workspace` wall time
   before and after (PL-11). Into the phase sheet, not into `design.md`. VT-5 and
   VT-6 have no §9 row — they are this plan's, from FD-5 and FD-6 — so their
-  measured times are recorded as new rows with the expectation stated here:
-  ~105 ms liveness against `until(2 s)`, and a 500 ms anti-spin window 6x under
-  the floor, the same shape as VT-1's.
+  measured times are recorded as new rows. **Corrected at PHASE-06 (PL-16):**
+  the expectation stated here as "~105 ms liveness against `until(2 s)`, the
+  same shape as VT-1's" was copied from AC-1/AC-2's `default_poll`-gated
+  shape and does not match either test's own trace — VT-5's second invocation
+  and VT-6's third are both unfloored past-instant/direct-dispatch firings,
+  VT-1's own shape, whose liveness is measured at ~6-12 ms, not ~105 ms
+  (`notes.md` PHASE-03 sheet, VA-2). Harmless: every observed margin came in
+  wider than this prediction, never narrower. The 500 ms anti-spin window, 6x
+  under the floor, is unaffected and still holds.
 - VA-3 — break-and-revert on the floor: set `MINIMUM_SPACING` to zero and
   confirm **VT-1, VT-2 and VT-6 go red** and VT-3's count assertion goes red;
   revert; paste the output. This is the only direct evidence the floor does
@@ -1152,8 +1162,12 @@ integration files listed above are the complete set that import a moved symbol;
   `run_event_loop_until_quit` is running, so a version of VT-1 that observes from
   the test body would hang. Record, in the sheet, that the watcher-task shape is
   required and why — the shape spike S-1 ran (`research.md` Thread 5).
-- VA-1 — `just check` under `nix develop`, pasted. It now runs seven test
-  binaries in `crates/goad`; confirm the new one appears in the output.
+- VA-1 — `just check` under `nix develop`, pasted. **Corrected at PHASE-06
+  (PL-16):** it now runs six test binaries in `crates/goad` (`unittests
+  src/lib.rs`, `unittests src/main.rs`, `tests/event_loop/main.rs`,
+  `tests/event_loop_schedule/main.rs`, `tests/renderer/main.rs`, `Doc-tests
+  goad`) — not seven, as originally stated here; confirm the new one appears
+  in the output.
 - VA-2 — `git diff --stat` over `tests/support/` and both existing targets,
   confirming the move is a move: no symbol renamed, no body changed, only
   `#[path]` and `use` lines edited outside the two shared files. The expected

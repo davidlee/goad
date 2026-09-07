@@ -163,23 +163,26 @@ Surfaces this slice may touch.
 
 ## Acceptance criteria
 
-- [ ] AC-1 — **The host evaluates without being asked.** With a backend that
+- [x] AC-1 — **The host evaluates without being asked.** With a backend that
       supplies no `next_check`, a running host performs a second `evaluate`
       approximately one configured `default_poll` after the first, and the
       backend's own invocation record is what shows it. Discharges brief §21
-      AC-3.
-- [ ] AC-2 — **`next_check` from either direction changes the wait.** An
+      AC-3. **Discharged by:** PHASE-02/VT-3.
+- [x] AC-2 — **`next_check` from either direction changes the wait.** An
       instruction returned by an `evaluate`, and an instruction returned by a
       `respond`, each move the next scheduled evaluation to the instructed
-      instant. Discharges the observable half of brief §21 AC-7.
-- [ ] AC-3 — **A later valid instruction supersedes an earlier one, in both
+      instant. Discharges the observable half of brief §21 AC-7. **Discharged
+      by:** PHASE-02/VT-4 (from an `evaluate`), PHASE-02/VT-5 (from a
+      `respond`).
+- [x] AC-3 — **A later valid instruction supersedes an earlier one, in both
       directions, observably.** A second instruction that is *earlier* than the
       pending one shortens the wait; a second instruction that is *later*
       lengthens it. The earlier-wins case is the one a naive implementation gets
       wrong, because latest-valid-wins is issue order and not `max`
       (`schedule.rs:204-208`). Discharges brief §21 AC-8's "observable over
-      time" half.
-- [ ] AC-4 — **A resolved instant at or before `now` fires as soon as the floor
+      time" half. **Discharged by:** PHASE-02/VT-6 (earlier wins),
+      PHASE-02/VT-7 (later wins).
+- [x] AC-4 — **A resolved instant at or before `now` fires as soon as the floor
       permits, and each such instant fires at most once.** A backend-supplied
       past instruction is stored as given (R-28), so the timer must handle a
       non-positive wait without underflow and without spinning. Firing never
@@ -191,8 +194,10 @@ Surfaces this slice may touch.
       verbatim and the retained value is replaced rather than consumed, so
       cadence never resumes and the minimum spacing is the only bound. Asserted
       as a bounded number of exchanges over a bounded interval, not as a timing
-      measurement.
-- [ ] AC-5 — **A failing backend is polled on its existing cadence, and no
+      measurement. **Discharged by:** PHASE-01/VT-2 (the arithmetic, at zero
+      cost); PHASE-03/VT-1 (a past instruction on every response);
+      PHASE-03/VT-5 (a one-off past instruction).
+- [x] AC-5 — **A failing backend is polled on its existing cadence, and no
       faster.** A backend that fails every invocation is invoked again,
       unprompted, at the instant it last asked for while that is still ahead,
       and never faster than the minimum spacing. Asserted by counting invocations over a
@@ -203,8 +208,8 @@ Surfaces this slice may touch.
       and observing it through the timer costs a whole floor interval of gate
       time for no new evidence. This is slice 001's F-1/F-34/F-48 carried
       forward, and SPEC-001 R-29 and §5's *"A broken backend is polled on its
-      existing cadence"*.
-- [ ] AC-6 — **The timer never resolves a schedule.** Structural, and held by
+      existing cadence"*. **Discharged by:** PHASE-03/VT-2.
+- [x] AC-6 — **The timer never resolves a schedule.** Structural, and held by
       two scans in `crates/goad-boundary`, both reading **production code
       only** — cut at each file's own `#[cfg(test)]`, comments stripped — and
       neither pinned to a line number (design D-16): **(a)** the identifier
@@ -217,16 +222,20 @@ Surfaces this slice may touch.
       `Outcome::next_check` alone. In the manner of slice 001's
       `transport_shape.rs` and slice 002's boundary scans, rather than by
       review alone; each instrument's stated residue is in design §9.
-- [ ] AC-7 — **A timer does not defeat cancellation.** A stop request while the
+      **Discharged by:** PHASE-04/VT-3 (absence, over stratum 3),
+      PHASE-04/VT-4 (count, over stratum 2).
+- [x] AC-7 — **A timer does not defeat cancellation.** A stop request while the
       host is waiting for a scheduled check ends `serve` promptly, and a stop
       request while a scheduled exchange is in flight drops that exchange, as
       slice 002 AC-12 already requires. The renderer still leaves behind no task
-      or handle a drop would fail to cancel (SPEC-001 R-48).
-- [ ] AC-8 — **A backend failure does not stop the clock.** After any failure in
+      or handle a drop would fail to cancel (SPEC-001 R-48). **Discharged by:**
+      PHASE-02/VT-8.
+- [x] AC-8 — **A backend failure does not stop the clock.** After any failure in
       SPEC-001's taxonomy, the host is still scheduled and still invokes the
       backend again unprompted. SPEC-001 R-45, and the failure mode SPEC-001 §5
-      calls *"the failure mode the user notices last"*.
-- [ ] AC-9 — **A clock that cannot be read does not lose the schedule, and does
+      calls *"the failure mode the user notices last"*. **Discharged by:**
+      PHASE-03/VT-2, read for liveness rather than for rate.
+- [x] AC-9 — **A clock that cannot be read does not lose the schedule, and does
       not spin.** A `ClockError` inside the loop is reported as a refusal
       (`controller.rs:249-253`); the retained instant is untouched; a pending
       future deadline is untouched; and a clock that fails on a *scheduled*
@@ -236,8 +245,8 @@ Surfaces this slice may touch.
       deadline the timer arm could win (design §9).
       *Revised at design:* the design splits the instant (retained by the
       controller) from the deadline (held by the loop), so the criterion names
-      both.
-- [ ] AC-10 — **The waiting mechanism is proved in the arrangement it will
+      both. **Discharged by:** PHASE-03/VT-3.
+- [x] AC-10 — **The waiting mechanism is proved in the arrangement it will
       actually run in, save for one component that no headless test can
       reach.** Slice 002 left this as its first follow-up (F-5): no test drives
       an exchange, or any timer, through the production topology of Slint's
@@ -248,15 +257,24 @@ Surfaces this slice may touch.
       Slint **platform** is the testing backend's, because there is no headless
       way to install the production one. The criterion is met when every other
       component is production's and the substitution is stated (design §5.5
-      A-1).
-- [ ] AC-11 — **No domain vocabulary** appears in any crate name, module name,
+      A-1). **Discharged by:** PHASE-05/VT-1
+      (`event_loop_schedule::scheduling::a_scheduled_evaluation_fires_under_
+      the_production_topology`); one component — the production Slint
+      platform's own polling of a `spawn_local` future, as opposed to the
+      testing platform's — remains structurally unproven by any test in this
+      repository (design §5.5 A-1, slice 002 F-8).
+- [x] AC-11 — **No domain vocabulary** appears in any crate name, module name,
       type, markup component, accessible label, or user-visible string. The
       standing criterion — brief §21 AC-16, `CLAUDE.md` invariant 1 — held by
-      the vocabulary scan in `crates/goad-boundary`.
-- [ ] AC-12 — **`just check` exits 0**, six commands, no command weakened,
+      the vocabulary scan in `crates/goad-boundary`. **Discharged by:**
+      PHASE-06/VA-2, over the finished tree; the standing scan also runs at
+      every phase's own VA-1.
+- [x] AC-12 — **`just check` exits 0**, six commands, no command weakened,
       conditioned or `#[ignore]`d, and no test whose passing depends on machine
       load. POL-001 §Compliance. A timing-sensitive test that can be flaky under
-      a loaded gate is a design defect, not a tolerated cost.
+      a loaded gate is a design defect, not a tolerated cost. **Discharged
+      by:** PHASE-06/VA-1, over a clean clone; every phase's own VA-1 in the
+      working tree.
 
 ## Governing canon
 
