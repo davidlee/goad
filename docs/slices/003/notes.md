@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — The wait, and the cadence it keeps | done | 2026-09-07 |
 | PHASE-03 — What the floor bounds, and what a failure does not stop | done | 2026-09-07 |
 | PHASE-04 — What the person sees, and what the scan holds | done | 2026-09-07 |
-| PHASE-05 — The topology | pending | |
+| PHASE-05 — The topology | done | 2026-09-07 |
 | PHASE-06 — Restatement, re-measurement, and the gate | pending | |
 
 ## Phase sheets
@@ -799,12 +799,265 @@ as PHASE-02/03 also noted). `controller.rs`, `goad-boundary/src/`,
 `harness.rs`/`scheduling.rs`/`table.rs`, `tests/support/`, every manifest —
 all confirmed untouched (`git diff --stat` empty for each).
 
-## Harvest
+### PHASE-05 — The topology
+
+**Objective:** the waiting mechanism proved in the arrangement production
+uses — a real Slint event loop (testing backend substituted, nothing else), a
+multi-thread tokio runtime, the `EnterGuard`, `serve` polled by Slint's
+executor — with exactly one component substituted and the substitution
+stated.
+
+**Reading list**
+- `plan.md:1084-1211` — the whole PHASE-05 entry: Surfaces, Must-not-touch,
+  EN-1, EX-1..EX-6, VT-1/VT-2, VA-1..VA-3, S-13..S-15, S-25..S-27,
+  implementer notes.
+- `design.md` §5.5 A-1 (`:519-537`, what S-1 substituted, F-8, what remains
+  unproven — the production platform itself); D-12 (`:647`, one `[[test]]`
+  target because the testing backend's init is once-per-process); D-18
+  (`:652`, the `tests/support/` split, the refused `#[allow]`/`#[expect]`
+  alternatives, POL-001's carve-outs); §9 AC-10 row (`:680`) and its margin
+  row (`:713`, ~105 ms expected, `until(2 s)`, 19x).
+- `research.md` Thread 5 (`:423-511`) — the Slint/tokio coexistence
+  arrangement `main.rs` uses (three parts: `EnterGuard`, `spawn_local`,
+  one `quit_event_loop` site) and spike S-1's four measured cases (A-D);
+  case B2 (`reset` on an already-fired pinned `Sleep`) and case D (an
+  already-elapsed `sleep_until`) bracket the loop's own AC-4 path per F-15.
+- `docs/policy/001-the-phase-gate.md` — six commands, never `allow`, the
+  site-local `#[expect]` carve-out.
+- `docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md`
+  (PL-4's rule: every symbol in a shared file reachable from every
+  includer — the rule FD-3/D-18 apply to the new split);
+  `docs/memory/cargo-test-cwd-is-package-root-not-workspace-root.md` (the
+  `#[path]` depth, `CARGO_MANIFEST_DIR` + `../..`);
+  `docs/memory/slint-build-mechanics.md` (read; no build.rs change here);
+  `docs/memory/expect-dead-code-ahead-of-caller-needs-cfg-attr.md` (read;
+  not the shape here — nothing lands ahead of its caller).
+- `docs/slices/003/notes.md` PHASE-02 sheet (the six timed `serve` tests'
+  shape — `LocalSet` + `tokio::task::spawn_local`, `until`, `stub_clock`,
+  `scripted`/`logging_backend`); PHASE-04 sheet (nothing relevant touches
+  this phase's surfaces).
+- Code read whole: `crates/goad/tests/event_loop/{main.rs,closing.rs}` (the
+  template — runtime, `EnterGuard`, real window/tray, `install`, real
+  channel/`Cancel`, `SlintGlass`, `spawn_local`, the one
+  `quit_event_loop` site, `Rc<RefCell<Option<Ending>>>` read-back);
+  `tests/support/driving.rs` (whole, 255 lines); `crates/goad/tests/
+  renderer/scheduling.rs` (whole, 698 lines — VT-2/VT-3's shape is VT-1's
+  template: `logging_scripted`/`scripted`, `until`, invocation counting);
+  `crates/goad/tests/renderer/harness.rs` (confirms it only takes
+  `driving::instant`, so it is outside the split's blast radius per the
+  plan).
+- Code read by grep: `#[path` across `crates/*/tests` and `tests/support`
+  (confirms exactly two includers today: `crates/goad/tests/renderer/
+  main.rs:38`, `crates/goad-shell/tests/integration/main.rs:10`); every
+  `driving::{…}` import site in both targets' files (confirms the moving
+  six — `backend`, `marker`, `clear`, `logging_backend`, `invocations`,
+  `scripted` — are used by: `wiring.rs`, `table.rs`, `scheduling.rs`
+  (renderer); `harness.rs` (re-export), `round_trip.rs`, `failure_matrix.rs`
+  (integration); `host.rs` and `transport.rs` use only non-moving symbols
+  (`instant`/`presented`, `CLEANUP_LIMIT`) and so need no import edit,
+  confirmed by grep, not assumption); `crates/goad/src/controller.rs`
+  `serve`'s signature and `Ending`/`Served` (`:341-350`, `:70-84`);
+  `crates/goad/src/wire.rs` `Wire::new`/`Cancel::new` signatures;
+  `crates/goad/src/install.rs` (whole, `pub fn install`);
+  `tests/backends/answers-as-instructed.sh` (whole — past-the-list default
+  response `{"view":null,"next_check":"45 minutes"}`, the positive
+  control).
+
+**Assumptions**
+- `crates/goad-shell/tests/integration/transport.rs` and `host.rs` are
+  declared surfaces (plan's Surfaces list) but need no edit: grep confirms
+  neither imports a moving symbol. Left untouched; `git diff --stat` will
+  show them empty, which is the expected shape, not a shortfall.
+- The new target's `Config`/`Host` are built inline exactly as `closing.rs`
+  builds them, using `scripting::scripted` for the backend half only — no
+  new symbol added to either shared file (FD-3's whole point, per the
+  plan's implementer notes).
+- `Command::Evaluate(Stimulus::Requested)` (not `Startup`) is the dispatch
+  the driving task sends, matching every PHASE-02/03 `serve` test's own
+  pattern in `scheduling.rs`, rather than replaying `main.rs`'s
+  `Stimulus::Startup` — the criterion is about the scheduled *second*
+  invocation, not about which stimulus produced the first.
+
+**STOP conditions watched:** S-13 (new dependency/feature), S-14 (split
+needs a body change), S-15 (`init_integration_test_with_system_time()`
+unavailable or diverges from S-1), S-25 (`harness.rs` imports a moved
+symbol), S-26 (VA-3 margin below 5x), S-27 (an unused-import site other
+than the one EX-1 names).
+
+**Tasks**
+- [x] (a) `tests/support/scripting.rs`: move `backend`, `marker`, `clear`,
+      `logging_backend`, `invocations`, `scripted` out of `driving.rs`
+      unchanged; `driving.rs` drops the `Path`/`PathBuf` import; both
+      existing targets' `main.rs` gain a `#[path]` include, and their
+      import sites split `driving::{…}`/`scripting::{…}`. `just check`
+      green with no new target yet (EX-1, EX-2).
+- [x] (b) `crates/goad/Cargo.toml`: the `event_loop_schedule` `[[test]]`
+      target; `tests/event_loop_schedule/{main.rs,scheduling.rs}` skeleton
+      proving the topology runs at all (EX-3..EX-6).
+- [x] (c) VT-1's assertion: the watcher task, the AC-10 liveness bound,
+      three measured runs.
+- [x] (d) the break-and-revert (VA-3's negative-control cousin — the STOP
+      list's own liveness proof that the test would fail if the timer arm
+      were not polled).
+- [x] (e) refactor, lint, fmt, `just check` final; VA-1..VA-3 pasted.
+
+**Findings**
+- The plan's VA-1 text says "it now runs seven test binaries in
+  `crates/goad`". Measured (`cargo test --workspace` under `just check`,
+  the `crates/goad` section only): `unittests src/lib.rs`,
+  `unittests src/main.rs`, `tests/event_loop/main.rs`,
+  `tests/event_loop_schedule/main.rs`, `tests/renderer/main.rs`, and
+  `Doc-tests goad` (0 tests, still an invoked binary) — **six**, not seven.
+  This is the same class of small planning-estimate drift the Harvest
+  already records for PHASE-03's VA-2 note (a predicted shape that turned
+  out to be a fixed offset from the true one); it does not change any
+  criterion's substance — the new binary is present and green, which is
+  what EX-3/VA-1 actually require — and is recorded rather than silently
+  waved through.
+- `eprintln!`-based margin instrumentation was drafted directly into VT-1
+  (printing the watcher's observed elapsed time) and removed once
+  `cargo clippy` reported it against `print_stderr`/`use_debug`
+  (`Cargo.toml:150-152`, both `deny`, no test exemption — unlike the four
+  keys `clippy.toml`'s `allow-*-in-tests` covers,
+  `docs/memory/clippy-toml-test-exemptions-are-a-hidden-boundary.md`). The
+  three measured runs below were taken with `--nocapture` before the print
+  statement was removed, which is sufficient for VA-3 — the assertion
+  itself needs no built-in instrumentation to be a liveness proof.
+
+**Criteria discharged**
+- EX-1 — `tests/support/scripting.rs` holds exactly `backend`, `marker`,
+  `clear`, `logging_backend`, `invocations`, `scripted`, moved unchanged in
+  body and signature. `driving.rs`'s diff is exactly the six functions
+  leaving plus the one forced header edit, `use std::path::{Path,
+  PathBuf};` at its old `:16` (confirmed: `git diff -- tests/support/
+  driving.rs` shows no other line touched). Both existing targets' `main.rs`
+  gained a second `#[path]` include; the new target's `main.rs` includes
+  `scripting.rs` only, never `driving.rs`.
+- EX-2 — `cargo clippy --workspace --all-targets -- -D warnings` exits 0
+  (dead_code included); every `pub(crate)` symbol in both shared files is
+  reachable from every target that includes that file.
+- EX-3 — `crates/goad/Cargo.toml` gained one `[[test]]` target, `name =
+  "event_loop_schedule"`, `path = "tests/event_loop_schedule/main.rs"`. No
+  dependency, feature, or `dev-dependency` line touched (confirmed:
+  `git diff crates/goad/Cargo.toml` shows only the new `[[test]]` block).
+- EX-4 — the target carries exactly one `#[test]` fn,
+  `scheduling::a_scheduled_evaluation_fires_under_the_production_topology`.
+- EX-5 — the test's own composition (`tests/event_loop_schedule/
+  scheduling.rs`) mirrors `start`/`closing.rs`: a multi-thread `tokio`
+  runtime built with `enable_all()`, its `EnterGuard` held for the loop's
+  life, a real `PromptWindow`/`Tray`, `install`'s callback table, a real
+  `mpsc` channel and `Cancel`, `SlintGlass`, `ProcessBackend` against the
+  real `answers-as-instructed.sh` child, the production `serve`, and
+  `slint::spawn_local`. Init is `init_integration_test_with_system_time()`.
+- EX-6 — the module doc on `tests/event_loop_schedule/main.rs` states the
+  one substitution (the Slint platform / testing backend) and what it does
+  not reach, citing A-1 and F-8.
+
+**Verification**
+- VT-1 — `a_scheduled_evaluation_fires_under_the_production_topology`:
+  dispatches `Command::Evaluate(Stimulus::Requested)` from a watcher
+  `spawn_local` task, waits for the invocation log to show a second
+  invocation, trips `Cancel`, and asserts `served.ending ==
+  Some(Ending::Stopped)` and `invocations(&log) == 2`. Green.
+- VT-2 — the negative control is not code (the test body cannot poll while
+  `run_event_loop_until_quit` is running — there is nothing to call it
+  from), and is recorded here per the plan's own instruction: the
+  watcher-task shape is required because `run_event_loop_until_quit` blocks
+  the thread that owns both the Slint executor and any code that could
+  observe the invocation log from the test body; `research.md` Thread 5's
+  spike S-1 is the prior art (same shape, same reason, `timer-probe.local.rs`
+  cases B1/B2).
+- VA-1 — `just check` under the dev shell, exit 0, **6.886s real** then
+  **5.606s real** on a repeat run (both from a warm `target/`; PHASE-04's
+  cold-er final run was 14.716s, so this is not a regression), pasted at
+  `/tmp/claude-1000/-home-david-dev-goad/302a7bbc-4adf-436d-ae25-a8c85c96ad29/
+  scratchpad/gate-final-phase05.log`. The new binary appears: `Running
+  tests/event_loop_schedule/main.rs
+  (target/debug/deps/event_loop_schedule-…)`, `running 1 test … ok`. Six
+  binaries run in `crates/goad`'s section, not seven — see Findings.
+- VA-2 — `git diff --stat` over `tests/support/` and both existing
+  targets:
+  ```
+  crates/goad-shell/tests/integration/failure_matrix.rs |  5 ++---
+  crates/goad-shell/tests/integration/harness.rs        |  5 +++--
+  crates/goad-shell/tests/integration/main.rs           |  7 +++++++
+  crates/goad-shell/tests/integration/round_trip.rs     |  5 +++--
+  crates/goad/tests/renderer/main.rs                    | 11 +++++++++--
+  crates/goad/tests/renderer/scheduling.rs              |  3 ++-
+  crates/goad/tests/renderer/table.rs                   |  5 ++---
+  crates/goad/tests/renderer/wiring.rs                  |  3 ++-
+  tests/support/driving.rs                              | 87 --------------
+  ```
+  No symbol renamed, no body changed; `transport.rs` and `host.rs` show no
+  diff at all, as predicted (Assumptions) — grep had already confirmed
+  neither imports a moving symbol. `driving.rs`'s diff is exactly the six
+  functions plus the one import line (EX-1).
+- VA-3 — VT-1's elapsed time, measured with `--nocapture` before the
+  temporary `eprintln!` was removed (Findings): **104.4 ms, 102.7 ms,
+  97.6 ms** across three separate runs, against `until(2 s)` — **19.1x to
+  20.5x margin**, matching `design.md` §9's predicted ~105 ms / 19x row
+  (`:713`) and well clear of S-26's 5x floor. `cargo test --workspace` wall
+  time: unchanged in practice — the new target adds ~0.26s to a suite
+  already dominated by real child processes (`just check` total 6.886s
+  then 5.606s on a repeat run, both below PHASE-04's final 14.716s; the
+  difference is warm-`target/` noise between runs, not a regression,
+  confirmed by running `just check` three times this phase with exit 0
+  each time).
+  **Break-and-revert:** removed `let _entered = runtime.enter();` (replaced
+  with `let _ = &runtime;`) — the test then panicked at
+  `crates/goad/src/controller.rs:357:28`, *"there is no reactor running,
+  must be called from the context of a Tokio 1.x runtime"*, inside
+  `serve`'s own `sleep_until`. Reverted; `git diff` for the test file
+  empty afterward. This is the liveness proof the plan's Do step 3 asks
+  for: the test fails, and fails at the timer arm itself, if the guard the
+  production topology depends on is missing.
+
+**S-13..S-15, S-25..S-27** — none triggered. No dependency, feature or
+`dev-dependency` added (S-13); the split needed no body change, confirmed
+by `git diff` on the moved functions being empty within `scripting.rs`
+relative to their old bodies (S-14); `init_integration_test_with_system_time`
+exists and behaved as S-1 measured — the AC-10 margin matches design.md's
+prediction almost exactly (S-15); `renderer/harness.rs` still imports only
+`driving::instant`, confirmed by grep before and after (S-25); no unused-
+import site beyond the one `Path`/`PathBuf` line EX-1 names, confirmed by
+`cargo clippy --workspace --all-targets -- -D warnings` exiting 0 (S-27).
+
+**`just check` (final):** exit 0, 5.606s real
+(`/tmp/claude-1000/-home-david-dev-goad/302a7bbc-4adf-436d-ae25-a8c85c96ad29/
+scratchpad/gate-final-phase05.log`).
+
+**`git status --short`:** new — `crates/goad/tests/event_loop_schedule/`
+(`main.rs`, `scheduling.rs`), `tests/support/scripting.rs`; modified —
+`crates/goad-shell/tests/integration/{failure_matrix.rs,harness.rs,main.rs,
+round_trip.rs}`, `crates/goad/Cargo.toml`, `crates/goad/tests/renderer/
+{main.rs,scheduling.rs,table.rs,wiring.rs}`, `tests/support/driving.rs`,
+`docs/slices/003/notes.md`; `flake.lock` modified but pre-dates this
+session (untouched by this phase, as every prior phase also noted). No file
+under any `src/`, `crates/goad/tests/event_loop/`, `crates/goad/tests/
+renderer/harness.rs`, `tests/backends/`, or `crates/goad-shell/tests/
+integration/{transport.rs,host.rs,fake.rs}` touched — all confirmed
+untouched by `git diff --stat` being empty for each.
+
+**What PHASE-06 needs to know:** the split moved six functions and touched
+eight import sites, all mechanical (no symbol renamed, no body changed);
+`transport.rs` and `host.rs` needed no edit despite being declared surfaces
+— check them empty in the final diff rather than assuming a miss. AC-10 is
+now discharged (`design.md` §9's row, PHASE-06's restatement sweep can cite
+`event_loop_schedule::scheduling::a_scheduled_evaluation_fires_under_the_
+production_topology`). One component remains structurally unproven by any
+test in this repository: the production Slint platform's own polling of a
+`spawn_local` future (A-1, F-8) — PHASE-06/EX-1 should state this rather
+than let AC-10's "minus one component" phrase go unexplained in the
+restatement. The VA-1 binary-count finding above ("six", plan said "seven")
+is cosmetic and needs no repair, but PHASE-06's own restatement should not
+copy the plan's "seven" figure forward uncritically.
+
+
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-07 · PHASE-04 done · tree not yet committed for this
+**Fresh as of:** 2026-09-07 · PHASE-05 done · tree not yet committed for this
 phase
 
 ### Produced
@@ -848,6 +1101,18 @@ phase
   `resolve` (0/12 files) and that `schedule::resolve` occurs exactly twice
   in `crates/goad-shell/src`, both in `host.rs` (2/8 files) (PHASE-04/EX-2,
   EX-3).
+- `tests/support/scripting.rs` — the scripted-backend half of the former
+  `driving.rs`: `backend`, `marker`, `clear`, `logging_backend`,
+  `invocations`, `scripted`, moved unchanged (PHASE-05/EX-1, D-18, FD-3).
+  `driving.rs` keeps the host-composition half.
+- `crates/goad/tests/event_loop_schedule/{main.rs,scheduling.rs}` — AC-10's
+  own `[[test]]` target: `a_scheduled_evaluation_fires_under_the_production_
+  topology` drives a scheduled evaluation through the production topology
+  (real window/tray, `install`, multi-thread tokio runtime, `EnterGuard`,
+  real `ProcessBackend`, production `serve`, `slint::spawn_local`) under
+  `init_integration_test_with_system_time()`, the one substitution being
+  the Slint platform itself (PHASE-05/EX-3..EX-6, A-1, F-8). Measured
+  margin 19.1x-20.5x against design.md §9's predicted 19x.
 
 ### Learned
 - The design's exact `wait_for` body (`design.md:155-160`) compiles clean
@@ -901,6 +1166,22 @@ phase
   Harmless here (every margin came in wider than predicted, never
   narrower), but worth a second look before promoting `design.md` §9's new
   rows verbatim.
+- **`clippy.toml`'s `allow-*-in-tests` carve-out does not cover every
+  workspace `deny`.** `unwrap_used`/`expect_used`/`panic`/
+  `indexing_slicing` are exempted in test code; `dbg_macro`,
+  `print_stdout`, `print_stderr` and `use_debug`
+  (`Cargo.toml:149-152`) are not — a temporary `eprintln!("…{:?}", …)`
+  dropped into a test for margin instrumentation trips two of them at once
+  and has to come back out. `docs/memory/clippy-toml-test-exemptions-are-
+  a-hidden-boundary.md` names the first four; worth widening that memory
+  (or adding a sibling) to name these four as the ones that are **never**
+  test-exempt, so a future phase does not rediscover this by trying it.
+- **A plan's own binary count can drift by a fixed offset too.**
+  PHASE-05's VA-1 predicted "seven test binaries in `crates/goad`"; six
+  run (`unittests` lib, `unittests` main, `event_loop`, `event_loop_
+  schedule`, `renderer`, `Doc-tests goad`). Same class as the VA-2 note
+  above — a plan figure that does not match what the tree actually does,
+  caught by measuring rather than pasting the plan's own claim.
 
 ### Open
 - Findings sweep at close: the stray `(F-1)` citation above (PHASE-01); the
@@ -916,4 +1197,11 @@ phase
   undriven (they guard a boolean that is always `false` today, per PHASE-02's
   Decisions). No `controller.rs` change landed this phase — anyone touching
   it next inherits exactly PHASE-02's shape, unmodified.
+- PHASE-06 needs to know: AC-10 is discharged; the one component slice 002's
+  F-5 leaves open across every phase — the production Slint platform's own
+  polling of a `spawn_local` future, as opposed to the testing platform's —
+  is still unproven by any test in this repository (A-1, F-8) and should be
+  named as such in the restatement rather than implied closed. The VA-1
+  "seven vs. six" binary-count drift (Learned) needs no repair but should
+  not be copied forward into PHASE-06's own count.
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

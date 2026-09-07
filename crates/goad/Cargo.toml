@@ -38,3 +38,7 @@ path = "tests/renderer/main.rs"
 [[test]]
 name = "event_loop"
 path = "tests/event_loop/main.rs"
+
+[[test]]
+name = "event_loop_schedule"
+path = "tests/event_loop_schedule/main.rs"

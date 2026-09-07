@@ -10,6 +10,13 @@
 #[path = "../../../../tests/support/driving.rs"]
 mod driving;
 
+// The scripted-backend half of `driving.rs`, split out at slice 003
+// PHASE-05 (D-18) so a target that never composes a `Host` can include it
+// alone. This target still uses it, through `harness`'s re-export.
+#[cfg(test)]
+#[path = "../../../../tests/support/scripting.rs"]
+mod scripting;
+
 #[cfg(test)]
 mod harness;
 

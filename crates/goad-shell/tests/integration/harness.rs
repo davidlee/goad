@@ -24,9 +24,10 @@ use goad_shell::host::{Failure, Outcome};
 use crate::driving::event;
 
 /// Re-exported so the transport cases keep naming one module. `backend`,
-/// `marker` and `clear` are `scripted`'s dependencies and moved with it (§12.8);
+/// `marker` and `clear` are `scripted`'s dependencies and moved with it
+/// (§12.8, and to `tests/support/scripting.rs` at slice 003 PHASE-05, D-18);
 /// this tier calls all three directly as well, through `harness::`.
-pub(crate) use crate::driving::{backend, clear, marker};
+pub(crate) use crate::scripting::{backend, clear, marker};
 
 /// A transport pointed at one script, with the timeout this case wants.
 pub(crate) fn transport(name: &str, timeout: Duration) -> ProcessBackend {

@@ -11,9 +11,8 @@ use std::time::Duration;
 use goad_semantics::protocol::canonical::{Timestamp, UserResponse, ViewId};
 use goad_shell::config::Command;
 
-use crate::driving::{
-  CLEANUP_LIMIT, answer_first_option, host, instant, invocations, presented, quiet_event, scripted,
-};
+use crate::driving::{CLEANUP_LIMIT, answer_first_option, host, instant, presented, quiet_event};
+use crate::scripting::{invocations, scripted};
 use goad::controller::{Controller, Exchanged, Shift};
 
 // ---------------------------------------------------------------------------

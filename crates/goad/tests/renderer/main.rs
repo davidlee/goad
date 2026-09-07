@@ -12,9 +12,11 @@
 //!
 //! `driving` is the host-driving half of slice 001's test helpers
 //! (design.md §12.8), shared with `crates/goad-shell/tests/integration`;
-//! `table` and `wiring` are its callers in this target. `harness` is what
-//! two or more of this target's own modules need (slice 003 PL-12);
-//! `scheduling` is one of its callers.
+//! `table` and `wiring` are its callers in this target. `scripting` is the
+//! scripted-backend half, split out at slice 003 PHASE-05 (D-18); `table`,
+//! `wiring` and `scheduling` all call it too. `harness` is what two or more
+//! of this target's own modules need (slice 003 PL-12); `scheduling` is one
+//! of its callers.
 #[cfg(test)]
 mod harness;
 #[cfg(test)]
@@ -37,3 +39,6 @@ mod wiring;
 #[cfg(test)]
 #[path = "../../../../tests/support/driving.rs"]
 mod driving;
+#[cfg(test)]
+#[path = "../../../../tests/support/scripting.rs"]
+mod scripting;

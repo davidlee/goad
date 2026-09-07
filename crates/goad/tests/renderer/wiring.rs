@@ -18,10 +18,11 @@ use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::ComponentHandle;
 use tokio::sync::mpsc;
 
-use crate::driving::{host, invocations, quiet_event, scripted};
+use crate::driving::{host, quiet_event};
 use crate::harness::{
   TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
 };
+use crate::scripting::{invocations, scripted};
 
 /// Two named options, so a `Choose` can name the wrong one (VT-5) or the
 /// right one, and so `busy`'s controls (VT-9) have something to be

@@ -18,10 +18,11 @@ use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, Schedul
 use tokio::sync::mpsc;
 use tokio::task::LocalSet;
 
-use crate::driving::{DEFAULT_POLL, host_from, instant, invocations, logging_backend, scripted};
+use crate::driving::{DEFAULT_POLL, host_from, instant};
 use crate::harness::{
   TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
 };
+use crate::scripting::{invocations, logging_backend, scripted};
 
 /// A successful exchange with nothing to show and no instruction — the
 /// caller's own `default_poll` governs the next check.
