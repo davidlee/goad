@@ -41,7 +41,7 @@ notion of catching up on checks that were due while the host was not running.
 
 **Boundaries:** this spec abuts SPEC-001 at exactly two points. It **consumes**
 the resolved instant SPEC-001/R-26 produces, and it **produces** an `evaluate`
-whose event kind SPEC-001/R-56 fixes. It reads no response and writes no
+whose event kind SPEC-001/R-56 names. It reads no response and writes no
 schedule.
 
 ## 3. Principles
@@ -93,6 +93,17 @@ check. The host computes the wait as the difference between that instant and the
 instant the request carried, floored at zero, and then defers the firing to no
 earlier than the minimum spacing after the previous scheduled firing. When the
 wait elapses, the host begins an `evaluate` with the `"scheduled"` kind.
+
+**What a scheduled evaluation may replace.** A firing the host began of its own
+accord is an evaluation like any other: if the backend answers it with a view,
+that view replaces whatever presentation the host was retaining, and the
+retained interaction identity is superseded (SPEC-001/R-33). A person looking
+at a prompt when a check comes due may therefore find the answer they then give
+refused as naming a superseded view — a refusal they did nothing to cause. R-4
+bounds how often this can happen and nothing else does; R-5's *"MUST NOT delay
+an evaluation a person asked for"* is about delay and says nothing about this.
+OQ-4 carries the question of whether a host should suppress or defer such a
+firing.
 That exchange reports a new resolved next check and the cycle repeats.
 
 ```mermaid
@@ -152,7 +163,8 @@ It uses, without interpreting: the resolved next check SPEC-001/R-26 produces,
 and the instant its own clock reports.
 
 The scheduled evaluation's wire form is SPEC-001's, unchanged, with the event
-kind SPEC-001/R-56 fixes at `"scheduled"`.
+kind SPEC-001/R-56 names for a firing that came due, `"scheduled"`. R-56 leaves
+the set of kinds open; this spec adds no kind of its own and closes nothing.
 
 The minimum spacing is a constant of the host, not a configured value, and not
 a value a backend can read or influence. A configured default poll shorter than
@@ -174,7 +186,7 @@ it, by file and function, so the claim is checkable rather than asserted
 | requirement | verified by |
 |---|---|
 | R-1 | integration: a running host with a backend that supplies no `next_check` performs a second `evaluate` about one default poll after the first, evidenced by the backend's own invocation record — `crates/goad/tests/renderer/scheduling.rs::a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_check` |
-| R-2 | structural: a scan asserting the resolution function has no call site outside the one the host reports from — `crates/goad-boundary/tests/checks/structure.rs::no_production_line_in_the_renderer_names_the_identifier_resolve` (absence, stratum 3) and `::schedule_resolve_is_called_only_from_host` (count, stratum 2) |
+| R-2 | structural: a scan asserting the resolution function has no call site outside the one the host reports from — `crates/goad-boundary/tests/checks/structure.rs::no_production_line_in_the_renderer_names_the_identifier_resolve` (absence, stratum 3) and `::schedule_resolve_is_called_only_from_host` (the call count, plus the assertion that the path is nowhere taken as a value, stratum 2) |
 | R-3 | unit, on the pure wait computation: an instant at `now`, before `now`, and at the edge of representable time, at both floors — `crates/goad-semantics/src/schedule.rs::wait_for_an_instant_at_now_is_zero`, `::wait_for_a_past_instant_is_zero_not_an_underflow`, `::wait_for_is_total_at_the_past_edge_of_representable_time`, `::wait_for_is_total_at_the_future_edge_of_representable_time`, `::wait_for_a_future_instant_is_the_exact_difference`. Integration: a backend answering with a past instant every time is invoked a bounded number of times over an interval far shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor` (repeated); the one-off successor case — `scheduling.rs::a_one_off_past_instruction_is_consumed_and_cadence_resumes` |
 | R-4 | integration: a backend answering with a past instant every time yields a bounded invocation count over a window far shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor`; a person acting in the middle of a scheduled cadence does not raise that count — `scheduling.rs::a_person_acting_mid_cadence_does_not_clear_the_floor`. The floor's own necessity is a break-and-revert (`MINIMUM_SPACING` zeroed), not a standing test: `notes.md` PHASE-03 sheet, VA-3 |
 | R-5 | integration: the first scheduled evaluation of the process honours a default poll shorter than the spacing — `crates/goad/tests/renderer/scheduling.rs::a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_check`; an evaluation a person asks for is dispatched without waiting for it — `scheduling.rs::a_person_acting_mid_cadence_does_not_clear_the_floor` |
@@ -195,6 +207,13 @@ it, by file and function, so the claim is checkable rather than asserted
 - **OQ-2.** Whether the minimum spacing should be reported to a backend that
   asked for something faster. Nothing in SPEC-001 carries host policy toward a
   backend, and inventing a channel for it here would be the wrong place.
+- **OQ-4.** Whether a host should suppress or defer a scheduled evaluation
+  while a presentation is outstanding, so that a person's answer cannot be
+  refused on account of a firing they did not cause. Suppression asks the host
+  to judge that a view is worth protecting, which is domain meaning it does not
+  hold; deferral needs a second pending state and a second writer of the
+  deadline. Left open because the answer plausibly belongs to the backend —
+  which knows what the view is for — rather than to the host.
 - **OQ-3.** Whether a host should report *when it will fire* alongside the
   instruction it holds, for the three states in which they differ. Deferred:
   the firing instant is measured monotonically and has no wall-clock rendering

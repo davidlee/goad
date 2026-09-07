@@ -6,16 +6,19 @@
 //! presence-forbidding over a directory, and "exactly one" is not
 //! expressible in it (`plan-log.md` PL-6).
 //!
-//! Scoped to **production** code: a source is read only up to its own
-//! `#[cfg(test)]` line, if it has one, which is where every inline test
-//! module in this crate starts and where it stays until the file ends
-//! (measured — `wire.rs` and `controller.rs` are the two files with one, and
-//! `wire.rs`'s own test module legitimately drives `Cancel::stopped()` with
-//! `tokio::spawn`, which is not the handle item 14f is about).
+//! Scoped to **production** code: each `#[cfg(test)]` **item** is skipped and
+//! the scan resumes after it, rather than the file being cut off at the first
+//! such line. Every inline test module in
+//! `crates/goad/src` runs to the end of its file today, so the two read the
+//! same tree; `crates/goad-shell/src` has three files whose test module starts
+//! before their midpoint, and nothing but this scan's own shape stops
+//! production code from following one. `wire.rs`'s own test module
+//! legitimately drives `Cancel::stopped()` with `tokio::spawn`, which is not
+//! the handle item 14f is about.
 
 use std::path::{Path, PathBuf};
 
-use goad_boundary::scan::{code_of, mentions, workspace_root};
+use goad_boundary::scan::{code_of, code_without_literals, mentions, workspace_root};
 
 /// Stratum 3, AC-6 instrument (a)'s subject: no production line here may
 /// name the identifier `resolve`.
@@ -67,17 +70,90 @@ fn walk_rs_files(dir: &Path, files: &mut Vec<PathBuf>) {
   }
 }
 
+/// Every line of **production** code in `path`, comments and string contents
+/// already handled by `code_of`, with each `#[cfg(test)]` item skipped.
+///
+/// The skip is over the attributed **item**, not over the rest of the file:
+/// a cut that broke at the first
+/// `#[cfg(test)]` line read nothing after it, so a file with production code
+/// following an inline test module would go half-unread while still counting
+/// as one inspected file. No subject file has that shape today; nothing made
+/// that a checked fact, and `crates/goad-shell/src` has three files whose test
+/// module starts before their midpoint.
+///
+/// A braced item (`mod tests { … }`) is skipped until its brace depth returns
+/// to zero; an unbraced one (`#[cfg(test)] use …;`) ends on its own line.
+/// Attribute and doc lines between the `#[cfg(test)]` and the item it attaches
+/// to are skipped without ending the skip.
+///
+/// The depth is counted over `code_without_literals`, not `code_of`: a brace
+/// inside a string or char literal is not a brace, and one of them would
+/// desynchronise the count for every line after it — the same partial
+/// blinding, by another route, that the item-scoped skip exists to prevent.
 fn production_lines(path: &Path) -> Vec<(usize, String)> {
   let text =
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
   let mut lines = Vec::new();
+  let mut skipping: Option<Skip> = None;
   for (index, line) in text.lines().enumerate() {
-    if line.trim() == "#[cfg(test)]" {
-      break;
+    match skipping.as_mut() {
+      // Braces are counted over text with **literals cut as well as
+      // comments**: `code_of` leaves string and char contents intact, on
+      // purpose, and one unbalanced `{` inside a literal in a test module
+      // would otherwise hold the skip open for the rest of the file.
+      Some(skip) => {
+        if skip.consume(&code_without_literals(line)) {
+          skipping = None;
+        }
+      }
+      None if line.trim() == "#[cfg(test)]" => skipping = Some(Skip::default()),
+      None => lines.push((index + 1, code_of(line).into_owned())),
     }
-    lines.push((index + 1, code_of(line).into_owned()));
   }
   lines
+}
+
+/// The state of a `#[cfg(test)]` item being skipped: how deep inside its
+/// braces the scan is, and whether it has met a brace at all yet.
+#[derive(Default)]
+struct Skip {
+  depth: usize,
+  opened: bool,
+}
+
+impl Skip {
+  /// Feed one line of stripped code. Returns whether the item ended on it.
+  fn consume(&mut self, code: &str) -> bool {
+    let opens = code.matches('{').count();
+    let closes = code.matches('}').count();
+    if opens > 0 {
+      self.opened = true;
+    }
+    self.depth = self.depth.saturating_add(opens).saturating_sub(closes);
+    if self.opened {
+      return self.depth == 0;
+    }
+    // Not braced yet: a line ending in `;` is the whole item; anything else
+    // is a further attribute or doc line on the way to it.
+    code.trim_end().ends_with(';')
+  }
+}
+
+/// Every production line in `dir` whose code satisfies `names_it`, as one
+/// walk. The three matchers below differ only in the predicate they hand it.
+fn occurrences_where(dir: &str, mut names_it: impl FnMut(&str) -> bool) -> Vec<Occurrence> {
+  let mut found = Vec::new();
+  for path in subject_files(dir) {
+    for (line, code) in production_lines(&path) {
+      if names_it(&code) {
+        found.push(Occurrence {
+          path: path.clone(),
+          line,
+        });
+      }
+    }
+  }
+  found
 }
 
 /// The substring matcher — for the three existing needles, none of which
@@ -85,42 +161,43 @@ fn production_lines(path: &Path) -> Vec<(usize, String)> {
 /// `slint::spawn_local(` all carry punctuation `str::contains` is exactly
 /// right for).
 fn occurrences_of(dir: &str, needle: &str) -> Vec<Occurrence> {
-  let mut found = Vec::new();
-  for path in subject_files(dir) {
-    for (line, code) in production_lines(&path) {
-      if code.contains(needle) {
-        found.push(Occurrence {
-          path: path.clone(),
-          line,
-        });
-      }
-    }
-  }
-  found
+  occurrences_where(dir, |code| code.contains(needle))
 }
 
-/// The identifier/path matcher — `goad_boundary::scan::mentions`, for
-/// AC-6's two instruments. A token containing `::` is matched as a
-/// substring (instrument (b), `"schedule::resolve"`); a bare token is
-/// matched as an identifier word, catching a brace-grouped `use` as
-/// readily as a call (instrument (a), `"resolve"`) — `mentions` already
-/// branches on this, so one function serves both (FD-2: "two matchers,
-/// named"; the other is `occurrences_of` above). `mentions` re-applies
-/// `code_of` to lines `production_lines` has already stripped — harmless
-/// on already-stripped text, not a second pass with different results.
+/// The identifier matcher — `goad_boundary::scan::mentions`, for AC-6's
+/// instrument (a). A bare token is matched as an identifier **word**,
+/// catching a brace-grouped `use` as readily as a call; `mentions`'s other
+/// branch, a token containing `::` matched as a plain substring, is defeated
+/// by exactly that `use` and is not what either AC-6 instrument takes.
+/// `mentions` re-applies `code_of` to lines `production_lines` has already
+/// stripped — harmless on already-stripped text, not a second pass with
+/// different results.
 fn mentions_occurrences_of(dir: &str, token: &str) -> Vec<Occurrence> {
-  let mut found = Vec::new();
-  for path in subject_files(dir) {
-    for (line, code) in production_lines(&path) {
-      if mentions(&code, token) {
-        found.push(Occurrence {
-          path: path.clone(),
-          line,
-        });
-      }
-    }
-  }
-  found
+  occurrences_where(dir, |code| mentions(code, token))
+}
+
+/// The call matcher — AC-6's instrument (b). Does this line **call**
+/// `resolve`?
+///
+/// `resolve(` with no identifier byte before it, over
+/// `code_without_literals`, so neither `my_resolve(` nor a `resolve(` inside
+/// a message string counts. That is the whole of it, and it is deliberately
+/// narrow: it says nothing about `resolve_from`, `resolve_to`, or the word
+/// `resolve` in prose, none of which SPEC-002/R-2 has a view on.
+///
+/// Import-shape-blind, which is the property the path substring lacked: a
+/// call spelled `schedule::resolve(…)` and one spelled `resolve(…)` after a
+/// brace-grouped `use goad_semantics::schedule::{resolve, parse};` both carry
+/// `resolve(`, so both count.
+fn calls_resolve(code: &str) -> bool {
+  let stripped = code_without_literals(code);
+  let bytes = stripped.as_bytes();
+  stripped.match_indices("resolve(").any(|(at, _)| {
+    at == 0
+      || bytes
+        .get(at - 1)
+        .is_none_or(|&before| !before.is_ascii_alphanumeric() && before != b'_')
+  })
 }
 
 fn report(found: &[Occurrence]) -> String {
@@ -155,12 +232,40 @@ fn the_walk_descends_into_a_subdirectory() {
 /// otherwise pass every assertion below vacuously (E-1). Runs for both
 /// subject directories (PHASE-04/EX-3): a second directory added for AC-6
 /// must not be exempt from the same guard the first one has always had.
+///
+/// **Lines as well as files.** A non-zero file
+/// count cannot tell a fully-read file from a half-read one, so a blinded
+/// file used to be indistinguishable from a clean one. Two further claims
+/// close that: every subject file yields at least one production line, and
+/// each directory's total clears a floor. Measured on this tree:
+/// `crates/goad/src` reads 1907 production lines and `crates/goad-shell/src`
+/// reads 1224. The floors sit well under both — they are a tripwire for a
+/// scan that stopped reading, not a line-count assertion a refactor should
+/// have to service. What makes a *partial* blinding impossible is
+/// `production_lines`'s item-scoped cut and its own control below, not this
+/// number.
 #[test]
 fn the_subject_directories_are_found_and_are_not_empty() {
-  for dir in [SUBJECT_DIR, SHELL_SUBJECT_DIR] {
+  for (dir, floor) in [(SUBJECT_DIR, 1000), (SHELL_SUBJECT_DIR, 900)] {
+    let files = subject_files(dir);
     assert!(
-      !subject_files(dir).is_empty(),
+      !files.is_empty(),
       "{dir} inspected no `.rs` file — renamed, emptied, or misspelled"
+    );
+    let mut total = 0;
+    for path in &files {
+      let read = production_lines(path).len();
+      assert!(
+        read > 0,
+        "{} yielded no production line at all — the scan is blind to this file",
+        path.display()
+      );
+      total += read;
+    }
+    assert!(
+      total >= floor,
+      "{dir} yielded {total} production lines, under the {floor} this tree measures — \
+       the scan stopped reading somewhere"
     );
   }
 }
@@ -209,20 +314,40 @@ fn no_production_line_in_the_renderer_names_the_identifier_resolve() {
   assert!(found.is_empty(), "found:\n{}", report(&found));
 }
 
-/// AC-6 (b): the path `schedule::resolve` occurs exactly twice in
-/// `crates/goad-shell/src`'s production code, both in `host.rs` — measured
-/// at `host.rs:128` and `:259` (design.md §9's AC-6 row). Asserted as a
-/// count and a set of file names, never as line numbers (D-16): a line
+/// AC-6 (b), SPEC-002/R-2: `schedule::resolve` is **called** from exactly two
+/// places in `crates/goad-shell/src`'s production code, both in `host.rs`, and
+/// nowhere takes it as a value without calling it.
+///
+/// **What the count is about.** R-2 is *"the host MUST NOT resolve a next
+/// check anywhere but the one resolution SPEC-001/R-26 describes"*, so the
+/// thing to count is the resolving **call**. The count is load-bearing and is
+/// the only assertion here that is: a third call added inside `host.rs` would
+/// pass the file-set check and is caught by nothing else.
+///
+/// **What it is deliberately not about.** An earlier form of this instrument
+/// counted every production line naming the identifier `resolve` — nine of
+/// them, including a user-facing message string in `error.rs` and six
+/// `resolve_from`/`resolve_to` lines. Rewording a diagnostic or renaming a
+/// private helper turned the boundary suite red without anything having
+/// resolved a schedule, and an instrument that reds for reasons its
+/// requirement has no view on invites the repair *bump the number* — after
+/// which nobody reads its report again. `calls_resolve` counts the call form
+/// only, over `code_without_literals`, so neither a message nor a helper name
+/// is a boundary fact.
+///
+/// **What the narrowing would have cost, closed here.** A call matcher cannot
+/// see `let f = schedule::resolve;` followed by `f(…)`. The second assertion
+/// closes that for the qualified form: every production line naming the path
+/// `schedule::resolve` must also be a call line. A rename-import
+/// (`use … as r;`) remains outside both, as §5.5 I-1a already concedes.
+///
+/// Asserted as a count and a set of file names, never as line numbers: a line
 /// moving inside `host.rs` is not this instrument's business.
 #[test]
 fn schedule_resolve_is_called_only_from_host() {
-  assert!(
-    !subject_files(SHELL_SUBJECT_DIR).is_empty(),
-    "{SHELL_SUBJECT_DIR} inspected no `.rs` file — renamed, emptied, or misspelled"
-  );
-  let found = mentions_occurrences_of(SHELL_SUBJECT_DIR, "schedule::resolve");
-  assert_eq!(found.len(), 2, "found:\n{}", report(&found));
-  let files: std::collections::BTreeSet<Option<&str>> = found
+  let called = occurrences_where(SHELL_SUBJECT_DIR, calls_resolve);
+  assert_eq!(called.len(), 2, "found:\n{}", report(&called));
+  let files: std::collections::BTreeSet<Option<&str>> = called
     .iter()
     .map(|occurrence| {
       occurrence
@@ -235,7 +360,17 @@ fn schedule_resolve_is_called_only_from_host() {
     files,
     std::collections::BTreeSet::from([Some("host.rs")]),
     "found:\n{}",
-    report(&found)
+    report(&called)
+  );
+
+  let named_but_not_called = occurrences_where(SHELL_SUBJECT_DIR, |code| {
+    code_without_literals(code).contains("schedule::resolve") && !calls_resolve(code)
+  });
+  assert!(
+    named_but_not_called.is_empty(),
+    "`schedule::resolve` is named without being called — a value taken here is \
+     a call site the count above cannot see:\n{}",
+    report(&named_but_not_called)
   );
 }
 
@@ -243,7 +378,9 @@ fn schedule_resolve_is_called_only_from_host() {
 /// itself is already proven against real fixtures by `purity.rs` and
 /// `vocabulary.rs`.
 mod counting_itself {
-  use super::{code_of, mentions, production_lines, workspace_root};
+  use super::{
+    calls_resolve, code_of, code_without_literals, mentions, production_lines, workspace_root,
+  };
 
   #[test]
   fn a_token_named_only_in_a_comment_is_not_counted() {
@@ -280,10 +417,114 @@ mod counting_itself {
   /// (`scan.rs`'s doc comment: "matches the token or its plural"). Decided
   /// and asserted, per EX-2/VT-5, rather than left for a reader to work
   /// out from the matcher's source.
+  ///
+  /// The fixture is **code**, not a comment: a commented fixture is stripped
+  /// by `code_of` before the word matcher ever sees the participle, so the
+  /// assertion would hold for a reason that has nothing to do with the
+  /// participle rule. Verified non-vacuous by breaking
+  /// `is_singular_or_plural_of` to strip a trailing `d` and watching this
+  /// test go red.
   #[test]
   fn the_participle_resolved_is_not_counted_by_the_word_matcher() {
-    let line = "// the outcome resolved cleanly on the first try";
+    let line = "    let resolved = outcome;";
+    assert!(
+      !code_of(line).is_empty(),
+      "the fixture must survive comment stripping, or this control is vacuous"
+    );
     assert!(!mentions(line, "resolve"));
+  }
+
+  /// The cut is over the **item** the `#[cfg(test)]` attribute introduces,
+  /// not over the rest of the file: production code after an inline test
+  /// module is production code, and a cut that took the whole tail would
+  /// read none of it while reporting the same non-zero file count. Today no
+  /// subject file has such a tail, which
+  /// is precisely why the fixture is on disk rather than in the tree.
+  #[test]
+  fn production_after_an_inline_test_module_is_still_read() {
+    let path = workspace_root()
+      .join("crates/goad-boundary/tests/fixtures/structure/production_after_tests.rs");
+    let read = production_lines(&path);
+    let names = |needle: &str| read.iter().any(|(_, code)| code.contains(needle));
+    assert!(
+      names("before_the_module"),
+      "nothing before the module was read"
+    );
+    assert!(
+      names("after_the_module"),
+      "the cut took the whole tail: production code after an inline test module went unread"
+    );
+    assert!(
+      !names("inside_the_module"),
+      "the cut let the test module's own body through"
+    );
+  }
+
+  /// `code_without_literals`, the text the brace count and the call matcher
+  /// both read: a `{` inside a string, a raw string or a char literal is not
+  /// a brace, and neither is a `resolve(` inside a message.
+  #[test]
+  fn a_brace_inside_a_literal_is_not_a_brace() {
+    for line in [
+      r#"  let opening = "a JSON fragment: {";"#,
+      r##"  let raw = r#"another one: {"#;"##,
+      r"  let brace = '{';",
+    ] {
+      let stripped = code_without_literals(line);
+      assert!(
+        !stripped.contains('{'),
+        "{line} still holds a brace after stripping: {stripped}"
+      );
+    }
+  }
+
+  /// The complement: a real brace outside a literal survives, so the strip is
+  /// not simply deleting everything.
+  #[test]
+  fn a_brace_outside_a_literal_survives_the_strip() {
+    let line = r#"  mod tests { let s = "no brace here"; }"#;
+    let stripped = code_without_literals(line);
+    assert_eq!(stripped.matches('{').count(), 1, "{stripped}");
+    assert_eq!(stripped.matches('}').count(), 1, "{stripped}");
+  }
+
+  /// A literal left open at end of line is cut from its opening delimiter —
+  /// `code_of` returns such a line intact, which is right for a scan that
+  /// reads words and wrong for one that counts braces.
+  #[test]
+  fn an_unterminated_literal_is_cut_rather_than_returned_intact() {
+    let line = r#"  let s = "an unterminated fragment {"#;
+    assert!(!code_without_literals(line).contains('{'));
+    assert!(code_of(line).contains('{'));
+  }
+
+  /// Neighbouring identifiers are not joined across a cut literal, for the
+  /// same reason the block-comment cut leaves a space.
+  #[test]
+  fn a_cut_literal_leaves_a_space_rather_than_joining_its_neighbours() {
+    let stripped = code_without_literals(r#"site"x"view"#);
+    assert!(!stripped.contains("siteview"), "{stripped}");
+  }
+
+  /// `calls_resolve`, AC-6 (b)'s matcher: the two call spellings count, and
+  /// the three shapes the old identifier count reded on do not.
+  #[test]
+  fn the_call_matcher_counts_calls_and_nothing_else() {
+    for line in [
+      "    let seed = schedule::resolve(None, None, config.schedule.default_poll, now);",
+      "    let seed = resolve(None, None, poll, now);",
+    ] {
+      assert!(calls_resolve(line), "not counted as a call: {line}");
+    }
+    for line in [
+      "    let next_check = self.resolve_from(value.schedule(), now);",
+      "    self.state.resolve_to(next_check);",
+      r#"          "{key} = \"{raw}\" is not a duration this host can resolve: {fault}""#,
+      "  fn my_resolve(x: u32) -> u32 { x }",
+      "use goad_semantics::schedule::resolve;",
+    ] {
+      assert!(!calls_resolve(line), "wrongly counted as a call: {line}");
+    }
   }
 
   /// `wire.rs` is the fixture already on disk that proves the cut is not

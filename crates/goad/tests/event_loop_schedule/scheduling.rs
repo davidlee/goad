@@ -32,6 +32,7 @@ use slint::{ComponentHandle, VecModel};
 use tokio::sync::mpsc;
 
 use crate::scripting::{invocations, scripted};
+use crate::waiting::{LIVENESS_BOUND, within};
 
 /// A response with nothing to show and no instruction, so the caller's own
 /// `default_poll` governs the next check — the same shape
@@ -40,30 +41,9 @@ const NOTHING_INSTRUCTED: &str = r#"{"view":null}"#;
 
 /// Short enough to observe well inside `LIVENESS_BOUND`, long enough that a
 /// loaded gate cannot mistake scheduling jitter for a missed firing
-/// (design.md §9's AC-10 row: ~105 ms expected, 19x margin).
+/// (design.md §9's AC-10 row: ~270 ms measured against the 5 s liveness
+/// bound, ~18x).
 const DEFAULT_POLL: jiff::SignedDuration = jiff::SignedDuration::from_millis(100);
-
-/// `until(2 s)` everywhere else in this slice's timed assertions
-/// (`renderer/harness.rs::until`); restated here rather than shared, because
-/// this target includes only `scripting.rs` (FD-3, D-18) and `harness.rs`
-/// is `renderer`'s own, outside this phase's surfaces.
-const LIVENESS_BOUND: Duration = Duration::from_secs(2);
-
-/// Poll `predicate` every 5 ms until it is true, panicking if `LIVENESS_BOUND`
-/// passes first — the same shape as `renderer/harness.rs::until`.
-async fn until(mut predicate: impl FnMut() -> bool) {
-  let deadline = std::time::Instant::now() + LIVENESS_BOUND;
-  loop {
-    if predicate() {
-      return;
-    }
-    assert!(
-      std::time::Instant::now() < deadline,
-      "condition did not become true within {LIVENESS_BOUND:?}"
-    );
-    tokio::time::sleep(Duration::from_millis(5)).await;
-  }
-}
 
 /// AC-10 (`plan.md` PHASE-05/VT-1). `start`'s own composition, real in every
 /// component but the Slint platform (EX-5, EX-6): a multi-thread tokio
@@ -78,8 +58,8 @@ async fn until(mut predicate: impl FnMut() -> bool) {
 /// a second invocation — the unprompted, scheduled one `default_poll`
 /// produces — and only then trips `Cancel`. `serve` returns
 /// `Ending::Stopped`, `quit_event_loop` ends the loop, and
-/// `run_event_loop_until_quit` returns. *Liveness: ~105 ms expected,
-/// `until(2 s)`, 19x margin (design.md §9).*
+/// `run_event_loop_until_quit` returns. *Liveness: measured ~270 ms against
+/// the 5 s liveness bound, ~18x (design.md §9).*
 #[test]
 fn a_scheduled_evaluation_fires_under_the_production_topology() {
   init_integration_test_with_system_time();
@@ -142,12 +122,32 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
   // event loop is running"): a second task, on the same thread, that
   // dispatches the first evaluation, waits for the scheduled second
   // invocation, and only then stops the loop from inside it.
+  //
+  // The watcher never panics on the wait. A
+  // panic here would unwind inside the Slint event loop's own poll, so
+  // `stopper.stop()` would never run, `serve` would never return, its
+  // `quit_event_loop` would never be called, and
+  // `run_event_loop_until_quit()` on the test thread would have nothing to
+  // end it — an indefinitely wedged gate rather than a red one, since
+  // `cargo test` imposes no outer timeout. So the wait yields a bool, the
+  // loop is stopped either way, and the assertion is made on the test thread
+  // after the loop has ended.
   let watcher_log = log.clone();
+  let observed = Rc::new(RefCell::new(false));
+  let watcher_observed = Rc::clone(&observed);
   let _watching = slint::spawn_local(async move {
     tx.send(Command::Evaluate(Stimulus::Requested))
       .await
       .expect("the channel must accept the first send");
-    until(|| invocations(&watcher_log) >= 2).await;
+    // Waiting on the invocation log is right here, and the sweep for F-22
+    // left it alone deliberately: nothing this target asserts depends on the
+    // second exchange having been **absorbed**. Its claims are that the
+    // firing happened, that the loop ended, and that the count is 2 — all
+    // facts about the log itself. A case asserting what the exchange
+    // resolved would have to wait on the rendered next-check line instead
+    // (`renderer/scheduling.rs::absorbed_line`).
+    *watcher_observed.borrow_mut() =
+      within(LIVENESS_BOUND, || invocations(&watcher_log) >= 2).await;
     stopper.stop();
   })
   .expect("the event loop accepts the watcher task");
@@ -155,6 +155,10 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
   slint::run_event_loop_until_quit()
     .expect("the headless testing backend's loop can run, and quit when asked");
 
+  assert!(
+    *observed.borrow(),
+    "the scheduled evaluation never landed within {LIVENESS_BOUND:?}"
+  );
   assert_eq!(
     *ending.borrow(),
     Some(Ending::Stopped),

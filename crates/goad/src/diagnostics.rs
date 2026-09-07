@@ -262,24 +262,33 @@ pub fn tooltip(diagnostics: &Diagnostics, waiting: bool) -> String {
   }
 }
 
-/// The standing schedule's own line (D-9, D-17). Not a `Diagnostics` line
-/// and not one `Diagnostics` renders: a standing schedule is not an
-/// exchange's product. It names what it renders — the resolved next check
-/// the host holds and reports, which is the **instruction**, never a
-/// prediction of when the host will actually fire (draft-spec.md R-2's
-/// closing clause) — because the floor, a refused firing, or a suspend can
-/// each move the real deadline later without moving this value.
+/// The standing schedule's own line. Not a `Diagnostics` line and not one
+/// `Diagnostics` renders: a standing schedule is not an exchange's product,
+/// and putting it among the tray's own rows would retire the "Nothing to
+/// report." sentinel by side effect. It names what it renders — the resolved
+/// next check the host holds and reports, which is the **instruction**,
+/// never a prediction of when the host will actually fire (draft-spec.md §6:
+/// a host surfacing its next check MUST NOT present the instruction as a
+/// prediction) — because the spacing, a refused firing, or a suspend can each
+/// move the real deadline later without moving this value (SPEC-002/R-6).
 ///
-/// Second precision: sub-second detail is not meaningful to a person
-/// reading a clock. Falls back to the unrounded instant if rounding errors
-/// at the edge of representable time, rather than panicking (VT-1).
+/// Second precision, **truncated**: sub-second detail is not meaningful to a
+/// person reading a clock, and jiff's default half-expand would render an
+/// instant up to half a second later than the one the host holds — a value
+/// it never stored, in the one direction that can be read as promising a
+/// later check. Falls back to the untruncated instant if the arithmetic
+/// errors at the edge of representable time, rather than panicking (VT-1).
 #[must_use]
 pub fn next_check_line(at: Timestamp) -> String {
-  let rounded = at
+  let truncated = at
     .instant()
-    .round(jiff::Unit::Second)
+    .round(
+      jiff::TimestampRound::new()
+        .smallest(jiff::Unit::Second)
+        .mode(jiff::RoundMode::Trunc),
+    )
     .unwrap_or(at.instant());
-  finish(&format!("next check (instructed): {rounded}"), LINE_LIMIT)
+  finish(&format!("next check (instructed): {truncated}"), LINE_LIMIT)
 }
 
 /// The transient back-pressure line. `Wire::send` is its only writer
@@ -450,12 +459,18 @@ mod tests {
   use super::next_check_line;
   use goad_semantics::protocol::canonical::Timestamp;
 
+  /// Truncated, not rounded to nearest. Half-expand would render
+  /// `04:34:14.987Z` as `04:34:15Z` — an instant up to half a second
+  /// **later** than the one the host holds, and one it never stored. What is
+  /// reported is the instruction the host holds (SPEC-002/R-6), and the line
+  /// must not read as a promise about when the check will happen
+  /// (draft-spec.md §6); erring later is the one direction that can.
   #[test]
-  fn an_ordinary_instant_renders_to_second_precision() {
+  fn an_ordinary_instant_is_truncated_to_second_precision_never_rounded_up() {
     let at = Timestamp::new("2026-09-07T04:34:14.987654321Z".parse().unwrap());
     assert_eq!(
       next_check_line(at),
-      "next check (instructed): 2026-09-07T04:34:15Z"
+      "next check (instructed): 2026-09-07T04:34:14Z"
     );
   }
 

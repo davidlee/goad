@@ -424,3 +424,70 @@ other, citing the finding id.
   the page and PHASE-05's surfaces are unchanged — they were already correct.
   `plan-log.md` PL-10 records the alternative and PL-13 the escalation. No
   `canon-delta.md` entry: POL-001 is applied here, not amended.
+
+### 2026-09-07 — Code review round 1: six decisions taken under the standing grant
+
+Six of the sixteen findings in `review-code.md` needed a decision rather than a
+repair. Taken by the agent under the grant recorded at the head of this log, and
+recorded here in the same shape as a decision the user took. The dispositions
+themselves are in the ledger; only what changed in the design is here.
+
+- **Asked (F-2):** whether CD-1's drafted SPEC-001/R-56 should close
+  `event.kind` to exactly three values, as first written.
+- **Recommended:** no.
+- **Decided:** **the set stays open.** R-56 names the three kinds and fixes
+  their meaning; a host may originate a further kind; a backend must tolerate
+  one it does not recognise, never treat it as a protocol error.
+- **Consequence:** D-19 (§7). `canon-delta.md` CD-1 is redrafted — it is
+  `proposed`, so nothing promoted has to be unwound — and `draft-spec.md` §2
+  and §6 no longer say R-56 *fixes* the set. The user endorses the wording at
+  reconciliation, as with every canon change. Closing the set would have bound
+  every conforming host to what this build happens to emit, which is
+  `CLAUDE.md`'s third invariant, and slice 004's event ingress would have
+  amended a requirement promoted days earlier.
+
+- **Asked (F-5):** whether the loop's `Instant::now() + wait` should be made
+  total, given that it does not in fact overflow on Linux.
+- **Recommended:** yes.
+- **Decided:** **`checked_add`, clamped to `LONGEST_WAIT` (365 days), falling
+  back to `now`.**
+- **Consequence:** D-20 (§7). The safety of the unchecked add rested on
+  `std::time::Instant` being a `timespec` with an `i64` seconds field — a
+  platform detail no document states and no test covered. E-6 stands as
+  written about tokio's clamp; it was never about this operation.
+
+- **Asked (F-3):** what to do with the two `refusal_re_arms` sites that no
+  input can reach.
+- **Recommended:** fold, rather than delete two blocks and leave the third.
+- **Decided:** **one refusal site.** The four command arms produce a
+  `Result<Pending, Refused>` and a single `match` reports and re-arms.
+- **Consequence:** D-21 (§7). The three refusal `continue`s were a
+  triplication before this slice; this slice had made each of them longer.
+
+- **Asked (F-6):** whether to change the loop so a scheduled firing cannot
+  replace a presentation a person is mid-answering.
+- **Recommended:** document now, change later or not at all.
+- **Decided:** **document and carry as a follow-up.**
+- **Consequence:** D-22 (§7), `draft-spec.md` §5 and OQ-4, and a Follow-ups
+  entry in `slice-003.md`. Both candidate repairs ask the host to judge that a
+  view is worth protecting, which is domain meaning it does not hold.
+
+- **Asked (F-1):** what AC-6's stratum 2 instrument should assert, once the
+  path substring match is known to be defeated by a brace-grouped `use`.
+- **Recommended:** the identifier matcher instrument (a) already uses,
+  pinned to a measured count and file set.
+- **Decided:** **as recommended**, plus an item-scoped `#[cfg(test)]` cut and
+  a line-count vacuity guard.
+- **Consequence:** D-23 (§7); §9's AC-6 row restated. Measured: 9 occurrences
+  over `host.rs`, `state.rs` and `error.rs`. Two residues are stated at the
+  instrument rather than filtered away — a message string, and
+  `resolve_to`/`resolve_from` splitting on `_`.
+
+- **Asked (F-12):** whether the next-check line should round to nearest or
+  truncate.
+- **Recommended:** truncate.
+- **Decided:** **truncate.**
+- **Consequence:** D-24 (§7). Half-expand renders an instruction the host
+  holds as an instant up to half a second later that it never stored, in the
+  one direction that reads as a promise.
+

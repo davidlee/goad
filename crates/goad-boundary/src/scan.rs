@@ -273,6 +273,42 @@ pub fn mentions(line: &str, token: &str) -> bool {
 /// `'` a fifth transition, so it opens no string state when it closes a char
 /// literal three or four bytes later.
 pub fn code_of(line: &str) -> Cow<'_, str> {
+  strip(line, Literals::Kept)
+}
+
+/// The line with comments removed **and every string and char literal
+/// replaced by one space**, delimiters included.
+///
+/// `code_of`'s sibling, over the same state machine, differing only in what
+/// it does with a literal once it has found where it ends. For a caller whose
+/// question is about the *structure* of the code rather than the words in it
+/// — counting braces to find where an item ends, or spotting a call form —
+/// a literal's contents are not code, and an unbalanced `{` inside one
+/// desynchronises the count for the rest of the file.
+///
+/// One space, never nothing, for the same reason the block-comment cut uses
+/// one: two identifiers either side of a literal must not be joined into a
+/// third that neither of them is.
+///
+/// A literal left open at end of line is cut from its opening delimiter,
+/// which is where `code_of` instead returns the line intact — an
+/// unterminated literal is content to a scan that reads words, and is not
+/// code to a scan that counts braces.
+#[must_use]
+pub fn code_without_literals(line: &str) -> Cow<'_, str> {
+  strip(line, Literals::Cut)
+}
+
+/// What `strip` does with a literal: leave its contents alone (`code_of`, for
+/// the scans that read words) or replace the whole literal with one space
+/// (`code_without_literals`, for the scans that read structure).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Literals {
+  Kept,
+  Cut,
+}
+
+fn strip(line: &str, literals: Literals) -> Cow<'_, str> {
   #[derive(Clone, Copy)]
   enum State {
     Code,
@@ -285,16 +321,24 @@ pub fn code_of(line: &str) -> Cow<'_, str> {
   let mut owned: Option<String> = None;
   let mut copied_up_to = 0usize;
   let mut i = 0usize;
+  // Where the literal now open began, when one is open and is to be cut.
+  let mut literal_from: Option<usize> = None;
 
   while let Some(&b) = bytes.get(i) {
     match state {
       State::Code if b == b'"' => {
         state = State::Str;
+        if literals == Literals::Cut {
+          literal_from = Some(i);
+        }
         i += 1;
       }
       State::Code if b == b'r' && starts_raw_string(bytes, i) => {
         let hashes = raw_hash_count(bytes, i);
         state = State::RawStr(hashes);
+        if literals == Literals::Cut {
+          literal_from = Some(i);
+        }
         i += hashes + 2; // `r`, the hashes, the opening quote
       }
       State::Code if b == b'\'' => {
@@ -303,7 +347,14 @@ pub fn code_of(line: &str) -> Cow<'_, str> {
         // string's opening one. A lifetime has no closing `'` at either
         // offset a char literal's content leaves it at, so it falls
         // through to the plain `i += 1` below, unconsumed.
-        i += char_literal_len(bytes, i).unwrap_or(1);
+        match char_literal_len(bytes, i) {
+          Some(len) if literals == Literals::Cut => {
+            cut_out(line, &mut owned, &mut copied_up_to, i, i + len);
+            i += len;
+          }
+          Some(len) => i += len,
+          None => i += 1,
+        }
       }
       State::Code if b == b'/' && bytes.get(i + 1) == Some(&b'/') => {
         return finish(line, owned, copied_up_to, i);
@@ -312,12 +363,7 @@ pub fn code_of(line: &str) -> Cow<'_, str> {
         match line.get(i + 2..).and_then(|rest| rest.find("*/")) {
           Some(offset) => {
             let close_at = i + 2 + offset + 2;
-            let buf = owned.get_or_insert_with(String::new);
-            if let Some(before) = line.get(copied_up_to..i) {
-              buf.push_str(before);
-            }
-            buf.push(' ');
-            copied_up_to = close_at;
+            cut_out(line, &mut owned, &mut copied_up_to, i, close_at);
             i = close_at;
           }
           None => return finish(line, owned, copied_up_to, i),
@@ -327,16 +373,45 @@ pub fn code_of(line: &str) -> Cow<'_, str> {
       State::Str if b == b'"' => {
         state = State::Code;
         i += 1;
+        if let Some(from) = literal_from.take() {
+          cut_out(line, &mut owned, &mut copied_up_to, from, i);
+        }
       }
       State::RawStr(hashes) if b == b'"' && closes_raw_string(bytes, i, hashes) => {
         state = State::Code;
         i += hashes + 1;
+        if let Some(from) = literal_from.take() {
+          cut_out(line, &mut owned, &mut copied_up_to, from, i);
+        }
       }
       State::Code | State::Str | State::RawStr(_) => i += 1,
     }
   }
 
+  // A literal still open at end of line: cut from where it began, so no
+  // brace inside it is counted and no half-literal is read as code.
+  if let Some(from) = literal_from {
+    return finish(line, owned, copied_up_to, from);
+  }
   finish(line, owned, copied_up_to, line.len())
+}
+
+/// Replace `line[from..to]` with one space in the owned buffer, materialising
+/// it if this is the first cut. The block-comment arm's own move, factored
+/// out so the literal cuts spell it once rather than four times.
+fn cut_out(
+  line: &str,
+  owned: &mut Option<String>,
+  copied_up_to: &mut usize,
+  from: usize,
+  to: usize,
+) {
+  let buf = owned.get_or_insert_with(String::new);
+  if let Some(before) = line.get(*copied_up_to..from) {
+    buf.push_str(before);
+  }
+  buf.push(' ');
+  *copied_up_to = to;
 }
 
 /// `owned`, if any, already holds `line[..copied_up_to]` with its interior

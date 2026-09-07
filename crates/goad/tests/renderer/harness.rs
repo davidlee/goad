@@ -68,21 +68,18 @@ pub(crate) fn current_view_token(window: &PromptWindow) -> Option<String> {
     .map(|row| row.view.to_string())
 }
 
-/// Poll `predicate` on a short fixed interval until it is true, panicking if
-/// it never is within `bound`. The one shape every `serve`-driven test needs
+/// `waiting::within`, asserting: panics if `predicate` never becomes true
+/// within `bound`. The shape every `serve`-driven test in this target needs
 /// to observe an event the driving code does not control directly — an
 /// invocation landing, a view arriving — rather than assume a fixed delay
 /// covers it (PHASE-10 repair, VT-4/VT-10).
-pub(crate) async fn until(bound: Duration, mut predicate: impl FnMut() -> bool) {
-  let deadline = std::time::Instant::now() + bound;
-  loop {
-    if predicate() {
-      return;
-    }
-    assert!(
-      std::time::Instant::now() < deadline,
-      "condition did not become true within {bound:?}"
-    );
-    tokio::time::sleep(Duration::from_millis(5)).await;
-  }
+///
+/// The poll itself is `tests/support/waiting.rs`'s, shared with the
+/// event-loop tier; only the assertion is
+/// this target's.
+pub(crate) async fn until(bound: Duration, predicate: impl FnMut() -> bool) {
+  assert!(
+    crate::waiting::within(bound, predicate).await,
+    "condition did not become true within {bound:?}"
+  );
 }

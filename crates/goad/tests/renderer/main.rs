@@ -42,3 +42,8 @@ mod driving;
 #[cfg(test)]
 #[path = "../../../../tests/support/scripting.rs"]
 mod scripting;
+/// The shared poll loop behind `harness::until`, also included by the
+/// `event_loop_schedule` target.
+#[cfg(test)]
+#[path = "../../../../tests/support/waiting.rs"]
+mod waiting;

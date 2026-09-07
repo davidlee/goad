@@ -50,7 +50,7 @@ pub enum Shift {
 /// What one folded exchange tells the loop. `next_check` is **not** an
 /// `Option`: `Outcome::next_check` is concrete on every outcome including
 /// failures (`goad-shell/src/host.rs:76`), so an exchange that completed
-/// always resolved one (design.md §5.2, D-15).
+/// always resolved one (SPEC-001/R-27).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Absorbed {
   pub shift: Shift,
@@ -108,8 +108,9 @@ pub struct Controller {
   engaged: bool,
   /// The last resolved next check, for display only. Written by `absorb`,
   /// read by `frame()`. `None` until the first exchange completes; there is
-  /// no accessor beyond `frame()` — it would exist only to be unwrapped
-  /// (design.md §5.2, D-15).
+  /// no accessor beyond `frame()` — it would exist only to be unwrapped: a
+  /// resolved check is concrete in every case (SPEC-001/R-27), so the
+  /// `Option` says "no exchange yet" and nothing else.
   next_check: Option<Timestamp>,
 }
 
@@ -299,8 +300,10 @@ impl Pending {
   }
 
   /// The instant `stamp` resolved this exchange's request against. The
-  /// re-arm computes the wait from this, not from a fresh clock read
-  /// (design.md §5.2, D-11).
+  /// re-arm computes the wait from this, not from a fresh clock read:
+  /// SPEC-002/R-2's whole input is the resolved instant the last exchange
+  /// reported, and a second clock read would be an instant of the timer's
+  /// own.
   fn now(&self) -> Timestamp {
     match self {
       Self::Evaluate { now, .. } | Self::Respond { now, .. } => *now,
@@ -311,13 +314,56 @@ impl Pending {
 /// The host's own floor on how often it evaluates of its own accord
 /// (SPEC-002/R-4). Not configurable, not visible to a backend, and never
 /// applied to anything a person asked for — only to a scheduled evaluation
-/// the loop began on its own (design.md §5.2/§5.4, D-2, D-3).
+/// the loop began on its own (SPEC-002/R-5).
 const MINIMUM_SPACING: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// The longest wait the host will park a timer on. Reached only when
+/// `now + wait` would overflow the platform's monotonic clock.
+///
+/// A firing this clamp brings forward is harmless and self-correcting: the
+/// exchange it produces resolves the schedule again from the instruction the
+/// host still holds, so an instruction further out than a year is simply
+/// re-armed a year at a time. Nothing stored or reported moves —
+/// SPEC-001/R-28 governs the instruction, and this governs only when the
+/// host fires (SPEC-002 §6, the same separation the minimum spacing rests
+/// on).
+///
+/// `Duration::new`, not `from_secs`: `clippy::duration_suboptimal_units`
+/// wants `Duration::from_days`, which is not yet stable, and POL-001 forbids
+/// suppressing a lint to get past the gate.
+const LONGEST_WAIT: std::time::Duration = std::time::Duration::new(365 * 24 * 60 * 60, 0);
+
+/// The instant to park the sleep on: `wait` after `now`, never earlier than
+/// the floor.
+///
+/// Total. `wait_for` is total across jiff's representable range, so a
+/// backend instructing a `next_check` at the far edge of time hands this a
+/// wait of ~10^11 seconds; `Instant + Duration` panics on overflow rather
+/// than returning an `Option`, and a panic here would be a backend failure
+/// taking the host down (SPEC-001/R-45). The platform representation that
+/// happens to make the sum fit today is not something any document states,
+/// so the arithmetic is checked rather than trusted: an overflowing wait is
+/// clamped to `LONGEST_WAIT`, and a `now` so late that even that overflows
+/// yields `now` itself, which fires at once and is then floored like any
+/// other scheduled firing.
+fn deadline_after(
+  now: tokio::time::Instant,
+  wait: std::time::Duration,
+  floor: tokio::time::Instant,
+) -> tokio::time::Instant {
+  let arrives = now
+    .checked_add(wait)
+    .or_else(|| now.checked_add(LONGEST_WAIT))
+    .unwrap_or(now);
+  std::cmp::max(arrives, floor)
+}
 
 /// Which arm of the first `select!` produced a command to dispatch. A bare
 /// `Command` carries no provenance, and the conditional re-arm after a
-/// refusal (EX-7) has nothing to be true of without this discriminant
-/// (design.md §5.4, F-12).
+/// refusal (EX-7) has nothing to be true of without this discriminant: a
+/// refused scheduled firing must re-arm at the floor rather than spin
+/// (SPEC-002/R-4, R-8), and a refusal off any other arm must leave the
+/// standing deadline alone.
 #[derive(Debug)]
 enum Fired {
   Command(Command),
@@ -351,12 +397,13 @@ where
   G: Glass + 'static,
 {
   let started = tokio::time::Instant::now();
-  // Always armed (D-5): if the startup evaluation is never dispatched or is
+  // Always armed: if the startup evaluation is never dispatched or is
   // refused, this initial arm fires at `MINIMUM_SPACING` and the host
-  // recovers by itself.
+  // recovers by itself (SPEC-002/R-1 and R-8's last sentence).
   let mut sleep = Box::pin(tokio::time::sleep_until(started + MINIMUM_SPACING));
   // Nothing scheduled has fired yet, so nothing is floored: the first
-  // scheduled firing of the process is unfloored (D-5, D-3).
+  // scheduled firing of the process is unfloored, which is what lets a
+  // `default_poll` shorter than the spacing be honoured once (SPEC-002 §6).
   let mut floor_until = started;
 
   let ending = loop {
@@ -368,13 +415,15 @@ where
         Some(command) => Fired::Command(command),
       },
       () = &mut sleep => {
-        // The one and only write site (design.md §5.3/§5.4, D-3).
+        // The one and only write site: the spacing is measured between
+        // scheduled firings and nothing else clears it (SPEC-002/R-4).
         floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
         Fired::Scheduled
       }
     };
     // A refusal that came from this arm re-arms at the floor (EX-7); every
-    // other refusal leaves the deadline untouched.
+    // other refusal leaves the deadline untouched. Read before `fired` is
+    // consumed below, and true of the whole iteration.
     let refusal_re_arms = matches!(fired, Fired::Scheduled);
     let command = match fired {
       Fired::Command(command) => command,
@@ -382,12 +431,11 @@ where
       Fired::Scheduled => Command::Evaluate(Stimulus::Scheduled),
     };
 
-    // Exhaustive, no `_` arm, and every refusal path `continue`s to the top
-    // — which presents with `busy = false` and clears `notice` in the same
-    // call. Identity is checked before the clock: a superseded click is
-    // refused for the reason that is true of it, and a broken clock does
-    // not relabel it.
-    let pending = match command {
+    // Exhaustive, no `_` arm. The two diagnostics commands are done here and
+    // now; the other two each produce a `Pending` or a refusal. Identity is
+    // checked before the clock: a superseded click is refused for the reason
+    // that is true of it, and a broken clock does not relabel it.
+    let attempted = match command {
       Command::OpenDiagnostics => {
         controller.open_diagnostics();
         continue;
@@ -396,42 +444,42 @@ where
         controller.close_diagnostics();
         continue;
       }
-      Command::Evaluate(stimulus) => match stamp(clock) {
-        Ok(now) => Pending::Evaluate {
-          now,
-          event: stimulus.event(now),
-        },
-        Err(refused) => {
-          controller.refuse(&refused);
-          if refusal_re_arms {
-            sleep.as_mut().reset(floor_until);
-          }
-          continue;
+      Command::Evaluate(stimulus) => stamp(clock).map(|now| Pending::Evaluate {
+        now,
+        event: stimulus.event(now),
+      }),
+      Command::Choose { view, option } => {
+        controller
+          .answer(&view, &option)
+          .and_then(|(view_id, answer)| {
+            stamp(clock).map(|now| Pending::Respond {
+              now,
+              view_id,
+              answer,
+            })
+          })
+      }
+    };
+
+    // The one refusal site. It `continue`s to the top — which presents with
+    // `busy = false` and clears `notice` in the same call — and re-arms only
+    // when this iteration came from the timer arm (EX-7).
+    //
+    // One site rather than three: `refusal_re_arms` is `false` by
+    // construction under `Command::Choose`, because `Fired::Scheduled`
+    // becomes `Command::Evaluate(Stimulus::Scheduled)` and nothing else, so
+    // the two copies that used to sit inside that arm could never run. Three
+    // copies of a conditional, two of them unreachable, say the flag is
+    // orthogonal to the command when it is fully determined by it.
+    let pending = match attempted {
+      Ok(pending) => pending,
+      Err(refused) => {
+        controller.refuse(&refused);
+        if refusal_re_arms {
+          sleep.as_mut().reset(floor_until);
         }
-      },
-      Command::Choose { view, option } => match controller.answer(&view, &option) {
-        Err(refused) => {
-          controller.refuse(&refused);
-          if refusal_re_arms {
-            sleep.as_mut().reset(floor_until);
-          }
-          continue;
-        }
-        Ok((view_id, answer)) => match stamp(clock) {
-          Ok(now) => Pending::Respond {
-            now,
-            view_id,
-            answer,
-          },
-          Err(refused) => {
-            controller.refuse(&refused);
-            if refusal_re_arms {
-              sleep.as_mut().reset(floor_until);
-            }
-            continue;
-          }
-        },
-      },
+        continue;
+      }
     };
     let requested_at = pending.now();
     let exchanged = pending.exchanged();
@@ -459,8 +507,9 @@ where
       outcome = call        => {
         let absorbed = controller.absorb(exchanged, outcome);
         let wait = wait_for(absorbed.next_check, requested_at);
-        let deadline = std::cmp::max(tokio::time::Instant::now() + wait, floor_until);
-        sleep.as_mut().reset(deadline);
+        sleep
+          .as_mut()
+          .reset(deadline_after(tokio::time::Instant::now(), wait, floor_until));
       },
     }
   };
@@ -480,8 +529,39 @@ where
 // `#[cfg(test)] mod tests` shape for a stratum-internal pure function.
 #[cfg(test)]
 mod tests {
-  use super::{Refused, stamp};
+  use super::{Refused, deadline_after, stamp};
   use crate::clock::{ClockError, wall_clock};
+
+  #[test]
+  fn an_ordinary_wait_is_the_sum() {
+    let now = tokio::time::Instant::now();
+    let wait = std::time::Duration::from_secs(90);
+    assert_eq!(deadline_after(now, wait, now), now + wait);
+  }
+
+  #[test]
+  fn a_floor_later_than_the_sum_wins() {
+    let now = tokio::time::Instant::now();
+    let floor = now + std::time::Duration::from_secs(3);
+    let deadline = deadline_after(now, std::time::Duration::from_millis(100), floor);
+    assert_eq!(deadline, floor);
+  }
+
+  /// The whole point of the function. `wait_for` is total across jiff's
+  /// range, so a backend instructing a `next_check` at the far edge of
+  /// representable time hands the loop a wait of ~10^11 seconds — and
+  /// `Instant + Duration` panics on overflow rather than returning an
+  /// `Option`. A panic here is a backend failure taking the host down.
+  #[test]
+  fn a_wait_that_would_overflow_the_clock_is_clamped_rather_than_panicking() {
+    let now = tokio::time::Instant::now();
+    let deadline = deadline_after(now, std::time::Duration::MAX, now);
+    assert_eq!(
+      deadline,
+      now + super::LONGEST_WAIT,
+      "an overflowing wait is clamped, not panicked on"
+    );
+  }
 
   #[test]
   fn a_working_clock_is_returned_unchanged() {

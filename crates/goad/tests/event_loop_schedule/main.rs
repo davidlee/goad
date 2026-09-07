@@ -34,3 +34,8 @@ mod scheduling;
 #[cfg(test)]
 #[path = "../../../../tests/support/scripting.rs"]
 mod scripting;
+// The poll loop this target's watcher task needs, shared with `renderer`
+// rather than restated here.
+#[cfg(test)]
+#[path = "../../../../tests/support/waiting.rs"]
+mod waiting;

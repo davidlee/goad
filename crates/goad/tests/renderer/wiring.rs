@@ -23,6 +23,7 @@ use crate::harness::{
   TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
 };
 use crate::scripting::{invocations, scripted};
+use crate::waiting::LIVENESS_BOUND;
 
 /// Two named options, so a `Choose` can name the wrong one (VT-5) or the
 /// right one, and so `busy`'s controls (VT-9) have something to be
@@ -228,10 +229,12 @@ mod transitions {
     controller.absorb(Exchanged::Evaluation, outcome);
     glass.present(controller.frame());
 
-    assert_ne!(
+    assert_eq!(
       window.get_next_check(),
-      "",
-      "an exchange has resolved a next check"
+      "next check (instructed): 2026-01-01T01:30:00Z",
+      "the value reaching the property is `Frame::next_check` rendered, not \
+       merely something non-empty: the backend instructed 90 minutes against \
+       the harness's fixed `now`"
     );
     assert_eq!(
       controller.frame().diagnostics.state(),
@@ -765,8 +768,6 @@ mod body_content {
 /// negative control is the same sequence with no intervening `evaluate`,
 /// where the click is answered.
 mod interaction {
-  use std::time::Duration;
-
   use goad::controller::{Controller, Ending, Exchanged, Shift, serve};
   use goad::glass::Glass;
   use goad::wire::{Cancel, Command, Stimulus};
@@ -774,9 +775,9 @@ mod interaction {
   use tokio::task::LocalSet;
 
   use super::{
-    A_PROTOCOL_FAILURE, CLEAN_NO_VIEW, TIMEOUT, TWO_OPTIONS, current_view_token, glass_over, host,
-    in_prompt_mode, invocations, now, quiet_event, scripted, stub_clock, until, window_and_tray,
-    window_shown,
+    A_PROTOCOL_FAILURE, CLEAN_NO_VIEW, LIVENESS_BOUND, TIMEOUT, TWO_OPTIONS, current_view_token,
+    glass_over, host, in_prompt_mode, invocations, now, quiet_event, scripted, stub_clock, until,
+    window_and_tray, window_shown,
   };
 
   /// VT-2 / AC-6, both halves. Read off a real `SlintGlass`'s window — "no
@@ -917,10 +918,7 @@ mod interaction {
         tx.send(Command::Evaluate(Stimulus::Requested))
           .await
           .expect("the channel must accept the first send");
-        until(Duration::from_secs(2), || {
-          window.get_heading() == "Proceed?"
-        })
-        .await;
+        until(LIVENESS_BOUND, || window.get_heading() == "Proceed?").await;
         let stale_view = current_view_token(&window).expect("view A must be on screen");
 
         // The intervening evaluate: a slow exchange that will land view B
@@ -928,7 +926,7 @@ mod interaction {
         tx.send(Command::Evaluate(Stimulus::Requested))
           .await
           .expect("the channel must accept the second send");
-        until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+        until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
 
         tx.send(Command::Choose {
           view: stale_view,
@@ -939,7 +937,7 @@ mod interaction {
 
         // The refusal, read off the tray tooltip the production glass wrote
         // — the element tree, not a peek at the controller mid-flight.
-        until(Duration::from_secs(2), || {
+        until(LIVENESS_BOUND, || {
           tray.get_hover_text().contains("since been replaced")
         })
         .await;
@@ -997,10 +995,7 @@ mod interaction {
         tx.send(Command::Evaluate(Stimulus::Requested))
           .await
           .expect("the channel must accept the first send");
-        until(Duration::from_secs(2), || {
-          window.get_heading() == "Proceed?"
-        })
-        .await;
+        until(LIVENESS_BOUND, || window.get_heading() == "Proceed?").await;
         let view = current_view_token(&window)
           .expect("with no intervening evaluate the retained view is still on screen");
 
@@ -1010,7 +1005,7 @@ mod interaction {
         })
         .await
         .expect("the channel must accept the click");
-        until(Duration::from_secs(2), || !window_shown(&window)).await;
+        until(LIVENESS_BOUND, || !window_shown(&window)).await;
 
         stopper.stop();
         handle.await.expect("serve must not panic")
@@ -1081,7 +1076,8 @@ mod cancellation {
   use tokio::task::LocalSet;
 
   use super::{
-    TIMEOUT, glass_over, host, invocations, now, scripted, stub_clock, until, window_and_tray,
+    LIVENESS_BOUND, TIMEOUT, glass_over, host, invocations, now, scripted, stub_clock, until,
+    window_and_tray,
   };
 
   /// VT-10 — item 14a. With an exchange in flight against `@hang` and a
@@ -1118,7 +1114,7 @@ mod cancellation {
         // repair — this precondition previously rested on a bare 100 ms
         // sleep). This wait is setup time, not part of the measured
         // interval.
-        until(Duration::from_secs(1), || invocations(&log) >= 1).await;
+        until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
         let start = Instant::now();
         stopper.stop();
         let served = handle.await.expect("serve must not panic");
@@ -1193,7 +1189,7 @@ mod cancellation {
         // Observed rather than assumed in flight, the same repair PL-17
         // recorded for VT-10 above (F-2, review-code 002 round 1): this
         // precondition previously rested on a bare 100 ms sleep.
-        until(Duration::from_secs(1), || invocations(&log) >= 1).await;
+        until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
         stopper.stop();
         handle.await.expect("serve must not panic")
       })

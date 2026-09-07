@@ -1,6 +1,6 @@
 # Slice 003: Scheduling — the timer that turns a resolved instant into an evaluation
 
-**Stage:** executing
+**Stage:** audit
 **Depends on:** slice 001 (closed) — SPEC-001, `schedule::resolve`, `Host` and
 the resolved next check. Slice 002 (closed) — the renderer, the `serve` loop,
 the wall clock, and the one observable surface a scheduled evaluation can show
@@ -211,19 +211,23 @@ Surfaces this slice may touch.
       existing cadence"*. **Discharged by:** PHASE-03/VT-2.
 - [x] AC-6 — **The timer never resolves a schedule.** Structural, and held by
       two scans in `crates/goad-boundary`, both reading **production code
-      only** — cut at each file's own `#[cfg(test)]`, comments stripped — and
-      neither pinned to a line number (design D-16): **(a)** the identifier
+      only** — each `#[cfg(test)]` **item** skipped and the scan resumed after
+      it, comments and literal contents handled by `scan.rs` — and neither
+      pinned to a line number (design D-16, D-23): **(a)** the identifier
       `resolve` appears in no production line under `crates/goad/src` — the
       identifier, not the path, so that a brace-grouped `use` cannot hide a
-      call; and **(b)** the path `schedule::resolve` occurs exactly twice in
-      `crates/goad-shell`'s production code, both in `host.rs`. Both counts
-      are measured against the tree, not assumed: 0 over 12 files and 2 over 8
-      respectively. The timer's input is
+      call; and **(b)** `schedule::resolve` is **called** from exactly two
+      places in `crates/goad-shell`'s production code, both in `host.rs`, and
+      is nowhere taken as a value without being called. Both are measured
+      against the tree, not assumed: 0 over 12 files, and 2 calls over 8 files.
+      Neither can pass vacuously: each asserts a non-zero file count, that
+      every file yielded at least one production line, and that its directory
+      cleared a line-count floor. The timer's input is
       `Outcome::next_check` alone. In the manner of slice 001's
       `transport_shape.rs` and slice 002's boundary scans, rather than by
       review alone; each instrument's stated residue is in design §9.
       **Discharged by:** PHASE-04/VT-3 (absence, over stratum 3),
-      PHASE-04/VT-4 (count, over stratum 2).
+      PHASE-04/VT-4 (the call count, over stratum 2).
 - [x] AC-7 — **A timer does not defeat cancellation.** A stop request while the
       host is waiting for a scheduled check ends `serve` promptly, and a stop
       request while a scheduled exchange is in flight drops that exchange, as
@@ -356,3 +360,16 @@ with its alternatives, and appears as a decision D-N in `design.md` §7.
 ## Follow-ups
 
 <!-- Written at close. -->
+
+- **A scheduled evaluation can supersede a view a person is mid-answering.**
+  Raised at code review (`review-code.md` F-6) and dispositioned
+  `accept-in-part`: the behaviour is documented (design D-22, `draft-spec.md`
+  §5 and OQ-4) and not changed in this slice. Before this slice a retained
+  presentation could only be replaced by an evaluation the person themselves
+  asked for; now an unprompted firing can replace it, and the click that
+  follows is refused as `SupersededView` for a reason the person cannot act on.
+  The minimum spacing bounds the rate at one in three seconds and nothing else
+  does. The candidate repairs — suppressing a firing while a presentation is
+  outstanding, or deferring it — both ask the host to judge that a view matters,
+  which is domain meaning it does not hold; the likeliest answer is a backend
+  affordance, which makes this a protocol question rather than a loop one.

@@ -31,16 +31,33 @@ differently for each — and a backend can only branch on a string the contract
 fixes. Left unstated, the strings are an implementation detail a renderer-driven
 host would be free to change, which is the failure this project exists to avoid.
 
+**What the requirement must fix, and what it must leave open** (D-19, raised as `review-code.md` F-2). What a backend needs in order to branch is that
+these three names *mean* these three things. Closing the set — *"one of exactly
+three values … the host MUST NOT add a fourth"* — is a separate and stronger
+claim, and it binds every conforming host, not the one this build ships. That
+is the narrowing `CLAUDE.md`'s third invariant exists to prevent: *"Do not
+narrow wire compatibility merely because the current renderer implements only a
+subset of admitted protocol capabilities."* The slice's own roadmap collides
+with the closed reading inside one slice — `slice-003.md` Non-goals puts event
+ingress in slice 004, a second stimulus into the same path — so a closed set
+would be amended immediately after promotion.
+
+The tolerance half was never written anywhere: R-7 requires the field and says
+nothing about unknown values. Stating it here is what lets the set stay open
+without leaving a backend author to guess.
+
 ### The change, as it will be stated
 
 Added to the *Requests* table, after R-9:
 
 | id | requirement | verified by |
 |----|-------------|-------------|
-| R-56 | Every `evaluate` the host originates carries `event.source` of `"host"`. Its `event.kind` is one of exactly three values, naming why the host is asking: `"startup"`, once, when the host starts; `"requested"`, when a person asked; `"scheduled"`, when a resolved next check came due. A backend MAY branch on these; the host MUST NOT add a fourth without amending this requirement. | §7 |
+| R-56 | Every `evaluate` the host originates carries `event.source` of `"host"`, and an `event.kind` naming why the host is asking. Three kinds are named by this requirement and mean what it says they mean: `"startup"`, once, when a host starts; `"requested"`, when a person asked; `"scheduled"`, when a resolved next check came due. A host MUST NOT reuse one of these three for anything else, and a backend MAY branch on them. The set is **open**: a host MAY originate an `evaluate` whose kind is none of the three, and a backend MUST tolerate a kind it does not recognise — treating it as an evaluation whose reason it does not know, never as a protocol error. | §7 |
 
 §7's verification table gains a row for R-56 naming the serialization unit
-tests and the fixture that pins each kind's wire form.
+tests and the fixture that pins each kind's wire form. The tolerance clause is
+a requirement on backends, which the host cannot verify; it is verified by
+inspection, like SPEC-001's other backend-side obligations.
 
 ---
 

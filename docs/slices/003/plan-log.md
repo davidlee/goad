@@ -393,3 +393,17 @@ planning are cross-posted to `design-log.md`.
   implementer note is the intent. PHASE-06's restatement sweep corrects
   PHASE-02's EX-12 prose/table and its must-not-touch list in `plan.md`.
 - **Consequence:** no STOP; PHASE-02 committed as reported.
+
+### 2026-09-08 — PL-17: the audit's endorsements
+
+- **Asked:** the reconciliation items `audit.md` puts to the user: promote
+  `draft-spec.md` as SPEC-002; apply `canon-delta.md` CD-1 (as redrafted
+  after `review-code.md` F-2 — the kind set is open, a backend tolerates an
+  unknown kind), CD-2 and CD-3 to SPEC-001; amend `CLAUDE.md`'s stale
+  ADR-001 instrument; an ADR for the floor's anchor; an ADR for "nothing
+  persists".
+- **Decided (the user):** **promote SPEC-002; apply CD-1, CD-2, CD-3; fix
+  `CLAUDE.md` now; write ADR-004 for the floor's anchor; no ADR for
+  persistence** — the roadmap's open decision closes instead.
+- **Consequence:** the reconcile step applies each and records it in
+  `audit.md`'s Reconciliation table; the slice may then close.

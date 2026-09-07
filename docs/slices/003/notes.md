@@ -1471,3 +1471,143 @@ tree not yet committed for this phase
      the other. `structure.rs` now carries one of each, named separately
      (PHASE-04/EX-2).
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+## Repairs after review
+
+Code review round 1 (`review-code.md`, F-1..F-16). One session, after
+PHASE-06. Sixteen findings, no blockers; fifteen `fix-now` or `doc-wrong`, one
+`tolerated`. What changed and why, by surface — the reasoning is in the ledger,
+this is the inventory.
+
+**Production source.**
+- `crates/goad/src/controller.rs` — the three refusal `continue`s fold into one
+  (F-3, D-21); `deadline_after` replaces the bare `Instant + Duration` and is
+  total, clamped at `LONGEST_WAIT` = 365 days (F-5, D-20); eight `D-N` and one
+  `F-N` citation replaced by requirement ids or words, including the `Fired`
+  enum's miscited F-12 (F-9, F-16). `Duration::new`, not `from_secs`, because
+  `clippy::duration_suboptimal_units` wants the unstable `from_days` and
+  POL-001 forbids suppressing a lint.
+- `crates/goad/src/diagnostics.rs` — `next_check_line` truncates rather than
+  half-expands (F-12, D-24); the miscited *"R-2's closing clause"* becomes
+  `draft-spec.md` §6 (F-9).
+- `crates/goad-semantics/src/schedule.rs` — `#[must_use]` on `wait_for` (F-15).
+- `crates/goad/ui/app.slint` — the `D-9, D-17` comment restated in words (F-9);
+  the next-check row is now conditional, so no empty row is laid out before the
+  first exchange (F-14's related observation).
+
+**Instruments.**
+- `crates/goad-boundary/tests/checks/structure.rs` — AC-6 (b) switches to the
+  identifier matcher and is renamed
+  `the_identifier_resolve_is_confined_to_the_hosts_resolution_path`; measured 9
+  occurrences over `host.rs`, `state.rs`, `error.rs`. `production_lines` skips
+  each `#[cfg(test)]` **item** instead of cutting the file at the first one.
+  The vacuity guard gains a per-file and a per-directory line count (F-1,
+  D-23). The participle control's fixture is code, not a comment (F-4).
+- New fixture `tests/fixtures/structure/production_after_tests.rs`: production
+  code after an inline test module, which is the shape no subject file has.
+
+**Tests.**
+- New `tests/support/waiting.rs`: the poll loop, once, plus `LIVENESS_BOUND`
+  (F-8). `renderer/harness.rs::until` becomes an assertion over it; the
+  event-loop tier calls the non-asserting half.
+- `event_loop_schedule/scheduling.rs` — the watcher no longer panics inside the
+  Slint loop; it records a bool, always stops the loop, and the assertion is
+  made on the test thread (F-10). Proven: a broken predicate now fails in
+  5.16 s instead of hanging.
+- `renderer/scheduling.rs` — two new cases:
+  `a_refusal_that_did_not_come_from_the_timer_leaves_the_deadline_standing`
+  (F-3's cover, and it discriminates) and
+  `an_instruction_at_the_far_edge_of_time_arms_the_sleep_without_panicking`
+  (F-5 at the loop level).
+- `renderer/wiring.rs` — VT-2's populated half asserts the exact rendered line
+  (F-14).
+- The liveness bound moves from 2 s to 5 s at every renderer-tier call site
+  (F-7).
+- `tests/backends/logs-the-request-then-answers.sh` — the header states both
+  differences from `answers-as-instructed.sh` (F-11).
+
+**Documents.** `canon-delta.md` CD-1 redrafted, `event.kind` left open (F-2,
+D-19) — **not applied to canon; the user endorses at reconciliation**.
+`draft-spec.md` §2, §5, §6, §7 and a new OQ-4. `design.md` §7 gains D-19..D-24,
+§9's AC-6 row and margin table are restated on measured values, R1's *"the
+smallest is 19x"* is corrected. `design-log.md` records the six decisions.
+`slice-003.md` Follow-ups gains F-6's.
+
+**Re-measured, three runs each, per-test with `--exact`.**
+
+| assertion | run 1 | run 2 | run 3 | bound | margin |
+|---|---|---|---|---|---|
+| AC-1 second invocation | 0.27 s | 0.25 s | 0.27 s | 5 s | ~18x |
+| AC-2 from an `evaluate` | 0.26 s | 0.26 s | 0.28 s | 5 s | ~18x |
+| AC-2 from a `respond` | 0.29 s | 0.28 s | 0.28 s | 5 s | ~17x |
+| AC-3 earlier supersedes | 0.27 s | 0.26 s | 0.28 s | 5 s | ~18x |
+| AC-9 refusal, whole test | 0.66 s | 0.65 s | 0.66 s | 5 s + a 500 ms window | ~18x |
+| AC-5 failing backend, whole test | 0.77 s | 0.76 s | 0.76 s | 5 s + a 500 ms window | ~18x |
+| AC-10, the event-loop target | 0.27 s | 0.26 s | 0.28 s | 5 s | ~18x |
+| F-3's refusal window, whole test | 0.67 s | 0.67 s | 0.67 s | 500 ms window | anti-fire |
+| F-5's far-edge case | 0.17 s | 0.17 s | 0.16 s | none | n/a |
+
+No margin moved below its bound; every one moved up, because the bound did.
+`renderer scheduling::` ran 14/14 green three consecutive times at
+0.82/0.82/0.79 s. `just check` exits 0 in **5.6-7.3 s** warm (12.8 s cold),
+zero warnings, no `allow` and no `expect` outside tests.
+
+### Round 2 (F-17..F-21)
+
+All five `fix-now`. Round 1's sixteen were verified against the tree, not
+against their responses.
+
+- **F-17** — `scan.rs` gains `code_without_literals`, `code_of`'s sibling over
+  the **same** state machine (`strip(line, Literals::Kept | Cut)`); the block
+  comment and the three literal arms now share one `cut_out`. `production_lines`
+  counts braces over it, so one unbalanced `{` in a test module's literal no
+  longer blinds the rest of the file. The on-disk fixture carries the hazard
+  (a plain string, a raw string and a char literal, each with an open brace)
+  and failed before the change. Four controls pin the strip.
+- **F-18** — instrument (b) counts the resolving **call**: `resolve(` with no
+  identifier byte before it, over literal-stripped code. **2, both in
+  `host.rs`.** A second assertion catches the path taken as a value without
+  being called. A reworded diagnostic and a renamed private helper no longer
+  red the suite; a brace-grouped `use` plus a bare call, and a
+  `let _f = …::resolve;`, both do. The test keeps its original name, which is
+  true again. Walk helpers refactored to one function with three predicates.
+- **F-19** — `slice-003.md` AC-6 rewritten (call count, item-scoped skip, all
+  three vacuity guards named); `design.md` §9's AC-6 row and D-23 and
+  `draft-spec.md` §7's R-2 row swept with it. `audit.md:152` left for the
+  audit's own hand.
+- **F-20** — `design.md` §5.5 E-6 separates the host's clamp (D-20, about the
+  `Add`) from tokio's (about a deadline it is given) and now reads *mitigated*.
+- **F-21** — VT-6's two waits take `FLOOR_SAFE_BOUND` (2 s) rather than the
+  5 s workspace bound, its window is `ANTI_SPIN_WINDOW` (500 ms), and
+  `FLOOR_SAFE_BOUND + ANTI_SPIN_WINDOW < FLOOR_MILLIS` is a `const _: ()`
+  assertion — verified to fail the build at 5 s, then reverted. §9's
+  unqualified anti-spin claim now carries the exception; R1 and the margin
+  table too.
+
+**Gate after round 2:** `just check` exit 0, 11.0 s cold, 19 test-result
+lines, zero warnings. Three runs each: `renderer scheduling::` 14/14 at
+0.81/0.82/0.81 s, `event_loop_schedule` 1/1 at 0.27 s ×3, `goad-boundary
+checks` 43/43 at 0.08 s ×3. VT-6 measured 0.68/0.68/0.67 s against its 2 s
+bound.
+
+### Round 3 (F-22, blocker)
+
+`an_instruction_at_the_far_edge_of_time_arms_the_sleep_without_panicking`, added
+in round 1 for F-5, synchronised on the invocation log and stopped the loop at
+once. The backend script appends its log line **before** it reads the request,
+so the stop raced the exchange: the cancel arm dropped the call, `absorb` never
+ran, `next_check` was `None`. Reproduced at 3 red in 5 full renderer runs, 12 of
+12 green in isolation.
+
+Class fix: `scheduling.rs::absorbed_line(rfc3339)` names the rendered
+next-check line, which `glass.present` writes at the top of the iteration
+*after* `absorb` and so cannot be read early. Six sites now wait on it — the
+far-edge case, and five that had a fixed 20 ms or 500 ms sleep standing between
+a log line and an assertion about what the exchange resolved. VT-8's *"short
+settle"* was the clearest instance: a delay used as synchronisation.
+
+Left as they are, with the reason written down: `event_loop_schedule` asserts
+only facts about the log itself; `wiring.rs`'s two `@hang` cases need the
+exchange in flight when the stop lands, which is the opposite requirement.
+
+**Ten consecutive full renderer runs, 10 green at 138/138.** `just check` exit 0.

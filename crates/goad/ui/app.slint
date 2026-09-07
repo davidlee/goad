@@ -19,7 +19,7 @@ export component PromptWindow inherits Window {
 
   // diagnostic mode
   in property <[string]> diagnostic-lines;   // ordered, escaped and bounded in Rust
-  in property <string> next-check;           // the standing schedule's own line (D-9, D-17); "" = none yet
+  in property <string> next-check;           // the standing schedule's line, not a diagnostic row; "" = none yet
 
   callback chosen(string, string);       // (view token, OptionId.as_str())
   callback close-diagnostics();          // leave diagnostic mode
@@ -70,7 +70,7 @@ export component PromptWindow inherits Window {
           }
         }
       }
-      Text { text: root.next-check; }
+      if root.next-check != "": Text { text: root.next-check; }
       Button {
         text: "Close";
         accessible-description: "close-diagnostics";

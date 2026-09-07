@@ -251,6 +251,7 @@ pub fn resolve(
 ///
 /// `max(next_check - now, 0)`. Total: a `next_check` at or before `now`
 /// yields zero rather than underflowing (R-28 admits a past instruction).
+#[must_use]
 pub fn wait_for(next_check: Timestamp, now: Timestamp) -> std::time::Duration {
   let remaining = next_check.instant().duration_since(now.instant());
   std::time::Duration::try_from(remaining).unwrap_or(std::time::Duration::ZERO)
