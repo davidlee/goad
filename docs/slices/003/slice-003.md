@@ -1,6 +1,6 @@
 # Slice 003: Scheduling — the timer that turns a resolved instant into an evaluation
 
-**Stage:** planned
+**Stage:** executing
 **Depends on:** slice 001 (closed) — SPEC-001, `schedule::resolve`, `Host` and
 the resolved next check. Slice 002 (closed) — the renderer, the `serve` loop,
 the wall clock, and the one observable surface a scheduled evaluation can show

@@ -35,21 +35,24 @@ pub enum Command {
 }
 
 /// Why an evaluation is being asked for. The variants are the `Event.kind`
-/// strings one for one (design.md §6, OQ-7): `"startup"`, `"requested"`.
+/// strings one for one (design.md §6, OQ-7): `"startup"`, `"requested"`,
+/// `"scheduled"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stimulus {
   Startup,
   Requested,
+  Scheduled,
 }
 
 impl Stimulus {
-  /// `"startup"` | `"requested"`. The host's own vocabulary, naming a
-  /// stimulus and never a domain.
+  /// `"startup"` | `"requested"` | `"scheduled"`. The host's own vocabulary,
+  /// naming a stimulus and never a domain.
   #[must_use]
   pub fn kind(self) -> &'static str {
     match self {
       Self::Startup => "startup",
       Self::Requested => "requested",
+      Self::Scheduled => "scheduled",
     }
   }
 
@@ -184,9 +187,15 @@ impl Cancel {
 // `serve`'s own use of it (item 11h, 14a-d) is `wiring.rs`'s (PHASE-10).
 #[cfg(test)]
 mod tests {
+  use goad_semantics::protocol::canonical::Timestamp;
+  use serde_json::Value;
   use tokio::sync::mpsc;
 
-  use super::{Cancel, Command, Wire};
+  use super::{Cancel, Command, Stimulus, Wire};
+
+  fn instant(rfc3339: &str) -> Timestamp {
+    Timestamp::new(rfc3339.parse().unwrap())
+  }
 
   #[test]
   fn send_enqueues_when_the_channel_has_room() {
@@ -222,5 +231,22 @@ mod tests {
     );
     cancel.stop();
     waiting.await.expect("the waiting task must not panic");
+  }
+
+  // ---- VT-3: the third stimulus ----
+
+  #[test]
+  fn a_scheduled_stimulus_names_itself_scheduled() {
+    assert_eq!(Stimulus::Scheduled.kind(), "scheduled");
+  }
+
+  #[test]
+  fn a_scheduled_stimulus_s_event_carries_the_three_normative_fields() {
+    let now = instant("2026-08-23T04:12:00Z");
+    let event = Stimulus::Scheduled.event(now);
+    assert_eq!(event.source, "host");
+    assert_eq!(event.kind, "scheduled");
+    assert_eq!(event.timestamp, now);
+    assert_eq!(event.data, Value::Null);
   }
 }

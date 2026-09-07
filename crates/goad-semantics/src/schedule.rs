@@ -192,14 +192,25 @@ fn all_digits(group: &str) -> bool {
 /// disables", expressed as a type rather than as a comment.
 ///
 /// A retained value at or before `now` does **not** stand: brief §9 retains an
-/// *existing valid* check, and one that has already fired is neither. It is
-/// consumed and the default poll applies, otherwise a backend that omits
-/// `next_check` after a scheduled check — which R-21 permits indefinitely —
-/// leaves the host reporting an elapsed instant on every exchange, and a timer
-/// that fires on a past instant busy-loops (F-1). A backend-supplied past
-/// instant (R-28) is therefore stored as given, fires once, and then falls back
-/// to cadence. `<=` rather than `<`: an exchange run *at* the resolved instant
-/// is that check firing, which is the common case rather than the edge.
+/// *existing valid* check, and one that has already fired is neither. What
+/// happens next depends on what the backend instructs on the exchange that
+/// follows (SPEC-001/R-26, SPEC-001/R-28), and both successor cases hold:
+///
+/// - **A one-off past instruction.** The following exchange omits
+///   `next_check` — which R-21 permits indefinitely — so `incoming` is `None`,
+///   the retained value no longer stands, and the default poll applies: the
+///   third arm below. Cadence resumes.
+/// - **A past instant on every response.** The following exchange supplies
+///   another one, so this function's first arm returns it verbatim: the
+///   retained value is *replaced*, not consumed, and the third arm is never
+///   reached. Cadence never resumes; what bounds how often the host then
+///   fires is stratum 3's business, not this function's.
+///
+/// Either way, a resolved instant fires at most once on its own account:
+/// firing does not re-fire because an instant has elapsed, only because a
+/// resolution reports it again. `<=` rather than `<`: an exchange run *at* the
+/// resolved instant is that check firing, which is the common case rather than
+/// the edge.
 ///
 /// Latest-valid-wins is **issue order, not `max`**. A valid `incoming` wins even
 /// when it is earlier than `retained`: brief §9 and §22's point 8 say a later
@@ -236,10 +247,19 @@ pub fn resolve(
   }
 }
 
+/// How long to wait for `next_check`, given the instant the request carried.
+///
+/// `max(next_check - now, 0)`. Total: a `next_check` at or before `now`
+/// yields zero rather than underflowing (R-28 admits a past instruction).
+pub fn wait_for(next_check: Timestamp, now: Timestamp) -> std::time::Duration {
+  let remaining = next_check.instant().duration_since(now.instant());
+  std::time::Duration::try_from(remaining).unwrap_or(std::time::Duration::ZERO)
+}
+
 #[cfg(test)]
 mod tests {
   use crate::protocol::canonical::Timestamp;
-  use crate::schedule::{parse, resolve};
+  use crate::schedule::{parse, resolve, wait_for};
 
   fn instant(rfc3339: &str) -> Timestamp {
     Timestamp::new(rfc3339.parse().unwrap())
@@ -334,5 +354,43 @@ mod tests {
 
     let resolved = resolve(Some(instant("2026-08-23T09:00:00Z")), incoming, HOUR, now());
     assert_eq!(resolved, instant("2026-08-23T09:00:00Z"));
+  }
+
+  // ---- VT-1 / VT-2: wait_for ----
+
+  #[test]
+  fn wait_for_a_future_instant_is_the_exact_difference() {
+    let wait = wait_for(instant("2026-08-23T05:12:00Z"), now());
+    assert_eq!(wait, std::time::Duration::from_secs(3600));
+  }
+
+  #[test]
+  fn wait_for_an_instant_at_now_is_zero() {
+    let wait = wait_for(now(), now());
+    assert_eq!(wait, std::time::Duration::ZERO);
+  }
+
+  /// R-28 admits a past instant; the wait to it is zero, not an underflow
+  /// (AC-4's arithmetic half — VT-2 asserts `ZERO` by value).
+  #[test]
+  fn wait_for_a_past_instant_is_zero_not_an_underflow() {
+    let wait = wait_for(instant("2026-08-23T03:00:00Z"), now());
+    assert_eq!(wait, std::time::Duration::ZERO);
+  }
+
+  /// Total across jiff's own representable range, in both directions: no
+  /// panic, no overflow, at either edge.
+  #[test]
+  fn wait_for_is_total_at_the_future_edge_of_representable_time() {
+    let max = Timestamp::new(jiff::Timestamp::MAX);
+    let wait = wait_for(max, now());
+    assert!(wait > std::time::Duration::ZERO);
+  }
+
+  #[test]
+  fn wait_for_is_total_at_the_past_edge_of_representable_time() {
+    let min = Timestamp::new(jiff::Timestamp::MIN);
+    let wait = wait_for(min, now());
+    assert_eq!(wait, std::time::Duration::ZERO);
   }
 }

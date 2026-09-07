@@ -368,3 +368,14 @@ planning are cross-posted to `design-log.md`.
   close: a bounded surface must be billed from the compiler, and a move's bill
   includes the imports whose last consumer moved — traits included, which are the
   ones a grep for the name will miss.
+
+### 2026-09-07 — PL-15: the plan is accepted
+
+- **Asked:** whether the plan at `0b2e50f` — six sequential phases, all twelve
+  acceptance criteria and draft SPEC-002 R-1..R-11 mapped, review-plan
+  resolved at 13/13, D-17 and D-18 as scope widenings — is accepted, and
+  whether execution pauses part-way.
+- **Decided (the user):** **accepted; execute all six phases.** Sonnet
+  executors, one phase per session, a stage commit per phase, Opus on a
+  failed phase; STOP conditions come to the user through the orchestrator.
+- **Consequence:** `slice-003.md` stage → `executing`. PHASE-01 begins.
