@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 — The arithmetic, and the third stimulus | done | 2026-09-07 |
 | PHASE-02 — The wait, and the cadence it keeps | done | 2026-09-07 |
-| PHASE-03 — What the floor bounds, and what a failure does not stop | pending | |
+| PHASE-03 — What the floor bounds, and what a failure does not stop | done | 2026-09-07 |
 | PHASE-04 — What the person sees, and what the scan holds | pending | |
 | PHASE-05 — The topology | pending | |
 | PHASE-06 — Restatement, re-measurement, and the gate | pending | |
@@ -415,12 +415,241 @@ table.rs, wiring.rs}` modified; `crates/goad/tests/renderer/{harness.rs,
 scheduling.rs}`, `tests/backends/logs-the-request-then-answers.sh` new;
 `flake.lock` modified but pre-dates this session (untouched by this phase).
 
+### PHASE-03 — What the floor bounds, and what a failure does not stop
+
+**Objective:** the floor and the refusal path are exercised, not just
+implemented — a past instant on every response, once, a failing backend, a
+clock that fails after one success, and a person acting mid-cadence.
+
+**Reading list**
+- `plan.md:779-958` — the whole PHASE-03 entry: EN-1/EN-2; EX-1..EX-3;
+  VT-1..VT-6, VA-1..VA-3; S-7..S-9, S-22, S-23; implementer notes.
+- `design.md:557-575` (E-1) — the past-instant successor cases, one-off vs.
+  every-response; `:632-654` D-2, D-3, D-14 (the floor); `:679`, `:711-712`
+  (AC-9's succeed-once clock trace and margin rows); `:665-720` §9 (validation
+  table, margins).
+- `draft-spec.md` R-3..R-6, R-8 (`:79-84`), and the verification table
+  `:174-179`.
+- `docs/policy/001-the-phase-gate.md`, `docs/memory/*.md` (all 16 files read).
+- `docs/slices/003/notes.md` PHASE-02 sheet (above) — the three-site
+  `refusal_re_arms` guard (EN-2, confirmed present by grep before starting:
+  `controller.rs:406`, `:415`, `:428`); PHASE-02's fixtures and test style in
+  `harness.rs`/`scheduling.rs`; the `logs-the-request-then-answers.sh` script
+  already landed for `event.kind` reads.
+- Code, read whole or by grep: `crates/goad/src/controller.rs` (`serve`
+  `:341-473`, `absorb` `:154-176`, `stamp` `:267-271`, `Pending` `:279-309`,
+  the three refusal sites); `crates/goad/src/diagnostics.rs` (`Refused`,
+  `Diagnostics::refused`, `:140-153`); `crates/goad/src/clock.rs` (`Clock`,
+  `ClockError`, whole); `crates/goad-semantics/src/schedule.rs::resolve`
+  (`:232-247`) and `wait_for` (`:254-257`); `crates/goad-shell/src/host.rs`
+  (`:65-76`, `:128`, `:228-259`, `:289-293` — `resolve` is called on every
+  outcome including a failure); `crates/goad/tests/renderer/scheduling.rs`
+  and `harness.rs` (whole, both); `tests/support/driving.rs` (whole);
+  `tests/backends/answers-as-instructed.sh` (sentinels, `@garbage`),
+  `logs-the-request-then-answers.sh`; `crates/goad-shell/src/config.rs`
+  (`ScheduleConfig`, `:72-73`, current state: no doc comment).
+
+**Verified before starting (EN-1, EN-2):** `just check` exit 0
+(`/tmp/.../scratchpad/gate-entry.log`), tree at `8d1b0ec`. `controller.rs`'s
+three refusal sites each carry `if refusal_re_arms { sleep.as_mut()
+.reset(floor_until); }` (grep, `:406`, `:415`, `:428`) — the branch exists,
+undriven until this phase's VT-3, per EN-2's own wording (a document check,
+not a coverage claim).
+
+**Key fact governing every timed assertion here:** `harness::stub_clock` is
+fixed at `2026-01-01T00:00:00Z` on **every** call — `stamp`'s `now` argument
+never advances in wall-clock terms even though real time passes between
+invocations. `schedule::resolve`'s two "no incoming" branches — "retained
+stands" and "now + default_poll" — therefore land on the *same numeric
+value* whenever the retained instant equals `now + default_poll` exactly,
+which VT-2 (AC-5/AC-8) exercises: the test cannot distinguish "retained held"
+from "recomputed" by the final value alone, only that neither path produced
+something else (a defect this design does not need to distinguish from — the
+observable claim is R-29, "unaffected by the failure", and a wrong branch
+would silently agree with it here). Recorded so a future reader does not
+mistake the test for weaker than it looks by accident.
+
+**Assumptions**
+- `answers-as-instructed.sh`'s `@garbage` sentinel discharges VT-2 (AC-5/
+  AC-8) unmodified — confirmed by reading the script: `exits-zero-with-
+  unparseable-stdout.sh`'s behaviour inline, no new script needed for this
+  case (only VT-3/VT-6, below, reuse the existing
+  `logs-the-request-then-answers.sh` PHASE-02 already added).
+- VT-3/VT-4's fixture is a single `static AtomicUsize` `fn`, used by exactly
+  one test (`docs/memory` note on `Clock`'s `fn`-pointer type; the plan's own
+  warning about `cargo test`'s parallel threads sharing one binary's
+  statics).
+- EX-2's citation of `SPEC-001/R-21` (not a slice-003 requirement) is
+  design.md E-5's own point verbatim: `default_poll` goes through the same
+  duration grammar R-21 states, and refusing a value below the floor would
+  invent a rule that grammar does not carry. Cited exactly as the plan's
+  criterion states it.
+
+**STOP conditions** (watched throughout): S-7 (a test needs `#[ignore]`,
+retry, an oversized sleep or a widened tolerance to pass — POL-001), S-8
+(VT-1's count is not 2), S-9 (the phase needs to change the loop's shape, not
+repair a defect — back to plan), S-22 (a VA-2 margin below 5x — consult the
+orchestrator, do not ship as a follow-up), S-23 (VT-5's `frame().next_check`
+is neither the past instruction nor `now + default_poll`).
+
+**Tasks**
+- [x] (a) `config.rs`: `ScheduleConfig::default_poll` doc comment (EX-2),
+      citing SPEC-002/R-5 and SPEC-001/R-21.
+- [x] (b) `scheduling.rs`: VT-1 (AC-4, past instant every response) and VT-2
+      (AC-5/AC-8, failing backend) — both against the mechanism as it
+      stands, no repair anticipated.
+- [x] (c) `scheduling.rs`: VT-3/VT-4 (AC-9, the succeed-once clock and its
+      vacuity control).
+- [x] (d) `scheduling.rs`: VT-5 (the one-off past instruction, R-3) and VT-6
+      (a person mid-cadence, R-4/R-5).
+- [x] (e) VA-2 margins measured per test, 3 runs each for flake-check on the
+      new module; VA-3 break-and-revert; refactor; `just check` final.
+
+**Findings**
+- **VT-3's own stated assertions (one `NoClock` line, retained `next_check`
+  unchanged, invocation count still 1) do not by themselves make VA-3's
+  break-and-revert meaningful for AC-9.** With `MINIMUM_SPACING` zeroed, the
+  clock still fails on every read after the first, so the backend is never
+  reached either way — `invocations(&log) == 1` holds whether or not the
+  floor is doing anything, and `Diagnostics::refused` overwrites rather than
+  accumulates, so the line count stays 1 too. Neither assertion is capable of
+  going red under VA-3, which the plan requires ("VT-3's count assertion goes
+  red"). Resolution: added one more assertion the plan does not name —
+  `CLOCK_READS.load(Ordering::SeqCst) == 2` — reading the test's own fixture
+  counter (already present for VT-3/VT-4's mechanics) as the direct witness
+  of a spin. Confirmed by VA-3, below: 2 with the floor, 381 in the same
+  500 ms window with it zeroed. This is the assertion that actually holds
+  AC-9's "does not spin" clause; without it the criterion was checking
+  everything a floor failure leaves unchanged and nothing it would change.
+  If this reading is wrong, it is a one-assertion addition to revisit, not a
+  redesign.
+- **VA-2's own stated expectation for VT-5 and VT-6 (~105 ms liveness) does
+  not match either test's trace, though neither criterion depends on the
+  number.** The plan's VA-2 note predicts "~105 ms liveness against
+  `until(2 s)`… the same shape as VT-1's" for both. VT-1's own liveness is
+  ~12 ms, not ~105 ms (its second invocation is the *unfloored* scheduled
+  firing a past instruction produces — zero computed wait, not a
+  `default_poll`-gated one), and VT-5's second invocation and VT-6's third
+  are the same two shapes (an unfloored past-instant firing, and a person's
+  directly-dispatched evaluate) — neither gated by `default_poll` the way
+  AC-1/AC-2's ~105 ms figure (the template this note was evidently copied
+  from) is. Observed liveness for both is ~6-12 ms, not a defect — the
+  margin against `until(2 s)` is far wider than predicted (~160-330x instead
+  of ~19x) — but the design table's own arithmetic assumption is off for
+  these two rows. Recorded for the audit to correct in `design.md` §9 if it
+  promotes these rows, rather than silently matched to the wrong number.
+- No `controller.rs` repair was needed (EX-3): all six VT cases, and VA-3's
+  break-and-revert, passed against the mechanism PHASE-02 landed, unmodified
+  — confirmed by `git diff crates/goad/src/controller.rs` being empty after
+  the VA-3 edit-and-revert (below). This is itself further evidence for
+  PHASE-02/EN-2's claim that the branch, though undriven before this phase,
+  was written correctly.
+
+**Criteria discharged**
+- EX-1 — all six cases below pair an anti-spin window with a liveness
+  assertion (or, for VT-4, a liveness-only vacuity control) over the same
+  run; SPEC-002/R-4's second half and R-5's second half are VT-6's.
+- EX-2 — `crates/goad-shell/src/config.rs`:
+  `ScheduleConfig::default_poll`'s doc comment states the below-floor case,
+  citing SPEC-002/R-5 and SPEC-001/R-21 (E-5's own point: refusing it would
+  invent a rule the grammar does not carry). The only edit to `config.rs`
+  this phase makes (confirmed by `git diff --stat`, below).
+- EX-3 — `crates/goad/src/controller.rs` has a zero-line diff (`git status
+  --short`, `git diff`, both below); no production file outside it was
+  touched.
+- VT-1 — `a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor`:
+  `default_poll` far (30 min), backend instructs `2020-01-01T00:00:00Z` on
+  every response. Second invocation inside `until(2 s)`; count holds at 2
+  across a 500 ms window; `Served::controller.frame().next_check ==
+  Some(2020-01-01T00:00:00Z)` after the loop stops (SPEC-002/R-6).
+- VT-2 — `a_failing_backend_is_retried_unprompted_never_faster_than_the_floor`:
+  `default_poll` 100 ms, backend `@garbage` on every response. Second
+  invocation inside `until(2 s)` (AC-8); count holds at 2 across a 500 ms
+  window (AC-5); retained `next_check == Some(2026-01-01T00:00:00.100Z)`
+  after the loop stops, unaffected by the failure (SPEC-001/R-29).
+- VT-3 — `a_clock_that_fails_after_the_startup_exchange_refuses_and_holds`:
+  `succeeds_once_then_fails`, a `fn` over a private `static AtomicUsize`
+  (`CLOCK_READS`), used by this test only. `default_poll` 100 ms, honest
+  backend. Startup exchange succeeds; the scheduled firing's `stamp` fails;
+  inside a 500 ms window: invocation count stays 1, exactly one diagnostic
+  line containing "system clock could not be read", `CLOCK_READS == 2` (the
+  added spin witness, see Findings), retained `next_check ==
+  Some(2026-01-01T00:00:00.100Z)` unaffected by the refusal (SPEC-001/R-8).
+- VT-4 — `the_same_shape_with_a_working_clock_reaches_a_second_invocation`:
+  same shape, `stub_clock` (never fails) — second invocation inside
+  `until(2 s)`, confirming VT-3's count-still-one is not vacuous.
+- VT-5 — `a_one_off_past_instruction_is_consumed_and_cadence_resumes`:
+  instruction 1 the past instant, instruction 2 none, `default_poll` 100 ms.
+  Second invocation inside `until(2 s)`; count holds at 2 across a 500 ms
+  window (SPEC-002/R-3); `next_check == Some(2026-01-01T00:00:00.100Z)` —
+  `now + default_poll`, neither the past instruction nor a third value
+  (S-23 not triggered).
+- VT-6 — `a_person_acting_mid_cadence_does_not_clear_the_floor`: VT-1's
+  backend and `default_poll`. After the second (scheduled) invocation lands,
+  a person's `Command::Evaluate(Stimulus::Requested)` is sent; the third
+  invocation lands inside `until(2 s)` of that send (R-5) and the count then
+  holds at exactly 3 across a 500 ms window from the send (R-4).
+- VA-1 — `just check` exit 0, entry (`gate-entry.log`, 8d1b0ec) and final
+  (`gate-final.log`), both pasted below.
+- VA-2 — margins (3 runs each, `--exact`, temporary `eprintln!`
+  instrumentation added, measured, then removed — none left in the tree,
+  confirmed by `git diff` against this phase's own scheduling.rs):
+
+  | assertion | kind | design/plan expected | bound | observed (3 runs) | margin |
+  |---|---|---|---|---|---|
+  | VT-1 (AC-4) liveness, 2nd invocation | liveness | "at once" (D-5, unfloored) | `until(2s)` | ~11.2/13.5/11.8 ms | ~150-180x |
+  | VT-1 (AC-4) anti-spin, count holds | anti-spin | 2 invocations | 500 ms window | count stayed 2, all 3 runs | 6x (window vs. 3s floor) |
+  | VT-2 (AC-5/AC-8) liveness, 2nd invocation | liveness | ~105 ms | `until(2s)` | ~108.8/113.2/110.8 ms | ~18x |
+  | VT-2 (AC-5) anti-spin, count holds | anti-spin | count unchanged | 500 ms window | count stayed 2, all 3 runs | 6x |
+  | VT-3 (AC-9) startup invocation | liveness | ~5-10 ms | `until(2s)` | ~6.2/6.3/5.5 ms | ~300x |
+  | VT-3 (AC-9) refusal-window hold | anti-spin | window ≈ 500 ms wall | (sanity check) | 501.4/500.7/501.6 ms | n/a — confirms the window itself, not a margin |
+  | VT-3 (AC-9) spin witness, `CLOCK_READS` | anti-spin | 2 reads | 500 ms window | 2, all 3 runs (381 under VA-3, see below) | the assertion VA-3 needed |
+  | VT-4 (vacuity control) liveness | liveness | ~105 ms | `until(2s)` | ~108.6/110.1/109.5 ms | ~18x |
+  | VT-5 (R-3) liveness, 2nd invocation | liveness | ~105 ms (VA-2's own note — see Findings, does not match the trace) | `until(2s)` | ~11.5/11.7/12.2 ms | ~166x (not ~19x) |
+  | VT-5 (R-3) anti-spin, count holds | anti-spin | 2 invocations | 500 ms window | count stayed 2, all 3 runs | 6x |
+  | VT-6 (R-4/R-5) liveness, 3rd invocation | liveness | ~105 ms (VA-2's own note — see Findings, does not match the trace) | `until(2s)` | ~6.3/6.2/5.4 ms | ~330x (not ~19x) |
+  | VT-6 (R-4/R-5) anti-spin, count holds | anti-spin | count unchanged | 500 ms window from send | count stayed 3, all 3 runs | 6x |
+
+  No row is below the 5x floor (S-22 not triggered) — every row is at or
+  above design's own worst case. No flakiness across 3 consecutive full runs
+  of `scheduling::` (all 12 tests, `finished in 0.78s` each run, 3/3 green).
+- VA-3 — `MINIMUM_SPACING` set to `Duration::from_secs(0)` in
+  `crates/goad/src/controller.rs`. `cargo test -p goad --test renderer
+  scheduling::`: VT-1, VT-2, VT-5, VT-6 all failed as predicted (each landed
+  a 5th invocation instead of holding at 2 or 3); VT-3's added `CLOCK_READS`
+  assertion failed too (381 reads in the 500 ms window instead of 2) — this
+  is the assertion the Findings entry above added specifically so this line
+  would fire. All other tests (the eight PHASE-02 cases plus VT-4) stayed
+  green, as expected — they do not depend on the floor. Reverted; `cargo
+  test -p goad --test renderer scheduling::` green again, 12/12, confirmed
+  by re-running (above). `git diff crates/goad/src/controller.rs` after the
+  revert: empty.
+- S-7, S-8, S-9, S-22, S-23 — none triggered. S-8 and S-23 confirmed
+  affirmatively above (VT-1's count is exactly 2; VT-5's `next_check` is
+  `now + default_poll`, no third value).
+
+**`just check` (final):** exit 0, 8.932s real (`gate-final.log`,
+`/tmp/.../scratchpad/gate-final.log`) — up from PHASE-02's final 9.377s
+(this run measured slightly faster overall, within normal machine-load
+variance; not a regression). `cargo test --workspace` in isolation: 4.768s
+real (`/tmp/.../scratchpad/cargo-test-workspace-after-p3.log`), against
+PHASE-02's 4.757s — negligible growth from six added tests, each a real
+subprocess-backed `serve` run. Re-confirmed after this sheet's own final
+edits: exit 0, 5.276s real (`gate-final-confirm.log`).
+
+**`git status --short`:** `crates/goad-shell/src/config.rs`,
+`crates/goad/tests/renderer/scheduling.rs`, `docs/slices/003/notes.md`
+modified; `flake.lock` modified but pre-dates this session (untouched by
+this phase, as PHASE-02 also noted). No file outside this phase's declared
+surfaces; `crates/goad/src/controller.rs` unmodified;
+`tests/backends/`/`tests/support/`/`Cargo.toml` untouched.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-07 · PHASE-02 done · tree not yet committed for this
+**Fresh as of:** 2026-09-07 · PHASE-03 done · tree not yet committed for this
 phase
 
 ### Produced
@@ -442,6 +671,15 @@ phase
 - `tests/backends/logs-the-request-then-answers.sh` — a request-logging
   variant of `answers-as-instructed.sh`, for the two cases that need
   `event.kind` (VT-3, VT-7).
+- `crates/goad/tests/renderer/scheduling.rs` — six more `serve` tests
+  (PHASE-03/VT-1..VT-6): a past instant on every response, a failing
+  backend, a clock that succeeds once then fails (`succeeds_once_then_fails`
+  over a private `static CLOCK_READS: AtomicUsize`), that fixture's vacuity
+  control, a one-off past instruction, and a person acting mid-cadence. No
+  new `tests/backends/` script — `@garbage` and the existing
+  `logs-the-request-then-answers.sh` covered every case.
+- `crates/goad-shell/src/config.rs`: `ScheduleConfig::default_poll`'s doc
+  comment (PHASE-03/EX-2), citing SPEC-002/R-5 and SPEC-001/R-21.
 
 ### Learned
 - The design's exact `wait_for` body (`design.md:155-160`) compiles clean
@@ -469,13 +707,45 @@ phase
   is dequeued, so sending sequentially on a capacity-1 channel is a
   structural guarantee, not a timing race — no sleep, no `@slow-view`-style
   synthetic delay needed.
+- **`harness::stub_clock`'s fixed `now` makes two of `schedule::resolve`'s
+  branches numerically indistinguishable** whenever the retained instant
+  equals `now + default_poll` exactly (PHASE-03, VT-2/AC-5): "the retained
+  value stands" and "nothing retained, so `now + default_poll`" land on the
+  same value. A test asserting only the final `next_check` cannot tell which
+  branch actually ran in that specific case — recorded so a future reader
+  does not mistake `served.controller.frame().next_check` for a stronger
+  witness than it is here; the assertion still holds SPEC-001/R-29 (neither
+  branch produced something *else*), which is the claim that mattered.
+- **A test's own retry/spin fixture can be a load-bearing assertion, not
+  just plumbing.** PHASE-03/VT-3's `static CLOCK_READS: AtomicUsize`
+  (needed anyway, because `Clock` is a `fn` pointer and cannot capture) is
+  also the only thing that can witness AC-9's "does not spin" clause under
+  VA-3's break-and-revert — the backend invocation count and the diagnostic
+  line count both stay unchanged whether or not the floor is doing anything,
+  because the clock keeps failing regardless of spacing. Worth watching for
+  in a future plan: a fixture built to make a test possible may be the
+  fixture the criterion actually needs asserted on.
+- **A plan's own VA-2 "expected" figure can be copied from the wrong
+  shape.** PHASE-03's VA-2 note predicted "~105 ms liveness… the same shape
+  as VT-1's" for VT-5 and VT-6, but VT-1's own liveness is ~12 ms (an
+  unfloored past-instant firing), not ~105 ms (a `default_poll`-gated one) —
+  the note conflated the two shapes AC-1/AC-2 and AC-4 actually are.
+  Harmless here (every margin came in wider than predicted, never
+  narrower), but worth a second look before promoting `design.md` §9's new
+  rows verbatim.
 
 ### Open
 - Findings sweep at close: the stray `(F-1)` citation above (PHASE-01); the
-  two plan-gap findings above, for the orchestrator/audit to confirm the
-  resolution or record differently.
-- PHASE-03 inherits the `if refusal_re_arms { sleep.as_mut().reset(floor_until);
-  }` guard at all three refusal sites in `controller.rs::serve` (only the
-  `Command::Evaluate` one is reachable from the timer arm today, per the
-  implementer note) — worth knowing before touching that function again.
+  two plan-gap findings above (PHASE-02), for the orchestrator/audit to
+  confirm the resolution or record differently; PHASE-03's VA-2
+  "~105 ms" mismatch for VT-5/VT-6 (harmless, but `design.md` §9 should not
+  inherit the wrong number if these rows are promoted); PHASE-03's
+  `CLOCK_READS` addition beyond the plan's own stated VT-3 assertions, for
+  confirmation that it is the right fix rather than a workaround.
+- PHASE-04 needs to know: `controller.rs`'s refusal path (all three
+  `refusal_re_arms` sites) is now driven, not just written — VT-3 exercises
+  the `Command::Evaluate` site from the timer arm; the other two remain
+  undriven (they guard a boolean that is always `false` today, per PHASE-02's
+  Decisions). No `controller.rs` change landed this phase — anyone touching
+  it next inherits exactly PHASE-02's shape, unmodified.
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

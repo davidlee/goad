@@ -7,15 +7,18 @@
 //! against a real child process — there is no second, test-only loop.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
+use goad::clock::ClockError;
 use goad::controller::{Controller, Ending, serve};
 use goad::wire::{Cancel, Command, Stimulus};
+use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
 use tokio::sync::mpsc;
 use tokio::task::LocalSet;
 
-use crate::driving::{DEFAULT_POLL, host_from, invocations, logging_backend, scripted};
+use crate::driving::{DEFAULT_POLL, host_from, instant, invocations, logging_backend, scripted};
 use crate::harness::{
   TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
 };
@@ -32,6 +35,14 @@ const INSTRUCT_100MS: &str = r#"{"view":null,"next_check":"100 milliseconds"}"#;
 const INSTRUCT_60S: &str = r#"{"view":null,"next_check":"60 seconds"}"#;
 /// One option, so a `Choose` has something to name (VT-5).
 const A_VIEW: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"yes","label":"Yes"}]},"next_check":"45 minutes"}"#;
+/// An instant well before `stub_clock`'s fixed `now` (2026-01-01) —
+/// PHASE-03's AC-4 case, a backend that instructs a resolved instant that has
+/// already elapsed.
+const PAST_INSTANT: &str = r#"{"view":null,"next_check":"2020-01-01T00:00:00Z"}"#;
+/// PHASE-03's `default_poll`: shorter than the floor (`MINIMUM_SPACING`, 3s),
+/// so the process's first scheduled firing lands well inside every window
+/// this module measures (D-5).
+const POLL_100MS: jiff::SignedDuration = jiff::SignedDuration::from_millis(100);
 
 /// A `Config` around one command, with a caller-chosen `default_poll` — built
 /// directly from `goad_shell::config`'s `pub` fields, per PL-3: nothing is
@@ -350,4 +361,337 @@ async fn a_stop_issued_while_parked_on_the_timer_arm_ends_serve_well_inside_the_
   );
   assert_eq!(served.ending, Ending::Stopped);
   assert_eq!(invocations(&log), 1, "no further invocation after the stop");
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-03 — what the floor bounds, and what a failure does not stop
+// (`plan.md` PHASE-03, VT-1..VT-6). Every case still drives the production
+// `serve` against a real child process; nothing here is a second loop.
+// ---------------------------------------------------------------------------
+
+/// PHASE-03/VT-1 — AC-4, SPEC-002/R-6. A backend that instructs a past
+/// instant on **every** response, `default_poll` far: the second invocation
+/// (the process's first, unfloored scheduled firing, D-5) lands inside
+/// `until(2 s)`, and the count then holds at 2 across a 500 ms window — 6x
+/// under the 3 s floor. After the loop stops, the retained `next_check` is
+/// the instruction itself, verbatim and unadjusted by the floor.
+#[tokio::test]
+async fn a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor() {
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted(
+    "vt1-past-every-response",
+    &[PAST_INSTANT, PAST_INSTANT, PAST_INSTANT, PAST_INSTANT],
+  );
+  let config = config_with_poll(command, DEFAULT_POLL);
+  let backend = host_from(config, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
+      assert_eq!(
+        invocations(&log),
+        2,
+        "the floor must hold the host to one unfloored scheduled firing"
+      );
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(invocations(&log), 2);
+  assert_eq!(
+    served.controller.frame().next_check,
+    Some(instant("2020-01-01T00:00:00Z")),
+    "SPEC-002/R-6: the retained next_check is the instruction, unadjusted by the floor"
+  );
+}
+
+/// PHASE-03/VT-2 — AC-5, AC-8. A backend failing every invocation
+/// (`@garbage`), `default_poll` 100 ms: the second invocation lands inside
+/// `until(2 s)` — the clock is not stopped (AC-8) — and the count then holds
+/// across a 500 ms window (AC-5). The retained `next_check` after the loop
+/// stops is unaffected by the failure (SPEC-001/R-29).
+#[tokio::test]
+async fn a_failing_backend_is_retried_unprompted_never_faster_than_the_floor() {
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted(
+    "vt2-failing-backend",
+    &["@garbage", "@garbage", "@garbage", "@garbage"],
+  );
+  let config = config_with_poll(command, POLL_100MS);
+  let backend = host_from(config, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
+      assert_eq!(
+        invocations(&log),
+        2,
+        "a failing backend must not be retried faster than the floor"
+      );
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    served.controller.frame().next_check,
+    Some(instant("2026-01-01T00:00:00.100Z")),
+    "SPEC-001/R-29: the retained next_check is unaffected by the failure"
+  );
+}
+
+/// A clock that succeeds exactly once and then fails on every subsequent
+/// read. `Clock` is a `fn` pointer (`clock.rs:16`) and cannot capture, so the
+/// count lives in a `static`; this fixture is used by exactly one test
+/// (PHASE-03/VT-3, below) — `cargo test` runs cases in parallel threads that
+/// share one binary's statics.
+static CLOCK_READS: AtomicUsize = AtomicUsize::new(0);
+
+fn succeeds_once_then_fails() -> Result<Timestamp, ClockError> {
+  if CLOCK_READS.fetch_add(1, Ordering::SeqCst) == 0 {
+    Ok(now())
+  } else {
+    Err(ClockError::BeforeEpoch)
+  }
+}
+
+/// PHASE-03/VT-3 — AC-9. `default_poll` 100 ms with `succeeds_once_then_fails`:
+/// the startup exchange completes and arms ~100 ms out; the timer arm wins,
+/// advances `floor_until`, and dispatches the scheduled evaluation, whose
+/// `stamp` is the clock's second read and fails; the refusal re-arms at
+/// `floor_until`, 3 s out. Inside a 500 ms window: exactly one `NoClock`
+/// refusal line, the invocation count still 1, and the retained `next_check`
+/// unchanged by the refusal (SPEC-001/R-8).
+#[tokio::test]
+async fn a_clock_that_fails_after_the_startup_exchange_refuses_and_holds() {
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("vt3-clock-fails-once", &[NOTHING_INSTRUCTED]);
+  let config = config_with_poll(command, POLL_100MS);
+  let backend = host_from(config, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          succeeds_once_then_fails,
+          glass,
+        )
+        .await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(Duration::from_secs(2), || invocations(&log) >= 1).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    1,
+    "the scheduled firing's clock refusal must never reach the backend"
+  );
+  let lines = served.controller.frame().diagnostics.lines().to_vec();
+  assert_eq!(
+    lines.len(),
+    1,
+    "exactly one refusal line, from the scheduled firing's failed stamp; got {lines:?}"
+  );
+  assert!(
+    lines[0].contains("system clock could not be read"),
+    "the one refusal must be NoClock; got {lines:?}"
+  );
+  assert_eq!(
+    CLOCK_READS.load(Ordering::SeqCst),
+    2,
+    "the floor must stop the clock from being re-read in a tight loop after the refusal (VA-3)"
+  );
+  assert_eq!(
+    served.controller.frame().next_check,
+    Some(instant("2026-01-01T00:00:00.100Z")),
+    "SPEC-001/R-8: a clock failure must not discard the retained next_check"
+  );
+}
+
+/// PHASE-03/VT-4 — the vacuity control for VT-3: the same shape with a clock
+/// that never fails reaches a second invocation inside `until(2 s)`, so
+/// VT-3's "count still one" is not passing because nothing was ever
+/// scheduled.
+#[tokio::test]
+async fn the_same_shape_with_a_working_clock_reaches_a_second_invocation() {
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("vt4-clock-control", &[NOTHING_INSTRUCTED]);
+  let config = config_with_poll(command, POLL_100MS);
+  let backend = host_from(config, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    2,
+    "vacuity control for VT-3: a working clock does reach the scheduled firing"
+  );
+}
+
+/// PHASE-03/VT-5 — AC-4's other successor case, SPEC-002/R-3. A past instant
+/// on the first response only, then no instruction: the second (unfloored
+/// scheduled) invocation lands inside `until(2 s)`, the count then holds at 2
+/// across a 500 ms window, and the elapsed value is consumed — `resolve`'s
+/// second arm applies `now + default_poll`, so the retained `next_check`
+/// after the loop stops is neither `2020-01-01…` nor left dangling but
+/// exactly `now + default_poll` (S-23). The third invocation is deliberately
+/// not awaited: the floor puts it 3 s out.
+#[tokio::test]
+async fn a_one_off_past_instruction_is_consumed_and_cadence_resumes() {
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("vt5-one-off-past", &[PAST_INSTANT, NOTHING_INSTRUCTED]);
+  let config = config_with_poll(command, POLL_100MS);
+  let backend = host_from(config, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
+      assert_eq!(
+        invocations(&log),
+        2,
+        "SPEC-002/R-3: the elapsed instruction fires once and does not re-fire"
+      );
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    served.controller.frame().next_check,
+    Some(instant("2026-01-01T00:00:00.100Z")),
+    "SPEC-002/R-3: the elapsed value was consumed and the default poll applies"
+  );
+}
+
+/// PHASE-03/VT-6 — SPEC-002/R-4's second half, R-5's second half. VT-1's
+/// backend and `default_poll`, plus a person: once the second invocation has
+/// landed, the driving task sends `Command::Evaluate(Stimulus::Requested)`.
+/// Invocation 3 lands inside `until(2 s)` of that send — a person's
+/// evaluation is not delayed by the floor (R-5) — and the count is then
+/// exactly 3 and does not move across a 500 ms window from the send — the
+/// person's action did not clear or reset the floor (R-4). Without the
+/// floor, the backend's next past instant would fire a fourth invocation at
+/// once and fail the window (VA-3).
+#[tokio::test]
+async fn a_person_acting_mid_cadence_does_not_clear_the_floor() {
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted(
+    "vt6-person-mid-cadence",
+    &[PAST_INSTANT, PAST_INSTANT, PAST_INSTANT, PAST_INSTANT],
+  );
+  let config = config_with_poll(command, DEFAULT_POLL);
+  let backend = host_from(config, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("R-5: a person's evaluate must be dispatched without waiting for the floor");
+      until(Duration::from_secs(2), || invocations(&log) >= 3).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
+      assert_eq!(
+        invocations(&log),
+        3,
+        "R-4: the person's exchange must not have cleared or reset the floor"
+      );
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+
+  assert_eq!(served.ending, Ending::Stopped);
 }

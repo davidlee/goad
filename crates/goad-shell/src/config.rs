@@ -70,6 +70,13 @@ impl Command {
 
 #[derive(Debug)]
 pub struct ScheduleConfig {
+  /// How often the host evaluates on its own account when nothing else
+  /// prompts it. Any duration `parse_span`'s grammar accepts is valid here,
+  /// including one shorter than the host's own minimum spacing between
+  /// scheduled evaluations — refusing it would invent a rule the grammar
+  /// itself does not carry (SPEC-001/R-21). A value below that spacing is
+  /// honoured, unfloored, for the process's **first** scheduled evaluation;
+  /// every scheduled evaluation after that is floored (SPEC-002/R-5).
   pub default_poll: jiff::SignedDuration,
 }
 
