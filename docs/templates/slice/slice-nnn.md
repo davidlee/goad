@@ -1,6 +1,9 @@
 # Slice NNN: {title}
 
 **Stage:** scoping | design | planned | executing | audit | done
+**Tier:** 1 (thin) | 2 (full) — see `docs/AGENTS.md` §Tiers. Tier 2 is required
+of a slice that writes or amends canon, or changes the wire contract. Raise a
+tier mid-slice if that turns out to be true; never lower one.
 **Depends on:** —
 
 ## Purpose

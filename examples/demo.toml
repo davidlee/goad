@@ -1,0 +1,11 @@
+# The configuration `just demo` starts goad with.
+#
+# `command` is an argument vector, never a shell string — goad interposes no
+# shell. Relative paths resolve against goad's working directory, which `just`
+# sets to the repository root.
+[backend]
+command = ["bash", "examples/shell/backend.sh"]
+timeout = "5s"
+
+[schedule]
+default_poll = "30m"

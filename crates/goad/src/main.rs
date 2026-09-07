@@ -62,10 +62,16 @@ fn start(path: &Path) -> Result<(), StartupError> {
     .map_err(StartupError::Runtime)?;
   let _entered = runtime.enter(); // dropped after the loop returns
 
-  // 3. The components. The app id is set before anything is shown, because the
-  //    app icon comes from it and the `icon` property is silently dropped.
-  slint::set_xdg_app_id("goad").map_err(StartupError::Platform)?;
+  // 3. The components. The app id is set after the first component exists and
+  //    before anything is shown: the app icon comes from it and the `icon`
+  //    property is silently dropped, but `set_xdg_app_id` does not initialize
+  //    the platform on its own — constructing a component is what selects the
+  //    backend. Called first it fails with *No default Slint platform was
+  //    selected*, which is a startup failure on every run (measured against
+  //    slint 1.17.1; the renderer tests install the testing backend themselves,
+  //    so nothing in the gate constructs the real one).
   let window = PromptWindow::new().map_err(StartupError::Platform)?;
+  slint::set_xdg_app_id("goad").map_err(StartupError::Platform)?;
   let tray = Tray::new().map_err(StartupError::Platform)?;
 
   // 4. The bridge. One `Wire`, cloned into each callback and nowhere else.

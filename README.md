@@ -10,6 +10,18 @@ A thin GUI wrapper, a flexible, simple protocol, and some clear guidance to get 
 
 Whatever it is you want to track, remember, or subtly intervene in, Goad provides the scaffolding to cook it up. So go ahead, and make something weirdly personal.
 
+## Try it
+
+```zsh
+just demo
+```
+
+That starts goad against `examples/demo.toml` and the ten-line shell backend in
+`examples/shell/backend.sh`, which prompts every time it is asked — so a window
+is there at once. Answer it and the window goes; the backend has said there is
+nothing more to show. `just run <config>` does the same with a configuration of
+your own.
+
 ## GUI 
 
 The lovely [Slint](https://github.com/slint-ui/slint) builds the GUI.

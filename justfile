@@ -55,3 +55,13 @@ fmt-check:
 # Not in the gate: it writes. Here so the gate's failure has an obvious answer.
 fmt:
   cargo fmt --all
+
+# Not in the gate: these start a GUI, and the gate stays headless. `cargo run`
+# so that a stale binary is rebuilt rather than launched.
+
+# Start goad with your own configuration file.
+run config:
+  cargo run -p goad --bin goad -- {{config}}
+
+# The example backend that always prompts, so there is a window to look at.
+demo: (run "examples/demo.toml")

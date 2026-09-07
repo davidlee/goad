@@ -45,6 +45,37 @@ A slice does not close holding an unpromoted draft. Either it lands, or it is ab
 
 This is not optional fluff. Follow it closely. Do **not** deviate from it without **explicit user instruction**.
 
+### Tiers
+
+Every slice declares a **tier** in `slice-nnn.md` when it opens. A tier may be
+raised mid-slice — never lowered, and never at audit to make a closing argument
+easier.
+
+**Tier 2 — full.** Required when the slice writes or amends canon (a spec,
+policy or ADR), or changes the wire contract. The lifecycle below, entire.
+
+**Tier 1 — thin.** Everything else. Four differences, and nothing else changes:
+
+- `design.md` is capped at **300 lines**. Over the cap, the slice is too big:
+  split it. The cap is on the design surface, not on the prose — compressing a
+  large design into 300 lines defeats it and is the one way to fail this rule
+  dishonestly.
+- **Design and plan share one ledger.** Draft the design, draft the plan, then
+  review both in one pass in `review-design.md` (subject: `design + plan`).
+  There is no `review-plan.md` at this tier.
+- That review runs **at most two rounds**. Whatever is still open at the end of
+  round 2 is dispositioned `settle-in-code` — a named phase and a named test —
+  or the slice goes to tier 2. A third round is the signal that the surface was
+  never thin.
+- Nothing about `review-code.md` changes. It is full strength, rounds
+  unbounded, at both tiers: it is where the defects actually are.
+
+**Both tiers: a slice does not close until a person has run the software and
+seen the new behaviour.** `just demo`, or whatever the slice's equivalent is.
+Record it in `audit.md` under Evidence, naming what was observed. A green gate
+is not that evidence — slices 001–003 all closed green on a binary that could
+not open a window.
+
 ### Where it goes
 
 Four kinds of file, four jobs. If you are about to write the same thing twice, one of them is the wrong home.

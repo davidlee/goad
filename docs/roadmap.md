@@ -21,14 +21,30 @@ floor (SPEC-002, ADR-004).
 feature matrix (POL-001). Purity is held by four ADR-001 instruments plus the
 domain-vocabulary scan, plus one residue nothing enforces.
 
-The host renders, keeps time, and can be run by a person. **Nothing listens**:
-there is no way for anything outside the host to prompt an evaluation, which is
-slice 004.
+The host renders, keeps time, and — since 2026-09-08 — actually launches:
+`just demo` starts it against `examples/shell/backend.sh` and a window appears.
+That fix was a one-line reordering in `main.rs`, and it was needed because
+`slint::set_xdg_app_id` ran before any component existed, so every launch since
+002 had failed. Three slices closed green over it, because nothing in the gate
+constructs the real platform and nothing in the lifecycle asked a person to run
+the thing. The second of those is now closed — `docs/AGENTS.md` §Tiers requires
+a person to run the software before a slice closes. The first stands: no
+automated check constructs the real Slint platform, and none is planned.
+
+**Nothing listens**: there is no way for anything outside the host to prompt an
+evaluation, which is slice 004.
+
+**The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
+§Tiers): capped design surface, design and plan reviewed in one two-round
+ledger, code review unchanged. The re-cut below puts *you running goad daily* at
+006 rather than behind the whole brief. 49,631 lines of slice documentation for
+16,891 lines of Rust is the number that prompted it.
 
 ## Sequence
 
-Brief §20 suggests eight implementation phases; slices 001–007 carry them, with
-§20's phases 1 and 2 both landed by slice 001.
+Brief §20 suggests eight implementation phases. Slices 001–003 carried its
+phases 1–4; the rest are re-cut below, ordered by value per token rather than by
+the brief's order.
 
 ```mermaid
 graph LR
@@ -36,34 +52,41 @@ graph LR
   S2["002 ✔<br/>minimal renderer"]
   S3["003 ✔<br/>scheduling"]
   S4["004<br/>event ingress"]
-  S5["005<br/>socket transport"]
-  S6["006<br/>starter experience"]
-  S7["007<br/>v0.1.0 polish"]
+  S5["005<br/>goad emit"]
+  S6["006<br/>daily driver"]
+  S7["007<br/>field notes"]
+  S8["008<br/>socket transport"]
+  S9["009<br/>starter experience"]
 
-  T1{{"ADR-002 T1<br/>Slint build-dep<br/>→ workspace split"}}
-  T2{{"ADR-002 T2<br/>second binary<br/>goad emit"}}
+  T2{{"ADR-002 T2<br/>second binary"}}
 
-  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
-  T1 -.-> S2
-  T2 -.-> S4
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+  T2 -.-> S5
 
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
   class S1,S2,S3 done
-  class T1,T2 trigger
+  class T2 trigger
 ```
 
-The chain is mostly hard dependency, not preference:
+| slice | tier | why here |
+|---|---|---|
+| 004 event ingress | 1 | 003 built the scheduled evaluation path; an event is a second stimulus into it |
+| 005 `goad emit` | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
+| 006 daily driver | 1 | the point where you run goad every day. Everything after it is informed by having done so |
+| 007 field notes | 1 | scope written *after* two weeks of your own use, not before |
+| 008 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
+| 009 starter experience | 1 | documenting for others documents what exists |
 
-- **002 before 003.** A timer with nothing to show has no observable behaviour,
-  so its acceptance criteria would be unwritable.
-- **003 before 004.** Ingress is a second stimulus into a scheduled evaluation
-  path. Building the second stimulus first means building the path twice.
-- **005 anywhere after 001**, in principle — the transport abstraction is
-  already in place. It is placed fifth because it is the least user-visible
-  remaining item, not because it is blocked.
-- **006 last but one.** The starter experience documents what exists. Writing it
-  earlier documents intentions.
+Two changes from the old order, both deliberate:
+
+- **Socket transport moved from 005 to 008.** The old roadmap already said it
+  was "the least user-visible remaining item". Spawn-per-invocation has not been
+  measured as a problem by anyone using goad, because nobody has been using
+  goad. 007 promotes it if use says it hurts.
+- **The starter experience moved from 006 to 009**, and old 007's polish
+  dissolved: configuration validation, diagnostics and packaging are what *you*
+  need to run this daily, so they are 006; the acceptance-suite walk is 009's.
 
 ## The slices
 
@@ -125,26 +148,71 @@ one code review over four rounds, 22 findings, none outstanding.
   the host, so the likely answer is a backend affordance and therefore a
   protocol question.
 
-### 004 — external event ingress
+### 004 — event ingress
 
-Brief §20 phase 5, §7, §19.
+Brief §20 phase 5, §7, §19. **Tier 1.**
 
-A Unix socket accepting an opaque event envelope, and a `goad emit` CLI. The
-event is forwarded verbatim; the host interprets nothing beyond the envelope.
+A Unix socket that accepts an opaque event envelope and forwards it verbatim
+into the evaluation path 003 built. The host interprets nothing past the
+envelope. No CLI — a shell one-liner writing to the socket is the test, and 005
+is the ergonomic wrapper.
 
-- **Fires ADR-002 T2** (a second binary) if 002 has not already split the crate.
 - **Read ADR-004 before touching the floor.** An ingested event is the first
-  stimulus that is not a person and not a due check. SPEC-002/R-5 says in terms
+  stimulus that is neither a person nor a due check. SPEC-002/R-5 says in terms
   that the scheduled-firing spacing bounds it in no way and that this slice must
   decide separately how it is bounded; ADR-004 says why the anchor is written so
   that an event cannot clear it.
-- The whole risk is scope: event *interpretation*, debouncing, and filtering are
+- **Deciding how an event is bounded amends SPEC-002**, so this slice opens
+  tier 1 and raises itself the moment that decision is written down. Expect it.
+- The whole risk is scope: event *interpretation*, debouncing and filtering are
   the backend's and the user's watcher's, per brief §7. A host that learns what
   an event means has crossed the boundary.
 
-### 005 — persistent socket transport
+### 005 — `goad emit`
 
-Brief §20 phase 6, §6.1, §6.3.
+Brief §19. **Tier 1.**
+
+The CLI that writes an envelope to 004's socket, so a cron job, a shell hook, or
+another program can prompt an evaluation without knowing the wire format.
+
+- **Fires ADR-002 T2** — the second binary in the workspace.
+- Thin by construction: argument parsing, an envelope, a socket write, an exit
+  code that says whether the host took it. If this one needs a 300-line design,
+  something is wrong with 004's socket.
+
+### 006 — daily driver
+
+Brief §20 phases 7–8 in part, §15, §17. **Tier 1.**
+
+The slice after which you run goad every day: configuration validation with
+errors that say what to fix, the default `$XDG_CONFIG_HOME/goad/config.toml`
+path exercised for real, diagnostics reachable from the tray, an autostart unit,
+and a quickstart that a person follows from a clean clone.
+
+- **This is the value slice.** 004 and 005 exist to make it worth running.
+- Its acceptance is behavioural and personal: goad starts with the session,
+  survives a backend that is broken, and tells you which side was wrong.
+
+### 007 — field notes
+
+**Tier 1.** Scope written after 006, not before.
+
+Two weeks of your own use, then a slice that fixes what actually hurt. Its
+content is deliberately unwritten here: a slice whose scope is fixed in advance
+of the evidence is the brief again, and the brief is what the re-cut is trying
+to stop reciting.
+
+- It is also where **008 gets promoted or dropped**: if spawn-per-invocation
+  costs something you can feel, the transport slice is next; if it does not, it
+  waits longer.
+- Likely candidates, on today's guesses only: SPEC-002 OQ-4 (a scheduled firing
+  superseding a view you are mid-answering), option-scoped fields in the
+  renderer, and whatever the diagnostic surface fails to explain.
+
+### 008 — persistent socket transport
+
+Brief §20 phase 6, §6.1, §6.3. **Tier 2** — it amends SPEC-001's transport
+section.
 
 JSONL over a configured Unix socket, one request in flight, process fallback
 when the socket is absent or unusable, and defined reconnect behaviour. The
@@ -157,25 +225,18 @@ semantic protocol is identical across transports — SPEC-001 already says so.
   nothing, or for brief §10.1/§10.2 through a real process. Both are held at
   other tiers today. If this slice rebuilds the failure matrix, add them.
 
-### 006 — starter experience
+### 009 — starter experience
 
-Brief §20 phase 7, §15.
+Brief §20 phase 7, §15, §21. **Tier 1** unless capability declaration lands.
 
-`README`, the backend author's guide, minimal backends in several languages, and
-the interstitial-journal example. Discharges brief §21 AC-14 and AC-15 — an
-agent reads repository-local material and writes a working backend without
-touching the host.
+The backend author's guide, minimal backends in several languages, the
+interstitial-journal example, and the complete acceptance suite walked end to
+end. Discharges brief §21 AC-14 and AC-15 — an agent reads repository-local
+material and writes a working backend without touching the host.
 
-This is where **capability declaration (OQ-1)** and **validation feedback
-(OQ-2)** most plausibly land — see *Open decisions*.
-
-### 007 — v0.1.0 polish
-
-Brief §20 phase 8, §17.
-
-Configuration validation, diagnostics and logging, Markdown context if cheap,
-Linux packaging and run instructions, and the complete acceptance suite walked
-end to end.
+- Last on purpose: documentation written earlier documents intentions.
+- **Capability declaration (OQ-1)** and **validation feedback (OQ-2)** most
+  plausibly land here — see *Open decisions*. Either one makes this tier 2.
 
 ## v0.1.0 acceptance coverage
 
@@ -183,7 +244,7 @@ Brief §21. Where each criterion is discharged.
 
 | # | criterion | slice |
 |---|---|---|
-| 1 | clone and run the native Linux GUI | 002 runs it; 007 packages it |
+| 1 | clone and run the native Linux GUI | `just demo` runs it ✔; 006 packages it |
 | 2 | configuration points at a trivial scripting backend | 001 ✔ (config + example); observable at 002 |
 | 3 | host periodically asks the backend | 003 ✔ |
 | 4 | backend returns no view without error | 001 ✔ |
@@ -191,13 +252,13 @@ Brief §21. Where each criterion is discharged.
 | 6 | selection delivers a response to the backend | 002 |
 | 7 | `next_check` from evaluation and from response | 001 ✔ |
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
-| 9 | an external script sends an opaque event | 004 |
+| 9 | an external script sends an opaque event | 004; 005 makes it ergonomic |
 | 10 | the event reaches the backend uninterpreted | 004 |
-| 11 | backend may run as a persistent JSONL socket service | 005 |
-| 12 | fallback to process invocation when it is unavailable | 005 |
+| 11 | backend may run as a persistent JSONL socket service | 008 |
+| 12 | fallback to process invocation when it is unavailable | 008 |
 | 13 | crashes, timeouts, invalid JSON do not crash the GUI | 001 ✔ taxonomy; 002 surfaces it |
-| 14 | example backend implements the journal with no host change | 006 |
-| 15 | an agent implements a backend from repository material alone | 006 |
+| 14 | example backend implements the journal with no host change | 009 |
+| 15 | an agent implements a backend from repository material alone | 009 |
 | 16 | no domain concepts enter the host model | 001 ✔ boundary test; **standing, every slice** |
 
 ## Not on the sequence
@@ -228,5 +289,6 @@ condition rather than a position.
   with no sign anything was rejected: tolerating a field is not honouring it
   (F-7 corrected the original analysis, which claimed otherwise). Per-field
   errors are semantics and must be typed fields, never keys in `hints`.
-  *Recommendation:* slice 006, alongside the field-capable renderer work the
-  examples will want. They could equally be their own slice after 002.
+  *Recommendation:* they are their own tier 2 slice, taken when 007's use says
+  a form needs to reject an answer — not folded into 009, where they would make
+  a documentation slice canon-changing and blow its tier.

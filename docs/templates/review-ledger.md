@@ -41,6 +41,7 @@ file; it does not start a new ledger.
 | `doc-wrong` | The artefact under review is the defect, not the thing it describes. Amend the design / plan / spec. |
 | `follow-up` | Owned future work. Must land in `slice-nnn.md` Follow-ups — a disposition is not a place to put things down. |
 | `tolerated` | Knowingly accepted, with a written rationale. |
+| `settle-in-code` | Real, unsettled, and cheaper to answer in code than in prose. Names the phase that settles it and the test that will. Design and plan reviews only. |
 
 **Outcome** — set by the raiser, terminal:
 
@@ -56,9 +57,12 @@ run yet.
 
 **Guardrails.** Do not reach for `follow-up` because the fix is large. Do not
 normalise `tolerated` without a real reason. Do not downgrade a `blocker` to get
-past the gate. Reject a finding on **evidence**, never on assertion. Confirm each
-disposition with the user before acting on it. Fix the class, not the instance,
-and do not introduce new defects repairing old ones.
+past the gate. `settle-in-code` is not a way to end an argument you are losing:
+it needs a named phase and a named test, it is unavailable to a `blocker`, and a
+finding that survives its phase returns to the ledger `contested`. Reject a
+finding on **evidence**, never on assertion. Confirm each disposition with the
+user before acting on it. Fix the class, not the instance, and do not introduce
+new defects repairing old ones.
 
 ## Brief
 
@@ -83,7 +87,7 @@ and do not introduce new defects repairing old ones.
 **Observed:** <what is actually there>
 **Evidence:** <the citation that makes this checkable rather than an opinion>
 
-**Disposition:** aligned | fix-now | doc-wrong | follow-up | tolerated
+**Disposition:** aligned | fix-now | doc-wrong | follow-up | tolerated | settle-in-code
 **Response:** <the responder's reasoning, and what was changed>
 
 **Outcome:** verified | contested | withdrawn
