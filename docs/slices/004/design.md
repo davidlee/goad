@@ -366,6 +366,14 @@ The whole of the new retained state is **one instant**.
 | the bound listener | the accept task | — | — | the process |
 | an `Arrival` in flight | the channel | — | — | one connection |
 
+**Both anchors start already elapsed.** `floor_until` is initialised to
+`started` (`controller.rs:407`), and `event_floor_until` is initialised the same
+way — which is forced, not chosen. The only other candidate,
+`started + MINIMUM_SPACING`, would have the host's own startup evaluation write
+the event anchor, and that is precisely what P-3 denies. So the first envelope
+after startup is accepted, and nothing about the startup evaluation is
+observable at the socket.
+
 Two anchors, two write sites, neither reachable from the other. That is P-3, and
 it is the whole of AC-6's falsifiable claim. There are **two** ingress arms and
 only the outer one appears in this table: the inner arm reaches step 2 of §5.4

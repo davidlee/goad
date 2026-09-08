@@ -179,3 +179,57 @@ cross-posted to `design-log.md`.
   and A-2 names them as its two witnesses.
 - **Rejected:** a `just emit` recipe; a script under `examples/`; documenting
   only the `socat` form, which would leave half of D-8 unwitnessed.
+
+### 2026-09-08 — PL-10: round 1 of the plan review dispositioned; the listener is two phases
+
+- **Asked:** how to dispose of `review-plan.md`'s round 1 — fourteen findings,
+  F-1..F-14 — and, inside F-12, whether PHASE-03 is one session's work.
+- **Decided:** all fourteen `fix-now`, under the standing autonomy grant. Every
+  citation was verified against the tree before acting on it; none was withdrawn.
+  The substantive changes:
+  - **F-12 — PHASE-03 is split.** Eight phases now, run **01, 02, 03, 08, 04,
+    05, 06, 07**. The seam is the reply: PHASE-03 owns everything the filesystem
+    can get wrong plus the accepted path (eight cases); **PHASE-08** owns
+    everything the writer can get wrong — the two read budgets and their
+    enforcement, the rest of `Refusal`'s payloads, `retry_after_ms`'s rounding,
+    the closed reason set (five). Criterion ids are preserved across the move, so
+    PHASE-08's sequence is non-monotonic by design.
+  - **F-1 — the bind can now see the config.** PHASE-06/EX-3 moves
+    `Host::new` below `runtime.enter()`, one line inside `main.rs`, rather than
+    adding an accessor to `Host` or `Clone` to `Config`.
+  - **F-5 — `examples/shell/backend.sh` is modified after all.** It answers an
+    ingested evaluation with a view naming the event's `source` and `kind`, so
+    that VH-1 observes a *different* prompt rather than a byte-identical redraw.
+    PHASE-06/EX-8 said the opposite and said it was the point; it was the defect.
+  - **F-4 — no umask anywhere.** The host sets the socket's mode itself with
+    `set_permissions` after `bind`, which is what `SPEC-003/R-2` asks for.
+  - **F-3 — AC-9's exit code is held by review, not by a test** (PHASE-06/VA-3),
+    and says so in the phase and in the Coverage table.
+  - **F-7 — the closed-channel path gains a test**, PHASE-04/VT-7, whose load
+    -bearing assertion is that the presentation count does not advance.
+  - **F-6, F-10 — two class rules and one initial value**: PHASE-04/EX-11 and
+    PHASE-05/EX-5 require every timed case to pin the `next_check` of every
+    exchange it lets complete; `event_floor_until` is initialised already
+    elapsed.
+  - **F-2, F-8, F-9, F-11, F-13, F-14** — the test module's real home, two
+    surface bounds that understated their edits, a margin rule that fired by
+    construction, two `deny` lints on the listener's core path, and a citation
+    sweep that fixed seven `path:line` errors across the plan.
+- **Why:** the reviewer's evidence held in every case. F-12 in particular: slice
+  003's calibration was argued on **re-reading cost**, and fourteen bespoke
+  socket cases plus a from-scratch five-type async module is not the same work as
+  eight cases sharing a harness plus a uniform 22-site edit. The user's standing
+  rule is that a session wraps at 200-250k tokens and that more smaller phases
+  beat fewer heroic ones.
+- **Rejected:** re-arguing PHASE-03's size on criterion count (that was the
+  original defect); splitting PHASE-03 by production-code-then-tests, which
+  breaks red/green; a binary-running harness for AC-9's exit code, which
+  `renderer/startup.rs:9-11` forbids in that file's own words; and a
+  test-only constructor on `Ingress` for F-7, which is PHASE-03's surface and a
+  design question about what `Ingress` exposes.
+- **Consequence:** `plan.md` rewritten in the places named above;
+  `review-plan.md` carries a disposition and a response per finding, with
+  `Outcome` left for the reviewer. Two things are **reported to the user rather
+  than repaired**: AC-9 needs a reading recorded in `slice-004.md` beside AC-1,
+  AC-3, AC-6 and AC-7, and `design.md` §5.3's state table does not give
+  `event_floor_until` an initial value where the row beside it argues one.
