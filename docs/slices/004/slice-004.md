@@ -1,6 +1,6 @@
 # Slice 004: Event ingress
 
-**Stage:** plan
+**Stage:** execute
 **Tier:** 2 (full). It **opened tier 1 and raised at scoping**, as
 `docs/roadmap.md` §004 said it would: deciding how an event-triggered evaluation
 is bounded amends SPEC-002, and reserving an event source amends SPEC-001. Both
@@ -171,8 +171,8 @@ from a clean clone in the dev shell — this slice's only environment change
 
 The criteria above are unchanged and their ids are immutable. Four needed a
 reading before they could be built against; AC-1, AC-6 and AC-7 are recorded in
-`design-log.md` (2026-09-08) and `design.md` D-19, and AC-3's is
-`draft-spec.md` R-8.
+`design-log.md` (2026-09-08) and `design.md` D-19, AC-3's is `draft-spec.md`
+R-8, and AC-9's was taken at plan acceptance.
 
 - **AC-1's "verbatim"** holds as *the same instant*, not the same bytes, for
   `timestamp` alone. `Event.timestamp` is a modelled `Timestamp`, so the host
@@ -196,6 +196,14 @@ reading before they could be built against; AC-1, AC-6 and AC-7 are recorded in
   the *does not advance* one that is the case ADR-004 says no existing test can
   distinguish — the other two falsify a different alternative and hold CD-1's
   new event anchor, on which ADR-004 makes no claim.
+- **AC-9's "the exit code is non-zero"** is held by **review**, not by an
+  instrument, in the shape `draft-spec.md` R-5's verification row already uses.
+  No test target links the binary, and `crates/goad/tests/renderer/startup.rs`
+  states as that file's own rule that no test there runs it or asserts an exit
+  code. What discharges the clause is the argument at `main.rs:21-29`: a single
+  `match run()` mapping every `Err` to `ExitCode::from(2)`, unchanged by this
+  slice. The rest of AC-9 — the error value and the message naming what was
+  found — is held by tests.
 - **AC-7's "unchanged bodies"** means unchanged assertions. `serve` gains one
   parameter, so 23 call sites pass `Ingress::none()`; no assertion moves.
 

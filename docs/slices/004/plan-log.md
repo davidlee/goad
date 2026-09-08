@@ -376,3 +376,18 @@ cross-posted to `design-log.md`.
   *Verification* preamble, EX-11; PHASE-07/EX-7's seeded list and its *Notes
   for the implementer* cross-reference. `review-plan.md` F-25 and F-26
   dispositioned `fix-now`.
+
+### 2026-09-08 — the plan is accepted, and AC-9 takes a reading
+
+- **Asked:** acceptance of the seven-phase plan after a four-round review
+  resolved 27 findings, and how AC-9's exit-code clause should be held now that
+  no instrument can hold it.
+- **Recommended:** accept, and record the reading — the alternatives were a
+  test harness that links the binary, which is an unscoped surface and breaks a
+  rule `tests/renderer/startup.rs` states about itself, or narrowing AC-9,
+  which is a scope change.
+- **Decided:** both. Accepted, and the reading is recorded.
+- **Consequence:** the plan stage closes and execution opens at PHASE-01, the
+  A-1 probe. `slice-004.md` §Readings carries AC-9 beside AC-1, AC-3, AC-6 and
+  AC-7; the clause is discharged by the argument at `main.rs:21-29`, and the
+  rest of AC-9 by tests. `draft-spec.md` §7's R-4 row already says so.
