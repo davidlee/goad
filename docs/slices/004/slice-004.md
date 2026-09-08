@@ -295,6 +295,18 @@ the design and the log.
      line in a spec. -->
 
 - SPEC-002 OQ-4, now reachable from two stimuli rather than one (OQ-8).
+- **Pre-existing flaky tests, unrelated to ingress.** Chasing a one-off
+  reclaim-case failure did not reproduce it (715/715 passes under load up to
+  7.2x cores), but the same load window reproduced
+  `failure_matrix::a_backend_that_never_answers_reaches_the_caller_as_a_timeout`
+  five times and
+  `transport::a_stdout_flood_is_refused_and_the_backend_sees_the_stream_close`
+  eight, plus two more once each. All wait on a real subprocess and a real
+  timeout. They predate this slice and are outside its surfaces, but they are a
+  standing source of unexplained `just check` failures — and the likelier cause
+  of the failure that prompted the chase. The reproduction numbers are in
+  `notes.md` under PHASE-03's Findings so a future slice does not start from
+  zero.
 - **Single-instance enforcement.** Nothing prevents two goad processes today —
   no lock, no pidfile, no check — and the probe/bind race (OQ-6) is one symptom
   of that rather than a fact about the socket. Closing it inside the ingress

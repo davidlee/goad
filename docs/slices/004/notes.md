@@ -779,6 +779,39 @@ this platform without incident.
 - **VT-2's own wording anticipates the reclaim probe's side effect exactly** —
   see Decisions above. No action needed; confirms the phase sheet's assumption
   rather than contradicting it.
+- **A single `just check` failure of VT-1
+  (`a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`),
+  reported after the fact with no captured output, could not be reproduced.**
+  Chased per the orchestrator's brief (bounded diagnosis session,
+  post-`b07576b`). Baseline: 200/200 quiet runs, single case, isolated. Under
+  real CPU oversubscription — 128 then 191 busy loops on 32 cores, loadavg
+  ramped from ~52 to ~230 (1.6x-7.2x cores, exceeding the 5x/164-170 the
+  audit's own margin memory used) — the case was invoked **515** further
+  times by five different methods: 60 solo runs at ~120 loadavg; 90 runs
+  6-way-parallel at ~165 loadavg (whole `ingress::` module each time); 160
+  runs of the full `integration` binary (all 75 cases, default in-process
+  thread parallelism) at up to 230 loadavg; and 5 full `cargo test
+  --workspace` runs at 210-220 loadavg. **Zero failures of this case across
+  all 515 + 200 = 715 invocations.** The same load window did reproduce
+  *other*, pre-existing flakes in the same binary —
+  `failure_matrix::a_backend_that_never_answers_reaches_the_caller_as_a_timeout`
+  (5 times), `transport::a_stdout_flood_is_refused_and_the_backend_sees_the_stream_close`
+  (8 times), and two more `transport`/`failure_matrix` cases once each — none
+  of them `ingress::`, all of them cases that wait on a real subprocess and a
+  real timeout rather than on `bind`/`reclaim`. **No mechanism found, nothing
+  changed.** `bind`/`reclaim` (`crates/goad-shell/src/ingress/mod.rs`) is
+  synchronous, touches nothing shared across processes (the socket path is
+  unique per test-case name and PID), and every liveness check in it —
+  `symlink_metadata`, `UnixStream::connect`, `remove_file` — is a single
+  syscall with no window for another process to intervene between them that
+  128-191 busy loops did not already stress. The honest read is a true
+  one-off (a machine hiccup — memory pressure, a scheduler anomaly, page
+  cache stall — orthogonal to this test's own logic) rather than a
+  reproducible race in `bind`/`reclaim`; the failure_matrix/transport flakes
+  found instead are a plausible source of a "concurrent load" report that got
+  attributed to the wrong test by proximity in the same `just check` run. Not
+  written to `docs/memory/` — there is no durable fact here, only a negative
+  result recorded so a future audit does not re-chase it from zero.
 
 ### PHASE-01 — The A-1 probe
 
