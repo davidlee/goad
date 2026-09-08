@@ -197,6 +197,31 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
 - **`#[cfg(test)] mod tests` for a stratum-internal pure function** —
   `controller.rs`'s own tail, `state.rs`, `schedule.rs`.
 
+## Thread 3 — spike A-1
+
+*Reserved.* Filled by `plan.md` PHASE-01 with the probe's output and its
+verdict: whether a `tokio::spawn`ed accept task delivers a connection to a
+`slint::spawn_local` future while Slint owns the main thread. Empty until then,
+and nothing may load-bear on it while it is.
+
+## Thread 4 — plan-stage verification (2026-09-08)
+
+Checked by the plan agent against `b6ca5f7`, because the plan schedules against
+them. Everything here is ✓ — a read or grep of the cited site.
+
+| # | fact | ✓ |
+|---|---|---|
+| F19 | **`serve` has exactly 23 call sites**: `main.rs:103`; `event_loop/closing.rs:82`; `event_loop_schedule/scheduling.rs:110`; `renderer/wiring.rs:915, 992, 1053, 1108, 1155, 1187`; `renderer/scheduling.rs:166, 207, 245, 290, 335, 390, 451, 505, 572, 644, 687, 755, 809, 874`. `renderer/table.rs` has none | ✓ |
+| F20 | **`Served` is never destructured.** Its only mentions outside `controller.rs` are two doc comments, `wiring.rs:899` and `:1088`; every use is a field read. Adding a field is safe | ✓ |
+| F21 | **`Config` is built by struct literal at four sites** that will need `ingress: None`: `tests/support/driving.rs:46`, `renderer/scheduling.rs:84`, `event_loop/closing.rs:63`, `event_loop_schedule/scheduling.rs:91`. This is a separate bill from F19's | ✓ |
+| F22 | **`goad-shell` has neither `net` nor `sync`**, and has **no `[dev-dependencies]` table at all**. `crates/goad`'s own entry adds `rt-multi-thread` and `sync`; the workspace base set is `["process","time","rt","io-util","macros"]` (`Cargo.toml:33-34`). F10 said "no `sync`"; the ingress module needs both | ✓ |
+| F23 | **`tempfile` appears nowhere in the workspace.** The only temp-path precedents are `crates/goad-shell/src/config.rs:226` and `tests/support/scripting.rs::marker`, both `std::env::temp_dir()` + `std::process::id()`. Adding the crate would mean adding a name to the manifest allowlist's `STRATUM_2` — an ADR-001 instrument | ✓ |
+| F24 | **`Glass` has exactly one implementation**, `SlintGlass` (`glass.rs:62`). `present` spans `:68-119` and writes eleven window properties, rebuilds two `VecModel`s, sets the tray image and tooltip, and calls `show()`/`hide()` — the cost `review-design.md` F-15 names. A presentation counter must therefore be a new decorator, and it must wrap the real glass to measure the real cost | ✓ |
+| F25 | **`refusal_re_arms` is at `controller.rs:427`, not `:429`.** `design.md` §5.2 cites 429; 429 is inside the `match fired` below it. Every other `controller.rs` citation in the design checks out: `:407`, `:420`, `:505`, `:507-512` | ✓ |
+| F26 | **`answers-as-instructed.sh` carries a `@slow-view` sentinel** — a *foreground* `sleep 0.2` before answering with a pinned view, so the exchange is provably still in flight for its duration. It is the vehicle for every "while an exchange is in flight" case: `engaged`, and R-15's negative. `@lingers*` background their sleep and do **not** hold the exchange open | ✓ |
+| F27 | **The vocabulary scan is member-enumerated** (`vocabulary.rs:44-56` reads `workspace.members` and scans each directory), so `crates/goad-shell/src/ingress/` is covered with no hand-listed path — AC-11's "reaches the new module by walking members", confirmed. `tests/` is excluded, so no test file is scanned | ✓ |
+| F28 | **`in` properties have generated getters** (`window.get_heading()` is used at `wiring.rs:273` and elsewhere), so `get_diagnostic_lines()` is available to read the diagnostics surface as a person sees it — R-15's positive case | ✓ |
+
 ## Cross-thread findings
 
 - **C-1 — the ingress contract has no home in canon.** Thread 1's amendment

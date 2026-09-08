@@ -345,7 +345,7 @@ it **where it observes it, before any `Fired` is built**:
   and `draft-spec.md` R-15's bound applies to it exactly as to every other one.
 
 Because no `Fired` is constructed on that path, `refusal_re_arms`
-(`controller.rs:429`, `matches!(fired, Fired::Scheduled)`) is not reached, the
+(`controller.rs:427`, `matches!(fired, Fired::Scheduled)`) is not reached, the
 standing deadline is not reset, and neither anchor is written: a dead accept
 task changes nothing about the schedule. No new state is retained either — the
 receiver is dropped as `None` is returned, so the arm parks by itself and §5.3's

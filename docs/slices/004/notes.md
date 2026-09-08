@@ -1,4 +1,4 @@
-# Notes — Slice NNN
+# Notes — Slice 004
 
 Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
@@ -8,7 +8,13 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 — the A-1 probe | pending | |
+| PHASE-02 — the configuration key, and the envelope | pending | |
+| PHASE-03 — the listener, the reply, and the socket's lifecycle | pending | |
+| PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | pending | |
+| PHASE-05 — the two anchors, and what a person can see | pending | |
+| PHASE-06 — binding at startup, and the demo a person runs | pending | |
+| PHASE-07 — the sweep, the spec's own table, and the gate | pending | |
 
 ## Phase sheets
 
