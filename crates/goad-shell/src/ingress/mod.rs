@@ -265,6 +265,21 @@ impl Answer {
   }
 }
 
+/// `Refusal::Unavailable`'s cause: which of the two conditions-of-the-moment
+/// produced it (`design.md` §5.4, `draft-spec.md` §6.3 — the `unavailable`
+/// row's *writer's fix* column, "`detail` says which"). The third cause —
+/// ingress stopped for the life of the process — answers no envelope and so
+/// has no wire reply to carry and no variant here (`design.md` §5.2).
+#[derive(Debug)]
+pub enum UnavailableCause {
+  /// The channel to the judge closed with this envelope's answer still
+  /// outstanding: the host is stopping.
+  Stopping,
+  /// The clock could not be read (`design.md` §5.4 step 4) — named by
+  /// `crates/goad`'s loop, not by this module.
+  ClockUnreadable,
+}
+
 /// Why an envelope, or a connection, was refused.
 ///
 /// **Seven variants, closing the wire's eight-token reason set.** `reason()`
@@ -275,8 +290,9 @@ impl Answer {
 /// day a ninth reason is needed.
 #[derive(Debug)]
 pub enum Refusal {
-  /// No answer was given for this envelope — a dropped [`Answer`].
-  Unavailable,
+  /// No answer was given for this envelope — a dropped [`Answer`]. `detail`
+  /// says which of [`UnavailableCause`]'s two causes it was.
+  Unavailable(UnavailableCause),
   /// The bytes are not one JSON document at all.
   Malformed,
   /// A well-formed document that is not an admissible envelope
@@ -306,7 +322,7 @@ impl Refusal {
   #[must_use]
   pub fn reason(&self) -> &'static str {
     match self {
-      Self::Unavailable => "unavailable",
+      Self::Unavailable(_) => "unavailable",
       Self::Malformed => "malformed",
       Self::InvalidEnvelope(EnvelopeFault::ReservedSource) => "reserved_source",
       Self::InvalidEnvelope(_) => "invalid_envelope",
@@ -321,7 +337,12 @@ impl Refusal {
 impl std::fmt::Display for Refusal {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Unavailable => write!(f, "no answer was given for this envelope"),
+      Self::Unavailable(UnavailableCause::Stopping) => {
+        write!(f, "no answer was given for this envelope")
+      }
+      Self::Unavailable(UnavailableCause::ClockUnreadable) => {
+        write!(f, "the clock could not be read")
+      }
       Self::Malformed => write!(f, "the bytes are not one JSON document"),
       Self::InvalidEnvelope(inner) => write!(f, "{inner}"),
       Self::TooLarge { limit } => {
@@ -349,7 +370,7 @@ impl std::error::Error for Refusal {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
       Self::InvalidEnvelope(inner) => Some(inner),
-      Self::Unavailable
+      Self::Unavailable(_)
       | Self::Malformed
       | Self::TooLarge { .. }
       | Self::TimedOut { .. }
@@ -466,9 +487,12 @@ async fn handle(mut stream: UnixStream, arrivals: &mpsc::Sender<Arrival>) -> boo
   if arrivals.send(arrival).await.is_err() {
     return false;
   }
-  let text = rx
-    .await
-    .unwrap_or_else(|_dropped| reply(false, Some(&Refusal::Unavailable)));
+  let text = rx.await.unwrap_or_else(|_dropped| {
+    reply(
+      false,
+      Some(&Refusal::Unavailable(UnavailableCause::Stopping)),
+    )
+  });
   match stream.write_all(text.as_bytes()).await {
     Ok(()) | Err(_) => (),
   }

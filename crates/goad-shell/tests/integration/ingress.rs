@@ -15,7 +15,9 @@ use std::time::{Duration, Instant};
 
 use goad_semantics::protocol::canonical::Event;
 use goad_shell::ingress::envelope::EnvelopeFault;
-use goad_shell::ingress::{BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, bind};
+use goad_shell::ingress::{
+  BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, UnavailableCause, bind,
+};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
@@ -182,6 +184,13 @@ fn reason(reply: &str) -> String {
   match parsed(reply)["reason"].as_str() {
     Some(reason) => reason.to_owned(),
     None => panic!("a refusal must name a reason: {reply}"),
+  }
+}
+
+fn detail(reply: &str) -> String {
+  match parsed(reply)["detail"].as_str() {
+    Some(detail) => detail.to_owned(),
+    None => panic!("a refusal must carry detail: {reply}"),
   }
 }
 
@@ -426,6 +435,51 @@ async fn a_dropped_answer_yields_unavailable_then_a_close() {
 }
 
 // ---------------------------------------------------------------------------
+// VT-6b — unavailable's two wire causes are distinguished by detail
+// ---------------------------------------------------------------------------
+
+/// `unavailable` carries one reason token for two causes of the moment
+/// (`draft-spec.md` §6.3): the host is stopping (VT-6, above — a dropped
+/// `Answer`), or the clock cannot be read (`design.md` §5.4 step 4, scripted
+/// here exactly as `judge`'s own doc comment says a loop-side `unavailable`
+/// is exercised without `serve`). Both must read `unavailable` on the wire,
+/// and `detail` must say which — the point of naming the cause at all.
+#[tokio::test]
+async fn unavailable_s_two_causes_carry_different_detail() {
+  let clock_path = socket_path("vt6b-clock");
+  let clock_ingress = match bind(&clock_path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  let _clock_judge = judge(
+    clock_ingress,
+    vec![Verdict::Refuse(Refusal::Unavailable(
+      UnavailableCause::ClockUnreadable,
+    ))],
+  );
+  let clock_reply = send_with_newline(&clock_path, GOOD).await;
+  assert_eq!(reason(&clock_reply), "unavailable");
+  cleanup(&clock_path);
+
+  let shutdown_path = socket_path("vt6b-shutdown");
+  let shutdown_ingress = match bind(&shutdown_path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  let _shutdown_judge = judge(shutdown_ingress, vec![Verdict::Drop]);
+  let shutdown_reply = send_with_newline(&shutdown_path, GOOD).await;
+  assert_eq!(reason(&shutdown_reply), "unavailable");
+  cleanup(&shutdown_path);
+
+  assert_ne!(
+    detail(&clock_reply),
+    detail(&shutdown_reply),
+    "the clock cause and the shutdown cause must not share a detail: \
+     {clock_reply} vs {shutdown_reply}"
+  );
+}
+
+// ---------------------------------------------------------------------------
 // VT-10 — the mode
 // ---------------------------------------------------------------------------
 
@@ -666,7 +720,7 @@ async fn the_three_shape_reasons_this_phase_owns_are_read_off_the_wire() {
 #[test]
 fn the_reason_token_set_is_closed_at_eight() {
   let refusals = [
-    Refusal::Unavailable,
+    Refusal::Unavailable(UnavailableCause::Stopping),
     Refusal::Malformed,
     Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
     Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource),
@@ -743,7 +797,7 @@ async fn retry_after_ms_is_absent_from_every_reason_but_too_soon() {
   // on a bound (not even `too_large`'s or `timed_out`'s own real trigger) —
   // the fact under test is the wire's field, not how the reason was reached.
   let refusals = [
-    Refusal::Unavailable,
+    Refusal::Unavailable(UnavailableCause::Stopping),
     Refusal::Malformed,
     Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
     Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource),

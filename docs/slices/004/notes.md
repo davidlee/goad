@@ -229,6 +229,25 @@ No margin under 10x on a case VA-2 does not exempt. **S-3 not reached.**
   `unavailable`'s three causes. **Not repaired here** — it is a change to
   PHASE-03's type, which is a design question about what `Refusal` carries.
   Reported to the orchestrator.
+  **Resolved** (bounded cross-phase repair, orchestrator-ruled, `d823739`'s
+  follow-on): `Refusal::Unavailable` took the payload PHASE-03's unit variant
+  was missing — a new two-variant `UnavailableCause` (`Stopping`,
+  `ClockUnreadable`), naming the two wire-side causes of `draft-spec.md`
+  §6.3's *writer's fix* column; the ingress-stopped third cause still gets no
+  variant, because it answers no envelope and has no wire reply to carry
+  (`design.md` §5.2) — `controller.rs`'s `ingress_stopped()` now names the
+  `unavailable` token directly rather than borrowing it from a `Refusal`
+  value that would misdescribe the cause. `Display` renders each wire cause
+  distinctly (`ingress/mod.rs`); the shutdown wording stays byte-identical to
+  what PHASE-03 wrote for it. `crates/goad/src/controller.rs`'s `ingest` step
+  4 now constructs `Refusal::Unavailable(UnavailableCause::ClockUnreadable)`,
+  so the loop names the clock exactly as EX-5 step 4 asked. Held by a new
+  test, `unavailable_s_two_causes_carry_different_detail`
+  (`crates/goad-shell/tests/integration/ingress.rs`, beside VT-6): it asserts
+  both the clock cause and the shutdown cause (VT-6) reply `reason:
+  "unavailable"`, and that their `detail` strings differ — the distinction
+  §5.4 and §6.3 claimed and that nothing previously asserted. `just check`
+  exits 0.
 - **F-b — PHASE-04/VT-7's assertion 1 cannot read `Served.controller`, because
   assertion 3 destroys what it would read.** The plan's *Where each assertion
   reads its number* paragraph gives assertion 1 the retained diagnostics and

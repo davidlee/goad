@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use goad_shell::backend::transport::Backend;
 use goad_shell::host::{Host, Outcome};
-use goad_shell::ingress::{Answer, Arrival, Ingress, Refusal};
+use goad_shell::ingress::{Answer, Arrival, Ingress, Refusal, UnavailableCause};
 use tokio::select;
 use tokio::sync::mpsc;
 
@@ -445,7 +445,11 @@ fn refuse_during_exchange(controller: &mut Controller, arrival: Arrival) {
 /// the arm parks from then on rather than spinning on a closed channel.
 fn ingress_stopped() -> Refused {
   Refused::Ingress {
-    reason: Refusal::Unavailable.reason().to_owned(),
+    // No `Refusal` value stands for this cause: it is neither `Stopping` nor
+    // `ClockUnreadable` (`UnavailableCause`), and it answers no envelope to
+    // carry one, so the wire token is named directly rather than borrowed
+    // from a payload that would misdescribe it.
+    reason: "unavailable".to_owned(),
     detail: "ingress has stopped; no further events will be accepted".to_owned(),
   }
 }
@@ -491,7 +495,7 @@ fn ingest(
     // the clock, which is the same line a scheduled firing writes for the same
     // fault.
     Err(refused) => {
-      answer.refused(&Refusal::Unavailable);
+      answer.refused(&Refusal::Unavailable(UnavailableCause::ClockUnreadable));
       controller.refuse(&refused);
       None
     }
