@@ -224,6 +224,10 @@ expanding one phase sheet. Plus one question put to the reviewer's judgement:
 whether `design.md` §5.4's unstated comparison belongs on PHASE-07/EX-7's drift
 list. It does not, and F-25 says why.
 
+**Round 4** — 2026-09-08 — F-25 and F-26's repairs, and the orchestrator's own
+follow-on edit to PHASE-04/EX-6 checked hardest, as asked. Swept independently
+for the sibling dangling references the strike could have left.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -252,8 +256,9 @@ list. It does not, and F-25 says why.
 | F-22 | nit | fix-now | verified |
 | F-23 | nit | fix-now | verified |
 | F-24 | minor | fix-now | verified |
-| F-25 | minor | fix-now | |
-| F-26 | nit | fix-now | |
+| F-25 | minor | fix-now | verified |
+| F-26 | nit | fix-now | verified |
+| F-27 | minor | fix-now | |
 
 ### F-1 — PHASE-06/EX-2 and EX-3 cannot both hold: the config is moved into `Host` before the point EX-3 puts the bind
 
@@ -2292,7 +2297,24 @@ which does not restate a spec requirement is conforming rather than departing �
 `plan.md:1969` already read "the entry EX-7 names", and EX-7's own seed at
 `:1907-1912` is coherent.
 
-**Outcome:**
+**Outcome:** verified. Both mis-seeded entries are gone — they were one bullet
+and one edit removed both — and EX-7's intro now reads *"One entry is known at
+plan time and starts the list, and it is already resolved — a decision already
+recorded, not an open gap"*, with the implementer note's *"two entries"*
+correspondingly singular. What remains on the seed is the three amendments,
+correctly framed as amendments rather than departures, and `design-log.md:645`
+carries the entry EX-7 cites. The instrument itself — a stated shape, two named
+sources, and S-4 on an unauthorised departure — is untouched and is worth
+having.
+
+**The follow-on checked, since it was the orchestrator's own edit.** Striking
+the entry did leave PHASE-04/EX-6 pointing at it, and treating that as part of
+the finding was right: a dangling reference the repair created is the class this
+review has been finding since round 1. I swept for siblings independently —
+every `EX-7`, `design gap` and `Design drift` mention in `plan.md` — and found
+none beyond the one repaired. The replacement paragraph reaches the right
+conclusion for the right primary reason. **One clause in it is false, and that
+is F-27** — it is a clause I supplied in round 3, adopted whole.
 
 ### F-26 — four small inaccuracies inside the accuracy repairs
 
@@ -2372,6 +2394,86 @@ blank. FD-4's row corrected from `✓` to `:490-496` with the line-by-line
 breakdown; PHASE-02's *Notes for the implementer* citation corrected from
 `:490-497` to `:490-496` to match. PHASE-06/EX-8 already read `:490-496` and
 was not touched.
+
+**Outcome:** verified, all four. (a) the header comment now says *"VT-1 is
+seven different tests"* — checked: PHASE-01 through PHASE-07 each carry one,
+PHASE-08 does not. (b) PHASE-08's paragraph no longer contradicts itself; it now
+says a `PHASE-08/VA-3` *"would have been exactly as legal (ids are local to
+their phase, as above)"* and gives readability as the reason for `VA-4`, which
+is a preference honestly labelled rather than a rule invented. (c) PHASE-04's
+preamble reads *"All cases but VT-8 are in …"* with VT-8's real home named, and
+EX-11 now excludes VT-8 on the prior ground — *"not in `renderer/ingress.rs` at
+all … outside the file this rule governs"*. (d) FD-4's row now reads
+**`:490-496`** with the arithmetic shown, and PHASE-02's note carries the same
+span, so the plan states it one way.
+
+### F-27 — the *Not a design gap* paragraph corroborates a right conclusion with a claim about `design.md` that is false, and false in the opposite direction
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-04/EX-6, the *Not a design gap* paragraph;
+`design.md:92`, `:194-200`, `:522`; `draft-spec.md:100-101`
+
+**Expected:** the paragraph replaces a *Design gap reported, not filled* pointer
+with the reason itself, which is right, and reaches the right conclusion: the
+comparison is fixed by `SPEC-003/R-14`, so `design.md` §5.4's step 3 not naming
+it is conforming rather than departing. That reason stands alone and needs no
+support.
+
+**Observed:** it is given support anyway, and the support is false:
+
+> *"… `SPEC-003/R-14` already closes it, **and the design restates neither
+> R-8's one-reply rule nor R-9's key list either**."*
+
+The design restates both, more than once each.
+
+- **R-8** (`draft-spec.md:100`, *"Every envelope MUST receive exactly one reply
+  on the same connection, after which the host closes it"*) is restated at
+  `design.md:92` — *"AC-3 — **exactly one reply per envelope** — a single
+  enforcement site"*; at `design.md:522`, as invariant **I-1**, *"every envelope
+  is answered exactly once"*; and in §5.2's reply section, *"One line, then the
+  host closes."*
+- **R-9** (`draft-spec.md:101`, the one-object/four-keys rule) is restated at
+  `design.md:194-200` as a five-row field table — `source`, `kind`, `timestamp`,
+  `data`, each with its rule, plus *"any other key | refused, naming it"* — and
+  by the duplicate-key sentence immediately below it.
+
+So the clause is not merely unavailable; it argues the **opposite** of what it
+is offered for. This design restates spec requirements freely — in prose, in a
+table and in its invariants table — which makes *"the design does not restate
+specs"* a bad reason for §5.4's silence rather than a good one. A phase agent
+who checks the second ground and finds it false has reason to doubt the first,
+which is the whole cost of putting a wrong reason beside a right one.
+
+The conclusion is untouched: R-14 fixes the comparison whatever the design's
+habits are, and a design may omit a detail its governing spec settles. The
+repair is to strike the clause, or to state the accurate version — *§5.4's step
+list names the states and R-14 names the boundary between them*.
+
+**Provenance, stated because it bears on how this was missed:** the false
+comparison is mine. It appeared in F-25's body and in my round-3 reply as
+supporting reasoning, and was adopted whole into the criterion. The
+orchestrator's instruction to check the follow-on hardest is what found it, and
+the lesson is the one the design review already recorded: **a reviewer's
+supporting example is not evidence until someone checks it**, and the reviewer
+is the last person who will.
+
+**Evidence:** `plan.md` PHASE-04/EX-6, final paragraph; `design.md:92`,
+`design.md:194-200` (the field table) and `design.md:522` (I-1);
+`draft-spec.md:100-101` (R-8 and R-9); `review-plan.md` F-25's body, where the
+clause originates.
+
+**Disposition:** fix-now
+**Response:** Upheld, and the clause was mine. Checked before striking: the
+design restates `SPEC-003/R-8` at `design.md:92`, at `:522` as invariant I-1,
+and in §5.2's reply section; and `SPEC-003/R-9` as §5.4's field table at
+`:194-200`, all four keys with their rules and the unknown-key row. So the
+clause was not merely unsupporting — it asserted the opposite of what the
+document does, and would have given an agent who checked it cause to doubt the
+sound reason standing beside it. Struck and replaced with the accurate ground
+the reviewer supplied: *§5.4's step list names the states, and `SPEC-003/R-14`
+names the boundary between them.* The conclusion is unchanged — R-14 fixes the
+comparison whatever the design's habits are — and nothing else in the paragraph
+moved.
 
 **Outcome:**
 

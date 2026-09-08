@@ -77,5 +77,16 @@ appends a number rather than renumbering.
   artefact by hand in the repair brief rather than trusting the repairer to
   sweep for it. Candidate for `docs/memory/`.
 
+- **A reviewer's supporting example is not evidence until someone checks it.**
+  The plan review's F-27 was a false clause the reviewer supplied in F-25's
+  body, repeated in its round-3 reply, and adopted whole into the plan — that
+  the design restates neither `SPEC-003/R-8` nor R-9, when it restates both. The
+  reviewer caught it only because it was told to check the orchestrator's own
+  edit hardest. **How to apply:** a reviewer is the last person who will check
+  its own example, so an example adopted from a finding gets verified by whoever
+  writes it into a document. A wrong reason beside a right one is worse than no
+  reason: an agent who checks the wrong one has cause to doubt the right one.
+  Candidate for `docs/memory/`.
+
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

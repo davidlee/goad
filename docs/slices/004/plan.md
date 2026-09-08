@@ -1218,8 +1218,8 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
 
   **Not a design gap.** `design.md` §5.4's step 3 says *"inside the event
   spacing → `too_soon`"* without naming the comparison, and that is conforming
-  rather than departing: `SPEC-003/R-14` already closes it, and the design
-  restates neither R-8's one-reply rule nor R-9's key list either. The plan
+  rather than departing: §5.4's step list names the states, and `SPEC-003/R-14`
+  names the boundary between them. The plan
   states the comparison because it is building the thing, not because the design
   left a choice open — so there is nothing here for PHASE-07/EX-7 to carry.
 - EX-7 — the added argument is at **23** call sites: `main.rs:103` passes the
