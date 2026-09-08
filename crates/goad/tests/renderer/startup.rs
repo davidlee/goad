@@ -403,6 +403,8 @@ mod arguments_table {
 /// (EX-2). `bind` needs a reactor, so its cases are `#[tokio::test]`s, unlike
 /// every other function in this file.
 mod listener {
+  use std::os::unix::fs::FileTypeExt;
+
   use super::{IngressConfig, PathBuf, StartupError, listener};
 
   fn socket_path(case: &str) -> PathBuf {
@@ -420,12 +422,24 @@ mod listener {
     }
   }
 
-  /// EX-2's `Some` arm: a fresh path binds and returns an `Ingress`.
+  /// EX-2's `Some` arm: a fresh path binds and returns an `Ingress`. `Ok`
+  /// alone does not prove a bind happened — `Ingress` exposes nothing from
+  /// outside the crate to tell a real listener from `Ingress::none()` — so
+  /// this also asserts the filesystem entry `bind` leaves behind: a real
+  /// Unix-domain socket at `path`, which `Ingress::none()`'s path never
+  /// produces.
   #[tokio::test]
   async fn some_path_binds() {
     let path = socket_path("some");
     let result = listener(Some(&IngressConfig { path: path.clone() }));
     assert!(result.is_ok(), "{result:?} was not Ok");
+    let file_type = std::fs::metadata(&path)
+      .unwrap_or_else(|error| panic!("{path:?} was not created: {error}"))
+      .file_type();
+    assert!(
+      file_type.is_socket(),
+      "{path:?} is a {file_type:?}, not a socket"
+    );
     cleanup(&path);
   }
 

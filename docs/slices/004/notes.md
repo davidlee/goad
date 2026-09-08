@@ -1042,6 +1042,53 @@ re-run before anything was edited. Holds: proceeding.
 | VA-3 | the exit-code argument, below |
 | VH-1 | **not discharged by this agent** — see the runbook. Left open. |
 
+**Break-and-revert — retroactive red confirmation**
+
+These tests were written after their implementation, not red-first (flagged in
+the original report). Confirmed retroactively, PHASE-05's style: `startup.rs`
+copied to a scratch file first (never `git stash`); each break applied,
+`cargo test -p goad --test renderer startup::…` run, then the scratch copy
+restored and diffed byte-identical before the next break. All four breaks
+reverted; `just check` re-run **exit 0** after the last restore
+(`…/scratchpad/check-post-revert.txt`, session-local) and `git status --short`
+clean against the `7caedfd` commit — the restored file is exactly what shipped.
+
+| break | changed | predicted | observed |
+|---|---|---|---|
+| 1 | `listener`'s `Some` arm: `Ok(Ingress::none())` instead of calling `ingress::bind` | `some_path_that_is_a_regular_file_names_the_path` red; `some_path_binds` **stays green** | confirmed both ways — `some_path_that_is_a_regular_file_names_the_path` panicked (`unwrap_err()` on `Ok(Ingress { arrivals: None })`); `some_path_binds` passed unchanged |
+| 2 | `listener`'s `None` arm: `Err(StartupError::Enqueue)` instead of `Ok(Ingress::none())` | `none_binds_nothing` red | confirmed — panicked `Err(Enqueue) was not Ok` |
+| 3 | `StartupError::Ingress`'s `Display`: `"ingress error: {error}"` instead of `"{error}"` | `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` red; `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` **stays green** (it computes its own expectation from the same live, broken `Display`, so it can only ever test that `report_startup_line` is generic over the variant — not the variant's own text; a different, correctly-insensitive claim) | confirmed both ways — the first failed `left: "ingress error: …" right: "…"`; the second passed unchanged |
+| 4 | `StartupError`'s `Error` impl: overridden `source()` leaking `Ingress`'s inner error, instead of the type's documented default (`None` for every variant, deliberately — no chain walk, so a message is never rendered twice) | `source_walk::startup_error_source_is_always_none`'s new `Ingress` case red | confirmed — panicked on `.source().is_none()` |
+
+**Finding: `some_path_binds` was vacuous under Break 1.** It asserted only
+`result.is_ok()`, and `Ingress` exposes no way to distinguish a bound handle
+from `Ingress::none()` from outside the crate (its `arrivals` field is
+private) — so a `listener` that silently stopped binding and always returned
+`Ingress::none()` passed this test. `some_path_that_is_a_regular_file_
+names_the_path` and `none_binds_nothing` are not vacuous (both went red
+exactly as predicted); this was specific to the one positive case.
+
+**Patched, and re-proved.** `some_path_binds` now also asserts the filesystem
+entry `bind` leaves behind: `std::fs::metadata(&path).file_type().is_socket()`
+(`std::os::unix::fs::FileTypeExt`), which `Ingress::none()`'s path never
+produces. Break 1 re-applied against the patched test, same procedure (scratch
+copy, byte-diff restore):
+
+| break | changed | predicted | observed |
+|---|---|---|---|
+| 1 (re-run, against the patched assertion) | `listener`'s `Some` arm: `Ok(Ingress::none())` instead of calling `ingress::bind` | `some_path_binds` **now red** too | confirmed — panicked `"…/goad-startup-some-….sock" was not created: No such file or directory (os error 2)`; `some_path_that_is_a_regular_file_names_the_path` red as before |
+
+Restored from the same scratch copy, diffed byte-identical to the `7caedfd`
+commit again. `just check`: one run hit a **pre-existing, unrelated** flake —
+`goad-shell`'s `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_
+new_one_serves` failed under concurrent load (`in use by a live host` on a
+path nothing else should be racing), passed in isolation
+(`cargo test -p goad-shell --test integration
+a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`), and
+passed again on a clean re-run of the whole gate. Not touched by this phase's
+surfaces (`crates/goad-shell/src/ingress/` is *Must not touch*); noted rather
+than chased. Final run: **exit 0**.
+
 **VA-2 — the clean clone**
 
 A separate clone (`git clone` of this checkout at `623e2f0`, working tree
@@ -1244,6 +1291,27 @@ normally. Any of these — stop and report it; it is a finding, not a note.
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **A test written after its implementation has never been asked to fail, and
+  `Ok`/`is_ok()` alone rarely asks hard enough of an opaque return type.**
+  PHASE-06 wrote `startup::listener`'s three cases after `listener` itself,
+  then confirmed them red-first retroactively by reverting the implementation
+  behind a scratch copy (never `git stash`) and re-running. Three of four
+  broke as predicted; the fourth — `some_path_binds`, which only asserted
+  `result.is_ok()` — did not, because `Ingress` exposes nothing outside its
+  own crate to tell a real bound listener from `Ingress::none()` (a private
+  `arrivals` field). A `listener` that silently stopped binding and always
+  returned the empty handle would have shipped green. The retroactive
+  break-and-revert is not just a scolding for skipping red-first — it is a
+  usable remedy after the fact: it finds exactly the assertions red-first
+  would have forced to be written stronger the first time, at the cost of one
+  extra pass instead of zero. **How to apply:** when a test's assertion is
+  `is_ok()`/`is_err()` (or similarly shaped) against a type with no
+  `PartialEq` and no public way to inspect what actually happened, look for an
+  independent, checkable side effect the real path leaves and the stub path
+  does not — here, the filesystem entry `bind` creates
+  (`std::os::unix::fs::FileTypeExt::is_socket()`), a case as available to any
+  test as it was to this one. Strong candidate for `docs/memory/`.
 
 - **`invocations(&log) >= n` proves an exchange *began*, not that it was
   *absorbed* — and under heavy machine load the gap between the two is wide
