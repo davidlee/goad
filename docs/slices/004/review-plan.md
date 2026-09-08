@@ -4,7 +4,7 @@
 `plan-log.md` PL-1..PL-9
 **Reviewer:** fresh agent (Claude Opus 5), adversarial raiser
 **Opened:** 2026-09-08
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -258,7 +258,7 @@ for the sibling dangling references the strike could have left.
 | F-24 | minor | fix-now | verified |
 | F-25 | minor | fix-now | verified |
 | F-26 | nit | fix-now | verified |
-| F-27 | minor | fix-now | |
+| F-27 | minor | fix-now | verified |
 
 ### F-1 — PHASE-06/EX-2 and EX-3 cannot both hold: the config is moved into `Host` before the point EX-3 puts the bind
 
@@ -2475,10 +2475,192 @@ names the boundary between them.* The conclusion is unchanged — R-14 fixes the
 comparison whatever the design's habits are — and nothing else in the paragraph
 moved.
 
-**Outcome:**
+**Outcome:** verified. The clause is struck and replaced with the ground it
+should have had — *§5.4's step list names the states, and `SPEC-003/R-14` names
+the boundary between them* — and nothing else in the paragraph moved, which is
+right: the conclusion never depended on the false half. The orchestrator checked
+the three `design.md` citations before striking rather than taking the finding
+on trust, which is the behaviour the finding was about.
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+**Twenty-seven findings over four rounds** — eight major, thirteen minor, six
+nits, **no blocker**. All twenty-seven `fix-now`, all `verified`, none
+withdrawn, none contested. **State: resolved.**
+
+The rounds fell away in the shape a converging review should: seven majors on
+executability, then one, then a minor and a nit, then one clause. The last two
+rounds found nothing in the plan's substance — they found defects the *repairs*
+introduced, which is what a fourth round is for.
+
+### What it would have cost to skip this review
+
+Not a list of fixes. Four shapes, each of which would have been discovered by an
+agent mid-phase or by a person at the demo, with the plan already accepted:
+
+- **A demo that would have shown a person nothing.** `examples/shell/backend.sh`
+  answers every non-`respond` request with one fixed view, and `just demo`'s
+  startup evaluation puts that view on screen before anyone touches the socket.
+  Emitting an envelope would have replaced it with a byte-identical
+  presentation. AC-13 — the one criterion `docs/AGENTS.md` §Tiers says a green
+  gate cannot stand in for, added *because* slices 001–003 closed green on a
+  binary that could not open a window — would have been discharged by watching
+  a window not change (F-5).
+- **Two acceptance criteria discharged by tests that could not be written.**
+  AC-9's exit code was assigned to a test in a target whose own module doc
+  forbids exactly that test, over a `match` in the binary that no test target
+  links (F-3). AC-10 was assigned to a case that sets a permissive umask — and
+  this workspace has **no legal way to set one**: no `libc`, no
+  `[dev-dependencies]` in `goad-shell`, `unsafe_code = "deny"`, and adding
+  either name breaches an ADR-001 instrument (F-4). Both would have been
+  discovered by the phase agent, whose only exits were to breach an instrument
+  or to quietly weaken the criterion.
+- **A spec requirement unheld for a whole phase.** The first split put the
+  listener's framing in one phase and its byte and time budgets in the next, so
+  the read would have been written unbounded and rewritten bounded —
+  `SPEC-003/R-7` unheld in between, and the one piece of production code in the
+  slice written twice, which is the cost the plan's own sequencing rejects when
+  it argues `serve` must not be split (F-18).
+- **A criterion with no implementation in its declared surfaces at all.**
+  PHASE-06's bind reads `config.ingress` at a point where `config` has already
+  been moved into `Host`, nine lines earlier; `Host` exposes no accessor,
+  `Config` derives no `Clone`, and every repair route led into
+  `crates/goad-shell/src`, which that phase may not touch (F-1).
+
+Two more that would have shipped silently rather than stopped a phase: a
+closed-channel branch that nothing drove, whose failure mode is a spin charging
+one full `glass.present` per poll on the UI thread forever (F-7); and AC-6's
+first case, which would have gone red against a correct implementation or green
+under both hypotheses depending on a `next_check` nobody had pinned — the same
+defect the *design* review had already found fatal in the other two cases
+(F-6).
+
+### What the review changed
+
+**One structural change, made twice.** PHASE-03 was one phase and is now two.
+The first split (F-12) fell at the reply and was wrong; the second (F-18) falls
+at the **refusal vocabulary**, so the read and both its bounds are written once,
+in the phase that owns them. Eight phases now run **01, 02, 03, 08, 04, 05, 06,
+07** — the number out of order because criterion ids are immutable and a split
+appends rather than renumbers.
+
+**Five criteria that did not exist.** `PHASE-04/VT-7` drives the closed-channel
+path and asserts the **spin** rather than the fold. `PHASE-04/VT-8` is the only
+instrument that can tell `<` from `<=` at the spacing's boundary.
+`PHASE-06/VA-3` holds AC-9's exit code by review, in the shape `SPEC-003/R-5`'s
+row already uses. `PHASE-04/EX-11` and `PHASE-05/EX-5` state as a rule over
+whole files what one case had been told individually: every case pins the
+`next_check` of every exchange it lets complete, with membership defined and
+members *and non-members* named.
+
+**One instrument.** `PHASE-07/EX-7` requires a `## Design drift` section in
+`notes.md` — one line per departure, saying what the design says, what the tree
+does, and which criterion authorised it — with `S-4` stopping the phase on a
+departure no criterion authorised. Before it, PHASE-07's job was a sentiment in
+an implementer note.
+
+**Four amendments to `design.md` and two to `draft-spec.md` §7**, taken before
+any code exists and logged in `design-log.md`: §5.3 gained both anchors' initial
+values and the narrow claim about what the event anchor decides; §5.4's startup
+order puts `Host::new` after the bind, because it consumes the `Config` the bind
+must read; §9's AC-9 and AC-10 rows, with §7's R-2 and R-4 rows, now describe
+what is possible rather than what was assumed. `SPEC-003/R-2`'s normative
+sentence was **not** touched — only §7's prescribed means was wrong.
+
+**And one change of party.** `examples/shell/backend.sh` is now a declared
+surface and answers an ingested evaluation with a view naming the event's
+`source` and `kind`. That is not only how VH-1 becomes observable; it is what
+makes the demo demonstrate the slice's first invariant — the host forwards the
+envelope verbatim and the **backend** decides what it means.
+
+### What the review confirmed
+
+Checked against the tree and found sound, so a later reader need not re-spend it:
+
+- **The acceptance-criteria map is complete and reachable.** All thirteen, and
+  every phase named can produce what its row claims.
+- **The arithmetic.** Twenty-three `serve` call sites, every line number exact;
+  four `Config` struct literals; `Served` destructured nowhere outside its own
+  constructor.
+- **The instrument reasoning.** A `features` array is invisible to the manifest
+  allowlist, which reads keys and `package` only; the vocabulary scan reaches
+  the new module by walking `workspace.members`, so no path is hand-listed.
+- **AC-6 case (ii) discriminates.** Traced through `controller.rs:505-514`:
+  under the anchor the scheduled firing waits to T₀+3 s; under ADR-004's
+  rejected boolean the intervening ingested firing clears the floor and it fires
+  at T₀+1 s. The clause pinning the ingested exchange's own `next_check` is
+  load-bearing, and the case is the one ADR-004 has been waiting for since slice
+  003.
+- **`PHASE-04/VT-7`'s mechanism works here.** `Runtime::new` is safe inside an
+  async context, `shutdown_background()` consumes without blocking, and the
+  accept task is parked in `accept().await` rather than running, so it is
+  dropped and the sender with it.
+- **No socket-level case can reach the spacing's boundary** — `retry_after_ms`
+  rounds up, `sleep` guarantees *at least* its duration, the retry round trip is
+  unbounded, and the one route that could pin the instant (paused `tokio::time`)
+  is closed by the renderer tier driving a real backend subprocess. That is why
+  VT-8 must be a unit case, and it is the right one.
+- **The split lost nothing and double-owns nothing.** EX-1..EX-13 and
+  VT-1..VT-14 each appear exactly once across the two phases; PHASE-03's exit
+  establishes PHASE-08's entry; the only shared ids are the gate paste and a
+  cross-referenced stop. Criterion ids are phase-local and safe for an agent
+  expanding one sheet, because every cross-phase citation in the file is
+  qualified.
+- **`PHASE-01`'s probe is a real probe.** It measures the production
+  arrangement, carries a negative control as its decisive case, gives a numeric
+  red line, and names two repairs that both go back to the design stage rather
+  than into the phase. `PHASE-02/EN-1` gates on its verdict, so nothing
+  downstream can assume it passed.
+
+### Risks knowingly left standing
+
+- **PHASE-03 is the largest phase and may not fit one session.** Eleven
+  integration cases plus a production module landed from nothing — `bind`'s
+  probe/reclaim/bind/mode sequence, five public types, an accept task with the
+  framing and both budgets, a reply serializer. Slice 003's calibration is eight
+  cases plus a *uniform* migration of a function that already existed. The
+  plan's *Size* paragraph argues it is over by one **condition** rather than
+  three cases, which measures the cases and not the module; the honest reading
+  is that it is over. Every alternative seam is worse — they either leave
+  `SPEC-003/R-7` unheld or write the read twice — so the plan names PHASE-03 the
+  likeliest phase to want a `PARTIAL` checkpoint, and that is the expected
+  outcome rather than a failure.
+- **A-1 is still unmeasured.** Accepting from a `tokio::spawn`ed task while
+  Slint owns the main thread has never been run, and `design.md` §8 R1 says the
+  slice does not work at all if it fails. PHASE-01 exists to measure it, carries
+  no other deliverable, and its exit may be *stop, and the design changes*.
+- **Three design amendments are carried by an instrument, not by memory.**
+  PHASE-07/EX-7's seed lists them so the auditor meets them as decisions.
+  If that section is not written, they are invisible at reconciliation.
+- **`review-design.md` F-15 is still `settle-in-code`.** `SPEC-003/R-15` makes
+  reporting a refusal mandatory and the loop's only route to the surface costs
+  one full presentation, at an untrusted writer's pace. `PHASE-04/VT-5` measures
+  it and `PHASE-04/S-4` stops the phase if the number is bad — in which case
+  F-15 returns to that ledger `contested` and the design changes rather than the
+  requirement being weakened.
+- **One thing the plan states that the design does not.** Step 3 refuses on
+  `now < event_floor_until`; `design.md` §5.4's step list does not name the
+  comparison. That is not a gap — `SPEC-003/R-14`'s *"after which the spacing
+  will have elapsed"* fixes it, and a design may omit what its governing spec
+  settles — but it is worth knowing that the boundary is spelled out only in the
+  plan and the spec.
+- **Everything `review-design.md`'s Synthesis left standing is unchanged.**
+  `engaged` — the commonest refusal a real watcher will meet — never reaches the
+  diagnostics surface; nothing re-probes the socket path after the bind; and one
+  refusal reaches no writer at all.
+
+### What this review did not reach
+
+It read the plan against the code that exists and against the design, the draft
+spec and the canon delta. It did not read code that does not exist. Cancellation
+safety of the new arms, the pinning of `call` across the inner loop, the
+listener's own concurrency, whether `serve` survives a third arm and a nested
+loop, and whether the phases stayed inside their declared surfaces are all
+`review-code.md`'s, at full strength.
+
+One methodological note the last round earned, now in `notes.md`'s Harvest as a
+`docs/memory/` candidate: **a reviewer's supporting example is not evidence
+until someone checks it** — F-27 was a false comparison this reviewer supplied,
+repeated, and had adopted whole into a criterion, and it was caught only because
+the orchestrator's own edit was singled out for scrutiny. A wrong reason beside
+a right one is worse than no reason.
