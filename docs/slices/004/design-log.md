@@ -186,3 +186,275 @@ other, citing the finding id.
 - **Consequence:** stage set to `design`. Scoping is closed; the acceptance
   criteria ids are immutable from here. Design is a fresh agent's job and starts
   from this file, `canon-delta.md` CD-1 and CD-2, and this log.
+
+### 2026-09-08 — the ingress contract gets a draft spec of its own
+
+- **Asked:** CD-1 amends SPEC-002 (the bound) and CD-2 amends SPEC-001 (the
+  reserved source). Neither reaches the socket, the envelope, the reply format
+  or the refusal set, and no existing spec's *Owns* line covers them
+  (`research.md` C-1). Three options put: (a) draft a spec in the slice folder,
+  promoted at audit; (b) design.md only, nothing promoted beyond CD-1 and CD-2;
+  (c) extend SPEC-001 with an ingress section.
+- **Recommended:** (a). Slice 005's CLI is a second client of that contract, and
+  a wire format governed only by a closed slice's design is the failure POL-001
+  exists because of.
+- **Decided:** (a).
+- **Consequence:** `docs/slices/004/draft-spec.md` is opened from
+  `docs/templates/spec.md` and is this slice's working authority for the socket,
+  the envelope, the reply and the refusal taxonomy, alongside `canon-delta.md`
+  for the two amendments. It is numbered **SPEC-NNN until promotion**; nothing
+  outside the slice may cite it (`docs/AGENTS.md` §*Canon that does not exist
+  yet*). Audit owes a promotion or an abandonment in writing. **OQ-2 and OQ-5
+  are now answers inside that document rather than inside `design.md`.**
+
+### 2026-09-08 — the loop judges every envelope; ingress is watched in both selects
+
+- **Asked:** AC-4 requires *"the host is engaged"* as a refusal reason, but
+  `serve` does not poll its outer `select!` while an exchange is in flight
+  (`research.md` F1, `controller.rs:505`), so an ingress arm added there alone
+  could never produce it — the connection would wait in the accept backlog and
+  be served late. Three options put: (a) the loop judges, with a listener task
+  doing shape checks only and every arrival carrying its own reply channel, and
+  `serve` watching ingress in **both** selects; (b) the listener judges, reading
+  `engaged` and the event anchor through a shared handle; (c) a capacity-1
+  channel whose fullness is the refusal.
+- **Recommended:** (a). No state is shared or duplicated — the loop stays the
+  only reader of its own anchors — and *engaged* is answered promptly because
+  the arm that answers it is inside the exchange rather than outside it.
+- **Decided:** (a).
+- **Consequence:** the refusal set **partitions by who can answer it**: shape
+  refusals (not one JSON document, a missing or wrong-typed field, a reserved
+  source) are the listener's, in stratum 2, with no host state involved; state
+  refusals (engaged, too soon) are the loop's, in stratum 3. The design must say
+  what the inner arm does with an arrival that is *already* a shape refusal —
+  it is answered with its own reason, not relabelled *engaged*. `serve` gains a
+  parameter, which touches every call site in the renderer test tier (F17).
+
+### 2026-09-08 — the envelope normalizes in stratum 2; the reserved-source rule splits by subject
+
+- **Asked:** OQ-4 (where the envelope's normalization lives) and OQ-5 (where
+  CD-2's rule is stated) are one seam from two sides. Three options put:
+  (a) stratum 2 beside the listener, with SPEC-001/R-56 stating the *emission*
+  rule and SPEC-003 stating the *ingress refusal*; (b) stratum 1 beside the
+  protocol's own normalization, rule in SPEC-001; (c) stratum 2, with both
+  halves of the rule in SPEC-001.
+- **Recommended:** (a), on `research.md` F6: a **user-authored** format
+  normalizes in stratum 2 — `config.rs`'s `File` → `Config` is the precedent —
+  and a **backend-authored** one in stratum 1. The two differ by who wrote the
+  bytes, not by what kind of work it is; the watcher is neither the host nor the
+  backend.
+- **Decided:** (a).
+- **Consequence:** stratum 1 gains nothing and learns no format no backend ever
+  sees; the ingress module owns a permissive wire type whose normalization is
+  the only door into `Event`. **CD-2 is now two statements in two documents:**
+  SPEC-001/R-56 says what a host may emit and gives a backend its licence to
+  read `source == "host"`; SPEC-003 says an ingested envelope claiming it is
+  refused, naming the reason and citing R-56 for why. `canon-delta.md` CD-2 is
+  updated to say exactly that, so its "open at scoping" clause is discharged.
+
+### 2026-09-08 — the event spacing is the same three seconds, stated per stimulus class
+
+- **Asked:** OQ-1 and CD-1's three open items — the spacing's value, whether it
+  is configurable, and how the rule is stated so a third stimulus inherits the
+  shape rather than the number. Three options put: (a) the same
+  `MINIMUM_SPACING` against a second independent anchor, not configurable, with
+  the rule stated as a property of *a bounded stimulus class*; (b) its own,
+  shorter constant; (c) a configured value with a default.
+- **Recommended:** (a). ADR-004's argument against configurability transfers
+  intact — a bound a misconfiguration can remove is not a bound — and two
+  constants meaning the same kind of thing are two things free to drift when no
+  evidence fixes either number.
+- **Decided:** (a).
+- **Consequence:** SPEC-002 gains a **principle** as well as a requirement:
+  *each bounded stimulus class is spaced from the previous firing of its own
+  class, on its own monotonic anchor, and no anchor is written by another's
+  firing.* R-4 becomes the scheduled instance of it and the new R-12 the
+  ingested one, so a third stimulus adds an anchor rather than a number.
+  `canon-delta.md` CD-1 is updated to carry the principle and the value. In the
+  code: **one** `MINIMUM_SPACING` const, **two** anchors in `serve`, each with
+  one write site. A watcher emitting two distinct events inside three seconds
+  loses the second — refused, visibly — and brief §7 puts that coalescing in the
+  watcher.
+
+### 2026-09-08 — the reply is one versioned JSON object, newline-terminated
+
+- **Asked:** OQ-2, the reply's wire format and whether it declares a version.
+  Three options put: (a) one JSON object with `protocol`, `accepted`, and on a
+  refusal a machine-readable `reason` from the closed set plus a human `detail`;
+  (b) the same without a version field; (c) a plain text line.
+- **Recommended:** (a). A shell one-liner can grep it, slice 005 can parse it
+  for an exit code, and the version field is the mistake SPEC-001/R-1 exists to
+  avoid making twice.
+- **Decided:** (a).
+- **Consequence:** the **envelope carries no version and none is required of
+  it** — brief §19's illustrative envelope has none, and demanding one would
+  break AC-1's one-liner. That asymmetry is exactly SPEC-001/R-1 and R-2's: the
+  host declares its own version and requires none of the sender. The `reason`
+  vocabulary is closed and normative in SPEC-003, and AC-4's enumeration is its
+  floor: *malformed*, *invalid_envelope*, *reserved_source*, *engaged*,
+  *too_soon*. `detail` is prose for a person and nothing may branch on it.
+
+### 2026-09-08 — the envelope is strict: four fields, and no key beside them
+
+- **Asked:** what the envelope admits — unknown keys, required fields, and OQ-10
+  (whether an envelope's `timestamp` is the host's business beyond its shape).
+  Three options put: (a) strict — all four fields required, `source` and `kind`
+  non-empty strings, `timestamp` an RFC 3339 instant with an explicit offset,
+  `data` any JSON value carried opaquely, and an unknown top-level key refused
+  naming it; (b) the same with unknown keys ignored, mirroring SPEC-001/R-4 and
+  R-5; (c) strict but with `timestamp` optional, the host filling its own
+  instant.
+- **Recommended:** (a). The envelope has a **designed extension point** —
+  `data` is opaque and unbounded — so a key beside the four is a mistake rather
+  than a newer watcher, and ignoring it would silently discard something the
+  writer meant to send, which is what SPEC-001/R-20 forbids in the analogous
+  case. (c) would have the host author a field SPEC-001/R-7 gives to the event's
+  originator.
+- **Decided:** (a).
+- **Consequence:** the host makes **no judgement about the timestamp's
+  distance from now** — a 1970 or a 3000 value is carried, because judging it
+  would be domain meaning. OQ-10 is answered: shape only, and the shape is
+  R-22's. One consequence is owed in writing (`research.md` C-3): `Event`'s
+  `timestamp` is a modelled `Timestamp` (`canonical.rs:490-497`), so the host
+  **re-serialises** it — an envelope written `+10:00` reaches the backend as the
+  same instant spelled `Z`. **AC-1's "verbatim" holds as the same instant, not
+  as the same bytes**, and `slice-004.md` carries that reading when the design
+  is accepted. The alternative — making `Event.timestamp` a string — would
+  weaken the host-originated path for the sake of the ingested one.
+
+### 2026-09-08 — the probe/bind race is documented, not closed
+
+- **Asked:** OQ-6. Between the connect-probe and the bind, two hosts starting
+  together can both find the path stale and both bind. Three options put:
+  (a) state it as a limit and do not close it here; (b) close it with an atomic
+  `hard_link` onto the target, EEXIST being the arbitration; (c) close it with an
+  advisory lock file under `File::try_lock`.
+- **Recommended:** (a), on `research.md` F15: **nothing prevents two goad
+  processes today** — `main.rs` takes no lock, checks no pidfile and consults no
+  existing process. Two hosts against one config already both start, both show a
+  window and both invoke the backend. The race does not create that; it names
+  one symptom of it, and closing it inside the ingress module is a partial
+  single-instance guarantee smuggled in under another name.
+- **Decided:** (a).
+- **Consequence:** **AC-8 stays exactly as strong as it reads** — a path a live
+  host holds is a startup error and the running host keeps its socket — and the
+  design says in writing that it does not assert the race is closed. SPEC-003
+  carries the limit as a non-normative note; `slice-004.md` §Follow-ups gains
+  **single-instance enforcement** as a future slice, which is where the real fix
+  belongs because it is not about the socket.
+
+### 2026-09-08 — every connection is bounded in bytes and in time
+
+- **Asked:** a connection that opens and never writes would hold the socket
+  indefinitely. SPEC-001/R-41 and R-43 are the precedent — every read from an
+  untrusted writer is bounded and the budget is stated. Three options put:
+  (a) sequential accept with a fixed per-connection time budget and byte bound,
+  each overrun answered before the close; (b) a task per connection with bounded
+  concurrency; (c) a byte bound only.
+- **Recommended:** (a). No unbounded spawning, head-of-line blocking bounded by
+  the budget, and nothing refused in silence (AC-3).
+- **Decided:** (a) — one connection at a time; **500 ms** to deliver an envelope,
+  `CLEANUP_LIMIT`'s sibling (`process.rs:30`), and **64 KiB** of it.
+- **Consequence:** the closed refusal set gains **two** reasons beyond AC-4's
+  floor — `timed_out` and `too_large` — which AC-4 admits ("at least"). Both are
+  shape refusals, so both are the listener's and neither reaches the loop. The
+  budgets are host constants in stratum 2 and are stated in SPEC-003 rather than
+  hidden, exactly as R-41 requires of the transport's own pair.
+
+### 2026-09-08 — the diagnostics surface shows refusals only
+
+- **Asked:** OQ-7 — whether an ingested evaluation is distinguishable in the
+  diagnostics surface, and what a person needs there to debug their own watcher.
+  Three options put: (a) refusals only, one line, through a new
+  `Refused::Ingress` variant; (b) refusals plus a line naming the stimulus
+  behind the current presentation; (c) refusals plus a retained ring buffer of
+  recent arrivals.
+- **Recommended:** (a). The **writer's own reply is the debugging channel** for
+  the person running the watcher; the diagnostics surface exists for the person
+  who is not the writer, and an accepted envelope is already visible through the
+  evaluation it causes.
+- **Decided:** (a).
+- **Consequence:** `Refused` (`diagnostics.rs:52-62`) gains one variant carrying
+  the reason and its detail. An ingress refusal **replaces** the surface, as
+  every other refusal does (`research.md` F7) — that is the module's existing
+  shape, not a new compromise. (b) is a follow-up if a watcher ever proves hard
+  to debug without it; it would have to thread the stimulus through `receive`
+  and `Diagnostics::of`, which is stratum-3 plumbing this slice does not need.
+
+### 2026-09-08 — socat joins the devshell; the demo listens in the checkout
+
+- **Asked:** two parts of AC-13's vehicle. First, what writes the envelope:
+  `socat`, `nc` and `ncat` are on the user's profile PATH but **none is declared
+  in `flake.nix`**, and the `justfile` holds its recipes to "works from a clean
+  clone in the dev shell". Options: (a) add `socat` to the devshell; (b) use
+  `deno`, already declared; (c) document `nc -U` and add nothing. Second,
+  whether `examples/demo.toml` configures ingress: (a) yes, at a relative path
+  in the checkout, gitignored; (b) yes, under `/tmp`; (c) no — a second example
+  config and a second recipe.
+- **Recommended:** (a) and (a). `socat` makes the one-liner read as the thing it
+  is and keeps the clean-clone standard true; a socket in the user's own
+  checkout **satisfies** the documented limit — the containing directory is the
+  user's responsibility — rather than waiving it in a world-writable directory.
+- **Decided:** (a) and (a).
+- **Consequence:** `flake.nix` `devToolPkgs` gains `socat`, which is this slice's
+  only environment change and is asked for rather than assumed (`CLAUDE.md`
+  §Environment). `examples/demo.toml` gains the ingress section pointing at
+  `./goad-demo.sock`, `.gitignore` gains that path, and **`just demo` is AC-13's
+  vehicle with no second recipe**. `examples/shell/backend.sh` prompts on every
+  evaluation that is not a `respond`, so an emitted event produces a window with
+  no change to the demo backend.
+
+### 2026-09-08 — AC-6 is a claim about the two anchors, not about the deadline
+
+- **Asked:** AC-6's first clause — *"an event-triggered evaluation neither
+  delays nor advances a scheduled firing"* — is not achievable as literally
+  worded. Every completed exchange re-arms the pending deadline from the
+  instruction the backend returned (`controller.rs:508-512`), and an ingested
+  evaluation is an exchange: a backend answering `next_check: "60 seconds"`
+  re-resolves from the ingested request's instant, moving the next scheduled
+  firing. Avoiding that means discarding an instruction the backend actually
+  sent, which SPEC-001/R-26 forbids. A person's *Check now* already does the
+  same thing today. Three options put: (a) read AC-6 as a claim about the two
+  **anchors**; (b) have an ingested exchange not re-arm the deadline; (c) take
+  the criterion back to scoping.
+- **Recommended:** (a). It is the claim ADR-004 §Verification says no existing
+  test could reach, and it is falsifiable in both directions.
+- **Decided:** (a).
+- **Consequence:** the design asserts, and the tests hold: **an ingested firing
+  never writes the scheduled floor, and a scheduled firing never writes the
+  event floor** — two anchors, two write sites, neither reachable from the
+  other. What moves the pending deadline after an ingested exchange is the
+  backend's own `next_check`, exactly as after a person's evaluation, which
+  SPEC-002/R-5 already permits. `slice-004.md` carries this reading beside AC-6
+  when the design is accepted; the criterion's id and intent are unchanged.
+
+### 2026-09-08 — AC-7's "unchanged bodies" is about assertions, not call sites
+
+- **Asked:** `serve` gains one parameter, which touches **23 call sites** across
+  `main.rs`, `tests/renderer/{wiring,scheduling}.rs`,
+  `tests/event_loop/closing.rs` and `tests/event_loop_schedule/scheduling.rs`.
+  Three options put: (a) unchanged assertions with mechanically updated call
+  sites; (b) keep the signature and wrap it in a second entry point; (c) hang
+  the ingress handle off `Host` or `Controller`.
+- **Recommended:** (a). AC-7's substance is *with the key absent the host
+  behaves exactly as it does today*, and unchanged assertions are what prove it.
+  (b) puts two doors on one loop, which this codebase refuses on principle;
+  (c) buys coupling to avoid an argument.
+- **Decided:** (a).
+- **Consequence:** every existing test keeps its assertions, its scripted
+  backend and its bounds; each `serve(...)` gains `Ingress::none()` — the handle
+  that **parks forever** because no socket is bound, which is what makes "no
+  listener" a state named in the type rather than a branch in the loop.
+
+### 2026-09-08 — Autonomy grant for 004, and the design review is spawned here
+
+- **Asked:** whether the adversarial design review runs as an agent spawned by
+  the orchestrator or as a prompt handed to a separate session; and whether
+  003's autonomy grant carries into 004.
+- **Recommended:** spawn here, on 003's shape — the reviewer is kept alive
+  across rounds, repairs go to a fresh agent rather than back to the author.
+- **Decided:** spawn here; grant renewed as **decide everything except canon**.
+- **Consequence:** finding dispositions, repair agents and stage sequencing are
+  the orchestrator's. Reserved to the user: canon endorsement, plan acceptance,
+  and any product question touching the wire contract or a spec. The review is
+  tier 2 — its own `review-design.md`, rounds unbounded.

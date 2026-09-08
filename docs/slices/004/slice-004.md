@@ -44,23 +44,41 @@ key before any config may write it.
 
 **Stratum 3 — `crates/goad/src/`.** `main.rs` and `startup.rs` bind the socket
 before the event loop starts, and carry the new startup failures.
-`controller.rs`'s `serve` gains an ingress arm on its `select!`, and the event
-spacing and its anchor. `wire.rs`'s `Command`/`Stimulus` must be able to express
-an evaluation whose `Event` the host did not author — today `Stimulus` can only
-name one it did.
+`controller.rs`'s `serve` gains an ingress arm on **both** of its `select!`s —
+the outer one to judge an arrival, the inner one to refuse promptly while an
+exchange is in flight — and the event spacing and its anchor.
 
-**Stratum 1 — `crates/goad-semantics/`.** `Event` already exists there. Whether
-the envelope's normalization joins it or stays in stratum 2 is design's. What is
-fixed: **stratum 1 gains no dependency**, and the four ADR-001 instruments and
-the vocabulary scan pass unchanged.
+`wire.rs` is **not** touched, which supersedes this section's scoping draft.
+Design found that an ingested evaluation is not a `Stimulus` at all: that type
+names why the *host* is asking, and an ingested evaluation is not
+host-originated — the same finding that removed the fourth `event.kind`. The
+vocabulary both paths already share is `Pending::Evaluate`, and the ingress arm
+builds one directly (`design.md` D-13).
 
-**Canon.** `canon-delta.md` CD-1 (SPEC-002, the event bound) and CD-2
-(SPEC-001/R-56, the reserved source). Neither spec is edited before
-reconciliation.
+**Stratum 1 — `crates/goad-semantics/`.** `Event` already exists there, and the
+envelope's normalization **stays in stratum 2**: a user-authored format
+normalizes there, as `config.rs` already does, while a backend-authored one
+normalizes in stratum 1 (`design.md` D-3). The one touch is widening
+`json_type_name` from `pub(crate)` to `pub`, which is a visibility change and
+not a dependency. What is fixed and holds: **stratum 1 gains no dependency**,
+and the four ADR-001 instruments and the vocabulary scan pass unchanged.
+
+**Canon.** `canon-delta.md` CD-1 (SPEC-002, the event bound), CD-2
+(SPEC-001/R-56, the reserved source) and **CD-3** (ADR-004, whose Verification
+section predicted this slice and is amended to name the tests that discharge
+it). Nothing is edited before reconciliation.
+
+**New canon.** `draft-spec.md` — the ingress contract: the socket, the envelope,
+the reply, the refusal taxonomy and the connection bounds. It takes a SPEC
+number at promotion and is this slice's working authority until then
+(`design.md` D-1).
 
 **Tests and examples.** Listener behaviour in `goad-shell`; loop and end-to-end
 behaviour in `crates/goad/tests/renderer/`; a documented shell one-liner that
-emits an envelope, which is this slice's emitter.
+emits an envelope, which is this slice's emitter. `examples/demo.toml` listens
+at a path in the checkout, and `flake.nix` gains `socat` so the one-liner works
+from a clean clone in the dev shell — this slice's only environment change
+(`design.md` D-17).
 
 ## Non-goals
 
@@ -133,6 +151,24 @@ emits an envelope, which is this slice's emitter.
   event from a shell one-liner, and watched the prompt appear. Recorded in
   `audit.md` under Evidence, naming what was observed (`docs/AGENTS.md` §Tiers).
 
+### Readings taken in design
+
+The criteria above are unchanged and their ids are immutable. Two needed a
+reading before they could be built against, and both are recorded in
+`design-log.md` (2026-09-08) and `design.md` D-19:
+
+- **AC-1's "verbatim"** holds as *the same instant*, not the same bytes, for
+  `timestamp` alone. `Event.timestamp` is a modelled `Timestamp`, so the host
+  re-serialises it and an envelope written `+10:00` reaches the backend spelled
+  `Z`. `source`, `kind` and `data` are byte-for-byte.
+- **AC-6** is a claim about the two **anchors**: an ingested firing never writes
+  the scheduled floor and a scheduled firing never clears the event floor. The
+  pending *deadline* still moves after an ingested exchange, because the backend
+  answered it with a `next_check` — SPEC-001/R-26, exactly as after a person's
+  evaluation.
+- **AC-7's "unchanged bodies"** means unchanged assertions. `serve` gains one
+  parameter, so 23 call sites pass `Ingress::none()`; no assertion moves.
+
 ## Governing canon
 
 **Binding, and amended by this slice:**
@@ -167,6 +203,11 @@ emits an envelope, which is this slice's emitter.
   is a shell one-liner.
 
 ## Open questions
+
+**All ten are dispositioned in `design.md` §6.** OQ-3 was settled at scoping by
+AC-3; OQ-8 is carried unanswered by decision; the other eight were answered
+during design. They are left here as written, because their ids are cited from
+the design and the log.
 
 - OQ-1 — The event spacing's **value**, and whether it is a constant of the host
   as R-4's three seconds is, or configurable. R-4's is not configurable on the
@@ -205,3 +246,11 @@ emits an envelope, which is this slice's emitter.
      line in a spec. -->
 
 - SPEC-002 OQ-4, now reachable from two stimuli rather than one (OQ-8).
+- **Single-instance enforcement.** Nothing prevents two goad processes today —
+  no lock, no pidfile, no check — and the probe/bind race (OQ-6) is one symptom
+  of that rather than a fact about the socket. Closing it inside the ingress
+  module would be a partial single-instance guarantee under another name
+  (`design.md` D-10, `research.md` F15).
+- **An accepted ingested evaluation is not distinguishable on the diagnostics
+  surface** (OQ-7, `draft-spec.md` OQ-3). The writer has its own answer; the
+  person who is not the writer does not.

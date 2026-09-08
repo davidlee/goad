@@ -9,9 +9,11 @@ Changes this slice makes to canon that **already exists**. One entry per
 affected document and section: the document, the section, the change as it will
 be stated, and why.
 
-**Do not edit `docs/specs/002-host-scheduling-behaviour.md` while the slice
-runs.** Design, plan and execution cite the entries below exactly as they would
-the real thing.
+**Do not edit `docs/specs/002-host-scheduling-behaviour.md`,
+`docs/specs/001-host-backend-protocol.md` or
+`docs/adr/004-scheduled-firings-are-spaced-from-the-previous-scheduled-firing.md`
+while the slice runs.** Design, plan and execution cite the entries below
+exactly as they would the real thing.
 
 This file exists because the slice **raised itself to tier 2** at scoping:
 deciding how an event-triggered evaluation is bounded amends SPEC-002, and
@@ -25,7 +27,8 @@ SPEC-002/R-5 says in terms that it must be decided rather than inherited
 **Document:** `docs/specs/002-host-scheduling-behaviour.md`
 **Sections:** §2 Scope, §3 Principles, §4 Requirements, §5 Behaviour, §7
 Verification. Exact wording is design's, not scoping's.
-**Kind:** new requirement, appended. R-11 is the current highest id.
+**Kind:** new requirement, appended as **R-12**; R-11 is the current highest id.
+Also a new principle in §3.
 
 ### Why
 
@@ -55,9 +58,25 @@ which **OQ-4**'s case is reached — an evaluation superseding a view a person i
 mid-answering. OQ-4 itself stands unanswered; this slice does not resolve it
 (`slice-004.md` OQ-8).
 
-Open at scoping, for design: the spacing's **value**; whether it is a constant
-of the host as R-4's is, or configurable; and how the rule is stated so that a
-third stimulus inherits the shape rather than the number.
+**Settled in design** (`design.md` D-5, `design-log.md` 2026-09-08). The three
+items scoping left open are answered:
+
+- **The value is three seconds** — the same `MINIMUM_SPACING` R-4 already names,
+  applied against a second anchor. There is **one** constant, not two: two
+  constants meaning the same kind of thing are two things free to drift when no
+  evidence fixes either number.
+- **It is not configurable.** ADR-004's argument transfers intact: a bound a
+  misconfiguration can remove is not a bound.
+- **The rule is stated as a property of a stimulus class**, so a third stimulus
+  inherits the shape rather than the number. SPEC-002 §3 gains a principle —
+  *each bounded stimulus class is spaced from the previous firing of its own
+  class, on its own monotonic anchor, and no anchor is written by another's
+  firing* — and **R-12** is its ingested instance. R-4 becomes the scheduled
+  instance of the same principle without its decided content changing.
+
+§5 gains the paragraph describing what the bound looks like from outside: a
+refusal at the socket rather than a silent delay, and events lost under load,
+visibly. §7 gains a verification row naming slice 004's AC-5 and AC-6 tests.
 
 ---
 
@@ -86,12 +105,66 @@ the second origin — and it stops without any document saying it did.
 ### The change, as decided
 
 `"host"` is a **reserved** event source. A host MUST NOT emit an `evaluate`
-carrying `source: "host"` for an event it did not itself originate, and MUST
-refuse an ingested envelope that claims it. A backend MAY therefore read
-`source == "host"` as meaning the host is asking on its own account, and R-56's
-three kinds as meaning what R-56 says only under that source.
+carrying `source: "host"` for an event it did not itself originate. A backend
+MAY therefore read `source == "host"` as meaning the host is asking on its own
+account, and R-56's three kinds as meaning what R-56 says only under that
+source.
 
-Open at scoping, for design: whether the refusal is stated in SPEC-001 (a rule
-about what a host emits, which is this spec's subject) or in this slice's own
-ingress rules (a rule about what a host accepts, which is not); and the exact
-wording, which must not narrow the open set.
+The *ingress-side* half of that guarantee — that an envelope claiming the
+reserved source is refused — is stated where a rule about what a host accepts
+belongs, and is **not** part of this amendment. See below.
+
+**Settled in design** (`design.md` D-3, `design-log.md` 2026-09-08): the rule
+**splits by subject**, and this entry therefore carries only half of what the
+scoping draft above states.
+
+- **SPEC-001/R-56 gains the emission clause only** — `"host"` is reserved to
+  evaluations the host originates, a host MUST NOT emit it for an event it did
+  not originate, and a backend MAY therefore read `source == "host"` as the host
+  asking on its own account. That is a rule about what a host *emits*, which is
+  this spec's subject. The three kinds, their meanings and the open set are
+  untouched.
+- **The refusal moves to `draft-spec.md`/R-13** — a rule about what a host
+  *accepts*, which SPEC-001 does not own. It cites R-56 for why it exists, and
+  R-56's own clause is what a backend's trust actually rests on.
+
+The wording narrows nothing: R-56's set of kinds stays open, and the reservation
+is on one `source` value rather than on any `kind`.
+
+---
+
+## CD-3 — ADR-004: the anchor's verification is no longer held by review alone
+
+**Document:** `docs/adr/004-scheduled-firings-are-spaced-from-the-previous-scheduled-firing.md`
+**Section:** Verification (second paragraph); and References.
+**Kind:** an accuracy amendment to a record whose **decision is unchanged**.
+Opened in design (`design.md` §10), not at scoping.
+
+### Why
+
+ADR-004 §Verification states, of the anchor as against the spacing itself:
+
+> The *anchor* — as against the spacing itself — is held by **review**. No
+> standing test can distinguish the anchor from the boolean alternative, because
+> the two agree on every stimulus that exists today; the case that separates them
+> is the one slice 004 will introduce.
+
+Slice 004 introduces it. AC-6 asserts the separation in both directions — an
+ingested firing never writes the scheduled floor, and a scheduled firing never
+clears the event floor — and `design.md` §9 names the two tests that hold it.
+Leaving the paragraph as written would have a future reader believe the claim is
+still unfalsifiable when it is now covered, which is exactly the drift
+`docs/AGENTS.md` requires an ADR be kept clear of: *"it is the **decision** that
+is fixed, not the document — keep the record accurate as consequences are
+learned."*
+
+### The change, as decided
+
+The Verification section's second paragraph is amended to say that the anchor's
+independence **is** now verified, naming slice 004's two AC-6 tests by file and
+function, and that what remains held by review is only the *choice* of anchor
+over the boolean alternative for stimuli that do not yet exist. References gains
+`docs/slices/004/design.md` §5.3 and §9.
+
+**The decision itself is not touched.** The spacing is still three seconds,
+still measured from the previous scheduled firing, still cleared by nothing.
