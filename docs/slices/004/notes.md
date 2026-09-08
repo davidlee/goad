@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 — the A-1 probe | done — **A-1 holds** | 2026-09-08 |
 | PHASE-02 — the configuration key, and the envelope | done | 2026-09-08 |
 | PHASE-03 — the socket's lifecycle, and the accepted path | done | 2026-09-08 |
-| PHASE-08 — the read budgets, and the closed reason set | pending | |
+| PHASE-08 — the refusal vocabulary, and the closed reason set | done | 2026-09-08 |
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | pending | |
 | PHASE-05 — the two anchors, and what a person can see | pending | |
 | PHASE-06 — binding at startup, and the demo a person runs | pending | |
@@ -27,7 +27,133 @@ appends a number rather than renumbering.
      execution. Disposable detail — it exists to get one agent through one
      phase. -->
 
-### PHASE-03 — The socket's lifecycle, and the accepted path
+### PHASE-08 — The refusal vocabulary, and the closed reason set
+
+**Entry check:** EN-1 — PHASE-03's exit criteria discharged and `just check`
+exit 0 at `48cb744` (PHASE-03's own VA-1, re-verified below before editing).
+EN-2 — `bind`, `Ingress`, `Arrival`, `Answer`, `IngressError` exist
+(`crates/goad-shell/src/ingress/mod.rs`); `Refusal` carries `Unavailable`,
+`Malformed`, `InvalidEnvelope`, `TooLarge`, `TimedOut` with an exhaustive
+`reason()`; every read is already bounded (`read_envelope`, both budgets
+enforced in one function). The fake judge (`judge()`, `Verdict`) is in
+`crates/goad-shell/tests/integration/ingress.rs`. Both hold: proceeding.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `docs/slices/004/plan.md:960-1097` |
+| the split rationale and id map (PL-10, PL-11) | `plan.md:960-986` |
+| PHASE-03's sheet — reading list, assumptions, findings I inherit | `notes.md` `### PHASE-03`, whole section (this file) |
+| PHASE-02's harvested finding — `EnvelopeFault::Malformed` meets `malformed` | `notes.md` Harvest, "`EnvelopeFault` carries one variant..." |
+| PHASE-03's harvested finding — the non-blocking drain; this phase must not reintroduce a second blocking wait on the refusal path | `notes.md` Harvest, "Closing an `AF_UNIX SOCK_STREAM` socket..." |
+| the reply wire form and reason table (all eight rows) | `design.md` §5.2 `:206-237` |
+| order of judgement (shape before state) | `design.md` §5.4 `:407-423` |
+| `Refusal`'s full payload list, `reason()`/`Display` split | `design.md` §5.2 `:297-305` |
+| draft-spec — this phase's requirements | R-13 `:99`, R-14 `:100`, §6.3 whole `:206-237`, §6.4 bounds (context only, not touched) `:239-260` |
+| the module this phase extends | `crates/goad-shell/src/ingress/mod.rs`, whole file — `Refusal`, `reason()`, `Display`, `Wire`, `reply()`, `shape_refusal` |
+| `EnvelopeFault::ReservedSource` | `crates/goad-shell/src/ingress/envelope.rs:53-56` — already a distinct variant; only the wire's `reason()` needs to special-case it, per PHASE-03's own Assumptions note that `shape_refusal`'s mapping (`ReservedSource` into `InvalidEnvelope`) is not this phase's to change |
+| the fake judge and its fixtures, reused not rewritten | `crates/goad-shell/tests/integration/ingress.rs`, whole file |
+| workspace lints bearing on the rounding | `Cargo.toml:143` (`integer_division`, deny), `:165-169` (`as_conversions`, `cast_*`, deny), `:136-137` (`unwrap_used`, `expect_used`, deny) |
+| the existing `+1`/`try_from`/`unwrap_or` idiom this phase's rounding reuses | `crates/goad-shell/src/ingress/mod.rs:448-450` (`read_envelope`'s `cap`) |
+
+**Assumptions**
+
+- **`Refusal` gains exactly two new variants, `Engaged` and `TooSoon { retry_after:
+  Duration }`** — not a third `ReservedSource` variant. EX-5 lists seven payloads
+  total (five PHASE-03's, two this phase's); the eighth wire token,
+  `reserved_source`, is `reason()` special-casing
+  `InvalidEnvelope(EnvelopeFault::ReservedSource)`, matching `design.md` §5.2's
+  own payload list (which names four non-unit payloads, not five) and
+  PHASE-03's Assumptions note that `shape_refusal`'s mapping is not this
+  phase's to touch.
+- **The rounding helper takes an owned `Duration` and is used by both `reply()`
+  and `Display for Refusal::TooSoon`**, so the two never compute it
+  differently. `checked_add(Duration::from_nanos(999_999))` then
+  `Duration::as_millis()` (which truncates internally, in the standard
+  library, not in this crate) is the shape the implementer notes specify;
+  `u64::try_from` narrows it, `unwrap_or(u64::MAX)` on both the `checked_add`
+  fallback and the `try_from` fallback rather than a panic, matching
+  `read_envelope`'s own precedent for the same idiom.
+- **VT-9's cases construct every non-`too_soon` `Refusal` via the fake judge's
+  script**, sending only well-formed envelopes, rather than triggering
+  `too_large`/`timed_out` for real. Plan's own words — "No case here waits on
+  a bound" — rule out a real `ENVELOPE_DEADLINE` wait; scripting
+  `Refusal::TimedOut{after: ENVELOPE_DEADLINE}` (a public constructor) proves
+  the same wire fact (this field's absence) without the 500ms cost or the
+  bound-wait S-6 risk stated in the plan's Verification preamble.
+- **VT-7 scripts `Verdict::Drop` for its three shape-refusal sends**, not
+  `Accept`. A dropped `Answer` is `unavailable`'s own trigger (PHASE-03/VT-6);
+  scripting it here and getting the shape reason back anyway is a stronger
+  assertion of shape-before-state than an `Accept` verdict would be, and
+  costs nothing extra.
+
+**STOP conditions** (`plan.md` S-1, S-6 — not softened)
+
+- S-1 — a case cannot be written without a queue, a retry, or a second
+  arrival outstanding.
+- S-6 — one of PHASE-03's cases goes red.
+
+**Tasks**
+
+- [x] phase sheet written; status set to `in progress`.
+- [x] EN-1/EN-2 verified (above).
+- [x] `mod.rs` — `Refusal::Engaged`, `Refusal::TooSoon`, `reason()` widened to
+      eight arms (`reserved_source` special-cased), `Display`, `source()`
+      (EX-5).
+- [x] `mod.rs` — `round_up_millis`, `Wire.retry_after_ms`, `reply()` (EX-12).
+- [x] doc comments updated to drop the "PHASE-08 completes..." forward
+      references now that this phase is the one doing it.
+- [x] `tests/integration/ingress.rs` — `Verdict::Refuse(Refusal)`, imports
+      (`Refusal`, `EnvelopeFault`, `Duration`), VT-7, VT-8, VT-9 (two cases).
+- [x] lint/format after each file; `just check` green; VA-1, VA-4, VA-5.
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-5 | `Refusal` gains `Engaged` and `TooSoon { retry_after: Duration }`, beside the five PHASE-03 landed — seven variants total (`crates/goad-shell/src/ingress/mod.rs`). `reason()` widened to eight arms, still exhaustive with no `_` arm: `InvalidEnvelope(EnvelopeFault::ReservedSource)` matches ahead of the general `InvalidEnvelope(_)` arm, so `reserved_source` is a wire token, not a ninth payload. No production code in this phase constructs `Engaged` or `TooSoon` — the only two sites doing so are `tests/integration/ingress.rs`'s `Verdict::Refuse` cases |
+| EX-12 | `Wire.retry_after_ms: Option<u64>`, `skip_serializing_if`; `reply()` sets it from `Some(Refusal::TooSoon { retry_after })` only, `None` otherwise. `round_up_millis`: `checked_add(Duration::from_nanos(999_999))` then `Duration::as_millis()` (the truncation is the standard library's, not this crate's arithmetic) then `u64::try_from`, both fallbacks `unwrap_or` rather than a panic — the same shape `read_envelope`'s own `cap` already uses. VT-9's `a_too_soon_reply_carries_retry_after_ms_rounded_up` proves the rounding: 1400.3ms → 1401, not 1400 |
+| EX-13 | `reason()`'s `InvalidEnvelope(EnvelopeFault::ReservedSource) => "reserved_source"` arm, ahead of the general `InvalidEnvelope(_) => "invalid_envelope"` arm. `shape_refusal`'s mapping is untouched — `ReservedSource` still becomes `Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource)`; only `reason()` reads it as its own token. VT-7's `reserved` case proves it end to end, off the real wire |
+| VT-7 | `the_three_shape_reasons_this_phase_owns_are_read_off_the_wire` — `malformed`, `invalid_envelope` (a non-object top level), `reserved_source`, each read off the reply; scripted `Verdict::Drop` throughout (not `Accept`) so a leak into `unavailable` would have shown; `seen` asserts all three arrivals recorded `Seen::Refused`, none `Seen::Event` |
+| VT-8 | `the_reason_token_set_is_closed_at_eight` — one `Refusal` per variant (both `InvalidEnvelope` faces), `.reason()` collected into a `BTreeSet`, compared against a literal eight-string set written in the test, not against any production constant |
+| VT-9 | `a_too_soon_reply_carries_retry_after_ms_rounded_up` (the rounding, on a value with a non-zero sub-millisecond remainder) and `retry_after_ms_is_absent_from_every_reason_but_too_soon` (all seven other reasons, each scripted via `Verdict::Refuse` so no case waits on a bound — including `too_large` and `timed_out`, scripted rather than really triggered) |
+| VA-1 | `just check` **exit 0**, transcript at `/tmp/claude-1000/-home-david-dev-goad/a10c38f4-3ff2-4c14-924e-3b2377d46bee/scratchpad/phase08-final.txt` (session-local, not durable) |
+| VA-4 | `git status --short` after the full suite shows only the three source files this phase touched, no socket file; `find /tmp -maxdepth 1 -iname 'goad-ingress-*'` empty |
+| VA-5 | `git diff --stat crates/goad-shell/Cargo.toml` empty — this phase adds no feature and no dependency |
+
+**No STOP condition was reached.** S-1: every VT-9 case scripts its refusal through
+the fake judge rather than needing a queue, a retry, or a second arrival
+outstanding. S-6: PHASE-03's own 13 cases (VT-1..VT-6, VT-10..VT-14) all still
+pass — `ingress::` filtered run showed all 17 (13 PHASE-03's + 4 this
+phase's) green before the full-workspace run, and the full-workspace
+`integration` binary grew from 71 to 75 tests, all passing.
+
+**Decisions taken during execution**
+
+- **`reserved_source` is `reason()` special-casing one `EnvelopeFault`
+  variant, not a sixth `Refusal` payload.** Matches EX-5's own count (seven
+  variants) and `design.md` §5.2's payload list (four non-unit payloads, not
+  five). `shape_refusal` (PHASE-03's) is untouched, per that phase's own
+  Assumptions note.
+- **VT-9's absence case scripts all seven non-`too_soon` reasons, including
+  `too_large` and `timed_out`, via `Verdict::Refuse` rather than a real byte
+  overflow or a real 500ms wait.** The plan's Verification preamble states no
+  case in this phase waits on a bound; scripting proves the same wire fact
+  (the field's absence) without the cost or the S-6 risk of re-triggering a
+  bound PHASE-03 already owns.
+- **VT-7 scripts `Verdict::Drop`, not `Accept`, for its three shape-refusal
+  sends.** A dropped `Answer` is `unavailable`'s own trigger; getting the
+  shape reason back anyway is the stronger assertion that shape precedes
+  state, at no extra cost.
+
+**Findings**
+
+- None against the design, draft-spec or plan. `EnvelopeFault::ReservedSource`
+  was already a distinct variant from PHASE-02; this phase's whole job was
+  `reason()` reading it as its own token, exactly as `design.md` §5.2 and
+  `draft-spec.md` §6.3 already stated.
+
 
 **Entry check:** EN-1 — PHASE-02's exit criteria discharged; `just check`
 **exit 0** at `bee5d2f` (transcript:
@@ -373,7 +499,7 @@ did not arise — nothing under `crates/*/src` was touched.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-03 done
+**Fresh as of:** 2026-09-08 · PHASE-08 done
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -397,13 +523,14 @@ did not arise — nothing under `crates/*/src` was touched.
   whole of this slice's manifest bill against the ADR-001 allowlist (nothing
   else adds a feature or a dependency for the rest of the slice).
 - `crates/goad-shell/src/ingress/mod.rs` — `bind`, `IngressError`/`BindFault`,
-  `Ingress`, `Arrival`, `Answer`, `Refusal` (five variants), the accept task:
-  reclaim, the owner-only mode, the newline-or-EOF framing, both read budgets,
-  the one reply. `SPEC-003/R-1..R-8`'s listener-decided half is discharged;
-  `R-9`/`R-10`/`R-13`'s wiring to the wire's `invalid_envelope` reason is
-  discharged except `reserved_source`'s own token, which is `PHASE-08/EX-13`.
+  `Ingress`, `Arrival`, `Answer`, `Refusal` (seven variants: PHASE-03's five
+  plus PHASE-08's `Engaged`, `TooSoon`), the accept task: reclaim, the
+  owner-only mode, the newline-or-EOF framing, both read budgets, the one
+  reply — `retry_after_ms` included. `SPEC-003/R-1..R-10`, `R-13`, `R-14` are
+  now discharged in full; the wire's reason set is closed at eight tokens.
 - `crates/goad-shell/tests/integration/ingress.rs` — the fake judge fixture
-  (shared with `PHASE-08`), and PHASE-03/VT-1..VT-6, VT-10..VT-14.
+  (`judge`, `Verdict`, now including `Verdict::Refuse` for a scripted
+  refusal), PHASE-03/VT-1..VT-6, VT-10..VT-14, and PHASE-08/VT-7, VT-8, VT-9.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -477,6 +604,27 @@ did not arise — nothing under `crates/*/src` was touched.
   there is nothing left. Strong candidate for `docs/memory/` at close — this
   is a general fact about Unix domain stream sockets, not specific to this
   slice.
+
+- **Rounding a `Duration` up to the millisecond needs no division and no
+  cast, because `Duration::as_millis` already truncates — in the standard
+  library, not the caller's arithmetic.** Adding `Duration::from_nanos(999_999)`
+  before calling `as_millis()` turns that existing truncation into a ceiling;
+  `u64::try_from` narrows the `u128` it returns. Both denied lints
+  (`clippy::integer_division`, `clippy::as_conversions`) stay clear without an
+  `#[allow]`. **How to apply:** the same shape works for any "round this
+  bounded duration up to a coarser unit" need under this workspace's lint
+  set — reach for `checked_add` + the coarser unit's own truncating accessor
+  before reaching for a raw division or a cast.
+
+- **A wire reason can be `reason()` special-casing one payload's inner value,
+  not a new outer variant.** `reserved_source` (`SPEC-003/R-13`) is
+  `Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource)` read by a
+  `reason()` arm matched ahead of the general `InvalidEnvelope(_)` arm — the
+  payload carries what happened, the match on it decides which token reaches
+  the wire. **How to apply:** before adding a variant to widen a reason set,
+  check whether an existing payload's own inner value already distinguishes
+  the case; a match arm is cheaper than a variant and keeps the payload count
+  matching the design's own list.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

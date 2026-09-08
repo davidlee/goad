@@ -1,19 +1,21 @@
-//! The socket's lifecycle, the accepted path, and the two read budgets —
-//! `plan.md` PHASE-03. Every case here binds a real socket, in its own
-//! directory under `std::env::temp_dir()` (`config.rs:226`'s precedent —
-//! `tempfile` is not on the manifest allowlist), against a **fake judge**: a
-//! task that takes every `Arrival` the listener hands it and answers
-//! according to a script, recording what it saw. `serve` itself is untouched
-//! until PHASE-04; nothing here constructs `engaged` or `too_soon`, and
-//! `reserved_source` still reads off the wire as `invalid_envelope` until
-//! PHASE-08/EX-13.
+//! The socket's lifecycle, the accepted path, the two read budgets and the
+//! closed refusal vocabulary — `plan.md` PHASE-03 and PHASE-08, split at the
+//! listener's own read/reply seam (`plan.md` PL-10). Every case here binds a
+//! real socket, in its own directory under `std::env::temp_dir()`
+//! (`config.rs:226`'s precedent — `tempfile` is not on the manifest
+//! allowlist), against a **fake judge**: a task that takes every `Arrival`
+//! the listener hands it and answers according to a script, recording what it
+//! saw. `serve` itself is untouched until PHASE-04; no *production* code here
+//! constructs `engaged` or `too_soon` — `Verdict::Refuse` lets a case script
+//! either, which is how PHASE-08's VT-9 drives them without `serve`.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use goad_semantics::protocol::canonical::Event;
-use goad_shell::ingress::{BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, bind};
+use goad_shell::ingress::envelope::EnvelopeFault;
+use goad_shell::ingress::{BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, bind};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
@@ -42,11 +44,15 @@ fn cleanup(path: &Path) {
 
 /// What the fake judge does with one arrival, for an envelope it reached as
 /// an `Event` — a shape refusal the listener already decided is always
-/// relayed as-is (below), so there is no `Refuse` verdict of this phase's own:
-/// nothing here constructs `engaged` or `too_soon`, which is `PHASE-08`'s.
+/// relayed as-is (below), whatever the script says for that slot.
 enum Verdict {
   Accept,
   Drop,
+  /// Answers with a scripted [`Refusal`] instead — how PHASE-08's cases
+  /// exercise `engaged`, `too_soon` and a loop-side `unavailable` without
+  /// `serve`, which is the only thing that constructs them for real
+  /// (`plan.md` PHASE-08/EX-5).
+  Refuse(Refusal),
 }
 
 /// What the judge recorded about one arrival. Cheap to keep — `Event` clones,
@@ -91,6 +97,7 @@ fn judge(ingress: Ingress, script: Vec<Verdict>) -> Arc<Mutex<Vec<Seen>>> {
         Ok(_event) => match verdict {
           Verdict::Accept => answer.accepted(),
           Verdict::Drop => drop(answer),
+          Verdict::Refuse(refusal) => answer.refused(&refusal),
         },
       }
     }
@@ -591,6 +598,175 @@ async fn a_connection_that_writes_nothing_times_out_and_the_listener_serves_next
     accepted(&next),
     "the listener must serve the next connection normally: {next}"
   );
+
+  cleanup(&path);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-08
+// ---------------------------------------------------------------------------
+//
+// The refusal vocabulary: `reserved_source` as its own wire reason, the
+// closed eight-token reason set, and `retry_after_ms` (`plan.md` PHASE-08).
+// No case below waits on a bound — each is decided by the fake judge's
+// scripted answer or by the shape of the bytes written, per PHASE-08's own
+// Verification preamble.
+
+// ---------------------------------------------------------------------------
+// VT-7 — the three shape reasons this phase owns, read off the wire
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn the_three_shape_reasons_this_phase_owns_are_read_off_the_wire() {
+  let path = socket_path("vt7-shape-reasons");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  // `Verdict::Drop` for all three: if a shape refusal ever let the script's
+  // own verdict decide the answer, a dropped `Answer` would read back as
+  // `unavailable` instead of the shape's own reason. It never does — shape
+  // takes precedence over state (`design.md` §5.4 step 1) — so scripting the
+  // one verdict that would expose a leak is a stronger check than `Accept`.
+  let seen = judge(ingress, vec![Verdict::Drop, Verdict::Drop, Verdict::Drop]);
+
+  let malformed = send_with_newline(&path, "not json").await;
+  assert_eq!(reason(&malformed), "malformed", "{malformed}");
+
+  let not_an_object = send_with_newline(&path, "[1, 2, 3]").await;
+  assert_eq!(
+    reason(&not_an_object),
+    "invalid_envelope",
+    "{not_an_object}"
+  );
+
+  let reserved = send_with_newline(
+    &path,
+    &GOOD.replace(r#""source":"reddit-watcher""#, r#""source":"host""#),
+  )
+  .await;
+  assert_eq!(reason(&reserved), "reserved_source", "{reserved}");
+
+  let guard = seen
+    .lock()
+    .unwrap_or_else(std::sync::PoisonError::into_inner);
+  assert_eq!(guard.len(), 3, "all three arrivals must reach the judge");
+  assert!(
+    guard.iter().all(|entry| matches!(entry, Seen::Refused(_))),
+    "a shape refusal must never arrive at the judge as an Event"
+  );
+
+  cleanup(&path);
+}
+
+// ---------------------------------------------------------------------------
+// VT-8 — the reason token set is closed at eight
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_reason_token_set_is_closed_at_eight() {
+  let refusals = [
+    Refusal::Unavailable,
+    Refusal::Malformed,
+    Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
+    Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource),
+    Refusal::TooLarge {
+      limit: ENVELOPE_LIMIT,
+    },
+    Refusal::TimedOut {
+      after: ENVELOPE_DEADLINE,
+    },
+    Refusal::Engaged,
+    Refusal::TooSoon {
+      retry_after: Duration::from_millis(1),
+    },
+  ];
+  let reasons: std::collections::BTreeSet<&str> = refusals.iter().map(Refusal::reason).collect();
+  let expected: std::collections::BTreeSet<&str> = [
+    "malformed",
+    "invalid_envelope",
+    "reserved_source",
+    "too_large",
+    "timed_out",
+    "engaged",
+    "too_soon",
+    "unavailable",
+  ]
+  .into_iter()
+  .collect();
+  assert_eq!(
+    reasons, expected,
+    "the wire's reason set must be exactly these eight tokens, not a subset or a superset"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VT-9 — retry_after_ms: present only on too_soon, and rounded up
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_too_soon_reply_carries_retry_after_ms_rounded_up() {
+  let path = socket_path("vt9-rounds-up");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  // 1_400_300ns past 1400ms: a truncated remainder would read 1400ms, which a
+  // writer that waited exactly that long would still find itself inside the
+  // spacing (`SPEC-003/R-14`'s own argument for rounding up rather than
+  // truncating).
+  let retry_after = Duration::from_micros(1_400_300);
+  let _seen = judge(
+    ingress,
+    vec![Verdict::Refuse(Refusal::TooSoon { retry_after })],
+  );
+
+  let reply = send_with_newline(&path, GOOD).await;
+  assert_eq!(reason(&reply), "too_soon");
+  assert_eq!(
+    parsed(&reply)["retry_after_ms"],
+    serde_json::json!(1401),
+    "1400.3ms must round up to 1401, not truncate to 1400: {reply}"
+  );
+
+  cleanup(&path);
+}
+
+#[tokio::test]
+async fn retry_after_ms_is_absent_from_every_reason_but_too_soon() {
+  let path = socket_path("vt9-absent-elsewhere");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  // Every reason but `too_soon`, each scripted directly so no case here waits
+  // on a bound (not even `too_large`'s or `timed_out`'s own real trigger) —
+  // the fact under test is the wire's field, not how the reason was reached.
+  let refusals = [
+    Refusal::Unavailable,
+    Refusal::Malformed,
+    Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
+    Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource),
+    Refusal::TooLarge {
+      limit: ENVELOPE_LIMIT,
+    },
+    Refusal::TimedOut {
+      after: ENVELOPE_DEADLINE,
+    },
+    Refusal::Engaged,
+  ];
+  let expected_reasons: Vec<&str> = refusals.iter().map(Refusal::reason).collect();
+  let script = refusals.into_iter().map(Verdict::Refuse).collect();
+  let _seen = judge(ingress, script);
+
+  for expected in expected_reasons {
+    let reply = send_with_newline(&path, GOOD).await;
+    assert_eq!(reason(&reply), expected);
+    assert!(
+      parsed(&reply).get("retry_after_ms").is_none(),
+      "{expected} must not carry retry_after_ms: {reply}"
+    );
+  }
 
   cleanup(&path);
 }

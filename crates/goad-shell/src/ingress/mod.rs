@@ -7,9 +7,10 @@
 //! `serve`, not this module — takes each [`Arrival`] through. This module
 //! decides only what the *filesystem* and the *bytes on the wire* can get
 //! wrong: the framing, the two read budgets, and the one reply a well-formed
-//! envelope gets. `PHASE-08` completes the wire's reason vocabulary
-//! (`reserved_source` as its own reason, `engaged`, `too_soon`) on top of the
-//! five variants declared here; it re-writes no read.
+//! envelope gets. The wire's reason vocabulary is closed here at eight tokens
+//! (`draft-spec.md` §6.3, `SPEC-003/R-14`): `Engaged` and `TooSoon` are
+//! constructed only by `crates/goad`'s loop, not by this module — this module
+//! only carries them to the wire.
 #![deny(clippy::arithmetic_side_effects)]
 
 use std::io;
@@ -266,10 +267,12 @@ impl Answer {
 
 /// Why an envelope, or a connection, was refused.
 ///
-/// **Exactly the five variants this phase's own code constructs.** `PHASE-08`
-/// widens the match to eight (`Engaged`, `TooSoon`); until then this is
-/// exhaustive with no `_` arm, so the compiler — not a reviewer — is what
-/// notices the day it stops being so.
+/// **Seven variants, closing the wire's eight-token reason set.** `reason()`
+/// splits `InvalidEnvelope(EnvelopeFault::ReservedSource)` out to its own
+/// token, `reserved_source` (`draft-spec.md` §6.3, `SPEC-003/R-13`) — the
+/// payload stays the one variant; only the wire reads it as two. Exhaustive
+/// with no `_` arm, so the compiler — not a reviewer — is what notices the
+/// day a ninth reason is needed.
 #[derive(Debug)]
 pub enum Refusal {
   /// No answer was given for this envelope — a dropped [`Answer`].
@@ -277,25 +280,40 @@ pub enum Refusal {
   /// The bytes are not one JSON document at all.
   Malformed,
   /// A well-formed document that is not an admissible envelope
-  /// (`SPEC-003/R-9`, `R-10`). Also where `source == "host"` lands in this
-  /// phase — splitting that out to its own wire reason is `PHASE-08/EX-13`.
+  /// (`SPEC-003/R-9`, `R-10`), or `source == "host"` (`R-13`) — the latter
+  /// reads off the wire as its own reason, `reserved_source` (`reason()`
+  /// below).
   InvalidEnvelope(EnvelopeFault),
   /// More than [`ENVELOPE_LIMIT`] bytes arrived before the envelope ended.
   TooLarge { limit: usize },
   /// Nothing complete arrived within [`ENVELOPE_DEADLINE`].
   TimedOut { after: Duration },
+  /// An exchange was already in flight when this envelope arrived, and its
+  /// shape was good (`SPEC-002/R-9`). Constructed by `crates/goad`'s loop,
+  /// never by this module.
+  Engaged,
+  /// Inside the minimum spacing (`SPEC-002/R-12`, `draft-spec.md` R-12).
+  /// `retry_after` is the remaining spacing at the moment of refusal; the
+  /// wire's `retry_after_ms` rounds it up (`R-14`). Constructed by
+  /// `crates/goad`'s loop, never by this module.
+  TooSoon { retry_after: Duration },
 }
 
 impl Refusal {
-  /// The wire's machine-readable token (`draft-spec.md` §6.3).
+  /// The wire's machine-readable token (`draft-spec.md` §6.3). The closed set
+  /// of eight: `malformed`, `invalid_envelope`, `reserved_source`,
+  /// `too_large`, `timed_out`, `engaged`, `too_soon`, `unavailable`.
   #[must_use]
   pub fn reason(&self) -> &'static str {
     match self {
       Self::Unavailable => "unavailable",
       Self::Malformed => "malformed",
+      Self::InvalidEnvelope(EnvelopeFault::ReservedSource) => "reserved_source",
       Self::InvalidEnvelope(_) => "invalid_envelope",
       Self::TooLarge { .. } => "too_large",
       Self::TimedOut { .. } => "timed_out",
+      Self::Engaged => "engaged",
+      Self::TooSoon { .. } => "too_soon",
     }
   }
 }
@@ -315,6 +333,14 @@ impl std::fmt::Display for Refusal {
       Self::TimedOut { after } => {
         write!(f, "nothing complete arrived within {}ms", after.as_millis())
       }
+      Self::Engaged => write!(f, "an exchange was already in flight"),
+      Self::TooSoon { retry_after } => {
+        write!(
+          f,
+          "inside the minimum spacing; {}ms remain",
+          round_up_millis(*retry_after)
+        )
+      }
     }
   }
 }
@@ -323,14 +349,37 @@ impl std::error::Error for Refusal {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
       Self::InvalidEnvelope(inner) => Some(inner),
-      Self::Unavailable | Self::Malformed | Self::TooLarge { .. } | Self::TimedOut { .. } => None,
+      Self::Unavailable
+      | Self::Malformed
+      | Self::TooLarge { .. }
+      | Self::TimedOut { .. }
+      | Self::Engaged
+      | Self::TooSoon { .. } => None,
     }
   }
 }
 
+/// `remaining` rounded up to the millisecond (`SPEC-003/R-14`): a truncated
+/// remainder would leave a writer that waited exactly that long still inside
+/// the spacing, which would make R-14's own sentence false of this field.
+/// Adding just under a millisecond before truncating, rather than dividing,
+/// is what lets [`Duration::as_millis`] do the truncation — in the standard
+/// library, not in this crate's own arithmetic — so
+/// `clippy::integer_division` and `clippy::as_conversions` (both `deny`) stay
+/// clear; `u64::try_from` narrows the `u128` [`Duration::as_millis`] returns,
+/// the same fallback-rather-than-panic shape [`read_envelope`]'s own `cap`
+/// already uses for the same reason.
+fn round_up_millis(remaining: Duration) -> u64 {
+  let ceiling = remaining
+    .checked_add(Duration::from_nanos(999_999))
+    .unwrap_or(Duration::MAX);
+  u64::try_from(ceiling.as_millis()).unwrap_or(u64::MAX)
+}
+
 /// The reply wire form (`draft-spec.md` §6.3): one JSON object naming
 /// `protocol`, `accepted`, and — exactly when refused — `reason` and
-/// `detail`. Built with `serde_json` rather than interpolated, because
+/// `detail`, plus `retry_after_ms` exactly when `reason` is `too_soon`
+/// (`R-14`). Built with `serde_json` rather than interpolated, because
 /// `detail` can carry a watcher-chosen key name (`EnvelopeFault::Unknown`,
 /// `Duplicate`) and hand-rolled JSON would let it break the reply's own
 /// syntax.
@@ -341,6 +390,8 @@ struct Wire<'a> {
   #[serde(skip_serializing_if = "Option::is_none")]
   reason: Option<&'a str>,
   #[serde(skip_serializing_if = "Option::is_none")]
+  retry_after_ms: Option<u64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
   detail: Option<String>,
 }
 
@@ -348,10 +399,15 @@ struct Wire<'a> {
 /// (confirmed by the A-1 probe's own harvested byte count for the accepted
 /// reply, `research.md` Thread 3).
 fn reply(accepted: bool, refusal: Option<&Refusal>) -> String {
+  let retry_after_ms = match refusal {
+    Some(Refusal::TooSoon { retry_after }) => Some(round_up_millis(*retry_after)),
+    _no_other_reason_carries_it => None,
+  };
   let wire = Wire {
     protocol: 1,
     accepted,
     reason: refusal.map(Refusal::reason),
+    retry_after_ms,
     detail: refusal.map(ToString::to_string),
   };
   // A host-authored value of primitive fields serializes infallibly; a
@@ -425,8 +481,9 @@ async fn handle(mut stream: UnixStream, arrivals: &mpsc::Sender<Arrival>) -> boo
 /// `normalize`'s one fault with no shape of its own (`Malformed` — bytes that
 /// are not one JSON document) reads off the wire as `malformed`; every other
 /// fault reads off as `invalid_envelope`, `detail` naming which
-/// (`SPEC-003/R-9`, `R-10`). `ReservedSource` stays in this bucket until
-/// `PHASE-08/EX-13` gives it its own reason.
+/// (`SPEC-003/R-9`, `R-10`) — `ReservedSource` included: it stays this
+/// payload, and `Refusal::reason()` is what gives it its own wire token,
+/// `reserved_source` (`R-13`).
 fn shape_refusal(fault: EnvelopeFault) -> Refusal {
   match fault {
     EnvelopeFault::Malformed => Refusal::Malformed,
