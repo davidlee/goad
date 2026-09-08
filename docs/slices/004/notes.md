@@ -1000,8 +1000,8 @@ did not arise — nothing under `crates/*/src` was touched.
   reply was `engaged` instead of the `too_soon` the case expected — in both
   PHASE-05/VT-3 (fixed here) and in PHASE-04's own
   `a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`
-  (not fixed — outside this phase's surface to repair on its own initiative,
-  reported below). `scheduling.rs`'s `absorbed_line` doc comment already
+  (fixed by a bounded cross-phase repair, `d45901b`'s follow-on — see
+  *Open*, below, now resolved). `scheduling.rs`'s `absorbed_line` doc comment already
   names this race for the *scheduled* firing case; it applies identically to
   an *ingested* one. **How to apply:** wherever a case sends a second
   envelope (or otherwise depends on state a prior exchange's `absorb` set)
@@ -1156,7 +1156,7 @@ did not arise — nothing under `crates/*/src` was touched.
   today (PHASE-04 finding F-a). Adding a payload to `Refusal` is a design
   question about what that type carries; the diagnostics surface names the
   clock correctly in the meantime.
-- **PHASE-04's own
+- ~~**PHASE-04's own
   `a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`
   carries the same race PHASE-05's *Learned* entry above describes**: it
   sends its second envelope right after `invocations(&log) >= 1`, which
@@ -1167,7 +1167,25 @@ did not arise — nothing under `crates/*/src` was touched.
   its own initiative (`docs/AGENTS.md` §Execute — *"stop and ask"* on
   anything beyond the declared surface). The fix, when taken, is the same
   one PHASE-05/VT-3 applies: wait for the exchange's own rendered
-  `next_check` before sending the next envelope.
+  `next_check` before sending the next envelope.~~ **Resolved** (bounded
+  cross-phase repair, orchestrator-ruled, `d45901b`'s follow-on): the case
+  now waits for `window.get_next_check() ==
+  goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))`
+  after `invocations(&log) >= 1` and before sending the second envelope —
+  PHASE-04/VT-5's own pattern (the closer fit: same single exchange, same
+  `NEXT_CHECK_A_MINUTE_OFF` instruction), applied here rather than
+  PHASE-05/VT-3's three-exchange shape. Nothing else in
+  `crates/goad/tests/renderer/ingress.rs` shares the vulnerable
+  construction — every other case either already waits on the absorbed
+  line before a dependent send (PHASE-04/VT-5; PHASE-05/VT-2, VT-3, VT-4)
+  or deliberately depends on the *opposite* ordering to prove `engaged`
+  (PHASE-04/VT-3, PHASE-05/VT-5, both against `@slow-view`'s foreground
+  sleep). Proved by reproduction, not inference: under 48-way CPU
+  oversubscription (loadavg climbing 13→50 on 32 cores), the pre-fix
+  binary failed 13/25 runs of this case, every failure `left: "engaged",
+  right: "too_soon"`; the same binary rebuilt with the fix passed 40/40
+  runs under loadavg 42→61. `just check` exits 0 on a clean run
+  afterward. No production code touched.
 
 ### PHASE-02 — The configuration key, and the envelope
 

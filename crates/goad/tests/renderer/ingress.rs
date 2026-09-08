@@ -465,6 +465,17 @@ async fn a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_l
       let first = send(&path, ENVELOPE).await;
       assert!(accepted(&first), "the first envelope is accepted: {first}");
       until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      // Waited for by the exchange's own **absorption**, not merely its
+      // start: `invocations(&log) >= 1` proves only that it began
+      // (`scheduling.rs`'s `absorbed_line` doc comment states the race this
+      // avoids), and a second envelope arriving before it is absorbed would
+      // be refused `engaged` rather than `too_soon` — a race, not a defect
+      // in the anchor, but one that must not be let decide this assertion.
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))
+      })
+      .await;
 
       let refused = send(&path, ENVELOPE).await;
       assert_eq!(reason(&refused), "too_soon");
