@@ -40,21 +40,22 @@ is canon rather than a choice.
 **`crates/goad-shell/src/config.rs`.** One new optional section carrying the
 socket path. Permissive at the file, canonical after — the same split the module
 already uses, and `deny_unknown_fields` means the canonical form must know the
-key before any config may write it.
+key before any config may write it. An empty path is refused at load rather than
+represented past the boundary (`design.md` §5.2).
 
 **Stratum 3 — `crates/goad/src/`.** `main.rs` and `startup.rs` bind the socket
 before the event loop starts, and carry the new startup failures.
 `controller.rs`'s `serve` gains an ingress arm on **both** of its `select!`s —
 the outer one to judge an arrival, the inner one to refuse promptly while an
-exchange is in flight — and the event spacing and its anchor.
+exchange is in flight — and the event spacing and its anchor. `diagnostics.rs`
+gains `Refused::Ingress`, which is how a refusal the loop decided **while idle**
+reaches a person who is not the writer.
 
-`wire.rs` is **not** touched, which supersedes this section's scoping draft.
-Design found that an ingested evaluation is not a `Stimulus` at all: that type
-names why the *host* is asking, and an ingested evaluation is not
-host-originated — the same finding that removed the fourth `event.kind`. The
-vocabulary both paths already share is `Pending::Evaluate`, and the **outer**
-ingress arm builds one directly — the inner arm only ever refuses
-(`design.md` D-13, §5.4).
+`wire.rs` is **not** touched. An ingested evaluation is not a `Stimulus` at all:
+that type names why the *host* is asking, and an ingested evaluation is not
+host-originated. The vocabulary both paths already share is `Pending::Evaluate`,
+and the **outer** ingress arm builds one directly — the inner arm only ever
+refuses (`design.md` D-13, §5.4).
 
 **Stratum 1 — `crates/goad-semantics/`.** `Event` already exists there, and the
 envelope's normalization **stays in stratum 2**. ADR-001 names both sides of
@@ -81,9 +82,12 @@ it). Plus one **new ADR**, written at reconciliation: the envelope normalizes in
 stratum 2 (`design.md` §10). Nothing is edited before reconciliation.
 
 **New canon.** `draft-spec.md` — the ingress contract: the socket, the envelope,
-the reply, the refusal taxonomy and the connection bounds. It takes a SPEC
-number at promotion and is this slice's working authority until then
-(`design.md` D-1).
+the reply, the refusal taxonomy and the connection bounds. It takes its number
+at promotion — **SPEC-003**, as the design and CD-1 name it — and is this
+slice's working authority until then (`design.md` D-1). It numbers its own
+ingress-side requirement **R-12**, as SPEC-002's new requirement is also
+numbered R-12 and neither may be renumbered: every mention of either that
+crosses a document boundary is written `SPEC-002/R-12` or `SPEC-003/R-12`.
 
 **Tests and examples.** Listener behaviour in `goad-shell`; loop and end-to-end
 behaviour in `crates/goad/tests/renderer/`; a documented shell one-liner that
@@ -165,14 +169,21 @@ from a clean clone in the dev shell — this slice's only environment change
 
 ### Readings taken in design
 
-The criteria above are unchanged and their ids are immutable. Two needed a
-reading before they could be built against, and both are recorded in
-`design-log.md` (2026-09-08) and `design.md` D-19:
+The criteria above are unchanged and their ids are immutable. Four needed a
+reading before they could be built against; AC-1, AC-6 and AC-7 are recorded in
+`design-log.md` (2026-09-08) and `design.md` D-19, and AC-3's is
+`draft-spec.md` R-8.
 
 - **AC-1's "verbatim"** holds as *the same instant*, not the same bytes, for
   `timestamp` alone. `Event.timestamp` is a modelled `Timestamp`, so the host
   re-serialises it and an envelope written `+10:00` reaches the backend spelled
   `Z`. `source`, `kind` and `data` are byte-for-byte.
+- **AC-3's "every envelope"** admits one exception, and one only: a connection
+  may close unanswered when the host process itself is gone (`draft-spec.md`
+  R-8) — an envelope that arrives between `bind` and `serve` starting, on a host
+  that then fails to start, gets EOF and no reply. AC-3 also quantifies over
+  *envelopes*, so the one refusal that answers no envelope — the ingress-stopped
+  `unavailable`, see Follow-ups — is outside it rather than a breach of it.
 - **AC-6** is a claim about the two **anchors**: an ingested firing never writes
   the scheduled floor and a scheduled firing never clears the event floor. The
   pending *deadline* still moves after an ingested exchange, because the backend
@@ -180,7 +191,11 @@ reading before they could be built against, and both are recorded in
   evaluation. That is why the *does not advance* case of AC-6 must fix the
   ingested exchange's own deadline as part of its setup, not only the scheduled
   one's: otherwise what the test turns on is a deadline both hypotheses agree
-  about rather than the floor they disagree about (`design.md` §9).
+  about rather than the floor they disagree about (`design.md` §9). AC-6 is
+  discharged by **three** tests, one per way the anchors could cross, and it is
+  the *does not advance* one that is the case ADR-004 says no existing test can
+  distinguish — the other two falsify a different alternative and hold CD-1's
+  new event anchor, on which ADR-004 makes no claim.
 - **AC-7's "unchanged bodies"** means unchanged assertions. `serve` gains one
   parameter, so 23 call sites pass `Ingress::none()`; no assertion moves.
 
@@ -190,15 +205,23 @@ reading before they could be built against, and both are recorded in
 
 - **SPEC-001** (the host/backend interaction protocol) — R-7 (an `evaluate`
   carries the host's instant *and* an event with four fields), R-9 (the host
-  interprets neither an event's data nor a submitted value), R-56 (the three
-  host kinds; the set open). **CD-2 amends R-56** to reserve `"host"` as a
-  source.
+  interprets neither an event's data nor a submitted value), R-22 (the offset
+  rule the envelope's `timestamp` mirrors), R-45..R-47 (an untrusted input may
+  not take the host down), R-56 (the three host kinds; the set open). **CD-2
+  amends R-56** on both sides of one sentence: its first clause narrows to every
+  `evaluate` the host originates **on its own account**, without which a
+  conforming host breaches R-56 the moment it forwards an ingested event, and a
+  clause is added reserving `"host"` as a source. The matching *refusal* is
+  SPEC-003's, not SPEC-001's — a rule about what a host accepts.
 - **SPEC-002** (the host's scheduling behaviour) — R-5 is the requirement this
   slice exists to discharge: *"a host that adds a stimulus other than a due
   check MUST decide separately how that stimulus is bounded, and MUST NOT read
   this requirement as covering it."* Also R-9 (one exchange in flight), R-10
   (cancellation precedence), R-4 and R-6 (the scheduled floor, which this slice
-  must leave exactly as it is), OQ-4. **CD-1 amends it** with the event bound.
+  must leave exactly as it is), OQ-4. **CD-1 amends it** with the event bound as
+  **SPEC-002/R-12** and with the principle it instances, and amends two
+  statements the new requirement would otherwise falsify: §2's count of what
+  this spec abuts, and §6's sentence naming what the host owns.
 
 **Binding, unamended:**
 
@@ -278,17 +301,16 @@ the design and the log.
   person who is not the writer does not.
 - **Refusals a person cannot see.** The diagnostics surface is one whole value,
   presented between exchanges, so only the refusals the host decides while idle
-  survive to be presented (`draft-spec.md` R-15). `engaged` never reaches a
-  person — it is by definition decided during an exchange, and the exchange's
-  own outcome overwrites it — nor does a shape refusal that happened to arrive
-  during one, nor the `unavailable` written after the loop has ended, nor — in
-  the one interleaving where the loop notices it mid-exchange — the
-  `unavailable` that says ingress has stopped, which is the one refusal with no
-  writer to fall back on. That is
-  the commonest refusal a real watcher will meet, invisible to the person
-  debugging the watcher. Making it visible needs something the surface is not
-  today — a count, or a log — and choosing between those is the follow-up, not a
-  detail of this slice. AC-3 is unaffected: the reply is the guarantee, and
-  **every envelope's** refusal reaches its writer — the ingress-stopped
-  `unavailable` named above is the one that reaches none, because it answers no
-  envelope, which is why AC-3 does not quantify over it either.
+  survive to be presented (`draft-spec.md` R-15). Four never reach a person:
+  `engaged`, which is by definition decided during an exchange and is
+  overwritten by that exchange's own outcome; a shape refusal that happened to
+  arrive during one; the `unavailable` written after the loop ends; and — in one
+  interleaving where the loop notices it mid-exchange — the `unavailable` that
+  says ingress has stopped. **`engaged` is the commonest refusal a real watcher
+  will meet**, and it is invisible to the person debugging that watcher. Making
+  it visible needs something the surface is not today — a count, or a log — and
+  choosing between those is the follow-up, not a detail of this slice. AC-3 is
+  unaffected: the reply is the guarantee, and **every envelope's** refusal
+  reaches its writer. The ingress-stopped `unavailable` is the one refusal with
+  no writer to fall back on — it answers no envelope, which is why the surface
+  is its only report and why AC-3 does not quantify over it either.
