@@ -56,17 +56,28 @@ vocabulary both paths already share is `Pending::Evaluate`, and the ingress arm
 builds one directly (`design.md` D-13).
 
 **Stratum 1 — `crates/goad-semantics/`.** `Event` already exists there, and the
-envelope's normalization **stays in stratum 2**: a user-authored format
-normalizes there, as `config.rs` already does, while a backend-authored one
-normalizes in stratum 1 (`design.md` D-3). The one touch is widening
-`json_type_name` from `pub(crate)` to `pub`, which is a visibility change and
-not a dependency. What is fixed and holds: **stratum 1 gains no dependency**,
-and the four ADR-001 instruments and the vocabulary scan pass unchanged.
+envelope's normalization **stays in stratum 2**. ADR-001 names both sides of
+that question — wire-to-canonical normalization is stratum 1's, event ingress is
+stratum 2's — and the envelope is both, so the placement is the deliberate call
+ADR-001 §Consequences says someone must make each time. It is made on **whose
+contract the normalization serves**: stratum 1's holds SPEC-001, the host/backend
+protocol, in one place; the envelope is a different contract with different
+parties that no backend ever sees, and it belongs beside the listener that reads
+it. Normalizing into `Event` from stratum 2 opens no second door — `Event` is a
+transparent record whose only fallible field is a `jiff::Timestamp`, and stratum
+3 has constructed one since slice 002 (`design.md` §2 F6, §5.1, D-3). The
+decision gets its own ADR at reconciliation.
+
+The one code touch is widening `json_type_name` from `pub(crate)` to `pub`,
+which is a visibility change and not a dependency (`design.md` D-18). What is
+fixed and holds: **stratum 1 gains no dependency**, and the four ADR-001
+instruments and the vocabulary scan pass unchanged.
 
 **Canon.** `canon-delta.md` CD-1 (SPEC-002, the event bound), CD-2
 (SPEC-001/R-56, the reserved source) and **CD-3** (ADR-004, whose Verification
 section predicted this slice and is amended to name the tests that discharge
-it). Nothing is edited before reconciliation.
+it). Plus one **new ADR**, written at reconciliation: the envelope normalizes in
+stratum 2 (`design.md` §10). Nothing is edited before reconciliation.
 
 **New canon.** `draft-spec.md` — the ingress contract: the socket, the envelope,
 the reply, the refusal taxonomy and the connection bounds. It takes a SPEC
@@ -188,7 +199,10 @@ reading before they could be built against, and both are recorded in
 **Binding, unamended:**
 
 - **ADR-001** (one-way strata) — names event ingress in stratum 2, so the
-  listener's home is decided.
+  listener's home is decided. It names wire-to-canonical normalization in
+  stratum 1, so the *envelope's* home is not: §Consequences says such questions
+  arise and must be decided deliberately, and this slice decides it and records
+  the decision as a new ADR.
 - **ADR-003** (the workspace of strata) — stratum 2 is `crates/goad-shell`.
 - **ADR-004** (the scheduled anchor) — the record this slice was written to
   argue with. Its premise stands: no stimulus clears the scheduled anchor, and
@@ -250,7 +264,22 @@ the design and the log.
   no lock, no pidfile, no check — and the probe/bind race (OQ-6) is one symptom
   of that rather than a fact about the socket. Closing it inside the ingress
   module would be a partial single-instance guarantee under another name
-  (`design.md` D-10, `research.md` F15).
+  (`design.md` D-10, `research.md` F15). The same gap has a second face after
+  startup: nothing re-probes the path once bound, so a socket unlinked or
+  replaced underneath a live listener leaves it holding a descriptor no
+  `connect` can reach, and the host has nothing to report because nothing
+  arrives (`design.md` §5.5, `draft-spec.md` §6.1).
 - **An accepted ingested evaluation is not distinguishable on the diagnostics
   surface** (OQ-7, `draft-spec.md` OQ-3). The writer has its own answer; the
   person who is not the writer does not.
+- **Refusals a person cannot see.** The diagnostics surface is one whole value,
+  presented between exchanges, so only the refusals the host decides while idle
+  survive to be presented (`draft-spec.md` R-15). `engaged` never reaches a
+  person — it is by definition decided during an exchange, and the exchange's
+  own outcome overwrites it — nor does a shape refusal that happened to arrive
+  during one, nor the `unavailable` written after the loop has ended. That is
+  the commonest refusal a real watcher will meet, invisible to the person
+  debugging the watcher. Making it visible needs something the surface is not
+  today — a count, or a log — and choosing between those is the follow-up, not a
+  detail of this slice. AC-3 is unaffected: the reply is the guarantee, and
+  every refusal reaches its writer.

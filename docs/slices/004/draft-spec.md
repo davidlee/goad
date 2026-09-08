@@ -95,13 +95,13 @@ see.
 | R-6 | One connection carries exactly one envelope. The host MUST read until the first newline or until end of input, whichever comes first, and MUST NOT read further on that connection. | §7 |
 | R-7 | The host MUST bound every read from a connection in both bytes and time, and both bounds MUST be stated rather than implied. Exceeding either is a refusal, reported before the connection is closed. | §7 |
 | R-8 | Every envelope MUST receive exactly one reply on the same connection, after which the host closes it. The only case in which a connection may close unanswered is one in which the host process itself is gone. | §7 |
-| R-9 | An envelope MUST be one JSON object carrying exactly four keys: `source`, `kind`, `timestamp` and `data`. A missing key, a key of the wrong type, an empty `source` or `kind`, a key the object repeats at any depth, and any key beside the four MUST each be refused, and the refusal MUST name the key. | §7 |
+| R-9 | An envelope MUST be one JSON object carrying exactly four keys: `source`, `kind`, `timestamp` and `data`. A top-level value that is well-formed JSON but is **not an object** MUST be refused, naming the type found. A missing key, a key of the wrong type, an empty `source` or `kind`, a key the object repeats at any depth, and any key beside the four MUST each be refused, and the refusal MUST name the key. | §7 |
 | R-10 | `timestamp` MUST be an RFC 3339 instant carrying an explicit UTC offset. One without an offset MUST be refused with a reason distinct from a general parse failure, exactly as SPEC-001/R-22 requires of a backend's instant. | §7 |
 | R-11 | The host MUST NOT interpret `data`, MUST NOT interpret `kind`, and MUST NOT judge `timestamp` beyond its form. All four fields reach the backend as the event of an `evaluate` (SPEC-001/R-7): `source`, `kind` and `data` byte-for-byte as sent, and `timestamp` as the instant sent. The request's own `now` is the host's instant, not the envelope's. | §7 |
 | R-12 | An envelope arriving while an exchange is in flight, or within the minimum spacing after the previous ingested evaluation the host attempted, MUST be refused naming which, and MUST NOT be queued, delayed or coalesced. The host holds no pending event. | §7 |
 | R-13 | An envelope naming `source` of `"host"` MUST be refused. That value is reserved to evaluations the host originates (SPEC-001/R-56), and a backend's right to read it as such depends on this refusal. | §7 |
-| R-14 | Every refusal MUST carry a machine-readable reason drawn from the closed set in §6.3, and MAY carry human-readable detail. A reader MUST NOT branch on the detail. | §7 |
-| R-15 | A refusal MUST also be reported on the host's own diagnostics surface, so that it is visible to a person who is not the writer. | §7 |
+| R-14 | Every refusal MUST carry a machine-readable reason drawn from the closed set in §6.3, and MAY carry human-readable detail. A reader MUST NOT branch on the detail. A `too_soon` refusal MUST additionally carry `retry_after_ms`: a whole number of milliseconds, measured at the moment of refusal, after which the spacing will have elapsed. No other reason carries that field, and a reader MAY act on it. | §7 |
+| R-15 | A refusal the host decides **while no exchange is in flight** MUST also be reported on the host's own diagnostics surface, so that it is visible to a person who is not the writer. A refusal decided while an exchange *is* in flight, and one decided after the host's loop has ended, are reported to the writer only. This is a bound on what the surface can hold, not a licence to be silent: every refusal without exception reaches its writer in the reply R-8 requires. | §7 |
 | R-16 | No envelope, however malformed, may terminate the host, cause it to panic, or leave it unable to invoke its backend again. A malformed envelope MUST NOT reach the backend. | §7 |
 
 ## 5. Behaviour
@@ -173,6 +173,15 @@ of a host without a listener at all — nothing in this product enforces a singl
 instance. R-3 is a statement about a path a live host holds, not a claim that
 the race is closed.
 
+**Non-normative limit — the path after the bind.** Nothing re-probes the path
+once the socket is bound, and R-5 means the host never unlinks it either. A path
+unlinked or replaced underneath a live listener — by a `rm`, or by a second host
+reclaiming it under R-3 — leaves that listener holding a bound descriptor no
+`connect` can reach. Later writers get a connection error, and the host reports
+nothing, because from its side nothing arrives. This is a stated residue and not
+a defect R-1..R-16 close; the mechanism that would close it is single-instance
+enforcement, which this contract does not own.
+
 ### 6.2 The envelope
 
 ```json
@@ -200,7 +209,7 @@ One JSON object, newline-terminated, then the host closes.
 
 ```json
 {"protocol":1,"accepted":true}
-{"protocol":1,"accepted":false,"reason":"too_soon","detail":"an event-triggered evaluation began 1.2s ago; the minimum spacing is 3s"}
+{"protocol":1,"accepted":false,"reason":"too_soon","retry_after_ms":1800,"detail":"an event-triggered evaluation began 1.2s ago; the minimum spacing is 3s"}
 ```
 
 `protocol` is this contract's version, not SPEC-001's; no client speaks both.
@@ -210,26 +219,54 @@ One JSON object, newline-terminated, then the host closes.
 | reason | means | the writer's fix |
 |---|---|---|
 | `malformed` | the bytes were not one JSON document | the serializer |
-| `invalid_envelope` | a missing, wrong-typed, empty, unknown or duplicated key, or a timestamp the host could not read | the envelope; `detail` names the key |
+| `invalid_envelope` | the top-level value was not a JSON object; or a missing, wrong-typed, empty, unknown or duplicated key; or a timestamp the host could not read | the envelope; `detail` names the key, or the type found |
 | `reserved_source` | `source` was `"host"` (R-13) | choose another source |
 | `too_large` | the envelope exceeded the byte bound (R-7) | send less, or move bulk elsewhere |
 | `timed_out` | nothing complete arrived within the time bound (R-7) | terminate the envelope with a newline, or close the write side |
 | `engaged` | an exchange was already in flight (SPEC-002/R-9) | retry, or do not |
-| `too_soon` | inside the minimum spacing (R-12) | coalesce in the watcher (brief §7) |
+| `too_soon` | inside the minimum spacing (R-12) | coalesce in the watcher (brief §7), or wait `retry_after_ms` |
 | `unavailable` | the host cannot act on any envelope now — it is stopping, or its clock is unreadable | wait; `detail` says which |
 
 `detail` is prose for a person. **Nothing may branch on it**, and its wording is
 not part of this contract.
 
+`retry_after_ms` is the one structured thing a writer may act on beyond
+`reason`. It is present exactly when `reason` is `too_soon`, and it is what
+keeps R-14's prohibition on branching on `detail` from leaving a writer with
+only two strategies — drop, or retry blind. It is **advice, not a reservation**:
+the host holds nothing on the writer's behalf, an envelope sent after it may
+still be refused for another reason, and a writer that ignores it is conforming.
+
+**Which refusals a person sees.** All eight reach the writer, always (R-8). Only
+those the host decides while no exchange is in flight reach the diagnostics
+surface a person reads (R-15): `engaged` never does, because it is by definition
+decided during an exchange; a shape refusal reaches it when the host happened to
+be idle and not otherwise; `too_soon` and the clock's `unavailable` always do;
+and the shutdown `unavailable` never does, because the loop that would present
+it has ended.
+
 ### 6.4 The bounds
 
 | bound | value | why it is stated |
 |---|---|---|
-| bytes per connection | 64 KiB | an unbounded read from an untrusted writer is the defect SPEC-001/R-43 names on the other socket |
-| time per connection | 500 ms | a connection that never completes an envelope must not hold ingress; the value is the transport's cleanup budget's sibling |
+| bytes per **read** | 64 KiB | an unbounded read from an untrusted writer is the defect SPEC-001/R-43 names on the other socket |
+| time per **read** | 500 ms | a writer that connects and never completes an envelope must not hold ingress; the value is the transport's cleanup budget's sibling |
 
 Both are host constants. Neither is configurable, and neither is readable by a
 backend or by a watcher.
+
+**What is not bounded, and why.** These bound the *read*, not the connection. A
+connection's life is `accept → read (bounded) → hand the arrival to the host →
+await its judgement → reply → close`, and **the wait for judgement has no
+bound**: it ends when the host judges, and the host judges on the one thread it
+does everything else on. A host that is not making progress therefore delays an
+arrival exactly as it delays a due check, a person's click and a backend's
+answer — ingress inherits that dependency rather than adding one, and no number
+here would change it, because a timeout on the wait would mean answering an
+envelope the host had not judged. The consequence is that a host holds **one**
+arrival at a time (§5, no queue), so an unjudged arrival stops all ingress for
+as long as it lasts, and the writer waits with it rather than being told
+something untrue.
 
 ## 7. Verification
 
@@ -248,20 +285,23 @@ no test is a row this spec may not be promoted holding.
 | R-6 | integration: an envelope terminated by a newline and one terminated by end of input are both accepted; a second envelope written after the first is not read (AC-3) |
 | R-7 | integration: an envelope exceeding the byte bound is refused `too_large`; a connection that writes nothing is refused `timed_out` (AC-4) |
 | R-8 | integration: exactly one line is read back per envelope, and the connection then closes; a judge that goes away yields `unavailable` (AC-3) |
-| R-9 | unit, one case per clause: missing, wrong-typed, empty, duplicated and unknown keys, each refusal naming the key (AC-4, AC-12) |
+| R-9 | unit, one case per clause: a well-formed top-level value that is not an object, naming the type found; and missing, wrong-typed, empty, duplicated and unknown keys, each refusal naming the key (AC-4, AC-12) |
 | R-10 | unit: an offsetless instant is refused distinctly from an unparseable one (AC-4) |
 | R-11 | integration end to end: the backend's recorded request carries `source`, `kind` and `data` byte-for-byte and `timestamp` as the same instant, with `now` the host's own (AC-1) |
-| R-12 | integration: a writer emitting flat out produces a bounded number of evaluations over a window far shorter than the spacing, and the excess replies name the bound; an envelope arriving during an exchange is refused `engaged` (AC-5, AC-4) |
+| R-12 | integration: a writer emitting flat out produces a bounded number of evaluations over a window far shorter than the spacing, and the excess replies name the bound; an envelope arriving during an exchange is refused `engaged` (AC-5, AC-4). Renderer, the anchor's independence in **three** directions, of which the second is the case ADR-004 says no standing test could reach: an ingested firing does not delay a scheduled one; an ingested firing does not **advance** one — a scheduled firing at T₀, an ingested firing at T₀+ε and a `next_check` due at T₀+1 s do not put a scheduled evaluation at the backend before T₀+3 s; and a scheduled firing does not clear the event anchor (AC-6) |
 | R-13 | unit: an envelope naming `source: "host"` is refused with its own reason, with every other field valid (AC-4) |
-| R-14 | integration: one test asserts the **exact token set**, so a reason added or renamed fails here rather than at a client (AC-4) |
-| R-15 | renderer: a refusal appears on the diagnostics surface (AC-4) |
+| R-14 | integration: one test asserts the **exact token set**, so a reason added or renamed fails here rather than at a client; and one asserts that a `too_soon` reply carries `retry_after_ms` and that no other reply carries it (AC-4) |
+| R-15 | renderer: a refusal the host decided while idle appears on the diagnostics surface; and the same refusal decided during an exchange does **not**, which is what makes the requirement's bound a claim rather than an excuse (AC-4) |
 | R-16 | integration and renderer: a malformed envelope produces no request at the backend, and a host that has received a flood of them still evaluates (AC-12) |
 
 ## 8. Open questions
 
-- **OQ-1.** Whether the reply should say *when* a `too_soon` writer may retry as
-  a machine-readable field rather than only in `detail`. Deferred until a client
-  wants to act on it; `goad emit` is the first that could.
+- **OQ-1. Answered, and no longer open.** The reply says when a `too_soon`
+  writer may retry, as `retry_after_ms` (R-14, §6.3). The host computes the
+  value at the moment of refusal whatever it does with it, and putting it on the
+  wire later would be a change to a versioned contract whose first real client
+  is one slice away. What stays out is any reservation or fairness guarantee
+  attached to it — see P-C.
 - **OQ-2.** Whether a watcher should be able to learn the spacing without
   provoking a refusal. Nothing in this contract carries host policy toward a
   writer, and inventing a channel for it here would be the wrong place — the
@@ -283,8 +323,12 @@ no test is a row this spec may not be promoted holding.
 - SPEC-002 (the host's scheduling behaviour) — R-5, which obliged slice 004 to
   bound this stimulus separately; R-9, the one-exchange rule `engaged` reports;
   and the requirement that states the ingested spacing itself.
-- ADR-001 (one-way strata) — event ingress is stratum 2's, and the envelope
-  normalizes there because it is user-authored.
+- ADR-001 (one-way strata) — event ingress is stratum 2's by name. It names
+  wire-to-canonical normalization as stratum 1's, and the envelope is both, so
+  the placement is a decision ADR-001 §Consequences requires be made
+  deliberately: the envelope normalizes beside the listener because that is
+  where *this* contract lives, while stratum 1's normalization holds SPEC-001's.
+  The record of that decision is the ADR slice 004 writes at reconciliation.
 - ADR-004 (the scheduled anchor) — why an ingested evaluation neither clears the
   scheduled anchor nor is bounded by it.
 - `docs/brief.md` §7 (external event ingress and what stays in the watcher),

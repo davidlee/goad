@@ -113,10 +113,12 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
   `deny_unknown_fields`.** `config.rs`: `File`/`FileBackend`/`FileSchedule` all
   carry it, and `an_unknown_key_is_refused_and_named` asserts the refusal names
   the key — its fixture literally plants `socket = "/tmp/goad.sock"` as the
-  unknown key. **This is the precedent for a user-authored format: it normalizes
-  in stratum 2, not stratum 1.** The backend-authored format normalizes in
-  stratum 1 (`protocol/normalize.rs`). The two rules differ by *who wrote the
-  bytes*, not by what kind of work it is.
+  unknown key. The backend-authored format normalizes in stratum 1
+  (`protocol/normalize.rs`). The two differ by **which contract the
+  normalization holds** — `normalize.rs` holds SPEC-001, and holds it in one
+  place — not by who wrote the bytes and not by stratum as such. Neither is a
+  precedent that decides the envelope on its own; `design.md` D-3 makes that
+  call deliberately, as ADR-001 §Consequences says such calls must be made.
 - **F7 ✓ — Diagnostics is replaced wholesale, never appended to.**
   `controller.rs` `absorb` assigns `self.diagnostics = diagnostics`; `refuse`
   assigns `Diagnostics::refused(refused)`. A refusal recorded there is the whole
@@ -181,7 +183,7 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
 - **Permissive wire type beside a canonical one, normalization the only door**
   — `protocol/wire.rs` + `protocol/normalize.rs` (backend-authored), and
   `config.rs`'s `File` → `Config` (user-authored). Both shapes are available;
-  they differ by stratum, and F6 says which rule picks which.
+  what differs is the contract each door holds, not the stratum it sits in.
 - **An error type per *subject*, not per stratum** — `error.rs`'s own doc
   comment argues `ConfigError` into existence as a fifth type because "a config
   file is none of the subjects the others are about". An ingress envelope is a
@@ -237,8 +239,11 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
 2. **C-2 makes the listener/loop split the first design section**, ahead of the
    envelope, the reply or the bound: the refusal set AC-4 enumerates is
    partitioned by which side can answer.
-3. **F6 answers OQ-4 on precedent** — a user-authored format normalizes in
-   stratum 2 — rather than on the "pure things live in stratum 1" reading, which
+3. **F6 does not answer OQ-4 by itself.** Neither precedent covers a format
+   written by a third party, so the placement is a deliberate call rather than
+   an inference: `design.md` D-3 keeps normalization in stratum 2 so that
+   stratum 1's normalization holds one contract, SPEC-001, in one place. The
+   "pure things live in stratum 1" reading is rejected on the same ground — it
    would put a format no backend ever sees inside the protocol crate.
 4. **F1 and F17 together** mean the plan's phases are: stratum 2 listener
    (testable alone), then `serve`'s arms and the anchor, then startup and the

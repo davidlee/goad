@@ -458,3 +458,66 @@ other, citing the finding id.
   the orchestrator's. Reserved to the user: canon endorsement, plan acceptance,
   and any product question touching the wire contract or a spec. The review is
   tier 2 — its own `review-design.md`, rounds unbounded.
+
+### 2026-09-08 — round 1 of the design review is dispositioned under the standing grant
+
+- **Asked:** how the eleven findings of `review-design.md` round 1 are
+  dispositioned. Under the autonomy grant renewed earlier today — *decide
+  everything except canon* — this is the orchestrator's call, not the user's.
+- **Decided (orchestrator):** F-1 and F-5..F-10 `fix-now`; F-2, F-3, F-4 and
+  F-11 `doc-wrong` — the artefact is the defect, the thing it describes is not.
+  Nothing is `tolerated`, `follow-up` or `settle-in-code`; no finding was
+  withdrawn, and every citation was checked before it was acted on.
+- **Consequence — the substantive changes:**
+  - **AC-6 gains a third test** (F-1). The *advances* direction was asserted by
+    nothing, so ADR-004's undischarged case was uncovered: a scheduled firing at
+    T₀, an ingested firing at T₀+ε, a `next_check` due at T₀+1 s, and the
+    scheduled evaluation not reaching the backend before T₀+3 s. CD-3 now says
+    which of the three tests discharges the debt and what the other two hold.
+    AC-6 itself is unchanged.
+  - **R-15 is restated to what the design can hold** (F-2). The diagnostics
+    surface is one whole value presented between exchanges, so `engaged` — and
+    any refusal decided inside an exchange, and the shutdown `unavailable` —
+    is reply-only. Every refusal still reaches its writer, so AC-3 stands. A
+    Follow-up carries making the rest visible to a person; its shape is not
+    designed here.
+  - **The stratum-2 placement stands, and its argument is replaced** (F-3). The
+    user-authored / backend-authored split was invented in this slice and is
+    deleted from `design.md` §2 F6 and D-3 and from `slice-004.md` §Scope. What
+    decides it is whose contract the normalization serves. `Event` is a
+    transparent record whose only fallible field is a `jiff::Timestamp`, and
+    stratum 3 has constructed one since slice 002, so normalizing into it from
+    stratum 2 opens no second door. The decision gets its own ADR at
+    reconciliation.
+  - **CD-2 qualifies R-56's first clause** (F-4) — "on its own account" — and
+    stops claiming R-56's decided content is unaltered. SPEC-001 §9 References
+    joins its section list.
+  - **`retry_after_ms` goes on the wire now** (F-10), on `too_soon` only, which
+    answers `draft-spec.md` OQ-1 rather than deferring a wire change into slice
+    005.
+  - Smaller: CD-1 reaches SPEC-002 §2 Boundaries and §6 (F-5); `unavailable`
+    takes both deciders (F-6); a non-object top-level JSON value is
+    `invalid_envelope` (F-7); `Ingress::arrival` returns `Option<Arrival>` so a
+    dead accept task is distinguishable from `none()`'s park and is reported,
+    with the unlinked-socket case stated as a residue rather than claimed away
+    (F-8); §6.4's bounds are per **read**, with the unbounded wait for judgement
+    stated and tied to the main thread everything else already depends on (F-9);
+    D-18 states the three-way choice it actually was (F-11).
+- **Not done, and reported:** `research.md` F6 and its C-3 conclusion still
+  carry the invented split. It is a research record, outside the four artefacts
+  this repair was scoped to, and it is the orchestrator's call whether it is
+  corrected or left as the record of what was believed at research time.
+
+### 2026-09-08 — the research record is corrected, not preserved as it was believed
+
+- **Asked:** the repair of F-3 left `research.md` still carrying the inference
+  F-3 called invented — F6, the Precedents paragraph and conclusion C-3 — and
+  the repair agent reported it as outside its scope.
+- **Decided:** correct it. `research.md` is verified research output that the
+  plan agent reads, not an append-only log; `docs/AGENTS.md` §Slice says it is
+  repeated as new details emerge. A false inference left standing there is a
+  trap for the next stage.
+- **Consequence:** the three sites keep their observations and lose the
+  inference. What replaces it is D-3's reason: the two normalizations differ by
+  which contract they hold, and stratum 1's holds SPEC-001 in one place. C-3
+  now says F6 does not answer OQ-4 by itself.

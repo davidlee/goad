@@ -32,10 +32,21 @@ than the rest:
   not spend.
 - **F3** — `Stimulus` *synthesises* an event from a host reason; it cannot
   carry one (`wire.rs:41-70`).
-- **F6** — a user-authored format normalizes in stratum 2 (`config.rs`'s
-  `File` → `Config`); a backend-authored one normalizes in stratum 1
-  (`protocol/normalize.rs`). The watcher is neither party, and F6 is what
-  decides which rule it takes.
+- **F6** — ADR-001 §Decision names *both* sides of this slice's placement
+  question: "wire-to-canonical normalization" is stratum 1's, and "event
+  ingress" is stratum 2's (`adr/001-one-way-strata.md:34-37`). The envelope is
+  both, so the names settle nothing, which is exactly the case §Consequences
+  says will arise and must be decided deliberately each time. What decides it:
+  **stratum 1's normalization holds one contract — SPEC-001, the host/backend
+  protocol — in one place, so a second host implementation is held to the same
+  normalization of the same wire.** The envelope is a different contract
+  (`draft-spec.md`), with different parties, that no backend ever sees. Putting
+  it in stratum 1 would make the protocol crate the home of two unrelated wires
+  and give `goad-semantics` a reason to change whenever the socket's contract
+  does. Two permissive-in / canonical-out precedents exist —
+  `protocol/wire.rs` → `protocol/normalize.rs` and `config.rs`'s
+  `File` → `Config` — and the shape is the same in both; the choice is which
+  crate owns *this* contract, and it is stratum 2's (D-3).
 
 ## 3. Forces & constraints
 
@@ -78,9 +89,12 @@ and **one** reply site.
 
 The listener determines shape refusals but does not answer them. It hands every
 arrival to the loop, which answers all of them. That is what gives AC-3 —
-*exactly one reply per envelope* — a single enforcement site, and what puts a
-refusal on the diagnostics surface without inventing a second channel for it
-(D-4).
+*exactly one reply per envelope* — a single enforcement site, and what lets a
+refusal reach the diagnostics surface at all without inventing a second channel
+for it (D-4). It does not put *every* refusal there: the surface is a single
+whole value presented between exchanges, so only the refusals the loop decides
+while it is idle survive to be presented. `draft-spec.md` R-15 states which, and
+`slice-004.md` Follow-ups carries the gap.
 
 ```mermaid
 flowchart LR
@@ -113,13 +127,34 @@ flowchart LR
 | `ingress` (`mod.rs`) | 2 | `bind`, the accept task, the budgets, the reply's bytes, `Ingress` and `Arrival` | decide *engaged* or *too soon* — it cannot see either |
 | `controller::serve` | 3 | both anchors, the accept/refuse decision, and **every** reply | know how an envelope was spelled |
 | `startup` / `main` | 3 | binding before the loop starts, and the exit code when it cannot | recover from a bind failure — it is fatal |
-| `diagnostics` | 3 | the one line a person reads for a refusal | be the writer's answer; the socket already was |
+| `diagnostics` | 3 | the one line a person reads for a refusal **the loop decided while idle** (`draft-spec.md` R-15) | be the writer's answer; the socket already was. It is also not a log: one whole value, presented between exchanges, so a refusal decided *inside* an exchange is superseded before any presentation |
 
 **Two things this model buys.** No host state is shared or duplicated — the loop
 stays the only reader of its own anchors, which is what F2 protects. And *no
 listener configured* is a **state named in the type**: `Ingress::none()` is a
 handle whose arrival future never resolves, so `serve` takes an `Ingress`
 unconditionally and AC-7 holds by construction rather than by a branch.
+
+**Stratum 2 normalizes into `Event`, and that is not a second door.**
+`CLAUDE.md`'s second invariant — *normalization is the only door into the
+canonical types* — is a rule about the **protocol's** canonical values: the
+chain `protocol/wire.rs` → `protocol/normalize.rs` → `protocol/canonical.rs` is
+the sole admission point for anything a backend sends, and this slice does not
+touch it. `Event` itself holds no invariant a constructor could enforce. It is a
+transparent record of four `pub` fields (`canonical.rs:490-497`): `source` and
+`kind` are `String`, `data` is opaque by SPEC-001/R-9, and the one field that
+can fail to be canonical is `timestamp`, whose canonicality is carried entirely
+by `jiff::Timestamp` — a type stratum 2 may already name (`jiff` is on stratum
+2's manifest allowlist, `goad-boundary/tests/checks/allowlist.rs:19-27`).
+Constructing an `Event` outside stratum 1 is also **already the status quo**:
+`wire.rs:62` (stratum 3) has built one for every host-originated evaluation
+since slice 002. So the envelope adds a second *producer* of a transparent
+record, not a second gate on a guarded one.
+
+What that argument does owe: the offset rule is now stated twice —
+SPEC-001/R-22 for the backend's instant, `draft-spec.md` R-10 for the
+envelope's — and two statements of one rule can drift. R-10 is written to mirror
+R-22 in terms, and both parse through the same jiff two-step (`research.md` F5).
 
 ### 5.2 Interfaces & contracts
 
@@ -172,27 +207,37 @@ the same rule the backend wire follows.
 
 ```json
 {"protocol":1,"accepted":true}
-{"protocol":1,"accepted":false,"reason":"too_soon","detail":"an event-triggered evaluation began 1.2s ago; the minimum spacing is 3s"}
+{"protocol":1,"accepted":false,"reason":"too_soon","retry_after_ms":1800,"detail":"an event-triggered evaluation began 1.2s ago; the minimum spacing is 3s"}
 ```
 
 One line, then the host closes. `reason` is a closed set; `detail` is prose for
-a person, and nothing may branch on it.
+a person, and nothing may branch on it. **`retry_after_ms` is the one structured
+thing a writer may act on beyond `reason`**, and it is present exactly when
+`reason` is `too_soon` (`draft-spec.md` R-14).
 
-| reason | decided by | when |
-|---|---|---|
-| `malformed` | listener | the bytes are not one JSON document |
-| `invalid_envelope` | listener | a missing, wrong-typed, empty, unknown or duplicated key; a timestamp without an offset or unparseable |
-| `reserved_source` | listener | `source == "host"` (CD-2) |
-| `too_large` | listener | more than `ENVELOPE_LIMIT` before the envelope ended |
-| `timed_out` | listener | nothing complete within `ENVELOPE_DEADLINE` |
-| `engaged` | **loop** | an exchange is in flight (SPEC-002/R-9) |
-| `too_soon` | **loop** | inside the event spacing (CD-1) |
-| `unavailable` | listener | the loop is gone — the host is stopping |
+| reason | decided by | when | reaches a person? |
+|---|---|---|---|
+| `malformed` | listener | the bytes are not one JSON document | when the loop was idle |
+| `invalid_envelope` | listener | the top-level value is not a JSON object; or a missing, wrong-typed, empty, unknown or duplicated key; or a timestamp without an offset or unparseable | when the loop was idle |
+| `reserved_source` | listener | `source == "host"` (CD-2) | when the loop was idle |
+| `too_large` | listener | more than `ENVELOPE_LIMIT` before the envelope ended | when the loop was idle |
+| `timed_out` | listener | nothing complete within `ENVELOPE_DEADLINE` | when the loop was idle |
+| `engaged` | **loop** | an exchange is in flight (SPEC-002/R-9) | **no** — it is decided only inside an exchange, and `absorb` overwrites it |
+| `too_soon` | **loop** | inside the event spacing (CD-1) | yes — decided only while idle |
+| `unavailable` | listener **or loop** | the loop is gone, the host is stopping (listener); or the clock is unreadable (loop, §5.4 step 3) | the clock case, yes; the shutdown case **no** — there is no loop left to present |
+
+The last column is a fact about the diagnostics surface, not about the reply:
+**every** refusal above is reported to its writer, always (AC-3, I-1). What the
+column records is which of them a person who is not the writer can see, which is
+what `draft-spec.md` R-15 states and what `slice-004.md` Follow-ups exists to
+close.
 
 #### Stratum 2 — `crates/goad-shell/src/ingress/`
 
 ```rust
 pub const ENVELOPE_LIMIT: usize = 64 * 1024;
+/// Bounds the **read**, not the connection: the wait for the loop's judgement
+/// is unbounded by design (I-2, `draft-spec.md` §6.4).
 pub const ENVELOPE_DEADLINE: Duration = Duration::from_millis(500);
 pub const SOCKET_MODE: u32 = 0o600;
 
@@ -204,8 +249,14 @@ pub struct Ingress { /* Option<mpsc::Receiver<Arrival>> */ }
 impl Ingress {
   /// The handle a host with no socket holds.
   pub fn none() -> Self;
-  /// Cancel-safe. **Never resolves** when nothing is bound.
-  pub async fn arrival(&mut self) -> Arrival;
+  /// Cancel-safe. **Never resolves** when nothing is bound — that is
+  /// `none()`'s park, and it is a different state from the one below.
+  ///
+  /// `None` means a **bound** receiver's senders are all gone: the accept
+  /// task has ended for a reason other than this receiver being dropped,
+  /// which today means it panicked. The receiver is dropped on the way out,
+  /// so the arm parks from then on instead of spinning on a closed channel.
+  pub async fn arrival(&mut self) -> Option<Arrival>;
 }
 
 pub struct Arrival { /* Result<Event, Refusal> + a oneshot */ }
@@ -224,11 +275,21 @@ impl Answer {
 A dropped `Answer` is **defined, not a bug**: the listener sees the channel
 close and writes `unavailable`. That is the shutdown path.
 
+**What the loop does with `None`.** It folds one `Refused::Ingress` onto the
+diagnostics surface — reason `unavailable`, detail naming that ingress has
+stopped — and parks the arm. That is a refusal in substance: it is the standing
+answer to every envelope from then on, and it is the one refusal whose writer
+cannot be told directly, because nothing is listening to tell. D-11 is not
+widened; the surface still shows refusals only.
+
 `Refusal` carries its own payload — `TooSoon { retry_after }`,
 `TooLarge { limit }`, `TimedOut { after }`, `InvalidEnvelope(EnvelopeFault)` —
 with `reason() -> &'static str` for the wire and `Display` for `detail`.
-`EnvelopeFault` is the precise vocabulary behind one wire reason (missing,
-wrong-typed, unknown, empty, duplicate, timestamp), which is the same
+`TooSoon` is the one payload that also reaches the wire as a field of its own,
+`retry_after_ms` (`draft-spec.md` R-14); every other payload reaches it
+only through `detail`, which nothing may branch on.
+`EnvelopeFault` is the precise vocabulary behind one wire reason (not an object,
+missing, wrong-typed, unknown, empty, duplicate, timestamp), which is the same
 permissive-in / precise-diagnostic split `ScheduleError` already uses.
 
 `IngressError` is one struct — the path, and a fault naming what was found — so
@@ -238,7 +299,9 @@ unprobeable, unlinkable, unbindable, or its mode unsettable.
 **One stratum 1 touch:** `json_type_name` is `pub(crate)`
 (`goad-semantics/src/error.rs:18`) and the envelope's faults need it. Widening
 it to `pub` is a **visibility change, not a dependency** — `goad-semantics`
-gains nothing, and AC-11 is untouched.
+gains nothing, and AC-11 is untouched. It is one of three ways to get the same
+six type names into stratum 2, and no ADR-001 instrument sees which was taken;
+D-18 states the choice and why it is held by that line alone.
 
 #### Stratum 3 — `crates/goad/src/`
 
@@ -370,7 +433,7 @@ in flight is dropped, and the listener writes `unavailable` before closing.
 | # | holds | how |
 |---|---|---|
 | I-1 | every envelope is answered exactly once | `Answer`'s two methods each consume `self`; a **dropped** `Answer` is the defined `unavailable` path, not a leak |
-| I-2 | **at most one arrival is outstanding**, so *the host holds no queue* is true by construction | the listener awaits the reply before accepting the next connection; the channel's capacity is irrelevant beyond 1 |
+| I-2 | **at most one arrival is outstanding**, so *the host holds no queue* is true by construction | the listener awaits the reply before accepting the next connection; the channel's capacity is irrelevant beyond 1. The cost is stated, not hidden: the wait for judgement is **unbounded** — `ENVELOPE_DEADLINE` bounds the read, not the connection — so an unjudged arrival stops all ingress for as long as the main thread is not polling `serve` (`main.rs:102`, `slint::spawn_local`). That is the same main-thread dependency a scheduled firing, a person's click and a backend's answer already have; ingress does not add one, it inherits it (`draft-spec.md` §6.4) |
 | I-3 | no arrival takes the host down or leaves it unable to invoke the backend | parsing is `serde_json` over an owned buffer, nothing derived from an envelope is unwrapped, and every failure is a `Refusal` (SPEC-001/R-45, R-46) |
 | I-4 | the two anchors never cross-write | one write site each, both in `serve`, neither reading the other (P-3, ADR-004) |
 | I-5 | the host reads no meaning | `data` is never inspected; `source` is compared against exactly one string; `kind` is checked for emptiness and carried |
@@ -412,7 +475,9 @@ in flight is dropped, and the listener writes `unavailable` before closing.
 | a path longer than `sun_path` admits | `bind` fails, and the startup error names the path (AC-9) |
 | a symlink at the path | not a socket → startup error. A symlink *to* a socket is ambiguous and is refused rather than followed |
 | a second envelope on the same connection | never read; the host replied and closed (AC-3) |
-| `accept()` returns an error (`EMFILE`, `ECONNABORTED`) | the task keeps accepting: on a bound Unix listener these are per-connection conditions, and there is no writer to report them to. The task exits **only** when the loop's channel closes, so ingress cannot die silently mid-run (AC-12) |
+| `accept()` returns an error (`EMFILE`, `ECONNABORTED`) | the task keeps accepting: on a bound Unix listener these are per-connection conditions, and there is no writer to report them to. In the ordinary case the task then exits only when the loop's channel closes |
+| the accept task ends for any other reason — a panic inside it | the loop's `arrival()` yields `None`, the loop folds one `Refused::Ingress` (`unavailable`, naming that ingress has stopped) onto the diagnostics surface and parks the arm. **This is what "ingress cannot die silently" actually holds**: the loop can tell a dead task from `Ingress::none()`'s park, and says so once |
+| the socket is unlinked underneath a live listener — a `rm`, or a second host reclaiming the path under `draft-spec.md` R-3 | **stated residue.** Nothing re-probes the path after `bind`, and D-16 removes the host's own unlink, so the listener keeps a bound fd no `connect` can reach. Every later watcher gets `ECONNREFUSED`/`ENOENT` and the host reports nothing, because from its side nothing arrives. AC-12 survives — the host is up and still evaluating — but the design does not claim this case away, and closing it needs a re-probe or the single-instance work `slice-004.md` Follow-ups carries |
 
 ## 6. Open questions
 
@@ -423,7 +488,7 @@ All ten are dispositioned; one is carried by decision.
 | OQ-1 spacing value / configurability | **answered** — 3 s, one constant, two anchors, not configurable (D-5) |
 | OQ-2 reply format / version | **answered** — one versioned JSON line (D-6), normative in `draft-spec.md` |
 | OQ-3 one envelope or a stream | **not design's** — AC-3 settled it at scoping: one envelope per connection |
-| OQ-4 where normalization lives | **answered** — stratum 2, on `config.rs`'s precedent (D-3) |
+| OQ-4 where normalization lives | **answered** — stratum 2, because that is where the contract it serves lives; ADR-001 names both sides and settles neither (§2 F6, D-3) |
 | OQ-5 where the reserved-source rule is stated | **answered** — emission in SPEC-001/R-56, refusal in SPEC-003 (D-3) |
 | OQ-6 the probe/bind race | **answered by not closing it** (D-10). Stated as a limit; single-instance enforcement becomes a follow-up |
 | OQ-7 diagnostics | **answered** — refusals only (D-11) |
@@ -440,13 +505,13 @@ it is measurable, and the plan measures it.
 |---|---|---|
 | D-1 | the ingress contract gets a draft spec, promoted at audit | design-only (slice 005 would read a closed slice's design); extending SPEC-001 (the wrong parties) |
 | D-2 | the loop judges every envelope; ingress is watched in **both** selects | a listener reading shared state (duplicates the anchors); `try_send` fullness as the refusal (that is a queue of one) |
-| D-3 | the envelope normalizes in stratum 2; the rule splits SPEC-001 (what a host emits) / SPEC-003 (what a host accepts) | stratum 1 — a format no backend ever sees, inside the protocol crate |
-| D-4 | the listener *determines* shape refusals; the loop *answers* all of them | the listener answering its own: two reply sites, and refusals invisible to the diagnostics surface |
+| D-3 | the envelope normalizes in **stratum 2**, beside the listener; and the reserved-source rule splits SPEC-001 (what a host emits) / SPEC-003 (what a host accepts) | stratum 1 — it would make the protocol crate the home of a second, unrelated wire contract that no backend ever sees, and give `goad-semantics` a reason to change whenever the socket's contract does. ADR-001 names both sides of the question and settles neither; §2 F6 states what decides it and §5.1 states why normalizing into `Event` from stratum 2 is not a second door into a canonical type. Recorded as an ADR at reconciliation (§10) |
+| D-4 | the listener *determines* shape refusals; the loop *answers* all of them | the listener answering its own: two reply sites, and **no** refusal able to reach the diagnostics surface at all. As decided, the ones the loop answers while idle do reach it and the rest do not (`draft-spec.md` R-15) — a strict improvement, not a complete answer, and the remainder is a Follow-up |
 | D-5 | one `MINIMUM_SPACING`, two anchors, not configurable | a second constant (drift, and no evidence fixes either number); configurable (ADR-004: a bound a misconfiguration can remove is not a bound) |
 | D-6 | the reply is one versioned JSON line | unversioned (SPEC-001/R-1's lesson); plain text (slice 005 would parse prose) |
 | D-7 | the envelope is strict: four fields, unknown keys refused, offset mandatory, distance unjudged | permissive (silently drops what the writer meant to send, SPEC-001/R-20's case); an optional timestamp (the host would author the originator's own field) |
 | D-8 | framing is a newline **or** EOF, whichever comes first | EOF-only (breaks `nc`); newline-only (breaks `socat`) |
-| D-9 | sequential accept, 64 KiB and 500 ms per connection | a task per connection (a second concurrency dimension); a byte bound alone (an idle connection stops ingress with no diagnostic) |
+| D-9 | sequential accept, 64 KiB and 500 ms **per read** — the wait for the loop's judgement is deliberately unbounded (I-2, `draft-spec.md` §6.4) | a task per connection (a second concurrency dimension); a byte bound alone (an idle connection stops ingress with no diagnostic); a bound on the wait for judgement (it would mean answering an envelope the host had not judged) |
 | D-10 | the probe/bind race is documented, not closed | an atomic `link`; a lock file. Both are partial single-instance enforcement under another name (`research.md` F15) |
 | D-11 | the diagnostics surface shows refusals only | the stimulus behind the current view (stratum-3 plumbing); a ring buffer (retained state in a module that retains nothing) |
 | D-12 | `Ingress::none()` parks forever; `serve` takes an `Ingress` unconditionally | `Option<Ingress>` plus a select guard; a second entry point; hanging it off `Host` or `Controller` |
@@ -455,7 +520,7 @@ it is measurable, and the plan measures it.
 | D-15 | an **attempted** ingested firing writes the event anchor, one refused for want of a clock included | not writing it lets a broken clock spin. Mirrors SPEC-002 §5 exactly |
 | D-16 | no unlink on exit | a `Drop` unlink would leave AC-8's reclaim path exercised only after a crash |
 | D-17 | `socat` joins the devshell; `examples/demo.toml` listens in the checkout | a `deno eval` one-liner (a bad advertisement for a socket anything can write to); `/tmp` (depends on a directory this design declines to defend); a second config and a second recipe |
-| D-18 | `json_type_name` is widened to `pub` | a second copy of it in stratum 2 |
+| D-18 | `json_type_name` is widened to `pub` | **two alternatives, not one.** A *second copy* in stratum 2: two tables naming the same six JSON types, free to drift, and the function's own comment — "the one such table in the crate" — false across the workspace. A *local match* on `serde_json::Value`'s six discriminants inside `EnvelopeFault`: available, because `serde_json` is on stratum 2's allowlist (`goad-boundary/tests/checks/allowlist.rs:19-27`), and it is the same six arms written a second time under another name. Both duplicate a diagnostic vocabulary a person reads; the widening instead adds a permanent public export to `goad-semantics`. Taken because one table that cannot drift is worth more than a narrow export. **No ADR-001 instrument sees this choice** — crate edges see only crate edges, the manifest allowlist only dependency entries, the purity scan only stratum 1's `std` reaches, and `cargo test -p goad-semantics` rejects nothing (`docs/policy/001-the-phase-gate.md` §Verification). It is held by this line |
 | D-19 | AC-6 is a claim about the two anchors; AC-7 is about unchanged assertions | `design-log.md`, both 2026-09-08 |
 
 **D-13 has a consequence outside this document.** `slice-004.md` §Scope says
@@ -491,9 +556,9 @@ Four tiers, and every acceptance criterion lands in one.
 | AC-1 | renderer: a scripted backend records its request; assert `source`, `kind` and `data` byte-identical, `timestamp` the same **instant** (§5.5 A-3), and `now` the host's own |
 | AC-2 | renderer: the view reaches the window and `current_view_token` answers it — the same helper the scheduled tests already use |
 | AC-3 | integration: exactly one line, then EOF; plus a dropped `Answer` yielding `unavailable` |
-| AC-4 | integration (the five shape reasons) and renderer (`engaged`, `too_soon`); **one test asserts the exact token set**, which is R3's mitigation |
+| AC-4 | integration (the five shape reasons, the non-object top-level among them) and renderer (`engaged`, `too_soon`); **one test asserts the exact token set**, which is R3's mitigation; one asserts `retry_after_ms` is on a `too_soon` reply and on no other; and two hold `draft-spec.md` R-15's bound from both sides — a refusal decided while idle reaches the diagnostics surface, and the same refusal decided during an exchange does not |
 | AC-5 | renderer: a writer emitting flat out; the invocation count is bounded over a window far shorter than the spacing, and the excess replies say `too_soon` |
-| AC-6 | renderer, **both directions**: (i) an ingested exchange falling between a short `next_check` and its firing does not push that firing out by the spacing — an ingested firing never writes `floor_until`; (ii) an ingested firing, then a scheduled firing, then a second event inside the ingested spacing is **still** `too_soon` — a scheduled firing never clears the event anchor. This is ADR-004's undischarged debt |
+| AC-6 | renderer, **three cases** — one per way the two anchors could cross. (i) *does not delay*: an ingested exchange falling between a short `next_check` and its firing does not push that firing out by the spacing — an ingested firing never writes `floor_until`. (ii) *does not advance*: a **scheduled** firing at T₀, an ingested firing at T₀+ε, and a `next_check` due at T₀+1 s — the scheduled evaluation does not reach the backend before T₀+3 s. (iii) *the event anchor is not cleared*: an ingested firing, then a scheduled firing, then a second event inside the ingested spacing is **still** `too_soon`. **(ii) is the one that discharges ADR-004's debt** — it is the only case in which the anchor and the boolean alternative ADR-004 rejected disagree, because the boolean would have been cleared by the intervening ingested firing and would fire at T₀+1 s. (i) falsifies the third alternative (an anchor on "the last thing the host did") and (iii) holds CD-1's new rule, on which ADR-004 makes no claim |
 | AC-7 | the existing suite with unchanged assertions, plus: with no key configured, no file is created at any path |
 | AC-8 | integration: a socket left behind is unlinked and rebound; a **live** one gives `InUse` naming the path, and the first listener keeps serving |
 | AC-9 | integration: a regular file at the path, and a path that cannot be created; the fault names what was found. Stratum 3: `StartupError::Ingress` renders and maps to exit 2 |
@@ -509,13 +574,14 @@ kept.
 
 ## 10. Canon impact
 
-Three debts, not two.
+Three deltas and one new record.
 
 | # | document | change |
 |---|---|---|
 | CD-1 | SPEC-002 | a new principle — *each bounded stimulus class is spaced from the previous firing of its own class, on its own monotonic anchor, and no anchor is written by another's firing* — plus **R-12** as its ingested instance at three seconds, a §5 paragraph, the OQ-4 sentence CD-1 already promises, and a §7 verification row. `canon-delta.md` carries the decided value and the principle, which discharges its *open at scoping* clause |
 | CD-2 | SPEC-001/R-56 | **the emission clause only**: `"host"` is reserved, and a backend may read `source == "host"` as the host asking on its own account. The *refusal* moves to SPEC-003 (D-3), and `canon-delta.md` is updated to say so |
-| **CD-3** | **ADR-004** | **new.** Its Verification section says the anchor is held by review because *"no standing test can distinguish the anchor from the boolean alternative… the case that separates them is the one slice 004 will introduce."* AC-6's two tests **are** that case, so the record is amended at reconciliation to name them. `docs/AGENTS.md` requires an ADR be kept accurate as its consequences are learned; this is the consequence it predicted |
+| **CD-3** | **ADR-004** | **new.** Its Verification section says the anchor is held by review because *"no standing test can distinguish the anchor from the boolean alternative… the case that separates them is the one slice 004 will introduce."* AC-6's **third** test is that case — the *advances* direction (§9) — and the record is amended at reconciliation to name all three by file and function, saying which one discharges the debt. `docs/AGENTS.md` requires an ADR be kept accurate as its consequences are learned; this is the consequence it predicted |
+| — | **a new ADR** | **written at reconciliation:** *the event envelope normalizes in stratum 2.* ADR-001 §Decision names "wire-to-canonical normalization" in stratum 1 and "event ingress" in stratum 2, and the envelope is both; §2 F6 states what decides it and §5.1 states why it opens no second door into a canonical type. It gets a record rather than only a design section because `docs/AGENTS.md` requires one of any decision that could later be reversed by accident, and this one is invisible to every ADR-001 instrument |
 | — | `draft-spec.md` → SPEC-003 | new canon: the socket, the envelope, the reply, the refusal taxonomy, the budgets, and the bind race as a non-normative limit |
 | — | POL-001 | **unchanged.** `tokio` gains `net`, which the manifest allowlist does not see (`research.md` F12) and which cannot reach stratum 1 (F11) — argued here, which is what POL-001's residue clause asks of the slice that takes it |
 | — | ADR-001, ADR-003 | unamended |
