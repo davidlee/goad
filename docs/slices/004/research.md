@@ -199,10 +199,90 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
 
 ## Thread 3 — spike A-1
 
-*Reserved.* Filled by `plan.md` PHASE-01 with the probe's output and its
-verdict: whether a `tokio::spawn`ed accept task delivers a connection to a
-`slint::spawn_local` future while Slint owns the main thread. Empty until then,
-and nothing may load-bear on it while it is.
+### Spike A-1 result — **run 2026-09-08, and it arrives.** Verdict: **A-1 holds.**
+
+**What was run**, at `658b124` — a descendant of the design's `b6ca5f7` that
+changes no source (`git diff --stat b6ca5f7 -- crates/ Cargo.toml justfile
+flake.nix examples/ tests/` is empty). `docs/slices/004/ingress-probe.local.rs` (gitignored under
+`*.local.*`, preserved for re-running), added to `crates/goad/Cargo.toml` as a
+temporary `[[test]]` target pointing outside the crate, with `net` added to that
+crate's tokio features for the duration (`crates/goad/Cargo.toml:22` has
+`rt-multi-thread` and `sync` only). Run three times with
+`cargo test -p goad --test ingress_probe -- --nocapture`, and **both** manifest
+edits reverted immediately afterwards — the file is byte-identical to its state
+at entry (sha256 `7aa0c09a…`), and `just check` exits 0 with it reverted. No
+probe code was left in `crates/`.
+
+**The topology.** `start`'s, in `start`'s order (`crates/goad/src/main.rs:47-121`,
+`design.md` §5.4): `init_integration_test_with_system_time()` for a real headless
+Slint event loop on real time; a multi-thread tokio runtime built with
+`enable_all()`; its `EnterGuard` held for the life of the loop; **`bind` under
+that guard and before the loop starts**, each `bind` `tokio::spawn`ing its own
+accept task; a real `PromptWindow` and `Tray`; one `slint::spawn_local` future
+doing all the waiting; `run_event_loop_until_quit` on the main thread outside it;
+the process ended by `slint::quit_event_loop` from inside that future.
+
+Each accept task is `design.md` §5.2's listener cut to the question: accept, read
+to the first newline or EOF, hand an `Arrival` — the bytes plus a `oneshot`
+sender — to the loop over an `mpsc::channel`, **await the judgement before
+accepting again** (I-2), then write one JSON line and close. The four `select!`s
+reproduce the design's arm ordering with ingress **last**: outer
+`cancel → commands → sleep → ingress`, inner `cancel → call → ingress`. The
+parked sleep is an hour out and the command channel keeps a live but silent
+sender, so no arm above ingress can be ready. The client is what the slice's
+client actually is: a blocking `std::os::unix::net::UnixStream` on a thread of
+its own, off the runtime being measured.
+
+**Four cases, one process.** Elapsed times are the range over three consecutive
+runs.
+
+| case | what it put under the arrangement | measured |
+|---|---|---|
+| P-A | a `tokio::spawn`ed accept task delivering a connection to the `spawn_local` future's `select!` | arrival observed **via the ingress arm** in **128–207 µs** from the client's `connect`; all 89 envelope bytes intact |
+| P-B | the future answering on the `oneshot`; the task writes one line and closes | **connect→reply 105–130 µs**; **30 bytes** read — `{"protocol":1,"accepted":true}` — then the connection closed |
+| P-C | the arrival landing while the future awaits a real `Host::evaluate` against a child process, pinned in an inner `select!` | arrival observed **before the exchange completed: true**, at **100.4 ms** into a **305 ms** exchange (connect→arrival 275–337 µs); the exchange still resolved, no failure, `next_check` re-armed |
+| P-D | **the negative control** — P-A with nothing else armed and a second of deliberate idle first | arrival observed in **243–300 µs**, after **1.0004 s** parked with cancel untripped, the command channel live and silent, the timer parked 3600 s out and no click |
+
+Total wall time 1.306 s per run, of which 1.0 s is P-D's deliberate idle and
+0.305 s is P-C's exchange.
+
+**Run 1 verbatim:**
+
+```
+P-A connect->arrival 206.561µs, via the ingress arm, 89 bytes read: {"source":"probe","kind":"connected","timestamp":"2026-09-08T10:00:00+10:00","data":null}
+P-B connect->reply 130.401µs (arrival at 108.551µs), 30 bytes read, connection closed: {"protocol":1,"accepted":true}
+P-C exchange took 305.104413ms; arrival observed BEFORE it completed = true, at Some(100.357381ms) into the exchange, connect->arrival Some(274.932µs); the exchange still resolved: failure=Some(false) next_check=Some(2026-09-08T10:34:25.171619037Z)
+P-D connect->arrival 299.702µs after 1.000390744s parked with NOTHING ELSE ARMED (cancel untripped, command channel live and silent, timer parked 3600s out, no click)
+total wall time 1.306623836s
+```
+
+**What it settles.** **A-1 holds.** A `tokio::spawn`ed task accepting on a
+`tokio::net::UnixListener` runs, and its reactor polls that listener, while the
+main thread sits inside Slint's event loop under the runtime guard; its `send`
+wakes the `spawn_local` future across threads; and the future's reply travels
+back out to the client on the same connection. `UnixListener::bind` succeeds
+under the guard, called synchronously where `design.md` §5.4 puts it.
+
+**P-D is the decisive one and the margin is large.** `plan.md` PHASE-01/S-1
+treats *anything over 100 ms with nothing else armed* as red. The worst of three
+runs is **299.7 µs — 334× under the bound**, after a full second in which the
+loop had nothing else to wake for. P-A's number is therefore not an artefact of
+some other source waking the loop.
+
+**P-C is the one the design's shape depends on.** `design.md` §5.4 I-2 makes
+`engaged` reachable only if an arrival can be observed by the **inner** `select!`
+while an exchange is in flight; it was, 100 ms into a 305 ms exchange, and the
+exchange completed normally afterwards. The inner arm's shape is buildable as
+designed.
+
+**What was measured, and what was not.** Measured: delivery, the reply's bytes
+and its close, the inner-arm case, and the negative control — on this machine,
+under `cargo test`, on Slint 1.17.1 and tokio 1.53.1. **Not** measured, and not
+this phase's: any budget or bound (`ENVELOPE_LIMIT`, `ENVELOPE_DEADLINE`), the
+mode, the reclaim, behaviour under a flat-out writer, and anything about
+`serve`. The probe's listener is a cut-down stand-in for `design.md` §5.2's, not
+that module: it holds the shape A-1 is a claim about — accept, bounded-by-framing
+read, one arrival outstanding, one reply, close — and nothing else.
 
 ## Thread 4 — plan-stage verification (2026-09-08)
 
