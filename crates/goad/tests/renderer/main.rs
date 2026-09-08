@@ -1,14 +1,18 @@
-//! The cheap tier: headless, no display server, no socket opened
+//! The cheap tier: headless, no display server, and one socket opened —
+//! `ingress`, which drives `serve` with a real bound `Ingress` because an
+//! envelope's effect on the loop cannot be observed any other way (slice 004
+//! PHASE-04); no other module here opens one
 //! (design.md §5.1, `plan.md` EX-8). `#[cfg(test)]` on the declaration, not
 //! on the module file itself, for `clippy::tests_outside_test_module` — a
 //! `tests/` target is always built with `--test`, so the `cfg` is never off
 //! (`crates/goad-boundary/tests/checks/main.rs` states the same reason).
 //!
-//! Eight modules today: `tree`, items 6-10 (PHASE-03); `mapper`/`tray`,
+//! Nine modules today: `tree`, items 6-10 (PHASE-03); `mapper`/`tray`,
 //! items 4, 5 and 16 (PHASE-04); `reception`, item 13 (PHASE-05); `table`,
 //! item 12 (PHASE-06); `wiring`, item 11 in full and 14a-d (PHASE-07/10);
 //! `startup`, item 17 (PHASE-08); `scheduling`, the timer arm (slice 003
-//! PHASE-02).
+//! PHASE-02); `ingress`, the two ingress arms and the second anchor (slice 004
+//! PHASE-04).
 //!
 //! `driving` is the host-driving half of slice 001's test helpers
 //! (design.md §12.8), shared with `crates/goad-shell/tests/integration`;
@@ -19,6 +23,8 @@
 //! of its callers.
 #[cfg(test)]
 mod harness;
+#[cfg(test)]
+mod ingress;
 #[cfg(test)]
 mod mapper;
 #[cfg(test)]

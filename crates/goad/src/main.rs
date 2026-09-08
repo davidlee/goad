@@ -107,6 +107,8 @@ fn start(path: &Path) -> Result<(), StartupError> {
       cancel,
       clock::wall_clock,
       glass,
+      // The real one is PHASE-06's, together with the bind that produces it.
+      goad_shell::ingress::Ingress::none(),
     )
     .await;
     // The crate's ONLY `quit_event_loop` call site (F-20). Its `Err` says only

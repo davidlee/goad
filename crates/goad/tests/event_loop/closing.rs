@@ -22,6 +22,7 @@ use goad::wire::{Cancel, Command, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
 use goad_shell::host::Host;
+use goad_shell::ingress::Ingress;
 use i_slint_backend_testing::init_integration_test_with_mock_time;
 use slint::platform::WindowEvent;
 use slint::{ComponentHandle, VecModel};
@@ -80,7 +81,16 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
   let ending = Rc::new(RefCell::new(None));
   let recorded = Rc::clone(&ending);
   let _serving = slint::spawn_local(async move {
-    let served = serve(host, Controller::new(), rx, cancel, wall_clock, glass).await;
+    let served = serve(
+      host,
+      Controller::new(),
+      rx,
+      cancel,
+      wall_clock,
+      glass,
+      Ingress::none(),
+    )
+    .await;
     *recorded.borrow_mut() = Some(served.ending);
     // The crate's only `quit_event_loop` call site, mirrored from `main.rs`
     // exactly: matched, not discarded, because `let _ =` trips

@@ -1,0 +1,707 @@
+//! `plan.md` PHASE-04: `serve`'s two ingress arms, the second anchor, and
+//! what a refusal costs the thread a person is looking at.
+//!
+//! Every case here drives the **production** `serve` with a **real bound
+//! `Ingress`** over a real Unix domain socket and a real child process — the
+//! same function `wiring.rs` and `scheduling.rs` drive, with one more argument.
+//! It is the only module in this target that opens a socket, and it opens one
+//! because an envelope's effect on the loop is not observable any other way.
+//!
+//! **The writer's side is `std::os::unix::net`, on `spawn_blocking`.**
+//! `tokio::net` reaches this target only by feature unification through
+//! `goad-shell`, and `crates/goad/Cargo.toml` is not this phase's to change;
+//! the standard library's socket depends on nothing this crate does not
+//! already declare, and running it on the blocking pool keeps it off the
+//! thread `serve` is on.
+//!
+//! **`plan.md` PHASE-04/EX-11 governs this file:** every case that lets an
+//! exchange complete pins that exchange's `next_check`, because
+//! `controller.rs`'s re-arm reads it (SPEC-001/R-26) and an unpinned script
+//! decides when the next scheduled firing lands. Each member says what it
+//! pinned and why. VT-2 is not a member — it asserts a view, not a count or a
+//! time — and VT-8 is not in this file at all: it is a unit case in
+//! `controller.rs`'s own `#[cfg(test)] mod tests`, because the spacing's
+//! boundary instant is reachable only by constructing it.
+
+use std::cell::Cell;
+use std::io::{Read as _, Write as _};
+use std::os::unix::net::UnixStream;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use std::time::{Duration, Instant};
+
+use goad::controller::{Controller, Ending, Frame, serve};
+use goad::glass::{Glass, SlintGlass};
+use goad::wire::{Cancel, Command, Stimulus};
+use goad_shell::ingress::bind;
+use slint::{ComponentHandle, Model as _};
+use tokio::sync::mpsc;
+use tokio::task::LocalSet;
+
+use crate::driving::{host, instant};
+use crate::harness::{
+  TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
+};
+use crate::scripting::{invocations, logging_backend, scripted};
+use crate::waiting::{LIVENESS_BOUND, within};
+
+/// `design.md` §5.2's own example envelope. `+10:00`, deliberately: A-3's
+/// claim is that the same instant comes back out as `Z`, and VT-1 checks it
+/// at the point of use rather than trusting the line.
+const ENVELOPE: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}"#;
+
+/// An exchange that shows nothing and pins the next check a minute out — far
+/// enough that no scheduled firing lands inside any window this file measures,
+/// and **stated** rather than defaulted (EX-11).
+const NEXT_CHECK_A_MINUTE_OFF: &str = r#"{"view":null,"next_check":"60 seconds"}"#;
+/// The same, with one option to answer, for VT-2.
+const A_VIEW: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"yes","label":"Yes"}]},"next_check":"60 seconds"}"#;
+
+/// VT-5's measured window: the flat-out writer's whole run. Far shorter than
+/// the spacing, which is what makes every reply in it a refusal the loop
+/// decided **while idle** — the state SPEC-003/R-15 obliges the host to report.
+const FLAT_OUT_WINDOW: Duration = Duration::from_millis(500);
+/// VT-7's anti-spin window: how long the parked arm is watched for a
+/// presentation that must not come.
+const ANTI_SPIN_WINDOW: Duration = Duration::from_millis(500);
+
+/// The floor, mirrored. `controller::MINIMUM_SPACING` is private on purpose
+/// (D-5: a host operational budget, not a value anything outside the loop
+/// reads), so a case that needs to reason about it states it here — the same
+/// call `renderer/scheduling.rs:52`'s `FLOOR_MILLIS` makes, and the mirror is
+/// checked by nothing but this comment.
+const MINIMUM_SPACING: Duration = Duration::from_secs(3);
+
+const _: () = assert!(
+  FLAT_OUT_WINDOW.as_millis() * 2 < MINIMUM_SPACING.as_millis(),
+  "VT-5's window must be far shorter than the spacing, or `too_soon` is not what its \
+   excess replies are"
+);
+const _: () = assert!(
+  ANTI_SPIN_WINDOW.as_millis() * 2 < MINIMUM_SPACING.as_millis(),
+  "VT-7's window must close before `serve`'s initial arm fires, or the firing assertion 3 \
+   turns on lands inside the window assertion 2 asserts nothing happens in"
+);
+
+// ---------------------------------------------------------------------------
+// The socket, and a watcher's side of one connection
+// ---------------------------------------------------------------------------
+
+/// A path no other case will collide with, cleared before it is handed out —
+/// `std::env::temp_dir()` and the process id, because `tempfile` is not on the
+/// manifest allowlist (`plan.md` PL-3) and this phase adds no dependency.
+fn socket_path(case: &str) -> PathBuf {
+  let path = std::env::temp_dir().join(format!("goad-serve-{case}-{}.sock", std::process::id()));
+  match std::fs::remove_file(&path) {
+    Ok(()) | Err(_) => (),
+  }
+  path
+}
+
+fn cleanup(path: &Path) {
+  match std::fs::remove_file(path) {
+    Ok(()) | Err(_) => (),
+  }
+}
+
+/// One connection: connect, write one envelope and a newline, read the one
+/// line back, close. Blocking, and always called from the blocking pool.
+fn write_one(path: &Path, envelope: &str) -> String {
+  let mut stream = UnixStream::connect(path).expect("the host must be listening");
+  stream
+    .write_all(envelope.as_bytes())
+    .expect("writing the envelope must succeed");
+  stream
+    .write_all(b"\n")
+    .expect("writing the terminator must succeed");
+  let mut reply = String::new();
+  stream
+    .read_to_string(&mut reply)
+    .expect("the host must reply and close");
+  reply
+}
+
+/// One envelope, off the thread `serve` runs on.
+async fn send(path: &Path, envelope: &str) -> String {
+  let path = path.to_owned();
+  let envelope = envelope.to_owned();
+  tokio::task::spawn_blocking(move || write_one(&path, &envelope))
+    .await
+    .expect("the writer must not panic")
+}
+
+/// A writer emitting flat out for `window`: one connection after another, each
+/// awaiting its reply before opening the next, with nothing between them.
+async fn flat_out(path: &Path, window: Duration) -> Vec<String> {
+  let path = path.to_owned();
+  tokio::task::spawn_blocking(move || {
+    let deadline = Instant::now() + window;
+    let mut replies = Vec::new();
+    while Instant::now() < deadline {
+      replies.push(write_one(&path, ENVELOPE));
+    }
+    replies
+  })
+  .await
+  .expect("the writer must not panic")
+}
+
+fn parsed(reply: &str) -> serde_json::Value {
+  serde_json::from_str(reply).expect("the reply must be JSON")
+}
+
+fn accepted(reply: &str) -> bool {
+  parsed(reply)["accepted"] == serde_json::json!(true)
+}
+
+fn reason(reply: &str) -> String {
+  parsed(reply)["reason"]
+    .as_str()
+    .expect("a refusal must name a reason")
+    .to_owned()
+}
+
+/// The *n*th (1-indexed) request the backend logged, parsed.
+fn logged_request(log: &Path, n: usize) -> serde_json::Value {
+  let text = std::fs::read_to_string(log).expect("the invocation log must exist by now");
+  let line = text
+    .lines()
+    .nth(n - 1)
+    .expect("a request must be logged at this position");
+  serde_json::from_str(line).expect("a logged request is valid JSON")
+}
+
+// ---------------------------------------------------------------------------
+// The counting glass (PL-8)
+// ---------------------------------------------------------------------------
+
+/// A `Glass` that counts presentations and delegates to the **real** one.
+///
+/// It wraps `SlintGlass` rather than replacing it because the cost
+/// `review-design.md` F-15 names is `glass.rs:67-121`'s own work — eleven
+/// window properties, two `VecModel` rebuilds, the tray image and the tooltip,
+/// `show()`/`hide()` — and a stub would measure none of it. `Rc<Cell<usize>>`
+/// is enough: `serve`'s `G` is not required to be `Send`.
+///
+/// It lives here rather than in `harness.rs` because this file is its only
+/// consumer today (PL-8); the phase that needs a second one moves it.
+#[derive(Debug)]
+struct CountingGlass {
+  inner: SlintGlass,
+  presentations: Rc<Cell<usize>>,
+}
+
+impl Glass for CountingGlass {
+  fn present(&mut self, frame: Frame<'_>) {
+    self
+      .presentations
+      .set(self.presentations.get().saturating_add(1));
+    self.inner.present(frame);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// VT-1 — AC-1, SPEC-003/R-11: an envelope becomes one evaluation
+// ---------------------------------------------------------------------------
+
+/// **EX-11 member.** The one exchange it lets complete pins `next_check` a
+/// minute off, so the assertion about *how many* requests reached the backend
+/// cannot be answered by a scheduled firing the script chose by default.
+/// *Liveness, bounded by `LIVENESS_BOUND`.*
+#[tokio::test]
+async fn a_well_formed_envelope_produces_one_evaluation_carrying_all_four_fields() {
+  let path = socket_path("vt1");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (mut command, log) = logging_backend("logs-the-request-then-answers", "ingress-vt1");
+  command.arguments.push(NEXT_CHECK_A_MINUTE_OFF.to_owned());
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let reply = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+      let reply = send(&path, ENVELOPE).await;
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      stopper.stop();
+      let served = handle.await.expect("serve must not panic");
+      assert_eq!(served.ending, Ending::Stopped);
+      reply
+    })
+    .await;
+  cleanup(&path);
+
+  assert!(
+    accepted(&reply),
+    "a well-formed envelope is accepted: {reply}"
+  );
+  assert_eq!(invocations(&log), 1, "exactly one evaluation, not two");
+
+  let request = logged_request(&log, 1);
+  assert_eq!(request["type"], "evaluate");
+  assert_eq!(request["event"]["source"], "reddit-watcher");
+  assert_eq!(request["event"]["kind"], "reddit-opened");
+  assert_eq!(
+    request["event"]["data"],
+    serde_json::json!({"count_last_hour": 4}),
+    "`data` is opaque and reaches the backend unchanged"
+  );
+
+  // A-3, checked at the point of use rather than trusted: `+10:00` in, `Z`
+  // out, the **same instant**.
+  let carried = request["event"]["timestamp"]
+    .as_str()
+    .expect("every event carries a timestamp");
+  assert!(
+    carried.ends_with('Z'),
+    "the host renders an instant in UTC: {carried}"
+  );
+  assert_eq!(
+    carried.parse::<jiff::Timestamp>().expect("RFC 3339"),
+    "2026-08-22T17:10:00+10:00"
+      .parse::<jiff::Timestamp>()
+      .expect("RFC 3339"),
+    "the envelope's instant is carried, not re-read"
+  );
+
+  // The request's `now` is the **host's** own instant, not the envelope's.
+  assert_eq!(
+    request["now"], "2026-01-01T00:00:00Z",
+    "`now` is the host's clock (SPEC-003/R-11), not the event's timestamp"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VT-2 — AC-2: the view reaches the screen and is answerable
+// ---------------------------------------------------------------------------
+
+/// **Not an EX-11 member**: it asserts a view on screen and an answer landing,
+/// not a count or a time. The instructions still name their `next_check`,
+/// because a case that reads better for saying so costs nothing.
+/// *Liveness, bounded by `LIVENESS_BOUND`.*
+#[tokio::test]
+async fn the_view_an_ingested_evaluation_returns_reaches_the_window_and_is_answerable() {
+  let path = socket_path("vt2");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("ingress-vt2", &[A_VIEW, NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+      let reply = send(&path, ENVELOPE).await;
+      assert!(accepted(&reply), "the envelope is accepted: {reply}");
+
+      until(LIVENESS_BOUND, || window.get_heading() == "Proceed?").await;
+      let view = current_view_token(&window).expect("the view must be on screen");
+      tx.send(Command::Choose {
+        view,
+        option: "yes".to_owned(),
+      })
+      .await
+      .expect("the channel must accept the answer");
+
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      until(LIVENESS_BOUND, || !window.window().is_visible()).await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    2,
+    "the answer reached the backend: an ingested view is answered like any other"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VT-3 — AC-4, SPEC-003/R-12: `engaged`, decided in the inner arm
+// ---------------------------------------------------------------------------
+
+/// **EX-11 member.** The exchange it holds open answers with `@slow-view`'s
+/// own pinned body (`next_check` 45 minutes, `answers-as-instructed.sh`), so
+/// nothing is scheduled inside the window and the only thing that can advance
+/// the invocation count is the exchange under test.
+///
+/// `@slow-view` is the vehicle because its `sleep 0.2` is in the
+/// **foreground**: nothing is backgrounded, so the exchange is provably still
+/// running for its length. The refusal is asserted to have arrived *before*
+/// the exchange completed — the view had not yet reached the window — which is
+/// what makes it the inner arm's answer rather than the outer arm's.
+/// *Liveness, bounded by `LIVENESS_BOUND` against a 200 ms exchange, ~25x.*
+#[tokio::test]
+async fn an_envelope_arriving_during_an_exchange_is_refused_engaged_before_it_completes() {
+  let path = socket_path("vt3");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("ingress-vt3", &["@slow-view"]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+
+      // The exchange is now in its foreground `sleep 0.2`.
+      let reply = send(&path, ENVELOPE).await;
+      let landed = current_view_token(&window).is_some();
+
+      assert_eq!(
+        reason(&reply),
+        "engaged",
+        "an exchange in flight is the state answer, and it is the only one this arm gives"
+      );
+      assert!(
+        !landed,
+        "the refusal came back before the exchange it was refused for completed"
+      );
+
+      // Liveness: the exchange the arrival did not disturb still completes.
+      until(LIVENESS_BOUND, || window.get_heading() == "Still there?").await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    1,
+    "a refused envelope re-invokes nothing: the same exchange was resumed"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VT-4 — AC-4, SPEC-003/R-12: `too_soon`, and the anchor that decides it
+// ---------------------------------------------------------------------------
+
+/// **EX-11 member.** Both exchanges it lets complete pin `next_check` a minute
+/// off, so the second envelope's fate turns on the event anchor and on nothing
+/// the scheduler did.
+///
+/// The liveness control is the half that makes the refusal mean something: an
+/// envelope **outside** the spacing is accepted, so `too_soon` is the anchor
+/// speaking and not a listener that serves nothing at all.
+///
+/// *This case waits out `MINIMUM_SPACING` by construction and is therefore
+/// exempt from VA-2's 10x margin rule*: the control cannot be observed before
+/// three seconds have passed, the only bound governing it is `LIVENESS_BOUND`,
+/// and D-5 rejected a configurable spacing precisely so that no test could buy
+/// time by moving a bound.
+#[tokio::test]
+async fn a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long() {
+  let path = socket_path("vt4");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted(
+    "ingress-vt4",
+    &[NEXT_CHECK_A_MINUTE_OFF, NEXT_CHECK_A_MINUTE_OFF],
+  );
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      let first = send(&path, ENVELOPE).await;
+      assert!(accepted(&first), "the first envelope is accepted: {first}");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+
+      let refused = send(&path, ENVELOPE).await;
+      assert_eq!(reason(&refused), "too_soon");
+      let retry_after_ms = parsed(&refused)["retry_after_ms"]
+        .as_u64()
+        .expect("a `too_soon` refusal carries `retry_after_ms` (SPEC-003/R-14)");
+      assert!(
+        retry_after_ms > 0 && retry_after_ms <= 3000,
+        "the remaining spacing is inside the three seconds it was measured from: {retry_after_ms}"
+      );
+
+      // The control. Waiting what the host itself said to wait is the point:
+      // R-14 rounds **up**, so this writer arrives at or after the anchor.
+      tokio::time::sleep(Duration::from_millis(retry_after_ms)).await;
+      let after = send(&path, ENVELOPE).await;
+      assert!(
+        accepted(&after),
+        "an envelope outside the spacing is accepted, so the refusal above was the anchor \
+         and not a listener refusing everything: {after}"
+      );
+
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    2,
+    "two accepted envelopes, two evaluations — the refused one began nothing"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VT-5 — AC-5, SPEC-003/R-12, and `review-design.md` F-15's settlement
+// ---------------------------------------------------------------------------
+
+/// The flat-out writer, and the number F-15 asked for.
+///
+/// **EX-11 member.** The one exchange it lets complete pins `next_check` a
+/// minute off, so no scheduled firing presents anything inside the measured
+/// window and the presentation count is the refusals' alone.
+///
+/// The window opens **after** that exchange has been absorbed, which is what
+/// makes every refusal in it one the loop decided **while idle** — the state
+/// SPEC-003/R-15 obliges the host to report to a person, and therefore the
+/// state whose cost F-15 is about. Three assertions:
+///
+/// 1. the **invocation** count is bounded — one accepted evaluation per
+///    spacing, over a window far shorter than the spacing;
+/// 2. every excess reply says `too_soon`;
+/// 3. the **presentation** count over that window equals the number of
+///    refusals that caused it. One refusal costs one presentation by
+///    construction (`design.md` §5.5); this fixes the cost **at one**, so a
+///    change that raised it — or that added a second route to the surface —
+///    fails here rather than in front of a person.
+///
+/// What it holds is the cost per refusal, **not** a ceiling on the writer: a
+/// test detects, it does not prevent (`design.md` §8 R6).
+///
+/// *The measured window is 500 ms; the bound governing 3 is `LIVENESS_BOUND`.*
+#[tokio::test]
+async fn a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal() {
+  let path = socket_path("vt5");
+  let (window, tray) = window_and_tray();
+  let presentations = Rc::new(Cell::new(0_usize));
+  let glass = CountingGlass {
+    inner: glass_over(&window, &tray),
+    presentations: Rc::clone(&presentations),
+  };
+  let (command, log) = scripted("ingress-vt5", &[NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+  let counted = Rc::clone(&presentations);
+
+  let local = LocalSet::new();
+  let (served, replies, cost) = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      // Prime the anchor, and let the exchange it began be absorbed before the
+      // window opens: from here the loop is idle, so every refusal below is
+      // one R-15 obliges the host to report.
+      let first = send(&path, ENVELOPE).await;
+      assert!(accepted(&first), "the first envelope is accepted: {first}");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))
+      })
+      .await;
+
+      let before = counted.get();
+      let replies = flat_out(&path, FLAT_OUT_WINDOW).await;
+      // The last refusal's presentation lands after its reply does, so wait
+      // for the count to arrive rather than racing it — then assert it did not
+      // overshoot.
+      let refusals = replies.len();
+      let reached = within(LIVENESS_BOUND, || {
+        counted.get().saturating_sub(before) >= refusals
+      })
+      .await;
+      let cost = counted.get().saturating_sub(before);
+      assert!(
+        reached,
+        "every refusal is reported to a person (R-15): {cost} presentations for {refusals} refusals"
+      );
+
+      stopper.stop();
+      (handle.await.expect("serve must not panic"), replies, cost)
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert!(
+    !replies.is_empty(),
+    "the writer must actually have written something"
+  );
+
+  // 1 — the evaluation rate is not the writer's to raise.
+  assert_eq!(
+    invocations(&log),
+    1,
+    "one accepted evaluation per spacing, whatever the writer's rate"
+  );
+
+  // 2 — the excess are refused, and refused for the reason that is true.
+  for reply in &replies {
+    assert_eq!(
+      reason(reply),
+      "too_soon",
+      "every envelope inside the spacing, with the loop idle, is `too_soon`: {reply}"
+    );
+  }
+
+  // 3 — F-15's number. One presentation per refusal, and not one more.
+  assert_eq!(
+    cost,
+    replies.len(),
+    "one refused envelope costs exactly one presentation: {} refusals, {cost} presentations",
+    replies.len()
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VT-7 — AC-12, SPEC-003/R-16, and R-15's last clause: the closed channel
+// ---------------------------------------------------------------------------
+
+/// The path `plan.md` PHASE-04/EX-8 specifies and nothing else drives: the
+/// accept task is gone, so `arrival()` yields `None`.
+///
+/// **EX-11 member, twice over** — it counts presentations *and* turns on when
+/// a firing happens. What it pins: nothing completes an exchange before the
+/// anti-spin window, so the only deadline in force during it is `serve`'s own
+/// initial arm at `MINIMUM_SPACING`; the window is 500 ms and opens as soon as
+/// the fold is visible, which is well inside three seconds, so the scheduled
+/// firing assertion 3 turns on cannot land inside it. Assertion 3 is provoked
+/// only after the window has closed and been asserted.
+///
+/// **How `None` is reached.** `bind` spawns the accept task onto whatever
+/// runtime is entered when it is called, so this case builds a **second**
+/// multi-thread runtime, binds under its guard, keeps the `Ingress`, and
+/// `shutdown_background()`s that runtime — dropping its tasks, and with them
+/// the channel's only sender. `shutdown_background` rather than `drop`,
+/// because dropping a `Runtime` inside an async context panics. No production
+/// API is added for it: the real cause is a panic in the accept task, and this
+/// is the same observable with no panic to provoke.
+///
+/// **Where each assertion reads its number.** The fold is read off the live
+/// route — the window's own `diagnostic_lines`, written unconditionally by
+/// `glass.rs` — and **not** off `Served.controller`: assertion 3's exchange is
+/// absorbed, and `absorb` replaces the whole retained `Diagnostics`, so by the
+/// time `serve` returns the fold is gone. That the fold happened **once** is
+/// held by assertion 2: a second fold would cost a second presentation.
+#[tokio::test]
+async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating() {
+  let path = socket_path("vt7");
+  let (window, tray) = window_and_tray();
+  let presentations = Rc::new(Cell::new(0_usize));
+  let glass = CountingGlass {
+    inner: glass_over(&window, &tray),
+    presentations: Rc::clone(&presentations),
+  };
+  let (command, log) = scripted("ingress-vt7", &[NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let counted = Rc::clone(&presentations);
+
+  let accepting = tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .expect("a second runtime must build");
+  let ingress = {
+    let _entered = accepting.enter();
+    bind(&path).expect("binding a fresh path must succeed")
+  };
+  accepting.shutdown_background(); // drops the accept task, and its sender
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      // 1 — one fold, on the surface, naming that ingress has stopped.
+      until(LIVENESS_BOUND, || {
+        window.get_diagnostic_lines().row_count() == 1
+      })
+      .await;
+      let line = window
+        .get_diagnostic_lines()
+        .row_data(0)
+        .expect("the fold must be on the surface");
+      assert!(
+        line.contains("ingress has stopped"),
+        "the one refusal that answers no envelope says so: {line}"
+      );
+
+      // 2 — the arm parks. A closed `mpsc::Receiver` is ready on **every**
+      // poll, so an arm that folded and `continue`d without dropping the
+      // receiver would charge one full presentation per iteration, forever.
+      // This is the assertion the case exists for.
+      let settled = counted.get();
+      tokio::time::sleep(ANTI_SPIN_WINDOW).await;
+      assert_eq!(
+        counted.get(),
+        settled,
+        "the arm parked: no presentation advanced over {ANTI_SPIN_WINDOW:?} after the fold"
+      );
+
+      // 3 — the host still evaluates. `serve`'s initial arm fires at
+      // `MINIMUM_SPACING`, outside the window just asserted.
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    1,
+    "a dead accept task changes nothing about the schedule"
+  );
+}

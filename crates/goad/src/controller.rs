@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 
 use goad_shell::backend::transport::Backend;
 use goad_shell::host::{Host, Outcome};
+use goad_shell::ingress::{Answer, Arrival, Ingress, Refusal};
 use tokio::select;
 use tokio::sync::mpsc;
 
@@ -81,6 +82,11 @@ pub struct Served<B: Backend, G: Glass> {
   pub host: Host<B>,
   pub controller: Controller,
   pub glass: G,
+  /// Handed back the way `host`, `controller` and `glass` are, so that
+  /// dropping it — and with it the accept task's channel — is `main`'s to do
+  /// at the same moment it drops everything else (`design.md` §5.4,
+  /// *Shutdown*).
+  pub ingress: Ingress,
 }
 
 /// Everything the glass needs, borrowed. Total: every property but `notice`
@@ -312,9 +318,15 @@ impl Pending {
 }
 
 /// The host's own floor on how often it evaluates of its own accord
-/// (SPEC-002/R-4). Not configurable, not visible to a backend, and never
-/// applied to anything a person asked for — only to a scheduled evaluation
-/// the loop began on its own (SPEC-002/R-5).
+/// (SPEC-002/R-4, SPEC-002/R-12). Not configurable, not visible to a backend,
+/// and never applied to anything a person asked for.
+///
+/// **One constant, two anchors.** It spaces each bounded class of firing from
+/// the previous firing of *its own* class and from nothing else — a scheduled
+/// evaluation the loop began on its own (SPEC-002/R-5, `floor_until`), and an
+/// evaluation an ingested event began (SPEC-002/R-12, `event_floor_until`).
+/// There is deliberately no second constant: a configurable one would let a
+/// test buy time by moving a bound (`design.md` D-5).
 const MINIMUM_SPACING: std::time::Duration = std::time::Duration::from_secs(3);
 
 /// The longest wait the host will park a timer on. Reached only when
@@ -368,6 +380,172 @@ fn deadline_after(
 enum Fired {
   Command(Command),
   Scheduled,
+  /// One arrival, still to be judged. It carries an `Arrival` and never an
+  /// `Option<Arrival>`: a closed channel is disposed of in the arm that
+  /// observed it, before any `Fired` is built, so nothing below this point
+  /// has to ask whether ingress is still alive (`design.md` §5.2).
+  Ingested(Arrival),
+}
+
+/// Whether the event spacing has elapsed at `now`.
+///
+/// `>=`, so a writer arriving *exactly at* the anchor is accepted. That is
+/// forced by SPEC-003/R-14 rather than chosen: `retry_after_ms` is rounded
+/// **up**, so a writer that waits exactly as long as it was told arrives at or
+/// after the floor, and a strict comparison would make R-14's own sentence —
+/// *after which the spacing will have elapsed* — false of the host's own
+/// field. It is also what makes an anchor initialised to `started` mean
+/// "already elapsed" at that instant.
+///
+/// A named function rather than an inline comparison because no case reaching
+/// the host over a socket can tell the two directions apart — rounding up plus
+/// a real sleep's overshoot puts every end-to-end waiter strictly past the
+/// floor — so the boundary is reachable only by constructing it, which is what
+/// this crate's own `#[cfg(test)] mod tests` is for.
+fn spacing_elapsed(now: tokio::time::Instant, floor: tokio::time::Instant) -> bool {
+  now >= floor
+}
+
+/// Answer one arrival's writer, and fold the same refusal onto the
+/// diagnostics surface.
+///
+/// The two are one act: SPEC-003/R-8 owes the writer a reply and R-15 owes a
+/// person the same fact, and a refusal that did one without the other would be
+/// a second route to one of them. Whether the fold is ever *presented* is the
+/// arm's business, not this function's — the outer arm `continue`s to the top
+/// of the loop and presents; the inner arm resumes waiting and `absorb`
+/// supersedes it, which is R-15's bound (`design.md` §5.2).
+fn refuse_arrival(controller: &mut Controller, answer: Answer, refusal: &Refusal) {
+  answer.refused(refusal);
+  controller.refuse(&Refused::Ingress {
+    reason: refusal.reason().to_owned(),
+    detail: refusal.to_string(),
+  });
+}
+
+/// The **inner** arm's judgement: `design.md` §5.4's steps 1 and 2, the only
+/// two an arm reached during an exchange can decide. Shape first — an exchange
+/// in flight does not turn a malformed envelope into `engaged` (SPEC-003 §5,
+/// *Order of judgement*). Nothing here reads or writes either anchor, which is
+/// what keeps `event_floor_until`'s *one write site* exact (I-4, P-3).
+fn refuse_during_exchange(controller: &mut Controller, arrival: Arrival) {
+  let (result, answer) = arrival.into_parts();
+  let refusal = match result {
+    Err(shape) => shape,
+    Ok(_event) => Refusal::Engaged,
+  };
+  refuse_arrival(controller, answer, &refusal);
+}
+
+/// The one refusal that answers no envelope: the accept task has ended, and
+/// nothing restarts it, so ingress is over for the life of the process and
+/// this surface is the only report it has (`design.md` §5.2, SPEC-003/R-15).
+///
+/// Folded once. `Ingress::arrival` drops the receiver as it yields `None`, so
+/// the arm parks from then on rather than spinning on a closed channel.
+fn ingress_stopped() -> Refused {
+  Refused::Ingress {
+    reason: Refusal::Unavailable.reason().to_owned(),
+    detail: "ingress has stopped; no further events will be accepted".to_owned(),
+  }
+}
+
+/// The **outer** arm's judgement, whole: `design.md` §5.4's steps 1 and 3-5,
+/// the steps only an arm reached while nothing is in flight can decide.
+///
+/// `None` is *there is nothing to exchange* — every refusal it decides has
+/// already been answered to its writer and folded onto the surface, which is
+/// why the loop `continue`s on it rather than passing it to the shared refusal
+/// site (which would fold it a second time and consult `refusal_re_arms`).
+///
+/// **The anchor's one write site.** It is written on an *attempted* ingested
+/// evaluation — steps 4 and 5 both, so a clock that cannot be read produces one
+/// refusal per spacing rather than a spin (`design.md` §5.4) — and by nothing
+/// else. `floor_until` is not named here and this is not named there
+/// (SPEC-002/R-12, P-3).
+fn ingest(
+  arrival: Arrival,
+  controller: &mut Controller,
+  event_floor_until: &mut tokio::time::Instant,
+  clock: Clock,
+) -> Option<Pending> {
+  let (result, answer) = arrival.into_parts();
+  // 1 — a shape refusal is refused with itself, whatever the host's state.
+  let event = match result {
+    Ok(event) => event,
+    Err(refusal) => {
+      refuse_arrival(controller, answer, &refusal);
+      return None;
+    }
+  };
+  let arrived = tokio::time::Instant::now();
+  // 3 — inside the spacing. Nothing was attempted, so nothing is written.
+  if !spacing_elapsed(arrived, *event_floor_until) {
+    let retry_after = event_floor_until.saturating_duration_since(arrived);
+    refuse_arrival(controller, answer, &Refusal::TooSoon { retry_after });
+    return None;
+  }
+  *event_floor_until = arrived + MINIMUM_SPACING;
+  match stamp(clock) {
+    // 4 — the clock is unreadable. `unavailable` to the writer; the fold names
+    // the clock, which is the same line a scheduled firing writes for the same
+    // fault.
+    Err(refused) => {
+      answer.refused(&Refusal::Unavailable);
+      controller.refuse(&refused);
+      None
+    }
+    // 5 — accepted. The reply leaves **before** the backend is called: the
+    // listener awaits it before accepting the next connection, so a reply that
+    // waited for the exchange would put `engaged` out of reach (I-2,
+    // `design.md` §5.4).
+    Ok(now) => {
+      answer.accepted();
+      Some(Pending::Evaluate { now, event })
+    }
+  }
+}
+
+/// One command, dispatched. The two diagnostics commands are done here and
+/// now and produce no exchange; the other two produce a `Pending` or the
+/// refusal that says why there is none. `None` is *there is nothing to
+/// exchange*, which is the loop's `continue`.
+///
+/// Lifted out of `serve` so that the ingested road and the command road meet
+/// at one value: an arrival cannot become a `Command` — `Stimulus` is `Copy`
+/// and hard-codes `source: "host"` (`wire.rs:62-64`, D-13) — so the join has to
+/// be the `Pending` both roads produce.
+fn dispatch(
+  command: Command,
+  controller: &mut Controller,
+  clock: Clock,
+) -> Option<Result<Pending, Refused>> {
+  // Exhaustive, no `_` arm. Identity is checked before the clock: a superseded
+  // click is refused for the reason that is true of it, and a broken clock does
+  // not relabel it.
+  match command {
+    Command::OpenDiagnostics => {
+      controller.open_diagnostics();
+      None
+    }
+    Command::CloseDiagnostics => {
+      controller.close_diagnostics();
+      None
+    }
+    Command::Evaluate(stimulus) => Some(stamp(clock).map(|now| Pending::Evaluate {
+      now,
+      event: stimulus.event(now),
+    })),
+    Command::Choose { view, option } => Some(controller.answer(&view, &option).and_then(
+      |(view_id, answer)| {
+        stamp(clock).map(|now| Pending::Respond {
+          now,
+          view_id,
+          answer,
+        })
+      },
+    )),
+  }
 }
 
 /// Serve commands until stopped. **This is the production controller**: a
@@ -391,6 +569,7 @@ pub async fn serve<B, G>(
   cancel: Cancel,
   clock: Clock,
   mut glass: G,
+  mut ingress: Ingress,
 ) -> Served<B, G>
 where
   B: Backend + 'static,
@@ -405,8 +584,19 @@ where
   // scheduled firing of the process is unfloored, which is what lets a
   // `default_poll` shorter than the spacing be honoured once (SPEC-002 §6).
   let mut floor_until = started;
+  // The event anchor, and the whole of this slice's new retained state
+  // (`design.md` §5.3). It starts **already elapsed**, exactly as
+  // `floor_until` does and for the same reason: each class is spaced from the
+  // previous firing of its own class (SPEC-002/R-12, P-3), and there is no
+  // previous ingested firing. The one other candidate,
+  // `started + MINIMUM_SPACING`, is precisely the value this would hold if the
+  // startup evaluation had written it — and the startup evaluation is not an
+  // ingested firing. So the startup evaluation never makes an envelope
+  // `too_soon`; an envelope arriving while it is still in flight is refused
+  // `engaged` one step earlier, like any other.
+  let mut event_floor_until = started;
 
-  let ending = loop {
+  let ending = 'serving: loop {
     glass.present(controller.frame()); // busy = false here
     let fired = select! { biased;
       () = cancel.stopped()       => break Ending::Stopped,
@@ -419,46 +609,49 @@ where
         // scheduled firings and nothing else clears it (SPEC-002/R-4).
         floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
         Fired::Scheduled
-      }
+      },
+      // **Last**, so that a watcher emitting at machine rate cannot starve a
+      // scheduled firing: `biased` means an always-ready arm starves
+      // everything below it, and this is the arm an untrusted writer paces
+      // (`design.md` §5.4).
+      arrival = ingress.arrival() => match arrival {
+        // Disposed of here, before any `Fired` is built: `refusal_re_arms` is
+        // never reached, the standing deadline is not reset, and neither
+        // anchor is written. A dead accept task changes nothing about the
+        // schedule.
+        None => {
+          controller.refuse(&ingress_stopped());
+          continue;
+        }
+        Some(arrival) => Fired::Ingested(arrival),
+      },
     };
-    // A refusal that came from this arm re-arms at the floor (EX-7); every
-    // other refusal leaves the deadline untouched. Read before `fired` is
-    // consumed below, and true of the whole iteration.
+    // A refusal that came from the timer arm re-arms at the floor (EX-7);
+    // every other refusal leaves the deadline untouched. Read before `fired`
+    // is consumed below, and true of the whole iteration.
     let refusal_re_arms = matches!(fired, Fired::Scheduled);
-    let command = match fired {
-      Fired::Command(command) => command,
-      // Goes through the same `stamp` as every other command (EX-6).
-      Fired::Scheduled => Command::Evaluate(Stimulus::Scheduled),
-    };
 
-    // Exhaustive, no `_` arm. The two diagnostics commands are done here and
-    // now; the other two each produce a `Pending` or a refusal. Identity is
-    // checked before the clock: a superseded click is refused for the reason
-    // that is true of it, and a broken clock does not relabel it.
-    let attempted = match command {
-      Command::OpenDiagnostics => {
-        controller.open_diagnostics();
-        continue;
+    // Two roads, one exchange. An arrival becomes a `Pending::Evaluate`
+    // directly, because `Stimulus` cannot carry an event (D-13); a command
+    // takes the road it always has. `None` from either is *there is nothing to
+    // exchange*.
+    let attempted = match fired {
+      Fired::Ingested(arrival) => {
+        ingest(arrival, &mut controller, &mut event_floor_until, clock).map(Ok)
       }
-      Command::CloseDiagnostics => {
-        controller.close_diagnostics();
-        continue;
-      }
-      Command::Evaluate(stimulus) => stamp(clock).map(|now| Pending::Evaluate {
-        now,
-        event: stimulus.event(now),
-      }),
-      Command::Choose { view, option } => {
-        controller
-          .answer(&view, &option)
-          .and_then(|(view_id, answer)| {
-            stamp(clock).map(|now| Pending::Respond {
-              now,
-              view_id,
-              answer,
-            })
-          })
-      }
+      Fired::Command(command) => dispatch(command, &mut controller, clock),
+      // Goes through the same `stamp` as every other command (EX-6).
+      Fired::Scheduled => dispatch(
+        Command::Evaluate(Stimulus::Scheduled),
+        &mut controller,
+        clock,
+      ),
+    };
+    // A diagnostics command, or an arrival `ingest` has already answered and
+    // folded. Neither has anything to send, and neither is a refusal this
+    // loop still owes a report for.
+    let Some(attempted) = attempted else {
+      continue;
     };
 
     // The one refusal site. It `continue`s to the top — which presents with
@@ -502,15 +695,30 @@ where
       }
     };
 
-    select! { biased;
-      () = cancel.stopped() => break Ending::Stopped, // `call` is DROPPED here
-      outcome = call        => {
-        let absorbed = controller.absorb(exchanged, outcome);
-        let wait = wait_for(absorbed.next_check, requested_at);
-        sleep
-          .as_mut()
-          .reset(deadline_after(tokio::time::Instant::now(), wait, floor_until));
-      },
+    // A **loop**, so that refusing an arrival resumes waiting on the *same*
+    // exchange: `call` is pinned across iterations and nothing here
+    // re-invokes the backend. The outer loop's label is what keeps
+    // cancellation breaking all the way out (`design.md` §5.4).
+    let mut call = std::pin::pin!(call);
+    loop {
+      select! { biased;
+        () = cancel.stopped()  => break 'serving Ending::Stopped, // `call` is DROPPED here
+        outcome = &mut call    => {
+          let absorbed = controller.absorb(exchanged, outcome);
+          let wait = wait_for(absorbed.next_check, requested_at);
+          sleep
+            .as_mut()
+            .reset(deadline_after(tokio::time::Instant::now(), wait, floor_until));
+          break;
+        },
+        // **Last**, so a flood of arrivals the loop is only going to refuse
+        // cannot starve the exchange it is waiting on. This arm reaches
+        // §5.4's step 2 and stops: it neither reads nor writes either anchor.
+        arrival = ingress.arrival() => match arrival {
+          None => controller.refuse(&ingress_stopped()),
+          Some(arrival) => refuse_during_exchange(&mut controller, arrival),
+        },
+      }
     }
   };
   Served {
@@ -518,6 +726,7 @@ where
     host,
     controller,
     glass,
+    ingress,
   }
 }
 
@@ -529,7 +738,7 @@ where
 // `#[cfg(test)] mod tests` shape for a stratum-internal pure function.
 #[cfg(test)]
 mod tests {
-  use super::{Refused, deadline_after, stamp};
+  use super::{Refused, deadline_after, spacing_elapsed, stamp};
   use crate::clock::{ClockError, wall_clock};
 
   #[test]
@@ -560,6 +769,35 @@ mod tests {
       deadline,
       now + super::LONGEST_WAIT,
       "an overflowing wait is clamped, not panicked on"
+    );
+  }
+
+  /// VT-8 — the spacing's boundary, and the only case that can tell `>=` from
+  /// `>` apart. No end-to-end case can: `retry_after_ms` rounds **up**
+  /// (SPEC-003/R-14) and a real waiter's `sleep` overshoots on top of that, so
+  /// a writer that waits exactly as long as it was told arrives strictly past
+  /// the floor and both comparisons accept it. The boundary instant is
+  /// reachable only by constructing it, which is what this module is for
+  /// (`deadline_after` and `stamp` are the same argument).
+  ///
+  /// No clock, no socket, no `serve`.
+  #[test]
+  fn a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing() {
+    let floor = tokio::time::Instant::now() + std::time::Duration::from_secs(1);
+    let nanosecond = std::time::Duration::from_nanos(1);
+
+    assert!(
+      spacing_elapsed(floor, floor),
+      "at the anchor the spacing has elapsed: R-14 rounds `retry_after_ms` up, \
+       so a writer that waited exactly that long arrives here and must be accepted"
+    );
+    assert!(
+      !spacing_elapsed(floor - nanosecond, floor),
+      "one nanosecond before the anchor is still inside the spacing"
+    );
+    assert!(
+      spacing_elapsed(floor + nanosecond, floor),
+      "one nanosecond after the anchor is outside it"
     );
   }
 

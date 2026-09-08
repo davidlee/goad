@@ -771,6 +771,7 @@ mod interaction {
   use goad::controller::{Controller, Ending, Exchanged, Shift, serve};
   use goad::glass::Glass;
   use goad::wire::{Cancel, Command, Stimulus};
+  use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;
 
@@ -912,7 +913,16 @@ mod interaction {
     let served = local
       .run_until(async {
         let handle = tokio::task::spawn_local(async move {
-          serve(backend, controller, rx, cancel, stub_clock, glass).await
+          serve(
+            backend,
+            controller,
+            rx,
+            cancel,
+            stub_clock,
+            glass,
+            Ingress::none(),
+          )
+          .await
         });
 
         tx.send(Command::Evaluate(Stimulus::Requested))
@@ -989,7 +999,16 @@ mod interaction {
     let served = local
       .run_until(async {
         let handle = tokio::task::spawn_local(async move {
-          serve(backend, controller, rx, cancel, stub_clock, glass).await
+          serve(
+            backend,
+            controller,
+            rx,
+            cancel,
+            stub_clock,
+            glass,
+            Ingress::none(),
+          )
+          .await
         });
 
         tx.send(Command::Evaluate(Stimulus::Requested))
@@ -1031,6 +1050,7 @@ mod interaction {
 mod serving {
   use goad::controller::{Controller, Ending, serve};
   use goad::wire::{Cancel, Command, Stimulus};
+  use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
 
   use super::{
@@ -1050,7 +1070,16 @@ mod serving {
       .expect("room in a fresh capacity-1 channel");
     drop(tx); // closes the channel once the one command is dequeued
 
-    let served = serve(backend, controller, rx, Cancel::new(), stub_clock, glass).await;
+    let served = serve(
+      backend,
+      controller,
+      rx,
+      Cancel::new(),
+      stub_clock,
+      glass,
+      Ingress::none(),
+    )
+    .await;
 
     assert_eq!(served.ending, Ending::Closed);
     assert!(served.controller.frame().shown.is_some());
@@ -1072,6 +1101,7 @@ mod cancellation {
 
   use goad::controller::{Controller, Ending, serve};
   use goad::wire::{Cancel, Command, Stimulus};
+  use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;
 
@@ -1105,7 +1135,16 @@ mod cancellation {
     let (elapsed, served) = local
       .run_until(async {
         let handle = tokio::task::spawn_local(async move {
-          serve(backend, controller, rx, cancel, stub_clock, glass).await
+          serve(
+            backend,
+            controller,
+            rx,
+            cancel,
+            stub_clock,
+            glass,
+            Ingress::none(),
+          )
+          .await
         });
         // The exchange is in flight, observed rather than assumed: `@hang`
         // writes its invocation to `log` (`answers-as-instructed.sh`)
@@ -1152,7 +1191,16 @@ mod cancellation {
     let cancel = Cancel::new();
     cancel.stop(); // tripped before `serve` is even called
 
-    let served = serve(backend, controller, rx, cancel, stub_clock, glass).await;
+    let served = serve(
+      backend,
+      controller,
+      rx,
+      cancel,
+      stub_clock,
+      glass,
+      Ingress::none(),
+    )
+    .await;
 
     assert_eq!(served.ending, Ending::Stopped);
     assert!(
@@ -1184,7 +1232,16 @@ mod cancellation {
     let served = local
       .run_until(async {
         let handle = tokio::task::spawn_local(async move {
-          serve(backend, controller, rx, cancel, stub_clock, glass).await
+          serve(
+            backend,
+            controller,
+            rx,
+            cancel,
+            stub_clock,
+            glass,
+            Ingress::none(),
+          )
+          .await
         });
         // Observed rather than assumed in flight, the same repair PL-17
         // recorded for VT-10 above (F-2, review-code 002 round 1): this

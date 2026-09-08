@@ -15,6 +15,7 @@ use goad::controller::{Controller, Ending, serve};
 use goad::wire::{Cancel, Command, Stimulus};
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
+use goad_shell::ingress::Ingress;
 use tokio::sync::mpsc;
 use tokio::task::LocalSet;
 
@@ -164,7 +165,16 @@ async fn a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_chec
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -205,7 +215,16 @@ async fn an_instruction_from_an_evaluate_shortens_the_wait_past_a_far_default_po
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -243,7 +262,16 @@ async fn an_instruction_from_a_respond_shortens_the_wait_past_a_far_default_poll
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -288,7 +316,16 @@ async fn an_earlier_instruction_supersedes_a_pending_far_deadline() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -333,7 +370,16 @@ async fn a_later_instruction_supersedes_and_the_earlier_deadline_does_not_fire()
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -388,7 +434,16 @@ async fn a_stop_issued_while_parked_on_the_timer_arm_ends_serve_well_inside_the_
   let (elapsed, served) = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -449,7 +504,16 @@ async fn a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -503,7 +567,16 @@ async fn a_failing_backend_is_retried_unprompted_never_faster_than_the_floor() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -577,6 +650,7 @@ async fn a_clock_that_fails_after_the_startup_exchange_refuses_and_holds() {
           cancel,
           succeeds_once_then_fails,
           glass,
+          Ingress::none(),
         )
         .await
       });
@@ -642,7 +716,16 @@ async fn the_same_shape_with_a_working_clock_reaches_a_second_invocation() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -685,7 +768,16 @@ async fn a_one_off_past_instruction_is_consumed_and_cadence_resumes() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -753,7 +845,16 @@ async fn a_person_acting_mid_cadence_does_not_clear_the_floor() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -807,7 +908,16 @@ async fn a_refusal_that_did_not_come_from_the_timer_leaves_the_deadline_standing
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -872,7 +982,16 @@ async fn an_instruction_at_the_far_edge_of_time_arms_the_sleep_without_panicking
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          stub_clock,
+          glass,
+          Ingress::none(),
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await

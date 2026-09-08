@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — the configuration key, and the envelope | done | 2026-09-08 |
 | PHASE-03 — the socket's lifecycle, and the accepted path | done | 2026-09-08 |
 | PHASE-08 — the refusal vocabulary, and the closed reason set | done | 2026-09-08 |
-| PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | pending | |
+| PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | done | 2026-09-08 |
 | PHASE-05 — the two anchors, and what a person can see | pending | |
 | PHASE-06 — binding at startup, and the demo a person runs | pending | |
 | PHASE-07 — the sweep, the spec's own table, and the gate | pending | |
@@ -26,6 +26,262 @@ appends a number rather than renumbering.
 <!-- One block per phase, written at phase-plan time, immediately before
      execution. Disposable detail — it exists to get one agent through one
      phase. -->
+
+### PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs
+
+**Entry check:** EN-1 — PHASE-08's exit criteria are discharged (its sheet
+below, every criterion with evidence) and `just check` **exit 0** at `9d36002`,
+re-run before anything was edited (transcript:
+`…/scratchpad/phase04-baseline.txt`, session-local). EN-2 — `bind`, `Ingress`,
+`Arrival`, `Answer` and `Refusal` exist in
+`crates/goad-shell/src/ingress/mod.rs`, all `Debug`, all `Send`; `Refusal`
+already carries `Engaged` and `TooSoon { retry_after }` and the reason set is
+closed at eight (PHASE-08/EX-5). Both hold: proceeding.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `plan.md:1100-1482` |
+| the Overview's five standing rules, and §Sequencing on why this phase is not split | `plan.md:81-112`, `:166-177`, `:201-210` |
+| F-15's body — the finding this phase settles, and what returns it `contested` | `review-design.md` `### F-15` |
+| the order of judgement, both arms, and the sequence diagram (position is time) | `design.md` §5.4 `:391-515` |
+| the two anchors, one write site each | `design.md` §5.3 `:358-390` |
+| `Fired` never sees a closed channel | `design.md` §5.2 `:283-300` |
+| what a refusal costs the UI thread | `design.md` §5.5 `:530-546` |
+| R2 and R6 | `design.md` §8 `:638-648` |
+| the requirements | `draft-spec.md` R-12 `:104`, R-14 `:106`, R-15 `:107`, R-16 `:108`, §5 order of judgement `:134-161` |
+| `serve` as it stands, both `select!`s | `crates/goad/src/controller.rs:382-513` |
+| `floor_until`'s initialisation and its one write site | `controller.rs:407`, `:420` |
+| `refusal_re_arms` | `controller.rs:427` |
+| the inner `select!` | `controller.rs:505-514` |
+| the unit test module VT-8 joins | `controller.rs:524-583` |
+| `Refused` and `Diagnostics::refused` | `crates/goad/src/diagnostics.rs:45-61`, `:136-158` |
+| what one `present` costs | `crates/goad/src/glass.rs:67-121` |
+| the ingress surface this phase consumes | `crates/goad-shell/src/ingress/mod.rs:196-346` (`Ingress`, `Arrival`, `Answer`, `Refusal`, `reason()`, `Display`) |
+| the renderer tier's shape, and the helpers not to re-mint | `crates/goad/tests/renderer/scheduling.rs:1-230`, `renderer/harness.rs` whole |
+| `@slow-view`, the only sentinel that holds an exchange open in the foreground | `tests/backends/answers-as-instructed.sh` |
+| the request wire form VT-1 reads | `goad-semantics/src/protocol/canonical.rs:505-557` — `{"protocol":1,"type":"evaluate","now":…,"event":{…}}` |
+
+**Assumptions**
+
+- **`tokio::net` is reachable from `crates/goad`'s test targets only by feature
+  unification** (`goad-shell` enables `net`; `crates/goad/Cargo.toml` does not,
+  and this phase may not touch a manifest). The cases therefore use
+  **`std::os::unix::net::UnixStream` on `spawn_blocking`** for the writer's
+  side: it depends on no feature `crates/goad` does not itself declare, and it
+  keeps the blocking client off the thread `serve` runs on.
+- **Every refusal the loop decides is folded onto the controller; only the
+  *outer* arm presents.** R-15's bound is then emergent rather than
+  special-cased: the outer arm's `continue` reaches
+  `glass.present` at the top of the loop, the inner arm's does not and `absorb`
+  supersedes it (`design.md` §5.2's *the inner arm folds the same refusal*, and
+  §5.2's reason table for `engaged`: *`absorb` overwrites it*).
+- **The four commands move into a private `dispatch`**, so that the ingested
+  road and the command road meet at one `Option<Result<Pending, Refused>>`
+  rather than at a `Command` an arrival cannot become (D-13). Pure extraction,
+  no behaviour change; it is what keeps EX-10 true of `serve`.
+- **`spacing_elapsed` is the named private free function** EX-6 requires, and
+  VT-8 is its only caller besides the arm.
+
+**STOP conditions** (`plan.md` S-1..S-5, not softened)
+
+- S-1 — the inner `select!` cannot become a loop, or `call` cannot be pinned.
+- S-2 — an ingested evaluation cannot be built without a `Stimulus` variant.
+- S-3 — a margin under 10x on a case VA-2 does not exempt, or an existing test
+  in the three `crates/goad` targets goes red.
+- S-4 — VT-5's presentation number is bad: F-15 returns to the ledger
+  `contested` and `SPEC-003/R-15` is **not** weakened to make the phase green.
+- S-5 — VT-7's `None` is unreachable by the second-runtime route.
+
+**Tasks**
+
+- [x] sheet written; status `in progress`.
+- [x] EN-1/EN-2 verified.
+- [x] `diagnostics.rs` — `Refused::Ingress { reason, detail }` and its
+      `Diagnostics::refused` arm (EX-2).
+- [x] `controller.rs` — `Served.ingress`, `serve`'s parameter, `Fired::Ingested`,
+      both arms, `event_floor_until`, `spacing_elapsed`, `ingest`,
+      `refuse_arrival`, `refuse_during_exchange`, `ingress_stopped`, `dispatch`
+      (EX-1..EX-10).
+- [x] `controller.rs` unit tests — VT-8, the boundary.
+- [x] 23 call sites (EX-7) + `renderer/main.rs`'s two-line `mod` and two doc
+      sentences.
+- [x] `renderer/ingress.rs` — VT-1..VT-5, VT-7.
+- [x] VA-1..VA-4; harvest.
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-1 | `serve` takes `ingress: Ingress` last (`controller.rs`); `Served` gains `pub ingress: Ingress`, handed back beside `host`, `controller` and `glass`. No test destructures `Served` — re-verified, `git grep -n Served` outside `controller.rs` finds only the two doc comments in `wiring.rs` |
+| EX-2 | `Fired::Ingested(Arrival)`; `Refused::Ingress { reason: String, detail: String }` (`diagnostics.rs`), both fields `Clone + PartialEq + Eq` so `Refused`'s derives are unchanged; `Diagnostics::refused` gains its arm, still exhaustive with no `_` |
+| EX-3 | the outer `select!`'s fourth arm is **last** in `biased` order: cancel → commands → sleep → ingress |
+| EX-4 | the inner `select!` is a `loop` with three arms in `biased` order: cancel → call → ingress. `call` is `std::pin::pin!`ed across iterations; the outer loop carries the label `'serving` so `break 'serving Ending::Stopped` still leaves the loop. The ingress arm falls through to the next iteration — the **same** exchange, nothing re-invoked (VT-3 asserts `invocations == 1`) |
+| EX-5 | `ingest` is steps 1 and 3-5 in that order; `refuse_during_exchange` is steps 1 and 2 in that order. Shape precedes state in **both**: each reads `Arrival::into_parts`'s `Result` first and refuses with the shape refusal it carries before looking at any host state |
+| EX-6 | `let mut event_floor_until = started;` with the comment the criterion asks for, citing `SPEC-002/R-12` and P-3. **One write site** — `ingest`'s `*event_floor_until = arrived + MINIMUM_SPACING`, below step 3 and above steps 4 and 5, so an *attempted* evaluation writes it — and **one read site**, step 3's `spacing_elapsed`. `floor_until` is not named in `ingest` and `event_floor_until` is not named in the timer arm. One `MINIMUM_SPACING`, no second constant. `refusal_re_arms` is untouched and still `matches!(fired, Fired::Scheduled)`. The comparison is the named private free function `spacing_elapsed(now, floor) -> bool { now >= floor }`, with the doc comment R-14 forces |
+| EX-7 | 23 sites: `git grep -c 'Ingress::none()'` — `main.rs` 1 (full path, so no import), `renderer/wiring.rs` 6, `renderer/scheduling.rs` 14, `event_loop/closing.rs` 1, `event_loop_schedule/scheduling.rs` 1. No assertion moved — VA-3 |
+| EX-8 | `Fired::Ingested` carries an `Arrival`, never an `Option`. The outer arm's `None` handler folds `ingress_stopped()` and `continue`s **inside the `select!` arm**, before any `Fired` exists; the inner arm's folds the same and falls through to the next inner iteration. Neither reaches `refusal_re_arms`, resets `sleep`, or writes an anchor |
+| EX-9 | `git diff 9d36002 -- crates/goad/src \| grep '^+' \| grep -E '\.unwrap\(\|\.expect\(\|panic!\|#\[expect'` is **empty**. Nothing derived from an envelope is unwrapped: `into_parts` yields a `Result` that is matched, and every failure is a `Refusal` |
+| EX-10 | the arms are three lines (outer: `match arrival`, one call) and four (inner), delegating to four private free functions of 6-30 lines each. `serve` is 167 lines against 136 before, having **given up** the four-command match to `dispatch`: the net growth is the anchor, its comment, and the two arms. R2 did not fire — see *Findings*, which records what was done to keep it from firing rather than claiming the risk away |
+| EX-11 | the file's module doc states the rule and each member's doc comment names what it pinned: VT-1, VT-4, VT-5 and VT-7 pin `next_check` at 60 s (`NEXT_CHECK_A_MINUTE_OFF`); VT-3's exchange is `@slow-view`, whose body pins 45 minutes in the script itself. VT-2 states that it is **not** a member and why; VT-8 is not in the file |
+| VT-1 | `a_well_formed_envelope_produces_one_evaluation_carrying_all_four_fields` — one `evaluate`; `source`, `kind` and `data` byte-identical; `timestamp` asserted the **same instant** by parsing both sides with `jiff` and separately asserted to render with `Z` (A-3 checked at the point of use); `now` asserted to be `stub_clock`'s `2026-01-01T00:00:00Z`, not the envelope's |
+| VT-2 | `the_view_an_ingested_evaluation_returns_reaches_the_window_and_is_answerable` — the heading reaches the real window, the token is read off the options model with `current_view_token` (never minted), the `Choose` reaches the backend, the window closes |
+| VT-3 | `an_envelope_arriving_during_an_exchange_is_refused_engaged_before_it_completes` — `engaged`, and the view had **not** landed when the reply came back, so the refusal is the inner arm's. `invocations == 1` at the end: the refusal re-invoked nothing. Connect-to-reply measured **314-490 µs** against `@slow-view`'s 200 ms foreground sleep (~400-640x) |
+| VT-4 | `a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long` — `too_soon` with `retry_after_ms` in `(0, 3000]`; the control waits exactly `retry_after_ms` and is **accepted**, which is R-14's rounding read from the host's own field; two accepted envelopes, two evaluations |
+| VT-5 | `a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal` — see **F-15's number** below |
+| VT-6 | the three `crates/goad` test targets pass with assertions unchanged: `renderer` 138 → **144** (the six new), `event_loop` and `event_loop_schedule` unchanged, `goad` lib 15 → **16** (VT-8). VA-3 is the evidence that nothing else moved |
+| VT-7 | `a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating` — the second-runtime route (S-5) **works**: `bind` under a multi-thread runtime's `enter()`, then `shutdown_background()`, and `arrival()` yields `None`. One diagnostic line, naming that ingress has stopped; the presentation count does **not** advance over the 500 ms after it; a scheduled firing then lands at the backend. Assertion 1 is read on the live route — see *Findings* F-b |
+| VT-8 | `a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing`, in `controller.rs`'s own `#[cfg(test)] mod tests` beside `deadline_after`'s three cases: at the floor, one nanosecond before, one nanosecond after. **Non-vacuous, measured**: with `>=` changed to `>` the first assertion fails with its own message and passes again when reverted |
+| VA-1 | `just check` **exit 0** (transcript `…/scratchpad/phase04-gate.txt`, session-local). Baseline at `9d36002` also exit 0 before anything was edited (`…/phase04-baseline.txt`) |
+| VA-2 | the margin table below |
+| VA-3 | `…/scratchpad/va3-bounded.py` (kept): with the added argument, the four `use` lines and the one `main.rs` comment removed, all five bounded files are **token-identical to `9d36002`** — `ALL MATCH`. No renamed symbol, no changed test body, no touched assertion |
+| VA-4 | **break-and-revert on the anchor.** With `*event_floor_until = arrived + MINIMUM_SPACING` removed: VT-4 **red**, VT-5 **red** (it turns on the anchor too), VT-1, VT-2, VT-3 and VT-7 **green**. Reverted; all six green again |
+
+**F-15's number (VT-5), and the disposition**
+
+| measured | value |
+|---|---|
+| window | 500 ms, flat out, after the priming exchange was absorbed — so every refusal in it is one the loop decided **while idle**, which is the state R-15 obliges the host to report |
+| refusals | **845** |
+| presentations | **845** |
+| **presentations per refused envelope** | **1.000** |
+| presentations per second | **~1690** |
+| assertion | `assert_eq!(cost, replies.len())` — the cost is fixed **at one**, so a change that raised it, or that added a second route to the surface, fails here |
+
+**F-15 settles.** The claim it was dispositioned `settle-in-code` to settle — that
+one refusal costs one presentation and no more — is now a number and an
+assertion rather than an argument. `SPEC-003/R-15` was not weakened.
+
+**What the number does not say, stated rather than absorbed.** ~1690
+presentations per second is the *loop's throughput* under a writer that the
+host itself paces (I-2: one arrival outstanding, and the writer waits for its
+reply before opening the next connection). It is **not** a measurement of
+whether a person could sit in front of it: this tier is headless
+(`init_no_event_loop`), so no compositing happens and `show()`/`hide()` are
+cheap. Whether the window is *visibly* unresponsive under a flood is R6's other
+signal and belongs to a human run. `design.md` §8 R6 is explicit that one-for-one
+is not the signal — it is the design — and that the signal is a *rise* above what
+this phase measured. This phase is that baseline.
+
+**VA-2 — margins, at the bound each assertion actually governs**
+
+Three kinds, as VA-2 requires each case be classified. Times are the whole test
+binary invocation (≈40 ms of process and Slint start-up included), three runs.
+
+| case | elapsed | the bound that governs | margin | kind |
+|---|---|---|---|---|
+| VT-1 | 160-170 ms | `LIVENESS_BOUND` 5 s | ~30x | liveness |
+| VT-2 | 162-169 ms | `LIVENESS_BOUND` 5 s | ~30x | liveness |
+| VT-3 | 368-378 ms | `@slow-view`'s 200 ms foreground sleep, against a **314-490 µs** connect-to-reply | **~400-640x** | liveness (the `engaged` reply must land inside the exchange) |
+| VT-4 | 3159-3177 ms | `LIVENESS_BOUND` 5 s over a wait that **is** `MINIMUM_SPACING` | ~1.6x | **exempt** — a wait that is the bound under test. D-5 rejected a configurable spacing precisely so no test could buy time by moving a bound |
+| VT-5 | 671-682 ms | the 500 ms window is chosen, not a bound; the settle wait is `LIVENESS_BOUND` 5 s and returned in <5 ms | >1000x on the settle | liveness (plus a constructed window) |
+| VT-7 | 3163-3167 ms | two: the 500 ms **anti-fire window** (a chosen window, asserted as an equality, no ratio admitted); and `LIVENESS_BOUND` 5 s for the scheduled firing, which is `serve`'s initial arm at `MINIMUM_SPACING` | anti-fire: n/a; liveness: ~1.7x | **exempt** on the same ground as VT-4 — the firing it waits for *is* `MINIMUM_SPACING`. The two windows are kept apart by a compile-time assertion that the anti-spin window closes well inside the spacing |
+
+No margin under 10x on a case VA-2 does not exempt. **S-3 not reached.**
+
+**Decisions taken during execution**
+
+- **The four commands moved into a private `dispatch`, returning
+  `Option<Result<Pending, Refused>>`.** An arrival cannot become a `Command`
+  (D-13, S-2), so the two roads have to meet at the `Pending` both produce; the
+  extraction is what gives them one join point instead of a second refusal site,
+  and it is why `serve` grew by the arms rather than by the arms plus a
+  duplicated dispatch. Pure extraction, no behaviour change — VA-3 and the
+  unchanged suite are the evidence.
+- **Every refusal the loop decides is folded onto the controller; only the
+  *outer* arm presents.** R-15's bound is then a consequence of the loop's
+  shape rather than a special case: the outer arm's `continue` reaches
+  `glass.present` at the top; the inner arm falls through to the same exchange
+  and `absorb` supersedes the fold before anything is presented. This is
+  `design.md` §5.2 in terms (*the inner arm folds the same refusal*) and §5.2's
+  reason table for `engaged` (*`absorb` overwrites it*). **A note for
+  PHASE-05:** R-15's negative case must therefore read the **live** route, not
+  `Served.controller` — a case that cancels mid-exchange and reads the retained
+  value will find the fold there.
+- **The clock-unreadable case folds `Refused::NoClock`, not a second
+  `Refused::Ingress`.** `stamp` already renders `ClockError` once at the one
+  site that has it, and the resulting line names the clock exactly as EX-5 step
+  4 asks — the same line a scheduled firing writes for the same fault. See
+  finding F-a for what this does *not* reach.
+- **The writer's side of every case is `std::os::unix::net::UnixStream` on
+  `spawn_blocking`,** not `tokio::net`. See finding F-c.
+- **VT-5's window opens after the priming exchange has been absorbed.** Only
+  then is the loop idle, and only then is every reply `too_soon` rather than a
+  mixture of `too_soon` and `engaged` — which is what the criterion asks for,
+  and what makes the presentation count a count of *reportable* refusals.
+
+**Findings**
+
+- **F-a — `unavailable`'s wire `detail` cannot name the clock, and EX-5 step 4
+  says it should.** `design.md` §5.4 says *"`unavailable` means one thing about
+  the host and three about why … and `detail` says which"*, and EX-5 step 4 says
+  *"`unavailable`, `detail` naming the clock"*. The wire `detail` is
+  `Display for Refusal`, and `Refusal::Unavailable` is a **unit** variant whose
+  `Display` is fixed at *"no answer was given for this envelope"* — PHASE-03's
+  wording for the dropped-`Answer` cause. The loop cannot vary it without adding
+  a payload to `Refusal`, and `crates/goad-shell/src` is a forbidden surface
+  here. **Built as:** the writer gets `reason: "unavailable"` with that generic
+  detail; the clock is named on the **diagnostics surface** instead, where
+  `Refused::NoClock` already renders it. So R-14 is satisfied (the reason is
+  from the closed set) and R-15 is satisfied (a person is told what happened);
+  what is not true is §5.4's claim that the *wire's* `detail` distinguishes
+  `unavailable`'s three causes. **Not repaired here** — it is a change to
+  PHASE-03's type, which is a design question about what `Refusal` carries.
+  Reported to the orchestrator.
+- **F-b — PHASE-04/VT-7's assertion 1 cannot read `Served.controller`, because
+  assertion 3 destroys what it would read.** The plan's *Where each assertion
+  reads its number* paragraph gives assertion 1 the retained diagnostics and
+  assertion 2 the live route. But assertion 3 requires a scheduled exchange to
+  land **and be absorbed**, and `Controller::absorb` assigns
+  `self.diagnostics = diagnostics` — it replaces the whole value — so by the
+  time `serve` returns, the fold is gone. **Built as:** assertion 1 reads the
+  live route (`window.get_diagnostic_lines()`, written unconditionally by
+  `glass.rs`), asserting one line naming that ingress has stopped; that it
+  happened **once** is held by assertion 2, since a second fold would cost a
+  second presentation. The case's own doc comment says so. A plan defect, not a
+  code one.
+- **F-c — `tokio::net` reaches `crates/goad`'s test targets only by feature
+  unification.** `crates/goad/Cargo.toml` declares `tokio` with
+  `rt-multi-thread` and `sync`; `net` arrives only because `goad-shell` enables
+  it and cargo unifies features across the graph. A case written against
+  `tokio::net::UnixStream` would compile today and break the day `goad-shell`
+  stopped needing `net` — for a reason nothing in `crates/goad` states. This
+  phase may not touch a manifest, so the writer's side uses
+  `std::os::unix::net::UnixStream` on `spawn_blocking` instead: it depends on
+  nothing this crate does not already declare, and the blocking pool keeps it
+  off the thread `serve` runs on. Recorded rather than repaired.
+- **F-d — EX-7's call-site line numbers are each one line later than the plan
+  says.** `event_loop/closing.rs:82` → `:83`,
+  `event_loop_schedule/scheduling.rs:110` → `:111`, and every
+  `renderer/scheduling.rs` number `:166…:874` → `:167…:875`. Not a plan defect:
+  PHASE-02 added `ingress: None` to a `Config` literal above them (FD-3), and
+  the plan cited the tree at `b6ca5f7`. The **count** — 23 — is exact.
+- **F-e — the 23rd argument does not fit on one line, so rustfmt wraps all 23
+  call sites vertically.** `rustfmt`'s `fn_call_width` is 60; the existing
+  six-argument `serve(…)` is 55 characters and the seventh takes it to 72. Every
+  site therefore becomes the same nine-line vertical form, and the raw diff over
+  the five bounded files is ~230 lines rather than 23. VA-3 is discharged
+  **token-wise** instead (`…/scratchpad/va3-bounded.py`, `ALL MATCH`), which is
+  the check the criterion is actually asking for.
+- **F-f — a case that panics leaves its socket in `std::env::temp_dir()`.**
+  `cleanup(&path)` runs after `local.run_until(…)` returns, so a failing
+  assertion inside the block skips it — VA-4's deliberate break left two behind.
+  Self-healing (`socket_path` unlinks before binding) and outside the checkout,
+  so R5 is untouched; noted because a reader will meet the files.
+- **The inner arm's step 1 is built but not driven here.** A *shape* refusal
+  decided during an exchange is `refuse_during_exchange`'s `Err` branch;
+  PHASE-05/VT-5 is the case that drives it (R-15's negative side). VT-3 drives
+  the same function's step 2. Recorded so the branch is not read as untested by
+  accident.
+
+**No STOP condition was reached.** S-1: the inner `select!` became a loop with
+`std::pin::pin!` and a labelled break, no second loop and no second `select!`.
+S-2: no `Stimulus` variant — `ingest` builds `Pending::Evaluate` directly.
+S-3: no unexempted margin under 10x, and no existing test went red. S-4: the
+cost per refusal is **exactly one**, asserted; F-15 settles rather than
+returning `contested`. S-5: the second-runtime route reached `None` on the first
+attempt; nothing was added to `Ingress`.
 
 ### PHASE-08 — The refusal vocabulary, and the closed reason set
 
@@ -499,7 +755,7 @@ did not arise — nothing under `crates/*/src` was touched.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-08 done
+**Fresh as of:** 2026-09-08 · PHASE-04 done
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -531,6 +787,20 @@ did not arise — nothing under `crates/*/src` was touched.
 - `crates/goad-shell/tests/integration/ingress.rs` — the fake judge fixture
   (`judge`, `Verdict`, now including `Verdict::Refuse` for a scripted
   refusal), PHASE-03/VT-1..VT-6, VT-10..VT-14, and PHASE-08/VT-7, VT-8, VT-9.
+- `crates/goad/src/controller.rs` — `serve`'s seventh parameter and `Served`'s
+  seventh field; `Fired::Ingested`; the outer and inner ingress arms; the
+  second anchor `event_floor_until` with its one write site; and the four
+  private free functions the arms delegate to — `spacing_elapsed` (the
+  boundary R-14 forces), `ingest` (§5.4 steps 1, 3-5), `refuse_during_exchange`
+  (steps 1 and 2), `refuse_arrival` and `ingress_stopped`. `dispatch` is the
+  four-command match, lifted out of `serve` so the ingested road and the
+  command road meet at one `Option<Result<Pending, Refused>>`.
+- `crates/goad/src/diagnostics.rs` — `Refused::Ingress { reason, detail }`:
+  two **rendered** values, so this module still holds no ingress vocabulary.
+- `crates/goad/tests/renderer/ingress.rs` — the renderer tier's ingress cases
+  (PHASE-04/VT-1..VT-5, VT-7), the counting `Glass` decorator (PL-8), and the
+  blocking writer's side of a connection. The first module in that target to
+  open a socket.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -626,8 +896,62 @@ did not arise — nothing under `crates/*/src` was touched.
   the case; a match arm is cheaper than a variant and keeps the payload count
   matching the design's own list.
 
+- **One refused envelope costs exactly one presentation, and the number is
+  845/845.** Measured over a 500 ms flat-out window with the loop idle:
+  845 refusals, 845 presentations, 1.000 per refusal, ~1690 per second
+  (`renderer/ingress.rs`'s VT-5). That settles `review-design.md` F-15 — the
+  cost is fixed at one by an assertion, so a change that raised it, or that
+  added a second route to the diagnostics surface, fails there. **How to
+  apply:** this is the baseline `design.md` §8 R6's signal is measured
+  *against*; R6's signal is a rise above it, not the one-for-one itself. The
+  rate is the loop's throughput under a writer the host paces (I-2), not a
+  claim about visible responsiveness — that is headless, and belongs to a
+  human run.
+
+- **`Controller::absorb` replaces the whole retained `Diagnostics`, so any
+  assertion about a fold must be read on the *live* route if an exchange
+  follows it.** `Served.controller`'s diagnostics is readable only after
+  `serve` returns, and by then every exchange that completed in between has
+  overwritten it. The live route is the window's own `get_diagnostic_lines()`,
+  which `glass.rs:94-102` writes unconditionally on every present. **How to
+  apply:** this is what makes `SPEC-003/R-15`'s bound work at all — a refusal
+  decided during an exchange is superseded before anything is presented — and
+  it is why PHASE-04/VT-7's *exactly one fold* is held by the presentation
+  count rather than by the retained value. It caught a plan defect (F-b) and
+  it will catch PHASE-05's R-15 negative case if that reads the retained value.
+
+- **`tokio::net` is reachable from `crates/goad`'s tests only by feature
+  unification, and that is a trap.** `crates/goad/Cargo.toml` declares `tokio`
+  with `rt-multi-thread` and `sync`; `net` arrives because `goad-shell` enables
+  it and cargo unifies features across the graph. Code in `crates/goad` that
+  names `tokio::net` compiles today and breaks the day `goad-shell` stops
+  needing `net`, for a reason nothing in `crates/goad` states.
+  **How to apply:** for a socket a *test* opens, `std::os::unix::net` on
+  `tokio::task::spawn_blocking` needs no feature at all and keeps the blocking
+  call off the thread the loop runs on. Reach for the manifest only when
+  production code needs the feature. Candidate for `docs/memory/`.
+
+- **A second tokio runtime, entered around `bind` and then
+  `shutdown_background()`ed, is how a test reaches a dead accept task.**
+  `bind` spawns its accept task onto whatever runtime is entered when it is
+  called, so shutting that runtime down drops the task and with it the
+  channel's only sender — and `Ingress::arrival` then yields `None` and parks.
+  `shutdown_background` rather than `drop`, because dropping a `Runtime` inside
+  an async context panics. **How to apply:** it needs no production API and no
+  panic to provoke, which is what kept `Ingress` from growing a test-only
+  constructor (PHASE-04/S-5). The same shape reaches any "the task that feeds
+  this channel is gone" state.
+
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **`unavailable`'s wire `detail` cannot distinguish its three causes.**
+  `Refusal::Unavailable` is a unit variant with a fixed `Display`, so the
+  clock-unreadable cause reaches its writer with the dropped-`Answer`
+  wording. `design.md` §5.4's *"`detail` says which"* is not true of the wire
+  today (PHASE-04 finding F-a). Adding a payload to `Refusal` is a design
+  question about what that type carries; the diagnostics surface names the
+  clock correctly in the meantime.
 
 ### PHASE-02 — The configuration key, and the envelope
 

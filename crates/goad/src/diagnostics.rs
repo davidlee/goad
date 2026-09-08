@@ -58,6 +58,11 @@ pub enum Refused {
   UnknownOption,
   /// The wall clock could not be read, so no request can be stamped.
   NoClock { detail: String },
+  /// An event the host was offered was refused. Two **rendered** values —
+  /// the wire's machine-readable reason and the prose behind it — never the
+  /// refusal itself: this module states what a person reads and holds no
+  /// vocabulary of the thing that was refused (`SPEC-003/R-15`).
+  Ingress { reason: String, detail: String },
 }
 
 /// Every line a person can read on this surface, and whether any of them is
@@ -150,6 +155,9 @@ impl Diagnostics {
       Refused::NoClock { detail } => format!(
         "no action taken: the system clock could not be read, so no request could be stamped ({detail})"
       ),
+      Refused::Ingress { reason, detail } => {
+        format!("no action taken: an event was refused ({reason}): {detail}")
+      }
     };
     Self {
       lines: vec![finish(&composed, LINE_LIMIT)],
