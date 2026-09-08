@@ -1340,14 +1340,24 @@ a unit case in `controller.rs`'s own `#[cfg(test)] mod tests`, driving no
   Unpinned, the script's default decides whether the two overlap, and the case is
   about the script.
 
-  **Where each assertion reads its number.** 2 needs the count **during** the
-  run, so it reads the live route PHASE-05/VT-4 names — PL-8's counting `Glass`
-  for the presentations, and the window's own `get_diagnostic_lines()`
-  (`glass.rs:102`, written unconditionally) to see the fold land.
-  `Served.controller`'s retained diagnostics is readable only **after** `serve`
-  returns, so it is 1's route and cannot be 2's. Open 2's window at the moment
-  the fold becomes observable on the live route, not at an arbitrary instant
-  after start.
+  **Where each assertion reads its number.** Both 1 and 2 read the **live**
+  route — PL-8's counting `Glass` for the presentations, and the window's own
+  `get_diagnostic_lines()` (`glass.rs:94-102`, written unconditionally) to see
+  the fold land. 1 may **not** read `Served.controller`'s retained diagnostics,
+  even though that value survives the run: `Controller::absorb`
+  (`controller.rs:179`) replaces the whole value with what the exchange
+  produced, so 3's own scheduled exchange overwrites the fold before `serve`
+  returns, and a correct implementation would fail 1. Stopping the loop between
+  the invocation and the absorb does not rescue it either — that is the race
+  `renderer/scheduling.rs:141`'s `absorbed_line` records, where the script logs
+  before it answers, so `invocations >= 1` proves only that the exchange began.
+
+  **What holds *exactly* one.** Not a count of diagnostic lines, but 2.
+  `Ingress::arrival` drops the receiver as it yields `None`, so a second fold is
+  reachable only if the arm spun, and a spin costs one full presentation per
+  iteration — which is what 2 asserts does not happen over the 500 ms after the
+  fold. Open 2's window at the moment the fold becomes observable on the live
+  route, not at an arbitrary instant after start.
 
   **How to reach `None`.** `bind` spawns the accept task with `tokio::spawn`
   onto whatever runtime is entered when it is called, so the case builds a

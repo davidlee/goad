@@ -391,3 +391,17 @@ cross-posted to `design-log.md`.
   A-1 probe. `slice-004.md` §Readings carries AC-9 beside AC-1, AC-3, AC-6 and
   AC-7; the clause is discharged by the argument at `main.rs:21-29`, and the
   rest of AC-9 by tests. `draft-spec.md` §7's R-4 row already says so.
+
+### 2026-09-08 — VT-7's assertion 1 is routed to the live diagnostics, not the retained value
+
+- **Asked:** PHASE-04 reported (F-b) that VT-7's routing paragraph gives
+  assertion 1 the retained diagnostics on `Served.controller`, which assertion 3
+  destroys: its scheduled exchange is absorbed, and `Controller::absorb`
+  replaces the whole value. As routed, the two assertions cannot both hold
+  against a correct implementation.
+- **Decided:** the code is right and the plan's prose is wrong. Assertion 1
+  reads the live route; *exactly one* is held by assertion 2, because a second
+  fold is reachable only through a spin and a spin costs a presentation.
+- **Consequence:** the routing paragraph is corrected in place, and the reason
+  the retained value is unusable is written down so the next reader does not
+  re-derive it. The criterion, the code and what VT-7 catches are unchanged.
