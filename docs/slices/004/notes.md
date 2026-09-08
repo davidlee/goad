@@ -14,7 +14,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-08 — the refusal vocabulary, and the closed reason set | done | 2026-09-08 |
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | done | 2026-09-08 |
 | PHASE-05 — the two anchors, and what a person can see | done | 2026-09-08 |
-| PHASE-06 — binding at startup, and the demo a person runs | code done, **VH-1 open** — awaiting the user's run (runbook in this file, PHASE-06 sheet) | 2026-09-08 |
+| PHASE-06 — binding at startup, and the demo a person runs | done — **VH-1 discharged** 2026-09-09 by the user (steps 1–3; see `## VH-1 — the observation`) | 2026-09-09 |
 | PHASE-07 — the sweep, the spec's own table, and the gate | done | 2026-09-08 |
 
 Rows are in **execution order** — PHASE-08 is the listener's second half and
@@ -1081,7 +1081,7 @@ re-run before anything was edited. Holds: proceeding.
 | VA-1 | `just check`, exit 0 — transcript `…/scratchpad/check-final3.txt`, session-local |
 | VA-2 | the clean-clone run, below |
 | VA-3 | the exit-code argument, below |
-| VH-1 | **not discharged by this agent** — see the runbook. Left open. |
+| VH-1 | **discharged 2026-09-09 by the user**, not by this agent — steps 1–3 of the runbook. See `## VH-1 — the observation`. |
 
 **Break-and-revert — retroactive red confirmation**
 
@@ -1525,13 +1525,67 @@ reason `unavailable`, detail naming that ingress has stopped"*), so the tree
 matches the design precisely. It is recorded as a coverage finding (F-1,
 above) instead.
 
+## VH-1 — the observation
+
+**Run by the user, 2026-09-09**, from the repo root in the dev shell. This is
+the AC-13 evidence and is lifted into `audit.md` under Evidence at audit. It is
+the user's own account; this agent did not run it and does not corroborate it.
+
+**Step 1 — `just demo`.** A window opened showing the demo backend's fixed
+prompt, visually unchanged from before the slice ("simple prompt, unstyled rect
+buttons"). Expected: the startup evaluation's event carries `"source":"host"`,
+which `backend.sh`'s middle `case` arm answers with the same view it always
+did. Nothing in this slice changes the startup view.
+
+**Step 2 — the one-liner.** Emitted from a second shell. The user's shell is
+`nu`, not `bash`, so the runbook's form was run with `printf` forced external:
+
+```
+^printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}' | socat - UNIX-CONNECT:./goad-demo.sock
+```
+
+Two deviations from the runbook's text, neither material: `^printf` for `nu`,
+and `data` empty rather than carrying `count_last_hour`. `backend.sh`'s
+catch-all arm reads `source` and `kind` only, so an empty `data` exercises the
+same path.
+
+The emitting shell received, on the same connection:
+
+```
+{"protocol":1,"accepted":true}
+```
+
+**Step 3 — the window.** The title became:
+
+```
+An event arrived: reddit-watcher / reddit-opened
+```
+
+as the runbook predicted. **This is AC-13**: a person started goad with ingress
+configured, wrote an envelope from the documented one-liner, and watched a
+prompt appear naming the event they emitted — over a path no test reaches,
+because no test opens a window.
+
+**Steps 4 and 5 were not run.** The repeat-emit (spacing: `too_soon` /
+`engaged`) and the malformed emit were not exercised by hand. Both are covered
+by automated tests — the spacing by PHASE-04's arms and the malformed by
+PHASE-03's — and neither is what VH-1 exists to witness, so their absence does
+not qualify the AC-13 discharge. It is recorded because the runbook has five
+steps and three were run.
+
+**Nothing else was reported.** In particular the user reported no hang, no
+leftover socket and no unexpected refusal; the failure list at the end of the
+runbook was not triggered. Absence of a report is not a positive check, and
+S-3/S-4 are recorded as not fired on that basis only.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-07 done (VH-1 still excepted — this phase
-neither discharges it nor infers it from the gate)
+**Fresh as of:** 2026-09-09 · PHASE-07 done; **VH-1 discharged by the user**
+on 2026-09-09 (steps 1–3 — see `## VH-1 — the observation`; steps 4 and 5 were
+not run, and no claim rests on them)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1597,8 +1651,8 @@ neither discharges it nor infers it from the gate)
   `examples/demo.toml`: `[ingress]`, the documented `socat`/`nc` one-liners.
   `examples/shell/backend.sh`: names an ingested event's `source`/`kind` in
   its view; the `"source":"host"` arm keeps the fixed prompt. `.gitignore`:
-  `/goad-demo.sock`. **VH-1 open** — the runbook is in this file, above; a
-  person has not yet run it.
+  `/goad-demo.sock`. **VH-1 discharged 2026-09-09** — the user ran steps 1–3
+  and saw the title change; the observation is in `## VH-1 — the observation`.
 - **PHASE-07** — `draft-spec.md` §7 completed: all sixteen rows name real test
   functions and files in place of the AC-id prose the design left there; R-5
   unchanged. `## Design drift` (this file) — the three seeded amendments, plus
