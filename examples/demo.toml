@@ -9,3 +9,18 @@ timeout = "5s"
 
 [schedule]
 default_poll = "30m"
+
+# The event-ingress socket. With `just demo` running, emit an envelope from a
+# second shell (both terminated forms — `socat` by half-closing its write
+# side after EOF, `nc` by the trailing newline — see draft-spec.md D-8):
+#
+#   printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}' \
+#     | socat - UNIX-CONNECT:./goad-demo.sock
+#
+#   printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}\n' \
+#     | nc -U ./goad-demo.sock
+#
+# The reply is one JSON line on the same connection. The socket lives in the
+# checkout deliberately (D-17); `.gitignore` keeps it out of `git status`.
+[ingress]
+path = "./goad-demo.sock"

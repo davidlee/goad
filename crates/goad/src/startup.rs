@@ -5,6 +5,9 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use goad_shell::config::IngressConfig;
+use goad_shell::ingress::{self, Ingress, IngressError};
+
 /// What the arguments asked for. Two outcomes, and `--help` is one of them
 /// rather than an early `exit` hidden inside argument parsing — so `main` keeps
 /// its single exit-code decision (§5.4's entry point).
@@ -39,6 +42,8 @@ pub enum StartupError {
   /// The first evaluation could not be enqueued into a fresh, empty,
   /// capacity-1 channel.
   Enqueue,
+  /// The configured ingress socket could not be bound.
+  Ingress(IngressError),
 }
 
 impl std::fmt::Display for StartupError {
@@ -58,11 +63,26 @@ impl std::fmt::Display for StartupError {
       Self::Platform(error) => write!(f, "the display could not be opened: {error}"),
       Self::EventLoop(error) => write!(f, "the event loop would not accept the host task: {error}"),
       Self::Enqueue => write!(f, "the first request could not be enqueued"),
+      Self::Ingress(error) => write!(f, "{error}"),
     }
   }
 }
 
 impl std::error::Error for StartupError {}
+
+/// The listener a configuration names, or the handle a host with none holds.
+/// `None` touches nothing — no bind, no filesystem entry (AC-7's second half).
+/// `Some` binds and wraps `bind`'s error; `main::start` calls this and nothing
+/// else decides it.
+///
+/// # Errors
+/// [`StartupError::Ingress`] when a configured path cannot be bound.
+pub fn listener(configured: Option<&IngressConfig>) -> Result<Ingress, StartupError> {
+  match configured {
+    None => Ok(Ingress::none()),
+    Some(config) => ingress::bind(&config.path).map_err(StartupError::Ingress),
+  }
+}
 
 /// Pure over the arguments and the environment it is handed, so the table below
 /// is a test rather than a claim (§9 item 17).

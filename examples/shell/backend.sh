@@ -13,13 +13,16 @@
 request=$(cat)
 
 # Substring matching on JSON is not something to imitate — it is here so that
-# this file stays readable without a parser. `respond` means the user has just
-# answered, so there is nothing further to show.
+# this file stays readable without a parser. It also lets this file answer an
+# `evaluate` without parsing its `event`: `source` and `kind` are the request's
+# own first two keys (Event's field order, and the host serialises compactly),
+# so `${request#*'"source":"'}` then `%%'"'*` reads a value with no parser —
+# a match on `event.source` rather than on a `"source"` key `data` might carry.
 case $request in
   *'"type":"respond"'*)
     printf '{"view":null,"next_check":"45 minutes"}\n'
     ;;
-  *)
+  *'"source":"host"'*)
     printf '%s\n' '{
       "view": {
         "kind": "choice",
@@ -28,6 +31,23 @@ case $request in
         "options": [
           { "id": "yes", "label": "Yeah" },
           { "id": "no",  "label": "Nah" }
+        ]
+      },
+      "next_check": "45 minutes"
+    }'
+    ;;
+  *)
+    source=${request#*'"source":"'}
+    source=${source%%'"'*}
+    kind=${request#*'"kind":"'}
+    kind=${kind%%'"'*}
+    printf '%s\n' '{
+      "view": {
+        "kind": "choice",
+        "title": "An event arrived: '"$source"' / '"$kind"'",
+        "body": "This view came from the ingested envelope, not the fixed prompt.",
+        "options": [
+          { "id": "ok", "label": "OK" }
         ]
       },
       "next_check": "45 minutes"

@@ -7,3 +7,8 @@ target/
 
 # agent worktrees, never committed
 .claude/worktrees/
+
+# the demo's ingress socket — lives in the checkout deliberately (D-17);
+# examples/demo.toml's [ingress] path resolves against the repository root,
+# which `just` sets as goad's working directory
+/goad-demo.sock

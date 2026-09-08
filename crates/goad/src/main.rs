@@ -45,13 +45,13 @@ fn run() -> Result<(), StartupError> {
 }
 
 fn start(path: &Path) -> Result<(), StartupError> {
-  // 1. The host, complete, before any UI exists. The command and timeout are
-  //    cloned out of the config, the transport is built from them, and the
-  //    config is then *moved* into the host.
+  // 1. The config, the clock and the backend, before any UI exists. The
+  //    command and timeout are cloned out of the config for the transport;
+  //    the config itself is not yet moved — step 3 still needs to read its
+  //    `ingress` field before step 4 moves it into the host.
   let config = Config::load(path).map_err(StartupError::Config)?;
   let now = clock::wall_clock().map_err(StartupError::Clock)?;
   let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);
-  let host = Host::new(config, backend, now);
 
   // 2. The runtime, entered for the whole of the loop's life. Without the guard
   //    the first poll of a `tokio::process` future on the Slint thread panics
@@ -62,7 +62,15 @@ fn start(path: &Path) -> Result<(), StartupError> {
     .map_err(StartupError::Runtime)?;
   let _entered = runtime.enter(); // dropped after the loop returns
 
-  // 3. The components. The app id is set after the first component exists and
+  // 3. The socket the configuration names, bound before any window exists: a
+  //    bind failure must be fatal before a person sees anything.
+  let ingress = startup::listener(config.ingress.as_ref())?;
+
+  // 4. The host, complete. The config is now moved into it, having been read
+  //    for the last time immediately above.
+  let host = Host::new(config, backend, now);
+
+  // 5. The components. The app id is set after the first component exists and
   //    before anything is shown: the app icon comes from it and the `icon`
   //    property is silently dropped, but `set_xdg_app_id` does not initialize
   //    the platform on its own — constructing a component is what selects the
@@ -74,13 +82,13 @@ fn start(path: &Path) -> Result<(), StartupError> {
   slint::set_xdg_app_id("goad").map_err(StartupError::Platform)?;
   let tray = Tray::new().map_err(StartupError::Platform)?;
 
-  // 4. The bridge. One `Wire`, cloned into each callback and nowhere else.
+  // 6. The bridge. One `Wire`, cloned into each callback and nowhere else.
   let (tx, rx) = mpsc::channel::<Command>(1);
   let cancel = Cancel::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), window.as_weak());
   install(&window, &tray, &wire); // the callback table
 
-  // 5. The glass. The `VecModel` is created once and lives for the process;
+  // 7. The glass. The `VecModel` is created once and lives for the process;
   //    `present` re-hands its `ModelRc` on every call, so no property has to
   //    survive a hide. `new` also writes the initial tray icon and tooltip,
   //    because the tray registers nothing until a non-empty image is assigned
@@ -91,13 +99,13 @@ fn start(path: &Path) -> Result<(), StartupError> {
     Rc::new(VecModel::<OptionRow>::default()),
   );
 
-  // 6. The first evaluation enters through the ordinary channel, so item 11
+  // 8. The first evaluation enters through the ordinary channel, so item 11
   //    exercises the real path. The channel is empty and holds one, so this
   //    cannot fail; an `Err` is still reported rather than unwrapped.
   tx.try_send(Command::Evaluate(Stimulus::Startup))
     .map_err(|_returned| StartupError::Enqueue)?;
 
-  // 7. One task, one loop, one quit. The `JoinHandle` is bound and dropped:
+  // 9. One task, one loop, one quit. The `JoinHandle` is bound and dropped:
   //    dropping it does not drop the future, which is why nothing is retained.
   let _task = slint::spawn_local(async move {
     let _served = goad::controller::serve(
@@ -107,8 +115,7 @@ fn start(path: &Path) -> Result<(), StartupError> {
       cancel,
       clock::wall_clock,
       glass,
-      // The real one is PHASE-06's, together with the bind that produces it.
-      goad_shell::ingress::Ingress::none(),
+      ingress,
     )
     .await;
     // The crate's ONLY `quit_event_loop` call site (F-20). Its `Err` says only

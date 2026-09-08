@@ -14,7 +14,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-08 — the refusal vocabulary, and the closed reason set | done | 2026-09-08 |
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | done | 2026-09-08 |
 | PHASE-05 — the two anchors, and what a person can see | done | 2026-09-08 |
-| PHASE-06 — binding at startup, and the demo a person runs | pending | |
+| PHASE-06 — binding at startup, and the demo a person runs | code done, **VH-1 open** — awaiting the user's run (runbook in this file, PHASE-06 sheet) | 2026-09-08 |
 | PHASE-07 — the sweep, the spec's own table, and the gate | pending | |
 
 Rows are in **execution order** — PHASE-08 is the listener's second half and
@@ -926,12 +926,253 @@ did not arise — nothing under `crates/*/src` was touched.
   next `git diff` refreshes the index. Worth knowing before someone reverts a
   file that never changed.
 
+### PHASE-06 — Binding at startup, and the demo a person runs
+
+**Entry check:** EN-1 — PHASE-05's exit criteria are discharged (its sheet
+above, every criterion with evidence) and `just check` **exit 0** at `623e2f0`,
+re-run before anything was edited. Holds: proceeding.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `plan.md` PHASE-06 |
+| the amended startup order, `Host::new` below the bind | `design.md` §5.4 "Startup" |
+| AC-8, AC-9, AC-13 and AC-9's reading | `slice-004.md` §Acceptance criteria, §Readings taken in design |
+| §9's AC-8/AC-9 rows | `design.md` §9 |
+| R-2, R-3, the bind race, the path-after-bind residue | `draft-spec.md` §6.1 |
+| `main::start`, the numbered comment blocks, `Host::new` at `:54` | `crates/goad/src/main.rs:47-125` |
+| `StartupError`'s eight variants, `Display`, no `PartialEq` | `crates/goad/src/startup.rs:21-65` |
+| the module's own no-exit-code rule | `crates/goad/tests/renderer/startup.rs:1-11` |
+| `report_startup_line` | `crates/goad/src/diagnostics.rs:339-346` |
+| `bind`, `IngressError`, `BindFault`, `Ingress::none()` | `crates/goad-shell/src/ingress/mod.rs:55-90, 127-138, 202-211` |
+| `IngressConfig` | `crates/goad-shell/src/config.rs:89-92` |
+| `Host::new` consumes `Config` | `crates/goad-shell/src/host.rs:127-134` |
+| `serve`'s seventh parameter | `crates/goad/src/controller.rs:569-577` |
+| the demo backend to modify | `examples/shell/backend.sh` |
+| the demo config | `examples/demo.toml` |
+| `socat`/`deno` in the dev shell | `flake.nix:56-61, 118-122` |
+| `.gitignore`'s existing scratch rule | `.gitignore:1-8` |
+| `Event`'s field order | `crates/goad-semantics/src/protocol/canonical.rs:490-496` |
+| the host serialises compactly | `crates/goad-shell/src/backend/process.rs:63` |
+
+**Assumptions**
+
+- `listener(None)` returns `Ok(Ingress::none())` and touches nothing — no
+  `bind` call, no directory entry (VT-2/AC-7 second half).
+- `listener(Some(cfg))` calls `ingress::bind(&cfg.path)` and maps its `Err`
+  through `StartupError::Ingress`.
+- `main.rs`'s step 1 keeps `config`, `now` and `backend` construction but stops
+  short of `Host::new`; the bind becomes its own numbered step 2, `Host::new`
+  moves to (new) step 3, and the runtime/guard step is renumbered ahead of the
+  bind. Comment prose for step 1 loses the "the config is then moved into the
+  host" clause.
+- `examples/shell/backend.sh`'s `"source":"host"` arm must precede the
+  catch-all — the file's existing `case` already has the `respond` arm first,
+  so the ingested-event arm slots in as the new middle case, catch-all last.
+- The one-liner is `socat` per EX-6/S-2 — no `/tmp`, no second config, no
+  `deno eval`, per D-17.
+
+**STOP conditions** (`plan.md` S-1..S-4)
+
+- S-1 — bind cannot go where EX-3 puts it.
+- S-2 — the one-liner does not work from a clean clone with `socat` alone.
+- S-3 — VH-1's run shows something else visibly wrong.
+- S-4 — VH-1 step 3 shows no change at all.
+
+**Task breakdown**
+
+- [x] sheet written; status `in progress`.
+- [x] `StartupError::Ingress(IngressError)` + `Display` + `source()`.
+- [x] `startup::listener`.
+- [x] `main.rs` re-sequenced: bind after the guard, `Host::new` below it,
+      `serve` passes the real `Ingress`.
+- [x] `flake.nix` gains `pkgs.socat`.
+- [x] `examples/demo.toml` gains `[ingress]`, header comment carries the
+      `socat`/`nc` one-liners.
+- [x] `.gitignore` gains the demo socket.
+- [x] `examples/shell/backend.sh` names `source`/`kind` for an ingested event.
+- [x] VT-1, VT-2, VT-3 in `crates/goad/tests/renderer/startup.rs`.
+- [x] `just check`.
+- [x] VA-2 clean-clone run, VA-3 review argument, both pasted below.
+- [x] runbook written; VH-1 handed to the user, left open.
+- [x] Harvest updated; status `done` (VH-1 excepted).
+
+**Decisions taken while executing**
+
+- `main::start`'s numbered steps went from 7 to 9: step 1 stops short of
+  `Host::new` (keeps only `Config::load`, the clock, the backend); step 2 is
+  the runtime guard, unchanged; the bind is a new step 3; `Host::new` is a new
+  step 4; the former steps 3-7 (components, bridge, glass, enqueue, task) are
+  renumbered 5-9. No gap, per the plan's instruction.
+- `StartupError::Ingress`'s `Display` is `write!(f, "{error}")`, matching
+  `Config`'s and `Clock`'s arms — `IngressError`'s own `Display` already names
+  the path (`"{path}: {fault}"`), so no second prefix is added.
+- EX-1's "a `source()` arm": `StartupError` overrides no `source()` (its own
+  doc comment already says "the **default** `source()`"), so there is no match
+  to add an arm to. Read as: the ninth variant stays covered by the same
+  always-`None` policy `source_walk`'s test enforces (F-47) — extended that
+  test with an `Ingress` case rather than adding an override, which would have
+  reopened the double-print risk the design deliberately closed.
+- `backend.sh`'s ingested-event arm reads `source`/`kind` by parameter
+  expansion exactly as the implementer notes describe
+  (`${request#*'"source":"'}` / `%%'"'*`), verified directly against the real
+  wire bytes (below) rather than assumed from the field-order argument alone.
+- `.gitignore`'s entry is `/goad-demo.sock` (anchored to the repo root, where
+  `examples/demo.toml`'s relative `[ingress]` path resolves once `just` sets
+  goad's working directory there) rather than a path under `examples/`.
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-1 | `StartupError::Ingress(IngressError)`, `Display` arm, `source()` covered by the default and asserted in `source_walk`; `main`'s `match run()` (pasted below, VA-3) maps it to exit 2 unchanged |
+| EX-2 | `startup::listener` — `None` → `Ingress::none()`, `Some` → `ingress::bind` wrapped; `main::start` is its only caller |
+| EX-3 | bind sits at step 3, after `runtime.enter()` (step 2) and before `Host::new` (step 4) and everything UI (steps 5-9); `Host::new` reads `config.ingress` immediately before consuming `config` — `crates/goad/src/main.rs:47-71` |
+| EX-4 | `serve(...)`'s seventh argument is `ingress`, the real value; the only change to that call site |
+| EX-5 | `flake.nix:60` — `pkgs.socat` beside `pkgs.deno` in `projectPkgs`, reaching both the dev shell and the jails |
+| EX-6 | `examples/demo.toml` gains `[ingress]` with `path = "./goad-demo.sock"`, and its header comment carries both the `socat` and `nc` one-liners verbatim, with a real `source`/`kind`/`timestamp`/`data` |
+| EX-7 | `.gitignore` gains `/goad-demo.sock` |
+| EX-8 | `examples/shell/backend.sh`'s middle `case` arm (`"source":"host"`) keeps the fixed prompt; the new catch-all extracts `source`/`kind` by parameter expansion and names them in the view's title; verified directly (below) against `evaluate` requests built the way the real host builds them |
+| VT-1 | `startup::listener::some_path_binds` (positive) and `::some_path_that_is_a_regular_file_names_the_path` (negative, `StartupError::Ingress`'s `Display` asserted to contain the path) |
+| VT-2 | `startup::listener::none_binds_nothing` — `Ok`, and a watched directory gains no entry across the call |
+| VT-3 | `startup::display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` (the `Display` half) and `startup::stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (the `goad: {error}` half) |
+| VA-1 | `just check`, exit 0 — transcript `…/scratchpad/check-final3.txt`, session-local |
+| VA-2 | the clean-clone run, below |
+| VA-3 | the exit-code argument, below |
+| VH-1 | **not discharged by this agent** — see the runbook. Left open. |
+
+**VA-2 — the clean clone**
+
+A separate clone (`git clone` of this checkout at `623e2f0`, working tree
+copied over it so this phase's changes were present) in `nix develop`:
+
+```
+$ which socat
+/nix/store/…-socat-1.8.1.3/bin/socat
+$ cargo build -p goad --bin goad
+   Compiling … (26 workspace crates)
+    Finished `dev` profile [unoptimized] target(s) in 26.21s
+```
+
+`just demo`'s equivalent (`cargo run -p goad --bin goad -- examples/demo.toml`)
+started, bound `goad-demo.sock` with mode `srw-------` (owner-only, AC-10), and
+the documented `socat` one-liner produced the wire's real replies — not
+guessed at, run:
+
+```
+$ printf '%s' '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}' \
+    | socat - UNIX-CONNECT:./goad-demo.sock
+{"protocol":1,"accepted":true}
+
+# a second envelope while the first exchange (the demo backend's own process)
+# was still in flight:
+{"protocol":1,"accepted":false,"reason":"engaged","detail":"an exchange was already in flight"}
+
+# malformed:
+$ printf '%s' 'not json' | socat - UNIX-CONNECT:./goad-demo.sock
+{"protocol":1,"accepted":false,"reason":"malformed","detail":"the bytes are not one JSON document"}
+```
+
+The process was then killed and the socket removed. **This is not VH-1's
+evidence** — it is a headless check of the socket's plumbing (bind, mode,
+accept, reply), run to discharge VA-2's own claim that the one-liner works
+from a clean clone. It does not touch what the window shows, which is the one
+thing reserved for the person who runs VH-1.
+
+**Disclosure:** this environment has a live `DISPLAY`/`WAYLAND_DISPLAY`, so
+`cargo run -p goad --bin goad` opened a real window on the machine's actual
+screen for the few seconds the check above ran, before being killed — the
+renderer test suite never does this (it installs Slint's testing backend), but
+a real `cargo run` of the binary does. I did not look at what the window
+showed and drew no conclusion from it; VH-1 stays open regardless. Flagging
+this because it is an outward-facing effect I did not ask about first.
+
+**VA-3 — the exit code, held by review**
+
+`crates/goad/src/main.rs:21-29`, unchanged by this phase:
+
+```rust
+fn main() -> ExitCode {
+  match run() {
+    Ok(()) => ExitCode::SUCCESS,
+    Err(error) => {
+      diagnostics::report_startup(&error); // "goad: {error}" on stderr
+      ExitCode::from(2)
+    }
+  }
+}
+```
+
+One `match` over `run()`'s `Result`, mapping **every** `Err(error)` —
+`StartupError`'s ninth variant included — to `ExitCode::from(2)`. No variant
+can reach a different code without this `match` itself changing, and it did
+not: `git diff main.rs` touches only `start`, never `main` or `run`.
+
+**No STOP condition was reached.** S-1: the bind sits exactly where EX-3 puts
+it; nothing about the reactor guard blocked it. S-2: `socat`'s form worked
+unmodified from a clean clone with no quoting trick. S-3/S-4: not reachable by
+this agent — VH-1's run has not happened yet; the runbook below is what a
+person needs to check them.
+
+## Runbook (VH-1 — for the user to run)
+
+1. **Start it.** From the repo root, in `nix develop` (or with direnv active):
+   ```
+   just demo
+   ```
+   A window opens showing the demo backend's fixed prompt — *"Fill in your
+   interstitial journal?"* — because the startup evaluation's event carries
+   `"source":"host"`. This is the same window `just demo` has always shown;
+   nothing about it is new yet.
+
+2. **Emit an event.** From a **second** shell, also in `nix develop`, from the
+   repo root:
+   ```
+   printf '%s' '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}' \
+     | socat - UNIX-CONNECT:./goad-demo.sock
+   ```
+   (`nc -U ./goad-demo.sock` also works if you'd rather not use `socat` — send
+   the same JSON followed by a newline instead of relying on EOF.)
+
+3. **What you should see.** The window's title changes to:
+   ```
+   An event arrived: reddit-watcher / reddit-opened
+   ```
+   with body text naming that it came from the ingested envelope. **That
+   change is the point** — it did not come from goad interpreting the event;
+   the host forwarded the envelope's bytes to the backend untouched, and
+   `examples/shell/backend.sh` — the one file in this project allowed to know
+   what an event means — decided what to show. Pick your own `source` and
+   `kind` in step 2 and they will appear verbatim in the title.
+
+4. **Try it again immediately.** Run the same one-liner again right away, a
+   second time. It should be refused on the emitting shell's own stdout —
+   something like:
+   ```
+   {"protocol":1,"accepted":false,"reason":"too_soon","retry_after_ms":...}
+   ```
+   (or `"reason":"engaged"` if the first exchange is still in flight) — and the
+   window should **not** change again. This is the event spacing: a watcher
+   emitting as fast as it can does not get more than one evaluation per
+   spacing.
+
+5. **Try something malformed.** `printf 'not json' | socat - UNIX-CONNECT:./goad-demo.sock`
+   should come back `{"protocol":1,"accepted":false,"reason":"malformed",...}`
+   and the window should not change.
+
+**What would indicate failure** (S-3/S-4 in `plan.md`): the window never
+opens; step 3's title does not change at all, or changes to something that
+does not name your `source`/`kind`; the process hangs or stops answering; a
+socket file (`goad-demo.sock` in the repo root) is left behind after you quit
+normally. Any of these — stop and report it; it is a finding, not a note.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-05 done
+**Fresh as of:** 2026-09-08 · PHASE-06 done (VH-1 excepted)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -986,6 +1227,19 @@ did not arise — nothing under `crates/*/src` was touched.
   `after_a_flood_of_malformed_envelopes_the_host_still_evaluates`. `flat_out`
   is generalised to take the envelope as a parameter, shared by PHASE-04/VT-5
   and PHASE-05/VT-6. No production code changed.
+- **PHASE-06** — `crates/goad/src/startup.rs`: `StartupError::Ingress`,
+  `listener(configured: Option<&IngressConfig>) -> Result<Ingress,
+  StartupError>` — `main::start`'s only decision of `None` versus `Some`.
+  `crates/goad/src/main.rs`: `start`'s nine numbered steps, the bind at step 3
+  (after the runtime guard, before `Host::new`), `serve`'s real `Ingress`.
+  `crates/goad/tests/renderer/startup.rs`: the `listener` module (VT-1, VT-2),
+  the `Ingress` cases in `display_text`, `source_walk` and `stderr_outlets`
+  (VT-3), the corrected module doc sentence. `flake.nix`: `pkgs.socat`.
+  `examples/demo.toml`: `[ingress]`, the documented `socat`/`nc` one-liners.
+  `examples/shell/backend.sh`: names an ingested event's `source`/`kind` in
+  its view; the `"source":"host"` arm keeps the fixed prompt. `.gitignore`:
+  `/goad-demo.sock`. **VH-1 open** — the runbook is in this file, above; a
+  person has not yet run it.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for

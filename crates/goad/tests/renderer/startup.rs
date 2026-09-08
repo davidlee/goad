@@ -1,4 +1,5 @@
-//! Item 17 — the startup surface, as pure functions with no window
+//! Item 17 — the startup surface, mostly pure functions with no window;
+//! `listener` is the exception, since binding a socket is what it does
 //! (design.md §9 item 17, §5.4's exact strings). `StartupError`'s `Display`
 //! for each of its eight variants and `ClockError`'s for both of its,
 //! asserted verbatim; the usage block produced by one `const` and
@@ -11,10 +12,12 @@
 //! and every value that `match` sees is already covered here.
 
 use std::ffi::OsString;
+use std::path::PathBuf;
 
 use goad::clock::ClockError;
 use goad::diagnostics::{USAGE, print_usage, report_platform_line, report_startup_line};
-use goad::startup::{Launch, StartupError, arguments};
+use goad::startup::{Launch, StartupError, arguments, listener};
+use goad_shell::config::IngressConfig;
 use goad_shell::error::ConfigError;
 
 fn argv(rest: &[&str]) -> impl Iterator<Item = OsString> {
@@ -102,6 +105,23 @@ mod display_text {
       "the first request could not be enqueued"
     );
   }
+
+  /// AC-9's stratum 3 half: `Display` renders the `IngressError` unprefixed
+  /// — no repeated wrapper text, like `Config`'s and `Clock`'s arms above —
+  /// and the message names the path.
+  #[test]
+  fn ingress_is_unwrapped_and_unprefixed_and_names_the_path() {
+    use goad_shell::ingress::{BindFault, IngressError};
+
+    let path = std::path::PathBuf::from("/does/not/exist.sock");
+    let error = IngressError {
+      path: path.clone(),
+      fault: BindFault::InUse,
+    };
+    let expected = error.to_string();
+    assert_eq!(StartupError::Ingress(error).to_string(), expected);
+    assert!(expected.contains(path.display().to_string().as_str()));
+  }
 }
 
 mod source_walk {
@@ -110,9 +130,13 @@ mod source_walk {
   use super::{ClockError, StartupError};
 
   /// AC-8, F-47: a chain-walking reporter must not be able to print an
-  /// already-rendered inner message a second time.
+  /// already-rendered inner message a second time. EX-1's "`source()` arm" for
+  /// the ninth variant: `Ingress` stays covered by the same default — the
+  /// type overrides nothing, so every variant, old or new, answers `None`.
   #[test]
   fn startup_error_source_is_always_none() {
+    use goad_shell::ingress::{BindFault, IngressError};
+
     assert!(StartupError::NoConfigPath.source().is_none());
     assert!(StartupError::Usage.source().is_none());
     assert!(
@@ -121,6 +145,14 @@ mod source_walk {
         .is_none()
     );
     assert!(StartupError::Enqueue.source().is_none());
+    assert!(
+      StartupError::Ingress(IngressError {
+        path: std::path::PathBuf::from("/does/not/exist.sock"),
+        fault: BindFault::InUse,
+      })
+      .source()
+      .is_none()
+    );
   }
 
   #[test]
@@ -179,6 +211,21 @@ mod stderr_outlets {
       report_platform_line("no display"),
       "goad: the window could not be drawn: no display"
     );
+  }
+
+  /// AC-9's stratum 3 half, the other outlet: `diagnostics::report_startup_line`
+  /// renders a ninth `StartupError` variant exactly as it renders the other
+  /// eight — `goad: {error}` — since it is generic over `StartupError`'s own
+  /// `Display` rather than matching on the variant.
+  #[test]
+  fn report_startup_line_renders_ingress_like_its_siblings() {
+    use goad_shell::ingress::{BindFault, IngressError};
+
+    let error = StartupError::Ingress(IngressError {
+      path: std::path::PathBuf::from("/run/goad/ingress.sock"),
+      fault: BindFault::InUse,
+    });
+    assert_eq!(report_startup_line(&error), format!("goad: {error}"));
   }
 }
 
@@ -349,5 +396,81 @@ mod arguments_table {
       arguments(std::iter::once(OsString::from("goad")), &no_env),
       Err(StartupError::NoConfigPath)
     ));
+  }
+}
+
+/// `listener` — `main::start`'s own decision of `None` versus `Some`
+/// (EX-2). `bind` needs a reactor, so its cases are `#[tokio::test]`s, unlike
+/// every other function in this file.
+mod listener {
+  use super::{IngressConfig, PathBuf, StartupError, listener};
+
+  fn socket_path(case: &str) -> PathBuf {
+    let path =
+      std::env::temp_dir().join(format!("goad-startup-{case}-{}.sock", std::process::id()));
+    match std::fs::remove_file(&path) {
+      Ok(()) | Err(_) => (),
+    }
+    path
+  }
+
+  fn cleanup(path: &std::path::Path) {
+    match std::fs::remove_file(path) {
+      Ok(()) | Err(_) => (),
+    }
+  }
+
+  /// EX-2's `Some` arm: a fresh path binds and returns an `Ingress`.
+  #[tokio::test]
+  async fn some_path_binds() {
+    let path = socket_path("some");
+    let result = listener(Some(&IngressConfig { path: path.clone() }));
+    assert!(result.is_ok(), "{result:?} was not Ok");
+    cleanup(&path);
+  }
+
+  /// EX-2's `Some` arm, refused: a regular file at the path is not a socket,
+  /// and the error names the path (AC-9).
+  #[tokio::test]
+  async fn some_path_that_is_a_regular_file_names_the_path() {
+    let path = socket_path("regular-file");
+    std::fs::write(&path, b"not a socket").unwrap();
+
+    let error = listener(Some(&IngressConfig { path: path.clone() })).unwrap_err();
+    assert!(matches!(error, StartupError::Ingress(_)));
+    assert!(
+      error
+        .to_string()
+        .contains(path.display().to_string().as_str())
+    );
+
+    cleanup(&path);
+  }
+
+  /// EX-2's `None` arm, and AC-7's second half: nothing is bound and nothing
+  /// is written to the filesystem — a directory watched across the call
+  /// contains no new entry, paired with `some_path_binds`'s positive over the
+  /// same function so the negative is not vacuous.
+  #[tokio::test]
+  async fn none_binds_nothing() {
+    let dir = std::env::temp_dir().join(format!("goad-startup-none-{}", std::process::id()));
+    match std::fs::remove_dir_all(&dir) {
+      Ok(()) | Err(_) => (),
+    }
+    std::fs::create_dir(&dir).unwrap();
+
+    let before: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+    assert!(before.is_empty());
+
+    let result = listener(None);
+    assert!(result.is_ok(), "{result:?} was not Ok");
+
+    let after: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+    assert!(
+      after.is_empty(),
+      "listener(None) wrote an entry into {dir:?}"
+    );
+
+    std::fs::remove_dir_all(&dir).unwrap();
   }
 }
