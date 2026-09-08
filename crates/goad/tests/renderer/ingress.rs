@@ -1,5 +1,9 @@
 //! `plan.md` PHASE-04: `serve`'s two ingress arms, the second anchor, and
-//! what a refusal costs the thread a person is looking at.
+//! what a refusal costs the thread a person is looking at. `plan.md`
+//! PHASE-05 extends this same file: AC-6's three anchor cases — the one
+//! ADR-004 has been waiting for since slice 003 among them — R-15's bound
+//! held from both directions, and the flood that must not reach the
+//! backend.
 //!
 //! Every case here drives the **production** `serve` with a **real bound
 //! `Ingress`** over a real Unix domain socket and a real child process — the
@@ -14,14 +18,17 @@
 //! already declare, and running it on the blocking pool keeps it off the
 //! thread `serve` is on.
 //!
-//! **`plan.md` PHASE-04/EX-11 governs this file:** every case that lets an
-//! exchange complete pins that exchange's `next_check`, because
-//! `controller.rs`'s re-arm reads it (SPEC-001/R-26) and an unpinned script
-//! decides when the next scheduled firing lands. Each member says what it
-//! pinned and why. VT-2 is not a member — it asserts a view, not a count or a
-//! time — and VT-8 is not in this file at all: it is a unit case in
-//! `controller.rs`'s own `#[cfg(test)] mod tests`, because the spacing's
-//! boundary instant is reachable only by constructing it.
+//! **`plan.md` PHASE-04/EX-11 and PHASE-05/EX-5 — the same rule, stated
+//! twice because two phases wrote to this file — govern it whole:** every
+//! case that lets an exchange complete pins that exchange's `next_check`,
+//! because `controller.rs`'s re-arm reads it (SPEC-001/R-26) and an unpinned
+//! script decides when the next scheduled firing lands. Each member says
+//! what it pinned and why. VT-2 (PHASE-04's) is not a member — it asserts a
+//! view, not a count or a time — and VT-8 (PHASE-04's) is not in this file at
+//! all: it is a unit case in `controller.rs`'s own `#[cfg(test)] mod tests`,
+//! because the spacing's boundary instant is reachable only by constructing
+//! it. PHASE-05's own six members are named `PHASE-05/VT-1`..`VT-6` in their
+//! doc comments, to keep them apart from PHASE-04's own VT-1..VT-8.
 
 use std::cell::Cell;
 use std::io::{Read as _, Write as _};
@@ -50,6 +57,12 @@ use crate::waiting::{LIVENESS_BOUND, within};
 /// at the point of use rather than trusting the line.
 const ENVELOPE: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}"#;
 
+/// Not one JSON document — `Refusal::Malformed`, the shape refusal
+/// PHASE-05/VT-5 and VT-6 need. The same literal
+/// `crates/goad-shell/tests/integration/ingress.rs`'s own malformed cases
+/// use.
+const MALFORMED: &str = "not json";
+
 /// An exchange that shows nothing and pins the next check a minute out — far
 /// enough that no scheduled firing lands inside any window this file measures,
 /// and **stated** rather than defaulted (EX-11).
@@ -57,9 +70,11 @@ const NEXT_CHECK_A_MINUTE_OFF: &str = r#"{"view":null,"next_check":"60 seconds"}
 /// The same, with one option to answer, for VT-2.
 const A_VIEW: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"yes","label":"Yes"}]},"next_check":"60 seconds"}"#;
 
-/// VT-5's measured window: the flat-out writer's whole run. Far shorter than
-/// the spacing, which is what makes every reply in it a refusal the loop
-/// decided **while idle** — the state SPEC-003/R-15 obliges the host to report.
+/// PHASE-04/VT-5's measured window: the flat-out writer's whole run. Far
+/// shorter than the spacing, which is what makes every reply in it a refusal
+/// the loop decided **while idle** — the state SPEC-003/R-15 obliges the host
+/// to report. Reused by PHASE-05/VT-6 for its malformed flood: "far shorter
+/// than the spacing" is the same requirement either way.
 const FLAT_OUT_WINDOW: Duration = Duration::from_millis(500);
 /// VT-7's anti-spin window: how long the parked arm is watched for a
 /// presentation that must not come.
@@ -130,15 +145,20 @@ async fn send(path: &Path, envelope: &str) -> String {
     .expect("the writer must not panic")
 }
 
-/// A writer emitting flat out for `window`: one connection after another, each
-/// awaiting its reply before opening the next, with nothing between them.
-async fn flat_out(path: &Path, window: Duration) -> Vec<String> {
+/// A writer emitting `envelope` flat out for `window`: one connection after
+/// another, each awaiting its reply before opening the next, with nothing
+/// between them.
+///
+/// `envelope` is a parameter — not always `ENVELOPE` — so PHASE-05/VT-6's
+/// flood of `MALFORMED` bytes shares this rather than repeating it (DRY):
+/// the shape is identical, only the payload differs.
+async fn flat_out(path: &Path, window: Duration, envelope: &'static str) -> Vec<String> {
   let path = path.to_owned();
   tokio::task::spawn_blocking(move || {
     let deadline = Instant::now() + window;
     let mut replies = Vec::new();
     while Instant::now() < deadline {
-      replies.push(write_one(&path, ENVELOPE));
+      replies.push(write_one(&path, envelope));
     }
     replies
   })
@@ -547,7 +567,7 @@ async fn a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_
       .await;
 
       let before = counted.get();
-      let replies = flat_out(&path, FLAT_OUT_WINDOW).await;
+      let replies = flat_out(&path, FLAT_OUT_WINDOW, ENVELOPE).await;
       // The last refusal's presentation lands after its reply does, so wait
       // for the count to arrive rather than racing it — then assert it did not
       // overshoot.
@@ -703,5 +723,513 @@ async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_eva
     invocations(&log),
     1,
     "a dead accept task changes nothing about the schedule"
+  );
+}
+
+// =============================================================================
+// PHASE-05 — AC-6: the two anchors, independent in both directions;
+// SPEC-003/R-15's bound, held from both sides; AC-12/R-16, the flood.
+// =============================================================================
+//
+// `plan.md:1493-1585` whole. Doc comments below say which alternative each
+// AC-6 case falsifies (EX-1) and, for every exchange a case lets complete,
+// what its `next_check` was pinned to and why (EX-5, restating PHASE-04/EX-11
+// over this file).
+
+/// PHASE-05's own short instruction. Defined here rather than reached for in
+/// `scheduling.rs` (`plan.md`'s implementer note: this module states its
+/// own).
+const INSTRUCT_300MS: &str = r#"{"view":null,"next_check":"300 milliseconds"}"#;
+/// The priming instruction VT-2 opens with: short enough that the real
+/// scheduled firing it produces (T0) lands well inside any window this
+/// section measures.
+const INSTRUCT_100MS: &str = r#"{"view":null,"next_check":"100 milliseconds"}"#;
+/// VT-2's discriminator: the **same** string answers both the scheduled
+/// exchange at T0 and the ingested exchange at T0+ε, so the two hypotheses
+/// agree on everything either exchange resolves to and disagree only about
+/// whether the ingested one wrote `floor_until` (VT-2's own doc comment).
+const INSTRUCT_1S: &str = r#"{"view":null,"next_check":"1 second"}"#;
+
+// ---------------------------------------------------------------------------
+// PHASE-05/VT-1 — AC-6 (i), *does not delay*
+// ---------------------------------------------------------------------------
+
+/// **PHASE-05/VT-1 — AC-6 (i), *does not delay*.** Falsifies the third
+/// alternative `docs/adr/004-scheduled-firings-are-spaced-from-the-previous-scheduled-firing.md`
+/// §Alternatives considered lists — an anchor on "the last thing the host
+/// did", written on *any* attempted firing rather than a scheduled one
+/// alone. An ingested firing never writes `floor_until`
+/// (`controller.rs`'s `ingest`: one write site, `event_floor_until`).
+///
+/// **EX-5.** No priming exchange: `floor_until` starts already elapsed
+/// (`controller.rs:601`) and nothing has fired the timer yet at test start,
+/// so the one envelope this case sends is the *first* attempted firing of
+/// any kind — the only write `floor_until` could receive here is exactly the
+/// one under test. It pins its own `next_check` short (300 ms, the "short
+/// `next_check`" AC-6(i) names); the resulting **scheduled** firing — the
+/// timer completing on that instruction — is itself pinned a minute off, so
+/// nothing else fires inside the window this case measures.
+///
+/// Under the anchor the resulting scheduled firing is unfloored and lands
+/// near 300 ms. Under the rejected alternative, the ingested firing would
+/// write `floor_until = now + MINIMUM_SPACING` on its own attempt, and
+/// `deadline_after` would floor that same firing to ~3 s. **No separate
+/// anti-fire window is needed here (EX-4 does not apply to this case): the
+/// bound below is itself the falsifying signal**, the same shape
+/// PHASE-04/VT-4's exemption note describes for a wait that *is* the bound
+/// under test.
+#[tokio::test]
+async fn an_ingested_firing_never_writes_the_scheduled_floor() {
+  let path = socket_path("p5vt1");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("p5-vt1", &[INSTRUCT_300MS, NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      let reply = send(&path, ENVELOPE).await;
+      assert!(accepted(&reply), "the envelope is accepted: {reply}");
+
+      // Well under `MINIMUM_SPACING` (3s): if the ingested firing had
+      // written `floor_until` on its own attempt, this firing would be
+      // floored to ~3s and this bound would time out rather than the
+      // firing landing early.
+      until(Duration::from_secs(2), || invocations(&log) >= 2).await;
+
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    2,
+    "one accepted envelope, one resulting scheduled firing — nothing else"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-05/VT-2 — AC-6 (ii), *does not advance* — ADR-004's own debt
+// ---------------------------------------------------------------------------
+
+/// **PHASE-05/VT-2 — AC-6 (ii), *does not advance* — the case ADR-004 has
+/// been waiting for since slice 003, and the one CD-3 amends the record to
+/// name.** Falsifies the second alternative ADR-004 lists: spacing applied
+/// only when the predecessor was itself a scheduled firing, tracked as a
+/// boolean (`review-design.md` F-2's finding, restated in ADR-004
+/// §Alternatives considered).
+///
+/// Setup, in order: (1) a priming exchange — a person's `Requested`
+/// stimulus, never floored — instructs 100 ms, so the **first real
+/// scheduled firing**, T0, lands soon; (2) T0's own exchange writes
+/// `floor_until = T0 + MINIMUM_SPACING` (`serve`'s timer arm, unconditional)
+/// and is answered `next_check` due at **T0+1s** — under the anchor this is
+/// floored to T0+3s (`deadline_after(T0, 1s, T0+3s) = T0+3s`); (3) once T0's
+/// exchange has been absorbed, an envelope arrives at T0+ε and is accepted —
+/// the event anchor starts already elapsed and nothing has written it yet —
+/// and **its own exchange is answered the identical instruction**, so its
+/// own resolved deadline is also no later than T0+1s
+/// (`controller.rs:507-512`, SPEC-001/R-26) and the two hypotheses disagree
+/// only about whether this ingested firing wrote `floor_until`. **EX-5**:
+/// both exchanges this case lets complete are pinned as stated above, and
+/// the fourth (whichever lands from the floor's release) is pinned a minute
+/// off so nothing further fires inside the window measured.
+///
+/// Under the anchor `floor_until` is untouched by the ingested firing, so
+/// its own (also-1s) resolution is *again* floored to T0+3s and the standing
+/// deadline does not move. Under the boolean, the ingested firing clears the
+/// flag the floor is conditioned on, its own unfloored resolution wins, and
+/// the next scheduled evaluation reaches the backend at ~T0+1s instead —
+/// `canon-delta.md` CD-3, `design.md` §9.
+///
+/// **EX-4**: the anti-fire window (to T0+2.7s, 300 ms inside the 3 s floor)
+/// is paired with the liveness assertion below it, so a dead anchor — one
+/// that never fires again at all — cannot pass this case by omission.
+#[tokio::test]
+async fn an_ingested_firing_does_not_advance_the_scheduled_floor() {
+  let path = socket_path("p5vt2");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted(
+    "p5-vt2",
+    &[
+      INSTRUCT_100MS,
+      INSTRUCT_1S,
+      INSTRUCT_1S,
+      NEXT_CHECK_A_MINUTE_OFF,
+    ],
+  );
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      // Priming: a person's own `Requested` evaluate — never floored.
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+
+      // T0: the first real *scheduled* firing — the timer, not a person —
+      // produced by the priming exchange's 100 ms instruction. `floor_until`
+      // is written here, unconditionally, by `serve`'s timer arm.
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      let t0 = Instant::now();
+
+      // Wait for T0's own exchange to be absorbed before sending the
+      // envelope: the rendered `next_check` (1s) differs from the priming
+      // exchange's own (100ms), so its arrival is the observable proof.
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:00:01Z"))
+      })
+      .await;
+
+      // T0+ε: the ingested firing. Accepted — the event anchor starts
+      // already elapsed and this is its first attempt.
+      let reply = send(&path, ENVELOPE).await;
+      assert!(accepted(&reply), "the envelope is accepted: {reply}");
+      until(LIVENESS_BOUND, || invocations(&log) >= 3).await;
+
+      // Anti-fire: comfortably inside the 3s floor (300ms margin), the
+      // fourth invocation — the scheduled evaluation the floor is holding
+      // back — must not have landed.
+      let anti_fire = Duration::from_millis(2700).saturating_sub(t0.elapsed());
+      tokio::time::sleep(anti_fire).await;
+      assert_eq!(
+        invocations(&log),
+        3,
+        "the ingested firing must not have advanced the scheduled floor"
+      );
+
+      // Liveness, paired per EX-4: the floor does release it, eventually.
+      until(LIVENESS_BOUND, || invocations(&log) >= 4).await;
+
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-05/VT-3 — AC-6 (iii), the event anchor is not cleared
+// ---------------------------------------------------------------------------
+
+/// **PHASE-05/VT-3 — AC-6 (iii), the event anchor is not cleared.** Holds
+/// CD-1's new rule, about which ADR-004 makes no claim at all — there is no
+/// alternative to falsify here, only the new floor to hold: a **scheduled**
+/// firing landing between two envelopes does not clear `event_floor_until`.
+///
+/// **EX-5.** The first envelope's own exchange is pinned short (300 ms) so
+/// the scheduled firing it produces lands *inside* the three-second event
+/// spacing that same envelope opened — the arrangement this case needs; the
+/// scheduled firing's own `next_check` is pinned a minute off so nothing
+/// else fires inside the window measured.
+#[tokio::test]
+async fn a_scheduled_firing_does_not_clear_the_event_floor() {
+  let path = socket_path("p5vt3");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted(
+    "p5-vt3",
+    &[
+      INSTRUCT_300MS,
+      NEXT_CHECK_A_MINUTE_OFF,
+      NEXT_CHECK_A_MINUTE_OFF,
+    ],
+  );
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      // The first envelope: accepted, opens the event spacing, and its own
+      // 300ms instruction produces the scheduled firing below.
+      let first = send(&path, ENVELOPE).await;
+      assert!(accepted(&first), "the first envelope is accepted: {first}");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+
+      // The scheduled firing, well inside the still-open event spacing.
+      // Waited for by its own **absorption**, not merely its start:
+      // `invocations(&log) >= 2` proves only that the exchange began
+      // (`scheduling.rs`'s `absorbed_line` doc comment states the race this
+      // avoids), and a second envelope arriving before it is absorbed would
+      // be refused `engaged` rather than `too_soon` — a race, not a defect
+      // in the anchor, but one that must not be let decide this assertion.
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))
+      })
+      .await;
+
+      // A second envelope, still inside the *event* spacing the first
+      // envelope opened: still `too_soon` — the scheduled firing between
+      // them must not have cleared it.
+      let second = send(&path, ENVELOPE).await;
+      assert_eq!(
+        reason(&second),
+        "too_soon",
+        "a scheduled firing must not have cleared the event anchor: {second}"
+      );
+
+      // Liveness: the event spacing does release, eventually — the anchor is
+      // a floor, not a permanent lock. A third envelope, sent after the
+      // remaining spacing the refusal itself named, is accepted.
+      let retry_after_ms = parsed(&second)["retry_after_ms"]
+        .as_u64()
+        .expect("a `too_soon` refusal carries `retry_after_ms`");
+      tokio::time::sleep(Duration::from_millis(retry_after_ms)).await;
+      let third = send(&path, ENVELOPE).await;
+      assert!(
+        accepted(&third),
+        "outside the event spacing the envelope is accepted, so the refusal above was the \
+         anchor and not a listener refusing everything: {third}"
+      );
+      until(LIVENESS_BOUND, || invocations(&log) >= 3).await;
+
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-05/VT-4 — R-15, positive: a refusal decided while idle is seen
+// ---------------------------------------------------------------------------
+
+/// **PHASE-05/VT-4 — R-15, positive.** A refusal the loop decides while
+/// idle — `too_soon`, decided only while idle (`design.md` §5.4 step 3) —
+/// reaches the diagnostics surface a person reads.
+///
+/// **EX-5.** The accepted exchange that precedes the refusal is pinned a
+/// minute off, so no scheduled firing intervenes between the refusal and the
+/// read and supersedes what the surface holds (`absorb` replaces the whole
+/// retained `Diagnostics`, PHASE-04 finding F-b).
+///
+/// Read off `Served.controller`'s retained diagnostics after the loop stops
+/// — the deterministic fallback `plan.md`'s implementer notes allow when the
+/// live window's timing would be awkward: nothing absorbs between the
+/// refusal and the stop, so the retained value is exactly what the refusal
+/// folded.
+#[tokio::test]
+async fn a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface() {
+  let path = socket_path("p5vt4");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("p5-vt4", &[NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      let first = send(&path, ENVELOPE).await;
+      assert!(accepted(&first), "the first envelope is accepted: {first}");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))
+      })
+      .await;
+
+      let refused = send(&path, ENVELOPE).await;
+      assert_eq!(reason(&refused), "too_soon", "{refused}");
+
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  let lines = served.controller.frame().diagnostics.lines();
+  assert!(
+    lines
+      .iter()
+      .any(|line| line.contains("too_soon") && line.contains("was refused")),
+    "R-15: the idle refusal must be on the surface a person reads: {lines:?}"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-05/VT-5 — R-15, negative: a refusal decided during an exchange is not
+// ---------------------------------------------------------------------------
+
+/// **PHASE-05/VT-5 — R-15, negative.** The same bound, from the other side:
+/// a shape refusal (`malformed`) decided **during** an exchange does not
+/// reach the surface — it is answered to its writer, and superseded by
+/// `absorb` before any presentation, because the inner arm's `continue`
+/// never calls `glass.present` (`design.md` §5.2, *the inner arm folds the
+/// same refusal*). This is the case `design.md` §5.4 step 1 in the inner arm
+/// exists to make buildable — PHASE-04's own finding recorded it as *"built
+/// but not driven [t]here"*; this is what drives it. **This is what makes
+/// SPEC-003/R-15's bound a claim rather than an excuse**: a refusal reported
+/// only when it happens to land while idle, and silently dropped whenever it
+/// doesn't, would not be a report a person could rely on.
+///
+/// **EX-5.** `@slow-view`'s own `next_check` is pinned 45 minutes by the
+/// script itself (`tests/backends/answers-as-instructed.sh`) — the same
+/// vehicle PHASE-04/VT-3 uses — so nothing fires between `absorb` and the
+/// read.
+#[tokio::test]
+async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface() {
+  let path = socket_path("p5vt5");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("p5-vt5", &["@slow-view"]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+
+      // The exchange is now in its foreground `sleep 0.2`.
+      let reply = send(&path, MALFORMED).await;
+      assert!(
+        !accepted(&reply),
+        "malformed bytes are refused whatever the host's state: {reply}"
+      );
+      assert_eq!(reason(&reply), "malformed");
+
+      // Liveness: the exchange the arrival did not disturb still completes
+      // and is absorbed.
+      until(LIVENESS_BOUND, || window.get_heading() == "Still there?").await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  let lines = served.controller.frame().diagnostics.lines();
+  assert!(
+    lines.iter().all(|line| !line.contains("was refused")),
+    "the shape refusal must have been superseded by `absorb` before any presentation: {lines:?}"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE-05/VT-6 — AC-12, SPEC-003/R-16: the flood
+// ---------------------------------------------------------------------------
+
+/// **PHASE-05/VT-6 — AC-12, SPEC-003/R-16.** After a flood of malformed
+/// envelopes the host still evaluates: an invocation lands, and **none** of
+/// the malformed envelopes produced one. Both halves, or the absence
+/// assertion is vacuous (`plan.md`'s own words for this case).
+///
+/// **EX-5.** Nothing is dispatched during the flood — every malformed
+/// envelope is refused at step 1, before either anchor is read or written
+/// (`controller.rs`'s `ingest`/`refuse_during_exchange`, step 1) — so the
+/// only thing that can ever fire is `serve`'s own initial arm, armed
+/// unconditionally at `MINIMUM_SPACING` from process start. The one exchange
+/// this lets complete pins `next_check` a minute off, so nothing else fires
+/// inside the window measured — this is the same firing PHASE-04/VT-7 pins
+/// the same way, for the same reason.
+#[tokio::test]
+async fn after_a_flood_of_malformed_envelopes_the_host_still_evaluates() {
+  let path = socket_path("p5vt6");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("p5-vt6", &[NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (_tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let (served, replies) = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      let replies = flat_out(&path, FLAT_OUT_WINDOW, MALFORMED).await;
+      assert_eq!(
+        invocations(&log),
+        0,
+        "no malformed envelope may reach the backend"
+      );
+
+      // Liveness: the initial arm still fires, well inside `LIVENESS_BOUND`
+      // of the flood's own window closing (~2.5s of `MINIMUM_SPACING`
+      // remain).
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      stopper.stop();
+      (handle.await.expect("serve must not panic"), replies)
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert!(
+    !replies.is_empty(),
+    "the flood must actually have written something"
+  );
+  for reply in &replies {
+    assert_eq!(reason(reply), "malformed", "{reply}");
+  }
+  assert_eq!(
+    invocations(&log),
+    1,
+    "exactly the one firing the flood did not prevent"
   );
 }

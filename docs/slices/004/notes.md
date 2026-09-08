@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-03 — the socket's lifecycle, and the accepted path | done | 2026-09-08 |
 | PHASE-08 — the refusal vocabulary, and the closed reason set | done | 2026-09-08 |
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | done | 2026-09-08 |
-| PHASE-05 — the two anchors, and what a person can see | pending | |
+| PHASE-05 — the two anchors, and what a person can see | done | 2026-09-08 |
 | PHASE-06 — binding at startup, and the demo a person runs | pending | |
 | PHASE-07 — the sweep, the spec's own table, and the gate | pending | |
 
@@ -301,6 +301,163 @@ S-3: no unexempted margin under 10x, and no existing test went red. S-4: the
 cost per refusal is **exactly one**, asserted; F-15 settles rather than
 returning `contested`. S-5: the second-runtime route reached `None` on the first
 attempt; nothing was added to `Ingress`.
+
+### PHASE-05 — The two anchors, and what a person can see
+
+**Entry check:** EN-1 — PHASE-04's exit criteria are discharged (its sheet
+above, every criterion with evidence) and `just check` exit 0 at `c4f4796`
+(per the orchestrator's brief). EN-2 — PHASE-04/VT-5's presentation number
+(1.000, `845`/`845`) was good; F-15 did not return to the ledger `contested`.
+Both hold: proceeding.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `plan.md:1493-1585` |
+| AC-6 and its reading | `slice-004.md` §Acceptance criteria, §Readings taken in design |
+| the two anchors, both write sites, both starting elapsed | `design.md` §5.3 `:358-390` |
+| the order of judgement, the sequence diagram | `design.md` §5.4 `:391-515` |
+| §9's AC-6 row (the exact three-case argument) | `design.md` §9 `:649-681` |
+| CD-3 — ADR-004's amended Verification | `canon-delta.md` `:192-242` |
+| ADR-004 whole, esp. §Alternatives, §Verification | `docs/adr/004-*.md` |
+| PHASE-04's sheet: decisions, F-a/F-b/F-c, the inner arm's undriven step 1 | `notes.md` PHASE-04 sheet, above |
+| the loop, `ingest`, `spacing_elapsed`, both anchors, `deadline_after` | `controller.rs:360-405` (`deadline_after`, `spacing_elapsed`), `:490-537` (`ingest`), `:589-602` (both anchors' initialisation), `:606-724` (`serve`) |
+| `wait_for` / R-26's re-arm | `controller.rs:507-512`, `goad-semantics/src/schedule.rs` |
+| existing PHASE-04 cases and the file's own rules | `crates/goad/tests/renderer/ingress.rs` whole |
+| the scheduled-only precedent for this exact shape (a person's action not clearing the *scheduled* floor) | `crates/goad/tests/renderer/scheduling.rs:830-870` (`a_person_acting_mid_cadence_does_not_clear_the_floor`) |
+| `scripted`, `logging_backend`, `invocations` | `tests/support/scripting.rs` |
+| `answers-as-instructed.sh` — one instruction per invocation, in order, defaults past the end | `tests/backends/answers-as-instructed.sh` |
+| `within`/`until`, `LIVENESS_BOUND` | `tests/support/waiting.rs`, `renderer/harness.rs:80-85` |
+| the refusal vocabulary, `Refusal::reason`/`Display`, `UnavailableCause` | `crates/goad-shell/src/ingress/mod.rs:236-370` |
+| `Diagnostics::refused`/`lines`/`is_clear` | `crates/goad/src/diagnostics.rs:146-176` |
+
+**Assumptions**
+
+- **No new consumer for PL-8's `CountingGlass`.** None of this phase's six
+  cases needs a presentation count; `harness.rs` is not touched.
+- **The six cases stay in `ingress.rs`**, extending PHASE-04's file per the
+  phase's own Surfaces line. Existing consts (`ENVELOPE`,
+  `NEXT_CHECK_A_MINUTE_OFF`, `MINIMUM_SPACING`, `socket_path`, `cleanup`,
+  `send`, `parsed`, `accepted`, `reason`) are reused; nothing is redefined.
+- **`flat_out` is generalised to take the envelope text as a parameter**
+  (DRY, `CLAUDE.md`) so VT-6's malformed flood and PHASE-04/VT-5's
+  well-formed one share it; its window constant (`FLAT_OUT_WINDOW`) is
+  reused for both, since "far shorter than the spacing" is the same
+  requirement either way.
+- **VT-1's construction has no priming exchange.** `floor_until` starts
+  already elapsed (`started`) and nothing has fired the timer yet at test
+  start, so the single ingested envelope this case sends is the *first*
+  attempted firing of any kind — the only write `floor_until` could receive
+  is exactly the one under test, with nothing else to disentangle it from
+  (unlike VT-2, where an antecedent real scheduled firing must exist for
+  "advance" to be a meaningful question).
+- **VT-2's setup: priming `Requested` (100 ms) → real scheduled firing at T0
+  (instructed 1 s, floored to T0+3s) → ingested firing at T0+ε (instructed
+  the identical 1 s string).** Reusing the *same* instruction for the
+  scheduled and the ingested exchange is what makes the two hypotheses agree
+  on everything except whether the ingested firing wrote `floor_until`
+  (EX-2/CD-3's load-bearing clause) — both resolve to a deadline no later
+  than T0+1s, satisfying the plan's own bound on the ingested exchange
+  without needing a second constant.
+- **T0 is measured in the test via `Instant::now()`**, taken the moment
+  `invocations(&log) >= 2` is observed (the real scheduled firing has
+  started), not inferred from a rendered timestamp — the two candidate
+  next-check renderings (scheduled and ingested) are textually identical
+  (both "1 second" against the same fixed `stub_clock`), so they cannot be
+  told apart by the surface.
+
+**STOP conditions** (`plan.md` S-1..S-3)
+
+- S-1 — a case cannot be written without changing production code.
+- S-2 — VT-2 passes under **both** hypotheses when its anchor is broken.
+- S-3 — VT-5 shows the refusal on the surface after all.
+
+**Task breakdown**
+
+- [x] sheet written; status `in progress`.
+- [x] EN-1/EN-2 verified.
+- [x] `flat_out` generalised (parameterised envelope); PHASE-04/VT-5 call site
+      updated; `MALFORMED` const added.
+- [x] VT-1 — `an_ingested_firing_never_writes_the_scheduled_floor`.
+- [x] VT-2 — `an_ingested_firing_does_not_advance_the_scheduled_floor`.
+- [x] VT-3 — `a_scheduled_firing_does_not_clear_the_event_floor`.
+- [x] VT-4 — `a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface`.
+- [x] VT-5 — `a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`.
+- [x] VT-6 — `after_a_flood_of_malformed_envelopes_the_host_still_evaluates`.
+- [x] VA-2 — margin table.
+- [x] VA-3 — break-and-revert, all three breaks, recorded.
+- [x] VA-1 — `just check`; harvest.
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-1 | six named `#[tokio::test]`s in `ingress.rs`; VT-1/VT-2/VT-3 each carry a doc comment naming which ADR-004 alternative they falsify (VT-1: the "last thing the host did" write-on-any-firing alternative; VT-2: the boolean-cleared-by-another-stimulus alternative, F-2; VT-3: none — ADR-004 makes no claim, it holds CD-1's own rule) |
+| EX-2 | VT-2's doc comment states the pin (both the T0 exchange and the ingested exchange answered the identical `next_check`, "1 second"), cites `SPEC-001/R-26` and `controller.rs:507-512`, and states in one sentence why: so the two hypotheses disagree about nothing except whether the ingested firing wrote `floor_until` |
+| EX-3 | VT-4 (positive) and VT-5 (negative); VT-5's doc comment states explicitly: *"this is what makes SPEC-003/R-15's bound a claim rather than an excuse"* |
+| EX-4 | VT-2 pairs its anti-fire window (to T0+2.7s) with a liveness assertion (`invocations>=4`, `LIVENESS_BOUND`) directly below it; VT-6 pairs the flood's implicit anti-fire (`invocations==0` immediately after) with `until(LIVENESS_BOUND, invocations>=1)`. VT-1's tight bound needs no separate anti-fire window — stated in its own doc comment, EX-4 does not apply to a case with no anti-fire window |
+| EX-5 | every case's doc comment states what it pinned and why: VT-1 (its one exchange, 300ms, and the resulting scheduled firing, a minute off); VT-2 (T0's exchange and the ingested exchange, both "1 second"; the fourth, a minute off); VT-3 (the first envelope, 300ms; the scheduled firing, a minute off); VT-4 (the priming exchange, a minute off); VT-5 (`@slow-view`'s own 45-minute pin, by the script); VT-6 (the one post-flood exchange, a minute off) |
+| VT-1 | `an_ingested_firing_never_writes_the_scheduled_floor` — green; goes **red** under VA-3's Break 1 (`condition did not become true within 2s`) |
+| VT-2 | `an_ingested_firing_does_not_advance_the_scheduled_floor` — green; goes **red** under VA-3's Break 3 (`left: 4, right: 3` — the fourth invocation landed before the anti-fire window closed) |
+| VT-3 | `a_scheduled_firing_does_not_clear_the_event_floor` — green; goes **red** under VA-3's Break 2 (`a refusal must name a reason` — the second envelope was wrongly accepted). **Repaired mid-phase**: its original form sent the second envelope right after `invocations(&log) >= 2` (proves the scheduled exchange *began*, not that it was *absorbed*) and flaked `engaged`/`too_soon` twice under `just check`'s load — fixed by waiting for that exchange's own rendered `next_check` first, the same pattern PHASE-04/VT-5 already uses (*Learned*, below). Re-verified red under Break 2 after the fix |
+| VT-4 | `a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface` — green; asserts `served.controller.frame().diagnostics.lines()` contains a line naming `too_soon` |
+| VT-5 | `a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface` — green; asserts no retained diagnostic line contains "was refused" after `@slow-view`'s exchange absorbs |
+| VT-6 | `after_a_flood_of_malformed_envelopes_the_host_still_evaluates` — green; `invocations == 0` immediately after the flood, `== 1` (not more) after the liveness wait, every reply `malformed` |
+| VA-1 | `just check` **exit 0**, three consecutive clean runs after the VT-3 fix (transcripts `…/scratchpad/check-run-{1,2,3}.txt`, session-local, not durable). Two earlier runs, mid-phase, failed on the pre-existing race the *Learned* entry below describes (once in PHASE-04's own test, once in PHASE-05/VT-3 before its fix) — not a defect in the gate |
+| VA-2 | the margin table below |
+| VA-3 | three breaks, each isolated (the other two cases stay green under each break) — see below |
+
+**VA-2 — margins**
+
+Times are the whole test binary invocation for that one case (three runs,
+`cargo test -- <case> --exact`), reading the harness's own "finished in" line.
+
+| case | elapsed | the bound that governs | margin | kind |
+|---|---|---|---|---|
+| VT-1 | 470ms | `Duration::from_secs(2)`, a bound chosen specifically to be well inside `MINIMUM_SPACING` | ~4.3x | **exempt** — the same ground as PHASE-04/VT-4 and VT-7: the bound *is* the discriminator (a 5s `LIVENESS_BOUND` would not have caught VA-3 Break 1 — a 3s-floored firing lands comfortably inside 5s) |
+| VT-2 | 3.26-3.28s | two: the anti-fire window (to T0+2.7s, exempt on the same ground as VT-1); the paired liveness wait afterward, `LIVENESS_BOUND` 5s over the remaining ~0.3-0.5s to the real firing | anti-fire: n/a; liveness: ~10-15x | mixed — anti-fire exempt, liveness comfortable |
+| VT-3 | 3.16-3.17s | `LIVENESS_BOUND` 5s over a wait that *is* `retry_after_ms`, the remaining event spacing (~2.7s) | ~1.85x | **exempt** — the same ground PHASE-04/VT-4 states for its own control wait |
+| VT-4 | 150-170ms | `LIVENESS_BOUND` 5s | ~29-33x | liveness |
+| VT-5 | 330-360ms | `LIVENESS_BOUND` 5s against `@slow-view`'s 200ms foreground sleep | ~14-15x | liveness |
+| VT-6 | 3.15-3.16s | `LIVENESS_BOUND` 5s over the remaining ~2.65s of `MINIMUM_SPACING` after the 500ms flood window | ~1.9x | **exempt** — the same ground PHASE-04/VT-7 states: the firing it waits for *is* `MINIMUM_SPACING` |
+
+No unexempted margin under 10x. **S-3-style concern not reached** (S-3 in
+this phase names a different condition; the margin rule from PHASE-04's plan
+carries over by the same reasoning and is checked the same way).
+
+**VA-3 — break-and-revert, three breaks**
+
+All three breaks were applied to `controller.rs` **in a scratch copy**,
+never committed; each was reverted by restoring the pre-phase file
+(`cp`'d back) and confirmed byte-identical (`diff`) before the next break.
+`git status`/`git diff --stat crates/goad/src/controller.rs` show no
+production change survives this phase.
+
+1. **Break 1 (VT-1's falsifier).** `ingest` additionally took `floor_until`
+   and wrote it (`*floor_until = arrived + MINIMUM_SPACING`) alongside
+   `event_floor_until` — "the ingested firing writes the scheduled floor
+   too". VT-1 **red** (`condition did not become true within 2s`). VT-2
+   stayed green (the write only ever *delays*, never advances, so "does not
+   advance" does not turn on it). VT-3 also went red as a side effect (the
+   scheduled firing this case's first envelope produces was itself delayed
+   by the break, landing outside the window VT-3 measures) — recorded, not a
+   defect: Break 1 is deliberately broad.
+2. **Break 2 (VT-3's falsifier).** The timer arm additionally cleared
+   `event_floor_until = tokio::time::Instant::now()` alongside writing
+   `floor_until` — "a scheduled firing clears the event anchor". VT-3
+   **red** (`a refusal must name a reason` — the second envelope was wrongly
+   accepted, so `reason()`'s `unwrap`-style expect panicked for lack of one).
+   VT-1 and VT-2 stayed green (isolated).
+3. **Break 3 (VT-2's falsifier, S-2).** The floor applied at the exchange
+   -completion re-arm site (`controller.rs:707-716`) was made conditional on
+   `refusal_re_arms` (`matches!(fired, Fired::Scheduled)`) — "the floor
+   applies only when the firing whose outcome is being resolved was itself
+   scheduled" — the boolean alternative ADR-004 rejected (F-2). VT-2 **red**
+   (`left: 4, right: 3` — the fourth invocation, the scheduled evaluation the
+   floor should have been holding back, had already landed before the
+   anti-fire window closed). VT-1 and VT-3 stayed green (isolated). **S-2 is
+   not reached: the case does discriminate.**
 
 ### PHASE-08 — The refusal vocabulary, and the closed reason set
 
@@ -774,7 +931,7 @@ did not arise — nothing under `crates/*/src` was touched.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-04 done
+**Fresh as of:** 2026-09-08 · PHASE-05 done
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -819,12 +976,40 @@ did not arise — nothing under `crates/*/src` was touched.
 - `crates/goad/tests/renderer/ingress.rs` — the renderer tier's ingress cases
   (PHASE-04/VT-1..VT-5, VT-7), the counting `Glass` decorator (PL-8), and the
   blocking writer's side of a connection. The first module in that target to
-  open a socket.
+  open a socket. **PHASE-05 extends it**: six more cases —
+  `an_ingested_firing_never_writes_the_scheduled_floor`,
+  `an_ingested_firing_does_not_advance_the_scheduled_floor` (the case ADR-004
+  named; CD-3's discharge),
+  `a_scheduled_firing_does_not_clear_the_event_floor`,
+  `a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface`,
+  `a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`,
+  `after_a_flood_of_malformed_envelopes_the_host_still_evaluates`. `flat_out`
+  is generalised to take the envelope as a parameter, shared by PHASE-04/VT-5
+  and PHASE-05/VT-6. No production code changed.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
 
+- **`invocations(&log) >= n` proves an exchange *began*, not that it was
+  *absorbed* — and under heavy machine load the gap between the two is wide
+  enough to flip an assertion.** Confirmed by reproduction, not inference:
+  under `just check`'s heavier concurrent load (twice, back to back), a
+  second envelope sent right after `invocations(&log) >= 2` landed *before*
+  the second exchange's `absorb`, so the loop was still `engaged` and the
+  reply was `engaged` instead of the `too_soon` the case expected — in both
+  PHASE-05/VT-3 (fixed here) and in PHASE-04's own
+  `a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`
+  (not fixed — outside this phase's surface to repair on its own initiative,
+  reported below). `scheduling.rs`'s `absorbed_line` doc comment already
+  names this race for the *scheduled* firing case; it applies identically to
+  an *ingested* one. **How to apply:** wherever a case sends a second
+  envelope (or otherwise depends on state a prior exchange's `absorb` set)
+  right after only an invocation-count wait, wait for the exchange's own
+  rendered `next_check` to change instead (`window.get_next_check() ==
+  next_check_line(...)` for that exchange's own instruction) — the pattern
+  PHASE-04/VT-5 and PHASE-05/VT-2 and VT-4 already use. Strong candidate for
+  `docs/memory/`.
 - **A repair sweep finds prose and misses the binding site.** Three of the
   design review's four rounds yielded the same class: a repair correct where it
   landed, not carried to the artefact that states the same thing normatively.
@@ -971,6 +1156,18 @@ did not arise — nothing under `crates/*/src` was touched.
   today (PHASE-04 finding F-a). Adding a payload to `Refusal` is a design
   question about what that type carries; the diagnostics surface names the
   clock correctly in the meantime.
+- **PHASE-04's own
+  `a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`
+  carries the same race PHASE-05's *Learned* entry above describes**: it
+  sends its second envelope right after `invocations(&log) >= 1`, which
+  proves only that the first exchange *began*, not that it was absorbed.
+  Reproduced twice under `just check`'s heavier load, both times as
+  `engaged` where `too_soon` was expected. Not repaired here: it is
+  PHASE-04's own test body, outside this phase's declared surface to fix on
+  its own initiative (`docs/AGENTS.md` §Execute — *"stop and ask"* on
+  anything beyond the declared surface). The fix, when taken, is the same
+  one PHASE-05/VT-3 applies: wait for the exchange's own rendered
+  `next_check` before sending the next envelope.
 
 ### PHASE-02 — The configuration key, and the envelope
 
