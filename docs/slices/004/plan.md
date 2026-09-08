@@ -7,6 +7,15 @@ design or canon; if it seems to, the plan is wrong.
      immutable: edits append, never renumber, so the sequence goes
      non-monotonic after a split and that is expected. Criterion ids are local
      to their phase — cite another phase's phase-qualified (PHASE-03/EX-2).
+     A bare number therefore names as many criteria as there are phases using
+     it: VT-1 is five different tests. **VT-7 and VT-8 are three each** —
+     PHASE-02's duplicate-key and offsetless-instant cases, PHASE-04's
+     closed-channel and boundary cases, PHASE-08's shape reasons and token set.
+     Those two numbers are called out because the listener split's own
+     bookkeeping discusses VT-7..VT-9 moving from PHASE-03 to PHASE-08, so a
+     reader meets the number in a context that suggests it is one criterion.
+     It is not; none of the six is related to another; every citation of all of
+     them is phase-qualified, and none may be renumbered to relieve the clash.
      Verification modes — VT: automated test. VA: agent check. VH: human
      acceptance.
      Progress is NOT recorded here. Status lives in `notes.md`. -->
@@ -39,15 +48,19 @@ whole thing stands on.
   configuration key, and the permissive `Envelope` with its normalization into
   `Event`. Pure unit tests, no runtime, no filesystem. It is where the whole of
   `draft-spec.md` R-9, R-10 and R-13 is discharged, one case per clause.
-- **PHASE-03** is the listener over a real socket on its **accepted** path:
-  `bind`'s probe / reclaim / bind / mode sequence, the accept task, the framing,
-  the reply's bytes, and the socket's lifecycle — against a **fake judge**, so
-  the connection contract is held before `serve` has ever seen an `Arrival`.
-- **PHASE-08** is the same listener's **refused** path: the two read budgets and
-  their enforcement, the rest of `Refusal`'s payloads, `retry_after_ms`'s
-  rounding, and the closed reason set asserted as a set. Same file, same fake
-  judge, no `serve`. It runs **immediately after PHASE-03 and before PHASE-04**,
-  because PHASE-04's arms construct `engaged` and `too_soon`.
+- **PHASE-03** is the listener over a real socket, **from the socket to the
+  read**: `bind`'s probe / reclaim / bind / mode sequence, the accept task, the
+  framing, **the two read budgets and their enforcement**, the reply's bytes,
+  and the socket's lifecycle — against a **fake judge**, so the connection
+  contract is held before `serve` has ever seen an `Arrival`. The read is
+  written **once** and is bounded from the moment it exists, so `SPEC-003/R-7`
+  is never unheld between phases.
+- **PHASE-08** is the same listener's **refusal vocabulary**: the rest of
+  `Refusal`'s payloads, `reserved_source` as its own wire reason,
+  `retry_after_ms`'s rounding, and the reason set asserted as a closed set. Same
+  file, same fake judge, no `serve`, and **no second edit to the read**. It runs
+  **immediately after PHASE-03 and before PHASE-04**, because PHASE-04's arms
+  construct `engaged` and `too_soon`.
 - **PHASE-04** is the slice's mechanism: `serve`'s two ingress arms, the second
   anchor, the inner `select!` becoming a loop, `Refused::Ingress`, and the 23
   call sites the new parameter bills. It is **the phase `review-design.md` F-15
@@ -126,14 +139,29 @@ provoking each one through the renderer tier.
 
 It is **two** phases because it is a production module built from nothing plus
 fourteen bespoke socket cases, and the *Size* paragraph below argues that that
-is more than one session. The seam is the reply: **PHASE-03 owns the accepted
-path and the socket's lifecycle** — everything the filesystem can get wrong, and
+is more than one session. The seam is the **refusal vocabulary**, not the reply:
+**PHASE-03 owns the socket, the read, and every refusal its own code decides** —
+everything the filesystem can get wrong, the framing, the two read budgets, and
 the one shape of reply a well-formed envelope gets — and **PHASE-08 owns the
-refused path** — everything the writer can get wrong. Each phase writes its own
-production code red/green: the two read budgets are declared *and enforced* in
-PHASE-08 with the cases that drive them, not declared in PHASE-03 and left
-inert, and `Refusal` carries in PHASE-03 only the variants PHASE-03's cases
-reach. Nothing lands in one phase that only the next phase's tests exercise.
+reason set as a set** — the remaining payloads, `reserved_source`,
+`retry_after_ms`'s rounding, and the assertion that the set is closed at eight.
+
+**The seam is there rather than at the reply because the read is one piece of
+production code and must be written once.** A phase that lands the framing and a
+later phase that adds `ENVELOPE_LIMIT`, `ENVELOPE_DEADLINE` and their
+enforcement over the same read is this plan editing the same forty lines twice —
+the cost it refuses two paragraphs below when it declines to split `serve` — and
+it leaves `SPEC-003/R-7` (*every read bounded in bytes and time*) unheld for the
+length of a phase, which `draft-spec.md` §6.4 names as the defect SPEC-001/R-43
+records on the other socket. So PHASE-03 declares and enforces both budgets with
+the read they bound, and chooses a framing spelling that survives its own cap
+rather than leaving that choice to the phase that has to live with it.
+
+Each phase still writes its own production code red/green: PHASE-03's budgets
+land with VT-13 and VT-14, the cases that drive them; `Refusal` carries in
+PHASE-03 only the five variants PHASE-03's own code constructs; and PHASE-08
+adds no bound and re-writes no read. Nothing lands in one phase that only the
+next phase's tests exercise.
 
 **Why `serve`'s mechanism is one phase and its discriminating tests are
 another.** The two arms, the anchor and the inner loop are one function body;
@@ -193,8 +221,22 @@ five public types, an accept task with two budgets and the framing, and a reply
 serializer with checked-arithmetic rounding. Slice 003's PHASE-02 had eight
 cases sharing one new `harness.rs`. Counting criteria made the two look equal
 (32 each); counting **re-reading**, which is what 003's argument was actually
-about, does not. Split at the reply, each half is eight cases and six against
-one module, which is the calibration rather than a claim about it.
+about, does not.
+
+Split at the refusal vocabulary, the halves are **eleven cases and three** —
+PHASE-03's VT-1..VT-6 and VT-10..VT-14, PHASE-08's VT-7..VT-9. That is not an
+even split and is not meant to be: the seam is at the *subject*, not at the case
+count. What the calibration measures is re-reading, and eleven cases are not
+eleven distinct conditions to hold in mind — VT-13 and VT-14 are two further
+arms of the **same** read VT-5 already exercises three arms of, under the same
+fixture and the same fake judge, so PHASE-03 costs about nine distinct
+conditions against slice 003's eight.
+
+That is over the calibration by one condition rather than by three cases, and it
+is **stated rather than absorbed**: PHASE-03 is the largest phase in this slice
+and the likeliest to want a `PARTIAL` checkpoint. What is bought for it is the
+thing the seam exists for — the read is written once, and is bounded from the
+moment it exists.
 
 If a phase overruns a session that is a `PARTIAL` checkpoint and a finding in
 `notes.md`, not a reason to skip the sheet
@@ -252,12 +294,18 @@ phase may touch.
   comment block. **No new `just` recipe and no new binary**: `goad emit` is
   slice 005's and `slice-004.md` §Non-goals says a shell one-liner is this
   slice's client.
-- **PL-10** — the listener is **two** phases, PHASE-03 and PHASE-08, split at
-  the reply: the accepted path and the socket's lifecycle, then the refused
-  path. Eight phases, run 01, 02, 03, 08, 04, 05, 06, 07. Also taken there:
-  `examples/shell/backend.sh` **is** modified, by PHASE-06, so that an ingested
-  evaluation is visibly different from the startup one — without which VH-1
-  observes nothing.
+- **PL-10** — the listener is **two** phases, PHASE-03 and PHASE-08. Eight
+  phases, run 01, 02, 03, 08, 04, 05, 06, 07. **Superseded in part by PL-11** on
+  where the seam falls. Also taken there: `examples/shell/backend.sh` **is**
+  modified, by PHASE-06, so that an ingested evaluation is visibly different
+  from the startup one — without which VH-1 observes nothing.
+- **PL-11** — the seam between the two listener phases is the **refusal
+  vocabulary**, not the reply. PHASE-03 owns the socket, the read, **both read
+  budgets and their enforcement**, and every refusal its own code constructs;
+  PHASE-08 owns the reason set as a set. The read is one piece of production
+  code and is written once, so `SPEC-003/R-7` is never unheld between phases and
+  PHASE-03 chooses a framing spelling that survives its own cap. See §Sequencing,
+  and the *Size* paragraph for what it costs PHASE-03.
 
 ## Findings against the design
 
@@ -361,13 +409,13 @@ in the plan.
 | AC-1 — a well-formed envelope produces one `evaluate` carrying all four fields, with the host's own `now` | PHASE-04/VT-1 |
 | AC-2 — the view reaches the screen and is answerable, indistinguishably from a scheduled firing's | PHASE-04/VT-2 |
 | AC-3 — exactly one reply per envelope, then close | PHASE-03/VT-5 (one line, then EOF; a second envelope on the same connection is never read), PHASE-03/VT-6 (a dropped `Answer` yields `unavailable`) |
-| AC-4 — a refusal names its reason, from a closed set | PHASE-08/VT-7 (the five shape reasons, the non-object top-level among them), PHASE-08/VT-8 (**the exact token set** — R3's mitigation), PHASE-08/VT-9 (`retry_after_ms` on `too_soon` and nowhere else, rounded **up**), PHASE-04/VT-3 (`engaged`), PHASE-04/VT-4 (`too_soon`), PHASE-05/VT-4 and VT-5 (R-15's bound, both sides) |
+| AC-4 — a refusal names its reason, from a closed set | PHASE-08/VT-7 (`malformed`, `invalid_envelope` with the non-object top-level among them, and `reserved_source`), PHASE-03/VT-13 and VT-14 (`too_large` and `timed_out`, read off the wire with the enforcement that produces them), PHASE-08/VT-8 (**the exact token set** — R3's mitigation), PHASE-08/VT-9 (`retry_after_ms` on `too_soon` and nowhere else, rounded **up**), PHASE-04/VT-3 (`engaged`), PHASE-04/VT-4 (`too_soon`), PHASE-05/VT-4 and VT-5 (R-15's bound, both sides) |
 | AC-5 — a flat-out writer does not raise the evaluation rate; the excess are refused | PHASE-04/VT-5 — **and this is F-15's settlement**: the same test records presentations over the window and asserts the cost stays at one per refusal |
 | AC-6 — the two anchors are independent, falsifiably in both directions | PHASE-05/VT-1 (i, *does not delay*), PHASE-05/VT-2 (**ii, *does not advance* — the case ADR-004 named and CD-3 amends the record to cite**), PHASE-05/VT-3 (iii, a scheduled firing does not clear the event anchor) |
 | AC-7 — with the key absent, nothing is bound and nothing behaves differently | PHASE-02/VT-10 (a config with no `[ingress]` yields `ingress: None`), PHASE-04/VT-6 + VA-3 (the existing suite, assertions unchanged), PHASE-06/VT-2 (`startup::listener(None)` creates no file in a directory watched for one) |
 | AC-8 — a stale socket is reclaimed; a live one is a startup failure | PHASE-03/VT-1 (reclaim), PHASE-03/VT-2 (`InUse` naming the path, and the first listener keeps serving) |
 | AC-9 — a regular file, or an uncreatable path, is a startup error naming what was found; exit non-zero | PHASE-03/VT-3 (a regular file), PHASE-03/VT-4 (an uncreatable path), PHASE-06/VT-3 (`StartupError::Ingress`'s `Display` and its `report_startup_line` rendering, beside its eight siblings). **The exit code itself is held by review, not by a test** — PHASE-06/VA-3. No test target links the binary, and `crates/goad/tests/renderer/startup.rs:9-11` states as that file's own rule that no test there runs the binary or asserts an exit code; the instrument is `main.rs:21-29`'s single `match run()`, which maps **every** `Err` to `ExitCode::from(2)` and which a new variant cannot change. Recorded as *review, not a test* the way `SPEC-003/R-5` is, rather than left looking discharged |
-| AC-10 — the bound socket's mode is owner-only under any umask | PHASE-03/VT-10, over PHASE-03/EX-3's `set_permissions`. *"Under any umask"* is discharged by the host **setting the mode itself** rather than by a case that sets one: there is no safe umask API in this workspace, and `umask(2)` is process-global while `cargo test` runs cases in parallel. VT-10 is non-vacuous under any umask more permissive than `0o077` |
+| AC-10 — the bound socket's mode is owner-only under any umask | PHASE-03/VT-10, over PHASE-03/EX-3's `set_permissions`. *"Under any umask"* is discharged by the host **setting the mode itself** rather than by a case that sets one: there is no safe umask API in this workspace, and `umask(2)` is process-global while `cargo test` runs cases in parallel. VT-10 is non-vacuous under **every umask but `0o177`** — `bind(2)` creates the file with `0o777 & ~umask`, so a host that set nothing leaves `0o755` under the usual `0o022` and `0o700` under `0o077`, and only `0o177` leaves `0o600` by itself |
 | AC-11 — the boundary holds; the four instruments and the vocabulary scan pass; stratum 1 gains no dependency | PHASE-07/VA-2 over the finished tree; every phase's VA-1 in the working tree |
 | AC-12 — a malformed envelope never reaches the backend; no ingress failure takes the host down | PHASE-03/VT-11 (no `Event` at the judge), PHASE-05/VT-6 (after a flood of malformed envelopes the host still evaluates), PHASE-04/VT-7 (**the closed-channel path**: a dead accept task folds one refusal, parks, does not spin, and the host still evaluates) |
 | AC-13 — a person has run it and watched the prompt appear | PHASE-06/VH-1, over PHASE-06/EX-8's demo backend — which answers an ingested evaluation with a view naming the event's `source` and `kind`, so that what a person sees is a *different* prompt and not a byte-identical redraw |
@@ -387,14 +435,14 @@ those criteria produced.
 | R-4 — anything else at the path is a startup failure naming it | PHASE-03/VT-3, PHASE-03/VT-4, PHASE-06/VT-3 (and PHASE-06/VA-3 for the exit code, *review, not a test* — see AC-9) |
 | R-5 — no unlink on exit | **review, not a test.** `draft-spec.md` §7 says so in terms: the absence of an unlink cannot be asserted without asserting the absence of code. PHASE-07/EX-2 records it as such rather than letting it look discharged; R-3's reclaim test is what makes the absence safe |
 | R-6 — one envelope per connection, newline or EOF | PHASE-03/VT-5 |
-| R-7 — every read bounded in bytes and time | PHASE-08/VT-13 (`too_large`), PHASE-08/VT-14 (`timed_out`) |
+| R-7 — every read bounded in bytes and time | PHASE-03/EX-11 (both budgets declared **and enforced** in the phase that writes the read, so R-7 is never unheld between phases), PHASE-03/VT-13 (`too_large`), PHASE-03/VT-14 (`timed_out`) |
 | R-8 — exactly one reply, then close; unanswered only if the process is gone | PHASE-03/VT-5, PHASE-03/VT-6 |
 | R-9 — one object, exactly four keys, each violation named | PHASE-02/VT-2 (a non-object top-level, naming the type found), VT-3 (missing), VT-4 (wrong-typed), VT-5 (empty `source`/`kind`), VT-6 (unknown), VT-7 (duplicate at depth) |
 | R-10 — RFC 3339 with an explicit offset, refused distinctly | PHASE-02/VT-8 |
 | R-11 — no interpretation; all four fields reach the backend; `now` is the host's | PHASE-04/VT-1 |
-| R-12 (SPEC-003's) — engaged or inside the spacing ⇒ refused, never queued | PHASE-04/VT-3, VT-4, VT-5; PHASE-05/VT-1, VT-2, VT-3 |
-| R-13 — `source: "host"` refused | PHASE-02/VT-9 |
-| R-14 — a machine-readable reason from the closed set; `retry_after_ms` on `too_soon` alone, rounded up | PHASE-08/VT-8, PHASE-08/VT-9 |
+| R-12 (SPEC-003's) — engaged or inside the spacing ⇒ refused, never queued | PHASE-04/VT-3, VT-4, VT-5; PHASE-04/VT-8 (**the spacing's boundary**: step 3 refuses on `<`, so a writer arriving at exactly the anchor is accepted); PHASE-05/VT-1, VT-2, VT-3 |
+| R-13 — `source: "host"` refused | PHASE-02/VT-9 (the `EnvelopeFault`, unit-level), PHASE-08/EX-13 + PHASE-08/VT-7 (`reserved_source` as its own wire reason, read off the wire). The two halves are separate because PHASE-03/EX-10's partial mapping answers a reserved-source envelope `invalid_envelope`, which is wrong against `draft-spec.md` §6.3's reason table; that is deliberate and temporary, and **PHASE-08/EX-13 is the criterion that ends it** |
+| R-14 — a machine-readable reason from the closed set; `retry_after_ms` on `too_soon` alone, rounded up | PHASE-08/VT-8 (the token set), PHASE-08/VT-9 (the field and the rounding), PHASE-04/VT-8 (**the other side of the same equation** — rounding up is only true *of the host* if step 3 refuses on `<`, so a writer that waits exactly `retry_after_ms` is accepted; `review-design.md` F-16, one layer down) |
 | R-15 — a refusal decided while idle also reaches the diagnostics surface; one decided during an exchange does not | PHASE-05/VT-4 (positive), PHASE-05/VT-5 (negative — what makes the bound a claim rather than an excuse), PHASE-04/VT-7 (**R-15's last clause**: the ingress-stopped `unavailable` is the one refusal that answers no envelope, and this surface is the only report it has) |
 | R-16 — no envelope terminates the host, panics it, or reaches the backend malformed | PHASE-03/VT-11, PHASE-05/VT-6, PHASE-04/VT-7 (`draft-spec.md` §5, *When ingress stops but the host does not*) |
 
@@ -657,18 +705,32 @@ bounded files beyond the one field each.
 
 ---
 
-## PHASE-03 — The socket's lifecycle, and the accepted path
+## PHASE-03 — The socket, the bounded read, and the accepted path
 
 **Objective:** a bound socket — reclaimed when stale, refused when held, moded
-owner-only by the host itself — hands every well-formed envelope to a judge
-exactly once and writes back exactly one reply, against a **fake judge**, before
-`serve` has ever seen an `Arrival`.
+owner-only by the host itself — reads every connection **once and under both
+budgets**, hands every well-formed envelope to a judge exactly once, and writes
+back exactly one reply, against a **fake judge**, before `serve` has ever seen
+an `Arrival`.
 
-This is the first of the listener's **two** phases (PL-10). It owns everything
-the *filesystem* can get wrong and the one reply a well-formed envelope gets.
-Everything the *writer* can get wrong — the two read budgets, the rest of the
-refusal vocabulary, `retry_after_ms`'s rounding — is PHASE-08's, and lands there
-with the cases that drive it rather than here with none.
+This is the first of the listener's **two** phases (PL-10, PL-11). It owns the socket,
+the read, and every refusal its own code decides: everything the *filesystem*
+can get wrong, the framing, **the two read budgets**, and the one reply a
+well-formed envelope gets. The read is written **once** and is bounded from the
+moment it exists, so `SPEC-003/R-7` is held inside this phase rather than a
+phase later. What is PHASE-08's is the refusal **vocabulary** — the rest of
+`Refusal`'s payloads, `reserved_source` as its own wire reason,
+`retry_after_ms`'s rounding, and the reason set asserted as closed — and it
+lands there with the cases that drive it rather than here with none.
+
+**Ids across the split (PL-10, PL-11).** Criterion ids are local to their phase
+and immutable, so criteria that moved kept their numbers and this phase's
+sequence is non-monotonic. Gone from here to **PHASE-08**: `EX-5`, and the
+cases `VT-7`, `VT-8` and `VT-9` — which are **not** PHASE-02's or PHASE-04's
+criteria of the same numbers, all unrelated; cite them phase-qualified.
+`EX-11` is new and is this phase's. Those four ids are the
+**only** gaps in this phase's lists; nothing else is absent and nothing was
+dropped. Nothing is renumbered — this file's header comment says edits append.
 
 **Surfaces:** `crates/goad-shell/src/ingress/mod.rs`;
 `crates/goad-shell/src/ingress/envelope.rs` (only if a fault needs adding for a
@@ -681,11 +743,11 @@ declaration**; `crates/goad-shell/tests/integration/ingress.rs` (**new**);
 `crates/goad-semantics/src`; `crates/goad-shell/src/`'s other modules;
 `tests/support/`; `tests/backends/`; the root `Cargo.toml`; the other case files
 in `crates/goad-shell/tests/integration/`; `crates/goad-shell/tests/integration/harness.rs`.
-Also **not this phase's**: `ENVELOPE_LIMIT`, `ENVELOPE_DEADLINE` and their
-enforcement, and any `Refusal` variant beyond the three EX-10 names. Adding one
-speculatively is a variant nothing drives until the next phase, which is the
-failure `docs/memory/expect-dead-code-ahead-of-caller-needs-cfg-attr.md`
-records.
+Also **not this phase's**: any `Refusal` variant beyond the five EX-10 names;
+`retry_after_ms`; and `reserved_source` as a wire reason distinct from
+`invalid_envelope`. Adding one speculatively is a variant nothing drives until
+the next phase, which is the failure
+`docs/memory/expect-dead-code-ahead-of-caller-needs-cfg-attr.md` records.
 
 **Entry**
 - EN-1 — PHASE-02's exit criteria are discharged and `just check` exits 0.
@@ -696,8 +758,8 @@ records.
   `tokio = { workspace = true, features = ["net", "sync"] }` and nothing else in
   that manifest changes (PL-4, FD-1). The root `Cargo.toml` is untouched.
 - EX-2 — `ingress/mod.rs` declares `pub const SOCKET_MODE: u32 = 0o600`, with
-  the doc comment `design.md` §5.2 gives it. **The two read budgets are
-  PHASE-08/EX-11**, declared there together with the code that enforces them.
+  the doc comment `design.md` §5.2 gives it. The two read budgets are **EX-11**,
+  in this phase, declared together with the code that enforces them.
 - EX-3 — `pub fn bind(path: &Path) -> Result<Ingress, IngressError>` probes,
   reclaims, binds, **sets the mode** and spawns the accept task, synchronously,
   under a runtime context its caller holds. The mode is set by the host itself:
@@ -736,14 +798,24 @@ records.
   `clippy::future_not_send` and `missing_debug_implementations` are both `deny`,
   and PHASE-04 puts three of these types inside `serve`'s future and `Served`.
 - EX-10 — `Refusal` exists with `reason() -> &'static str` for the wire and
-  `Display` for `detail`, carrying **exactly the three variants this phase's
-  cases reach**: `unavailable` (EX-4's dropped `Answer`), `malformed` (bytes
-  that are not one JSON document) and `InvalidEnvelope(EnvelopeFault)` →
-  `invalid_envelope` (which is what the accept task must do with `normalize`'s
-  `Err` in order to compile at all). The match is **exhaustive with no `_`
-  arm**, so PHASE-08 completing the set to eight is the compiler's business
-  rather than a reviewer's. **The set is not closed at eight until
-  PHASE-08/EX-5**, and nothing in this phase says it is.
+  `Display` for `detail`, carrying **exactly the five variants this phase's own
+  code constructs**: `unavailable` (EX-4's dropped `Answer`), `malformed` (bytes
+  that are not one JSON document), `InvalidEnvelope(EnvelopeFault)` →
+  `invalid_envelope` (what the accept task must do with `normalize`'s `Err` in
+  order to compile at all), and — because EX-11 enforces the two budgets here —
+  `TooLarge { limit }` → `too_large` and `TimedOut { after }` → `timed_out`. The
+  match is **exhaustive with no `_` arm**, so PHASE-08 completing the set to
+  eight is the compiler's business rather than a reviewer's. **The set is not
+  closed at eight until PHASE-08/EX-5**, and nothing in this phase says it is.
+- EX-11 — `ingress/mod.rs` declares the two read budgets as `pub const`, with
+  the values and the doc comments `design.md` §5.2 gives them:
+  `ENVELOPE_LIMIT = 64 * 1024` and `ENVELOPE_DEADLINE = 500 ms` — whose doc says
+  in terms that it bounds the **read**, not the connection — **and the accept
+  task enforces both**, refusing `too_large` and `timed_out` respectively. The
+  constants, their enforcement and the read they bound land **together**, in the
+  one phase that writes that read: `SPEC-003/R-7` is held from the moment the
+  read exists, no later phase re-writes it, and neither constant is declared
+  inert.
 
 **Verification**
 
@@ -774,22 +846,44 @@ according to a script — accept, refuse with a given `Refusal`, or drop the
   read through `std::os::unix::fs::MetadataExt`. **No umask is set inside the
   case** — none can be, safely, and none is needed: the host sets the mode
   itself (EX-3), so the assertion is about what the host did rather than about
-  what it inherited. The case is **non-vacuous under any umask more permissive
-  than `0o077`**, which is every ordinary one (`0o022` is the usual default);
-  under `0o077` alone it would also pass against a host that set nothing, and
-  the phase sheet records the umask the run actually had. **Residue, stated:**
-  between `bind` and `set_permissions` the socket is briefly more permissive
-  than `0o600`. That is A-5, and it is why `design.md` §5.5 puts the containing
-  directory on the user rather than defending the window.
+  what it inherited. The case is **non-vacuous under every umask but one**:
+  `bind(2)` creates the socket file with `0o777 & ~umask`, so against a host
+  that set no mode the assertion fails under the usual `0o022` (which leaves
+  `0o755`) and fails under `0o077` too (which leaves `0o700` — the owner-execute
+  bit, and the criterion asserts the full `0o777` mask, not a group/other one).
+  The **single** vacuous value is `0o177`, the one umask under which a bare
+  `bind` already leaves `0o600`. The phase sheet records the umask the run
+  actually had, and `0o177` is the number to check it against.
+
+  **Residue, stated:** between `bind` and `set_permissions` the socket is
+  briefly more permissive than `0o600`. That is A-5, and it is why `design.md`
+  §5.5 puts the containing directory on the user rather than defending the
+  window.
 - VT-11 — **AC-12, R-16.** A malformed envelope produces **no `Event`** at the
   judge, and the listener accepts and answers a well-formed envelope
   immediately afterwards on a new connection — the liveness half, without which
   the absence assertion is vacuous. This is also the case that drives EX-10's
-  `Err` route; the five *named* shape reasons are PHASE-08/VT-7's.
+  `Err` route; `too_large` and `timed_out` are VT-13's and VT-14's, and the three
+  reasons read off the wire in PHASE-08 are PHASE-08/VT-7's.
 - VT-12 — **R-1.** The positive control: a configured path is bound, a
   well-formed envelope reaches the judge as an `Event` whose four fields are the
   ones written, and the reply says `accepted`.
+- VT-13 — **R-7, EX-11's byte budget.** More than `ENVELOPE_LIMIT` bytes before
+  the envelope ends is refused `too_large`, and the connection is closed rather
+  than left open. Paired with a liveness control: an envelope **at** the limit is
+  accepted, so the refusal is not the listener failing to read anything.
+- VT-14 — **R-7, EX-11's deadline.** A connection that writes nothing at all is
+  refused `timed_out` after `ENVELOPE_DEADLINE`, and the listener serves the
+  next connection normally.
 - VA-1 — `just check` under `nix develop`, pasted.
+- VA-2 — the per-case elapsed time of VT-14 recorded against `ENVELOPE_DEADLINE`
+  (500 ms), and of any other case that waits on a bound. Margins are measured at
+  **the bound that governs**, not at the test's wall time
+  (`docs/memory/timed-test-margins-are-measured-at-the-bound.md`). A margin
+  under 10x is S-3. **No case in this phase waits out a bound it is not
+  testing** — `ENVELOPE_DEADLINE` is 500 ms and is the subject of VT-14, which
+  is the ratio the rule is written for, and nothing here waits out
+  `MINIMUM_SPACING` (that is PHASE-04's exemption, not this phase's).
 - VA-3 — `git status` after the whole test run shows **no** socket file left
   anywhere in the checkout, and the temp directories the cases created are gone.
 
@@ -797,8 +891,13 @@ according to a script — accept, refuse with a given `Refusal`, or drop the
 - S-1 — a case cannot be written without a queue, a retry, or a second arrival
   outstanding. Stop: I-2 and `SPEC-003` §5 say the host holds no queue, and
   D-2 rejects `try_send` fullness as a refusal because *that is a queue of one*.
-- S-2 — the read cannot be framed newline-or-EOF without a second concurrency
-  dimension (a task per connection). Stop: D-9 rejects it by name.
+- S-2 — the read cannot be framed newline-or-EOF **and bounded in both bytes and
+  time** without a second concurrency dimension (a task per connection). Stop:
+  D-9 rejects it by name. The framing and its two bounds are one piece of code
+  and one decision (EX-7, EX-11); a spelling that admits the framing but not the
+  cap is not a reason to defer the cap, it is a reason to choose another
+  spelling.
+- S-3 — a margin measured under VA-2 comes in under 10x.
 - S-4 — an existing case in `crates/goad-shell/tests/integration/` goes red.
   Record what changed and stop; do not adjust it.
 - S-5 — `set_permissions` cannot set the mode on a bound Unix socket on this
@@ -825,7 +924,16 @@ according to a script — accept, refuse with a given `Refusal`, or drop the
   (`:132-133`), so there is no cheap hatch. The legal routes are
   `AsyncBufReadExt::read_until`, `slice::split_at_checked`, `get(..n)` and
   `strip_suffix`. Choose one deliberately rather than discovering the
-  constraint at lint time.
+  constraint at lint time — and choose the one that **survives EX-11's cap**,
+  which is this phase's too. `read_until` is the most natural of the four and
+  admits neither a byte cap nor a deadline on its own, so taking it means
+  constructing the reader over `stream.take(ENVELOPE_LIMIT)` and wrapping the
+  read in `tokio::time::timeout`. Decide the framing and its two bounds in one
+  sitting; they are one piece of code, which is why they are one phase.
+- `ENVELOPE_LIMIT` bounds the bytes read *before the envelope ends*, not the
+  connection: a writer that sends 64 KiB and keeps the connection open is
+  `too_large`, and a writer that sends nothing is `timed_out`. Both leave the
+  listener serving, which is what VT-13's and VT-14's second halves assert.
 - **`clippy::pub_use` is `deny` (`Cargo.toml:183`) and EX-10 puts PHASE-02's
   `EnvelopeFault` inside a `Refusal` variant.** The natural
   `pub use envelope::EnvelopeFault;` in `ingress/mod.rs` is denied, so the
@@ -849,20 +957,31 @@ according to a script — accept, refuse with a given `Refusal`, or drop the
 
 ---
 
-## PHASE-08 — The read budgets, and the closed reason set
+## PHASE-08 — The refusal vocabulary, and the closed reason set
 
-**Objective:** everything a writer can get wrong is refused by name, from a set
-that is closed and asserted as a set, and every read is bounded in bytes and in
-time.
+**Objective:** everything a writer can get wrong is refused **by name**, from a
+set that is closed and asserted as a set.
 
-The listener's second half (PL-10). Same file, same fake judge, no `serve`. It
-runs **immediately after PHASE-03 and before PHASE-04**, because PHASE-04's arms
+The listener's second half (PL-10, PL-11). Same file, same fake judge, no
+`serve`, and **no second edit to the read** — the framing and both read budgets are
+PHASE-03/EX-7 and PHASE-03/EX-11, landed there with the read they bound. It runs
+**immediately after PHASE-03 and before PHASE-04**, because PHASE-04's arms
 construct two of the reasons this phase closes the set around.
 
-Criterion ids are **local to their phase and immutable across a split**: the
-criteria that were PHASE-03's VT-7..VT-9, VT-13, VT-14 and VA-2 keep their
-numbers here, so the sequence is non-monotonic and that is expected (see this
-file's header comment). EX-5 likewise; EX-11 and EX-12 are new.
+**Ids across the split (PL-10, PL-11).** Criterion ids are local to their phase
+and immutable, so criteria that moved kept their numbers and this phase's
+sequence is non-monotonic. `EX-5`, `VT-7`, `VT-8` and `VT-9` are PHASE-03's
+ids, moved here whole — and **`VT-7` and `VT-8` each name two other criteria**,
+PHASE-02's and PHASE-04's, which were written or appended there and are
+unrelated to these. Ids are local to their phase, so that is legal; it is called
+out because this is the paragraph that talks about VT-7..VT-9 moving. Cite all
+six phase-qualified.
+`EX-12`, `EX-13`, `VA-4` and `VA-5` are **new** — `VA-4` restates
+PHASE-03/VA-3's check over this phase's own cases and could not take that
+number, which is PHASE-03's. Every id this phase's lists skip —
+`EX-1..EX-4`, `EX-6..EX-11`, `VT-1..VT-6`, `VT-10..VT-14`, `VA-2`, `VA-3` and
+`S-2..S-5` — **stayed in PHASE-03**; none is missing and none was dropped.
+Nothing is renumbered — this file's header comment says edits append.
 
 **Surfaces:** `crates/goad-shell/src/ingress/mod.rs`;
 `crates/goad-shell/src/ingress/envelope.rs` (only if a fault needs adding for a
@@ -875,29 +994,33 @@ manifest** — PHASE-03/EX-1 is the whole of this slice's manifest change and th
 phase adds no feature and no dependency; `tests/support/`; `tests/backends/`;
 the other case files in `crates/goad-shell/tests/integration/`;
 `crates/goad-shell/tests/integration/harness.rs`; PHASE-03's own cases
-VT-1..VT-6, VT-10..VT-12 — if one of them goes red, that is S-6.
+VT-1..VT-6, VT-10..VT-14 — if one of them goes red, that is S-6. Also **not this
+phase's**: the framing, the two read budgets and their enforcement. They are
+PHASE-03/EX-7 and PHASE-03/EX-11; this phase adds no bound and re-writes no
+read.
 
 **Entry**
 - EN-1 — PHASE-03's exit criteria are discharged and `just check` exits 0.
 - EN-2 — `bind`, `Ingress`, `Arrival`, `Answer`, `Refusal` and `IngressError`
-  exist (PHASE-03/EX-3, EX-4, EX-10) and are covered by PHASE-03/VT-1..VT-6,
-  VT-10..VT-12. The fake judge is in `ingress.rs` and takes a scripted answer.
+  exist (PHASE-03/EX-3, EX-4, EX-10, EX-11) and are covered by
+  PHASE-03/VT-1..VT-6, VT-10..VT-14. `Refusal` already carries `Unavailable`,
+  `Malformed`, `InvalidEnvelope`, `TooLarge` and `TimedOut`, and every read is
+  already bounded (`SPEC-003/R-7`). The fake judge is in `ingress.rs` and takes
+  a scripted answer.
 
 **Exit**
-- EX-5 — `Refusal` carries its own payloads — `TooSoon { retry_after }`,
-  `TooLarge { limit }`, `TimedOut { after }`, `InvalidEnvelope(EnvelopeFault)`
-  and the rest — with `reason() -> &'static str` for the wire and `Display` for
-  `detail`. **The reason set closes here, at eight**: `malformed`,
-  `invalid_envelope`, `reserved_source`, `too_large`, `timed_out`, `engaged`,
-  `too_soon`, `unavailable`. `Refusal`'s match stays exhaustive with no `_` arm.
-  `engaged` and `too_soon` are constructed by no code in this phase — they are
-  PHASE-04's, and PHASE-04/EN-2 is what they are here for.
-- EX-11 — `ingress/mod.rs` declares the two read budgets as `pub const`, with
-  the values and the doc comments `design.md` §5.2 gives them:
-  `ENVELOPE_LIMIT = 64 * 1024` and `ENVELOPE_DEADLINE = 500 ms` — whose doc says
-  in terms that it bounds the **read**, not the connection — **and the accept
-  task enforces both**, refusing `too_large` and `timed_out` respectively. The
-  constants and their enforcement land together; neither is declared inert.
+- EX-5 — `Refusal` gains the two payloads PHASE-03 had no code to construct —
+  `Engaged` and `TooSoon { retry_after }` — beside the five PHASE-03/EX-10
+  landed (`Unavailable`, `Malformed`, `InvalidEnvelope(EnvelopeFault)`,
+  `TooLarge { limit }`, `TimedOut { after }`), each with `reason() ->
+  &'static str` for the wire and `Display` for `detail`. **The reason set closes
+  here, at eight**: `malformed`, `invalid_envelope`, `reserved_source`,
+  `too_large`, `timed_out`, `engaged`, `too_soon`, `unavailable`. `Refusal`'s
+  match stays exhaustive with no `_` arm. **No *production* code in this phase
+  constructs `engaged` or `too_soon`** — they are PHASE-04's, and PHASE-04/EN-2
+  is what they are here for. VT-9 does construct a `Refusal::TooSoon` in **test**
+  code, by scripting the fake judge; that is how EX-12 is driven without `serve`,
+  and it is the only reason a `too_soon` reply exists in this phase at all.
 - EX-12 — `retry_after_ms` is present in the reply **exactly** when `reason` is
   `too_soon`, and is **rounded up** to the millisecond (`SPEC-003/R-14`).
 - EX-13 — the fault-to-reason mapping PHASE-03/EX-10 left partial is completed:
@@ -908,14 +1031,21 @@ VT-1..VT-6, VT-10..VT-12 — if one of them goes red, that is S-6.
 **Verification**
 
 All cases in `crates/goad-shell/tests/integration/ingress.rs`, against the same
-fake judge PHASE-03 built.
+fake judge PHASE-03 built. **No case here waits on a bound** — every one is
+decided by the fake judge's scripted answer or by the shape of the bytes written
+— so this phase has no margin criterion and no margin STOP. The bound-measuring
+criteria are PHASE-03/VA-2 (`ENVELOPE_DEADLINE`), PHASE-04/VA-2 and
+PHASE-05/VA-2.
 
-- VT-7 — **AC-4.** The five listener-decided shape reasons, one case each, read
-  off the wire: `malformed` (bytes that are not one JSON document, and the empty
-  payload), `invalid_envelope` (the non-object top level among them),
-  `reserved_source`, `too_large`, `timed_out`. The judge is never reached for
-  any of them — asserted, because shape refusals travel to the loop as refusals
-  but must never arrive as an `Event`.
+- VT-7 — **AC-4, R-13.** The three shape reasons this phase owns, one case each,
+  read off the wire: `malformed` (bytes that are not one JSON document, and the
+  empty payload), `invalid_envelope` (the non-object top level among them), and
+  `reserved_source` — EX-13's, and the one `SPEC-003/R-13` names. The judge is
+  never reached for any of them — asserted, because shape refusals travel to the
+  loop as refusals but must never arrive as an `Event`. The other two
+  listener-decided reasons, `too_large` and `timed_out`, are read off the wire by
+  **PHASE-03/VT-13 and VT-14** with the enforcement that produces them, so no
+  reason goes unasserted and none is asserted twice.
 - VT-8 — **AC-4, R-14, and R3's mitigation.** One test asserts the **exact
   token set**: the eight strings `Refusal::reason()` can return, compared as a
   set against a literal list in the test. A reason added, removed or renamed
@@ -928,21 +1058,7 @@ fake judge PHASE-03 built.
   Assert the rounding on a value chosen to have a non-zero sub-millisecond
   remainder; a value that divides evenly proves nothing. The judge is scripted
   to answer with `Refusal::TooSoon { retry_after }`, so no `serve` is needed.
-- VT-13 — **R-7.** More than `ENVELOPE_LIMIT` bytes before the envelope ends is
-  refused `too_large`, and the connection is closed rather than left open.
-  Paired with a liveness control: an envelope **at** the limit is accepted, so
-  the refusal is not the listener failing to read anything.
-- VT-14 — **R-7.** A connection that writes nothing at all is refused
-  `timed_out` after `ENVELOPE_DEADLINE`, and the listener serves the next
-  connection normally.
 - VA-1 — `just check` under `nix develop`, pasted.
-- VA-2 — the per-case elapsed time of VT-14 recorded against `ENVELOPE_DEADLINE`
-  (500 ms), and of any other case that waits on a bound. Margins are measured at
-  **the bound that governs**, not at the test's wall time
-  (`docs/memory/timed-test-margins-are-measured-at-the-bound.md`). A margin
-  under 10x is S-3. **No case in this phase waits out a bound it is not
-  testing** — `ENVELOPE_DEADLINE` is 500 ms and is the subject of VT-14, which
-  is the ratio the rule is written for.
 - VA-4 — `git status` after the whole test run shows **no** socket file left
   anywhere in the checkout, and the temp directories the cases created are gone.
 - VA-5 — `git diff crates/goad-shell/Cargo.toml` is **empty**. This phase adds
@@ -952,12 +1068,10 @@ fake judge PHASE-03 built.
 **STOP**
 - S-1 — a case cannot be written without a queue, a retry, or a second arrival
   outstanding. Stop, for PHASE-03/S-1's reason.
-- S-2 — the read cannot be bounded in both bytes and time without a second
-  concurrency dimension (a task per connection). Stop: D-9 rejects it by name.
-- S-3 — a margin measured under VA-2 comes in under 10x.
 - S-6 — one of PHASE-03's cases goes red. Record what changed and stop: either
-  this phase broke the accepted path, or PHASE-03 was green for the wrong
-  reason. Do not adjust a PHASE-03 case to make this phase green.
+  this phase broke the socket, the read or the accepted reply, or PHASE-03 was
+  green for the wrong reason. Do not adjust a PHASE-03 case to make this phase
+  green.
 
 **Notes for the implementer**
 
@@ -969,15 +1083,12 @@ fake judge PHASE-03 built.
   narrowed to the wire's integer type with `u64::try_from` — `as_conversions`
   and the four `cast_*` lints are all `deny`, so there is no cast available.
   `review-design.md` F-16 is why the rounding is specified at all.
-- **`clippy::indexing_slicing` is `deny`** and the byte budget is counted over
-  the same read EX-7 frames. PHASE-03 chose the framing spelling; use it rather
-  than a second one.
 - **`clippy::pub_use` is `deny`** and EX-13 routes `EnvelopeFault`. The module
   layout is PHASE-03's; this phase inherits it and does not re-decide it.
-- `ENVELOPE_LIMIT` bounds the bytes read *before the envelope ends*, not the
-  connection: a writer that sends 64 KiB and keeps the connection open is
-  `too_large`, and a writer that sends nothing is `timed_out`. Both leave the
-  listener serving, which is what VT-13's and VT-14's second halves assert.
+- **This phase does not touch the read.** The framing spelling and both budgets
+  are PHASE-03's, chosen there together (PHASE-03/EX-7, EX-11, and its
+  `indexing_slicing` note). If a case here appears to need the read changed, that
+  is a finding for `notes.md` and a question for PHASE-03's author, not an edit.
 - The eight tokens in VT-8 are compared as a **set against a literal list in the
   test**, not against a constant lifted out of production code — a list that
   imports its own expectation asserts nothing.
@@ -1021,7 +1132,7 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
   (PHASE-08 runs between PHASE-03 and this phase — PL-10.)
 - EN-2 — `bind`, `Ingress`, `Arrival`, `Answer` and `Refusal` exist, are `Send`
   and `Debug` (PHASE-03/EX-9), and are covered by PHASE-03/VT-1..VT-6,
-  VT-10..VT-12 and PHASE-08/VT-7..VT-9, VT-13, VT-14. In particular `Refusal`
+  VT-10..VT-14 and PHASE-08/VT-7..VT-9. In particular `Refusal`
   already carries `Engaged` and `TooSoon { retry_after }`, and the reason set is
   closed at eight (PHASE-08/EX-5): this phase constructs those two and adds no
   reason.
@@ -1050,7 +1161,8 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
      turn a malformed envelope into `engaged`;
   2. an exchange is in flight → `engaged` (**the inner arm's only state
      answer**);
-  3. inside the event spacing → `too_soon`;
+  3. inside the event spacing → `too_soon`. **The comparison is `<`, not `<=`**
+     — EX-6 states it and why;
   4. the clock is unreadable → `unavailable`, `detail` naming the clock, **and
      the anchor is still written** (D-15: an attempted firing writes it, so a
      broken clock produces one refusal per spacing rather than a spin);
@@ -1059,8 +1171,15 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
   Steps 3–5 are the **outer** arm's alone.
 - EX-6 — `event_floor_until` is a second anchor on `serve`'s stack, **initialised
   to `started`** — that is, already elapsed by the time anything runs, so **the
-  first envelope after startup is accepted** — with **exactly one write site**
-  — the outer ingress arm, on an *attempted* ingested evaluation (steps 4 and 5)
+  startup evaluation never makes an envelope `too_soon`**. That is the whole of
+  what the anchor decides, and it is **not** the claim that the first envelope
+  after startup is accepted: the anchor is EX-5's step **3**, and an envelope
+  arriving while the startup exchange is still in flight is refused at step
+  **2**, `engaged`, like any other (`draft-spec.md` §6.3, and `design.md` §5.5's
+  *an envelope arriving between `bind` and `serve` starting* row is the same
+  instant one step earlier). A case that assumes acceptance rather than the
+  narrow claim is testing its own fixture. The anchor has **exactly one write
+  site** — the outer ingress arm, on an *attempted* ingested evaluation (steps 4 and 5)
   — and one read site, the same arm's step 3. The initial value is **forced, not
   chosen**: the only alternative, `started + MINIMUM_SPACING`, is precisely the
   value the anchor would hold if the **startup** evaluation had written it, and
@@ -1076,6 +1195,30 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
   used against both anchors; no second constant is introduced (D-5).
   `refusal_re_arms` (`controller.rs:427`) is unchanged and still
   `matches!(fired, Fired::Scheduled)`.
+
+  **Step 3 refuses on `now < event_floor_until`, never on `<=`, and that is
+  forced by `SPEC-003/R-14`.** `retry_after_ms` is rounded **up**, so a writer
+  that waits exactly that long arrives at `now >= event_floor_until` and, when
+  the remaining spacing is a whole number of milliseconds, arrives *exactly at*
+  it. Under `<=` that writer is refused and R-14's own sentence — *"after which
+  the spacing will have elapsed"* — is false of the host's own field. It is the
+  same defect `review-design.md` F-16 raised about the rounding, on the other
+  side of the same equation. It is also what makes the initial value mean what
+  EX-6 says it means: with the anchor equal to `started`, *"already elapsed"* is
+  true under `<` and false under `<=` at that instant.
+
+  **The comparison is a named private free function** — one line, e.g.
+  `fn spacing_elapsed(now: Instant, floor: Instant) -> bool { now >= floor }` —
+  rather than an inline `<` in the arm, and it carries a doc comment citing
+  `SPEC-003/R-14` for the direction. That is EX-10's *short and delegating*
+  applied to the one comparison that cannot be tested through the socket, and
+  VT-8 is why it must be reachable.
+
+  **Design gap reported, not filled:** `design.md` §5.4's step 3 says *"inside
+  the event spacing → `too_soon`"* and does not say which comparison; nor does
+  §5.3. The plan states it because `SPEC-003/R-14` forces it, not because the
+  plan is choosing — but it is the design's to close, and PHASE-07/EX-7 lists it
+  for the auditor.
 - EX-7 — the added argument is at **23** call sites: `main.rs:103` passes the
   real `Ingress` **only after PHASE-06**, and in this phase passes
   `Ingress::none()`; the 22 test sites pass `Ingress::none()` and **no assertion
@@ -1109,9 +1252,14 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
   it unpinned either goes red against a correct implementation or passes for a
   reason that has nothing to do with what it claims. That is the defect
   `review-design.md` F-1 and F-12 found fatal in the design's first two AC-6
-  tests, and it is a **class**: VT-1, VT-3, VT-4 and VT-5 are all members here,
-  and PHASE-05/EX-5 states the same rule for its own file. Each case's doc
-  comment names the value it pinned and why in one line.
+  tests, and it is a **class**: VT-1, VT-3, VT-4, VT-5 and **VT-7** are all
+  members here, and PHASE-05/EX-5 states the same rule for its own file. VT-2,
+  VT-6 and VT-8 are **not** members and say so: VT-2 asserts a view, VT-6 asserts
+  an unchanged suite, and VT-8 lets no exchange complete at all. Each member's
+  doc comment names the value it pinned and why in one line. VT-7 is a member
+  twice over — it counts presentations *and* turns on when a firing
+  happens — and it states there what it pins and how its two windows are kept
+  apart.
 
 **Verification**
 
@@ -1158,8 +1306,11 @@ with a **real bound `Ingress`** and a scripted backend, on the shape
   `crates/goad/tests/event_loop_schedule/` all pass with **their assertions
   unchanged**, `Ingress::none()` having been added at 22 call sites.
 - VT-7 — **AC-12, R-16, and R-15's last clause. The closed-channel path, which
-  EX-8 specifies and nothing else drives.** With the accept task gone — its
-  sender dropped, so `arrival()` yields `None` — `serve`:
+  EX-8 specifies and nothing else drives.** (This phase's `VT-7`, appended here;
+  PHASE-02/VT-7 and PHASE-08/VT-7 are unrelated cases, as are their `VT-8`s
+  against VT-8 below.)
+  With the accept task gone — its sender dropped, so `arrival()` yields `None`
+  — `serve`:
   1. folds **exactly one** `Refused::Ingress` (`unavailable`, naming that
      ingress has stopped) onto the diagnostics surface. Assert **one**, read off
      `Served.controller`'s retained diagnostics;
@@ -1173,6 +1324,25 @@ with a **real bound `Ingress`** and a scripted backend, on the shape
   3. still evaluates afterwards — a scheduled firing lands at the backend after
      the fold. The liveness half, without which 2 is vacuous (Overview item 4).
 
+  **EX-11 applies, and it is what keeps 2 and 3 from contradicting each other.**
+  A scheduled firing costs presentations — `controller.rs:410` at the top of the
+  iteration, and `:488` again when the exchange engages — so 3's firing must land
+  **outside** 2's window or 2 goes red against a correct implementation. The case
+  pins that: the exchange it lets complete before the fold answers with a
+  `next_check` long enough that no scheduled firing is due inside 2's window, and
+  3's firing is provoked only **after** 2's window has closed and been asserted.
+  Unpinned, the script's default decides whether the two overlap, and the case is
+  about the script.
+
+  **Where each assertion reads its number.** 2 needs the count **during** the
+  run, so it reads the live route PHASE-05/VT-4 names — PL-8's counting `Glass`
+  for the presentations, and the window's own `get_diagnostic_lines()`
+  (`glass.rs:102`, written unconditionally) to see the fold land.
+  `Served.controller`'s retained diagnostics is readable only **after** `serve`
+  returns, so it is 1's route and cannot be 2's. Open 2's window at the moment
+  the fold becomes observable on the live route, not at an arbitrary instant
+  after start.
+
   **How to reach `None`.** `bind` spawns the accept task with `tokio::spawn`
   onto whatever runtime is entered when it is called, so the case builds a
   **second** multi-thread runtime, calls `bind` under its `enter()` guard, keeps
@@ -1184,9 +1354,27 @@ with a **real bound `Ingress`** and a scripted backend, on the shape
   provoke. **If that does not produce `None`, stop (S-5)** — do not add a
   constructor to `Ingress` to make the case writable; that is PHASE-03's surface
   and a design question about what `Ingress` exposes.
+- VT-8 — **EX-6's comparison, at the boundary, and the only case that can tell
+  `<` from `<=` apart.** In `controller.rs`'s **existing** `#[cfg(test)] mod
+  tests` (`:530`), beside `deadline_after`'s three cases: with `now` **equal to**
+  the floor the spacing is elapsed and an envelope is **not** `too_soon`; with
+  `now` one nanosecond earlier it is; with `now` one nanosecond later it is not.
+  Three assertions, no clock, no socket, no `serve`.
+
+  **Why it is a unit case and not a socket case.** No end-to-end case can
+  discriminate: `retry_after_ms` rounds up, and a real waiter's `sleep`
+  overshoots by scheduler jitter on top of that, so a writer that waits *"exactly
+  that long"* arrives strictly past the floor and **both** comparisons accept it.
+  The boundary instant is reachable only by constructing it, which is why EX-6
+  makes the comparison a named private free function. That is exactly the reason
+  `controller.rs:524-530` gives for the module already being there — *the
+  crate-external `tests/renderer/` tiers cannot reach a private free function* —
+  and `deadline_after` and `stamp` are the two precedents in the same file.
+  **EX-11 does not apply**: no exchange completes and nothing is timed.
 - VA-1 — `just check` under `nix develop`, pasted.
 - VA-2 — the per-test elapsed time of VT-1..VT-7 recorded against the bound each
-  one actually governs, in the phase sheet. **`design.md` is not edited.** A
+  one actually governs, in the phase sheet. VT-8 is untimed and is not in this
+  table. **`design.md` is not edited.** A
   margin under 10x is S-3 — **except for a case that waits out `MINIMUM_SPACING`
   by construction**, which is exempt and is recorded as such. VT-4 is the
   clearest: its liveness control cannot be observed before the three-second
@@ -1195,9 +1383,12 @@ with a **real bound `Ingress`** and a scripted backend, on the shape
   is ~1.7x by construction and cannot be improved. `design.md` D-5 rejected a
   second, configurable constant *precisely so that no test could buy time by
   moving a bound*, so a rule that condemned such a case would condemn the
-  design. The distinction is the one PHASE-05/VA-2 already draws: a **liveness**
-  bound admits a ratio; an **anti-fire window**, and a wait that *is* the bound
-  under test, do not. Record which of the three each case is.
+  design. The distinction, stated here because no other criterion states it as a
+  margin rule: a **liveness** bound admits a ratio; an **anti-fire window**, and
+  a wait that *is* the bound under test, do not. (PHASE-05's fourth implementer
+  note draws the same line between `until(LIVENESS_BOUND, …)` and an anti-fire
+  window, but about how to *write* a case rather than about what ratio to
+  accept.) Record which of the three each case is.
 - VA-3 — **the bounded files are bounded.** `git diff` over `main.rs`,
   `wiring.rs`, `scheduling.rs`, `event_loop/closing.rs` and
   `event_loop_schedule/scheduling.rs` pasted, showing only the 23 one-argument
@@ -1217,7 +1408,7 @@ with a **real bound `Ingress`** and a scripted backend, on the shape
   design change.
 - S-2 — an ingested evaluation cannot be built without a `Stimulus` variant.
   Stop: D-13 rejects `Stimulus::Ingested(Event)` by name — `Stimulus` is `Copy`
-  and its `event` hard-codes `source: "host"` (`wire.rs:62`), which CD-2 also
+  and its `event` hard-codes `source: "host"` (`wire.rs:62-64`), which CD-2 also
   forbids — and `Pending::Evaluate` is the vocabulary both paths share.
 - S-3 — a margin under VA-2 comes in under 10x **on a case VA-2 does not exempt**
   — that is, on anything but a case that waits out `MINIMUM_SPACING` by
@@ -1469,8 +1660,9 @@ calls; any manifest; `docs/policy/`.
 **Exit**
 - EX-1 — `StartupError` gains `Ingress(IngressError)`, with a `Display` arm and
   a `source()` arm, and `main` maps it to exit code 2 like its eight siblings
-  (`startup.rs:21-42`, `main.rs:21-29`). The message **names the path**.
-- EX-2 — `startup.rs` carries
+  (`crates/goad/src/startup.rs:21-42`, `crates/goad/src/main.rs:21-29`). The
+  message **names the path**.
+- EX-2 — `crates/goad/src/startup.rs` carries
   `pub fn listener(configured: Option<&IngressConfig>) -> Result<Ingress, StartupError>`
   (PL-6): `None` yields `Ingress::none()` and touches nothing; `Some` calls
   `ingress::bind` and wraps its error. `main::start` calls it and nothing else
@@ -1485,8 +1677,10 @@ calls; any manifest; `docs/policy/`.
   **moved** into `Host::new(config, backend, now)` at `main.rs:54`, nine lines
   above the guard; `Host` stores it privately (`host.rs:115`) and exposes no
   accessor, and `Config` derives `Debug` only (`config.rs:27-28`) — there is no
-  `Clone` to copy it with. The re-sequencing is **one moved line inside
-  `main.rs`**, which is this phase's own surface: `let host = Host::new(config,
+  `Clone` to copy it with. `design.md` §5.4 puts `Host::new` **below the bind**
+  for exactly this reason, so the re-sequencing is conformance with the diagram
+  rather than a departure from it. It is **one moved line inside `main.rs`**,
+  which is this phase's own surface: `let host = Host::new(config,
   backend, now);` moves from `:54` to **after** `let _entered = runtime.enter();`
   and after the `listener` call, so that `config.ingress.as_ref()` is still
   formable. `Host::new` is pure construction — it stores its three arguments and
@@ -1536,9 +1730,13 @@ calls; any manifest; `docs/policy/`.
     window on its own;
   - anything else came in through the socket. Extract `source` and `kind` with
     shell parameter expansion in the style of the file's existing `case`
-    (the host serialises compactly, so `"source":"…","kind":"…"` are adjacent —
-    `canonical.rs:512-531`), and answer with a view whose **title or body names
-    them**. The file's own comment already says substring matching on JSON is
+    (`Event`'s fields are declared `source`, `kind`, `timestamp`, `data` in that
+    order — `canonical.rs:490-496` — and the host serialises with
+    `serde_json::to_vec`
+    (`crates/goad-shell/src/backend/process.rs:63`), so `"source":"…","kind":"…"`
+    are adjacent and the substring match is over `event.source` rather than over
+    a `"source"` key a watcher put inside `data`), and answer with a view whose
+    **title or body names them**. The file's own comment already says substring matching on JSON is
     not to be imitated and why; extend that comment rather than adding a parser.
 
   Ten lines stays roughly ten lines. `just check` does not lint shell, so the
@@ -1578,8 +1776,11 @@ calls; any manifest; `docs/policy/`.
   same line the other eight do, and no variant can reach a different code
   without that `match` changing. This is recorded the way `SPEC-003/R-5`'s row
   is — an argument written down, not a criterion dressed as a test. **Do not
-  build a binary-running harness for it**: `startup.rs:9-11` is that file's rule
-  and PL-9 forbids a helper binary.
+  build a binary-running harness for it**:
+  `crates/goad/tests/renderer/startup.rs:9-11` is that file's rule and PL-9
+  forbids a helper binary. (Written in full because this phase declares **two**
+  files named `startup.rs`, and `crates/goad/src/startup.rs:9-11` is real and is
+  something else — the tail of `Launch`'s doc comment.)
 - VH-1 — **AC-13, and this phase cannot be green without it.** What a person
   actually does, and actually sees:
   1. `just demo`. The startup evaluation opens the window on the demo backend's
@@ -1681,7 +1882,7 @@ where it drifted).
   STOP.
 - EX-4 — the margin table: every timed assertion in the slice, its bound, its
   worst measured elapsed **at the bound that governs**, and its ratio —
-  collected from PHASE-08/VA-2, PHASE-04/VA-2 and PHASE-05/VA-2 into one table
+  collected from PHASE-03/VA-2, PHASE-04/VA-2 and PHASE-05/VA-2 into one table
   in `notes.md`. Plus the numbers F-15 asked for: presentations per refused
   envelope, and presentations per second under the flat-out writer.
 - EX-5 — `notes.md`'s Harvest is complete: what now exists, what a future agent
@@ -1690,6 +1891,32 @@ where it drifted).
 - EX-6 — `research.md` is refreshed in place where the slice moved it — F10's
   feature list, F12's allowlist reading, and Thread 3's spike result. No rounds
   appended.
+- EX-7 — **design divergence is listed for the auditor, not left to be
+  discovered.** `notes.md` gains a `## Design drift` section naming every place
+  the tree departs from `design.md` as it stands: one line each, saying what the
+  design says, what the tree does, and which phase's criterion authorised it. It
+  is compiled from the phase sheets and from EX-3's walk, and it is what
+  `audit.md`'s *Design drift not reconciled* is written from (`docs/AGENTS.md`
+  §Audit). This phase does **not** edit `design.md` — that is the point of the
+  section. Two entries are known at plan time and start the list:
+
+  - **`event_floor_until`'s initial value.** `design.md` §5.3's state table gives
+    the anchor a writer, a reader and a lifetime but no initial value; PHASE-04/
+    EX-6 chooses `started` and argues it from I-4 and P-3. A design **gap** the
+    plan filled, reported rather than silently closed. The same criterion fills
+    a second: `design.md` §5.4's step 3 does not say whether the refusal is on
+    `now < event_floor_until` or `<=`, and PHASE-04/EX-6 states `<` because
+    `SPEC-003/R-14`'s rounding forces it — stated rather than chosen, and still
+    the design's to close.
+  - **Three amendments taken before implementation, not drift.** `design-log.md`
+    (2026-09-08, *the design is amended before implementation*) records that
+    `design.md` §5.4's startup order, §9's AC-9 row and §9's AC-10 row were
+    amended — with `draft-spec.md` §7's R-2 and R-4 rows — because they
+    prescribed a mechanism this workspace cannot implement. They are listed here
+    so the auditor meets them as **amendments** rather than rediscovering them
+    as departures; the amended text is what the tree is measured against.
+
+  A departure this phase finds that no phase's criterion authorised is S-4.
 
 **Verification**
 - VT-1 — nothing new. This phase adds no test.
@@ -1722,6 +1949,9 @@ where it drifted).
   file.
 - S-3 — a phase touched a path it did not declare. Record it and stop; it is
   either a design change or scope creep, and both are the user's call.
+- S-4 — EX-7 turns up a departure from `design.md` that no phase's criterion
+  authorised. Stop and report: that is a design change taken without one, or a
+  defect, and both are the user's call rather than a line in `audit.md`.
 
 **Notes for the implementer**
 
@@ -1738,3 +1968,9 @@ where it drifted).
 - `design.md` is **not** retro-fitted. Where the implementation departed and the
   design stands as written, that is a line under *Design drift not reconciled*
   in `audit.md`, and this phase's job is to make sure the auditor can find it.
+  **EX-7 is how**: a `## Design drift` section in `notes.md`, seeded with the
+  two entries EX-7 names, is the instrument — without it the phase's job is a
+  sentiment. Amending the design and recording drift are different acts:
+  amendment happens with the user, in the design stage or at reconciliation, and
+  is logged in `design-log.md`; drift is written down here and reconciled at
+  audit.

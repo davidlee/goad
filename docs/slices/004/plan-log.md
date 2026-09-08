@@ -233,3 +233,114 @@ cross-posted to `design-log.md`.
   than repaired**: AC-9 needs a reading recorded in `slice-004.md` beside AC-1,
   AC-3, AC-6 and AC-7, and `design.md` §5.3's state table does not give
   `event_floor_until` an initial value where the row beside it argues one.
+
+### 2026-09-08 — PL-11: round 2 of the plan review dispositioned; the seam moves to the refusal vocabulary
+
+- **Asked:** how to dispose of `review-plan.md`'s round 2 — nine findings,
+  F-15..F-23 — and, inside F-18, where the seam between the two listener phases
+  actually belongs.
+- **Decided:** all nine `fix-now`, under the standing autonomy grant. Every
+  citation was verified against the tree and the line before it was acted on;
+  none failed, and nothing was withdrawn.
+- **The class this round:** bookkeeping that did not keep up with a structural
+  change. Round 1 split a phase, moved criteria and replaced a mechanism; round
+  2 found the maps, the counts, the cross-references and the design's own text
+  still describing the arrangement before. F-18 is another structural change, so
+  its bookkeeping — id lists, both Coverage tables, the *Size* arithmetic, the
+  §Sequencing rationale — was written in the same pass rather than left to a
+  third round.
+- **The substantive changes:**
+  - **F-18 — the seam is the refusal vocabulary, not the reply.** The two read
+    budgets, their enforcement, their two cases (VT-13, VT-14), the margin check
+    (VA-2) and its STOP (S-3) all move **back to PHASE-03**, so the listener's
+    read is written **once** and is bounded from the moment it exists. The
+    alternative had PHASE-03 write the read unbounded and PHASE-08 rewrite it
+    bounded — the cost this plan refuses when it declines to split `serve` — and
+    left `SPEC-003/R-7` unheld for a whole phase, which `draft-spec.md` §6.4
+    names as the defect SPEC-001/R-43 records on the other socket. PHASE-03/EX-10
+    grows from three `Refusal` variants to five accordingly; PHASE-08 keeps the
+    writer-facing vocabulary — the remaining payloads, `reserved_source`, the
+    rounding, and the set asserted as closed at eight — and adds no bound.
+    **PHASE-03 is now eleven cases against PHASE-08's three**, which is stated
+    rather than absorbed: measured in re-reading, the unit slice 003's
+    calibration was argued in, it is about nine distinct conditions against
+    eight, because VT-13 and VT-14 are two further arms of the read VT-5 already
+    exercises three arms of. PHASE-03 is the largest phase in the slice.
+  - **F-15 — three divergences fixed at their source, and an instrument added.**
+    `design.md` §5.4's startup order, §9's AC-9 and AC-10 rows and
+    `draft-spec.md` §7's R-2 and R-4 rows are **amended**, because the design was
+    wrong about what is possible rather than the plan wrong about the design.
+    See `design-log.md` for that decision. New **PHASE-07/EX-7** requires a
+    `## Design drift` section in `notes.md` listing every departure for the
+    auditor, seeded with F-10's `event_floor_until` gap and these three
+    amendments; **PHASE-07/S-4** stops on a departure no criterion authorised.
+  - **F-16, F-17, F-19..F-23** — VT-10's non-vacuity threshold recomputed
+    (`0o177`, not `0o077`); PHASE-04/VT-7 added to EX-11's member list with its
+    two windows separated and its live read route named; R-13's Coverage row
+    carried across the split; two wrong citations fixed plus two more found by
+    re-sweeping for the same two shapes; the *Size* counts; the id bookkeeping
+    stated under **both** phases where each phase's reader meets it; and two
+    cross-references that pointed at text saying the opposite.
+- **Why the seam moved rather than being annotated:** the plan's own argument
+  against splitting `serve` is that editing the same lines twice is a cost, and
+  the same argument applies to the listener's read. Choosing the framing spelling
+  and its two bounds is one decision — `read_until` admits neither a cap nor a
+  deadline on its own — so the phase that makes it must be the phase that lives
+  with it.
+- **Rejected:** leaving the budgets in PHASE-08 and recording R-7's gap as
+  tolerated intermediate state (it is a rewrite of production code, not an
+  ordering detail); re-balancing the split by moving cases back to PHASE-08 to
+  make the halves even (the seam is at the subject, and evenness bought by
+  splitting one read is what F-18 objects to); annotating the three design
+  divergences as drift rather than amending (they are not drift — no code has
+  been written, and the design is wrong about what this workspace can do);
+  renumbering criterion ids to close the gaps the split left (the file's header
+  comment says edits append).
+- **Consequence:** `plan.md` rewritten in the places named above — §Overview,
+  §Sequencing, *Size*, the decisions list (PL-10 superseded in part), both
+  Coverage tables, PHASE-03, PHASE-08, PHASE-04, PHASE-06 and PHASE-07.
+  `review-plan.md` carries a disposition and a response per finding, with
+  `Outcome` left for the reviewer. `design.md` and `draft-spec.md` were edited
+  **only** for F-15's three divergences.
+
+### 2026-09-08 — PL-12: F-24, raised late in round 2 — the anchor's boundary, stated and made testable
+
+- **Asked:** how to dispose of `review-plan.md` F-24, raised after the round-2
+  repairs began. Two parts: a consequence sentence that overshoots in both
+  `design.md` §5.3 and `plan.md` PHASE-04/EX-6, and an unspecified `<` versus
+  `<=` at step 3.
+- **Decided:** `fix-now`, both parts. Every citation verified first —
+  `draft-spec.md:106` and `:236`, `design.md:576`, and
+  `renderer/scheduling.rs:168` (the renderer tier seeds `Stimulus::Requested`
+  explicitly, so no criterion breaks today).
+  - **The consequence is narrowed.** *"The first envelope after startup is
+    accepted"* is not the anchor's to promise: the anchor is step 3, and an
+    envelope arriving during the startup exchange is refused at step 2,
+    `engaged`. Both documents now say **the startup evaluation never makes an
+    envelope `too_soon`**. `design.md`'s half is a decision and is in
+    `design-log.md`.
+  - **Step 3 refuses on `<`, and `SPEC-003/R-14` forces it.** Rounding
+    `retry_after_ms` **up** puts a writer that waits exactly that long at
+    `now >= event_floor_until`; under `<=` that writer is refused and R-14's own
+    sentence is false of the host. PHASE-04/EX-6 states it as forced rather than
+    chosen, and records the design gap the way F-10's repair did.
+  - **The comparison becomes a named private free function, and PHASE-04/VT-8
+    is the case** — three assertions at the floor, one nanosecond either side, in
+    `controller.rs`'s existing `#[cfg(test)] mod tests`. **No socket-level case
+    can discriminate**: rounding up plus a real `sleep`'s overshoot puts an
+    end-to-end waiter strictly past the floor, where `<` and `<=` agree. The
+    precedent is `controller.rs:524-530`'s own stated reason for that module.
+- **Also folded into F-22's remedy:** `VT-7` names **three** unrelated criteria
+  — PHASE-02's, PHASE-04's and PHASE-08's — and this repair makes `VT-8` a
+  three-way clash as well. All six are named in the file's header comment, in
+  both *Ids across the split* paragraphs, and at PHASE-04/VT-7. Ids are
+  phase-local by the header comment's own rule and are not renumbered; `VT-1`
+  already names five tests, so the clash is the rule working, not a defect.
+- **Rejected:** holding the comparison by review, the way AC-9's exit code is
+  held (it is one line of production logic and a unit case reaches it exactly —
+  review is for what no instrument can reach); an end-to-end boundary case
+  (cannot discriminate, and would read as evidence while proving nothing);
+  extending PHASE-08/VT-9 (it has no `serve` and no anchor in the picture).
+- **Consequence:** `plan.md` header comment, Coverage R-12 and R-14 rows,
+  PHASE-03 and PHASE-08 id paragraphs, PHASE-04/EX-5, EX-6, EX-11, VT-7, VT-8
+  and VA-2, and PHASE-07/EX-7's seeded list. `design.md` §5.3, one sentence.

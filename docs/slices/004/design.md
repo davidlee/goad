@@ -370,9 +370,11 @@ The whole of the new retained state is **one instant**.
 `started` (`controller.rs:407`), and `event_floor_until` is initialised the same
 way — which is forced, not chosen. The only other candidate,
 `started + MINIMUM_SPACING`, would have the host's own startup evaluation write
-the event anchor, and that is precisely what P-3 denies. So the first envelope
-after startup is accepted, and nothing about the startup evaluation is
-observable at the socket.
+the event anchor, and that is precisely what P-3 denies. So the startup
+evaluation never makes an envelope `too_soon`, which is the whole of what the
+anchor decides: the anchor is §5.4's step **3**, and an envelope arriving
+while the startup exchange is still in flight is refused at step **2**,
+`engaged`, like any other.
 
 Two anchors, two write sites, neither reachable from the other. That is P-3, and
 it is the whole of AC-6's falsifiable claim. There are **two** ingress arms and
@@ -390,11 +392,14 @@ host has no rule for evicting from.
 
 **Startup.** `bind` goes after the runtime guard `main.rs` already takes and
 before `spawn_local`: it needs the reactor, and a bind failure must be fatal
-before a window exists.
+before a window exists. `Host::new` goes **after** the bind — it *consumes* the
+`Config` (`main.rs:54`, `host.rs:115`), which derives no `Clone` and exposes no
+accessor, so the bind must read `config.ingress` before the host takes it.
 
 ```
-Config::load → clock → backend → Host::new → runtime → runtime.enter()
+Config::load → clock → backend → runtime → runtime.enter()
   → ingress::bind(path)?        ← new, fatal, exit 2, message names the path
+  → Host::new                   ← below the bind: it consumes the `Config`
   → window/tray → wire → glass → seed startup evaluate
   → spawn_local(serve(…, ingress))
 ```
@@ -662,8 +667,8 @@ Four tiers, and every acceptance criterion lands in one.
 | AC-6 | renderer, **three cases** — one per way the two anchors could cross. (i) *does not delay*: an ingested exchange falling between a short `next_check` and its firing does not push that firing out by the spacing — an ingested firing never writes `floor_until`. (ii) *does not advance*: a **scheduled** firing at T₀, an ingested firing at T₀+ε **whose own exchange resolves to a deadline no later than T₀+1 s**, and a `next_check` due at T₀+1 s — the scheduled evaluation does not reach the backend before T₀+3 s. That clause about the ingested exchange's own deadline is load-bearing, not decoration: every completed exchange re-arms the pending deadline from the instruction *that* exchange's backend returned (`controller.rs:507-512`, SPEC-001/R-26), so the scripted backend must answer the **ingested** evaluation with a `next_check` at least as short as the scheduled one's. Without it the deadline in force at T₀+1 s is whatever the script's default was, the two hypotheses do not disagree about it, and the assertion passes for a reason that would have held under the boolean too. (iii) *the event anchor is not cleared*: an ingested firing, then a scheduled firing, then a second event inside the ingested spacing is **still** `too_soon`. **(ii) is the one that discharges ADR-004's debt** — it is the only case in which the anchor and the boolean alternative ADR-004 rejected disagree, because the boolean would have been cleared by the intervening ingested firing and would fire at T₀+1 s. (i) falsifies the third alternative (an anchor on "the last thing the host did") and (iii) holds CD-1's new rule, on which ADR-004 makes no claim |
 | AC-7 | the existing suite with unchanged assertions, plus: with no key configured, no file is created at any path |
 | AC-8 | integration: a socket left behind is unlinked and rebound; a **live** one gives `InUse` naming the path, and the first listener keeps serving |
-| AC-9 | integration: a regular file at the path, and a path that cannot be created; the fault names what was found. Stratum 3: `StartupError::Ingress` renders and maps to exit 2 |
-| AC-10 | integration: `mode() & 0o777 == 0o600`, under a deliberately permissive umask |
+| AC-9 | integration: a regular file at the path, and a path that cannot be created; the fault names what was found. Stratum 3: `StartupError::Ingress` renders, beside its eight siblings. **The exit code itself is held by review, not by a test**: no test target links the binary, and `main`'s single `match run()` maps *every* `Err` to `ExitCode::from(2)`, so a ninth variant reaches exit 2 by the same line the other eight do |
+| AC-10 | integration: `mode() & 0o777 == 0o600` after `bind`. The host sets the mode **itself**, with `std::os::unix::fs::set_permissions` — this workspace has no safe umask API, and `umask(2)` is process-global while `cargo test` runs cases in parallel in one process — so the case sets no umask and asserts what the host did rather than what it inherited. §5.5 A-5's `bind`→`set_permissions` window is the residue |
 | AC-11 | the gate, unchanged; the vocabulary scan reaches the new module by walking members |
 | AC-12 | integration: a malformed envelope produces no `Event` at the judge. Renderer: after a flood of malformed envelopes the host still evaluates |
 | AC-13 | a person runs `just demo` and the documented one-liner; recorded in `audit.md` under Evidence, naming what was observed |

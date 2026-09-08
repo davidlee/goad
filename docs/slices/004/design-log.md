@@ -641,3 +641,97 @@ other, citing the finding id.
   envelopes, so the writer-less refusal falls outside it rather than breaching
   it. Without the reading AC-3 is unsatisfiable as literally worded, which is
   the same failure mode F-1 found in AC-6.
+
+### 2026-09-08 — the design is amended before implementation, in three places, because it prescribed what this workspace cannot do
+
+- **Asked:** `review-plan.md` F-15 found three places where the plan's round-1
+  repairs diverged from the accepted design, with only one of the three
+  recorded. The question is which side is wrong.
+- **Decided (orchestrator, under the standing autonomy grant):** the **design**
+  is wrong in all three, and is amended now — before any code is written — in
+  `design.md` §5.4 and §9, and in `draft-spec.md` §7. This is amendment, not
+  retro-fitting: `docs/AGENTS.md` §Audit forbids quietly reshaping a record of
+  intent to match a tree that departed from it, and no tree exists yet. What is
+  wrong here is that the design **prescribes a mechanism this workspace cannot
+  legally implement**, which the plan discovered when it went to schedule it.
+- **The three, and what each now says:**
+  - **The umask (§9's AC-10 row; `draft-spec.md` §7's R-2 row).** Both said the
+    mode is asserted *"under a deliberately permissive umask"*. There is no
+    umask API in `std`; `libc` is not a dependency of `crates/goad-shell` and the
+    crate has no `[dev-dependencies]` table, so adding either adds a name to the
+    manifest allowlist, one of ADR-001's four instruments; `pre_exec` is
+    `unsafe` and `unsafe_code = "deny"`; and `umask(2)` is process-global while
+    `cargo test` runs cases in parallel in one process. Both rows now prescribe
+    what the requirement actually asks for: the host sets the mode **itself**
+    with `std::os::unix::fs::set_permissions` after `bind`, and no case sets a
+    umask. **`SPEC-003/R-2`'s content is unchanged** — the host MUST set the mode
+    itself and MUST NOT rely on the umask was always right; it was the means §7
+    prescribed that was wrong. §5.5 A-5's `bind`→`set_permissions` window is
+    named as the residue in the AC-10 row, so a reader meets it with the
+    requirement.
+  - **`Host::new`'s placement (§5.4's startup block).** The diagram ran
+    `… backend → Host::new → runtime → runtime.enter() → ingress::bind(path)?`.
+    `Host::new` **consumes** the `Config` the bind must read `ingress` from
+    (`main.rs:54`, `host.rs:115`), and `Config` derives no `Clone` and exposes no
+    accessor, so at the point the diagram puts the bind there is no config in
+    scope. The block now runs `… backend → runtime → runtime.enter() →
+    ingress::bind(path)? → Host::new → …`, with the reason in one clause.
+    `Host::new` is pure construction, so it neither needs the reactor nor minds
+    it.
+  - **AC-9's exit code (§9's AC-9 row; `draft-spec.md` §7's R-4 row).** Both said
+    the mapping to a non-zero exit is asserted. No test target links the binary,
+    and `crates/goad/tests/renderer/startup.rs` states as that file's own rule
+    that no test there runs the binary or asserts an exit code. Both rows now say
+    the exit code is **held by review, not by a test**, in the shape
+    `SPEC-003/R-5`'s row already uses, and give the argument: `main`'s single
+    `match run()` maps every `Err` to `ExitCode::from(2)`.
+- **Why this is recorded here rather than only in the plan ledger:** a finding is
+  an observation and lives in the ledger; this is a **decision** about canon-track
+  documents, taken by the orchestrator, and `design.md` is a record of intent
+  that may not change silently. The plan's PHASE-07 gains a criterion (EX-7)
+  requiring the audit's *Design drift* list to name these three **as
+  amendments**, so the auditor meets them as decisions rather than rediscovering
+  them as departures.
+- **Rejected:** recording the three as drift and leaving the design as written
+  (drift is where implementation departed and the design still stands — nothing
+  is implemented, and here the design does not stand); amending only the two
+  `draft-spec.md` rows on the ground that §7 is PHASE-07's surface (PHASE-07's
+  instruction is to swap a citation for a test name, which would not catch a row
+  describing an abandoned method, and `design.md` is nobody's surface at all).
+- **Consequence:** `design.md` §5.4 and §9 and `draft-spec.md` §7 amended;
+  `draft-spec.md` §4's R-2 and §7's R-5 untouched. `plan.md` PHASE-06/EX-3 no
+  longer claims §5.4's order while departing from it, and PHASE-07/EX-7 and S-4
+  are the instrument. Promotion of `draft-spec.md`, and CD-1..CD-3, remain the
+  audit's with explicit user endorsement.
+
+### 2026-09-08 — one further sentence of §5.3 amended: the anchor decides `too_soon`, not `accepted`
+
+- **Asked:** `review-plan.md` F-24 found the *consequence* sentence F-10's
+  repair added to `design.md` §5.3 — *"So the first envelope after startup is
+  accepted, and nothing about the startup evaluation is observable at the
+  socket"* — reaching past what the anchor decides.
+- **Decided (orchestrator):** the reviewer is right and the sentence is
+  replaced. The anchor is §5.4's step **3**; an envelope arriving while the
+  startup exchange is still in flight is refused at step **2**, `engaged`, and
+  nothing exempts the startup exchange from that — `draft-spec.md` §6.3 defines
+  `engaged` as *"an exchange was already in flight"*, and §5.5's own edge-case
+  table already contemplates an envelope arriving that early. §5.3 now says what
+  the argument actually supports: **the startup evaluation never makes an
+  envelope `too_soon`**, which is the whole of what the anchor decides.
+- **Scope:** that one sentence, and nothing else in §5.3 or §5.5. The initial
+  value (`started`) and the forcing argument from P-3 are unchanged — F-24 says
+  in terms that it is not about the value.
+- **Not amended, and reported instead:** §5.4's step 3 says *"inside the event
+  spacing → `too_soon`"* and does not say whether the comparison is `<` or
+  `<=`. `SPEC-003/R-14`'s round-**up** forces `<` — a writer that waits exactly
+  `retry_after_ms` arrives at `now >= event_floor_until`, and exactly *at* it
+  when the remaining spacing is a whole millisecond, so `<=` would make R-14's
+  own sentence false of the host. `plan.md` PHASE-04/EX-6 states it as forced
+  rather than chosen and records the gap the way F-10's repair did;
+  PHASE-07/EX-7 carries it to the auditor. Closing it in `design.md` is the
+  design's, at reconciliation.
+- **Consequence:** `design.md` §5.3, one sentence. `plan.md` PHASE-04/EX-5 step
+  3, EX-6, EX-11 and a new VT-8 carry the plan's half; VT-8 is the only case
+  that can tell `<` from `<=` apart, and it is a unit case in
+  `controller.rs`'s existing `#[cfg(test)] mod tests` because no socket-level
+  case can reach the boundary instant.

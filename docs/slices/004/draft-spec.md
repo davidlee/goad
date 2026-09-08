@@ -303,9 +303,9 @@ no test is a row this spec may not be promoted holding.
 | requirement | verified by |
 |---|---|
 | R-1 | integration, both arms: a configured path is bound and serves; with no path configured, no file is created and the existing suite passes with unchanged assertions (slice 004 AC-1, AC-7) |
-| R-2 | integration: the bound socket's mode is `0600` under a deliberately permissive umask (AC-10) |
+| R-2 | integration: the bound socket's mode is `0600` after `bind`. The host sets it **itself**, with `std::os::unix::fs::set_permissions`; no case sets a umask, because this workspace has no safe umask API and `umask(2)` is process-global while cases run in parallel (AC-10) |
 | R-3 | integration, both arms: a socket left behind by a dead host is unlinked and rebound; a live host's socket produces a startup failure naming the path, and the first listener keeps serving (AC-8) |
-| R-4 | integration: a regular file at the path, and a path that cannot be created, each produce a startup failure naming what was found; stratum 3 maps it to a non-zero exit (AC-9) |
+| R-4 | integration: a regular file at the path, and a path that cannot be created, each produce a startup failure naming what was found; stratum 3's rendering is asserted beside its eight siblings. **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` maps every `Err` to exit 2 (AC-9) |
 | R-5 | **review, not a test.** The absence of an unlink cannot be asserted without asserting the absence of code; R-3's reclaim test is what makes the absence safe |
 | R-6 | integration: an envelope terminated by a newline and one terminated by end of input are both accepted; a second envelope written after the first is not read (AC-3) |
 | R-7 | integration: an envelope exceeding the byte bound is refused `too_large`; a connection that writes nothing is refused `timed_out` (AC-4) |
