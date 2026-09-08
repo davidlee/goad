@@ -405,3 +405,17 @@ cross-posted to `design-log.md`.
 - **Consequence:** the routing paragraph is corrected in place, and the reason
   the retained value is unusable is written down so the next reader does not
   re-derive it. The criterion, the code and what VT-7 catches are unchanged.
+
+### 2026-09-08 — PHASE-07 ran with EN-1 deliberately unmet
+
+- **Asked:** PHASE-07's EN-1 requires PHASE-06's criteria discharged *including
+  VH-1*, and VH-1 is a person's to discharge. The phase agent flagged the
+  conflict rather than resolving it, which was right.
+- **Decided:** PHASE-07 proceeds with VH-1 open, by orchestrator instruction.
+- **Consequence:** none of PHASE-07's outputs depend on VH-1 — the §7 table,
+  the Coverage walk, the margin table, the drift section and the clean-clone
+  gate are all facts about the tree. What EN-1 protects against is a sweep that
+  certifies a slice a person has never run, and that protection is preserved by
+  VH-1 staying open and named open in the status table, the Harvest and the
+  audit's Evidence. The slice does not close until a person has run it. If
+  VH-1 fails, the sweep is re-run against whatever the repair changes.

@@ -137,10 +137,17 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
   `main.rs` wraps it in `slint::spawn_local`. Anything spawned with
   `tokio::spawn` alongside it must be `Send`; a `UnixListener` and an
   `mpsc::Sender` are.
-- **F10 ✓ — tokio's feature list has no `net`, and `goad-shell` has no
-  `sync`.** Root `Cargo.toml`: `tokio = { features = ["process", "time", "rt",
-  "io-util", "macros"] }`; `crates/goad/Cargo.toml` adds `rt-multi-thread` and
-  `sync`; `crates/goad-shell/Cargo.toml` takes the base set.
+- **F10 ✓ — at scoping, tokio's feature list had no `net`, and `goad-shell` had
+  no `sync`.** Root `Cargo.toml`: `tokio = { features = ["process", "time",
+  "rt", "io-util", "macros"] }`; `crates/goad/Cargo.toml` added
+  `rt-multi-thread` and `sync`; `crates/goad-shell/Cargo.toml` took the base
+  set. **Refreshed at PHASE-07:** PHASE-03/EX-1 added both — `goad-shell`'s
+  `tokio` entry now reads `{ workspace = true, features = ["net", "sync"] }`
+  (`crates/goad-shell/Cargo.toml:17`), the manifest's only change for the whole
+  slice (PHASE-08/VA-5, PHASE-04's Findings F-c: neither reaches `crates/goad`
+  except by feature unification, which is why the writer's side of every
+  `crates/goad` test case uses `std::os::unix::net` on `spawn_blocking`
+  instead).
 - **F11 ✓ — tokio is not reachable from stratum 1, so POL-001's
   feature-unification residue does not bite here.** `crates/goad-semantics/
   Cargo.toml` names `jiff`, `serde`, `serde_json` and nothing else, and the
@@ -150,6 +157,11 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
   `tokio` is already permitted for stratum 2, and a *feature* added to a
   permitted dependency is invisible to the instrument. The check that a new
   feature is justified is review, per POL-001 §Verification's residue.
+  **Refreshed at PHASE-07:** confirmed against the finished tree — PHASE-07/VA-2
+  discharges POL-001's residue clause in writing (`net` and `sync` reach only
+  stratum 2's own graph; neither reaches stratum 1's), and separately
+  re-confirms the allowlist test passes unchanged with the two features
+  present.
 - **F13 ✓ — The purity scan binds stratum 1 only.** `purity.rs:17-27` forbids
   `std::fs`, `std::process`, `std::net`, `std::os`, `std::env`, `std::thread`,
   `std::io`, `std::time::SystemTime`, `std::time::Instant`. Setting a socket's

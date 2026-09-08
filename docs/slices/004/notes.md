@@ -15,7 +15,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | done | 2026-09-08 |
 | PHASE-05 — the two anchors, and what a person can see | done | 2026-09-08 |
 | PHASE-06 — binding at startup, and the demo a person runs | code done, **VH-1 open** — awaiting the user's run (runbook in this file, PHASE-06 sheet) | 2026-09-08 |
-| PHASE-07 — the sweep, the spec's own table, and the gate | pending | |
+| PHASE-07 — the sweep, the spec's own table, and the gate | done | 2026-09-08 |
 
 Rows are in **execution order** — PHASE-08 is the listener's second half and
 runs between 03 and 04 (`plan.md` PL-10). Phase ids are immutable, so a split
@@ -586,6 +586,14 @@ phase's) green before the full-workspace run, and the full-workspace
   `reason()` reading it as its own token, exactly as `design.md` §5.2 and
   `draft-spec.md` §6.3 already stated.
 
+### PHASE-03 — The socket, the bounded read, and the accepted path
+
+**Heading restored at PHASE-07.** This section's own `###` heading was lost in
+the edit that landed PHASE-08's sheet (`9d36002` replaced the whole section
+instead of inserting ahead of it) — the content below is untouched and was
+never missing, only its outline entry. Found by PHASE-07's sweep; recorded here
+rather than silently repaired, since it is bookkeeping on this phase's own
+declared surface (`notes.md`) and changes no content.
 
 **Entry check:** EN-1 — PHASE-02's exit criteria discharged; `just check`
 **exit 0** at `bee5d2f` (transcript:
@@ -1195,6 +1203,220 @@ unmodified from a clean clone with no quoting trick. S-3/S-4: not reachable by
 this agent — VH-1's run has not happened yet; the runbook below is what a
 person needs to check them.
 
+### PHASE-07 — The sweep, the spec's own table, and the gate
+
+**Entry check:** EN-1 as `plan.md` states it reads *"PHASE-06's exit criteria
+are discharged, including VH-1, and `just check` exits 0."* **VH-1 is not
+discharged** — it is a person's run, recorded in the Runbook above, and it has
+not happened. This is a literal conflict between the plan's own EN-1 text and
+the orchestrator's brief for this phase, which states in terms that VH-1 "is
+not yours [to discharge]," must not be inferred from a green gate, and stays
+open through this phase. Both cannot be honoured at once by rewriting neither:
+I am not marking VH-1 discharged (it is not, and nothing in this phase can make
+it so), and I am not treating EN-1 as silently satisfied. Per the orchestrator's
+explicit brief — which is the delegating authority for this phase and pre-empts
+a plan clause it identifies as conditional on the point — I am proceeding with
+PHASE-07's work with **VH-1 named open** throughout, and reporting the
+conflict rather than resolving it unilaterally. `just check` **exits 0** on the
+working tree at entry (transcript below), which is the other half of EN-1 and
+is satisfied outright.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `plan.md:1869-1985` |
+| `docs/AGENTS.md` §Phase plan, §Execute, §Tiers | `docs/AGENTS.md` |
+| `CLAUDE.md` — the five invariants, `just check`, the four instruments | repo root |
+| `draft-spec.md` §7, as it stood at entry (prose naming AC ids) | `draft-spec.md:296-321` |
+| every phase's sheet, Findings and Verification table | this file, `### PHASE-01` through `### PHASE-06` above |
+| the Harvest, whole | this file, `## Harvest` below |
+| `canon-delta.md` CD-1..CD-3 | `canon-delta.md` |
+| `docs/policy/001-the-phase-gate.md` §Verification, the counting rule | policy, whole |
+| the plan's two Coverage tables | `plan.md:398-445` |
+| the three seeded design amendments | `design-log.md`, 2026-09-08 *"the design is amended before implementation…"* |
+
+**Assumptions**
+
+- **The clean-clone gate is run at `HEAD` (`99abac4`), not with this phase's
+  own uncommitted edits copied over it**, unlike PHASE-06's VA-2. This phase's
+  changes are documentation only (`draft-spec.md` §7, `notes.md`, `research.md`)
+  and touch nothing `just check` runs; PHASE-06's precedent for copying the
+  working tree over the clone existed because that phase's *code* changes were
+  what VA-2 had to prove worked from a clean checkout. What VA-1 here is
+  actually guarding against — a file real only in the working tree, or a
+  `.gitignore` entry hiding one that should not be — is a fact about the
+  **committed** tree, which `99abac4` already is.
+- **EX-1's "replacing the prose that names an AC id"** is read as: keep the
+  descriptive clause of each row (what is tested and why), and replace the
+  trailing `(AC-n, …)` citation with the concrete test function(s) and file(s)
+  that discharge it — not strip the row to a bare citation list. A row that
+  named a test with no description would be harder to audit, not easier.
+- **EX-3's "every criterion id names a test that exists and passes"** is
+  discharged by (a) `grep`-confirming every cited function exists at the name
+  and file the phase sheets claim, and (b) the clean-clone `just check`
+  exiting 0, which runs the whole suite — a full green run is stronger evidence
+  of "passes" than re-running each case individually by `--exact`, since it is
+  the same evidence the gate itself certifies phases on.
+
+**STOP conditions** (`plan.md` S-1..S-4, not softened)
+
+- S-1 — a Coverage row has no test.
+- S-2 — the clean clone fails where the working tree passes.
+- S-3 — a phase touched a path it did not declare.
+- S-4 — EX-7 turns up a departure from `design.md` that no phase's criterion
+  authorised.
+
+**Tasks**
+
+- [x] sheet written; status set to `in progress`.
+- [x] EN-1 verified (with the VH-1 conflict recorded above, not silently
+      resolved either way).
+- [x] `draft-spec.md` §7 rewritten, every row naming a real test (EX-1); R-5
+      left untouched (EX-2).
+- [x] Coverage walk: every `plan.md` Coverage-table id cross-checked against
+      the tree by name and by a green full-suite run (EX-3).
+- [x] margin table compiled from PHASE-03/04/05's own VA-2 sections, plus
+      F-15's numbers (EX-4).
+- [x] Harvest updated in place (EX-5, below).
+- [x] `research.md` refreshed — F10, F12 (EX-6); Thread 3 checked and found
+      already accurate, nothing to refresh.
+- [x] `## Design drift` section written (EX-7).
+- [x] `just check` on the working tree, and the clean-clone gate (VA-1).
+- [x] AC-11 walked instrument by instrument over the finished tree, plus the
+      residue argument confirmed directly (`cargo tree -p goad-semantics -i
+      tokio` finds nothing) (VA-2).
+- [x] `git diff --stat b6ca5f7` walked against every phase's declared surfaces
+      (VA-3).
+- [x] vocabulary word list re-read against the new module's names (VA-4).
+- [x] the PHASE-03 heading gap found and restored (bookkeeping, this phase's
+      own surface).
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-1 | `draft-spec.md` §7: all sixteen rows (R-1..R-16) name real test functions and files, cross-checked against the tree by `grep`; R-5 untouched |
+| EX-2 | R-5's row reads, verbatim, exactly what it read before: *"**review, not a test.** The absence of an unlink cannot be asserted without asserting the absence of code; R-3's reclaim test is what makes the absence safe"* |
+| EX-3 | both `plan.md` Coverage tables walked; every named test exists (grep-confirmed) and passes (clean-clone `just check`, exit 0). One coverage residue found, not a gap in a Coverage row — see *Findings* below |
+| EX-4 | the margin table, below |
+| EX-5 | Harvest updated in place, below |
+| EX-6 | `research.md` F10 and F12 refreshed to state the finished tree; Thread 3 checked line by line against the Harvest's own A-1 numbers and found already accurate — no edit needed there |
+| EX-7 | `## Design drift` section below, seeded with the three amendments `design-log.md` already names, plus one further item this phase's own walk found |
+| VA-1 | working tree: `just check` **exit 0** (transcript `…/scratchpad/phase07-working-tree-check.txt`, session-local). Clean clone of `99abac4` into a scratch directory, `nix develop -c just check`: **exit 0**, all six commands present in order, 19 `test result: ok` blocks, zero `FAILED` (transcript `…/scratchpad/phase07-clean-clone-check.txt`, session-local) |
+| VA-2 | stated one instrument at a time, not merged (POL-001 §Verification): crate-edge rule — `cargo build --workspace` succeeds, which is what the rule is (Cargo resolution, not a separate command); manifest allowlist — `allowlist::the_real_stratum_1_manifest_is_clean`, `allowlist::the_real_stratum_2_manifest_is_clean`, both `ok` in the clean-clone run; stratum 1 purity scan — `purity::the_real_stratum_1_source_names_none_of_the_nine`, `ok`; `cargo test -p goad-semantics` — 30 unit + 5 protocol + 0 doc, all `ok`, run separately in both the working-tree and clean-clone gates; domain-vocabulary scan, separately — `vocabulary::no_workspace_member_names_the_users_domain`, `vocabulary::no_member_manifest_names_the_users_domain_in_its_own_crate_name`, both `ok`. Residue argued and confirmed directly: `cargo tree -p goad-semantics -i tokio` reports no matching package — `net`/`sync` (`crates/goad-shell/Cargo.toml:17`) do not reach stratum 1's graph, so POL-001's residue clause is discharged by an argument that is also now checked, not merely asserted |
+| VA-3 | `git diff --stat b6ca5f7` — 26 files under `crates/`, `examples/`, `flake.nix`, `.gitignore`, `tests/support/`, `Cargo.lock`. Every one matches a phase's declared Surfaces line (walked file by file, below). `Cargo.lock`'s 11-line diff (`socket2` entering the dependency graph) is the mechanical consequence of PHASE-03/EX-1's declared manifest change, not an undeclared surface. **No undeclared path found** |
+| VA-4 | `crates/goad-boundary/tests/checks/vocabulary.rs:18-25`'s `DOMAIN` list — `habit`, `streak`, `journal`, `site`, `goal`, `reminder`, `compliance` — re-read against `event`, `envelope`, `source`, `kind`, `listener`, `ingress`, `watcher`, `arrival`, `refusal`: none present. The scan's own test (`no_workspace_member_names_the_users_domain`) passed in both gate runs |
+
+**VA-3, walked** — every path in `git diff --stat b6ca5f7` against the phase
+that declared it (`plan.md`'s Surfaces lines, cross-checked against each
+phase's own sheet):
+
+| path | declared by |
+|---|---|
+| `.gitignore` | PHASE-06 |
+| `Cargo.lock` | mechanical consequence of PHASE-03/EX-1 (`crates/goad-shell/Cargo.toml`'s feature change); not itself a named surface in any phase, and not source |
+| `crates/goad-semantics/src/error.rs` | PHASE-02 (bounded to two edits, D-18) |
+| `crates/goad-shell/Cargo.toml` | PHASE-03/EX-1 |
+| `crates/goad-shell/src/config.rs` | PHASE-02 |
+| `crates/goad-shell/src/error.rs` | PHASE-02 |
+| `crates/goad-shell/src/ingress/envelope.rs` | PHASE-02 (new), PHASE-03/PHASE-08 (conditional) |
+| `crates/goad-shell/src/ingress/mod.rs` | PHASE-02 (module decl), PHASE-03, PHASE-08 |
+| `crates/goad-shell/src/lib.rs` | PHASE-02 |
+| `crates/goad-shell/tests/integration/ingress.rs` | PHASE-03 (new), PHASE-08 |
+| `crates/goad-shell/tests/integration/main.rs` | PHASE-03 (bounded to one `mod ingress;`) |
+| `crates/goad/src/controller.rs` | PHASE-04 |
+| `crates/goad/src/diagnostics.rs` | PHASE-04 |
+| `crates/goad/src/main.rs` | PHASE-04 (call site), PHASE-06 (startup order) |
+| `crates/goad/src/startup.rs` | PHASE-06 |
+| `crates/goad/tests/event_loop/closing.rs` | PHASE-02 (`ingress: None`), PHASE-04 (call site) |
+| `crates/goad/tests/event_loop_schedule/scheduling.rs` | PHASE-02, PHASE-04 |
+| `crates/goad/tests/renderer/ingress.rs` | PHASE-04 (new), PHASE-05 (extends) |
+| `crates/goad/tests/renderer/main.rs` | PHASE-04 (bounded to `mod` decl + two doc sentences) |
+| `crates/goad/tests/renderer/scheduling.rs` | PHASE-02, PHASE-04 |
+| `crates/goad/tests/renderer/startup.rs` | PHASE-06 |
+| `crates/goad/tests/renderer/wiring.rs` | PHASE-04 |
+| `examples/demo.toml` | PHASE-06 |
+| `examples/shell/backend.sh` | PHASE-06 |
+| `flake.nix` | PHASE-06 |
+| `tests/support/driving.rs` | PHASE-02 |
+
+`docs/slices/004/*` is excluded from this table — every file there is this
+slice's own working authority and is declared by the slice itself, not by an
+individual phase's Surfaces line.
+
+**VA-2 — margin table (EX-4)**
+
+Collected from PHASE-03/VA-2, PHASE-04/VA-2 and PHASE-05/VA-2, at the bound
+that governs each case (`docs/memory/timed-test-margins-are-measured-at-the-bound.md`).
+"Exempt" cases are ones whose wait chosen *is* the bound under test — a margin
+under 10x there is the point, not a defect (D-5 rejected a configurable spacing
+for exactly this reason: no test may buy margin by moving a bound).
+
+| phase/case | elapsed | bound | ratio | kind |
+|---|---|---|---|---|
+| PHASE-03/VT-14 | 501.87 / 501.71 / 501.82 ms | `ENVELOPE_DEADLINE` 500 ms | ~1.004x | **exempt** — the wait *is* the bound R-7 states |
+| PHASE-04/VT-1 | 160-170 ms | `LIVENESS_BOUND` 5 s | ~30x | liveness |
+| PHASE-04/VT-2 | 162-169 ms | `LIVENESS_BOUND` 5 s | ~30x | liveness |
+| PHASE-04/VT-3 | 368-378 ms | `@slow-view`'s 200 ms foreground sleep, vs. a 314-490 µs connect-to-reply | ~400-640x | liveness |
+| PHASE-04/VT-4 | 3159-3177 ms | `LIVENESS_BOUND` 5 s over a wait that *is* `MINIMUM_SPACING` | ~1.6x | **exempt** |
+| PHASE-04/VT-5 | 671-682 ms | 500 ms window (chosen, not a bound) + `LIVENESS_BOUND` 5 s settle, returned <5 ms | >1000x on the settle | liveness (plus a constructed window) |
+| PHASE-04/VT-7 | 3163-3167 ms | 500 ms anti-fire window (equality, no ratio) + `LIVENESS_BOUND` 5 s for the scheduled firing at `MINIMUM_SPACING` | liveness ~1.7x | **exempt** on the anti-fire side |
+| PHASE-05/VT-1 | 470 ms | `Duration::from_secs(2)`, chosen inside `MINIMUM_SPACING` | ~4.3x | **exempt** — the bound is the discriminator |
+| PHASE-05/VT-2 | 3.26-3.28 s | anti-fire window (exempt) + `LIVENESS_BOUND` 5 s over the remaining ~0.3-0.5 s | ~10-15x on the liveness side | mixed |
+| PHASE-05/VT-3 | 3.16-3.17 s | `LIVENESS_BOUND` 5 s over a wait that *is* `retry_after_ms` (~2.7 s) | ~1.85x | **exempt** |
+| PHASE-05/VT-4 | 150-170 ms | `LIVENESS_BOUND` 5 s | ~29-33x | liveness |
+| PHASE-05/VT-5 | 330-360 ms | `LIVENESS_BOUND` 5 s, vs. `@slow-view`'s 200 ms foreground sleep | ~14-15x | liveness |
+| PHASE-05/VT-6 | 3.15-3.16 s | `LIVENESS_BOUND` 5 s over the remaining ~2.65 s of `MINIMUM_SPACING` after the 500 ms flood | ~1.9x | **exempt** |
+
+No unexempted margin under 10x anywhere in the slice.
+
+**The numbers F-15 asked for** (PHASE-04/VT-5, measured over a 500 ms flat-out
+window with the loop idle): **845 refusals, 845 presentations — 1.000 per
+refusal, ~1690 presentations per second.** `assert_eq!(cost, replies.len())`
+fixes the cost at one; a later change that raised it, or added a second route
+to the diagnostics surface, fails there rather than in front of a person.
+
+**Findings**
+
+- **F-1 — the wire's `unavailable` reason for the ingress-stopped cause is a
+  hand-written literal, not read off `Refusal::reason()`, and no test checks
+  it against the closed eight-token set the way VT-8 checks the other
+  seven-plus-one.** `controller.rs:446-455`'s `ingress_stopped()` builds
+  `Refused::Ingress { reason: "unavailable".to_owned(), … }` directly — the
+  **only** other construction site (`controller.rs:420-421`) derives `reason`
+  from `refusal.reason()`. This is `design.md` §5.2's own design (*"It folds
+  one `Refused::Ingress` onto the diagnostics surface — reason `unavailable`,
+  detail naming that ingress has stopped"*) — not a departure — because the
+  ingress-stopped cause answers no envelope and so has no `Refusal` value to
+  construct (`UnavailableCause`'s own doc comment says so in terms). The gap is
+  narrower than a Coverage row with no test: `PHASE-08/VT-8`
+  (`the_reason_token_set_is_closed_at_eight`) correctly and completely closes
+  `Refusal`'s own eight-token set, and this literal is not `Refusal`'s to
+  cover. What is missing is an independent check that the literal a person
+  reading the diagnostics line sees (via `Refused::Ingress { reason, detail }`
+  → `diagnostics.rs:158-160`'s `"({reason}): {detail}"`) is one of those eight
+  tokens and not a typo — nothing today would fail if it read `"unavaliable"`.
+  `PHASE-04/VT-7` (`a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_
+  the_host_evaluating`) asserts the line `contains("ingress has stopped")` —
+  `detail`, not `reason` — so it would not catch this either. **Not repaired
+  here**: `crates/goad/src/controller.rs` is outside this phase's declared
+  surfaces (`draft-spec.md` §7 and `notes.md`/`research.md` only), and this is
+  exactly the class of defect this phase is told to report rather than fix on
+  its own initiative. Reported to the orchestrator.
+- **The PHASE-03 phase sheet's own `###` heading was lost, not its content**
+  — see the note at the top of that section, above. Restored as bookkeeping on
+  this phase's own surface (`notes.md`); no content was missing or changed.
+
+**No STOP condition was reached.** S-1: every Coverage-table id names a test
+that exists and passed in the clean-clone run — none was found missing. S-2:
+the clean clone passed identically to the working tree; neither the
+`.gitignore` nor any generated-but-untracked file caused a divergence. S-3: no
+undeclared path — VA-3's walk above accounts for every changed file. S-4: not
+fired — see `## Design drift` below; the one item this phase's own walk added
+beyond the seeded three was authorised by an orchestrator ruling recorded in
+`notes.md` (F-a, PHASE-04's Findings), not left unauthorised.
+
 ## Runbook (VH-1 — for the user to run)
 
 1. **Start it.** From the repo root, in `nix develop` (or with direnv active):
@@ -1247,12 +1469,69 @@ does not name your `source`/`kind`; the process hangs or stops answering; a
 socket file (`goad-demo.sock` in the repo root) is left behind after you quit
 normally. Any of these — stop and report it; it is a finding, not a note.
 
+## Design drift
+
+<!-- Every place the tree departs from `design.md` as it stands: what the
+     design says, what the tree does, which phase's criterion (or ruling)
+     authorised it. Compiled at PHASE-07 from the phase sheets and its own
+     Coverage walk (`docs/AGENTS.md` §Audit; `plan.md` PHASE-07/EX-7). This is
+     what `audit.md`'s *Design drift not reconciled* is written from — this
+     section does not itself decide anything, and `design.md` is not edited
+     here. -->
+
+**Three amendments taken before implementation, not drift.**
+`design-log.md` (2026-09-08, *"the design is amended before implementation, in
+three places, because it prescribed what this workspace cannot do"*) records
+that `design.md` §5.4's startup order, and §9's AC-10 and AC-9 rows, were
+amended — with `draft-spec.md` §7's R-2 and R-4 rows — before any phase wrote
+code, because they prescribed a mechanism this workspace cannot legally
+implement (no safe umask API; `Host::new` consuming `Config` before the bind
+could read it; no test target linking the binary). These are decisions, not
+departures: the tree was measured against the amended text throughout, and no
+phase's implementation diverges from what `design.md` says today. Listed here,
+as `plan.md` PHASE-07/EX-7 requires, so the auditor meets them as amendments
+rather than rediscovering them as drift.
+
+1. **`Refusal::Unavailable` gained a payload design.md's own interface block
+   does not show.** `design.md` §5.2 (`:297-299`) lists `Refusal`'s payload
+   set as `TooSoon { retry_after }`, `TooLarge { limit }`, `TimedOut { after }`,
+   `InvalidEnvelope(EnvelopeFault)` — four named payloads, omitting
+   `Unavailable` entirely, which is consistent with (and was read by PHASE-03
+   as specifying) a **unit** `Unavailable` variant carrying nothing. PHASE-03
+   built it that way, on that reading, stated in its own Assumptions note.
+   PHASE-04's finding **F-a** then showed this contradicts `design.md` §5.4's
+   own sentence two paragraphs later — *"`unavailable` means one thing about
+   the host and three about why … and `detail` says which"* — because a unit
+   variant's `Display` cannot vary by cause. Reported to the orchestrator and
+   resolved by ruling (`notes.md` PHASE-04 Findings, F-a, `d823739`'s
+   follow-on, one of the two orchestrator-ruled cross-phase repairs this slice
+   took): `Refusal::Unavailable` now carries a two-variant payload,
+   `UnavailableCause` (`Stopping`, `ClockUnreadable` —
+   `crates/goad-shell/src/ingress/mod.rs:268-295`), and `Display` renders each
+   distinctly. **The tree now makes §5.4's sentence true where the design's own
+   payload list, unamended, would have kept it false.** Held by
+   `unavailable_s_two_causes_carry_different_detail`
+   (`crates/goad-shell/tests/integration/ingress.rs`). `design.md` §5.2's
+   payload list is not edited here — that is reconciliation's, with the user —
+   and is stale until it is: it should read five payloads, the fifth being
+   `Unavailable(UnavailableCause)`.
+
+No further departure was found. PHASE-07's Coverage walk (`## Phase sheets`,
+`### PHASE-07`, above) turned up one further residue —
+`controller.rs::ingress_stopped()`'s hand-written `"unavailable"` literal —
+but it is not drift: `design.md` §5.2's own words already specify exactly this
+mechanism (*"It folds one `Refused::Ingress` onto the diagnostics surface —
+reason `unavailable`, detail naming that ingress has stopped"*), so the tree
+matches the design precisely. It is recorded as a coverage finding (F-1,
+above) instead.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-06 done (VH-1 excepted)
+**Fresh as of:** 2026-09-08 · PHASE-07 done (VH-1 still excepted — this phase
+neither discharges it nor infers it from the gate)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1320,6 +1599,19 @@ normally. Any of these — stop and report it; it is a finding, not a note.
   its view; the `"source":"host"` arm keeps the fixed prompt. `.gitignore`:
   `/goad-demo.sock`. **VH-1 open** — the runbook is in this file, above; a
   person has not yet run it.
+- **PHASE-07** — `draft-spec.md` §7 completed: all sixteen rows name real test
+  functions and files in place of the AC-id prose the design left there; R-5
+  unchanged. `## Design drift` (this file) — the three seeded amendments, plus
+  `Refusal::Unavailable`'s payload, which `design.md` §5.2's own interface
+  block does not yet show. The margin table (`### PHASE-07`, above) — every
+  timed assertion in the slice, its bound, its measured ratio, and F-15's
+  numbers (845/845, 1.000 per refusal, ~1690/s) in one place. `research.md`
+  F10 and F12 refreshed to the finished manifest. The clean-clone gate, run
+  twice (working tree and a fresh clone of `99abac4`), both exit 0. **F-1**
+  (this phase's own finding, not repaired here): `controller.rs`'s
+  `ingress_stopped()` carries the wire token `"unavailable"` as a literal, not
+  read off `Refusal::reason()`, and no test checks it against the closed
+  eight-token set the way `PHASE-08/VT-8` checks the other seven-plus-one.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -1504,13 +1796,25 @@ normally. Any of these — stop and report it; it is a finding, not a note.
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
-- **`unavailable`'s wire `detail` cannot distinguish its three causes.**
+- ~~**`unavailable`'s wire `detail` cannot distinguish its three causes.**
   `Refusal::Unavailable` is a unit variant with a fixed `Display`, so the
   clock-unreadable cause reaches its writer with the dropped-`Answer`
   wording. `design.md` §5.4's *"`detail` says which"* is not true of the wire
   today (PHASE-04 finding F-a). Adding a payload to `Refusal` is a design
   question about what that type carries; the diagnostics surface names the
-  clock correctly in the meantime.
+  clock correctly in the meantime.~~ **Resolved** (bounded cross-phase repair,
+  orchestrator-ruled, `d823739`'s follow-on, recorded in PHASE-04's Findings as
+  F-a): `Refusal::Unavailable` now carries `UnavailableCause` (`Stopping`,
+  `ClockUnreadable`), and `Display` renders each distinctly on the wire —
+  `unavailable_s_two_causes_carry_different_detail`
+  (`crates/goad-shell/tests/integration/ingress.rs`) holds it. Left here,
+  struck rather than deleted, so a reader who remembers this as open finds the
+  resolution rather than a stale gap; this entry was found stale by PHASE-07's
+  sweep, not repaired by it (`design.md` §5.2's payload list is the one thing
+  this leaves open — see `## Design drift`, item 1). **A second, narrower**
+  `unavailable` gap remains open — see PHASE-07's finding F-1, above: the
+  ingress-stopped cause's wire token is a literal no test checks against the
+  closed set.
 - ~~**PHASE-04's own
   `a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`
   carries the same race PHASE-05's *Learned* entry above describes**: it
