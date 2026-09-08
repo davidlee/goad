@@ -5,7 +5,7 @@ together with the artefacts it is bound to: `draft-spec.md` (R-1..R-16),
 `canon-delta.md` (CD-1..CD-3) and `slice-004.md` (scope, AC-1..AC-8).
 **Reviewer:** fresh agent — Claude Opus 5 (1M context), adversarial raiser
 **Opened:** 2026-09-08
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -184,13 +184,13 @@ principle it might have traded.
 | F-10 | minor | fix-now | verified |
 | F-11 | nit | doc-wrong | verified |
 | F-12 | minor | fix-now | verified |
-| F-13 | minor | fix-now | **contested** |
-| F-14 | minor | fix-now | **contested** |
+| F-13 | minor | fix-now | contested → verified |
+| F-14 | minor | fix-now | contested → verified |
 | F-15 | minor | settle-in-code | verified |
 | F-16 | nit | fix-now | verified |
 | F-17 | nit | fix-now | verified |
-| F-18 | minor | fix-now | |
-| F-19 | nit | fix-now | |
+| F-18 | minor | fix-now | verified |
+| F-19 | nit | fix-now | verified |
 
 ### F-1 — Neither AC-6 test reaches ADR-004's undischarged case, so CD-3 would write a false verification claim into canon
 
@@ -1015,7 +1015,7 @@ envelopes. `canon-delta.md` CD-1/CD-2/CD-3 make no claim of this shape.
 SPEC-001/R-45..47, which is the backend transport's rule and not this one; it is
 not a sibling and is untouched.
 
-**Outcome:** contested
+**Outcome:** contested — **re-reviewed in round 4: verified.** Terminal.
 
 **Contested because:** the `None` path's consequences were carried to every site
 this finding named — `design.md` §5.2's `Fired` paragraph and reply table, §5.4's
@@ -1144,7 +1144,7 @@ which the spec is entitled to do. One clarification taken with the redraw: the
 `too_soon` branch gains a note that steps 3-5 are the outer arm's alone, so the
 diagram states the arm split the order of judgement already makes.
 
-**Outcome:** contested
+**Outcome:** contested — **re-reviewed in round 4: verified.** Terminal.
 
 **Contested because:** the branch this finding named is fixed — the diagram now
 answers a shape refusal as the shape refusal it is, in either arm — but the
@@ -1439,7 +1439,7 @@ the coupling — it fixes the cost at one. §5.5's paragraph already said *measu
 presentations*, the same claim in the adjacent cell, and now says the count is
 recorded and what is held is the cost per refusal.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-19 — §5.3 still says "the ingress arm" singular, in the one table where which arm it is matters
 
@@ -1491,11 +1491,107 @@ there alone"*, which is about adding one, not about which exists),
 `slice-004.md`:47 (already *"both of its `select!`s"*) and `research.md`:89
 (already qualified *outer*).
 
-**Outcome:**
+**Outcome:** verified
 
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+Nineteen findings over four rounds — one blocker, three major, thirteen minor,
+two nits — all `verified`, none withdrawn, none outstanding. Two were contested
+in round 3 and verified in round 4. Thirteen were repaired in the artefact, five
+found the artefact itself wrong and rewrote the argument, and one is
+`settle-in-code`.
+
+**The design's placement, its shape and its bounds survived.** The listener/loop
+split, the two anchors with one write site each, `Ingress::none()` as a parked
+state rather than a branch, the sequential accept, the strict envelope, the
+framing, and `bind` before the window all stand as designed. So does D-13, which
+the review checked hardest against the code: `Stimulus` is `Copy` and its `event`
+hard-codes `source: "host"` (`wire.rs:62`), so an ingested evaluation genuinely
+cannot be one, and `Pending::Evaluate` is the vocabulary both paths share.
+AC-7's arithmetic is right — 23 call sites, `Served` destructured nowhere but its
+own constructor. Nothing in the review moved a line of canon that was already
+written.
+
+**What the review changed.**
+
+*One blocker.* AC-6 named two tests and neither reached the case ADR-004 has been
+waiting for. Both held the *delays* direction; the direction in which the anchor
+and ADR-004's rejected boolean alternative actually disagree — an intervening
+ingested firing **advancing** a scheduled one — was asserted by nothing, and CD-3
+would have amended ADR-004 to say the debt was discharged. That is the busy-loop
+bound the project's own slice-003 review predicted would be reopened here. AC-6
+now has three cases, (ii) is named as the one that discharges the debt, and its
+setup fixes the ingested exchange's own `next_check` — without which the deadline
+the assertion turns on is one both hypotheses agree about (F-1, F-12).
+
+*Three major.* `draft-spec.md` R-15 required every refusal to reach a person and
+could not be met: the diagnostics surface is a single whole value presented
+between exchanges, so `absorb` destroys anything the loop decides during one.
+R-15 now states the bound it can hold and is verified from both sides, and what
+it gives up is a Follow-up rather than an argument (F-2). D-3 rested on a
+user-authored/backend-authored split that exists in no canon and that §2 F6
+conceded did not reach the case; the placement is unchanged but the reason is now
+a real one — stratum 1's normalization holds one contract in one place — and it
+earns its own ADR at reconciliation (F-3). CD-2 left SPEC-001/R-56's universal
+unqualified, so a conforming host would have breached R-56 the moment it forwarded
+an ingested event; R-56's first clause is now narrowed on the page rather than in
+a slice's head (F-4).
+
+*The rest* closed a gap in the closed refusal set (a top-level JSON non-object
+had no reason), renamed a bound that described a quantity it did not bound, put
+`retry_after_ms` on the wire rather than computing it and discarding it, gave
+`Ingress::arrival` a way to say the accept task is gone, and extended CD-1 to two
+SPEC-002 sections that R-12 would otherwise have falsified.
+
+**What the last two rounds were about.** Rounds 2 and 3 found almost nothing new
+in the design; they found the same defect in the repairs, twice. A fix applied at
+the site it touched and not carried to the artefact that states the same thing
+elsewhere — and both times the missed site was the more binding one: a spec
+requirement (R-15's universal, still saying *every refusal* after the prose had
+narrowed to *every envelope's refusal*), and a diagram (redrawn to fix one branch,
+hoisting the reply below the `alt` and thereby depicting the writer being answered
+after the backend exchange, which would make `engaged` unreachable). Both are now
+fixed, and the pattern is worth carrying into the code review: **this design's
+claims are stated in more than one place, and prose, tables and diagrams drift at
+different rates.**
+
+**Risks knowingly left standing.**
+
+- **F-15, `settle-in-code`.** R-15 makes reporting a refusal mandatory, and the
+  loop's only route to the surface is `refuse` + `continue`, which re-presents the
+  whole frame. So one refused envelope costs one full presentation on the main
+  thread, at an untrusted writer's pace — the host's first machine-rate refusal
+  source. R-15 was **not** weakened. The cost is measured instead: AC-5's flat-out
+  writer records presentations and asserts the cost stays at one, in the phase
+  that builds `serve`'s ingress arms and the anchor. R6 carries the risk and its
+  signal. If the number is bad, the finding returns to this ledger `contested` and
+  the design changes.
+- **Refusals a person cannot see** (F-2's residue, `slice-004.md` Follow-ups).
+  `engaged` — the commonest refusal a real watcher will meet — never reaches the
+  diagnostics surface, nor does a shape refusal that arrived during an exchange,
+  nor the `unavailable` written after the loop ends. Every one of them still
+  reaches its writer; it is the person debugging the watcher who cannot see them.
+  Closing it needs a count or a log, which the surface is not today.
+- **The socket after the bind** (F-8's residue, folded into the single-instance
+  Follow-up). Nothing re-probes the path, and D-16 removes the host's own unlink,
+  so a socket unlinked or replaced underneath a live listener leaves a bound
+  descriptor no `connect` can reach — and the host reports nothing, because from
+  its side nothing arrives.
+- **One refusal reaches no writer at all** (F-13's residue). The ingress-stopped
+  `unavailable` answers no envelope, so the diagnostics surface is its only
+  report — and in the interleaving where the loop observes the closed channel
+  mid-exchange, `absorb` takes even that. AC-3 is unaffected: it quantifies over
+  envelopes, and every envelope is still answered exactly once.
+- **A-1 is still unmeasured.** Accepting from a `tokio::spawn`ed task while Slint
+  owns the main thread was never a finding — the design already makes it the
+  plan's first phase — but nothing in this review moved it from assumption to
+  fact, and R1 says the slice does not work at all if it fails.
+
+**What this review did not reach.** It read the design against the code that
+exists; it did not read code that does not exist yet. Cancellation safety of the
+new arms, the pinning of `call` across the inner loop's iterations, the listener's
+own concurrency, and whether `serve` survives a third arm and a nested loop are
+all `review-code.md`'s, at full strength. Four promises also remain outstanding
+until reconciliation and are not this ledger's to discharge: CD-1, CD-2, CD-3, the
+promotion of `draft-spec.md`, and the new ADR that D-3 now owes.
