@@ -183,12 +183,14 @@ principle it might have traded.
 | F-9 | minor | fix-now | verified |
 | F-10 | minor | fix-now | verified |
 | F-11 | nit | doc-wrong | verified |
-| F-12 | minor | fix-now | |
-| F-13 | minor | fix-now | |
-| F-14 | minor | fix-now | |
-| F-15 | minor | settle-in-code | |
-| F-16 | nit | fix-now | |
-| F-17 | nit | fix-now | |
+| F-12 | minor | fix-now | verified |
+| F-13 | minor | fix-now | **contested** |
+| F-14 | minor | fix-now | **contested** |
+| F-15 | minor | settle-in-code | verified |
+| F-16 | nit | fix-now | verified |
+| F-17 | nit | fix-now | verified |
+| F-18 | minor | fix-now | |
+| F-19 | nit | fix-now | |
 
 ### F-1 — Neither AC-6 test reaches ADR-004's undischarged case, so CD-3 would write a false verification claim into canon
 
@@ -908,7 +910,7 @@ the bullet that concedes the deadline moves now says what that costs the *does
 not advance* case, so the plan inherits the constraint from the criterion it is
 built against rather than from the design alone.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-13 — F-8's `None` path is not carried into `Fired`, and gives `unavailable` a third meaning three documents deny
 
@@ -988,7 +990,61 @@ so the sentence is narrowed to *every envelope's refusal* and the exception is
 stated; and `draft-spec.md` §6.3's *Which refusals a person sees* paragraph took
 the same correction.
 
-**Outcome:**
+**Round 3 — re-dispositioned `fix-now`, and the contest is upheld.** The round-2
+repair reached every artefact it visited and stopped one sentence short of the
+normative one. `draft-spec.md` R-15's final clause did still read *"every refusal
+without exception reaches its writer in the reply R-8 requires"*, and §6.3, two
+sections below in the same document, does say the ingress-stopped `unavailable`
+reaches no writer because there is no envelope for it to answer. R-15 is the
+sentence a second host implementation is held to, so it is the one that had to
+be true.
+
+R-15 now reads *"**every envelope's** refusal reaches its writer in the reply R-8
+requires"*, with the exception named in the same terms §6.3 and `design.md` §5.2
+already use: the one refusal that reaches no writer is the one that answers no
+envelope, and the surface is its only report.
+
+The sweep for the same universal stated elsewhere found one sibling and no more.
+`slice-004.md`'s *Refusals a person cannot see* follow-up closed on *"every
+refusal reaches its writer"* and now closes on *every envelope's*, naming the
+ingress-stopped `unavailable` as the one it does not quantify over. Checked and
+left alone: `slice-004.md` AC-3, `design.md` I-1 and §5.2's post-table paragraph,
+`draft-spec.md` R-8 and §7's R-8, R-14 and R-15 rows — all already quantify over
+envelopes. `canon-delta.md` CD-1/CD-2/CD-3 make no claim of this shape.
+`research.md:34` states *"every refusal is reported"* as a summary of
+SPEC-001/R-45..47, which is the backend transport's rule and not this one; it is
+not a sibling and is untouched.
+
+**Outcome:** contested
+
+**Contested because:** the `None` path's consequences were carried to every site
+this finding named — `design.md` §5.2's `Fired` paragraph and reply table, §5.4's
+`unavailable` paragraph, `draft-spec.md` §5 and §6.3 — and to two it did not.
+One site was missed, and it is the normative one.
+
+The repair introduced a narrowing to say what the third cause costs: *"**every
+envelope's** refusal is reported to its writer"* (`design.md` §5.2, after the
+reply table) and *"Every envelope's refusal reaches its writer, always (R-8)"*
+(`draft-spec.md` §6.3). That narrowing is right, and AC-3 in `slice-004.md`
+survives it unchanged because AC-3 quantifies over envelopes.
+
+`draft-spec.md` **R-15 still carries the un-narrowed universal**: *"This is a
+bound on what the surface can hold, not a licence to be silent: **every refusal
+without exception reaches its writer in the reply R-8 requires.**"* The
+ingress-stopped `unavailable` is a refusal — both artefacts call it one
+(`design.md` §5.2, *"a refusal in substance"*; `draft-spec.md` §6.3, *"the
+ingress-stopped `unavailable`"*) — and both say in terms that it reaches **no**
+writer: *"there is no envelope left for it to be the reply to"*. So R-15's own
+sentence is falsified by the paragraph two sections below it, in the same
+document, about the same refusal.
+
+This is not a gloss in prose. R-15 is a requirement of canon this slice promotes,
+and it is the sentence a second host implementation would be held to. The fix is
+the same three words already used twice elsewhere.
+
+**Evidence:** `draft-spec.md` R-15 (final clause) against `draft-spec.md` §6.3
+(*Which refusals a person sees*, last clause) and §5 (*When ingress stops but the
+host does not*); `design.md` §5.2, the paragraph after the reply table.
 
 ### F-14 — §5.4's sequence diagram has the inner arm answering `engaged` unconditionally, which three repaired claims now contradict
 
@@ -1057,7 +1113,78 @@ of the renumbering: `design.md` §5.2's `unavailable` row cited *§5.4 step 3* a
 now cites step 4. Finding bodies above that cite the old numbers are historical
 and are not edited.
 
-**Outcome:**
+**Round 3 — re-dispositioned `fix-now`, and the contest is upheld.** The redraw
+fixed the raised branch and introduced a worse one. Hoisting `L-->>W: one JSON
+line, then close` below the `end` put it, in the accepted branch, after
+`evaluate → view/next_check → absorb, re-arm` — and in a sequence diagram
+position is time, so the diagram asserted that the writer is answered when the
+exchange completes. Three statements deny that, and all three check out:
+`draft-spec.md` §5's diagram (reply, then `evaluate`); I-2, under which a reply
+that waited for the exchange would make `engaged` unreachable although it has a
+row in the closed set, step 2 in the order of judgement, an AC-4 test and a §7
+clause; and `design.md` §5.5's *writer hangs up* edge case, which describes a
+write attempted at accept time.
+
+The reply is drawn **inside** every branch, at the time it actually leaves. In
+the accepted branch that is immediately after `S-->>L: Accepted` and **before**
+the anchor write and the `evaluate`, which is the order `controller.rs`'s loop
+takes: the answer is handed to the listener when the arrival is judged, and the
+listener's write races the exchange rather than waiting on it.
+
+The prose is repaired rather than deleted. It no longer cites I-1 as the reason
+for the drawing — I-1 says **how many** replies leave, not when, and the
+distinction is stated in terms — and it now says why position is load-bearing
+here, citing the three statements above. The single-exit intent survives as what
+it was: one reply per envelope, by the same door in every branch.
+
+Checked against both `select!`s and against `draft-spec.md` §5's diagram: the
+two agree, and §5's needs no edit — it already puts the reply before the
+`evaluate`, and it collapses the listener and the loop into one participant,
+which the spec is entitled to do. One clarification taken with the redraw: the
+`too_soon` branch gains a note that steps 3-5 are the outer arm's alone, so the
+diagram states the arm split the order of judgement already makes.
+
+**Outcome:** contested
+
+**Contested because:** the branch this finding named is fixed — the diagram now
+answers a shape refusal as the shape refusal it is, in either arm — but the
+redraw moved the reply out of the branches and, in doing so, made the diagram
+assert an ordering that three other statements deny.
+
+`L-->>W: one JSON line, then close` is now drawn **once, below the `end`**. In a
+sequence diagram position is time, so in the `else idle, outside the spacing`
+branch the depicted order is: `Accepted` → write the anchor → `evaluate` →
+`view / next_check` → `absorb, re-arm` → **then** the writer's line. The writer
+is shown being answered after the backend exchange completes. The prose is
+explicit that this was deliberate: *"The reply leaves by the same door in every
+one of them (I-1), which is why it is drawn once below the `alt` rather than
+inside each branch."* I-1 is a claim about **how many** replies leave, not about
+when, and the diagram is the one artefact whose job is when.
+
+Three things now disagree with it:
+
+- **`draft-spec.md` §5's diagram of the same interaction**, unchanged and
+  normative, puts the reply first: `H-->>W: {"protocol":1,"accepted":true}` then
+  `H->>B: evaluate { now: host's instant, event }`.
+- **I-2**, *"the listener awaits the reply before accepting the next
+  connection"*. If an accepted envelope's reply waits for the exchange, the
+  listener cannot accept another connection during that exchange — and then
+  **`engaged` is unreachable**, though it has its own row in the closed set, its
+  own step 2 in §5.4's order of judgement, its own renderer test in §9's AC-4
+  row, and its own clause in `draft-spec.md` §7's R-12 row.
+- **§5.5's edge case** *"the writer hangs up before reading its reply → the
+  write fails and is dropped; an accepted event is not undone because nobody read
+  the answer"*, which describes a write attempted at accept time, not one
+  attempted after a backend round trip that may have taken the whole timeout.
+
+The single-exit intent is worth keeping; it costs one `Note` saying the reply is
+sent before the evaluation begins, or the accepted branch keeping its own
+`L-->>W` as it had before.
+
+**Evidence:** `design.md` §5.4 sequence diagram (the hoisted `L-->>W` and the
+paragraph justifying it) against `draft-spec.md` §5's sequence diagram;
+`design.md` §5.5 I-2 and the *writer hangs up* edge case; §5.4 step 2; §5.2 reply
+table, `engaged` row; §9 AC-4; `draft-spec.md` §7 R-12 row.
 
 ### F-15 — R-15's MUST puts a `glass.present` on the UI thread for every refused envelope, at a machine-rate writer's pace
 
@@ -1122,7 +1249,7 @@ phase returns here `contested`**: if the extended AC-5 cannot bound the
 presentations, the disposition has failed and F-15 is open again, not closed by
 having been dispositioned.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-16 — `retry_after_ms`'s rounding is unspecified, and the obvious implementation falsifies R-14's own words
 
@@ -1162,7 +1289,7 @@ spacing; §7's R-14 row asserts the rounding rather than only the field's
 presence; and `design.md` §5.2's reply prose and §9's AC-4 row say the same, so
 no artefact describes the field without its rounding.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-17 — SPEC-002's new requirement and SPEC-003's are both `R-12`, and each document cites "R-12" bare while pointing at the other
 
@@ -1229,6 +1356,140 @@ given any number — *this spec's own R-12*, and `SPEC-002/R-12` for the other
 side. `design.md` and `canon-delta.md` do name SPEC-003, but only as the number
 the draft takes on promotion and where the sentence is the wording destined for
 canon; CD-1's block now says so in terms.
+
+**Outcome:** verified
+
+
+### F-18 — the presentation bound is claimed to prevent a coupling the design states as a fact, and R6's signal names that fact as the warning sign
+
+**Severity:** minor
+**Location:** `design.md` §8 R6 (the *signal* column); `draft-spec.md` §7's R-12
+row; against `design.md` §5.5 (*What an arrival can still make the host do*)
+
+**Expected:** a risk row's *signal* column names what a reader would observe if
+the risk had **materialised** — that is how the other five read (R1: *"a demo
+that never sees a connection"*; R5: *"a socket in `git status`"*). And a §7
+verification row states what a test **holds**.
+
+**Observed:** both overclaim, in the same direction, and each is new text.
+
+- **R6's signal** is *"presentations tracking arrivals one-for-one under AC-5,
+  or a visibly unresponsive window while a writer floods the socket."* But
+  one-for-one is not a deviation — it is the design. `design.md` §5.5 states it
+  as a fact three paragraphs earlier: *"**one refused envelope costs one full
+  presentation**"*, because `refuse` + `continue` returns to
+  `glass.present(controller.frame())` (`controller.rs:409-410`) and there is no
+  other route to the surface. A signal that is satisfied by the designed
+  behaviour cannot tell a reader whether the risk fired; R6 reads as already
+  materialised on the day it was written.
+- **`draft-spec.md` §7's R-12 row** says the AC-5 presentation bound *"is what
+  keeps R-15 from making an untrusted writer the pacer of the host's own
+  display."* A test does not keep anything from happening; it detects it. And
+  since presentations are one-for-one with refusals by construction, the only
+  quantity that test can bound is the refusal count — which is the writer's own
+  rate. So a verification row in canon-to-be asserts a bound the design says does
+  not exist.
+
+This does not touch F-15's disposition, which is sound: measuring an unmeasured
+coupling is exactly what `settle-in-code` is for, `§9`'s AC-5 row names the test,
+`§8` R6 names the phase, and R-15's MUST was kept rather than weakened. What is
+wrong is the two sentences written *around* it, which promise prevention where
+the honest claim is measurement — and one of them lands in a spec.
+
+The repair is small in both places: R6's signal becomes the number the phase
+measures exceeding what a person can tolerate, and the R-12 row says the bound is
+**recorded** so that a later change to it fails a test.
+
+**Evidence:** `design.md` §8 R6 (signal column) against §5.5's *What an arrival
+can still make the host do* paragraph; `crates/goad/src/controller.rs:409-410`;
+`crates/goad/src/glass.rs:67-120`; `draft-spec.md` §7 R-12 row; `design.md` §9
+AC-5 row.
+
+**Disposition:** fix-now
+**Response:** Both overclaims hold, and both are new text written around a sound
+disposition. F-15 is untouched: R-15's MUST stands, the phase and the test stay
+as named, and what changes is only what is claimed for them.
+
+**(a) R6's signal.** `design.md` §5.5 does state one-for-one as the design —
+*"one refused envelope costs one full presentation"* — three paragraphs above
+R6, so a signal naming one-for-one is satisfied by the mechanism on the day it
+is written and can never tell a reader the risk fired. The signal becomes a
+threshold: the number AC-5 records — presentations per refused envelope, and
+presentations per second under a flat-out writer — rising above what that phase
+measured a person can sit in front of, or a visibly unresponsive window under a
+flood. The row says in terms that one-for-one is not the signal because it is
+the design, so the same mistake is not made again by a later editor.
+
+**(b) `draft-spec.md` §7's R-12 row.** A test detects; it does not prevent. The
+row no longer says the bound *"keeps R-15 from making an untrusted writer the
+pacer of the host's own display"* — nothing here does that, and with
+presentations one-for-one with refusals by construction the only quantity a test
+could bound is the writer's own rate. It now states what the test holds: the
+presentation count is **recorded** against the writer's rate, and what is held is
+that a refusal keeps costing **one** presentation — a later change that raised
+the cost, or added a second route to the surface, fails there rather than in
+front of a person.
+
+**The sibling in `design.md` §9's AC-5 row** took the same correction. It read
+*"asserts a bound on the number of presentations"*, which is the same claim one
+document over; it now says the test records the count and asserts it against the
+refusals that caused it, and says explicitly that the measurement does not remove
+the coupling — it fixes the cost at one. §5.5's paragraph already said *measured* rather than
+*prevented* and is unchanged; §8 R6's mitigation column said *asserts a bound on
+presentations*, the same claim in the adjacent cell, and now says the count is
+recorded and what is held is the cost per refusal.
+
+**Outcome:**
+
+### F-19 — §5.3 still says "the ingress arm" singular, in the one table where which arm it is matters
+
+**Severity:** nit
+**Location:** `design.md` §5.3 (the `event_floor_until` row) against §5.4
+(*Order of judgement in the ingress arms*)
+
+**Expected:** the F-14 repair made the arms plural throughout §5.4 — *"in both
+selects"*, *"the inner arm's first step as much as the outer's"*, *"Steps 3–5
+belong to the outer arm alone"*. §5.3 is the table that records the write and
+read sites of the two anchors, and I-4 (*"one write site each"*) and AC-6's
+falsifiable claim both rest on it.
+
+**Observed:** the row still reads
+
+| `event_floor_until` | `serve`'s stack | **the ingress arm**, on an *attempted* ingested evaluation, and nowhere else | **the ingress arm** | the loop |
+
+There are now two ingress arms, and only the outer one either writes or reads
+this value: writing happens at §5.4's steps 4 and 5, and reading at step 3, all
+three of which §5.4 assigns to the outer arm alone. The inner arm reaches step 2
+and stops. "The ingress arm" was exact before the repair and is ambiguous after
+it, in the sentence that says *"and nowhere else"* — which is the whole of what
+I-4 asserts.
+
+One word: *the outer ingress arm*.
+
+**Evidence:** `design.md` §5.3 (`event_floor_until` row, written-by and read-by
+columns); §5.4 (*Order of judgement in the ingress arms*, steps 2–5 and the
+sentence *"Steps 3–5 belong to the outer arm alone"*); §5.5 I-4.
+
+**Disposition:** fix-now
+**Response:** Correct, and it is exactly the sentence that ends *"and nowhere
+else"* — the one I-4 and AC-6 rest on. Both columns now read **the outer**
+ingress arm, each citing the step of §5.4 that puts it there: the write at steps
+4 and 5, the read at step 3.
+
+Swept, and the table has no other row with the ambiguity: `floor_until` says
+*the timer arm*, which is unchanged and unambiguous, and the remaining two rows
+name no arm. The paragraph under the table now says why only one arm appears in
+it — the inner arm reaches step 2 and stops, so it neither reads nor writes
+either anchor — which is what makes *"and nowhere else"* true now that there are
+two arms.
+
+Two siblings outside the table, both the same one-word narrowing: `design.md`
+D-13 (*"the ingress arm builds `Pending::Evaluate` directly"*) and
+`slice-004.md` §Scope's sentence repeating it. Only the outer arm reaches step 5,
+so both now say **outer**. Checked and left alone: §2 F1 (*"an ingress arm added
+there alone"*, which is about adding one, not about which exists),
+`slice-004.md`:47 (already *"both of its `select!`s"*) and `research.md`:89
+(already qualified *outer*).
 
 **Outcome:**
 

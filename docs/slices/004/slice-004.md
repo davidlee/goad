@@ -52,8 +52,9 @@ exchange is in flight — and the event spacing and its anchor.
 Design found that an ingested evaluation is not a `Stimulus` at all: that type
 names why the *host* is asking, and an ingested evaluation is not
 host-originated — the same finding that removed the fourth `event.kind`. The
-vocabulary both paths already share is `Pending::Evaluate`, and the ingress arm
-builds one directly (`design.md` D-13).
+vocabulary both paths already share is `Pending::Evaluate`, and the **outer**
+ingress arm builds one directly — the inner arm only ever refuses
+(`design.md` D-13, §5.4).
 
 **Stratum 1 — `crates/goad-semantics/`.** `Event` already exists there, and the
 envelope's normalization **stays in stratum 2**. ADR-001 names both sides of
@@ -288,4 +289,6 @@ the design and the log.
   debugging the watcher. Making it visible needs something the surface is not
   today — a count, or a log — and choosing between those is the follow-up, not a
   detail of this slice. AC-3 is unaffected: the reply is the guarantee, and
-  every refusal reaches its writer.
+  **every envelope's** refusal reaches its writer — the ingress-stopped
+  `unavailable` named above is the one that reaches none, because it answers no
+  envelope, which is why AC-3 does not quantify over it either.

@@ -584,3 +584,46 @@ other, citing the finding id.
   §Follow-ups beside F-2's residue, and §5.5 states it. What is bought is
   `serve`'s stack unchanged in the function §8 R2 already names as the one at
   risk of outgrowing review.
+
+### 2026-09-08 — review round 3: two contests upheld, two new findings, all four `fix-now`
+
+- **Asked:** how round 3's four findings are dispositioned. F-13 and F-14 came
+  back `contested`, which is not terminal — they return to open and need
+  re-disposition. F-18 and F-19 are new. Under the standing autonomy grant this
+  is the orchestrator's call.
+- **Decided (orchestrator):** all four `fix-now`. Both contests are **upheld**:
+  the round-2 repairs were right where they reached and each stopped one
+  document short. Every citation was checked against the file and the line
+  before it was acted on; none failed, and nothing was withdrawn.
+- **The class, again, and for the third round running:** a repair correct at the
+  site it touched and not carried to every artefact that states the same thing.
+  Round 3 adds a second face of it — a repair that fixes the raised defect and
+  states a *new* claim in the fixing, which then has to be true on its own terms.
+  F-14's redraw and F-18's two sentences are both that.
+- **Consequence — the substantive changes:**
+  - **R-15's universal is narrowed to envelopes** (F-13). `draft-spec.md` R-15
+    is the sentence a second host implementation is held to, and it still said
+    *every refusal without exception*, which §6.3 falsifies two sections below
+    about the ingress-stopped `unavailable`. It now says **every envelope's**,
+    with the exception named. One sibling swept — `slice-004.md`'s *Refusals a
+    person cannot see* follow-up; nothing else quantified that way.
+  - **The reply is drawn when it happens** (F-14). Hoisting it below the `alt`
+    made the accepted branch depict the writer being answered *after* the
+    backend exchange, which `draft-spec.md` §5's diagram, I-2 (`engaged` would
+    be unreachable) and §5.5's *writer hangs up* case all deny. It is drawn
+    inside each branch, before the `evaluate` in the accepted one. The prose no
+    longer cites **I-1** as the reason: I-1 is about how many replies leave, not
+    when. The two diagrams were checked against each other and agree.
+  - **Measurement is not prevention** (F-18). R6's signal was one-for-one
+    presentations, which §5.5 states as the design — a signal already satisfied
+    on the day it was written. It becomes a threshold: the number AC-5 records
+    exceeding what a person can tolerate. `draft-spec.md` §7's R-12 row said the
+    AC-5 bound *keeps* an untrusted writer from pacing the display; a test
+    detects rather than prevents, so the row now says the count is **recorded**
+    and what it holds is that a refusal keeps costing one presentation.
+    `design.md` §9's AC-5 row carried the same overclaim and took the same fix.
+    F-15's disposition is untouched — R-15's MUST stands.
+  - **The arm is named** (F-19). §5.3's `event_floor_until` row said *the ingress
+    arm* in both columns after §5.4 made the arms plural; it now says **the
+    outer** ingress arm, citing the steps. Two siblings outside the table took
+    the same word — `design.md` D-13 and `slice-004.md` §Scope.

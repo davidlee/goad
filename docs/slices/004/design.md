@@ -361,13 +361,16 @@ The whole of the new retained state is **one instant**.
 
 | what | where | written by | read by | lifetime |
 |---|---|---|---|---|
-| `event_floor_until` | `serve`'s stack | the ingress arm, on an **attempted** ingested evaluation, and nowhere else | the ingress arm | the loop |
+| `event_floor_until` | `serve`'s stack | the **outer** ingress arm, on an **attempted** ingested evaluation, and nowhere else (§5.4, steps 4 and 5) | the **outer** ingress arm (§5.4, step 3) | the loop |
 | `floor_until` | `serve`'s stack | the timer arm, unchanged (`controller.rs:420`) | the re-arm | the loop |
 | the bound listener | the accept task | — | — | the process |
 | an `Arrival` in flight | the channel | — | — | one connection |
 
 Two anchors, two write sites, neither reachable from the other. That is P-3, and
-it is the whole of AC-6's falsifiable claim.
+it is the whole of AC-6's falsifiable claim. There are **two** ingress arms and
+only the outer one appears in this table: the inner arm reaches step 2 of §5.4
+and stops, so it neither reads nor writes either anchor, which is what keeps
+*"and nowhere else"* true and I-4's *one write site each* exact.
 
 **What the host deliberately does not keep.** No queue and no pending event; no
 per-source rate table; no dedup set; no arrival history; no memory whatsoever
@@ -450,27 +453,43 @@ sequenceDiagram
   alt the arrival carries a shape refusal
     Note over S: either arm — an exchange in flight does not relabel it
     S-->>L: Refused(the shape reason)
+    L-->>W: one JSON line, then close
   else an exchange in flight
     Note over S: inner arm — answered at once
     S-->>L: Refused(engaged)
+    L-->>W: one JSON line, then close
   else inside the event spacing
+    Note over S: outer arm only — steps 3-5
     S-->>L: Refused(too_soon, retry_after_ms)
+    L-->>W: one JSON line, then close
   else the clock is unreadable
     S->>S: event_floor_until = now + MINIMUM_SPACING
     S-->>L: Refused(unavailable)
+    L-->>W: one JSON line, then close
   else idle, outside the spacing
     S-->>L: Accepted
+    L-->>W: one JSON line, then close
     S->>S: event_floor_until = now + MINIMUM_SPACING
     S->>B: evaluate { now, event }
     B-->>S: view / next_check
     S->>S: absorb, re-arm from next_check (SPEC-001/R-26)
   end
-  L-->>W: one JSON line, then close
 ```
 
-The five branches are the order of judgement above, in order. The reply leaves by
-the same door in every one of them (I-1), which is why it is drawn once below
-the `alt` rather than inside each branch.
+The five branches are the order of judgement above, in order, and the reply is
+drawn **inside** each of them because in a sequence diagram position is time.
+The time it leaves is the whole point of the last branch: the writer is answered
+**when the arrival is judged, not when the exchange it began completes**. The
+loop hands the answer to the listener before it calls the backend, and the
+listener's write races the exchange rather than waiting on it — which is what
+`draft-spec.md` §5's diagram of the same interaction shows (reply, then
+`evaluate`), what I-2 requires if `engaged` is to be reachable at all (the
+listener awaits the reply before accepting the next connection, so a reply that
+waited for the exchange would mean no second connection could ever arrive during
+one), and what §5.5's *writer hangs up* edge case describes.
+
+I-1 is not the reason for the drawing: it says **how many** replies leave — one
+per envelope, by the same door in every branch — and says nothing about when.
 
 **Failure.** An ingested evaluation *is* an evaluation: a backend that fails it
 produces the same `Outcome`, the same diagnostics and the same schedule
@@ -588,7 +607,7 @@ it is measurable, and the plan measures it.
 | D-10 | the probe/bind race is documented, not closed | an atomic `link`; a lock file. Both are partial single-instance enforcement under another name (`research.md` F15) |
 | D-11 | the diagnostics surface shows refusals only | the stimulus behind the current view (stratum-3 plumbing); a ring buffer (retained state in a module that retains nothing) |
 | D-12 | `Ingress::none()` parks forever; `serve` takes an `Ingress` unconditionally | `Option<Ingress>` plus a select guard; a second entry point; hanging it off `Host` or `Controller` |
-| D-13 | **an ingested evaluation is not a `Stimulus`** — the ingress arm builds `Pending::Evaluate` directly | `Stimulus::Ingested(Event)`: it costs `Copy`, and makes `kind()` return a watcher's domain string from a method documented as the host's own vocabulary. Consistent with the 2026-09-08 finding that an ingested evaluation is not host-originated |
+| D-13 | **an ingested evaluation is not a `Stimulus`** — the **outer** ingress arm builds `Pending::Evaluate` directly (it is the only one that reaches step 5) | `Stimulus::Ingested(Event)`: it costs `Copy`, and makes `kind()` return a watcher's domain string from a method documented as the host's own vocabulary. Consistent with the 2026-09-08 finding that an ingested evaluation is not host-originated |
 | D-14 | ingress sits **below** the timer arm in the outer select and **below** the exchange in the inner one | a higher position lets a machine-rate watcher starve a scheduled firing |
 | D-15 | an **attempted** ingested firing writes the event anchor, one refused for want of a clock included | not writing it lets a broken clock spin. Mirrors SPEC-002 §5 exactly |
 | D-16 | no unlink on exit | a `Drop` unlink would leave AC-8's reclaim path exercised only after a crash |
@@ -612,7 +631,7 @@ share.
 | R3 | the refusal vocabulary is closed, and slice 005 is its first real client | medium — a wire break one slice later | SPEC-003 states each reason's meaning; a test asserts the exact tokens | slice 005 wanting a reason that does not exist |
 | R4 | timed assertions are the flakiest thing in the suite (`docs/memory/timed-test-margins-are-measured-at-the-bound.md`) | medium | reuse `until`/`within`; measure the margin **at the bound that governs**, under real load | a margin under 10x |
 | R5 | a socket file in the checkout | low | `.gitignore`; the boundary scans read `.rs` and `.slint` only | a socket in `git status` |
-| R6 | **an untrusted writer paces the UI thread's work**: R-15 makes every refusal the loop decides while idle reach the diagnostics surface, and the loop's only route there is `refuse` + `continue`, which re-presents the whole frame (`controller.rs:409-410`, `glass.rs:67-120`) | medium — a flat-out writer turns a per-envelope refusal into a per-envelope presentation on the main thread, which is also the thread the timer, the window and the backend call all live on | R-15 is not weakened; the bound is **measured** instead. AC-5's flat-out writer asserts a bound on presentations as well as on invocations, in the phase that builds `serve`'s ingress arms and the anchor (`review-design.md` F-15, `settle-in-code`) | presentations tracking arrivals one-for-one under AC-5, or a visibly unresponsive window while a writer floods the socket |
+| R6 | **an untrusted writer paces the UI thread's work**: R-15 makes every refusal the loop decides while idle reach the diagnostics surface, and the loop's only route there is `refuse` + `continue`, which re-presents the whole frame (`controller.rs:409-410`, `glass.rs:67-120`) | medium — a flat-out writer turns a per-envelope refusal into a per-envelope presentation on the main thread, which is also the thread the timer, the window and the backend call all live on | R-15 is not weakened; the cost is **measured** instead. AC-5's flat-out writer records the presentation count as well as bounding the invocation count, in the phase that builds `serve`'s ingress arms and the anchor (`review-design.md` F-15, `settle-in-code`). What that holds is the cost per refusal, not a ceiling on the writer — a test detects, it does not prevent | the number AC-5 records — presentations per refused envelope, and presentations per second under a flat-out writer — rising above what that phase measured a person can sit in front of; or a visibly unresponsive window while a writer floods the socket. One-for-one is **not** the signal: it is the design (§5.5), and a signal satisfied on the day it is written tells a reader nothing |
 
 ## 9. Validation
 
@@ -631,7 +650,7 @@ Four tiers, and every acceptance criterion lands in one.
 | AC-2 | renderer: the view reaches the window and `current_view_token` answers it — the same helper the scheduled tests already use |
 | AC-3 | integration: exactly one line, then EOF; plus a dropped `Answer` yielding `unavailable` |
 | AC-4 | integration (the five shape reasons, the non-object top-level among them) and renderer (`engaged`, `too_soon`); **one test asserts the exact token set**, which is R3's mitigation; one asserts `retry_after_ms` is on a `too_soon` reply and on no other, and that its value is rounded **up** — a writer that waits exactly that long is outside the spacing (`draft-spec.md` R-14); and two hold `draft-spec.md` R-15's bound from both sides — a refusal decided while idle reaches the diagnostics surface, and the same refusal decided during an exchange does not |
-| AC-5 | renderer: a writer emitting flat out; the invocation count is bounded over a window far shorter than the spacing, and the excess replies say `too_soon`. **Extended, and this is what settles R6**: the same test also asserts a bound on the number of **presentations** over that window, so the rate coupling R-15 creates between an untrusted writer and the UI thread is a measured number rather than an argument (§5.5, §8 R6; `review-design.md` F-15) |
+| AC-5 | renderer: a writer emitting flat out; the invocation count is bounded over a window far shorter than the spacing, and the excess replies say `too_soon`. **Extended, and this is what settles R6**: the same test also **records** the number of presentations over that window and asserts it against the refusals that caused them, so the rate coupling R-15 creates between an untrusted writer and the UI thread is a measured number rather than an argument. The measurement does not remove the coupling — one refusal costs one presentation by construction (§5.5) — it fixes the cost at one, so a change that raised it fails here (§8 R6; `review-design.md` F-15) |
 | AC-6 | renderer, **three cases** — one per way the two anchors could cross. (i) *does not delay*: an ingested exchange falling between a short `next_check` and its firing does not push that firing out by the spacing — an ingested firing never writes `floor_until`. (ii) *does not advance*: a **scheduled** firing at T₀, an ingested firing at T₀+ε **whose own exchange resolves to a deadline no later than T₀+1 s**, and a `next_check` due at T₀+1 s — the scheduled evaluation does not reach the backend before T₀+3 s. That clause about the ingested exchange's own deadline is load-bearing, not decoration: every completed exchange re-arms the pending deadline from the instruction *that* exchange's backend returned (`controller.rs:507-512`, SPEC-001/R-26), so the scripted backend must answer the **ingested** evaluation with a `next_check` at least as short as the scheduled one's. Without it the deadline in force at T₀+1 s is whatever the script's default was, the two hypotheses do not disagree about it, and the assertion passes for a reason that would have held under the boolean too. (iii) *the event anchor is not cleared*: an ingested firing, then a scheduled firing, then a second event inside the ingested spacing is **still** `too_soon`. **(ii) is the one that discharges ADR-004's debt** — it is the only case in which the anchor and the boolean alternative ADR-004 rejected disagree, because the boolean would have been cleared by the intervening ingested firing and would fire at T₀+1 s. (i) falsifies the third alternative (an anchor on "the last thing the host did") and (iii) holds CD-1's new rule, on which ADR-004 makes no claim |
 | AC-7 | the existing suite with unchanged assertions, plus: with no key configured, no file is created at any path |
 | AC-8 | integration: a socket left behind is unlinked and rebound; a **live** one gives `InUse` naming the path, and the first listener keeps serving |
