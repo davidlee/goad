@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 — the A-1 probe | done — **A-1 holds** | 2026-09-08 |
 | PHASE-02 — the configuration key, and the envelope | done | 2026-09-08 |
-| PHASE-03 — the socket's lifecycle, and the accepted path | pending | |
+| PHASE-03 — the socket's lifecycle, and the accepted path | done | 2026-09-08 |
 | PHASE-08 — the read budgets, and the closed reason set | pending | |
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | pending | |
 | PHASE-05 — the two anchors, and what a person can see | pending | |
@@ -26,6 +26,201 @@ appends a number rather than renumbering.
 <!-- One block per phase, written at phase-plan time, immediately before
      execution. Disposable detail — it exists to get one agent through one
      phase. -->
+
+### PHASE-03 — The socket's lifecycle, and the accepted path
+
+**Entry check:** EN-1 — PHASE-02's exit criteria discharged; `just check`
+**exit 0** at `bee5d2f` (transcript:
+`/tmp/claude-1000/-home-david-dev-goad/a10c38f4-3ff2-4c14-924e-3b2377d46bee/scratchpad/phase03-baseline.txt`,
+session-local). EN-2 — `envelope::normalize` exists
+(`crates/goad-shell/src/ingress/envelope.rs:86`), covered by PHASE-02/VT-2..
+VT-11. Both hold: proceeding.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `docs/slices/004/plan.md:708-957` |
+| PHASE-08, so the split's boundary is clear | `plan.md:960-1097` |
+| the split rationale (PL-10, PL-11) | `plan.md:716-733` |
+| system model — three parts | `design.md` §5.1 `:85-134` |
+| stratum 2 surface — `bind`, `Ingress`, `Arrival`, `Answer`, the constants | `design.md` §5.2 `:239-277` |
+| the reply wire form and reason table (this phase's five rows) | `design.md` §5.2 `:198-234` |
+| lifecycle — startup order, select ordering, shutdown | `design.md` §5.4, whole section `:391-516` |
+| invariants I-1..I-3, A-5 (the mode window), the edge-case table | `design.md` §5.5 `:516-587` |
+| draft-spec — this phase's requirements | R-2 `:92`, R-3 `:93`, R-4 `:94`, R-5 `:95`, R-6 `:96`, R-7 `:97`, R-8 `:98`, §6.1 `:171-193`, §6.4 `:273-296` |
+| **prior art — the A-1 probe's listener** | `docs/slices/004/ingress-probe.local.rs`, whole file — accept loop shape, the reply bytes (no trailing newline, confirmed by its own byte count), `Arrival`/`oneshot` shape. A stand-in cut to A-1's question: no budgets, no mode, no reclaim |
+| **prior art — a byte-bounded read** | `crates/goad-shell/src/backend/process.rs:236-260` (`read_capped`) — `AsyncReadExt::take(limit + 1)` then check `len() > limit`, the exact `indexing_slicing`-clean shape this phase's read reuses for its own byte bound |
+| **prior art — one-struct error naming a path** | `crates/goad-shell/src/error.rs` (`ConfigError`), `crates/goad-shell/src/config.rs::ingress_config` — the `EmptyPath` precedent for "unusable value not representable past the boundary" |
+| the module this phase extends | `crates/goad-shell/src/ingress/mod.rs` (module decl only, PHASE-02) |
+| `EnvelopeFault`, `normalize` | `crates/goad-shell/src/ingress/envelope.rs`, whole file — `Malformed` is PHASE-02's harvested finding, meets the wire's `malformed` reason here |
+| the manifest this phase changes | `crates/goad-shell/Cargo.toml:17` (`tokio = { workspace = true }`, no features yet) |
+| the allowlist test that must keep passing untouched | `crates/goad-boundary/tests/checks/allowlist.rs:19-27` (`STRATUM_2` already names `tokio`; only features change, not the manifest allowlist itself) |
+| workspace lints | `Cargo.toml:74` (`unsafe_code`), `:132-133` (`allow_attributes`/`_without_reason`), `:142` (`indexing_slicing`), `:183` (`pub_use`), `:200` (`future_not_send`), `:80` (`missing_debug_implementations`) |
+| test-tier conventions | `crates/goad-shell/tests/integration/main.rs`, `harness.rs` (Display-based diagnostics, not `Debug`) |
+| temp-path precedent (no `tempfile`) | `crates/goad-shell/src/config.rs:226`, `tests/support/scripting.rs::marker:35-39` |
+
+**Assumptions**
+
+- **The reclaim's liveness probe is `std::os::unix::net::UnixStream::connect`
+  (blocking, momentary, under `bind`'s own synchronous call).** Neither
+  `design.md` nor `draft-spec.md` states the mechanism; connect-then-fail is
+  the standard idiom for a Unix domain socket (no atomic "is anyone listening"
+  syscall exists). **Side effect, accepted rather than defect:** on a **live**
+  path (VT-2), this probe connection reaches the *other* host's accept task,
+  which reads zero bytes then EOF — refused `malformed` on its side, per
+  the edge-case table's "zero bytes, then EOF → malformed" row. VT-2's own
+  wording — "the first listener is still serving afterwards — asserted by
+  writing an envelope to it and reading a reply, not by inspecting the error
+  alone" — anticipates exactly this: the assertion exists to prove the accept
+  loop shrugs off a stray connection, which is what the probe produces. Not a
+  STOP: no invariant is broken (I-3 holds on both sides), no surface is
+  touched beyond this phase's own, and it costs the *other* host one
+  diagnostics-surface entry only if it happens to be idle at that moment —
+  the same class of stated residue as A-5.
+- **`EnvelopeFault::Malformed` maps to `Refusal::Malformed`; every other
+  `EnvelopeFault` variant maps to `Refusal::InvalidEnvelope`**, including
+  `ReservedSource` — splitting `reserved_source` out to its own wire reason is
+  PHASE-08/EX-13, explicitly not this phase's (plan.md's Surfaces note).
+- **A raw I/O error mid-read** (not a timeout, not the byte cap — e.g. a genuine
+  socket error) is folded into `Refusal::Malformed` rather than a new variant.
+  Undocumented in design/draft-spec, and not exercised by any VT case (hard to
+  trigger without fault injection); chosen because none of the five variants
+  this phase owns fits better and I-3 still holds (always answered, never a
+  panic).
+- **The reply carries no trailing newline.** The probe's own accept loop
+  writes the JSON bytes and closes with none, and P-B's harvested byte count
+  (30 bytes for `{"protocol":1,"accepted":true}`) confirms it — "close" is the
+  line's terminator, not `\n`.
+- **`Refusal::Unavailable` is a unit variant** (no payload) in this phase,
+  matching `design.md`'s own payload list, which omits it. Its `Display` text
+  is written for what *this phase* constructs it for only (a dropped
+  `Answer`); later phases reusing the same variant for their own causes is
+  their own scope, not pre-empted here.
+- **Channel capacity 1** for the arrivals `mpsc`, matching I-2's "irrelevant
+  beyond 1" and the probe's own precedent.
+
+**STOP conditions** (plan.md S-1..S-5, not softened)
+
+- S-1 — a case needs a queue, a retry, or a second arrival outstanding.
+- S-2 — the read cannot be framed newline-or-EOF and bounded in both bytes and
+  time without a second concurrency dimension.
+- S-3 — a VA-2 margin comes in under 10x.
+- S-4 — an existing case outside this phase's own goes red.
+- S-5 — `set_permissions` cannot set the mode on a bound Unix socket on this
+  platform.
+
+**Tasks**
+
+- [x] phase sheet written; status set to `in progress`.
+- [x] `Cargo.toml` — add `net`, `sync` features to `goad-shell`'s `tokio`
+      entry (EX-1).
+- [x] `mod.rs` — constants (`SOCKET_MODE`, and re-declare/keep `ENVELOPE_LIMIT`,
+      `ENVELOPE_DEADLINE` here since PHASE-02 declared the module only) (EX-2,
+      EX-11).
+- [x] `mod.rs` — `IngressError`/`BindFault`, `reclaim`, `bind` (EX-3).
+- [x] `mod.rs` — `Ingress`, `Arrival`, `Answer`, `Refusal` (EX-4, EX-9, EX-10).
+- [x] `mod.rs` — the accept task: bounded read (EX-7, EX-11), sequential loop
+      (EX-8), one reply then close (EX-6).
+- [x] `tests/integration/ingress.rs` (new) + `main.rs`'s one `mod ingress;` —
+      the fake judge, VT-1..VT-6, VT-10..VT-14.
+- [x] lint/format after each file; `just check` green; VA-1..VA-3.
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-1 | `crates/goad-shell/Cargo.toml`: `tokio = { workspace = true, features = ["net", "sync"] }`, the only line changed in that manifest (`git diff` confirmed one line); root `Cargo.toml` untouched |
+| EX-2 | `mod.rs`: `pub const SOCKET_MODE: u32 = 0o600` with its own doc comment (design.md §5.2 gives the constant no comment of its own; written to state `SPEC-003/R-2` and the A-5 window directly — see Decisions). `ENVELOPE_LIMIT`/`ENVELOPE_DEADLINE` carried over from PHASE-02's stub with their doc comments |
+| EX-3 | `bind` — `reclaim(path)?` then `UnixListener::bind` then `set_permissions` then `tokio::spawn(accept_loop(...))`, synchronous; `IngressError { path, fault: BindFault }`, six fault variants naming what was found |
+| EX-4 | `Ingress::none()`/`arrival()` (parks on `None` via `std::future::pending`; drops the receiver and parks on a closed channel); `Arrival::into_parts`; `Answer::accepted`/`refused` both consume `self`; a dropped `Answer` yields `unavailable` (VT-6) |
+| EX-6 | `Wire` struct + `reply()`, serialized with `serde_json` (not interpolated — a watcher-chosen key name in `detail` must not break the reply's own JSON); no trailing newline (matches the A-1 probe's own harvested byte count); `retry_after_ms` not present anywhere this phase — no `Refusal` this phase constructs carries it |
+| EX-7 | `read_envelope`: `read_until(b'\n', …)` over `BufReader::new(stream.take(ENVELOPE_LIMIT + 1))`; a second envelope on one connection is never read (VT-5c) |
+| EX-8 | `accept_loop`: `handle(...).await` before the next `listener.accept()`; an `accept()` error `continue`s; the task ends only when `arrivals.send(...)` fails (the channel closed) |
+| EX-9 | `cargo clippy --workspace --all-targets -- -D warnings` clean — `future_not_send` and `missing_debug_implementations` are both `deny` and both would have fired |
+| EX-10 | `Refusal` — five variants (`Unavailable`, `Malformed`, `InvalidEnvelope`, `TooLarge`, `TimedOut`), `reason()` exhaustive with no `_` arm (confirmed: adding a sixth `PHASE-08` variant will not compile here until this match is extended, which is `PHASE-08`'s to do) |
+| EX-11 | `ENVELOPE_LIMIT`/`ENVELOPE_DEADLINE` declared in `mod.rs` with `read_envelope` enforcing both in the same function; VT-13 (bytes), VT-14 (time) |
+| VT-1 | `a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves` |
+| VT-2 | `a_live_socket_refuses_a_second_bind_and_keeps_serving` |
+| VT-3 | `a_regular_file_at_the_path_is_refused_naming_what_was_found` |
+| VT-4 | `a_directory_with_no_write_permission_is_refused_naming_the_path` (chosen over "a path component that is not a directory" — see Decisions) |
+| VT-5 | three tests: `an_envelope_terminated_by_a_newline_is_accepted`, `an_envelope_terminated_by_closing_the_write_side_is_accepted`, `a_second_envelope_on_the_same_connection_is_never_read` |
+| VT-6 | `a_dropped_answer_yields_unavailable_then_a_close` |
+| VT-10 | `the_socket_is_owner_only_after_bind`; ambient umask at run time was `0o022` (checked once, outside the test, per the plan's own prohibition on a umask call inside a case) — non-vacuous |
+| VT-11 | `a_malformed_envelope_reaches_no_event_and_the_listener_stays_up` |
+| VT-12 | `a_well_formed_envelope_reaches_the_judge_as_the_event_it_wrote` |
+| VT-13 | `more_than_the_byte_limit_is_refused_too_large_and_the_limit_itself_is_accepted` |
+| VT-14 | `a_connection_that_writes_nothing_times_out_and_the_listener_serves_next` |
+| VA-1 | `just check` **exit 0**, transcript at `/tmp/claude-1000/-home-david-dev-goad/a10c38f4-3ff2-4c14-924e-3b2377d46bee/scratchpad/phase03-final-check2.txt` (session-local, not durable) |
+| VA-2 | VT-14 elapsed, three runs (temporary `eprintln!`, reverted before the final `just check`): **501.87 / 501.71 / 501.82 ms** against `ENVELOPE_DEADLINE` = 500 ms — ratio ≈1.004, far inside the 10x bound. No other case in this phase waits on a bound |
+| VA-3 | `git status --short` after the full suite shows no socket file; `find /tmp -iname 'goad-ingress-*'` empty; VT-4's directory removed by the case itself |
+
+**No STOP condition was reached.** S-1: no case needed a queue, a retry, or a
+second outstanding arrival — the accept loop is sequential by construction.
+S-2: the framing and both bounds are one `read_until` over
+`BufReader::new(stream.take(ENVELOPE_LIMIT + 1))` wrapped in one
+`tokio::time::timeout`, no second concurrency dimension. S-3: VA-2's ratio is
+~1.004, nowhere near 10x. S-4: the full pre-existing suite (`cargo test
+--workspace`) stayed green throughout — 35+71+6 tests plus stratum 1's 30+5,
+none newly failing. S-5: `set_permissions` on a bound Unix socket worked on
+this platform without incident.
+
+**Decisions taken during execution**
+
+- **The reclaim's liveness probe is `std::os::unix::net::UnixStream::connect`.**
+  Confirmed as anticipated in the phase sheet's Assumptions: VT-2's probe
+  connection lands on the *first* listener as a stray, empty connection,
+  refused `malformed` there — harmless, and exactly why the fake judge
+  (`judge()`) answers anything past its own script with `accepted` rather than
+  asserting an exact arrival count for that case.
+- **VT-4 uses a directory with no write permission (`0o500`), not "a path
+  component that is not a directory."** The latter makes `std::fs::
+  symlink_metadata` itself fail with `ENOTDIR` (not `NotFound`), which would
+  route through `BindFault::Unprobeable` rather than exercising `bind()`'s own
+  failure — a real fault, but not the one the phase's `Unbindable` variant
+  exists for, and not a deterministic choice across platforms. The
+  no-write-permission directory reaches `symlink_metadata` = `NotFound` (search
+  needs only execute permission), then `UnixListener::bind` itself fails with
+  `EACCES` → `Unbindable`, deterministically. **Assumption:** the test
+  environment does not run as root (permission checks would be bypassed);
+  true here (a Nix devshell, unprivileged user).
+- **A raw I/O error mid-`read_until`** is folded into `Refusal::Malformed`, per
+  the phase sheet's stated assumption. Not exercised by any test (no fault
+  injection available); I-3 still holds regardless (always answered, never a
+  panic).
+
+**Findings**
+
+- **A defect in the phase's own design, found and fixed in this phase: an
+  unconditional post-refusal drain would have silently doubled
+  `ENVELOPE_DEADLINE` for the one case that has nothing to drain.** Closing an
+  `AF_UNIX` `SOCK_STREAM` socket while bytes the peer sent are still unread in
+  the kernel's receive buffer resets the connection (`ECONNRESET`) rather than
+  delivering a graceful close — confirmed empirically: VT-13's `too_large`
+  case failed with exactly that error before any drain existed, because our
+  own test intentionally over-sends past `ENVELOPE_LIMIT`. Neither
+  `design.md` nor `draft-spec.md` nor `plan.md` mentions this; it is a
+  transport-level consequence of `SPEC-003/R-7`'s own bound (stopping a read
+  early necessarily leaves a writer's excess bytes unread), not a defect in
+  those documents' *requirements* — but the plan's `read_capped` prior art
+  (`process.rs`) does not need to handle it, because a backend's stdout pipe
+  is one-directional and never needs a reply written back on the same
+  channel afterward. First fix attempt wrapped the drain in the same
+  `tokio::time::timeout(ENVELOPE_DEADLINE, …)` shape `read_envelope` uses;
+  measured, this **doubled** VT-14's elapsed time to ~1.0025 s, because a
+  silent writer (the common `timed_out` case) has nothing queued and the
+  drain then does nothing *but* wait out its own copy of the deadline before
+  giving up. Fixed by making `drain` non-blocking (`UnixStream::try_read` in a
+  bounded loop, stopping the instant nothing is immediately readable) rather
+  than a second bounded wait — costs nothing when there is nothing queued
+  (VT-14's own case, re-measured at ~501.8 ms, matching the single-deadline
+  figure) and clears `too_large`'s guaranteed leftover in a handful of
+  syscalls. **Recorded because a future phase touching this read (there is
+  none planned — `PHASE-08` explicitly does not touch the read) should not
+  reintroduce a second blocking wait on the refusal path.**
+- **VT-2's own wording anticipates the reclaim probe's side effect exactly** —
+  see Decisions above. No action needed; confirms the phase sheet's assumption
+  rather than contradicting it.
 
 ### PHASE-01 — The A-1 probe
 
@@ -178,7 +373,7 @@ did not arise — nothing under `crates/*/src` was touched.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-02 done
+**Fresh as of:** 2026-09-08 · PHASE-03 done
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -198,6 +393,17 @@ did not arise — nothing under `crates/*/src` was touched.
   `Answer`, `bind` or `Refusal` yet — PHASE-03's.
 - `goad-semantics/src/error.rs` — `json_type_name` is now `pub` (D-18),
   reachable from `goad-shell` without a second type-name table.
+- `crates/goad-shell/Cargo.toml` — `tokio`'s `net` and `sync` features, the
+  whole of this slice's manifest bill against the ADR-001 allowlist (nothing
+  else adds a feature or a dependency for the rest of the slice).
+- `crates/goad-shell/src/ingress/mod.rs` — `bind`, `IngressError`/`BindFault`,
+  `Ingress`, `Arrival`, `Answer`, `Refusal` (five variants), the accept task:
+  reclaim, the owner-only mode, the newline-or-EOF framing, both read budgets,
+  the one reply. `SPEC-003/R-1..R-8`'s listener-decided half is discharged;
+  `R-9`/`R-10`/`R-13`'s wiring to the wire's `invalid_envelope` reason is
+  discharged except `reserved_source`'s own token, which is `PHASE-08/EX-13`.
+- `crates/goad-shell/tests/integration/ingress.rs` — the fake judge fixture
+  (shared with `PHASE-08`), and PHASE-03/VT-1..VT-6, VT-10..VT-14.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -242,8 +448,35 @@ did not arise — nothing under `crates/*/src` was touched.
   requirement names and no PHASE-02 `VT` id covers.** It exists because
   `normalize` takes raw bytes and `reject_duplicate_keys` can itself report
   "not a JSON document" as a side effect of the walk EX-5 requires reusing.
-  PHASE-03 is where this fault meets the wire's `malformed` reason — worth
-  flagging there rather than rediscovering that the variant already exists.
+  **Resolved at PHASE-03:** `shape_refusal` maps it to `Refusal::Malformed`
+  specifically (every other `EnvelopeFault` variant maps to
+  `Refusal::InvalidEnvelope`), so it meets the wire's `malformed` reason
+  exactly as `draft-spec.md` §6.3's table names it.
+
+- **Closing an `AF_UNIX SOCK_STREAM` socket with the writer's bytes still
+  unread resets the connection and can take an already-written reply down with
+  it — and the fix must be non-blocking, not a second bounded wait.**
+  `too_large` is the guaranteed case: the read stops at the byte cap, but the
+  writer may have sent (or still be sending) more. Dropping the connection
+  there produces `ECONNRESET` on the peer's read of the reply this host just
+  wrote — measured directly (PHASE-03/VT-13 failed with exactly that error
+  before a drain existed). The wrong fix is tempting and cheap to reach for:
+  wrapping the drain in `tokio::time::timeout(ENVELOPE_DEADLINE, …)` the same
+  shape the read itself uses. Measured, that **doubles** the time a silently
+  stalled writer (`timed_out`) waits for its refusal — from ~502 ms to
+  ~1.0025 s — because a writer with nothing queued gives the drain nothing to
+  do *but* wait out its own copy of the deadline. The fix that costs nothing
+  in the common case is non-blocking: `UnixStream::try_read` in a
+  bytes-bounded loop, stopping the instant nothing is immediately readable,
+  never waiting for more to arrive. **How to apply:** any refusal path that
+  stops reading before a stream's peer necessarily has finished writing needs
+  this same non-blocking drain before the connection closes — and the
+  bounded-*wait* shape that is correct for the read itself (R-7) is the wrong
+  shape to reuse for a post-refusal cleanup step, because the read's bound
+  exists to end a wait, while the cleanup step's job is to end instantly when
+  there is nothing left. Strong candidate for `docs/memory/` at close — this
+  is a general fact about Unix domain stream sockets, not specific to this
+  slice.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

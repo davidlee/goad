@@ -30,6 +30,9 @@ mod failure_matrix;
 mod host;
 
 #[cfg(test)]
+mod ingress;
+
+#[cfg(test)]
 mod round_trip;
 
 #[cfg(test)]
