@@ -176,7 +176,10 @@ reading before they could be built against, and both are recorded in
   the scheduled floor and a scheduled firing never clears the event floor. The
   pending *deadline* still moves after an ingested exchange, because the backend
   answered it with a `next_check` — SPEC-001/R-26, exactly as after a person's
-  evaluation.
+  evaluation. That is why the *does not advance* case of AC-6 must fix the
+  ingested exchange's own deadline as part of its setup, not only the scheduled
+  one's: otherwise what the test turns on is a deadline both hypotheses agree
+  about rather than the floor they disagree about (`design.md` §9).
 - **AC-7's "unchanged bodies"** means unchanged assertions. `serve` gains one
   parameter, so 23 call sites pass `Ingress::none()`; no assertion moves.
 
@@ -277,7 +280,10 @@ the design and the log.
   survive to be presented (`draft-spec.md` R-15). `engaged` never reaches a
   person — it is by definition decided during an exchange, and the exchange's
   own outcome overwrites it — nor does a shape refusal that happened to arrive
-  during one, nor the `unavailable` written after the loop has ended. That is
+  during one, nor the `unavailable` written after the loop has ended, nor — in
+  the one interleaving where the loop notices it mid-exchange — the
+  `unavailable` that says ingress has stopped, which is the one refusal with no
+  writer to fall back on. That is
   the commonest refusal a real watcher will meet, invisible to the person
   debugging the watcher. Making it visible needs something the surface is not
   today — a count, or a log — and choosing between those is the follow-up, not a

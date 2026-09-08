@@ -54,7 +54,9 @@ Canon claims cite the document id (`SPEC-003 §4`, `ADR-007`). Code claims cite
 ### Amendment candidates
 
 - **SPEC-002** — CD-1, the event bound. Requirement ids run to R-11, so the new
-  one is R-12. ✓ (`docs/specs/002-host-scheduling-behaviour.md` §4)
+  one is **SPEC-002/R-12**. ✓ (`docs/specs/002-host-scheduling-behaviour.md`
+  §4). `draft-spec.md` independently numbers its ingress-side requirement R-12,
+  so the pair is always cited qualified.
 - **SPEC-001/R-56** — CD-2, `"host"` reserved as a source. ✓
 - **No canon owns the ingress contract.** SPEC-001 owns the host/backend
   protocol and disclaims the timer; SPEC-002 owns the timer. The socket, the

@@ -521,3 +521,66 @@ other, citing the finding id.
   inference. What replaces it is D-3's reason: the two normalizations differ by
   which contract they hold, and stratum 1's holds SPEC-001 in one place. C-3
   now says F6 does not answer OQ-4 by itself.
+
+### 2026-09-08 — review round 2 dispositioned: propagation, not redesign
+
+- **Asked:** how `review-design.md` round 2's six findings, F-12..F-17, are
+  dispositioned. Under the standing autonomy grant — *decide everything except
+  canon* — this is the orchestrator's call, not the user's.
+- **Decided (orchestrator):** F-12, F-13, F-14, F-16 and F-17 `fix-now`; F-15
+  `settle-in-code`. Nothing `aligned`, `tolerated`, `follow-up` or withdrawn.
+  Every citation was checked against the file and the line before it was acted
+  on; none failed.
+- **The class, named:** every round-2 finding was a **propagation gap the
+  round-1 repairs opened** — a repair right at the site it touched and not
+  carried to the artefacts that state the same thing elsewhere. Repairs were
+  therefore made against the class: after each change, its siblings across
+  `design.md`, `draft-spec.md`, `canon-delta.md`, `slice-004.md` and
+  `research.md` were found and taken with it.
+- **Consequence — the substantive changes:**
+  - **AC-6 case (ii) gains the clause it depends on** (F-12). The ingested
+    firing at T₀+ε must be one whose **own exchange resolves to a deadline no
+    later than T₀+1 s**, because every exchange re-arms the pending deadline
+    from what its own backend answered (SPEC-001/R-26,
+    `controller.rs:507-512`). Without it the case ADR-004 was waiting for would
+    be discharged by a test that could not have failed under the boolean either.
+  - **`unavailable` admits a third cause** (F-13), and the `None` path is
+    carried into the loop's shape. The closed channel is disposed of in the arm
+    that observes it, **before** a `Fired` is built, so `refusal_re_arms` and
+    the standing deadline are untouched; the third cause is **permanent for the
+    life of the process** and is the one refusal with no writer to fall back on.
+    The token set stays closed at eight — the definition widened, not the set.
+  - **Shape beats state in both `select!`s** (F-14). The order of judgement is
+    restated as the ingress **arms'**, with a shape refusal as step 1 inside an
+    exchange as much as outside it, which is what makes R-15's negative test
+    buildable. §5.4's sequence diagram is redrawn: it disagreed in more branches
+    than the one the finding named.
+  - **R-15's rate coupling is measured, not argued** (F-15, `settle-in-code`).
+    R-15's MUST stands. The phase that builds `serve`'s ingress arms and the
+    anchor settles it, and the test is **AC-5's flat-out writer extended to
+    bound presentations**. The coupling is stated beside I-3 and named as risk
+    **R6**. If the phase does not bound it, the finding returns `contested`.
+  - **`retry_after_ms` rounds up** (F-16), pinned in R-14 rather than left to
+    the phase, so the requirement's own sentence is true of the field.
+  - **Cross-document requirement ids are qualified** (F-17). SPEC-002 and the
+    draft both number their new requirement 12 and neither may be renumbered.
+- **Checked and reported, not changed:** `draft-spec.md` does **not** number
+  itself. It is titled *SPEC-NNN* and says it takes its number at promotion, so
+  `docs/AGENTS.md`'s rule is already met; the cross-references were written in
+  forms that survive it being given any number.
+
+### 2026-09-08 — ingress dying mid-exchange is folded, not presented
+
+- **Asked:** F-13's repair forced a statement the finding did not make. When the
+  ingress channel closes **while an exchange is in flight**, the inner arm can
+  fold the refusal but cannot present it — `absorb` overwrites the diagnostics
+  slot before the loop's next `present`. Guaranteeing the presentation needs
+  state consulted after the exchange, which falsifies §5.3's claim that the
+  whole of the new retained state is one instant.
+- **Decided:** fold and resume. No new state, no new mechanism.
+- **Consequence:** a permanent, process-lifetime failure can go unseen by a
+  person in that one interleaving. It is not silent to the **watcher**, which
+  stops being able to connect. The interleaving is on `slice-004.md`
+  §Follow-ups beside F-2's residue, and §5.5 states it. What is bought is
+  `serve`'s stack unchanged in the function §8 R2 already names as the one at
+  risk of outgrowing review.

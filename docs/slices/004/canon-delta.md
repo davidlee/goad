@@ -28,8 +28,16 @@ SPEC-002/R-5 says in terms that it must be decided rather than inherited
 **Sections:** §2 Scope **including its Boundaries paragraph**, §3 Principles, §4
 Requirements, §5 Behaviour, **§6 Interfaces & contracts**, §7 Verification.
 Exact wording is design's, not scoping's.
-**Kind:** new requirement, appended as **R-12**; R-11 is the current highest id.
-Also a new principle in §3.
+**Kind:** new requirement, appended as **SPEC-002/R-12**; R-11 is that spec's
+current highest id. Also a new principle in §3.
+
+**On the number.** `draft-spec.md` numbers its own ingress-side requirement R-12
+as well, and ids are immutable, so neither can move. Inside this entry a bare
+`R-n` is SPEC-002's, as the **Document** line above says; every mention that
+crosses a document boundary is written `SPEC-002/R-12` or `SPEC-003/R-12`. The
+two are the two sides of one seam — what the host bounds, and what a writer sees
+of that bound — and an unqualified "R-12" in a sentence naming the other
+document is the one form that misleads.
 
 ### Why
 
@@ -87,10 +95,14 @@ visibly. §7 gains a verification row naming slice 004's AC-5 and AC-6 tests.
   names."* Both halves move. The second point narrows — SPEC-002 produces an
   `evaluate` whose event kind R-56 names **when the host is asking on its own
   account**; an ingested evaluation carries the watcher's own kind, which R-56
-  does not name — and a **third** abutment appears, with SPEC-003: the ingested
-  spacing R-12 requires is what SPEC-003 makes visible at the socket, as a
-  refusal rather than a delay. The paragraph is restated as *two points with
-  SPEC-001 and one with SPEC-003*, so the numeric claim survives being applied.
+  does not name — and a **third** abutment appears, with SPEC-003
+  (`draft-spec.md`'s number at promotion): the ingested spacing
+  **SPEC-002/R-12** requires is what **SPEC-003/R-12** makes visible at the
+  socket, as a refusal rather than a delay. Both ids are qualified because both
+  documents number this requirement 12 and neither may be renumbered; an
+  unqualified "R-12" in a sentence naming the other document is the one form
+  that misleads. The paragraph is restated as *two points with SPEC-001 and one
+  with SPEC-003*, so the numeric claim survives being applied.
 - **§6 Interfaces & contracts** (`:164`) currently reads *"The host owns: the
   pending wait, **the minimum spacing**, and the decision to fire."* After R-12
   the host owns one spacing and **two anchors**, which is the whole of the new
@@ -195,8 +207,14 @@ ADR-004 §Verification states, of the anchor as against the spacing itself:
 
 Slice 004 introduces it. The anchor and the boolean alternative disagree in
 exactly one situation, and `design.md` §9's AC-6 case (ii) is that situation: a
-**scheduled** firing at T₀, an ingested firing at T₀+ε, and a `next_check` due
-at T₀+1 s. Under the anchor the scheduled evaluation waits until T₀+3 s; under a
+**scheduled** firing at T₀, an ingested firing at T₀+ε whose own exchange
+resolves to a deadline no later than T₀+1 s, and a `next_check` due at T₀+1 s.
+That last clause is what makes the case the one ADR-004 named rather than a
+different one: an ingested exchange re-arms the pending deadline from what its
+own backend answered (SPEC-001/R-26, `controller.rs:507-512`), so unless it
+resolves at least as short, the deadline in force at T₀+1 s is one the anchor
+and the boolean agree about and the test proves nothing. Under the anchor the
+scheduled evaluation waits until T₀+3 s; under a
 boolean cleared by "some other stimulus happened", the intervening ingested
 firing clears the flag and it fires at T₀+1 s. AC-6's other two cases are real
 and are also named, but they do not reach this: case (i) falsifies the third
