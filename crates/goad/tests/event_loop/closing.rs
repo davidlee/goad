@@ -68,6 +68,7 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
     schedule: ScheduleConfig {
       default_poll: jiff::SignedDuration::from_mins(30),
     },
+    ingress: None,
   };
   let now = wall_clock().expect("the real wall clock reads fine in a test process");
   let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);

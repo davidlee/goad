@@ -48,6 +48,7 @@ pub(crate) fn config(command: Command, timeout: Duration) -> Config {
     schedule: ScheduleConfig {
       default_poll: DEFAULT_POLL,
     },
+    ingress: None,
   }
 }
 

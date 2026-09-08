@@ -87,6 +87,7 @@ fn config_with_poll(command: ShellCommand, default_poll: jiff::SignedDuration) -
       timeout: TIMEOUT,
     },
     schedule: ScheduleConfig { default_poll },
+    ingress: None,
   }
 }
 

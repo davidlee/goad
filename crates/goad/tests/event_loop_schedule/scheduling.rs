@@ -96,6 +96,7 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
     schedule: ScheduleConfig {
       default_poll: DEFAULT_POLL,
     },
+    ingress: None,
   };
   let now = wall_clock().expect("the real wall clock reads fine in a test process");
   let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);

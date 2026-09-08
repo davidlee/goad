@@ -1,16 +1,16 @@
 //! The TOML the host is started with — `design.md` §5.2's Config block.
 //!
-//! Brief §5's three values and nothing else (the OQ-4 decision), parsed once at
-//! startup and immutable afterwards. There is no hot reload: `design.md:1236`
-//! makes a malformed or missing config fatal at construction, because there is
-//! no backend to run without one.
+//! Brief §5's three values, plus the event-ingress key slice 004 adds, parsed
+//! once at startup and immutable afterwards. There is no hot reload:
+//! `design.md:1236` makes a malformed or missing config fatal at construction,
+//! because there is no backend to run without one.
 //!
 //! No module-level `#![deny(clippy::arithmetic_side_effects)]` here. The lint
 //! follows the data, not the directory (D53 as amended), and a config file is
 //! the user's own — nothing in this module computes over anything a backend
 //! chose.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -28,6 +28,8 @@ use goad_semantics::schedule::parse_span;
 pub struct Config {
   pub backend: BackendConfig,
   pub schedule: ScheduleConfig,
+  /// `None` means no listener: today's behaviour exactly (AC-7).
+  pub ingress: Option<IngressConfig>,
 }
 
 #[derive(Debug)]
@@ -80,6 +82,14 @@ pub struct ScheduleConfig {
   pub default_poll: jiff::SignedDuration,
 }
 
+/// Where the event-ingress socket listens — `design.md` §5.2. Absent from
+/// `Config` means no listener is bound, which is today's behaviour exactly
+/// (AC-7); nothing about `default_poll` or `timeout` changes because of it.
+#[derive(Debug)]
+pub struct IngressConfig {
+  pub path: PathBuf,
+}
+
 /// The file as written, before anything is checked.
 ///
 /// The same wire/canonical split `semantics` uses, for the same reason: the
@@ -97,6 +107,10 @@ pub struct ScheduleConfig {
 struct File {
   backend: FileBackend,
   schedule: FileSchedule,
+  /// Absent unless the file writes `[ingress]` — the section is optional,
+  /// unlike its siblings (AC-7).
+  #[serde(default)]
+  ingress: Option<FileIngress>,
 }
 
 #[derive(Deserialize)]
@@ -110,6 +124,12 @@ struct FileBackend {
 #[serde(deny_unknown_fields)]
 struct FileSchedule {
   default_poll: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileIngress {
+  path: String,
 }
 
 impl Config {
@@ -132,8 +152,8 @@ impl Config {
   /// # Errors
   ///
   /// `Syntax` if the text is not this shape; `Duration` if a duration string is
-  /// not one the host can resolve; `EmptyCommand` and `NonPositive` for the two
-  /// values that parse and still cannot be honoured.
+  /// not one the host can resolve; `EmptyCommand`, `EmptyPath` and
+  /// `NonPositive` for the values that parse and still cannot be honoured.
   pub fn parse(text: &str) -> Result<Self, ConfigError> {
     let file: File = toml::from_str(text).map_err(|error| ConfigError::Syntax(Box::new(error)))?;
     let command = Command::from_argv(file.backend.command).ok_or(ConfigError::EmptyCommand)?;
@@ -145,8 +165,22 @@ impl Config {
       schedule: ScheduleConfig {
         default_poll: signed("schedule.default_poll", &file.schedule.default_poll)?,
       },
+      ingress: file.ingress.map(ingress_config).transpose()?,
     })
   }
+}
+
+/// `ingress.path` must be non-empty: an unusable value is not representable
+/// past this boundary, the same argument `EmptyCommand` rests on.
+fn ingress_config(file: FileIngress) -> Result<IngressConfig, ConfigError> {
+  if file.path.is_empty() {
+    return Err(ConfigError::EmptyPath {
+      key: "ingress.path",
+    });
+  }
+  Ok(IngressConfig {
+    path: PathBuf::from(file.path),
+  })
 }
 
 /// One duration string, in the product's one grammar, that must also be usable.
@@ -355,6 +389,53 @@ default_poll = "30m"
       ),
       "a zero default poll was not rejected as such: {}",
       rejection(&text)
+    );
+  }
+
+  // ---- VT-1: the fourth value, `[ingress]` ----
+
+  #[test]
+  fn an_ingress_section_loads_with_its_path() {
+    let text = format!("{GOOD}\n[ingress]\npath = \"./goad.sock\"\n");
+    let config = Config::parse(&text).expect("a well-formed ingress section must load");
+    let ingress = config.ingress.expect("the section was present");
+    assert_eq!(ingress.path, std::path::PathBuf::from("./goad.sock"));
+  }
+
+  #[test]
+  fn an_empty_ingress_path_is_refused() {
+    let text = format!("{GOOD}\n[ingress]\npath = \"\"\n");
+    assert!(
+      matches!(
+        rejection(&text),
+        ConfigError::EmptyPath {
+          key: "ingress.path"
+        }
+      ),
+      "an empty ingress path was not rejected as such: {}",
+      rejection(&text)
+    );
+  }
+
+  #[test]
+  fn an_unknown_key_inside_ingress_is_refused_and_named() {
+    let text = format!("{GOOD}\n[ingress]\npath = \"./goad.sock\"\nmode = \"0600\"\n");
+    let refused = rejection(&text);
+    assert!(
+      matches!(&refused, ConfigError::Syntax(_)) && refused.to_string().contains("mode"),
+      "unknown key `mode` inside [ingress] was not refused naming it: {refused}"
+    );
+  }
+
+  // ---- VT-10: AC-7's first half — absent means no listener ----
+
+  #[test]
+  fn with_no_ingress_section_ingress_is_none() {
+    let config = Config::parse(GOOD).expect("the design's own example must load");
+    assert!(
+      config.ingress.is_none(),
+      "no [ingress] section must yield ingress: None, not {:?}",
+      config.ingress
     );
   }
 }

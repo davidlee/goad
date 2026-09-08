@@ -128,6 +128,10 @@ pub enum ConfigError {
   /// exchange and a zero poll is a busy loop, so neither is a configuration the
   /// host can honour (`design.md:1744`).
   NonPositive { key: &'static str },
+  /// `ingress.path = ""`. An unusable value is not representable past this
+  /// boundary, the same argument `EmptyCommand` rests on for the backend's
+  /// command (`design.md` §5.2).
+  EmptyPath { key: &'static str },
 }
 
 impl fmt::Display for StateError {
@@ -168,6 +172,7 @@ impl fmt::Display for ConfigError {
         "backend.command names no program, so there is nothing to spawn"
       ),
       Self::NonPositive { key } => write!(f, "{key} must be greater than zero"),
+      Self::EmptyPath { key } => write!(f, "{key} must not be empty"),
     }
   }
 }
@@ -180,7 +185,7 @@ impl std::error::Error for ConfigError {
       Self::Read(inner) => Some(inner),
       Self::Syntax(inner) => Some(inner),
       Self::Duration { fault, .. } => Some(fault),
-      Self::EmptyCommand | Self::NonPositive { .. } => None,
+      Self::EmptyCommand | Self::NonPositive { .. } | Self::EmptyPath { .. } => None,
     }
   }
 }

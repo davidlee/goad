@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the A-1 probe | done — **A-1 holds** | 2026-09-08 |
-| PHASE-02 — the configuration key, and the envelope | pending | |
+| PHASE-02 — the configuration key, and the envelope | done | 2026-09-08 |
 | PHASE-03 — the socket's lifecycle, and the accepted path | pending | |
 | PHASE-08 — the read budgets, and the closed reason set | pending | |
 | PHASE-04 — `serve`'s ingress arms, the second anchor, and what a refusal costs | pending | |
@@ -178,7 +178,7 @@ did not arise — nothing under `crates/*/src` was touched.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-08 · PHASE-01 done · `658b124`
+**Fresh as of:** 2026-09-08 · PHASE-02 done
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -187,6 +187,17 @@ did not arise — nothing under `crates/*/src` was touched.
   for re-running, on `docs/slices/003/timer-probe.local.rs`'s shape.
 - `research.md` **Thread 3** — the A-1 result: topology, four cases, three runs,
   the verbatim output, and an explicit statement of what was *not* measured.
+- `crates/goad-shell/src/config.rs` — `IngressConfig`, `Config.ingress`,
+  `FileIngress`; `[ingress]` is now part of the canonical config shape.
+- `crates/goad-shell/src/error.rs` — `ConfigError::EmptyPath`.
+- `crates/goad-shell/src/ingress/mod.rs` — the module PHASE-03 builds the
+  listener into; declares nothing beyond itself and `envelope` this phase.
+- `crates/goad-shell/src/ingress/envelope.rs` — `normalize(bytes) ->
+  Result<Event, EnvelopeFault>`, the only door from a watcher's bytes into a
+  canonical `Event`; `EnvelopeFault`'s ten variants. No `Ingress`, `Arrival`,
+  `Answer`, `bind` or `Refusal` yet — PHASE-03's.
+- `goad-semantics/src/error.rs` — `json_type_name` is now `pub` (D-18),
+  reachable from `goad-shell` without a second type-name table.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -227,5 +238,152 @@ did not arise — nothing under `crates/*/src` was touched.
   loop on the assumption that a spawned task is starved. Candidate for
   `docs/memory/`, at close.
 
+- **`EnvelopeFault` carries one variant, `Malformed`, that no `draft-spec.md`
+  requirement names and no PHASE-02 `VT` id covers.** It exists because
+  `normalize` takes raw bytes and `reject_duplicate_keys` can itself report
+  "not a JSON document" as a side effect of the walk EX-5 requires reusing.
+  PHASE-03 is where this fault meets the wire's `malformed` reason — worth
+  flagging there rather than rediscovering that the variant already exists.
+
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+### PHASE-02 — The configuration key, and the envelope
+
+**Entry check:** EN-1 — PHASE-01 exit criteria discharged, verdict *A-1 holds*
+(above). EN-2 — `just check` exits 0 at `658b124` (PHASE-01's own VA-1 already
+showed this; re-verified before editing). Both hold: proceeding.
+
+**Reading list**
+
+| what | where |
+|---|---|
+| the phase, entire | `docs/slices/004/plan.md:560-705` |
+| overview / sequencing | `plan.md:23-50`, `:114-122`, `:196-244` |
+| findings against the design that bear on this phase | `plan.md:344-397` (FD-3: the four struct literals; FD-5) |
+| coverage this phase discharges | `plan.md:415`, `:440-444` |
+| config block | `design.md:165-180` (§5.2) |
+| envelope wire form | `design.md:182-237` (§5.2) |
+| stratum 2 surface (`Ingress`, faults, constants) | `design.md:239-317` (§5.2) — only the `EnvelopeFault`/`IngressError`/`json_type_name` parts are this phase's; `Ingress`/`Arrival`/`Answer`/`bind` are PHASE-03's |
+| D-18 — widening `json_type_name` | `design.md:311-316`, `:628` |
+| draft-spec.md, this phase's requirements | R-9 `:101`, R-10 `:102`, R-13 `:105`, §6.2 `:195-214`, §6.3's `invalid_envelope`/`reserved_source` rows `:232-233` |
+| existing config | `crates/goad-shell/src/config.rs`, whole file — `File`→`Config` is the permissive/canonical split to mirror |
+| existing error taxonomy | `crates/goad-shell/src/error.rs` — `ConfigError`'s shape (`Display`, `source()`, no `_` arm) |
+| stratum 1's own split, the model for `envelope.rs` | `crates/goad-semantics/src/protocol/wire.rs` (`reject_duplicate_keys:79`, `Object<T>:49`), `crates/goad-semantics/src/protocol/normalize.rs` (`read_response:97`) |
+| the timestamp two-step to mirror | `crates/goad-semantics/src/schedule.rs:70-103` (`parse_instruction`) — envelope's version has no span fallback, R-10 admits only the absolute form |
+| `json_type_name` | `crates/goad-semantics/src/error.rs:14-27` |
+| `Event`, `Timestamp` | `crates/goad-semantics/src/protocol/canonical.rs:102-113`, `:489-496` — both `pub`, no accessor owed |
+| the four bounded `Config` literals | `tests/support/driving.rs:46`, `crates/goad/tests/renderer/scheduling.rs:84`, `crates/goad/tests/event_loop/closing.rs:63`, `crates/goad/tests/event_loop_schedule/scheduling.rs:91` |
+| lints that bind this code | `Cargo.toml:123-204` (workspace clippy table) — `expect_used`, `unwrap_used`, `panic`, `unreachable`, `map_err_ignore` all `deny`; `pedantic` `deny` (→ `missing_errors_doc`) |
+| allowlist (no manifest edit needed) | `crates/goad-shell/Cargo.toml:12-18` — `jiff` and `serde_json` already present |
+
+**Assumptions**
+
+- `EnvelopeFault` is this phase's own type, not a reuse of `ProtocolError` —
+  the two vocabularies serve different contracts (SPEC-001 backend wire vs.
+  SPEC-003 envelope) even though the shape-diagnostic style is shared.
+- `normalize`'s malformed-JSON case (bytes that are not one JSON document at
+  all) is not one of R-9/R-10's named clauses and has no VT case this phase,
+  but the function must still handle it soundly (bytes are attacker-controlled
+  input) rather than panic — `EnvelopeFault::Malformed`, produced via
+  `reject_duplicate_keys`'s own `ProtocolError::Json` arm, satisfies that
+  without a second parse attempt needing `.expect()`.
+- VT-4 ("each of the four keys wrong-typed") is read as the three keys with a
+  declared wire type — `source`, `kind`, `timestamp`, all strings. `data`
+  admits any JSON value (design.md's own table), so there is no wrong-typed
+  case for it; VT-3 (missing) is the one that legitimately covers all four.
+- `reserved_source` as its own **wire** reason is PHASE-08's (plan.md:444). This
+  phase only needs `EnvelopeFault` to carry a distinct fault for `source ==
+  "host"`, tested at the unit level (VT-9); wiring it to `Refusal`/the reply is
+  PHASE-03's and PHASE-08's, and `ingress/mod.rs` beyond its module declaration
+  is explicitly not this phase's (Surfaces).
+
+**STOP conditions** (plan.md S-1..S-3, not softened)
+
+- S-1 — normalizing requires reading a value's content (`kind` matched, `data`
+  read, `timestamp` compared to now). Not reached: the one comparison made is
+  `source == "host"`, which R-13/P-A permit by name.
+- S-2 — `reject_duplicate_keys` doesn't reach the case, wanting a second walk.
+  Not reached.
+- S-3 — the four bounded test files need more than `ingress: None`. Not
+  reached.
+
+**Tasks**
+
+- [x] phase sheet written; status set to `in progress`.
+- [x] config half: `IngressConfig`, `Config.ingress`, `FileIngress`,
+      `File.ingress`, `ConfigError::EmptyPath`, doc-comment correction, VT-1 +
+      VT-10 tests.
+- [x] semantics half: `json_type_name` → `pub`, doc sentence (EX-8), VA-3.
+- [x] `ingress/mod.rs` — module declaration only (EX-3).
+- [x] `ingress/envelope.rs` — normalize + `EnvelopeFault` over
+      `serde_json::Map` directly (no separate `Envelope` struct — EX-4's "or
+      the equivalent two-step; the name and the shape are the phase's"), EX-4..
+      EX-7, EX-9, VT-2..VT-9, VT-11.
+- [x] four bounded `Config` literals — `ingress: None` (EX-10, VA-4).
+- [x] `just check` green; VA-1..VA-4 below.
+
+**Decisions taken during execution**
+
+- **No literal `Envelope` type.** EX-4 offers "the equivalent two-step" and
+  says the name and shape are the phase's. Precise per-key diagnostics
+  (missing vs. wrong-typed vs. empty, named individually per R-9) need
+  bespoke field-by-field logic that a derived `Deserialize` struct would not
+  give without collapsing them into one serde error — so `normalize` works
+  directly over the `serde_json::Value` / `Map` the duplicate-key walk and a
+  generic parse already produce, rather than binding an intermediate
+  permissive struct nothing else uses.
+- **VT-4 read as the three keys with a declared wire type.** `data` admits any
+  JSON value (`design.md` §5.2's own field table), so "wrong-typed" has no
+  case for it; VT-3 (missing) is the one that legitimately covers all four
+  keys. Recorded as an assumption above before writing the tests, not
+  discovered after.
+- **One extra `EnvelopeFault` variant beyond R-9/R-10/R-13's clauses:
+  `Malformed`**, for bytes that are not one JSON document at all. Not named by
+  EX-4's clause list and not covered by a VT id, but structurally required —
+  `normalize` takes raw bytes, and `reject_duplicate_keys` can itself report
+  `ProtocolError::Json` for them. Exercised by one extra test
+  (`bytes_that_are_not_json_are_refused_as_malformed`) for soundness, not a
+  named criterion.
+
+**Findings**
+
+- (none against the plan or design; PHASE-01's two harvested findings about
+  repair sweeps and reviewer examples don't recur here — nothing in this
+  phase went through review yet)
+
+**Verification — every criterion, discharged**
+
+| id | discharged by |
+|---|---|
+| EX-1 | `config.rs`: `Config.ingress: Option<IngressConfig>`, `IngressConfig { pub path: PathBuf }`; `File.ingress: Option<FileIngress>` with `#[serde(deny_unknown_fields)]` on `FileIngress` |
+| EX-2 | `error.rs`: `ConfigError::EmptyPath { key: &'static str }`, raised in `config::ingress_config` for `ingress.path = ""` with `key: "ingress.path"`; `Display`, `source()` (`None`, folded into the existing `EmptyCommand \| NonPositive` arm) and no `_` arm |
+| EX-3 | `lib.rs` declares `pub mod ingress;`; `ingress/mod.rs`'s doc cites `SPEC-003` |
+| EX-4 | `ingress/envelope.rs`: `pub fn normalize(bytes: &[u8]) -> Result<Event, EnvelopeFault>`; `EnvelopeFault` names `NotAnObject`, `Missing`, `WrongType`, `Empty`, `Unknown`, `Duplicate`, `MissingOffset`, `Unparseable` (R-9, R-10's clauses) plus `ReservedSource` (R-13) and `Malformed` (decision above) |
+| EX-5 | `envelope::parse` calls `goad_semantics::protocol::wire::reject_duplicate_keys` once; no second walk |
+| EX-6 | `take_timestamp`: absolute parse first, civil-datetime parse distinguishes `MissingOffset` from `Unparseable`, mirroring `schedule.rs:70-103`'s two-step with no span fallback |
+| EX-7 | `source == "host"` is the only comparison `envelope()` makes on any field; `kind` checked only for emptiness; `data` never inspected |
+| EX-8 | `goad-semantics/src/error.rs:18` `pub fn json_type_name`; `:16`'s sentence now "the one such table in the workspace"; nothing else in the crate changed (VA-3 below) |
+| EX-9 | `ingress/mod.rs` and `ingress/envelope.rs` both carry `#![deny(clippy::arithmetic_side_effects)]` |
+| EX-10 | four `Config` literals compile with `ingress: None` added, nothing else changed (VA-4 below) |
+| VT-1 | `config::tests::an_ingress_section_loads_with_its_path`, `an_empty_ingress_path_is_refused`, `an_unknown_key_inside_ingress_is_refused_and_named`; `an_unknown_key_is_refused_and_named` untouched |
+| VT-2 | `envelope::tests::a_non_object_top_level_is_refused_naming_the_type_found` — array, string, number, boolean, null |
+| VT-3 | `envelope::tests::each_of_the_four_keys_missing_is_refused_naming_it` |
+| VT-4 | `envelope::tests::each_typed_key_wrong_typed_is_refused_naming_it` — source, kind, timestamp |
+| VT-5 | `envelope::tests::an_empty_source_or_kind_is_refused_naming_it` |
+| VT-6 | `envelope::tests::a_fifth_key_beside_the_four_is_refused_naming_it` |
+| VT-7 | `envelope::tests::a_top_level_duplicate_key_is_refused_naming_it`, `a_duplicate_key_nested_inside_data_is_refused_naming_it` |
+| VT-8 | `envelope::tests::an_offsetless_instant_is_refused_distinctly_from_an_unparseable_one` — asserts discriminants |
+| VT-9 | `envelope::tests::a_reserved_source_is_refused_with_every_other_field_valid` |
+| VT-10 | `config::tests::with_no_ingress_section_ingress_is_none` |
+| VT-11 | `envelope::tests::the_design_s_own_example_normalizes`, `a_null_data_is_accepted`, `data_carrying_a_nested_object_and_an_array_reaches_event_unchanged`, `timestamps_far_from_now_are_carried_unjudged` |
+| VA-1 | `just check` **exit 0** — build, `cargo test --workspace` (15+0+1+1+138+0+43+30+5+35+58+6+0×4 = all green), `cargo test -p goad-semantics` (30+5+0), `deno check` silent, clippy clean, `cargo fmt --all --check` clean. Full transcript kept at `/tmp/claude-1000/-home-david-dev-goad/a10c38f4-3ff2-4c14-924e-3b2377d46bee/scratchpad/phase02-check.txt` for this session only — not part of the durable record |
+| VA-2 | `cargo test -p goad-semantics`: 30 unit + 5 `tests/protocol/main.rs` + 0 doc-tests, all green, run **after** EX-8 |
+| VA-3 | `git diff crates/goad-semantics/` — exactly the two lines EX-8 names: `pub(crate) fn` → `pub fn` at what is now `:18`, "crate" → "workspace" at `:16`. Nothing else in the crate changed |
+| VA-4 | `git diff` over the four bounded files — exactly one `ingress: None,` line added in each, nothing else |
+
+**No STOP condition was reached.** S-1: the only value comparison is
+`source == "host"` (R-13 permits it by name); `kind`, `data` and `timestamp`'s
+distance from now are never read. S-2: `reject_duplicate_keys` reached every
+case (top-level and nested inside `data`); no second walk was written. S-3:
+the four bounded files each gained exactly the one field.

@@ -13,9 +13,9 @@ use std::fmt;
 
 /// The name a diagnostic gives a JSON value's type. `&'static str` by
 /// construction, so a message names a type and never formats the offending
-/// value. The one such table in the crate: `NotAString` reports it and
+/// value. The one such table in the workspace: `NotAString` reports it and
 /// `Object`'s refusal of a non-object does (F-39).
-pub(crate) fn json_type_name(value: &serde_json::Value) -> &'static str {
+pub fn json_type_name(value: &serde_json::Value) -> &'static str {
   match value {
     serde_json::Value::Null => "null",
     serde_json::Value::Bool(_) => "boolean",
