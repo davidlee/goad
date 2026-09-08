@@ -47,7 +47,7 @@ after the slice closes is lifted into the Harvest section.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** <yyyy-mm-dd> · <phase or stage> · <commit>
+**Fresh as of:** 2026-09-08 · design accepted · `b0953e6`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -55,6 +55,16 @@ after the slice closes is lifted into the Harvest section.
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **A repair sweep finds prose and misses the binding site.** Three of the
+  design review's four rounds yielded the same class: a repair correct where it
+  landed, not carried to the artefact that states the same thing normatively.
+  Both round-3 contests were this, and both times the missed site was the more
+  binding one — a spec requirement (R-15's universal), and a sequence diagram in
+  which position is time. Prose siblings get swept; a MUST and a picture do not.
+  **How to apply:** when dispositioning a `doc-wrong`, name the most binding
+  artefact by hand in the repair brief rather than trusting the repairer to
+  sweep for it. Candidate for `docs/memory/`.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

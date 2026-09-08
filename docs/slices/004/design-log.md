@@ -627,3 +627,17 @@ other, citing the finding id.
     arm* in both columns after §5.4 made the arms plural; it now says **the
     outer** ingress arm, citing the steps. Two siblings outside the table took
     the same word — `design.md` D-13 and `slice-004.md` §Scope.
+
+### 2026-09-08 — the design is accepted as reviewed, and AC-3 keeps its reading
+
+- **Asked:** acceptance again, the design having changed under a four-round
+  review — the AC-6 blocker, R-15's narrowed bound, CD-2's qualifier and D-3's
+  replaced argument — and whether AC-3 keeps the reading the consistency pass
+  authored rather than transcribed.
+- **Decided:** accepted, and the reading stays.
+- **Consequence:** the design stage closes and the plan opens. AC-3 carries the
+  one exception `draft-spec.md` R-8 admits — a connection may close unanswered
+  when the host process itself is gone — and the note that AC-3 quantifies over
+  envelopes, so the writer-less refusal falls outside it rather than breaching
+  it. Without the reading AC-3 is unsatisfiable as literally worded, which is
+  the same failure mode F-1 found in AC-6.

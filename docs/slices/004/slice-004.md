@@ -1,6 +1,6 @@
 # Slice 004: Event ingress
 
-**Stage:** design
+**Stage:** plan
 **Tier:** 2 (full). It **opened tier 1 and raised at scoping**, as
 `docs/roadmap.md` §004 said it would: deciding how an event-triggered evaluation
 is bounded amends SPEC-002, and reserving an event source amends SPEC-001. Both
