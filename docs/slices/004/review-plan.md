@@ -215,6 +215,15 @@ the gap F-10's response reported and did not fill. F-10's outcome above was
 written before that landed and describes the *response*, which is still what it
 says; the gap itself is now closed, and what the amendment left is F-24.
 
+**Round 3** — 2026-09-08 — the ten round-2 repairs verified against the tree,
+and three things attacked hardest at the lead's request: the budgets' move back
+into PHASE-03 walked criterion by criterion on both sides of the seam; the claim
+that **no** socket-level case can reach the spacing's boundary, tested rather
+than taken; and whether phase-local criterion ids are safe for an agent
+expanding one phase sheet. Plus one question put to the reviewer's judgement:
+whether `design.md` §5.4's unstated comparison belongs on PHASE-07/EX-7's drift
+list. It does not, and F-25 says why.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -233,16 +242,18 @@ says; the gap itself is now closed, and what the amendment left is F-24.
 | F-12 | minor | fix-now | verified |
 | F-13 | nit | fix-now | verified |
 | F-14 | nit | fix-now | verified |
-| F-15 | major | fix-now | |
-| F-16 | minor | fix-now | |
-| F-17 | minor | fix-now | |
-| F-18 | minor | fix-now | |
-| F-19 | minor | fix-now | |
-| F-20 | minor | fix-now | |
-| F-21 | nit | fix-now | |
-| F-22 | nit | fix-now | |
-| F-23 | nit | fix-now | |
-| F-24 | minor | fix-now | |
+| F-15 | major | fix-now | verified |
+| F-16 | minor | fix-now | verified |
+| F-17 | minor | fix-now | verified |
+| F-18 | minor | fix-now | verified |
+| F-19 | minor | fix-now | verified |
+| F-20 | minor | fix-now | verified |
+| F-21 | nit | fix-now | verified |
+| F-22 | nit | fix-now | verified |
+| F-23 | nit | fix-now | verified |
+| F-24 | minor | fix-now | verified |
+| F-25 | minor | fix-now | |
+| F-26 | nit | fix-now | |
 
 ### F-1 — PHASE-06/EX-2 and EX-3 cannot both hold: the config is moved into `Host` before the point EX-3 puts the bind
 
@@ -1380,7 +1391,22 @@ drift (written down at PHASE-07, reconciled at audit).
 they were taken **before implementation** because the design prescribed a
 mechanism this workspace cannot implement.
 
-**Outcome:**
+**Outcome:** verified — and amending rather than annotating was the right call:
+no code exists for any of the three, and in each case the design prescribed
+something this workspace cannot do, which `docs/AGENTS.md` §Audit distinguishes
+from retro-fitting a record of intent. Checked all five amendments at the line.
+`design.md` §5.4's block now runs `… → runtime.enter() → ingress::bind(path)? →
+Host::new → …` with the consuming-`Config` reason in the prose above it, and
+PHASE-06/EX-3 now claims conformance with a diagram it conforms to.
+`design.md:670` and `draft-spec.md:308` both say the exit code is held by
+review; `design.md:671` and `draft-spec.md:306` both name `set_permissions` and
+say no case sets a umask, with both reasons. `draft-spec.md:94` — R-2's
+normative sentence — is untouched, which is the line that mattered: only §7's
+prescribed *means* was wrong, not the requirement. **PHASE-07/EX-7 is a real
+instrument** — a `## Design drift` section with a stated shape, compiled from
+two named sources, and S-4 stopping the phase on an unauthorised departure,
+which is what the old third implementer note gestured at without providing.
+**Its seeded list is wrong on both entries, and that is F-25.**
 
 ### F-16 — VT-10's non-vacuity threshold names the wrong umask, and understates the case
 
@@ -1434,7 +1460,11 @@ and what a bare `bind` leaves under each — and the threshold a phase agent
 checks the run against is now `0o177` rather than `0o077`. The Coverage table's
 AC-10 row carries the same correction rather than the old half-sentence.
 
-**Outcome:**
+**Outcome:** verified — VT-10 now shows the arithmetic (`0o022` → `0o755`,
+`0o077` → `0o700`, both failing `== 0o600`), names `0o177` as the single vacuous
+value, and tells the phase sheet which number to check the run against. The
+Coverage AC-10 row carries the same correction rather than the old
+half-sentence.
 
 ### F-17 — PHASE-04/VT-7 is a member of PHASE-04/EX-11 and is not listed, and its own two windows are in tension with no stated way to separate them
 
@@ -1502,7 +1532,16 @@ route PHASE-05/VT-4 names — while `Served.controller`'s retained diagnostics i
 readable only after `serve` returns and is therefore assertion 1's route and
 cannot be 2's.
 
-**Outcome:**
+**Outcome:** verified on both counts, and the repair went past what was asked.
+EX-11's member list is now VT-1, VT-3, VT-4, VT-5 and VT-7, says VT-7 is a
+member twice over, and — better — states which cases are **not** members and
+why (VT-2, VT-6, VT-8), so non-membership is a claim rather than a silence.
+VT-7 now says how its two windows are kept apart (the pre-fold exchange's
+`next_check` long enough that no scheduled firing is due inside assertion 2's
+window; 3's firing provoked only after that window closes), cites both
+`glass.present` sites, and splits the read routes correctly — the counting
+`Glass` and `get_diagnostic_lines()` live for assertion 2, `Served.controller`
+post-hoc for assertion 1.
 
 ### F-18 — the seam leaves the listener's read unbounded for a phase, and makes the read the one piece of production code written twice
 
@@ -1609,7 +1648,23 @@ written once and bounded from the moment it exists.
 Recorded as **PL-11** in `plan-log.md`, with PL-10 marked superseded in part on
 where the seam falls.
 
-**Outcome:**
+**Outcome:** verified, and the seam is better placed than the one it replaces.
+Walked both phases criterion by criterion against the tree: **nothing lost** —
+EX-1..EX-13 all present exactly once (PHASE-03 holds 1-4, 6-11; PHASE-08 holds
+5, 12, 13), VT-1..VT-14 all present exactly once (PHASE-03 holds 1-6 and 10-14;
+PHASE-08 holds 7-9), and the only ids in both are `VA-1` and `S-1`, which are
+the gate paste and a cross-referenced stop rather than duplicates. **Nothing
+double-owned** — PHASE-08's *Must not touch* now forbids the framing, both
+budgets and their enforcement by name, and S-6 guards PHASE-03's eleven cases.
+**PHASE-03's exit establishes PHASE-08's entry** — EN-2 names EX-3, EX-4, EX-10,
+EX-11 and VT-1..VT-6, VT-10..VT-14, all of which PHASE-03 delivers, and adds
+*every read is already bounded*, which EX-11 is. `Refusal`'s accounting is
+coherent: five variants in PHASE-03, two in PHASE-08, eight *reasons* because
+EX-13 splits `InvalidEnvelope` into two wire strings. No stale reference to a
+PHASE-08 budget survives anywhere in the file, and PHASE-07/EX-4's margin
+sources are re-pointed at PHASE-03/VA-2. **`SPEC-003/R-7` is now held from the
+moment the read exists**, which is what the old seam could not say. The size
+claim is judged in the Synthesis rather than here.
 
 ### F-19 — `SPEC-003/R-13`'s Coverage row was not carried across the split, and the criterion the split created for it is named nowhere
 
@@ -1665,7 +1720,12 @@ walks: from the requirement to the criterion.
 PHASE-08/VT-7 was re-scoped by F-18 in the same round and names `reserved_source`
 and `SPEC-003/R-13` explicitly, so the row and the criterion now cite each other.
 
-**Outcome:**
+**Outcome:** verified — the R-13 row now names both halves and says why they
+are separate: PHASE-02/VT-9 for the `EnvelopeFault`, PHASE-08/EX-13 +
+PHASE-08/VT-7 for `reserved_source` as its own wire reason, and it states in
+terms that PHASE-03's partial mapping answers `invalid_envelope` in the
+meantime, that this is deliberate and temporary, and which criterion ends it.
+The R-7 row gained the same treatment for the budgets' move.
 
 ### F-20 — the citation sweep missed two, and both are worse than an off-by-one
 
@@ -1758,7 +1818,15 @@ constants), `Cargo.toml:36-37`, `:74`, `:142`, `:183`,
 `controller.rs:410` and `:488`, `glass.rs:102`, `canonical.rs:490-496`,
 `process.rs:63`, and `docs/slices/003/plan.md:129-141`.
 
-**Outcome:**
+**Outcome:** verified. PHASE-06/VA-3 now writes
+`crates/goad/tests/renderer/startup.rs:9-11` in full, and PHASE-06/EX-8 now
+cites `canonical.rs:490-496` for `Event`'s field order and the serialiser for
+compactness rather than `Envelope`/`Body`. I re-swept every `path:line` in the
+file a third time: all resolve, and the two further ambiguities the repair
+reports are the ones it names. One bare `main.rs:103` survives in PHASE-04,
+which declares two `main.rs` files — but `renderer/main.rs` is 47 lines, so the
+wrong resolution does not exist and nothing can act on it. **One row of FD-4
+still carries an off-by-one it marks `✓` — F-26.**
 
 ### F-21 — the *Size* paragraph miscounts the split it exists to justify
 
@@ -1802,7 +1870,10 @@ are further arms of the read VT-5 already exercises. The conclusion is stated as
 one condition over the calibration rather than as parity, with what is bought for
 it and what happens if the phase overruns.
 
-**Outcome:**
+**Outcome:** verified — and the counts are right after the second move. The
+*Size* paragraph now says eleven and three, which is what the phases hold
+(PHASE-03: VT-1..VT-6, VT-10..VT-14; PHASE-08: VT-7..VT-9), and it no longer
+claims an evenness the seam was never chosen for.
 
 ### F-22 — the split's id bookkeeping is stated in one phase and incompletely, so the gaps read as omissions
 
@@ -1861,7 +1932,14 @@ Both say nothing was renumbered and cite the header comment's rule. The lists
 are stated against the phases as F-18 leaves them, so the bookkeeping and the
 structure were written in the same pass rather than one trailing the other.
 
-**Outcome:**
+**Outcome:** verified, and both sides of the seam now carry the paragraph.
+PHASE-03's says which four ids left and that they are the **only** gaps in its
+lists — checked: EX-5, VT-7, VT-8, VT-9, and nothing else is absent.
+PHASE-08's enumerates every id it skips and says all of them stayed in PHASE-03
+— checked: `EX-1..EX-4`, `EX-6..EX-11`, `VT-1..VT-6`, `VT-10..VT-14`, `VA-2`,
+`VA-3`, `S-2..S-5`, exactly PHASE-03's lists. Both name `EX-13`, `VA-4` and
+`VA-5` as new. The remedy is accurate; one clause inside it is not, and that is
+F-26.
 
 ### F-23 — two cross-references introduced by the repairs say the opposite of what they point at
 
@@ -1916,7 +1994,11 @@ scripts a `Refusal::TooSoon`.
   EX-12 is driven without `serve`. The criterion and the case now say the same
   thing.
 
-**Outcome:**
+**Outcome:** verified. PHASE-04/VA-2 no longer attributes the distinction to
+PHASE-05/VA-2 and states it in its own right, and PHASE-08/EX-5 now says **no
+*production* code in this phase** constructs `engaged` or `too_soon` and names
+VT-9's test-side construction as the exception and its purpose. Both
+cross-references now say what they point at.
 
 ### F-24 — the anchor's boundary is stated in two places and both overshoot: `engaged` can refuse the first envelope, and the comparison that makes the initial value mean what it says is written nowhere
 
@@ -2069,6 +2151,227 @@ is that VT-7 and VT-8 are the numbers a reader is likeliest to conflate,
 because the split's bookkeeping discusses exactly those numbers moving. The
 header comment says both things — the general rule, and why these two are
 singled out.
+
+**Outcome:** verified, both parts, and the correction to my reply is accepted:
+ids are phase-local by the header comment's own rule, so `VT-1` is not unique
+either and my *"only duplicate"* was wrong. The repair wrote the remedy to the
+rule rather than to my claim, which is the right instinct — and it named the two
+numbers a reader is likeliest to conflate, in the three places a reader meets
+them.
+
+**(a)** `design.md:373-377` and PHASE-04/EX-6 now both carry the narrow claim —
+*the startup evaluation never makes an envelope `too_soon`* — and both say the
+in-flight case is step 2's, `engaged`. EX-6 adds the consequence for its reader:
+a case that assumes acceptance is testing its own fixture.
+
+**(b)** The comparison is specified as `now < event_floor_until`, with R-14
+written out as the forcing reason, and made reachable as a named private free
+function. **The repairer's stronger claim holds, and I tested it rather than
+taking it**: no socket-level case can reach the boundary. `retry_after_ms`
+rounds up; a real `sleep` guarantees *at least* its duration; and the round trip
+between the refusal instant and the retry is itself unbounded — so an
+end-to-end waiter always arrives strictly past the floor and both comparisons
+accept. The one route that could pin the instant, `tokio::time` paused with
+`advance`, is closed here because the renderer tier drives a real backend
+**subprocess** whose exchange takes real time (`renderer/scheduling.rs`'s
+`scripted`/`logging_backend` shape), so auto-advance would race it; and stratum
+2's integration tier cannot reach `serve`'s anchor at all. PHASE-04/VT-8 is
+therefore the only instrument for a semantic decision, and it is right: three
+assertions at the floor and one nanosecond either side, in the module
+`controller.rs:524-530` already justifies for exactly this reason, beside
+`deadline_after` and `stamp`. Coverage's R-12 and R-14 rows both name it, R-14's
+saying what it holds that PHASE-08/VT-9 cannot.
+
+**The open question — is the drift instrument the right home for §5.4 step 3's
+comparison — is answered in F-25, and the answer is no.**
+
+### F-25 — PHASE-07/EX-7's seeded drift list is wrong on both entries, and it is the only thing testing the instrument it seeds
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-07/EX-7 (both seeded entries); `design.md:369-377`
+(§5.3, as amended); `design.md` §5.4 step 3; `draft-spec.md:106` (R-14)
+
+**Expected:** EX-7 defines what belongs on the list precisely: *"one line each,
+saying what the design says, what the tree does, and **which phase's criterion
+authorised it**"*, and PHASE-07/S-4 stops the phase on *"a departure from
+`design.md` that no phase's criterion authorised."* The list is what
+`audit.md`'s *Design drift not reconciled* is written from, so an entry that is
+not a departure sends the auditor to reconcile nothing, and a list that opens
+with two of those is a weak instrument on its first use. EX-7 is created and
+seeded in the same round, so the seed is the only test of it.
+
+**Observed:** neither seeded entry is drift.
+
+**(a) The first entry describes a gap the design closed a round ago.** EX-7
+opens: *"`design.md` §5.3's state table gives the anchor a writer, a reader and
+a lifetime **but no initial value**; PHASE-04/EX-6 chooses `started` …"*.
+`design.md:369-377` now reads:
+
+> **Both anchors start already elapsed.** `floor_until` is initialised to
+> `started` (`controller.rs:407`), and `event_floor_until` is initialised the
+> same way — which is forced, not chosen. …
+
+The design states the initial value, states that it is forced, and gives the
+same P-3 argument PHASE-04/EX-6 gives. There is no gap and no divergence: the
+plan and the design agree, in the same words, on the same reasoning. The entry
+was seeded from F-10's *response*, which was written before the amendment
+landed, rather than from the design as it now stands — which is the same
+one-round lag F-24(a) had to repair in the sentence next to it.
+
+**(b) The second entry is not the design's to close, so it is not drift
+either.** EX-7 continues: *"`design.md` §5.4's step 3 does not say whether the
+refusal is on `now < event_floor_until` or `<=`, and PHASE-04/EX-6 states `<`
+because `SPEC-003/R-14`'s rounding forces it — stated rather than chosen, and
+**still the design's to close**."*
+
+`SPEC-003/R-14` already closes it. `draft-spec.md:106`: *"`retry_after_ms`: a
+whole number of milliseconds, measured at the moment of refusal and rounded up,
+**after which the spacing will have elapsed**."* That sentence is a claim about
+the host's own boundary, not about the field's arithmetic: if the host refused
+at `now == event_floor_until`, then at `retry_after_ms` past the refusal the
+spacing would *not* have elapsed by the host's own reckoning, and R-14 would be
+false of it. The comparison is therefore fixed by the slice's working authority,
+`plan.md` EX-6 derives it correctly and cites the forcing reason, and a design
+that does not restate a spec requirement is **conforming, not departing** —
+`design.md` restates neither R-8's one-reply rule nor R-9's key list either, and
+nobody calls those drift.
+
+**What this leaves.** The instrument is right and worth having; its seed is
+wrong. (a) should be struck or restated as *closed in `design.md` §5.3, no
+drift*; (b) should be struck as *fixed by `SPEC-003/R-14`, which the design need
+not restate*. If the design's readers should not have to derive the comparison
+from R-14 — a fair position, since §5.4's step 3 is the design's own
+order-of-judgement list — the remedy is a one-clause amendment there (*"inside
+the event spacing (`now < event_floor_until`, `SPEC-003/R-14`) → `too_soon`"*),
+taken with the user the way the other three were. It is not a line on a drift
+list, which asserts a divergence that does not exist.
+
+Struck of both, the seeded list holds only the three amendments — which are
+correctly framed there as *amendments, not drift*, so that the auditor meets
+them as decisions. That is a sound seed and it is enough.
+
+**Evidence:** `plan.md` PHASE-07/EX-7 (its definition of an entry, and its two
+seeded bullets) and S-4; `design.md:369-377` (§5.3 as amended, stating the
+initial value and its forcing argument); `plan.md` PHASE-04/EX-6 (the same
+value, the same argument, and the *Design gap reported, not filled* paragraph
+the entry was seeded from); `draft-spec.md:106` (R-14, *"after which the spacing
+will have elapsed"*); `review-plan.md` F-10 and F-24 responses.
+
+**Disposition:** fix-now
+**Response:** Both entries verified wrong and struck. (a) `design.md:369-377`
+read as quoted — the state table now gives `event_floor_until` its initial
+value and the same P-3 forcing argument PHASE-04/EX-6 gives, so the gap the
+entry described is closed; there is no drift to report. (b) `draft-spec.md:106`
+read as quoted — R-14's *"after which the spacing will have elapsed"* fixes the
+comparison at `<`, so PHASE-04/EX-6 restates a spec requirement rather than
+closing a design gap, and a design that does not restate a spec requirement is
+conforming, not departing. Removed the bullet carrying both entries (it was one
+seeded item covering `event_floor_until`'s initial value and the step-3
+comparison together) from PHASE-07/EX-7's seed list, leaving the three-amendments
+entry as the sole seed. Reworded the list's intro from "Two entries are known
+at plan time and start the list" to "One entry is known at plan time and starts
+the list, and it is already resolved — a decision already recorded, not an open
+gap", so the seed reads as what has already been recorded rather than open
+gaps. Updated the matching "seeded with the two entries EX-7 names" in this
+phase's *Notes for the implementer* to "the entry EX-7 names" (singular) to
+match. Did not touch `design.md` or `draft-spec.md` — no amendment is warranted
+by this finding, only the removal of two mis-seeded drift-list entries. Noted
+but not touched: PHASE-04/EX-6's "Design gap reported, not filled" paragraph
+still says "PHASE-07/EX-7 lists it for the auditor," which is no longer true
+once the entry is struck — that paragraph is outside PHASE-07/EX-7 and outside
+this finding's location, so it was left as found and reported to the lead
+instead.
+
+*Follow-on, orchestrator:* that paragraph was a dangling reference created by
+this finding's own repair, which makes it part of the finding rather than
+outside it. Repaired in `plan.md` PHASE-04/EX-6: the heading *Design gap
+reported, not filled* is replaced by *Not a design gap*, stating that a design
+which does not restate a spec requirement is conforming rather than departing —
+`design.md` restates neither `SPEC-003/R-8`'s one-reply rule nor R-9's key list
+— so there is nothing here for PHASE-07/EX-7 to carry. Swept for the same shape:
+`plan.md:1969` already read "the entry EX-7 names", and EX-7's own seed at
+`:1907-1912` is coherent.
+
+**Outcome:**
+
+### F-26 — four small inaccuracies inside the accuracy repairs
+
+**Severity:** nit
+**Location:** `plan.md:10-11` (header comment); PHASE-08 *Ids across the split*;
+PHASE-04 *Verification* preamble and EX-11; FD-4's `canonical.rs` row
+
+**Expected:** F-13, F-20, F-21, F-22 and F-24's repairs all exist to make the
+plan's own bookkeeping checkable. Text written for that purpose is the text
+worth checking hardest, and the lead asked whether the id remedy is accurate.
+
+**Observed:** four, none of which changes what an agent does. Recorded because
+they are in the paragraphs that exist to be exact.
+
+**(a) `VT-1` is seven, not five.** The header comment says *"A bare number
+therefore names as many criteria as there are phases using it: **VT-1 is five
+different tests**."* Every phase but PHASE-08 has a `VT-1` — PHASE-01 (P-A, the
+arrival), PHASE-02 (the config), PHASE-03 (reclaim), PHASE-04 (AC-1), PHASE-05
+(AC-6 (i)), PHASE-06 (`listener`), PHASE-07 (*nothing new*). Seven. The
+sentence's point survives; its number does not, in the one place the plan
+teaches the rule.
+
+**(b) PHASE-08's *Ids* paragraph contradicts the rule it states.** It says
+*"Ids are local to their phase, so that is legal"* of the `VT-7`/`VT-8`
+collisions, and then, of its own `VA-4`: *"`VA-4` restates PHASE-03/VA-3's check
+over this phase's own cases and **could not take that number, which is
+PHASE-03's**."* Under phase-local ids a `PHASE-08/VA-3` is exactly as legal as a
+`PHASE-08/VT-7`. Both sentences cannot hold; the first is the rule and the
+second is a global-id argument for a harmless choice.
+
+**(c) PHASE-04's Verification preamble is now false of one of its cases.** It
+opens *"All cases in `crates/goad/tests/renderer/ingress.rs`, driving production
+`serve` with a **real bound `Ingress`** …"*. VT-8 is in `controller.rs`'s
+`#[cfg(test)] mod tests` and drives no `serve` at all — which VT-8 itself says,
+at length and correctly. The surface is declared (`controller.rs` is PHASE-04's
+first), so nothing is blocked; the preamble that tells an agent where to put its
+cases just no longer covers all of them. EX-11 has the mirror of this: it names
+VT-8 a non-member because *"VT-8 lets no exchange complete at all"*, when the
+prior reason is that EX-11 governs `renderer/ingress.rs` and VT-8 is not in it.
+
+**(d) FD-4 still marks an off-by-one `✓`.** Its row *"`canonical.rs:490-497`
+`Event`, four `pub` fields | ✓ (the derive is `:489`)"* checked the start and not
+the end: `pub struct Event {` is `:490`, its four fields `:491-495`, its `}`
+`:496`, and `:497` is blank. PHASE-06/EX-8 — corrected under F-20 — now cites
+the same struct as `canonical.rs:490-496`, so the plan states the same span two
+ways, and the row that is wrong is the one in the citation-checking table.
+PHASE-02's implementer note carries the `:490-497` form too.
+
+**Evidence:** `plan.md:10-11`; `plan.md` PHASE-08 *Ids across the split*,
+sentences 3 and 5; `plan.md` PHASE-04 *Verification* preamble, VT-8 and EX-11;
+`plan.md` FD-4's `canonical.rs:490-497` row, PHASE-02's *Notes for the
+implementer*, and PHASE-06/EX-8's `canonical.rs:490-496`;
+`crates/goad-semantics/src/protocol/canonical.rs:489-497`; phases carrying a
+`VT-1`, enumerated above.
+
+**Disposition:** fix-now
+**Response:** All four verified and fixed.
+(a) Counted `VT-1` in the file: PHASE-01 (P-A), PHASE-02 (config), PHASE-03
+(reclaim), PHASE-04 (AC-1), PHASE-05 (AC-6 (i)), PHASE-06 (`listener`),
+PHASE-07 (nothing new) — seven, PHASE-08 has none. `plan.md:11`'s "VT-1 is five
+different tests" corrected to "seven".
+(b) `plan.md` PHASE-08 *Ids across the split*'s second sentence — "`VA-4`
+... could not take that number, which is PHASE-03's" — contradicted the
+paragraph's own rule that ids are phase-local. Rewritten to say a
+`PHASE-08/VA-3` would have been exactly as legal, and `VA-4` was chosen instead
+only so the number reads as a continuation of PHASE-03's own VA-1..VA-3, not a
+collision with it.
+(c) Confirmed VT-8 lives in `controller.rs`'s `#[cfg(test)] mod tests` and
+drives no `serve`. PHASE-04's *Verification* preamble corrected to carve VT-8
+out of "all cases in `renderer/ingress.rs` ... driving production `serve`", and
+EX-11's list of non-members corrected to give VT-8 the same reason as the
+preamble — it is not in `renderer/ingress.rs` at all — rather than "lets no
+exchange complete at all".
+(d) Verified `crates/goad-semantics/src/protocol/canonical.rs:489-497`:
+`pub struct Event {` is `:490`, its four fields `:491-495`, `}` `:496`, `:497`
+blank. FD-4's row corrected from `✓` to `:490-496` with the line-by-line
+breakdown; PHASE-02's *Notes for the implementer* citation corrected from
+`:490-497` to `:490-496` to match. PHASE-06/EX-8 already read `:490-496` and
+was not touched.
 
 **Outcome:**
 

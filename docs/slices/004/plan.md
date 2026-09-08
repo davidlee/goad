@@ -8,7 +8,7 @@ design or canon; if it seems to, the plan is wrong.
      non-monotonic after a split and that is expected. Criterion ids are local
      to their phase — cite another phase's phase-qualified (PHASE-03/EX-2).
      A bare number therefore names as many criteria as there are phases using
-     it: VT-1 is five different tests. **VT-7 and VT-8 are three each** —
+     it: VT-1 is seven different tests. **VT-7 and VT-8 are three each** —
      PHASE-02's duplicate-key and offsetless-instant cases, PHASE-04's
      closed-channel and boundary cases, PHASE-08's shape reasons and token set.
      Those two numbers are called out because the listener split's own
@@ -370,7 +370,7 @@ this is the artefact whose whole claim is that these were checked
 | `controller.rs:507-512` the absorb and re-arm | ✓ (`absorb` at `:508`, the `reset` at `:510-512`) |
 | `goad-semantics/src/error.rs:18` `json_type_name`, `pub(crate)` | ✓ `:18`, and its doc comment's *"The one such table in the crate"* is `:16` |
 | `protocol/wire.rs:79` `reject_duplicate_keys`, already `pub` | ✓ `:79` |
-| `canonical.rs:490-497` `Event`, four `pub` fields | ✓ (the derive is `:489`) |
+| `canonical.rs:490-497` `Event`, four `pub` fields | **`:490-496`** — `pub struct Event {` opens at `:490`, its four fields are `:491-495`, `}` closes at `:496`, and `:497` is blank |
 | `canonical.rs:105` `Timestamp::new` is `pub` | **`:106`** — `impl Timestamp` is `:105`, `pub fn new` is `:106` |
 | `wire.rs:41-70` `Stimulus` cannot carry an event | ✓ (`enum Stimulus` opens at `:41`; the `impl` closes at `:70`) |
 
@@ -690,7 +690,7 @@ bounded files beyond the one field each.
   before writing `envelope.rs`; the fault vocabulary there
   (`ProtocolError`, and `ScheduleError`'s permissive-in / precise-diagnostic
   split) is the shape `EnvelopeFault` should have.
-- `Event`'s four fields are `pub` (`canonical.rs:490-497`) and
+- `Event`'s four fields are `pub` (`canonical.rs:490-496`) and
   `Timestamp::new(jiff::Timestamp)` is `pub` (`canonical.rs:106`), so stratum 2
   can build one with no accessor owed. `jiff` is on stratum 2's allowlist.
 - `json_type_name` returning `&'static str` is the whole point of widening it:
@@ -977,8 +977,10 @@ unrelated to these. Ids are local to their phase, so that is legal; it is called
 out because this is the paragraph that talks about VT-7..VT-9 moving. Cite all
 six phase-qualified.
 `EX-12`, `EX-13`, `VA-4` and `VA-5` are **new** — `VA-4` restates
-PHASE-03/VA-3's check over this phase's own cases and could not take that
-number, which is PHASE-03's. Every id this phase's lists skip —
+PHASE-03/VA-3's check over this phase's own cases. A `PHASE-08/VA-3` would have
+been exactly as legal (ids are local to their phase, as above); `VA-4` is
+chosen instead so the number reads as a continuation of PHASE-03's own
+VA-1..VA-3 rather than a collision with it. Every id this phase's lists skip —
 `EX-1..EX-4`, `EX-6..EX-11`, `VT-1..VT-6`, `VT-10..VT-14`, `VA-2`, `VA-3` and
 `S-2..S-5` — **stayed in PHASE-03**; none is missing and none was dropped.
 Nothing is renumbered — this file's header comment says edits append.
@@ -1214,11 +1216,12 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
   applied to the one comparison that cannot be tested through the socket, and
   VT-8 is why it must be reachable.
 
-  **Design gap reported, not filled:** `design.md` §5.4's step 3 says *"inside
-  the event spacing → `too_soon`"* and does not say which comparison; nor does
-  §5.3. The plan states it because `SPEC-003/R-14` forces it, not because the
-  plan is choosing — but it is the design's to close, and PHASE-07/EX-7 lists it
-  for the auditor.
+  **Not a design gap.** `design.md` §5.4's step 3 says *"inside the event
+  spacing → `too_soon`"* without naming the comparison, and that is conforming
+  rather than departing: `SPEC-003/R-14` already closes it, and the design
+  restates neither R-8's one-reply rule nor R-9's key list either. The plan
+  states the comparison because it is building the thing, not because the design
+  left a choice open — so there is nothing here for PHASE-07/EX-7 to carry.
 - EX-7 — the added argument is at **23** call sites: `main.rs:103` passes the
   real `Ingress` **only after PHASE-06**, and in this phase passes
   `Ingress::none()`; the 22 test sites pass `Ingress::none()` and **no assertion
@@ -1255,7 +1258,8 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
   tests, and it is a **class**: VT-1, VT-3, VT-4, VT-5 and **VT-7** are all
   members here, and PHASE-05/EX-5 states the same rule for its own file. VT-2,
   VT-6 and VT-8 are **not** members and say so: VT-2 asserts a view, VT-6 asserts
-  an unchanged suite, and VT-8 lets no exchange complete at all. Each member's
+  an unchanged suite, and VT-8 is not in `renderer/ingress.rs` at all — it lives
+  in `controller.rs`'s unit tests, outside the file this rule governs. Each member's
   doc comment names the value it pinned and why in one line. VT-7 is a member
   twice over — it counts presentations *and* turns on when a firing
   happens — and it states there what it pins and how its two windows are kept
@@ -1263,10 +1267,12 @@ under `crates/goad-shell/src` or `crates/goad-semantics/src`; `tests/support/`;
 
 **Verification**
 
-All cases in `crates/goad/tests/renderer/ingress.rs`, driving production `serve`
-with a **real bound `Ingress`** and a scripted backend, on the shape
-`renderer/scheduling.rs` already uses (`LocalSet`, `spawn_local`, `until`,
-`invocations`, `logging_backend`/`scripted`).
+All cases but VT-8 are in `crates/goad/tests/renderer/ingress.rs`, driving
+production `serve` with a **real bound `Ingress`** and a scripted backend, on
+the shape `renderer/scheduling.rs` already uses (`LocalSet`, `spawn_local`,
+`until`, `invocations`, `logging_backend`/`scripted`). VT-8 is the exception —
+a unit case in `controller.rs`'s own `#[cfg(test)] mod tests`, driving no
+`serve` at all (below).
 
 - VT-1 — **AC-1, R-11.** A well-formed envelope written to the socket produces
   exactly one `evaluate` at the backend. Assert `source`, `kind` and `data`
@@ -1898,16 +1904,9 @@ where it drifted).
   is compiled from the phase sheets and from EX-3's walk, and it is what
   `audit.md`'s *Design drift not reconciled* is written from (`docs/AGENTS.md`
   §Audit). This phase does **not** edit `design.md` — that is the point of the
-  section. Two entries are known at plan time and start the list:
+  section. One entry is known at plan time and starts the list, and it is
+  already resolved — a decision already recorded, not an open gap:
 
-  - **`event_floor_until`'s initial value.** `design.md` §5.3's state table gives
-    the anchor a writer, a reader and a lifetime but no initial value; PHASE-04/
-    EX-6 chooses `started` and argues it from I-4 and P-3. A design **gap** the
-    plan filled, reported rather than silently closed. The same criterion fills
-    a second: `design.md` §5.4's step 3 does not say whether the refusal is on
-    `now < event_floor_until` or `<=`, and PHASE-04/EX-6 states `<` because
-    `SPEC-003/R-14`'s rounding forces it — stated rather than chosen, and still
-    the design's to close.
   - **Three amendments taken before implementation, not drift.** `design-log.md`
     (2026-09-08, *the design is amended before implementation*) records that
     `design.md` §5.4's startup order, §9's AC-9 row and §9's AC-10 row were
@@ -1969,7 +1968,7 @@ where it drifted).
   design stands as written, that is a line under *Design drift not reconciled*
   in `audit.md`, and this phase's job is to make sure the auditor can find it.
   **EX-7 is how**: a `## Design drift` section in `notes.md`, seeded with the
-  two entries EX-7 names, is the instrument — without it the phase's job is a
+  entry EX-7 names, is the instrument — without it the phase's job is a
   sentiment. Amending the design and recording drift are different acts:
   amendment happens with the user, in the design stage or at reconciliation, and
   is logged in `design-log.md`; drift is written down here and reconciled at

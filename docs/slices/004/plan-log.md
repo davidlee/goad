@@ -344,3 +344,35 @@ cross-posted to `design-log.md`.
 - **Consequence:** `plan.md` header comment, Coverage R-12 and R-14 rows,
   PHASE-03 and PHASE-08 id paragraphs, PHASE-04/EX-5, EX-6, EX-11, VT-7, VT-8
   and VA-2, and PHASE-07/EX-7's seeded list. `design.md` §5.3, one sentence.
+
+### 2026-09-08 — PL-13: round 3 of the plan review dispositioned — a wrong drift seed struck, four bookkeeping inaccuracies corrected
+
+- **Asked:** how to dispose of `review-plan.md` F-25 and F-26.
+- **Decided:** `fix-now`, both. F-25 — PHASE-07/EX-7's seeded drift list named
+  two entries and neither is drift: `design.md:369-377` already states
+  `event_floor_until`'s initial value and its P-3 forcing argument, and
+  `draft-spec.md:106` (R-14) already forces the step-3 `<` comparison, so a
+  design that does not restate it is conforming, not departing. Both struck
+  from the seed, leaving the three-amendments entry as the sole seed, and the
+  list's intro reworded so it reads as a decision already recorded rather than
+  an open gap. F-26 — four inaccuracies verified and corrected: the header
+  comment's "`VT-1` is five different tests" (it is seven — every phase but
+  PHASE-08 has one); PHASE-08's *Ids across the split* claiming `VA-4` "could
+  not take" `VA-3`'s number when the paragraph's own rule says ids are
+  phase-local (rewritten as a naming choice, not a necessity); PHASE-04's
+  *Verification* preamble and EX-11 both describing all cases as driving
+  `serve` in `renderer/ingress.rs`, false of VT-8, which is a unit case in
+  `controller.rs` (both corrected to carve VT-8 out, EX-11 given the same
+  reason as the preamble); and FD-4's `canonical.rs:490-497` row marked `✓`
+  when the struct actually closes at `:496` (`:497` is blank) — corrected there
+  and in PHASE-02's implementer note, matching PHASE-06/EX-8's already-correct
+  `:490-496`.
+- **Noted, not fixed (out of scope for F-25/F-26):** PHASE-04/EX-6's *Design
+  gap reported, not filled* paragraph still says "PHASE-07/EX-7 lists it for
+  the auditor," which is no longer true once the entry is struck — reported to
+  the lead rather than edited, since it sits outside both findings' locations.
+- **Consequence:** `plan.md` header comment; FD-4's `canonical.rs` row;
+  PHASE-02's implementer note; PHASE-08's *Ids across the split*; PHASE-04's
+  *Verification* preamble, EX-11; PHASE-07/EX-7's seeded list and its *Notes
+  for the implementer* cross-reference. `review-plan.md` F-25 and F-26
+  dispositioned `fix-now`.
