@@ -1,4 +1,4 @@
-# Audit & reconciliation — Slice NNN
+# Audit & reconciliation — Slice 004
 
 Written after the last phase is done. Two jobs in one document:
 
@@ -9,13 +9,70 @@ Written after the last phase is done. Two jobs in one document:
 
 ## Brief
 
-**Subject:** <commit range / branch under audit>
-**Question:** <what would have to be true for this slice to be finished, and
-which of those the audit intends to actually check. Write it before looking, so
-the audit is not shaped by what turned out to be easy to find.>
+**Subject:** `b6ca5f7..93abab3` on `main`. `b6ca5f7` opened the slice; the code
+phases begin at `9cfb679`; `93abab3` is HEAD, the tree is clean, and all eight
+phases are `done`.
 
-<!-- This is the audit's scope — evidence, criteria, canon. The code review's
-     own lines of attack belong in `review-code.md`'s Brief, not here. -->
+**Question:** slice 004 is finished when a watcher outside the host can make it
+ask its backend something, on the path slice 003 built, without the host having
+learned what the event meant — and when the record says so truthfully. This
+audit checks the following, and says plainly where the evidence does not carry.
+
+**Lines of attack, chosen before looking:**
+
+1. **The gate, run rather than cited.** `just check` executed here, transcript
+   saved, the real exit code reported. A phase that reports green is a claim;
+   the gate is the evidence. Slices 001–003 all closed green on a binary that
+   could not open a window, so a green gate is the floor and not the argument.
+2. **Each of AC-1..AC-13 against a named test function or a code citation.**
+   `plan.md`'s AC-to-phase table is a map to check, not the answer: the question
+   is whether an assertion exists that would fail if the criterion were false,
+   not whether a phase claimed the criterion. Four ACs took readings during
+   design (AC-1's *verbatim*, AC-3's *every envelope*, AC-6's *anchors*, AC-9's
+   *exit code*); each is held to the reading as written, not to a looser one.
+   AC-9's exit-code clause is held by review by construction — the audit checks
+   the argument at `main.rs`, and checks that no instrument was quietly claimed
+   in its place.
+3. **Each VT/VA/VH in `plan.md`, systematically.** Discharged or not, with the
+   test that discharges it. A verification criterion with no assertion behind it
+   is the same defect as an unmet AC wearing different clothes.
+4. **The surface delta, walked from `git log` myself.** PHASE-07's sweep already
+   claims 26 files and no undeclared paths; an audit that reads a sweep's
+   conclusion has audited the sweep. Undeclared paths are the highest-signal
+   lead; declared-but-untouched is checked in the other direction.
+5. **The five invariants, as invariants and not as slogans.**
+   - *The host does not understand the domain.* The envelope is carried, not
+     read. `source`, `kind` and `data` reach the backend unexamined; no new host
+     type or module name carries domain vocabulary; the scan passes because
+     there is nothing to find, not because the scan is narrow.
+   - *Permissive wire, canonical internals.* The envelope's normalization is the
+     only door, and past it nothing is unvalidated. An ambiguous envelope is
+     refused rather than guessed at.
+   - *Wire compatibility is not narrowed to the renderer.* The ingress contract
+     is what `draft-spec.md` states, not what the current loop happens to
+     consume.
+   - *A backend — or here, a writer — failure never takes the host down*, and
+     never leaves it unable to invoke the backend again. AC-12 is the test of
+     it; the audit also looks for the paths where a panic or an early return
+     could reach the loop.
+   - *Strata run one way.* Stratum 1 gains no dependency, `src/semantics/`
+     names no shell, and the envelope's normalization sitting in stratum 2 is
+     the deliberate ADR-001 §Consequences call the slice says it is — the audit
+     checks that the new ADR is actually owed and named, not assumed written.
+6. **Canon and drafts, as obligations rather than as done work.** CD-1, CD-2,
+   CD-3 and the new ADR are unapplied by design until reconciliation; the audit
+   records what endorsement each needs and writes the Reconciliation rows
+   unchecked. `SPEC-002/R-12` and `SPEC-003/R-12` are two different
+   requirements: any citation that drops the prefix is a defect.
+7. **AC-13, the human observation.** Lifted from `notes.md`, with an honest
+   account of which runbook steps a person actually performed.
+
+**What this audit does not do.** It does not write the code review — that is
+`review-code.md`, a fresh adversarial agent, after this. It does not amend
+canon, promote `draft-spec.md`, or apply `canon-delta.md`: those are user gates.
+It does not repair findings. It records, disposition-ready, and stops. The
+Verdict is written from the evidence and says so where the evidence runs out;
+the Closure checklist stays unticked while the code review has not run.
 
 ## Evidence
 
