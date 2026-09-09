@@ -1177,6 +1177,106 @@ async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnosti
 }
 
 // ---------------------------------------------------------------------------
+// R-15's last clause, from the side no case reached: ingress dies *during* an
+// exchange — `review-code.md` F-3
+// ---------------------------------------------------------------------------
+
+/// **The contrast case to the one above, and the one nothing drove.**
+/// `a_dead_accept_task_is_folded_once_…` kills the accept task while `serve`
+/// is idle, so it only ever exercises the **outer** arm; VT-5 above drives the
+/// inner arm with a *shape* refusal, which R-15 says a person need not see.
+/// The ingress-stopped `unavailable` is neither: R-15 says this surface is the
+/// only report there is, and the loop has no later chance, because
+/// `Ingress::arrival` parks the arm as it yields `None`.
+///
+/// Left to the outer loop's own presentation it reached no frame at all — not
+/// a race, but guaranteed, because the only non-cancelling exit from the inner
+/// loop is `absorb`, which replaces the whole retained `Diagnostics`
+/// (`controller.rs`). So the fold is asserted **on the live window**, while the
+/// exchange it arrived during is still running.
+///
+/// **How the inner arm is reached rather than the outer one.** The evaluate is
+/// queued on the command channel *before* `serve` starts, and the outer
+/// `select!` is `biased` with commands above ingress — so the first iteration
+/// takes the command, starts the exchange, and the closed channel is first
+/// observed by the inner arm. `@slow-view`'s `sleep 0.2` is in the foreground,
+/// so the exchange is provably still running while the assertion reads.
+///
+/// **EX-5.** `@slow-view` pins its own `next_check` 45 minutes out
+/// (`tests/backends/answers-as-instructed.sh`), so nothing fires between the
+/// fold and the read.
+#[tokio::test]
+async fn ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface() {
+  let path = socket_path("f3-inner-stop");
+  let (window, tray) = window_and_tray();
+  let glass = glass_over(&window, &tray);
+  let (command, log) = scripted("f3-inner-stop", &["@slow-view"]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+
+  let accepting = tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .expect("a second runtime must build");
+  let ingress = {
+    let _entered = accepting.enter();
+    bind(&path).expect("binding a fresh path must succeed")
+  };
+  accepting.shutdown_background(); // drops the accept task, and its sender
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      // Queued before `serve` runs, so the biased command arm wins the first
+      // iteration and the closed channel is met by the inner arm.
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the send");
+      let handle = tokio::task::spawn_local(async move {
+        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+      });
+
+      until(LIVENESS_BOUND, || {
+        window.get_diagnostic_lines().row_count() == 1
+      })
+      .await;
+      let line = window
+        .get_diagnostic_lines()
+        .row_data(0)
+        .expect("the fold must be on the surface");
+      let landed = current_view_token(&window).is_some();
+
+      assert!(
+        line.contains("ingress has stopped"),
+        "the one refusal that answers no envelope says so: {line}"
+      );
+      assert!(
+        !landed,
+        "the report reached a frame while the exchange was still running, which is the only \
+         moment it could: `absorb` replaces the whole surface"
+      );
+
+      // Liveness: the exchange the dead channel did not disturb still
+      // completes, and the host is still evaluating afterwards.
+      until(LIVENESS_BOUND, || window.get_heading() == "Still there?").await;
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert_eq!(
+    invocations(&log),
+    1,
+    "a dead accept task changes nothing about the exchange it interrupted"
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PHASE-05/VT-6 — AC-12, SPEC-003/R-16: the flood
 // ---------------------------------------------------------------------------
 

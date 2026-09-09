@@ -417,10 +417,20 @@ fn spacing_elapsed(now: tokio::time::Instant, floor: tokio::time::Instant) -> bo
 /// supersedes it, which is R-15's bound (`design.md` §5.2).
 fn refuse_arrival(controller: &mut Controller, answer: Answer, refusal: &Refusal) {
   answer.refused(refusal);
-  controller.refuse(&Refused::Ingress {
+  controller.refuse(&folded(refusal));
+}
+
+/// One refusal as the diagnostics surface holds it. **The only author of an
+/// ingress line**: the wire token comes off `Refusal::reason()` and the prose
+/// off its `Display`, so the eight-token set has exactly one speller here as
+/// well as on the wire (`review-code.md` F-4). `ingress_stopped` below is the
+/// second caller, and it exists because that refusal has no writer to answer —
+/// not because it needs a second vocabulary.
+fn folded(refusal: &Refusal) -> Refused {
+  Refused::Ingress {
     reason: refusal.reason().to_owned(),
     detail: refusal.to_string(),
-  });
+  }
 }
 
 /// The **inner** arm's judgement: `design.md` §5.4's steps 1 and 2, the only
@@ -444,14 +454,7 @@ fn refuse_during_exchange(controller: &mut Controller, arrival: Arrival) {
 /// Folded once. `Ingress::arrival` drops the receiver as it yields `None`, so
 /// the arm parks from then on rather than spinning on a closed channel.
 fn ingress_stopped() -> Refused {
-  Refused::Ingress {
-    // No `Refusal` value stands for this cause: it is neither `Stopping` nor
-    // `ClockUnreadable` (`UnavailableCause`), and it answers no envelope to
-    // carry one, so the wire token is named directly rather than borrowed
-    // from a payload that would misdescribe it.
-    reason: "unavailable".to_owned(),
-    detail: "ingress has stopped; no further events will be accepted".to_owned(),
-  }
+  folded(&Refusal::Unavailable(UnavailableCause::IngressStopped))
 }
 
 /// The **outer** arm's judgement, whole: `design.md` §5.4's steps 1 and 3-5,
@@ -489,7 +492,11 @@ fn ingest(
     refuse_arrival(controller, answer, &Refusal::TooSoon { retry_after });
     return None;
   }
-  *event_floor_until = arrived + MINIMUM_SPACING;
+  // `checked_add`, following the rule `deadline_after` states above: `Instant
+  // + Duration` panics on overflow, and a panic here takes the host down. The
+  // fallback leaves the anchor at `arrived`, so the spacing degenerates rather
+  // than the process ending.
+  *event_floor_until = arrived.checked_add(MINIMUM_SPACING).unwrap_or(arrived);
   match stamp(clock) {
     // 4 — the clock is unreadable. `unavailable` to the writer; the fold names
     // the clock, which is the same line a scheduled firing writes for the same
@@ -719,7 +726,23 @@ where
         // cannot starve the exchange it is waiting on. This arm reaches
         // §5.4's step 2 and stops: it neither reads nor writes either anchor.
         arrival = ingress.arrival() => match arrival {
-          None => controller.refuse(&ingress_stopped()),
+          // **Presented here, and only on this branch.** This is the one
+          // refusal that answers no envelope, so the surface is the only
+          // report it has (SPEC-003/R-15) — and the arm this loop exits by
+          // calls `absorb`, which replaces the whole retained `Diagnostics`,
+          // so a fold left to the outer loop's own presentation is guaranteed
+          // to be gone before any frame carries it (`review-code.md` F-3).
+          //
+          // It costs one presentation per **process**, not per refusal:
+          // `Ingress::arrival` parks the arm as it yields `None`, so this
+          // branch is reached at most once and no writer can reach it at all.
+          // The `Some` branch below is the one an untrusted writer paces, and
+          // it still presents nothing — `review-design.md` F-15's measured
+          // cost and R-15's negative case both live there.
+          None => {
+            controller.refuse(&ingress_stopped());
+            glass.present(controller.frame());
+          }
           Some(arrival) => refuse_during_exchange(&mut controller, arrival),
         },
       }
