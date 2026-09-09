@@ -1271,8 +1271,15 @@ $ # the same request with "data":{}
 `round_trip::the_shell_example_escapes_the_values_it_carries_into_a_view` covers
 the escaping half of F-12 and does not reach this branch.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Confirmed by the reviewer running it, which is the right standard for
+an example. F-12's repair wrote the rule into a comment at `:23-26` and then
+left the branch one line above disobeying it — the worst of the two states,
+because the file now documents a discipline it does not keep. The technique is
+already in the file: read the extracted value, not the whole request. The
+reviewer's point about severity is taken and does not change the disposition:
+showing *nothing* is worse than showing the wrong prompt, because there is no
+wrong prompt for a person to notice.
 
 **Outcome:**
 
@@ -1322,8 +1329,21 @@ otherwise*. No test asserts the claim in either direction — the negative
 already exists in shape for
 `a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The document is wrong, and it is wrong in exactly the way [[F-3]] was
+raised to stop — one row down from where we just removed the same defect. `too_soon`
+and the clock's `unavailable` are decided by the **loop** at §5.4 steps 3 and 4,
+which only the outer arm reaches, so *always* is true of them. A faulted read is
+decided by the **listener**, travels in the `Arrival`, and during an exchange is
+folded without presenting and then superseded by `absorb`. F-7's new cause was
+filed on the wrong side of the distinction. Move it beside the shape refusals and
+state the conditionality there. R-15 stays as written — it is the paragraph
+explaining R-15 that contradicts it, not R-15.
+
+This is the second instance of one class: **a spec clause unconditional where the
+code is conditional.** Repair fixes the class — sweep §6.3 and §5 for any other
+clause asserting a refusal reaches a person without saying which arm decides it,
+rather than patching this row alone.
 
 **Outcome:**
 
@@ -1369,8 +1389,22 @@ does not exist; `audit.md:12-14` against `git log --oneline -1` (`441fa94`);
 `git diff --name-status 93abab3..441fa94` for `round_trip.rs` against
 `audit.md:218-245`'s file-by-file walk.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct, and my own fault: F-8's Response promised the amendment and
+nothing carried it out. Every clause of AC-3's row is now false — no unanswered
+close on that path, line numbers pointing elsewhere, and a justification resting
+on the timing assumption F-8 disproved. AC-4 got a dated *Corrected* note in the
+same pass and AC-3 got nothing.
+
+Take the whole class in one pass, as the reviewer says: **the audit is currently
+arguing for a tree that is not shipping.** Its Subject names `93abab3` as HEAD
+with a clean tree; its gate evidence is that tree; and its file-by-file surface
+walk does not list `round_trip.rs`, which the repairs added and which no *phase*
+declared — correctly so, since it arrived at repair, but the walk has to say that
+rather than omit it. Refresh Subject, Evidence and the surface walk to the
+shipping tree, mark each correction dated and attributed to its finding, and do
+not silently restate — an audit that quietly updates its own evidence is worth
+less than one that shows what changed under it.
 
 **Outcome:**
 
