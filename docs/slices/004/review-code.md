@@ -2602,8 +2602,35 @@ symmetry, and it is small either way: probe the lock path with
 via `custom_flags` — the second is one line and cannot race the check against
 the open, which the first can.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Confirmed, and the severity reasoning is accepted as given —
+`minor` measured against `major`'s definition rather than against neighbours,
+with **F-11 as the comparator: this is F-11's twin, one path over.** Setting
+them differently would be the inconsistency. Canon incomplete, not canon
+breached; consequence bounded to an empty `0600` file at an unnamed path or an
+`flock` held on an unnamed existing one.
+
+**Repair with `symlink_metadata` in `hold`, not `O_NOFOLLOW`**, and the reviewer's
+argument for it is stronger than the TOCTOU one I offered: **the socket path is
+`bind(2)`ed, not opened, and `bind` has no `O_NOFOLLOW`.** So `O_NOFOLLOW` could
+only ever protect the lock path, leaving one invariant enforced by two
+mechanisms of two different strengths, permanently — and the weaker of them
+would be the one guarding the path the requirement was actually written about.
+One rule, one mechanism, both paths. It also avoids the dependency question
+entirely, which is the right outcome for the right reason rather than routing
+around a STOP.
+
+**R-3 gains the rule for the lock path.** R-4 governs the socket path, so `hold`
+is not breaking R-4 — R-3 introduces a second host-created path and says nothing
+about what may be at it. The repair closes that silence in the document as well
+as the code, with R-4's own stated reason carried across verbatim, since it
+applies word for word: following a link would put the owner-only mode R-2
+requires on a file the configuration did not name.
+
+**Fix the class while there.** F-11 and F-22 are one rule applied to two paths by
+two different roads; whatever the repair does for the lock path should be the
+same code path `reclaim` already uses, not a parallel one. If it cannot be
+shared, say why in the Response rather than leaving two guards to drift.
 
 **Outcome:**
 
