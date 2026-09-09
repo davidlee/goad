@@ -384,6 +384,14 @@ the design and the log.
     externally-triggered refusals — reaches the three refusal paths that
     predate this slice (`SupersededView`, `UnknownOption`, `NoClock`), so it
     cannot be settled inside the ingress arm.
+
+    **The severity decays, and whoever picks this up should know it was right
+    when it was set.** F-9 was raised `minor` on the ground that the
+    single-slot diagnostics surface predates this slice. That ground does not
+    survive a *second* deferral: every slice that leaves an author outside the
+    process writing to the slot the host needs for its own faults makes *"it
+    predates us"* a weaker sentence than it was. `minor` is where it started,
+    not a standing verdict.
   - **Whether ingress should serve connections concurrently** (F-10). The
     accept loop is sequential, so the per-read bound is also the longest one
     connection can deny every other. §6.4 now *states* that property, which is
