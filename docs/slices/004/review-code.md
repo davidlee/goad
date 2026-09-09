@@ -1562,8 +1562,23 @@ no match. Against `draft-spec.md` §5's amended *"This one is unconditional on
 the host's state: it is reported whether the loop was idle or mid-exchange when
 ingress died"*, and `controller.rs:726-741`, the branch that presents it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct, and it is mine in the same way [[F-16]] is: F-3's Response
+promised the entry, I verified that Response, and nothing carried the promise
+out. `design.md` staying as written is right — `docs/AGENTS.md:168` requires it,
+and no repair commit touched it. **What is missing is the record of the
+departure, not the departure.**
+
+The state to fix: `design.md:229`'s *"when the loop was idle"* now contradicts
+both the code and the draft spec on the exact point F-3 was raised about, and
+`audit.md`'s *Design drift not reconciled* still opens *"one item"* and describes
+only the `Refusal` payload list. Repair adds the second item, in the same pass as
+F-16 since both are `audit.md` and both are the same class.
+
+The sweep this came from is closed: F-3 and F-8 are the only two Responses in
+the ledger promising an edit outside the file they repair, and both are now
+findings. F-5's four cross-document edits and F-9's and F-10's Follow-ups
+landings were all made. Nothing else is outstanding on that axis.
 
 **Outcome:**
 
