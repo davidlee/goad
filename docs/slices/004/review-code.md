@@ -2562,18 +2562,20 @@ section is what a successor needs and cannot get from the findings alone.
 
 ### Where every finding stands
 
-**Closed — outcome `verified`, repair landed and re-reviewed: F-1 … F-18.**
+**Closed — outcome `verified`, repair landed and re-reviewed: F-1 … F-21.**
 Nothing is owed on any of them. Three carry conditions a successor should still
 check at promotion or close, listed under *Standing conditions* below: [[F-5]],
 [[F-15]], [[F-9]].
 
-**Open — dispositioned at `b762db5`, repair in flight, outcome not set:**
+**Open — raised in round 4, not yet dispositioned:**
 
-| id | disposition | what round 4 must check |
+| id | what it is | what a successor must not lose |
 |---|---|---|
-| F-19 | doc-wrong | the clause in **all three** sites — `draft-spec.md` §6.1, `reclaim`'s doc comment, and `notes.md`'s Harvest entry. The third is the one bound for `docs/memory/`, so it is the copy that outlives the slice. **No site may close the window by invoking `posix_spawn`'s `CLONE_VFORK`** — that would replace one unstated accident with another, which is F-18's own objection |
-| F-20 | doc-wrong | one sentence in §6.1 beside the directory-permissions one. Nothing else should move |
-| F-21 | fix-now | the split in `hold` — an `open` failure is R-4's *the path is unusable*, a `try_lock` failure is R-3's *liveness could not be determined*; §7's R-4 row corrected with it; and the test's assertion strengthened without its name coming to disagree with what it asserts |
+| F-22 | R-4 refuses a symlink at the socket path and `hold` follows one at the lock path, for a reason R-4 states and that covers both | it needs a writable containing directory, which §6.1 excludes — **and so does R-4's own symlink rule, which the slice kept anyway.** The defect is the asymmetry, not the threat. Do not let it be dispositioned `aligned` on the threat-model ground alone without answering why R-4 exists |
+
+**Also running, findings not yet in:** a read-only agent walking all sixteen §7
+Verification rows against the tests they name — the sweep the *Not spent* list
+below argues for. Its findings arrive as their own round.
 
 ### Standing conditions the reviewer is holding
 
