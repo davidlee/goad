@@ -109,6 +109,15 @@ modules, and the demo's config and example backend. Read against
 `draft-spec.md` R-1..R-16 and §5/§6 clause by clause, `design.md` §5.1-§5.5,
 and SPEC-001/R-7, R-9, R-45..R-47, R-56.
 
+**Round 2** — 2026-09-09 — the repairs, `93abab3..441fa94`. Every one of the
+thirteen repairs read against the finding it answers and against the condition
+its outcome attached; the gate re-run here rather than cited (`just check`,
+**exit 0**, 19 `test result: ok` blocks, 0 failures, all ten new cases present
+and green); each new case checked for whether it would have gone red before its
+own repair; and the repaired surfaces attacked afresh for defects the repairs
+introduced. Two of the three findings below were confirmed by running the code,
+not by reading it.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -126,6 +135,9 @@ and SPEC-001/R-7, R-9, R-45..R-47, R-56.
 | F-11 | minor | doc-wrong | verified |
 | F-12 | minor | fix-now | verified |
 | F-13 | nit | fix-now | verified |
+| F-14 | minor | | |
+| F-15 | minor | | |
+| F-16 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -1207,14 +1219,198 @@ addend is a host constant, so repeating the argument here would put a claim in
 the source that is not true of the site. `checked_add` with a stated fallback
 and one line saying it follows the module's rule is the whole of it.
 
+### F-14 — the example's `respond` branch still matches a substring of the whole request, which a watcher controls
+
+**Severity:** minor
+**Location:** `examples/shell/backend.sh:43-46`
+
+**Expected:** [[F-12]]'s second half named the defect and the repair's own new
+comment states the rule it followed (`backend.sh:23-26`): *"the branch reads
+this value rather than the whole request: `case $request in
+*'\"source\":\"host\"'*)` would also match an ingested envelope whose opaque
+`data` happened to carry that literal, and hand a watcher control of which
+prompt this file shows."* The ledger's guardrail is **fix the class, not the
+instance**.
+
+**Observed:** the `source` branch was fixed exactly as described — `source` and
+`kind` are extracted first and the inner `case $source in host)` matches the
+extracted value. **The `type` branch one line above was left as a whole-request
+substring match**, and it is the same defect with the same consequence:
+
+```sh
+case $request in
+  *'"type":"respond"'*)
+    printf '{"view":null,"next_check":"45 minutes"}\n'
+    ;;
+```
+
+`data` is opaque and reaches the backend byte-adjacent to the request's own
+keys, so a watcher that sends `"data":{"type":"respond"}` matches this branch.
+The example then answers `{"view":null,…}` and shows **nothing** — the watcher
+has chosen which prompt the file shows, which is precisely what the repair's
+comment says the fix was for. Silently showing nothing is if anything the worse
+of the two outcomes, because there is no wrong prompt to notice.
+
+The fix is the technique already in the file: extract `type` the same way
+(`"type"` is the request's own second key, before any payload, so the first
+occurrence is the right one) and branch on the extracted value.
+
+**Evidence:** run against the repaired file:
+
+```
+$ printf '%s' '{"protocol":1,"type":"evaluate","now":"…","event":{…,"data":{"type":"respond"}}}' \
+    | bash examples/shell/backend.sh
+{"view":null,"next_check":"45 minutes"}
+
+$ # the same request with "data":{}
+{ "view": { … "title": "An event arrived: w / k", … } }
+```
+
+`examples/shell/backend.sh:43-46`; the rule it departs from at `:23-26`;
+`draft-spec.md` §6.2 (`data` admits any JSON value). The new case
+`round_trip::the_shell_example_escapes_the_values_it_carries_into_a_view` covers
+the escaping half of F-12 and does not reach this branch.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-15 — §6.3 says a faulted connection's `unavailable` always reaches a person; the code reaches it only while idle
+
+**Severity:** minor
+**Location:** `draft-spec.md:265-271`; `crates/goad/src/controller.rs:441-448`
+(`refuse_during_exchange`)
+
+**Expected:** R-15 is general and correct: a refusal decided **while no exchange
+is in flight** reaches the diagnostics surface, and one decided while an
+exchange *is* in flight is *"reported to the writer only."* §6.3's *"Which
+refusals a person sees"* paragraph exists to spell that out per reason, and it
+already gets the distinction right for shape refusals — *"a shape refusal
+reaches it when the host happened to be idle and not otherwise, which is what
+makes shape-before-state (§5) a claim with a negative case."*
+
+**Observed:** [[F-7]]'s repair added the new cause to that paragraph on the
+wrong side of the distinction:
+
+> `too_soon`, the clock's `unavailable` **and a faulted connection's** always
+> do
+
+`too_soon` and the clock's `unavailable` are decided by the **loop**, at
+`design.md` §5.4 steps 3 and 4, which only the outer arm reaches — so *always*
+is true of them. A faulted connection's `unavailable` is decided by the
+**listener**, in `read_envelope`, exactly like every shape refusal; it travels
+in the `Arrival` and its fate is whichever arm receives it. Reached during an
+exchange, `refuse_during_exchange` folds it and the inner loop presents nothing,
+so `absorb` supersedes it before any frame — the same guaranteed loss
+[[F-3]] was raised about.
+
+So a sentence added to fix one finding restates, one row down, the error
+[[F-3]] existed to remove: a spec clause unconditional where the code is
+conditional. The requirement (R-15) is right; the paragraph that explains it now
+contradicts it.
+
+**Evidence:** `draft-spec.md:270-271` for the claim. The path:
+`ingress/mod.rs:648` (`Ok(Err(io)) => Err(unreadable(io))`, in the accept task),
+`:676-678` (`unreadable` builds the `Refusal`), carried as
+`Arrival { result: Err(_) }`; then `controller.rs:441-448`
+(`refuse_during_exchange` — `Err(shape) => shape`, folded via `refuse_arrival`,
+no `glass.present`) versus `:481-487` (`ingest` step 1, folded and then
+presented by the outer loop's `continue`). The correct placement is beside the
+shape refusals: *reaches a person when the host happened to be idle, and not
+otherwise*. No test asserts the claim in either direction — the negative
+already exists in shape for
+`a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-16 — `audit.md`'s AC-3 row still describes the code [[F-8]] repaired, and the amendment its Response promised was not made
+
+**Severity:** minor
+**Location:** `docs/slices/004/audit.md:110` (AC-3), `:12-14` (Subject)
+
+**Expected:** [[F-8]]'s Response, which I verified, says in terms:
+*"`audit.md:110`'s justification is wrong on this point and the audit is amended
+with it."* `audit.md` is the slice's closing argument, and `docs/AGENTS.md:85`
+classes it with the artefacts that hold **current truth**.
+
+**Observed:** the repair landed in the code and the amendment did not. AC-3
+still reads:
+
+> The one admitted exception is visible in the code: `ingress/mod.rs:487-489`
+> returns without replying only when `arrivals.send` fails — the judge is gone,
+> which is the host process going away (`draft-spec.md` R-8)
+
+Every clause of that is now false. There is no admitted exception on that path:
+`handle` writes `stopping()` before returning (`ingress/mod.rs:584-586`). The
+line numbers no longer point at it. And the justification — *the judge is gone,
+which is the host process going away* — is the reasoning F-8 showed was a timing
+assumption rather than a property, which is why the code changed. `audit.md:111`
+(AC-4) was corrected for [[F-5]] in the same pass, with a dated *Corrected*
+note; AC-3 was not.
+
+Same class, and cheaper to fix together: the audit's **Subject** still says
+*"`b6ca5f7..93abab3` … `93abab3` is HEAD, the tree is clean"*, and its Evidence
+records `just check` run on `93abab3` and a surface delta walked over
+`9cfb679^..93abab3`. HEAD is `441fa94`, seven commits later, and those commits
+touch a file no phase declared and the surface walk does not list —
+`crates/goad-shell/tests/integration/round_trip.rs`. The audit is arguing for a
+tree that is not the one shipping. (The gate does hold on the shipping tree: I
+re-ran `just check` at `441fa94` myself, exit 0.)
+
+**Evidence:** `audit.md:110` against `crates/goad-shell/src/ingress/mod.rs:584-586`
+and the new case
+`ingress::a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable`
+(`tests/integration/ingress.rs:525-541`), which asserts the reply that row says
+does not exist; `audit.md:12-14` against `git log --oneline -1` (`441fa94`);
+`git diff --name-status 93abab3..441fa94` for `round_trip.rs` against
+`audit.md:218-245`'s file-by-file walk.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
 ## Synthesis
 
 <!-- Written when the ledger resolves. The closure story: what the review
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
 
-**Round 1's raise and disposition passes are both complete; the ledger stays
-open** pending the repairs and their re-review. All thirteen outcomes are
+**Round 2 is complete; the ledger stays open** on three new findings
+([[F-14]], [[F-15]], [[F-16]]), all `minor`, none blocking. **All thirteen
+round-1 repairs land**, each checked against the finding it answers and the
+condition its outcome attached, and each new case checked for whether it would
+have gone red before its own repair — the ten that were added all would have.
+The gate was re-run here rather than cited: `just check` at `441fa94`, **exit
+0**, 19 `test result: ok` blocks, zero failures.
+
+Two of the three new findings are the same shape and it is worth naming: **a
+repair that fixed its instance and stopped short of its class.** [[F-14]] is
+[[F-12]]'s own rule, written into a comment in the file and then not applied to
+the branch one line above it — a watcher can still choose which prompt the demo
+shows, by making it show none. [[F-15]] is [[F-7]]'s new cause filed on the
+wrong side of the very distinction [[F-3]] was raised to enforce. [[F-16]] is an
+amendment a Response promised and the pass did not make. None of the three
+questions a repair that was made; all three are about where a repair stopped.
+
+Two gaps the repairs declared rather than papered over — no test drives a real
+`accept()` error ([[F-2]]), and the read-fault mapping is unit-only ([[F-7]]) —
+were checked and are **honest**, not findings in disguise. `EMFILE` needs a
+process-global `setrlimit` against parallel cases in one process, and a peer
+closing an AF_UNIX stream gives EOF rather than an error, so neither is
+reachable from a cooperating test without `libc`. In both, the rule is held
+where it can be — as a pure function, at the one site that states it — and the
+untested remainder is named. A third candidate was dropped rather than raised:
+`ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`
+looked like it might race on which arm observes the closed channel, but the race
+runs the safe way (load lengthens the exchange and so favours the inner arm) and
+12 consecutive runs were stable, so it is an observation and not a finding.
+
+**Round 1's raise and disposition passes are both complete.** All thirteen outcomes are
 `verified` and **nothing is contested** — including [[F-9]]'s `follow-up`, which
 was checked against the guardrail rather than waved through, and [[F-5]]'s
 proposed instrument, which holds under a stated condition and not otherwise.
