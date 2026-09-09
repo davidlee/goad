@@ -1202,6 +1202,20 @@ async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnosti
 /// observed by the inner arm. `@slow-view`'s `sleep 0.2` is in the foreground,
 /// so the exchange is provably still running while the assertion reads.
 ///
+/// **The timing this rests on, and why it is safe** (`review-code.md` F-3,
+/// recorded as an observation rather than a finding). `shutdown_background`
+/// defers the accept task's drop, so in principle the outer arm could observe
+/// the closed channel first, before the queued command starts the exchange.
+/// The race runs the **safe** way: what precedes the inner arm's first poll is
+/// a subprocess spawn, so load lengthens the exchange and favours the inner
+/// arm, and losing the race fails this case rather than passing it wrongly —
+/// the fold would reach a frame by the outer loop's own presentation and the
+/// `landed` assertion would still hold, but `row_count() == 1` would be
+/// satisfied by the wrong arm and the case would no longer be testing what it
+/// names. Measured 12/12 stable. **If this case ever flakes, that is where to
+/// look, and it has been looked at once already** — join it to the flaky-test
+/// list in `slice-004.md` Follow-ups rather than starting from zero.
+///
 /// **EX-5.** `@slow-view` pins its own `next_check` 45 minutes out
 /// (`tests/backends/answers-as-instructed.sh`), so nothing fires between the
 /// fold and the read.

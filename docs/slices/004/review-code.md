@@ -403,6 +403,26 @@ while the assertion reads the **live window**, and the case also asserts the
 view had not yet landed. Confirmed red without the `present` — the fold reaches
 no frame and the bound times out — and green with it.
 
+**Observation, not a finding — raised by the reviewer at round 2 and left as
+one.** The case depends on the accept task's drop completing before the inner
+arm first polls, and `shutdown_background` *defers* that drop, so in principle
+the outer arm could observe the closed channel first. It was traced and could
+not be confirmed as a defect, so it stays an observation: the race runs the
+**safe** way — what precedes the inner arm's first poll is a subprocess spawn,
+so load lengthens the exchange and favours the inner arm, and losing the race
+fails the case rather than passing it wrongly. Measured 12/12 stable.
+
+**Recorded in two places on purpose.** This entry is the record of *who
+observed it and why it was not raised*. The durable half — why the race is safe
+and where to look — is in the case's own doc comment
+(`crates/goad/tests/renderer/ingress.rs`), because whoever meets a future flake
+will be reading the test and not this ledger. Deliberately **not** `notes.md`
+Harvest: `docs/AGENTS.md:88` makes that file disposable, so a landing spot for a
+flake that has not happened yet would evaporate at close. If it ever does flake,
+it joins the four pre-existing flaky tests in `slice-004.md` Follow-ups, and the
+doc comment is what tells whoever gets there that it was looked at once
+already.
+
 **Outcome:** verified. Guarding one thing for the repair: present on the `None`
 branch **only**, never on `Some(arrival)`. The `None` branch fires at most once
 per process — `Ingress::arrival` parks the arm as it yields — so a presentation
@@ -1403,6 +1423,12 @@ rather than plausible: *"A clause of this paragraph that says a refusal always
 reaches a person is making a claim about who decides it… One that cannot say
 which side decides is a clause that has not been checked."*
 
+That sentence is written as a **criterion** and is meant to be promoted as one.
+`audit.md`'s Reconciliation row for promoting this draft to `SPEC-003` now says
+so in terms, so it is not trimmed to a row note on the way into canon: it is
+what makes the next instance of this class findable by reading, and this sweep
+found two instances of it.
+
 **The sweep found one more**, in the other direction — §6.3's causes paragraph
 still said the ingress-stopped cause *"is reported to a person under R-15 or not
 at all"*, which was true before [[F-3]] and under-claims after it. It now says
@@ -1536,7 +1562,21 @@ finding that drove it, and quotes what it replaces.
   either**, and `slice-004.md` Follow-ups gains the reproduction with the
   condition that finds it: repeated sequential runs of the one target,
   *unloaded*, which is the opposite of the parallel load PHASE-03's chase used
-  and why that chase missed it.
+  and why that chase missed it. The gate line names the tree each run was made
+  on rather than a range: the failure and the 35-run measurement at `aef04c4`,
+  and three consecutive green runs at `4fb79c0`, the tree this refresh is dated
+  to.
+
+**Also in this pass, from the reviewer's caller census of
+`Refusal::reason()`.** `slice-004.md`'s `Reason`-type follow-up entry now
+carries the census in full, so whoever picks it up does not re-run it. It adds
+the one thing the entry did not make visible: `ingress/mod.rs` holds a **test**
+caller as well as the definition — the in-module case
+`a_connection_that_faults_mid_read_is_unavailable_and_carries_the_error` asserts
+on the token and needs the same update. The file was already named, so the scope
+was complete rather than wrong. The entry also now says why the renderer tier's
+many `reason(...)` calls are not callers: they are that file's own reply
+parser.
 
 **Outcome:** verified — the disposition. **The repair has not landed yet**:
 `aef04c4` carries F-14 and F-15 and does not touch `audit.md`, so this one is

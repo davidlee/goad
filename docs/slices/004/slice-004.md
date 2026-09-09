@@ -372,7 +372,15 @@ the design and the log.
     collapsed two call sites into it; and, in
     `crates/goad-shell/tests/integration/ingress.rs`, `Seen::Refused`'s payload
     type and the closure case itself. The renderer tier reads reasons off the
-    reply JSON rather than off `reason()`, so it is untouched. It is a public
+    reply JSON rather than off `reason()`, so it is untouched — every
+    `reason(...)` in `crates/goad/tests/renderer/ingress.rs` is that file's own
+    reply parser, which is why it looks like a caller list and is not one. The
+    full caller census, so this need not be re-run: `ingress/mod.rs:339` (the
+    definition) and **`:725`, the in-module `#[cfg(test)]` case
+    `a_connection_that_faults_mid_read_is_unavailable_and_carries_the_error`,
+    which asserts on the token and needs the same update** —
+    `controller.rs:431` (`folded()`); `tests/integration/ingress.rs:86` and
+    `:937`. It is a public
     API change and therefore a decision rather than a repair, which is why F-5
     left it here.
 
