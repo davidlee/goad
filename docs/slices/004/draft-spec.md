@@ -86,6 +86,17 @@ telling the truth promptly, and it never delays an envelope in order to avoid
 refusing it — a bound expressed as a silent delay is a bound the writer cannot
 see.
 
+**P-D — An absolute clause names its own exception.** A sentence here that says
+a mechanism *always* holds or *never* fails is making a claim about the
+mechanism, not about how much it was wanted to be true. Where the mechanism has
+an exception, the clause names it and bounds it; a clause that cannot say where
+its exception would be is a clause that has not been checked, and this document
+treats that as a defect in the clause rather than a matter of emphasis. §6.3's
+closing sentence is this applied to *which refusals reach a person*, and §6.1's
+fork window is it applied to *the lock*. Both stay in their specific form: this
+principle is the shape they share, found three times as an instance before it
+was written once as a rule (`docs/slices/004/review-code.md` F-3, F-15, F-19).
+
 ## 4. Requirements
 
 | id | requirement | verified by |
@@ -225,7 +236,8 @@ too: `CLOEXEC` ends that at `exec` and not before. A host that dies while a
 child of its own is inside that window leaves the lock held until that child
 execs or exits, and the next host to start reads that as a live holder and
 refuses. The exception is bounded to the instant of a host's death and clears
-itself — the next attempt succeeds. It is stated rather than closed: closing it
+itself — the next attempt succeeds — where the probe it replaced had a window
+that recurred on every fork, for the whole of a process's life. It is stated rather than closed: closing it
 would mean resting on how a spawn is implemented, which is the kind of unstated
 accident F-18 was raised about.
 
@@ -398,7 +410,7 @@ no test is a row this spec may not be promoted holding.
 | R-1 | integration and renderer, both arms: `ingress::a_well_formed_envelope_reaches_the_judge_as_the_event_it_wrote` (`crates/goad-shell/tests/integration/ingress.rs`) — a configured path is bound and serves; `listener::none_binds_nothing` (`crates/goad/tests/renderer/startup.rs`) — no path, no file created; the pre-existing `renderer`, `event_loop` and `event_loop_schedule` targets, confirmed token-identical to `9d36002` — behaviour with the key absent is unchanged |
 | R-2 | integration: `ingress::the_socket_is_owner_only_after_bind` (`crates/goad-shell/tests/integration/ingress.rs`) — the bound socket's mode is `0600` after `bind`. The host sets it **itself**, with `std::os::unix::fs::set_permissions`; no case sets a umask, because this workspace has no safe umask API and `umask(2)` is process-global while cases run in parallel |
 | R-3 | integration, four arms (`crates/goad-shell/tests/integration/ingress.rs`): `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves` and `ingress::a_live_socket_refuses_a_second_bind_and_keeps_serving` for the two outcomes; `ingress::a_socket_a_forked_child_still_holds_is_reclaimed_and_the_new_listener_serves` for **the case a `connect` gets wrong** — the child holds the listening descriptor as its stdin, so the socket stays connectable with no host behind it, and the case is deterministic rather than the race it was found as; and `ingress::a_live_host_keeps_its_path_after_the_socket_file_is_removed` for the lock being the signal rather than the file, which is also the arm no `connect` probe could reach at all. The lock's own name is `ingress::tests::the_lock_is_the_socket_s_own_path_with_a_suffix` (`crates/goad-shell/src/ingress/mod.rs`) |
-| R-4 | integration: `ingress::a_regular_file_at_the_path_is_refused_naming_what_was_found`, `ingress::a_directory_with_no_write_permission_is_refused_naming_the_path`, `ingress::a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving` — the symlink rule, on the one case where it and R-3's letter disagree (all `crates/goad-shell/tests/integration/ingress.rs`); rendered beside its eight siblings by `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` and `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (`crates/goad/tests/renderer/startup.rs`). **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` (`crates/goad/src/main.rs:21-29`) maps every `Err` to exit 2. A directory the host cannot write is met at the **lock file** now rather than at the bind, and it is still R-4's fault and not R-3's last clause: the two are the same startup **failure** and not the same **message**, and R-4's requirement is about the message. The case asserts the variant as well as the path, which is what stops the fault moving under it (`docs/slices/004/review-code.md` F-21) |
+| R-4 | integration: `ingress::a_regular_file_at_the_path_is_refused_naming_what_was_found`, `ingress::a_directory_with_no_write_permission_is_refused_naming_the_path`, `ingress::a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving` — the symlink rule, on the one case where it and R-3's letter disagree (all `crates/goad-shell/tests/integration/ingress.rs`); rendered beside its eight siblings by `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` and `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (`crates/goad/tests/renderer/startup.rs`). **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` (`crates/goad/src/main.rs:21-29`) maps every `Err` to exit 2. This requirement has two halves — *names the path* and *names what was found* — and they are verified by **two cases rather than one asserting both**, because the history here is one half moving while the other stayed true (`docs/slices/004/review-code.md` F-21): `a_directory_with_no_write_permission_is_refused_naming_the_path` holds the path, and `a_missing_directory_is_refused_as_an_unusable_location_not_as_an_unknown_liveness` holds the variant. A location the host cannot use is met at the **lock file** now rather than at the bind, and it is still R-4's fault and not R-3's last clause: the two are the same startup **failure** and not the same **message**, and R-4's requirement is about the message |
 | R-5 | **review, not a test.** The absence of an unlink cannot be asserted without asserting the absence of code; R-3's reclaim test is what makes the absence safe. The *presence* half is asserted — `a_socket_a_forked_child_still_holds_…` checks the lock file is beside the socket after a successful bind |
 | R-6 | integration: `ingress::an_envelope_terminated_by_a_newline_is_accepted`, `ingress::an_envelope_terminated_by_closing_the_write_side_is_accepted`, `ingress::a_second_envelope_on_the_same_connection_is_never_read` (`crates/goad-shell/tests/integration/ingress.rs`) |
 | R-7 | integration: `ingress::more_than_the_byte_limit_is_refused_too_large_and_the_limit_itself_is_accepted`, `ingress::a_connection_that_writes_nothing_times_out_and_the_listener_serves_next` (`crates/goad-shell/tests/integration/ingress.rs`) |

@@ -465,13 +465,9 @@ async fn a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_s
 // VT-4 — a path that cannot be created
 // ---------------------------------------------------------------------------
 
-/// A location the host cannot use is refused as **a location**, not as an
-/// undetermined liveness. This is the commonest misconfiguration there is — a
-/// mistyped or unwritable directory — and the fault it gets is what a person
-/// reads (`review-code.md` F-21). The failure now happens at the lock file
-/// rather than at `UnixListener::bind`, because `reclaim` takes the lock
-/// first; the variant must not move with it, so the case asserts the variant
-/// and not only the path.
+/// Holds one half of R-4: the refusal **names the path**. The other half —
+/// that it names what was found — is its sibling below, deliberately a second
+/// case (`review-code.md` F-21).
 #[tokio::test]
 async fn a_directory_with_no_write_permission_is_refused_naming_the_path() {
   use std::os::unix::fs::PermissionsExt;
@@ -498,11 +494,6 @@ async fn a_directory_with_no_write_permission_is_refused_naming_the_path() {
     ),
   };
   assert_eq!(error.path, path);
-  assert!(
-    matches!(error.fault, BindFault::Unbindable(_)),
-    "an unusable location is R-4's fault, not R-3's undetermined liveness, got: {}",
-    error.fault
-  );
 
   match std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)) {
     Ok(()) | Err(_) => (),
@@ -510,6 +501,36 @@ async fn a_directory_with_no_write_permission_is_refused_naming_the_path() {
   match std::fs::remove_dir_all(&dir) {
     Ok(()) | Err(_) => (),
   }
+}
+
+/// Holds R-4's other half: the refusal names **what was found**, and what was
+/// found is an unusable location rather than an undetermined liveness
+/// (`review-code.md` F-21).
+///
+/// Its own case rather than an assertion added to the one above, because the
+/// two answer different questions — *is the person pointed at the right path*
+/// and *is the person told the right kind of thing went wrong* — and the
+/// history here is one of them moving while the other stayed true. `reclaim`
+/// now takes the lock before it binds, so a directory that does not exist is
+/// met at the lock file's `open`; the variant must not move with the step. A
+/// missing directory is the commonest misconfiguration there is, and it is
+/// deterministic, where the sibling's unwritable directory does not apply to
+/// root.
+#[tokio::test]
+async fn a_missing_directory_is_refused_as_an_unusable_location_not_as_an_unknown_liveness() {
+  let path = std::env::temp_dir()
+    .join(format!("goad-ingress-vt4b-absent-{}", std::process::id()))
+    .join("sub.sock");
+
+  let error = match bind(&path) {
+    Err(error) => error,
+    Ok(_ingress) => panic!("a path under a directory that does not exist must be refused"),
+  };
+  assert!(
+    matches!(error.fault, BindFault::Unbindable(_)),
+    "a missing directory is R-4's unusable location, not R-3's undetermined liveness, got: {}",
+    error.fault
+  );
 }
 
 // ---------------------------------------------------------------------------

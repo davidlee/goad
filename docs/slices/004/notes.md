@@ -709,7 +709,7 @@ VT-11. Both hold: proceeding.
 | VT-1 | `a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves` |
 | VT-2 | `a_live_socket_refuses_a_second_bind_and_keeps_serving` |
 | VT-3 | `a_regular_file_at_the_path_is_refused_naming_what_was_found` |
-| VT-4 | `a_directory_with_no_write_permission_is_refused_naming_the_path` (chosen over "a path component that is not a directory" — see Decisions) |
+| VT-4 | `a_directory_with_no_write_permission_is_refused_naming_the_path` (chosen over "a path component that is not a directory" — see Decisions). Joined at round 3 by `a_missing_directory_is_refused_as_an_unusable_location_not_as_an_unknown_liveness`, which holds R-4's *what was found* half as its own case (`review-code.md` F-21) |
 | VT-5 | three tests: `an_envelope_terminated_by_a_newline_is_accepted`, `an_envelope_terminated_by_closing_the_write_side_is_accepted`, `a_second_envelope_on_the_same_connection_is_never_read` |
 | VT-6 | `a_dropped_answer_yields_unavailable_then_a_close` |
 | VT-10 | `the_socket_is_owner_only_after_bind`; ambient umask at run time was `0o022` (checked once, outside the test, per the plan's own prohibition on a umask call inside a case) — non-vacuous |
@@ -1865,15 +1865,22 @@ not run, and no claim rests on them)
   three implementations; the fact and its mechanism live in `draft-spec.md`
   §6.1, `review-code.md` **F-18**, and `reclaim`'s own doc comment
   (`crates/goad-shell/src/ingress/mod.rs`). **How to apply:** ask liveness of
-  something that is never released while the holder lives — an exclusive
-  advisory lock taken for the process's lifetime. Inheritance is *not* the
-  difference: a `flock` belongs to the open file description too, so a `fork`
-  duplicates it exactly as it duplicated the listening descriptor
-  (`review-code.md` **F-19**). What closes the gap is that there is no release
-  for anything to race, which leaves one bounded, self-clearing residue: an
-  un-exec'd child of a host that has just died still holds the lock
-  (`draft-spec.md` §6.1). **And the recipe, reusable
-  for anything needing a deterministic fork window:** hand the descriptor to a
+  something a dead process cannot still hold — an exclusive advisory lock taken
+  for the process's lifetime. **And know why that works, because the obvious
+  reason is wrong** (`review-code.md` **F-19**): it is *not* that the child's
+  copy is `CLOEXEC` and gone at `exec`. **Inheritance is *not* the
+  difference** — a `flock` belongs to the open file description, so a `fork`
+  duplicates it by the very mechanism that duplicated the listening descriptor
+  above, and the lesson of this entry applies to its own remedy. What makes the
+  lock sound is narrower: **it is never released while the holder lives**, so
+  there is no release for a probe to race, where the old failure needed a
+  release followed by a probe of the same path. The residue that leaves is real
+  and worth stating rather than denying: an un-exec'd child of a host that has
+  just died holds the lock until it execs, which is microseconds wide,
+  self-clearing, and reachable only at the instant of a death — against a
+  `connect` probe's window, which recurred on every fork for the whole of a
+  process's life (`draft-spec.md` §6.1). **And the recipe, reusable for anything
+  needing a deterministic fork window:** hand the descriptor to a
   child as its **stdin** — `dup2` onto fd 0 clears `CLOEXEC`, so the window
   that is microseconds wide in a real spawn becomes the child's whole life, and
   a race becomes a test. Candidate for `docs/memory/`, at close.
