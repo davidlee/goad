@@ -319,16 +319,41 @@ the design and the log.
   message, comparable rate. It reproduces under **repeated sequential runs of
   the one target, unloaded** — which is why PHASE-03's chase missed it: that
   chase ran the suite under parallel load up to 7.2x cores, and this wants the
-  opposite. A future slice should start from that condition, not from load.
-- **Single-instance enforcement.** Nothing prevents two goad processes today —
-  no lock, no pidfile, no check — and the probe/bind race (OQ-6) is one symptom
-  of that rather than a fact about the socket. Closing it inside the ingress
-  module would be a partial single-instance guarantee under another name
-  (`design.md` D-10, `research.md` F15). The same gap has a second face after
-  startup: nothing re-probes the path once bound, so a socket unlinked or
-  replaced underneath a live listener leaves it holding a descriptor no
-  `connect` can reach, and the host has nothing to report because nothing
-  arrives (`design.md` §5.5, `draft-spec.md` §6.1).
+  opposite.
+
+  **Diagnosed and closed inside this slice, so it is not a follow-up**
+  (`review-code.md` F-18). The case was never the defect: `reclaim` inferred *a
+  live host holds this path* from a successful `connect`, and a `fork` keeps a
+  listening socket connectable after its owner has closed its own descriptor —
+  so a test binary that forks constantly reads its own stale sockets as live.
+  Liveness is now an exclusive advisory lock held for the host's lifetime, the
+  case a `connect` gets wrong is a deterministic test rather than a race, and
+  the flake measures **0 failures in 800 sequential runs** against a control on
+  the same machine that still failed **2 in 200** at `4467e0f` — the same case,
+  the same message, the same unloaded condition. **The other four flakes
+  stand**, and are what this entry is now about.
+- **Single-instance enforcement — now partial rather than absent.** The first
+  face of this entry is **closed**, as a consequence of `review-code.md` F-18
+  rather than as a goal: the host takes an exclusive advisory lock on its socket
+  path before it binds and holds it until the process exits, so **one live host
+  per configured socket path** is enforced, and the probe/bind race (OQ-6) this
+  entry named as its symptom goes with it — two hosts starting in the same
+  instant cannot both bind, because only one takes the lock (`draft-spec.md`
+  §6.1, `crates/goad-shell/src/ingress/mod.rs`). Whoever picks this up should
+  know a piece of it already exists, and where. It **reverses `design.md`
+  D-10**, which declined exactly this on scoping grounds; the reversal is
+  recorded as a design change in `audit.md`, not absorbed into the repair. What
+  is left of the original question: nothing bounds two goad processes against
+  *different* paths, or against none, and there is still no pidfile and no
+  process-level check.
+
+  **The second face is untouched.** Nothing re-probes the path once bound, so a
+  socket unlinked or replaced underneath a live listener leaves it holding a
+  descriptor no `connect` can reach, and the host has nothing to report because
+  nothing arrives (`design.md` §5.5, `draft-spec.md` §6.1, *the path after the
+  bind*). The lock does not reach it: it keeps a **second** host off the path,
+  and this residue is about the **first** host's own socket. Closing it needs a
+  re-probe.
 - **An accepted ingested evaluation is not distinguishable on the diagnostics
   surface** (OQ-7, `draft-spec.md` OQ-3). The writer has its own answer; the
   person who is not the writer does not.
@@ -343,12 +368,18 @@ the design and the log.
     replaces the whole retained value, so every ingress refusal wipes whatever
     was there — measured at ~1690/s, which puts a backend failure a person
     needs to see out of reach within a millisecond. **The non-adversarial
-    instance an operator meets first: a second `goad` start on a machine
-    already running one.** Its reclaim probe is a bare `connect`, which the
-    live host reads as an empty envelope and refuses `malformed`, so a failed
-    start wipes the running host's surface and leaves *"an event was refused
-    (malformed)"* on it — a message about the operator's own second process,
-    phrased as if a watcher sent bad bytes. Deciding what the slot holds —
+    instance this entry used to name no longer exists** (`review-code.md`
+    F-18). It was: a second `goad` start on a machine already running one,
+    whose reclaim probe was a bare `connect` that the live host read as an
+    empty envelope and refused `malformed` — so a failed start wiped the
+    running host's surface and left *"an event was refused (malformed)"* on it,
+    a message about the operator's own second process phrased as if a watcher
+    had sent bad bytes. Liveness is a lock now and nothing connects to the live
+    host at all, so that second start costs it nothing and the instance is gone
+    rather than moved. **The question stands without it**: the slot still holds
+    one thing, and ingress is still an unbounded author of it from outside the
+    process — what is left is the adversarial instance rather than the
+    operator's own. Deciding what the slot holds —
     retention, and precedence between host-authored faults and
     externally-triggered refusals — reaches the three refusal paths that
     predate this slice (`SupersededView`, `UnknownOption`, `NoClock`), so it

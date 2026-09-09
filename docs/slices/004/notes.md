@@ -1471,8 +1471,11 @@ beyond the seeded three was authorised by an orchestrator ruling recorded in
 **What would indicate failure** (S-3/S-4 in `plan.md`): the window never
 opens; step 3's title does not change at all, or changes to something that
 does not name your `source`/`kind`; the process hangs or stops answering; a
-socket file (`goad-demo.sock` in the repo root) is left behind after you quit
-normally. Any of these — stop and report it; it is a finding, not a note.
+second `goad demo` started while the first still runs does **not** refuse with
+*in use by a live host*. Any of these — stop and report it; it is a finding,
+not a note. What is **not** a failure: `goad-demo.sock` and
+`goad-demo.sock.lock` both staying in the repo root after you quit — the host
+unlinks neither, deliberately (`draft-spec.md` R-5), and both are gitignored.
 
 ## Design drift
 

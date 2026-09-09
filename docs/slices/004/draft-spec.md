@@ -92,9 +92,9 @@ see.
 |----|-------------|-------------|
 | R-1 | The host MUST bind a listening Unix domain socket if, and only if, its configuration names a path for one. With no path configured the host MUST bind nothing and MUST behave exactly as a host without this capability. | §7 |
 | R-2 | The host MUST set the socket's mode to owner-only itself, and MUST NOT rely on the umask it was started under. | §7 |
-| R-3 | A path that is occupied by a socket **no live host holds** MUST be reclaimed: the host unlinks it and binds. A path a **live** host holds MUST be a startup failure naming the path, and the running host MUST keep its socket. The path is inspected **without following symbolic links**, so this requirement is about a socket *at* the path and never about one a link at the path points to (R-4). | §7 |
+| R-3 | **Liveness is an exclusive advisory lock, and never a connection to the socket.** The host MUST decide whether a live host holds the path by taking an exclusive lock on a sidecar file beside it, and MUST hold that lock for as long as the process runs. Taking the lock means no live host holds the path: a socket at the path MUST be reclaimed — the host unlinks it and binds. Being unable to take it because another process holds it means a live host does hold the path: that MUST be a startup failure naming the path, whatever is or is not at the path itself, and the running host MUST keep its socket. Liveness MUST NOT be assumed either way when it cannot be determined — a lock that cannot be opened or cannot be asked is a startup failure naming the path. The path is inspected **without following symbolic links**, so this requirement is about a socket *at* the path and never about one a link at the path points to (R-4). | §7 |
 | R-4 | A path occupied by anything that is not a socket, and any other failure to bind or to set the mode, MUST be a startup failure naming the path and what was found. A **symbolic link** at the path is one such thing: it MUST NOT be followed, and MUST be a startup failure naming it as a symlink, whatever it points at — including a socket a live host holds, which is a startup failure as a symlink rather than as R-3's in-use case. Following a link would put the owner-only mode R-2 requires on a file the configuration did not name. The host MUST NOT start without the listener its configuration asked for. | §7 |
-| R-5 | The host MUST NOT unlink the socket on exit. Reclamation (R-3) is the one mechanism, so it is exercised on every ordinary restart rather than only after a crash. | §7 |
+| R-5 | The host MUST NOT unlink the socket on exit, and MUST NOT unlink the lock file beside it either. Reclamation (R-3) is the one mechanism, so it is exercised on every ordinary restart rather than only after a crash. A lock file nobody holds is not a claim: the **lock** is the signal, not the file. | §7 |
 | R-6 | One connection carries exactly one envelope. The host MUST read until the first newline or until end of input, whichever comes first, and MUST NOT read further on that connection. | §7 |
 | R-7 | The host MUST bound every read from a connection in both bytes and time, and both bounds MUST be stated rather than implied. Exceeding either is a refusal, reported before the connection is closed. | §7 |
 | R-8 | Every envelope MUST receive exactly one reply on the same connection, after which the host closes it. The only case in which a connection may close unanswered is one in which the host process itself is gone. | §7 |
@@ -178,13 +178,40 @@ mode is owner-only. **The containing directory is the user's responsibility**: a
 directory another user can write lets that user replace the socket, and the mode
 does not reach that. This is a stated limit, not a defect.
 
-**Non-normative limit — the bind race.** The check for a live holder and the
-bind are not one atomic step. Two hosts starting in the same instant may both
-find the path stale and both bind; the second's socket file wins and the first's
-listener becomes unreachable. Both hosts continue to run, which is already true
-of a host without a listener at all — nothing in this product enforces a single
-instance. R-3 is a statement about a path a live host holds, not a claim that
-the race is closed.
+**The lock beside the socket is what says a host is live** (R-3). It is a
+regular file at the socket's own path with `.lock` appended, opened owner-only
+and locked exclusively; the host holds that lock from before it binds until the
+process exits, and reads it only by trying to take it. A **connection to the
+socket cannot answer the same question**: a successful `connect` says a
+listening socket is bound at the path, not that a host holds it, and a `fork`
+duplicates a listening descriptor into the child — so the socket stays bound and
+connectable after its owner has closed its own descriptor, for as long as any
+child holds the copy. A host that forks reads its own stale sockets as live and
+refuses to start against a path nobody holds. The lock has no such gap: an
+inherited descriptor is `CLOEXEC` and is gone at `exec`, so a dead host's
+children hold no lock and a dead host is not live. (Measured, three
+implementations: `docs/slices/004/review-code.md` F-18.)
+
+Two consequences follow, and both are properties of this contract rather than
+limits on it. **Two hosts starting in the same instant cannot both bind**:
+the lock is exclusive, so exactly one takes it and the other meets R-3's
+startup failure — the check for a live holder and the bind are not one atomic
+step, but the lock spans both. And **one live host per socket path** is
+enforced for as long as that host runs, which is single-instance enforcement
+for this path and no more: nothing here bounds how many hosts run against
+*different* paths, or none.
+
+The exclusion is only as durable as the lock file's inode. Removing the lock
+file while a host runs lets the next one create a fresh inode and take a lock
+on that, which is the same exposure the socket file already has — **the
+containing directory is the user's responsibility**, as above.
+
+**Non-normative limit — upgrade skew.** A socket left by a host that predates
+this rule has no lock beside it, so it reads as stale and is unlinked. That is
+right for a dead old host and wrong for a live one, which would go on serving a
+socket the path no longer reaches (*the path after the bind*, below). One
+restart of the old host closes it; the window is the single upgrade that
+crosses this change.
 
 **Non-normative limit — the path after the bind.** Nothing re-probes the path
 once the socket is bound, and R-5 means the host never unlinks it either. A path
@@ -192,8 +219,8 @@ unlinked or replaced underneath a live listener — by a `rm`, or by a second ho
 reclaiming it under R-3 — leaves that listener holding a bound descriptor no
 `connect` can reach. Later writers get a connection error, and the host reports
 nothing, because from its side nothing arrives. This is a stated residue and not
-a defect R-1..R-16 close; the mechanism that would close it is single-instance
-enforcement, which this contract does not own.
+a defect R-1..R-16 close; what would close it is the host re-probing its own
+path after the bind, which this contract does not require.
 
 ### 6.2 The envelope
 
@@ -347,9 +374,9 @@ no test is a row this spec may not be promoted holding.
 |---|---|
 | R-1 | integration and renderer, both arms: `ingress::a_well_formed_envelope_reaches_the_judge_as_the_event_it_wrote` (`crates/goad-shell/tests/integration/ingress.rs`) — a configured path is bound and serves; `listener::none_binds_nothing` (`crates/goad/tests/renderer/startup.rs`) — no path, no file created; the pre-existing `renderer`, `event_loop` and `event_loop_schedule` targets, confirmed token-identical to `9d36002` — behaviour with the key absent is unchanged |
 | R-2 | integration: `ingress::the_socket_is_owner_only_after_bind` (`crates/goad-shell/tests/integration/ingress.rs`) — the bound socket's mode is `0600` after `bind`. The host sets it **itself**, with `std::os::unix::fs::set_permissions`; no case sets a umask, because this workspace has no safe umask API and `umask(2)` is process-global while cases run in parallel |
-| R-3 | integration, both arms: `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`, `ingress::a_live_socket_refuses_a_second_bind_and_keeps_serving` (`crates/goad-shell/tests/integration/ingress.rs`) |
-| R-4 | integration: `ingress::a_regular_file_at_the_path_is_refused_naming_what_was_found`, `ingress::a_directory_with_no_write_permission_is_refused_naming_the_path`, `ingress::a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving` — the symlink rule, on the one case where it and R-3's letter disagree (all `crates/goad-shell/tests/integration/ingress.rs`); rendered beside its eight siblings by `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` and `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (`crates/goad/tests/renderer/startup.rs`). **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` (`crates/goad/src/main.rs:21-29`) maps every `Err` to exit 2 |
-| R-5 | **review, not a test.** The absence of an unlink cannot be asserted without asserting the absence of code; R-3's reclaim test is what makes the absence safe |
+| R-3 | integration, four arms (`crates/goad-shell/tests/integration/ingress.rs`): `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves` and `ingress::a_live_socket_refuses_a_second_bind_and_keeps_serving` for the two outcomes; `ingress::a_socket_a_forked_child_still_holds_is_reclaimed_and_the_new_listener_serves` for **the case a `connect` gets wrong** — the child holds the listening descriptor as its stdin, so the socket stays connectable with no host behind it, and the case is deterministic rather than the race it was found as; and `ingress::a_live_host_keeps_its_path_after_the_socket_file_is_removed` for the lock being the signal rather than the file, which is also the arm no `connect` probe could reach at all. The lock's own name is `ingress::tests::the_lock_is_the_socket_s_own_path_with_a_suffix` (`crates/goad-shell/src/ingress/mod.rs`) |
+| R-4 | integration: `ingress::a_regular_file_at_the_path_is_refused_naming_what_was_found`, `ingress::a_directory_with_no_write_permission_is_refused_naming_the_path`, `ingress::a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving` — the symlink rule, on the one case where it and R-3's letter disagree (all `crates/goad-shell/tests/integration/ingress.rs`); rendered beside its eight siblings by `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` and `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (`crates/goad/tests/renderer/startup.rs`). **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` (`crates/goad/src/main.rs:21-29`) maps every `Err` to exit 2. A directory the host cannot write is refused at the **lock file** now rather than at the bind — R-3's last clause and R-4 are the same startup failure naming the same path, and the case asserts the path rather than the variant |
+| R-5 | **review, not a test.** The absence of an unlink cannot be asserted without asserting the absence of code; R-3's reclaim test is what makes the absence safe. The *presence* half is asserted — `a_socket_a_forked_child_still_holds_…` checks the lock file is beside the socket after a successful bind |
 | R-6 | integration: `ingress::an_envelope_terminated_by_a_newline_is_accepted`, `ingress::an_envelope_terminated_by_closing_the_write_side_is_accepted`, `ingress::a_second_envelope_on_the_same_connection_is_never_read` (`crates/goad-shell/tests/integration/ingress.rs`) |
 | R-7 | integration: `ingress::more_than_the_byte_limit_is_refused_too_large_and_the_limit_itself_is_accepted`, `ingress::a_connection_that_writes_nothing_times_out_and_the_listener_serves_next` (`crates/goad-shell/tests/integration/ingress.rs`) |
 | R-8 | integration: every case above (R-6) reads exactly one reply line, through the shared `send_with_newline`/`send_half_closed` fixtures, and never a second; `ingress::a_dropped_answer_yields_unavailable_then_a_close` and `ingress::a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` (`crates/goad-shell/tests/integration/ingress.rs`) — a judge that goes away yields `unavailable` before the close, whether it went before the arrival was sent or after; `ingress::every_reply_is_newline_terminated_before_the_close` (same file) — §6.3's framing, asserted on the raw bytes, which is the one thing a reader that parses cannot see |

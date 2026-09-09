@@ -435,10 +435,13 @@ slice's own documents rather than canon. None is done.
 | `docs/slices/004/design.md` §5.2 | amend `Refusal`'s payload list: five payloads, the fifth `Unavailable(UnavailableCause)` | not canon, but stale about the tree. The list shows four payloads and omits `Unavailable`, which PHASE-03 read as specifying a unit variant; F-a showed that contradicts §5.4's own sentence two paragraphs later, and the tree now carries the payload. See *Design drift* below | [ ] |
 | `docs/slices/004/design.md` §10, CD-3 row | *"AC-6's **third** test"* → the second, §9 (ii) | a stale ordinal. §9's own AC-6 row, `canon-delta.md` CD-3, `plan.md` and `slice-004.md` all say (ii), and so does the implemented test | [ ] |
 
-**Design drift not reconciled: two items.** The first is the one a
+**Design drift not reconciled: four items.** The first is the one a
 Reconciliation row above proposes to close rather than to leave; the second was
 **added 2026-09-09** (`review-code.md` F-17, whose parent [[F-3]] promised the
-entry and whose repair pass did not write it).
+entry and whose repair pass did not write it). The third and fourth are
+[[F-18]]'s, added the same day, and the fourth is the most consequential of the
+four: the other three **outdate a description**, and it **reverses a
+decision**.
 
 `design.md` §5.2's interface block lists `Refusal`'s payloads as four —
 `TooSoon`, `TooLarge`, `TimedOut`, `InvalidEnvelope` — omitting `Unavailable`
@@ -474,6 +477,51 @@ here rather than edited away. So the design contradicts both the code and the
 draft spec on this point, on purpose, and this paragraph is the record of it.
 Unlike the first item it has **no Reconciliation row**: nothing is proposed to
 the user, because nothing should change.
+
+**Third — the reclaim probe's side effect, which no longer happens**
+([[F-18]]). `design.md` §5.5's edge-case table has *"zero bytes, then EOF →
+`malformed` — an empty payload is not a JSON document"*, and until this repair
+the host's own reclaim probe was one of that row's instances: a second `goad`
+start opened a bare `connect` to the live host's socket and sent nothing, so the
+live host answered its own would-be replacement `malformed`. `reclaim`'s doc
+comment said so in terms and cited the table. **Liveness is now a lock and
+nothing connects at all**, so a second start costs the running host nothing —
+the row stays true about *writers*, and loses its one host-authored instance.
+Two sentences go stale in the same direction and are left as written with it:
+§5.5's *socket unlinked underneath a live listener* row offers *"a second host
+reclaiming the path under `draft-spec.md` R-3"* as one of its two causes, which
+a second host can now reach only if the lock file has been removed first; and
+§5.2's `IngressError` sentence lists six faults, where the tree has seven
+(`LivenessUnknown` — *whether a live host holds it could not be determined*).
+The record of the instance's disappearance is in `slice-004.md` Follow-ups,
+under [[F-9]] — which named it as the non-adversarial case an operator meets
+first, and now says what became of it.
+
+**Fourth — `design.md` D-10, reversed** ([[F-18]]). D-10 decided *"the
+probe/bind race is documented, not closed"*, and named the alternatives it was
+declining: *"an atomic `link`; a lock file. Both are partial single-instance
+enforcement under another name."* §6's OQ-6 row records the same disposition —
+*"answered by not closing it"*. **The repair takes the second alternative**: an
+exclusive advisory lock on a sidecar file, held for the host's lifetime, which
+is a partial single-instance guarantee inside the ingress module — exactly what
+D-10 declined, for exactly the reason it named.
+
+Unlike the three items above it, **this is not a description falling out of
+date. It is a decision being taken the other way**, and it is recorded as a
+design change rather than absorbed into a repair (`CLAUDE.md`: breaking one of
+the five is a design change, not a refactor). The ground is stated rather than
+assumed: D-10 declined on **scoping** grounds — a preference about how much this
+slice should own — and [[F-18]] rests on **R-3 being broken in shipping code,
+measured across three implementations**. A stated invariant that does not hold
+outranks a scoping preference, and the repair's goal is a sound liveness
+inference; the single-instance guarantee is a **consequence** of holding the
+lock for the process's lifetime, not the thing that was wanted. `slice-004.md`
+Follow-ups says so under *Single-instance enforcement*, so whoever picks that up
+knows a piece of it already exists and where.
+
+`design.md` is again **left as written**, for `docs/AGENTS.md:168`'s reason and
+with no Reconciliation row: D-10 records what was decided at design time, which
+is true, and a decision that no longer holds is superseded rather than edited.
 
 Three further departures are **amendments, not drift**, and are named here so
 they are not rediscovered as drift: `design.md` §5.4's startup order and §9's
