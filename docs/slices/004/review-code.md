@@ -179,6 +179,18 @@ invariant this slice exists under is that a renderer's or a host's convenience
 does not narrow the wire. Repair adds an assertion that discriminates the two —
 the existing readers cannot, by construction. **User's call, 2026-09-09.**
 
+**Repaired, 2026-09-09.** `reply()`
+(`crates/goad-shell/src/ingress/mod.rs`) appends `\n`; its doc comment states
+the reason and cites this finding. Two instruments, and the outcome's note is
+taken — neither goes through `parsed`:
+`ingress::every_reply_is_newline_terminated_before_the_close`
+(`crates/goad-shell/tests/integration/ingress.rs`) asserts `reply.ends_with('\n')`
+on the raw string `read_reply` already returns, over **both** replies the host
+can write, accepted and refused; and `tests::a_reply_is_one_newline_terminated_line`
+in the module itself, which adds that there is exactly *one* newline. Confirmed
+red before the change (`left: Some(125), right: Some(10)`, on a first draft that
+read the line) and green after.
+
 **Outcome:** verified. One note for the repair, not a condition: the
 discriminating assertion has to read the raw bytes, not `parsed(&reply)` —
 `serde_json::from_str` accepts the document with or without the terminator, so
@@ -246,6 +258,32 @@ ingress being unavailable, and the host already has a word for that. Reuses
 machinery rather than adding a surface. If an `accept()` error cannot be driven
 from a test without contrivance, say so in the ledger rather than asserting an
 instrument that does not exist. **User's call, 2026-09-09.**
+
+**Repaired, 2026-09-09**, with the outcome's constraint taken as written.
+`accept_loop` (`crates/goad-shell/src/ingress/mod.rs`) records when the current
+run of failures began and retries until it has lasted `ACCEPT_FAULT_BUDGET` —
+**five seconds**, stated in elapsed time and named in the docstring beside
+`ENVELOPE_LIMIT`'s and `ENVELOPE_DEADLINE`'s, because the bound is *how long a
+transient fault has to clear before ingress is declared dead*. The next
+connection that arrives forgets the fault. `accept_backoff` waits as long as
+the fault has already lasted, clamped to 5 ms and 500 ms: sleeping the elapsed
+time is what doubles it, so the schedule is 5, 10, 20 … 500 ms and the whole
+budget costs a bounded handful of syscalls. Spending it `break`s the loop,
+dropping the sender — the **existing** ingress-stopped path, already reported
+and already parked. No errno taxonomy, no new surface.
+
+**The honest gap, as asked.** No case drives a real `accept()` error, and none
+is added. `EMFILE`/`ENFILE` are process-wide and `cargo test` runs cases in
+parallel in one process — `SOCKET_MODE`'s own doc comment makes this argument
+about `umask(2)` — so provoking one is either contrivance or collateral damage
+to unrelated cases. What is tested is the budget, as the pure function that
+decides it: `tests::a_retry_waits_as_long_as_the_fault_has_lasted_between_the_two_bounds`
+and `tests::a_fault_that_outlasts_the_budget_ends_the_task_rather_than_spinning`
+(`crates/goad-shell/src/ingress/mod.rs`, a new `#[cfg(test)] mod tests`). The
+seam between the spent budget and the report is held by **review**, not by a
+test; the far side of it — a dropped sender reaching a person — is driven end
+to end by `a_dead_accept_task_is_folded_once_…` and now also by
+`ingress_stopping_during_an_exchange_…` ([[F-3]]).
 
 **Outcome:** verified, with one constraint the repair must answer explicitly.
 
@@ -332,6 +370,26 @@ which no case does today. R-15 and §5 keep their unqualified wording; it is
 accident as intent, and that goes under Design drift rather than being adopted.
 **User's call, 2026-09-09.**
 
+**Repaired, 2026-09-09.** The inner arm's `None` branch calls
+`controller.refuse(&ingress_stopped())` and then
+`glass.present(controller.frame())`, so the report reaches a frame before
+`absorb` can replace the surface (`crates/goad/src/controller.rs`). **On the
+`None` branch only**, per the outcome: `Some(arrival)` still presents nothing,
+so `review-design.md` F-15's measured cost and R-15's negative case are both
+untouched — `a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
+and `a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`
+pass unchanged. The branch is reachable at most once per process, and by no
+writer.
+
+Driven by `ingress::ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`
+(`crates/goad/tests/renderer/ingress.rs`), which is the case nothing had: the
+evaluate is queued on the command channel *before* `serve` starts, so the
+biased outer `select!` takes it and the closed channel is first met by the
+inner arm; `@slow-view`'s foreground `sleep 0.2` keeps the exchange running
+while the assertion reads the **live window**, and the case also asserts the
+view had not yet landed. Confirmed red without the `present` — the fold reaches
+no frame and the bound times out — and green with it.
+
 **Outcome:** verified. Guarding one thing for the repair: present on the `None`
 branch **only**, never on `Some(arrival)`. The `None` branch fires at most once
 per process — `Ingress::arrival` parks the arm as it yields — so a presentation
@@ -397,6 +455,24 @@ Fixing the class is one line and removes the second author entirely, which is
 worth more than any assertion added around the literal. See [[F-5]] — same
 closure claim, other end.
 
+**Repaired, 2026-09-09**, in the shape the outcome prescribes rather than the
+one the Response named. `UnavailableCause` gains a third variant,
+`IngressStopped`, whose `Display` is the sentence the fold used to spell by
+hand; nothing constructs it on the wire side, and its doc comment says so.
+`ingress_stopped()` is now one line —
+`folded(&Refusal::Unavailable(UnavailableCause::IngressStopped))` — where
+`folded` is extracted from `refuse_arrival` and is **the only author of an
+ingress diagnostics line**: token off `reason()`, prose off `Display`. No value
+that misdescribes the cause is harvested for its token.
+
+**No test is red before this**, and the finding says why: the current spelling
+was right, so this is the class and not a live bug. What holds the class is the
+removal of the second author (review) plus [[F-5]]'s compile gate, which
+`IngressStopped` strengthens — the match there is now exhaustive over
+`UnavailableCause` as well, so a fifth cause fails to compile in the test file
+too. `a_dead_accept_task_is_folded_once_…` still asserts the same detail line,
+unchanged, which is the regression guard on the prose.
+
 **Outcome:** verified — the disposition. **The repair shape as written is a
 trap, and I will raise it as a new finding if it lands that way.**
 
@@ -459,6 +535,35 @@ the test itself, all eight arms named with no `_`, so a ninth variant fails to
 compile *in the test file*. That is a real instrument, costs nothing, and makes
 R-14's sentence true as written rather than weakening it. Fix the class with
 F-4.
+
+**Repaired, 2026-09-09.** `the_reason_token_set_is_closed_at_eight`
+(`crates/goad-shell/tests/integration/ingress.rs`) now carries its own `token`
+function: an exhaustive `match` with **no `_` arm at either level** — over
+`Refusal`'s variants and over `UnavailableCause`'s — and it is the **source of
+the compared set**, per the outcome's condition: every member of `reasons` is
+returned by one of its arms. Beside it, `witnesses()` is length-linked to the
+eight-string `EXPECTED` literal, and each witness's `Refusal::reason()` is
+asserted equal to the match's own token, so a rename in production alone fails
+here.
+
+**Measured, not asserted.** A ninth `Refusal` variant was added temporarily and
+three outcomes recorded: (1) the test file **fails to compile** —
+`error[E0004]: non-exhaustive patterns: &Refusal::Ninth not covered` — which is
+the direction R-14 is about, and it fires *here* rather than at a client;
+(2) adding only the arm leaves the case green; (3) adding the arm **and** a
+witness fails, first on the length link and then on the set. The variant was
+then reverted.
+
+**Its boundary, stated in the case's own doc comment rather than claimed away.**
+(2) is a real hole: Rust cannot force the witness list to cover a newly added
+variant without a derive macro or an enumeration crate, and both are dependency
+additions — a STOP condition, so neither was taken. The *compile* gate is
+forced; the *assertion* gate depends on the author adding a witness one line
+from the arm the compiler has just made them write. R-14's sentence — *"a reason
+added or renamed fails here rather than at a client"* — is true as written,
+because a compile failure in this file is a failure here. If that is judged
+insufficient, this should return `contested` rather than the case claiming more
+than it holds.
 
 **Outcome:** verified — **conditionally**, and the condition is the whole
 answer to the question asked.
@@ -532,6 +637,19 @@ feature change **shared with stratum 1**, exactly POL-001's residue, for a
 property nothing needs; carrying the raw slice reopens the canonical type's
 normalization door at the end of a slice. **User's call, 2026-09-09.**
 
+**Repaired, 2026-09-09**, on the model the outcome names and without reaching
+for "verbatim". R-11 now reads: `source` and `kind` as the strings sent, `data`
+as the **value** sent — carried whole and read into nowhere — and `timestamp`
+as the instant sent; then, in §6.2's own voice, *"the value is preserved and its
+spelling is not: `data` round-trips through the host's JSON parser, so a key
+order or a numeric precision the host cannot represent is not a promise this
+requirement makes."* §6.2's `data` row carries the concrete half where a reader
+looks it up — key order normalized, numbers past an IEEE 754 double losing
+precision — beside the `timestamp` row that already says the same thing about
+spelling. §7's R-11 row no longer claims byte-for-byte either: it says `data` is
+compared as a **value**, which is what the existing assertion actually does.
+Documentation only; no code changed.
+
 **Outcome:** verified, and the reason for refusing the feature route is the
 stronger of the two arguments — Cargo unifies features across the graph, so
 `preserve_order` would reach stratum 1 whoever declared it.
@@ -586,6 +704,25 @@ than discarding it. The reachability of the *reply* half is narrow; the
 diagnostics half is not, and a person reading "the bytes are not one JSON
 document" about a reset connection is being told the wrong side was wrong —
 which is precisely the invariant.
+
+**Repaired, 2026-09-09**, with the coupled §6.3 edit the outcome requires — so
+F-4, F-7 and §6.3 landed as one piece and agree on how many causes there are.
+`read_envelope`'s `Ok(Err(io))` arm now returns `unreadable(io)`, a named
+function stating the rule and carrying the error into `detail` through a fourth
+`UnavailableCause` variant, `Unreadable(io::Error)`, which also becomes the
+refusal's `source()`. §6.3's `unavailable` row and its causes paragraph now read
+**four** causes and say in terms why a transport fault is not `malformed`; its
+*which refusals a person sees* paragraph adds the faulted connection to the list
+that always reaches the surface. The reason set is untouched at eight.
+
+**Test, and its boundary.** `tests::a_connection_that_faults_mid_read_is_unavailable_and_carries_the_error`
+(`crates/goad-shell/src/ingress/mod.rs`) holds the rule at the one site that
+states it. It is a unit case, honestly so: a peer that closes a Unix stream
+socket gives the host EOF, not an error, so no writer a test can build makes
+`read_until` fail — the error kinds that would (`ECONNRESET`, `EIO`, `EBADF`)
+are not reachable over AF_UNIX from a cooperating test without `libc`, which is
+a dependency addition. `unreadable` exists as a function so the rule is
+reachable at all; that `read_envelope` calls it is held by review.
 
 **Outcome:** verified, with a coupled spec edit the disposition does not name.
 
@@ -643,6 +780,18 @@ with it. Repair: on `arrivals.send` failure, write `Unavailable(Stopping)` and
 close, exactly as the adjacent dropped-`Answer` case at `:490-495` already
 does. Two adjacent failures of the same shape should not differ in whether the
 writer gets an answer.
+
+**Repaired, 2026-09-09.** On `arrivals.send` failure `handle` writes
+`Unavailable(Stopping)` and closes, exactly as the adjacent dropped-`Answer`
+path does — and the `Answer` is not recovered from the `SendError`, per the
+outcome. The two lines are shared rather than duplicated: `stopping()` builds
+the reply both moments send, and `respond()` is the write-then-shutdown both
+paths end with (`crates/goad-shell/src/ingress/mod.rs`). Held by
+`ingress::a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable`
+(`crates/goad-shell/tests/integration/ingress.rs`), which drops the `Ingress`
+outright — the state `main.rs`'s `spawn_local` block leaves behind while the
+accept task keeps accepting — and then sends one envelope. Confirmed red before
+the change (the connection closed with no bytes at all) and green after.
 
 **Outcome:** verified. The `Answer` need not be recovered from the
 `SendError` — the adjacent path at `:490-495` does not use one either; it calls
@@ -772,6 +921,19 @@ concurrently is a design question and goes to Follow-ups beside [[F-9]]; the
 socket's `0600` mode bounds the blast radius to the user's own uid, which is not
 nothing but is also not an argument for silence.
 
+**Repaired, 2026-09-09.** §6.4's *What is not bounded, and why* gains a
+paragraph — *"One connection at a time, so the read bound is also a denial
+bound"* — stating the property in the **writer's** terms per the outcome: the
+per-read bound is the longest a single writer can hold off every other; two
+silent connections a second make ingress effectively unavailable to every
+legitimate watcher; and this is the one way an envelope fails to arrive
+**without a refusal**, because the stalled connections are answered `timed_out`
+to their own writers and a starved watcher sees only latency. The `0600` mode's
+bound on who can do it is stated with it. Documentation only. The design
+question — whether ingress should serve connections concurrently — is not
+opened here; it is reconciled with [[F-9]]'s deferral, and this repair touched
+no `slice-004.md` Follow-ups, which land at close.
+
 **Outcome:** verified. The property is worth stating in the writer's terms as
 well as the host's: what a watcher author needs to know is that a refusal is not
 the only way an envelope fails to arrive — it can also simply wait, behind
@@ -822,6 +984,21 @@ authority. Repair: R-3/R-4 gain the symlink rule explicitly, unfollowed and
 refused, with the reason. Add the missing case to the integration tier while
 there — the path is untested in both tiers, which is how a documented rule and
 an undocumented one come to look alike.
+
+**Repaired, 2026-09-09.** R-3 now says the path is inspected **without
+following symbolic links**, so it speaks of a socket *at* the path and never of
+one a link points to; R-4 gains the symlink rule explicitly — not followed, a
+startup failure naming it as a symlink whatever it points at, *including a
+socket a live host holds* — with the reason: following a link would put R-2's
+owner-only mode on a file the configuration never named.
+
+The integration case is the one the outcome asks for, and only that one:
+`ingress::a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving`
+(`crates/goad-shell/tests/integration/ingress.rs`) binds a live socket, links
+the configured path at it, asserts `NotASocket { found: "a symlink" }` **and not
+`InUse`**, and then shows the target host still serving. A link to nothing was
+not added: it agrees with every reading of R-3 and would pass whether the rule
+existed or not. §7's R-4 row names the case.
 
 **Outcome:** verified. The case that earns its place is a symlink pointing at a
 **live** socket, asserted `NotASocket { found: "a symlink" }` and not `InUse` —
@@ -878,6 +1055,31 @@ propagates by design. Escape properly. If that cannot be done with what the
 devshell already declares, **stop and ask** rather than adding a dependency:
 a dependency addition is a STOP condition, not a repair decision.
 
+**Repaired, 2026-09-09. No dependency was needed, and no STOP was reached.**
+The shebang question the outcome flags is already settled by the file: it has
+none, and `examples/demo.toml` names `["bash", "examples/shell/backend.sh"]`,
+so bash is the program and `${value//from/to}` is available. The file now says
+so in its header, to save the next reader re-deriving it.
+
+Both halves of the finding are answered. **Escaping:** an `escaped` helper
+doubles `\` and then escapes `"`, and both interpolated values go through it.
+**The branch:** `source` and `kind` are extracted *before* the branch, and the
+host arm matches on the extracted `$source` rather than on `*'"source":"host"'*`
+anywhere in the request — so an ingested envelope whose opaque `data` carries
+that literal can no longer choose which prompt the example shows. The comment
+says why.
+
+Held by `round_trip::the_shell_example_escapes_the_values_it_carries_into_a_view`
+(`crates/goad-shell/tests/integration/round_trip.rs`), which runs the example
+through the real transport, as `["bash", script]`, with `source` = `he said
+"hi"` and `kind` = `back\slash`. The discriminator is that the example
+**answers at all** — the host handles broken backend JSON correctly, which is
+exactly why nothing else caught this — plus the view's title. Confirmed red
+against the file at `HEAD` and green after. The remaining limit is fidelity,
+not validity: parserless extraction still truncates a value at its first
+escaped quote, which is what the file's own *"not something to imitate"*
+already says.
+
 **Outcome:** verified, with one half of the finding still owed. The Response
 answers the escaping; it does not mention the second point — `*'"source":"host"'*`
 matching the substring **anywhere** in the request, so an envelope whose `data`
@@ -919,6 +1121,21 @@ inline test module for the rule it departs from; `ingress/mod.rs:14` versus
 **Response:** Take it — the rule is stated thirty lines above at
 `deadline_after` and this is the one site that does not follow it. A nit that is
 already answered by neighbouring code is cheaper to fix than to carry.
+
+**Repaired, 2026-09-09.** `crates/goad/src/controller.rs`'s one write site is
+`arrived.checked_add(MINIMUM_SPACING).unwrap_or(arrived)`, with one line saying
+it follows the rule `deadline_after` states and what the fallback does — the
+anchor stays at `arrived`, so the spacing degenerates rather than the process
+ending. `deadline_after`'s *justification* is deliberately not imported, per the
+outcome: that argument is about a wait a **backend** chose, and this addend is a
+host constant.
+
+**No test is red before this**, and there is no honest way to make one:
+`arrived` is `Instant::now()` and the addend is a three-second constant, so the
+overflow is unreachable without constructing an `Instant` the platform does not
+offer. The finding says as much. `deadline_after`'s own
+`a_wait_that_would_overflow_the_clock_is_clamped_rather_than_panicking` remains
+the instrument for the rule; this site now follows it.
 
 **Outcome:** verified. Do not import `deadline_after`'s *justification* with its
 technique: that docstring argues from a wait a **backend** chose, and this
