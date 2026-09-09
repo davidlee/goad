@@ -92,15 +92,15 @@ see.
 |----|-------------|-------------|
 | R-1 | The host MUST bind a listening Unix domain socket if, and only if, its configuration names a path for one. With no path configured the host MUST bind nothing and MUST behave exactly as a host without this capability. | §7 |
 | R-2 | The host MUST set the socket's mode to owner-only itself, and MUST NOT rely on the umask it was started under. | §7 |
-| R-3 | A path that is occupied by a socket **no live host holds** MUST be reclaimed: the host unlinks it and binds. A path a **live** host holds MUST be a startup failure naming the path, and the running host MUST keep its socket. | §7 |
-| R-4 | A path occupied by anything that is not a socket, and any other failure to bind or to set the mode, MUST be a startup failure naming the path and what was found. The host MUST NOT start without the listener its configuration asked for. | §7 |
+| R-3 | A path that is occupied by a socket **no live host holds** MUST be reclaimed: the host unlinks it and binds. A path a **live** host holds MUST be a startup failure naming the path, and the running host MUST keep its socket. The path is inspected **without following symbolic links**, so this requirement is about a socket *at* the path and never about one a link at the path points to (R-4). | §7 |
+| R-4 | A path occupied by anything that is not a socket, and any other failure to bind or to set the mode, MUST be a startup failure naming the path and what was found. A **symbolic link** at the path is one such thing: it MUST NOT be followed, and MUST be a startup failure naming it as a symlink, whatever it points at — including a socket a live host holds, which is a startup failure as a symlink rather than as R-3's in-use case. Following a link would put the owner-only mode R-2 requires on a file the configuration did not name. The host MUST NOT start without the listener its configuration asked for. | §7 |
 | R-5 | The host MUST NOT unlink the socket on exit. Reclamation (R-3) is the one mechanism, so it is exercised on every ordinary restart rather than only after a crash. | §7 |
 | R-6 | One connection carries exactly one envelope. The host MUST read until the first newline or until end of input, whichever comes first, and MUST NOT read further on that connection. | §7 |
 | R-7 | The host MUST bound every read from a connection in both bytes and time, and both bounds MUST be stated rather than implied. Exceeding either is a refusal, reported before the connection is closed. | §7 |
 | R-8 | Every envelope MUST receive exactly one reply on the same connection, after which the host closes it. The only case in which a connection may close unanswered is one in which the host process itself is gone. | §7 |
 | R-9 | An envelope MUST be one JSON object carrying exactly four keys: `source`, `kind`, `timestamp` and `data`. A top-level value that is well-formed JSON but is **not an object** MUST be refused, naming the type found. A missing key, a key of the wrong type, an empty `source` or `kind`, a key the object repeats at any depth, and any key beside the four MUST each be refused, and the refusal MUST name the key. | §7 |
 | R-10 | `timestamp` MUST be an RFC 3339 instant carrying an explicit UTC offset. One without an offset MUST be refused with a reason distinct from a general parse failure, exactly as SPEC-001/R-22 requires of a backend's instant. | §7 |
-| R-11 | The host MUST NOT interpret `data`, MUST NOT interpret `kind`, and MUST NOT judge `timestamp` beyond its form. All four fields reach the backend as the event of an `evaluate` (SPEC-001/R-7): `source`, `kind` and `data` byte-for-byte as sent, and `timestamp` as the instant sent. The request's own `now` is the host's instant, not the envelope's. | §7 |
+| R-11 | The host MUST NOT interpret `data`, MUST NOT interpret `kind`, and MUST NOT judge `timestamp` beyond its form. All four fields reach the backend as the event of an `evaluate` (SPEC-001/R-7): `source` and `kind` as the strings sent, `data` as the **value** sent — carried whole and read into nowhere — and `timestamp` as the instant sent. As with `timestamp` in §6.2, the value is preserved and its *spelling* is not: `data` round-trips through the host's JSON parser, so a key order or a numeric precision the host cannot represent is not a promise this requirement makes. The request's own `now` is the host's instant, not the envelope's. | §7 |
 | R-12 | An envelope arriving while an exchange is in flight, or within the minimum spacing **SPEC-002/R-12** sets after the previous ingested evaluation the host attempted, MUST be refused naming which, and MUST NOT be queued, delayed or coalesced. The host holds no pending event. | §7 |
 | R-13 | An envelope naming `source` of `"host"` MUST be refused. That value is reserved to evaluations the host originates (SPEC-001/R-56), and a backend's right to read it as such depends on this refusal. | §7 |
 | R-14 | Every refusal MUST carry a machine-readable reason drawn from the closed set in §6.3, and MAY carry human-readable detail. A reader MUST NOT branch on the detail. A `too_soon` refusal MUST additionally carry `retry_after_ms`: a whole number of milliseconds, measured at the moment of refusal and **rounded up**, after which the spacing will have elapsed. Rounding up is required rather than incidental — a truncated remainder leaves a writer that waits exactly that long still inside the spacing, which would make this requirement's own sentence false of the host's own field. No other reason carries that field, and a reader MAY act on it. | §7 |
@@ -206,7 +206,7 @@ enforcement, which this contract does not own.
 | `source` | a non-empty string, not `"host"` | the only value the host compares against (R-13) |
 | `kind` | a non-empty string | the watcher's vocabulary, carried |
 | `timestamp` | RFC 3339 with an explicit offset | the instant is preserved; its **spelling** is not — the host emits the canonical UTC form |
-| `data` | any JSON value | opaque (SPEC-001/R-9), and the envelope's extension point |
+| `data` | any JSON value | opaque (SPEC-001/R-9), and the envelope's extension point; like `timestamp` above, the **value** is preserved and its spelling is not — object key order is normalized and numbers past an IEEE 754 double lose precision |
 
 **There is no version field and none is required.** The envelope's four fields
 are fixed by SPEC-001/R-7, and anything a watcher wants to add goes inside
@@ -235,19 +235,22 @@ One JSON object, newline-terminated, then the host closes.
 | `timed_out` | nothing complete arrived within the time bound (R-7) | terminate the envelope with a newline, or close the write side |
 | `engaged` | an exchange was already in flight and the envelope's shape was good (SPEC-002/R-9) | retry, or do not |
 | `too_soon` | inside the minimum spacing (R-12) | coalesce in the watcher (brief §7), or wait `retry_after_ms` |
-| `unavailable` | the host cannot act on any envelope — it is stopping, its clock is unreadable, or its ingress has stopped for the life of the process | `detail` says which; wait, except for the third, where nothing will change |
+| `unavailable` | the host cannot act on this envelope — it is stopping, its clock is unreadable, the connection faulted before the envelope could be read, or its ingress has stopped for the life of the process | `detail` says which; wait, except for the last, where nothing will change |
 
 `detail` is prose for a person. **Nothing may branch on it**, and its wording is
 not part of this contract.
 
-**`unavailable` covers three causes, and one of them does not pass.** The host
-is stopping, or its clock is unreadable — both conditions of the moment, and
-*wait* is sound advice for both. The third is that the host's ingress has
-stopped: whatever accepts connections has ended, and nothing restarts it, so the
+**`unavailable` covers four causes, and one of them does not pass.** The host
+is stopping, its clock is unreadable, or the connection faulted while the
+envelope was being read — all conditions of the moment, and *wait* (or
+reconnect) is sound advice for each. A transport fault is deliberately **not**
+`malformed`: that reason names the writer's serializer as the thing to fix, and
+a writer whose bytes never arrived did not send bad ones. The fourth cause is
+that the host's ingress has stopped: whatever accepts connections has ended, and nothing restarts it, so the
 condition is **permanent for the life of the process**. A host in that state
 takes no further envelope, so that cause never reaches a writer as a reply; it
 is reported to a person under R-15 or not at all. The reason set remains closed
-at the eight above — what this admits is a third cause of one of them, not a
+at the eight above — what this admits is a fourth cause of one of them, not a
 ninth token.
 
 `retry_after_ms` is the one structured thing a writer may act on beyond
@@ -264,8 +267,8 @@ always (R-8). Only those the host decides while no exchange is in flight reach
 the diagnostics surface a person reads (R-15): `engaged` never does, because it
 is by definition decided during an exchange; a shape refusal reaches it when the
 host happened to be idle and not otherwise, which is what makes shape-before-
-state (§5) a claim with a negative case; `too_soon` and the clock's
-`unavailable` always do; the shutdown `unavailable` never does, because the loop
+state (§5) a claim with a negative case; `too_soon`, the clock's `unavailable`
+and a faulted connection's always do; the shutdown `unavailable` never does, because the loop
 that would present it has ended; and the ingress-stopped `unavailable` is the
 one that travels the other way — it reaches a person here or nowhere, because
 there is no envelope left for it to be the reply to.
@@ -293,6 +296,19 @@ arrival at a time (§5, no queue), so an unjudged arrival stops all ingress for
 as long as it lasts, and the writer waits with it rather than being told
 something untrue.
 
+**One connection at a time, so the read bound is also a denial bound.** The
+host accepts, serves and closes one connection before it accepts the next, so
+the per-read bound above is *also* the longest a single writer can hold off
+every other. A connection that opens and writes nothing holds ingress for the
+full 500 ms; two such connections a second, from any process that can open the
+socket, make ingress effectively unavailable to every legitimate watcher. This
+is stated because a watcher author cannot derive it from the two numbers above,
+and because it is the one way an envelope fails to arrive **without a
+refusal**: the stalled connections are answered `timed_out` to *their own*
+writers, and a watcher whose envelopes are simply never accepted sees latency
+and nothing else. The socket's owner-only mode (§6.1) bounds who can do it to
+the user's own uid, which on a desktop is every application the person runs.
+
 ## 7. Verification
 
 Each row names the kind of verification and the test that discharges it, so the
@@ -305,18 +321,18 @@ no test is a row this spec may not be promoted holding.
 | R-1 | integration and renderer, both arms: `ingress::a_well_formed_envelope_reaches_the_judge_as_the_event_it_wrote` (`crates/goad-shell/tests/integration/ingress.rs`) — a configured path is bound and serves; `listener::none_binds_nothing` (`crates/goad/tests/renderer/startup.rs`) — no path, no file created; the pre-existing `renderer`, `event_loop` and `event_loop_schedule` targets, confirmed token-identical to `9d36002` — behaviour with the key absent is unchanged |
 | R-2 | integration: `ingress::the_socket_is_owner_only_after_bind` (`crates/goad-shell/tests/integration/ingress.rs`) — the bound socket's mode is `0600` after `bind`. The host sets it **itself**, with `std::os::unix::fs::set_permissions`; no case sets a umask, because this workspace has no safe umask API and `umask(2)` is process-global while cases run in parallel |
 | R-3 | integration, both arms: `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`, `ingress::a_live_socket_refuses_a_second_bind_and_keeps_serving` (`crates/goad-shell/tests/integration/ingress.rs`) |
-| R-4 | integration: `ingress::a_regular_file_at_the_path_is_refused_naming_what_was_found`, `ingress::a_directory_with_no_write_permission_is_refused_naming_the_path` (`crates/goad-shell/tests/integration/ingress.rs`); rendered beside its eight siblings by `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` and `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (`crates/goad/tests/renderer/startup.rs`). **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` (`crates/goad/src/main.rs:21-29`) maps every `Err` to exit 2 |
+| R-4 | integration: `ingress::a_regular_file_at_the_path_is_refused_naming_what_was_found`, `ingress::a_directory_with_no_write_permission_is_refused_naming_the_path`, `ingress::a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving` — the symlink rule, on the one case where it and R-3's letter disagree (all `crates/goad-shell/tests/integration/ingress.rs`); rendered beside its eight siblings by `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` and `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings` (`crates/goad/tests/renderer/startup.rs`). **The non-zero exit is review, not a test**: no test target links the binary, and `main`'s single `match run()` (`crates/goad/src/main.rs:21-29`) maps every `Err` to exit 2 |
 | R-5 | **review, not a test.** The absence of an unlink cannot be asserted without asserting the absence of code; R-3's reclaim test is what makes the absence safe |
 | R-6 | integration: `ingress::an_envelope_terminated_by_a_newline_is_accepted`, `ingress::an_envelope_terminated_by_closing_the_write_side_is_accepted`, `ingress::a_second_envelope_on_the_same_connection_is_never_read` (`crates/goad-shell/tests/integration/ingress.rs`) |
 | R-7 | integration: `ingress::more_than_the_byte_limit_is_refused_too_large_and_the_limit_itself_is_accepted`, `ingress::a_connection_that_writes_nothing_times_out_and_the_listener_serves_next` (`crates/goad-shell/tests/integration/ingress.rs`) |
-| R-8 | integration: every case above (R-6) reads exactly one reply line, through the shared `send_with_newline`/`send_half_closed` fixtures, and never a second; `ingress::a_dropped_answer_yields_unavailable_then_a_close` (`crates/goad-shell/tests/integration/ingress.rs`) — a judge that goes away yields `unavailable` before the close |
+| R-8 | integration: every case above (R-6) reads exactly one reply line, through the shared `send_with_newline`/`send_half_closed` fixtures, and never a second; `ingress::a_dropped_answer_yields_unavailable_then_a_close` and `ingress::a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` (`crates/goad-shell/tests/integration/ingress.rs`) — a judge that goes away yields `unavailable` before the close, whether it went before the arrival was sent or after; `ingress::every_reply_is_newline_terminated_before_the_close` (same file) — §6.3's framing, asserted on the raw bytes, which is the one thing a reader that parses cannot see |
 | R-9 | unit, one case per clause, all `crates/goad-shell/src/ingress/envelope.rs`: `envelope::tests::a_non_object_top_level_is_refused_naming_the_type_found` (the type found); `each_of_the_four_keys_missing_is_refused_naming_it` (missing); `each_typed_key_wrong_typed_is_refused_naming_it` (wrong-typed); `an_empty_source_or_kind_is_refused_naming_it` (empty); `a_fifth_key_beside_the_four_is_refused_naming_it` (unknown); `a_top_level_duplicate_key_is_refused_naming_it` and `a_duplicate_key_nested_inside_data_is_refused_naming_it` (duplicated, at both depths) |
 | R-10 | unit: `envelope::tests::an_offsetless_instant_is_refused_distinctly_from_an_unparseable_one` (`crates/goad-shell/src/ingress/envelope.rs`) |
-| R-11 | integration end to end: `ingress::a_well_formed_envelope_produces_one_evaluation_carrying_all_four_fields` (`crates/goad/tests/renderer/ingress.rs`) — the backend's recorded request carries `source`, `kind` and `data` byte-for-byte and `timestamp` as the same instant, with `now` the host's own |
+| R-11 | integration end to end: `ingress::a_well_formed_envelope_produces_one_evaluation_carrying_all_four_fields` (`crates/goad/tests/renderer/ingress.rs`) — the backend's recorded request carries `source` and `kind` as sent, `data` as the same JSON **value** (compared as a value, which is what this requirement claims) and `timestamp` as the same instant, with `now` the host's own |
 | R-12 | integration and renderer, all `crates/goad/tests/renderer/ingress.rs` unless noted: `ingress::an_envelope_arriving_during_an_exchange_is_refused_engaged_before_it_completes`; `ingress::a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`; `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal` — a writer emitting flat out produces a bounded number of evaluations over a window far shorter than the spacing, the excess replies name the bound, and the same test **records** the number of presentations the host makes over that window (measured 845/845, 1.000 per refusal, ~1690/s — F-15's settlement) rather than merely detecting a rate; `tests::a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing` (`crates/goad/src/controller.rs`) — the spacing's own boundary, refused on `<` and not `<=`. The anchor's independence in **three** directions: `ingress::an_ingested_firing_never_writes_the_scheduled_floor`; `ingress::an_ingested_firing_does_not_advance_the_scheduled_floor` — the case ADR-004 says no standing test could reach, CD-3's discharge — a scheduled firing at T₀, an ingested firing at T₀+ε **whose own exchange resolves to a deadline no later than T₀+1 s**, and a `next_check` due at T₀+1 s do not put a scheduled evaluation at the backend before T₀+3 s; `ingress::a_scheduled_firing_does_not_clear_the_event_floor` |
 | R-13 | unit and integration, in two halves: `envelope::tests::a_reserved_source_is_refused_with_every_other_field_valid` (`crates/goad-shell/src/ingress/envelope.rs`) — the `EnvelopeFault`, unit-level; `ingress::the_three_shape_reasons_this_phase_owns_are_read_off_the_wire` (`crates/goad-shell/tests/integration/ingress.rs`) — `reserved_source` as its own wire reason, read off the wire |
-| R-14 | integration: `ingress::the_reason_token_set_is_closed_at_eight` — the **exact token set**, so a reason added or renamed fails here rather than at a client; `ingress::a_too_soon_reply_carries_retry_after_ms_rounded_up` and `ingress::retry_after_ms_is_absent_from_every_reason_but_too_soon` — the field, present on `too_soon` alone, and the rounding (both `crates/goad-shell/tests/integration/ingress.rs`); `tests::a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing` (`crates/goad/src/controller.rs`) — the other side of the same equation: rounding up is only true *of the host* if the spacing check refuses on `<`, so a writer that waits exactly `retry_after_ms` is accepted |
-| R-15 | renderer, both `crates/goad/tests/renderer/ingress.rs`: `ingress::a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface` (positive) and `ingress::a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface` (negative — what makes the bound a claim rather than an excuse); `ingress::a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating` (same file) — the last clause: the ingress-stopped `unavailable` is the one refusal that answers no envelope, and this surface is the only report it has |
+| R-14 | integration: `ingress::the_reason_token_set_is_closed_at_eight` — the **exact token set**, so a reason added or renamed fails here rather than at a client: the case's own exhaustive `match`, with no `_` arm over `Refusal`'s variants or `UnavailableCause`'s, is the source of the set it compares, so a ninth reason fails to *compile* in that file (its stated boundary is in the case's doc comment); `ingress::a_too_soon_reply_carries_retry_after_ms_rounded_up` and `ingress::retry_after_ms_is_absent_from_every_reason_but_too_soon` — the field, present on `too_soon` alone, and the rounding (both `crates/goad-shell/tests/integration/ingress.rs`); `tests::a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing` (`crates/goad/src/controller.rs`) — the other side of the same equation: rounding up is only true *of the host* if the spacing check refuses on `<`, so a writer that waits exactly `retry_after_ms` is accepted |
+| R-15 | renderer, both `crates/goad/tests/renderer/ingress.rs`: `ingress::a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface` (positive) and `ingress::a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface` (negative — what makes the bound a claim rather than an excuse); `ingress::a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating` and `ingress::ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface` (same file) — the last clause from both sides: the ingress-stopped `unavailable` is the one refusal that answers no envelope, and it reaches the surface whether the loop was idle or mid-exchange when ingress died |
 | R-16 | integration and renderer: `ingress::a_malformed_envelope_reaches_no_event_and_the_listener_stays_up` (`crates/goad-shell/tests/integration/ingress.rs`); `ingress::after_a_flood_of_malformed_envelopes_the_host_still_evaluates`, `ingress::a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating` (`crates/goad/tests/renderer/ingress.rs`) |
 
 ## 8. Open questions
