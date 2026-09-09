@@ -319,6 +319,44 @@ the design and the log.
 - **An accepted ingested evaluation is not distinguishable on the diagnostics
   surface** (OQ-7, `draft-spec.md` OQ-3). The writer has its own answer; the
   person who is not the writer does not.
+- **What the host's surfaces and vocabularies owe now that a process outside
+  the host can reach them.** One question, three instances, all raised by
+  `review-code.md` round 1 and all deferred on the same ground: each is a
+  design decision about a surface this slice did not open, not a repair this
+  slice withheld for size.
+
+  - **The diagnostics surface holds one thing, and ingress is an unbounded
+    author of it from outside the process** (F-9). `Diagnostics::refused`
+    replaces the whole retained value, so every ingress refusal wipes whatever
+    was there — measured at ~1690/s, which puts a backend failure a person
+    needs to see out of reach within a millisecond. **The non-adversarial
+    instance an operator meets first: a second `goad` start on a machine
+    already running one.** Its reclaim probe is a bare `connect`, which the
+    live host reads as an empty envelope and refuses `malformed`, so a failed
+    start wipes the running host's surface and leaves *"an event was refused
+    (malformed)"* on it — a message about the operator's own second process,
+    phrased as if a watcher sent bad bytes. Deciding what the slot holds —
+    retention, and precedence between host-authored faults and
+    externally-triggered refusals — reaches the three refusal paths that
+    predate this slice (`SupersededView`, `UnknownOption`, `NoClock`), so it
+    cannot be settled inside the ingress arm.
+  - **Whether ingress should serve connections concurrently** (F-10). The
+    accept loop is sequential, so the per-read bound is also the longest one
+    connection can deny every other. §6.4 now *states* that property, which is
+    what F-10 required; whether the host should stop having it is the part left
+    open.
+  - **Whether the wire's reason set should be a type rather than a convention**
+    (F-5). `Refusal::reason()` returns `&'static str`, so nothing structurally
+    prevents a ninth token; the closure is held by an exhaustive `match` in the
+    test file plus review, and R-14's Verification row says so in terms.
+    `reason()` returning a closed `Reason` type would make a new token a new
+    variant of a type whose only purpose is the wire vocabulary. It is a public
+    API change reaching `controller.rs` and both test tiers — outside F-5's
+    declared location, and a decision rather than a repair.
+
+  They share a cause: slice 004 gave the host an input reached from outside the
+  process, and the surfaces and vocabularies it feeds were all designed when
+  every author of them was the host itself.
 - **Refusals a person cannot see.** The diagnostics surface is one whole value,
   presented between exchanges, so only the refusals the host decides while idle
   survive to be presented (`draft-spec.md` R-15). Four never reach a person:

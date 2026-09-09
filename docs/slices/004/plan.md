@@ -1050,8 +1050,11 @@ PHASE-05/VA-2.
   reason goes unasserted and none is asserted twice.
 - VT-8 — **AC-4, R-14, and R3's mitigation.** One test asserts the **exact
   token set**: the eight strings `Refusal::reason()` can return, compared as a
-  set against a literal list in the test. A reason added, removed or renamed
-  fails here rather than at a client one slice later.
+  set against a literal list in the test. A reason removed or renamed fails
+  here rather than at a client one slice later. **Corrected 2026-09-09**
+  (`review-code.md` F-5): a reason *added* is not held by that assertion. The
+  case as built holds it with an exhaustive `match` that fails to compile when
+  a variant is added; `draft-spec.md` R-14 states the boundary.
 - VT-9 — **AC-4, R-14.** A `too_soon` reply carries `retry_after_ms`; **no other
   reply carries the key at all** (assert its absence over every other reason);
   and the value is **rounded up** — for a remaining spacing that is not a whole

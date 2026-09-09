@@ -1393,7 +1393,12 @@ to the diagnostics surface, fails there rather than in front of a person.
   narrower than a Coverage row with no test: `PHASE-08/VT-8`
   (`the_reason_token_set_is_closed_at_eight`) correctly and completely closes
   `Refusal`'s own eight-token set, and this literal is not `Refusal`'s to
-  cover. What is missing is an independent check that the literal a person
+  cover. **This sentence was wrong, and `review-code.md` F-5 is where it was
+  caught (correction recorded 2026-09-09):** VT-8 as written then held a token
+  renamed, removed or mis-mapped, but *not* a token added — a ninth `Refusal`
+  variant left both hand-written arrays at eight and the case green. The
+  repaired case closes the added direction with a compile gate rather than an
+  assertion, and `draft-spec.md` R-14 now says so. What is missing is an independent check that the literal a person
   reading the diagnostics line sees (via `Refused::Ingress { reason, detail }`
   → `diagnostics.rs:158-160`'s `"({reason}): {detail}"`) is one of those eight
   tokens and not a typo — nothing today would fail if it read `"unavaliable"`.

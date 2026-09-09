@@ -592,6 +592,36 @@ tokens are what is compared. The exhaustive cause pattern buys only that a fifth
 cause must be looked at here, where the question of whether it earns a token
 belongs. The case's doc comment says this.
 
+**Decided by the user, 2026-09-09: weaken R-14; the `Reason` type is a
+follow-up.** The argument two paragraphs up — that a compile failure in this
+file is a failure *here*, so R-14's sentence stands — is **withdrawn**. Result
+(2) is the finding, and a contract a second implementation reads must say which
+of the four directions is machine-held. What landed:
+
+- **`draft-spec.md` R-14's Verification row** now claims a token *renamed*, a
+  token *removed*, and the eight-way mapping by assertion, and states in terms
+  that the *added* direction is a compile gate plus review — naming why Rust
+  cannot force the witness list without a dependency, and telling a second
+  implementation to read it that way.
+- **Three documents that repeated the stronger claim are corrected in place,
+  each saying it was corrected and citing this finding**: `audit.md`'s AC-4 row
+  (*"added, removed or renamed"* — the reviewer's own evidence for this
+  finding), `plan.md`'s PHASE-08/VT-8 entry, which said the same thing before
+  the code existed, and `notes.md`'s PHASE-07 finding, which asserted VT-8
+  *"correctly and completely closes `Refusal`'s own eight-token set"*. The
+  audit does not keep a claim the spec has given up, and neither does the plan.
+  `design.md` is untouched: it says only *"one test asserts the exact token
+  set"*, which is true, and it is a record of intent (`docs/AGENTS.md`).
+- **The case's doc comment** now leads with which half holds which direction and
+  carries the three measured results. That is the durable part.
+- **The `Reason` type is not implemented.** It is deferred as a design question
+  outside this finding's declared location — the ground [[F-9]] was deferred
+  on, and explicitly not a size argument — and lands in `slice-004.md`
+  Follow-ups as one entry with [[F-9]] and [[F-10]]'s design half, since the
+  three share a cause: what the host's surfaces and vocabularies owe now that a
+  process outside the host can reach them. F-9's second-host-startup instance
+  is named there.
+
 **Outcome:** verified — **conditionally**, and the condition is the whole
 answer to the question asked.
 

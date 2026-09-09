@@ -837,17 +837,24 @@ const EXPECTED: [&str; 8] = [
   "unavailable",
 ];
 
-/// R-14's Verification row claims this case holds *"the **exact token set**, so
-/// a reason added or renamed fails here rather than at a client"*.
+/// The wire's reason set, and **which of R-14's four directions each half
+/// holds** — R-14's Verification row was weakened to match this comment rather
+/// than this comment written to flatter the row (`review-code.md` F-5, user's
+/// call 2026-09-09).
 ///
-/// **What makes the *added* direction true** (`review-code.md` F-5): the
-/// `match` below is the source of the set compared — every token in `reasons`
-/// comes off one of its arms — and it has no `_` arm at either level, over
-/// `Refusal`'s variants or over `UnavailableCause`'s. A ninth variant, or a
-/// fifth cause, therefore fails to compile **in this file**, which is where
-/// R-14 says the review of the wire contract happens. The compiler already
-/// forces an edit to `Refusal::reason()` in production; what it did not force
-/// was an edit here.
+/// **Held by assertion:** a token *renamed*, a token *removed* from
+/// `Refusal::reason()`'s match, and the eight-way mapping being correct.
+///
+/// **Held by the compiler, and then by review:** a token *added*. The `match`
+/// below is the source of the set compared — every token in `reasons` comes
+/// off one of its arms — and it has no `_` arm at either level, over
+/// `Refusal`'s variants or over `UnavailableCause`'s. So a ninth variant, or a
+/// fifth cause, fails to compile **in this file**, and the suite stays red
+/// until someone edits it. Measured rather than assumed: a ninth variant was
+/// added and reverted, giving (1) `error[E0004]: non-exhaustive patterns:
+/// &Refusal::Ninth not covered` here; (2) green once only the arm was added;
+/// (3) failing — on the length link, then on the set — once the arm *and* a
+/// witness were added.
 ///
 /// **Which set is being closed.** The **eight wire tokens**, and only those.
 /// `UnavailableCause`'s four causes share one token, so the or-pattern in the
@@ -857,13 +864,15 @@ const EXPECTED: [&str; 8] = [
 /// buys is that a fifth cause has to be *looked at* here, where the decision
 /// about whether it earns a token belongs.
 ///
-/// **Its boundary, stated rather than claimed.** Rust cannot force the witness
-/// list below to cover a newly added variant — that needs a derive macro or an
-/// enumeration crate, and neither is on this manifest. So the *compile* gate is
-/// forced and the *assertion* gate depends on the author of the ninth variant
-/// adding a witness beside their new arm, one line away. The three directions
-/// R-14 also names — a token renamed, removed, or mis-mapped — are held
-/// outright by the two assertions.
+/// **(2) is the residue, and it is why R-14 no longer claims otherwise.** Rust
+/// cannot force the witness list below to cover a newly added variant — that
+/// needs a derive macro or an enumeration crate, and neither is on this
+/// manifest. So the compile gate is forced, and whether the assertion then also
+/// fails depends on that author adding a witness beside the arm the compiler
+/// has just made them write, one line away. The shape that would close it —
+/// `Refusal::reason()` returning a closed `Reason` *type*, so a ninth variant
+/// cannot mint a token at all — is a follow-up in `slice-004.md`, not this
+/// slice's to take.
 #[test]
 fn the_reason_token_set_is_closed_at_eight() {
   /// One `Refusal` per token. A witness belongs here for every arm of the
