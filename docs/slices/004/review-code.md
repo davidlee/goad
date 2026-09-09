@@ -113,19 +113,23 @@ and SPEC-001/R-7, R-9, R-45..R-47, R-56.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | | |
-| F-2 | major | | |
-| F-3 | major | | |
-| F-4 | minor | | |
-| F-5 | minor | | |
-| F-6 | minor | | |
-| F-7 | minor | | |
-| F-8 | minor | | |
-| F-9 | minor | | |
-| F-10 | minor | | |
-| F-11 | minor | | |
-| F-12 | minor | | |
-| F-13 | nit | | |
+| F-1 | major | fix-now | verified |
+| F-2 | major | fix-now | verified |
+| F-3 | major | fix-now | verified |
+| F-4 | minor | fix-now | verified |
+| F-5 | minor | fix-now | verified |
+| F-6 | minor | doc-wrong | verified |
+| F-7 | minor | fix-now | verified |
+| F-8 | minor | fix-now | verified |
+| F-9 | minor | follow-up | verified |
+| F-10 | minor | doc-wrong | verified |
+| F-11 | minor | doc-wrong | verified |
+| F-12 | minor | fix-now | verified |
+| F-13 | nit | fix-now | verified |
+
+Disposition column transcribed by the raiser from each finding's own
+**Disposition** line; the responder wrote those, this table only summarises
+them. The outcome column is the raiser's.
 
 ### F-1 — the reply is not newline-terminated, and §6.3 says it is
 
@@ -175,7 +179,12 @@ invariant this slice exists under is that a renderer's or a host's convenience
 does not narrow the wire. Repair adds an assertion that discriminates the two —
 the existing readers cannot, by construction. **User's call, 2026-09-09.**
 
-**Outcome:**
+**Outcome:** verified. One note for the repair, not a condition: the
+discriminating assertion has to read the raw bytes, not `parsed(&reply)` —
+`serde_json::from_str` accepts the document with or without the terminator, so
+an assertion routed through it would be the same blind instrument in a new
+place. `reply.ends_with('\n')` on the string `read_reply` already returns is
+enough.
 
 ### F-2 — `accept_loop` spins without bound or backoff on a persistent `accept()` error
 
@@ -238,7 +247,30 @@ machinery rather than adding a surface. If an `accept()` error cannot be driven
 from a test without contrivance, say so in the ledger rather than asserting an
 instrument that does not exist. **User's call, 2026-09-09.**
 
-**Outcome:**
+**Outcome:** verified, with one constraint the repair must answer explicitly.
+
+Ending the task on a bound of consecutive failures **trades a recoverable fault
+for an unrecoverable one**: today an `EMFILE` burst pegs a core and then
+recovers when descriptors free; after this repair it parks ingress for the life
+of the process. That trade is right — the spec already admits ingress ending
+and reports it (§5), and a reported permanent stop beats an unreported hot
+machine — but it means the bound is *how long the host tolerates a transient
+fault before declaring ingress dead*, and a bare count does not express that.
+With backoff, N consecutive failures is anywhere from milliseconds to minutes
+depending on the schedule. **State the bound in elapsed time, and say the number
+in the docstring**, the way `ENVELOPE_LIMIT` and `ENVELOPE_DEADLINE` already
+state theirs.
+
+On the instrument: an `accept()` error genuinely cannot be provoked here without
+contrivance — `EMFILE` needs a process-global `setrlimit` and cases run in
+parallel in one process, the same reason `SOCKET_MODE`'s own docstring gives for
+not setting a umask. The available honest instrument is to lift the retry
+decision into a **pure function** — consecutive failures and elapsed, to
+retry-after or give-up — and unit-test that beside `spacing_elapsed` and
+`deadline_after`, which are in that module for exactly this reason. The
+observable half is already covered:
+`a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating`
+holds what happens once the task ends, whatever ended it.
 
 ### F-3 — the ingress-stopped `unavailable` is discarded, not reported, when ingress dies during an exchange
 
@@ -300,7 +332,14 @@ which no case does today. R-15 and §5 keep their unqualified wording; it is
 accident as intent, and that goes under Design drift rather than being adopted.
 **User's call, 2026-09-09.**
 
-**Outcome:**
+**Outcome:** verified. Guarding one thing for the repair: present on the `None`
+branch **only**, never on `Some(arrival)`. The `None` branch fires at most once
+per process — `Ingress::arrival` parks the arm as it yields — so a presentation
+there costs exactly one, ever, and no writer can reach it. The `Some` branch is
+the one `review-design.md` F-15 measured and
+`a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`
+holds negative; presenting there would reopen both. The two branches sit one
+line apart, which is the whole risk.
 
 ### F-4 — the ingress-stopped refusal's wire token is a string literal, and nothing reads it
 
@@ -358,7 +397,28 @@ Fixing the class is one line and removes the second author entirely, which is
 worth more than any assertion added around the literal. See [[F-5]] — same
 closure claim, other end.
 
-**Outcome:**
+**Outcome:** verified — the disposition. **The repair shape as written is a
+trap, and I will raise it as a new finding if it lands that way.**
+
+"Read the token off `Refusal::reason()`" cannot be done without a `Refusal`
+value, and no existing one describes this cause: that is what
+`ingress/mod.rs:268-272` says and it is correct. Harvesting
+`Refusal::Unavailable(UnavailableCause::Stopping).reason()` for its token would
+be **worse than the literal** — a value meaning *the host is stopping* standing
+in for *ingress has ended permanently*, whose `Display` ("no answer was given
+for this envelope") is wrong about the situation and is one refactor away from
+being read.
+
+The shape that fixes the class without that: **a third `UnavailableCause`
+variant**. `draft-spec.md:243-251` is explicit that `unavailable` covers three
+causes and that the third "is not a ninth token" — so a third variant is *more*
+faithful to the contract than two, `Display` gets the right sentence, and
+`ingress_stopped()` collapses into the ordinary `refuse_arrival` shape.
+`mod.rs:268-272`'s argument against it is about the **wire**, and this value
+never reaches the wire; it reaches the diagnostics surface, which is where
+`refuse_arrival` sends `reason()` too. It also makes [[F-5]]'s exhaustive match
+stronger by one arm. A named constant both sites read is the weaker fallback if
+the variant is refused.
 
 ### F-5 — `the_reason_token_set_is_closed_at_eight` does not close the set against an added reason
 
@@ -400,7 +460,27 @@ compile *in the test file*. That is a real instrument, costs nothing, and makes
 R-14's sentence true as written rather than weakening it. Fix the class with
 F-4.
 
-**Outcome:**
+**Outcome:** verified — **conditionally**, and the condition is the whole
+answer to the question asked.
+
+The shape holds **only if the match is the source of the compared set**. Each
+arm must yield the value (or token) that is collected and compared against the
+literal eight-string expectation. Then a ninth variant fails to compile; the
+repairer adds an arm; the collected set becomes nine; the assertion fails
+against the eight-string literal. Both gates fire, and R-14's sentence is true
+as written.
+
+It does **not** hold if the match is an exhaustiveness *ward* standing beside
+the existing hand-written array. Then a ninth variant forces an arm onto the
+ward, the array stays at eight, and the test goes green — an instrument that
+looks like it closes the set and does not, which is worse than today's, because
+today's at least does not claim to. That is the failure this finding is about,
+reproduced one layer up.
+
+So: build it as the source, not as a ward. If it lands as a ward I will contest
+at re-review rather than weaken R-14. What the repair still cannot hold, and
+nobody should claim it does: a new *field* on an existing variant. R-14 does not
+ask for that.
 
 ### F-6 — R-11's "byte-for-byte" is false of `data`, and the test cannot see it
 
@@ -452,7 +532,18 @@ feature change **shared with stratum 1**, exactly POL-001's residue, for a
 property nothing needs; carrying the raw slice reopens the canonical type's
 normalization door at the end of a slice. **User's call, 2026-09-09.**
 
-**Outcome:**
+**Outcome:** verified, and the reason for refusing the feature route is the
+stronger of the two arguments — Cargo unifies features across the graph, so
+`preserve_order` would reach stratum 1 whoever declared it.
+
+The restatement has a ready-made model in the spec's own voice, and should use
+it rather than inventing one: §6.2's `timestamp` row already says *"the instant
+is preserved; its **spelling** is not."* R-11's `data` clause wants the same
+sentence — the **value** is preserved and forwarded whole, the spelling is not —
+which is true, is checkable, and does not reproduce the overclaim by swapping
+one absolute word for another. Avoid landing on "verbatim" as the replacement:
+it is SPEC-001/R-9's word for *not interpreted*, and reusing it here as if it
+were a claim about bytes is how this finding happened.
 
 ### F-7 — a read error on the connection is reported to the writer, and to a person, as `malformed`
 
@@ -496,7 +587,17 @@ diagnostics half is not, and a person reading "the bytes are not one JSON
 document" about a reset connection is being told the wrong side was wrong —
 which is precisely the invariant.
 
-**Outcome:**
+**Outcome:** verified, with a coupled spec edit the disposition does not name.
+
+`unavailable` is the right token, but §6.3's own row defines it by an
+enumeration — *"the host cannot act on any envelope — it is stopping, its clock
+is unreadable, or its ingress has stopped"* — and a transport fault on one
+connection is none of the three. Mapping the read error there without touching
+§6.3 puts a cause on the wire the contract does not describe, which is a smaller
+copy of [[F-1]]. So the repair carries a §6.3 amendment, and it needs a
+`UnavailableCause` variant to hold the detail — the same enum [[F-4]] is
+already opening. F-4, F-7 and the §6.3 edit are one piece of work; done
+separately they will disagree about how many causes there are.
 
 ### F-8 — a connection accepted after the judge is gone closes with no reply, while the process is still running
 
@@ -543,7 +644,10 @@ close, exactly as the adjacent dropped-`Answer` case at `:490-495` already
 does. Two adjacent failures of the same shape should not differ in whether the
 writer gets an answer.
 
-**Outcome:**
+**Outcome:** verified. The `Answer` need not be recovered from the
+`SendError` — the adjacent path at `:490-495` does not use one either; it calls
+`reply(false, Some(&Refusal::Unavailable(UnavailableCause::Stopping)))` and
+writes the bytes. The same two lines, before `return false`.
 
 ### F-9 — any ingress refusal replaces the whole diagnostics surface, so an outside writer can erase the host's own fault reports
 
@@ -596,7 +700,28 @@ question, which is the admitted ground. Lands in `slice-004.md` Follow-ups with
 the second-host-startup instance named, since that one is non-adversarial and
 will be met by an operator before any attacker. **User's call, 2026-09-09.**
 
-**Outcome:**
+**Outcome:** verified — **not contested**, and the ground given is the right
+one rather than a size argument dressed up.
+
+Checked against the guardrail directly. Every candidate repair — append rather
+than replace, rank host-authored faults above externally-triggered ones,
+rate-limit the ingress author — changes what `Diagnostics` means for the three
+refusal paths that **predate this slice** (`SupersededView`, `UnknownOption`,
+`NoClock`). It is not containable inside the ingress arm, so taking it here
+would be settling a surface-wide question inside a closing slice, which
+`docs/AGENTS.md` §Execute names as the thing to stop and ask about.
+
+Fixing [[F-3]] does not make this worse or easier: F-3's repair is a
+single-shot carve-out for an event that happens at most once per process, and it
+establishes no precedence policy.
+
+Two conditions on the outcome, both checkable at re-review: it lands in
+`slice-004.md` Follow-ups **with the second-host-startup instance named**, since
+that is the non-adversarial one an operator meets first; and it is reconciled
+with [[F-10]]'s own deferred design half, which routes to Follow-ups "beside
+F-9" — one entry naming both questions, or two that cite each other. Two
+unlinked entries about the same surface is how a follow-up becomes a place to
+put things down.
 
 ### F-10 — a writer that connects and never writes starves ingress at 500 ms per connection, and the spec does not say so
 
@@ -647,7 +772,12 @@ concurrently is a design question and goes to Follow-ups beside [[F-9]]; the
 socket's `0600` mode bounds the blast radius to the user's own uid, which is not
 nothing but is also not an argument for silence.
 
-**Outcome:**
+**Outcome:** verified. The property is worth stating in the writer's terms as
+well as the host's: what a watcher author needs to know is that a refusal is not
+the only way an envelope fails to arrive — it can also simply wait, behind
+somebody else's connection, for up to one read bound. §6.4 states two numbers
+today and a reader cannot derive that from them. Its deferred half is reconciled
+with [[F-9]]'s, per that finding's outcome.
 
 ### F-11 — the contract records no rule for a symlink at the socket path, and the implementation has one
 
@@ -693,7 +823,12 @@ refused, with the reason. Add the missing case to the integration tier while
 there — the path is untested in both tiers, which is how a documented rule and
 an undocumented one come to look alike.
 
-**Outcome:**
+**Outcome:** verified. The case that earns its place is a symlink pointing at a
+**live** socket, asserted `NotASocket { found: "a symlink" }` and not `InUse` —
+that is the one where the rule and R-3's letter disagree, and the one the
+amended text has to be true of. A symlink to nothing exercises the same arm
+while agreeing with every reading, so it would pass whether the rule existed or
+not.
 
 ### F-12 — the example backend interpolates envelope values into JSON without escaping
 
@@ -743,7 +878,16 @@ propagates by design. Escape properly. If that cannot be done with what the
 devshell already declares, **stop and ask** rather than adding a dependency:
 a dependency addition is a STOP condition, not a repair decision.
 
-**Outcome:**
+**Outcome:** verified, with one half of the finding still owed. The Response
+answers the escaping; it does not mention the second point — `*'"source":"host"'*`
+matching the substring **anywhere** in the request, so an envelope whose `data`
+carries the literal `"source":"host"` takes the host branch. That is the same
+defect as the escaping one (a value the host carries opaquely changing the
+example's control flow) and belongs in the same repair.
+
+Practical note so the STOP lands early rather than late: whether escaping is
+reachable at all turns on the script's shebang — `${v//\\/\\\\}` is bash, not
+POSIX `sh` — so settle that before writing the fix, not after.
 
 ### F-13 — `ingest` writes the event anchor with a panicking `Instant` addition
 
@@ -776,7 +920,11 @@ inline test module for the rule it departs from; `ingress/mod.rs:14` versus
 `deadline_after` and this is the one site that does not follow it. A nit that is
 already answered by neighbouring code is cheaper to fix than to carry.
 
-**Outcome:**
+**Outcome:** verified. Do not import `deadline_after`'s *justification* with its
+technique: that docstring argues from a wait a **backend** chose, and this
+addend is a host constant, so repeating the argument here would put a claim in
+the source that is not true of the site. `checked_add` with a stated fallback
+and one line saying it follows the module's rule is the whole of it.
 
 ## Synthesis
 
@@ -784,10 +932,20 @@ already answered by neighbouring code is cheaper to fix than to carry.
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
 
-**Round 1 is complete and the ledger is open.** Thirteen findings: three
-`major`, nine `minor`, one `nit`. **No `blocker`** — nothing found makes the
-slice unsafe to run or breaks the invariant that a failure never takes the host
-down, and the ingress path's core is sound: the envelope's normalization is a
+**Round 1's raise and disposition passes are both complete; the ledger stays
+open** pending the repairs and their re-review. All thirteen outcomes are
+`verified` and **nothing is contested** — including [[F-9]]'s `follow-up`, which
+was checked against the guardrail rather than waved through, and [[F-5]]'s
+proposed instrument, which holds under a stated condition and not otherwise.
+Four outcomes carry conditions the re-review will check, and one ([[F-4]])
+warns that the repair *shape* named in its Response would be worse than the
+defect if taken literally. Three repairs — [[F-4]], [[F-7]] and §6.3's
+`unavailable` row — are one piece of work and will disagree about how many
+causes `unavailable` has if they are done apart.
+
+Thirteen findings: three `major`, nine `minor`, one `nit`. **No `blocker`** —
+nothing found makes the slice unsafe to run or breaks the invariant that a
+failure never takes the host down, and the ingress path's core is sound: the envelope's normalization is a
 genuine single door, nothing past it is unvalidated, no host code reads `kind`
 or `data` or judges `timestamp`, the two anchors are independent in all three
 directions with falsifying tests behind them, and the eight-token reason
