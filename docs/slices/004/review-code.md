@@ -1820,6 +1820,50 @@ remains, in full, so the next agent starts from a brief and not from chat:
    finding: 1 failure in 35 sequential runs on the repaired tree, 2 in 60 at
    `93abab3`.
 
+**This repair reverses `design.md` D-10, and that is a design change rather
+than a refactor** (`CLAUDE.md`: breaking one of the five is a design change).
+`slice-004.md` Follow-ups, *Single-instance enforcement*, records the decision it
+reverses: *"Closing it inside the ingress module would be a partial
+single-instance guarantee under another name (`design.md` D-10, `research.md`
+F15)."* A lifetime-held `flock` in the ingress module **is** that partial
+guarantee.
+
+It proceeds anyway, and the ground is stated rather than assumed: D-10 declined
+a lock on **scoping** grounds, and this finding rests on **R-3 being broken in
+shipping code, measured**. A stated invariant failing outranks a scoping
+preference. But the reversal is recorded as a design change, not absorbed into a
+repair — which is what items 8-11 below are for.
+
+**The repair therefore delivers partial single-instance enforcement as a
+*consequence*, not as a goal.** The goal is a sound liveness inference; one host
+per socket path falls out of holding the lock for the process's lifetime.
+Whoever picks up the *Single-instance enforcement* follow-up needs to know that
+a piece of it already exists, and where.
+
+8. **`draft-spec.md` §6.1's *"Non-normative limit — the bind race"* becomes
+   false and must be rewritten to what is now true.** It says two hosts starting
+   in the same instant may both find the path stale and both bind, the second's
+   file winning. With the lock held for process lifetime only one can hold it,
+   and the second sees `InUse`: **this repair closes that race.** Do not leave a
+   limit standing that the code no longer has. The *second*, separate limit
+   below it — *"the path after the bind"*, nothing re-probing once bound — is
+   **not** closed by this and stays as written.
+9. **The *Single-instance enforcement* Follow-ups entry loses its first face.**
+   The probe/bind race it names as a symptom (OQ-6) is closed. Its second face
+   survives untouched: nothing re-probes the path once bound, so a socket
+   unlinked underneath a live listener leaves it holding a descriptor no
+   `connect` can reach. Reconcile it the way item 5 reconciles [[F-9]]'s — say
+   what closed and why, do not delete the sentence.
+10. **A third Design drift entry in `audit.md`, for D-10**, beside [[F-17]]'s
+    and §5.5's. It is **the most consequential of the three, and should say so**:
+    the other two outdate a description, this one reverses a decision.
+    `design.md` stays as written (`docs/AGENTS.md:168`).
+11. **Add the TOCTOU cross-reference, now.** It needed no fourth copy while it
+    was an open limit recorded in two places; it is not an open limit any more,
+    and both places — §6.1 and the Follow-ups entry — are rewritten by items 8
+    and 9. Link this finding's diagnosis from wherever the closure is stated, so
+    the next reader sees why a documented race stopped being one.
+
 **STOP conditions for the next agent:** a dependency addition (`flock` is
 reachable through `std::os::unix::io` plus a raw call — if it is not reachable
 without a new crate, that is a STOP, not a repair decision), and the lock and
