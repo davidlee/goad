@@ -164,8 +164,16 @@ trailing newline. `design.md:213` says only "One line, then the host closes",
 which is compatible with either — so the disagreement is spec-versus-code, with
 nothing between them holding it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The code is wrong; §6.3 stands. Appending the terminator is one
+byte and strictly widens compatibility — a reader that stops at `\n` and a
+reader that reads to EOF both work against a host that emits it, while only the
+second works today. PHASE-03's rationale is overturned knowingly: "the
+connection's close is the line's terminator" is a true statement about this
+host, not a reason for the contract to promise a byte it does not send, and the
+invariant this slice exists under is that a renderer's or a host's convenience
+does not narrow the wire. Repair adds an assertion that discriminates the two —
+the existing readers cannot, by construction. **User's call, 2026-09-09.**
 
 **Outcome:**
 
@@ -219,8 +227,16 @@ a connection that was accepted. The nearest neighbour,
 (`renderer/ingress.rs:664`), asserts the no-spin property on the *receiver* side
 and has no analogue on the accept side.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Confirmed, and the reviewer's account of the cost is the one that
+governs: a pegged worker on an idle desktop app, unreported. Repair is bounded
+backoff between retries and, after a bound of consecutive failures, ending the
+task through the **existing** ingress-stopped path — which already reports and
+already parks the arm. No errno taxonomy: a persistent `accept()` fault *is*
+ingress being unavailable, and the host already has a word for that. Reuses
+machinery rather than adding a surface. If an `accept()` error cannot be driven
+from a test without contrivance, say so in the ledger rather than asserting an
+instrument that does not exist. **User's call, 2026-09-09.**
 
 **Outcome:**
 
@@ -273,8 +289,16 @@ exchange** — `a_dead_accept_task_is_folded_once_…` (`:664`) kills the accept
 before `serve` has anything in flight, so it only ever exercises the outer arm at
 `:626-629`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The spec is right and the code is wrong. A permanent,
+unrecoverable condition reported *nowhere* is what "every refusal is reported"
+forbids, and the arm is already parked so there is no later chance. Repair makes
+the ingress-stopped `unavailable` survive the in-flight exchange — present it
+before `absorb` can overwrite it — and drives the `None` arm during an exchange,
+which no case does today. R-15 and §5 keep their unqualified wording; it is
+`design.md:229`'s "when the loop was idle" that recorded an implementation
+accident as intent, and that goes under Design drift rather than being adopted.
+**User's call, 2026-09-09.**
 
 **Outcome:**
 
@@ -326,8 +350,13 @@ fix it, on purpose, so this review would meet it cold — confirmed independentl
 here from the code, and the audit's description of it at `audit.md:264-267` is
 accurate as far as it goes.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The lead, confirmed. Read the token off `Refusal::reason()` like
+`refuse_arrival` does. The current spelling is right, so this is not a live bug —
+it is the class: an eight-token closed set with a second, unchecked author.
+Fixing the class is one line and removes the second author entirely, which is
+worth more than any assertion added around the literal. See [[F-5]] — same
+closure claim, other end.
 
 **Outcome:**
 
@@ -361,8 +390,15 @@ literal array of eight constructions), `:739-748` (the literal expected set);
 claim). The `#[test]` is a plain unit test with no listener, so nothing else in
 the case reaches `Refusal`'s variant list either.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The test holds three of the four things R-14 claims for it, and
+the missing one — a token *added* — is the direction a client's parser depends
+on. The compiler does force an edit to `reason()`, but an edit is not a review of
+the wire contract. Repair: put an exhaustive `match` over a `Refusal` value in
+the test itself, all eight arms named with no `_`, so a ninth variant fails to
+compile *in the test file*. That is a real instrument, costs nothing, and makes
+R-14's sentence true as written rather than weakening it. Fix the class with
+F-4.
 
 **Outcome:**
 
@@ -404,8 +440,17 @@ order-blind, and it would pass under any of the transformations above. The
 integration tier's `a_well_formed_envelope_reaches_the_judge_as_the_event_it_wrote`
 (`integration/ingress.rs:571`) asserts the same way, one key deep.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The document is the defect. R-11's "byte-for-byte" is newly
+written by this slice and was never designed for: `data` round-trips through
+`serde_json::Value`, so key order normalizes and precision past `f64` is lost.
+Restate R-11 in SPEC-001/R-9's terms — the host does not *interpret* `data` and
+forwards it whole — which is the invariant it was reaching for and which the
+code does hold; `envelope.rs:140-142` reads nothing. The two alternatives were
+weighed and refused: `preserve_order`/`arbitrary_precision` is a serde_json
+feature change **shared with stratum 1**, exactly POL-001's residue, for a
+property nothing needs; carrying the raw slice reopens the canonical type's
+normalization door at the end of a slice. **User's call, 2026-09-09.**
 
 **Outcome:**
 
@@ -441,8 +486,15 @@ sent an RST usually cannot read the reply either — but the diagnostics half is
 not narrow: the fold happens whether or not the reply lands. No test drives an
 I/O error on the read.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct: `malformed` names the writer's serializer, and a
+transport fault is not that. `unavailable` is the reason set's own word for *the
+host cannot act on this envelope* and is the honest verdict. Repair maps the
+read `io::Error` to `Unavailable` and carries the error into `detail` rather
+than discarding it. The reachability of the *reply* half is narrow; the
+diagnostics half is not, and a person reading "the bytes are not one JSON
+document" about a reset connection is being told the wrong side was wrong —
+which is precisely the invariant.
 
 **Outcome:**
 
@@ -481,8 +533,15 @@ write; the `rx.await` failure two lines below writes `Unavailable(Stopping)`);
 window; `a_dropped_answer_yields_unavailable_then_a_close`
 (`integration/ingress.rs:424-435`) covers only the second, answered case.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** R-8 admits exactly one unanswered close — the host process being
+gone — and `main.rs:110-131` shows the receiver drops well before that, so the
+exception is being claimed on a timing assumption rather than a property.
+`audit.md:110`'s justification is wrong on this point and the audit is amended
+with it. Repair: on `arrivals.send` failure, write `Unavailable(Stopping)` and
+close, exactly as the adjacent dropped-`Answer` case at `:490-495` already
+does. Two adjacent failures of the same shape should not differ in whether the
+writer gets an answer.
 
 **Outcome:**
 
@@ -525,8 +584,17 @@ side effect); `audit.md:112` for the rate. `review-design.md` F-15 settled the
 *presentation cost per refusal*; it did not consider what the surface's single
 slot is worth when an outside party writes to it.
 
-**Disposition:**
-**Response:**
+**Disposition:** follow-up
+**Response:** Real, and the root it shares with F-3 is the reason F-3 is
+being fixed rather than documented. But the repair here is a *surface* design —
+the diagnostics slot now has an unbounded author outside the process, and
+deciding what it holds (retention, precedence between host-authored faults and
+externally-triggered refusals) is a design question this slice never opened.
+Taking it inside a closing slice would be improvising past a decision that was
+not this slice's. **Not deferred for size** — deferred because it is a design
+question, which is the admitted ground. Lands in `slice-004.md` Follow-ups with
+the second-host-startup instance named, since that one is non-adversarial and
+will be met by an operator before any attacker. **User's call, 2026-09-09.**
 
 **Outcome:**
 
@@ -567,8 +635,17 @@ judgement wait only). `a_connection_that_writes_nothing_times_out_and_the_listen
 (`integration/ingress.rs:617`) drives one such connection and asserts the
 listener recovers; nothing drives two.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The sequential accept loop is the design's choice and stands;
+what is missing is that §6.4 never states its consequence. A watcher author is
+given the per-read bound and the judgement wait and cannot derive from them that
+one connection denies all others for the length of a read. Repair: §6.4's "What
+is not bounded, and why" gains the head-of-line property in terms — one
+connection at a time, so the read bound is also the bound on how long a single
+writer can hold off every other. Whether ingress *should* serve connections
+concurrently is a design question and goes to Follow-ups beside [[F-9]]; the
+socket's `0600` mode bounds the blast radius to the user's own uid, which is not
+nothing but is also not an argument for silence.
 
 **Outcome:**
 
@@ -605,8 +682,16 @@ gate), `:180-196` (`describe`'s `"a symlink"` arm); `draft-spec.md:95-96` (R-3,
 R-4); `design.md:581`. The path is untested in both tiers — the integration
 module covers a regular file and a directory, not a link.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The implementation's rule is right — following a link at a
+path the host is about to `chmod` would be worse, and `design.md:581` reasoned
+it. The defect is that R-3/R-4 admit only "socket" and "not a socket", so by
+their letter a symlink to a live socket is R-3's case, and `design.md` is not
+canon: §*Canon that does not exist yet* makes the draft spec the slice's
+authority. Repair: R-3/R-4 gain the symlink rule explicitly, unfollowed and
+refused, with the reason. Add the missing case to the integration tier while
+there — the path is untested in both tiers, which is how a documented rule and
+an undocumented one come to look alike.
 
 **Outcome:**
 
@@ -650,8 +735,13 @@ pattern above it; `draft-spec.md:206` (`source` admits *"a non-empty string, not
 carries such a `source` through unexamined, which is correct and is what makes
 this reachable.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** A `source` or `kind` containing `"` or `\` produces broken JSON
+from the one file in this project allowed to know what an event means — and it
+is the file a person copies to write their own backend, so the defect
+propagates by design. Escape properly. If that cannot be done with what the
+devshell already declares, **stop and ask** rather than adding a dependency:
+a dependency addition is a STOP condition, not a repair decision.
 
 **Outcome:**
 
@@ -681,8 +771,10 @@ a decision anyone recorded.
 inline test module for the rule it departs from; `ingress/mod.rs:14` versus
 `controller.rs:1-6` for the lint asymmetry.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Take it — the rule is stated thirty lines above at
+`deadline_after` and this is the one site that does not follow it. A nit that is
+already answered by neighbouring code is cheaper to fix than to carry.
 
 **Outcome:**
 
