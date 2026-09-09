@@ -142,6 +142,7 @@ not by reading it.
 | F-18 | major | fix-now | verified |
 | F-19 | minor | | |
 | F-20 | minor | | |
+| F-21 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -2210,6 +2211,79 @@ where `TryLockError::Error` becomes `LivenessUnknown`; `BindFault`'s own
 `Display` — *"whether a live host holds it could not be determined: {inner}"* —
 which reports the errno faithfully and still leaves the reader without the
 remedy.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-21 — an unusable socket location is now reported as an undetermined liveness
+
+**Severity:** minor
+**Location:** `crates/goad-shell/src/ingress/mod.rs:177-188` (`hold`);
+`draft-spec.md` §7's R-4 row
+
+**Expected:** R-4 — *"any other failure to bind … MUST be a startup failure
+naming the path **and what was found**."* R-3's new last clause is a different
+case: *"Liveness MUST NOT be assumed either way **when it cannot be
+determined**."* The two are different questions and `BindFault` has a variant
+for each.
+
+**Observed:** `hold` collapses them. The `open` of the lock file and the
+`try_lock` on it both map to `LivenessUnknown`:
+
+```rust
+.open(lock_path(path))
+.map_err(|error| fault(path, BindFault::LivenessUnknown(error)))?;
+match lock.try_lock() {
+  ...
+  Err(std::fs::TryLockError::Error(error)) => Err(fault(path, BindFault::LivenessUnknown(error))),
+}
+```
+
+Because `reclaim` now calls `hold` **before** `UnixListener::bind`, every
+failure that used to surface at the bind surfaces here first — and the most
+likely misconfiguration of all is one of them. A typo'd or missing directory:
+`symlink_metadata` returns `NotFound`, so `occupant` is `None` and the code
+proceeds to `hold`, whose `open` gets `ENOENT`. The person reads
+
+> whether a live host holds it could not be determined: No such file or
+> directory
+
+where before this repair they read *"could not be bound: No such file or
+directory"*. A read-only directory reads the same way with `EACCES`. **The
+fault's name asserts a liveness question and the errno reports a filesystem
+one**; the errno is the true half, and it is the half R-4 asks be named. A
+person is pointed at a lock they did not know existed instead of at the
+directory they mistyped.
+
+The variant is right for what it was made for — `try_lock` failing on a
+filesystem that cannot lock is genuinely *liveness could not be determined*,
+which is [[F-20]]'s case. It is wrong for *the location is unusable*, which is
+R-4's.
+
+**And §7's R-4 row now asserts the collapse as intended**: *"A directory the
+host cannot write is refused at the **lock file** now rather than at the bind —
+R-3's last clause and R-4 are the same startup failure naming the same path,
+and the case asserts the path rather than the variant."* They are the same
+startup **failure** and not the same **message**, and R-4's requirement is
+about the message. The test is honest — it never asserted a variant and its
+name promises only the path — but the row uses that honesty to argue the
+distinction away rather than to notice it had moved.
+
+The fix is a split, not a new concept: an `open` failure means the path is
+unusable and belongs with R-4's faults; a `try_lock` failure means liveness
+could not be determined and is R-3's. `hold` already has the two errors in
+separate arms.
+
+**Evidence:** `crates/goad-shell/src/ingress/mod.rs:177-188`; `reclaim` calling
+`hold` before `bind`, and reaching it for a `NotFound` path because `occupant`
+is `None` rather than an error; `BindFault::LivenessUnknown`'s own `Display`
+(*"whether a live host holds it could not be determined: {inner}"*) against
+`Unbindable`'s (*"could not be bound: {inner}"*); `draft-spec.md` §7's R-4 row
+for the argument that the two are the same. The case
+`a_directory_with_no_write_permission_is_refused_naming_the_path` passes either
+way, which is why nothing caught the move.
 
 **Disposition:**
 **Response:**
