@@ -565,6 +565,33 @@ because a compile failure in this file is a failure here. If that is judged
 insufficient, this should return `contested` rather than the case claiming more
 than it holds.
 
+**Against the condition, said plainly.** The condition distinguishes a match
+that is the *source of the compared set* from one that is a *ward beside a
+hand-written array*. This case is the former by construction — every member of
+`reasons` is returned by an arm, and there is no second path into the set — but
+it still shows the ward's symptom, result (2) above, because the arms are
+reached through witnesses and Rust cannot force a witness to exist. Those are
+the same observable, and the case says so rather than resting on the
+distinction.
+
+**The shape that would close it is outside this finding's declared location, so
+it is offered rather than taken.** Make `Refusal::reason()` return a closed
+`Reason` *type* instead of a `&'static str`. A ninth `Refusal` variant then
+cannot mint a token at all — its forced arm must name an existing `Reason` —
+and a genuinely new token is a new variant of a type whose only purpose is the
+wire vocabulary, which is a much smaller surface to hold. It is a public API
+change reaching `controller.rs` and both test tiers, well past
+`tests/integration/ingress.rs:720-761`, so it is a decision rather than a
+repair. **This is the one thing the repair agent asks be decided.**
+
+**Which set this case closes.** The eight **wire tokens**. `UnavailableCause`'s
+four causes share one token, so the `unavailable` arm's or-pattern grows while
+`EXPECTED` does not — §6.3's own arrangement, *"a fourth cause of one of them,
+not a ninth token"*. R-14's sentence is not bent to fit: it is about tokens, and
+tokens are what is compared. The exhaustive cause pattern buys only that a fifth
+cause must be looked at here, where the question of whether it earns a token
+belongs. The case's doc comment says this.
+
 **Outcome:** verified — **conditionally**, and the condition is the whole
 answer to the question asked.
 

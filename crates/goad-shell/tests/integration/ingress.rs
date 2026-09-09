@@ -849,6 +849,14 @@ const EXPECTED: [&str; 8] = [
 /// forces an edit to `Refusal::reason()` in production; what it did not force
 /// was an edit here.
 ///
+/// **Which set is being closed.** The **eight wire tokens**, and only those.
+/// `UnavailableCause`'s four causes share one token, so the or-pattern in the
+/// `unavailable` arm grows when a cause is added and `EXPECTED` does not —
+/// that is R-14's own arrangement (§6.3: *"a fourth cause of one of them, not a
+/// ninth token"*), not a gap in this case. What the exhaustive cause pattern
+/// buys is that a fifth cause has to be *looked at* here, where the decision
+/// about whether it earns a token belongs.
+///
 /// **Its boundary, stated rather than claimed.** Rust cannot force the witness
 /// list below to cover a newly added variant — that needs a derive macro or an
 /// enumeration crate, and neither is on this manifest. So the *compile* gate is
