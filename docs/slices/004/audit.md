@@ -9,9 +9,19 @@ Written after the last phase is done. Two jobs in one document:
 
 ## Brief
 
-**Subject:** `b6ca5f7..93abab3` on `main`. `b6ca5f7` opened the slice; the code
-phases begin at `9cfb679`; `93abab3` is HEAD, the tree is clean, and all eight
-phases are `done`.
+**Subject:** `b6ca5f7..93abab3` on `main` — the eight phases. `b6ca5f7` opened
+the slice; the code phases begin at `9cfb679`; `93abab3` ends them, and all
+eight phases are `done`.
+
+**Refreshed 2026-09-09 (`review-code.md` F-16).** `93abab3` is no longer HEAD
+and this document was arguing for a tree that is not the one shipping. The
+shipping tree adds a second range, `93abab3..HEAD`, holding the repairs made for
+`review-code.md` rounds 1 and 2 and the ledger and document corrections that go
+with them. **The two ranges were made under different disciplines and are kept
+apart everywhere below rather than merged:** the first is phase work with
+declared surfaces, the second is repair work answering a numbered finding.
+Everything in the original range stands as audited; every correction made since
+is dated and says which finding drove it.
 
 **Question:** slice 004 is finished when a watcher outside the host can make it
 ask its backend something, on the path slice 003 built, without the host having
@@ -78,8 +88,8 @@ the Closure checklist stays unticked while the code review has not run.
 
 ### Tests and checks
 
-`just check` run here, on `93abab3` with a clean tree, under `nix develop`.
-**Exit 0.** Transcript:
+**On `93abab3`, the phase-end tree.** `just check` run here, with a clean tree,
+under `nix develop`. **Exit 0.** Transcript:
 `/tmp/claude-1000/-home-david-dev-goad/d6c2f7fb-4990-41a6-8864-c625c53be6f8/scratchpad/just-check.log`
 (session-local). All six commands present, in the order
 `docs/policy/001-the-phase-gate.md` states: `cargo build --workspace`,
@@ -92,10 +102,33 @@ stratum 1's own run.
 This is the gate as evidence rather than as a claim; it is also the floor and
 not the argument (`docs/AGENTS.md` §Tiers, and slices 001–003).
 
+**On the shipping tree — added 2026-09-09 (`review-code.md` F-16).** `just
+check` re-run after the round-1 and round-2 repairs. Two runs on two trees is a
+fact worth recording rather than collapsing into one, and the second run is not
+uniformly green:
+
+- The reviewer re-ran it at `441fa94`: **exit 0**, 19 `test result: ok`, zero
+  failures, recorded in this ledger's round-2 synthesis.
+- Run again here after the round-2 repairs, `just check` **exited 0 on all but
+  one of several runs**. The single failure was
+  `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`,
+  refused `in use by a live host` — **the reclaim flake `99abac4` chased and
+  could not reproduce.** It is now reproduced, and it is **not** the repairs':
+  measured at 1 failure in 35 sequential runs of the integration target on the
+  shipping tree and **2 in 60 on a worktree at `93abab3`**, which predates every
+  repair. Same case, same message, comparable rate. Recorded in `slice-004.md`
+  Follow-ups with the conditions, since that entry exists so a future slice does
+  not start from zero.
+
+**The honest reading:** the gate passes on the shipping tree and is not
+deterministic on either tree, for a reason that predates the slice's repairs and
+is already owned as a follow-up. A green run is evidence; it is not proof the
+flake is gone.
+
 **Standing caveat, not this slice's.** `slice-004.md` Follow-ups records four
 pre-existing flaky tests, all waiting on a real subprocess and a real timeout,
-reproduced under load by PHASE-03. This run was clean; a single green run does
-not retire them.
+reproduced under load by PHASE-03. The reclaim case above is a fifth, and the
+one that had resisted reproduction until now.
 
 ### Acceptance criteria
 
@@ -107,7 +140,7 @@ argument the slice declared in advance would hold it.
 |---|---|---|
 | AC-1 | yes | `renderer/ingress.rs::a_well_formed_envelope_produces_one_evaluation_carrying_all_four_fields` — one `evaluate`; `source`, `kind` and `data` asserted against the bytes written; `timestamp` asserted as the **same instant** (`+10:00` in, `Z` out, compared as parsed `jiff::Timestamp`s), which is the reading `slice-004.md` took; `now` asserted to be the host's stub clock and not the envelope's |
 | AC-2 | yes | `renderer/ingress.rs::the_view_an_ingested_evaluation_returns_reaches_the_window_and_is_answerable` — the token is read off the options model with `current_view_token`, the same helper the scheduled tests use, and answered |
-| AC-3 | yes | `goad-shell/tests/integration/ingress.rs::an_envelope_terminated_by_a_newline_is_accepted`, `…_by_closing_the_write_side_is_accepted`, `a_second_envelope_on_the_same_connection_is_never_read` (exactly one reply line, then EOF, one arrival at the judge), `a_dropped_answer_yields_unavailable_then_a_close`. The one admitted exception is visible in the code: `ingress/mod.rs:487-489` returns without replying only when `arrivals.send` fails — the judge is gone, which is the host process going away (`draft-spec.md` R-8) |
+| AC-3 | yes | `goad-shell/tests/integration/ingress.rs::an_envelope_terminated_by_a_newline_is_accepted`, `…_by_closing_the_write_side_is_accepted`, `a_second_envelope_on_the_same_connection_is_never_read` (exactly one reply line, then EOF, one arrival at the judge), `a_dropped_answer_yields_unavailable_then_a_close`. **Corrected 2026-09-09** (`review-code.md` F-8, whose Response promised this amendment and whose repair pass did not make it — caught by F-16): this row previously argued that *"the one admitted exception is visible in the code: `ingress/mod.rs:487-489` returns without replying only when `arrivals.send` fails — the judge is gone, which is the host process going away."* Every clause of that is now false. **There is no admitted exception on that path**: `handle` writes `Unavailable(Stopping)` and closes before returning, so a connection accepted after the judge is gone is answered like any other, and `a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` asserts the reply the old row said did not exist. The justification was also wrong on its own terms — F-8 showed *the judge is gone, which is the host process going away* to be a timing assumption rather than a property, which is why the code changed rather than the reading. R-8's one admitted exception is now reached only when the process itself is gone |
 | AC-4 | yes | closed set asserted as a set: `the_reason_token_set_is_closed_at_eight` compares `Refusal::reason()` over all eight constructions against a literal list, so a token **removed or renamed** fails there, and the eight-way mapping with it. **Corrected 2026-09-09** (`review-code.md` F-5): this row previously said *"added, removed or renamed"*. A token *added* is not held by that assertion — it is held by the case's exhaustive `match`, which fails to compile when a variant is added, plus the review that follows. `draft-spec.md` R-14's Verification row was weakened to match rather than the claim being kept. Each reason read off the wire: `the_three_shape_reasons_this_phase_owns_are_read_off_the_wire` (`malformed`, `invalid_envelope`, `reserved_source`), `more_than_the_byte_limit_…` (`too_large`), `a_connection_that_writes_nothing_times_out_…` (`timed_out`), `renderer/ingress.rs::an_envelope_arriving_during_an_exchange_is_refused_engaged_before_it_completes` (`engaged`), `…a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long` (`too_soon`). All four reasons AC-4 names *at least* are among them |
 | AC-5 | yes | `renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal` — the invocation count bounded, the excess replies naming `too_soon` (refused, not delayed), and the presentation cost fixed at one per refusal by `assert_eq!`. Measured: 845 refusals, 845 presentations, ~1690/s (`notes.md` PHASE-07) |
 | AC-6 | yes, and falsifiably | three tests, one per crossing: `an_ingested_firing_never_writes_the_scheduled_floor` (i), `an_ingested_firing_does_not_advance_the_scheduled_floor` (ii — ADR-004's case), `a_scheduled_firing_does_not_clear_the_event_floor` (iii). (ii)'s setup pins **both** the T₀ exchange and the ingested exchange to the same one-second `next_check`, which is the clause `slice-004.md`'s reading calls load-bearing; without it the case would turn on a deadline both hypotheses agree about. Falsification is recorded, not assumed: PHASE-05/VA-3 broke the anchor three ways and each break turned the expected case red while the other two stayed green (`notes.md` PHASE-05) |
@@ -217,6 +250,12 @@ substance and VA-3's whole walk independently; see below.
 
 ### Surface delta — walked here, from the git history
 
+**This walk covers `9cfb679^..93abab3` — the phase range — and nothing after
+it.** The repair range is walked separately below, because its files arrived
+under a different discipline and retro-fitting them onto a phase's *Surfaces*
+line would make this walk say something untrue about what the phases declared
+(added 2026-09-09, `review-code.md` F-16).
+
 Taken from `git diff --name-status 9cfb679^..93abab3`, not from PHASE-07's
 sweep. **26 non-documentation files changed.** Every one is inside a surface
 some phase declared, with a single exception:
@@ -247,6 +286,33 @@ bounded argument.
 `Ingress::none(),` and `ingress: None,` lines out of the diff: what remains
 across all five test files is one `use` line each and rustfmt's reflow of
 `serve(…)` into multiple lines. No renamed symbol, no changed assertion.
+
+### Surface delta — the repair range (added 2026-09-09, `review-code.md` F-16)
+
+`git diff --name-status 93abab3..HEAD`, non-documentation files. **No phase
+declared any of these, and none should be retro-fitted to one**: they are the
+repairs `review-code.md` rounds 1 and 2 required, and the finding each answers
+is the declaration. Six files:
+
+| file | findings |
+|---|---|
+| `crates/goad-shell/src/ingress/mod.rs` | F-1, F-2, F-4, F-7, F-8 |
+| `crates/goad-shell/tests/integration/ingress.rs` | F-1, F-5, F-8, F-11 |
+| `crates/goad-shell/tests/integration/round_trip.rs` | F-12, F-14 |
+| `crates/goad/src/controller.rs` | F-3, F-4, F-13 |
+| `crates/goad/tests/renderer/ingress.rs` | F-3 |
+| `examples/shell/backend.sh` | F-12, F-14 |
+
+**`round_trip.rs` is the one the phase walk above does not list, and correctly
+so** — it was not touched by any phase. It enters here because F-12 needed the
+example backend driven through the real transport, and F-14 extended that case's
+neighbour. Its provenance is a finding, not a phase; the walk says so rather
+than omitting it, which is how it went unrecorded until F-16.
+
+`Cargo.lock` does not move in this range: **no repair added a dependency**, and
+two declined to — F-5's closure instrument and F-7's read-fault case both stop
+at a stated boundary rather than take one (`review-code.md`, those findings'
+Responses).
 
 **Declared but untouched:** `crates/goad/tests/renderer/harness.rs`, which
 PHASE-05 declared conditionally ("**only** if PL-8's counting glass gains a
@@ -368,8 +434,10 @@ slice's own documents rather than canon. None is done.
 | `docs/slices/004/design.md` §5.2 | amend `Refusal`'s payload list: five payloads, the fifth `Unavailable(UnavailableCause)` | not canon, but stale about the tree. The list shows four payloads and omits `Unavailable`, which PHASE-03 read as specifying a unit variant; F-a showed that contradicts §5.4's own sentence two paragraphs later, and the tree now carries the payload. See *Design drift* below | [ ] |
 | `docs/slices/004/design.md` §10, CD-3 row | *"AC-6's **third** test"* → the second, §9 (ii) | a stale ordinal. §9's own AC-6 row, `canon-delta.md` CD-3, `plan.md` and `slice-004.md` all say (ii), and so does the implemented test | [ ] |
 
-**Design drift not reconciled:** one item, and it is the one the row above
-proposes to close rather than to leave.
+**Design drift not reconciled: two items.** The first is the one a
+Reconciliation row above proposes to close rather than to leave; the second was
+**added 2026-09-09** (`review-code.md` F-17, whose parent [[F-3]] promised the
+entry and whose repair pass did not write it).
 
 `design.md` §5.2's interface block lists `Refusal`'s payloads as four —
 `TooSoon`, `TooLarge`, `TimedOut`, `InvalidEnvelope` — omitting `Unavailable`
@@ -385,6 +453,26 @@ ruling: `Refusal::Unavailable` now carries `UnavailableCause`
 false.** The design is left as written here, because retro-fitting it silently
 is exactly what `docs/AGENTS.md` forbids; the amendment is a Reconciliation row
 for the user.
+
+**Second — `design.md:229`'s *"when the loop was idle"*.** §5.2's reply table
+qualifies the ingress-stopped `unavailable` as reported *"when the loop was
+idle"*. `review-code.md` F-3 showed that qualification recorded an
+**implementation accident as intent**: the loop folded that refusal in the inner
+arm and never presented it, so during an exchange `absorb` was guaranteed to
+supersede it before any frame, and the permanent condition R-15 calls
+*"the only report there is"* was reported nowhere at all. The repair made it
+unconditional — the inner arm presents on its `None` branch — and
+`draft-spec.md` §5 and §6.3 now say so in terms, held by
+`ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`.
+
+`design.md` is **left as written**, and deliberately: `git log 93abab3..HEAD --
+docs/slices/004/design.md` is empty. `docs/AGENTS.md:168` requires exactly that
+— the design is a record of intent at a point in time, and where the
+implementation departed and the design stands as written, the departure is said
+here rather than edited away. So the design contradicts both the code and the
+draft spec on this point, on purpose, and this paragraph is the record of it.
+Unlike the first item it has **no Reconciliation row**: nothing is proposed to
+the user, because nothing should change.
 
 Three further departures are **amendments, not drift**, and are named here so
 they are not rediscovered as drift: `design.md` §5.4's startup order and §9's

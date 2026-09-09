@@ -1498,6 +1498,46 @@ shipping tree, mark each correction dated and attributed to its finding, and do
 not silently restate — an audit that quietly updates its own evidence is worth
 less than one that shows what changed under it.
 
+**Repaired, 2026-09-09**, taking both of the outcome's two things. Nothing in
+`audit.md` was silently restated: every correction is dated, attributed to the
+finding that drove it, and quotes what it replaces.
+
+- **AC-3's row.** Corrected, and it says so, quoting the old justification in
+  full and naming all three ways it is now false — no admitted exception on that
+  path, line numbers pointing elsewhere, and a justification resting on the
+  timing assumption F-8 disproved. It names
+  `a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` as the
+  case asserting the reply the old row said did not exist. Attributed to
+  [[F-8]], *"whose Response promised this amendment and whose repair pass did
+  not make it — caught by F-16"*.
+- **Subject.** Names both ranges and keeps them apart: `b6ca5f7..93abab3` is the
+  eight phases, `93abab3..HEAD` the repairs. The refresh note says in terms that
+  the document had been arguing for a tree that is not shipping, and that the
+  two ranges were made under **different disciplines** — declared surfaces
+  versus a numbered finding.
+- **The surface walk**, in the outcome's honest form. The existing walk now
+  states that it covers `9cfb679^..93abab3` **and nothing after it**, and a
+  second walk covers the repair range as its own section: six files, each
+  against the findings it answers, with no phase retro-fitted to any of them.
+  `round_trip.rs` is named explicitly as the file the phase walk does not list
+  and correctly does not — *"its provenance is a finding, not a phase; the walk
+  says so rather than omitting it, which is how it went unrecorded until
+  F-16."* The section also records that `Cargo.lock` does not move in this
+  range, because no repair added a dependency and two declined to.
+- **The gate line, on both trees rather than collapsed into one.** And it is
+  **not uniformly green, which is now recorded rather than smoothed**: a run
+  here failed on
+  `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`
+  — the reclaim flake `99abac4` chased and could not reproduce. Measured before
+  reporting: 1 failure in 35 sequential runs on the shipping tree, **2 in 60 on
+  a worktree at `93abab3`**, which predates every repair. Same case, same
+  message, comparable rate — so it is pre-existing, not the repairs'. The audit
+  now says the gate passes on the shipping tree and **is not deterministic on
+  either**, and `slice-004.md` Follow-ups gains the reproduction with the
+  condition that finds it: repeated sequential runs of the one target,
+  *unloaded*, which is the opposite of the parallel load PHASE-03's chase used
+  and why that chase missed it.
+
 **Outcome:** verified — the disposition. **The repair has not landed yet**:
 `aef04c4` carries F-14 and F-15 and does not touch `audit.md`, so this one is
 still owed and I will re-review it when it lands.
@@ -1574,6 +1614,16 @@ both the code and the draft spec on the exact point F-3 was raised about, and
 `audit.md`'s *Design drift not reconciled* still opens *"one item"* and describes
 only the `Refusal` payload list. Repair adds the second item, in the same pass as
 F-16 since both are `audit.md` and both are the same class.
+
+**Repaired, 2026-09-09**, in F-16's own pass. `audit.md`'s *Design drift not
+reconciled* now opens **two items** and carries the second: `design.md:229`'s
+*"when the loop was idle"*, what [[F-3]] showed it to be — an implementation
+accident recorded as intent — what the repair changed, and the test that holds
+the unconditional behaviour. It states that `design.md` is left as written **on
+purpose**, cites `docs/AGENTS.md:168` for why, and evidences it with `git log
+93abab3..HEAD -- docs/slices/004/design.md` being empty. Unlike the first item
+it carries **no Reconciliation row**, and the entry says why: nothing is proposed
+to the user, because nothing should change.
 
 The sweep this came from is closed: F-3 and F-8 are the only two Responses in
 the ledger promising an edit outside the file they repair, and both are now

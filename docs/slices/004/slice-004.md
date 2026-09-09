@@ -307,6 +307,19 @@ the design and the log.
   of the failure that prompted the chase. The reproduction numbers are in
   `notes.md` under PHASE-03's Findings so a future slice does not start from
   zero.
+
+  **The reclaim case is reproduced — 2026-09-09, during `review-code.md`'s
+  repair pass, and it is a fifth flake rather than one of the four.**
+  `ingress::a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`
+  fails `bind` with `in use by a live host`: `reclaim`'s `connect` probe
+  succeeds against a path whose listener the case has just dropped, so the stale
+  socket is read as live. **It is not the repairs' doing** — 1 failure in 35
+  sequential runs of the integration target on the repaired tree, and **2 in 60
+  on a worktree at `93abab3`**, which predates every repair; same case, same
+  message, comparable rate. It reproduces under **repeated sequential runs of
+  the one target, unloaded** — which is why PHASE-03's chase missed it: that
+  chase ran the suite under parallel load up to 7.2x cores, and this wants the
+  opposite. A future slice should start from that condition, not from load.
 - **Single-instance enforcement.** Nothing prevents two goad processes today —
   no lock, no pidfile, no check — and the probe/bind race (OQ-6) is one symptom
   of that rather than a fact about the socket. Closing it inside the ingress
