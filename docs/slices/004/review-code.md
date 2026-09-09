@@ -135,9 +135,10 @@ not by reading it.
 | F-11 | minor | doc-wrong | verified |
 | F-12 | minor | fix-now | verified |
 | F-13 | nit | fix-now | verified |
-| F-14 | minor | | |
-| F-15 | minor | | |
-| F-16 | minor | | |
+| F-14 | minor | fix-now | verified |
+| F-15 | minor | doc-wrong | verified |
+| F-16 | minor | fix-now | verified |
+| F-17 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -1303,7 +1304,20 @@ The `{"source":"host"}` half was already green — F-12 fixed that branch — an
 is in the case so the rule is held whole rather than at the point it last
 broke.
 
-**Outcome:**
+**Outcome:** verified, and the repair is landed and checked. `type` is now
+extracted like `source` and `kind`, **no branch matches `$request` at all**, and
+the comment states one rule over every branch instead of a remark about the one
+that was fixed — which is the class, not the instance. Confirmed by running it:
+`data` of `{"type":"respond"}` and of `{"source":"host"}` both now reach the
+event branch and produce `"An event arrived: w / k"`, and a real `respond`
+request still short-circuits. Its test drives both literals and asserts the
+title, so it holds both branches rather than the one I reported.
+
+The ordering note I was going to attach is discharged by the repair rather than
+by argument: `source` and `kind` are still read above the branch and still hold
+`{` for a `respond` request, but with `$type` driving the outer `case` no arm
+that reads them is reachable for such a request. Nothing holds a meaningless
+value on a path that consults it.
 
 ### F-15 — §6.3 says a faulted connection's `unavailable` always reaches a person; the code reaches it only while idle
 
@@ -1404,7 +1418,26 @@ which drives a listener-decided refusal through the inner arm and asserts it
 reaches no frame; the faulted read takes that identical path, in the same
 `Arrival`, and the spec now files it there.
 
-**Outcome:**
+**Outcome:** verified, and the sweep did what sweeping is for — it found one
+I had not.
+
+The paragraph is now organised by **which side decided the refusal**, with the
+listener's six (the faulted read's `unavailable` among them, where it belongs),
+the loop's two, `engaged`, the stopping `unavailable`, and the ingress-stopped
+one that travels the other way. It closes with the criterion itself — *"One that
+cannot say which side decides is a clause that has not been checked"* — which is
+the durable part: it makes the next instance of this class findable by reading
+rather than by a reviewer happening to trace the path.
+
+**The extra one is the interesting result.** §6.3's `unavailable` prose still
+said the ingress-stopped cause *"is reported to a person under R-15 or not at
+all"* — obsolete since [[F-3]]'s repair made it unconditional, and
+**under**-claiming rather than over-, which is the direction a sweep looking only
+for the reported defect would have missed. §5 and §6.3 now agree. That is a
+second instance of the class found by the class fix, which is the argument for
+sweeping made in one line.
+
+Six, two, one, one and one — my own count matches the repaired text.
 
 ### F-16 — `audit.md`'s AC-3 row still describes the code [[F-8]] repaired, and the amendment its Response promised was not made
 
@@ -1464,6 +1497,73 @@ rather than omit it. Refresh Subject, Evidence and the surface walk to the
 shipping tree, mark each correction dated and attributed to its finding, and do
 not silently restate — an audit that quietly updates its own evidence is worth
 less than one that shows what changed under it.
+
+**Outcome:** verified — the disposition. **The repair has not landed yet**:
+`aef04c4` carries F-14 and F-15 and does not touch `audit.md`, so this one is
+still owed and I will re-review it when it lands.
+
+Taking the whole staleness rather than the row is right, and *"do not silently
+restate"* is the part that matters — an audit that refreshes its own evidence
+without showing what moved is the same defect as one that never refreshes it.
+
+Two things for the pass. The surface walk's honest form is not to add
+`round_trip.rs` to a phase — no phase declared it and none should be
+retro-fitted — but to say the walk covers `9cfb679^..93abab3` and name the
+repair range's own surfaces separately, since they arrived under a different
+discipline. And the gate line should say which tree it was run on: the audit's
+transcript is from `93abab3`, and I re-ran `just check` at `441fa94` myself,
+exit 0. Two runs on two trees is a fact worth recording rather than collapsing
+into one.
+
+See [[F-17]] — the same promise-tracking gap, on [[F-3]] rather than [[F-8]],
+and it belongs in this finding's own pass through `audit.md`.
+
+### F-17 — [[F-3]]'s Response promised a Design drift entry for `design.md:229` and none was written
+
+**Severity:** minor
+**Location:** `docs/slices/004/audit.md:371-387` (*Design drift not reconciled*);
+`docs/slices/004/design.md:229`
+
+**Expected:** [[F-3]]'s Response, which I verified, ends: *"R-15 and §5 keep
+their unqualified wording; it is `design.md:229`'s 'when the loop was idle' that
+recorded an implementation accident as intent, and **that goes under Design
+drift** rather than being adopted."* `docs/AGENTS.md:168` is the rule it was
+honouring — *"where the implementation departed and the design stands as
+written, say so under **Design drift not reconciled**."*
+
+**Observed:** `design.md:229` still reads, of the ingress-stopped
+`unavailable`, *"the ingress-stopped case, **when the loop was idle** — and that
+fold is the only report of it there is."* [[F-3]]'s repair made it
+unconditional — both arms present it — and the repair pass amended
+`draft-spec.md` §5 to say so in terms, and §6.3 again under [[F-15]].
+`design.md` was correctly left as written: `git log 93abab3..HEAD --
+docs/slices/004/design.md` is empty, which is the departure `docs/AGENTS.md:168`
+is about.
+
+**What is missing is the record of it.** `audit.md`'s *Design drift not
+reconciled* section opens *"one item, and it is the one the row above proposes
+to close"* and describes only `design.md` §5.2's `Refusal` payload list. There is
+no second item and no Reconciliation row: `design.md:229` appears nowhere in
+`audit.md` at all. So the design now contradicts the code and the draft spec on
+a point a finding was raised about, and the one document whose job is to record
+that says there is one item of drift.
+
+This is [[F-16]] again with a different parent — a Response promising an edit in
+a document other than the one it repairs, with nothing tracking the promise.
+Raised separately rather than folded in because it is a different document, a
+different section and a different finding's debt; raised **now** rather than at
+round 3 because F-16's repair pass is already inside `audit.md` and this belongs
+in the same pass.
+
+**Evidence:** `design.md:229` (unchanged — `git log 93abab3..HEAD --
+docs/slices/004/design.md` returns nothing); `audit.md:371-372` (*"one item"*);
+`grep -n "when the loop was idle\|design.md:229" docs/slices/004/audit.md` →
+no match. Against `draft-spec.md` §5's amended *"This one is unconditional on
+the host's state: it is reported whether the loop was idle or mid-exchange when
+ingress died"*, and `controller.rs:726-741`, the branch that presents it.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
