@@ -2192,6 +2192,30 @@ window. The finding is right that this would rest the margin on the standard
 library's spawn selection, which is exactly the unstated accident F-18 was raised
 about. Naming the residue is the repair; removing it is not available here.
 
+**Repaired, 2026-09-09 — documents only, no code change.** Three places said the
+false thing and a fourth would have carried it out of the slice:
+
+- **`draft-spec.md` §6.1.** The `CLOEXEC` sentence is gone. In its place,
+  *"Inheritance is not what makes the lock safe"* — a `flock` belongs to the
+  open file description, so a `fork` duplicates it exactly as it duplicates a
+  listening descriptor — followed by what does close the gap: the lock is never
+  released while a host lives, so there is no release to race, where the old
+  failure needed a release followed by a probe of the same path.
+- **A new *"Non-normative limit — the fork window at a host's death"***, in the
+  shape §6.1 already uses for upgrade skew and placed immediately before it: an
+  un-exec'd child of the holder holds the lock too, `CLOEXEC` ends that at
+  `exec` and not before, so a host that dies with a child inside that window
+  leaves the lock held until the child execs or exits. Bounded to the instant of
+  a host's death, self-clearing, and **stated rather than closed** — with the
+  reason said outright, that closing it would mean resting on how a spawn is
+  implemented.
+- **`reclaim`'s doc comment** (`crates/goad-shell/src/ingress/mod.rs`), the same
+  correction in the same order, pointing at §6.1 for the residue.
+- **`notes.md`'s Harvest entry**, which is a candidate for `docs/memory/` at
+  close and whose *How to apply* line gave the `CLOEXEC` reason. Corrected to
+  the real one, citing this finding — otherwise the false reason would have been
+  the one thing to survive the slice.
+
 **Outcome:**
 
 ### F-20 — the socket's filesystem must support advisory locking, and nothing says so
@@ -2248,6 +2272,15 @@ the failure arrives as a host that will not start over a lock they did not know
 existed, with the remedy — put the socket somewhere else — underivable from the
 message. See [[F-21]]: same paragraph, and both are about a person meeting a
 lock they never asked for.
+
+**Repaired, 2026-09-09 — one paragraph, no code change.** `draft-spec.md` §6.1
+now states it beside the lock's own paragraph: **the filesystem holding the path
+must support advisory locking**, most do and some — various FUSE mounts, NFS
+depending on version and mount options — do not; on one that does not, liveness
+cannot be determined and the host does not start (R-3), and the remedy is to put
+the socket somewhere that can lock. Named as an environmental requirement of the
+location, *like the containing directory's permissions above*, which is the
+sibling sentence the finding pointed at. The behaviour is unchanged.
 
 **Outcome:**
 
@@ -2345,6 +2378,47 @@ path; `try_lock` failing means liveness is genuinely undetermined, which is what
   could move under it and stay green.** Strengthen it to assert the variant. A
   test honest about what it checks is still a test that let a user-facing
   regression through, and the fix for that is the assertion, not the honesty.
+
+**Repaired, 2026-09-09. Red first, and it was red for the finding's own reason.**
+
+**The assertion, before the fix.**
+`ingress::a_directory_with_no_write_permission_is_refused_naming_the_path`
+(`crates/goad-shell/tests/integration/ingress.rs`) gains
+`assert!(matches!(error.fault, BindFault::Unbindable(_)))` beside its existing
+`assert_eq!(error.path, path)`, and a doc comment saying why the variant is part
+of the claim: the failure moved to the lock file when `reclaim` started taking
+the lock first, and the variant must not move with it. Run against the unrepaired
+code it fails with the message F-21 quotes — *"whether a live host holds it could
+not be determined: Permission denied (os error 13)"* — so the case fails on the
+regression itself and not on a proxy for it. **The name is left as it is**: it
+promises the path is named and the case still names the path, so the added
+assertion makes the name understate what is checked rather than disagree with
+it, and renaming would move a reference in §7 and in `audit.md` for nothing.
+
+**The split, in `hold`** (`crates/goad-shell/src/ingress/mod.rs`). The `open` arm
+now raises `BindFault::Unbindable`; the `TryLockError::Error` arm keeps
+`LivenessUnknown`, which leaves that variant meaning exactly one thing — the file
+is open and the lock could not be asked, which is [[F-20]]'s filesystem. **No new
+variant and no new concept**, so the STOP condition the brief set was not
+reached: `Unbindable` is the fault the bind would have raised had it got that
+far, and the message a person reads for a mistyped or unwritable directory is
+*"could not be bound: No such file or directory"* again — the pre-repair wording,
+restored rather than approximated. Both variants' doc comments now say which
+question each answers and point at each other.
+
+**Two document corrections, one of them beyond the brief and stated as such.**
+§7's R-4 row no longer argues the distinction away: it says the failure is *met*
+at the lock file rather than at the bind and is **still R-4's fault**, that the
+two are the same startup failure and not the same message, and that the case
+asserts the variant as well as the path. And **R-3's own last clause said the
+collapsed thing** — *"a lock that cannot be opened or cannot be asked"* — which
+would have left the requirement text contradicting the repair; it now scopes
+itself to a lock that cannot be **asked** and hands a lock file that cannot be
+**opened** to R-4 as an unusable location. That amendment was not named in the
+disposition; it is the same defect one document upstream.
+
+**Gate:** `just check` exits **0**, 19 `test result: ok` blocks, zero failures,
+with the strengthened case green.
 
 **Outcome:**
 
