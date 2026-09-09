@@ -140,9 +140,10 @@ not by reading it.
 | F-16 | minor | fix-now | verified |
 | F-17 | minor | fix-now | verified |
 | F-18 | major | fix-now | verified |
-| F-19 | minor | | |
-| F-20 | minor | | |
-| F-21 | minor | | |
+| F-19 | minor | doc-wrong | verified |
+| F-20 | minor | doc-wrong | verified |
+| F-21 | minor | fix-now | verified |
+| F-22 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -2216,7 +2217,27 @@ false thing and a fourth would have carried it out of the slice:
   the real one, citing this finding — otherwise the false reason would have been
   the one thing to survive the slice.
 
-**Outcome:**
+**Outcome:** verified, and the correction went further than the finding asked.
+**Four sites, not three** — §6.1's body, `reclaim`'s doc comment, `notes.md`'s
+Harvest entry, and a new §6.1 limit. The Harvest entry is the one that mattered
+most and it is now the strongest of the four: its *How to apply* line, which
+carried the wrong reason and was bound for `docs/memory/`, now leads with *"ask
+liveness of something that is never released while the holder lives"* and says
+**"Inheritance is *not* the difference"** in terms before naming the residue. A
+memory entry that had taught the opposite of its own lesson now teaches the
+lesson.
+
+**No `CLONE_VFORK` argument anywhere** — checked by grep across the spec, the
+notes and the module: no hit. Better than absence, the new §6.1 limit says *why*
+it is not used: *"closing it would mean resting on how a spawn is implemented,
+which is the kind of unstated accident F-18 was raised about."* That converts
+the thing I flagged as a risk into a stated reason for not taking it, which is
+the durable form.
+
+The limit itself is placed immediately before *upgrade skew* and written in the
+same shape — the mechanism, the bound (the instant of a host's death), and that
+it clears itself. Correct on the mechanism: the lock belongs to the open file
+description, `CLOEXEC` ends the child's copy at `exec` and not before.
 
 ### F-20 — the socket's filesystem must support advisory locking, and nothing says so
 
@@ -2282,7 +2303,13 @@ the socket somewhere that can lock. Named as an environmental requirement of the
 location, *like the containing directory's permissions above*, which is the
 sibling sentence the finding pointed at. The behaviour is unchanged.
 
-**Outcome:**
+**Outcome:** verified. One paragraph in §6.1, stating the requirement, the
+consequence (liveness cannot be determined, so the host does not start, per
+R-3) and the remedy (put the socket somewhere that can lock) — and framing it
+as *"an environmental requirement of the location, like the containing
+directory's permissions above"*, which is the sentence that makes it findable
+by someone reading §6.1 for what their chosen path must provide. Nothing else
+moved, which was the whole scope.
 
 ### F-21 — an unusable socket location is now reported as an undetermined liveness
 
@@ -2419,6 +2446,108 @@ disposition; it is the same defect one document upstream.
 
 **Gate:** `just check` exits **0**, 19 `test result: ok` blocks, zero failures,
 with the strengthened case green.
+
+**Outcome:** verified, and the repair is better than the finding's own
+prescription in one respect: **no new variant.** I proposed a split; the repair
+split it onto `Unbindable`, which is exactly what `bind` would have raised had
+it got that far, so a mistyped directory reads *"could not be bound: No such
+file or directory"* — the pre-repair wording **restored** rather than
+approximated. `Unbindable`'s doc comment now says it is *"raised by whichever
+step meets it first"* with the reason that makes it principled rather than
+convenient: *"the two steps ask the same question of the same directory, so a
+person reads one message about the path they mistyped rather than two about
+which step noticed."* Both variants now say which question they answer.
+
+§7's R-4 row is corrected with it, including the part I would otherwise have
+asked for: it now records that **the case asserts the variant as well as the
+path**. Without that the row would have kept claiming only what the case's name
+says, and the document-level drift this finding is about would have returned one
+level up.
+
+**Deviation 1 — one case with two assertions, name unchanged: accepted, not
+contested.** The repairer's argument holds. The name promises the path is named
+and the case still names it, so the added assertion makes the name *understate*
+rather than disagree, and understatement is not the failure mode I cautioned
+about. What I raised was a risk at *failure* time — that a variant regression
+would fail a case whose name says *naming the path* — and the assertion message
+answers it directly: *"an unusable location is R-4's fault, not R-3's
+undetermined liveness, got: {}"* is what a person reads when it goes red, not
+the function name. The property that matters is kept: if the variant moves, this
+case fails. The two-case form remains better in the abstract and is not worth
+moving §7 and `audit.md` references to buy here.
+
+**Deviation 2 — R-3's last clause rescoped: correct, and it divides cleanly.**
+Leaving it would have been [[F-15]]'s class one more time — a requirement
+contradicting its own repair — so raising it rather than folding it in silently
+was right. I walked the division for a third case and there is none: the lock
+file fails to open → R-4; it opens and `try_lock` says `WouldBlock` → R-3's
+in-use clause; it opens and `try_lock` errors → R-3's last clause. Three
+outcomes, three homes, no gap and no overlap. *"A lock the host holds the file
+for but cannot ask"* is awkward to read and exact, which is the right trade for
+a requirement.
+
+**What the walk did turn up is a path the division does not reach at all** —
+see [[F-22]]. It predates this rescoping and is not a defect in it.
+
+### F-22 — R-4 refuses a symlink at the socket path and follows one at the lock path, for a reason that covers both
+
+**Severity:** minor
+**Location:** `crates/goad-shell/src/ingress/mod.rs`, `hold`; `draft-spec.md`
+R-3, R-4
+
+**Expected:** R-4 makes a rule and states its reason: a symlink at the socket
+path *"MUST NOT be followed, and MUST be a startup failure naming it as a
+symlink, whatever it points at… **Following a link would put the owner-only
+mode R-2 requires on a file the configuration did not name.**"* `reclaim`
+enforces it with `symlink_metadata`, which is why [[F-11]] exists.
+
+**Observed:** the lock file is opened with no such check:
+
+```rust
+std::fs::OpenOptions::new().create(true).write(true).mode(SOCKET_MODE)
+  .open(lock_path(path))
+```
+
+`open(2)` follows a final symlink unless `O_NOFOLLOW`, which Rust does not set.
+So a symlink at `<path>.lock` is followed, and R-4's own stated reason applies
+to it word for word: `.mode(SOCKET_MODE)` is applied **on creation**, so a
+**dangling** symlink there makes the host create a `0600` file at a location the
+configuration did not name. Demonstrated:
+
+```
+$ ln -s elsewhere.txt goad.sock.lock && : > goad.sock.lock && ls
+-rw-r--r--  elsewhere.txt          # created through the link
+lrwxrwxrwx  goad.sock.lock -> elsewhere.txt
+```
+
+Pointed at a file that already exists, the host instead takes an exclusive
+`flock` on it and holds it for the life of the process. Nothing is written —
+`create(true).write(true)` without `truncate` does not modify content — so the
+harm is bounded to blocking another `flock` user of that file and to the
+created-file case above.
+
+**Why this is a finding rather than a threat-model quibble.** It needs a
+writable containing directory, which §6.1 excludes in terms — but **so does
+R-4's symlink rule**, and the slice decided that rule was worth stating anyway.
+The defect is the asymmetry: one contract, one reason, applied to one of the two
+paths the host creates for the same purpose. A reader of R-3 and R-4 together
+would conclude the lock path is protected the way the socket path is, and it is
+not. That gap arrived with [[F-18]]'s lock and no round has looked at it,
+including the rescoping in [[F-21]] — I found it walking that division for a
+third case.
+
+**Evidence:** `hold`'s `OpenOptions` chain, with no `symlink_metadata` and no
+`custom_flags(O_NOFOLLOW)`, against `reclaim`'s own `symlink_metadata` guard on
+the socket path; `draft-spec.md` R-4 for the rule and its reason, and R-3, which
+introduces the lock file without saying anything about what may be at its path;
+the shell demonstration above for `O_CREAT` through a dangling link. The fix is
+symmetry, and it is small either way: probe the lock path with
+`symlink_metadata` as the socket path is probed, or open it with `O_NOFOLLOW`
+via `custom_flags` — the second is one line and cannot race the check against
+the open, which the first can.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
