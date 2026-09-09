@@ -138,8 +138,10 @@ not by reading it.
 | F-14 | minor | fix-now | verified |
 | F-15 | minor | doc-wrong | verified |
 | F-16 | minor | fix-now | verified |
-| F-17 | minor | | |
-| F-18 | major | fix-now | |
+| F-17 | minor | fix-now | verified |
+| F-18 | major | fix-now | verified |
+| F-19 | minor | | |
+| F-20 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -1671,7 +1673,15 @@ the ledger promising an edit outside the file they repair, and both are now
 findings. F-5's four cross-document edits and F-9's and F-10's Follow-ups
 landings were all made. Nothing else is outstanding on that axis.
 
-**Outcome:**
+**Outcome:** verified. The entry does what F-3's Response promised and one
+thing more: it states the qualification, says why it was an implementation
+accident rather than intent, cites the case that now holds the repaired
+behaviour, and then makes the *absence* of a Reconciliation row explicit —
+*"nothing is proposed to the user, because nothing should change"* — with `git
+log 93abab3..HEAD -- docs/slices/004/design.md` returning empty as the evidence
+that `design.md` was left alone deliberately. That last part is what stops a
+future reader mistaking the drift for an oversight, which is the failure mode a
+drift entry exists to prevent.
 
 ### F-18 — `reclaim`'s liveness probe infers a live host from `connect()`, and that inference is false in any process that forks
 
@@ -2016,6 +2026,193 @@ them wrong: `.gitignore` gains `/goad-demo.sock.lock`, and `notes.md`'s demo
 walkthrough listed *a socket file left behind after you quit* under **what would
 indicate failure** — which R-5 requires, so it was a standing contradiction and
 is now the opposite sentence, naming both files.
+
+**Outcome:** verified. I attacked the repair on the seven lines the handover
+named and could not break it. What follows is what I checked rather than what I
+was told.
+
+**The lock holds what the probe could not, and for a reason narrower than the
+one stated.** `flock` is associated with the **open file description**, so a
+`fork` duplicates it and the lock survives until *every* descriptor closes
+(`flock(2)`: *"the lock is released either by an explicit `LOCK_UN` … or when
+all such file descriptors have been closed"*). That is the same inheritance
+that broke `connect`. What makes it harmless here is a property the repair has
+and the old code did not: **the lock is never released while a host lives.** The
+old flake needed a *release* followed by a probe of the same path, and a
+concurrent unrelated `fork` supplied the gap between them; under the repair the
+reclaim case's path has never been locked by anyone when `bind` reaches it, so
+there is no release to race. That is why the mechanism is gone rather than
+narrowed — see [[F-19]] for the one place the *explanation* of this claims more
+than the mechanism gives.
+
+**`LivenessUnknown` is a real third answer.** R-3's *"Liveness MUST NOT be
+assumed either way when it cannot be determined"* is the requirement it
+discharges, and both alternatives are unsafe in different directions: assuming
+live refuses to start forever on a path nobody holds, and assuming dead unlinks
+a live host's socket. It changes the *message* and not the outcome — both are
+startup failures — which is exactly what R-4 asks of a fault: name the path and
+what was found.
+
+**The red-first cases test the mechanism, not a proxy, and I did not need to
+run them to know it.** `a_socket_a_forked_child_still_holds_…` opens with
+`assert!(connect(&path).is_ok(), "the case says nothing unless the child keeps
+the socket connectable")` — a control asserting *precisely the condition the old
+code branched on*. Given that assertion passes, the old `reclaim` reaches
+`InUse` deterministically and the case panics with the flake's own message; the
+sibling, against an empty path, reaches `Ok` and panics on its own `panic!`.
+Both are red by construction at `4467e0f`, which is stronger evidence than a
+worktree run because it does not depend on the run. Holding the descriptor as
+**stdin** to clear `CLOEXEC` is what turns the microsecond window into a
+deterministic case, and that is the difference between a test of the mechanism
+and a test of the weather.
+
+**The bind race is closed, and closed for the stated reason.** The lock is taken
+in `reclaim`, before `UnixListener::bind`, and released only at process exit —
+so it spans probe *and* bind, which is the gap §6.1's old limit named. Rewriting
+that limit as a property rather than deleting it is right. **The second limit is
+correctly left standing** and its closing mechanism is correctly restated: *"what
+would close it is the host re-probing its own path after the bind"* replaces the
+old *"single-instance enforcement, which this contract does not own"*, which
+would have been false once the contract owned a piece of it. That substitution is
+easy to miss and it was not missed.
+
+**Item 4, not contested.** A bind against an empty path while another host holds
+the lock returning `InUse` is R-3 as rewritten, and it is strictly better than
+what it replaces: under the old code, `rm`ing the socket under a running host
+let a second host bind and left the first holding an unreachable descriptor —
+two hosts, one path, neither told. The new answer refuses the second and says
+why.
+
+**The measurement is made properly, and its own caveat is the tell.** The
+control at `4467e0f` — same machine, same condition, same case, same message —
+is what makes 0 in 800 mean something; a bare 800 would not. Naming the first
+200 as 13% luck is the instinct that separates a measurement from a number, and
+so is *"the mechanism is gone"* outranking the count. I ran the integration
+target **60 times sequentially at `33b45b1`: 0 failures** — reported as an
+independent execution on a different day, **not** as corroboration of the rate,
+because at the control's 1-in-100 a clean 60 is about 55% likely by luck and
+says nothing on its own.
+
+**The gate, run here rather than cited:** `just check` at `33b45b1`, exit 0, 19
+`test result: ok` blocks, zero failures, all three new cases present and green.
+
+**On the D-10 record — adequate, with one observation.** It is the strongest
+entry in the four: it names what was decided, that this is a reversal and not an
+outdating, the ground (a scoping preference against a measured invariant
+failure), that single-instance enforcement is a *consequence* rather than the
+goal, and where the follow-up owner will find the piece that already exists. The
+observation: it closes by invoking *"a decision that no longer holds is
+superseded rather than edited"*, which is `docs/AGENTS.md:27`'s rule **for
+ADRs**, and D-10 is a `design.md` decision with no such vehicle — so nothing
+formally supersedes it. That is not a gap in practice, because the mechanism,
+its reasoning and its consequence are all in `draft-spec.md` R-3, R-5 and §6.1,
+which is what a future agent reads; canon carries the decision even though
+nothing carries the supersession. Worth knowing rather than worth fixing.
+
+### F-19 — §6.1 says a dead host's children hold no lock; between `fork` and `exec` they do
+
+**Severity:** minor
+**Location:** `draft-spec.md` §6.1 (*"The lock beside the socket…"*);
+`crates/goad-shell/src/ingress/mod.rs`, `reclaim`'s doc comment
+
+**Expected:** [[F-18]] was raised on a standard it stated itself — *"What does
+not depend on the rate: the inference is unsound, and today's narrowness holds
+only because `reclaim` runs before `serve` … an accident of startup ordering
+that nothing states as load-bearing."* [[F-15]] promoted the general form as a
+criterion this spec now carries: a clause that cannot say when it does not hold
+is a clause that has not been checked.
+
+**Observed:** §6.1 explains why the lock has no fork gap, and the explanation is
+absolute:
+
+> The lock has no such gap: an inherited descriptor is `CLOEXEC` and is gone at
+> `exec`, so a dead host's children hold no lock and a dead host is not live.
+
+`reclaim`'s doc comment says the same: *"a dead host's children have all
+exec'd. A dead host holds no lock."*
+
+**`flock` is associated with the open file description**, not the descriptor,
+so a `fork` duplicates it and *"the lock is released either by an explicit
+`LOCK_UN` operation on any of these duplicate file descriptors, or when all such
+file descriptors have been closed"* (`flock(2)`). A child between `fork` and
+`exec` therefore **does** hold the lock. `CLOEXEC` ends it at `exec` and not
+before, so a host that dies while a child of its own is inside that window
+leaves the lock held until that child execs — and the next host to start reads
+`InUse` about a host that is gone. That is the same shape of false *live* F-18
+was raised about, arriving through the same mechanism the paragraph is in the
+middle of explaining.
+
+**This does not make the repair unsound and I am not asking for a code change.**
+The lock is a defensible signal — a host with an un-exec'd child has not
+finished existing — and the window is microseconds, self-clearing, and reachable
+only at the instant of death, where the old probe's window recurred on every
+fork for the whole of a process's life. The defect is that a paragraph whose
+whole subject is *fork duplicating a descriptor* asserts an absolute that fork
+duplicating a descriptor is the exception to.
+
+**And the residue rests on something unstated, which is F-18's own objection.**
+Whether the window is reachable at all depends on how the host spawns: glibc's
+`posix_spawn` uses `CLONE_VM | CLONE_VFORK`, which suspends the parent until the
+child execs, and Rust's `Command` takes that path only when the spawn's
+configuration allows it. So the margin of safety here may be an implementation
+detail of the standard library's spawn selection — *an accident that nothing
+states as load-bearing*, which is the sentence F-18 wrote about the code it
+replaced.
+
+**Evidence:** `flock(2)` on lock ownership by open file description and release
+on last close; `crates/goad-shell/src/ingress/mod.rs` (`hold` takes the lock via
+`File::try_lock`; the `File` is `O_CLOEXEC` by Rust's default, which is the half
+of the claim that is true); `draft-spec.md` §6.1 and `reclaim`'s doc comment for
+the absolute. The fix is a clause, not a mechanism: say that the lock is held by
+any un-exec'd child of the holder, that this bounds the exception to the instant
+of a host's death, and that it is self-clearing — the same shape §6.1 already
+uses for *upgrade skew* two paragraphs down.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-20 — the socket's filesystem must support advisory locking, and nothing says so
+
+**Severity:** minor
+**Location:** `draft-spec.md` §6.1; `crates/goad-shell/src/ingress/mod.rs`
+(`hold`)
+
+**Expected:** §6.1 is where the contract states what the socket's location must
+provide. It already carries one such statement — *"The containing directory is
+the user's responsibility"* — for the permission property the mode cannot reach.
+
+**Observed:** R-3 now **requires** the lock: *"The host MUST decide whether a
+live host holds the path by taking an exclusive lock on a sidecar file beside
+it."* So the filesystem holding `ingress.path` must support `flock(2)`. Most
+do; some do not — various FUSE mounts, and NFS depending on version and mount
+options. On one that does not, `try_lock` returns `TryLockError::Error`,
+`reclaim` yields `LivenessUnknown`, and **the host does not start at all**,
+where before this change it started and served.
+
+That behaviour is correct — R-3's *"Liveness MUST NOT be assumed either way when
+it cannot be determined"* requires exactly it — and the message names the path
+and what happened. What is missing is that **nothing tells the person
+configuring `ingress.path` that this is a property their chosen location must
+have**, so the failure is met as a host that will not start with a message about
+a lock they did not know existed, and the recovery — put the socket somewhere
+else — is not derivable from it.
+
+This is the weaker of the two I am raising and I would not argue hard for it: a
+new environmental requirement became load-bearing in this repair, and §6.1 is
+the paragraph that exists to state environmental requirements. One sentence
+beside the directory-permissions one closes it.
+
+**Evidence:** `draft-spec.md` R-3's lock clause and §6.1, neither of which
+mentions filesystem support; `crates/goad-shell/src/ingress/mod.rs`'s `hold`,
+where `TryLockError::Error` becomes `LivenessUnknown`; `BindFault`'s own
+`Display` — *"whether a live host holds it could not be determined: {inner}"* —
+which reports the errno faithfully and still leaves the reader without the
+remedy.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
