@@ -16,7 +16,7 @@ use crate::driving::{
 use crate::fake::{Calls, FakeBackend, answering};
 use crate::harness::{describe_outcome, example, prompting_event, state_error, stderr_of};
 use crate::scripting::{invocations, logging_backend};
-use goad_semantics::protocol::canonical::{Timestamp, UserResponse, ViewId};
+use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId};
 use goad_shell::config::{Command, Config};
 use goad_shell::error::StateError;
 use goad_shell::host::Host;
@@ -216,6 +216,58 @@ async fn the_bash_backend_completes_the_same_round_trip() {
     invocations(&log),
     3,
     "one process per exchange, and no more"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The demo example, against values only a watcher chooses — `review-code.md` F-12
+// ---------------------------------------------------------------------------
+
+/// `examples/shell/backend.sh` is the file a person copies to write their own
+/// backend, and the one `just demo` runs.
+///
+/// Rooted at the crate for the reason `harness.rs::example` gives: a test
+/// binary's working directory is not something to rely on. `["bash", script]`
+/// is the argument vector `examples/demo.toml` names, so this runs the example
+/// exactly as the demo does.
+fn shell_example() -> Command {
+  let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/shell/backend.sh");
+  Command::new("bash", vec![script.display().to_string()])
+}
+
+/// `source` and `kind` are the watcher's own words and reach the backend
+/// unexamined (SPEC-001/R-9, SPEC-003/R-11), so they can carry `"` and `\`.
+/// The example interpolated them straight into a JSON string literal, which
+/// broke on the first quote — in the one file whose job is to show a watcher
+/// author what a backend looks like, so the defect propagated by copying
+/// (`review-code.md` F-12).
+///
+/// The discriminator is that the example **answers at all**: the host handles
+/// a backend emitting broken JSON correctly — it is a reported backend failure
+/// and the host stays up — which is exactly why nothing else here caught it.
+/// The view's title is asserted too, so a backend that answered something
+/// unrelated would not pass either.
+#[tokio::test]
+async fn the_shell_example_escapes_the_values_it_carries_into_a_view() {
+  let mut host = host(shell_example(), TIMEOUT, now());
+  let hostile = Event {
+    source: r#"he said "hi""#.to_owned(),
+    kind: r"back\slash".to_owned(),
+    timestamp: now(),
+    data: serde_json::json!({ "minutes_since_entry": 0 }),
+  };
+
+  let answered = host.evaluate(now(), hostile).await;
+
+  assert!(
+    answered.failure.is_none(),
+    "a quote in `source` must not break the example's own JSON: {}",
+    describe_outcome(&answered)
+  );
+  assert!(
+    choice(&answered).title().starts_with("An event arrived:"),
+    "the example answered the ingested branch: {}",
+    choice(&answered).title()
   );
 }
 
