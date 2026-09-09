@@ -2348,6 +2348,156 @@ path; `try_lock` failing means liveness is genuinely undetermined, which is what
 
 **Outcome:**
 
+## Handover
+
+<!-- Written 2026-09-09 while the reviewer still held the whole review in view,
+     deliberately before it was needed. If this session ends, a successor takes
+     the review from here without reading the conversation that produced it. -->
+
+The reviewer for rounds 1-4 is one agent, kept across rounds on purpose. This
+section is what a successor needs and cannot get from the findings alone.
+
+### Where every finding stands
+
+**Closed — outcome `verified`, repair landed and re-reviewed: F-1 … F-18.**
+Nothing is owed on any of them. Three carry conditions a successor should still
+check at promotion or close, listed under *Standing conditions* below: [[F-5]],
+[[F-15]], [[F-9]].
+
+**Open — dispositioned at `b762db5`, repair in flight, outcome not set:**
+
+| id | disposition | what round 4 must check |
+|---|---|---|
+| F-19 | doc-wrong | the clause in **all three** sites — `draft-spec.md` §6.1, `reclaim`'s doc comment, and `notes.md`'s Harvest entry. The third is the one bound for `docs/memory/`, so it is the copy that outlives the slice. **No site may close the window by invoking `posix_spawn`'s `CLONE_VFORK`** — that would replace one unstated accident with another, which is F-18's own objection |
+| F-20 | doc-wrong | one sentence in §6.1 beside the directory-permissions one. Nothing else should move |
+| F-21 | fix-now | the split in `hold` — an `open` failure is R-4's *the path is unusable*, a `try_lock` failure is R-3's *liveness could not be determined*; §7's R-4 row corrected with it; and the test's assertion strengthened without its name coming to disagree with what it asserts |
+
+### Standing conditions the reviewer is holding
+
+Not written anywhere else, and lost if this section is not read.
+
+1. **[[F-15]]'s criterion must survive promotion as a criterion.** §6.3's closing
+   sentence — *"A clause of this paragraph that says a refusal always reaches a
+   person is making a claim about who decides it… One that cannot say which side
+   decides is a clause that has not been checked"* — reads as commentary and is
+   therefore the sentence most likely to be trimmed when `draft-spec.md` becomes
+   `SPEC-003`. `audit.md`'s promotion row instructs that it be kept. **If it is
+   trimmed to a row note, that is a finding and not a remark**, and the raiser
+   committed to raising it as one. It is what makes the next instance of that
+   class findable by reading rather than by a reviewer tracing a path, and F-15's
+   own sweep found two instances with it.
+2. **[[F-9]]'s Follow-ups entry must keep its shape at close.** One entry, three
+   instances, shared cause stated; the second-host-startup instance stated and
+   then *retired with the reason* rather than deleted. It has already been
+   reconciled once ([[F-18]] removed the instance it named). A close pass that
+   tidies it into a one-line follow-up loses the reason it was deferred, which is
+   the only thing stopping it being deferred again on worse grounds.
+3. **[[F-5]]'s boundary must not be re-strengthened.** R-14's Verification row
+   claims *renamed*, *removed* and the mapping by assertion, and *added* by
+   compile gate plus review. That is exact and was arrived at by measurement. A
+   future editor tempted to simplify it back to *"a reason added or renamed fails
+   here"* would be restoring the overclaim F-5 was raised about.
+4. **[[F-2]]'s budget is stated in elapsed time on purpose.** Five seconds, in
+   the docstring. A change to a retry *count* would silently un-state it.
+
+### Lines of attack — spent, and not
+
+**Spent, and a successor should not re-run them.** The permissive/canonical
+boundary through `envelope.rs`, clause by clause against R-9 and R-10. Domain
+vocabulary, including paraphrase, over `src/` and module and type names. Strata
+direction; stratum 1's manifest and its dependency graph (`cargo tree -p
+goad-semantics -i tokio` matches nothing). Failure handling on the whole ingress
+path: partial reads, both budgets, dropped connections, a writer that never
+writes, a `oneshot` whose receiver is gone, concurrent connections, the accept
+task's own death. The socket's lifecycle end to end — bind, reclaim, mode,
+symlink, the absence of an unlink, and now the lock. The reply's wire form. Both
+anchors and the three AC-6 cases. Every author of the diagnostics surface. The
+example backend. And the spec-versus-code axis, heavily — that is where most of
+this ledger came from.
+
+**Not spent. In the order this reviewer would take them:**
+
+1. **Walk all sixteen §7 Verification rows against the tests they name, asking
+   of each: does this test hold what this row claims?** This is the highest-value
+   stone left and the reason is in the ledger's own record: of the four rows this
+   review happened to check, **three were overclaiming** — R-14 ([[F-5]]), R-11
+   ([[F-6]]) and R-4 ([[F-21]]). None was found by looking for that; each was
+   found by chasing something else. Twelve rows have never been read against
+   their tests.
+2. **Whether five seconds is the right `ACCEPT_FAULT_BUDGET`.** [[F-2]]'s
+   condition was that the bound be stated in elapsed time, and it is. Whether the
+   value is long enough for an `EMFILE` burst under a backend storm was never
+   asked, and spending the budget is irreversible for the life of the process.
+3. **`glass.rs`, for whether a person actually sees the ingress-stopped report.**
+   [[F-3]]'s repair puts it in a frame; this reviewer reasoned that `Surface`
+   stays `Hidden` when nothing is shown and that the tray goes to `Fault`, and
+   stopped there rather than reading `present`.
+4. **`take_timestamp`'s permissiveness** (`envelope.rs`). `jiff::Timestamp`
+   accepts more than RFC 3339 — an RFC 9557 zone annotation, `-00:00` as an
+   offset, arguably a date alone. Considered and dropped as consistent with
+   permissive-in; a successor may reasonably disagree, and R-10 says *"MUST be an
+   RFC 3339 instant"*.
+5. **Two hosts and one writer, interleaved**, beyond what the cases cover.
+6. **`just demo`, run.** The human observation covers it and the runbook was
+   read; this reviewer never ran it.
+
+### Observations dropped rather than raised
+
+Recorded so they are not rediscovered as new. Each was considered and judged not
+to be a finding; a successor is free to disagree, but should know it was seen.
+
+- **The arm race in
+  `ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`.**
+  It depends on `shutdown_background` having dropped the accept task before the
+  inner arm first polls, and that drop is deferred. Measured **12/12 stable**;
+  the race runs the safe way, because load lengthens the subprocess spawn and so
+  favours the inner arm, and a loss fails the case rather than passing it
+  wrongly. Not a finding this reviewer could confirm. **If it ever flakes, this
+  is the explanation, and it belongs beside the four flakes `slice-004.md`
+  already records.**
+- **`reddit-watcher` and `reddit-opened` in `src/`.** The vocabulary scan covers
+  `crates/goad-shell/src/ingress/envelope.rs`'s test fixtures and passes because
+  `reddit` is not on the `DOMAIN` list. Judged not a breach: the invariant is
+  about host **types and module names**, these are fixture *values*, and they
+  come from brief §19's own scenario.
+- **The TOCTOU between `bind` and `set_permissions` on the socket.** A path
+  swapped for a symlink in that window would have `0600` applied to the target.
+  Dropped because §6.1 puts the containing directory in the user's
+  responsibility in terms, which is the same ground A-5's mode window rests on.
+- **`detail` can carry ~64 KiB of watcher-chosen key name onto the wire.**
+  Bounded by `ENVELOPE_LIMIT`, escaped and truncated before it reaches a person
+  (`Escaped`, `bound`). Harmless.
+- **`escaped()` in `examples/shell/backend.sh` cannot escape control
+  characters.** Unreachable: the host serialises `source` and `kind` through
+  `serde_json`, so a control character arrives at the script already escaped as
+  two ASCII characters.
+- **Nothing bounds what the host writes to the backend's stdin.** A 64 KiB
+  envelope becomes a 64 KiB `evaluate`. Judged SPEC-001's, not this contract's.
+
+### What this reviewer would say differently, asked at the end
+
+Severity is set at raise time and none of these reopens a finding. They are the
+things a continuous view shows and a fresh one would not.
+
+- **[[F-4]] was `minor` by consequence and load-bearing by position.** Its
+  repair — reading the token off `Refusal::reason()` — is what forced
+  `UnavailableCause` to become the right shape, which [[F-7]] and then [[F-18]]
+  both needed. A finding whose severity reflects its blast radius can still be
+  the one whose repair unblocks the others; the ledger records the severity and
+  not that.
+- **[[F-9]] is the one whose severity gets weaker the longer it is deferred.**
+  `minor` was right on the ground that the surface's single-slot design predates
+  this slice. That ground does not survive a second deferral: each slice that
+  leaves an outside-the-process author writing to a slot the host needs for its
+  own faults makes *"it predates us"* a weaker sentence.
+- **The class this review closed on instances is *"an absolute clause about a
+  mechanism that cannot name the mechanism's exception."*** [[F-3]], [[F-15]]
+  and [[F-19]] are all it. The criterion promoted from F-15 is scoped to *which
+  refusals a person sees* — which is why F-15's own sweep did not reach §6.1's
+  lock paragraph, and [[F-19]] had to be raised separately one round later. The
+  criterion is right and narrower than the class. **The general form is worth
+  stating somewhere it applies to the whole document**, not only to §6.3.
+
 ## Synthesis
 
 <!-- Written when the ledger resolves. The closure story: what the review
