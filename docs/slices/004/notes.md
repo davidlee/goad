@@ -1855,6 +1855,24 @@ not run, and no claim rests on them)
   constructor (PHASE-04/S-5). The same shape reaches any "the task that feeds
   this channel is gone" state.
 
+- **A successful `connect` is not a liveness signal in a process that forks.**
+  Not that `connect` is unreliable: *something is listening at this path* and
+  *a live host holds this path* are different propositions, and `fork`
+  separates them — it duplicates the listening descriptor into the child, so
+  the socket stays bound and connectable after its owner has closed its own
+  descriptor, for as long as any child holds the copy before `exec`. A process
+  that forks therefore reads its own stale sockets as live. Measured across
+  three implementations; the fact and its mechanism live in `draft-spec.md`
+  §6.1, `review-code.md` **F-18**, and `reclaim`'s own doc comment
+  (`crates/goad-shell/src/ingress/mod.rs`). **How to apply:** ask liveness of
+  something a dead process cannot still hold — an exclusive advisory lock taken
+  for the process's lifetime, whose inherited descriptor `CLOEXEC` closes at
+  `exec`, so a dead host's children hold nothing. **And the recipe, reusable
+  for anything needing a deterministic fork window:** hand the descriptor to a
+  child as its **stdin** — `dup2` onto fd 0 clears `CLOEXEC`, so the window
+  that is microseconds wide in a real spawn becomes the child's whole life, and
+  a race becomes a test. Candidate for `docs/memory/`, at close.
+
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
