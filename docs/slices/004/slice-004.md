@@ -350,9 +350,18 @@ the design and the log.
     prevents a ninth token; the closure is held by an exhaustive `match` in the
     test file plus review, and R-14's Verification row says so in terms.
     `reason()` returning a closed `Reason` type would make a new token a new
-    variant of a type whose only purpose is the wire vocabulary. It is a public
-    API change reaching `controller.rs` and both test tiers — outside F-5's
-    declared location, and a decision rather than a repair.
+    variant of a type whose only purpose is the wire vocabulary: a ninth
+    `Refusal` variant could then not mint a token at all, because its forced arm
+    would have to name an existing `Reason`. **A fresh unit of work with its own
+    declared surfaces, and they are few** — `Refusal::reason()`'s signature
+    (`crates/goad-shell/src/ingress/mod.rs`); its one remaining caller outside
+    that module, `folded()` in `crates/goad/src/controller.rs`, F-4 having
+    collapsed two call sites into it; and, in
+    `crates/goad-shell/tests/integration/ingress.rs`, `Seen::Refused`'s payload
+    type and the closure case itself. The renderer tier reads reasons off the
+    reply JSON rather than off `reason()`, so it is untouched. It is a public
+    API change and therefore a decision rather than a repair, which is why F-5
+    left it here.
 
   They share a cause: slice 004 gave the host an input reached from outside the
   process, and the surfaces and vocabularies it feeds were all designed when

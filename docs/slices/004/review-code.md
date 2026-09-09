@@ -594,9 +594,16 @@ belongs. The case's doc comment says this.
 
 **Decided by the user, 2026-09-09: weaken R-14; the `Reason` type is a
 follow-up.** The argument two paragraphs up — that a compile failure in this
-file is a failure *here*, so R-14's sentence stands — is **withdrawn**. Result
-(2) is the finding, and a contract a second implementation reads must say which
-of the four directions is machine-held. What landed:
+file is a failure *here* — is **kept, and made explicit**, not retracted:
+result (1) stands, and adding a reason does force a stop in this file. The leak
+is narrower than *R-14 is false*. What the compile gate does not force is a
+**correct** update: result (2) lets an author satisfy the compiler and walk away
+green. So the amendment names which of the four directions is held by an
+**assertion** and which by the **compile gate plus review**, and the argument
+becomes the sentence's second half rather than an unstated reliance inside its
+first. A second implementation then knows which guarantee it is leaning on,
+which is more information than either the old sentence or a retraction. What
+landed:
 
 - **`draft-spec.md` R-14's Verification row** now claims a token *renamed*, a
   token *removed*, and the eight-way mapping by assertion, and states in terms
