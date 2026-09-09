@@ -465,6 +465,13 @@ async fn a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_s
 // VT-4 — a path that cannot be created
 // ---------------------------------------------------------------------------
 
+/// A location the host cannot use is refused as **a location**, not as an
+/// undetermined liveness. This is the commonest misconfiguration there is — a
+/// mistyped or unwritable directory — and the fault it gets is what a person
+/// reads (`review-code.md` F-21). The failure now happens at the lock file
+/// rather than at `UnixListener::bind`, because `reclaim` takes the lock
+/// first; the variant must not move with it, so the case asserts the variant
+/// and not only the path.
 #[tokio::test]
 async fn a_directory_with_no_write_permission_is_refused_naming_the_path() {
   use std::os::unix::fs::PermissionsExt;
@@ -491,6 +498,11 @@ async fn a_directory_with_no_write_permission_is_refused_naming_the_path() {
     ),
   };
   assert_eq!(error.path, path);
+  assert!(
+    matches!(error.fault, BindFault::Unbindable(_)),
+    "an unusable location is R-4's fault, not R-3's undetermined liveness, got: {}",
+    error.fault
+  );
 
   match std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)) {
     Ok(()) | Err(_) => (),

@@ -83,14 +83,21 @@ pub enum BindFault {
   /// The path could not be inspected at all.
   Unprobeable(io::Error),
   /// Whether a live host holds the path could not be determined: the lock
-  /// beside it ([`lock_path`]) could not be opened, or could not be asked.
-  /// Neither answer is safe to assume, so neither is assumed.
+  /// beside it ([`lock_path`]) exists and could not be *asked* — a filesystem
+  /// with no advisory locking, most often. Neither answer is safe to assume,
+  /// so neither is assumed. A lock file that could not be **opened** is not
+  /// this: the location is unusable, which is [`Self::Unbindable`]
+  /// (`review-code.md` F-21).
   LivenessUnknown(io::Error),
   /// A stale socket file could not be removed.
   Unlinkable(io::Error),
-  /// `UnixListener::bind` itself failed — a path component that is not a
-  /// directory, a directory with no write permission, a path longer than
-  /// `sun_path` admits, or any other reason the platform refuses it.
+  /// The location cannot be used — a path component that is not a directory,
+  /// a directory that does not exist or the host cannot write, a path longer
+  /// than `sun_path` admits, or any other reason the platform refuses it.
+  /// Raised by whichever step meets it first: opening the lock file beside
+  /// the path, or `UnixListener::bind` itself. The two steps ask the same
+  /// question of the same directory, so a person reads one message about the
+  /// path they mistyped rather than two about which step noticed.
   Unbindable(io::Error),
   /// The socket was bound but its mode could not be set to owner-only.
   ModeUnsettable(io::Error),
@@ -174,13 +181,21 @@ pub fn lock_path(socket: &Path) -> PathBuf {
 /// The file is created and never removed: a lock file with nobody holding it
 /// is not a claim, and `SPEC-003/R-5` keeps it for the reason it keeps the
 /// socket.
+///
+/// **The two failures here are two different questions** (`review-code.md`
+/// F-21). Failing to *open* the file says the location is unusable — the
+/// directory is missing, or unwritable — which is R-4's fault and the one
+/// `bind` would have raised had it got that far; failing to *lock* an opened
+/// file says liveness could not be determined, which is R-3's. Collapsing
+/// them points a person at a lock they did not know existed instead of at the
+/// directory they mistyped.
 fn hold(path: &Path) -> Result<std::fs::File, IngressError> {
   let lock = std::fs::OpenOptions::new()
     .create(true)
     .write(true)
     .mode(SOCKET_MODE)
     .open(lock_path(path))
-    .map_err(|error| fault(path, BindFault::LivenessUnknown(error)))?;
+    .map_err(|error| fault(path, BindFault::Unbindable(error)))?;
   match lock.try_lock() {
     Ok(()) => Ok(lock),
     Err(std::fs::TryLockError::WouldBlock) => Err(fault(path, BindFault::InUse)),
