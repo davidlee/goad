@@ -113,8 +113,14 @@ fn socket_path(case: &str) -> PathBuf {
   path
 }
 
+/// Removes the socket **and the lock file beside it**: the host unlinks
+/// neither (`SPEC-003/R-5`), so a case that only removes the socket leaves
+/// two files per run in `temp_dir()` instead of one.
 fn cleanup(path: &Path) {
   match std::fs::remove_file(path) {
+    Ok(()) | Err(_) => (),
+  }
+  match std::fs::remove_file(goad_shell::ingress::lock_path(path)) {
     Ok(()) | Err(_) => (),
   }
 }

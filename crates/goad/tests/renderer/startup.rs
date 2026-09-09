@@ -416,8 +416,13 @@ mod listener {
     path
   }
 
+  /// Removes the socket **and the lock file beside it**: the host unlinks
+  /// neither (`SPEC-003/R-5`).
   fn cleanup(path: &std::path::Path) {
     match std::fs::remove_file(path) {
+      Ok(()) | Err(_) => (),
+    }
+    match std::fs::remove_file(goad_shell::ingress::lock_path(path)) {
       Ok(()) | Err(_) => (),
     }
   }

@@ -14,7 +14,7 @@
 #![deny(clippy::arithmetic_side_effects)]
 
 use std::io;
-use std::os::unix::fs::{FileTypeExt, PermissionsExt};
+use std::os::unix::fs::{FileTypeExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -77,10 +77,15 @@ pub enum BindFault {
   /// else: a symlink *to* a socket is ambiguous and is refused rather than
   /// followed, `design.md` §5.5).
   NotASocket { found: &'static str },
-  /// A socket occupies the path and a live host answers on it (`SPEC-003/R-3`).
+  /// A live host holds the path's lock (`SPEC-003/R-3`) — whatever is or is
+  /// not at the path itself. See [`lock_path`].
   InUse,
   /// The path could not be inspected at all.
   Unprobeable(io::Error),
+  /// Whether a live host holds the path could not be determined: the lock
+  /// beside it ([`lock_path`]) could not be opened, or could not be asked.
+  /// Neither answer is safe to assume, so neither is assumed.
+  LivenessUnknown(io::Error),
   /// A stale socket file could not be removed.
   Unlinkable(io::Error),
   /// `UnixListener::bind` itself failed — a path component that is not a
@@ -97,6 +102,10 @@ impl std::fmt::Display for BindFault {
       Self::NotASocket { found } => write!(f, "not a socket — found {found}"),
       Self::InUse => write!(f, "in use by a live host"),
       Self::Unprobeable(inner) => write!(f, "could not be inspected: {inner}"),
+      Self::LivenessUnknown(inner) => write!(
+        f,
+        "whether a live host holds it could not be determined: {inner}"
+      ),
       Self::Unlinkable(inner) => write!(f, "a stale socket could not be removed: {inner}"),
       Self::Unbindable(inner) => write!(f, "could not be bound: {inner}"),
       Self::ModeUnsettable(inner) => write!(f, "its mode could not be set: {inner}"),
@@ -108,6 +117,7 @@ impl std::error::Error for BindFault {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
       Self::Unprobeable(inner)
+      | Self::LivenessUnknown(inner)
       | Self::Unlinkable(inner)
       | Self::Unbindable(inner)
       | Self::ModeUnsettable(inner) => Some(inner),
@@ -125,7 +135,7 @@ impl std::error::Error for BindFault {
 /// The host must not start without the listener its configuration asked for
 /// (`SPEC-003/R-4`).
 pub fn bind(path: &Path) -> Result<Ingress, IngressError> {
-  reclaim(path)?;
+  let lock = reclaim(path)?;
   let listener =
     UnixListener::bind(path).map_err(|error| fault(path, BindFault::Unbindable(error)))?;
   std::fs::set_permissions(path, std::fs::Permissions::from_mode(SOCKET_MODE))
@@ -134,6 +144,7 @@ pub fn bind(path: &Path) -> Result<Ingress, IngressError> {
   tokio::spawn(accept_loop(listener, arrivals));
   Ok(Ingress {
     arrivals: Some(receiver),
+    _lock: Some(lock),
   })
 }
 
@@ -144,25 +155,79 @@ fn fault(path: &Path, kind: BindFault) -> IngressError {
   }
 }
 
-/// A path with nothing at it is left alone. A path with a **stale** socket —
-/// one no live host answers on — is unlinked, so `bind` can take it
-/// (`SPEC-003/R-3`). Anything else is a fault naming what was found; `bind`
-/// never touches a path it did not itself just clear.
+/// Where the lock that says *a live host holds this path* lives: beside the
+/// socket, named for it — `goad.sock` next to `goad.sock.lock`. A regular
+/// file, so `sun_path`'s length limit does not reach it, and one a person can
+/// find by looking (`SPEC-003/R-3`).
+#[must_use]
+pub fn lock_path(socket: &Path) -> PathBuf {
+  let mut name = socket.as_os_str().to_os_string();
+  name.push(".lock");
+  PathBuf::from(name)
+}
+
+/// Takes the exclusive advisory lock on `path`'s sidecar file and hands it
+/// back for the host to hold. Owner-only like the socket and for the same
+/// reason (`SOCKET_MODE`), and here without A-5's window, because `open(2)`
+/// takes the mode rather than needing a `chmod` after it.
 ///
-/// The liveness check is `connect`: a Unix domain socket has no atomic "is
-/// anyone listening" query, and a failed connect to a stale socket file is
-/// the standard idiom. A **live** path's own accept task observes this probe
-/// as an ordinary connection that sends nothing before closing — refused
-/// `malformed` on that host's side, if it happens to be idle when it notices
-/// (`design.md` §5.5's edge-case table). That is this reclaim's one side
-/// effect, accepted rather than defended, the same way A-5's mode window is.
-fn reclaim(path: &Path) -> Result<(), IngressError> {
-  let metadata = match std::fs::symlink_metadata(path) {
-    Ok(metadata) => metadata,
-    Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+/// The file is created and never removed: a lock file with nobody holding it
+/// is not a claim, and `SPEC-003/R-5` keeps it for the reason it keeps the
+/// socket.
+fn hold(path: &Path) -> Result<std::fs::File, IngressError> {
+  let lock = std::fs::OpenOptions::new()
+    .create(true)
+    .write(true)
+    .mode(SOCKET_MODE)
+    .open(lock_path(path))
+    .map_err(|error| fault(path, BindFault::LivenessUnknown(error)))?;
+  match lock.try_lock() {
+    Ok(()) => Ok(lock),
+    Err(std::fs::TryLockError::WouldBlock) => Err(fault(path, BindFault::InUse)),
+    Err(std::fs::TryLockError::Error(error)) => Err(fault(path, BindFault::LivenessUnknown(error))),
+  }
+}
+
+/// A path with nothing at it is left alone. A path with a **stale** socket —
+/// one no live host holds — is unlinked, so `bind` can take it
+/// (`SPEC-003/R-3`). Anything else is a fault naming what was found; `bind`
+/// never touches a path it did not itself just clear. Returns the lock the
+/// host holds from here until it exits.
+///
+/// **Liveness is the lock, never a `connect`.** Taking the lock ([`hold`]) is
+/// the question and holding it is the answer: a host that gets it knows no
+/// live host holds the path, and one that cannot get it knows one does. The
+/// order is R-4 before R-3 — what is *at* the path is settled first, so a
+/// symlink or a regular file is refused as such without a lock file appearing
+/// beside it.
+///
+/// A `connect` cannot decide this, and the code that thought it could was
+/// wrong rather than imprecise (`review-code.md` F-18, measured across three
+/// implementations). `connect` succeeding says *a listening socket is bound
+/// here*; it does not say *a host holds it*. `fork` duplicates a listening
+/// descriptor into the child, so the socket stays bound and connectable after
+/// its owner has closed its own descriptor and for as long as any child holds
+/// the copy — and this host forks once per exchange. The old probe read that
+/// as a live host and refused to start against a path nobody held. The lock
+/// has no such gap: an inherited descriptor is `CLOEXEC`, so it is gone at
+/// `exec`, and a dead host's children have all exec'd. A dead host holds no
+/// lock. It also costs a live host nothing, because nothing connects to it.
+///
+/// **Upgrade skew, stated rather than discovered.** A socket left by a host
+/// that predates the lock file has no lock beside it, so this reads it as
+/// stale and unlinks it: right for a dead old host, wrong for a live one,
+/// which would go on serving a socket no path reaches (`draft-spec.md` §6.1,
+/// *the path after the bind*). The window is the one upgrade that crosses this
+/// change, and one restart of the old host closes it.
+fn reclaim(path: &Path) -> Result<std::fs::File, IngressError> {
+  let occupant = match std::fs::symlink_metadata(path) {
+    Ok(metadata) => Some(metadata),
+    Err(error) if error.kind() == io::ErrorKind::NotFound => None,
     Err(error) => return Err(fault(path, BindFault::Unprobeable(error))),
   };
-  if !metadata.file_type().is_socket() {
+  if let Some(metadata) = &occupant
+    && !metadata.file_type().is_socket()
+  {
     return Err(fault(
       path,
       BindFault::NotASocket {
@@ -170,10 +235,11 @@ fn reclaim(path: &Path) -> Result<(), IngressError> {
       },
     ));
   }
-  if std::os::unix::net::UnixStream::connect(path).is_ok() {
-    return Err(fault(path, BindFault::InUse));
+  let lock = hold(path)?;
+  if occupant.is_some() {
+    std::fs::remove_file(path).map_err(|error| fault(path, BindFault::Unlinkable(error)))?;
   }
-  std::fs::remove_file(path).map_err(|error| fault(path, BindFault::Unlinkable(error)))
+  Ok(lock)
 }
 
 /// What was found at a path that is not a socket, for `BindFault::NotASocket`.
@@ -201,13 +267,22 @@ fn describe(file_type: std::fs::FileType) -> &'static str {
 #[derive(Debug)]
 pub struct Ingress {
   arrivals: Option<mpsc::Receiver<Arrival>>,
+  /// The exclusive lock on the socket path, held for as long as this handle
+  /// lives — which is the process, since `serve` owns it. Never read: holding
+  /// it *is* the signal a second host reads (`reclaim`), so dropping it early
+  /// would tell that host the path is free while this one still serves it.
+  /// `None` for [`Ingress::none()`], which holds no path.
+  _lock: Option<std::fs::File>,
 }
 
 impl Ingress {
   /// The handle a host with no socket holds.
   #[must_use]
   pub fn none() -> Self {
-    Self { arrivals: None }
+    Self {
+      arrivals: None,
+      _lock: None,
+    }
   }
 
   /// Cancel-safe. **Never resolves** when nothing is bound — that is
@@ -706,9 +781,24 @@ fn drain(stream: &UnixStream) {
 #[cfg(test)]
 mod tests {
   use super::{
-    ACCEPT_BACKOFF_BASE, ACCEPT_BACKOFF_CEILING, ACCEPT_FAULT_BUDGET, accept_backoff, reply,
-    unreadable,
+    ACCEPT_BACKOFF_BASE, ACCEPT_BACKOFF_CEILING, ACCEPT_FAULT_BUDGET, accept_backoff, lock_path,
+    reply, unreadable,
   };
+
+  /// The lock sits **beside** the socket and is named for it — appended, not
+  /// substituted, so two configured paths that differ only in extension get
+  /// two locks (`goad.sock` and `goad.sock.lock`, never `goad.lock`).
+  #[test]
+  fn the_lock_is_the_socket_s_own_path_with_a_suffix() {
+    assert_eq!(
+      lock_path(std::path::Path::new("/run/goad.sock")),
+      std::path::PathBuf::from("/run/goad.sock.lock")
+    );
+    assert_eq!(
+      lock_path(std::path::Path::new("/run/goad")),
+      std::path::PathBuf::from("/run/goad.lock")
+    );
+  }
 
   /// F-7's rule, at the one site that states it. A transport fault is
   /// `unavailable` — *the host cannot act on this envelope* — and never

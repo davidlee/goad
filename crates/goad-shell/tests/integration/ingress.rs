@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use goad_semantics::protocol::canonical::Event;
 use goad_shell::ingress::envelope::EnvelopeFault;
 use goad_shell::ingress::{
-  BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, UnavailableCause, bind,
+  BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, UnavailableCause, bind, lock_path,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -34,8 +34,14 @@ fn socket_path(case: &str) -> PathBuf {
   path
 }
 
+/// Removes the socket **and the lock file beside it**. The host itself never
+/// unlinks either (`SPEC-003/R-5`); a case that leaves both behind litters
+/// `temp_dir()` with two files per run instead of one.
 fn cleanup(path: &Path) {
   match std::fs::remove_file(path) {
+    Ok(()) | Err(_) => (),
+  }
+  match std::fs::remove_file(lock_path(path)) {
     Ok(()) | Err(_) => (),
   }
 }
@@ -245,6 +251,70 @@ async fn a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves() {
   cleanup(&path);
 }
 
+/// A socket **a forked child still holds** is not a socket a live host holds,
+/// and R-3 says it must be reclaimed. This is the case that could not be
+/// written while liveness was a `connect` (`review-code.md` F-18).
+///
+/// The child holds a duplicate of the listening descriptor as its stdin. That
+/// is exactly what `fork` hands a child between `fork` and `exec` — and `dup2`
+/// onto fd 0 clears `CLOEXEC`, so the window that is microseconds wide in a
+/// real spawn is the child's whole life here, and the case is deterministic
+/// rather than a race. Nothing in *this* process holds the listener any more
+/// and no host ever held it, yet `connect` still succeeds against the path:
+/// the socket object outlives its owner's descriptor. The old probe read that
+/// as *in use by a live host* and refused to start against a path nobody held.
+#[tokio::test]
+async fn a_socket_a_forked_child_still_holds_is_reclaimed_and_the_new_listener_serves() {
+  let path = socket_path("vt1b-fork-window");
+  let stale = match std::os::unix::net::UnixListener::bind(&path) {
+    Ok(listener) => listener,
+    Err(error) => panic!("could not bind the stale listener: {error}"),
+  };
+
+  // The child inherits the listener as its stdin; dropping `command` closes
+  // this process's last descriptor for it, the way the owner's `close` does.
+  let mut command = std::process::Command::new("sleep");
+  command
+    .arg("30")
+    .stdin(std::process::Stdio::from(std::os::fd::OwnedFd::from(stale)))
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null());
+  let mut child = match command.spawn() {
+    Ok(child) => child,
+    Err(error) => panic!("could not spawn the child holding the descriptor: {error}"),
+  };
+  drop(command);
+
+  assert!(
+    std::os::unix::net::UnixStream::connect(&path).is_ok(),
+    "the case says nothing unless the child keeps the socket connectable"
+  );
+
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("a socket no host holds must be reclaimed: {error}"),
+  };
+  accept_everything(ingress);
+
+  let reply = send_with_newline(&path, GOOD).await;
+  assert!(
+    accepted(&reply),
+    "the reclaimed listener must serve: {reply}"
+  );
+  assert!(
+    lock_path(&path).exists(),
+    "the lock this host holds must sit beside the socket"
+  );
+
+  match child.kill() {
+    Ok(()) | Err(_) => (),
+  }
+  match child.wait() {
+    Ok(_) | Err(_) => (),
+  }
+  cleanup(&path);
+}
+
 // ---------------------------------------------------------------------------
 // VT-2 — a live socket
 // ---------------------------------------------------------------------------
@@ -273,6 +343,42 @@ async fn a_live_socket_refuses_a_second_bind_and_keeps_serving() {
   assert!(
     accepted(&reply),
     "the first listener must still be serving: {reply}"
+  );
+
+  cleanup(&path);
+}
+
+/// **The lock is the signal, not the file** (`SPEC-003/R-3`, R-5). A socket
+/// removed underneath a live host does not hand its path to a second one: the
+/// first still holds the lock, so the second is `InUse` even though it finds
+/// the path empty.
+///
+/// This is the half of `review-code.md` F-18 that the old probe could not see
+/// at all — with nothing at the path there is nothing to `connect` to, so a
+/// second host bound happily beside a first, which is the bind race §6.1 used
+/// to record as a standing limit.
+#[tokio::test]
+async fn a_live_host_keeps_its_path_after_the_socket_file_is_removed() {
+  let path = socket_path("vt2b-lock-outlives-the-file");
+  let first = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("the first bind must succeed: {error}"),
+  };
+  accept_everything(first);
+  match std::fs::remove_file(&path) {
+    Ok(()) => (),
+    Err(error) => panic!("could not remove the socket file: {error}"),
+  }
+
+  let error = match bind(&path) {
+    Err(error) => error,
+    Ok(_second) => panic!("a live host's path must not be taken while it holds the lock"),
+  };
+  assert_eq!(error.path, path);
+  assert!(
+    matches!(error.fault, BindFault::InUse),
+    "expected InUse, got: {}",
+    error.fault
   );
 
   cleanup(&path);
