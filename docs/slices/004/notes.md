@@ -1865,9 +1865,14 @@ not run, and no claim rests on them)
   three implementations; the fact and its mechanism live in `draft-spec.md`
   §6.1, `review-code.md` **F-18**, and `reclaim`'s own doc comment
   (`crates/goad-shell/src/ingress/mod.rs`). **How to apply:** ask liveness of
-  something a dead process cannot still hold — an exclusive advisory lock taken
-  for the process's lifetime, whose inherited descriptor `CLOEXEC` closes at
-  `exec`, so a dead host's children hold nothing. **And the recipe, reusable
+  something that is never released while the holder lives — an exclusive
+  advisory lock taken for the process's lifetime. Inheritance is *not* the
+  difference: a `flock` belongs to the open file description too, so a `fork`
+  duplicates it exactly as it duplicated the listening descriptor
+  (`review-code.md` **F-19**). What closes the gap is that there is no release
+  for anything to race, which leaves one bounded, self-clearing residue: an
+  un-exec'd child of a host that has just died still holds the lock
+  (`draft-spec.md` §6.1). **And the recipe, reusable
   for anything needing a deterministic fork window:** hand the descriptor to a
   child as its **stdin** — `dup2` onto fd 0 clears `CLOEXEC`, so the window
   that is microseconds wide in a real spawn becomes the child's whole life, and

@@ -187,10 +187,23 @@ listening socket is bound at the path, not that a host holds it, and a `fork`
 duplicates a listening descriptor into the child — so the socket stays bound and
 connectable after its owner has closed its own descriptor, for as long as any
 child holds the copy. A host that forks reads its own stale sockets as live and
-refuses to start against a path nobody holds. The lock has no such gap: an
-inherited descriptor is `CLOEXEC` and is gone at `exec`, so a dead host's
-children hold no lock and a dead host is not live. (Measured, three
-implementations: `docs/slices/004/review-code.md` F-18.)
+refuses to start against a path nobody holds.
+
+**Inheritance is not what makes the lock safe.** A `flock` belongs to the open
+file description, so a `fork` duplicates it exactly as it duplicates a listening
+descriptor. What closes the gap is narrower: **the lock is never released while
+a host lives.** The failure the probe had needed a release followed by a probe
+of the same path, with an unrelated concurrent `fork` supplying the gap between
+them; under this rule a path that reads as reclaimable has never been locked by
+anyone at the moment the bind reaches it, so there is no release to race.
+(Measured, three implementations: `docs/slices/004/review-code.md` F-18.)
+
+**The filesystem holding the path must support advisory locking**, which most
+do and some — various FUSE mounts, and NFS depending on version and mount
+options — do not. On one that does not, liveness cannot be determined and the
+host does not start (R-3); the remedy is to put the socket somewhere that can
+lock. This is an environmental requirement of the location, like the containing
+directory's permissions above.
 
 Two consequences follow, and both are properties of this contract rather than
 limits on it. **Two hosts starting in the same instant cannot both bind**:
@@ -205,6 +218,16 @@ The exclusion is only as durable as the lock file's inode. Removing the lock
 file while a host runs lets the next one create a fresh inode and take a lock
 on that, which is the same exposure the socket file already has — **the
 containing directory is the user's responsibility**, as above.
+
+**Non-normative limit — the fork window at a host's death.** Because the lock
+belongs to the open file description, an un-exec'd child of the holder holds it
+too: `CLOEXEC` ends that at `exec` and not before. A host that dies while a
+child of its own is inside that window leaves the lock held until that child
+execs or exits, and the next host to start reads that as a live holder and
+refuses. The exception is bounded to the instant of a host's death and clears
+itself — the next attempt succeeds. It is stated rather than closed: closing it
+would mean resting on how a spawn is implemented, which is the kind of unstated
+accident F-18 was raised about.
 
 **Non-normative limit — upgrade skew.** A socket left by a host that predates
 this rule has no lock beside it, so it reads as stale and is unlinked. That is

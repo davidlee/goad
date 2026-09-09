@@ -223,10 +223,18 @@ fn hold(path: &Path) -> Result<std::fs::File, IngressError> {
 /// descriptor into the child, so the socket stays bound and connectable after
 /// its owner has closed its own descriptor and for as long as any child holds
 /// the copy — and this host forks once per exchange. The old probe read that
-/// as a live host and refused to start against a path nobody held. The lock
-/// has no such gap: an inherited descriptor is `CLOEXEC`, so it is gone at
-/// `exec`, and a dead host's children have all exec'd. A dead host holds no
-/// lock. It also costs a live host nothing, because nothing connects to it.
+/// as a live host and refused to start against a path nobody held.
+///
+/// **Inheritance is not the difference.** A `flock` belongs to the open file
+/// description too, so a `fork` duplicates it the same way. What closes the
+/// gap is narrower: the lock is **never released while a host lives**, so
+/// there is no release for anything to race — the old failure needed a
+/// release followed by a probe of the same path, and here a path that reads
+/// as reclaimable has never been locked by anyone when `bind` reaches it. It
+/// also costs a live host nothing, because nothing connects to it. The
+/// residue that follows from the same inheritance — an un-exec'd child of a
+/// host that has just died still holds the lock, briefly and self-clearingly
+/// — is stated in `draft-spec.md` §6.1.
 ///
 /// **Upgrade skew, stated rather than discovered.** A socket left by a host
 /// that predates the lock file has no lock beside it, so this reads it as
