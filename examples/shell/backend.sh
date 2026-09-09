@@ -14,16 +14,21 @@
 request=$(cat)
 
 # Substring matching on JSON is not something to imitate — it is here so that
-# this file stays readable without a parser. It also lets this file answer an
-# `evaluate` without parsing its `event`: `source` and `kind` are the request's
-# own first two keys (Event's field order, and the host serialises compactly),
-# so `${request#*'"source":"'}` then `%%'"'*` reads a value with no parser —
-# a match on `event.source` rather than on a `"source"` key `data` might carry.
+# this file stays readable without a parser. `${request#*'"type":"'}` then
+# `%%'"'*` reads a value with no parser, and the **first** occurrence is the
+# right one for each of the three read here: `type` is the request's own second
+# key and `source` and `kind` are the event's first two (the host serialises
+# compactly, in field order), so all three precede any `data` a watcher wrote.
 #
-# It is read **before** the branch below, and the branch reads this value
-# rather than the whole request: `case $request in *'"source":"host"'*)` would
-# also match an ingested envelope whose opaque `data` happened to carry that
-# literal, and hand a watcher control of which prompt this file shows.
+# **Every branch below reads one of these values, and none matches against
+# `$request`.** `case $request in *'"type":"respond"'*)` matches that substring
+# anywhere — including inside `data`, which is opaque and carries whatever a
+# watcher put there — so a whole-request match hands a watcher the choice of
+# which prompt this file shows, or whether it shows one at all. That is one
+# rule, and it applies to every branch: a value the host carries opaquely must
+# not reach this file's control flow.
+type=${request#*'"type":"'}
+type=${type%%'"'*}
 source=${request#*'"source":"'}
 source=${source%%'"'*}
 kind=${request#*'"kind":"'}
@@ -40,8 +45,8 @@ escaped() {
   printf '%s' "$value"
 }
 
-case $request in
-  *'"type":"respond"'*)
+case $type in
+  respond)
     printf '{"view":null,"next_check":"45 minutes"}\n'
     ;;
   *)

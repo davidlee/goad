@@ -1281,6 +1281,28 @@ reviewer's point about severity is taken and does not change the disposition:
 showing *nothing* is worse than showing the wrong prompt, because there is no
 wrong prompt for a person to notice.
 
+**Repaired, 2026-09-09.** `type` is extracted the same way `source` and `kind`
+are, and the outer branch is now `case $type in respond)`. **No branch in the
+file matches against `$request` any more** — that is the class, and the comment
+at the head of the extractions was rewritten to state it as one rule over every
+branch rather than as a remark about the `source` branch: *"a value the host
+carries opaquely must not reach this file's control flow."* It also says why the
+first occurrence is the right one for each of the three, which is what makes the
+technique safe rather than lucky: `type` is the request's own second key and
+`source` and `kind` are the event's first two, so all three precede any `data` a
+watcher wrote.
+
+Held by `round_trip::the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers`
+(`crates/goad-shell/tests/integration/round_trip.rs`), which sends **both**
+literals the file branches on inside `data` — `{"type":"respond"}` and
+`{"source":"host"}` — and requires the ingested branch for each. One case for
+two literals, because it is one rule. Confirmed red with the old branch restored,
+failing exactly as the reviewer reported: *"`data` of {"type":"respond"} must
+not decide whether the example shows anything: nothing to show, and no failure."*
+The `{"source":"host"}` half was already green — F-12 fixed that branch — and it
+is in the case so the rule is held whole rather than at the point it last
+broke.
+
 **Outcome:**
 
 ### F-15 — §6.3 says a faulted connection's `unavailable` always reaches a person; the code reaches it only while idle
@@ -1344,6 +1366,43 @@ This is the second instance of one class: **a spec clause unconditional where th
 code is conditional.** Repair fixes the class — sweep §6.3 and §5 for any other
 clause asserting a refusal reaches a person without saying which arm decides it,
 rather than patching this row alone.
+
+**Repaired, 2026-09-09**, as the class. R-15 is untouched. §6.3's *"Which
+refusals a person sees"* is no longer a list of reasons with a fate attached to
+each — it is now organised by **which side decided the refusal**, which is what
+actually settles it:
+
+- decided by whatever accepts connections, and so travelling in the `Arrival`
+  with the envelope — `malformed`, `invalid_envelope`, `reserved_source`,
+  `too_large`, `timed_out`, **and the faulted read's `unavailable`**, now filed
+  here: they reach the surface when the loop happened to be idle and not
+  otherwise;
+- decided by the loop and only while nothing is in flight — `too_soon` and the
+  clock's `unavailable`, for which *always* is exact, because §5.4's steps 3 and
+  4 are reachable in no other state;
+- `engaged`, decided during an exchange by definition; the stopping
+  `unavailable`, with no loop left to present it; and the ingress-stopped
+  `unavailable`, which answers no envelope.
+
+The paragraph closes with the rule that makes the next such clause checkable
+rather than plausible: *"A clause of this paragraph that says a refusal always
+reaches a person is making a claim about who decides it… One that cannot say
+which side decides is a clause that has not been checked."*
+
+**The sweep found one more**, in the other direction — §6.3's causes paragraph
+still said the ingress-stopped cause *"is reported to a person under R-15 or not
+at all"*, which was true before [[F-3]] and under-claims after it. It now says
+the surface is the only report it has and that it is reported whichever state
+the loop was in, matching §5, which gained the same clause. Nothing else in §5
+or §6.3 asserts a reach without naming the deciding side.
+
+**No new test, and the reason is [[F-7]]'s stated gap.** The clause this
+corrects is about a refusal no test can produce — a faulted AF_UNIX read is not
+reachable from a cooperating writer. What the correction says is already held in
+its class by `a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`,
+which drives a listener-decided refusal through the inner arm and asserts it
+reaches no frame; the faulted read takes that identical path, in the same
+`Arrival`, and the spec now files it there.
 
 **Outcome:**
 

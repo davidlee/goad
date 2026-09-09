@@ -157,7 +157,10 @@ reply; that is the single case R-8 admits.
 **When ingress stops but the host does not.** Whatever accepts connections may
 end while the host keeps running, and nothing restarts it. The host reports that
 once, as `unavailable`, on the surface R-15 names — the only place it can, since
-no envelope reaches it afterwards to be refused. The host itself is unaffected
+no envelope reaches it afterwards to be refused. This one is unconditional on
+the host's state: it is reported whether the loop was idle or mid-exchange when
+ingress died, which is the one exception to §6.3's rule that a refusal reaching
+a person depends on which side decided it. The host itself is unaffected
 and keeps evaluating (R-16).
 
 **What the host never does.** It holds no queue and no pending event; it keeps
@@ -248,8 +251,9 @@ reconnect) is sound advice for each. A transport fault is deliberately **not**
 a writer whose bytes never arrived did not send bad ones. The fourth cause is
 that the host's ingress has stopped: whatever accepts connections has ended, and nothing restarts it, so the
 condition is **permanent for the life of the process**. A host in that state
-takes no further envelope, so that cause never reaches a writer as a reply; it
-is reported to a person under R-15 or not at all. The reason set remains closed
+takes no further envelope, so that cause never reaches a writer as a reply; the
+diagnostics surface is the only report it has, and it is reported there
+whichever state the loop was in when ingress died (§5). The reason set remains closed
 at the eight above — what this admits is a fourth cause of one of them, not a
 ninth token.
 
@@ -263,15 +267,38 @@ the host holds nothing on the writer's behalf, an envelope sent after it may
 still be refused for another reason, and a writer that ignores it is conforming.
 
 **Which refusals a person sees.** Every envelope's refusal reaches its writer,
-always (R-8). Only those the host decides while no exchange is in flight reach
-the diagnostics surface a person reads (R-15): `engaged` never does, because it
-is by definition decided during an exchange; a shape refusal reaches it when the
-host happened to be idle and not otherwise, which is what makes shape-before-
-state (§5) a claim with a negative case; `too_soon`, the clock's `unavailable`
-and a faulted connection's always do; the shutdown `unavailable` never does, because the loop
-that would present it has ended; and the ingress-stopped `unavailable` is the
-one that travels the other way — it reaches a person here or nowhere, because
-there is no envelope left for it to be the reply to.
+always (R-8). Only those the host decides while no exchange is in flight also
+reach the diagnostics surface a person reads (R-15). **Which of the eight that
+is turns on which side decided the refusal**, and it is worth reading that way
+rather than reason by reason, because the reason is not what settles it:
+
+- **Decided by whatever accepts connections**, before the host's loop has seen
+  the envelope at all — `malformed`, `invalid_envelope`, `reserved_source`,
+  `too_large`, `timed_out`, and the `unavailable` of a connection that faulted
+  mid-read. These travel to the loop *with* the envelope, so the loop's state on
+  arrival is what decides their fate: they reach the surface when it happened to
+  be idle, and **not otherwise**. That the negative case exists is what makes
+  shape-before-state (§5) a claim rather than a convenience — the host does not
+  relabel a bad envelope as `engaged`, and it does not owe a person a report of
+  one it was too busy to be idle for.
+- **Decided by the host's loop, and only while nothing is in flight** —
+  `too_soon`, and the `unavailable` of an unreadable clock. Both are judgements
+  the loop makes about its own state (§5.4's steps 3 and 4), reachable only
+  when it is idle, so for these two *always* is exact.
+- **Decided during an exchange, by definition** — `engaged`. It never reaches
+  the surface, because the state that produces it is the state that withholds
+  it.
+- **Decided with no loop left to present it** — the stopping `unavailable`.
+  It never reaches the surface either.
+- **Answering no envelope at all** — the ingress-stopped `unavailable`, which
+  travels the other way: it reaches a person here or nowhere, because there is
+  no envelope left for it to be the reply to. It is reported whichever state
+  the loop was in when ingress died.
+
+A clause of this paragraph that says a refusal *always* reaches a person is
+therefore making a claim about **who decides it**, not about how important it
+is. One that cannot say which side decides is a clause that has not been
+checked.
 
 ### 6.4 The bounds
 

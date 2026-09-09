@@ -271,6 +271,53 @@ async fn the_shell_example_escapes_the_values_it_carries_into_a_view() {
   );
 }
 
+/// The other half of the same rule, and the one F-12's repair wrote into a
+/// comment without applying to every branch (`review-code.md` F-14).
+///
+/// `data` is opaque and carries whatever a watcher put there, so a branch that
+/// matches a substring of the **whole request** lets a watcher choose which
+/// prompt the example shows — or, for `"type":"respond"`, that it shows none at
+/// all, which is worse, because there is no wrong prompt for a person to
+/// notice. Both literals the file branches on are sent inside `data` here; the
+/// example must answer the ingested branch for both.
+///
+/// One case for two literals rather than two cases, because it is one rule: a
+/// value the host carries opaquely must not reach the example's control flow.
+#[tokio::test]
+async fn the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers() {
+  let mut host = host(shell_example(), TIMEOUT, now());
+
+  for smuggled in [
+    serde_json::json!({ "type": "respond" }),
+    serde_json::json!({ "source": "host" }),
+  ] {
+    let event = Event {
+      source: "w".to_owned(),
+      kind: "k".to_owned(),
+      timestamp: now(),
+      data: smuggled.clone(),
+    };
+    let answered = host.evaluate(now(), event).await;
+
+    assert!(
+      answered.failure.is_none(),
+      "{}: {}",
+      smuggled,
+      describe_outcome(&answered)
+    );
+    assert!(
+      answered.view.is_some(),
+      "`data` of {smuggled} must not decide whether the example shows anything: {}",
+      describe_outcome(&answered)
+    );
+    assert_eq!(
+      choice(&answered).title(),
+      "An event arrived: w / k",
+      "`data` of {smuggled} must not decide which prompt the example shows"
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // VT-2 — AC-8 through the real transport
 // ---------------------------------------------------------------------------
