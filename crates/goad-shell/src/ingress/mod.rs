@@ -265,11 +265,18 @@ impl Answer {
   }
 }
 
-/// `Refusal::Unavailable`'s cause: which of the two conditions-of-the-moment
-/// produced it (`design.md` §5.4, `draft-spec.md` §6.3 — the `unavailable`
-/// row's *writer's fix* column, "`detail` says which"). The third cause —
-/// ingress stopped for the life of the process — answers no envelope and so
-/// has no wire reply to carry and no variant here (`design.md` §5.2).
+/// `Refusal::Unavailable`'s cause: which of the four `draft-spec.md` §6.3
+/// admits produced it — the `unavailable` row's *writer's fix* column,
+/// "`detail` says which". One token, four causes, and it stays one token: the
+/// wire's reason set is closed at eight whatever this enum grows
+/// (`SPEC-003/R-14`).
+///
+/// [`IngressStopped`](Self::IngressStopped) is the one that never reaches the
+/// wire — it answers no envelope, so it has no reply to be carried in. It is a
+/// variant anyway, because the diagnostics surface is where it *is* reported
+/// and `crates/goad`'s fold reads `reason()` and `Display` off this value like
+/// every other refusal, rather than spelling the token a second time
+/// (`review-code.md` F-4).
 #[derive(Debug)]
 pub enum UnavailableCause {
   /// The channel to the judge closed with this envelope's answer still
@@ -278,6 +285,15 @@ pub enum UnavailableCause {
   /// The clock could not be read (`design.md` §5.4 step 4) — named by
   /// `crates/goad`'s loop, not by this module.
   ClockUnreadable,
+  /// The accept task has ended and nothing restarts it: ingress is over for
+  /// the life of the process. Named by `crates/goad`'s loop, not by this
+  /// module, and never written to a wire.
+  IngressStopped,
+  /// The connection faulted while the envelope was being read: a reset, an
+  /// `EIO`, any transport error. **Not `Malformed`** — that reason names the
+  /// writer's serializer as what to fix (`draft-spec.md` §6.3), and a writer
+  /// whose bytes never arrived did not send bad ones (`review-code.md` F-7).
+  Unreadable(io::Error),
 }
 
 /// Why an envelope, or a connection, was refused.
@@ -290,8 +306,8 @@ pub enum UnavailableCause {
 /// day a ninth reason is needed.
 #[derive(Debug)]
 pub enum Refusal {
-  /// No answer was given for this envelope — a dropped [`Answer`]. `detail`
-  /// says which of [`UnavailableCause`]'s two causes it was.
+  /// The host cannot act on this envelope. `detail` says which of
+  /// [`UnavailableCause`]'s causes it was.
   Unavailable(UnavailableCause),
   /// The bytes are not one JSON document at all.
   Malformed,
@@ -343,6 +359,12 @@ impl std::fmt::Display for Refusal {
       Self::Unavailable(UnavailableCause::ClockUnreadable) => {
         write!(f, "the clock could not be read")
       }
+      Self::Unavailable(UnavailableCause::IngressStopped) => {
+        write!(f, "ingress has stopped; no further events will be accepted")
+      }
+      Self::Unavailable(UnavailableCause::Unreadable(inner)) => {
+        write!(f, "the connection could not be read: {inner}")
+      }
       Self::Malformed => write!(f, "the bytes are not one JSON document"),
       Self::InvalidEnvelope(inner) => write!(f, "{inner}"),
       Self::TooLarge { limit } => {
@@ -370,7 +392,12 @@ impl std::error::Error for Refusal {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
       Self::InvalidEnvelope(inner) => Some(inner),
-      Self::Unavailable(_)
+      Self::Unavailable(UnavailableCause::Unreadable(inner)) => Some(inner),
+      Self::Unavailable(
+        UnavailableCause::Stopping
+        | UnavailableCause::ClockUnreadable
+        | UnavailableCause::IngressStopped,
+      )
       | Self::Malformed
       | Self::TooLarge { .. }
       | Self::TimedOut { .. }
@@ -416,9 +443,13 @@ struct Wire<'a> {
   detail: Option<String>,
 }
 
-/// No trailing newline: the connection's close is the line's terminator
-/// (confirmed by the A-1 probe's own harvested byte count for the accepted
-/// reply, `research.md` Thread 3).
+/// **Newline-terminated** (`draft-spec.md` §6.3): the terminator is one byte
+/// and strictly widens compatibility — a reader that stops at `\n` and a
+/// reader that reads to EOF both work against a host that emits it, and only
+/// the second works against one that does not. PHASE-03 reasoned the other
+/// way, from the A-1 probe's harvested byte count; "the connection's close is
+/// the line's terminator" is a true statement about this host and not a reason
+/// for the contract to promise a byte it never sends (`review-code.md` F-1).
 fn reply(accepted: bool, refusal: Option<&Refusal>) -> String {
   let retry_after_ms = match refusal {
     Some(Refusal::TooSoon { retry_after }) => Some(round_up_millis(*retry_after)),
@@ -440,20 +471,79 @@ fn reply(accepted: bool, refusal: Option<&Refusal>) -> String {
     reason = "a host-authored reply of primitive fields serializes infallibly (process.rs's \
               own precedent for this argument)"
   )]
-  serde_json::to_string(&wire).unwrap()
+  let mut line = serde_json::to_string(&wire).unwrap();
+  line.push('\n');
+  line
+}
+
+/// How long the host tolerates a **persistent** `accept()` fault before it
+/// declares ingress over: **five seconds**.
+///
+/// Stated in elapsed time rather than as a count of retries, because that is
+/// what the bound is *about*. `accept(2)` errors that persist rather than
+/// clearing on the next call are ordinary — `EMFILE`/`ENFILE`,
+/// `ENOBUFS`/`ENOMEM`, `EBADF` — and retrying without a bound pegs a worker for
+/// the life of the fault on an application expected to sit idle
+/// (`review-code.md` F-2). Spending the budget trades a recoverable fault for
+/// an unrecoverable one — ingress is over for the life of the process — and
+/// that trade is only legible if the bound says how long a transient fault has
+/// to clear. A count of retries would not: with backoff, N failures is
+/// anywhere from milliseconds to minutes.
+const ACCEPT_FAULT_BUDGET: Duration = Duration::from_secs(5);
+
+/// The shortest wait between retries: **5 ms**, the wait a fault that clears
+/// immediately costs.
+const ACCEPT_BACKOFF_BASE: Duration = Duration::from_millis(5);
+
+/// The longest wait between retries: **500 ms**, so the whole budget above
+/// costs a bounded handful of syscalls rather than a spin, and a fault that
+/// does clear is noticed within half a second of clearing.
+const ACCEPT_BACKOFF_CEILING: Duration = Duration::from_millis(500);
+
+/// How long to wait before the next `accept()` retry, given how long the
+/// current fault has already lasted — or `None` once
+/// [`ACCEPT_FAULT_BUDGET`] is spent and the task must end.
+///
+/// Waiting as long as the fault has lasted is what makes the backoff double:
+/// each sleep doubles the elapsed time, so the waits run 5, 10, 20 … ms up to
+/// the ceiling and then hold there. It is one expression rather than a
+/// schedule because the bound is the elapsed time, and the schedule is only
+/// how few syscalls it takes to reach it.
+///
+/// Ending is not a new reporting surface: dropping the sender is what
+/// `Ingress::arrival` already reads as `None`, and the judge already has one
+/// word for it — ingress has stopped, permanently, for the life of the process
+/// (`SPEC-003` §5, R-15). A persistent `accept()` fault *is* that condition.
+fn accept_backoff(faulting_for: Duration) -> Option<Duration> {
+  if faulting_for >= ACCEPT_FAULT_BUDGET {
+    return None;
+  }
+  Some(faulting_for.clamp(ACCEPT_BACKOFF_BASE, ACCEPT_BACKOFF_CEILING))
 }
 
 /// One envelope, one connection: accept, read (bounded), normalize, hand the
 /// arrival to whatever judges it, reply, close. Sequential — the judgement of
 /// one arrival is awaited before the next connection is accepted, so at most
-/// one is outstanding and the host holds no queue (I-2, `SPEC-003` §5). An
-/// `accept()` error does not end the task; the task ends when the channel to
-/// the judge closes.
+/// one is outstanding and the host holds no queue (I-2, `SPEC-003` §5).
+///
+/// An `accept()` error does not end the task on its own: it is retried after
+/// [`accept_backoff`]'s wait, and the fault is forgotten by the next connection
+/// that does arrive. A fault that lasts [`ACCEPT_FAULT_BUDGET`] — five seconds
+/// — ends the task, which drops the channel to the judge: the ingress-stopped
+/// path that already exists, already reported and already parked. The task also
+/// ends when that channel closes from the other side.
 async fn accept_loop(listener: UnixListener, arrivals: mpsc::Sender<Arrival>) {
+  let mut faulting_since: Option<tokio::time::Instant> = None;
   loop {
     let Ok((stream, _addr)) = listener.accept().await else {
+      let since = *faulting_since.get_or_insert_with(tokio::time::Instant::now);
+      let Some(wait) = accept_backoff(since.elapsed()) else {
+        break;
+      };
+      tokio::time::sleep(wait).await;
       continue;
     };
+    faulting_since = None;
     if !handle(stream, &arrivals).await {
       break;
     }
@@ -484,22 +574,41 @@ async fn handle(mut stream: UnixStream, arrivals: &mpsc::Sender<Arrival>) -> boo
     result,
     answer: Answer(tx),
   };
+  // The judge is gone — the loop has ended, and this connection was accepted
+  // in the window between that and the process itself going away
+  // (`crates/goad/src/main.rs`'s unwind). R-8 admits exactly one unanswered
+  // close, *the host process is gone*, and this is not it: the writer is owed
+  // the same `unavailable` the adjacent dropped-`Answer` case below already
+  // gives it, because the two are one failure at two moments (`review-code.md`
+  // F-8).
   if arrivals.send(arrival).await.is_err() {
+    respond(&mut stream, &stopping()).await;
     return false;
   }
-  let text = rx.await.unwrap_or_else(|_dropped| {
-    reply(
-      false,
-      Some(&Refusal::Unavailable(UnavailableCause::Stopping)),
-    )
-  });
+  let text = rx.await.unwrap_or_else(|_dropped| stopping());
+  respond(&mut stream, &text).await;
+  true
+}
+
+/// The reply for both moments at which the judge can vanish with an envelope
+/// outstanding: the channel to it was already closed when this arrival was
+/// sent, or the [`Answer`] was dropped after it.
+fn stopping() -> String {
+  reply(
+    false,
+    Some(&Refusal::Unavailable(UnavailableCause::Stopping)),
+  )
+}
+
+/// The one reply, then the close. Both are best-effort: a writer that has gone
+/// away cannot be told anything, and there is nothing left to report it to.
+async fn respond(stream: &mut UnixStream, text: &str) {
   match stream.write_all(text.as_bytes()).await {
     Ok(()) | Err(_) => (),
   }
   match stream.shutdown().await {
     Ok(()) | Err(_) => (),
   }
-  true
 }
 
 /// `normalize`'s one fault with no shape of its own (`Malformed` — bytes that
@@ -536,7 +645,7 @@ async fn read_envelope(stream: &mut UnixStream) -> Result<Vec<u8>, Refusal> {
     Err(_elapsed) => Err(Refusal::TimedOut {
       after: ENVELOPE_DEADLINE,
     }),
-    Ok(Err(_io)) => Err(Refusal::Malformed),
+    Ok(Err(io)) => Err(unreadable(io)),
     Ok(Ok(_bytes_read)) => {
       if buf.last() == Some(&b'\n') {
         buf.pop();
@@ -550,6 +659,22 @@ async fn read_envelope(stream: &mut UnixStream) -> Result<Vec<u8>, Refusal> {
       }
     }
   }
+}
+
+/// A read that faulted, as the refusal it earns — **`unavailable`, not
+/// `malformed`** (`review-code.md` F-7). `malformed` means *the bytes were not
+/// one JSON document* and names the writer's serializer as the thing to fix
+/// (`draft-spec.md` §6.3); a connection that reset mid-envelope sent no bytes
+/// this host could read, and `refuse_arrival` puts the same verdict in front of
+/// a person, not only in front of the writer. The error is carried into
+/// `detail` rather than discarded.
+///
+/// A function rather than an inline arm because it is the one place the rule is
+/// stated, and because a real `io::Error` from a Unix stream read cannot be
+/// provoked from a test — a peer's close is EOF, not a fault — so this is where
+/// the rule is reachable at all.
+fn unreadable(error: io::Error) -> Refusal {
+  Refusal::Unavailable(UnavailableCause::Unreadable(error))
 }
 
 /// Best-effort, and non-blocking: discards whatever is *already* sitting in
@@ -567,5 +692,101 @@ fn drain(stream: &UnixStream) {
       Ok(0) | Err(_) => break,
       Ok(bytes) => cleared = cleared.saturating_add(bytes),
     }
+  }
+}
+
+// The accept task's retry budget, tested where it can be: as the pure function
+// that decides it. **No case drives a real `accept()` error** — `EMFILE` and
+// its siblings are process-wide conditions, and `cargo test` runs cases in
+// parallel in one process, which is the same argument `SOCKET_MODE`'s doc
+// comment makes about `umask(2)`. What is asserted here is the budget itself:
+// that it backs off, that it is capped, and that it is spent, after which
+// `accept_loop` breaks and the ingress-stopped path — which VT-7 does drive
+// end to end (`crates/goad/tests/renderer/ingress.rs`) — takes over.
+#[cfg(test)]
+mod tests {
+  use super::{
+    ACCEPT_BACKOFF_BASE, ACCEPT_BACKOFF_CEILING, ACCEPT_FAULT_BUDGET, accept_backoff, reply,
+    unreadable,
+  };
+
+  /// F-7's rule, at the one site that states it. A transport fault is
+  /// `unavailable` — *the host cannot act on this envelope* — and never
+  /// `malformed`, which names the writer's serializer and would be a lie both
+  /// on the wire and on the diagnostics surface `refuse_arrival` folds it onto.
+  ///
+  /// A unit case rather than an end-to-end one, and honestly so: a peer that
+  /// closes a Unix stream socket gives the host EOF, not an error, so no
+  /// writer a test can build makes `read_until` fail.
+  #[test]
+  fn a_connection_that_faults_mid_read_is_unavailable_and_carries_the_error() {
+    let refusal = unreadable(std::io::Error::from(std::io::ErrorKind::ConnectionReset));
+    assert_eq!(
+      refusal.reason(),
+      "unavailable",
+      "a transport fault is not the writer's serializer"
+    );
+    let detail = refusal.to_string();
+    assert!(
+      detail.contains("could not be read"),
+      "the detail says the connection faulted: {detail}"
+    );
+    assert!(
+      detail.contains(&std::io::Error::from(std::io::ErrorKind::ConnectionReset).to_string()),
+      "the error itself is carried, not discarded: {detail}"
+    );
+  }
+
+  #[test]
+  fn a_retry_waits_as_long_as_the_fault_has_lasted_between_the_two_bounds() {
+    assert_eq!(
+      accept_backoff(std::time::Duration::ZERO),
+      Some(ACCEPT_BACKOFF_BASE),
+      "a fault noticed at once waits the shortest wait, not nothing"
+    );
+    let mid = std::time::Duration::from_millis(40);
+    assert_eq!(
+      accept_backoff(mid),
+      Some(mid),
+      "between the bounds the wait is the elapsed fault, which is what doubles it"
+    );
+    assert_eq!(
+      accept_backoff(std::time::Duration::from_secs(2)),
+      Some(ACCEPT_BACKOFF_CEILING),
+      "and it is capped, so the budget costs a bounded handful of syscalls"
+    );
+  }
+
+  /// The property the loop turns on: a fault that never clears is not retried
+  /// forever. `None` is what makes `accept_loop` break, drop its sender, and
+  /// leave the judge to report ingress-stopped.
+  #[test]
+  fn a_fault_that_outlasts_the_budget_ends_the_task_rather_than_spinning() {
+    assert_eq!(
+      accept_backoff(ACCEPT_FAULT_BUDGET),
+      None,
+      "the budget is spent at {ACCEPT_FAULT_BUDGET:?} of continuous fault"
+    );
+    assert_eq!(
+      accept_backoff(std::time::Duration::MAX),
+      None,
+      "and stays spent past it"
+    );
+    assert!(
+      accept_backoff(ACCEPT_FAULT_BUDGET.saturating_sub(std::time::Duration::from_millis(1)))
+        .is_some(),
+      "one millisecond inside the budget still retries"
+    );
+  }
+
+  /// §6.3's reply is one **line**. Asserted here as well as on the wire
+  /// (`tests/integration/ingress.rs`) because this is the function that owes
+  /// the byte, and the wire case cannot say which of the two writers produced
+  /// it.
+  #[test]
+  fn a_reply_is_one_newline_terminated_line() {
+    let accepted = reply(true, None);
+    assert!(accepted.ends_with('\n'), "{accepted:?}");
+    assert_eq!(accepted.matches('\n').count(), 1, "{accepted:?}");
   }
 }

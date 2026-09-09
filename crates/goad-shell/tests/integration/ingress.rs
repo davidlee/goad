@@ -309,6 +309,52 @@ async fn a_regular_file_at_the_path_is_refused_naming_what_was_found() {
   cleanup(&path);
 }
 
+/// A **symlink** at the path is refused as a symlink, whatever it points at —
+/// `SPEC-003/R-4`, and the case R-3's letter and the implementation used to
+/// disagree about (`review-code.md` F-11).
+///
+/// The link points at a socket a **live** host holds, which is the whole
+/// point: by R-3 read alone that is *a socket a live host holds* and would be
+/// `InUse`. `reclaim` does not follow the link — following one at a path the
+/// host is about to `chmod` would put the owner-only mode on a file the
+/// configuration never named — so it is `NotASocket` naming the symlink. A
+/// link to nothing would exercise the same arm while agreeing with every
+/// reading of R-3, and so would pass whether the rule existed or not.
+#[tokio::test]
+async fn a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_serving() {
+  let target = socket_path("vt3b-symlink-target");
+  let link = socket_path("vt3b-symlink");
+  let live = match bind(&target) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("binding the target must succeed: {error}"),
+  };
+  accept_everything(live);
+  match std::os::unix::fs::symlink(&target, &link) {
+    Ok(()) => (),
+    Err(error) => panic!("could not create the symlink: {error}"),
+  }
+
+  let error = match bind(&link) {
+    Err(error) => error,
+    Ok(_ingress) => panic!("a symlink must be refused rather than followed"),
+  };
+  assert_eq!(error.path, link);
+  assert!(
+    matches!(error.fault, BindFault::NotASocket { found: "a symlink" }),
+    "expected NotASocket naming a symlink rather than InUse, got: {}",
+    error.fault
+  );
+
+  let reply = send_with_newline(&target, GOOD).await;
+  assert!(
+    accepted(&reply),
+    "the host holding the link's target must be untouched: {reply}"
+  );
+
+  cleanup(&link);
+  cleanup(&target);
+}
+
 // ---------------------------------------------------------------------------
 // VT-4 — a path that cannot be created
 // ---------------------------------------------------------------------------
@@ -415,6 +461,38 @@ async fn a_second_envelope_on_the_same_connection_is_never_read() {
 }
 
 // ---------------------------------------------------------------------------
+// The reply's own framing — `draft-spec.md` §6.3, `review-code.md` F-1
+// ---------------------------------------------------------------------------
+
+/// §6.3 opens *"One JSON object, **newline-terminated**, then the host
+/// closes."* The assertion is on the **raw bytes**, not on `parsed(&reply)`:
+/// `serde_json::from_str` accepts the document with or without the terminator,
+/// so an assertion routed through it would be the same blind instrument in a
+/// new place — which is why every reader in both tiers missed this
+/// (`review-code.md` F-1). Both replies the host can write are checked, because
+/// accepted and refused are two calls to `reply`.
+#[tokio::test]
+async fn every_reply_is_newline_terminated_before_the_close() {
+  let path = socket_path("reply-framing");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  accept_everything(ingress);
+
+  for envelope in [GOOD, "not json"] {
+    let reply = send_with_newline(&path, envelope).await;
+    assert!(
+      reply.ends_with('\n'),
+      "the reply to {envelope:?} must carry its own terminator rather than relying on the \
+       close: {reply:?}"
+    );
+  }
+
+  cleanup(&path);
+}
+
+// ---------------------------------------------------------------------------
 // VT-6 — a dropped Answer
 // ---------------------------------------------------------------------------
 
@@ -430,6 +508,35 @@ async fn a_dropped_answer_yields_unavailable_then_a_close() {
   let reply = send_with_newline(&path, GOOD).await;
   assert!(!accepted(&reply), "expected a refusal: {reply}");
   assert_eq!(reason(&reply), "unavailable");
+
+  cleanup(&path);
+}
+
+/// R-8 admits exactly one unanswered close — *the host process itself is
+/// gone*. A connection accepted after the judge has been dropped but while the
+/// process is still unwinding is not that case, and it used to close with no
+/// reply at all (`review-code.md` F-8): the `Arrival` came back inside the
+/// `SendError` and was dropped with its `Answer`, so nothing was written.
+///
+/// The judge here is dropped outright rather than scripted, which is exactly
+/// the state `main.rs`'s `spawn_local` block leaves behind while the accept
+/// task keeps accepting.
+#[tokio::test]
+async fn a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable() {
+  let path = socket_path("judge-gone");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  drop(ingress); // the receiver is gone; the accept task is not
+
+  let reply = send_with_newline(&path, GOOD).await;
+  assert!(!accepted(&reply), "expected a refusal: {reply}");
+  assert_eq!(
+    reason(&reply),
+    "unavailable",
+    "the same reason the adjacent dropped-`Answer` case gives: {reply}"
+  );
 
   cleanup(&path);
 }
@@ -717,41 +824,104 @@ async fn the_three_shape_reasons_this_phase_owns_are_read_off_the_wire() {
 // VT-8 — the reason token set is closed at eight
 // ---------------------------------------------------------------------------
 
+/// The eight tokens `draft-spec.md` §6.3 closes the wire's reason set at, as a
+/// literal a client's parser could be written from.
+const EXPECTED: [&str; 8] = [
+  "malformed",
+  "invalid_envelope",
+  "reserved_source",
+  "too_large",
+  "timed_out",
+  "engaged",
+  "too_soon",
+  "unavailable",
+];
+
+/// R-14's Verification row claims this case holds *"the **exact token set**, so
+/// a reason added or renamed fails here rather than at a client"*.
+///
+/// **What makes the *added* direction true** (`review-code.md` F-5): the
+/// `match` below is the source of the set compared — every token in `reasons`
+/// comes off one of its arms — and it has no `_` arm at either level, over
+/// `Refusal`'s variants or over `UnavailableCause`'s. A ninth variant, or a
+/// fifth cause, therefore fails to compile **in this file**, which is where
+/// R-14 says the review of the wire contract happens. The compiler already
+/// forces an edit to `Refusal::reason()` in production; what it did not force
+/// was an edit here.
+///
+/// **Its boundary, stated rather than claimed.** Rust cannot force the witness
+/// list below to cover a newly added variant — that needs a derive macro or an
+/// enumeration crate, and neither is on this manifest. So the *compile* gate is
+/// forced and the *assertion* gate depends on the author of the ninth variant
+/// adding a witness beside their new arm, one line away. The three directions
+/// R-14 also names — a token renamed, removed, or mis-mapped — are held
+/// outright by the two assertions.
 #[test]
 fn the_reason_token_set_is_closed_at_eight() {
-  let refusals = [
-    Refusal::Unavailable(UnavailableCause::Stopping),
-    Refusal::Malformed,
-    Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
-    Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource),
-    Refusal::TooLarge {
-      limit: ENVELOPE_LIMIT,
-    },
-    Refusal::TimedOut {
-      after: ENVELOPE_DEADLINE,
-    },
-    Refusal::Engaged,
-    Refusal::TooSoon {
-      retry_after: Duration::from_millis(1),
-    },
-  ];
-  let reasons: std::collections::BTreeSet<&str> = refusals.iter().map(Refusal::reason).collect();
-  let expected: std::collections::BTreeSet<&str> = [
-    "malformed",
-    "invalid_envelope",
-    "reserved_source",
-    "too_large",
-    "timed_out",
-    "engaged",
-    "too_soon",
-    "unavailable",
-  ]
-  .into_iter()
-  .collect();
+  /// One `Refusal` per token. A witness belongs here for every arm of the
+  /// match below; the match is what turns it into the token under test.
+  fn witnesses() -> [Refusal; 8] {
+    [
+      Refusal::Unavailable(UnavailableCause::Stopping),
+      Refusal::Malformed,
+      Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
+      Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource),
+      Refusal::TooLarge {
+        limit: ENVELOPE_LIMIT,
+      },
+      Refusal::TimedOut {
+        after: ENVELOPE_DEADLINE,
+      },
+      Refusal::Engaged,
+      Refusal::TooSoon {
+        retry_after: Duration::from_millis(1),
+      },
+    ]
+  }
+
+  /// The vocabulary, arm by arm. **No `_` arm, at either level** — this is the
+  /// instrument, and the tokens it returns are the set compared below.
+  fn token(refusal: &Refusal) -> &'static str {
+    match refusal {
+      Refusal::Unavailable(
+        UnavailableCause::Stopping
+        | UnavailableCause::ClockUnreadable
+        | UnavailableCause::IngressStopped
+        | UnavailableCause::Unreadable(_),
+      ) => "unavailable",
+      Refusal::Malformed => "malformed",
+      Refusal::InvalidEnvelope(EnvelopeFault::ReservedSource) => "reserved_source",
+      Refusal::InvalidEnvelope(_) => "invalid_envelope",
+      Refusal::TooLarge { .. } => "too_large",
+      Refusal::TimedOut { .. } => "timed_out",
+      Refusal::Engaged => "engaged",
+      Refusal::TooSoon { .. } => "too_soon",
+    }
+  }
+
+  let witnesses = witnesses();
+  assert_eq!(
+    witnesses.len(),
+    EXPECTED.len(),
+    "one witness per token, or the set below is built from fewer arms than there are tokens"
+  );
+
+  let reasons: std::collections::BTreeSet<&str> = witnesses.iter().map(token).collect();
+  let expected: std::collections::BTreeSet<&str> = EXPECTED.into_iter().collect();
   assert_eq!(
     reasons, expected,
     "the wire's reason set must be exactly these eight tokens, not a subset or a superset"
   );
+
+  // And production reads the same vocabulary the match above states, arm for
+  // arm: a token renamed in `Refusal::reason()` alone fails here.
+  for witness in &witnesses {
+    assert_eq!(
+      witness.reason(),
+      token(witness),
+      "`Refusal::reason()` and this case's own match must agree"
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
