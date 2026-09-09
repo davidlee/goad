@@ -493,6 +493,20 @@ reclaiming the path under `draft-spec.md` R-3"* as one of its two causes, which
 a second host can now reach only if the lock file has been removed first; and
 §5.2's `IngressError` sentence lists six faults, where the tree has seven
 (`LivenessUnknown` — *whether a live host holds it could not be determined*).
+
+**Why that second one is drift while §5.2's *other* stale sentence gets a
+Reconciliation row**, since one §5.2 sentence taking each road reads as
+inconsistency until the difference is named. The `Refusal` payload list is the
+design **contradicting itself**: the list shows four payloads where §5.4's own
+sentence two paragraphs later implies the fifth, and PHASE-03 read the list and
+got it wrong — so amending it restores an intent the document already held, and
+the document was internally inconsistent on the day it was written. The
+`IngressError` count is a **departure**: the tree grew a seventh fault the
+design never contemplated, because F-18 was not known when §5.2 was written.
+That is precisely `docs/AGENTS.md:168`'s case — where the implementation
+departed and the design stands as written, say so here and do not retro-fit it.
+The asymmetry is the rule being applied, not an oversight.
+
 The record of the instance's disappearance is in `slice-004.md` Follow-ups,
 under [[F-9]] — which named it as the non-adversarial case an operator meets
 first, and now says what became of it.
