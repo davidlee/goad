@@ -139,6 +139,7 @@ not by reading it.
 | F-15 | minor | doc-wrong | verified |
 | F-16 | minor | fix-now | verified |
 | F-17 | minor | | |
+| F-18 | major | fix-now | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -1669,6 +1670,160 @@ The sweep this came from is closed: F-3 and F-8 are the only two Responses in
 the ledger promising an edit outside the file they repair, and both are now
 findings. F-5's four cross-document edits and F-9's and F-10's Follow-ups
 landings were all made. Nothing else is outstanding on that axis.
+
+**Outcome:**
+
+### F-18 — `reclaim`'s liveness probe infers a live host from `connect()`, and that inference is false in any process that forks
+
+**Severity:** major
+**Location:** `crates/goad-shell/src/ingress/mod.rs:159-176` (`reclaim`) and its
+doc comment at `:147-158`; `draft-spec.md` R-3
+
+**Expected:** R-3 divides the world in two and the probe is what divides it: *"A
+path that is occupied by a socket **no live host holds** MUST be reclaimed… A
+path a **live** host holds MUST be a startup failure naming the path."* A host
+that refuses to start against a socket no host holds has broken R-3, and the
+person meets it as *goad will not start, naming a live host that does not
+exist*, with the recovery being to delete a file the host said it would reclaim.
+
+**Observed:** `reclaim` decides liveness with
+
+```rust
+if std::os::unix::net::UnixStream::connect(path).is_ok() {
+  return Err(fault(path, BindFault::InUse));
+}
+```
+
+and its doc comment argues for it in terms: *"a Unix domain socket has no atomic
+'is anyone listening' query, and a failed connect to a stale socket file is the
+standard idiom."* The idiom is fine; **the inference drawn from it is not.**
+`connect()` succeeding means *a live listening socket is bound to that path*. It
+does **not** mean a live **host** holds it, and the gap is reachable: a `fork`
+duplicates the listening descriptor into the child, so between fork and exec —
+where `CLOEXEC` closes it — the socket object still has a reference and remains
+a live listening socket bound to that path **after its owner has closed its own
+descriptor**. `connect` then succeeds correctly, and `reclaim` reports `InUse`
+about a host that is gone.
+
+This is the cause of the reclaim flake `99abac4` chased and could not
+reproduce: `a_stale_socket_with_no_listener_is_reclaimed_and_the_new_one_serves`
+failing `in use by a live host`.
+
+**Evidence — five measured steps, three independent implementations, controls
+throughout.**
+
+1. **The kernel does not lie on its own.** `bind → listen → close → connect` in
+   a loop with nothing else running: **0 spurious successes in 200,000**
+   single-threaded, **0 in 320,000** across 16 concurrent threads.
+2. **The case never fails alone.** VT-1 run by itself: **0 failures in 120
+   runs**. It requires the rest of the suite.
+3. **Caught in the act**, by instrumenting the failure path and reproducing at
+   run 44 of 120 of the full target. At the moment `reclaim` said *in use by a
+   live host*: `ss -xa | grep vt1-reclaim` was **empty**, an immediate reconnect
+   gave `ECONNREFUSED`, and the file was mode `0755` — the case's own std
+   listener, never goad's `0600`. That rules out a second listener at the path
+   (case names are unique, checked), a temp-dir collision (`pid_max` is
+   4194304) and a leftover file.
+4. **Isolated from goad entirely**, with a probe doing only those syscalls and a
+   fresh unique path per iteration, so no second listener can exist:
+
+   | condition | spurious / 40,000 |
+   |---|---|
+   | alone in the binary | **0** (×3) |
+   | + 400 live AF_UNIX listeners in *another* process | **0** (×3) |
+   | + one live goad listener, same process, no forking | **0** (×3) |
+   | + the `transport::` cases — subprocess-heavy, **no sockets** | **4**, then **7** |
+   | the full suite | **18** |
+
+   It tracks forking, not listeners.
+5. **Reproduced outside Rust, and demonstrated deterministically.** Pure Python,
+   one thread probing its own just-closed listener and one thread forking:
+   **47 spurious in 40,000**; with the forking thread disabled, **0 in 40,000**.
+   Then, with no race at all — bind, `fork` a child that sleeps, close the
+   parent's descriptor, probe:
+
+   ```
+   while the forked child still holds the inherited fd:  connect SUCCEEDED
+   after that child has exited:                          connect refused (111)
+   ```
+
+**Confidence.** High on the fact — three independent implementations with clean
+controls. High on the mechanism, on the strength of step 5's deterministic
+demonstration plus step 4's discriminators; it is **strongly-supported inference
+rather than direct observation**, because the child's descriptor table was not
+caught mid-window (`strace -f`), which was judged not worth the time against
+evidence this consistent.
+
+**On severity, and what the rate does *not* say.** The ~3% per full run is a
+property of **the test binary's shape**, not an estimate of what a person meets:
+there the probing process is itself forking constantly, so it duplicates its own
+listeners' descriptors. In production the probe would have to catch a
+*different* host's socket duplicated into a child that is mid-fork at the
+instant that host died, and a dead host's children have already exec'd, where
+`CLOEXEC` closed the descriptor. **The rate does not transfer, and a writeup
+that carries it across would overstate this.** What does not depend on the rate:
+the inference is unsound, and today's narrowness holds only because `reclaim`
+runs before `serve`, so goad is not yet spawning backends when it probes —
+**an accident of startup ordering that nothing states as load-bearing and
+nothing would fail if it changed.** Raised `major` on that ground: a stated
+invariant is decided by a test that does not decide it.
+
+**Disposition:** fix-now
+**Response:** R-3 is a stated invariant and it does not currently hold; that is
+the ground for repairing in-slice rather than deferring. Liveness becomes an
+**exclusive advisory lock a host holds for its own lifetime**, not an inference
+from `connect()`: a sidecar lock file beside the socket, `open` with `O_CREAT`
+then a non-blocking exclusive `flock`. Lock acquired → no live host, so unlink
+the socket and bind; lock held by another → `InUse`. The guard lives as long as
+the process, not as long as `reclaim`. The lock file is **not** unlinked on
+exit, for the reason R-5 gives for the socket — a stale lock file is harmless,
+because the lock and not the file is the signal.
+
+Why this answers the defect where `connect()` cannot: a dead host's children
+have already exec'd and `CLOEXEC` closed the inherited lock descriptor at exec,
+so a dead host holds no lock. The fork window that makes `connect()` lie
+produces no false *live* here. **User's call, 2026-09-09.**
+
+**PARTIAL — raised and dispositioned here; the repair is not started.** The
+repair agent that diagnosed this reached its session budget on the diagnosis and
+handed over rather than beginning a fresh unit of work near its ceiling. What
+remains, in full, so the next agent starts from a brief and not from chat:
+
+1. **The repair itself**, as the Response specifies.
+2. **R-3 and R-4's wording, and `reclaim`'s doc comment.** That comment argues
+   for the connect idiom in terms; the argument is now known false and must be
+   **replaced, not softened** — say what the lock holds and why connect could
+   not.
+3. **Upgrade skew, to be settled and stated rather than left implicit:** against
+   a socket left by a host that predates the lock file there is no lock, so the
+   socket is treated stale and unlinked. Right for a genuinely dead old host,
+   wrong for a live one. Write it down wherever R-3's rule now lives.
+4. **A Design drift entry in `audit.md`, beside [[F-17]]'s.** `design.md` §5.5's
+   edge-case table records the probe's side effect — a live host reading the
+   probe as an empty envelope and refusing it `malformed`. **That side effect
+   disappears**, since the new probe never connects. `design.md` stays as
+   written (`docs/AGENTS.md:168`); the record of the departure is the drift
+   entry.
+5. **Reconcile [[F-9]]'s Follow-ups entry.** Its second-host-startup instance —
+   the one the reviewer required be named in full — is *predicated on that side
+   effect* and **no longer exists**. F-9's underlying question stands on its own
+   (the diagnostics slot has an author outside the process; the three pre-slice
+   refusal paths are still why it is deferred), but the entry must not keep
+   claiming an instance that is gone. Say what replaced it and why rather than
+   deleting the sentence.
+6. **The test that could not be written before**: a stale socket probed while
+   the process forks. Step 5 above is the recipe — bind, fork a child that
+   holds the descriptor, close the parent's, probe.
+7. **Verification.** `just check` exits 0, and the integration target run
+   **enough times to say something real about the flake being gone** rather than
+   asserting it from one green run. The pre-repair baselines to beat are in this
+   finding: 1 failure in 35 sequential runs on the repaired tree, 2 in 60 at
+   `93abab3`.
+
+**STOP conditions for the next agent:** a dependency addition (`flock` is
+reachable through `std::os::unix::io` plus a raw call — if it is not reachable
+without a new crate, that is a STOP, not a repair decision), and the lock and
+the socket disagreeing in a way the design did not settle.
 
 **Outcome:**
 
