@@ -2169,8 +2169,28 @@ any un-exec'd child of the holder, that this bounds the exception to the instant
 of a host's death, and that it is self-clearing — the same shape §6.1 already
 uses for *upgrade skew* two paragraphs down.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The documents are the defect and the code stays as it is. **This
+finding is against my brief as much as against the repair** — I told the repair
+agent that `CLOEXEC` closing the inherited lock descriptor at exec is what makes
+a dead host hold no lock, and that is wrong: `flock` is held by the open file
+description, so a `fork` duplicates it exactly as it duplicated the listening
+socket. Inheritance is not the difference.
+
+The real reason the repair works is narrower and better: **the lock is never
+released while a host lives**, so there is no release for a probe to race. The
+old flake needed a release followed by a probe of the same path with an
+unrelated fork supplying the gap; under the repair the reclaim case's path has
+never been locked when `bind` reaches it. Fix §6.1 and `reclaim`'s doc comment to
+say that, and add the clause the finding asks for — the lock is held by any
+un-exec'd child of the holder, which bounds the exception to the instant of a
+host's death and is self-clearing. Use the shape §6.1 already uses for upgrade
+skew two paragraphs down.
+
+Do **not** repair it by asserting `posix_spawn`'s `CLONE_VFORK` closes the
+window. The finding is right that this would rest the margin on the standard
+library's spawn selection, which is exactly the unstated accident F-18 was raised
+about. Naming the residue is the repair; removing it is not available here.
 
 **Outcome:**
 
@@ -2212,8 +2232,22 @@ where `TryLockError::Error` becomes `LivenessUnknown`; `BindFault`'s own
 which reports the errno faithfully and still leaves the reader without the
 remedy.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Agreed, and the reviewer is right that it is the weaker of the two —
+but the ground is not strength, it is that R-3 now **requires** the lock, so
+`flock` support became an environmental requirement of `ingress.path` in this
+repair, and §6.1 is the paragraph whose job is to state environmental
+requirements. It already carries the sibling sentence about the containing
+directory. One sentence beside it.
+
+The behaviour is correct and does not change: a filesystem that cannot lock
+yields `LivenessUnknown` and the host does not start, which is what R-3's
+*"MUST NOT be assumed either way"* requires. What is missing is only that a
+person choosing a location is never told the location must support locking, so
+the failure arrives as a host that will not start over a lock they did not know
+existed, with the remedy — put the socket somewhere else — underivable from the
+message. See [[F-21]]: same paragraph, and both are about a person meeting a
+lock they never asked for.
 
 **Outcome:**
 
@@ -2285,8 +2319,32 @@ for the argument that the two are the same. The case
 `a_directory_with_no_write_permission_is_refused_naming_the_path` passes either
 way, which is why nothing caught the move.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The regression is real and it is the one thing in this slice that
+degrades what a person sees. A mistyped or missing directory is the commonest
+misconfiguration there is, and it now reads *"whether a live host holds it could
+not be determined: No such file or directory"* where it read *"could not be
+bound: No such file or directory"*. The fault's name asserts a liveness question
+while the errno reports a filesystem one, and R-4's requirement is about the
+message.
+
+**Fix by splitting, not by adding a concept** — `hold` already has the two errors
+in separate arms. The lock file's `open` failing means *the location is
+unusable* and must surface as a location fault naming what was wrong with the
+path; `try_lock` failing means liveness is genuinely undetermined, which is what
+`LivenessUnknown` was made for and which [[F-20]] is about. Keep
+`LivenessUnknown` for the second only.
+
+**Two things go with it, and the second is the reason this was not caught:**
+
+- §7's R-4 row currently argues the distinction away — *"R-3's last clause and
+  R-4 are the same startup failure naming the same path, and the case asserts
+  the path rather than the variant."* They are the same failure and not the same
+  message. Correct the row.
+- **The case asserts the path and not the variant, which is exactly why the fault
+  could move under it and stay green.** Strengthen it to assert the variant. A
+  test honest about what it checks is still a test that let a user-facing
+  regression through, and the fix for that is the assertion, not the honesty.
 
 **Outcome:**
 
