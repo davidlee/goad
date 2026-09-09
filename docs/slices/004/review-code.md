@@ -1431,6 +1431,26 @@ wrong side of the very distinction [[F-3]] was raised to enforce. [[F-16]] is an
 amendment a Response promised and the pass did not make. None of the three
 questions a repair that was made; all three are about where a repair stopped.
 
+**How [[F-5]]'s condition resolved, since its outcome is terminal and reads as
+though it did not.** That outcome said: build the match as the *source of the
+compared set*, not as a *ward beside a hand-written array*, or it would be
+contested. What landed is the source by construction — every member of `reasons`
+comes off an arm, and there is no second path into the set — and it still shows
+the ward's symptom, because the arms are reached through witnesses and Rust
+cannot force a witness to exist. The repairer measured that rather than
+asserting past it, and the ledger and `draft-spec.md` R-14 now agree on the
+width of the leak: the compile gate is forced, a **correct** update is not. I
+re-derived the same boundary independently, including that the deferred `Reason`
+type would narrow the leak rather than close it, since a hand-written `ALL`
+stays hand-written. So the condition was answered by weakening the verification
+claim while leaving the requirement intact — the alternative F-5 itself named —
+and there is nothing left to contest. The `Reason` follow-up's declared
+surfaces were checked against the code: `Refusal::reason()` has exactly one
+production caller outside its module (`folded()`), two in the integration tier,
+and one in `ingress/mod.rs`'s own `#[cfg(test)]` block; the renderer tier names
+`Refusal` in a doc comment only and reads reasons off the reply JSON, so the
+entry's claim that it is untouched holds.
+
 Two gaps the repairs declared rather than papered over — no test drives a real
 `accept()` error ([[F-2]]), and the read-fault mapping is unit-only ([[F-7]]) —
 were checked and are **honest**, not findings in disguise. `EMFILE` needs a
