@@ -2239,6 +2239,32 @@ same shape — the mechanism, the bound (the instant of a host's death), and tha
 it clears itself. Correct on the mechanism: the lock belongs to the open file
 description, `CLOEXEC` ends the child's copy at `exec` and not before.
 
+**Post-outcome — the class, and one line the outcome quotes.** Raised by the
+team lead after this outcome was written, and done rather than deferred because
+both are about copies that outlive the slice.
+
+**The class is now stated once instead of repaired a fourth time.** F-3, F-15
+and F-19 are one class — *an absolute clause about a mechanism that cannot name
+the mechanism's exception*. F-15's criterion could not reach F-19 because it
+lives in §6.3 and is scoped to which refusals a person sees, which is why F-19
+had to be raised a round later against a paragraph whose whole subject was the
+mechanism it was getting wrong. The general form is now **P-D** in §3, where the
+document states its own reading rules; §6.3's sentence stays where it is in its
+specific form, and P-D names it and §6.1's fork window as its two instances.
+Appended after P-C rather than inserted, since principle ids are immutable like
+requirement ids.
+
+**And the Harvest entry's *How to apply* leads with its generalisation again** —
+*"ask liveness of something a dead process cannot still hold"* — with the
+corrected mechanism beneath it rather than in its place. This changes a line the
+outcome above quotes, so it is flagged rather than left to be found: both
+phrases the outcome names are still in the entry — **"Inheritance is *not* the
+difference"** in terms, and *"it is never released while the holder lives"* as
+the mechanism sentence — and what moved is which of them opens the paragraph.
+The entry now also bounds the residue by the comparison the other two copies
+make: microseconds wide and reachable only at the instant of a death, against a
+`connect` probe's window recurring on every fork for a process's whole life.
+
 ### F-20 — the socket's filesystem must support advisory locking, and nothing says so
 
 **Severity:** minor
@@ -2488,6 +2514,36 @@ a requirement.
 
 **What the walk did turn up is a path the division does not reach at all** —
 see [[F-22]]. It predates this rescoping and is not a defect in it.
+
+**Post-outcome — the two-case form landed after all, and the measurement is why.**
+The team lead directed it after this outcome was written. The outcome's
+Deviation 1 stands as the record of what was verified: one case, two assertions,
+name unchanged, accepted with *"the two-case form remains better in the abstract
+and is not worth moving §7 and `audit.md` references to buy here."*
+
+**It turned out not to be abstract.** `a_directory_with_no_write_permission_is_refused_naming_the_path`
+is back to holding exactly what it always held, and
+`a_missing_directory_is_refused_as_an_unusable_location_not_as_an_unknown_liveness`
+holds the variant. Run against the unrepaired code in a throwaway worktree at
+`d511cc2`, the new case fails with this finding's own headline message —
+*"whether a live host holds it could not be determined: No such file or
+directory (os error 2)"* — **while the sibling passes**. That pair is the
+regression's exact shape in one run: the path was still right, and only the kind
+of thing that went wrong had changed. One case asserting both would have said
+only *something moved*, which is the property the outcome weighed and could not
+measure at the time.
+
+A **missing** directory rather than the sibling's unwritable one: it is the
+misconfiguration this finding leads with, and it is deterministic, where an
+unwritable directory does not apply to root — a caveat the sibling has always
+carried in its own panic message.
+
+**The references the outcome priced in are moved**: §7's R-4 row now names both
+cases and says why the row needs two, `notes.md`'s VT-4 row names the sibling,
+and `audit.md`'s AC-9 list carries it. The row no longer says *"the case asserts
+the variant as well as the path"*, which the outcome above quotes; it says the
+two halves are verified by two cases because the history here is one half moving
+while the other stayed true.
 
 ### F-22 — R-4 refuses a symlink at the socket path and follows one at the lock path, for a reason that covers both
 
@@ -2758,6 +2814,19 @@ untested remainder is named. A third candidate was dropped rather than raised:
 looked like it might race on which arm observes the closed channel, but the race
 runs the safe way (load lengthens the exchange and so favours the inner arm) and
 12 consecutive runs were stable, so it is an observation and not a finding.
+
+**One lesson worth keeping separate from its outcome, because the output alone
+would teach the wrong thing.** [[F-21]]'s repair reused `BindFault::Unbindable`
+rather than minting a fault, and the result was that the pre-repair wording came
+back *verbatim* instead of being approximated. That was the right repair — but
+**not because a variant already existed.** It was right because the two steps
+genuinely ask one question: opening the lock file and binding the socket both
+ask whether this directory can be used, of the same directory, at the same
+moment. The doc comment says so, which is what makes the reuse principled. Had
+it been justified as convenient — *there is already a variant that fits* — it
+would have been the wrong repair with the right output, and the next reuse
+argued the same way would land somewhere the two steps ask different questions.
+Reuse is correct when two callers share a question, not when they share a shape.
 
 **Round 1's raise and disposition passes are both complete.** All thirteen outcomes are
 `verified` and **nothing is contested** — including [[F-9]]'s `follow-up`, which
