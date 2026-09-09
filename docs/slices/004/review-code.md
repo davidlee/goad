@@ -1869,6 +1869,154 @@ reachable through `std::os::unix::io` plus a raw call — if it is not reachable
 without a new crate, that is a STOP, not a repair decision), and the lock and
 the socket disagreeing in a way the design did not settle.
 
+**Repaired, 2026-09-09 — this supersedes the PARTIAL brief above, which stands
+as the record of the handover.** All eleven items landed; what follows says
+where each one is.
+
+**1 — the repair.** `reclaim` (`crates/goad-shell/src/ingress/mod.rs`) no longer
+connects to anything. It settles what is *at* the path first (R-4 before R-3, so
+a symlink or a regular file is refused without a lock file appearing beside it),
+then calls `hold`, which opens `lock_path(path)` — the socket's own path with
+`.lock` appended — with `O_CREAT` and `mode(SOCKET_MODE)`, and takes a
+non-blocking exclusive `flock`. Lock taken → no live host → the socket is
+unlinked and `bind` takes the path. `WouldBlock` → `InUse`. Any other lock
+error, and any failure to open the file, → a new `BindFault::LivenessUnknown`:
+*whether a live host holds it could not be determined*, because neither answer
+is safe to assume. `reclaim` returns the `File`, `bind` puts it in
+`Ingress::_lock`, and `serve` owns that for the life of the process — the guard
+outlives `reclaim` by the whole run.
+
+**No new dependency, and no `unsafe`.** `flock` is reachable as
+`std::fs::File::try_lock` (stable; `TryLockError::{WouldBlock, Error}`), so the
+STOP condition this finding set was not reached. The mode is set by `open(2)`
+rather than by a `chmod` after it, so unlike the socket (A-5) there is no
+window.
+
+**2 — R-3, R-4 and the doc comment.** R-3 is rewritten around the lock and now
+opens *"Liveness is an exclusive advisory lock, and never a connection to the
+socket"*; it states the hold-for-lifetime obligation, both outcomes, and that
+liveness must not be assumed either way when it cannot be determined. R-5 gains
+the lock file: not unlinked on exit, because the lock and not the file is the
+signal. R-4 needed no change — its symlink clause already reads *"rather than as
+R-3's in-use case"*, and the R-4-before-R-3 order in `reclaim` is what makes
+that true. **`reclaim`'s doc comment is replaced, not softened**: the paragraph
+that argued *"a failed connect to a stale socket file is the standard idiom"* is
+gone, and in its place is what the lock holds, why `connect` cannot hold it, and
+the fork mechanism that breaks it.
+
+**3 — upgrade skew, settled and stated.** In `draft-spec.md` §6.1 as a
+non-normative limit, and again in `reclaim`'s doc comment: a socket left by a
+host predating the lock file has no lock beside it, so it reads as stale and is
+unlinked — right for a dead old host, wrong for a live one, which would go on
+serving a socket the path no longer reaches. One restart of the old host closes
+it; the window is the single upgrade that crosses this change.
+
+**4, 10 — two Design drift entries in `audit.md`**, making four, with the intro
+count and the ordering rewritten. The third records that the probe's side effect
+is gone: §5.5's *zero bytes, then EOF → `malformed`* row stays true about
+writers and loses its one host-authored instance, and two further sentences go
+stale with it (§5.5's *socket unlinked underneath a live listener* row offers *a
+second host reclaiming the path under R-3* as a cause, now reachable only if the
+lock file has been removed first; §5.2's `IngressError` sentence lists six
+faults where the tree has seven). The fourth is D-10, and says outright that it
+is the most consequential of the four because the other three outdate a
+description while it reverses a decision — with the ground stated: D-10 declined
+on scoping grounds, F-18 rests on R-3 being broken in shipping code, and a
+failing invariant outranks a scoping preference. `design.md` is left as written
+in both, per `docs/AGENTS.md:168`, and neither gets a Reconciliation row.
+
+**5 — [[F-9]]'s instance.** Reconciled in `slice-004.md`, not deleted: the entry
+now states the instance it used to name, says it no longer exists because
+nothing connects to the live host at all, and keeps the underlying question —
+the slot still holds one thing and ingress is still an unbounded author of it
+from outside the process; what is left is the adversarial instance rather than
+the operator's own. The three pre-slice refusal paths remain why it is deferred.
+
+**6 — the test that could not be written before**, and it is deterministic
+rather than a race.
+`ingress::a_socket_a_forked_child_still_holds_is_reclaimed_and_the_new_listener_serves`
+(`crates/goad-shell/tests/integration/ingress.rs`) binds a plain listener, hands
+it to a child as **stdin** — `dup2` onto fd 0 clears `CLOEXEC`, so the fork
+window that is microseconds wide in a real spawn is the child's whole life —
+drops this process's last descriptor for it, asserts `connect` still succeeds
+against a path no host holds, and requires `bind` to reclaim it and serve. A
+second case,
+`ingress::a_live_host_keeps_its_path_after_the_socket_file_is_removed`, holds
+the half no `connect` probe could reach at all: with the socket file removed
+there is nothing to connect to, so the old code bound a second host beside the
+first, and the lock refuses it. Both were **confirmed red at `4467e0f`** in a
+throwaway worktree — the first with the flake's own message, *"in use by a live
+host"*, the second on its `panic!` — and both are green here.
+`ingress::tests::the_lock_is_the_socket_s_own_path_with_a_suffix` pins the
+lock's name beside them.
+
+**7 — verification, measured against the baselines rather than asserted.**
+`just check` at `95f0a97`, **exit 0**, 19 `test result: ok` blocks, zero
+failures. The flake was then measured the way this finding measured it —
+repeated sequential runs of the integration target, unloaded, which is the
+condition it wants — and **against a control run on this machine rather than
+against the numbers alone**:
+
+| tree | runs | failures |
+|---|---|---|
+| repaired | **800** | **0** |
+| `4467e0f`, pre-repair, same machine, same condition | 200 | **2** (runs 73 and 190) |
+
+**The control is what makes the zero mean anything, and the control's rate is
+what bounds the claim.** At 1 in 100, the rate it measured, 0 in 800 has about
+a 0.03% chance of being luck. The first 200 runs alone would have had a 13%
+chance, which is why they were not the whole measurement — *one green run* is
+worth less again. The prior baselines this had to beat were 1 in 35 on the
+repaired-at-the-time tree and 2 in 60 at `93abab3`; the control reproduces
+both, so the window still fails when the code is still wrong, and 0 in 800 is
+past all three.
+
+None of that is the whole claim, and it does not need to be: **the mechanism is
+gone.** Nothing connects to anything during a bind, so there is no listening
+socket for a `fork` to keep alive behind the host's back, and the case that
+used to lose that race is a deterministic test of the same condition now.
+
+**8 — §6.1's bind race.** Rewritten to what is true, not softened: two hosts
+starting in the same instant **cannot** both bind, because the lock is exclusive
+and only one takes it — the check and the bind are still not one atomic step,
+but the lock spans both. Stated as a property of the contract rather than as a
+limit on it, with the second consequence beside it (one live host per socket
+path) and the caveat that the exclusion is only as durable as the lock file's
+inode. **The separate limit below it — *the path after the bind* — stands**, and
+one clause of it was corrected rather than left false: what would close it is
+the host re-probing its own path, not the single-instance enforcement this
+contract now partly does own.
+
+**9 — the *Single-instance enforcement* follow-up.** Reconciled in
+`slice-004.md`, both faces named: the first is closed, as a consequence rather
+than a goal, with the D-10 reversal pointed at `audit.md`; the second is
+untouched and the entry says why the lock cannot reach it — it keeps a *second*
+host off the path, and that residue is about the *first* host's own socket.
+
+**11 — the cross-reference.** F-18's diagnosis is linked from every place the
+closure is now stated: `draft-spec.md` §6.1 (as the measurement behind the
+mechanism), `slice-004.md` under both the flake entry and *Single-instance
+enforcement*, `audit.md`'s two new drift entries, and `reclaim`'s own doc
+comment. It was correctly uncopied while it was an open limit; it is not one
+now.
+
+**Two judgement calls a reviewer should check rather than take.** First, a bind
+against a path that is **empty** while another host holds the lock is now
+`InUse` rather than a successful bind. That is the rule R-3 states — the lock,
+not the file — and it is what closes the race, but it is behaviour no case
+demanded before, so it has its own test. Second, `a_directory_with_no_write_permission_is_refused_naming_the_path`
+now fails at the lock file rather than at the bind, so its fault is
+`LivenessUnknown` rather than `Unbindable`; the case asserts the path and not
+the variant, so it passes either way, and R-3's last clause and R-4 are the same
+startup failure naming the same path. Both are stated in §7 rather than left to
+be found.
+
+**Two documents this touched that no item named**, both because the repair made
+them wrong: `.gitignore` gains `/goad-demo.sock.lock`, and `notes.md`'s demo
+walkthrough listed *a socket file left behind after you quit* under **what would
+indicate failure** — which R-5 requires, so it was a standing contradiction and
+is now the opposite sentence, naming both files.
+
 **Outcome:**
 
 ## Synthesis
