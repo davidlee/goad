@@ -295,8 +295,12 @@ reply table above, §5.4 and `draft-spec.md` §6.3 all state the three causes
 together so that no reader takes "right now" for the whole of it.
 
 `Refusal` carries its own payload — `TooSoon { retry_after }`,
-`TooLarge { limit }`, `TimedOut { after }`, `InvalidEnvelope(EnvelopeFault)` —
-with `reason() -> &'static str` for the wire and `Display` for `detail`.
+`TooLarge { limit }`, `TimedOut { after }`, `InvalidEnvelope(EnvelopeFault)`,
+`Unavailable(UnavailableCause)` — with `reason() -> &'static str` for the wire
+and `Display` for `detail`. **The fifth was omitted when this list was written
+and is restored at reconciliation** (`audit.md`, `review-code.md` F-a): a unit
+`Unavailable` cannot satisfy §5.4's own sentence two paragraphs above — *one
+thing about the host and three about why*, with `detail` saying which.
 `TooSoon` is the one payload that also reaches the wire as a field of its own,
 `retry_after_ms` (`draft-spec.md` R-14); every other payload reaches it
 only through `detail`, which nothing may branch on.
@@ -686,7 +690,7 @@ Three deltas and one new record.
 |---|---|---|
 | CD-1 | SPEC-002 | a new principle — *each bounded stimulus class is spaced from the previous firing of its own class, on its own monotonic anchor, and no anchor is written by another's firing* — plus **SPEC-002/R-12** as its ingested instance at three seconds (qualified because `draft-spec.md` numbers its own ingress-side requirement R-12 too, and neither may be renumbered), a §5 paragraph, the OQ-4 sentence CD-1 already promises, and a §7 verification row. `canon-delta.md` carries the decided value and the principle, which discharges its *open at scoping* clause |
 | CD-2 | SPEC-001/R-56 | **the emission clause only**: `"host"` is reserved, and a backend may read `source == "host"` as the host asking on its own account. The *refusal* moves to SPEC-003 (D-3), and `canon-delta.md` is updated to say so |
-| **CD-3** | **ADR-004** | **new.** Its Verification section says the anchor is held by review because *"no standing test can distinguish the anchor from the boolean alternative… the case that separates them is the one slice 004 will introduce."* AC-6's **third** test is that case — the *advances* direction (§9) — and the record is amended at reconciliation to name all three by file and function, saying which one discharges the debt. `docs/AGENTS.md` requires an ADR be kept accurate as its consequences are learned; this is the consequence it predicted |
+| **CD-3** | **ADR-004** | **new.** Its Verification section says the anchor is held by review because *"no standing test can distinguish the anchor from the boolean alternative… the case that separates them is the one slice 004 will introduce."* AC-6's **second** test is that case — the *does not advance* direction (§9 (ii)) — and the record is amended at reconciliation to name all three by file and function, saying which one discharges the debt. `docs/AGENTS.md` requires an ADR be kept accurate as its consequences are learned; this is the consequence it predicted |
 | — | **a new ADR** | **written at reconciliation:** *the event envelope normalizes in stratum 2.* ADR-001 §Decision names "wire-to-canonical normalization" in stratum 1 and "event ingress" in stratum 2, and the envelope is both; §2 F6 states what decides it and §5.1 states why it opens no second door into a canonical type. It gets a record rather than only a design section because `docs/AGENTS.md` requires one of any decision that could later be reversed by accident, and this one is invisible to every ADR-001 instrument |
 | — | `draft-spec.md` → SPEC-003 | new canon: the socket, the envelope, the reply, the refusal taxonomy, the budgets, and the bind race as a non-normative limit |
 | — | POL-001 | **unchanged.** `tokio` gains `net`, which the manifest allowlist does not see (`research.md` F12) and which cannot reach stratum 1 (F11) — argued here, which is what POL-001's residue clause asks of the slice that takes it |

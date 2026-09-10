@@ -368,11 +368,20 @@ Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
 vocabulary, subject `implementation`. Do not restate findings here.
 
-- **Ledger:** `review-code.md` — **not yet opened.** The adversarial code review
-  is a fresh agent and has not run.
-- **State:** open · outstanding blockers: unknown, the review has not run
+- **Ledger:** `review-code.md` — **open, five rounds run.** Rounds 1-4 were one
+  reviewer kept across rounds; round 5 is a fresh one, primed from the
+  handover that reviewer wrote for it.
+- **State:** open · **outstanding blockers: 0** · 22 findings closed
+  (`verified`), **4 open and undispositioned** — F-23 … F-26, all `minor`, all
+  raised by round 5's sweep of §7's sixteen Verification rows.
+- **What round 5 was:** the sweep round 4 named as the highest-value stone left,
+  on the evidence that of the four rows the review happened to check, three were
+  overclaiming. Twelve rows hold; three overclaim and one is silent. Three of
+  the four findings are corrections to a document one promotion away from canon,
+  which is the last moment they are free.
 - **Carried in for it:** F-1 (the ingress-stopped `unavailable` literal), and
-  the `accept_loop` retry lead under Evidence. Neither is dispositioned here.
+  the `accept_loop` retry lead under Evidence. Both were dispositioned in the
+  ledger, not here.
 
 ## Verdict
 
@@ -432,8 +441,8 @@ slice's own documents rather than canon. None is done.
 | `docs/adr/004-scheduled-firings-are-spaced-from-the-previous-scheduled-firing.md` §Verification | apply `canon-delta.md` **CD-3** — name the three AC-6 tests by file and function, saying which discharges the debt; add `design.md` §5.3 and §9 to References. The decision itself is untouched | the ADR says the case that separates the anchor from the boolean is the one slice 004 will introduce. `renderer/ingress.rs::an_ingested_firing_does_not_advance_the_scheduled_floor` is that case, and it passes and has been shown to fail when the anchor is broken | [ ] |
 | `docs/slices/004/draft-spec.md` → `docs/specs/003-host-event-ingress.md` | promote as **SPEC-003**, taking its number at promotion | drafted during this slice as its working authority; §7's sixteen rows each name a real test function and file, checked here, and R-5 correctly reads *review, not a test*. `docs/AGENTS.md`: a slice does not close holding an unpromoted draft. **Promote §6.3's closing sentence as a criterion, not as a row note** (`review-code.md` F-15): *"A clause of this paragraph that says a refusal always reaches a person is making a claim about who decides it… One that cannot say which side decides is a clause that has not been checked."* It is what makes the next instance of that class findable by reading, and F-15 found two instances of it in one sweep | [ ] |
 | `docs/adr/005-…md` (**new**) | write: *the event envelope normalizes in stratum 2.* | ADR-001 §Decision names wire-to-canonical normalization in stratum 1 and event ingress in stratum 2, and the envelope is both. `design.md` D-3 records the decision and §10 says it is owed an ADR, because **no ADR-001 instrument sees this choice** — it could be reversed by accident | [ ] |
-| `docs/slices/004/design.md` §5.2 | amend `Refusal`'s payload list: five payloads, the fifth `Unavailable(UnavailableCause)` | not canon, but stale about the tree. The list shows four payloads and omits `Unavailable`, which PHASE-03 read as specifying a unit variant; F-a showed that contradicts §5.4's own sentence two paragraphs later, and the tree now carries the payload. See *Design drift* below | [ ] |
-| `docs/slices/004/design.md` §10, CD-3 row | *"AC-6's **third** test"* → the second, §9 (ii) | a stale ordinal. §9's own AC-6 row, `canon-delta.md` CD-3, `plan.md` and `slice-004.md` all say (ii), and so does the implemented test | [ ] |
+| `docs/slices/004/design.md` §5.2 | amend `Refusal`'s payload list: five payloads, the fifth `Unavailable(UnavailableCause)` | not canon, but stale about the tree. The list shows four payloads and omits `Unavailable`, which PHASE-03 read as specifying a unit variant; F-a showed that contradicts §5.4's own sentence two paragraphs later, and the tree now carries the payload. See *Design drift* below | [x] |
+| `docs/slices/004/design.md` §10, CD-3 row | *"AC-6's **third** test"* → the second, §9 (ii) | a stale ordinal. §9's own AC-6 row, `canon-delta.md` CD-3, `plan.md` and `slice-004.md` all say (ii), and so does the implemented test | [x] |
 
 **Design drift not reconciled: four items.** The first is the one a
 Reconciliation row above proposes to close rather than to leave; the second was
