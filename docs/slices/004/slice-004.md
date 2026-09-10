@@ -163,9 +163,11 @@ from a clean clone in the dev shell — this slice's only environment change
 - [ ] AC-12 — A malformed envelope never reaches the backend, and no ingress
   failure after startup takes the host down or leaves it unable to invoke the
   backend again.
-- [ ] AC-13 — A person has run the software with ingress configured, emitted an
+- [x] AC-13 — A person has run the software with ingress configured, emitted an
   event from a shell one-liner, and watched the prompt appear. Recorded in
   `audit.md` under Evidence, naming what was observed (`docs/AGENTS.md` §Tiers).
+  Run twice by the user: 2026-09-09 at `93abab3`, and again 2026-09-10 on
+  `0d2f51d` after the code review's repairs had moved what a person meets.
 
 ### Readings taken in design
 

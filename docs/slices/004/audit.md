@@ -153,7 +153,7 @@ argument the slice declared in advance would hold it.
 | AC-10 | yes | `the_socket_is_owner_only_after_bind` asserts `mode() & 0o777 == 0o600` over the host's own `set_permissions`. Non-vacuous under every umask but `0o177`; PHASE-03 recorded the run's ambient umask as `0o022` |
 | AC-11 | yes | Each instrument separately, run here as part of the gate. Crate-edge rule: `cargo build --workspace` resolves. Manifest allowlist: `allowlist::the_real_stratum_1_manifest_is_clean`, `…stratum_2…`. Stratum 1 purity: `purity::the_real_stratum_1_source_names_none_of_the_nine`. `cargo test -p goad-semantics`: 35 tests, green, built with its own feature set. Separately, the vocabulary scan: `vocabulary::no_workspace_member_names_the_users_domain` and `…_in_its_own_crate_name`, and the scan reads `workspace.members` rather than a hand-list (`vocabulary.rs:44-58`), so `crates/goad-shell/src/ingress/` is covered by construction. Stratum 1 gains no dependency: `crates/goad-semantics/Cargo.toml` has an **empty diff** across the whole slice, and `cargo tree -p goad-semantics -i tokio` matches no package, so `net`/`sync` do not reach stratum 1's graph. Its only source change is the two edits PHASE-02 declared — `pub(crate)` → `pub` and one word of a doc comment. No new module name or type name in the slice is on the `DOMAIN` list: `ingress`, `envelope`, `arrival`, `refusal`, `answer`, `event`, `source`, `kind`, `listener`, `watcher` |
 | AC-12 | yes | `a_malformed_envelope_reaches_no_event_and_the_listener_stays_up` (no `Event` at the judge, and the listener answers the next envelope); `renderer/ingress.rs::after_a_flood_of_malformed_envelopes_the_host_still_evaluates` (zero invocations from the flood, one after it); `a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating` (the closed-channel path folds once, does not spin, and the host still evaluates). `Ingress::arrival` sets `arrivals = None` as it yields `None` and thereafter parks on `future::pending()` (`ingress/mod.rs:216-228`), which is what makes the no-spin assertion true rather than lucky |
-| AC-13 | yes | The user's own run, 2026-09-09 — see **The human observation** below |
+| AC-13 | yes | The user's own runs, **2026-09-09 and again 2026-09-10 on the shipping tree** — see **The human observation** below |
 
 ### The human observation (AC-13, PHASE-06/VH-1)
 
@@ -202,12 +202,32 @@ None of that is reached by the three steps the user ran, but `docs/AGENTS.md`
 §Tiers is unconditional — *a slice does not close until a person has run the
 software and seen the new behaviour* — and what was seen was an earlier binary.
 
-**This is a closure-checklist gap, and it is the one item that should block the
-box being ticked.** It is not a finding: nothing here says the shipping tree
-misbehaves, and the automated evidence for every repair is in `review-code.md`.
-It is discharged by one re-run of the runbook on the current tree by the user,
-recorded in `notes.md` beside the first, and it is the only outstanding item
-that no agent can discharge.
+**Discharged, 2026-09-10, by the user on `0d2f51d`.** The same three runbook
+steps, and the same three observations: `just demo` opened its window, the
+one-liner returned `{"protocol":1,"accepted":true}`, and **the window's title
+became `An event arrived: reddit-watcher / reddit-opened`** — this time on a
+tree carrying every repair above. The gap is closed, and the criterion is
+ticked against the binary that exists rather than the one that did.
+
+**Two behaviours nobody had seen were witnessed in the same run**, both from
+`review-code.md` F-18 and F-22, and both outside what the runbook asks for:
+
+- a `goad-demo.sock.lock` file sitting beside the socket — the lock whose
+  *existence* is R-3's liveness signal, seen for the first time by a person;
+- a second `just demo` started while the first was running, refused with
+
+  ```
+  goad: ./goad-demo.sock: in use by a live host
+  error: recipe `run` failed on line 64 with exit code 2
+  ```
+
+  which is `BindFault::InUse` reaching a person's terminal through
+  `diagnostics::report_startup`, naming the path as R-4 requires, and exiting
+  **2** from `main`'s single `match run()`. §7's R-4 row declares that exit
+  *"review, not a test"* because no test target links the binary — so this is a
+  clause the whole test suite cannot reach, checked by hand and reported here.
+  It is corroboration, not a new criterion: no acceptance criterion asks for
+  it.
 
 ### Verification criteria
 
@@ -472,7 +492,8 @@ red gate.** They predate this slice and sit outside its surfaces. This audit's
 gate run was clean, which retires nothing.
 
 The Closure checklist is left unticked. Its remaining items are canon
-reconciliation — a user gate — and the re-run of AC-13 named under Evidence.
+reconciliation, which is a user gate. AC-13 was re-run on the shipping tree on
+2026-09-10 and is discharged.
 
 ## Reconciliation
 
@@ -614,5 +635,5 @@ amended text throughout.
 Ticked at the close stage, not this one. The evidence above answers the gate
 and all but one of the acceptance criteria; the code review has since run to
 completion. What is genuinely outstanding is canon reconciliation, which is a
-user gate, and **AC-13 on the shipping tree** — see Evidence, *The human
-observation*.
+user gate. AC-13 was re-run on the shipping tree on 2026-09-10 and is
+discharged — see Evidence, *The human observation*.

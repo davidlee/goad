@@ -1586,6 +1586,47 @@ leftover socket and no unexpected refusal; the failure list at the end of the
 runbook was not triggered. Absence of a report is not a positive check, and
 S-3/S-4 are recorded as not fired on that basis only.
 
+### Second run — 2026-09-10, on the shipping tree (`0d2f51d`)
+
+**Why it was re-run.** The first run was at `93abab3`. Between the two, the
+code review landed repairs that each changed some part of what a person walking
+this runbook meets: the reply's newline framing (`review-code.md` F-1), the
+ingress-stopped cause and its reach (F-3, F-7), the lock file and the failure a
+held path produces (F-18, F-22), and the startup failure text (F-12, F-14,
+F-21). `docs/AGENTS.md` §Tiers is unconditional, and what had been seen was an
+earlier binary.
+
+**Same three steps, same three observations.** `just demo` opened its window;
+the one-liner above returned `{"protocol":1,"accepted":true}`; **the window's
+title became `An event arrived: reddit-watcher / reddit-opened`**. That is the
+AC-13 discharge, now against the binary that exists.
+
+**Two behaviours no person had seen before**, both outside what the runbook
+asks for, both reported by the user unprompted-for beyond a question asking
+whether they had looked:
+
+- **`goad-demo.sock.lock` exists beside the socket.** F-18's lock, whose
+  *being held* is R-3's liveness signal. Every prior sighting was a test
+  reading `lock_path(&path).exists()`.
+- **A second `just demo`, started while the first was running, was refused by
+  name:**
+
+  ```
+  goad: ./goad-demo.sock: in use by a live host
+  error: recipe `run` failed on line 64 with exit code 2
+  ```
+
+  This is `BindFault::InUse` (`ingress/mod.rs:122`) reaching a terminal through
+  `diagnostics::report_startup`, naming the path as R-4 requires, and exiting
+  **2** from `main`'s single `match run()` (`main.rs:21-29`). §7's R-4 row
+  declares that exit *"review, not a test"*, because no test target links the
+  binary — so a person just checked by hand the one clause the whole suite
+  cannot reach. It is corroboration and not a criterion: nothing in AC-1..AC-13
+  asks for it, and it is recorded so that it is not rediscovered as unverified.
+
+**Steps 4 and 5 were again not run by hand**, for the same reason as the first
+run, and it again does not qualify the discharge.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
@@ -1906,7 +1947,7 @@ not run, and no claim rests on them)
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
-- **AC-13 has not been run on the shipping tree.** `## VH-1 — the observation`
+- ~~**AC-13 has not been run on the shipping tree.** `## VH-1 — the observation`
   below records a real run, by the user, at `93abab3`. Every code repair the
   review has landed since changed some part of what a person walking the
   runbook meets: the reply's newline framing (`review-code.md` F-1), the
@@ -1916,7 +1957,10 @@ not run, and no claim rests on them)
   that were run, but `docs/AGENTS.md` §Tiers is unconditional, and what was
   seen was an earlier binary. **Discharged only by the user re-running the
   runbook on the current tree**, recorded here beside the first observation.
-  It is the one outstanding item no agent can take.
+  It is the one outstanding item no agent can take.~~ **Resolved** — the user
+  re-ran the runbook on `0d2f51d`, 2026-09-10, with the same result and two
+  behaviours nobody had seen. Recorded under `## VH-1 — the observation`, second
+  run.
 
 - ~~**`unavailable`'s wire `detail` cannot distinguish its three causes.**
   `Refusal::Unavailable` is a unit variant with a fixed `Display`, so the
