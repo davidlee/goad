@@ -137,6 +137,13 @@ every factual claim the three rewritten §7 rows make was checked against the
 tree as well as against `notes.md`. Three verified, one contested, one new
 finding ([[F-27]]).
 
+**Round 7** — 2026-09-10 — [[F-25]]'s re-disposition and [[F-27]]'s repair
+(`a3bc992`), on the same terms as round 6: re-measured, not read. R-1's two new
+invariants were re-run from a scratch worktree at `29e6d9a` — case names listed
+and differenced at both revisions, and the deletion set of the whole slice over
+the three targets' **fourteen** pre-existing files rather than the four the row
+names. Both verified; the widened scope is [[F-28]].
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -165,9 +172,10 @@ finding ([[F-27]]).
 | F-22 | minor | fix-now | verified |
 | F-23 | minor | fix-now | verified |
 | F-24 | minor | fix-now | verified |
-| F-25 | minor | doc-wrong | contested |
+| F-25 | minor | doc-wrong | verified |
 | F-26 | minor | doc-wrong | verified |
-| F-27 | minor | | |
+| F-27 | minor | fix-now | verified |
+| F-28 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -3104,7 +3112,34 @@ counts**, so nothing in it goes stale the next time a case is added.
 what PHASE-06 did to it and why counting it among unchanged files was the
 defect.
 
-**Outcome:**
+**Outcome:** verified
+
+Both invariants re-measured here from a scratch worktree at `29e6d9a`, not read
+off the row.
+
+1. **No case removed or renamed — confirmed.** Case names listed at both
+   revisions with `cargo test -p goad --test <target> -- --list` and
+   differenced: `renderer` 138 → 156, `event_loop` 1 → 1,
+   `event_loop_schedule` 1 → 1; `comm -23` over the two sorted name sets is
+   **empty** — nothing missing from any of the three — with 18 names added.
+2. **The four-file deletion set — confirmed.** `git diff 29e6d9a HEAD` over
+   `renderer/wiring.rs`, `renderer/scheduling.rs`, `event_loop/closing.rs` and
+   `event_loop_schedule/scheduling.rs` deletes **21** lines, and
+   `grep -vc 'serve('` over them is **0**.
+
+**The contested defect is discharged, and the re-baseline is the better call.**
+Neither invariant can decay: both are properties of a fixed commit range and
+the row carries no counts, so the next case added moves nothing in it. And
+`9d36002` was a mid-slice commit standing in for a claim about behaviour
+*before* the slice; `29e6d9a` is that baseline. `main.rs` is named outside the
+claim with what PHASE-06 did to it.
+
+**Invariant 2's sentence reaches past the command beside it**, and that is
+[[F-28]] rather than a second contest. The defect this finding was contested on
+— evidence true only as of when it was measured — is gone, and what replaced it
+is a scope mismatch in a sentence this repair wrote. Its substance survives:
+invariant 1 independently proves no case was lost, and none of the six
+deletions outside the four named files is an assertion or a case.
 
 ### F-26 — R-3's row is silent on the clause about liveness that cannot be determined, and nothing reaches it
 
@@ -3267,6 +3302,87 @@ elsewhere finds it already answered.
 
 No production code changed, and the case's assertions are untouched — both
 injections still red it.
+
+**Outcome:** verified
+
+The split is right and both halves check out. The true half:
+`grep -n 'fn cleanup' -A 10` over the three files shows all three helpers
+matching `Ok(()) | Err(_) => ()`, so teardown really is blind to an unlink at
+exit. The false half is now named rather than asserted:
+`a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` is
+cited as a case that does notice, and it does — it drops its own `Ingress` at
+`crates/goad-shell/tests/integration/ingress.rs:761` and connects at `:763`,
+which is why my socket-unlink injection reds it.
+
+**The distinction the comment now draws is the load-bearing one.** *Those cases
+notice while testing something else, and before this one no case held R-5 at
+all* is what actually answers "may this case be deleted?", which the retracted
+sentence was reaching for and missing. Keeping the retraction in a parenthesis
+is the right call for a sentence that also lives in two other artefacts.
+
+No production code changed; the case's assertions are untouched, and the
+injections that falsified them in round 6 still apply.
+
+### F-28 — R-1's invariant 2 says *those targets' pre-existing files*; its command reads four of the fourteen
+
+**Severity:** minor
+**Location:** `draft-spec.md:410` (R-1's Verification row, second invariant)
+
+**Expected:** the invariant is written to be checked — *"Both halves are one
+command each"* — so the scope the sentence quantifies over and the scope the
+command reads must be the same. This is the third pass over this row, and the
+`scope` half of [[F-25]] was one of the two defects it was raised for:
+*"VA-3 covered five named files, not three whole targets."*
+
+**Observed:** the sentence quantifies over **all** pre-existing files in the
+three targets — *"inside those targets' pre-existing files the slice deleted no
+line except the `serve(…)` calls"* — and the command beside it names **four**:
+`renderer/wiring.rs`, `renderer/scheduling.rs`, `event_loop/closing.rs`,
+`event_loop_schedule/scheduling.rs`. `git ls-tree -r --name-only 29e6d9a` over
+the three target directories lists **fourteen**.
+
+Run over all fourteen, the deletion set is **27** lines, not 21: the same 21
+`serve(` calls, and **six others**, all in `crates/goad/tests/renderer/main.rs`
+and `crates/goad/tests/renderer/startup.rs` — both pre-existing, both inside
+the `renderer` target, neither named by the command:
+
+| file | deleted |
+|---|---|
+| `renderer/main.rs` | `//! The cheap tier: headless, no display server, no socket opened` |
+| `renderer/main.rs` | ``//! Eight modules today: `tree`, items 6-10 (PHASE-03); `mapper`/`tray`,`` |
+| `renderer/main.rs` | `//! PHASE-02).` |
+| `renderer/startup.rs` | `//! Item 17 — the startup surface, as pure functions with no window` |
+| `renderer/startup.rs` | `use goad::startup::{Launch, StartupError, arguments};` |
+| `renderer/startup.rs` | `/// already-rendered inner message a second time.` |
+
+**The substance is unharmed, which is why this is `minor` and a wording fix.**
+Every one of the six is a line **rewritten in place**, not content removed:
+four are extended (the `use` gains `listener`, three doc lines gain a clause),
+and two are corrected because the slice made them false — *no socket opened* →
+*one socket opened*, *Eight modules* → *Nine modules*. None is an assertion,
+none is a case, and [[F-25]]'s invariant 1 independently proves no case was
+removed or renamed. The row's conclusion stands; its second invariant, as
+worded, does not.
+
+**Why it is worth a finding on a row already repaired twice.** A reader who
+takes the sentence at its word and widens the command by two files — the
+obvious thing to do, since the sentence says *those targets' pre-existing
+files* — finds it false, which is the harm [[F-25]] was raised for, restated a
+third time in a third form: first a wrong test cited, then evidence that had
+gone stale, now a scope that does not match its own command. The fix is
+mechanical either way — narrow the sentence to the four files, or keep the
+scope and name the two exceptions with what happened in them (the second is
+truer and costs a clause).
+
+**Evidence:** `draft-spec.md:410`;
+`git ls-tree -r --name-only 29e6d9a -- crates/goad/tests/renderer
+crates/goad/tests/event_loop crates/goad/tests/event_loop_schedule` → 14 files;
+`git diff 29e6d9a HEAD --` over those fourteen, deletions filtered by
+`grep -v 'serve('` → the six lines above; the same diff over the four named
+files → 21 deletions and `grep -vc 'serve('` = 0. Measured here on `a3bc992`.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -3463,6 +3579,35 @@ things a continuous view shows and a fresh one would not.
 <!-- Written when the ledger resolves. The closure story: what the review
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
+
+**Round 7 is complete; the ledger stays open** on [[F-28]] alone, raised here
+and not yet dispositioned. [[F-25]] and [[F-27]] are both `verified`, so
+**F-1 … F-27 are closed** and nothing else is owed.
+
+**[[F-25]]'s re-disposition is a concession and a better answer than the
+finding asked for.** R-1's row now carries two invariants over a fixed commit
+range and **no counts**, re-baselined from a mid-slice commit to the close of
+slice 003 — which is the baseline R-1's claim was always about. Both re-measured
+here from a scratch worktree: no case name is missing from any of the three
+targets (138 → 156, 1 → 1, 1 → 1, 18 added, none lost), and the four-file
+deletion set is 21 lines, every one a `serve(` call.
+
+**[[F-27]] verified.** The comment splits the true half (teardown is blind —
+all three `cleanup` helpers ignore their errors) from the false one, names the
+case that does notice and why, and keeps the retraction where a reader would
+meet the old sentence.
+
+**[[F-28]] is the same defect a third time, in a third form.** R-1's second
+invariant quantifies over *those targets' pre-existing files* — fourteen — and
+its command reads four. Over all fourteen the deletion set is 27, not 21. The
+six extra are doc and `use` lines rewritten in place, none an assertion and
+none a case, so the conclusion holds and invariant 1 proves it independently;
+the wording does not. **This row has now been repaired twice and found wanting
+three times, and never for the same reason twice** — a wrong test cited, then
+evidence that had gone stale, now a scope wider than its own command. That
+pattern is the thing to carry into promotion, not the individual wordings: R-1
+is the row that attracts a claim slightly larger than what was measured, and it
+should be the last row read before `draft-spec.md` becomes `SPEC-003`.
 
 **Round 6 is complete; the ledger stays open** on [[F-25]], returned
 `contested`, and on [[F-27]], raised here and not yet dispositioned. Round 6
