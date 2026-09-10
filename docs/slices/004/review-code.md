@@ -129,6 +129,14 @@ asking of each whether the test holds what the row claims. Every named case was
 read in full, along with the production code it drives; no suite was run, and
 the round changed no code. Four findings, [[F-23]] … [[F-26]], all against §7.
 
+**Round 6** — 2026-09-10 — one job: the outcome of [[F-23]] … [[F-26]] against
+their repairs (`ab28d92`), on `14e9d3a`. Every Response's claim was re-run
+rather than read — the `glass.present` injection, both R-5 unlink injections,
+and a third injection of the reviewer's own against F-23's `landed` guard — and
+every factual claim the three rewritten §7 rows make was checked against the
+tree as well as against `notes.md`. Three verified, one contested, one new
+finding ([[F-27]]).
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -155,10 +163,11 @@ the round changed no code. Four findings, [[F-23]] … [[F-26]], all against §7
 | F-20 | minor | doc-wrong | verified |
 | F-21 | minor | fix-now | verified |
 | F-22 | minor | fix-now | verified |
-| F-23 | minor | | |
-| F-24 | minor | | |
-| F-25 | minor | | |
-| F-26 | minor | | |
+| F-23 | minor | fix-now | verified |
+| F-24 | minor | fix-now | verified |
+| F-25 | minor | doc-wrong | contested |
+| F-26 | minor | doc-wrong | verified |
+| F-27 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -2784,7 +2793,27 @@ The injection was reverted; `git diff crates/goad/src/` is empty.
 rather than only naming it — the row was true, but a reader could not tell this
 case from the version that does not discriminate.
 
-**Outcome:**
+**Outcome:** verified
+
+Re-run here on `14e9d3a`, not read. `glass.present(controller.frame());` added
+beside `refuse_during_exchange` (`controller.rs:746`) turns this case **red**
+and is the only failure in the `renderer` target — `155 passed; 1 failed; 0
+filtered out` — with the message the Response quotes, verbatim. Injection
+reverted; `git diff crates/goad/src/` is empty.
+
+**The `landed` guard is non-vacuous, checked by a third injection of the
+raiser's own.** Moving the surface read below `until(LIVENESS_BOUND, …)` — the
+post-absorption position the old case read from — fails on `landed`, not on the
+surface assertion. So the one drift that would quietly restore the old vacuity
+is itself caught, which is more than the finding asked for.
+
+**The retained assertion beside it is honestly labelled.** Its comment demotes
+it in terms, its message no longer claims the presentation bound, and the
+`present` injection above shows the discrimination now lives in the live read.
+Its closing clause — *"the two together say the refusal reaches no frame at any
+point in the exchange's life"* — reaches a little past two samples, but it is
+written as the half that is **not** the claim, so it misleads no one about what
+holds.
 
 ### F-24 — R-5's row claims *review* where a test is available, and an unlink added on drop passes the whole suite
 
@@ -2873,7 +2902,36 @@ The sentence *"cannot be asserted without asserting the absence of code"* is
 gone, with a note of why it was wrong — the absence of an unlink is
 behavioural.
 
-**Outcome:**
+**Outcome:** verified
+
+Both injections re-run here.
+
+- **`impl Drop for Ingress` removing the socket** — `dropping_the_ingress_unlinks_neither_the_socket_nor_the_lock` red on *"the socket must outlive the
+  listener"*, and `a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` red beside it. That second one is a real notice rather than a
+  cascade: it drops its own `Ingress` and then connects to the path
+  (`crates/goad-shell/tests/integration/ingress.rs:761-763`), so a drop-path
+  unlink takes its socket out from under it.
+- **An unlink of the lock after `try_lock` succeeds** — red on *"the lock file
+  must outlive the listener too"*, with the three the Response names red as
+  well. A **fifth** the Response does not name also went red,
+  `transport::the_misbehaving_suite_leaves_no_child_behind`, which is the
+  forked-child case's own leftover child rather than an independent hold on
+  R-5.
+
+Both reverted; `git diff crates/goad-shell/src/` is empty. There is no `impl
+Drop` anywhere in `crates/`, and `reclaim`'s `mod.rs:292` is still the only
+`remove_file` in the ingress module, so the case is green today for the reason
+it claims.
+
+**The correction to the finding is right**, and in the direction that matters:
+*"would leave every case in the suite green"* was false, R-5's row is written
+to the narrower claim, and the narrower claim — no case held R-5 itself — is
+what the measurements support.
+
+The correction did **not** reach the test's own doc comment, which still
+asserts the sentence the Response retracted. Raised as [[F-27]] rather than
+contested here: R-5's row and the case are both exactly what this finding asked
+for, and the surviving sentence is a different artefact.
 
 ### F-25 — R-1's row: neither half of its evidence says what the row says it says
 
@@ -2957,7 +3015,58 @@ That last point is the one that made this worth fixing before promotion:
 `notes.md` is disposable and the true form lives there, so the row is the only
 place the qualification can survive.
 
-**Outcome:**
+**Outcome:** contested — on (b) only. (a) is discharged and is not in dispute.
+
+**(a) verified in full.** Every claim the rewritten row makes about the pair
+checks out: `some_path_binds` drives `listener(Some(&IngressConfig { path }))`
+and asserts a real socket at the path (`crates/goad/tests/renderer/startup.rs:437-452`); `none_binds_nothing` drives `listener(None)` (`:468-493`); each
+doc comment now names the other; and `grep -c IngressConfig
+crates/goad-shell/tests/integration/ingress.rs` is **0**, so demoting that case
+to R-1's consequence is right.
+
+**(b) is not discharged. The row is still false when checked at HEAD — the
+same check, one clause further down.** Both restatements are faithful to
+`notes.md` (VA-3 does say `ALL MATCH` over five bounded files; VT-6 does say
+`renderer` 138 → **144**), and both are **stale**, stated in the present tense
+about a tree that has moved since PHASE-04:
+
+- *"the five files that had to change for `serve`'s new argument **are**
+  token-identical to `9d36002` once that argument, its four `use` lines and one
+  comment are set aside"* — `crates/goad/src/main.rs` is one of those five and
+  PHASE-06 (`7caedfd`) rewrote it: `git diff 9d36002 HEAD --
+  crates/goad/src/main.rs` is **18 insertions, 9 deletions**, adding `let
+  ingress = startup::listener(config.ingress.as_ref())?;`, moving `Host::new`
+  below it, and renumbering seven step comments. That is not the argument, a
+  `use` line, or a comment. The other four files are untouched since `d823739`,
+  so the claim fails on exactly one file — which is all it takes.
+- *"the `renderer` target's own count going 138 → **144** by addition only"* —
+  the `renderer` target holds **156** cases at `14e9d3a` (`cargo test -p goad
+  --test renderer -- --list`, and the full run reports `155 passed; 1 failed; 0
+  filtered out` under the F-23 injection). The substantive half of that clause
+  — *kept every assertion they had, by addition only* — does still hold; the
+  number does not.
+
+**Why this is the finding and not a new one.** F-25(b)'s stated harm was
+precise: *"A reader who checks this row the obvious way — running the diff it
+names — finds it false, and concludes the row was not checked."* A reader who
+runs the diff this row names still finds it false, and counting the target is a
+one-command check. The repair moved the defect from a wrong scope to a stale
+as-of; it did not remove it.
+
+**And `draft-spec.md` is about to be promoted.** `AGENTS.md` §Canon: canon
+*"states what is true now. No changelogs, no revision history."* A mid-slice
+phase's test count is neither true now nor able to stay true — the number is
+wrong again the next time anyone adds a case — and a token-identity claim
+broken by a later phase of this same slice is the kind of thing SPEC-003 cannot
+carry.
+
+**What would discharge it.** Not a bigger number: `156` is stale the same way.
+Either state the claim in a form that does not decay — the assertions the three
+pre-existing targets had were kept, and every count movement in them is
+addition — or scope the measurement to the phase that took it, in terms, so the
+reader knows what they are checking against. The row already knows how to do
+this: its own last clause names a claim, says it is false as stated, and says
+why. (a) needs no rework.
 
 ### F-26 — R-3's row is silent on the clause about liveness that cannot be determined, and nothing reaches it
 
@@ -3021,6 +3130,84 @@ three exceptions.
 
 No code changed. The clause itself is right, and [[F-18]] is why the row will be
 read closely: R-3 is the requirement this slice rewrote from scratch.
+
+**Outcome:** verified
+
+The declaration is accurate about the mechanism, clause by clause.
+`grep -rn LivenessUnknown crates/` still matches **four lines, all
+`crates/goad-shell/src/ingress/mod.rs`** — `:99` the variant, `:124` and `:139`
+its `Display` and `source` arms, `:235` the only raise. Nothing reaches it from
+a test.
+
+- *"raised from `TryLockError::Error` (`:235`)"* — exact.
+- *"it is the `Err` that is **not** `WouldBlock` so nothing can fall into it by
+  default"* — exact, and the reason is checkable: `hold`'s `match lock.try_lock()`
+  (`:232-236`) has three written arms and **no** `_`, so the variant is reached
+  only by the error it names.
+- *"it carries the path into a startup failure like its siblings"* — `fault(path,
+  …)`, same as every other arm; `IngressError` carries the socket path and
+  `Display` prints it first.
+- *"the same position as R-4's exit code below and R-5's process exit"* — both
+  rows do sit below R-3's and both declare an unreachable half in terms, so the
+  three read as one practice. R-5's declaration is worded as a bound rather
+  than as the phrase *review, not a test*, which is the [[F-24]] repair's doing
+  and does not weaken the parallel.
+
+The clause was not deleted and no code changed, which is what the Handover's
+condition asked for.
+
+### F-27 — the R-5 case's doc comment still asserts the sentence [[F-24]]'s Response retracted
+
+**Severity:** minor
+**Location:** `crates/goad-shell/tests/integration/ingress.rs:513-517`
+(`dropping_the_ingress_unlinks_neither_the_socket_nor_the_lock`'s doc comment)
+
+**Expected:** [[F-24]]'s Response corrects the finding in terms, and calls the
+correction *"one correction to the finding, in the direction that weakens its
+own case"*: the finding's *"a host that had unlinked both files … would leave
+every case in the suite green"* is **false**, measured. R-5's Verification row
+in `draft-spec.md` was written to the narrower claim that survives. A doc
+comment on the case the same repair added is the other place that sentence
+lives, and it should not outlive its retraction.
+
+**Observed:** the case's first paragraph says the opposite of the measurement:
+
+> That absence is what makes R-3's reclaim path the one every ordinary restart
+> takes, so a regression here is silent: **nothing else in the suite would
+> notice**, because every `cleanup` helper in all three test files ignores its
+> errors.
+
+*Nothing else in the suite would notice* is the retracted sentence, restated as
+the case's own justification for existing. The responder's own falsification
+disproves it, and so does re-running it here: an `impl Drop for Ingress`
+removing the socket — *"a regression here"*, exactly — turns
+`a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable` red as
+well, and that case notices for a real reason rather than by cascade: it drops
+its own `Ingress` at `:761` and connects to the path at `:763`.
+
+The `cleanup`-helpers clause the sentence rests on is true and is not the
+problem: the helpers do ignore their errors, which is why **cleanup** notices
+nothing. It does not follow that no case notices, and the one that does sits
+250 lines below in the same file.
+
+This matters more than a stray comment usually would, for two reasons. It is a
+**motivation** clause — it tells the next reader why this case may not be
+deleted as redundant — and a reader who checks it finds it false, which is the
+argument for deleting the case rather than keeping it. And it is the third
+artefact in this repair to carry the sentence: the ledger retracted it, the row
+was written without it, the comment kept it.
+
+**Evidence:** `crates/goad-shell/tests/integration/ingress.rs:515-517` (the
+sentence); [[F-24]]'s Response, *"One correction to the finding…"* (the
+retraction); `crates/goad-shell/tests/integration/ingress.rs:754-772`
+(`a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable`, which
+drops its `Ingress` and then connects); measured here on `14e9d3a` — with an
+`impl Drop for Ingress` unlinking the socket, `cargo test -p goad-shell --test
+integration` reports `84 passed; 2 failed`, the two being that case and this
+one.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -3217,6 +3404,44 @@ things a continuous view shows and a fresh one would not.
 <!-- Written when the ledger resolves. The closure story: what the review
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
+
+**Round 6 is complete; the ledger stays open** on [[F-25]], returned
+`contested`, and on [[F-27]], raised here and not yet dispositioned. Round 6
+had one job — the outcome of [[F-23]] … [[F-26]] against `ab28d92` — and it
+re-ran every claim rather than reading it: the `glass.present` injection
+(red, and the only failure in `renderer`), both R-5 unlink injections (red on
+the half each targets, plus four other cases red across the two), and a third
+injection of the raiser's own that moves F-23's surface read past `absorb` and
+confirms the `landed` guard catches exactly that drift. Every injection was
+reverted and the tree confirmed clean before the gate.
+
+**Three verified.** [[F-23]]'s negative case now discriminates and is guarded
+against sliding back; [[F-24]] replaced a false *review, not a test* with a
+falsifiable case and corrected its own finding in the process, correctly;
+[[F-26]]'s declaration is accurate clause by clause and `LivenessUnknown` is
+still reached by nothing but `mod.rs`.
+
+**One contested, on half of itself.** [[F-25]](a) is discharged — the row now
+names the `listener` pair that actually holds R-1's *if and only if*. (b) is
+not: the row's two replacement measurements are faithful to `notes.md` and
+**stale against the tree**, stated in the present tense. `main.rs`, one of
+VA-3's five bounded files, was rewritten by PHASE-06; the `renderer` target
+holds 156 cases, not 144. That is F-25's own stated harm — *a reader who checks
+this row the obvious way finds it false* — one clause further down, and
+`draft-spec.md` is about to be promoted into canon, which *"states what is true
+now"*.
+
+**The one new finding is the same shape as the round that produced it.**
+[[F-27]]: [[F-24]]'s Response retracts the finding's *"nothing else in the
+suite would notice"* on measurement, and R-5's row was written without it — but
+the doc comment on the case that repair added still asserts it, as the case's
+own reason for existing. Three artefacts, one sentence, retracted in two of
+them.
+
+**What that says about the repairs as a class.** Both remaining defects are the
+same failure and not a new one: a justification that was true when it was
+measured, restated later as though it still were. It is what [[F-25]] was
+raised about, and both instances came in on the repair that fixed it.
 
 **Round 5 is complete; the ledger stays open** on four new findings
 ([[F-23]], [[F-24]], [[F-25]], [[F-26]]), all `minor`, none blocking, and all
