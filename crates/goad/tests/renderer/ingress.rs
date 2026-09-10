@@ -1129,6 +1129,16 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface()
 /// only when it happens to land while idle, and silently dropped whenever it
 /// doesn't, would not be a report a person could rely on.
 ///
+/// **What it reads, and why that and not the retained value**
+/// (`review-code.md` F-23). It reads the **live** window while the exchange
+/// is still in its sleep. Read at the end instead, the case is green in both
+/// worlds — the one where the arm presents nothing, and the one where it
+/// calls `glass.present(controller.frame())` and a person sees the refusal —
+/// because `absorb` replaces the whole retained `Diagnostics` on the way out
+/// either way. The live read discriminates: adding that `present` call turns
+/// this red. `landed` is the guard that keeps the negative non-vacuous, in
+/// the same shape as the sibling below.
+///
 /// **EX-5.** `@slow-view`'s own `next_check` is pinned 45 minutes by the
 /// script itself (`tests/backends/answers-as-instructed.sh`) — the same
 /// vehicle PHASE-04/VT-3 uses — so nothing fires between `absorb` and the
@@ -1147,7 +1157,7 @@ async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnosti
   let ingress = bind(&path).expect("binding a fresh path must succeed");
 
   let local = LocalSet::new();
-  let served = local
+  let (served, surface, landed) = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
         serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
@@ -1165,20 +1175,48 @@ async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnosti
       );
       assert_eq!(reason(&reply), "malformed");
 
+      // Read the **live** surface here, not the retained `Diagnostics` at the
+      // end: the reply is written before the inner arm yields, and the
+      // exchange is still in its sleep, so this is the only moment a
+      // presentation of this refusal could be seen at all.
+      let surface: Vec<String> = {
+        let lines = window.get_diagnostic_lines();
+        (0..lines.row_count())
+          .filter_map(|row| lines.row_data(row))
+          .map(|line| line.to_string())
+          .collect()
+      };
+      let landed = current_view_token(&window).is_some();
+
       // Liveness: the exchange the arrival did not disturb still completes
       // and is absorbed.
       until(LIVENESS_BOUND, || window.get_heading() == "Still there?").await;
       stopper.stop();
-      handle.await.expect("serve must not panic")
+      (handle.await.expect("serve must not panic"), surface, landed)
     })
     .await;
   cleanup(&path);
 
   assert_eq!(served.ending, Ending::Stopped);
+  assert!(
+    !landed,
+    "the read must have happened while the exchange was still running, which is the only \
+     moment the refusal could have reached the surface"
+  );
+  assert!(
+    surface.iter().all(|line| !line.contains("was refused")),
+    "R-15: a refusal decided during an exchange is reported to its writer and to nobody else \
+     — no presentation carried it to the window: {surface:?}"
+  );
+
+  // The residue does not survive `absorb` either. This half is not the claim
+  // — `absorb` would wipe it whether or not a person had already seen it
+  // (`review-code.md` F-23) — it is here because the two together say the
+  // refusal reaches no frame at any point in the exchange's life.
   let lines = served.controller.frame().diagnostics.lines();
   assert!(
     lines.iter().all(|line| !line.contains("was refused")),
-    "the shape refusal must have been superseded by `absorb` before any presentation: {lines:?}"
+    "the shape refusal must have been superseded by `absorb`: {lines:?}"
   );
 }
 

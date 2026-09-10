@@ -433,6 +433,11 @@ mod listener {
   /// this also asserts the filesystem entry `bind` leaves behind: a real
   /// Unix-domain socket at `path`, which `Ingress::none()`'s path never
   /// produces.
+  ///
+  /// Paired with `none_binds_nothing` below over the same function: together
+  /// the two hold SPEC-003/R-1's *if and only if*, which is a claim about the
+  /// **configuration** and so cannot be held by any case that calls `bind`
+  /// directly (`docs/slices/004/review-code.md` F-25).
   #[tokio::test]
   async fn some_path_binds() {
     let path = socket_path("some");

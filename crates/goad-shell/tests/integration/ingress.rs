@@ -507,6 +507,52 @@ async fn a_symlink_at_the_lock_path_is_refused_and_nothing_is_created_through_it
 }
 
 // ---------------------------------------------------------------------------
+// R-5 — neither file is unlinked on the way out (`review-code.md` F-24)
+// ---------------------------------------------------------------------------
+
+/// **R-5, from the drop path.** The host does not unlink the socket when it
+/// stops, and does not unlink the lock file either. That absence is what
+/// makes R-3's reclaim path the one every ordinary restart takes, so a
+/// regression here is silent: nothing else in the suite would notice, because
+/// every `cleanup` helper in all three test files ignores its errors.
+///
+/// **What this holds is narrower than R-5's sentence, and deliberately so.**
+/// Process exit is not `Drop`, so no test in this workspace can assert what a
+/// killed host leaves behind. The drop path is the only path a regression
+/// could reach — `main` drops `Served.ingress` — which makes it the right
+/// bound to state rather than the "cannot be asserted" the spec's Verification
+/// row used to claim (`review-code.md` F-24). An `impl Drop for Ingress` that
+/// removed either file, or a `remove_file` on the way out of `serve`, turns
+/// this red.
+#[tokio::test]
+async fn dropping_the_ingress_unlinks_neither_the_socket_nor_the_lock() {
+  let path = socket_path("r5-drop");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("binding a fresh path must succeed: {error}"),
+  };
+  assert!(
+    std::fs::symlink_metadata(&path).is_ok(),
+    "the case says nothing unless the bind created the socket it is about"
+  );
+
+  drop(ingress);
+
+  assert!(
+    std::fs::symlink_metadata(&path).is_ok(),
+    "the socket must outlive the listener: {}",
+    path.display()
+  );
+  assert!(
+    std::fs::symlink_metadata(lock_path(&path)).is_ok(),
+    "the lock file must outlive the listener too: {}",
+    lock_path(&path).display()
+  );
+
+  cleanup(&path);
+}
+
+// ---------------------------------------------------------------------------
 // VT-4 — a path that cannot be created
 // ---------------------------------------------------------------------------
 

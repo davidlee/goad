@@ -2748,8 +2748,41 @@ read); `crates/goad/src/controller.rs:441-447` (`refuse_during_exchange`
 folds), `:718` (`absorb` on the resolving arm), `:728-746` (the inner arm and
 its comment); `draft-spec.md:424` (the row).
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct, and it is the third instance of the class this review
+has now found three times — a green test asserting a proxy that the regression
+it exists for would survive ([[F-5]], [[F-6]], [[F-21]]). The reasoning is
+exact: `absorb` replaces the whole retained `Diagnostics`, so a read after the
+loop stops is blind to whether anything was presented in between.
+
+The case now reads the **live** window, immediately after the reply and while
+the exchange is still in its `sleep 0.2` — the only moment a presentation of
+this refusal could be seen at all — and asserts no line contains
+`"was refused"`. `landed` (`current_view_token(&window).is_some()`) is asserted
+false beside it, in the same shape the sibling
+`ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`
+already uses, so the negative cannot pass by having read after absorption.
+
+The old end-of-run assertion is **kept**, demoted in its own comment to what it
+actually holds: that the residue does not survive `absorb` either. It is not
+the claim, and the comment says so.
+
+**Falsified, not merely observed to pass.** Adding
+`glass.present(controller.frame());` beside `refuse_during_exchange`
+(`controller.rs:746`) — the finding's own proposed regression — turns this case
+red, and it is the only failure in the `renderer` target:
+
+```
+R-15: a refusal decided during an exchange is reported to its writer and to
+nobody else — no presentation carried it to the window: ["no action taken: an
+event was refused (malformed): the bytes are not one JSON document"]
+```
+
+The injection was reverted; `git diff crates/goad/src/` is empty.
+
+`draft-spec.md`'s R-15 row now says what the negative case reads and why,
+rather than only naming it — the row was true, but a reader could not tell this
+case from the version that does not discriminate.
 
 **Outcome:**
 
@@ -2802,8 +2835,43 @@ sentence. Saying that is a different row from *"cannot be asserted"*.
 `crates/goad/tests/renderer/startup.rs:421-429` (the three `cleanup` helpers,
 each ignoring `Err`).
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct on both halves — the premise was false and the
+replacement bound is the right one.
+
+**The test.**
+`ingress::dropping_the_ingress_unlinks_neither_the_socket_nor_the_lock`
+(`crates/goad-shell/tests/integration/ingress.rs`) binds a fresh path, asserts
+the socket was created — otherwise the case says nothing — drops the `Ingress`,
+and asserts both the socket and `lock_path(&path)` are still there.
+
+**Falsified twice, once per half**, because a case asserting two absences can
+be vacuous in one of them:
+
+- an unlink of the lock after `try_lock` succeeds → red on *"the lock file must
+  outlive the listener too"*;
+- an `impl Drop for Ingress` removing the socket → red on *"the socket must
+  outlive the listener"*.
+
+Both injections were reverted; `git diff crates/goad-shell/src/` is empty.
+
+**One correction to the finding, in the direction that weakens its own case.**
+It says a host that had unlinked both files *"would leave every case in the
+suite green"*. Measured, that is not so: the lock injection also reds
+`a_live_socket_refuses_a_second_bind_and_keeps_serving`,
+`a_live_host_keeps_its_path_after_the_socket_file_is_removed` and
+`a_socket_a_forked_child_still_holds_…`, and the socket injection reds
+`a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable`. What
+is true is the narrower claim the finding also makes: **no case held R-5
+itself**, and the `cleanup` helpers guarantee nothing notices an unlink *at
+exit*. The row is written to the narrower claim.
+
+**The row.** R-5's Verification row now names the case, and states the limit in
+terms: process exit is not `Drop`, so what is held is the drop path, which is
+the only path a regression could reach because `main` drops `Served.ingress`.
+The sentence *"cannot be asserted without asserting the absence of code"* is
+gone, with a note of why it was wrong — the absence of an unlink is
+behavioural.
 
 **Outcome:**
 
@@ -2858,8 +2926,36 @@ sound; the evidence as stated is not, and `notes.md` is *"disposable detail"*
 crates/goad/tests/renderer/startup.rs` (three commits); `notes.md:138` (VA-3),
 `notes.md:133` (VT-6), `notes.md:123` (EX-7, which names the five files).
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Both halves correct, and (b) is the worse of the two: a reader
+who checks the row the obvious way finds it false and stops trusting the table.
+
+**(a).** The row took the negative and left the positive behind. R-1 quantifies
+over the **configuration**, and only `listener(…)` cases read one;
+`a_well_formed_envelope_reaches_the_judge_…` calls `bind` directly
+(`grep -c IngressConfig` in that file = **0**, confirmed here). The rewritten
+row names `listener::some_path_binds` and `listener::none_binds_nothing` as the
+pair that holds the *if and only if*, and demotes the integration case to what
+it does hold — R-1's **consequence**, that a bound path serves.
+
+The finding notes the pair is legible from only one end: `none_binds_nothing`'s
+doc comment names its partner and `some_path_binds`'s named nothing. Fixed in
+the code rather than worked around in the row — `some_path_binds` now carries
+the reciprocal sentence, including why no `bind`-calling case can stand in for
+it.
+
+**(b).** The restatement dropped both the qualification and the scope. The row
+now carries two measurements instead of one loose one: the **five named files**
+are token-identical to `9d36002` once `serve`'s new argument, its four `use`
+lines and one comment are set aside (`notes.md` VA-3, `ALL MATCH`); and the
+three pre-existing targets kept every assertion they had, `renderer` going
+138 → 144 by addition only (`notes.md` VT-6). The row also states that the bare
+form is false, and why — `startup.rs` gained its whole `listener` module — so
+the next reader who runs the diff finds the row already agrees with them.
+
+That last point is the one that made this worth fixing before promotion:
+`notes.md` is disposable and the true form lives there, so the row is the only
+place the qualification can survive.
 
 **Outcome:**
 
@@ -2904,8 +3000,27 @@ whoever changes it next.
 `:230-236` (`try_lock`'s three outcomes, of which two are tested); `grep -rn
 'LivenessUnknown' crates/` → 4 matches, all `mod.rs`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Correct. §7's own preamble makes a silent row and an overlooked
+clause indistinguishable, and R-4 and R-5 both declare their untestable halves
+in terms — R-3 was the outlier.
+
+`grep -rn 'LivenessUnknown' crates/` returns four lines, all in `mod.rs`:
+confirmed, nothing reaches it. It is not dead — [[F-20]]'s settlement records
+that `try_lock` returns `Err(TryLockError::Error)` on a filesystem with no
+advisory locking, which is exactly the state the clause is about — and no
+cooperating test in this workspace can produce that filesystem.
+
+R-3's row now declares it: **the third clause is review, not a test**, with the
+mechanism (`TryLockError::Error`, `mod.rs:235`), the reason no case reaches it,
+and what review does hold — the arm exists, it is the `Err` that is *not*
+`WouldBlock` so nothing falls into it by default, and it carries the path into a
+startup failure like its siblings. It is placed with the two rows that already
+make the same kind of declaration, so the three read as one practice rather than
+three exceptions.
+
+No code changed. The clause itself is right, and [[F-18]] is why the row will be
+read closely: R-3 is the requirement this slice rewrote from scratch.
 
 **Outcome:**
 
