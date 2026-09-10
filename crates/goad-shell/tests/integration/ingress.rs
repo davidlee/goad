@@ -21,7 +21,7 @@ use goad_shell::ingress::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
-/// `design.md`'s own example, `draft-spec.md` §6.2 — one line, so a case can
+/// `design.md`'s own example, `SPEC-003` §6.2 — one line, so a case can
 /// substitute a value with `str::replace` the way `envelope.rs`'s own tests do.
 const GOOD: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}"#;
 
@@ -699,7 +699,7 @@ async fn a_second_envelope_on_the_same_connection_is_never_read() {
 }
 
 // ---------------------------------------------------------------------------
-// The reply's own framing — `draft-spec.md` §6.3, `review-code.md` F-1
+// The reply's own framing — `SPEC-003` §6.3, `review-code.md` F-1
 // ---------------------------------------------------------------------------
 
 /// §6.3 opens *"One JSON object, **newline-terminated**, then the host
@@ -784,7 +784,7 @@ async fn a_connection_accepted_after_the_judge_is_gone_is_answered_unavailable()
 // ---------------------------------------------------------------------------
 
 /// `unavailable` carries one reason token for two causes of the moment
-/// (`draft-spec.md` §6.3): the host is stopping (VT-6, above — a dropped
+/// (`SPEC-003` §6.3): the host is stopping (VT-6, above — a dropped
 /// `Answer`), or the clock cannot be read (`design.md` §5.4 step 4, scripted
 /// here exactly as `judge`'s own doc comment says a loop-side `unavailable`
 /// is exercised without `serve`). Both must read `unavailable` on the wire,
@@ -1062,7 +1062,7 @@ async fn the_three_shape_reasons_this_phase_owns_are_read_off_the_wire() {
 // VT-8 — the reason token set is closed at eight
 // ---------------------------------------------------------------------------
 
-/// The eight tokens `draft-spec.md` §6.3 closes the wire's reason set at, as a
+/// The eight tokens `SPEC-003` §6.3 closes the wire's reason set at, as a
 /// literal a client's parser could be written from.
 const EXPECTED: [&str; 8] = [
   "malformed",

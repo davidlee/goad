@@ -1,11 +1,11 @@
-//! The inbound envelope — `design.md` §5.2, `draft-spec.md` R-9, R-10, R-13.
+//! The inbound envelope — `design.md` §5.2, `SPEC-003/R-9`, R-10, R-13.
 //!
 //! Permissive-in / precise-diagnostic, the same split `File` → `Config`
 //! (`config.rs`) and `protocol/wire.rs` → `protocol/normalize.rs` already use
 //! in this workspace: [`normalize`] is the only door from bytes a watcher wrote
 //! into a canonical [`Event`], and past it nothing is unvalidated.
 //!
-//! **The envelope is shape, never meaning** (`draft-spec.md` P-A). `kind` is
+//! **The envelope is shape, never meaning** (`SPEC-003` P-A). `kind` is
 //! never matched against a list, `data` is never read into, and `timestamp` is
 //! never compared to `now` — the one comparison this module makes is `source`
 //! against the single reserved string R-13 names.
@@ -17,14 +17,14 @@ use goad_semantics::error::{ProtocolError, json_type_name};
 use goad_semantics::protocol::canonical::{Event, Timestamp};
 use goad_semantics::protocol::wire::reject_duplicate_keys;
 
-/// The four keys `draft-spec.md` §6.2 admits, and none beside them.
+/// The four keys `SPEC-003` §6.2 admits, and none beside them.
 const KEYS: [&str; 4] = ["source", "kind", "timestamp", "data"];
 
 /// Why an envelope was refused before it reached `Event`.
 ///
 /// One fault per way R-9, R-10 and R-13 refuse a wire envelope, so a caller
 /// building the wire's `invalid_envelope` / `reserved_source` reply reads it
-/// off the discriminant rather than a message (`draft-spec.md` §6.3).
+/// off the discriminant rather than a message (`SPEC-003` §6.3).
 #[derive(Debug)]
 pub enum EnvelopeFault {
   /// The bytes are not one JSON document at all — not one of R-9's own
@@ -198,7 +198,7 @@ fn take_timestamp(
 mod tests {
   use super::{EnvelopeFault, normalize};
 
-  /// `design.md`'s own example, `draft-spec.md` §6.2 — compact and on one
+  /// `design.md`'s own example, `SPEC-003` §6.2 — compact and on one
   /// line, so a case can substitute one key's value with a plain
   /// [`str::replace`] the way `config.rs`'s own tests substitute a TOML line.
   const GOOD: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}"#;

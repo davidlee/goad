@@ -1,5 +1,4 @@
-//! The local socket a user-owned watcher writes an event to — `SPEC-003`, this
-//! slice's `draft-spec.md` until promotion.
+//! The local socket a user-owned watcher writes an event to — `SPEC-003`.
 //!
 //! Three parts (`design.md` §5.1): [`bind`] probes, reclaims, binds and moves
 //! the socket; the accept task reads one bounded envelope per connection and
@@ -8,7 +7,7 @@
 //! decides only what the *filesystem* and the *bytes on the wire* can get
 //! wrong: the framing, the two read budgets, and the one reply a well-formed
 //! envelope gets. The wire's reason vocabulary is closed here at eight tokens
-//! (`draft-spec.md` §6.3, `SPEC-003/R-14`): `Engaged` and `TooSoon` are
+//! (`SPEC-003` §6.3, `SPEC-003/R-14`): `Engaged` and `TooSoon` are
 //! constructed only by `crates/goad`'s loop, not by this module — this module
 //! only carries them to the wire.
 #![deny(clippy::arithmetic_side_effects)]
@@ -31,11 +30,11 @@ pub mod envelope;
 /// connection: a writer that sends this much and keeps the connection open is
 /// `too_large`; one that sends nothing is `timed_out` (`ENVELOPE_DEADLINE`
 /// below). An unbounded read from an untrusted writer is the defect
-/// `SPEC-001/R-43` names on the other socket (`draft-spec.md` §6.4).
+/// `SPEC-001/R-43` names on the other socket (`SPEC-003` §6.4).
 pub const ENVELOPE_LIMIT: usize = 64 * 1024;
 
 /// Bounds the **read**, not the connection: the wait for the loop's judgement
-/// is unbounded by design (I-2, `draft-spec.md` §6.4). A writer that connects
+/// is unbounded by design (I-2, `SPEC-003` §6.4). A writer that connects
 /// and never completes an envelope must not hold ingress.
 pub const ENVELOPE_DEADLINE: Duration = Duration::from_millis(500);
 
@@ -267,12 +266,12 @@ fn hold(path: &Path) -> Result<std::fs::File, IngressError> {
 /// also costs a live host nothing, because nothing connects to it. The
 /// residue that follows from the same inheritance — an un-exec'd child of a
 /// host that has just died still holds the lock, briefly and self-clearingly
-/// — is stated in `draft-spec.md` §6.1.
+/// — is stated in `SPEC-003` §6.1.
 ///
 /// **Upgrade skew, stated rather than discovered.** A socket left by a host
 /// that predates the lock file has no lock beside it, so this reads it as
 /// stale and unlinks it: right for a dead old host, wrong for a live one,
-/// which would go on serving a socket no path reaches (`draft-spec.md` §6.1,
+/// which would go on serving a socket no path reaches (`SPEC-003` §6.1,
 /// *the path after the bind*). The window is the one upgrade that crosses this
 /// change, and one restart of the old host closes it.
 fn reclaim(path: &Path) -> Result<std::fs::File, IngressError> {
@@ -405,7 +404,7 @@ impl Answer {
   }
 }
 
-/// `Refusal::Unavailable`'s cause: which of the four `draft-spec.md` §6.3
+/// `Refusal::Unavailable`'s cause: which of the four `SPEC-003` §6.3
 /// admits produced it — the `unavailable` row's *writer's fix* column,
 /// "`detail` says which". One token, four causes, and it stays one token: the
 /// wire's reason set is closed at eight whatever this enum grows
@@ -431,7 +430,7 @@ pub enum UnavailableCause {
   IngressStopped,
   /// The connection faulted while the envelope was being read: a reset, an
   /// `EIO`, any transport error. **Not `Malformed`** — that reason names the
-  /// writer's serializer as what to fix (`draft-spec.md` §6.3), and a writer
+  /// writer's serializer as what to fix (`SPEC-003` §6.3), and a writer
   /// whose bytes never arrived did not send bad ones (`review-code.md` F-7).
   Unreadable(io::Error),
 }
@@ -440,7 +439,7 @@ pub enum UnavailableCause {
 ///
 /// **Seven variants, closing the wire's eight-token reason set.** `reason()`
 /// splits `InvalidEnvelope(EnvelopeFault::ReservedSource)` out to its own
-/// token, `reserved_source` (`draft-spec.md` §6.3, `SPEC-003/R-13`) — the
+/// token, `reserved_source` (`SPEC-003` §6.3, `SPEC-003/R-13`) — the
 /// payload stays the one variant; only the wire reads it as two. Exhaustive
 /// with no `_` arm, so the compiler — not a reviewer — is what notices the
 /// day a ninth reason is needed.
@@ -464,7 +463,7 @@ pub enum Refusal {
   /// shape was good (`SPEC-002/R-9`). Constructed by `crates/goad`'s loop,
   /// never by this module.
   Engaged,
-  /// Inside the minimum spacing (`SPEC-002/R-12`, `draft-spec.md` R-12).
+  /// Inside the minimum spacing (`SPEC-002/R-12`, `SPEC-003/R-12`).
   /// `retry_after` is the remaining spacing at the moment of refusal; the
   /// wire's `retry_after_ms` rounds it up (`R-14`). Constructed by
   /// `crates/goad`'s loop, never by this module.
@@ -472,7 +471,7 @@ pub enum Refusal {
 }
 
 impl Refusal {
-  /// The wire's machine-readable token (`draft-spec.md` §6.3). The closed set
+  /// The wire's machine-readable token (`SPEC-003` §6.3). The closed set
   /// of eight: `malformed`, `invalid_envelope`, `reserved_source`,
   /// `too_large`, `timed_out`, `engaged`, `too_soon`, `unavailable`.
   #[must_use]
@@ -564,7 +563,7 @@ fn round_up_millis(remaining: Duration) -> u64 {
   u64::try_from(ceiling.as_millis()).unwrap_or(u64::MAX)
 }
 
-/// The reply wire form (`draft-spec.md` §6.3): one JSON object naming
+/// The reply wire form (`SPEC-003` §6.3): one JSON object naming
 /// `protocol`, `accepted`, and — exactly when refused — `reason` and
 /// `detail`, plus `retry_after_ms` exactly when `reason` is `too_soon`
 /// (`R-14`). Built with `serde_json` rather than interpolated, because
@@ -583,7 +582,7 @@ struct Wire<'a> {
   detail: Option<String>,
 }
 
-/// **Newline-terminated** (`draft-spec.md` §6.3): the terminator is one byte
+/// **Newline-terminated** (`SPEC-003` §6.3): the terminator is one byte
 /// and strictly widens compatibility — a reader that stops at `\n` and a
 /// reader that reads to EOF both work against a host that emits it, and only
 /// the second works against one that does not. PHASE-03 reasoned the other
@@ -804,7 +803,7 @@ async fn read_envelope(stream: &mut UnixStream) -> Result<Vec<u8>, Refusal> {
 /// A read that faulted, as the refusal it earns — **`unavailable`, not
 /// `malformed`** (`review-code.md` F-7). `malformed` means *the bytes were not
 /// one JSON document* and names the writer's serializer as the thing to fix
-/// (`draft-spec.md` §6.3); a connection that reset mid-envelope sent no bytes
+/// (`SPEC-003` §6.3); a connection that reset mid-envelope sent no bytes
 /// this host could read, and `refuse_arrival` puts the same verdict in front of
 /// a person, not only in front of the writer. The error is carried into
 /// `detail` rather than discarded.

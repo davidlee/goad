@@ -42,10 +42,16 @@ scheduling*); the wire format of the resulting request (SPEC-001 §6.1); retry o
 a failed exchange; persistence of a schedule across host restarts; and any
 notion of catching up on checks that were due while the host was not running.
 
-**Boundaries:** this spec abuts SPEC-001 at exactly two points. It **consumes**
-the resolved instant SPEC-001/R-26 produces, and it **produces** an `evaluate`
-whose event kind SPEC-001/R-56 names. It reads no response and writes no
-schedule.
+**Boundaries:** this spec abuts SPEC-001 at **exactly two points** and SPEC-003
+at **one**. It **consumes** the resolved instant SPEC-001/R-26 produces, and it
+**produces** an `evaluate` whose event kind SPEC-001/R-56 names *when the host
+is asking on its own account* — an ingested evaluation carries the watcher's own
+kind, which R-56 does not name. The third abutment is with SPEC-003: the
+ingested spacing **SPEC-002/R-12** requires is what **SPEC-003/R-12** makes
+visible at the socket, as a refusal rather than a delay. Both ids are qualified
+because both documents number this requirement 12, ids are immutable, and an
+unqualified "R-12" in a sentence naming the other document is the one form that
+misleads. This spec reads no response and writes no schedule.
 
 ## 3. Principles
 
@@ -88,6 +94,7 @@ stored instruction (P-B).
 | R-9 | A scheduled evaluation MUST NOT begin while an exchange is in flight. At most one exchange runs at a time. | §7 |
 | R-10 | Cancellation MUST take precedence over a due check, and a pending wait MUST NOT leave behind any task or handle that dropping the host's loop would fail to cancel (SPEC-001/R-48). | §7 |
 | R-11 | The host MUST NOT evaluate once per interval that elapsed while it was not running. One check is due, and one evaluation discharges it. | §7 |
+| R-12 | A host that begins an evaluation from an **ingested event** MUST NOT begin one less than the same fixed minimum spacing after the ingested evaluation that preceded it. The anchor is its own: the scheduled anchor (R-4) neither clears it nor is cleared by it, and **neither anchor is written by the other's firing** (§3 P-E). The spacing is the same **3 seconds** R-4 names — one constant, two anchors — and is likewise not configurable. An event arriving inside that spacing, or while an exchange is in flight, MUST be **refused where it arrived, naming the bound**; the host MUST NOT hold a queue or a pending event, and MUST NOT express the bound as a silent delay. What that refusal looks like on the wire is SPEC-003's (SPEC-003/R-12), not this spec's. | §7 |
 
 ## 5. Behaviour
 
@@ -106,7 +113,10 @@ refused as naming a superseded view — a refusal they did nothing to cause. R-4
 bounds how often this can happen and nothing else does; R-5's *"MUST NOT delay
 an evaluation a person asked for"* is about delay and says nothing about this.
 OQ-4 carries the question of whether a host should suppress or defer such a
-firing.
+firing. **A host with a second stimulus reaches that case more often**, because
+an ingested firing supersedes a retained view exactly as a scheduled one does
+and arrives on someone else's schedule. R-12 bounds the ingested rate as R-4
+bounds the scheduled one; it does not answer OQ-4, which stands.
 That exchange reports a new resolved next check and the cycle repeats.
 
 ```mermaid
@@ -152,6 +162,17 @@ rather than a loop, and the host recovers by itself when the clock recovers.
 While it is broken, what the host reports as its next check is the instruction
 it holds, which has by then passed; that is R-6 working, not a defect.
 
+**What the ingested bound looks like from outside.** R-4's spacing is invisible:
+a firing simply happens later, and no one is told. R-12's is the opposite, and
+deliberately so. The party subject to it is a separate process with its own
+schedule, so the bound is **observable where the event arrived** — an event
+inside the spacing, or arriving while an exchange is in flight, is refused and
+told which bound it met. The host holds no queue and no pending event, which
+means events are **lost under load, visibly**, rather than absorbed into a
+growing delay. The retry decision belongs to whatever wrote the event
+(`docs/brief.md` §7); the host's obligation ends at saying no, and saying why.
+The wire form of that refusal is SPEC-003's.
+
 **Suspend and clock movement.** The host does not detect discontinuities. A wait
 in progress is a wait in progress; nothing re-examines it against the wall clock,
 and a host that wakes from suspend does not treat waking as an event. The
@@ -161,18 +182,25 @@ the host has been awake for the remainder of the wait.
 
 ## 6. Interfaces & contracts
 
-The host owns: the pending wait, the minimum spacing, and the decision to fire.
-It uses, without interpreting: the resolved next check SPEC-001/R-26 produces,
-and the instant its own clock reports.
+The host owns: the pending wait, the minimum spacing **and the two anchors it is
+measured from**, and the decision to fire. It uses, without interpreting: the
+resolved next check SPEC-001/R-26 produces, and the instant its own clock
+reports.
 
 The scheduled evaluation's wire form is SPEC-001's, unchanged, with the event
 kind SPEC-001/R-56 names for a firing that came due, `"scheduled"`. R-56 leaves
 the set of kinds open; this spec adds no kind of its own and closes nothing.
 
 The minimum spacing is a constant of the host, not a configured value, and not
-a value a backend can read or influence. A configured default poll shorter than
-it is accepted, and is honoured for the first scheduled firing of the process,
-which no earlier scheduled firing precedes; every firing after that is spaced.
+a value a backend can read or influence. There is **one constant and one anchor
+per bounded stimulus class** (§3 P-E): the same 3 seconds bounds the scheduled
+class from its own previous firing and the ingested class from its own, and two
+constants meaning the same kind of thing would be two values free to drift when
+no evidence fixes either. A configured default poll shorter than the spacing is
+accepted, and is honoured for the first scheduled firing of the process, which
+no earlier scheduled firing precedes; every firing after that is spaced. The
+same holds per class: the first ingested firing of the process is unspaced for
+the same reason.
 
 **What the host reports** as its resolved next check is the instruction it
 holds (R-6), which is not always the instant it will fire on: the spacing, a
@@ -200,6 +228,7 @@ repository root.
 | R-9 | structural and by construction: the wait is one arm of a loop that runs one exchange at a time. No standing test asserts this directly; it is witnessed by six pre-existing `serve` tests continuing to pass with unchanged bodies once the timer arm was added — `crates/goad/tests/renderer/wiring.rs::a_click_naming_a_superseded_view_is_refused_with_no_backend_contact`, `::the_negative_control_with_no_intervening_evaluate_the_click_is_answered`, `::serve_drives_one_exchange_through_the_production_loop`, `::tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout`, `::a_stop_tripped_before_the_first_poll_wins_over_a_ready_command`, `::on_stop_a_command_queued_behind_the_exchange_is_left_unread` |
 | R-10 | integration: a stop request while a wait is pending ends the loop promptly — `crates/goad/tests/renderer/scheduling.rs::a_stop_issued_while_parked_on_the_timer_arm_ends_serve_well_inside_the_timeout`, alongside the three existing cancellation tests among R-9's six (`tripping_cancel_mid_exchange_ends_serve_well_under_the_timeout`, `a_stop_tripped_before_the_first_poll_wins_over_a_ready_command`, `on_stop_a_command_queued_behind_the_exchange_is_left_unread`) |
 | R-11 | **review, not a test** — nothing persists, so there is no record of a missed interval to catch up from. The requirement records the intent for the slice that adds persistence. Named as such rather than left to look discharged (`docs/slices/003/plan.md` PHASE-06/EX-1) |
+| R-12 | integration, in two parts. **The bound:** a writer emitting flat out produces a bounded number of evaluations over a window far shorter than the spacing, and the excess replies name the bound — `crates/goad/tests/renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`; a second event inside the spacing is refused and told how long — `ingress.rs::a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_long`; an event arriving while an exchange is in flight is refused before that exchange completes — `ingress.rs::an_envelope_arriving_during_an_exchange_is_refused_engaged_before_it_completes`; the anchor's own boundary, refused on `<` and not `<=` — `crates/goad/src/controller.rs::tests::a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing`. **The independence of the two anchors** (§3 P-E), in all three directions rather than one: `ingress.rs::an_ingested_firing_never_writes_the_scheduled_floor`, `::an_ingested_firing_does_not_advance_the_scheduled_floor` — the case ADR-004 §Verification named as the one no standing test could reach — and `::a_scheduled_firing_does_not_clear_the_event_floor`. Each of the three was shown to fail when the anchor it holds is broken, rather than merely observed to pass (`docs/slices/004/notes.md`, PHASE-05) |
 
 Nothing here is marked unverified. R-11, and R-4's necessity clause, are held
 by **review** rather than by a test, each for the reason its row states: one has
@@ -236,7 +265,17 @@ a bound exists rather than a behaviour anything can execute.
   stratum 1's; the arithmetic behind it is.
 - ADR-004 (the minimum spacing is anchored to the previous scheduled firing) —
   the decision behind R-4's anchor, and the record that its premise about
-  non-scheduled stimuli is one a later slice will be tempted to reverse.
+  non-scheduled stimuli is one a later slice will be tempted to reverse. Slice
+  004 did not reverse it: it added a second anchor rather than clearing the
+  first, which is what §3 P-E generalises.
+- SPEC-003 (host event ingress) — the other side of R-12's seam. This spec says
+  the ingested class is bounded and on what anchor; SPEC-003 says what a writer
+  that meets the bound is told, and R-12 there is that refusal. See §2
+  Boundaries on why both ids are always written qualified.
+- ADR-005 (the event envelope normalizes in stratum 2) — where an ingested
+  event becomes the canonical value this spec's R-12 then bounds.
+- `docs/slices/004/design.md` §5.3 and §9 — the two-anchor loop shape, and the
+  acceptance criteria behind R-12's verification row.
 - `docs/slices/003/design.md` §5.4 — the loop shape this document describes in
   prose, and §7 D-2, D-3, D-8 for the decisions behind R-4, R-5 and the suspend
   behaviour. D-3 records why R-4 is anchored to the previous scheduled firing

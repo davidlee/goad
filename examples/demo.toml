@@ -12,7 +12,7 @@ default_poll = "30m"
 
 # The event-ingress socket. With `just demo` running, emit an envelope from a
 # second shell (both terminated forms — `socat` by half-closing its write
-# side after EOF, `nc` by the trailing newline — see draft-spec.md D-8):
+# side after EOF, `nc` by the trailing newline — see SPEC-003/R-6):
 #
 #   printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}' \
 #     | socat - UNIX-CONNECT:./goad-demo.sock

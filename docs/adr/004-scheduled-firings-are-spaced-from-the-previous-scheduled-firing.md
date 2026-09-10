@@ -134,11 +134,33 @@ than the spacing, and a person acting in the middle of that cadence does not
 raise the count. Both are integration tests in
 `crates/goad/tests/renderer/scheduling.rs`.
 
-The *anchor* — as against the spacing itself — is held by **review**. No standing
-test can distinguish the anchor from the boolean alternative, because the two
-agree on every stimulus that exists today; the case that separates them is the
-one slice 004 will introduce. That is the reason this record exists rather than
-only a requirement.
+The *anchor* — as against the spacing itself — **is now verified.** Slice 004
+introduced the second stimulus this record was waiting for, and with it the one
+situation in which the anchor and the boolean alternative disagree:
+
+> `crates/goad/tests/renderer/ingress.rs::an_ingested_firing_does_not_advance_the_scheduled_floor`
+
+A scheduled firing at T₀, an ingested firing at T₀+ε **whose own exchange
+resolves to a deadline no later than T₀+1 s**, and a `next_check` due at T₀+1 s.
+Under the anchor the scheduled evaluation waits until T₀+3 s; under a boolean
+cleared by *some other stimulus happened*, the intervening ingested firing clears
+the flag and it fires at T₀+1 s. The case asserts no scheduled evaluation reaches
+the backend before T₀+3 s. That middle clause is what makes it this case rather
+than a weaker one: an ingested exchange re-arms the pending deadline from what
+its own backend answered (SPEC-001/R-26), so unless it resolves at least as
+short, the deadline in force at T₀+1 s is one the anchor and the boolean agree
+about and the test proves nothing.
+
+Two sibling cases in the same file are **not** this discharge, and are named so
+they are not mistaken for it. `::an_ingested_firing_never_writes_the_scheduled_floor`
+falsifies the third alternative below — an anchor on *the last thing the host
+did*. `::a_scheduled_firing_does_not_clear_the_event_floor` holds the **event**
+anchor SPEC-002/R-12 adds, about which this record makes no claim.
+
+What remains held by **review** is narrower than before, and is the part that
+cannot be tested because its subject does not exist: the *choice* of an anchor
+over the boolean for stimulus classes a host has yet to acquire. SPEC-002 §3 P-E
+is where that generalisation now lives.
 
 ## References
 
@@ -151,5 +173,8 @@ only a requirement.
 - `docs/slices/003/design.md` §7 D-3 (the anchor) and D-14 (the placement);
   §4 P-2 and P-2a.
 - `docs/slices/003/review-design.md` F-2 — the finding that the boolean
-  alternative's premise expires in slice 004.
+  alternative's premise expires in slice 004. It did, and the expiry is the
+  Verification section above.
+- `docs/slices/004/design.md` §5.3 (the two anchors and how they are kept
+  independent) and §9 (AC-6, whose case (ii) is the discharge above).
 - `docs/roadmap.md` §004 — the slice that adds the second stimulus.

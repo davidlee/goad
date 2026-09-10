@@ -1,9 +1,10 @@
 # Canon delta — Slice 004
 
-**Status: draft.** Nothing below is canon. It is this slice's working authority
-until it is applied at audit and reconciliation, under explicit user
-endorsement, and recorded in `audit.md`'s Reconciliation table
-(`docs/AGENTS.md` §*Canon that does not exist yet, or must change*).
+**Status: applied, 2026-09-10.** CD-1, CD-2 and CD-3 were endorsed by the user
+and written into the documents they name; `audit.md`'s Reconciliation table
+records each move. This file is kept as the statement of the change and its
+reasoning — the canon it amended is now the authority, and where the two differ
+the canon is right.
 
 Changes this slice makes to canon that **already exists**. One entry per
 affected document and section: the document, the section, the change as it will
