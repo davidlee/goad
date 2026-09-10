@@ -624,17 +624,23 @@ amended text throughout.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `slice-004.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-004.md` stage set to `done`
+- [x] All findings dispositioned; no blockers outstanding — 28, all `verified`, eight rounds
+- [x] All acceptance criteria met, or explicitly waived by the user — AC-1..AC-13, AC-13 re-run on the shipping tree 2026-09-10
+- [x] Tests and checks green — `just check` exit 0
+- [x] Specs / policy / ADRs reconciled, with user endorsement where amended — CD-1, CD-2, CD-3 applied and ADR-005 written, all five rows endorsed 2026-09-10
+- [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down — `draft-spec.md` → `docs/specs/003-host-event-ingress.md`; `canon-delta.md` applied and marked so
+- [x] `slice-004.md` Summary and Follow-ups written
+- [x] `notes.md` Harvest current; durable facts lifted to `docs/memory/` — eight files
+- [x] `slice-004.md` stage set to `done`
 
-Ticked at the close stage, not this one. The evidence above answers the gate
-and all but one of the acceptance criteria; the code review has since run to
-completion. What is genuinely outstanding is canon reconciliation, which is a
-user gate. AC-13 was re-run on the shipping tree on 2026-09-10 and is
-discharged — see Evidence, *The human observation*.
+**All eight ticked at the close stage, 2026-09-11.** Nothing on this list is
+outstanding.
+
+One item found *at* the close and deliberately not taken here: this slice's
+code cites review-finding ids 37 times, against
+`docs/memory/cite-requirements-not-finding-ids.md`, which was settled at slice
+001's audit and says in terms not to extend the practice. No review round
+raised it and neither did this audit. It changes no behaviour, the gate is
+green, and its remedy is a judgement per site rather than a rename — so it is
+`slice-004.md` Follow-ups with the census, not a repair squeezed in after the
+ledger resolved.

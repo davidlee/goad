@@ -1,6 +1,6 @@
 # Slice 004: Event ingress
 
-**Stage:** execute
+**Stage:** done
 **Tier:** 2 (full). It **opened tier 1 and raised at scoping**, as
 `docs/roadmap.md` §004 said it would: deciding how an event-triggered evaluation
 is bounded amends SPEC-002, and reserving an event source amends SPEC-001. Both
@@ -81,7 +81,7 @@ section predicted this slice and is amended to name the tests that discharge
 it). Plus one **new ADR**, written at reconciliation: the envelope normalizes in
 stratum 2 (`design.md` §10). Nothing is edited before reconciliation.
 
-**New canon.** `draft-spec.md` — the ingress contract: the socket, the envelope,
+**New canon.** `SPEC-003` — the ingress contract: the socket, the envelope,
 the reply, the refusal taxonomy and the connection bounds. It takes its number
 at promotion — **SPEC-003**, as the design and CD-1 name it — and is this
 slice's working authority until then (`design.md` D-1). It numbers its own
@@ -173,7 +173,7 @@ from a clean clone in the dev shell — this slice's only environment change
 
 The criteria above are unchanged and their ids are immutable. Four needed a
 reading before they could be built against; AC-1, AC-6 and AC-7 are recorded in
-`design-log.md` (2026-09-08) and `design.md` D-19, AC-3's is `draft-spec.md`
+`design-log.md` (2026-09-08) and `design.md` D-19, AC-3's is `SPEC-003`
 R-8, and AC-9's was taken at plan acceptance.
 
 - **AC-1's "verbatim"** holds as *the same instant*, not the same bytes, for
@@ -181,7 +181,7 @@ R-8, and AC-9's was taken at plan acceptance.
   re-serialises it and an envelope written `+10:00` reaches the backend spelled
   `Z`. `source`, `kind` and `data` are byte-for-byte.
 - **AC-3's "every envelope"** admits one exception, and one only: a connection
-  may close unanswered when the host process itself is gone (`draft-spec.md`
+  may close unanswered when the host process itself is gone (`SPEC-003`
   R-8) — an envelope that arrives between `bind` and `serve` starting, on a host
   that then fails to start, gets EOF and no reply. AC-3 also quantifies over
   *envelopes*, so the one refusal that answers no envelope — the ingress-stopped
@@ -199,7 +199,7 @@ R-8, and AC-9's was taken at plan acceptance.
   distinguish — the other two falsify a different alternative and hold CD-1's
   new event anchor, on which ADR-004 makes no claim.
 - **AC-9's "the exit code is non-zero"** is held by **review**, not by an
-  instrument, in the shape `draft-spec.md` R-5's verification row already uses.
+  instrument, in the shape `SPEC-003/R-5`'s verification row already uses.
   No test target links the binary, and `crates/goad/tests/renderer/startup.rs`
   states as that file's own rule that no test there runs it or asserts an exit
   code. What discharges the clause is the argument at `main.rs:21-29`: a single
@@ -289,7 +289,34 @@ the design and the log.
 
 ## Summary
 
-<!-- Written at close: what actually landed, in three or four lines. -->
+Something outside goad can now make it ask its backend a question. A user-owned
+watcher writes a four-field JSON envelope to a Unix domain socket the host binds
+only if its configuration names one; the host reads the envelope's *shape* and
+nothing of its meaning, forwards all four fields unexamined as an `evaluate` on
+the path slice 003 built, and answers the writer on the same connection —
+`accepted`, or one of eight refusal reasons with the writer's fix implied by
+which reason it is. A person has watched it happen twice, on two different
+trees.
+
+**The two anchors are independent in all three directions**, which is what
+SPEC-002/R-5 obliged this slice to decide and ADR-004 predicted would need
+deciding. An ingested firing neither writes nor advances the scheduled floor,
+and a scheduled firing does not clear the event floor — each held by a test
+shown to fail when the anchor it guards is broken. SPEC-002 §3 P-E now states
+the general rule the two are instances of.
+
+**Liveness is an exclusive advisory lock, not a `connect`.** The original
+reclaim probe was broken in shipping code — a `connect` succeeding proves
+*something is listening*, not *a live host holds this path*, and `fork`
+separates the two. Found as a 1-in-35 flake, diagnosed by measurement, repaired
+in-slice, and verified at 0 failures in 800 runs against a control that still
+failed 2 in 200 (`review-code.md` F-18). It reverses `design.md` D-10, which is
+recorded as a design change rather than absorbed into the repair.
+
+**Canon:** SPEC-003 promoted, SPEC-002/R-12 and §3 P-E added, SPEC-001/R-56
+narrowed and given its reserved-source clause, ADR-004's anchor moved from
+review to verified, ADR-005 written. Eight durable facts lifted to
+`docs/memory/`. 28 code-review findings, all `verified`, no blocker outstanding.
 
 ## Follow-ups
 
@@ -340,7 +367,7 @@ the design and the log.
   path before it binds and holds it until the process exits, so **one live host
   per configured socket path** is enforced, and the probe/bind race (OQ-6) this
   entry named as its symptom goes with it — two hosts starting in the same
-  instant cannot both bind, because only one takes the lock (`draft-spec.md`
+  instant cannot both bind, because only one takes the lock (`SPEC-003`
   §6.1, `crates/goad-shell/src/ingress/mod.rs`). Whoever picks this up should
   know a piece of it already exists, and where. It **reverses `design.md`
   D-10**, which declined exactly this on scoping grounds; the reversal is
@@ -352,12 +379,12 @@ the design and the log.
   **The second face is untouched.** Nothing re-probes the path once bound, so a
   socket unlinked or replaced underneath a live listener leaves it holding a
   descriptor no `connect` can reach, and the host has nothing to report because
-  nothing arrives (`design.md` §5.5, `draft-spec.md` §6.1, *the path after the
+  nothing arrives (`design.md` §5.5, `SPEC-003` §6.1, *the path after the
   bind*). The lock does not reach it: it keeps a **second** host off the path,
   and this residue is about the **first** host's own socket. Closing it needs a
   re-probe.
 - **An accepted ingested evaluation is not distinguishable on the diagnostics
-  surface** (OQ-7, `draft-spec.md` OQ-3). The writer has its own answer; the
+  surface** (OQ-7, `SPEC-003` OQ-3). The writer has its own answer; the
   person who is not the writer does not.
 - **What the host's surfaces and vocabularies owe now that a process outside
   the host can reach them.** One question, three instances, all raised by
@@ -428,9 +455,35 @@ the design and the log.
   They share a cause: slice 004 gave the host an input reached from outside the
   process, and the surfaces and vocabularies it feeds were all designed when
   every author of them was the host itself.
+- **This slice's code cites review-finding ids, 37 times, against a settled
+  rule that says not to.** `docs/memory/cite-requirements-not-finding-ids.md`
+  was settled at slice 001's audit and closes with *"Do not extend the
+  practice."* Slice 004 extended it: `review-code.md` F-N and
+  `review-design.md` F-N appear in comments across
+  `crates/goad-shell/src/ingress/mod.rs`,
+  `crates/goad-shell/tests/integration/ingress.rs`, `…/round_trip.rs`,
+  `crates/goad/src/controller.rs`, `crates/goad/tests/renderer/ingress.rs` and
+  `…/startup.rs`. Found at close, after the code review had resolved; no round
+  raised it, and neither did the audit.
+
+  **Why it is a follow-up and not a repair taken here.** The rule's remedy is
+  not a rename: each site is one of two cases, and telling them apart is a
+  judgement per site. Where the comment explains a **requirement**, the fix is
+  to cite the requirement — `SPEC-003/R-N` or a §, both of which are immutable
+  and survive promotion. Where it explains a **measurement or a runtime
+  quirk**, the memory file's own last line says that rationale belongs in
+  `docs/memory/` and is cited by file name — and eight such files were written
+  at this close, so several of these sites now have a durable target that did
+  not exist when the comment was written. A third residue: a few citations
+  record *why a test is shaped the way it is*, for which the honest target is
+  the spec's own §7 Verification row, several of which now carry that reasoning
+  because the code review put it there.
+
+  Sizing it honestly: 37 sites, six files, no behaviour change, and a green
+  gate throughout. It is a sweep with a judgement attached, not a refactor.
 - **Refusals a person cannot see.** The diagnostics surface is one whole value,
   presented between exchanges, so only the refusals the host decides while idle
-  survive to be presented (`draft-spec.md` R-15). Four never reach a person:
+  survive to be presented (`SPEC-003/R-15`). Four never reach a person:
   `engaged`, which is by definition decided during an exchange and is
   overwritten by that exchange's own outcome; a shape refusal that happened to
   arrive during one; the `unavailable` written after the loop ends; and — in one
