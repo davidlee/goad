@@ -31,8 +31,17 @@ the thing. The second of those is now closed — `docs/AGENTS.md` §Tiers requir
 a person to run the software before a slice closes. The first stands: no
 automated check constructs the real Slint platform, and none is planned.
 
-**Nothing listens**: there is no way for anything outside the host to prompt an
-evaluation, which is slice 004.
+**2026-09-11.** Slice 004 is closed. Something listens: a Unix socket accepts an
+opaque event envelope and forwards it into 003's evaluation path, bounded by its
+own anchor rather than the scheduled one. It produced **SPEC-003** (host event
+ingress) and **ADR-005** (the envelope normalizes in stratum 2), amended
+SPEC-002 (R-12, the event bound, and P-E, the principle it and R-4 instance) and
+SPEC-001 (R-56, narrowed to evaluations the host originates on its own account,
+with `"host"` reserved as a source). One code review over eight rounds, 28
+findings, none outstanding; eight durable facts lifted into `docs/memory/`.
+
+**Nothing calls it ergonomically**: prompting an evaluation still means a
+`socat` one-liner that hand-writes the envelope, which is slice 005.
 
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
@@ -51,7 +60,7 @@ graph LR
   S1["001 ✔<br/>protocol core<br/>+ process transport"]
   S2["002 ✔<br/>minimal renderer"]
   S3["003 ✔<br/>scheduling"]
-  S4["004<br/>event ingress"]
+  S4["004 ✔<br/>event ingress"]
   S5["005<br/>goad emit"]
   S6["006<br/>daily driver"]
   S7["007<br/>field notes"]
@@ -65,13 +74,13 @@ graph LR
 
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
-  class S1,S2,S3 done
+  class S1,S2,S3,S4 done
   class T2 trigger
 ```
 
 | slice | tier | why here |
 |---|---|---|
-| 004 event ingress | 1 | 003 built the scheduled evaluation path; an event is a second stimulus into it |
+| 004 event ingress ✔ | 2 | 003 built the scheduled evaluation path; an event is a second stimulus into it. Opened tier 1, raised at scoping |
 | 005 `goad emit` | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
 | 006 daily driver | 1 | the point where you run goad every day. Everything after it is informed by having done so |
 | 007 field notes | 1 | scope written *after* two weeks of your own use, not before |
@@ -148,25 +157,32 @@ one code review over four rounds, 22 findings, none outstanding.
   the host, so the likely answer is a backend affordance and therefore a
   protocol question.
 
-### 004 — event ingress
+### 004 — event ingress ✔
 
-Brief §20 phase 5, §7, §19. **Tier 1.**
+Brief §20 phase 5, §7, §19. **Closed 2026-09-11**, at tier 2 — it raised
+itself, as the entry below predicted it would.
 
-A Unix socket that accepts an opaque event envelope and forwards it verbatim
-into the evaluation path 003 built. The host interprets nothing past the
-envelope. No CLI — a shell one-liner writing to the socket is the test, and 005
+A Unix socket accepts an opaque event envelope and forwards it verbatim into the
+evaluation path 003 built. The host interprets nothing past the envelope's four
+fields. No CLI — a `socat` one-liner writing to the socket is the test, and 005
 is the ergonomic wrapper.
 
-- **Read ADR-004 before touching the floor.** An ingested event is the first
-  stimulus that is neither a person nor a due check. SPEC-002/R-5 says in terms
-  that the scheduled-firing spacing bounds it in no way and that this slice must
-  decide separately how it is bounded; ADR-004 says why the anchor is written so
-  that an event cannot clear it.
-- **Deciding how an event is bounded amends SPEC-002**, so this slice opens
-  tier 1 and raises itself the moment that decision is written down. Expect it.
-- The whole risk is scope: event *interpretation*, debouncing and filtering are
-  the backend's and the user's watcher's, per brief §7. A host that learns what
-  an event means has crossed the boundary.
+It produced **SPEC-003** (host event ingress) and **ADR-005** (the envelope
+normalizes in stratum 2), and amended SPEC-002 and SPEC-001 — see *Where this
+stands*.
+
+- **The event got its own bound, and its own anchor.** SPEC-002/R-12 gives an
+  ingested evaluation the same three-second spacing on a second anchor that no
+  scheduled firing writes or clears, in either direction, which is what ADR-004
+  was written to leave room for. P-E is the principle the two are instances of:
+  one constant per bounded stimulus class.
+- **Liveness is an exclusive advisory lock, never a `connect`.** A `fork`
+  duplicates a listening descriptor, so a successful probe says a socket is
+  bound, not that a host holds it — the finding cost five rounds of a flaky test
+  chase and is `docs/memory/a-connect-is-not-a-liveness-signal.md`.
+- **The boundary held.** `kind` and `data` are carried and read into nowhere;
+  interpretation, debouncing and filtering stayed the watcher's and the
+  backend's, per brief §7.
 
 ### 005 — `goad emit`
 
@@ -175,10 +191,22 @@ Brief §19. **Tier 1.**
 The CLI that writes an envelope to 004's socket, so a cron job, a shell hook, or
 another program can prompt an evaluation without knowing the wire format.
 
-- **Fires ADR-002 T2** — the second binary in the workspace.
+**Opened 2026-09-11**, scoped in `docs/slices/005/slice-005.md`. Four decisions
+taken at scoping (`design-log.md`): a new member crate `crates/goad-emit` with
+its own binary, because `crates/goad` links Slint and a cron job should not;
+flags rather than positionals, `--data` optional; three exit codes — 0 accepted,
+1 the host refused it, 2 could not send — with the reason token and any
+`retry_after_ms` on stderr; and the socket path read from the host's own
+configuration, `--socket` overriding.
+
+- **Fires ADR-002 T2** — the second binary in the workspace, under ADR-003's
+  rules for what a member is.
 - Thin by construction: argument parsing, an envelope, a socket write, an exit
   code that says whether the host took it. If this one needs a 300-line design,
   something is wrong with 004's socket.
+- **The one thing that could raise it to tier 2** is the new member's
+  `goad-boundary` allowlist row (slice OQ-3): the allowlist fails closed and
+  covers two members today, and answering it may amend ADR-001 or POL-001.
 
 ### 006 — daily driver
 
@@ -252,8 +280,8 @@ Brief §21. Where each criterion is discharged.
 | 6 | selection delivers a response to the backend | 002 |
 | 7 | `next_check` from evaluation and from response | 001 ✔ |
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
-| 9 | an external script sends an opaque event | 004; 005 makes it ergonomic |
-| 10 | the event reaches the backend uninterpreted | 004 |
+| 9 | an external script sends an opaque event | 004 ✔; 005 makes it ergonomic |
+| 10 | the event reaches the backend uninterpreted | 004 ✔ |
 | 11 | backend may run as a persistent JSONL socket service | 008 |
 | 12 | fallback to process invocation when it is unavailable | 008 |
 | 13 | crashes, timeouts, invalid JSON do not crash the GUI | 001 ✔ taxonomy; 002 surfaces it |
