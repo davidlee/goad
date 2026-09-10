@@ -5,7 +5,7 @@ slice 004 (26 non-documentation files; the ingress module, the loop's two new
 arms, the config key, the startup bind, and both test tiers)
 **Reviewer:** fresh agent, Claude Opus 5 (1M context)
 **Opened:** 2026-09-09
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -144,6 +144,11 @@ and differenced at both revisions, and the deletion set of the whole slice over
 the three targets' **fourteen** pre-existing files rather than the four the row
 names. Both verified; the widened scope is [[F-28]].
 
+**Round 8** — 2026-09-10 — [[F-28]]'s repair (`868ea93`), re-measured over the
+fourteen files rather than read: the file list, the deletion set, what the six
+non-`serve` lines are, and that every `serve(…)` call site in those files now
+carries `Ingress::none()`. Verified. The ledger resolves here.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -175,7 +180,7 @@ names. Both verified; the widened scope is [[F-28]].
 | F-25 | minor | doc-wrong | verified |
 | F-26 | minor | doc-wrong | verified |
 | F-27 | minor | fix-now | verified |
-| F-28 | minor | | |
+| F-28 | minor | doc-wrong | verified |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -3411,7 +3416,32 @@ reached for a claim slightly larger than the measurement in hand. The row now
 states the smallest thing that discharges R-1 and no more, and the synthesis
 carries the note that it is the last row to read before promotion.
 
-**Outcome:**
+**Outcome:** verified
+
+Re-measured over the fourteen, not read off the row. `git ls-tree -r
+--name-only 29e6d9a` over the three target directories: **14** files. `git diff
+29e6d9a HEAD` over all fourteen: **27** deletions, **21** matching `serve(` and
+**6** not, and the six are the ones the row names — one `use` line and five
+lines of module or item documentation, in `renderer/main.rs` and
+`renderer/startup.rs`. Every current `serve(` call site in those files carries
+`Ingress::none()` within its argument list, so *"twenty-one `serve(…)` calls
+that gained `Ingress::none()`"* is exact rather than approximate, and the four
+files that carry them are still the only four of the fourteen that do.
+
+**The reworded invariant is the right one and the measurement earns it.**
+*No assertion inside them changed* follows from the deletion set rather than
+sitting beside it: changing an assertion means deleting at least one of its
+lines, all 27 deletions are accounted for, and not one is an assertion. The
+old wording — *deleted no line except the `serve(…)` calls* — is false over
+this scope, and the row now says the thing R-1 actually needs.
+
+**The second way was the better way.** Narrowing to four files would have left
+a command that fits the sentence by having been chosen to; keeping the scope
+and naming the exceptions makes the row say what the six lines are, which is
+more information than the version this finding was raised against.
+
+**F-1 … F-28 are all `verified`; no `blocker` was ever outstanding; nothing is
+open. The ledger is done.**
 
 ## Handover
 
@@ -3606,6 +3636,43 @@ things a continuous view shows and a fresh one would not.
 <!-- Written when the ledger resolves. The closure story: what the review
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
+
+**The ledger is resolved.** Twenty-eight findings, eight rounds, every one
+`verified` and no `blocker` ever outstanding. What follows is the closing
+argument; the round passages below it are the working record.
+
+**What the review changed.** Eighteen findings dispositioned `fix-now` —
+production code, tests and comments — nine `doc-wrong`, one `follow-up`. The
+ingress path's failure handling took the worst of it: the unanswered close ([[F-8]]), the refusal that
+reached no surface ([[F-3]]), liveness decided by a `connect` that cannot
+decide it ([[F-18]]), the lock path probed unlike the socket path ([[F-22]]).
+And a class the review found four times and named on the fourth: **a green
+test asserting a proxy the regression it exists for would survive** ([[F-5]],
+[[F-6]], [[F-21]], [[F-23]]). Each repair was falsified by injection before it
+was accepted, and the injections are recorded beside the outcomes so a
+successor can re-run them.
+
+**What it confirmed.** `draft-spec.md` §7's Verification table, all sixteen
+rows read against the tests they name: twelve hold what they claim. The
+permissive/canonical boundary through `envelope.rs`. The strata direction and
+stratum 1's manifest. The reply's wire form, both anchors, and every author of
+the diagnostics surface.
+
+**The risk it knowingly leaves standing** is not in the code. It is that
+`draft-spec.md` is promoted with a row that has now been repaired three times
+— R-1, for three different reasons, none of them the same defect twice
+([[F-25]], [[F-28]]). The common factor was stated by the responder rather
+than by the reviewer: each repair reached for a claim slightly larger than the
+measurement in hand. **R-1 is the last row to read before `draft-spec.md`
+becomes `SPEC-003`**, and the standing conditions in the Handover — [[F-15]]'s
+criterion, [[F-9]]'s Follow-ups entry, [[F-5]]'s boundary, [[F-2]]'s budget —
+are the other four things promotion can quietly undo.
+
+**Round 8 — [[F-28]] verified, and the ledger closes.** Re-measured over the
+fourteen files the sentence quantifies over: 27 deletions, 21 `serve(` and six
+documentation or `use` lines, not one of them a case, an assertion or a
+fixture. The invariant's new wording — *no assertion inside them changed* —
+follows from that deletion set rather than sitting beside it.
 
 **Round 7 is complete; the ledger stays open** on [[F-28]] alone, raised here
 and not yet dispositioned. [[F-25]] and [[F-27]] are both `verified`, so
