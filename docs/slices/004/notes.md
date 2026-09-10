@@ -1679,6 +1679,24 @@ not run, and no claim rests on them)
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
 
+- **A green test can assert a proxy the regression it exists for would
+  survive, and nothing about it looks wrong.** Five of this slice's findings
+  are one shape — `review-code.md` F-5, F-6, F-21, F-23 and F-24. In each the
+  case named a real requirement, passed honestly, and would have gone on
+  passing after the defect it was written to exclude was introduced, because
+  what it read was downstream of something that erases the difference: an
+  `absorb` that replaces the whole retained value (F-23), a `cleanup` helper
+  that ignores its errors (F-24), a rendered string that is true of two
+  distinct states (F-21). **The test for a test is not that it passes; it is
+  that you have seen it fail for the reason it exists.** The cheap version is
+  the one used here: inject the regression the case is written against, run it,
+  read the message, revert. Where a case asserts two absences, inject twice —
+  one per half — because it can be vacuous in one of them and green anyway
+  (F-24). Where the case is a *negative*, ask the further question first: is
+  there a moment at which the thing being forbidden would be visible, and does
+  the case read at that moment? Staged for `docs/memory/` as
+  `tests-asserting-proxies.md`, which is written.
+
 - **A test written after its implementation has never been asked to fail, and
   `Ok`/`is_ok()` alone rarely asks hard enough of an opaque return type.**
   PHASE-06 wrote `startup::listener`'s three cases after `listener` itself,
@@ -1887,6 +1905,18 @@ not run, and no claim rests on them)
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **AC-13 has not been run on the shipping tree.** `## VH-1 — the observation`
+  below records a real run, by the user, at `93abab3`. Every code repair the
+  review has landed since changed some part of what a person walking the
+  runbook meets: the reply's newline framing (`review-code.md` F-1), the
+  ingress-stopped cause and its reach (F-3, F-7), the lock file beside the
+  socket and the failure a held path now produces (F-18, F-22), and the
+  startup failure text (F-12, F-14, F-21). None is reached by the three steps
+  that were run, but `docs/AGENTS.md` §Tiers is unconditional, and what was
+  seen was an earlier binary. **Discharged only by the user re-running the
+  runbook on the current tree**, recorded here beside the first observation.
+  It is the one outstanding item no agent can take.
 
 - ~~**`unavailable`'s wire `detail` cannot distinguish its three causes.**
   `Refusal::Unavailable` is a unit variant with a fixed `Display`, so the

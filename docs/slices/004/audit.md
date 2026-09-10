@@ -83,6 +83,8 @@ canon, promote `draft-spec.md`, or apply `canon-delta.md`: those are user gates.
 It does not repair findings. It records, disposition-ready, and stops. The
 Verdict is written from the evidence and says so where the evidence runs out;
 the Closure checklist stays unticked while the code review has not run.
+(Written before the review; it has since run to completion, and the two places
+its findings changed this document's conclusions are marked where they occur.)
 
 ## Evidence
 
@@ -187,6 +189,25 @@ not qualify the discharge. It is recorded because the runbook has five steps
 and three were run. Nothing else was reported: no hang, no leftover socket, no
 unexpected refusal. Absence of a report is not a positive check, and PHASE-06's
 S-3 and S-4 are recorded as not fired on that basis only.
+
+**The observation predates the repairs, and does not cover the shipping tree.**
+VH-1 was run at `93abab3`. Everything the code review repaired since has
+changed some part of what a person walking the runbook sees or does: the reply
+gained its newline framing (**F-1**), the ingress-stopped report gained a
+distinct cause and reaches the surface mid-exchange (**F-3**, **F-7**), a
+startup on a path another host holds now fails on the lock rather than on a
+`connect` probe and leaves a `<path>.lock` file beside the socket (**F-18**,
+**F-22**), and the startup failure text moved (**F-12**, **F-14**, **F-21**).
+None of that is reached by the three steps the user ran, but `docs/AGENTS.md`
+§Tiers is unconditional — *a slice does not close until a person has run the
+software and seen the new behaviour* — and what was seen was an earlier binary.
+
+**This is a closure-checklist gap, and it is the one item that should block the
+box being ticked.** It is not a finding: nothing here says the shipping tree
+misbehaves, and the automated evidence for every repair is in `review-code.md`.
+It is discharged by one re-run of the runbook on the current tree by the user,
+recorded in `notes.md` beside the first, and it is the only outstanding item
+that no agent can discharge.
 
 ### Verification criteria
 
@@ -368,12 +389,16 @@ Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
 vocabulary, subject `implementation`. Do not restate findings here.
 
-- **Ledger:** `review-code.md` — **open, five rounds run.** Rounds 1-4 were one
+- **Ledger:** `review-code.md` — **five rounds run.** Rounds 1-4 were one
   reviewer kept across rounds; round 5 is a fresh one, primed from the
   handover that reviewer wrote for it.
-- **State:** open · **outstanding blockers: 0** · 22 findings closed
-  (`verified`), **4 open and undispositioned** — F-23 … F-26, all `minor`, all
-  raised by round 5's sweep of §7's sixteen Verification rows.
+- **State:** **outstanding blockers: 0** · 26 findings raised · 22 closed
+  (`verified`) · **4 dispositioned and awaiting their raiser's outcome** —
+  F-23 … F-26, all `minor`, all from round 5's sweep of §7's sixteen
+  Verification rows. F-23 and F-24 are `fix-now` and repaired with the
+  regression injected and measured in each case; F-25 and F-26 are `doc-wrong`
+  and amend three of those rows before the spec is promoted, which is the last
+  moment they are free.
 - **What round 5 was:** the sweep round 4 named as the highest-value stone left,
   on the evidence that of the four rows the review happened to check, three were
   overclaiming. Twelve rows hold; three overclaim and one is silent. Three of
@@ -385,9 +410,11 @@ vocabulary, subject `implementation`. Do not restate findings here.
 
 ## Verdict
 
-**On the evidence, the slice does what it set out to do.** Nothing found in this
-pass argues against closure; the argument is not complete, because the code
-review has not run.
+**On the evidence, the slice does what it set out to do.** Nothing found in
+this pass argued against closure, and the code review has since run to
+completion — six rounds, 26 findings, no blocker outstanding — without
+overturning that. Two of its findings changed what this section says, and both
+changes are made below rather than left to a reader to reconcile.
 
 Something outside goad can now make it ask its backend a question. A watcher
 writes an envelope to a Unix socket, the host forwards its four fields
@@ -415,19 +442,30 @@ untouched — the writer always gets its reply — but the diagnostics surface i
 one whole value, and only refusals decided while idle survive to it. This is
 `slice-004.md` Follow-ups, and it is the follow-up most likely to be felt.
 
-**The socket has no owner after startup.** Nothing prevents two goad processes,
-nothing re-probes the path once bound, and a socket unlinked underneath a live
-listener leaves it holding a descriptor no `connect` can reach — with nothing to
-report, because nothing arrives. The slice declined to close this inside the
-ingress module because doing so would be a partial single-instance guarantee
-under another name. That reasoning stands; the gap is real and is written down.
+**The socket has an owner now, and it is narrower than a single-instance
+guarantee.** This section said at audit time that nothing prevents two goad
+processes and that the slice had declined to close it inside the ingress
+module. `review-code.md` **F-18** reversed that, on evidence this audit did not
+have: R-3's reclaim probe was broken in shipping code — a `connect` succeeding
+is not a liveness signal in a process that forks, measured at 2 failures in 200
+runs — and the repair is an advisory lock on `<path>.lock`, taken at `bind` and
+held for the process's lifetime.
+
+What that buys: a second host cannot take a path this one holds, and liveness
+is now a property of the lock rather than of the socket file, so a socket
+unlinked underneath a live listener no longer strands it. What it does **not**
+buy: it is per path, not per host, so two goad processes on two paths remain
+unprevented, and nothing re-probes a path once bound. The single-instance
+guarantee is a *consequence* of the lock's lifetime and not the thing that was
+wanted — `slice-004.md` Follow-ups says so, and Reconciliation below records
+`design.md` D-10 as superseded rather than edited.
 
 **Four pre-existing flaky tests remain the likeliest source of an unexplained
 red gate.** They predate this slice and sit outside its surfaces. This audit's
 gate run was clean, which retires nothing.
 
-The Closure checklist is left unticked. Two of its items — the code review, and
-canon reconciliation — have not happened, and one of those is a user gate.
+The Closure checklist is left unticked. Its remaining items are canon
+reconciliation — a user gate — and the re-run of AC-13 named under Evidence.
 
 ## Reconciliation
 
@@ -566,7 +604,8 @@ amended text throughout.
 - [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
 - [ ] `slice-004.md` stage set to `done`
 
-Left unticked entire: the code review has not run, so no line of this
-checklist is worked yet. The evidence above already answers two of them — the
-acceptance criteria and the gate — and the close stage is where they are
-ticked, not this one.
+Ticked at the close stage, not this one. The evidence above answers the gate
+and all but one of the acceptance criteria; the code review has since run to
+completion. What is genuinely outstanding is canon reconciliation, which is a
+user gate, and **AC-13 on the shipping tree** — see Evidence, *The human
+observation*.
