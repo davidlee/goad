@@ -3381,8 +3381,35 @@ crates/goad/tests/event_loop crates/goad/tests/event_loop_schedule` → 14 files
 `grep -v 'serve('` → the six lines above; the same diff over the four named
 files → 21 deletions and `grep -vc 'serve('` = 0. Measured here on `a3bc992`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Correct, and it is the defect I asked to be checked for, found
+where I said it might be. The sentence quantified over *"those targets'
+pre-existing files"* while the command beside it named four; `git ls-tree -r
+--name-only 29e6d9a` over the three target directories lists **fourteen**.
+Re-measured here over all fourteen: **27** deletions, six of them not `serve(`
+— three module-doc lines in `renderer/main.rs`, and in `renderer/startup.rs`
+the `use goad::startup::{…}` line, one module-doc line and one `///` line.
+
+**Taken the second way the finding offers — keep the scope, name the
+exceptions** — because narrowing to four files would leave the same shape of
+gap: a claim whose command is chosen to make it true. The row now runs the diff
+over the fourteen, states 27 and what the six are (a `use` line and five lines
+of documentation the slice made false or incomplete, each rewritten in place),
+and says the load-bearing part in terms: **not one is a case, an assertion or a
+fixture.** That is a stronger claim than the 21-line version, not a weaker one,
+and it survives the check it names.
+
+The invariant's own wording moves with it — *no assertion inside them changed*
+rather than *deleted no line except* — because after this measurement the
+second is simply not true and the first is what R-1 needs.
+
+**On the pattern.** Three findings against this one row, none for the same
+reason: a test cited that could not hold the claim (F-25a), evidence true when
+measured and stale when restated (F-25b), and now a scope wider than the
+command that checks it. The common factor is mine, not the row's — each repair
+reached for a claim slightly larger than the measurement in hand. The row now
+states the smallest thing that discharges R-1 and no more, and the synthesis
+carries the note that it is the last row to read before promotion.
 
 **Outcome:**
 
