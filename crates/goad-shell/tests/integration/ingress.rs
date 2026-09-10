@@ -461,6 +461,51 @@ async fn a_symlink_to_a_live_socket_is_refused_unfollowed_and_the_target_keeps_s
   cleanup(&target);
 }
 
+/// A **symlink at the lock's own path** is refused unfollowed, for R-4's
+/// reason applied to the other path the host creates (`review-code.md` F-22).
+///
+/// The link is **dangling**, which is the arm that does damage: `open(2)`
+/// follows a final symlink unless `O_NOFOLLOW`, and the lock is opened with
+/// `create(true)` and `.mode(0600)`, so following one creates an owner-only
+/// file at a location the configuration never named. The case asserts the
+/// refusal *and* that nothing appeared at the link's target, which is the half
+/// a fault assertion alone would not catch.
+#[tokio::test]
+async fn a_symlink_at_the_lock_path_is_refused_and_nothing_is_created_through_it() {
+  let path = socket_path("vt3c-lock-symlink");
+  let target = std::env::temp_dir().join(format!(
+    "goad-ingress-vt3c-lock-target-{}.txt",
+    std::process::id()
+  ));
+  match std::fs::remove_file(&target) {
+    Ok(()) | Err(_) => (),
+  }
+  match std::os::unix::fs::symlink(&target, lock_path(&path)) {
+    Ok(()) => (),
+    Err(error) => panic!("could not create the symlink at the lock path: {error}"),
+  }
+
+  let error = match bind(&path) {
+    Err(error) => error,
+    Ok(_ingress) => panic!("a symlink at the lock path must be refused rather than followed"),
+  };
+  assert_eq!(error.path, path);
+  assert!(
+    matches!(error.fault, BindFault::LockNotAFile { found: "a symlink" }),
+    "expected LockNotAFile naming a symlink, got: {}",
+    error.fault
+  );
+  assert!(
+    !target.exists(),
+    "the host must not create a file through a link the configuration did not name"
+  );
+
+  cleanup(&path);
+  match std::fs::remove_file(&target) {
+    Ok(()) | Err(_) => (),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // VT-4 — a path that cannot be created
 // ---------------------------------------------------------------------------

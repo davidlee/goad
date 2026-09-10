@@ -77,10 +77,18 @@ pub enum BindFault {
   /// else: a symlink *to* a socket is ambiguous and is refused rather than
   /// followed, `design.md` §5.5).
   NotASocket { found: &'static str },
+  /// Something other than a regular file is at the **lock's** own path
+  /// ([`lock_path`]) — a symlink above all, which is refused rather than
+  /// followed for the reason `SPEC-003/R-4` gives about the socket path:
+  /// following one would put the owner-only mode R-2 requires on a file the
+  /// configuration did not name. Names the socket's path, like every other
+  /// fault, and says the lock beside it is what was wrong.
+  LockNotAFile { found: &'static str },
   /// A live host holds the path's lock (`SPEC-003/R-3`) — whatever is or is
   /// not at the path itself. See [`lock_path`].
   InUse,
-  /// The path could not be inspected at all.
+  /// A path could not be inspected at all — the socket's, or the lock's
+  /// beside it ([`lock_path`]). Names the socket's path either way.
   Unprobeable(io::Error),
   /// Whether a live host holds the path could not be determined: the lock
   /// beside it ([`lock_path`]) exists and could not be *asked* — a filesystem
@@ -107,6 +115,10 @@ impl std::fmt::Display for BindFault {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::NotASocket { found } => write!(f, "not a socket — found {found}"),
+      Self::LockNotAFile { found } => write!(
+        f,
+        "the lock beside it is not a regular file — found {found}"
+      ),
       Self::InUse => write!(f, "in use by a live host"),
       Self::Unprobeable(inner) => write!(f, "could not be inspected: {inner}"),
       Self::LivenessUnknown(inner) => write!(
@@ -128,7 +140,7 @@ impl std::error::Error for BindFault {
       | Self::Unlinkable(inner)
       | Self::Unbindable(inner)
       | Self::ModeUnsettable(inner) => Some(inner),
-      Self::NotASocket { .. } | Self::InUse => None,
+      Self::NotASocket { .. } | Self::LockNotAFile { .. } | Self::InUse => None,
     }
   }
 }
@@ -189,12 +201,33 @@ pub fn lock_path(socket: &Path) -> PathBuf {
 /// file says liveness could not be determined, which is R-3's. Collapsing
 /// them points a person at a lock they did not know existed instead of at the
 /// directory they mistyped.
+///
+/// **What is at the lock's own path is settled before it is opened**
+/// (`review-code.md` F-22), by the same [`probe`] `reclaim` uses on the socket
+/// path and for the reason `SPEC-003/R-4` states there: `open(2)` follows a
+/// final symlink, and `.mode(SOCKET_MODE)` is applied on creation, so
+/// following one would put the owner-only mode R-2 requires on a file the
+/// configuration did not name. One rule, one mechanism, both host-created
+/// paths — `bind(2)` has no `O_NOFOLLOW` to offer the socket path, so the
+/// probe is the only mechanism that can cover both.
 fn hold(path: &Path) -> Result<std::fs::File, IngressError> {
+  let beside = lock_path(path);
+  let occupant = probe(&beside).map_err(|error| fault(path, BindFault::Unprobeable(error)))?;
+  if let Some(metadata) = &occupant
+    && !metadata.file_type().is_file()
+  {
+    return Err(fault(
+      path,
+      BindFault::LockNotAFile {
+        found: describe(metadata.file_type()),
+      },
+    ));
+  }
   let lock = std::fs::OpenOptions::new()
     .create(true)
     .write(true)
     .mode(SOCKET_MODE)
-    .open(lock_path(path))
+    .open(&beside)
     .map_err(|error| fault(path, BindFault::Unbindable(error)))?;
   match lock.try_lock() {
     Ok(()) => Ok(lock),
@@ -243,11 +276,7 @@ fn hold(path: &Path) -> Result<std::fs::File, IngressError> {
 /// *the path after the bind*). The window is the one upgrade that crosses this
 /// change, and one restart of the old host closes it.
 fn reclaim(path: &Path) -> Result<std::fs::File, IngressError> {
-  let occupant = match std::fs::symlink_metadata(path) {
-    Ok(metadata) => Some(metadata),
-    Err(error) if error.kind() == io::ErrorKind::NotFound => None,
-    Err(error) => return Err(fault(path, BindFault::Unprobeable(error))),
-  };
+  let occupant = probe(path).map_err(|error| fault(path, BindFault::Unprobeable(error)))?;
   if let Some(metadata) = &occupant
     && !metadata.file_type().is_socket()
   {
@@ -265,7 +294,20 @@ fn reclaim(path: &Path) -> Result<std::fs::File, IngressError> {
   Ok(lock)
 }
 
-/// What was found at a path that is not a socket, for `BindFault::NotASocket`.
+/// What is at a path, without following a final symlink — `None` for a path
+/// with nothing at it. Both paths the host creates are asked this way and for
+/// one reason: a link is refused as the link it is rather than followed to
+/// whatever it names (`SPEC-003/R-3`, R-4).
+fn probe(path: &Path) -> io::Result<Option<std::fs::Metadata>> {
+  match std::fs::symlink_metadata(path) {
+    Ok(metadata) => Ok(Some(metadata)),
+    Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+    Err(error) => Err(error),
+  }
+}
+
+/// What was found at a path that is not what belongs there, for
+/// `BindFault::NotASocket` and `BindFault::LockNotAFile`.
 fn describe(file_type: std::fs::FileType) -> &'static str {
   if file_type.is_symlink() {
     "a symlink"
