@@ -389,16 +389,23 @@ Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
 vocabulary, subject `implementation`. Do not restate findings here.
 
-- **Ledger:** `review-code.md` — **five rounds run.** Rounds 1-4 were one
-  reviewer kept across rounds; round 5 is a fresh one, primed from the
-  handover that reviewer wrote for it.
-- **State:** **outstanding blockers: 0** · 26 findings raised · 22 closed
-  (`verified`) · **4 dispositioned and awaiting their raiser's outcome** —
-  F-23 … F-26, all `minor`, all from round 5's sweep of §7's sixteen
-  Verification rows. F-23 and F-24 are `fix-now` and repaired with the
-  regression injected and measured in each case; F-25 and F-26 are `doc-wrong`
-  and amend three of those rows before the spec is promoted, which is the last
-  moment they are free.
+- **Ledger:** `review-code.md` — **resolved, eight rounds run.** Rounds 1-4
+  were one reviewer kept across rounds; rounds 5-8 a second, fresh one, primed
+  from the handover the first wrote for it.
+- **State:** **resolved** · 28 findings, **all `verified`** · no `blocker` ever
+  outstanding · nothing open. 18 `fix-now`, 9 `doc-wrong`, 1 `follow-up`.
+- **What it changed.** The ingress path's failure handling took the worst of
+  it, and one class was found four times — a green test asserting a proxy the
+  regression it exists for would survive (F-5, F-6, F-21, F-23). The single
+  most consequential finding is **F-18**, which reversed `design.md` D-10 on
+  measured evidence: R-3's reclaim probe was broken in shipping code, and the
+  repair is the advisory lock described in the Verdict.
+- **The one risk left standing.** SPEC-003 §7's **R-1 row** drew three separate
+  findings — F-25(a), F-25(b) and F-28 — never for the same reason: a test
+  cited that could not hold the claim, evidence true when measured and stale
+  when restated, and a scope wider than the command checking it. Each repair
+  reached for a claim slightly larger than the measurement in hand. **It is the
+  last row to read before `draft-spec.md` is promoted.**
 - **What round 5 was:** the sweep round 4 named as the highest-value stone left,
   on the evidence that of the four rows the review happened to check, three were
   overclaiming. Twelve rows hold; three overclaim and one is silent. Three of
@@ -412,8 +419,8 @@ vocabulary, subject `implementation`. Do not restate findings here.
 
 **On the evidence, the slice does what it set out to do.** Nothing found in
 this pass argued against closure, and the code review has since run to
-completion — six rounds, 26 findings, no blocker outstanding — without
-overturning that. Two of its findings changed what this section says, and both
+completion — eight rounds, 28 findings, all `verified`, no blocker ever
+outstanding — without overturning that. Two of its findings changed what this section says, and both
 changes are made below rather than left to a reader to reconcile.
 
 Something outside goad can now make it ask its backend a question. A watcher
