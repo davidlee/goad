@@ -118,6 +118,17 @@ own repair; and the repaired surfaces attacked afresh for defects the repairs
 introduced. Two of the three findings below were confirmed by running the code,
 not by reading it.
 
+**Rounds 3 and 4** ran and are recorded in the findings ([[F-17]] … [[F-22]])
+and in the Handover, but no round entry was written here for either. Stated so
+that the gap reads as bookkeeping rather than as two rounds that did not happen.
+
+**Round 5** — 2026-09-10 — two jobs, one fresh agent. [[F-22]]'s repair
+(`b0dd390`) against all three conditions its Response set; then **all sixteen of
+`draft-spec.md` §7's Verification rows walked against the tests they name**,
+asking of each whether the test holds what the row claims. Every named case was
+read in full, along with the production code it drives; no suite was run, and
+the round changed no code. Four findings, [[F-23]] … [[F-26]], all against §7.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -143,7 +154,11 @@ not by reading it.
 | F-19 | minor | doc-wrong | verified |
 | F-20 | minor | doc-wrong | verified |
 | F-21 | minor | fix-now | verified |
-| F-22 | minor | | |
+| F-22 | minor | fix-now | verified |
+| F-23 | minor | | |
+| F-24 | minor | | |
+| F-25 | minor | | |
+| F-26 | minor | | |
 
 Disposition column transcribed by the raiser from each finding's own
 **Disposition** line; the responder wrote those, this table only summarises
@@ -2632,6 +2647,266 @@ two different roads; whatever the repair does for the lock path should be the
 same code path `reclaim` already uses, not a parallel one. If it cannot be
 shared, say why in the Response rather than leaving two guards to drift.
 
+**Outcome:** `verified`. All three conditions the Response set are met, and the
+repair introduces nothing.
+
+**`symlink_metadata`, not `O_NOFOLLOW`** — `hold` probes `lock_path(path)`
+before it opens it (`crates/goad-shell/src/ingress/mod.rs:214-224`).
+
+**The class is fixed by sharing, not by copying.** `reclaim`'s own probe is
+extracted as `probe` (`mod.rs:301`) and both host-created paths go through
+that one function — which is what the Response asked for, and why. The
+predicates that follow it necessarily differ (`is_socket` at the socket path,
+`is_file` at the lock path), but the mechanism that decides *what is there
+without following a link* is now one function with one doc comment, so the two
+guards cannot drift on the thing they share.
+
+**R-3 gained the rule, not R-4** (`draft-spec.md:106`), with R-4's reason
+carried across word for word: *"Following a link would put the owner-only mode
+R-2 requires on a file the configuration did not name."* The new sentence also
+widens the rule beyond the instance — *anything* at the lock path that is not a
+regular file — and the code matches it rather than the instance: a directory
+there is now `LockNotAFile { found: "a directory" }` rather than the
+`Unbindable` an `EISDIR` used to produce, which is the message the new clause
+requires.
+
+**The case asserts the damage, not a proxy for it.**
+`a_symlink_at_the_lock_path_is_refused_…` asserts the refusal **and**
+`!target.exists()`. The second is the load-bearing one: the fault alone would
+be satisfied by a guard placed *after* the `open`, and the harm F-22 states is
+the created file. It goes red before the repair on the first assertion (`bind`
+returns `Ok`), and the second is what would catch a repair that refused too
+late.
+
+**Nothing moved that [[F-21]] settled** — the one way this repair could have
+done harm. Putting a probe in front of the `open` might have re-routed the
+unusable-location cases away from R-4's message; it does not, because `probe`
+maps `NotFound` to `Ok(None)`, so a missing directory still reaches the `open`
+and is still `Unbindable`. That is what
+`a_missing_directory_is_refused_as_an_unusable_location_…` asserts, and it is
+green. A directory the host cannot *search* was already `Unprobeable` before
+this repair, since `reclaim` probes the socket path first and meets it there.
+
+### F-23 — R-15's negative case asserts the residue `absorb` removes, not the presentation R-15 forbids
+
+**Severity:** minor
+**Location:** `crates/goad/tests/renderer/ingress.rs:1137-1182`
+(`a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`);
+`draft-spec.md:424` (R-15's Verification row);
+`crates/goad/src/controller.rs:728-746`
+
+**Expected:** R-15 bounds what the **diagnostics surface** carries: a refusal
+decided while an exchange is in flight is reported to its writer only. Its
+Verification row names this case as *"(negative — what makes the bound a claim
+rather than an excuse)"*, so this case is the whole of the row's evidence for
+that direction. `controller.rs:740-745` states the same rule as a property of
+the code: the `Some` branch of the inner arm *"still presents nothing —
+`review-design.md` F-15's measured cost and R-15's negative case both live
+there."*
+
+**Observed:** the case cannot see a presentation. It reads
+`served.controller.frame().diagnostics.lines()` (`:1178`) **after** the loop has
+stopped, and asserts no line contains `"was refused"` (`:1180`). But the refusal
+*is* folded onto the controller's diagnostics while the exchange runs —
+`refuse_during_exchange` → `refuse_arrival` (`controller.rs:441-447`) — and what
+removes it is `absorb` (`controller.rs:718`), which replaces the whole retained
+`Diagnostics` when the exchange resolves. The case's own doc comment says so:
+*"superseded by `absorb` before any presentation"*. The wait at `:1170` is a
+wait for exactly that absorption.
+
+So the assertion holds in both worlds:
+
+- **(a)** the branch presents nothing — today's code; and
+- **(b)** the branch calls `glass.present(controller.frame())` and a person sees
+  the refusal, because `absorb` wipes the residue afterwards either way.
+
+Adding `glass.present(controller.frame());` beside `refuse_during_exchange`
+(`controller.rs:746`) — one line below the `None` branch that already does
+exactly that — leaves this case **green**. That is the regression R-15's
+negative direction exists to forbid, and since [[F-3]]'s repair the inner arm
+has a live `present` call in it to copy.
+
+**The instrument is in this same file, twice.** `CountingGlass` (`:215-227`)
+counts presentations and already serves two cases here; the sibling
+`ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`
+reads the **live** window mid-exchange (`window.get_diagnostic_lines()`,
+`:1263-1270`) precisely because the retained value is gone by the end. Either
+route makes the negative direction assertable: count presentations across the
+refusal and assert the count did not move, or read the live surface while the
+exchange is still running and assert the line is not there.
+
+**The asymmetry is what makes this worth raising rather than noting.** The
+*positive* direction also reads retained diagnostics (`:1107`), but the idle
+path's presentation is independently measured — `a_flat_out_writer_…` asserts
+one presentation per refusal with `CountingGlass`, which is [[F-15]]'s
+settlement. Nothing measures the in-exchange path's cost, so the negative
+direction rests entirely on a case a violation would survive.
+
+**Evidence:** `crates/goad/tests/renderer/ingress.rs:1178-1182` (the
+assertion), `:1161` (the refusal), `:1170` (the wait for absorption before the
+read); `crates/goad/src/controller.rs:441-447` (`refuse_during_exchange`
+folds), `:718` (`absorb` on the resolving arm), `:728-746` (the inner arm and
+its comment); `draft-spec.md:424` (the row).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-24 — R-5's row claims *review* where a test is available, and an unlink added on drop passes the whole suite
+
+**Severity:** minor
+**Location:** `draft-spec.md:414` (R-5's Verification row);
+`crates/goad-shell/src/ingress/mod.rs`
+
+**Expected:** §7's preamble: *"Each row names the kind of verification and the
+test that discharges it, so the claim is checkable rather than asserted."* R-5
+requires that the host **not** unlink the socket on exit and not unlink the lock
+file either — the requirement reclamation depends on, since R-5's own sentence
+is what makes R-3's reclaim path exercised on every ordinary restart.
+
+**Observed:** the row answers *"**review, not a test.** The absence of an unlink
+cannot be asserted without asserting the absence of code"*. That premise is
+false: the absence of an unlink **at exit** is behavioural and assertable
+without naming any code — bind a fresh path, drop the `Ingress`, and assert that
+both the socket and `lock_path(&path)` are still there. There is no `impl Drop
+for Ingress` today, and the only `remove_file` in the module is `reclaim`'s
+(`mod.rs:292`), so such a case is green now and goes red the day either is
+added.
+
+Nothing currently holds it:
+
+- `listener::some_path_binds` (`crates/goad/tests/renderer/startup.rs:437-452`)
+  stats the path while its `Ingress` is still alive;
+- `a_stale_socket_with_no_listener_is_reclaimed_…` drops a
+  `std::os::unix::net::UnixListener`, which shows that **std** does not unlink,
+  not that this host does not;
+- every `cleanup` helper in all three test files ignores its errors, so a host
+  that had unlinked both files would leave every case in the suite green.
+
+R-5 is the only functional requirement in §7 with no test of any kind behind
+it, and it is the one whose violation is silent: an unlink on exit breaks
+nothing visible until the reclaim path stops being exercised.
+
+**The honest limit, which the row should state rather than the current
+sentence.** Process exit is not `Drop`, so what such a case holds is *no unlink
+on the drop path*. That is the only path a regression could reach — `main` drops
+`Served.ingress` — so it is the right bound, and it is narrower than R-5's
+sentence. Saying that is a different row from *"cannot be asserted"*.
+
+**Evidence:** `draft-spec.md:414`; `crates/goad-shell/src/ingress/mod.rs:292`
+(the one `remove_file`, in `reclaim`); no `impl Drop` in the crate — `grep -n
+'impl Drop' crates/goad-shell/src/ingress/mod.rs` matches nothing;
+`crates/goad-shell/tests/integration/ingress.rs:40-47`,
+`crates/goad/tests/renderer/ingress.rs:119-127` and
+`crates/goad/tests/renderer/startup.rs:421-429` (the three `cleanup` helpers,
+each ignoring `Err`).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-25 — R-1's row: neither half of its evidence says what the row says it says
+
+**Severity:** minor
+**Location:** `draft-spec.md:410` (R-1's Verification row)
+
+**Expected:** R-1 is an if-and-only-if over the **configuration**: *"The host
+MUST bind a listening Unix domain socket if, and only if, its configuration
+names a path for one."* Its row claims to name both arms.
+
+**Observed, (a): the cited "if" arm never reads a configuration.**
+`ingress::a_well_formed_envelope_reaches_the_judge_as_the_event_it_wrote`
+(`crates/goad-shell/tests/integration/ingress.rs:844`) calls `bind(&path)`
+directly; `IngressConfig` does not appear anywhere in that file. What it holds
+is *a bound path serves*, which is R-1's consequence and not R-1's decision. The
+case that does hold the decision exists and is not named:
+`listener::some_path_binds`
+(`crates/goad/tests/renderer/startup.rs:437-452`) drives
+`listener(Some(&IngressConfig { path }))` and asserts a real socket at the path.
+The row names its pair-partner `none_binds_nothing` two clauses later — whose
+own doc comment says the two are a pair: *"paired with `some_path_binds`'s
+positive over the same function so the negative is not vacuous"*
+(`startup.rs:468-473`). The row took the negative and left the positive behind.
+
+**Observed, (b): "confirmed token-identical to `9d36002`" is false as written.**
+`git diff --stat 9d36002 HEAD` over the three targets the row names is **371
+insertions, 27 deletions across six files**. The measurement that is true is
+`notes.md:138` (VA-3): *"with the added argument, the four `use` lines and the
+one `main.rs` comment removed, **all five bounded files** are token-identical to
+`9d36002` — `ALL MATCH`"*. Two things were dropped in the restatement:
+
+- the **qualification** — the five files do differ, by exactly the mechanical
+  `serve(…, Ingress::none())` argument and its imports (verified here on
+  `renderer/wiring.rs`, whose 69 changed lines are nothing else); and
+- the **scope** — VA-3 covered five named files, not three whole targets.
+  `crates/goad/tests/renderer/startup.rs` is in the `renderer` target and gained
+  **148 lines**: its whole `listener` module, plus two later repairs (`b07576b`,
+  `95f0a97`). `notes.md:133` (VT-6) records the same thing from the other side —
+  the `renderer` target went from 138 cases to 144.
+
+A reader who checks this row the obvious way — running the diff it names — finds
+it false, and concludes the row was not checked. The conclusion the row draws is
+sound; the evidence as stated is not, and `notes.md` is *"disposable detail"*
+(`AGENTS.md` §Where it goes), so the true form does not survive promotion.
+
+**Evidence:** `draft-spec.md:410`;
+`crates/goad-shell/tests/integration/ingress.rs:844` and `grep -c IngressConfig`
+= 0 in that file; `crates/goad/tests/renderer/startup.rs:437-452` and `:468-473`;
+`git diff --stat 9d36002 HEAD -- crates/goad/tests`; `git log 9d36002..HEAD --
+crates/goad/tests/renderer/startup.rs` (three commits); `notes.md:138` (VA-3),
+`notes.md:133` (VT-6), `notes.md:123` (EX-7, which names the five files).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-26 — R-3's row is silent on the clause about liveness that cannot be determined, and nothing reaches it
+
+**Severity:** minor
+**Location:** `draft-spec.md:412` (R-3's Verification row), `:106` (R-3);
+`crates/goad-shell/src/ingress/mod.rs:99`, `:235`
+
+**Expected:** §7's preamble: *"a row naming no test is a row this spec may not
+be promoted holding."* Where a clause cannot be reached by a test, this document
+says so in terms rather than passing over it — R-4's row does (*"**The non-zero
+exit is review, not a test**"*) and so does R-5's (*"**review, not a test.**"*),
+and [[F-5]]'s settlement made R-14's row state precisely which of four
+directions each half holds.
+
+**Observed:** R-3 has four distinct clauses, and its row names six cases across
+what it calls four arms — reclaim, in-use, the forked child, and the lock
+outliving the file — plus the lock's name and the lock path's symlink rule. It
+says nothing at all about the third clause: *"Liveness MUST NOT be assumed
+either way when it cannot be determined — a lock the host holds the file for but
+cannot ask is a startup failure naming the path, and says that is what
+happened."*
+
+Nothing reaches it. `BindFault::LivenessUnknown` (`mod.rs:99`, raised at `:235`
+from `TryLockError::Error`) appears in **no test in the workspace**: `grep -rn
+LivenessUnknown crates/` matches four lines, all in `mod.rs`. It is not a dead
+branch either — [[F-20]]'s own settlement records that the lock requires a
+filesystem supporting advisory locking, and a filesystem that does not is
+exactly what makes `try_lock` return `Err(TryLockError::Error)` rather than
+`WouldBlock`.
+
+The clause may well be unreachable from a cooperating test — the same position
+as R-4's exit code and [[F-2]]'s `accept()` error, both of which are declared.
+The defect is the silence: a reader of this row cannot tell an untestable clause
+from an overlooked one, and R-3 is the requirement this slice rewrote from
+scratch ([[F-18]]), so its row is the one most likely to be read closely by
+whoever changes it next.
+
+**Evidence:** `draft-spec.md:412` (the row, and its four named arms), `:106`
+(R-3's third clause); `crates/goad-shell/src/ingress/mod.rs:99` (the variant),
+`:230-236` (`try_lock`'s three outcomes, of which two are tested); `grep -rn
+'LivenessUnknown' crates/` → 4 matches, all `mod.rs`.
+
+**Disposition:**
+**Response:**
+
 **Outcome:**
 
 ## Handover
@@ -2645,20 +2920,29 @@ section is what a successor needs and cannot get from the findings alone.
 
 ### Where every finding stands
 
-**Closed — outcome `verified`, repair landed and re-reviewed: F-1 … F-21.**
+**Closed — outcome `verified`, repair landed and re-reviewed: F-1 … F-22.**
 Nothing is owed on any of them. Three carry conditions a successor should still
 check at promotion or close, listed under *Standing conditions* below: [[F-5]],
-[[F-15]], [[F-9]].
+[[F-15]], [[F-9]]. [[F-22]] was verified in round 5 (`b0dd390`): the lock path
+is now probed by the **same** `probe` function `reclaim` uses on the socket
+path, so the class is closed by sharing rather than by a second guard.
 
-**Open — raised in round 4, not yet dispositioned:**
+**Open — raised in round 5 by the §7 sweep, not yet dispositioned.** All four
+are about the **Verification table**, not about the code: three rows claim more
+than their evidence holds, and one row is silent where it should declare. None
+of them says the host does the wrong thing today; all four say a reader of
+`draft-spec.md` after promotion would be misled about what is held.
 
 | id | what it is | what a successor must not lose |
 |---|---|---|
-| F-22 | R-4 refuses a symlink at the socket path and `hold` follows one at the lock path, for a reason R-4 states and that covers both | it needs a writable containing directory, which §6.1 excludes — **and so does R-4's own symlink rule, which the slice kept anyway.** The defect is the asymmetry, not the threat. Do not let it be dispositioned `aligned` on the threat-model ground alone without answering why R-4 exists |
+| F-23 | R-15's negative case reads the retained diagnostics *after* `absorb`, so a `glass.present` added to the in-exchange branch would leave it green | this is the one finding of the four with a live regression behind it. The fix is not a new case: `CountingGlass` and the live window's `get_diagnostic_lines()` both sit in the same file, and either turns the assertion into the property. Do not accept a repair that adds a second retained-state assertion |
+| F-24 | R-5's row says the absence of an unlink *"cannot be asserted without asserting the absence of code"*; it can — drop the `Ingress`, assert both files are still there | the row is `review, not a test` for a requirement that **is** testable. If it is dispositioned `aligned`, the reason must answer the drop-path case specifically, not the general difficulty of proving a negative |
+| F-25 | R-1's row cites a test with no configuration in it for the *if* arm, and restates VA-3's measurement without the qualification that makes it true | the true form is in `notes.md:138`, and `notes.md` is disposable. Whatever the repair does, the row must survive promotion without `notes.md` behind it |
+| F-26 | R-3's row says nothing about the clause on liveness that cannot be determined, and `BindFault::LivenessUnknown` is reached by no test | the answer may well be *review, not a test* — R-4's and R-5's rows both say that in terms. The defect is the silence, not the absence of a case. Do not repair it by deleting the clause |
 
-**Also running, findings not yet in:** a read-only agent walking all sixteen §7
-Verification rows against the tests they name — the sweep the *Not spent* list
-below argues for. Its findings arrive as their own round.
+**The sweep is complete.** All sixteen rows were read against the tests they
+name; the twelve not listed above hold what they claim. What that cost and
+where it was close are in the round-5 synthesis passage.
 
 ### Standing conditions the reviewer is holding
 
@@ -2762,6 +3046,33 @@ to be a finding; a successor is free to disagree, but should know it was seen.
 - **Nothing bounds what the host writes to the backend's stdin.** A 64 KiB
   envelope becomes a 64 KiB `evaluate`. Judged SPEC-001's, not this contract's.
 
+**Round 5, from the §7 sweep.**
+
+- **`a_symlink_at_the_lock_path_…` does not clear the lock path before it
+  creates its symlink**, unlike the pre-clear `socket_path` performs for the
+  socket path, and unlike its own pre-clear of the link's target. A run that
+  fails before `cleanup` leaves the link behind, and the next run panics in
+  setup rather than at the assertion. Dropped: the path carries the process id,
+  so a collision needs pid reuse, and the panic names the setup step it happened
+  in.
+- **R-8's *"reads exactly one reply line … and never a second"* is held
+  indirectly.** No case counts lines; what holds it is that `parsed()` goes
+  through `serde_json::from_str`, which rejects trailing content, so a second
+  reply panics every case that inspects a reply at all. The row's claim is true;
+  that it does not name the mechanism is prose, not a finding.
+- **`report_startup_line_renders_ingress_like_its_siblings` restates the
+  function it tests** — `report_startup_line(&error) == format!("goad: {error}")`.
+  Dropped: it still goes red if a variant is ever special-cased, which is the
+  one regression R-4's row names it for.
+- **R-2's case would pass under a umask of `0177` with no `set_permissions` at
+  all.** Dropped: the row states that limit in terms, and stating it is exactly
+  what [[F-5]]'s standing condition asks a row to do.
+- **`take_timestamp`'s permissiveness** (the *Not spent* list's item 4) was
+  reached again through R-10's row and left there. R-10's row claims only what
+  `an_offsetless_instant_…` holds, so the row is not the defect; whether
+  `jiff::Timestamp` accepting more than RFC 3339 breaches R-10 is a
+  code-versus-canon question and stays where the previous reviewer left it.
+
 ### What this reviewer would say differently, asked at the end
 
 Severity is set at raise time and none of these reopens a finding. They are the
@@ -2791,6 +3102,69 @@ things a continuous view shows and a fresh one would not.
 <!-- Written when the ledger resolves. The closure story: what the review
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
+
+**Round 5 is complete; the ledger stays open** on four new findings
+([[F-23]], [[F-24]], [[F-25]], [[F-26]]), all `minor`, none blocking, and all
+four about `draft-spec.md`'s **§7 Verification table** rather than about the
+code. [[F-22]]'s repair is `verified`: `hold` probes the lock path with the
+same `probe` function `reclaim` uses on the socket path, R-3 carries R-4's
+reason across word for word, and the new case asserts the damage — nothing
+created at the dangling link's target — rather than the fault alone.
+
+**The sweep's result, plainly: sixteen rows read against their tests, twelve
+hold, three overclaim, one is silent.** R-1 ([[F-25]]) cites a test with no
+configuration in it for an if-and-only-if about configuration, and restates
+VA-3's measurement without the qualification that makes it true. R-5
+([[F-24]]) claims *review, not a test* for something a test can hold. R-15
+([[F-23]]) names a case that cannot see the thing R-15 forbids. R-3
+([[F-26]]) says nothing about one of its four clauses, and nothing reaches
+that clause. The other twelve say what their tests hold, and several are
+better than that: R-9 is one case per clause with the clause named; R-12
+drives the anchor's independence in three separate directions; R-4 is two
+cases because [[F-21]] showed one would move while the other stayed true.
+
+**R-14's row is the best in the table and should be the standard the rest are
+read against.** It states which of four directions each half holds, says out
+loud that one of them is a compile gate plus review rather than an assertion,
+and its numbers were measured rather than argued. Every one of the four
+findings above is the same row, written without that discipline: a row that
+says *what is verified* and not *how far the verification reaches*.
+
+**The shape the sweep found is not the shape it went looking for, and that is
+worth keeping.** The handover predicted more of R-14, R-11 and R-4's kind — a
+row saying more than its test asserts — and [[F-25]] and [[F-26]] are that.
+[[F-23]] is not. Its row is honest about which case it names, and the case
+reads as a careful negative: it drives the exact path, it explains itself, and
+it is green. The defect is inside the test. It asserts that the refusal is
+absent from the **retained** diagnostics after the exchange resolves — and
+`absorb` replaces the whole retained `Diagnostics`, so that assertion holds
+whether or not a person saw the refusal on the way past. The property R-15
+forbids is a **presentation**, and the case measures a residue. Adding
+`glass.present(controller.frame())` to the branch under test — the same line
+the branch one above it already carries — leaves it green.
+
+**The question that found it, which reading rows does not.** For each row: what
+change to the code would violate this requirement, and would the named test go
+red? Three rows survived being read and failed that question. It is the question
+this slice has already been caught by twice — [[F-5]]'s witness list, which the
+compiler forced an edit to and the assertion did not, and `some_path_binds`,
+which asserted `Ok` and not that a socket existed until a break test found it
+(`notes.md:1104`, repaired at `b07576b`) — and it costs one sentence per row.
+
+**What this round did not do.** It did not re-derive whether the code meets each
+requirement — that is rounds 1-4's ground and their findings stand. It asked
+only whether the test a row names holds the claim the row makes. It ran no
+suite: every judgement here is from reading the cases and the code they drive,
+with `git diff`, `git log` and `grep` where a claim was checkable that way. Two
+things it saw and left alone are the accept-fault budget's *value* and
+`take_timestamp`'s permissiveness, both still on the *Not spent* list.
+
+**Nothing found in this round gates acceptance, and nothing in it touches the
+running host.** The four findings are all corrections to a document that is one
+promotion away from being canon — which is the moment they are cheapest to make
+and the last moment they are free. §7's own preamble says a row naming no test
+is a row this spec may not be promoted holding; [[F-26]] is that sentence
+applied to R-3's third clause, and [[F-24]] is it applied to R-5.
 
 **Round 2 is complete; the ledger stays open** on three new findings
 ([[F-14]], [[F-15]], [[F-16]]), all `minor`, none blocking. **All thirteen
