@@ -3068,6 +3068,44 @@ reader knows what they are checking against. The row already knows how to do
 this: its own last clause names a claim, says it is false as stated, and says
 why. (a) needs no rework.
 
+**Disposition (round 6, re-dispositioned after `contested`):** doc-wrong
+**Response:** Conceded in full, and the concession is the interesting part: the
+repair reproduced the defect it was repairing. F-25's harm was *a row whose
+stated evidence does not survive being checked*; the replacement evidence did
+not survive being checked either, because both halves were lifted from
+`notes.md` — where they are true **as of the phase that measured them** — and
+restated in a document whose tense is the present.
+
+Both are confirmed here. `git diff --numstat 9d36002 HEAD --
+crates/goad/src/main.rs` is `18 9`; the other four bounded files are untouched
+over that range, so the token-identity claim fails on exactly one file, which
+is enough. `cargo test -p goad --test renderer -- --list` counts **156**.
+
+**Taken the first way the outcome offers — a form that does not decay** — and
+measured against the close of slice 003 (`29e6d9a`) rather than a mid-slice
+commit, because R-1's claim is about behaviour *before the slice*, which is
+what `9d36002` was never the right baseline for:
+
+- **No case was removed or renamed.** Listing and differencing the case names
+  at `29e6d9a` and HEAD: `renderer` 138 → 156, `event_loop` 1 → 1,
+  `event_loop_schedule` 1 → 1, with **0 names missing** from any of the three.
+- **Inside those targets' pre-existing files, the slice deleted no line except
+  the `serve(…)` calls that gained the new argument.** `git diff 29e6d9a HEAD`
+  over `renderer/wiring.rs`, `renderer/scheduling.rs`, `event_loop/closing.rs`
+  and `event_loop_schedule/scheduling.rs` deletes **21 lines and no others**,
+  every one of them a `serve(` call. Everything else in those files is
+  addition. That is the substantive claim VA-3 was reaching for, it is stronger
+  than token-identity because it covers the whole slice rather than one range,
+  and it is one command.
+
+The row states both as invariants with the commands beside them and **no
+counts**, so nothing in it goes stale the next time a case is added.
+`crates/goad/src/main.rs` is now named as explicitly *outside* the claim, with
+what PHASE-06 did to it and why counting it among unchanged files was the
+defect.
+
+**Outcome:**
+
 ### F-26 — R-3's row is silent on the clause about liveness that cannot be determined, and nothing reaches it
 
 **Severity:** minor
@@ -3206,8 +3244,29 @@ drops its `Ingress` and then connects); measured here on `14e9d3a` — with an
 integration` reports `84 passed; 2 failed`, the two being that case and this
 one.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Correct, and correctly weighted: it is a motivation clause, so a
+reader who checks it and finds it false has an argument for deleting the case.
+That is the opposite of what the comment is for.
+
+The sentence was mine and it was retracted in the same breath — F-24's Response
+says so in terms — so this is not a disagreement about the measurement, it is
+the retraction failing to reach the third artefact carrying it.
+
+The comment now separates the two claims the old sentence ran together. What is
+true: **teardown** cannot catch it, because all three `cleanup` helpers ignore
+their errors, so a host removing either file at exit is invisible to every one
+of them. What is not: that no case notices.
+`a_connection_accepted_after_the_judge_is_gone_…` is named as one that does,
+with why it notices for a real reason — it drops its own `Ingress` and then
+connects — and with the distinction that matters for whether this case may be
+deleted: those cases notice while testing something else, and **before this one
+no case in the workspace held R-5 at all**. The retraction itself is left in the
+comment in one parenthesis, so the next reader who meets the old sentence
+elsewhere finds it already answered.
+
+No production code changed, and the case's assertions are untouched — both
+injections still red it.
 
 **Outcome:**
 

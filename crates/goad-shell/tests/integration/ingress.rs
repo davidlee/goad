@@ -512,9 +512,17 @@ async fn a_symlink_at_the_lock_path_is_refused_and_nothing_is_created_through_it
 
 /// **R-5, from the drop path.** The host does not unlink the socket when it
 /// stops, and does not unlink the lock file either. That absence is what
-/// makes R-3's reclaim path the one every ordinary restart takes, so a
-/// regression here is silent: nothing else in the suite would notice, because
-/// every `cleanup` helper in all three test files ignores its errors.
+/// makes R-3's reclaim path the one every ordinary restart takes.
+///
+/// Teardown cannot catch a regression in it: every `cleanup` helper in all
+/// three test files ignores its errors, so a host that removed either file at
+/// exit would be invisible to all of them. Other cases *do* notice,
+/// incidentally — `a_connection_accepted_after_the_judge_is_gone_…` below
+/// drops its own `Ingress` and then connects to the path — but they notice
+/// while testing something else and say nothing about R-5, and before this
+/// case no case in the workspace held R-5 at all. (An earlier draft of this
+/// comment said nothing in the suite would notice; measurement disproved it —
+/// `review-code.md` F-24, F-27.)
 ///
 /// **What this holds is narrower than R-5's sentence, and deliberately so.**
 /// Process exit is not `Drop`, so no test in this workspace can assert what a
