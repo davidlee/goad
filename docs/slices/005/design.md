@@ -13,24 +13,22 @@ changed. If this design argues about what the host should do, it has wandered.
 
 ## 2. Current state
 
-- The listener, the envelope's normalization, the refusal vocabulary and the
-  reply writer are all in `crates/goad-shell/src/ingress/`. `bind` needs a Tokio
-  runtime (`mod.rs:155-166`); `envelope::normalize(bytes) -> Result<Event,
-  EnvelopeFault>` is public and pure (`envelope.rs:95`).
+- The listener, the envelope's normalization, the refusal vocabulary and the reply
+  writer are all in `crates/goad-shell/src/ingress/`. `bind` needs a Tokio runtime
+  (`mod.rs:155-166`); `envelope::normalize` is public and pure (`envelope.rs:95`).
 - The reply's wire form is `ingress::mod::Wire` — **private**, `Serialize` only,
   built by `reply(accepted, refusal)` (`mod.rs:592`).
 - `canonical::Event` already *is* the envelope's four fields and derives
   `Serialize`; `Timestamp`'s `Serialize` is `collect_str` over jiff's `Display`,
   the RFC 3339 form R-10 wants.
-- Three things the CLI needs live in `crates/goad`, a stratum-3 crate that links
-  Slint: the configuration-path rule inside `startup::arguments`; the output sink
-  `diagnostics::line_to:312`; and **`clock::wall_clock`**, which exists precisely
-  because `jiff::Timestamp::now()` is unavailable — jiff is
-  `default-features = false` workspace-wide, and enabling `std` in stratum 3
-  unifies into stratum 1's build (`clock.rs:43-47`, POL-001's residue).
+- Three things the CLI needs live in `crates/goad`, which links Slint: the
+  configuration-path rule inside `startup::arguments`; the sink
+  `diagnostics::line_to:312`; and **`clock::wall_clock`**, which exists because
+  `jiff::Timestamp::now()` is unavailable — jiff is `default-features = false`
+  workspace-wide and enabling `std` in stratum 3 unifies into stratum 1's build
+  (`clock.rs:43-47`, POL-001's residue).
 - `clippy.toml` disallows `std::env::var` and `std::process::exit`;
-  `print_stdout`/`print_stderr` are denied workspace-wide;
-  `missing_debug_implementations` is `deny`.
+  `print_stdout`/`print_stderr` and `missing_debug_implementations` are denied.
 
 ## 3. Forces & constraints
 
@@ -39,9 +37,9 @@ changed. If this design argues about what the host should do, it has wandered.
 - **ADR-001.** The new member is stratum 3 — *entry points — the Slint renderer,
   command-line binaries*. It may name both strata below; nothing may name it.
 - **ADR-003 §Consequences/Negative** says a new member needs its own manifest
-  allowlist entry. D-8 disposes of that sentence explicitly.
-- **ADR-005's reasoning:** what places a normalization is **which contract it
-  holds, not which shape it has**.
+  allowlist entry; D-8 disposes of that sentence explicitly. **ADR-005's
+  reasoning:** what places a normalization is which contract it holds, not which
+  shape it has.
 - **CLAUDE.md invariant 2.** Permissive wire, canonical inside; an *ambiguous*
   message fails rather than being guessed at. A field emit does not model is not
   an error — including `protocol`.
@@ -49,8 +47,8 @@ changed. If this design argues about what the host should do, it has wandered.
 ## 4. Guiding principles
 
 1. **The CLI is wiring.** Anything that can be a pure function over its inputs is
-   one, and it lives below the binary. `main` is the only place that reads a
-   clock, an environment, a file or a socket.
+   one, and lives below the binary; `main` alone reads a clock, an environment, a
+   file or a socket.
 2. **One definition per wire field.** The host writes the reply and emit reads
    it; two structs would drift. Same for the envelope, which is `Event` on both
    sides.
@@ -88,18 +86,12 @@ graph TD
   LISTEN --> WIRE
   LISTEN --> EV
 
-  classDef s3f fill:#5c4317,stroke:#8a6620,color:#fff
-  classDef s2f fill:#1f3a5f,stroke:#356,color:#fff
-  classDef s1f fill:#2d5016,stroke:#4a7c26,color:#fff
-  class EMIT,GOAD s3f
-  class CLIENT,WIRE,LISTEN,MOVED s2f
-  class EV s1f
 ```
 
-The load-bearing choice: **`WIRE` has one definition with both directions on
-it**, and `CLIENT` sits beside `LISTEN` rather than inside the binary — ADR-005's
-reasoning applied to the contract's other half. It is what lets every client
-behaviour be tested against the **real** listener in one process, with no binary.
+The load-bearing choice: **`WIRE` has one definition with both directions on it**
+and `CLIENT` sits beside `LISTEN`, not inside the binary — ADR-005's reasoning
+applied to the contract's other half, and what lets every client behaviour be
+tested against the **real** listener in one process.
 
 ### 5.2 Interfaces & contracts
 
@@ -133,7 +125,7 @@ pub enum SendFault {
   Unreachable(io::Error),        // nothing listening at the path, or connect refused
   Faulted(io::Error),            // the connection broke mid-exchange
   NoReply,                       // closed with nothing on it — R-8 says the host is gone
-  Unreadable(serde_json::Error), // bytes arrived; not one JSON object (`{}` lands here)
+  Unreadable(serde_json::Error), // bytes arrived, not one JSON object: `[1,2]`, `not json`
   NonConforming(&'static str),   // parsed, but breaches §6.3 — see 5.5
 }
 ```
@@ -173,8 +165,8 @@ pub fn startup_error_line(error: &StartupFault) -> String;   // config absent, u
 ### 5.3 Data, state & ownership
 
 Nothing is stored and nothing persists. One invocation owns one `Request`, one
-`Event`, one connection, one `Answered`. The socket path is `--socket` or
-`config.ingress.path` read once. The host owns every judgement; emit owns only
+`Event`, one connection, one `Answered`; the socket path is `--socket` or
+`config.ingress.path`, read once. The host owns every judgement; emit owns only
 the exit code it derives from one.
 
 ### 5.4 Lifecycle & dynamics
@@ -216,17 +208,17 @@ absence is D-10, not oversight.
 - **A breach of §6.3 is exit 2, named as the host's.** A reply with no
   `accepted`, or `accepted: false` with no `reason`, is `NonConforming`: emit
   cannot report a reason token a wrapper may branch on, so exit 1 would be the
-  untruth. `{}` never reaches that rule — it is `Unreadable`, a serde error, and
-  the design says so rather than letting a test assert an unreachable outcome
-  (F-5).
+  untruth. **`{}` is one of these**, not a parse failure — every field is
+  `Option`, so it deserializes and then breaches §6.3 by carrying no `accepted`
+  (measured, F-13). `Unreadable` is for bytes that are not one JSON object at
+  all: `[1,2]`, `not json`.
 - **`protocol` is optional on read.** Requiring it would narrow what emit accepts
   from a conforming-enough host for a field emit does not use (invariant 2). The
   host still writes it on every reply.
 - **An unknown reason token prints verbatim** and is still exit 1. The set is
   closed at eight today; a ninth from a newer host is a refusal emit can report
   without understanding.
-- **`retry_after_ms` is reported, never obeyed** — §6.3 calls it advice, not a
-  reservation.
+- **`retry_after_ms` is reported, never obeyed** — §6.3 calls it advice.
 - **`source: "host"` is not pre-empted.** Emit sends it and reports the host's
   `reserved_source` refusal (AC-5); duplicating R-13 client-side would leave the
   host's own rule untested from the only side that exercises it.
@@ -237,14 +229,19 @@ absence is D-10, not oversight.
 - **Assumption:** `Event`'s `Serialize` output is exactly §6.2's four keys.
   Verified today; a field added to `Event` for SPEC-001's benefit would silently
   widen this envelope, so a test pins the key set.
+- **Edge:** a `--data` value that is valid JSON but enormous is the host's to
+  refuse (`too_large`, R-7). **Emit does not second-guess the byte bound**, for
+  the reason it does not pre-empt R-13: a client that duplicated a host rule
+  would leave that rule untested from the only side that exercises it. Nothing
+  in this slice holds R-7 — 004's listener cases do (F-15).
 - **Assumption:** one blocking `UnixStream` needs no runtime, so emit carries no
   `tokio` — and, after the clock lift, no `jiff` either.
 
 ## 6. Open questions
 
-None. OQ-1..OQ-7 are struck in `slice-005.md` with their answers and dates.
-OQ-6's reasoning about `jiff::Timestamp::now()` was wrong and is corrected there
-(F-1); OQ-3's tier argument is completed by D-8 (F-3).
+None. OQ-1..OQ-7 are struck in `slice-005.md` with their answers and dates; OQ-6's
+reasoning about `jiff::Timestamp::now()` was wrong and is corrected there (F-1),
+and OQ-3's tier argument is completed by D-8 (F-3).
 
 ## 7. Decisions, rationale & alternatives
 
@@ -274,19 +271,21 @@ OQ-6's reasoning about `jiff::Timestamp::now()` was wrong and is corrected there
 
 ## 9. Validation
 
-- **Pure units:** `args::parse`, one case per doc-table row, plus both missing
-  required flags, an empty `--source`, an unparseable `--data`. `read_reply` over
-  every `Reply` shape, with no socket. `render::*` asserted as strings.
-- **Against the real listener** (`goad-shell` integration tier, extending 004's
-  `judge`): accepted; a refusal per shape including `reserved_source` from a real
-  `"host"` envelope; `retry_after_ms` surviving the round trip; an unknown reason
-  token; an unknown field; nothing listening; a listener that closes silently.
-- **The built binary** (`goad-emit` integration tier): exit 0 / 1 / 2 against a
-  **blocking `std::os::unix::net::UnixListener` fake** — no runtime — with
-  `envelope::normalize` applied to the bytes it actually received. R-6's framing
-  and R-7's bounds are *not* on that path; they are held by the tier above (F-2).
-- **A person** (AC-8): `just demo`, then `goad-emit --socket ./goad-demo.sock …`,
-  and the view changes.
+Four tiers. The cases are `plan.md`'s Coverage table and its VT ids; restating
+them here would put one list in two homes.
+
+- **Pure units** — `args::parse`, `read_reply` over every `Reply` shape,
+  `render::*` as strings.
+- **The real listener** (`goad-shell` tier, extending 004's `judge`) — the
+  exchange, every refusal shape, `reserved_source` from a real `"host"` envelope,
+  an unknown token, an unknown field. **This tier holds R-6's framing**: a client
+  that framed wrongly draws `timed_out` and reds the case.
+- **The built binary** (`goad-emit` tier) — three exit codes and the bytes it
+  sends, against a blocking `std` fake, asserted through the real
+  `envelope::normalize`. **R-7's bounds are held nowhere in this slice**: 004's
+  listener cases hold them, and emit does not second-guess them (F-15).
+- **A person** (AC-8) — `just demo`, then `goad-emit --socket ./goad-demo.sock …`.
+  The backend leg is here or nowhere.
 
 ## 10. Canon impact
 

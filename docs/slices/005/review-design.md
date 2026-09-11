@@ -127,18 +127,23 @@ above.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | blocker | fix-now | |
-| F-2 | blocker | fix-now | |
-| F-3 | major | fix-now | |
-| F-4 | major | fix-now | |
-| F-5 | major | fix-now | |
-| F-6 | major | fix-now | |
-| F-7 | minor | fix-now | |
-| F-8 | minor | fix-now | |
-| F-9 | minor | fix-now | |
-| F-10 | minor | fix-now | |
-| F-11 | nit | fix-now | |
-| F-12 | nit | fix-now | |
+| F-1 | blocker | fix-now | verified |
+| F-2 | blocker | fix-now | verified |
+| F-3 | major | fix-now | verified |
+| F-4 | major | fix-now | verified |
+| F-5 | major | fix-now (re-disposed r2) | contested |
+| F-6 | major | fix-now | verified |
+| F-7 | minor | fix-now | verified |
+| F-8 | minor | fix-now | verified |
+| F-9 | minor | fix-now | verified |
+| F-10 | minor | fix-now | verified |
+| F-11 | nit | fix-now | verified |
+| F-12 | nit | fix-now | verified |
+| F-13 | major | fix-now | |
+| F-14 | blocker | fix-now | |
+| F-15 | minor | fix-now | |
+| F-16 | minor | fix-now | |
+| F-17 | nit | fix-now | |
 
 ### F-1 — `jiff::Timestamp::now()` does not exist in this workspace, and the reason it does not is a decision already on the page
 
@@ -204,7 +209,7 @@ drops `jiff` from emit's manifest entirely, as the finding predicted; and
 shared with stratum 1 stops, because that is POL-001's residue and reverses a
 prior slice's decision.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-2 — PHASE-04's own tests cannot be written under PHASE-03's manifest, and AC-6 has no other discharge
 
@@ -265,7 +270,7 @@ already said "the bytes a real invocation of the built binary puts on a real
 socket normalize to an `Event`", which is exactly what the case does; it needed
 no weakening.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-3 — the tier-1 argument never engages the one canon sentence about adding a member
 
@@ -324,7 +329,7 @@ and the ruling; `design.md` §3 lists ADR-003 among the forces and D-8 disposes 
 it in the decision row itself, where a later reader looking to reverse the choice
 will actually be standing. Tier stays 1.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-4 — §5.4 rests "no timeout" on R-7, and SPEC-003 §6.4 says R-7 is not the bound that would carry it
 
@@ -376,7 +381,7 @@ with `timeout(1)` as mitigation and "a cron job that never returns" as its signa
 AC-3 states it; PHASE-03/EX-6 requires `--help` to say it; and `--timeout` is a
 named Follow-up for 007, on evidence rather than speculation.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-5 — the `Ambiguous` rule cannot fire for the case its own test names
 
@@ -439,7 +444,11 @@ emit does not use — invariant 2 — while the host keeps writing both
 unconditionally, so D-2's one struct survives and the host's bytes do not change
 (PHASE-01/VT-3 pins that).
 
-**Outcome:**
+**Outcome:** contested — the observation this finding made still stands against the
+repaired artefact, for a new reason. F-5 said the design asserts an outcome its own
+type makes unreachable; D-11 changed the type and left the assertion, so `{}` is now
+claimed `Unreadable` by a type that parses it. Returns to open with **F-13**, which
+carries the measurement and the full sweep D-11 needs.
 
 ### F-6 — VH-1 discharges AC-8, and as written it cannot be run
 
@@ -488,7 +497,7 @@ covers the host's *default* path only and that a host started on an explicit
 configuration is reached with `--socket`. AC-4 says the same and lists the four
 exit-2 endings of that road (see F-9).
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-7 — `Verdict` already means something else in the file PHASE-02 extends
 
@@ -521,7 +530,7 @@ to that very file. The client's type is renamed **`Answered`** in `design.md` §
 the definition so it is not renamed back. The fixture keeps its name: it was there
 first, and its `Verdict` is the better fit for what a judge does.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-8 — EX-3's derive list does not survive the workspace lint table, and EX-4's "otherwise unchanged" is not available
 
@@ -562,7 +571,7 @@ field is `String` — and nothing else in `reply` moves, terminator included. Th
 line is exactly where D-2's decision touches the host, so pointing a reviewer at
 it is better than shielding them from it.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-9 — a configuration that is absent or will not parse is emit's most likely first failure, and no AC or test names it
 
@@ -598,7 +607,7 @@ absent or unreadable; the file unparseable; and a configuration with no
 added to assert one rendered line per ending. The Coverage table's AC-4 row cites
 it.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-10 — the Coverage table presents a clause as tested that no test can see
 
@@ -636,7 +645,7 @@ observable from a rendered line, and what review looks at is named —
 and no arm matches on it. PHASE-03/VT-4 points at the same note rather than
 implying it tests the clause.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-11 — the Scope's "by re-export" is not available and is not what AC-7 describes
 
@@ -666,7 +675,7 @@ nothing in `goad-shell/src/lib.rs` does it today, and AC-7 already put
 depends on `goad-shell` for configuration, the client, the clock and the output
 sink, and on `goad-semantics` **directly** for `Event` and `Timestamp`.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-12 — two declared surfaces contain nothing to change
 
@@ -697,6 +706,285 @@ from the Scope bullet and from PHASE-04's surfaces, and the bullet says why they
 are not surfaces, so the next reader does not re-add them. `examples/demo.toml`
 and the `justfile` stay; PHASE-04/EX-2 says the `justfile` recipe is added only if
 it earns its place.
+
+**Outcome:** verified
+
+### F-13 — D-11 changed the type and left four statements about it standing; `{}` now parses
+
+**Severity:** major
+**Location:** `design.md` §5.2 (the `Unreadable` comment) and §5.5 (first bullet); `plan.md` PHASE-02/VT-5 and PHASE-01/EX-5
+**Round:** 2 — raised against the F-5 repair
+
+**Expected:** F-5's repair makes `protocol` and `accepted` `Option` on the read side
+(D-11, PHASE-01/EX-4) *and* keeps the ruling that `{}` is `Unreadable`: §5.2
+annotates that variant "`{}` lands here"; §5.5 says "`{}` never reaches that rule —
+it is `Unreadable`, a serde error, and the design says so rather than letting a test
+assert an unreachable outcome (F-5)"; PHASE-02/VT-5 asserts "`{}` … is a serde error
+at the parse step above it and is **`Unreadable`**".
+
+**Observed:** the two halves contradict each other. Once both fields are `Option`,
+**every field of `Reply` is `Option`**, and serde's implicit-optional rule — the same
+one that made `{"protocol":1,"accepted":false}` parse in round 1 — makes `{}` parse
+too. Measured on the exact struct §5.2 specifies:
+
+```
+empty  -> Ok(Reply { protocol: None, accepted: None, reason: None, retry_after_ms: None, detail: None })
+acc    -> Ok(Reply { protocol: None, accepted: Some(true), ... })
+arr    -> Err(Error("invalid type: integer `2`, expected a boolean", line: 1, column: 4))
+```
+
+So `{}` reaches `read_reply` with `accepted: None` and is **`NonConforming`**, not
+`Unreadable`. VT-5's first case asserts an unreachable outcome — which is F-5's own
+sentence, now true of the repair. This is the class rather than the instance: the
+design states what a byte string does without checking it against the type it has
+just specified.
+
+A fourth statement fell to the same change. PHASE-01/EX-5 says "**One line changes**:
+`reason: refusal.map(Refusal::reason)` becomes an owning form". Three lines change:
+`protocol: 1` becomes `protocol: Some(1)` and `accepted` becomes `Some(accepted)`,
+because the host must keep writing both unconditionally. That is not cosmetic — it is
+the pair of lines on which "the host's bytes do not change" rests.
+
+**Evidence:** measured, `serde 1` / `serde_json 1`, on §5.2's struct verbatim (output
+above). The write side was measured on the same struct and **is** byte-identical to
+today's `Wire`: `{"protocol":1,"accepted":true}` and
+`{"protocol":1,"accepted":false,"reason":"too_soon","retry_after_ms":1800,"detail":"d"}`
+— so D-11 is sound and PHASE-01/VT-3 does hold it, provided `reply()` writes `Some`.
+A `Reply` built with `protocol: None` serializes as `{"protocol":null,"accepted":null}`,
+which is what VT-3's exact-string comparison exists to catch.
+
+What makes it go away: §5.2's comment, §5.5's first bullet and PHASE-02/VT-5 all say
+`{}` is **`NonConforming`** — it is a JSON object that breaches §6.3 by carrying no
+`accepted`, which is exactly what that variant was renamed to mean. `Unreadable` keeps
+a case of its own; `[1,2]` and `not json` are both real ones (the array is measured
+above). PHASE-01/EX-5 says **three** lines change and names them.
+
+**Disposition:** fix-now
+**Response:** The measurement is right and the finding is the round-1 finding
+inverted, which is the fairest possible thing for a reviewer to catch: the repair
+changed the type and left four statements about it standing. All four are
+corrected to what the type now does. `design.md` §5.2's comment gives
+`Unreadable` its real cases (`[1,2]`, `not json`); §5.5's first bullet says `{}`
+**parses** and is `NonConforming`, a JSON object breaching §6.3 by carrying no
+`accepted`; `plan.md` PHASE-02/VT-5 asserts that, with `[1,2]`/`not json` as
+`Unreadable`'s own cases; and PHASE-01/EX-5 now says **three** lines change and
+names them — `protocol: Some(1)`, `Some(accepted)`, and `reason`'s owning form —
+recording that the first two are what keep the host's bytes identical. The class
+behind it is noted where it can act: the design stated what a byte string does
+without checking it against the type it had just specified, and PHASE-01/VT-2 and
+PHASE-02/VT-5 are now the places that check rather than assert.
+
+**Outcome:**
+
+### F-14 — the clock lift breaks five test files, so PHASE-01 fires S-2 by construction
+
+**Severity:** blocker
+**Location:** `plan.md` PHASE-01/EX-6, S-2, PHASE-01 surfaces and Notes for the implementer
+**Round:** 2 — raised against the F-1 repair
+
+**Expected:** EX-6 — "every existing test in the workspace passes **unedited** (S-2)".
+S-2 — "an existing test anywhere must be **edited** to stay green in PHASE-01. That
+means a lift was a rewrite; **stop and re-plan** rather than adjust the assertion."
+The Notes locate the lift's reach: "`wall_clock` is called from `main.rs:53` and
+`main.rs:116`, and `controller.rs` imports `ClockError` in its test module
+(`controller.rs:769`) — that import changes, the assertions do not."
+
+**Observed:** the reach is wider than the Notes, and it lands in test targets that
+EX-6 forbids touching. Deleting `crates/goad/src/clock.rs` breaks **five test files**
+at compile time, each of which names the module by path:
+
+- `crates/goad/tests/event_loop/closing.rs:16` — `use goad::clock::wall_clock;`
+- `crates/goad/tests/event_loop_schedule/scheduling.rs:21` — `use goad::clock::wall_clock;`
+- `crates/goad/tests/renderer/harness.rs:13` — `use goad::clock::ClockError;`
+- `crates/goad/tests/renderer/scheduling.rs:13` — `use goad::clock::ClockError;`
+- `crates/goad/tests/renderer/startup.rs:17` — `use goad::clock::ClockError;`
+
+Each must be edited to stay green. Under S-2 as written, the implementer must **stop
+and re-plan** on the first one, and EX-6 cannot be discharged at all. A re-export
+would avoid the edits and is unavailable: `clippy::pub_use = "deny"`.
+
+Two production sites are missing from the same list. `crates/goad/src/lib.rs:3`
+(`pub mod clock;`) must go, and `crates/goad/src/controller.rs:18`
+(`use crate::clock::Clock;`) is the **type alias** `Clock`, which appears in four
+production signatures (`controller.rs:274, 477, 532, 581`) — a different symbol from
+the `ClockError` the Notes name at `:769`, which is the *test* module's import.
+Neither `lib.rs` nor the five test files is in PHASE-01's declared surfaces.
+
+This is the shape `docs/memory/a-repair-sweep-misses-the-binding-site.md` records: the
+repair swept the call sites it could see from the design and stopped there. S-5 does
+not catch it — S-5 is about dependency features, and this failure has nothing to do
+with features.
+
+**Evidence:** `grep -rn "clock\|Clock" crates/goad/src crates/goad/tests` — the five
+`use goad::clock::…` lines above, plus `crates/goad/src/lib.rs:3` and
+`crates/goad/src/controller.rs:18`; `Cargo.toml` workspace clippy table,
+`pub_use = "deny"`; `plan.md` PHASE-01/EX-6, S-2.
+
+What makes it go away: S-2 and EX-6 distinguish the two things they currently
+conflate — **an assertion or a fixture changing** (a lift was a rewrite; stop) from
+**an import path changing** (a lift's necessary consequence; proceed). State the
+second as a bounded, enumerated allowance: these five files, `use` lines only, no
+assertion and no fixture touched, and `git diff` over them shows nothing but the
+import. Add `crates/goad/src/lib.rs` and the five test files to PHASE-01's surfaces,
+and correct the Notes to name `controller.rs:18`'s `Clock` alias beside the test
+module's `ClockError`. (`crates/goad/tests/renderer/startup.rs:179` mentions `line_to`
+in a doc comment only — stale prose, not a compile break, and worth the same
+allowance.)
+
+**Disposition:** fix-now
+**Response:** Confirmed by grep before disposing: five test files name
+`goad::clock::…`, plus `src/lib.rs:3`, `src/main.rs:7`, `src/startup.rs:34`, and
+`src/controller.rs:18` — which is the `Clock` **type alias** in four production
+signatures (`:274, :477, :532, :581`), a different symbol from the test module's
+`ClockError` at `:769`. The Notes named the wrong one of those two. As written the
+plan would have halted PHASE-01 on its first import edit.
+
+The repair is the two-sentence one the finding specifies, taken as a class fix.
+**S-2 now separates what it conflated**: an *assertion or fixture* changing means
+a lift was a rewrite and stops the phase; an *import path* changing is a lift's
+necessary consequence and proceeds — bounded and enumerated, `use` lines only,
+with a `git diff` over those files showing nothing else, and anything outside the
+list is S-2 again. **EX-7** is added as that enumeration, citing
+`docs/memory/a-repair-sweep-misses-the-binding-site.md` by name so the next
+sweeper works from a list rather than a grep they trust; EX-6 is rewritten to
+"no assertion and no fixture changed"; the surfaces gain `crates/goad/src/lib.rs`
+and the five test files, marked *import lines only*; EX-3 carries the `Clock`
+alias; and the Notes point at the two sites that are easy to miss, including the
+stale `line_to` doc-comment mention at `renderer/startup.rs:179`.
+
+**Outcome:**
+
+### F-15 — PHASE-04/EX-1 attributes R-7's bounds to a tier that holds no case for them
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-04/EX-1; `design.md` §9 (third bullet) and §5.5
+**Round:** 2 — raised against the F-2 repair
+
+**Expected:** EX-1 — "R-6's framing and R-7's read bounds are *not* on this path, and
+the module doc says so" — with §9 and the F-2 response both placing them "one tier up,
+by PHASE-02's cases against the real listener".
+
+**Observed:** true of R-6, not of R-7. **R-6 is genuinely held**: PHASE-02/VT-1 drives
+`send` into a real `bind`ed listener and requires `Answered::Accepted`, so a client
+that framed wrongly — no newline, no `shutdown(Write)` — would draw `timed_out` and
+turn the case red. That is a real instrument and it is worth the plan saying which
+case it is.
+
+**R-7's bounds are held by nothing in this slice.** No PHASE-02 case sends an
+over-large envelope or a stalled connection; VT-2's "one scripted refusal per
+remaining shape the fixture can produce" cannot reach `too_large` or `timed_out`,
+because those are decided by the listener's own read before the judge sees anything.
+The cases that hold R-7 are 004's
+(`ingress::more_than_the_byte_limit_is_refused_too_large_and_the_limit_itself_is_accepted`,
+`ingress::a_connection_that_writes_nothing_times_out_and_the_listener_serves_next`),
+and they are about the **listener**, not about emit.
+
+The design also lost the sentence that made emit's position on the byte bound legible.
+The round-0 §5.5 carried *"**Edge:** a `--data` value that is valid JSON but enormous
+is the host's to refuse (`too_large`, R-7). Emit does not second-guess the byte
+bound"*, and the rewrite deleted it. It is the R-13 argument applied to R-7 — emit
+does not pre-empt a host rule — and it is the only statement that said so.
+
+**Evidence:** `plan.md` PHASE-02/VT-1..VT-5 (no byte- or time-bound case);
+`docs/specs/003-host-event-ingress.md` §7, rows R-6 and R-7, naming 004's cases;
+`git diff 03b0286 55e0adf -- docs/slices/005/design.md` — the deleted `too_large`
+edge bullet.
+
+What makes it go away: EX-1 splits the claim. R-6's framing is held by **PHASE-02/VT-1**,
+named. R-7's bounds are held by **004's listener cases** and are not emit's to hold —
+emit does not second-guess them, exactly as it does not pre-empt R-13 — and §5.5
+restores the one-line edge bullet that says so.
+
+**Disposition:** fix-now
+**Response:** Accepted in full, including the part that makes the slice's coverage
+look thinner: R-6 is genuinely held and R-7 is held by nothing here. PHASE-04/EX-1
+now splits the claim rather than making one blanket statement — **R-6's framing by
+PHASE-02/VT-1**, named, where a mis-framed write draws `timed_out` from the real
+listener; **R-7's bounds by 004's listener cases**, which are about the listener
+and not about emit. `design.md` §9's third tier says the same, and the deleted
+edge bullet is **restored** to §5.5 with its reason made explicit: emit does not
+second-guess the byte bound for the same reason it does not pre-empt R-13 — a
+client that duplicated a host rule would leave that rule untested from the only
+side that exercises it. That sentence was load-bearing and its loss in the rewrite
+was an accident, not a decision.
+
+**Outcome:**
+
+### F-16 — three statements in `slice-005.md` were not swept by the repairs that falsified them
+
+**Severity:** minor
+**Location:** `slice-005.md` AC-7 (`:120`), OQ-7 (`:248`), §Scope → Tests (`:56`)
+**Round:** 2 — raised against the F-1 and F-2 repairs
+
+**Expected:** `docs/AGENTS.md` §Where it goes puts **current truth** in the artefact
+files, and the Design step requires `slice-nnn.md` be revised for consistency with the
+design. `design.md` D-9 now says "after the lift, emit needs no `jiff` at all";
+PHASE-03/EX-1 says "**no `jiff`**"; PHASE-03/VA-1 asserts the manifest "names no
+`slint`, no `tokio`, no `jiff`"; and PHASE-04 reaches no host at all.
+
+**Observed:** `slice-005.md` still says the opposite in three places. The repairs
+reached `design.md` and `plan.md` thoroughly — `Verdict` and `Ambiguous` are swept
+from both, checked — and stopped at the slice file:
+
+- **AC-7 (`:120`)** — "its manifest names `goad-shell`, `goad-semantics`, `serde_json`
+  and `jiff`". It is the criterion the audit walks, and its own verification (VA-1)
+  now contradicts it.
+- **OQ-7 (`:248`)** — "the manifest is `goad-shell`, `goad-semantics`, `serde_json`,
+  `jiff` and nothing else", in the same answer whose neighbour OQ-6 was corrected to
+  say emit carries no `jiff`.
+- **§Scope → Tests (`:56`)** — "an integration tier in the new crate against a fake
+  listener, **and the end-to-end case that goes through a real host**". After F-2
+  there is no such case: the only thing that goes through a real host is VH-1, which
+  is a person, not a test.
+
+**Evidence:** `slice-005.md:56, 120, 248` against `design.md` D-9 and `plan.md`
+PHASE-03/EX-1, PHASE-03/VA-1, PHASE-04/EX-1.
+
+What makes it go away: AC-7 and OQ-7 drop `jiff` and AC-7 says what the manifest is
+after PHASE-01 (`goad-shell`, `goad-semantics`, `serde_json`); the Scope bullet says
+the real-host leg is AC-8's, observed by a person, not a test.
+
+**Disposition:** fix-now
+**Response:** Confirmed — the repairs swept `design.md` and `plan.md` and stopped
+at the artefact file, which is the file `docs/AGENTS.md` §Where it goes makes
+*current truth* and the one the audit walks. All three corrected: **AC-7** drops
+`jiff` and adds "and no dev-dependency", so it agrees with PHASE-03/VA-1 that
+verifies it; **OQ-7** records the manifest as `goad-shell`, `goad-semantics`,
+`serde_json` after OQ-6's correction, rather than contradicting its own neighbour;
+and **§Scope → Tests** now says what the two test tiers actually are and states
+that **nothing in this slice drives a real host end to end** — the only thing that
+does is AC-8, and a person does it.
+
+**Outcome:**
+
+### F-17 — the same set is three in one place and four in two others
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-03/EX-5 against `slice-005.md` AC-4 and `plan.md` PHASE-03/VT-6
+**Round:** 2 — raised against the F-9 repair
+
+**Expected:** one count of the ways configuration discovery ends at exit 2, since
+`StartupFault`'s variants are what EX-5 is fixing.
+
+**Observed:** EX-5 says "`StartupFault` names the **three** ways that road ends at
+exit 2 — no path discoverable, the file absent or unreadable or unparseable, and a
+config with `ingress: None`", grouping absent/unreadable/unparseable into one. AC-4
+says **four**, separating "the file absent or unreadable" from "the file unparseable",
+and VT-6 asserts **four** rendered lines on the same split. A reader implementing
+`StartupFault` from EX-5 writes three variants and then cannot satisfy VT-6.
+
+**Evidence:** `plan.md` PHASE-03/EX-5 and VT-6; `slice-005.md` AC-4.
+
+What makes it go away: EX-5 says four and splits them as AC-4 does. The distinction
+earns its place — *no file* and *a file that will not parse* have different remedies,
+which is F-9's whole argument.
+
+**Disposition:** fix-now
+**Response:** Agreed, and the count that survives is four, because the split is
+F-9's own argument: *no file* and *a file that will not parse* have different
+remedies and deserve different messages. PHASE-03/EX-5 now says four and splits
+them exactly as AC-4 and VT-6 do, so an implementer writing `StartupFault` from
+the exit criterion produces the four variants VT-6 asserts.
 
 **Outcome:**
 

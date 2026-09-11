@@ -36,9 +36,13 @@ PHASE-04  the binary's evidence, the demo goad-emit tests, examples, justfile
 
 - S-1 — a phase needs a normative sentence written in `docs/specs/`,
   `docs/policy/` or `docs/adr/`. That is the tier-2 signal (`design.md` §10).
-- S-2 — an existing test anywhere must be **edited** to stay green in PHASE-01.
-  That means a lift was a rewrite; stop and re-plan rather than adjust the
-  assertion.
+- S-2 — an existing test's **assertion or fixture** must change to stay green in
+  PHASE-01. That means a lift was a rewrite; stop and re-plan rather than adjust
+  the assertion. **An import path changing is not that**, and is expressly
+  allowed: a lift moves a module, so every `use` naming its old path must follow
+  it. The allowance is bounded and enumerated — the seven sites in PHASE-01/EX-7,
+  `use` lines only, `git diff` over them showing nothing but the import. A file
+  outside that list, or a diff touching anything but a `use`, is S-2 again.
 - S-3 — the client needs `tokio`, or `goad-emit` needs any dependency —
   including a **dev-dependency** — beyond `goad-shell`, `goad-semantics` and
   `serde_json`. A runtime in `dev-dependencies` is still a runtime
@@ -74,8 +78,10 @@ anywhere.
 
 **Surfaces:** `crates/goad-shell/src/{config.rs, report.rs (new), clock.rs (new),
 lib.rs}`, `crates/goad-shell/src/ingress/{mod.rs, wire.rs (new)}`,
-`crates/goad/src/{startup.rs, diagnostics.rs, clock.rs (removed), main.rs,
-controller.rs}`.
+`crates/goad/src/{lib.rs, startup.rs, diagnostics.rs, clock.rs (removed), main.rs,
+controller.rs}`, and — **import lines only** — `crates/goad/tests/{event_loop/closing.rs,
+event_loop_schedule/scheduling.rs, renderer/harness.rs, renderer/scheduling.rs,
+renderer/startup.rs}`.
 
 **Entry**
 - EN-1 — `just check` exit 0 on a clean tree at the slice's base commit, re-run
@@ -89,22 +95,32 @@ controller.rs}`.
 - EX-2 — `goad_shell::report::line_to` exists, with the comment explaining why
   both outcomes are matched. `crates/goad/src/diagnostics.rs` calls it and
   defines no sink of its own; its `*_line` functions do not move.
-- EX-3 — `goad_shell::clock::{wall_clock, ClockError}` exists, moved whole,
-  including the comment recording why `jiff::Timestamp::now()` is not used.
-  `crates/goad/src/clock.rs` is gone; `main.rs`, `controller.rs` and
-  `StartupError::Clock` name the stratum-2 path. **No feature is added to any
-  dependency** (S-5).
+- EX-3 — `goad_shell::clock::{wall_clock, ClockError, Clock}` exists, moved
+  whole, including the comment recording why `jiff::Timestamp::now()` is not used
+  and the `Clock` **type alias** that appears in four `controller.rs` signatures
+  (`:274, :477, :532, :581`). **No feature is added to any dependency** (S-5).
 - EX-4 — `goad_shell::ingress::wire::Reply` is public and derives `Debug`,
   `PartialEq`, `Serialize`, `Deserialize`. `protocol` and `accepted` are
   `Option`, written unconditionally and permissive on read (`design.md` D-11);
   `reason`, `retry_after_ms` and `detail` keep `skip_serializing_if` and gain
   `#[serde(default)]`. No `deny_unknown_fields`, with the reason in its doc
   comment citing CLAUDE.md's permissive-wire invariant.
-- EX-5 — `ingress::mod::reply` builds a `wire::Reply`. **One line changes**:
-  `reason: refusal.map(Refusal::reason)` becomes an owning form now that the
-  field is `String` (`mod.rs:600`). Nothing else in that function moves, the
-  `\n` terminator included.
-- EX-6 — every existing test in the workspace passes **unedited** (S-2).
+- EX-5 — `ingress::mod::reply` builds a `wire::Reply`. **Three lines change**,
+  and the first two are what keep the host's bytes identical: `protocol: 1`
+  becomes `protocol: Some(1)`, `accepted` becomes `Some(accepted)`, and
+  `reason: refusal.map(Refusal::reason)` becomes an owning form now the field is
+  `String` (`mod.rs:598-600`). Nothing else in that function moves, the `\n`
+  terminator included.
+- EX-7 — `crates/goad/src/clock.rs` is deleted and **every site naming it
+  follows the module**, enumerated so the sweep cannot stop early
+  (`docs/memory/a-repair-sweep-misses-the-binding-site.md`): `src/lib.rs:3`
+  (`pub mod clock;` removed), `src/main.rs:7`, `src/controller.rs:18` (the `Clock`
+  alias) and `:769` (the test module's `ClockError`), `src/startup.rs:34`
+  (`StartupError::Clock`), and the five test files in Surfaces. A re-export is not
+  the escape: `clippy::pub_use = "deny"`.
+- EX-6 — every existing test passes with **no assertion and no fixture changed**;
+  the only test-file edits in this phase are the `use` lines EX-7 enumerates
+  (S-2's bounded allowance).
 
 **Verification**
 - VT-1 — `default_path`'s rows: `XDG_CONFIG_HOME` absolute; set but relative
@@ -121,11 +137,19 @@ controller.rs}`.
 **Notes for the implementer**
 
 `line_to` is four lines; the temptation is to inline it and skip the move. Don't —
-OQ-4 recorded the argument. The clock lift is the one with reach: `wall_clock` is
-called from `main.rs:53` and `main.rs:116`, and `controller.rs` imports
-`ClockError` in its test module (`controller.rs:769`) — that import changes, the
-assertions do not. `Wire`'s doc comment explains why the reply is built with
-`serde_json` rather than interpolated; keep it, it is still true.
+OQ-4 recorded the argument.
+
+**The clock lift is the one with reach, and EX-7 is the list to work from rather
+than a grep you trust.** Two sites are easy to miss: `controller.rs:18` imports
+the `Clock` **type alias** — a different symbol from the `ClockError` its test
+module imports at `:769` — and `src/lib.rs:3` declares the module at all. Five
+test files then name `goad::clock::…` by path and must follow it; that is the
+bounded allowance S-2 carves out, not a breach of it. (`renderer/startup.rs:179`
+mentions `line_to` in a doc comment only: stale prose, same allowance, no compile
+break.)
+
+`Wire`'s doc comment explains why the reply is built with `serde_json` rather
+than interpolated; keep it, it is still true.
 
 ---
 
@@ -170,11 +194,13 @@ get a normalized answer, with every failure shape named.
   yields `Refused` with the token verbatim.
 - VT-4 — `SendFault::Unreachable` for a path with nothing listening;
   `SendFault::NoReply` for a listener that accepts and closes silently.
-- VT-5 — over `read_reply`, no socket: `{}` and `{"accepted":true}` — the first
-  is a serde error at the parse step above it and is **`Unreadable`** (F-5), the
-  second parses and is `Accepted` because `protocol` is optional (D-11);
-  `{"protocol":1,"accepted":false}` is `NonConforming`; a reply with an unknown
-  *field* beside the five is fine and is not a fault.
+- VT-5 — over `read_reply`, no socket. **`{}` parses** — every field is `Option`
+  — and is **`NonConforming`**, a JSON object breaching §6.3 by carrying no
+  `accepted` (measured, F-13); `{"accepted":true}` is `Accepted`, because
+  requiring `protocol` would narrow what emit takes (D-11);
+  `{"protocol":1,"accepted":false}` is `NonConforming`; an unknown *field* beside
+  the five is not a fault. `Unreadable`'s own cases are bytes that are not one
+  JSON object: `[1,2]` and `not json`.
 - VA-1 — each negative case has been seen to fail for its own reason: inject the
   defect it guards, run, read the message, revert
   (`docs/memory/a-green-test-can-assert-a-proxy.md`). Where a case asserts two
@@ -211,9 +237,10 @@ it that can be pure is.
 - EX-4 — `main` is the only file reading env, clock, filesystem or socket. It
   returns `ExitCode`; `std::process::exit` is disallowed and is not used.
 - EX-5 — `--socket` skips configuration loading entirely. Without it:
-  `config::default_path`, then `Config::load`. `StartupFault` names the three
-  ways that road ends at exit 2 — no path discoverable, the file absent or
-  unreadable or unparseable, and a config with `ingress: None`.
+  `config::default_path`, then `Config::load`. `StartupFault` names the **four**
+  ways that road ends at exit 2, split as AC-4 and VT-6 split them because the
+  remedies differ: no path discoverable at all; the file absent or unreadable;
+  the file unparseable; a config with `ingress: None`.
 - EX-6 — `--help` on stdout exit 0; a usage error on stderr exit 2, naming the
   flag and not reprinting the usage block (`crates/goad`'s principle 4). The
   help text states that emit waits as long as the host takes (D-10) and that
@@ -261,8 +288,11 @@ real socket, and a person has prompted a real evaluation with it.
   writes one canned reply and closes. No runtime, no `tokio`, no
   `ingress::bind` — which S-3 forbids here and which PHASE-02 exercises properly
   one tier up (F-2). What this tier holds is the **binary**: its exit codes, its
-  stderr, and the bytes it puts on a socket. R-6's framing and R-7's read bounds
-  are *not* on this path, and the module doc says so.
+  stderr, and the bytes it puts on a socket. The module doc states the split
+  precisely (F-15): **R-6's framing is held by PHASE-02/VT-1**, where a
+  mis-framed write draws `timed_out` from the real listener; **R-7's byte and
+  time bounds are held by 004's listener cases** and are not emit's to hold —
+  emit does not second-guess them, exactly as it does not pre-empt R-13.
 - EX-2 — `examples/demo.toml` shows the `goad-emit --socket ./goad-demo.sock`
   line; the raw `socat` one-liner **stays**, labelled as the no-CLI worked
   example, because SPEC-003 is what a second implementation is held to. The

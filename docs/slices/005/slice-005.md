@@ -52,8 +52,11 @@ socket, not here.
   because SPEC-003's contract is what a second implementation is held to.
   `examples/shell/backend.sh` and `README.md` are **not** surfaces: neither
   contains a one-liner to change (F-12).
-- **Tests** — an integration tier in the new crate against a fake listener, and
-  the end-to-end case that goes through a real host.
+- **Tests** — cases against the **real** listener in `goad-shell`'s integration
+  tier, and an integration tier in the new crate that runs the built binary
+  against a blocking `std` fake listener. **Nothing in this slice drives a real
+  host end to end**: the only thing that does is AC-8, and a person does it
+  (F-2, F-16).
 
 ## Non-goals
 
@@ -116,10 +119,11 @@ socket, not here.
       proxy `docs/memory/a-green-test-can-assert-a-proxy.md` warns about. **The
       backend leg is AC-8's**, where a person sees the view change.
 - [ ] AC-7 — `crates/goad-emit` links no renderer, and **the crate edge is what
-      holds it**: its manifest names `goad-shell`, `goad-semantics`,
-      `serde_json` and `jiff`, none of which names `slint`, so a `use slint::…`
-      in the CLI is `error[E0433]`. No new gate instrument — see OQ-3. Evidence
-      at audit is `cargo tree -p goad-emit` with no `slint` in it.
+      holds it**: its manifest names `goad-shell`, `goad-semantics` and
+      `serde_json` — **no `jiff`**, the clock arriving from stratum 2 after the
+      lift (OQ-6), and no dev-dependency — none of which names `slint`, so a
+      `use slint::…` in the CLI is `error[E0433]`. No new gate instrument, see
+      OQ-3. Evidence at audit is `cargo tree -p goad-emit` with no `slint`.
 - [ ] AC-8 — **a person runs it** (`docs/AGENTS.md` §Tiers): `just demo`, then
       an `emit` from another terminal, and the view changes. Recorded in
       `audit.md` under Evidence.
@@ -249,7 +253,10 @@ socket, not here.
   `goad-shell` beside the listener (ADR-005's reasoning), where it is blocking
   code in a crate that also has a runtime; tests call it on `spawn_blocking`,
   which is the shape slice 004's renderer tier already uses for the writer's
-  side.
+  side. **After OQ-6's correction the manifest is `goad-shell`,
+  `goad-semantics` and `serde_json`** — `jiff` drops off with the clock lift,
+  and there are no dev-dependencies, because a runtime in `dev-dependencies` is
+  still a runtime (F-16).
 
 ## Summary
 
