@@ -164,3 +164,15 @@ other, citing the finding id.
   forbids. The host writes both unconditionally, so its bytes are unchanged and
   D-2's single struct survives.
 - **Consequence:** D-11 in `design.md`; PHASE-01/EX-4 and PHASE-02/EX-3, VT-5.
+
+### 2026-09-11 — the plan is accepted
+
+- **Asked:** acceptance of `plan.md` as it stands after the review closed at
+  seventeen findings, with five risks left standing on the record: R-7 held by
+  nothing in this slice, emit's unbounded wait, stratum 3's unbilled manifest,
+  AC-2's last clause review-held rather than tested, and three stale prose
+  mentions of `clock.rs`.
+- **Decided:** accepted, unchanged. Execution begins at PHASE-01.
+- **Consequence:** `slice-005.md` stage moves to *in progress*; PHASE-01's phase
+  sheet is expanded in `notes.md` and its entry criterion discharged at
+  `9471053`.

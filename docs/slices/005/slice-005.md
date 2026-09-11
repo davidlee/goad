@@ -1,6 +1,6 @@
 # Slice 005: `goad emit`
 
-**Stage:** planned
+**Stage:** in progress
 **Tier:** 1 (thin) — see `docs/AGENTS.md` §Tiers. It writes no canon: SPEC-003
 already specifies the envelope, the reply and the closed reason set, and this
 slice is a *client* of that contract rather than an amendment to it. **The one
