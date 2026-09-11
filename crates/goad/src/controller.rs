@@ -15,11 +15,11 @@ use tokio::sync::mpsc;
 use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId};
 use goad_semantics::schedule::wait_for;
 
-use crate::clock::Clock;
 use crate::diagnostics::{Diagnostics, Refused};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
 use crate::wire::{Cancel, Command, Stimulus};
+use goad_shell::clock::Clock;
 
 /// What the person is looking at. One window, three states, **one value** —
 /// "is it visible" and "which mode" are not separable facts, and treating
@@ -766,7 +766,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::{Refused, deadline_after, spacing_elapsed, stamp};
-  use crate::clock::{ClockError, wall_clock};
+  use goad_shell::clock::{ClockError, wall_clock};
 
   #[test]
   fn an_ordinary_wait_is_the_sum() {

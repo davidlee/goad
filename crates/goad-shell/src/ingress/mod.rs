@@ -25,6 +25,7 @@ use envelope::EnvelopeFault;
 use goad_semantics::protocol::canonical::Event;
 
 pub mod envelope;
+pub mod wire;
 
 /// Bounds the bytes a **read** may consume before an envelope ends, not the
 /// connection: a writer that sends this much and keeps the connection open is
@@ -563,25 +564,13 @@ fn round_up_millis(remaining: Duration) -> u64 {
   u64::try_from(ceiling.as_millis()).unwrap_or(u64::MAX)
 }
 
-/// The reply wire form (`SPEC-003` §6.3): one JSON object naming
-/// `protocol`, `accepted`, and — exactly when refused — `reason` and
-/// `detail`, plus `retry_after_ms` exactly when `reason` is `too_soon`
-/// (`R-14`). Built with `serde_json` rather than interpolated, because
-/// `detail` can carry a watcher-chosen key name (`EnvelopeFault::Unknown`,
-/// `Duplicate`) and hand-rolled JSON would let it break the reply's own
-/// syntax.
-#[derive(serde::Serialize)]
-struct Wire<'a> {
-  protocol: u8,
-  accepted: bool,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  reason: Option<&'a str>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  retry_after_ms: Option<u64>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  detail: Option<String>,
-}
-
+/// One JSON object naming `protocol`, `accepted`, and — exactly when refused
+/// — `reason` and `detail`, plus `retry_after_ms` exactly when `reason` is
+/// `too_soon` (`R-14`). Built with `serde_json` rather than interpolated,
+/// because `detail` can carry a watcher-chosen key name
+/// (`EnvelopeFault::Unknown`, `Duplicate`) and hand-rolled JSON would let it
+/// break the reply's own syntax.
+///
 /// **Newline-terminated** (`SPEC-003` §6.3): the terminator is one byte
 /// and strictly widens compatibility — a reader that stops at `\n` and a
 /// reader that reads to EOF both work against a host that emits it, and only
@@ -594,10 +583,10 @@ fn reply(accepted: bool, refusal: Option<&Refusal>) -> String {
     Some(Refusal::TooSoon { retry_after }) => Some(round_up_millis(*retry_after)),
     _no_other_reason_carries_it => None,
   };
-  let wire = Wire {
-    protocol: 1,
-    accepted,
-    reason: refusal.map(Refusal::reason),
+  let wire = wire::Reply {
+    protocol: Some(1),
+    accepted: Some(accepted),
+    reason: refusal.map(|refusal| Refusal::reason(refusal).to_owned()),
     retry_after_ms,
     detail: refusal.map(ToString::to_string),
   };
@@ -845,8 +834,8 @@ fn drain(stream: &UnixStream) {
 #[cfg(test)]
 mod tests {
   use super::{
-    ACCEPT_BACKOFF_BASE, ACCEPT_BACKOFF_CEILING, ACCEPT_FAULT_BUDGET, accept_backoff, lock_path,
-    reply, unreadable,
+    ACCEPT_BACKOFF_BASE, ACCEPT_BACKOFF_CEILING, ACCEPT_FAULT_BUDGET, Duration, Refusal,
+    accept_backoff, lock_path, reply, unreadable, wire,
   };
 
   /// The lock sits **beside** the socket and is named for it — appended, not
@@ -937,6 +926,50 @@ mod tests {
   /// (`tests/integration/ingress.rs`) because this is the function that owes
   /// the byte, and the wire case cannot say which of the two writers produced
   /// it.
+  /// 005/PHASE-01/VT-3. The bytes, not a parse of them: every other
+  /// assertion in the workspace reads this reply through `serde_json`
+  /// (`tests/integration/ingress.rs:185`), which cannot tell `1` from `null`
+  /// or a present field from an absent one. 005 makes `protocol` and
+  /// `accepted` `Option` so the *client* may read a reply without them
+  /// (D-11); this case is what says the *host* still writes both, and writes
+  /// them as the same five bytes it always did.
+  #[test]
+  fn the_reply_s_bytes_are_exactly_these() {
+    assert_eq!(reply(true, None), "{\"protocol\":1,\"accepted\":true}\n");
+    assert_eq!(
+      reply(
+        false,
+        Some(&Refusal::TooSoon {
+          retry_after: Duration::from_millis(1500)
+        })
+      ),
+      "{\"protocol\":1,\"accepted\":false,\"reason\":\"too_soon\",\"retry_after_ms\":1500,\
+       \"detail\":\"inside the minimum spacing; 1500ms remain\"}\n"
+    );
+  }
+
+  /// 005/PHASE-01/VT-2, at the seam the two halves meet: what the listener
+  /// writes is what a client parses. `wire.rs`'s own cases cover the shapes a
+  /// *foreign* host might send; this one covers the shape this host does.
+  #[test]
+  fn what_the_listener_writes_parses_back_to_what_it_built() {
+    let refusal = Refusal::TooSoon {
+      retry_after: Duration::from_millis(1500),
+    };
+    let parsed: wire::Reply =
+      serde_json::from_str(&reply(false, Some(&refusal))).expect("the host's own reply must parse");
+    assert_eq!(
+      parsed,
+      wire::Reply {
+        protocol: Some(1),
+        accepted: Some(false),
+        reason: Some("too_soon".to_owned()),
+        retry_after_ms: Some(1500),
+        detail: Some(refusal.to_string()),
+      }
+    );
+  }
+
   #[test]
   fn a_reply_is_one_newline_terminated_line() {
     let accepted = reply(true, None);

@@ -31,7 +31,7 @@ pub enum StartupError {
   /// Stratum 2's own configuration error, unwrapped and unprefixed.
   Config(goad_shell::error::ConfigError),
   /// The wall clock could not be read.
-  Clock(crate::clock::ClockError),
+  Clock(goad_shell::clock::ClockError),
   /// The async runtime could not be built.
   Runtime(std::io::Error),
   /// A Slint platform call failed — `set_xdg_app_id`, `PromptWindow::new`,
@@ -93,15 +93,10 @@ pub fn listener(configured: Option<&IngressConfig>) -> Result<Ingress, StartupEr
 ///
 /// | arguments | behaviour |
 /// |---|---|
-/// | none | `$XDG_CONFIG_HOME/goad/config.toml` when that variable is set and **absolute**; otherwise `$HOME/.config/goad/config.toml`. `HOME` unset or empty ⇒ [`StartupError::NoConfigPath`], whose text names both variables. |
+/// | none | whatever [`goad_shell::config::default_path`] answers, which is where its own table states the XDG rule; `None` ⇒ [`StartupError::NoConfigPath`], whose text names both variables. |
 /// | `-h` or `--help` | the usage block on stdout, exit 0 — its text is §5.4's, and `--help` is its only destination |
 /// | exactly one, anything else | that path, verbatim; `$XDG_CONFIG_HOME` is not consulted |
 /// | two or more | [`StartupError::Usage`] on stderr, exit 2 — the host does not guess which was meant |
-///
-/// `HOME` is used **as given** and is not required to be absolute: the XDG
-/// basedir spec states the absoluteness rule for `XDG_CONFIG_HOME` and states
-/// nothing of the kind for `HOME`, and a relative `HOME` is a broken
-/// environment the host cannot repair and should not silently reinterpret.
 ///
 /// # Errors
 /// [`StartupError::Usage`] for two or more positional arguments;
@@ -114,15 +109,9 @@ pub fn arguments(
   let rest: Vec<OsString> = argv.skip(1).collect();
 
   match rest.as_slice() {
-    [] => match env("XDG_CONFIG_HOME").filter(|value| PathBuf::from(value).is_absolute()) {
-      Some(xdg) => Ok(Launch::Config(PathBuf::from(xdg).join("goad/config.toml"))),
-      None => match env("HOME") {
-        Some(home) if !home.is_empty() => Ok(Launch::Config(
-          PathBuf::from(home).join(".config/goad/config.toml"),
-        )),
-        _ => Err(StartupError::NoConfigPath),
-      },
-    },
+    [] => goad_shell::config::default_path(env)
+      .map(Launch::Config)
+      .ok_or(StartupError::NoConfigPath),
     [only] if only == "-h" || only == "--help" => Ok(Launch::Help),
     [only] => Ok(Launch::Config(PathBuf::from(only))),
     _ => Err(StartupError::Usage),

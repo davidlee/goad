@@ -13,13 +13,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
-use goad::clock::wall_clock;
 use goad::controller::{Controller, Ending, serve};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
 use goad::wire::{Cancel, Command, Wire};
 use goad_shell::backend::process::ProcessBackend;
+use goad_shell::clock::wall_clock;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
 use goad_shell::host::Host;
 use goad_shell::ingress::Ingress;

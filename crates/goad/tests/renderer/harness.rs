@@ -10,10 +10,10 @@
 use std::rc::Rc;
 use std::time::Duration;
 
-use goad::clock::ClockError;
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad_semantics::protocol::canonical::Timestamp;
+use goad_shell::clock::ClockError;
 use i_slint_backend_testing::init_no_event_loop;
 use slint::{ComponentHandle, Model, VecModel};
 
@@ -27,7 +27,7 @@ pub(crate) fn now() -> Timestamp {
 
 /// A `Clock` (`fn() -> Result<Timestamp, ClockError>`) fixed to [`now`]. A
 /// plain top-level `fn`, not a closure: `Clock` is a `fn` pointer type
-/// (`clock.rs`), the same reason `serve` itself takes one rather than a
+/// (`goad_shell::clock`), the same reason `serve` itself takes one rather than a
 /// `dyn Fn`. Shared by `mod serving`, `mod interaction` and `mod
 /// cancellation`, all of which call `serve` directly.
 #[expect(

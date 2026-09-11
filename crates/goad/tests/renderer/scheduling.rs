@@ -10,10 +10,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use goad::clock::ClockError;
 use goad::controller::{Controller, Ending, serve};
 use goad::wire::{Cancel, Command, Stimulus};
 use goad_semantics::protocol::canonical::Timestamp;
+use goad_shell::clock::ClockError;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
 use goad_shell::ingress::Ingress;
 use tokio::sync::mpsc;
@@ -606,7 +606,7 @@ async fn a_failing_backend_is_retried_unprompted_never_faster_than_the_floor() {
 }
 
 /// A clock that succeeds exactly once and then fails on every subsequent
-/// read. `Clock` is a `fn` pointer (`clock.rs:16`) and cannot capture, so the
+/// read. `Clock` is a `fn` pointer (`goad_shell::clock`) and cannot capture, so the
 /// count lives in a `static`; this fixture is used by exactly one test
 /// (PHASE-03/VT-3, below) — `cargo test` runs cases in parallel threads that
 /// share one binary's statics.

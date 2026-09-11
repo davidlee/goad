@@ -3,7 +3,8 @@
 //! PHASE-04 landed the tray rasteriser: `TrayState`, `ICON_EDGE`, `IDLE`,
 //! `FAULT` and `tray_icon`. PHASE-05 added `Reported`, `Refused`,
 //! `Diagnostics`, `tooltip`, `BUSY_NOTICE`, the two remaining outlets
-//! (`line_to`, `report_platform`) and the escape/bound pipeline every line on
+//! (`goad_shell::report::line_to`, `report_platform`) and the escape/bound
+//! pipeline every line on
 //! this surface goes through. PHASE-08 adds the startup surface's own two
 //! outlets, `USAGE`, `print_usage` and `report_startup`, before a tray or a
 //! window exists. The module carries the arithmetic deny because both halves
@@ -18,6 +19,7 @@ use goad_semantics::protocol::normalize::Discarded;
 use goad_shell::backend::transport::Captured;
 use goad_shell::error::CleanupFailure;
 use goad_shell::host::Failure;
+use goad_shell::report::line_to;
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
 use crate::startup::StartupError;
@@ -304,18 +306,7 @@ pub fn next_check_line(at: Timestamp) -> String {
 /// `Diagnostics` and never touches the tray.
 pub const BUSY_NOTICE: &str = "still working on the last request — try again in a moment";
 
-/// Best effort: if the handle cannot be written there is nowhere left to
-/// report that, and the exit code still carries the fact. `.ok()` and
-/// `drop(..)` both pass the lint table too; this spelling is chosen because
-/// it is the only one of the three that says *both outcomes were considered*
-/// rather than merely *discarded* (design.md §5.4).
-fn line_to(mut sink: impl std::io::Write, line: &str) {
-  match writeln!(sink, "{line}") {
-    Ok(()) | Err(_) => (),
-  }
-}
-
-/// One `const`, no trailing newline — `line_to`'s `writeln!` supplies the
+/// One `const`, no trailing newline — [`line_to`]'s `writeln!` supplies the
 /// one, and two sources of that newline would be a fact stated twice. Its
 /// only destination is `--help`; a usage error names the flag instead and
 /// does not reprint this block (principle 4).

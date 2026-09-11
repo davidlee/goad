@@ -3,8 +3,10 @@
 //! stratum 1's graph (ADR-001, D49).
 
 pub mod backend;
+pub mod clock;
 pub mod config;
 pub mod error;
 pub mod host;
 pub mod ingress;
+pub mod report;
 pub mod state;

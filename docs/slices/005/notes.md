@@ -8,7 +8,7 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | in progress | 2026-09-11 |
+| PHASE-01 | done | 2026-09-11 |
 | PHASE-02 | pending | |
 | PHASE-03 | pending | |
 | PHASE-04 | pending | |
@@ -111,40 +111,91 @@ STOP and consult, per `plan.md` §Sequencing:
 **Tasks**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
 - [x] EN-1 — gate green on a clean tree at `9471053`, transcript kept.
-- [ ] Lift A — `config::default_path` + its doc table (EX-1); `startup::arguments`'
-      `[]` arm delegates; VT-1's five rows as tests; `startup.rs`'s own tests
-      untouched and still green.
-- [ ] Lift B — `goad_shell::report::line_to` (EX-2) with its comment;
-      `diagnostics.rs` calls it and defines no sink; `USAGE`/`print_usage` stay.
-- [ ] Lift C — `clock.rs` moved whole to `goad-shell` (EX-3), `pub mod clock;`
-      added there and removed from `crates/goad/src/lib.rs`; all ten EX-7 sites
-      follow; `crates/goad/src/clock.rs` deleted.
-- [ ] Lift D — `ingress/wire.rs` with `pub struct Reply` (EX-4); `reply()` builds
-      it, three lines changed (EX-5); VT-2's round-trip cases; VT-3's exact-byte
-      cases.
-- [ ] VA-1 — `git diff` over `crates/goad`: call sites, their imports, and the
-      deletion of `clock.rs`, and nothing else.
-- [ ] `just check` exit 0; EX-6 confirmed by reading the test-file diff — `use`
-      lines only.
+- [x] Lift A — `config::default_path` + its doc table (EX-1) at
+      `crates/goad-shell/src/config.rs:22-51`; `startup::arguments`' `[]` arm
+      delegates in three lines; VT-1's five rows are tests in that module;
+      `startup.rs`'s own tests untouched and green.
+- [x] Lift B — `goad_shell::report::line_to` (EX-2) with its comment;
+      `diagnostics.rs` imports it and defines no sink; `USAGE`/`print_usage`
+      stayed. `report.rs` gained two cases of its own — a `Vec<u8>` sink and a
+      sink whose every write fails — so "best effort" is asserted rather than
+      only described.
+- [x] Lift C — `clock.rs` moved whole by `git mv` (EX-3), `pub mod clock;` added
+      to `goad-shell` and removed from `crates/goad/src/lib.rs`; all ten EX-7
+      sites follow, plus the three prose sites.
+- [x] Lift D — `ingress/wire.rs` with `pub struct Reply` (EX-4); `reply()`
+      builds it, three lines changed (EX-5); VT-2 across both modules; VT-3's
+      exact-byte case.
+- [x] VA-1 — `git diff` over `crates/goad` is the two call sites, seven import
+      or comment lines, the deletion of `line_to` and of `pub mod clock;`, and
+      the file move. Nothing else.
+- [x] `just check` exit 0. EX-6 confirmed by reading the test-file diff: five
+      `use` lines and two doc-comment lines across the five files, no assertion
+      and no fixture touched.
 
 **Decisions taken during execution**
-<!-- Small and local: how, within what the design already settled. -->
+
+- **VT-3 is written as a characterization test, and it was green before the
+  lift.** It asserts `reply`'s bytes on the pre-lift code, then again after —
+  which is the only ordering in which a regression net for a lift means
+  anything. Red/green would have meant writing a test that *wanted* the bytes
+  to change.
+- **No field of `wire::Reply` carries `#[serde(default)]`**, where EX-4 said
+  three of them would. Measured: serde reads a missing `Option` field as `None`
+  without it, so the attribute is inert on all five — and inert on three fields
+  but absent on two would imply a difference in read behaviour that does not
+  exist. The struct's doc comment now says this, and
+  `an_empty_object_parses_and_carries_nothing` holds it. EX-4's *purpose*
+  (absent-tolerant on read, D-11) is discharged; only its spelling differs.
+- **The three prose sites were tidied**, which EX-7 permits and does not
+  require. `crates/goad/Cargo.toml`'s comment is the one that mattered: it
+  justified the `jiff` entry by `clock.rs`, which is no longer there, and it now
+  names `diagnostics.rs`'s `TimestampRound` — still true, and still in
+  production code rather than a test.
+- **The clock module's own prose moved with it.** Two sentences were about its
+  stratum, and both would have been false at stratum 2: the module doc now says
+  why it sits there (005/D-9), and `wall_clock`'s comment says features unify
+  across the *workspace* build rather than naming stratum 3.
 
 **Findings**
-<!-- Things noticed in passing that are not this phase's job. -->
+
+- `StartupError::NoConfigPath`'s sentence and `diagnostics::USAGE` both still
+  name `XDG_CONFIG_HOME` and `HOME` in prose. That is host-facing text rather
+  than the rule, and EX-1's "appears once in the workspace" is about the logic,
+  which does. Worth an eye at audit: three places now describe one rule, and
+  only one of them is executable.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-11 · PHASE-01 phase plan · 9471053
+**Fresh as of:** 2026-09-11 · PHASE-01 complete · gate green
 
 ### Produced
-<!-- What now exists: modules, contracts, docs. -->
+
+- `goad_shell::config::default_path` — the XDG rule, with its table, tested at
+  five rows. `startup::arguments` is its only caller today.
+- `goad_shell::report::line_to` — the sink, with two cases of its own.
+- `goad_shell::clock` — `wall_clock`, `ClockError`, the `Clock` alias; moved
+  whole from `crates/goad`.
+- `goad_shell::ingress::wire::Reply` — public, both directions, no
+  `deny_unknown_fields`. `ingress::reply` builds it; the host's bytes are
+  pinned by `the_reply_s_bytes_are_exactly_these`.
 
 ### Learned
-<!-- Durable facts a future agent would otherwise rediscover. -->
+
+- **serde reads a missing `Option` field as `None` with no `#[serde(default)]`.**
+  Three plan lines assumed otherwise. The attribute is not wrong, it is inert.
+- **004's wire assertions all go through `serde_json::from_str`**
+  (`tests/integration/ingress.rs:185`), so until this phase nothing in the
+  workspace could tell `"protocol":1` from `"protocol":null`. A wire contract
+  wants at least one assertion over bytes.
+- A lift's regression net is written *before* the lift and must be green when
+  written. If it is red, it is not a net — it is a specification of a change.
 
 ### Open
-<!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- Three places state the configuration-path rule: `default_path`'s table,
+  `StartupError::NoConfigPath`'s sentence, `diagnostics::USAGE`. One is
+  executable. See Findings.

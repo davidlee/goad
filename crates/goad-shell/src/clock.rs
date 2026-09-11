@@ -1,9 +1,13 @@
-//! The wall clock — design.md §5.4, one function wide (D15).
+//! The wall clock — 003's design.md §5.4, one function wide (D15).
 //!
 //! Not a timer: slice 003 owns the schedule. This module only answers "what
 //! time is it", as a `Result` rather than a panic, so an instant outside
 //! jiff's representable range becomes a refusal rather than taking the
 //! process down.
+//!
+//! Stratum 2, not 3: reading a clock is I/O, and by 005 there are two entry
+//! points that need the answer. One of them must not link the renderer, so a
+//! second copy of this judgement would be the alternative (005/D-9).
 
 use goad_semantics::protocol::canonical::Timestamp;
 use std::time::SystemTime;
@@ -42,9 +46,11 @@ impl std::error::Error for ClockError {}
 
 /// `SystemTime::now().duration_since(UNIX_EPOCH)`, then
 /// `jiff::Timestamp::from_nanosecond`. **Not** `jiff::Timestamp::now()`,
-/// which needs jiff's `std` feature — enabling it in stratum 3 unifies it
-/// into stratum 1's build, weakening the purity claim in a way the manifest
-/// test cannot see (`Cargo.toml:23`, D25).
+/// which needs jiff's `std` feature — and features unify across the
+/// workspace build, so enabling it anywhere enables it in stratum 1, which
+/// carries `jiff` with `default-features = false` for exactly that reason
+/// (the workspace `Cargo.toml`'s `jiff` line, D25). The manifest test cannot
+/// see a feature, only a name (`docs/policy/001-the-phase-gate.md`).
 ///
 /// The `SystemTimeError` `duration_since` returns is discarded with a
 /// **named** binding: it carries only the size of the negative offset,

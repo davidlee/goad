@@ -14,9 +14,9 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use goad::clock::ClockError;
 use goad::diagnostics::{USAGE, print_usage, report_platform_line, report_startup_line};
 use goad::startup::{Launch, StartupError, arguments, listener};
+use goad_shell::clock::ClockError;
 use goad_shell::config::IngressConfig;
 use goad_shell::error::ConfigError;
 

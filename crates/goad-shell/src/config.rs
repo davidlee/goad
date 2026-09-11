@@ -10,12 +10,44 @@
 //! the user's own — nothing in this module computes over anything a backend
 //! chose.
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
 use crate::error::ConfigError;
 use goad_semantics::schedule::parse_span;
+
+/// Where the configuration is read from when a caller is given no path: the
+/// XDG basedir rule, stated once for every caller rather than once per binary.
+///
+/// Pure over the environment it is handed, so the table below is a test rather
+/// than a claim.
+///
+/// | environment | answer |
+/// |---|---|
+/// | `XDG_CONFIG_HOME` set and **absolute** | `$XDG_CONFIG_HOME/goad/config.toml` |
+/// | `XDG_CONFIG_HOME` unset, empty or relative, `HOME` non-empty | `$HOME/.config/goad/config.toml` |
+/// | neither names a directory | `None` — what an absent default means is the caller's to say |
+///
+/// `HOME` is used **as given** and is not required to be absolute: the XDG
+/// basedir spec states the absoluteness rule for `XDG_CONFIG_HOME` and states
+/// nothing of the kind for `HOME`, and a relative `HOME` is a broken
+/// environment nothing here can repair and none of this should silently
+/// reinterpret.
+///
+/// The environment arrives as a function rather than being read here:
+/// `clippy.toml` disallows `std::env::var`, and a rule that takes its input as
+/// an argument is testable without mutating the process.
+pub fn default_path(env: &dyn Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+  match env("XDG_CONFIG_HOME").filter(|value| PathBuf::from(value).is_absolute()) {
+    Some(xdg) => Some(PathBuf::from(xdg).join("goad/config.toml")),
+    None => match env("HOME") {
+      Some(home) if !home.is_empty() => Some(PathBuf::from(home).join(".config/goad/config.toml")),
+      _neither_names_a_directory => None,
+    },
+  }
+}
 
 /// The parsed form.
 ///
@@ -437,5 +469,68 @@ default_poll = "30m"
       "no [ingress] section must yield ingress: None, not {:?}",
       config.ingress
     );
+  }
+
+  // ---- 005/PHASE-01/VT-1: the default configuration path's rows ----
+  //
+  // The same rows `crates/goad`'s `startup::arguments` tests assert through
+  // its `[]` arm. They stay where they are: this tier asserts the rule, that
+  // one asserts that the host still reaches it.
+
+  /// One row of the environment, as `default_path` takes it.
+  fn env_of<'a>(
+    pairs: &'a [(&'a str, &'a str)],
+  ) -> impl Fn(&str) -> Option<std::ffi::OsString> + 'a {
+    move |name| {
+      pairs
+        .iter()
+        .find(|(key, _)| *key == name)
+        .map(|(_, value)| std::ffi::OsString::from(*value))
+    }
+  }
+
+  #[test]
+  fn an_absolute_xdg_config_home_is_the_path() {
+    assert_eq!(
+      super::default_path(&env_of(&[
+        ("XDG_CONFIG_HOME", "/xdg"),
+        ("HOME", "/home/it")
+      ])),
+      Some("/xdg/goad/config.toml".into())
+    );
+  }
+
+  #[test]
+  fn a_relative_xdg_config_home_is_ignored_and_home_answers() {
+    assert_eq!(
+      super::default_path(&env_of(&[
+        ("XDG_CONFIG_HOME", "relative"),
+        ("HOME", "/home/it")
+      ])),
+      Some("/home/it/.config/goad/config.toml".into()),
+      "the XDG basedir spec states the absoluteness rule; a relative value is not a path"
+    );
+  }
+
+  #[test]
+  fn with_no_xdg_config_home_the_path_is_under_home() {
+    assert_eq!(
+      super::default_path(&env_of(&[("HOME", "/home/it")])),
+      Some("/home/it/.config/goad/config.toml".into())
+    );
+  }
+
+  #[test]
+  fn an_empty_home_names_no_directory() {
+    assert_eq!(
+      super::default_path(&env_of(&[("HOME", "")])),
+      None,
+      "an empty HOME names no directory, so `/.config/goad/config.toml` is not the answer"
+    );
+  }
+
+  #[test]
+  fn with_neither_variable_there_is_no_default_path() {
+    assert_eq!(super::default_path(&env_of(&[])), None);
   }
 }

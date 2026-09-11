@@ -4,7 +4,6 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::rc::Rc;
 
-use goad::clock;
 use goad::controller::Controller;
 use goad::diagnostics;
 use goad::generated::{OptionRow, PromptWindow, Tray};
@@ -13,6 +12,7 @@ use goad::install::install;
 use goad::startup::{self, Launch, StartupError};
 use goad::wire::{Cancel, Command, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
+use goad_shell::clock;
 use goad_shell::config::Config;
 use goad_shell::host::Host;
 use slint::{ComponentHandle, VecModel};
