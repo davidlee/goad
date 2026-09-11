@@ -30,22 +30,28 @@ socket, not here.
 
 ## Scope
 
-- **`crates/goad-emit/`** — a new workspace member with one binary. It depends
-  on `goad-shell` (config, and the envelope's canonical types by re-export) and
-  on nothing that links Slint. This is where all new code goes.
+- **`crates/goad-emit/`** — a new workspace member with one binary. It depends on
+  `goad-shell` (configuration, the client, the clock and the output sink) and on
+  `goad-semantics` directly for `Event` and `Timestamp` — **not by re-export**,
+  which `clippy::pub_use = "deny"` would refuse and which nothing in `goad-shell`
+  does today (F-11). Nothing it names links Slint. All new code goes here.
 - **`Cargo.toml`** — one `workspace.members` entry, enumerated, never a glob.
-- **`crates/goad-shell/`** — the production edits outside the new crate, all of
-  them moves rather than new behaviour (OQ-2, OQ-4): `config::default_path`, the
-  configuration-path rule lifted out of `crates/goad/src/startup.rs`; the
-  reply's wire type made `pub` and given `Deserialize` beside the `Serialize`
-  the host already writes with; the client half of SPEC-003's contract —
-  connect, write, read one reply, normalize it — beside the listener it talks
-  to; and `report::line_to`, lifted from `crates/goad/src/diagnostics.rs`.
-- **`crates/goad/`** — the two call sites those moves leave behind.
-- **`justfile`, `examples/demo.toml`, `examples/shell/backend.sh`** — the demo's
-  documented one-liner becomes `goad-emit`; the raw `socat` line stays as the
-  no-CLI worked example, because SPEC-003's contract is what a second
-  implementation is held to.
+- **`crates/goad-shell/`** — the production edits outside the new crate, all but
+  one of them moves rather than new behaviour (OQ-2, OQ-4, OQ-6): **four lifts** —
+  `config::default_path` (the configuration-path rule out of
+  `crates/goad/src/startup.rs`), `report::line_to` (out of `diagnostics.rs`),
+  `clock::wall_clock` with its `ClockError` (out of `crates/goad/src/clock.rs`,
+  whole), and the reply's wire type made `pub` with `Deserialize` beside the
+  `Serialize` the host already writes with — plus the one genuinely new thing,
+  the client half of SPEC-003's contract: connect, write, read one reply,
+  normalize it, beside the listener it talks to.
+- **`crates/goad/`** — the call sites those lifts leave behind, and the deletion
+  of `clock.rs`.
+- **`justfile`, `examples/demo.toml`** — the demo's documented one-liner gains a
+  `goad-emit` form; the raw `socat` line stays as the no-CLI worked example,
+  because SPEC-003's contract is what a second implementation is held to.
+  `examples/shell/backend.sh` and `README.md` are **not** surfaces: neither
+  contains a one-liner to change (F-12).
 - **Tests** — an integration tier in the new crate against a fake listener, and
   the end-to-end case that goes through a real host.
 
@@ -79,12 +85,24 @@ socket, not here.
 - [ ] AC-3 — no socket at the path, a connection that fails or faults, a reply
       that is not readable as one JSON object, and a usage error each exit
       **2**, with a message naming which of those happened and the path
-      involved. Exit 2 never means "the host refused it".
+      involved. Exit 2 never means "the host refused it" — and it also covers a
+      reply that *breaches* SPEC-003 §6.3 (no `accepted`, or `accepted: false`
+      with no `reason`), because emit then has no reason token to report and
+      exit 1 promises one. **Emit sets no deadline of its own**: SPEC-003 §6.4
+      makes the wait for judgement unbounded by contract, so a caller that needs
+      one wraps the invocation (`timeout 5 goad-emit …`). See the `--timeout`
+      Follow-up.
 - [ ] AC-4 — the socket path comes from the host's own configuration, found by
-      the same rule the host uses (`$XDG_CONFIG_HOME/goad/config.toml`, else
-      `$HOME/.config/goad/config.toml`); `--socket` overrides it and consults no
-      configuration at all. A configuration with no `[ingress]` section is an
-      exit-2 error saying the host is not configured to listen.
+      the same rule the host uses for its **default** path
+      (`$XDG_CONFIG_HOME/goad/config.toml`, else `$HOME/.config/goad/config.toml`);
+      `--socket` overrides it and consults no configuration at all. Four ways
+      that road ends at **exit 2**, each naming the path and the fault: no path
+      discoverable at all; the file absent or unreadable; the file unparseable;
+      and a configuration with no `[ingress]` section, which says the host is not
+      configured to listen. The host additionally accepts a configuration path as
+      a positional argument and emit has no equivalent — so a host started on an
+      explicit configuration is reached with `--socket` (F-6, and the `--config`
+      Follow-up).
 - [ ] AC-5 — a `source` of `"host"` is refused **by the host**, and `emit`
       reports that refusal like any other (exit 1, reason `reserved_source`).
       The CLI does not pre-empt the check: SPEC-003/R-13 is the host's
@@ -178,6 +196,21 @@ socket, not here.
   `crates/goad` since 002. Closing it means one allowlist row for stratum 3
   covering both members, argued on its own terms; **Follow-ups** carries it, and
   after 006 is the earliest it is worth taking.
+
+  **The canon sentence that pulls the other way** (review F-3, user ruling
+  2026-09-11): ADR-003 §Consequences/Negative says *"a new workspace member needs
+  its own entry in the manifest allowlist and its own reach in the vocabulary
+  scan's walk, and nothing but review catches a member added without either."*
+  Half of it is already stale — the vocabulary scan reads `workspace.members` for
+  itself, so a new member arrives covered
+  (`crates/goad-boundary/tests/checks/vocabulary.rs:45-58`). The other half is
+  **already untrue of `crates/goad`**, which has carried no row since 002: the
+  sentence states a review obligation over-broadly rather than a rule the
+  instrument implements. This slice discharges that obligation the way an
+  obligation is discharged — by deciding it in the open, with the evidence, and
+  recording the residue as a Follow-up — rather than by silence. Reading it as
+  binding would mean a row plus a POL-001 amendment; correcting its wording would
+  mean a `canon-delta.md`; both are tier 2, and the user ruled for neither.
 - ~~OQ-4 — **How the CLI writes to stderr and stdout.**~~ **Reuse the shape, and
   move the helper down**, 2026-09-11. `clippy::print_stdout` and `print_stderr`
   are denied workspace-wide, so emit needs the same route `crates/goad` uses: a
@@ -197,11 +230,17 @@ socket, not here.
   one: emit re-serializes, so key order and float precision normalize, and the
   *spelling* was never promised.
 - ~~OQ-6 — **Whether `--timestamp` exists at all.**~~ **No flag**, 2026-09-11.
-  Replay is speculative, every caller can already lie by other means, and
-  `jiff::Timestamp::now()` through `goad_semantics::protocol::canonical::Timestamp`
-  gives R-10's explicit offset for free — that type's `Serialize` is
-  `collect_str` over jiff's `Display`, which is already the RFC 3339 form.
-  Revisit in 007 if use asks.
+  Replay is speculative and every caller can already lie by other means.
+  **The original reasoning was wrong and is corrected** (review F-1): it said
+  `jiff::Timestamp::now()` gives R-10's offset for free, but `jiff` is
+  `default-features = false` workspace-wide and `Timestamp::now` is behind its
+  `std` feature — which `crates/goad/src/clock.rs:43-47` already refused to
+  enable, because a feature switched on in stratum 3 unifies into stratum 1's
+  build (POL-001's named residue). The instant therefore comes from
+  `clock::wall_clock`, lifted to `goad-shell` as a **fourth** move; what is still
+  true is that `canonical::Timestamp`'s `Serialize` is `collect_str` over jiff's
+  `Display` and is already the RFC 3339 form R-10 wants. After the lift emit
+  carries no `jiff` at all. Revisit in 007 if use asks.
 
 - OQ-7 — **Raised here, 2026-09-11, and answered in the same breath: no `tokio`
   in emit.** One connection, one write, one read, exit — `std::os::unix::net::UnixStream`
@@ -221,7 +260,18 @@ socket, not here.
 <!-- Deferred work surfaced by this slice. Each becomes a future slice or a
      line in a spec. -->
 
-- **Stratum 3 carries no manifest allowlist row** (OQ-3). `crates/goad` has been
+- **`--timeout`, or no deadline at all** (review F-4). SPEC-003 §6.4 makes the
+  host's wait for judgement unbounded *by contract*: a host not making progress
+  holds the connection, and the writer waits with it "rather than being told
+  something untrue". Emit therefore blocks indefinitely and callers wrap it with
+  `timeout(1)`. If real use finds that wrong, the flag exits 2 on expiry with a
+  message saying the host may still act on the envelope — 007, on evidence.
+- **`--config PATH`** (review F-6). The host takes a configuration path as a
+  positional argument; emit takes only `--socket`. Every host anyone has run so
+  far was started on an explicit configuration, so `--socket` is the only route
+  to it today. 006 is where the default path starts being the real one, and is
+  where this either becomes obvious or stops mattering.
+- **Stratum 3 carries no manifest allowlist row** (OQ-3, review F-3). `crates/goad` has been
   unbilled since 002 and `crates/goad-emit` joins it. Nothing but review stops a
   future edit naming `slint` or `tokio` in either. Closing it is one row plus a
   POL-001 Verification amendment — tier 2 by construction, and worth taking on

@@ -7,14 +7,13 @@ design or canon; if it seems to, the plan is wrong.
 
 Four phases, in strict dependency order, each one agent-session sized.
 
-The shape of the work is deliberately **bottom-up**: everything the CLI needs
-exists and is tested before the CLI exists, so the binary itself is the smallest
-and least interesting phase. Two of the four touch no new behaviour at all —
-PHASE-01 moves three things down a stratum, PHASE-04 spends most of its budget
-on evidence.
+The work is deliberately **bottom-up**: everything the CLI needs exists and is
+tested before the CLI exists, so the binary itself is the smallest phase. Two of
+the four touch no new behaviour — PHASE-01 moves four things down a stratum,
+PHASE-04 spends most of its budget on evidence.
 
 ```
-PHASE-01  three lifts, no new behaviour   goad-shell, goad
+PHASE-01  four lifts, no new behaviour    goad-shell, goad
 PHASE-02  the client half of SPEC-003     goad-shell
 PHASE-03  the crate and the binary        goad-emit (new)
 PHASE-04  the binary's evidence, the demo goad-emit tests, examples, justfile
@@ -22,95 +21,110 @@ PHASE-04  the binary's evidence, the demo goad-emit tests, examples, justfile
 
 ## Sequencing & rationale
 
-- **01 before 02** because the client needs `wire::Reply` to be public and
-  deserializable, and doing that as part of the client phase would mix a lift
-  with new behaviour in one diff — the shape that makes a review argue about two
-  things at once.
+- **01 before 02** because the client needs `wire::Reply` public and
+  deserializable and needs a clock it can reach; doing those inside the client
+  phase mixes lifts with new behaviour in one diff.
 - **02 before 03** because every client behaviour is testable against the real
-  listener with no binary in the picture. If the CLI phase is where a wire
-  question first gets asked, the design was wrong.
-- **03 before 04** trivially: nothing can spawn a binary that does not exist.
+  listener with no binary. If a wire question is first asked in the CLI phase,
+  the design was wrong.
+- **03 before 04** trivially: nothing spawns a binary that does not exist.
 - **Could be reordered:** nothing. **Could be dropped:** nothing, though
-  PHASE-04's `examples/` and `justfile` edits could slip to 006 if a session
-  runs out of room — they are the only part of the slice that is documentation
-  rather than behaviour, and AC-8 needs them.
+  PHASE-04's `examples/` and `justfile` edits could slip to 006 — they are the
+  only documentation-rather-than-behaviour part, and AC-8 needs them.
 
 **STOP conditions**, at any phase:
 
-- S-1 — a phase needs a normative sentence written anywhere in `docs/specs/`,
+- S-1 — a phase needs a normative sentence written in `docs/specs/`,
   `docs/policy/` or `docs/adr/`. That is the tier-2 signal (`design.md` §10).
-- S-2 — an existing 004 ingress test must be edited to stay green in PHASE-01.
-  That means a lift was a rewrite; stop and re-plan rather than adjusting the
+- S-2 — an existing test anywhere must be **edited** to stay green in PHASE-01.
+  That means a lift was a rewrite; stop and re-plan rather than adjust the
   assertion.
-- S-3 — the client needs `tokio` (`design.md` §5.5), or `goad-emit` needs any
-  dependency beyond `goad-shell`, `goad-semantics`, `serde_json`, `jiff`.
-- S-4 — AC-6's case cannot read the normalized `Event`, and the nearest
-  available assertion is over emit's own bytes. That is `R-3`'s proxy; raise it
+- S-3 — the client needs `tokio`, or `goad-emit` needs any dependency —
+  including a **dev-dependency** — beyond `goad-shell`, `goad-semantics` and
+  `serde_json`. A runtime in `dev-dependencies` is still a runtime
+  (`crates/goad-boundary/tests/checks/allowlist.rs:49-53`).
+- S-4 — AC-6's case cannot read a **normalized `Event`**, and the nearest
+  available assertion is over emit's own bytes. That is R-3's proxy; raise it
   rather than settle for it.
+- S-5 — PHASE-01's clock lift cannot be done without enabling a feature on a
+  dependency shared with stratum 1. That is POL-001's residue, it reverses a
+  prior slice's decision (`crates/goad/src/clock.rs:43-47`), and it is a design
+  question, not an implementation one.
 
 ## Coverage
 
 | AC | discharged by |
 |----|---------------|
 | AC-1 | PHASE-02/VT-1 (the exchange), PHASE-04/VT-1 (exit 0 from the binary) |
-| AC-2 | PHASE-02/VT-2, VT-3 (refusals, `retry_after_ms`, unknown token), PHASE-03/VT-4 (the rendered line), PHASE-04/VT-2 (exit 1) |
-| AC-3 | PHASE-02/VT-4, VT-5 (unreachable, no reply, unreadable, ambiguous), PHASE-03/VT-2 (usage errors), PHASE-04/VT-3 (exit 2) |
-| AC-4 | PHASE-01/VT-1 (`default_path`'s rows), PHASE-03/VT-3 (`--socket` wins and reads no config; a config with no `[ingress]` is exit 2) |
+| AC-2 | PHASE-02/VT-2, VT-3 (refusals, `retry_after_ms`, unknown token), PHASE-03/VT-4 (the rendered line), PHASE-04/VT-2 (exit 1). **Its last clause — "nothing branches on `detail`" — is review-held, not tested**, in the form SPEC-003 §7 uses for such a clause: `detail` is an absence of code, and a test that renders a line containing it cannot tell appending from branching. What review checks: `refused_line` is the one function reading `detail`, it interpolates the string and no arm matches on it |
+| AC-3 | PHASE-02/VT-4, VT-5 (unreachable, no reply, unreadable, non-conforming), PHASE-03/VT-2 (usage errors), PHASE-04/VT-3 (exit 2) |
+| AC-4 | PHASE-01/VT-1 (`default_path`'s rows), PHASE-03/VT-3 (`--socket` wins and reads no config), PHASE-03/VT-6 (an absent, unreadable or unparseable config, and one with no `[ingress]`, are exit 2 naming the path) |
 | AC-5 | PHASE-02/VT-2 (`reserved_source` reported, not pre-empted) |
 | AC-6 | PHASE-04/VT-4 |
-| AC-7 | PHASE-03/VA-1 (the manifest), PHASE-04/VA-2 (`cargo tree`) |
+| AC-7 | PHASE-03/VA-1 (the manifest), PHASE-04/VA-1 (`cargo tree`) |
 | AC-8 | PHASE-04/VH-1 |
 
 ---
 
-## PHASE-01 — three lifts, and nothing else
+## PHASE-01 — four lifts, and nothing else
 
-**Objective:** the configuration-path rule, the output sink and the reply's wire
-type are all reachable from stratum 2, with no behaviour changed anywhere.
+**Objective:** the configuration-path rule, the output sink, the wall clock and
+the reply's wire type are all reachable from stratum 2, with no behaviour changed
+anywhere.
 
-**Surfaces:** `crates/goad-shell/src/config.rs`, `crates/goad-shell/src/report.rs`
-(new), `crates/goad-shell/src/ingress/mod.rs`, `crates/goad-shell/src/ingress/wire.rs`
-(new), `crates/goad-shell/src/lib.rs`, `crates/goad/src/startup.rs`,
-`crates/goad/src/diagnostics.rs`.
+**Surfaces:** `crates/goad-shell/src/{config.rs, report.rs (new), clock.rs (new),
+lib.rs}`, `crates/goad-shell/src/ingress/{mod.rs, wire.rs (new)}`,
+`crates/goad/src/{startup.rs, diagnostics.rs, clock.rs (removed), main.rs,
+controller.rs}`.
 
 **Entry**
-- EN-1 — `just check` exit 0 on a clean tree at the slice's base commit,
-  re-run before anything is edited, transcript kept.
+- EN-1 — `just check` exit 0 on a clean tree at the slice's base commit, re-run
+  before anything is edited, transcript kept.
 
 **Exit**
-- EX-1 — `goad_shell::config::default_path(env) -> Option<PathBuf>` exists and
-  carries the doc table of its rows. `startup::arguments`' `[]` arm calls it and
-  maps `None` to `StartupError::NoConfigPath`; the XDG and `HOME` logic appears
-  once in the workspace.
+- EX-1 — `goad_shell::config::default_path(env) -> Option<PathBuf>` exists with
+  the doc table of its rows. `startup::arguments`' `[]` arm calls it and maps
+  `None` to `StartupError::NoConfigPath`; the XDG and `HOME` logic appears once
+  in the workspace.
 - EX-2 — `goad_shell::report::line_to` exists, with the comment explaining why
   both outcomes are matched. `crates/goad/src/diagnostics.rs` calls it and
   defines no sink of its own; its `*_line` functions do not move.
-- EX-3 — `goad_shell::ingress::wire::Reply` is public, derives `Serialize` and
-  `Deserialize`, drops the `'a` lifetime (`reason: Option<String>`), keeps every
-  `skip_serializing_if`, and adds `#[serde(default)]` on the three optional
-  fields. It carries **no** `deny_unknown_fields` — the reason is one sentence
-  in its doc comment, citing CLAUDE.md's permissive-wire invariant.
-- EX-4 — `ingress::mod::reply` builds a `wire::Reply` and is otherwise
-  unchanged, terminator included.
-- EX-5 — every existing test in the workspace passes **unedited**. If one needs
-  editing, S-2 applies.
+- EX-3 — `goad_shell::clock::{wall_clock, ClockError}` exists, moved whole,
+  including the comment recording why `jiff::Timestamp::now()` is not used.
+  `crates/goad/src/clock.rs` is gone; `main.rs`, `controller.rs` and
+  `StartupError::Clock` name the stratum-2 path. **No feature is added to any
+  dependency** (S-5).
+- EX-4 — `goad_shell::ingress::wire::Reply` is public and derives `Debug`,
+  `PartialEq`, `Serialize`, `Deserialize`. `protocol` and `accepted` are
+  `Option`, written unconditionally and permissive on read (`design.md` D-11);
+  `reason`, `retry_after_ms` and `detail` keep `skip_serializing_if` and gain
+  `#[serde(default)]`. No `deny_unknown_fields`, with the reason in its doc
+  comment citing CLAUDE.md's permissive-wire invariant.
+- EX-5 — `ingress::mod::reply` builds a `wire::Reply`. **One line changes**:
+  `reason: refusal.map(Refusal::reason)` becomes an owning form now that the
+  field is `String` (`mod.rs:600`). Nothing else in that function moves, the
+  `\n` terminator included.
+- EX-6 — every existing test in the workspace passes **unedited** (S-2).
 
 **Verification**
-- VT-1 — `crates/goad-shell/tests/…` — `default_path`'s rows: `XDG_CONFIG_HOME`
-  absolute; set but relative (ignored, falls to `HOME`); unset with `HOME` set;
-  `HOME` empty; both absent. These are the cases `startup.rs`'s own tests assert
-  today through `arguments` — the new ones assert the extracted rule directly,
-  and the old ones stay as they are.
-- VT-2 — a round-trip case: a `wire::Reply` serialized by `reply()` parses back
-  to an equal value, and one carrying an unknown key still parses.
-- VA-1 — `git diff --stat` shows no line of `crates/goad` changed except the two
-  call sites and their imports.
+- VT-1 — `default_path`'s rows: `XDG_CONFIG_HOME` absolute; set but relative
+  (ignored, falls to `HOME`); unset with `HOME` set; `HOME` empty; both absent.
+  `startup.rs`'s existing tests stay as they are and still pass.
+- VT-2 — a `wire::Reply` serialized by `reply()` parses back to an equal value;
+  one carrying an unknown key parses; one carrying neither `protocol` nor
+  `accepted` parses (both are `Option` now) and is left for PHASE-02 to judge.
+- VT-3 — the host's reply bytes are unchanged: `reply(true, None)` and one
+  refusal still produce exactly the strings 004's tests assert.
+- VA-1 — `git diff` shows `crates/goad` changed only at the call sites and their
+  imports, plus the deletion of `clock.rs`.
 
 **Notes for the implementer**
 
-`line_to` is four lines; the temptation is to inline it and skip the move. Don't
-— `design.md` D-2's argument is about one definition per judgement, and OQ-4
-recorded it. `Wire`'s doc comment explains why the reply is built with
+`line_to` is four lines; the temptation is to inline it and skip the move. Don't —
+OQ-4 recorded the argument. The clock lift is the one with reach: `wall_clock` is
+called from `main.rs:53` and `main.rs:116`, and `controller.rs` imports
+`ClockError` in its test module (`controller.rs:769`) — that import changes, the
+assertions do not. `Wire`'s doc comment explains why the reply is built with
 `serde_json` rather than interpolated; keep it, it is still true.
 
 ---
@@ -118,7 +132,7 @@ recorded it. `Wire`'s doc comment explains why the reply is built with
 ## PHASE-02 — the client half of SPEC-003
 
 **Objective:** a caller in stratum 2 can send an envelope to a real listener and
-get a normalized verdict, with every failure shape named.
+get a normalized answer, with every failure shape named.
 
 **Surfaces:** `crates/goad-shell/src/ingress/client.rs` (new),
 `crates/goad-shell/src/ingress/mod.rs` (the `mod` line),
@@ -128,45 +142,51 @@ get a normalized verdict, with every failure shape named.
 - EN-1 — PHASE-01's exit criteria discharged, `just check` exit 0.
 
 **Exit**
-- EX-1 — `client::send(socket: &Path, event: &Event) -> Result<Verdict, SendFault>`:
+- EX-1 — `client::send(socket: &Path, event: &Event) -> Result<Answered, SendFault>`:
   connect, write `serde_json::to_string(event)` plus `\n`, shut down the write
-  half, read to the first newline or EOF, parse, normalize.
-- EX-2 — `Verdict` and `SendFault` exactly as `design.md` §5.2 gives them, all
-  variants constructed somewhere, `Debug` on both.
-- EX-3 — normalization is a **named, pure** function over the parsed
-  `wire::Reply` — `Verdict` or `SendFault::Ambiguous` — so the ambiguity rules
-  are testable with no socket. `accepted: false` with no `reason` is ambiguous;
-  an unknown `reason` token is not.
-- EX-4 — `send` writes the envelope as `Event`'s own `Serialize` output and
-  builds no envelope struct of its own (D-3).
+  half, read to the first newline or EOF, parse, then delegate to `read_reply`.
+- EX-2 — `Answered` and `SendFault` exactly as `design.md` §5.2 gives them, every
+  variant constructed somewhere, `Debug` on both. The name is `Answered`, not
+  `Verdict`, which the fixture in the test file already owns (F-7).
+- EX-3 — `read_reply(Reply) -> Result<Answered, SendFault>` is **pure and
+  public**, so every §6.3 conformance rule is testable with no socket. Absent
+  `accepted`, and `accepted: false` with no `reason`, are
+  `SendFault::NonConforming` with a `&'static str` saying which. An unknown
+  `reason` token is **not** a fault.
+- EX-4 — `send` writes `Event`'s own `Serialize` output and builds no envelope
+  struct of its own (D-3).
 - EX-5 — no `tokio` import in `client.rs`; blocking `std::os::unix::net`
-  throughout (S-3).
+  throughout.
 
 **Verification**
 - VT-1 — accepted: a real `bind`, a judge that accepts, `send` returns
-  `Verdict::Accepted`, and the `Event` the listener normalized equals the one
+  `Answered::Accepted`, and the `Event` the listener normalized equals the one
   sent, `data` included.
 - VT-2 — refusals: `reserved_source` from a real `source: "host"` envelope
-  (AC-5, not pre-empted client-side), and one scripted refusal per remaining
+  (AC-5, not pre-empted client-side), plus one scripted refusal per remaining
   shape the fixture can produce.
-- VT-3 — `too_soon` carries `retry_after_ms` through to `Verdict::Refused`, and
-  an unknown token (`"a_ninth_reason"`, written by a fake listener rather than
-  the host) still yields `Refused` with the token verbatim.
+- VT-3 — `too_soon` carries `retry_after_ms` through to `Answered::Refused`; an
+  unknown token (`"a_ninth_reason"`, from a fake listener rather than the host)
+  yields `Refused` with the token verbatim.
 - VT-4 — `SendFault::Unreachable` for a path with nothing listening;
   `SendFault::NoReply` for a listener that accepts and closes silently.
-- VT-5 — `Unreadable` for bytes that are not JSON; `Ambiguous` for `{}` and for
-  `{"protocol":1,"accepted":false}`; an unknown *field* beside the five parses
-  fine and is **not** a fault.
+- VT-5 — over `read_reply`, no socket: `{}` and `{"accepted":true}` — the first
+  is a serde error at the parse step above it and is **`Unreadable`** (F-5), the
+  second parses and is `Accepted` because `protocol` is optional (D-11);
+  `{"protocol":1,"accepted":false}` is `NonConforming`; a reply with an unknown
+  *field* beside the five is fine and is not a fault.
 - VA-1 — each negative case has been seen to fail for its own reason: inject the
   defect it guards, run, read the message, revert
-  (`docs/memory/a-green-test-can-assert-a-proxy.md`).
+  (`docs/memory/a-green-test-can-assert-a-proxy.md`). Where a case asserts two
+  absences, inject twice.
 
 **Notes for the implementer**
 
 004's `judge` fixture in `tests/integration/ingress.rs` already drives a real
 `Ingress` and can accept or refuse on script; extend it rather than minting a
-second fixture. Tokio tests calling blocking `send` must use `spawn_blocking` —
-the same shape 004's renderer tier uses for the writer's side.
+second. Tokio tests calling blocking `send` must use `spawn_blocking` — the shape
+004's renderer tier already uses for the writer's side. A fake listener (for the
+unknown-token case) is a blocking `std` `UnixListener` on its own thread.
 
 ---
 
@@ -182,78 +202,101 @@ it that can be pure is.
 
 **Exit**
 - EX-1 — `crates/goad-emit/Cargo.toml`: `goad-shell`, `goad-semantics`,
-  `serde_json`, `jiff`, workspace lints, and nothing else (S-3, AC-7).
+  `serde_json`, workspace lints, and nothing else — **no `jiff`** (the clock
+  comes from stratum 2 after PHASE-01) and no dev-dependencies (S-3, AC-7).
 - EX-2 — `args::parse` is pure over `impl Iterator<Item = OsString>`, returns
   `Invocation` or `UsageError`, and carries the doc table of every row.
-- EX-3 — `render`'s four functions are pure and return `String` (or `None` for
-  silence on success, D-7).
+- EX-3 — `render`'s four functions are pure and return `String`. Success renders
+  nothing at all (D-7).
 - EX-4 — `main` is the only file reading env, clock, filesystem or socket. It
   returns `ExitCode`; `std::process::exit` is disallowed and is not used.
-- EX-5 — `--socket` skips configuration loading entirely; without it,
-  `config::default_path` then `Config::load`, and `ingress: None` is exit 2 with
-  a message saying the host is not configured to listen.
+- EX-5 — `--socket` skips configuration loading entirely. Without it:
+  `config::default_path`, then `Config::load`. `StartupFault` names the three
+  ways that road ends at exit 2 — no path discoverable, the file absent or
+  unreadable or unparseable, and a config with `ingress: None`.
 - EX-6 — `--help` on stdout exit 0; a usage error on stderr exit 2, naming the
-  flag and not reprinting the usage block (`crates/goad`'s principle 4).
+  flag and not reprinting the usage block (`crates/goad`'s principle 4). The
+  help text states that emit waits as long as the host takes (D-10) and that
+  discovery covers the default configuration path only.
 
 **Verification**
 - VT-1 — `args::parse`: one case per doc-table row, plus missing `--source`,
   missing `--kind`, empty `--source`, unparseable `--data`, repeated flag,
-  unknown flag, `--` handling if any.
+  unknown flag.
 - VT-2 — every `UsageError` renders a line naming the offending flag.
-- VT-3 — `--socket` wins over a configuration that names a different path, and
-  is honoured when no configuration file exists at all.
+- VT-3 — `--socket` wins over a configuration naming a different path, and is
+  honoured when no configuration file exists at all.
 - VT-4 — `render::refused_line` shows the reason token, and `retry_after_ms`
-  exactly when present; `detail` is appended but never parsed.
+  exactly when present; `detail` is interpolated (see the Coverage note on what
+  review holds here rather than a test).
 - VT-5 — the serialized envelope's key set is exactly
   `{source, kind, timestamp, data}` (`design.md` §5.5's assumption, pinned).
-- VA-1 — `crates/goad-emit/Cargo.toml` names no `slint` and no `tokio` (AC-7).
+- VT-6 — each `StartupFault` renders a line naming the path and the fault:
+  no path discoverable, file absent, file unparseable, no `[ingress]` section.
+- VA-1 — `crates/goad-emit/Cargo.toml` names no `slint`, no `tokio`, no `jiff`,
+  and no dev-dependency (AC-7, S-3).
 
 **Notes for the implementer**
 
-Copy `startup::arguments`' shape, including the doc table and the argument-vector
-handling — it already solves `OsString`, the program-name skip, and `-h`.
-`goad-emit`'s own `--version` comes from `env!("CARGO_PKG_VERSION")`.
+Copy `startup::arguments`' shape, including the doc table and the
+argument-vector handling — it already solves `OsString`, the program-name skip
+and `-h`. `--version` comes from `env!("CARGO_PKG_VERSION")`.
 
 ---
 
 ## PHASE-04 — the evidence, and the demo a person runs
 
 **Objective:** the built binary's three exit codes are demonstrated against a
-real listener, and a person has prompted a real evaluation with it.
+real socket, and a person has prompted a real evaluation with it.
 
-**Surfaces:** `crates/goad-emit/tests/` (new), `examples/demo.toml`,
-`examples/shell/backend.sh`, `justfile`, `README.md` if it names the one-liner.
+**Surfaces:** `crates/goad-emit/tests/` (new), `examples/demo.toml`, `justfile`.
 
 **Entry**
 - EN-1 — PHASE-03's exit criteria discharged, `just check` exit 0.
 
 **Exit**
 - EX-1 — the integration target spawns the binary via
-  `env!("CARGO_BIN_EXE_goad-emit")` against a listener bound in-process.
-- EX-2 — `examples/demo.toml` and the `justfile` show the `goad-emit` line; the
-  raw `socat` one-liner **stays**, labelled as the no-CLI worked example, because
-  SPEC-003 is what a second implementation is held to.
-- EX-3 — `notes.md`'s Harvest carries anything durable, and `audit.md`'s
-  Evidence names AC-8's observation in the user's own account.
+  `env!("CARGO_BIN_EXE_goad-emit")` against a **fake listener built on blocking
+  `std::os::unix::net::UnixListener`** on its own thread, which reads one line,
+  writes one canned reply and closes. No runtime, no `tokio`, no
+  `ingress::bind` — which S-3 forbids here and which PHASE-02 exercises properly
+  one tier up (F-2). What this tier holds is the **binary**: its exit codes, its
+  stderr, and the bytes it puts on a socket. R-6's framing and R-7's read bounds
+  are *not* on this path, and the module doc says so.
+- EX-2 — `examples/demo.toml` shows the `goad-emit --socket ./goad-demo.sock`
+  line; the raw `socat` one-liner **stays**, labelled as the no-CLI worked
+  example, because SPEC-003 is what a second implementation is held to. The
+  `justfile` gains an `emit` recipe wrapping the same invocation if it earns its
+  place; `examples/shell/backend.sh` and `README.md` are **not** surfaces —
+  neither contains a one-liner to change (F-12).
+- EX-3 — `notes.md`'s Harvest carries anything durable; `audit.md`'s Evidence
+  names AC-8's observation in the user's own account.
 
 **Verification**
-- VT-1 — exit 0 and empty stdout when the listener accepts.
-- VT-2 — exit 1 and the reason token on stderr when it refuses.
-- VT-3 — exit 2 for a path with nothing listening, and for a usage error.
+- VT-1 — exit 0 and empty stdout when the fake listener replies
+  `{"protocol":1,"accepted":true}`.
+- VT-2 — exit 1 and the reason token on stderr for a refusal reply; the
+  `too_soon` case also shows `retry_after_ms`.
+- VT-3 — exit 2 for a path with nothing listening, for a usage error, and for a
+  reply that breaches §6.3.
 - VT-4 — **AC-6**: the binary sends `--source w --kind k --data '{"n":4}'`, and
-  the `Event` the listener normalizes carries all three as sent. This is the
-  case S-4 protects: assert the normalized `Event`, never emit's own bytes.
+  the fake listener's bytes, passed through
+  `goad_shell::ingress::envelope::normalize`, yield an `Event` carrying all three
+  as sent. The assertion's subject is the **normalized `Event`**, never the raw
+  bytes (S-4).
 - VA-1 — `cargo tree -p goad-emit` contains no `slint` (AC-7).
-- VA-2 — every AC in `slice-005.md` has a named, passing test or a named
+- VA-2 — every AC in `slice-005.md` has a named passing test or a named
   argument, and the audit's closing walk re-runs them.
-- VH-1 — **a person**: `just demo`, then
-  `goad-emit --source hand --kind poke` from another terminal, and the view
-  changes. AC-8.
+- VH-1 — **a person**: `just demo`, then, from another terminal,
+  `cargo run -p goad-emit -- --socket ./goad-demo.sock --source hand --kind poke`,
+  and the view changes. The `--socket` is not optional here: the demo starts the
+  host on an explicit configuration whose socket is `./goad-demo.sock`, which
+  emit's default-path discovery never finds (F-6). AC-8.
 
 **Notes for the implementer**
 
 `CARGO_BIN_EXE_<name>` is set only for test targets **in the binary's own
-package**, which is why this phase's tests live in `crates/goad-emit/tests/` and
-not in `crates/goad`. The backend leg — that the host actually invoked the
-backend with this event — is VH-1's, deliberately, because no test target links
-both the CLI and a running host (`slice-005.md` AC-6).
+package**, which is why these tests live in `crates/goad-emit/tests/`. The
+backend leg — that the host actually invoked the backend with this event — is
+VH-1's, deliberately: no test target links both the CLI and a running host
+(`slice-005.md` AC-6).

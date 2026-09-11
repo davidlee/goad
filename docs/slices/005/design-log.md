@@ -111,3 +111,56 @@ other, citing the finding id.
   human run. The alternative — keeping the wording and asserting something
   upstream of it — is the failure mode
   `docs/memory/a-green-test-can-assert-a-proxy.md` records from slice 004.
+
+### 2026-09-11 — review F-3: which reading of ADR-003 governs the tier
+
+- **Asked:** round 1 of `review-design.md` raised F-3 — the OQ-3 tier argument
+  cites POL-001 §Verification and `allowlist.rs`'s module doc accurately, but
+  never engages ADR-003 §Consequences/Negative: *"a new workspace member needs
+  its own entry in the manifest allowlist and its own reach in the vocabulary
+  scan's walk."* Three readings put, with their tier consequences: binding (row
+  + POL-001 amendment, tier 2); over-broad and worth correcting (canon-delta
+  against ADR-003, tier 2); or a review obligation this slice discharges in the
+  open (tier 1).
+- **Recommended:** the third, on the evidence that the sentence is **already
+  untrue of `crates/goad`** — no allowlist row since 002 — and that its other
+  half is stale, the vocabulary scan reading `workspace.members` for itself.
+- **Decided:** stay tier 1, cite the conflict, record the gap.
+- **Consequence:** OQ-3 in `slice-005.md` gains the quotation, the staleness of
+  its first half and this ruling; `design.md` §3 lists ADR-003 among the forces
+  and D-8 disposes of it inside the decision row, where a reader looking to
+  reverse the choice will be standing. The unbilled stratum-3 manifest stays a
+  Follow-up, and it is `crates/goad`'s as much as `goad-emit`'s.
+
+### 2026-09-11 — review F-4: what emit does when the host never answers
+
+- **Asked:** F-4 showed `design.md` §5.4 justified "no timeout" with R-7, which
+  bounds *reads*, not the connection. SPEC-003 §6.4 says the wait for judgement
+  has **no bound** and *"the writer waits with it rather than being told
+  something untrue"*, so a wedged host hangs an unattended caller — by contract,
+  not by host defect. Three options: no deadline, documented; `--timeout SECS`
+  now; a default deadline, overridable.
+- **Recommended:** no deadline. A deadline makes emit report *no answer* about an
+  envelope the host may be mid-judging, which is the untruth §6.4 exists to
+  prevent; `timeout 5 goad-emit …` is one word in a cron line.
+- **Decided:** no timeout, document it.
+- **Consequence:** §5.4 cites §6.4 and states the consequence; D-10 records the
+  decision; §8 gains R-4 with "a cron job that never returns" as its signal;
+  AC-3 says it; `--help` must say it (PHASE-03/EX-6); `--timeout` is a Follow-up
+  for 007, on evidence.
+
+### 2026-09-11 — two sub-decisions inside F-5, taken by the agent
+
+- **Asked:** F-5 showed the `Ambiguous` rule could not fire for `{}`, and raised
+  two questions underneath it: what exit code a reply with `accepted: false` and
+  no `reason` deserves, and whether requiring `protocol` on the read side
+  narrows what emit accepts.
+- **Decided:** by the agent, and flagged to the user as reversible — (a) that
+  reply stays **exit 2**, with the variant renamed `NonConforming` so it names
+  the host's breach of §6.3 rather than emit's confusion, because exit 1
+  promises a reason token a wrapper can branch on and this reply carries none;
+  (b) `protocol` **and** `accepted` become `Option` on the read side, because
+  requiring a field emit does not use is the narrowing CLAUDE.md invariant 2
+  forbids. The host writes both unconditionally, so its bytes are unchanged and
+  D-2's single struct survives.
+- **Consequence:** D-11 in `design.md`; PHASE-01/EX-4 and PHASE-02/EX-3, VT-5.
