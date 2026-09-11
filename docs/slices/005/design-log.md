@@ -73,3 +73,41 @@ other, citing the finding id.
   broken config file cannot break an explicit path. Raises OQ-2: the discovery
   rule is `crates/goad/src/startup.rs::config_path` today, in a crate `emit` may
   not depend on, so it moves down to `goad-shell` or gets restated.
+
+### 2026-09-11 — the six open questions, answered in one pass
+
+- **Asked:** OQ-1 argument parsing; OQ-2 where configuration-path discovery
+  lives; OQ-3 whether the new member gets a `goad-boundary` allowlist row;
+  OQ-4 how a CLI writes output under a workspace-wide `print_stderr` deny;
+  OQ-5 `data`'s default and who parses `--data`; OQ-6 whether `--timestamp`
+  exists. Each was put with its recommendation and the fact that decided it.
+- **Recommended:** hand-rolled parsing on `startup::arguments`' shape; extract
+  the *rule* (`config::default_path`) rather than the parser; **no allowlist
+  row**, because POL-001 scopes that instrument to strata 1 and 2 and
+  `goad-emit` is stratum 3, so a row would extend policy rather than apply it;
+  move `line_to` down to `goad-shell`; `data` defaults to `null` and `--data`
+  is parsed locally; no `--timestamp`.
+- **Decided:** accept all six, including no allowlist row.
+- **Consequence:** the slice **stays tier 1** — nothing here writes or amends
+  canon. OQ-1..OQ-6 struck in `slice-005.md` with their answers; OQ-7 raised and
+  answered there in the same pass (no `tokio` in emit — a blocking
+  `std::os::unix::net::UnixStream` needs no runtime). Three corrections to
+  `slice-005.md` fell out of the answers and are made: **AC-7** no longer claims
+  an instrument holds emit's Slint-freedom — the crate edge does, and `cargo
+  tree` is the audit evidence; **ADR-001's row** in Governing canon said the new
+  member sits at stratum 2's level, which is wrong and is the error OQ-3 turned
+  on — it is stratum 3, which ADR-001 §Decision names as *"entry points — the
+  Slint renderer, command-line binaries"*; and **ADR-005** moves from *not
+  applicable* to *binding as precedent*, because its reasoning — what decides a
+  normalization's stratum is which contract it holds — is what places the
+  reply's normalization in `goad-shell`. The gap the allowlist row would have
+  closed is recorded under Follow-ups as stratum 3's, not this crate's.
+
+- **Asked (in passing):** AC-6 said "reaches the backend", but no test target
+  links both the CLI binary and a running host.
+- **Decided:** by the agent, and recorded for the reviewer to contest — AC-6 is
+  rephrased to what a test can actually see (the bytes a real invocation puts on
+  a real socket normalize to the `Event` sent), and the backend leg is AC-8's
+  human run. The alternative — keeping the wording and asserting something
+  upstream of it — is the failure mode
+  `docs/memory/a-green-test-can-assert-a-proxy.md` records from slice 004.
