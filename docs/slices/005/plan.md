@@ -117,7 +117,13 @@ renderer/startup.rs}`.
   (`pub mod clock;` removed), `src/main.rs:7`, `src/controller.rs:18` (the `Clock`
   alias) and `:769` (the test module's `ClockError`), `src/startup.rs:34`
   (`StartupError::Clock`), and the five test files in Surfaces. A re-export is not
-  the escape: `clippy::pub_use = "deny"`.
+  the escape: `clippy::pub_use = "deny"`. **Three further sites name the module in
+  prose and break nothing** — `tests/renderer/harness.rs:30`,
+  `tests/renderer/scheduling.rs:609`, and `crates/goad/Cargo.toml:11`, whose
+  comment says `clock.rs` is why `crates/goad` carries `jiff`. After the lift that
+  sentence is false, though the entry stays justified (a test constructs a
+  `jiff::Error`). Tidying them is S-2's stated allowance, not a breach; leaving
+  them is not a defect.
 - EX-6 — every existing test passes with **no assertion and no fixture changed**;
   the only test-file edits in this phase are the `use` lines EX-7 enumerates
   (S-2's bounded allowance).

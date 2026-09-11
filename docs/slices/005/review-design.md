@@ -6,7 +6,7 @@ must be consistent with. One ledger for both, per `docs/AGENTS.md` §Tiers
 (tier 1), at most two rounds.
 **Reviewer:** fresh agent
 **Opened:** 2026-09-11
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -131,7 +131,7 @@ above.
 | F-2 | blocker | fix-now | verified |
 | F-3 | major | fix-now | verified |
 | F-4 | major | fix-now | verified |
-| F-5 | major | fix-now (re-disposed r2) | contested |
+| F-5 | major | fix-now (re-disposed r2) | contested → verified |
 | F-6 | major | fix-now | verified |
 | F-7 | minor | fix-now | verified |
 | F-8 | minor | fix-now | verified |
@@ -139,11 +139,11 @@ above.
 | F-10 | minor | fix-now | verified |
 | F-11 | nit | fix-now | verified |
 | F-12 | nit | fix-now | verified |
-| F-13 | major | fix-now | |
-| F-14 | blocker | fix-now | |
-| F-15 | minor | fix-now | |
-| F-16 | minor | fix-now | |
-| F-17 | nit | fix-now | |
+| F-13 | major | fix-now | verified |
+| F-14 | blocker | fix-now | verified |
+| F-15 | minor | fix-now | verified |
+| F-16 | minor | fix-now | verified |
+| F-17 | nit | fix-now | verified |
 
 ### F-1 — `jiff::Timestamp::now()` does not exist in this workspace, and the reason it does not is a decision already on the page
 
@@ -444,11 +444,27 @@ emit does not use — invariant 2 — while the host keeps writing both
 unconditionally, so D-2's one struct survives and the host's bytes do not change
 (PHASE-01/VT-3 pins that).
 
+**Re-disposition (round 2):** fix-now — **superseded by F-13**. The contest is
+upheld: point (1) above was wrong, and wrong *because of* point (3). Making every
+field `Option` means `{}` parses, so it is `NonConforming` rather than
+`Unreadable`, and the round-1 response asserted the opposite in the same breath as
+the change that falsified it. Points (2) and (3) stand unamended. The repair is
+not made twice: F-13 carries the measurement and the four corrections, and this
+finding closes behind it.
+
 **Outcome:** contested — the observation this finding made still stands against the
 repaired artefact, for a new reason. F-5 said the design asserts an outcome its own
 type makes unreachable; D-11 changed the type and left the assertion, so `{}` is now
 claimed `Unreadable` by a type that parses it. Returns to open with **F-13**, which
 carries the measurement and the full sweep D-11 needs.
+
+**→ verified** (round 2 close): the contest was upheld and discharged through
+F-13, which is itself verified. `{}` is `NonConforming` in all four places, and
+`Unreadable` keeps `[1,2]` and `not json`. Bookkeeping, not a finding: the
+summary table records the re-disposition as *fix-now (re-disposed r2)*, but
+F-5's own Disposition and Response still read as they did in round 1, so the
+body does not show what the re-disposition said. That line is the responder's to
+add.
 
 ### F-6 — VH-1 discharges AC-8, and as written it cannot be run
 
@@ -774,7 +790,7 @@ behind it is noted where it can act: the design stated what a byte string does
 without checking it against the type it had just specified, and PHASE-01/VT-2 and
 PHASE-02/VT-5 are now the places that check rather than assert.
 
-**Outcome:**
+**Outcome:** verified — swept independently, and the sweep is clean. Every statement about what a byte string does now matches the type: `design.md` §5.2's comment, §5.5's first bullet, `plan.md` PHASE-02/VT-5 and PHASE-01/EX-5. **No fifth survives** — both documents were grepped for `{}`, `Unreadable`, `NonConforming`, `parse`, `serde` and `Option`, and every remaining mention is consistent (PHASE-01/EX-4, VT-2, VT-3, PHASE-02/EX-3, PHASE-04/VT-3, §4 principle 3, AC-3, D-11). EX-5's three lines are the right three, and naming the first two as what keep the host's bytes identical is what makes VT-3 a check rather than a hope.
 
 ### F-14 — the clock lift breaks five test files, so PHASE-01 fires S-2 by construction
 
@@ -852,7 +868,7 @@ and the five test files, marked *import lines only*; EX-3 carries the `Clock`
 alias; and the Notes point at the two sites that are easy to miss, including the
 stale `line_to` doc-comment mention at `renderer/startup.rs:179`.
 
-**Outcome:**
+**Outcome:** verified — the blocker is removed, and as a class fix rather than an instance one. S-2 separates an assertion or fixture changing from an import path changing; EX-7 enumerates the sites; EX-6 is reworded to "no assertion and no fixture changed"; the surfaces carry `crates/goad/src/lib.rs` and the five test files marked import-lines-only. EX-7's list was checked against an independent sweep of every `.rs`, `.toml` and `.slint` file outside `docs/`: **all ten compile-breaking sites are on it** — `src/lib.rs:3`, `src/main.rs:7` (with `:53` and `:116` following from it), `src/controller.rs:18` and `:769`, `src/startup.rs:34`, and the five `use goad::clock::…` test files. EX-3 carrying the `Clock` alias explicitly is the part that was missed twice before.
 
 ### F-15 — PHASE-04/EX-1 attributes R-7's bounds to a tier that holds no case for them
 
@@ -908,7 +924,7 @@ client that duplicated a host rule would leave that rule untested from the only
 side that exercises it. That sentence was load-bearing and its loss in the rewrite
 was an accident, not a decision.
 
-**Outcome:**
+**Outcome:** verified — EX-1 splits the claim exactly as the finding asked: R-6's framing by PHASE-02/VT-1, named, and R-7's bounds by 004's listener cases, disclaimed as not emit's. §9's third tier says the same. The edge bullet is restored to §5.5 with its reason tied to the R-13 argument, which is more than the deleted sentence carried.
 
 ### F-16 — three statements in `slice-005.md` were not swept by the repairs that falsified them
 
@@ -955,7 +971,7 @@ and **§Scope → Tests** now says what the two test tiers actually are and stat
 that **nothing in this slice drives a real host end to end** — the only thing that
 does is AC-8, and a person does it.
 
-**Outcome:**
+**Outcome:** verified — all three corrected. AC-7 names `goad-shell`, `goad-semantics`, `serde_json`, no `jiff`, no dev-dependency, and now agrees with the VA-1 that verifies it. OQ-7 appends its correction beneath the original answer, the same shape OQ-6 uses, so the open-question record stays a record rather than being rewritten. §Scope → Tests states that nothing in this slice drives a real host end to end.
 
 ### F-17 — the same set is three in one place and four in two others
 
@@ -986,10 +1002,66 @@ remedies and deserve different messages. PHASE-03/EX-5 now says four and splits
 them exactly as AC-4 and VT-6 do, so an implementer writing `StartupFault` from
 the exit criterion produces the four variants VT-6 asserts.
 
-**Outcome:**
+**Outcome:** verified — EX-5 says four and splits them as AC-4 and VT-6 do, with the reason (the remedies differ) carried in the criterion itself.
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+**State: resolved.** Seventeen findings over two rounds, every one terminal: two
+blockers, one contested-and-upheld, none outstanding. `just check` exit 0 at the
+close.
+
+**What the review changed.** Two of the three things this slice rests on were
+wrong when the ledger opened, and neither was visible from the documents alone —
+both took reading the code.
+
+- **The clock.** OQ-6 answered "no `--timestamp`" partly on the ground that
+  `jiff::Timestamp::now()` was free. It does not exist in this workspace: jiff is
+  `default-features = false`, and `crates/goad/src/clock.rs:43-47` had already
+  refused to enable `std`, because a feature switched on in stratum 3 unifies
+  into stratum 1's build (POL-001's named residue). The repair made `clock` a
+  **fourth lift** into stratum 2 and dropped `jiff` from emit's manifest
+  entirely (F-1) — and then the *repair* was found incomplete: the lift breaks
+  five test files that name `goad::clock::…` by path, plus `lib.rs` and the
+  `Clock` type alias in four `controller.rs` signatures. As planned, PHASE-01
+  would have halted on its own STOP condition at the first import edit (F-14).
+- **The wire.** The design narrowed what emit accepts in one place — requiring
+  `protocol` on the read side — for a field emit does not use. That is
+  CLAUDE.md's invariant 2 failing in the first client ever written against this
+  protocol, which is the failure the project exists to avoid. Removing it made
+  every field `Option`, which made `{}` parse, which falsified four statements
+  the repair left standing (F-5 → F-13). The contested finding's own sentence —
+  *the design asserts an outcome its own type makes unreachable* — came true of
+  its own repair, and that is the sharpest thing in this ledger.
+
+**What it confirmed.** OQ-3's two citations are accurate and its conclusion
+survives the one canon sentence it had missed (F-3): ADR-003's *"a new workspace
+member needs its own entry in the manifest allowlist"* is already untrue of
+`crates/goad`, so it states a review obligation over-broadly rather than a rule
+the instrument implements. The tier stayed 1 by user ruling, with the gap
+recorded as stratum 3's rather than this crate's. D-1's placement of the client
+beside the listener creates no cycle; AC-7's crate-edge argument holds; `Event`'s
+serialization is exactly §6.2's four keys and `Timestamp`'s `Z` form satisfies
+R-10; the vocabulary scan covers a new member automatically.
+
+**The risks knowingly left standing.**
+
+1. **Nothing in this slice holds SPEC-003/R-7.** The byte and time bounds are
+   004's listener cases, not emit's, and emit deliberately does not second-guess
+   them — the R-13 argument applied to R-7 (F-15). R-6's framing *is* held, by
+   PHASE-02/VT-1.
+2. **Emit blocks indefinitely against a wedged host**, by contract (§6.4) and by
+   user ruling. `timeout(1)` is the answer; `--timeout` is a Follow-up (F-4).
+3. **Stratum 3 carries no manifest allowlist row**, `crates/goad` included since
+   002. Nothing but review stops a future edit naming `slint` there (F-3).
+4. **AC-2's "nothing branches on `detail`" is review-held, not tested** — an
+   absence of code is not observable from a rendered line (F-10).
+5. **Three prose mentions of `clock.rs` survive the lift**, including the
+   `Cargo.toml:11` comment that will no longer explain why `crates/goad` carries
+   `jiff`. Nit-grade, no compile break, no ledger id (round-2 close).
+
+**For the phase sheet, not the ledger.** PHASE-01/VT-3 is that phase's
+load-bearing case: it is the only thing between D-11 and a silent
+`{"protocol":null,"accepted":null}`, so it asserts exact strings rather than a
+parsed comparison. And EX-7 is the list to work from — the reviewer's independent
+sweep found the same ten compile-breaking sites, which is what makes it a list
+rather than a grep anyone has to trust.
