@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 | done | 2026-09-11 |
 | PHASE-02 | done | 2026-09-14 |
-| PHASE-03 | pending | |
+| PHASE-03 | in progress | 2026-09-14 |
 | PHASE-04 | pending | |
 
 ## Phase sheets
@@ -329,6 +329,113 @@ STOP and consult:
   `use std::net::Shutdown;` became unused and `unused = "deny"` fired. A false
   red is worse than no injection: it says a case guards something it does not.
   Every VA-1 injection has to be lint-clean before its colour means anything.
+
+### PHASE-03 — the crate, and the binary
+
+**Objective:** `cargo run -p goad-emit -- …` performs the exchange; every part
+of it that can be pure is.
+
+**Entry criteria: met.** EN-1 — PHASE-02's exit criteria discharged (ticked
+above) and `just check` exit 0 at `b6968ce`. Transcript:
+`…/scratchpad/gate-phase02.txt`.
+
+**Reading list**
+
+Binding design: `design.md` §5.2 (the CLI surface, the three `goad-emit`
+modules and their signatures), §5.3 (one invocation owns one of everything),
+§5.4 (the sequence, and which step produces which exit code), §5.5 (discovery
+covers the **default** path only; `--data` parsed locally; success is silent),
+D-4 (three exit codes), D-5, D-6, D-7, D-8 (no allowlist row), D-10 (no
+deadline of emit's own). Binding plan: `plan.md` PHASE-03 EX-1..EX-6,
+VT-1..VT-6, VA-1, and S-1/S-3. Binding card: `slice-005.md` AC-1..AC-4, AC-7.
+
+Prior art, to copy rather than re-invent:
+- `crates/goad/src/startup.rs:96-140` — `arguments`: the doc table, the
+  `argv.skip(1)` that lives *inside* the tested function, the `-h`/`--help`
+  row, and the `&dyn Fn(&str) -> Option<OsString>` env closure with the note on
+  why it cannot be `&std::env::var_os`. **This is the shape `args::parse`
+  takes**, minus the env argument — emit's parse settles no path.
+- `crates/goad/src/diagnostics.rs:313-341` — `USAGE` (one `const`, no trailing
+  newline, because `line_to`'s `writeln!` supplies it), `print_usage`, and
+  `report_startup_line`/`report_startup` — the pure-line/impure-sink split
+  `render.rs` follows for all four of its functions.
+- `crates/goad/src/main.rs:21-43` — `fn main() -> ExitCode` with the fallible
+  half beside it, because `main` cannot use `?` and `std::process::exit` is a
+  `disallowed-method`.
+- `crates/goad-shell/src/config.rs:174-178` — `Config::load`, and
+  `error.rs:107-135` — `ConfigError`, whose `Read` variant is the one emit
+  splits out from the rest.
+- `crates/goad-shell/src/ingress/client.rs` — `send`, `Answered`, `SendFault`,
+  landed last phase. Emit calls `send` and nothing else on that module.
+
+**Assumptions & STOP conditions**
+
+Verified before starting, not taken on faith:
+- A-1 — **the domain-vocabulary scan covers a new member on arrival.**
+  `checks/vocabulary.rs:44-57` reads `workspace.members` for itself, so adding
+  the entry is the whole of what that instrument needs. Nothing is hand-listed
+  and nothing is added to `goad-boundary`.
+- A-2 — `cargo test --workspace` (POL-001's second command) builds and runs a
+  binary member's `#[cfg(test)] mod tests` without a dev-dependency, which is
+  what EX-1's "no dev-dependencies" requires of PHASE-03's whole test surface:
+  every case this phase writes is a unit case inside the binary.
+- A-3 — `Config::load` demands a **whole valid host configuration**, not just
+  `[ingress]`. So a config whose `backend` section is wrong is `Unparseable` to
+  emit as well. That is right — it is the host's file — but it means
+  `StartupFault::Unparseable` covers every `ConfigError` except `Read`.
+- A-4 — `print_stdout` and `print_stderr` are denied workspace-wide, so
+  `goad_shell::report::line_to` is the only way anything reaches a stream. That
+  is what PHASE-01 lifted it for.
+- A-5 — **ADR-003 §Decision says "four members" and enumerates them.** A fifth
+  makes that sentence stale. It is a record of a decision taken at 002, not a
+  live inventory, and `design.md` §10 already settled canon impact as none —
+  so this is stale prose of the same class as PHASE-01's `Cargo.toml` comment,
+  not an amendment. **Noted for audit rather than acted on.** If landing the
+  member turns out to *require* an ADR edit, that is S-1.
+
+STOP and consult:
+- S-1 — a normative sentence is wanted in `docs/specs|policy|adr`. See A-5.
+- S-3 — anything beyond `goad-shell`, `goad-semantics` and `serde_json` is
+  wanted in `crates/goad-emit/Cargo.toml` — **a dev-dependency included**.
+- Local — the design gives `render` four functions and `StartupFault` the four
+  ways configuration discovery ends. `clock::wall_clock` can also fail, and
+  **the design names no renderer for that**. The reading below takes it as a
+  fifth `StartupFault` variant rather than a fifth `render` function, because
+  EX-3 states the function count as a number and EX-5's "four" is explicitly
+  about the *configuration road*; a clock that cannot be read is another way
+  the envelope never left. Recorded as a decision, reversible in one line.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+- [x] EN-1 — gate green at `b6968ce`.
+- [ ] The member: `crates/goad-emit/Cargo.toml` (EX-1) and the
+      `workspace.members` entry, enumerated. Three dependencies, no more.
+- [ ] `args.rs` first, red: `parse`, `Invocation`, `Request`, `UsageError`,
+      with the doc table (EX-2) and one case per row plus VT-1's six negatives.
+      Pure over `impl Iterator<Item = OsString>`; `skip(1)` inside the function.
+- [ ] `render.rs` (EX-3): `refused_line`, `fault_line`, `usage_error_line`,
+      `startup_error_line`, all pure, all returning `String`; `USAGE` beside
+      them. **Success renders nothing at all** (D-7). VT-2 and VT-4 live here.
+- [ ] `main.rs` (EX-4, EX-5, EX-6): `fn main() -> ExitCode`; the only file
+      reading env, clock, filesystem or socket. `--socket` short-circuits
+      discovery entirely; otherwise `default_path` then `Config::load`.
+      `--help` on stdout exit 0; a usage error on stderr exit 2 naming the
+      flag and **not** reprinting the usage block.
+- [ ] VT-3 and VT-6 — `--socket` beating a configuration, and each
+      `StartupFault` rendering a line naming the path and the fault.
+- [ ] VT-5 — the serialized envelope's key set is exactly
+      `{source, kind, timestamp, data}`, pinned as a case rather than assumed.
+- [ ] VA-1 — the manifest names no `slint`, no `tokio`, no `jiff`, no
+      dev-dependency.
+- [ ] Refactor pass, then `just check` exit 0.
+
+**Decisions taken during execution**
+
+<!-- filled as they are taken -->
+
+**Findings**
+
+<!-- filled as they are found -->
 
 ## Harvest
 
