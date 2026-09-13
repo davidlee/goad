@@ -1808,6 +1808,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "goad-emit"
+version = "0.1.0"
+dependencies = [
+ "goad-semantics",
+ "goad-shell",
+ "serde_json",
+]
+
+[[package]]
 name = "goad-semantics"
 version = "0.1.0"
 dependencies = [

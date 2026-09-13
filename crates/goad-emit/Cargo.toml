@@ -1,0 +1,21 @@
+[package]
+name                 = "goad-emit"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+repository.workspace = true
+publish.workspace    = true
+
+# Stratum 3, and **three dependencies is the whole of it** (`slice-005.md`
+# AC-7). No `slint`, so a renderer type is `error[E0433]` here rather than a
+# rule some instrument enforces; no `tokio`, because one blocking `UnixStream`
+# needs no runtime; no `jiff`, because 005 lifted the wall clock to stratum 2
+# (005/D-9). No dev-dependencies either — a runtime in `[dev-dependencies]` is
+# still a runtime, and every case this crate writes runs without one.
+[dependencies]
+goad-semantics = { workspace = true }
+goad-shell     = { workspace = true }
+serde_json     = { workspace = true }
+
+[lints]
+workspace = true

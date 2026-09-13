@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 | done | 2026-09-11 |
 | PHASE-02 | done | 2026-09-14 |
-| PHASE-03 | in progress | 2026-09-14 |
+| PHASE-03 | done | 2026-09-14 |
 | PHASE-04 | pending | |
 
 ## Phase sheets
@@ -406,43 +406,86 @@ STOP and consult:
   the envelope never left. Recorded as a decision, reversible in one line.
 
 **Tasks**
-<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+<!-- [x] todo · [~] in progress · [x] done · [!] blocked -->
 - [x] EN-1 — gate green at `b6968ce`.
-- [ ] The member: `crates/goad-emit/Cargo.toml` (EX-1) and the
+- [x] The member: `crates/goad-emit/Cargo.toml` (EX-1) and the
       `workspace.members` entry, enumerated. Three dependencies, no more.
-- [ ] `args.rs` first, red: `parse`, `Invocation`, `Request`, `UsageError`,
+- [x] `args.rs` first, red: `parse`, `Invocation`, `Request`, `UsageError`,
       with the doc table (EX-2) and one case per row plus VT-1's six negatives.
       Pure over `impl Iterator<Item = OsString>`; `skip(1)` inside the function.
-- [ ] `render.rs` (EX-3): `refused_line`, `fault_line`, `usage_error_line`,
+- [x] `render.rs` (EX-3): `refused_line`, `fault_line`, `usage_error_line`,
       `startup_error_line`, all pure, all returning `String`; `USAGE` beside
       them. **Success renders nothing at all** (D-7). VT-2 and VT-4 live here.
-- [ ] `main.rs` (EX-4, EX-5, EX-6): `fn main() -> ExitCode`; the only file
+- [x] `main.rs` (EX-4, EX-5, EX-6): `fn main() -> ExitCode`; the only file
       reading env, clock, filesystem or socket. `--socket` short-circuits
       discovery entirely; otherwise `default_path` then `Config::load`.
       `--help` on stdout exit 0; a usage error on stderr exit 2 naming the
       flag and **not** reprinting the usage block.
-- [ ] VT-3 and VT-6 — `--socket` beating a configuration, and each
+- [x] VT-3 and VT-6 — `--socket` beating a configuration, and each
       `StartupFault` rendering a line naming the path and the fault.
-- [ ] VT-5 — the serialized envelope's key set is exactly
+- [x] VT-5 — the serialized envelope's key set is exactly
       `{source, kind, timestamp, data}`, pinned as a case rather than assumed.
-- [ ] VA-1 — the manifest names no `slint`, no `tokio`, no `jiff`, no
+- [x] VA-1 — the manifest names no `slint`, no `tokio`, no `jiff`, no
       dev-dependency.
-- [ ] Refactor pass, then `just check` exit 0.
+- [x] Refactor pass, then `just check` exit 0.
 
 **Decisions taken during execution**
 
-<!-- filled as they are taken -->
+- **`StartupFault` has five variants, not four** — the fifth is
+  `ClockUnreadable`, as the sheet flagged. `design.md` §5.4 reads a clock
+  between the arguments and the socket and names no renderer for its failure.
+  It goes through `startup_error_line` rather than a fifth `render` function
+  because EX-3 states the function count as a number while EX-5's "four" is
+  explicitly about the *configuration road*; AC-4's four still render a path
+  each, and the clock renders neither path nor flag because neither is what
+  went wrong. Reversible in one line.
+- **Everything in the crate is `pub(crate)`, not `pub`.** `design.md` §5.2
+  writes `pub fn parse`; `clippy::unreachable_pub` refuses it, and it is right
+  to — a binary crate has no reachable public API, so `pub` there would claim
+  a surface nothing can reach. Spelling only; the module boundaries are the
+  design's.
+- **`refused_line` answers an acceptance with `""`.** The design fixes the
+  signature as `&Answered`, and `Answered` has two variants, so the acceptance
+  arm has to say something. D-7 says success is silent, so it says nothing —
+  and `an_acceptance_renders_nothing` pins that, rather than leaving the arm
+  to be filled in later by someone who has not read D-7.
+- **`--source=S` is an unknown flag, not a value.** Values are separate
+  arguments, as `startup::arguments` has it. The doc table says so in the row
+  rather than leaving it to be discovered.
+- **`-h`/`--help`/`--version` are scanned for before the parse loop**, so they
+  work anywhere on the line and a mistyped invocation can still ask for help.
+  `--help` wins over `--version`. One doc-table row each.
+- **VT-5's timestamp comes from `wall_clock`, not a parsed literal**, because
+  **this crate cannot name `jiff`** — `Timestamp::new` takes a `jiff::Timestamp`
+  and there is no way to hold one here. That is not a workaround; it is 005/D-9
+  discharged, and the case's own comment says so.
 
 **Findings**
 
-<!-- filled as they are found -->
+- **`Config::load` demands a whole valid host configuration**, so an emit
+  invocation fails on a `backend` fault it never reads. That is right — it is
+  the host's file, and a host that cannot start is not listening either — but
+  the rendered line names the *file*, not the section, so a caller reading
+  `goad-emit: …/config.toml: backend.timeout = "0s" …` has to know why emit
+  cares. Stated rather than worked around.
+- **The crate-edge instrument does not cover this member.**
+  `checks/structure.rs` scopes its stratum-3 subject to `crates/goad/src`
+  (`SUBJECT_DIR`), so nothing scans `crates/goad-emit/src`. This is exactly the
+  shape of the gap OQ-3 recorded for the manifest allowlist and left as
+  stratum 3's rather than this crate's — a second instance of one absence, and
+  a better argument for the Follow-up than either alone. The
+  domain-vocabulary scan **does** cover it, automatically, off
+  `workspace.members`.
+- **ADR-003 §Decision now says "four members" and enumerates four.** There are
+  five. Stale prose in a record of a decision taken at 002, not an amendment
+  this slice owes — `design.md` §10 settled canon impact as none. Audit's call.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-14 · PHASE-02 complete · gate green
+**Fresh as of:** 2026-09-14 · PHASE-03 complete · gate green
 
 ### Produced
 
@@ -458,6 +501,12 @@ STOP and consult:
   `Answered`, `SendFault`. Blocking `std::os::unix::net` throughout, no
   `tokio`, no new dependency. Eight unit cases over §6.3 with no socket, seven
   integration cases against the real listener.
+- `crates/goad-emit` — the member, three dependencies and no more
+  (`cargo tree -p goad-emit`: `goad-semantics`, `goad-shell`, `serde_json`;
+  zero occurrences of `slint`). `args::parse` pure with its doc table,
+  `render`'s four pure line functions plus `USAGE`, and `main` holding every
+  read of an environment, a clock, a file or a socket. Thirty-one cases, none
+  needing a dev-dependency.
 - `tests/integration/ingress.rs` gained `event_of`, `send_event` (the
   `spawn_blocking` wrapper every client case needs) and `fake_listener` — a
   blocking `std` listener on its own thread, for the two replies the host
@@ -484,6 +533,13 @@ STOP and consult:
 - **Injections must be lint-clean.** A mutation that orphans an import reds on
   `unused`, not on the assertion, and reports a case as load-bearing when it is
   not.
+- **A new workspace member arrives covered by the vocabulary scan and by
+  nothing else.** `checks/vocabulary.rs` reads `workspace.members` for itself;
+  `checks/structure.rs` and `checks/allowlist.rs` both name their subjects by
+  path. Enumerate-from-the-manifest is the shape that survives a new member.
+- **`pub` in a binary crate is a claim nothing can reach**, and
+  `clippy::unreachable_pub` says so. A design that writes `pub fn` for a
+  binary's module means "the crate's other modules may call it".
 
 ### Open
 
@@ -492,6 +548,9 @@ STOP and consult:
   executable. See Findings.
 - `SendFault::Faulted` has no case. No deterministic trigger at this tier; the
   plan did not ask for one. See PHASE-02 Findings.
-- `SendFault` has no rendering. PHASE-03's `render::fault_line` owes each of
-  the five variants a line, including the two that carry an error whose text
-  is the only useful part.
+- ~~`SendFault` has no rendering.~~ PHASE-03's `render::fault_line` gives each
+  of the five a distinct line naming the path; a case asserts the five read
+  differently from one another.
+- Nothing scans `crates/goad-emit/src` for the crate edge. See PHASE-03
+  Findings, and OQ-3's Follow-up.
+- ADR-003 §Decision says "four members". There are five.
