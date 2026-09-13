@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-09-11 |
-| PHASE-02 | pending | |
+| PHASE-02 | in progress | 2026-09-14 |
 | PHASE-03 | pending | |
 | PHASE-04 | pending | |
 
@@ -164,6 +164,122 @@ STOP and consult, per `plan.md` §Sequencing:
   than the rule, and EX-1's "appears once in the workspace" is about the logic,
   which does. Worth an eye at audit: three places now describe one rule, and
   only one of them is executable.
+
+### PHASE-02 — the client half of SPEC-003
+
+**Objective:** a caller in stratum 2 can send an envelope to a real listener and
+get a normalized answer, with every failure shape named.
+
+**Entry criteria: met.** EN-1 — PHASE-01's exit criteria discharged (`notes.md`
+above, all seven ticked) and `just check` exit 0 on a clean tree at `4dc9bb5`,
+re-run before anything was edited. Transcript:
+`…/scratchpad/gate-EN1-phase02.txt`.
+
+**Reading list**
+
+Binding design: `design.md` §5.2 (the two signatures, `Answered`, `SendFault`
+verbatim), §5.5 (which reply shape is which fault — the `{}` ruling, `protocol`
+optional, the unknown token, `retry_after_ms` reported not obeyed, `source:
+"host"` not pre-empted), D-1, D-2, D-3, D-11, and §9's tier list (**this tier is
+where R-6's framing is held**). Binding plan: `plan.md` PHASE-02 EX-1..EX-5,
+VT-1..VT-5, VA-1, and S-1/S-3/S-4.
+
+Normative: `SPEC-003` §6.2 (the envelope's four keys), §6.3 (the reply's five
+fields, and what makes one non-conforming), §6.4 (the unbounded wait), R-8
+(a close with nothing on it), R-13 (the reserved source), R-14 (rounding).
+
+What the client is answering:
+- `crates/goad-shell/src/ingress/wire.rs:30-40` — `Reply`, all five fields
+  `Option`, permissive on read. Its four tests say what already parses.
+- `crates/goad-shell/src/ingress/mod.rs:581-605` — `reply()`, the bytes this
+  client reads. `:448-472` — `Refusal`, the seven variants; `:479-490` —
+  `reason()`, the closed set of eight tokens.
+- `crates/goad-shell/src/ingress/mod.rs:156` — `bind`, and the `# Errors`
+  section every public `-> Result` here carries (`clippy::pedantic` denies
+  `missing_errors_doc`).
+
+Prior art to copy rather than re-invent:
+- `crates/goad/tests/renderer/ingress.rs:128-152` — `write_one`/`send`: the
+  blocking `std::os::unix::net::UnixStream` writer on `spawn_blocking`, with the
+  module doc at `:14-19` explaining why the writer's side is `std` and not
+  `tokio`. **That is the shape `client::send` takes**, minus the panics.
+- `crates/goad-shell/tests/integration/ingress.rs:80-123` — `judge`, and `:56-67`
+  `Verdict`/`Seen`. Extend; do not mint a second (EX-2's F-7 note names the
+  collision that would follow).
+- `crates/goad-shell/tests/integration/ingress.rs:29-47` — `socket_path` and
+  `cleanup`, which every case here needs too.
+- `crates/goad-shell/tests/integration/ingress.rs:22-26` — `GOOD`, the one-line
+  envelope; `:206-223` — `padded_envelope`, for `too_large`.
+
+**Assumptions & STOP conditions**
+
+Verified before starting, not taken on faith:
+- A-1 — `goad-semantics::protocol::canonical::Event` derives `Serialize`
+  (`canonical.rs:489-496`), so EX-4's "no envelope struct of its own" is
+  `serde_json::to_string(event)` and nothing more. Its key set is PHASE-03/VT-5's
+  to pin, not this phase's.
+- A-2 — **no new dependency.** `std::os::unix::net` is std; `serde_json` and
+  `goad-semantics` are already `goad-shell`'s (`Cargo.toml:12-18`). S-3 does not
+  fire, and the manifest allowlist is untouched.
+- A-3 — `tokio`'s `rt` feature is on workspace-wide (`Cargo.toml:36-37`), so
+  `spawn_blocking` is available in the integration target. It is **required**,
+  not stylistic: `#[tokio::test]` is a current-thread runtime and the `judge` is
+  a task on it, so a blocking `send` called inline deadlocks rather than fails.
+- A-4 — `timed_out` is **not reachable through a conforming `send`**: the
+  listener's `ENVELOPE_DEADLINE` fires only on a writer that connects and
+  completes nothing, and `send` always writes a whole envelope and shuts the
+  write half. So VT-2's "every remaining shape the fixture can produce" is
+  `malformed`, `invalid_envelope`, `too_large` and `unavailable` from the
+  listener, plus `engaged` and `too_soon` scripted through `Verdict::Refuse`.
+  Its absence is the phase's R-6 evidence, not a gap: a client that framed
+  wrongly would draw `timed_out` and red VT-1 (`design.md` §9).
+- A-5 — `SendFault` cannot derive `PartialEq`: `io::Error` and
+  `serde_json::Error` are not `PartialEq`. Cases over it match on the variant.
+
+STOP and consult:
+- S-1 — a normative sentence is wanted in `docs/specs|policy|adr`. §6.3 already
+  says everything `read_reply` decides; needing more is the tier-2 signal.
+- S-3 — anything at all wants adding to `crates/goad-shell/Cargo.toml`.
+  Believed dead by A-2.
+- S-4 — an assertion has to settle for emit's own bytes where a normalized
+  `Event` was the subject. VT-1 reads the `Event` the **real** listener produced,
+  off `Seen::Event`; if that route does not work, raise it.
+- Local — if `read_reply`'s ruling on a shape is not already settled by §6.3 or
+  §5.5, that is a design question. The four settled rulings are in Tasks below.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+- [x] EN-1 — gate green on a clean tree at `4dc9bb5`, transcript kept.
+- [ ] `read_reply` first, red: the pure half, with VT-5's cases beside it in
+      `client.rs`'s own `mod tests`. The four rulings, all from §6.3/§5.5:
+      `accepted: None` ⇒ `NonConforming` (a `&'static str` saying which field);
+      `Some(true)` ⇒ `Accepted` whatever `protocol` says (D-11);
+      `Some(false)` with `reason: None` ⇒ `NonConforming`;
+      `Some(false)` with a token ⇒ `Refused`, token verbatim, unknown or not.
+- [ ] `Answered` and `SendFault` (EX-2), `Debug` on both, every variant
+      constructed by something before the phase ends.
+- [ ] `send` (EX-1, EX-5): `UnixStream::connect` ⇒ `Unreachable` on error;
+      write the line and `\n`, `shutdown(Shutdown::Write)`; `BufReader::read_line`
+      ⇒ zero bytes is `NoReply` (R-8), an `io::Error` is `Faulted`;
+      `serde_json::from_str::<wire::Reply>` ⇒ `Unreadable`; then `read_reply`.
+      No `tokio` import in the file.
+- [ ] `pub mod client;` beside `pub mod wire;` (`ingress/mod.rs:28`).
+- [ ] Integration cases (VT-1..VT-4) in `tests/integration/ingress.rs`, each
+      through `spawn_blocking`, against the extended `judge`.
+- [ ] VT-3's second half — the unknown token — needs a **fake** listener, since
+      the host cannot produce a ninth token: a blocking `std` `UnixListener` on
+      its own thread, reading one line and writing one canned reply.
+- [ ] VA-1 — inject the defect each negative case guards, watch it red for its
+      own reason, revert. Two injections where a case asserts two absences.
+- [ ] Refactor pass, then `just check` exit 0.
+
+**Decisions taken during execution**
+
+<!-- filled as they are taken -->
+
+**Findings**
+
+<!-- filled as they are found -->
 
 ## Harvest
 
