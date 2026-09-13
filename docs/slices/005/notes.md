@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-09-11 |
-| PHASE-02 | in progress | 2026-09-14 |
+| PHASE-02 | done | 2026-09-14 |
 | PHASE-03 | pending | |
 | PHASE-04 | pending | |
 
@@ -248,45 +248,94 @@ STOP and consult:
   §5.5, that is a design question. The four settled rulings are in Tasks below.
 
 **Tasks**
-<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+<!-- [x] todo · [~] in progress · [x] done · [!] blocked -->
 - [x] EN-1 — gate green on a clean tree at `4dc9bb5`, transcript kept.
-- [ ] `read_reply` first, red: the pure half, with VT-5's cases beside it in
+- [x] `read_reply` first, red: the pure half, with VT-5's cases beside it in
       `client.rs`'s own `mod tests`. The four rulings, all from §6.3/§5.5:
       `accepted: None` ⇒ `NonConforming` (a `&'static str` saying which field);
       `Some(true)` ⇒ `Accepted` whatever `protocol` says (D-11);
       `Some(false)` with `reason: None` ⇒ `NonConforming`;
       `Some(false)` with a token ⇒ `Refused`, token verbatim, unknown or not.
-- [ ] `Answered` and `SendFault` (EX-2), `Debug` on both, every variant
+- [x] `Answered` and `SendFault` (EX-2), `Debug` on both, every variant
       constructed by something before the phase ends.
-- [ ] `send` (EX-1, EX-5): `UnixStream::connect` ⇒ `Unreachable` on error;
+- [x] `send` (EX-1, EX-5): `UnixStream::connect` ⇒ `Unreachable` on error;
       write the line and `\n`, `shutdown(Shutdown::Write)`; `BufReader::read_line`
       ⇒ zero bytes is `NoReply` (R-8), an `io::Error` is `Faulted`;
       `serde_json::from_str::<wire::Reply>` ⇒ `Unreadable`; then `read_reply`.
       No `tokio` import in the file.
-- [ ] `pub mod client;` beside `pub mod wire;` (`ingress/mod.rs:28`).
-- [ ] Integration cases (VT-1..VT-4) in `tests/integration/ingress.rs`, each
+- [x] `pub mod client;` beside `pub mod wire;` (`ingress/mod.rs:28`).
+- [x] Integration cases (VT-1..VT-4) in `tests/integration/ingress.rs`, each
       through `spawn_blocking`, against the extended `judge`.
-- [ ] VT-3's second half — the unknown token — needs a **fake** listener, since
+- [x] VT-3's second half — the unknown token — needs a **fake** listener, since
       the host cannot produce a ninth token: a blocking `std` `UnixListener` on
       its own thread, reading one line and writing one canned reply.
-- [ ] VA-1 — inject the defect each negative case guards, watch it red for its
+- [x] VA-1 — inject the defect each negative case guards, watch it red for its
       own reason, revert. Two injections where a case asserts two absences.
-- [ ] Refactor pass, then `just check` exit 0.
+- [x] Refactor pass, then `just check` exit 0.
 
 **Decisions taken during execution**
 
-<!-- filled as they are taken -->
+- **`envelope_line` returns a `String`, not a `Result`.** `clippy::unwrap_in_result`
+  is denied and is *not* scoped away by `clippy.toml`, so `ingress::reply`'s
+  precedent — a host-authored value of primitives serializes infallibly, and a
+  failure is a defect rather than a caller's mistake — only transfers to a
+  function that does not return a `Result`. Extracting the serialization is
+  what makes the claim local: that function is the whole of what is claimed
+  infallible. The alternative was a sixth `SendFault` variant, which EX-2
+  forbids twice over — the five are `design.md` §5.2's, and a variant nothing
+  constructs is not "constructed somewhere".
+- **`answer(&str)` is a private step between the wire and the rule.**
+  `SendFault::Unreadable` is a property of *bytes*, and `read_reply(Reply)` —
+  EX-3 fixes that signature — never sees bytes. VT-5 asks for `[1,2]` and
+  `not json` at the no-socket tier, so the parse needs a testable home that is
+  not `send`.
+- **`Answered` derives `PartialEq`; `SendFault` cannot.** `design.md` §5.2
+  shows no derives and EX-2 asks for `Debug` on both. `PartialEq` on `Answered`
+  is what lets a case assert a refusal *whole* — token, advice and detail in
+  one assertion rather than three. `SendFault` carries `io::Error` and
+  `serde_json::Error`, neither of which is `PartialEq`; its cases match on the
+  variant.
+- **No `Display` or `Error` impl on `SendFault`.** `design.md` §5.2 gives the
+  rendering to `goad-emit`'s `render::fault_line`, and a second rendering here
+  would drift from it. PHASE-03 is where a fault becomes a line.
+- **VT-2's coverage is by script, and A-4 undercounted.** The sheet said one
+  token has no real trigger a conforming `send` can pull. It is **three**:
+  `timed_out` (framing), and `malformed` and `invalid_envelope` (shape) — a
+  client that serializes an `Event` cannot author a mis-shaped envelope at all.
+  `reserved_source` is the exception that proves it: that rule is about a
+  *value*, so a real `source: "host"` reaches the host and is refused there
+  (AC-5). The other six tokens are scripted through `Verdict::Refuse`, which is
+  how `retry_after_ms_is_absent_from_every_reason_but_too_soon` already covers
+  the set.
 
 **Findings**
 
-<!-- filled as they are found -->
+- **VT-1 holds `SPEC-003/R-6`'s framing jointly, not the terminator.** VA-1
+  measured it: `send` writes the `\n` *and* shuts the write half, and this
+  listener admits either — dropping the terminator leaves the case green,
+  dropping the shutdown leaves it green, dropping both reds it with `timed_out`
+  and `nothing complete arrived within 500ms`. The doc comment said "the only
+  thing holding R-6" before the injection and now says what was measured. Each
+  mechanism is pinned separately by `mod.rs`'s own two envelope-termination
+  cases; writing both is the permissive-wire invariant pointed at the *writing*
+  side, and that reasoning is now recorded on `send`.
+- **`SendFault::Faulted` is constructed in production and exercised by no
+  case.** A connection that breaks mid-exchange has no deterministic trigger at
+  this tier — a peer that closes early races the client's write. `plan.md`
+  VT-4 asks only for `Unreachable` and `NoReply`, so this is stated residue
+  rather than a missed case. Worth an eye at audit.
+- **A mutation that leaves an unused import reds on the lint, not the
+  assertion.** The shutdown-only injection first reported red because
+  `use std::net::Shutdown;` became unused and `unused = "deny"` fired. A false
+  red is worse than no injection: it says a case guards something it does not.
+  Every VA-1 injection has to be lint-clean before its colour means anything.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-11 · PHASE-01 complete · gate green
+**Fresh as of:** 2026-09-14 · PHASE-02 complete · gate green
 
 ### Produced
 
@@ -298,6 +347,14 @@ STOP and consult:
 - `goad_shell::ingress::wire::Reply` — public, both directions, no
   `deny_unknown_fields`. `ingress::reply` builds it; the host's bytes are
   pinned by `the_reply_s_bytes_are_exactly_these`.
+- `goad_shell::ingress::client` — `send`, `read_reply` (pure, public),
+  `Answered`, `SendFault`. Blocking `std::os::unix::net` throughout, no
+  `tokio`, no new dependency. Eight unit cases over §6.3 with no socket, seven
+  integration cases against the real listener.
+- `tests/integration/ingress.rs` gained `event_of`, `send_event` (the
+  `spawn_blocking` wrapper every client case needs) and `fake_listener` — a
+  blocking `std` listener on its own thread, for the two replies the host
+  cannot produce: a ninth reason token and silence.
 
 ### Learned
 
@@ -309,9 +366,25 @@ STOP and consult:
   wants at least one assertion over bytes.
 - A lift's regression net is written *before* the lift and must be green when
   written. If it is red, it is not a net — it is a specification of a change.
+- **A client that serializes a canonical type cannot author a bad envelope.**
+  Three of the eight reason tokens have no real trigger `send` can pull; only
+  `reserved_source` does, because R-13 is a rule about a value rather than a
+  shape. That is why the host's rules are not duplicated client-side.
+- **`clippy::unwrap_in_result` is live and unscoped**, so "this value
+  serializes infallibly" only buys an `#[expect]` in a function that does not
+  return a `Result`. Extract the infallible part; do not widen an error type
+  for a case that cannot happen.
+- **Injections must be lint-clean.** A mutation that orphans an import reds on
+  `unused`, not on the assertion, and reports a case as load-bearing when it is
+  not.
 
 ### Open
 
 - Three places state the configuration-path rule: `default_path`'s table,
   `StartupError::NoConfigPath`'s sentence, `diagnostics::USAGE`. One is
   executable. See Findings.
+- `SendFault::Faulted` has no case. No deterministic trigger at this tier; the
+  plan did not ask for one. See PHASE-02 Findings.
+- `SendFault` has no rendering. PHASE-03's `render::fault_line` owes each of
+  the five variants a line, including the two that carry an error whose text
+  is the only useful part.

@@ -24,6 +24,7 @@ use tokio::sync::{mpsc, oneshot};
 use envelope::EnvelopeFault;
 use goad_semantics::protocol::canonical::Event;
 
+pub mod client;
 pub mod envelope;
 pub mod wire;
 

@@ -9,14 +9,17 @@
 //! constructs `engaged` or `too_soon` — `Verdict::Refuse` lets a case script
 //! either, which is how PHASE-08's VT-9 drives them without `serve`.
 
+use std::io::{BufRead as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use goad_semantics::protocol::canonical::Event;
+use goad_semantics::protocol::canonical::{Event, Timestamp};
+use goad_shell::ingress::client::{Answered, SendFault};
 use goad_shell::ingress::envelope::EnvelopeFault;
 use goad_shell::ingress::{
-  BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, UnavailableCause, bind, lock_path,
+  BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, UnavailableCause, bind, client,
+  lock_path,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -1247,5 +1250,260 @@ async fn retry_after_ms_is_absent_from_every_reason_but_too_soon() {
     );
   }
 
+  cleanup(&path);
+}
+
+// ---------------------------------------------------------------------------
+// 005/PHASE-02 — the client half, against the same real listener
+// ---------------------------------------------------------------------------
+
+/// One envelope, built the way `goad-emit` will build it. The timestamp is
+/// `GOOD`'s own, fixed rather than read from a clock, so a case can assert the
+/// whole `Event` the listener produced rather than three of its four fields.
+fn event_of(source: &str, data: serde_json::Value) -> Event {
+  let instant: jiff::Timestamp = match "2026-08-22T17:10:00+10:00".parse() {
+    Ok(instant) => instant,
+    Err(error) => panic!("could not parse the design's own example: {error}"),
+  };
+  Event {
+    source: source.to_owned(),
+    kind: "reddit-opened".to_owned(),
+    timestamp: Timestamp::new(instant),
+    data,
+  }
+}
+
+/// `client::send` is blocking, and every case here runs on a current-thread
+/// runtime with the fake judge spawned onto it — so calling it inline would
+/// deadlock rather than fail. Off the blocking pool it goes, exactly as
+/// `crates/goad/tests/renderer/ingress.rs` runs its own writer.
+async fn send_event(path: &Path, event: &Event) -> Result<Answered, SendFault> {
+  let path = path.to_owned();
+  let event = event.clone();
+  tokio::task::spawn_blocking(move || client::send(&path, &event))
+    .await
+    .expect("the client must not panic")
+}
+
+/// A listener that is **not** the host: it binds, takes one connection, reads
+/// one line and answers with `reply` — or, given `None`, closes with nothing
+/// on the connection.
+///
+/// Two cases need a reply the host cannot produce: a ninth reason token
+/// (`SPEC-003/R-14` closes the host's set at eight) and silence
+/// (`SPEC-003/R-8` forbids it). Both are about what a *client* does with a
+/// reply, so the thing that must be fake is the host.
+fn fake_listener(path: &Path, reply: Option<&'static str>) -> std::thread::JoinHandle<()> {
+  let listener = std::os::unix::net::UnixListener::bind(path).expect("the fake listener must bind");
+  std::thread::spawn(move || {
+    let (mut stream, _peer) = listener.accept().expect("one connection must arrive");
+    let mut line = String::new();
+    std::io::BufReader::new(&stream)
+      .read_line(&mut line)
+      .expect("the client must send one line");
+    if let Some(reply) = reply {
+      stream
+        .write_all(reply.as_bytes())
+        .expect("the canned reply must be written");
+    }
+  })
+}
+
+fn refusal_of(answered: Answered) -> (String, Option<u64>) {
+  match answered {
+    Answered::Refused {
+      reason,
+      retry_after_ms,
+      ..
+    } => (reason, retry_after_ms),
+    Answered::Accepted => panic!("expected a refusal, found an acceptance"),
+  }
+}
+
+/// PHASE-02/VT-1. The positive control, and where `SPEC-003/R-6`'s framing is
+/// held in this slice — but held **jointly**, which the VA-1 pass measured
+/// rather than assumed. `send` both writes the `\n` and shuts the write half,
+/// and this listener admits either: removing the terminator leaves the case
+/// green, removing the shutdown leaves it green, and removing both reds it
+/// with `timed_out` and `nothing complete arrived within 500ms`. So what this
+/// case holds is that the envelope is framed by *one of the two admitted
+/// mechanisms*, not which. Nothing here pins the terminator on its own —
+/// `mod.rs`'s own `an_envelope_terminated_by_a_newline_is_accepted` and
+/// `…_by_closing_the_write_side_is_accepted` are what hold each separately.
+#[tokio::test]
+async fn a_sent_envelope_is_accepted_and_reaches_the_judge_as_the_event_it_was() {
+  let path = socket_path("client-vt1-accepted");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  let seen = judge(ingress, vec![Verdict::Accept]);
+
+  let event = event_of("reddit-watcher", serde_json::json!({"count_last_hour": 4}));
+  let answered = send_event(&path, &event)
+    .await
+    .expect("a well-formed envelope must get a verdict");
+  assert_eq!(answered, Answered::Accepted);
+
+  let guard = seen
+    .lock()
+    .unwrap_or_else(std::sync::PoisonError::into_inner);
+  match guard.first() {
+    Some(Seen::Event(normalized)) => assert_eq!(*normalized, event, "the envelope did not survive"),
+    _other => panic!("expected an Event, found a refusal"),
+  }
+
+  cleanup(&path);
+}
+
+/// PHASE-02/VT-2, AC-5. `source: "host"` is sent, not pre-empted: the client
+/// carries the host's own `SPEC-003/R-13` refusal back rather than
+/// duplicating the rule and leaving it untested from the only side that
+/// exercises it.
+#[tokio::test]
+async fn a_reserved_source_is_sent_and_the_host_s_own_refusal_is_reported() {
+  let path = socket_path("client-vt2-reserved");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  let seen = judge(ingress, vec![Verdict::Accept]);
+
+  let event = event_of("host", serde_json::json!(null));
+  let answered = send_event(&path, &event)
+    .await
+    .expect("a refusal is a verdict, not a fault");
+  assert_eq!(refusal_of(answered).0, "reserved_source");
+
+  let guard = seen
+    .lock()
+    .unwrap_or_else(std::sync::PoisonError::into_inner);
+  match guard.first() {
+    Some(Seen::Refused(reason)) => assert_eq!(*reason, "reserved_source"),
+    _other => panic!("the listener must have refused this on shape"),
+  }
+
+  cleanup(&path);
+}
+
+/// PHASE-02/VT-2. Every remaining token of the closed set of eight, scripted
+/// through the judge and read back off the client. Three of them —
+/// `malformed`, `invalid_envelope` and `timed_out` — have no *real* trigger a
+/// conforming `send` can pull, which is the point: the client cannot author a
+/// mis-shaped or mis-framed envelope. What this case holds is that a client
+/// reports whichever of them a host sends.
+#[tokio::test]
+async fn every_refusal_the_host_can_send_is_reported_by_its_token() {
+  let path = socket_path("client-vt2-every-reason");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  let refusals = [
+    Refusal::Unavailable(UnavailableCause::Stopping),
+    Refusal::Malformed,
+    Refusal::InvalidEnvelope(EnvelopeFault::NotAnObject { found: "array" }),
+    Refusal::TooLarge {
+      limit: ENVELOPE_LIMIT,
+    },
+    Refusal::TimedOut {
+      after: ENVELOPE_DEADLINE,
+    },
+    Refusal::Engaged,
+  ];
+  let expected: Vec<&str> = refusals.iter().map(Refusal::reason).collect();
+  let script = refusals.into_iter().map(Verdict::Refuse).collect();
+  let _seen = judge(ingress, script);
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  for token in expected {
+    let answered = send_event(&path, &event)
+      .await
+      .expect("a refusal is a verdict, not a fault");
+    assert_eq!(refusal_of(answered).0, token);
+  }
+
+  cleanup(&path);
+}
+
+/// PHASE-02/VT-3. `retry_after_ms` reaches the caller as the host rounded it
+/// (`SPEC-003/R-14`) — reported, never obeyed.
+#[tokio::test]
+async fn too_soon_carries_its_retry_after_ms_through_to_the_caller() {
+  let path = socket_path("client-vt3-too-soon");
+  let ingress = match bind(&path) {
+    Ok(ingress) => ingress,
+    Err(error) => panic!("bind failed: {error}"),
+  };
+  let retry_after = Duration::from_micros(1_400_300);
+  let _seen = judge(
+    ingress,
+    vec![Verdict::Refuse(Refusal::TooSoon { retry_after })],
+  );
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  let answered = send_event(&path, &event)
+    .await
+    .expect("a refusal is a verdict, not a fault");
+  assert_eq!(
+    refusal_of(answered),
+    ("too_soon".to_owned(), Some(1401)),
+    "1400.3ms must reach the caller rounded up, as the host wrote it"
+  );
+
+  cleanup(&path);
+}
+
+/// PHASE-02/VT-3. A token no host in this workspace can produce is still a
+/// refusal: the set is closed at eight *today*, and a ninth from a newer host
+/// is reportable without being understood.
+#[tokio::test]
+async fn a_reason_token_this_client_does_not_know_is_still_a_refusal() {
+  let path = socket_path("client-vt3-ninth-reason");
+  let listening = fake_listener(
+    &path,
+    Some("{\"protocol\":1,\"accepted\":false,\"reason\":\"a_ninth_reason\"}\n"),
+  );
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  let answered = send_event(&path, &event)
+    .await
+    .expect("an unknown token is a refusal, not a fault");
+  assert_eq!(refusal_of(answered).0, "a_ninth_reason");
+
+  listening.join().expect("the fake listener must not panic");
+  cleanup(&path);
+}
+
+/// PHASE-02/VT-4. Nothing is listening: the host is not running, or not where
+/// the caller looked.
+#[tokio::test]
+async fn a_path_with_nothing_listening_is_unreachable() {
+  let path = socket_path("client-vt4-unreachable");
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+
+  let fault = send_event(&path, &event)
+    .await
+    .expect_err("nothing is listening there");
+  assert!(matches!(fault, SendFault::Unreachable(_)), "{fault:?}");
+
+  cleanup(&path);
+}
+
+/// PHASE-02/VT-4. A host that takes the envelope and closes with nothing on
+/// the connection has breached `SPEC-003/R-8`; silence is not a verdict to
+/// guess at.
+#[tokio::test]
+async fn a_listener_that_answers_nothing_is_no_reply() {
+  let path = socket_path("client-vt4-no-reply");
+  let listening = fake_listener(&path, None);
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  let fault = send_event(&path, &event)
+    .await
+    .expect_err("a silent close is not a verdict");
+  assert!(matches!(fault, SendFault::NoReply), "{fault:?}");
+
+  listening.join().expect("the fake listener must not panic");
   cleanup(&path);
 }
