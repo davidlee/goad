@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use goad_semantics::protocol::canonical::{Event, Timestamp};
-use goad_shell::ingress::client::{Answered, SendFault};
+use goad_shell::ingress::client::{Answered, REPLY_LIMIT, SendFault};
 use goad_shell::ingress::envelope::EnvelopeFault;
 use goad_shell::ingress::{
   BindFault, ENVELOPE_DEADLINE, ENVELOPE_LIMIT, Ingress, Refusal, UnavailableCause, bind, client,
@@ -1289,11 +1289,15 @@ async fn send_event(path: &Path, event: &Event) -> Result<Answered, SendFault> {
 /// one line and answers with `reply` — or, given `None`, closes with nothing
 /// on the connection.
 ///
-/// Two cases need a reply the host cannot produce: a ninth reason token
-/// (`SPEC-003/R-14` closes the host's set at eight) and silence
-/// (`SPEC-003/R-8` forbids it). Both are about what a *client* does with a
-/// reply, so the thing that must be fake is the host.
-fn fake_listener(path: &Path, reply: Option<&'static str>) -> std::thread::JoinHandle<()> {
+/// Four cases need a reply the host cannot produce: a ninth reason token
+/// (`SPEC-003/R-14` closes the host's set at eight), silence (`SPEC-003/R-8`
+/// forbids it), bytes that are not UTF-8, and a reply past the byte bound.
+/// All are about what a *client* does with a reply, so the thing that must be
+/// fake is the host.
+///
+/// The reply is **bytes**, not a `&str`: two of those four are not text, and
+/// a helper typed as text could not pose them at all.
+fn fake_listener(path: &Path, reply: Option<Vec<u8>>) -> std::thread::JoinHandle<()> {
   let listener = std::os::unix::net::UnixListener::bind(path).expect("the fake listener must bind");
   std::thread::spawn(move || {
     let (mut stream, _peer) = listener.accept().expect("one connection must arrive");
@@ -1303,7 +1307,7 @@ fn fake_listener(path: &Path, reply: Option<&'static str>) -> std::thread::JoinH
       .expect("the client must send one line");
     if let Some(reply) = reply {
       stream
-        .write_all(reply.as_bytes())
+        .write_all(&reply)
         .expect("the canned reply must be written");
     }
   })
@@ -1462,7 +1466,7 @@ async fn a_reason_token_this_client_does_not_know_is_still_a_refusal() {
   let path = socket_path("client-vt3-ninth-reason");
   let listening = fake_listener(
     &path,
-    Some("{\"protocol\":1,\"accepted\":false,\"reason\":\"a_ninth_reason\"}\n"),
+    Some(b"{\"protocol\":1,\"accepted\":false,\"reason\":\"a_ninth_reason\"}\n".to_vec()),
   );
 
   let event = event_of("reddit-watcher", serde_json::json!(null));
@@ -1503,6 +1507,91 @@ async fn a_listener_that_answers_nothing_is_no_reply() {
     .await
     .expect_err("a silent close is not a verdict");
   assert!(matches!(fault, SendFault::NoReply), "{fault:?}");
+
+  listening.join().expect("the fake listener must not panic");
+  cleanup(&path);
+}
+
+/// `review-code.md` F-5. A reply that is not UTF-8 is the **host's** bytes,
+/// not a fault of the transport: the connection delivered exactly what was
+/// written, and the caller's remedy is in the host's serializer. So this
+/// lands where `[1,2]` and `not json` land — `Unreadable`, the variant that
+/// exists to say *the host's bytes were wrong* — and not on `Faulted`, which
+/// points at the socket.
+#[tokio::test]
+async fn a_reply_that_is_not_utf_8_is_the_host_s_bytes_not_a_faulted_connection() {
+  let path = socket_path("client-f5-not-utf8");
+  let listening = fake_listener(&path, Some(b"\xff\xfe\n".to_vec()));
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  let fault = send_event(&path, &event)
+    .await
+    .expect_err("these bytes are not a verdict");
+  assert!(matches!(fault, SendFault::Unreadable(_)), "{fault:?}");
+
+  listening.join().expect("the fake listener must not panic");
+  cleanup(&path);
+}
+
+/// A conforming refusal grown to exactly `body_len` bytes by padding
+/// `detail`, with no terminator — `padded_envelope`'s own trick, pointed at
+/// the reply instead of the envelope.
+fn padded_reply(body_len: usize) -> Vec<u8> {
+  let template = |padding: &str| {
+    format!(r#"{{"protocol":1,"accepted":false,"reason":"too_soon","detail":"{padding}"}}"#)
+  };
+  let base_len = template("").len();
+  assert!(
+    body_len >= base_len,
+    "target length {body_len} is smaller than the empty template ({base_len})"
+  );
+  template(&"a".repeat(body_len - base_len)).into_bytes()
+}
+
+/// `review-code.md` F-3. The client's read is bounded, at `SPEC-003` §6.4's
+/// `bytes per read` row — the same 64 KiB the host reads an envelope under,
+/// for the reason that row states. A host that never terminates a reply is a
+/// host bug, and the answer to it is a refusal naming the host, not an
+/// allocation that runs until the OOM killer turns exit 2 into a signal.
+#[tokio::test]
+async fn a_reply_one_byte_past_the_byte_bound_is_refused_as_the_host_s_breach() {
+  let path = socket_path("client-f3-over-bound");
+  let mut reply = padded_reply(REPLY_LIMIT + 1);
+  reply.push(b'\n');
+  let listening = fake_listener(&path, Some(reply));
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  let fault = send_event(&path, &event)
+    .await
+    .expect_err("a reply past the bound is not a verdict");
+  assert!(
+    matches!(fault, SendFault::Oversized { limit } if limit == REPLY_LIMIT),
+    "{fault:?}"
+  );
+
+  listening.join().expect("the fake listener must not panic");
+  cleanup(&path);
+}
+
+/// The other side of F-3's bound, and the probe that says it is *this* bound
+/// and not one byte tighter.
+///
+/// **EOF-framed on purpose.** A newline-terminated reply at the bound never
+/// reaches the length check at all — the terminator is found first — so a
+/// case built that way would assert nothing about the bound and would stay
+/// green under a `>=`. `send` reads to the first newline *or* EOF, which are
+/// `SPEC-003/R-6`'s two admitted framings, so this is a reply a host may
+/// really send.
+#[tokio::test]
+async fn a_reply_exactly_at_the_byte_bound_is_read() {
+  let path = socket_path("client-f3-at-bound");
+  let listening = fake_listener(&path, Some(padded_reply(REPLY_LIMIT)));
+
+  let event = event_of("reddit-watcher", serde_json::json!(null));
+  let answered = send_event(&path, &event)
+    .await
+    .expect("a reply at the bound is a verdict");
+  assert_eq!(refusal_of(answered).0, "too_soon");
 
   listening.join().expect("the fake listener must not panic");
   cleanup(&path);

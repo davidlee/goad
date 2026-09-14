@@ -1,4 +1,4 @@
-//! The fake listener, the spawn helper, and the seven cases.
+//! The fake listener, the spawn helper, and the nine cases.
 use std::io::{BufRead as _, Write as _};
 use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
@@ -65,8 +65,39 @@ fn stderr_of(output: &Output) -> String {
   String::from_utf8(output.stderr.clone()).expect("emit writes UTF-8")
 }
 
-/// PHASE-04/VT-1, AC-1. Exit 0, and **nothing on stdout**: a cron job that
-/// prints on success trains its owner to ignore it (005/D-7).
+fn stdout_of(output: &Output) -> String {
+  String::from_utf8(output.stdout.clone()).expect("emit writes UTF-8")
+}
+
+/// PHASE-03/EX-6, D-4: `--help` is the one place the usage block lives, it
+/// goes to **stdout** so it can be paged, and it is exit 0. Held at this tier
+/// because `render::USAGE` being right says nothing about `main` reaching it.
+#[test]
+fn help_prints_the_usage_block_on_stdout_and_exits_0() {
+  let output = emit(&["--help"]);
+
+  assert_eq!(code_of(&output), 0, "{}", stderr_of(&output));
+  let stdout = stdout_of(&output);
+  assert!(stdout.starts_with("usage: goad-emit"), "{stdout}");
+  assert!(stdout.contains("--socket"), "{stdout}");
+  assert!(output.stderr.is_empty(), "{}", stderr_of(&output));
+}
+
+/// PHASE-03/EX-6: `--version` is the package version on stdout, exit 0 —
+/// nothing else, so a caller can read it as a value.
+#[test]
+fn version_prints_the_package_version_on_stdout_and_exits_0() {
+  let output = emit(&["--version"]);
+
+  assert_eq!(code_of(&output), 0, "{}", stderr_of(&output));
+  assert_eq!(stdout_of(&output).trim_end(), env!("CARGO_PKG_VERSION"));
+  assert!(output.stderr.is_empty(), "{}", stderr_of(&output));
+}
+
+/// PHASE-04/VT-1, AC-1. Exit 0, and **nothing on either stream**: a cron job
+/// that prints on success trains its owner to ignore it (005/D-7). Both are
+/// asserted, because stderr is the outlet `main` uses for every other
+/// outcome and is where a regression would land (F-10).
 #[test]
 fn an_accepted_envelope_exits_0_and_says_nothing() {
   let path = socket_path("accepted");
@@ -82,7 +113,8 @@ fn an_accepted_envelope_exits_0_and_says_nothing() {
   ]);
 
   assert_eq!(code_of(&output), 0, "{}", stderr_of(&output));
-  assert!(output.stdout.is_empty(), "{:?}", output.stdout);
+  assert!(output.stdout.is_empty(), "{}", stdout_of(&output));
+  assert!(output.stderr.is_empty(), "{}", stderr_of(&output));
   listener.join().expect("the listener thread must finish");
   cleanup(&path);
 }

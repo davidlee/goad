@@ -5,10 +5,19 @@
 //! stratum 1's behalf is invisible here — that is `purity`'s job, and its own
 //! misses are named beside it.
 //!
-//! `goad` and `goad-boundary` carry no allowlist here: `goad` is
-//! unconstrained (stratum 3 may name both strata below it), and
-//! `goad-boundary` is not a stratum — it is the test-only member that checks
-//! the other two.
+//! Three of the workspace's five members carry no allowlist here. `goad` and
+//! `goad-emit` are stratum 3, which may name both strata below it, so there is
+//! nothing for an allowlist to withhold; `goad-boundary` is not a stratum at
+//! all — it is the test-only member that checks the other two. This
+//! instrument's subjects are exactly the two strata whose value is what they
+//! *cannot* reach, which is how POL-001 §Verification scopes it: an entry "in a
+//! stratum 1 or 2 manifest".
+//!
+//! The consequence, stated so it is not rediscovered: **a stratum-3 manifest is
+//! billed by nothing here.** `crates/goad-emit`'s freedom from the renderer is
+//! a fact about its own dependency table (005/AC-7), held by the crate edge and
+//! by review, not by this file. Extending the instrument to stratum 3 is a
+//! standing Follow-up, and would amend POL-001 rather than apply it.
 
 use std::path::Path;
 

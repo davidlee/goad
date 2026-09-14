@@ -584,13 +584,13 @@ fn reply(accepted: bool, refusal: Option<&Refusal>) -> String {
     Some(Refusal::TooSoon { retry_after }) => Some(round_up_millis(*retry_after)),
     _no_other_reason_carries_it => None,
   };
-  let wire = wire::Reply {
-    protocol: Some(1),
-    accepted: Some(accepted),
-    reason: refusal.map(|refusal| Refusal::reason(refusal).to_owned()),
+  let detail = refusal.map(ToString::to_string);
+  let wire = wire::Reply::written(
+    accepted,
+    refusal.map(Refusal::reason),
     retry_after_ms,
-    detail: refusal.map(ToString::to_string),
-  };
+    detail.as_deref(),
+  );
   // A host-authored value of primitive fields serializes infallibly; a
   // failure here is a defect in this module, not a caller's mistake — the
   // same argument `process.rs`'s own `#[expect(clippy::unwrap_used, ...)]`
@@ -923,10 +923,6 @@ mod tests {
     );
   }
 
-  /// §6.3's reply is one **line**. Asserted here as well as on the wire
-  /// (`tests/integration/ingress.rs`) because this is the function that owes
-  /// the byte, and the wire case cannot say which of the two writers produced
-  /// it.
   /// 005/PHASE-01/VT-3. The bytes, not a parse of them: every other
   /// assertion in the workspace reads this reply through `serde_json`
   /// (`tests/integration/ingress.rs:185`), which cannot tell `1` from `null`
@@ -962,15 +958,19 @@ mod tests {
     assert_eq!(
       parsed,
       wire::Reply {
-        protocol: Some(1),
-        accepted: Some(false),
-        reason: Some("too_soon".to_owned()),
-        retry_after_ms: Some(1500),
-        detail: Some(refusal.to_string()),
+        protocol: Some(serde_json::json!(1)),
+        accepted: Some(serde_json::json!(false)),
+        reason: Some(serde_json::json!("too_soon")),
+        retry_after_ms: Some(serde_json::json!(1500)),
+        detail: Some(serde_json::json!(refusal.to_string())),
       }
     );
   }
 
+  /// §6.3's reply is one **line**. Asserted here as well as on the wire
+  /// (`tests/integration/ingress.rs`) because this is the function that owes
+  /// the byte, and the wire case cannot say which of the two writers produced
+  /// it.
   #[test]
   fn a_reply_is_one_newline_terminated_line() {
     let accepted = reply(true, None);

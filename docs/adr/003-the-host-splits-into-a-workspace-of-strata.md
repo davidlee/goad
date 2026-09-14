@@ -56,12 +56,15 @@ second finding.
 
 ## Decision
 
-We will organise the host as a Cargo workspace of four members, following
-ADR-001's strata:
+We will organise the host as a Cargo workspace of members, following
+ADR-001's strata — four at this decision, five since slice 005:
 
 - **`crates/goad-semantics`** — stratum 1, the pure semantic core.
 - **`crates/goad-shell`** — stratum 2, the I/O shell.
-- **`crates/goad`** — stratum 3, the Slint renderer and the binary.
+- **`crates/goad`** — stratum 3, the Slint renderer and the host binary.
+- **`crates/goad-emit`** — stratum 3, the `goad-emit` binary. Added by slice
+  005 under this ADR's own rule rather than against it: stratum 3 holds entry
+  points, and a second binary is a second entry point. See Alternatives.
 - **`crates/goad-boundary`** — no stratum. A test-only member that owns the
   workspace-wide invariant checks (the manifest allowlist, the stratum 1 purity
   scan, and the domain-vocabulary scan) and depends on no other member, because
@@ -121,10 +124,16 @@ seam.
   build-dependency and a conditional `build.rs`, which was never the obstacle —
   the obstacle was the dev-dependency and the lint collision, neither of which a
   feature gate solves inside one crate.
-- **A fifth crate, one per stratum-3 concern.** Rejected as not triggered: T2 (a
-  second binary) has not fired, and splitting the renderer from the binary would
-  be structure drawn around an imagined shape rather than an observed one — the
-  same objection ADR-002 raised against a workspace from the outset.
+- **A fifth crate, one per stratum-3 concern.** Rejected, and **still
+  rejected**: splitting the renderer from the host binary would be structure
+  drawn around an imagined shape rather than an observed one — the same
+  objection ADR-002 raised against a workspace from the outset. What has
+  changed is the ground, not the verdict. This entry originally rested on "T2
+  (a second binary) has not fired"; T2 fired in slice 005, and was answered by
+  adding a member for the new binary, not by splitting `crates/goad`. An
+  alternative left standing on a premise that has since gone false is the trap
+  this ADR's own Context describes ADR-002 laying, so the premise is corrected
+  here rather than left to be read as current.
 
 ## Consequences
 
@@ -145,10 +154,17 @@ seam.
   stratum 1's build under `--workspace`, and nothing in the gate rejects it.
   This is a review obligation, not an enforced rule, and it did not exist as a
   named risk before the split created `--workspace` builds to unify against.
-- `goad-boundary` is a fifth thing to keep in view: a new workspace member
-  needs its own entry in the manifest allowlist and its own reach in the
-  vocabulary scan's walk, and nothing but review catches a member added without
-  either.
+- `goad-boundary` is a further thing to keep in view when a member is added,
+  though not in the way this ADR first stated. Measured at slice 005's audit,
+  against a real new member: the **domain-vocabulary scan** reads
+  `workspace.members` for itself, so a new member arrives covered with no edit;
+  and no stratum-3 member carries a **manifest allowlist** row at all, because
+  POL-001 §Verification scopes that instrument to "a stratum 1 or 2 manifest".
+  The real residue is narrower and sharper: **a stratum-3 manifest is checked
+  by nothing but review.** Stratum 3's freedom from the renderer is a fact
+  about its own dependency table — one line added there dissolves it silently,
+  as has been true of `crates/goad` since this ADR and of `crates/goad-emit`
+  since 005. An instrument for it is a live Follow-up, not a rule in force.
 - The manifest allowlist test and the stratum 1 purity scan are both line- and
   name-based. Neither claims to see an aliased import, a brace-grouped `use`, or
   I/O performed on stratum 1's behalf by a permitted dependency.

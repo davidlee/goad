@@ -55,3 +55,22 @@ margins had to be re-taken in a detached worktree rather than in the tree
 - For temporary instrumentation in a test, expect no exemption: `eprintln!`,
   `println!`, `dbg!` and `{:?}` are all denied everywhere. Instrument in a
   throwaway worktree, or assert on a value instead of printing one.
+
+## A third face: a `tests/` target gets no exemption without `#[cfg(test)]`
+
+Confirmed at slice 005, PHASE-04. The four `allow-*-in-tests` keys apply to
+code clippy considers test code, and an integration target under `tests/` is
+**not** that by virtue of living there. A `tests/binary/main.rs` holding its
+cases directly failed the gate with seven `expect_used` errors plus
+`tests_outside_test_module` — on code `cargo test` ran green.
+
+The workspace already knew: `crates/goad-shell/tests/integration/main.rs`
+carries the comment saying so. The shape that works is the one that comment
+describes — `main.rs` holds the module doc and `#[cfg(test)] mod …;`
+declarations, the cases live in the modules beside it. The attribute is never
+off (a `tests/` target is always built with `--test`), so it costs nothing and
+buys the exemptions.
+
+The trap is the order of discovery: `cargo test` is green throughout and only
+`cargo clippy --all-targets` says otherwise. A phase that runs its own tests and
+stops believes it is done.

@@ -13,6 +13,66 @@ const KIND: &str = "--kind";
 const DATA: &str = "--data";
 const SOCKET: &str = "--socket";
 
+/// The four flags that take a value, as a type rather than as four string
+/// comparisons repeated per walk: [`split`] and the fold in [`parse`] cannot
+/// disagree about which tokens consume the token after them, which is the
+/// disagreement F-2 was.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Flag {
+  Source,
+  Kind,
+  Data,
+  Socket,
+}
+
+impl Flag {
+  const ALL: [Self; 4] = [Self::Source, Self::Kind, Self::Data, Self::Socket];
+
+  /// The flag this token names, or `None` — which includes `-h`, `--help` and
+  /// `--version`, none of which takes a value.
+  fn of(token: &std::ffi::OsStr) -> Option<Self> {
+    let text = token.to_str()?;
+    Self::ALL.into_iter().find(|flag| flag.name() == text)
+  }
+
+  /// As written on the command line, which is how every message names it.
+  fn name(self) -> &'static str {
+    match self {
+      Self::Source => SOURCE,
+      Self::Kind => KIND,
+      Self::Data => DATA,
+      Self::Socket => SOCKET,
+    }
+  }
+}
+
+/// One argument with its position already resolved: **a token consumed as
+/// some flag's value is never a flag** (F-2).
+#[derive(Debug)]
+enum Argument {
+  /// A value-taking flag and the token after it — `None` when it was the last
+  /// argument, which is [`UsageError::NoValue`].
+  Flagged(Flag, Option<OsString>),
+  /// A token in **flag position**: `-h`, `--help`, `--version`, or something
+  /// this command line does not take.
+  Bare(OsString),
+}
+
+/// The argument vector, paired. The one place that decides which tokens are
+/// values, so the scan for `-h`/`--help`/`--version` can look only where a
+/// flag can be and the fold can take each value as given.
+fn split(rest: Vec<OsString>) -> Vec<Argument> {
+  let mut arguments = rest.into_iter();
+  std::iter::from_fn(|| {
+    let argument = arguments.next()?;
+    Some(match Flag::of(&argument) {
+      Some(flag) => Argument::Flagged(flag, arguments.next()),
+      None => Argument::Bare(argument),
+    })
+  })
+  .collect()
+}
+
 /// What the arguments asked for. `Help` and `Version` are outcomes rather
 /// than an early exit hidden in parsing, so `main` keeps its one exit-code
 /// decision — `startup::arguments`' own reason for the same shape.
@@ -43,9 +103,20 @@ pub(crate) struct Request {
 pub(crate) enum UsageError {
   /// A required flag was not given at all.
   Missing(&'static str),
-  /// The flag was given with an empty value. An empty `source` or `kind` is
-  /// not an envelope `SPEC-003` §6.2 admits, and an empty socket path is
-  /// unusable — the argument `config.rs` makes for `ingress.path`.
+  /// The flag was given with an empty value: a **malformed argument**, which
+  /// is emit's own to refuse. `--source ""` is the same mistake as `--source`
+  /// with nothing after it, spelled differently, and the argument vector
+  /// alone says so — no connection is spent learning it.
+  ///
+  /// **Not a host rule pre-empted** (AC-5). Emit does not pre-empt host rules
+  /// about the *meaning of well-formed values*: `"host"` is a value the
+  /// caller was entitled to type and the host declines, so it goes on the
+  /// wire and comes back as exit 1. Malformedness is a different thing and is
+  /// exit 2. The host's own empty-value rule
+  /// (`goad_shell::ingress::envelope`, `EnvelopeFault::Empty`) is real and
+  /// tested host-side, and is deliberately never reached from here.
+  /// `--socket ""` is the same class with no host-side counterpart at all: an
+  /// unusable path, the argument `config.rs` makes for `ingress.path`.
   Empty(&'static str),
   /// The flag was the last argument, with nothing after it to be its value.
   NoValue(&'static str),
@@ -75,17 +146,26 @@ pub(crate) enum UsageError {
 /// lives here, inside the function the table tests, rather than at a call site
 /// no test covers (`startup::arguments`' own reasoning).
 ///
+/// A token that follows one of the four value-taking flags is that flag's
+/// **value**, whatever it spells (F-2). The scan for `-h`, `--help` and
+/// `--version` therefore looks only at tokens in **flag position** — a
+/// position no value occupies — which is what keeps `--data --version` from
+/// printing the version and exiting 0 having sent nothing.
+///
 /// | arguments | behaviour |
 /// |---|---|
-/// | `-h` or `--help`, anywhere | [`Invocation::Help`] — the usage block on stdout, exit 0. Checked before anything else, so a mistyped line can still ask for help |
-/// | `--version`, anywhere | [`Invocation::Version`] — the package version, exit 0. `--help` wins if both appear |
+/// | `-h` or `--help` in flag position, anywhere | [`Invocation::Help`] — the usage block on stdout, exit 0. Checked before any value is inspected, so a line that mistyped another flag can still ask for help |
+/// | `--version` in flag position, anywhere | [`Invocation::Version`] — the package version, exit 0 |
+/// | both `--help` and `--version` | [`Invocation::Help`], in either order |
 /// | `--source S --kind K` | [`Invocation::Send`], `data` JSON `null`, `socket` `None` — the configuration is consulted for the path |
 /// | `--data JSON` | parsed **locally** (005/D-5); a malformed value is [`UsageError::NotJson`] and no connection is made |
 /// | `--socket PATH` | that path, and **no configuration is read at all** (AC-4) |
+/// | `--kind -h`, `--data --version` | the value `-h`, the value `--version`: a value position is a value. `-h` is a `kind` `SPEC-003` §6.2 admits, and narrowing the values emit will carry is the renderer mistake pointed at a command line |
+/// | `--source --help` | `source` is the string `--help`; the line is then missing a `--kind`, and that is what it is told |
 /// | a flag given twice | [`UsageError::Repeated`] — which was meant is not guessed at |
 /// | a flag with nothing after it | [`UsageError::NoValue`] |
 /// | `--source` or `--kind` absent | [`UsageError::Missing`] |
-/// | any of the four with an empty value | [`UsageError::Empty`] |
+/// | any of the four with an empty value | [`UsageError::Empty`] — a **malformed argument**, exit 2, which is not a host rule pre-empted (AC-5) |
 /// | anything else beginning with `-` | [`UsageError::Unknown`], naming it. `--source=S` is one of these: values are separate arguments |
 /// | anything else | [`UsageError::Positional`], naming it |
 ///
@@ -95,14 +175,17 @@ pub(crate) enum UsageError {
 /// an environment, a clock, a file or a socket, so a usage error costs no
 /// connection.
 pub(crate) fn parse(argv: impl Iterator<Item = OsString>) -> Result<Invocation, UsageError> {
-  let rest: Vec<OsString> = argv.skip(1).collect();
-  if rest
-    .iter()
-    .any(|argument| argument == "-h" || argument == "--help")
-  {
+  let arguments = split(argv.skip(1).collect());
+  let in_flag_position = |wanted: &str| {
+    arguments.iter().any(|argument| match argument {
+      Argument::Bare(bare) => bare == wanted,
+      Argument::Flagged(..) => false,
+    })
+  };
+  if in_flag_position("-h") || in_flag_position("--help") {
     return Ok(Invocation::Help);
   }
-  if rest.iter().any(|argument| argument == "--version") {
+  if in_flag_position("--version") {
     return Ok(Invocation::Version);
   }
 
@@ -111,26 +194,22 @@ pub(crate) fn parse(argv: impl Iterator<Item = OsString>) -> Result<Invocation, 
   let mut data: Option<serde_json::Value> = None;
   let mut socket: Option<PathBuf> = None;
 
-  let mut arguments = rest.into_iter();
-  while let Some(argument) = arguments.next() {
-    match argument.to_str() {
-      Some(SOURCE) => once(
-        &mut source,
-        SOURCE,
-        text(SOURCE, &value(SOURCE, &mut arguments)?)?,
-      )?,
-      Some(KIND) => once(&mut kind, KIND, text(KIND, &value(KIND, &mut arguments)?)?)?,
-      Some(DATA) => {
-        let raw = text(DATA, &value(DATA, &mut arguments)?)?;
+  for argument in arguments {
+    let (flag, given) = match argument {
+      Argument::Flagged(flag, given) => (flag, given.ok_or(UsageError::NoValue(flag.name()))?),
+      Argument::Bare(bare) => return Err(stray(&bare)),
+    };
+    let name = flag.name();
+    match flag {
+      Flag::Source => once(&mut source, name, text(name, &given)?)?,
+      Flag::Kind => once(&mut kind, name, text(name, &given)?)?,
+      Flag::Socket => once(&mut socket, name, path(name, &given)?)?,
+      Flag::Data => {
+        let raw = text(name, &given)?;
         let parsed =
           serde_json::from_str(&raw).map_err(|fault| UsageError::NotJson { raw, fault })?;
-        once(&mut data, DATA, parsed)?;
+        once(&mut data, name, parsed)?;
       }
-      Some(SOCKET) => {
-        let path = path(SOCKET, &value(SOCKET, &mut arguments)?)?;
-        once(&mut socket, SOCKET, path)?;
-      }
-      _not_a_flag_this_takes => return Err(stray(&argument)),
     }
   }
 
@@ -140,14 +219,6 @@ pub(crate) fn parse(argv: impl Iterator<Item = OsString>) -> Result<Invocation, 
     data: data.unwrap_or(serde_json::Value::Null),
     socket,
   }))
-}
-
-/// The argument after a flag, or [`UsageError::NoValue`].
-fn value(
-  flag: &'static str,
-  arguments: &mut impl Iterator<Item = OsString>,
-) -> Result<OsString, UsageError> {
-  arguments.next().ok_or(UsageError::NoValue(flag))
 }
 
 /// A flag's value as a non-empty `String`.
@@ -342,6 +413,42 @@ mod tests {
       refused(&["--source", "w", "--kind"]),
       UsageError::NoValue("--kind")
     ));
+  }
+
+  /// F-2. A token in **value position** is that flag's value, whatever it
+  /// spells. Before this rule, `--data`'s value read `--version` and emit
+  /// printed the version and exited **0** — the one code D-4 reserves for
+  /// "the host accepted it" — having sent nothing.
+  #[test]
+  fn a_help_or_version_token_in_value_position_is_a_value() {
+    match refused(&["--source", "w", "--kind", "k", "--data", "--version"]) {
+      UsageError::NotJson { raw, .. } => assert_eq!(raw, "--version"),
+      other => panic!("expected NotJson, found {other:?}"),
+    }
+    assert_eq!(sent(&["--source", "w", "--kind", "-h"]).kind, "-h");
+  }
+
+  /// F-2, the ruling spelled out: `--source --help` gives `source` the value
+  /// `--help`, so the line is missing a `--kind` rather than asking for help.
+  #[test]
+  fn a_flag_in_value_position_is_consumed_by_the_flag_before_it() {
+    assert_eq!(
+      sent(&["--source", "--help", "--kind", "k"]).source,
+      "--help"
+    );
+    assert!(matches!(
+      refused(&["--source", "--help"]),
+      UsageError::Missing("--kind")
+    ));
+  }
+
+  /// The doc table's `--help` wins if both appear, in both orders — the
+  /// ordering is the whole content of the claim.
+  #[test]
+  fn help_wins_over_version_in_either_order() {
+    for arguments in [&["--help", "--version"][..], &["--version", "--help"][..]] {
+      assert_eq!(parsed(arguments).expect("help parses"), Invocation::Help);
+    }
   }
 
   #[test]

@@ -40,3 +40,28 @@ for the reason it exists.**
 
 - `a-bound-is-not-tested-at-the-bound.md` — the same failure where the outcome
   is what two implementations agree on.
+
+## Slice 005: three more, and the measurement that found them
+
+`review-code.md` F-7. Three `render` cases asserted a property of the whole
+variant **set** — that all five lines read differently from one another — rather
+than which arm produced which line. Swapping two match arms leaves the set
+distinct, so the swap stays green.
+
+What makes this instance worth keeping is how it was settled. The repair agent
+did not reason about it: it restored each case to its pre-repair body, injected
+the swap, and ran them. **All three stayed green**, exactly as the finding
+predicted. The fix is a table of (variant, a phrase only that arm says), so the
+loop asserts a *mapping* rather than a property of the collection.
+
+The distinctness check was **kept** beside the new per-arm pins rather than
+replaced by them, and the reason generalises: two arms could say each other's
+phrase *as well as* their own, and per-arm pins would not see that. A set
+property and a mapping property are different assertions; neither implies the
+other.
+
+**The phase that produced them was the one phase with no injection pass.** The
+same slice's PHASE-04 cases were mutation-checked against six injected defects
+at the time of writing and every one was load-bearing. The pass is what
+separates the two phases, not the care taken — the three weak cases were
+written as carefully as the strong ones.

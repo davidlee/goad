@@ -512,6 +512,17 @@ default_poll = "30m"
     );
   }
 
+  /// The table's XDG row reads *unset, empty or relative* and the empty spelling
+  /// had no case: an empty value is not an absolute path, so `HOME` answers —
+  /// and `$XDG_CONFIG_HOME` prefixed onto nothing is never the answer.
+  #[test]
+  fn an_empty_xdg_config_home_is_ignored_and_home_answers() {
+    assert_eq!(
+      super::default_path(&env_of(&[("XDG_CONFIG_HOME", ""), ("HOME", "/home/it")])),
+      Some("/home/it/.config/goad/config.toml".into())
+    );
+  }
+
   #[test]
   fn with_no_xdg_config_home_the_path_is_under_home() {
     assert_eq!(

@@ -1,6 +1,6 @@
 # Slice 005: `goad emit`
 
-**Stage:** in progress
+**Stage:** done
 **Tier:** 1 (thin) — see `docs/AGENTS.md` §Tiers. It writes no canon: SPEC-003
 already specifies the envelope, the reply and the closed reason set, and this
 slice is a *client* of that contract rather than an amendment to it. **The one
@@ -111,6 +111,18 @@ socket, not here.
       The CLI does not pre-empt the check: SPEC-003/R-13 is the host's
       requirement, and a client that duplicated it would make the host's own
       refusal untested from this side.
+      **Where that boundary runs** (F-6): emit does not pre-empt host rules
+      about the *meaning of well-formed values* — `"host"` is a value the
+      caller was entitled to type and the host declines, so it goes on the
+      wire and comes back as exit 1. Emit does refuse *malformed arguments*,
+      which is a different thing and is exit 2: `--source ""` is the same
+      mistake as `--source` with nothing after it, spelled differently, and
+      the caller learns it from the argument vector alone without a connection
+      being spent. The host's own empty-value rule
+      (`ingress/envelope.rs`, `EnvelopeFault::Empty`) is real, tested
+      host-side, and simply never reached from here — by design, not by
+      oversight. `--socket ""` is the same class with no host-side
+      counterpart at all.
 - [ ] AC-6 — the bytes a real invocation of the **built binary** puts on a real
       socket normalize to an `Event` carrying the `source`, `kind` and `data` as
       sent. Deliberately *not* phrased as "reaches the backend": no test target
@@ -259,6 +271,35 @@ socket, not here.
   still a runtime (F-16).
 
 ## Summary
+
+`goad-emit` exists: a stratum-3 workspace member, one binary, three
+dependencies and no renderer. `goad-emit --source S --kind K [--data JSON]`
+writes one SPEC-003 §6.2 envelope to the host's socket and exits **0** if the
+host accepted it, **1** if the host refused it and said why, **2** if no usable
+answer could be had. A cron line no longer needs to know the wire format, the
+reserved `source`, the RFC 3339 offset rule or the reply's shape.
+
+Four phases. PHASE-01 lifted four things to stratum 2 without changing any of
+them — `config::default_path`, `report::line_to`, the wall clock whole, and the
+reply's wire type made public in both directions. PHASE-02 wrote the client
+half of SPEC-003 beside the listener it talks to, because the reply is the
+other half of the contract the envelope belongs to (ADR-005's reasoning, not
+its letter). PHASE-03 added the member and the binary, every part of it that
+could be pure being pure. PHASE-04 demonstrated the built binary's exit codes
+against a real socket, and a person prompted a real evaluation with it.
+
+**The audit and code review are the part worth reading.** The slice was green
+by its own gate, its own acceptance criteria and a human demonstration, and
+still carried three defects that would have shipped: a wire narrowing that
+refused conforming hosts, a command line that exited 0 having sent nothing, and
+an unbounded read. All three sat in the contract's **encodings and bounds**,
+which no acceptance criterion reached. Eighteen findings over four rounds, no
+blocker at any point, 503 cases where there were 450.
+
+The durable lesson is in `docs/memory/`: a wire struct's Rust spelling is an
+unreviewed claim about the wire, and an enumerated list is not a checked
+clause — a boundary stated generatively cannot go stale the way three
+enumerations did.
 
 <!-- Written at close: what actually landed, in three or four lines. -->
 

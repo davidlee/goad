@@ -22,6 +22,14 @@ use crate::args::UsageError;
 /// deadline (005/D-10, `SPEC-003` §6.4), and discovery covers the host's
 /// **default** configuration path only, so a host started on an explicit
 /// configuration is reached with `--socket` (F-6).
+///
+/// The discovery paragraph is prose *about*
+/// [`goad_shell::config::default_path`], which is where the rule is
+/// executable and where its own doc table states it; this copy is not the
+/// authority and a change to that function is what must drive a change here
+/// (F-8). It states the `HOME`-empty row for that reason: without it the
+/// paragraph reads as though `$HOME/.config/goad/config.toml` is always the
+/// fallback, which the function has never said.
 pub(crate) const USAGE: &str = "usage: goad-emit --source S --kind K [--data JSON] [--socket PATH]
        goad-emit -h | --help
        goad-emit --version
@@ -36,9 +44,11 @@ the host refused it, and 2 if no usable answer could be had.
 
 Without --socket the path is read from the ingress section of
 $XDG_CONFIG_HOME/goad/config.toml, or of $HOME/.config/goad/config.toml when
-XDG_CONFIG_HOME is unset, empty or not absolute. That is the host's default
-configuration path and the only one emit looks at: a host started on an
-explicit configuration file is reached with --socket.
+XDG_CONFIG_HOME is unset, empty or not absolute. When HOME is unset or empty
+as well, there is no default path at all and emit says so rather than guessing
+one: pass --socket. That is the host's default configuration path and the only
+one emit looks at: a host started on an explicit configuration file is reached
+with --socket.
 
 The host answers when it has judged the event, and takes as long as that takes;
 emit sets no deadline of its own. Wrap it if you need one:
@@ -76,9 +86,15 @@ pub(crate) fn refused_line(answered: &Answered) -> String {
   }
 }
 
-/// No usable answer, and which of the five it was. The path is named in every
+/// No usable answer, and which of the six it was. The path is named in every
 /// one of them: *unreachable* means nothing about the host without saying
 /// where emit looked (AC-3).
+///
+/// The six divide by **which side was wrong**, which is the obligation
+/// `SendFault`'s own doc carries: the first two are the transport or the
+/// caller's path, and the last four are the host — one that said nothing, one
+/// that never stopped talking, one whose bytes were not a document, and one
+/// whose document was not a verdict.
 #[must_use]
 pub(crate) fn fault_line(fault: &SendFault, path: &Path) -> String {
   let path = path.display();
@@ -91,6 +107,9 @@ pub(crate) fn fault_line(fault: &SendFault, path: &Path) -> String {
     }
     SendFault::NoReply => {
       format!("goad-emit: {path} closed without answering, which SPEC-003/R-8 forbids")
+    }
+    SendFault::Oversized { limit } => {
+      format!("goad-emit: the reply from {path} did not end within {limit} bytes")
     }
     SendFault::Unreadable(error) => {
       format!("goad-emit: the reply from {path} is not one JSON object: {error}")
@@ -206,27 +225,55 @@ mod tests {
 
   /// PHASE-03/VT-2, AC-3: every usage error names what was wrong with it, and
   /// none of them reprints the usage block (`crates/goad`'s principle 4).
+  ///
+  /// The third column is what makes this a test of the **mapping** rather
+  /// than of the set (F-7): naming the flag is a property every arm has by
+  /// construction, so a case asserting only that stays green when two arms
+  /// are swapped and a caller is told `--kind was given an empty value` when
+  /// `--kind` was never given at all.
   #[test]
   fn every_usage_error_names_the_flag_and_reprints_nothing() {
-    let cases: [(UsageError, &str); 8] = [
-      (UsageError::Missing("--source"), "--source"),
-      (UsageError::Empty("--kind"), "--kind"),
-      (UsageError::NoValue("--data"), "--data"),
-      (UsageError::Repeated("--socket"), "--socket"),
-      (UsageError::NotUtf8("--source"), "--source"),
+    let cases: [(UsageError, &str, &str); 8] = [
+      (UsageError::Missing("--source"), "--source", "is required"),
+      (UsageError::Empty("--kind"), "--kind", "an empty value"),
+      (
+        UsageError::NoValue("--data"),
+        "--data",
+        "needs a value after it",
+      ),
+      (
+        UsageError::Repeated("--socket"),
+        "--socket",
+        "more than once",
+      ),
+      (
+        UsageError::NotUtf8("--source"),
+        "--source",
+        "a value that is not UTF-8",
+      ),
       (
         UsageError::NotJson {
           raw: "{oops".to_owned(),
           fault: serde_json::from_str::<serde_json::Value>("{oops").expect_err("this is not JSON"),
         },
         "--data",
+        "is not JSON",
       ),
-      (UsageError::Unknown("--socket=x".to_owned()), "--socket=x"),
-      (UsageError::Positional("stray".to_owned()), "stray"),
+      (
+        UsageError::Unknown("--socket=x".to_owned()),
+        "--socket=x",
+        "unknown flag",
+      ),
+      (
+        UsageError::Positional("stray".to_owned()),
+        "stray",
+        "unexpected argument",
+      ),
     ];
-    for (error, named) in cases {
+    for (error, named, said) in cases {
       let line = usage_error_line(&error);
       assert!(line.contains(named), "{line} must name {named}");
+      assert!(line.contains(said), "{line} must say {said}");
       assert!(
         !line.contains("usage:"),
         "{line} must not reprint the usage block"
@@ -237,25 +284,40 @@ mod tests {
   /// PHASE-03/VT-6, AC-4: each way the configuration road ends names the path
   /// and the fault. The fifth — the clock — names neither, because neither is
   /// what went wrong.
+  ///
+  /// Each of the three file faults is paired with a phrase only its own arm
+  /// says (F-7). Naming the file is common to all three, so a case asserting
+  /// only that survives swapping `Unreadable` and `Unparseable` — after which
+  /// a user whose configuration is absent is told it is unparseable.
   #[test]
   fn every_startup_fault_names_the_path_and_what_was_wrong() {
     let path = Path::new("/home/someone/.config/goad/config.toml");
     let naming_the_file = [
-      StartupFault::Unreadable {
-        path: path.to_owned(),
-        fault: std::io::Error::from(std::io::ErrorKind::NotFound),
-      },
-      StartupFault::Unparseable {
-        path: path.to_owned(),
-        fault: ConfigError::EmptyCommand,
-      },
-      StartupFault::NoIngress {
-        path: path.to_owned(),
-      },
+      (
+        StartupFault::Unreadable {
+          path: path.to_owned(),
+          fault: std::io::Error::from(std::io::ErrorKind::NotFound),
+        },
+        "could not be read",
+      ),
+      (
+        StartupFault::Unparseable {
+          path: path.to_owned(),
+          fault: ConfigError::EmptyCommand,
+        },
+        "names no program",
+      ),
+      (
+        StartupFault::NoIngress {
+          path: path.to_owned(),
+        },
+        "has no [ingress] section",
+      ),
     ];
-    for fault in naming_the_file {
+    for (fault, said) in naming_the_file {
       let line = startup_error_line(&fault);
       assert!(line.contains("config.toml"), "{line}");
+      assert!(line.contains(said), "{line} must say {said}");
     }
 
     let nowhere = startup_error_line(&StartupFault::NoPath);
@@ -263,33 +325,53 @@ mod tests {
     assert!(nowhere.contains("HOME"), "{nowhere}");
     assert!(nowhere.contains("--socket"), "{nowhere}");
 
-    let listening = startup_error_line(&StartupFault::NoIngress {
-      path: path.to_owned(),
-    });
-    assert!(listening.contains("ingress"), "{listening}");
-
     let clock = startup_error_line(&StartupFault::ClockUnreadable(ClockError::BeforeEpoch));
     assert!(clock.contains("clock"), "{clock}");
     assert!(clock.contains("timestamp"), "{clock}");
   }
 
   /// AC-3: a fault names which of them happened *and* the path involved.
+  ///
+  /// All six, each paired with the phrase its own arm says (F-7). Naming the
+  /// path and reading differently from the other five are properties the set
+  /// has by construction: a case holding only those stays green when
+  /// `Unreachable` and `Faulted` are swapped, and a caller whose host is not
+  /// running is then told the connection faulted. The distinctness check
+  /// stays, because two arms could say each other's phrase *as well as* their
+  /// own and the per-arm pins would not see it.
   #[test]
   fn every_send_fault_names_the_path_and_which_fault_it_was() {
     let path = Path::new("/run/goad.sock");
     let faults = [
-      SendFault::Unreachable(std::io::Error::from(std::io::ErrorKind::NotFound)),
-      SendFault::Faulted(std::io::Error::from(std::io::ErrorKind::ConnectionReset)),
-      SendFault::NoReply,
-      SendFault::Unreadable(
-        serde_json::from_str::<serde_json::Value>("not json").expect_err("this is not JSON"),
+      (
+        SendFault::Unreachable(std::io::Error::from(std::io::ErrorKind::NotFound)),
+        "nothing is listening at",
       ),
-      SendFault::NonConforming("the reply carries no `accepted` field"),
+      (
+        SendFault::Faulted(std::io::Error::from(std::io::ErrorKind::ConnectionReset)),
+        "faulted",
+      ),
+      (SendFault::NoReply, "closed without answering"),
+      (
+        SendFault::Oversized { limit: 65_536 },
+        "did not end within 65536 bytes",
+      ),
+      (
+        SendFault::Unreadable(
+          serde_json::from_str::<serde_json::Value>("not json").expect_err("this is not JSON"),
+        ),
+        "is not one JSON object",
+      ),
+      (
+        SendFault::NonConforming("the reply carries no `accepted` field"),
+        "breaches SPEC-003 6.3",
+      ),
     ];
     let mut lines = Vec::new();
-    for fault in faults {
+    for (fault, said) in faults {
       let line = fault_line(&fault, path);
       assert!(line.contains("/run/goad.sock"), "{line}");
+      assert!(line.contains(said), "{line} must say {said}");
       lines.push(line);
     }
     let mut distinct = lines.clone();

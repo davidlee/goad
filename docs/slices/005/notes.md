@@ -634,7 +634,8 @@ STOP and consult:
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-14 · all four phases done · gate green · AC-8 observed
+**Fresh as of:** 2026-09-14 · all four phases done · audit and code review run ·
+ten findings repaired · gate green at 498 cases · AC-8 observed
 
 ### Produced
 
@@ -668,6 +669,31 @@ STOP and consult:
   cannot produce: a ninth reason token and silence.
 
 ### Learned
+
+- **A wire struct's Rust spelling is an unreviewed claim about the wire.**
+  `Option<u8>` for a JSON number refused `1.0`, `300` and `1e999` from
+  conforming hosts, on a field whose own doc said it was *"not read at all"*.
+  Lifted to `docs/memory/a-rust-type-on-a-wire-struct-narrows-the-wire.md`;
+  the tell is a doc comment saying a field is unread on a field with a narrow
+  type, because the two cannot both be true.
+- **Separate the pipeline so each step can only raise its own fault.** bytes →
+  document → meaning. Then *"not one JSON object"* is true whenever it is said,
+  and a contract breach is never reported as malformed bytes. Getting this
+  wrong is what made four distinct findings look like four defects.
+- **A guard must not be stricter than the thing it guards.** The shape check
+  parsed values the field parse skips, so an unmodelled field 130 levels deep
+  became exit 2 — a narrowing introduced *by a repair*, in the one place the
+  project says never to narrow. Reordering so the field parse runs first made
+  the exception list smaller than the review predicted.
+- **An over-claimed clause is the characteristic defect of a careful repair.**
+  Four instances in one slice, each a true statement written one notch stronger
+  than the code held, each found by measurement and none by reading. The
+  discipline that worked: enumerate the clause **from the tests**, not from the
+  reasoning that produced them.
+- **A ledger round that only lists doubts is not a review.** Rounds 2 and 3
+  each confirmed the prior round's repairs explicitly, and round 2's report
+  that *"no repair made anything worse"* is what let the next round narrow its
+  attack instead of re-checking everything.
 
 - **serde reads a missing `Option` field as `None` with no `#[serde(default)]`.**
   Three plan lines assumed otherwise. The attribute is not wrong, it is inert.
@@ -703,14 +729,28 @@ STOP and consult:
 
 ### Open
 
-- Three places state the configuration-path rule: `default_path`'s table,
-  `StartupError::NoConfigPath`'s sentence, `diagnostics::USAGE`. One is
-  executable. See Findings.
-- `SendFault::Faulted` has no case. No deterministic trigger at this tier; the
-  plan did not ask for one. See PHASE-02 Findings.
+- Five places state the configuration-path rule now, one executable (review's
+  F-8). Not given a mechanism: `render::USAGE` cites `default_path` as the
+  rule's home, and the drift F-8 measured — both USAGE blocks read as though
+  `$HOME/.config/goad/config.toml` is always the fallback, when an empty `HOME`
+  yields no default path at all — is corrected rather than recorded.
+- ~~`SendFault::Faulted` has no case.~~ **Wrong as written, refuted at audit.**
+  A deterministic trigger existed and was one line: `read_line` demanded UTF-8
+  and mapped `InvalidData` to `Faulted`, so a reply of `b"\xff\xfe\n"` reached
+  it every time. That was review's F-5 — and the fault was not the missing
+  case but the *attribution*: the transport had not faulted, the host's bytes
+  were bad. Repaired; `Faulted` is now the transport's alone.
 - ~~`SendFault` has no rendering.~~ PHASE-03's `render::fault_line` gives each
   of the five a distinct line naming the path; a case asserts the five read
   differently from one another.
-- Nothing scans `crates/goad-emit/src` for the crate edge. See PHASE-03
-  Findings, and OQ-3's Follow-up.
+- ~~Nothing scans `crates/goad-emit/src` for the crate edge.~~ **Mis-named its
+  subject, corrected at audit.** `checks/structure.rs` is not the crate-edge
+  instrument and is not one of POL-001's four — it is 002/003's structural
+  scan, and its subjects (one call site for `quit_event_loop`,
+  `slint::spawn_local` as the only spawn) have no referent in a crate with no
+  event loop. Its not reaching `goad-emit` is not a gap. What is true, and
+  narrower: the crate edge **does** hold `goad-emit`, by Cargo resolution, and
+  that holding is derived from its manifest — and **a stratum-3 manifest is
+  checked by nothing but review**. Same as `crates/goad` since 002. See
+  `audit.md` and `allowlist.rs`'s module doc.
 - ADR-003 §Decision says "four members". There are five.
