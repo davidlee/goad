@@ -73,3 +73,32 @@ demo: (run "examples/demo.toml")
 # Prompt an evaluation in a running `just demo`, from a second shell.
 emit source kind:
   cargo run -p goad-emit -- --socket ./goad-demo.sock --source {{source}} --kind {{kind}}
+
+# Not in the gate: it installs outside the repository.
+#
+# `cargo install --path .` cannot work here — the workspace root is a virtual
+# manifest with no `[package]`. Each binary's own member is the target.
+#
+# The env file is half of the install, not a convenience. The GUI libraries are
+# dlopen'd rather than linked, so `ldd` resolves clean and the binary still
+# opens no window without `LD_LIBRARY_PATH`; fontconfig finds fonts through a
+# config file, so `FONTCONFIG_FILE` is the second half and its absence is a
+# window that draws no text. A binary installed without both is broken in a way
+# nothing reports until a window next happens to draw.
+#
+# That coupling is why this recipe is a stopgap. Slice 006 builds the package
+# with crane and wraps the environment into the binary, at which point there is
+# no pair to keep in sync and no env file to go stale.
+#
+# `${VAR:?...}` rather than a bare expansion: run outside the dev shell both are
+# empty, and an env file naming two empty values is the same silent breakage
+# written down.
+
+# Install both binaries into $CARGO_HOME/bin, with the environment they need.
+install:
+  : "${LD_LIBRARY_PATH:?run this in the dev shell: both vars come from flake.nix}" "${FONTCONFIG_FILE:?}"
+  cargo install --path crates/goad --locked
+  cargo install --path crates/goad-emit --locked
+  mkdir -p ${XDG_CONFIG_HOME:-$HOME/.config}/goad
+  printf 'LD_LIBRARY_PATH=%s\nFONTCONFIG_FILE=%s\n' "$LD_LIBRARY_PATH" "$FONTCONFIG_FILE" \
+    > ${XDG_CONFIG_HOME:-$HOME/.config}/goad/env

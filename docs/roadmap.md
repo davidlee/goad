@@ -40,14 +40,30 @@ SPEC-001 (R-56, narrowed to evaluations the host originates on its own account,
 with `"host"` reserved as a source). One code review over eight rounds, 28
 findings, none outstanding; eight durable facts lifted into `docs/memory/`.
 
-**Nothing calls it ergonomically**: prompting an evaluation still means a
-`socat` one-liner that hand-writes the envelope, which is slice 005.
+**2026-09-14.** Slice 005 is closed. `goad-emit --source S --kind K [--data
+JSON]` writes one SPEC-003 §6.2 envelope and exits 0, 1 or 2 by who was wrong,
+so nothing hand-writes the envelope any more. Its audit found three defects that
+a green gate, an honest criterion set and a working demo had all missed: a wire
+narrowing that refused conforming hosts, a command line exiting 0 having sent
+nothing, and an unbounded read.
+
+**Then goad started running — and not as a slice.** A personal backend in
+`~/satan/goad`, a systemd user unit wanted by `graphical-session.target`, and
+both binaries installed with `cargo install --path`. Fourteen booleans a day in
+two-hourly slots, one TOML record per day. `goad-emit` found the socket from the
+default configuration and worked first try.
+
+That is what re-cut the sequence below. **Use came before the slice that was
+meant to enable it**, and the first hour produced nine entries in
+`~/satan/goad/field-notes.md` — kept outside this repo, because it is one
+person's evidence rather than canon. The old 006 (*daily driver*) turned out to
+be half already done and half aimed at the wrong thing; the old 007 (*field
+notes*) was never a slice, and is now a file that accumulates continuously.
 
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
-ledger, code review unchanged. The re-cut below puts *you running goad daily* at
-006 rather than behind the whole brief. 49,631 lines of slice documentation for
-16,891 lines of Rust is the number that prompted it.
+ledger, code review unchanged. 49,631 lines of slice documentation for 16,891
+lines of Rust is the number that prompted it.
 
 ## Sequence
 
@@ -61,41 +77,52 @@ graph LR
   S2["002 ✔<br/>minimal renderer"]
   S3["003 ✔<br/>scheduling"]
   S4["004 ✔<br/>event ingress"]
-  S5["005<br/>goad emit"]
-  S6["006<br/>daily driver"]
-  S7["007<br/>field notes"]
+  S5["005 ✔<br/>goad emit"]
+  USE(["daily use<br/><i>not a slice</i>"])
+  S6["006<br/>packaging +<br/>the startup surface"]
+  S7["007<br/>the renderer<br/>grows a form"]
   S8["008<br/>socket transport"]
   S9["009<br/>starter experience"]
 
   T2{{"ADR-002 T2<br/>second binary"}}
 
-  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9
   T2 -.-> S5
+  USE -.->|field notes| S7
 
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
-  class S1,S2,S3,S4 done
+  classDef use fill:#1f3d5c,stroke:#3a6ea5,color:#fff
+  class S1,S2,S3,S4,S5 done
   class T2 trigger
+  class USE use
 ```
 
 | slice | tier | why here |
 |---|---|---|
 | 004 event ingress ✔ | 2 | 003 built the scheduled evaluation path; an event is a second stimulus into it. Opened tier 1, raised at scoping |
-| 005 `goad emit` | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
-| 006 daily driver | 1 | the point where you run goad every day. Everything after it is informed by having done so |
-| 007 field notes | 1 | scope written *after* two weeks of your own use, not before |
+| 005 `goad emit` ✔ | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
+| *daily use* | — | not a slice, and not waiting on one. It is where the next two get their scope |
+| 006 packaging + the startup surface | 1 | small and bounded, and it removes a class of silent failure from the thing now running every day |
+| 007 the renderer grows a form | 1, unless the layout work says otherwise | the value slice, and it needs no protocol change — R-15 already admits it |
 | 008 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
 | 009 starter experience | 1 | documenting for others documents what exists |
 
-Two changes from the old order, both deliberate:
+Three changes from the old order, all deliberate:
 
-- **Socket transport moved from 005 to 008.** The old roadmap already said it
-  was "the least user-visible remaining item". Spawn-per-invocation has not been
-  measured as a problem by anyone using goad, because nobody has been using
-  goad. 007 promotes it if use says it hurts.
-- **The starter experience moved from 006 to 009**, and old 007's polish
-  dissolved: configuration validation, diagnostics and packaging are what *you*
-  need to run this daily, so they are 006; the acceptance-suite walk is 009's.
+- **Socket transport stays at 008.** The old roadmap already called it "the
+  least user-visible remaining item". Spawn-per-invocation still has not been
+  measured as a problem by anyone using goad — but now someone is, so the
+  measurement is available rather than hypothetical. Use promotes it if it hurts.
+- **The starter experience stays at 009.** Documentation written earlier
+  documents intentions.
+- **006 and 007 swapped meanings.** Running goad daily was 006's whole purpose,
+  and it happened without a slice: the XDG default path and the tray were
+  already built, and the rest was a systemd unit and a backend. What 006 was
+  *actually* going to be useful for — installing the thing so that what runs is
+  not whatever the working tree last compiled — survives as the packaging slice.
+  The renderer, which nobody had scoped at all, is the one the evidence points
+  at.
 
 ## The slices
 
@@ -184,15 +211,15 @@ stands*.
   interpretation, debouncing and filtering stayed the watcher's and the
   backend's, per brief §7.
 
-### 005 — `goad emit`
+### 005 — `goad emit` ✔
 
-Brief §19. **Tier 1.**
+Brief §19. **Tier 1. Closed 2026-09-14.**
 
 The CLI that writes an envelope to 004's socket, so a cron job, a shell hook, or
 another program can prompt an evaluation without knowing the wire format.
 
-**Opened 2026-09-11**, scoped in `docs/slices/005/slice-005.md`. Four decisions
-taken at scoping (`design-log.md`): a new member crate `crates/goad-emit` with
+**Opened 2026-09-11, closed 2026-09-14.** Four decisions taken at scoping
+(`design-log.md`), and all four held: a new member crate `crates/goad-emit` with
 its own binary, because `crates/goad` links Slint and a cron job should not;
 flags rather than positionals, `--data` optional; three exit codes — 0 accepted,
 1 the host refused it, 2 could not send — with the reason token and any
@@ -204,38 +231,92 @@ configuration, `--socket` overriding.
 - Thin by construction: argument parsing, an envelope, a socket write, an exit
   code that says whether the host took it. If this one needs a 300-line design,
   something is wrong with 004's socket.
-- **The one thing that could raise it to tier 2** is the new member's
-  `goad-boundary` allowlist row (slice OQ-3): the allowlist fails closed and
-  covers two members today, and answering it may amend ADR-001 or POL-001.
+- **It stayed tier 1**, and the `goad-boundary` allowlist row (slice OQ-3) was
+  deferred rather than answered. It now has a second instance behind it, which
+  is a better argument for taking it than either instance alone.
+- **The audit is the part worth remembering.** The slice was green by its own
+  gate, its own acceptance criteria and a demonstration to a person, and carried
+  three defects anyway — all in the contract's encodings and bounds. AC-1 to
+  AC-8 were met before the review as well as after: a criterion set can be
+  complete and honest and still not reach there.
+- **F-17 outlives the slice.** An exception list was completed three times by
+  cross-producting hypothesised shapes, and each time a shape outside the
+  hypothesis set turned up. An enumerated list is not a checked clause. The
+  repair states the boundary generatively, so it cannot go stale the way three
+  enumerations did.
+- Follow-ups standing: `--timeout`, `--config PATH`, and the stratum-3
+  allowlist row.
 
-### 006 — daily driver
+### 006 — packaging and the startup surface
 
 Brief §20 phases 7–8 in part, §15, §17. **Tier 1.**
 
-The slice after which you run goad every day: configuration validation with
-errors that say what to fix, the default `$XDG_CONFIG_HOME/goad/config.toml`
-path exercised for real, diagnostics reachable from the tray, an autostart unit,
-and a quickstart that a person follows from a clean clone.
+Everything between *built* and *running daily*. Small, bounded, and unglamorous
+on purpose: it is the slice that stops the daily driver depending on what the
+working tree last compiled.
 
-- **This is the value slice.** 004 and 005 exist to make it worth running.
-- Its acceptance is behavioural and personal: goad starts with the session,
-  survives a backend that is broken, and tells you which side was wrong.
+- **A nix package built with crane, alongside `cargo install`.** Both paths work
+  from the same `Cargo.toml`, as they do in `~/dev/doctrine`. The asymmetry goad
+  has and doctrine does not is that the GUI libraries are `dlopen`'d rather than
+  linked, so a cargo-built binary is self-sufficient only inside the devshell.
+  `wrapProgram` makes the nix one self-contained anywhere. `flake.nix` already
+  has `guiLibs` and `fontsConf` to hand it.
+- **The hazard this removes is real and was met in practice.** Installing by
+  hand means pairing the binary with `LD_LIBRARY_PATH` *and* `FONTCONFIG_FILE`;
+  capturing one and not the other fails as a window that draws no text, found
+  whenever a window next happens to draw. A wrapper makes the pair
+  unrepresentable.
+- **`--version`, carrying the git sha.** There is none today: `goad --version`
+  is taken as a config path and fails opening a file called `--version`. Two
+  install paths can both put a `goad` on `$PATH` and nothing can say which ran.
+- **Startup errors that name the path.** `goad /nonexistent/wat.toml` reports
+  `configuration could not be read: No such file or directory (os error 2)` —
+  which side was wrong, but not which file it tried. The default path is
+  computed from the environment, so the case that most needs the path told to it
+  is the one where nobody typed it.
+- **The autostart unit, in the repo.** `Restart=on-failure` with
+  `RestartPreventExitStatus=2`, because exit 2 is every `StartupError` and none
+  of them succeeds on a retry — `Restart=always` turns a refusal into a restart
+  loop that ends in systemd's rate limiter.
+- **The unit wants a home-manager module, and that is what waits on the
+  package.** It is hand-written today, kept in `~/satan/goad/goad.service` and
+  symlinked into `~/.config/systemd/user/`, so it is version-controlled but
+  nothing rebuilds it from a clean clone. `panopticon-sway.service` is the house
+  pattern — a unit from a nix store path. A module can only reference the
+  wrapped binary once the wrapped binary exists, so the two land together or not
+  at all.
 
-### 007 — field notes
+### 007 — the renderer grows a form
 
-**Tier 1.** Scope written after 006, not before.
+Brief §10.2, §11.1. **Tier 1 unless the layout work says otherwise** — the
+design surface is a real question here, and the 300-line cap may not survive it.
 
-Two weeks of your own use, then a slice that fixes what actually hurt. Its
-content is deliberately unwritten here: a slice whose scope is fixed in advance
-of the evidence is the brief again, and the brief is what the re-cut is trying
-to stop reciting.
+One view, one option, and the pending items as **boolean fields grouped by
+section**, drawn properly. Scope comes from `~/satan/goad/field-notes.md`, which
+accumulates continuously and is not in this repo.
 
+- **No protocol change, which is the surprise.** R-15 lets an option carry
+  fields and R-16 includes `boolean`, so a view with one option and fourteen
+  boolean fields conforms today. The renderer does not draw them —
+  `Undrawn::OptionFields`, `crates/goad/src/view_model.rs` — and R-55 names that
+  a renderer subset that must not narrow the protocol. Drawing them **discharges
+  the standing hazard 002 recorded**, rather than adding a capability.
+- **Grouping is presentation, so it is a hint.** `"group": "Morning"` flat on
+  the field object. R-18: only the renderer may branch on a hint key, which is
+  exactly what it was written for. No spec edit, no ADR.
+- **The gap is `field.value`** — no prefill, because that is SPEC-001 OQ-2 and
+  unlanded. Avoidable rather than blocking: a backend sends only the items it
+  still wants answered.
+- **The ugliness is layout, not widgets.** Material is a built-in Slint style in
+  the pinned compiler — no dependency, no licence question, selected by
+  `SLINT_STYLE` or `slint_build`'s `with_style()`. It was spiked: the buttons
+  change and nothing else does. `checkbox.slint` and `groupbox.slint` still earn
+  their place once there are fields to draw.
 - It is also where **008 gets promoted or dropped**: if spawn-per-invocation
-  costs something you can feel, the transport slice is next; if it does not, it
-  waits longer.
-- Likely candidates, on today's guesses only: SPEC-002 OQ-4 (a scheduled firing
-  superseding a view you are mid-answering), option-scoped fields in the
-  renderer, and whatever the diagnostic surface fails to explain.
+  costs something measurable now that someone is using goad, the transport slice
+  is next; if it does not, it waits longer.
+- Still open from 003, and still a protocol question: SPEC-002 OQ-4, a scheduled
+  firing superseding a view a person is mid-answering.
 
 ### 008 — persistent socket transport
 
@@ -276,8 +357,8 @@ Brief §21. Where each criterion is discharged.
 | 2 | configuration points at a trivial scripting backend | 001 ✔ (config + example); observable at 002 |
 | 3 | host periodically asks the backend | 003 ✔ |
 | 4 | backend returns no view without error | 001 ✔ |
-| 5 | simple choice rendered correctly | 002 |
-| 6 | selection delivers a response to the backend | 002 |
+| 5 | simple choice rendered correctly | 002 ✔; 007 draws the fields it admits |
+| 6 | selection delivers a response to the backend | 002 ✔ |
 | 7 | `next_check` from evaluation and from response | 001 ✔ |
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
 | 9 | an external script sends an opaque event | 004 ✔; 005 makes it ergonomic |
@@ -317,6 +398,11 @@ condition rather than a position.
   with no sign anything was rejected: tolerating a field is not honouring it
   (F-7 corrected the original analysis, which claimed otherwise). Per-field
   errors are semantics and must be typed fields, never keys in `hints`.
-  *Recommendation:* they are their own tier 2 slice, taken when 007's use says
-  a form needs to reject an answer — not folded into 009, where they would make
-  a documentation slice canon-changing and blow its tier.
+  *Recommendation:* they are their own tier 2 slice, taken when use says a form
+  needs to reject an answer — not folded into 009, where they would make a
+  documentation slice canon-changing and blow its tier.
+  **OQ-2 now has a concrete trigger and a way around it.** An accumulative
+  checklist re-presented through the day wants the answers already given to come
+  back ticked, which is exactly `field.value`. The way around it costs nothing:
+  a backend sends only the items it still wants answered. 007 takes that route,
+  so the trigger is recorded rather than fired.
