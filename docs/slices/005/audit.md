@@ -32,6 +32,33 @@ the audit is not shaped by what turned out to be easy to find.>
   dropped work or a stale design. Neither is automatically a finding; both are
   places to look.
 
+### AC-8 — a person ran it
+
+<!-- Recorded at PHASE-04 (VH-1), not at audit: a human observation cannot be
+     reconstructed afterwards. `docs/AGENTS.md` §Tiers — a slice does not close
+     until a person has run the software and seen the new behaviour. -->
+
+**2026-09-14.** `just demo` in one terminal, then `--source hand --kind poke`
+against `./goad-demo.sock` from another — `just emit hand poke`, which is
+PHASE-04's recipe for VH-1's own
+`cargo run -p goad-emit -- --socket ./goad-demo.sock …`. The user's account: *"an event arrived: hand/poke — buttons
+replaced w/ ok button"*.
+
+That is `examples/shell/backend.sh`'s **event** branch, and it is what makes
+this the backend leg rather than a repaint. Two things distinguish it from the
+prompt the demo shows on its own:
+
+- the title interpolates the `source` and `kind` emit sent — `hand / poke` —
+  so the envelope reached the backend with its fields intact;
+- the option set changed from the host-originated prompt's two (`Yeah` / `Nah`)
+  to the event view's one (`OK`), so the view the user saw was composed from
+  *this* evaluation's response.
+
+The leg no test target covers — emit → socket → `normalize` → backend
+invocation → the view — is therefore observed end to end. AC-6 holds the
+upstream half of it under test (`slice-005.md` AC-6 is deliberately not phrased
+as "reaches the backend"); this is the rest.
+
 ## Code review
 
 Findings live in `review-code.md`, copied from

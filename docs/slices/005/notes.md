@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | done | 2026-09-11 |
 | PHASE-02 | done | 2026-09-14 |
 | PHASE-03 | done | 2026-09-14 |
-| PHASE-04 | in progress | 2026-09-14 |
+| PHASE-04 | done | 2026-09-14 |
 
 ## Phase sheets
 
@@ -574,8 +574,11 @@ STOP and consult:
 - [x] VA-1 — `cargo tree -p goad-emit` with no `slint`.
 - [x] VA-2 — walk every AC to a named case or a named argument.
 - [x] `just check` green; Harvest and Status updated (EX-3).
-- [ ] VH-1 — **the user's**: `just demo`, then an `emit` from another
-      terminal. AC-8. Not mine to tick.
+- [x] VH-1 — **the user ran it**, 2026-09-14: `just demo`, then
+      `--source hand --kind poke` from another terminal. Observed *"an event
+      arrived: hand/poke — buttons replaced w/ ok button"* — `backend.sh`'s
+      event branch, with emit's `source`/`kind` in the title and the option
+      set switched from two to one. AC-8, recorded in `audit.md` Evidence.
 
 **Findings**
 
@@ -608,7 +611,8 @@ STOP and consult:
   (`ingress.rs:1364`), the host's refusal and not emit's; AC-6 → PHASE-04
   `the_bytes_on_the_socket_normalize_to_the_event_that_was_sent`; AC-7 → the
   manifest, and `cargo tree -p goad-emit` with **zero** occurrences of
-  `slint`; AC-8 → **open, and the user's** (VH-1).
+  `slint`; AC-8 → **observed by the user**, 2026-09-14 (VH-1, and `audit.md`
+  Evidence).
 
 **Decisions**
 
@@ -630,7 +634,7 @@ STOP and consult:
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-14 · PHASE-04 complete bar AC-8 · gate green
+**Fresh as of:** 2026-09-14 · all four phases done · gate green · AC-8 observed
 
 ### Produced
 
