@@ -81,12 +81,13 @@ graph LR
   USE(["daily use<br/><i>not a slice</i>"])
   S6["006<br/>packaging +<br/>the startup surface"]
   S7["007<br/>the renderer<br/>grows a form"]
-  S8["008<br/>socket transport"]
-  S9["009<br/>starter experience"]
+  S8["008<br/>the renderer<br/>gets a look"]
+  S9["009<br/>socket transport"]
+  S10["010<br/>starter experience"]
 
   T2{{"ADR-002 T2<br/>second binary"}}
 
-  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9
+  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9 --> S10
   T2 -.-> S5
   USE -.->|field notes| S7
 
@@ -104,18 +105,26 @@ graph LR
 | 005 `goad emit` ✔ | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
 | *daily use* | — | not a slice, and not waiting on one. It is where the next two get their scope |
 | 006 packaging + the startup surface | 1 | small and bounded, and it removes a class of silent failure from the thing now running every day |
-| 007 the renderer grows a form | 1, unless the layout work says otherwise | the value slice, and it needs no protocol change — R-15 already admits it |
-| 008 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
-| 009 starter experience | 1 | documenting for others documents what exists |
+| 007 the renderer grows a form | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
+| 008 the renderer gets a look | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
+| 009 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
+| 010 starter experience | 1 | documenting for others documents what exists |
 
-Three changes from the old order, all deliberate:
+Four changes from the old order, all deliberate:
 
-- **Socket transport stays at 008.** The old roadmap already called it "the
+- **Socket transport stays late.** The old roadmap already called it "the
   least user-visible remaining item". Spawn-per-invocation still has not been
   measured as a problem by anyone using goad — but now someone is, so the
   measurement is available rather than hypothetical. Use promotes it if it hurts.
-- **The starter experience stays at 009.** Documentation written earlier
+- **The starter experience stays last.** Documentation written earlier
   documents intentions.
+- **The look is its own slice, and it is 008.** It was inside 007 until scoping
+  split it: a slice that redraws the layout *and* lands a wire contract produces
+  a diff in which a layout regression and a protocol regression look alike. It
+  sits immediately after the form because the form is what gives it something
+  worth laying out — and because 007 will make the window uglier before 008
+  makes it better. Socket transport and the starter experience each moved down
+  one to make room.
 - **006 and 007 swapped meanings.** Running goad daily was 006's whole purpose,
   and it happened without a slice: the XDG default path and the tray were
   already built, and the rest was a systemd unit and a backend. What 006 was
@@ -288,37 +297,73 @@ working tree last compiled.
 
 ### 007 — the renderer grows a form
 
-Brief §10.2, §11.1. **Tier 1 unless the layout work says otherwise** — the
-design surface is a real question here, and the 300-line cap may not survive it.
+Brief §10.2, §11.1. **Tier 2** — scoping found the reason, and it was not the
+one expected. Not the layout and not the 300-line cap: SPEC-001 never says what
+JSON type a submitted field value has (§6.2 shows one example and no rule), and
+drawing a field forces the host to state it. `docs/slices/007/canon-delta.md`
+carries the entry. The look is split out into its own slice.
 
 One view, one option, and the pending items as **boolean fields grouped by
 section**, drawn properly. Scope comes from `~/satan/goad/field-notes.md`, which
 accumulates continuously and is not in this repo.
 
-- **No protocol change, which is the surprise.** R-15 lets an option carry
-  fields and R-16 includes `boolean`, so a view with one option and fourteen
-  boolean fields conforms today. The renderer does not draw them —
+- **The view needs no protocol change; the response does.** R-15 lets an option
+  carry fields and R-16 includes `boolean`, so a view with one option and
+  fourteen boolean fields conforms today. The renderer does not draw them —
   `Undrawn::OptionFields`, `crates/goad/src/view_model.rs` — and R-55 names that
   a renderer subset that must not narrow the protocol. Drawing them **discharges
-  the standing hazard 002 recorded**, rather than adding a capability.
+  the standing hazard 002 recorded**, rather than adding a capability. The
+  answer is the other half, and it is where the tier comes from: the host is the
+  only thing that turns a widget into JSON, and the spec never said what type
+  it produces.
 - **Grouping is presentation, so it is a hint.** `"group": "Morning"` flat on
   the field object. R-18: only the renderer may branch on a hint key, which is
   exactly what it was written for. No spec edit, no ADR.
 - **The gap is `field.value`** — no prefill, because that is SPEC-001 OQ-2 and
   unlanded. Avoidable rather than blocking: a backend sends only the items it
-  still wants answered.
-- **The ugliness is layout, not widgets.** Material is a built-in Slint style in
-  the pinned compiler — no dependency, no licence question, selected by
-  `SLINT_STYLE` or `slint_build`'s `with_style()`. It was spiked: the buttons
-  change and nothing else does. `checkbox.slint` and `groupbox.slint` still earn
-  their place once there are fields to draw.
-- It is also where **008 gets promoted or dropped**: if spawn-per-invocation
+  still wants answered. Scoping found the price, which is not nothing: the host
+  submits a value for every field it drew, so an unticked box answers `false`
+  and the day's list closes early unless the backend reads `false` as *not yet*.
+  That reading is domain meaning, so it is the backend's — see
+  `docs/slices/007/slice-007.md` §*What the workaround costs*.
+- **The ugliness is layout, not widgets, and it is a separate slice.** Material
+  is a built-in Slint style in the pinned compiler — no dependency, no licence
+  question, selected by `SLINT_STYLE` or `slint_build`'s `with_style()`. It was
+  spiked: the buttons change and nothing else does. 007 takes only what drawing
+  fields forces — a container per group, and the style line — because a slice
+  doing both yields a diff in which a layout regression and a protocol
+  regression look alike.
+- It is also where **socket transport (009) gets promoted or dropped**: if spawn-per-invocation
   costs something measurable now that someone is using goad, the transport slice
   is next; if it does not, it waits longer.
 - Still open from 003, and still a protocol question: SPEC-002 OQ-4, a scheduled
   firing superseding a view a person is mid-answering.
 
-### 008 — persistent socket transport
+### 008 — the renderer gets a look
+
+Brief §10.1, §11.1. **Tier 1.**
+
+The visual pass 007 deliberately did not do. Layout, spacing, typography, window
+sizing, and the idle surface — everything in `ui/app.slint` that is ours rather
+than the widget library's.
+
+- **The evidence is already in.** "It looks like ass", and the cheap fix was
+  tried and rejected: Material is a built-in Slint style in the pinned compiler,
+  and the spike verdict was "same shit with blue and rounded corners", because
+  `app.slint` imports only `Button` and `ScrollView`. The ugliness is the layout.
+  **This is a design job, not a dependency job.**
+- **It waits for 007** for two reasons. A window with two buttons and no fields
+  has almost no layout to get right, and 007 lands the containers, the grouping
+  and the style selection that a visual pass then works within.
+- **"Waiting and dead look the same."** After an answer, nothing is on screen and
+  nothing is on the console; the only sign the host is alive is the tray icon and
+  its tooltip. The information exists — the tray carries the next check — and
+  nothing points at it. The idle surface is this slice's, not 007's.
+- **Nothing here is canon**, which is what keeps it tier 1. If a visual decision
+  turns out to need a protocol affordance, that is the signal it belongs in a
+  different slice.
+
+### 009 — persistent socket transport
 
 Brief §20 phase 6, §6.1, §6.3. **Tier 2** — it amends SPEC-001's transport
 section.
@@ -334,7 +379,7 @@ semantic protocol is identical across transports — SPEC-001 already says so.
   nothing, or for brief §10.1/§10.2 through a real process. Both are held at
   other tiers today. If this slice rebuilds the failure matrix, add them.
 
-### 009 — starter experience
+### 010 — starter experience
 
 Brief §20 phase 7, §15, §21. **Tier 1** unless capability declaration lands.
 
@@ -363,11 +408,11 @@ Brief §21. Where each criterion is discharged.
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
 | 9 | an external script sends an opaque event | 004 ✔; 005 makes it ergonomic |
 | 10 | the event reaches the backend uninterpreted | 004 ✔ |
-| 11 | backend may run as a persistent JSONL socket service | 008 |
-| 12 | fallback to process invocation when it is unavailable | 008 |
+| 11 | backend may run as a persistent JSONL socket service | 009 |
+| 12 | fallback to process invocation when it is unavailable | 009 |
 | 13 | crashes, timeouts, invalid JSON do not crash the GUI | 001 ✔ taxonomy; 002 surfaces it |
-| 14 | example backend implements the journal with no host change | 009 |
-| 15 | an agent implements a backend from repository material alone | 009 |
+| 14 | example backend implements the journal with no host change | 010 |
+| 15 | an agent implements a backend from repository material alone | 010 |
 | 16 | no domain concepts enter the host model | 001 ✔ boundary test; **standing, every slice** |
 
 ## Not on the sequence
@@ -399,7 +444,7 @@ condition rather than a position.
   (F-7 corrected the original analysis, which claimed otherwise). Per-field
   errors are semantics and must be typed fields, never keys in `hints`.
   *Recommendation:* they are their own tier 2 slice, taken when use says a form
-  needs to reject an answer — not folded into 009, where they would make a
+  needs to reject an answer — not folded into 010, where they would make a
   documentation slice canon-changing and blow its tier.
   **OQ-2 now has a concrete trigger and a way around it.** An accumulative
   checklist re-presented through the day wants the answers already given to come

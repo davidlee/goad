@@ -101,7 +101,8 @@ from a clean clone in the dev shell — this slice's only environment change
 - **`goad emit`.** Slice 005, and it fires ADR-002's T2. A shell one-liner is
   this slice's client; if 005 needs a 300-line design, this slice's socket was
   wrong.
-- **The socket *backend transport*** (brief §6.1) — slice 008. That is a
+- **The socket *backend transport*** (brief §6.1) — the socket-transport slice,
+  009 since the roadmap's 2026-09-14 re-cut and 008 when this was written. That is a
   different socket, in the other direction, under a different contract. The two
   share a word and nothing else, and conflating them is the obvious trap here.
 - **An XDG default socket path.** Roadmap §006 owns default-path work; doing it

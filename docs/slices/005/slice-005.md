@@ -70,7 +70,9 @@ socket, not here.
   large JSON on a command line actually hurts in 007.
 - **A configuration file of its own.** It reads the host's, so there is one
   place the socket path is written.
-- **Packaging, install paths, shell completions, a man page.** 006 and 009.
+- **Packaging, install paths, shell completions, a man page.** 006, and the
+  starter-experience slice — 010 since the roadmap's 2026-09-14 re-cut, 009 when
+  this was written.
 - **Interpreting an event.** Same boundary as the host's: `kind` and `data` are
   the caller's vocabulary, carried, never read.
 
