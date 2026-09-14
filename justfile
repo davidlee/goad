@@ -65,3 +65,11 @@ run config:
 
 # The example backend that always prompts, so there is a window to look at.
 demo: (run "examples/demo.toml")
+
+# The `--socket` is what earns this recipe its place: emit discovers the host's
+# *default* configuration path only, and `demo` runs on an explicit one, so a
+# bare `goad-emit --source … --kind …` looks at the wrong file (005/F-6).
+
+# Prompt an evaluation in a running `just demo`, from a second shell.
+emit source kind:
+  cargo run -p goad-emit -- --socket ./goad-demo.sock --source {{source}} --kind {{kind}}

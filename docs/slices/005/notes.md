@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | done | 2026-09-11 |
 | PHASE-02 | done | 2026-09-14 |
 | PHASE-03 | done | 2026-09-14 |
-| PHASE-04 | pending | |
+| PHASE-04 | in progress | 2026-09-14 |
 
 ## Phase sheets
 
@@ -480,12 +480,157 @@ STOP and consult:
   five. Stale prose in a record of a decision taken at 002, not an amendment
   this slice owes — `design.md` §10 settled canon impact as none. Audit's call.
 
+### PHASE-04 — the evidence, and the demo a person runs
+
+**Objective:** the built binary's three exit codes are demonstrated against a
+real socket, and a person has prompted a real evaluation with it.
+
+**Entry criteria: met.** EN-1 — PHASE-03's exit criteria discharged (ticked
+above) and `just check` re-run at `ffbe08f` before anything was touched, exit
+0. The exit gate's transcript is `…/scratchpad/gate-phase04.txt`.
+
+**Reading list**
+
+Binding design: `design.md` §9 (the four tiers, and what each holds — the
+binary tier holds three exit codes and the bytes it sends, asserted through the
+real `envelope::normalize`; R-7's bounds are held **nowhere in this slice**),
+§5.4 (the sequence), §5.5 (discovery covers the **default** path only, so the
+demo is reached with `--socket` — F-6), D-7 (success is silent), D-10 (no
+deadline of emit's own). Binding plan: `plan.md` PHASE-04 EX-1..EX-3,
+VT-1..VT-4, VA-1, VA-2, VH-1, and S-1/S-3/S-4. Binding card: `slice-005.md`
+AC-1..AC-8, and AC-6's phrasing in particular — *not* "reaches the backend".
+
+Prior art, to copy rather than re-invent:
+- `crates/goad-shell/tests/integration/ingress.rs:1296-1310` — `fake_listener`:
+  blocking `std::os::unix::net::UnixListener`, bound before the thread is
+  spawned so the socket exists when the client connects, one `read_line`, one
+  canned reply, then drop. This phase's version returns the line it read, which
+  is what VT-4 normalizes.
+- `crates/goad-shell/tests/integration/ingress.rs:32-38` — `socket_path`: a
+  path under `temp_dir()` carrying the case name and the pid, unlinked first.
+  No lock file here: nothing in this tier calls `ingress::bind`, so
+  `cleanup`'s second `remove_file` has no subject.
+- `crates/goad-shell/Cargo.toml:23-29` and `crates/goad/Cargo.toml:37-47` —
+  `autotests = false` with an explicit `[[test]]` naming a `main.rs` under a
+  directory. The workspace has no loose `tests/*.rs` target and this one does
+  not start the practice.
+- `crates/goad-emit/src/render.rs` — the exact strings the stderr assertions
+  match. A case asserts a *substring a caller would branch on* (the reason
+  token, the path), never the whole line, so wording stays editable.
+
+**Assumptions & STOP conditions**
+
+Verified before starting, not taken on faith:
+- A-1 — **`CARGO_BIN_EXE_goad-emit` is set for a test target in `goad-emit`'s
+  own package**, and cargo builds the binary before running it. That is why the
+  target lives here and not in `crates/goad-shell`.
+- A-2 — **this tier needs no dev-dependency.** `goad-shell` is already a plain
+  dependency of `goad-emit`, so `ingress::envelope::normalize` is in reach of
+  an integration target without adding a line to `[dev-dependencies]` — which
+  S-3 forbids outright. `std::process::Command` is not a `disallowed-method`;
+  `std::process::exit` is, and nothing here calls it.
+- A-3 — **every case passes `--socket`**, so no case reads a configuration
+  file or an environment variable. `std::env::set_var` is a
+  `disallowed-method` and a test that needed it would be the wrong test.
+- A-4 — **a hanging listener hangs the case.** `send` has no deadline by
+  design (D-10), so every fake in this tier must either answer or close. The
+  one case that must *not* answer is unreachability, and it answers by there
+  being no listener at all.
+- A-5 — `clippy.toml`'s four `*_in_tests` keys are crate-wide, so `expect` in
+  a `tests/` target is lint-clean. No `#[expect]` scaffolding is needed.
+
+STOP and consult:
+- S-1 — a normative sentence is wanted in `docs/specs|policy|adr`. Note that
+  ADR-003 §Decision's "four members" is *already* stale (PHASE-03/A-5) and is
+  **audit's**, not this phase's.
+- S-3 — anything at all is wanted in `crates/goad-emit/Cargo.toml`'s
+  dependency tables, `[dev-dependencies]` included. `[[test]]` and
+  `autotests = false` are target declarations, not dependencies, and are not
+  S-3.
+- S-4 — VT-4 cannot read a normalized `Event` and the nearest assertion is
+  over emit's raw bytes.
+- Local — EX-2 leaves the `justfile`'s `emit` recipe to judgement ("if it
+  earns its place"). The reading below adds it: the one thing a reader of
+  `demo` must otherwise know is `--socket ./goad-demo.sock`, which is exactly
+  F-6's trap, and a recipe beside `demo` is where that is written once.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+- [x] EN-1 — gate green at `ffbe08f`.
+- [x] The target: `autotests = false` and one `[[test]]` in
+      `crates/goad-emit/Cargo.toml`, no dependency line touched (EX-1).
+- [x] `tests/binary/` — the fake listener, the spawn helper, and the
+      module doc stating the split F-15 asks for: R-6's framing is
+      PHASE-02/VT-1's, R-7's bounds are 004's, and this tier holds the binary.
+- [x] VT-1 — exit 0, empty stdout, on `{"protocol":1,"accepted":true}`.
+- [x] VT-2 — exit 1 and the reason token on stderr; the `too_soon` case also
+      shows `retry_after_ms`.
+- [x] VT-3 — exit 2 three ways: nothing listening, a usage error, and a reply
+      breaching §6.3.
+- [x] VT-4 — AC-6: the listener's captured bytes through the **real**
+      `envelope::normalize`, asserted as an `Event` (S-4 if it cannot be).
+- [x] EX-2 — `examples/demo.toml` gains the `goad-emit --socket` line beside
+      the `socat`/`nc` pair, which **stays**; the `justfile` gains `emit`.
+- [x] VA-1 — `cargo tree -p goad-emit` with no `slint`.
+- [x] VA-2 — walk every AC to a named case or a named argument.
+- [x] `just check` green; Harvest and Status updated (EX-3).
+- [ ] VH-1 — **the user's**: `just demo`, then an `emit` from another
+      terminal. AC-8. Not mine to tick.
+
+**Findings**
+
+- **F-04-1 — a `tests/` target needs `#[cfg(test)]` on its module
+  declarations or `clippy.toml`'s four `*_in_tests` keys do not apply.** Seven
+  `expect_used` errors and one `tests_outside_test_module`, on code that runs
+  green under `cargo test`. The lint pass is where it shows, so a phase that
+  runs only the test command believes it is done. The workspace already knew
+  this — `crates/goad-shell/tests/integration/main.rs:5-8` says so in a
+  comment — and the fix is the shape that comment describes: `main.rs` carries
+  the doc and one `#[cfg(test)] mod` declaration, the cases live beside it.
+  A-5 was wrong as written; it is true only of a `#[cfg(test)]` module.
+- **F-04-2 — the seven cases are load-bearing, measured.** Six mutations to
+  `main.rs`, each reverted: swapping `source` and `kind` in `envelope`, and
+  dropping `--data` to `Null`, red VT-4 alone; a refusal exiting 2 reds both
+  VT-2 cases; a send fault exiting 1 reds both unreachable and non-conforming;
+  a usage error exiting 0 reds VT-3's third; and an acceptance printing a line
+  reds VT-1. No mutation left the set green.
+  (`docs/memory/a-green-test-can-assert-a-proxy.md`, and slice 004's four.)
+- **F-04-3 — VA-2's walk, every AC to a named case or a named argument:**
+  AC-1 → PHASE-02 `a_sent_envelope_is_accepted_and_reaches_the_judge_as_the_event_it_was`
+  and PHASE-04 `an_accepted_envelope_exits_0_and_says_nothing`; AC-2 →
+  PHASE-02's refusal cases, PHASE-03's `render` cases, PHASE-04
+  `a_refusal_exits_1_with_the_reason_token_on_stderr` and
+  `a_too_soon_refusal_also_shows_retry_after_ms`, its last clause review-held
+  as the Coverage table says; AC-3 → PHASE-02/VT-4, VT-5, PHASE-03's usage
+  cases, PHASE-04's three exit-2 cases; AC-4 → PHASE-03's six `socket_path`
+  cases in `main.rs`; AC-5 → PHASE-02
+  `a_reserved_source_is_sent_and_the_host_s_own_refusal_is_reported`
+  (`ingress.rs:1364`), the host's refusal and not emit's; AC-6 → PHASE-04
+  `the_bytes_on_the_socket_normalize_to_the_event_that_was_sent`; AC-7 → the
+  manifest, and `cargo tree -p goad-emit` with **zero** occurrences of
+  `slint`; AC-8 → **open, and the user's** (VH-1).
+
+**Decisions**
+
+- **The `justfile` gains `emit source kind`** (EX-2 left it to judgement). It
+  earns its place on the one thing it writes down: `--socket ./goad-demo.sock`,
+  which is F-6's trap and which a reader of `demo` has no other way to learn.
+  The rationale sits in a comment block separated from the recipe by a blank
+  line, so `just --list` shows the one-line description rather than the last
+  line of the rationale — the wart `lint` and `test-stratum1` already carry.
+- **`examples/demo.toml` keeps the `socat` and `nc` lines**, labelled as the
+  no-CLI worked example, and gains the `just emit` form above them. EX-2, and
+  SPEC-003 is what a second implementation is held to.
+- **The AC-6 case asserts the timestamp only as accepted**, not as a value:
+  it is the moment of invocation, and what is worth knowing is that the host's
+  real `envelope::normalize` admits it. R-22 compliance is exactly that.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-14 · PHASE-03 complete · gate green
+**Fresh as of:** 2026-09-14 · PHASE-04 complete bar AC-8 · gate green
 
 ### Produced
 
@@ -507,6 +652,12 @@ STOP and consult:
   `render`'s four pure line functions plus `USAGE`, and `main` holding every
   read of an environment, a clock, a file or a socket. Thirty-one cases, none
   needing a dev-dependency.
+- `crates/goad-emit/tests/binary/` — the binary tier: seven cases running the
+  built binary as a process against a blocking `std` fake listener, three exit
+  codes and AC-6's bytes through the real `envelope::normalize`. No
+  dev-dependency.
+- `examples/demo.toml` and the `justfile`'s `emit` recipe — the demo's
+  one-liner in `goad-emit` form, the `socat`/`nc` pair kept beside it.
 - `tests/integration/ingress.rs` gained `event_of`, `send_event` (the
   `spawn_blocking` wrapper every client case needs) and `fake_listener` — a
   blocking `std` listener on its own thread, for the two replies the host
@@ -537,6 +688,11 @@ STOP and consult:
   nothing else.** `checks/vocabulary.rs` reads `workspace.members` for itself;
   `checks/structure.rs` and `checks/allowlist.rs` both name their subjects by
   path. Enumerate-from-the-manifest is the shape that survives a new member.
+- **A `tests/` target must declare its modules `#[cfg(test)]`**, or
+  `clippy.toml`'s `allow-expect-in-tests` and friends do not apply and
+  `tests_outside_test_module` fires. `cargo test` is green throughout; only
+  the lint pass says so. `crates/goad-shell/tests/integration/main.rs:5-8` is
+  the comment that already knew.
 - **`pub` in a binary crate is a claim nothing can reach**, and
   `clippy::unreachable_pub` says so. A design that writes `pub fn` for a
   binary's module means "the crate's other modules may call it".

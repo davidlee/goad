@@ -11,8 +11,18 @@ timeout = "5s"
 default_poll = "30m"
 
 # The event-ingress socket. With `just demo` running, emit an envelope from a
-# second shell (both terminated forms — `socat` by half-closing its write
-# side after EOF, `nc` by the trailing newline — see SPEC-003/R-6):
+# second shell:
+#
+#   just emit reddit-watcher reddit-opened
+#
+# which is `goad-emit --socket ./goad-demo.sock --source … --kind …`. The
+# `--socket` is not optional: emit discovers the host's *default*
+# configuration path only, and the demo runs on an explicit one.
+#
+# The raw forms stay, because SPEC-003 is what a second implementation is held
+# to and a worked example of the wire is worth more here than a shorter file
+# (both terminated forms — `socat` by half-closing its write side after EOF,
+# `nc` by the trailing newline — see SPEC-003/R-6):
 #
 #   printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}' \
 #     | socat - UNIX-CONNECT:./goad-demo.sock
