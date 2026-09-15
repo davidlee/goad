@@ -1,16 +1,18 @@
 //! What two or more case files in this target need beyond the shared
 //! host-driving helpers: a headless window and tray, a glass over them, a
-//! fixed clock, the option-scoped element queries, and the poll loop
-//! `serve`-driven tests use to observe an event the driving code does not
-//! control directly. Anything two or more case files here need lives in this
-//! file; anything one of them needs stays where it is. What both *tiers* need
-//! lives in `tests/support/driving.rs` instead (`design.md` §12.8,
-//! `crates/goad-shell/tests/integration/harness.rs:5-10`).
+//! fixed clock, the element queries that reach an option and its fields, the
+//! backend that logs each raw request, and the poll loop `serve`-driven tests
+//! use to observe an event the driving code does not control directly.
+//! Anything two or more case files here need lives in this file; anything one
+//! of them needs stays where it is.
+//! What both *tiers* need lives in `tests/support/driving.rs` instead
+//! (`design.md` §12.8, `crates/goad-shell/tests/integration/harness.rs:5-10`).
 //!
 //! The rule is *two or more*, and the set that satisfies it is not fixed:
 //! `tree.rs` became a caller when `wiring.rs` needed the scoped field query
 //! too, which is why nothing here names a closed list of case files.
 
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -18,10 +20,12 @@ use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::clock::ClockError;
+use goad_shell::config::Command as ShellCommand;
 use i_slint_backend_testing::{ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ComponentHandle, Model, VecModel};
 
 use crate::driving::instant;
+use crate::scripting::logging_backend;
 
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -72,6 +76,38 @@ pub(crate) fn current_view_token(window: &PromptWindow) -> Option<String> {
     .map(|row| row.view.to_string())
 }
 
+/// The option's own **control**, by the identity the tests select on (R-14):
+/// never by label, which two options may share.
+///
+/// The description alone does not pick one element. The option's field
+/// container answers to the same `option.id`, so that a field can be addressed
+/// by a query scoped to its option ([`field_described`]), and `find_first`
+/// would otherwise return whichever the walk reached first — declaration
+/// order, which nothing pins. The type filter is what keeps this helper's
+/// contract: a control, with a default action and an item index, and not the
+/// group that surrounds it.
+///
+/// **No case in this target goes red without the filter, measured rather than
+/// assumed:** deleting it leaves every case green, because the markup happens
+/// to declare an option's control before its field container and the walk
+/// reaches the control first anyway. That is the declaration order nothing
+/// pins, and the filter is what keeps the helper from silently depending on
+/// it. No case is written to pin it, because a case that cannot be made to
+/// fail pins nothing.
+///
+/// Here rather than in one case file because two of them need it: `tree.rs`
+/// asks the markup what it drew, and `fields.rs` presses the control a person
+/// presses.
+pub(crate) fn element_described(window: &PromptWindow, description: &str) -> Option<ElementHandle> {
+  let description = description.to_string();
+  ElementQuery::from_root(window)
+    .match_inherits("Button")
+    .match_predicate(move |element| {
+      element.accessible_description().as_deref() == Some(description.as_str())
+    })
+    .find_first()
+}
+
 /// Everything under the option that answers to `option.id` — the scope every
 /// field query starts from. `ElementQuery` has no accessible-description
 /// matcher (`search_api.rs:232-287` lists its six builders), so the
@@ -113,6 +149,34 @@ pub(crate) fn field_described(
       element.accessible_description().as_deref() == Some(field.as_str())
     })
     .find_first()
+}
+
+/// Like `driving::scripted`, but against `logs-the-request-then-answers.sh`
+/// rather than `answers-as-instructed.sh`: the invocation log holds each raw
+/// request rather than the literal string `invoked`, so a case can read back
+/// what the host actually sent — `event.kind` for the scheduling cases, the
+/// submitted `response.values` for the field ones. `answers-as-instructed.sh`
+/// never reads its own stdin and cannot report what it received.
+///
+/// Here rather than in one case file because two of them need it:
+/// `scheduling.rs` reads the kind of the request the loop's own timer
+/// produced, and `fields.rs` reads what a person's answer carried. Not added
+/// to `tests/support/driving.rs` — this target is still its only consumer.
+///
+/// **The log says an exchange *began*, not that it was absorbed.** The script
+/// reads the request, appends it, and only then answers
+/// (`tests/backends/logs-the-request-then-answers.sh:19`, `:26`, `:32`), and
+/// the host folds the outcome in later still. A case that needs the fold to
+/// have happened waits on something the production glass wrote;
+/// `scheduling.rs`'s `absorbed_line` is the precedent.
+pub(crate) fn logging_scripted(case: &str, instructions: &[&str]) -> (ShellCommand, PathBuf) {
+  let (mut command, log) = logging_backend("logs-the-request-then-answers", case);
+  command.arguments.extend(
+    instructions
+      .iter()
+      .map(|instruction| (*instruction).to_owned()),
+  );
+  (command, log)
 }
 
 /// `waiting::within`, asserting: panics if `predicate` never becomes true

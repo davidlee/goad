@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — the window draws a form | done | 2026-09-15 |
 | PHASE-03 — the mapper and the draft | done | 2026-09-15 |
 | PHASE-04 — the draft is retained, and the answer carries it | done | 2026-09-15 |
-| PHASE-05 — the form on the wire | pending | |
+| PHASE-05 — the form on the wire | done | 2026-09-15 |
 | PHASE-06 — the demo, and the look | pending | |
 
 ## Phase sheets
@@ -1398,12 +1398,456 @@ for none of these.
   about the product changed. **AC-7 and AC-10 still observe it, at PHASE-06/VH-1
   and VH-2.**
 
+### PHASE-05 — the form on the wire
+
+**Objective:** what the person ticked is shown to leave the host as JSON, under
+the option they pressed, surviving a present that changed nothing
+(`plan.md:715-716`).
+
+**Criterion ids, re-derived from `plan.md`** — T-0 below. `plan.md:713-806`,
+PHASE-05 entire:
+
+| kind | ids | count |
+|---|---|---|
+| entry | EN-1 | 1 |
+| exit | EX-1 … EX-5 | 5 |
+| verification (test) | VT-1 … VT-4 | 4 |
+| verification (agent) | VA-1 | 1 |
+
+**Pass 1** — every `^- <ID> —` bullet in the phase, in order: `EN-1`, `EX-1 …
+EX-5`, `VT-1 … VT-4`, `VA-1`. Contiguous from 1 in each kind, no gap and no
+duplicate. **Pass 2** — the same bullets bucketed by the `**Entry**` /
+`**Exit**` / `**Verification**` heading each falls under: entry 1, exit 5,
+verification 5 (4 VT + 1 VA). The two passes agree.
+
+**Cross-references.** Outward: PHASE-05's body cites **no** `PHASE-0N/<id>` at
+all — it is the last phase before the human one and depends on 04 by sequence,
+not by citation. Inward, Coverage cites `PHASE-05/VT-1` (AC-1),
+`PHASE-05/VT-2` (AC-4), `PHASE-05/VT-3` (AC-5), `PHASE-05/VT-4` (AC-3) and
+`05/EX-5` (AC-9); all five exist.
+
+**The line cites the phase makes, checked rather than trusted** —
+`plan.md:36-45`'s rule, and the third time this slice a criterion's warrant has
+not matched the code:
+
+| cite | claim | holds? |
+|---|---|---|
+| `scheduling.rs:101-109` | `logging_scripted` lives there | yes, exactly |
+| `scheduling.rs:127-142` | `absorbed_line`'s doc, and it states the ordering backwards | yes — the doc is `:127-142` and `:130-131` says *before it reads the request*, which is false of the script |
+| `logs-the-request-then-answers.sh:19/:26/:32` | `request="$(cat)"`, the append, the answer | yes, all three |
+| `harness.rs:1-8` | the module doc **enumerates its consumers** | **no — F-1** |
+
+**Reading list**
+
+- `docs/slices/007/plan.md:713-806` — PHASE-05 whole, including *Notes for the
+  implementer*; `:102-142` — S-1..S-9; `:36-45` — the re-derivation rule;
+  `:89-91` — why 05 is after 04; `:156-171` — Coverage.
+- `docs/slices/007/design.md:1064-1107` (§9 — what each tier proves, the row
+  for each of AC-1/AC-3/AC-4/AC-5, and the closing proxy rule),
+  `:760-901` (§5.4 — the lifecycle VT-3 turns on: the rebuild that makes A-2
+  hold, and `Retained` leaving the draft alone), `:1047-1063` (§8, re-read at
+  the end of the phase as well as the start — PHASE-03's D-5).
+- `docs/slices/007/canon-delta.md` — R-57 and R-58; VT-4 is R-58's
+  "silent about an undrawn field" clause read off the wire.
+- `docs/slices/007/slice-007.md:147-172` — AC-1, AC-3, AC-4, AC-5.
+- The code: `tests/renderer/scheduling.rs:101-109` (`logging_scripted`),
+  `:111-125` (`request_kind`, the precedent EX-3 names), `:127-142`
+  (`absorbed_line`); `tests/renderer/harness.rs` entire, module doc first;
+  `tests/renderer/wiring.rs:1125-1560` (`mod editing` — the only module whose
+  fixtures carry fields, `with_room_for_the_form` at `:1225-1236`,
+  `checked_in_row_model` at `:1550-1560`), `:62-84` (`accessible_enabled_of`);
+  `tests/renderer/tree.rs:94-107` (`element_described`), `:330-400` (driving a
+  checkbox with `invoke_accessible_default_action`, and the model-reset pin);
+  `tests/backends/logs-the-request-then-answers.sh` (repo root, not under
+  `crates/`); `tests/support/scripting.rs` (`logging_backend`, `invocations`);
+  `tests/renderer/main.rs` (the roll-call); `src/install.rs` (the callback
+  table — seven installations), `src/main.rs:85-90` (how production assembles
+  `Wire` + `install` around a capacity-**1** channel), `src/controller.rs:701-880`
+  (`serve`: present at the top of the iteration, `Edit` returning `None` from
+  `dispatch`), `src/glass.rs:127-215` (`option_rows`, `field_block`, and
+  `next_check` written from the frame every present).
+
+**Assumptions**
+
+- **A-a — a Slint callback installed by `install` fires under
+  `init_no_event_loop`.** `tree.rs` drives `on_edited`/`on_chosen` set by the
+  test itself; nothing in this target has yet driven the **production**
+  callback table. `invoke_accessible_default_action` is synchronous, so the
+  callback runs on the test's own thread inside the `LocalSet`. Cheap to
+  falsify; falsified first.
+- **A-b — a capacity-1 channel is enough if every action waits for an
+  observable before the next.** Production is capacity 1 (`main.rs:85`). A
+  click whose `try_send` finds it full is **dropped**, silently as far as the
+  assertion is concerned — so every tick is followed by a wait on the draft's
+  own projection, and a dropped one fails as a timeout rather than as a wrong
+  value.
+- **A-c — the first scheduled firing cannot reach these cases.** `driving::host`
+  seeds `DEFAULT_POLL` at 30 minutes and the initial timer arm is
+  `MINIMUM_SPACING` (3 s) from process start; the first exchange absorbs
+  immediately and resets the deadline from its own `next_check`. Only a case
+  that took longer than 3 s to reach its first absorb would see an extra
+  invocation.
+
+**STOP conditions** — `plan.md:102-142`, S-1..S-9 entire. The live ones:
+
+- **S-7 — this phase's own.** A field test that neither reads an invocation log
+  nor asserts something about the screen. It is not a style rule: a case that
+  reads the draft back through `Controller` passes with `answer()` walking the
+  draft's keys, which is D6.
+- **S-1 — any wish to change a `src/` file.** The mechanism is finished; this
+  phase is the proof it works from outside. No `src/` path is a declared
+  surface.
+- **S-2 — any changed assertion or fixture in an existing case file.** EX-2's
+  lift is a *move* of a helper and an import; `scheduling.rs`'s assertions do
+  not change.
+
+**Tasks**
+
+- [x] T-0 — re-derive the criterion ids from `plan.md`, and check every line
+      cite the phase makes. Tables above. The two passes agree; all five
+      inward cross-references resolve; three of the four line cites hold and
+      **one does not — F-1**.
+- [x] T-1 — EN-1. **`just check` exit 0 on the unmodified tree at `69c617b`,
+      531 tests across 21 binaries**, clippy `-D warnings` clean, `cargo fmt
+      --all --check` clean, `deno check` clean. PHASE-04's exit criteria
+      spot-checked in the **code** rather than read off its sheet:
+      `reception.rs` (`Prepared.draft`, EX-1); `controller.rs:257-276`
+      (`edit`, EX-2), `:213-239` (`answer` walking `drawn_fields`, EX-3),
+      `:343-345` (`drawn_fields` itself); `wire.rs:24-45` (`Command::Edit`,
+      EX-4); `install.rs:19-72` (seven installations, EX-5); `glass.rs:127-215`
+      (`option_rows`/`field_block`, EX-6); `diagnostics.rs` (`UnknownField`,
+      EX-8); `harness.rs` (the two lifted queries, PHASE-04 D-3).
+- [x] T-2 — EX-2: `logging_scripted` lifted from `scheduling.rs:101-109` to
+      `harness.rs`, body unchanged, callers following the import. `PathBuf`
+      became unused in `scheduling.rs` and its import narrowed to `Path` —
+      the only other line that moved there. **No assertion in `scheduling.rs`
+      changed** (S-2): its diff is the removed function, two `use` lines and
+      nothing else. **EX-2's module-doc clause was not carried out, and F-1
+      says why.** The doc gained one clause instead: its enumeration of *what
+      kinds of thing* live in the file had gone incomplete, which is the same
+      class one level down.
+- [x] T-3 — EX-1 + EX-3 + VT-1. `fields.rs` drives the production `serve`
+      against a real child process, with `install`'s own callback table on the
+      window: **every** command these cases put on the channel is fired by
+      activating a real element, the tray's `check_now` included, so no case
+      builds a `Command`. EX-3's reader is `logged` + `submitted_values` +
+      `answered_option`, in `fields.rs`, beside `scheduling.rs`'s
+      `request_kind` precedent. VT-1 reads the screen immediately before the
+      press and compares the wire **to it**, which is AC-1's own wording.
+- [x] T-4 — VT-2. **Two ticks, not one — D-2.** The extra one is what makes
+      VA-1's named injection reach the case at all.
+- [x] T-5 — VT-3, the conjunction, with the `Retained` fold **waited for**
+      through the next-check line the production glass wrote. Both directions
+      of "neither half substitutes" are measured, not argued: C-2 and C-3.
+- [x] T-6 — VT-4. Reads the log **and** the window's own `diagnostic-lines`;
+      both halves independently reach C-5.
+- [x] T-7 — VA-1. **Eight injections and three half-case variants of them**,
+      eleven runs in all, each against the whole 182-case target, read, and
+      reverted from a backup rather than by `git`. Table below — eleven rows,
+      counted. **Every case arrived green**, so each was controlled rather than
+      believed. The tree was diffed against the backup after the last revert
+      and `src/` and `ui/` were byte-identical.
+- [x] T-8 — refactor. `tick!` and `screen_of` named, so a tick is one
+      statement of *click plus wait* rather than two literals repeated six
+      times, and the screen is read in one line at each of its two sites.
+      Then **`element_described` lifted from `tree.rs` to `harness.rs`** —
+      referred up, approved, D-3 — so the Button-filtered description query has
+      one statement rather than the three a local copy would have made.
+      `fields.rs`'s `option_control` is one line over it. C-1 and C-4 re-run
+      after each step, unchanged; **C-7 re-measured against the lifted helper**,
+      because its doc's claim now covers `tree.rs`'s cases as well as this
+      file's — still all 182 green.
+- [x] T-9 — EX-4 and `design.md` §8, re-read over the finished file. Under
+      **Read, not run** below. The same pass swept `fields.rs`'s own
+      doc-comments for slice-local finding and control ids, per
+      `docs/memory/cite-requirements-not-finding-ids.md`: **the file now cites
+      none**, and each rationale that had been a pointer is written out as the
+      claim itself — the clipping measurement, the option-half injection, the
+      three control outcomes VT-3's and VT-4's halves rest on. It also caught a
+      mis-citation of my own: *"exactly one control per option"* is
+      `tree.rs`'s `heading_body_and_one_control_per_option_render_in_order`,
+      not PHASE-02/VT-2, and the two tests are now named rather than numbered.
+      **F-6.**
+- [x] T-10 — EX-5: **`just check` exit 0. 535 tests across 21 binaries**,
+      from 531. Four new cases; clippy `-D warnings` clean, `cargo fmt --all
+      --check` clean, the example typecheck clean.
+
+**The controls** — every case arrived green. Each injection was applied to a
+pristine tree, run against the **whole** renderer target, read, and reverted.
+
+| # | the mutation | where | red | green |
+|---|---|---|---|---|
+| C-1 | `Draft::state_of` keyed by field alone, dropping the option half | `draft.rs` | **VT-2**, and `wiring::editing`'s two | VT-1, VT-3, VT-4 |
+| C-1b | C-1, with VT-2's two screen assertions removed | + `fields.rs` | VT-2, at the **wire** assertion | — |
+| C-2 | `answer()` sends an empty map — the body before PHASE-04's EX-3 | `controller.rs` | all four, each at its own wire assertion | 176 |
+| C-3 | the control stops reading the row model's `checked` (`checked: false`) | `ui/app.slint` | VT-1, VT-2, VT-3 at their **screen** assertions; `tree.rs`'s A-2 pin | VT-4 |
+| C-3b | C-3, with VT-3's screen assertion removed | + `fields.rs` | **nothing — VT-3 passes** | — |
+| C-4 | a `Shift::Retained` fold drops the draft | `controller.rs` | **VT-3 alone, of 182** | 181 |
+| C-5 | a `text` field is drawn rather than reported undrawn | `view_model.rs` | VT-4, and nine others | VT-1, VT-2, VT-3 |
+| C-5b | C-5, with VT-4's diagnostic-surface assertion removed | + `fields.rs` | VT-4, at the **wire** assertion (`noted` on the wire) | — |
+| C-6 | the declared viewport removed — **a control on the FIXTURE** | `fields.rs` | all four, `no control described "read" under "morning"` | 178 |
+| C-7 | the Button type filter dropped from the description query | `fields.rs`, then re-run on `harness.rs` after the lift | **nothing — all 182 green, both times** | all |
+| C-8 | the `respond` names the last option rather than the one pressed | `controller.rs` | **VT-2 alone, of 182** | 181 |
+
+- **C-1 is the injection VA-1 names, and it behaved exactly as VA-1 requires:
+  VT-2 red, VT-1 green.** The brief's warning — *if both go red, your VT-1 is
+  also resting on the scoping* — did not fire. VT-3 and VT-4 stayed green too,
+  which is the same evidence for them.
+- **VT-3's conjunction is measured in both directions, and neither half
+  substitutes.** Under C-2 the screen assertion **passed** and the wire one
+  failed. Under C-3, with the screen assertion removed, the case is **green
+  while every box on the screen is wrong**. That is the disjunction EX-4
+  states, shown to be the wrong rule for this one case rather than argued to
+  be.
+- **C-4 and C-8 each redden exactly one case out of 182.** VT-3 is the only
+  thing in this workspace holding *a `Retained` fold leaves the draft alone*
+  — which is also `design.md` §8/R-8's stated bound, which until now had no
+  test — and VT-2's `answered_option` is the only thing holding *the request
+  names the option that was pressed*: `wiring::editing` asserts key sets and
+  never `UserResponse.option`.
+- **C-6 is a control on the *fixture*, not on the code** — PHASE-04's C-6 a
+  second time, and the same failure verbatim. The cases can see the form
+  because `with_room_for_the_form` declares 600×600. **PHASE-02's F-6 is
+  unchanged by this phase and remains open**: the product still clips its own
+  second option at its preferred size, and PHASE-06/VH-1 and VH-2 observe it.
+- **C-7 stayed green, and that is F-3.** The Button type filter is right and
+  is pinned by nothing; no case is written to pin it, because a case that
+  cannot be made to fail pins nothing. Re-measured after the lift, so the
+  claim in `harness::element_described`'s doc covers both its callers.
+
+**Read, not run** — the criteria with no instrument in the gate.
+
+- **EX-4 / S-7 — every case reads the log or asserts the screen, and VT-3 does
+  both.** Walked case by case over the finished file. VT-1: `submitted_values`
+  **and** `screen_of`. VT-2: `submitted_values` + `answered_option` **and**
+  two `checked_on_screen` reads. VT-3: both, both load-bearing, both measured.
+  VT-4: `submitted_values` + `answered_option` **and** the window's own
+  `diagnostic-lines` and `is_visible()`. **No case reads the draft through
+  `Controller`**: `grep -n Controller crates/goad/tests/renderer/fields.rs`
+  returns five lines — three prose, one `use`, and `Controller::new()` being
+  handed to `serve`. There is no `controller.` call anywhere in the file, and
+  no case holds a `Controller` to ask.
+- **`design.md` §8, re-read at the end of the phase** (PHASE-03's D-5). R-1 and
+  R-2 are discharged and this phase exercises both through a real present.
+  **R-2's "signal it is happening" is AC-5**, which until now was a screen
+  assertion in `wiring.rs`; VT-3 is the regression pin the row describes,
+  driven through the production loop, and C-4 shows it is the only one.
+  R-3: no `Edited` variant, and `fields.rs` never names `Edited` — it cannot,
+  because nothing here builds a command. R-4: **no `src/` file was touched at
+  all**, so the draft cannot have crept into `Presentation` this phase.
+  **R-5 is the risk this phase exists to retire**, and its stated signal — *a
+  field test that never reads an invocation log* — is absent by construction.
+  R-6: nothing named this phase is a grouping concept. R-7: the cases pass
+  under `material`, reading controls off a shown window. **R-8 gained a test
+  it did not have**: its mitigation rests on *`view: null` folds to
+  `Shift::Retained` and leaves the draft alone*, and that sentence is now
+  VT-3's premise and C-4's subject.
+- **`docs/memory/cite-requirements-not-finding-ids.md`, applied to the file
+  this phase wrote.** `fields.rs` cites no `F-N` and no `D-N`; where a
+  rationale is a measurement rather than a requirement, the measurement is
+  written out (the 65px preferred height and what it clips; the option-half
+  injection and which case it reddens; the three control outcomes VT-3's and
+  VT-4's halves rest on). Criterion ids — `EX-1`, `VT-3`, `VA-1` — are kept:
+  they are what every case file in this target uses to say what a case is, and
+  they are phase-qualified when they point outward. The rule's *state*
+  elsewhere is **F-6**.
+- **The vocabulary scan does not reach this file at all.** `Scan.excluded_dirs`
+  is `["tests", "target"]` and skips any directory of that name
+  (`goad-boundary/src/scan.rs:128-132`), so `crates/goad/tests/` is never
+  walked — not its comments, not its string literals, not its test names.
+  PHASE-03's F-3 is about `src/`. A case file's fixtures are held by **review
+  alone**; these use `morning`, `evening`, `stretched`, `read`, `tidied` and
+  `noted`, none of them on the list and none of them a host concept.
+
+**Decisions taken during execution**
+
+- **D-1 — no helper in this file may be `async`, and that shaped the file.**
+  `future_not_send` is `deny` workspace-wide (`Cargo.toml:201`) and reaches an
+  `-> impl Future` return exactly as it reaches an `async fn` — measured, both
+  shapes tried. Every future here holds a `PromptWindow`, which is `!Send` by
+  construction. A `#[tokio::test]` body is not async after expansion, so the
+  lint does not reach a case; it reaches any helper that wraps one. So the
+  loop-driving and the tick are **macros** (`driving!`, `tick!`), expanding
+  into each case, and the setup they take apart is a plain `struct Rig` built
+  by a plain `fn rigged`. `table.rs:190`'s `observed!` is the precedent for a
+  case-file macro in this target. **The alternative was the workspace's first
+  `#[expect(clippy::future_not_send)]`**, which is a concession, and a
+  concession is not a phase's to take on its own (`plan.md` §Execute).
+  It is also the better shape for EX-1: the `serve` call is textually in each
+  case rather than behind a helper.
+- **D-2 — VT-2 ticks two boxes where the criterion ticks one, because one
+  cannot fail.** VT-2 as written ticks the answered option's own box; under
+  VA-1's named injection — the draft key's `option` half ignored — that case
+  stays **green**, because one option's answer cannot tell the two readings
+  apart. What tells them apart is ticking the shared id under the option that
+  is **not** answered. Both of VT-2's own clauses are still there and the
+  extra tick is what makes VA-1 reachable, so this is an extension inside the
+  criterion's intent rather than a departure from it — PHASE-04's T-15 shape.
+  Recorded rather than reconciled quietly.
+- **D-3 — `element_described` lifted from `tree.rs` to `harness.rs`. Referred
+  up, approved, and an undeclared surface.** `fields.rs` must press an option's
+  own control, which needs a Button-filtered description query; that query
+  already existed twice — `tree.rs`'s `element_described` and `wiring.rs`'s
+  `accessible_enabled_of`, the same query with a different terminal, each with
+  its **own** doc-comment explaining the same filter in different words. A
+  third statement was the thing to avoid. This is PHASE-04's D-3 exactly:
+  same target, same file, same rule (`harness.rs`'s own *two or more*), and
+  `field_described`/`within_option` are already there from that lift.
+  **`tree.rs`'s diff is one function body and one `use` line** — no assertion,
+  no expected value, no fixture value, so not S-2, which expressly allows a
+  change to a helper. `fields.rs` keeps a one-line `option_control` over it,
+  which names the activation and holds the panic message; it restates no query.
+  The lifted doc dropped one citation as it moved — `D10`, a slice-local
+  decision id — per `docs/memory/cite-requirements-not-finding-ids.md`.
+  **`slice-007.md` §Scope names `crates/goad/tests/renderer/` as a directory,
+  so the audit's path diff sees no breach; the gap is in `plan.md`'s per-phase
+  Surfaces line, which is the orchestrator's, not this phase's, to amend.**
+  `wiring.rs::accessible_enabled_of` was deliberately **not** folded in —
+  **F-3.**
+
+**Findings**
+
+- **F-1 — EX-2's warrant is stale: `harness.rs`'s module doc no longer
+  enumerates its consumers, and the better mechanism is already there.** EX-2
+  says the doc *"enumerates its consumers — `wiring.rs`/`table.rs`/`scheduling.rs`
+  — and `fields.rs` is a fourth the list does not admit; it moves with the
+  lift."* PHASE-04's own sweep (its T-12, item 6) had already replaced that
+  closed list with the rule it was an instance of: *"The rule is `two or more`,
+  and the set that satisfies it is not fixed … which is why nothing here names
+  a closed list of case files"* (`harness.rs:11-13`). So the criterion's
+  **intent** — that the doc not go stale when a fourth consumer arrives — is
+  met, by a mechanism that cannot go stale at all, and the clause of EX-2 that
+  sends the phase to edit the doc has nothing to do. Re-introducing an
+  enumeration to satisfy the criterion's letter would undo PHASE-04's repair.
+  **What did move** is one clause of the same doc's *other* enumeration — the
+  list of what kinds of thing live in the file, which mentioned neither a
+  logging backend nor an unscoped control query. `main.rs`'s roll-call moved
+  too (EX-1's Surfaces line names it), and its two *caller* lists were replaced
+  by the rule rather than extended, for the reason this finding is about.
+
+  **The class, with all three instances, and it is not a defect count.** Three
+  criteria in this slice have stated a warrant the code does not bear out:
+
+  | | the criterion | what it claimed | what was true |
+  |---|---|---|---|
+  | PHASE-02 F-3 | EX-7 | a type filter keeps two named cases green | neither case is kept green by it — EX-4's own guard means those options have no container, and even with one the walk reaches the control first. The filter still belongs; the case written to pin it was vacuous and was deleted |
+  | PHASE-04 F-1 | EX-9 | extending a test *keeps* the claim its name makes | the name had made a **false** claim since before the slice opened: `Refused::Ingress` was in no case and asserted nowhere. The criterion was right for a reason it did not give |
+  | PHASE-05 F-1 | EX-2 | `harness.rs`'s doc enumerates its consumers, so the lift must move the list | PHASE-04 had already replaced the list with the rule. The criterion's intent was met by a better mechanism than the one it names |
+
+  **Every one of the three was found by reading the thing the criterion cites,
+  and in all three the criterion was still right.** That is the finding: a
+  criterion that states its own reasoning is *checkable*, and checking it has
+  paid three times out of three — two vacuous tests avoided, one false test
+  name repaired, one doc repair not undone. A plan that said only *"lift the
+  helper"* would have produced none of these and none of the repairs, and the
+  phase would have complied with each criterion's letter without anyone
+  noticing. **The audit should hear this as an argument for the plan's style,
+  not as three errors in it.** What it costs is one task per phase — re-derive
+  the ids, then read what each warrant cites — and `plan.md:36-45` already asks
+  for the first half. The half worth adding is the second.
+  **What did move** is one clause of the same doc's *other* enumeration — the
+  list of what kinds of thing live in the file, which did not mention a logging
+  backend. `main.rs`'s roll-call moved too (EX-1's Surfaces line names it), and
+  its two *caller* lists were replaced by the rule rather than extended, for
+  the reason F-1 is about.
+- **F-2 — a case's fixture name is a shared path with no instrument, and two
+  existing cases already collide.** `scripting::marker` turns a case name into
+  `goad-invocations-<name>-<pid>` in the temp directory and **clears the file**
+  on the way out; every case in the `renderer` target shares one pid and cargo
+  runs them concurrently. `scheduling.rs:415` and `wiring.rs:1570` both call
+  `scripted("vt8", …)`, so they share one invocation log — and
+  `scheduling.rs`'s asserts `invocations(&log) == 1` while `wiring.rs`'s
+  spawns a backend that appends to it. **Found by walking into it**: this
+  phase's cases were first named `vt1`..`vt4`, `vt2`/`vt3`/`vt4` were already
+  `scheduling.rs`'s, and a case failed intermittently — once in six runs —
+  before the names were prefixed. Nothing in the gate or in any review checks
+  a name for collision; the only defence is the prefixing convention
+  `wiring.rs`, `table.rs` and `ingress.rs` already follow and `scheduling.rs`
+  does not. **Not this phase's to fix** — `scheduling.rs` and `wiring.rs` are
+  not PHASE-05 surfaces and a rename is a fixture change (S-2). For the audit,
+  and a candidate for `docs/memory/`: *a test fixture keyed by a name is a
+  namespace, and a namespace with no instrument collides.*
+- **F-3 — `wiring.rs`'s `accessible_enabled_of` is now one line of duplication,
+  and here is the line.** After D-3's lift it reduces, with **no behaviour
+  change**, to:
+
+  ```rust
+  fn accessible_enabled_of(window: &PromptWindow, description: &str) -> Option<bool> {
+    element_described(window, description).and_then(|element| element.accessible_enabled())
+  }
+  ```
+
+  It is the same query — `match_inherits("Button")`, the same owned-description
+  predicate, the same `find_first` — differing only in the terminal. **The
+  duplication is doubled, because it is documented twice:** `wiring.rs:65-73`
+  and `harness::element_described` each explain the same filter, for the same
+  reason, in different words, so the collapse removes two statements of one
+  rule rather than one. **Not taken here, deliberately.** `wiring.rs` is not a
+  PHASE-05 surface, no criterion is behind the change, and two phases have
+  already touched that file as an undeclared surface — a third with no
+  criterion is how a scope holds in letter and dissolves in practice. Audit's,
+  and cheap: one line, one import, two doc-comments deleted.
+
+  **The filter itself is held by nothing, and that is measured.** Deleting
+  `match_inherits("Button")` from the lifted helper leaves **all 182 cases
+  green** — re-measured after the lift, so the claim covers `tree.rs` and
+  `fields.rs` both. The markup happens to declare an option's control before
+  its field container, which is the declaration order the helper's own doc says
+  nothing pins. The filter belongs; what would be false is any suggestion that
+  a test holds it. **No case was written to pin it** — PHASE-04's EX-7/F-3
+  deleted exactly such a case as vacuous — and the doc now says so with the
+  measurement, which is the only instrument this rule has.
+- **F-4 — `design.md` §9/AC-1 and §8/R-5 both cite `scheduling.rs:95-125` for
+  `logging_scripted`, which this phase moved to `harness.rs`.** Two line cites
+  in a document that is a record of intent at a point in time and is not
+  retro-fitted (`docs/AGENTS.md`). Recorded so the audit's reading of §8 and §9
+  is not slowed by a helper that is not where the design says. Same disposition
+  as PHASE-03's F-1: audit's call, not a phase's.
+- **F-6 — `docs/memory/cite-requirements-not-finding-ids.md` says *"do not
+  extend the practice"*, and the practice has been extended in every slice
+  since, this one included.** The memory (settled at slice 001's audit, in
+  force from 002) forbids a comment in `src/`, `tests/` or `examples/` citing a
+  slice-local review-finding or design-decision id, and tolerates slice 001's
+  existing ones by explicit user decision. `grep` finds bare `F-N` citations in
+  `src/diagnostics.rs`, `src/controller.rs`, `src/reception.rs`, `src/wire.rs`,
+  `tests/renderer/{ingress,startup,tree,wiring}.rs` — and two of them are
+  **PHASE-04's**, at `wiring.rs:1224` and `:1229`, both citing PHASE-02's F-6.
+  So the rule is either dead or unenforced; nothing in the gate reaches it and
+  no reviewer has raised it in four phases. **PHASE-05's own file cites none**
+  — every rationale is written out as the claim, which is what the memory's
+  last bullet asks for — but that is one file against a codebase, and a rule
+  one file follows is not a rule. Audit's: either the memory is amended to
+  match what the code does (phase-qualified ids, which do disambiguate), or a
+  sweep is scoped as its own slice. Not a phase's to decide, and too large to
+  take in passing.
+- **F-7 — the viewport sizer has now been written three times by three agents,
+  and so has the sentence that keeps it honest.** `wiring.rs`'s
+  `with_room_for_the_form` (600×600), `mod busy`'s `with_room_for_every_control`
+  (400×400) and `fields.rs`'s own each declare a window size so the element
+  query can reach the whole form, and each says — independently, in its own
+  words — that it **states what the test can see and is not a claim about what
+  the window should be.** That sentence is the only thing standing between the
+  fixture and a green test quietly closing the product question, which is why
+  each agent reached for it unprompted. Three statements of one rule is the
+  signal it wants one home. **Not consolidated here**, and the reason is the
+  opposite of F-3's: the three differ in their *values* and in *why* — two
+  sizes, two measurements, three sets of cases — so a single helper needs a
+  parameter and a doc that covers all three, which is a design decision rather
+  than a collapse. Audit's, and it should be taken together with the product
+  question the sentence protects.
+- **F-5 — `plan.md`'s PHASE-05 Surfaces line is complete, and it is the first
+  in this slice that is.** PHASE-01's omitted `ui/app.slint`, PHASE-04's
+  omitted `draft.rs`; this one names `fields.rs`, `main.rs`, `harness.rs` and
+  `scheduling.rs`, and those are exactly the four paths touched. Recorded as
+  the negative case for PHASE-04's F-3, so the class is *enumerations go stale*
+  rather than *enumerations are always wrong*.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-15 · PHASE-04, done · base commit `246ed93`
+**Fresh as of:** 2026-09-15 · PHASE-05, done · base commit `69c617b`
 
 ### Produced
 
@@ -1464,6 +1908,16 @@ for none of these.
   `accessible_enabled_of` gains the type filter PHASE-02's F-4 predicted it
   would need. `wiring.rs` gains `mod editing` — six cases, ten negative
   controls. Gate at **531 tests, from 525**.
+- `tests/renderer/fields.rs` — the one new file, and the **only module in this
+  target that reads what left the host**. Four cases, all four driving the
+  production `serve` against a real child process with `install`'s own callback
+  table on the window: every command they put on the channel is fired by
+  activating a real element, the tray's `check_now` included, so no case builds
+  a `Command`. `logging_scripted` lifted to `harness.rs` (EX-2); `logged` /
+  `submitted_values` / `answered_option` stay in `fields.rs` (EX-3);
+  `element_described` lifted from `tree.rs` to `harness.rs` (D-3, referred up
+  and approved), so the Button-filtered description query has one statement.
+  Eleven injections in VA-1. Gate at **535 tests, from 531**.
 
 ### Learned
 
@@ -1609,6 +2063,75 @@ for none of these.
   implementation is the correct one, which is why VT-1 arrived green and why
   its controls had to delete a check rather than decline to write one.
   PHASE-04 D-1.
+- **A criterion that states its own reasoning is checkable, and checking it has
+  paid three times out of three.** PHASE-02's EX-7 justified a type filter by
+  two cases it does not keep green; PHASE-04's EX-9 said an extension *kept* a
+  test name's claim when the name's claim had been false since before the slice
+  opened; PHASE-05's EX-2 pointed at an enumeration PHASE-04 had already
+  replaced with a rule. **In all three the criterion was still right**, and in
+  all three the check was the same move: read the thing the warrant cites
+  rather than confirm the count it asserts. The yield was two vacuous tests not
+  written, one false test name repaired, and one doc repair not undone. A
+  vaguer plan — *"lift the helper"* — would have produced none of them, and
+  each phase would have complied with the letter while nobody noticed. So this
+  is an argument for the plan's style rather than three defects in it, and the
+  cost is one task per phase: `plan.md:36-45` already asks each phase to
+  re-derive its ids; the half worth adding is *then read what each warrant
+  cites*.
+- **A test fixture keyed by a name is a namespace, and a namespace with no
+  instrument collides.** `scripting::marker` turns a case name into
+  `goad-invocations-<name>-<pid>` and **clears the file**; every case in a test
+  target shares one pid and cargo runs them concurrently. Two cases given the
+  same name share one log and truncate each other, and the symptom is an
+  intermittent failure in whichever one asserts on it — once in six runs, here.
+  `scheduling.rs:415` and `wiring.rs:1570` have both been `scripted("vt8", …)`
+  since before this slice. Nothing in the gate, and no reviewer reading one
+  file, can see it. PHASE-05 F-2.
+- **A green case is not the same as a pinned mechanism, and a filter is the
+  usual place the two come apart.** `option_control`'s `match_inherits("Button")`
+  can be deleted with all 182 cases still green: the markup happens to declare
+  an option's control before its field container, which is the declaration
+  order the helper's own doc says nothing pins. Three files now carry this
+  filter and three docs justify it; nothing would notice all three losing it.
+  The repair is **not** a case written to pin it — PHASE-04's EX-7/F-3 deleted
+  exactly such a case as vacuous — it is saying so in the doc, with the
+  measurement. Two of the three are now one after PHASE-05's lift; the third,
+  `wiring.rs::accessible_enabled_of`, collapses to a single line over it.
+  PHASE-05 F-3.
+- **A workspace lint can shape a test file's structure, and the shape it forces
+  can be the better one.** `future_not_send` is `deny` workspace-wide and
+  reaches an `-> impl Future` return exactly as it reaches an `async fn`, so
+  **no async helper in this target may hold a component handle**. A
+  `#[tokio::test]` body is not async after expansion, so the lint reaches
+  helpers and never cases. The answer is macros rather than async fns —
+  `driving!`, `tick!` — plus a plain struct for the setup; and it is also the
+  better answer for *"the production `serve`, no second loop"*, because the
+  `serve` call ends up textually inside each case. The alternative was the
+  workspace's first `#[expect(clippy::future_not_send)]`, which is a
+  concession and not a phase's to take. PHASE-05 D-1.
+- **A criterion can name an injection its own case cannot be reddened by.**
+  VA-1 requires that ignoring the draft key's option half turns VT-2 red; VT-2
+  as written ticks and answers the *same* option, and under that injection it
+  stays **green**, because one option's answer cannot tell the two readings
+  apart. The fix is one more tick — the shared id under the option that is
+  **not** answered. Reading a criterion's verification clause against its own
+  test-shaping clause, before writing either, is what catches this. PHASE-05
+  D-2.
+- **The proxy rule can be checked, not just obeyed, and it costs two runs per
+  case.** Assert the screen before the wire in the case body, then run the
+  control that breaks each: the assertion that *fires* names which half caught
+  it, and the assertion that *passed* is the half that would have been green
+  alone. VT-3's conjunction is measured in both directions this way — green
+  with the screen wrong, green with the wire wrong — rather than argued from
+  the design. A disjunction anywhere else in the file is then a claim about
+  that case, not a habit. PHASE-05 T-5.
+- **The vocabulary scan does not reach `tests/` at all** — `Scan.excluded_dirs`
+  is `["tests", "target"]` and skips any directory of that name
+  (`goad-boundary/src/scan.rs:128-132`). PHASE-03's F-3, that the scan cuts
+  comments but not string literals, is about `src/`; a case file's fixture ids,
+  test names and assertion messages are held by **review alone**. Both halves
+  matter and they are different claims: in `src/` the scan is sharper than a
+  reader expects, and in `tests/` it is absent.
 - **A count comment is a claim about the file it sits in, and this is the third
   phase in a row to falsify one.** `lib.rs`'s "nine after 005" went stale the
   moment `draft` landed; no compiler, no criterion and no grep for the new name
@@ -1666,12 +2189,11 @@ for none of these.
   audit's call, not a phase's.
 - **PHASE-03 F-3 — the vocabulary scan's string-literal reach** is a hazard for
   every future `reason = "…"`. Candidate for `docs/memory/`.
-- **`Draft`'s three absences held through PHASE-04 and are still load-bearing.**
-  No `BTreeMap`, no enumeration, no `PartialEq`. Nothing in PHASE-04 wanted any
-  of the three: `answer()` walks the blocks, `edit` clones its key off them, and
-  every assertion goes through `state_of` or through what `answer` returned.
-  **PHASE-05 inherits the same three**, and a test there that wants one is the
-  test to rewrite.
+- **`Draft`'s three absences held through PHASE-05 and are still load-bearing.**
+  No `BTreeMap`, no enumeration, no `PartialEq`. PHASE-05 wanted none of them
+  either, and could not have used one: it never holds a `Controller`, and every
+  value it asserts came off the wire or off the window. **PHASE-06 inherits the
+  same three.**
 - **PHASE-04 F-1 — closed, not open.** EX-9's warrant was false and the
   criterion right anyway; the `Refused::Ingress` case went in by decision and
   the test's name is now true. Listed here only so an auditor reading the
@@ -1692,3 +2214,49 @@ for none of these.
   surfaces.** The two option-scoped query helpers moved there rather than being
   copied into `wiring.rs`. Referred up during execution; for the audit's path
   diff, so an undeclared path is a decision on the record rather than a lead.
+- **F-6 was re-measured a third time and is unchanged.** PHASE-05's C-6 removed
+  `fields.rs`'s declared viewport and all four cases failed
+  `no control described "read" under "morning"` — the same message PHASE-04's
+  C-6 produced. Three fixtures in two files now declare a viewport; the product
+  still clips its own second option at its preferred size. **PHASE-06/VH-1 and
+  VH-2**, and `design.md` §8/R-7's real observation.
+- **PHASE-05 F-2 — two existing cases share one invocation log.**
+  `scheduling.rs:415` and `wiring.rs:1570` are both `scripted("vt8", …)`, in
+  one binary, so one pid and one temp path; `marker` clears it on handout and
+  `scheduling.rs`'s case asserts `invocations(&log) == 1`. Pre-existing, not a
+  PHASE-05 surface, and a fixture change (S-2). Audit's: rename one, and decide
+  whether the prefixing convention wants an instrument. Candidate for
+  `docs/memory/`.
+- **PHASE-05 F-3 — one line of the Button-filter duplication is left, and the
+  line is written down.** `element_described` is lifted into `harness.rs` and
+  `tree.rs` and `fields.rs` both use it (D-3, approved). What remains is
+  `wiring.rs:65-84`'s `accessible_enabled_of`, which collapses with no
+  behaviour change to
+  `element_described(window, description).and_then(|e| e.accessible_enabled())`
+  — removing **two** statements of the rule, because both functions carry their
+  own doc explaining the same filter. Not taken: `wiring.rs` is not a PHASE-05
+  surface and no criterion is behind it. Audit's, and cheap.
+  **The filter is held by nothing**, re-measured after the lift: deleting it
+  leaves all 182 cases green, in both callers.
+- **PHASE-05 F-7 — the viewport sizer is written three times by three agents,
+  and so is the sentence that keeps it honest.** Consolidating them needs a
+  parameter and a doc covering two sizes and three sets of cases, so it is a
+  design decision rather than F-3's collapse. Audit's, together with the
+  product question that sentence protects.
+- **PHASE-05 F-4 — `design.md` §9/AC-1 and §8/R-5 both cite
+  `scheduling.rs:95-125` for `logging_scripted`**, which EX-2 moved to
+  `harness.rs`. Two line cites in a record of intent, not claims about
+  behaviour. Same disposition as PHASE-03's F-1: audit's call.
+- **PHASE-05 F-5 — the first complete Surfaces line in this slice.**
+  PHASE-05's names `fields.rs`, `main.rs`, `harness.rs` and `scheduling.rs`,
+  and those are exactly the four paths touched. Listed as the negative case for
+  PHASE-04's F-3, so the class the audit holds is *enumerations go stale*
+  rather than *enumerations are always wrong*.
+- **PHASE-05 D-1 — no `src/` file was touched.** The gate's 535 tests include
+  four new cases and no production change; the diff is one new test file and
+  three test files. For the audit's path diff.
+- **`design.md` §8/R-8 gained the test its mitigation rests on.** The row's
+  bound is *`view: null` folds to `Shift::Retained` and leaves the draft
+  alone*; VT-3 is now that sentence's pin, and C-4 shows it is the only case in
+  the workspace holding it. The **risk** is unchanged and still accepted by
+  D13 — what changed is that the mitigation's premise is now checked.

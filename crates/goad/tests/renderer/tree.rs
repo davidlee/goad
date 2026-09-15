@@ -22,7 +22,7 @@ use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode}
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ModelRc, SharedString, VecModel};
 
-use crate::harness::{field_described, within_option};
+use crate::harness::{element_described, field_described, within_option};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -85,26 +85,6 @@ fn one_option_with(blocks: Vec<FieldBlock>) -> Vec<OptionRow> {
     view: SharedString::from(AN_OPTION.2),
     blocks: ModelRc::new(VecModel::from(blocks)),
   }]
-}
-
-/// The option's **control**, by the identity the tests select on (D10,
-/// R-14): never by label, which two options may share.
-///
-/// The description alone no longer picks one element. The option's field
-/// container answers to the same `option.id`, so that a field can be
-/// addressed by a query scoped to its option (`harness::field_described`), and
-/// `find_first` would otherwise return whichever the walk reached first —
-/// declaration order, which nothing pins. The type filter is what keeps this
-/// helper's contract: a control, with a default action and an item index,
-/// and not the group that surrounds it.
-fn element_described(window: &PromptWindow, description: &str) -> Option<ElementHandle> {
-  let description = description.to_string();
-  ElementQuery::from_root(window)
-    .match_inherits("Button")
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(description.as_str())
-    })
-    .find_first()
 }
 
 /// VT-1 — item 6 (AC-10, R5). Every other assertion in this file rests on

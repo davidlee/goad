@@ -6,7 +6,7 @@
 //! `wiring.rs`'s own `mod serving`/`mod interaction`/`mod cancellation` call,
 //! against a real child process — there is no second, test-only loop.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
@@ -21,9 +21,10 @@ use tokio::task::LocalSet;
 
 use crate::driving::{DEFAULT_POLL, host_from, instant};
 use crate::harness::{
-  TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
+  TIMEOUT, current_view_token, glass_over, logging_scripted, now, stub_clock, until,
+  window_and_tray,
 };
-use crate::scripting::{invocations, logging_backend, scripted};
+use crate::scripting::{invocations, scripted};
 use crate::waiting::LIVENESS_BOUND;
 
 /// A successful exchange with nothing to show and no instruction — the
@@ -90,22 +91,6 @@ fn config_with_poll(command: ShellCommand, default_poll: jiff::SignedDuration) -
     schedule: ScheduleConfig { default_poll },
     ingress: None,
   }
-}
-
-/// Like `driving::scripted`, but against `logs-the-request-then-answers.sh`
-/// rather than `answers-as-instructed.sh`: the invocation log holds each raw
-/// request rather than the literal string `invoked`, which is what VT-3 and
-/// VT-7 need to read `event.kind` off (`answers-as-instructed.sh` never reads
-/// its own stdin, so it cannot report what it received). Not added to
-/// `tests/support/driving.rs` — this target is its only consumer.
-fn logging_scripted(case: &str, instructions: &[&str]) -> (ShellCommand, PathBuf) {
-  let (mut command, log) = logging_backend("logs-the-request-then-answers", case);
-  command.arguments.extend(
-    instructions
-      .iter()
-      .map(|instruction| (*instruction).to_owned()),
-  );
-  (command, log)
 }
 
 /// The `event.kind` of the *n*th (1-indexed) request `logging_scripted`'s
