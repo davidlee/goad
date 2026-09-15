@@ -89,6 +89,8 @@ leave the host running and MUST leave it able to run the backend again.
 | R-8 | A `respond` request MUST carry the `view_id` being answered, the host's current instant, the chosen option id, and a map of field id to submitted value. | §7 |
 | R-9 | The host MUST NOT interpret an event's data payload or a submitted field value. It carries both verbatim. | §7 |
 | R-56 | Every `evaluate` the host originates **on its own account** carries `event.source` of `"host"`, and an `event.kind` naming why the host is asking. The qualifier is load-bearing: a host may also *forward* an evaluation it did not originate — an event ingested from outside carries that writer's own `source` and `kind`, verbatim — and the host is still the only party that emits the request, so without it this requirement would be false of a conforming host the moment it forwards one. Three kinds are named by this requirement and mean what it says they mean: `"startup"`, once, when a host starts; `"requested"`, when a person asked; `"scheduled"`, when a resolved next check came due. A host MUST NOT reuse one of these three for anything else, and a backend MAY branch on them. The set is **open**: a host MAY originate an `evaluate` whose kind is none of the three, and a backend MUST tolerate a kind it does not recognise — treating it as an evaluation whose reason it does not know, never as a protocol error. **`"host"` is a reserved event source.** A host MUST NOT emit an `evaluate` carrying `source: "host"` for an event it did not itself originate. A backend MAY therefore read `source == "host"` as meaning the host is asking on its own account, and MAY read the three kinds above as meaning what this requirement says they mean **under that source only** — under any other source, `source` and `kind` are the writer's words and this requirement makes no claim about them. The matching obligation on what a host *accepts* — that an envelope claiming the reserved source is refused — is a rule about acceptance and is SPEC-003/R-13's, not this spec's; the trust this clause grants a backend rests on it. | §7 |
+| R-57 | A submitted field value's JSON type is determined by the field's `kind` and by nothing else: `boolean` submits a JSON boolean, `text` a JSON string, `number` a JSON number, `choice` the chosen alternative's id as a JSON string, and `datetime` an RFC 3339 `date-time` string carrying an offset. R-9 is not in tension with this: opacity is about the host never *reading* a submitted value, and the host is nonetheless the only party that can *write* one, because it holds the widget. The kinds this rule types are R-16's five, all of them — what a `text` field submits is a fact about the protocol and not about any renderer's subset, and a rule written only to the kinds some renderer draws would make the contract track the renderer, which §1 names as the decay this document exists to prevent. | §7 |
+| R-58 | A `respond` carries values for exactly the fields the host drew of the option being answered: a host MUST submit a value for each of them, and MUST NOT submit a value for any other field — neither a field it did not draw, nor a field of an option it is not answering. A field a renderer cannot draw is reported undrawn under R-55, and the response is silent about it rather than carrying a default. A backend that needs *unanswered* to be distinguishable from *false* MUST NOT send the field — the additive mechanism for that is OQ-2. R-8 fixes the response's *shape*, a map of field id to submitted value, and does not say the map is total over the drawn fields; R-35 forbids the host *refusing* an incomplete answer and says nothing about how it *produces* one. This is the rule that says both. | §7 |
 
 ### Responses: views
 
@@ -251,11 +253,19 @@ that failed at its scheduled check in a tight loop.
 ```json
 { "protocol": 1, "type": "respond", "now": "2026-08-23T04:14:31Z",
   "view_id": "2026-08-23T04:12:00Z#3",
-  "response": { "option": "later", "values": { "minutes": 20 } } }
+  "response": { "option": "later",
+                "values": { "minutes": 20, "notes": "back after coffee",
+                            "done": false } } }
 ```
 
 `now` and `event.timestamp` are RFC 3339 with an explicit offset. `event.data`
-and `response.values` are opaque to the host (R-9).
+and `response.values` are opaque to the host (R-9) — the host never *reads* what
+it carries there. It does nonetheless *write* `response.values`, because it holds
+the widget, and R-57 fixes the JSON type of each entry while R-58 fixes which
+entries are present. The example carries three because the map is over every
+field the host drew of the option it names, which is rarely one: `done` is `false`
+because the box was drawn and left unticked, not because it was omitted and
+defaulted.
 
 ### 6.2 Response messages
 
@@ -312,6 +322,28 @@ A `choice` field's options are id and label only (R-53). A view's options may
 carry fields; a field's options may not, because the response addresses one
 option and one flat map of field values and has no way to express a nested
 answer. Field ids must be unique within an option for the same reason (R-52).
+
+**What each kind submits.** The answer's JSON type is fixed by the field's `kind`
+and by nothing else (R-57). This table is that requirement restated where a
+backend author reading the field forms above will meet it; the requirement is
+normative and this is not a second rule.
+
+| kind | submitted value | example |
+|---|---|---|
+| `boolean` | JSON boolean | `false` |
+| `text` | JSON string | `"back after coffee"` |
+| `number` | JSON number | `20` |
+| `choice` | the chosen alternative's id, as a JSON string | `"up"` |
+| `datetime` | RFC 3339 `date-time` string carrying an offset | `"2026-08-23T09:00:00+10:00"` |
+
+A `choice` submits an **alternative** id, never an option id — the two are
+separate namespaces (R-53). `datetime` carries both a date and a time, by the
+kind's own name; whether a date alone wants a kind of its own is OQ-4.
+
+All five are typed here, including the four no renderer in this repository draws
+yet. That is deliberate: a renderer drawing a subset of the kinds is a renderer
+subset and not a narrowing of the protocol (R-55), so the contract must be
+complete before a renderer is.
 
 A consequence worth stating rather than discovering: a misspelled **optional** key
 becomes a hint (`minn` is not `min`), while a misspelled **required** key is still
@@ -378,8 +410,10 @@ behaviour.
 | R-51 | fixtures `R-51-{next-check-null,next-check-omitted,protocol-null,a-nulled-body,a-nulled-modelled-key-on-a-field,a-nulled-fields-key-on-an-alternative,a-nulled-hints-key-on-a-field}`, asserting identical outcomes to their omitted forms **and an empty discard list** — the assertion is the silence, since a discard here would be the defect. Paired with `R-25-next-check-of-the-wrong-type`, which must still be discarded and reported, so the two cases are shown to be distinguished rather than merged. End to end: `failure_matrix.rs::an_explicit_null_next_check_discards_nothing` and `::an_explicit_null_protocol_discards_nothing` |
 | R-6, R-7, R-8 | unit: the three `canonical.rs` serialization tests above, each against the literal JSON of §6.1 parsed to a `serde_json::Value`, so key order is not asserted and a missing `protocol` or `type` is |
 | R-56 | unit, at the one place the host names a kind: `crates/goad/src/wire.rs::a_scheduled_stimulus_names_itself_scheduled` and `::a_scheduled_stimulus_s_event_carries_the_three_normative_fields`, the second asserting `source`, `kind`, `timestamp` and payload together, against `Stimulus::kind`, which returns exactly `"startup"`, `"requested"` and `"scheduled"` and nothing else. Over the wire a backend actually reads: `crates/goad/tests/renderer/scheduling.rs::a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_check` reads `event.kind` off the request a scripted backend logged and asserts `"scheduled"` on the firing that came due, and `::a_later_instruction_supersedes_and_the_earlier_deadline_does_not_fire` asserts `"requested"` on the one a person asked for — the two kinds discriminating each other rather than each being asserted alone. The **tolerance** clause is an obligation on backends, which no host test can observe, and is **review, not a test**, like this spec's other backend-side obligations. What the host emits for each kind is SPEC-002's subject once the kind is `"scheduled"` (SPEC-002/R-1). **The reserved-source clause** is held from the acceptance side, where the only way to breach it is: `crates/goad-shell/src/ingress/envelope.rs::tests::a_reserved_source_is_refused_with_every_other_field_valid` — an envelope claiming `source: "host"` is refused with every other field well formed, so the refusal is attributable to the source alone — and `crates/goad-shell/tests/integration/ingress.rs::the_three_shape_reasons_this_phase_owns_are_read_off_the_wire`, which reads `reserved_source` back as its own wire reason. The *emission* half — that no host code path constructs `source: "host"` for an event it did not originate — is **review, not a test**: `Stimulus::kind` is the one place the host names its own event, `crates/goad/src/wire.rs` the one place it is written, and an ingested event reaches that seam already carrying the writer's fields (SPEC-003/R-11). Asserting the absence of a second construction site would be asserting the absence of code |
+| R-57 | unit, at the **single site** the host turns a widget's state into a submitted value: `crates/goad/src/draft.rs::submitted`, a total match over `Edited`, tested by `draft.rs::tests::a_boolean_field_submits_a_json_boolean` in both directions. One site is the requirement's own structure — a mapping stated in two places is a mapping that can drift — and the total match means the host cannot grow a drawn kind without deciding what it submits. The `text`, `number`, `choice` and `datetime` clauses are **review, not a test**: no renderer in this repository draws those kinds, so there is no code to assert against and a test would have to construct the very mapping it checked. The site that must change when the *protocol* grows a sixth kind is not this match, which is over a host-local type and stays exhaustive, but the `FieldKind` arm in `view_model.rs::present`, which must sort the new kind into drawn or `Undrawn::FieldForm` |
+| R-58 | integration, both halves separately, because either alone is satisfiable by a host that fails the other. The MUST: `crates/goad/tests/renderer/wiring.rs::editing::an_answer_carries_a_value_for_every_drawn_field_of_the_option_it_names`. The MUST NOT: `::an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field`, which covers both prohibited cases in one case because they are one rule. Over the wire a backend actually reads: `crates/goad/tests/renderer/fields.rs::a_field_id_shared_by_two_options_is_two_keys_and_only_the_answered_ones_are_sent`, a two-option view whose options share a field id — the case R-52 makes legal — asserting the request names one option and carries only its keys, and `::a_view_carrying_an_undrawn_field_is_still_shown_and_still_answers_its_drawn_keys`, which is where this requirement meets R-55. Structural, and the reason there is no check to forget: `controller.rs::answer` builds `values` by walking the *presentation's* drawn fields and looking each one up in the draft, never by walking the draft, and `draft.rs::Draft` exposes no way to enumerate what it holds — so a draft key that outlived its view is not expressible on the wire rather than being filtered off it |
 | R-9, R-19 | **review, not a test** — the requirement is that host code never *reads* a payload, and a test can only observe code that does. The wire forms are fixtures `R-19-a-body-{tagged-as-text,tagged-as-markdown,tagged-as-html,tagged-as-uri,written-as-a-bare-string}`, and `R-19-a-body-written-as-an-array` is the form that is neither, refused as a shape; the payload-opacity half is a source check against P-A, re-run at every audit: no file under `src/` dereferences a `uri` or branches on `event.data` or `response.values`, all three of which are carried as `serde_json::Value` |
-| R-18 | **review, not a test**, and the same reason: `hints` is read in `src/` only by `normalize.rs::normalize_field`, where the remaining keys are collected and passed through. Nothing normalizing, scheduling, transporting or holding state reads a key from it (I7). The renderer, the one component that may, does not exist yet. The wire half is fixtures: `R-18-brief-10-2-s-own-field-example` carries brief §10.2's `multiline` flat and asserts it becomes a hint; `R-18-a-nested-hints-object` asserts the nested spelling is refused with its path; `R-51-a-nulled-hints-key-on-a-field` (cited under R-51) that `null` there is omission |
+| R-18 | **review, not a test**, and the same reason: `hints` is read in `src/` at two sites and no others. `normalize.rs::normalize_field` collects the remaining keys and passes them through, reading none of them; `crates/goad/src/view_model.rs::present` reads exactly one key, `group`, to decide where a heading is drawn. The second site is the renderer — the one component this requirement permits to branch on a hint — so it is the rule being exercised rather than breached. Nothing normalizing, scheduling, transporting or holding state reads a key from it (I7). What the renderer does with a `group` that is not a JSON string is R-55's and R-20's business, not this row's: it is drawn ungrouped in place and reported undrawn, never dropped. The wire half is fixtures: `R-18-brief-10-2-s-own-field-example` carries brief §10.2's `multiline` flat and asserts it becomes a hint; `R-18-a-nested-hints-object` asserts the nested spelling is refused with its path; `R-51-a-nulled-hints-key-on-a-field` (cited under R-51) that `null` there is omission |
 | R-10, R-11 | fixtures `R-10-view-omitted` (error naming the field) and `R-11-view-null-is-nothing-to-show` (accepted), with `R-11-an-envelope-written-as-an-array` showing a response that is not an object is a shape error and not a missing `view`. Both meanings of `null` are integration tests, since the difference is a state transition rather than a parse: `host.rs::a_null_view_answering_an_evaluate_leaves_the_interaction_open` and `::a_null_view_answering_a_respond_closes_the_interaction` (F-29). End to end: `failure_matrix.rs::a_response_omitting_view_is_refused` |
 | R-12 | fixtures `R-12-an-unknown-{view,field,content}-kind` and `R-12-a-misplaced-key-on-an-unknown-field-kind`, each asserting the reported path. End to end: `failure_matrix.rs::an_unknown_kind_nested_in_a_field_is_refused_with_its_path` |
 | R-13, R-14, R-16 | fixtures `R-13-{a-choice-view,a-choice-with-no-options,a-choice-omitting-options-entirely,an-option-written-as-an-array}`, `R-44-a-title-that-is-not-a-string` (both of the last two shape errors, never bound positionally or coerced), `R-14-duplicate-option-ids`, and `R-16-a-{text,boolean,datetime,choice}-field` plus `R-16-a-number-field-with{,out}-bounds` — every kind in its wire form. Unit: `canonical.rs::an_empty_options_is_rejected_and_names_where` and `::duplicate_option_ids_are_rejected_naming_the_id_and_where`. End to end: `failure_matrix.rs::a_choice_with_no_options_is_refused` and `::two_options_sharing_an_id_are_refused` |
@@ -433,6 +467,10 @@ side of the seam.
   or capability question — see OQ-1.
 - **OQ-3.** Whether a stale `view_id` survives a host restart. R-32's rejection
   is scoped to one process lifetime while nothing persists.
+- **OQ-4.** A date without a time. R-57 types `datetime` as an RFC 3339
+  `date-time`, which carries both a date and a time with an offset. Whether a
+  date-only field wants its own kind, or a hint on `datetime`, is open; no
+  evidence asks for one yet, and deciding it is additive.
 
 ## 9. References
 

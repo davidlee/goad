@@ -1,13 +1,37 @@
 # Canon delta — Slice 007
 
-**Status: draft.** Not endorsed, not applied. Design, plan and execution cite
-the entry below exactly as they would the real thing; nothing outside this slice
-may cite it. It is promoted during audit and reconciliation, with explicit user
-endorsement, and the move is recorded in `audit.md`'s Reconciliation table. A
-slice does not close holding an unpromoted draft: either it lands, or it is
-abandoned with the reason written down (`docs/AGENTS.md`).
+**Status: PROMOTED, 2026-09-15.** Endorsed by the user and applied to
+`docs/specs/001-host-backend-protocol.md` during audit and reconciliation.
+**Cite the spec, not this file.** R-57 and R-58 are in §4 *Requests*, each with a
+§7 verification row; §6.1's example and §6.2's type table landed with them, R-18's
+§7 row carries the amended evidence, and OQ-4 is in §8. The moves are itemised in
+`audit.md`'s Reconciliation table.
 
-**Do not edit `docs/specs/001-host-backend-protocol.md` while the slice runs.**
+This file is kept as the **reasoning** behind those requirements — why two rules
+and not one, why R-57 types kinds this renderer does not draw, and why
+`datetime` got a form rather than a prohibition, including the two earlier drafts
+that failed in opposite directions. None of that belongs in a spec, and all of it
+is what a future amendment needs. It is a record, not an authority.
+
+Two copy-edits were made here **before** promotion, so that what landed and what
+this file says are the same text: R-57's drafted wording carried two `and`s, and
+*The gap* described `controller.rs:216` as sending an empty map, which it has not
+since PHASE-04.
+
+<details>
+<summary>What this header said while the slice ran</summary>
+
+> **Status: draft.** Not endorsed, not applied. Design, plan and execution cite
+> the entry below exactly as they would the real thing; nothing outside this
+> slice may cite it. It is promoted during audit and reconciliation, with
+> explicit user endorsement, and the move is recorded in `audit.md`'s
+> Reconciliation table. A slice does not close holding an unpromoted draft:
+> either it lands, or it is abandoned with the reason written down
+> (`docs/AGENTS.md`).
+>
+> **Do not edit `docs/specs/001-host-backend-protocol.md` while the slice runs.**
+
+</details>
 
 This file exists because the slice **opened at tier 2**: drawing a field forces
 the host to state what JSON type a submitted value has, and that is the wire
@@ -42,16 +66,18 @@ fixture and no verification row fixes the type of a submitted value for any
 kind, and the only non-empty submission anywhere is §6.1's illustrative example
 (`research.md` F2).
 
-While no renderer drew a field, the gap cost nothing —
-`crates/goad/src/controller.rs:216` sends an empty map and there was no value to
-type. Drawing fields makes it a contract two backends could disagree about,
-which is the definition of one.
+While no renderer drew a field, the gap cost nothing: `answer()` sent an empty
+map and there was no value to type. **That is history, and this slice is what
+ended it** — `controller.rs::answer` now builds `values` by walking the drawn
+fields of the option it names, so the line this paragraph was written against
+no longer exists and `:216` no longer holds it. Drawing fields makes the gap a
+contract two backends could disagree about, which is the definition of one.
 
 ### The change as it will be stated
 
 > **R-57.** A submitted field value's JSON type is determined by the field's
 > `kind` and by nothing else: `boolean` submits a JSON boolean, `text` a JSON
-> string, `number` a JSON number, and `choice` the chosen alternative's id as a
+> string, `number` a JSON number, `choice` the chosen alternative's id as a
 > JSON string, and `datetime` an RFC 3339 `date-time` string carrying an
 > offset.
 

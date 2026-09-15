@@ -295,7 +295,15 @@ working tree last compiled.
   wrapped binary once the wrapped binary exists, so the two land together or not
   at all.
 
-### 007 — the renderer grows a form
+### 007 — the renderer grows a form — **done**
+
+Closed 2026-09-15. SPEC-001 gained **R-57** (a submitted value's JSON type is
+fixed by the field's `kind`) and **R-58** (a `respond` carries values for
+exactly the fields the host drew of the option answered), each with a §7
+verification row, plus a new **OQ-4**. `docs/slices/007/` carries the record and
+`slice-007.md` §Follow-ups what 008 inherits. The entries below are the scoping
+argument as it stood; they are kept because 008, 009 and OQ-2 still rest on
+them.
 
 Brief §10.2, §11.1. **Tier 2** — scoping found the reason, and it was not the
 one expected. Not the layout and not the 300-line cap: SPEC-001 never says what
@@ -309,10 +317,12 @@ accumulates continuously and is not in this repo.
 
 - **The view needs no protocol change; the response does.** R-15 lets an option
   carry fields and R-16 includes `boolean`, so a view with one option and
-  fourteen boolean fields conforms today. The renderer does not draw them —
-  `Undrawn::OptionFields`, `crates/goad/src/view_model.rs` — and R-55 names that
-  a renderer subset that must not narrow the protocol. Drawing them **discharges
-  the standing hazard 002 recorded**, rather than adding a capability. The
+  fourteen boolean fields conforms today. The renderer did not draw them, and
+  R-55 names that a renderer subset that must not narrow the protocol. Drawing
+  them **discharged the standing hazard 002 recorded**, rather than adding a
+  capability. What survives 007 is the mechanism rather than the gap:
+  `Undrawn::FieldForm` (`crates/goad/src/view_model.rs`) now reports the four
+  kinds this renderer still does not draw, one per field. The
   answer is the other half, and it is where the tier comes from: the host is the
   only thing that turns a widget into JSON, and the spec never said what type
   it produces.
