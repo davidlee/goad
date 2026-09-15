@@ -429,9 +429,30 @@ mod back_pressure {
 /// that does not clear `engaged` leaves every control disabled.
 mod busy {
   use super::{
-    A_PROTOCOL_FAILURE, Controller, Exchanged, Glass, TIMEOUT, TWO_OPTIONS, accessible_enabled_of,
-    glass_over, host, now, quiet_event, scripted, window_and_tray,
+    A_PROTOCOL_FAILURE, ComponentHandle, Controller, Exchanged, Glass, PromptWindow, TIMEOUT,
+    TWO_OPTIONS, accessible_enabled_of, glass_over, host, now, quiet_event, scripted,
+    window_and_tray,
   };
+
+  /// Both cases below read a control off a **shown** window, and a shown
+  /// window clips: `ElementQuery` skips any element outside the nearest
+  /// clipping ancestor's rect
+  /// (`i-slint-backend-testing-1.17.1/search_api.rs:373-375` →
+  /// `i-slint-core-1.17.1/item_tree.rs:399-408`, a geometric test). Left to
+  /// its preferred size the window is 65px tall, the options `ScrollView`
+  /// fits one control, and the second option's button is simply unreachable
+  /// — `accessible_enabled_of` then answers `None`, which reads like a
+  /// missing accessible property and is not one.
+  ///
+  /// Sizing the viewport states what the test can see. It is **not** a claim
+  /// about what the window should be: the product's own size is AC-10's and
+  /// slice 008's. Before this, these two cases found their second control
+  /// only because the preferred height happened to exceed two `fluent`
+  /// buttons by 18px — a layout nothing declares, which is the shape
+  /// `docs/memory/a-green-test-can-assert-a-proxy.md` records.
+  fn with_room_for_every_control(window: &PromptWindow) {
+    ComponentHandle::window(window).set_size(slint::PhysicalSize::new(400, 400));
+  }
 
   #[tokio::test]
   async fn busy_clears_and_controls_re_enable_after_a_success() {
@@ -440,6 +461,7 @@ mod busy {
     let (command, _log) = scripted("wiring-busy-success", &[TWO_OPTIONS]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
+    with_room_for_every_control(&window);
 
     controller.engage();
     glass.present(controller.frame(false));
@@ -462,6 +484,7 @@ mod busy {
     let (command, _log) = scripted("wiring-busy-failure", &[TWO_OPTIONS, A_PROTOCOL_FAILURE]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
+    with_room_for_every_control(&window);
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);

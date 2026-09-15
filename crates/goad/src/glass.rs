@@ -146,6 +146,7 @@ fn option_rows(prepared: &Prepared) -> Vec<OptionRow> {
       id: option.id.as_str().into(),
       label: option.label.as_str().into(),
       view: prepared.view_id.as_str().into(),
+      blocks: ModelRc::default(),
     })
     .collect()
 }

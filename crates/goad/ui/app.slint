@@ -1,6 +1,14 @@
-import { Button, ScrollView } from "std-widgets.slint";
+import { Button, CheckBox, ScrollView } from "std-widgets.slint";
 
-export struct OptionRow { id: string, label: string, view: string }
+// A drawn field. `checked` is the draft's value, written every present; the
+// widget flips itself on click and the next present writes it back, so the
+// model is the authority and the widget is never asked to remember
+// (design.md §5.2, §5.4).
+export struct FieldRow { option: string, id: string, label: string, checked: bool }
+// `heading: ""` is an **untitled** block, not a missing one — an ungrouped
+// field must not be drawn under a heading that does not claim it.
+export struct FieldBlock { heading: string, fields: [FieldRow] }
+export struct OptionRow { id: string, label: string, view: string, blocks: [FieldBlock] }
 
 export enum WindowMode { prompt, diagnostic }
 
@@ -22,6 +30,7 @@ export component PromptWindow inherits Window {
   in property <string> next-check;           // the standing schedule's line, not a diagnostic row; "" = none yet
 
   callback chosen(string, string);       // (view token, OptionId.as_str())
+  callback edited(string, string, string, bool);  // view, option, field, checked
   callback close-diagnostics();          // leave diagnostic mode
 
   title: root.mode == WindowMode.prompt ? "goad" : "goad — diagnostics";
@@ -43,14 +52,53 @@ export component PromptWindow inherits Window {
           accessible-label: "options";
           accessible-item-count: root.options.length;
 
-          for option[index] in root.options: Button {
-            text: option.label;
-            enabled: !root.busy;
-            // The identity the tests select on, and the only unambiguous one:
-            // R-14 permits two options to share a label (D10, T-E).
-            accessible-description: option.id;
-            accessible-item-index: index;
-            clicked => { root.chosen(option.view, option.id); }
+          for option[index] in root.options: VerticalLayout {
+            Button {
+              text: option.label;
+              enabled: !root.busy;
+              // The identity the tests select on: R-14 permits two options to
+              // share a label (D10, T-E). It is not unique in the tree — the
+              // field container below answers to the same description — so a
+              // query for the control filters by type as well.
+              accessible-description: option.id;
+              accessible-item-index: index;
+              clicked => { root.chosen(option.view, option.id); }
+            }
+
+            // Guarded, so an option with no fields adds no element at all:
+            // absent, not empty. The guard is what makes this per-**option**
+            // rather than per-block — a container produced by the `for` below
+            // would exist once per block and carry `option.id` that many times.
+            if option.blocks.length > 0: VerticalLayout {
+              // A role is mandatory, not decoration: the compiler admits an
+              // accessibility property only on an element whose role is bound.
+              // `groupbox` is a labelled group of controls, which is what this
+              // is. The label is not an identity and no test selects on it.
+              accessible-role: groupbox;
+              accessible-description: option.id;
+              accessible-label: option.label;
+
+              for block in option.blocks: VerticalLayout {
+                // `heading: ""` is an untitled block, not a missing one: an
+                // ungrouped field is not drawn under a heading that does not
+                // claim it.
+                if block.heading != "": Text { text: block.heading; }
+
+                for field in block.fields: CheckBox {
+                  text: field.label;
+                  // The draft is the authority. The widget flips itself on
+                  // click so the feedback is immediate; the next present
+                  // rewrites this from the model, which is what corrects a
+                  // click the host dropped (design.md §5.4).
+                  checked: field.checked;
+                  enabled: !root.busy;
+                  accessible-description: field.id;
+                  toggled => {
+                    root.edited(option.view, option.id, field.id, self.checked);
+                  }
+                }
+              }
+            }
           }
         }
       }

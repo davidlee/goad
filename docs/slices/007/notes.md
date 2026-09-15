@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the notice gets an owner | done | 2026-09-15 |
-| PHASE-02 — the window draws a form | pending | |
+| PHASE-02 — the window draws a form | done | 2026-09-15 |
 | PHASE-03 — the mapper and the draft | pending | |
 | PHASE-04 — the draft is retained, and the answer carries it | pending | |
 | PHASE-05 — the form on the wire | pending | |
@@ -189,7 +189,7 @@ STOP, per `plan.md:106-152`, and do not improvise past one. Live for this phase:
   "alongside `cancel`", EX-2 "beside `cancel`" — and did not settle how to record
   the exemption. Applied provisionally so the rest of the phase could be verified:
   `#[expect(clippy::too_many_arguments, reason = …)]` on `serve`
-  (`controller.rs:584-592`), the narrowest of the three instruments and the only
+  (`controller.rs:591-600` — the attribute moved when the repair below rewrote the doc-comment above it), the narrowest of the three instruments and the only
   one that self-clears if the arity ever drops. The alternatives were
   `too-many-arguments-threshold = 8` in `clippy.toml`, which weakens the lint
   workspace-wide for one function, and grouping `cancel` and `notice` into an
@@ -261,12 +261,422 @@ STOP, per `plan.md:106-152`, and do not improvise past one. Live for this phase:
   changed. The plan review's own lesson, a third and fourth time
   (`review-plan.md` §Synthesis).
 
+### PHASE-02 — the window draws a form
+
+**Objective:** the markup declares fields, a headless test can drive a checkbox
+and address it **by option**, and the two Slint assumptions the design settled on
+paper are pinned as regressions (`plan.md:306-308`).
+
+**Criterion ids, re-derived from `plan.md` — T-0 below, not copied from any
+brief.** `plan.md:304-442`, PHASE-02 entire:
+
+| kind | ids | count |
+|---|---|---|
+| entry | EN-1 | 1 |
+| exit | EX-1 … EX-8 | 8 |
+| verification (test) | VT-1 … VT-5 | 5 |
+| verification (agent) | VA-1, VA-2 | 2 |
+
+Contiguous from 1 in each kind, no gap and no duplicate. PHASE-02 makes no
+`PHASE-0N/<id>` cross-reference outward; four references point *in* — S-2 cites
+`PHASE-02/EX-7`, and Coverage cites `PHASE-02/VT-4`, `EX-4`, `VT-5` and `VA-1`.
+All five resolve. The one count PHASE-02's prose asserts is EX-7's **two** prose
+homes of the uniqueness claim, and the list under it has two — but PHASE-01's
+lesson is that an enumerated list is a floor, so T-9 sweeps rather than trusts
+it. The re-derivation is the rule at `plan.md:36-45`; `review-plan.md` F-7 is
+why it exists.
+
+**Reading list**
+
+- `docs/slices/007/plan.md:304-442` — PHASE-02 whole, including *Notes for the
+  implementer*; `:104-152` — S-1..S-9; `:36-45` — the re-derivation rule;
+  `:70-79` — why 02 is second (the outside-dependency risk, R-7, A-1, A-2).
+- `docs/slices/007/design.md:409-468` (§5.2, *The window* — the three structs,
+  the callback, the scoped query, the groupbox role and the deliberately open
+  question), `:631-645` (§5.2, *The build* — the explicit `var` read and why),
+  `:184-192` (why A-1 is settled and not phase work), `:796-816` (§5.4, the
+  model-reset chain that makes A-2 hold and the `set_row_data` trap),
+  `:937-952` (§5.5, A-1/A-2/A-3 as discharged assumptions),
+  `:1050`, `:1056` (§8 — R-1's named-but-unneeded fallback, R-7's signal).
+- `docs/slices/007/slice-007.md:46-78` — §Scope; the audit diffs actual paths
+  against it, and it names `build.rs` and `ui/app.slint` explicitly.
+- The pinned sources, read **unjailed** (the jail does not reach
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/`):
+  `i-slint-core-1.17.1/model/repeater.rs:143-154` (`update_all_instances`
+  creates every instance) and `:156-158` (the doc scoping the virtualisation
+  algorithm to a `ListView` viewport) — VT-4's warrant;
+  `i-slint-backend-testing-1.17.1/search_api.rs:232-287` (the six builders, none
+  of them an accessible-description matcher), `:298-307` (`find_all` passes
+  `ControlFlow::Continue` and returns in walk order), `:178-213` (a
+  non-matching `MatchSingleElement` yields `Continue`, which is why EX-7's type
+  filter does not break EX-6's scoped query), `:701` (`accessible_description`),
+  `:721` (`accessible_checked`), `:606` (`invoke_accessible_default_action`);
+  `i-slint-compiler-1.17.1/lib.rs:264` (`with_style` overwrites what
+  `CompilerConfiguration::new()` read from the environment) and
+  `passes/lower_accessibility.rs:41-59` (an accessibility property needs a bound
+  role).
+- The code under change: `crates/goad/build.rs` (whole, 11 lines),
+  `crates/goad/ui/app.slint:1-57` (the prompt branch) and `:85-110` (untouched,
+  read so the diff is understood), `crates/goad/src/glass.rs`'s `option_rows`
+  — **`plan.md` EX-5 cites `:138-149` and PHASE-01 moved it to `:140-151`; found
+  by name** — and `crates/goad/tests/renderer/tree.rs` whole (196 lines):
+  `:28-38` the rows builder, `:40-49` `element_described` and its prose home,
+  `:66-68` the virtualisation warning, `:81-83` the `match_inherits` shape to
+  copy, `:95-100` and `:124-130` the two cases EX-7 exists to keep green.
+- `docs/memory/a-repair-sweep-misses-the-binding-site.md`,
+  `docs/memory/cite-requirements-not-finding-ids.md` (a comment in `src/`, `ui/`
+  or `tests/` cites SPEC-001, a spec section or an ADR — never `F-N`/`D-N`),
+  `docs/memory/a-green-test-can-assert-a-proxy.md`.
+
+**Assumptions & STOP conditions**
+
+Assumed, and checked rather than taken on faith where the check was cheap:
+
+- A-a — **A-1 and A-2 are settled, not open** (`design.md` §5.4, §5.5, §8/R-1).
+  Neither is this phase's to discover; neither may be carried forward as a
+  question. A red pin is a finding about a changed dependency and S-1 is the
+  road — it is not a licence to reach for the two-flat-models fallback.
+- A-b — `EN-1`'s entry is literal and was measured, not assumed: `just check`
+  exit 0 at `fd4b162` on a tree clean but for this slice's own untracked brief.
+  506 tests across 21 binaries, matching PHASE-01's record.
+- A-c — the pinned registry sources named above are present at
+  `index.crates.io-1949cf8c6b5b557f`, so every citation in the design that this
+  phase depends on can be re-read rather than believed. Checked first.
+- A-d — `OptionRow` is built with an exhaustive struct literal at exactly two
+  sites (`glass.rs`'s `option_rows`, `tree.rs`'s `rows`), so EX-2's fourth
+  member is `E0063` at both and the compiler drives EX-5. Re-measured before
+  starting.
+
+STOP, per `plan.md:104-152`. Live for this phase:
+
+- S-1 — an unresolved **design** issue. Back to design; never repaired here.
+  **`accessible-role: list` + `accessible-item-count` on the field container is
+  the live instance**: left open deliberately (`design.md` §5.2,
+  `plan.md:436-441`), and not to be settled by what a test happens to need. If a
+  test wants it, that is S-1, not a decision.
+- S-2 — an existing test's assertion or fixture changing. This phase has exactly
+  two allowances, both named in `plan.md:110-121`: `tree.rs`'s mechanical
+  `blocks:` member in the row builder (a fixture *shape*, forced by codegen), and
+  EX-7's change to `element_described`'s **implementation**, which is a helper
+  and neither an assertion nor a fixture. VA-1 is the check that nothing else
+  moved.
+- S-3 — a new dependency, or a feature added to an existing one. None expected:
+  `slint`, `i-slint-backend-testing` and `slint-build` are all already in.
+- S-4 — anything under `crates/goad-semantics/`. Nothing here reaches it.
+- S-5 — a drawn kind beyond `boolean`. This phase draws `CheckBox` only.
+- S-7 — a field test that neither reads an invocation log nor asserts something
+  about the screen. Every VT here asserts about the screen or a fired callback.
+- S-8 — the look. Layout, spacing and typography beyond what a container and a
+  heading force are 008's, and PHASE-06's when it comes.
+- S-9 — `Glass::present` acquiring a write-only-on-change path. This phase does
+  not touch `present`; VT-2 *depends* on the totality it already has.
+
+**Tasks**
+
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+- [x] T-0 — re-derive the criterion ids from `plan.md`. Table above.
+- [x] T-1 — EN-1: `just check` on the unmodified tree at `fd4b162`. Exit 0, 506
+      tests across 21 binaries, matching PHASE-01's record. Transcript kept.
+      PHASE-01's exit criteria spot-checked in the code rather than read off its
+      sheet: `Notice` at `wire.rs:180-215` (EX-1), `Frame.notice` at
+      `controller.rs:105` and `frame(notice)` at `:252` (EX-5), `set_notice`
+      called from exactly one site, `glass.rs:109` (EX-6), `wire.rs` naming no
+      Slint or generated type (EX-4).
+- [x] T-2 — **VA-2, first and alone.** EX-1's `build.rs` change, no markup, no
+      test. R-7's signal is that run going red *immediately after this change
+      and before any other*, and it is worthless once two changes share a diff.
+      **The signal fired: `cargo test -p goad` exit 101, two failures, both in
+      `wiring::busy`.** F-1 carries the mechanism and F-2 the STOP it raises.
+      The diff at the moment of the run was `build.rs` and `notes.md` alone
+      (`git diff --stat`), so the attribution is clean. Recorded, not repaired.
+- [x] T-3 — EX-2: the three structs and the callback in `app.slint`, exactly as
+      `design.md` §5.2 gives them. **A-1's pin fired at compile time on the way
+      past**: `blocks: [FieldBlock]` inside a struct generated as
+      `ModelRc<FieldBlock>` and `OptionRow`'s fourth member was `E0063` at both
+      literal sites, which is what A-d predicted.
+- [x] T-4 — EX-5: `blocks: ModelRc::default()` at `glass.rs`'s `option_rows`
+      (found by name at `:140-151`, not at the plan's `:138-149`) and at
+      `tree.rs`'s `rows`. Mechanical, and nothing else — see D-1. Prose around
+      both read: `option_rows`'s doc-comment claims the row carries the option's
+      id, label and view token and makes no claim about fields, so nothing was
+      falsified.
+- [x] T-5 — EX-3 + EX-4: the guarded per-option container, the `for` over
+      blocks, the per-block heading, the `CheckBox` and `edited` (D-4).
+- [x] T-6 — EX-7: `element_described` gains `match_inherits("Button")`, and both
+      prose homes move with it. **The criterion's stated warrant does not hold —
+      F-3** — and the change is still right for the reason the criterion gives
+      first.
+- [x] T-7 — EX-6: `field_described`, with EX-6's query shape kept verbatim, over
+      a shared `within_option` scope (D-3).
+- [x] T-8 — VT-1 … VT-5. VT-1 written red before the markup and recorded red for
+      the right reason ("no control described \"stretched\" under \"opt-a\"").
+      The other four arrived green, so each was checked with a negative control
+      rather than believed — D-5, and one of them was vacuous and was rewritten.
+- [x] T-9 — the sweep. `grep -rn "unambiguous\|accessible.description\|by
+      label\|selects on\|select on"` over `crates/goad/{src,ui,tests}` and
+      `tests/support`: 13 lines, and each read rather than counted.
+      **Two are live homes of the claim EX-7 changes** — `tree.rs:40-41` and
+      `app.slint:49-51`, the two the criterion names, both repaired.
+      `tree.rs:141` ("selection is by `accessible_description` and never by
+      label") is about label-versus-description and is still true.
+      `wiring.rs:62-70` is a **code** home of the same assumption and is F-4 —
+      not prose, not this phase's surface, and not yet broken.
+      The remaining eight are the property declarations themselves and one
+      error-message string. VT-4's second half — `tree.rs:68`'s virtualisation
+      warning — is corrected in place, and the correction says which markup the
+      old claim was true of and what actually bounds an exhaustive query here.
+- [x] T-10 — refactor. `within_option` factored out of the two field queries
+      (D-3); `EditedArgs` named rather than repeated; VT-2 rewritten after its
+      own negative control passed (D-5).
+- [x] T-11 — VA-1. `git diff crates/goad/tests/renderer/tree.rs`, read for
+      changed assertions. **Five removed lines in the whole file**: two `use`
+      lines (widened), and three of prose — EX-7's home and VT-4's warning.
+      **No assertion, no expected value and no fixture value was removed or
+      changed.** The one addition inside an existing case is EX-5's `blocks:`
+      member in `rows`. AC-6 holds.
+- [x] T-12 — F-2's STOP referred up and **decided: A**, the test-side fix as a
+      named fourth S-2 allowance (`plan-log.md` 2026-09-15, `plan.md:106-122`).
+      Applied under D-7.
+- [x] T-13 — EX-8: **`just check` exit 0. 511 tests across 21 binaries**, from
+      506. Clippy `-D warnings` clean, `cargo fmt --all --check` clean.
+
+**Decisions taken during execution**
+
+- **D-1 — `rows` keeps its own `OptionRow` literal rather than sharing a builder
+  with `one_option_with`.** The duplication is one struct literal and it is
+  visible. It stays because S-2's allowance in `tree.rs` is exactly one
+  mechanical `blocks:` member in that builder (`plan.md:110-121`); rewriting the
+  builder to delegate produces identical rows but is a larger edit than the
+  criterion names, in the file VA-1 reads for exactly that. Recorded here rather
+  than taken, and a candidate for the audit's refactor pass.
+- **D-2 — `build.rs` carries `#[expect(clippy::disallowed_methods, reason = …)]`.
+  Referred up and confirmed.** EX-1 mandates `std::env::var`, and
+  `clippy.toml` disallows it — "use typed configuration loading instead" — with
+  the gate at `-D warnings`. Neither `design.md` §5.2's *The build* nor EX-1
+  anticipated it. The reason is about **run-time** configuration reached through
+  the environment; this runs at build time, in cargo's own environment, and
+  reads the one variable `slint-build` already reads and already declares
+  `cargo:rerun-if-env-changed` for (`slint-build-1.17.1/lib.rs:532`). The
+  alternatives are worse in both directions: an exception in `clippy.toml`
+  weakens the rule for the whole workspace, and `std::env::var_os` passes the
+  lint while evading it. The **class** is settled — PHASE-01's D-4 approved a
+  narrow `#[expect]` over a config change and named five prior sites; this is
+  the seventh. The instance was new, which is why it was referred; the approval
+  re-read the load-bearing half rather than taking it — `slint-build-1.17.1/lib.rs:532`
+  is `println!("cargo:rerun-if-env-changed=SLINT_STYLE")`, the first of seven —
+  so the crate does declare the dependency the read relies on and the reason
+  stands as written.
+- **D-3 — EX-6's query shape is kept verbatim, over a shared scope.**
+  `field_described` is `match_predicate(option)` → `match_descendants()` →
+  `match_predicate(field)` → `find_first()`, exactly as the criterion gives it.
+  VT-4 needs the same scope with a different terminal (`match_inherits("CheckBox")`
+  → `find_all()`), so the first two steps live in `within_option` and both
+  queries read from there. One scope, two questions, no second copy of the
+  option predicate.
+- **D-4 — the per-block `VerticalLayout` is forced, not chosen.** A Slint `for`
+  body is a single element, and a block is a heading plus N fields, so the `for`
+  over `blocks` must produce a container per block. That is not the look decision
+  S-8 reserves: EX-4's warning is about the per-**option** container, which is
+  guarded and sits outside this `for`, and it holds.
+- **D-5 — every verification criterion is checked with a negative control, not
+  just run.** Four of the five arrived green because the markup was already in
+  when they were written, and a test that has never been red has not been shown
+  to be about anything. Each control was reverted immediately:
+
+  | criterion | control | result |
+  |---|---|---|
+  | VT-1 | `checked: field.checked` removed from the markup | red — `Some(false)` where `Some(true)` was declared |
+  | VT-2 | (a) same binding removed; (b) the model reset skipped | red on both |
+  | VT-3 | the `toggled =>` handler emptied | red — nothing captured |
+  | VT-4 | two entries transposed in the expected order | red |
+  | VT-5 | `if option.blocks.length > 0` replaced by `if true` | red — two containers where one was expected |
+
+  **VT-2's first form passed its own control** and was rewritten. It started the
+  field unchecked, clicked it to `true`, reset the model to `false` and asserted
+  `false` — which a `CheckBox` with **no** `checked:` binding at all also
+  answers, because a rebuilt widget defaults to unchecked. It now starts the
+  field *checked*, so every assertion reads a value the widget's own default
+  cannot supply (`docs/memory/a-green-test-can-assert-a-proxy.md`; the same shape
+  as PHASE-01's D-3, found by running the control rather than by reasoning).
+- **D-7 — the two `wiring::busy` cases size their window, under S-2's fourth
+  allowance.** F-2's STOP, decided by the user as option A: the style stays
+  `material`, and the fixture gains a viewport. One helper, `with_room_for_every_control`,
+  shared by both cases and carrying the reason once — that a shown window clips,
+  that this states what the test can see and not what the window should be, and
+  that the 18px margin the cases used to rest on was a proxy. No assertion
+  changed; re-checked with a control (`enabled: false` on the option's button
+  turns both red, so they still test what they are named for).
+
+  Bookkeeping, and the same class as PHASE-01's F-1: **PHASE-02's Surfaces line
+  does not list `crates/goad/tests/renderer/wiring.rs`**, which this allowance
+  sends the phase to edit. No surface breach — the audit reads paths against
+  `slice-007.md` §Scope, which names `crates/goad/tests/renderer/` — and nothing
+  for the path diff to chase.
+- **D-6 — the container declares `groupbox` and nothing more.** Whether it should
+  also declare `accessible-role: list` with `accessible-item-count` is left open
+  deliberately (`design.md` §5.2). VT-4 reads order off the tree walk rather than
+  off an index precisely so that nothing here settles it by what a test needed.
+  Not settled, not raised: no test wanted it.
+
+**Findings**
+
+- **F-1 — R-7 fired, and the mechanism is geometry, not the accessible
+  surface.** `design.md` §8/R-7 mitigated the style change by verifying that
+  `material`'s `Button` and `CheckBox` carry the same accessible properties as
+  `fluent`'s. That verification is **correct** — re-read at
+  `i-slint-compiler-1.17.1/widgets/material/button.slint:90-95` and
+  `checkbox.slint:19-24` against `fluent/button.slint:29-34` and
+  `checkbox.slint:20-25`, `accessible-enabled` included — and it is not what
+  broke. What broke is that **`ElementQuery` does not see an element clipped out
+  of view**: `visit_descendants_impl` skips any item where `ItemRc::is_visible()`
+  is false (`i-slint-backend-testing-1.17.1/search_api.rs:373-375`,
+  `i-slint-core-1.17.1/item_tree.rs:399-408`), which is a geometric test against
+  the nearest clipping ancestor — here the `ScrollView`'s `Flickable`.
+
+  Measured, both styles, in `wiring::busy::busy_clears_and_controls_re_enable_after_a_success`:
+
+  | | window | Flickable (the clip) | Button height | second button | found |
+  |---|---|---|---|---|---|
+  | fluent | 54 × 65 | 54 × 50 at y=15, so y 15–65 | 32 | y 47–79 | yes, by 18px |
+  | material | 50 × 65 | 38 × 38 at y=15, so y 15–53 | 40 | y 55–95 | **no** |
+
+  Material loses on both terms at once: its `ScrollView` reserves the scrollbar
+  *inside* the viewport (38 rather than 50) and its `Button` is 8px taller. The
+  second option leaves the clip rect and the query cannot reach it, so
+  `accessible_enabled_of(&window, "no")` is `None` rather than `Some(true)`.
+
+- **F-2 — the two failing tests find their element only because the window
+  happens to be 65px tall, and that is the STOP.** The blast radius is exactly
+  two tests, measured over `cargo test --workspace`:
+  `wiring::busy::busy_clears_and_controls_re_enable_after_a_{success,failure}`.
+  It is **not** every test that draws options — the clip only exists once the
+  window is *shown*, and `Glass::present` is what shows it (`glass.rs:118`). An
+  unshown window clips nothing: `tree.rs` never shows, and a probe there found
+  **10 of 10** option buttons under material. So **PHASE-02's own tests are
+  unaffected** and VT-1, VT-4 and VT-5 can be written as planned; what is
+  affected is the tier that presents through the glass.
+
+  Three things make this a consult rather than a repair I may take:
+
+  1. **S-2.** Fixing it means changing an existing test's fixture, and this
+     phase's two allowances (`plan.md:110-121`) are the `tree.rs` `blocks:`
+     member and EX-7's helper. This is neither.
+  2. **S-1 / S-8.** The window is 65px tall because nothing declares a size and
+     the `ScrollView` demands almost none, so the shown window takes its
+     preferred size. Whether the answer is a window size in the markup is the
+     *look*, which is 008's and PHASE-06's under AC-10.
+  3. **`design.md` §8/R-7 names this trigger and does not say what follows it** —
+     "AC-7 and AC-10 are the real observations, and 008 owns the outcome either
+     way."
+
+  What is established and cheap, so the question is decidable: **a test may set
+  the size** — `slint::ComponentHandle::window(&window).set_size(PhysicalSize::new(400, 400))`
+  before the first `present` — the headless backend honours it, and the failing
+  test goes green with that one line and no assertion touched. Verified, then
+  reverted.
+
+  **Resolved.** Referred up and decided by the user as option A — the test-side
+  fix, `material` standing (`plan-log.md` 2026-09-15). `plan.md` S-2 now names a
+  fourth allowance; D-7 is how it was taken. **That closes the test question
+  only. F-6 is the half it does not close, and is deliberately a separate
+  finding.**
+
+- **F-3 — EX-7's warrant is false as written, and the change it asks for is
+  still right.** The criterion says the type filter "is what keeps
+  `tree.rs:95-100` and `:124-130` green". Measured, it is not, twice over:
+
+  1. Both cases use options built by `rows`, whose `blocks` is empty, and
+     **EX-4's own guard** means an option with no fields produces no container.
+     There is no second element answering to `option.id` in either case.
+  2. Even where an option *does* carry fields, the walk reaches the `Button`
+     before the container, because the markup declares it first. Run as a
+     control: a case asserting `element_described` returns the control for an
+     option with fields **passes with `match_inherits("Button")` removed**. That
+     case was written, seen to be vacuous, and deleted rather than kept green
+     (`docs/memory/tests-asserting-proxies.md`).
+
+  So after EX-3 the filter changes no observable behaviour anywhere today, and
+  **no test can pin it**. It stays because of the reason the criterion gives
+  first and does not rest on: `find_first()` would otherwise take whichever
+  element the walk reached first, which is declaration order and which no
+  criterion pins. The filter makes the helper's contract independent of the
+  order the markup happens to be written in. That is worth having and is not
+  worth a test that would pass either way.
+
+- **F-4 — `wiring.rs`'s `accessible_enabled_of` is the same unscoped query, in
+  code rather than in prose, and PHASE-04 is where it breaks.**
+  `wiring.rs:62-70` selects an option's control by `accessible_description`
+  alone, with no type filter — `element_described` before EX-7. It is correct
+  today because no option in that file carries blocks. The moment one does, the
+  option's field container answers to the same description, and the helper will
+  return whichever the walk reaches first and read `accessible_enabled` off it;
+  a `groupbox` declares none, so the answer is `None` — the same shape as the
+  two failures in F-1, from a different cause. Not repaired here:
+  `crates/goad/tests/renderer/wiring.rs` is not a PHASE-02 surface. **This is
+  the home EX-7's enumeration does not reach**, and it contains no occurrence of
+  "unambiguous" or of the repaired wording — the class
+  `docs/memory/a-repair-sweep-misses-the-binding-site.md` names, arriving for
+  the third time in this slice.
+
+- **F-5 — EX-1's mandated form does not pass the workspace lint, and neither the
+  design nor the plan noticed.** `clippy.toml` disallows `std::env::var`, the
+  gate is `-D warnings`, and `design.md` §5.2's *The build* gives the code block
+  verbatim with that call in it. The design's reasoning for the explicit read is
+  sound and unaffected; what was missed is that the workspace already had a rule
+  about it. **Closed as an instance** — D-2, referred up and confirmed. The
+  **class** goes to the audit, and it is design drift rather than a code defect:
+  a design that quotes a code block has asserted it compiles **and** lints, and
+  nothing checks the second half until a phase runs. `design.md` is a record of
+  intent and is not retro-fitted for it (`docs/AGENTS.md` §Audit & reconcile,
+  *Design drift not reconciled*).
+
+- **F-6 — under `material`, a shown window at its preferred size clips its own
+  second option. This is a finding about the product, and no test here reports
+  it.** It is the observation that made F-2's decision defensible rather than
+  convenient, and it must not be read as fixed.
+
+  **The two `wiring::busy` cases are green because the fixture now declares a
+  viewport, not because the clipping stopped.** `with_room_for_every_control`
+  sets 400×400 before the first present; nothing in `app.slint`, `glass.rs` or
+  `build.rs` changed to make the second option reachable. Run the product at its
+  own preferred size and the second option is still outside the `Flickable`'s
+  rect — invisible to a query, and to a person, below the fold of a window
+  nothing has sized.
+
+  **The measurement, so PHASE-06 does not re-derive it.** Both styles, same
+  case, window at its preferred size (50–54 × 65), clip = the options
+  `ScrollView`'s `Flickable`:
+
+  | | Flickable (the clip) | Button height | 1st button | 2nd button | reachable |
+  |---|---|---|---|---|---|
+  | `fluent` | y 15–65 | 32 | y 15–47 | y 47–79 | yes, by 18px of overlap |
+  | `material` | y **15–53** | 40 | y 15–55 | y 55–95 | **no** |
+
+  Material loses on both terms at once: its `ScrollView` reserves the scrollbar
+  *inside* the viewport (38 rather than 50) and its `Button` is 8px taller.
+  Note the fluent row as well — 18px of overlap on a layout nothing declares is
+  not a margin anyone chose, so this is not a `material` defect so much as a
+  window that has never been sized meeting a taller control.
+
+  **Whose it is.** AC-7 (a person can read and answer the prompt) and AC-10 (the
+  look, bounded) are the criteria that observe it, and both are **PHASE-06/VH-1
+  and VH-2** — a person running the software, which `docs/AGENTS.md` requires
+  before the slice closes and which a green gate is explicitly not. PHASE-06
+  inherits this finding; slice 008 owns the repair if the answer is a declared
+  window size, because that is AC-10's bound and S-8's.
+
+  The fact has one home in the code — `tree.rs`'s module comment, which says why
+  an exhaustive query is sound *there* and names the clipping that bounds it
+  elsewhere — and one in the fixture, `with_room_for_every_control`'s doc, which
+  says in as many words that sizing the viewport states what the test can see
+  and not what the window should be.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-15 · PHASE-01, done · base commit `9447973`
+**Fresh as of:** 2026-09-15 · PHASE-02, done · base commit `fd4b162`
 
 ### Produced
 
@@ -279,6 +689,15 @@ STOP, per `plan.md:106-152`, and do not improvise past one. Live for this phase:
   generated type (EX-4).
 - VT-1 inverted: `a_full_channel_raises_the_notice_and_only_a_successful_send_lowers_it`.
   VT-2 beside it. Gate at 506 tests, from 503.
+- The markup declares fields: `FieldRow`, `FieldBlock`, `OptionRow.blocks` and
+  `callback edited(view, option, field, checked)`; one **guarded** container per
+  option, `groupbox`, described by `option.id` (PHASE-02 EX-2, EX-3, EX-4).
+- `build.rs` selects `material` as a **default**, `SLINT_STYLE` still overriding
+  (EX-1) — with an `#[expect]` the plan did not anticipate, D-2.
+- `tree.rs` gains `within_option`, `field_described` (the option-scoped query,
+  EX-6) and `fields_in_option`; `element_described` gains a type filter (EX-7).
+  Five cases: A-1's pin, A-2's pin, `edited`'s four selectors, declared order
+  across blocks, and AC-6's absent-not-empty. Gate at **511 tests, from 506**.
 
 ### Learned
 
@@ -310,6 +729,31 @@ STOP, per `plan.md:106-152`, and do not improvise past one. Live for this phase:
 - **An enumerated list of live homes is a floor, not a ceiling.** EX-7 named ten
   and there were eleven; the extra one was found by reading the file being
   changed, and no instrument in the gate or in VA-2 could have reached it. F-5.
+- **The headless element query cannot see what is clipped out of view, and only
+  a *shown* window clips.** `ElementQuery` skips any element failing
+  `ItemRc::is_visible()`, a geometric test against the nearest clipping
+  ancestor. `Glass::present` shows the window, which gives it its preferred size
+  — 65px tall — and the options `ScrollView` a viewport that fits **one**
+  material control. `tree.rs` never shows, so an exhaustive query is sound
+  there; the tier that presents through the glass is reading the screen through
+  a viewport. PHASE-02 F-1, F-2.
+- **A style change can break a test through layout while every accessible
+  property it touches is identical.** R-7's mitigation compared material's and
+  fluent's accessible surfaces and was right about them. What broke was 8px of
+  button height and a scrollbar drawn inside the viewport rather than beside it.
+  A mitigation that checks the API a test calls has not checked the geometry the
+  query walks. F-1.
+- **A criterion's stated warrant is a claim, and it can be false while the
+  criterion is right.** EX-7 justified its type filter by two cases it does not
+  in fact keep green — EX-4's own guard means those options have no container,
+  and even with one the walk reaches the control first. The filter still belongs;
+  the case written to pin it was vacuous and was deleted rather than kept. F-3.
+- **A test that has never been red has not been shown to be about anything.**
+  Four of PHASE-02's five verification criteria arrived green because the markup
+  landed first. One of them — A-2's model-reset pin — passed with the binding it
+  exists to verify **deleted from the markup**, because it asserted a value the
+  widget's default also supplies. Start from the value the default cannot give.
+  D-5, and PHASE-01's D-3 a second time.
 
 ### Open
 
@@ -321,5 +765,34 @@ STOP, per `plan.md:106-152`, and do not improvise past one. Live for this phase:
 - **`serve` is one parameter over the arity lint** and now carries an
   `#[expect]` for it (D-4). The next phase that adds a parameter inherits the
   argument, not a free pass.
+- **F-1 / F-2 — R-7 fired; resolved by user decision as S-2's fourth allowance**
+  (`plan-log.md` 2026-09-15). Test question closed.
+- **F-6 — the product question is open, and is PHASE-06's.** Under `material` a
+  shown window at its preferred size clips its own second option; the two tests
+  are green because the fixture declares a viewport, not because the clipping
+  stopped. AC-7 and AC-10 observe it, at PHASE-06/VH-1 and VH-2. The measurement
+  is in the finding so it is not re-derived.
+- **PHASE-04 inherits the same edge.** It verifies "at the window" over a form of
+  several checkboxes, and a shown window's viewport today fits **one** material
+  control. `wiring::busy`'s `with_room_for_every_control` is the precedent, and
+  F-4 is the second thing that bites there.
+- **F-4 — `wiring.rs:62-70` will break the same way in PHASE-04**, when an
+  option first carries blocks: an unscoped description query, no type filter,
+  reading `accessible_enabled` off whatever the walk reaches first. Not yet
+  broken, not a PHASE-02 surface, and invisible to any grep for the repaired
+  wording.
+- **F-5 — a design that quotes a code block has asserted that block lints, and
+  nothing checks that until a phase runs.** `design.md` §5.2's *The build*
+  quotes `std::env::var("SLINT_STYLE")` verbatim; `clippy.toml` disallows the
+  call and the gate is `-D warnings`. The design's *reasoning* for the explicit
+  read is sound and survives untouched — only the claim that the block compiles
+  clean was never true. **This is design drift, not a code defect:** `design.md`
+  is a record of intent at a point in time and is not to be retro-fitted, and
+  `audit.md` has a section for exactly this (`docs/AGENTS.md` §Audit &
+  reconcile, *Design drift not reconciled*). The instance is closed —
+  D-2, confirmed — and it is the **class** the audit should hold.
+- **D-1 — `tree.rs` holds two `OptionRow` literals** rather than one builder,
+  deliberately, to stay inside S-2's named allowance. For the audit's refactor
+  pass.
 - Unchanged and not this phase's: keyboard focus dropped on every present
   (`design.md` §5.4, `slice-007.md` Follow-ups).

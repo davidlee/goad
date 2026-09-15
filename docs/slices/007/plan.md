@@ -103,18 +103,32 @@ past one.
   forward (`docs/AGENTS.md` §Plan, §Phase plan). Do not repair it in a phase
   sheet.
 - S-2 — an existing test's **assertion or fixture** must change to stay green,
-  outside the three places this plan names one: PHASE-02's mechanical `blocks`
+  outside the four places this plan names one: PHASE-02's mechanical `blocks`
   member in `tree.rs`'s row builder; PHASE-01's inversion of `wiring.rs`'s
-  back-pressure case, which is a deliverable and not a fixup; and PHASE-04's
+  back-pressure case, which is a deliverable and not a fixup; PHASE-04's
   **extension** of `reception.rs`'s `every_refused_variant_renders_one_line_with_the_failure_prefix`
   with a fourth variant, which keeps the claim its name makes rather than
-  altering one. **AC-6 is the criterion this protects, and `design.md` §9 scopes
-  it to `tree.rs`, `table.rs` and `wiring.rs`** — the option tests — not to every
-  file in the target. A *signature* sweep — `frame(notice)`,
+  altering one; and **PHASE-02's two `wiring::busy` cases, which may set an
+  explicit window size before the first present** — the fixture gains a
+  viewport, no assertion changes. **AC-6 is the criterion this protects, and
+  `design.md` §9 scopes it to `tree.rs`, `table.rs` and `wiring.rs`** — the
+  option tests — not to every file in the target. A *signature* sweep — `frame(notice)`,
   `serve(.., notice, ..)`, `Wire::new` losing an argument — changes call shape
   and not what any test asserts, and is expressly allowed, as is a change to a
   test **helper's** implementation (PHASE-02/EX-7), which is neither an assertion
   nor a fixture.
+
+  The **fourth** allowance was taken during execution, by user decision, when
+  R-7's signal fired (`plan-log.md`, 2026-09-15). Under `material` a shown window
+  clips its second option out of the `Flickable`'s rect, and `ElementQuery` skips
+  what is clipped — `i-slint-backend-testing-1.17.1/search_api.rs:373-375` into
+  `i-slint-core-1.17.1/item_tree.rs:399-408`, a geometric test against the
+  nearest clipping ancestor. The two cases passed before only because the window
+  happened to be 65px and fluent's `Button` happened to be 32px: an 18px margin
+  on a layout nothing declares, which is a proxy of the shape the slice-004 scar
+  is about. **The window's own size remains AC-10's and 008's.** This fixes what
+  a test can see, not what the product does, and that distinction is held open by
+  a finding rather than closed by a green test.
 - S-3 — a new dependency, or a feature added to an existing one.
 - S-4 — anything under `crates/goad-semantics/` must change. The specific
   temptation is deriving `Ord` on `OptionId`; `design.md` §5.2 shapes `Draft`

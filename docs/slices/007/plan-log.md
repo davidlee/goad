@@ -159,3 +159,53 @@ PHASE-01 sheet are that phase's first work, not this stage's.
 **Not taken by this gate.** `canon-delta.md` stays draft canon. Its promotion
 into SPEC-001 is audit's, with its own endorsement (`docs/AGENTS.md` §Audit &
 reconcile); accepting the plan is not that endorsement.
+
+## 2026-09-15 — R-7 fired in PHASE-02, and S-2 gains a fourth allowance
+
+**Raised.** PHASE-02 applied EX-1's `build.rs` style default first and alone, as
+VA-2's ordering requires, and `cargo test -p goad` came back 101 with two
+failures: `wiring::busy::busy_clears_and_controls_re_enable_after_a_{success,failure}`.
+That is exactly R-7's named signal (`design.md` §8), fired on the one change it
+names, with attribution clean because the diff was `build.rs` and nothing else.
+
+**The mechanism is not the one R-7 mitigated.** R-7 checked that `material`'s
+`Button` and `CheckBox` carry the same accessible surface as `fluent`'s. That
+check was right and is not what broke. What broke is that `ElementQuery` skips
+any item `ItemRc::is_visible()` reports false for
+(`i-slint-backend-testing-1.17.1/search_api.rs:373-375`), and `is_visible` is a
+geometric test against the nearest clipping ancestor —
+`i-slint-core-1.17.1/item_tree.rs:399-408`, documented as such. Verified in the
+pinned sources rather than taken from the report. `material` loses on two terms
+at once: its `ScrollView` reserves the scrollbar inside the viewport, and its
+`Button` is 8px taller, so the second option's button leaves the `Flickable`'s
+rect and the query returns `None`.
+
+**Blast radius: those two tests.** The clip exists only once the window is
+shown, and `Glass::present` is what shows it; an unshown window clips nothing,
+so PHASE-02's own tests are unaffected and VT-1, VT-4 and VT-5 stand as planned.
+
+**Offered:** **A** the test-side fix as a named S-2 allowance, style staying
+`material`; **B** revert the default to `fluent`, deferring `material` to 008 and
+reversing D12/OQ-5; **C** declare a window size now, which fixes tests and
+product together but is AC-10's territory and S-8's bound.
+
+**Recommended:** A. **Decided:** A.
+
+**Why.** The two cases passed before only because the window happened to be 65px
+and fluent's `Button` happened to be 32px — an 18px margin on a layout nothing
+declares. That is a proxy assertion of the shape
+`docs/memory/a-green-test-can-assert-a-proxy.md` records, and making the viewport
+explicit is what stops the next style, font or padding change from silently
+deciding what a test can see. B reverses a recorded decision to dodge a defect in
+the tests rather than in the choice; C takes the slice into 008's scope.
+
+**Consequence.** `plan.md` S-2 now names four allowances rather than three. The
+window's own size stays AC-10's and 008's, untouched.
+
+**Not closed by this decision, and deliberately so.** The failure is evidence
+about the *product*, not only about the tests: under `material`, a shown window
+at its preferred size clips its second option. A green test must not bury that.
+It is recorded as a PHASE-02 finding, it is AC-7's and AC-10's to observe, and
+PHASE-06 inherits it. PHASE-04 also verifies "at the window" over a form of
+several checkboxes and will meet the same viewport edge; its sheet carries the
+warning.
