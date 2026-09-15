@@ -1450,14 +1450,17 @@ not matched the code:
 - `docs/slices/007/canon-delta.md` — R-57 and R-58; VT-4 is R-58's
   "silent about an undrawn field" clause read off the wire.
 - `docs/slices/007/slice-007.md:147-172` — AC-1, AC-3, AC-4, AC-5.
-- The code: `tests/renderer/scheduling.rs:101-109` (`logging_scripted`),
-  `:111-125` (`request_kind`, the precedent EX-3 names), `:127-142`
+- The code: `tests/renderer/scheduling.rs:101-109` (`logging_scripted` —
+  **read there; EX-2 moved it to `harness.rs:172-180`, so the cite is where it
+  was**), `:111-125` (`request_kind`, the precedent EX-3 names), `:127-142`
   (`absorbed_line`); `tests/renderer/harness.rs` entire, module doc first;
   `tests/renderer/wiring.rs:1125-1560` (`mod editing` — the only module whose
   fixtures carry fields, `with_room_for_the_form` at `:1225-1236`,
   `checked_in_row_model` at `:1550-1560`), `:62-84` (`accessible_enabled_of`);
-  `tests/renderer/tree.rs:94-107` (`element_described`), `:330-400` (driving a
-  checkbox with `invoke_accessible_default_action`, and the model-reset pin);
+  `tests/renderer/tree.rs:94-107` (`element_described` — **read there; this
+  phase's D-3 moved it to `harness.rs:101-109`, so the cite is where it was and
+  not where it is**), `:330-400` (driving a checkbox with
+  `invoke_accessible_default_action`, and the model-reset pin);
   `tests/backends/logs-the-request-then-answers.sh` (repo root, not under
   `crates/`); `tests/support/scripting.rs` (`logging_backend`, `invocations`);
   `tests/renderer/main.rs` (the roll-call); `src/install.rs` (the callback
@@ -1557,6 +1560,17 @@ not matched the code:
       after each step, unchanged; **C-7 re-measured against the lifted helper**,
       because its doc's claim now covers `tree.rs`'s cases as well as this
       file's — still all 182 green.
+- [x] T-11 — **the record against the diff**, run after the phase closed. Every
+      path in the commit matched against this sheet: six of seven claimed, and
+      the two that are not are `notes.md` and `phase-05-brief.md`, which are
+      this sheet and its input. Every `path:line` the sheet cites resolved
+      against the tree: `wiring.rs:1125` still `mod editing`; **two dead, both
+      moved by this phase's own lifts** — F-8. Then the second pass, which no
+      command reaches: every **decision** re-read against what the diff did.
+      D-3 is the one that moved during the phase — it was written to record the
+      lift being *declined* and rewritten when the lift was approved and taken;
+      it now reads with the code (`notes.md:1698`, `harness.rs:101`,
+      `tree.rs:25`). That pass is in F-8 as the half pass 1 cannot see.
 - [x] T-9 — EX-4 and `design.md` §8, re-read over the finished file. Under
       **Read, not run** below. The same pass swept `fields.rs`'s own
       doc-comments for slice-local finding and control ids, per
@@ -1820,6 +1834,41 @@ pristine tree, run against the **whole** renderer target, read, and reverted.
   match what the code does (phase-qualified ids, which do disambiguate), or a
   sweep is scoped as its own slice. Not a phase's to decide, and too large to
   take in passing.
+- **F-8 — a phase's own sheet is a home of claims that phase falsifies, and
+  nothing sweeps it.** PHASE-04's T-12 established the discipline of sweeping
+  for *homes of a claim this phase falsifies* and found seven, all in code,
+  each by reading the file being changed. **This sheet was not one of the files
+  read.** Its reading list cited `logging_scripted` at `scheduling.rs:101-109`
+  and `element_described` at `tree.rs:94-107` — and this phase's EX-2 and D-3
+  moved both, so by the time the phase closed, `scheduling.rs:101` was inside
+  `request_kind` and `tree.rs:94` was a test function. The two dead cites were
+  the two helpers the phase exists to have moved.
+  **Found by a check worth keeping:** after the phase closed, every path in the
+  commit was matched against the sheet (six of seven claimed; `notes.md` and
+  the brief are the sheet itself and its input, so their absence is correct),
+  and every `path:line` cite the sheet makes was resolved against the tree.
+  That is what turned up the two. Both are now marked *where it was, not where
+  it is*, which is the honest form for a reading list — it records what was
+  read at phase-plan time — rather than a silent rewrite to today's lines.
+  **The class:** VA-1 measures an injection against 182 cases; nothing measures
+  the record against the diff. A phase's sweep should include the phase's own
+  sheet — and it takes **two** passes, because they catch different things and
+  only one of them is mechanical:
+
+  1. **Resolve every `path:line` the sheet cites**, and match every path in the
+     diff against the sheet. Mechanical, two commands. Catches this finding.
+  2. **Re-read every *decision* the sheet records against what the diff
+     actually did.** Not mechanical, and nothing can make it so: a decision
+     recorded in prose names no path and no line, so pass 1 walks straight past
+     it. A sheet can be internally consistent, cite nothing stale, and still
+     record a choice the author changed their mind about an hour later — the
+     sheet is written while the decision is being taken, and the decision can
+     move afterwards.
+
+  **Both passes belong before the status flips to `done`**, which is the
+  operative instruction. Every defect this phase found in its own record was
+  found *after* close — cheap to find, and free to have prevented. Strongest
+  candidate this phase produced for `docs/memory/`.
 - **F-7 — the viewport sizer has now been written three times by three agents,
   and so has the sentence that keeps it honest.** `wiring.rs`'s
   `with_room_for_the_form` (600×600), `mod busy`'s `with_room_for_every_control`
@@ -2063,6 +2112,25 @@ pristine tree, run against the **whole** renderer target, read, and reverted.
   implementation is the correct one, which is why VT-1 arrived green and why
   its controls had to delete a check rather than decline to write one.
   PHASE-04 D-1.
+- **A phase's own sheet is a home of claims that phase falsifies, and nothing
+  sweeps it.** The discipline of hunting *homes of a claim this phase
+  falsifies* has been run for two phases over the **code** being changed, and
+  has found eleven. It has never been run over the sheet doing the recording.
+  PHASE-05's reading list cited two helpers at the lines they occupied when it
+  was written; the phase then moved both, and both cites landed on unrelated
+  code by the time it closed.
+  **The check has two passes and only the first is mechanical.** One: match
+  every path in the diff against the sheet, and resolve every `path:line` the
+  sheet cites — two commands. Two: re-read every **decision** the sheet records
+  against what the diff actually did, which no command reaches, because a
+  decision recorded in prose names no path and no line. The second is the one
+  worth writing down precisely because it cannot be automated: a sheet is
+  written while a decision is being taken, and the decision can move
+  afterwards, leaving a record that is internally consistent and asserts the
+  opposite of the diff. **Both passes go before the status flips to `done`.**
+  A reading list is a record of what was read, so the repair for a dead cite is
+  *where it was, not where it is* rather than a rewrite — but a dead pointer
+  nobody marks is a dead pointer. PHASE-05 F-8.
 - **A criterion that states its own reasoning is checkable, and checking it has
   paid three times out of three.** PHASE-02's EX-7 justified a type filter by
   two cases it does not keep green; PHASE-04's EX-9 said an extension *kept* a
