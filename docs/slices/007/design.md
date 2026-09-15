@@ -966,6 +966,7 @@ set, so the disabled state is not yet in force when the drop occurs.
 | option whose fields are **all** undrawn | bare button, still answerable; each field reported; `values` is `{}` | R-55 forbids refusing the view; R-58 forbids inventing values |
 | the same field id in **two** options | two distinct draft keys, two independent boxes | R-52 scopes field ids to the option; the spec has a fixture for this exact case being *legal* |
 | `"group": 7` | ungrouped, drawn in place, reported `GroupHint` | P-3 — coercing invents a heading the backend did not author |
+| `"group": 7` on a field this renderer does **not** draw | **both** reported — `FieldForm` *and* `GroupHint` | the two are independent defects the backend fixes independently; `GroupHint` names a *hint*, and the value is malformed whether or not anything was drawn. Under one report a backend learns of the bad hint only after fixing the kind and re-sending |
 | `"group": ""` | untitled block, **not** reported | the backend sent a string; there is nothing to say but that it was empty |
 | two runs with the same heading | both drawn, both titled | P-3 — merging them would move a field |
 | a group whose every field is undrawn | no block, no heading, each field reported | a heading over nothing is the host inventing structure |

@@ -460,3 +460,34 @@ other, citing the finding id.
   `canon-delta.md` CD-1 carries the R-18 row it implies.
 - **Both gates are now clear.** `plan.md` is accepted (`plan-log.md`), and the
   slice moves to **execute**, PHASE-01.
+
+### 2026-09-15 — a bad group hint on a field the renderer cannot draw (F-2)
+
+- **Asked:** PHASE-03 found that §5.2's grouping rule and §5.5's edge table both
+  scope every clause to the **drawn** fields, so neither says what
+  `{"kind":"text","group":7}` produces — a field this renderer does not draw,
+  carrying a hint that is not a string. The existing `"group": 7` row assumes a
+  `boolean` field. Raised before the mapper was written, not after.
+- **Offered:** **A** both reports, `FieldForm` and `GroupHint`; **B** only
+  `FieldForm`, on the reading that a field which never entered the layout had no
+  grouping decision to fail; **C** leave it open and settle it at audit with 04
+  and 05 in view.
+- **Recommended:** A, by the phase and by the orchestrator independently.
+  **Decided:** A.
+- **Why.** `GroupHint` names a *hint*, not a field. The value is malformed
+  whether or not anything was drawn, and the two defects are fixed
+  independently — under B a backend corrects the kind, re-sends, and only then
+  learns the hint was wrong all along, which is the extra round trip this slice
+  exists to remove. A also needs no rule in the code: the kind classification
+  and the hint read stay orthogonal, which is why B costs an `if` rather than
+  saving one.
+- **Consequence.** §5.5's edge table gains the intersection as its own row, so
+  the case is stated rather than inferred from two rows that each assume the
+  other's absence. The behaviour was already implemented this way,
+  provisionally; what changes is that it is now **decided, and must be pinned by
+  a test** — PHASE-03 deliberately left every fixture's bad hint on a drawn
+  field while the answer was open, and that gap closes with the decision.
+- **Noted against A.** A view of fourteen undrawn, mis-hinted fields reports
+  twenty-eight lines rather than fourteen. Accepted: the lines are distinct and
+  each is independently actionable, and the display bounds already hold the
+  total.

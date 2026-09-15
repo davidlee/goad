@@ -190,11 +190,22 @@ impl Diagnostics {
 /// One `Undrawn`'s line, before escaping and bounding.
 fn undrawn_line(undrawn: &Undrawn) -> String {
   match undrawn {
-    Undrawn::OptionFields { option, count } => {
-      let id = option.as_str();
-      let plural = if *count == 1 { "" } else { "s" };
+    Undrawn::FieldForm {
+      option,
+      field,
+      form,
+    } => {
+      let option = option.as_str();
+      let field = field.as_str();
       format!(
-        "not drawn: option {id} carries {count} field{plural}; this renderer draws options and their labels only"
+        "not drawn: option {option} field {field} is a {form} field; this renderer draws boolean fields only"
+      )
+    }
+    Undrawn::GroupHint { option, field } => {
+      let option = option.as_str();
+      let field = field.as_str();
+      format!(
+        "not grouped: option {option} field {field} carries a group hint that is not a string"
       )
     }
     Undrawn::MarkdownUnsupported { detail } => {

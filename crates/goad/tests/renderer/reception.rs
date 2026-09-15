@@ -676,6 +676,64 @@ fn an_html_body_reaches_the_glass_through_receive_with_the_bytes_the_backend_sen
 }
 
 // ---------------------------------------------------------------------
+// 13m — AC-3: a field this renderer cannot draw reaches the surface.
+// ---------------------------------------------------------------------
+
+/// VT-6 — I-2, end to end through the only path that produces a
+/// `Presentation`. `receive` calls `present` and hands the resulting
+/// `undrawn` to `Diagnostics::of` in the same expression, so a view carrying
+/// an undrawn field cannot reach the glass without the surface saying so.
+///
+/// The view is **still shown** and the option still answerable: `SPEC-001`
+/// R-55 forbids refusing a view over a capability this renderer lacks. What
+/// the wording of each line is stays review's, as every diagnostic wording in
+/// this project is; what is asserted here is that one line arrives per field
+/// and names it.
+#[test]
+fn a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_receive() {
+  let view = view_from(&serde_json::json!({
+    "view": {
+      "kind": "choice",
+      "title": "T",
+      "options": [{
+        "id": "opt",
+        "label": "Fine",
+        "fields": [
+          { "id": "note", "kind": "text", "label": "Note" },
+          { "id": "counted", "kind": "boolean", "label": "Counted", "group": 7 }
+        ]
+      }]
+    }
+  }));
+  let received = receive(outcome_with_view(view));
+
+  let prepared = received.prepared.expect("the view is shown, not refused");
+  assert_eq!(
+    prepared.presentation.options.len(),
+    1,
+    "the option is still there to answer"
+  );
+  assert!(
+    !prepared.presentation.body_is_degraded(),
+    "neither field variant says anything about the body"
+  );
+
+  let lines = received.diagnostics.lines();
+  assert_eq!(lines.len(), 2, "one line per field, and nothing else");
+  assert!(
+    lines[0].contains("note"),
+    "the undrawn field is named: {:?}",
+    lines[0]
+  );
+  assert!(
+    lines[1].contains("counted"),
+    "the unhonoured hint names its field: {:?}",
+    lines[1]
+  );
+  assert!(!received.diagnostics.is_clear());
+}
+
+// ---------------------------------------------------------------------
 // 13l — markdown is parsed once.
 // ---------------------------------------------------------------------
 
