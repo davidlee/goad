@@ -22,7 +22,7 @@ use goad::controller::{Controller, Ending, serve};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
-use goad::wire::{Cancel, Command, Stimulus, Wire};
+use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock::wall_clock;
 use goad_shell::config::{BackendConfig, Config, ScheduleConfig};
@@ -79,7 +79,8 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
   let (tx, rx) = mpsc::channel::<Command>(1);
   let cancel = Cancel::new();
   let stopper = cancel.clone();
-  let wire = Wire::new(tx.clone(), cancel.clone(), window.as_weak());
+  let notice = Notice::new();
+  let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
   install(&window, &tray, &wire);
 
   let glass = SlintGlass::new(
@@ -114,6 +115,7 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
       Controller::new(),
       rx,
       cancel,
+      notice,
       wall_clock,
       glass,
       Ingress::none(),

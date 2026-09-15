@@ -10,7 +10,7 @@ use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
 use goad::startup::{self, Launch, StartupError};
-use goad::wire::{Cancel, Command, Stimulus, Wire};
+use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock;
 use goad_shell::config::Config;
@@ -85,7 +85,8 @@ fn start(path: &Path) -> Result<(), StartupError> {
   // 6. The bridge. One `Wire`, cloned into each callback and nowhere else.
   let (tx, rx) = mpsc::channel::<Command>(1);
   let cancel = Cancel::new();
-  let wire = Wire::new(tx.clone(), cancel.clone(), window.as_weak());
+  let notice = Notice::new();
+  let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
   install(&window, &tray, &wire); // the callback table
 
   // 7. The glass. The `VecModel` is created once and lives for the process;
@@ -113,6 +114,7 @@ fn start(path: &Path) -> Result<(), StartupError> {
       Controller::new(),
       rx,
       cancel,
+      notice,
       clock::wall_clock,
       glass,
       ingress,

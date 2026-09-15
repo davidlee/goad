@@ -15,7 +15,7 @@ export component PromptWindow inherits Window {
   in property <bool> busy;               // an exchange is in flight; controls disabled
 
   // either mode
-  in property <string> notice;           // transient, host-authored; "" = none
+  in property <string> notice;           // back-pressure, host-authored; "" = none
 
   // diagnostic mode
   in property <[string]> diagnostic-lines;   // ordered, escaped and bounded in Rust

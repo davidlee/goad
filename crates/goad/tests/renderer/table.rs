@@ -668,7 +668,7 @@ async fn every_failure_in_the_taxonomy_is_read_off_one_retained_host() {
           Turn::RespondFabricated | Turn::RespondOutstanding => Exchanged::Answer,
         };
         let shift = controller.absorb(exchanged, outcome).shift;
-        let lines = controller.frame().diagnostics.lines().to_vec();
+        let lines = controller.frame(false).diagnostics.lines().to_vec();
 
         assert_eq!(shift, case.shift, "row {}: wrong Shift", case.id);
         assert_eq!(refused, case.refused, "row {}: wrong `refused`", case.id);
@@ -717,7 +717,7 @@ async fn every_failure_in_the_taxonomy_is_read_off_one_retained_host() {
             .await;
           let refused = outcome.failure.is_some();
           let shift = scratch.absorb(Exchanged::Evaluation, outcome).shift;
-          let lines = scratch.frame().diagnostics.lines().to_vec();
+          let lines = scratch.frame(false).diagnostics.lines().to_vec();
 
           assert_eq!(
             shift, case.shift,
@@ -899,9 +899,12 @@ mod busy {
   fn busy_is_false_after_absorbing_a_success() {
     let mut controller = Controller::new();
     controller.engage();
-    assert!(controller.frame().busy, "engage() must set it first");
+    assert!(controller.frame(false).busy, "engage() must set it first");
     controller.absorb(Exchanged::Evaluation, bare());
-    assert!(!controller.frame().busy, "absorb() must clear it (F-21)");
+    assert!(
+      !controller.frame(false).busy,
+      "absorb() must clear it (F-21)"
+    );
   }
 
   #[test]
@@ -917,7 +920,7 @@ mod busy {
     };
     controller.absorb(Exchanged::Evaluation, outcome);
     assert!(
-      !controller.frame().busy,
+      !controller.frame(false).busy,
       "a failed outcome must clear `engaged` too — the negative control that matters"
     );
   }

@@ -18,7 +18,7 @@ use goad_semantics::schedule::wait_for;
 use crate::diagnostics::{Diagnostics, Refused};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
-use crate::wire::{Cancel, Command, Stimulus};
+use crate::wire::{Cancel, Command, Notice, Stimulus};
 use goad_shell::clock::Clock;
 
 /// What the person is looking at. One window, three states, **one value** —
@@ -89,8 +89,8 @@ pub struct Served<B: Backend, G: Glass> {
   pub ingress: Ingress,
 }
 
-/// Everything the glass needs, borrowed. Total: every property but `notice`
-/// is written from this, every time.
+/// Everything the glass needs, borrowed. Total: every property is written
+/// from this, every time.
 #[derive(Debug, Clone, Copy)]
 pub struct Frame<'a> {
   pub surface: Surface,
@@ -98,6 +98,11 @@ pub struct Frame<'a> {
   pub diagnostics: &'a Diagnostics,
   pub busy: bool,
   pub next_check: Option<Timestamp>,
+  /// Whether back-pressure is outstanding. The one frame property the
+  /// controller does not retain: the signal is held at the edge and sampled
+  /// by `serve` at present time, so `Controller` keeps no field for it
+  /// (design.md §5.3).
+  pub notice: bool,
 }
 
 /// What the controller retains. One value, no Slint types, so it is testable
@@ -105,7 +110,13 @@ pub struct Frame<'a> {
 /// complete retained state: the presentation and its `ViewId` and its
 /// canonical options (inside `Prepared`), the diagnostics, the window mode
 /// and its visibility (`Surface`, derived below), and whether an exchange is
-/// in flight. Nothing else is retained anywhere in the renderer.
+/// in flight.
+///
+/// One thing the screen shows is retained and is **not** here: back-pressure.
+/// It lives at the edge, in a `wire::Notice` the loop samples at present time,
+/// so that the concurrency primitive stays where the others already are and
+/// this value keeps its "no Slint types, no channels" property
+/// (`design.md` §5.3).
 #[derive(Debug)]
 pub struct Controller {
   shown: Option<Prepared>,
@@ -234,15 +245,18 @@ impl Controller {
     self.engaged = true;
   }
 
-  /// Everything the glass needs, borrowed.
+  /// Everything the glass needs, borrowed. `notice` is passed in rather than
+  /// read: it is the one frame property this controller does not retain
+  /// (design.md §5.3). `&self`, and nothing here mutates.
   #[must_use]
-  pub fn frame(&self) -> Frame<'_> {
+  pub fn frame(&self, notice: bool) -> Frame<'_> {
     Frame {
       surface: self.surface(),
       shown: self.shown.as_ref(),
       diagnostics: &self.diagnostics,
       busy: self.engaged,
       next_check: self.next_check,
+      notice,
     }
   }
 }
@@ -564,20 +578,31 @@ fn dispatch(
 /// test tier drives the identical call under `block_on` (D9). There is no
 /// second implementation of the loop and no test-only harness for it.
 ///
-/// An ordinary `async fn`, carrying **no** attribute at all —
-/// `clippy::future_not_send` does not reach this signature: it drops `Send`
-/// obligations that mention a type parameter at the top level, and `serve`'s
-/// future is `!Send` only through `B` and `G` (design.md §5.5, A-5,
-/// measured).
+/// An ordinary `async fn`, and **not** one silencing
+/// `clippy::future_not_send`: that lint does not reach this signature at all,
+/// because it drops `Send` obligations that mention a type parameter at the
+/// top level and `serve`'s future is `!Send` only through `B` and `G`
+/// (design.md §5.5, A-5, measured). The one attribute below says nothing
+/// about `Send`; it is about the parameter count.
 ///
 /// Everything is taken by value because `slint::spawn_local` needs a
 /// `'static` future, and handed back in `Served` so a test can read what it
 /// did.
+#[expect(
+  clippy::too_many_arguments,
+  reason = "each parameter is a distinct owned resource, taken by value because \
+            `slint::spawn_local` needs a `'static` future and handed back in \
+            `Served` so a test can read what it did. The eighth is `notice`, \
+            which `design.md` §5.3 puts here alongside `cancel` — the two edge \
+            signals travel the same route. Grouping any of them would be an \
+            abstraction that exists only to satisfy the count."
+)]
 pub async fn serve<B, G>(
   mut host: Host<B>,
   mut controller: Controller,
   mut commands: mpsc::Receiver<Command>,
   cancel: Cancel,
+  notice: Notice,
   clock: Clock,
   mut glass: G,
   mut ingress: Ingress,
@@ -608,7 +633,7 @@ where
   let mut event_floor_until = started;
 
   let ending = 'serving: loop {
-    glass.present(controller.frame()); // busy = false here
+    glass.present(controller.frame(notice.raised())); // busy = false here
     let fired = select! { biased;
       () = cancel.stopped()       => break Ending::Stopped,
       received = commands.recv()  => match received {
@@ -666,8 +691,9 @@ where
     };
 
     // The one refusal site. It `continue`s to the top — which presents with
-    // `busy = false` and clears `notice` in the same call — and re-arms only
-    // when this iteration came from the timer arm (EX-7).
+    // `busy = false`, and carries the back-pressure signal through like any
+    // other present rather than clearing it — and re-arms only when this
+    // iteration came from the timer arm (EX-7).
     //
     // One site rather than three: `refusal_re_arms` is `false` by
     // construction under `Command::Choose`, because `Fired::Scheduled`
@@ -689,7 +715,7 @@ where
     let exchanged = pending.exchanged();
 
     controller.engage();
-    glass.present(controller.frame()); // busy = true, controls disabled
+    glass.present(controller.frame(notice.raised())); // busy = true, controls disabled
 
     // One future, built from the enum. `host` is borrowed mutably for
     // exactly as long as this block lives, which is this iteration;
@@ -741,7 +767,7 @@ where
           // cost and R-15's negative case both live there.
           None => {
             controller.refuse(&ingress_stopped());
-            glass.present(controller.frame());
+            glass.present(controller.frame(notice.raised()));
           }
           Some(arrival) => refuse_during_exchange(&mut controller, arrival),
         },

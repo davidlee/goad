@@ -9,7 +9,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, StyledText, VecModel};
 
 use crate::controller::{Frame, Surface};
 use crate::diagnostics::{
-  Diagnostics, TrayState, next_check_line, report_platform, tooltip, tray_icon,
+  BUSY_NOTICE, Diagnostics, TrayState, next_check_line, report_platform, tooltip, tray_icon,
 };
 use crate::generated::{OptionRow, PromptWindow, Tray, WindowMode};
 use crate::reception::Prepared;
@@ -20,8 +20,9 @@ use crate::view_model::Body;
 /// update (design.md §5.3, *Ownership*).
 pub trait Glass {
   /// Write **every** property from the frame, then show the window in the
-  /// frame's mode or hide it. Total and idempotent. `notice` is written
-  /// `""` here and set from nowhere else in this trait.
+  /// frame's mode or hide it. Total and idempotent. `notice` is one of those
+  /// properties: it is written from `frame.notice` on every call, and this
+  /// is its only writer anywhere in the renderer (design.md §5.3).
   fn present(&mut self, frame: Frame<'_>);
 }
 
@@ -33,8 +34,8 @@ pub struct SlintGlass {
   options: Rc<VecModel<OptionRow>>,
 }
 
-/// Hand-written for the same reason `Wire`'s is: the generated component
-/// handles carry no `Debug` and `missing_debug_implementations` is `deny`
+/// Hand-written because the generated component handles carry no `Debug`,
+/// by derive or by impl, and `missing_debug_implementations` is `deny`
 /// (`Cargo.toml`, measured).
 impl fmt::Debug for SlintGlass {
   fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -104,7 +105,8 @@ impl Glass for SlintGlass {
     let next_check = frame.next_check.map(next_check_line).unwrap_or_default();
     self.window.set_next_check(next_check.into());
 
-    self.window.set_notice(SharedString::new());
+    let notice = if frame.notice { BUSY_NOTICE } else { "" };
+    self.window.set_notice(notice.into());
 
     self.tray.set_image(tray_icon(frame.diagnostics.state()));
     self

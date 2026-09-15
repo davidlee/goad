@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use goad::controller::{Controller, Ending, serve};
-use goad::wire::{Cancel, Command, Stimulus};
+use goad::wire::{Cancel, Command, Notice, Stimulus};
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::clock::ClockError;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
@@ -135,8 +135,8 @@ fn request_kind(log: &Path, n: usize) -> String {
 /// never runs, and every assertion about what the exchange resolved fails —
 /// three runs in five under the full renderer target, measured.
 ///
-/// `glass.present(controller.frame())` runs at the top of the iteration
-/// *after* `absorb`, so this line cannot be read before the exchange
+/// `glass.present(controller.frame(notice.raised()))` runs at the top of the
+/// iteration *after* `absorb`, so this line cannot be read before the exchange
 /// completed and was folded in. Where two exchanges resolve the same instant
 /// it proves *an* absorption rather than a particular one, which is all any
 /// of these cases need.
@@ -170,6 +170,7 @@ async fn a_short_default_poll_is_honoured_unfloored_for_the_first_scheduled_chec
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -220,6 +221,7 @@ async fn an_instruction_from_an_evaluate_shortens_the_wait_past_a_far_default_po
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -267,6 +269,7 @@ async fn an_instruction_from_a_respond_shortens_the_wait_past_a_far_default_poll
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -321,6 +324,7 @@ async fn an_earlier_instruction_supersedes_a_pending_far_deadline() {
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -375,6 +379,7 @@ async fn a_later_instruction_supersedes_and_the_earlier_deadline_does_not_fire()
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -439,6 +444,7 @@ async fn a_stop_issued_while_parked_on_the_timer_arm_ends_serve_well_inside_the_
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -509,6 +515,7 @@ async fn a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -537,7 +544,7 @@ async fn a_past_instant_on_every_response_fires_once_and_then_holds_at_the_floor
   assert_eq!(served.ending, Ending::Stopped);
   assert_eq!(invocations(&log), 2);
   assert_eq!(
-    served.controller.frame().next_check,
+    served.controller.frame(false).next_check,
     Some(instant("2020-01-01T00:00:00Z")),
     "SPEC-002/R-6: the retained next_check is the instruction, unadjusted by the floor"
   );
@@ -572,6 +579,7 @@ async fn a_failing_backend_is_retried_unprompted_never_faster_than_the_floor() {
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -599,7 +607,7 @@ async fn a_failing_backend_is_retried_unprompted_never_faster_than_the_floor() {
 
   assert_eq!(served.ending, Ending::Stopped);
   assert_eq!(
-    served.controller.frame().next_check,
+    served.controller.frame(false).next_check,
     Some(instant("2026-01-01T00:00:00.100Z")),
     "SPEC-001/R-29: the retained next_check is unaffected by the failure"
   );
@@ -648,6 +656,7 @@ async fn a_clock_that_fails_after_the_startup_exchange_refuses_and_holds() {
           controller,
           rx,
           cancel,
+          Notice::new(),
           succeeds_once_then_fails,
           glass,
           Ingress::none(),
@@ -674,7 +683,7 @@ async fn a_clock_that_fails_after_the_startup_exchange_refuses_and_holds() {
     1,
     "the scheduled firing's clock refusal must never reach the backend"
   );
-  let lines = served.controller.frame().diagnostics.lines().to_vec();
+  let lines = served.controller.frame(false).diagnostics.lines().to_vec();
   assert_eq!(
     lines.len(),
     1,
@@ -690,7 +699,7 @@ async fn a_clock_that_fails_after_the_startup_exchange_refuses_and_holds() {
     "the floor must stop the clock from being re-read in a tight loop after the refusal (VA-3)"
   );
   assert_eq!(
-    served.controller.frame().next_check,
+    served.controller.frame(false).next_check,
     Some(instant("2026-01-01T00:00:00.100Z")),
     "SPEC-001/R-8: a clock failure must not discard the retained next_check"
   );
@@ -721,6 +730,7 @@ async fn the_same_shape_with_a_working_clock_reaches_a_second_invocation() {
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -773,6 +783,7 @@ async fn a_one_off_past_instruction_is_consumed_and_cadence_resumes() {
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -800,7 +811,7 @@ async fn a_one_off_past_instruction_is_consumed_and_cadence_resumes() {
 
   assert_eq!(served.ending, Ending::Stopped);
   assert_eq!(
-    served.controller.frame().next_check,
+    served.controller.frame(false).next_check,
     Some(instant("2026-01-01T00:00:00.100Z")),
     "SPEC-002/R-3: the elapsed value was consumed and the default poll applies"
   );
@@ -850,6 +861,7 @@ async fn a_person_acting_mid_cadence_does_not_clear_the_floor() {
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -913,6 +925,7 @@ async fn a_refusal_that_did_not_come_from_the_timer_leaves_the_deadline_standing
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -987,6 +1000,7 @@ async fn an_instruction_at_the_far_edge_of_time_arms_the_sleep_without_panicking
           controller,
           rx,
           cancel,
+          Notice::new(),
           stub_clock,
           glass,
           Ingress::none(),
@@ -1009,7 +1023,7 @@ async fn an_instruction_at_the_far_edge_of_time_arms_the_sleep_without_panicking
 
   assert_eq!(served.ending, Ending::Stopped);
   assert_eq!(
-    served.controller.frame().next_check,
+    served.controller.frame(false).next_check,
     Some(instant("9999-12-01T00:00:00Z")),
     "SPEC-001/R-28: the instruction is stored and reported as given, whatever the timer does with it"
   );

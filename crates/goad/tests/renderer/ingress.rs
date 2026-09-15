@@ -39,7 +39,7 @@ use std::time::{Duration, Instant};
 
 use goad::controller::{Controller, Ending, Frame, serve};
 use goad::glass::{Glass, SlintGlass};
-use goad::wire::{Cancel, Command, Stimulus};
+use goad::wire::{Cancel, Command, Notice, Stimulus};
 use goad_shell::ingress::bind;
 use slint::{ComponentHandle, Model as _};
 use tokio::sync::mpsc;
@@ -252,7 +252,17 @@ async fn a_well_formed_envelope_produces_one_evaluation_carrying_all_four_fields
   let reply = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
       let reply = send(&path, ENVELOPE).await;
       until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
@@ -329,7 +339,17 @@ async fn the_view_an_ingested_evaluation_returns_reaches_the_window_and_is_answe
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
       let reply = send(&path, ENVELOPE).await;
       assert!(accepted(&reply), "the envelope is accepted: {reply}");
@@ -391,7 +411,17 @@ async fn an_envelope_arriving_during_an_exchange_is_refused_engaged_before_it_co
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -465,7 +495,17 @@ async fn a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_l
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       let first = send(&path, ENVELOPE).await;
@@ -568,7 +608,17 @@ async fn a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_
   let (served, replies, cost) = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       // Prime the anchor, and let the exchange it began be absorbed before the
@@ -697,7 +747,17 @@ async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_eva
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       // 1 — one fold, on the surface, naming that ingress has stopped.
@@ -812,7 +872,17 @@ async fn an_ingested_firing_never_writes_the_scheduled_floor() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       let reply = send(&path, ENVELOPE).await;
@@ -900,7 +970,17 @@ async fn an_ingested_firing_does_not_advance_the_scheduled_floor() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       // Priming: a person's own `Requested` evaluate — never floored.
@@ -991,7 +1071,17 @@ async fn a_scheduled_firing_does_not_clear_the_event_floor() {
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       // The first envelope: accepted, opens the event spacing, and its own
@@ -1082,7 +1172,17 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface()
   let served = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       let first = send(&path, ENVELOPE).await;
@@ -1104,7 +1204,7 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface()
   cleanup(&path);
 
   assert_eq!(served.ending, Ending::Stopped);
-  let lines = served.controller.frame().diagnostics.lines();
+  let lines = served.controller.frame(false).diagnostics.lines();
   assert!(
     lines
       .iter()
@@ -1133,8 +1233,8 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_diagnostics_surface()
 /// (`review-code.md` F-23). It reads the **live** window while the exchange
 /// is still in its sleep. Read at the end instead, the case is green in both
 /// worlds — the one where the arm presents nothing, and the one where it
-/// calls `glass.present(controller.frame())` and a person sees the refusal —
-/// because `absorb` replaces the whole retained `Diagnostics` on the way out
+/// calls `glass.present(controller.frame(notice.raised()))` and a person sees
+/// the refusal — because `absorb` replaces the whole retained `Diagnostics`
 /// either way. The live read discriminates: adding that `present` call turns
 /// this red. `landed` is the guard that keeps the negative non-vacuous, in
 /// the same shape as the sibling below.
@@ -1160,7 +1260,17 @@ async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnosti
   let (served, surface, landed) = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
       tx.send(Command::Evaluate(Stimulus::Requested))
         .await
@@ -1213,7 +1323,7 @@ async fn a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnosti
   // — `absorb` would wipe it whether or not a person had already seen it
   // (`review-code.md` F-23) — it is here because the two together say the
   // refusal reaches no frame at any point in the exchange's life.
-  let lines = served.controller.frame().diagnostics.lines();
+  let lines = served.controller.frame(false).diagnostics.lines();
   assert!(
     lines.iter().all(|line| !line.contains("was refused")),
     "the shape refusal must have been superseded by `absorb`: {lines:?}"
@@ -1294,7 +1404,17 @@ async fn ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surfa
         .await
         .expect("the channel must accept the send");
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       until(LIVENESS_BOUND, || {
@@ -1368,7 +1488,17 @@ async fn after_a_flood_of_malformed_envelopes_the_host_still_evaluates() {
   let (served, replies) = local
     .run_until(async {
       let handle = tokio::task::spawn_local(async move {
-        serve(backend, controller, rx, cancel, stub_clock, glass, ingress).await
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
       });
 
       let replies = flat_out(&path, FLAT_OUT_WINDOW, MALFORMED).await;

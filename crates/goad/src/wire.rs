@@ -1,20 +1,17 @@
 //! What a person did, and why an evaluation was asked for — design.md §5.3.
 //!
-//! `Wire` and `Cancel`, below, are the callback-facing halves of this
-//! module: everything a Slint callback may touch, and the level-held stop
-//! signal both of `serve`'s `select!` arms watch (`serve` itself lives in
-//! `controller.rs`, PHASE-10).
+//! `Wire`, `Cancel` and `Notice`, below, are the callback-facing halves of
+//! this module: everything a Slint callback may touch, the level-held stop
+//! signal both of `serve`'s `select!` arms watch, and the back-pressure
+//! signal `serve` samples at present time (`serve` itself lives in
+//! `controller.rs`).
 
-use std::fmt;
 use std::future::Future;
 
 use goad_semantics::protocol::canonical::{Event, Timestamp};
 use serde_json::Value;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, watch};
-
-use crate::diagnostics::BUSY_NOTICE;
-use crate::generated::PromptWindow;
 
 /// What a person did. There is deliberately **no** `Shutdown` variant:
 /// stopping is a decision, not a queue position, and it travels out of band
@@ -71,36 +68,26 @@ impl Stimulus {
 
 /// Everything a Slint callback may touch. Cloned into each one.
 ///
-/// The window handle is **weak**: the component owns the callback, so a
-/// strong capture is a reference cycle that leaks the window. `Debug` is
-/// hand-written — `slint::Weak` implements none, by derive or by impl, and
-/// `missing_debug_implementations` is `deny` (design.md §5.3, measured).
-#[derive(Clone)]
+/// It names no Slint type and no generated type: everything it holds is one
+/// half of a channel, and everything it does is enqueue a command or move a
+/// signal. Writing the window is `Glass::present`'s, from the frame
+/// (design.md §5.3).
+#[derive(Debug, Clone)]
 pub struct Wire {
   commands: mpsc::Sender<Command>,
   cancel: Cancel,
-  window: slint::Weak<PromptWindow>,
-}
-
-impl fmt::Debug for Wire {
-  fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-    formatter.debug_struct("Wire").finish_non_exhaustive()
-  }
+  notice: Notice,
 }
 
 impl Wire {
   /// The one constructor. The fields are private, so nothing outside this
   /// module can assemble a `Wire` by literal.
   #[must_use]
-  pub fn new(
-    commands: mpsc::Sender<Command>,
-    cancel: Cancel,
-    window: slint::Weak<PromptWindow>,
-  ) -> Self {
+  pub fn new(commands: mpsc::Sender<Command>, cancel: Cancel, notice: Notice) -> Self {
     Self {
       commands,
       cancel,
-      window,
+      notice,
     }
   }
 
@@ -112,24 +99,22 @@ impl Wire {
   /// capacity-1 channel would block that thread against a loop that is not
   /// reading (design.md §5.3).
   ///
-  /// `Full` writes `diagnostics::BUSY_NOTICE` to the window's `notice`
-  /// property through the weak handle — or does nothing if the window is
-  /// already gone, which is the same "nowhere left to report it" case
-  /// `report_platform` documents.
+  /// `Full` **raises** the back-pressure signal and `Ok` lowers it. This
+  /// writes no window property: `serve` samples the signal at present time
+  /// and `Glass::present` writes `diagnostics::BUSY_NOTICE` from the frame,
+  /// so the explanation outlives the present that corrects the dropped
+  /// action (design.md §5.4).
   ///
   /// `Closed` does nothing, deliberately (F-20): it is not reachable while
   /// there is anything to serve, because the receiver is owned by `serve`
-  /// and dropped one line before the task's own `quit_event_loop`. It
-  /// shares one arm with `Ok(())` — `clippy::match_same_arms` — so the
-  /// pattern stays named rather than swept into a wildcard.
+  /// and dropped one line before the task's own `quit_event_loop`. It leaves
+  /// the signal exactly as it found it — there is nothing left to explain a
+  /// dropped action to, and nothing left to lower it either.
   pub fn send(&self, command: Command) {
     match self.commands.try_send(command) {
-      Ok(()) | Err(TrySendError::Closed(_)) => (),
-      Err(TrySendError::Full(_returned)) => {
-        if let Some(window) = self.window.upgrade() {
-          window.set_notice(BUSY_NOTICE.into());
-        }
-      }
+      Ok(()) => self.notice.set(false),
+      Err(TrySendError::Full(_returned)) => self.notice.set(true),
+      Err(TrySendError::Closed(_)) => (),
     }
   }
 
@@ -180,18 +165,65 @@ impl Cancel {
   }
 }
 
-// `Wire`'s synchronous paths (`Ok`, `Closed`) need no component and no
-// runtime; `Full` writing `notice` through a live weak handle is
-// `tests/renderer/wiring.rs`'s (VT-7, item 11g), which has a real window to
-// assert against. `Cancel`'s level-held property is unit-tested here;
-// `serve`'s own use of it (item 11h, 14a-d) is `wiring.rs`'s (PHASE-10).
+/// The back-pressure signal. `tokio::sync::watch::<bool>` again, and
+/// `Cancel`'s route edge for edge: constructed in `main`, cloned into `Wire`
+/// for synchronous setting from a Slint callback, and handed to `serve` for
+/// the loop to read. The one difference is direction — `Cancel` is one-way
+/// and tripped forever, this is set both ways.
+///
+/// `watch` rather than a flag or a `Notify` because it **retains its last
+/// sent value**, which is the whole of the repair: a raised notice has to
+/// survive the present that corrects the action it explains, and every
+/// present after it, until a successful send lowers it (design.md §5.3,
+/// §5.4).
+#[derive(Debug, Clone)]
+pub struct Notice {
+  tx: watch::Sender<bool>,
+  rx: watch::Receiver<bool>,
+}
+
+impl Default for Notice {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl Notice {
+  #[must_use]
+  pub fn new() -> Self {
+    let (tx, rx) = watch::channel(false);
+    Self { tx, rx }
+  }
+
+  /// Raise it or lower it. Synchronous, idempotent, callable from a Slint
+  /// callback. The send cannot fail: `self` holds a receiver, so one always
+  /// exists.
+  pub fn set(&self, raised: bool) {
+    self.tx.send(raised).ok();
+  }
+
+  /// The current value, read without awaiting. Nothing ever waits on this
+  /// signal — `serve` samples it at present time — so the read is
+  /// `watch::Receiver::borrow` and not `Cancel::stopped`'s `wait_for`.
+  #[must_use]
+  pub fn raised(&self) -> bool {
+    *self.rx.borrow()
+  }
+}
+
+// All three of `Wire::send`'s arms are synchronous and need no component and
+// no runtime, now that `Full` raises a signal rather than writing a window;
+// what still needs a real window is the notice **reaching the screen and
+// staying there**, which is `tests/renderer/wiring.rs`'s (VT-7, item 11g).
+// `Cancel`'s level-held property and `Notice`'s retention are unit-tested
+// here; `serve`'s own use of either (item 11h, 14a-d) is `wiring.rs`'s.
 #[cfg(test)]
 mod tests {
   use goad_semantics::protocol::canonical::Timestamp;
   use serde_json::Value;
   use tokio::sync::mpsc;
 
-  use super::{Cancel, Command, Stimulus, Wire};
+  use super::{Cancel, Command, Notice, Stimulus, Wire};
 
   fn instant(rfc3339: &str) -> Timestamp {
     Timestamp::new(rfc3339.parse().unwrap())
@@ -200,7 +232,7 @@ mod tests {
   #[test]
   fn send_enqueues_when_the_channel_has_room() {
     let (tx, mut rx) = mpsc::channel(1);
-    let wire = Wire::new(tx, Cancel::new(), slint::Weak::default());
+    let wire = Wire::new(tx, Cancel::new(), Notice::new());
     wire.send(Command::OpenDiagnostics);
     assert_eq!(rx.try_recv(), Ok(Command::OpenDiagnostics));
   }
@@ -209,8 +241,15 @@ mod tests {
   fn send_does_nothing_once_the_receiver_is_gone() {
     let (tx, rx) = mpsc::channel(1);
     drop(rx);
-    let wire = Wire::new(tx, Cancel::new(), slint::Weak::default());
+    let notice = Notice::new();
+    notice.set(true);
+    let wire = Wire::new(tx, Cancel::new(), notice.clone());
     wire.send(Command::CloseDiagnostics); // must not panic (F-20)
+    assert!(
+      notice.raised(),
+      "a closed channel leaves the signal as it found it: nothing was delivered, so \
+       nothing lowers it"
+    );
   }
 
   #[tokio::test]
@@ -231,6 +270,33 @@ mod tests {
     );
     cancel.stop();
     waiting.await.expect("the waiting task must not panic");
+  }
+
+  // ---- the back-pressure signal ----
+
+  #[test]
+  fn a_raised_notice_stays_raised_until_it_is_lowered() {
+    let notice = Notice::new();
+    assert!(!notice.raised(), "a fresh notice is not raised");
+    notice.set(true);
+    assert!(notice.raised());
+    assert!(
+      notice.raised(),
+      "the signal retains its last sent value: reading it does not consume it"
+    );
+    notice.set(false);
+    assert!(!notice.raised());
+  }
+
+  #[test]
+  fn a_notice_raised_on_one_clone_is_read_from_another() {
+    let held_by_the_edge = Notice::new();
+    let read_by_the_loop = held_by_the_edge.clone();
+    held_by_the_edge.set(true);
+    assert!(
+      read_by_the_loop.raised(),
+      "the edge sets and the loop reads: they are clones of one signal"
+    );
   }
 
   // ---- VT-3: the third stimulus ----

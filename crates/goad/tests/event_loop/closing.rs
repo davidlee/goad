@@ -17,7 +17,7 @@ use goad::controller::{Controller, Ending, serve};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
-use goad::wire::{Cancel, Command, Wire};
+use goad::wire::{Cancel, Command, Notice, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock::wall_clock;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
@@ -52,7 +52,8 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
 
   let (tx, rx) = mpsc::channel::<Command>(1);
   let cancel = Cancel::new();
-  let wire = Wire::new(tx, cancel.clone(), window.as_weak());
+  let notice = Notice::new();
+  let wire = Wire::new(tx, cancel.clone(), notice.clone());
   install(&window, &tray, &wire);
 
   let glass = SlintGlass::new(
@@ -86,6 +87,7 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
       Controller::new(),
       rx,
       cancel,
+      notice,
       wall_clock,
       glass,
       Ingress::none(),

@@ -13,7 +13,7 @@ use goad::controller::{Controller, Exchanged, Surface};
 use goad::diagnostics::{BUSY_NOTICE, Refused};
 use goad::generated::PromptWindow;
 use goad::glass::Glass;
-use goad::wire::{Cancel, Command, Stimulus, Wire};
+use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::ComponentHandle;
 use tokio::sync::mpsc;
@@ -95,7 +95,7 @@ mod refusals {
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
     let view = controller
-      .frame()
+      .frame(false)
       .shown
       .expect("a view must be retained")
       .view_id
@@ -109,7 +109,7 @@ mod refusals {
     assert!(matches!(refusal, Refused::UnknownOption));
     controller.refuse(&refusal);
 
-    let frame = controller.frame();
+    let frame = controller.frame(false);
     assert!(frame.shown.is_some(), "the presentation must be retained");
     assert_eq!(frame.diagnostics.lines().len(), 1);
     assert_eq!(
@@ -133,7 +133,7 @@ mod refusals {
       detail: "the system clock could not be read".to_owned(),
     });
 
-    let frame = controller.frame();
+    let frame = controller.frame(false);
     assert!(frame.shown.is_some(), "the presentation must be retained");
     assert_eq!(frame.diagnostics.lines().len(), 1);
     assert_eq!(
@@ -170,20 +170,20 @@ mod transitions {
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
     controller.open_diagnostics();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(in_diagnostic_mode(&window));
     assert!(!nothing_to_report_shown(&window), "a fault line is present");
     assert_eq!(
-      controller.frame().diagnostics.state(),
+      controller.frame(false).diagnostics.state(),
       goad::diagnostics::TrayState::Fault
     );
 
     let cleared = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, cleared);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(
-      controller.frame().surface,
+      controller.frame(false).surface,
       Surface::Diagnostics,
       "Focus::Diagnostics is untouched by a Retained fold"
     );
@@ -196,7 +196,7 @@ mod transitions {
       "diagnostics must clear on a clean outcome"
     );
     assert_eq!(
-      controller.frame().diagnostics.state(),
+      controller.frame(false).diagnostics.state(),
       goad::diagnostics::TrayState::Idle,
       "the tray returns to idle immediately — disagreeing with the still-open window (DT-5)"
     );
@@ -218,7 +218,7 @@ mod transitions {
     let mut controller = Controller::new();
 
     controller.open_diagnostics();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert_eq!(
       window.get_next_check(),
       "",
@@ -227,7 +227,7 @@ mod transitions {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(
       window.get_next_check(),
@@ -237,7 +237,7 @@ mod transitions {
        the harness's fixed `now`"
     );
     assert_eq!(
-      controller.frame().diagnostics.state(),
+      controller.frame(false).diagnostics.state(),
       goad::diagnostics::TrayState::Idle,
       "a standing schedule is not a fault"
     );
@@ -260,15 +260,15 @@ mod transitions {
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
     controller.open_diagnostics();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(in_diagnostic_mode(&window));
 
     let replacing = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, replacing).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, goad::controller::Shift::Replaced);
-    assert_eq!(controller.frame().surface, Surface::Prompt);
+    assert_eq!(controller.frame(false).surface, Surface::Prompt);
     assert!(in_prompt_mode(&window));
     assert_eq!(window.get_heading(), "Still there?");
     let options_list = ElementHandle::find_by_accessible_label(&window, "options")
@@ -293,15 +293,15 @@ mod transitions {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert_eq!(window.get_heading(), "Proceed?");
 
     let failing = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, failing).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, goad::controller::Shift::Retained);
-    assert_eq!(controller.frame().surface, Surface::Prompt);
+    assert_eq!(controller.frame(false).surface, Surface::Prompt);
     assert_eq!(
       window.get_heading(),
       "Proceed?",
@@ -310,7 +310,7 @@ mod transitions {
     assert!(in_prompt_mode(&window));
     assert_eq!(accessible_enabled_of(&window, "yes"), Some(true));
     assert_eq!(
-      controller.frame().diagnostics.state(),
+      controller.frame(false).diagnostics.state(),
       goad::diagnostics::TrayState::Fault
     );
   }
@@ -327,13 +327,13 @@ mod transitions {
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
     controller.open_diagnostics();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(in_diagnostic_mode(&window));
 
     controller.close_diagnostics();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
-    assert_eq!(controller.frame().surface, Surface::Prompt);
+    assert_eq!(controller.frame(false).surface, Surface::Prompt);
     assert!(in_prompt_mode(&window));
     assert_eq!(
       window.get_heading(),
@@ -344,46 +344,82 @@ mod transitions {
 }
 
 /// VT-7 — item 11g (F-5). A second command sent while the channel is full
-/// sets `notice` and does not enter `Diagnostics`; the next `present`
-/// clears it.
+/// raises the back-pressure signal and does not enter `Diagnostics`; the
+/// notice the next `present` writes **survives** every further present, and
+/// only the person's next successful send lowers it (design.md §5.3, §5.4).
 mod back_pressure {
-  use slint::ComponentHandle;
-
   use super::{
-    BUSY_NOTICE, Cancel, Command, Controller, Glass, Stimulus, Wire, glass_over, mpsc,
+    BUSY_NOTICE, Cancel, Command, Controller, Glass, Notice, Stimulus, Wire, glass_over, mpsc,
     window_and_tray,
   };
 
   #[test]
-  fn a_full_channel_sets_notice_and_the_next_present_clears_it() {
+  fn a_full_channel_raises_the_notice_and_only_a_successful_send_lowers_it() {
     let (window, tray) = window_and_tray();
     let mut glass = glass_over(&window, &tray);
-    let (tx, held_open) = mpsc::channel::<Command>(1);
+    let (tx, mut receiver) = mpsc::channel::<Command>(1);
     tx.try_send(Command::Evaluate(Stimulus::Requested))
       .expect("the first send must have room in a fresh capacity-1 channel");
-    let wire = Wire::new(tx, Cancel::new(), window.as_weak());
+    let notice = Notice::new();
+    let wire = Wire::new(tx, Cancel::new(), notice.clone());
 
     wire.send(Command::OpenDiagnostics);
 
+    assert_eq!(
+      window.get_notice(),
+      "",
+      "the edge raises a signal and writes no window property: `Glass::present` is the only writer"
+    );
+
+    let controller = Controller::new();
+    glass.present(controller.frame(notice.raised()));
     assert_eq!(
       window.get_notice(),
       BUSY_NOTICE,
       "a command sent into a full channel must report BUSY_NOTICE, not vanish"
     );
 
-    let controller = Controller::new();
-    assert!(
-      controller.frame().diagnostics.is_clear(),
-      "back-pressure must not enter Diagnostics"
+    glass.present(controller.frame(notice.raised()));
+    assert_eq!(
+      window.get_notice(),
+      BUSY_NOTICE,
+      "the notice must outlive the present that corrects the dropped action, and every \
+       present after it (design.md §5.4)"
     );
-    glass.present(controller.frame());
+
+    // The loop reads, so the one slot is free and the person's next action
+    // gets through. That — not a present — is what lowers the notice.
+    receiver
+      .try_recv()
+      .expect("the held command is there to be read");
+    wire.send(Command::CloseDiagnostics);
+    glass.present(controller.frame(notice.raised()));
 
     assert_eq!(
       window.get_notice(),
       "",
-      "the next present must clear notice (design.md §5.3)"
+      "a successful send lowers the signal, and the next present clears the window (design.md §5.3)"
     );
-    drop(held_open); // keeps the receiver alive until here, deliberately unread
+
+    assert!(
+      controller.frame(notice.raised()).diagnostics.is_clear(),
+      "back-pressure is not a fault: it never enters Diagnostics"
+    );
+  }
+
+  /// The `Frame` half, with no channel, no window and no platform: the
+  /// controller retains nothing for this and carries what it is given.
+  #[test]
+  fn the_frame_carries_the_notice_it_is_given() {
+    let controller = Controller::new();
+    assert!(
+      controller.frame(true).notice,
+      "a raised signal reaches the glass through the frame"
+    );
+    assert!(
+      !controller.frame(false).notice,
+      "and a lowered one does too: the property is written either way, every present"
+    );
   }
 }
 
@@ -406,14 +442,14 @@ mod busy {
     let mut controller = Controller::new();
 
     controller.engage();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(window.get_busy(), "the exchange must be shown in flight");
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
-    assert!(!controller.frame().busy);
+    assert!(!controller.frame(false).busy);
     assert!(!window.get_busy());
     assert_eq!(accessible_enabled_of(&window, "yes"), Some(true));
     assert_eq!(accessible_enabled_of(&window, "no"), Some(true));
@@ -429,17 +465,17 @@ mod busy {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     controller.engage();
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(window.get_busy());
 
     let failing = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, failing);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
-    assert!(!controller.frame().busy);
+    assert!(!controller.frame(false).busy);
     assert!(!window.get_busy());
     assert_eq!(accessible_enabled_of(&window, "yes"), Some(true));
     assert_eq!(accessible_enabled_of(&window, "no"), Some(true));
@@ -483,7 +519,7 @@ mod rows {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Replaced);
     assert!(window_shown(&window));
@@ -501,7 +537,7 @@ mod rows {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Retained);
     assert!(!window_shown(&window), "nothing was ever shown");
@@ -519,7 +555,7 @@ mod rows {
 
     let presented = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, presented);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     let view = current_view_token(&window).expect("a view must be retained");
     let (view_id, answer) = controller
       .answer(&view, "yes")
@@ -527,7 +563,7 @@ mod rows {
 
     let outcome = backend.respond(now(), view_id, answer).await;
     let shift = controller.absorb(Exchanged::Answer, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Closed);
     assert!(!window_shown(&window));
@@ -545,7 +581,7 @@ mod rows {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Retained);
     assert!(!window_shown(&window));
@@ -574,7 +610,7 @@ mod rows {
     };
 
     let shift = controller.absorb(Exchanged::Answer, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Retained);
     assert!(!window_shown(&window));
@@ -598,7 +634,7 @@ mod rows {
 
     let presented = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, presented);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     let view = current_view_token(&window).expect("a view must be retained");
     let (view_id, answer) = controller
       .answer(&view, "yes")
@@ -606,7 +642,7 @@ mod rows {
 
     let outcome = backend.respond(now(), view_id, answer).await;
     let shift = controller.absorb(Exchanged::Answer, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Retained);
     assert!(window_shown(&window), "the prior presentation stays");
@@ -646,7 +682,7 @@ mod rows {
     };
 
     let shift = controller.absorb(Exchanged::Evaluation, outcome).shift;
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(shift, Shift::Replaced);
     assert!(window_shown(&window));
@@ -701,7 +737,7 @@ mod body_content {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(
       window.get_body(),
@@ -721,7 +757,7 @@ mod body_content {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(
       window.get_body(),
@@ -743,7 +779,7 @@ mod body_content {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
 
     assert_eq!(
       window.get_body(),
@@ -770,7 +806,7 @@ mod body_content {
 mod interaction {
   use goad::controller::{Controller, Ending, Exchanged, Shift, serve};
   use goad::glass::Glass;
-  use goad::wire::{Cancel, Command, Stimulus};
+  use goad::wire::{Cancel, Command, Notice, Stimulus};
   use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;
@@ -794,7 +830,7 @@ mod interaction {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(window_shown(&window), "the question must be on screen");
     assert!(in_prompt_mode(&window));
     assert_eq!(window.get_heading(), "Proceed?");
@@ -806,7 +842,7 @@ mod interaction {
       controller.absorb(Exchanged::Evaluation, cleared).shift,
       Shift::Retained
     );
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(
       window_shown(&window),
       "an evaluate returning view:null must not close an outstanding question"
@@ -830,7 +866,7 @@ mod interaction {
       controller.absorb(Exchanged::Answer, closing).shift,
       Shift::Closed
     );
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(
       !window_shown(&window),
       "a respond returning view:null must leave goad with no window (AC-6)"
@@ -848,7 +884,7 @@ mod interaction {
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     let view = current_view_token(&window).expect("a view must be retained");
 
     let (view_id, answer) = controller
@@ -859,7 +895,7 @@ mod interaction {
       controller.absorb(Exchanged::Answer, failing).shift,
       Shift::Retained
     );
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(
       window_shown(&window),
       "the window stays after a failed respond"
@@ -881,7 +917,7 @@ mod interaction {
       Shift::Closed,
       "the retry succeeds"
     );
-    glass.present(controller.frame());
+    glass.present(controller.frame(false));
     assert!(
       !window_shown(&window),
       "the retry's success finally closes the interaction"
@@ -918,6 +954,7 @@ mod interaction {
             controller,
             rx,
             cancel,
+            Notice::new(),
             stub_clock,
             glass,
             Ingress::none(),
@@ -971,7 +1008,7 @@ mod interaction {
     assert!(
       served
         .controller
-        .frame()
+        .frame(false)
         .diagnostics
         .lines()
         .iter()
@@ -1004,6 +1041,7 @@ mod interaction {
             controller,
             rx,
             cancel,
+            Notice::new(),
             stub_clock,
             glass,
             Ingress::none(),
@@ -1049,7 +1087,7 @@ mod interaction {
 /// and fail in production.
 mod serving {
   use goad::controller::{Controller, Ending, serve};
-  use goad::wire::{Cancel, Command, Stimulus};
+  use goad::wire::{Cancel, Command, Notice, Stimulus};
   use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
 
@@ -1075,6 +1113,7 @@ mod serving {
       controller,
       rx,
       Cancel::new(),
+      Notice::new(),
       stub_clock,
       glass,
       Ingress::none(),
@@ -1082,7 +1121,7 @@ mod serving {
     .await;
 
     assert_eq!(served.ending, Ending::Closed);
-    assert!(served.controller.frame().shown.is_some());
+    assert!(served.controller.frame(false).shown.is_some());
     assert_eq!(window.get_heading(), "Proceed?");
     assert!(in_prompt_mode(&window));
   }
@@ -1100,7 +1139,7 @@ mod cancellation {
   use std::time::{Duration, Instant};
 
   use goad::controller::{Controller, Ending, serve};
-  use goad::wire::{Cancel, Command, Stimulus};
+  use goad::wire::{Cancel, Command, Notice, Stimulus};
   use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;
@@ -1140,6 +1179,7 @@ mod cancellation {
             controller,
             rx,
             cancel,
+            Notice::new(),
             stub_clock,
             glass,
             Ingress::none(),
@@ -1196,6 +1236,7 @@ mod cancellation {
       controller,
       rx,
       cancel,
+      Notice::new(),
       stub_clock,
       glass,
       Ingress::none(),
@@ -1204,7 +1245,7 @@ mod cancellation {
 
     assert_eq!(served.ending, Ending::Stopped);
     assert!(
-      served.controller.frame().shown.is_none(),
+      served.controller.frame(false).shown.is_none(),
       "the queued command was never processed"
     );
     assert_eq!(invocations(&log), 0, "the backend was never contacted");
@@ -1237,6 +1278,7 @@ mod cancellation {
             controller,
             rx,
             cancel,
+            Notice::new(),
             stub_clock,
             glass,
             Ingress::none(),

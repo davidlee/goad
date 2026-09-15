@@ -301,7 +301,8 @@ pub fn next_check_line(at: Timestamp) -> String {
   finish(&format!("next check (instructed): {truncated}"), LINE_LIMIT)
 }
 
-/// The transient back-pressure line. `Wire::send` is its only writer
+/// The back-pressure line. `Wire::send` raises the signal that asks for it
+/// and `Glass::present` is the only thing that ever writes it to the window
 /// (design.md §5.3). Back-pressure, not a fault: it never enters
 /// `Diagnostics` and never touches the tray.
 pub const BUSY_NOTICE: &str = "still working on the last request — try again in a moment";
