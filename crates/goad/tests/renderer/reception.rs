@@ -640,6 +640,20 @@ fn every_refused_variant_renders_one_line_with_the_failure_prefix() {
     ]
   );
 
+  let unknown_field = Diagnostics::refused(&Refused::UnknownField);
+  assert_eq!(
+    unknown_field.lines().to_vec(),
+    vec![
+      "no action taken: the host could not match that control to a field of the option it names"
+        .to_owned()
+    ]
+  );
+  assert_ne!(
+    unknown_field.lines(),
+    unknown.lines(),
+    "the two selectors fail differently and a person must be able to tell which did"
+  );
+
   let no_clock = Diagnostics::refused(&Refused::NoClock {
     detail: "clock error".to_owned(),
   });
@@ -647,6 +661,22 @@ fn every_refused_variant_renders_one_line_with_the_failure_prefix() {
     no_clock.lines().to_vec(),
     vec![
       "no action taken: the system clock could not be read, so no request could be stamped (clock error)"
+        .to_owned()
+    ]
+  );
+
+  // The fifth variant, and the one this case's **name** has claimed since
+  // before it had four. `reason` is a wire token off `Refusal::reason()` and
+  // `detail` is the prose off its `Display`; this module holds neither
+  // vocabulary and renders both (`SPEC-003/R-15`).
+  let ingress = Diagnostics::refused(&Refused::Ingress {
+    reason: "too_soon".to_owned(),
+    detail: "the event spacing has not elapsed".to_owned(),
+  });
+  assert_eq!(
+    ingress.lines().to_vec(),
+    vec![
+      "no action taken: an event was refused (too_soon): the event spacing has not elapsed"
         .to_owned()
     ]
   );

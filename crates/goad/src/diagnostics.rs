@@ -58,6 +58,13 @@ pub enum Refused {
   /// The click named an option the retained presentation does not carry. A
   /// renderer bug rather than an answer: reported, never sent.
   UnknownOption,
+  /// The edit named an option the retained presentation carries and a field
+  /// that option does not declare. Distinguishable from `UnknownOption`
+  /// deliberately: the line says which of the two selectors failed. Only
+  /// reachable from a stale or malformed callback, and the same posture as
+  /// `UnknownOption` — reported, nothing recorded (`design.md` §5.5's edge
+  /// table).
+  UnknownField,
   /// The wall clock could not be read, so no request can be stamped.
   NoClock { detail: String },
   /// An event the host was offered was refused. Two **rendered** values —
@@ -152,6 +159,10 @@ impl Diagnostics {
       }
       Refused::UnknownOption => {
         "no action taken: the host could not match that control to the question it is holding"
+          .to_owned()
+      }
+      Refused::UnknownField => {
+        "no action taken: the host could not match that control to a field of the option it names"
           .to_owned()
       }
       Refused::NoClock { detail } => format!(

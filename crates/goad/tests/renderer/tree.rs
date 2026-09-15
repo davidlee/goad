@@ -22,6 +22,8 @@ use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode}
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ModelRc, SharedString, VecModel};
 
+use crate::harness::{field_described, within_option};
+
 type TestResult = Result<(), Box<dyn Error>>;
 
 /// The four selectors `edited` carries: view token, option id, field id and
@@ -90,7 +92,7 @@ fn one_option_with(blocks: Vec<FieldBlock>) -> Vec<OptionRow> {
 ///
 /// The description alone no longer picks one element. The option's field
 /// container answers to the same `option.id`, so that a field can be
-/// addressed by a query scoped to its option (`field_described` below), and
+/// addressed by a query scoped to its option (`harness::field_described`), and
 /// `find_first` would otherwise return whichever the walk reached first —
 /// declaration order, which nothing pins. The type filter is what keeps this
 /// helper's contract: a control, with a default action and an item index,
@@ -261,41 +263,6 @@ fn the_degradation_marker_is_present_only_when_the_body_is_degraded() -> TestRes
     "the marker must appear once the body is degraded"
   );
   Ok(())
-}
-
-/// Everything under the option that answers to `option.id` — the scope both
-/// field queries below start from. `ElementQuery` has no accessible-description
-/// matcher (`search_api.rs:232-287` lists its six builders), so the
-/// description is read through `ElementHandle::accessible_description` inside
-/// a predicate, which is the shape `element_described` already uses.
-///
-/// The option's control answers to `option.id` too, and is reached first; it
-/// has no field beneath it, so the walk continues to the container.
-fn within_option(window: &PromptWindow, option: &str) -> ElementQuery {
-  let option = option.to_string();
-  ElementQuery::from_root(window)
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(option.as_str())
-    })
-    .match_descendants()
-}
-
-/// A field's identity is **scoped, not composite**: the option's container
-/// carries `option.id` and the field's control carries `field.id`, so the
-/// query descends from the one to the other. `element_described`'s unscoped
-/// `find_first` does not carry over — an option id is unique within a view
-/// (R-14) but a field id only within an option (R-52), so an unscoped query
-/// would take whichever came first and report no ambiguity, which is exactly
-/// the case AC-4 exists to prove. Joining the two into one description was
-/// rejected: ids are backend-supplied strings whose characters no requirement
-/// constrains, so any separator can occur inside one (design.md §5.2).
-fn field_described(window: &PromptWindow, option: &str, field: &str) -> Option<ElementHandle> {
-  let field = field.to_string();
-  within_option(window, option)
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(field.as_str())
-    })
-    .find_first()
 }
 
 /// The option's field controls in tree order, depth-first pre-order —

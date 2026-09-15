@@ -11,8 +11,10 @@ use crate::controller::{Frame, Surface};
 use crate::diagnostics::{
   BUSY_NOTICE, Diagnostics, TrayState, next_check_line, report_platform, tooltip, tray_icon,
 };
-use crate::generated::{OptionRow, PromptWindow, Tray, WindowMode};
+use crate::draft::{Draft, Edited};
+use crate::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, Tray, WindowMode};
 use crate::reception::Prepared;
+use crate::view_model;
 use crate::view_model::Body;
 
 /// Total, and the only method: writing every property, every call, is the
@@ -135,8 +137,14 @@ fn styled(body: &Body) -> StyledText {
 }
 
 /// One `OptionRow` per retained option, carrying the presentation's
-/// `PresentationOption` and the view token the markup hands back on
-/// `chosen` (design.md §5.3, R-14, D10, D19).
+/// `PresentationOption`, the option's drawn fields, and the view token the
+/// markup hands back on `chosen` and on `edited` (design.md §5.3, R-14, D10,
+/// D19).
+///
+/// Every row is rebuilt from scratch on every present: nothing here is
+/// cached, so nothing has an invalidation rule to get wrong. That is what
+/// `Glass::present`'s totality buys, and it is what writes a dropped edit
+/// back off the screen.
 fn option_rows(prepared: &Prepared) -> Vec<OptionRow> {
   prepared
     .presentation
@@ -146,7 +154,60 @@ fn option_rows(prepared: &Prepared) -> Vec<OptionRow> {
       id: option.id.as_str().into(),
       label: option.label.as_str().into(),
       view: prepared.view_id.as_str().into(),
-      blocks: ModelRc::default(),
+      blocks: model(
+        option
+          .blocks
+          .iter()
+          .map(|block| field_block(&prepared.draft, option, block))
+          .collect(),
+      ),
     })
     .collect()
+}
+
+/// One generated `FieldBlock` from one `view_model::FieldBlock`, in declared
+/// order.
+///
+/// **The name is two types here, deliberately.** `design.md` §5.2 gives the
+/// Slint struct and the mapper's struct the same name, and this file is the
+/// one that holds both: generated types keep their bare names, as `OptionRow`
+/// does, and the mapper's is path-qualified at its use sites.
+///
+/// `heading: None` renders `""`, which the markup reads as an **untitled**
+/// block rather than a missing one — an ungrouped run is not drawn under a
+/// heading that does not claim it.
+fn field_block(
+  draft: &Draft,
+  option: &view_model::PresentationOption,
+  block: &view_model::FieldBlock,
+) -> FieldBlock {
+  FieldBlock {
+    heading: block.heading.as_deref().unwrap_or_default().into(),
+    fields: model(
+      block
+        .fields
+        .iter()
+        .map(|field| {
+          // A **lookup**, never stored in the row model as truth: the draft
+          // is the authority and this is its projection for one present. The
+          // irrefutable `let` is load-bearing — a second `Edited` variant
+          // makes it a compile error here, which is where the decision about
+          // what a checkbox row shows for a non-boolean value belongs.
+          let Edited::Checked(checked) = draft.state_of(&option.id, &field.id);
+          FieldRow {
+            option: option.id.as_str().into(),
+            id: field.id.as_str().into(),
+            label: field.label.as_str().into(),
+            checked,
+          }
+        })
+        .collect(),
+    ),
+  }
+}
+
+/// A `Vec` as the model the generated array member takes. Named once because
+/// the row builders above nest two levels of it.
+fn model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> {
+  ModelRc::new(VecModel::from(items))
 }

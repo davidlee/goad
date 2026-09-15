@@ -13,6 +13,8 @@ use serde_json::Value;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, watch};
 
+use crate::draft::Edited;
+
 /// What a person did. There is deliberately **no** `Shutdown` variant:
 /// stopping is a decision, not a queue position, and it travels out of band
 /// (design.md §5.4, F-4).
@@ -26,6 +28,18 @@ pub enum Command {
   Choose {
     view: String,
     option: String,
+  },
+  /// What the person did to one field. `Choose`'s shape with one more
+  /// selector and a value: three opaque strings matched against retained
+  /// state and never parsed back, and an `Edited` whose meaning belongs to
+  /// `draft.rs`. This module depends on that one and not the reverse — a
+  /// value's meaning belongs with what stores it, not with what carries it
+  /// (`design.md` §5.2).
+  Edit {
+    view: String,
+    option: String,
+    field: String,
+    value: Edited,
   },
   OpenDiagnostics,
   CloseDiagnostics,

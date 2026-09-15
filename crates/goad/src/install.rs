@@ -7,11 +7,12 @@
 
 use slint::{CloseRequestResponse, ComponentHandle};
 
+use crate::draft::Edited;
 use crate::generated::{PromptWindow, Tray};
 use crate::wire::{Command, Stimulus, Wire};
 
-/// One function, six installations, each owning its own `Wire` clone and
-/// nothing else. Six distinct binding names rather than six
+/// One function, seven installations, each owning its own `Wire` clone and
+/// nothing else. Seven distinct binding names rather than seven
 /// `let wire = wire.clone();` — the reason is readability, not the lint
 /// table: naming each clone after the callback it feeds says which
 /// callback owns which handle (design.md §5.4).
@@ -21,6 +22,20 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
     chosen.send(Command::Choose {
       view: view.into(),
       option: option.into(),
+    });
+  });
+
+  // The widget has already flipped itself, so `checked` is what the person
+  // now sees; the draft is what decides what they will see after the next
+  // present. A dropped send is therefore visibly undone rather than silently
+  // divergent (design.md §5.4).
+  let editing = wire.clone();
+  window.on_edited(move |view, option, field, checked| {
+    editing.send(Command::Edit {
+      view: view.into(),
+      option: option.into(),
+      field: field.into(),
+      value: Edited::Checked(checked),
     });
   });
 

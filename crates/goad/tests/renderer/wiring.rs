@@ -4,7 +4,10 @@
 //! and PHASE-07 built them with no `serve` and no loop. PHASE-10 adds item
 //! 11a-d and 11h (the reducer's seven rows and the one production `serve`,
 //! `mod rows`/`interaction`/`serving`) and item 14a-d (cancellation,
-//! `mod cancellation`) — the surfaces that need `serve` to exist.
+//! `mod cancellation`) — the surfaces that need `serve` to exist. Slice 007
+//! PHASE-04 adds `mod editing`: the edit path end to end, from a refusal made
+//! against retained state to a value on the answer, and the only module here
+//! whose fixtures carry fields.
 //!
 //! `#[cfg(test)]` on the declaration, not on the file, for the same reason
 //! every other module here carries it (`clippy::tests_outside_test_module`).
@@ -20,7 +23,7 @@ use tokio::sync::mpsc;
 
 use crate::driving::{host, quiet_event};
 use crate::harness::{
-  TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
+  TIMEOUT, current_view_token, field_described, glass_over, now, stub_clock, until, window_and_tray,
 };
 use crate::scripting::{invocations, scripted};
 use crate::waiting::LIVENESS_BOUND;
@@ -59,9 +62,20 @@ fn nothing_to_report_shown(window: &PromptWindow) -> bool {
     .is_some()
 }
 
+/// Whether an option's **control** is enabled, by the identity the tests
+/// select on.
+///
+/// The type filter is not decoration. An option that carries fields also
+/// carries a field container answering to the same `option.id`, and an
+/// unscoped `find_first` would take whichever the walk reached first —
+/// declaration order, which nothing pins. A `groupbox` declares no
+/// `accessible-enabled`, so the wrong element answers `None`, which reads
+/// like a missing property and is not one. `tree.rs`'s `element_described`
+/// took the same filter for the same reason.
 fn accessible_enabled_of(window: &PromptWindow, description: &str) -> Option<bool> {
   let description = description.to_owned();
   ElementQuery::from_root(window)
+    .match_inherits("Button")
     .match_predicate(move |element| {
       element.accessible_description().as_deref() == Some(description.as_str())
     })
@@ -1102,6 +1116,436 @@ mod interaction {
       !window_shown(&window),
       "the answered click closed the interaction"
     );
+  }
+}
+
+/// PHASE-04. The draft is retained, the screen is written back from it every
+/// present, and `answer()` submits a value for every drawn field of the
+/// option it names and none for any other.
+mod editing {
+  use goad::controller::{Controller, Ending, Exchanged, serve};
+  use goad::draft::Edited;
+  use goad::generated::PromptWindow;
+  use goad::glass::Glass;
+  use goad::wire::{Cancel, Command, Notice, Stimulus};
+  use goad_semantics::protocol::canonical::{FieldId, UserResponse};
+  use goad_shell::ingress::Ingress;
+  use slint::{ComponentHandle, Model};
+  use tokio::sync::mpsc;
+  use tokio::task::LocalSet;
+
+  use super::{
+    LIVENESS_BOUND, Refused, TIMEOUT, current_view_token, field_described, glass_over, host,
+    invocations, now, quiet_event, scripted, stub_clock, until, window_and_tray,
+  };
+
+  /// A two-option form. Both options carry drawn fields and **share a field
+  /// id**: R-52 scopes a field id to its option, and the protocol fixtures
+  /// two options sharing one as legal, which is what gives R-58's "nor a
+  /// field of an option it is not answering" clause something to be false of.
+  ///
+  /// `morning` also carries a `text` field, which this renderer does not
+  /// draw. R-58 says the response is silent about such a field rather than
+  /// carrying a default for it, so its absence from `values` is an assertion
+  /// and not an oversight.
+  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"text","label":"Anything to add?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
+
+  /// One option, five fields, two blocks: two under a heading the backend
+  /// authored, then three carrying no `group` at all — an **untitled** block,
+  /// not a missing one. Five and not two so that "in declared order" has more
+  /// than one way to be wrong.
+  const TWO_BLOCKS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"only","label":"Only","fields":[{"id":"one","kind":"boolean","label":"One","group":"Before you go"},{"id":"two","kind":"boolean","label":"Two","group":"Before you go"},{"id":"three","kind":"boolean","label":"Three"},{"id":"four","kind":"boolean","label":"Four"},{"id":"five","kind":"boolean","label":"Five"}]}]},"next_check":"45 minutes"}"#;
+
+  /// A controller holding `document`, and the view token the markup hands
+  /// back on a callback. The view travels through the real backend, the real
+  /// normalizer and the real fold, so the blocks under test are the mapper's
+  /// own output and not a literal a test assembled.
+  async fn retaining(case: &str, document: &str) -> (Controller, String) {
+    let (command, _log) = scripted(case, &[document]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    let view = controller
+      .frame(false)
+      .shown
+      .expect("the fixture must retain a view")
+      .view_id
+      .as_str()
+      .to_owned();
+    (controller, view)
+  }
+
+  /// The submitted keys. `values` is a `BTreeMap`, so this is its own
+  /// iteration order rather than a re-sort — which is also why an expected
+  /// list here is written sorted and says nothing about declared order.
+  fn submitted_keys(answer: &UserResponse) -> Vec<&str> {
+    answer.values.keys().map(FieldId::as_str).collect()
+  }
+
+  fn submitted_value<'a>(answer: &'a UserResponse, field: &str) -> Option<&'a serde_json::Value> {
+    answer
+      .values
+      .iter()
+      .find(|(id, _)| id.as_str() == field)
+      .map(|(_, value)| value)
+  }
+
+  /// The row model's blocks for one option row: each block's heading and its
+  /// field ids, in model order. This is `option_rows`'s own output read back
+  /// off the window — the value the markup's two `for`s walk — and not a
+  /// second derivation of it.
+  fn blocks_of_row(window: &PromptWindow, row: usize) -> Vec<(String, Vec<String>)> {
+    window
+      .get_options()
+      .row_data(row)
+      .expect("the row must be in the model")
+      .blocks
+      .iter()
+      .map(|block| {
+        (
+          block.heading.to_string(),
+          block
+            .fields
+            .iter()
+            .map(|field| field.id.to_string())
+            .collect(),
+        )
+      })
+      .collect()
+  }
+
+  /// Every case below reads a control off a **shown** window, and a shown
+  /// window clips: `ElementQuery` skips anything outside the nearest clipping
+  /// ancestor's rect. Left at its preferred size the window fits one control
+  /// and a form of several is unreachable — the helper answers `None`, which
+  /// reads like a missing element and is not one. `mod busy`'s
+  /// `with_room_for_every_control` is the precedent and PHASE-02's F-6 the
+  /// measurement.
+  ///
+  /// Sizing the viewport states what the test can see. It is **not** a claim
+  /// about what the window should be: the product's own size is AC-10's and
+  /// slice 008's, and F-6 stays open regardless of this line.
+  fn with_room_for_the_form(window: &PromptWindow) {
+    ComponentHandle::window(window).set_size(slint::PhysicalSize::new(600, 600));
+  }
+
+  /// VT-1 — every selector `edit` refuses on, and the refusal each one
+  /// earns. Two selectors can fail for reasons that look alike from the
+  /// outside, so the case asserts which of the three failed, not merely that
+  /// something did.
+  #[tokio::test]
+  async fn an_edit_is_refused_by_each_selector_that_fails_and_records_nothing() {
+    let (mut controller, view) = retaining("edit-refusals", TWO_FORMS).await;
+
+    assert_eq!(
+      controller.edit(
+        "a-token-from-a-replaced-view",
+        "morning",
+        "read",
+        Edited::Checked(true)
+      ),
+      Err(Refused::SupersededView),
+      "identity is checked first, and a stale token is refused for the reason true of it"
+    );
+    assert_eq!(
+      controller.edit(&view, "not-an-option", "read", Edited::Checked(true)),
+      Err(Refused::UnknownOption)
+    );
+    assert_eq!(
+      controller.edit(&view, "morning", "not-a-field", Edited::Checked(true)),
+      Err(Refused::UnknownField)
+    );
+    assert_eq!(
+      controller.edit(&view, "morning", "tidied", Edited::Checked(true)),
+      Err(Refused::UnknownField),
+      "a field the *other* option declares is not this one's: R-52 scopes a field id to its option"
+    );
+    assert_eq!(
+      controller.edit(&view, "morning", "noted", Edited::Checked(true)),
+      Err(Refused::UnknownField),
+      "an undrawn field never entered a block, so the walk that admits an edit and the walk \
+       that submits a value are the same walk"
+    );
+
+    let (_, answer) = controller
+      .answer(&view, "morning")
+      .expect("the option still answers");
+    assert!(
+      answer
+        .values
+        .values()
+        .all(|value| value == &serde_json::Value::Bool(false)),
+      "not one of the five refusals recorded anything: {:?}",
+      answer.values
+    );
+
+    let mut nothing_retained = Controller::new();
+    assert_eq!(
+      nothing_retained.edit(&view, "morning", "read", Edited::Checked(true)),
+      Err(Refused::SupersededView),
+      "with nothing retained the view is superseded, not the option unknown — there is no \
+       presentation for an option to be missing from"
+    );
+  }
+
+  /// VT-2 — one edit, then the answer it qualifies. R-35 and P-3 in one
+  /// case: a half-filled form goes out as it stands, carrying the drawn
+  /// value for the field nobody touched, and the host fills no gap on the
+  /// person's behalf.
+  #[tokio::test]
+  async fn an_answer_carries_a_value_for_every_drawn_field_of_the_option_it_names() {
+    let (mut controller, view) = retaining("edit-recorded", TWO_FORMS).await;
+
+    controller
+      .edit(&view, "morning", "read", Edited::Checked(true))
+      .expect("a field the option declares records");
+
+    let (_, answer) = controller
+      .answer(&view, "morning")
+      .expect("the edited option answers");
+    assert_eq!(submitted_keys(&answer), vec!["read", "stretched"]);
+    assert_eq!(
+      submitted_value(&answer, "read"),
+      Some(&serde_json::Value::Bool(true))
+    );
+    assert_eq!(
+      submitted_value(&answer, "stretched"),
+      Some(&serde_json::Value::Bool(false)),
+      "the untouched field carries the value it was drawn with, not an absence"
+    );
+  }
+
+  /// VT-3 — **AC-8, and `canon-delta.md`'s R-58 in one case.** Two options,
+  /// each carrying fields and sharing the field id `read`. Answering
+  /// `morning` carries exactly the fields drawn of `morning`: not `evening`'s
+  /// `tidied`, and not `noted`, which was reported undrawn. The shared id is
+  /// two independent keys, which is the half a single-option fixture cannot
+  /// reach. This is the test SPEC-001 §7's new R-58 row will name.
+  ///
+  /// **It asserts at `answer()`, and that is the vehicle the design names for
+  /// R-58** (`design.md` §9, AC-8) — not AC-1's, which reads `values` off the
+  /// wire and belongs to a later phase. What keeps this from being the proxy
+  /// §9's closing paragraph warns about is `stretched`: a walk over the
+  /// *draft's* keys cannot produce a key for a field nobody touched, so the
+  /// expected list below is one D6 fails rather than one it also satisfies.
+  #[tokio::test]
+  async fn an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field() {
+    let (mut controller, view) = retaining("r58", TWO_FORMS).await;
+    assert!(
+      controller
+        .frame(false)
+        .diagnostics
+        .lines()
+        .iter()
+        .any(|line| line.contains("not drawn: option morning field noted")),
+      "the fixture must actually carry an undrawn field for its absence below to mean anything"
+    );
+
+    controller
+      .edit(&view, "morning", "read", Edited::Checked(true))
+      .expect("morning declares `read`");
+    controller
+      .edit(&view, "evening", "tidied", Edited::Checked(true))
+      .expect("evening declares `tidied`");
+
+    let (_, morning) = controller
+      .answer(&view, "morning")
+      .expect("morning answers");
+    assert_eq!(
+      submitted_keys(&morning),
+      vec!["read", "stretched"],
+      "exactly morning's drawn fields: `tidied` is another option's and `noted` was not drawn"
+    );
+    assert_eq!(
+      submitted_value(&morning, "read"),
+      Some(&serde_json::Value::Bool(true))
+    );
+
+    let (_, evening) = controller
+      .answer(&view, "evening")
+      .expect("evening answers");
+    assert_eq!(submitted_keys(&evening), vec!["read", "tidied"]);
+    assert_eq!(
+      submitted_value(&evening, "read"),
+      Some(&serde_json::Value::Bool(false)),
+      "the shared id under a different option is a different key: morning's tick is not this one"
+    );
+    assert_eq!(
+      submitted_value(&evening, "tidied"),
+      Some(&serde_json::Value::Bool(true))
+    );
+  }
+
+  /// VT-5 — the screen is written back from the draft on the next present.
+  /// Read off a shown window's element tree by the option-scoped query, which
+  /// is the screen and not the row model: a `checked` that never reached a
+  /// control would pass a model assertion.
+  ///
+  /// Both options are read, because the shared field id is the case an
+  /// unscoped query answers wrongly while reporting no ambiguity.
+  #[tokio::test]
+  async fn the_next_present_writes_every_control_back_from_the_draft() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    with_room_for_the_form(&window);
+    let (mut controller, view) = retaining("screen-from-draft", TWO_FORMS).await;
+
+    controller
+      .edit(&view, "morning", "read", Edited::Checked(true))
+      .expect("morning declares `read`");
+    glass.present(controller.frame(false));
+
+    for (option, field, expected) in [
+      ("morning", "read", true),
+      ("morning", "stretched", false),
+      ("evening", "read", false),
+      ("evening", "tidied", false),
+    ] {
+      let control = field_described(&window, option, field)
+        .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"));
+      assert_eq!(
+        control.accessible_checked(),
+        Some(expected),
+        "{option}/{field} must read the draft's value"
+      );
+    }
+  }
+
+  /// VT-7 — **AC-2's middle link.** `option_rows` is the only host code that
+  /// puts a backend's declared order and its headings into the row model;
+  /// PHASE-03/VT-3 verifies `View → present()` and PHASE-02/VT-4 verifies
+  /// `row model → screen`, and without this the link between them is
+  /// verified by nothing.
+  #[tokio::test]
+  async fn the_row_model_carries_the_blocks_and_their_fields_in_declared_order() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    let (controller, _view) = retaining("blocks", TWO_BLOCKS).await;
+
+    glass.present(controller.frame(false));
+
+    assert_eq!(
+      blocks_of_row(&window, 0),
+      vec![
+        (
+          "Before you go".to_owned(),
+          vec!["one".to_owned(), "two".to_owned()]
+        ),
+        (
+          String::new(),
+          vec!["three".to_owned(), "four".to_owned(), "five".to_owned()]
+        ),
+      ],
+      "two blocks in declared order, each carrying its fields in declared order; the second \
+       renders `heading: None` as \"\", which the markup reads as untitled rather than missing"
+    );
+  }
+
+  /// VT-4 — an `Edit` through the real channel and the production loop.
+  ///
+  /// Success is a **non**-event: there is nothing to exchange, so `dispatch`
+  /// answers `None`, the loop continues to the top and presents, and the
+  /// backend is never contacted. A refusal takes the single existing refusal
+  /// site — the path `Choose` already uses — so the line reaches a person
+  /// with no new reporting path added.
+  #[tokio::test]
+  async fn an_edit_starts_no_exchange_and_a_refused_one_reports_where_a_refused_click_does() {
+    let (window, tray) = window_and_tray();
+    let glass = glass_over(&window, &tray);
+    let (command, log) = scripted("edit-through-serve", &[TWO_FORMS]);
+    let backend = host(command, TIMEOUT, now());
+    let controller = Controller::new();
+    let (tx, rx) = mpsc::channel::<Command>(2);
+    let cancel = Cancel::new();
+    let stopper = cancel.clone();
+
+    let local = LocalSet::new();
+    let served = local
+      .run_until(async {
+        let handle = tokio::task::spawn_local(async move {
+          serve(
+            backend,
+            controller,
+            rx,
+            cancel,
+            Notice::new(),
+            stub_clock,
+            glass,
+            Ingress::none(),
+          )
+          .await
+        });
+
+        tx.send(Command::Evaluate(Stimulus::Requested))
+          .await
+          .expect("the channel must accept the first send");
+        until(LIVENESS_BOUND, || window.get_heading() == "Proceed?").await;
+        let view = current_view_token(&window).expect("the form must be on screen");
+
+        tx.send(Command::Edit {
+          view: view.clone(),
+          option: "morning".to_owned(),
+          field: "read".to_owned(),
+          value: Edited::Checked(true),
+        })
+        .await
+        .expect("the channel must accept the edit");
+        until(LIVENESS_BOUND, || {
+          blocks_of_row(&window, 0)
+            .iter()
+            .any(|(_, fields)| fields.contains(&"read".to_owned()))
+            && checked_in_row_model(&window, "read")
+        })
+        .await;
+
+        tx.send(Command::Edit {
+          view,
+          option: "morning".to_owned(),
+          field: "not-a-field".to_owned(),
+          value: Edited::Checked(true),
+        })
+        .await
+        .expect("the channel must accept the refused edit");
+        until(LIVENESS_BOUND, || {
+          tray.get_hover_text().contains("to a field of the option")
+        })
+        .await;
+
+        stopper.stop();
+        handle.await.expect("serve must not panic")
+      })
+      .await;
+
+    assert_eq!(served.ending, Ending::Stopped);
+    assert_eq!(
+      invocations(&log),
+      1,
+      "neither the recorded edit nor the refused one is an exchange: only the evaluate ran"
+    );
+    assert!(
+      served
+        .controller
+        .frame(false)
+        .diagnostics
+        .lines()
+        .iter()
+        .any(|line| line.contains("could not match that control to a field of the option it names")),
+      "the refusal must be the one that says which of the two selectors failed"
+    );
+  }
+
+  /// `read`'s value in the first option row's model, as the markup's inner
+  /// `for` would read it.
+  fn checked_in_row_model(window: &PromptWindow, field: &str) -> bool {
+    window
+      .get_options()
+      .row_data(0)
+      .into_iter()
+      .flat_map(|row| row.blocks.iter().collect::<Vec<_>>())
+      .flat_map(|block| block.fields.iter().collect::<Vec<_>>())
+      .any(|row| row.id == field && row.checked)
   }
 }
 

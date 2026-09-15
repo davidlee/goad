@@ -81,19 +81,6 @@ impl Draft {
 /// canonical `FieldKind` and must sort the new kind into drawn or
 /// `Undrawn::FieldForm`. What this match guards is the *host* growing a drawn
 /// kind without deciding what it submits.
-#[cfg_attr(
-  not(test),
-  expect(
-    dead_code,
-    reason = "PHASE-04 calls this from `controller.rs::answer`. A type that \
-              lands one phase before its caller is the transient case \
-              `Cargo.toml` names where it holds `dead_code` at `warn` rather \
-              than `deny`; the attribute is scoped to `not(test)` because the \
-              unit tests below are already a caller. Self-clearing: \
-              `unfulfilled_lint_expectations` fails the gate the moment \
-              `controller.rs` calls it."
-  )
-)]
 pub(crate) fn submitted(edited: &Edited) -> serde_json::Value {
   match edited {
     Edited::Checked(value) => serde_json::Value::Bool(*value),

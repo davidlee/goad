@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 — the notice gets an owner | done | 2026-09-15 |
 | PHASE-02 — the window draws a form | done | 2026-09-15 |
 | PHASE-03 — the mapper and the draft | done | 2026-09-15 |
-| PHASE-04 — the draft is retained, and the answer carries it | pending | |
+| PHASE-04 — the draft is retained, and the answer carries it | done | 2026-09-15 |
 | PHASE-05 — the form on the wire | pending | |
 | PHASE-06 — the demo, and the look | pending | |
 
@@ -989,12 +989,421 @@ STOP, per `plan.md:104-152`. Live for this phase:
   in place; recorded because the **class** keeps recurring and this is the third
   phase in a row to hit it.
 
+### PHASE-04 — the draft is retained, and the answer carries it
+
+**Objective:** an edit travels from the window to retained state, the screen is
+written back from it every present, and `answer()` submits a value for every
+drawn field of the answered option and none for any other (`plan.md:581-583`).
+
+**Criterion ids, re-derived from `plan.md` — T-0 below, and re-derived a second
+time by a different method, because `plan.md`'s own Overview singles this phase
+out (`:42-45`).** `plan.md:579-712`, PHASE-04 entire:
+
+| kind | ids | count |
+|---|---|---|
+| entry | EN-1 | 1 |
+| exit | EX-1 … EX-10 | 10 |
+| verification (test) | VT-1 … VT-7 | 7 |
+| verification (agent) | VA-1, VA-2 | 2 |
+
+**Pass 1** — every `^- <ID> —` bullet in the phase, in order: `EN-1`, `EX-1 …
+EX-10`, `VT-1 … VT-7`, `VA-1`, `VA-2`. Contiguous from 1 in each kind, no gap
+and no duplicate. **Pass 2** — the same bullets bucketed by the `**Entry**` /
+`**Exit**` / `**Verification**` heading each falls under, counted independently:
+entry 1, exit 10, verification 9 (7 VT + 2 VA). The two passes agree, which is
+what the doubling is for.
+
+**Cross-references.** Outward, PHASE-04 cites `PHASE-02/VT-4` and
+`PHASE-03/VT-3`; both resolve (`plan.md:406`, `:521`). Inward, Coverage cites
+`PHASE-04/VT-3` (AC-8), `VT-7` (AC-2), `VA-1` (AC-6), `VT-6` (AC-6's exclusion)
+and `04/EX-10` (AC-9); all five exist. The counts the phase's prose asserts:
+EX-5's **seventh** installation (`install.rs` has six today — counted:
+`chosen`, `closing`, `quitting`, `checking`, `showing`, `stopping`); EX-9's
+**fourth** case in `every_refused_variant_renders_one_line_with_the_failure_prefix`
+(it has three today — counted: `SupersededView`, `UnknownOption`, `NoClock`);
+S-2's **third** allowance (S-2 lists four, and PHASE-04's `reception.rs`
+extension is the third of them in declaration order). All three hold as counts.
+**One of them rests on a false premise — F-1 below.** The re-derivation is the
+rule at `plan.md:36-45`; `review-plan.md` F-7 is why it exists.
+
+**Reading list**
+
+- `docs/slices/007/plan.md:579-712` — PHASE-04 whole, including *Notes for the
+  implementer*; `:102-142` — S-1..S-9; `:36-45` — the re-derivation rule;
+  `:85-88` — why 04 is after 02 and 03 and before 05.
+- `docs/slices/007/design.md:363-654` (§5.2 — the controller, the command, the
+  diagnostic lines, the draft, the retained value, and the two `FieldBlock`s),
+  `:654-760` (§5.3 — state and ownership; the draft's whole lifetime is
+  `absorb`'s three existing arms, and I-4's named rule), `:760-901` (§5.4 —
+  lifecycle, the model-reset mechanism §5.4 rests on, and why no guard against a
+  racing edit is owed), `:901-981` (§5.5 — I-4, I-5, the edge table).
+- `docs/slices/007/canon-delta.md` — R-58, which VT-3 is the vehicle for.
+- `docs/slices/007/slice-007.md:46-` §Scope; AC-2, AC-5, AC-6, AC-8.
+- The code: `controller.rs:211-230` (`answer`, and `values` at `:227`),
+  `:543-574` (`dispatch`), `:693-713` (the single refusal site),
+  `reception.rs:25-28` (`Prepared`), `:50-89` (`receive`), `wire.rs:16-32`
+  (`Command`), `install.rs` (one clone per callback), `glass.rs:276-288`
+  (`option_rows`, and `blocks: ModelRc::default()` at `:285`), `draft.rs`
+  entire, `diagnostics.rs:47-68` (`Refused`) and `:143-168`
+  (`Diagnostics::refused`), `tests/renderer/wiring.rs:62-70`
+  (`accessible_enabled_of` — F-4 of PHASE-02) and `:829-1106` (`mod
+  interaction`), `tests/renderer/tree.rs:274-310` (`within_option`,
+  `field_described`, `fields_in_option`), `:453-455`
+  (`with_room_for_every_control`, in `wiring.rs`).
+
+**Assumptions**
+
+- **A-a — a two-option view whose options each carry drawn fields normalizes.**
+  `mapper.rs`'s field cases all use a *one*-option fixture
+  (`one_option_with_fields`), so the two-option-with-fields document VT-3 needs
+  has never been parsed in this workspace. Cheap to falsify; falsified early.
+- **A-b — `Prepared` gaining a defaulted field is invisible to every existing
+  case.** `receive` is its only constructor and no test builds one by literal.
+  VA-1 is the check.
+- **A-c — `submitted`'s `cfg_attr(not(test), expect(dead_code))` self-clears the
+  moment `controller.rs` calls it**, and the gate says so via
+  `unfulfilled_lint_expectations`. Removing the attribute is part of EX-3.
+
+**STOP conditions** — `plan.md:102-142`, S-1..S-9 entire. The three live ones
+for this phase:
+
+- **S-1** — wanting an iterator over `Draft`. Its absence is load-bearing
+  (`design.md` §5.2, PHASE-03's Harvest entry); `answer()` walks the answered
+  option's **blocks**. Wanting to walk the draft is a design issue, not a local
+  repair.
+- **S-2** — any changed assertion or fixture in `table.rs`, `wiring.rs`,
+  `scheduling.rs` or `ingress.rs`. `reception.rs` is the one allowance (EX-9),
+  and it is an *extension*, not an alteration.
+- **S-4** — anything under `crates/goad-semantics/`. The named temptation is
+  `Ord` on `OptionId`; `Draft` is shaped so it is not needed.
+
+Also S-6 (the draft entering `Presentation`) and S-9 (`present` acquiring a
+write-only-on-change path): **no instrument in the gate reaches either**, nor
+EX-7 or VA-2. They are discharged by reading, and T-13 says so.
+
+**Tasks**
+
+- [x] T-0 — re-derive the criterion ids from `plan.md`, twice, by two methods.
+      Table above. The two passes agree; all seven cross-references resolve;
+      all three prose counts hold as counts, and **one of them rests on a false
+      premise (F-1)**.
+- [x] T-1 — EN-1. **`just check` exit 0 on the unmodified tree at `246ed93`,
+      525 tests across 21 binaries**, clippy `-D warnings` clean, `cargo fmt
+      --all --check` clean, `deno check` clean. PHASE-02's and PHASE-03's exit
+      criteria spot-checked in the **code** rather than read off their sheets:
+      `app.slint:7-11` (the three structs) and `:33` (`edited`) and `:72-101`
+      (the guarded container, PHASE-02 EX-2/EX-3/EX-4); `tree.rs:274-310`
+      (`within_option`, `field_described`, `fields_in_option`, EX-6) and
+      `:98-106` (`element_described`'s type filter, EX-7); `draft.rs` entire
+      (PHASE-03 EX-1); `view_model.rs:47-115` (`FieldBlock`,
+      `PresentationField`, `PresentationOption.blocks`, `Undrawn::FieldForm`
+      and `GroupHint`, EX-3); `diagnostics.rs:191-210` (the two lines, EX-5).
+- [x] T-2 — EX-1: `Prepared.draft`, defaulted in `receive`, which stays its only
+      constructor. `absorb`'s three `Shift` arms took **no change at all**, as
+      the criterion predicted. `Prepared` is built by literal nowhere else
+      (grep).
+- [x] T-3 — EX-8 + EX-9 + VT-6: `Refused::UnknownField`, its line verbatim from
+      `design.md` §5.2, and the fourth case in `reception.rs`. The exhaustive
+      match with no `_` made the line a compile error rather than an omission,
+      which is the design's reason for `Refused` living in `diagnostics.rs`.
+      **EX-9's stated warrant does not hold — F-1** — and the change is right
+      anyway.
+- [x] T-15 — **a fifth case: `Refused::Ingress`.** Beyond EX-9's letter and
+      inside its intent; referred up and approved. The case's *name* claims
+      every variant and had claimed it falsely since before this slice opened.
+      Now mechanically true and cheap to re-check: `Refused` declares **five**
+      variants and the case constructs **five**. Controlled — C-11.
+- [x] T-4 — EX-2 + VT-1: `Controller::edit`. **The refusals turned out to be
+      structurally forced, not chosen — D-1.** Five cases in VT-1, three
+      refusal kinds, and the assertion that nothing was recorded by any of
+      them.
+- [x] T-5 — EX-3 + VT-2 + VT-3: `answer()` walks the answered option's blocks.
+      `submitted`'s `cfg_attr(not(test), expect(dead_code))` removed in the same
+      edit; the gate would have failed on `unfulfilled_lint_expectations`
+      otherwise, exactly as its own reason said it would.
+- [x] T-6 — EX-4 + VT-4: `Command::Edit` in `wire.rs` (`Eq` survived the
+      derive), and `dispatch`'s arm — `.err().map(Err)`, which is `None` on
+      success and `Some(Err(..))` on refusal in one expression. VT-4 drives it
+      through the real channel and the production `serve`.
+- [x] T-7 — EX-5: `install.rs`'s seventh installation, `editing`, and the
+      module doc's "six" with it.
+- [x] T-8 — EX-6 + VT-7 + VT-5: `option_rows` builds real blocks through
+      `field_block`. `FieldBlock` names two types in that file and both keep
+      their names (D-2). `present` stays total — no conditional write was
+      added; T-13 records the read.
+- [x] T-9 — PHASE-02's F-4, repaired: `accessible_enabled_of` gains
+      `match_inherits("Button")`, the same filter EX-7 gave `element_described`
+      and for the same reason. Its doc now says why. **`field_described` and
+      `within_option` were lifted to `harness.rs` rather than copied into
+      `wiring.rs` — D-3, an undeclared surface, referred up.**
+- [x] T-10 — negative controls. **All six cases arrived green**, so each was
+      controlled rather than believed. Ten controls, recorded below; every one
+      reddened the cases it should and left the rest green, and all ten were
+      reverted from a backup rather than by `git`.
+- [x] T-11 — refactor. `selected` and `drawn_fields` factored out of `answer`
+      and `edit` so the two refusals and the R-58 walk each have **one**
+      statement; `model()` named in `glass.rs` so the two nested `ModelRc`
+      constructions do not repeat; `edit`'s key cloned into named bindings
+      rather than a positional tuple.
+- [x] T-12 — the prose sweep. Four live homes of claims this phase falsifies,
+      found by reading the files being changed. Listed under **The sweep**
+      below.
+- [x] T-13 — EX-7, S-6, S-9, VA-1, VA-2, and `design.md` §8 — **discharged by
+      reading**, each with what was read. Under **Read, not run** below.
+- [x] T-14 — EX-10: **`just check` exit 0. 531 tests across 21 binaries**, from
+      525. Clippy `-D warnings` clean, `cargo fmt --all --check` clean, the
+      example typecheck clean. Six new cases; the `reception.rs` fourth case
+      extends an existing test and adds no count.
+
+**The sweep** — homes of a claim this phase falsifies. Each found by reading a
+file being changed, and none of them by grepping for the repaired wording.
+
+1. `install.rs:14` — "six installations", now seven. The criterion named this
+   one.
+2. `controller.rs:110-115` — `Controller`'s doc enumerated the complete
+   retained state and did not include the draft, which now sits inside
+   `Prepared`. **No criterion names it**, and the compiler does not reach a
+   doc-comment.
+3. `controller.rs:615` — `dispatch`'s doc: *"The two diagnostics commands are
+   done here and now and produce no exchange; the other two…"*. `Command` now
+   has five variants and three of them produce no exchange. A count and a
+   partition, both stale from one added variant.
+4. `controller.rs:798` — the refusal site's comment scoped `refusal_re_arms`
+   being `false` by construction to `Command::Choose`; it is equally true of
+   `Command::Edit`, and leaving it unsaid would make the next reader re-derive
+   it.
+5. `tree.rs:95` — `element_described`'s doc said "(`field_described` below)".
+   It is no longer below; it is `harness::field_described`.
+6. `harness.rs:1-12` — the module doc named a **closed list** of case files
+   (`wiring.rs`/`table.rs`/`scheduling.rs`) that the file's own rule does not
+   imply; `tree.rs` became a caller. Rewritten to state the rule rather than
+   an enumeration of who currently satisfies it — PHASE-01's F-5 and PHASE-02's
+   T-9 the third and fourth times.
+7. `wiring.rs:1-12` — the module doc enumerates which validation items the file
+   claims; `mod editing` was not in it.
+
+**The controls** — every case arrived green, so which kind of claim each makes
+was asked first (PHASE-03's D-3). Three of the six make a claim the default
+supplies in part, and those parts are named as unreachable rather than
+controlled.
+
+| # | the mutation | red | green |
+|---|---|---|---|
+| C-1 | `selected` drops the view-token check | VT-1 | the other five |
+| C-2 | `edit` refuses `UnknownOption` where it should refuse `UnknownField` | VT-1, VT-4 | four |
+| C-3 | `answer` submits `BTreeMap::new()` — the body before EX-3 | VT-2, VT-3 | four |
+| C-4 | `Draft::state_of` keys by field alone, dropping the option half | VT-3, VT-5 | four |
+| C-5 | the row model ignores the draft and always draws unticked | VT-5, VT-4 | four |
+| C-6 | the form is read through a window at its own preferred size | VT-5 | five |
+| C-7 | the blocks reach the row model in reverse declared order | VT-7 | five |
+| C-8 | an untitled block is drawn under an invented heading | VT-7 | five |
+| C-9 | an edit is treated as an exchange — `dispatch` returns `Some(Ok(..))` | VT-4 | five |
+| C-10 | a refused edit is dropped rather than reported | VT-4 | five |
+| C-11 | the ingress line drops its wire token, keeping the prose | VT-6's fifth case | the rest |
+
+- **C-6 is a control on the *fixture*, not on the code**, and it is the one
+  worth reading twice. With the declared viewport removed, VT-5 fails
+  `no control described "read" under "morning"` — the whole form is clipped out
+  of the `Flickable`'s rect. PHASE-02's **F-6 is unchanged by this phase and
+  remains open**: the test can now see the form; the product still cannot show
+  it at its own preferred size.
+- **The rejected reading could not be implemented, and that is the finding.**
+  The sharpest control for D6 would be `answer()` walking the draft instead of
+  the blocks (PHASE-03's T-13). It **is not constructible**: `Draft`'s tuple
+  field is private and its only two methods are `state_of` and `record`, so
+  there is no iterator to walk and adding one is S-1. The absence that makes
+  the control impossible is the same absence that makes D6 impossible, which is
+  what "a property of the type rather than a convention" means when it is true.
+- Where a claim **is** the default, no control reaches it: VT-5's three
+  `Checked(false)` assertions and VT-1's "nothing was recorded" are the
+  as-drawn value, which a `state_of` stubbed to a constant also supplies. The
+  assertions that carry those cases are the ones asserting `true` — C-4 and C-5
+  reach them, and the `false` assertions are load-bearing only in C-4, where a
+  field-only key turns `evening/read` into a `true` the draft never held there.
+
+**Read, not run** — the four criteria with no instrument in the gate, plus the
+two STOP conditions in the same position. `cargo test -p goad-semantics` and the
+other ADR-001 instruments stop short of stratum 3, so a green gate is evidence
+for none of these.
+
+- **EX-7 / S-6 / I-4 — the draft does not enter `Presentation`.** Read
+  `view_model.rs` whole for `Draft`, `draft`, `checked`, `&mut self` and any
+  `pub` mutable member: **two hits, both doc-comments** (`:72`, `:217`), naming
+  `draft.rs` as the place the person's state lives instead. No type there holds
+  a `Draft`, no `PresentationField` gained a `checked`, and `present()` still
+  produces a value nothing mutates. `Presentation` is `view_model.rs` and
+  `Draft` is `draft.rs`; the dependency runs one way, and `glass.rs` is where
+  the two meet — by **lookup**, in `field_block`, and the row model is the only
+  thing that carries both.
+- **S-9 / I-5 — `Glass::present` stays total.** Read `present` line by line:
+  every `set_*` is unconditional. Four branches, and **not one of them skips a
+  write** — `set_mode`'s ternary, the `match frame.shown` that supplies empty
+  values when nothing is shown, `notice`'s ternary, and the `Surface` match
+  choosing `show()` or `hide()`. `self.options.set_vec(options)` replaces the
+  whole vector, and `option_rows` rebuilds every `FieldBlock` and every
+  `FieldRow` from the presentation and the draft on each call. `grep -rn
+  'set_row_data\|row_changed' crates/goad/src` returns **nothing**: the reset
+  path §5.4 rests on is the only one, so A-2 is not weakened.
+- **VA-1 — AC-6.** `git diff` over the four files VA-1 names: `table.rs`,
+  `scheduling.rs` and `ingress.rs` have **empty diffs**. `wiring.rs` has
+  **two removed lines in the whole file** — one module-doc line, extended, and
+  the `use crate::harness` list, widened. No assertion, no expected value and no
+  fixture value was removed or changed; `accessible_enabled_of`'s type filter is
+  an addition inside a **helper**, which S-2 names as neither. `Prepared`
+  gaining a defaulted field is invisible to every existing case, which is what
+  the three empty diffs say. Outside VA-1's list but inside AC-6's scope per
+  `design.md` §9: `tree.rs`'s removed lines are the two helper bodies and one
+  doc line, and `reception.rs` has **no removed lines at all** — EX-9 is a pure
+  extension.
+- **VA-2 — `answer()` against D6.** The walk is `drawn_fields(matched)`, which
+  is `option.blocks.iter().flat_map(|block| block.fields.iter())` — the
+  presentation's blocks for the matched option, and nothing else. `answer`
+  names the draft exactly once, as `prepared.draft.state_of(&matched.id,
+  &field.id)`, keyed by two ids taken from that walk. **`Draft` still exposes no
+  enumeration**: `Draft(Vec<…>)`'s field is private, its `impl` block has
+  `state_of` and `record` and nothing else, and there is no `IntoIterator`, no
+  `Deref` and no keys accessor. Every mention of a draft outside `draft.rs` is
+  one of five things — a field declaration, a `Default::default()`, one
+  `state_of` for the screen, one `state_of` for the wire, one `record`.
+- **`design.md` §8, re-read at the end of the phase** and not only at the
+  start, which is PHASE-03's D-5. R-1 and R-2 are discharged and this phase
+  turns both into live pins rather than paper ones — VT-7 compiles against the
+  array-typed member and VT-5 reads a control the model reset re-established.
+  R-3: no `Edited` variant was added. **R-4 is the one to check hardest** and is
+  the same read as EX-7 above: no `checked` on `PresentationField`, no mutable
+  member anywhere in `view_model.rs`. R-6: nothing written this phase is named
+  for grouping — `field_block`, `drawn_fields` and `selected` name layout, a
+  walk and a selector resolution. R-7 and R-8 are untouched.
+
+**Decisions taken during execution**
+
+- **D-1 — `edit`'s three refusals are structurally forced, not chosen.** The
+  criterion reads as three checks an implementer must remember to write. It is
+  not: `Draft` is keyed by `OptionId` and `FieldId`, and `OptionId::new` /
+  `FieldId::new` are `pub(super)` in `goad-semantics`, so the renderer can only
+  **clone** an id off the retained presentation and cannot mint one. An `edit`
+  that recorded without finding the option and the declared field would have
+  nothing to key by. The lookup that produces the key **is** the lookup that
+  produces the refusal, and the two cannot come apart. That is worth writing
+  down because it is also why VT-1 arrived green: the naive implementation is
+  the correct one, and the controls (C-1, C-2) had to be built by deleting a
+  check rather than by declining to write it.
+- **D-2 — `selected` and `drawn_fields` are the refactor, and `drawn_fields` is
+  load-bearing beyond DRY.** `answer` and `edit` made the same two refusals in
+  the same order and walked the same fields. Factoring the walk into one named
+  function means the walk R-58 rests on has **one** statement that VA-2 reads,
+  rather than two that could drift; and it makes "a field that can be edited is
+  exactly a field that will be submitted" true by construction rather than by
+  two implementations agreeing. `edit` calls `selected` through a reborrow of
+  `&mut Prepared`, and the ids are cloned before the write, which is what ends
+  the presentation's borrow.
+- **D-3 — `field_described` and `within_option` were lifted from `tree.rs` to
+  `harness.rs` rather than copied into `wiring.rs`. Referred up; an undeclared
+  surface.** VT-5 reads a control off a shown window by the option-scoped
+  query, so `wiring.rs` needs the helper `tree.rs` owns. `harness.rs`'s own rule
+  is "what two or more case files in this target need", and `tree.rs` and
+  `wiring.rs` are now two. The alternative is a verbatim second copy of a
+  fourteen-line query, which is the duplication CLAUDE.md forbids outright.
+  **The cost is that `harness.rs` and `tree.rs` are not PHASE-04 surfaces.**
+  S-2 expressly allows a change to a test helper's *implementation*, and
+  `tree.rs`'s diff is two function bodies moving and one doc line; no assertion,
+  no expected value and no fixture value changed. Recorded here and put to the
+  orchestrator rather than taken silently.
+- **D-4 — the row model's `checked` is read out with an irrefutable `let`.**
+  `let Edited::Checked(checked) = draft.state_of(..);` compiles today because
+  `Edited` has one variant, and becomes a **compile error** the moment a second
+  lands. That is the behaviour wanted: what a checkbox row should show for a
+  non-boolean value is a decision, and it belongs at the site that would have to
+  make it rather than behind a `_ =>` arm that quietly picks one. Same shape as
+  `draft.rs`'s own `let View::Choice(choice) = &view;`.
+- **D-5 — EX-9 implemented as stated, its warrant recorded as false rather than
+  reconciled, and the gap then closed by decision.** See F-1. The fourth case
+  went in on the criterion's letter; the fifth — `Refused::Ingress`, which is
+  what makes the test's name true — was **not** taken unilaterally, because it
+  is beyond EX-9, and was put to the orchestrator instead. **Approved, and
+  taken** (T-15). The distinction worth recording is that the fifth case is
+  beyond the criterion's *letter* and inside its *intent*: EX-9 wants a test
+  whose name is its claim to be telling the truth, and four of five does not do
+  that. Implement the letter, report the discrepancy, do not quietly
+  reconcile — and let the decision to go further be someone else's.
+
+**Findings**
+
+- **F-1 — EX-9's stated warrant is false: the test's name did not make the
+  claim the criterion says it keeps.** EX-9 extends
+  `every_refused_variant_renders_one_line_with_the_failure_prefix` "with a
+  fourth variant, which keeps the claim its name makes rather than altering
+  one". The count is right — three cases, now four — but `Refused` had **four**
+  variants before this phase and the test covered three. `Refused::Ingress` has
+  never been in it, and `grep -rn 'Refused::Ingress'` finds exactly two lines,
+  both in `src/`: its rendering is asserted nowhere. So the test now covers four
+  of five, and the criterion cites as its warrant a claim that was already
+  untrue when it was written.
+  **The criterion is still right, for a reason it does not give.** EX-9 says
+  the extension *keeps* the claim the name makes. It does not: the name made a
+  **false** claim that needed fixing, not a true one that needed keeping. What
+  makes the criterion right is its second reason — `Diagnostics::refused` is
+  exhaustive with no `_`, so a variant without a line is a compile error, and
+  the case is what pins the wording a person reads. A criterion can be right
+  and its stated warrant wrong at once, which is PHASE-02's F-3 a second time
+  and the same handling: implement the letter, report the discrepancy, do not
+  reconcile it in silence.
+  **Closed by decision** (D-5, T-15): the `Ingress` case went in, and the name
+  is now true — five variants declared, five constructed, a check an auditor can
+  run in one line.
+- **F-2 — `design.md` §9's closing rule and its own AC-8 row disagree, and
+  PHASE-04 is where they meet.** §9 closes: *"Every field test either reads the
+  wire or asserts something about the screen"*, and warns that a test reading
+  the draft through `Controller` is a proxy because *"it would pass with
+  `answer()` walking the draft's keys instead of the declared fields, which is
+  D6"*. VT-2 and VT-3 assert on `answer()`'s returned `UserResponse` — neither
+  the wire nor the screen. But §9's **AC-8 row** names `answer()` as R-58's
+  vehicle in as many words, and `plan.md`'s Coverage assigns AC-8 to
+  PHASE-04/VT-3 while assigning AC-1 wholly to PHASE-05/VT-1, saying
+  explicitly that neither substitutes for the other.
+  **The warning does not in fact reach these two cases**, and the reason is
+  worth keeping: a walk over the draft's keys cannot produce a key for a field
+  nobody touched, so VT-2's and VT-3's assertion that `stretched` is present and
+  `false` is one D6 fails rather than one it also satisfies. That is PHASE-03's
+  D-3 run in the other direction — asking which half of the claim the defect
+  would still satisfy. The tension is between two sentences of the design, not
+  between the design and the code, so it is **audit's** to settle: either §9's
+  disjunction gains R-58's exception, or AC-8's row moves. VT-3's own doc-comment
+  now says which vehicle it is, so a reader does not take it for AC-1's.
+- **F-3 — `plan.md`'s PHASE-04 Surfaces line omits `crates/goad/src/draft.rs`,
+  which EX-3 sends the phase to edit.** `submitted`'s
+  `cfg_attr(not(test), expect(dead_code, …))` must come off the moment
+  `controller.rs` calls it, and the gate fails on
+  `unfulfilled_lint_expectations` if it does not — which the attribute's own
+  reason predicted, and which is the one thing in this phase that self-reported.
+  A plan-internal gap, no surface breach, and nothing for the audit's path diff
+  to chase. **Third occurrence in this slice** — PHASE-01's F-1 was the same
+  shape over `ui/app.slint`, and the class is now worth stating: a Surfaces line
+  is an enumeration, and every enumeration in this slice has been a floor.
+- **F-4 — `canon-delta.md` carries a claim about the code that this phase makes
+  false, and it is draft canon, so it is not a phase's to edit.** Under *The
+  gap*: *"`crates/goad/src/controller.rs:216` sends an empty map and there was
+  no value to type."* It no longer sends an empty map, and `:216` no longer
+  holds that line. The sentence is framed as the state of affairs the slice
+  opened on — *"While no renderer drew a field, the gap cost nothing"* — so it
+  may be read as history rather than as a claim about today, which is the same
+  disposition PHASE-03's F-1 reached for `roadmap.md` and `slice-007.md`.
+  Whether it wants repairing at promotion is audit's call. Recorded so it is a
+  decision rather than an oversight.
+- **F-5 — PHASE-02's F-6 is untouched and was re-measured in passing.** C-6
+  removed VT-5's declared viewport and the case failed
+  `no control described "read" under "morning"` — the form is clipped out of the
+  `Flickable`'s rect at the window's preferred size, exactly as F-6 records. The
+  test sees the form because the fixture declares 600×600, not because anything
+  about the product changed. **AC-7 and AC-10 still observe it, at PHASE-06/VH-1
+  and VH-2.**
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-15 · PHASE-03, done · base commit `36c13ad`
+**Fresh as of:** 2026-09-15 · PHASE-04, done · base commit `246ed93`
 
 ### Produced
 
@@ -1012,8 +1421,9 @@ STOP, per `plan.md:104-152`. Live for this phase:
   option, `groupbox`, described by `option.id` (PHASE-02 EX-2, EX-3, EX-4).
 - `build.rs` selects `material` as a **default**, `SLINT_STYLE` still overriding
   (EX-1) — with an `#[expect]` the plan did not anticipate, D-2.
-- `tree.rs` gains `within_option`, `field_described` (the option-scoped query,
-  EX-6) and `fields_in_option`; `element_described` gains a type filter (EX-7).
+- The option-scoped query — `within_option`, `field_described` (EX-6) — and
+  `fields_in_option`; `element_described` gains a type filter (EX-7). The first
+  two landed in `tree.rs` and moved to `harness.rs` in PHASE-04 (its D-3).
   Five cases: A-1's pin, A-2's pin, `edited`'s four selectors, declared order
   across blocks, and AC-6's absent-not-empty. Gate at **511 tests, from 506**.
 - `draft.rs` — the one new file: `Edited`, `Draft` (a `Vec`, no `BTreeMap`, no
@@ -1031,6 +1441,29 @@ STOP, per `plan.md:104-152`. Live for this phase:
 - Ten new `mapper.rs` cases and one in `reception.rs`; `mapper.rs`'s
   `an_option_with_fields_is_reported_undrawn_by_id_and_count` removed whole.
   Gate at **525 tests, from 511**.
+- `Prepared.draft`, defaulted in `receive`; `absorb`'s three `Shift` arms
+  unchanged, as EX-1 predicted (PHASE-04 EX-1).
+- `Controller::edit`, `&mut self`, with three refusals that are **structurally
+  forced** by ids the renderer can clone and cannot mint (D-1); `answer` still
+  `&self` and its signature unchanged. `selected` and `drawn_fields` are the
+  one statement each of the shared refusals and of the R-58 walk (EX-2, EX-3,
+  D-2).
+- `Command::Edit` in `wire.rs` (`Eq` survived), `dispatch`'s arm as
+  `.err().map(Err)`, `install.rs`'s **seventh** installation `editing`, and
+  `Refused::UnknownField` with the line `design.md` §5.2 states verbatim, which
+  `Diagnostics::refused`'s exhaustive match made a compile error to omit
+  (EX-4, EX-5, EX-8). `reception.rs`'s
+  `every_refused_variant_renders_one_line_with_the_failure_prefix` now covers
+  **five of five** — the fourth case EX-9 asked for, and a fifth that makes the
+  name true (D-5).
+- `glass.rs`'s `option_rows` builds real blocks through `field_block`; `checked`
+  is a **lookup** on every present and is never stored in the row model as
+  truth. `FieldBlock` names two types in that file, both keeping their names
+  (EX-6).
+- `field_described` / `within_option` lifted to `harness.rs` (D-3);
+  `accessible_enabled_of` gains the type filter PHASE-02's F-4 predicted it
+  would need. `wiring.rs` gains `mod editing` — six cases, ten negative
+  controls. Gate at **531 tests, from 525**.
 
 ### Learned
 
@@ -1124,6 +1557,58 @@ STOP, per `plan.md:104-152`. Live for this phase:
   scoped to the *drawn* fields — which leaves the hint on an undrawn field
   unsettled, and it is not a case the edge table covers either. The tell is a
   sentence whose subject was fixed two clauses earlier. PHASE-03 F-2.
+- **An absence that makes a defect impossible also makes the control for it
+  impossible, and that is the evidence rather than a gap in it.** The sharpest
+  control for D6 would be `answer()` walking the draft instead of the blocks.
+  It cannot be written: `Draft`'s field is private and its two methods are
+  `state_of` and `record`, so there is no iterator, and adding one is S-1. When
+  a design says a rule is "a property of the type rather than a convention",
+  *the rejected reading failing to compile* is what that claim looks like when
+  it is true. **It is stronger than any test, and the reason is worth saying
+  outright: a test can be deleted by someone who does not know why it exists,
+  and a type that cannot express the wrong thing cannot be.** A green test says
+  the defect is absent today; an absent iterator says the defect has nowhere to
+  be written. PHASE-04 T-10.
+- **A control on the fixture is not a control on the code, and conflating the
+  two is how a product defect gets closed by a green test.** PHASE-04's C-6
+  removed VT-5's declared viewport and the whole form vanished from the query —
+  which says the fixture is load-bearing, and says **nothing whatever** about
+  the draft reaching the screen. Both facts are true at once: the test can see
+  the form because it declares 600×600, and the product still clips one at its
+  own preferred size. Keeping them apart is the entire reason F-6 exists as a
+  separate finding rather than as a line in a fixture's doc-comment — the
+  moment they merge, "the tests are green" starts meaning "the window is fine".
+  Run the fixture control **as well as** the code control, and write down which
+  one each was. PHASE-04 C-6, and PHASE-02's F-6 unmoved by it.
+- **Ask whether the defect would still satisfy the *other half* of the
+  assertion.** `design.md` §9 warns that a test reading the draft through
+  `Controller` is a proxy because D6 would pass it. It does not pass VT-2 or
+  VT-3, and the reason is one clause: a walk over the draft's keys cannot
+  produce a key for a field **nobody touched**. The edited field's value is the
+  half D6 also supplies; the untouched field's presence is the half it cannot.
+  PHASE-03's D-3 asked which kind of claim a test makes; this is the same
+  question asked clause by clause rather than test by test. PHASE-04 F-2.
+- **A criterion's warrant can cite a claim that was already false when the
+  criterion was written**, not merely one the phase falsifies. EX-9 rests on a
+  test's name claiming every `Refused` variant, and says the extension *keeps*
+  that claim; the name had been untrue since before the slice opened, because
+  `Refused::Ingress` was never in the case and is asserted nowhere else either.
+  Checking a warrant means **reading the thing it cites**, not confirming the
+  count it asserts — the count was right, three to four, and the sentence built
+  on it was not. PHASE-04 F-1, and PHASE-02's F-3 a second time.
+- **A test whose name is its claim is trusted instead of counted, which is what
+  makes a false one worse than a false comment.** Nobody enumerates five
+  variants against five assertions when the name says "every". The repair is to
+  make the name true *and* leave the check one line long — `Refused` declares
+  five, the case constructs five — so the next reader can verify in a second
+  rather than trust again. PHASE-04 T-15.
+- **The refusals a criterion lists may be forced rather than chosen, and that
+  changes what a test is worth.** `edit`'s three refusals cannot be omitted:
+  the renderer can only clone an id off the retained presentation, so the
+  lookup that builds the draft key **is** the lookup that refuses. The naive
+  implementation is the correct one, which is why VT-1 arrived green and why
+  its controls had to delete a check rather than decline to write one.
+  PHASE-04 D-1.
 - **A count comment is a claim about the file it sits in, and this is the third
   phase in a row to falsify one.** `lib.rs`'s "nine after 005" went stale the
   moment `draft` landed; no compiler, no criterion and no grep for the new name
@@ -1147,15 +1632,14 @@ STOP, per `plan.md:104-152`. Live for this phase:
   are green because the fixture declares a viewport, not because the clipping
   stopped. AC-7 and AC-10 observe it, at PHASE-06/VH-1 and VH-2. The measurement
   is in the finding so it is not re-derived.
-- **PHASE-04 inherits the same edge.** It verifies "at the window" over a form of
-  several checkboxes, and a shown window's viewport today fits **one** material
-  control. `wiring::busy`'s `with_room_for_every_control` is the precedent, and
-  F-4 is the second thing that bites there.
-- **F-4 — `wiring.rs:62-70` will break the same way in PHASE-04**, when an
-  option first carries blocks: an unscoped description query, no type filter,
-  reading `accessible_enabled` off whatever the walk reaches first. Not yet
-  broken, not a PHASE-02 surface, and invisible to any grep for the repaired
-  wording.
+- **PHASE-02's F-4 — closed.** `wiring.rs`'s `accessible_enabled_of` has the
+  type filter, and its doc says why. Listed here so an auditor reading the
+  PHASE-02 findings does not go looking for it.
+- **F-6 is unchanged and was re-measured.** PHASE-04's C-6 removed its own
+  case's declared viewport and the form vanished from the query
+  (`no control described "read" under "morning"`). The tests see a form because
+  two fixtures declare a viewport; the product still clips one at its preferred
+  size. **PHASE-06/VH-1 and VH-2.**
 - **F-5 — a design that quotes a code block has asserted that block lints, and
   nothing checks that until a phase runs.** `design.md` §5.2's *The build*
   quotes `std::env::var("SLINT_STYLE")` verbatim; `clippy.toml` disallows the
@@ -1182,8 +1666,29 @@ STOP, per `plan.md:104-152`. Live for this phase:
   audit's call, not a phase's.
 - **PHASE-03 F-3 — the vocabulary scan's string-literal reach** is a hazard for
   every future `reason = "…"`. Candidate for `docs/memory/`.
-- **`Draft` is what PHASE-04 inherits, and its three absences are load-bearing.**
-  No `BTreeMap` (`OptionId` has no `Ord`, and S-4 forbids giving it one), no way
-  to enumerate (so `answer()` *must* walk the presentation's blocks — the walk
-  is not a convention it can drop), no `PartialEq` (assert through `state_of`).
-  A PHASE-04 test that wants any of the three is the test to rewrite.
+- **`Draft`'s three absences held through PHASE-04 and are still load-bearing.**
+  No `BTreeMap`, no enumeration, no `PartialEq`. Nothing in PHASE-04 wanted any
+  of the three: `answer()` walks the blocks, `edit` clones its key off them, and
+  every assertion goes through `state_of` or through what `answer` returned.
+  **PHASE-05 inherits the same three**, and a test there that wants one is the
+  test to rewrite.
+- **PHASE-04 F-1 — closed, not open.** EX-9's warrant was false and the
+  criterion right anyway; the `Refused::Ingress` case went in by decision and
+  the test's name is now true. Listed here only so an auditor reading the
+  findings does not go looking for it.
+- **PHASE-04 F-2 — `design.md` §9's closing disjunction and its own AC-8 row
+  disagree**, and PHASE-04's VT-2 / VT-3 sit exactly where they meet. Audit's:
+  either §9's rule gains R-58's exception, or AC-8's row moves. No code is
+  wrong either way.
+- **PHASE-04 F-3 — a Surfaces line is an enumeration, and every enumeration in
+  this slice has been a floor.** PHASE-04's omits `draft.rs`, which EX-3 sends
+  the phase to edit; PHASE-01's omitted `ui/app.slint`. Third occurrence.
+  Candidate for `docs/memory/` as a class, not as two instances.
+- **PHASE-04 F-4 — `canon-delta.md`'s *The gap* says `controller.rs:216` "sends
+  an empty map".** It no longer does, and `:216` no longer holds that line. Read
+  as history it stands; read as a claim about today it does not. Audit's, at
+  promotion — a phase does not edit draft canon.
+- **PHASE-04 D-3 — `harness.rs` and `tree.rs` were touched and are not PHASE-04
+  surfaces.** The two option-scoped query helpers moved there rather than being
+  copied into `wiring.rs`. Referred up during execution; for the audit's path
+  diff, so an undeclared path is a decision on the record rather than a lead.

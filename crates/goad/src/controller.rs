@@ -16,8 +16,10 @@ use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId
 use goad_semantics::schedule::wait_for;
 
 use crate::diagnostics::{Diagnostics, Refused};
+use crate::draft::{Edited, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
+use crate::view_model::{PresentationField, PresentationOption};
 use crate::wire::{Cancel, Command, Notice, Stimulus};
 use goad_shell::clock::Clock;
 
@@ -108,9 +110,9 @@ pub struct Frame<'a> {
 /// What the controller retains. One value, no Slint types, so it is testable
 /// without a platform and the fold is provable in isolation. That is the
 /// complete retained state: the presentation and its `ViewId` and its
-/// canonical options (inside `Prepared`), the diagnostics, the window mode
-/// and its visibility (`Surface`, derived below), and whether an exchange is
-/// in flight.
+/// canonical options and the draft answering it (all four inside `Prepared`),
+/// the diagnostics, the window mode and its visibility (`Surface`, derived
+/// below), and whether an exchange is in flight.
 ///
 /// One thing the screen shows is retained and is **not** here: back-pressure.
 /// It lives at the edge, in a `wire::Notice` the loop samples at present time,
@@ -210,23 +212,68 @@ impl Controller {
   /// case.
   pub fn answer(&self, view: &str, option: &str) -> Result<(ViewId, UserResponse), Refused> {
     let prepared = self.shown.as_ref().ok_or(Refused::SupersededView)?;
-    if prepared.view_id.as_str() != view {
-      return Err(Refused::SupersededView);
-    }
-    let matched = prepared
-      .presentation
-      .options
-      .iter()
-      .find(|candidate| candidate.id.as_str() == option)
-      .ok_or(Refused::UnknownOption)?;
+    let matched = selected(prepared, view, option)?;
+
+    // **The walk is over what was drawn, never over the draft.** A value for
+    // every drawn field of this option, no value for a field that was not
+    // drawn, and a draft key that outlived its view cannot reach the wire —
+    // three properties of `SPEC-001/R-58` with no check to forget, held by
+    // the shape of the walk rather than by a rule an agent must remember.
+    // With the `SupersededView` refusal above, every key submitted here
+    // provably came from a field the currently-retained view declared.
+    let values: BTreeMap<_, _> = drawn_fields(matched)
+      .map(|field| {
+        (
+          field.id.clone(),
+          submitted(&prepared.draft.state_of(&matched.id, &field.id)),
+        )
+      })
+      .collect();
 
     Ok((
       prepared.view_id.clone(),
       UserResponse {
         option: matched.id.clone(),
-        values: BTreeMap::new(),
+        values,
       },
     ))
+  }
+
+  /// Record what the person did to one field of one option.
+  ///
+  /// The only `&mut self` half of the pair: `answer` reads the draft and this
+  /// writes it. The write is keyed by ids **cloned off the retained
+  /// presentation**, never minted — `OptionId::new` and `FieldId::new` are
+  /// `pub(super)` in `goad-semantics`, so a key that names nothing the
+  /// backend declared is not constructible here (`design.md` §5.2).
+  ///
+  /// # Errors
+  ///
+  /// [`Refused::SupersededView`] when `view` is not the retained token, or
+  /// nothing is retained at all; [`Refused::UnknownOption`] when `option` is
+  /// not one the retained presentation carries; [`Refused::UnknownField`]
+  /// when that option's blocks do not declare `field`. Nothing is recorded on
+  /// any of those paths.
+  pub fn edit(
+    &mut self,
+    view: &str,
+    option: &str,
+    field: &str,
+    value: Edited,
+  ) -> Result<(), Refused> {
+    let prepared = self.shown.as_mut().ok_or(Refused::SupersededView)?;
+    let matched = selected(prepared, view, option)?;
+    // The same walk `answer` submits from, so a field that can be edited is
+    // exactly a field that will be submitted. An undrawn field is not in a
+    // block, so it is refused here and carries no value there.
+    let declared = drawn_fields(matched)
+      .find(|candidate| candidate.id.as_str() == field)
+      .ok_or(Refused::UnknownField)?;
+    // Cloned before the write, which is also what ends the borrow of the
+    // presentation the walk above took.
+    let (option_id, field_id) = (matched.id.clone(), declared.id.clone());
+    prepared.draft.record(option_id, field_id, value);
+    Ok(())
   }
 
   pub fn open_diagnostics(&mut self) {
@@ -259,6 +306,42 @@ impl Controller {
       notice,
     }
   }
+}
+
+/// The option a click or an edit named, or the refusal that says which
+/// selector failed.
+///
+/// One statement of the two refusals `answer` and `edit` both make, in the
+/// order they both make them: **identity before membership**, so a click
+/// naming a replaced view is refused for the reason that is true of it rather
+/// than for a missing option that was never looked for.
+fn selected<'a>(
+  prepared: &'a Prepared,
+  view: &str,
+  option: &str,
+) -> Result<&'a PresentationOption, Refused> {
+  if prepared.view_id.as_str() != view {
+    return Err(Refused::SupersededView);
+  }
+  prepared
+    .presentation
+    .options
+    .iter()
+    .find(|candidate| candidate.id.as_str() == option)
+    .ok_or(Refused::UnknownOption)
+}
+
+/// Every field the host **drew** of one option, in declared order.
+///
+/// Blocks are layout, not meaning, so a field's identity is the option's and
+/// its own and never its block's — flattening them is what makes "the drawn
+/// fields of this option" one sequence. This is the walk `SPEC-001/R-58` is
+/// held by, and there is deliberately no counterpart over `Draft`: the draft
+/// exposes no way to enumerate its keys, which is what makes walking the
+/// declared fields a property of the types rather than a convention
+/// (`design.md` §5.2, §5.5 I-3).
+fn drawn_fields(option: &PresentationOption) -> impl Iterator<Item = &PresentationField> {
+  option.blocks.iter().flat_map(|block| block.fields.iter())
 }
 
 /// design.md §5.4's reducer table, rows 1-7: a total match on `(Exchanged,
@@ -531,10 +614,13 @@ fn ingest(
   }
 }
 
-/// One command, dispatched. The two diagnostics commands are done here and
-/// now and produce no exchange; the other two produce a `Pending` or the
-/// refusal that says why there is none. `None` is *there is nothing to
-/// exchange*, which is the loop's `continue`.
+/// One command, dispatched. Three of the five are done here and now and
+/// produce no exchange — the two diagnostics commands, and an edit, which
+/// writes retained state and is answered by the present at the top of the
+/// next iteration. The other two produce a `Pending`, or the refusal that
+/// says why there is none. `None` is *there is nothing to exchange*, which is
+/// the loop's `continue`; an edit is the one command that can yield either
+/// `None` or a refusal.
 ///
 /// Lifted out of `serve` so that the ingested road and the command road meet
 /// at one value: an arrival cannot become a `Command` — `Stimulus` is `Copy`
@@ -570,6 +656,21 @@ fn dispatch(
         })
       },
     )),
+    // An edit is not an exchange: it writes retained state and the loop
+    // continues to the top, which presents and so writes the screen back from
+    // the draft. `None` on success for that reason, and no clock is read —
+    // nothing is being stamped. A refusal takes the single existing refusal
+    // site, where `refusal_re_arms` is `false` by construction exactly as it
+    // is for `Choose`.
+    Command::Edit {
+      view,
+      option,
+      field,
+      value,
+    } => controller
+      .edit(&view, &option, &field, value)
+      .err()
+      .map(Err),
   }
 }
 
@@ -696,11 +797,12 @@ where
     // iteration came from the timer arm (EX-7).
     //
     // One site rather than three: `refusal_re_arms` is `false` by
-    // construction under `Command::Choose`, because `Fired::Scheduled`
-    // becomes `Command::Evaluate(Stimulus::Scheduled)` and nothing else, so
-    // the two copies that used to sit inside that arm could never run. Three
-    // copies of a conditional, two of them unreachable, say the flag is
-    // orthogonal to the command when it is fully determined by it.
+    // construction under `Command::Choose` and under `Command::Edit` alike,
+    // because `Fired::Scheduled` becomes `Command::Evaluate(Stimulus::Scheduled)`
+    // and nothing else, so the copies that used to sit inside that arm could
+    // never run. Three copies of a conditional, two of them unreachable, say
+    // the flag is orthogonal to the command when it is fully determined by
+    // it.
     let pending = match attempted {
       Ok(pending) => pending,
       Err(refused) => {

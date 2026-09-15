@@ -14,17 +14,30 @@ use goad_semantics::protocol::canonical::{Timestamp, ViewId};
 use goad_shell::host::{Outcome, Presented};
 
 use crate::diagnostics::{Diagnostics, Reported};
+use crate::draft::Draft;
 use crate::view_model::{Presentation, Undrawn, present};
 
-/// The interaction the renderer is showing, and the token that answers it.
+/// The interaction the renderer is showing, the token that answers it, and
+/// what the person has done to it so far.
 ///
 /// `view_id` is copied from `Presented::view_id`, which is the public half of
 /// the pair `Host` mints; `Host`'s own state keeps the authoritative copy.
 /// Two copies, one owner.
+///
+/// The draft sits **inside** this value rather than beside it, which is what
+/// makes `absorb`'s three `Shift` arms need no change: a replaced view installs
+/// a fresh `Prepared` with an empty draft, a retained one leaves it, a closed
+/// one drops it. A draft held beside `shown` would have a state — draft
+/// present, view absent — that the type would admit and the fold would have to
+/// rule out by hand (`design.md` §5.3).
 #[derive(Debug)]
 pub struct Prepared {
   pub view_id: ViewId,
   pub presentation: Presentation,
+  /// What the person did, keyed by (option, field). Empty at construction:
+  /// the protocol carries no `field.value`, so a view arrives with nothing
+  /// answered and `Draft::state_of` reports every field as drawn.
+  pub draft: Draft,
 }
 
 /// What one `Outcome` becomes, once received.
@@ -64,6 +77,7 @@ pub fn receive(outcome: Outcome) -> Received {
      }| Prepared {
       view_id,
       presentation: present(&canonical),
+      draft: Draft::default(),
     },
   );
 
