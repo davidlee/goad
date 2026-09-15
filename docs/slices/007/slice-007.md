@@ -1,9 +1,9 @@
 # Slice 007: the renderer grows a form
 
-**Stage:** scoping
+**Stage:** design
 **Tier:** 2 (full) — this slice states, for the first time, what JSON type a
-submitted field value has. That is the wire contract, so it is canon, so it is
-tier 2. See `canon-delta.md` and *Why tier 2* below. Not the layout, and not the
+submitted field value has, and how complete the map of them must be. That is the
+wire contract, so it is canon, so it is tier 2. See `canon-delta.md` and *Why tier 2* below. Not the layout, and not the
 300-line cap: both were candidates and neither is the reason.
 **Depends on:** — (006 is independent in both directions)
 
@@ -27,7 +27,7 @@ them:
 
 - **The view side needs no protocol change.** R-15 plus R-16 admit a form
   today. `Fields::new` accepts any count; `Options::new` requires one option.
-- **The response side does need one.** §6.2 shows exactly one submitted value,
+- **The response side does need one.** §6.1 shows exactly one submitted value,
   `"minutes": 20`, and no rule maps a field kind to a JSON type. R-9's opacity
   is about the host not *reading* a value; the host is nonetheless the only
   thing that can *write* one, because it is the thing holding the widget.
@@ -51,14 +51,20 @@ Surfaces this slice may touch:
   path.
 - `crates/goad/src/view_model.rs` — `Presentation` grows fields; `Undrawn`
   narrows from `OptionFields` to a per-field, per-kind variant.
-- `crates/goad/src/controller.rs` — the draft, and `answer()` assembling
-  `values` from it.
+- `crates/goad/src/controller.rs` — `edit()`, and `answer()` assembling `values`
+  from the draft.
+- `crates/goad/src/draft.rs` — **new**: the draft, its (option, field) keying,
+  and `submitted()`, the single site where R-57 is applied.
+- `crates/goad/src/reception.rs` — `Prepared` gains the draft.
+- `crates/goad/src/wire.rs`, `crates/goad/src/install.rs` — `Command::Edit` and
+  its callback.
 - `crates/goad/src/glass.rs` — a second model beside `options`.
 - `crates/goad/src/diagnostics.rs` — the wording of the narrowed undrawn report.
 - `crates/goad/build.rs` — the style selection (OQ-5).
 - `crates/goad/tests/renderer/` — the headless field tier.
 - `examples/` — a backend that sends a form, so `just demo` can show one.
-- `docs/slices/007/canon-delta.md` → SPEC-001 §6.2 and one new requirement id.
+- `docs/slices/007/canon-delta.md` → SPEC-001 §6.1, §6.2 and two new
+  requirement ids, R-57 and R-58.
 
 Untouched, and each for a reason: `crates/goad-semantics/` already models
 everything this slice needs — verify that, do not extend it; `crates/goad-shell/`
@@ -78,8 +84,14 @@ are unrelated.
   protocol fields needing a version bump or a capability declaration. Their own
   tier 2 slice, taken when use says a form must *reject* an answer. This slice
   makes that trigger sharper — see *What the workaround costs*.
-- **SPEC-002/OQ-4** — a scheduled firing superseding a view mid-answer. See
-  OQ-3.
+- **SPEC-002/OQ-4** — a scheduled firing superseding a view mid-answer.
+  **Answered during design and withdrawn on scope** (`design.md` D13): five lines
+  of code, but a second spec amendment plus an ADR inside a slice already
+  amending SPEC-001 twice, and a scheduling regression would look like a protocol
+  regression in one diff. So **a scheduled firing can still discard a half-filled
+  form**, and an ingested event likewise. The mechanism, the ADR-004 interaction
+  and the ingress boundary are preserved in `design-log.md` so the follow-up
+  re-derives nothing.
 - **006's items** — `--version`, the unnamed config path, crane and
   `wrapProgram`.
 - **Socket transport (009).** Worth recording that a form makes it *less*
@@ -125,12 +137,17 @@ between them. It submits what was drawn.
 - [ ] **AC-1** A view with one option carrying N `boolean` fields draws N
       checkboxes and one button. Pressing it sends one `respond` whose `values`
       carries exactly N keys, each a JSON boolean matching what was on screen.
-- [ ] **AC-2** Fields carrying a `group` hint are drawn under a heading of that
-      name. Groups appear in order of first appearance; fields keep their
-      declared order within a group; a field with no `group` is drawn ungrouped,
-      in place. No sorting — sorting would be the host imposing meaning.
+- [ ] **AC-2** A heading is drawn wherever the `group` value changes, and **no
+      field is ever reordered**: screen order is declared order, always. A
+      repeated group name draws its heading twice rather than collecting the
+      fields under one; a field with no `group`, or one whose `group` is not a
+      JSON string, is drawn ungrouped **in place**, the latter also reported. No
+      sorting and no merging — either would be the host imposing meaning
+      (`design.md` D8, D9; amended from the merge rule this card first carried).
 - [ ] **AC-3** A field of a kind this renderer does not draw is reported
-      undrawn, naming the option, the field and the kind; the view is still
+      undrawn — the **`Undrawn` value** naming the option, the field and the
+      kind, which is what a test asserts; the rendered line's wording is held by
+      review, as every diagnostic wording in this project is. The view is still
       shown and the option is still answerable (R-55). The values it does have
       are submitted; nothing is refused on the host's judgement (R-35).
 - [ ] **AC-4** Values from one option's fields are never sent under another
@@ -139,22 +156,40 @@ between them. It submits what was drawn.
       half-filled form intact. **This is the criterion that catches the real
       regression**: `serve` calls `glass.present` at the top of every loop
       iteration (`controller.rs:611`) and `Glass::present` is contracted to
-      write every property, every time.
+      write every property, every time. **Both halves are asserted, and the
+      on-screen one is load-bearing here** — the wire value is built from the
+      draft, which no present writes, so a present that stops writing `checked`
+      leaves the wire green and the screen wrong (`design.md` §9).
 - [ ] **AC-6** Answering an option carrying **zero** fields is unchanged: no
-      empty container, no stray control, and the existing option tests pass
-      unmodified.
+      empty container, no stray control, and the existing option tests pass with
+      **no change to what they assert**. Their diff is not empty and cannot be —
+      `OptionRow` gains a member and `tree.rs` builds it with an exhaustive
+      literal — so the criterion is on the assertions, not on the diff.
 - [ ] **AC-7** A person runs the real backend under `just demo`, fills a
       multi-field form, submits once, and the record shows every answer from
       that one exchange. Recorded in `audit.md` under Evidence — `docs/AGENTS.md`
       §Tiers, and a green gate is not this evidence.
-- [ ] **AC-8** `canon-delta.md` is promoted into SPEC-001 with a requirement id
-      and a wire fixture per drawn kind, or abandoned in writing. A slice does
-      not close holding an unpromoted draft.
+- [ ] **AC-8** `canon-delta.md` is promoted into SPEC-001 as **R-57 and R-58**,
+      each with a §7 verification row, or abandoned in writing. The vehicles are
+      stratum 3, where the kind still exists: `draft.rs::submitted` for R-57's
+      `boolean` clause, `answer()` over a two-option view for R-58. R-57's
+      `text`, `number` and `choice` clauses are **review, not a test** until a
+      renderer draws them. A slice does not close holding an unpromoted draft.
 - [ ] **AC-9** Standing: the domain-vocabulary scan and the four ADR-001
       instruments pass; `just check` exits 0. `group` is a hint key on the wire,
       never a host concept — and it is not on the scanned word list
       (`crates/goad-boundary/tests/checks/vocabulary.rs:18-26`), so the scan
       passing is necessary and not sufficient. Review holds the rest.
+- [ ] **AC-10** A person runs the slice's output and reviews **how it looks**,
+      iterating with the implementer until the form is legible: which fields
+      belong to which option, and which heading covers which fields, are both
+      apparent without reading the protocol. The bound is on what may be
+      *changed*, never on what may be *said*, and it is **what drawing fields
+      forces**: the block container and its separator, and the heading's own
+      treatment. Typography, window sizing, the idle surface and the look of the
+      controls are 008's — feedback about them is recorded **verbatim and not
+      actioned**, and becomes 008's brief. Recorded in `audit.md` under Evidence
+      beside AC-7.
 
 ## Governing canon
 
@@ -165,8 +200,11 @@ between them. It submits what was drawn.
   `view_id`), R-50 (a named key where its position gives it no meaning is an
   error), R-52 (field ids unique within an option), R-53 (an alternative id is
   not an option id), R-55 (a renderer subset is not a narrowing of the
-  protocol), §6.2 *Field forms*, OQ-2.
-- **SPEC-002 (host scheduling)** — OQ-4, sharpened by this slice. See OQ-3.
+  protocol), §6.1 (the `respond` example), §6.2 *Field forms*, OQ-2 —
+  sharpened, not amended: without prefill a fourteen-item form costs fourteen
+  re-ticks to correct.
+- **SPEC-002 (host scheduling)** — OQ-4, **sharpened and left open**. This slice
+  answered it and withdrew the answer (§Non-goals, `design.md` D13).
 - **ADR-001 (one-way strata)** — `view_model.rs` is the pure half of stratum 3
   and stays pure: the draft decision must put neither a clock nor a widget
   handle in it.
@@ -174,103 +212,34 @@ between them. It submits what was drawn.
 - **POL-001 (the phase gate)** — `just check`, and what each instrument does and
   does not reach.
 - Checked and not applicable: SPEC-003 (event ingress — this slice adds no
-  stimulus), ADR-004, ADR-005.
+  stimulus), ADR-005.
+- **ADR-004 (scheduled firings are spaced from the previous scheduled firing)** —
+  not applicable to the diff, and **not filed under "not applicable"**: the
+  deferred hold interacts with its spacing rule, and a held firing must not write
+  the floor because it is not a firing. `notes.md` Harvest carries the connection
+  so the follow-up finds it (`research.md` delta 11).
 
 ## Open questions
 
-- ~~**OQ-1 — where does a half-filled answer live?**~~ **Answered at scoping:
-  (b), the controller owns the draft** (`design-log.md`, 2026-09-14). The
-  question and its alternatives are kept below because design must honour what
-  the choice costs, and because AC-5 is what proves it.
+All six are closed by a recorded user decision (`design-log.md`, 2026-09-14).
+The reasoning behind each lives in `design.md` §6 and §7; it is not repeated
+here.
 
-  The slice's real design question; everything else is downstream of it.
+| id | question | resolution |
+|----|----------|------------|
+| OQ-1 | where does a half-filled answer live? | **the controller**, inside `Prepared` (`design.md` D5) |
+| OQ-2 | which field kinds does 007 draw? | **`boolean` only** — research inverted this card's four-kind recommendation (`design.md` D4) |
+| OQ-3 | a firing lands while the form is half filled | **deferred** — answered, then withdrawn on scope (`design.md` D13). See §Non-goals |
+| OQ-4 | what does a non-string `group` mean? | **ungrouped and reported**; `""` ungrouped and silent; grouping is by **runs**, which amended AC-2 (`design.md` D8, D9) |
+| OQ-5 | is the style selection part of this slice? | **yes**, as a default — `material`, with `SLINT_STYLE` still overriding (`design.md` D12) |
+| OQ-6 | several options each carrying fields | **a block per option**, each with its own button (`design.md` D7) |
 
-  `serve` presents at the top of every iteration and `Glass::present` is
-  contracted as *"write every property, total and idempotent"* — the design's
-  deliberate answer to a display server that fails partway through an update. A
-  field holds user state between presents. The two collide.
-
-  - **(a) Slint owns the draft.** `in-out` on a row struct; the glass writes the
-    field model only when the `ViewId` changes. Cheapest. Costs the totality
-    rule an exception, which must then be stated and tested rather than
-    discovered.
-  - **(b) The controller owns the draft.** An edit becomes a `Command`;
-    `Controller` retains the draft *inside* `Prepared`, so a draft and the view
-    it answers are one value and `shown = None` cannot leave one behind.
-    `present` writes the field model from the draft every time, so totality
-    survives. `answer()` assembles `values` from retained state.
-  - **(c) The click carries the values.** `chosen(view, option, [FieldValue])`;
-    no draft state anywhere. Fewest moving parts; the values arrive unverified.
-
-  *Recommendation: (b).* `Controller` is already the named home of renderer
-  state — "no Slint types, so it is testable without a platform", and "that is
-  the complete retained state" (`controller.rs:100-107`). It keeps `present`
-  total, keeps the draft in a pure reducer the headless tier can test, and lands
-  the verification where `answer()`'s already is: it refuses an option the
-  retained presentation does not carry, and filling `values` from retained state
-  means every submitted key came from a field that view actually declared.
-  Option (c) has to add that check back by hand.
-
-  The cost is one channel message per widget edit — nothing for fourteen
-  checkboxes. If text fields make it ugly, that is the argument for (c), and it
-  should be made with a measurement.
-
-  AC-5 is the criterion that distinguishes all three.
-
-- **OQ-2 — which field kinds does 007 draw?** The pinned compiler
-  (`i-slint-compiler-1.17.1/widgets/`) has a widget for four of the five;
-  `datetime` has only `DatePickerPopup` and `TimePickerPopup`, so an inline
-  control is a composite we write — *and* it is the one row of the canon-delta
-  table that nothing in the spec implies.
-
-  *Recommendation: draw `boolean`, `text`, `number` and `choice`; leave
-  `datetime` undrawn and reported (AC-3), and leave its wire form out of the
-  delta rather than guess at it.* That is a renderer subset R-55 explicitly
-  permits, and it keeps the delta to four rows every one of which is already
-  strongly implied. The alternative — draw all five — is defensible and makes
-  the undrawn variant unreachable by construction, which is tidier, but it buys
-  a composite widget and forces a protocol decision no evidence is asking for.
-
-- **OQ-3 — a scheduled firing lands while the form is half filled.**
-  SPEC-002/OQ-4, and this slice makes it expensive: today it costs an unclicked
-  button; afterwards it costs ten minutes of ticking. SPEC-002 warns that
-  suppression asks the host to judge a view worth protecting, which is domain
-  meaning it does not hold.
-
-  A counter-argument belongs on the record: *"a person is part-way through
-  answering"* is interaction state, which the brief gives the host outright, and
-  is not domain meaning. A dirty-draft suppression rule is defensible in a way
-  "this view looks important" is not.
-
-  *Recommendation: 007 does not answer it.* It is a SPEC-002 amendment plus an
-  ADR, and the slots that produced the evidence are two hours apart, so the
-  window is small. Record the sharpened case in `notes.md` Harvest. Do the cheap
-  half: if a supersession discards a **non-empty** draft, say so on the
-  diagnostic surface rather than losing it silently.
-
-- **OQ-4 — what does a non-string `group` value mean?** `Hints` carries
-  `serde_json::Value` (`canonical.rs:127`). R-18 lets the renderer branch on the
-  key; it does not say what `{"group": 7}` means. A hint is presentation and
-  must never fail the message — that would be a narrowing — so the choice is
-  between treating it as ungrouped and coercing it to a display string.
-  *Recommendation: ungrouped, and reported undrawn*; coercion invents a heading
-  the backend did not author. Also to settle: two groups sharing a name (merge,
-  at the first one's position), and a group name that is the empty string.
-
-- **OQ-5 — is the style selection part of this slice?** A checkbox in the
-  current style is a large part of what the notes complain about;
-  `slint_build::CompilerConfiguration::with_style` is one line beside the
-  `with_debug_info(true)` `build.rs` already sets. *Recommendation: yes — one
-  line, and nothing else visual.* It needs a recorded decision because it
-  changes the appearance of every existing widget and because the renderer tests
-  run headless and will not notice.
-
-- **OQ-6 — several options each carrying fields.** The backend in hand sends
-  one, but the renderer may not assume it. Draw each option's fields with its
-  own button, submitting only that option's values (AC-4)? Or reveal the
-  selected option's fields on demand? *Recommendation: the former* — it is the
-  literal reading of R-8, it needs no selection state, and it degrades to the
-  single-option case the evidence actually wants.
+Two things design added that this card did not anticipate: the `Edited` value
+seam, landed now so that R-57 has a single enforcement site and the host cannot
+grow a drawn kind without deciding what it submits (`design.md` D11 — it does not
+guard the *protocol* growing a kind; that break lands in `present()`'s mapper
+arm); and **AC-10**, because AC-7 asks a person to observe the
+*behaviour* and nobody had been asked to judge the *appearance*.
 
 ## Summary
 
@@ -282,3 +251,27 @@ between them. It submits what was drawn.
      transport (009) is promoted or deferred, now that a form collapses fourteen
      spawns per slot into one; SPEC-001/OQ-2 with the cost of its absence
      written down. -->
+
+- **Keyboard focus does not survive a present.** Every present resets the field
+  model, which destroys and re-creates every element under `options` — the same
+  mechanism that re-establishes `FieldRow.checked` from the draft (design §5.4,
+  A-2). The window holds its focused item weakly, so focus is dropped once per
+  tick: ticking the Nth box from the keyboard costs N tabs. No acceptance
+  criterion is unmeetable and no requirement is breached — SPEC-001 addresses
+  focus nowhere — and the form is fully usable by mouse.
+
+  **Not repairable by writing rows in place** (`set_row_data`): that keeps focus
+  and detaches the checkbox from the draft, which is the defect A-2 exists to
+  exclude. The work is a focus identity that survives a rebuild — the row reports
+  focus back, the host retains the focused field id, the row's `init` restores it
+  — which is a design surface of its own and the reason this is owned here rather
+  than absorbed. Raised as F-2 in `review-design.md`.
+
+- **D3's rationale has a home outside this slice.** The decision that `datetime`
+  is deliberately unspecified shaped R-57's text, and its reasoning lived only in
+  `canon-delta.md`, which is consumed at promotion — so after reconciliation it
+  would have existed nowhere. Recorded in `docs/roadmap.md` §Open decisions
+  beside OQ-1 and OQ-2, with the trigger (the slice that first draws a `datetime`
+  field) and the note that reversal reads as tidying in either direction.
+  SPEC-001/OQ-4 carries the degrees of freedom themselves. **No ADR** — user
+  decision, 2026-09-15. Raised as F-14 in `review-design.md`.

@@ -330,3 +330,23 @@ other, citing the finding id.
   The phase's exit criterion is statable, which is why it can be planned: *which
   fields belong to which option, and which heading covers which fields, are both
   apparent without reading the protocol, and the person says so.*
+
+### 2026-09-15 — who verifies round 1's repairs (F-1..F-19)
+
+- **Asked:** by the user, on reading the round-2 hand-over — *"Every outcome
+  column is blank, and the protocol says `Done` requires each finding `verified`
+  or `withdrawn` by **the raiser**."* All nineteen round-1 findings were
+  disposed and seventeen changed an artefact, but no outcome was set. Round 1's
+  raiser was a session that has ended; the responder setting its own outcomes is
+  the both-hats failure the ledger's Protocol names.
+- **Decided:** round 2's codex review stands as the verification of round 1. It
+  inherits the raiser's role over F-1..F-19 as well as raising its own findings.
+- **Consequence:** the ledger carries the rule under *Outcome, and who sets it*
+  and `review-design-brief-2.md` makes it job 1's second half. A repair round 2
+  accepts is `verified` with round 2 as raiser; one it finds wrong makes the
+  round-1 finding `contested` and its substance a new `F-20`-onward finding; one
+  it judges was never a defect is `withdrawn`. A repair round 2 does not reach
+  keeps an **unset** outcome and is named in *Depth of the round*, so an
+  unverified repair stays visible rather than passing as a blank cell. The
+  ledger is `Done` only when the column is full — this decides who fills it, not
+  that it is full.
