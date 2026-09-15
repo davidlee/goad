@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-03 — the mapper and the draft | done | 2026-09-15 |
 | PHASE-04 — the draft is retained, and the answer carries it | done | 2026-09-15 |
 | PHASE-05 — the form on the wire | done | 2026-09-15 |
-| PHASE-06 — the demo, and the look | pending | |
+| PHASE-06 — the demo, and the look | done | 2026-09-15 |
 
 ## Phase sheets
 
@@ -1891,12 +1891,336 @@ pristine tree, run against the **whole** renderer target, read, and reverted.
   the negative case for PHASE-04's F-3, so the class is *enumerations go stale*
   rather than *enumerations are always wrong*.
 
+### PHASE-06 — the demo, and the look
+
+**Objective** (from `plan.md`): a person fills a real multi-field form against a
+real backend, sees every answer recorded from one exchange, and says whether the
+form is legible.
+
+**Criterion ids, re-derived from `plan.md:807-894`, PHASE-06 entire** — not
+copied from the brief.
+Entry EN-1, EN-2. Exit EX-1 … EX-7, no gap and no duplicate. Verification VH-1,
+VH-2, VA-1, VA-2. Two of the four verification criteria are **human** and cannot
+be discharged by the agent writing this sheet.
+
+**Surfaces:** `examples/shell/backend.sh`, `crates/goad/ui/app.slint` (bounded by
+AC-10 / S-8), `docs/slices/007/audit.md` (Evidence), this file (Findings,
+Harvest).
+
+**T-1 — the warrants, read rather than counted.**
+
+`plan.md`'s closing advice from PHASE-05 (Harvest, *a criterion that states its
+own reasoning is checkable*): re-derive the ids, **then read what each warrant
+cites**. Three phases in a row it has paid. Results, one line each:
+
+| warrant | cites | read |
+|---|---|---|
+| EX-1 — "R-55's *or produce the effect of* clause" | `docs/specs/001-host-backend-protocol.md:121` | ✓ verbatim: *"MUST NOT be treated as, **or produce the effect of**, a narrowing of the protocol"* |
+| EX-1 — "which no other artefact in this slice discharges" | — | **F-1.** True of what this slice touches; false of the checkout. See below |
+| EX-2 — "Today it discards them and answers `view: null`" | `examples/shell/backend.sh:49-51` | ✓ the `respond` arm prints `{"view":null,"next_check":"45 minutes"}` and reads nothing |
+| EX-3 — "Its header states that rule" | `examples/shell/backend.sh:22-29` | ✓ *"a value the host carries opaquely must not reach this file's control flow"* |
+| EX-5 — "slices 001–003 all closed green on a binary that could not open a window" | `docs/AGENTS.md` §Tiers | ✓ same sentence, same claim |
+| EX-6 — "ADR-004's connection to the deferred hold" | `docs/adr/004-…:41-70` | ✓ and the connection is real but nowhere written down. T-7 writes it |
+| VH-1 — "the undrawn field … on the diagnostic surface" | `diagnostics.rs:202-214` | ✓ `not drawn: option {o} field {f} is a {form} field; this renderer draws boolean fields only` |
+| VA-1 — "`group` is not on the scanned word list" | `crates/goad-boundary/tests/checks/vocabulary.rs:18-26` | ✓ seven words, `group` not among them; the line cite is live |
+| Notes — the flake reference | `docs/memory/path-flake-ref-breaks-on-demo-socket.md` | **F-2.** No such file |
+
+**Reading list**
+
+- `examples/shell/backend.sh:1-83` — whole. Its header is the discipline EX-3
+  keeps; its `respond` arm (`:49-51`) is what EX-2 replaces. **Both cites are
+  as the file stood at `097bd68`**, before this phase rewrote it to 141 lines; a
+  reading list records what was read, so they are marked rather than moved
+  (PHASE-05 F-8).
+- `examples/demo.toml`, `justfile:67` — what `just demo` actually runs.
+- `crates/goad/ui/app.slint:72-101` — the guarded per-option container, the `for`
+  over blocks, the heading, the checkbox. **This is the whole of S-8's bound.**
+  Again as at `097bd68`; the same code is `:72-134` after this phase.
+- `crates/goad/src/view_model.rs:243-300` — `sift` and `blocks_from`: which
+  fields are drawn, which are reported, and when a block opens. An undrawn field
+  opens no block (`:280-283`), so a group whose every member is undrawn draws no
+  heading over nothing.
+- `crates/goad/src/diagnostics.rs:142-144` — backend stderr reaches the
+  diagnostic surface as one `stderr: …` line, bounded at 4096 bytes. This is
+  EX-2's vehicle. `:202-221` — the undrawn lines a person will read.
+- `crates/goad-semantics/src/protocol/canonical.rs:751-770` — the `respond` wire
+  form, exactly as the host writes it. `values` is the last key of `response`
+  and `response` the last key of the envelope; that is what makes EX-2's
+  parserless read possible and it is the reason to state.
+- `docs/specs/001-host-backend-protocol.md:289-314` — *Field forms*: the field
+  object's own keys, and every other key a hint. `:108` R-18, `:121` R-55.
+- `docs/slices/007/canon-delta.md` — R-57, R-58. **Draft. This phase does not
+  promote it and does not edit it** (AC-8, audit's).
+
+**Assumptions**
+
+- A-1 — a display is reachable and this phase runs unjailed. **Checked, not
+  assumed:** `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-1`, `IN_NIX_SHELL=impure`.
+  EN-2 discharged.
+- A-2 — backend stderr from a `respond` exchange reaches the diagnostic surface
+  the tray opens. Read off `diagnostics.rs:142-144` and `reception.rs:68,93`,
+  and **observed by the user at VH-1**, which is the only thing that settles it.
+- A-3 — F-6 arrives in person. The window has never been sized, and a form is
+  taller than one material control, so the demo window opens too small to show
+  the form and the person resizes it. That is the inherited product defect
+  observed, not a new one, and **not repairable inside S-8** — window sizing is
+  named 008's in `slice-007.md` AC-10.
+
+**STOP conditions**
+
+`plan.md` S-1…S-9 stand entire. The two that bind here:
+
+- **S-8** — anything beyond the block container, its separator, and the
+  heading's own treatment. Everything else the user says is recorded verbatim
+  and becomes 008's brief (EX-4). **The bound is on what may be changed, never
+  on what may be said.**
+- **S-1** — the design did not settle it. In particular: do not repair F-6.
+
+And the three residues that are **audit's**, to be left reachable rather than
+closed over: `canon-delta.md`'s promotion (AC-8), the plan's per-phase Surfaces
+lines, and the `design.md` citation drift PHASE-04/F-2 and PHASE-05/F-4 name.
+
+**Tasks**
+
+- [x] T-1 — re-derive the ids; read what each warrant cites. *(above)*
+- [x] T-2 — EN-1: PHASE-05's exit criteria discharged, `just check` exit 0.
+- [x] T-3 — EX-1: the form. Protocol-shaped, two `group` values, one undrawn kind.
+- [x] T-4 — EX-2: the `respond` arm records `values` on stderr. EX-3's discipline kept.
+- [x] T-5 — a first treatment inside S-8, so the demo is worth a person's time.
+- [x] T-6 — **hand over**. VH-1 and VH-2 are the user's. EX-4 splits what comes back.
+- [x] T-7 — EX-6: Harvest, including ADR-004 × the deferred hold. EX-5: `audit.md` Evidence.
+- [x] T-8 — EX-7 / VA-1: gate green. Diff the record against `git status` before `done`.
+
+
+**Progress**
+
+- T-1 — done. The table above. Two findings, F-1 and F-2.
+- T-2 — **EN-1 discharged.** `just check` exit 0 on the clean tree at `097bd68`,
+  535 tests across 21 binaries, transcript kept. PHASE-05's five exit criteria
+  read rather than assumed: `fields.rs` exists with its four cases and its three
+  local readers (EX-1, EX-3, EX-4); `logging_scripted` has exactly one home and
+  it is `harness.rs:172` (EX-2); the gate is green (EX-5).
+  **EN-2 discharged**: `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-1`, unjailed.
+- T-3 — **EX-1 done.** One option, `yes`, carrying six fields: `started`
+  (no `group`, so an untitled block), `desk` and `outside` under *Where you
+  were*, `focused` and `tired` under *How it went*, and `note`, a **`text`**
+  field — a kind this renderer does not draw. Option `no` carries none, so
+  AC-6's absent-not-empty is visible in the same window. `multiline` rides flat
+  on `note` beside `group`, which is the same rule (R-18) shown twice.
+  The undrawn field is deliberately *inside* a group with drawn members: a group
+  whose every member is undrawn opens no block (`view_model.rs:280-283`), so
+  putting it alone would have shown a person nothing.
+- T-4 — **EX-2 done, EX-3 kept.** The `respond` arm reads `view_id`, `option`
+  and `values` with the file's own parserless idiom and prints one line to
+  stderr, which the host captures and shows on its diagnostic surface
+  (`diagnostics.rs:142-144`). `values` is an object, so it ends at `}}` rather
+  than at a quote; the header's note says why the first occurrence is the right
+  one for each of the three. **None of them reaches a branch** — the rule the
+  header states — and the line is plain text, so `escaped` does not apply and is
+  not invoked. Measured on both branches by hand before the window was opened.
+- T-5 — **the treatment, inside S-8. Two passes, and this entry was rewritten
+  after the second**, because the first was written while the decision was being
+  taken and the decision then moved (PHASE-05 F-8, pass 2).
+  - **First pass, before a person looked:** `padding-left: 16px` on the
+    container (which fields belong to which option), `padding-top`/
+    `padding-bottom` and `spacing: 8px` (which heading covers which fields),
+    `font-weight: 700` on the heading, and a 1px `Palette.border` rule closing
+    the container. **The separator closes the group rather than opening it** — a
+    rule between an option's control and the fields it carries states the
+    opposite of what the indent states. `Palette` is imported from
+    `std-widgets.slint` and every style exports it, so nothing here is
+    material-only.
+  - **Second pass, on the user's screenshot** (D-1 below): `alignment: start` on
+    the container and on each block, and `spacing: 2px` inside a block. Without
+    them the layout distributed the window's slack *between* the fields and the
+    declared spacing said nothing.
+  - **What landed, against `git diff`:** one import, four properties on the
+    container (`padding-left`, `padding-top`, `padding-bottom`, `spacing`,
+    `alignment`), two on each block (`alignment`, `spacing`), `font-weight` on
+    the heading, and the `Rectangle`. No count is asserted here on purpose — the
+    enumeration is the claim, and this slice has falsified four counts already.
+  - Gate re-run after each pass: exit 0, 535 tests, unchanged. **The layout
+    change reaches no fixture** — which is itself the finding in *Learned*.
+
+**Findings**
+
+- **F-1 — EX-1's warrant is true of the slice and false of the checkout.**
+  *"…at least one field of a kind this renderer does not draw … which no other
+  artefact in this slice discharges."* `examples/typescript/backend.ts:150-165`
+  already sends an option carrying `{ id: "entry", kind: "text", … }`. It is a
+  declared non-surface (`plan.md` §Sequencing, *Could be dropped*), it is not
+  what `just demo` runs, and no criterion reaches it — so the criterion is right
+  and the sweep it licenses is right. What is overstated is *no other artefact*:
+  the protocol-shaped-form idea has a precedent in this repository, and a reader
+  taking the warrant at face value would not find it. Fourth instance of the
+  class PHASE-02/F-3, PHASE-04/F-1 and PHASE-05/EX-2 established — **the
+  criterion right, its stated reasoning not** — and the fourth time reading the
+  cite was what showed it.
+- **F-2 — `docs/memory/path-flake-ref-breaks-on-demo-socket.md` does not
+  exist.** Cited by `plan.md:890` and by **all six** phase briefs. The fact is
+  real and is held in the orchestrator's own memory; what is missing is the file
+  seven live cites name. Nothing in the gate resolves a `docs/` path, so this
+  is invisible to it. Audit's: write the memory, or drop the cites. It is the
+  same class as `docs/memory/cite-requirements-not-finding-ids.md` being
+  unenforced — a `docs/memory/` reference nothing checks — and the two should be
+  taken together.
+- **F-3 — the header's own count went stale, and this is the fourth phase in a
+  row to falsify a count comment.** `backend.sh:1` said *"A goad backend in ten
+  lines of shell"*; the file was already past thirty lines of code before this
+  phase and is further past it now. Repaired to *"in one file of shell"*, which
+  makes the same point and cannot go stale. PHASE-01 F-5, PHASE-02 T-11,
+  PHASE-03 F-4, and now this: **reading the file you are changing is still the
+  only instrument for this class.**
+
+**Decisions taken during execution**
+
+- **D-1 — `alignment: start` is the block container's own treatment, and so
+  inside S-8.** The user's first screenshot showed the window's full 1723px of
+  slack distributed *between* the fields: two members of one block further apart
+  than two blocks. The temptation was to read this as window sizing, which is
+  named 008's, and leave it. Taken the other way, and the reason is where the
+  slack is distributed rather than where it comes from: a `VerticalLayout` that
+  stretches its own children makes its own `spacing` meaningless, so packing the
+  container and each block to the top is a statement about **grouping** — the
+  thing AC-10 asks about — and not about the window's size. The stretch that
+  remains, above the container, was **not** touched and is recorded for 008.
+  A second reading was available and is worth saying: had the fix needed a
+  property on the per-option row or on the options list, it would have been S-8
+  and a STOP.
+
+**Read, not run — VA-1's other half**
+
+`just check` exits 0; the vocabulary scan and the four ADR-001 instruments pass.
+Two things that does **not** say, neither of which any instrument reaches:
+
+- **No host type or module is named for grouping.** `group` is not on the
+  scanned word list (`crates/goad-boundary/tests/checks/vocabulary.rs:18-26`)
+  and never will be — it is a hint key on the wire. Held by review. The near
+  miss is on the record: PHASE-03's first cut of the mapper had a private
+  `Grouping`, which `design.md` §8/R-6 names as the shape to avoid and which
+  nothing caught.
+- **Stratum 3's purity.** `view_model.rs` staying pure, and `Draft` never
+  entering `Presentation`, are held by **review alone** — `cargo test -p
+  goad-semantics` and the three other ADR-001 instruments all stop short of
+  stratum 3 (POL-001 §Verification, `design.md` §3). A green gate is not
+  evidence against S-6.
+
+**VA-2 — disposition, and what this phase did not do**
+
+VA-2 asks for a walk of every acceptance criterion in `slice-007.md` and every
+verification criterion in `plan.md`, plus a diff of each phase's declared
+surfaces against the paths actually touched. **Only this phase's half was done
+here.** The slice-wide walk is the audit's evidence-gathering by
+`docs/AGENTS.md` §Audit & reconcile, which asks for the same two things in the
+same words, and doing it now would pre-empt an audit that is meant to write its
+Brief before looking. The overlap is real and is itself worth a finding at
+audit: **VA-2 and §Audit's evidence bullet are one job with two owners.**
+
+This phase's half: the paths touched are `examples/shell/backend.sh`,
+`crates/goad/ui/app.slint`, `docs/slices/007/audit.md` and
+`docs/slices/007/notes.md` — **exactly the four PHASE-06 declared, no more and
+no fewer.** The second complete Surfaces line in this slice, after PHASE-05's,
+against PHASE-01's and PHASE-04's short ones (PHASE-04 F-3).
+
+**The closing check — PHASE-05 F-8's two passes, run on this sheet**
+
+- **Pass 1, mechanical.** Every path in `git diff` appears in Surfaces above:
+  four for four. Every `path:line` this sheet cites was resolved. Three had
+  moved, all three in files this phase itself rewrote — `backend.sh:1-83` and
+  `:49-51`, `app.slint:72-101` — and all three are now marked *as at `097bd68`*
+  rather than renumbered, because a reading list records what was read. One
+  cite was simply short and was corrected: `plan.md:807-877` → `:807-894`,
+  PHASE-06 entire.
+- **Pass 2, not mechanical.** Every decision this sheet records, re-read against
+  what the diff actually did. **It caught one, and it was the shape F-8
+  predicted exactly:** T-5 said *"Four changes and no others"* and enumerated
+  them. That was true when written and false four hours later — `alignment:
+  start` twice and `spacing: 2px` landed after the user's screenshot, under
+  D-1. The entry was internally consistent, cited nothing stale, and asserted
+  something the diff contradicted. It has been rewritten to cover both passes
+  and to assert no count. The Harvest's matching sentence went the same way.
+  **Third phase to run this check and the first to have it fire on the sheet's
+  own prose rather than on its citations.**
+
+**VH-1 and VH-2 — what the user did, and what they said**
+
+Carried out by the user on 2026-09-15, on `just demo` against
+`examples/shell/backend.sh`, on a niri (Wayland) session. The agent did not
+observe the window; every line below is the user's own account, and the
+screenshots they sent are the evidence for the two the agent could check.
+
+- **VH-1, step 1 — the undrawn report.** *"diagnostics - TIL it has a right
+  click menu. confirmed"*. The `text` field is reported and not drawn (AC-3's
+  human half).
+- **VH-1, steps 2 and 3 — the record.** Ticked by mouse, pressed `Yeah` once,
+  reopened the diagnostic surface. The line, read off the user's screenshot
+  verbatim:
+  ```
+  stderr: answered 2026-09-15T09:26:36.425909399Z#1: option yes, values {"desk":true,"focused":false,"outside":false,"started":true,"tired":true}\n
+  ```
+  and confirmed by the user in their own words: *"the bools are correct, no
+  note"*.
+
+  **Five keys from one exchange** — one per field the renderer drew of the
+  option pressed, `true` for the three ticked and `false` for the two left
+  alone, and **no key for `note`**. That is AC-7 whole, and AC-1, AC-3 and R-58
+  seen by a person rather than by a test. **AC-7 discharged.**
+- **VH-2 — the look, first pass.** The first build distributed the column's
+  full 1723px of slack between the fields, so two members of one block sat
+  further apart than two blocks did. Actioned inside S-8: `alignment: start` on
+  the container and on each block. The user, on the second build: *"form
+  spacing looks a lot saner now"*.
+- **VH-2 — accepted, with its own pointer at 008.** Asked the criterion's two
+  questions directly — whether the fields visibly belong to `Yeah` rather than
+  `Nah`, and whether each heading visibly covers its own two fields and not the
+  ungrouped one above — the user answered: *"i'll call it legible enough for
+  now, nothing that can't survive until holistic design work"*. **AC-10
+  discharged**, and the acceptance carries its own qualifier: it is legibility
+  sufficient to close 007, explicitly deferring to the holistic pass, which is
+  008. That qualifier is part of the evidence and is not to be dropped when the
+  criterion is quoted as met.
+
+**Recorded verbatim, not actioned — 008's brief (EX-4, S-8)**
+
+The bound is on what may be changed, never on what may be said. Each of these
+was said and none was argued with.
+
+- **"no word wrap"** — the diagnostic surface draws one line per entry and does
+  not wrap it, so the record above runs off the right edge of a wide window.
+  The surface's look is not the block container; 008's.
+- **"no selection so image will have to do"** — text on the diagnostic surface
+  cannot be selected or copied, so the only way to get a line out of the product
+  is a screenshot. Worth stating plainly: **this is what made the human evidence
+  for AC-7 an image rather than a paste**, so it is a cost to the methodology and
+  not only to the look.
+- **A trailing `\n` is visible at the end of the record.** The host escapes
+  control characters in captured stderr, which it must — one capture is one
+  line of the surface, and an embedded newline would otherwise break the list's
+  shape. The *trailing* one is the only cosmetic case, and the fix is a host
+  one: trim at most one line terminator before escaping. `diagnostics.rs` is not
+  a PHASE-06 surface and this is not S-8's, so it is recorded rather than
+  repaired. **It was deliberately not papered over in `backend.sh`**: a bash
+  line written to stderr terminates with a newline, and an example that dropped
+  it to flatter the host would teach the wrong thing to the people who copy it.
+- **The vertical distribution above the block container.** `alignment: start`
+  reaches the container and the blocks; the option list and the per-option row
+  still stretch to whatever height the window has. Under a tiling compositor
+  that is the full column. Window sizing and the look of the controls are 008's
+  by name (`slice-007.md` AC-10).
+- **The title and body are clipped at the top of the window** in the first
+  screenshot. Same owner as the line above.
+- **"now two trays though"** — *resolved during the session, not a defect and
+  not 008's.* Two `goad` processes were running: the user's installed binary on
+  the default configuration (pid 1830082, started before this phase) and the
+  agent's `just demo` (pid 1365067). One tray each. Recorded because the
+  observation was made and a reader of the evidence would otherwise wonder.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-15 · PHASE-05, done · base commit `69c617b`
+**Fresh as of:** 2026-09-15 · PHASE-06, done · base commit `097bd68`
 
 ### Produced
 
@@ -1967,6 +2291,28 @@ pristine tree, run against the **whole** renderer target, read, and reverted.
   `element_described` lifted from `tree.rs` to `harness.rs` (D-3, referred up
   and approved), so the Button-filtered description query has one statement.
   Eleven injections in VA-1. Gate at **535 tests, from 531**.
+- `examples/shell/backend.sh` sends a **protocol-shaped** form: one option, six
+  fields — five `boolean` across three blocks (one ungrouped, then two `group`
+  values) and one `text` field this renderer does not draw — and a second option
+  carrying none, so AC-6's absent-not-empty is in the same window. `multiline`
+  rides flat beside `group`, which is R-18 shown twice in one field list. EX-1,
+  and the only artefact in this slice that discharges R-55's *or produce the
+  effect of* clause.
+- The `respond` arm **records the answer**: `view_id`, `option` and `values`
+  read with the file's own parserless idiom and written to stderr, which the
+  host shows on the diagnostic surface (`diagnostics.rs:142-144`). `values` is
+  an object, so it ends at `}}` rather than at a quote. Nothing it reads reaches
+  a branch, and the line is plain text so `escaped` does not apply — EX-2 with
+  EX-3 intact.
+- `app.slint` inside S-8, and nothing outside it: the block container
+  indented 16px and packed `alignment: start` with 8px between blocks; each
+  block packed likewise with 2px; the heading bold; the container closed by a
+  1px `Palette.border` rule, **below** the fields rather than above. `Palette`
+  is exported by every style, so none of it is material-only.
+- **The gate is unchanged at 535 tests, and that is the phase's shape rather
+  than a gap.** PHASE-06 adds no test and changes none. Its two headline
+  criteria are a person's, and `docs/AGENTS.md` §Tiers is explicit that a green
+  gate is not that evidence. What discharges them is in `audit.md` Evidence.
 
 ### Learned
 
@@ -2205,6 +2551,44 @@ pristine tree, run against the **whole** renderer target, read, and reverted.
   moment `draft` landed; no compiler, no criterion and no grep for the new name
   reaches it. Reading the file you are changing is still the only instrument for
   this class. PHASE-03 F-4, PHASE-01 F-5, PHASE-02 T-11.
+- **A tiling compositor makes a sizing defect unobservable, and that is worse
+  than its being observed.** `plan.md` and three phases of findings said VH-1
+  and VH-2 were *the only things that observe* F-6 — the product clipping its own
+  second option at its preferred size. They did not observe it: under niri the
+  window is tiled to the full column (617×1723 measured), so it never takes a
+  preferred size and never clips. **F-6 is therefore still open and still
+  unobserved by a person**, and the human run that was supposed to settle it
+  could not have. The general form: *a human run answers the question the
+  environment lets it ask.* Naming a human criterion as the observer of a defect
+  is only sound if the defect's precondition is reachable in the environment the
+  person will use, and nothing checked that.
+- **The same declared viewport that lets a fixture see the form is what hides
+  how the form looks.** Three fixtures declare 600×600 and all 535 tests were
+  green while the layout distributed 1723px of slack between five checkboxes —
+  two members of one block further apart than two blocks. The defect exists only
+  at a size no test declares, and no test declares a size for the reason a
+  person would. PHASE-04's C-6 rule — *a control on the fixture is not a control
+  on the code* — has a second half: **a fixture's size is not the product's, in
+  either direction.**
+- **A criterion can be discharged and its evidence still be unobtainable.**
+  AC-7 asks that the record show every answer; it did. Getting that reading
+  *out* of the product needed a screenshot, because the diagnostic surface has
+  no text selection. Reading and extracting are different capabilities and only
+  one was asked for. Worth stating because it is a cost to the **methodology** —
+  human evidence in this project is quoted, and a surface that cannot be copied
+  from makes every future quotation an image.
+- **A count in a header is a claim about the file it sits in — fourth phase
+  running.** `backend.sh:1` said *"in ten lines of shell"* and the file was past
+  thirty before this phase touched it. PHASE-01 F-5, PHASE-02 T-11, PHASE-03
+  F-4, PHASE-06 F-3. Four mechanisms, one instrument: **reading the file you are
+  changing.** This is now frequent enough to be a `docs/memory/` entry rather
+  than a per-slice observation.
+- **A `docs/memory/` citation is unchecked by anything, and one of this slice's
+  is dead.** `docs/memory/path-flake-ref-breaks-on-demo-socket.md` is cited by
+  `plan.md` and by all six phase briefs and does not exist. No compiler, no
+  gate step and no reviewer reading one file resolves a `docs/` path. Same class
+  as `cite-requirements-not-finding-ids.md` being unenforced across eight files:
+  **the memory directory is referred to as if it were checked and is not.**
 
 ### Open
 
@@ -2328,3 +2712,34 @@ pristine tree, run against the **whole** renderer target, read, and reverted.
   alone*; VT-3 is now that sentence's pin, and C-4 shows it is the only case in
   the workspace holding it. The **risk** is unchanged and still accepted by
   D13 — what changed is that the mitigation's premise is now checked.
+- **ADR-004 and the deferred hold, written here so 008 re-derives neither.**
+  D13 defers SPEC-002/OQ-4: a scheduled firing may replace a half-filled form,
+  and that is decided behaviour rather than a defect. What **bounds** it is
+  ADR-004 — the host's scheduled firings carry a minimum spacing of **3
+  seconds**, anchored on the *previous scheduled firing*, on the monotonic
+  clock, and **nothing clears the anchor**: no other stimulus resets it or
+  grants a firing that would otherwise be too soon. So the floor under a
+  half-filled form is one replacement per 3s, and only from the scheduled path.
+  **The two exemptions are the ones that reach a person filling a form:**
+  ADR-004 never delays an evaluation *a person asked for*, and never delays the
+  host's *startup* evaluation. A person pressing **Check now** mid-form
+  therefore replaces their own form with no floor under it at all. Neither
+  document says this, because ADR-004 is about a busy loop and D13 is about a
+  form; the connection is only visible from a slice holding both.
+- **F-6 — open, and now open in a second way.** The product still clips its own
+  second option at its preferred size; three fixtures in two files declare a
+  viewport and none of that fixed anything. What PHASE-06 adds is that the
+  **human observation named for it did not happen** — see *Learned* — so 008
+  inherits both the repair and an unobserved defect. Whoever picks it up should
+  reproduce it under a floating compositor, or with an explicitly sized window,
+  rather than trusting that a person running `just demo` would have seen it.
+- **008's brief, recorded verbatim and not actioned** (PHASE-06/EX-4, S-8). The
+  diagnostic surface does not wrap a line and its text cannot be selected; the
+  layouts *above* the block container distribute the window's full height; the
+  title and body are clipped at the top of the window; and the host renders a
+  captured stderr line's trailing newline as a visible `\n` — an escape it must
+  perform for embedded newlines, where trimming one terminator first would cost
+  a line in `diagnostics.rs`. The full wording is in the PHASE-06 sheet.
+- **`audit.md` is still titled *Slice NNN*.** PHASE-06's declared surface is
+  `audit.md` (Evidence), so the placeholder was left rather than quietly fixed.
+  Audit's, and trivial.

@@ -1,4 +1,4 @@
-import { Button, CheckBox, ScrollView } from "std-widgets.slint";
+import { Button, CheckBox, Palette, ScrollView } from "std-widgets.slint";
 
 // A drawn field. `checked` is the draft's value, written every present; the
 // widget flips itself on click and the next present writes it back, so the
@@ -78,11 +78,40 @@ export component PromptWindow inherits Window {
               accessible-description: option.id;
               accessible-label: option.label;
 
+              // The indent is the answer to *which fields belong to which
+              // option*: the control that answers is flush left, and
+              // everything it carries is stepped in under it (AC-10).
+              padding-left: 16px;
+              padding-top: 4px;
+              padding-bottom: 8px;
+              spacing: 8px;
+              // Without this the layout distributes whatever slack it is given
+              // *between* the fields, and the spacing above stops meaning
+              // anything: a tall window pushes the members of one block further
+              // apart than two blocks are. Packing to the top is what makes the
+              // 8px above a statement about grouping rather than a minimum.
+              alignment: start;
+
               for block in option.blocks: VerticalLayout {
+                // Same reason as the container's, one level down: a heading
+                // must sit against the fields it covers, not float halfway to
+                // the next one.
+                alignment: start;
+                spacing: 2px;
+
                 // `heading: ""` is an untitled block, not a missing one: an
                 // ungrouped field is not drawn under a heading that does not
                 // claim it.
-                if block.heading != "": Text { text: block.heading; }
+                //
+                // Bold is the whole of the heading's treatment, and it is the
+                // answer to *which heading covers which fields*: a heading and
+                // a checkbox label are otherwise the same words in the same
+                // face. The block's own spacing binds a heading more tightly
+                // to the fields beneath it than to the block above.
+                if block.heading != "": Text {
+                  text: block.heading;
+                  font-weight: 700;
+                }
 
                 for field in block.fields: CheckBox {
                   text: field.label;
@@ -97,6 +126,15 @@ export component PromptWindow inherits Window {
                     root.edited(option.view, option.id, field.id, self.checked);
                   }
                 }
+              }
+
+              // The separator closes the group rather than opening it: a rule
+              // *above* the fields would cut an option off from what it
+              // carries, which is the reading the indent exists to prevent.
+              // This one marks where the option ends and the next begins.
+              Rectangle {
+                height: 1px;
+                background: Palette.border;
               }
             }
           }
