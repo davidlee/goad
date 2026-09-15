@@ -452,23 +452,29 @@ condition rather than a position.
   a backend sends only the items it still wants answered. 007 takes that route,
   so the trigger is recorded rather than fired.
 
-- **Where `datetime`'s submitted form (OQ-4) lands, and why it is blank.** 007
-  typed four of the five field kinds on the wire — `boolean` a JSON boolean,
-  `text` a string, `number` a number, `choice` the alternative's id — and left
-  `datetime` deliberately unspecified. **This was decided, not overlooked.** The
-  other four have no degrees of freedom; a datetime string has several — offset,
-  precision, whether a date without a time is admissible — and no evidence asked
-  for any of them, so any choice would have been invention in the document
-  hardest to change later. Absence alone would have been a hole, because R-58
-  requires a value for every field drawn, so R-57 closes it instead: a host
-  submits nothing for a `datetime` field and reports it undrawn under R-55.
-  *Recommendation:* answered by the slice that first **draws** a `datetime`
-  field, which is what produces evidence about which freedoms matter — not by
-  010, for the reason given above: canon-changing work folded into a
-  documentation slice blows its tier. Until then the question is recorded rather
-  than fired, exactly as OQ-2's is.
-  **Reversing this looks like tidying in either direction** — deleting R-57's
-  last clause as an oversight, or filling it in with a plausible format — which
-  is why the reasoning is written here rather than left in a slice artefact that
-  is consumed at promotion. A later reader must disagree with this paragraph
-  explicitly. (007 design D3; raised as F-14 in that slice's design review.)
+- **Why `datetime` has a wire format nobody asked for (OQ-4).** 007 typed all
+  five field kinds — `boolean` a JSON boolean, `text` a string, `number` a
+  number, `choice` the alternative's id, and `datetime` an **RFC 3339
+  `date-time` string with an offset**. **The format was chosen, not derived.** A
+  datetime string has real degrees of freedom — offset, precision, whether a
+  date without a time is admissible — and no evidence asked for any of them.
+  Two alternatives were written first and both failed. Leaving the form
+  undefined put an unconstrained value beside R-58's requirement of a value for
+  every field drawn: a contract two backends could disagree about. Forbidding
+  the submission instead — no host may answer a `datetime`, report it undrawn —
+  failed worse: R-16 admits the kind, so that rule makes a conforming renderer
+  that draws `datetime` impossible, which is the protocol taking the shape of
+  the one renderer 007 happened to build, and it borrowed R-55's undrawn report
+  to carry a prohibition R-55 exists to prevent.
+  **So the reasoning to disagree with is this**: where a constraint must be
+  picked with no demand to guide it, pick the one that admits more. A format a
+  backend can work against beats a prohibition nobody can lift without amending
+  canon. A later reader who thinks RFC 3339 is wrong should say what evidence
+  arrived, not treat the clause as an oversight.
+  *Recommendation:* OQ-4 now carries only the residue — whether a date without a
+  time wants its own kind, or a hint on `datetime`. Answered by the slice that
+  first **draws** a `datetime` field, which is what produces evidence about which
+  freedoms matter; not by 010, for the reason given above. Until then the
+  question is recorded rather than fired, exactly as OQ-2's is.
+  (007 design D3; raised as F-14, and the decision reversed under F-21, in that
+  slice's design review.)

@@ -4,7 +4,7 @@
 on, `docs/slices/007/canon-delta.md` (CD-1 → R-57, R-58)
 **Reviewer:** fresh agent, unjailed or jailed — see `review-design-brief.md`
 **Opened:** 2026-09-14
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -107,6 +107,18 @@ and the four expectations above.
 **Round 2** — 2026-09-15 — job 1: the seventeen artefact-changing repairs from
 F-1 through F-19, including their interactions and the round-1 outcomes.
 
+**Round 2, job 2** — 2026-09-15 — the round-1 threads recorded as shallow: the
+grouping rule traced through a worked mixed sequence and the actual `just demo`
+backend inspected against AC-7.
+
+**Round 2, job 3** — 2026-09-15 — §5.3's ownership account beyond F-2, the
+draft across every `Shift`, and cancellation plus the busy/back-pressure path.
+
+**Confirmation pass** — 2026-09-15 — F-29, F-30 and F-31 only: the `notice`
+thread, whose repairs are applied and whose outcomes the raiser has not yet set.
+Not a third round — no new ground, and a new finding only where a repair
+introduced a defect. Commissioned as `review-design-brief-3.md`.
+
 ## Findings
 
 **Environment note.** Run unjailed; `git rev-parse --show-toplevel` is
@@ -140,25 +152,38 @@ This is a ruling about who holds the pen, not a licence to mark an outcome round
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | minor | doc-wrong | |
-| F-2 | major | doc-wrong | |
-| F-3 | major | doc-wrong | |
-| F-4 | blocker | doc-wrong | |
-| F-5 | major | doc-wrong | |
-| F-6 | major | doc-wrong | |
-| F-7 | minor | doc-wrong | |
-| F-8 | major | doc-wrong | |
-| F-9 | major | doc-wrong | |
-| F-10 | major | doc-wrong | |
-| F-11 | minor | doc-wrong | |
-| F-12 | minor | doc-wrong | |
-| F-13 | minor | doc-wrong | |
-| F-14 | major | follow-up | |
-| F-15 | minor | doc-wrong | |
-| F-16 | minor | doc-wrong | |
-| F-17 | minor | doc-wrong | |
-| F-18 | nit | doc-wrong | |
-| F-19 | minor | doc-wrong | |
+| F-1 | minor | doc-wrong | verified |
+| F-2 | major | doc-wrong | verified |
+| F-3 | major | doc-wrong | verified |
+| F-4 | blocker | doc-wrong | verified |
+| F-5 | major | doc-wrong | verified |
+| F-6 | major | doc-wrong | verified |
+| F-7 | minor | doc-wrong | verified |
+| F-8 | major | doc-wrong | verified |
+| F-9 | major | doc-wrong | verified |
+| F-10 | major | doc-wrong | verified |
+| F-11 | minor | doc-wrong | verified |
+| F-12 | minor | doc-wrong | verified |
+| F-13 | minor | doc-wrong | verified |
+| F-14 | major | follow-up | verified |
+| F-15 | minor | doc-wrong | verified |
+| F-16 | minor | doc-wrong | verified |
+| F-17 | minor | doc-wrong | verified |
+| F-18 | nit | doc-wrong | verified |
+| F-19 | minor | doc-wrong | verified |
+| F-20 | major | doc-wrong | verified |
+| F-21 | blocker | doc-wrong | verified |
+| F-22 | minor | doc-wrong | verified |
+| F-23 | minor | doc-wrong | verified |
+| F-24 | minor | doc-wrong | verified |
+| F-25 | minor | doc-wrong | verified |
+| F-26 | major | doc-wrong | verified |
+| F-27 | minor | doc-wrong | verified |
+| F-28 | minor | doc-wrong | verified |
+| F-29 | major | doc-wrong | verified |
+| F-30 | major | doc-wrong | verified |
+| F-31 | minor | doc-wrong | verified |
+| F-32 | minor | doc-wrong | verified |
 
 ### F-1 — A-2 is settled on paper, affirmatively: a model reset destroys and re-creates the repeater's elements, so `FieldRow.checked`'s binding is re-established
 
@@ -249,7 +274,7 @@ settles A-1 and is its own finding — the two were not folded together.
 
 Endorsed by the user, 2026-09-15.
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-2 — every present destroys and re-creates every element under `options`, so keyboard focus is dropped on every edit round trip; §5.4's "same value, no visible change" is false
 
@@ -350,7 +375,9 @@ its own sentence says feedback beyond that is recorded verbatim and not actioned
 Endorsed by the user, 2026-09-15, over the stated alternative of taking the focus
 mechanism into this slice as `fix-now`.
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-22 — the repair corrected §5.4's prose and left the lifecycle diagram asserting the opposite. The diagram now states the cost. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-3 — `OptionId` does not implement `Ord`, so `Draft`'s `BTreeMap<(OptionId, FieldId), Edited>` will not compile; `crates/goad-semantics/` must change
 
@@ -446,7 +473,7 @@ claim is true as it stands.
 
 Endorsed by the user, 2026-09-15 (option 2 of two put to them).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-4 — R-58 as worded is breached by this design's own behaviour, and conflicts with R-8 and R-52
 
@@ -552,7 +579,7 @@ a §7 verification row whose site can actually hold it.
 
 Endorsed by the user, 2026-09-15.
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-5 — `datetime` having "no defined submitted form" is a hole a conforming host falls into, not a defined state
 
@@ -628,7 +655,9 @@ one. The two rows stop contradicting each other.
 
 Endorsed by the user, 2026-09-15.
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-21 — a blocker. The repair closed F-5's hole by forbidding the submission, which made a conforming renderer that draws `datetime` impossible. R-57 now defines the form instead; F-5's original defect stays closed and is closed in a way that admits rather than forbids. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-6 — §7's proposed vehicle cannot hold R-57: `canonical.rs` is stratum 1 and knows no field kind, while R-57's enforcement site is `draft.rs::submitted` in stratum 3
 
@@ -711,7 +740,7 @@ against the new text rather than the old.
 
 Endorsed by the user, 2026-09-15.
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-7 — §10's characterisation of the §7 precedent is wrong for R-8: its row points at unit tests in `canonical.rs`, not at the inbound fixture corpora
 
@@ -747,7 +776,7 @@ The raiser's underlying point was taken seriously rather than assumed away: the 
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-8 — AC-5 ranks its two assertions backwards: the wire assertion cannot see the regression AC-5 names
 
@@ -800,7 +829,7 @@ where AC-5 needs a conjunction, and says so.
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-9 — `accessible-description: field.id` is not a unique selector: field ids repeat across options, and `element_described` silently takes the first
 
@@ -865,7 +894,9 @@ AC-4's row now also **requires the two options to share a field id**. That is th
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-20 and F-26 — the repair named an `ElementQuery` method that does not exist, and required `accessible-description` on a container whose role it left open, which Slint rejects at compile time. Both are now fixed; F-9's chosen tree structure was never what was wrong. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-10 — AC-6's "the diff for those files is empty" is not achievable: `tree.rs` builds `OptionRow` with an exhaustive struct literal
 
@@ -922,7 +953,7 @@ option tests changes" is the claim that is both true and load-bearing.
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-11 — D11's compile-error device names the wrong function: `submitted` matches `Edited`, not `FieldKind`, so a kind added to R-16 breaks nothing there
 
@@ -967,7 +998,9 @@ slice card promoted into a standing claim about R-57 being compiler-guarded.
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-27 — the repair reached `design.md` and the slice card and not `design-log.md`, where round 1 had explicitly said a second and stronger copy of the claim lived. A superseding log entry now carries the correction. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-12 — AC-2's on-screen half names a mechanism §5.2 does not provide
 
@@ -1008,7 +1041,7 @@ Disposed together with F-9, which supplies the scoping the collection needs: the
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-13 — P-1 as stated is not the rule the design applied, and `datetime`'s exclusion has no stated reason at all
 
@@ -1060,7 +1093,9 @@ The consequence the raiser named is kept explicitly, because it is why this is n
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-21. This contest was inherited, not independent: F-13's repair took `datetime`'s missing reason from F-5's, and F-21 overturned that. With R-57 defining the form, P-1's obstacle for the kind changes from *contract* to *presentation* — two modal popups with no combined control — and F-13's repair stands with its fourth row restated. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-14 — the no-ADR argument answers D1 and does not reach D3, the decision most likely to be reversed by accident
 
@@ -1132,7 +1167,7 @@ gap at disposition time was narrower than at raise time — what was still missi
 was the record that this was *decided* rather than overlooked, which is what the
 roadmap entry supplies.
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-15 — AC-10's bound is not separable from 008's non-goals: the instruments of legibility are exactly the things AC-10 forbids changing
 
@@ -1174,7 +1209,7 @@ Applied on the responder's recommendation as stated to the user, within a batch 
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-16 — nothing in the design says what the demo backend must send, so R-55's "produce the effect of" clause is discharged by no artefact
 
@@ -1218,7 +1253,9 @@ Applied on the responder's recommendation as stated to the user, within a batch 
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-25 — the repair added the undrawn-kind clause to the design's AC-7 and not to the slice card's, so a boolean-only form could still close the slice. The card now carries the same requirement in the same words. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-17 — `design.md` §2 says every cited line was re-opened at its site; two `glass.rs` citations were not
 
@@ -1260,7 +1297,9 @@ The raiser's framing belongs on the record: these were the citations under the d
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-23 — the repair claimed every stale `glass.rs` citation was replaced; one was not, leaving both spellings in one document. Verified by grep this time, before and after. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-18 — A-1 is settled affirmatively, and the member's generated type is `ModelRc<FieldBlock>`, not a `Vec`
 
@@ -1305,7 +1344,9 @@ Raised as a `nit` and dispositioned with the same weight as F-1, because togethe
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+
+**Re-disposed 2026-09-15, round 2.** Contested via F-24 — the repair marked A-1 discharged in §5.5 and §9 while §3 and R-1 still told phase 1 to prove it. Both now describe a regression pin. The disposition itself stands; what changed is that the repair now reaches every home of the claim.
+**Outcome:** verified
 
 ### F-19 — AC-3's first observable is the diagnostic line's wording, which §5.2 declares will not be asserted by a test
 
@@ -1355,7 +1396,7 @@ This is the better test on its merits and not merely the achievable one: it asse
 
 Endorsed by the user, 2026-09-15 (batched with the other mechanical findings).
 
-**Outcome:** verified | contested | withdrawn
+**Outcome:** verified
 
 ### F-20 — F-9's option-scoped selector names a nonexistent `ElementQuery` method
 
@@ -1387,9 +1428,14 @@ the scoped query their widget-driving vehicle, and the named expression does not
 compile. The tree structure F-9 chose can still provide an unambiguous selector;
 the repair has not yet specified it using an API this pinned version provides.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** doc-wrong
+**Response:** Upheld, and checked against the pinned crate rather than against the finding: `ElementQuery`'s complete builder surface is `match_descendants` (`search_api.rs:239`), `match_id` (`:245`), `match_type_name` (`:259`), `match_inherits` (`:267`), `match_accessible_role` (`:275`) and `match_predicate` (`:282`). No accessible-description matcher exists; `accessible_description()` is an `ElementHandle` reader (`:701`). The expression §5.2 named does not compile, and AC-1/AC-4 made it their vehicle.
+
+**Changed:** §5.2 now names the query in the API the pinned version provides — a `match_predicate` carrying an owned `option.id`, `match_descendants()`, a `match_predicate` carrying an owned `field.id`, `find_first()` — with the builder surface and the reader both cited.
+
+**The repair the finding did not have to invent:** this shape is already in the tree. `tree.rs:42-49`'s `element_described` is exactly it, minus the middle two steps, and `wiring.rs:62-70` inlines the same predicate a second time. The design now says the scoped form belongs *beside* that helper rather than at each call site — so the repair also removes a duplication the tests already carry, instead of adding a third copy. F-9's chosen tree structure was never in question; only the words for addressing it were.
+
+**Outcome:** verified
 
 ### F-21 — F-5 turns this renderer's `datetime` subset into a protocol-wide prohibition
 
@@ -1430,9 +1476,20 @@ that preserves the distinction between "this renderer reports it undrawn" and
 "the protocol forbids every renderer from drawing it"; the current repair erases
 that distinction.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** doc-wrong
+**Response:** Upheld, and upheld on a sharper reading than the finding states. Checked against the spec directly: R-16 admits `datetime` (`docs/specs/001-host-backend-protocol.md:105`) and R-55 forbids a renderer subset being treated as, **or producing the effect of**, a narrowing (`:121`). A rule that no host may answer the kind makes a conforming renderer that draws it impossible, and it arrived in the slice that happens to build a renderer which cannot draw it. The responder's defence — the protocol declines uniformly, and uniformity is not narrowing — is true and does not reach the objection: R-55's second clause is about effect, not phrasing.
+
+**The defect that survives either reading of the narrowing question**, and which the finding gestures at without isolating: R-57 cited **R-55 for a report R-55 cannot license**. R-55's undrawn report exists for a capability *the protocol admits and a renderer does not implement*. Where the protocol itself forbids the answer, a renderer not drawing it is complying, not exercising a subset — so the mechanism was being borrowed to carry a prohibition it was written to prevent. That is checkable independently of whether one calls the prohibition a narrowing.
+
+**Changed**, on the user's decision of 2026-09-15 (option A of three offered; `design-log.md` carries the alternatives and the reasoning): R-57 types all five kinds, with `datetime` submitting an **RFC 3339 `date-time` string carrying an offset**. The prohibition, the borrowed R-55 citation and the "no defined submitted form" clause are gone. OQ-4 survives with the residue — whether a date without a time wants its own kind.
+
+**Why a format rather than a better-worded deferral.** A general rule about kinds whose form the spec has not defined (option B) was offered and declined. It located the cause honestly — the spec's own incompleteness rather than this renderer — but its effect on `datetime` was identical: nobody answers it. The format was chosen on no demand, which is the real cost and is stated as such in D3, canon-delta and the roadmap. Against that: the alternative constrains harder on equally no demand. Where a constraint must be picked blind, pick the one that admits more.
+
+**Every home of the claim, because this is the class F-22..F-27 identified.** Twelve sites across four documents were found by grep before editing, not after: `canon-delta.md` (R-57's text, the Sections line, the coverage argument, *Deliberately out* — now *Why `datetime` gets a form rather than a prohibition* — and OQ-4), `design.md` (§1, §3, P-1's obstacle table, §5.2's quoted R-57, D1, D3, §5.5's *Settles* line, §10's two rows and the no-ADR argument), `slice-007.md` (the D3 follow-up), and `docs/roadmap.md` §Open decisions, which held the old decision as a warning against tidying and now holds the new one with the rule that produced it. `design-log.md` gains a superseding entry rather than an edit.
+
+**Two consequences worth naming rather than burying.** P-1's obstacle for `datetime` changes from *contract* to *presentation* — the stock offering is two modal popups with no combined control (`i-slint-compiler-1.17.1/widgets/fluent/{datepicker,time-picker}.slint:13`), verified in the pinned sources rather than assumed. And D3's reversal risk changes shape rather than vanishing: it used to present as an omission a later reader would tidy away; it now presents as a derivation a later reader will assume was evidence-led. §10 says so, which is the point of the no-ADR argument surviving.
+
+**Outcome:** verified
 
 ### F-22 — F-2's false "no visible change" claim remains in the lifecycle diagram
 
@@ -1454,9 +1511,14 @@ note), against `design.md:704-718` (the rebuild drops focus once per tick) and
 F-2's Response ("That write is the same *value* but not the same *element*,
 followed by the mechanism, the cost, and its frequency").
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** doc-wrong
+**Response:** Upheld, and checkable: the note read `same value, no visible change` twelve lines above prose saying the focus ring disappears and the person must tab from the top.
+
+**Changed:** the diagram's terminal note is now `same value, new element —<br/>keyboard focus is dropped`. Diagram and prose tell one story, and the compact account an implementer follows is the true one.
+
+**The class.** F-22, F-23, F-24, F-25 and F-27 are one failure, not five: each round-1 repair corrected the location the finding cited and left the same claim standing in every other place it lived — a diagram, a risk table, a second citation, the slice card, the log. The repair pattern applied to all five is therefore *correct every live home of the claim*, and the five were disposed together for that reason. The root cause is that these claims have several homes at once, which `docs/AGENTS.md` already warns against ("if you are about to write the same thing twice, one of them is the wrong home"); reducing the number of homes is a change to the artefacts' structure, not a repair, and is left for the synthesis to name. Endorsed by the user, 2026-09-15, as a class with one pattern.
+
+**Outcome:** verified
 
 ### F-23 — F-17 did not replace every stale `glass.rs` citation it claimed to replace
 
@@ -1476,9 +1538,14 @@ correct range, so the repaired design now contains both versions.
 `crates/goad/src/glass.rs:138-149`; F-17's Response states "every occurrence of
 `glass.rs:148-164` → `glass.rs:138-149`, across §2, §3 and §5.3."
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** doc-wrong
+**Response:** Upheld. F-17's Response overclaimed: `design.md:71` was the one occurrence of `glass.rs:148-164` still standing, so the repaired document carried both spellings of the same citation.
+
+**Changed:** `(`:148-164`)` → `(`:138-149`)` in §2. Verified as the last survivor by grep over the whole document before and after, which is the check F-17 should have run.
+
+See the class note under F-22.
+
+**Outcome:** verified
 
 ### F-24 — F-18 leaves A-1 open in §3 and R-1 after declaring it discharged elsewhere
 
@@ -1503,9 +1570,16 @@ experiment or a regression pin.
 `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/i-slint-compiler-1.17.1/generator/rust.rs:110-113,706-737`,
 as F-18 established.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** doc-wrong
+**Response:** Upheld, and this one changed what phase 1 is told to do rather than only what a document says. §3 still called the binding "established but unproven here", and R-1 still carried `low / medium` with the two-flat-models fallback as an active mitigation, while R-2 immediately below it was already marked discharged in exactly the shape R-1 needed.
+
+**Changed:** §3's paragraph now says the binding is settled and names where it was read — `generate_struct` typing every member by `rust_primitive_type`, which maps an array to `sp::ModelRc<#inner>` wherever it appears (`i-slint-compiler-1.17.1/generator/rust.rs:706-737`, `:110-113`) — while keeping the section's frame, since what the tools here could not tell us was read out of the pinned source instead. R-1 now reads `**discharged** — was low / medium`, keeps the fallback named but unneeded, and restates its signal as a regression pin against a future Slint rather than phase 1's experiment.
+
+**The judgment in it, stated rather than buried:** this removes a mitigation from the risk table on the strength of F-18's reading of the pinned compiler. If that reading is wrong, phase 1 meets a `build.rs` failure with no fallback in force. It was taken because F-18's evidence has now been read by two reviewers on different models and round 2 verified it — not because the row was tidier discharged.
+
+See the class note under F-22.
+
+**Outcome:** verified
 
 ### F-25 — F-16 closes R-55 only in design validation, not in the slice's acceptance criterion
 
@@ -1532,9 +1606,381 @@ the added sentence "the only artefact in the slice that discharges R-55's second
 clause", making the omission from the closure card load-bearing rather than
 editorial.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** doc-wrong
+**Response:** Upheld, and load-bearing rather than editorial: audit walks the card's acceptance criteria, so a boolean-only form satisfied `slice-007.md` AC-7 and closed the slice while reproducing the exact effect of a narrowing F-16 was raised to prevent. Two current-truth artefacts assigned different work to one AC id.
+
+**Changed:** the card's AC-7 gains the undrawn-kind clause in the design's own words — the form carries at least one field of a kind this renderer does not draw, so what a backend author copies is a protocol-shaped form rather than this renderer's subset — and cites design §9/AC-7 so the two cannot drift again silently.
+
+See the class note under F-22.
+
+**Outcome:** verified
+
+### F-26 — F-9's option container cannot carry `accessible-description` while its role remains open
+
+**Severity:** major
+**Location:** `design.md` §5.2 *The window*; F-9 Response
+
+**Expected:** the per-option container introduced by F-9 provides the scoped
+accessible identity the field tests require, while the separate screen-reader
+question may remain open only if it is not a prerequisite of valid Slint.
+
+**Observed:** the design requires the container to set
+`accessible-description: option.id`, then deliberately leaves open whether the
+container declares `accessible-role`. In Slint 1.17.1 every accessibility
+property, including `accessible-description`, may be set only in combination
+with a compile-time `accessible-role`; otherwise compilation emits an error.
+Consequently the role is not optional plumbing that can be deferred on screen-
+reader grounds. Some role must be selected for the F-9 markup to compile, even
+if whether that role should specifically be `list` and whether it should expose
+`accessible-item-count` remain human-accessibility decisions.
+
+**Evidence:**
+`~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/i-slint-compiler-1.17.1/passes/lower_accessibility.rs:41-59`
+(the compiler's role prerequisite), and
+`i-slint-compiler-1.17.1/tests/syntax/accessibility/accessible_properties.slint:32-41`
+(the exact `accessible-description` accepted/rejected contrast), against
+`design.md:400-419`.
+
+This does not re-raise the known residue merely because `list` semantics are
+unsettled. It is the narrower API fact that the repair's selected identity
+property makes **a role** mandatory now; leaving all roles open makes the
+specified markup invalid.
+
+**Disposition:** doc-wrong
+**Response:** Upheld, and the distinction it draws is the right one: this is not the known residue re-raised. `lower_accessibility.rs:41-59` walks every accessibility property and errors "can only be set in combination to `accessible-role`" unless a role binding is set on the element or its base; `tests/syntax/accessibility/accessible_properties.slint:32-41` shows the accepted/rejected pair directly. `accessible-description: option.id` is therefore not free — it makes *a* role mandatory, and leaving every role open left the specified markup invalid.
+
+**Changed:** the container declares `accessible-role: groupbox`, with the compiler prerequisite stated so a later reader does not re-open it as a matter of taste. It also carries `accessible-label: option.label`, so the group is not announced anonymously; the design says explicitly that this label is not an identity and no test selects on it (D10, R-14).
+
+**What survives of the residue, and what does not.** `groupbox` was chosen by the user, 2026-09-15, over `list` + `accessible-item-count` and over `form`. The residue as round 1 left it — "should the container declare `list` and `item-count`?" — cannot survive intact, because something must compile. What survives is the announcement question: whether a reader should hear a field's position within its option. `form` was rejected as a landmark role, which is a page-level structure and wrong emitted once per option. `groupbox` is a resting place, not a stand-in: the options container is a list of selectable buttons and a block of fields is not the same thing.
+
+**Outcome:** verified
+
+### F-27 — F-11 leaves its stronger false compiler claim active in `design-log.md`
+
+**Severity:** minor
+**Location:** `design-log.md` *the extension seam for a second field kind*;
+F-11 Response; round-1 *Depth of the round*
+
+**Expected:** F-11's repair corrects every live account of what the `Edited`
+seam's exhaustiveness actually guards. Round 1 explicitly recorded that the log
+contains a stronger form of the same false claim and warned that a repair must
+not assume the design is its only home. Because the log is append-only, that
+means a later superseding entry, not editing the old decision.
+
+**Observed:** the design and slice card now correctly distinguish protocol
+growth from host-local `Edited` growth, but the last entry about the seam in
+`design-log.md` still says a kind added to R-16 produces a compile error naming
+`submitted`, then says the compiler finds all five affected places. No later log
+entry supersedes either statement. `submitted` matches the host-local `Edited`,
+so protocol growth leaves it exhaustive; the compiler also cannot find the
+required R-57 table amendment.
+
+**Evidence:** `design-log.md:300-315`, against `design.md:491-503` and F-11's
+source evidence (`crates/goad-semantics/src/protocol/canonical.rs:245-256` for
+`FieldKind`; `Edited` and `submitted` are the separate host-local types designed
+in `draft.rs`). Round 1's *Depth of the round* names the log text and says a
+repair "should not assume the design is the only place that claim now lives."
+
+The log may preserve the original decision entry verbatim, but without a
+superseding correction it remains the hand-off's latest account of that
+decision and can reintroduce the exact misunderstanding F-11 repaired.
+
+**Disposition:** doc-wrong
+**Response:** Upheld, including its reading of the repair's required shape. `design-log.md` is append-only, so the fix is a superseding entry and not an edit to the original decision — the finding says so and it is right.
+
+**Changed:** a new dated entry, *the `Edited` seam: what the compiler actually finds*, appended below the original. It supersedes only the **account**, states that the decision itself stands, and corrects both false claims: `submitted` matches host-local `Edited`, so protocol growth leaves it exhaustive and adding a kind to R-16 breaks nothing; of the five places named, the compiler finds two once a variant is added by hand and cannot find the `FieldForm` entry, the widget and callback, or R-57's table.
+
+Round 1's *Depth of the round* predicted this exact omission and the repair did it anyway, which is the clearest single instance of the class.
+
+See the class note under F-22.
+
+**Outcome:** verified
+
+### F-28 — §5.3's complete ownership table conflates four fields with different writers
+
+**Severity:** minor
+**Location:** `design.md` §5.3 *Data, state & ownership*, complete retained-state
+table
+
+**Expected:** A table introduced as the complete retained state and divided into
+“written by” and “on what” identifies the mutation boundary of each retained
+field accurately. That attribution is the point of an ownership table, and it
+is especially load-bearing here because the design says no instrument enforces
+stratum 3's state separation.
+
+**Observed:** The final row combines `diagnostics`, `focus`, `engaged`, and
+`next_check`, and assigns all four to `absorb`, `refuse`, and `engage`. Those
+fields do not share that writer set. `absorb` writes all four (with `focus` only
+on `Shift::Replaced`); `refuse` writes only `diagnostics`; `engage` writes only
+`engaged`; and `open_diagnostics` plus `close_diagnostics` write `focus` but are
+omitted from the table entirely. The row is therefore both over-inclusive and
+incomplete exactly in the column meant to explain ownership.
+
+**Evidence:** `design.md:601-612`, against
+`crates/goad/src/controller.rs:161-181` (`absorb`), `:185-190` (`refuse`),
+`:221-227` (the two omitted focus writers), and `:229-235` (`engage`). The
+controller fields themselves are at `:103-121`.
+
+This is not F-2's focus-loss defect. It is a separate provenance error in the
+ownership inventory: a reader following this table cannot tell which commands
+may mutate which retained field.
+
+**Disposition:** doc-wrong
+**Response:** Upheld, and verified against the code rather than against the finding. `controller.rs:161-182` shows `absorb` writing `shown`, `focus` (inside the `Shift::Replaced` arm only), `diagnostics`, `engaged` and `next_check`; `:189` shows `refuse` writing `diagnostics` alone; `:221-227` shows `open_diagnostics` and `close_diagnostics` writing `focus`, and neither appeared in the table at all; `:232-234` shows `engage` writing `engaged`. The grouped row was over-inclusive and incomplete in the one column whose job is to say who may mutate what.
+
+**Changed:** the row is split into four, each naming its real writer set and the occasion for it — `diagnostics` (`absorb`, `refuse`), `next_check` (`absorb`), `focus` (`absorb` on `Shift::Replaced` only, plus the two diagnostics-pane writers), `engaged` (`engage` sets, `absorb` clears).
+
+**Worth recording, since it is the finding's own point made twice:** the first draft of this repair asserted `diagnostics` had one writer. It was caught by opening `controller.rs` before publishing rather than after — which is the check whose absence produced the defect being repaired.
+
+**Composes with F-29.** The table gains a fifth row it never had: `notice`, whose absence from the ownership inventory is not cosmetic but the direct cause of F-29. F-28 asked for accurate provenance on four fields; supplying it exposed a fifth field with no provenance at all.
+
+**Outcome:** verified
+
+### F-29 — the present that reverts a dropped edit also erases the notice that was meant to explain it
+
+**Severity:** major
+**Location:** `design.md` §5.4 *When it did not arrive, the correction is the
+feedback* and A-4; `Wire::send`; `Glass::present`; the outer loop
+
+**Expected:** The design's back-pressure contract is observable as one coherent
+outcome: if a checkbox edit is dropped because the capacity-one command channel
+is full, the next presentation restores the draft-backed checkbox state **and**
+leaves `BUSY_NOTICE` visible to say why the person's tick was undone. This is
+the stated reason the failure is “visible and self-correcting” rather than a
+silent discarded action.
+
+**Observed:** `Wire::send` sets `BUSY_NOTICE` when `try_send` reports `Full`, but
+`Glass::present` unconditionally writes `notice = ""`. A full channel necessarily
+already contains another command. When the loop consumes that command, both
+possible roads reach a present that clears the notice: a non-exchanging command
+continues to the top-of-loop present, while an exchanging command calls
+`engage()` and presents the busy frame before awaiting the backend. For a
+dropped checkbox edit, that same presentation rebuilds `FieldRow.checked` from
+the unchanged draft and visibly undoes the tick. The correction and deletion of
+its explanation therefore happen together. At most the notice can flash before
+the rollback; it does not survive at the point where the person needs it.
+
+**Evidence:** `design.md:733-739` and `:843-849`; `crates/goad/src/wire.rs:107-133`
+(the promise and `Full` arm); `crates/goad/src/glass.rs:76-92` (model rebuild)
+and `:104-108` (unconditional notice clear); `crates/goad/src/controller.rs:610-665`
+(top-of-loop present and no-exchange continue) and `:678-706` (busy present
+before the call). The existing isolated back-pressure test explicitly asserts
+both halves in this destructive order — notice set, then next present clears it
+— at `crates/goad/tests/renderer/wiring.rs:346-385`; it never composes that clear
+with a self-mutated checkbox whose command was dropped.
+
+This is reachable whenever the A-4 assumption fails, which is precisely the
+case A-4 says this fallback handles. Disabling checkboxes during an in-flight
+exchange does not close it: `Full` occurs before the queued command has been
+dispatched and before `busy` is set.
+
+**Disposition:** doc-wrong
+**Response:** Upheld, and the mechanism is exactly as traced. `wire.rs:127-131` sets `BUSY_NOTICE` on the `Full` arm; `glass.rs:107` writes `set_notice(SharedString::new())` unconditionally. The contract is not incidental — `glass.rs:23` states it as a rule: *"`notice` is written `""` here and set from nowhere else in this trait"*. A capacity-1 channel that is full already holds a command, so the present that consumes it is both the present that clears the notice and, once fields are drawn, the present that reverts the tick. The finding's point that disabling controls does not close the hole is also right: `Full` precedes dispatch and precedes `busy`.
+
+**The rule was not wrong when it was written.** A present following a fold or a refusal had nothing to undo, so a cleared notice cost nothing. Drawing a form is what turns the totality rule from harmless into destructive — the same shape as §5.4's focus cost under F-2.
+
+**Changed**, on the user's decision of 2026-09-15: `notice` becomes frame-carried. `Wire::send` sets a signal `true` on `Full` and `false` on `Ok`; the controller reads it into the frame; `Glass::present` writes it like every other property and becomes the **only** writer to the window. §5.3 gains the row, §5.4 states the defect and the repair, §2's account of the channel stops presenting the old behaviour as settled, and A-4's fallback now names a mechanism that survives the present it explains.
+
+**Why the controller owns it and not `Wire`.** `Wire` owning the property was recommended first and was wrong. It leaves two writers on one window partitioned by property — a rule nothing can check — and it contradicts `present`'s own contract to write *every* property from the frame; it would also have left `notice` outside the ownership table, which is the condition that produced the defect. The objection raised against controller-ownership — that it needs a shared UI-thread-to-loop signal — was false: `Cancel` (`wire.rs:146-171`) is a `watch` channel doing precisely that, documented as callable from a Slint callback, and `Wire` already holds one. Setting the signal on both `Full` and `Ok` keeps `frame()` non-mutating, so no take-and-clear is required. The user identified this; the record says so because the reasoning, not the conclusion, is what a later reader needs.
+
+**The test inverts, and its passing was never evidence.** `wiring.rs:346-385` asserts *"the next present must clear notice"* — the mechanism causing the defect, asserted as the requirement. It must now assert that the notice survives the next present and that the person's next successful send clears it. This is `docs/memory/a-green-test-can-assert-a-proxy.md` a second time in one slice, and the plan should treat the inversion as a deliverable rather than a fixup.
+
+
+**Re-disposed 2026-09-15, round 2 verification.** F-30 is upheld and is the responder's error, of exactly the class F-22..F-27 identified and this ledger's own class note describes: the repair changed §5.3 and §5.4 and left §5.1's "`Frame` does not change shape" and §5.3's "nothing new is added to `Controller`" standing against it, and named no route for the signal. Having written the class note, the responder then committed the class.
+
+**Changed:** the route is now named and is `Cancel`'s, edge for edge — constructed in `main`, cloned into `Wire` for synchronous setting from the Slint callback, passed to `serve` beside `cancel`, read at present time and handed to `frame(notice)` (`wire.rs:146-171`; `main.rs:85-119`; `controller.rs:576-584`). `Frame` gains `notice: bool`; `Controller::frame` gains one parameter and stays `&self`; **`Controller` gains no field**, so §5.3's claim is kept true rather than amended, and the controller stays "pure, no Slint types, testable without a platform". §5.1 now states the shape change and why it is an improvement: `Frame`'s doc-comment currently reads *"Total: every property but `notice` is written from this, every time"* (`controller.rs:92-93`), and that carve-out is the defect — with the field present the sentence loses its "but".
+
+The ownership row is withdrawn from the retained-state table, because `notice` is not retained state; it is transient state with a named route, and §5.3 now says so in its own small table. F-30's observation that the `Ok`-clears policy is not the defect is accepted and no longer defended.
+**Outcome:** verified
+
+### F-30 — F-29's frame-carried notice has no coherent owner or data path
+
+**Severity:** major
+**Location:** `design.md` §5.1 final paragraph, §5.3 retained-state table and
+notice explanation, §5.4 notice repair; F-29 Response
+
+**Expected:** The F-29 repair identifies one implementable route from the
+callback-side `watch` sender to the value `Glass::present` reads: who retains the
+receiver, how the controller obtains its current value, and the corresponding
+change to `Frame`. Its ownership account should agree with that interface.
+
+**Observed:** §5.4 says the controller reads the signal into the frame and
+`Glass::present` writes it, which necessarily adds a notice value to `Frame`.
+But §5.1 still states **“`Frame` does not change shape”**, and §5.3 still states
+that nothing new is added to `Controller`. The ownership row locates the value
+at “`Wire` → read by `Controller`”, while the repair's Response says **“the
+controller owns it and not `Wire`.”** No receiver is assigned to `Controller`,
+to `serve`, or to a changed `frame(..)` parameter.
+
+The current interfaces make the missing choice concrete. `Controller::frame`
+takes only `&self`; `Controller` has no signal receiver; `serve` accepts only
+the command receiver and `Cancel`; and `main` gives `Wire` the command sender,
+`Cancel`, and a weak window. A `watch` channel can implement the behaviour, but
+one of those interfaces and at least `Frame` must change. The repair says
+simultaneously that they do and do not, leaving the ownership defect unresolved
+at the design boundary.
+
+**Evidence:** `design.md:349-351` (“`Frame` does not change shape”);
+`design.md:630-652` (nothing new in `Controller`, the `Wire` ownership row, and
+the controller-to-frame claim); `design.md:791-796` (the frame-carried rule);
+`crates/goad/src/controller.rs:92-121,237-247,576-584` (`Frame`, retained
+controller state, `frame()` and `serve`); `crates/goad/src/main.rs:85-119`
+(construction and hand-off); `crates/goad/src/wire.rs:79-104` (current `Wire`
+fields and constructor).
+
+The `Ok`-clears policy is not the defect. In the production path callbacks run
+on the UI thread (`wire.rs:107-113`): after `Full`, consuming the already-queued
+command reaches either the top-of-loop present or the busy present synchronously
+before another callback can successfully enqueue. During an exchange the busy
+present has already displayed the notice. Thus a subsequent `Ok` clears a notice
+that has had a presentation; the missing part is the specified route by which
+that state reaches the presentation.
+
+**Disposition:** doc-wrong
+**Response:** Upheld in full, and it is the responder's error rather than a reading of an ambiguity. The repair to F-29 edited §5.3's table and §5.4's prose and left two claims standing that it contradicts — §5.1's "`Frame` does not change shape" and §5.3's "nothing new is added to `Controller`" — and named no route from the callback-side setter to the value `present` reads. That is precisely the class F-22..F-27 established and that this ledger's own class note describes, committed by the author of the note. Worth recording plainly: the lesson did not survive one repair.
+
+**Changed:** §5.1 now states the shape change and why it is an improvement rather than a cost — `Frame`'s doc-comment already carries the exception, *"Total: every property but `notice` is written from this, every time"* (`controller.rs:92-93`), and that carve-out is the defect; with the field present the sentence loses its "but". §5.3's preamble keeps its claim by keeping it true, and the ownership row is withdrawn from the retained-state table in favour of a small table of its own: `notice` is not retained state, it is transient state with a named route.
+
+**The route, which the finding was right to demand and which the code chooses.** `Cancel` is a `watch` channel constructed in `main`, handed to `Wire` for synchronous setting from a Slint callback, and handed to `serve` for the loop to read (`wire.rs:146-171`, `main.rs:85-119`, `controller.rs:576-584`). A notice signal follows it edge for edge. So: `Frame` gains `notice: bool`; `Controller::frame` gains one parameter and stays `&self` and non-mutating; **`Controller` gains no field**; `serve` takes the signal beside `cancel`. The alternative — `Controller` holding the receiver — was rejected because it puts a concurrency primitive inside the value documented as "pure, no Slint types, testable without a platform" (`controller.rs:103-108`). A test now asserts the notice with `frame(true)`: no channel, no window, no platform.
+
+**Accepted without defence:** the finding's analysis that the `Ok`-clears policy is not the defect — a `Full` is followed synchronously by a present before another callback can enqueue, so the notice has always had a presentation before a later `Ok` clears it. The responder's original framing implied that rule was the load-bearing part of the repair. It was not; the route is.
+
+**Outcome:** verified
+
+### F-31 — F-30 moves `notice` out of the retained-state inventory even though retention is the mechanism F-29 requires
+
+**Severity:** minor
+**Location:** `design.md` P-2; §5.3 retained-state preamble, transient-state
+table and derived-state paragraph; §5.4 notice repair
+
+**Expected:** The repair distinguishes controller-retained interaction state
+from edge-retained notification state without denying that the notice value is
+retained. Either the inventory includes the `Notice` signal at its actual home,
+or its heading is scoped to state retained by `Controller`; the separate signal
+table may still document its route.
+
+**Observed:** The route itself is now coherent: `main` constructs a `Notice`, a
+clone in `Wire` sets it synchronously, `serve` holds a receiver-side clone and
+samples it into `frame(notice)`, and `Controller` gains no field. But §5.3 calls
+the signal **“not retained state at all”** and contrasts it with “transient
+state”. A Tokio `watch` channel explicitly retains its last sent value, stores
+that value in shared state, and exposes the current value through
+`Receiver::borrow`. F-29 depends on exactly that retention: `true` must survive
+the `Full` callback until the next present, and may survive further presents
+until a successful send writes `false`.
+
+The design's own principles make the classification consequential. P-2 says the
+screen is a function of retained state, and §5.3 says everything the window
+shows is recomputed from retained state on every present. `notice` is now one of
+those window values. Moving it to a smaller ownership table is sound; declaring
+that table's level-held value non-retained makes the “complete retained state”
+inventory and those two statements false. The accurate distinction is
+**outside `Controller`**, not **unretained**.
+
+**Evidence:** `design.md:252-258` (screen from retained state);
+`design.md:635-670` (complete-state claim, denial of retention, and the
+`Notice` route); `design.md:686-688` (every window value recomputed from retained
+state); `design.md:792-815` and A-4 at `:924-930` (the notice must survive a
+present); `tokio-1.53.1/src/sync/watch.rs:3-20` (“retains the last sent value”
+and current-value access), `:296-304` (the shared most-recent value), and
+`:554-573,624-637` (initial storage and `Receiver::borrow`); the existing
+level-held analogue at `crates/goad/src/wire.rs:142-172`.
+
+**Disposition:** doc-wrong
+**Response:** Upheld. A `watch` channel retains its last sent value, and F-29 depends on that retention — `true` must survive the `Full` callback through the next present and through further presents until a successful send writes `false`. Calling the signal "not retained state at all" made both §5.3's inventory and P-2 false for the one window value they had just acquired. The finding's own phrasing is the repair: the accurate distinction is **outside `Controller`**, not **unretained**.
+
+**Changed:** §5.3's heading is scoped — "the complete state retained **by `Controller`**" — so the inventory is true as written rather than true by omission. The `Notice` paragraph now says the repair gives the value an owner at the **edge**, that its retention there is load-bearing rather than incidental, and that P-2 holds for `notice` exactly as for everything else; what changes is which side of the edge retains it. §5.3's derived-state paragraph names the one exception explicitly instead of implying there is none.
+
+**The route is untouched**, and that is the substantive point: F-30's repair survived this finding. Three passes on `notice` have converged rather than circled — F-29 found the defect, F-30 found the missing data path, F-31 found one wrong word in the classification of a path that works. Each repair was smaller than the one before.
+
+**Outcome:** verified
+
+### F-32 — F-30's §5.1 repair leaves the system model denying the edge-retained notice
+
+**Severity:** minor
+**Location:** `design.md` §5.1 opening paragraph; §5.3 notice ownership and
+route
+
+**Expected:** Once the repair says `notice` is retained at the edge rather than
+by `Controller`, §5.1's system model describes that ownership shape consistently.
+Its summary need not duplicate the route, but it cannot deny the new retained
+state the route requires.
+
+**Observed:** §5.1 still says, without qualification, “Nothing new crosses a
+crate edge and nothing new is retained outside `Controller`.” The repaired §5.3
+now says the opposite deliberately: `notice` is retained outside `Controller`,
+at the edge, and that retention is load-bearing because `true` must survive one
+or more presents until a successful send writes `false`. It also keeps
+“nothing new is added to `Controller`” true. Those claims cannot all hold.
+
+The implementation route confirms that this is not merely two names for one
+owner. The analogue the design selects, `Cancel`, is a `watch` value created in
+`main`, cloned into `Wire`, and passed independently to `serve`; the current
+`Controller` has no such field. The proposed `Notice` follows that route and
+§5.3 explicitly locates its retention on the other side of the controller
+boundary.
+
+**Evidence:** `design.md:284-288` (§5.1's system-model claim);
+`design.md:635-638` (the controller-scoped inventory and the statement that
+`notice` is retained elsewhere); `design.md:649-676` (load-bearing edge
+retention, route and unchanged `Controller` shape); `design.md:692-695`
+(derived window state includes the edge-retained exception);
+`crates/goad/src/wire.rs:142-180`, `crates/goad/src/main.rs:85-119`, and
+`crates/goad/src/controller.rs:92-124,239-247,576-584` (the analogue, current
+frame and controller fields, and receiver-side hand-off).
+
+This is the repair class F-22–F-27 established and F-30's Response says the
+responder had already repeated: a repair corrects the cited paragraph and
+leaves the same claim standing in another live home. F-30 corrected §5.1's
+`Frame` paragraph and missed the opening paragraph of that same section; F-31
+then correctly repaired §5.3's classification, making §5.1's unchanged sentence
+unambiguously false.
+
+**Disposition:** doc-wrong
+**Response:** Upheld, and it is the third commission of the class — the responder
+corrected the paragraph the finding cited and left the same claim standing three
+paragraphs above it, in the same section. F-30's Response recorded the lesson;
+F-32 is the lesson failing a second time.
+
+**The instance is one sentence. The class is that §5.1's opening held a second
+copy of §5.3's inventory**, which is the duplication `docs/AGENTS.md` names: if
+you are about to write the same thing twice, one of the homes is wrong. Repairing
+only the sentence would leave that second home to go stale again on the next
+change to retained state. So the opening no longer states the inventory at all —
+it names the one value retained at the edge, says `Controller` gains no field,
+and points at §5.3 as the single home of the claim.
+
+**Changed:** `design.md` §5.1, three sites, on the user's decision of 2026-09-15
+to take the class fix rather than the sentence.
+
+- The opening paragraph, as above. It keeps the crate-edge half, which is
+  unaffected and still true.
+- The round-trip count, which was short by one: the slice adds **two** paths from
+  the window back to the loop — the edit over the existing command channel, and
+  the `Notice` signal.
+- The system-model diagram, which carried no `Notice` edge. It now shows both
+  halves of the route — `W -.-> C` for the watch read by `serve` at present time,
+  and `C --> G` for `frame.notice` — so the diagram is the system model rather
+  than the system model minus the repair.
+
+**Two citation residues in §5.3 folded into the same edit**, both smaller than
+F-31 and neither raised as a finding, per this pass's brief: the inventory cited
+`controller.rs:108-124` where the doc-comment is `:103-108` and the struct
+`:110-121` (now `:103-121`); and the `Controller` quotation read *"pure, no Slint
+types, testable without a platform"* where the source says *"One value, no Slint
+types, so it is testable without a platform"* — "pure" was not in it. The
+misquote survives in F-30's Response above, which is append-only and stays as
+written.
+
+**Not changed: P-2.** Its *"the controller holds it"* has the person's edits as
+its subject, and a back-pressure notice is not something the person did, so the
+sentence survives F-31's repair. Considered and left, rather than missed.
+**Outcome:** verified
+
+**Round-2 evidence citation corrections (appended, not rewritten):** F-25's
+undrawn-kind clause is `design.md:966` (not `:965`); F-27's false compiler claim
+is `design-log.md:292-298` (the cited `:300-315` is the following paragraph and
+next entry). The claims and severities are unchanged.
 
 ## Depth of the round, and what was examined without a finding
 
@@ -1629,8 +2075,308 @@ same.
   which the compiler finds one. A repair to F-11 should not assume the design is
   the only place that claim now lives.
 
+### Round 2 — job 1
+
+All nineteen round-1 findings were reached; **no repair outcome is left unset**.
+F-2, F-5, F-9, F-11, F-13, F-16, F-17 and F-18 are contested by F-20 through
+F-27. The other eleven are verified. None was withdrawn.
+
+Repairs examined without a new finding beyond those recorded above:
+
+- **F-3:** every design use of `Draft` was traced after the move to `Vec`.
+  Behaviour is only `state_of` plus overwrite-on-`record`; ordering and equality
+  are not observed, enumeration remains absent, and the unit-test list names the
+  duplicate-preventing overwrite. No map semantic remains load-bearing.
+- **F-4:** amended R-58 is now scoped to the answered option in both
+  `canon-delta.md` and the verbatim design quote. Read with R-8, R-35 and R-52,
+  it requires a total map only over that option's drawn fields, does not ask the
+  host to validate their meaning, excludes other options, and remains
+  falsifiable without design-only vocabulary.
+- **F-6/F-7:** the vehicles now sit where the constrained fact exists. R-57's
+  implemented `boolean` mapping is tested at `submitted`; R-58's shape is tested
+  at `answer` and composed with AC-1/AC-3/AC-4. Review for the three kinds this
+  host does not implement is honest rather than test avoidance: there is no
+  host behaviour for a test to drive yet, and SPEC-001 §7 already distinguishes
+  such review clauses from executable ones.
+- **F-8/F-10:** AC-5 now requires the screen and wire assertions separately,
+  and AC-6 now constrains existing assertions rather than an impossible empty
+  diff. The exhaustive `OptionRow` builder is the only existing test site that
+  mechanically needs its new default member.
+- **F-12:** checked against the pinned source, not the design's paraphrase.
+  `find_all()` exists at `search_api.rs:303-312` and collects the recursive walk;
+  core visits descendants depth-first (`item_tree.rs:926-959`), and dynamic
+  repeaters visit model rows in ascending order under that walk
+  (`model/repeater.rs:683-699`). Its ordering vehicle is sound once F-9's invalid
+  selector and missing role are repaired.
+- **F-14/F-15/F-19:** D3's rationale is now preserved in the roadmap and
+  SPEC-001/OQ-4 without an ADR, per the explicit user decision; AC-10 names the
+  limited grouping surfaces the phase may change; and AC-3 now asserts the
+  semantic `Undrawn` value while leaving diagnostic prose to review.
+
+Per the user's instruction for this turn, job 2's mixed grouping trace and
+example-backend inspection, and job 3's ownership / Shift-fold / cancellation /
+busy-path attack, were **not examined in this pass**. They are not unset repairs;
+they remain the next jobs in the round-2 brief.
+
+### Round 2 — job 2
+
+**The grouping rule, traced through a mixed sequence, holds.** I used one option
+whose declared fields, in order, were:
+
+| position | kind | `group` | drawn? |
+|---|---|---|---|
+| 1 `a1` | `boolean` | `"A"` | yes |
+| 2 `a-undrawn` | `text` | `"A"` | no |
+| 3 `a2` | `boolean` | `"A"` | yes |
+| 4 `plain` | `boolean` | absent | yes |
+| 5 `ghost` | `text` | `"Ghost"` | no |
+| 6 `a3` | `boolean` | `"A"` | yes |
+| 7 `b1` | `boolean` | `"B"` | yes |
+| 8 `b-undrawn` | `text` | `"Other"` | no |
+| 9 `b2` | `boolean` | `"B"` | yes |
+
+Applying §5.2's rule — admit only drawn fields, preserve their declared order,
+then form runs — first yields `A[a1]`, `A[a2]`, untitled `[plain]`, `A[a3]`,
+`B[b1]`, `B[b2]`; coalescing adjacent equal headings leaves four blocks:
+`A[a1,a2]`, untitled `[plain]`, `A[a3]`, and `B[b1,b2]`. The all-undrawn
+`Ghost` group never enters the drawn sequence, so it emits neither block nor
+heading. Thus the first A run survives an undrawn field between two members, the
+second A is a new block after the drawn ungrouped interruption, and the B members
+remain one run across an undrawn field even when that field names a different
+group. The screen order is `a1, a2, plain, a3, b1, b2`, exactly the declared
+order with undrawn members removed. This agrees with `design.md:456-460`
+and all relevant edge rows at `design.md:854-862`; AC-2's mapper vehicle and its
+two named structural tests at `design.md:978-980` distinguish both boundary
+directions. No finding.
+
+**The actual demo backend, inspected, matches the design's premise and leaves a
+feasible implementation path.** `just demo` selects it through `justfile:66-67`
+and `examples/demo.toml:7`. Today its evaluate branches emit only fieldless
+options (`examples/shell/backend.sh:48-81`), and its `respond` arm emits
+`view: null` without reading or recording `response.values` (`:48-51`). So it
+cannot satisfy AC-7 unchanged. The design does not claim otherwise: its AC-7
+vehicle expressly requires changing the demo backend to emit a form and record
+the values (`design.md:966`). Recording the whole compact request to stderr is
+compatible with the script's parserless posture — it interprets no submitted
+value — and the host carries non-empty backend stderr onto the diagnostic
+surface (`crates/goad/src/diagnostics.rs:132-138`). A static form can contain
+multiple boolean fields plus an undrawn kind without adding a parser. The
+remaining discrepancy is already F-25: this undrawn-kind condition exists only
+in the design's AC-7, not the slice card's criterion. No additional finding.
+
+**The other shallow entries are accounted for.** Round 1's stale
+`design-log.md` compiler claim became F-27 in job 1. `plan.md` remains excluded
+by the round-2 brief because it is a separate review subject with its own ledger;
+its template state was not treated as a design finding. Job 3 remains
+unexamined, as requested.
+
+### Round 2 — job 3
+
+All three named surfaces were reached; **none is left unexamined**.
+
+- **§5.3 ownership — reached, with F-28.** The final row of the complete-state
+  table does not state the actual writer set of its four grouped fields. Beyond
+  that finding, the ownership shape holds: the draft is inside the sole retained
+  `Prepared`; `receive` supplies a fresh draft with each replacement;
+  `Controller::edit` is its only mutator; presentation and person-authored state
+  remain separate; and every row/widget value is disposable output rebuilt from
+  those retained values (`design.md:521-567`, `:614-670`). This surface is **not
+  clean**, because of F-28.
+- **`Shift` / fold — reached and clean.** All three shifts were traced, including
+  every production-reachable `Retained` cause. `Replaced` assigns the newly
+  received `Prepared` and therefore its fresh draft; `Closed` sets `shown` to
+  `None`; `Retained` does not write `shown`, so the exact prior `Prepared` and
+  draft survive (`controller.rs:161-181`, reducer at `:250-265`). That covers a
+  clean `evaluate` returning no view, a failed `evaluate`, and a failed
+  `respond`; a successful `respond` with no next view closes, and either entry
+  point returning a view replaces. Renderer-local stale/unknown refusals never
+  call `absorb`, so `refuse` changes diagnostics and leaves the draft untouched
+  (`:185-219`). AC-5 selects the load-bearing retained case and checks both
+  screen and wire (`design.md:964`). No finding.
+- **Cancellation and busy/back-pressure — reached, with F-29 on the busy half;
+  cancellation itself is clean.** Cancellation is first in both biased selects:
+  it beats a ready command/timer while idle and drops the one pinned backend call
+  while engaged (`controller.rs:610-638`, `:709-748`). `Cancel` is level-held,
+  and the new edit path creates neither a task nor another select arm
+  (`wire.rs:142-180`; `design.md:553-567`). Cancellation during an exchange does
+  leave the returned controller's `engaged` bit set because no outcome is folded,
+  but production immediately discards `_served` and quits the event loop without
+  another presentation (`main.rs:108-130`); no running host or enabled control
+  survives for that state to corrupt. The busy path is not clean for the
+  independent reason in F-29: rollback clears its own explanation.
+
+**Clean / not-reached split:** clean — `Shift` / fold, and the cancellation half
+of the third surface. Reached with findings — §5.3 ownership (F-28), busy /
+back-pressure (F-29). Not reached — none.
+
+### Round 2 repair verification pass
+
+Every requested outcome was formed; none of F-20–F-29 or the eight re-disposed
+round-1 findings is left unset. F-20–F-28 are verified. F-29 is contested by the
+new repair defect F-30. The eight round-1 contests are verified because the
+round-2 repairs they name now land at every live current-truth site; F-13's
+inherited dependency closes with F-21.
+
+- **F-21 and the repair class:** R-57 was read as a backend author against
+  R-16, R-55 and R-58. All five admitted kinds now have a submitted form;
+  `datetime` is constrained to an RFC 3339 `date-time` with an offset; R-58
+  still scopes completeness to fields the renderer actually drew; and R-55 is
+  used only for this renderer's ordinary undrawn subset. The prohibition and
+  its borrowed R-55 citation survive only in historical explanations that say
+  they failed. Grep across `canon-delta.md`, `design.md`, `slice-007.md` and
+  `docs/roadmap.md` found the live statements updated, while the append-only
+  `design-log.md` preserves the old entry and explicitly supersedes it at
+  `:376-412`. The same live-home check found F-22's diagram, F-23's final stale
+  citation, F-24's §3/R-1 instructions, F-25's card criterion, and F-27's log
+  account repaired. F-20's predicate chain and F-26's `groupbox` role were
+  checked against the pinned Slint 1.17.1 sources.
+- **F-28:** the four published writer sets match `controller.rs`: `absorb`
+  writes all four, `refuse` additionally writes `diagnostics`, the two pane
+  methods additionally write `focus`, and `engage` sets `engaged`. Its outcome
+  is verified independently of the new `notice` row, whose ownership defect is
+  F-30.
+- **F-29:** both possible dispatch roads after a full capacity-one channel were
+  traced. On the UI thread, the queued command reaches a top-of-loop or busy
+  present before another callback can enqueue successfully, so `Ok` does not
+  clear an unseen notice; §5.4 and A-4 no longer retain the old next-present
+  clearing rule. The repair is nevertheless contested because its proposed
+  frame-carried path contradicts the unchanged-`Frame` statement and never
+  assigns the watch receiver. F-30 carries that independent repair defect.
+
+### F-30 targeted verification
+
+Reached: §5.1's `Frame` shape and totality claim; §5.3's `Controller` field set,
+retained/transient classification and complete notice route; every construction,
+clone and receiver edge against `Cancel`, `main`, `Wire` and `serve`; and all
+notice statements in §5.4 and A-4. The proposed route is implementable and adds
+no `Controller` field. No old “controller reads it” or next-present-clears shape
+survives in §5.4 or A-4.
+
+Not re-opened: the rest of the design and canon changes already covered by the
+round-2 verification pass. No build or `just` recipe was run, per the review
+brief.
+
+F-29 and F-30 remain contested because the repair introduced F-31: the
+level-held `watch` value is retained outside `Controller`, while the repaired
+text calls it “not retained state at all”. F-31 is left unset for the responder.
+
+### Confirmation pass — F-29, F-30 and F-31
+
+This was the **warm thread**, not a cold start. It covered exactly the three
+commissioned repairs: §5.1 in full; P-2; §5.3's controller inventory,
+edge-retained notice classification and route; §5.4 and A-4's clearing account;
+and every construction, clone, sender and receiver edge against `wire.rs`,
+`main.rs`, `controller.rs` and `glass.rs`. `design-log.md` was read last. The
+`Frame` change is exactly one field and removes its documented totality
+exception; the proposed route matches `Cancel` without adding a `Controller`
+field; `Ok` cannot clear a notice before it has been presented; and neither
+§5.4 nor A-4 prescribes the superseded controller-owned or next-present-clears
+shape. Those parts of the repair hold.
+
+The pass did **not** reopen any other design ground, the three recorded
+residues, `plan.md`'s template state, or the user's 2026-09-15 notice-ownership
+decision. No build or `just` recipe was run. F-29, F-30 and F-31 remain one
+contested thread through F-32: F-30's repair corrected §5.1's `Frame` paragraph
+but left that section's opening system-model claim asserting that nothing new is
+retained outside `Controller`, while F-31 now correctly says that `notice` is.
+F-32 is undisposed, so the ledger remains open and synthesis remains unwritten.
+
+### F-32 closure verification
+
+The **warm thread** re-read F-32's Response, §5.1 in full, P-2, the repaired
+§5.3 citations and quotation, and the F-32 decision in `design-log.md` last. It
+did not reopen any other finding, residue, canon decision or the plan. The class
+repair holds: §5.1 delegates the complete retained-state inventory to §5.3,
+counts both new window→loop paths, and draws both halves of the `Notice` route;
+no other sentence or table in §5.1 claims to be that complete inventory. The
+smaller citation and quotation corrections match `controller.rs:103-121`.
+P-2 also holds unchanged: “the controller holds it” refers to the preceding
+person-authored edit, not to every retained value that may appear on screen.
+No F-33 was raised. No build or `just` recipe was run.
+
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+The design review closes with **32 findings verified, none withdrawn, none open,
+and no blocker outstanding**. It ran two adversarial rounds, repair verification
+passes and a warm-thread confirmation of the final `notice` repair. The design
+is ready to become a plan; `plan.md` was deliberately not reviewed here and gets
+its own ledger.
+
+The review changed the protocol account before it changed the renderer. R-58 is
+now scoped to exactly the drawn fields of exactly the answered option, so its
+completeness rule agrees with R-8 and R-52 and with the design's structural
+implementation. R-57 now types all five admitted field kinds rather than taking
+the shape of this renderer: `boolean` is a JSON boolean, `text` and `choice` are
+strings, `number` is a number, and `datetime` is an RFC 3339 `date-time` string
+with an offset. That closes both blockers: the original self-contradicting map
+requirement and the later attempted protocol-wide prohibition on submitting
+`datetime`. This renderer still draws only `boolean`; every other admitted kind
+is reported undrawn under R-55 and never silently narrows canon.
+
+The retained interaction model is now implementable and explicit. A pure
+`Draft`, keyed by option and field without requiring nonexistent `Ord` on
+`OptionId`, lives inside `Prepared`; `answer()` walks the presentation's declared
+fields rather than enumerating draft keys. That makes responses total over the
+answered option's drawn fields, excludes undrawn and other-option fields by
+construction, and preserves a draft on `Shift::Retained` while replacing or
+dismissing it on the other shifts. The ownership table now gives each
+`Controller` field its actual writers. Back-pressure notice state follows
+`Cancel`'s edge route: `Wire` sets a retained watch value, `serve` samples it at
+present time, `Frame` carries it, and `Glass::present` is the sole window writer.
+The notice survives the present that rolls back a dropped edit and clears only
+after a later successful send. `Controller` gains no field, while `Frame` gains
+the one field that removes its former totality exception.
+
+The UI and verification story was sharpened at the same time. Grouping is by
+runs over drawn fields in declared order; undrawn members neither create a
+heading nor break adjacency, while a drawn interruption starts a new run. Field
+identity in renderer tests is scoped by option, including the legal case where
+two options share a field id, and the option field container has the `groupbox`
+role Slint requires for its accessibility properties. Acceptance criteria now
+name mechanisms that exist: screen order is read from tree order, AC-5 requires
+both its screen and wire assertions, existing option-test assertions rather than
+an impossible empty diff are preserved, and the demo must exercise a multi-field
+form containing an undrawn kind. R-57 and R-58 are verified at the stratum-3
+sites that still know field kind and option scope, not at a canonical JSON value
+that has already lost that context.
+
+Several important claims were confirmed rather than merely repaired. Pinned
+Slint sources establish that an array struct member generates as
+`ModelRc<FieldBlock>` and that `set_vec` destroys and recreates repeater
+instances, re-establishing each checkbox binding. The mixed grouping trace, the
+declared-field walk, all three `Shift` outcomes, cancellation in both loop
+states, the capacity-one busy path, and every construction/clone/read edge of
+the notice route were followed against the artefact and current source. Nothing
+new crosses a crate edge, `crates/goad-semantics/` remains unchanged, and the
+draft stays separate from `Presentation`; the last two stratum-3 purity claims
+remain held by review because no gate instrument reaches them.
+
+The review also established a process defect, not just a collection of sentence
+defects. F-22–F-27 showed the same pattern repeatedly: a repair corrected the
+cited location while leaving the claim active in another diagram, criterion,
+card, citation or log entry. The responder then committed that class again in
+the repair recorded by F-30 and a third time at F-32. The root cause is that the
+same current-truth claim lives in several homes at once — exactly the condition
+`docs/AGENTS.md` warns about when it says that, if the same thing is about to be
+written twice, one home is wrong. The final class repair therefore did more than
+replace a false sentence: §5.1 stopped duplicating §5.3's retained-state
+inventory and points to its single home. Where duplication necessarily remains
+across the design, slice card, canon delta, roadmap and append-only log, a repair
+must find every live home first; historical log entries are superseded rather
+than rewritten.
+
+Known risks remain standing by decision. Every model reset preserves correctness
+but drops keyboard focus, so keyboard users may tab from the top after each tick;
+the slice card owns a later focus-identity design. `text`, `number`, `choice` and
+`datetime` remain undrawn, and drawing them needs later work on edit cadence,
+numeric fidelity, testability and datetime presentation. A scheduled firing can
+still replace a dirty form, and ingress handling for that state remains deferred.
+The `groupbox` choice compiles and gives the test tree sound identity, but whether
+a screen reader should also announce a field's position within its option is
+still open. The RFC 3339 datetime form was chosen without product demand; no ADR
+was added by explicit user decision, and SPEC-001/OQ-4 retains the date-without-
+time question. The material style's visual result and stratum-3 purity are not
+covered by headless enforcement, and two stale `glass.rs` citations remain in
+historical `research.md` by explicit scope; the current design citations were
+corrected. These are recorded costs and follow-ups, not implicit claims that the
+review proved them away.

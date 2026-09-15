@@ -1,6 +1,6 @@
 # Slice 007: the renderer grows a form
 
-**Stage:** design
+**Stage:** executing
 **Tier:** 2 (full) — this slice states, for the first time, what JSON type a
 submitted field value has, and how complete the map of them must be. That is the
 wire contract, so it is canon, so it is tier 2. See `canon-delta.md` and *Why tier 2* below. Not the layout, and not the
@@ -51,17 +51,27 @@ Surfaces this slice may touch:
   path.
 - `crates/goad/src/view_model.rs` — `Presentation` grows fields; `Undrawn`
   narrows from `OptionFields` to a per-field, per-kind variant.
-- `crates/goad/src/controller.rs` — `edit()`, and `answer()` assembling `values`
-  from the draft.
+- `crates/goad/src/controller.rs` — `edit()`, `answer()` assembling `values`
+  from the draft, and `Frame` gaining `notice`.
 - `crates/goad/src/draft.rs` — **new**: the draft, its (option, field) keying,
   and `submitted()`, the single site where R-57 is applied.
 - `crates/goad/src/reception.rs` — `Prepared` gains the draft.
 - `crates/goad/src/wire.rs`, `crates/goad/src/install.rs` — `Command::Edit` and
-  its callback.
-- `crates/goad/src/glass.rs` — a second model beside `options`.
+  its callback; and `Notice`, the back-pressure signal `Wire::send` raises
+  (`design.md` §5.3).
+- `crates/goad/src/main.rs` — constructs the `Notice` signal beside `Cancel`,
+  clones it into `Wire` and passes it to `serve`. Not anticipated when this card
+  was written: the notice repair arrived during design review (`design.md` §5.3,
+  §5.4).
+- `crates/goad/src/lib.rs` — declares the new `draft` module.
+- `crates/goad/src/glass.rs` — a second model beside `options`, and `notice`
+  written from the frame.
 - `crates/goad/src/diagnostics.rs` — the wording of the narrowed undrawn report.
 - `crates/goad/build.rs` — the style selection (OQ-5).
 - `crates/goad/tests/renderer/` — the headless field tier.
+- `crates/goad/tests/event_loop/`, `crates/goad/tests/event_loop_schedule/` —
+  **call shape only.** `serve` and `Wire::new` change signature, and these two
+  targets call both. No assertion and no fixture in them changes.
 - `examples/` — a backend that sends a form, so `just demo` can show one.
 - `docs/slices/007/canon-delta.md` → SPEC-001 §6.1, §6.2 and two new
   requirement ids, R-57 and R-58.
@@ -167,14 +177,18 @@ between them. It submits what was drawn.
       literal — so the criterion is on the assertions, not on the diff.
 - [ ] **AC-7** A person runs the real backend under `just demo`, fills a
       multi-field form, submits once, and the record shows every answer from
-      that one exchange. Recorded in `audit.md` under Evidence — `docs/AGENTS.md`
-      §Tiers, and a green gate is not this evidence.
+      that one exchange. **Its form carries at least one field of a kind this
+      renderer does not draw**, so what a backend author copies is a
+      protocol-shaped form rather than this renderer's subset — R-55's "or
+      produce the effect of" clause, which no other artefact in this slice
+      discharges (design §9/AC-7). Recorded in `audit.md` under Evidence —
+      `docs/AGENTS.md` §Tiers, and a green gate is not this evidence.
 - [ ] **AC-8** `canon-delta.md` is promoted into SPEC-001 as **R-57 and R-58**,
       each with a §7 verification row, or abandoned in writing. The vehicles are
       stratum 3, where the kind still exists: `draft.rs::submitted` for R-57's
       `boolean` clause, `answer()` over a two-option view for R-58. R-57's
-      `text`, `number` and `choice` clauses are **review, not a test** until a
-      renderer draws them. A slice does not close holding an unpromoted draft.
+      `text`, `number`, `choice` and `datetime` clauses are **review, not a
+      test** until a renderer draws them. A slice does not close holding an unpromoted draft.
 - [ ] **AC-9** Standing: the domain-vocabulary scan and the four ADR-001
       instruments pass; `just check` exits 0. `group` is a hint key on the wire,
       never a host concept — and it is not on the scanned word list
@@ -267,11 +281,13 @@ arm); and **AC-10**, because AC-7 asks a person to observe the
   — which is a design surface of its own and the reason this is owned here rather
   than absorbed. Raised as F-2 in `review-design.md`.
 
-- **D3's rationale has a home outside this slice.** The decision that `datetime`
-  is deliberately unspecified shaped R-57's text, and its reasoning lived only in
-  `canon-delta.md`, which is consumed at promotion — so after reconciliation it
-  would have existed nowhere. Recorded in `docs/roadmap.md` §Open decisions
-  beside OQ-1 and OQ-2, with the trigger (the slice that first draws a `datetime`
-  field) and the note that reversal reads as tidying in either direction.
-  SPEC-001/OQ-4 carries the degrees of freedom themselves. **No ADR** — user
-  decision, 2026-09-15. Raised as F-14 in `review-design.md`.
+- **D3's rationale has a home outside this slice.** D3 shaped R-57's text and
+  its reasoning lived only in `canon-delta.md`, which is consumed at promotion —
+  so after reconciliation it would have existed nowhere. Recorded in
+  `docs/roadmap.md` §Open decisions beside OQ-1 and OQ-2, with the trigger (the
+  slice that first draws a `datetime` field). **The decision it records changed
+  under F-21**: `datetime` is no longer deliberately unspecified but typed as an
+  RFC 3339 `date-time` with an offset, and what the roadmap must carry is why a
+  format was chosen on no demand rather than why none was. SPEC-001/OQ-4 carries
+  the residue. **No ADR** — user decision, 2026-09-15. Raised as F-14 in
+  `review-design.md`.

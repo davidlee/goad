@@ -350,3 +350,113 @@ other, citing the finding id.
   unverified repair stays visible rather than passing as a blank cell. The
   ledger is `Done` only when the column is full — this decides who fills it, not
   that it is full.
+
+### 2026-09-15 — the `Edited` seam: what the compiler actually finds (supersedes the entry of 2026-09-14)
+
+- **Supersedes:** *the extension seam for a second field kind (design §5.2)*,
+  above. The **decision** stands unchanged — the `Edited` value enum landed now,
+  one variant, with `submitted` as a total match. What was wrong was the entry's
+  account of what that buys.
+- **Wrong as stated:** that a kind added to SPEC-001/R-16 "is a compile error
+  naming that function", and that adding a kind "touches five places the
+  compiler finds".
+- **Correct:** `submitted` matches `Edited`, which is host-local, so **protocol
+  growth leaves it exhaustive** — adding a kind to R-16 breaks nothing. Of the
+  five places named, the compiler finds the `Edited` variant and the `submitted`
+  arm once a variant is added by hand; it cannot find the `FieldForm` entry, the
+  widget and callback, or R-57's table. R-57's enforcement site is real but it
+  guards *host-local* growth, not the protocol's.
+- **Why this entry exists:** the log is append-only, so the original entry keeps
+  its wording; without this, it remains the hand-off's latest account of the
+  decision and reintroduces exactly the misunderstanding that was repaired.
+  Raised as F-11 in `review-design.md`, and again as **F-27** when the repair
+  reached `design.md` and the slice card but not this log — round 1's *Depth of
+  the round* had named the log as a second home for the claim.
+
+### 2026-09-15 — `datetime` gets a form (F-21; reverses D3, supersedes the entry of 2026-09-14 on R-57's coverage)
+
+- **Asked:** round 2 raised **F-21**, a blocker: F-5's repair — no host may
+  submit a `datetime` value, and MUST report the field undrawn under R-55 —
+  makes a conforming renderer that draws the kind R-16 admits impossible. That
+  is the protocol taking the shape of the one renderer this slice builds, which
+  is `CLAUDE.md`'s third invariant and R-55's "or produce the effect of" clause.
+  A second defect stands whichever way the first is read: R-57 cited **R-55 for
+  a report R-55 cannot license** — its undrawn report is for a capability *the
+  protocol admits and a renderer does not implement*, so where the protocol
+  itself forbids the answer, a renderer not drawing it is complying rather than
+  exercising a subset.
+- **Offered:** **A** define the form now; **B** state a general rule about kinds
+  whose form the spec has not defined, so the cause sits in the spec's
+  incompleteness rather than in this renderer; **C** contest F-21 and keep the
+  prohibition as `tolerated`.
+- **Recommended:** A.
+- **Decided:** A. `datetime` submits an **RFC 3339 `date-time` string carrying
+  an offset**.
+- **Consequence:** R-57 types all five kinds; the prohibition, the R-55 citation
+  and the "no defined submitted form" clause are gone. OQ-4 survives with a
+  smaller question — whether a date without a time wants its own kind. 007 still
+  draws no `datetime`, but now reports it undrawn as an ordinary **renderer**
+  subset, which is the case R-55 was written for. P-1's obstacle for the kind
+  changes from *contract* to *presentation*: the stock offering is two modal
+  popups, `DatePickerPopup` and `TimePickerPopup`, with no combined control
+  (`i-slint-compiler-1.17.1/widgets/fluent/{datepicker,time-picker}.slint:13`).
+  **The reasoning to disagree with**, since the format was picked on no evidence:
+  *where a constraint must be chosen blind, choose the one that admits more* — a
+  format a backend can work against beats a prohibition nobody can lift without
+  amending canon.
+- **Supersedes** the entry of 2026-09-14, *does R-57 cover kinds this renderer
+  does not draw?*, in one detail only: its decision — cover kinds the renderer
+  does not draw — stands and is now stronger, but it is stated there as "all four
+  non-`datetime` kinds" and the count is five. D3's own reversal risk also
+  changes shape rather than disappearing, from an apparent omission to an
+  apparent derivation; §10 states it.
+
+### 2026-09-15 — how wide the §5.1 repair goes (F-32)
+
+- **Asked:** F-32 found §5.1's opening still claiming "nothing new is retained
+  outside `Controller`" after F-31 had established that `notice` is. The
+  disposition is `doc-wrong` either way; the question was scope.
+- **Offered:** **A** the class fix — stop §5.1's opening restating §5.3's
+  inventory at all, correct the round-trip count, and put the `Notice` edge in
+  the system-model diagram; **B** the false sentence only; **C** A, plus
+  rewording P-2's "the controller holds it".
+- **Recommended:** A.
+- **Decided:** A.
+- **Consequence:** §5.3 is now the single home of the state inventory and §5.1
+  points at it. The count of window→loop paths goes from one to two. P-2 is
+  untouched: its subject is what the person does, and a back-pressure notice is
+  not that.
+- **Why it was worth the wider edit:** F-32 is the third time in this review that
+  a repair corrected the paragraph a finding cited and left the same claim
+  standing in another live home (F-22..F-27 established the class; F-30 recorded
+  it; F-32 is it again). The instance is one sentence. The cause is that the
+  claim had two homes, which `docs/AGENTS.md` warns against directly.
+
+### 2026-09-15 — the design is approved
+
+- **Asked:** `design.md` changed after the last approval — thirty-one repairs
+  across two rounds, plus F-32's class repair to §5.1 in the confirmation pass.
+  `docs/AGENTS.md` requires the acceptance again.
+- **Decided:** approved as it stands, with `review-design.md` resolved at 32
+  findings verified, none withdrawn, no blocker outstanding.
+- **Consequence:** the slice moves to **plan**. `slice-007.md` Stage is `plan`;
+  `plan.md` and `notes.md` are still templates and are the next stage's work,
+  with their own ledger (`review-plan.md`) if the user commissions one.
+
+### 2026-09-15 — the design is approved again, after the §5.2 amendment
+
+- **Asked:** `design.md` changed after the 2026-09-15 approval. Planning found
+  that §5.2's *The diagnostic lines* named two `Undrawn` lines and no refusal
+  line, while §5.4 routes a control that names a field the option does not carry
+  to the existing refusal site. `docs/AGENTS.md` §Design requires the acceptance
+  again when the design moves after it was given.
+- **Decided:** approved as it stands.
+- **Consequence:** §5.2 now states the fourth `Refused` variant beside the two
+  `Undrawn` lines, with its wording and the reason it lives in `diagnostics.rs`:
+  `Diagnostics::refused` is an exhaustive match, so a variant without a line is
+  a compile error rather than an omission. It is the one diagnostic in this
+  slice a test asserts verbatim —
+  `every_refused_variant_renders_one_line_with_the_failure_prefix` — and
+  `canon-delta.md` CD-1 carries the R-18 row it implies.
+- **Both gates are now clear.** `plan.md` is accepted (`plan-log.md`), and the
+  slice moves to **execute**, PHASE-01.

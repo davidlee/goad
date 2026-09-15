@@ -20,7 +20,7 @@ becomes answerable in one exchange instead of fourteen.
 **The host states what a submitted value is.** Drawing a widget makes the host
 the only thing that can author a value, and SPEC-001 never said what JSON type
 one has — one illustrative `"minutes": 20` in §6.1 and no rule (research F2). Two
-new requirements: type-by-kind for all four non-`datetime` kinds, and
+new requirements: type-by-kind for all five kinds, and
 completeness — a value for every field drawn, nothing for a field not drawn.
 
 **The look is not one of them, and neither is the schedule.** Both were
@@ -68,7 +68,7 @@ documented as "the complete retained state" holding no Slint types
 **`Glass::present` is total by contract and wholesale in practice.** It writes
 every window property and *replaces the entire options model* — `set_vec`, then
 re-hands the `ModelRc` (`glass.rs:87-90`) — rebuilding every `OptionRow` from
-`prepared` each call (`:148-164`). `serve` calls it at the top of every loop
+`prepared` each call (`:138-149`). `serve` calls it at the top of every loop
 iteration (`controller.rs:611`). **This is AC-5's whole mechanism**: any state
 living only in a widget is overwritten on the next present, even when nothing
 changed.
@@ -83,7 +83,8 @@ changed.
 
 **The command channel holds one.** `mpsc::channel::<Command>(1)`
 (`main.rs:86`); `Wire::send` is `try_send` and a `Full` send is **dropped** with
-`BUSY_NOTICE` written to the window (`wire.rs:125-134`); `serve` drains it only
+`BUSY_NOTICE` written to the window (`wire.rs:125-134`) — which `Glass::present`
+then clears unconditionally, the defect §5.4 repairs; `serve` drains it only
 in the outer `select!` (`controller.rs:611-617`) — the inner exchange loop does
 not read commands.
 
@@ -111,7 +112,7 @@ carries on, and that this "MUST NOT be treated as, or produce the effect of, a
 narrowing of the protocol". Drawing only `boolean` is therefore fine. Writing a
 type rule that covers only `boolean` is not — it would make the protocol's shape
 depend on today's renderer, which is the failure this project exists to avoid. So
-R-57 types all four non-`datetime` kinds.
+R-57 types all five.
 
 **Two options can use the same field id.** R-52 requires field ids to be unique
 *within an option*, not across the view — because `values` is one flat map
@@ -181,11 +182,14 @@ those widgets and cannot *use* them. Every kind 007 draws is one whose submitted
 value a test can drive end to end — which is the same reason, from the other
 side, that the drawn set is `boolean`.
 
-**The `[FieldRow]`-inside-a-struct binding is established but unproven here.**
-Nested arrays appear in stock widgets (`in property <[[StandardListViewItem]]>
-rows`, all five styles) and an array-typed struct member parses cleanly. Nobody
-has compiled one in this workspace. §8 R-1 names the fallback and the plan proves
-it in the **first** phase, not the last.
+**The `[FieldRow]`-inside-a-struct binding is settled, and not by this
+workspace.** What no tool here could tell us was read out of the pinned compiler
+instead: `generate_struct` types every member by `rust_primitive_type`, which
+maps an array to `sp::ModelRc<#inner>` wherever it appears
+(`i-slint-compiler-1.17.1/generator/rust.rs:706-737`, `:110-113`), so the member
+generates as `ModelRc<FieldBlock>`. §5.5/A-1 carries the chain. §8 R-1 keeps the
+two-flat-models fallback named but unneeded, and phase 1 **pins** this against a
+future Slint rather than discovering it.
 
 ### What the gate will not catch
 
@@ -235,13 +239,13 @@ different obstacles did the deciding and testability is only one of them:
 | `text` | `edited` would fire per keystroke into a one-slot channel (§3) | transport |
 | `number` | `SpinBox` is `int` against an `f64` protocol bound, and invents `maximum: 100` (D4) | fidelity |
 | `choice` | `ComboBox` has no set-value action, so no test can drive it (D4) | testability |
-| `datetime` | R-57 gives it no submitted form, so there is nothing a drawn control could send (D3, §5.2) | contract |
+| `datetime` | the stock offering is two separate modal popups — `DatePickerPopup` and `TimePickerPopup`, both `inherits PopupWindow` (`i-slint-compiler-1.17.1/widgets/fluent/{datepicker,time-picker}.slint:13`) — with no combined control, so drawing one field means composing two popups, a display and an unset state (D3) | presentation |
 
 Any one of them is sufficient. The distinction matters because R-3's mitigation
 rests on the transport argument, not the testability one: a later slice that finds
 a drivable text control has **not** discharged the objection to `text`.
 
-*Settles:* why R-57 has four rows and the renderer has one kind; why `text`,
+*Settles:* why R-57 types all five kinds and the renderer draws one; why `text`,
 `number`, `choice` and `datetime` are reported undrawn rather than omitted from
 canon.
 
@@ -279,9 +283,12 @@ rule; and the whole of §*What the workaround costs* in the slice card.
 
 ### 5.1 System model
 
-Nothing new crosses a crate edge and nothing new is retained outside
-`Controller`. The slice adds one pure module, widens one retained value, and adds
-one round trip from the window back to the controller.
+Nothing new crosses a crate edge. The slice adds one pure module, widens one
+retained value, and adds two paths from the window back to the loop: the edit
+itself, over the existing command channel, and a `Notice` signal carrying
+back-pressure. `Controller` gains no field; the `Notice` value is retained at the
+edge instead. §5.3 holds the state inventory and owns that claim — this section
+does not restate it.
 
 ```mermaid
 flowchart LR
@@ -302,6 +309,8 @@ flowchart LR
   CB -- "toggled" --> W
   BTN -- "chosen" --> W
   W -- "capacity-1 channel" --> C
+  W -. "Notice — watch; read by serve at present time" .-> C
+  C -- "frame.notice" --> G
   C --> P
   P --> D
   VM -- "blocks, undrawn" --> P
@@ -342,9 +351,14 @@ is the one place a widget's state becomes a submitted value — and because it i
 pure, has no Slint types, and its whole behaviour is unit-testable without a
 platform. It is the one new file.
 
-**`Frame` does not change shape.** It already borrows `shown: Option<&Prepared>`
-(`controller.rs:94-102`), so the glass reaches the draft through the value it
-already receives.
+**`Frame` gains exactly one field, and becomes *more* total for it.** The draft
+needs nothing: `Frame` already borrows `shown: Option<&Prepared>`
+(`controller.rs:94-102`), so the glass reaches it through the value it already
+receives. What changes is `notice: bool`, for the reason §5.4 gives. Today
+`Frame`'s own doc-comment carries the exception — *"Total: every property but
+`notice` is written from this, every time"* (`controller.rs:92-93`) — and that
+carve-out is the defect, not a convenience. With the field present the sentence
+loses its "but": every window property is written from the frame, every time.
 
 ### 5.2 Interfaces & contracts
 
@@ -356,9 +370,8 @@ R-52/R-53 the precedent for splitting rules that travel together).
 > **R-57.** A submitted field value's JSON type is determined by the field's
 > `kind` and by nothing else: `boolean` submits a JSON boolean, `text` a JSON
 > string, `number` a JSON number, and `choice` the chosen alternative's id as a
-> JSON string. `datetime` has no defined submitted form in this version: a host
-> MUST NOT submit a value for a `datetime` field, and MUST report such a field
-> undrawn under R-55. Defining its form is OQ-4.
+> JSON string, and `datetime` an RFC 3339 `date-time` string carrying an
+> offset.
 
 > **R-58.** A `respond` carries values for exactly the fields the host drew of
 > the option being answered: a host MUST submit a value for each of them, and
@@ -403,9 +416,17 @@ and `toggled => root.edited(option.view, option.id, field.id, self.checked)`.
 **A field's identity in the tree is scoped, not composite.** The `CheckBox`
 carries `accessible-description: field.id`, and the **per-option container**
 carries `accessible-description: option.id`, so a field is addressed by a query
-scoped to its option — `match_accessible_description(option)`, then
-`match_descendants()`, then `match_accessible_description(field)`
-(`i-slint-backend-testing-1.17.1/search_api.rs:239`). The unscoped form an option
+scoped to its option. `ElementQuery` has no accessible-description matcher —
+its builders are `match_descendants`, `match_id`, `match_type_name`,
+`match_inherits`, `match_accessible_role` and `match_predicate`
+(`i-slint-backend-testing-1.17.1/search_api.rs:232-287`) — so the description is
+read through `ElementHandle::accessible_description` (`:701`) inside a predicate,
+which is the shape the renderer tests already use (`tree.rs:42-49`): a
+`match_predicate` carrying an owned `option.id`, then `match_descendants()`
+(`:239`), then a `match_predicate` carrying an owned `field.id`, then
+`find_first()`. The existing `element_described` helper is this query without its
+middle two steps, and the scoped form belongs beside it rather than inlined at
+each call site. The unscoped form an option
 button uses (`app.slint:49`) does **not** carry over: an option id is unique
 within a view (R-14), but a field id is unique only within an option (R-52), and
 `R-52-the-same-field-id-in-different-options` is a fixture asserting two options
@@ -417,11 +438,27 @@ rejected: ids are backend-supplied strings whose *characters* no requirement
 constrains, so any separator can appear inside an id and the join becomes
 ambiguous — P-B, on data the host does not control.
 
-*Left open deliberately:* whether the per-option container should also declare
-`accessible-role: list` and `accessible-item-count`, as the options container does
-(`app.slint:42-44`). That is a question about what a screen reader announces, not
-about what a test can reach, and nothing here should settle it by what a test
-happens to need.
+**The container declares `accessible-role: groupbox`**, and it has no choice
+about declaring *some* role: the compiler admits an accessibility property only
+on an element whose role is bound, erroring with "can only be set in combination
+to `accessible-role`" otherwise
+(`i-slint-compiler-1.17.1/passes/lower_accessibility.rs:41-59`, and the
+accepted/rejected contrast at
+`tests/syntax/accessibility/accessible_properties.slint:32-41`). So
+`accessible-description: option.id` — the identity the scoped query depends on —
+makes a role mandatory here. `groupbox` is a labelled group of controls, which is
+what a per-option field container is. It also carries
+`accessible-label: option.label`, so the group is not announced anonymously;
+that label is **not** an identity and no test selects on it (D10, R-14).
+
+*Left open deliberately:* whether the container should further declare
+`accessible-role: list` with `accessible-item-count`, as the options container
+does (`app.slint:42-44`), so a reader announces a field's position within its
+option. That is a question about what a screen reader announces, not about what a
+test can reach, and nothing here should settle it by what a test happens to need.
+The options container is a list of selectable buttons; a block of fields is not
+the same thing, which is why `groupbox` is the resting place and not a stand-in
+for a decision deferred.
 
 The button's text remains `option.label`; the host authors no label, for a form
 or otherwise (D14).
@@ -577,6 +614,22 @@ Replacing the `OptionFields` arm (`:193-199`). No test asserts the current
 wording, so these are stated here to be reviewed once rather than discovered in a
 diff (research delta 7).
 
+`Refused` gains a fourth variant for the same reason and in the same place —
+`Refused` lives in `diagnostics.rs` rather than beside the controller because
+every user-visible string in this renderer is in one file, and
+`Diagnostics::refused` is an exhaustive match, so a variant without a line is a
+compile error rather than an omission:
+
+```
+no action taken: the host could not match that control to a field of the option it names
+```
+
+Parallel to `UnknownOption`'s line, and distinguishable from it: it says which
+of the two selectors failed. Unlike the two above, this one **is** asserted by a
+test — `reception.rs`'s `every_refused_variant_renders_one_line_with_the_failure_prefix`
+asserts each variant's exact string, and a fourth variant is within the claim its
+name makes.
+
 #### The build — `crates/goad/build.rs`
 
 ```rust
@@ -600,16 +653,50 @@ misses: `OptionId` carries no ordering, and `Draft` is keyed accordingly (§5.2)
 
 ### 5.3 Data, state & ownership
 
-**The complete retained state**, extending the list `controller.rs:108-124`
-already documents. One field changes shape; nothing new is added to `Controller`
-itself.
+**The complete state retained by `Controller`**, extending the list
+`controller.rs:103-121` already documents. One field changes shape; **nothing
+new is added to `Controller`**. The heading is scoped deliberately: `notice`
+below *is* retained, and is retained somewhere else.
 
 | held | where | written by | on what |
 |---|---|---|---|
 | `shown: Option<Prepared>` | `Controller` | `absorb` | a folded exchange — *unchanged* |
 | ↳ `view_id`, `presentation` | `Prepared` | `receive`, once | construction only |
 | ↳ **`draft: Draft`** | `Prepared` | `Controller::edit` | one `Command::Edit` |
-| `diagnostics`, `focus`, `engaged`, `next_check` | `Controller` | `absorb`, `refuse`, `engage` | unchanged |
+| `diagnostics` | `Controller` | `absorb`, `refuse` | a folded exchange, or a refusal the renderer made itself |
+| `next_check` | `Controller` | `absorb` | a folded exchange |
+| `focus` | `Controller` | `absorb` on `Shift::Replaced` only, `open_diagnostics`, `close_diagnostics` | a replaced view, or the diagnostics pane opening and closing |
+| `engaged` | `Controller` | `engage` sets, `absorb` clears | an exchange starting and ending |
+**`notice` is not in that table, and the reason is *where* it is retained, not
+whether.** It is a window property today, written by `Wire::send` and cleared by
+`Glass::present`, owned by neither — the absence §5.4 shows to be a defect. The
+repair gives it an owner at the **edge** rather than in `Controller`, and its
+retention there is load-bearing rather than incidental: `true` has to survive
+from the `Full` callback through the next present, and through further presents,
+until a successful send writes `false`. A `watch` channel is the right vehicle
+precisely because it retains its last sent value
+(`tokio-1.53.1/src/sync/watch.rs:3-20`, `:296-304`). P-2 therefore holds for
+`notice` exactly as for everything else — the screen is a function of retained
+state — and what changes is which side of the edge retains it:
+
+| the value | authored by | carried by | written to the window by |
+|---|---|---|---|
+| `notice: bool` | `Wire::send` — `true` on `Full`, `false` on `Ok` | a `Notice` signal, read by `serve` at present time and passed to `frame(notice)` | `Glass::present`, from the frame, like every other property |
+
+**The route is `Cancel`'s, exactly.** `Cancel` is a `watch` channel constructed
+in `main`, handed to `Wire` for synchronous setting from a Slint callback, and
+handed to `serve` for the loop to read (`wire.rs:146-171`; `main.rs:85-119`;
+`serve`'s signature, `controller.rs:576-584`). `Notice` follows it edge for edge.
+That keeps the concurrency primitive at the edge where the others already live
+and out of `Controller`, which is "One value, no Slint
+types, so it is testable without a platform" (`controller.rs:103-108`) and stays
+so.
+
+**What changes, precisely:** `Frame` gains `notice: bool`; `Controller::frame`
+gains one parameter and stays `&self` and non-mutating; `Controller` gains no
+field; `main` constructs the signal and clones it into `Wire`; `serve` takes it
+alongside `cancel`. A test asserts the notice by calling `frame(true)` — no
+channel, no window, no platform.
 
 **The draft's whole lifetime is `absorb`'s existing three arms**, and none of
 them needed a line of new code:
@@ -625,8 +712,9 @@ draft held beside `shown` would have a state — draft present, view absent — 
 the type would admit and the fold would have to rule out by hand.
 
 **What is derived, and therefore disposable.** Everything the window shows is
-recomputed from retained state on every present; nothing is cached, and nothing
-has an invalidation rule to get wrong.
+recomputed on every present from state retained either by `Controller` or, for
+`notice` alone, at the edge; nothing is cached, and nothing has an invalidation
+rule to get wrong.
 
 - `Vec<OptionRow>`, including every `FieldBlock` and `FieldRow` — rebuilt by
   `option_rows` each call (`glass.rs:138-149`), as today.
@@ -687,7 +775,7 @@ sequenceDiagram
   L->>C: edit(..) → Ok(())
   Note over L: dispatch returns None:<br/>nothing to exchange
   L->>S: present — every FieldRow rewritten from the draft
-  Note over S: same value, no visible change
+  Note over S: same value, new element —<br/>keyboard focus is dropped
 
   P->>S: press the block's button
   S->>W: chosen(view, option)
@@ -730,13 +818,33 @@ Today the same reset already happens on every present, but a present during a
 prompt follows a fold or a refusal, and a click ends the interaction — so nothing
 was there to lose. Drawing a form is what turns it into a per-interaction cost.
 
-**When it did not arrive, the correction is the feedback.** The channel holds one
-and `Wire::send` drops a full send after writing `BUSY_NOTICE`
-(`wire.rs:125-134`). The draft never saw the edit, so the next present writes the
-box back to where it was: the tick visibly undoes itself and the notice says why.
-That is not a special path — it is the totality rule doing its job — and it is
-the one behaviour that would be *impossible* to get right if the draft lived in
-the widget.
+**When it did not arrive, the correction is the feedback — and the explanation
+must outlive the correction.** The channel holds one and `Wire::send` drops a
+full send (`wire.rs:125-134`). The draft never saw the edit, so the next present
+writes the box back to where it was: the tick visibly undoes itself. That is not
+a special path — it is the totality rule doing its job — and it is the one
+behaviour that would be *impossible* to get right if the draft lived in the
+widget.
+
+The notice has to survive that same present, and today it cannot. `Wire::send`
+writes `BUSY_NOTICE` to the window and `Glass::present` writes `notice = ""`
+unconditionally (`glass.rs:104-108`), whose doc-comment states the rule outright:
+*"`notice` is written `""` here and set from nowhere else in this trait"*
+(`glass.rs:23`). A full channel already holds a command, so the present that
+consumes it is the present that clears the notice — and, once fields are drawn,
+the same present that reverts the tick. The correction and the deletion of its
+explanation arrive together; at most the notice flashes first. The rule was
+harmless while a present following a fold or a refusal had nothing to undo.
+
+So `notice` becomes frame-carried (§5.3): `Wire::send` sets the signal on `Full`
+and clears it on `Ok`, `serve` reads it and passes it to `frame(notice)`, and `present`
+writes it like every other property. The existing back-pressure test asserts the
+clearing behaviour — *"the next present must clear notice"*
+(`wiring.rs:346-385`) — and **inverts**: it must assert the notice survives the
+next present, and that the person's next successful send clears it. That test
+passing today is not evidence the behaviour is right; it asserts the mechanism
+that causes the defect, which is `docs/memory/a-green-test-can-assert-a-proxy.md`
+a second time.
 
 **No edit can race an exchange.** `enabled: !root.busy` already disables option
 buttons during a call (`app.slint:47`); the checkboxes carry the same binding. So
@@ -845,7 +953,10 @@ builder.
 **A-4 — A person cannot click faster than the loop turns.** One command per
 click, a one-slot channel, and controls disabled while an exchange is in flight
 (§5.4). Should it ever prove false, the failure is visible and self-correcting —
-the tick undoes itself and the notice says why — not silent divergence.
+the tick undoes itself and the notice, which now survives the present that undoes
+it, says why — not silent divergence. Disabling the controls does **not** cover
+this: `Full` happens before the queued command is dispatched and before `busy` is
+set, so the disabled state is not yet in force when the drop occurs.
 
 #### Edge cases
 
@@ -917,9 +1028,9 @@ the conversation that produced it.
 
 | id | chosen | rejected | why it must not be reversed by accident |
 |---|---|---|---|
-| **D1** | R-57 types all four non-`datetime` kinds | a row per kind this renderer draws | A contract that covers only what is drawn makes the protocol track the renderer — `CLAUDE.md`'s third invariant, and the failure the project exists to avoid. The trinary-checklist view in `design-log.md` is the concrete case: conformant today, and it would have needed a spec amendment to draw. |
+| **D1** | R-57 types all five kinds | a row per kind this renderer draws | A contract that covers only what is drawn makes the protocol track the renderer — `CLAUDE.md`'s third invariant, and the failure the project exists to avoid. The trinary-checklist view in `design-log.md` is the concrete case: conformant today, and it would have needed a spec amendment to draw. |
 | **D2** | two requirements — R-57 *type*, R-58 *completeness* | one requirement carrying both | §4's style is one falsifiable claim per row; R-52/R-53 are the precedent for splitting rules that travel together. Type is a claim about one value; completeness is a claim about the map's shape (research F2/F4). |
-| **D3** | `datetime` has no defined submitted form, and is **not submittable**: a host submits no value and reports the field undrawn | pick a string format now | The other four kinds have no degrees of freedom; `datetime` has several — offset, precision, date-only — and no evidence asks for one. Absence alone would have been a hole, since R-58 requires a value for every field drawn: what makes it a decision is that R-57 closes it, and SPEC-001/OQ-4 carries the freedoms forward. Reversing this looks like tidying in either direction — deleting the clause as an oversight, or filling in a plausible format — which is why it is written here in the form a later reader must disagree with explicitly. |
+| **D3** | `datetime` submits an **RFC 3339 `date-time` string with an offset** | leave the form undefined; or forbid submitting one at all | Both alternatives were written and both failed. Leaving it undefined put an unconstrained value beside R-58's MUST — a contract two backends could disagree about (F-5). Forbidding it made a conforming renderer that draws `datetime` impossible, which is the protocol taking the shape of this slice's renderer (F-21, a blocker) and borrowed R-55's undrawn report to carry a prohibition R-55 exists to prevent. The format is chosen on no demand, which is the real cost; the alternative constrains harder on equally no demand. Where a constraint must be picked blind, pick the one that admits more. SPEC-001/OQ-4 keeps the residue — whether a date without a time wants its own kind. |
 | **D4** | draw `boolean` only | the card's four kinds | `SpinBox` is `int` against an `f64` protocol bound and invents `maximum: 100`; `ComboBox` has no set-value action, so `choice`'s value has no automated test. Every kind drawn is one a test drives end to end — the slice-004 scar. |
 | **D5** | the draft lives in `Prepared`, inside `Controller` | Slint owns it; or the click carries the values | Keeps `Glass::present` total with no exception to carve, puts the draft in a pure reducer the headless tier can test, and makes a draft and the view it answers one value — so `shown = None` cannot strand one. Settled at scoping (OQ-1); AC-5 is what proves it. |
 | **D6** | `answer()` walks the presentation's **declared fields** | walk the draft's keys | R-58 holds in both directions with no check to forget, and a draft key that outlived its view cannot reach the wire. `Draft` exposes no key enumeration so this is a property of the type, not a convention. |
@@ -936,7 +1047,7 @@ the conversation that produced it.
 
 | id | risk | likelihood / impact | mitigation | the signal it is happening |
 |---|---|---|---|---|
-| **R-1** | An array-typed struct member (`blocks: [FieldBlock]`) does not survive Rust codegen. | low / medium | Two flat models — `options` and `fields`, the latter carrying an `option` discriminator — with a filtered inner `for`. Uglier `.slint`, identical Rust, no design change. | `build.rs` fails in **phase 1**. This is why A-1 is proven first. |
+| **R-1** | An array-typed struct member (`blocks: [FieldBlock]`) does not survive Rust codegen. | **discharged** — was low / medium | None needed: `generate_struct` types an array member as `ModelRc<FieldBlock>` (`i-slint-compiler-1.17.1/generator/rust.rs:706-737`, `:110-113`), so it compiles (§5.5/A-1). The fallback this row used to name — two flat models, `options` and `fields` with an `option` discriminator, and a filtered inner `for` — is kept named but unneeded. | `build.rs` failing in phase 1, now a regression pin against a future Slint rather than phase 1's experiment. |
 | **R-2** | A `CheckBox` that assigned its own `checked` detaches from the model, so `present` stops writing the draft back. | **discharged** — was medium / high | None needed: `set_vec` destroys and re-creates the element, so the binding is re-established (§5.4, cited to `i-slint-core-1.17.1`). The one-line revert this row used to name was **not** a mitigation — it is another imperative assignment to the same property. | AC-5, now a regression pin against a future Slint rather than phase 1's experiment. |
 | **R-3** | Someone relaxes the drawn set to admit `text` without addressing the channel. | medium / high | §3 states F-8 *with its mechanism*, and §5.2 says outright that the `Edited` seam fixes the shape of a value and **not** the transport that carries it. | An `Edited` variant for text appearing with no change to the channel or the commit event. |
 | **R-4** | The draft creeps into `Presentation` — most likely as `checked: bool` on `PresentationField`, which is *smaller* code. | medium / medium | I-4 names it, and §5.3 names the specific shortcut and why it is wrong, so review has something to match against rather than a principle to apply. | Any mutable member on a `view_model.rs` type; `present()` producing a value something else then writes. |
@@ -964,7 +1075,7 @@ one, never instead of it — R-5, and the slice-004 precedent.
 | **AC-5** | tick a box, take a `Shift::Retained` fold (an `evaluate` answering `view: null`), then submit — the box is **still ticked on screen** *and* the value is still `true` on the wire | `fields.rs`, **both assertions required**. The regression AC-5 names is a present clobbering the form, and the wire value is built from the draft, which no present writes — so the wire assertion stays green while the screen is wrong. Here the *widget* assertion is load-bearing and the wire one guards a different defect (the draft dropped on `Retained`). Neither implies the other |
 | **AC-6** | the existing option tests pass with **no change to what they assert**, and a zero-field option adds no element to the tree | `tree.rs`, `table.rs`, `wiring.rs`. The diff is *not* empty and cannot be: `OptionRow` is a generated struct and `tree.rs:28-38` builds it with an exhaustive literal, so a fourth member is `E0063` there and at `glass.rs:138-149`. What must not change is the assertions — a mechanical `blocks: ModelRc::default()` in the builder, and nothing else. `table.rs` and `wiring.rs` never name `OptionRow` and are genuinely untouched |
 | **AC-7** | a person runs `just demo`, fills a multi-field form, submits once, and the record shows every answer | **outside the jail** (no display in it). Needs a demo backend that records `values` — the current `examples/shell/backend.sh` discards them (research F13). **Its form carries at least one field of a kind this renderer does not draw**, so what a backend author copies is a protocol-shaped form rather than this renderer's subset, and the undrawn report is visible doing its job — R-55's "or produce the effect of" clause, which no other artefact in this slice discharges. That also gives AC-3's human half a vehicle. Recorded in `audit.md` under Evidence |
-| **AC-8** | R-57 and R-58 in SPEC-001 with a §7 row each; R-57's `boolean` clause asserted at the kind→JSON site, R-58 asserted over a **two-option** view | `draft.rs::submitted` for R-57 and `answer()` for R-58, both stratum 3 — `canonical.rs` is stratum 1 and a submitted value reaches it as a bare `Value` with no kind, so a test there asserts `serde_json`'s behaviour and not the host's. R-57's `text`/`number`/`choice` clauses are **review, not a test** until a renderer draws them (§7's existing convention, as for R-9, R-18, R-20); the total match in `submitted` is what carries them forward |
+| **AC-8** | R-57 and R-58 in SPEC-001 with a §7 row each; R-57's `boolean` clause asserted at the kind→JSON site, R-58 asserted over a **two-option** view | `draft.rs::submitted` for R-57 and `answer()` for R-58, both stratum 3 — `canonical.rs` is stratum 1 and a submitted value reaches it as a bare `Value` with no kind, so a test there asserts `serde_json`'s behaviour and not the host's. R-57's `text`, `number`, `choice` and `datetime` clauses are **review, not a test** until a renderer draws them (§7's existing convention, as for R-9, R-18, R-20); the total match in `submitted` is what carries them forward |
 | **AC-9** | `just check` exits 0; the vocabulary scan and the four ADR-001 instruments pass | unchanged. Necessary and not sufficient — R-4 and R-6 are review's |
 | **AC-10** | the person's own statement that the form is legible — which fields belong to which option, and which heading covers which fields, both apparent without reading the protocol | the slice's final phase. **The bound is what drawing fields *forces***, `slice-007.md`'s own formulation, because "legibility" and "spacing" are one complaint seen from two sides and cannot be told apart at the moment someone says "I can't see where the second group starts". Two surfaces may move: the block container and its separator, and the heading's own treatment. Everything else — typography, window sizing, the idle surface, and the look of the controls themselves — is 008's, and feedback about it is recorded **verbatim and not actioned**, becoming 008's brief. Recorded in `audit.md` under Evidence beside AC-7 |
 
@@ -1000,11 +1111,11 @@ explicit endorsement before anything is written into `docs/`.
 
 | document | impact | settled by |
 |---|---|---|
-| **SPEC-001 §4** | **Two new requirements.** R-57 (type by kind, four rows, `datetime` undefined) and R-58 (completeness, both directions). Ids appended, never renumbered. | AC-8, at audit |
+| **SPEC-001 §4** | **Two new requirements.** R-57 (type by kind, all five kinds) and R-58 (completeness, both directions). Ids appended, never renumbered. | AC-8, at audit |
 | **SPEC-001 §6.1** | The `respond` example carries more than one value, and a boolean among them. | AC-8 |
 | **SPEC-001 §6.2** | A type table beside *Field forms*, restating R-57 in the section that already names the field object's keys. | AC-8 |
-| **SPEC-001 §7** | One verification row per new requirement, at the sites that can hold them: R-57's `boolean` clause at `draft.rs::submitted`, R-58 at `answer()` over a two-option view. `canonical.rs` cannot hold either — `UserResponse.values` is `BTreeMap<FieldId, Value>` (`:499-503`) and its `a_respond_serializes_to_the_spec_s_wire_form` builds the value it asserts (`:755`), so it stays green under a wrong kind→JSON mapping. R-57's three undrawn kinds are **review, not a test**, the convention §7 already uses where no host test can observe a claim. | AC-8 |
-| **SPEC-001 §8** | **OQ-2 unchanged, trigger sharpened.** Prefill and per-field errors stay open; this slice makes their absence more expensive (fourteen re-ticks rather than one). The trinary-checklist shape in `design-log.md` is a second sharpening. Harvest, not an amendment. **One new question, OQ-4** — `datetime`'s submitted form, the degrees of freedom R-57 declines to guess at. SPEC-001's own numbering; not SPEC-002's OQ-4 two rows down. | notes.md Harvest; AC-8 |
+| **SPEC-001 §7** | One verification row per new requirement, at the sites that can hold them: R-57's `boolean` clause at `draft.rs::submitted`, R-58 at `answer()` over a two-option view. `canonical.rs` cannot hold either — `UserResponse.values` is `BTreeMap<FieldId, Value>` (`:499-503`) and its `a_respond_serializes_to_the_spec_s_wire_form` builds the value it asserts (`:755`), so it stays green under a wrong kind→JSON mapping. R-57's four undrawn kinds are **review, not a test**, the convention §7 already uses where no host test can observe a claim. | AC-8 |
+| **SPEC-001 §8** | **OQ-2 unchanged, trigger sharpened.** Prefill and per-field errors stay open; this slice makes their absence more expensive (fourteen re-ticks rather than one). The trinary-checklist shape in `design-log.md` is a second sharpening. Harvest, not an amendment. **One new question, OQ-4** — whether a date without a time wants its own kind, which is what remains once R-57 types `datetime` as an RFC 3339 `date-time`. SPEC-001's own numbering; not SPEC-002's OQ-4 two rows down. | notes.md Harvest; AC-8 |
 | **SPEC-002 §8 / OQ-4** | **Not amended. Still open.** It was answered during design and the answer was withdrawn (D13). Reconciliation must not read the slice's history as having settled it. | design-log.md; §6 |
 | **SPEC-003** | Untouched. This slice adds no stimulus, no envelope, no listener change — checked, not applicable. | research, Thread 1 |
 | **ADR-001, ADR-003** | Bind; unamended. Nothing new crosses a crate edge, and `crates/goad-semantics/` is unchanged. `view_model.rs` stays stratum 3's pure half, which **no instrument reaches** — I-4 and R-4 are how that is held. | review |
@@ -1025,15 +1136,23 @@ warns about. D5 (the draft's home) is recorded in `slice-007.md` OQ-1 and this
 design; D11 (the `Edited` seam) is enforced by the compiler. Neither is
 reversible by accident in the way an ADR exists to prevent.
 
-**D3 is the harder case, and it is answered without an ADR.** It is the one
-decision here that presents as an *omission*: a later reader meets R-57 typing
-four kinds and closing the fifth, and both available "repairs" — delete the
-clause, or fill in a plausible format — read as tidying and leave no trace. D1's
-argument does not transfer, because SPEC-001 §1 says nothing about why one kind
-is deliberately left unspecified while four are fixed, and the reasoning lived
-only in `canon-delta.md`, which is consumed at promotion. Two records carry it
-instead: **SPEC-001/OQ-4** holds the degrees of freedom as canon (§5.2), and
-`docs/roadmap.md` §Open decisions holds the decision itself, beside OQ-1 and
-OQ-2, with its trigger and the warning about accidental reversal. That is the
-document a slice-planner reads, which an ADR would not be. User decision,
-2026-09-15; `slice-007.md` Follow-ups carries the pointer.
+**D3 is the harder case, and it is answered without an ADR.** Its reversal risk
+changed shape under F-21 but did not go away. It used to present as an
+*omission* — R-57 typing four kinds and closing the fifth, where both available
+"repairs" read as tidying. Now it presents as a *derivation*: a later reader
+meets `datetime` typed as RFC 3339 and assumes some evidence chose that format,
+when nothing did. The reversal that costs something is no longer deletion but
+unexamined confidence — treating a blind pick as settled and building on it
+without noticing that the question of what a `datetime` should carry was never
+answered by a backend that wanted one.
+
+D1's argument still does not transfer: SPEC-001 §1 says nothing about why a
+format was chosen on no demand, and the reasoning lived only in
+`canon-delta.md`, which is consumed at promotion. The same two records carry it,
+with their content updated: **SPEC-001/OQ-4** holds the residue as canon — a
+date without a time (§5.2) — and `docs/roadmap.md` §Open decisions holds the
+decision itself, beside OQ-1 and OQ-2, now stating the rule that produced it
+(*where a constraint must be picked blind, pick the one that admits more*)
+rather than a warning against tidying. That is the document a slice-planner
+reads, which an ADR would not be. User decision, 2026-09-15; `slice-007.md`
+Follow-ups carries the pointer.
