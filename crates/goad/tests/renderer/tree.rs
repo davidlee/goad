@@ -22,7 +22,7 @@ use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode}
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ModelRc, SharedString, VecModel};
 
-use crate::harness::{element_described, field_described, within_option};
+use crate::harness::{described, element_described, field_described, within_option};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -61,7 +61,6 @@ const AN_OPTION: (&str, &str, &str) = ("opt-a", "Yes", "view-1");
 
 fn field(id: &str, label: &str, checked: bool) -> FieldRow {
   FieldRow {
-    option: SharedString::from(AN_OPTION.0),
     id: SharedString::from(id),
     label: SharedString::from(label),
     checked,
@@ -256,6 +255,50 @@ fn fields_in_option(window: &PromptWindow, option: &str) -> Vec<SharedString> {
     .collect()
 }
 
+/// Every label the option's **field container** puts on screen, in tree order —
+/// block headings and checkbox labels interleaved, which is the sequence a
+/// person actually reads.
+///
+/// `Text` rather than `CheckBox` because a heading is the one thing the field
+/// markup draws that is not a control, and `accessible_description` cannot
+/// reach it: a heading has no id to carry there, only its words. A checkbox
+/// contributes its own internal `Text`, so this query returns **both** kinds
+/// and that is the point — *which heading covers which fields* (AC-2) is a
+/// claim about their order relative to each other, and a query returning only
+/// headings could not make it.
+///
+/// Scoped by **role**, not by `within_option`, and that is what makes it
+/// honest. Both the option's `Button` and its field container answer to
+/// `option.id`, so `within_option` descends into the control as well — and the
+/// `Button`'s own internal `Text` reports no accessible label while a
+/// `CheckBox`'s reports one. Filtering the unlabelled away would work, and
+/// would rest the case on an asymmetry inside `std-widgets` that nothing here
+/// pins: a Slint release that labels `Button`'s inner `Text` too would fail
+/// this file's heading case with a heading-shaped message for a reason that
+/// has nothing to do with headings (`review-code.md` F-6). Scoping to the
+/// container excludes the control instead, so **every** element in scope was
+/// drawn by the field markup and none is dropped.
+///
+/// `Some("")` is therefore kept and is load-bearing: a `Text` bound to `""`
+/// reports an empty label rather than none, so an untitled block that wrongly
+/// drew a heading appears here as an empty string instead of vanishing.
+/// Measured, not assumed.
+fn labels_in_option(window: &PromptWindow, option: &str) -> Vec<SharedString> {
+  ElementQuery::from_root(window)
+    .match_predicate(described(option))
+    .match_accessible_role(AccessibleRole::Groupbox)
+    .match_descendants()
+    .match_inherits("Text")
+    .find_all()
+    .into_iter()
+    .map(|element| {
+      element
+        .accessible_label()
+        .expect("every element the field markup draws under the container carries a label")
+    })
+    .collect()
+}
+
 /// VT-1 — A-1's pin. A block of two fields renders two controls, each found
 /// by the option-scoped query. Its force is as much in **compiling** as in
 /// passing: `blocks` generates as `ModelRc<FieldBlock>` from an array-typed
@@ -417,6 +460,51 @@ fn a_fields_screen_order_is_its_declared_order_across_blocks() -> TestResult {
     vec!["stretched", "read", "walked", "called", "slept"],
     "screen order is declared order, across the block boundary and through \
      an untitled block"
+  );
+  Ok(())
+}
+
+/// AC-2's third link, for the **heading** — the half the chain was missing
+/// (`review-code.md` F-1). `fields_in_option` collects checkbox descriptions
+/// and reaches no heading at all, so before this case the whole of
+/// `app.slint`'s heading markup could be deleted with the gate staying green,
+/// while the checkbox half of the same element was held at the screen by six
+/// cases.
+///
+/// Both of the markup's branches are asserted, because a positive assertion
+/// alone would leave the second exactly as unheld as before:
+///
+/// - a **named** block puts its heading on screen, above its own fields and
+///   below nothing — which is *which heading covers which fields*;
+/// - an **untitled** block puts nothing there, which is the `if block.heading
+///   != ""` guard. `heading: ""` is an untitled block and not a missing one
+///   (`design.md` §5.5, and the markup's own comment), so the guard is a
+///   claim about meaning and not a micro-optimisation.
+///
+/// The fixture is the declared-order case's, deliberately: one named block and
+/// one untitled, which is the smallest shape in which both branches are live
+/// at once.
+#[test]
+fn a_block_heading_reaches_the_screen_and_an_untitled_block_draws_none() -> TestResult {
+  let window = window()?;
+  window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![
+    block(
+      "Before you go",
+      vec![
+        field("stretched", "Stretched", false),
+        field("read", "Read", false),
+      ],
+    ),
+    block("", vec![field("walked", "Walked", false)]),
+  ]))));
+
+  assert_eq!(
+    labels_in_option(&window, AN_OPTION.0),
+    vec!["Before you go", "Stretched", "Read", "Walked"],
+    "the heading is drawn once, above the two fields it covers and not above \
+     the third; and the untitled block draws no heading at all, which an \
+     unguarded Text would show here as an empty string between \"Read\" and \
+     \"Walked\""
   );
   Ok(())
 }

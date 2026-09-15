@@ -4,7 +4,7 @@ import { Button, CheckBox, Palette, ScrollView } from "std-widgets.slint";
 // widget flips itself on click and the next present writes it back, so the
 // model is the authority and the widget is never asked to remember
 // (design.md §5.2, §5.4).
-export struct FieldRow { option: string, id: string, label: string, checked: bool }
+export struct FieldRow { id: string, label: string, checked: bool }
 // `heading: ""` is an **untitled** block, not a missing one — an ungrouped
 // field must not be drawn under a heading that does not claim it.
 export struct FieldBlock { heading: string, fields: [FieldRow] }

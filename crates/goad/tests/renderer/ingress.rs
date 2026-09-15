@@ -49,7 +49,7 @@ use crate::driving::{host, instant};
 use crate::harness::{
   TIMEOUT, current_view_token, glass_over, now, stub_clock, until, window_and_tray,
 };
-use crate::scripting::{invocations, logging_backend, scripted};
+use crate::scripting::{claim, invocations, logging_backend, scripted};
 use crate::waiting::{LIVENESS_BOUND, within};
 
 /// `design.md` §5.2's own example envelope. `+10:00`, deliberately: A-3's
@@ -105,7 +105,27 @@ const _: () = assert!(
 /// A path no other case will collide with, cleared before it is handed out —
 /// `std::env::temp_dir()` and the process id, because `tempfile` is not on the
 /// manifest allowlist (`plan.md` PL-3) and this phase adds no dependency.
+///
+/// That promise is `scripting::marker`'s promise, made by three more helpers —
+/// `startup.rs`'s, in this same test binary, and the ones in
+/// `crates/goad-shell/tests/integration/ingress.rs` and
+/// `crates/goad-emit/tests/binary/exchange.rs` — and held by the same
+/// instrument for all but the last, whose target cannot include the instrument
+/// without failing the gate (`review-code.md` F-9, F-11, F-17). It matters
+/// more here than for a marker: two cases sharing a socket path share a
+/// **listener**, and `cleanup` below removes the lock file beside it, so the
+/// second case to start would unlink the first case's lock mid-run. Nothing
+/// collides today — but the names are drawn from the same well that produced
+/// the `"vt8"` collision these cases are numbered from, and `claim` is what
+/// makes "nothing collides today" checked rather than observed.
+///
+/// The kind is **this helper's alone**, which is what keeps the key exact: these
+/// paths are `goad-serve-…` and the other socket helpers' are `goad-startup-…`
+/// and `goad-ingress-…`, so a kind shared between them would report a collision
+/// where there is none. See `claim` for why the rule is one kind per helper
+/// rather than one kind per prefix (F-21).
 fn socket_path(case: &str) -> PathBuf {
+  claim("serve socket", case);
   let path = std::env::temp_dir().join(format!("goad-serve-{case}-{}.sock", std::process::id()));
   match std::fs::remove_file(&path) {
     Ok(()) | Err(_) => (),

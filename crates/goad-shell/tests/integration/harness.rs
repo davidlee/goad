@@ -26,8 +26,10 @@ use crate::driving::event;
 /// Re-exported so the transport cases keep naming one module. `backend`,
 /// `marker` and `clear` are `scripted`'s dependencies and moved with it
 /// (§12.8, and to `tests/support/scripting.rs` at slice 003 PHASE-05, D-18);
-/// this tier calls all three directly as well, through `harness::`.
-pub(crate) use crate::scripting::{backend, clear, marker};
+/// this tier calls all three directly as well, through `harness::`. `claim`
+/// joins them because `ingress.rs` mints its own socket paths and holds their
+/// uniqueness with the same instrument (`review-code.md` F-11).
+pub(crate) use crate::scripting::{backend, claim, clear, marker};
 
 /// A transport pointed at one script, with the timeout this case wants.
 pub(crate) fn transport(name: &str, timeout: Duration) -> ProcessBackend {

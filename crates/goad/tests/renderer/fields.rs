@@ -261,12 +261,17 @@ struct Rig {
 /// `instructions` in order.
 ///
 /// **`case` is a path, not a label.** `scripting::marker` turns it into
-/// `goad-invocations-<case>-<pid>` in the temp directory and **clears it** on
-/// the way out, and every case in this target shares one pid — so two cases
-/// given the same name share one log, each truncating the other's, and fail
-/// intermittently under cargo's parallelism. Nothing checks for a collision;
-/// the names here are prefixed with this file's own, as `wiring.rs`'s and
-/// `table.rs`'s are.
+/// `goad-invocations-<case>-<pid>` in the temp directory and **clears it at
+/// handout**, and every case in this target shares one pid — so two cases given
+/// the same name share one log, and whichever starts second clears it from
+/// under the first.
+///
+/// `scripting::claim` now checks for that collision and panics naming the case,
+/// so the names here being prefixed with this file's own — as `wiring.rs`'s and
+/// `table.rs`'s are — is a courtesy to the reader rather than the only thing
+/// standing between this target and an intermittent failure. It was the only
+/// thing until slice 007's audit, and two pairs had already slipped past it
+/// (`review-code.md` F-5, F-8).
 fn rigged(case: &str, instructions: &[&str]) -> Rig {
   let (window, tray) = window_and_tray();
   with_room_for_the_form(&window);

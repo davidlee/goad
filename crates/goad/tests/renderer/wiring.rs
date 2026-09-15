@@ -17,13 +17,14 @@ use goad::diagnostics::{BUSY_NOTICE, Refused};
 use goad::generated::PromptWindow;
 use goad::glass::Glass;
 use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
-use i_slint_backend_testing::{ElementHandle, ElementQuery};
+use i_slint_backend_testing::ElementHandle;
 use slint::ComponentHandle;
 use tokio::sync::mpsc;
 
 use crate::driving::{host, quiet_event};
 use crate::harness::{
-  TIMEOUT, current_view_token, field_described, glass_over, now, stub_clock, until, window_and_tray,
+  TIMEOUT, current_view_token, element_described, field_described, glass_over, now, stub_clock,
+  until, window_and_tray,
 };
 use crate::scripting::{invocations, scripted};
 use crate::waiting::LIVENESS_BOUND;
@@ -65,22 +66,17 @@ fn nothing_to_report_shown(window: &PromptWindow) -> bool {
 /// Whether an option's **control** is enabled, by the identity the tests
 /// select on.
 ///
-/// The type filter is not decoration. An option that carries fields also
-/// carries a field container answering to the same `option.id`, and an
-/// unscoped `find_first` would take whichever the walk reached first —
-/// declaration order, which nothing pins. A `groupbox` declares no
-/// `accessible-enabled`, so the wrong element answers `None`, which reads
-/// like a missing property and is not one. `tree.rs`'s `element_described`
-/// took the same filter for the same reason.
+/// The type filter is not decoration, and it is not this helper's to restate.
+/// An option that carries fields also carries a field container answering to
+/// the same `option.id`, and an unscoped `find_first` would take whichever the
+/// walk reached first — declaration order, which nothing pins. A `groupbox`
+/// declares no `accessible-enabled`, so the wrong element answers `None`,
+/// which reads like a missing property and is not one.
+/// [`harness::element_described`] carries that filter, its reason, and the
+/// description predicate; this helper is only the property read off what it
+/// finds (`review-code.md` F-13).
 fn accessible_enabled_of(window: &PromptWindow, description: &str) -> Option<bool> {
-  let description = description.to_owned();
-  ElementQuery::from_root(window)
-    .match_inherits("Button")
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(description.as_str())
-    })
-    .find_first()
-    .and_then(|element| element.accessible_enabled())
+  element_described(window, description).and_then(|element| element.accessible_enabled())
 }
 
 /// AC-6's "no window" / "the window follows the interaction", read off the
@@ -507,6 +503,16 @@ mod busy {
     controller.engage();
     glass.present(controller.frame(false));
     assert!(window.get_busy());
+    // The direction that discriminates, and the one this case's own name
+    // presupposes: *re-enable* is a claim that they were disabled. `Some(true)`
+    // is also what an **unbound** `enabled` answers, so the two assertions at
+    // the foot cannot tell `enabled: !root.busy` from its absence and neither
+    // can any other enabled-state assertion in this workspace
+    // (`review-code.md` F-2). Readable here and not in the case above, which
+    // engages before absorbing anything and so has no control to read
+    // (F-7).
+    assert_eq!(accessible_enabled_of(&window, "yes"), Some(false));
+    assert_eq!(accessible_enabled_of(&window, "no"), Some(false));
 
     let failing = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, failing);
@@ -1135,8 +1141,8 @@ mod editing {
   use tokio::task::LocalSet;
 
   use super::{
-    LIVENESS_BOUND, Refused, TIMEOUT, current_view_token, field_described, glass_over, host,
-    invocations, now, quiet_event, scripted, stub_clock, until, window_and_tray,
+    LIVENESS_BOUND, Refused, TIMEOUT, accessible_enabled_of, current_view_token, field_described,
+    glass_over, host, invocations, now, quiet_event, scripted, stub_clock, until, window_and_tray,
   };
 
   /// A two-option form. Both options carry drawn fields and **share a field
@@ -1413,6 +1419,76 @@ mod editing {
     }
   }
 
+  /// `enabled: !root.busy` on **both** controls it binds — the checkbox this
+  /// slice added and the option button beside it. Before this case neither was
+  /// pointed at by anything, and deleting both bindings left the whole gate
+  /// green (`review-code.md` F-2).
+  ///
+  /// Asserted in **both** directions and the busy one first, because
+  /// `Some(true)` is what an *unbound* `enabled` answers — the same as a bound
+  /// one at rest — so the enabled assertion alone cannot tell a live binding
+  /// from a deleted one. Every pre-existing enabled-state assertion in this
+  /// workspace is in that blind direction, which is how the gap survived. The
+  /// pair is what says a control follows `busy` rather than merely being
+  /// enabled at rest.
+  ///
+  /// Here rather than in `mod busy` because of the **checkbox**, which needs a
+  /// view carrying fields: `mod busy`'s fixture is `TWO_OPTIONS`, which carries
+  /// none. Its first case could not hold even the button's half — it engages
+  /// before absorbing anything, so at its busy present the window holds no
+  /// options and `accessible_enabled_of` answers `None`, measured. Its
+  /// **second** case absorbs and presents before engaging, so the button is
+  /// readable there and now asserts it (`review-code.md` F-7, which caught this
+  /// comment generalising the first case's constraint to both). Reading the
+  /// checkbox through `field_described` keeps this one at the screen rather
+  /// than the row model.
+  ///
+  /// What this protects is `design.md` §5.4: the window is inert exactly while
+  /// `serve`'s outer loop is not reading commands, so the one-slot command
+  /// channel is never asked to hold two edits at once.
+  #[tokio::test]
+  async fn both_controls_are_disabled_while_an_exchange_is_in_flight_and_enabled_after_it() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    with_room_for_the_form(&window);
+    // Its own backend rather than `retaining`'s, because the case needs a
+    // *second* exchange to land: two instructions, one per invocation.
+    let (command, _log) = scripted("field-busy", &[TWO_FORMS, TWO_FORMS]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+
+    let enabled = |shown: &PromptWindow| {
+      field_described(shown, "morning", "read")
+        .expect("morning declares `read`")
+        .accessible_enabled()
+    };
+
+    controller.engage();
+    glass.present(controller.frame(false));
+    assert_eq!(
+      enabled(&window),
+      Some(false),
+      "a checkbox must be inert while the host is mid-exchange"
+    );
+    assert_eq!(
+      accessible_enabled_of(&window, "morning"),
+      Some(false),
+      "and so must the button that would answer with it"
+    );
+
+    let landed = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, landed);
+    glass.present(controller.frame(false));
+    assert_eq!(
+      enabled(&window),
+      Some(true),
+      "and live again once the exchange has landed"
+    );
+    assert_eq!(accessible_enabled_of(&window, "morning"), Some(true));
+  }
+
   /// VT-7 — **AC-2's middle link.** `option_rows` is the only host code that
   /// puts a backend's declared order and its headings into the row model;
   /// PHASE-03/VT-3 verifies `View → present()` and PHASE-02/VT-4 verifies
@@ -1567,7 +1643,12 @@ mod serving {
   async fn serve_drives_one_exchange_through_the_production_loop() {
     let (window, tray) = window_and_tray();
     let glass = glass_over(&window, &tray);
-    let (command, _log) = scripted("vt8", &[TWO_OPTIONS]);
+    // Named for this case, not for a criterion id. `scheduling.rs` already
+    // holds `"vt8"`, both files are one test binary, and a marker path is
+    // qualified by pid — so the two shared one file and `marker`'s `clear`
+    // deleted whichever was written first, at one failure in six runs
+    // (`review-code.md` F-5).
+    let (command, _log) = scripted("wiring-serve-one-exchange", &[TWO_OPTIONS]);
     let backend = host(command, TIMEOUT, now());
     let controller = Controller::new();
     let (tx, rx) = mpsc::channel::<Command>(1);

@@ -406,8 +406,22 @@ mod listener {
   use std::os::unix::fs::FileTypeExt;
 
   use super::{IngressConfig, PathBuf, StartupError, listener};
+  use crate::scripting::claim;
 
+  /// A path no other case will collide with, cleared before it is handed out —
+  /// the third such helper in this test binary, and held by the same
+  /// instrument as the other two (`review-code.md` F-11). The stake is the
+  /// same one `ingress.rs` names: two cases sharing a name share a listener,
+  /// and `cleanup` below unlinks the lock file beside the socket, so the
+  /// second case to start would clear the first's mid-run.
+  ///
+  /// The kind is **this helper's alone**, which is what keeps the key exact.
+  /// These paths are `goad-startup-…` and `ingress.rs`'s are `goad-serve-…`, so
+  /// a kind shared between the two would report a collision where there is
+  /// none. See `claim` for why the rule is one kind per helper rather than one
+  /// kind per prefix (`review-code.md` F-21).
   fn socket_path(case: &str) -> PathBuf {
+    claim("startup socket", case);
     let path =
       std::env::temp_dir().join(format!("goad-startup-{case}-{}.sock", std::process::id()));
     match std::fs::remove_file(&path) {

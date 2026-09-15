@@ -10,7 +10,9 @@
 //! `crates/<member>/tests/<target>/`, the repository root
 //! (`docs/memory/cargo-test-cwd-is-package-root-not-workspace-root.md`).
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
 
 use goad_shell::config::Command;
 
@@ -27,12 +29,104 @@ pub(crate) fn backend(name: &str) -> Command {
   Command::new("bash", vec![script.display().to_string()])
 }
 
+/// The names handed out in this process, per **kind** of path, so that the
+/// uniqueness these helpers promise is held by something rather than by
+/// everyone remembering.
+///
+/// Per process, which is the scope a collision actually has: every path here is
+/// qualified by pid, so two *targets* may use one name freely and two cases in
+/// one binary may not. `cargo test` runs a target's cases on parallel threads,
+/// hence the `Mutex`. Keyed by kind as well as name because the kinds mint
+/// different paths — `goad-<name>-<pid>` and `goad-serve-<name>-<pid>.sock` —
+/// and two callers of *different* kinds sharing a name do not collide.
+static CLAIMED: LazyLock<Mutex<BTreeSet<(&'static str, String)>>> = LazyLock::new(Mutex::default);
+
+/// Reserve `name` for one caller of `kind`, for the life of this test binary.
+///
+/// The instrument behind the "a path no other case will collide with" promises
+/// in this repository's test support. Call it wherever such a path is minted;
+/// it is independent of what the path is *for*, which is why one registry
+/// serves every kind (`review-code.md` F-5, F-9, F-11).
+///
+/// **Five helpers make that promise and this holds four** (F-17). The four are
+/// `marker` below and the `socket_path`s in
+/// `crates/goad/tests/renderer/ingress.rs`,
+/// `crates/goad/tests/renderer/startup.rs` and
+/// `crates/goad-shell/tests/integration/ingress.rs`. The fifth,
+/// `crates/goad-emit/tests/binary/exchange.rs`, is not held and the reason is
+/// mechanical rather than an oversight: its target does not `#[path]`-include
+/// this file, and adding the include costs nine `dead_code` warnings — an
+/// error under the gate's `-D warnings`, which is the reason this file is split
+/// from `driving.rs` in the first place. Reaching it means moving `claim` to a
+/// support file of its own, which is a follow-up (`slice-007.md`), not a line
+/// here.
+///
+/// **One kind per helper** is what keeps the key exact — two helpers sharing a
+/// kind would report a collision between paths that differ. A kind is *not* a
+/// concept and, despite three of the four reading that way, it is not the
+/// prefix either: the four mint `goad-<name>-<pid>`,
+/// `goad-serve-<name>-<pid>.sock`, `goad-startup-<name>-<pid>.sock` and
+/// `goad-ingress-<name>-<pid>.sock`, and `marker`'s prefix is the bare `goad-`
+/// that all of them share (F-21). What separates a marker's paths from a
+/// socket's is the `.sock` suffix. A fifth kind must therefore be checked
+/// against the paths the others mint, not assumed distinct because its name is.
+///
+/// # Panics
+///
+/// When one name is claimed twice for one kind in one test binary. Until slice
+/// 007 nothing held this: `scheduling.rs` and `wiring.rs` both asked for
+/// `"vt8"`, so they shared one path, and `clear` below — which runs at
+/// **handout** — meant whichever case started second deleted the other's log
+/// mid-run. It failed one run in six, which is worse than failing every run:
+/// `just check` is the gate, and a gate that is green five times in six is not
+/// one. A second, silent pair (`table.rs`'s `"table-inert-option"`, minted
+/// twice — by the two of the loop's thirty-three rows that carry a
+/// `RespondFabricated` turn) was found by this assertion on the first run
+/// after it was added.
+///
+/// A panic rather than a source scan because the breach is exact and local. A
+/// scan would have to parse call sites, could not see a name built at runtime —
+/// which is exactly `table.rs`'s shape — and would report a file where this
+/// reports the case.
+pub(crate) fn claim(kind: &'static str, name: &str) {
+  let fresh = CLAIMED
+    .lock()
+    .expect("the name registry must not be poisoned")
+    .insert((kind, name.to_owned()));
+  assert!(
+    fresh,
+    "two cases in one test binary claimed the {kind} name {name:?}{}. Such a path is qualified \
+     by pid, not by case, so the two share one file and whichever case starts second clears it \
+     from under the first. Give one of them a name of its own.",
+    spelled_at_the_call_site(name)
+  );
+}
+
+/// The call site spells an unprefixed case name, and the registry holds the
+/// prefixed one, so a panic quoting only the key names a string that appears
+/// nowhere in the repository (`review-code.md` F-10). This closes the last step
+/// for the one prefix that exists.
+fn spelled_at_the_call_site(name: &str) -> String {
+  name
+    .strip_prefix("invocations-")
+    .map_or_else(String::new, |case| {
+      format!(
+        ", which the call site spells `scripted({case:?}, …)` or `logging_backend(.., {case:?})`"
+      )
+    })
+}
+
 /// A path in the temp directory that no other case will collide with, cleared
 /// before it is handed out.
 ///
 /// The backend writes it to report something no in-band channel can carry,
 /// because the host kills the backend the moment it has what it needs.
+///
+/// # Panics
+///
+/// Through [`claim`], when one name is asked for twice in one test binary.
 pub(crate) fn marker(name: &str) -> PathBuf {
+  claim("marker", name);
   let path = std::env::temp_dir().join(format!("goad-{name}-{}", std::process::id()));
   clear(&path);
   path
@@ -53,7 +147,7 @@ pub(crate) fn clear(path: &Path) {
 /// when nothing interposes a shell (R-36): no environment variable to set — a
 /// process-wide, racy thing to do under `cargo test`'s in-process parallelism —
 /// and no JSON for bash to parse. Each case names its own log, so concurrent
-/// cases cannot read each other's lines.
+/// cases cannot read each other's lines — held by [`claim`], not by convention.
 ///
 /// The log is the only evidence of a *non*-event — "the backend was not
 /// spawned" — that does not come from the host's own report of itself, which is

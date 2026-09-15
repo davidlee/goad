@@ -110,7 +110,9 @@ pub struct Frame<'a> {
 /// What the controller retains. One value, no Slint types, so it is testable
 /// without a platform and the fold is provable in isolation. That is the
 /// complete retained state: the presentation and its `ViewId` and its
-/// canonical options and the draft answering it (all four inside `Prepared`),
+/// canonical options and the draft answering it (`Prepared` holds the
+/// presentation, its `ViewId` and the draft; the canonical options are inside
+/// the presentation),
 /// the diagnostics, the window mode and its visibility (`Surface`, derived
 /// below), and whether an exchange is in flight.
 ///

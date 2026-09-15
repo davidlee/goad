@@ -24,12 +24,28 @@ use goad_shell::ingress::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
+use crate::harness::claim;
+
 /// `design.md`'s own example, `SPEC-003` §6.2 — one line, so a case can
 /// substitute a value with `str::replace` the way `envelope.rs`'s own tests do.
 const GOOD: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}"#;
 
-/// A unique path per case, under `std::env::temp_dir()`.
+/// A unique path per case, under `std::env::temp_dir()` — held by `claim`
+/// rather than by every call site below agreeing (`review-code.md` F-11). There
+/// are more of them than there are cases, which is the point: two cases mint
+/// two paths each (`vt3b-symlink-target` / `vt3b-symlink`, and `vt6b-clock` /
+/// `vt6b-shutdown`), so "one per case" is not a rule anyone could check by
+/// eye. The names are drawn from the same criterion-id well that produced the
+/// `"vt8"` collision in the other target, and the stake is higher: `cleanup`
+/// unlinks the lock file beside the socket.
+///
+/// The kind is **this helper's alone**, which is what keeps the key exact: the
+/// other socket helpers mint `goad-serve-…`, `goad-startup-…` and — unheld,
+/// see `claim` (F-17) — `goad-emit`'s own, so a kind shared between them would
+/// report a collision where there is none. See `claim` for why the rule is one
+/// kind per helper rather than one kind per prefix (F-21).
 fn socket_path(case: &str) -> PathBuf {
+  claim("ingress socket", case);
   let path = std::env::temp_dir().join(format!("goad-ingress-{case}-{}.sock", std::process::id()));
   match std::fs::remove_file(&path) {
     Ok(()) | Err(_) => (),

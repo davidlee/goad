@@ -551,8 +551,14 @@ fn fabricated_view_id() -> ViewId {
 /// has no public constructor (D30), so it is cloned out of a throwaway view
 /// minted on a private log — the same move `crates/goad-shell/tests/integration/
 /// host.rs`'s `an_answer` makes for the same reason.
-async fn inert_answer() -> UserResponse {
-  let (command, _log) = scripted("table-inert-option", &[PRESENTS_A_VIEW]);
+///
+/// Takes the row's id because it is called **once per row that reaches it** —
+/// S1 and S2, the two of the thirty-three carrying a `RespondFabricated` turn
+/// — and `marker` hands a name out once per test binary. A name is a path, and
+/// a helper reusing one would have both rows writing to the same file
+/// (`review-code.md` F-5, F-12).
+async fn inert_answer(row: &str) -> UserResponse {
+  let (command, _log) = scripted(&format!("table-inert-option-{row}"), &[PRESENTS_A_VIEW]);
   let mut throwaway = host(command, TIMEOUT, evaluate_now());
   let outcome = throwaway
     .evaluate(evaluate_now(), quiet_event(evaluate_now()))
@@ -647,7 +653,11 @@ async fn every_failure_in_the_taxonomy_is_read_off_one_retained_host() {
           }
           Turn::RespondFabricated => {
             retained_host
-              .respond(respond_now(), fabricated_view_id(), inert_answer().await)
+              .respond(
+                respond_now(),
+                fabricated_view_id(),
+                inert_answer(case.id).await,
+              )
               .await
           }
           Turn::RespondOutstanding => {

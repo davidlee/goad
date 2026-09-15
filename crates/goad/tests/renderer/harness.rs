@@ -95,33 +95,52 @@ pub(crate) fn current_view_token(window: &PromptWindow) -> Option<String> {
 /// it. No case is written to pin it, because a case that cannot be made to
 /// fail pins nothing.
 ///
-/// Here rather than in one case file because two of them need it: `tree.rs`
-/// asks the markup what it drew, and `fields.rs` presses the control a person
-/// presses.
+/// Here rather than in one case file because several need it — to ask the
+/// markup what it drew, to press the control a person presses, and to read a
+/// property off the control that was found. Which files those are is the
+/// module rule's business and is deliberately not listed
+/// (`review-code.md` F-20).
 pub(crate) fn element_described(window: &PromptWindow, description: &str) -> Option<ElementHandle> {
-  let description = description.to_string();
   ElementQuery::from_root(window)
     .match_inherits("Button")
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(description.as_str())
-    })
+    .match_predicate(described(description))
     .find_first()
 }
 
+/// Matches the elements carrying `description` as their accessible description.
+///
+/// A predicate rather than a query, because its callers scope it differently —
+/// a type filter, a descendant walk from the root, a role filter and then a
+/// descendant walk, and the predicate applied to a query that `within_option`
+/// has *already* scoped. A helper that fused the rule with one of those scopes
+/// is what forced the rest to restate it, and they did: the rule stood written
+/// five times before it was pulled out here (`review-code.md` F-13, F-20).
+///
+/// It exists at all because `ElementQuery` has no accessible-description
+/// matcher: `search_api.rs:232-287` lists its six builders and none of them
+/// reads a description, so it is read through
+/// `ElementHandle::accessible_description` inside a predicate.
+pub(crate) fn described(description: &str) -> impl Fn(&ElementHandle) -> bool + 'static {
+  let description = description.to_string();
+  move |element| element.accessible_description().as_deref() == Some(description.as_str())
+}
+
 /// Everything under the option that answers to `option.id` — the scope every
-/// field query starts from. `ElementQuery` has no accessible-description
-/// matcher (`search_api.rs:232-287` lists its six builders), so the
-/// description is read through `ElementHandle::accessible_description` inside
-/// a predicate.
+/// field query starts from. [`described`] is the predicate; this helper is the
+/// scope.
 ///
 /// The option's control answers to `option.id` too, and is reached first; it
-/// has no field beneath it, so the walk continues to the container.
+/// has no field beneath it, so it contributes no descendant here.
+///
+/// A **union of every match's descendants**, not a walk that stops at the
+/// first: `ElementQuery` matches the predicate over all elements and descends
+/// into all of them. Nothing here rests on which is reached first, and nothing
+/// that does should be built on this helper — `tree.rs::labels_in_option` needs
+/// the container *without* the control and scopes by role instead
+/// (`review-code.md` F-6).
 pub(crate) fn within_option(window: &PromptWindow, option: &str) -> ElementQuery {
-  let option = option.to_string();
   ElementQuery::from_root(window)
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(option.as_str())
-    })
+    .match_predicate(described(option))
     .match_descendants()
 }
 
@@ -135,19 +154,17 @@ pub(crate) fn within_option(window: &PromptWindow, option: &str) -> ElementQuery
 /// backend-supplied strings whose characters no requirement constrains, so any
 /// separator can occur inside one (design.md §5.2).
 ///
-/// Here rather than in one case file because two of them need it: `tree.rs`
-/// asks the markup what it draws, and `wiring.rs` asks a presented window what
-/// the draft put on it.
+/// Here rather than in one case file because several need it — to ask the
+/// markup what it draws, and to ask a presented window what the draft put on
+/// it. Which files those are is the module rule's business and is deliberately
+/// not listed (`review-code.md` F-20).
 pub(crate) fn field_described(
   window: &PromptWindow,
   option: &str,
   field: &str,
 ) -> Option<ElementHandle> {
-  let field = field.to_string();
   within_option(window, option)
-    .match_predicate(move |element| {
-      element.accessible_description().as_deref() == Some(field.as_str())
-    })
+    .match_predicate(described(field))
     .find_first()
 }
 

@@ -21,10 +21,17 @@ use crate::view_model::Body;
 /// design's answer to a display server that fails partway through an
 /// update (design.md §5.3, *Ownership*).
 pub trait Glass {
-  /// Write **every** property from the frame, then show the window in the
-  /// frame's mode or hide it. Total and idempotent. `notice` is one of those
-  /// properties: it is written from `frame.notice` on every call, and this
-  /// is its only writer anywhere in the renderer (design.md §5.3).
+  /// Write **every** property the frame carries a value for, then show the
+  /// window in the frame's mode or hide it. Total and idempotent. `notice` is
+  /// one of those properties: it is written from `frame.notice` on every call,
+  /// and this is its only writer anywhere in the renderer (design.md §5.3).
+  ///
+  /// One declared property is deliberately not written: `Tray::shown`
+  /// (`ui/app.slint`). It exists so that `visible` is a binding rather than a
+  /// literal the compiler can fold into a constant — E-4's panic trap (F-28) —
+  /// and the frame carries no value for it, because the tray is present for
+  /// the life of the process. A writer for it would be a new frame field with
+  /// nothing to put in it.
   fn present(&mut self, frame: Frame<'_>);
 }
 
@@ -195,7 +202,6 @@ fn field_block(
           // what a checkbox row shows for a non-boolean value belongs.
           let Edited::Checked(checked) = draft.state_of(&option.id, &field.id);
           FieldRow {
-            option: option.id.as_str().into(),
             id: field.id.as_str().into(),
             label: field.label.as_str().into(),
             checked,
