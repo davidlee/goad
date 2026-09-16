@@ -55,10 +55,11 @@ export component PromptWindow inherits Window {
   // the measurement and why no case asserts it.
   // Named once, on the root: every `Text`, `CheckBox` and `Button` below
   // inherits it, and the widget library's own faces come with it.
-  default-font-family: "Geist";
 
   preferred-width: 420px;
   min-width: 340px;
+
+  default-font-family: "Geist";
 
   // **The tonal ramp, in one place.** Three steps — measured 22 / 28 / 36 on
   // this style's dark ground — and nesting is what a step means: the frame is
@@ -231,34 +232,52 @@ export component PromptWindow inherits Window {
                     // must sit against the fields it covers, not float halfway
                     // to the next one.
                     alignment: start;
-                    spacing: 4px;
+                    // **The heading's gap is its own, and larger than a field's.**
+                    // With one spacing for both, a heading sat exactly as far
+                    // from the field it covers as that field sat from the next,
+                    // so the gap said nothing about which fields the heading
+                    // claimed. This is the gap between the heading and the
+                    // block; the fields keep their own, tighter one below.
+                    spacing: 9px;
 
-                    // Bold is the rest of the heading's treatment: inside a
-                    // panel a heading and a checkbox label are otherwise the
-                    // same words in the same face, one above the other.
                     if block.heading != "": Text {
                       text: block.heading;
-                      font-weight: 700;
+                      font-size: 14px;
+                      font-weight: 400;
+                      letter-spacing: 1.2px;
+                      // Transparentised rather than darkened: it blends towards
+                      // whatever is behind, so the same declaration mutes a
+                      // near-white foreground on a dark ground and a near-black
+                      // one on a light ground. `darker()` would only ever go one
+                      // way and would be wrong in half the themes.
+                      color: Palette.foreground.transparentize(0.35);
                     }
 
-                    // The `HorizontalLayout` is what stops the control filling
-                    // the block's width. A `CheckBox` given the whole row draws
-                    // its focus ring around the whole row, so a focused field
-                    // reads as a banner across the window rather than as the box
-                    // and label it is.
-                    for field in block.fields: HorizontalLayout {
+                    // The fields are their own run, spaced tighter than the
+                    // heading is from them.
+                    VerticalLayout {
                       alignment: start;
-                      CheckBox {
-                        text: field.label;
-                        // The draft is the authority. The widget flips itself on
-                        // click so the feedback is immediate; the next present
-                        // rewrites this from the model, which is what corrects a
-                        // click the host dropped (design.md §5.4).
-                        checked: field.checked;
-                        enabled: !root.busy;
-                        accessible-description: field.id;
-                        toggled => {
-                          root.edited(option.view, option.id, field.id, self.checked);
+                      spacing: 4px;
+
+                      // The `HorizontalLayout` is what stops the control
+                      // filling the block's width. A `CheckBox` given the whole
+                      // row draws its focus ring around the whole row, so a
+                      // focused field reads as a banner across the window
+                      // rather than as the box and label it is.
+                      for field in block.fields: HorizontalLayout {
+                        alignment: start;
+                        CheckBox {
+                          text: field.label;
+                          // The draft is the authority. The widget flips itself
+                          // on click so the feedback is immediate; the next
+                          // present rewrites this from the model, which is what
+                          // corrects a click the host dropped (design.md §5.4).
+                          checked: field.checked;
+                          enabled: !root.busy;
+                          accessible-description: field.id;
+                          toggled => {
+                            root.edited(option.view, option.id, field.id, self.checked);
+                          }
                         }
                       }
                     }
