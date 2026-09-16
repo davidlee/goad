@@ -21,9 +21,10 @@ Inherited from 007 (`slice-007.md` §Follow-ups, `notes.md` PHASE-06) and
       size*, not *make it taller*.
 - [x] L-2 — Layouts **above** the block container distribute the window's full
       height; title and body are clipped at the top.
-- [ ] L-3 — Diagnostic surface does not wrap a line.
+- [x] L-3 — Diagnostic surface does not wrap a line.
 - [ ] L-4 — Diagnostic surface text cannot be selected or copied. (This is why
-      007's human evidence had to be a screenshot.)
+      007's human evidence had to be a screenshot.) The surface has now been
+      **seen** — see the log — so this is the only part of it still unaddressed.
 - [x] L-5 — A captured stderr line's trailing `\n` renders as a visible `\n`.
       Host-side: trim at most one line terminator before escaping,
       `diagnostics.rs`.
@@ -319,11 +320,106 @@ face on the trap already recorded here and in
 (`install.rs:49`, a deliberate earlier decision). It makes the window something
 you cannot dismiss and get back, which is adjacent to L-6.
 
+### 2026-09-16 — the diagnostic pane, seen for the first time
+
+**It had never been on screen.** Neither agent had looked at it: it is reached
+only through the tray menu, and `Command::OpenDiagnostics` is the only thing
+that focuses it — a backend failure fills `diagnostics` but does not raise the
+pane. So it cannot be driven from the screenshot loop, and the user opened it by
+hand.
+
+**Getting something worth looking at into it.** A scratch config and a backend
+that exits 3 after writing a ~220-character stderr line, both in the scratchpad,
+run as `goad <scratch>/wordy.toml`. That produces `no action taken: backend
+exited with status 3` plus a `stderr:` line far wider than the window — which is
+what made L-3 visible at all. The demo's own backend never emits a long line.
+
+**What one look showed, none of which was on the list:**
+
+1. No word wrap (L-3, known) — and a **horizontal scrollbar** at the foot of
+   the pane, which is how the line was being dealt with instead.
+2. **The lines were distributed down the pane's whole height** — one at the top,
+   one dead centre, a void between. The same defect as L-2, never fixed in this
+   branch.
+3. **No padding at all.** Text flush against the window edge at x=0, against the
+   prompt pane's 18px frame.
+4. **None of the visual pass had reached here**: no card, no panel, no ramp. The
+   whole pane on the frame tone, `Diagnostics` a bare `Text`.
+5. **`Close` was a full-width banner** — the thing `HorizontalLayout { alignment:
+   start }` had already fixed on the prompt side.
+
+**D-12 — `wrap: word-wrap` is not the fix; a constrained width is.** A
+`ScrollView` gives its content an unconstrained width and a `Text` reports its
+whole string as its preferred width, so the line was laid out at full length and
+the pane scrolled sideways to it. Pinning the inner layout to the scroller's
+`visible-width` is what gives the wrap something to wrap against, and
+`horizontal-scrollbar-policy: always-off` retires the bar that then has nothing
+to scroll.
+
+**This is the prompt side's sizing defect in the other direction.** There,
+nothing propagated a width *upward* out of a scroller (recorded at L-1, and the
+reason `preferred-width` is stated rather than derived). Here, nothing
+propagated one *downward* into it. One scroller, two directions, two defects.
+
+**D-13 — `Card` and `Panel` are components now.** Each was about to be written
+at a third and a second site respectively. `Card` (`Palette.background`, radius
+8) is the prompt's header, an option, and the diagnostic report; `Panel`
+(`brighter(0.30)`, radius 6) is a block of fields and the report body. Both are
+behaviour-neutral: 187 renderer cases unchanged across the extraction.
+
+**D-14 — the report sits in a `Panel`, and that is what aligns the pane.** Frame
+18 + `card-inset` 12 + `panel-inset` 10 = 40px, which is the same arithmetic the
+header's padding already used — so the pane title, a diagnostic line and a
+checkbox label all begin in one column, with no literal anywhere.
+
+It also repairs something not framed as a defect until the user asked for the
+alignment: **the text a person reads now sits on the top tone in both panes.**
+Before, the form's labels were on the panel and the diagnostics on the card —
+two panes putting their content on different surfaces of the same ramp.
+
+**D-15 — `next-check` moved into the header card**, under the title, where a
+view's body sits under its question. That is what it already was — the
+property's own comment calls it *the standing schedule's line, not a diagnostic
+row* — so this puts it where that sentence says it belongs, muted to 65% rather
+than reading as one more problem.
+
+**Two things in this markup are load-bearing and neither is obvious**, so both
+carry their reason in the file:
+
+- **`Nothing to report.` stays outside the list.** Inside, it is one more `Text`
+  in a scope whose `accessible-item-count` states how many diagnostics there
+  are. It is selected by its own text, which a `Text` exposes as its accessible
+  label without being asked (`wiring.rs::nothing_to_report_shown`).
+- **The list stays unconditional.** `wiring.rs::in_diagnostic_mode` decides which
+  pane is up by finding the element labelled `diagnostics`; guarding it on the
+  line count would make an **empty report look like the prompt pane** to every
+  test that asks.
+
+**Left alone deliberately: the pane has no content-derived height** — L-1's
+cousin. The binding would be on the wrapped height, which depends on the width
+just pinned to the scroller, and that is a plausible binding loop. Worth its own
+look rather than a guess at the end of a session.
+
+**Also seen, not a layout problem:** `next check (instructed):
+2026-09-16T06:13:13Z` is raw UTC and the user is on +10:00. Reading a schedule
+by mentally subtracting ten hours is a legibility cost. A different kind of
+change from these, and one to decide on its own.
+
+**Loop note.** Launching the host through the Bash tool exits 144 with no output
+even with every stream redirected inside the script — unless the invocation is
+piped (`script 2>&1 | tail`). The redirection alone is not enough; the pipe is.
+
 ## Still on the list
 
-- **L-3, L-4 — the diagnostic surface**, untouched this session: no word wrap,
-  no text selection. Not yet seen on screen — it is reached through the tray
-  menu, which this loop cannot drive.
+- **L-4 — the diagnostic surface cannot be selected or copied.** L-3 is done and
+  the pane has had its visual pass. Selection is the remainder, and it is the
+  one part that changes the element tree: a read-only `TextEdit` in place of the
+  `Text` per line, against a list that `wiring.rs` selects by accessible label
+  and item count. Do it with those two selectors in hand.
+- **The diagnostic pane's height.** No content-derived preferred size, which is
+  L-1's cousin; left alone because the obvious binding is a plausible loop
+  against the pinned width.
+- **The standing schedule is shown in UTC** to a user on +10:00.
 - **L-6 — the idle surface.** Undecided, and it is a behaviour question rather
   than a layout one: with no view the surface is `Hidden` and the window is
   hidden, so there is nothing to lay out. Candidates: leave it; put the next

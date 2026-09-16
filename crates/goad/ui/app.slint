@@ -19,6 +19,26 @@ export struct OptionRow { id: string, label: string, view: string, blocks: [Fiel
 
 export enum WindowMode { prompt, diagnostic }
 
+// **The middle tone of the ramp, and the corner it is always drawn with.**
+// Three surfaces are this same object — the prompt's header, an option, and
+// the diagnostic report — so it is one declaration rather than three that have
+// to be kept in step. Tone is the whole of the treatment; no border at any
+// level. See `PromptWindow.background` for where the ramp's steps come from.
+component Card inherits Rectangle {
+  background: Palette.background;
+  border-radius: 8px;
+}
+
+// **The top of the ramp**: raised off a card rather than outlined on it.
+// Neither level needs an edge once the tones do the work. Both panes use it —
+// a block of fields on the prompt side, the report on the diagnostic one — so
+// text a person actually reads sits on the same surface, and at the same
+// inset, whichever pane is up.
+component Panel inherits Rectangle {
+  background: Palette.background.brighter(0.30);
+  border-radius: 6px;
+}
+
 export component PromptWindow inherits Window {
   in property <WindowMode> mode;
 
@@ -96,10 +116,7 @@ export component PromptWindow inherits Window {
       // three surfaces on the ramp, not two plus some loose text. Its text
       // aligns with the form's rather than sitting left of it — see
       // `card-inset`.
-      Rectangle {
-        background: Palette.background;
-        border-radius: 8px;
-
+      Card {
         // Title and body are one unit and are spaced as one. The 18px on the
         // layout above separates *them* from the options; 4px here keeps a
         // body line against the title it explains rather than halfway to the
@@ -171,11 +188,7 @@ export component PromptWindow inherits Window {
           // only a control are the same kind of thing on the screen: one card,
           // one control, whatever else it carries. Tone is the whole of the
           // treatment — no border at either level.
-          for option[index] in root.options: Rectangle {
-            // The middle tone of the ramp — see the window's `background`.
-            background: Palette.background;
-            border-radius: 8px;
-
+          for option[index] in root.options: Card {
             VerticalLayout {
               padding: root.card-inset;
               spacing: 10px;
@@ -219,13 +232,7 @@ export component PromptWindow inherits Window {
                 // An untitled block is still a panel. `heading: ""` is an
                 // untitled block, not a missing one, and the fields it carries
                 // are as much a block as any other.
-                for block in option.blocks: Rectangle {
-                  // The top of the ramp: raised off the card rather than
-                  // outlined on it. Neither level needs an edge once the tones
-                  // do the work.
-                  background: Palette.background.brighter(0.30);
-                  border-radius: 6px;
-
+                for block in option.blocks: Panel {
                   VerticalLayout {
                     padding: root.panel-inset;
                     // Same reason as the container's, one level down: a heading
@@ -316,24 +323,125 @@ export component PromptWindow inherits Window {
     }
 
     if root.mode == WindowMode.diagnostic: VerticalLayout {
-      Text { text: "Diagnostics"; }
-      if root.diagnostic-lines.length == 0: Text { text: "Nothing to report."; }
-      ScrollView {
+      // The prompt side's frame, restated here because it is the same frame:
+      // the two modes are two panes of one window, not two windows.
+      padding: 18px;
+      spacing: 18px;
+
+      // The same header as the prompt's, down to the inset arithmetic. The
+      // standing schedule sits under the title exactly where a view's body
+      // sits under its question: it is the context for what is in the report,
+      // not a row of it — which is what `next-check` has always been (see the
+      // property's own comment).
+      Card {
         VerticalLayout {
-          accessible-role: list;
-          accessible-label: "diagnostics";
-          accessible-item-count: root.diagnostic-lines.length;
-          for line[index] in root.diagnostic-lines: Text {
-            text: line;
-            accessible-item-index: index;
+          padding-left: root.card-inset + root.panel-inset;
+          padding-right: root.card-inset + root.panel-inset;
+          padding-top: root.card-inset;
+          padding-bottom: root.card-inset;
+          spacing: 4px;
+
+          Text {
+            text: "Diagnostics";
+            font-size: 17px;
+            font-weight: 600;
+          }
+
+          if root.next-check != "": Text {
+            text: root.next-check;
+            wrap: word-wrap;
+            color: Palette.foreground.transparentize(0.35);
           }
         }
       }
-      if root.next-check != "": Text { text: root.next-check; }
-      Button {
-        text: "Close";
-        accessible-description: "close-diagnostics";
-        clicked => { root.close-diagnostics(); }
+
+      // **One card for the whole report, not one per line.** The prompt side
+      // cards an *option* because an option is a thing a person answers; a
+      // diagnostic line is not. The lines are one body of text, and a frame
+      // each would put a dozen of them on a pane that has one thing to say.
+      Card {
+        VerticalLayout {
+          padding: root.card-inset;
+
+          // **The report sits in a panel, as a block of fields does.** Card
+          // inset plus panel inset is the same arithmetic the header's padding
+          // uses, so a diagnostic line, a checkbox label and the pane's title
+          // all begin in one column — and the text a person reads sits on the
+          // top tone in both panes, rather than on the panel in one and the
+          // card in the other.
+          Panel {
+            VerticalLayout {
+              padding: root.panel-inset;
+              spacing: 4px;
+              alignment: start;
+
+              // Outside the list below, deliberately: inside, it would be one
+              // more `Text` in a scope whose item count states how many
+              // diagnostics there are. It is selected by its own text
+              // (`wiring.rs::nothing_to_report_shown`), which a `Text` exposes
+              // as its accessible label without being asked.
+              if root.diagnostic-lines.length == 0: Text {
+                text: "Nothing to report.";
+                color: Palette.foreground.transparentize(0.35);
+              }
+
+              // **Unconditional**, and not guarded on the line count. This is
+              // the element `wiring.rs::in_diagnostic_mode` finds to decide
+              // which pane is up; guarding it would make an empty report look
+              // like the prompt pane to every test that asks.
+              lines := ScrollView {
+                // **A diagnostic line wraps rather than running off the edge.**
+                //
+                // `wrap` alone does nothing here. A `ScrollView` gives its
+                // content an unconstrained width, and a `Text` reports its
+                // whole string as its preferred width, so the line was laid out
+                // at full length and the pane scrolled sideways to it. Pinning
+                // the layout to the scroller's *visible* width is what gives
+                // the wrap something to wrap against; the horizontal bar then
+                // has nothing to scroll and is turned off rather than left
+                // sitting there disabled.
+                //
+                // This is the prompt side's sizing defect in the other
+                // direction: there, nothing propagated a width upward out of a
+                // scroller; here, nothing propagated one downward into it.
+                horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+
+                VerticalLayout {
+                  width: lines.visible-width;
+
+                  accessible-role: list;
+                  accessible-label: "diagnostics";
+                  accessible-item-count: root.diagnostic-lines.length;
+
+                  // Pack to the top, for the reason already settled on the
+                  // prompt side (L-2): without it the list hands each line an
+                  // equal share of the pane's height, so two diagnostics sat
+                  // one at the top and one in the middle, with a void between.
+                  alignment: start;
+
+                  for line[index] in root.diagnostic-lines: Text {
+                    text: line;
+                    wrap: word-wrap;
+                    accessible-item-index: index;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // At the foot of what it dismisses and not stretched across it — the
+      // same treatment every control on the prompt side gets, and for the same
+      // reason: a full-width button reads as a banner rather than as the thing
+      // you press.
+      HorizontalLayout {
+        alignment: start;
+        Button {
+          text: "Close";
+          accessible-description: "close-diagnostics";
+          clicked => { root.close-diagnostics(); }
+        }
       }
     }
 
