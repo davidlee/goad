@@ -13,3 +13,4 @@ pub mod reception;
 pub mod startup;
 pub mod view_model;
 pub mod wire;
+pub mod zoom;

@@ -360,9 +360,28 @@ export component Tray inherits SystemTrayIcon {
   callback show-diagnostics();
   callback quit();
 
+  // Magnification, proved out from the tray before it is worth spending
+  // anything on a key binding. The tray is the one surface that needs neither
+  // — a `Ctrl +/-` needs something focused to bubble from, and keyboard focus
+  // does not survive a present (007 follow-up); a `Ctrl`+wheel has to be taken
+  // off the `ScrollView`, whose `Flickable` accepts every wheel event with no
+  // modifier check at all. Neither is a rider on this.
+  //
+  // `MenuItem` has a `shortcut` property, which would sidestep the focus
+  // problem entirely — menubar shortcuts are matched before the event reaches
+  // the focused item — but it is only honoured inside a `MenuBar`, and this is
+  // a `SystemTrayIcon`'s menu.
+  callback zoom-in();
+  callback zoom-out();
+  callback zoom-reset();
+
   Menu {
     MenuItem { title: "Check now";   activated => { root.check-now(); } }
     MenuItem { title: "Diagnostics"; activated => { root.show-diagnostics(); } }
+    MenuSeparator { }
+    MenuItem { title: "Zoom in";     activated => { root.zoom-in(); } }
+    MenuItem { title: "Zoom out";    activated => { root.zoom-out(); } }
+    MenuItem { title: "Reset zoom";  activated => { root.zoom-reset(); } }
     MenuSeparator { }
     MenuItem { title: "Quit";        activated => { root.quit(); } }
   }

@@ -5,11 +5,16 @@
 //! reach a binary crate or a private item (D28, F-30). `install` returns
 //! `()`: every setter it calls is infallible (design.md §5.4).
 
-use slint::{CloseRequestResponse, ComponentHandle};
+use std::cell::Cell;
+use std::rc::Rc;
+
+use slint::platform::WindowEvent;
+use slint::{CloseRequestResponse, ComponentHandle, Weak};
 
 use crate::draft::Edited;
 use crate::generated::{PromptWindow, Tray};
 use crate::wire::{Command, Stimulus, Wire};
+use crate::zoom::Zoom;
 
 /// One function, seven installations, each owning its own `Wire` clone and
 /// nothing else. Seven distinct binding names rather than seven
@@ -59,4 +64,42 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
 
   let stopping = wire.clone();
   tray.on_quit(move || stopping.stop());
+
+  // Magnification is the host's alone and never reaches `Command`, so it is
+  // wired straight at the window rather than sent down the wire. One cell for
+  // three items, because they are three views of one number (`zoom.rs`).
+  let zoom = Rc::new(Cell::new(Zoom::NONE));
+
+  let (magnifying, in_) = (window.as_weak(), Rc::clone(&zoom));
+  tray.on_zoom_in(move || rescale(&magnifying, &in_, Zoom::larger));
+
+  let (reducing, out) = (window.as_weak(), Rc::clone(&zoom));
+  tray.on_zoom_out(move || rescale(&reducing, &out, Zoom::smaller));
+
+  let (restoring, none) = (window.as_weak(), zoom);
+  tray.on_zoom_reset(move || rescale(&restoring, &none, |_| Zoom::NONE));
+}
+
+/// Take one step and hand the window the scale factor it lands on.
+///
+/// `ScaleFactorChanged` is the compositor's own lever, so this magnifies
+/// **everything the window draws** — the widget library's own padding, borders
+/// and glyph metrics included. A `zoom` property multiplying lengths in the
+/// markup would touch every literal in `app.slint` and still miss all of that.
+///
+/// The compositor's scale is divided back out of what the window reports
+/// rather than remembered from startup; `Zoom::base_of` says why.
+fn rescale(window: &Weak<PromptWindow>, zoom: &Cell<Zoom>, step: impl Fn(Zoom) -> Zoom) {
+  let Some(window) = window.upgrade() else {
+    return;
+  };
+  let was = zoom.get();
+  let base = was.base_of(window.window().scale_factor());
+  let now = step(was);
+  zoom.set(now);
+  window
+    .window()
+    .dispatch_event(WindowEvent::ScaleFactorChanged {
+      scale_factor: now.applied_to(base),
+    });
 }

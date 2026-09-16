@@ -36,6 +36,10 @@ Inherited from 007 (`slice-007.md` §Follow-ups, `notes.md` PHASE-06) and
 - [~] L-8 — **The visual pass.** Layout, spacing, typography, in `app.slint`.
       Material was spiked and rejected ("same shit with blue and rounded
       corners") — the ugliness is the layout, not the widget library.
+- [~] L-9 — **Magnification.** Not inherited; asked for this session. A
+      proof-of-concept is landed on the tray menu. `Ctrl +/-` and `Ctrl`+wheel
+      are costed but not built — see the log entry below for why neither is a
+      rider on this one.
 
 Adjacent, not on the list unless we pull them in:
 
@@ -196,6 +200,125 @@ originally written on `preferred-width` claimed the opposite and was false.
 
 `just check` exits 0.
 
+### 2026-09-16 — the block heading, and magnification
+
+**D-8 — a block heading's gap is its own.** One `spacing: 4px` governed both
+heading→first-field and field→field, so a heading sat exactly as far from the
+field it covered as that field sat from the next: the gap said nothing about
+which fields the heading claimed. The fields now form their own run inside the
+panel at 4px, and the panel's own spacing is the heading's gap.
+
+**This is the structural half of "it needs room to breathe", and it holds
+whatever type treatment is chosen.** The typographic half was decided on a
+four-way render — baseline and three candidates, side by side, tones sampled
+off the screenshot rather than judged:
+
+| | size / weight / tracking | heading tone | reads as |
+|---|---|---|---|
+| baseline | 13px · 700 · 0 | 255 — the labels' own | a bold checkbox label |
+| A | 11px · 600 · +0.5px | 179 (70%) | a section marker |
+| B | 15px · 600 · 0 | 255 | a heading |
+| C | 10px · 700 · +1.2px | 156 (61%) | a legend |
+
+**B was argued against and dropped: it collides with the window title.** The
+title is 17px/600; B is 15px/600 at full white. Two headings two points apart
+is not a hierarchy, it is a near-miss — and a block heading is the third level
+down (inside an option, inside the question). The treatment that works goes
+*down* from the labels, not up: the labels are what a person reads and acts on,
+the heading is a wayfinding mark. The user took the rendered comparison and
+tuned to 14px / 400 / +1.2px / 65%.
+
+**The tone is `Palette.foreground.transparentize()`, never `.darker()`.**
+Transparentize blends towards whatever is behind, so one declaration mutes a
+near-white foreground on a dark ground *and* a near-black one on a light
+ground. `darker()` only ever goes one way and is wrong in half the themes.
+
+**Not done: uppercasing the heading.** C's scale normally wants it, and it was
+deliberately not taken. Uppercasing is the host rewriting a backend-authored
+string — it mangles acronyms and does nothing in a non-Latin script. Raise the
+tone instead.
+
+#### L-9 — magnification, proved from the tray
+
+**D-9 — the lever is the compositor's own scale factor, not a `zoom` property
+in the markup.** `window.dispatch_event(WindowEvent::ScaleFactorChanged { .. })`
+is public API (verified against the pinned 1.17.1 sources: `i-slint-core/api.rs:648`,
+`platform.rs:395`) and scales *everything the window draws* — the widget
+library's own padding, borders and glyph metrics included. A `zoom` property
+multiplying lengths would touch every literal in `app.slint` and still miss all
+of that.
+
+**D-10 — zoom does not go on the wire.** It never reaches `Command` and never
+reaches the controller: no model state changes, nothing needs ordering against
+an evaluation, and the backend is not told. `install.rs` wires the three tray
+callbacks straight at the window. Sending it down the wire would put a
+rendering concern in the controller for nothing.
+
+**D-11 — the compositor's base is never stored.** `rescale` divides the zoom
+already applied back out of what the window currently reports. The compositor
+dispatches its own scale change whenever the real scale moves (the window
+crossing to another output, `winitwindowadapter.rs:1519`), and a base captured
+at startup would then be stale and would fight it; reading it back picks the
+new base up instead.
+
+**Why the tray and not a key binding.** Both bindings were costed before
+choosing, and neither is a rider on this:
+
+- **`Ctrl +/-`** needs a root `FocusScope`. Key events *do* bubble from the
+  focused item up to the window (`window.rs:1336`), so a focused `CheckBox`
+  does not block it — but if **nothing** is focused the bubble list is empty
+  and no key reaches anything. 007 already logged *keyboard focus does not
+  survive a present*. That follow-up is a **prerequisite** for this, not an
+  aside: the shortcut would work until the next present and then silently stop.
+- **`Ctrl`+wheel** has to be taken off the `ScrollView`. Its `Flickable`
+  accepts every wheel event with no modifier check at all
+  (`flickable.rs:251`, `accepts_pan_event`). Getting it back out means a
+  covering `TouchArea` that accepts modifier-carrying scrolls and rejects the
+  rest — with its own consequences for clicking the controls underneath. Its
+  own piece of work.
+- **`MenuItem.shortcut`** exists and is matched *before* the event reaches the
+  focused item (`window.rs:1299`) — exactly the property that would sidestep
+  the focus problem — but it is honoured only inside a `MenuBar`, and this is a
+  `SystemTrayIcon`'s menu.
+
+The tray needs none of that, cost about twenty lines, and de-risks the lever
+before anything is spent on the input path.
+
+**Observed:** works. All three items — in, out and reset — were driven from the
+tray by the user and reported good. Not photographed: the tray menu cannot be
+driven by the screenshot loop, the same limitation that keeps L-3/L-4 unseen,
+so the human report *is* the evidence here.
+
+**Still unknown, and it is the one that decides whether this ships: does the
+zoom survive a present?** The window is hidden between prompts and re-shown
+every two hours. If the winit adapter re-reads the real scale on show and
+dispatches its own, the zoom resets on every prompt and the affordance is
+worthless.
+
+**A unit test would not answer it.** The testing backend has no winit adapter,
+so a green test there would assert the core's bookkeeping and nothing about the
+thing that would actually break it — a proxy, in the exact shape this slice has
+already been bitten by. It has to be watched on screen: zoom, then *Check now*,
+then look.
+
+#### Tests added
+
+`src/zoom.rs` — pure arithmetic, inline `#[cfg(test)] mod tests` in the shape
+`controller.rs` and `draft.rs` use. Six cases, **all six negative-controlled.**
+
+**Two of the controls nearly lied.** The first pass reported two mutations as
+producing no failure. They were **compile errors**: the crate denies warnings,
+and stripping `.min(Self::CEILING)` left `Self((x))`, which `unused_parens`
+rejects. *A control that does not build looks exactly like a control that
+passes, if the check greps only for `FAILED`.* A negative control must be
+confirmed to have compiled and run before its red is believed — which is a new
+face on the trap already recorded here and in
+`docs/memory/a-green-test-can-assert-a-proxy.md`.
+
+**Also noticed, not acted on:** closing the window quits the host
+(`install.rs:49`, a deliberate earlier decision). It makes the window something
+you cannot dismiss and get back, which is adjacent to L-6.
+
 ## Still on the list
 
 - **L-3, L-4 — the diagnostic surface**, untouched this session: no word wrap,
@@ -210,3 +333,8 @@ originally written on `preferred-width` claimed the opposite and was false.
 - **L-8 — the void below the form** under a tiling compositor. Stable and
   coherent now rather than scattered, but not designed. It is the same space
   L-6 might occupy.
+- **L-9 — magnification.** The tray proof-of-concept is landed and works.
+  Three things are open: whether the zoom **survives a present** (decisive, and
+  only answerable on screen); whether it should survive a **restart**, which is
+  config state and a separate decision; and whether the tray is the shipping
+  affordance or scaffolding towards `Ctrl +/-`.
