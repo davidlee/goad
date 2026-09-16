@@ -289,17 +289,17 @@ tray by the user and reported good. Not photographed: the tray menu cannot be
 driven by the screenshot loop, the same limitation that keeps L-3/L-4 unseen,
 so the human report *is* the evidence here.
 
-**Still unknown, and it is the one that decides whether this ships: does the
-zoom survive a present?** The window is hidden between prompts and re-shown
-every two hours. If the winit adapter re-reads the real scale on show and
-dispatches its own, the zoom resets on every prompt and the affordance is
-worthless.
+**The zoom survives a present — confirmed on screen.** This was the question
+that decided whether the affordance was worth anything: the window is hidden
+between prompts and re-shown every two hours, and if the winit adapter re-read
+the real scale on show and dispatched its own, the zoom would reset on every
+prompt. It does not. Zoomed, then *Check now*, then looked: the level held.
 
-**A unit test would not answer it.** The testing backend has no winit adapter,
-so a green test there would assert the core's bookkeeping and nothing about the
-thing that would actually break it — a proxy, in the exact shape this slice has
-already been bitten by. It has to be watched on screen: zoom, then *Check now*,
-then look.
+**No test asserts this, deliberately.** The testing backend has no winit
+adapter, so a green case there would assert the core's bookkeeping and nothing
+about the thing that would actually break it — a proxy, in the exact shape this
+slice has already been bitten by twice. The evidence is a human watching the
+window, which is the honest instrument for it.
 
 #### Tests added
 
@@ -333,8 +333,9 @@ you cannot dismiss and get back, which is adjacent to L-6.
 - **L-8 — the void below the form** under a tiling compositor. Stable and
   coherent now rather than scattered, but not designed. It is the same space
   L-6 might occupy.
-- **L-9 — magnification.** The tray proof-of-concept is landed and works.
-  Three things are open: whether the zoom **survives a present** (decisive, and
-  only answerable on screen); whether it should survive a **restart**, which is
-  config state and a separate decision; and whether the tray is the shipping
-  affordance or scaffolding towards `Ctrl +/-`.
+- **L-9 — magnification.** Landed on the tray, and it survives a present — the
+  question that decided whether it was worth anything. Two things stay open,
+  both by choice rather than by omission: **persistence across a restart**,
+  deferred until the user has lived with it for a while; and whether the tray is
+  the shipping affordance or scaffolding towards `Ctrl +/-`, which is gated on
+  007's keyboard-focus follow-up either way.
