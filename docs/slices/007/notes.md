@@ -2220,7 +2220,10 @@ was said and none was argued with.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-15 · PHASE-06, done · base commit `097bd68`
+**Fresh as of:** 2026-09-15 · **audit, done** · base commit `1969a27` plus the
+audit's review repairs. Entries below marked **[audit]** were added or corrected
+at audit; where an entry was falsified, the correction sits with it rather than
+replacing it.
 
 ### Produced
 
@@ -2704,6 +2707,19 @@ was said and none was argued with.
   and those are exactly the four paths touched. Listed as the negative case for
   PHASE-04's F-3, so the class the audit holds is *enumerations go stale*
   rather than *enumerations are always wrong*.
+
+  **[audit] F-5 is false, and the sheet that carries it says so two hundred
+  lines earlier.** PHASE-05 also touched `crates/goad/tests/renderer/tree.rs` —
+  the `element_described` lift — which its **own D-3** records as *"an
+  undeclared surface"*. D-3 counts five paths, F-5 counts four, in one sheet.
+  So the negative case offered to bound the class is itself an instance, and
+  the class is not *enumerations go stale*: in this slice **every Surfaces line
+  that had anything to omit omitted something** — five of six short, only
+  PHASE-03's and PHASE-06's exact. The mechanism is structural rather than
+  careless: a phase writes its sheet before doing the work and nothing re-reads
+  it after, so a phase cannot check its own Surfaces line. That is why this was
+  the audit's finding four times and never a phase's. No scope breach: every
+  undeclared path is inside a directory `slice-007.md` §Scope names.
 - **PHASE-05 D-1 — no `src/` file was touched.** The gate's 535 tests include
   four new cases and no production change; the diff is one new test file and
   three test files. For the audit's path diff.
@@ -2733,6 +2749,31 @@ was said and none was argued with.
   inherits both the repair and an unobserved defect. Whoever picks it up should
   reproduce it under a floating compositor, or with an explicitly sized window,
   rather than trusting that a person running `just demo` would have seen it.
+
+  **[audit] Reproduced, and it is worse than "clips its second option".**
+  Measured directly in a throwaway worktree at `1969a27`, by showing the real
+  window and reading `window.size()`:
+
+  | fixture | preferred size | option buttons reachable | at 600×600 |
+  |---|---|---|---|
+  | two plain options | **50×65** | 1 of 2 | 2 |
+  | two options, two fields each | **50×65** | 1 of 2 | 2 |
+  | one option, five fields (the demo's shape) | **50×65** | 1 of 2 | 2 |
+
+  **The window has no content-derived preferred size at all.** 50×65 is
+  invariant across every shape tried — a five-field form and an empty one
+  produce the same 50px-wide window. The mechanism is identifiable and is not
+  "the window is a bit small": the option content sits inside a `ScrollView`
+  (`app.slint:49`), which by design does not propagate its content's preferred
+  size upward, and `PromptWindow` declares no `width`, `height`, `min-width` or
+  `min-height` anywhere. So the layout engine's default is what reaches the
+  compositor. **That is a property of the layout engine, not of the testing
+  backend** — the same number reaches a real one.
+
+  008 therefore inherits *nothing propagates a preferred size to the window*,
+  which is a different repair from *make the window taller*. Lifted to
+  `docs/memory/a-fixtures-size-is-not-the-products.md` with the measurement, so
+  it is not re-derived.
 - **008's brief, recorded verbatim and not actioned** (PHASE-06/EX-4, S-8). The
   diagnostic surface does not wrap a line and its text cannot be selected; the
   layouts *above* the block container distribute the window's full height; the
@@ -2742,4 +2783,30 @@ was said and none was argued with.
   a line in `diagnostics.rs`. The full wording is in the PHASE-06 sheet.
 - **`audit.md` is still titled *Slice NNN*.** PHASE-06's declared surface is
   `audit.md` (Evidence), so the placeholder was left rather than quietly fixed.
-  Audit's, and trivial.
+  Audit's, and trivial. **[audit] Done.**
+
+- **[audit] The code review found five defects the phases did not, and its own
+  repairs then carried five more.** `review-code.md` holds all ten. The two that
+  matter as a class: **a claim held at the row model is not held at the screen**
+  (F-1 — the whole of `app.slint`'s heading markup could be deleted with the
+  gate green, while the checkbox half of the same element was held by six
+  cases), and **an assertion in the direction an unbound property already
+  answers discriminates nothing** (F-2 — every `enabled` assertion in the
+  workspace was `== Some(true)`, which is what an *unbound* `enabled` answers,
+  so all of them were blind to the binding being deleted). Both lifted to
+  `docs/memory/a-test-rule-binds-to-a-defect-not-a-surface.md`.
+
+- **[audit] Round 2 of the code review found five defects in round 1's repairs,
+  including two false statements in the ledger's own Response.** That is the
+  argument for unbounded rounds, in one slice: the repairs were made carefully,
+  by the agent holding the whole audit, and were still wrong five times. Worth
+  keeping because the cost was small and the alternative — closing on
+  round 1 — would have shipped a test depending on an unpinned `std-widgets`
+  internal (F-6) and a ledger describing a change that had been reverted (F-7).
+
+- **[audit] `just check` was not deterministic, and nothing said so.** Two pairs
+  of cases shared one invocation-log path — one pid, one file, cleared at
+  handout — failing one run in six. The rename fixed the instance; the
+  instrument (`scripting::claim`) found the second pair on its first run and
+  then a third helper making the same promise (`ingress.rs`'s `socket_path`).
+  Six consecutive runs green after the repair. See `review-code.md` F-5, F-9.
