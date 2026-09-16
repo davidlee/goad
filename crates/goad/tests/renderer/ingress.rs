@@ -106,12 +106,14 @@ const _: () = assert!(
 /// `std::env::temp_dir()` and the process id, because `tempfile` is not on the
 /// manifest allowlist (`plan.md` PL-3) and this phase adds no dependency.
 ///
-/// That promise is `scripting::marker`'s promise, made by three more helpers —
-/// `startup.rs`'s, in this same test binary, and the ones in
-/// `crates/goad-shell/tests/integration/ingress.rs` and
-/// `crates/goad-emit/tests/binary/exchange.rs` — and held by the same
-/// instrument for all but the last, whose target cannot include the instrument
-/// without failing the gate (`review-code.md` F-9, F-11, F-17). It matters
+/// That promise is `scripting::marker`'s promise, made by four more helpers —
+/// `startup.rs`'s, in this same test binary, one in
+/// `crates/goad-shell/tests/integration/ingress.rs`, and two in `goad-emit` —
+/// and held by the same instrument for all but the `goad-emit` pair, whose
+/// targets cannot include the instrument without failing the gate. `claim`'s
+/// own doc carries the class and the grep that enumerates it, because naming
+/// the ones that look alike has come up short twice (`review-code.md` F-9,
+/// F-11, F-17, F-22). It matters
 /// more here than for a marker: two cases sharing a socket path share a
 /// **listener**, and `cleanup` below removes the lock file beside it, so the
 /// second case to start would unlink the first case's lock mid-run. Nothing

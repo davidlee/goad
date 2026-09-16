@@ -40,10 +40,11 @@ const GOOD: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timesta
 /// unlinks the lock file beside the socket.
 ///
 /// The kind is **this helper's alone**, which is what keeps the key exact: the
-/// other socket helpers mint `goad-serve-…`, `goad-startup-…` and — unheld,
-/// see `claim` (F-17) — `goad-emit`'s own, so a kind shared between them would
-/// report a collision where there is none. See `claim` for why the rule is one
-/// kind per helper rather than one kind per prefix (F-21).
+/// other helpers of this class mint `goad-serve-…`, `goad-startup-…` and —
+/// unheld, both of them, see `claim` (F-17, F-22) — `goad-emit`'s two, so a
+/// kind shared between them would report a collision where there is none. See
+/// `claim` for why the rule is one kind per helper rather than one kind per
+/// prefix (F-21).
 fn socket_path(case: &str) -> PathBuf {
   claim("ingress socket", case);
   let path = std::env::temp_dir().join(format!("goad-ingress-{case}-{}.sock", std::process::id()));

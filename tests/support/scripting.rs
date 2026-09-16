@@ -48,18 +48,41 @@ static CLAIMED: LazyLock<Mutex<BTreeSet<(&'static str, String)>>> = LazyLock::ne
 /// it is independent of what the path is *for*, which is why one registry
 /// serves every kind (`review-code.md` F-5, F-9, F-11).
 ///
-/// **Five helpers make that promise and this holds four** (F-17). The four are
-/// `marker` below and the `socket_path`s in
+/// **The class, because twice now an enumeration has been short.** A helper of
+/// this class mints a path under `std::env::temp_dir()` qualified by the
+/// process id, promises in prose that it is the caller's own, and clears or
+/// overwrites what is there when it hands the path out. It need not be called
+/// `socket_path`, need not mint a socket, and need not live under `tests/` —
+/// one is a `#[cfg(test)]` helper inside a `src/` file. Enumerating the ones
+/// that looked alike missed a fourth at F-17 and a sixth at F-22, so what is
+/// written here is the way to find them rather than the list:
+///
+/// ```text
+/// grep -rn 'process::id()' --include=*.rs . | grep -v '^./target'
+/// ```
+///
+/// Each hit is then one of three things: a helper of this class, an inline
+/// path minted at the single call site inside the one case that uses it
+/// (excluded — no second caller can believe a promise it does not make), or a
+/// production path.
+///
+/// **Six helpers make that promise and this holds four** (F-17, F-22). The
+/// four are `marker` below and the `socket_path`s in
 /// `crates/goad/tests/renderer/ingress.rs`,
 /// `crates/goad/tests/renderer/startup.rs` and
-/// `crates/goad-shell/tests/integration/ingress.rs`. The fifth,
-/// `crates/goad-emit/tests/binary/exchange.rs`, is not held and the reason is
-/// mechanical rather than an oversight: its target does not `#[path]`-include
-/// this file, and adding the include costs nine `dead_code` warnings — an
-/// error under the gate's `-D warnings`, which is the reason this file is split
-/// from `driving.rs` in the first place. Reaching it means moving `claim` to a
-/// support file of its own, which is a follow-up (`slice-007.md`), not a line
-/// here.
+/// `crates/goad-shell/tests/integration/ingress.rs`. The two unheld are
+/// `crates/goad-emit/tests/binary/exchange.rs`'s `socket_path` and
+/// `crates/goad-emit/src/main.rs`'s `config_home` — the latter destructive in
+/// the same way `clear` is, since it writes or removes `config.toml` under the
+/// directory as it hands it out.
+///
+/// Neither is an oversight; the reason is mechanical. Their targets do not
+/// `#[path]`-include this file, and adding the include costs nine `dead_code`
+/// warnings — an error under the gate's `-D warnings`, which is the reason
+/// this file is split from `driving.rs` in the first place. For `src/main.rs`
+/// it also wants a `#[cfg(test)]` module to hang them on. Reaching either
+/// means moving `claim` to a support file of its own, which is a follow-up
+/// (`slice-007.md`), not a line here.
 ///
 /// **One kind per helper** is what keeps the key exact — two helpers sharing a
 /// kind would report a collision between paths that differ. A kind is *not* a
@@ -67,9 +90,13 @@ static CLAIMED: LazyLock<Mutex<BTreeSet<(&'static str, String)>>> = LazyLock::ne
 /// prefix either: the four mint `goad-<name>-<pid>`,
 /// `goad-serve-<name>-<pid>.sock`, `goad-startup-<name>-<pid>.sock` and
 /// `goad-ingress-<name>-<pid>.sock`, and `marker`'s prefix is the bare `goad-`
-/// that all of them share (F-21). What separates a marker's paths from a
-/// socket's is the `.sock` suffix. A fifth kind must therefore be checked
-/// against the paths the others mint, not assumed distinct because its name is.
+/// that all of them share (F-21). What holds a marker's paths apart from every
+/// socket's is that the pid comes **last**, so a marker path ends in digits and
+/// can never end `.sock`, whatever it is named (F-23) — and `goad-emit`'s two
+/// unheld helpers are the standing demonstration, minting
+/// `goad-emit-<case>-<pid>` and `goad-emit-<case>-<pid>.sock` off one prefix.
+/// A fifth kind must therefore be checked against the paths the others mint,
+/// not assumed distinct because its name is.
 ///
 /// # Panics
 ///
