@@ -53,6 +53,28 @@ The guard is the whole point. Writing nothing when nothing diverged is what
 lets a caret, a text selection or a slider drag survive a present — there is no
 mechanism by which an untouched widget could be disturbed.
 
+## How to measure it
+
+Element identity is not otherwise observable, so count construction in the
+markup:
+
+```slint
+in-out property <int> inits;
+…
+CheckBox { init => { root.inits += 1; } }
+```
+
+An element that is destroyed and recreated runs `init` again; one that is
+updated in place does not. Add a second counter inside the re-assert's guard and
+the pair separates three states that otherwise look alike: *not rebuilt*, *no
+write needed*, and *written back*. This is what turns "does a present disturb
+the widget" from an argument into a number.
+
+Do the same for anything else whose identity matters. Reading the widget's
+*value* cannot tell you — a rebuilt element and a preserved one both end up
+holding the model's value, which is precisely why the defect survives ordinary
+assertions.
+
 ## How to apply
 
 - Treat `set_vec` in a present as a **rebuild**, and say so wherever it is

@@ -132,7 +132,29 @@ the spike is a standalone workspace, deleted at `a698217`'s successor).
 - OQ-5 — **When may a present write in place rather than rebuild?** The shape
   changing (a new view, a different option or field set) plainly needs a
   rebuild; a value-only change plainly does not. The boundary between them, and
-  what happens on a refused command, is design.
+  what happens on a refused command, is design. `research.md` Thread 4 records
+  one rejected answer that looks right and is not — skipping the write when the
+  rows compare equal, which is blind to the only divergence that matters — and
+  one unverified claim that would simplify the whole question if it survives.
+
+## Before design starts
+
+`research.md` Thread 4 is the part that is easiest to skip and most expensive to
+rediscover: four mechanisms already considered and rejected with the reason, one
+available but untaken, and one claim flagged as unverified precisely because it
+would be attractive to assume. Read it before proposing an approach.
+
+Two process notes from scoping, offered rather than imposed:
+
+- **The load-bearing questions here were measurable, not arguable.** Scoping
+  produced a spike instead of a design section and the spike overturned the
+  framing it was built to confirm — the re-present problem was priced as a
+  second design surface and is one decision. Expect the same of the remaining
+  questions: OQ-1 and OQ-2 in particular are likely cheaper to settle by drawing
+  the thing than by reasoning about it.
+- **Some of this is only observable with a real window.** `docs/memory/
+  getting-eyes-on-the-running-host.md` has the launch and screenshot mechanics,
+  including two surfaces the loop cannot reach at all.
 
 ## Summary
 

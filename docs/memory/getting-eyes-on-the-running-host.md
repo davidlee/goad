@@ -5,13 +5,22 @@ with a screenshot per change.
 
 ## The facts
 
-**Launching it needs a pipe.** Running the host through the Bash tool exits
-**144 with no output**, even with every stream redirected inside the launch
-script. The redirection alone is not enough. Piping the invocation is:
+**Do not self-detach; use the harness's own background mode.** Running the host
+through the Bash tool exits **144 with no output** whenever the script
+backgrounds it with `&` — and a pipe does **not** rescue that form. Measured at
+slice 009's spike: `./run.sh 2>&1 | tail` where `run.sh` ends in `binary &`
+still exits 144, and so does wrapping the whole compound in `( … ) 2>&1 | cat`.
 
-```sh
-./run.sh 2>&1 | tail
+What works is launching the binary in the foreground under the tool's
+`run_in_background` flag, piped:
+
 ```
+Bash(command: "/path/to/binary 2>&1 | cat", run_in_background: true)
+```
+
+The process then survives across turns and `niri msg windows` finds it. The
+earlier note here said the pipe was the fix; the pipe is necessary and the
+absence of `&` is what actually matters.
 
 **Screenshot the window by id, not by geometry.** Under niri:
 

@@ -220,6 +220,93 @@ code.
   and recreates a text field can only restore the caret to the end of the
   string. Not needing to is a reason to prefer preserving the element.
 
+## Thread 4 — mechanisms considered and not taken
+
+Written so design does not rediscover these. **None of Thread 4 is measured**;
+each is a reasoned argument from Thread 3's measurements and the cited code, and
+design should verify anything it leans on.
+
+### Rejected: skip the `set_vec` when the rows are unchanged
+
+The obvious cheap fix — build the rows, compare against what the model already
+holds, and skip the write when nothing differs — **breaks A-2 in exactly the
+case A-2 exists for.** The dropped-click case is one where the *model data did
+not change* (the draft still says `false`, because the host never heard the
+click) while the *widget* diverged. The comparison sees equality and skips,
+leaving the widget wrong permanently.
+
+Worth stating plainly because it is the first thing a reader proposes and it
+looks right: the diff is over the wrong pair. What diverged is widget-vs-draft,
+and a host comparing draft-vs-draft cannot see it.
+
+### Rejected: do not present after a successful `Edit`
+
+Proposed at scoping, before the spike. `controller.rs:661` already notes an edit
+"is not an exchange", and the widget already holds what the person just did, so
+the present is arguably redundant. It would fix the per-keystroke rebuild.
+
+It is not enough. It only suppresses the present that the *edit itself*
+triggers; every other present — a `view: null` answer to a scheduled evaluate, a
+back-pressure notice, diagnostics arriving — still runs the loop top and still
+rebuilds the form under whatever the person is doing. A partial fix that looks
+total is worse than none, because the residual case is rare enough to ship.
+
+### Rejected: commit-only bindings
+
+Bind `accepted` (Enter) and `released` rather than `edited` and `changed`, so no
+command is raised mid-interaction. Cheapest of all, and it needs no re-assert.
+
+It loses data: `LineEdit::accepted` fires on Enter only, focus-out does not fire
+it, and a person who types and then clicks the option button submits the
+*previous* value. Silent, and in the direction that matters. Note this is not
+the same question as OQ-3's debounce, which narrows the same race to ~150 ms
+rather than making it unbounded — but the flush point OQ-3 has to choose is
+this failure in miniature.
+
+### Superseded: 007's stated focus repair
+
+`slice-007.md` §Follow-ups proposes "a focus identity that survives a rebuild —
+the row reports focus back, the host retains the focused field id, the row's
+`init` restores it". Thread 3 makes it unnecessary: an element that is never
+destroyed never loses focus, so there is nothing to restore.
+
+It also has a hole, which is why it should not be revived as a fallback:
+`LineEdit` exposes no readable cursor offset, so a restored caret can only go to
+the end of the string — right while appending, wrong the moment anyone edits
+mid-word.
+
+### Not taken, but available: rebuilding one row
+
+A third mechanism, if the design ever needs a rebuild narrower than the whole
+form. `Model::remove_row` then `insert_row` at the same index rebuilds **exactly
+that row's element**: `row_removed` drains the instance from the repeater's
+vector and `row_added` splices in `(Dirty, None)`, which `ensure_updated` then
+constructs (`i-slint-core/model/repeater.rs`). `set_row_data` never does this —
+a Dirty instance that still holds a component is updated, not recreated.
+
+Read the source before leaning on it; this is inferred from the repeater's
+implementation and is not covered by any spike test.
+
+### A claim worth verifying, because it would simplify OQ-5
+
+**Divergence may always be observable to the host.** A widget self-assigns and
+the host fails to record it only when the command did not arrive or was refused
+— `Refused::Full` on the one-slot channel, or an `edit()` refusal for a stale
+view — and the host knows about both. `toggled` fires on every click, so there
+is no silent third path.
+
+If that holds, A-2 could be satisfied by *rebuild when a command was refused,
+write in place otherwise* — with no epoch and no per-widget guard, which is
+materially less markup than Thread 3's mechanism. It would also make the
+re-assert testable in a tier that has no event loop, which would dissolve OQ-4.
+
+**Not verified.** It rests on an enumeration of the ways an edit can be lost,
+and `docs/memory/enumerate-the-class-not-the-instances.md` is the standing
+warning about exactly that shape of argument — slice 005's F-17 completed such a
+list three times and was wrong each time. Design should either find the
+generative statement or keep the guard, which is measured and does not depend on
+the enumeration being complete.
+
 ## Cross-thread findings
 
 1. **This slice adds no protocol and removes a renderer subset.** R-16 and R-57
