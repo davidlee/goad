@@ -1,0 +1,3 @@
+*.ttf
+# revert ignore on the ones we want to use ..
+!Inter.ttf
