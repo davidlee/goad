@@ -60,6 +60,19 @@ person's evidence rather than canon. The old 006 (*daily driver*) turned out to
 be half already done and half aimed at the wrong thing; the old 007 (*field
 notes*) was never a slice, and is now a file that accumulates continuously.
 
+**2026-09-16.** Slices 007 and 008 are closed. The renderer grew a form, then a
+look: boolean fields grouped into blocks, a window that sizes to its content, a
+style, cards and panels, tray magnification that survives a present, and a
+diagnostic pane that had never been on screen until someone put it there. 007
+added **R-57** and **R-58** to SPEC-001 — what a submitted value's JSON type is,
+and which fields a `respond` carries.
+
+**009 is open and is the last of the standing hazard slice 002 recorded**: the
+renderer draws one of R-16's five field kinds, and this slice draws the other
+four. No protocol change. Scoping produced a spike rather than a design
+document, because the load-bearing question — whether a form can survive a
+present — turned out to be measurable rather than arguable.
+
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
 ledger, code review unchanged. 49,631 lines of slice documentation for 16,891
@@ -82,19 +95,20 @@ graph LR
   S6["006<br/>packaging +<br/>the startup surface"]
   S7["007<br/>the renderer<br/>grows a form"]
   S8["008<br/>the renderer<br/>gets a look"]
-  S9["009<br/>socket transport"]
-  S10["010<br/>starter experience"]
+  S9["009<br/>the rest of<br/>the field kinds"]
+  S10["010<br/>socket transport"]
+  S11["011<br/>starter experience"]
 
   T2{{"ADR-002 T2<br/>second binary"}}
 
-  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9 --> S10
+  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9 --> S10 --> S11
   T2 -.-> S5
   USE -.->|field notes| S7
 
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
   classDef use fill:#1f3d5c,stroke:#3a6ea5,color:#fff
-  class S1,S2,S3,S4,S5 done
+  class S1,S2,S3,S4,S5,S7,S8 done
   class T2 trigger
   class USE use
 ```
@@ -106,9 +120,10 @@ graph LR
 | *daily use* | — | not a slice, and not waiting on one. It is where the next two get their scope |
 | 006 packaging + the startup surface | 1 | small and bounded, and it removes a class of silent failure from the thing now running every day |
 | 007 the renderer grows a form | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
-| 008 the renderer gets a look | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
-| 009 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
-| 010 starter experience | 1 | documenting for others documents what exists |
+| 008 the renderer gets a look ✔ | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
+| 009 the rest of the field kinds | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
+| 010 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
+| 011 starter experience | 1 | documenting for others documents what exists |
 
 Four changes from the old order, all deliberate:
 
@@ -349,9 +364,17 @@ accumulates continuously and is not in this repo.
 - Still open from 003, and still a protocol question: SPEC-002 OQ-4, a scheduled
   firing superseding a view a person is mid-answering.
 
-### 008 — the renderer gets a look
+### 008 — the renderer gets a look ✔
 
-Brief §10.1, §11.1. **Tier 1.**
+Brief §10.1, §11.1. **Tier 1. Closed 2026-09-16**, with the `docs/AGENTS.md`
+lifecycle suspended by user instruction — `notes.md` is the whole record, and
+`slice-008.md` §Summary the closing argument. Six of nine list items landed.
+The window sizes to content (420×159 for two plain options, against 50×65 for
+everything before), the surface has a style, cards, panels and a measured tonal
+ramp, and magnification landed on the tray and survives a present. The
+diagnostic pane was seen for the first time and carried five defects, four on no
+list. Five durable facts went to `docs/memory/`. The entry below is the scoping
+argument as it stood.
 
 The visual pass 007 deliberately did not do. Layout, spacing, typography, window
 sizing, and the idle surface — everything in `ui/app.slint` that is ours rather
@@ -373,7 +396,38 @@ than the widget library's.
   turns out to need a protocol affordance, that is the signal it belongs in a
   different slice.
 
-### 009 — persistent socket transport
+### 009 — the form grows the rest of its field kinds
+
+Brief §10.2, §11.1. **Tier 2** — on size, not on canon.
+
+The renderer draws one of `SPEC-001/R-16`'s five field kinds. This slice draws
+the other four — `text`, `number`, `choice`, `datetime` — so a backend can ask
+for a note, a quantity, a selection and an instant and get back what R-57 says
+it will. **It adds no protocol**: R-16 already admits every kind and R-57
+already types every submission, so this discharges the renderer subset R-55
+names rather than adding a capability. It is the last of the standing hazard
+slice 002 recorded.
+
+- **It also settles what 007 left open**, because typed input makes it urgent: a
+  present rebuilds the whole form. `set_vec` resets the model and clears the
+  repeater's instances, which costs a checkbox its focus ring and costs a text
+  field every keystroke after the first. A spike (commit `a698217`, deleted by
+  its successor) measured the mechanism and a repair — a guarded imperative
+  re-assert driven by an epoch — that converges a clicked widget to the draft
+  *with the element preserved*. `docs/slices/009/research.md` Thread 3.
+- **The tier is size, and the non-goals are what keep it off canon.** `step` on
+  a `number` stays a hint at most; SPEC-001/OQ-4 (a date without a time) stays
+  shut. If drawing a date picker shows a date-only field cannot be expressed,
+  that reopens OQ-4 at no tier cost, because the tier is already 2.
+- **The finding with the sharpest planning consequence:** `changed` handlers fire
+  nowhere under `init_no_event_loop`, and the whole `tests/renderer/` tier uses
+  it — so a case written there asserting the re-assert would be green while
+  measuring nothing. `docs/memory/change-handlers-need-an-event-loop.md`.
+- **`datetime` is the least-determined kind.** Both pickers are popups, a popup
+  cannot be repeated, and R-57 wants an RFC 3339 instant with an offset while
+  `DatePickerPopup` yields a bare date.
+
+### 010 — persistent socket transport
 
 Brief §20 phase 6, §6.1, §6.3. **Tier 2** — it amends SPEC-001's transport
 section.
@@ -389,7 +443,7 @@ semantic protocol is identical across transports — SPEC-001 already says so.
   nothing, or for brief §10.1/§10.2 through a real process. Both are held at
   other tiers today. If this slice rebuilds the failure matrix, add them.
 
-### 010 — starter experience
+### 011 — starter experience
 
 Brief §20 phase 7, §15, §21. **Tier 1** unless capability declaration lands.
 
@@ -412,17 +466,17 @@ Brief §21. Where each criterion is discharged.
 | 2 | configuration points at a trivial scripting backend | 001 ✔ (config + example); observable at 002 |
 | 3 | host periodically asks the backend | 003 ✔ |
 | 4 | backend returns no view without error | 001 ✔ |
-| 5 | simple choice rendered correctly | 002 ✔; 007 draws the fields it admits |
+| 5 | simple choice rendered correctly | 002 ✔; 007 draws boolean fields; 009 draws the other four kinds |
 | 6 | selection delivers a response to the backend | 002 ✔ |
 | 7 | `next_check` from evaluation and from response | 001 ✔ |
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
 | 9 | an external script sends an opaque event | 004 ✔; 005 makes it ergonomic |
 | 10 | the event reaches the backend uninterpreted | 004 ✔ |
-| 11 | backend may run as a persistent JSONL socket service | 009 |
-| 12 | fallback to process invocation when it is unavailable | 009 |
+| 11 | backend may run as a persistent JSONL socket service | 010 |
+| 12 | fallback to process invocation when it is unavailable | 010 |
 | 13 | crashes, timeouts, invalid JSON do not crash the GUI | 001 ✔ taxonomy; 002 surfaces it |
-| 14 | example backend implements the journal with no host change | 010 |
-| 15 | an agent implements a backend from repository material alone | 010 |
+| 14 | example backend implements the journal with no host change | 011 |
+| 15 | an agent implements a backend from repository material alone | 011 |
 | 16 | no domain concepts enter the host model | 001 ✔ boundary test; **standing, every slice** |
 
 ## Not on the sequence
@@ -482,9 +536,14 @@ condition rather than a position.
   canon. A later reader who thinks RFC 3339 is wrong should say what evidence
   arrived, not treat the clause as an oversight.
   *Recommendation:* OQ-4 now carries only the residue — whether a date without a
-  time wants its own kind, or a hint on `datetime`. Answered by the slice that
-  first **draws** a `datetime` field, which is what produces evidence about which
-  freedoms matter; not by 010, for the reason given above. Until then the
-  question is recorded rather than fired, exactly as OQ-2's is.
+  time wants its own kind, or a hint on `datetime`. **Slice 009 is the slice that
+  first draws a `datetime` field, and it holds OQ-4 shut deliberately**: the
+  residue is additive either way, and the drawing is what produces the evidence
+  to answer it with rather than the answer itself. The trigger is now specific —
+  if a date-only field turns out not to be expressible at all, that reopens it,
+  at no tier cost because 009 is already tier 2. Scoping also found the pressure
+  the question will arrive under: both pickers are popups, a popup cannot be
+  repeated, and `DatePickerPopup` yields a bare `{year, month, day}` where R-57
+  requires an instant with an offset.
   (007 design D3; raised as F-14, and the decision reversed under F-21, in that
   slice's design review.)
