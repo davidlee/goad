@@ -2622,15 +2622,25 @@ the raiser's line numbers across the very edit that moved them, which is the
 mechanism F-18 diagnoses one section above. A round that repairs a stale count
 by writing a stale count has not understood its own finding.
 
-**Response:** the two citations written by a responder are replaced by symbols;
+**Response:** the citations written by a responder no longer carry line numbers;
 the raiser's text is not touched.
 
 - **F-18's Outcome** — `:447-448` and `:810`/`:825` are gone. The two
   double-minting cases are now named (`vt3b-symlink-target` / `vt3b-symlink`,
   `vt6b-clock` / `vt6b-shutdown`), with a sentence recording that the numbers
   were already wrong when written and why.
-- **F-21's Response** — `scripting.rs:133` becomes
-  `scripting.rs::logging_backend`.
+- **F-21's Response** — the citation went out with the sentence that carried it.
+  F-23's amendment replaced the whole *"every marker name … `invocations-`
+  prefix (`scripting.rs:133`)"* clause, because the claim was false and not
+  merely mis-cited, so there was nothing left to re-cite.
+
+  > **Corrected after the fact.** This Response first said the citation *"becomes
+  > `scripting.rs::logging_backend`"*. It does not — it is gone. A responder
+  > describing a repair they had not re-read, which is the defect this very
+  > finding is about and the fifth instance of it in this ledger. Caught by the
+  > mechanical pass, which is the argument for that pass in one line: a script
+  > asking *does this string still exist* does not care how plausible the
+  > sentence containing it was.
 
 **Not** amended, deliberately: F-19's §Location, F-21's §Observed and F-11's
 §Evidence all carry line numbers that have since moved. Those are the **raiser's**
@@ -2685,6 +2695,7 @@ This is the ledger's own result and it is worth more than any single finding.
 | 3 | round 2's repairs | F-11–F-13 | 3 | minor |
 | 4 | round 3's repairs | F-17–F-21 | **0** | minor |
 | 5 | round 4's repairs | F-22–F-24 | **0** | minor |
+| — | round 5's repairs | mechanical pass | **0** | one false Response, caught |
 
 **Round 2 found five defects in five of round 1's repairs, two of them false
 statements in this ledger's own Response** (F-7). That is the argument for
@@ -2783,6 +2794,16 @@ than a sixth reading: every `path:line` a responder wrote resolves (163 of them;
 4 external, 2 shorthand in raiser text left as raised), every finding id cited
 exists, every table row has a section and a disposition, and the six-of-six /
 four-held counts were re-derived from the tree with the doc's own grep.
+
+**The pass earned itself on its first run,** which is the strongest thing that
+can be said for choosing it over a sixth reading. It caught a fifth Response
+asserting something untrue of the tree: F-24's own, which described F-21's stale
+citation as having been *converted to a symbol* when F-23's amendment had
+**deleted** it along with the false sentence carrying it. A responder describing
+a repair they had not re-read — inside the finding about citations that do not
+resolve. No adversarial reader was needed for that; a script asking *does this
+string still exist* does not care how plausible the sentence containing it was,
+and that indifference is exactly what the last two rounds lacked.
 
 The stopping rule is a **decision, taken by the user on 2026-09-16 and written
 down**, not a ledger that quietly ran out. A reader who disagrees with it has

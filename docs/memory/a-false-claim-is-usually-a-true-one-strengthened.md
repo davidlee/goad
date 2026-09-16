@@ -24,6 +24,13 @@ transcription. Each was a small edit that made a true sentence stronger:
   call sites" came from the finding's text; the tree has 35, and 33 was a
   different file's row count (F-18).
 
+A fifth was caught by the mechanical verification pass that replaced round 6,
+and it is the sharpest of them: the Response closing the finding *about
+citations that no longer resolve* said a stale citation had been "converted to a
+symbol" when the earlier amendment had deleted it outright. The responder
+described a repair they had not re-read, one section after writing the rule
+against exactly that.
+
 **Why it matters.** A reviewer looking for carelessness will not find these: the
 sentences read *better* than what they replaced, which is why they survived the
 edit. The check that catches them is not re-reading — it is re-measuring. F-19's
@@ -33,7 +40,11 @@ took to write.
 **How to apply.** Any sentence in a repair that quantifies — *every*, *all
 four*, *the two*, *only*, a line number, a count — is a claim, and writing it is
 not evidence for it. Run the grep before writing the number, and again after the
-repair moves the lines. Prefer the formulation that cannot drift: name the
+repair moves the lines. A script asking *does this string still exist* is better
+at this than a careful reader, because it does not care how plausible the
+sentence containing it is — that is the whole argument for a mechanical pass
+over the prose once the rounds stop finding code defects
+([[review-rounds-stop-on-a-measured-trend]] in the session memory). Prefer the formulation that cannot drift: name the
 symbol, not the line; state the fact, not the tally. When correcting such an
 error, show the original rather than editing it away — a ledger that edits away
 its own wrong record is worth less than one that shows it.
