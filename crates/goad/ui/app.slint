@@ -1,5 +1,12 @@
 import { Button, CheckBox, Palette, ScrollView } from "std-widgets.slint";
 
+// Registers the family so `font-family` below can name it. The path is
+// relative to this file, and the compiler embeds the face in the binary —
+// there is no runtime lookup and no fontconfig dependency for this family, so
+// the window draws the same text on a machine that has never heard of Inter.
+import "../../../assets/Inter.ttf";
+import "../../../assets/Geist.ttf";
+
 // A drawn field. `checked` is the draft's value, written every present; the
 // widget flips itself on click and the next present writes it back, so the
 // model is the authority and the widget is never asked to remember
@@ -35,106 +42,253 @@ export component PromptWindow inherits Window {
 
   title: root.mode == WindowMode.prompt ? "goad" : "goad — diagnostics";
 
+  // The width is the host's, not the backend's. Every string on this surface
+  // is backend-authored and unbounded, so a width derived from content is a
+  // width one long label decides.
+  //
+  // **These two numbers are the whole of it.** Measured: the window asks for
+  // 420px with no option on it, with a 420-character option label, and with a
+  // 450-character checkbox label alike — nothing propagates a width upward
+  // past the scroller, not even a control's own minimum, so `min-width` is
+  // reached by nothing this markup can draw and is a floor against a future
+  // change rather than against a backend. `tests/renderer/sizing.rs` records
+  // the measurement and why no case asserts it.
+  // Named once, on the root: every `Text`, `CheckBox` and `Button` below
+  // inherits it, and the widget library's own faces come with it.
+  default-font-family: "Geist";
+
+  preferred-width: 420px;
+  min-width: 340px;
+
+  // **The tonal ramp, in one place.** Three steps — measured 22 / 28 / 36 on
+  // this style's dark ground — and nesting is what a step means: the frame is
+  // the ground, an option's card sits on it, and a block's panel sits on the
+  // card.
+  //
+  // The step is 30%, not the 12% first tried. 12% is the right *ratio* and the
+  // wrong *difference*: at this end of the scale it is three levels out of 255
+  // and the three surfaces read as one flat sheet. Measured on screen, both
+  // times, rather than argued about.
+  //
+  // Anchored *downwards* from the style's own ground rather than upwards from
+  // it. `Palette.background` stays the card — the tone a person looks at most
+  // — and the frame is darkened under it, which keeps the top of the ramp
+  // close to the style's ground instead of a third brighter than it. Every
+  // tone is derived from the one token, so a style with a different ground
+  // still gets a ramp rather than three values that happen to suit this one.
+  background: Palette.background.darker(0.30);
+
+  // The two insets of the ramp, named because a third element has to *align*
+  // with them. A header sitting at the window's own padding starts left of
+  // every word in the form below it; adding the two together is what puts its
+  // text in the same column, and derives that rather than restating it as a
+  // number that can drift out of step with either.
+  private property <length> card-inset: 12px;
+  private property <length> panel-inset: 10px;
+
   VerticalLayout {
     if root.mode == WindowMode.prompt: VerticalLayout {
-      Text { text: root.heading; }
-      StyledText {
-        text: root.body;
-        // E-5: the link is handled and ignored. This slice opens no URL, and an
-        // unhandled callback is not the same statement as a handled one.
-        link-clicked(link) => { }
-      }
-      if root.body-degraded: Text { text: "shown as plain text"; }
+      padding: 18px;
+      spacing: 18px;
 
-      ScrollView {
+      // The header is a card too, on the same middle tone as an option's:
+      // three surfaces on the ramp, not two plus some loose text. Its text
+      // aligns with the form's rather than sitting left of it — see
+      // `card-inset`.
+      Rectangle {
+        background: Palette.background;
+        border-radius: 8px;
+
+        // Title and body are one unit and are spaced as one. The 18px on the
+        // layout above separates *them* from the options; 4px here keeps a
+        // body line against the title it explains rather than halfway to the
+        // first control.
         VerticalLayout {
+        padding-left: root.card-inset + root.panel-inset;
+        padding-right: root.card-inset + root.panel-inset;
+        padding-top: root.card-inset;
+        padding-bottom: root.card-inset;
+        spacing: 4px;
+        Text {
+          text: root.heading;
+          font-size: 17px;
+          font-weight: 600;
+          wrap: word-wrap;
+        }
+        StyledText {
+          text: root.body;
+          // E-5: the link is handled and ignored. This slice opens no URL, and an
+          // unhandled callback is not the same statement as a handled one.
+          link-clicked(link) => { }
+        }
+        if root.body-degraded: Text {
+          text: "shown as plain text";
+          font-size: 11px;
+          color: Palette.border;
+        }
+        }
+      }
+
+      scroller := ScrollView {
+        // **The window's preferred height comes from here.** A `ScrollView`
+        // propagates no preferred size from its content — measured at 007's
+        // audit as a window 50×65 for every content shape, at which one of two
+        // option buttons is reachable. Binding the height to the content's own
+        // preferred height restores the propagation the scroller breaks, and
+        // the `min` is what keeps a long form from asking for a window taller
+        // than the screen: past the cap the scroller does its job.
+        //
+        // **`min-height`, not `height`.** A fixed height leaves the window's
+        // slack to be shared out among the *other* children, and a tiling
+        // compositor hands this window a whole column: the title went to the
+        // top of the screen, the body a third of the way down and the form to
+        // the foot of it. A minimum states the same preferred size and lets
+        // the scroller absorb the rest, so the content stays one block at the
+        // top however tall the window is made.
+        min-height: min(stack.preferred-height, 560px);
+
+        stack := VerticalLayout {
           accessible-role: list;
           accessible-label: "options";
           accessible-item-count: root.options.length;
 
-          for option[index] in root.options: VerticalLayout {
-            Button {
-              text: option.label;
-              enabled: !root.busy;
-              // The identity the tests select on: R-14 permits two options to
-              // share a label (D10, T-E). It is not unique in the tree — the
-              // field container below answers to the same description — so a
-              // query for the control filters by type as well.
-              accessible-description: option.id;
-              accessible-item-index: index;
-              clicked => { root.chosen(option.view, option.id); }
-            }
+          // Pack to the top. Without it the list distributes the window's slack
+          // between the options, so an option with no fields is flung to the
+          // foot of the window and the gap between two options says more than
+          // the gap between an option and the fields it carries.
+          alignment: start;
+          spacing: 16px;
 
-            // Guarded, so an option with no fields adds no element at all:
-            // absent, not empty. The guard is what makes this per-**option**
-            // rather than per-block — a container produced by the `for` below
-            // would exist once per block and carry `option.id` that many times.
-            if option.blocks.length > 0: VerticalLayout {
-              // A role is mandatory, not decoration: the compiler admits an
-              // accessibility property only on an element whose role is bound.
-              // `groupbox` is a labelled group of controls, which is what this
-              // is. The label is not an identity and no test selects on it.
-              accessible-role: groupbox;
-              accessible-description: option.id;
-              accessible-label: option.label;
+          // **One card per option**, and the card is what binds an option to
+          // the fields it carries. With the control drawn *above* its fields an
+          // indent hung from a parent; with the control below — fill, then
+          // commit — an indent hangs from nothing, and the two controls of two
+          // options read as a pair with nothing saying which one the fields in
+          // between belong to.
+          //
+          // Unconditional, so that an option with fields and an option with
+          // only a control are the same kind of thing on the screen: one card,
+          // one control, whatever else it carries. Tone is the whole of the
+          // treatment — no border at either level.
+          for option[index] in root.options: Rectangle {
+            // The middle tone of the ramp — see the window's `background`.
+            background: Palette.background;
+            border-radius: 8px;
 
-              // The indent is the answer to *which fields belong to which
-              // option*: the control that answers is flush left, and
-              // everything it carries is stepped in under it (AC-10).
-              padding-left: 16px;
-              padding-top: 4px;
-              padding-bottom: 8px;
-              spacing: 8px;
+            VerticalLayout {
+              padding: root.card-inset;
+              spacing: 10px;
               // Without this the layout distributes whatever slack it is given
-              // *between* the fields, and the spacing above stops meaning
-              // anything: a tall window pushes the members of one block further
-              // apart than two blocks are. Packing to the top is what makes the
-              // 8px above a statement about grouping rather than a minimum.
+              // *between* the fields and the control, and the spacing stops
+              // meaning anything: a tall window pushes the members of one block
+              // further apart than two blocks are. Packing to the top is what
+              // makes the spacing a statement about grouping rather than a
+              // minimum.
               alignment: start;
 
-              for block in option.blocks: VerticalLayout {
-                // Same reason as the container's, one level down: a heading
-                // must sit against the fields it covers, not float halfway to
-                // the next one.
+              // Guarded, so an option with no fields adds no element at all:
+              // absent, not empty. The guard is what makes this per-**option**
+              // rather than per-block — a container produced by the `for` below
+              // would exist once per block and carry `option.id` that many times.
+              if option.blocks.length > 0: VerticalLayout {
+                // A role is mandatory, not decoration: the compiler admits an
+                // accessibility property only on an element whose role is bound.
+                // `groupbox` is a labelled group of controls, which is what this
+                // is. The label is not an identity and no test selects on it.
+                accessible-role: groupbox;
+                accessible-description: option.id;
+                accessible-label: option.label;
+
+                spacing: 10px;
                 alignment: start;
-                spacing: 2px;
 
-                // `heading: ""` is an untitled block, not a missing one: an
-                // ungrouped field is not drawn under a heading that does not
-                // claim it.
+                // A **panel per block**: the border is what says which fields a
+                // heading covers, and it says it without depending on the
+                // reader measuring two gaps against each other.
                 //
-                // Bold is the whole of the heading's treatment, and it is the
-                // answer to *which heading covers which fields*: a heading and
-                // a checkbox label are otherwise the same words in the same
-                // face. The block's own spacing binds a heading more tightly
-                // to the fields beneath it than to the block above.
-                if block.heading != "": Text {
-                  text: block.heading;
-                  font-weight: 700;
-                }
+                // Drawn here rather than taken from `std-widgets`' `GroupBox`,
+                // for two reasons. Fluent's `GroupBox` draws no border at all —
+                // it is a bold title and some padding
+                // (`fluent/groupbox.slint`), so it would not do the job. And it
+                // binds `accessible-role: groupbox`, which would put one such
+                // element per *block* in a tree where exactly one per **option**
+                // is asserted, and would put its title in the scope
+                // `labels_in_option` reads (`tests/renderer/tree.rs`).
+                //
+                // An untitled block is still a panel. `heading: ""` is an
+                // untitled block, not a missing one, and the fields it carries
+                // are as much a block as any other.
+                for block in option.blocks: Rectangle {
+                  // The top of the ramp: raised off the card rather than
+                  // outlined on it. Neither level needs an edge once the tones
+                  // do the work.
+                  background: Palette.background.brighter(0.30);
+                  border-radius: 6px;
 
-                for field in block.fields: CheckBox {
-                  text: field.label;
-                  // The draft is the authority. The widget flips itself on
-                  // click so the feedback is immediate; the next present
-                  // rewrites this from the model, which is what corrects a
-                  // click the host dropped (design.md §5.4).
-                  checked: field.checked;
-                  enabled: !root.busy;
-                  accessible-description: field.id;
-                  toggled => {
-                    root.edited(option.view, option.id, field.id, self.checked);
+                  VerticalLayout {
+                    padding: root.panel-inset;
+                    // Same reason as the container's, one level down: a heading
+                    // must sit against the fields it covers, not float halfway
+                    // to the next one.
+                    alignment: start;
+                    spacing: 4px;
+
+                    // Bold is the rest of the heading's treatment: inside a
+                    // panel a heading and a checkbox label are otherwise the
+                    // same words in the same face, one above the other.
+                    if block.heading != "": Text {
+                      text: block.heading;
+                      font-weight: 700;
+                    }
+
+                    // The `HorizontalLayout` is what stops the control filling
+                    // the block's width. A `CheckBox` given the whole row draws
+                    // its focus ring around the whole row, so a focused field
+                    // reads as a banner across the window rather than as the box
+                    // and label it is.
+                    for field in block.fields: HorizontalLayout {
+                      alignment: start;
+                      CheckBox {
+                        text: field.label;
+                        // The draft is the authority. The widget flips itself on
+                        // click so the feedback is immediate; the next present
+                        // rewrites this from the model, which is what corrects a
+                        // click the host dropped (design.md §5.4).
+                        checked: field.checked;
+                        enabled: !root.busy;
+                        accessible-description: field.id;
+                        toggled => {
+                          root.edited(option.view, option.id, field.id, self.checked);
+                        }
+                      }
+                    }
                   }
                 }
               }
 
-              // The separator closes the group rather than opening it: a rule
-              // *above* the fields would cut an option off from what it
-              // carries, which is the reading the indent exists to prevent.
-              // This one marks where the option ends and the next begins.
-              Rectangle {
-                height: 1px;
-                background: Palette.border;
+              // The control that answers, at the foot of what it carries. It
+              // sits **outside** the field container deliberately:
+              // `labels_in_option` (`tests/renderer/tree.rs`) scopes by the
+              // groupbox role precisely so that everything in scope was drawn
+              // by the field markup, and a Button inside would put its own
+              // internal `Text` in that scope.
+              //
+              // The HorizontalLayout is what stops the control stretching to
+              // the window's width, where it reads as a banner rather than as
+              // the thing you press.
+              HorizontalLayout {
+                alignment: start;
+                Button {
+                  text: option.label;
+                  enabled: !root.busy;
+                  // The identity the tests select on: R-14 permits two options
+                  // to share a label (D10, T-E). It is not unique in the tree —
+                  // the field container answers to the same description — so a
+                  // query for the control filters by type as well.
+                  accessible-description: option.id;
+                  accessible-item-index: index;
+                  clicked => { root.chosen(option.view, option.id); }
+                }
               }
             }
           }

@@ -2,7 +2,7 @@
 //! Debug info stays on: without it the element query API returns empty and
 //! every renderer test passes vacuously (design.md §5.2, §5.5 A-3).
 //!
-//! The style is a **default**, not a fixture: `SLINT_STYLE=fluent` still
+//! The style is a **default**, not a fixture: `SLINT_STYLE=material` still
 //! reverts it. The read is explicit because `CompilerConfiguration::new()`
 //! already takes that variable and `with_style` overwrites what it took
 //! (`slint-build-1.17.1/lib.rs:153-157`, `i-slint-compiler-1.17.1/lib.rs:264`),
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let style = std::env::var("SLINT_STYLE")
     .ok()
     .filter(|style| !style.is_empty())
-    .unwrap_or_else(|| "material".into());
+    .unwrap_or_else(|| "fluent".into());
   slint_build::compile_with_config(
     "ui/app.slint",
     slint_build::CompilerConfiguration::new()

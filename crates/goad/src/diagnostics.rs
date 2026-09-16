@@ -141,6 +141,7 @@ impl Diagnostics {
     }
     if !stderr.bytes.is_empty() {
       let decoded = String::from_utf8_lossy(&stderr.bytes);
+      let decoded = without_one_terminator(&decoded);
       lines.push(finish(&format!("stderr: {decoded}"), STDERR_LIMIT));
     }
 
@@ -226,6 +227,25 @@ fn undrawn_line(undrawn: &Undrawn) -> String {
       format!("shown as plain text: this body is {form}, and nothing here draws that form")
     }
   }
+}
+
+/// Drops **at most one** trailing line terminator — `\r\n`, `\n` or `\r`.
+///
+/// A capture is one line of this surface, so an embedded newline must be
+/// escaped: without that, one capture would break the list's shape. The
+/// *trailing* one is the only case where the escape shows a person something
+/// that was never content — a shell line written to stderr ends in a newline,
+/// and the surface rendered it as a visible `\n` at the end of the record.
+///
+/// **At most one**, and never a `trim_end`: a backend that deliberately wrote
+/// three blank lines wrote them, and only the terminator of the last line is
+/// the writing convention rather than the message.
+fn without_one_terminator(decoded: &str) -> &str {
+  decoded
+    .strip_suffix("\r\n")
+    .or_else(|| decoded.strip_suffix('\n'))
+    .or_else(|| decoded.strip_suffix('\r'))
+    .unwrap_or(decoded)
 }
 
 /// Escapes `source` for display: `\` and the C0/DEL/C1 control characters
@@ -507,6 +527,37 @@ mod tests {
     let at = Timestamp::new(jiff::Timestamp::MAX);
     let line = next_check_line(at);
     assert!(line.starts_with("next check (instructed): "), "{line}");
+  }
+
+  /// A bash line written to stderr ends in a newline, and every capture is
+  /// escaped so that an embedded newline cannot break the list's shape. The
+  /// trailing one is the writing convention rather than the message, and
+  /// rendering it as a visible `\n` shows a person something no backend
+  /// wrote.
+  #[test]
+  fn one_trailing_terminator_is_dropped_before_escaping() {
+    assert_eq!(
+      super::without_one_terminator("answered v1\n"),
+      "answered v1"
+    );
+    assert_eq!(
+      super::without_one_terminator("answered v1\r\n"),
+      "answered v1"
+    );
+    assert_eq!(
+      super::without_one_terminator("answered v1\r"),
+      "answered v1"
+    );
+  }
+
+  /// **At most one**, and never a `trim_end`. A backend that wrote three
+  /// blank lines wrote them: only the last line's terminator is convention,
+  /// and the rest are the message.
+  #[test]
+  fn a_second_terminator_is_message_and_survives() {
+    assert_eq!(super::without_one_terminator("a\n\n\n"), "a\n\n");
+    assert_eq!(super::without_one_terminator("a"), "a");
+    assert_eq!(super::without_one_terminator("\n"), "");
   }
 
   #[test]

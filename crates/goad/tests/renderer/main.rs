@@ -36,6 +36,8 @@ mod reception;
 #[cfg(test)]
 mod scheduling;
 #[cfg(test)]
+mod sizing;
+#[cfg(test)]
 mod startup;
 #[cfg(test)]
 mod table;

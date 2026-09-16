@@ -260,7 +260,14 @@ static CASES: &[Case] = &[
     "@garbage",
     observed![
       Protocol: Prefixed("malformed JSON: "),
-      Stderr: Exact("config is missing, so this is all you get\\n"),
+      // No trailing `\\n`: a shell line written to stderr terminates with a
+      // newline, and the surface drops **one** terminator before escaping.
+      // The escape still applies to every other control character, and to a
+      // newline *between* two captured lines — see `diagnostics.rs`
+      // `without_one_terminator`. This row is the binding site: the helper
+      // could be correct and unwired, and this case reads the line off a real
+      // host.
+      Stderr: Exact("config is missing, so this is all you get"),
     ],
   ),
   retained(
@@ -388,7 +395,8 @@ static CASES: &[Case] = &[
     "@exit1",
     observed![
       Failure: Exact("backend exited with status 1"),
-      Stderr: Exact("that answer is not to be trusted\\n"),
+      // No trailing `\\n`, for the reason P2 gives.
+      Stderr: Exact("that answer is not to be trusted"),
     ],
   ),
   retained(

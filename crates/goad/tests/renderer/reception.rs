@@ -120,6 +120,36 @@ fn stderr_line(byte_len: usize) -> String {
   Diagnostics::of(reported, &[]).lines()[0].clone()
 }
 
+/// A capture reaching the surface through `Diagnostics::of`, for the one
+/// claim about terminators that is made nowhere else.
+///
+/// The *trailing* terminator is held twice already and not here: by
+/// `diagnostics.rs`'s own unit cases, which state the rule (**at most one**,
+/// never a `trim_end`), and by `table.rs` rows P2 and T3, which read the line
+/// off a real host and are the binding site. A third statement of it would go
+/// stale without anything noticing.
+fn stderr_line_for(bytes: &str) -> String {
+  let reported = Reported {
+    failure: None,
+    cleanup: None,
+    discarded: Vec::new(),
+    stderr: Captured {
+      bytes: bytes.as_bytes().to_vec(),
+      truncated: false,
+    },
+  };
+  Diagnostics::of(reported, &[]).lines()[0].clone()
+}
+
+/// Only the **last** line's terminator is the writing convention. A capture of
+/// two lines still renders as one line of this surface, with the newline
+/// between them escaped — that escape is what stops one capture breaking the
+/// list's shape, and it is not what the trim is for.
+#[test]
+fn a_newline_between_two_captured_lines_is_still_escaped() {
+  assert_eq!(stderr_line_for("first\nsecond\n"), "stderr: first\\nsecond");
+}
+
 /// The `"stderr: "` prefix's length. A byte count of zero produces **no**
 /// line at all (an empty capture is not diagnostic), so this is measured at
 /// one byte and corrected, rather than read at zero.
