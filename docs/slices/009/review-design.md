@@ -147,10 +147,13 @@ the same invariants it named.
 | F-27 | minor | fix-now | _pending round 3_ |
 | F-28 | major | fix-now | _pending round 3_ |
 | F-29 | nit | fix-now | _pending round 3_ |
-| F-30 | blocker | | |
-| F-31 | blocker | | |
-| F-32 | nit | | |
-| F-33 | minor | | |
+| F-30 | blocker | fix-now | _pending round 3_ |
+| F-31 | blocker | — | withdrawn |
+| F-32 | nit | fix-now | _pending round 3_ |
+| F-33 | minor | fix-now | _pending round 3_ |
+| F-34 | minor | fix-now | _pending round 3_ |
+| F-35 | blocker | fix-now | _pending round 3_ |
+| F-36 | major | fix-now | _pending round 3_ |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 
@@ -734,6 +737,40 @@ actually asking.
 **Evidence:** `design.md §5.2` *The guard*; `spike-fields/tests/numeric_guard.rs`;
 `§8 R4`; F-19 above.
 
+**Disposition:** fix-now
+**Response:** Confirmed by measurement, and the finding's own example is off:
+typing `1.05` under the design as written yields **`105`**, not `15`. The
+negative case is worse than described — by the second keystroke the guard has
+already replaced `-` with `0`, so the `3` lands on that and the sign is gone
+rather than merely delayed.
+
+This finding's objection and F-19's are both correct, and the comparand is the
+wrong place to answer either. The defect underneath them is that the numeric
+`LineEdit` is the only control whose held value is not what it displays: `f64`
+→ text is not injective, so **no** comparison between the host's re-format and
+the widget's text can be an identity, and every candidate comparand is a
+different way of losing the same information. The repair makes it an identity
+(D-18). `Edited::Adjusted` carries the text a person typed beside the `Finite`
+it parsed to; `FieldValue.text` for a touched number is that text verbatim; the
+guard compares string against string — which is what the *text* `LineEdit`
+already does, and why its guard has never been in trouble. The one measured
+exception, a cleared field over a held zero, is kept: it still earns its place
+in the race between a clear and its own debounce.
+
+Rejected: converging on **recency**, the per-slot revision this finding names as
+a third candidate. It is mechanically available — a present that changes no
+revision fires nothing, and one bump converges one field while its neighbour
+stays mid-edit (`spike-fields/tests/revision.rs`) — and it is the better shape
+in the abstract, because it deletes the comparand rather than correcting it.
+It fails on this finding's own cases: `-` and `1e400` are edits the host cannot
+record, which is exactly when a revision guard converges, so it writes over
+them unless the host holds the text as well. Once the host holds the text there
+is no comparand left to get wrong, and the revision buys only the deletion of
+the one exception. Reconsidering it is cheap if that exception ever grows.
+
+Measured in `spike-fields/tests/guard_text.rs`: seven slots against one guard,
+two host policies, with an injection pass.
+
 ### F-31 — The picker seed is a no-op exactly when two untouched fields are picked in turn
 
 **Severity:** blocker
@@ -755,6 +792,23 @@ to prevent.
 1.17.1 `widgets/fluent/datepicker.slint:15`,
 `widgets/common/datepicker_base.slint`, `widgets/common/time-picker-base.slint`.
 
+**Outcome:** withdrawn — the reading of `DatePickerBase` is correct and the
+lifetime it assumes is not. `show-popup` compiles to a fresh
+`#popup_window_id::new(...)` on **every** show, and the closed instance is
+dropped from `active_popups`, so `current-date` cannot survive a close and
+there is never a second open of the same instance to go stale. Measured: with
+two untouched fields seeded identically, the second opens on its own seed, and
+so does the picked field when reopened; giving the second field a differing
+seed is the positive control, and the probe follows it
+(`spike-fields/tests/picker_seed.rs`). Evidence: locked Slint 1.17.1
+`i-slint-compiler/generator/rust.rs:3736-3763`,
+`i-slint-core/window.rs:1955-1990`.
+
+This is F-13's failure in the opposite direction, and the lesson is the mirror
+of it: reading a widget's source tells you what an instance does, never how
+long the instance lives. What the finding was right about survives as F-36 —
+two arguments elsewhere in the design rest on the persistence it assumed.
+
 ### F-32 — §5.2 states Slint's accessible step rule as a bare quotient
 
 **Severity:** nit
@@ -766,6 +820,15 @@ to prevent.
 `accessible-value-step`". Slint uses `min(root.step, (max - min) / 100)`. True
 of the value as applied, not of the rule as stated.
 **Evidence:** `design.md §5.2`; locked Slint 1.17.1 `widgets/fluent/slider.slint:29`.
+
+**Disposition:** fix-now
+**Response:** Correct as stated. Slint's rule is
+`min(root.step, (root.maximum - root.minimum) / 100)`
+(`fluent/slider.slint:29`), and under the design's own choice of `step` the two
+agree — so the value is right and the sentence is not. §5.2 states the rule the
+way Slint states it, and says why the design's `step` makes them coincide.
+
+**Outcome:** _pending round 3_
 
 ### F-33 — §9's popup rows depend on a layout that no existing case exercises
 
@@ -783,6 +846,122 @@ recorded so the plan meets it deliberately. If it fails, the rows move to the
 loop tier and nothing else in the design changes.
 **Evidence:** `design.md §9`; `i-slint-backend-testing-1.17.1/search_api.rs:968-974`.
 
+**Disposition:** fix-now
+**Response:** Correct, and narrower than raised. The date-picker chain does not
+need `mock_single_click` at all: a calendar day cell is `accessible-role:
+button` with the day number as its `accessible-label` and an
+`accessible-action-default` (`common/datepicker_base.slint:59-63`), and the
+dialog's OK is a `StandardButton` whose label is `OK`
+(`common/standardbutton.slint:17-31`). Both drive through
+`invoke_accessible_default_action`, which dispatches no pointer event and so
+depends on no layout. Measured: `spike-fields/tests/picker_seed.rs` opens a
+popup, picks a day and accepts, four times over, without one.
+
+What survives is the `choice` row alone. `ListItem` carries an accessible role,
+label, index and selected state but **no** default action
+(`fluent/components.slint:15-19`), so AC-8 really does need `mock_single_click`
+and really does depend on the popup being laid out. §9's rows are corrected to
+say which of them needs a pointer, and §8 gains a row for the one that does.
+
+**Outcome:** _pending round 3_
+
+### F-34 — Text that parses to a non-finite `f64` has no stated fate
+
+**Severity:** minor
+**Location:** `design.md §5.2, Parsing the text` and *`draft.rs`*
+**Raised by:** the responder as second raiser, from the F-30 spike.
+
+**Expected:** Every text the numeric control can hold has a stated behaviour on
+the host side.
+**Observed:** §5.2 states the parse rule in one place and `Finite`'s refusal of
+a non-finite value in another, and never joins them. `input-type: decimal`
+validates through Slint's `string_to_float`, which parses to `f32`, so `1e400`
+is an infinity and is **accepted** by the control; `f64::from_str` then yields
+infinity and `Finite::new` refuses it. The design does not say whether that
+edit is dropped, refused, or recorded some other way — and under the guard as
+written, a dropped one is written over on the next present, so the person
+cannot leave it on screen either.
+**Evidence:** `design.md §5.2`; locked Slint 1.17.1
+`i-slint-core/string.rs:399-412`, `items/text.rs:2202-2229`;
+`spike-fields/tests/guard_text.rs`, case `verbatim-overflow`.
+
+**Disposition:** fix-now
+**Response:** F-30's repair answers it, and §5.2 states it as one rule rather
+than two halves: the host records the text, and the last representable number
+stands. The widget keeps `1e400`, the guard is quiet because the strings agree,
+and the wire keeps a finite value — measured as `1e400` on screen against
+`1e40` on the host. The same rule covers `-`, `.` and `-.`, which the control
+admits as len≤2 prefixes and which no parse will ever accept.
+
+**Outcome:** _pending round 3_
+
+### F-35 — The picker seeding mechanism §5.4 specifies does not compile
+
+**Severity:** blocker
+**Location:** `design.md §5.4, Picking a datetime`; `§5.2`'s `FieldValue`
+**Raised by:** the responder as second raiser, from a compile error in the spike.
+
+**Expected:** A stated interface can be implemented.
+**Observed:** §5.4 says the button's handler "assigns those two slots to the two
+popups and then shows the first". Slint rejects that outright: *"Cannot access
+property or callback 'picker.date' inside of a Window from enclosing
+component"*. A `PopupWindow`'s properties may be **bound** at its declaration
+site; they may not be assigned from an enclosing component's handler. `show()`
+is permitted, which is why the earlier spike did not find this — it only ever
+called `show()`.
+**Evidence:** `spike-fields/ui/spike.slint`, the `Pickers` component and its
+comment; the `slint-build` 1.17.1 compile error against that file before the
+rework; `design.md §5.4`.
+
+**Disposition:** fix-now
+**Response:** The seed becomes a root-owned property per popup — one `Date`,
+one `Time` — which each popup **binds** to at its own declaration site. The
+button's handler writes those two root properties from
+`values[field.slot].date` / `.time` and then shows the first. `FieldValue`'s
+two slots are unchanged, nothing runs host-ward, and the clock stays where
+F-22's repair put it; only the direction of the last hop changes, from an
+assignment into the popup to a binding out of it. Measured working in
+`spike-fields/tests/picker_seed.rs`.
+
+**Outcome:** _pending round 3_
+
+### F-36 — Two arguments rest on a popup instance that does not persist
+
+**Severity:** major
+**Location:** `design.md §5.4, Picking a datetime` (closing paragraph); `§7 D21`; `§9`
+**Raised by:** the responder as second raiser, from the F-31 measurement.
+
+**Expected:** A tier assignment and a decision's rationale name a mechanism that
+exists.
+**Observed:** §5.4 says a rewritten seed is picked up "through a `changed date`
+/ `changed time` handler of their own", and concludes that a case asserting
+what a re-seeded picker opens on belongs in the loop tier. §7 D21's rationale is
+that "without an explicit write, field B's picker would open on field A's last
+pick". Both assume one popup instance living across opens. `show-popup`
+compiles to a fresh `::new()` on every show and the closed instance is dropped,
+so a seed is picked up by a **fresh binding**, no `changed` handler runs, and
+there is no cross-field leakage to prevent. Seeding is still required — a
+picked field must reopen on its pick rather than on the widget's default of
+today — so D21 stands, on a different reason from the one it gives.
+**Evidence:** locked Slint 1.17.1
+`i-slint-compiler/generator/rust.rs:3736-3763` (`ShowPopupWindow` constructs a
+new instance per show), `i-slint-core/window.rs:1955-1990` (the closed instance
+is dropped from `active_popups`); `spike-fields/tests/picker_seed.rs`, probes 3
+and 4.
+
+**Disposition:** fix-now
+**Response:** §5.4's closing paragraph is replaced by what was measured. D21 is
+rewritten under its own id — §7 is current truth and its ids are immutable,
+not its content — with seeding justified by the picked-field case rather than
+by leakage between fields. §9's *"a picker picking up a **re**-written seed"*
+loses its stated reason to sit in the loop tier.
+
+That does not by itself move the row. Whether the no-loop tier can show a
+popup and read a pick back is a driver question, and §9 answers driver
+questions by naming the call — which is the check F-25's repair installed. The
+row goes back through it rather than being reassigned here.
+
+**Outcome:** _pending round 3_
 
 ## Probed and sound — round 1
 

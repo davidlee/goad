@@ -3,6 +3,12 @@
 Append-only, time-ordered. What was asked, what the user decided, why. Never
 rewritten; superseded. Findings live in a ledger, not here.
 
+**`D-n` here is not `Dn` in `design.md` §7.** Two sequences, one hyphen apart,
+and from D-18 they overlap on adjacent subject matter — this file's D-21 is
+about handover, §7's D21 is the picker seed. Cite the file with the id, always.
+§7 is current truth and rewrites an entry in place under its own id; this file
+never rewrites one and supersedes instead.
+
 ## 2026-09-16 — scoping
 
 **D-1 — Close 008 before opening this.** Asked because 008 was still
@@ -393,3 +399,54 @@ proposed."* Three are worth naming because they are not text edits:
   `cargo test -p goad-semantics` would catch a purity regression contradicts
   `POL-001`, which says that command **rejects nothing** (F-24). Neither
   decision changes; both arguments do.
+
+## 2026-09-17 — round 2's integration, dispositioned
+
+**D-18 — The host holds the text a person typed, beside the number it means.**
+F-30, and the guard's comparand at its third attempt. The first two were both
+reasoned and both wrong — `f32`-collapsing (F-19), then text against a
+re-format of the `f64` (F-30) — so this one was put up as options and then
+**measured** before being taken, which was the user's condition: *"that's on
+the assumption B has been priced with enough care to rule it out. A pet peeve
+is discarding more correct solutions on the basis of assumed cost."*
+
+Two candidates were priced against the code rather than estimated.
+
+- **A, taken.** `Edited::Adjusted` carries the as-typed text beside the
+  `Finite`; the guard compares string against string, which is an identity.
+- **B, rejected on evidence, not on cost.** Converging on recency — a per-slot
+  revision the host bumps — deletes the comparand rather than correcting it,
+  and is the better shape in the abstract. The first pricing of it was too
+  casual and was corrected: a canonical `Field` carries no value
+  (`canonical.rs:220-225`), so a drawn field's value moves only through
+  `record()`, and B needs neither retained values in `glass` nor a
+  just-edited field on the `Frame` — one edge-held signal in the shape
+  `wire::Notice` already has. It was then measured available
+  (`spike-fields/tests/revision.rs`). What rules it out is its own behaviour:
+  `-` and `1e400` are edits the host **cannot record**, which is exactly when a
+  revision guard converges, so it writes over them unless the host holds the
+  text anyway. Once the host holds the text there is no comparand left to get
+  wrong.
+
+So A is not the cheaper option; it is the one the control's own validation
+forces. B stays available if the cleared-field exception ever grows.
+
+**D-19 — Spike first, and keep the spike in history.** User: *"spike anything
+that's likely to answer questions more economically than design nitpicking"*,
+and *"keep (commit) the spike, we can delete it once we're done with it but
+keep it in history."* Committed at `4f93d41` rather than left on disk. Three
+tests, each injection-passed. It refuted a blocker (F-31), found two defects
+nobody had raised (F-35, F-36), and shrank a third (F-33) — more than it was
+asked.
+
+**D-20 — F-30 … F-33 taken as dispositioned, and F-31 withdrawn.** User:
+*"confirm those dispositions."* F-31 was a blocker and is wrong: no
+`PopupWindow` state survives a close, so the stale-picker case it describes
+cannot arise. F-34 … F-36 were raised in the same pass and carry the same
+`fix-now`.
+
+**D-21 — Hand over before integrating, rather than delegate.** User:
+*"rather than use a subagent for integration it's probably about finding the
+right time to handover to a fresh agent."* Same rule as round 2 — the session
+that wrote a disposition does not integrate it — discharged by ending the
+session at the ledger rather than by spawning a subagent underneath it.

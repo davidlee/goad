@@ -141,9 +141,10 @@ Canon claims cite the document id (`SPEC-001/R-16`). Code claims cite
 
 ## Thread 3 — the spike (all claims measured)
 
-Commit `a698217`; six tests, all green, the load-bearing one
-negative-controlled. Deleted by the following commit — read `a698217` for the
-code.
+First raised at `a698217` (six tests), restored and extended at `0813ee7` and
+again at `4f93d41`. All green, each load-bearing claim negative-controlled or
+injection-passed. The code is on disk in `spike-fields/` until the design
+closes; after that, read those commits.
 
 ### The present/draft mechanism
 
@@ -244,6 +245,70 @@ code.
   (`internal/compiler/builtin_elements.rs:2298`). So any approach that destroys
   and recreates a text field can only restore the caret to the end of the
   string. Not needing to is a reason to prefer preserving the element.
+
+### The guard's comparand, measured (round 3, `4f93d41`)
+
+`guard_text.rs` runs seven slots against **one** guard — §5.2's, exception and
+all — and varies only what the host puts in `text`.
+
+- **M** **Re-formatting the `f64` corrupts ordinary typing.** Typing `1.05`
+  yields `105`: the host holds `1` after `1.`, the guard overwrites the dot,
+  and the `0` and `5` land on what is left. Typing `-3` yields `3` — `-` alone
+  does not parse, so nothing is recorded and the guard replaces the sign with
+  `0` before the digit arrives. This is F-30; the finding's own example (`15`)
+  was wrong and the defect is worse than it stated.
+- **M** **Holding the text the person typed is quiet through all of it** —
+  `1.05`, `-3`, trailing zeros, and `1e400`, which `input-type: decimal` admits
+  (Slint validates through an `f32` parse, where it is an infinity) and which
+  `Finite` must refuse. The host keeps `1e400` on screen and `1e40` as the
+  number it would submit, so nothing non-finite can reach the wire and nothing
+  is written over the person.
+- **M** **AC-6 still converges.** An edit that reaches nothing is corrected on
+  the very next present, in one step.
+- **M** **The cleared-field exception still earns its place**, in the race
+  between a clear and its own debounce. `numeric_guard.rs`'s case survives the
+  change of comparand.
+
+### The revision trigger, measured (round 3, `4f93d41`)
+
+`revision.rs` answers whether the host could drop the comparison altogether and
+converge per field on its own say-so.
+
+- **M** A present that changes no revision fires **nothing** — so the trigger
+  does not write over a person on every present.
+- **M** One bump converges that slot and leaves its neighbour mid-edit.
+- **Not taken** (F-30), because `-` and `1e400` are edits the host cannot
+  record, which is exactly when a revision guard converges. It is available if
+  the cleared-field exception ever grows.
+
+### A popup's lifetime — the fact that refuted F-31 (round 3, `4f93d41`)
+
+- **M** **No `PopupWindow` state survives a close.** `show-popup` compiles to a
+  fresh `#popup_window_id::new(...)` on every show
+  (`i-slint-compiler/generator/rust.rs:3736-3763`) and the closed instance is
+  dropped from `active_popups` (`i-slint-core/window.rs:1955-1990`). Measured:
+  two untouched `datetime` fields seeded identically each open on their own
+  seed, and so does the field whose pick would have leaked. A differing seed for
+  the second field is the positive control.
+- **Consequence:** seeding a picker needs no defence against the previous
+  field's pick, and picks up a re-seed through a fresh **binding** rather than
+  through `changed date` — so it is not a `changed` handler and not, on that
+  ground, confined to the loop tier (F-36). Seeding is still required, because
+  a *picked* field must reopen on its pick rather than on the widget's default
+  of today.
+- **M** **A `PopupWindow`'s properties cannot be assigned from an enclosing
+  component's handler** — *"Cannot access property or callback 'picker.date'
+  inside of a Window from enclosing component"*, a hard compiler error. They can
+  be bound at the popup's own declaration site, and `show()` may be called from
+  outside, which is why the first spike did not meet this. F-35.
+- **M** **The date-picker chain needs no pointer event.** A calendar day cell is
+  `accessible-role: button` with the day number as its label and a default
+  action (`common/datepicker_base.slint:59-63`); the dialog's OK is a
+  `StandardButton` labelled `OK`. Both drive through
+  `invoke_accessible_default_action`, so neither depends on layout. A
+  `ComboBox`'s `ListItem` has the role and the label but **no** default action
+  (`fluent/components.slint:15-19`), so that one does need
+  `mock_single_click` — F-33 reduced to that row alone.
 
 ## Thread 4 — mechanisms considered and not taken
 
