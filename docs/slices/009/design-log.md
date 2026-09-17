@@ -212,3 +212,184 @@ so `visible` is a binding rather than a folded constant, and says so.
 readable cursor offset, so **no tier can assert the caret.** The loop test
 asserts the element was not destroyed, which is the *cause*; the caret itself
 is a person's observation under AC-10.
+
+## 2026-09-17 — design review, round 1
+
+Findings and their dispositions live in `review-design.md`. Only what the user
+decided is here, each citing the finding that prompted it.
+
+**D-11 — The host will read the system time zone, and the slice argues the
+manifest change that makes it possible.** F-1. The reviewer found that `jiff`
+is declared `default-features = false` across the workspace and no member adds
+anything back, so it resolves with **no features at all**: `TimeZone::try_system`
+compiles to `Err(CrateFeatureError::TzSystem)` and `TimeZone::system` silently
+returns `Etc/Unknown`, which behaves as UTC. The `warn!` it emits on that path
+is suppressed too, because `logging` is off. So D-7's *"local time zone from
+system"* would have submitted `+00:00` for every pick, everywhere — the lie D-7
+refused, arrived at by a manifest rather than by a decision.
+
+Four answers were put. The user took the first: **enable `tz-system` (and
+`tzdb-zoneinfo`, which it needs to resolve a zone) on the `jiff` entry
+`crates/goad` inherits, and argue it.** `tz-system = ["std", "dep:windows-link"]`,
+so this switches `std` and `alloc` on in a dependency `goad-semantics` shares.
+`docs/policy/001-the-phase-gate.md` §Verification names exactly this as **the
+residue**: a feature switched on by stratum 2 or 3 unifies into stratum 1's
+build under `--workspace`, no gate command rejects it, and it is therefore a
+design decision argued in the slice that takes it. `design.md` §10 carries the
+argument. `cargo test -p goad-semantics` is unaffected: it builds stratum 1 with
+stratum 1's own feature set, which does not change.
+
+Rejected: always-UTC (D-7's lie, and D-7 is settled); resolving the offset
+outside jiff (a second time implementation beside the one already depended on);
+deferring `datetime` (leaves `R-55`'s subset undischarged and moves
+`SPEC-001/OQ-4`'s evidence to a later slice).
+
+**D-12 — A number crosses the markup boundary as a string, and the control is
+a decision the host carries rather than one the markup infers.** F-2, and the
+user's own question on top of it.
+
+The finding: Slint's `float` is `f32` and `NumberRange` holds `f64`, so §5.2's
+first draft ran the bounds, the displayed value **and the submitted value**
+through a 32-bit channel. A legal bound of `1e100` becomes infinity there. That
+is `CLAUDE.md`'s third invariant — *do not narrow wire compatibility because the
+current renderer implements a subset* — failing through a type rather than
+through a decision.
+
+Accepted: the submitted number crosses as a **string**, parsed host-side to
+`f64`; `FieldValue`'s `float` slot survives only as the guard's comparand and
+the `Slider`'s own value, neither of which reaches the wire.
+
+Then the user's question, which improved the repair: *"it does beg the question
+whether a non-slider (text) float is compatible with the approach here? I'd
+like to support slider vs text field as an independent-ish decision from the
+field type."* It is not only compatible — the text control is the **lossless**
+one, and the `Slider` is the control with an admissibility condition, because
+Slint gives its `value`, `minimum` and `maximum` no more than `f32`.
+
+That inverted the framing. The first draft had the markup infer the control
+from a fact about the field (`bounded: bool, // bounded = draw a Slider`), and
+the proposed repair would have stacked a second derivation on top of it.
+Decided instead: **the row carries the decision, not the fact.** `slider: bool`
+replaces `bounded: bool`, the markup obeys it rather than reasoning from it, and
+one named function in `view_model.rs` decides it. Today that function reads only
+the bounds — both present, and both round-tripping `f64`→`f32`→`f64` exactly.
+Later it may read a hint (`R-18` permits the renderer and only the renderer to
+branch on one, and `multiline` is the existing precedent), or a configuration,
+or nothing; only its body changes.
+
+Two things stay welded, deliberately. `FieldEdit.kind` carries the **protocol**
+kind and never the control, so `draft.rs::submitted` remains the single
+application of `R-57` (I-C). And both controls send the same string-valued
+edit, so there is one parse rather than one per widget.
+
+Reading a control hint **now** was offered and declined: it is scope
+`slice-009.md` excludes, and no evidence has asked for it.
+
+**D-13 — A DST fold or gap resolves under jiff's `Compatible` disambiguation,
+and the design says so.** F-4. `DateTime::to_zoned` does not fail on an
+ambiguous or nonexistent civil time: a fold takes the earlier occurrence and a
+gap shifts forward. So `2024-03-10 02:30` in New York composes to `03:30-04:00`
+and **succeeds**, which the `None`/visible-no-op treatment does not cover.
+
+Accepted: keep `Compatible`, state it as a named edge, and rely on the button
+showing the composed value — the person sees the shifted time rather than being
+deceived by it, and the instant reaches the backend with its offset either way.
+Rejected: refusing an ambiguous pick, which leaves a person inside a fold
+unable to express 01:30 at all and has no affordance to explain the refusal;
+and splitting fold from gap, which is two behaviours to explain with no evidence
+asking for the distinction.
+
+**D-14 — The remaining fifteen findings, taken as dispositioned.** F-3, F-5,
+F-6, F-9, F-10, F-11, F-13, F-14, F-15, F-16, F-17 and F-18 `fix-now`; F-7, F-8
+and F-12 `doc-wrong`. User: *"Take them as proposed."* Nothing tolerated,
+nothing deferred, no follow-up. Two consequences are worth naming here because
+they touch earlier decisions:
+
+- **D-8's flush point stands; one fact reported beside it does not.** D-8
+  decided *where* the debounce flushes — on answer, and nowhere else — and that
+  is untouched. Reported alongside it was that *"`number` needs no debounce"*,
+  on the ground that `Slider` fires `released` once at the end of a drag. F-9
+  falsifies that ground's sufficiency, not its accuracy: `released` is raised by
+  the pointer and keyboard paths, but Slint's accessibility `set-value`,
+  `increment` and `decrement` actions call `set-value`, which raises **`changed`
+  only**. A slider bound to `released` alone therefore never hears an assistive
+  technology, and — F-13 — cannot be operated by the test tier either. So the
+  `Slider` binds `changed` as well, which reintroduces the flood the debounce
+  exists to stop, and the debounce stops being text-only. F-5 was the same
+  defect already visible as a contradiction inside §5.2.
+- **D-10's "one new binary, one test fn" does not survive F-11 and F-13.** The
+  constraint behind it is real and unchanged —
+  `docs/memory/slint-testing-backend-initialises-once-per-process.md`: one
+  event-loop *arrangement*, one `[[test]]` target. What F-13 adds is that the
+  no-loop tier cannot operate a `ComboBox` or reach inside a picker popup at
+  all, so cases D-10 placed there have nowhere to run. §9 now names a driver
+  per row, which is the check D-10 was missing rather than a reversal of it.
+
+## 2026-09-17 — design review, round 2
+
+Round 2 set a terminal outcome on F-1 … F-18 and raised F-19 … F-27; the
+responder added F-28 and F-29 against its own repairs. Twelve verified, five
+contested, one withdrawn. What the user decided:
+
+**D-15 — `Command::Choose` carries the pending edits.** F-6, and it is the
+finding that mattered most, because it falsifies a mechanism *every* version of
+this design has described.
+
+The command channel is capacity 1 (`main.rs:86`) and `serve` shares the UI
+thread through `slint::spawn_local`. A Slint callback is synchronous and
+contains no await, so `serve` cannot drain between two sends made inside one.
+Flushing *N* pending edits and then `Choose` needs *N+1* slots and gets one:
+**the second `try_send` of any flush always fails.** §5.4 described that as the
+case where "the second `try_send` comes back `Full`", as though it were an edge;
+it is the only case. This was already true before round 1's repairs — the
+pre-repair design flushed one edit and then `Choose`, which is two sends.
+
+Accepted: `Command::Choose` carries the pending edits with it. One send, no
+race, and FIFO stops being load-bearing. The controller applies them to the
+draft and then answers, so D-8's decision — *the debounce flushes when the draft
+becomes an answer* — is held **by construction** rather than by sequencing,
+which is what it always meant. It costs a change to `Choose`'s shape and to the
+tests that build one.
+
+Rejected: raising the channel capacity, because capacity 1 is load-bearing
+elsewhere — it is what produces the back-pressure notice — and changing it is a
+decision about a different subsystem taken for this one's convenience. And
+reopening D-8's flush point, whose original argument against focus-loss stands
+untouched.
+
+**D-16 — The host parses a number the way the control validated it.** F-26.
+`input-type: decimal` validates through Slint's **locale-aware** `string_to_float`,
+which substitutes the locale decimal separator before parsing, while the host
+was specified to call `f64::from_str`, which accepts `.` and not `,`. In a
+comma-decimal locale the control approves `1,5` and the host refuses it, then
+re-asserts over the person.
+
+Accepted: parse with the rule the text was validated under — a single comma
+taken as the decimal separator where no dot is present, then `f64::from_str`.
+Host-side, testable without a locale fixture, and numeric formatting rather than
+anything domain-shaped. Rejected: sending Slint's parsed float alongside the
+text, which reintroduces as a fallback the `f32` path F-2 exists to remove; and
+`settle-in-code`, which the ledger's protocol allows but which is for questions
+that are unsettled, not for correctness questions with a known answer.
+
+**D-17 — The remaining thirteen, taken as dispositioned.** F-10, F-11, F-14,
+F-15, F-19 … F-25, F-27, F-28 and F-29, all `fix-now`. User: *"Take them as
+proposed."* Three are worth naming because they are not text edits:
+
+- **F-21 makes an invariant unrepresentable instead of disciplined.**
+  `Edited::Adjusted` comes to hold a checked finite value rather than a bare
+  `f64`, so a non-finite number — which `serde_json` would serialise as `null`,
+  and `R-57` does not admit — stops being something a convention prevents.
+  `CLAUDE.md`'s *"internal representations are canonical"* read literally.
+- **F-13 was wrong, and §9 was built on it.** Popups *are* reachable under
+  `init_no_event_loop`: the testing crate's own `test_popups` does it, and
+  `ElementQuery::from_root` traverses `active_popups`. The finding inferred a
+  missing capability from no case in this repository using one. §9 is rebuilt on
+  what the API actually reaches, naming a concrete driver per row (F-25).
+- **Two of the responder's own arguments were wrong** and are corrected rather
+  than defended. D8's *"the host does not know which widget diverged"* is false —
+  `try_send` returns the refused `Command::Edit`, which names the field, and
+  `wire.rs` discards it deliberately (F-23). And §10's claim that
+  `cargo test -p goad-semantics` would catch a purity regression contradicts
+  `POL-001`, which says that command **rejects nothing** (F-24). Neither
+  decision changes; both arguments do.

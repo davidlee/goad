@@ -325,12 +325,37 @@ write in place otherwise* — with no epoch and no per-widget guard, which is
 materially less markup than Thread 3's mechanism. It would also make the
 re-assert testable in a tier that has no event loop, which would dissolve OQ-4.
 
-**Not verified.** It rests on an enumeration of the ways an edit can be lost,
-and `docs/memory/enumerate-the-class-not-the-instances.md` is the standing
-warning about exactly that shape of argument — slice 005's F-17 completed such a
-list three times and was wrong each time. Design should either find the
-generative statement or keep the guard, which is measured and does not depend on
-the enumeration being complete.
+**Not verified, and design kept the guard** (D-9, corrected at review F-12 and
+F-23). Two of design's attempts to kill the claim were themselves wrong, and the
+record says so rather than leaving a falsification nobody rechecked.
+
+The first attempt argued from
+`wire.rs:128-132` that the back-pressure signal is a level about the last send,
+so a refused edit A followed by a landed edit B would leave a clean notice with
+A permanently diverged. That trace is not reachable — `serve` handles
+`Command::Edit` synchronously and presents before any UI callback can run again
+(`controller.rs:667-676`, `:739`), and an exchange presents `busy = true` and
+disables every control before it awaits (`:818-819`).
+
+The second attempt was that the host, granted it knows *that* an edit was
+refused, cannot know *which* widget diverged. It can. ✓ `TrySendError::Full(T)`
+returns the command it
+refused, and `wire.rs:127-133` binds it `_returned` and discards it
+deliberately; a `Command::Edit` names the view, the option and the field.
+
+What does kill the alternative is two things, neither of which is about
+identity:
+
+1. It rests on a **completed enumeration** of the ways an edit can be lost, and
+   `docs/memory/enumerate-the-class-not-the-instances.md` is the standing
+   warning about that shape of argument. This thread never completed the list;
+   the measured guard depends on no list at all.
+2. Even holding the field id, the only correction available without the epoch is
+   a targeted row rebuild — *Not taken, but available*, above — and the row it
+   would rebuild is the row the person is typing in, because that is where edits
+   come from. Narrower than a whole-form rebuild, and fatal in the same way.
+
+The measured guard stays.
 
 ## Cross-thread findings
 
