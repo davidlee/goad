@@ -179,6 +179,31 @@ code.
   The guard is the point: writing nothing when nothing diverged is what lets a
   caret, a selection or a slider drag survive a present.
 
+### The split channel (measured during design, slice 009 D-9)
+
+- **M** **A flat value property indexed by a slot tracks, and replacing it
+  wholesale destroys no element.** `rows` is repeated over and carries
+  structure only; `values` is a bare `[FieldValue]` property nothing repeats
+  over, read as `root.values[field.slot].checked` from inside the repeater.
+  Replacing the entire `values` property and bumping the epoch converges a
+  clicked widget with **inits unchanged** (2 → 2), and a second present that
+  agrees writes nothing (`reasserts` stays 1).
+  `split.rs::a_flat_value_model_tracks_and_a_wholesale_rewrite_costs_no_element`.
+
+  Doubly negative-controlled, both confirmed to compile and run: deleting the
+  re-assert leaves `reasserts` at 0 and the widget diverged; forcing a `rows`
+  rebuild at the same point takes inits **2 → 4**, which is what shows the
+  counter moves at all rather than being a number that never changes.
+
+- **M** **A number drawn as a `LineEdit` must compare numerically, not as
+  text.** A guard written `self.text != …number` writes `"0"` back over a
+  person who cleared the field to retype; written
+  `self.text.to-float() != …number` it stays quiet and the clear survives the
+  present. `numeric_guard.rs::a_numeric_guard_does_not_fight_a_cleared_field`,
+  negative-controlled by restoring the string comparison, which fails with
+  `reasserts 1`. Slint's `to-float()` reads `""` as `0`, which is what makes
+  the two agree.
+
 ### The test-tier constraint — the finding with the sharpest consequence
 
 - **M** **`changed` fires nowhere under `init_no_event_loop`** — not in a
