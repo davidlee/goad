@@ -15,6 +15,24 @@ from `WindowInner::ensure_tree_instantiated` (`i-slint-core/window.rs:805`),
 which the no-event-loop backend never reaches. An `ElementQuery` walk is not a
 substitute: it materialises the repeater but does not pump the trackers.
 
+## A `changed` handler fires on a *change*, not on a write
+
+Measured again at `4f93d41`, from the source this time. A change tracker stores
+the last value it evaluated and, at flush, re-evaluates and calls the handler
+**only if the new value differs**
+(`i-slint-core/properties/change_tracker.rs:138-141`). Two consequences:
+
+- Writing a property the value it already holds fires nothing. Any argument of
+  the form *"the host writes it, so the widget follows"* is wrong unless the
+  written value differs from what is there.
+- Writes are **coalesced**: only the final value of a flush is compared. So
+  perturbing a property and then setting the real value *inside one handler*
+  fires nothing either — the usual first instinct for forcing a re-sync, and it
+  does not work. Two separate loop turns do.
+
+A monotone counter — an epoch, a revision — is the reliable trigger, because
+every bump is a real change by construction.
+
 ## Why it matters more than it looks
 
 **The whole of `crates/goad/tests/renderer/` uses `init_no_event_loop`.** So a
