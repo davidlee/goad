@@ -262,3 +262,127 @@ export component Split inherits Window {
         }
     }
 }
+
+// ── Slice 009, round 3: F-30 and F-31 ─────────────────────────────────────
+//
+// Three questions the ledger cannot answer by reasoning:
+//
+//   G-1  Does the guard as designed (compare the widget's text against the
+//        host's re-format of the f64) corrupt ordinary typing, and does
+//        holding the text the person typed stop it? Both policies drive the
+//        same markup, so the difference measured is the host's, not the
+//        widget's.
+//   G-2  Is a per-slot revision a workable guard trigger at all — does a bump
+//        on one slot fire that slot's handler and leave its neighbour's alone?
+//   G-3  Does a shared picker popup ignore a re-seed to the value it already
+//        holds, and does resetting it on close repair that?
+
+export struct GuardValue { text: string, number: float, revision: int }
+
+// G-1. The guard exactly as `design.md` §5.2 states it, including the one
+// measured exception. Only the host's idea of `text` varies between runs.
+export component Guard inherits Window {
+    in property <[SlotRow]> rows;
+    in property <[GuardValue]> values;
+    in property <int> epoch;
+
+    in-out property <int> fires;
+    in-out property <int> reasserts;
+
+    callback edited(int, string);
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        for field in root.rows: LineEdit {
+            input-type: InputType.decimal;
+            accessible-description: field.id;
+            text: root.values[field.slot].text;
+            property <int> tick: root.epoch;
+            changed tick => {
+                root.fires += 1;
+                if (self.text != root.values[field.slot].text
+                    && !(self.text == "" && root.values[field.slot].number == 0)) {
+                    self.text = root.values[field.slot].text;
+                    root.reasserts += 1;
+                }
+            }
+            edited(t) => { root.edited(field.slot, t); }
+        }
+    }
+}
+
+// G-2. No comparison at all: the host says when to converge, per slot.
+export component Revision inherits Window {
+    in property <[SlotRow]> rows;
+    in property <[GuardValue]> values;
+
+    in-out property <int> fires;
+    in-out property <int> reasserts;
+
+    callback edited(int, string);
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        for field in root.rows: LineEdit {
+            input-type: InputType.decimal;
+            accessible-description: field.id;
+            text: root.values[field.slot].text;
+            property <int> tick: root.values[field.slot].revision;
+            changed tick => {
+                root.fires += 1;
+                self.text = root.values[field.slot].text;
+                root.reasserts += 1;
+            }
+            edited(t) => { root.edited(field.slot, t); }
+        }
+    }
+}
+
+// G-3. Two datetime fields, one shared popup, seeded on open — §5.4 as
+// written. `reset-on-close` is the candidate repair and nothing else changes.
+export struct Seed { date: Date }
+
+export component Pickers inherits Window {
+    in property <[Seed]> seeds;
+
+    in-out property <int> picking;
+    in-out property <int> accepted-count;
+    // The seed lives on the root and the popup *binds* to it. Not a style
+    // choice: Slint refuses an assignment to a PopupWindow's property from an
+    // enclosing component's handler — "Cannot access property or callback
+    // 'picker.date' inside of a Window from enclosing component".
+    in-out property <Date> seed-date;
+    out property <Date> last-accepted;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        Button {
+            text: "A";
+            accessible-description: "field-a";
+            clicked => { root.open-for(0); }
+        }
+        Button {
+            text: "B";
+            accessible-description: "field-b";
+            clicked => { root.open-for(1); }
+        }
+    }
+
+    function open-for(slot: int) {
+        root.picking = slot;
+        root.seed-date = root.seeds[slot].date;
+        picker.show();
+    }
+
+    picker := DatePickerPopup {
+        date: root.seed-date;
+        accepted(d) => {
+            root.last-accepted = d;
+            root.accepted-count += 1;
+        }
+        canceled => { }
+    }
+}
