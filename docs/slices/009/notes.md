@@ -538,6 +538,10 @@ two); F-23's Response (`wire.rs:130`, not `:126`); F-33's Response
 F-54 (`clock.rs:46-52` for the doc comment; it is at `:47-53`, and `:46` is
 blank) — found by the integration, which is where three of the four came from.
 
+**F-54's bad range has a third copy**, in `design-log.md` **D-35**, which is
+append-only too — so `clock.rs:47-53` in `design.md` §10 is the whole of the
+correction available. Found by the raiser setting round 4's outcomes.
+
 **The fourth breaks the pattern the first three set.** F-54's range was written
 by the **reviewer**, in the finding's Evidence line, and the Response then
 repeated it — so the rule *verify the responder's first* is a priority, not a

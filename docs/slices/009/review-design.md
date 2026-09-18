@@ -273,13 +273,13 @@ this paragraph is what makes that checkable rather than asserted.
 | F-47 | major | fix-now | verified |
 | F-48 | nit | fix-now | verified |
 | F-49 | minor | fix-now | verified |
-| F-50 | major | fix-now | _pending_ |
-| F-51 | minor | fix-now | _pending_ |
-| F-52 | major | fix-now | _pending_ |
-| F-53 | major | doc-wrong | _pending_ |
-| F-54 | major | fix-now | _pending_ |
-| F-55 | major | fix-now | _pending_ |
-| F-56 | minor | fix-now | _pending_ |
+| F-50 | major | fix-now | verified |
+| F-51 | minor | fix-now | verified |
+| F-52 | major | fix-now | verified |
+| F-53 | major | doc-wrong | verified |
+| F-54 | major | fix-now | verified |
+| F-55 | major | fix-now | verified |
+| F-56 | minor | fix-now | verified |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 
@@ -1740,7 +1740,7 @@ D-16), on evidence that round did not have: F-26 established what
 `string_to_float` does with the separator, and nobody asked who writes it.
 Recorded as a user decision in `design-log.md` citing F-50 and F-52.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. §5.2's locale account is retired, not completed: no *two sets* paragraph survives, and the only surviving uses of *separator* and *locale* in `design.md` are the new configuration-fact paragraph, §7 D23 and §8 R11. The write sites were re-derived by grepping the locked crate rather than read off the Response — `locale_decimal_separator` is `Property::new_named(DEFAULT_DECIMAL_SEPARATOR, …)` at `context.rs:122-125` with no binding, and exactly four sites write it: `context.rs:307` (`set_locale`, `cfg(feature = "std")`), `translations.rs:439` and `:443` (`select_bundled_translation`), and `translations.rs:307` (`mark_all_translations_dirty`, under `cfg(all(feature = "gettext-rs", target_family = "unix"))`). The Response's fourth site is in the design; `slint`'s `gettext` is not among its defaults (`slint-1.17.1/Cargo.toml:100-109`), `Cargo.lock` names it zero times, `build.rs` passes only `with_debug_info` and `with_style`, and `crates/` names none of the four locale APIs. D-32's `e` / `E` constraint is discharged by the rule and not merely asserted to be: `1e5` and `1.7976931348623157e308` both parse under `f64::from_str`, measured.
 
 ### F-51 — The numeric boundary's format direction is locale-blind while its parse direction is locale-aware
 
@@ -1804,7 +1804,7 @@ still work. No host parse rule changes that, which is why completing the account
 would not have repaired it. It is recorded as part of §8 R11's statement of what
 the `gettext` configuration would cost, not as a mechanism.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. Subsumed as the Response said, and the false generalisation was not inherited. Measured both halves: `format!("{:e}", 1e300)` is `1e300`, with no separator, while `{:e}` of `2.5` is `2.5e0` — and §8 R11 states the cost for a field *drawn showing a non-integral number*, which is exactly the scope the measurement leaves standing. The control-side fact behind R11 re-derives: with `sep != '.'`, a candidate longer than two bytes reaches `string_to_float` (`items/text.rs:2230`), which returns `None` for any text containing `.` (`string.rs:404-406`), while a one-byte retype re-enters through the replace path — so deletion and select-all-retype survive, as R11 says. Nothing else in `design.md` makes a format-direction claim.
 
 ### F-52 — Paste bypasses `input-type: decimal` entirely, so the admitted class is every string and the substitution rule fires on arbitrary text
 
@@ -1887,7 +1887,7 @@ red on the substitution rule, and the case that keeps the rule honest afterwards
 No loop is needed: the assertion is about the draft and the displayed text, not
 about anything a `changed` handler or a timer produces.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. §5.2 carries *The class the control admits is every string* with all three unvalidated doors, and each citation re-derived from the locked source: `accept_text_input` has exactly two call sites, `:1067` and `:1117`; `StandardShortcut::Paste` is dispatched at `:1034`, ahead of both; `insert` (`:1783-1828`) consults neither `input_type` nor `accept_text_input` and raises `edited` on its last line; and `accessible-action-set-value(v) => { text = v; edited(v); }` is `widgets/fluent/lineedit.slint:16`. The rule is bound rather than prose: §9 gained the row the Response promised, with a named file and a named driver — `set_accessible_value("12/25")` in `tests/renderer/fields.rs` — and §5.5's numeric edge row was repaired alongside §5.2, which is where the *two sets* claim was repeated.
 
 ### F-53 — I-H names one place display and submission part company; §5.2's own rules give at least two more
 
@@ -1950,7 +1950,7 @@ an invariant that swallowed those cases would be asserting something an
 implementer could turn into an assertion and watch fail. Nothing else moves —
 §5.5's edges table and §9 already carry each divergence as its own row.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. I-H keeps its three-site rule and the drained / kept / stale clauses and has lost both sentences the finding named; grepping the whole of `design.md` for *screen shows*, *would submit* and *what an answer* finds no surviving copy (`prototype-delta.md` still carries it and `notes.md` marks that file historical). The replacement paragraph's own claim checks out, which is where the same class would have recurred: it says *the last two* have their own edges rows and both do, while the untouched `datetime` is cited to §5.2, D-6 and `canon-delta.md` CD-1 rather than to a row that does not exist.
 
 ### F-54 — §10's residue argument does not reach the workspace's existing decision to keep jiff's `std` out, which `clock.rs` implements and documents
 
@@ -2037,7 +2037,7 @@ Not an argument against the feature, and §10's `ADR-001` reasoning is untouched
 the direction rule is about what stratum 1 may name and do, and nothing in
 `goad-semantics` gains a call site or a capability.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. §10 states all three reaches and does not write down the finding's third consequence, which does not hold. Re-derived rather than read: `crates/goad-emit/Cargo.toml` takes `goad-semantics`, `goad-shell` and `serde_json` and not `crates/goad`; `goad-semantics` takes `jiff`, `serde` and `serde_json` and nothing above it; the workspace is `resolver = "3"`, so `-p goad-emit` and `-p goad-shell` resolve `jiff` without `std` and `cargo test -p goad-semantics` is blind to the residue structurally; and `tz-system = ["std", "dep:windows-link"]` with `tzdb-zoneinfo = ["std"]` at `jiff-0.2.35/Cargo.toml:114,127`. The doc comment is at `clock.rs:47-53` and that is what §10 cites — this finding's own `:46-52` did not survive into the design, though `design-log.md` D-35 repeats it and cannot be amended. `slice-009.md` §Scope carries the file for one doc-comment amendment and no code change.
 
 ### F-55 — A `Slider`'s `released` flush has no callback to arrive on, and is in neither enumeration of how an entry leaves `pending.rs`
 
@@ -2117,7 +2117,7 @@ become true as written — no third exit, and nothing to add to §5.5 or §9.
 Recorded as a user decision in `design-log.md` citing F-55, because §7 D7 is
 cited to D-8 and D-14.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. The commitment is withdrawn rather than given an interface: `released` survives in `design.md` only where it is refused — §5.2's controls-table row is `changed`, debounced, the `Slider` paragraph says why `released` is not bound, and §7 D7 carries both rejected alternatives. The two enumerations the finding said were stated as closed were checked rather than assumed, as the Response promised: §5.1's *two ways an edit leaves `pending.rs`* and §5.3's ownership row at `design.md:983` both still give the timer and the `Choose` drain and nothing else, so both are true as written with no third exit. The accessibility fact that decides it re-derives — `released` is raised only at `slider-base.slint:43` and `:107`, while `set-value`, `increment` and `decrement` raise `changed` (`:117-131`, `fluent/slider.slint:30-36`).
 
 ### F-56 — §9's AC-2 row inherits two unproven popup capabilities and names neither fallback
 
@@ -2175,7 +2175,7 @@ rows discharge it; what changes is that §9 no longer leaves a reader to guess
 which one it meant, and the weaker reading stops being an accident and becomes a
 row that earns its place.
 
-**Outcome:** _pending_
+**Outcome:** verified — round 4's repairs. §9's AC-2 is two rows. The untouched row operates nothing and asserts the five as-drawn values per kind including the epoch's exact spelling, which is the driver `canon-delta.md` CD-1 did not have; the operated row states both inherited fallbacks in its own text — R9's `mock_single_click` on a laid-out popup, and the picker chain under `init_no_event_loop` — rather than citing the rows that introduce them. `slice-009.md` AC-2 is unchanged, and nothing else in the slice cites AC-2 as a single row.
 
 
 ## Probed and sound — round 1
@@ -2303,6 +2303,94 @@ source says, which is where the three known-bad citations were introduced.
   …]` (`jiff-0.2.35/Cargo.toml`), and `goad-semantics` does carry `jiff`
   (`crates/goad-semantics/Cargo.toml:17`), so the residue is real rather than
   hypothetical. F-54 is about what the argument omits, not about these numbers.
+
+## Probed and sound — round 4's repairs
+
+A bounded verification pass on the seven, not a round 5. Each of these was
+re-derived from the locked source or the tree against `design.md` **as it now
+stands**, not read off a Response or off `notes.md` item 2b's index.
+
+- **The four separator write sites are four, and they are the four the design
+  names.** Enumerated by grepping `locale_decimal_separator` across the whole of
+  `i-slint-core-1.17.1` rather than by following the citations: the field
+  (`context.rs:71`), the initialiser (`:122-125`), the getter (`:297-298`), and
+  the writes at `context.rs:307` (`set_locale`), `translations.rs:439` and `:443`
+  (`select_bundled_translation`), and `translations.rs:307`
+  (`mark_all_translations_dirty`, under `cfg(all(feature = "gettext-rs",
+  target_family = "unix"))`). No fifth. `string.rs:401` and `items/text.rs:2216`
+  are the two readers.
+- **Every absence the repair rests on holds.** `slint`'s `gettext` feature is
+  `["i-slint-core/gettext-rs"]` and is **not** among its defaults
+  (`slint-1.17.1/Cargo.toml:100-109`); `gettext` appears **zero** times in
+  `Cargo.lock`; `crates/goad/build.rs:36-42` passes `with_debug_info` and
+  `with_style` only; and `grep -rn` over `crates/` finds none of `set_locale`,
+  `select_bundled_translation`, `with_bundled_translations` or
+  `set_bundled_languages`. F-50's shape is an absence, so this is the part that
+  had to be re-run rather than believed.
+- **The three unvalidated doors are three.** `accept_text_input` has exactly two
+  call sites in `items/text.rs` — `:1067` and `:1117`, both key-event paths — and
+  `StandardShortcut::Paste` is dispatched at `:1034`, ahead of both, into
+  `paste` → `paste_clipboard` → `insert`; `insert` (`:1783-1828`) reads neither
+  `input_type` nor `accept_text_input` and calls `edited` on its last line before
+  the closing brace. `widgets/fluent/lineedit.slint:16` is
+  `accessible-action-set-value(v) => { text = v; edited(v); }` exactly, so §9's
+  principal driver is a third door and §5.2 is right to say so.
+- **`f64::from_str` admits what typing admits, minus the trio — measured, not
+  argued.** `-`, `.` and `-.` are each `None`; `12/25` and `$5` are `None`;
+  `inf` and `nan` parse non-finitely on both `f32` and `f64`; `1e400` parses to
+  an infinity; `1e5` and `1.7976931348623157e308` parse natively, which is what
+  discharges D-32's `e` / `E` constraint. `f64::MAX` spells 309 characters under
+  `Display` and 22 under `{:e}`, and the `{:e}` spelling re-parses to the same
+  `f64`.
+- **F-51's false generalisation is measured false and did not reach the
+  design.** `format!("{:e}", 1e300)` is `1e300` — no separator — while `{:e}` of
+  `2.5` is `2.5e0`. §8 R11 scopes its cost to a field *drawn showing a
+  non-integral number*, which is exactly what survives.
+- **The `Slider` facts.** `released` is raised at `slider-base.slint:43`
+  (pointer) and `:107` (`key-released`) only; `set-value` (`:117-124`),
+  `increment` (`:126-128`) and `decrement` (`:130-131`) raise `changed`; and
+  `fluent/slider.slint:30-36` routes all three accessibility actions through
+  them. So no tier can raise `released`, which is what makes the flush
+  unmeasurable rather than merely unbuilt.
+- **F-55's "check they are, rather than assuming" was re-checked here too.**
+  §5.1's *two ways an edit leaves `pending.rs`* and §5.3's ownership row
+  (`design.md:983`) each give the timer and the `Choose` drain and nothing else.
+  With the flush gone both are true as written; neither needed a repair and
+  neither silently acquired one.
+- **The jiff residue's three reaches.** `crates/goad-emit/Cargo.toml` takes
+  `goad-semantics`, `goad-shell` and `serde_json` — not `crates/goad`;
+  `crates/goad-semantics/Cargo.toml` takes `jiff`, `serde` and `serde_json` and
+  nothing above it; the workspace is `resolver = "3"` (`Cargo.toml:2`) with
+  `jiff = { version = "0.2", default-features = false }` (`:36`); and
+  `tz-system = ["std", "dep:windows-link"]` / `tzdb-zoneinfo = ["std"]` /
+  `std = ["alloc", "jcore/std", …]` at `jiff-0.2.35/Cargo.toml:104-127`. All
+  three statements §10 makes follow from those four facts.
+- **`clock.rs`'s doc comment is at `:47-53`.** `:46` is blank and `:45` is the
+  `impl std::error::Error` line. §10 carries the corrected range. The finding's
+  own Evidence line and its Response both said `:46-52`, and so does
+  `design-log.md` D-35 — both files are append-only, so the corrected range
+  living in `design.md` is the whole of what can be done; `notes.md`
+  §*Citations known bad* now records the log's copy beside the ledger's.
+- **A claim repeated in two places, checked by grep rather than by memory.**
+  *separator*, *locale*, *two sets*, *grammar*, *released*, *flush*, *screen
+  shows*, *would submit* and *what an answer* across the whole of `design.md`:
+  no stale copy of any retired claim survives. §5.5's numeric edge row was
+  repaired alongside §5.2 and I-H alongside its own paragraph. The one surviving
+  copy of I-H's retired generalisation is in `prototype-delta.md:352`, which
+  `notes.md` marks **historical** with `design.md` as the authority.
+- **Two ranges stop one line short of the call they lean on, and neither is
+  false.** §5.2's `items/text.rs:2202-2229` and §8 R11's `:2208-2229` both end at
+  the closing brace of the two-byte escape; the `return
+  string_to_float(&candidate).is_some()` that joins `accept_text_input` to
+  `string.rs:398-412` is at **`:2230`**. The pre-repair text carried `:2205-2230`
+  in the paragraph F-52's repair deleted, so the range that included the call
+  went out with it. Recorded rather than raised: both cite real code that
+  supports what they are attached to, and the companion `string.rs` citation
+  supplies the function itself. A future amendment to either line should say
+  `:2202-2230`.
+- **`context.rs:302-309` is `set_locale`'s item, and the *testing only* doc line
+  §5.2 quotes is `:301`, immediately above it.** Sound as an item citation;
+  noted because the quoted words are outside the range.
 
 ## Synthesis
 
