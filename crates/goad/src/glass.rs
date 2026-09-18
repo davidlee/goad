@@ -15,7 +15,7 @@ use crate::draft::{Draft, Edited};
 use crate::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, Tray, WindowMode};
 use crate::reception::Prepared;
 use crate::view_model;
-use crate::view_model::Body;
+use crate::view_model::{Body, as_drawn};
 
 /// Total, and the only method: writing every property, every call, is the
 /// design's answer to a display server that fails partway through an
@@ -196,11 +196,21 @@ fn field_block(
         .iter()
         .map(|field| {
           // A **lookup**, never stored in the row model as truth: the draft
-          // is the authority and this is its projection for one present. The
-          // irrefutable `let` is load-bearing — a second `Edited` variant
-          // makes it a compile error here, which is where the decision about
-          // what a checkbox row shows for a non-boolean value belongs.
-          let Edited::Checked(checked) = draft.state_of(&option.id, &field.id);
+          // is the authority and this is its projection for one present.
+          // Absent means the field is untouched, and `as_drawn` is what it
+          // shows then — the two coincide for every kind but `datetime`,
+          // whose button reads *not set* instead (design.md §5.2).
+          //
+          // P1b: the markup draws one control, so every kind but `boolean`
+          // falls to an unticked box here. The `match` is where the
+          // per-kind row is built once `FieldRow` grows its channels.
+          let checked = match draft
+            .state_of(&option.id, &field.id)
+            .unwrap_or_else(|| as_drawn(&field.kind))
+          {
+            Edited::Checked(checked) => checked,
+            _ => false,
+          };
           FieldRow {
             id: field.id.as_str().into(),
             label: field.label.as_str().into(),

@@ -6,6 +6,13 @@
 pub mod controller;
 pub mod diagnostics;
 pub mod draft;
+/// Canonical fixtures for the unit tests in this crate. `#[cfg(test)]`, so
+/// it is not part of the binary's module tree — it is here rather than
+/// duplicated inside two `mod tests` blocks because a canonical id can only
+/// be *read* off a normalized view, which costs more than a test should
+/// spend twice.
+#[cfg(test)]
+mod fixture;
 pub mod generated;
 pub mod glass;
 pub mod install;

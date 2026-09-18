@@ -19,7 +19,7 @@ use crate::diagnostics::{Diagnostics, Refused};
 use crate::draft::{Edited, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
-use crate::view_model::{PresentationField, PresentationOption};
+use crate::view_model::{PresentationField, PresentationOption, as_drawn};
 use crate::wire::{Cancel, Command, Notice, Stimulus};
 use goad_shell::clock::Clock;
 
@@ -227,7 +227,17 @@ impl Controller {
       .map(|field| {
         (
           field.id.clone(),
-          submitted(&prepared.draft.state_of(&matched.id, &field.id)),
+          // `R-58` forbids omitting a value for a drawn field, so an
+          // untouched one answers with what it was drawn showing. `state_of`
+          // cannot supply that on its own — the answer depends on the kind
+          // — which is why the field carries its `DrawnKind` (design.md
+          // §5.2).
+          submitted(
+            &prepared
+              .draft
+              .state_of(&matched.id, &field.id)
+              .unwrap_or_else(|| as_drawn(&field.kind)),
+          ),
         )
       })
       .collect();
