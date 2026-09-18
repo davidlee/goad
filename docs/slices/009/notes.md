@@ -147,15 +147,46 @@ review.**
    this pass); §5.1's pricing of the `FieldForm` consumers (P-13 is the
    plan's).
 
-2. **Round 4**, raised by a **fresh Claude agent** (D-28), after the integration.
-   Codex is out of credits; the protocol asks for a fresh raiser, not a fresh
-   model. Rounds 1-3 were all `gpt-5.6-sol`, so round 4's Brief should say that
-   the blind spots change with the model and that this cuts both ways. Thread
-   `01a0b212-239e-70d3-9a99-09729c82b971` remains round 3's own and is still the
-   right place to set round 3's outcomes if credits return — and the wrong place
-   to raise. **Write round 4's Brief before the reviewer runs**, against what the
-   prototype found as well as what the integration changed. **Do not hand round 4
-   the `P-n` list** (D-29): anything it finds independently is a second witness.
+2. **Round 4 — raised, and the seventeen closed.** Done 2026-09-18 by a fresh
+   Claude agent (D-28); Codex is out of credits and the protocol asks for a fresh
+   raiser, not a fresh model. The Brief was written into the ledger **before** the
+   review and says what a change of model buys and costs.
+
+   - **All seventeen carry a terminal outcome: `verified`.** None contested, none
+     withdrawn. Each Outcome line says what discharges it, and several re-derive
+     the Response's citation from the locked source rather than trusting it.
+     **F-29 is verified with a recorded residue**: §5.1 and §5.2's `today_local`
+     doc comment both name the three impurity sites, so the finding's requirement
+     is met, but §5.2's closing prose still reads *"Those two reads — the system
+     zone, in `compose`, and the clock, here"*, which is the sentence round 3
+     quoted. True of the two *kinds*; misleading as an enumeration of sites. One
+     sentence, not worth a third contest.
+   - **Seven new findings, `F-50` … `F-56`** — five `major`, two `minor`, **no
+     blocker**. They are raised and indexed; **none is dispositioned**. What is
+     owed on them, in order: disposition, confirm each with the user, then
+     integrate **with a different session** (D-21).
+   - **A `## Probed and sound — round 4` list** records eleven things re-derived
+     from the locked source this round, including the two that would have been
+     blockers had they gone the other way: the guard's convergence write does not
+     re-enter `pending.rs`, and the chained pickers never have two popups open at
+     once.
+
+   **The shape of what round 4 found.** Three rounds of `gpt-5.6-sol` had checked
+   `string_to_float`'s *logic* repeatedly and correctly; none asked **who writes
+   its input**. Four of the seven are that class — a claim about a dependency
+   that is true of the code and false of the configuration this application
+   actually runs in, or an enumeration that is closed on paper and open in the
+   source. That is the model change paying off, and it is also the warning: a
+   fourth `gpt-5.6-sol` round would probably not have found F-50 or F-52, and this
+   round found no citation error at all, which those rounds were very good at.
+
+   **No bad citation was found this round.** Every `design.md` and `canon-delta.md`
+   citation checked — `structure.rs:308`, `scan.rs:225-234`, `timers.rs:348-372`,
+   `slider-base.slint:117-131`, `fluent/slider.slint:29`, `lineedit.slint:16`,
+   `string.rs:398-412`, `items/text.rs:2205-2230`, `canonical.rs:362`,
+   `controller.rs:738-739`, `wire.rs:127-133`, `main.rs:85-101`,
+   `view_model.rs:31` — is right. §*Citations known bad* still lists three and
+   they are all still responders'.
 
 3. ~~**Bring the prototype's record back.**~~ **Done, 2026-09-18.**
    `prototype-notes.md`, `prototype-delta.md` and `prototype-handback.md` are on
@@ -314,14 +345,26 @@ two call sites back in `view_model.rs`" is false — `answer` is in
    (`common/slider-base.slint:126-131`), so F-20's ulp case freezes the slider:
    at `minimum = 2^100` the `f32` ulp is `2^77` and a one-ulp span gives a step
    below half an ulp.
-4. **The ICU decimal separator is live in this build.** `i-slint-core`'s default
-   `std` feature enables `i-slint-common/locale-decimal-separator`
-   (`i-slint-core/Cargo.toml:82-95`), and `string_to_float` replaces *that*
-   character, rejecting `.` outright when the separator is not `.`
-   (`i-slint-core/string.rs:398-412`). It is **not** reachable from host code:
-   `SlintContext::locale_decimal_separator` is `i-slint-core`, which `crates/goad`
-   does not depend on, and `slint` re-exports neither it nor `string_to_float`.
-   F-26.
+4. **The ICU decimal separator lookup is compiled in, and its value is never
+   set.** The first half was established before round 4 and stands:
+   `i-slint-core`'s default `std` feature enables
+   `i-slint-common/locale-decimal-separator` (`i-slint-core/Cargo.toml:82-95`),
+   and `string_to_float` replaces *that* character, rejecting `.` outright when
+   the separator is not `.` (`i-slint-core/string.rs:398-412`); it is not
+   reachable from host code, because `SlintContext::locale_decimal_separator` is
+   `i-slint-core`, which `crates/goad` does not depend on, and `slint` re-exports
+   neither it nor `string_to_float`. F-26.
+
+   **What this entry used to say and should not have**: *"live in this build"*.
+   A feature being compiled in is not the same as the value being populated.
+   `locale_decimal_separator` is a plain `Property<char>` initialised to `'.'`
+   with no binding (`context.rs:122-125`), and the only writers are `set_locale`
+   — *"testing only"*, called from `i-slint-backend-testing` and nowhere else —
+   and two arms of `select_bundled_translation`, which needs bundled translations
+   compiled in and an explicit call. `crates/goad/build.rs` bundles none and
+   nothing in the crate calls either. So the separator is `'.'` for the life of
+   every process this workspace builds. **F-50.**
+
 5. **`input-type: decimal` admits exactly three texts no parse accepts** — `-`,
    the locale separator alone, and `-` followed by it
    (`i-slint-core/items/text.rs:2202-2229`). `--` is not among them.
@@ -404,6 +447,14 @@ here rather than in the ledger, so striking them costs nothing:
   `goad-semantics`.
 - **Prose outside §9's obligations table binds nothing** (F-11, and then F-44 for
   exactly the same reason one round later).
+- **A feature being compiled in is not the same as a value being populated**
+  (F-50). Three rounds read `string_to_float`'s two branches correctly and none
+  asked who writes the separator it branches on. When a mechanism's behaviour
+  depends on configuration, find the **write site**, not just the read.
+- **`input-type` gates typing, and nothing else** (F-52). `TextInput::insert` —
+  the paste path — performs no validation at all, so a numeric `LineEdit` admits
+  every string. An `input-type` is a typing aid, never a class the host may
+  reason from.
 
 ## Status
 

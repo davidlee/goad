@@ -146,6 +146,80 @@ Surfaces, as surfaces:
 - §5.1's site enumeration and §9's three widgetless obligations, against what the
   `Reported` split actually touches.
 
+**Round 4** — 2026-09-18 — the integration, and the prototype's repairs. Two
+jobs again, and they are the same two rounds 2 and 3 ran. Set the terminal
+outcome on the seventeen carrying `_pending round 4_` — F-6, F-20, F-26, F-29,
+F-32 and F-38 … F-49 — which is the raiser's and not the responder's. And attack
+the text as new material, because two integrations have moved it since round 3
+read it: round 3's thirteen findings plus the four the integration itself raised,
+and then D-29 … D-32 with the prototype's repairs.
+
+**A different model, and that cuts both ways.** Rounds 1-3 were one reviewer,
+`gpt-5.6-sol`, three times. This round is a Claude agent (D-28 — Codex is out of
+credits). A reviewer that has already read a document three times is not a fresh
+reviewer, and a different model has a different set of blind spots rather than
+fewer of them. What the Codex rounds were demonstrably good at: checking a claim
+against a named source and finding it false — F-14, F-20, F-26, F-32 and F-35 are
+all that shape, and the three known-bad citations in `notes.md` were all written
+by responders rather than by those rounds. This round should expect to find
+**less** of that class and should not manufacture it. What three rounds of that
+shape can leave behind is the class this round holds itself to below.
+
+What this review holds the design to — round 1's five, round 3's sixth, and three
+this round's material forces:
+
+- The five from round 1: the protocol is the contract; the host invents nothing
+  domain-shaped; `Glass::present` is total; a tier must be able to observe what
+  its case claims; and *types, not discipline* where the design says an invariant
+  is held by a property of the types.
+- Round 3's sixth: **a value must be constructible where it is constructed.**
+- **A mechanism is one machine, not a set of paragraphs.** The delivery rule the
+  F-38 … F-41 family produced is now stated across §5.1, §5.2, §5.3, §5.4 and
+  §5.5 I-H: a keyed map, an overlay, a timer that re-arms, a drain into `Choose`,
+  a clear-on-enqueue rule and a view check at three sites. Each paragraph was
+  reviewed as a repair to the finding that produced it. None has been read
+  against the others as a single machine that has to terminate, lose nothing, and
+  duplicate nothing under every interleaving. That is the composition the last
+  round created and nobody has attacked.
+- **A rule that needs a test is a row in §9 with a named driver; prose binds
+  nothing.** F-11 and F-44 are the same failure one round apart, so this stops
+  being an observation and becomes something the design is held to. Applied to
+  every rule the last two integrations added, I-H first, which is entirely prose.
+- **A claim about a dependency is checked against the locked source, not against
+  the design's reading of it.** `notes.md` §*Citations known bad* lists three and
+  strikes two more; every one was a responder's. The integrations added claims
+  about `i-slint-core`'s timer re-arm, `string_to_float`'s two paths and
+  `items/text.rs`'s two-byte escape that were read rather than re-derived here.
+
+Surfaces, as surfaces:
+
+- §5.2's `interpret` — its three-case `None` against the thirty pairs the
+  signature admits, and against *the text is recorded verbatim, always*.
+- §5.2's number formatting: `Display`, `{:e}` past 24 characters, the grammar
+  constraint D-32 puts on the plan, and whether format and parse are actually
+  inverses over the texts the control admits.
+- §5.2's two sets of admitted-but-unparseable texts, against
+  `i-slint-core-1.17.1`'s own source.
+- §9 row by row, every tier against its driver, and AC-4 in particular, which
+  moved wholly to `tests/renderer/` on a measurement about `init`.
+- §10's narrowing — that the `jiff` feature gates `compose` and `today_local` and
+  nothing else — against `POL-001`'s residue.
+- `DrawnKind::Choice` carrying the first id, and what else in §5.1's `FieldForm`
+  enumeration that changes.
+- I-H's three sites, and whether the overlay's property — *what the screen shows
+  is what an answer would submit* — survives every row of §5.5's edges table.
+- The delivery machine end to end: map, timer, overlay, drain, enqueue, view
+  check. Interleavings, termination, and what §9 commissions of it.
+- What §9 does **not** commission. The obligations table has sixteen rows and the
+  design now names more mechanisms than that.
+
+**Provenance, stated at raise time.** `notes.md` §*Waiting on the user* records
+one open user decision and this round was told to leave it alone. That section
+was **not read** before the findings below were raised; the Brief and every F-50
+onward was written against `design.md`, the ledger and the code. Any finding here
+that turns out to restate that decision is an independent second witness, and
+this paragraph is what makes that checkable rather than asserted.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -155,7 +229,7 @@ Surfaces, as surfaces:
 | F-3 | major | fix-now | verified |
 | F-4 | major | fix-now | verified |
 | F-5 | major | fix-now | verified |
-| F-6 | major | fix-now (re-disposed ×2) | _pending round 4_ |
+| F-6 | major | fix-now (re-disposed ×2) | verified |
 | F-7 | major | doc-wrong | verified |
 | F-8 | major | doc-wrong | verified |
 | F-9 | major | fix-now | verified |
@@ -169,36 +243,43 @@ Surfaces, as surfaces:
 | F-17 | minor | fix-now | verified |
 | F-18 | minor | fix-now | verified |
 | F-19 | major | fix-now | verified |
-| F-20 | major | fix-now (re-disposed) | _pending round 4_ |
+| F-20 | major | fix-now (re-disposed) | verified |
 | F-21 | major | fix-now | verified |
 | F-22 | major | fix-now | verified |
 | F-23 | minor | fix-now | verified |
 | F-24 | major | fix-now | verified |
 | F-25 | major | fix-now | verified |
-| F-26 | major | fix-now (re-disposed) | _pending round 4_ |
+| F-26 | major | fix-now (re-disposed) | verified |
 | F-27 | minor | fix-now | verified |
 | F-28 | major | fix-now | verified |
-| F-29 | nit | fix-now (re-disposed) | _pending round 4_ |
+| F-29 | nit | fix-now (re-disposed) | verified |
 | F-30 | blocker | fix-now | verified |
 | F-31 | blocker | — | withdrawn |
-| F-32 | nit | fix-now (re-disposed) | _pending round 4_ |
+| F-32 | nit | fix-now (re-disposed) | verified |
 | F-33 | minor | fix-now | verified |
 | F-34 | minor | fix-now | verified |
 | F-35 | blocker | fix-now | verified |
 | F-36 | major | fix-now | verified |
 | F-37 | blocker | fix-now | verified |
-| F-38 | blocker | fix-now | _pending round 4_ |
-| F-39 | blocker | fix-now | _pending round 4_ |
-| F-40 | blocker | fix-now | _pending round 4_ |
-| F-41 | blocker | fix-now | _pending round 4_ |
-| F-42 | major | fix-now | _pending round 4_ |
-| F-43 | minor | fix-now | _pending round 4_ |
-| F-44 | major | fix-now | _pending round 4_ |
-| F-45 | minor | fix-now | _pending round 4_ |
-| F-46 | minor | fix-now | _pending round 4_ |
-| F-47 | major | fix-now | _pending round 4_ |
-| F-48 | nit | fix-now | _pending round 4_ |
-| F-49 | minor | fix-now | _pending round 4_ |
+| F-38 | blocker | fix-now | verified |
+| F-39 | blocker | fix-now | verified |
+| F-40 | blocker | fix-now | verified |
+| F-41 | blocker | fix-now | verified |
+| F-42 | major | fix-now | verified |
+| F-43 | minor | fix-now | verified |
+| F-44 | major | fix-now | verified |
+| F-45 | minor | fix-now | verified |
+| F-46 | minor | fix-now | verified |
+| F-47 | major | fix-now | verified |
+| F-48 | nit | fix-now | verified |
+| F-49 | minor | fix-now | verified |
+| F-50 | major | _pending_ | _pending_ |
+| F-51 | minor | _pending_ | _pending_ |
+| F-52 | major | _pending_ | _pending_ |
+| F-53 | major | _pending_ | _pending_ |
+| F-54 | major | _pending_ | _pending_ |
+| F-55 | major | _pending_ | _pending_ |
+| F-56 | minor | _pending_ | _pending_ |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 
@@ -307,7 +388,7 @@ map is non-empty, so every entry reaches the draft within a tick per entry.
 This finding's own requirement — every typed field survives to the answer — was
 already held by the `Choose` drain and is not what was wrong.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. The map is keyed by (option, field) (§5.1), the `Choose` drain carries every entry in one send (§5.2 `wire.rs`), the timer re-arms while the map is not empty, and the overlay is what keeps the entry the timer has not yet sent from being reverted (§5.3, §5.5 I-H). Round 3's contest was that the timer path reverted the second field; that path is now covered by a mechanism rather than by an ordering.
 
 ### F-7 — Same `view_id` implying same structure is not a property of the types
 
@@ -636,7 +717,7 @@ Everything the tightened predicate rejects takes the text control, which is
 where a range a slider cannot operate belongs — the same answer §5.2 already
 gives for equal bounds and an infinite span.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §5.2 carries the operability clause as the re-disposition stated it, and the arithmetic was re-derived from the locked source this round rather than taken from the Response: `increment()` is exactly `root.set-value(root.value + root.step)` and `set-value` returns immediately when the result equals the value it holds (`widgets/common/slider-base.slint:117-128`), and `key-pressed` rejects every key when `step <= 0` (`:78-80`). A step below half an ulp therefore freezes the slider, which is what the clause excludes.
 
 ### F-21 — I-G is a construction convention, not an invariant of the canonical internal type
 
@@ -760,7 +841,7 @@ Which characters count as the numeric grammar is the plan's to pin down against
 `f64::from_str`, and the rule stays what D-16 wanted: host-side, and testable
 without a locale fixture.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. The parse rule §5.2 now states is the one the re-disposition described, and it accepts every text `string_to_float` would accept without naming the separator (`i-slint-core-1.17.1/string.rs:398-412`, re-read this round). Whether the rule is needed at all is a separate question and is raised as **F-50**: the separator this application runs under is never set away from `.`. That does not make this finding's repair wrong — it makes it unreached.
 
 ### F-27 — §6 still closes OQ-4 with the one-binary constraint D-14 explicitly superseded
 
@@ -829,7 +910,7 @@ where it performs it.
 Nothing else moves: the manifest argument in §10 is about `TimeZone::system` being
 called at all, which was already true.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §5.1 states it explicitly — *two impure kinds of read … performed at three sites: the clock in `today_local`, and the system zone in both `compose` and `today_local`* — and §5.2's `today_local` doc comment says *Reads the clock and the system zone*. The module no longer undercounts, which is what the finding asked for. Recorded rather than contested a third time: §5.2's closing prose still reads *Those two reads — the system zone, in `compose`, and the clock, here*, which enumerates the two **kinds** and is the sentence round 3 quoted. It is true of kinds and is contradicted by the doc comment two lines above it if read as an enumeration of sites.
 
 ### F-30 — The F-19 guard fights ordinary typing
 
@@ -962,7 +1043,7 @@ step at a hundredth of the span — it is an upper bound, not a floor. Under thi
 design's `step`, which is exactly that hundredth, the cap binds at equality and
 the two coincide, which is the only thing the sentence needed to say.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. `accessible-value-step: min(root.step, (root.maximum - root.minimum) / 100)` (`widgets/fluent/slider.slint:29`, re-read this round), and §5.2 now says **caps** — an upper bound — and that this design's `step`, being exactly that hundredth, makes the cap bind at equality. The gloss matches the source in the direction it was inverted in.
 
 ### F-33 — §9's popup rows depend on a layout that no existing case exercises
 
@@ -1219,7 +1300,7 @@ direct route — it needs the renderer to observe a new view separately from the
 `set_vec` it already does, and it still leaves the timer path with no `view` to
 send.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. `PendingEdit` carries `view` (§5.2 `wire.rs`), §5.1 states the rule and §5.5 states it as I-H over three sites — shown, sent, drained — and the edges table carries a row for each. The display site, which the Response did not name and the integration added, is the one that closes the id-reuse case the finding was actually about.
 
 ### F-39 — The promised retry after a full answer send cannot be implemented through `Wire::send`
 
@@ -1242,7 +1323,7 @@ The two callers this slice writes — the timer and `chosen` — clear `pending.
 only on an enqueued send, which is what §5.4 already promises. The existing
 callers are unaffected: the result is advisory and the notice path is unchanged.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. `pub fn send(&self, command: Command) -> bool` is declared in §5.2 with the enqueue contract beside it, and the existing site really does have the outcome in hand: `wire.rs:127-133` matches `Ok(())`, `TrySendError::Full(_returned)` and `Closed` separately today.
 
 ### F-40 — A present during the debounce treats a captured pending edit as a dropped edit and overwrites it
 
@@ -1292,7 +1373,7 @@ channel and the widget disagreeing on purpose and adds a second suppression
 mechanism beside the one exception. Also rejected: dropping the debounce, which is
 D-4 and a standing user commitment, not this review's to spend.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. The overlay is stated in §5.3 as the draft's value preferred-over by a pending entry made on the view being presented, routed through `interpret` rather than a second mapping; the guard paragraph in §5.2 says what changed and what did not; D26 records it; and §9 carries the re-run of `numeric_guard.rs` against it rather than leaving the exception's fate in prose.
 
 ### F-41 — One single-edit timer cannot drain a map containing two pending fields without reverting one
 
@@ -1324,7 +1405,7 @@ the loop run past the debounce without answering, both values in the draft and
 neither widget reverted. The existing rows exercise one timed field, and two
 fields only on the synchronous answer path.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. The re-arm is stated in §5.1 with the locked-source reading behind it, which checks out: `start_or_restart_timer` copies `being_activated` forward and `maybe_activate_timers` re-emplaces the old callback only where the register is still `Empty` (`i-slint-core-1.17.1/timers.rs:330-334`, `:348-360`). §9's *two fields, one window, no answer* row is the case that would have caught the original.
 
 ### F-42 — `Reported` can express non-finite slider values despite the claimed type invariant
 
@@ -1355,7 +1436,7 @@ inside a Slint closure, which has nothing to report a refusal to and no draft to
 leave alone — the refusal belongs where the other renderer-bug refusals already
 are.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. `interpret`'s `None` surface is stated in full and grew a third case (D-31); I-G now says in terms that the invariant is **not** held by the shape of `Reported`, and names the two places that do hold it.
 
 ### F-43 — The chosen callback cannot drain pending edits in declared field order from the state it owns
 
@@ -1377,7 +1458,7 @@ Nothing observable changes either way — the keys are distinct by construction,
 applying them in any order yields the same draft. That is the reason the promise
 was safe to make and is also the reason it was not worth making.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §5.2 states that no order is promised and why the promise was empty.
 
 ### F-44 — The validation ledger discusses picker reseeding but binds no test obligation for it
 
@@ -1404,7 +1485,7 @@ dependency. Tier: `tests/renderer/`, on round 2's verified fact that
 (`search_api.rs:291-312`). If the popup cannot be found there the row moves to the
 loop target — R9's shape, not a new rule.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §9's obligations table carries the row, with its tier, its driver named as a sequence of calls, and the fallback if the popup cannot be found.
 
 ### F-45 — CD-2 names an R-16 canon change that neither it nor the design specifies
 
@@ -1424,7 +1505,7 @@ and both `number` fixtures, *"every kind in its wire form"*. Drawing a kind in a
 renderer changes nothing it claims. CD-2's document line names the three rows its
 three changes touch, which is what `design.md` §10's summary already said.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. `canon-delta.md` CD-2 now says the `R-16` row was named in error and why, its **Document:** line names the three rows its three changes touch, and `design.md` §10's summary agrees.
 
 ### F-46 — F-43's re-disposition assigns the drain ordering to a walk that cannot carry it
 
@@ -1459,7 +1540,7 @@ and covers one option. The controller applies each carried edit through the walk
 `edit` already uses, which is what §5.2 already said and is the only walk that
 reaches an edit to an option that is not being answered.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §5.2 says no order is promised, says why the promise could not have been kept where it was assigned, and routes each carried edit through `edit`'s walk. That walk really does reach another option's field: `Controller::edit` is `&mut self` and takes `option` as an argument, resolving it through `selected(prepared, view, option)` rather than through anything the answer selected (`controller.rs:259-279`).
 
 ### F-47 — The overlay stops AC-6's stated driver from reaching the dropped-edit case
 
@@ -1495,7 +1576,7 @@ the same precision in one sentence, because *dropped* has stopped meaning *the
 command did not arrive* and started meaning *the host holds it in neither the
 draft nor `pending.rs`*.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §9's AC-6 row carries both halves and says why both are needed, and `slice-009.md`'s AC-6 carries the matching sentence. The driver works as described: with nothing draining the receiver the first `try_send` still succeeds on a capacity-one channel, so the entry clears on enqueue and nothing is ever recorded.
 
 ### F-48 — A float inside `Command` makes the `Eq` derive fail, and a hand-written one would be unsound
 
@@ -1521,7 +1602,7 @@ and nothing needs `Eq` — the cases that compare commands need `PartialEq`. Wri
 down rather than left to be met as a derive error, because the wrong repair also
 compiles.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. §5.2 states which derives survive, on `Command` and `Edited`, and the `Finite` paragraph closes the same trap at the leaf.
 
 ### F-49 — The overlay is only observable if the callbacks and the glass hold one `Rc`, and a split handle fails silently
 
@@ -1552,7 +1633,325 @@ signal is *a case asserting the overlay that passes without `install` having bee
 called*; and §9 lists the four call-site pairs alongside the other widening
 signatures, with the rule that each pair is given one value and not two.
 
-**Outcome:** _pending round 4_
+**Outcome:** verified — round 4. Three places carry it as the Response promised: §5.3's one-`Rc` paragraph, §8 R10 with the vacuous-pass signal named, and §9's list of the four call-site pairs with the rule that each is given one value.
+
+### F-50 — §5.2's whole locale account rests on a decimal separator this application never sets
+
+**Severity:** major
+**Location:** `design.md §5.2`, *Parsing the text is done under the rule the
+control validated it with* and *Two sets of texts*; §7 D23
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** A design mechanism carried for a hazard names a hazard the built
+application can reach, or says that it cannot and why it is carried anyway.
+**Observed:** `string_to_float` reads the separator from
+`SlintContext::locale_decimal_separator`, which is a plain `Property<char>`
+initialised to `i_slint_common::DEFAULT_DECIMAL_SEPARATOR` — `'.'` — and carries
+no binding. Exactly three sites write it: `SlintContext::set_locale`, documented
+*"Override the locale used for decimal separator detection (**testing only**)"*
+and called from nowhere but `i-slint-backend-testing`; and two arms of
+`translations::select_bundled_translation`, which requires the `.slint` file to
+have been compiled with bundled translations **and** an explicit call to select
+one. `set_bundled_languages` consults `sys_locale` for the *language index* and
+does not touch the separator.
+
+`crates/goad/build.rs` calls `compile_with_config` with `with_debug_info` and
+`with_style` only — `with_bundled_translations` is never used — and neither
+`crates/goad/src` nor `crates/goad/ui` nor `crates/goad/tests` names
+`select_bundled_translation`, `set_locale` or any translation API. So the
+separator is `'.'` for the whole life of every process this workspace builds, on
+every platform, whatever the person's system locale says. `string_to_float`
+always takes its `sep == '.'` branch.
+
+The consequence is not that the parse rule is wrong — it is a superset and costs
+nothing. It is that F-26's premise, D-23's rejected alternative, the *two sets*
+paragraph's first set (*"the locale's separator"*, *"`-`, `,` and `-,` in a comma
+one"*), §5.5's matching edge row and `notes.md` §*Facts verified by hand* item 4
+(*"The ICU decimal separator is live in this build"*) all describe a mechanism
+that is compiled in and never armed. Item 4 established that the **feature** is
+enabled; nothing established that the **value** is ever populated. The
+one-foreign-character substitution rule the design commissions the plan to build
+therefore has, today, no case it is the answer to — and F-52 is what it does
+instead.
+
+**Evidence:** `i-slint-core-1.17.1/context.rs:122-125` (initialised to the
+default, no binding), `:296-299` (the getter), `:302-309` (`set_locale`, "testing
+only", the only other writer besides translations);
+`i-slint-core-1.17.1/translations.rs:436-444` (the two writes, inside
+`select_bundled_translation`), `:382-394` (`set_bundled_languages` sets only
+`translations_dirty`); `i-slint-common-1.17.1/lib.rs:22`
+(`DEFAULT_DECIMAL_SEPARATOR = '.'`); `i-slint-core-1.17.1/string.rs:398-412`;
+`i-slint-backend-testing-1.17.1/internal_tests.rs:122-130` (the only caller of
+`set_locale` in the locked tree); `crates/goad/build.rs:36-42`;
+`slint-build-1.17.1/lib.rs:200` (`with_bundled_translations`, unused);
+`design.md:308-332,352-371`; `notes.md` §*Facts verified by hand* item 4.
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
+
+### F-51 — The numeric boundary's format direction is locale-blind while its parse direction is locale-aware
+
+**Severity:** minor
+**Location:** `design.md §5.2`, *A number at the markup boundary* and
+*Formatting a number is the inverse of that rule*
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** §5.2 says the boundary *"is crossed differently in each direction,
+and the rules are stated together because they are one account of one boundary
+rather than four separate precautions."* An account of one boundary covers both
+directions under the same fact.
+**Observed:** Only the inbound direction is written against the separator. The
+outbound rule is `f64`'s `Display`, or `{:e}` past 24 characters — both of which
+always spell the decimal point `.`, unconditionally. Where the separator is not
+`.`, that is text the control's own validator refuses: `accept_text_input`'s
+two-byte escape does not apply to a candidate longer than two bytes, and
+`string_to_float` returns `None` for **any** text containing a `.` when the
+separator is not `.`. So a `number` field whose as-drawn value is non-integral —
+`min: 2.5` is a legal `R-17` bound — is drawn showing `2.5` and then refuses
+every inserted character, because each candidate still contains the dot. The
+person can still select-all-and-retype, and can still delete (deletion is not
+validated), so the field is not dead; it is not incrementally editable, which is
+the one thing the design's whole guard account is about.
+
+The same is true of every `{:e}` spelling, which also carries a `.`, and of the
+`Slider`'s `AdjustedValue` text, which §5.2 says is *"the host's format of the
+number"*.
+
+Conditional on the same premise F-50 removes, so nothing reaches this today. It
+is raised separately because the repair is a different one — F-50 decides whether
+the account is carried at all; this decides whether the account, if carried, is
+complete — and because §5.2 claims completeness for it in as many words.
+
+**Evidence:** `i-slint-core-1.17.1/items/text.rs:2208-2229` (the `candidate.len()
+<= 2` escape, then `string_to_float`), `string.rs:398-412` (`if
+string.contains('.') { return None }`); Rust's `Display` and `LowerExp` for `f64`
+both emit `.`; `design.md:302-307,373-390`.
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
+
+### F-52 — Paste bypasses `input-type: decimal` entirely, so the admitted class is every string and the substitution rule fires on arbitrary text
+
+**Severity:** major
+**Location:** `design.md §5.2`, *Two sets of texts sit behind that rule* and the
+parse rule; §5.5 Edges, the numeric-text row
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** §5.2's two sets are *"the class the control admits"*, and the parse
+rule is justified by mirroring what `string_to_float` would have accepted: *"The
+two agree everywhere the control can reach."*
+**Observed:** `TextInput::paste` calls `paste_clipboard`, which calls
+`TextInput::insert`, which performs **no** validation at all — it does not consult
+`input_type` and never calls `accept_text_input`. `accept_text_input` is reached
+from exactly two places, both key-event paths: a `KeyPressed` character insertion
+and an IME `UpdateComposition`/`CommitComposition`. `StandardShortcut::Paste` is
+dispatched before either, straight to `paste()`. So the class the control admits
+is **every string**, not the two sets §5.2 names, and the design's own warning —
+*"an implementer who reads the trio as the closed enumeration writes a three-case
+test and never reaches the paste"* — applies one level up to the paragraph that
+makes it.
+
+The consequence is not confined to the prose. The parse rule's second clause is
+*where exactly one character of the text falls outside the grammar `f64::from_str`
+accepts, replace that one character with `.` and parse again*. Its only
+justification is mirroring the separator substitution. Applied to text the
+control never validated, it silently manufactures a number from arbitrary input:
+a pasted `12/25` records `12.25`, `3:30` records `3.30`, `1x5` records `1.5`, and
+`$5` records `0.5`. In each case the text is recorded verbatim and displayed, the
+guard compares string against string and is correctly quiet, and the answer
+carries a number the screen never showed. This is reachable with one keystroke by
+a person pasting a value out of another application, which is the ordinary way a
+number gets into a form.
+
+`Reported::AdjustedText` and *the text is recorded verbatim, always* are both
+total, so nothing panics and `Finite` still keeps the wire clean. What fails is
+the design's stated correspondence between what the control admits and what the
+host reads it as, and D-6's own rule against holding *"a value nobody gave, as
+though someone gave it."*
+
+**Evidence:** `i-slint-core-1.17.1/items/text.rs:1940-1958` (`paste` →
+`paste_clipboard` → `insert`), `:1783-1827` (`insert`, no validation),
+`:1032-1036` (`StandardShortcut::Paste` dispatched before the insertion path),
+`:1067` and `:1117` (the only two `accept_text_input` call sites, both key
+events), `:2202-2231` (`accept_text_input` itself); `design.md:334-371`,
+`design.md` §5.5 Edges, the *numeric text that is not a number* row.
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
+
+### F-53 — I-H names one place display and submission part company; §5.2's own rules give at least two more
+
+**Severity:** major
+**Location:** `design.md §5.5 I-H`
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** An invariant states a property that holds, and any exception list
+attached to it is complete — this is the third time a claimed property has been
+stronger than the design supports (F-21 on I-G as a convention, F-42 on
+`Reported`).
+**Observed:** I-H closes with *"for every field anyone has touched, what the
+screen shows is what an answer would submit"* and then *"The one place display
+and submission part company is an untouched `datetime`."* §5.2 gives two more,
+both for a field somebody has touched:
+
+- **A numeric text the host cannot parse finitely.** §5.2's own worked example:
+  `1e400` *"stays on screen as `1e400` while the host keeps `1e40` as the number
+  it would submit"*. The same holds for `-`, a lone separator, `inf` and `nan` —
+  the text is displayed, the last representable number is submitted, and §5.5's
+  own edges row says so.
+- **A cleared numeric field.** The screen shows `""` and the answer submits `0`.
+  §5.2 and the edges table both state it, and the guard's one exception exists
+  precisely because the two disagree.
+
+Neither is a defect in the behaviour — both are deliberate and argued. The defect
+is the invariant, which is the sentence a reader trusts furthest and the one an
+implementer would turn into an assertion. I-H's first two sentences (an entry is
+used only against the view it was made on; while it exists it is what the screen
+shows) are sound and are what the three sites hold; the generalisation past them
+is not.
+
+**Evidence:** `design.md` §5.5 I-H; `design.md:340-350` (`1e400` recorded
+verbatim, `1e40` held), §5.5 Edges rows *numeric field cleared to `""`* and
+*numeric text that is not a number*; `design.md` §5.2, the guard's exception.
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
+
+### F-54 — §10's residue argument does not reach the workspace's existing decision to keep jiff's `std` out, which `clock.rs` implements and documents
+
+**Severity:** major
+**Location:** `design.md §10`, *The `jiff` feature, and why it is here*; §7 D18
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** `POL-001` requires the decision to add a feature to a dependency
+shared with stratum 1 to be **argued** in the slice that takes it, because no gate
+command rejects it. An argument that does not engage the one place in this
+workspace where that same feature was already refused, on the record, is
+incomplete.
+**Observed:** `goad-shell/src/clock.rs` does not call `jiff::Timestamp::now()`.
+It reads `SystemTime::now().duration_since(UNIX_EPOCH)` and rebuilds a
+`jiff::Timestamp` from nanoseconds, and its doc says why in as many words:
+
+> **Not** `jiff::Timestamp::now()`, which needs jiff's `std` feature — and
+> features unify across the workspace build, so enabling it anywhere enables it
+> in stratum 1, which carries `jiff` with `default-features = false` for exactly
+> that reason (the workspace `Cargo.toml`'s `jiff` line, D25).
+
+This slice enables `std` in stratum 1's workspace build — `tz-system = ["std",
+…]` and `tzdb-zoneinfo = ["std"]` — which is exactly what that comment was
+written to prevent. Three things follow that §10 does not say. The comment
+becomes **false as a rationale**: after this slice the feature is on whatever
+`clock.rs` does. The hand-rolled `SystemTime` arithmetic becomes a workaround for
+a constraint that no longer binds — a second implementation of
+`Timestamp::now()`, kept for a reason that has expired. And a prior slice's
+recorded decision is reversed by a manifest line rather than by an argument that
+names it.
+
+This is the class §5.1 already handles well for `FieldForm`: a change that makes a
+live doc comment untrue is enumerated, with what it costs, rather than left to be
+found. §10's *"what the feature does not gate"* paragraph bounds the change to
+`compose` and `today_local` **inside this slice**, which is true and is not the
+whole reach.
+
+Not an argument against the feature — D-7 needs it and §10's ADR-001 reasoning
+stands. An argument that §10 is not yet the complete argument `POL-001` asks for,
+and that the reconciliation this creates has no owner.
+
+**Evidence:** `crates/goad-shell/src/clock.rs:46-52` (the rationale),
+`:64-77` (the workaround it justifies); root `Cargo.toml:36` (`jiff =
+{ version = "0.2", default-features = false }`); `jiff-0.2.35/Cargo.toml`
+`tz-system = ["std", "dep:windows-link"]`, `tzdb-zoneinfo = ["std"]`,
+`std = ["alloc", …]`; `crates/goad-semantics/Cargo.toml:17` (stratum 1 does carry
+`jiff`); `design.md:1512-1570`; `docs/policy/001-the-phase-gate.md` §Verification.
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
+
+### F-55 — A `Slider`'s `released` flush has no callback to arrive on, and is in neither enumeration of how an entry leaves `pending.rs`
+
+**Severity:** major
+**Location:** `design.md §5.1 pending.rs; §5.2`, the controls table and the Slint
+block; §5.3 ownership; §7 D7
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** A behaviour the decisions table commits to has an interface it can
+travel on, and the enumerations that say how pending state is emptied include it.
+**Observed:** D7 and §5.2's controls table both commit to it: a `Slider` binds
+`changed`, *"debounced; `released` flushes"*, so *"a drag's final value does not
+wait on a timer."* Three things are missing for it.
+
+The markup declares exactly one host-ward callback for a field —
+`callback edited(string, string, string, FieldEdit)` — and `FieldEdit` carries
+`kind`, `checked`, `text`, `number`, `index`, `date`, `time`. Nothing in that
+surface distinguishes *record this and debounce it* from *record this and send it
+now*, and the debounce map lives in Rust behind an `Rc` that only `install.rs`'s
+closures reach, so the markup cannot flush it by itself. As declared, `released`
+can only call `edited` again, which restarts the timer rather than flushing it —
+the opposite of the promise.
+
+§5.1 then says *"The two ways an edit leaves `pending.rs` are not symmetrical"*
+and names the timer and the `Choose` drain; §5.3's ownership row gives the
+lifetime as *"until the send that carries the entry is enqueued: the timer's, one
+per tick, or the `Choose` `chosen` drains them all into."* Both are stated as
+closed and neither admits a third exit. §5.5's edges table has no row for it and
+§9 has no obligation for it, so nothing would discover the gap: a `released` that
+silently restarts the debounce instead of flushing it looks exactly like a
+working drag to every case in the table.
+
+This is the same shape as `compose`'s four steps and `interpret`'s three cases,
+which §5.2 states in full for the reason it gives — a case left off the list
+becomes an `unwrap` in the implementation. Here a path left off the list becomes a
+mechanism nobody writes.
+
+**Evidence:** `design.md` §5.2's Slint block (the one `edited` callback and
+`FieldEdit`'s fields), the controls table's `number, slider admissible` row, and
+the `Slider` paragraph; `design.md` §5.1, *The two ways an edit leaves
+`pending.rs`*; §5.3's pending-edits ownership row; §7 D7; §9's obligations table;
+`widgets/common/slider-base.slint:114-131` (`released` is raised by the pointer
+and keyboard paths only, which is why D7 binds `changed` as well).
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
+
+### F-56 — §9's AC-2 row inherits two unproven popup capabilities and names neither fallback
+
+**Severity:** minor
+**Location:** `design.md §9`, the AC-2 row
+**Raised by:** round 4 (fresh Claude agent)
+
+**Expected:** A row whose driver depends on a capability §9 records as unproven
+carries the same fallback the row that introduced the dependency carries. §9's own
+rule: a row whose driver does not exist in its tier moves rather than being
+written where it would be green.
+**Observed:** AC-2's driver is *"the driver above for each control"* — all five,
+including the two that need a popup under `init_no_event_loop`. §9 records both as
+unproven there and gives each a fallback in the row that introduces it: AC-8's
+`ComboBox` needs `mock_single_click` on a laid-out popup, which §8 R9 says no case
+in this repository has yet produced, *"the row moves to the loop tier"*; and the
+picker chain's row says *"If the popup cannot be found under `init_no_event_loop`
+the row moves to the loop target."* AC-2 depends on both and says neither. If
+either fallback fires, AC-2 has to move too, and nothing in the table records
+that.
+
+`slice-009.md`'s AC-2 could in principle be satisfied from as-drawn values alone —
+an untouched `choice` already submits the first alternative's id and an untouched
+`datetime` already submits an RFC 3339 epoch — which would be a materially weaker
+case than the one the row's driver describes. That ambiguity is the second half of
+the finding: the row does not say which it is.
+
+**Evidence:** `design.md` §9, the AC-2 row, the AC-8 row, the *a picked field's
+picker re-seed* row, the *One control in that table needs a pointer* paragraph;
+`design.md` §8 R9; `slice-009.md` AC-2.
+
+**Disposition:** _pending_
+
+**Outcome:** _pending_
 
 
 ## Probed and sound — round 1
@@ -1587,6 +1986,99 @@ signatures, with the rule that each pair is given one value and not two.
 - The current `FieldForm` consumer class is enumerated accurately: the source/docs, mapper cases, three wiring assumptions and the fields fixture found by the tree search all appear in `design.md:151-178`; CD-2 correctly identifies the stale R-57, R-58 and R-55 verification text (`canon-delta.md:61-101`). F-45 is only the unexplained additional R-16 mention.
 - The jiff feature argument matches both authorities: `tz-system` and `tzdb-zoneinfo` each enable `std`, `TimeZone::try_system` is an unconditional error without `tz-system`, and POL-001 explicitly leaves shared-dependency features as review-only residue (`jiff-0.2.35/Cargo.toml:69-127`, `src/tz/timezone.rs:325-400`; `docs/policy/001-the-phase-gate.md:120-143`; `design.md:1122-1177`).
 - CD-1's as-drawn values all satisfy the existing R-57 JSON types and R-58 totality; the max-only `0` consequence is now explicit (`canon-delta.md:14-39`). Per the review instruction, the open normative-versus-descriptive status of the datetime epoch is left to the user.
+
+## Probed and sound — round 4
+
+Each of these was re-derived from the locked source or the tree this round, not
+read off a Response. Rounds 2 and 3 checked much of the same ground; where that
+is so, what is recorded here is that the **integrated text** still says what the
+source says, which is where the three known-bad citations were introduced.
+
+- **The `resolve` constraint is stated correctly and is already in the gate.**
+  `structure.rs:25` sets `SUBJECT_DIR = "crates/goad/src"`, and
+  `no_production_line_in_the_renderer_names_the_identifier_resolve` asserts the
+  file set is non-empty before asserting the absence. `scan::mentions`
+  (`goad-boundary/src/scan.rs:225-234`) is exactly as §5.2 describes it: comments
+  cut by `code_of`, string literals **kept** (`:275-277`), split on every
+  non-ASCII-alphanumeric byte, then on camel boundaries, matched
+  singular-or-plural. `resolve`, `resolves`, `resolve_index` and `Resolve` all
+  trip it. `interpret` is clear of the domain-vocabulary list
+  (`vocabulary.rs:18-25` — habit, streak, journal, site, goal, reminder,
+  compliance, over `.rs` **and** `.slint`, so the new markup names are clear too),
+  of the purity path list (`purity.rs:17-27`, whose subject is stratum 1 in any
+  case), and of `structure.rs`'s three call-form greps (`quit_event_loop(`,
+  `tokio::spawn`, `slint::spawn_local(`).
+- **The timer may re-arm from inside its own callback.**
+  `start_or_restart_timer` copies `being_activated` forward from the existing
+  timer, and `maybe_activate_timers` re-emplaces the old callback only where the
+  permanent store is still `Empty`, with the comment saying why
+  (`i-slint-core-1.17.1/timers.rs:330-334`, `:348-360`). §5.1's whole re-arm rests
+  on this and it reads as stated.
+- **The slider arithmetic.** `increment()` is `root.set-value(root.value +
+  root.step)`; `set-value` returns immediately when `root.value == value` and
+  otherwise clamps into `[minimum, maximum]` and raises `changed`;
+  `key-pressed` returns `reject` when `step <= 0`
+  (`widgets/common/slider-base.slint:78-80,117-131`). `accessible-value-step` is
+  `min(root.step, (root.maximum - root.minimum) / 100)`
+  (`widgets/fluent/slider.slint:29`). F-20's operability clause and F-32's
+  corrected gloss both hold against the source.
+- **§9's principal driver really does raise an edit.**
+  `ElementHandle::set_accessible_value` dispatches
+  `AccessibilityAction::SetValue` (`i-slint-backend-testing-1.17.1/search_api.rs:637-644`),
+  which invokes `accessible-action-set-value(v) => { text = v; edited(v); }`
+  (`widgets/fluent/lineedit.slint:16` — the line the design cites, exactly). The
+  `Slider`'s accessible actions route through `base.set-value` / `increment` /
+  `decrement` (`fluent/slider.slint:30-36`), which raise `changed` and not
+  `released`, which is D7's whole ground.
+- **The guard's convergence write cannot re-enter `pending.rs`.** This is the one
+  path that would have falsified §5.3's *Nothing re-enters*: a present bumps the
+  epoch, the guard assigns `self.text`, and if that assignment raised `edited` the
+  callback would write the map while `present` was reading it. It does not.
+  `LineEditBase` raises `root.edited` only from `TextInput`'s own `edited`
+  callback (`widgets/common/lineedit-base.slint:138-139`), and `TextInput` calls
+  that from the key-insertion path and from `insert` — never from a property
+  write. Fluent's clear (✕) icon is a third user-driven caller
+  (`fluent/lineedit.slint:62-67`) and is an ordinary edit, not a re-entry.
+- **The chained pickers never have two popups open at once.**
+  `DatePickerPopup`'s OK does `root.close()` **before** `root.accepted(...)`
+  (`fluent/datepicker.slint:80-96`), so the date popup is gone by the time the
+  host's handler shows the time popup — which matters because `close-policy:
+  no-auto-close` would otherwise leave both in `active_popups` for §9's element
+  queries to walk.
+- **The picker seed reaches both the display and the returned value.**
+  `DatePickerBase` has `in property <Date> date` defaulting to today,
+  `property <Date> current-date: root.date`, `selected-date <=> root.current-date`
+  and `get-current-date()` returning `current-date`
+  (`widgets/common/datepicker_base.slint:268,277,403,461-463`). D21's seed is not
+  a property the widget ignores, and the *leaving it opens on today* rejection is
+  literally the default binding.
+- **`Controller::edit` reaches an option that is not the one being answered.**
+  It is `&mut self`, takes `option` as an argument, and resolves it through
+  `selected(prepared, view, option)` against the retained presentation
+  (`controller.rs:259-279`). §5.2's carried-edit rule — *a person can type into
+  one option's field and then answer another* — is applicable through the walk it
+  names, which is what F-46 was about.
+- **`DrawnKind::Choice` carrying the first id is not working around something the
+  canonical type could answer.** `Alternatives` exposes only `as_slice() ->
+  &[Alternative]` (`canonical.rs:349-376`), so `.first()` is genuinely an
+  `Option`; `Alternatives::new` rejects the empty list at `:360-364`. Giving
+  `Alternatives` a total `first()` would be the cleaner repair and is out of scope
+  by `slice-009.md`'s own *nothing reaches `goad-semantics`*, so §5.2's
+  enumeration of the ways out is complete for this slice.
+- **§5.1's `FieldForm` consumer enumeration covers every occurrence in the tree.**
+  `FieldForm` appears in four files; every occurrence in `diagnostics.rs`,
+  `draft.rs` and `tests/renderer/mapper.rs` falls inside a range the table names,
+  and `Undrawn`'s other consumers (`reception.rs:84`,
+  `tests/renderer/reception.rs:296,492`) name no `FieldForm` at all. What the
+  table does not name is `view_model.rs`'s own definition, its `Display` impl, and
+  `undrawn_form` / `sift` — which are the change rather than consumers of it, and
+  every one of which fails to compile rather than lying. Worth knowing when the
+  plan prices it: the `Display` impl's arms go with the variants.
+- **The jiff feature costs are as §10 states.** `tz-system = ["std",
+  "dep:windows-link"]`, `tzdb-zoneinfo = ["std"]`, `std = ["alloc", "jcore/std",
+  …]` (`jiff-0.2.35/Cargo.toml`), and `goad-semantics` does carry `jiff`
+  (`crates/goad-semantics/Cargo.toml:17`), so the residue is real rather than
+  hypothetical. F-54 is about what the argument omits, not about these numbers.
 
 ## Synthesis
 
