@@ -253,3 +253,119 @@ they parse at the first attempt, and admitting their letters would only widen
 what counts as a separator. Reading taken for "exactly one character outside
 the grammar": one **occurrence**, not one distinct character — so `"1,000,5"`
 is refused.
+
+The grammar is now pinned **and tested**: a test asserts `"1e5"` reads as
+`100000`, which is the one mistake the rule invites — leave `e` out of the
+grammar and `1e5` becomes a text with exactly one foreign character, so the
+rule substitutes a `.` and silently reads `1.5`. See also P-6 and P-7, which
+are what pinning it turned up.
+
+### P-6 — the host now over-accepts relative to the control, and the design states only the other direction
+
+*From P1a.*
+
+**What the design assumes.** §5.2's argument for a host-side parse rule is
+one-directional throughout: "A host that called `f64::from_str` on the raw text
+would refuse `1,5` in a comma-decimal locale — text the control had just
+approved — record nothing, and let the next guard write over the person." The
+whole case for D-16, and for F-26 widening it, is that the host must not
+**under-accept** relative to the control.
+
+**What the build observed.** The rule F-26 leaves behind over-accepts, and it
+does so by construction rather than by oversight. It cannot ask which character
+is this locale's separator — that is exactly what F-26 took away — so it treats
+*any* single character outside the numeric grammar as one. `"1 5"` and `"1x5"`
+both read as `1.5`. `string_to_float` would refuse both outright: it
+substitutes *the* separator and nothing else (`string.rs:398-412`).
+
+Checked in both directions against the control's actual source, and the
+asymmetry is total: **there is no text the control admits and parses finitely
+that this rule reads differently or refuses.** Under a `.` separator it is
+`parse::<f32>` and the host's first attempt matches it; under any other, the
+control replaces every occurrence of one character and the host replaces the
+one occurrence of one character, which can only differ where the control
+already fails to parse. So the host under-accepts nowhere and over-accepts on
+exactly the texts holding one foreign character that is not the locale's
+separator.
+
+**What it costs the design to be wrong.** Nothing through the widget:
+`accept_text_input` gates every insertion, so those texts cannot be entered.
+`Controller::edit` is public and is not the widget, so a caller that is not the
+control can hand the host a number the control would never have produced —
+and `SPEC-001/R-35` puts the judgement of whether an answer is acceptable in
+the backend either way. The cost is a missing sentence rather than a defect:
+§5.2 argues one direction at length and does not say that the other is
+accepted deliberately. Say it, and the rule is complete.
+
+### P-7 — §5.2's "three texts the control admits that no parse accepts" is wrong twice
+
+*From P1a, reading `i-slint-core-1.17.1` directly.*
+
+**What the design assumes.** §5.2: "`-`, `.` and `-.` … are exactly the three
+texts the control admits that no parse accepts, allowed as len≤2 starts so a
+person can begin typing a negative or a fractional number at all."
+
+**What the build observed.** `accept_text_input`'s decimal arm is two rules,
+not one (`items/text.rs:2205-2230`). A candidate of **two bytes or fewer** is
+admitted when it is `-`, the separator, or `-` followed by the separator — the
+separator, **not** a dot, so the enumerated set is `-`, `.` and `-.` only in a
+dot locale, and is `-`, `,` and `-,` in a comma one. Under a comma separator
+`"."` is *rejected* outright. The design's own F-26 removed the named separator
+from the parse rule one paragraph earlier and left it in this sentence.
+
+Any longer candidate is admitted when `string_to_float` parses it — and that
+is `parse::<f32>`, which accepts `inf`, `infinity` and `nan`
+case-insensitively, and reads `1e400` as an infinity. So there is a **second
+set** the sentence does not name: texts the control admits that a parse
+*accepts non-finitely*. They are reachable. Typing `inf` fails at the first
+`i` (a one-character candidate must be `-` or the separator), but **pasting it
+succeeds**, because the three-character candidate goes straight to
+`string_to_float`. A person can put `inf` or `nan` into a numeric field.
+
+The behaviour is right and needs no code: those texts parse, `Finite::new`
+refuses them, the last representable number stands and the text is displayed
+verbatim — the same path `1e400` already takes, and it is now asserted. What
+is wrong is only the prose, and the two sets sit one sentence apart in it: one
+is *admitted, no parse accepts*, the other is *admitted, a parse accepts
+non-finitely*.
+
+(A third, smaller thing, noted rather than raised: the `len <= 2` test is over
+**bytes**. U+066B, the Arabic decimal separator, is two bytes, so `"٫"` alone
+is admitted and `"-٫"` — three bytes — is not. A person in that locale cannot
+begin a negative fraction with the separator. That is Slint's, not this
+host's, and the host parses `-1٫5` correctly either way.)
+
+**What it costs the design to be wrong.** No code, and the cost is that the
+sentence is load-bearing in two places: it is the justification for "the last
+representable number stands", and §5.5's Edges table repeats it. An implementer
+who takes the enumeration as closed writes a three-case test and misses the
+paste path entirely.
+
+### P-8 — F-48's "`Eq` stops deriving" is load-bearing at `Finite`, not only at `Edited`
+
+*From P1a. Small, and it actually happened.*
+
+**What the design assumes.** F-48: `Edited::Adjusted` gains a `Finite(f64)` and
+`Reported::AdjustedValue` an `f32`, "so `Eq` stops deriving on all three" —
+`Reported`, `Edited` and `Command`. The instruction is not to write the impl by
+hand, because it would be unsound over `AdjustedValue(NaN)`.
+
+**What the build observed.** `Eq` does not stop deriving unless nobody writes
+it on the **leaf**. P1a first shipped `impl Eq for Finite {}` — which is
+*sound*, since `Finite` excludes `NaN`, the only `f64` that makes `PartialEq`
+less than an equivalence relation — and with it in place `Edited` and `Command`
+both kept their `Eq` derives and the whole workspace compiled clean under
+`-D warnings`. F-48's trap was reached by a route F-48 does not name: not a
+hand-written impl on the enum it warns about, but a defensible one on the
+newtype under it.
+
+**What was taken here.** Dropped. `Finite` carries `PartialEq` and
+`PartialOrd` and no `Eq`, on the ground that the only thing the impl could buy
+is an `Eq` on `Edited` that F-48 removes — an impl asserting a subtle property
+that nothing consumes is a claim nobody checks. Nothing needed it: dropping
+`Eq` from `Finite`, `Edited` and `Command` together broke no call site in the
+workspace.
+
+**What it costs the design to be wrong.** One line: F-48 should say the
+newtype carries no `Eq` either, and why — not because it would be unsound, but
+because a sound `Eq` there silently restores the derive above it.

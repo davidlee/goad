@@ -25,14 +25,15 @@ use jiff::tz::Offset;
 /// `null`, which `SPEC-001/R-57` does not admit, so a non-finite submitted
 /// number is not merely unwritten here — it is unrepresentable
 /// (design.md §5.2, §5.5 I-G).
+/// **No `Eq`, by hand or derived** (F-48). It would be *sound* here —
+/// `Finite` excludes `NaN`, the only `f64` that makes `PartialEq` less than an
+/// equivalence relation — and it is dropped anyway, because the only thing it
+/// could buy is an `Eq` on [`Edited`], which F-48 removes for a reason that
+/// does not apply to this type: `Reported::AdjustedValue` is a bare `f32` and
+/// *can* hold `NaN`. An impl asserting a subtle property that nothing
+/// consumes is a claim nobody checks.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Finite(f64);
-
-/// Sound, not a convenience: `Finite` excludes `NaN`, which is the only `f64`
-/// that makes `PartialEq` less than an equivalence relation. Every value this
-/// type can hold is equal to itself, so `Edited` — which carries one — can
-/// keep the `Eq` it has always had.
-impl Eq for Finite {}
 
 impl Finite {
   pub const ZERO: Self = Self(0.0);
@@ -56,7 +57,14 @@ impl Finite {
 /// `Adjusted` holds the text beside the number because the text is what the
 /// widget displays and what the guard compares, while `submitted` reads the
 /// number and never the text (design.md §5.2).
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `PartialEq` without `Eq` (F-48): `Adjusted` carries an `f64`, and the
+/// derive stops. Writing the impl by hand would compile — `Finite` refuses
+/// `NaN` — and that is the trap rather than the argument, because the same
+/// hand-written impl on [`Reported`] beside it would be unsound over
+/// `AdjustedValue(NaN)`. Nothing in this crate needs `Eq`; the sites that
+/// compare take `PartialEq`.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Edited {
   /// `SPEC-001/R-57`: JSON boolean.
   Checked(bool),

@@ -18,7 +18,10 @@ use crate::draft::Edited;
 /// What a person did. There is deliberately **no** `Shutdown` variant:
 /// stopping is a decision, not a queue position, and it travels out of band
 /// (design.md §5.4, F-4).
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `PartialEq` without `Eq` (F-48): it carries an [`Edited`], which carries a
+/// number, and the cases that compare a command want `PartialEq` only.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
   Evaluate(Stimulus),
   /// Both strings are opaque **selectors**, matched against retained state

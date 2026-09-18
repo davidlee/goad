@@ -497,9 +497,16 @@ fn is_numeric_grammar(character: char) -> bool {
 /// infinite span even though both its endpoints are exact — the span clause is
 /// what makes the division safe to perform at all.
 ///
-/// The third clause is *Slint's arithmetic has to work afterwards*, and it
-/// subsumes the "finite and strictly positive step" it replaced (F-20): a step
-/// that underflows to zero fails it, and so does a non-finite one. What it
+/// The three clauses are applied **in order**, and the order is load-bearing.
+/// The third subsumes the "finite and strictly positive step" it replaced
+/// (F-20) — a step that underflows to zero fails it, and so does a non-finite
+/// one — but it does **not** subsume the second, and measurably so:
+/// `[-f32::MAX, f32::MAX]` has an infinite span, so its step is infinite, and
+/// `minimum + inf > minimum` and `maximum - inf < maximum` are both *true*.
+/// The operability clause admits that range on its own; only the span clause
+/// rejects it. Both are live.
+///
+/// What the third clause
 /// additionally rejects is `[2^100, 2^100 + 2^77]`, whose step is finite,
 /// positive, and below half an ulp at `minimum`, so `minimum + step` rounds
 /// back to `minimum`. `increment()` is exactly
@@ -740,6 +747,13 @@ mod tests {
   /// span (`fluent/slider.slint:75-76`), so `[1, 1]` divides by zero, and
   /// `[-f32::MAX, f32::MAX]` overflows the span to infinity even though both
   /// endpoints are exact.
+  ///
+  /// The second case is what keeps the clause alive. Its step is `inf`, and
+  /// `minimum + inf > minimum` and `maximum - inf < maximum` are both
+  /// **true**, so the third clause *admits* this range: measured, and the
+  /// reason the third does not subsume the second the way it subsumes the step
+  /// clause it replaced. Delete the span check and this is the only assertion
+  /// that fails.
   #[test]
   fn a_span_that_is_not_finite_and_positive_takes_the_text_control() {
     assert_eq!(slider_bounds(&range(Some(1.0), Some(1.0))), None);
@@ -830,6 +844,96 @@ mod tests {
   fn an_overflowing_text_parses_to_an_infinity() {
     assert_eq!(parsed_number("1e400"), Some(f64::INFINITY));
     assert_eq!(parsed_number("1e400").and_then(Finite::new), None);
+  }
+
+  /// **The mistake the rule invites.** `e` and `E` are in the numeric grammar
+  /// because leaving them out would make `1e5` a text with exactly one
+  /// character outside it — so the rule would substitute a `.` and read `1.5`,
+  /// turning a legal text into a different number with nothing to report.
+  /// This is the assertion that catches that, and it is why the grammar is
+  /// pinned here rather than left open.
+  ///
+  /// `1e5` is a text the control admits: it is over two characters, so
+  /// `accept_text_input` falls through to `string_to_float`, which is
+  /// `"1e5".parse::<f32>()` under a `.` separator (`string.rs:398-412`,
+  /// `items/text.rs:2205-2230`).
+  #[test]
+  fn an_exponent_is_part_of_the_number_and_not_a_separator() {
+    assert_eq!(parsed_number("1e5"), Some(100_000.0));
+    assert_eq!(parsed_number("1E5"), Some(100_000.0));
+    assert_eq!(parsed_number("1,5e3"), Some(1500.0));
+  }
+
+  /// The separator is an arbitrary `char` from ICU, not a comma, and it need
+  /// not be one byte: U+066B is the Arabic decimal separator and is two UTF-8
+  /// bytes. Dropping the named separator is the whole of F-26, and this is the
+  /// case that shows the substitution is done over characters rather than over
+  /// byte offsets.
+  #[test]
+  fn a_multi_byte_separator_is_read_like_any_other() {
+    assert_eq!(parsed_number("1\u{66b}5"), Some(1.5));
+    assert_eq!(parsed_number("-1\u{66b}5"), Some(-1.5));
+  }
+
+  /// A leading or trailing separator is still a number: `f64::from_str`
+  /// accepts both `.5` and `5.`.
+  #[test]
+  fn a_leading_or_trailing_separator_still_parses() {
+    assert_eq!(parsed_number(",5"), Some(0.5));
+    assert_eq!(parsed_number("5,"), Some(5.0));
+  }
+
+  /// `--` holds no character outside the grammar at all, so there is nothing
+  /// to substitute and the rule stops at the first parse. The control does not
+  /// admit it either: its `len <= 2` escape accepts `-`, the separator, and
+  /// `-` followed by the separator, and nothing else
+  /// (`items/text.rs:2212-2226`).
+  #[test]
+  fn a_text_with_no_foreign_character_is_refused_by_the_first_parse_alone() {
+    assert_eq!(parsed_number("--"), None);
+    assert_eq!(parsed_number("1.2.3"), None);
+  }
+
+  /// `f64::from_str` accepts `inf`, `infinity` and `nan` case-insensitively,
+  /// so those texts **parse** — they simply do not parse *finitely*, and the
+  /// finite-parse clause is what catches them. They never reach the
+  /// one-foreign-character fallback, which is why their letters sit outside
+  /// the pinned grammar without consequence.
+  ///
+  /// They are reachable rather than hypothetical: `accept_text_input` admits
+  /// any text over two characters that `string_to_float` parses, and
+  /// `"inf".parse::<f32>()` is `Some(inf)`. Typing it fails at the first `i`
+  /// — a one-character candidate must be `-` or the separator — but pasting
+  /// it does not (`prototype-notes.md` P-7).
+  #[test]
+  fn the_texts_that_parse_non_finitely_are_caught_by_finite_and_not_by_the_grammar() {
+    for text in ["inf", "Infinity", "-inf", "nan", "NaN"] {
+      assert!(
+        parsed_number(text).is_some(),
+        "`{text}` parses; it is `Finite` that refuses it"
+      );
+      assert_eq!(
+        parsed_number(text).and_then(Finite::new),
+        None,
+        "`{text}` is not a number the draft may hold"
+      );
+    }
+  }
+
+  /// **The host over-accepts relative to the control, in one direction only.**
+  /// A space is one character outside the grammar, so the rule reads `1 5` as
+  /// `1.5`; `string_to_float` would refuse that text outright, because it
+  /// substitutes *the* separator and nothing else. Unreachable through the
+  /// widget, which gates every insertion — reachable through
+  /// `Controller::edit`, which is public.
+  ///
+  /// Accepted rather than bought off, because refusing it would mean naming
+  /// the separators, which is exactly what F-26 took away
+  /// (`prototype-notes.md` P-6).
+  #[test]
+  fn a_foreign_character_that_is_no_locale_s_separator_is_still_read_as_one() {
+    assert_eq!(parsed_number("1 5"), Some(1.5));
+    assert_eq!(parsed_number("1x5"), Some(1.5));
   }
 
   // --- as_drawn ----------------------------------------------------------
