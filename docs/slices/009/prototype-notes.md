@@ -22,15 +22,33 @@ section of this file, and any canon or design change the user endorses.
 
 ## What "the current design" means here
 
-`design.md` is current as of round 2's integration. Thirteen round-3 findings
-are dispositioned and **user-confirmed** (D-23, D-24) but not yet integrated.
-This prototype builds **design.md plus those thirteen**, because they are
-decisions the user has already taken and building the superseded shape would
-test nothing. `prototype-delta.md` is the implementer's statement of the
-thirteen, extracted from `review-design.md`.
+**It moves, and the prototype re-synced once already.** This branch was cut at
+`a01ae6a`, where `design.md` was current as of round 2's integration and the
+thirteen round-3 findings were dispositioned, user-confirmed (D-23, D-24) and
+**not** integrated. P1a was therefore built against `design.md` *plus* those
+thirteen, stated in `prototype-delta.md`, on the ground that they are decisions
+the user had already taken and building the superseded shape would test nothing.
 
-Where the delta and `design.md` conflict, the delta wins and the conflict is
-recorded under Findings below.
+Round 3's integration then landed in the main repository at `c065a60`, and it is
+merged into this branch. So from **P1b onward, `design.md` in this worktree is
+the authority and `prototype-delta.md` is a historical record** — the thirteen
+are in the design now, and reading them twice is how a stale one gets applied.
+
+Two things the delta still carries that `design.md` does not, and both are worth
+keeping:
+
+- §E's two **disagreements with `notes.md`'s "citations known bad"** — the claim
+  that §9's `set_accessible_value` "appears nowhere here" is false as written,
+  and F-42's location line looks correct rather than inverted. Neither was
+  reconciled silently, and both are live against the slice.
+- the record of which rules P1a implemented in their delta form rather than
+  §5.2's, which is finding P-5.
+
+The integration also raised **F-46 … F-49**, dispositioned and integrated but not
+yet user-confirmed. The prototype builds them, for the same reason it built the
+thirteen. F-48 in particular reached P1a mid-phase: `Command` and `Edited` keep
+`PartialEq` and drop `Eq`, and the hand-written `Eq` that compiles is unsound
+over `AdjustedValue(NaN)`.
 
 ## Rigour, deliberately uneven
 
@@ -61,7 +79,7 @@ sites are the `FieldForm` / `Reported` changes that land from P1b on.
 | phase | what | state |
 |---|---|---|
 | P1a | the pure core: `Finite`, `Edited`'s five variants, `Reported`, `DrawnKind`, `as_drawn`, `resolve`, `slider_bounds`, the number parse rule — unit-tested, nothing drawn | **done** |
-| P1b | the split: two channels, epoch, guard, `pending`, and `text` end to end | pending |
+| P1b | the split: two channels, epoch, guard, `pending`, and `text` end to end — the first phase built against the **integrated** design | pending |
 | P2 | `number` — both controls, over P1a's `slider_bounds` and parse rule | pending |
 | P3 | `choice` — `ComboBox`, `Chosen(AlternativeId)`, index resolution | pending |
 | P4 | `datetime` — `instant.rs`, the jiff features, the two pickers | pending |
