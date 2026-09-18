@@ -468,3 +468,37 @@ which give `submitted` arms for states the draft is promised never to hold; and
 resolving at submit time in `answer`, which loses F-34's rule because `1e400`
 reparses to infinity and falls back to as-drawn. User: *"Split the type
 (recommended)"*.
+
+## 2026-09-18 — design review, round 3
+
+**D-23 — The value channel shows the draft overlaid with what `pending.rs`
+holds.** F-40, the blocker round 3 found underneath round 2's pending map. The
+guard cannot tell *the host did not record this edit* from *the host has not
+recorded it yet*, and the debounce is what created the second; the serve loop
+presents before every command, so any present inside the window writes the stale
+draft value back over a person mid-type.
+
+Three answers were put up. Taken: `glass.rs` takes a handle to the same `Rc` the
+callbacks hold and prefers a pending entry over the draft's value, so a present
+inside the window writes back what the person typed and the guard is quiet.
+AC-6 keeps its meaning and gains precision — a widget converges exactly when the
+host holds neither a draft value nor a pending one. Rejected: a per-field
+suppression flag in `FieldValue`, which spells the same information as *do not
+converge* rather than as *this is the value* and leaves the channel and the
+widget disagreeing on purpose. Also rejected, and offered explicitly because it
+deletes the class rather than answering it: dropping the debounce, which is D-4
+and the user's own standing commitment. User: *"Overlay pending on the draft
+(recommended)"*.
+
+Two things the user's own framing pinned: the overlay probably subsumes §5.2's
+cleared-field exception, and the exception stays until `numeric_guard.rs` is
+re-run against it — this comparand has been wrong three times and twice on
+reasoning. And §5.3's "no cache and therefore no invalidation rule" has to be
+restated rather than left quietly false.
+
+**D-24 — The other twelve of round 3's findings taken as dispositioned.** User:
+*"Confirm all twelve (recommended)"*. F-6, F-20, F-26, F-29, F-32, F-38, F-39,
+F-41, F-42, F-43, F-44, F-45, each with its repair and its rejected alternatives
+written out in `review-design.md`. Four of the five contests were upheld on
+evidence verified by hand this session; two of them, F-32 and F-6, were the
+previous integration's own errors.
