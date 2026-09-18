@@ -82,11 +82,13 @@ fn the_timer_delivers_one_edit_per_tick_and_re_arms_for_the_next() {
 
   // The only thing standing between a broken re-arm and a hung gate.
   let stop = slint::Timer::default();
-  stop.start(slint::TimerMode::SingleShot, LIVENESS_BOUND, || {
-    match slint::quit_event_loop() {
+  stop.start(
+    slint::TimerMode::SingleShot,
+    LIVENESS_BOUND,
+    || match slint::quit_event_loop() {
       Ok(()) | Err(_) => (),
-    }
-  });
+    },
+  );
 
   let started = std::time::Instant::now();
   slint::run_event_loop_until_quit().expect("the headless loop must run and return");
