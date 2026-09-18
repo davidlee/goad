@@ -114,6 +114,38 @@ I-F and I-G, §9's driver column, §10's `POL-001` residue argument, and CD-2's
 two removals — did not exist when round 1's brief was written and are held to
 the same invariants it named.
 
+**Round 3** — 2026-09-18 — the integration. Two jobs again, and they are the
+same two. Set the terminal outcome on F-19 … F-30 and F-32 … F-37, which is the
+raiser's and not the responder's. And attack the integrated text as new material,
+because that is what it is: the seven live findings of round 2 rewrote §5.2's
+whole numeric account, all of §5.4's picking, §7 D13 and D21, §9's tier prose,
+§5.5's I-G and two edges, and added a type and a function that no reviewer has
+seen.
+
+Held to the five invariants round 1 named, and to a sixth this round's own
+material forces: **a value must be constructible where it is constructed.** F-37
+is that failure — a type whose payload only the retained presentation can supply,
+carried by a command a Slint callback builds. `AlternativeId` is not the only
+`pub(super)` constructor in `goad-semantics`, and `Finite` is not the only payload
+whose value depends on state the builder cannot see.
+
+Surfaces, as surfaces:
+
+- §5.2 from *A number at the markup boundary* to the end of the guard — the parse
+  rule, the recording rule, the comparand, the exception, and the rejected
+  revision. One argument now, across five paragraphs and two types.
+- §5.2's `Reported` / `resolve` block, `Edited`'s new payload, and what
+  `Command::Edit` and `PendingEdit` carry. New surface, one pair of eyes.
+- §5.4's four paragraphs on picking, and §7 D21 — a widget whose behaviour two
+  findings have now read wrongly in opposite directions.
+- §9's control table, the pointer paragraph, the loop-tier paragraph and §8 R9 —
+  what depends on a popup being laid out, and what a driver has been *named* for
+  rather than measured.
+- §5.5's I-G, A-2, A-3 and the two numeric edge rows, against §5.2 as it now
+  stands.
+- §5.1's site enumeration and §9's three widgetless obligations, against what the
+  `Reported` split actually touches.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -154,6 +186,7 @@ the same invariants it named.
 | F-34 | minor | fix-now | _pending round 3_ |
 | F-35 | blocker | fix-now | _pending round 3_ |
 | F-36 | major | fix-now | _pending round 3_ |
+| F-37 | blocker | fix-now | _pending round 3_ |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 

@@ -23,16 +23,21 @@ costs a text field every keystroke after the first.
 
 ## Scope
 
-- `crates/goad/ui/app.slint` — the field repeater, `FieldRow`, the `edited`
-  callback.
-- `crates/goad/src/view_model.rs` — the mapper's `FieldKind` match and
-  `FieldForm`.
-- `crates/goad/src/draft.rs` — `Edited`, `submitted`, `state_of`.
-- `crates/goad/src/glass.rs` — how a present writes the options model.
-- `crates/goad/src/controller.rs` — the `Edit` path and the text debounce.
+- `crates/goad/ui/app.slint` — the field repeater, `FieldRow` and `FieldValue`
+  as two channels, the `edited` callback, the epoch and each control's guard,
+  and the two picker popups.
+- `crates/goad/src/view_model.rs` — the mapper's `FieldKind` match, `DrawnKind`,
+  `FieldForm`, and the kind-directed `as_drawn` / `resolve`.
+- `crates/goad/src/draft.rs` — `Edited`, `Reported`, `Finite`, `submitted`,
+  `state_of`.
+- `crates/goad/src/glass.rs` — how a present writes the two models.
+- `crates/goad/src/controller.rs` — the `Edit` and `Choose` paths.
 - `crates/goad/src/wire.rs`, `src/install.rs` — the callback's two ends.
-- `crates/goad/tests/` — including, if the design calls for it, a new
-  event-loop-backed target.
+- `crates/goad/src/pending.rs`, `src/instant.rs` — new: the debounce, and the
+  two impure reads a `datetime` needs.
+- `crates/goad/Cargo.toml` — `jiff`'s `tz-system` and `tzdb-zoneinfo`, on the
+  one member that reads the system zone (`design.md` §10, §7 D18).
+- `crates/goad/tests/` — including one or more new event-loop-backed targets.
 
 ## Non-goals
 
@@ -98,44 +103,47 @@ the one way `docs/AGENTS.md` §Tiers names as failing the rule dishonestly.
 
 Binding: **SPEC-001** R-16, R-17, R-18, R-35, R-52, R-53, R-55, R-57, R-58.
 **ADR-001** and **POL-001** — all of this slice is stratum 3; nothing reaches
-`goad-semantics`.
+`goad-semantics`. `POL-001` §Verification also names the residue this slice
+triggers, a feature switched on in a dependency stratum 1 shares; `design.md`
+§10 carries the argument it requires.
 
-Checked and not applicable: **SPEC-002** and **ADR-004** (scheduling — one
-adjacency recorded at OQ-3 below, not acted on); **SPEC-003** and **ADR-005**
+Amended, not merely read: `canon-delta.md` holds **CD-1** (`SPEC-001` §7 gains
+what an untouched field submits per kind, the `datetime` epoch and the `max`-only
+consequence) and **CD-2** (`SPEC-001` §Verification's `R-55`, `R-57` and `R-58`
+rows). Both are the slice's working authority while it runs and are promoted at
+audit with explicit endorsement. Nothing outside this slice may cite them.
+
+Checked and not applicable: **SPEC-002** and **ADR-004** (scheduling — the one
+adjacency is the `SPEC-002/OQ-4` non-goal above, not acted on); **SPEC-003** and **ADR-005**
 (event ingress — untouched); **ADR-002**/**ADR-003** (no new workspace member;
-the spike is a standalone workspace, deleted at `a698217`'s successor).
+`spike-fields/` is a standalone cargo project rather than a member, committed at
+`4f93d41` and deleted when the design closes — D-19).
 
 `research.md` Thread 1 carries the clause-by-clause reading.
 
 ## Open questions
 
-- OQ-1 — **What does each kind submit when the person has not touched it?**
-  `Draft::state_of` answers `Checked(false)` as-drawn, which is the protocol's
-  answer for a boolean and has no counterpart for a bounded number, a choice
-  with alternatives, or a datetime. `R-58` forbids omitting the value and
-  `OQ-2`'s prefill is unlanded, so the design must state a per-kind as-drawn
-  value and own the consequence. The sharpest undesigned question in the slice.
-- OQ-2 — **What does a conforming `datetime` control compose into?** Both
-  pickers are popups and neither can be repeated, so there is no inline control;
-  `R-57` wants an RFC 3339 instant with an offset while `DatePickerPopup` yields
-  a bare `{year, month, day}`. This is the kind most likely to reopen
-  `SPEC-001/OQ-4`.
-- OQ-3 — **Where does the text debounce flush?** 150 ms is the agreed starting
-  value (user, 2026-09-16), configurable per backend later. A debounce means the
-  draft lags the widget, so a person who types and immediately clicks the option
-  button could submit the previous text. On `accepted`, on focus loss, or before
-  building the `respond` — with a data-loss failure behind the wrong answer.
-- OQ-4 — **Which tier tests the re-assert, and what is knowingly left to a
-  person?** `changed` fires nowhere under `init_no_event_loop`, so the whole
-  `tests/renderer/` tier would be vacuously green on it. Either a new
-  one-test-per-binary target in the `event_loop_schedule` shape, or a stated gap.
-- OQ-5 — **When may a present write in place rather than rebuild?** The shape
-  changing (a new view, a different option or field set) plainly needs a
-  rebuild; a value-only change plainly does not. The boundary between them, and
-  what happens on a refused command, is design. `research.md` Thread 4 records
-  one rejected answer that looks right and is not — skipping the write when the
-  rows compare equal, which is blind to the only divergence that matters — and
-  one unverified claim that would simplify the whole question if it survives.
+All five opened at scoping are closed. Each was a user decision; the argument is
+in `design-log.md` and the answer is in `design.md`, and neither is repeated
+here.
+
+| | question | closed by |
+|---|---|---|
+| OQ-1 | what each kind submits untouched | D-6 — as-drawn is what the widget shows; `datetime` is the epoch (`design.md` §5.2) |
+| OQ-2 | what a conforming `datetime` composes into | D-7 — the offset the person picked in, chained pickers, cancel abandons (§5.2, §5.4) |
+| OQ-3 | where the text debounce flushes | D-8 — on answer, and nowhere else; the flush travels inside `Command::Choose` (§5.4) |
+| OQ-4 | which tier tests the re-assert | D-10, widened at D-14 — the loop tier takes whatever targets its rows need, one arrangement each; the caret is a person's (§9) |
+| OQ-5 | when a present may write in place | D-9 — same `view_id`; two channels rather than a retained tree (§5.3) |
+
+One question is open and deliberately deferred: **whether the `datetime` epoch
+is stated normatively or descriptively in `SPEC-001`** (`canon-delta.md` CD-1).
+Deferred to promotion at audit by explicit user decision, on the ground that it
+is a question about how canon should read rather than about what the code does.
+
+`SPEC-001/OQ-4` — a date without a time — **stays shut**, and the non-goal above
+set the condition under which it would have reopened. It was not met: a date-only
+field can be expressed as a `datetime` at 00:00 local. `design.md` §10 states the
+evidence, which is about the affordance rather than the expressiveness.
 
 ## Before design starts
 
