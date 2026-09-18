@@ -155,38 +155,46 @@ Surfaces, as surfaces:
 | F-3 | major | fix-now | verified |
 | F-4 | major | fix-now | verified |
 | F-5 | major | fix-now | verified |
-| F-6 | major | fix-now (re-disposed) | _pending round 3_ |
+| F-6 | major | fix-now (re-disposed ×2) | _pending round 4_ |
 | F-7 | major | doc-wrong | verified |
 | F-8 | major | doc-wrong | verified |
 | F-9 | major | fix-now | verified |
-| F-10 | major | fix-now (re-disposed) | _pending round 3_ |
-| F-11 | minor | fix-now (re-disposed) | _pending round 3_ |
+| F-10 | major | fix-now (re-disposed) | verified |
+| F-11 | minor | fix-now (re-disposed) | verified |
 | F-12 | minor | doc-wrong | verified |
 | F-13 | major | fix-now | withdrawn |
-| F-14 | blocker | fix-now (re-disposed) | _pending round 3_ |
-| F-15 | major | fix-now (re-disposed) | _pending round 3_ |
+| F-14 | blocker | fix-now (re-disposed) | verified |
+| F-15 | major | fix-now (re-disposed) | verified |
 | F-16 | major | fix-now | verified |
 | F-17 | minor | fix-now | verified |
 | F-18 | minor | fix-now | verified |
-| F-19 | major | fix-now | _pending round 3_ |
-| F-20 | major | fix-now | _pending round 3_ |
-| F-21 | major | fix-now | _pending round 3_ |
-| F-22 | major | fix-now | _pending round 3_ |
-| F-23 | minor | fix-now | _pending round 3_ |
-| F-24 | major | fix-now | _pending round 3_ |
-| F-25 | major | fix-now | _pending round 3_ |
-| F-26 | major | fix-now | _pending round 3_ |
-| F-27 | minor | fix-now | _pending round 3_ |
-| F-28 | major | fix-now | _pending round 3_ |
-| F-29 | nit | fix-now | _pending round 3_ |
-| F-30 | blocker | fix-now | _pending round 3_ |
+| F-19 | major | fix-now | verified |
+| F-20 | major | fix-now (re-disposed) | _pending round 4_ |
+| F-21 | major | fix-now | verified |
+| F-22 | major | fix-now | verified |
+| F-23 | minor | fix-now | verified |
+| F-24 | major | fix-now | verified |
+| F-25 | major | fix-now | verified |
+| F-26 | major | fix-now (re-disposed) | _pending round 4_ |
+| F-27 | minor | fix-now | verified |
+| F-28 | major | fix-now | verified |
+| F-29 | nit | fix-now (re-disposed) | _pending round 4_ |
+| F-30 | blocker | fix-now | verified |
 | F-31 | blocker | — | withdrawn |
-| F-32 | nit | fix-now | _pending round 3_ |
-| F-33 | minor | fix-now | _pending round 3_ |
-| F-34 | minor | fix-now | _pending round 3_ |
-| F-35 | blocker | fix-now | _pending round 3_ |
-| F-36 | major | fix-now | _pending round 3_ |
-| F-37 | blocker | fix-now | _pending round 3_ |
+| F-32 | nit | fix-now (re-disposed) | _pending round 4_ |
+| F-33 | minor | fix-now | verified |
+| F-34 | minor | fix-now | verified |
+| F-35 | blocker | fix-now | verified |
+| F-36 | major | fix-now | verified |
+| F-37 | blocker | fix-now | verified |
+| F-38 | blocker | fix-now | _pending round 4_ |
+| F-39 | blocker | fix-now | _pending round 4_ |
+| F-40 | blocker | fix-now | _pending round 4_ |
+| F-41 | blocker | fix-now | _pending round 4_ |
+| F-42 | major | fix-now | _pending round 4_ |
+| F-43 | minor | fix-now | _pending round 4_ |
+| F-44 | major | fix-now | _pending round 4_ |
+| F-45 | minor | fix-now | _pending round 4_ |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 
@@ -281,7 +289,21 @@ Repaired at the class, not the site (D-12). The submitted number crosses as a **
 
 Repaired at the mechanism (D-15): **`Command::Choose` carries the pending edits.** One send, no race, FIFO no longer load-bearing; the controller applies them to the draft and then answers. D-8's decision — the debounce flushes when the draft becomes an answer — is then held by construction rather than by sequencing, which is what it always meant. §5.1, §5.3 and §5.4's *An answer* are rewritten; the edges table loses the "channel full when flushing on answer" row and gains the single-send case.
 
-**Outcome:** _pending round 3_
+**Outcome:** contested — round 3. The one-command answer is present (`Choose` carries `Vec<PendingEdit>`), but the map's *timer* path still sends one `Command::Edit`, and handling it presents while the map's other entry is absent from the draft, so that widget is reasserted to its old value. Returns to open; F-41 states the mechanism in full.
+
+**Re-disposition (round 3):** fix-now
+**Response:** Contest upheld. "One `Command::Edit` goes down the channel, as
+today" was true of a single pending slot and is not true of a map, and the
+repair stopped at the answer path. The answer is not a second command shape —
+it is the pair F-40 and F-41 now carry: the value channel shows what
+`pending.rs` holds, so an entry the timer has not sent yet is not reverted by
+the present that follows the one it did send; and the timer re-arms while the
+map is non-empty, so every entry reaches the draft within a tick per entry.
+
+This finding's own requirement — every typed field survives to the answer — was
+already held by the `Choose` drain and is not what was wrong.
+
+**Outcome:** _pending round 4_
 
 ### F-7 — Same `view_id` implying same structure is not a property of the types
 
@@ -350,7 +372,7 @@ CD-2 is rewritten rather than extended. It previously said the R-16/R-58 rows *g
 
 The second half of the contest is right and is the more serious one, and it matches what the responder found independently: `SPEC-001` §Verification's R-58 row names **two** cases and this slice kills both. The MUST NOT case, `wiring.rs::an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field` (`wiring.rs:1339`), runs over `TWO_FORMS` (`wiring.rs:1157`) whose `noted` field is `kind: "text"`, and opens with a guard assertion — *"the fixture must actually carry an undrawn field for its absence below to mean anything"* — which becomes **unsatisfiable by construction**. R-58's MUST NOT prohibits two things; after this slice the first, not submitting a value for a field it did not draw, is **unobservable**, and no substitute construction exists. CD-2 must record a permanent reduction in what the suite can assert about a normative rule, not a case that moves. Two further consumers of the same fixture, `wiring.rs:1246` and `:1305`, reach `Refused::UnknownField` through `noted` being undrawn; after this slice that refusal is reachable only from a fabricated field id, which is the posture §5.2 already gives an out-of-range `ComboBox` index.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. The enumeration is at `design.md` §5.1 and names every site the tree search finds; CD-2 identifies both `R-58` cases and the stale `R-55` statement.
 
 ### F-11 — The validation ledger omits two event-loop obligations the design claims it covers
 
@@ -369,7 +391,7 @@ The second half of the contest is right and is the more serious one, and it matc
 **Re-disposition (round 2):** fix-now
 **Response:** Contest upheld. The repair put both obligations in a numbered list below §9's table, and a claim outside the table binds a planner no more than a claim in a log does — which was the finding's whole point. Both become rows, each with its driver and its assertion: the debounce timer firing, and a `choice` re-asserting. Folded into F-25's rebuild of the table.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. Both rows now name an executable driver — the timer case lets the loop run past 150 ms and observes exactly one edit; the `choice` case expands, clicks a `ListItem` and presents again.
 
 ### F-12 — `wire.rs` does not falsify Thread 4's observability claim on the cited production trace
 
@@ -462,7 +484,7 @@ truncates rather than refuses, which is F-2's defect on a second boundary.
 **Re-disposition (round 2):** fix-now
 **Response:** Contest upheld. The repair removed the panic and the cast but then wrote that the checked constructors "plus the two conversions is the whole of the `None`", which excludes `to_zoned` — and `to_zoned` returns a `Result` that can fail at the civil-time boundaries a `Date::new` accepts. Excluding it is the same error the finding was raised about, one call further along. `compose`'s `None` surface is stated as all four: the two integer conversions, the two civil constructors, **and** `to_zoned`.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. `compose`'s `None` surface names the two integer conversion sets, the checked `Date::new` / `Time::new`, and `to_zoned`; A-4 prices exactly those four.
 
 ### F-15 — The order in which a present writes rows, values and the epoch is never stated
 
@@ -490,7 +512,7 @@ error. `split.rs` exercised one order and the design does not record which.
 **Re-disposition (round 2):** fix-now
 **Response:** Contest upheld, and the repair had the order backwards. A `set_vec` instantiates rows, and a new row evaluates `root.values[field.slot]` **during** instantiation — against whatever `values` holds at that moment, which under "rows then values" is the previous view's shorter array. The order is **`values`, then rows where they are written at all, then the epoch.** Writing new-view values while old rows still index them is harmless: those rows are destroyed by the next statement. I-F and §5.4 are corrected.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. Values, then rows where structure changed, then the epoch — stated in §5.4 and as I-F, with the reason no row can evaluate against a stale or empty model.
 
 ### F-16 — §5.4 never says what the pickers hold when they open
 
@@ -574,7 +596,7 @@ as CD-1 currently words it.
 
 The guard compares **text**, which is lossless, with one exception and no more: `self.text == ""` and the held value is zero. That is the measured cleared-field case (`numeric_guard.rs`) and nothing else, so the exception is as narrow as the evidence for it. Written as: converge unless the strings match, or unless the widget is empty and the held number is zero.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. The `f32` comparand is gone: the guard compares the widget's text against the verbatim text retained beside the `Finite`, with only the measured empty-widget / held-zero exception.
 
 ### F-20 — `slider_bounds` admits legal ranges for which Slint's slider arithmetic is undefined or inoperable
 
@@ -588,7 +610,29 @@ The guard compares **text**, which is lossless, with one exception and no more: 
 **Disposition:** fix-now
 **Response:** Correct: an exact endpoint round-trip is necessary and not sufficient. `[1, 1]` divides by a zero span, `[-f32::MAX, f32::MAX]` has an infinite one, and a span small enough makes `(max - min) / 100` underflow to a step of zero — which Slint's keyboard rejects outright. `slider_bounds` answers `Some` only when both endpoints round-trip exactly **and** the span is finite and strictly positive **and** the step is finite and strictly positive. Everything else takes the text control, which is where every one of these belongs anyway — a slider over a single value offers nothing.
 
-**Outcome:** _pending round 3_
+**Outcome:** contested — round 3. The predicate rejects the three examples and still admits an inoperable step. `minimum = 2^100`, `maximum = 2^100 + 2^77`: both round-trip exactly, the `f32` span is finite and positive, and `span / 100` is finite and positive — but that step is below half an ulp at `minimum`, so `minimum + step` rounds back to `minimum` and `increment()`, which is exactly `set-value(value + step)` (`common/slider-base.slint:126-131`), does nothing. Positivity does not establish operability.
+
+**Re-disposition (round 3):** fix-now
+**Response:** Contest upheld, and the arithmetic checks out. At
+`minimum = 2^100` the `f32` ulp is `2^77`, so a one-ulp span gives a step of
+about `2^70.3` — below half an ulp — and `increment()`, which is exactly
+`root.set-value(root.value + root.step)`
+(`widgets/common/slider-base.slint:126-131`), returns the value unchanged.
+Verified by hand against the locked source.
+
+`slider_bounds` gains the condition it was missing, in the same form as the
+other three — *Slint's arithmetic has to work afterwards*: `minimum + step`
+must exceed `minimum`, and `maximum - step` must fall below `maximum`, both
+evaluated in `f32`. That states operability directly rather than approximating
+it with a magnitude rule, and it **subsumes** the third clause: a step that
+underflows to zero fails it, and so does a non-finite one. The span clause
+stays, because it is what makes the division safe to perform at all.
+
+Everything the tightened predicate rejects takes the text control, which is
+where a range a slider cannot operate belongs — the same answer §5.2 already
+gives for equal bounds and an infinite span.
+
+**Outcome:** _pending round 4_
 
 ### F-21 — I-G is a construction convention, not an invariant of the canonical internal type
 
@@ -604,7 +648,7 @@ The guard compares **text**, which is lossless, with one exception and no more: 
 
 `Adjusted` comes to hold a checked finite newtype with a private field and a fallible constructor, so a non-finite submitted number is **unrepresentable** rather than merely unwritten. I-G then states a property of the type, which is what an invariant is.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. `Edited::Adjusted` holds a `Finite` with a private field and a fallible constructor, so `submitted` cannot receive a non-finite value through `Edited`.
 
 ### F-22 — Picker seeding has no declared path from Rust state and time into the Slint button handler
 
@@ -620,7 +664,7 @@ The guard compares **text**, which is lossless, with one exception and no more: 
 
 The seed is the **host's**, not the markup's. `FieldValue` gains typed `date` and `time` slots, written by `glass.rs` on every present beside the text — from the draft where the field has been picked, from today at 00:00 local where it has not. The button handler copies them into the popup and does nothing else. No reverse callback, no parsing, and the clock stays where `TimeZone::system()` already is.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. `FieldValue` carries typed `date` / `time` slots, `glass.rs` writes them from `decompose` or `today_local`, and the button copies them to root seed properties the fresh popups bind to. No display-text parse and no reverse callback.
 
 ### F-23 — The replacement rationale for rejecting targeted rebuilds discards the refused command's identity
 
@@ -636,7 +680,7 @@ The seed is the **host's**, not the markup's. `FieldValue` gains typed `date` an
 
 D8 is rewritten on the two grounds that survive. First, the alternative rests on an enumeration of the ways an edit can be lost, which `docs/memory/enumerate-the-class-not-the-instances.md` warns about and which Thread 4 never completed; the measured guard depends on no such enumeration. Second, even with the field in hand the only correction available without the epoch mechanism is a targeted row rebuild (Thread 4, *not taken but available*), which destroys the element of **precisely the field the person was typing in** — edits come from the field with the caret. Narrower than a whole-form rebuild, and fatal in the same way.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. D8 now says `TrySendError::Full(T)` returns the whole command and cites the discard at `wire.rs:127-133`, rejecting targeted rebuilds on enumeration and caret grounds instead. The code binds and discards at `wire.rs:127-132`; the Response's `:126` was wrong.
 
 ### F-24 — The POL-001 residue argument attributes purity enforcement to a command canon says rejects nothing
 
@@ -652,7 +696,7 @@ D8 is rewritten on the two grounds that survive. First, the alternative rests on
 
 §10 is rewritten to argue the residue honestly: **no gate command rejects this, and that is the point of `POL-001` requiring it to be argued.** What stands is narrower and true — `jiff` gains a capability, `goad-semantics` gains no call site, no import and no reachable behaviour, and `ADR-001`'s direction rule is about what stratum 1 may name and do. The residual risk is stated rather than dissolved: a future stratum 1 source could come to depend on a feature stratum 1 did not ask for, and only review would catch it.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. §10 states the residue in the policy's own terms — no gate command rejects it, and only review would catch a later stratum 1 source depending on a unified capability. Matches `POL-001` §Verification.
 
 ### F-25 — The repaired driver table is based on a false no-loop limitation and still names outcomes instead of drivers
 
@@ -668,7 +712,7 @@ D8 is rewritten on the two grounds that survive. First, the alternative rests on
 
 §9 is rebuilt on what the API actually reaches. Every automated row names a concrete API, not an outcome: which query finds the control, which call operates it, and for a popup, which call opens it and which finds the item inside. Rows move back out of the loop tier wherever the no-loop tier can in fact drive them, and the loop tier keeps only what needs a real loop — the `changed` handlers and the debounce timer.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. §9 names the operating call control by control, and the obligation table either refers to those drivers or names its own, reserving `changed` handlers and timers for a real loop.
 
 ### F-26 — The string-valued numeric control accepts a locale grammar that the host parser rejects
 
@@ -684,7 +728,35 @@ D8 is rewritten on the two grounds that survive. First, the alternative rests on
 
 D-16: the host parses with the rule the text was validated under — a single comma read as the decimal separator where no dot is present, then `f64::from_str`. Host-side, testable without a locale fixture, and numeric formatting rather than anything domain-shaped. Rejected: sending Slint's parsed float alongside the text, which would reintroduce as a fallback the `f32` path F-2 exists to remove.
 
-**Outcome:** _pending round 3_
+**Outcome:** contested — round 3. The repair does not implement Slint's rule. `string_to_float` takes an arbitrary separator `char` from ICU and replaces *that* character, rejecting any `.` when the separator is not `.` (`i-slint-core/string.rs:398-412`; `i-slint-common/lib.rs:58-82`). A locale whose separator is neither `.` nor `,` is still accepted by the control and refused by the proposed host parser. The Response fixed the example locale, not the class.
+
+**Re-disposition (round 3):** fix-now
+**Response:** Contest upheld, and the class is wider than the repair assumed —
+the separator is an arbitrary `char` from ICU
+(`i-slint-common/lib.rs::decimal_separator_for_locale`), and it is **live in this
+build**: `i-slint-core`'s default `std` feature enables
+`i-slint-common/locale-decimal-separator` (`i-slint-core/Cargo.toml:82-95`).
+Verified this session.
+
+The separator is not reachable from host code. `SlintContext::locale_decimal_separator`
+is `i-slint-core`, which `crates/goad` does not depend on, and the `slint` crate
+re-exports neither it nor `string_to_float`. Reading it would mean a new
+dependency or a second ICU lookup; both are out.
+
+So the host stops trying to name the separator and instead accepts exactly the
+class the control admits. `string_to_float` accepts a text one of two ways: the
+separator is `.` and the text parses; or the separator is not `.`, the text
+contains no `.`, and it parses once that one character is replaced
+(`i-slint-core/string.rs:398-412`). The host mirrors that without knowing which
+case it is in: parse the text as it stands; failing that, if it holds exactly one
+character outside the numeric grammar, replace that character with `.` and parse
+again. Empty text is still zero.
+
+Which characters count as the numeric grammar is the plan's to pin down against
+`f64::from_str`, and the rule stays what D-16 wanted: host-side, and testable
+without a locale fixture.
+
+**Outcome:** _pending round 4_
 
 ### F-27 — §6 still closes OQ-4 with the one-binary constraint D-14 explicitly superseded
 
@@ -698,7 +770,7 @@ D-16: the host parses with the rule the text was validated under — a single co
 **Disposition:** fix-now
 **Response:** Correct. §6 still closed OQ-4 with D-10's *one new event-loop binary*, which §7's D14 rewrote and §9 outgrew — three sections giving a planner three different constraints. §6's row is restated to what D-14 settled: as many one-arrangement targets as the rows require, the count settled by the plan.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. The OQ-4 row now says the loop cases take as many one-arrangement targets as their rows need, count left to the plan. The one-binary constraint is gone.
 
 ### F-28 — A `Slider`'s edit cannot travel as a string, and F-2's repair made it
 
@@ -723,7 +795,7 @@ exactly, reintroduced by the fix for F-2.
 
 `FieldEdit` keeps `number: float`, used **only** by the `Slider`. §5.2 states why that is not a narrowing: the `Slider` is admissible only over a range that is `f32`-exact (F-20 tightens that further), any `number` outside it draws the lossless text control, and `as_drawn` is computed host-side in `f64` and never crosses the boundary. What a slider can *produce* being granular is a property of the control — true of any slider, pixels included — not of the contract, which still admits and still answers every legal message.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. The two numeric paths are distinct — text out of a `LineEdit`, a native `f32` out of a `Slider` — and the slider is reached only through the `f32`-admissibility predicate, so legal values outside it take the text control.
 
 ### F-29 — §5.1 still calls `TimeZone::system()` `instant.rs`'s one impure call
 
@@ -740,7 +812,21 @@ says one.
 **Disposition:** fix-now
 **Response:** Raised by the responder as second raiser against its own F-16 repair; disposed as responder. §5.4's picker seeding put a read of today's local date in `instant.rs`, so §5.1's *"`TimeZone::system()` — the one impure call"* stopped being true. One sentence; listed because a repair contradicting a section it did not touch is the class round 2 was asked to look for, and this is the instance.
 
-**Outcome:** _pending round 3_
+**Outcome:** contested — round 3. The sentence changed and the count is still wrong. §5.2 claims two reads, "the system zone, in `compose`, and the clock" in `today_local` — but `today_local() -> (Date, Time)` promises today's **local** date with no zone in scope, so it must read `TimeZone::system()` as well. The second system-zone call site is still unnamed.
+
+**Re-disposition (round 3):** fix-now
+**Response:** Contest upheld. `today_local` cannot answer a *local* date from the
+clock alone; it reads `TimeZone::system()` too. There are two impure **kinds** of
+read at **three** call sites: the clock, in `today_local`; and the system zone, in
+`compose` and in `today_local` both. §5.1 and §5.2 name the three sites, because a
+module whose whole reason to exist is holding the impurity should not undercount
+where it performs it.
+
+Nothing else moves: the manifest argument in §10 is about `TimeZone::system` being
+called at all, which was already true.
+
+**Outcome:** _pending round 4_
+
 ### F-30 — The F-19 guard fights ordinary typing
 
 **Severity:** blocker
@@ -804,6 +890,8 @@ the one exception. Reconsidering it is cheap if that exception ever grows.
 Measured in `spike-fields/tests/guard_text.rs`: seven slots against one guard,
 two host policies, with an injection pass.
 
+**Outcome:** verified — round 3. The host retains the typed text verbatim beside the last finite value and `FieldValue.text` is that text, so the guard compares like with like and stays quiet through negative prefixes, decimal intermediates, trailing zeros and overflow text.
+
 ### F-31 — The picker seed is a no-op exactly when two untouched fields are picked in turn
 
 **Severity:** blocker
@@ -861,7 +949,16 @@ of the value as applied, not of the rule as stated.
 agree — so the value is right and the sentence is not. §5.2 states the rule the
 way Slint states it, and says why the design's `step` makes them coincide.
 
-**Outcome:** _pending round 3_
+**Outcome:** contested — round 3. The formula is quoted and its gloss is still false. `min(root.step, span / 100)` is a **cap** on the accessible step, not "a floor on the step" as §5.2 now says. The Response promised to state what the source says; the integration reversed it.
+
+**Re-disposition (round 3):** fix-now
+**Response:** Contest upheld; the gloss was inverted when the repair was
+integrated. `min(root.step, (maximum - minimum) / 100)` **caps** the accessible
+step at a hundredth of the span — it is an upper bound, not a floor. Under this
+design's `step`, which is exactly that hundredth, the cap binds at equality and
+the two coincide, which is the only thing the sentence needed to say.
+
+**Outcome:** _pending round 4_
 
 ### F-33 — §9's popup rows depend on a layout that no existing case exercises
 
@@ -896,7 +993,7 @@ label, index and selected state but **no** default action
 and really does depend on the popup being laid out. §9's rows are corrected to
 say which of them needs a pointer, and §8 gains a row for the one that does.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. The pointer/layout dependency is isolated to the `ComboBox`, whose `ListItem` has role, label, selection and index but no default action (`fluent/components.slint:49-53`); the date chain drives through default actions. R9 records the residual no-loop layout risk and the fallback tier.
 
 ### F-34 — Text that parses to a non-finite `f64` has no stated fate
 
@@ -926,7 +1023,7 @@ and the wire keeps a finite value — measured as `1e400` on screen against
 `1e40` on the host. The same rule covers `-`, `.` and `-.`, which the control
 admits as len≤2 prefixes and which no parse will ever accept.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. Every admitted text is retained, only a finite parse replaces the number, and the edge table repeats the rule for prefixes and for overflow.
 
 ### F-35 — The picker seeding mechanism §5.4 specifies does not compile
 
@@ -956,7 +1053,7 @@ F-22's repair put it; only the direction of the last hop changes, from an
 assignment into the popup to a binding out of it. Measured working in
 `spike-fields/tests/picker_seed.rs`.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. The root owns the seed properties, each popup binds at its declaration site, and the handler assigns only the root properties before `show()`.
 
 ### F-36 — Two arguments rest on a popup instance that does not persist
 
@@ -994,7 +1091,7 @@ popup and read a pick back is a driver question, and §9 answers driver
 questions by naming the call — which is the check F-25's repair installed. The
 row goes back through it rather than being reassigned here.
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. §5.4 states that every show constructs a fresh popup and a close drops it, D21 is justified by reopening a picked field on its own pick, and §9 treats the tier as a driver question.
 
 ### F-37 — Two of `Edited`'s five variants cannot be built where the command is built
 
@@ -1088,7 +1185,242 @@ in `install.rs`, and 26 `Edited::` sites — 10 in `draft.rs`'s own tests, 2 in 
 `install.rs` and `glass.rs`. Every one is inside a surface this slice already
 rewrites (§5.1, §9).
 
-**Outcome:** _pending round 3_
+**Outcome:** verified — round 3. `Reported` carries only what a callback can construct, `controller::edit` resolves it against the held `Edited` and the retained `DrawnKind`, and both `Command::Edit` and `PendingEdit` carry `Reported`. Both construction failures are discharged. One false claim the split introduced is raised as F-42.
+
+### F-38 — Pending edits lose their originating view and can be relabelled as edits to its replacement
+
+**Severity:** blocker
+**Location:** `design.md §5.1 pending.rs; §5.2 wire.rs; §5.4 Edges`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** Every delayed edit retains the `view_id` on which it occurred. Under `SPEC-001/R-32` and R-33, an edit from a replaced interaction must take the stale-view refusal path, never be applied to the replacement.
+**Observed:** Pending state is only `Reported`, keyed by `(option, field)`; `PendingEdit` carries only option, field and value. On answer, all entries are put inside a `Choose` carrying the **current** view. If a replacement reuses the same option and field strings, an old pending edit is therefore accepted as an edit to the new view. If the strings differ it becomes `UnknownField`, not the `SupersededView` the edge table promises. The same missing value leaves the timer path with no stated source for the `view` required by `Command::Edit`.
+**Evidence:** `design.md:194-207,655-686,690-697,768-785,933-935`; `crates/goad/src/wire.rs:24-42` explains why both current command variants carry `view`; `SPEC-001/R-32` and R-33 (`docs/specs/001-host-backend-protocol.md:145-146`).
+
+**Disposition:** fix-now
+**Response:** Correct, and the missing field is what the timer path needs anyway.
+`PendingEdit` carries the `view` its edit was made on. The `edited` callback
+already receives that view as its first argument, so it costs a struct field and
+no new plumbing, and it is the only available source for the `view` a
+`Command::Edit` requires once the send is deferred.
+
+On a drain — timer or answer — an entry whose view is not the command's is
+**discarded and reported** through the existing `SupersededView` site rather than
+applied. That is what §5.5's edge row already promises and what `R-33` makes
+true: the view was replaced, so the typing really was discarded, and saying so is
+right. It also makes the map self-cleaning, so nothing accumulates across views.
+
+Rejected: clearing the map when the row model is rebuilt. Same effect by a less
+direct route — it needs the renderer to observe a new view separately from the
+`set_vec` it already does, and it still leaves the timer path with no `view` to
+send.
+
+**Outcome:** _pending round 4_
+
+### F-39 — The promised retry after a full answer send cannot be implemented through `Wire::send`
+
+**Severity:** blocker
+**Location:** `design.md §5.4, An answer; crates/goad/src/wire.rs:127-133`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** Because the design promises not to clear pending state until enqueue succeeds, the chosen callback must receive the `try_send` outcome (or the returned command) before it commits the drain.
+**Observed:** The design says the callback drains pending entries into a consumed `Command::Choose`, calls one send, and nevertheless retains those entries when that send is `Full`. The stated/current interface is `Wire::send(&self, Command) -> ()`; it consumes the command, discards `TrySendError::Full(_returned)`, and exposes no success result. No interface change or alternate ownership protocol is specified. Thus the callback cannot distinguish success from `Full`, while `design.md:782-785` and the edge table assert that it does.
+**Evidence:** `design.md:200-202,670-674,768-785,934`; `crates/goad/src/install.rs:25-31`; `crates/goad/src/wire.rs:127-133`.
+
+**Disposition:** fix-now
+**Response:** Correct. `Wire::send` reports whether the command was enqueued.
+This is a return type rather than a new mechanism: `TrySendError::Full(command)`
+already hands the whole command back at `wire.rs:127-133` and the site discards it
+deliberately (D8), so the outcome is in hand and is being thrown away one line
+before the caller that needs it.
+
+The two callers this slice writes — the timer and `chosen` — clear `pending.rs`
+only on an enqueued send, which is what §5.4 already promises. The existing
+callers are unaffected: the result is advisory and the notice path is unchanged.
+
+**Outcome:** _pending round 4_
+
+### F-40 — A present during the debounce treats a captured pending edit as a dropped edit and overwrites it
+
+**Severity:** blocker
+**Location:** `design.md §5.2 The guard; §5.3 ownership; §5.4 A keystroke`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** AC-4 and AC-5 require an edit already captured by the pending mechanism to survive a present during its 150 ms window; the guard should correct only an edit the host did not capture.
+**Observed:** `pending.rs` and the draft are separate. Until the timer or answer flushes, the widget contains the new value while `glass.rs` derives `values` only from the old `Prepared` draft. Any intervening present writes that old value, bumps `epoch`, and the guard sees a difference and overwrites the widget—the exact path §5.4 calls a dropped edit. The empty-widget/held-zero exception covers one spelling only; ordinary text, numeric text, and a slider drag remain vulnerable. This also makes §9's human requirement of “a slider drag across a present” fail by construction.
+**Evidence:** `design.md:194-206,399-443,690-708,729-733,737-766,1075`; `slice-009.md:84-91` (AC-4 through AC-6); the production loop presents at its top after every handled command (`crates/goad/src/controller.rs:738-744`).
+
+**Disposition:** fix-now
+**Response:** Correct, and it is the defect the whole pending map was always going
+to have. *The host has not recorded this edit* and *the host has not recorded this
+edit **yet*** are the same observation to the guard, and the debounce is what
+created the second one. AC-6 rests on the first; §5.4's keystroke path assumed the
+record always precedes the present, which holds only when nothing else is
+handled in the window.
+
+So the value channel is built from the draft **overlaid with what `pending.rs`
+holds**: `glass.rs` takes a handle to the same `Rc` the callbacks hold, and a
+pending entry for an (option, field) is preferred over the draft's value for it. A
+present inside the window then writes back what the person typed, the strings
+agree, and the guard is quiet. Nothing about the guard changes.
+
+AC-6 keeps its meaning and gains precision: a widget is corrected exactly when the
+host does not hold its value, where *hold* means the draft **or** pending. A
+dropped or refused edit has left pending and never reached the draft, so it
+converges as before; a `Full` send keeps its entry, so the widget stands and the
+notice is what explains it.
+
+What it costs, stated rather than absorbed. §5.3 says both models are derived from
+`Prepared` alone and that there is therefore no cache and no invalidation rule.
+`values` now also reads `pending.rs`. That is not a cache — it is live state with a
+stated lifetime and a single writer — and the overlay has no invalidation rule
+either, but the sentence has to say so rather than be quietly false.
+
+One consequence to measure rather than assume: the overlay appears to **subsume**
+§5.2's cleared-field exception, because a cleared field is a pending `""` and the
+strings then agree on their own. The guard's comparand has been wrong three times
+in this review and twice on reasoning, so the exception stays until
+`numeric_guard.rs`'s case is re-run against the overlay and shown not to need it.
+
+Rejected: a per-field suppression flag in `FieldValue`. It is the same information
+spelled as *do not converge* rather than as *this is the value*, which leaves the
+channel and the widget disagreeing on purpose and adds a second suppression
+mechanism beside the one exception. Also rejected: dropping the debounce, which is
+D-4 and a standing user commitment, not this review's to spend.
+
+**Outcome:** _pending round 4_
+
+### F-41 — One single-edit timer cannot drain a map containing two pending fields without reverting one
+
+**Severity:** blocker
+**Location:** `design.md §5.1 pending.rs; §5.4 A keystroke`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** The map introduced for F-6 needs a delivery state machine that eventually records every entry while preserving each widget until it is recorded.
+**Observed:** The design specifies one timer and says one `Command::Edit` leaves when it fires. With A and B pending, that can record only one. Handling that command immediately causes a present; the other entry is still absent from the draft and is reverted by the guard (F-40). Rearming the timer cannot prevent that intervening present, while not rearming strands the entry until answer. The validation table exercises one timed field and two fields only on the synchronous answer path, so neither row can catch this state.
+**Evidence:** `design.md:194-206,696,737-756,1067,1073`; `crates/goad/src/controller.rs:652-675,738-744` (an edit is handled synchronously and the loop then presents).
+
+**Disposition:** fix-now
+**Response:** Correct, and two things answer it, neither a new command shape.
+
+First, F-40's overlay: an entry still in `pending.rs` is what the value channel
+shows, so the entry the timer has not sent yet is not reverted by the present that
+follows the one it did send.
+
+Second, the timer **re-arms while the map is non-empty**. The design said "one
+`Command::Edit` goes down the channel, as today" and stopped, which was true of a
+single pending slot and is not of a map. One entry per tick reaches the draft, and
+the answer drains whatever is left in one `Choose` — so nothing waits on the
+answer for correctness, only for immediacy. The channel holds one command
+(`main.rs:86`), so one per tick is the most that is available; that is a
+consequence of D22's constraint rather than a choice made here.
+
+§9 gains the row that would have caught this: two fields edited inside one window,
+the loop run past the debounce without answering, both values in the draft and
+neither widget reverted. The existing rows exercise one timed field, and two
+fields only on the synchronous answer path.
+
+**Outcome:** _pending round 4_
+
+### F-42 — `Reported` can express non-finite slider values despite the claimed type invariant
+
+**Severity:** major
+**Location:** `design.md §5.2 Reported/resolve; §5.5 I-G`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** If the design claims non-finiteness is excluded by the boundary type, `Reported` must use a finite type; otherwise `resolve` must state and test the rejection path.
+**Observed:** `Reported::AdjustedValue(f32)` admits `NaN` and both infinities. The design nevertheless says `Reported` “cannot express a non-finite number” and later that it carries a typed number only as text. `resolve`'s documented `None` surface names only an out-of-range choice index, leaving an implementer to invent what happens for a non-finite slider report (and for other report/kind mismatches). `Edited::Adjusted(Finite, ...)` still protects the wire, but the stronger claimed boundary invariant is false.
+**Evidence:** `design.md:529-564,902-908`; Rust's `f32` type represented by that variant includes `NaN`, positive infinity and negative infinity.
+
+**Disposition:** fix-now
+**Response:** Correct, and the false claim is the integrator's rather than the
+finding's subject. `resolve`'s `None` surface is stated in full, the way §5.2
+already states `compose`'s four fallible steps and for the same reason — a step
+left off the list becomes an `unwrap`. There are two: an index no alternative has,
+**and** a non-finite `AdjustedValue`. Both are renderer bugs and take the
+`Refused::UnknownField` posture: reported, nothing recorded.
+
+§5.2's claim becomes what is true. `Reported` cannot express an id nobody declared
+— that half stands, and `AlternativeId::new` is why. A number reaches the draft
+only through `resolve`, which refuses a non-finite one, so I-G is held by `Finite`
+at the wire and by `resolve` at the boundary. It is not held by the shape of
+`Reported`, and §5.5 I-G says so.
+
+Rejected: giving the variant a `Finite` payload. `Finite::new` would then run
+inside a Slint closure, which has nothing to report a refusal to and no draft to
+leave alone — the refusal belongs where the other renderer-bug refusals already
+are.
+
+**Outcome:** _pending round 4_
+
+### F-43 — The chosen callback cannot drain pending edits in declared field order from the state it owns
+
+**Severity:** minor
+**Location:** `design.md §5.1 pending.rs; §5.4 An answer`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** A promised ordering must be derivable where the design says it is applied, or the controller must be assigned the ordering explicitly.
+**Observed:** The chosen callback is required to drain in declared field order, but its pending map contains only `(option, field) -> Reported`; neither the key nor `PendingEdit` carries a slot/order, and `install.rs` does not own the retained `Presentation`. It can produce insertion order or key order, not declaration order. The controller could reorder against its presentation, but the design assigns the ordering to `chosen` and does not specify such a step.
+**Evidence:** `design.md:194-202,655-680,690-697,768-773`; current callback ownership is visible at `crates/goad/src/install.rs:24-31`.
+
+**Disposition:** fix-now
+**Response:** Correct. The ordering moves to where an order actually exists: the
+controller applies carried edits on the declared-field walk it already makes for
+`answer`, so the order is a property of that walk rather than of the map, and
+§5.4 stops asking the callback for something it cannot derive.
+
+Nothing observable changes either way — the keys are distinct by construction, so
+applying them in any order yields the same draft. That is the reason the promise
+was safe to make and is also the reason it was not worth making.
+
+**Outcome:** _pending round 4_
+
+### F-44 — The validation ledger discusses picker reseeding but binds no test obligation for it
+
+**Severity:** major
+**Location:** `design.md §9`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** D21's repaired mechanism needs a table row that reopens an already-picked field and asserts the fresh popup starts from that field's retained date and time, with the tier and driver settled by the plan.
+**Observed:** §9 calls reseeding a “case,” discusses which tier might drive it, and says the plan will settle it, but the obligations table has no such row. AC-2 completes one pick and asserts only the wire type; it never reopens the field or observes the seed. As with F-11, prose outside the table does not bind the plan, and this mechanism has already been wrong in two different ways.
+**Evidence:** `design.md:827-867,984,1052-1075`; the only picker measurement cited was under a real loop (`research.md:289-318`, `spike-fields/tests/picker_seed.rs`).
+
+**Disposition:** fix-now
+**Response:** Correct, and it is this session's own gap: F-36's repair took the
+re-seed out of the loop-tier list and left it in prose, which is exactly the
+failure F-11 raised about outcome-only rows. §9 gains an obligations row.
+
+What it asserts: a field that has been picked, reopened, opens its fresh popup on
+**that field's** retained date and time rather than on today. Driver, named as a
+call: the button's `invoke_accessible_default_action` to open, the day cell's and
+the `OK` `StandardButton`'s default actions to pick and accept, then the same
+button again and a query of the popup's `date`. No pointer, so no layout
+dependency. Tier: `tests/renderer/`, on round 2's verified fact that
+`ElementQuery`'s `find_all` walks `active_popups` under `init_no_event_loop`
+(`search_api.rs:291-312`). If the popup cannot be found there the row moves to the
+loop target — R9's shape, not a new rule.
+
+**Outcome:** _pending round 4_
+
+### F-45 — CD-2 names an R-16 canon change that neither it nor the design specifies
+
+**Severity:** minor
+**Location:** `canon-delta.md CD-2; design.md §10`
+**Raised by:** round 3 (fresh reviewer)
+
+**Expected:** Every canon row named for amendment has a concrete stale statement or new verification case identified for audit reconciliation.
+**Observed:** CD-2's heading paragraph says the R-16 row “gains cases,” but its three changes cover only R-57, R-58 and R-55. The design's own CD-2 summary likewise names only those three. `SPEC-001`'s existing R-16 verification row already enumerates all five kinds in their wire forms, so the missing change cannot be inferred from an expired subset claim.
+**Evidence:** `canon-delta.md:51-67,69-101`; `design.md:1114-1120`; `docs/specs/001-host-backend-protocol.md:419`.
+
+**Disposition:** fix-now
+**Response:** Correct. The `R-16` mention goes rather than gaining a fourth
+change. `SPEC-001` §Verification's `R-13, R-14, R-16` row is about the wire forms
+normalization accepts: it already names `R-16-a-{text,boolean,datetime,choice}-field`
+and both `number` fixtures, *"every kind in its wire form"*. Drawing a kind in a
+renderer changes nothing it claims. CD-2's document line names the three rows its
+three changes touch, which is what `design.md` §10's summary already said.
+
+**Outcome:** _pending round 4_
 
 ## Probed and sound — round 1
 
@@ -1109,6 +1441,19 @@ rewrites (§5.1, §9).
 - The split structure/value channel and same-view in-place mechanism remain supported by the measured spike: value replacement preserves element identity, and the epoch makes correction observable. The newly found defects are in particular comparands and write order, not in the two-channel premise (`research.md` Thread 3; `spike-fields/tests/split.rs`, `numeric_guard.rs`).
 - Keeping `FieldForm` empty preserves the sixth-kind exhaustive-match stop. F-10 remains open because the repair did not enumerate every current consumer or both R-58 cases, not because the empty-enum mechanism is unsound (`design.md:130-155`; `view_model.rs::undrawn_form`).
 - D-13 accurately describes Jiff's fold/gap behavior: `to_zoned` uses `Compatible`, selecting the earlier fold and shifting a gap forward. F-14 is confined to the separate boundary-error `Result` (`design.md:387-399`; locked Jiff 0.2.35 `civil/datetime.rs:1450-1472`).
+
+## Probed and sound — round 3
+
+- The lossless numeric path is correctly split at the markup boundary: a numeric `LineEdit` reports text, while only a slider whose endpoints round-trip exactly receives `f32` bounds (`design.md:262-291`). F-20 concerns operability of the slider predicate, and F-26 the locale parser, not the removal of the original all-`f32` narrowing.
+- Once a report has been resolved, the draft's number really is canonical: `Finite` has a private field and fallible constructor, and `Edited::Adjusted` is the only numeric draft variant (`design.md:463-497`). F-42 is confined to the stronger, false claim about `Reported`.
+- Choice identity is preserved by construction after resolution: the callback reports an index, `resolve` clones the `AlternativeId` from the retained `DrawnKind`, and `AlternativeId::new` is unavailable to `crates/goad` (`design.md:516-555`; `crates/goad-semantics/src/protocol/canonical.rs:349-376`).
+- The `compose` failure account matches locked jiff: checked `Date::new`/`Time::new` are fallible, and `DateTime::to_zoned` returns an error near representational boundaries while resolving folds/gaps with `Compatible` (`jiff-0.2.35/src/civil/date.rs:245`, `time.rs:278`, `datetime.rs:1450-1472`; `design.md:608-646`). F-29 concerns the separate impurity count.
+- The datetime popup lifetime and binding direction are sound: locked generation constructs a new popup on each show and the closed instance leaves `active_popups`; the measured root-property binding avoids the enclosing-window assignment error (`design.md:839-867`; `research.md:289-318`). F-44 concerns the missing durable validation row.
+- The second exception to `Glass::present` totality is bounded to retained row structure whose only writer is `present`, and the values → rows → epoch order is stated consistently in lifecycle and I-F (`design.md:713-727,793-807,895-901`; `crates/goad/src/glass.rs:20-35`).
+- The control-driver inventory matches the locked widget/testing APIs: `LineEdit` and `Slider` have accessible set-value paths, `ComboBox` requires a pointer click on a `ListItem` with no default action, and picker day/OK controls do expose default actions (`design.md:1019-1045`; `i-slint-backend-testing-1.17.1/search_api.rs:952-974`; `widgets/fluent/components.slint:49-53`). The real-loop boundary for property change handlers and timers is also supported by the measured tier (`research.md:208-225`).
+- The current `FieldForm` consumer class is enumerated accurately: the source/docs, mapper cases, three wiring assumptions and the fields fixture found by the tree search all appear in `design.md:151-178`; CD-2 correctly identifies the stale R-57, R-58 and R-55 verification text (`canon-delta.md:61-101`). F-45 is only the unexplained additional R-16 mention.
+- The jiff feature argument matches both authorities: `tz-system` and `tzdb-zoneinfo` each enable `std`, `TimeZone::try_system` is an unconditional error without `tz-system`, and POL-001 explicitly leaves shared-dependency features as review-only residue (`jiff-0.2.35/Cargo.toml:69-127`, `src/tz/timezone.rs:325-400`; `docs/policy/001-the-phase-gate.md:120-143`; `design.md:1122-1177`).
+- CD-1's as-drawn values all satisfy the existing R-57 JSON types and R-58 totality; the max-only `0` consequence is now explicit (`canon-delta.md:14-39`). Per the review instruction, the open normative-versus-descriptive status of the datetime epoch is left to the user.
 
 ## Synthesis
 
