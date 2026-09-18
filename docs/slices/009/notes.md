@@ -4,23 +4,40 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — design review, after round 3's dispositions
+## Handover — design review, after round 3's integration
 
 Written 2026-09-18 for a fresh agent. Delete once the design closes.
 
 ### Where the slice is
 
 Design accepted by the user at draft, then rewritten across three review rounds.
-**The review loop is open.** Round 3 has run; its thirteen live findings are
-dispositioned and **confirmed by the user** (D-23, D-24) and **none is integrated
-into `design.md`**. That is your first and largest job. Plan not started.
+**The review loop is open.** Round 3's thirteen findings — F-6, F-20, F-26, F-29,
+F-32 and F-38 … F-45 — are **integrated** into `design.md`, `slice-009.md` and
+`canon-delta.md`. Rounds 1 and 2's are integrated too, and round 3 verified 18 of
+them. Plan not started.
 
-Rounds 1 and 2's findings are integrated and round 3 verified 18 of them. What is
-outstanding: **F-6, F-20, F-26, F-29, F-32** (round 3 contested these and the
-contests were upheld) and **F-38 … F-45** (round 3 raised them; four are
-blockers). All thirteen read `_pending round 4_`.
+Integrating raised four more, F-46 … F-49, dispositioned and **not yet confirmed
+by the user**. None is a blocker. What is outstanding, all reading
+`_pending round 4_`: the thirteen, awaiting round 4's terminal outcomes; and
+F-46 … F-49, awaiting both the user's confirmation and round 4.
 
-### Why you are a fresh agent and not the session that dispositioned these
+**What changed in the integration**, in one line each, because the ledger's
+Responses do not all say where the text landed:
+
+- the F-40 family became one mechanism: a pending entry carries the view it was
+  made on (§7 D27), the value channel is the draft overlaid with it (§7 D26), the
+  timer delivers one entry per tick and re-arms, and `Wire::send` reports whether
+  the command was enqueued. §5.5 states it as **I-H**, which is new.
+- `resolve` takes `held: Option<&Edited>` and applies `as_drawn` itself, so the
+  two `as_drawn` sites are now `answer` and `resolve` rather than `answer` and
+  `edit`.
+- §9 gained four rows — two fields in one window, the numeric exception measured
+  against the overlay, the picker re-seed (F-44), and a rewritten AC-6 driver
+  (F-47) — and §8 gained **R10**.
+- `slice-009.md` §Scope gained `main.rs` and the overlay; AC-6 gained one
+  sentence of precision.
+
+### Why a fresh agent, and not the session that dispositioned these
 
 D-21. The session that writes a disposition does not integrate it, and this has
 now paid for itself three times: round 1's responder was wrong about four of its
@@ -43,23 +60,34 @@ review.**
 
 ### What is owed, in order
 
-1. **Integrate the thirteen.** F-38 … F-41 are one class and F-40 carries the
-   decision (D-23); do that family first and together, because F-41 and F-6 are
-   subsumed by F-40's answer. Then the four upheld contests, then F-42 … F-45.
+1. **Confirm F-46 … F-49 with the user.** Dispositioned and integrated, not yet
+   confirmed. The protocol wants the confirmation before the repair; this one ran
+   the other way because all four were found *by* writing the repair and three of
+   them are corrections to round 3's own dispositions. Say so when asking.
 2. **Round 4**, with a fresh reviewer again. Round 3 was a new Codex
    (`gpt-5.6-sol`) thread and was worth its cost; thread
    `01a0b212-239e-70d3-9a99-09729c82b971` is *its* thread and is therefore the
-   right one for setting outcomes and the wrong one for raising.
-3. **Re-check `slice-009.md`.** It was brought level at `fab8b60`; the F-40 family
-   adds to §Scope (`glass.rs` reads `pending.rs`) and may touch AC-4 / AC-6.
-4. **Re-ask the user for acceptance.** The design has changed twice since theirs.
-5. **Plan**, with a fresh agent.
-6. **Delete `spike-fields/`** when the design closes.
+   right one for setting outcomes and the wrong one for raising. Round 4's brief
+   is not written yet — write it before the reviewer runs, not after.
+3. **Re-ask the user for acceptance.** The design has changed twice since theirs.
+4. **Plan**, with a fresh agent.
+5. **Delete `spike-fields/`** when the design closes.
 
-### Integration notes the ledger does not carry
+### Carried forward, outside this slice
 
-Worked out while dispositioning, and not in the Responses. Verify each before
-leaning on it.
+`docs/memory/a-popup-is-rebuilt-on-every-show.md` cites
+`widgets/fluent/components.slint:15-19` for `ListItem`'s accessible properties.
+They are at `:49-53` — the same bad citation F-33 found in the design, and the
+memory doc has it too. Not fixed mid-slice; lift it at close.
+
+### Integration notes the ledger did not carry — now applied
+
+Worked out while dispositioning, and applied during the integration. Kept because
+each one records *why* the text reads as it does. **One of them was wrong**: the
+first bullet's claim that pushing `as_drawn` inside `resolve` "puts `as_drawn`'s
+two call sites back in `view_model.rs`" is false — `answer` is in
+`controller.rs`. Its own next clause has it right, and §5.2 says `answer` and
+`resolve`.
 
 - **`resolve`'s signature should take `held: Option<&Edited>`, not `&Edited`.**
   §5.2 as integrated has the caller do `state_of(..).unwrap_or_else(|| as_drawn(kind))`.

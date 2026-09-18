@@ -124,14 +124,18 @@ inventing a plausible answer.
   │  edit()      │             │  Edited (5) │───┼─►in one pass; slot = index
   │  answer()    │◄────────────│  submitted()│   │       value
   └──────────────┘  state_of() └─────────────┘   ▼
-         ▲                                ┌──────────────────┐
-         │ Command::Edit, Command::Choose │ app.slint        │
-  ┌──────┴───────┐   drain    ┌──────────┐│  values[]   ← rewritten always
-  │ install.rs   │◄───────────│ pending.rs││  options[]  ← rebuilt on new view
-  │  callbacks   │            │ per field ││  epoch      ← bumped always
-  └──────────────┘            └──────────┘└──────────────────┘
-       one edit on the timer;                written in that order — §5.5 I-F
-       every pending edit inside a Choose
+         ▲                                 ┌──────────────────┐
+         │ Command::Edit, Command::Choose  │ app.slint        │
+  ┌──────┴───────┐   drain    ┌──────────┐ │  values[]   ← rewritten always
+  │ install.rs   │◄───────────│ pending.rs│ │  options[]  ← rebuilt on new view
+  │  callbacks   │───────────►│ a Reported│ │  epoch      ← bumped always
+  └──────────────┘   write    │ + its view│ └──────────────────┘
+                              │ per field │  written in that order — §5.5 I-F
+                              └─────┬─────┘
+                                    │ overlay — an entry made on the view being
+    one edit on the timer, which    │ shown wins over the draft (§5.5, I-H)
+    re-arms while the map is not    └──────────────────────► glass.rs
+    empty; every entry inside a Choose
 ```
 
 Two new modules, a new host-local enum, and one existing type that loses its
@@ -191,36 +195,78 @@ and would silently fall through the markup's `if` chain drawing nothing. A
 host-local enum means the sixth kind has to be added here too, which is another
 place the compiler stops you.
 
-`pending.rs` holds the debounce: pending edits **keyed by (option, field)**, and
-one `slint::Timer`. Keyed, not singular, because a person who types into one
-field and moves to another inside the window would otherwise lose the first
-field's last keystrokes — D-8 forbids flushing on the switch, so the only place
-left to hold them is here. Kind-agnostic for the same reason the `Slider` needs
-it (§5.2): `changed` fires continuously through a drag, so the number controls
-take the same mechanism the text ones do. `install.rs` clones a handle into the
-`edited` closure and one into `chosen`, and otherwise stays what it is now,
-which is wiring.
+`pending.rs` holds the debounce. It is a map of pending edits **keyed by
+(option, field)**, one `slint::Timer`, and nothing else. Keyed, not singular,
+because a person who types into one field and moves to another inside the window
+would otherwise lose the first field's last keystrokes — D-8 forbids flushing on
+the switch, so the only place left to hold them is here. The map does not branch
+on kind: an entry is a `Reported` and the map neither reads it nor cares which
+control produced it. Which controls route through the map is §5.2's table —
+`text` and both `number` controls, because those are the ones a person changes
+continuously; `boolean`, `choice` and `datetime` raise one discrete edit and it
+is sent where it is raised. `install.rs` clones a handle into the `edited`
+closure and one into `chosen`, and otherwise stays what it is now, which is
+wiring.
+
+**Every entry carries the `view` it was made on**, because an entry outlives the
+view that produced it and the map is keyed by strings a replacement view can
+reuse. The `edited` callback already receives that view as its first argument,
+so this costs a struct field and no new plumbing — and it is the only available
+source for the `view` a deferred `Command::Edit` has to carry. The rule it buys
+is one sentence applied at three sites, and §5.5 states it as I-H: **an entry is
+used only against the view it was made on.** It is *shown* only while that view
+is the one being presented; it is *sent* by the timer in a command carrying that
+view, so the controller's existing identity check refuses a stale one; and it is
+*drained* into a `Choose` carrying that view alongside, so the controller refuses
+a stale one there too. Clearing the map when the row model is rebuilt was
+rejected: it gets the same effect by a less direct route — the renderer would
+have to notice a new view separately from the `set_vec` it already does — and it
+still leaves the timer with no `view` to send.
 
 The two ways an edit leaves `pending.rs` are not symmetrical, and the asymmetry
-is forced. When the timer fires, one `Command::Edit` goes down the channel, as
-today. When the person answers, **the pending edits travel inside
-`Command::Choose`** rather than as sends before it. The command channel holds
-one (`main.rs:86`) and `serve` shares the UI thread through `spawn_local`, so a
-Slint callback — which is synchronous and has no await — cannot let `serve`
-drain between two sends: the second `try_send` of any flush does not merely risk
-`Full`, it always gets it. Carrying the edits makes the flush one send, which is
-what lets D-8's *"the debounce flushes when the draft becomes an answer"* hold by
-construction rather than by a queue ordering that was never available (§5.2,
-§5.4).
+is forced. When the timer fires, **one** `Command::Edit` goes down the channel,
+and the timer re-arms while the map is still not empty. When the person answers,
+**the pending edits travel inside `Command::Choose`** rather than as sends before
+it. The command channel holds one (`main.rs:86`) and `serve` shares the UI thread
+through `spawn_local`, so a Slint callback — which is synchronous and has no
+await — cannot let `serve` drain between two sends: the second `try_send` of any
+flush does not merely risk `Full`, it always gets it. Carrying the edits makes
+the flush one send, which is what lets D-8's *"the debounce flushes when the draft
+becomes an answer"* hold by construction rather than by a queue ordering that was
+never available (§5.2, §5.4).
+
+One entry per tick is therefore the most the timer can deliver, and that is a
+consequence of the capacity-one channel rather than a choice made here. It costs
+nothing in correctness: the answer drains whatever is left in one command, so
+nothing waits on the timer to be *right*, only to be *early*. A `slint::Timer`
+may be re-armed from inside its own callback — `start_or_restart_timer` preserves
+the timer's `being_activated` flag and replaces the callback, and
+`maybe_activate_timers` puts the old callback back only where the callback did
+not restart its own timer, which it says in as many words
+(`i-slint-core-1.17.1/timers.rs:348-372`, `:330-334`). Read from the locked source
+rather than assumed, because the whole re-arm rests on it.
+
+An entry leaves the map when the send that carries it is **enqueued**, not when
+it is accepted: a refusal has already been reported and the guard corrects the
+widget, whereas a `Full` send has delivered nothing and the entry must stand.
+That is why `Wire::send` reports its outcome (§5.2).
 
 `instant.rs` turns a picked date and time into an instant and an offset, and
-answers what a picker should open on for a field nobody has picked yet. It
-exists to keep two impure reads — the system time zone, and the clock — out of
-`draft.rs`, which declares itself pure.
+answers what a picker should open on for a field nobody has picked yet. It exists
+to keep two impure **kinds** of read out of `draft.rs`, which declares itself
+pure — the clock, and the system time zone — performed at **three** sites: the
+clock in `today_local`, and the system zone in both `compose` and `today_local`.
+`today_local` cannot answer a *local* date from the clock alone, so it reads the
+zone as well; the module whose reason to exist is holding the impurity should not
+undercount where it performs it.
 
 `glass.rs` does not get bigger, but `option_rows` splits into two functions, one
 per channel, run in a single pass so that a field's slot is its index into
-`values` without anything having to keep them in step.
+`values` without anything having to keep them in step. The value function also
+reads `pending.rs`: a field's displayed value is the draft's **overlaid with the
+pending entry** for that field, where there is one made on the view being shown
+(§5.3). That is what keeps a present inside the debounce window from writing a
+stale draft value back over someone mid-type.
 
 ### 5.2 Interfaces & contracts
 
@@ -292,17 +338,36 @@ message.
 
 **Parsing the text is done under the rule the control validated it with.** A
 numeric `LineEdit` is `input-type: decimal`, which validates each insertion
-through Slint's `string_to_float` — and that function is **locale-aware**: it
-substitutes the locale's decimal separator before parsing, and rejects a `.`
-outright where the separator is something else (`i-slint-core/string.rs:399-412`,
-`items/text.rs:2202-2229`). A host that called `f64::from_str` on the raw text
-would refuse `1,5` in a comma-decimal locale — text the control had just
-approved — record nothing, and let the next guard write over the person. So the
-host parses with the same rule: empty text is zero, which is what Slint's own
-`to-float` reads an empty field as; otherwise, where the text carries no `.` and
-exactly one `,`, the comma is the decimal separator; then `f64::from_str`. The
-empty case is not a nicety — it is what makes the guard's one exception (below)
-correspond to a value the host actually holds.
+through Slint's `string_to_float` — and that function is **locale-aware**. It
+asks the global context for the locale's decimal separator, which is an
+arbitrary `char` obtained from ICU rather than one of `.` and `,`, and then
+takes one of two paths: where the separator is `.`, it parses the text as it
+stands; where it is anything else, it **rejects any text containing a `.`** and
+parses what is left after replacing the separator with one
+(`i-slint-core/string.rs:398-412`; `i-slint-common/lib.rs:61-85`;
+`items/text.rs:2202-2229`). That lookup is live in this build: `i-slint-core`'s
+default `std` feature turns on `i-slint-common/locale-decimal-separator`
+(`i-slint-core/Cargo.toml:82-95`). A host that called `f64::from_str` on the raw
+text would refuse `1,5` in a comma-decimal locale — text the control had just
+approved — record nothing, and let the next guard write over the person.
+
+**The host cannot read that separator, so it does not try to name it.** The
+accessor is `SlintContext::locale_decimal_separator`
+(`i-slint-core/context.rs:297-299`) in `i-slint-core`, which `crates/goad` does
+not depend on, and the `slint` crate re-exports neither it
+nor `string_to_float`; reaching it would mean a new dependency or a second ICU
+lookup, and both are out. Instead the host accepts exactly the class the control
+admits, without knowing which of the two paths produced it: parse the text as it
+stands, and failing that, where exactly one character of the text falls outside
+the grammar `f64::from_str` accepts, replace that one character with `.` and
+parse again. The two agree everywhere the control can reach — a text with the
+separator once parses either way, and a text with it twice fails on both sides,
+because Slint replaces every occurrence and still gets a string `f32::from_str`
+refuses. Which characters make up that grammar is the plan's to pin down against
+`f64::from_str` rather than against a list written from memory. Empty text is
+zero, which is what Slint's own `to-float` reads an empty field as; that case is
+not a nicety, it is what makes the guard's one exception (below) correspond to a
+value the host actually holds.
 
 **One rule covers every text the control admits: the host records the text, and
 the last representable number stands.** The text is recorded verbatim, always.
@@ -337,21 +402,39 @@ fn slider_bounds(range: &NumberRange) -> Option<(f32, f32)>;
 ```
 
 Today it answers `Some` when **all** of the following hold, and `None`
-otherwise:
+otherwise. Every one of them is evaluated in `f32`, because `f32` is what Slint
+will be doing the arithmetic in:
 
 - both bounds are present, and each round-trips `f64` → `f32` → `f64` unchanged;
-- the `f32` span `maximum - minimum` is finite and strictly positive;
-- the step, `(maximum - minimum) / 100`, is finite and strictly positive.
+- the span `maximum - minimum` is finite and strictly positive;
+- the step, `(maximum - minimum) / 100`, **moves the value**: `minimum + step`
+  is greater than `minimum`, and `maximum - step` is less than `maximum`.
 
 An exact endpoint round-trip on its own is not enough, because Slint's slider
 arithmetic is what has to work afterwards. It places the thumb by dividing by
 `maximum - minimum` (`fluent/slider.slint:75-76`), so equal bounds such as
-`[1, 1]` divide by zero; `[-f32::MAX, f32::MAX]` has an infinite span even
-though both endpoints are exact; and a span small enough makes the step underflow
-to zero, which `SliderBase` answers by rejecting every key
-(`common/slider-base.slint:79-80`). None of those is a loss: each takes the text
-control, which is where a range a slider cannot operate belongs anyway — a slider
-over a single value offers nothing.
+`[1, 1]` divide by zero, and `[-f32::MAX, f32::MAX]` has an infinite span even
+though both endpoints are exact. That is what the span clause is for, and it is
+also what makes the division safe to perform at all.
+
+The third clause states operability directly rather than approximating it with a
+sign test, and it is the one that took three attempts. A step that is finite and
+strictly positive can still be too small to do anything: `increment()` is exactly
+`root.set-value(root.value + root.step)`
+(`common/slider-base.slint:126-128`), and `set-value` returns immediately when
+the result equals the value it already holds (`:117-124`). At
+`minimum = 2^100` the `f32` ulp is `2^77`, so bounds of `[2^100, 2^100 + 2^77]`
+round-trip exactly, have a finite positive span, and give a step of about
+`2^70.3` — below half an ulp at that magnitude, so `minimum + step` rounds back
+to `minimum` and the slider is frozen. Requiring the step to move the value
+catches that, and **subsumes** the positivity test it replaces: a step that
+underflows to zero fails it, and so does a non-finite one. A zero step is
+separately fatal — `SliderBase` rejects every key when `step <= 0`
+(`common/slider-base.slint:79`) — but it no longer needs its own clause.
+
+None of what the predicate rejects is a loss: each takes the text control, which
+is where a range a slider cannot operate belongs anyway — a slider over a single
+value offers nothing.
 
 So the text control is the one that always works and the `Slider` is the one with
 an admissibility condition, which is the opposite of how a bounds-driven reading
@@ -382,15 +465,16 @@ debounce the text controls take, and `released` flushes it so a drag's final
 value does not wait on a timer.
 
 A `Slider`'s `step` is `(maximum - minimum) / 100`. Slint defaults it to `1` and
-rejects every key when it is `0` (`slider-base.slint:8`, `:76-80`), so leaving it
+rejects every key when it is `0` (`slider-base.slint:8`, `:79`), so leaving it
 alone gives a field declared `min: 0, max: 1` a keyboard that crosses the whole
 range in one press, and zeroing it removes the keyboard entirely. Slint's own
 rule for `accessible-value-step` is `min(root.step, (maximum - minimum) / 100)`
-(`fluent/slider.slint:29`) — a floor on the step, not the step itself — so under
-this choice of `step` the two coincide, and the increment an assistive technology
-is told about is the one the keyboard gives. This is presentation, which `R-18`
-leaves to the renderer; the `step` `slice-009.md` excludes is the **protocol**
-one.
+(`fluent/slider.slint:29`), which **caps** the step it reports at a hundredth of
+the span — an upper bound, not a floor. Under this design's `step`, which is
+exactly that hundredth, the cap binds at equality, so the increment an assistive
+technology is told about is the one the keyboard gives. This is presentation,
+which `R-18` leaves to the renderer; the `step` `slice-009.md` excludes is the
+**protocol** one.
 
 All six controls carry `accessible-description: field.id`; the test harness
 finds fields by description (`tests/renderer/harness.rs::described`), so one
@@ -432,8 +516,19 @@ the guard compares string against string — which is what the *text* `LineEdit`
 already does, and why its guard has never been in trouble. The comparison is then
 an identity, and it is quiet through `1.05`, `-3`, trailing zeros and `1e400`
 alike. What the guard exists for still converges: AC-6 is the case where the host
-did *not* record the edit, so the draft's text and the widget's differ and the
+does *not* hold the edit, so the value channel and the widget differ and the
 widget is corrected on the very next present, in one step.
+
+**What the guard compares itself against is the overlaid channel, not the draft**
+(§5.5, I-H), and that is what makes *the host did not record this* and *the host
+has not recorded this yet* two different things. They were one thing to the guard,
+and the debounce is what created the second: a present landing inside the 150 ms
+window would otherwise write the draft's older value back over someone mid-type.
+Nothing about the guard itself changes — it is the channel that now tells the
+truth. So the guard converges exactly where the host holds neither a draft value
+nor a pending entry for the field: a dropped or refused edit has left
+`pending.rs` and never reached the draft, and converges as before; an edit still
+waiting on the timer is displayed, and stands.
 
 The exception is the measured cleared-field case and nothing wider: a person who
 clears a field the host holds as `0` leaves `""` in the widget before their own
@@ -441,6 +536,15 @@ debounce has recorded it, and a bare string comparison writes `"0"` back over th
 mid-edit (`numeric_guard.rs`, negative-controlled — and the case survives the
 change of comparand). So: converge unless the strings match, or unless the widget
 is empty and the held number is zero.
+
+**That exception is probably now dead, and it stays until a case says so.** The
+overlay appears to subsume it: a cleared field is a pending `AdjustedText("")`,
+`resolve` reads that as the text `""` beside a number of zero, the channel
+carries `""`, and the strings agree on their own. But this comparand has been
+wrong three times in this review, twice on reasoning, so the exception is carried
+into the implementation and removed only after `numeric_guard.rs`'s case has been
+re-run against the overlay and shown not to need it. §9 carries that as an
+obligation rather than leaving it in prose.
 
 **Converging on recency was the third candidate and is not taken.** A per-slot
 revision the host bumps deletes the comparand rather than correcting it, and is
@@ -503,15 +607,15 @@ not know the kind.
 
 **The callers do not treat that `Option` alike, and that is the point.**
 `glass.rs` reads it directly when building a value: `None` means *untouched*, and
-for a `datetime` that is what the button renders as *not set*. The two sites that
-apply `as_drawn` are both in `controller.rs`: `answer`, because `R-58` forbids
-omitting a value for a drawn field, and `edit`, to supply the number a numeric
-text falls back to (below). Keeping `glass.rs` out of that is what makes D-6's
-epoch a fact about the wire rather than a fact about the screen, which is what
-D-6 chose it to be — a button reading `1970-01-01T00:00:00+00:00` would be the
-host showing a person an answer nobody gave. For the other four kinds the
-two coincide by construction (P-3), so `datetime` is the only kind whose display
-can tell *untouched* from *picked*.
+for a `datetime` that is what the button renders as *not set*. There are two
+sites that apply `as_drawn`, and only one of them is in `controller.rs`:
+`answer`, because `R-58` forbids omitting a value for a drawn field; and
+`resolve` (below), to supply the number a numeric text falls back to. Keeping
+`glass.rs` out of that is what makes D-6's epoch a fact about the wire rather
+than a fact about the screen, which is what D-6 chose it to be — a button reading
+`1970-01-01T00:00:00+00:00` would be the host showing a person an answer nobody
+gave. For the other four kinds the two coincide by construction (P-3), so
+`datetime` is the only kind whose display can tell *untouched* from *picked*.
 
 `Chosen` carries an `AlternativeId` rather than a string. `AlternativeId::new`
 is `pub(super)` in `goad-semantics`, so this crate cannot mint one; it can only
@@ -539,8 +643,9 @@ pub enum Reported {
 }
 
 /// view_model.rs, beside `as_drawn`: what the draft should hold, given what the
-/// widget reported and what the field shows now. `None` is a renderer bug.
-pub fn resolve(reported: &Reported, shown: &Edited, kind: &DrawnKind)
+/// widget reported and what the host holds for that field now — `None` where
+/// the field is untouched. `None` out is a renderer bug.
+pub fn resolve(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind)
   -> Option<Edited>;
 ```
 
@@ -549,19 +654,48 @@ drawn view, so the index travels and is resolved against the drawn field's
 alternatives (D12). `AdjustedText` is the second: a text that does not parse
 finitely keeps the number the field already holds, and only the draft — or, for an
 untouched field, the declared minimum it was drawn showing — knows what that is.
-`controller::edit` resolves both on the walk it already makes, with
-`shown = state_of(…)` falling back to `as_drawn(kind)`, which is the expression
-`answer` needs anyway. `None` means an index no alternative has and takes the
-`Refused::UnknownField` posture: reported, nothing recorded. A `Slider`'s
-`AdjustedValue` resolves to an `Adjusted` whose text is the host's format of the
-number, since nothing displays it.
+A `Slider`'s `AdjustedValue` resolves to an `Adjusted` whose text is the host's
+format of the number, since nothing displays it.
+
+**`held` is an `Option`, and `resolve` applies `as_drawn` itself.** The
+alternative was for every caller to write
+`state_of(…).unwrap_or_else(|| as_drawn(kind))`, which puts the fallback in each
+caller and puts `as_drawn` — a `view_model.rs` function — inside `controller.rs`
+and `glass.rs` both. `resolve` already has the kind, so it can consult `as_drawn`
+on its own, and then every caller passes `state_of(…)` straight through. There
+are two callers: `controller::edit`, on the walk it already makes, and
+`glass.rs`, building the overlaid value channel (§5.3).
+
+**The `None` surface is both of its cases**, stated in full for the same reason
+`compose`'s four fallible steps are: a case left off this list becomes an
+`unwrap` in the implementation.
+
+1. a `Chosen` index no alternative of the drawn field has;
+2. an `AdjustedValue` that is not finite.
+
+Both are renderer bugs and take the `Refused::UnknownField` posture: reported,
+nothing recorded. Giving `AdjustedValue` a `Finite` payload instead was rejected —
+`Finite::new` would then run inside a Slint closure, which has nothing to report
+a refusal to and no draft to leave alone. The refusal belongs where the other
+renderer-bug refusals already are.
+
+**`Reported` puts a float inside `Command`, which costs the `Eq` derive.**
+`Command`, and `Edited` with it, carry `PartialEq` and drop `Eq`
+(`wire.rs:21`, `draft.rs:26`) — `Body` already has that shape for the same
+family of reason (`view_model.rs:81`). Nothing here needs `Eq`; the tests that
+compare commands need `PartialEq`. It is written down because the alternative is
+an implementer meeting a derive error and reaching for a hand-written `Eq`, which
+over `AdjustedValue(NaN)` would claim a reflexivity the type does not have.
 
 Six variants for five kinds, because a `number` has two controls and which one is
 drawn is already a first-class decision (D16, D17). Keeping the two types apart
 costs one enum and buys three things: `Edited` is exactly what the draft holds and
-`submitted` maps; `Reported` cannot express a non-finite number or an id nobody
-declared, so I-D and I-G are held a step earlier than before; and the parse rule
-above lives in one pure function instead of in a Slint closure.
+`submitted` maps; `Reported` cannot express an id nobody declared, so I-D is held
+a step earlier than before; and the parse rule above lives in one pure function
+instead of in a Slint closure. What it does **not** buy is I-G:
+`AdjustedValue(f32)` admits `NaN` and both infinities like any other `f32`, so a
+non-finite number is stopped by `resolve` at the boundary and by `Finite` at the
+wire, and not by the shape of `Reported` (§5.5 I-G).
 
 **As-drawn values**, following P-3:
 
@@ -652,11 +786,11 @@ where the clock is read. Those two reads — the system zone, in `compose`, and
 the clock, here — are the whole of what this module does that `draft.rs` may
 not, and are why it is a module rather than two functions in `draft.rs`.
 
-**`wire.rs` — `Choose` carries the flush.**
+**`wire.rs` — `Choose` carries the flush, and `send` reports.**
 
 ```rust
 pub struct PendingEdit {
-  pub option: String, pub field: String, pub value: Reported,
+  pub view: String, pub option: String, pub field: String, pub value: Reported,
 }
 
 pub enum Command {
@@ -665,25 +799,58 @@ pub enum Command {
   Edit { view: String, option: String, field: String, value: Reported },
   // …
 }
+
+impl Wire {
+  /// `true` when the command was enqueued. The caller that must not lose it
+  /// keeps its state until it sees that.
+  pub fn send(&self, command: Command) -> bool;
+}
 ```
 
 `Command::Edit` keeps the shape it has, because the timer path still sends one
-edit on its own. What changes is the answer path: `chosen` drains `pending.rs`
-into `edits` and sends **one** command. The reason is stated in §5.1 and is not
-a preference — the channel holds one and the callback cannot yield, so a flush
-made of separate sends loses everything after the first.
+edit on its own; the `view` it carries is the entry's own, which is the only
+thing the entry could honestly claim (§5.1). What changes is the answer path:
+`chosen` drains `pending.rs` into `edits` and sends **one** command. The reason
+is stated in §5.1 and is not a preference — the channel holds one and the
+callback cannot yield, so a flush made of separate sends loses everything after
+the first.
+
+`Wire::send` reporting its outcome is a return type rather than a new mechanism.
+`TrySendError::Full(command)` already hands the whole command back at
+`wire.rs:127-133`, and that site discards it deliberately (D8) one line before
+the caller that needs it. The two callers this slice writes — the timer and
+`chosen` — clear `pending.rs` only on an enqueued send. Every existing caller is
+unaffected: the result is advisory, and the back-pressure notice is raised and
+lowered exactly where it is today.
+
+**Every carried edit names its own view, option and field**, and the controller
+checks all three. Identity of the *command* is checked once, first, as it is
+today: a `Choose` whose `view` is not the retained token refuses the whole thing
+and records nothing. Past that check, each carried edit is applied through the
+walk `edit` already uses, and there are two ways one can fail:
+
+- **its `view` is not the retained one.** The person typed into a view that has
+  since been replaced, and then answered the replacement. `Refused::SupersededView`,
+  reported — the typing really was discarded, which is what §5.5's edge row
+  already promises and what `R-33` makes true. The **answer still goes**: it is
+  about the view that is retained, and nothing about it is incomplete.
+- **its option or field is not one the retained view declares.** The markup and
+  the retained presentation disagree, which is a renderer bug rather than a race,
+  and it takes the same posture as an out-of-range `ComboBox` index: reported
+  through the existing refusal site, nothing recorded, and **no answer sent**,
+  because an answer the host knows was built from an incomplete draft is worse
+  than a refusal a person can see.
 
 `PendingEdit` names its own option because the map is keyed by (option, field)
-and a person can type into one option's field and then answer another. The
-controller applies each carried edit through the walk `edit` already uses, then
-answers. Identity is checked once, first, as it is today: a `view` that is not
-the retained token refuses the whole command and records nothing. Past that
-check, a carried edit naming an option or field the retained view does not
-declare means the markup and the retained presentation disagree — a renderer bug
-— and takes the same posture as an out-of-range `ComboBox` index: reported
-through the existing refusal site, nothing recorded, and **no answer sent**,
-because an answer the host knows was built from an incomplete draft is worse
-than a refusal a person can see.
+and a person can type into one option's field and then answer another; that edit
+is recorded and simply is not submitted, because `answer` walks the answered
+option's drawn fields. **No order is promised over the carried edits.** The keys
+are distinct by construction, so any order produces the same draft — which is
+what made the earlier promise of declared-field order safe, and is also why it
+was not worth making. It could not have been kept where it was assigned: the
+callback holds only `(option, field) -> entry` and cannot derive a declaration
+order, and `answer`'s own walk covers one option and is `&self`, so it is neither
+where nor when the edits are applied.
 
 ### 5.3 Data, state & ownership
 
@@ -693,14 +860,22 @@ than a refusal a person can see.
 | `Draft` | `Prepared` | one view | `controller::edit` only |
 | last presented `ViewId` | `SlintGlass` | process | `present`, at its end |
 | `epoch` | the window | process | `present`, every call |
-| pending `Reported` edits, keyed by (option, field) | `pending.rs`, behind an `Rc` | until the timer sends one, or `chosen` drains them all into a `Choose` | the `edited` callback writes; the timer and the `chosen` callback take |
+| pending edits — a `Reported` and the view it was made on, keyed by (option, field) | `pending.rs`, behind an `Rc` | until the send that carries the entry is enqueued: the timer's, one per tick, or the `Choose` `chosen` drains them all into | the `edited` callback writes; the timer and the `chosen` callback take; `present` reads |
 | `picking`, the two picker seeds, and the accepted date | the window root | written on each button click; `picking` and the date live until the pick ends | the `datetime` button and the date picker |
 
-`SlintGlass` gains one field, `Option<ViewId>`. It does not retain any model
-handles for the value channel: the values vector is built fresh on each present
-and handed over whole. The spike measured that this costs no element
-constructions, which is why it is worth doing rather than retaining the nested
-tree.
+`SlintGlass` gains two fields: an `Option<ViewId>`, and a clone of the same
+`Rc` the callbacks hold for `pending.rs`. It does not retain any model handles
+for the value channel: the values vector is built fresh on each present and
+handed over whole. The spike measured that this costs no element constructions,
+which is why it is worth doing rather than retaining the nested tree.
+
+**It has to be the same `Rc`**, and that is worth stating because getting it
+wrong is silent. `main.rs` already builds the callback table at step 6 and the
+glass at step 7 (`main.rs:85-101`), so the `Rc` is created once before both and
+cloned into `install` and `SlintGlass::new` — no reordering, and nothing new
+about the construction. A test that gives the two halves separate `Pending`
+values gets an overlay that never overlays anything, every case still green and
+nothing measured; §8 R10 carries that.
 
 Building that vector reads the clock, once per present, for the `date` and
 `time` slots of any `datetime` field nobody has picked (§5.4). That is a new
@@ -726,11 +901,34 @@ chose; that still holds, and it now holds for two different reasons rather than
 one. The trait's doc is code and is amended in the phase that lands this; the
 design says so here so it is not discovered as a diff nobody argued for.
 
-Everything in the two models is derived and thrown away each present — the rows,
-the values, and the slot numbering — from `Prepared`, and in the one case of an
-unpicked `datetime` field's picker seed, from the clock. That keeps the property
-`option_rows` has today, which is that there is no cache and therefore no
-invalidation rule, and extends it to both channels.
+**The value channel has a second source now, and the sentence about caching has
+to say so rather than be quietly false.** Everything in the two models is still
+derived and thrown away each present — the rows, the values, and the slot
+numbering — but the value channel is derived from three things rather than one:
+`Prepared`, the clock for an unpicked `datetime` field's picker seed, and
+`pending.rs`. What `option_rows` has today is that there is no cache and
+therefore no invalidation rule. That property survives, because `pending.rs` is
+not a cache: it is live state with one writer and a stated lifetime, read at the
+instant it is needed and never copied anywhere that could go stale. There is
+still nothing to invalidate.
+
+**A field's value is the draft's, overlaid.** For each field, the host takes what
+the draft holds — `state_of`, an `Option<Edited>` — and, where `pending.rs` holds
+an entry for that (option, field) **made on the view being presented**, prefers
+`resolve` of that entry over it. Where `resolve` refuses the entry, which means a
+renderer bug (§5.2), the draft's value stands and the refusal is reported by the
+command that carries the entry, not by the present. The overlay goes through
+`resolve` rather than through a second mapping, and that is the point of routing
+it that way: `pending.rs` holds `Reported`, the display is written from `Edited`,
+and a `Reported` → `FieldValue` mapping written beside the existing
+`Edited` → `FieldValue` one is exactly the duplication this design has been
+avoiding everywhere else.
+
+**Nothing re-enters.** `pending.rs` sits behind an `Rc` with interior mutability
+and four participants, and they do not nest: the `edited` callback writes; the
+timer callback and `chosen` take; `present` reads. `present` runs inside
+`serve`'s own task and never from inside a widget callback, and neither the timer
+nor `chosen` presents — both only enqueue. So no borrow is held across another.
 
 ### 5.4 Lifecycle & dynamics
 
@@ -745,19 +943,42 @@ sequenceDiagram
     participant G as glass
     P->>W: types a character
     W->>W: self-assigns text (binding now gone)
-    W->>Pd: edited(text)
-    Note over Pd: timer restarted, 150 ms
-    Pd->>C: Command::Edit
+    W->>Pd: edited(view, option, field, text)
+    Note over Pd: entry written, timer restarted, 150 ms
+    Note over C: any other command is handled inside the window
+    C->>G: present(frame)
+    G->>Pd: is there an entry for this (option, field) on this view?
+    G->>G: values[slot] from the entry, not the draft; epoch bumped
+    G->>W: changed tick
+    W->>W: guard: text == values[slot].text → writes nothing
+    Note over Pd: 150 ms later
+    Pd->>C: Command::Edit, carrying the entry's view
+    Note over Pd: entry dropped — the send was enqueued
     C->>C: draft.record(...)
     Note over C: Edit returns None; loop continues to the top
     C->>G: present(frame)
-    G->>G: same view_id → values rewritten, epoch bumped
+    G->>G: same view_id → values rewritten from the draft, epoch bumped
     G->>W: changed tick
     W->>W: guard: text == values[slot].text → writes nothing
 ```
 
 No element is destroyed, so the caret is never asked to be restored — which
 matters because `LineEdit` could not restore it anyway.
+
+**The present in the middle is the case that made the overlay necessary, and it
+is not exotic.** `serve` presents at the top of every iteration
+(`controller.rs:738-739`), so *any* command handled inside the debounce window
+produces one — a tray check, a diagnostics toggle, an evaluation finishing.
+Without the overlay that present writes the draft's older value into the slot,
+the guard sees a difference, and the widget is corrected to a value the person
+replaced 40 ms ago.
+
+**The timer delivers one entry and re-arms while the map is not empty.** Two
+fields edited inside one window therefore take two ticks to reach the draft, and
+the field that is still waiting is not reverted in the meantime, because the
+overlay is showing it. That is the whole of the delivery rule: the answer path
+takes whatever is left in one command, so nothing waits on the timer for
+correctness (§5.1).
 
 **An edit the host never recorded.** AC-6, and what A-2 has always been for. The
 widget self-assigns, the command is lost or refused, and the draft still says
@@ -766,11 +987,12 @@ and bumps the epoch; this time the guard finds a difference and writes the
 widget back. The element survives that too — the spike measured both halves.
 
 **An answer.** The `chosen` callback drains **every** pending edit `pending.rs`
-is holding, in declared field order, into the `Choose` it sends. One command,
-one `try_send`. The controller applies the carried edits to the draft and then
-answers from a draft that includes them, so D-8's *"the debounce flushes when
-the draft becomes an answer"* is held by the shape of the command rather than by
-an ordering of sends.
+is holding into the `Choose` it sends, in no promised order — the keys are
+distinct, so any order yields the same draft (§5.2). One command, one `try_send`.
+The controller applies the carried edits to the draft and then answers from a
+draft that includes them, so D-8's *"the debounce flushes when the draft becomes
+an answer"* is held by the shape of the command rather than by an ordering of
+sends.
 
 It has to be one send. The channel holds one (`main.rs:86`) and `serve` shares
 the UI thread through `spawn_local`; a Slint callback is synchronous and has no
@@ -780,15 +1002,25 @@ of *N* edits followed by a `Choose` needs *N+1* slots and has one — the second
 keying the pending map: even a single held edit plus `Choose` is two sends.
 
 If that single `try_send` comes back `Full` the notice goes up and the command is
-lost entire — the edits with it. Nothing is cleared from `pending.rs` until the
-send succeeds, so a second click answers correctly, with the same edits still
-attached.
+lost entire — the edits with it. Nothing is cleared from `pending.rs` until
+`Wire::send` reports the command enqueued (§5.2), so a second click answers
+correctly with the same edits still attached, and the widgets meanwhile still
+show them, because the entries are still there to be overlaid.
 
 **A new view.** `absorb` installs a fresh `Prepared`. The next present sees a
 `view_id` it has not shown, rebuilds the row model with `set_vec`, renumbers the
 slots, and writes `values` as usual. Every binding is fresh, which is what a new
 view wants — there is no interaction state to preserve. `frame.shown == None` is
 the same path with both models empty and the retained id cleared.
+
+Entries from the replaced view may still be sitting in `pending.rs`, and this is
+the third place I-H's rule is applied. **They are not overlaid**, because the new
+view is not the view they were made on — and the ids they are keyed by are
+strings the new view is free to reuse, so without the check a stale entry could
+be written into a new view's widget. Nothing else is needed to clear them: the
+timer sends each one carrying its own view, the controller refuses it
+`SupersededView`, and the entry leaves the map because the send was enqueued. The
+map cleans itself, one tick at a time, and the person is told.
 
 **The order of the three writes is part of the design, not an implementation
 detail.** `values` first; then the rows, where they are written at all; then the
@@ -904,15 +1136,31 @@ naming the call.
   which `R-57` does not admit, so `Edited::Adjusted` holds a `Finite`: private
   field, fallible constructor, no other way in. Text that parses to `inf` or
   `NaN` never becomes a number at all — the text is recorded and the last
-  representable number stands (§5.2) — and `Reported` carries a typed number only
-  as text, so a non-finite one is not expressible at the boundary either.
+  representable number stands (§5.2). It is **not** held by the shape of
+  `Reported`: `AdjustedValue(f32)` admits `NaN` and both infinities like any
+  other `f32`. A number reaches the draft only through `resolve`, which refuses a
+  non-finite one as a renderer bug, so the invariant is held at two places — by
+  `resolve` at the boundary and by `Finite` at the wire — and neither of them is
+  the boundary type.
+- **I-H.** A pending entry is used only against the view it was made on, and
+  while it exists it is what the screen shows. Three sites, one rule: it is
+  **shown** only where its view is the one being presented, **sent** by the timer
+  in a command carrying that view, and **drained** into a `Choose` carrying that
+  view alongside — the last two refused as `SupersededView` when the view has
+  been replaced. What that buys is a property the design did not have before: for
+  every field anyone has touched, what the screen shows is what an answer would
+  submit. A drained entry has reached the draft; a kept entry is still displayed
+  and still travels in the next `Choose`; a stale entry does neither. The one
+  place display and submission part company is an untouched `datetime`, which
+  shows *not set* and submits the epoch (D-6, §5.2) — and an untouched field has
+  no pending entry, by construction.
 
 **Assumptions**, in descending order of how much rests on them:
 
 | # | assumption | status |
 |---|---|---|
 | A-1 | `root.values[field.slot]` tracks, and replacing `values` wholesale destroys no element | **measured**, negative-controlled (`split.rs`) |
-| A-2 | A numeric guard does not fight a person who clears the field to retype | **measured**, negative-controlled (`numeric_guard.rs`). What was measured is the defect: a bare string comparison writes `"0"` back over an empty widget. The guard's one exception (§5.2) is that measurement's consequence, and is the whole of what the measurement licenses. It survives the change of comparand (`guard_text.rs`) |
+| A-2 | A numeric guard does not fight a person who clears the field to retype | **measured**, negative-controlled (`numeric_guard.rs`). What was measured is the defect: a bare string comparison writes `"0"` back over an empty widget. The guard's one exception (§5.2) is that measurement's consequence, and is the whole of what the measurement licenses. It survives the change of comparand (`guard_text.rs`). Whether it survives the **overlay** is not measured — the argument says it does not, because a cleared field is a pending `""` and the strings then agree on their own. §9 carries the re-run; the exception stands until it is done |
 | A-3 | `changed` fires under a real loop and not under `init_no_event_loop` | **measured** (Thread 3). It covers a `changed <property>` handler of ours and one inside a widget alike. The pickers' re-seed was taken for the second kind and is not one: a popup is rebuilt on every show, so a seed arrives through a binding (§5.4) |
 | A-4 | The four fallible steps §5.2 lists are the whole of `compose`'s failure surface | not measured; being wrong costs a visible no-op, because every one of them returns `None`. The first draft priced it that way while using `civil::date` and `Date::at`, which **panic**, and while omitting `to_zoned`, which returns a `Result`; the checked constructors and the fourth step are what make the price true |
 | A-5 | A `ComboBox`'s `current-index` survives a `values` rewrite like the others | not separately measured; same guard shape. §9 carries a *`choice` re-asserting* row in the loop tier, with its own driver, rather than leaving this to the phrase "the loop test covers it" |
@@ -927,13 +1175,17 @@ naming the call.
 | a picked datetime inside a DST fold or gap | resolved under jiff's `Compatible` — the fold takes the earlier occurrence, the gap shifts forward — and **succeeds**. The button shows the composed value, so the person sees the shift (D-13, §5.2) |
 | a `number` whose only bound is a `max` | as-drawn submits `0`, which may exceed that `max`. Legal: `R-35` leaves the judgement to the backend and `R-58` requires a value. `canon-delta.md` CD-1 states it so a backend author can discover it |
 | a `number` with both bounds but a range no slider can operate — equal bounds, an `f32` span of infinity, a step that underflows to zero | `slider_bounds` answers `None` and the text control is drawn (§5.2). Every legal `R-17` range is still drawable and still answerable |
-| two text fields edited inside one debounce window | both are held, keyed by (option, field), and both flush on answer — a single pending slot would have lost the first |
+| two text fields edited inside one debounce window | both are held, keyed by (option, field). Both flush on answer in one command; without an answer the timer delivers one per tick and re-arms, and the one still waiting is displayed from `pending.rs` rather than reverted (I-H) |
+| a present lands inside the debounce window | the value channel is the draft overlaid with `pending.rs`, so the slot carries what the person typed, the strings agree and the guard writes nothing. This is any present at all — `serve` presents before every command it handles |
+| the timer's `Command::Edit` finds the channel `Full` | `Wire::send` reports it, the entry stays, the notice is raised, and the timer re-arms. The widget still shows the entry |
+| a pending entry outlives the view it was made on | not overlaid onto the replacement (I-H). The timer sends it under its own view, the controller refuses `SupersededView`, and the entry leaves the map because the send was enqueued |
+| a stale pending entry is drained into a `Choose` | that edit is refused `SupersededView` and reported; **the answer still goes**, because it is about the retained view and nothing about it is incomplete |
 | either picker cancelled | nothing recorded; the button still shows what it showed |
 | `compose` returns `None` | same — nothing recorded, and the unchanged button is the person's signal |
 | pending edit lands after its view was replaced | `Refused::SupersededView`, reported. The typing really was discarded, so saying so is right |
 | channel full when a person answers | the one `Choose` is dropped with its carried edits, notice raised, nothing cleared from `pending.rs`; a second click sends the same command and answers |
 | a carried edit names a field the retained view does not declare | `Refused::UnknownField` posture, and no answer is sent. The markup and the retained presentation disagree, which is a renderer bug, not a race — identity was checked first (§5.2) |
-| `ComboBox` index out of range | `Refused::UnknownField` posture — a renderer bug, reported, nothing recorded |
+| `ComboBox` index out of range, or a `Slider` reporting a non-finite value | `resolve` answers `None`: the `Refused::UnknownField` posture — a renderer bug, reported, nothing recorded, and the draft's value is what stays on screen |
 | option with no fields, or no view shown | `values` is empty and no slot is ever read |
 | a field id equal to an option id in the same view | legal under `R-52`, and both the field widget and the option `Button` then answer to the same accessible description. Existing tests filter by element type; new ones must too |
 | an exchange in flight | every field control carries `enabled: !root.busy`. A focused `LineEdit` may lose focus for the duration — see A-6 |
@@ -980,12 +1232,14 @@ and the code is the same either way.
 | D17 | The row carries `slider: bool`, decided by one named function; the markup obeys it (D-12) | `bounded: bool`, with the markup inferring the control from a fact about the field. That welds the control to the field type and leaves nowhere for a hint, a configuration or an admissibility check to go |
 | D18 | `jiff` gains `tz-system` and `tzdb-zoneinfo` on the entry `crates/goad` inherits (D-11) | Always-UTC, which is the lie D-7 refused; resolving the offset outside jiff, a second time implementation beside the one already depended on; deferring `datetime`, which leaves `R-55`'s subset undischarged |
 | D19 | A DST fold or gap resolves under `Compatible` and the button shows the result (D-13) | Refusing an ambiguous pick. A person inside a fold could then not express `01:30` at all, with nothing but an unchanged button to say why |
-| D20 | `pending.rs` is keyed by (option, field) and kind-agnostic (D-14) | One pending edit. It loses field A's last keystrokes when a person moves to field B, and D-8 forbids flushing on the switch |
+| D20 | `pending.rs` is keyed by (option, field) and kind-agnostic, and it has a delivery rule: an entry leaves on the **enqueue** of the send that carries it, the timer delivers one per tick and re-arms while the map is not empty (D-14, F-39, F-41) | One pending edit. It loses field A's last keystrokes when a person moves to field B, and D-8 forbids flushing on the switch. And a map with no delivery rule, which was the first repair: one timer sending one edit records one of two fields and strands the other until the answer |
 | D21 | The picker is seeded on open, from typed `date` and `time` slots the host writes into `FieldValue` — from the draft, or from today at 00:00 local. The seed reaches each popup as a **binding** to a root property the button's handler writes, because an assignment into a popup from an enclosing handler does not compile | Leaving it, which opens an already-picked field on today instead of on its pick; seeding from `as_drawn`, which opens an untouched field at 1970; and giving the Slint handler the job of obtaining the seed itself, which needs a reverse callback, extra slots, or markup-side parsing of a formatted datetime, and a second decision about where a clock read lives. The reason this decision first gave — that field B would otherwise open on field A's pick — was wrong: no popup state survives a close (§5.4) |
-| D22 | `Command::Choose` carries the pending edits (D-15) | Sending each edit and then `Choose`. The channel holds one and a Slint callback cannot yield, so the second `try_send` of a flush always fails — not sometimes. And raising the channel's capacity, which is a decision about a different subsystem taken for this one's convenience: capacity 1 is what produces the back-pressure notice |
+| D22 | `Command::Choose` carries the pending edits, in no promised order (D-15, F-43) | Sending each edit and then `Choose`. The channel holds one and a Slint callback cannot yield, so the second `try_send` of a flush always fails — not sometimes. And raising the channel's capacity, which is a decision about a different subsystem taken for this one's convenience: capacity 1 is what produces the back-pressure notice. And promising declared-field order over the carried edits, which the callback cannot derive — it holds `(option, field)` keys and no declaration — and which `answer`'s own walk is the wrong place for: it covers one option and is `&self`. The promise was safe only because it was empty |
 | D23 | The host parses a number under the rule the control validated it with (D-16) | `f64::from_str` on the raw text. `input-type: decimal` validates through Slint's locale-aware reader, so in a comma-decimal locale the control approves `1,5` and the host refuses it, records nothing, and the guard writes over the person. Also rejected: sending Slint's parsed float alongside the text, which brings back as a fallback exactly the `f32` path D16 keeps a typed number off |
 | D24 | `Edited::Adjusted` holds a checked finite value, not a bare `f64` | A convention that every construction site checks first. `Controller::edit` is public, and a non-finite serialises as JSON `null`, which `R-57` does not admit — so the rule has to be a property of the type |
 | D25 | What a widget reported and what the draft holds are two types, joined by one kind-directed `resolve` (F-37, D-22) | One `Edited` with partial payloads — an `Option<Finite>` number, an unresolved index — normalized by `controller::edit`. `submitted` then needs arms for states the draft is promised never to hold, which is the `expect`-is-unreachable argument this design declines elsewhere. And resolving at submit time in `answer`, where the presentation is already in hand but the last representable number is not: `1e400` would reparse to an infinity and fall back to as-drawn, losing the number the host held |
+| D26 | The value channel is the draft **overlaid with what `pending.rs` holds**, so a present inside the debounce window writes back what the person typed (D-23, F-40) | A per-field suppression flag in `FieldValue`. Same information spelled as *do not converge* rather than as *this is the value*, which leaves the channel and the widget disagreeing on purpose and puts a second suppression mechanism beside the one exception. And dropping the debounce, which deletes the class rather than answering it — D-4 is a standing user commitment, not this review's to spend. The overlay routes through `resolve` rather than a second `Reported` → `FieldValue` mapping, for the reason §5.3 gives |
+| D27 | A pending entry carries the view it was made on, and is shown, sent and drained only against it (F-38) | Clearing the map when the row model is rebuilt. Same effect by a less direct route — the renderer would have to notice a new view separately from the `set_vec` it already does — and it leaves the timer with no `view` to put in the command it defers |
 
 ## 8. Risks & mitigations
 
@@ -1000,6 +1254,7 @@ and the code is the same either way.
 | R7 | A second 64-to-32-bit narrowing is introduced somewhere the review did not reach. Two were found in one round — the `number` channel and the picker's `int` fields — which is the shape of a class, not of two accidents | Every host↔markup conversion is checked rather than cast, and §5.2 names the rule; I-G asserts the one that reaches the wire | a value arriving as infinity, a zero, or a truncation, for an input the protocol admits |
 | R8 | A later stratum 1 source comes to depend on a capability this feature switched on in a dependency stratum 1 shares | **Review, and nothing else.** No gate command rejects this — `POL-001` says so in as many words, which is why it requires the decision to be argued instead. §10 carries the argument | a `goad-semantics` source whose behaviour changes with a feature its own manifest does not ask for |
 | R9 | AC-8 needs a pointer event inside a popup, and no case in this repository has yet had a popup laid out under `init_no_event_loop`. `mock_single_click` dispatches at the element's `absolute_center()`, so a popup with no geometry is clicked nowhere near | The injection pass, run and read before the row is believed. If the click cannot be made to land, the row moves to the loop tier, where the other `choice` row already sits — same driver, same assertion — and nothing else in the design changes | an injection that cannot make AC-8 go red |
+| R10 | The overlay is wired to two different `Pending` values — one in `install`, one in `SlintGlass` — and every case stays green while measuring nothing. Silent, and the natural shape for a test that constructs the two halves separately | One `Rc`, created before both and cloned into each; `main.rs` already has that order (§5.3). §9's two-field row and AC-6 are both written so that a split handle makes them fail rather than pass | a case asserting the overlay that passes without `install` having been called |
 
 ## 9. Validation
 
@@ -1055,9 +1310,12 @@ and no `changed` handler is involved (§5.4) — the argument that put the case 
 this tier does not apply to it. That does not by itself move it: what is still
 unproven is whether `init_no_event_loop` will show a popup and let the day cell
 and `OK` be found on it, and the measurement of that chain was taken under a real
-loop (`spike-fields/tests/picker_seed.rs`). The case goes back through the driver
-check above like any other, and the plan settles it by naming the call and
-running the injection pass.
+loop (`spike-fields/tests/picker_seed.rs`). So it takes a row in the table below,
+with its driver named as a call and `tests/renderer/` as its tier on round 2's
+verified fact that `find_all` walks `active_popups` there
+(`search_api.rs:291-312`); if the popup cannot be found, the row moves. Leaving
+it in this paragraph is what F-11 was about, and leaving it here a second time
+would be F-44.
 
 | obligation | tier | driver | what it asserts |
 |---|---|---|---|
@@ -1066,11 +1324,14 @@ running the injection pass.
 | AC-3 | `tests/renderer/wiring.rs`, existing cases extended | `Controller::edit` and `answer` directly | `R-58` over a form of five kinds |
 | AC-4 | `tests/renderer/fields.rs` for the draft; the loop target for the element | `set_accessible_value` on each of two text fields, then the option control's default action — the answer flush makes the typed path synchronous | the draft holds what was typed; **two text fields edited inside one window both survive**; the element was not destroyed while it was |
 | AC-5 | the loop target | two `present` calls carrying the same frame | `reasserts` unchanged, `inits` unchanged |
-| AC-6 | the loop target, negative-controlled | `set_accessible_value` on a `LineEdit` whose callback reaches no `Wire`, so nothing is recorded — the dropped-edit case exactly — then a present | `reasserts` increments, the widget holds the draft's value again, `inits` unchanged |
+| AC-6 | the loop target, negative-controlled | `set_accessible_value` on a `LineEdit` whose `Wire` reaches no controller, then **let the loop run past the debounce** so the entry is sent and leaves `pending.rs`, then a present. Both halves are needed: while the entry is still held the host *does* hold the value and the widget correctly stands — it is the enqueued-but-never-handled send that makes this the dropped-edit case | `reasserts` increments, the widget holds the draft's value again, `inits` unchanged |
 | AC-7 | `view_model.rs` unit | — | `undrawn_form` still matches `FieldKind` exhaustively; `Undrawn` still reports a `group` hint it cannot read |
 | AC-8 | `tests/renderer/fields.rs` | `invoke_accessible_expand_action`, then `mock_single_click` on the named `ListItem` | a `choice` submits an **alternative** id, and a view whose field id equals an option id still answers correctly |
 | AC-9 | `tests/renderer/fields.rs` | `set_accessible_value` on the numeric `LineEdit` | an unbounded `number` draws the text control and submits a number; no range appears that the backend did not send |
 | the debounce timer | the loop target | `set_accessible_value` on a text `LineEdit`, then let the loop run past 150 ms **without** answering | exactly one `Command::Edit` reaches the controller, and the draft holds the text — the timer is the only thing that could have delivered it |
+| two fields, one window, no answer | the loop target | `set_accessible_value` on two text `LineEdit`s inside 150 ms, then let the loop run past **two** ticks without answering | both values reach the draft, and **neither widget is reverted at any point** — `reasserts` stays at zero across both ticks. The existing rows exercise one timed field, and two fields only on the synchronous answer path, so neither can see a map with a delivery rule get it wrong |
+| the numeric guard's exception, against the overlay | the loop target, negative-controlled | `set_accessible_value("")` on a numeric `LineEdit` the host holds as `0`, then a present **inside** the window | the widget stays empty. Run with the exception removed: if it still passes, the overlay subsumes it and the exception goes; if it fails, A-2 keeps it and the design says why. This is the measurement §5.2 and A-2 defer to, and it is the third time this comparand has been decided by running something rather than arguing |
+| a picked field's picker re-seed | `tests/renderer/fields.rs` | the `datetime` button's `invoke_accessible_default_action` to open, the day cell's and the `OK` `StandardButton`'s default actions to pick and accept, then **the same button again** and a query of the popup's `date` | a field that has been picked, reopened, opens its fresh popup on **that field's** retained date and time rather than on today. No pointer, so no layout dependency. If the popup cannot be found under `init_no_event_loop` the row moves to the loop target — R9's shape, not a new rule |
 | a `choice` re-asserting | the loop target | `invoke_accessible_expand_action` + `mock_single_click` with no `Wire` installed, then a present | `reasserts` increments and `current-index` returns to the draft's — the only measurement of A-5 |
 | AC-10 | a person | — | `just check` green, and a form of all five kinds answered by hand — including the caret mid-word, both pickers, and a slider drag across a present |
 
@@ -1085,6 +1346,14 @@ asserted rather than assumed. And **every case that builds a `Command::Edit` or
 an `Edited`** is rewritten for the `Reported` split (§5.2): twelve in
 `tests/renderer/wiring.rs`, ten in `draft.rs`'s own tests, and the one closure in
 `install.rs` they exercise.
+
+Two signatures widen and every caller has to be visited, which is small but is
+the kind of thing that is discovered as a compile error rather than planned for:
+`install` takes the pending handle (`main.rs:90`, `tests/renderer/fields.rs:287`,
+`tests/event_loop/closing.rs:57`, `tests/event_loop_schedule/scheduling.rs:84`)
+and `SlintGlass::new` takes a clone of the same one (`main.rs:97`,
+`tests/renderer/harness.rs:60`, `closing.rs:59`, `scheduling.rs:86`). The four
+pairs must each be given **one** value, not two — R10.
 
 **On the number of loop targets.** The constraint is unchanged and is not
 negotiable: one event-loop *arrangement*, one `[[test]]` target

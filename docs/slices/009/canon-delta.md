@@ -51,8 +51,13 @@ normative form is more useful to a backend author and harder to withdraw.
 ## CD-2 — `SPEC-001` §Verification: what drawing all five kinds makes false
 
 **Document:** `docs/specs/001-host-backend-protocol.md`, §Verification — the
-`R-57` row, the `R-58` row, the `R-55` row, and the `R-16` row, which gains
-cases.
+`R-57` row, the `R-58` row and the `R-55` row.
+
+The `R-16` row is **not** among them, and was named here in error. It is about
+the wire forms normalization accepts — it already cites
+`R-16-a-{text,boolean,datetime,choice}-field` and both `number` fixtures, *"every
+kind in its wire form"*. Whether a renderer draws a kind changes nothing that row
+claims.
 
 Three distinct changes, not one. The first was the whole of this entry when it
 was written; the other two were found by the design review (F-10) and are the
