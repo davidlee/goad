@@ -531,7 +531,8 @@ two call sites back in `view_model.rs`" is false — `answer` is in
 ### Citations known bad
 
 The ledger is append-only, so a bad citation inside a Response stays as written.
-**Four** are known, and the list held five until the prototype checked it
+**Five** are known. Four were known before round 4's outcomes were set, and
+that list held five until the prototype checked it
 (`prototype-handback.md` §5): F-10's re-disposition (one `wiring.rs` site, not
 two); F-23's Response (`wire.rs:130`, not `:126`); F-33's Response
 (`fluent/components.slint:15-19` for `ListItem`; they are at `:49-53`); and
@@ -541,6 +542,20 @@ blank) — found by the integration, which is where three of the four came from.
 **F-54's bad range has a third copy**, in `design-log.md` **D-35**, which is
 append-only too — so `clock.rs:47-53` in `design.md` §10 is the whole of the
 correction available. Found by the raiser setting round 4's outcomes.
+
+**A fifth, and it is a new class: a raiser's, in an Outcome line.** Setting
+round 4's outcomes, the raiser wrote `items/text.rs:2230` for the
+`string_to_float(&candidate)` call inside `accept_text_input` (it is at
+**`:2228`**; `:2230` is a different match arm) and `string.rs:404-406` for the
+`contains('.')` refusal (it is at **`:406-408`**). Both are struck in place in
+the ledger and the wrong claim they supported — that §5.2's `:2202-2229` and §8
+R11's `:2208-2229` stop short of the call — is struck with them: both ranges
+contain it, and both `design.md` citations are right. **The cause is worth more
+than the entry.** Both were counted by hand off a `sed -n 'a,bp'` window; every
+line number this slice has taken from `grep -n` or `awk NR` has held. Other
+hand counts in the same pass happened to survive, which is luck rather than
+method. So the rule is not *verify the responder's first*, nor even *the
+reviewer's too* — it is **cite from an instrument that prints the number**.
 
 **The fourth breaks the pattern the first three set.** F-54's range was written
 by the **reviewer**, in the finding's Evidence line, and the Response then

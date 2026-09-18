@@ -1804,7 +1804,7 @@ still work. No host parse rule changes that, which is why completing the account
 would not have repaired it. It is recorded as part of §8 R11's statement of what
 the `gettext` configuration would cost, not as a mechanism.
 
-**Outcome:** verified — round 4's repairs. Subsumed as the Response said, and the false generalisation was not inherited. Measured both halves: `format!("{:e}", 1e300)` is `1e300`, with no separator, while `{:e}` of `2.5` is `2.5e0` — and §8 R11 states the cost for a field *drawn showing a non-integral number*, which is exactly the scope the measurement leaves standing. The control-side fact behind R11 re-derives: with `sep != '.'`, a candidate longer than two bytes reaches `string_to_float` (`items/text.rs:2230`), which returns `None` for any text containing `.` (`string.rs:404-406`), while a one-byte retype re-enters through the replace path — so deletion and select-all-retype survive, as R11 says. Nothing else in `design.md` makes a format-direction claim.
+**Outcome:** verified — round 4's repairs. Subsumed as the Response said, and the false generalisation was not inherited. Measured both halves: `format!("{:e}", 1e300)` is `1e300`, with no separator, while `{:e}` of `2.5` is `2.5e0` — and §8 R11 states the cost for a field *drawn showing a non-integral number*, which is exactly the scope the measurement leaves standing. The control-side fact behind R11 re-derives: with `sep != '.'`, a candidate longer than two bytes reaches `string_to_float` (~~`items/text.rs:2230`~~ **`:2228`**), which returns `None` for any text containing `.` (~~`string.rs:404-406`~~ **`:406-408`**), while a one-byte retype re-enters through the replace path — so deletion and select-all-retype survive, as R11 says. Nothing else in `design.md` makes a format-direction claim. *[Two line numbers in this Outcome line were wrong when it was written and are struck above; both were counted off a `sed` window rather than taken from `grep -n`. The outcome is unchanged — every fact the line asserts holds at the corrected lines. The struck entry under `## Probed and sound — round 4's repairs` has the re-derivation.]*
 
 ### F-52 — Paste bypasses `input-type: decimal` entirely, so the admitted class is every string and the substitution rule fires on arbitrary text
 
@@ -2378,16 +2378,30 @@ stands**, not read off a Response or off `notes.md` item 2b's index.
   repaired alongside §5.2 and I-H alongside its own paragraph. The one surviving
   copy of I-H's retired generalisation is in `prototype-delta.md:352`, which
   `notes.md` marks **historical** with `design.md` as the authority.
-- **Two ranges stop one line short of the call they lean on, and neither is
+- ~~**Two ranges stop one line short of the call they lean on, and neither is
   false.** §5.2's `items/text.rs:2202-2229` and §8 R11's `:2208-2229` both end at
-  the closing brace of the two-byte escape; the `return
-  string_to_float(&candidate).is_some()` that joins `accept_text_input` to
-  `string.rs:398-412` is at **`:2230`**. The pre-repair text carried `:2205-2230`
-  in the paragraph F-52's repair deleted, so the range that included the call
-  went out with it. Recorded rather than raised: both cite real code that
-  supports what they are attached to, and the companion `string.rs` citation
-  supplies the function itself. A future amendment to either line should say
-  `:2202-2230`.
+  the closing brace of the two-byte escape; the call that joins
+  `accept_text_input` to `string.rs:398-412` is at `:2230`.~~ **Struck — this was
+  wrong, and it was the raiser's.** `grep -n string_to_float
+  i-slint-core-1.17.1/items/text.rs` gives two hits: the `use` at `:30` and the
+  call at **`:2228`**. `:2230` is `InputType::Password | InputType::Text |
+  InputType::Search => (),` — a different match arm. So §5.2's `:2202-2229` (the
+  function head through the end of the `Decimal` arm) and §8 R11's `:2208-2229`
+  (that arm's body) **both contain the call**, and both design citations are
+  simply right. The same miscount put `string.rs:404-406` in F-51's Outcome line
+  for the `contains('.')` refusal, which is at **`:406-408`**; `:404` is the
+  dot-locale parse.
+
+  **What produced both.** Both were counted by hand off a `sed -n 'a,bp'`
+  window, where a two-line `if` condition and a closure body absorbed the offset
+  silently. Re-derived with `grep -n` / `awk NR`, every other line number this
+  pass wrote holds — including `slider-base.slint:43`, `:107`, `:117-124`,
+  `:126-128` and `:130-131`, which were also hand-counted and happened to
+  survive. That is the point rather than a mitigation: a hand count is not
+  checkable at a glance, so its being right is luck and not method. `notes.md` §*Citations known bad* carries this as the fifth, and
+  the first written by a **raiser** — the other four are three responders' and
+  one reviewer's, and it was this pass that said *verify the responder's first
+  is a priority, not a sufficient check*.
 - **`context.rs:302-309` is `set_locale`'s item, and the *testing only* doc line
   §5.2 quotes is `:301`, immediately above it.** Sound as an item citation;
   noted because the quoted words are outside the range.
