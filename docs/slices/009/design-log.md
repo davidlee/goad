@@ -527,3 +527,125 @@ written, and is not to be written until that feedback is in hand — it is the
 brief's job to name the surfaces the prototype found, and a brief written now
 would name only the ones the integration did. This is D-19's rule (spike anything
 a spike can answer) applied to a whole review round rather than to one question.
+
+## 2026-09-18 — the prototype's first report
+
+**D-27 — the prototype's findings are raised in one batch, after P1b.** User:
+*"Batch after P1b (recommended)"*. P1a reported eight — P-1 … P-8 in
+`prototype-notes.md` on `slice-009-prototype` at `dc30a2a`, which is the artefact;
+four of them reached this session as a summary. Five land in §5.2, and P1b is
+running the overlay and the timer, so its findings will land in §5.3 and §5.4
+instead. Raising P1a's now would rewrite §5.2 once for P1a and again for P1b, and
+pay the integration-is-review tax — the one D-21 exists for — twice over the same
+text. Nothing is at risk of being lost while they wait: the prototype's record is
+committed on its own branch.
+
+The ids are the prototype's, not the ledger's. They become `F-50` onward when the
+raise happens, each citing its `P-n`, and the `P-n` entries stay where they are —
+they carry what the build observed, which a ledger finding states but does not
+hold.
+
+**D-28 — round 4 is raised by a fresh Claude agent.** User: *"Fresh Claude agent
+(recommended)"*, asked because Codex is out of credits. The ledger's protocol asks
+for a fresh **raiser**, not a fresh model, and an agent that has never seen this
+slice satisfies it. Rounds 1-3 were all `gpt-5.6-sol`, so this cuts both ways and
+the ledger should say so when round 4 opens: a different model has a different set
+of blind spots, and may find a class the Codex rounds never looked at as easily as
+it may miss one they would have caught. Waiting for credits was rejected — the
+slice would sit on a billing cycle — and so was running both in sequence, because
+a fifth round needs its own justification against a measured trend rather than a
+second opinion's availability (`docs/memory/review-rounds-stop-on-a-measured-trend.md`).
+
+## 2026-09-18 — the prototype's handback
+
+The prototype stopped after `text` and handed back
+`prototype-handback.md` on `slice-009-prototype` (`a1171b3`), indexing fifteen
+findings; `number`, `choice` and `datetime` are not built, and §9's validation
+table was never attempted. Three decisions came out of reading it.
+
+**D-29 — the prototype's findings enter through this log, not the ledger.**
+User: *"design-log decisions citing each P-n (recommended)"*. This **supersedes
+D-27's second paragraph**, which said they would become `F-50` onward. The
+handback's argument is `AGENTS.md`'s own: a finding is a reviewer's observation
+and ends `verified` or `withdrawn`; a decision is the user's. A prototype
+measurement is neither — it is evidence. Pasting `P-n` into `review-design.md`
+would have the Probed-and-sound lists and the Synthesis describe a review that
+did not happen that way. D-27's first paragraph stands: they were batched, and
+the batch is this one.
+
+The `P-n` ids stay where they are and are cited from here. Round 4 is **not**
+shown the list (`docs/memory/dont-feed-the-raiser-your-finding.md`); anything it
+finds independently is a second witness.
+
+**D-30 — the design's `resolve` is renamed, and the instrument is not touched**
+(P-10). User: *"Rename the design's function (recommended)"*.
+`crates/goad-boundary/tests/checks/structure.rs:308` asserts that no production
+line under `crates/goad/src` names the identifier `resolve`, and
+`scan::mentions` (`scan.rs:225-234`) splits a line on every non-alphanumeric
+byte and then on camel boundaries, word-matching each segment singular-or-plural
+— so `resolve`, `resolves`, `resolve_index` and `Resolve` all trip it, and
+`code_of` keeps string literals, so a diagnostic message carrying the word trips
+it too. The design's function is red from the first line that lands, and
+`just check` runs `cargo test --workspace`.
+
+**The name taken is `interpret`**, which pairs with `as_drawn` and keeps the
+"interpret an index against the drawn alternatives" reading. §5.2 states the
+constraint alongside it, because it binds the whole renderer permanently and not
+just this function.
+
+Rejected: narrowing the instrument to match the import path, which is exactly the
+brace-grouped-`use` evasion F-3 raised and this instrument was written to defeat —
+a real reduction in what `ADR-001` holds, to buy a name. And exempting
+`view_model.rs`, which is the same reduction with a smaller blast radius and is
+the kind of carve-out a later agent widens rather than argues with. A third route
+was checked and does not exist: moving the needle from `resolve` to `schedule`
+would hold the same requirement without weakening it, but `controller.rs:16`
+imports `goad_semantics::schedule::wait_for`, so the renderer legitimately names
+that module.
+
+**D-31 — a report whose kind is not the field's is refused** (P-1). User:
+*"Refuse — a third `None` case"*. `interpret`'s surface becomes three cases, not
+two: a choice index no alternative has, a non-finite `AdjustedValue`, and a
+report whose variant does not match the drawn kind. All three are renderer bugs
+and take the `Refused::UnknownField` posture — reported, nothing recorded, the
+draft's value stays on screen.
+
+Rejected: the prototype's own choice, that a mismatch never yields `None` and
+takes the most conservative in-kind answer. Its ground is that `AdjustedText` is
+*recorded verbatim, always* — but that rule is about an in-kind `AdjustedText`,
+and on a mismatch there is no in-kind rule left to honour. Recording a value in
+response to a renderer bug is what D-6 refuses in its own words: a value nobody
+gave, held as though someone gave it. Also rejected: narrowing the signature so
+the thirty pairs cannot be formed, which reshapes `Reported` to answer a question
+one sentence answers.
+
+What P-1 was actually about survives either way — two implementers reading §5.2
+as it stands produce different `None` surfaces and both pass review. Three stated
+cases is what closes that.
+
+**D-32 — a number's spelling switches on length, not on magnitude** (P-3). User:
+*"Switch on length (recommended)"*. `Edited::Adjusted` carries a text beside the
+number, so `as_drawn` cannot answer for a `number` without choosing a format, and
+§5.2's as-drawn bullet named only the number. The text is what the widget is
+drawn showing and what the guard compares, so the choice is not cosmetic.
+
+The rule: format with `f64`'s `Display` — the shortest decimal that reads back as
+itself, which never uses scientific notation — and where that spelling exceeds
+**24 characters**, use `{:e}` instead. The trigger is length because the defect
+measured is length: `min: f64::MAX` is a legal `R-17` bound and draws a
+309-character `LineEdit`, and the smallest normal draws 326. 24 leaves alone
+every number a person would type — `f64` round-trips in at most 17 significant
+digits, so 17 digits, a sign and a point is 19 — and catches the spellings that
+are long only because the exponent is large. Both forms re-parse under the
+grammar P-5 pinned, which admits `e` and `E`, so the guard's comparand
+round-trips either way.
+
+Rejected: switching on magnitude, the spreadsheet rule — two constants, and it
+sends `1e16` to scientific when its plain spelling is 17 characters. And leaving
+`Display` alone and stating the consequence the way CD-1 states the max-only one,
+which is defensible on `R-35` grounds but makes the host's own screen the place
+the backend's legal declaration is paid for.
+
+§5.2 names the constant beside the parse rule it is the inverse of, and §9 pins
+it with a case: a bound that spells long is drawn `{:e}`, and the number survives
+the round trip.

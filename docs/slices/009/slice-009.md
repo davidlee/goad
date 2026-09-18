@@ -27,7 +27,8 @@ costs a text field every keystroke after the first.
   as two channels, the `edited` callback, the epoch and each control's guard,
   and the two picker popups.
 - `crates/goad/src/view_model.rs` — the mapper's `FieldKind` match, `DrawnKind`,
-  `FieldForm`, and the kind-directed `as_drawn` / `resolve`.
+  `FieldForm`, and the kind-directed `as_drawn` / `interpret` (`design.md` §5.2
+  states why the name may not be `resolve`).
 - `crates/goad/src/draft.rs` — `Edited`, `Reported`, `Finite`, `submitted`,
   `state_of`.
 - `crates/goad/src/glass.rs` — how a present writes the two models, including

@@ -46,6 +46,13 @@ descriptive form keeps this slice's *no protocol change* non-goal intact and
 leaves `OQ-2` as the answer to the question the sentinel would half-answer. The
 normative form is more useful to a backend author and harder to withdraw.
 
+The spelling itself is no longer a prediction. `1970-01-01T00:00:00+00:00` is
+what `Timestamp::UNIX_EPOCH` displays through `display_with_offset` at
+`Offset::UTC`, measured under today's featureless `jiff` — and none of the
+datetime *wire* behaviour needs the manifest change `design.md` §10 argues for.
+So this question can be settled against a green test, and before that residue
+argument is had.
+
 ---
 
 ## CD-2 — `SPEC-001` §Verification: what drawing all five kinds makes false

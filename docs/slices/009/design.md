@@ -116,7 +116,7 @@ inventing a plausible answer.
   │  FieldKind   │               │   PresentationField { id, label, kind } │
   │  (5 kinds)   │               │   DrawnKind — the five drawn, host-local│
   └──────────────┘               │   FieldForm — now uninhabited           │
-                                 │   as_drawn / resolve — kind-directed    │
+                                 │   as_drawn / interpret — kind-directed  │
                                  └───────────────┬────────────────────────┘
                                                  │ structure
   ┌──────────────┐  record()   ┌─────────────┐   │
@@ -142,7 +142,7 @@ Two new modules, a new host-local enum, and one existing type that loses its
 variants. Three small types come with them and are stated where they are used:
 `Finite`, which is what makes I-G a property rather than a habit; `Reported`,
 which is the most a widget's callback can say before the retained presentation
-resolves it; and `PendingEdit`, which is what `Command::Choose` carries (§5.2).
+interprets it; and `PendingEdit`, which is what `Command::Choose` carries (§5.2).
 
 `FieldForm` currently names the kinds this renderer does not draw. Once all
 five are drawn it has no variants left, so it becomes an empty enum and
@@ -188,7 +188,8 @@ field id no view declared — the posture §5.2 already gives an out-of-range
 rather than from a real field's kind.
 
 `DrawnKind` is the new type and holds the per-kind data the renderer needs to
-draw a field — the bounds of a `number`, the alternatives of a `choice`. It
+draw a field — the bounds of a `number`, the alternatives of a `choice` and the
+first of them beside the list, for the reason §5.2 gives under as-drawn. It
 could have been the canonical `FieldKind` cloned, which would avoid a second
 enum, but then a sixth protocol kind would be representable in a drawn field
 and would silently fall through the markup's `if` chain drawing nothing. A
@@ -244,7 +245,10 @@ the timer's `being_activated` flag and replaces the callback, and
 `maybe_activate_timers` puts the old callback back only where the callback did
 not restart its own timer, which it says in as many words
 (`i-slint-core-1.17.1/timers.rs:348-372`, `:330-334`). Read from the locked source
-rather than assumed, because the whole re-arm rests on it.
+rather than assumed, because the whole re-arm rests on it — and then measured
+under a real loop rather than only read: two entries made in one window both
+arrive down the capacity-one channel, the second reachable only through the
+re-arm, and removing the re-arm delivers one and the case fails.
 
 An entry leaves the map when the send that carries it is **enqueued**, not when
 it is accepted: a refusal has already been reported and the guard corrects the
@@ -373,23 +377,67 @@ value the host actually holds.
 the last representable number stands.** The text is recorded verbatim, always.
 The number is replaced only where the parse yields a finite `f64`; otherwise the
 field keeps the number it had — for a field nobody has touched, the number it was
-drawn showing. So `-`, `.` and `-.` leave the number alone: they are exactly the
-three texts the control admits that no parse accepts, allowed as len≤2 starts so
-a person can begin typing a negative or a fractional number at all
-(`items/text.rs:2211-2226`; `--` is not among them and cannot be typed). And
-`1e400`, which `input-type: decimal` admits because Slint validates through an
-`f32` parse where it is an infinity, stays on screen as `1e400` while the host
-keeps `1e40` as the number it would submit — measured, with an injection pass
-(`guard_text.rs`, case `verbatim-overflow`).
+drawn showing. So `-`, a lone separator and `inf` all leave the number alone:
+the control admits each of them and no *finite* parse accepts any of them
+(below). `1e400`, which `input-type: decimal` admits because Slint validates
+through an `f32` parse where it is an infinity, stays on screen as `1e400` while
+the host keeps `1e40` as the number it would submit — measured, with an injection
+pass (`guard_text.rs`, case `verbatim-overflow`).
 
 That is one rule holding two properties no choice of comparand could hold on its
 own: nothing non-finite reaches the wire, because `Finite` refuses it, and
 nothing is written back over a person mid-entry (F-30, F-34).
 
+**Two sets of texts sit behind that rule, and they are different sets.** The
+first is *admitted, and no parse accepts it*: a candidate of two bytes or fewer
+is admitted when it is `-`, **the locale's separator**, or `-` followed by the
+separator (`items/text.rs:2205-2230`), which is the escape that lets a person
+begin a negative or a fractional number at all. So the trio is `-`, `.` and `-.`
+in a dot locale and `-`, `,` and `-,` in a comma one — the control admits the
+separator, not a dot, which is what F-26 took out of the parse rule above. `--`
+is in neither locale's trio and cannot be typed.
+
+The second is *admitted, and a parse accepts it non-finitely*. Anything longer
+than two bytes is admitted when `string_to_float` parses it, and that is
+`parse::<f32>`, which takes `inf`, `infinity` and `nan` case-insensitively as
+well as reading `1e400` as an infinity. **`inf` is reachable.** Typing it fails
+at the first `i`, because a one-byte candidate must be `-` or the separator, but
+pasting it succeeds: the three-byte candidate goes straight to `string_to_float`.
+So a person can put `inf` or `nan` into a numeric field.
+
+Both sets take the same path and neither needs code: the text is recorded
+verbatim and the last representable number stands, because a non-finite parse is
+not a finite one. What matters is that they are two sets rather than one — an
+implementer who reads the trio as the closed enumeration writes a three-case test
+and never reaches the paste.
+
 All of it is host-side, testable without a locale fixture, and numeric formatting
 rather than anything domain-shaped (D-16). Sending Slint's own parsed float
 alongside the text was rejected: it reintroduces as a fallback the `f32` path this
 section exists to keep off the wire.
+
+**Formatting a number is the inverse of that rule, and the spelling is
+load-bearing** (D-32). `Edited::Adjusted` carries a text beside the number, so
+every site that produces one without a person having typed has to choose a
+format — `as_drawn`, and a `Slider`'s `AdjustedValue` — and that format is what
+the widget is drawn showing and what the guard compares. The rule: format with
+`f64`'s `Display`, which is the shortest decimal that reads back as itself and
+never uses scientific notation, and where that spelling exceeds **24
+characters**, use `{:e}` instead.
+
+The trigger is length because the defect is length. `min: f64::MAX` is a legal
+`R-17` bound and its `Display` is **309 characters** in a `LineEdit`; the
+smallest normal is 326. Both measured. 24 leaves alone every number a person
+would type — an `f64` round-trips in at most 17 significant digits, so 17
+digits, a sign and a point is 19 — and catches exactly the spellings that are
+long only because the exponent is. Switching on magnitude instead, the
+spreadsheet rule, needs two constants and sends `1e16` to scientific when its
+plain spelling is 17 characters.
+
+One constraint falls out of it for the grammar the plan pins above: **the
+grammar admits `e` and `E`**, so both spellings re-parse and the guard's
+comparand round-trips either way. Leaving `e` out would make `1e5` a text with
+exactly one foreign character, which the parse rule would then read as `1.5`.
 
 **The control is the host's decision, not the markup's inference.** `slider` is
 a decision the row carries, not a fact about the field the markup reasons from.
@@ -539,7 +587,7 @@ is empty and the held number is zero.
 
 **That exception is probably now dead, and it stays until a case says so.** The
 overlay appears to subsume it: a cleared field is a pending `AdjustedText("")`,
-`resolve` reads that as the text `""` beside a number of zero, the channel
+`interpret` reads that as the text `""` beside a number of zero, the channel
 carries `""`, and the strings agree on their own. But this comparand has been
 wrong three times in this review, twice on reasoning, so the exception is carried
 into the implementation and removed only after `numeric_guard.rs`'s case has been
@@ -610,7 +658,7 @@ not know the kind.
 for a `datetime` that is what the button renders as *not set*. There are two
 sites that apply `as_drawn`, and only one of them is in `controller.rs`:
 `answer`, because `R-58` forbids omitting a value for a drawn field; and
-`resolve` (below), to supply the number a numeric text falls back to. Keeping
+`interpret` (below), to supply the number a numeric text falls back to. Keeping
 `glass.rs` out of that is what makes D-6's epoch a fact about the wire rather
 than a fact about the screen, which is what D-6 chose it to be — a button reading
 `1970-01-01T00:00:00+00:00` would be the host showing a person an answer nobody
@@ -621,7 +669,7 @@ gave. For the other four kinds the two coincide by construction (P-3), so
 is `pub(super)` in `goad-semantics`, so this crate cannot mint one; it can only
 clone one off a view it drew. That is how AC-8 and `R-52` get held. The
 consequence is that the ComboBox reports its index, and `controller.edit`
-resolves the index against the drawn field's alternatives — on the same walk it
+interprets the index against the drawn field's alternatives — on the same walk it
 already does to check the field id is real. That is what `Reported` below is for.
 An index out of range is a renderer bug and gets the existing
 `Refused::UnknownField` treatment: reported, nothing recorded.
@@ -645,39 +693,78 @@ pub enum Reported {
 /// view_model.rs, beside `as_drawn`: what the draft should hold, given what the
 /// widget reported and what the host holds for that field now — `None` where
 /// the field is untouched. `None` out is a renderer bug.
-pub fn resolve(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind)
+pub fn interpret(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind)
   -> Option<Edited>;
 ```
 
 `Chosen` is the first of the two: an `AlternativeId` can only be cloned off a
-drawn view, so the index travels and is resolved against the drawn field's
+drawn view, so the index travels and is interpreted against the drawn field's
 alternatives (D12). `AdjustedText` is the second: a text that does not parse
 finitely keeps the number the field already holds, and only the draft — or, for an
 untouched field, the declared minimum it was drawn showing — knows what that is.
-A `Slider`'s `AdjustedValue` resolves to an `Adjusted` whose text is the host's
-format of the number, since nothing displays it.
+A `Slider`'s `AdjustedValue` is interpreted as an `Adjusted` whose text is the
+host's format of the number, since nothing displays it.
 
-**`held` is an `Option`, and `resolve` applies `as_drawn` itself.** The
+**`held` is an `Option`, and `interpret` applies `as_drawn` itself.** The
 alternative was for every caller to write
 `state_of(…).unwrap_or_else(|| as_drawn(kind))`, which puts the fallback in each
 caller and puts `as_drawn` — a `view_model.rs` function — inside `controller.rs`
-and `glass.rs` both. `resolve` already has the kind, so it can consult `as_drawn`
-on its own, and then every caller passes `state_of(…)` straight through. There
+and `glass.rs` both. `interpret` already has the kind, so it can consult
+`as_drawn` on its own, and every caller then passes `state_of(…)` through. There
 are two callers: `controller::edit`, on the walk it already makes, and
 `glass.rs`, building the overlaid value channel (§5.3).
 
-**The `None` surface is both of its cases**, stated in full for the same reason
-`compose`'s four fallible steps are: a case left off this list becomes an
+**The `None` surface is all three of its cases**, stated in full for the same
+reason `compose`'s four fallible steps are: a case left off this list becomes an
 `unwrap` in the implementation.
 
 1. a `Chosen` index no alternative of the drawn field has;
-2. an `AdjustedValue` that is not finite.
+2. an `AdjustedValue` that is not finite;
+3. a report whose variant does not match the drawn kind (D-31).
 
-Both are renderer bugs and take the `Refused::UnknownField` posture: reported,
-nothing recorded. Giving `AdjustedValue` a `Finite` payload instead was rejected —
-`Finite::new` would then run inside a Slint closure, which has nothing to report
-a refusal to and no draft to leave alone. The refusal belongs where the other
-renderer-bug refusals already are.
+All three are renderer bugs and take the `Refused::UnknownField` posture:
+reported, nothing recorded.
+
+The third is there because the signature admits every pair — six reports against
+five kinds is thirty, of which six are in-kind — and the first two do not cover
+the other twenty-four. Two of them look covered and are not. A mismatched
+`Chosen` falls into case 1 only if the implementation happens to answer *no
+alternatives* for the four kinds that have none, which is a coincidence of
+spelling rather than a rule. And a mismatched `AdjustedText` is not an exception
+to *the text is recorded verbatim, always*: that rule is about an in-kind
+`AdjustedText`, where there is a number to keep beside the text, and on a
+mismatch there is no in-kind rule left to honour. Recording a value in answer to
+a renderer bug is what D-6 refuses in its own words — a value nobody gave, held
+as though someone gave it.
+
+Giving `AdjustedValue` a `Finite` payload instead was rejected — `Finite::new`
+would then run inside a Slint closure, which has nothing to report a refusal to
+and no draft to leave alone. The refusal belongs where the other renderer-bug
+refusals already are. Narrowing the signature so the thirty pairs cannot be
+formed was also rejected: it reshapes `Reported` to answer a question one
+sentence answers.
+
+**The name is `interpret`, and no production line in this crate may be called
+`resolve`** (D-30). `crates/goad-boundary`'s
+`structure::no_production_line_in_the_renderer_names_the_identifier_resolve`
+(`structure.rs:308`) asserts that no production line under `crates/goad/src`
+names the identifier `resolve` at all. Its subject is
+`goad_semantics::schedule::resolve`, and it is deliberately an identifier-word
+match rather than a path grep, because a brace-grouped
+`use goad_semantics::schedule::{resolve, wait_for};` would defeat a grep and not
+this (F-3). `scan::mentions` splits a line on every non-alphanumeric byte and
+then on camel boundaries, matching each segment singular-or-plural
+(`scan.rs:225-234`), so `resolve`, `resolves`, `resolve_index` and `Resolve` all
+trip it; and `code_of` keeps string literals, so a diagnostic message carrying
+the word trips it too. Comments are cut before the match, so the ordinary
+English word is still available in prose.
+
+That binds the whole renderer permanently rather than just this function, which
+is why it is stated here and not left to the plan. It needs no new obligation in
+§9: `just check` runs `cargo test --workspace`, so the instrument is already in
+the gate. `interpret` was checked against the boundary suite's other needles —
+the domain-vocabulary list and `structure.rs`'s three call-form greps — and is
+clear of all of them.
 
 **`Reported` puts a float inside `Command`, which costs the `Eq` derive.**
 `Command`, and `Edited` with it, carry `PartialEq` and drop `Eq`
@@ -687,6 +774,17 @@ compare commands need `PartialEq`. It is written down because the alternative is
 an implementer meeting a derive error and reaching for a hand-written `Eq`, which
 over `AdjustedValue(NaN)` would claim a reflexivity the type does not have.
 
+**`Finite` carries no `Eq` either**, and that is the same trap reached through
+its other door. `impl Eq for Finite {}` is *sound* — the newtype excludes `NaN`,
+the one `f64` that stops `PartialEq` being an equivalence — and on its own it
+restores the derives on `Edited` and `Command` above it, under `-D warnings`,
+with nothing to warn anybody. It was written and it compiled before it was
+measured and deleted. So the rule is stated at the leaf: `Finite` derives
+`PartialEq` and `PartialOrd` and nothing else. The only thing an `Eq` there
+could buy is an `Eq` on `Edited`, which is exactly what this paragraph removes,
+and an impl asserting a subtle property nothing consumes is a claim nobody
+checks.
+
 Six variants for five kinds, because a `number` has two controls and which one is
 drawn is already a first-class decision (D16, D17). Keeping the two types apart
 costs one enum and buys three things: `Edited` is exactly what the draft holds and
@@ -694,21 +792,33 @@ costs one enum and buys three things: `Edited` is exactly what the draft holds a
 a step earlier than before; and the parse rule above lives in one pure function
 instead of in a Slint closure. What it does **not** buy is I-G:
 `AdjustedValue(f32)` admits `NaN` and both infinities like any other `f32`, so a
-non-finite number is stopped by `resolve` at the boundary and by `Finite` at the
+non-finite number is stopped by `interpret` at the boundary and by `Finite` at the
 wire, and not by the shape of `Reported` (§5.5 I-G).
 
-**As-drawn values**, following P-3:
+**As-drawn values**, following §4's P-3:
 
 - `boolean` → `Checked(false)`, as today.
 - `text` → `Typed("")`.
 - `number` → `Adjusted` of the declared minimum where one was given, otherwise
-  of zero. The widget is drawn showing that number, so the screen and the wire
-  agree. `R-17` already guarantees a declared bound is finite, so `Finite::new`
-  cannot refuse one; it is still the constructor that is called, falling back to
-  `Finite::ZERO`, because a total expression is cheaper than an argument about
-  why an `expect` is unreachable.
-- `choice` → `Chosen(first alternative's id)`. Always defined:
-  `Alternatives::new` rejects an empty list (`canonical.rs:362`).
+  of zero, **beside that number's spelling under the format rule above**. The
+  widget is drawn showing both, so the screen and the wire agree and the guard
+  has a comparand. `R-17` already guarantees a declared bound is finite, so
+  `Finite::new` cannot refuse one; it is still the constructor that is called,
+  falling back to `Finite::ZERO`, because a total expression is cheaper than an
+  argument about why an `expect` is unreachable.
+- `choice` → `Chosen` of the first alternative's id, **which `DrawnKind::Choice`
+  carries beside the list**. One always exists, because `Alternatives::new`
+  rejects an empty list (`canonical.rs:362`) — but that is a fact about the
+  protocol and is invisible to the compiler: `.first()` is an `Option`,
+  `unwrap_used` / `expect_used` / `indexing_slicing` are `deny` crate-wide, and
+  `AlternativeId::new` is `pub(super)` so there is no fallback id to construct.
+  Cloning the id once where the kind is built makes `as_drawn` and every display
+  site total with no lint exception anywhere. The two other ways out are not
+  live: an `#[expect(clippy::expect_used)]` contradicts this section's own
+  preference for a total expression over an argument about why an `expect` is
+  unreachable, and reporting an alternative-less `choice` as `Undrawn` is dead
+  because `Alternatives::new` rejects the empty list before the renderer sees
+  it.
 - `datetime` → `Picked { UNIX_EPOCH, Offset::UTC }`, which renders
   `1970-01-01T00:00:00+00:00` — on the wire only. The button reads *not set*.
 
@@ -915,14 +1025,14 @@ still nothing to invalidate.
 **A field's value is the draft's, overlaid.** For each field, the host takes what
 the draft holds — `state_of`, an `Option<Edited>` — and, where `pending.rs` holds
 an entry for that (option, field) **made on the view being presented**, prefers
-`resolve` of that entry over it. Where `resolve` refuses the entry, which means a
-renderer bug (§5.2), the draft's value stands and the refusal is reported by the
-command that carries the entry, not by the present. The overlay goes through
-`resolve` rather than through a second mapping, and that is the point of routing
-it that way: `pending.rs` holds `Reported`, the display is written from `Edited`,
-and a `Reported` → `FieldValue` mapping written beside the existing
-`Edited` → `FieldValue` one is exactly the duplication this design has been
-avoiding everywhere else.
+`interpret` of that entry over it. Where `interpret` refuses the entry — which
+means a renderer bug (§5.2) — the draft's value stands and the refusal is
+reported by the command that carries the entry, not by the present. The overlay
+goes through `interpret` rather than through a second mapping, and that is the
+point of routing it that way: `pending.rs` holds `Reported`, the display is
+written from `Edited`, and a `Reported` → `FieldValue` mapping written beside
+the existing `Edited` → `FieldValue` one is exactly the duplication this design
+has been avoiding everywhere else.
 
 **Nothing re-enters.** `pending.rs` sits behind an `Rc` with interior mutability
 and four participants, and they do not nest: the `edited` callback writes; the
@@ -1138,9 +1248,9 @@ naming the call.
   `NaN` never becomes a number at all — the text is recorded and the last
   representable number stands (§5.2). It is **not** held by the shape of
   `Reported`: `AdjustedValue(f32)` admits `NaN` and both infinities like any
-  other `f32`. A number reaches the draft only through `resolve`, which refuses a
-  non-finite one as a renderer bug, so the invariant is held at two places — by
-  `resolve` at the boundary and by `Finite` at the wire — and neither of them is
+  other `f32`. A number reaches the draft only through `interpret`, which refuses
+  a non-finite one as a renderer bug, so the invariant is held at two places — by
+  `interpret` at the boundary and by `Finite` at the wire — and neither of them is
   the boundary type.
 - **I-H.** A pending entry is used only against the view it was made on, and
   while it exists it is what the screen shows. Three sites, one rule: it is
@@ -1171,7 +1281,7 @@ naming the call.
 | situation | what happens |
 |---|---|
 | numeric field cleared to `""` | records the empty text, and `0`, which is how the control's own reader takes an empty field (§5.2). Once that is recorded the strings agree; until the debounce records it the guard's one exception — empty widget, held number zero — keeps it quiet. Either way the clear survives |
-| numeric text that is not a number — it does not parse (`-`, `.`, `-.`, the only three the control admits), or it parses to an infinity (`1e999`) | the text is recorded and the last representable number stands (§5.2). I-G is held at the wire: `Finite` refuses the infinity, so no `null` can reach it. The guard is quiet because the strings agree, so the person keeps what they typed and the host keeps the number it can defend |
+| numeric text that is not a number — no parse accepts it (`-`, the locale's separator, or `-` and the separator: the control's own two-byte escape), or a parse accepts it non-finitely (`1e999`, and `inf` or `nan` by pasting) | the text is recorded and the last representable number stands (§5.2). I-G is held at the wire: `Finite` refuses the infinity, so no `null` can reach it. The guard is quiet because the strings agree, so the person keeps what they typed and the host keeps the number it can defend |
 | a picked datetime inside a DST fold or gap | resolved under jiff's `Compatible` — the fold takes the earlier occurrence, the gap shifts forward — and **succeeds**. The button shows the composed value, so the person sees the shift (D-13, §5.2) |
 | a `number` whose only bound is a `max` | as-drawn submits `0`, which may exceed that `max`. Legal: `R-35` leaves the judgement to the backend and `R-58` requires a value. `canon-delta.md` CD-1 states it so a backend author can discover it |
 | a `number` with both bounds but a range no slider can operate — equal bounds, an `f32` span of infinity, a step that underflows to zero | `slider_bounds` answers `None` and the text control is drawn (§5.2). Every legal `R-17` range is still drawable and still answerable |
@@ -1185,7 +1295,7 @@ naming the call.
 | pending edit lands after its view was replaced | `Refused::SupersededView`, reported. The typing really was discarded, so saying so is right |
 | channel full when a person answers | the one `Choose` is dropped with its carried edits, notice raised, nothing cleared from `pending.rs`; a second click sends the same command and answers |
 | a carried edit names a field the retained view does not declare | `Refused::UnknownField` posture, and no answer is sent. The markup and the retained presentation disagree, which is a renderer bug, not a race — identity was checked first (§5.2) |
-| `ComboBox` index out of range, or a `Slider` reporting a non-finite value | `resolve` answers `None`: the `Refused::UnknownField` posture — a renderer bug, reported, nothing recorded, and the draft's value is what stays on screen |
+| `ComboBox` index out of range, a `Slider` reporting a non-finite value, or a report whose variant is not the drawn field's kind | `interpret` answers `None`: the `Refused::UnknownField` posture — a renderer bug, reported, nothing recorded, and the draft's value is what stays on screen |
 | option with no fields, or no view shown | `values` is empty and no slot is ever read |
 | a field id equal to an option id in the same view | legal under `R-52`, and both the field widget and the option `Button` then answer to the same accessible description. Existing tests filter by element type; new ones must too |
 | an exchange in flight | every field control carries `enabled: !root.busy`. A focused `LineEdit` may lose focus for the duration — see A-6 |
@@ -1224,7 +1334,7 @@ and the code is the same either way.
 | D9 | Structure and value on two channels (D-9) | Retaining the nested model tree so values can be written in place. A cache with an invalidation rule, in a file whose current doc is that it has neither |
 | D10 | `DrawnKind`, a host-local enum | Carrying the canonical `FieldKind` on `PresentationField`. It avoids a second enum but lets a sixth protocol kind reach a drawn field and fall silently through the markup's `if` chain |
 | D11 | `FieldForm` becomes uninhabited, not deleted | Deleting it. `undrawn_form`'s exhaustive match is what AC-7 protects, and an empty enum keeps `Undrawn::FieldForm` as the place a sixth kind goes |
-| D12 | `Chosen(AlternativeId)`, resolved from an index in `controller.edit` | The markup handing back the alternative id as a string. The host cannot mint an `AlternativeId`, so resolving from the presentation is what makes AC-8 a fact about the types |
+| D12 | `Chosen(AlternativeId)`, interpreted from an index in `controller.edit` | The markup handing back the alternative id as a string. The host cannot mint an `AlternativeId`, so interpreting against the presentation is what makes AC-8 a fact about the types |
 | D13 | The host holds the text a person typed beside the number it means, so the numeric `LineEdit`'s guard compares string against string — an identity, with one exception: an empty widget against a held zero (D-18) | Comparing `to-float()`, which the first draft took: it parses to `f32`, so two legal `f64`s can compare equal while the strings differ, and the case the guard exists for is the one where the host never recorded the edit. Comparing the widget's text against a re-format of the held `f64`, which the second draft took: **measured** corrupting ordinary typing, `1.05` → `105` and `-3` → `3`, because `f64` → text is not injective. And converging on a per-slot **revision** instead, which deletes the comparand rather than correcting it and is the better shape in the abstract — measured available, and ruled out by its own cases, since `-` and `1e400` are edits the host cannot record as numbers and that is exactly when a revision converges. A bare string comparison without the exception was measured writing `"0"` over a person clearing a field to retype |
 | D14 | The loop tier takes whatever targets its rows need, one arrangement each (D-10, widened at D-14); everything a `changed <property>` handler or a timer does not produce stays in `tests/renderer/` | Writing the guard's cases in `tests/renderer/`, where they would be green and measure nothing. And D-10's own "one binary, one test fn", which §9 outgrew: five claims need discriminating and one injection pass cannot separate them inside a single `#[test]`. Also rejected, after it was briefly believed: moving the `choice` and `datetime` cases to the loop tier on the ground that the no-loop tier cannot reach inside a popup. It can — the testing backend's own `test_popups` does it, and absence of a case in this repository was mistaken for absence of a capability |
 | D15 | Instrument counters live in production markup (D-10) | A test-only copy of the field markup — a parallel implementation of the thing under test |
@@ -1237,8 +1347,8 @@ and the code is the same either way.
 | D22 | `Command::Choose` carries the pending edits, in no promised order (D-15, F-43) | Sending each edit and then `Choose`. The channel holds one and a Slint callback cannot yield, so the second `try_send` of a flush always fails — not sometimes. And raising the channel's capacity, which is a decision about a different subsystem taken for this one's convenience: capacity 1 is what produces the back-pressure notice. And promising declared-field order over the carried edits, which the callback cannot derive — it holds `(option, field)` keys and no declaration — and which `answer`'s own walk is the wrong place for: it covers one option and is `&self`. The promise was safe only because it was empty |
 | D23 | The host parses a number under the rule the control validated it with (D-16) | `f64::from_str` on the raw text. `input-type: decimal` validates through Slint's locale-aware reader, so in a comma-decimal locale the control approves `1,5` and the host refuses it, records nothing, and the guard writes over the person. Also rejected: sending Slint's parsed float alongside the text, which brings back as a fallback exactly the `f32` path D16 keeps a typed number off |
 | D24 | `Edited::Adjusted` holds a checked finite value, not a bare `f64` | A convention that every construction site checks first. `Controller::edit` is public, and a non-finite serialises as JSON `null`, which `R-57` does not admit — so the rule has to be a property of the type |
-| D25 | What a widget reported and what the draft holds are two types, joined by one kind-directed `resolve` (F-37, D-22) | One `Edited` with partial payloads — an `Option<Finite>` number, an unresolved index — normalized by `controller::edit`. `submitted` then needs arms for states the draft is promised never to hold, which is the `expect`-is-unreachable argument this design declines elsewhere. And resolving at submit time in `answer`, where the presentation is already in hand but the last representable number is not: `1e400` would reparse to an infinity and fall back to as-drawn, losing the number the host held |
-| D26 | The value channel is the draft **overlaid with what `pending.rs` holds**, so a present inside the debounce window writes back what the person typed (D-23, F-40) | A per-field suppression flag in `FieldValue`. Same information spelled as *do not converge* rather than as *this is the value*, which leaves the channel and the widget disagreeing on purpose and puts a second suppression mechanism beside the one exception. And dropping the debounce, which deletes the class rather than answering it — D-4 is a standing user commitment, not this review's to spend. The overlay routes through `resolve` rather than a second `Reported` → `FieldValue` mapping, for the reason §5.3 gives |
+| D25 | What a widget reported and what the draft holds are two types, joined by one kind-directed `interpret` (F-37, D-22) | One `Edited` with partial payloads — an `Option<Finite>` number, an unresolved index — normalized by `controller::edit`. `submitted` then needs arms for states the draft is promised never to hold, which is the `expect`-is-unreachable argument this design declines elsewhere. And interpreting at submit time in `answer`, where the presentation is already in hand but the last representable number is not: `1e400` would reparse to an infinity and fall back to as-drawn, losing the number the host held |
+| D26 | The value channel is the draft **overlaid with what `pending.rs` holds**, so a present inside the debounce window writes back what the person typed (D-23, F-40) | A per-field suppression flag in `FieldValue`. Same information spelled as *do not converge* rather than as *this is the value*, which leaves the channel and the widget disagreeing on purpose and puts a second suppression mechanism beside the one exception. And dropping the debounce, which deletes the class rather than answering it — D-4 is a standing user commitment, not this review's to spend. The overlay routes through `interpret` rather than a second `Reported` → `FieldValue` mapping, for the reason §5.3 gives |
 | D27 | A pending entry carries the view it was made on, and is shown, sent and drained only against it (F-38) | Clearing the map when the row model is rebuilt. Same effect by a less direct route — the renderer would have to notice a new view separately from the `set_vec` it already does — and it leaves the timer with no `view` to put in the command it defers |
 
 ## 8. Risks & mitigations
@@ -1304,6 +1414,17 @@ by a `changed <property>` handler or a `slint::Timer`, neither of which runs
 under `init_no_event_loop` (A-3). That is the guard's `reasserts` counter and the
 debounce timer. Everything else belongs in `tests/renderer/`.
 
+An element's `init` handler is **not** among them, and the rule above was
+carrying it as though it were. `init` runs under `init_no_event_loop` —
+measured: the counter is non-zero on a window presented there, it moves when the
+view is replaced, and it does not move when the same view is presented again.
+`init` is a construction hook the repeater fires when it instantiates a row,
+while `changed` is driven by the property evaluator the loop runs, so the two do
+not share a tier. That puts A-1's property — *replacing `values` wholesale
+destroys no element* — and the half of AC-4 that asserts it in
+`tests/renderer/`, rather than in the tier that costs a `[[test]]` target and a
+once-per-process initialiser.
+
 A picker picking up a **re**-written seed was a third until it was measured. A
 popup is constructed fresh on every show, so the seed arrives through a binding
 and no `changed` handler is involved (§5.4) — the argument that put the case in
@@ -1322,12 +1443,13 @@ would be F-44.
 | AC-1 | `tests/renderer/fields.rs` | element queries only; nothing is operated | a view with all five kinds draws all five, in declared order, and a `number` outside `slider_bounds` draws the text control |
 | AC-2 | `tests/renderer/fields.rs`, which reads the child process's own request log | the driver above for each control, then the option control's `invoke_accessible_default_action` | the `respond` carries the JSON type `R-57` names, per kind |
 | AC-3 | `tests/renderer/wiring.rs`, existing cases extended | `Controller::edit` and `answer` directly | `R-58` over a form of five kinds |
-| AC-4 | `tests/renderer/fields.rs` for the draft; the loop target for the element | `set_accessible_value` on each of two text fields, then the option control's default action — the answer flush makes the typed path synchronous | the draft holds what was typed; **two text fields edited inside one window both survive**; the element was not destroyed while it was |
+| AC-4 | `tests/renderer/fields.rs`, both halves — `init` runs there, so the element half needs no loop | `set_accessible_value` on each of two text fields, then the option control's default action — the answer flush makes the typed path synchronous | the draft holds what was typed; **two text fields edited inside one window both survive**; `inits` is unchanged, so the element was not destroyed while it was |
 | AC-5 | the loop target | two `present` calls carrying the same frame | `reasserts` unchanged, `inits` unchanged |
 | AC-6 | the loop target, negative-controlled | `set_accessible_value` on a `LineEdit` whose `Wire` reaches no controller, then **let the loop run past the debounce** so the entry is sent and leaves `pending.rs`, then a present. Both halves are needed: while the entry is still held the host *does* hold the value and the widget correctly stands — it is the enqueued-but-never-handled send that makes this the dropped-edit case | `reasserts` increments, the widget holds the draft's value again, `inits` unchanged |
 | AC-7 | `view_model.rs` unit | — | `undrawn_form` still matches `FieldKind` exhaustively; `Undrawn` still reports a `group` hint it cannot read |
 | AC-8 | `tests/renderer/fields.rs` | `invoke_accessible_expand_action`, then `mock_single_click` on the named `ListItem` | a `choice` submits an **alternative** id, and a view whose field id equals an option id still answers correctly |
 | AC-9 | `tests/renderer/fields.rs` | `set_accessible_value` on the numeric `LineEdit` | an unbounded `number` draws the text control and submits a number; no range appears that the backend did not send |
+| a `number` whose spelling is long | `tests/renderer/fields.rs`, over a `view_model.rs` unit for the formatter itself | the formatter directly, on `f64::MAX` and on a number that spells inside the bound; then an element query on a `number` field declaring `f64::MAX` as its `min` | the spelling is `{:e}` beyond 24 characters and `Display` at or below it, each re-parses under the host's parse rule to the `f64` it came from, and the drawn `LineEdit` carries the short form rather than 309 characters (D-32) |
 | the debounce timer | the loop target | `set_accessible_value` on a text `LineEdit`, then let the loop run past 150 ms **without** answering | exactly one `Command::Edit` reaches the controller, and the draft holds the text — the timer is the only thing that could have delivered it |
 | two fields, one window, no answer | the loop target | `set_accessible_value` on two text `LineEdit`s inside 150 ms, then let the loop run past **two** ticks without answering | both values reach the draft, and **neither widget is reverted at any point** — `reasserts` stays at zero across both ticks. The existing rows exercise one timed field, and two fields only on the synchronous answer path, so neither can see a map with a delivery rule get it wrong |
 | the numeric guard's exception, against the overlay | the loop target, negative-controlled | `set_accessible_value("")` on a numeric `LineEdit` the host holds as `0`, then a present **inside** the window | the widget stays empty. Run with the exception removed: if it still passes, the overlay subsumes it and the exception goes; if it fails, A-2 keeps it and the design says why. This is the measurement §5.2 and A-2 defer to, and it is the third time this comparand has been decided by running something rather than arguing |
@@ -1410,6 +1532,19 @@ refused, arrived at by a manifest rather than by a decision. So
 `jiff = { workspace = true, features = ["tz-system", "tzdb-zoneinfo"] }`:
 `tz-system` to detect the zone, `tzdb-zoneinfo` to resolve it against the
 system database.
+
+**What the feature does not gate**, measured rather than predicted. Under
+today's featureless `jiff`, reached from `crates/goad` as it stands,
+`jiff::tz::Offset`, `Offset::UTC`, `Offset::constant`, `Timestamp::UNIX_EPOCH`
+and `Timestamp::display_with_offset` all compile and run. So `Edited::Picked`,
+`Reported::Picked` and `submitted`'s `R-57` datetime arm land with no manifest
+change at all, and the epoch's spelling is asserted rather than predicted:
+`1970-01-01T00:00:00+00:00`, and `1969-12-31T19:00:00-05:00` for the same
+instant at `-05:00`. The argument in this section therefore gates exactly two
+functions — `compose`, which reads the system zone, and `today_local`, which
+reads it and the clock — and nothing else in this slice. One consequence is
+worth carrying forward: `canon-delta.md` CD-1's open question about the epoch
+can be settled against a green test, and before this residue argument is had.
 
 **What it costs.** `tz-system = ["std", "dep:windows-link"]` and
 `tzdb-zoneinfo = ["std"]`, and `std` pulls `alloc`. Under `--workspace`,
