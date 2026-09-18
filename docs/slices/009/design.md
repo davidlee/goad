@@ -501,14 +501,15 @@ absent key, which worked while a boolean was the only kind; it cannot answer for
 the other four because the right answer depends on the kind and the draft does
 not know the kind.
 
-**The two callers do not treat that `Option` alike, and that is the point.**
-`glass.rs` reads it directly when building a value: `None` means *untouched*,
-and for a `datetime` that is what the button renders as *not set*.
-`controller::answer` is the only site that applies `as_drawn`, because `R-58`
-forbids omitting a value for a drawn field. Keeping them apart is what makes
-D-6's epoch a fact about the wire rather than a fact about the screen, which is
-what D-6 chose it to be — a button reading `1970-01-01T00:00:00+00:00` would be
-the host showing a person an answer nobody gave. For the other four kinds the
+**The callers do not treat that `Option` alike, and that is the point.**
+`glass.rs` reads it directly when building a value: `None` means *untouched*, and
+for a `datetime` that is what the button renders as *not set*. The two sites that
+apply `as_drawn` are both in `controller.rs`: `answer`, because `R-58` forbids
+omitting a value for a drawn field, and `edit`, to supply the number a numeric
+text falls back to (below). Keeping `glass.rs` out of that is what makes D-6's
+epoch a fact about the wire rather than a fact about the screen, which is what
+D-6 chose it to be — a button reading `1970-01-01T00:00:00+00:00` would be the
+host showing a person an answer nobody gave. For the other four kinds the
 two coincide by construction (P-3), so `datetime` is the only kind whose display
 can tell *untouched* from *picked*.
 
@@ -517,10 +518,9 @@ is `pub(super)` in `goad-semantics`, so this crate cannot mint one; it can only
 clone one off a view it drew. That is how AC-8 and `R-52` get held. The
 consequence is that the ComboBox reports its index, and `controller.edit`
 resolves the index against the drawn field's alternatives — on the same walk it
-already does to check the field id is real. That is what `Reported` below is
-for. An index out of range is a renderer
-bug and gets the existing `Refused::UnknownField` treatment: reported, nothing
-recorded.
+already does to check the field id is real. That is what `Reported` below is for.
+An index out of range is a renderer bug and gets the existing
+`Refused::UnknownField` treatment: reported, nothing recorded.
 
 **What a widget reported is not yet what the draft holds.** Two of the five
 values can only be formed where the retained presentation is, and a Slint callback
