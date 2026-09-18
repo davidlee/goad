@@ -4,9 +4,10 @@
 `docs/slices/009/canon-delta.md` (CD-1, CD-2) as its canon debt, read against
 `docs/specs/001-host-backend-protocol.md`, `docs/adr/001-one-way-strata.md`,
 `docs/policy/001-the-phase-gate.md`, and the code in `crates/`.
-**Reviewer:** fresh agent — Codex (gpt-5.6-sol) via MCP
+**Reviewer:** fresh agent per round — Codex (gpt-5.6-sol) via MCP for rounds
+1-3; a fresh Claude agent for round 4 (`design-log.md` D-28)
 **Opened:** 2026-09-17
-**State:** open
+**State:** resolved — 2026-09-18
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -2408,6 +2409,155 @@ stands**, not read off a Response or off `notes.md` item 2b's index.
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+Four rounds, fifty-six findings, `F-1` … `F-56`. Fifty-four verified and two
+withdrawn. Eleven were raised as blockers and ten of those survived contact.
+Nine were re-dispositioned before they were verified. Nothing was dispositioned
+`aligned`, `tolerated`, `follow-up` or `settle-in-code`: every finding was
+either wrong, or was repaired inside the slice. Four were `doc-wrong` — the
+design was the defect rather than the thing it described — and the rest were
+`fix-now`.
+
+### What the review changed
+
+The design going to acceptance is not the design that was drafted. Four rewrites
+did that, and each was forced by a blocker rather than by taste.
+
+**Round 1 — the two dependencies were not what the design assumed.** `jiff` was
+to be asked for the system time zone in a build where `TimeZone::try_system`
+compiles to an unconditional error, so every pick would have submitted `+00:00`,
+silently, everywhere (F-1). And the markup's `float` is `f32`, so the number
+channel would have narrowed a legal `f64` bound to an infinity — by a type
+rather than by a decision, which is this project's third invariant failing in
+the quietest way available (F-2). The first produced §10's feature argument and
+the `POL-001` residue it discharges; the second produced the string-valued
+number channel, and with it everything §5.2 says about parsing, formatting and
+the guard.
+
+**Round 2 — the repairs to round 1 had their own defects, and one of them was
+structural.** The guard the new channel needs fought a person clearing a field
+to retype it (F-30), and the picker seeding §5.4 specified did not compile
+(F-35). The finding that shaped the rest was neither: two of `Edited`'s variants
+cannot be built where the command carrying them is built (F-37). A Slint
+callback holds an index and a string, while an `AlternativeId` and a `Finite`
+are values only the retained presentation and a checked constructor can supply.
+That split the boundary into `Reported` and `Edited`, joined by one
+kind-directed function — now `interpret` — which is the spine of §5.2, and it
+added the sixth invariant the later rounds were held to: **a value must be
+constructible where it is constructed.**
+
+**Round 3 — the debounce was a mechanism, not a detail, and every part of its
+delivery rule was missing.** A pending edit lost the view it was made on and
+could be relabelled onto that view's replacement (F-38). The promised retry
+after a full send could not be implemented through a `Wire::send` that returns
+`()` (F-39). A present landing inside the debounce window read the person's own
+captured typing as a dropped edit and wrote over it — and `serve` presents
+before every command it handles, so that is any present at all (F-40). One
+single-edit timer could not drain a map holding two fields without reverting one
+(F-41). Those four are one machine and the repair states it once: every entry
+carries its view, the value channel is the draft overlaid with what is pending,
+the timer delivers one entry per tick and re-arms while the map is not empty, an
+entry leaves on the **enqueue** rather than the acceptance of the send that
+carries it, and §5.5 I-H binds the rule at the three sites that use it.
+
+**Round 4 — a different model found a class the previous three read past.** A
+claim can be true of a dependency's code and false of the configuration this
+application builds. §5.2 carried a locale account: a parse rule written to
+mirror what Slint's validator does with the locale's decimal separator. That
+separator has four write sites and none is reachable here, so its value is `.`
+for the life of every process this workspace produces (F-50). The mechanism it
+commissioned therefore had no typed text it was the answer to — and the only
+texts it could fire on are texts the control never validated, because paste and
+`set_accessible_value` both bypass `input-type` entirely (F-52). The repair
+retired the account rather than completing it: the parse is `f64::from_str`, and
+a rule that reads a pasted `12/25` as `12.25` is precisely what the project's
+permissiveness invariant forbids — an ambiguous message fails rather than being
+guessed at. The same round removed a `Slider` flush with no callback to arrive
+on and no tier able to raise it (F-55), unclaimed an invariant that had grown a
+generalisation its own mechanism could not support (F-53), and completed the
+`jiff` argument so that it reaches the earlier slice's decision it reverses
+(F-54).
+
+**Two findings were wrong, and both were settled by running something.** F-13
+mistook the absence of a case in this repository for the absence of a driver;
+the testing API does query popups under `init_no_event_loop`. F-31 was a
+blocker, and it read a widget's source correctly while assuming a lifetime the
+widget does not have: `show-popup` constructs a fresh popup on every show, so
+the seed it said would go stale cannot. Reading a widget's source tells you what
+an instance does, never how long the instance lives.
+
+### What the review confirmed
+
+This is load-bearing, and it is not the same as what the review did not reach.
+
+The **two-channel premise** survived all four rounds and is measured rather than
+argued: replacing `values` wholesale destroys no element, and the epoch makes a
+correction observable. **`FieldForm` going uninhabited** still stops a sixth
+protocol kind at compile time, which is what keeps `R-55` discharged rather than
+deleted. **Choice identity is held by the type system**, not by convention —
+`AlternativeId::new` is unavailable to this crate, so an alternative id can only
+be cloned off the retained presentation. **The five as-drawn values** satisfy
+`R-58`'s totality and breach nothing in `R-35`, including the max-only `0` that
+may fall outside a declared bound, which `canon-delta.md` CD-1 now states so a
+backend author can discover it. **The `jiff` feature pair is sufficient** on the
+v0 platform, and the `ADR-001` reasoning for taking it is untouched by anything
+found since. **The picker popup's lifetime** is the one the design assumes — a
+fresh instance on every show — which is what makes the seed a binding rather
+than an assignment.
+
+### What it leaves standing
+
+Eleven risks in §8, of which four are the ones a reader should carry. **R8**:
+the feature this slice switches on unifies into stratum 1's build, no gate
+command rejects it, and review is the only mitigation — `POL-001` says so, which
+is why it requires the argument instead. **R9**: `AC-8` needs a pointer event
+inside a popup that no case in this repository has yet had laid out under
+`init_no_event_loop`; the row moves to the loop tier if the injection pass
+cannot make it go red. **R11**: enabling `slint`'s `gettext` on unix arms the
+decimal separator from the system locale, and in that configuration a field
+drawn showing a non-integral number cannot be typed into a character at a time —
+a property of the control that no host parse rule repairs, which is the second
+reason the locale account was retired rather than completed. **R5**: the
+debounce widens the window in which a superseded view eats someone's typing, and
+that is accepted rather than mitigated.
+
+Three assumptions are unmeasured and say so: `A-4`, that the four fallible steps
+are the whole of `compose`'s failure surface; `A-5`, that a `ComboBox`'s
+`current-index` survives a `values` rewrite like the others; and `A-6`, that
+disabling a widget mid-exchange does not destroy it. Each was priced rather than
+assumed away, and `A-2`'s guard exception is carried explicitly until §9's
+re-run against the overlay settles it.
+
+One question is **open by user decision and is not a finding**: whether CD-1
+states the `datetime` epoch normatively or descriptively. It is a question about
+how canon should read, and it is deferred to promotion at audit.
+
+Three of the mechanisms this design turns on — a caret surviving a present, the
+chained pickers, a drag across a present — have **no instrument in any tier**.
+AC-10's human run is not a fallback for them; it is the only observation of them
+the slice will get.
+
+### What this ledger does not discharge
+
+**Coverage is not uniform across the rounds.** Rounds 1-3 were one reviewer,
+`gpt-5.6-sol`, which was demonstrably good at checking a claim against a named
+source and finding it false — F-14, F-20, F-26, F-32 and F-35 are all that
+shape. Round 4 was a Claude agent and found four findings of a class those
+rounds did not reach, while finding no citation error at all. Both statements
+are about blind spots rather than about quality, and the residual risk is the
+union of two sets nobody has enumerated.
+
+**The prototype's fifteen measurements are not in this ledger**, by decision
+(`design-log.md` D-29): a measurement is neither a reviewer's finding nor a
+user's choice. `prototype-notes.md` is their artefact, and its §*What it did not
+test* bounds them — `number`, `choice` and `datetime` were never built.
+
+**One of them, P-14, is an open question this ledger cannot answer.** A refusal
+raised beside an answer that proceeds does not survive the exchange fold, so a
+person whose stale typing was discarded may be told nothing. The design says the
+refusal is *reported*, which is true, and does not say for how long. The user
+has deferred it to observation of the running software rather than to argument,
+and it is recorded in `notes.md` §*Waiting on the user* rather than here.
+
+**Acceptance is not verification.** Every finding is terminal and no blocker
+stands, which is what this ledger can say. Whether the design is the one to
+build is the user's, and it has moved three times since their last acceptance.
