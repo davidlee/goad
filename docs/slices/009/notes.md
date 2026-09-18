@@ -4,11 +4,11 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — round 4 raised and dispositioned, nothing integrated
+## Handover — round 4 integrated, awaiting its outcomes
 
 Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
-again when D-29 … D-32 landed, and again when round 4's seven were
-dispositioned. Delete once the design closes.
+again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
+and again when they were integrated. Delete once the design closes.
 
 **Durability, as of this handover.** Everything is pushed: `main` through
 `6b915b2` and `slice-009-prototype` through `a1171b3` are both on `origin`. They
@@ -38,18 +38,19 @@ instead, because a measurement is neither a reviewer's finding nor a user's
 choice. `number`, `choice` and `datetime` were never built and §9's validation
 table was never attempted, so nothing the prototype says is evidence about them.
 
-**The review loop is still open, and the integration of round 4 is the next
-thing.** D-29 … D-32 and the prototype's repairs are integrated (2026-09-18, a
-fresh agent per D-21). §*What is owed* item 1 says where each one landed and
-what the pass found doing it. **One thing was not applied: P-14**, which is a
+**The review loop is still open, and what it is waiting on is outcomes rather
+than repairs.** D-29 … D-32 and the prototype's repairs were integrated first
+(2026-09-18, a fresh agent per D-21); §*What is owed* item 1 says where each one
+landed and what the pass found doing it. **One thing was not applied: P-14**, which is a
 decision rather than a repair — §*Waiting on the user*. `design.md` was
 current truth again after that pass, and the design's function is now
 **`interpret`**.
 
-**Round 4 then raised seven and a fresh agent dispositioned them** (items 2 and
-2a). Seven repairs are written down and **none is applied** — item 2b is the
-integration, and it is a different session again. The largest of them retires
-§5.2's locale account (D-33), which reverses D-16 and is a net deletion.
+**Round 4 then raised seven, a fresh agent dispositioned them, and a third
+session integrated them** (items 2, 2a and 2b). All seven repairs are applied;
+the largest retired §5.2's locale account (D-33), reversing D-16 as a net
+deletion. **`design.md` is current truth again**, and what is owed on those
+seven is one thing: round 4's raiser setting their outcomes.
 
 **What changed in the integration**, in one line each, because the ledger's
 Responses do not all say where the text landed:
@@ -83,7 +84,7 @@ review.**
 | file | state |
 |---|---|
 | `review-design.md` | **the ledger.** F-1 … F-56. The first forty-nine are terminal; F-50 … F-56 carry a disposition and a Response and are awaiting an outcome from round 4's raiser. Every Response is written to be complete without the session that wrote it: they are your brief |
-| `design.md` | **current truth as of the integration of D-29 … D-32 and the prototype's repairs, and no further.** Round 4's seven repairs are dispositioned and **not applied** (item 2b); P-14 is a decision and is not applied either |
+| `design.md` | **current truth, through round 4's integration.** All seven of round 4's repairs are applied (item 2b). P-14 is a decision, not a repair, and is not applied — §*Waiting on the user* |
 | `design-log.md` | D-1 … D-35. Append-only. D-29 supersedes D-27's second paragraph and **D-33 reverses D-16**. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
 | `research.md` | Thread 3 is everything measured |
 | `canon-delta.md` | CD-1, CD-2. F-45 touches CD-2 |
@@ -254,10 +255,52 @@ review.**
      and submitted by nothing). That is why the repair deletes the claim rather
      than lengthening the list — third time for this class, after F-21 and F-42.
 
-2b. **Integrate the seven, with a different session.** D-21: the session that
-   writes a disposition does not integrate it, and that has paid three times out
-   of three in this slice. Nothing below is applied — `design.md`, `slice-009.md`
-   and `canon-delta.md` are untouched by the dispositioning pass, and so is canon.
+2b. ~~**Integrate the seven, with a different session.**~~ **Done, 2026-09-18**,
+   by a fresh session (D-21). All five repairs are applied to `design.md` and
+   `slice-009.md`; `canon-delta.md` needed nothing and canon is untouched. The
+   table below is left as it was written, as the index to what landed where.
+
+   **What this pass found**, all of it verification rather than repair — this is
+   the first integration in the slice that turned up no defect in what it was
+   handed:
+
+   - **One citation was one line off, and this one is the reviewer's.** F-54's
+     Evidence line cites `clock.rs:46-52` for the doc comment that refuses
+     `jiff::Timestamp::now()`, and the Response repeated it. The comment is at
+     **`:47-53`**; `:46` is blank. §10 carries the corrected range. It is the
+     fourth entry in §*Citations known bad* and the first not written by a
+     responder — so *verify the responder's first* is a priority, not a
+     sufficient check.
+   - **`clock.rs`'s comment cites a `D25` that is not this design's.** It means
+     slice 005's decision; §7 D25 in this design is `interpret`. §10 says which
+     one it means rather than reproducing the collision — the `D-n` / `Dn` /
+     `P-n` trap, now with a fourth sequence reaching in from another slice.
+   - **F-55's "check they are, rather than assuming" checked out.** §5.1's *two
+     ways an edit leaves `pending.rs`* enumerates the timer and the `Choose`
+     drain, and §5.3's ownership row gives the same two. Neither named
+     `released`, so removing the flush leaves both true as written and nothing
+     was owed in either place.
+   - **Every absence claim the repairs rest on was re-derived from the locked
+     source**, because F-50's whole shape is an absence: `set_locale` has
+     exactly one caller in the registry (`i-slint-backend-testing`);
+     `crates/` names none of `set_locale`, `select_bundled_translation` or
+     `with_bundled_translations`; `build.rs` passes only `with_debug_info` and
+     `with_style`; `gettext` appears **zero** times in `Cargo.lock`;
+     `accept_text_input` has exactly two call sites (`:1067`, `:1117`) with
+     `StandardShortcut::Paste` dispatched ahead of both at `:1034`; and
+     `goad-emit` takes `goad-semantics`, `goad-shell` and `serde_json` and not
+     `crates/goad`. The four separator write sites are at the lines the
+     Response gives.
+   - **One historical note was struck**, in §*Integration notes the ledger did
+     not carry*: round 3's *the overlay creates a property worth stating as an
+     invariant* is exactly the generalisation F-53 retires, and it was sitting
+     in this file as a reason to put it back.
+   - **The repair for F-53 made the same mistake once, in its own first
+     draft.** The replacement paragraph said each divergence *"has its own edges
+     row below"*; the untouched `datetime` has none — it lives in §5.2, D-6 and
+     CD-1. Caught before it was committed, and it is the fourth instance of the
+     class in this slice: writing *what is not claimed* is itself an
+     opportunity to claim something unchecked.
 
    The Responses are the brief and are complete; this table is an index to them,
    not a substitute.
@@ -287,7 +330,7 @@ review.**
      *the grammar P-5 pinned*; there is no longer a grammar, so nothing in
      `design.md` should cite one.
 
-   Then: round 4's raiser sets the outcomes on F-50 … F-56 — a bounded
+   **Next: round 4's raiser sets the outcomes on F-50 … F-56** — a bounded
    verification pass on the repairs, not a round 5 (item 2 has the trend
    argument) — and item 4 onward follows.
 
@@ -423,10 +466,14 @@ two call sites back in `view_model.rs`" is false — `answer` is in
   renumbered, so a stale entry keyed `(option, field)` whose ids happen to match a
   new field would otherwise be overlaid onto the new view's widget. State it once,
   as one rule over three sites.
-- **The overlay creates a property worth stating as an invariant:** what the
-  screen shows is what an answer would submit. A drained entry reaches the draft;
-  a kept entry is still displayed and still travels in the next `Choose`; a stale
-  entry does neither. That is new and it is better than what the design had.
+- ~~**The overlay creates a property worth stating as an invariant:** what the
+  screen shows is what an answer would submit.~~ **Struck by F-53**, which is
+  the third finding of that class (F-21, F-42): the generalisation is false —
+  a numeric text no finite parse accepts, a cleared numeric field and an
+  untouched `datetime` each show one thing and submit another, and the list
+  cannot be closed. What survives, and is what I-H now says, is the part that
+  was always checkable: a drained entry reaches the draft; a kept entry is still
+  displayed and still travels in the next `Choose`; a stale entry does neither.
 - **Construction order is already right.** `main.rs:85-101` installs the callback
   table before building `SlintGlass`, so the `Rc<Pending>` is created at step 6
   and cloned into `install` and `SlintGlass::new` both. One field on
@@ -483,14 +530,20 @@ two call sites back in `view_model.rs`" is false — `answer` is in
 ### Citations known bad
 
 The ledger is append-only, so a bad citation inside a Response stays as written.
-**Three** are known, and the list held five until the prototype checked it
+**Four** are known, and the list held five until the prototype checked it
 (`prototype-handback.md` §5): F-10's re-disposition (one `wiring.rs` site, not
-two); F-23's Response (`wire.rs:130`, not `:126`); and F-33's Response
-(`fluent/components.slint:15-19` for `ListItem`; they are at `:49-53`).
+two); F-23's Response (`wire.rs:130`, not `:126`); F-33's Response
+(`fluent/components.slint:15-19` for `ListItem`; they are at `:49-53`); and
+F-54 (`clock.rs:46-52` for the doc comment; it is at `:47-53`, and `:46` is
+blank) — found by the integration, which is where three of the four came from.
 
-All three were written by a **responder**, not by a reviewer. Rounds 2 and 3's
-own citations checked out. **Verify the responder's first** — including this
-list's own, which is where the two below came from.
+**The fourth breaks the pattern the first three set.** F-54's range was written
+by the **reviewer**, in the finding's Evidence line, and the Response then
+repeated it — so the rule *verify the responder's first* is a priority, not a
+sufficient check. The other three are responders' alone, and rounds 2 and 3's
+reviewers' citations checked out. Round 4's *"no bad citation was found this
+round"* (item 2) is a claim about `design.md`'s citations and stands; it was
+never a claim about the round's own.
 
 **Two entries were struck, and one of them was dangerous.** Both were written
 here rather than in the ledger, so striking them costs nothing:

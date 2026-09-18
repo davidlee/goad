@@ -46,6 +46,10 @@ costs a text field every keystroke after the first.
   needs.
 - `crates/goad/Cargo.toml` — `jiff`'s `tz-system` and `tzdb-zoneinfo`, on the
   one member that reads the system zone (`design.md` §10, §7 D18).
+- `crates/goad-shell/src/clock.rs` — one doc-comment amendment and no code
+  change: the rationale it carries for avoiding `jiff::Timestamp::now()` stops
+  being true of the workspace build once that feature lands (`design.md` §10,
+  D-35).
 - `crates/goad/tests/` — including one or more new event-loop-backed targets.
 
 ## Non-goals

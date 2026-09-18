@@ -340,47 +340,45 @@ that is true of any slider, pixels included — and granularity of a control is 
 a narrowing of the contract, which still admits and still answers every legal
 message.
 
-**Parsing the text is done under the rule the control validated it with.** A
-numeric `LineEdit` is `input-type: decimal`, which validates each insertion
-through Slint's `string_to_float` — and that function is **locale-aware**. It
-asks the global context for the locale's decimal separator, which is an
-arbitrary `char` obtained from ICU rather than one of `.` and `,`, and then
-takes one of two paths: where the separator is `.`, it parses the text as it
-stands; where it is anything else, it **rejects any text containing a `.`** and
-parses what is left after replacing the separator with one
-(`i-slint-core/string.rs:398-412`; `i-slint-common/lib.rs:61-85`;
-`items/text.rs:2202-2229`). That lookup is live in this build: `i-slint-core`'s
-default `std` feature turns on `i-slint-common/locale-decimal-separator`
-(`i-slint-core/Cargo.toml:82-95`). A host that called `f64::from_str` on the raw
-text would refuse `1,5` in a comma-decimal locale — text the control had just
-approved — record nothing, and let the next guard write over the person.
+**Parsing the text is `f64::from_str`, and the host repairs nothing** (D-33). A
+numeric `LineEdit` is `input-type: decimal`, which validates each typed
+insertion through Slint's `string_to_float`. That function branches on the
+global context's decimal separator: where it is `.`, it is `parse::<f32>()` on
+the text as it stands; where it is anything else, it rejects any text containing
+a `.` and parses what is left after replacing the separator with one
+(`i-slint-core/string.rs:398-412`; `items/text.rs:2202-2229`). In every process
+this workspace builds the separator is `.` (below), so the branch taken is
+always the first, and Rust's float grammar is the same for `f32` and `f64`.
+`f64::from_str` on the raw text therefore admits exactly what typing admits,
+minus the control's two-byte escape trio — `-`, `.` and `-.` — which no parse
+accepts on either side. Empty text is zero, which is what Slint's own `to-float`
+reads an empty field as; that case is not a nicety, it is what makes the guard's
+one exception (below) correspond to a value the host actually holds.
 
-**The host cannot read that separator, so it does not try to name it.** The
-accessor is `SlintContext::locale_decimal_separator`
-(`i-slint-core/context.rs:297-299`) in `i-slint-core`, which `crates/goad` does
-not depend on, and the `slint` crate re-exports neither it
-nor `string_to_float`; reaching it would mean a new dependency or a second ICU
-lookup, and both are out. Instead the host accepts exactly the class the control
-admits, without knowing which of the two paths produced it: parse the text as it
-stands, and failing that, where exactly one character of the text falls outside
-the grammar `f64::from_str` accepts, replace that one character with `.` and
-parse again. The two agree everywhere the control can reach — a text with the
-separator once parses either way, and a text with it twice fails on both sides,
-because Slint replaces every occurrence and still gets a string `f32::from_str`
-refuses. Which characters make up that grammar is the plan's to pin down against
-`f64::from_str` rather than against a list written from memory. Empty text is
-zero, which is what Slint's own `to-float` reads an empty field as; that case is
-not a nicety, it is what makes the guard's one exception (below) correspond to a
-value the host actually holds.
+**The separator is `.`, and that is a fact about the configuration rather than
+about the code.** `SlintContext::locale_decimal_separator` is a plain
+`Property<char>` initialised to `'.'` with no binding
+(`i-slint-core/context.rs:122-125`), and four sites write it: `set_locale`,
+documented *testing only* and reached from `i-slint-backend-testing` alone
+(`context.rs:302-309`); two arms of `select_bundled_translation`, which need
+`with_bundled_translations` at compile time and an explicit call
+(`translations.rs:436-444`), while `crates/goad/build.rs` bundles none and
+nothing in the crate calls either; and one arm of `mark_all_translations_dirty`,
+which does read the system locale but is compiled out behind `gettext-rs`
+(`translations.rs:304-310`) — a feature `slint` does not default to, and whose
+crate is absent from `Cargo.lock`. So the hazard is not unreachable in
+principle, it is one manifest feature away on unix, and a host-side mechanism
+for it would be one no build this workspace produces can reach. §8 R11 records
+the configuration that would arm it, and what it would cost.
 
 **One rule covers every text the control admits: the host records the text, and
 the last representable number stands.** The text is recorded verbatim, always.
 The number is replaced only where the parse yields a finite `f64`; otherwise the
 field keeps the number it had — for a field nobody has touched, the number it was
-drawn showing. So `-`, a lone separator and `inf` all leave the number alone:
-the control admits each of them and no *finite* parse accepts any of them
-(below). `1e400`, which `input-type: decimal` admits because Slint validates
-through an `f32` parse where it is an infinity, stays on screen as `1e400` while
+drawn showing. So `-`, `.` and `inf` all leave the number alone: each of them
+reaches the host and no *finite* parse accepts any of them (below). `1e400`,
+which `input-type: decimal` admits because Slint validates through an `f32`
+parse where it is an infinity, stays on screen as `1e400` while
 the host keeps `1e40` as the number it would submit — measured, with an injection
 pass (`guard_text.rs`, case `verbatim-overflow`).
 
@@ -388,31 +386,34 @@ That is one rule holding two properties no choice of comparand could hold on its
 own: nothing non-finite reaches the wire, because `Finite` refuses it, and
 nothing is written back over a person mid-entry (F-30, F-34).
 
-**Two sets of texts sit behind that rule, and they are different sets.** The
-first is *admitted, and no parse accepts it*: a candidate of two bytes or fewer
-is admitted when it is `-`, **the locale's separator**, or `-` followed by the
-separator (`items/text.rs:2205-2230`), which is the escape that lets a person
-begin a negative or a fractional number at all. So the trio is `-`, `.` and `-.`
-in a dot locale and `-`, `,` and `-,` in a comma one — the control admits the
-separator, not a dot, which is what F-26 took out of the parse rule above. `--`
-is in neither locale's trio and cannot be typed.
+**The class the control admits is every string.** `input-type: decimal` gates
+typing and nothing else. `TextInput::insert` — the paste path — performs no
+validation at all and never consults `input_type` (`items/text.rs:1783-1827`;
+`StandardShortcut::Paste` is dispatched at `:1034`, ahead of both
+`accept_text_input` call sites at `:1067` and `:1117`). Neither does
+`set_accessible_value`, which assigns `text` and calls `edited` from inside the
+markup (`widgets/fluent/lineedit.slint:16`) — and that is §9's principal driver,
+so every numeric case the plan writes drives the unvalidated path by default. An
+`input-type` is a typing aid, never a class the host may reason from.
 
-The second is *admitted, and a parse accepts it non-finitely*. Anything longer
-than two bytes is admitted when `string_to_float` parses it, and that is
-`parse::<f32>`, which takes `inf`, `infinity` and `nan` case-insensitively as
-well as reading `1e400` as an infinity. **`inf` is reachable.** Typing it fails
-at the first `i`, because a one-byte candidate must be `-` or the separator, but
-pasting it succeeds: the three-byte candidate goes straight to `string_to_float`.
-So a person can put `inf` or `nan` into a numeric field.
+That is the other half of why the parse repairs nothing. A rule that replaced a
+single foreign character with `.` and parsed again would read a pasted `12/25`
+as `12.25`, `3:30` as `3.30` and `$5` as `0.5` — a number the screen never
+showed. That is `CLAUDE.md`'s *an ambiguous message fails rather than being
+guessed at*, and D-6's own rule against holding a value nobody gave as though
+someone gave it. The one rule above is total over every string on its own, so
+declining to guess deletes a case rather than adding one.
 
-Both sets take the same path and neither needs code: the text is recorded
-verbatim and the last representable number stands, because a non-finite parse is
-not a finite one. What matters is that they are two sets rather than one — an
-implementer who reads the trio as the closed enumeration writes a three-case test
-and never reaches the paste.
+One property of the admitted class is still worth stating: **a parse can accept
+a text non-finitely.** `string_to_float` is `parse::<f32>`, which takes `inf`,
+`infinity` and `nan` case-insensitively as well as reading `1e400` as an
+infinity. Typing `inf` fails at the first `i`, because a one-byte candidate must
+be `-` or `.`, but pasting it succeeds. Either way a non-finite parse is not a
+finite one, so the text is recorded and the last representable number stands —
+no code, and nothing for `Finite` to refuse that it does not already refuse.
 
 All of it is host-side, testable without a locale fixture, and numeric formatting
-rather than anything domain-shaped (D-16). Sending Slint's own parsed float
+rather than anything domain-shaped (D-33). Sending Slint's own parsed float
 alongside the text was rejected: it reintroduces as a fallback the `f32` path this
 section exists to keep off the wire.
 
@@ -434,10 +435,10 @@ long only because the exponent is. Switching on magnitude instead, the
 spreadsheet rule, needs two constants and sends `1e16` to scientific when its
 plain spelling is 17 characters.
 
-One constraint falls out of it for the grammar the plan pins above: **the
-grammar admits `e` and `E`**, so both spellings re-parse and the guard's
-comparand round-trips either way. Leaving `e` out would make `1e5` a text with
-exactly one foreign character, which the parse rule would then read as `1.5`.
+Both spellings re-parse under the parse rule above, which is what the guard's
+comparand needs, and neither costs the plan an obligation: `f64::from_str` takes
+`1e5` and `1.7976931348623157e308` natively, so there is no numeric grammar for
+anyone to pin against the formatter (D-33).
 
 **The control is the host's decision, not the markup's inference.** `slider` is
 a decision the row carries, not a fact about the field the markup reasons from.
@@ -497,20 +498,29 @@ not the markup, not the wire, not `Edited`.
 |---|---|---|---|
 | `boolean` | `CheckBox` | `checked` | `toggled` |
 | `text` | `LineEdit` | `text` | `edited`, debounced |
-| `number`, slider admissible | `Slider` over `minimum`/`maximum` | `number` | `changed`, debounced; `released` flushes. Sends `number` |
+| `number`, slider admissible | `Slider` over `minimum`/`maximum` | `number` | `changed`, debounced. Sends `number` |
 | `number`, otherwise | `LineEdit`, `input-type: decimal` | `text` | `edited`, debounced. Sends `text` |
 | `choice` | `ComboBox` over the labels | `index` | `selected` |
 | `datetime` | `Button` showing the value, or *not set* | `text` | the time picker's `accepted` |
 
-A `Slider` binds `changed` as well as `released`. Slint raises `released` from
+A `Slider` binds `changed`, and nothing else. Slint raises `released` from
 the pointer and keyboard paths, but its accessibility `set-value`, `increment`
 and `decrement` actions all route through `set-value`, which raises `changed`
 and nothing else (`widgets/common/slider-base.slint:114-131`,
 `widgets/fluent/slider.slint:30-36`). A `released`-only binding is therefore
 deaf to an assistive technology, and — §9 — cannot be operated by any test tier
 either. `changed` fires continuously through a drag, so it takes the same
-debounce the text controls take, and `released` flushes it so a drag's final
-value does not wait on a timer.
+debounce the text controls take.
+
+`released` is not bound as a flush either (D-34). It has no interface to travel
+on: the markup declares one host-ward callback for a field, `FieldEdit` carries
+no *send this now* discriminant, and the pending map lives behind an `Rc` that
+only `install.rs`'s closures reach — so a `released` binding could do nothing
+but call `edited` again, which restarts the timer rather than flushing it. The
+same fact that rules out a `released`-only binding also means no tier can raise
+it, so a flush could not be measured either. What it would buy is the last
+150 ms of a drag, which the timer delivers one tick later and which the answer
+path flushes in full. The two ways an edit leaves `pending.rs` (§5.1) stay two.
 
 A `Slider`'s `step` is `(maximum - minimum) / 100`. Slint defaults it to `1` and
 rejects every key when it is `0` (`slider-base.slint:8`, `:79`), so leaving it
@@ -1257,13 +1267,20 @@ naming the call.
   **shown** only where its view is the one being presented, **sent** by the timer
   in a command carrying that view, and **drained** into a `Choose` carrying that
   view alongside — the last two refused as `SupersededView` when the view has
-  been replaced. What that buys is a property the design did not have before: for
-  every field anyone has touched, what the screen shows is what an answer would
-  submit. A drained entry has reached the draft; a kept entry is still displayed
-  and still travels in the next `Choose`; a stale entry does neither. The one
-  place display and submission part company is an untouched `datetime`, which
-  shows *not set* and submits the epoch (D-6, §5.2) — and an untouched field has
-  no pending entry, by construction.
+  been replaced. Three clauses follow, and each of them is checkable: a drained
+  entry has reached the draft; a kept entry is still displayed and still travels
+  in the next `Choose`; a stale entry does neither.
+
+  What this does **not** claim is that the screen and the wire agree everywhere.
+  They agree per kind, and §5.2 is where each divergence is stated and argued: an
+  untouched `datetime` shows *not set* and submits the epoch (D-6, and
+  `canon-delta.md` CD-1); a numeric text no finite parse accepts is displayed
+  while the last representable number is submitted; a cleared numeric field shows
+  `""` and submits `0`. The last two have their own edges rows below. That is
+  deliberately **not** offered as a closed list — the attempt to close one is
+  what made this invariant wrong, and an invariant an implementer turns into an
+  assertion and watches fail is worse than no invariant at all (F-21 and F-42
+  were the same shape, one round apart).
 
 **Assumptions**, in descending order of how much rests on them:
 
@@ -1281,7 +1298,7 @@ naming the call.
 | situation | what happens |
 |---|---|
 | numeric field cleared to `""` | records the empty text, and `0`, which is how the control's own reader takes an empty field (§5.2). Once that is recorded the strings agree; until the debounce records it the guard's one exception — empty widget, held number zero — keeps it quiet. Either way the clear survives |
-| numeric text that is not a number — no parse accepts it (`-`, the locale's separator, or `-` and the separator: the control's own two-byte escape), or a parse accepts it non-finitely (`1e999`, and `inf` or `nan` by pasting) | the text is recorded and the last representable number stands (§5.2). I-G is held at the wire: `Finite` refuses the infinity, so no `null` can reach it. The guard is quiet because the strings agree, so the person keeps what they typed and the host keeps the number it can defend |
+| numeric text that is not a number — no parse accepts it (`-`, `.` or `-.`: the control's own two-byte escape), a parse accepts it non-finitely (`1e999`, and `inf` or `nan` by pasting), or the control never validated it at all (`12/25`, by pasting or through `set_accessible_value`) | the text is recorded and the last representable number stands (§5.2). I-G is held at the wire: `Finite` refuses the infinity, so no `null` can reach it. The guard is quiet because the strings agree, so the person keeps what they typed and the host keeps the number it can defend |
 | a picked datetime inside a DST fold or gap | resolved under jiff's `Compatible` — the fold takes the earlier occurrence, the gap shifts forward — and **succeeds**. The button shows the composed value, so the person sees the shift (D-13, §5.2) |
 | a `number` whose only bound is a `max` | as-drawn submits `0`, which may exceed that `max`. Legal: `R-35` leaves the judgement to the backend and `R-58` requires a value. `canon-delta.md` CD-1 states it so a backend author can discover it |
 | a `number` with both bounds but a range no slider can operate — equal bounds, an `f32` span of infinity, a step that underflows to zero | `slider_bounds` answers `None` and the text control is drawn (§5.2). Every legal `R-17` range is still drawable and still answerable |
@@ -1329,7 +1346,7 @@ and the code is the same either way.
 | D4 | A pick submits the offset the person picked in (D-7) | Always UTC. Conforming, but a backend echoing the value shows a person a time they did not choose, and `R-57` says "carrying an offset" rather than "an instant" |
 | D5 | Cancel at either picker abandons the whole edit (D-7) | Cancel on the time picker committing local midnight. That is the date-only affordance wearing a disguise, and it makes "cancel" mean two things |
 | D6 | The debounce flushes on answer only (D-8) | `accepted` and focus loss as well. Both guess how a person leaves a field, neither is guaranteed to precede the click, and neither closes a hole the answer flush leaves |
-| D7 | A `Slider` binds `changed`, debounced, and flushes on `released` (D-8, corrected at D-14) | `released` alone, which the first draft took. `released` is raised by the pointer and keyboard paths but **not** by Slint's accessibility `set-value`, `increment` or `decrement`, which raise `changed` only — so the widget would be deaf to an assistive technology, and to every test tier. `released` earns its place as the flush, not as the binding |
+| D7 | A `Slider` binds `changed`, debounced, and nothing else (D-8, corrected at D-14, the flush removed at D-34) | `released` alone, which the first draft took: it is raised by the pointer and keyboard paths but **not** by Slint's accessibility `set-value`, `increment` or `decrement`, which raise `changed` only — so the widget would be deaf to an assistive technology, and to every test tier. And `released` as a flush, which the same fact leaves unmeasurable, and which has no interface to travel on: one host-ward callback with no *send this now* discriminant, over a map behind an `Rc` only `install.rs` reaches (§5.2) |
 | D8 | A present writes in place exactly when the `view_id` is unchanged (D-9) | Comparing rows and skipping the write (Thread 4) — blind to the only divergence that matters. And "rebuild when a command was refused", on two grounds, neither of them the identity of the refused command: `TrySendError::Full(T)` hands the whole `Command::Edit` back, so the field **is** available and `wire.rs:127-133` discards it deliberately. First, the alternative rests on a completed enumeration of the ways an edit can be lost, which `docs/memory/enumerate-the-class-not-the-instances.md` warns about and which Thread 4 never finished; the measured guard needs no such enumeration. Second, even with the field in hand, the only correction available without the epoch is a targeted row rebuild (Thread 4, *not taken but available*) — and the field being rebuilt is the field the person was typing in, because that is where edits come from. Narrower than a whole-form rebuild, and fatal the same way |
 | D9 | Structure and value on two channels (D-9) | Retaining the nested model tree so values can be written in place. A cache with an invalidation rule, in a file whose current doc is that it has neither |
 | D10 | `DrawnKind`, a host-local enum | Carrying the canonical `FieldKind` on `PresentationField`. It avoids a second enum but lets a sixth protocol kind reach a drawn field and fall silently through the markup's `if` chain |
@@ -1345,7 +1362,7 @@ and the code is the same either way.
 | D20 | `pending.rs` is keyed by (option, field) and kind-agnostic, and it has a delivery rule: an entry leaves on the **enqueue** of the send that carries it, the timer delivers one per tick and re-arms while the map is not empty (D-14, F-39, F-41) | One pending edit. It loses field A's last keystrokes when a person moves to field B, and D-8 forbids flushing on the switch. And a map with no delivery rule, which was the first repair: one timer sending one edit records one of two fields and strands the other until the answer |
 | D21 | The picker is seeded on open, from typed `date` and `time` slots the host writes into `FieldValue` — from the draft, or from today at 00:00 local. The seed reaches each popup as a **binding** to a root property the button's handler writes, because an assignment into a popup from an enclosing handler does not compile | Leaving it, which opens an already-picked field on today instead of on its pick; seeding from `as_drawn`, which opens an untouched field at 1970; and giving the Slint handler the job of obtaining the seed itself, which needs a reverse callback, extra slots, or markup-side parsing of a formatted datetime, and a second decision about where a clock read lives. The reason this decision first gave — that field B would otherwise open on field A's pick — was wrong: no popup state survives a close (§5.4) |
 | D22 | `Command::Choose` carries the pending edits, in no promised order (D-15, F-43) | Sending each edit and then `Choose`. The channel holds one and a Slint callback cannot yield, so the second `try_send` of a flush always fails — not sometimes. And raising the channel's capacity, which is a decision about a different subsystem taken for this one's convenience: capacity 1 is what produces the back-pressure notice. And promising declared-field order over the carried edits, which the callback cannot derive — it holds `(option, field)` keys and no declaration — and which `answer`'s own walk is the wrong place for: it covers one option and is `&self`. The promise was safe only because it was empty |
-| D23 | The host parses a number under the rule the control validated it with (D-16) | `f64::from_str` on the raw text. `input-type: decimal` validates through Slint's locale-aware reader, so in a comma-decimal locale the control approves `1,5` and the host refuses it, records nothing, and the guard writes over the person. Also rejected: sending Slint's parsed float alongside the text, which brings back as a fallback exactly the `f32` path D16 keeps a typed number off |
+| D23 | The host parses a numeric text with `f64::from_str`, and repairs nothing (D-16, reversed at D-33) | Substituting the locale's decimal separator, which is what D-16 took. The separator is `.` for every process this workspace builds — four write sites, none of them reached from here (§5.2) — so the substitution has no typed text it is the answer to, and the only texts it could fire on are texts the control never validated: it reads a pasted `12/25` as `12.25`. Also rejected: sending Slint's parsed float alongside the text, which brings back as a fallback exactly the `f32` path this section keeps a typed number off |
 | D24 | `Edited::Adjusted` holds a checked finite value, not a bare `f64` | A convention that every construction site checks first. `Controller::edit` is public, and a non-finite serialises as JSON `null`, which `R-57` does not admit — so the rule has to be a property of the type |
 | D25 | What a widget reported and what the draft holds are two types, joined by one kind-directed `interpret` (F-37, D-22) | One `Edited` with partial payloads — an `Option<Finite>` number, an unresolved index — normalized by `controller::edit`. `submitted` then needs arms for states the draft is promised never to hold, which is the `expect`-is-unreachable argument this design declines elsewhere. And interpreting at submit time in `answer`, where the presentation is already in hand but the last representable number is not: `1e400` would reparse to an infinity and fall back to as-drawn, losing the number the host held |
 | D26 | The value channel is the draft **overlaid with what `pending.rs` holds**, so a present inside the debounce window writes back what the person typed (D-23, F-40) | A per-field suppression flag in `FieldValue`. Same information spelled as *do not converge* rather than as *this is the value*, which leaves the channel and the widget disagreeing on purpose and puts a second suppression mechanism beside the one exception. And dropping the debounce, which deletes the class rather than answering it — D-4 is a standing user commitment, not this review's to spend. The overlay routes through `interpret` rather than a second `Reported` → `FieldValue` mapping, for the reason §5.3 gives |
@@ -1365,6 +1382,7 @@ and the code is the same either way.
 | R8 | A later stratum 1 source comes to depend on a capability this feature switched on in a dependency stratum 1 shares | **Review, and nothing else.** No gate command rejects this — `POL-001` says so in as many words, which is why it requires the decision to be argued instead. §10 carries the argument | a `goad-semantics` source whose behaviour changes with a feature its own manifest does not ask for |
 | R9 | AC-8 needs a pointer event inside a popup, and no case in this repository has yet had a popup laid out under `init_no_event_loop`. `mock_single_click` dispatches at the element's `absolute_center()`, so a popup with no geometry is clicked nowhere near | The injection pass, run and read before the row is believed. If the click cannot be made to land, the row moves to the loop tier, where the other `choice` row already sits — same driver, same assertion — and nothing else in the design changes | an injection that cannot make AC-8 go red |
 | R10 | The overlay is wired to two different `Pending` values — one in `install`, one in `SlintGlass` — and every case stays green while measuring nothing. Silent, and the natural shape for a test that constructs the two halves separately | One `Rc`, created before both and cloned into each; `main.rs` already has that order (§5.3). §9's two-field row and AC-6 are both written so that a split handle makes them fail rather than pass | a case asserting the overlay that passes without `install` having been called |
+| R11 | The decimal separator stops being `.`. `slint`'s `gettext` feature arms it from the system locale on unix (`translations.rs:304-310`), and bundled translations arm it anywhere. What that costs is the control's, not the host's: a field drawn showing a non-integral number cannot then be typed into a character at a time, because the control refuses every candidate longer than two bytes that contains the `.` the host's own formatter writes (`items/text.rs:2208-2229`, `string.rs:398-412`). Deletion and select-all-retype still work | Accepted rather than mitigated, and it is why the locale account was retired rather than completed (D-33): no host parse rule repairs a control that refuses the text. A slice that takes the feature owns this | `gettext` in a manifest, `gettextrs` in `Cargo.lock`, or `with_bundled_translations` in `build.rs` |
 
 ## 9. Validation
 
@@ -1441,7 +1459,8 @@ would be F-44.
 | obligation | tier | driver | what it asserts |
 |---|---|---|---|
 | AC-1 | `tests/renderer/fields.rs` | element queries only; nothing is operated | a view with all five kinds draws all five, in declared order, and a `number` outside `slider_bounds` draws the text control |
-| AC-2 | `tests/renderer/fields.rs`, which reads the child process's own request log | the driver above for each control, then the option control's `invoke_accessible_default_action` | the `respond` carries the JSON type `R-57` names, per kind |
+| AC-2, untouched | `tests/renderer/fields.rs`, which reads the child process's own request log | the option control's `invoke_accessible_default_action` alone — no control operated, so no popup, no pointer, no layout and no fallback | the five as-drawn values arrive with the JSON type `R-57` names per kind, including the `datetime` epoch's exact spelling. This is the only case that asserts what `canon-delta.md` CD-1 promotes to canon |
+| AC-2, operated | `tests/renderer/fields.rs`, the same log | the driver above for each control, then the option control's `invoke_accessible_default_action` | the same per-kind typing for values a person produced. It inherits two fallbacks and states them rather than citing them: if `mock_single_click` cannot be landed on a laid-out popup (R9), or the picker chain cannot be found under `init_no_event_loop`, this row moves to the loop target with the rows it depends on |
 | AC-3 | `tests/renderer/wiring.rs`, existing cases extended | `Controller::edit` and `answer` directly | `R-58` over a form of five kinds |
 | AC-4 | `tests/renderer/fields.rs`, both halves — `init` runs there, so the element half needs no loop | `set_accessible_value` on each of two text fields, then the option control's default action — the answer flush makes the typed path synchronous | the draft holds what was typed; **two text fields edited inside one window both survive**; `inits` is unchanged, so the element was not destroyed while it was |
 | AC-5 | the loop target | two `present` calls carrying the same frame | `reasserts` unchanged, `inits` unchanged |
@@ -1450,6 +1469,7 @@ would be F-44.
 | AC-8 | `tests/renderer/fields.rs` | `invoke_accessible_expand_action`, then `mock_single_click` on the named `ListItem` | a `choice` submits an **alternative** id, and a view whose field id equals an option id still answers correctly |
 | AC-9 | `tests/renderer/fields.rs` | `set_accessible_value` on the numeric `LineEdit` | an unbounded `number` draws the text control and submits a number; no range appears that the backend did not send |
 | a `number` whose spelling is long | `tests/renderer/fields.rs`, over a `view_model.rs` unit for the formatter itself | the formatter directly, on `f64::MAX` and on a number that spells inside the bound; then an element query on a `number` field declaring `f64::MAX` as its `min` | the spelling is `{:e}` beyond 24 characters and `Display` at or below it, each re-parses under the host's parse rule to the `f64` it came from, and the drawn `LineEdit` carries the short form rather than 309 characters (D-32) |
+| a numeric text the parse refuses | `tests/renderer/fields.rs` | `set_accessible_value("12/25")` on a numeric `LineEdit` — a driver that bypasses `input-type` exactly as a paste does (§5.2) | the field displays `12/25` and the draft's number is the one it already held. The case a substitution rule would have gone red on, and the case that keeps its absence honest |
 | the debounce timer | the loop target | `set_accessible_value` on a text `LineEdit`, then let the loop run past 150 ms **without** answering | exactly one `Command::Edit` reaches the controller, and the draft holds the text — the timer is the only thing that could have delivered it |
 | two fields, one window, no answer | the loop target | `set_accessible_value` on two text `LineEdit`s inside 150 ms, then let the loop run past **two** ticks without answering | both values reach the draft, and **neither widget is reverted at any point** — `reasserts` stays at zero across both ticks. The existing rows exercise one timed field, and two fields only on the synchronous answer path, so neither can see a map with a delivery rule get it wrong |
 | the numeric guard's exception, against the overlay | the loop target, negative-controlled | `set_accessible_value("")` on a numeric `LineEdit` the host holds as `0`, then a present **inside** the window | the widget stays empty. Run with the exception removed: if it still passes, the overlay subsumes it and the exception goes; if it fails, A-2 keeps it and the design says why. This is the measurement §5.2 and A-2 defer to, and it is the third time this comparand has been decided by running something rather than arguing |
@@ -1550,6 +1570,36 @@ can be settled against a green test, and before this residue argument is had.
 `tzdb-zoneinfo = ["std"]`, and `std` pulls `alloc`. Under `--workspace`,
 `goad-semantics` therefore links a `jiff` built with `std` and `alloc` on,
 which it does not ask for.
+
+**What it reaches, in three parts**, because one of them is a decision a prior
+slice took and wrote down. `goad-shell/src/clock.rs` does not call
+`jiff::Timestamp::now()`; it reads `SystemTime` and rebuilds a `Timestamp` from
+nanoseconds, and its doc comment says why — `now()` needs `std`, features unify
+across the workspace build, and stratum 1 carries `jiff` with
+`default-features = false` for exactly that reason (`clock.rs:47-53`; the `D25`
+that comment cites is slice 005's, not §7's). This slice enables `std` from
+`crates/goad`, so:
+
+- Under `cargo build --workspace` and `cargo test --workspace`, stratum 1 links
+  a `jiff` built with `std` whatever `clock.rs` does. That much of the comment's
+  rationale expires here.
+- `clock.rs`'s workaround still binds in every build that excludes
+  `crates/goad`: `-p goad-shell`, `-p goad-emit` — which takes stratum 2 without
+  the renderer (`crates/goad-emit/Cargo.toml`) — and any future member of that
+  shape. It is not dead code kept for an expired reason; its reach is narrower
+  than its own comment claims.
+- `cargo test -p goad-semantics` builds neither stratum above it, so it resolves
+  `jiff` with stratum 1's own features either way. The paragraph below says that
+  command rejects nothing here; what is worth adding is that this residue is
+  invisible to it for a structural reason rather than an incidental one.
+
+What that leaves is one reconciliation, and it is the comment itself, which
+after this slice reads as current and is not. It is amended **inside this
+slice** rather than deferred to audit, which is where a divergence *discovered*
+at audit belongs and not one this slice creates knowingly: `slice-009.md`
+§Scope carries `crates/goad-shell/src/clock.rs` for one doc-comment amendment
+and no code change, landing in the phase that lands the manifest line — the same
+way §5.3 handles `Glass::present`'s doc (D-35).
 
 **Why that is acceptable, in the terms `ADR-001` uses.** The direction rule is
 about what stratum 1 may **name** and what it may **do**, not about what a
