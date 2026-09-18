@@ -4,10 +4,15 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — design review, after the prototype's handback
+## Handover — after the integration, before round 4
 
-Written 2026-09-18 for a fresh agent, and rewritten the same day when the
-prototype handed back. Delete once the design closes.
+Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
+and rewritten again when D-29 … D-32 landed. Delete once the design closes.
+
+**Durability, as of this handover.** Everything is pushed: `main` through
+`c79429f` and `slice-009-prototype` through `a1171b3` are both on `origin`. They
+were not before — 33 commits and the whole prototype branch lived on one disk.
+Check `git log origin/main..main` before you finish.
 
 ### Where the slice is
 
@@ -32,7 +37,8 @@ instead, because a measurement is neither a reviewer's finding nor a user's
 choice. `number`, `choice` and `datetime` were never built and §9's validation
 table was never attempted, so nothing the prototype says is evidence about them.
 
-**D-29 … D-32 and the prototype's repairs are now integrated** (2026-09-18, a
+**The review loop is still open, and round 4 is the next thing.** D-29 … D-32
+and the prototype's repairs are integrated (2026-09-18, a
 fresh agent per D-21). §*What is owed* item 1 says where each one landed and
 what the pass found doing it. **One thing was not applied: P-14**, which is a
 decision rather than a repair — §*Waiting on the user*. `design.md` is otherwise
@@ -204,6 +210,49 @@ So the choice is:
 
 This also reaches §5.5's edges table, which has a row for it, and R5 in §8, which
 already accepts the wider window as a cost rather than mitigating it.
+
+**What the user has said so far, and it is not yet a decision.** Asked whether a
+refusal that reaches only the diagnostics pane counts as a report for a person
+mid-form: *"I'd say no, but I'm also inclined to make these usability decisions
+based on interaction with actual software instead of based on a leaky
+theoretical model."* So the lean is **no**, and the method is **observation
+first**. Nothing is in `design-log.md` for it, deliberately — an inclination
+plus a deferral is not a `D-n`, and writing one would be the overreach D-21
+exists to stop.
+
+The thing they want to experience is **the race**, not the pane. They have seen
+the pane. Two facts bound that:
+
+- **It cannot be experienced on `main`.** `main` draws `boolean` only, and a
+  boolean raises its edit where it is raised — there is no `pending.rs`, so
+  there is no stale entry to carry. The race needs a debounced field, which
+  means the prototype worktree or the slice's own `text` phase.
+- **It is hittable, and the window can be widened.** `MINIMUM_SPACING` is 3 s
+  (`controller.rs:429`) and floors both scheduled firings and ingress arrivals,
+  so a view replaces at most every 3 s. Against a 150 ms debounce that is a ~5%
+  hit rate per type-then-click. `DEBOUNCE` is a one-line const
+  (`pending.rs:37`, prototype worktree): raise it to ~2 s and the window becomes
+  2 s of every 3, which is a majority of attempts. That changes only how long an
+  entry lingers, not the mechanism being watched — it is the honest knob.
+
+**The recipe**, for whoever runs it:
+
+1. `/home/david/dev/goad-009-proto`, branch `slice-009-prototype`. Builds clean;
+   `cargo test --workspace` is red on P-10 alone, which is the boundary
+   instrument and not the demo.
+2. Raise `DEBOUNCE` to `Duration::from_secs(2)` in `pending.rs:37`. **Revert it
+   after** — it is a spike knob, not a change.
+3. `just demo`. The bash backend re-prompts on every evaluate, so the view is
+   replaced every 3 s.
+4. Type into the `text` field, then click an option inside the debounce window.
+   A stale carried edit is refused `SupersededView` while the answer goes.
+5. Watch the **prompt** pane. The question is whether anything at all tells the
+   person their typing was dropped.
+
+`docs/memory/getting-eyes-on-the-running-host.md` has the launch and screenshot
+mechanics, and its own recorded observation that a refusal fills `diagnostics`
+without putting anything on screen — which is a past instance of the same
+question, measured rather than argued.
 
 ### Carried forward, outside this slice
 
@@ -418,6 +467,30 @@ here rather than in the ledger, so striking them costs nothing:
   landing mid-phase had invalidated, it described the code wrongly, while every
   finding about the *design* survived the same commit untouched. `review-code.md`
   will run against a moving tree.
+- **The user settles usability questions by running the software, not by
+  reasoning about it.** Asked to choose between two refusal surfaces, the answer
+  was the lean plus the method: *"I'm also inclined to make these usability
+  decisions based on interaction with actual software instead of based on a
+  leaky theoretical model."* That is `docs/memory/spike-beats-the-argument.md`
+  applied to interaction rather than to mechanism, and it should be its own
+  memory at close — the shape of the right answer to *which of these two should
+  the design say?* is often *build the smaller one and look at it*.
+- **A refusal reaches retained state, not the screen.** `Diagnostics` is
+  rendered only under `WindowMode.diagnostic` (`app.slint:325`), and
+  `Controller::surface()` answers `Diagnostics` only when `focus ==
+  Focus::Diagnostics`, which the Diagnostics menu item alone sets
+  (`controller.rs:159-165`). `refuse()` writes `self.diagnostics` and never
+  touches `self.focus` (`:203-205`). So *reported* means *recorded*, not *shown*,
+  for anyone in prompt mode — which is everyone who is answering a form. Slice
+  008 recorded the same thing from the other direction in
+  `getting-eyes-on-the-running-host.md`. This outlives slice 009 and is a
+  follow-up, not a repair inside it.
+- **A backend exchange is 2 ms to 5 s, and the floor is a process spawn.**
+  Measured this session: `examples/shell/backend.sh` ~2.4 ms over 50 spawns,
+  `examples/typescript/backend.ts` ~12 ms over 10, ceiling the configured
+  `backend.timeout` (5 s in `examples/demo.toml`). Anything whose lifetime is
+  *one exchange* therefore has no useful duration — it is three orders of
+  magnitude, chosen by the backend author.
 - **A boundary instrument can forbid a word the next slice wants** (P-10).
   `scan::mentions` word-matches after splitting on non-alphanumerics and camel
   boundaries, and keeps string literals, so an identifier or a diagnostic message
