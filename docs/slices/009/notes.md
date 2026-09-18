@@ -737,6 +737,12 @@ here rather than in the ledger, so striking them costs nothing:
   `backend.timeout` (5 s in `examples/demo.toml`). Anything whose lifetime is
   *one exchange* therefore has no useful duration — it is three orders of
   magnitude, chosen by the backend author.
+- **Cite from an instrument that prints the number.** Five bad citations in this
+  slice, and the fifth was written by the raiser verifying the fourth. Every one
+  counted by hand off a `sed -n 'a,bp'` window; every one taken from `grep -n` or
+  `awk NR` has held. A hand count is not checkable at a glance, so its being
+  right is luck. This supersedes *verify the responder's first* as the operative
+  rule — that was a pattern in who made the mistake, not in what caused it.
 - **A boundary instrument can forbid a word the next slice wants** (P-10).
   `scan::mentions` word-matches after splitting on non-alphanumerics and camel
   boundaries, and keeps string literals, so an identifier or a diagnostic message
