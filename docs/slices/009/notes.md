@@ -11,9 +11,10 @@ again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
 and again when they were integrated. Delete once the design closes.
 
 **Durability, as of this handover.** Everything is pushed: `main` through
-`6b915b2` and `slice-009-prototype` through `a1171b3` are both on `origin`. They
-were not before — 33 commits and the whole prototype branch lived on one disk.
-Check `git log origin/main..main` before you finish.
+`42527cc` — the commit that integrated round 4 — and `slice-009-prototype`
+through `a1171b3` are both on `origin`. They were not before: 33 commits and the
+whole prototype branch once lived on one disk. Check `git log origin/main..main`
+before you finish.
 
 ### Where the slice is
 
