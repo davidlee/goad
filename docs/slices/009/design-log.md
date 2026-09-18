@@ -450,3 +450,21 @@ cannot arise. F-34 … F-36 were raised in the same pass and carry the same
 right time to handover to a fresh agent."* Same rule as round 2 — the session
 that wrote a disposition does not integrate it — discharged by ending the
 session at the ledger rather than by spawning a subagent underneath it.
+
+## 2026-09-18 — round 2's integration, applied
+
+**D-22 — What a widget reported and what the draft holds are two types.** F-37,
+raised while integrating F-30: `Command::Edit` and `PendingEdit` carry an
+`Edited`, and two of its five variants cannot be built where the command is
+built. `Chosen` holds an `AlternativeId`, which can only be cloned off a retained
+view — the mechanism §7 D12 rests AC-8 on — and F-30's repair adds the second,
+because a number's text that does not parse finitely must keep the number the
+field already holds and only the draft and the drawn kind know what that is.
+
+Three answers were priced against the code. Taken: a `Reported` enum for what a
+widget can say, one kind-directed `resolve` beside `as_drawn`, and `Edited` left
+as exactly what the draft holds. Rejected: partial payloads inside `Edited`,
+which give `submitted` arms for states the draft is promised never to hold; and
+resolving at submit time in `answer`, which loses F-34's rule because `1e400`
+reparses to infinity and falls back to as-drawn. User: *"Split the type
+(recommended)"*.

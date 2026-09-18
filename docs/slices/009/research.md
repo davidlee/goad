@@ -265,6 +265,11 @@ all — and varies only what the host puts in `text`.
   is written over the person.
 - **M** **AC-6 still converges.** An edit that reaches nothing is corrected on
   the very next present, in one step.
+- ✓ **The control admits exactly three texts no parse accepts** — `-`, the
+  locale separator alone, and `-` followed by it. `accept_text_input` allows a
+  candidate of length ≤ 2 only in those three shapes and otherwise requires
+  `string_to_float` to succeed (`i-slint-core/items/text.rs:2202-2229`). `--` is
+  **not** admissible, so the design's earlier edge example could not be typed.
 - **M** **The cleared-field exception still earns its place**, in the race
   between a clear and its own debounce. `numeric_guard.rs`'s case survives the
   change of comparand.
@@ -307,7 +312,7 @@ converge per field on its own say-so.
   `StandardButton` labelled `OK`. Both drive through
   `invoke_accessible_default_action`, so neither depends on layout. A
   `ComboBox`'s `ListItem` has the role and the label but **no** default action
-  (`fluent/components.slint:15-19`), so that one does need
+  (`fluent/components.slint:49-53`), so that one does need
   `mock_single_click` — F-33 reduced to that row alone.
 
 ## Thread 4 — mechanisms considered and not taken

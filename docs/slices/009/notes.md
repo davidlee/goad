@@ -4,135 +4,155 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — design review, after round 2's integration
+## Handover — design review, after round 2's findings were integrated
 
-Written 2026-09-17 for a fresh agent. Delete once the design closes.
+Written 2026-09-18 for a fresh agent. Delete once the design closes.
 
 ### Where the slice is
 
-Design drafted and accepted by the user (sections 1-10). **The review loop is
-open**, two rounds run, a third owed. Plan not started. HEAD carries the design,
-round 2's integration, the spike, and this session's ledger work.
+Design drafted and accepted by the user (sections 1-10), then substantially
+rewritten across two review rounds. **The review loop is open: round 3 is owed,
+and it is the next thing to do.** Plan not started.
 
-**Every finding now carries a disposition.** F-1 … F-18 have terminal outcomes;
-F-19 … F-30 and F-32 … F-36 are disposed and pending round 3; F-31 is
-`withdrawn`. Nothing in F-30 … F-36 has been **integrated into `design.md`** —
-that is your first job.
+Round 2's seven live findings — F-30, F-32 … F-37 — are **integrated into
+`design.md`** at this commit. F-31 is `withdrawn`. Every finding in the ledger
+carries a disposition; F-19 … F-30 and F-32 … F-37 carry `_pending round 3_` as
+their outcome, which is round 3's job to set.
 
 ### What holds the truth
 
 | file | state |
 |---|---|
-| `review-design.md` | **the ledger, and the live one.** F-1 … F-36. The Responses are written to be complete without the session that wrote them: they are your brief |
-| `design-log.md` | D-1 … D-21, the user's decisions. Append-only. Note the header: `D-n` here is **not** `Dn` in `design.md` §7, and from 18 they overlap on adjacent subjects |
-| `design.md` | current truth as of round 2's integration. Seven findings are outstanding against it |
-| `research.md` | Thread 3 carries every measured fact, including this session's three new sections |
+| `review-design.md` | **the ledger, and the live one.** F-1 … F-37. The Responses are written to be complete without the session that wrote them |
+| `design.md` | current truth. Nothing is outstanding against it |
+| `design-log.md` | D-1 … D-22, the user's decisions. Append-only. Note the header: `D-n` here is **not** `Dn` in `design.md` §7, and from 18 they overlap on adjacent subjects |
+| `research.md` | Thread 3 carries every measured fact |
 | `canon-delta.md` | CD-1, CD-2 |
-| `spike-fields/` | committed at `4f93d41`. Delete when the design closes; the facts are already in Thread 3 |
+| `spike-fields/` | committed at `4f93d41`. Delete when the design closes; the facts are in Thread 3 |
 
 ### What is owed, in order
 
-1. **Integrate F-30 and F-32 … F-36 into `design.md`.** Dispositioned and
-   confirmed by the user (D-20); not applied. F-30 and F-35 are blockers.
-2. **Round 3.** See *How this review has been run* below.
-3. **Revise `slice-009.md`**: it still lists all five OQs as open, its
+1. **Round 3.** See *What round 3 must attack* below. Use a genuinely fresh
+   reviewer — rounds 1 and 2 shared one Codex thread, and round 3's subject is
+   largely text that thread wrote the objections to.
+2. **Revise `slice-009.md`**: it still lists all five OQs as open, its
    §Governing canon omits `canon-delta.md`, and §Scope owes
    `crates/goad/Cargo.toml` (§7 D18's `jiff` feature). `AGENTS.md` puts this
-   after the findings are integrated.
-4. **Re-ask the user for acceptance.** The design has changed substantially
+   after the findings are integrated, which they now are.
+3. **Re-ask the user for acceptance.** The design has changed substantially
    since theirs.
-5. **Plan**, with a fresh agent.
-6. **Delete `spike-fields/`** when the design closes.
-7. `just check` is owed once repairs reach code. Nothing under `crates/` has
+4. **Plan**, with a fresh agent.
+5. **Delete `spike-fields/`** when the design closes.
+6. `just check` is owed once repairs reach code. Nothing under `crates/` has
    been touched, so the gate's subject is unchanged.
 
 ### What round 3 must attack, and why
 
-Round 2's shape was: eleven of eighteen repairs rewrote a section, and five were
-wrong. **Round 2's integration then found four more defects, two of them
-blockers** — and dispositioning those found three more (F-34 … F-36). The rate
-is not falling. Round 3 gets the round-2 repairs *and* everything F-30 … F-36
-changes.
+The rate of new defects is not falling. Round 1 found 18; round 2 found 11 more;
+**round 2's integration found four, two of them blockers**; dispositioning those
+found three more; and integrating *those* found F-37, a blocker. Each pass over
+the same text has found something the last one did not.
 
-Two live risks to point it at:
+Four live risks to point round 3 at:
 
-- **§5.4 and §7 D21 are being rewritten on a mechanism that was wrong twice.**
-  F-31 said a shared popup goes stale; the measurement says no popup state
-  survives a close at all. F-36 rewrites two arguments on the new fact. A third
-  reading of the same widget deserves suspicion.
+- **F-37 is new design surface, written at integration time and reviewed by
+  nobody.** A second value type (`Reported`) and a kind-directed `resolve` in
+  `view_model.rs` now carry every edit. That is the largest single addition since
+  the design was accepted and it has had one pair of eyes.
+- **§5.2's numeric account is long and was wrong twice.** The guard's comparand,
+  the parse rule and F-34's "last representable number stands" are now one
+  argument spanning three paragraphs and two types. The third answer was measured
+  rather than argued, which is why it is probably right — but the *composition*
+  was not measured.
+- **§5.4 was rewritten on a mechanism that was wrong twice** (F-31 wrong about
+  persistence, F-35 wrong about assignment). A third reading of the same widget
+  deserves suspicion.
 - **F-30's repair puts display text in `draft.rs`**, which declares itself pure
-  and canonical. That is a real cost, taken deliberately (D-18), and it is the
-  kind of thing a reviewer should push on rather than wave through.
+  and canonical. A real cost, taken deliberately (D-18), and the kind of thing a
+  reviewer should push on rather than wave through.
 
 ### Facts verified by hand or by measurement, because they overturn things
 
-1. **No `PopupWindow` state survives a close.** `show-popup` compiles to a
-   fresh `::new()` per show; the closed instance is dropped. So F-31 is wrong,
-   D21's "field B opens on field A's pick" rationale is wrong, and §5.4's
-   loop-tier argument for a re-seed is wrong (F-36). Seeding is still needed,
-   for the *picked* field.
+1. **No `PopupWindow` state survives a close.** `show-popup` compiles to a fresh
+   `::new()` per show; the closed instance is dropped. F-31 is wrong on that
+   ground, and §5.4, §7 D21, §5.5 A-3 and §9 are rebuilt on the measured fact.
 2. **A `PopupWindow`'s properties cannot be assigned from an enclosing
-   component's handler** — a hard compile error. §5.4 specifies exactly that
-   (F-35). They can be bound at the popup's declaration site; `show()` from
-   outside is fine, which is how the first spike missed it.
-3. **The guard as designed corrupts ordinary typing**: `1.05` becomes `105`,
-   and `-3` becomes `3`. Measured, injection-passed (F-30).
-4. **Popups *are* reachable under `init_no_event_loop`** (round 2's finding,
-   still true). F-13 was wrong and §9 was rebuilt on it.
-5. **The command channel is capacity 1** (`main.rs:86`) and `serve` shares the
-   UI thread, so the second `try_send` of any flush is certain of `Full`.
-6. **`reception.rs:753` does not exist** — the file is 103 lines. F-10's
-   contest cites it and is upheld anyway on `draft.rs:82` and `view_model.rs:31`.
+   component's handler** — a hard compile error. They can be *bound* at the
+   popup's declaration site; `show()` from outside is fine, which is how the
+   first spike missed it (F-35).
+3. **The guard as designed at round 2 corrupts ordinary typing**: `1.05` becomes
+   `105`, `-3` becomes `3`. Measured, injection-passed (F-30).
+4. **`input-type: decimal` admits exactly three texts no parse accepts** — `-`,
+   the locale separator, and `-` followed by it (`items/text.rs:2202-2229`).
+   `--` is **not** one of them; the design's old edge example could not be typed.
+   Verified by hand this session.
+5. **`Command::Edit` could not carry two of `Edited`'s five variants** — an
+   `AlternativeId` cannot be minted in a callback, and a number's fallback lives
+   in the draft. That is F-37, found by trying to write F-30's repair down.
+6. **Popups *are* reachable under `init_no_event_loop`** (round 2's finding, still
+   true). F-13 was wrong and §9 was rebuilt on it. But no case in this repository
+   has yet needed a popup **laid out**, which is what `mock_single_click` depends
+   on — §8 R9.
+7. **The command channel is capacity 1** (`main.rs:86`) and `serve` shares the UI
+   thread, so the second `try_send` of any flush is certain of `Full`.
+8. **`reception.rs:753` does not exist** — the file is 103 lines. F-10's contest
+   cites it and is upheld anyway on `draft.rs:82` and `view_model.rs:31`.
 
 ### Citations known bad, and what that means
 
-The round-2 integrator opened every `path:line` in the ledger. Three did not
-check out, **all three written by the responder, not by Codex**: F-10's
-re-disposition (one `wiring.rs` site, not two), F-23's Response (`wire.rs:130`,
-not `:126`), and the pre-repair §9's `set_accessible_value` claim, which appears
-nowhere in this repository.
+The ledger is append-only, so bad citations inside a Response stay as written.
+Four are known:
 
-Round 2's own citations checked out. **The responder's citations are the
-unreliable ones — verify those first.**
+- F-10's re-disposition — one `wiring.rs` site, not two.
+- F-23's Response — `wire.rs:130`, not `:126`.
+- the pre-repair §9's `set_accessible_value` claim, which appears nowhere here.
+- F-33's Response cites `fluent/components.slint:15-19` for `ListItem`'s
+  accessible properties. They are at **`:49-53`**. `research.md` and `design.md`
+  both carry the corrected form.
+
+All four were written by the **responder**, not by the reviewer. Round 2's own
+citations checked out. **The responder's citations are the unreliable ones —
+verify those first.**
 
 ### How this review has been run, and why
 
-- Reviewer: Codex (`gpt-5.6-sol`) via the `codex` MCP. Rounds 1 and 2 shared
-  thread `01a0ad06-ba40-7821-8d33-016b8cc4b0ee`, which is right for setting
-  outcomes — that is the raiser's job. **Use a genuinely fresh reviewer for
-  round 3**: a thread that has agreed twice is cheap to agree with a third time,
-  and round 3's subject is largely text that thread wrote the objections to.
-- **Do not integrate your own dispositions.** Round 1's responder was wrong
-  about four of its own repairs; round 2's integrator found four more. This has
-  been run by handing over between sessions rather than by spawning a subagent
-  underneath the session that decided (D-21).
+- Rounds 1 and 2: Codex (`gpt-5.6-sol`) via the `codex` MCP, sharing thread
+  `01a0ad06-ba40-7821-8d33-016b8cc4b0ee`. Right for setting outcomes, wrong for
+  a fresh round.
+- **Do not integrate your own dispositions.** Round 1's responder was wrong about
+  four of its own repairs; round 2's integrator found four more defects; this
+  session's integration found F-37. The rule is discharged by handing over
+  between sessions rather than by spawning a subagent underneath the session that
+  decided (D-21).
 - Prompt the reviewer with **surfaces, not conclusions**
   (`docs/memory/dont-feed-the-raiser-your-finding.md`), and have it write to a
   file — agent reports truncate, and this one truncated twice.
-- **Spike anything a spike can answer** (D-19). This session's spike refuted a
-  blocker, found two defects nobody had raised, and shrank a third. It cost less
-  than the argument it replaced.
+- **Spike anything a spike can answer** (D-19). Round 2's spike refuted a
+  blocker, found two defects nobody had raised, and shrank a third.
 - The user asked for plainer prose: fewer punchy one-liners, more the way an
   engineer explains something to a colleague. §5.1-§5.3 are the model.
 
 ### Traps worth naming
 
-- `design-log.md` is append-only; `design.md` §7 is current truth and its
-  entries are rewritten in place under immutable ids. Two different rules, and
-  two id sequences one hyphen apart.
+- `design-log.md` is append-only; `design.md` §7 is current truth and its entries
+  are rewritten in place under immutable ids. Two rules, two id sequences one
+  hyphen apart.
 - **A Slint `changed <property>` handler fires on a *change*, not on a write**,
   and the comparison happens at flush time against the last value the tracker
   stored (`i-slint-core/properties/change_tracker.rs:138-141`). So writing a
   perturbation and then the real value *inside one handler* fires nothing. This
-  has now caught the design twice and a finding once.
-- **Reading a widget's source tells you what an instance does, never how long
-  the instance lives.** That is F-31, and it is F-13's failure mirrored.
+  has caught the design twice and a finding once.
+- **Reading a widget's source tells you what an instance does, never how long the
+  instance lives.** That is F-31, and it is F-13's failure mirrored.
 - One event-loop **arrangement**, one `[[test]]` target
   (`docs/memory/slint-testing-backend-initialises-once-per-process.md`).
 - Two 64-to-32-bit narrowings were found in one round (§8 R7). Treat any
   host↔markup conversion as guilty until checked.
-- **The guard's comparand has now been wrong twice**, and the third answer was
-  measured rather than argued. Treat a fourth proposal the same way.
+- **The guard's comparand was wrong twice**, and the third answer was measured
+  rather than argued. Treat a fourth proposal the same way.
+- **A type that only the controller can construct cannot be built in a Slint
+  callback.** That is F-37, and `AlternativeId` is not the only such type in
+  `goad-semantics`.
 
 ## Status
 

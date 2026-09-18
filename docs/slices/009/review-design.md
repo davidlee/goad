@@ -963,6 +963,100 @@ row goes back through it rather than being reassigned here.
 
 **Outcome:** _pending round 3_
 
+### F-37 — Two of `Edited`'s five variants cannot be built where the command is built
+
+**Severity:** blocker
+**Location:** `design.md §5.2`, `wire.rs`'s `Command::Edit` / `PendingEdit` and
+`draft.rs`'s `Edited`; `§7 D12`
+**Raised by:** the round-3 integrator (a fresh agent), while integrating F-30.
+
+**Expected:** A stated interface can be implemented.
+**Observed:** `Command::Edit` and `PendingEdit` carry an `Edited`, so the `edited`
+callback has to construct one. Two variants are not constructible there.
+
+`Edited::Chosen` holds an `AlternativeId`. `AlternativeId::new` is `pub(super)` in
+`goad-semantics`, so the value can only be *cloned off a retained view* — which is
+the whole mechanism `§7 D12` rests AC-8 on, and §5.2 states it: "the ComboBox
+reports its index, and `controller.edit` resolves the index against the drawn
+field's alternatives". The callback holds a `Wire` clone and nothing else; the
+presentation is behind the controller. So the index must travel, and no variant
+can carry it.
+
+F-30's repair adds a second instance of the same defect. After it, `Adjusted`
+carries the typed text beside a `Finite`, and a text that does not parse finitely
+keeps the number the field already holds — F-34's "the last representable number
+stands". Which number that is depends on the draft and, for a field nobody has
+touched, on the drawn kind's declared minimum. The callback knows neither, so it
+cannot build that value either.
+
+The two are one defect: `Edited` is being used both as what a widget reported and
+as what the draft holds, and for two of five kinds those are different values
+resolved at different places.
+**Evidence:** `crates/goad/src/wire.rs:38-42`; `crates/goad/src/install.rs:37-45`
+(the closure's whole capture is `editing`); `crates/goad/src/controller.rs:259-278`
+(`edit`'s walk, which holds the declared field, and `&mut` the draft);
+`crates/goad/src/draft.rs:50-57` (`state_of`); `design.md §5.2` *`draft.rs`*,
+`§7 D12`; `canonical.rs:349-376`.
+
+**Disposition:** fix-now
+**Response:** One seam rather than two patches. A second value type names what a
+callback can actually know, and one kind-directed function turns it into what the
+draft may hold:
+
+```rust
+/// What a widget reported, in the widget's own terms — the most a callback can
+/// know. `Command::Edit` and `PendingEdit` carry this.
+pub enum Reported {
+  Checked(bool),           // CheckBox
+  Typed(String),           // text LineEdit
+  AdjustedText(String),    // numeric LineEdit — the text as typed
+  AdjustedValue(f32),      // Slider — its own value, an `f32` by nature (D16)
+  Chosen(u32),             // ComboBox — `current-index`
+  Picked { instant: Timestamp, offset: Offset },   // already composed (§5.4)
+}
+
+/// view_model.rs, beside `as_drawn`: what the draft should hold, given what the
+/// widget reported and what the field shows now. `None` is a renderer bug — an
+/// index no alternative has.
+pub fn resolve(reported: &Reported, shown: &Edited, kind: &DrawnKind) -> Option<Edited>;
+```
+
+`controller::edit` calls `resolve` on the walk it already makes, with
+`shown = state_of(..).unwrap_or_else(|| as_drawn(kind))` — the expression `answer`
+already needs. `None` takes the `Refused::UnknownField` posture §5.2 already gives
+an out-of-range index: reported, nothing recorded.
+
+Six variants for five kinds, because `number` has two controls and §5.2 already
+makes that a first-class fact (`slider: bool`, D16/D17). What the split buys
+beyond making D12's and F-30's rules implementable: `Edited` becomes exactly what
+the draft holds and `submitted` maps, `Reported` cannot express a non-finite
+number or an unminted id **at all** — I-G and I-D get stronger rather than weaker
+— and §5.2's locale-aware parse plus F-34's last-representable rule become one
+pure function instead of a convention in a Slint closure.
+
+Rejected:
+
+- **An `Edited` with partial payloads** — `Adjusted { number: Option<Finite> }`
+  and `Chosen` carrying an index until `controller::edit` normalizes them.
+  `submitted` then needs arms for states the draft is promised never to hold,
+  which is the "argument about why an `expect` is unreachable" §5.2 declines for
+  `Finite::new`.
+- **Resolving at submit time in `answer`** instead of at edit time. The
+  presentation is there, but the last representable number is not: `1e400`'s text
+  reparses to infinity, so the value would fall back to as-drawn and lose the
+  `1e40` F-34's rule keeps on the wire.
+- **`Finite::ZERO` as the fallback**, so `Draft::record` could merge without
+  knowing the kind. It submits `0` for a field drawn showing its declared
+  minimum — the quiet narrowing this design refuses everywhere else.
+
+Cost: `Command::Edit`, `PendingEdit`, `Controller::edit`'s signature, one closure
+in `install.rs`, and 26 `Edited::` sites — 10 in `draft.rs`'s own tests, 2 in its
+`state_of` and `submitted`, 12 in `tests/renderer/wiring.rs`, one each in
+`install.rs` and `glass.rs`. Every one is inside a surface this slice already
+rewrites (§5.1, §9).
+
+**Outcome:** _pending round 3_
+
 ## Probed and sound — round 1
 
 - The five as-drawn choices themselves do not breach R-35: R-58 requires a value for every drawn field, while R-35 leaves answer validity to the backend. In particular, `0` for a max-only number may be outside the stated range without authorizing the host to refuse the answer (`SPEC-001/R-35`, `R-58`; `design.md:229-239`). The representation defects are raised separately in F-2 and F-3.

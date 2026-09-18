@@ -59,7 +59,10 @@ option). `ADR-001` / `POL-001`: all of this is stratum 3; nothing reaches
 
 **Measured limits** (`research.md` Thread 3). A `PopupWindow` cannot be repeated
 or conditional, so both pickers are root singletons and a `datetime` field has
-no inline control. A click on a `CheckBox` destroys the use-site binding
+no inline control. It is also constructed fresh on every show and dropped on
+close, so nothing survives between two opens of one, and its properties cannot be
+assigned from an enclosing component's handler — they can only be bound at its
+own declaration site. A click on a `CheckBox` destroys the use-site binding
 permanently. `changed` handlers fire nowhere under `init_no_event_loop`.
 `LineEdit` exposes no readable cursor offset, so a destroyed text field cannot
 have its caret restored — and no tier can assert the caret at all.
@@ -113,6 +116,7 @@ inventing a plausible answer.
   │  FieldKind   │               │   PresentationField { id, label, kind } │
   │  (5 kinds)   │               │   DrawnKind — the five drawn, host-local│
   └──────────────┘               │   FieldForm — now uninhabited           │
+                                 │   as_drawn / resolve — kind-directed    │
                                  └───────────────┬────────────────────────┘
                                                  │ structure
   ┌──────────────┐  record()   ┌─────────────┐   │
@@ -131,9 +135,10 @@ inventing a plausible answer.
 ```
 
 Two new modules, a new host-local enum, and one existing type that loses its
-variants. Two small types come with them and are stated where they are used:
-`Finite`, which is what makes I-G a property rather than a habit, and
-`PendingEdit`, which is what `Command::Choose` carries (§5.2).
+variants. Three small types come with them and are stated where they are used:
+`Finite`, which is what makes I-G a property rather than a habit; `Reported`,
+which is the most a widget's callback can say before the retained presentation
+resolves it; and `PendingEdit`, which is what `Command::Choose` carries (§5.2).
 
 `FieldForm` currently names the kinds this renderer does not draw. Once all
 five are drawn it has no variants left, so it becomes an empty enum and
@@ -236,13 +241,14 @@ export struct FieldRow {
 // state — rewritten every present; nothing repeats over it
 export struct FieldValue {
     checked: bool,
-    text: string,   // what every control displays: the text, the number, the
-                    // composed datetime, or `not set`
+    text: string,   // what every control displays: the text as typed, the
+                    // formatted number, the composed datetime, or `not set`
     number: float,  // the Slider's value, and the Slider's guard comparand
     index: int,
     date: Date, time: Time,   // what this field's picker opens on
 }
-// one edit, typed, so the boundary does no parsing it cannot undo
+// one edit, typed: the callback maps it straight to a `Reported` (below), so
+// the boundary does no parsing it cannot undo
 export struct FieldEdit {
     kind: Kind, checked: bool, text: string, number: float, index: int,
     date: Date, time: Time,
@@ -269,7 +275,8 @@ formatted host-side from the `f64`; `FieldValue.number` and `FieldRow`'s
 `minimum` / `maximum` / `step` exist for the `Slider` alone.
 
 *Into the host.* The two `LineEdit` controls send their edit as **text**, which
-is lossless for every finite `f64`, and the host parses it. The `Slider` sends
+is lossless for every finite `f64`; the host records that text and parses it.
+The `Slider` sends
 `FieldEdit.number`, a `float`, because it has nothing else to send: its `value`
 *is* an `f32`, and making the markup format that into a string would mean
 comparing the guard against a value parsed back out of a string whose form Slint
@@ -295,11 +302,29 @@ host parses with the same rule: empty text is zero, which is what Slint's own
 `to-float` reads an empty field as; otherwise, where the text carries no `.` and
 exactly one `,`, the comma is the decimal separator; then `f64::from_str`. The
 empty case is not a nicety — it is what makes the guard's one exception (below)
-correspond to a value the host actually holds. All of it is host-side, testable
-without a locale fixture, and numeric formatting rather than anything
-domain-shaped (D-16). Sending Slint's own parsed float alongside the text was
-rejected: it reintroduces as a fallback the `f32` path this section exists to
-keep off the wire.
+correspond to a value the host actually holds.
+
+**One rule covers every text the control admits: the host records the text, and
+the last representable number stands.** The text is recorded verbatim, always.
+The number is replaced only where the parse yields a finite `f64`; otherwise the
+field keeps the number it had — for a field nobody has touched, the number it was
+drawn showing. So `-`, `.` and `-.` leave the number alone: they are exactly the
+three texts the control admits that no parse accepts, allowed as len≤2 starts so
+a person can begin typing a negative or a fractional number at all
+(`items/text.rs:2211-2226`; `--` is not among them and cannot be typed). And
+`1e400`, which `input-type: decimal` admits because Slint validates through an
+`f32` parse where it is an infinity, stays on screen as `1e400` while the host
+keeps `1e40` as the number it would submit — measured, with an injection pass
+(`guard_text.rs`, case `verbatim-overflow`).
+
+That is one rule holding two properties no choice of comparand could hold on its
+own: nothing non-finite reaches the wire, because `Finite` refuses it, and
+nothing is written back over a person mid-entry (F-30, F-34).
+
+All of it is host-side, testable without a locale fixture, and numeric formatting
+rather than anything domain-shaped (D-16). Sending Slint's own parsed float
+alongside the text was rejected: it reintroduces as a fallback the `f32` path this
+section exists to keep off the wire.
 
 **The control is the host's decision, not the markup's inference.** `slider` is
 a decision the row carries, not a fact about the field the markup reasons from.
@@ -359,10 +384,13 @@ value does not wait on a timer.
 A `Slider`'s `step` is `(maximum - minimum) / 100`. Slint defaults it to `1` and
 rejects every key when it is `0` (`slider-base.slint:8`, `:76-80`), so leaving it
 alone gives a field declared `min: 0, max: 1` a keyboard that crosses the whole
-range in one press, and zeroing it removes the keyboard entirely. The value is
-Slint's own for `accessible-value-step` (`fluent/slider.slint:29`). This is
-presentation, which `R-18` leaves to the renderer; the `step` `slice-009.md`
-excludes is the **protocol** one.
+range in one press, and zeroing it removes the keyboard entirely. Slint's own
+rule for `accessible-value-step` is `min(root.step, (maximum - minimum) / 100)`
+(`fluent/slider.slint:29`) — a floor on the step, not the step itself — so under
+this choice of `step` the two coincide, and the increment an assistive technology
+is told about is the one the keyboard gives. This is presentation, which `R-18`
+leaves to the renderer; the `step` `slice-009.md` excludes is the **protocol**
+one.
 
 All six controls carry `accessible-description: field.id`; the test harness
 finds fields by description (`tests/renderer/harness.rs::described`), so one
@@ -386,20 +414,44 @@ destroyed and a present corrects it by writing the slot. The other five all
 self-assign — that is what a click, a keystroke, a drag or a selection does to a
 widget — which is the whole reason a guard exists.
 
-The numeric `LineEdit` is the one with an exception and the one worth explaining.
-Comparing `self.text.to-float()` against the held number instead would lose at
-the protocol's extremes: `to-float` parses to `f32`
-(`i-slint-core/string.rs:399-412`), so `1e100` and `1e101` both become infinity
-and compare equal while the strings differ — and the case the guard exists for,
-AC-6, is exactly the one where the host did *not* record the edit, so "the value
-came from this same widget" is not an argument available to it. Text is lossless
-and is what it compares.
+The numeric `LineEdit` is the one worth explaining, and what makes it hard is not
+the choice of comparand. It was the only control whose held value was not the
+thing it displays. `f64` → text is not injective, so **no** comparison between the
+widget's text and a re-format of the host's number can be an identity: typing
+`1.05` yields `105`, because after `1.` the host holds `1`, formats `"1"`, and the
+guard overwrites the dot; typing `-3` yields `3`, because `-` alone does not
+parse, nothing is recorded, and the guard replaces the sign with `"0"` before the
+digit arrives. Both measured (`guard_text.rs`). Comparing `self.text.to-float()`
+against the held number instead fails at the protocol's extremes rather than in
+the middle: `to-float` parses to `f32` (`i-slint-core/string.rs:399-412`), so
+`1e100` and `1e101` both become infinity and compare equal while the strings
+differ.
+
+So the host holds the text a person typed, beside the number it means (above), and
+the guard compares string against string — which is what the *text* `LineEdit`
+already does, and why its guard has never been in trouble. The comparison is then
+an identity, and it is quiet through `1.05`, `-3`, trailing zeros and `1e400`
+alike. What the guard exists for still converges: AC-6 is the case where the host
+did *not* record the edit, so the draft's text and the widget's differ and the
+widget is corrected on the very next present, in one step.
 
 The exception is the measured cleared-field case and nothing wider: a person who
-clears the field to retype leaves `""` in the widget while the host still holds
-`0`, and a bare string comparison writes `"0"` back over them mid-edit
-(`numeric_guard.rs`, negative-controlled). So: converge unless the strings match,
-or unless the widget is empty and the held number is zero.
+clears a field the host holds as `0` leaves `""` in the widget before their own
+debounce has recorded it, and a bare string comparison writes `"0"` back over them
+mid-edit (`numeric_guard.rs`, negative-controlled — and the case survives the
+change of comparand). So: converge unless the strings match, or unless the widget
+is empty and the held number is zero.
+
+**Converging on recency was the third candidate and is not taken.** A per-slot
+revision the host bumps deletes the comparand rather than correcting it, and is
+the better shape in the abstract. It was measured available rather than estimated:
+a present that changes no revision fires nothing, and one bump converges one slot
+while its neighbour stays mid-edit (`revision.rs`). What rules it out is its own
+behaviour. `-` and `1e400` are edits the host cannot record **as numbers**, which
+is exactly when a revision guard converges, so it writes over them unless the host
+holds the text anyway — and once the host holds the text there is no comparand
+left to get wrong. The revision then buys only the deletion of the one exception.
+It stays available if that exception ever grows.
 
 The `Slider`'s comparand is `f32` on both sides, which is sound rather than a
 residue of the boundary above: a `Slider` is drawn only over an `f32`-exact
@@ -418,10 +470,14 @@ impl Finite {
   pub fn get(self) -> f64;
 }
 
+/// What the draft holds, and the only thing `submitted` maps.
 pub enum Edited {
   Checked(bool),                                  // R-57: JSON boolean
   Typed(String),                                  // R-57: JSON string
-  Adjusted(Finite),                               // R-57: JSON number
+  Adjusted { number: Finite, text: String },      // R-57: JSON number, from
+                                                  // `number`; `text` is what
+                                                  // was typed, and never
+                                                  // reaches the wire
   Chosen(AlternativeId),                          // R-57: the alternative's id, as a string
   Picked { instant: Timestamp, offset: Offset },  // R-57: RFC 3339, with an offset
 }
@@ -432,7 +488,9 @@ pub fn as_drawn(kind: &DrawnKind) -> Edited;      // view_model.rs — the wire'
 ```
 
 `Adjusted` holds a `Finite` rather than a bare `f64` so that I-G is a property of
-the type and not a habit. `Controller::edit` is public and takes any `Edited`;
+the type and not a habit. It holds the text beside it because that is what the
+widget displays and what the guard compares (above); `submitted` reads the number
+and never the text. `Controller::edit` is public and takes any `Edited`;
 `f64` admits `NaN` and both infinities; `serde_json::Value::from(f64)` turns each
 of those into JSON `null`, which `R-57` does not admit. With the field private
 and the constructor fallible, a non-finite submitted number is not merely
@@ -459,9 +517,51 @@ is `pub(super)` in `goad-semantics`, so this crate cannot mint one; it can only
 clone one off a view it drew. That is how AC-8 and `R-52` get held. The
 consequence is that the ComboBox reports its index, and `controller.edit`
 resolves the index against the drawn field's alternatives — on the same walk it
-already does to check the field id is real. An index out of range is a renderer
+already does to check the field id is real. That is what `Reported` below is
+for. An index out of range is a renderer
 bug and gets the existing `Refused::UnknownField` treatment: reported, nothing
 recorded.
+
+**What a widget reported is not yet what the draft holds.** Two of the five
+values can only be formed where the retained presentation is, and a Slint callback
+is not there:
+
+```rust
+/// What a widget reported, in the widget's own terms — the most a callback can
+/// know. `draft.rs`, beside `Edited`; `Command::Edit` and `PendingEdit` carry it.
+pub enum Reported {
+  Checked(bool),           // CheckBox
+  Typed(String),           // text LineEdit
+  AdjustedText(String),    // numeric LineEdit — the text as typed
+  AdjustedValue(f32),      // Slider — its own value, an `f32` by nature (D16)
+  Chosen(u32),             // ComboBox — `current-index`
+  Picked { instant: Timestamp, offset: Offset },   // composed in the callback
+}
+
+/// view_model.rs, beside `as_drawn`: what the draft should hold, given what the
+/// widget reported and what the field shows now. `None` is a renderer bug.
+pub fn resolve(reported: &Reported, shown: &Edited, kind: &DrawnKind)
+  -> Option<Edited>;
+```
+
+`Chosen` is the first of the two: an `AlternativeId` can only be cloned off a
+drawn view, so the index travels and is resolved against the drawn field's
+alternatives (D12). `AdjustedText` is the second: a text that does not parse
+finitely keeps the number the field already holds, and only the draft — or, for an
+untouched field, the declared minimum it was drawn showing — knows what that is.
+`controller::edit` resolves both on the walk it already makes, with
+`shown = state_of(…)` falling back to `as_drawn(kind)`, which is the expression
+`answer` needs anyway. `None` means an index no alternative has and takes the
+`Refused::UnknownField` posture: reported, nothing recorded. A `Slider`'s
+`AdjustedValue` resolves to an `Adjusted` whose text is the host's format of the
+number, since nothing displays it.
+
+Six variants for five kinds, because a `number` has two controls and which one is
+drawn is already a first-class decision (D16, D17). Keeping the two types apart
+costs one enum and buys three things: `Edited` is exactly what the draft holds and
+`submitted` maps; `Reported` cannot express a non-finite number or an id nobody
+declared, so I-D and I-G are held a step earlier than before; and the parse rule
+above lives in one pure function instead of in a Slint closure.
 
 **As-drawn values**, following P-3:
 
@@ -555,12 +655,14 @@ not, and are why it is a module rather than two functions in `draft.rs`.
 **`wire.rs` — `Choose` carries the flush.**
 
 ```rust
-pub struct PendingEdit { pub option: String, pub field: String, pub value: Edited }
+pub struct PendingEdit {
+  pub option: String, pub field: String, pub value: Reported,
+}
 
 pub enum Command {
   // …
   Choose { view: String, option: String, edits: Vec<PendingEdit> },
-  Edit { view: String, option: String, field: String, value: Edited },
+  Edit { view: String, option: String, field: String, value: Reported },
   // …
 }
 ```
@@ -591,8 +693,8 @@ than a refusal a person can see.
 | `Draft` | `Prepared` | one view | `controller::edit` only |
 | last presented `ViewId` | `SlintGlass` | process | `present`, at its end |
 | `epoch` | the window | process | `present`, every call |
-| pending edits, keyed by (option, field) | `pending.rs`, behind an `Rc` | until the timer sends one, or `chosen` drains them all into a `Choose` | the `edited` callback writes; the timer and the `chosen` callback take |
-| `picking` + the accepted date | the window root | between the two pickers | the `datetime` button and the date picker |
+| pending `Reported` edits, keyed by (option, field) | `pending.rs`, behind an `Rc` | until the timer sends one, or `chosen` drains them all into a `Choose` | the `edited` callback writes; the timer and the `chosen` callback take |
+| `picking`, the two picker seeds, and the accepted date | the window root | written on each button click; `picking` and the date live until the pick ends | the `datetime` button and the date picker |
 
 `SlintGlass` gains one field, `Option<ViewId>`. It does not retain any model
 handles for the value channel: the values vector is built fresh on each present
@@ -724,17 +826,25 @@ event rather than an inferred one.
 
 **Each popup is seeded on open**, because both are root singletons shared by
 every `datetime` field in the form — that is Thread 3's measured constraint, not
-a choice — and `DatePickerPopup`'s `date` is an `in` property that survives a
-close. Without an explicit write, field B's picker would open on field A's last
-pick.
+a choice. What makes the seed necessary is the field that *has* been picked: it
+must reopen on its own pick rather than on the widget's default of today. It is
+not needed to keep one field's pick out of the next field's picker, which is what
+the first draft said and is not a thing that happens (below).
 
 **The seed is the host's, and the markup only copies it.** `FieldValue` carries
 `date` and `time` slots beside the text, written by `glass.rs` on every present:
 `instant::decompose` of the draft's `Picked` where this field has been picked,
 and `instant::today_local()` — today's date at 00:00 local — where it has not.
-The button's handler assigns those two slots to the two popups and then shows
-the first. It parses nothing, calls nothing impure, and needs no callback
-running host-ward.
+
+**The last hop into the popup is a binding, not an assignment**, and that is
+forced rather than chosen. A `PopupWindow`'s properties cannot be assigned from
+an enclosing component's handler: *"Cannot access property or callback
+'picker.date' inside of a Window from enclosing component"* is a compile error,
+measured. So the window root carries one `Date` and one `Time` seed property,
+each popup **binds** to one at its own declaration site, and the button's handler
+writes the two root properties from `values[field.slot].date` / `.time` and then
+calls `show()`, which is permitted from outside. The handler parses nothing,
+calls nothing impure, and needs no callback running host-ward.
 
 That is worth stating as an interface rule rather than as a detail, because the
 alternative was three inventions at once: a reverse callback so the markup could
@@ -744,13 +854,17 @@ where a second clock read lives. Seeding from `as_drawn` was also rejected: it
 opens an untouched field's picker at 1970, which is D-6's sentinel leaking into
 the one place D-6 chose the sentinel to keep it out of.
 
-One consequence for §9 rather than for production: both pickers pick up a
-rewritten seed through a `changed date` / `changed time` handler of their own
-(`common/datepicker_base.slint:444-447`,
-`common/time-picker-base.slint:515-517`), and a `changed` handler does not run
-under `init_no_event_loop` (A-3). A case that asserts what a **re-seeded** picker
-opens on therefore belongs in the loop tier; a case that opens one picker and
-accepts it does not.
+**A popup does not live between opens.** `show-popup` compiles to a fresh
+`::new()` on every show (`i-slint-compiler/generator/rust.rs:3736-3763`) and the
+closed instance is dropped from `active_popups`
+(`i-slint-core/window.rs:1955-1990`); both measured. Three things follow. A
+rewritten seed is picked up by a **fresh binding**, not by the `changed date` /
+`changed time` handler inside the widget. An in-popup selection, which destroys
+that binding, cannot survive to be seen again. And no pick can leak into the next
+field's picker, which is why the seed is justified above by the picked field
+rather than by leakage. What it does not settle is which tier can drive a
+re-seeded picker — that is a driver question, and §9 answers driver questions by
+naming the call.
 
 ### 5.5 Invariants, assumptions & edge cases
 
@@ -789,15 +903,17 @@ accepts it does not.
   sites. `serde_json::Value::from(f64)` turns a non-finite into JSON `null`,
   which `R-57` does not admit, so `Edited::Adjusted` holds a `Finite`: private
   field, fallible constructor, no other way in. Text that parses to `inf` or
-  `NaN` has no `Edited` to become.
+  `NaN` never becomes a number at all — the text is recorded and the last
+  representable number stands (§5.2) — and `Reported` carries a typed number only
+  as text, so a non-finite one is not expressible at the boundary either.
 
 **Assumptions**, in descending order of how much rests on them:
 
 | # | assumption | status |
 |---|---|---|
 | A-1 | `root.values[field.slot]` tracks, and replacing `values` wholesale destroys no element | **measured**, negative-controlled (`split.rs`) |
-| A-2 | A numeric guard does not fight a person who clears the field to retype | **measured**, negative-controlled (`numeric_guard.rs`). What was measured is the defect: a bare string comparison writes `"0"` back over an empty widget. The guard's one exception (§5.2) is that measurement's consequence, and is the whole of what the measurement licenses |
-| A-3 | `changed` fires under a real loop and not under `init_no_event_loop` | **measured** (Thread 3). It covers both a `changed <property>` handler of ours and one inside a widget — the pickers' re-seed (§5.4) is the second kind |
+| A-2 | A numeric guard does not fight a person who clears the field to retype | **measured**, negative-controlled (`numeric_guard.rs`). What was measured is the defect: a bare string comparison writes `"0"` back over an empty widget. The guard's one exception (§5.2) is that measurement's consequence, and is the whole of what the measurement licenses. It survives the change of comparand (`guard_text.rs`) |
+| A-3 | `changed` fires under a real loop and not under `init_no_event_loop` | **measured** (Thread 3). It covers a `changed <property>` handler of ours and one inside a widget alike. The pickers' re-seed was taken for the second kind and is not one: a popup is rebuilt on every show, so a seed arrives through a binding (§5.4) |
 | A-4 | The four fallible steps §5.2 lists are the whole of `compose`'s failure surface | not measured; being wrong costs a visible no-op, because every one of them returns `None`. The first draft priced it that way while using `civil::date` and `Date::at`, which **panic**, and while omitting `to_zoned`, which returns a `Result`; the checked constructors and the fourth step are what make the price true |
 | A-5 | A `ComboBox`'s `current-index` survives a `values` rewrite like the others | not separately measured; same guard shape. §9 carries a *`choice` re-asserting* row in the loop tier, with its own driver, rather than leaving this to the phrase "the loop test covers it" |
 | A-6 | Disabling a widget while an exchange is in flight does not destroy it | not measured; being wrong costs focus, not data — a person's observation under AC-10 |
@@ -806,8 +922,8 @@ accepts it does not.
 
 | situation | what happens |
 |---|---|
-| numeric field cleared to `""` | records `0`, which is how the control's own reader takes an empty field (§5.2). The guard's one exception — empty widget, held number zero — then keeps it quiet, and the clear survives |
-| numeric text the host cannot record — it does not parse (`--`), or it parses to `inf` or `NaN` (`1e999`) | nothing recorded. The second is I-G: `Finite::new` refuses it, so no `null` can reach the wire. Either way the next present's guard writes the held value back, and the person sees the entry refused rather than guessed at |
+| numeric field cleared to `""` | records the empty text, and `0`, which is how the control's own reader takes an empty field (§5.2). Once that is recorded the strings agree; until the debounce records it the guard's one exception — empty widget, held number zero — keeps it quiet. Either way the clear survives |
+| numeric text that is not a number — it does not parse (`-`, `.`, `-.`, the only three the control admits), or it parses to an infinity (`1e999`) | the text is recorded and the last representable number stands (§5.2). I-G is held at the wire: `Finite` refuses the infinity, so no `null` can reach it. The guard is quiet because the strings agree, so the person keeps what they typed and the host keeps the number it can defend |
 | a picked datetime inside a DST fold or gap | resolved under jiff's `Compatible` — the fold takes the earlier occurrence, the gap shifts forward — and **succeeds**. The button shows the composed value, so the person sees the shift (D-13, §5.2) |
 | a `number` whose only bound is a `max` | as-drawn submits `0`, which may exceed that `max`. Legal: `R-35` leaves the judgement to the backend and `R-58` requires a value. `canon-delta.md` CD-1 states it so a backend author can discover it |
 | a `number` with both bounds but a range no slider can operate — equal bounds, an `f32` span of infinity, a step that underflows to zero | `slider_bounds` answers `None` and the text control is drawn (§5.2). Every legal `R-17` range is still drawable and still answerable |
@@ -857,7 +973,7 @@ and the code is the same either way.
 | D10 | `DrawnKind`, a host-local enum | Carrying the canonical `FieldKind` on `PresentationField`. It avoids a second enum but lets a sixth protocol kind reach a drawn field and fall silently through the markup's `if` chain |
 | D11 | `FieldForm` becomes uninhabited, not deleted | Deleting it. `undrawn_form`'s exhaustive match is what AC-7 protects, and an empty enum keeps `Undrawn::FieldForm` as the place a sixth kind goes |
 | D12 | `Chosen(AlternativeId)`, resolved from an index in `controller.edit` | The markup handing back the alternative id as a string. The host cannot mint an `AlternativeId`, so resolving from the presentation is what makes AC-8 a fact about the types |
-| D13 | The numeric `LineEdit`'s guard compares text, with one exception: an empty widget against a held zero | A bare string comparison, which was measured writing `"0"` over a person clearing the field to retype — the exception is that measurement's whole content. And comparing `to-float()`, which the first draft took: it parses to `f32`, so two legal `f64`s can compare equal while the strings differ, and the case the guard exists for is the one where the host never recorded the edit |
+| D13 | The host holds the text a person typed beside the number it means, so the numeric `LineEdit`'s guard compares string against string — an identity, with one exception: an empty widget against a held zero (D-18) | Comparing `to-float()`, which the first draft took: it parses to `f32`, so two legal `f64`s can compare equal while the strings differ, and the case the guard exists for is the one where the host never recorded the edit. Comparing the widget's text against a re-format of the held `f64`, which the second draft took: **measured** corrupting ordinary typing, `1.05` → `105` and `-3` → `3`, because `f64` → text is not injective. And converging on a per-slot **revision** instead, which deletes the comparand rather than correcting it and is the better shape in the abstract — measured available, and ruled out by its own cases, since `-` and `1e400` are edits the host cannot record as numbers and that is exactly when a revision converges. A bare string comparison without the exception was measured writing `"0"` over a person clearing a field to retype |
 | D14 | The loop tier takes whatever targets its rows need, one arrangement each (D-10, widened at D-14); everything a `changed <property>` handler or a timer does not produce stays in `tests/renderer/` | Writing the guard's cases in `tests/renderer/`, where they would be green and measure nothing. And D-10's own "one binary, one test fn", which §9 outgrew: five claims need discriminating and one injection pass cannot separate them inside a single `#[test]`. Also rejected, after it was briefly believed: moving the `choice` and `datetime` cases to the loop tier on the ground that the no-loop tier cannot reach inside a popup. It can — the testing backend's own `test_popups` does it, and absence of a case in this repository was mistaken for absence of a capability |
 | D15 | Instrument counters live in production markup (D-10) | A test-only copy of the field markup — a parallel implementation of the thing under test |
 | D16 | A number typed into a `LineEdit` crosses the markup boundary as a string; a `Slider`'s crosses as a `float`, which is what it already is (D-12) | Routing every numeric edit through Slint's `float`: it is `f32` while `NumberRange` is `f64`, so a legal `1e100` bound arrives as infinity — the protocol narrowed by a type rather than by a decision. And, equally, routing every numeric edit through text: a `Slider`'s value is an `f32` that Slint does not specify to survive a format-and-reparse, so the guard would fight a manufactured difference mid-drag (R4) |
@@ -865,10 +981,11 @@ and the code is the same either way.
 | D18 | `jiff` gains `tz-system` and `tzdb-zoneinfo` on the entry `crates/goad` inherits (D-11) | Always-UTC, which is the lie D-7 refused; resolving the offset outside jiff, a second time implementation beside the one already depended on; deferring `datetime`, which leaves `R-55`'s subset undischarged |
 | D19 | A DST fold or gap resolves under `Compatible` and the button shows the result (D-13) | Refusing an ambiguous pick. A person inside a fold could then not express `01:30` at all, with nothing but an unchanged button to say why |
 | D20 | `pending.rs` is keyed by (option, field) and kind-agnostic (D-14) | One pending edit. It loses field A's last keystrokes when a person moves to field B, and D-8 forbids flushing on the switch |
-| D21 | The picker is seeded on open, from typed `date` and `time` slots the host writes into `FieldValue` — from the draft, or from today at 00:00 local | Leaving it, which opens field B on field A's pick; seeding from `as_drawn`, which opens an untouched field at 1970; and giving the Slint handler the job of obtaining the seed itself, which needs a reverse callback, extra slots, or markup-side parsing of a formatted datetime, and a second decision about where a clock read lives |
+| D21 | The picker is seeded on open, from typed `date` and `time` slots the host writes into `FieldValue` — from the draft, or from today at 00:00 local. The seed reaches each popup as a **binding** to a root property the button's handler writes, because an assignment into a popup from an enclosing handler does not compile | Leaving it, which opens an already-picked field on today instead of on its pick; seeding from `as_drawn`, which opens an untouched field at 1970; and giving the Slint handler the job of obtaining the seed itself, which needs a reverse callback, extra slots, or markup-side parsing of a formatted datetime, and a second decision about where a clock read lives. The reason this decision first gave — that field B would otherwise open on field A's pick — was wrong: no popup state survives a close (§5.4) |
 | D22 | `Command::Choose` carries the pending edits (D-15) | Sending each edit and then `Choose`. The channel holds one and a Slint callback cannot yield, so the second `try_send` of a flush always fails — not sometimes. And raising the channel's capacity, which is a decision about a different subsystem taken for this one's convenience: capacity 1 is what produces the back-pressure notice |
 | D23 | The host parses a number under the rule the control validated it with (D-16) | `f64::from_str` on the raw text. `input-type: decimal` validates through Slint's locale-aware reader, so in a comma-decimal locale the control approves `1,5` and the host refuses it, records nothing, and the guard writes over the person. Also rejected: sending Slint's parsed float alongside the text, which brings back as a fallback exactly the `f32` path D16 keeps a typed number off |
-| D24 | `Edited::Adjusted` holds a checked finite value, not a bare `f64` | A convention that every construction site checks first. `Controller::edit` is public and takes any `Edited`, and a non-finite serialises as JSON `null`, which `R-57` does not admit — so the rule has to be a property of the type |
+| D24 | `Edited::Adjusted` holds a checked finite value, not a bare `f64` | A convention that every construction site checks first. `Controller::edit` is public, and a non-finite serialises as JSON `null`, which `R-57` does not admit — so the rule has to be a property of the type |
+| D25 | What a widget reported and what the draft holds are two types, joined by one kind-directed `resolve` (F-37, D-22) | One `Edited` with partial payloads — an `Option<Finite>` number, an unresolved index — normalized by `controller::edit`. `submitted` then needs arms for states the draft is promised never to hold, which is the `expect`-is-unreachable argument this design declines elsewhere. And resolving at submit time in `answer`, where the presentation is already in hand but the last representable number is not: `1e400` would reparse to an infinity and fall back to as-drawn, losing the number the host held |
 
 ## 8. Risks & mitigations
 
@@ -882,6 +999,7 @@ and the code is the same either way.
 | R6 | `datetime`'s cost was underestimated at scoping and could be again | The two constraints that drive it — popups cannot repeat, and there is no inline control — are measured, not assumed | needing a second picker instance, or a partial datetime in the draft |
 | R7 | A second 64-to-32-bit narrowing is introduced somewhere the review did not reach. Two were found in one round — the `number` channel and the picker's `int` fields — which is the shape of a class, not of two accidents | Every host↔markup conversion is checked rather than cast, and §5.2 names the rule; I-G asserts the one that reaches the wire | a value arriving as infinity, a zero, or a truncation, for an input the protocol admits |
 | R8 | A later stratum 1 source comes to depend on a capability this feature switched on in a dependency stratum 1 shares | **Review, and nothing else.** No gate command rejects this — `POL-001` says so in as many words, which is why it requires the decision to be argued instead. §10 carries the argument | a `goad-semantics` source whose behaviour changes with a feature its own manifest does not ask for |
+| R9 | AC-8 needs a pointer event inside a popup, and no case in this repository has yet had a popup laid out under `init_no_event_loop`. `mock_single_click` dispatches at the element's `absolute_center()`, so a popup with no geometry is clicked nowhere near | The injection pass, run and read before the row is believed. If the click cannot be made to land, the row moves to the loop tier, where the other `choice` row already sits — same driver, same assertion — and nothing else in the design changes | an injection that cannot make AC-8 go red |
 
 ## 9. Validation
 
@@ -912,17 +1030,34 @@ testing backend's own `test_popups` runs under `init_no_event_loop`, and
 | `LineEdit`, either | — | `set_accessible_value(text)` — `accessible-action-set-value` assigns `text` and calls `edited` (`fluent/lineedit.slint:16`) | `edited` |
 | `Slider` | — | `set_accessible_value(v)`, or `invoke_accessible_increment_action` / `_decrement` (`fluent/slider.slint:30-36`) | `changed` |
 | `ComboBox` | `invoke_accessible_expand_action` → `show-popup` (`fluent/combobox.slint:33`) | `mock_single_click` on the `ListItem` whose `accessible-label` is the alternative's label (`fluent/components.slint:49-53`) | `selected` |
-| `datetime` `Button` | `invoke_accessible_default_action` → the date popup | `invoke_accessible_default_action` on the popup's `OK`, found by `accessible-label` (`common/standardbutton.slint:17-31`, `fluent/button.slint:29-34`) | `accepted(date)`, then the same again on the time popup |
+| `datetime` `Button` | `invoke_accessible_default_action` → the date popup | `invoke_accessible_default_action` throughout: a calendar day cell is `accessible-role: button` with the day number as its label and a default action (`common/datepicker_base.slint:59-63`), and the dialog's `OK` is a `StandardButton` labelled `OK` (`common/standardbutton.slint:17-31`, `fluent/button.slint:29-34`) | `accepted(date)`, then the same again on the time popup |
 
-`mock_single_click` dispatches a pointer press and release at the element's
-absolute centre, so it depends on the popup having been laid out; the injection
-pass is what proves the row can go red rather than passing vacuously.
+**One control in that table needs a pointer, and it is the `ComboBox`.** A
+`ListItem` carries an accessible role, label, index and selected state but no
+default action (`fluent/components.slint:49-53`), so the only way to select one
+is `mock_single_click` — which dispatches a press and release at the element's
+absolute centre and therefore depends on the popup having been laid out. The
+date-picker chain needs no pointer and so depends on no layout; that was measured
+rather than reasoned (`spike-fields/tests/picker_seed.rs`). No case in this
+repository has yet needed a popup laid out under `init_no_event_loop`, so AC-8's
+row is the one carrying that risk and §8 R9 names it — the other `choice` row runs
+under a real loop, where layout is not in question. The injection pass is what
+proves a row can go red rather than passing vacuously.
 
-**What still needs a real loop** is one thing stated three ways: anything
-produced by a `changed <property>` handler or a `slint::Timer`, neither of which
-runs under `init_no_event_loop` (A-3). That is the guard's `reasserts` counter,
-the debounce timer, and a picker picking up a **re**-written seed (§5.4).
-Everything else belongs in `tests/renderer/`.
+**What still needs a real loop** is one thing stated two ways: anything produced
+by a `changed <property>` handler or a `slint::Timer`, neither of which runs
+under `init_no_event_loop` (A-3). That is the guard's `reasserts` counter and the
+debounce timer. Everything else belongs in `tests/renderer/`.
+
+A picker picking up a **re**-written seed was a third until it was measured. A
+popup is constructed fresh on every show, so the seed arrives through a binding
+and no `changed` handler is involved (§5.4) — the argument that put the case in
+this tier does not apply to it. That does not by itself move it: what is still
+unproven is whether `init_no_event_loop` will show a popup and let the day cell
+and `OK` be found on it, and the measurement of that chain was taken under a real
+loop (`spike-fields/tests/picker_seed.rs`). The case goes back through the driver
+check above like any other, and the plan settles it by naming the call and
+running the injection pass.
 
 | obligation | tier | driver | what it asserts |
 |---|---|---|---|
@@ -939,14 +1074,17 @@ Everything else belongs in `tests/renderer/`.
 | a `choice` re-asserting | the loop target | `invoke_accessible_expand_action` + `mock_single_click` with no `Wire` installed, then a present | `reasserts` increments and `current-index` returns to the draft's — the only measurement of A-5 |
 | AC-10 | a person | — | `just check` green, and a form of all five kinds answered by hand — including the caret mid-word, both pickers, and a slider drag across a present |
 
-Two obligations have no widget and so no row. **Every consumer of `FieldForm`**
+Three obligations have no widget and so no row. **Every consumer of `FieldForm`**
 (§5.1's table) is rewritten, and `SPEC-001` §Verification's `R-58` and `R-55`
 rows are reconciled through `canon-delta.md` CD-2 — the `R-58` row is the one
 that costs something, because half of what that rule prohibits stops being
 observable at all, and CD-2 says so rather than quietly renaming a case. And
 **every case that builds a `Command::Choose`** is rewritten for its new shape;
 at least one of them carries a pending edit, so the single-send flush is
-asserted rather than assumed.
+asserted rather than assumed. And **every case that builds a `Command::Edit` or
+an `Edited`** is rewritten for the `Reported` split (§5.2): twelve in
+`tests/renderer/wiring.rs`, ten in `draft.rs`'s own tests, and the one closure in
+`install.rs` they exercise.
 
 **On the number of loop targets.** The constraint is unchanged and is not
 negotiable: one event-loop *arrangement*, one `[[test]]` target
