@@ -4,11 +4,12 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — round 4 integrated, awaiting its outcomes
+## Handover — the review is resolved; the design is waiting on the user
 
 Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
 again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
-and again when they were integrated. Delete once the design closes.
+again when they were integrated, and again when the ledger resolved. Delete once
+the design closes.
 
 **Durability, as of this handover.** Everything is pushed: `main` through
 `42527cc` — the commit that integrated round 4 — and `slice-009-prototype`
@@ -18,8 +19,15 @@ before you finish.
 
 ### Where the slice is
 
-Design accepted by the user at draft, then rewritten across three review rounds.
-**The review loop is open.** Round 3's thirteen findings — F-6, F-20, F-26, F-29,
+Design accepted by the user at draft, then rewritten across four review rounds.
+**The review loop is closed.** `review-design.md` reads `**State:** resolved`:
+all 56 findings are terminal — 54 verified, 2 withdrawn, no blocker outstanding
+— and the Synthesis is written. What remains is the user's: P-14, and acceptance
+of a design that has moved three times since theirs. **Plan not started.**
+
+The paragraphs below are the arc that produced that, kept because the next agent
+needs to know which surfaces have been rewritten and how often. Round 3's
+thirteen findings — F-6, F-20, F-26, F-29,
 F-32 and F-38 … F-45 — are **integrated** into `design.md`, `slice-009.md` and
 `canon-delta.md`. Rounds 1 and 2's are integrated too, and round 3 verified 18 of
 them. Plan not started.
@@ -331,9 +339,16 @@ review.**
      *the grammar P-5 pinned*; there is no longer a grammar, so nothing in
      `design.md` should cite one.
 
-   **Next: round 4's raiser sets the outcomes on F-50 … F-56** — a bounded
-   verification pass on the repairs, not a round 5 (item 2 has the trend
-   argument) — and item 4 onward follows.
+2c. ~~**Round 4's raiser sets the outcomes on F-50 … F-56.**~~ **Done,
+   2026-09-18** (`68946ef`), by a fresh agent: a bounded verification pass on the
+   repairs, not a round 5. **All seven `verified`**, none contested, no new
+   findings. Corrected in `aeef6ab` — the raiser's own two line numbers were
+   wrong and are struck in place; no outcome changed. That is the fifth entry in
+   §*Citations known bad* and the rule it produces is in the Harvest.
+
+2d. ~~**Write the Synthesis and resolve the ledger.**~~ **Done, 2026-09-18**
+   (`f985acc`). `review-design.md` §Synthesis carries the closure story and the
+   header reads `**State:** resolved`. Item 4 onward follows.
 
 
 3. ~~**Bring the prototype's record back.**~~ **Done, 2026-09-18.**
