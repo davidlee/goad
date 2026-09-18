@@ -75,8 +75,9 @@ review.**
 | `research.md` | Thread 3 is everything measured |
 | `canon-delta.md` | CD-1, CD-2. F-45 touches CD-2 |
 | `spike-fields/` | committed at `4f93d41`. Delete when the design closes |
-| `prototype-notes.md` | on `slice-009-prototype` only. **The artefact**: P-1 … P-15 in full, with the reasoning. P-15 is withdrawn in place |
-| `prototype-handback.md` | on `slice-009-prototype` only. The index and the recommendation, and §What it did not test — read that before citing any of it |
+| `prototype-notes.md` | **the artefact**: P-1 … P-15 in full, with the reasoning. P-15 is withdrawn in place. Lifted onto `main` 2026-09-18 |
+| `prototype-handback.md` | the index and the recommendation, and §What it did not test — read that before citing any of it. Lifted onto `main` 2026-09-18 |
+| `prototype-delta.md` | the thirteen round-3 findings as P1a was briefed on them. **Historical** from P1b onward — `design.md` is the authority. Lifted onto `main` 2026-09-18 |
 
 ### What is owed, in order
 
@@ -150,11 +151,12 @@ review.**
    prototype found as well as what the integration changed. **Do not hand round 4
    the `P-n` list** (D-29): anything it finds independently is a second witness.
 
-3. **Bring the prototype's record back.** `prototype-notes.md`,
-   `prototype-delta.md` and `prototype-handback.md` exist only on
-   `slice-009-prototype`. They are slice documents and belong on `main` before the
-   branch is retired. The code is **referenced, not promoted** — the slice
-   re-derives from its own plan.
+3. ~~**Bring the prototype's record back.**~~ **Done, 2026-09-18.**
+   `prototype-notes.md`, `prototype-delta.md` and `prototype-handback.md` are on
+   `main` in this folder, copied verbatim from `slice-009-prototype`. The code is
+   **referenced, not promoted** — the slice re-derives from its own plan. The
+   branch may now be retired; nothing on it is needed but the twelve commits of
+   code the handback indexes, and those are referenced by hash.
 
 4. **Re-ask the user for acceptance.** The design has changed twice since theirs,
    and this integration is the third.
