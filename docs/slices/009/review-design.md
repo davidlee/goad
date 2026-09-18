@@ -195,6 +195,10 @@ Surfaces, as surfaces:
 | F-43 | minor | fix-now | _pending round 4_ |
 | F-44 | major | fix-now | _pending round 4_ |
 | F-45 | minor | fix-now | _pending round 4_ |
+| F-46 | minor | fix-now | _pending round 4_ |
+| F-47 | major | fix-now | _pending round 4_ |
+| F-48 | nit | fix-now | _pending round 4_ |
+| F-49 | minor | fix-now | _pending round 4_ |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 
@@ -1421,6 +1425,135 @@ renderer changes nothing it claims. CD-2's document line names the three rows it
 three changes touch, which is what `design.md` §10's summary already said.
 
 **Outcome:** _pending round 4_
+
+### F-46 — F-43's re-disposition assigns the drain ordering to a walk that cannot carry it
+
+**Severity:** minor
+**Location:** `review-design.md` F-43 Response; `design.md §5.2 wire.rs; §5.4 An answer`
+**Raised by:** the session integrating round 3 (a fresh agent), writing the repair down.
+
+**Expected:** A disposition's stated mechanism is one the code can perform.
+**Observed:** F-43's Response moves the ordering to *"the declared-field walk it
+already makes for `answer`"*. `Controller::answer` is `&self` and walks
+`drawn_fields(matched)` for the **answered option only**
+(`controller.rs:216-241`), while §5.2 requires a carried edit to be applicable to
+*another* option's field — *"a person can type into one option's field and then
+answer another"* — and applying an edit needs `&mut self`. So that walk is
+neither where nor when the carried edits are applied, and it cannot reach the
+edits that are not the answered option's.
+**Evidence:** `crates/goad/src/controller.rs:216-241` (`answer`, `&self`, one
+option), `:259-279` (`edit`, `&mut self`, `selected` then the drawn walk);
+`design.md` §5.2, the `PendingEdit` paragraph.
+
+**Disposition:** fix-now
+**Response:** Correct, and the finding's own substance survives intact: the
+ordering promise is dropped, which is all F-43 asked for. What goes with it is
+the replacement mechanism, because there is nothing to replace it with and
+nothing that needs one — F-43's own argument is that the keys are distinct, so
+any order yields the same draft.
+
+So §5.2 states that **no order is promised** over the carried edits, and says why
+the promise could not have been kept where it was assigned: the callback holds
+`(option, field)` keys and no declaration order, and `answer`'s walk is `&self`
+and covers one option. The controller applies each carried edit through the walk
+`edit` already uses, which is what §5.2 already said and is the only walk that
+reaches an edit to an option that is not being answered.
+
+**Outcome:** _pending round 4_
+
+### F-47 — The overlay stops AC-6's stated driver from reaching the dropped-edit case
+
+**Severity:** major
+**Location:** `design.md §9`, the AC-6 row
+**Raised by:** the session integrating round 3 (a fresh agent), writing the repair down.
+
+**Expected:** A validation row's driver still produces the state the row asserts
+about, after the repair that changed that state.
+**Observed:** AC-6's driver is *"`set_accessible_value` on a `LineEdit` whose
+callback reaches no `Wire`, so nothing is recorded — the dropped-edit case
+exactly — then a present"*. Under F-40's overlay that is no longer the
+dropped-edit case: the `edited` callback writes the entry into `pending.rs`
+before any `Wire` is involved, so the host *does* hold the value, the overlay
+shows it, and the guard is correctly quiet. `reasserts` stays at zero and the row
+passes only if it asserts nothing. F-40's Response states the new meaning — *"a
+dropped or refused edit has left pending and never reached the draft"* — but the
+row was not revisited against it.
+**Evidence:** `design.md` §5.2 *The guard*, §5.3 *A field's value is the draft's,
+overlaid*, §9's AC-6 row; `slice-009.md` AC-6.
+
+**Disposition:** fix-now
+**Response:** Correct, and it is this integration's own near miss — the row would
+have been written green. The driver gains its missing half: the loop runs past
+the debounce so the entry is **sent and leaves the map**, and only then is the
+present taken. The `Wire` is one whose receiver nothing drains, so the first send
+is enqueued (capacity one), the entry clears, and nothing is ever recorded — which
+is the dropped-edit case stated in terms of where the value is rather than in
+terms of which callback was wired.
+
+§9's row says both halves and says why both are needed. `slice-009.md`'s AC-6 gains
+the same precision in one sentence, because *dropped* has stopped meaning *the
+command did not arrive* and started meaning *the host holds it in neither the
+draft nor `pending.rs`*.
+
+**Outcome:** _pending round 4_
+
+### F-48 — A float inside `Command` makes the `Eq` derive fail, and a hand-written one would be unsound
+
+**Severity:** nit
+**Location:** `design.md §5.2`, `Reported` and `Edited`; `crates/goad/src/wire.rs:21`
+**Raised by:** the session integrating round 3 (a fresh agent), writing the repair down.
+
+**Expected:** A design that changes a type carried by an existing `derive` says
+which derives survive.
+**Observed:** `Command` derives `Debug, Clone, PartialEq, Eq` (`wire.rs:21`) and
+`Edited` the same (`draft.rs:26`), and both hold only a `bool` today.
+`Edited::Adjusted` gains a `Finite(f64)` and `Reported::AdjustedValue` an `f32`,
+so `Eq` stops deriving on all three. The design says nothing, and the obvious
+repair — writing `Eq` by hand, which compiles — is unsound over
+`AdjustedValue(NaN)`, which F-42 has just established is expressible.
+**Evidence:** `crates/goad/src/wire.rs:21`; `crates/goad/src/draft.rs:26`;
+`crates/goad/src/view_model.rs:81` (`Body`, already `PartialEq` without `Eq`).
+
+**Disposition:** fix-now
+**Response:** Correct. One sentence in §5.2 beside `Reported`: `Command` and
+`Edited` carry `PartialEq` and drop `Eq`, which is the shape `Body` already has,
+and nothing needs `Eq` — the cases that compare commands need `PartialEq`. Written
+down rather than left to be met as a derive error, because the wrong repair also
+compiles.
+
+**Outcome:** _pending round 4_
+
+### F-49 — The overlay is only observable if the callbacks and the glass hold one `Rc`, and a split handle fails silently
+
+**Severity:** minor
+**Location:** `design.md §5.3, §9`
+**Raised by:** the session integrating round 3 (a fresh agent), writing the repair down.
+
+**Expected:** A mechanism whose failure mode is a vacuous pass has the failure
+named where the cases are commissioned.
+**Observed:** F-40's repair has `glass.rs` take *"a handle to the same `Rc` the
+callbacks hold"*, and says nothing about what happens if it does not. Two
+signatures widen — `install` and `SlintGlass::new` — and four call sites pair
+them (`main.rs`, `tests/renderer/`, `tests/event_loop/`,
+`tests/event_loop_schedule/`). A test that constructs a `Pending` for each half
+is the natural spelling, produces an overlay that never overlays anything, and
+leaves every case green: `docs/memory/a-green-test-can-assert-a-proxy.md`'s
+failure, one level up from the tests.
+**Evidence:** `crates/goad/src/main.rs:90,97`;
+`crates/goad/tests/renderer/fields.rs:287`, `harness.rs:60`;
+`crates/goad/tests/event_loop/closing.rs:57,59`;
+`crates/goad/tests/event_loop_schedule/scheduling.rs:84,86`.
+
+**Disposition:** fix-now
+**Response:** Correct. Three places carry it rather than one, because the risk is
+that nobody looks: §5.3 says the `Rc` is created once before both and that
+`main.rs`'s existing construction order already allows it; §8 gains **R10**, whose
+signal is *a case asserting the overlay that passes without `install` having been
+called*; and §9 lists the four call-site pairs alongside the other widening
+signatures, with the rule that each pair is given one value and not two.
+
+**Outcome:** _pending round 4_
+
 
 ## Probed and sound — round 1
 

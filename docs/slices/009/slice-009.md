@@ -30,11 +30,19 @@ costs a text field every keystroke after the first.
   `FieldForm`, and the kind-directed `as_drawn` / `resolve`.
 - `crates/goad/src/draft.rs` — `Edited`, `Reported`, `Finite`, `submitted`,
   `state_of`.
-- `crates/goad/src/glass.rs` — how a present writes the two models.
-- `crates/goad/src/controller.rs` — the `Edit` and `Choose` paths.
-- `crates/goad/src/wire.rs`, `src/install.rs` — the callback's two ends.
-- `crates/goad/src/pending.rs`, `src/instant.rs` — new: the debounce, and the
-  two impure reads a `datetime` needs.
+- `crates/goad/src/glass.rs` — how a present writes the two models, including
+  the value channel's overlay of `pending.rs` (`design.md` §5.3, §7 D26).
+- `crates/goad/src/controller.rs` — the `Edit` and `Choose` paths, including the
+  per-edit identity check on the edits a `Choose` carries.
+- `crates/goad/src/wire.rs`, `src/install.rs` — the callback's two ends;
+  `Command::Choose`'s new shape, and `Wire::send` reporting whether the command
+  was enqueued.
+- `crates/goad/src/main.rs` — one `Rc` for the pending map, created before the
+  callback table and cloned into `install` and `SlintGlass::new` both.
+- `crates/goad/src/pending.rs`, `src/instant.rs` — new: the debounce, keyed by
+  (option, field) with the view each edit was made on and a timer that re-arms
+  while the map is not empty; and the clock and system-zone reads a `datetime`
+  needs.
 - `crates/goad/Cargo.toml` — `jiff`'s `tz-system` and `tzdb-zoneinfo`, on the
   one member that reads the system zone (`design.md` §10, §7 D18).
 - `crates/goad/tests/` — including one or more new event-loop-backed targets.
@@ -88,7 +96,11 @@ the one way `docs/AGENTS.md` §Tiers names as failing the rule dishonestly.
       no destroyed element, no moved caret, no interrupted drag. Asserted in a
       tier that can actually observe a `changed` handler (`research.md` Thread 3).
 - [ ] AC-6 — A-2 still holds with the element preserved: a widget whose edit the
-      host refused or dropped is corrected by the next present. Negative-controlled.
+      host refused or dropped is corrected by the next present.
+      Negative-controlled. *Dropped* means the host holds the value in neither
+      the draft nor `pending.rs`: an edit still waiting on the debounce is shown
+      rather than corrected, which is what makes a present landing inside that
+      window harmless (`design.md` §5.5 I-H, §7 D26).
 - [ ] AC-7 — A field kind the renderer cannot draw is still reported through
       `Undrawn`, and the mechanism that makes a sixth kind a compile error
       survives — `R-55` is discharged for five kinds, not deleted.
