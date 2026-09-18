@@ -961,6 +961,27 @@ walk `edit` already uses, and there are two ways one can fail:
   because an answer the host knows was built from an incomplete draft is worse
   than a refusal a person can see.
 
+**Reported means for the life of the exchange, and no longer.** `Controller`
+writes one line into the retained `Diagnostics` (`controller.rs:203-205`), and
+`absorb` replaces that wholesale when the exchange folds (`controller.rs:194`). Nothing in the host today can promise longer,
+and this design does not add anything that would: a durable notice needs a
+second diagnostics channel, or a class of refusal `absorb` does not replace —
+host functionality, and the first invariant's question applies to it. It is not
+worth it against what is actually lost. The refusal names the last burst of
+typing; the field itself was cleared when the view was replaced, and everything
+typed into it went with the draft (§8 R5). A notice that survived the fold would
+be a durable report of the smaller half. The question of whether the view should
+have been replaced at all is `SPEC-002/OQ-4`, open, and named a non-goal in
+`slice-009.md`.
+
+Two consequences, both measured rather than reasoned (`prototype-notes.md`
+P-14). The line a person reads is `Refused::SupersededView`'s existing one —
+*"no action taken: that answer belongs to a question that has since been
+replaced"* — which is written about an **answer**, while here it is about
+discarded typing on an answer that did go. And a `Choose` carrying two stale
+edits reports **once**, not twice, because `Diagnostics::refused` replaces
+rather than accumulates (`controller.rs:204`).
+
 `PendingEdit` names its own option because the map is keyed by (option, field)
 and a person can type into one option's field and then answer another; that edit
 is recorded and simply is not submitted, because `answer` walks the answered
@@ -1309,7 +1330,7 @@ naming the call.
 | a stale pending entry is drained into a `Choose` | that edit is refused `SupersededView` and reported; **the answer still goes**, because it is about the retained view and nothing about it is incomplete |
 | either picker cancelled | nothing recorded; the button still shows what it showed |
 | `compose` returns `None` | same — nothing recorded, and the unchanged button is the person's signal |
-| pending edit lands after its view was replaced | `Refused::SupersededView`, reported. The typing really was discarded, so saying so is right |
+| pending edit lands after its view was replaced | `Refused::SupersededView`, reported for the life of the exchange and no longer (§5.2). The typing really was discarded, and the field it was typed into was cleared when the view was replaced — §8 R5 |
 | channel full when a person answers | the one `Choose` is dropped with its carried edits, notice raised, nothing cleared from `pending.rs`; a second click sends the same command and answers |
 | a carried edit names a field the retained view does not declare | `Refused::UnknownField` posture, and no answer is sent. The markup and the retained presentation disagree, which is a renderer bug, not a race — identity was checked first (§5.2) |
 | `ComboBox` index out of range, a `Slider` reporting a non-finite value, or a report whose variant is not the drawn field's kind | `interpret` answers `None`: the `Refused::UnknownField` posture — a renderer bug, reported, nothing recorded, and the draft's value is what stays on screen |
@@ -1376,7 +1397,7 @@ and the code is the same either way.
 | R2 | The two channels drift — a slot that is not its index | Both built in one pass; I-B | a field showing another field's value |
 | R3 | With `FieldForm` uninhabited, `R-55`'s field-kind path has no live test | `Undrawn::GroupHint` and the two content forms keep `R-55` asserted; CD-2 makes the Verification row say so | someone deleting `FieldForm` because it is empty, which also deletes the sixth-kind compile error |
 | R4 | The guard fights a person in some case not yet found. The cleared-number field was one, and it was found by measuring rather than reasoning | Per-kind comparison stated in §5.2, and the human run under AC-10 | a value snapping back while it is being edited |
-| R5 | The debounce widens the window in which a superseded view eats someone's typing, filling the diagnostic pane | Accepted rather than mitigated: the typing really was discarded, and saying so is right | repeated `SupersededView` lines in the pane during ordinary use |
+| R5 | A superseded view takes **the whole field**, not the pending tail. `Command::Edit` never reaches the backend — it mutates the retained draft (`controller.rs:753-761`), which dies with the view it belonged to — so a person mid-form sees the field clear under the caret and loses everything typed into it. The debounce widens the window in which this is reachable; it is not the cause, and the `SupersededView` line names only the last burst | Accepted, and the durable answer is **not this slice's**: `SPEC-002/OQ-4` asks whether a host should suppress or defer a firing while a presentation is outstanding, and `slice-009.md` §Non-goals declines it. What this slice changes is the premise, not the answer — OQ-4 stays open partly because judging a view worth protecting is *"domain meaning it does not hold"*, and after this slice *typed into and not yet answered* is interaction state the host retains. A later slice reconsidering OQ-4 has a signal it did not have | a field blanking mid-sentence, with one `SupersededView` line in the pane naming the last burst |
 | R6 | `datetime`'s cost was underestimated at scoping and could be again | The two constraints that drive it — popups cannot repeat, and there is no inline control — are measured, not assumed | needing a second picker instance, or a partial datetime in the draft |
 | R7 | A second 64-to-32-bit narrowing is introduced somewhere the review did not reach. Two were found in one round — the `number` channel and the picker's `int` fields — which is the shape of a class, not of two accidents | Every host↔markup conversion is checked rather than cast, and §5.2 names the rule; I-G asserts the one that reaches the wire | a value arriving as infinity, a zero, or a truncation, for an input the protocol admits |
 | R8 | A later stratum 1 source comes to depend on a capability this feature switched on in a dependency stratum 1 shares | **Review, and nothing else.** No gate command rejects this — `POL-001` says so in as many words, which is why it requires the decision to be argued instead. §10 carries the argument | a `goad-semantics` source whose behaviour changes with a feature its own manifest does not ask for |

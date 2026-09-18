@@ -747,3 +747,43 @@ phase that lands the manifest change, the way §5.3 already handles
 `Glass::present`'s doc. Rejected: leaving it to audit's Reconciliation table,
 which is where a divergence *discovered* at audit belongs, not one this slice
 creates knowingly.
+
+**D-36 — the refusal is not durable, and the question behind it is `SPEC-002/OQ-4`**
+(P-14). Settled by pricing rather than by observation: the recipe `notes.md`
+carried could not produce the race, and working out why answered the question.
+
+The demo replaces a view only when an evaluate returns a non-null one, and
+`examples/demo.toml`'s `default_poll` is 30m against a backend that answers
+`next_check: 45 minutes` and `view: null` to every `respond`. Nothing supersedes
+anything. `notes.md`'s *"the view is replaced every 3 s"* read `MINIMUM_SPACING`
+— a floor on how often an evaluate may happen — as a cadence.
+
+What the pricing found is that the refusal is the smaller half of the event.
+`Command::Edit` never reaches the backend: it mutates the retained draft
+(`controller.rs:753-761`), which dies with the view. So a supersession clears
+the field under the caret and loses everything typed into it, while
+`SupersededView` names only the burst since the last delivery.
+
+User, on the exposure: *"if there's a chance of losing 150ms worth of typing on
+the off chance a background task that runs a few times a day coincides with
+typing, it seems like what we in the industry call fucking spiders."* And on the
+replacement itself: *"I don't understand why we'd replace the current
+view/draft/form at all if an unfilled one is in progress. The appropriate thing
+to do is .. almost anything else. But besides not designing so the right thing
+is hard to do later, I don't really care much about the details right now."*
+
+Accepted: §5.2 states that *reported* means for the life of the exchange and no
+longer, and says why a durable notice is not worth buying — it would be a
+durable report of the smaller half. Rejected: a second diagnostics channel or a
+refusal class `absorb` does not replace, which is host functionality bought for
+the lesser loss.
+
+**Nothing is foreclosed, and one thing is recorded.** `SPEC-002/OQ-4` — whether
+a host should suppress or defer a firing while a presentation is outstanding —
+is open canon, carried by `SPEC-003/OQ-4`, and `slice-009.md` §Non-goals already
+declines it. Its stated reason for staying open is that suppression *"asks the
+host to judge that a view is worth protecting, which is domain meaning it does
+not hold"*. That premise is weaker after this slice: the host now retains a
+draft and a pending map, so *typed into and not yet answered* is interaction
+state rather than domain meaning. §8 R5 is restated to say so, and the follow-up
+is in `notes.md` §Harvest for the close. No mechanism in this slice changes.

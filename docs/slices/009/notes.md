@@ -22,8 +22,10 @@ before you finish.
 Design accepted by the user at draft, then rewritten across four review rounds.
 **The review loop is closed.** `review-design.md` reads `**State:** resolved`:
 all 56 findings are terminal — 54 verified, 2 withdrawn, no blocker outstanding
-— and the Synthesis is written. What remains is the user's: P-14, and acceptance
-of a design that has moved three times since theirs. **Plan not started.**
+— and the Synthesis is written. **P-14 is settled** (D-36, 2026-09-18): the
+refusal is not durable, and the question behind it is `SPEC-002/OQ-4`, which
+this slice declines. What remains is the user's acceptance of a design that has
+moved three times since theirs. **Plan not started.**
 
 The paragraphs below are the arc that produced that, kept because the next agent
 needs to know which surfaces have been rewritten and how often. Round 3's
@@ -51,7 +53,7 @@ table was never attempted, so nothing the prototype says is evidence about them.
 than repairs.** D-29 … D-32 and the prototype's repairs were integrated first
 (2026-09-18, a fresh agent per D-21); §*What is owed* item 1 says where each one
 landed and what the pass found doing it. **One thing was not applied: P-14**, which is a
-decision rather than a repair — §*Waiting on the user*. `design.md` was
+decision rather than a repair — settled later as D-36, §*P-14 — settled*. `design.md` was
 current truth again after that pass, and the design's function is now
 **`interpret`**.
 
@@ -93,8 +95,8 @@ review.**
 | file | state |
 |---|---|
 | `review-design.md` | **the ledger.** F-1 … F-56. The first forty-nine are terminal; F-50 … F-56 carry a disposition and a Response and are awaiting an outcome from round 4's raiser. Every Response is written to be complete without the session that wrote it: they are your brief |
-| `design.md` | **current truth, through round 4's integration.** All seven of round 4's repairs are applied (item 2b). P-14 is a decision, not a repair, and is not applied — §*Waiting on the user* |
-| `design-log.md` | D-1 … D-35. Append-only. D-29 supersedes D-27's second paragraph and **D-33 reverses D-16**. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
+| `design.md` | **current truth, through round 4's integration and D-36.** All seven of round 4's repairs are applied (item 2b); §5.2 and §5.5 carry P-14's answer and §8 R5 is restated |
+| `design-log.md` | D-1 … D-36. Append-only. D-29 supersedes D-27's second paragraph and **D-33 reverses D-16**. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
 | `research.md` | Thread 3 is everything measured |
 | `canon-delta.md` | CD-1, CD-2. F-45 touches CD-2 |
 | `spike-fields/` | committed at `4f93d41`. Delete when the design closes |
@@ -156,8 +158,9 @@ review.**
      greps. Clear of all of them. This is the harvest's *check the boundary
      suite's needles before naming a new function*, performed.
 
-   **Open, and waiting on the user: P-14.** See §*Waiting on the user* below.
-   Nothing in the design was reshaped to accommodate either answer.
+   **P-14: settled as D-36**, 2026-09-18. See §*P-14 — settled* below; the
+   recipe this section used to carry could not have produced the race, and
+   working out why is what answered the question.
 
    **Not touched, deliberately:** `review-design.md` (D-29 — the seventeen stay
    `_pending round 4_`); canon; `design-log.md` (no user decision was taken
@@ -359,94 +362,67 @@ review.**
    code the handback indexes, and those are referenced by hash.
 
 4. **Re-ask the user for acceptance.** The design has changed twice since theirs,
-   and this integration is the third.
+   the round-4 integration is the third, and D-36 is a fourth — §5.2, §5.5's
+   edges row and §8 R5. **This is now the only thing standing between the design
+   and the plan.**
 
-5. **Plan**, with a fresh agent. P-13 and P-14 are inputs to it, and so is the
+5. **Plan**, with a fresh agent. P-13 and D-36 are inputs to it, and so is the
    handback's §Recommendation: if the prototype is resumed, **`datetime` first** —
    `number` mostly exercises pure functions that already have coverage, `choice`
    is small, and `datetime` is where the unmeasured mechanisms are.
 
 6. **Delete `spike-fields/`** when the design closes.
 
-### Waiting on the user
+### P-14 — settled, and the recipe that was here could not have worked
 
-**P-14 — a refusal raised beside an answer that proceeds does not survive the
-fold.** Not applied, and not reshaped to fit: it is a decision, and D-21 is what
-that rule exists for.
+Formerly §*Waiting on the user*, which is how `review-design.md`'s Synthesis
+cites it.
 
-The design (§5.2, §5.5's edges table, I-H) says that a carried edit whose `view`
-is not the retained one is `Refused::SupersededView`, **reported**, and *the
-answer still goes*. The prototype built exactly that and found the second half
-undermines the first. `serve` has one refusal site and it `continue`s: a refusal
-and an exchange are alternatives in `dispatch`'s `Option<Result<Pending,
-Refused>>`, so there is no value that says both. The shape that works is the one
-`refuse_during_exchange` already uses — `Controller::choose` calls `self.refuse`
-itself and returns `Ok` — and it inherits that arm's own stated consequence:
-`absorb` replaces the whole retained `Diagnostics` when the exchange folds, so
-the line is on screen for the duration of the exchange and then gone.
+**Settled 2026-09-18 as `design-log.md` D-36**: the refusal is reported for the
+life of the exchange and no longer, stated in `design.md` §5.2. No new
+mechanism. This section is kept rather than deleted because the recipe it used
+to carry was wrong in a way worth recording.
 
-Two smaller things came with it. The line a person reads is
-`Refused::SupersededView`'s existing one — *"no action taken: that answer belongs
-to a question that has since been replaced"* — which is about an **answer**, and
-here it is about discarded typing on an answer that did go. And a `Choose`
-carrying two stale edits reports **once**, not twice, because
-`Diagnostics::refused` replaces rather than accumulates.
+**The recipe could not produce the race.** It said *"the bash backend re-prompts
+on every evaluate, so the view is replaced every 3 s"*, and raising `DEBOUNCE`
+would make the window hittable. `MINIMUM_SPACING` (`controller.rs:509`) is a
+**floor** on how often an evaluate may begin, not a cadence. What actually
+schedules one in the demo: `examples/demo.toml:11` `default_poll = "30m"`, a
+backend answering `next_check: 45 minutes` to everything, and a `respond` arm
+returning `{"view":null}` (`examples/shell/backend.sh:88`) — so answering closes
+a view rather than issuing a new one. After the first prompt nothing supersedes
+anything for 45 minutes. The user ran it with the knob in place and saw nothing,
+correctly.
 
-So the choice is:
+**The drivers that do exist**, if a later slice needs this race on screen:
+ingress (`just emit <source> <kind>`, floored to one per 3 s by
+`controller.rs:678`), or a backend that returns a view on a short `next_check`.
+`--source host` is refused — `reserved_source`, `SPEC-003/R-13` — so an emitted
+event takes `backend.sh:126`'s branch and draws a **fieldless** view, which
+replaces the form visibly and drowns out the thing being observed. Re-issuing
+the same form needs a one-line spike edit to `backend.sh:92` (`host)` →
+`host|nudge)`).
 
-- **§9 gets a surface that survives the fold** — a second diagnostics channel,
-  or a class of refusal `absorb` does not replace. New mechanism, and it is host
-  functionality, so the first invariant's question applies to it.
-- **or the design says the refusal is not durable** — one sentence in §5.2:
-  reported for the life of the exchange, and no longer. Nothing in the host today
-  can promise longer. The promise §5.2 makes now is *reported*, which is true;
-  what it does not say is *for how long*.
+**What the pricing found, which observation would not have.** The refusal is the
+smaller half of the event. `Command::Edit` never reaches the backend — it
+mutates the retained draft (`controller.rs:753-761`) and yields no exchange — so
+the draft dies with the view, the field clears under the caret, and everything
+typed into it is lost. `SupersededView` names only the burst since the last
+delivery, and the debounce restarts on every keystroke (`pending.rs:82`), so
+that burst is *since your last pause*, not 150 ms flat. A notice that survived
+the exchange fold would have been a durable report of the lesser loss. §8 R5 is
+restated accordingly, and the follow-up on `SPEC-002/OQ-4` is in §Harvest.
 
-This also reaches §5.5's edges table, which has a row for it, and R5 in §8, which
-already accepts the wider window as a cost rather than mitigating it.
+**The spike knob is reverted.** `DEBOUNCE` is back to
+`Duration::from_millis(150)` at `pending.rs:37` in `/home/david/dev/goad-009-proto`.
 
-**What the user has said so far, and it is not yet a decision.** Asked whether a
-refusal that reaches only the diagnostics pane counts as a report for a person
-mid-form: *"I'd say no, but I'm also inclined to make these usability decisions
-based on interaction with actual software instead of based on a leaky
-theoretical model."* So the lean is **no**, and the method is **observation
-first**. Nothing is in `design-log.md` for it, deliberately — an inclination
-plus a deferral is not a `D-n`, and writing one would be the overreach D-21
-exists to stop.
-
-The thing they want to experience is **the race**, not the pane. They have seen
-the pane. Two facts bound that:
-
-- **It cannot be experienced on `main`.** `main` draws `boolean` only, and a
-  boolean raises its edit where it is raised — there is no `pending.rs`, so
-  there is no stale entry to carry. The race needs a debounced field, which
-  means the prototype worktree or the slice's own `text` phase.
-- **It is hittable, and the window can be widened.** `MINIMUM_SPACING` is 3 s
-  (`controller.rs:429`) and floors both scheduled firings and ingress arrivals,
-  so a view replaces at most every 3 s. Against a 150 ms debounce that is a ~5%
-  hit rate per type-then-click. `DEBOUNCE` is a one-line const
-  (`pending.rs:37`, prototype worktree): raise it to ~2 s and the window becomes
-  2 s of every 3, which is a majority of attempts. That changes only how long an
-  entry lingers, not the mechanism being watched — it is the honest knob.
-
-**The recipe**, for whoever runs it:
-
-1. `/home/david/dev/goad-009-proto`, branch `slice-009-prototype`. Builds clean;
-   `cargo test --workspace` is red on P-10 alone, which is the boundary
-   instrument and not the demo.
-2. Raise `DEBOUNCE` to `Duration::from_secs(2)` in `pending.rs:37`. **Revert it
-   after** — it is a spike knob, not a change.
-3. `just demo`. The bash backend re-prompts on every evaluate, so the view is
-   replaced every 3 s.
-4. Type into the `text` field, then click an option inside the debounce window.
-   A stale carried edit is refused `SupersededView` while the answer goes.
-5. Watch the **prompt** pane. The question is whether anything at all tells the
-   person their typing was dropped.
-
-`docs/memory/getting-eyes-on-the-running-host.md` has the launch and screenshot
-mechanics, and its own recorded observation that a refusal fills `diagnostics`
-without putting anything on screen — which is a past instance of the same
-question, measured rather than argued.
+**The method still stands** even though this one was settled by argument. The
+user's rule — *"I'm also inclined to make these usability decisions based on
+interaction with actual software instead of based on a leaky theoretical
+model"* — is in §Harvest as a memory candidate, and what changed here is that
+the model stopped being leaky: reading what an `Edit` does made the observation
+unnecessary. Check whether the mechanism does what the note claims **before**
+sending anyone to look at it.
 
 ### Carried forward, outside this slice
 
@@ -766,3 +742,22 @@ here rather than in the ledger, so striking them costs nothing:
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **Follow-up: `SPEC-002/OQ-4` has lost the reason it stayed open.** OQ-4 asks
+  whether a host should suppress or defer a firing while a presentation is
+  outstanding. It is open partly because suppression *"asks the host to judge
+  that a view is worth protecting, which is domain meaning it does not hold"*.
+  After this slice the host retains a draft and a keyed pending map, so *typed
+  into and not yet answered* is interaction state, available without
+  understanding anything about the domain. The other half of OQ-4's reason —
+  that deferral needs a second pending state and a second writer of the deadline
+  — is untouched, and so is the observation that the answer may belong to the
+  backend. Not this slice's to answer (`slice-009.md` §Non-goals) and not
+  reopened here; recorded so a later slice does not re-derive it. `design-log.md`
+  D-36, `design.md` §8 R5.
+- **Follow-up: what a supersession costs is not what R5 said it was.** A
+  superseded view clears the field under the caret and loses everything typed
+  into it, because `Command::Edit` mutates the retained draft and never reaches
+  the backend (`controller.rs:753-761`). The row said *widens the window* and
+  named diagnostic-pane noise as the signal. Restated in place. Nothing in the
+  slice changes; the audit should read the row as written now.
