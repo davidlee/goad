@@ -3,16 +3,14 @@
 Derived from `review-design.md` (rounds 1–3), `design-log.md` D-21 … D-24 and
 `notes.md`. Line numbers are against `design.md` at `a01ae6a`, identical here and
 in `/home/david/dev/goad`. All thirteen are **dispositioned `fix-now` and
-user-confirmed** (D-23 for F-40, D-24 for the rest); none is integrated. This
-file is meant to be sufficient on its own.
-
-Order of application: **F-38 … F-41 first and together** (one class; F-40 carries
-the decision, F-41 and F-6 are subsumed by its answer), then F-20, F-26, F-29,
-F-32, then F-42 … F-45.
+user-confirmed** (D-23 for F-40, D-24 for the rest); none is integrated. Meant to
+be sufficient on its own. Order of application: **F-38 … F-41 first and
+together** (one class; F-40 carries the decision, F-41 and F-6 are subsumed by
+its answer), then F-20, F-26, F-29, F-32, then F-42 … F-45.
 
 ## A. The F-38 … F-41 family (all four blockers) — plus F-6
 
-These four are one mechanism. Read §D before writing any of them individually.
+One mechanism. Read §D before writing any of them individually.
 
 ### F-38 — pending edits lose their originating view
 
@@ -24,13 +22,11 @@ view is either applied to the replacement (same id strings) or refused as
 for the `view` that `Command::Edit` requires.
 
 **Disposition.** `PendingEdit` carries the `view` its edit was made on. The
-`edited` callback already receives that view as its first argument, so it is a
+`edited` callback already receives that view as its first argument, so it costs a
 struct field and no new plumbing, and it is the only available source for the
-`view` a deferred `Command::Edit` needs.
-
-On a drain — timer or answer — an entry whose view is not the command's is
-**discarded and reported** through the existing `SupersededView` site rather than
-applied. The map is therefore self-cleaning across views.
+`view` a deferred `Command::Edit` needs. On a drain — timer or answer — an entry
+whose view is not the command's is **discarded and reported** through the existing
+`SupersededView` site rather than applied, so the map is self-cleaning.
 
 *Rejected:* clearing the map when the row model is rebuilt — same effect by a
 less direct route, and it still leaves the timer path with no `view`.
@@ -49,9 +45,9 @@ overlaid (F-40) onto the new view's widget. **State it once, over three sites.**
 
 ### F-39 — `Wire::send` cannot report enqueue success
 
-**Blocker.** The design promises `chosen` and the timer retain pending entries
-when the send comes back `Full`, but `Wire::send(&self, Command) -> ()` consumes
-the command and discards `TrySendError::Full(_returned)`.
+**Blocker.** The design promises `chosen` and the timer retain pending entries when
+the send comes back `Full`, but `Wire::send(&self, Command) -> ()` consumes the
+command and discards `TrySendError::Full(_returned)` (`wire.rs:130`).
 
 **Disposition.** `Wire::send` reports whether the command was enqueued — a
 **return type, not a mechanism**: the outcome is already in hand at
@@ -68,11 +64,11 @@ and returns failure, `Closed` stays the deliberate no-op (D8).
 
 **Blocker, and the decision of round 3.** `pending.rs` and the draft are
 separate. Until the timer or answer flushes, the widget holds the new value while
-`glass.rs` derives `values` from the old `Prepared` draft. Any intervening
-present writes the old value, bumps `epoch`, and the guard converges — the path
-§5.4 calls a dropped edit. Verified: the serve loop presents **before every
-command** (`crates/goad/src/controller.rs:738-739` — `glass.present(...)` is the
-first statement of `'serving: loop`), so this is not an edge.
+`glass.rs` derives `values` from the old `Prepared` draft; any intervening present
+writes the old value, bumps `epoch`, and the guard converges — the path §5.4 calls
+a dropped edit. Verified: the serve loop presents **before every command**
+(`controller.rs:738-739` — `glass.present(...)` is the first statement of
+`'serving: loop`), so this is not an edge.
 
 **Disposition (D-23, user: *"Overlay pending on the draft (recommended)"*).**
 The value channel is built from the draft **overlaid with what `pending.rs`
@@ -96,24 +92,21 @@ false.
 
 **One thing to measure, not assume.** The overlay *appears* to subsume §5.2's
 cleared-field exception (a cleared field is a pending `""`, so the strings agree
-on their own). The exception **stays** until
-`spike-fields/tests/numeric_guard.rs`'s case is re-run against the overlay and
-shown not to need it — this comparand has been wrong three times, twice on
-reasoning.
+on their own). It **stays** until `spike-fields/tests/numeric_guard.rs`'s case is
+re-run against the overlay and shown not to need it — this comparand has been
+wrong three times, twice on reasoning.
 
 *Rejected:* a per-field suppression flag in `FieldValue`, which spells the same
 information as *do not converge* rather than *this is the value* and leaves
 channel and widget disagreeing on purpose. Also rejected and offered explicitly:
 dropping the debounce, which is D-4 and a standing user commitment.
 
-**Sections:** §5.2 *The guard* (`:399-443`); §5.3 ownership table and the
-"no cache" paragraph (`:690-711`); §5.4 *A keystroke* (`:737-766`); §5.5 I-G
-neighbourhood and Edges; §9 AC-6 row (`:1075`).
-
-**Code:** `SlintGlass` gains one field holding the `Rc<Pending>`. Construction
-order is **already right** — `main.rs:90` installs the callback table before
-`SlintGlass::new` at `:97`, so the `Rc` is created at step 6 and cloned into
-both. One field, no reordering.
+**Sections:** §5.2 *The guard* (`:399-443`); §5.3 ownership table and the "no
+cache" paragraph (`:690-711`); §5.4 *A keystroke* (`:737-766`); §5.5 Edges; §9
+AC-6 row (`:1075`). **Code:** `SlintGlass` gains one field holding the
+`Rc<Pending>`; construction order is **already right** — `main.rs:90` installs the
+callback table before `SlintGlass::new` at `:97`, so the `Rc` is created at step 6
+and cloned into both. One field, no reordering.
 
 **Integration note from `notes.md`:** the overlay goes **through `resolve`**, not
 through a second mapping. `pending.rs` holds `Reported`; `glass.rs` displays from
@@ -142,12 +135,11 @@ present; not re-arming strands the entry until answer.
    a consequence of D22's constraint, not a choice made here.
 
 **Sections:** §5.1 `pending.rs` (`:194-206`, the "two ways an edit leaves"
-paragraph); §5.4 *A keystroke* (`:737-756`); §9 (`:1067`, `:1073`).
-
-**§9 gains a row** that would have caught this: two fields edited inside one
-window, the loop run past the debounce **without answering**, both values in the
-draft and neither widget reverted. Existing rows exercise one timed field, and
-two fields only on the synchronous answer path.
+paragraph); §5.4 *A keystroke* (`:737-756`); §9 (`:1067`, `:1073`), which **gains
+a row** that would have caught this: two fields edited inside one window, the loop
+run past the debounce **without answering**, both values in the draft and neither
+widget reverted. Existing rows exercise one timed field, and two fields only on
+the synchronous answer path.
 
 ### F-6 — one pending command cannot preserve edits to multiple text fields
 
@@ -188,12 +180,10 @@ so does a non-finite one); the span clause **stays**, because it is what makes t
 division safe to perform at all. Everything the tightened predicate rejects takes
 the text control.
 
-**Sections:** §5.2, the `slider_bounds` bullet list (`:337-341`) and the
-paragraph justifying it (`:343-356`); §5.5 Edges row *a `number` with both
-bounds but a range no slider can operate* (`:929`).
-
-**Code:** `fn slider_bounds(range: &NumberRange) -> Option<(f32, f32)>` — three
-clauses, not four: endpoint round-trip; finite and strictly positive `f32` span;
+**Sections:** §5.2, the `slider_bounds` bullet list (`:337-341`) and the paragraph
+justifying it (`:343-356`); §5.5 Edges row *a `number` with both bounds but a range
+no slider can operate* (`:929`). **Code:** `slider_bounds` ends with three clauses,
+not four — endpoint round-trip; finite, strictly positive `f32` span;
 `min + step > min && max - step < max` in `f32`.
 
 ### F-26 — the numeric text parser does not implement Slint's locale rule
@@ -226,7 +216,7 @@ against `f64::from_str`. The rule stays what D-16 wanted: host-side, and testabl
 without a locale fixture.
 
 **Sections:** §5.2 *Parsing the text is done under the rule the control validated
-it with* (`:294-305`), and the D-16 paragraph at `:325-328`.
+it with* (`:294-305`), and the D-16 paragraph (`:325-328`).
 
 ### F-29 — §5.1 and §5.2 undercount `instant.rs`'s impure call sites
 
@@ -280,17 +270,15 @@ the shape of `Reported`, and §5.5 I-G says so.**
 *Rejected:* a `Finite` payload — `Finite::new` would then run inside a Slint
 closure, which has nothing to report a refusal to and no draft to leave alone.
 
-**Sections:** §5.2 `Reported` / `resolve` block, the "buys three things"
-paragraph at `:560-564`; §5.5 I-G at `:902-908`.
-
-**Code:** `pub fn resolve(reported: &Reported, shown: Option<&Edited>, kind:
-&DrawnKind) -> Option<Edited>` — see the `notes.md` signature note under §D.
+**Sections:** §5.2's "buys three things" paragraph (`:560-564`); §5.5 I-G
+(`:902-908`). **Code:** `resolve` keeps its shape but see the `notes.md` signature
+note under §D — `shown: Option<&Edited>`, not `&Edited`.
 
 ### F-43 — `chosen` cannot drain in declared field order
 
-**Minor.** `chosen` is told to drain in declared field order, but its map holds
-only `(option, field) -> Reported`; neither the key nor `PendingEdit` carries a
-slot or order, and `install.rs` does not own the retained `Presentation`.
+**Minor.** `chosen` is told to drain in declared field order, but its map holds only
+`(option, field) -> Reported`; neither the key nor `PendingEdit` carries a slot or
+order, and `install.rs` does not own the retained `Presentation`.
 
 **Disposition.** The ordering **moves to where an order actually exists**: the
 controller applies carried edits on the declared-field walk it already makes for
@@ -338,8 +326,6 @@ and needs no change.
 
 ## D. Net design shape after the thirteen
 
-**What the mechanism is, in implementer terms.**
-
 `pending.rs` owns a map `(option, field) -> PendingEdit`, where
 `PendingEdit { view, option, field, value: Reported }`, plus one `slint::Timer`,
 behind an `Rc`. **Three holders**: the `edited` callback (writes), `chosen`
@@ -362,12 +348,10 @@ behind an `Rc`. **Three holders**: the `edited` callback (writes), `chosen`
    `view` is not the retained one is not used; on a drain it is discarded and
    reported through the existing `SupersededView` site (F-38).
 
-**The invariant this buys** (from `notes.md`; worth stating in §5.5):
-
-> What the screen shows is what an answer would submit.
-
-A drained entry reaches the draft; a kept entry (a `Full` send) is still
-displayed and still travels in the next `Choose`; a stale entry does neither.
+**The invariant this buys** (from `notes.md`; worth stating in §5.5): *what the
+screen shows is what an answer would submit.* A drained entry reaches the draft; a
+kept entry (a `Full` send) is still displayed and still travels in the next
+`Choose`; a stale entry does neither.
 
 **`Reported` / `resolve`.** `Reported` is what a widget can say (`Checked`,
 `Typed`, `AdjustedText`, `AdjustedValue(f32)`, `Chosen(u32)`, `Picked{..}`);
@@ -391,8 +375,8 @@ integrated. What changes is what `values` holds. The cleared-field exception is
 against the overlay and shown not to need it**.
 
 **Outside `design.md`:** `slice-009.md` §Scope gains *`glass.rs` reads
-`pending.rs`*, and AC-4 / AC-6 may need rewording (AC-6's "the host does not hold
-its value" now means draft **or** pending).
+`pending.rs`*; AC-4 / AC-6 may need rewording (AC-6's "the host does not hold its
+value" now means draft **or** pending).
 
 ## E. Where the ledger and `notes.md` disagree
 
@@ -401,7 +385,7 @@ append-only, so they stay as written. Verified here:
 
 | claim | status |
 |---|---|
-| F-10's re-disposition: one `wiring.rs` site, not two | not checked here — take `notes.md` |
+| F-10's re-disposition: one `wiring.rs` site, not two | not checked here |
 | F-23's Response cites `wire.rs:126`; should be `:130` | **confirmed**: `TrySendError::Full(_returned)` is at `wire.rs:130`; `pub fn send` opens at `:127` |
 | the pre-repair §9's `set_accessible_value` claim "appears nowhere here" | **disagreement.** §9's no-loop table (`design.md:1029`) *does* use `set_accessible_value(text)` for the `LineEdit` row, citing `fluent/lineedit.slint:16`, and four obligation rows name it as their driver (AC-4, AC-6, AC-9, the debounce-timer row). `notes.md` may mean a narrower pre-repair sentence; as written the note reads as false. **Do not delete `set_accessible_value` from §9 on the strength of it.** |
 | F-33's Response cites `fluent/components.slint:15-19` for `ListItem`; should be `:49-53` | **confirmed consistent**: `design.md:1033` and `:1039` already cite `:49-53`, so the design is right and only the Response is stale |
