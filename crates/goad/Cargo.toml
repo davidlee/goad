@@ -47,3 +47,7 @@ path = "tests/event_loop_schedule/main.rs"
 [[test]]
 name = "prototype"
 path = "tests/prototype/main.rs"
+
+[[test]]
+name = "event_loop_debounce"
+path = "tests/event_loop_debounce/main.rs"
