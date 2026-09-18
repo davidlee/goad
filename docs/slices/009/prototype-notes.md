@@ -88,7 +88,7 @@ kinds, and all three are mechanical:
 - **`text` leaving the undrawn set** — the five fixtures that used a `text`
   field *because it was undrawn* now say `"kind": "number"`.
 
-That third one is a stop-gap and P-10 says so: the fixture has to migrate to a
+That third one is a stop-gap and P-13 says so: the fixture has to migrate to a
 kind the renderer has not reached yet at every phase, and after P4 there is no
 kind left to migrate it to.
 
@@ -410,7 +410,7 @@ workspace.
 newtype carries no `Eq` either, and why — not because it would be unsound, but
 because a sound `Eq` there silently restores the derive above it.
 
-### P-6 — `PendingEdit` carries its own `view`, and the design settles it
+### P-9 — `PendingEdit` carries its own `view`, and the design settles it
 
 *From P1b. Recorded because the brief left the choice open and said to say
 which was taken.*
@@ -443,7 +443,7 @@ field. What it would have cost to take the other reading is one row of the edge
 table quietly becoming dead prose, which is the class of defect §5.2's *stated
 in full* discipline exists to prevent.
 
-### P-7 — the design's `resolve` collides with an ADR-001 instrument, and the instrument is red
+### P-10 — the design's `resolve` collides with an ADR-001 instrument, and the instrument is red
 
 *From P1b. The collision arrived at P1a; P1b widened it from one site to five.*
 
@@ -472,7 +472,7 @@ function. A rename is the cheaper of the two and touches §5.2, §5.3, §5.5 I-G
 and §9. **This is a canon-adjacent decision and belongs to the user**, which is
 why it is a finding rather than a repair.
 
-### P-8 — the timer's re-arm reproduces, measured
+### P-11 — the timer's re-arm reproduces, measured
 
 *From P1b. Confirmation rather than a defect, and the brief asked for it
 explicitly.*
@@ -501,7 +501,7 @@ the whole case, two ticks of 150 ms included.
 claim to a *measured* one, which is what §9's tiering asks of the claims the
 design turns on.
 
-### P-9 — `init` runs under `init_no_event_loop`, so the destruction probe is a cheap-tier case
+### P-12 — `init` runs under `init_no_event_loop`, so the destruction probe is a cheap-tier case
 
 *From P1b. A tiering fact, not a defect.*
 
@@ -526,7 +526,7 @@ probe in the set out of the tier that costs a `[[test]]` target and a
 once-per-process initialiser. §9's rows for A-1 and for AC-4's *no element is
 destroyed* can be written at the cheap tier.
 
-### P-10 — the undrawn fixture has to migrate once per phase, and after P4 it cannot
+### P-13 — the undrawn fixture has to migrate once per phase, and after P4 it cannot
 
 *From P1b.*
 
@@ -555,7 +555,7 @@ price: the phase that draws the last kind inherits the whole of CD-2's
 deletion, and the three phases before it each look cheaper than they are. One
 line in §9 assigning the deletion to a named phase would fix it.
 
-### P-11 — a refusal that does not stop an exchange has nowhere durable to be reported
+### P-14 — a refusal that does not stop an exchange has nowhere durable to be reported
 
 *From P1b.*
 
@@ -589,18 +589,34 @@ without a second diagnostics channel. Worth one sentence in §5.2 either
 accepting that — *reported for the life of the exchange* — or moving the row
 to a class of refusal the fold does not overwrite.
 
-### P-12 — F-48 was already half-applied, and the half that landed is the right one
+### P-15 — **withdrawn.** Written from a stale read of `draft.rs`
 
-*From P1b. Charter clause, like P-5.*
+*From P1b; withdrawn by the lead on checking the code against it.*
 
-The brief said `Command` and `Edited` both drop `Eq`. P1a had already dropped
-it from `Command` and **kept** it on `Edited`, by giving `Finite` a
-hand-written `impl Eq` justified on `Finite` excluding `NaN`.
+As written, P-15 claimed `Edited` keeps `Eq` through a hand-written
+`impl Eq for Finite`, and that `Command` cannot because it carries a bare
+`f32`. The second half is true. The first is not: `dc30a2a` deleted that impl
+and dropped `Eq` from `Finite`, `Edited`, `Reported` and `Command` alike, and
+`draft.rs`'s own derive comment now says so in as many words.
 
-That is sound and it is what P1b left alone. `Edited` carries a `Finite`, which
-cannot hold the one `f64` that costs the equivalence relation, so `Eq` is a
-claim the type can make. `Command` carries a `Reported`, whose
-`AdjustedValue(f32)` is a bare float and admits `NaN`, so it cannot. The
-distinction is exactly the one F-48's own reasoning draws, and `wire.rs`'s
-derive comment now states it rather than restating F-48's conclusion.
+**The code is right and the finding was wrong**, which is the less common way
+round and worth the id it is spending. `dc30a2a` landed in the worktree while
+P1b was mid-phase — two writers, briefly, because the lead launched P1b before
+P1a had released the worktree. P1b was told to re-read and did so for the files
+it was editing; `draft.rs` was not one of them, so the stale view survived into
+a finding about `draft.rs`.
+
+Two things are worth keeping out of it.
+
+**The distinction P-15 drew is real even though its premise was not.** `Finite`
+*can* soundly carry `Eq` and `Reported` cannot, and that asymmetry is exactly
+F-48's reasoning. P1a's own P-8 records the decision that settles it: the only
+thing `Finite: Eq` could buy is `Edited: Eq`, which F-48 removes, so an impl
+asserting a subtle property nothing consumes is a claim nobody checks.
+
+**A finding that describes the code rather than the design is a finding that
+can go stale.** P-1 … P-14 are claims about what the *design* does not say, and
+those survive a commit landing underneath them. This one was a claim about what
+the *code* holds, and it did not. Worth remembering when the slice's own
+`review-code.md` runs against a moving tree.
 
