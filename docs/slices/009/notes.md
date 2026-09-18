@@ -188,6 +188,39 @@ review.**
    `view_model.rs:31` — is right. §*Citations known bad* still lists three and
    they are all still responders'.
 
+2a. **Disposition `F-50` … `F-56`, with a fresh agent.** Not the session that
+   raised them (D-21, and the user's call when offered the choice). The raiser
+   dispositioning its own findings is the weak form of the role switch the
+   Protocol permits; every time this slice has used a fresh session instead, the
+   fresh session found something.
+
+   The seven are raised, indexed and self-contained — each carries Expected,
+   Observed and Evidence written to be read without the session that wrote them.
+   **Nothing in this file states what the repairs should be**, deliberately: a
+   handover that carries the raiser's preferred repair makes the disposition a
+   rubber stamp of it.
+
+   Three things about their *shape*, which are process rather than conclusions:
+
+   - **F-50, F-51 and F-52 are one surface**, not three. All three land on §5.2's
+     numeric text account — the parse rule, the format rule, and the two sets of
+     admitted texts. Dispositioning them one at a time will produce three repairs
+     where the class needs one, which is the guardrail the Protocol states as
+     *fix the class, not the instance*. Read all three before disposing any.
+   - **F-54 and F-55 each touch something already decided.** F-55 contradicts
+     `design.md` §7 D7, which is a decision this design already took and amended
+     once. F-54 runs into a decision a **prior slice** took and documented in
+     `goad-shell/src/clock.rs`. Neither is a plain disposition: both are
+     candidates for a user decision recorded in `design-log.md`, cited to the
+     finding id, which is what the Protocol means by *a finding that prompts a
+     decision produces one of each*.
+   - **F-53 is the third instance of one class** — a claimed property stronger
+     than the design supports, after F-21 and F-42. Worth disposing as the class.
+
+   Then: confirm each disposition with the user, and hand the **integration** to a
+   third session (D-21 again — the session that writes a disposition does not
+   integrate it).
+
 3. ~~**Bring the prototype's record back.**~~ **Done, 2026-09-18.**
    `prototype-notes.md`, `prototype-delta.md` and `prototype-handback.md` are on
    `main` in this folder, copied verbatim from `slice-009-prototype`. The code is
