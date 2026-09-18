@@ -197,7 +197,6 @@ fn content_form_displays_as_a_noun_phrase() {
 /// view for. The sentence supplies the article, as `ContentForm`'s does not.
 #[test]
 fn field_form_displays_as_the_protocols_own_word() {
-  assert_eq!(FieldForm::Text.to_string(), "text");
   assert_eq!(FieldForm::DateTime.to_string(), "datetime");
   assert_eq!(FieldForm::Number.to_string(), "number");
   assert_eq!(FieldForm::Choice.to_string(), "choice");
@@ -234,7 +233,7 @@ fn a_block_starts_wherever_the_group_value_changes_and_runs_are_never_merged() {
 fn grouped_fields_separated_only_by_an_undrawn_field_are_one_block() {
   let presentation = present(&one_option_with_fields(&serde_json::json!([
     boolean("a", Some(serde_json::json!("Morning"))),
-    { "id": "note", "kind": "text", "label": "Note", "group": "Morning" },
+    { "id": "note", "kind": "number", "label": "Note", "group": "Morning" },
     boolean("b", Some(serde_json::json!("Morning"))),
   ])));
 
@@ -252,8 +251,8 @@ fn grouped_fields_separated_only_by_an_undrawn_field_are_one_block() {
 fn a_group_whose_every_field_is_undrawn_produces_no_block() {
   let presentation = present(&one_option_with_fields(&serde_json::json!([
     boolean("a", None),
-    { "id": "note", "kind": "text", "label": "Note", "group": "Evening" },
-    { "id": "other", "kind": "text", "label": "Other", "group": "Evening" },
+    { "id": "note", "kind": "number", "label": "Note", "group": "Evening" },
+    { "id": "other", "kind": "number", "label": "Other", "group": "Evening" },
   ])));
 
   assert_eq!(blocks_of(&presentation), vec![(None, vec!["a"])]);
@@ -289,12 +288,16 @@ fn an_absent_group_and_an_empty_one_are_blocks_with_no_heading() {
 
 /// VT-4 — AC-3. One report per undrawn field, naming the option, the field
 /// and the form: a backend can act on none of the three without the other
-/// two. All four kinds this renderer does not draw, in declared order, and
-/// none of them reaches a block.
+/// two. Every kind this renderer does not draw, in declared order, and none of
+/// them reaches a block.
+///
+/// **P1b: `text` left this set**, because this renderer now draws it. The set
+/// shrinks once per phase and is empty after P4, at which point `FieldForm`
+/// has no variants left and this case has nothing to assert
+/// (`design.md` §5.1's enumeration).
 #[test]
 fn every_undrawn_kind_is_reported_by_option_field_and_form() {
   let view = one_option_with_fields(&serde_json::json!([
-    { "id": "note", "kind": "text", "label": "Note" },
     { "id": "many", "kind": "number", "label": "Many" },
     { "id": "pick", "kind": "choice", "label": "Pick",
       "options": [{ "id": "one", "label": "One" }] },
@@ -318,13 +321,12 @@ fn every_undrawn_kind_is_reported_by_option_field_and_form() {
   assert_eq!(
     reported,
     vec![
-      ("opt", "note", FieldForm::Text),
       ("opt", "many", FieldForm::Number),
       ("opt", "pick", FieldForm::Choice),
       ("opt", "when", FieldForm::DateTime),
     ]
   );
-  assert_eq!(presentation.undrawn.len(), 4, "and nothing else");
+  assert_eq!(presentation.undrawn.len(), 3, "and nothing else");
   assert!(
     blocks_of(&presentation).is_empty(),
     "an undrawn field never enters a block"
@@ -374,7 +376,7 @@ fn a_group_hint_that_is_not_a_string_is_reported_and_the_field_is_drawn_in_place
 #[test]
 fn a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice() {
   let presentation = present(&one_option_with_fields(&serde_json::json!([
-    { "id": "note", "kind": "text", "label": "Note", "group": 7 },
+    { "id": "note", "kind": "number", "label": "Note", "group": 7 },
   ])));
 
   let reported: Vec<(&str, &str, Option<FieldForm>)> = presentation
@@ -395,7 +397,7 @@ fn a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice() {
     reported,
     vec![
       ("opt", "note", None),
-      ("opt", "note", Some(FieldForm::Text)),
+      ("opt", "note", Some(FieldForm::Number)),
     ],
     "one report per defect, each naming the option and the field, and the \
      kind named by the one that is about the kind"
@@ -420,7 +422,7 @@ fn field_reports_leave_a_parsed_body_undegraded() {
         "id": "opt",
         "label": "Fine",
         "fields": [
-          { "id": "note", "kind": "text", "label": "Note" },
+          { "id": "note", "kind": "number", "label": "Note" },
           { "id": "counted", "kind": "boolean", "label": "Counted", "group": 7 }
         ]
       }]

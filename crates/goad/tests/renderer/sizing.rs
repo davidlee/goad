@@ -27,7 +27,7 @@
 //! (`docs/memory/a-green-test-can-assert-a-proxy.md`). The only assertion left
 //! available is the literal in the markup, which a visual pass may re-tune and
 //! which no reader would learn anything from.
-use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode};
+use goad::generated::{FieldBlock, FieldRow, Kind, OptionRow, PromptWindow, WindowMode};
 use i_slint_backend_testing::init_no_event_loop;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
@@ -39,7 +39,12 @@ fn option_of(id: &str, fields: usize) -> OptionRow {
     .map(|index| FieldRow {
       id: SharedString::from(format!("f{index}")),
       label: SharedString::from(format!("Field {index}")),
-      checked: false,
+      kind: Kind::Boolean,
+      // Structure only. This module measures what the window asks for, and
+      // the value channel is left unwritten: an unwritten slot reads as a
+      // default-initialised `FieldValue`, which is an unticked box — exactly
+      // what `checked: false` said before the split.
+      slot: i32::try_from(index).unwrap_or(0),
     })
     .collect();
   OptionRow {

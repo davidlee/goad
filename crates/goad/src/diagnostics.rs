@@ -210,7 +210,7 @@ fn undrawn_line(undrawn: &Undrawn) -> String {
       let option = option.as_str();
       let field = field.as_str();
       format!(
-        "not drawn: option {option} field {field} is a {form} field; this renderer draws boolean fields only"
+        "not drawn: option {option} field {field} is a {form} field; this renderer does not draw it"
       )
     }
     Undrawn::GroupHint { option, field } => {

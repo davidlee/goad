@@ -11,9 +11,10 @@ use std::rc::Rc;
 use slint::platform::WindowEvent;
 use slint::{CloseRequestResponse, ComponentHandle, Weak};
 
-use crate::draft::Edited;
-use crate::generated::{PromptWindow, Tray};
-use crate::wire::{Command, Stimulus, Wire};
+use crate::draft::Reported;
+use crate::generated::{FieldEdit, Kind, PromptWindow, Tray};
+use crate::pending::Pending;
+use crate::wire::{Command, PendingEdit, Stimulus, Wire};
 use crate::zoom::Zoom;
 
 /// One function, seven installations, each owning its own `Wire` clone and
@@ -21,31 +22,63 @@ use crate::zoom::Zoom;
 /// `let wire = wire.clone();` — the reason is readability, not the lint
 /// table: naming each clone after the callback it feeds says which
 /// callback owns which handle (design.md §5.4).
-pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
-  let chosen = wire.clone();
+pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire, pending: &Rc<Pending>) {
+  // **The answer carries the flush.** Every pending edit travels inside the
+  // one `Choose`, in no promised order — the keys are distinct, so any order
+  // yields the same draft. It has to be one send: the channel holds one and a
+  // Slint callback cannot yield, so a flush of *N* edits followed by a
+  // `Choose` needs *N+1* slots and has one. `Pending::flush` puts the entries
+  // back where the send did not take them, so a second click answers with the
+  // same edits still attached (design.md §5.1, §5.4).
+  let (chosen, choosing) = (wire.clone(), Rc::clone(pending));
   window.on_chosen(move |view, option| {
-    chosen.send(Command::Choose {
-      view: view.into(),
-      option: option.into(),
+    choosing.flush(|edits| {
+      chosen.send(Command::Choose {
+        view: view.into(),
+        option: option.into(),
+        edits,
+      })
     });
   });
 
-  // The widget has already flipped itself, so `checked` is what the person
-  // now sees; the draft is what decides what they will see after the next
-  // present. A dropped send is therefore visibly undone rather than silently
-  // divergent (design.md §5.4).
-  let editing = wire.clone();
-  window.on_edited(move |view, option, field, checked| {
-    editing.send(Command::Edit {
+  // The widget has already assigned itself, so the edit is what the person
+  // now sees; the value channel is what decides what they will see after the
+  // next present. A dropped send is therefore visibly undone rather than
+  // silently divergent (design.md §5.4).
+  //
+  // **Which controls are held and which are sent where they are raised is
+  // §5.2's table**, and it is the one thing here that is easy to get wrong in
+  // the direction that costs nothing to write: `text` and both `number`
+  // controls are the ones a person changes *continuously*, so they take the
+  // debounce; `boolean`, `choice` and `datetime` raise one discrete edit and
+  // holding it for 150 ms would buy nothing and delay the draft.
+  let (editing, holding) = (wire.clone(), Rc::clone(pending));
+  window.on_edited(move |view, option, field, edit| {
+    let Some(value) = reported(&edit) else {
+      return;
+    };
+    let carried = PendingEdit {
       view: view.into(),
       option: option.into(),
       field: field.into(),
-      value: Edited::Checked(checked),
-    });
+      value,
+    };
+    if debounced(edit.kind) {
+      holding.record(&editing, carried);
+    } else {
+      editing.send(Command::Edit {
+        view: carried.view,
+        option: carried.option,
+        field: carried.field,
+        value: carried.value,
+      });
+    }
   });
 
   let closing = wire.clone();
-  window.on_close_diagnostics(move || closing.send(Command::CloseDiagnostics));
+  window.on_close_diagnostics(move || {
+    closing.send(Command::CloseDiagnostics);
+  });
 
   // A built-in, not one of ours: closing the window quits, in either mode,
   // and the window is kept shown because the quit path is `serve`
@@ -57,10 +90,14 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
   });
 
   let checking = wire.clone();
-  tray.on_check_now(move || checking.send(Command::Evaluate(Stimulus::Requested)));
+  tray.on_check_now(move || {
+    checking.send(Command::Evaluate(Stimulus::Requested));
+  });
 
   let showing = wire.clone();
-  tray.on_show_diagnostics(move || showing.send(Command::OpenDiagnostics));
+  tray.on_show_diagnostics(move || {
+    showing.send(Command::OpenDiagnostics);
+  });
 
   let stopping = wire.clone();
   tray.on_quit(move || stopping.stop());
@@ -78,6 +115,34 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
 
   let (restoring, none) = (window.as_weak(), zoom);
   tray.on_zoom_reset(move || rescale(&restoring, &none, |_| Zoom::NONE));
+}
+
+/// Whether this control's edits wait out the debounce window, per §5.2's
+/// table. The map does not branch on kind; this is where the kind is read.
+fn debounced(kind: Kind) -> bool {
+  match kind {
+    Kind::Text | Kind::Number => true,
+    Kind::Boolean | Kind::Choice | Kind::Datetime => false,
+  }
+}
+
+/// One edit, in the widget's own terms.
+///
+/// The mapping is straight — no parsing the boundary could not undo — which is
+/// what `FieldEdit`'s kind discriminant buys: the callback reads the one slot
+/// its control wrote.
+///
+/// `None` is a kind whose control this renderer does not draw yet, so no
+/// markup can raise it: `FieldEdit` carries only the two slots the two drawn
+/// controls write, and inventing a value for the other three would be a lie
+/// the compiler cannot catch later. Each later phase turns one of these arms
+/// into a read of the slot it adds.
+fn reported(edit: &FieldEdit) -> Option<Reported> {
+  match edit.kind {
+    Kind::Boolean => Some(Reported::Checked(edit.checked)),
+    Kind::Text => Some(Reported::Typed(edit.text.to_string())),
+    Kind::Number | Kind::Choice | Kind::Datetime => None,
+  }
 }
 
 /// Take one step and hand the window the scale factor it lands on.

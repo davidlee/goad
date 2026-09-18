@@ -24,12 +24,14 @@
 //! every other module here carries it (`clippy::tests_outside_test_module`).
 
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use goad::controller::{Controller, Ending, serve};
 use goad::diagnostics::next_check_line;
 use goad::generated::{PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
+use goad::pending::Pending;
 use goad::wire::{Cancel, Command, Notice, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::host::Host;
@@ -42,7 +44,7 @@ use tokio::task::LocalSet;
 
 use crate::driving::{host, instant};
 use crate::harness::{
-  TIMEOUT, element_described, field_described, glass_over, logging_scripted, now, stub_clock,
+  TIMEOUT, element_described, field_described, glass_sharing, logging_scripted, now, stub_clock,
   until, window_and_tray,
 };
 use crate::scripting::invocations;
@@ -68,7 +70,7 @@ const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options"
 /// renderer does not draw. R-55 says the view is still shown and the option is
 /// still answerable; R-58 says the response is silent about the undrawn field
 /// rather than carrying a default for it.
-const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"text","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
+const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"number","label":"How many?"}]}]},"next_check":"45 minutes"}"#;
 
 /// A successful exchange with nothing new to show. From an `evaluate` this is
 /// `Shift::Retained`: the outstanding view, and its draft, are left exactly as
@@ -197,14 +199,20 @@ fn screen_of<const N: usize>(
 /// the first is dropped by `Wire::send` and the tick silently undoes itself.
 /// Waiting on this is what keeps that from happening, and a drop then fails as
 /// a timeout rather than as a wrong value.
+/// **Two channels now**: the row carries the field's `slot` and the value
+/// lives at that index of `values`, so reading a field's state is a join of
+/// the two rather than a field of the row (design.md §5.2).
 fn drafted(window: &PromptWindow, option: &str, field: &str) -> bool {
+  let values = window.get_values();
   window
     .get_options()
     .iter()
     .filter(|row| row.id == option)
     .flat_map(|row| row.blocks.iter().collect::<Vec<_>>())
     .flat_map(|block| block.fields.iter().collect::<Vec<_>>())
-    .any(|field_row| field_row.id == field && field_row.checked)
+    .filter(|field_row| field_row.id == field)
+    .filter_map(|field_row| values.row_data(usize::try_from(field_row.slot).ok()?))
+    .any(|value| value.checked)
 }
 
 /// The diagnostic lines the glass wrote to the window — the surface a person
@@ -275,7 +283,10 @@ struct Rig {
 fn rigged(case: &str, instructions: &[&str]) -> Rig {
   let (window, tray) = window_and_tray();
   with_room_for_the_form(&window);
-  let glass = glass_over(&window, &tray);
+  // **One `Pending`, shared.** Two values would give an overlay that never
+  // overlays anything, with every case here still green (design.md §8 R10).
+  let pending = Pending::new();
+  let glass = glass_sharing(&window, &tray, Rc::clone(&pending));
   let (command, log) = logging_scripted(case, instructions);
   let backend = host(command, TIMEOUT, now());
   let (commands_in, commands) = mpsc::channel::<Command>(1);
@@ -288,6 +299,7 @@ fn rigged(case: &str, instructions: &[&str]) -> Rig {
     &window,
     &tray,
     &Wire::new(commands_in, cancel.clone(), notice.clone()),
+    &pending,
   );
   Rig {
     window,

@@ -9,6 +9,7 @@ use goad::diagnostics;
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
+use goad::pending::Pending;
 use goad::startup::{self, Launch, StartupError};
 use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
@@ -82,12 +83,17 @@ fn start(path: &Path) -> Result<(), StartupError> {
   slint::set_xdg_app_id("goad").map_err(StartupError::Platform)?;
   let tray = Tray::new().map_err(StartupError::Platform)?;
 
-  // 6. The bridge. One `Wire`, cloned into each callback and nowhere else.
+  // 6. The bridge. One `Wire`, cloned into each callback and nowhere else —
+  //    and one `Pending`, created here so that the callback table and the
+  //    glass are handed clones of the **same** `Rc`. Two `Pending` values
+  //    would give an overlay that never overlays anything, silently
+  //    (design.md §5.3, §8 R10).
   let (tx, rx) = mpsc::channel::<Command>(1);
   let cancel = Cancel::new();
   let notice = Notice::new();
+  let pending = Pending::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
-  install(&window, &tray, &wire); // the callback table
+  install(&window, &tray, &wire, &pending); // the callback table
 
   // 7. The glass. The `VecModel` is created once and lives for the process;
   //    `present` re-hands its `ModelRc` on every call, so no property has to
@@ -98,6 +104,7 @@ fn start(path: &Path) -> Result<(), StartupError> {
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    pending,
   );
 
   // 8. The first evaluation enters through the ordinary channel, so item 11

@@ -13,14 +13,42 @@ use serde_json::Value;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, watch};
 
-use crate::draft::Edited;
+use crate::draft::Reported;
+
+/// One edit held over a debounce window, and the view it was made on.
+///
+/// The same value `pending.rs` keys by (option, field) and the value
+/// [`Command::Choose`] carries, which is why it lives here rather than there:
+/// the map holds exactly what the command carries, so nothing translates
+/// between the two.
+///
+/// **It carries its own `view`.** An entry outlives the view that produced it
+/// and the map is keyed by strings a replacement view is free to reuse, so
+/// §5.5's I-H — an entry is used only against the view it was made on — needs
+/// the view at all three sites, and the drained `Choose` is the third of them.
+/// The alternative was for the drain to filter on the presented view and the
+/// carried struct to name only (option, field); that leaves §5.5's *a stale
+/// pending entry is drained into a `Choose`* row unreachable, so it is not
+/// taken (`prototype-notes.md` P-6).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PendingEdit {
+  pub view: String,
+  pub option: String,
+  pub field: String,
+  pub value: Reported,
+}
 
 /// What a person did. There is deliberately **no** `Shutdown` variant:
 /// stopping is a decision, not a queue position, and it travels out of band
 /// (design.md §5.4, F-4).
 ///
-/// `PartialEq` without `Eq` (F-48): it carries an [`Edited`], which carries a
-/// number, and the cases that compare a command want `PartialEq` only.
+/// `PartialEq` without `Eq` (F-48): it carries a [`Reported`], whose
+/// `AdjustedValue` is a bare `f32` and admits `NaN`, so reflexivity is not a
+/// claim this type can make. Written down because the alternative is an
+/// implementer meeting a derive error and hand-writing the `Eq` the derive
+/// refused. [`Edited`](crate::draft::Edited) is unaffected and keeps its own:
+/// the number it holds is a `Finite`, which excludes the one `f64` that costs
+/// the equivalence relation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
   Evaluate(Stimulus),
@@ -28,21 +56,35 @@ pub enum Command {
   /// and never parsed back into a value. `view` is the `ViewId` the markup
   /// was given; without it a delayed click answers whichever interaction
   /// happens to be outstanding when it is dequeued (F-13).
+  ///
+  /// It carries the flush. The command channel holds one (`main.rs:86`) and
+  /// `serve` shares the UI thread through `spawn_local`, so a Slint callback
+  /// — synchronous, with no await — cannot let `serve` drain between two
+  /// sends: the second `try_send` of any flush does not risk `Full`, it is
+  /// certain of it. Carrying the edits makes the flush one send, which is what
+  /// lets D-8's *the debounce flushes when the draft becomes an answer* hold
+  /// by the shape of the command rather than by an ordering of sends that was
+  /// never available (design.md §5.1, §5.4).
   Choose {
     view: String,
     option: String,
+    edits: Vec<PendingEdit>,
   },
   /// What the person did to one field. `Choose`'s shape with one more
   /// selector and a value: three opaque strings matched against retained
-  /// state and never parsed back, and an `Edited` whose meaning belongs to
+  /// state and never parsed back, and a `Reported` whose meaning belongs to
   /// `draft.rs`. This module depends on that one and not the reverse — a
   /// value's meaning belongs with what stores it, not with what carries it
   /// (`design.md` §5.2).
+  ///
+  /// A `Reported` rather than an `Edited`: two of the five values can only be
+  /// formed where the retained presentation is, and a Slint callback is not
+  /// there. `controller::edit` resolves it on the walk it already makes.
   Edit {
     view: String,
     option: String,
     field: String,
-    value: Edited,
+    value: Reported,
   },
   OpenDiagnostics,
   CloseDiagnostics,
@@ -127,11 +169,29 @@ impl Wire {
   /// and dropped one line before the task's own `quit_event_loop`. It leaves
   /// the signal exactly as it found it — there is nothing left to explain a
   /// dropped action to, and nothing left to lower it either.
-  pub fn send(&self, command: Command) {
+  ///
+  /// **`true` when the command was enqueued** (F-39), so the caller that must
+  /// not lose it keeps its state until it sees that: an entry leaves
+  /// `pending.rs` when the send that carries it is enqueued, not when it is
+  /// accepted. A refusal has already been reported and the guard corrects the
+  /// widget, whereas a `Full` send has delivered nothing and the entry must
+  /// stand (design.md §5.2).
+  ///
+  /// The result is **advisory** and deliberately not `#[must_use]`: every
+  /// caller written before this slice has nothing to keep and so nothing to
+  /// check, and the back-pressure notice is still raised and lowered exactly
+  /// where it was.
+  pub fn send(&self, command: Command) -> bool {
     match self.commands.try_send(command) {
-      Ok(()) => self.notice.set(false),
-      Err(TrySendError::Full(_returned)) => self.notice.set(true),
-      Err(TrySendError::Closed(_)) => (),
+      Ok(()) => {
+        self.notice.set(false);
+        true
+      }
+      Err(TrySendError::Full(_returned)) => {
+        self.notice.set(true);
+        false
+      }
+      Err(TrySendError::Closed(_)) => false,
     }
   }
 

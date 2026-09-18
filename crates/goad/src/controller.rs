@@ -16,11 +16,11 @@ use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId
 use goad_semantics::schedule::wait_for;
 
 use crate::diagnostics::{Diagnostics, Refused};
-use crate::draft::{Edited, submitted};
+use crate::draft::{Reported, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
-use crate::view_model::{PresentationField, PresentationOption, as_drawn};
-use crate::wire::{Cancel, Command, Notice, Stimulus};
+use crate::view_model::{PresentationField, PresentationOption, as_drawn, resolve};
+use crate::wire::{Cancel, Command, Notice, PendingEdit, Stimulus};
 use goad_shell::clock::Clock;
 
 /// What the person is looking at. One window, three states, **one value** —
@@ -271,7 +271,7 @@ impl Controller {
     view: &str,
     option: &str,
     field: &str,
-    value: Edited,
+    reported: &Reported,
   ) -> Result<(), Refused> {
     let prepared = self.shown.as_mut().ok_or(Refused::SupersededView)?;
     let matched = selected(prepared, view, option)?;
@@ -282,10 +282,80 @@ impl Controller {
       .find(|candidate| candidate.id.as_str() == field)
       .ok_or(Refused::UnknownField)?;
     // Cloned before the write, which is also what ends the borrow of the
-    // presentation the walk above took.
-    let (option_id, field_id) = (matched.id.clone(), declared.id.clone());
+    // presentation the walk above took. The kind comes with them: it is what
+    // turns a widget's report into a draft value, and only the retained
+    // presentation has it.
+    let (option_id, field_id, kind) = (
+      matched.id.clone(),
+      declared.id.clone(),
+      declared.kind.clone(),
+    );
+    // **This is the walk that already knows the field**, which is why
+    // `resolve` is reached from here and not from the callback: an
+    // `AlternativeId` can only be cloned off a drawn view, and a text that
+    // does not parse finitely keeps the number the field already holds. A
+    // `None` is a renderer bug and takes the `UnknownField` posture —
+    // reported, nothing recorded (design.md §5.2).
+    let held = prepared.draft.state_of(&option_id, &field_id);
+    let value = resolve(reported, held.as_ref(), &kind).ok_or(Refused::UnknownField)?;
     prepared.draft.record(option_id, field_id, value);
     Ok(())
+  }
+
+  /// Apply an answer's carried edits and then resolve the click.
+  ///
+  /// **Identity of the command is checked once, first**, as it is today: a
+  /// `Choose` whose `view` is not the retained token refuses the whole thing
+  /// and records nothing. Past that check each carried edit goes through the
+  /// walk [`edit`](Self::edit) already uses — not `answer`'s, which is `&self`
+  /// and walks one option's drawn fields, while a carried edit may belong to
+  /// an option that is not being answered (F-46). **No order is promised**
+  /// over the carried edits: the keys are distinct by construction, so any
+  /// order produces the same draft.
+  ///
+  /// # Errors
+  ///
+  /// Everything [`answer`](Self::answer) refuses, and one more:
+  /// [`Refused::UnknownField`] where a carried edit names an option or a field
+  /// the retained view does not declare. That is the markup and the retained
+  /// presentation disagreeing, which is a renderer bug rather than a race —
+  /// identity was checked first — so **no answer is sent**, because an answer
+  /// the host knows was built from an incomplete draft is worse than a refusal
+  /// a person can see.
+  ///
+  /// A carried edit whose own `view` is not the retained one is a different
+  /// thing: the person typed into a view that has since been replaced and then
+  /// answered the replacement. That edit is refused `SupersededView` and
+  /// reported, and **the answer still goes** — it is about the view that is
+  /// retained, and nothing about it is incomplete.
+  pub fn choose(
+    &mut self,
+    view: &str,
+    option: &str,
+    edits: Vec<PendingEdit>,
+  ) -> Result<(ViewId, UserResponse), Refused> {
+    {
+      let prepared = self.shown.as_ref().ok_or(Refused::SupersededView)?;
+      selected(prepared, view, option)?;
+    }
+
+    let mut superseded = false;
+    for edit in edits {
+      match self.edit(&edit.view, &edit.option, &edit.field, &edit.value) {
+        Ok(()) => (),
+        Err(Refused::SupersededView) => superseded = true,
+        Err(refused) => return Err(refused),
+      }
+    }
+    if superseded {
+      // Reported rather than returned: the answer still goes, and this is the
+      // only surface a refusal that does not stop the exchange has. It is
+      // replaced by the exchange's own fold, exactly as
+      // `refuse_during_exchange` already is.
+      self.refuse(&Refused::SupersededView);
+    }
+
+    self.answer(view, option)
   }
 
   pub fn open_diagnostics(&mut self) {
@@ -659,15 +729,21 @@ fn dispatch(
       now,
       event: stimulus.event(now),
     })),
-    Command::Choose { view, option } => Some(controller.answer(&view, &option).and_then(
-      |(view_id, answer)| {
-        stamp(clock).map(|now| Pending::Respond {
-          now,
-          view_id,
-          answer,
-        })
-      },
-    )),
+    Command::Choose {
+      view,
+      option,
+      edits,
+    } => Some(
+      controller
+        .choose(&view, &option, edits)
+        .and_then(|(view_id, answer)| {
+          stamp(clock).map(|now| Pending::Respond {
+            now,
+            view_id,
+            answer,
+          })
+        }),
+    ),
     // An edit is not an exchange: it writes retained state and the loop
     // continues to the top, which presents and so writes the screen back from
     // the draft. `None` on success for that reason, and no clock is read —
@@ -680,7 +756,7 @@ fn dispatch(
       field,
       value,
     } => controller
-      .edit(&view, &option, &field, value)
+      .edit(&view, &option, &field, &value)
       .err()
       .map(Err),
   }

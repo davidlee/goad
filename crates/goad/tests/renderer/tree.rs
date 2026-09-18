@@ -18,7 +18,9 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 
-use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode};
+use goad::generated::{
+  FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, WindowMode,
+};
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ModelRc, SharedString, VecModel};
 
@@ -59,12 +61,30 @@ fn rows(entries: &[(&str, &str, &str)]) -> ModelRc<OptionRow> {
 /// query is `field_described`'s subject, not this fixture's.
 const AN_OPTION: (&str, &str, &str) = ("opt-a", "Yes", "view-1");
 
-fn field(id: &str, label: &str, checked: bool) -> FieldRow {
+/// One field's **structure**. `slot` is its index into the window's `values`,
+/// which the case writes separately: the two channels are two properties now,
+/// and a fixture that wrote only one would draw every field at its default
+/// (design.md §5.2).
+fn field(id: &str, label: &str, slot: i32) -> FieldRow {
   FieldRow {
     id: SharedString::from(id),
     label: SharedString::from(label),
-    checked,
+    kind: Kind::Boolean,
+    slot,
   }
+}
+
+/// The **value** channel: one `FieldValue` per slot, ticked where the slot is
+/// named. Written with `set_values`, which destroys nothing — nothing repeats
+/// over it.
+fn ticked(count: usize, ticks: &[usize]) -> ModelRc<FieldValue> {
+  let values: Vec<FieldValue> = (0..count)
+    .map(|slot| FieldValue {
+      checked: ticks.contains(&slot),
+      text: SharedString::default(),
+    })
+    .collect();
+  ModelRc::new(VecModel::from(values))
 }
 
 fn block(heading: &str, fields: Vec<FieldRow>) -> FieldBlock {
@@ -309,11 +329,9 @@ fn a_block_of_two_fields_renders_a_control_for_each() -> TestResult {
   let window = window()?;
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![block(
     "Before you go",
-    vec![
-      field("stretched", "Stretched", false),
-      field("read", "Read", true),
-    ],
+    vec![field("stretched", "Stretched", 0), field("read", "Read", 1)],
   )]))));
+  window.set_values(ticked(2, &[1]));
 
   for (id, checked) in [("stretched", false), ("read", true)] {
     let control = field_described(&window, AN_OPTION.0, id)
@@ -347,11 +365,11 @@ fn a_block_of_two_fields_renders_a_control_for_each() -> TestResult {
 /// `ModelRc` to `set_options` each time exercises nothing.
 #[test]
 fn a_model_reset_re_establishes_a_fields_checked_value() -> TestResult {
-  let checked_field =
-    || one_option_with(vec![block("", vec![field("stretched", "Stretched", true)])]);
+  let checked_field = || one_option_with(vec![block("", vec![field("stretched", "Stretched", 0)])]);
   let window = window()?;
   let options = Rc::new(VecModel::from(checked_field()));
   window.set_options(ModelRc::from(Rc::clone(&options)));
+  window.set_values(ticked(1, &[0]));
 
   let checked_now =
     || field_described(&window, AN_OPTION.0, "stretched").and_then(|c| c.accessible_checked());
@@ -391,18 +409,22 @@ fn activating_a_field_control_fires_edited_with_all_four_selectors() -> TestResu
   let window = window()?;
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![block(
     "",
-    vec![field("stretched", "Stretched", false)],
+    vec![field("stretched", "Stretched", 0)],
   )]))));
+  window.set_values(ticked(1, &[]));
 
   let captured: Rc<RefCell<Option<EditedArgs>>> = Rc::new(RefCell::new(None));
   {
     let captured = Rc::clone(&captured);
-    window.on_edited(move |view, option, field, checked| {
+    // The fourth argument is one typed `FieldEdit` now, not a bare `bool`:
+    // one callback carries every kind's edit and the kind discriminant says
+    // which slot of it the control wrote (design.md §5.2).
+    window.on_edited(move |view, option, field, edit| {
       *captured.borrow_mut() = Some((
         view.to_string(),
         option.to_string(),
         field.to_string(),
-        checked,
+        edit.checked,
       ));
     });
   }
@@ -440,17 +462,14 @@ fn a_fields_screen_order_is_its_declared_order_across_blocks() -> TestResult {
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![
     block(
       "Before you go",
-      vec![
-        field("stretched", "Stretched", false),
-        field("read", "Read", false),
-      ],
+      vec![field("stretched", "Stretched", 0), field("read", "Read", 1)],
     ),
     block(
       "",
       vec![
-        field("walked", "Walked", false),
-        field("called", "Called", false),
-        field("slept", "Slept", false),
+        field("walked", "Walked", 2),
+        field("called", "Called", 3),
+        field("slept", "Slept", 4),
       ],
     ),
   ]))));
@@ -490,12 +509,9 @@ fn a_block_heading_reaches_the_screen_and_an_untitled_block_draws_none() -> Test
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![
     block(
       "Before you go",
-      vec![
-        field("stretched", "Stretched", false),
-        field("read", "Read", false),
-      ],
+      vec![field("stretched", "Stretched", 0), field("read", "Read", 1)],
     ),
-    block("", vec![field("walked", "Walked", false)]),
+    block("", vec![field("walked", "Walked", 2)]),
   ]))));
 
   assert_eq!(
@@ -516,10 +532,7 @@ fn a_block_heading_reaches_the_screen_and_an_untitled_block_draws_none() -> Test
 #[test]
 fn an_option_with_no_fields_adds_no_element() -> TestResult {
   let window = window()?;
-  let mut rows = one_option_with(vec![block(
-    "",
-    vec![field("stretched", "Stretched", false)],
-  )]);
+  let mut rows = one_option_with(vec![block("", vec![field("stretched", "Stretched", 0)])]);
   rows.push(OptionRow {
     id: SharedString::from("opt-b"),
     label: SharedString::from("No"),

@@ -16,6 +16,7 @@ mod fixture;
 pub mod generated;
 pub mod glass;
 pub mod install;
+pub mod pending;
 pub mod reception;
 pub mod startup;
 pub mod view_model;

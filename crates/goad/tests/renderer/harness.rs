@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
+use goad::pending::Pending;
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::clock::ClockError;
 use goad_shell::config::Command as ShellCommand;
@@ -57,10 +58,23 @@ pub(crate) fn window_and_tray() -> (PromptWindow, Tray) {
 }
 
 pub(crate) fn glass_over(window: &PromptWindow, tray: &Tray) -> SlintGlass {
+  glass_sharing(window, tray, Pending::new())
+}
+
+/// A glass over the **same** `Pending` the callbacks hold. A case that gives
+/// the two halves separate values gets an overlay that never overlays
+/// anything, every case still green and nothing measured (design.md §8 R10) —
+/// so the sharing is a helper rather than a line each case writes.
+pub(crate) fn glass_sharing(
+  window: &PromptWindow,
+  tray: &Tray,
+  pending: Rc<Pending>,
+) -> SlintGlass {
   SlintGlass::new(
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    pending,
   )
 }
 

@@ -1021,6 +1021,7 @@ mod interaction {
         tx.send(Command::Choose {
           view: stale_view,
           option: "yes".to_owned(),
+          edits: Vec::new(),
         })
         .await
         .expect("the channel must accept the queued click");
@@ -1102,6 +1103,7 @@ mod interaction {
         tx.send(Command::Choose {
           view,
           option: "yes".to_owned(),
+          edits: Vec::new(),
         })
         .await
         .expect("the channel must accept the click");
@@ -1130,7 +1132,7 @@ mod interaction {
 /// option it names and none for any other.
 mod editing {
   use goad::controller::{Controller, Ending, Exchanged, serve};
-  use goad::draft::Edited;
+  use goad::draft::Reported;
   use goad::generated::PromptWindow;
   use goad::glass::Glass;
   use goad::wire::{Cancel, Command, Notice, Stimulus};
@@ -1154,7 +1156,7 @@ mod editing {
   /// draw. R-58 says the response is silent about such a field rather than
   /// carrying a default for it, so its absence from `values` is an assertion
   /// and not an oversight.
-  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"text","label":"Anything to add?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
+  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"number","label":"How many?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
   /// One option, five fields, two blocks: two under a heading the backend
   /// authored, then three carrying no `group` at all — an **untitled** block,
@@ -1250,26 +1252,26 @@ mod editing {
         "a-token-from-a-replaced-view",
         "morning",
         "read",
-        Edited::Checked(true)
+        &Reported::Checked(true)
       ),
       Err(Refused::SupersededView),
       "identity is checked first, and a stale token is refused for the reason true of it"
     );
     assert_eq!(
-      controller.edit(&view, "not-an-option", "read", Edited::Checked(true)),
+      controller.edit(&view, "not-an-option", "read", &Reported::Checked(true)),
       Err(Refused::UnknownOption)
     );
     assert_eq!(
-      controller.edit(&view, "morning", "not-a-field", Edited::Checked(true)),
+      controller.edit(&view, "morning", "not-a-field", &Reported::Checked(true)),
       Err(Refused::UnknownField)
     );
     assert_eq!(
-      controller.edit(&view, "morning", "tidied", Edited::Checked(true)),
+      controller.edit(&view, "morning", "tidied", &Reported::Checked(true)),
       Err(Refused::UnknownField),
       "a field the *other* option declares is not this one's: R-52 scopes a field id to its option"
     );
     assert_eq!(
-      controller.edit(&view, "morning", "noted", Edited::Checked(true)),
+      controller.edit(&view, "morning", "noted", &Reported::Checked(true)),
       Err(Refused::UnknownField),
       "an undrawn field never entered a block, so the walk that admits an edit and the walk \
        that submits a value are the same walk"
@@ -1289,7 +1291,7 @@ mod editing {
 
     let mut nothing_retained = Controller::new();
     assert_eq!(
-      nothing_retained.edit(&view, "morning", "read", Edited::Checked(true)),
+      nothing_retained.edit(&view, "morning", "read", &Reported::Checked(true)),
       Err(Refused::SupersededView),
       "with nothing retained the view is superseded, not the option unknown — there is no \
        presentation for an option to be missing from"
@@ -1305,7 +1307,7 @@ mod editing {
     let (mut controller, view) = retaining("edit-recorded", TWO_FORMS).await;
 
     controller
-      .edit(&view, "morning", "read", Edited::Checked(true))
+      .edit(&view, "morning", "read", &Reported::Checked(true))
       .expect("a field the option declares records");
 
     let (_, answer) = controller
@@ -1350,10 +1352,10 @@ mod editing {
     );
 
     controller
-      .edit(&view, "morning", "read", Edited::Checked(true))
+      .edit(&view, "morning", "read", &Reported::Checked(true))
       .expect("morning declares `read`");
     controller
-      .edit(&view, "evening", "tidied", Edited::Checked(true))
+      .edit(&view, "evening", "tidied", &Reported::Checked(true))
       .expect("evening declares `tidied`");
 
     let (_, morning) = controller
@@ -1399,7 +1401,7 @@ mod editing {
     let (mut controller, view) = retaining("screen-from-draft", TWO_FORMS).await;
 
     controller
-      .edit(&view, "morning", "read", Edited::Checked(true))
+      .edit(&view, "morning", "read", &Reported::Checked(true))
       .expect("morning declares `read`");
     glass.present(controller.frame(false));
 
@@ -1564,7 +1566,7 @@ mod editing {
           view: view.clone(),
           option: "morning".to_owned(),
           field: "read".to_owned(),
-          value: Edited::Checked(true),
+          value: Reported::Checked(true),
         })
         .await
         .expect("the channel must accept the edit");
@@ -1580,7 +1582,7 @@ mod editing {
           view,
           option: "morning".to_owned(),
           field: "not-a-field".to_owned(),
-          value: Edited::Checked(true),
+          value: Reported::Checked(true),
         })
         .await
         .expect("the channel must accept the refused edit");
@@ -1612,16 +1614,20 @@ mod editing {
     );
   }
 
-  /// `read`'s value in the first option row's model, as the markup's inner
-  /// `for` would read it.
+  /// `read`'s value in the window's two channels, as the markup would read it:
+  /// the row carries the `slot` and the value lives at that index of `values`
+  /// (design.md §5.2).
   fn checked_in_row_model(window: &PromptWindow, field: &str) -> bool {
+    let values = window.get_values();
     window
       .get_options()
       .row_data(0)
       .into_iter()
       .flat_map(|row| row.blocks.iter().collect::<Vec<_>>())
       .flat_map(|block| block.fields.iter().collect::<Vec<_>>())
-      .any(|row| row.id == field && row.checked)
+      .filter(|row| row.id == field)
+      .filter_map(|row| values.row_data(usize::try_from(row.slot).ok()?))
+      .any(|value| value.checked)
   }
 }
 

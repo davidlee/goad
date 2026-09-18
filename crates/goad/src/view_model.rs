@@ -147,7 +147,6 @@ pub enum ContentForm {
 /// silently dropped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldForm {
-  Text,
   DateTime,
   Number,
   Choice,
@@ -158,7 +157,6 @@ impl std::fmt::Display for FieldForm {
   /// the value a backend author would search their own view for.
   fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     formatter.write_str(match self {
-      Self::Text => "text",
       Self::DateTime => "datetime",
       Self::Number => "number",
       Self::Choice => "choice",
@@ -269,7 +267,7 @@ pub enum DrawnKind {
 fn drawn_kind(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
   match kind {
     FieldKind::Boolean => Ok(DrawnKind::Boolean),
-    FieldKind::Text => Err(FieldForm::Text),
+    FieldKind::Text => Ok(DrawnKind::Text),
     FieldKind::DateTime => Err(FieldForm::DateTime),
     FieldKind::Number(_) => Err(FieldForm::Number),
     // P3: this becomes `Ok(DrawnKind::Choice { .. })` when a `ComboBox` is

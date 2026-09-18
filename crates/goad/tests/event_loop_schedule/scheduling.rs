@@ -22,6 +22,7 @@ use goad::controller::{Controller, Ending, serve};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
+use goad::pending::Pending;
 use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock::wall_clock;
@@ -81,12 +82,14 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
   let stopper = cancel.clone();
   let notice = Notice::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
-  install(&window, &tray, &wire);
+  let pending = Pending::new();
+  install(&window, &tray, &wire, &pending);
 
   let glass = SlintGlass::new(
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    pending,
   );
 
   let (command, log) = scripted("event-loop-schedule", &[NOTHING_INSTRUCTED]);
