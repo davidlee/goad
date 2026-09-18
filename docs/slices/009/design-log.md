@@ -760,7 +760,9 @@ anything. `notes.md`'s *"the view is replaced every 3 s"* read `MINIMUM_SPACING`
 
 What the pricing found is that the refusal is the smaller half of the event.
 `Command::Edit` never reaches the backend: it mutates the retained draft
-(`controller.rs:753-761`), which dies with the view. So a supersession clears
+(~~`controller.rs:753-761`~~ **`:661-675`** — the range as written is `serve`'s
+ingress arm; struck 2026-09-19, found by the plan stage, `notes.md`
+§*Citations known bad* 6), which dies with the view. So a supersession clears
 the field under the caret and loses everything typed into it, while
 `SupersededView` names only the burst since the last delivery.
 

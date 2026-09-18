@@ -25,8 +25,9 @@ all 56 findings are terminal — 54 verified, 2 withdrawn, no blocker outstandin
 — and the Synthesis is written. **P-14 is settled** (D-36, 2026-09-18): the
 refusal is not durable, and the question behind it is `SPEC-002/OQ-4`, which
 this slice declines. **The design is accepted and closed** — D-37, 2026-09-19,
-against `design.md` as it stands at `be49327`. **Plan not started**, and
-`plan.md` is still the template. Its inputs are in §*What is owed* item 5.
+against `design.md` as it stands at `be49327`. **`plan.md` is drafted**,
+2026-09-19, nine phases; what is owed on it is the user's choice about an
+adversarial plan review and then their acceptance. §*What is owed* item 5.
 
 The paragraphs below are the arc that produced that, kept because the next agent
 needs to know which surfaces have been rewritten and how often. Round 3's
@@ -367,10 +368,30 @@ review.**
    and D-36. Accepted as it stands at `be49327`. `slice-009.md` **Stage** now
    reads `plan`.
 
-5. **Plan**, with a fresh agent. **This is the live item.** P-13 and D-36 are
-   inputs to it, and so is the handback's §Recommendation: if the prototype is resumed, **`datetime` first** —
-   `number` mostly exercises pure functions that already have coverage, `choice`
-   is small, and `datetime` is where the unmeasured mechanisms are.
+5. ~~**Plan**, with a fresh agent.~~ **Drafted 2026-09-19.** `plan.md` carries
+   nine phases; the Coverage table discharges all ten acceptance criteria.
+
+   Three of its inputs, and what each did to it:
+
+   - **P-13** — the undrawn fixture migrates once per phase. Priced: each kind
+     phase carries a migration exit criterion (PHASE-05/EX-9 and its references),
+     and PHASE-09 owns the deletion, which is why `choice` is last.
+   - **D-36** — the refusal is not durable. Absorbed into PHASE-05/VT-4: a
+     `Choose` carrying two stale edits reports **once**, not twice, and the answer
+     still goes.
+   - **The handback's §Recommendation** — `datetime` first. Taken, but narrowed
+     to *first among the kinds that remain after `text`*, and the disagreement is
+     argued in `plan.md` §*Sequencing & rationale*: `text` is what forces
+     `pending.rs` and the overlay, which every other kind's display depends on.
+
+   **What is owed now**: the user's choice about an adversarial plan review
+   (`review-plan.md`, decisions in `plan-log.md` — neither created by the plan
+   stage), and then their acceptance.
+
+   **Handed back rather than repaired** (`docs/AGENTS.md` — the plan stage does
+   not repair the design): one bad citation in `design.md` §8 R5, in
+   §*Citations known bad* as the sixth entry. Nothing else in the design failed
+   verification against the code; the spot-check is in the plan-stage report.
 
 6. ~~**Delete `spike-fields/`**~~ **Done, 2026-09-19**, with the design close
    (D-37). It is in history at `4f93d41` and nothing that cites it loses its
@@ -408,7 +429,7 @@ the same form needs a one-line spike edit to `backend.sh:92` (`host)` →
 
 **What the pricing found, which observation would not have.** The refusal is the
 smaller half of the event. `Command::Edit` never reaches the backend — it
-mutates the retained draft (`controller.rs:753-761`) and yields no exchange — so
+mutates the retained draft (`controller.rs:661-675`) and yields no exchange — so
 the draft dies with the view, the field clears under the caret, and everything
 typed into it is lost. `SupersededView` names only the burst since the last
 delivery, and the debounce restarts on every keystroke (`pending.rs:82`), so
@@ -525,7 +546,7 @@ two call sites back in `view_model.rs`" is false — `answer` is in
 ### Citations known bad
 
 The ledger is append-only, so a bad citation inside a Response stays as written.
-**Five** are known. Four were known before round 4's outcomes were set, and
+**Six** are known. Four were known before round 4's outcomes were set, and
 that list held five until the prototype checked it
 (`prototype-handback.md` §5): F-10's re-disposition (one `wiring.rs` site, not
 two); F-23's Response (`wire.rs:130`, not `:126`); F-33's Response
@@ -558,6 +579,29 @@ sufficient check. The other three are responders' alone, and rounds 2 and 3's
 reviewers' citations checked out. Round 4's *"no bad citation was found this
 round"* (item 2) is a claim about `design.md`'s citations and stands; it was
 never a claim about the round's own.
+
+**A sixth, found by the plan stage, and it was in `design.md` itself —
+corrected.** §8 R5 cited `controller.rs:753-761` for *"`Command::Edit` never
+reaches the backend — it mutates the retained draft"*. That range is `serve`'s
+**ingress** arm. The `Command::Edit` arm is at `controller.rs:667-675`
+(`grep -n 'Command::Edit {'` → `:667`; the arm ends `.map(Err),` at `:675`,
+and `:676` is the `match`'s closing brace), and the comment that says what R5
+is claiming sits at `:661-666` — *"an edit is not an exchange: it writes
+retained state and the loop continues to the top"*. The claim was true; only
+the range was wrong.
+
+**Corrected 2026-09-19 to `controller.rs:661-675`** — the comment included,
+because it is the line that carries the evidence. `design.md` §8 R5 is an
+artefact and was edited in place; `design-log.md` D-36 is append-only and the
+range is struck there with the correction beside it, per `aeef6ab`'s precedent.
+This entry stays as the record of the error.
+
+**The cause, which is worth more than the entry.** The range came from reading
+a `sed -n` window and naming the arm it happened to contain, which is the same
+cause as the fifth. The rule is unchanged and was not followed: *cite from an
+instrument that prints the number.* The class it belongs to is new, though —
+the first bad citation found in `design.md` rather than in a ledger or a note,
+and it survived four review rounds because it was written after the last one.
 
 **Two entries were struck, and one of them was dangerous.** Both were written
 here rather than in the ledger, so striking them costs nothing:
@@ -649,7 +693,19 @@ here rather than in the ledger, so striking them costs nothing:
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 — the value channel and the epoch | pending | |
+| PHASE-02 — the draft's five values, and the kind-directed pure functions | pending | |
+| PHASE-03 — the edit channel | pending | |
+| PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | pending | |
+| PHASE-05 — `text`, and the debounce's delivery | pending | |
+| PHASE-06 — the overlay | pending | |
+| PHASE-07 — `datetime` and the two pickers | pending | |
+| PHASE-08 — `number` and its two controls | pending | |
+| PHASE-09 — `choice`, and the retirement of `FieldForm` | pending | |
+
+PHASE-04 is the only phase that can run beside another (`plan.md`
+§*Sequencing & rationale*); every other pair overlaps on `app.slint`,
+`view_model.rs`, `glass.rs` or `draft.rs`.
 
 ## Phase sheets
 
@@ -657,7 +713,7 @@ here rather than in the ledger, so striking them costs nothing:
      execution. Disposable detail — it exists to get one agent through one
      phase. -->
 
-### PHASE-01 — <name>
+### PHASE-01 — the value channel and the epoch
 
 **Objective:** <copied from plan.md>
 
@@ -761,6 +817,6 @@ here rather than in the ledger, so striking them costs nothing:
 - **Follow-up: what a supersession costs is not what R5 said it was.** A
   superseded view clears the field under the caret and loses everything typed
   into it, because `Command::Edit` mutates the retained draft and never reaches
-  the backend (`controller.rs:753-761`). The row said *widens the window* and
+  the backend (`controller.rs:661-675`). The row said *widens the window* and
   named diagnostic-pane noise as the signal. Restated in place. Nothing in the
   slice changes; the audit should read the row as written now.
