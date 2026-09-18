@@ -29,7 +29,7 @@ use crate::draft::Reported;
 /// The alternative was for the drain to filter on the presented view and the
 /// carried struct to name only (option, field); that leaves §5.5's *a stale
 /// pending entry is drained into a `Choose`* row unreachable, so it is not
-/// taken (`prototype-notes.md` P-6).
+/// taken (`prototype-notes.md` P-9).
 #[derive(Debug, Clone, PartialEq)]
 pub struct PendingEdit {
   pub view: String,
@@ -46,9 +46,14 @@ pub struct PendingEdit {
 /// `AdjustedValue` is a bare `f32` and admits `NaN`, so reflexivity is not a
 /// claim this type can make. Written down because the alternative is an
 /// implementer meeting a derive error and hand-writing the `Eq` the derive
-/// refused. [`Edited`](crate::draft::Edited) is unaffected and keeps its own:
-/// the number it holds is a `Finite`, which excludes the one `f64` that costs
-/// the equivalence relation.
+/// refused.
+///
+/// `Finite`, `Edited` and `Reported` carry `PartialEq` and no `Eq` for the
+/// same reason, and the leaf is the one that matters: `Finite` *could* soundly
+/// carry `Eq`, and with that one impl in place the derives here and on
+/// `Edited` both come back — F-48's trap reached by a defensible impl on the
+/// newtype rather than by a hand-written one on the enum it warns about
+/// (`prototype-notes.md` P-8, measured at P1a).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
   Evaluate(Stimulus),
