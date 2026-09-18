@@ -502,3 +502,28 @@ F-41, F-42, F-43, F-44, F-45, each with its repair and its rejected alternatives
 written out in `review-design.md`. Four of the five contests were upheld on
 evidence verified by hand this session; two of them, F-32 and F-6, were the
 previous integration's own errors.
+
+## 2026-09-18 — round 3's integration, applied
+
+**D-25 — F-46 … F-49 taken as dispositioned.** User: *"yes, confirm them."* The
+four the integration raised by writing round 3's repairs down. Three are
+corrections to round 3's own dispositions: F-46, that F-43's replacement ordering
+cannot exist because `answer` is `&self` over one option; F-47, that F-40's
+overlay stops AC-6's stated driver reaching the dropped-edit case, so the row
+would have been written green; F-48, that a float inside `Command` costs the `Eq`
+derive and the repair that compiles is unsound. F-49 is the overlay's own
+vacuous-pass hazard — two halves holding different `Rc`s — and is carried by §5.3,
+§8 R10 and §9 together.
+
+The confirmation ran **after** the integration rather than before it, which is the
+opposite of the protocol's order. Recorded rather than smoothed over: all four
+were found by writing the repair, so there was no moment at which they existed
+and the repair did not.
+
+**D-26 — round 4 waits on a prototype.** User: *"A fresh agent will run round 4
+after reviewing feedback from a prototype worktree."* So the design does not go
+back to a reviewer on the strength of the text alone. Round 4's brief is not
+written, and is not to be written until that feedback is in hand — it is the
+brief's job to name the surfaces the prototype found, and a brief written now
+would name only the ones the integration did. This is D-19's rule (spike anything
+a spike can answer) applied to a whole review round rather than to one question.

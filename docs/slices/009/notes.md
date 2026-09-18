@@ -16,10 +16,10 @@ F-32 and F-38 … F-45 — are **integrated** into `design.md`, `slice-009.md` a
 `canon-delta.md`. Rounds 1 and 2's are integrated too, and round 3 verified 18 of
 them. Plan not started.
 
-Integrating raised four more, F-46 … F-49, dispositioned and **not yet confirmed
-by the user**. None is a blocker. What is outstanding, all reading
-`_pending round 4_`: the thirteen, awaiting round 4's terminal outcomes; and
-F-46 … F-49, awaiting both the user's confirmation and round 4.
+Integrating raised four more, F-46 … F-49, dispositioned, integrated and
+**confirmed by the user** (D-25). None is a blocker. So all seventeen read
+`_pending round 4_` and every one of them is awaiting nothing but a terminal
+outcome from a raiser.
 
 **What changed in the integration**, in one line each, because the ledger's
 Responses do not all say where the text landed:
@@ -60,15 +60,20 @@ review.**
 
 ### What is owed, in order
 
-1. **Confirm F-46 … F-49 with the user.** Dispositioned and integrated, not yet
-   confirmed. The protocol wants the confirmation before the repair; this one ran
-   the other way because all four were found *by* writing the repair and three of
-   them are corrections to round 3's own dispositions. Say so when asking.
-2. **Round 4**, with a fresh reviewer again. Round 3 was a new Codex
-   (`gpt-5.6-sol`) thread and was worth its cost; thread
+1. **A prototype worktree**, and a reading of what it says (D-26). The design does
+   not go back to a reviewer on the strength of its text alone. Two things in it
+   have never been run: the overlay, which is the whole of the F-40 family; and
+   the timer's re-arm, which is read out of the locked Slint source
+   (`timers.rs:330-334,348-372`) and not yet observed. `spike-fields/` is the
+   precedent for how that is done — a standalone cargo project, not a workspace
+   member (`slice-009.md` §Governing canon).
+2. **Round 4**, with a **fresh agent**, after that feedback is in hand. Round 3
+   was a new Codex (`gpt-5.6-sol`) thread and was worth its cost; thread
    `01a0b212-239e-70d3-9a99-09729c82b971` is *its* thread and is therefore the
-   right one for setting outcomes and the wrong one for raising. Round 4's brief
-   is not written yet — write it before the reviewer runs, not after.
+   right one for setting round 3's outcomes and the wrong one for raising. **Write
+   round 4's Brief before the reviewer runs**, and write it against what the
+   prototype found as well as what the integration changed — a brief written today
+   would name only the second.
 3. **Re-ask the user for acceptance.** The design has changed twice since theirs.
 4. **Plan**, with a fresh agent.
 5. **Delete `spike-fields/`** when the design closes.
