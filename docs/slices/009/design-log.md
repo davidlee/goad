@@ -787,3 +787,24 @@ not hold"*. That premise is weaker after this slice: the host now retains a
 draft and a pending map, so *typed into and not yet answered* is interaction
 state rather than domain meaning. §8 R5 is restated to say so, and the follow-up
 is in `notes.md` §Harvest for the close. No mechanism in this slice changes.
+
+## 2026-09-19 — the design closes
+
+**D-37 — The design is accepted, and the stage moves to plan.** Asked because
+the design had moved four times since the user's acceptance at draft: rounds 2,
+3 and 4's integrations, and D-36. User: *"commit. accept design. plan."*
+
+What they were accepting is `design.md` as it stands at `be49327` — the
+version whose closure story is `review-design.md` §Synthesis (56 findings, 54
+verified, 2 withdrawn, no blocker outstanding) and whose last change is D-36.
+`slice-009.md` **Stage** is now `plan`.
+
+D-19's second clause falls due with it: `spike-fields/` is deleted from the
+working tree and kept in history at `4f93d41`. `git checkout 4f93d41 --
+spike-fields` restores all thirteen files. Everything that cites it —
+`design.md` §9's picker-seed rows, `research.md` Thread 3, and eleven Evidence
+lines in `review-design.md` — cites measurements already written down, so
+nothing loses its warrant by the deletion.
+
+No design content changes here. The next stage is `plan.md`, which is still the
+template, and its inputs are named in `notes.md` §*What is owed* item 5.

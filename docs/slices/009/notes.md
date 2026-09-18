@@ -4,12 +4,12 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — the review is resolved; the design is waiting on the user
+## Handover — the design is closed; the plan is not started
 
 Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
 again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
-again when they were integrated, and again when the ledger resolved. Delete once
-the design closes.
+again when they were integrated, again when the ledger resolved, and again when
+the design closed. Delete once the plan is accepted.
 
 **Durability, as of this handover.** Everything is pushed: `main` through
 `42527cc` — the commit that integrated round 4 — and `slice-009-prototype`
@@ -24,8 +24,9 @@ Design accepted by the user at draft, then rewritten across four review rounds.
 all 56 findings are terminal — 54 verified, 2 withdrawn, no blocker outstanding
 — and the Synthesis is written. **P-14 is settled** (D-36, 2026-09-18): the
 refusal is not durable, and the question behind it is `SPEC-002/OQ-4`, which
-this slice declines. What remains is the user's acceptance of a design that has
-moved three times since theirs. **Plan not started.**
+this slice declines. **The design is accepted and closed** — D-37, 2026-09-19,
+against `design.md` as it stands at `be49327`. **Plan not started**, and
+`plan.md` is still the template. Its inputs are in §*What is owed* item 5.
 
 The paragraphs below are the arc that produced that, kept because the next agent
 needs to know which surfaces have been rewritten and how often. Round 3's
@@ -99,7 +100,7 @@ review.**
 | `design-log.md` | D-1 … D-36. Append-only. D-29 supersedes D-27's second paragraph and **D-33 reverses D-16**. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
 | `research.md` | Thread 3 is everything measured |
 | `canon-delta.md` | CD-1, CD-2. F-45 touches CD-2 |
-| `spike-fields/` | committed at `4f93d41`. Delete when the design closes |
+| `spike-fields/` | **deleted from the tree** at the design close (D-37). In history at `4f93d41`; `git checkout 4f93d41 -- spike-fields` restores all thirteen files |
 | `prototype-notes.md` | **the artefact**: P-1 … P-15 in full, with the reasoning. P-15 is withdrawn in place. Lifted onto `main` 2026-09-18 |
 | `prototype-handback.md` | the index and the recommendation, and §What it did not test — read that before citing any of it. Lifted onto `main` 2026-09-18 |
 | `prototype-delta.md` | the thirteen round-3 findings as P1a was briefed on them. **Historical** from P1b onward — `design.md` is the authority. Lifted onto `main` 2026-09-18 |
@@ -361,17 +362,19 @@ review.**
    branch may now be retired; nothing on it is needed but the twelve commits of
    code the handback indexes, and those are referenced by hash.
 
-4. **Re-ask the user for acceptance.** The design has changed twice since theirs,
-   the round-4 integration is the third, and D-36 is a fourth — §5.2, §5.5's
-   edges row and §8 R5. **This is now the only thing standing between the design
-   and the plan.**
+4. ~~**Re-ask the user for acceptance.**~~ **Done, 2026-09-19** (D-37). The
+   design had changed four times since theirs — rounds 2, 3 and 4's integrations
+   and D-36. Accepted as it stands at `be49327`. `slice-009.md` **Stage** now
+   reads `plan`.
 
-5. **Plan**, with a fresh agent. P-13 and D-36 are inputs to it, and so is the
-   handback's §Recommendation: if the prototype is resumed, **`datetime` first** —
+5. **Plan**, with a fresh agent. **This is the live item.** P-13 and D-36 are
+   inputs to it, and so is the handback's §Recommendation: if the prototype is resumed, **`datetime` first** —
    `number` mostly exercises pure functions that already have coverage, `choice`
    is small, and `datetime` is where the unmeasured mechanisms are.
 
-6. **Delete `spike-fields/`** when the design closes.
+6. ~~**Delete `spike-fields/`**~~ **Done, 2026-09-19**, with the design close
+   (D-37). It is in history at `4f93d41` and nothing that cites it loses its
+   warrant: every citation is to a measurement already written down.
 
 ### P-14 — settled, and the recipe that was here could not have worked
 
