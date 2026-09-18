@@ -649,3 +649,101 @@ the backend's legal declaration is paid for.
 §5.2 names the constant beside the parse rule it is the inverse of, and §9 pins
 it with a case: a bound that spells long is drawn `{:e}`, and the number survives
 the round trip.
+
+## 2026-09-18 — round 4, dispositioned
+
+A fresh agent disposed `F-50` … `F-56` (D-21, and the user's call when offered
+the choice between that and a hat-switch). Five of the seven are the responder's
+own call and are in the ledger; three are user decisions, because each reverses
+something already decided, and they are here.
+
+**D-33 — the host parses a numeric text with `f64::from_str`, and repairs
+nothing** (F-50, F-52). User: *"Retire it (recommended)"*. This reverses **D-16**
+above, on evidence D-16's round did not have.
+
+D-16 took the parse rule from what `string_to_float` does with the locale's
+decimal separator. What nobody asked then is **who writes that separator**. It is
+a plain `Property<char>` initialised to `'.'` with no binding
+(`i-slint-core-1.17.1/context.rs:122-125`), and its four writers are
+`SlintContext::set_locale` — documented *testing only*, reached from
+`i-slint-backend-testing` alone — two arms of `select_bundled_translation`, which
+needs `with_bundled_translations` at compile time and an explicit call, and one
+arm of `mark_all_translations_dirty` compiled out with the `gettext-rs` feature,
+which nothing here enables. So the separator is `'.'` for every process this
+workspace builds, `string_to_float` always takes its `sep == '.'` branch, and in
+that branch it is `parse::<f32>()` with no substitution at all. Rust's float
+grammar is the same for `f32` and `f64`, so `f64::from_str` already admits
+exactly what the control admits by typing.
+
+The substitution clause therefore has no typed text it is the answer to, and the
+only texts it can fire on are texts the control never validated. `TextInput`'s
+paste path performs no validation (`items/text.rs:1034`, `:1783-1827`), so it
+reads a pasted `12/25` as `12.25`, `3:30` as `3.30` and `$5` as `0.5` — a number
+the screen never showed. That is the *ambiguous message fails rather than being
+guessed at* invariant, and D-6's own rule against holding a value nobody gave.
+
+Accepted: parse with `f64::from_str`; where that does not yield a finite `f64`
+the field keeps the number it had, which §5.2 already says. One consequence is
+a simplification rather than a cost: there is no longer a *numeric grammar* for
+the plan to pin, so **D-32's constraint that the grammar admit `e` and `E` is
+discharged by the rule itself** — `1e5` and `1.7976931348623157e308` both parse
+natively. Rejected: completing the account by making the format direction
+locale-aware too, which keeps a mechanism no build this workspace produces can
+reach and keeps the rule that reads `12/25` as a number.
+
+What is not claimed: that the hazard is impossible. Enabling `slint`'s `gettext`
+feature on unix arms the separator from the system locale, and in that
+configuration a non-dot locale's numeric field cannot be typed into a character
+at a time at all — the control refuses every candidate containing the `.` the
+host's own format writes. That is a property of the control and no host parse
+rule repairs it, which is the second reason completing the account was not worth
+doing. It is carried as a risk in §8 with the manifest as its signal.
+
+**D-34 — a `Slider` binds `changed` and nothing else; `released` is not bound**
+(F-55). User: *"Remove the flush (recommended)"*. §7 D7 is rewritten in place.
+
+The promise was that `released` flushes the debounce so a drag's final value does
+not wait on a timer. It has no interface: the markup declares one host-ward
+callback for a field and `FieldEdit` carries no *send this now* discriminant,
+and the pending map lives behind an `Rc` only `install.rs`'s closures reach — so
+`released` can only call `edited` again, which restarts the timer. It also has no
+driver. `released` is raised by the pointer and keyboard paths only
+(`widgets/common/slider-base.slint:43`, `:107`) while every accessibility action
+routes through `set-value` / `increment` / `decrement` and raises `changed`
+(`widgets/fluent/slider.slint:30-36`), so **no test tier can raise it** — which is
+the same fact that made D-14 bind `changed` in the first place, applied to the
+flush instead of to the binding.
+
+Accepted: remove it. What it would have bought is the last 150 ms of a drag,
+which the timer delivers one tick later and which the answer path flushes in
+full. §5.1's *two ways an edit leaves `pending.rs`* and §5.3's ownership row
+become true as written. Rejected: a second host-ward callback to flush with,
+which adds a third exit to two enumerations stated as closed, an edges row, and a
+§9 row whose only available driver is AC-10's person.
+
+Nothing that was argued is reversed. D-14 decided the `Slider` binds `changed`
+**as well**, because `released` alone is deaf to an assistive technology; no
+entry in this log argues for a flush. §7 D7's *"`released` earns its place as the
+flush, not as the binding"* is what was left over after that correction.
+
+**D-35 — `clock.rs`'s doc comment is amended inside this slice** (F-54). User:
+*"Amend it in this slice"*. `slice-009.md` §Scope gains
+`crates/goad-shell/src/clock.rs`, for one doc-comment amendment and no code
+change.
+
+`clock.rs` avoids `jiff::Timestamp::now()` and says why: it needs jiff's `std`,
+features unify across the workspace build, so enabling it anywhere enables it in
+stratum 1 (`clock.rs:46-52`). This slice enables it, from `crates/goad`. Under
+`--workspace` stratum 1 therefore links a `jiff` with `std` whatever `clock.rs`
+does, and the comment reads as current when it is not. What does **not** follow,
+and F-54 asserted, is that the workaround is dead: `goad-emit` takes `goad-shell`
+without `crates/goad`, so `-p goad-emit` and `-p goad-shell` resolve `jiff`
+without `std` today and would not if stratum 2 asked for it.
+
+Accepted: §10 states all three reaches — the workspace build, the builds that
+exclude `crates/goad`, and `cargo test -p goad-semantics`, which builds neither
+stratum above and is unaffected either way — and the comment is amended in the
+phase that lands the manifest change, the way §5.3 already handles
+`Glass::present`'s doc. Rejected: leaving it to audit's Reconciliation table,
+which is where a divergence *discovered* at audit belongs, not one this slice
+creates knowingly.

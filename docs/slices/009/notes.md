@@ -4,10 +4,11 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — after the integration, before round 4
+## Handover — round 4 raised and dispositioned, nothing integrated
 
 Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
-and rewritten again when D-29 … D-32 landed. Delete once the design closes.
+again when D-29 … D-32 landed, and again when round 4's seven were
+dispositioned. Delete once the design closes.
 
 **Durability, as of this handover.** Everything is pushed: `main` through
 `c79429f` and `slice-009-prototype` through `a1171b3` are both on `origin`. They
@@ -37,12 +38,18 @@ instead, because a measurement is neither a reviewer's finding nor a user's
 choice. `number`, `choice` and `datetime` were never built and §9's validation
 table was never attempted, so nothing the prototype says is evidence about them.
 
-**The review loop is still open, and round 4 is the next thing.** D-29 … D-32
-and the prototype's repairs are integrated (2026-09-18, a
+**The review loop is still open, and the integration of round 4 is the next
+thing.** D-29 … D-32 and the prototype's repairs are integrated (2026-09-18, a
 fresh agent per D-21). §*What is owed* item 1 says where each one landed and
 what the pass found doing it. **One thing was not applied: P-14**, which is a
-decision rather than a repair — §*Waiting on the user*. `design.md` is otherwise
-current truth again, and the design's function is now **`interpret`**.
+decision rather than a repair — §*Waiting on the user*. `design.md` was
+current truth again after that pass, and the design's function is now
+**`interpret`**.
+
+**Round 4 then raised seven and a fresh agent dispositioned them** (items 2 and
+2a). Seven repairs are written down and **none is applied** — item 2b is the
+integration, and it is a different session again. The largest of them retires
+§5.2's locale account (D-33), which reverses D-16 and is a net deletion.
 
 **What changed in the integration**, in one line each, because the ledger's
 Responses do not all say where the text landed:
@@ -75,9 +82,9 @@ review.**
 
 | file | state |
 |---|---|
-| `review-design.md` | **the ledger.** F-1 … F-49, with round 3's outcomes set and its probed-and-sound list. Every Response is written to be complete without the session that wrote it: they are your brief |
-| `design.md` | **current truth**, as of the integration of D-29 … D-32 and the prototype's repairs. Nothing is outstanding against it but P-14, which is a decision and is not applied |
-| `design-log.md` | D-1 … D-32. Append-only. D-29 supersedes D-27's second paragraph. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
+| `review-design.md` | **the ledger.** F-1 … F-56. The first forty-nine are terminal; F-50 … F-56 carry a disposition and a Response and are awaiting an outcome from round 4's raiser. Every Response is written to be complete without the session that wrote it: they are your brief |
+| `design.md` | **current truth as of the integration of D-29 … D-32 and the prototype's repairs, and no further.** Round 4's seven repairs are dispositioned and **not applied** (item 2b); P-14 is a decision and is not applied either |
+| `design-log.md` | D-1 … D-35. Append-only. D-29 supersedes D-27's second paragraph and **D-33 reverses D-16**. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
 | `research.md` | Thread 3 is everything measured |
 | `canon-delta.md` | CD-1, CD-2. F-45 touches CD-2 |
 | `spike-fields/` | committed at `4f93d41`. Delete when the design closes |
@@ -188,38 +195,102 @@ review.**
    `view_model.rs:31` — is right. §*Citations known bad* still lists three and
    they are all still responders'.
 
-2a. **Disposition `F-50` … `F-56`, with a fresh agent.** Not the session that
-   raised them (D-21, and the user's call when offered the choice). The raiser
-   dispositioning its own findings is the weak form of the role switch the
-   Protocol permits; every time this slice has used a fresh session instead, the
-   fresh session found something.
+2a. ~~**Disposition `F-50` … `F-56`, with a fresh agent.**~~ **Done,
+   2026-09-18**, by a fresh Claude agent (D-21, and the user's call when offered
+   the choice between that and a hat-switch). All seven carry a disposition and a
+   Response written to be read without the session that wrote it: **six
+   `fix-now`, one `doc-wrong`** (F-53). None became a blocker. Every disposition
+   was confirmed with the user before it was written down; three of them reverse
+   something already decided and are in `design-log.md` as **D-33, D-34 and
+   D-35**, cited to the finding ids.
 
-   The seven are raised, indexed and self-contained — each carries Expected,
-   Observed and Evidence written to be read without the session that wrote them.
-   **Nothing in this file states what the repairs should be**, deliberately: a
-   handover that carries the raiser's preferred repair makes the disposition a
-   rubber stamp of it.
+   **F-50, F-51 and F-52 took one repair, not three**, which is what the handover
+   said to expect and is the whole difficulty of that surface. The repair
+   **retires** §5.2's locale account rather than completing it: the parse rule
+   becomes `f64::from_str` and nothing else. See D-33 for the argument. It is a
+   net deletion — two paragraphs of §5.2, the *two sets* framing, and the plan's
+   numeric grammar with D-32's `e` / `E` constraint, which the rule now discharges
+   by itself.
 
-   Three things about their *shape*, which are process rather than conclusions:
+   **What writing the repairs down found**, four things, which is the third time
+   this stage has paid for itself:
 
-   - **F-50, F-51 and F-52 are one surface**, not three. All three land on §5.2's
-     numeric text account — the parse rule, the format rule, and the two sets of
-     admitted texts. Dispositioning them one at a time will produce three repairs
-     where the class needs one, which is the guardrail the Protocol states as
-     *fix the class, not the instance*. Read all three before disposing any.
-   - **F-54 and F-55 each touch something already decided.** F-55 contradicts
-     `design.md` §7 D7, which is a decision this design already took and amended
-     once. F-54 runs into a decision a **prior slice** took and documented in
-     `goad-shell/src/clock.rs`. Neither is a plain disposition: both are
-     candidates for a user decision recorded in `design-log.md`, cited to the
-     finding id, which is what the Protocol means by *a finding that prompts a
-     decision produces one of each*.
-   - **F-53 is the third instance of one class** — a claimed property stronger
-     than the design supports, after F-21 and F-42. Worth disposing as the class.
+   - **F-50 was one write site short, and the missing one is the dangerous
+     direction.** `mark_all_translations_dirty`
+     (`i-slint-core-1.17.1/translations.rs:304-310`) reads
+     `sys_locale::get_locale()` and sets the separator from it, under
+     `cfg(all(feature = "gettext-rs", target_family = "unix"))`. Compiled out
+     here — `gettext` is not among `slint`'s defaults and `gettextrs` is absent
+     from `Cargo.lock` — so F-50's conclusion stands. What changes is the shape of
+     the hazard: it is one manifest feature away on unix rather than unreachable,
+     which is why the repair records a risk (§8 R11) instead of only deleting.
+   - **§9's own principal driver bypasses `input-type` too.** A
+     `set_accessible_value` assigns `text` and calls `edited` from inside the
+     markup (`widgets/fluent/lineedit.slint:16`), so it reaches no `TextInput`
+     insertion logic — exactly like the paste path F-52 found. Every numeric case
+     the plan writes therefore drives the unvalidated path by default, and the
+     design had been reasoning from a class its own cases never exercise. It also
+     means F-52's new §9 row costs nothing but a case.
+   - **F-51 carries one false generalisation** and the repair must not inherit
+     it: `format!("{:e}", 1e300)` is `1e300`, with no separator. `{:e}` emits one
+     only for a mantissa that needs one. The finding's worked example (`min: 2.5`)
+     is non-integral and stands.
+   - **F-54's third consequence does not hold.** `goad-emit` takes `goad-shell`
+     without `crates/goad` (`crates/goad-emit/Cargo.toml`), so `-p goad-emit` and
+     `-p goad-shell` resolve `jiff` without `std` today and would not if stratum 2
+     asked for it. `clock.rs`'s workaround is not dead code kept for an expired
+     reason; its reach is narrower than its own comment claims. §10 states three
+     reaches, not one.
 
-   Then: confirm each disposition with the user, and hand the **integration** to a
-   third session (D-21 again — the session that writes a disposition does not
-   integrate it).
+   **Two things the dispositions found that the design owed anyway**, and both
+   land as part of a repair rather than as new findings:
+
+   - **`canon-delta.md` CD-1 has no driver.** Nothing in §9 asserts what an
+     untouched field submits per kind — the thing CD-1 promotes to canon. F-56's
+     repair gives it one, because splitting AC-2's row produces exactly that case
+     as the cheap half.
+   - **F-53's exception list cannot be closed.** Four instances now and a fifth on
+     a strict reading (a touched field of an option nobody answers is displayed
+     and submitted by nothing). That is why the repair deletes the claim rather
+     than lengthening the list — third time for this class, after F-21 and F-42.
+
+2b. **Integrate the seven, with a different session.** D-21: the session that
+   writes a disposition does not integrate it, and that has paid three times out
+   of three in this slice. Nothing below is applied — `design.md`, `slice-009.md`
+   and `canon-delta.md` are untouched by the dispositioning pass, and so is canon.
+
+   The Responses are the brief and are complete; this table is an index to them,
+   not a substitute.
+
+   | | lands in |
+   |---|---|
+   | F-50 / F-51 / F-52 — one repair | §5.2: delete *Parsing the text is done under the rule…*, *The host cannot read that separator…*, *Two sets of texts…* and the `e` / `E` constraint paragraph; add the separator-fact paragraph (four write sites) and the every-string paragraph. §5.5's *numeric text that is not a number* edge row loses its locale variants. §7 **D23** rewritten in place. §8 gains **R11**. §9 gains one row: a numeric text the parse refuses, `set_accessible_value("12/25")`, `tests/renderer/fields.rs` |
+   | F-53 | §5.5 **I-H** only. Keep the three-site rule and the drained / kept / stale clauses; delete the *what the screen shows is what an answer would submit* generalisation and the *one place* sentence; add the paragraph saying what is not claimed |
+   | F-54 | §10 gains the three-reaches paragraph. `slice-009.md` §Scope gains `crates/goad-shell/src/clock.rs`. §10 states the doc-comment amendment the way §5.3 states `Glass::present`'s |
+   | F-55 | §5.2's controls table row and `Slider` paragraph; §7 **D7** rewritten in place. §5.1's *two ways an edit leaves `pending.rs`* and §5.3's ownership row become true as written — **check they are, rather than assuming** |
+   | F-56 | §9: AC-2's row becomes two. Nothing in `slice-009.md` AC-2 changes |
+
+   **Watch for**, because each has caught a session in this slice already:
+
+   - **A claim repeated in two places is repaired in one.** P-7 and D-31 were both
+     owed in §5.5's edges table as well as in §5.2. F-50's repair touches §5.2 and
+     §5.5; grep for *separator*, *locale*, *two sets*, *grammar* across
+     `design.md` before calling it done, and for *released* on F-55's.
+   - **No production line under `crates/goad/src` may name `resolve`**
+     (`goad-boundary/tests/checks/structure.rs:308`). Nothing in these repairs
+     introduces a name, but check anything you do introduce against
+     `vocabulary.rs:18-25`, `purity.rs:17-27` and `structure.rs`'s three call-form
+     greps.
+   - **§7 rewrites an entry in place under its own id; `design-log.md` never
+     does.** Two entries are rewritten here, D23 and D7.
+   - **`design.md` carries no prototype `P-n`.** D-32's rationale in the log cites
+     *the grammar P-5 pinned*; there is no longer a grammar, so nothing in
+     `design.md` should cite one.
+
+   Then: round 4's raiser sets the outcomes on F-50 … F-56 — a bounded
+   verification pass on the repairs, not a round 5 (item 2 has the trend
+   argument) — and item 4 onward follows.
+
 
 3. ~~**Bring the prototype's record back.**~~ **Done, 2026-09-18.**
    `prototype-notes.md`, `prototype-delta.md` and `prototype-handback.md` are on
@@ -488,6 +559,24 @@ here rather than in the ledger, so striking them costs nothing:
   the paste path — performs no validation at all, so a numeric `LineEdit` admits
   every string. An `input-type` is a typing aid, never a class the host may
   reason from.
+- **`set_accessible_value` bypasses `input-type` too**, and it is §9's principal
+  driver. It assigns `text` and calls `edited` from inside the markup
+  (`widgets/fluent/lineedit.slint:16`), reaching no `TextInput` insertion logic —
+  the same shape as the paste path. So the tier that looks like it exercises a
+  validated control exercises the unvalidated one.
+- **Find the write site, and then find *all* of them.** F-50 named three writers
+  of the decimal separator and there are four; the fourth
+  (`i-slint-core-1.17.1/translations.rs:304-310`) is the only one that reads the
+  system locale, and it is compiled out by a feature rather than absent. A
+  mechanism that is off is not a mechanism that cannot be on: the repair records
+  the configuration (§8 R11) instead of only deleting the code path.
+- **`{:e}` does not always carry a decimal point.** `format!("{:e}", 1e300)` is
+  `1e300`. Measured, against a round-4 finding that generalised the other way.
+- **A feature enabled by stratum 3 does not reach a build that excludes stratum
+  3.** `goad-emit` takes `goad-shell` without `crates/goad`, so `-p goad-emit`
+  and `-p goad-shell` resolve a shared dependency with stratum 2's features and
+  not stratum 3's. Feature unification is per *build*, and "the workspace build"
+  is one of several (F-54, D-35).
 
 ## Status
 

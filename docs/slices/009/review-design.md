@@ -273,13 +273,13 @@ this paragraph is what makes that checkable rather than asserted.
 | F-47 | major | fix-now | verified |
 | F-48 | nit | fix-now | verified |
 | F-49 | minor | fix-now | verified |
-| F-50 | major | _pending_ | _pending_ |
-| F-51 | minor | _pending_ | _pending_ |
-| F-52 | major | _pending_ | _pending_ |
-| F-53 | major | _pending_ | _pending_ |
-| F-54 | major | _pending_ | _pending_ |
-| F-55 | major | _pending_ | _pending_ |
-| F-56 | minor | _pending_ | _pending_ |
+| F-50 | major | fix-now | _pending_ |
+| F-51 | minor | fix-now | _pending_ |
+| F-52 | major | fix-now | _pending_ |
+| F-53 | major | doc-wrong | _pending_ |
+| F-54 | major | fix-now | _pending_ |
+| F-55 | major | fix-now | _pending_ |
+| F-56 | minor | fix-now | _pending_ |
 
 ### F-1 — The chosen system-time-zone implementation is compiled without system-time-zone support
 
@@ -1686,7 +1686,59 @@ only", the only other writer besides translations);
 `slint-build-1.17.1/lib.rs:200` (`with_bundled_translations`, unused);
 `design.md:308-332,352-371`; `notes.md` §*Facts verified by hand* item 4.
 
-**Disposition:** _pending_
+**Disposition:** fix-now
+**Response:** Correct, and one write site short. `mark_all_translations_dirty` is
+a fourth writer (`i-slint-core-1.17.1/translations.rs:304-310`): it reads
+`sys_locale::get_locale()` and sets the separator from it, under
+`cfg(all(feature = "gettext-rs", target_family = "unix"))`. Nothing here enables
+that feature — `gettext` is not among `slint`'s defaults
+(`slint-1.17.1/Cargo.toml:100-109`) and `gettextrs` is absent from `Cargo.lock`
+— so the finding's conclusion stands unchanged: the separator is `'.'` for every
+process this workspace builds. What the extra site changes is the shape of the
+hazard. It is not unreachable in principle, it is one manifest feature away on
+unix, and that is worth recording rather than arguing.
+
+The repair is to **retire the locale account rather than complete it**, and it is
+one repair across F-50, F-51 and F-52. §5.2's parse rule becomes `f64::from_str`
+and nothing else; where that does not yield a finite `f64` the field keeps the
+number it had, which is the rule the section already states. Three things carry
+the removal:
+
+- In a dot locale `string_to_float` is `parse::<f32>()` with no substitution at
+  all (`string.rs:398-412`), and Rust's float grammar is the same for `f32` and
+  `f64`. So `f64::from_str` already admits exactly what the control admits by
+  typing, minus the two-byte escape trio (`-`, `.`, `-.`), which no parse accepts
+  on either side. The substitution clause has no typed text it is the answer to.
+- The only texts it can fire on are texts the control never validated, which is
+  F-52: it reads a pasted `12/25` as `12.25`, `3:30` as `3.30` and `$5` as `0.5`
+  (each confirmed against `f64::from_str`). That is `CLAUDE.md`'s *an ambiguous
+  message fails rather than being guessed at* — permissiveness is about fields
+  the host does not model, never about the meaning of one it does — and it is
+  D-6's own rule against holding a value nobody gave as though someone gave it.
+- It takes a plan obligation with it. §5.2 leaves *which characters make up that
+  grammar* to the plan, and D-32 then constrains the grammar to admit `e` and
+  `E`. With `f64::from_str` as the rule there is no separate grammar to pin:
+  `1e5` and `1.7976931348623157e308` both parse natively, so both spellings the
+  format rule produces re-parse, and D-32's constraint is discharged by the rule
+  itself rather than by a list somebody has to get right.
+
+Section by section. §5.2 loses *Parsing the text is done under the rule the
+control validated it with*, *The host cannot read that separator, so it does not
+try to name it*, *Two sets of texts sit behind that rule* and the `e` / `E`
+constraint paragraph; it gains two — one stating the separator fact with all four
+write sites, one stating that the class the control admits is every string and
+naming the guessing rule as the thing deliberately not done (F-52). §5.5's
+*numeric text that is not a number* edge row loses its locale variants. §7 D23 is
+rewritten in place: the decision is `f64::from_str` with no repair of the text,
+and the rejected alternative is the separator substitution, with the evidence
+above. §8 gains **R11** for the configuration that would arm the separator, its
+signal being `gettext` or `with_bundled_translations` appearing in a manifest or
+in `build.rs`. §9 gains one row, stated under F-52.
+
+This reverses F-26's repair and the user decision behind it (`design-log.md`
+D-16), on evidence that round did not have: F-26 established what
+`string_to_float` does with the separator, and nobody asked who writes it.
+Recorded as a user decision in `design-log.md` citing F-50 and F-52.
 
 **Outcome:** _pending_
 
@@ -1728,7 +1780,29 @@ complete — and because §5.2 claims completeness for it in as many words.
 string.contains('.') { return None }`); Rust's `Display` and `LowerExp` for `f64`
 both emit `.`; `design.md:302-307,373-390`.
 
-**Disposition:** _pending_
+**Disposition:** fix-now
+**Response:** Correct, and subsumed by F-50's repair rather than repaired
+separately — which is the answer to the finding's own question about whether the
+account is carried at all. With the parse direction locale-blind, both directions
+are `.` unconditionally, and §5.2's claim to be one account of one boundary
+becomes true by the account having one fact in it instead of two.
+
+**One statement in the finding is wrong and the repair must not inherit it.**
+*"The same is true of every `{:e}` spelling, which also carries a `.`"* is false:
+`format!("{:e}", 1e300)` is `1e300`, with no separator at all, and `{:e}` emits
+one only for a mantissa that needs one. Measured. The finding's own worked
+example — `min: 2.5`, a legal `R-17` bound — is non-integral and does carry a
+dot, so the observation holds where it is demonstrated; it is the generalisation
+that does not.
+
+What survives F-50's repair is the finding's underlying fact, and it is about the
+control rather than about the host: where the separator is not `.`,
+`accept_text_input` refuses every candidate longer than two bytes that contains
+one (`items/text.rs:2208-2229`, `string.rs:398-412`), so a field drawn showing
+`2.5` cannot be edited a character at a time — select-all-and-retype and deletion
+still work. No host parse rule changes that, which is why completing the account
+would not have repaired it. It is recorded as part of §8 R11's statement of what
+the `gettext` configuration would cost, not as a mechanism.
 
 **Outcome:** _pending_
 
@@ -1778,7 +1852,40 @@ though someone gave it."*
 events), `:2202-2231` (`accept_text_input` itself); `design.md:334-371`,
 `design.md` §5.5 Edges, the *numeric text that is not a number* row.
 
-**Disposition:** _pending_
+**Disposition:** fix-now
+**Response:** Correct, and re-derived here rather than read off the finding.
+`accept_text_input` has exactly two call sites, both key-event paths
+(`items/text.rs:1067` for a character insertion, `:1117` for an IME composition).
+`StandardShortcut::Paste` is dispatched at `:1034`, ahead of both, into `paste`
+→ `paste_clipboard` → `insert` (`:1940-1958`, `:1783-1827`), and `insert`
+consults neither `input_type` nor `accept_text_input` and raises `edited` on its
+last line. So a paste both admits arbitrary text and reports it.
+
+**There is a third unvalidated path, and it is §9's own driver.** A
+`set_accessible_value` assigns `text` and calls `edited` from inside the markup
+(`widgets/fluent/lineedit.slint:16`), so it reaches no `TextInput` insertion
+logic either. That is the driver AC-4, AC-6, AC-9 and the numeric rows all use.
+The design has therefore been reasoning from a class its own cases never
+exercise, and every numeric case the plan writes will drive the unvalidated path
+by default.
+
+The repair is F-50's, and the part that belongs to this finding is what replaces
+the *two sets* paragraph: the class the control admits is **every string**, and
+`input-type: decimal` is a typing aid rather than a class the host may reason
+from. The one rule §5.2 already states — the text is recorded verbatim, and the
+last representable number stands — is total over every string on its own, and is
+what makes the removal of the substitution clause a simplification rather than a
+new case to handle. The second set survives as a fact worth keeping, now stated
+as *a parse can accept a text non-finitely* (`inf`, `nan`, `1e999`) rather than
+as a subset of an admitted class that has no subsets.
+
+**§9 gains a row, which the design owed anyway**, and its driver exists today: a
+numeric text the parse refuses. `set_accessible_value("12/25")` on a numeric
+`LineEdit`, in `tests/renderer/fields.rs`, asserting that the field displays
+`12/25` and the draft's number is the one it held — the case that would have gone
+red on the substitution rule, and the case that keeps the rule honest afterwards.
+No loop is needed: the assertion is about the draft and the displayed text, not
+about anything a `changed` handler or a timer produces.
 
 **Outcome:** _pending_
 
@@ -1817,7 +1924,31 @@ is not.
 verbatim, `1e40` held), §5.5 Edges rows *numeric field cleared to `""`* and
 *numeric text that is not a number*; `design.md` §5.2, the guard's exception.
 
-**Disposition:** _pending_
+**Disposition:** doc-wrong
+**Response:** Correct. I-H's three-site rule is sound and is what the mechanism
+holds; the generalisation past it is not, and this is the third time (F-21 on
+I-G, F-42 on `Reported`), so the repair is to the class rather than to the
+sentence.
+
+The exception list is not merely short, it cannot be closed. Four now — an
+untouched `datetime`; a numeric text no finite parse accepts; a cleared numeric
+field; and, after F-52's repair, any pasted text the parse refuses, which is the
+same class as the second reached by a different door. A fifth on a strict
+reading: a touched field of an option nobody answers is displayed and submitted
+by nothing, because `answer` walks the answered option's drawn fields (§5.2).
+Enumerating them is the instance fix. The design should stop making a claim of
+that shape.
+
+So I-H keeps its first two sentences and the three clauses that are checkable —
+a drained entry has reached the draft, a kept entry is still displayed and still
+travels in the next `Choose`, a stale entry does neither — and loses *"for every
+field anyone has touched, what the screen shows is what an answer would submit"*
+together with *"The one place display and submission part company is an untouched
+`datetime`."* In their place, one paragraph saying what is deliberately not
+claimed: the screen and the wire agree per kind, §5.2 says where they do not, and
+an invariant that swallowed those cases would be asserting something an
+implementer could turn into an assertion and watch fail. Nothing else moves —
+§5.5's edges table and §9 already carry each divergence as its own row.
 
 **Outcome:** _pending_
 
@@ -1868,7 +1999,43 @@ and that the reconciliation this creates has no owner.
 `std = ["alloc", …]`; `crates/goad-semantics/Cargo.toml:17` (stratum 1 does carry
 `jiff`); `design.md:1512-1570`; `docs/policy/001-the-phase-gate.md` §Verification.
 
-**Disposition:** _pending_
+**Disposition:** fix-now
+**Response:** The omission is real and `POL-001` does require the argument to be
+complete, so §10 gains the paragraph. **One of the finding's three consequences
+does not hold**, and the repair must not write it down: *"The hand-rolled
+`SystemTime` arithmetic becomes a workaround for a constraint that no longer
+binds."* `goad-emit` depends on `goad-shell` and not on `crates/goad`
+(`crates/goad-emit/Cargo.toml`), so `cargo test -p goad-emit` and `cargo test -p
+goad-shell` resolve `jiff` without `std` today and would not if stratum 2 asked
+for it. `clock.rs`'s workaround is not dead code kept for an expired reason; its
+reach is narrower than its own comment claims.
+
+Three precise statements, which is what §10 says rather than one:
+
+- Under `cargo build --workspace` and `cargo test --workspace`, stratum 1 links a
+  `jiff` built with `std` whatever `clock.rs` does. That much of the comment's
+  rationale expires with this slice.
+- `clock.rs`'s workaround still binds in every build that excludes
+  `crates/goad` — `-p goad-shell`, `-p goad-emit`, and any future member that
+  takes stratum 2 without the renderer.
+- `cargo test -p goad-semantics` builds neither stratum 2 nor stratum 3, so it
+  resolves `jiff` with stratum 1's own features either way. That is exactly what
+  `POL-001` §Verification says the command is for, and exactly why it rejects
+  nothing here. §10 already says the command rejects nothing; what it did not say
+  is that this particular residue is invisible to it for a structural reason
+  rather than an incidental one.
+
+The reconciliation the finding correctly says has no owner is the doc comment
+itself, which after this slice reads as current and is not. The user's decision
+is that it is amended **inside this slice**: `slice-009.md` §Scope gains
+`crates/goad-shell/src/clock.rs` for one doc-comment amendment and no code
+change, and §10 states the amendment the way §5.3 states `Glass::present`'s — so
+it lands as a diff somebody argued for rather than as one nobody did. Recorded in
+`design-log.md` citing F-54.
+
+Not an argument against the feature, and §10's `ADR-001` reasoning is untouched:
+the direction rule is about what stratum 1 may name and do, and nothing in
+`goad-semantics` gains a call site or a capability.
 
 **Outcome:** _pending_
 
@@ -1915,7 +2082,40 @@ the `Slider` paragraph; `design.md` §5.1, *The two ways an edit leaves
 `widgets/common/slider-base.slint:114-131` (`released` is raised by the pointer
 and keyboard paths only, which is why D7 binds `changed` as well).
 
-**Disposition:** _pending_
+**Disposition:** fix-now
+**Response:** Correct in all three parts, and the repair is to **stop committing
+to the flush** rather than to build it an interface. `released` is not bound at
+all; a `Slider` binds `changed`, debounced, and nothing else.
+
+The fact that decides it is one the finding gets to and does not press.
+`released` is raised from two places only — the pointer path
+(`widgets/common/slider-base.slint:43`) and `key-released` (`:107`) — while every
+accessibility action routes through `base.set-value` / `increment` / `decrement`
+(`widgets/fluent/slider.slint:30-36`) and those raise `changed` (`:123`). So **no
+test tier can raise `released`**, which is the same fact that made D7 bind
+`changed` in the first place, applied to the flush instead of to the binding. A
+flush kept would need a second host-ward callback, a third exit in two
+enumerations that are stated as closed, a row in §5.5's edges table and a row in
+§9 whose only available driver is AC-10's person — to buy the last 150 ms of a
+drag, which the timer delivers one tick later and which the answer path flushes
+in full.
+
+It is also not a decision anybody took. `design-log.md` D-14 decided that the
+`Slider` binds `changed` **as well**, because `released` alone is deaf to an
+assistive technology; no log entry argues for a flush. §7 D7's *"`released`
+earns its place as the flush, not as the binding"* is what was left over after
+that correction. Removing it reverses nothing that was argued.
+
+What the repair writes: §5.2's controls table row becomes `changed`, debounced,
+sends `number`; §5.2's `Slider` paragraph keeps its whole `changed` argument and
+replaces the flush sentence with why `released` is not bound — no tier raises it,
+the one `edited` callback cannot say *send this now*, and the map is behind an
+`Rc` only `install.rs`'s closures reach. §7 D7 is rewritten in place, carrying
+both rejected alternatives: `released` alone, and `released` as a flush. §5.1's
+*The two ways an edit leaves `pending.rs`* and §5.3's pending-edits ownership row
+become true as written — no third exit, and nothing to add to §5.5 or §9.
+Recorded as a user decision in `design-log.md` citing F-55, because §7 D7 is
+cited to D-8 and D-14.
 
 **Outcome:** _pending_
 
@@ -1949,7 +2149,31 @@ the finding: the row does not say which it is.
 picker re-seed* row, the *One control in that table needs a pointer* paragraph;
 `design.md` §8 R9; `slice-009.md` AC-2.
 
-**Disposition:** _pending_
+**Disposition:** fix-now
+**Response:** Correct on both halves, and the repair is to **split the row rather
+than choose a reading**, because both readings are worth asserting and only one
+of them has a home today.
+
+AC-2 becomes two rows. The first answers an **untouched** option and asserts the
+five as-drawn values arrive with the JSON type `R-57` names for each kind — no
+control operated, so no popup, no pointer, no layout and no fallback. That row is
+also the only place anything would assert what `canon-delta.md` CD-1 promotes to
+canon: what this host submits for a field nobody touched, per kind, including the
+`datetime` epoch's exact spelling. Nothing in §9 covers it at present, which is
+`F-11` and `F-44`'s rule — a rule that needs a test is a row with a named driver
+— reaching CD-1 one level up from the design.
+
+The second operates each control and then answers, and carries **both** inherited
+fallbacks explicitly rather than by reference: if AC-8's `mock_single_click` on a
+laid-out popup cannot be made to land (§8 R9), and if the picker chain cannot be
+found under `init_no_event_loop`, this row moves to the loop target with them. A
+row that inherits a fallback states it; that is the same rule §9 already applies
+to the rows that introduce them.
+
+`slice-009.md`'s AC-2 is untouched by this. It is satisfiable either way and both
+rows discharge it; what changes is that §9 no longer leaves a reader to guess
+which one it meant, and the weaker reading stops being an accident and becomes a
+row that earns its place.
 
 **Outcome:** _pending_
 
