@@ -525,12 +525,15 @@ fn field_value(
     // unreachable, and the slot is left at its default rather than argued
     // about — the same trade `view_model::drawn_number` takes.
     //
-    // **The numeric text control's guard reads this slot too**, for its one
-    // exception: *the widget is empty and the held number is zero*. Where no
-    // slider is drawn the slot is zero, so the exception reduces to *the
-    // widget is empty* — wider than the measurement licensed, and the reason
-    // EX-7 re-measures whether the exception is needed at all now that the
-    // value channel is overlaid (design.md §5.2, §9 A-2).
+    // **Nothing else reads this slot.** §5.2's comparand table gave the
+    // numeric text control's guard one exception that consulted it — *the
+    // widget is empty and the held number is zero* — and PHASE-08/EX-7
+    // measured the exception out: under the overlay it suppresses the one
+    // convergence AC-6 requires (`tests/event_loop_numeric_guard/`). So
+    // `number` is the `Slider`'s alone, as `design.md` §5.2 says it is, and
+    // VA-2 holds by construction rather than by argument: the only `f64` that
+    // crosses this boundary as a `float` is a value some `Slider` is drawn
+    // over.
     Some(Edited::Adjusted { number, text }) => FieldValue {
       text: text.as_str().into(),
       number: slider

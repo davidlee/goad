@@ -612,16 +612,28 @@ export component PromptWindow inherits Window {
                           // measured equating `1e100` with `1e101`, both `f32`
                           // infinities (§7 D13).
                           //
-                          // The one exception is the measured cleared-field
-                          // case and nothing wider: a person who clears a
-                          // field the host holds as `0` leaves `""` in the
-                          // widget before their own debounce has recorded it,
-                          // and a bare comparison writes `"0"` back over them
-                          // mid-edit.
+                          // **It carries no exception, and that was measured
+                          // rather than argued** (PHASE-08/EX-7). §5.2 admits
+                          // one — *the widget is empty and the held number is
+                          // zero* — licensed by a cleared field being written
+                          // back over mid-edit before this slice had an
+                          // overlay. The overlay deletes the case it was for:
+                          // a cleared field is a pending `AdjustedText("")`,
+                          // the channel carries `""`, and the strings agree on
+                          // their own.
+                          //
+                          // Carrying it anyway is not free. The one state it
+                          // still fires in is the state the guard exists for —
+                          // a cleared entry the host **never recorded**, where
+                          // the channel holds the field's own zero and the
+                          // widget is empty — so it would suppress exactly the
+                          // convergence AC-6 requires.
+                          // `tests/event_loop_numeric_guard/` measures both
+                          // halves, and its second reading is what fails if
+                          // anybody restores the exception.
                           property <int> tick: root.epoch;
                           changed tick => {
-                            if (self.text != root.values[field.slot].text
-                                && !(self.text == "" && root.values[field.slot].number == 0)) {
+                            if (self.text != root.values[field.slot].text) {
                               self.text = root.values[field.slot].text;
                               root.reasserts += 1;
                             }

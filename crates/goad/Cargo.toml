@@ -73,3 +73,7 @@ path = "tests/event_loop_debounce/main.rs"
 [[test]]
 name = "event_loop_overlay"
 path = "tests/event_loop_overlay/main.rs"
+
+[[test]]
+name = "event_loop_numeric_guard"
+path = "tests/event_loop_numeric_guard/main.rs"
