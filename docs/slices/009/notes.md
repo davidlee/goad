@@ -2403,6 +2403,197 @@ through PHASE-07, -08 and -09, each of which migrates these fixtures again.
 now has both: ask `reported_lines` what was reported, `refusal_lines` what was
 refused.
 
+### PHASE-06 — the overlay
+
+**Objective:** a present that lands inside the debounce window shows what the
+person typed rather than the draft's older value, so *the host did not record
+this* and *the host has not recorded this yet* stop being the same thing to the
+guard.
+
+**Entry criteria, verified rather than assumed**
+
+EN-1 is PHASE-05/EX-1 … EX-9. Read off the tree at `7c5f2b6`, clean, not
+inherited from the hand-over:
+
+| PHASE-05 | checked here |
+|---|---|
+| EX-1 | `just check` re-run in this session on a clean tree: **exit 0**, gate total **579**. `cargo test --workspace` is **544** — the gate runs `cargo test -p goad-semantics` as a command of its own, so that crate's 30 + 5 are counted twice and the gate total is always exactly 35 above the workspace one. Both denominators are named wherever a count appears below |
+| EX-2 | read: `ui/app.slint:406-442` — `LineEdit` with `text: root.values[field.slot].text` (`:411`), `enabled: !root.busy` (`:412`), `accessible-description: field.id` (`:414`), and the string-against-string guard at `:425-430`. Its label is a `Text` above it (`:402-405`) |
+| EX-3 | read: `src/pending.rs:67-76` — `Debounce { held: RefCell<BTreeMap<(String,String), Held>>, timer: slint::Timer }`, two fields. `Held { view, value }` at `:41-45`, so every entry carries its view. No `match` on kind anywhere in the file |
+| EX-4 | read: `src/pending.rs:198-221` — `tick` sends **one** `Command::Edit` carrying `entry.view`, `held.remove` runs only under `if enqueued` (`:213-215`), and the re-arm at `:218-220` is conditioned on `!is_empty()` |
+| EX-5 | read: `src/wire.rs:193-205` — `pub fn send(&self, command: Command) -> bool`; the notice is lowered on `Ok` and raised on `Full`, exactly where it was |
+| EX-6 | read: `src/wire.rs:93-98` — `PendingEdit { view, option, field, value }`; `Command::Choose`'s `edits: Vec<PendingEdit>` at `:52`. `src/install.rs:39-48` — `chosen` sends **one** command carrying `choosing.carried()`, and clears only under `if enqueued` |
+| EX-7 | read: `src/controller.rs:288-318` — `choose` takes the identity first (`:298-301`, a block that ends the borrow), then walks the carried edits through `self.edit`; `SupersededView` sets a flag and the answer continues, every other refusal returns |
+| EX-8 | read: `src/main.rs:95-96` — `let pending = Rc::new(Debounce::new());` then `install(&window, &tray, &wire, &pending);`, both **before** `SlintGlass::new` at `:103`. The other three call sites bind `pending` likewise: `closing.rs:60`, `event_loop_schedule/scheduling.rs:87`, `event_loop_debounce/debounce.rs:172`. `fields.rs:347` still inlines `&Rc::new(Debounce::new())` — T-2's |
+| EX-9 | read: PHASE-05's sheet table, spot-checked against the tree. `grep -rn '"kind":"text"' crates/goad/tests/renderer/` now returns only `fields.rs:95` (`TWO_TEXT_FIELDS`, a fixture that *draws*), `wiring.rs:764` (a **body** kind, not a field), and `table.rs:151-157` (the four normalizer rows PHASE-05 checked and left) |
+
+**Baseline, T-0, at `7c5f2b6`:** `just check` **exit 0**, gate **579**;
+`cargo test --workspace` **544**. Per target from the workspace run: `goad` lib
+**52**, `tests/renderer` **194**, the four loop targets **1** each,
+`goad-boundary` `tests/checks` **43**, `goad-emit` bin **34** / `tests/binary`
+**9**, `goad-semantics` lib **30** / `tests/protocol` **5**, `goad-shell` lib
+**71** / `tests/integration` **96** / `tests/shape` **6**.
+
+**Reading list**
+
+Every `path:line` below was re-derived with `grep -n` in this session. Two of
+`plan.md` PHASE-05's citations were stale and the slice's rule is *cite from an
+instrument that prints the number*.
+
+*What is being changed*
+
+- `crates/goad/src/glass.rs:1-3` — the head doc, which claims this is the only
+  file in the crate naming a generated type; `:60-70` — `SlintGlass`'s fields;
+  `:81-97` — `new`; `:104-201` — `present`, whose `option_models` call is at
+  `:115`; `:215-236` — `option_models`'s doc, which says the value channel has
+  one source; `:237-280` — `option_models`, the loop nest, with the `values`
+  push at `:253-255`; `:299-345` — `field_value` and its doc.
+- `crates/goad/src/main.rs:95-96` — the `Rc` and `install`; `:103-107` —
+  `SlintGlass::new`, three arguments today.
+- `crates/goad/tests/renderer/harness.rs:60-66` — `glass_over`. **59 call
+  sites in 5 files** (`grep -rn "glass_over(" crates/goad/tests/ | wc -l`), two
+  of them — `scheduling.rs`, `ingress.rs` — outside the Surfaces, so its
+  signature does not widen. See *Decisions*.
+- `crates/goad/tests/renderer/fields.rs:300-324` — `Rig` and its doc;
+  `:326-359` — `rigged`, whose `install` call inlines
+  `&Rc::new(Debounce::new())` at `:347` and whose `glass_over` is at `:329`.
+- `crates/goad/tests/event_loop/closing.rs:58-68` — the bound `pending` and the
+  glass beneath it; `crates/goad/tests/event_loop_schedule/scheduling.rs:85-94`
+  — the same pair.
+- `crates/goad/Cargo.toml:47-69` — the five `[[test]]` blocks; a sixth is added.
+
+*What it reads*
+
+- `crates/goad/src/pending.rs:136-148` — `carried(&self) -> Vec<PendingEdit>`,
+  which clears nothing and takes `&self`; PHASE-05's own doc at `:57-60` says
+  it is the door the overlay reads through. `:156-158` — `delivered`, the
+  clear.
+- `crates/goad/src/wire.rs:93-98` — `PendingEdit`, all four fields `pub`.
+- `crates/goad/src/view_model.rs:589` — `pub fn interpret(&Reported,
+  Option<&Edited>, &DrawnKind) -> Option<Edited>`; `:83-87` —
+  `PresentationField { id, label, kind }`.
+- `crates/goad/src/draft.rs:160-166` — `state_of` answers an **owned**
+  `Option<Edited>`, so the overlay joins two owned options rather than two
+  borrows.
+- `crates/goad/ui/app.slint:411` — the `LineEdit`'s binding; `:415` — `init`,
+  the `inits` counter; `:425-430` — the guard, which increments `reasserts`
+  only where it writes.
+
+*What breaks by compile*
+
+`SlintGlass::new` gaining a parameter breaks **six** call sites, not the four
+EX-2 names — `grep -n "SlintGlass::new" -r crates/`:
+`src/main.rs:103`, `tests/renderer/harness.rs:61`,
+`tests/event_loop/closing.rs:63`,
+`tests/event_loop_schedule/scheduling.rs:90`, and — outside the Surfaces —
+`tests/event_loop_reassert/reassert.rs:121` and
+`tests/event_loop_debounce/debounce.rs:152`. STOP-1, below.
+
+*Design sections that bind*
+
+- §5.3 (`design.md:1028-1035`) — `SlintGlass` gains an `Option<ViewId>` and a
+  clone of the same `Rc`; (`:1037-1046`) — **it has to be the same `Rc`**, and
+  why getting it wrong is silent; (`:1072-1079`) — the value channel's second
+  source and the sentence about caching that has to say so; (`:1080-1091`) —
+  *A field's value is the draft's, overlaid*, and the reason it routes through
+  `interpret`; (`:1092-1097`) — *Nothing re-enters*, VA-2's whole subject.
+- §5.4 (`design.md:1175-1188`) — *A new view*: entries from a replaced view are
+  **not** overlaid, and nothing else clears the map.
+- §5.5 **I-H** (`design.md:1310-1317`) — one rule, three sites; this phase owns
+  *shown*. §9's two-field row is `design.md:1350`; the stale-entry row `:1353`.
+- §7 **D26** (`design.md:1413`) and **D27** (`:1414`); §8 **R10** (`:1429`).
+- `plan.md:680-777` — PHASE-06 in full, Notes included.
+
+*Prior art*
+
+- `crates/goad/tests/event_loop_debounce/main.rs:1-32` and `debounce.rs` — the
+  arrangement the new target copies, one generation on from
+  `event_loop_reassert`: one `[[test]]`, one `#[test]` fn,
+  `init_integration_test_with_system_time()`, a 25 ms repeating stepper against
+  a 150 ms debounce, a `LIVENESS_BOUND` that quits rather than wedges, every
+  assertion on the test thread, `retaining()` from a hand-made `Outcome`, and a
+  capacity-1 channel the stepper drains itself. Its two contrasting claims in
+  one fn (`debounce.rs:119-128`) are the shape this phase's target takes.
+- `crates/goad/tests/event_loop_reassert/reassert.rs:100-190` — the `Reading`
+  struct, and the `inits`/`reasserts` pair read as a number rather than argued.
+
+*Memory*
+
+- `a-present-destroys-the-widget-it-writes.md` — the counters, and **half
+  stale**: trap 11, repaired here.
+- `slint-testing-backend-initialises-once-per-process.md` — one arrangement,
+  one `[[test]]`, one `#[test]` fn.
+- `a-negative-control-that-does-not-compile.md` — read the **test count** on
+  both sides, not the absence of `FAILED`.
+- `tests-asserting-proxies.md` and `verify-the-enumeration-not-the-conclusion.md`
+  — R10 is the live instance of the first: a green overlay suite that would be
+  green with two `Rc`s measures nothing.
+
+**Assumptions, each with what makes it cheap to be wrong about**
+
+- **A-a.** `Debounce::carried()` is a sufficient door for the overlay, so
+  `pending.rs` — **not** in the Surfaces — needs no new method. PHASE-05 wrote
+  `carried` and `delivered` as `&self` for exactly this (`pending.rs:57-60`).
+  Wrong ⇒ a STOP before any code, not a defect.
+- **A-b.** The overlay's per-present cost is one `Vec` of the *pending* edits,
+  which is at most one per field a person has touched inside 150 ms — in
+  practice one or two. A linear scan per field over that vec beats rebuilding a
+  map. Wrong ⇒ a profiling question, and the shape is one function to change.
+- **A-c.** A `LineEdit`'s `text` assigned from the guard does **not** raise
+  `edited`, so the overlay cannot feed itself. Held today by PHASE-01's and
+  PHASE-05's green cases, which would loop otherwise; re-checked by VA-2.
+- **A-d.** A capacity-1 channel that nothing drains accepts exactly one send,
+  so an entry whose `Command::Edit` is the first undrained send **does** leave
+  the map. That is what VT-1's second half rests on. Wrong ⇒ the entry stays,
+  the widget does not revert, and the case fails loudly.
+- **A-e.** Adding a parameter to `SlintGlass::new` is the only compile break
+  outside this phase's own edits. Derived by grepping every construction site,
+  not by expectation.
+
+**STOP conditions**
+
+- **S-1.** A criterion compelling a file the Surfaces line does not name. Hit
+  once, before any production code — STOP-1 below.
+- **S-2.** A second `Reported → FieldValue` mapping beside the `Edited` one.
+  EX-3 forbids it; the overlay routes through `interpret`.
+- **S-3.** Anything that clears `pending.rs` from `present`. Nothing else
+  clears the map (§5.4, `design.md:1182-1188`); the overlay **reads**.
+- **S-4.** A borrow of the map held across another, or a present reached from
+  inside a widget callback. VA-2.
+- **S-5.** Weakening, deleting or `#[ignore]`-ing an existing case to go green.
+- **S-6.** A dependency addition, or a second event-loop arrangement beyond the
+  one `[[test]]` the Surfaces name.
+
+**STOP conditions raised**
+
+1. **EX-2 → `tests/event_loop_reassert/reassert.rs:121` and
+   `tests/event_loop_debounce/debounce.rs:152`.** `SlintGlass::new` gaining the
+   handle is a compile error at both, and the Surfaces name neither. Sent to
+   the team lead before any production code, with the full six-site table.
+   `event_loop_reassert` calls no `install`, so its edit is a fresh empty
+   handle; `event_loop_debounce` **does** (`debounce.rs:172`), so its edit is
+   `Rc::clone(&pending)` — and it is R10's exact shape, the two constructed
+   eleven lines apart. Same class as PHASE-05's STOP 2: `design.md` §9 names
+   four call-site pairs and it is the enumeration's *reach* that is short, not
+   its arithmetic.
+
+**Tasks**
+
+- [ ] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+      with its denominator
+- [ ] T-1 `glass.rs`: the field, `new`'s parameter, the overlay through
+      `interpret`, and the two doc repairs (EX-2, EX-3, EX-4)
+- [ ] T-2 the call sites: `main.rs`, `harness.rs`'s second constructor,
+      `rigged`'s bound handle, `closing.rs`, `event_loop_schedule` — and the
+      two STOP-1 files once amended (EX-2)
+- [ ] T-3 the `event_loop_overlay` target: VT-1 and VT-3 as two contrasting
+      claims in one `#[test]` fn; `Cargo.toml`'s sixth `[[test]]`
+- [ ] T-4 VT-2, the negative control: the overlay removed, compiled, run, the
+      test count read on both sides
+- [ ] T-5 VA-1's injection — `install` not called — and VA-2 in writing
+- [ ] T-6 trap 11's two `docs/memory/` repairs
+- [ ] T-7 `just check` exits 0 (EX-1); sheet and Harvest updated
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
