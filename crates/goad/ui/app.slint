@@ -1,4 +1,4 @@
-import { Button, CheckBox, Date, DatePickerPopup, LineEdit, Palette, ScrollView, Slider, Time, TimePickerPopup } from "std-widgets.slint";
+import { Button, CheckBox, ComboBox, Date, DatePickerPopup, LineEdit, Palette, ScrollView, Slider, Time, TimePickerPopup } from "std-widgets.slint";
 
 // **`Date` and `Time` need no export of their own.** PHASE-04 added one and
 // measured, four ways, that an `import` alone did not emit them; what it could
@@ -27,10 +27,15 @@ import "../../../assets/Geist.ttf";
 //
 // The kind discriminant selects which slot of `FieldValue` is meaningful. All
 // five are declared because the mapping from the protocol's field kinds must
-// be total; this renderer draws four of them so far — `boolean`, `text`,
-// `number` and `datetime` — and each later phase adds one control and the
-// fields it reads. `FieldRow`'s `alternatives` is **not** here yet: nothing is
-// declared before a control reads it.
+// be total, and this renderer now draws all five — so every slot of both
+// structs is read by some control and none is declared ahead of one.
+//
+// `FieldRow`'s `alternatives` are a `choice` field's labels, in the order the
+// backend declared them, and they are the `ComboBox`'s whole model.
+// `FieldValue.index` is the position in that list of the alternative the draft
+// holds — a **position**, because the markup cannot hold an `AlternativeId`
+// and must not match on a label: the id is resolved back out of the index
+// where the retained presentation is (`view_model::interpret`, §7 D12).
 //
 // **`slider` is a decision the host took, not a fact about the field.**
 // `number` is the one kind with two controls, and which one is drawn is
@@ -51,7 +56,7 @@ import "../../../assets/Geist.ttf";
 // draft's pick, or today at 00:00 local for a field nobody has picked
 // (design.md §5.2, §5.4).
 export enum Kind { boolean, text, number, choice, datetime }
-export struct FieldRow { id: string, label: string, kind: Kind, slot: int, slider: bool, minimum: float, maximum: float, step: float }
+export struct FieldRow { id: string, label: string, kind: Kind, slot: int, slider: bool, minimum: float, maximum: float, step: float, alternatives: [string] }
 export struct FieldValue { checked: bool, text: string, number: float, index: int, date: Date, time: Time }
 // `heading: ""` is an **untitled** block, not a missing one — an ungrouped
 // field must not be drawn under a heading that does not claim it.
@@ -390,10 +395,12 @@ export component PromptWindow inherits Window {
                       // `glass.rs::markup_kind` off the drawn field, which is
                       // total over `DrawnKind` — so a kind no arm below draws
                       // is a compile error there rather than a field that
-                      // renders as nothing here. The kinds with no arm yet are
-                      // reported undrawn and never become a `FieldRow` at all
-                      // (`view_model::drawn_form`): `number` PHASE-08,
-                      // `choice` PHASE-09.
+                      // renders as nothing here. There is no kind without an
+                      // arm any more: `view_model::drawn_form` draws all five,
+                      // so every `FieldRow` reaching this repeater matches one
+                      // of the `if`s below, and a **sixth** protocol kind is a
+                      // compile error there rather than a field that renders
+                      // as nothing here.
                       for field in block.fields: VerticalLayout {
                         alignment: start;
                         spacing: 2px;
@@ -648,6 +655,66 @@ export component PromptWindow inherits Window {
                               kind: Kind.number,
                               text: self.text,
                               slider: false,
+                            });
+                          }
+                        }
+
+                        // **The alternatives the backend declared, and no
+                        // control of its own for the label.** A `ComboBox`
+                        // announces its current value, not the question, so
+                        // the backend's label is drawn above it exactly as the
+                        // two `LineEdit`s' are.
+                        if field.kind == Kind.choice: Text {
+                          text: field.label;
+                          color: Palette.foreground.transparentize(0.20);
+                        }
+                        if field.kind == Kind.choice: ComboBox {
+                          // The labels, in declared order. The host builds
+                          // this list off the drawn field's alternatives, so
+                          // position *n* here is alternative *n* there — which
+                          // is the whole of what makes an index a safe thing
+                          // for a Slint callback to report (§7 D12).
+                          model: field.alternatives;
+                          // **The value channel is the authority**, as it is
+                          // for every other control: the widget moves its own
+                          // selection on a click so the feedback is immediate,
+                          // and the next present rewrites this slot.
+                          current-index: root.values[field.slot].index;
+                          enabled: !root.busy;
+                          accessible-label: field.label;
+                          accessible-description: field.id;
+                          init => { root.inits += 1; }
+                          // **The guard**, `int` against `int`. Choosing an
+                          // alternative assigns `current-index`
+                          // (`common/combobox-base.slint:20-31`), which
+                          // removes the binding above permanently, so the
+                          // epoch is what brings the widget back to the
+                          // channel.
+                          //
+                          // Assigning `current-index` here does **not** raise
+                          // `selected`: only `select()` does, and nothing but
+                          // a person's click and the key handlers call it — so
+                          // a convergence cannot report itself as an edit.
+                          property <int> tick: root.epoch;
+                          changed tick => {
+                            if (self.current-index != root.values[field.slot].index) {
+                              self.current-index = root.values[field.slot].index;
+                              root.reasserts += 1;
+                            }
+                          }
+                          // The literal names the control's own kind, for the
+                          // reason the `CheckBox`'s does. The **index**
+                          // travels and never the label: `selected` carries
+                          // the current *value*, a string
+                          // (`combobox-base.slint:16`), and a host that read
+                          // it would be matching an alternative by its display
+                          // text. `select()` assigns `current-index` before
+                          // raising `selected`, so what is read here is the
+                          // index just chosen (§5.2, §7 D12).
+                          selected => {
+                            root.edited(option.view, option.id, field.id, {
+                              kind: Kind.choice,
+                              index: self.current-index,
                             });
                           }
                         }

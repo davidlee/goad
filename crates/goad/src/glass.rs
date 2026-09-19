@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, StyledText, VecModel};
 
-use goad_semantics::protocol::canonical::ViewId;
+use goad_semantics::protocol::canonical::{Alternatives, ViewId};
 
 use crate::controller::{Frame, Surface};
 use crate::diagnostics::{
@@ -312,6 +312,11 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
         // know whether the `number` slot is anybody's. Calling it once is what
         // stops the row and the slot disagreeing about which control is drawn.
         let slider = slider_bounds_of(&field.kind);
+        // **The alternatives, looked up once and read twice**, for the reason
+        // `slider` is: the row is drawn over this list and the value slot is a
+        // *position in it*, so a second lookup is a second chance for the two
+        // to disagree about which list is drawn.
+        let alternatives = alternatives_of(&field.kind);
         // **What a control shows, in three descending claims**: what a person
         // has just done and the host has not recorded yet, then what the draft
         // holds, then what the field was drawn showing. The last is
@@ -319,7 +324,7 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
         // rule, which for `datetime` alone answers `None` so that the button
         // can read *not set* while the wire carries the epoch (§7 D1, D2).
         let shown = overlay.or(drafted).or_else(|| untouched(&field.kind));
-        values.push(field_value(shown.as_ref(), &today, slider));
+        values.push(field_value(shown.as_ref(), &today, slider, alternatives));
         fields.push(FieldRow {
           kind: markup_kind(&field.kind),
           id: field.id.as_str().into(),
@@ -333,6 +338,19 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
           minimum: slider.map_or(0.0, |(minimum, _)| minimum),
           maximum: slider.map_or(0.0, |(_, maximum)| maximum),
           step: slider.map_or(0.0, |(minimum, maximum)| slider_step(minimum, maximum)),
+          // The labels, in declared order, and empty for every kind that is
+          // not a `choice` — where the markup reads them only under
+          // `Kind.choice`, exactly as it reads the three arithmetic slots only
+          // under `slider`.
+          alternatives: model(
+            alternatives.map_or_else(Vec::new, |list| {
+              list
+                .as_slice()
+                .iter()
+                .map(|alternative| alternative.label().into())
+                .collect()
+            }),
+          ),
         });
       }
       blocks.push(FieldBlock {
@@ -384,6 +402,20 @@ fn slider_bounds_of(kind: &DrawnKind) -> Option<(f32, f32)> {
   match kind {
     DrawnKind::Number(range) => slider_bounds(range),
     DrawnKind::Boolean | DrawnKind::Text | DrawnKind::Choice { .. } | DrawnKind::DateTime => None,
+  }
+}
+
+/// The alternatives this field is drawn over, or `None` for every kind that is
+/// not a `choice`.
+///
+/// The counterpart of [`slider_bounds_of`] and it exists for the same reason:
+/// to keep the `DrawnKind` match off the two call sites — the row's labels and
+/// the value's index — rather than to make a decision. Total over `DrawnKind`,
+/// no `_` arm, for the reason [`markup_kind`] is.
+fn alternatives_of(kind: &DrawnKind) -> Option<&Alternatives> {
+  match kind {
+    DrawnKind::Choice { alternatives, .. } => Some(alternatives),
+    DrawnKind::Boolean | DrawnKind::Text | DrawnKind::Number(_) | DrawnKind::DateTime => None,
   }
 }
 
@@ -462,6 +494,7 @@ fn field_value(
   state: Option<&Edited>,
   today: &(Date, Time),
   slider: Option<(f32, f32)>,
+  alternatives: Option<&Alternatives>,
 ) -> FieldValue {
   match state {
     Some(Edited::Checked(checked)) => FieldValue {
@@ -541,11 +574,30 @@ fn field_value(
         .unwrap_or_default(),
       ..FieldValue::default()
     },
-    // Untouched for a kind whose default slot *is* what it was drawn showing,
-    // and the one kind no control reads a slot for yet. One arm because
-    // `clippy::match_same_arms` is `deny` and splitting them is an error while
-    // the answers agree; PHASE-09 parts them.
-    Some(Edited::Chosen(_)) => FieldValue::default(),
+    // **A position in the list the row is drawn over, and never an id.** The
+    // markup cannot hold an `AlternativeId` and must not match an alternative
+    // by its label, so the two channels meet at an index: the row ships the
+    // labels in declared order and this ships where in that order the held id
+    // sits. Both come off the one `alternatives_of` lookup, which is what
+    // stops them being two readings of two lists (§5.2, §7 D12).
+    //
+    // `position` answering `None` is unreachable and is left at the default
+    // rather than argued about, the same trade the `number` slot above takes:
+    // a `Chosen` is only ever `as_drawn`'s clone of the kind's own first
+    // alternative or `interpret`'s lookup into this same list, and
+    // `AlternativeId::new` is `pub(super)` so no other id can be minted.
+    Some(Edited::Chosen(chosen)) => FieldValue {
+      index: alternatives
+        .and_then(|list| {
+          list
+            .as_slice()
+            .iter()
+            .position(|alternative| alternative.id() == chosen)
+        })
+        .and_then(|at| i32::try_from(at).ok())
+        .unwrap_or_default(),
+      ..FieldValue::default()
+    },
   }
 }
 

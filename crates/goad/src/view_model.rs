@@ -178,25 +178,38 @@ pub enum ContentForm {
 /// protocol is a compile error in the mapper's `match` rather than a field
 /// silently dropped.
 ///
-/// **A variant leaves the moment its kind draws**, and not at the phase that
-/// would be tidiest — the sentence above is false for as long as a drawn kind
-/// is declared here, and a `Display` arm nothing can reach is an assertion
-/// waiting to be believed. `Text` and `DateTime` both left at PHASE-07
-/// (`plan-log.md`, 2026-09-19) and `Number` at PHASE-08; `Choice` leaves at
-/// PHASE-09, where the enum becomes empty and `Undrawn::FieldForm` is left as
-/// the place a **sixth** kind goes (§7 D11).
+/// **It is empty, and that is the finished state rather than a gap.** A
+/// variant left the moment its kind drew — `Text` and `DateTime` at PHASE-07,
+/// `Number` at PHASE-08, `Choice` at PHASE-09 — and all five now draw, so
+/// there is no form left to name. An empty enum is uninhabited, so
+/// `Undrawn::FieldForm` can no longer be constructed and no view can carry a
+/// field this renderer did not draw.
+///
+/// **It is not deleted, and deleting it is the one change that would cost
+/// something.** [`drawn_form`] returns `Result<DrawnKind, Self>` and matches
+/// the canonical `FieldKind` exhaustively; a sixth protocol kind is a compile
+/// error there, and whoever adds it then has to decide — draw it, or give this
+/// enum a variant back. Delete the type and that fork disappears along with
+/// the error that forces it (`design.md` §5.1, §7 D11; `plan.md` PHASE-09/VA-2).
+///
+/// Its `Display` **stays, with no arms**, for the same reason the type does.
+/// `match *self {}` is total over an uninhabited enum, so `diagnostics.rs`'s
+/// undrawn line keeps interpolating `{form}` exactly as it did — and a sixth
+/// kind is a second compile error, here, naming the word a person has to be
+/// shown. Deleting the impl would take that with it and leave the line to be
+/// rewritten by whoever adds the kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FieldForm {
-  Choice,
-}
+pub enum FieldForm {}
 
 impl std::fmt::Display for FieldForm {
   /// The backend's own word for the kind, so the line a person reads names
   /// the value a backend author would search their own view for.
-  fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    formatter.write_str(match self {
-      Self::Choice => "choice",
-    })
+  ///
+  /// There is no word to write while the enum is empty, and no value to write
+  /// it for: `match *self {}` is how that is said to the compiler rather than
+  /// to a reader.
+  fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match *self {}
   }
 }
 
@@ -284,13 +297,53 @@ fn heading_of(key: Option<&str>) -> Option<String> {
 /// one moves across, `FieldForm` has no constructible variant and
 /// `Undrawn::FieldForm` becomes the place a *sixth* kind would go rather than
 /// a report anything can reach (§5.1's consumer table).
+///
+/// **The `Result` is kept although its `Err` is now uninhabited**, and
+/// `clippy::unnecessary_wraps` is silenced rather than obeyed. The wrapper is
+/// the sixth-kind fork: a new `FieldKind` variant must be sorted into `Ok` —
+/// draw it — or into `Err` — give [`FieldForm`] a variant back and report it.
+/// Collapsing the signature to a bare `DrawnKind` deletes the second half of
+/// that choice, and with it the only reason [`FieldForm`] and
+/// `Undrawn::FieldForm` still exist (`plan.md` PHASE-09/VA-2).
+#[expect(
+  clippy::unnecessary_wraps,
+  reason = "the `Err` is uninhabited only because all five kinds draw; the `Result` is \
+            what makes a sixth kind choose between drawing and reporting, which is the \
+            mechanism AC-7 names"
+)]
 fn drawn_form(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
   match kind {
     FieldKind::Boolean => Ok(DrawnKind::Boolean),
     FieldKind::Text => Ok(DrawnKind::Text),
     FieldKind::DateTime => Ok(DrawnKind::DateTime),
     FieldKind::Number(range) => Ok(DrawnKind::Number(*range)),
-    FieldKind::Choice { .. } => Err(FieldForm::Choice),
+    // The first alternative's id, cloned beside the list here — the one site
+    // that has an `Alternatives` in hand, which is what makes `as_drawn` and
+    // every display site total (`DrawnKind::Choice`, `prototype-notes.md` P-2).
+    //
+    // **The lint exception is the hatch `Cargo.toml` reserves, and the phase
+    // that emptied [`FieldForm`] is what forced it.** `Alternatives::new`
+    // rejects an empty list, so a `choice` field reaching this mapper always
+    // has a first alternative — a fact about the protocol, invisible to the
+    // compiler here. `design.md` §5.2 preferred a total expression and had one
+    // while `FieldForm::Choice` existed: the empty case could take the dead
+    // `Err` arm. Emptying the enum deletes that arm, and no fallback id is
+    // constructible, because `AlternativeId::new` is `pub(super)`.
+    #[expect(
+      clippy::expect_used,
+      reason = "`Alternatives::new` rejects the empty list, so a `choice` field reaching \
+                the mapper has a first alternative; no fallback `AlternativeId` is \
+                constructible and `FieldForm` has no arm left to report one on"
+    )]
+    FieldKind::Choice { alternatives } => Ok(DrawnKind::Choice {
+      first: alternatives
+        .as_slice()
+        .first()
+        .expect("`Alternatives::new` rejects an empty list")
+        .id()
+        .clone(),
+      alternatives: alternatives.clone(),
+    }),
   }
 }
 

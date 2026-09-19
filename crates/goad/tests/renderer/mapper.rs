@@ -7,7 +7,7 @@
 //! carrying U+E541 (E-7) is exactly the string that reaches `present`, not a
 //! string plus an escaping mistake.
 
-use goad::view_model::{Body, ContentForm, FieldForm, Presentation, Undrawn, present};
+use goad::view_model::{Body, ContentForm, Presentation, Undrawn, present};
 use goad_semantics::protocol::canonical::{Timestamp, View};
 use goad_semantics::protocol::normalize::read_response;
 use slint::StyledText;
@@ -192,20 +192,6 @@ fn content_form_displays_as_a_noun_phrase() {
   assert_eq!(ContentForm::Uri.to_string(), "a URI");
 }
 
-/// `FieldForm`'s only rendering: the backend's own word for the kind, so the
-/// line a person reads names the value a backend author can search their own
-/// view for. The sentence supplies the article, as `ContentForm`'s does not.
-///
-/// **It enumerates rather than samples**, so it shrinks by a line every time a
-/// phase draws a kind — `text` and `datetime` both left at PHASE-07 and
-/// `number` at PHASE-08 — and at PHASE-09 it is **deleted** rather than
-/// migrated: an empty enum has no `Display` to assert (`plan-log.md`,
-/// 2026-09-19).
-#[test]
-fn field_form_displays_as_the_protocols_own_word() {
-  assert_eq!(FieldForm::Choice.to_string(), "choice");
-}
-
 /// VT-3 — AC-2's rule half. A heading wherever the `group` value changes, and
 /// **no merging**: two `Morning` runs separated by an `Evening` are two
 /// blocks, both titled, because merging them would move a field and the host
@@ -228,41 +214,6 @@ fn a_block_starts_wherever_the_group_value_changes_and_runs_are_never_merged() {
     ]
   );
   assert_eq!(presentation.undrawn, Vec::<Undrawn>::new());
-}
-
-/// VT-3 — a run is over the **drawn** fields, so two grouped fields with
-/// nothing but an undrawn field between them are adjacent among the drawn and
-/// form one block. Nothing moved.
-#[test]
-fn grouped_fields_separated_only_by_an_undrawn_field_are_one_block() {
-  let presentation = present(&one_option_with_fields(&serde_json::json!([
-    boolean("a", Some(serde_json::json!("Morning"))),
-    { "id": "note", "kind": "choice", "label": "Note", "group": "Morning",
-      "options": [{ "id": "one", "label": "One" }] },
-    boolean("b", Some(serde_json::json!("Morning"))),
-  ])));
-
-  assert_eq!(
-    blocks_of(&presentation),
-    vec![(Some("Morning"), vec!["a", "b"])]
-  );
-}
-
-/// VT-3 — a heading over nothing would be the host inventing structure, so a
-/// group whose every field is undrawn produces no block and no heading. The
-/// drawn field before it is what keeps this from passing on an empty
-/// `blocks`.
-#[test]
-fn a_group_whose_every_field_is_undrawn_produces_no_block() {
-  let presentation = present(&one_option_with_fields(&serde_json::json!([
-    boolean("a", None),
-    { "id": "note", "kind": "choice", "label": "Note", "group": "Evening",
-      "options": [{ "id": "one", "label": "One" }] },
-    { "id": "other", "kind": "choice", "label": "Other", "group": "Evening",
-      "options": [{ "id": "one", "label": "One" }] },
-  ])));
-
-  assert_eq!(blocks_of(&presentation), vec![(None, vec!["a"])]);
 }
 
 /// VT-3 — the two headingless cases, drawn in place and in declared order.
@@ -290,52 +241,6 @@ fn an_absent_group_and_an_empty_one_are_blocks_with_no_heading() {
     presentation.undrawn,
     Vec::<Undrawn>::new(),
     "an empty group is a string the backend sent; there is nothing to report"
-  );
-}
-
-/// VT-4 — AC-3. One report per undrawn field, naming the option, the field
-/// and the form: a backend can act on none of the three without the other
-/// two. **Every** kind this renderer does not draw, in declared order, and
-/// none of them reaches a block.
-///
-/// The list shrinks by one every time a phase draws a kind — `text` left it at
-/// PHASE-05, `datetime` at PHASE-07 and `number` at PHASE-08 — and at PHASE-09
-/// there is nothing left to report and the case goes with `Undrawn::FieldForm`
-/// itself. It is **deleted rather than migrated a fourth time**: the case
-/// enumerates its subject rather than sampling it, so there is nowhere for the
-/// last row to move to once `choice` draws.
-///
-/// That the list is *every* undrawn kind rather than a sample is what the
-/// final `undrawn.len()` assertion holds; the four drawn kinds contribute
-/// nothing to it. **One row is still an enumeration** — the length assertion
-/// is what says so, and it is what would fail if a fifth kind stopped being
-/// drawn.
-#[test]
-fn every_undrawn_kind_is_reported_by_option_field_and_form() {
-  let view = one_option_with_fields(&serde_json::json!([
-    { "id": "pick", "kind": "choice", "label": "Pick",
-      "options": [{ "id": "one", "label": "One" }] },
-  ]));
-  let presentation = present(&view);
-
-  let reported: Vec<(&str, &str, FieldForm)> = presentation
-    .undrawn
-    .iter()
-    .filter_map(|undrawn| match undrawn {
-      Undrawn::FieldForm {
-        option,
-        field,
-        form,
-      } => Some((option.as_str(), field.as_str(), *form)),
-      _ => None,
-    })
-    .collect();
-
-  assert_eq!(reported, vec![("opt", "pick", FieldForm::Choice)]);
-  assert_eq!(presentation.undrawn.len(), 1, "and nothing else");
-  assert!(
-    blocks_of(&presentation).is_empty(),
-    "an undrawn field never enters a block"
   );
 }
 
@@ -372,52 +277,17 @@ fn a_group_hint_that_is_not_a_string_is_reported_and_the_field_is_drawn_in_place
   );
 }
 
-/// VT-4 — a field can fail twice, and both failures are reported. A kind this
-/// renderer does not draw and a `group` that is not a string are **independent
-/// defects the backend fixes independently**: `GroupHint` names a *hint*, and
-/// the value is malformed whether or not anything was drawn. Under one report
-/// a backend would learn of the bad hint only after fixing the kind and
-/// re-sending — the extra round trip this slice exists to remove
-/// (`design.md` §5.5's edge table, the `"group": 7` on an undrawn field row).
-#[test]
-fn a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice() {
-  let presentation = present(&one_option_with_fields(&serde_json::json!([
-    { "id": "note", "kind": "choice", "label": "Note", "group": 7,
-      "options": [{ "id": "one", "label": "One" }] },
-  ])));
-
-  let reported: Vec<(&str, &str, Option<FieldForm>)> = presentation
-    .undrawn
-    .iter()
-    .map(|undrawn| match undrawn {
-      Undrawn::GroupHint { option, field } => (option.as_str(), field.as_str(), None),
-      Undrawn::FieldForm {
-        option,
-        field,
-        form,
-      } => (option.as_str(), field.as_str(), Some(*form)),
-      other => panic!("neither field variant: {other:?}"),
-    })
-    .collect();
-
-  assert_eq!(
-    reported,
-    vec![
-      ("opt", "note", None),
-      ("opt", "note", Some(FieldForm::Choice)),
-    ],
-    "one report per defect, each naming the option and the field, and the \
-     kind named by the one that is about the kind"
-  );
-  assert!(
-    blocks_of(&presentation).is_empty(),
-    "the field is still undrawn; the hint changes nothing about that"
-  );
-}
-
-/// VT-4 — the two field reports are orthogonal to the body, which is the
-/// exclusion `Presentation::body_is_degraded`'s own doc states. A body that
-/// parsed is not degraded by a field the renderer could not draw.
+/// VT-4 — a field report is orthogonal to the body, which is the exclusion
+/// `Presentation::body_is_degraded`'s own doc states. A body that parsed is not
+/// degraded by a `group` hint the renderer could not read.
+///
+/// **It was two reports and is now one, and the half that went is not
+/// replaceable.** The second field was a kind this renderer did not draw;
+/// PHASE-09 drew the last of them, so `Undrawn::FieldForm` is unconstructible
+/// and `GroupHint` is the only field-level report left. The claim is unchanged
+/// — the exclusion is over both field variants and `body_is_degraded` still
+/// matches neither — and the case now measures it over the one that can still
+/// be built (`canon-delta.md` CD-2, `prototype-notes.md` P-13).
 #[test]
 fn field_reports_leave_a_parsed_body_undegraded() {
   let view = view_from(&serde_json::json!({
@@ -429,8 +299,6 @@ fn field_reports_leave_a_parsed_body_undegraded() {
         "id": "opt",
         "label": "Fine",
         "fields": [
-          { "id": "note", "kind": "choice", "label": "Note",
-            "options": [{ "id": "one", "label": "One" }] },
           { "id": "counted", "kind": "boolean", "label": "Counted", "group": 7 }
         ]
       }]
@@ -439,10 +307,10 @@ fn field_reports_leave_a_parsed_body_undegraded() {
   let presentation = present(&view);
 
   assert!(matches!(presentation.body, Body::Rich(_)));
-  assert_eq!(presentation.undrawn.len(), 2, "both fields are reported");
+  assert_eq!(presentation.undrawn.len(), 1, "the field is reported");
   assert!(
     !presentation.body_is_degraded(),
-    "neither field variant says anything about the body"
+    "a field report says nothing about the body"
   );
 }
 

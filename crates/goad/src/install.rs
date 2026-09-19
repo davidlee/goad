@@ -154,14 +154,12 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire, pending: &Rc<Deb
 /// tautology. `D-12` is untouched — `kind` still says `number` for both
 /// controls, which is why `slider` is a second field and not a sixth `Kind`.
 ///
-/// **`None` still means two different things.** For `choice` it is *no control
-/// of this kind is drawn yet*: `view_model::drawn_form` does not draw it, so a
-/// `choice` field never becomes a `FieldRow` and no control exists to raise
-/// this callback for one — the arm is unreachable rather than declined.
-/// PHASE-09 fills it, and a phase that draws a control and forgets its arm
-/// here fails that phase's own first case: the draft never sees the edit.
+/// **`None` now means one thing, and that is a narrowing this phase made.** It
+/// was two: *no control of this kind is drawn yet*, which was `choice`'s arm
+/// until PHASE-09 drew it, and *the pick did not resolve*. All five kinds draw,
+/// so the first reading has no arm left.
 ///
-/// For `datetime` it means **the pick did not resolve**. The two pickers hand
+/// `None` means **the pick did not resolve**. The two pickers hand
 /// back a civil date and time and `instant::compose` turns them into an instant
 /// and the offset it resolved in — host-side, where it can fail: an
 /// out-of-range integer, a civil date `Date::new` refuses, a `DateTime`
@@ -192,7 +190,22 @@ fn reported(edit: &FieldEdit) -> Option<Reported> {
     // representable number standing (§7 D23).
     Kind::Number if edit.slider => Some(Reported::AdjustedValue(edit.number)),
     Kind::Number => Some(Reported::AdjustedText(edit.text.to_string())),
-    Kind::Choice => None,
+    // The `ComboBox`'s `current-index`, unresolved. The markup cannot mint an
+    // `AlternativeId` — `AlternativeId::new` is `pub(super)` in
+    // `goad-semantics` — so the index travels and `view_model::interpret`
+    // resolves it against the drawn field's own alternatives, on the walk
+    // `controller::edit` already makes. An index no alternative has is case 1
+    // of `interpret`'s `None` surface and takes the `Refused::UnknownField`
+    // posture (design.md §5.2, §7 D12).
+    //
+    // A negative index is a renderer bug a `ComboBox` cannot produce —
+    // `select` is called only with a repeater index — and it must not be
+    // swallowed here. `u32::MAX` is an index no alternative has, so it takes
+    // case 1 above and the refusal reaches a person; answering `None` would
+    // report nothing at all.
+    Kind::Choice => Some(Reported::Chosen(
+      u32::try_from(edit.index).unwrap_or(u32::MAX),
+    )),
   }
 }
 

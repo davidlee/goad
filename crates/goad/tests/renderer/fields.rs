@@ -76,19 +76,6 @@ const THREE_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","optio
 /// keys that an implementation keyed by field alone would collapse into one.
 const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
-/// One option carrying one `boolean` and one **`choice`** field, which this
-/// renderer does not draw. R-55 says the view is still shown and the option is
-/// still answerable; R-58 says the response is silent about the undrawn field
-/// rather than carrying a default for it.
-///
-/// The undrawn kind moves one phase at a time, because a fixture's undrawn
-/// field has to name a kind that is *still* undrawn: `text` until PHASE-05
-/// drew it, `datetime` until PHASE-07 did, `number` until PHASE-08 did — and
-/// `choice` is the **last** one. PHASE-09 draws it, so there is nowhere left
-/// to move to and the case is deleted rather than repaired a fourth time
-/// (`prototype-notes.md` P-13).
-const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"choice","label":"Anything to add?","options":[{"id":"one","label":"One"}]}]}]},"next_check":"45 minutes"}"#;
-
 /// One option carrying a `boolean` and **two `text` fields**. Two, because
 /// AC-4's element half is about a person typing into one field and then
 /// another inside one debounce window: a single field cannot tell a map keyed
@@ -959,59 +946,6 @@ async fn a_present_that_changes_nothing_leaves_a_half_filled_form_on_the_screen_
     Value::Bool(true),
     "and the draft it was written back from is still what the answer is built from"
   );
-}
-
-/// VT-4 — **AC-3's remaining half.** An option carrying one `boolean` and one
-/// `text` field, which this renderer does not draw: the view is still shown,
-/// the option still answers, the `respond` carries the boolean key and **no
-/// key for the text field** (R-55, R-58), and the undrawn report is on the
-/// diagnostic surface.
-///
-/// The report is read off the window's own `diagnostic-lines` — the property
-/// the diagnostics pane walks and the glass writes on every present — rather
-/// than off `Controller`'s copy of it, so the assertion is about what reached
-/// a person. Its **wording** is not asserted, here or anywhere: every
-/// user-visible string in this renderer is held by review (`design.md` §9).
-///
-/// The two halves catch different things and both are measured: with the
-/// `text` kind drawn rather than reported undrawn, the report is gone **and**
-/// `noted` appears on the wire, and each half alone is enough to see it.
-#[tokio::test]
-async fn a_view_carrying_an_undrawn_field_is_still_shown_and_still_answers_its_drawn_keys() {
-  let ((shown, lines), log) = driving!(
-    rigged("fields-vt4", &[A_DRAWN_AND_AN_UNDRAWN_FIELD]),
-    |window, tray, log| {
-      let shown = ComponentHandle::window(&window).is_visible();
-      let lines = diagnostic_lines(&window);
-
-      tick!(window, "morning", "read");
-
-      option_control(&window, "morning").invoke_accessible_default_action();
-      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
-      (shown, lines)
-    }
-  );
-
-  assert!(
-    shown,
-    "R-55: a view carrying an undrawn field is still shown"
-  );
-  assert!(
-    lines
-      .iter()
-      .any(|line| line.contains("option morning field noted")),
-    "the undrawn field is reported where a person reads it: {lines:?}"
-  );
-
-  assert_eq!(answered_option(&log, 2), "morning");
-  let values = submitted_values(&log, 2);
-  assert_eq!(
-    keys_of(&values),
-    vec!["read"],
-    "the drawn field's key and nothing else — R-58 is silent about `noted` rather \
-     than carrying a default for it: {values:?}"
-  );
-  assert_eq!(values["read"], Value::Bool(true));
 }
 
 // ---------------------------------------------------------------------------

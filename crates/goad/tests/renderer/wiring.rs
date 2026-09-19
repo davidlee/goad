@@ -1153,15 +1153,20 @@ mod editing {
   /// two options sharing one as legal, which is what gives R-58's "nor a
   /// field of an option it is not answering" clause something to be false of.
   ///
-  /// `morning` also carries a `choice` field, which this renderer does not
-  /// draw. R-58 says the response is silent about such a field rather than
-  /// carrying a default for it, so its absence from `values` is an assertion
-  /// and not an oversight.
+  /// `morning` also carries a `choice` field, and **it is drawn**. It was the
+  /// fixture's undrawn field for four phases — `text` until PHASE-05 drew it,
+  /// `datetime` until PHASE-07 did, `number` until PHASE-08 did, `choice`
+  /// until PHASE-09 did — and there is no fifth hop, because there is no
+  /// undrawn kind left (`prototype-notes.md` P-13, `canon-delta.md` CD-2).
   ///
-  /// **The undrawn kind moves one phase at a time.** It was `text` until
-  /// PHASE-05 drew it, `datetime` until PHASE-07 did and `number` until
-  /// PHASE-08 did; `choice` is the last, so PHASE-09 has nowhere left to move
-  /// it to and deletes what rests on it (`prototype-notes.md` P-13).
+  /// So the fixture no longer says anything about R-58's *undrawn field* half.
+  /// What it still says, and is still the only fixture here that can, is the
+  /// other half: two options sharing the field id `read`, so an answer naming
+  /// one option carries neither the other's `tidied` nor the other's `read`.
+  /// Three kinds under `morning` rather than two is what a three-key answer
+  /// costs, and it is worth it: `noted` submits a JSON **string** where its
+  /// neighbours submit booleans, so a key list that lost track of which option
+  /// it was walking has a typed value to be wrong about as well.
   const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"choice","label":"Anything to add?","options":[{"id":"one","label":"One"}]}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
   /// One option, five fields, two blocks: two under a heading the backend
@@ -1249,6 +1254,13 @@ mod editing {
   /// earns. Two selectors can fail for reasons that look alike from the
   /// outside, so the case asserts which of the three failed, not merely that
   /// something did.
+  ///
+  /// **`Refused::UnknownField` is reached from a field id no view declared**,
+  /// and since PHASE-09 that is the only way left to reach it through a
+  /// selector: it had a fifth assertion here that used `noted`, `morning`'s
+  /// undrawn field, and `noted` is now drawn. `not-a-field` is the fabricated
+  /// id that carries the claim, and `tidied` — the *other* option's field — is
+  /// what keeps R-52's scoping asserted beside it (`design.md` §5.1).
   #[tokio::test]
   async fn an_edit_is_refused_by_each_selector_that_fails_and_records_nothing() {
     let (mut controller, view) = retaining("edit-refusals", TWO_FORMS).await;
@@ -1276,23 +1288,29 @@ mod editing {
       Err(Refused::UnknownField),
       "a field the *other* option declares is not this one's: R-52 scopes a field id to its option"
     );
-    assert_eq!(
-      controller.edit(&view, "morning", "noted", &Reported::Checked(true)),
-      Err(Refused::UnknownField),
-      "an undrawn field never entered a block, so the walk that admits an edit and the walk \
-       that submits a value are the same walk"
-    );
 
     let (_, answer) = controller
       .answer(&view, "morning")
       .expect("the option still answers");
-    assert!(
-      answer
-        .values
-        .values()
-        .all(|value| value == &serde_json::Value::Bool(false)),
-      "not one of the five refusals recorded anything: {:?}",
+    assert_eq!(
+      submitted_keys(&answer),
+      vec!["noted", "read", "stretched"],
+      "every drawn field of `morning`, and the refusals added none: {:?}",
       answer.values
+    );
+    assert_eq!(
+      submitted_value(&answer, "read"),
+      Some(&serde_json::Value::Bool(false))
+    );
+    assert_eq!(
+      submitted_value(&answer, "stretched"),
+      Some(&serde_json::Value::Bool(false))
+    );
+    assert_eq!(
+      submitted_value(&answer, "noted"),
+      Some(&serde_json::Value::String("one".to_owned())),
+      "not one of the four refusals recorded anything: every field still carries what \
+       it was drawn with, and for a `choice` that is its first alternative's id"
     );
 
     let mut nothing_retained = Controller::new();
@@ -1425,7 +1443,7 @@ mod editing {
       )
       .expect("every selector is good, so the option answers");
 
-    assert_eq!(submitted_keys(&answer), vec!["read", "stretched"]);
+    assert_eq!(submitted_keys(&answer), vec!["noted", "read", "stretched"]);
     assert_eq!(
       submitted_value(&answer, "read"),
       Some(&serde_json::Value::Bool(true)),
@@ -1582,7 +1600,7 @@ mod editing {
     let (_, answer) = controller
       .answer(&view, "morning")
       .expect("the edited option answers");
-    assert_eq!(submitted_keys(&answer), vec!["read", "stretched"]);
+    assert_eq!(submitted_keys(&answer), vec!["noted", "read", "stretched"]);
     assert_eq!(
       submitted_value(&answer, "read"),
       Some(&serde_json::Value::Bool(true))
@@ -1592,33 +1610,42 @@ mod editing {
       Some(&serde_json::Value::Bool(false)),
       "the untouched field carries the value it was drawn with, not an absence"
     );
+    assert_eq!(
+      submitted_value(&answer, "noted"),
+      Some(&serde_json::Value::String("one".to_owned())),
+      "and so does the untouched `choice`, whose drawn value is its first alternative's id"
+    );
   }
 
-  /// VT-3 — **AC-8, and `canon-delta.md`'s R-58 in one case.** Two options,
-  /// each carrying fields and sharing the field id `read`. Answering
-  /// `morning` carries exactly the fields drawn of `morning`: not `evening`'s
-  /// `tidied`, and not `noted`, which was reported undrawn. The shared id is
-  /// two independent keys, which is the half a single-option fixture cannot
-  /// reach. This is the test SPEC-001 §7's new R-58 row will name.
+  /// VT-3 — **AC-8, and the surviving half of `canon-delta.md`'s R-58.** Two
+  /// options, each carrying fields and sharing the field id `read`. Answering
+  /// `morning` carries exactly the fields drawn of `morning`, and not
+  /// `evening`'s `tidied`. The shared id is two independent keys, which is the
+  /// half a single-option fixture cannot reach. This is the test SPEC-001 §7's
+  /// new R-58 row will name.
+  ///
+  /// **R-58's MUST NOT prohibits two things and this case can now measure
+  /// one.** It also opened with a guard assertion that the fixture really did
+  /// carry an undrawn field, and asserted that no value for it reached the
+  /// wire. PHASE-09 drew the last undrawn kind, so no view can carry an
+  /// undrawn field at all and that guard is unsatisfiable by construction.
+  /// There is **no substitute construction** — a `group`-hint field is still
+  /// *drawn*, and every surviving `Undrawn` variant is body-level — so the
+  /// half is gone rather than moved, and nothing here is renamed into
+  /// something that looks equivalent. What holds it instead is the shape of
+  /// the walk: `Controller::answer` iterates the **drawn** fields, so a value
+  /// for an undrawn field has no path to `values`. That is a compile-time
+  /// property, not a case (`canon-delta.md` CD-2, `design.md` §5.1).
   ///
   /// **It asserts at `answer()`, and that is the vehicle the design names for
   /// R-58** (`design.md` §9, AC-8) — not AC-1's, which reads `values` off the
-  /// wire and belongs to a later phase. What keeps this from being the proxy
-  /// §9's closing paragraph warns about is `stretched`: a walk over the
-  /// *draft's* keys cannot produce a key for a field nobody touched, so the
-  /// expected list below is one D6 fails rather than one it also satisfies.
+  /// wire. What keeps this from being the proxy §9's closing paragraph warns
+  /// about is `stretched`: a walk over the *draft's* keys cannot produce a key
+  /// for a field nobody touched, so the expected list below is one D6 fails
+  /// rather than one it also satisfies.
   #[tokio::test]
-  async fn an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field() {
+  async fn an_answer_carries_no_value_for_another_options_field() {
     let (mut controller, view) = retaining("r58", TWO_FORMS).await;
-    assert!(
-      controller
-        .frame(false)
-        .diagnostics
-        .lines()
-        .iter()
-        .any(|line| line.contains("not drawn: option morning field noted")),
-      "the fixture must actually carry an undrawn field for its absence below to mean anything"
-    );
 
     controller
       .edit(&view, "morning", "read", &Reported::Checked(true))
@@ -1632,8 +1659,8 @@ mod editing {
       .expect("morning answers");
     assert_eq!(
       submitted_keys(&morning),
-      vec!["read", "stretched"],
-      "exactly morning's drawn fields: `tidied` is another option's and `noted` was not drawn"
+      vec!["noted", "read", "stretched"],
+      "exactly morning's drawn fields, and `tidied` is another option's"
     );
     assert_eq!(
       submitted_value(&morning, "read"),
