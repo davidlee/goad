@@ -495,7 +495,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-02 — the draft's five values, and the kind-directed pure functions | **done** | 2026-09-19 |
 | PHASE-03 — the edit channel | **done** | 2026-09-19 |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | **done** | 2026-09-19 |
-| PHASE-05 — `text`, and the debounce's delivery | pending | |
+| PHASE-05 — `text`, and the debounce's delivery | **in progress** | 2026-09-19 |
 | PHASE-06 — the overlay | pending | |
 | PHASE-07 — `datetime` and the two pickers | pending | |
 | PHASE-08 — `number` and its two controls | pending | |
