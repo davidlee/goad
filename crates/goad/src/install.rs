@@ -106,6 +106,17 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
 /// `date` and `time` slots `Reported::Picked` is composed from), `number`
 /// PHASE-08, `choice` PHASE-09. A phase that draws a control and forgets its
 /// arm here fails that phase's own first case — the draft never sees the edit.
+///
+/// **The `Option` is not scaffolding, and PHASE-07 does not delete it.** Once
+/// every kind draws, a `datetime` edit still answers `None` on its own terms:
+/// the two pickers hand back a civil date and time, and `instant::compose`
+/// turns those into an instant and an offset **host-side**, where it can fail
+/// — an out-of-range integer, a civil date `Date::new` refuses, a `DateTime`
+/// `to_zoned` refuses. That is §5.4's *"one `edited()`, or nothing if
+/// `compose` fails"*, and nothing is recorded on that path: the button still
+/// shows what it showed, which is the person's signal that the pick did not
+/// take. So the return type this phase needs for an unwritten arm is the same
+/// one the finished function needs for a written one.
 fn reported(edit: &FieldEdit) -> Option<Reported> {
   match edit.kind {
     Kind::Boolean => Some(Reported::Checked(edit.checked)),

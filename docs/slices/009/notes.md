@@ -1456,16 +1456,29 @@ STOP and consult — do not improvise past any of these:
   mapper this phase writes. Same shape as the gap PHASE-02 found. Reported to
   the team lead; `plan.md` is an accepted artefact and is not edited from here.
 - **The design does not settle how the closure tells a numeric `LineEdit`'s
-  report from a `Slider`'s.** `Reported` has six variants for five kinds
-  (`AdjustedText` and `AdjustedValue` both under `number`), while the markup's
-  only discriminant is `FieldEdit.kind`, which `design-log.md` D-12 welds to
-  the **protocol** kind and never the control. The two controls send different
-  slots — §5.2's table: the `LineEdit` *"Sends `text`"*, the `Slider` *"Sends
-  `number`"* (D16) — but both under `Kind.number`, and no slot value
-  distinguishes them: an empty `text` is the measured cleared-field case, not a
-  slider. Nothing in this phase turns on it — `number` has no arm here — so it
-  is recorded rather than resolved, and it is PHASE-08's to settle before it
-  draws the second control. Reported to the team lead.
+  report from a `Slider`'s, and it is a hole in the *design*, not in the
+  plan.** Three citations hold it, each verified rather than recalled:
+  `design.md:500-502` — the controls table puts both controls under the one
+  protocol kind, the `LineEdit` *"Sends `text`"* and the `Slider` *"Sends
+  `number`"* (§7 D16); `design.md:697-698` — `Reported` carries
+  `AdjustedText(String)` and `AdjustedValue(f32)`, two variants for that one
+  kind; and `design-log.md` **D-12** — *"`FieldEdit.kind` carries the
+  **protocol** kind and never the control"*. So six report variants meet a
+  five-valued discriminant, and the two that collide are exactly the two a
+  `number` can raise.
+
+  **No slot value separates them, and the one that looks as though it might is
+  a measured case going the other way.** *Empty `text` means a `Slider`* would
+  silently eat a cleared numeric field, which A-2 measured and which must reach
+  the draft as `AdjustedText("")` — `design.md`'s edges table, *numeric field
+  cleared to `""`*. That is `CLAUDE.md`'s second invariant in miniature: an
+  ambiguous message fails rather than being guessed at, and this one is
+  ambiguous at the boundary rather than on the wire.
+
+  Nothing in this phase turns on it — `number` has no arm here — so it is
+  recorded and **not** resolved, and nothing in the phase is shaped around a
+  resolution that does not exist. It goes to the user as a design question
+  before PHASE-08, not during it. What this phase owes it is a price, below.
 
 **Tasks**
 
@@ -1575,6 +1588,29 @@ the phase is in flight. The runner is `scratchpad/inject.py`.
   slot-by-slot read would have been the smaller edit and would have measured
   strictly less: the whole-value comparison is what holds the literal to naming
   only the fields it means, and injection **G** is what says so.
+
+**What the numeric ambiguity would cost this phase's work** — asked for by the
+team lead, because the mapper is the code in hand. Not a recommendation: three
+ways out were named, and this is only which of them this phase's work already
+fits.
+
+Each of the three lands on the **same site** — `install.rs`'s grouped `None`
+arm, whose doc already names PHASE-08 as its owner. None of them reopens this
+phase's structure; they differ in whose *committed* work they disturb.
+
+| the way out | what of PHASE-03's would change | what it lands on instead |
+|---|---|---|
+| **A second `FieldEdit` field** — say a `slider: bool` the `number` arm reads beside a slot | **Nothing.** The change is entirely inside the arm this phase did not write, and `tree.rs`'s whole-report comparison survives it untouched: a new field defaults, and `..FieldEdit::default()` still spells the expectation. Reading two fields to select a slot is what `kind` already does, so EX-4 is unthreatened | `app.slint`'s `FieldEdit` declaration, and PHASE-08's own arm |
+| **The host re-derives the control** — one `Reported` variant carrying both slots, split inside `interpret` from `slider_bounds` | **Nothing of the mapper's shape**; it would still have one `number` arm, and `Command`'s missing `Eq` is unaffected either way, because the payload is a float on both readings | **PHASE-02's committed work**: `draft.rs::Reported` loses a variant, `view_model::interpret` loses an arm, the twenty-four-pair mismatch unit's count changes, and `design.md` §5.2's `Reported` block is rewritten. Note also that `slider_bounds` is PHASE-08/EX-3's **only** site that chooses a control, so this either calls it twice per edit or moves the decision onto `DrawnKind` — PHASE-02's again |
+| **A sixth discriminant value** — `FieldEdit.kind` stops being `Kind` and becomes a report discriminant of its own | **Four edits, every one a token.** `app.slint:47` (the field's type), `app.slint:364` (the literal's `Kind.boolean` → its report spelling), `install.rs:110-112` (the match's scrutinee type and its arm names; the shape — one arm per report plus a grouped rest — is unchanged), and `tree.rs`'s expected literal. **This phase's `Kind.boolean` decision makes it cheaper rather than dearer**: the literal already names what the control *is* rather than what the row *says*, and a report discriminant is that same idea one step on | `design-log.md` D-12's weld, which is the decision being revisited |
+
+Two things fall out that are worth having before the question is put. The
+cheapest by this phase's measure is the second `FieldEdit` field and the
+dearest is the host re-deriving — and the dearest is dear against **PHASE-02**,
+not against PHASE-03, so its price is re-opening a phase that is committed,
+reviewed and unit-covered. And `tree.rs`'s whole-report comparison holds under
+all three, which is a second reason it was worth taking over a slot-by-slot
+read.
 
 **Findings**
 
@@ -1775,6 +1811,18 @@ the phase is in flight. The runner is `scratchpad/inject.py`.
   audit belongs in the Reconciliation table; one the slice creates knowingly
   does not. The corollary is that a phase whose criterion widens what a type
   means should check its Surfaces for the type's own file before it starts.
+- **A true statement can go stale by *widening*, and that is not a bad
+  citation.** Twice in one phase: `design.md` §9's *twelve* was accurate about
+  **constructors** of `Command::Edit` and `Edited` and silent about a
+  **binder** of the markup callback, which is why `tree.rs` was a thirteenth
+  site the count never claimed to cover; and `Refused::UnknownField`'s doc was
+  accurate about the only path into it that then existed. Neither was wrong
+  when written and neither is a miscount — the world got larger than a sentence
+  whose scope was right. It is a different animal from §*Citations known bad*,
+  which is about numbers that never pointed where they said, and it does not
+  belong on that list. The working rule is what the two cases share: when a
+  phase widens what a type or a rule **means**, re-read every sentence that
+  enumerated it, including the ones that are still true.
 - **When you raise a stale doc, name every clause of it, not the one that
   caught your eye.** `Refused::UnknownField` had two: the sentence describing
   the refusal, and a later *"Only reachable from a stale or malformed
