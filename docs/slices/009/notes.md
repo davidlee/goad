@@ -2460,17 +2460,26 @@ instrument that prints the number*.
   push at `:253-255`; `:299-345` — `field_value` and its doc.
 - `crates/goad/src/main.rs:95-96` — the `Rc` and `install`; `:103-107` —
   `SlintGlass::new`, three arguments today.
-- `crates/goad/tests/renderer/harness.rs:60-66` — `glass_over`. **58 calls
-  across four files** —
-  `grep -rn "glass_over(" crates/ | grep -v "fn glass_over"` — `fields.rs` 1,
-  `ingress.rs` 13, `scheduling.rs` 14, `wiring.rs` **30**. Three of the four are
-  outside this phase's Surfaces, so **57 of the 58 are out of reach** and its
-  signature does not widen. This sheet first said *59 across 5 files, two of
-  them outside*; the fifth "file" was `harness.rs`, which holds the definition
-  and no call, and the file missed was `wiring.rs`, which alone holds more than
-  the two named combined. The conclusion did not move — it got stronger — and
-  the correction is in `plan-log.md` under
-  `docs/memory/verify-the-enumeration-not-the-conclusion.md`.
+- `crates/goad/tests/renderer/harness.rs:60-66` — `glass_over`. Re-derived here
+  from `grep -rn "glass_over(" crates/ | grep -v "fn glass_over"`, piped through
+  `sed 's/:.*//' | sort | uniq -c` for the per-file split rather than counted by
+  eye:
+
+  | when | calls | files |
+  |---|---|---|
+  | at T-0 | **58** | `wiring.rs` 30, `scheduling.rs` 14, `ingress.rs` 13, `fields.rs` 1 |
+  | after this phase | **57** | the same three, `fields.rs`'s one having become `glass_overlaying` |
+
+  **Three** of the four files were outside this phase's Surfaces, so **57 of the
+  58 were out of reach** and the signature does not widen. This sheet first said
+  *59 across 5 files, two of them outside*: the fifth "file" was `harness.rs`,
+  which holds the definition and no call, and the file missed was `wiring.rs`,
+  which alone holds more calls than the two named combined. The conclusion did
+  not move — it got stronger — and this is
+  `verify-the-enumeration-not-the-conclusion` exactly: a correct finding
+  carrying a wrong sub-claim, which a sheet inheriting it would have written
+  into the record as *two files, 27 sites*. `plan-log.md` carries the
+  correction.
 - `crates/goad/tests/renderer/fields.rs:300-324` — `Rig` and its doc;
   `:326-359` — `rigged`, whose `install` call inlines
   `&Rc::new(Debounce::new())` at `:347` and whose `glass_over` is at `:329`.
@@ -2594,6 +2603,16 @@ EX-2 names — `grep -n "SlintGlass::new" -r crates/`:
    four call-site pairs and it is the enumeration's *reach* that is short, not
    its arithmetic.
 
+   **A new sub-class, and PHASE-07 and PHASE-09 should expect it.**
+   `event_loop_debounce` is **PHASE-05's own new target** — the plan was written
+   before that file existed, so no enumeration in it could have named the file,
+   however carefully it had been made. *A Surfaces line can be short about a
+   file the slice itself created in an earlier phase.* Both of the remaining
+   phases follow phases that add targets, so this is now a thing to look for
+   rather than to be surprised by: before trusting a Surfaces line, list the
+   files earlier phases of **this slice** created and check each against it.
+   Amended at `0e8e452`; `plan-log.md` states it.
+
 **Tasks**
 
 - [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
@@ -2639,11 +2658,21 @@ the glass, the target and the memory repairs were the work done in the meantime.
   correct too, and would have had to be argued rather than read.
 - **`glass_overlaying` beside `glass_over`, delegating.** `glass_over` keeps its
   arity and calls the new one with a fresh empty handle, so there is one body
-  and not two (CLAUDE.md, *no parallel implementation*). The name answers the
-  question a reader has — *can this glass show what the person typed?* — rather
-  than naming the parameter. `glass_over`'s doc says in one line which of the
-  two a case that also calls `install` must take, because taking the wrong one
-  compiles, runs green and measures nothing.
+  and not two (CLAUDE.md, *no parallel implementation*); *beside* is where two
+  bodies drift. The name answers the question a reader has — *can this glass
+  show what the person typed?* — rather than naming the parameter, which is what
+  `glass_over_with_pending` would have done.
+
+  **The trap this leaves, which PHASE-07, -08 and -09 inherit.** A case that
+  calls `install` and then `glass_over` **compiles, runs green, and measures
+  nothing** — R10 one level out from where VA-1 is looking, because there is no
+  second `Debounce::new()` written anywhere for a reader to notice; the wrong
+  handle is manufactured inside a helper whose name does not mention it. Nothing
+  in the types catches it and no assertion can, since the case would be asserting
+  a behaviour it has quietly disabled. `glass_over`'s doc carries the one line
+  that stands between a future case and that, so the doc is the mitigation and
+  not decoration. Any phase adding a `serve`-driven case to `tests/renderer/`
+  should check which of the two its case took.
 - **`debounce.rs`'s glass moved below its wire** rather than its `pending`
   binding moving up, because `pending` sits in the comment block that explains
   the capacity-1 channel and the two belong together. The glass is four lines
