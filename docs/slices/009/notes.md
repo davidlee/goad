@@ -184,6 +184,17 @@ it; otherwise it belongs in the audit.
    refused — a case belongs there. Until it exists the clause is an untested
    path, and the audit should record it as one rather than as a discharged
    criterion. Raised by PHASE-06's agent, verified at `glass.rs:378-382`.
+
+   **A third row, and this one is a measured outcome rather than an oversight.**
+   PHASE-08/EX-7 ran the numeric guard's exception four ways and **removed** it —
+   not as dead weight but because carrying it suppresses exactly the convergence
+   AC-6 requires (`plan-log.md`, *the exception was not dead, it was wrong*).
+   `design.md` §5.2's comparand table and §7 **D13** both still state the
+   exception as part of the guard. **This is reconciliation, not drift**: §9's
+   **A-2** framed the exception as an obligation whose outcome was *open*, so the
+   design asked for the measurement and the measurement answered it. The user has
+   endorsed patching `design.md` at reconcile (2026-09-19). Both sites, and A-2's
+   own row, need to say what was measured.
 3. **Promote the drafts.** `canon-delta.md` CD-1 and CD-2 apply to `SPEC-001`,
    with explicit user endorsement, recorded in `audit.md`'s Reconciliation
    table. A slice does not close holding an unpromoted draft.
