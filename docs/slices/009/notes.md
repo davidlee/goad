@@ -531,7 +531,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-05 — `text`, and the debounce's delivery | **done** | 2026-09-19 |
 | PHASE-06 — the overlay | **done** | 2026-09-19 |
 | PHASE-07 — `datetime` and the two pickers | **done** | 2026-09-19 |
-| PHASE-08 — `number` and its two controls | **in progress** | 2026-09-19 |
+| PHASE-08 — `number` and its two controls | **done** | 2026-09-19 |
 | PHASE-09 — `choice`, and the retirement of `FieldForm` | pending | |
 
 PHASE-04 is the only phase that can run beside another (`plan.md`
@@ -3553,24 +3553,407 @@ Paths are under
 
 - [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
       with its denominator
-- [ ] T-1 the sheet, committed before any production code
-- [ ] T-2 `app.slint`: the two structs' new slots, the `Slider` arm, the
+- [x] T-1 the sheet, committed before any production code
+- [x] T-2 `app.slint`: the two structs' new slots, the `Slider` arm, the
       numeric `LineEdit` arm and its guard — and A-a, A-b settled at the
       compiler; A-f raised (EX-4, EX-5, EX-6, EX-9)
-- [ ] T-3 `view_model.rs`: `FieldKind::Number` moves to `Ok`, `FieldForm` loses
+- [x] T-3 `view_model.rs`: `FieldKind::Number` moves to `Ok`, `FieldForm` loses
       `Number`, `slider_bounds` and the one narrowing site — with VT-1's units
       written red first (EX-2, EX-3)
-- [ ] T-4 `glass.rs`: the `Adjusted` value arm and the row's four new slots
+- [x] T-4 `glass.rs`: the `Adjusted` value arm and the row's four new slots
       (EX-2, EX-3)
-- [ ] T-5 `install.rs`: the `Kind::Number` arm, selecting on `edit.slider` and
+- [x] T-5 `install.rs`: the `Kind::Number` arm, selecting on `edit.slider` and
       on nothing else (EX-9)
-- [ ] T-6 EX-8, the fixture migration, one site at a time, recorded by name
-- [ ] T-7 VT-2 … VT-5 in `fields.rs`, each with an injection pass naming the
+- [x] T-6 EX-8, the fixture migration, one site at a time, recorded by name
+- [x] T-7 VT-2 … VT-5 in `fields.rs`, each with an injection pass naming the
       assertion **ordinal and message** it fails at
-- [ ] T-8 VT-6: `event_loop_numeric_guard`, negative-controlled — then EX-7,
+- [x] T-8 VT-6: `event_loop_numeric_guard`, negative-controlled — then EX-7,
       the same case re-run with the exception removed, both counts recorded
-- [ ] T-9 VA-1 and VA-2 in writing
-- [ ] T-10 `just check` exits 0 (EX-1); sheet and Harvest updated
+- [x] T-9 VA-1 and VA-2 in writing
+- [x] T-10 `just check` exits 0 (EX-1); sheet and Harvest updated
+
+**Result.** `just check` **exit 0**, gate total **591**; `cargo test
+--workspace` **556**. Both are +7 on the baseline, and the +7 is three targets:
+`goad` lib **52 → 54** (VT-1's two units), `tests/renderer` **198 → 202**
+(VT-2 … VT-5), and one new loop target at **1** (VT-6). The gate total stays
+exactly 35 above the workspace one. `grep -c '^\[\[test\]\]'
+crates/goad/Cargo.toml` is **7** — one no-loop target and **six** loop-tier
+arrangements.
+
+**EX-7 — the exception is removed, and the measurement says more than *dead***
+
+Four corners, `cargo test -p goad --test event_loop_numeric_guard`, denominator
+**1** each. The negative control compiles and runs on both sides.
+
+| overlay | exception | result | where |
+|---|---|---|---|
+| on | **off** — the shipped tree | **1 passed** | — |
+| on | on | 1 failed | assertion **#9**, *an edit the host never recorded is corrected on the next present, even though the widget is empty and the held number is zero* — `Reading { shown: "", also_shown: "", drafted: Some(0.0), inits: 2, reasserts: 0 }` |
+| off | off | 1 failed | assertion **#3**, *a present inside the debounce window leaves the cleared field cleared* — `shown: "0"`, `reasserts: 1` |
+| off | on | 1 failed | assertion **#9**, identically to row 2 |
+
+Row 3 is the negative control: it reproduces the exact defect the exception was
+licensed by, so the case can see a write-back at all.
+
+**Row 2 is the finding, and it is not the one the design predicted.** The design
+expected the overlay to make the exception *unnecessary* — a cleared field is a
+pending `AdjustedText("")`, `interpret` reads it as the text `""` beside the
+number the field already held, the channel carries `""`, and the strings agree
+on their own. That is true, and it is not the whole story. The one state the
+exception still **fires** in is the state the guard exists for: a cleared entry
+the host *never recorded*, where the channel holds the field's own zero and the
+widget is empty. Carrying it suppresses exactly the convergence AC-6 requires.
+Row 4 shows that is true with or without the overlay — pre-overlay the price was
+simply invisible, because nothing in this project measured AC-6 for a **numeric**
+field.
+
+**The first draft of VT-6 could not have found that.** It carried only the
+cleared-field claim, and it passed in row 1 **and** row 2 — it could not tell
+the exception's presence from its absence, and would have licensed removing it
+on no evidence. The second claim, on a second field cleared after the stepper
+goes silent, is what separates them.
+
+**Two corrections to my own injections, both caught by running rather than by
+reading.** The first *overlay off* injection was `drafted.or(overlay)`, which
+falls back to the overlay precisely when `drafted` is `None` — the only case
+that matters. It reported *1 passed*, and *the defect does not reproduce* was
+one keystroke from being written down. The first *restore the exception*
+injection matched **two** guards, the text `LineEdit`'s included; it asserted
+its match count rather than editing both silently.
+
+**EX-3's three clauses, and what subsumes what**
+
+`slider_bounds` is four assertions in `view_model.rs`'s inline `mod tests`, one
+per clause, and each isolates:
+
+| injection | counts | which assertion, and its message |
+|---|---|---|
+| — none | 54 passed | — |
+| `exact_f32` narrows without the round trip | 52 passed, **2** failed | `slider_bounds_…` **#3** *`0.1` is not an `f32`…* — `Some((0.1, 10.0))` against `None`; and `only_an_f64_…` **#4** *a legal `R-17` bound `f32` reads as infinity* — `Some(inf)` |
+| the span clause deleted | 53 passed, **1** failed | `slider_bounds_…` **#5** *both endpoints round-trip exactly and the span is still an `f32` infinity* — `Some((-3.4028235e38, 3.4028235e38))` |
+| the move clause replaced by `step > 0.0` | 53 passed, **1** failed | `slider_bounds_…` **#6** *a finite, strictly positive step can still be too small to move the value* — `Some((1.2676506e30, 1.2676508e30))` |
+
+**The third clause subsumes the positivity test and not the span test**, and the
+distinction is measured rather than reasoned. Replacing *moves the value* with
+`step > 0.0` admits the `2^100` range, so the move test is strictly stronger
+than the positivity test it replaces. But deleting the **span** clause admits
+`[-f32::MAX, f32::MAX]`, because an infinite step *does* move the value in both
+directions — so clause 2 is not subsumed, and it is evaluated first for the
+separate reason that it is what makes the division safe to perform at all.
+
+The `2^100` case is real and its arithmetic was measured before the code was
+written: `2^100` is exact in `f32`, the next `f32` above it is `2^100 + 2^77`,
+so a one-ulp span gives a step of about `2^70.3` — below half an ulp, and
+`minimum + step` rounds back to `minimum`.
+
+**One clause the *element* tier could not see, and now can.** Deleting clauses 2
+and 3 outright first left `tests/renderer` **202 passed, 0 failed**: no fixture
+had a range they refuse. The fixture gained `frozen`, a one-ulp span at `2^100`
+whose bounds round-trip exactly and whose span is finite and positive, and the
+same injection now reddens VT-2 **#1** with `(Slider, TextInput, Slider,
+Checkbox)`.
+
+**The injection pass, `tests/renderer`**
+
+Denominator **202**. Each injection was applied from a copy taken first, run,
+reverted from that copy, and the tree re-run green before the next. Assertion
+**ordinals** are per case, counting `assert!` / `assert_eq!` in source order.
+
+| # | injection | result | which assertion, and its message |
+|---|---|---|---|
+| — | none | **202 passed, 0 failed** | — |
+| **I-1** | `install.rs` ignores `FieldEdit.slider` — every `number` reports as text | 201 / **1** | VT-2 **#8** *R-57: … which only reaches the draft if the control reported itself as a slider*, `Number(0.0)` against `Number(7.0)` |
+| **I-2** | the `Slider` writes `slider: false` | 201 / **1** | VT-2 **#8**, identically. D-38's own injection |
+| **I-3** | the numeric `LineEdit` writes `slider: true` | 200 / **2** | VT-4 **#2** *the text is recorded verbatim…*, `"0"` against `"12/25"`; VT-3 **#3** *R-57: a JSON number, unclamped and unrounded*, `Number(0.0)` against `Number(-4.5)` |
+| **I-4** | `slider_bounds` drops clauses 2 and 3 | 201 / **1** | VT-2 **#1** *one kind, two controls*, `(Slider, TextInput, Slider, Checkbox)`. Green before `frozen` existed — see above |
+| **I-4b** | a missing bound is filled in by the host | 199 / **3** | VT-3 **#1** *a `number` the backend sent no bound for acquires none on the way to the screen*, `(Some(0.0), Some(100.0))`; VT-4 **#2**; VT-2 **#1** |
+| **I-5** | `interpret` repairs one foreign character with a dot | 201 / **1** | VT-4 **#4** *not `12.25`, which is what a one-character repair would have read*, `Number(12.25)` against `Number(3.0)`. The cleanest isolation of the pass |
+| **I-6** | `interpret` discards the text it cannot parse | 201 / **1** | VT-4 **#2**, `"3"` against `"12/25"` |
+| **I-7** | `spelled` never switches to `{:e}` | 201 / **1** | VT-5 **#1** *the `{:e}` spelling, not the 309 characters `Display` would have written* — and the 309 characters are in the failure output |
+| **I-8** | every untouched field is shown as an untouched **text** field | 196 / **6** | VT-4 **#1** *the field is drawn showing its declared minimum*, `""` against `"3"`; VT-5 **#1**, `""`. Plus PHASE-07's four `datetime` cases — the broadest injection of the pass, and the one that says `untouched` is one rule and not five |
+| **I-9** | the markup computes its own step, a tenth of the span | 201 / **1** | VT-2 **#4** *one keyboard step is a hundredth of the declared span*, `"1"` against `"0.1"` |
+| **I-10** | the row ships Slint's own default bounds | 201 / **1** | VT-2 **#2** *the slider declares the range the backend sent, and neither bound is one the host chose*, `(Some(0.0), Some(100.0))` |
+
+**Trap 10 in this phase: `accessible-value-step` cannot measure the step this
+host ships.** Slint binds it to `min(root.step, (maximum - minimum) / 100)`
+(`fluent/slider.slint:29`) — a **cap** — and this design's step is exactly that
+hundredth, so the reading stays `0.1` whatever the markup ships. VT-2's first
+draft asserted it and would have passed against a slider left at Slint's default
+step of `1`. I-9 is the measurement: with a step of a *tenth* of the span, the
+reported step is still `0.1` and the value moves by `1`. VT-2 now takes one
+`invoke_accessible_increment_action` and reads where the value lands, which
+measures the shipped step and the third clause of `slider_bounds` in the same
+call.
+
+**EX-9 / D-38 — the evidence that each control writes its own literal**
+
+Three readings and two injections, and none of them is the grep alone:
+
+- `grep -n "slider:" crates/goad/ui/app.slint` returns **four** lines: `:54`
+  and `:89`, the two struct declarations, then **`:581` `slider: true`** inside
+  the `Slider`'s `changed` handler and **`:650` `slider: false`** inside the
+  numeric `LineEdit`'s `edited` handler. There is no fifth, so no third value
+  is written anywhere.
+- `grep -n "field.slider" crates/goad/ui/app.slint` returns **five** lines, of
+  which `:38`, `:85` and `:501` are prose. The two code lines are `:521` and
+  `:585`, and both are the `if` that selects which control is **drawn**.
+  Neither *report* reads the row.
+- `grep -n "edit.slider" crates/goad/src/install.rs` returns **one** line,
+  `:193`, and it is the guard on the `Kind::Number` arm. Nothing else in the
+  host reads it.
+- I-1 and I-2 are the measurement. Both take VT-2 from 202 to 201 at **#8**,
+  with the slider's `7` never reaching the draft.
+
+**What no test can measure, stated rather than claimed.** Writing
+`slider: field.slider` at each control would leave every case in this phase
+green, because for a correct renderer the row and the control agree. That is
+D-38's whole point: the literal is a *witness*, and its value is that it can
+disagree. The injections above are of the literal being **wrong**, which is the
+only form of the defect a test can see.
+
+**EX-8 — the fixture migration, by name.** Every one moved to **`choice`**,
+which is the last undrawn kind: PHASE-09 draws it, so nothing on this list can
+be repaired a fourth time and each case is deleted there instead. Each
+fixture's own doc comment was advanced by one phase in the same edit.
+
+| site | file | was | now |
+|---|---|---|---|
+| `A_DRAWN_AND_AN_UNDRAWN_FIELD` | `tests/renderer/fields.rs:90` | `noted`, `number` | `noted`, **`choice`** |
+| `mod editing`'s `TWO_FORMS` | `tests/renderer/wiring.rs:1165` | `noted`, `number` | `noted`, **`choice`** |
+| `grouped_fields_separated_only_by_an_undrawn_field_are_one_block` | `tests/renderer/mapper.rs:240` | `note`, `number` | `note`, **`choice`** |
+| `a_group_whose_every_field_is_undrawn_produces_no_block` | `tests/renderer/mapper.rs:259`, `:261` | `note` and `other`, `number` | both **`choice`** |
+| `every_undrawn_kind_is_reported_by_option_field_and_form` | `tests/renderer/mapper.rs:314`, its row at `:316` | two undrawn kinds | **one** — the `number` row is **removed**, not moved; `choice` was already in the list, so a move would have duplicated a row. The `undrawn.len()` assertion goes 2 → 1 with it, which is what keeps *every* a claim rather than a word |
+| `a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice` | `tests/renderer/mapper.rs:385` | `note`, `number` | `note`, **`choice`** |
+| `field_reports_leave_a_parsed_body_undegraded` | `tests/renderer/mapper.rs:432` | `note`, `number` | `note`, **`choice`** |
+| `a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_receive` | `tests/renderer/reception.rs:762` | `note`, `number` | `note`, **`choice`** |
+| `field_form_displays_as_the_protocols_own_word` | `tests/renderer/mapper.rs:205` | two rows | **one** — `number`'s row goes with the variant |
+
+Each case was read for what its undrawn field is *for* rather than for the
+token, and none went vacuous: `fields.rs`'s asserts a diagnostic line naming the
+field **and** its absence from the submitted keys; `wiring.rs`'s opens with a
+guard assertion that the fixture really does carry an undrawn field;
+`mapper.rs`'s block cases assert a claim about *undrawn*, not about the kind;
+`reception.rs`'s asserts two lines in order, one per field. The two that changed
+**meaning** rather than spelling are the two enumerations, and both are down to
+one row.
+
+**Trap 11 — and this time the instrument died during the phase, not after it.**
+`grep -rn '"kind":"number"' crates/` now returns **eight** lines and not one of
+them is an undrawn fixture: two normalizer-refusal fixtures in
+`tests/renderer/table.rs` (`OPTIONS_ON_A_NUMBER_FIELD`, `INVERTED_BOUNDS`), the
+same two in `crates/goad-shell/tests/integration/failure_matrix.rs`, three
+**drawn** fixtures this phase added to `fields.rs`, and one in
+`event_loop_numeric_guard`. The four refusal fixtures were checked again and
+left: they are `retained(…)` rows asserting a normalizer diagnostic, refused
+before `present` is ever called, so no drawn kind reaches them.
+
+The instrument that replaces the grep is not a grep. `FieldForm` now declares
+**`Choice` and nothing else**, so a `number` field *cannot be reported undrawn
+at all* — `grep -n "pub enum FieldForm" -A 3 crates/goad/src/view_model.rs` is
+the reading, and it is a property of the type rather than of a search string.
+
+**VA-1 — nothing non-finite can reach the wire**
+
+`draft.rs:202` is the only site that maps a number onto the wire:
+`Edited::Adjusted { number, .. } => serde_json::Value::from(number.get())`. The
+field is private and the constructor fallible, so `Value::from(f64)` — which
+answers JSON `null` for a non-finite, and `R-57` admits no `null` — can never
+see one.
+
+`grep -rn "Finite::new\|Finite::ZERO" crates/goad/src/` returns **three**
+production sites and the rest are test fixtures:
+
+- `view_model.rs:594`, `drawn_number` — `R-17` already guarantees a declared
+  bound is finite, so this cannot refuse one; the `unwrap_or(Finite::ZERO)` is a
+  total expression rather than an argument about an unreachable `expect`.
+- `view_model.rs:753`, `interpret`'s `AdjustedText` arm — `Finite::new` on the
+  parse, which is what makes `1e400` and `inf` leave the number alone.
+- `view_model.rs:762`, `interpret`'s `AdjustedValue` arm —
+  `Finite::new(f64::from(*value)).map(adjusted)`, refusing a non-finite
+  **before** any `Edited` exists.
+
+Neither boundary type holds the invariant and neither is asked to:
+`Reported::AdjustedValue` is a bare `f32` and `FieldEdit.number` is a Slint
+`float`. That is the design's own division — the refusal belongs where the other
+renderer-bug refusals are, not inside a Slint closure with nothing to report to.
+
+**A `Slider` cannot in fact produce a non-finite, and that was measured rather
+than assumed.** `set_accessible_value("NaN")` on the drawn slider leaves the
+widget showing `"10"` and the channel holding `10.0`: Slint's
+`accessible-action-set-value` parses, and `set-value` clamps with
+`max(minimum, min(maximum, v))` before raising `changed`, so the host is handed
+the maximum. `"inf"` clamps the same way. So `interpret`'s non-finite refusal is
+a guard against a renderer bug and not against this renderer — which is what
+`VA-1`'s *neither of them the boundary type* is for.
+
+**VA-2 — no `f64` crosses as a `float` except a `Slider`'s value and its bounds**
+
+Held **by construction**, not by argument, and the reading is four greps:
+
+- `grep -rn " as f32\| as f64" crates/*/src/` returns **one** line,
+  `view_model.rs:502`, inside `exact_f32`, whose next line is the round-trip
+  check. `as_conversions`, `cast_possible_truncation` and `float_cmp` are all
+  `deny` workspace-wide and one `#[expect]` names why exact equality is the
+  whole of the check.
+- The markup declares five `float` slots: `FieldRow.minimum` / `maximum` /
+  `step` (`app.slint:54`), `FieldValue.number` (`:55`) and `FieldEdit.number`
+  (`:89`).
+- Every **read** of one is inside the `Slider` arm:
+  `grep -n "values\[field.slot\].number" crates/goad/ui/app.slint` returns
+  `:539`, `:558`, `:559` — the binding and the guard — and `field.minimum` /
+  `maximum` / `step` are read at `:532-534`. The numeric `LineEdit` reads
+  `text` and nothing else.
+- Every **write** of one is in `glass.rs`: `:333-335` for the three row slots,
+  each from `slider_bounds`'s already-`f32` answer and `slider_step`'s pure
+  `f32` arithmetic, and `:539` for `FieldValue.number`, which is
+  `slider.and_then(|_| exact_f32(number.get()))` — so it is written **only**
+  where a slider is drawn, and only through the checked narrowing.
+
+Inbound, `FieldEdit.number` is an `f32` by nature — the `Slider`'s own value —
+and `f64::from` widens it losslessly at `view_model.rs:762`. The two `LineEdit`
+controls send `text`, which is lossless for every finite `f64`.
+
+**That the `number` slot is the `Slider`'s alone is EX-7's doing.** While the
+guard's exception stood, the numeric text control's guard read
+`values[field.slot].number` to ask whether the held number was zero — a
+non-`Slider` read of a `float` slot that VA-2's sentence does not admit, and a
+narrowing that would have turned a legal `min: 1e100` into an `f32` infinity.
+That was raised as **A-f** before any test was written and it is gone with the
+exception; nothing had to be decided.
+
+**PHASE-06/EX-3's unmeasured branch — not closed, and now measured as
+unreachable**
+
+The overlay's clause *"where `interpret` refuses the entry the draft's value
+stands"* is still discharged by construction and measured by nothing.
+`number` was the best candidate and it does not reach it either. The three ways
+`interpret` can answer `None` for a `number`, each checked:
+
+1. **a non-finite `AdjustedValue`** — `set-value` clamps into the drawn range
+   before raising `changed`, measured above, and `slider_bounds` guarantees that
+   range is finite. Unreachable from the markup.
+2. **a `Chosen` index** — belongs to `choice`, which does not draw yet.
+3. **a variant that does not match the drawn kind** — both `number` controls
+   write `kind: Kind.number`, and `install::reported` selects `AdjustedText` or
+   `AdjustedValue` on `edit.slider`. Both are in-kind for `DrawnKind::Number`.
+   A stale entry cannot supply one either: `overlaid` tests `entry.view == view`
+   before it interprets, so an entry made on a replaced view is never shown.
+
+So the branch stays open for the audit, and what has changed is that it is now
+*measured* unreachable through the markup for four of the five drawn kinds
+rather than merely unexercised. `choice` is the last candidate and PHASE-09
+owns it: a `ComboBox` index out of range is case 1 of the `None` surface and is
+the one a renderer could plausibly produce.
+
+**Trap 14 — the Surfaces check, and it was not short**
+
+Files earlier phases of **this slice** created, each grepped for
+`number|slider|FieldForm`: `src/instant.rs`, `src/pending.rs`,
+`tests/event_loop_debounce/`, `tests/event_loop_overlay/` and
+`tests/event_loop_reassert/`. Three hits, all prose — `pending.rs:11`, a doc
+sentence naming which kinds are debounced and already correct for this phase;
+`instant.rs:195` and `reassert.rs:42`, the English word *number*. PHASE-07's new
+fixtures were grepped too and `TWO_DATETIME_FIELDS` names no numeric field.
+`goad-boundary` names none of `FieldRow`, `slider`, `markup_kind` or
+`app.slint`.
+
+What the check did **not** catch, and what did: `grep -rn "FieldRow {" crates/`
+returns **four** lines — the declaration at `ui/app.slint:54` and three
+constructors, `src/glass.rs:323`, `tests/renderer/tree.rs:72` and
+`tests/renderer/sizing.rs:63`. Two of the three are outside the Surfaces line. They are
+compelled by `FieldRow` gaining four slots, not by any kind, so a grep for the
+phase's own vocabulary could never have found them. The lesson is the type, not
+the token: **a phase that widens a shared struct should grep for its
+constructors, not for its subject.**
+
+**STOP conditions raised**
+
+1. **S-1, `sizing.rs` and `tree.rs`.** Sent as soon as the compile named them,
+   with the edit already made and the reason given: without it the renderer
+   target does not build at all, so every remaining task is blocked behind the
+   reply and the fallback is handing back a tree that does not compile. The
+   orchestrator amended the Surfaces at `660943e`, took
+   `..FieldRow::default()`, recorded its cost, and wrote the carve-out into the
+   brief. While waiting, `view_model.rs`, `glass.rs`, `install.rs` and the
+   nine-site migration were all done.
+2. **A-f, raised before any production code and resolved by measurement.** Not
+   a STOP in the end: EX-7 removed the exception and the tension went with it.
+   It was raised anyway, because if the measurement had gone the other way the
+   decision would have been the orchestrator's and not mine.
+
+**S-2 … S-6 did not arise.** Both controls are operable under
+`init_no_event_loop` — `set_accessible_value` reaches `set-value` on a `Slider`
+and `edited` on a `LineEdit`, neither through a pointer — so no row moved tier.
+No repair rule was written. `slider_bounds` is the only site that chooses, and
+the markup's two `if`s branch on `field.slider` alone. No dependency was added
+and no case was weakened.
+
+**Trap 17 — checked before the seventh target was added, and the honest answer
+is not the flattering one.** `grep -c '^\[\[test\]\]' crates/goad/Cargo.toml`
+was **6** and `grep -c '^#\[test\]' crates/goad/tests/event_loop*/*.rs` returns
+exactly **one** per loop target. `event_loop_reassert` presents a glass directly
+with no `install`, no channel and no debounce, so it cannot hold a pending entry
+at all. But `event_loop_overlay` **does** have the arrangement VT-6 needs, and
+saying otherwise would be false. What makes this a target rather than a case is
+that EX-7 needs one `#[test]` fn run four times with production changes between
+it, and `event_loop_overlay`'s single function also carries PHASE-06's claims
+and deliberately goes silent partway to measure a *dropped* edit — merged, a
+failure on any corner could not be attributed to one phase's claim. That
+reasoning is in the new target's module doc rather than left implicit.
+
+**Decisions taken during execution**
+
+- **`view_model::untouched`, and `glass.rs` still never calls `as_drawn`.** The
+  glass's untouched-field arm was wrong for `number` the moment `number` drew:
+  its doc claimed a defaulted slot is what a field was drawn showing, true for
+  four kinds and false for one, so a field declaring `min: 2.5` would have drawn
+  an empty box and submitted `2.5`. The repair states the screen's half of the
+  rule as a function beside the wire's half, and it **deletes** the `kind`
+  parameter PHASE-07 added to `field_value`. Named `untouched` on the
+  orchestrator's decision: `drawn` would have been a prefix of `as_drawn` and
+  the sixth `drawn`-rooted identifier in the module, and `view_model.rs` already
+  binds a local `drawn` in `sift` and `present`.
+- **`slider_step` is a named function, not an expression written twice.**
+  `slider_bounds` *checks* the step and `glass.rs` *ships* it. A second spelling
+  is a second thing that can drift from the one that did the proving, and I-9
+  shows the drift is silent at the accessibility surface.
+- **`exact_f32` is `pub` and is the crate's only cast.** Two callers —
+  `slider_bounds`'s first clause and `field_value`'s `number` slot — and one
+  `#[expect]` covering three denied lints. Making the narrowing a *function with
+  a fallible return* is what turns VA-2 from a claim into a signature: a caller
+  has to say what it does with `None`.
+- **VT-4 reads the value channel as well as the wire.** A host that discarded
+  the refused entry and one that repaired it are each invisible to one of the
+  two, measured as I-5 and I-6 reddening different assertions. It is drawn at
+  its declared minimum rather than given a delivered edit because an answer with
+  no new view is `Shift::Closed` and takes the form down, so a second press is
+  not available in this target.
+
+**Left for PHASE-09 and the audit**
+
+- **Design drift, and it is real rather than cosmetic.** `design.md` §5.2's
+  comparand table and §7 D13 both still state the numeric guard's exception,
+  which EX-7 removed. §9 A-2 framed the outcome as open, so this is the audit's
+  to reconcile; no design file was touched.
+- **PHASE-09 deletes rather than migrates, and should not go looking for a
+  fourth hop.** `every_undrawn_kind_is_reported_by_option_field_and_form`
+  (`mapper.rs:314`) and `field_form_displays_as_the_protocols_own_word`
+  (`mapper.rs:205`) are both down to **one** row, and `FieldForm` to one
+  variant. There is no undrawn kind left to report and an empty enum has no
+  `Display` to assert. The other seven sites on EX-8's list carry `choice` and
+  have nowhere to go either.
+- **`FieldRow` gains `alternatives` at PHASE-09**, which compels
+  `tests/renderer/sizing.rs` and `tests/renderer/tree.rs` again — except that
+  both now take `..FieldRow::default()`, so they will **not** break. That is the
+  cost the orchestrator recorded at `660943e`, and it is the phase agent's to
+  remember rather than the compiler's to raise.
+- **PHASE-06/EX-3's refusal branch is `choice`'s last chance.** A `ComboBox`
+  index no alternative has is case 1 of `interpret`'s `None` surface and is the
+  one a renderer could plausibly produce. If PHASE-09 does not reach it, nothing
+  will.
+- **`role_of`, `range_on_screen`, `slide_to` and `step_once` are `fields.rs`'s
+  alone** and were deliberately not lifted into `harness.rs`: the module rule
+  there is *two or more case files need it*, and one does.
 
 
 ## Harvest
@@ -3578,10 +3961,45 @@ Paths are under
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-07 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-08 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+
+- **`number` draws two controls and one function chooses between them.**
+  `view_model::slider_bounds(&NumberRange) -> Option<(f32, f32)>` is the only
+  site that picks a `number`'s control, on three clauses evaluated in `f32`:
+  both bounds `f32`-exact, a finite strictly positive span, and a step that
+  **moves the value**. `FieldRow` carries `slider` plus `minimum` / `maximum` /
+  `step`, and the markup obeys the bool rather than reasoning from the bounds
+  (§7 D17). The text control is the one that always works; the `Slider` is the
+  one with an admissibility condition.
+- **`view_model::exact_f32(f64) -> Option<f32>`** — the crate's **only** cast
+  (`grep -rn " as f32\| as f64" crates/*/src/` returns one line), checked on
+  the next line by the round trip, with one `#[expect]` covering
+  `as_conversions`, `cast_possible_truncation` and `float_cmp`. Two callers:
+  `slider_bounds`'s first clause, and the one `float` slot that leaves the
+  host. That is what makes VA-2 a signature rather than a comment — a caller
+  has to say what it does with `None`.
+- **`view_model::untouched(&DrawnKind) -> Option<Edited>`** — what an untouched
+  field **shows**, beside `as_drawn`, which is what it is **worth**. `Some` for
+  four kinds, `None` for `datetime` alone. D-6's divergence now has one
+  statement, in the module that owns every other kind-directed rule, and
+  `glass.rs` still never calls `as_drawn`. It **deleted** the `kind` parameter
+  PHASE-07 added to `field_value`.
+- **`view_model::slider_step(f32, f32) -> f32`** — a hundredth of the span,
+  named because `slider_bounds` *checks* this step and `glass.rs` *ships* it.
+- **`crates/goad/tests/event_loop_numeric_guard/`** — the **seventh**
+  `[[test]]` target. Two contrasting claims in one fn: a cleared field the host
+  has not recorded *yet*, and a cleared field it did *not* record. The second is
+  what keeps the guard's exception deleted rather than merely absent.
+- **`fields.rs`'s numeric vocabulary** — `role_of` (the control's identity, by
+  role), `range_on_screen` (the bounds the **widget** declares), `slide_to` and
+  `step_once`. All `fields.rs`'s: the `harness.rs` rule is *two or more case
+  files need it*, and one does.
+- **`FieldForm` is down to `Choice`.** A `number` field can no longer be
+  reported undrawn at all — which is a better instrument than any grep for what
+  used to rest on one.
 
 - **The value channel is the draft overlaid with `pending.rs`** —
   `glass.rs::overlaid`, I-H's third site: an entry is shown only against the
@@ -3661,10 +4079,12 @@ Paths are under
   where the workaround still binds; and `cargo test -p goad-semantics`, which
   builds neither stratum above stratum 1.
 
-- **The two channels.** `ui/app.slint` carries `Kind`,
-  `FieldRow { id, label, kind, slot }` and
-  `FieldValue { checked, text, number, index }`, with `values` and `epoch` on
-  the window root. `glass.rs::option_models` builds both in one pass, so I-B is
+- **The two channels.** `ui/app.slint` carries `Kind`, `FieldRow` and
+  `FieldValue`, with `values` and `epoch` on the window root. Both structs have
+  grown a phase at a time — `FieldRow` gained `slider`, `minimum`, `maximum`
+  and `step` at PHASE-08 and gains `alternatives` at PHASE-09; `FieldValue`
+  gained `date` and `time` at PHASE-07 — so read the declarations rather than a
+  list written here. `glass.rs::option_models` builds both in one pass, so I-B is
   a property of the construction; `present` writes values → rows (on a changed
   `view_id` only) → epoch, which is I-F.
 - **Two instrument counters in production markup**, `inits` and `reasserts`,
@@ -3687,12 +4107,12 @@ Paths are under
   constructor, **no `Eq`**), `Edited`'s five variants and `Reported`'s six.
   `state_of` answers an `Option`; `submitted` has five arms and is still the
   one application of `R-57` (I-C). `wire.rs`'s `Command` drops `Eq` with them.
-- **The three kind-directed pure functions**, in `view_model.rs` beside the
-  mapper: `spelled` (the number format rule), `as_drawn` (what an untouched
-  field is worth, per kind) and `interpret` (what a widget's report becomes,
-  against the drawn field and what the host already holds). All three are
-  total over `DrawnKind` with no `_` arm anywhere, and all three are unit
-  covered with an injection pass each.
+- **The kind-directed pure functions**, in `view_model.rs` beside the mapper:
+  `spelled` (the number format rule), `as_drawn` (what an untouched field is
+  **worth**), `untouched` (what it **shows**, PHASE-08) and `interpret` (what a
+  widget's report becomes, against the drawn field and what the host already
+  holds). Every one is total over `DrawnKind` with no `_` arm anywhere, and
+  every one is unit covered with an injection pass.
 - **`DrawnKind`** — the host-local drawn half of the canonical `FieldKind`,
   carried on `PresentationField`. `Choice` carries the first alternative's id
   beside the list, which is what makes `as_drawn` total under a lint table that
@@ -3713,6 +4133,52 @@ Paths are under
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **Slint's `accessible-value-step` is a cap, so it cannot measure the step you
+  ship.** `fluent/slider.slint:29` binds it to
+  `min(root.step, (maximum - minimum) / 100)`. Any design whose step *is* that
+  hundredth gets the hundredth back whatever the markup holds — measured: a
+  slider shipping a step of a **tenth** of the span still reports `0.1` and
+  still moves the value by `1`. What measures the shipped step is
+  `invoke_accessible_increment_action`, because `increment()` is exactly
+  `set-value(value + step)`. The general rule: **a reading Slint derives from
+  your value is not a reading of your value.**
+- **A `Slider` cannot report a non-finite.** `set_accessible_value("NaN")`
+  leaves the widget on its **maximum**: `set-value` clamps with
+  `max(minimum, min(maximum, v))` before raising `changed`, and `"inf"` clamps
+  the same way. So `interpret`'s non-finite refusal guards against a renderer
+  bug and not against this renderer — which is worth knowing before writing a
+  case that tries to reach it.
+- **An injection that only *reorders* a fallback is not an injection.** The
+  first *remove the overlay* injection here was `drafted.or(overlay)`, which
+  falls back to the overlay precisely when the draft is empty — the only case
+  that matters. It reported **1 passed** and looked like evidence that the
+  defect does not reproduce. Injecting into an `or` chain means **dropping** a
+  term, not moving it.
+- **A dead mitigation and a harmful one are not the same finding, and only a
+  case can tell them apart.** The numeric guard's exception was expected to be
+  *unnecessary* once the value channel was overlaid. It is worse: the one state
+  it still fires in is the state the guard exists for, so it suppresses the very
+  convergence AC-6 requires. A case asserting only *the thing the mitigation
+  protected still works* passes with the mitigation **and** without it and
+  licenses nothing; the case has to assert what the mitigation would **break**.
+- **A phase that widens a shared struct should grep for its constructors, not
+  for its subject.** Trap 14's per-file scan for this phase's vocabulary
+  (`number`, `slider`, `FieldForm`) was clean, and two files outside the
+  Surfaces still broke — they build a `FieldRow` **by hand** and are compelled
+  by the type gaining fields, which no search for a kind could find.
+  `grep -rn "FieldRow {" crates/` is the instrument.
+- **Taking `..Default::default()` in a hand-built fixture buys silence now and
+  costs a phase later.** It is the right trade for a fixture whose subject is
+  neither values nor kinds, and the cost is real: the *next* field added to the
+  struct will not break those files, so a phase that ought to look at them will
+  not be made to. Record it where the next phase reads.
+- **An untouched field's display and its submitted value are two rules, and
+  four kinds agreeing hides the fifth.** `glass.rs` read `None` as *the default
+  slot is what the field was drawn showing* — true for `boolean`, `text`,
+  `choice` and `datetime`'s own sentinel, false for `number`, where a field
+  declaring `min: 2.5` would have drawn an empty box and submitted `2.5`. A
+  coincidence that holds for every case in front of you is not a rule.
 
 - **A test tier with no event loop can still reach inside a popup.**
   `ElementQuery::find_first` / `find_all` pass `active_popups()` into the walk
