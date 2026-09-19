@@ -2450,10 +2450,17 @@ instrument that prints the number*.
   push at `:253-255`; `:299-345` — `field_value` and its doc.
 - `crates/goad/src/main.rs:95-96` — the `Rc` and `install`; `:103-107` —
   `SlintGlass::new`, three arguments today.
-- `crates/goad/tests/renderer/harness.rs:60-66` — `glass_over`. **59 call
-  sites in 5 files** (`grep -rn "glass_over(" crates/goad/tests/ | wc -l`), two
-  of them — `scheduling.rs`, `ingress.rs` — outside the Surfaces, so its
-  signature does not widen. See *Decisions*.
+- `crates/goad/tests/renderer/harness.rs:60-66` — `glass_over`. **58 calls
+  across four files** —
+  `grep -rn "glass_over(" crates/ | grep -v "fn glass_over"` — `fields.rs` 1,
+  `ingress.rs` 13, `scheduling.rs` 14, `wiring.rs` **30**. Three of the four are
+  outside this phase's Surfaces, so **57 of the 58 are out of reach** and its
+  signature does not widen. This sheet first said *59 across 5 files, two of
+  them outside*; the fifth "file" was `harness.rs`, which holds the definition
+  and no call, and the file missed was `wiring.rs`, which alone holds more than
+  the two named combined. The conclusion did not move — it got stronger — and
+  the correction is in `plan-log.md` under
+  `docs/memory/verify-the-enumeration-not-the-conclusion.md`.
 - `crates/goad/tests/renderer/fields.rs:300-324` — `Rig` and its doc;
   `:326-359` — `rigged`, whose `install` call inlines
   `&Rc::new(Debounce::new())` at `:347` and whose `glass_over` is at `:329`.
@@ -2579,31 +2586,183 @@ EX-2 names — `grep -n "SlintGlass::new" -r crates/`:
 
 **Tasks**
 
-- [ ] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+- [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
       with its denominator
-- [ ] T-1 `glass.rs`: the field, `new`'s parameter, the overlay through
+- [x] T-1 `glass.rs`: the field, `new`'s parameter, the overlay through
       `interpret`, and the two doc repairs (EX-2, EX-3, EX-4)
-- [ ] T-2 the call sites: `main.rs`, `harness.rs`'s second constructor,
+- [x] T-2 the call sites: `main.rs`, `harness.rs`'s second constructor,
       `rigged`'s bound handle, `closing.rs`, `event_loop_schedule` — and the
       two STOP-1 files once amended (EX-2)
-- [ ] T-3 the `event_loop_overlay` target: VT-1 and VT-3 as two contrasting
+- [x] T-3 the `event_loop_overlay` target: VT-1 and VT-3 as two contrasting
       claims in one `#[test]` fn; `Cargo.toml`'s sixth `[[test]]`
-- [ ] T-4 VT-2, the negative control: the overlay removed, compiled, run, the
+- [x] T-4 VT-2, the negative control: the overlay removed, compiled, run, the
       test count read on both sides
-- [ ] T-5 VA-1's injection — `install` not called — and VA-2 in writing
-- [ ] T-6 trap 11's two `docs/memory/` repairs
-- [ ] T-7 `just check` exits 0 (EX-1); sheet and Harvest updated
+- [x] T-5 VA-1's injection — `install` not called — and VA-2 in writing
+- [x] T-6 trap 11's two `docs/memory/` repairs
+- [x] T-7 `just check` exits 0 (EX-1); sheet and Harvest updated
+
+**Result.** `just check` **exit 0**, gate total **580**;
+`cargo test --workspace` **545**. Both are +1 on the baseline, and the +1 is
+`event_loop_overlay`'s single `#[test]` fn. The gate total stays exactly 35
+above the workspace one.
+
+**STOP-1 was amended** at `0e8e452` while this sheet was being written, under
+the standing endorsement: the Surfaces gain `event_loop_reassert/reassert.rs`
+and `event_loop_debounce/debounce.rs`, and `plan-log.md` names a new sub-class —
+*a Surfaces line can be short about a file the slice itself creates in an
+earlier phase*. Nothing was edited in either file before the amendment landed;
+the glass, the target and the memory repairs were the work done in the meantime.
+
+**Decisions taken during execution**
+
+- **The overlay reads `Debounce::carried()`, and `pending.rs` is untouched.**
+  A `Debounce::shown(view, option, field)` would have been the natural API and
+  would have put `pending.rs` in the Surfaces for a convenience. `carried()` is
+  already `&self` and already returns exactly the entries, and PHASE-05's own
+  doc (`pending.rs:57-60`) says it was written that way *for this*. So there is
+  no second reader to keep in step, and the phase's file list stands.
+- **It is read once per present, not once per field**, and that is VA-2 as much
+  as it is cost. `carried()` takes `held.borrow()` and drops it before
+  returning, so by the time `present` writes a single window property this file
+  holds **no** borrow of the map at all — a `changed` handler firing mid-write
+  and reaching `hold` cannot meet one. A lazy per-field lookup would have been
+  correct too, and would have had to be argued rather than read.
+- **`glass_overlaying` beside `glass_over`, delegating.** `glass_over` keeps its
+  arity and calls the new one with a fresh empty handle, so there is one body
+  and not two (CLAUDE.md, *no parallel implementation*). The name answers the
+  question a reader has — *can this glass show what the person typed?* — rather
+  than naming the parameter. `glass_over`'s doc says in one line which of the
+  two a case that also calls `install` must take, because taking the wrong one
+  compiles, runs green and measures nothing.
+- **`debounce.rs`'s glass moved below its wire** rather than its `pending`
+  binding moving up, because `pending` sits in the comment block that explains
+  the capacity-1 channel and the two belong together. The glass is four lines
+  and reads fine where it now is, under a comment saying why it is there.
+- **One `#[test]` fn, four readings, two claims.** The target is one arrangement
+  and one process, per the backend's init rule. The claims are ordered *not
+  yet* then *did not*, so an injection aimed at the second is not masked by the
+  first — see the injection table.
+- **The last phase of the run stops *recording*, not *draining*.** VT-1 says
+  "a `Wire` that reaches no controller"; a channel nobody drains would come back
+  `Full` on the second send and the entry would never leave the map, which is a
+  different case from the one AC-6 is about. So the stepper drains throughout
+  and stops calling `Controller::edit` at `SILENT`. The entry still leaves on a
+  genuine enqueue, and the reading is **stronger** than the plan's: the widget
+  reverts to the *earlier typed text* rather than to an empty field, so a revert
+  is distinguishable from a field that was never typed into.
+
+**VT-2 and the injection pass.** Every count is `cargo test -p goad --test
+event_loop_overlay`, whose denominator is **1**. Each injection was reverted
+from a copy taken first and the tree re-run green before the next.
+
+| # | injection | result | which assertion |
+|---|---|---|---|
+| — | none | **1 passed, 0 failed** | — |
+| **VT-2** | `glass.rs:380`, the overlay's lookup never matches (`entry.view != view`) | **0 passed, 1 failed** | the **first** — `noted_shown: ""`, `also_shown: ""`, `reasserts: 2`. Both widgets reverted inside the window, which is the revert this phase exists to stop |
+| **VA-1a** | `SlintGlass::new` given `Rc::new(Debounce::new())` instead of `Rc::clone(&pending)` — **R10 exactly** | **0 passed, 1 failed** | the first, identically: `("", "")`, `reasserts: 2` |
+| **VA-1b** | `install` never called | **0 passed, 1 failed** | the first, identically |
+| **claim 2** | `app.slint:425-430`, the text guard never converges | **0 passed, 1 failed** | the **tenth** — *the present puts the draft's value back* (`overlay.rs:359`). Every claim-1 assertion passed first: `noted_shown: "and a second thought"`, `reasserts: 0`, draft `Some("walked before breakfast")` |
+| *aside* | `pending.rs:213`, the entry never leaves on the enqueue (`if !enqueued`) | **0 passed, 1 failed** | the **sixth** — claim **1**'s draft assertion (`overlay.rs:331`). See the finding below |
+
+Line numbers are the file as it now stands. The two runs that printed them
+predated the lint repair below, which moved the schedule out of the `match`
+arms and shifted every assertion down by a few lines; the assertions themselves
+and their ordinals are unchanged, and each is named by its message above.
+
+**VA-1 — the overlay is wired to one `Rc` and not two.** Read: `main.rs:95`
+binds it, `:96` lends it to `install`, `:111` clones it into the glass, and no
+`Debounce::new()` appears between them. Measured: the two R10 injections above
+each take the target from **1 passed** to **1 failed**, on the first assertion,
+with the same reading — a glass holding its own map shows `""` for a field the
+person has typed into. So the case cannot pass without `install` having been
+called, which is §8 R10's own stated signal.
+
+**VA-2 — nothing re-enters.** Four participants and no nesting:
+
+- `present` **reads**, through `carried()`, which takes `held.borrow()` and
+  drops it before returning. `option_models` calls it once, at the top, so the
+  borrow is gone before the first `FieldValue` is built and long before any
+  window property is written.
+- the `edited` callback **writes** (`install.rs:70` → `Debounce::hold`), the
+  timer and `chosen` **take** (`pending.rs:198`, `install.rs:43`).
+- `present` runs inside `serve`'s task and is never reached from a widget
+  callback; neither the timer nor `chosen` presents — both only enqueue. The
+  one place a present could reach a callback is the guard's `self.text = …`,
+  and a `LineEdit`'s `text` assigned from outside raises no `edited` (held
+  today by PHASE-01's and PHASE-05's green cases, which would loop otherwise).
+
+So no borrow is held across another, and the shape says so rather than relying
+on it: there is no `RefCell` guard alive anywhere in `glass.rs`.
+
+**Findings**
+
+- **Removing `pending.rs`'s enqueue clear does not isolate the second claim,
+  and the reason is worth keeping.** It looks like the injection aimed at *the
+  entry has left*, and it reddens claim **1** instead — at
+  its sixth assertion, *everything typed inside the one window reached the
+  draft*.
+  With nothing ever removed, `tick`'s `.iter().next()` returns the **same first
+  key** on every tick, so the map's second entry is never delivered at all and
+  the draft never gets it. The enqueue rule is load-bearing for *delivery*, not
+  only for *display*. The injection that does isolate claim 2 is the guard's,
+  above, and it leaves every claim-1 assertion green.
+- **Two lints, both on the new target, both worth the edit.**
+  `clippy::match_same_arms` refused five `=> glass.present(...)` arms
+  distinguished only by their comments. Merging them to
+  `1 | 4 | 7 | 12 | 20 =>` and lifting the schedule into one commented table
+  above the `match` reads better than what it replaced: the run is now one
+  timeline a reader can check against the 150 ms window, rather than five
+  comments to assemble.
+- **`corrected.inits == inside.inits` is the AC-6 half that would otherwise go
+  unmeasured.** The `view_id` never changes across the run, so `set_vec` runs
+  exactly once and no row is ever rebuilt — which is the *element preserved*
+  clause. It is asserted against the **first** reading rather than against a
+  literal, so the case does not encode how many controls the fixture draws.
+- **The fixture migration (EX-9) is not this phase's**, checked rather than
+  assumed: this phase adds a fixture that *draws* `text` and migrates none.
+  `grep -rn '"kind":"text"' crates/goad/tests/` returns the four `table.rs`
+  normalizer rows PHASE-05 checked and left, `wiring.rs:764`'s **body** kind,
+  and the two drawing fixtures in `fields.rs` and the two loop targets.
+
+**Left for a later phase**
+
+- **PHASE-07 and PHASE-08 each add a value arm to `field_value`, and the
+  overlay needs nothing from them.** `overlaid` is kind-agnostic: it hands
+  `interpret` the drawn field's own kind, so a `datetime` or `number` entry
+  overlays the moment `interpret` has an arm for it. Neither phase has to touch
+  `glass.rs`'s overlay, only its value arm — which both already have in their
+  Surfaces.
+- **`event_loop_overlay` measures `text` alone**, because `text` is the only
+  debounced kind drawn. PHASE-08 draws the two `number` controls, which are the
+  other two debounced ones (`install.rs:182-187`), and is where the overlay
+  first carries a report whose `interpret` can **refuse** it — EX-3's *where
+  `interpret` refuses the entry the draft's value stands* has no case that can
+  reach it today.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-05 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-06 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
 
+- **The value channel is the draft overlaid with `pending.rs`** —
+  `glass.rs::overlaid`, I-H's third site: an entry is shown only against the
+  view it was made on, and only through `interpret`, so there is no second
+  `Reported` → `FieldValue` mapping. Where `interpret` refuses, the draft
+  stands. Kind-agnostic, so PHASE-07 and PHASE-08 gain it by writing their
+  value arm and nothing else.
+- **`SlintGlass` holds a clone of `install`'s `Debounce`**, and six call sites
+  each hold one value. `harness.rs::glass_overlaying` is the entry point that
+  shares it; `glass_over` delegates to it with a fresh empty handle and its doc
+  says which a case that calls `install` must take.
+- **`crates/goad/tests/event_loop_overlay/`** — the sixth `[[test]]` target.
+  Two contrasting claims in one fn, with the run's schedule written as one
+  commented timeline above the `match`. Its four readings each carry screen,
+  draft and both counters, because neither half implies the other.
 - **`src/pending.rs`** — `Debounce`: a `BTreeMap<(option, field), Held>`, one
   `slint::Timer`, and nothing else. Every entry carries the view it was made on
   (I-H). Two exits, deliberately asymmetrical: an entry leaves on the
@@ -2694,6 +2853,19 @@ EX-2 names — `grep -n "SlintGlass::new" -r crates/`:
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **An injection can redden the wrong claim for a reason worth keeping.**
+  Removing `pending.rs`'s enqueue clear looks like the control for *the entry
+  has left*, and it fails the **delivery** assertion instead: with nothing
+  removed, `tick`'s `.iter().next()` returns the same first key forever and the
+  map's second entry is never sent at all. The enqueue rule is load-bearing for
+  delivery, not only for display — and an injection that reddens *a* claim is
+  not evidence for *the* claim it was aimed at. The one that isolates the
+  correction is the guard's own write.
+- **A test that stops *recording* is not a test that stops *draining*.** A
+  channel nobody drains comes back `Full`, and under the enqueue rule the entry
+  then never leaves the map — a different case from *the host did not record
+  this*. To reach the second, drain and discard.
 
 - **A Slint `import` is not an `export`, and Rust only sees the exports.**
   `Date` and `Time` are library structs, not builtins; importing them into
@@ -2889,10 +3061,6 @@ EX-2 names — `grep -n "SlintGlass::new" -r crates/`:
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
-- **`glass.rs:1-3` says it is the only file in the crate naming a generated
-  type, and it has not been for some time.** `install.rs:15` names four, and
-  `instant.rs` now names two. Not this phase's file to touch; PHASE-06 and
-  PHASE-07 both have it in their Surfaces.
 - **One token in `today_local` is held by review alone** — that the zone it
   reads is the **system's**. The class is covered
   (`one_instant_is_two_different_local_dates_in_two_different_zones`, and
