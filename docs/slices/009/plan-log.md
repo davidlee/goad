@@ -69,3 +69,48 @@ criteria overlap rather than conflict: dropping `Edited`'s `Eq` breaks `Command`
 derive in the same compile, so it could not have waited for PHASE-03. Left as
 written, because criterion ids are immutable and a criterion that is already true
 is discharged, not failed. PHASE-03's agent is told so up front.
+
+## 2026-09-19 — three more Surfaces lines, and the class behind all four
+
+**Raised.** PHASE-03's agent stopped twice rather than deciding alone: once on
+`crates/goad/src/install.rs` being absent from PHASE-08's and PHASE-09's
+Surfaces, and once on `crates/goad/tests/renderer/tree.rs` being absent from its
+own. Both verified before acting.
+
+- **`install.rs`** is named at `plan.md` PHASE-03, PHASE-05 and PHASE-07 and
+  nowhere else, yet PHASE-08 draws the two `number` controls and PHASE-09 the
+  `ComboBox`, and each needs its own arm in the `edited` mapper PHASE-03 writes.
+- **`tree.rs`** holds the only case outside the declared Surfaces that widening
+  `callback edited` breaks: `activating_a_field_control_fires_edited_with_all_four_selectors`
+  binds `window.on_edited` directly, and `type EditedArgs` holds its arguments.
+  Confirmed by instrument: `grep -rn "on_edited" crates/goad/` returns exactly
+  two sites, `install.rs:43` and `tree.rs:435`.
+
+**Decided.** Amend all three, dated and scoped, under the endorsement the user
+gave for PHASE-02's: *"amend ph02 surfaces as you recommend"*. The `tree.rs`
+repair is PHASE-03's to make — the fourth element of `EditedArgs` becomes a
+`FieldEdit` and the assertion reads the `checked` slot — and it strengthens
+rather than weakens the case, which exists to prove all four selectors arrive.
+
+**The class, which is the part worth keeping.** Four Surfaces lines have now
+been short, and it is one cause rather than four mistakes. The plan's Surfaces
+lines were derived from `design.md` §9's enumeration, and §9 enumerates
+**constructors** — *"twelve in `tests/renderer/wiring.rs`, ten in `draft.rs`'s
+own tests, and the one closure in `install.rs`"*. A **binder of a markup
+callback** is not a constructor, and neither is a file that only has to change
+because a type above it changed (`wire.rs`'s `Eq`). So the enumeration was
+accurate and its reach was not what the Surfaces lines needed. §9's count of
+twelve was never wrong: `tree.rs` is a thirteenth site the count never claimed
+to cover.
+
+**How far the class reaches, bounded rather than feared.** `tree.rs` is the only
+test file that binds a markup callback at all — it binds both `on_edited` and
+`on_chosen`, and no other file under `crates/goad/tests/` binds any. Of the
+phases still to run, only PHASE-03 changes a markup callback's **signature**;
+PHASE-05 changes `Command::Choose`'s shape host-side and leaves
+`callback chosen(string, string)` alone, and PHASE-07 through PHASE-09 add
+*fields* to `FieldEdit`, which does not break a binding that reads one slot.
+PHASE-09 already names `tree.rs`. So the sweep is complete and no further phase
+is exposed by this cause.
+
+No criterion changed in any of the three phases, and no id was renumbered.

@@ -371,7 +371,9 @@ the host interprets it against the drawn field before anything reaches the draft
 
 **Surfaces:** `crates/goad/ui/app.slint`, `crates/goad/src/wire.rs`,
 `crates/goad/src/install.rs`, `crates/goad/src/controller.rs`,
-`crates/goad/tests/renderer/wiring.rs`, `crates/goad/tests/renderer/fields.rs`.
+`crates/goad/tests/renderer/wiring.rs`, `crates/goad/tests/renderer/fields.rs`,
+`crates/goad/tests/renderer/tree.rs` (the one case that binds `on_edited`, and
+the `EditedArgs` alias it fills — added 2026-09-19, `plan-log.md`).
 
 **Entry**
 - EN-1 — PHASE-02/EX-1 … EX-9 discharged.
@@ -839,7 +841,8 @@ a finite number, and neither writes over a person mid-entry.
 
 **Surfaces:** `crates/goad/ui/app.slint`, `crates/goad/src/view_model.rs` (the
 mapper's `Number` arm and `slider_bounds`), `crates/goad/src/glass.rs` (the
-`Number` value arm and the row's control fields),
+`Number` value arm and the row's control fields), `crates/goad/src/install.rs`
+(the mapper's `number` arm — added 2026-09-19, `plan-log.md`),
 `crates/goad/tests/renderer/{fields.rs,mapper.rs,wiring.rs,reception.rs}`,
 `crates/goad/tests/event_loop_numeric_guard/` (new), `crates/goad/Cargo.toml`
 (one `[[test]]` entry).
@@ -949,6 +952,8 @@ slice's five-kind acceptance criteria are discharged.
 **Surfaces:** `crates/goad/ui/app.slint`, `crates/goad/src/view_model.rs`,
 `crates/goad/src/diagnostics.rs`, `crates/goad/src/draft.rs` (one doc comment),
 `crates/goad/src/glass.rs` (the `Choice` value arm),
+`crates/goad/src/install.rs` (the mapper's `choice` arm — added 2026-09-19,
+`plan-log.md`),
 `crates/goad/tests/renderer/{fields.rs,mapper.rs,wiring.rs,reception.rs,tree.rs}`,
 `crates/goad/tests/event_loop_reassert/` (a second claim).
 
