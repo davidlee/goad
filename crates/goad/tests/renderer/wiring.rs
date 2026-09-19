@@ -1370,6 +1370,53 @@ mod editing {
     );
   }
 
+  /// **PHASE-09/VT-6** — `interpret`'s **first** `None` case, through the
+  /// controller. (Phase-qualified: the bare `VT-n` ids on the cases around
+  /// this one are slice 008's.)
+  ///
+  /// A `ComboBox` index no alternative of the drawn field has is the one of
+  /// the three `None` cases a renderer could plausibly produce, and it takes
+  /// the posture the other two take: reported, nothing recorded, no new class
+  /// in the taxonomy. `noted` declares one alternative, so `1` is one past the
+  /// end and `u32::MAX` is the value `install.rs` substitutes for an index a
+  /// markup could only report by being wrong twice.
+  ///
+  /// **What makes the refusal attributable to `interpret` rather than to a
+  /// selector is the accepted edit above it**, exactly as the kind-mismatch
+  /// case does it: the same three selectors are used first and they record, so
+  /// what differs is the index alone. The final assertion is the accepted
+  /// value rather than the drawn one, so a refusal that quietly cleared the
+  /// field would fail here too.
+  #[tokio::test]
+  async fn a_chosen_index_no_alternative_has_is_refused_and_records_nothing() {
+    let (mut controller, view) = retaining("edit-choice-range", TWO_FORMS).await;
+
+    controller
+      .edit(&view, "morning", "noted", &Reported::Chosen(0))
+      .expect("`noted` declares a first alternative, so index 0 is in range");
+
+    assert_eq!(
+      controller.edit(&view, "morning", "noted", &Reported::Chosen(1)),
+      Err(Refused::UnknownField),
+      "one past the last alternative is a renderer bug rather than a choice, and it \
+       earns the posture an unknown field already has"
+    );
+    assert_eq!(
+      controller.edit(&view, "morning", "noted", &Reported::Chosen(u32::MAX)),
+      Err(Refused::UnknownField),
+      "and so is the value a negative `current-index` is carried across as"
+    );
+
+    let (_, answer) = controller
+      .answer(&view, "morning")
+      .expect("the option still answers");
+    assert_eq!(
+      submitted_value(&answer, "noted"),
+      Some(&serde_json::Value::String("one".to_owned())),
+      "the refused reports recorded nothing, and disturbed nothing the field already held"
+    );
+  }
+
   /// One pending edit, as `pending.rs` would have handed it to the `chosen`
   /// callback. A helper rather than a literal at each site, so a case's own
   /// line says which of the four selectors it is bending.
