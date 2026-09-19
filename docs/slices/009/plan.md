@@ -535,7 +535,14 @@ in the command that answers.
 `crates/goad/src/main.rs`, `crates/goad/src/wire.rs`,
 `crates/goad/src/controller.rs`, `crates/goad/src/view_model.rs` (the mapper's
 `Text` arm), `crates/goad/src/glass.rs` (the `Text` value arm),
+`crates/goad/src/diagnostics.rs` (the undrawn line's wording alone — added
+2026-09-19, `plan-log.md`),
 `crates/goad/tests/renderer/{fields.rs,wiring.rs,mapper.rs,reception.rs}`,
+`crates/goad/tests/renderer/{scheduling.rs,ingress.rs}` (the `Command::Choose`
+literals alone — added 2026-09-19, `plan-log.md`),
+`crates/goad/tests/event_loop/closing.rs` and
+`crates/goad/tests/event_loop_schedule/scheduling.rs` (the `install` call site
+alone — added 2026-09-19, `plan-log.md`),
 `crates/goad/tests/event_loop_debounce/` (new), `crates/goad/Cargo.toml`
 (one `[[test]]` entry).
 
@@ -572,6 +579,17 @@ in the command that answers.
   `mapper.rs` block cases (`mapper.rs:237`, `:255-256`, `:377`, `:423`) and the
   `reception.rs` diagnostic case (`reception.rs:762`) each name a kind that is
   still undrawn.
+
+  *Annotated 2026-09-19 (`plan-log.md`), criterion unchanged.* Two of the
+  citations went stale under PHASE-01 … PHASE-04 and are re-derived here:
+  `A_DRAWN_AND_AN_UNDRAWN_FIELD` is at **`fields.rs:81`**, and `wiring.rs`'s
+  `TWO_FORMS` at **`wiring.rs:1158`** — note `fields.rs:76` declares a
+  *different* fixture of the same name, carrying no `text` field. The list is
+  also short by one, and that one is **not** a migration:
+  `mapper.rs:295-332`'s `every_undrawn_kind_is_reported_by_option_field_and_form`
+  enumerates all four undrawn kinds and their four reports, so it **drops its
+  `text` row** — there is no kind to move it to. PHASE-07 and PHASE-08 shrink it
+  again; PHASE-09 deletes it.
 
 **Verification**
 - VT-1 — `tests/renderer/fields.rs`: a `text` field draws a `LineEdit` findable
@@ -997,7 +1015,9 @@ slice's five-kind acceptance criteria are discharged.
   report.
 - EX-7 — every site §5.1's table names is rewritten, none by deletion-of-
   convenience: `diagnostics.rs`'s undrawn line stops naming a subset that no
-  longer exists; `draft.rs:82`'s and `view_model.rs:31`'s docs stop describing a
+  longer exists — *amended 2026-09-19 (`plan-log.md`): PHASE-05 does this, so
+  here the clause is **verified**, not performed; the line must still name no
+  subset*; `draft.rs:82`'s and `view_model.rs:31`'s docs stop describing a
   destination that has to be re-created before it can be reached;
   `mapper.rs:195-203` and `:290-327, 375-399`; `wiring.rs:1245`, `:1304`,
   `:1340`; `fields.rs:67-71` and `:597-632`.

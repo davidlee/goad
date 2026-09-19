@@ -203,3 +203,97 @@ test, and unlike an offset it stays true on a UTC CI box. Accepted — it is the
 better instrument, not the escape hatch. This machine's zone is
 `Australia/Melbourne`, `is_unknown = false`, `+10`, recorded in the sheet beside
 it.
+
+## 2026-09-19 — PHASE-05's Surfaces, and the class reaches the callers
+
+**Raised by the phase agent while expanding the sheet, before any production
+code.** Three criteria compel files PHASE-05's Surfaces line does not name. Each
+was verified by the orchestrator against the tree rather than taken from the
+report.
+
+**S-1 — `Command::Choose` gains `edits` (EX-6), and three literals outside the
+Surfaces stop compiling.** `grep -n 'Command::Choose'` finds nine sites. Two are
+inside the Surfaces (`wiring.rs:1021`, `:1102`), one is production
+(`install.rs:27`), two are non-constructing (`controller.rs:675`'s pattern, a doc
+at `harness.rs:70`), and **three are literals in files the line does not name**:
+`tests/renderer/scheduling.rs:269`, `:925` and `tests/renderer/ingress.rs:381`.
+Each is `edits: Vec::new()` and asserts nothing about edits.
+
+**S-2 — `install` takes the pending handle (EX-8), and two loop targets stop
+compiling.** The four call sites are `main.rs:90`, `tests/renderer/fields.rs:301`,
+`tests/event_loop/closing.rs:57` and
+`tests/event_loop_schedule/scheduling.rs:84`. The last two are in **PHASE-06's**
+Surfaces and not PHASE-05's.
+
+**Decided: amend both, under the endorsement the user gave for PHASE-02's.** In
+each case the criterion and the design already agree and it is the Surfaces line
+alone that is short. `design.md:1530` says *"every case that builds a
+`Command::Choose` is rewritten for its new shape"* without enumerating them, and
+`design.md:1537-1543` names all four `install` call sites in as many words. This
+is the sixth and seventh instance of the one class, and the cause is unchanged:
+the Surfaces were derived from `design.md` §9's enumeration of **constructors**,
+so a file that changes because a *type* changed under it was never in the
+enumeration's reach. S-2 is a variant worth naming on its own — the widened thing
+is a **signature**, and the files it reaches are ones another phase already
+claimed. Overlapping Surfaces between phases are normal here; a Surfaces line is
+not an exclusive lock.
+
+**One citation in `design.md:1539` is stale** — `tests/renderer/fields.rs:287`
+for the `install` call site, which is at **`:301`**. `design.md` is not edited
+mid-slice and the correction lives here. The claim it supports is right; only the
+number moved.
+
+### S-3 — a user-visible string, and the precedent decides it
+
+`crates/goad/src/diagnostics.rs:219` renders *"…is a {form} field; this renderer
+draws boolean fields only"*. The moment `text` draws, the clause is false, and it
+stays false through PHASE-06, -07 and -08. `plan.md` PHASE-09/EX-7 owns the site
+and `diagnostics.rs` is in PHASE-09's Surfaces. No test asserts the string, so
+nothing goes red; the agent could have finished the phase without touching it and
+correctly declined to decide on its own.
+
+**Decided: repair it here.** §*a doc the phase makes stale is amended in that
+phase* settled this class, and it had already been settled twice before that —
+`design.md:1042` for the `Glass::present` contract, PHASE-04/EX-5 for
+`clock.rs:47-53`. The rule those three share: *a divergence the slice creates
+knowingly is repaired in the phase that creates it; only one discovered at audit
+belongs in the Reconciliation table.* This instance is strictly stronger than the
+precedent it follows — that was a doc comment, and this is a sentence a person
+reads.
+
+**Repaired once, not four times.** The obvious repair — widen the enumeration to
+"boolean and text" — is false again at PHASE-07, at PHASE-08 and at PHASE-09,
+which is the *"a true sentence goes stale by widening"* trap that has now bitten
+this slice three times. So the constraint on the wording is that it **name no
+subset at all**: it may name the undrawn field's own form, and must make no claim
+about the set the renderer draws. Then it is true at every phase boundary from
+here to the close, and PHASE-09/EX-7's first clause becomes a verification rather
+than a repair — amended in place there, criterion id unchanged.
+
+### EX-9's fixture list, annotated rather than amended
+
+Not a decision — `mapper.rs` is already in the Surfaces — but the list is wrong
+twice and the phase sheet should not inherit it.
+
+Two citations went stale under PHASE-01 … PHASE-04:
+`A_DRAWN_AND_AN_UNDRAWN_FIELD` is at `fields.rs:81`, not `:71` (`:71` is blank),
+and `wiring.rs`'s `TWO_FORMS` at `:1158`, not `:1157` (a doc line). `fields.rs:76`
+declares a **different** fixture also called `TWO_FORMS`, carrying no `text`
+field — a same-name trap one file over. This is the second and third instance of
+*a plan citation can be stale*, and both were caught by `grep -n`: the slice's
+rule, *cite from an instrument that prints the number*, held again.
+
+And the list is short by one, in a way that matters more than the count.
+`mapper.rs:295-332`'s `every_undrawn_kind_is_reported_by_option_field_and_form`
+enumerates all four undrawn kinds and their four reports. It goes red when `text`
+draws, and its repair is **not** the one-word migration the other five take: it
+**drops a row**, because it enumerates the undrawn set rather than sampling it.
+The agent proposed to "migrate it with the rest", which would have been wrong,
+and the correction went back before the sheet was written. PHASE-07 and PHASE-08
+shrink it again; PHASE-09 deletes it with the rest.
+
+**The deferred-deletion risk is the one to hold.** `prototype-notes.md` P-13
+warns that the danger is not the edit but a phase that migrates without noticing
+it has deferred a deletion. This case is the same warning one step sharper: a
+fixture that *enumerates* cannot defer, it shrinks — and a phase that migrates it
+instead would leave a case claiming `text` is undrawn while `text` draws.
