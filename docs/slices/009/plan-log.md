@@ -463,3 +463,60 @@ recommendation; the agent may argue a better one, but `glass_over_2` or
 name lands, `glass_over`'s doc says in one line which of the two a case that
 also calls `install` must use — a case that calls `install` and then
 `glass_over` compiles, runs green, and measures nothing.
+
+## 2026-09-19 — `FieldForm`'s residue is cleared where it is found, not where it is tidy
+
+**Raised by PHASE-07's agent, not blocking, while it kept working.** `drawn_form`
+has answered `Ok(DrawnKind::Text)` since PHASE-05, so no mapper path can
+construct `FieldForm::Text` — yet the variant was still declared and
+`tests/renderer/mapper.rs:200` still asserted `FieldForm::Text.to_string()`.
+A green assertion over an unreachable value.
+
+**Decided: cleared in PHASE-07**, with `DateTime`. No amendment is needed —
+`view_model.rs` and `mapper.rs` are both already in PHASE-07's Surfaces — and no
+criterion moves: PHASE-09/EX-6's endpoint is still *`FieldForm` is an empty enum
+rather than deleted*, and PHASE-08 still takes `Number`, PHASE-09 `Choice`. The
+per-kind ownership structure survives; PHASE-07 additionally clears PHASE-05's
+residue.
+
+**The reason is the rule this slice has now applied four times**: a divergence
+the slice creates knowingly is repaired as soon as it is known, not at the phase
+where the file is most at home (`design.md:1042`; PHASE-04/EX-5;
+§*a doc the phase makes stale is amended in that phase*; PHASE-05's S-3). What
+makes it more than tidiness here is `FieldForm`'s own doc — *"it names only the
+forms that go undrawn"* — which is **false** for as long as a drawn kind is
+declared in it. Two more phases of that is two more chances for a reviewer to
+read it as true, and this slice has already lost time to exactly that.
+
+**PHASE-05's EX-9 list should have carried this case and did not.** That list
+enumerated the fixtures carrying an undrawn `text` field; it did not reach a
+*unit* asserting `FieldForm::Text`'s `Display`. Fourth instance of the
+enumeration's reach.
+
+**`field_form_displays_as_the_protocols_own_word` enumerates; it does not
+sample.** Same shape as `every_undrawn_kind_is_reported_by_option_field_and_form`
+(PHASE-05's annotation to EX-9): it asserts one line per variant, so it
+**shrinks** as each kind draws and must be **deleted** at PHASE-09 when
+`FieldForm` is empty — an empty enum has no `Display` to assert. PHASE-09's agent
+should not expect to migrate it.
+
+### Three measurements from the same message, recorded because two answer open questions
+
+- **EX-3 is answered, and PHASE-04's expectation was right for a reason PHASE-04
+  could not check.** `export { Date, Time }` is **deleted**. With it gone and
+  `FieldValue` / `FieldEdit` carrying `date: Date, time: Time`, the generated
+  `app.rs` still emits `r#Date` and `r#Time`, and `instant.rs:22`'s
+  `use crate::generated::{Date, Time}` compiles. So **reachability** emits them,
+  not the export — the path PHASE-04 measured nothing about. The instruction
+  added to EX-3 on 2026-09-19 was *delete it on a measurement and not on the
+  expectation*, and that is what happened.
+- **A-a holds, and it is the converse of what the design measured.**
+  `date-picker.show()` from a `Button` handler nested two repeaters deep
+  **compiles**. The design had measured only that a popup's *properties* cannot
+  be assigned from an enclosing handler (F-35); that a popup can be *shown* from
+  one was assumed. Now measured.
+- **EX-5's `close-policy` clause is held by the widgets themselves**, not by this
+  markup: `fluent/datepicker.slint:23` and `fluent/time-picker.slint:24` both
+  bind `PopupClosePolicy.no-auto-close`. Verified by the orchestrator at those
+  exact lines. Not restated in `app.slint`, which is right — restating it would
+  be a second source for one fact.
