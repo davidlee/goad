@@ -392,3 +392,74 @@ Amended so a later agent's `grep` finds the function that exists:
 `design.md`, `canon-delta.md` and `research.md` keep the old identifier. They are
 records of intent at a point in time, not executable truth, and `plan.md` now
 carries the pointer in both directions.
+
+## 2026-09-19 — PHASE-06's Surfaces, and a sub-claim that was wrong in the safe direction
+
+**Raised by the phase agent before any production code, while continuing on
+everything the STOP did not block** — which is the protocol working, and is
+worth recording because the previous phase is where it did not.
+
+**STOP-1 — `SlintGlass::new` gaining the `Rc<Debounce>` (EX-2) breaks two call
+sites the Surfaces line does not name.** Verified by the orchestrator:
+`grep -rn 'SlintGlass::new' crates/` gives **six** construction sites, not the
+four `design.md:1541-1543` enumerates —
+`crates/goad/tests/event_loop_reassert/reassert.rs:121` and
+`crates/goad/tests/event_loop_debounce/debounce.rs:152` are the extra two.
+
+**Decided: amend**, under the standing endorsement. Same class as PHASE-05's
+S-2 and the eighth instance overall: the widened thing is a **signature**, and
+`design.md` §9 enumerated the pairs it knew about. One of the two could not have
+been enumerated at all — `event_loop_debounce` is PHASE-05's own new target, and
+the plan was written before it existed. **That is a new sub-class worth naming:
+a Surfaces line can be short about a file the slice itself creates in an earlier
+phase.** PHASE-07 and PHASE-09 should expect it, since both follow phases that
+add targets.
+
+**The two are not the same edit, and the difference is the whole point of R10.**
+`reassert.rs` calls no `install`, so it has nothing to share and takes a fresh
+`Rc::new(Debounce::new())`. `debounce.rs` **does** call `install`
+(`debounce.rs:163-166`) with a bound `pending`, so it must take
+`Rc::clone(&pending)` — the glass and the callback table eleven lines apart,
+which is precisely the shape R10 exists to catch. Giving that file a separate
+empty handle would plant the anti-pattern in the one file a future reader is
+most likely to copy. The agent argued this and it is right.
+
+### `glass_over` is not widened — and the reasoning was right while the count was wrong
+
+Not a STOP; the agent recorded it so the sheet would not land on a wrong number.
+Its conclusion stands and its enumeration did not.
+
+**What it reported:** *"59 call sites across 5 files, two of which
+(`scheduling.rs`, `ingress.rs`) are outside the Surfaces."*
+
+**What the tree holds:** `grep -rn 'glass_over(' crates/ | grep -v 'fn glass_over'`
+is **58** calls across **four** files — `fields.rs` 1, `ingress.rs` 13,
+`scheduling.rs` 14, **`wiring.rs` 30**. The fifth "file" was `harness.rs`, which
+holds the definition and no call. And **three** files are outside PHASE-06's
+Surfaces, not two: the one the agent missed is `wiring.rs`, which alone holds 30
+of them — more than the two it named combined.
+
+So **57 of the 58 call sites are out of the phase's reach**, and only
+`fields.rs`'s single call is inside. The conclusion — do not widen `glass_over` —
+is *strengthened* by the correction, which is why this is worth writing down
+rather than waving through: `docs/memory/verify-the-enumeration-not-the-conclusion.md`
+is precisely this shape, and a Response that inherited the sub-claim would have
+put "two files, 27 sites" into the artefact as the reason for a decision whose
+real reason is "three files, 57 sites".
+
+**Decided: `glass_over` keeps its arity, and the second entry point delegates
+rather than duplicating.** The agent proposed *"a second constructor beside
+it"*, which risks two bodies drifting. `glass_over`'s body is four lines and is
+nearly all argument-passing, so the shape that holds is one implementation with
+two entry points — the arity-2 helper calling the arity-3 one with a fresh empty
+handle. CLAUDE.md's *no parallel implementation* is the binding rule and it is
+satisfied by delegation, not by proximity.
+
+**Name it for the capability, not the parameter.** What a reader must decide is
+whether this glass can overlay what the person has typed, and that is true
+exactly when it shares the handle `install` was given. `glass_overlaying` is the
+recommendation; the agent may argue a better one, but `glass_over_2` or
+`glass_over_with_pending` names the plumbing rather than the question. Whichever
+name lands, `glass_over`'s doc says in one line which of the two a case that
+also calls `install` must use — a case that calls `install` and then
+`glass_over` compiles, runs green, and measures nothing.

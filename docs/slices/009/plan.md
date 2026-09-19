@@ -688,6 +688,9 @@ guard.
 `crates/goad/tests/renderer/harness.rs`,
 `crates/goad/tests/renderer/fields.rs`, `crates/goad/tests/event_loop/closing.rs`,
 `crates/goad/tests/event_loop_schedule/scheduling.rs`,
+`crates/goad/tests/event_loop_reassert/reassert.rs` and
+`crates/goad/tests/event_loop_debounce/debounce.rs` (the `SlintGlass::new` call
+alone — added 2026-09-19, `plan-log.md`),
 `crates/goad/tests/event_loop_overlay/` (new), `crates/goad/Cargo.toml` (one
 `[[test]]` entry).
 
