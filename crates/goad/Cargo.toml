@@ -14,10 +14,28 @@ autotests            = false
 # `tests/support/driving.rs` (included into `renderer`) need `serde_json`.
 # Both are already in `[workspace.dependencies]` for other members, so this
 # adds nothing to the graph (design.md §5.1, F-4).
+#
+# **`jiff`'s two features are argued, not merely taken.** `instant.rs` calls
+# `TimeZone::system()`, which cannot fail — it falls back. What it falls back
+# to is the manifest's answer, and without `tz-system` it is always
+# `Etc/Unknown`, which behaves as UTC: the host would submit `+00:00` for
+# every pick, everywhere, silently. `tz-system` detects the zone and
+# `tzdb-zoneinfo` resolves it against the system database.
+#
+# They go **here** and not on `[workspace.dependencies]`, where they would
+# apply to the two members that have no use for them. But features unify
+# across a build, so under `--workspace` stratum 1 links a `jiff` built with
+# `std` and `alloc` that it never asked for, and **no command in the gate
+# rejects that** — `docs/policy/001-the-phase-gate.md` §Verification calls it
+# the residue and requires the slice taking it to argue it instead.
+# `docs/slices/009/design.md` §10 is that argument. Nothing in
+# `goad-semantics` gains a call site, an import or a capability; what changes
+# is what a permitted dependency is compiled to be capable of, which is the
+# manifest allowlist's own stated blind spot.
 [dependencies]
 goad-semantics = { workspace = true }
 goad-shell     = { workspace = true }
-jiff           = { workspace = true }
+jiff           = { workspace = true, features = ["tz-system", "tzdb-zoneinfo"] }
 serde_json     = { workspace = true }
 slint          = { workspace = true }
 tokio          = { workspace = true, features = ["rt-multi-thread", "sync"] }

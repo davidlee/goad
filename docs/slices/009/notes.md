@@ -1650,6 +1650,280 @@ read.
   it. The line numbers have since moved anyway: the new case at `:1319` sits
   above three of them.
 
+### PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc
+
+**Objective:** the host can turn a picked date and time into an instant and an
+offset in the person's own zone, and the manifest change that makes the zone
+readable is landed with the argument `POL-001` requires. Discharges no AC on
+its own: nothing it builds is drawn or wired this phase. PHASE-07 is its only
+consumer.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged, and it is unusual.** The criterion is *"this plan is
+  accepted. **No other phase is a prerequisite**"*. Both halves checked:
+  `plan-log.md` records the acceptance (2026-09-19, against `plan.md` as
+  written at `44fbd8e`), and `plan.md:103-112` §*Parallelism* says PHASE-04 is
+  the only phase that can run beside another, because nothing else in the slice
+  touches `instant.rs` or `clock.rs` and its two shared files are one-line
+  additions in disjoint regions. Verified against the tree rather than read:
+  `grep -rn "instant::|mod instant|instant\.rs" crates/` returns **one** hit and
+  it is a doc comment — `install.rs:112`, written by PHASE-03 — so no
+  production line depends on this module yet.
+- **EN-2 — discharged by the fact rather than by the action.** The criterion is
+  conditional: *the phase runs in its own worktree **if** it is running beside
+  another phase*. It is not. PHASE-01, PHASE-02 and PHASE-03 are all `done`
+  (§Status), PHASE-05 has not begun, and this agent is running alone on `main`.
+  So no worktree, and the second half stands: this phase lands as its own
+  commit.
+  **One thing worth recording.** The tree was not clean when this phase opened:
+  `crates/goad/src/install.rs` carried an uncommitted doc-comment hunk, which
+  landed under this agent as `52cb96f` (*009: PHASE-03's record*) while the
+  reading was in progress. It is PHASE-03's record, not this phase's work, and
+  it touches no file in these Surfaces. Noted because *one writer per worktree*
+  (`docs/memory/one-writer-per-worktree.md`) was momentarily not true.
+
+**Reading list**
+
+*What is being changed*
+
+- `crates/goad/Cargo.toml:20` — `jiff = { workspace = true }`, the line that
+  gains the two features (EX-2). `Cargo.toml:36` — `[workspace.dependencies]`'s
+  `jiff = { version = "0.2", default-features = false }`, which does **not**
+  change. `crates/goad/Cargo.toml:10-16` — the comment already explaining why
+  this member names `jiff` directly.
+- `crates/goad/src/lib.rs` — one `pub mod instant;` line, alphabetical between
+  `glass` and `install`.
+- `crates/goad-shell/src/clock.rs:47-53` — the doc comment EX-5 amends.
+  Re-derived here with `grep -n` rather than taken from the plan: `:45` is
+  `impl std::error::Error for ClockError {}`, `:46` is blank, the comment runs
+  `:47-53` and ends at the `///` carrying *"The manifest test cannot see a
+  feature, only a name"*. **The `D25` it cites is slice 005's**, not this
+  design's §7 D25 — do not repoint it. No code change in that file.
+
+*Design sections that bind*
+
+- `design.md:1534-1660` — §10 **entire**. It is the argument this phase lands,
+  not background: `:1554-1660` is *The `jiff` feature, and why it is here rather
+  than in `canon-delta.md`*, and `:1608-1625` is the three-reaches paragraph
+  EX-5 turns into `clock.rs`'s comment.
+- `design.md:850-908` — `instant.rs`: the three signatures (`:854`, `:856`,
+  `:859`), the *checked at every step* paragraph, the four fallible steps, the
+  `Compatible` disambiguation, and why the module exists at all.
+- `design.md:258-266` — the three read sites, two kinds: the clock in
+  `today_local`, and the system zone in **both** `compose` and `today_local`.
+- `design.md:1313` A-4 — the four fallible steps are the whole failure surface,
+  *not measured*; `:1323` — a fold or a gap **succeeds**.
+- `plan.md:438-520` — PHASE-04 in full.
+- `plan.md:736-836` — PHASE-07, the consumer. Read for what this phase must
+  hand it, and for what it must **not** do: EX-3 there is where `FieldValue`
+  gains `date` and `time`.
+
+*Canon*
+
+- `docs/policy/001-the-phase-gate.md:110-143` §Verification — the counting rule,
+  the four ADR-001 instruments, and **the residue** at `:139-143`: a feature
+  switched on in a shared dependency by stratum 2 or 3 unifies into stratum 1's
+  build under `--workspace`, no command in the gate rejects it, and adding one
+  *"is therefore a design decision, and is argued in the slice that takes it"*.
+  The row at `:128` is the one this phase can break: `cargo test -p goad-semantics`
+  builds stratum 1 with **its own** feature set, and it *rejects nothing*.
+- `slice-009.md:119-139` §*Governing canon* — `POL-001` named as the canon this
+  slice's residue answers to; `:49` carries `clock.rs` in §Scope for one
+  doc-comment amendment and no code change.
+
+*The conversation, and the measurements*
+
+- `design-log.md:729-750` **D-35** — the user's *"Amend it in this slice"*, and
+  the three reaches. Append-only, and it still carries the bad range
+  `clock.rs:46-52`; `design.md` §10 is the corrected copy.
+- `canon-delta.md:14-54` **CD-1** — the open question §10's *what the feature
+  does not gate* paragraph bears on. Nothing this phase does settles it; what
+  P-4 already did is make it settleable against a green test.
+- `prototype-handback.md:137-148` **P-4**, measured — under today's featureless
+  `jiff`, `Offset`, `Offset::UTC`, `Offset::constant`, `Timestamp::UNIX_EPOCH`
+  and `display_with_offset` all compile and run. So the feature gates exactly
+  `compose` and `today_local`, and nothing already committed depends on it.
+- `notes.md` §*Traps worth naming*, last entry — *a feature enabled by stratum 3
+  does not reach a build that excludes stratum 3* (F-54, D-35). That is the
+  second of EX-5's three reaches.
+- `notes.md` §*Citations known bad* — six, and **F-54's is this phase's**:
+  `clock.rs:46-52` appears in the ledger and in `design-log.md` D-35, both
+  append-only. Re-derived above rather than trusted.
+
+*Prior art*
+
+- `crates/goad/src/draft.rs:16-17` — `Timestamp` here is
+  `goad_semantics::protocol::canonical::Timestamp`, a newtype over
+  `jiff::Timestamp` (`canonical.rs:103-113`), and `Offset` is `jiff::tz::Offset`
+  unwrapped. `Edited::Picked { instant: Timestamp, offset: Offset }` fixes what
+  `compose` must return.
+- `crates/goad/src/generated.rs` — the `include_modules!()` quarantine. Any
+  Slint-generated type this phase names comes through here.
+
+**Four id sequences collide, not three.** `design.md` §7's `Dn`,
+`design-log.md`'s `D-n`, `prototype-notes.md`'s `P-n`, and slice 008's `VT-n`
+doc comments already in `wiring.rs`. Cite the file with the id, and
+phase-qualify any new `VT-n` written into a test doc.
+
+**Assumptions & STOP conditions**
+
+- **A-a — `compose`'s and `decompose`'s `Date` and `Time` are Slint's, not
+  jiff's.** `design.md:862-864` settles it in as many words: *"Slint's `Date`
+  and `Time` carry `int` fields, which is `i32`, while jiff wants `(i16, i8, i8)`
+  … so the conversion is `i16::try_from` / `i8::try_from`"*. EX-4 says the same
+  from the other side — `compose` **uses** jiff's `Date::new` and `Time::new`,
+  so its inputs cannot already be jiff civil values. PHASE-07/EX-3 confirms the
+  return: `FieldValue` gains `date: Date` and `time: Time` *written from*
+  `instant::decompose`.
+- **A-b — `TimeZone::system()` cannot fail; what it falls back to is the whole
+  question.** `jiff-0.2.35/src/tz/timezone.rs:325-337`: `try_system` or
+  `TimeZone::unknown()`. Read, not recalled.
+- **A-c — a fold and a gap both succeed.** `design.md:892-898` cites
+  `src/civil/datetime.rs:1327-1336` and `src/tz/ambiguous.rs:33-49`. **This is
+  a behaviour claim about a dependency and VT-3 measures it rather than
+  inheriting it.**
+
+STOP and consult — do not improvise past any of these:
+
+- **S-1.** A file the Surfaces line does not name. Four Surfaces lines have
+  already been found short this slice, one cause (`plan-log.md`, 2026-09-19,
+  *the class behind all four*). **This one is short too — see the Findings
+  below, raised rather than edited.**
+- **S-2.** Anything beyond a feature flag on an existing dependency. A new
+  dependency is a STOP even if it is only a dev-dependency.
+- **S-3.** `civil::date` or `Date::at` anywhere, or an `as` cast in place of a
+  `try_from`. Both panic paths; EX-4 is the criterion.
+- **S-4.** A fifth fallible step discovered in `compose` that A-4 does not name
+  — A-4 is explicitly *not measured*, so finding one is a design finding, not a
+  repair.
+- **S-5.** Repointing `clock.rs`'s `D25`, or making any code change in that
+  file.
+- **S-6.** Putting the feature on `[workspace.dependencies]`. §10's *what is
+  deliberately not done*.
+
+**Findings raised while expanding the phase**
+
+- **The Surfaces line is short by `crates/goad/ui/app.slint`, and it is a
+  fifth instance of the class `plan-log.md` already named.** `Date` and `Time`
+  are not builtin Slint types: they are declared in the widget library
+  (`i-slint-compiler-1.17.1/widgets/common/datepicker_base.slint:7-11` and
+  `widgets/common/time-picker-base.slint:332-336`) and re-exported by
+  `widgets/fluent/std-widgets.slint:24-25`. `app.slint` imports four names from
+  `std-widgets.slint` and neither is among them, so **neither struct is
+  generated into `crate::generated` today**. Verified by instrument, not by
+  reading: `grep -n "pub struct r#Date|pub struct r#Time"` over the build
+  script's `out/app.rs` at `ddd686e` returns nothing, while the same grep finds
+  `r#FieldEdit`, `r#FieldValue` and the rest.
+
+  **Measured, three ways, each built and each restored** (the file was copied
+  to the scratchpad first and compared back by `sha256sum` afterwards —
+  `7980903c…a42eac` before and after, `git status` clean):
+
+  | what was put in `app.slint` | `Date` / `Time` in `out/app.rs` |
+  |---|---|
+  | nothing — the tree as it stands | **no** |
+  | `import { Date, Time } from "std-widgets.slint";` | **no** — an import alone is not an export |
+  | `import { … }` *and* `export { Date, Time }` | **yes**, both |
+  | `export { Date, Time } from "std-widgets.slint";` — one line | **yes**, both |
+
+  The emitted shapes are `pub struct r#Date { day: i32, month: i32, year: i32 }`
+  and `pub struct r#Time { hour: i32, minute: i32, second: i32 }`, which is
+  exactly what `design.md:862-864` predicts of them.
+
+  So EX-3 and EX-4 — and VT-1, VT-2 and VT-3, which construct the inputs —
+  cannot be written at all without one line in a file this phase may not touch.
+  **STOP taken rather than the edit**, per `docs/AGENTS.md` §Execute and the
+  precedent of PHASE-02's and PHASE-03's four.
+
+  **Why it is the same class and not a new one.** `plan-log.md` (2026-09-19,
+  *the class behind all four*) found that the Surfaces lines were derived from
+  `design.md` §9's enumeration, which enumerates **constructors**, and that *a
+  file that only has to change because a type above it changed* is not one.
+  This is that, one level further out: `app.slint` has to change because a type
+  must become **visible**, not because anything in it is constructed or drawn.
+  The design is not wrong — `design.md:862-864` names the Slint types plainly.
+  The plan's Surfaces line is.
+
+  **What it would cost, and what it would not.** One line,
+  `export { Date, Time } from "std-widgets.slint";`. It declares no control,
+  reads no slot and adds no field to `FieldValue` or `FieldEdit`, so
+  `app.slint:20-26`'s standing rule — *nothing is declared before a control
+  reads it* — is untouched: the line makes two library types nameable from
+  Rust, which is not a declaration of anything the markup draws. It is also
+  **transitional**: at PHASE-07/EX-3 `FieldValue` gains `date: Date` and
+  `time: Time`, and a struct reached from an exported struct is generated
+  without an explicit export — so PHASE-07 should delete this line as it adds
+  those fields, and that is worth writing into PHASE-07 rather than leaving to
+  be noticed.
+
+  **The alternative, priced and not recommended.** Move `instant.rs` wholesale
+  into PHASE-07. That costs PHASE-04 its independence — it is the one phase the
+  plan marks as able to run beside another — and it loads the slice's widest
+  markup phase with three fallible functions and their nine or so units. It
+  also buys nothing: PHASE-07 would write the same line one phase later.
+
+**Tasks**
+
+- [x] T-0 expand the phase sheet; re-derive every citation; verify EN-1 and
+      EN-2 against the tree
+- [!] T-1 **BLOCKED** — `app.slint`'s one-line export of `Date` and `Time`.
+      Outside the Surfaces; raised with the team lead, not taken
+- [x] T-2 `crates/goad/Cargo.toml`: the two features (EX-2), with
+      `cargo test -p goad-semantics` run deliberately either side of it
+- [x] T-3 `clock.rs:47-53`: the three reaches, doc comment only (EX-5)
+- [ ] T-4 `src/instant.rs` + `lib.rs`: `compose`, `decompose`, `today_local`
+      (EX-3, EX-4) — depends on T-1
+- [ ] T-5 VT-1, VT-2, VT-3 — depends on T-1
+- [ ] T-6 VT-4, VA-1, VA-2; `just check` exits 0 (EX-1); sheet, §Status and
+      §Harvest updated
+
+**What landed while T-1 was blocked**
+
+Both halves that do not depend on the answer, and the gate is green with them:
+`just check` **exit 0** at this point, every count unchanged from PHASE-03's
+564.
+
+| | discharged by | how it was checked |
+|---|---|---|
+| EX-2 | `crates/goad/Cargo.toml:38` | `jiff = { workspace = true, features = ["tz-system", "tzdb-zoneinfo"] }`. `[workspace.dependencies]`'s line is untouched at `Cargo.toml:36` — still `{ version = "0.2", default-features = false }` — and `goad-semantics`, `goad-shell` and `goad-emit` still take it bare (`crates/goad-semantics/Cargo.toml:17`, `crates/goad-shell/Cargo.toml:14`, and `goad-emit` names no `jiff` at all). `:17-34` carries the argument at the manifest and points at `design.md` §10 rather than restating it |
+| EX-5 | `crates/goad-shell/src/clock.rs:47-72` | the three reaches, in the order §10 gives them. **No code change**: `git diff -- crates/goad-shell/src/clock.rs`, filtered to lines that are not `///`, is empty. The `D25` is slice 005's and was left pointing where it pointed |
+| VA-1 | `design.md:1534-1660` re-read against the manifest as landed | §10 still says what the manifest now does, clause by clause: the feature list (`tz-system` + `tzdb-zoneinfo`), the member it goes on, the two it does not, and the three reaches. Nothing in §10 needed a correction, and this phase wrote none — it is the argument, and the manifest cites it |
+
+**The residue, measured rather than asserted.** `POL-001` §Verification's claim
+is that no gate command rejects this. It can be shown positively with
+`cargo tree -e features`, which is not a gate command and rejects nothing
+either — it just prints what each build resolves. Instrument:
+`cargo tree -p <member> -e features | grep -oE 'jiff feature "[a-z-]+"'`.
+
+| build | jiff features, before | after |
+|---|---|---|
+| `--workspace` | none | `alloc`, `std`, `tz-system`, `tzdb-zoneinfo` |
+| `-p goad-semantics` | none | **none** |
+| `-p goad-shell` | none | **none** |
+| `-p goad-emit` | none | **none** |
+
+That is §10's three reaches as a table, and the second row is the one that
+matters twice over: it is why `cargo test -p goad-semantics` **holds** (stratum
+1 builds and passes with its own feature set, so the three instruments beside
+it check a configuration that stands alone) and why it **rejects nothing** here
+(it never links the `jiff` the workspace build links, so there is nothing for
+it to notice). The command's result is identical either side of the manifest
+change — 30 + 5 + 0 passing, exit 0, and it did not so much as rebuild `jiff`.
+A future stratum 1 source depending on a capability this feature switches on
+would keep the workspace build green and would not turn this command red. §8 R8
+carries that as a standing risk with review named as its only mitigation.
+
+**What it costs the graph: nothing new.** `Cargo.lock` gains four names under
+`jiff` — `defmt`, `log`, `serde_core`, `windows-link` — and **no
+`[[package]]` stanza**: all four were already in the lock at `ddd686e`, and
+the diff is four insertions in jiff's own dependency list. They are optional
+edges the resolver now records, not crates that build: `cargo tree --workspace`
+still shows `jiff v0.2.35 └── jiff-core v0.1.0` and nothing else beneath it,
+and `windows-link` is target-gated to Windows in any case. So §10's *what it
+costs* — `std` pulling `alloc` into stratum 1's workspace build — is the whole
+of the cost, and there is no second, unpriced one.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
