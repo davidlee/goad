@@ -302,6 +302,7 @@ export struct FieldValue {
 export struct FieldEdit {
     kind: Kind, checked: bool, text: string, number: float, index: int,
     date: Date, time: Time,
+    slider: bool,   // which control raised this, not which the row declares
 }
 
 in property <[FieldValue]> values;
@@ -498,8 +499,8 @@ not the markup, not the wire, not `Edited`.
 |---|---|---|---|
 | `boolean` | `CheckBox` | `checked` | `toggled` |
 | `text` | `LineEdit` | `text` | `edited`, debounced |
-| `number`, slider admissible | `Slider` over `minimum`/`maximum` | `number` | `changed`, debounced. Sends `number` |
-| `number`, otherwise | `LineEdit`, `input-type: decimal` | `text` | `edited`, debounced. Sends `text` |
+| `number`, slider admissible | `Slider` over `minimum`/`maximum` | `number` | `changed`, debounced. Sends `number`, `slider: true` |
+| `number`, otherwise | `LineEdit`, `input-type: decimal` | `text` | `edited`, debounced. Sends `text`, `slider: false` |
 | `choice` | `ComboBox` over the labels | `index` | `selected` |
 | `datetime` | `Button` showing the value, or *not set* | `text` | the time picker's `accepted` |
 
@@ -714,6 +715,29 @@ finitely keeps the number the field already holds, and only the draft — or, fo
 untouched field, the declared minimum it was drawn showing — knows what that is.
 A `Slider`'s `AdjustedValue` is interpreted as an `Adjusted` whose text is the
 host's format of the number, since nothing displays it.
+
+**The two `number` variants are told apart by `FieldEdit.slider`, and by nothing
+else** (D-38). They are the one pair of `Reported` variants that share a kind,
+so `kind` alone cannot select between them, and no slot value can either: an
+empty `text` is the measured cleared-field case (§5.2's comparand table, §8 R4)
+and must reach the draft as `AdjustedText("")`, so *empty means the `Slider` was
+at rest* would silently eat a real edit. Guessing between them is the second
+invariant failing — an ambiguous message must fail rather than be guessed at —
+so the markup says which control it is.
+
+**Each control writes the literal, not the row.** A `Slider`'s handler sends
+`slider: true` and the numeric `LineEdit`'s sends `slider: false`, the same way
+the `CheckBox` sends `kind: Kind.boolean` rather than `field.kind`. Writing
+`slider: field.slider` would make the report agree with the row by construction
+and cost the host its only witness that the control drawn is the control that
+reported. `FieldRow.slider` remains what it was — *the control, decided by the
+host* — and `FieldEdit.slider` is the control's own account of itself; the two
+agreeing is a fact about a correct renderer rather than a tautology.
+
+`D-12` is untouched by this. It welds `FieldEdit.kind` to the **protocol** kind
+so the markup never infers a field's kind from a fact about its bounds, and
+`slider` is a second field rather than a sixth `Kind` value precisely so that
+weld holds: `kind` still says `number` for both controls.
 
 **`held` is an `Option`, and `interpret` applies `as_drawn` itself.** The
 alternative was for every caller to write

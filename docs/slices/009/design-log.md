@@ -810,3 +810,57 @@ nothing loses its warrant by the deletion.
 
 No design content changes here. The next stage is `plan.md`, which is still the
 template, and its inputs are named in `notes.md` §*What is owed* item 5.
+
+## 2026-09-19 — during execution
+
+**D-38 — `FieldEdit` carries `slider`, and each control writes its own literal.**
+Raised by PHASE-03's agent while writing the `edited` mapper, and it is a hole in
+the design rather than in the plan. `Reported` has six variants for five kinds:
+`AdjustedText` and `AdjustedValue` are both `number`, one from the numeric
+`LineEdit` and one from the `Slider` (§5.2's controls table). `FieldEdit.kind` is
+welded to the **protocol** kind by D-12, so `kind` cannot select between them —
+and no slot value can either. An empty `text` is the measured cleared-field case
+and must reach the draft as `AdjustedText("")`, so *empty means the `Slider` was
+at rest* would silently eat a real edit. That is `CLAUDE.md`'s second invariant
+in miniature: an ambiguous message fails rather than being guessed at.
+
+Three ways out were priced by the agent that had just written the mapper, which
+is the only position from which the prices are real:
+
+- **A second `FieldEdit` field.** Costs nothing already committed. The change
+  lands entirely inside the grouped `None` arm PHASE-03 deliberately did not
+  write. `tree.rs`'s whole-report comparison survives untouched, because a new
+  field defaults.
+- **A sixth discriminant value in the markup's `Kind`.** Four edits, every one a
+  token — but it breaks D-12's weld, which was a decision rather than an accident
+  of drafting. The cost is a decision, not code.
+- **The host re-deriving the control from `slider_bounds`.** Costs nothing of
+  PHASE-03 but **reopens PHASE-02**, which is committed, reviewed and
+  unit-covered: `Reported` loses a variant, `interpret` loses an arm, the
+  twenty-four-pair mismatch unit's asserted count changes, and §5.2's `Reported`
+  block is rewritten. And `slider_bounds` is PHASE-08/EX-3's *only*
+  control-choosing site, so this shape either calls it twice per edit or moves
+  the decision onto `DrawnKind` — PHASE-02's work again.
+
+**Decided: the second `FieldEdit` field**, presented with that pricing and the
+recommendation. It is the cheapest, it disturbs nothing committed, and it is the
+only one of the three that leaves both D-12 and PHASE-02 alone.
+
+**The field is `slider: bool`, not a new `Control` enum.** `FieldRow` already
+carries `slider: bool`, commented *the control, decided by the host* — so the
+vocabulary exists and a second spelling of the same idea would be the parallel
+implementation `CLAUDE.md` forbids.
+
+**Each control writes the literal, not the row.** The `Slider`'s handler sends
+`slider: true` and the numeric `LineEdit`'s sends `slider: false`, never
+`slider: field.slider`. This is PHASE-03's `kind: Kind.boolean` decision applied
+again: deriving the report from the row makes them agree by construction and
+costs the host its only witness that the control drawn is the control that
+reported. `FieldRow.slider` stays the host's decision; `FieldEdit.slider` is the
+control's account of itself, and the two agreeing is a fact about a correct
+renderer rather than a tautology.
+
+`design.md` §5.2 carries all of this: the struct, the controls table's two
+`number` rows, and a new paragraph in the `Reported` discussion. `plan.md`
+PHASE-08 gains **EX-9**, so the phase that draws the two controls is the phase
+obliged to land it. Nothing in PHASE-01 … PHASE-04 changes.

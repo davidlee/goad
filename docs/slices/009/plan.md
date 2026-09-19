@@ -875,6 +875,11 @@ mapper's `Number` arm and `slider_bounds`), `crates/goad/src/glass.rs` (the
   not removed by argument.
 - EX-8 — the undrawn fixtures migrate off `number` where they had moved to it;
   see PHASE-05/EX-9.
+- EX-9 — `FieldEdit` carries `slider: bool`, and `install.rs`'s mapper selects
+  `AdjustedValue` or `AdjustedText` on it and on nothing else. Each control
+  writes its own literal — the `Slider` sends `slider: true`, the numeric
+  `LineEdit` sends `slider: false`, and neither sends `field.slider`
+  (`design-log.md` D-38, `design.md` §5.2; added 2026-09-19).
 
 **Verification**
 - VT-1 — `view_model.rs` units: `slider_bounds` refuses equal bounds, an `f32`
