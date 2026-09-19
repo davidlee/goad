@@ -20,8 +20,9 @@ use crate::diagnostics::{
 };
 use crate::draft::Edited;
 use crate::generated::{
-  FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, Tray, WindowMode,
+  Date, FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, Time, Tray, WindowMode,
 };
+use crate::instant;
 use crate::pending::Debounce;
 use crate::reception::Prepared;
 use crate::view_model::{Body, DrawnKind, PresentationField, interpret};
@@ -278,6 +279,7 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
   let mut values: Vec<FieldValue> = Vec::new();
   let mut rows: Vec<OptionRow> = Vec::new();
   let held = pending.carried();
+  let today = instant::today_local();
 
   for option in &prepared.presentation.options {
     let mut blocks: Vec<FieldBlock> = Vec::new();
@@ -302,7 +304,11 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
           field,
           drafted.as_ref(),
         );
-        values.push(field_value(overlay.as_ref().or(drafted.as_ref())));
+        values.push(field_value(
+          overlay.as_ref().or(drafted.as_ref()),
+          &field.kind,
+          &today,
+        ));
         fields.push(FieldRow {
           kind: markup_kind(&field.kind),
           id: field.id.as_str().into(),
@@ -381,6 +387,14 @@ fn overlaid(
     .and_then(|entry| interpret(&entry.value, drafted, &field.kind))
 }
 
+/// What a `datetime` field's button reads before anybody has picked one.
+///
+/// It is the screen's half of D-6: the wire carries the epoch for the same
+/// field, because `R-58` forbids omitting a value for a drawn field, and a
+/// button reading `1970-01-01T00:00:00+00:00` would be the host showing a
+/// person an answer nobody gave (design.md §5.2, §7 D1, D2).
+const NOT_SET: &str = "not set";
+
 /// One field's state channel: what the draft holds — overlaid with what a
 /// control has raised and the host has not recorded yet — in the slot the
 /// field's kind makes meaningful.
@@ -398,16 +412,21 @@ fn overlaid(
 /// routing the glass through `as_drawn` is exactly what would erase it
 /// (design.md §5.2).
 ///
-/// **Only `checked` and `text` are written**, because `boolean` and `text` are
-/// the only kinds `drawn_form` draws and no control reads another slot yet. The
-/// match is total over `Edited` all the same — that is what makes a value the
-/// draft can hold and the screen cannot show a compile error rather than a
-/// default. Each remaining arm is filled by the phase that draws its control
-/// and owns this value arm in its Surfaces: `datetime` PHASE-07 (with the
-/// `date` and `time` seed slots), `number` PHASE-08 (whose `number` slot is the
-/// `Slider`'s alone), `choice` PHASE-09 (whose `index` needs the drawn
-/// alternatives to locate the held id).
-fn field_value(state: Option<&Edited>) -> FieldValue {
+/// **The kind is a parameter because *untouched* is not one value.** An
+/// untouched `text` field shows the empty string and an untouched `datetime`
+/// shows [`NOT_SET`] and opens its picker on today — so the `None` arm cannot
+/// be answered from the state alone, which is exactly the divergence above
+/// stated as a signature.
+///
+/// **Only `checked`, `text`, `date` and `time` are written**, because
+/// `boolean`, `text` and `datetime` are the only kinds `drawn_form` draws and
+/// no control reads another slot yet. The match is total over `Edited` all the
+/// same — that is what makes a value the draft can hold and the screen cannot
+/// show a compile error rather than a default. Each remaining arm is filled by
+/// the phase that draws its control and owns this value arm in its Surfaces:
+/// `number` PHASE-08 (whose `number` slot is the `Slider`'s alone), `choice`
+/// PHASE-09 (whose `index` needs the drawn alternatives to locate the held id).
+fn field_value(state: Option<&Edited>, kind: &DrawnKind, today: &(Date, Time)) -> FieldValue {
   match state {
     Some(Edited::Checked(checked)) => FieldValue {
       checked: *checked,
@@ -420,15 +439,46 @@ fn field_value(state: Option<&Edited>) -> FieldValue {
       text: text.as_str().into(),
       ..FieldValue::default()
     },
-    // Untouched, and the three kinds no control reads a slot for yet. Two
-    // different statements with the same answer today, and they are one arm
-    // because `clippy::match_same_arms` is `deny` and splitting them is an
-    // error while the answers agree. PHASE-07 is where they part — an
-    // unpicked `datetime` reads *not set* — and splitting the arm is that
-    // phase's first move.
-    None | Some(Edited::Adjusted { .. } | Edited::Chosen(_) | Edited::Picked { .. }) => {
-      FieldValue::default()
+    // **What the button shows, and what its picker reopens on** — one pick,
+    // read two ways. The text is the same RFC 3339 rendering `draft.rs`
+    // submits, so a person sees the value that will leave the host rather than
+    // a prettier one; that agreement is asserted at the screen and at the wire
+    // in one case rather than held by a shared formatter, because the two
+    // spellings answer to different rules — `R-57` governs the wire and
+    // nothing governs the screen (design.md §5.2, §7 D3).
+    //
+    // `decompose` is pure: the offset the pick was resolved in travels in the
+    // draft beside the instant, so reopening the picker reads no clock and no
+    // zone (design.md §5.4).
+    Some(Edited::Picked { instant, offset }) => {
+      let (date, time) = instant::decompose(*instant, *offset);
+      FieldValue {
+        text: instant
+          .instant()
+          .display_with_offset(*offset)
+          .to_string()
+          .into(),
+        date,
+        time,
+        ..FieldValue::default()
+      }
     }
+    // **Untouched, and `datetime` is the one kind that can say so.** The
+    // button reads [`NOT_SET`] while the wire carries the epoch, and the
+    // picker opens on today rather than on 1970 — seeding from `as_drawn`
+    // would put D-6's sentinel on the screen in the one place D-6 chose it to
+    // keep out of (design.md §7 D21).
+    None if matches!(kind, DrawnKind::DateTime) => FieldValue {
+      text: NOT_SET.into(),
+      date: today.0.clone(),
+      time: today.1.clone(),
+      ..FieldValue::default()
+    },
+    // Untouched for a kind whose default slot *is* what it was drawn showing,
+    // and the two kinds no control reads a slot for yet. One arm because
+    // `clippy::match_same_arms` is `deny` and splitting them is an error while
+    // the answers agree; PHASE-08 and PHASE-09 part them.
+    None | Some(Edited::Adjusted { .. } | Edited::Chosen(_)) => FieldValue::default(),
   }
 }
 

@@ -180,7 +180,6 @@ pub enum ContentForm {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldForm {
   Text,
-  DateTime,
   Number,
   Choice,
 }
@@ -191,7 +190,6 @@ impl std::fmt::Display for FieldForm {
   fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     formatter.write_str(match self {
       Self::Text => "text",
-      Self::DateTime => "datetime",
       Self::Number => "number",
       Self::Choice => "choice",
     })
@@ -278,7 +276,7 @@ fn heading_of(key: Option<&str>) -> Option<String> {
 /// pair of `Option`s whose complementarity the compiler cannot see.
 ///
 /// Each `Err` arm is filled in by the phase that draws its control:
-/// `datetime` PHASE-07, `number` PHASE-08, `choice` PHASE-09. When the last
+/// `number` PHASE-08, `choice` PHASE-09. When the last
 /// one moves across, `FieldForm` has no constructible variant and
 /// `Undrawn::FieldForm` becomes the place a *sixth* kind would go rather than
 /// a report anything can reach (§5.1's consumer table).
@@ -286,7 +284,7 @@ fn drawn_form(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
   match kind {
     FieldKind::Boolean => Ok(DrawnKind::Boolean),
     FieldKind::Text => Ok(DrawnKind::Text),
-    FieldKind::DateTime => Err(FieldForm::DateTime),
+    FieldKind::DateTime => Ok(DrawnKind::DateTime),
     FieldKind::Number(_) => Err(FieldForm::Number),
     FieldKind::Choice { .. } => Err(FieldForm::Choice),
   }

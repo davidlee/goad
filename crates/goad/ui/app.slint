@@ -1,14 +1,11 @@
-import { Button, CheckBox, LineEdit, Palette, ScrollView } from "std-widgets.slint";
+import { Button, CheckBox, Date, DatePickerPopup, LineEdit, Palette, ScrollView, Time, TimePickerPopup } from "std-widgets.slint";
 
-// **`Date` and `Time` are re-exported so Rust can name them**, and for no
-// other reason: `instant.rs`'s `compose` takes a pair of these and
-// `decompose` answers one. They are library structs
-// (`std-widgets.slint`), not builtins, and an **import alone is not an
-// export** — measured four ways against the generated `app.rs`, and neither
-// is emitted without this line. It declares no control and reads no slot, so
-// the rule below still holds. PHASE-07 re-measures whether it is still
-// needed once `FieldValue` carries `date` and `time` of its own.
-export { Date, Time } from "std-widgets.slint";
+// **`Date` and `Time` need no export of their own.** PHASE-04 added one and
+// measured, four ways, that an `import` alone did not emit them; what it could
+// not measure then is the *reachability* path, because no exported struct
+// carried either type. `FieldValue` and `FieldEdit` now do, and the generator
+// emits a struct reached from an exported one — re-measured at PHASE-07 by
+// deleting the line and reading `app.rs`, and the export is gone.
 
 // Registers the family so `font-family` below can name it. The path is
 // relative to this file, and the compiler embeds the face in the binary —
@@ -30,13 +27,19 @@ import "../../../assets/Geist.ttf";
 //
 // The kind discriminant selects which slot of `FieldValue` is meaningful. All
 // five are declared because the mapping from the protocol's field kinds must
-// be total; this renderer draws two of them so far — `boolean` and `text` —
-// and each later phase adds one control and the fields it reads. `FieldRow`'s `slider` / `minimum` /
-// `maximum` / `step` / `alternatives` and `FieldValue`'s `date` / `time` are
+// be total; this renderer draws three of them so far — `boolean`, `text` and
+// `datetime` — and each later phase adds one control and the fields it reads.
+// `FieldRow`'s `slider` / `minimum` / `maximum` / `step` / `alternatives` are
 // **not** here yet: nothing is declared before a control reads it.
+//
+// `FieldValue`'s `date` and `time` are **what this field's picker opens on**,
+// and not a second spelling of what it shows: the button shows `text`, and
+// these two are the seed the host computes for the popup — `decompose` of the
+// draft's pick, or today at 00:00 local for a field nobody has picked
+// (design.md §5.2, §5.4).
 export enum Kind { boolean, text, number, choice, datetime }
 export struct FieldRow { id: string, label: string, kind: Kind, slot: int }
-export struct FieldValue { checked: bool, text: string, number: float, index: int }
+export struct FieldValue { checked: bool, text: string, number: float, index: int, date: Date, time: Time }
 // `heading: ""` is an **untitled** block, not a missing one — an ungrouped
 // field must not be drawn under a heading that does not claim it.
 export struct FieldBlock { heading: string, fields: [FieldRow] }
@@ -50,11 +53,14 @@ export struct OptionRow { id: string, label: string, view: string, blocks: [Fiel
 //
 // `kind` carries the **protocol** kind and never the control, so
 // `draft.rs::submitted` stays the single application of `R-57` (§5.5 I-C), and
-// the discriminant selects which of the remaining slots is meaningful. `date`
-// and `time` are **not** here yet, for the same reason `FieldValue`'s are not:
-// nothing is declared before a control writes it. PHASE-07 adds them with the
-// pickers.
-export struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int }
+// the discriminant selects which of the remaining slots is meaningful.
+//
+// `date` and `time` travel together and are written by the **time** picker's
+// `accepted` alone: a civil pair, which `instant::compose` resolves host-side
+// into an instant and the offset it resolved in. The markup composes nothing,
+// for the reason it parses nothing — the resolution can fail, and a Slint
+// callback has nowhere to report a failure (design.md §5.2, §5.4).
+export struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int, date: Date, time: Time }
 
 export enum WindowMode { prompt, diagnostic }
 
@@ -168,6 +174,31 @@ export component PromptWindow inherits Window {
   // number that can drift out of step with either.
   private property <length> card-inset: 12px;
   private property <length> panel-inset: 10px;
+
+  // **The pickers' seed, and the field the pick belongs to.** Both popups are
+  // root singletons — a `PopupWindow` can be neither repeated nor made
+  // conditional — so the form has one date picker and one time picker however
+  // many `datetime` fields it draws, and these six properties are how a
+  // particular field's open reaches them (design.md §5.4, §7 D21).
+  //
+  // The two seeds are written by the button's handler from that field's own
+  // value slot and **bound** into the popups below, because assigning a
+  // popup's property from an enclosing handler does not compile. The three
+  // `picking-` strings are the identity the completed pick is reported under:
+  // the markup mints none of them — each is copied off the row that was
+  // clicked, exactly as `chosen` copies `option.view` and `option.id`.
+  //
+  // `picked-date` is the stash between the two halves of one pick. It is the
+  // only state that has to survive a popup closing, and it lives here rather
+  // than inside a picker because nothing inside a picker survives: `show-popup`
+  // compiles to a fresh `::new()` on every show and the closed instance is
+  // dropped from `active_popups`, both measured (§5.4).
+  private property <Date> seed-date;
+  private property <Time> seed-time;
+  private property <Date> picked-date;
+  private property <string> picking-view;
+  private property <string> picking-option;
+  private property <string> picking-field;
 
   VerticalLayout {
     if root.mode == WindowMode.prompt: VerticalLayout {
@@ -335,8 +366,8 @@ export component PromptWindow inherits Window {
                       // is a compile error there rather than a field that
                       // renders as nothing here. The kinds with no arm yet are
                       // reported undrawn and never become a `FieldRow` at all
-                      // (`view_model::drawn_form`): `datetime` PHASE-07,
-                      // `number` PHASE-08, `choice` PHASE-09.
+                      // (`view_model::drawn_form`): `number` PHASE-08,
+                      // `choice` PHASE-09.
                       for field in block.fields: VerticalLayout {
                         alignment: start;
                         spacing: 2px;
@@ -438,6 +469,49 @@ export component PromptWindow inherits Window {
                               kind: Kind.text,
                               text: self.text,
                             });
+                          }
+                        }
+
+                        // A `Button` announces its own text, which here is the
+                        // value, so the backend's label is drawn above it
+                        // exactly as the `LineEdit`'s is rather than replacing
+                        // what the control says.
+                        if field.kind == Kind.datetime: Text {
+                          text: field.label;
+                          color: Palette.foreground.transparentize(0.20);
+                        }
+                        // The `HorizontalLayout` is what stops the button
+                        // filling the block's width, for the reason the
+                        // `CheckBox`'s and the option control's do.
+                        if field.kind == Kind.datetime: HorizontalLayout {
+                          alignment: start;
+                          Button {
+                            // **The composed value, or *not set*** — and no
+                            // guard. This button never assigns its own text,
+                            // so the binding is never destroyed and a present
+                            // corrects it by writing the slot. The other five
+                            // controls all self-assign, which is the whole
+                            // reason a guard exists (design.md §5.2).
+                            text: root.values[field.slot].text;
+                            enabled: !root.busy;
+                            accessible-description: field.id;
+                            init => { root.inits += 1; }
+                            // **The only place a field's identity reaches the
+                            // pickers**, and it copies rather than mints: the
+                            // view token and the two ids come off the row that
+                            // was clicked. The seeds come off the same row's
+                            // value slot, so what the picker opens on is the
+                            // host's answer for *this* field and never the
+                            // last field picked — nothing survives a popup
+                            // closing (design.md §5.4).
+                            clicked => {
+                              root.picking-view = option.view;
+                              root.picking-option = option.id;
+                              root.picking-field = field.id;
+                              root.seed-date = root.values[field.slot].date;
+                              root.seed-time = root.values[field.slot].time;
+                              date-picker.show();
+                            }
                           }
                         }
                       }
@@ -600,6 +674,55 @@ export component PromptWindow inherits Window {
     }
 
     if root.notice != "": Text { text: root.notice; }
+  }
+
+  // **One pick, two popups, and exactly one `edited`.** The date picker's
+  // `accepted` stashes and opens the time picker; the time picker's `accepted`
+  // reports. `canceled` at either abandons the whole edit and records nothing,
+  // so the draft never holds half a datetime and the button still shows what
+  // it showed — which is the person's signal that the pick did not take
+  // (design.md §5.4, §7 D5).
+  //
+  // **Each binds its seed here, at its own declaration site.** The last hop
+  // into a popup cannot be an assignment: *"Cannot access property or callback
+  // 'picker.date' inside of a Window from enclosing component"* is a compile
+  // error, measured. A fresh `::new()` per show is what makes a binding
+  // sufficient — the seed the button wrote a moment earlier is read as the
+  // popup is constructed, with no `changed` handler inside the widget
+  // involved (§7 D21).
+  //
+  // Neither carries `close-policy` of its own: both widgets bind
+  // `PopupClosePolicy.no-auto-close` at their own declaration
+  // (`fluent/datepicker.slint:23`, `fluent/time-picker.slint:24`), so
+  // abandoning a pick is a `canceled` a person raised rather than a close this
+  // markup has to infer.
+  date-picker := DatePickerPopup {
+    date: root.seed-date;
+    accepted(picked) => {
+      root.picked-date = picked;
+      time-picker.show();
+    }
+    // Handled and ignored, which is not the same statement as unhandled: the
+    // whole edit is abandoned, and abandoning it is doing nothing. Nothing is
+    // cleared either — the three `picking-` properties and `picked-date` are
+    // rewritten by the next open, and the only path that reaches the report
+    // below writes all four on the way.
+    canceled => { }
+  }
+
+  time-picker := TimePickerPopup {
+    time: root.seed-time;
+    // **The one `edited` of a completed pick.** The date is the stash; the
+    // time is what this picker just handed back. The literal names the
+    // control's own kind, for the reason every other control's does.
+    accepted(picked) => {
+      root.edited(root.picking-view, root.picking-option, root.picking-field, {
+        kind: Kind.datetime,
+        date: root.picked-date,
+        time: picked,
+      });
+    }
+    canceled => { }
   }
 }
 

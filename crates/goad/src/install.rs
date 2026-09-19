@@ -13,6 +13,7 @@ use slint::{CloseRequestResponse, ComponentHandle, Weak};
 
 use crate::draft::Reported;
 use crate::generated::{FieldEdit, Kind, PromptWindow, Tray};
+use crate::instant;
 use crate::pending::Debounce;
 use crate::wire::{Command, Stimulus, Wire};
 use crate::zoom::Zoom;
@@ -137,31 +138,41 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire, pending: &Rc<Deb
 /// a paste reach no insertion logic at all — so there is nothing here that
 /// could be validated even if this were the place for it (§8 R11, F-52).
 ///
-/// **`None` is *no control of this kind is drawn yet*, not a refusal.**
-/// `view_model::undrawn_form` draws `boolean` and `text`, so a field of any
-/// other kind never becomes a `FieldRow` and no control exists to raise this
-/// callback for one — the arm is unreachable rather than declined. Each
-/// remaining kind is filled by the phase that draws its control: `datetime`
-/// PHASE-07 (which is also where `FieldEdit` grows the `date` and `time` slots
-/// `Reported::Picked` is composed from), `number` PHASE-08, `choice`
-/// PHASE-09. A phase that draws a control and forgets its arm here fails that
-/// phase's own first case — the draft never sees the edit.
+/// **`None` now means two different things, and the `datetime` arm is why the
+/// return type was never scaffolding.** For `number` and `choice` it is *no
+/// control of this kind is drawn yet*: `view_model::drawn_form` draws
+/// `boolean`, `text` and `datetime`, so a field of either other kind never
+/// becomes a `FieldRow` and no control exists to raise this callback for one —
+/// the arm is unreachable rather than declined. Each is filled by the phase
+/// that draws its control: `number` PHASE-08, `choice` PHASE-09. A phase that
+/// draws a control and forgets its arm here fails that phase's own first case
+/// — the draft never sees the edit.
 ///
-/// **The `Option` is not scaffolding, and PHASE-07 does not delete it.** Once
-/// every kind draws, a `datetime` edit still answers `None` on its own terms:
-/// the two pickers hand back a civil date and time, and `instant::compose`
-/// turns those into an instant and an offset **host-side**, where it can fail
-/// — an out-of-range integer, a civil date `Date::new` refuses, a `DateTime`
-/// `to_zoned` refuses. That is §5.4's *"one `edited()`, or nothing if
-/// `compose` fails"*, and nothing is recorded on that path: the button still
-/// shows what it showed, which is the person's signal that the pick did not
-/// take. So the return type this phase needs for an unwritten arm is the same
-/// one the finished function needs for a written one.
+/// For `datetime` it means **the pick did not resolve**. The two pickers hand
+/// back a civil date and time and `instant::compose` turns them into an instant
+/// and the offset it resolved in — host-side, where it can fail: an
+/// out-of-range integer, a civil date `Date::new` refuses, a `DateTime`
+/// `to_zoned` refuses (`instant.rs:40-51`). That is §5.4's *"one `edited()`, or
+/// nothing if `compose` fails"*, and nothing is recorded on that path: the
+/// button still shows what it showed, which is the person's signal that the
+/// pick did not take.
+///
+/// A fold or a gap is **not** on that path. jiff resolves both under
+/// `Disambiguation::Compatible` — the fold takes the earlier occurrence, the
+/// gap shifts forward — so an ambiguous civil time composes rather than
+/// refusing, and the button then shows the instant it resolved to. A person
+/// sees the shift instead of being deceived by it (§7 D19).
 fn reported(edit: &FieldEdit) -> Option<Reported> {
   match edit.kind {
     Kind::Boolean => Some(Reported::Checked(edit.checked)),
     Kind::Text => Some(Reported::Typed(edit.text.to_string())),
-    Kind::Number | Kind::Choice | Kind::Datetime => None,
+    // The pair the **time** picker's `accepted` reported: `edit.date` is what
+    // the date picker handed back one popup earlier, stashed on the window
+    // root because nothing inside a popup survives its close (`ui/app.slint`,
+    // design.md §5.4).
+    Kind::Datetime => instant::compose(&edit.date, &edit.time)
+      .map(|(instant, offset)| Reported::Picked { instant, offset }),
+    Kind::Number | Kind::Choice => None,
   }
 }
 

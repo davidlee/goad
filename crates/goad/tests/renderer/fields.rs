@@ -46,7 +46,7 @@ use goad::wire::{Cancel, Command, Notice, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::host::Host;
 use goad_shell::ingress::Ingress;
-use i_slint_backend_testing::ElementHandle;
+use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery};
 use serde_json::Value;
 use slint::{ComponentHandle, Model};
 use tokio::sync::mpsc;
@@ -76,23 +76,30 @@ const THREE_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","optio
 /// keys that an implementation keyed by field alone would collapse into one.
 const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
-/// One option carrying one `boolean` and one **`datetime`** field, which this
+/// One option carrying one `boolean` and one **`number`** field, which this
 /// renderer does not draw. R-55 says the view is still shown and the option is
 /// still answerable; R-58 says the response is silent about the undrawn field
 /// rather than carrying a default for it.
 ///
 /// The undrawn kind moves one phase at a time, because a fixture's undrawn
 /// field has to name a kind that is *still* undrawn: `text` until PHASE-05
-/// drew it, `datetime` until PHASE-07 draws it, `number` until PHASE-08, and
-/// then there is nowhere left to move it and PHASE-09 deletes the case rather
-/// than repairing it (`prototype-notes.md` P-13).
-const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"datetime","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
+/// drew it, `datetime` until PHASE-07 did, `number` until PHASE-08, and then
+/// there is nowhere left to move it and PHASE-09 deletes the case rather than
+/// repairing it (`prototype-notes.md` P-13).
+const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"number","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
 
 /// One option carrying a `boolean` and **two `text` fields**. Two, because
 /// AC-4's element half is about a person typing into one field and then
 /// another inside one debounce window: a single field cannot tell a map keyed
 /// by (option, field) from one holding a single edit.
 const TWO_TEXT_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"noted","kind":"text","label":"Anything to add?"},{"id":"also","kind":"text","label":"And then?"}]}]},"next_check":"45 minutes"}"#;
+
+/// One option carrying a `boolean` and **two `datetime` fields**. Two, because
+/// both pickers are root singletons shared by every `datetime` field in the
+/// form, so a single field cannot tell a seed written per field from a seed
+/// written once: with one field, opening on *this* field's pick and opening on
+/// *the last* pick are the same observation (`design.md` §5.4, §7 D21).
+const TWO_DATETIME_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"when","kind":"datetime","label":"When?"},{"id":"until","kind":"datetime","label":"Until?"}]}]},"next_check":"45 minutes"}"#;
 
 /// A second view, distinguishable from every other fixture here by its title
 /// so a case can wait on the replacement arriving. Its option and field ids
@@ -235,6 +242,35 @@ fn drafted(window: &PromptWindow, option: &str, field: &str) -> bool {
   value_of(window, option, field).is_some_and(|value| value.checked)
 }
 
+/// What `glass.rs` writes into a `datetime` field's `text` slot before anybody
+/// has picked one. Restated here rather than imported because `glass::NOT_SET`
+/// is private: a case that read the constant would agree with the markup by
+/// construction and could not see the two of them diverge.
+const NOT_SET: &str = "not set";
+
+/// Today, in the person's own zone — the seed an unpicked field's picker opens
+/// on, read through the production function so a case's expectation and the
+/// glass's seed cannot be two different days (`instant.rs:92`).
+fn instant_today() -> (goad::generated::Date, goad::generated::Time) {
+  goad::instant::today_local()
+}
+
+/// The RFC 3339 rendering of one civil pick, resolved in the system zone
+/// exactly as `install.rs`'s `datetime` arm resolves it. Panics where
+/// `compose` refuses, which for a date and hour a case names literally means
+/// the test fixture is wrong rather than the host.
+fn composed(year: i32, month: i32, day: i32, hour: i32) -> String {
+  let date = goad::generated::Date { year, month, day };
+  let time = goad::generated::Time {
+    hour,
+    minute: 0,
+    second: 0,
+  };
+  let (instant, offset) =
+    goad::instant::compose(&date, &time).expect("the case's own date and time must resolve");
+  instant.instant().display_with_offset(offset).to_string()
+}
+
 /// The diagnostic lines the glass wrote to the window — the surface a person
 /// reads an undrawn report on, rather than `Controller`'s own copy of it.
 fn diagnostic_lines(window: &PromptWindow) -> Vec<String> {
@@ -268,6 +304,136 @@ fn type_into(window: &PromptWindow, option: &str, field: &str, text: &str) {
   field_described(window, option, field)
     .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
     .set_accessible_value(text);
+}
+
+/// What the **screen** shows for one `datetime` field — the button's own
+/// accessible label, which is its text: the composed value, or *not set*.
+///
+/// A `Button` announces what it says, so this is the one control in the form
+/// whose displayed value is read as a label rather than as a value or a
+/// checked state. That is also what tells the three controls apart in the
+/// tree: a box declares `accessible-checked`, a line edit declares
+/// `accessible-value`, and this declares neither.
+fn shown_on_screen(window: &PromptWindow, option: &str, field: &str) -> String {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .accessible_label()
+    .unwrap_or_else(|| panic!("{option}/{field} declares no accessible-label"))
+    .to_string()
+}
+
+/// Open one field's picker, the way a person does: the button's own default
+/// action, which seeds the two root properties off that field's value slot and
+/// shows the date picker (`ui/app.slint`).
+fn open_picker(window: &PromptWindow, option: &str, field: &str) {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .invoke_accessible_default_action();
+}
+
+/// The **one** control anywhere the window is showing — inside an open popup
+/// included — whose accessible label satisfies `matching`.
+///
+/// `ElementQuery::find_all` walks `active_popups` as well as the window's own
+/// tree (`search_api.rs:304-312`), which is what lets this target reach inside
+/// a picker at all; PHASE-07/VA-1 records the measurement. Everything a picker
+/// is driven by here declares `accessible-role: button` and an
+/// `accessible-action-default` that calls its own `clicked` — a calendar day
+/// cell (`common/datepicker_base.slint:59-63`), a clock face selector
+/// (`common/time-picker-base.slint:129-133`) and a `StandardButton`. None of
+/// them is dispatched at a coordinate, so none of them needs the popup laid
+/// out.
+///
+/// **Exactly one, asserted rather than taken.** `find_first` would return
+/// whichever the walk reached first and report no ambiguity, and the labels
+/// these cases select on — a bare day number, an hour — are short enough that
+/// a second match is a real risk rather than a theoretical one.
+fn only_button(
+  window: &PromptWindow,
+  what: &str,
+  matching: impl Fn(&str) -> bool + 'static,
+) -> ElementHandle {
+  let mut found = ElementQuery::from_root(window)
+    .match_accessible_role(AccessibleRole::Button)
+    .match_predicate(move |element| {
+      element
+        .accessible_label()
+        .is_some_and(|label| matching(label.as_str()))
+    })
+    .find_all();
+  let labels: Vec<String> = found
+    .iter()
+    .filter_map(|element| element.accessible_label().map(|label| label.to_string()))
+    .collect();
+  assert_eq!(
+    found.len(),
+    1,
+    "expected exactly one {what}, found {labels:?}"
+  );
+  found.remove(0)
+}
+
+/// Press `OK` in whichever picker is open. Both pickers draw theirs as a
+/// `StandardButton` of kind `ok`, whose text — and so its accessible label —
+/// is `@tr("OK")` (`common/standardbutton.slint:17-32`).
+fn accept(window: &PromptWindow) {
+  only_button(window, "OK button", |label| label == "OK").invoke_accessible_default_action();
+}
+
+/// Press `Cancel` in whichever picker is open. Both pickers close themselves
+/// and raise `canceled`, which this markup handles by doing nothing — the
+/// whole edit is abandoned (`design.md` §7 D5).
+fn cancel(window: &PromptWindow) {
+  only_button(window, "Cancel button", |label| label == "Cancel")
+    .invoke_accessible_default_action();
+}
+
+/// Choose a day of the displayed month. A calendar day cell carries the day
+/// number as its accessible label (`common/datepicker_base.slint:46-63`), and
+/// the displayed month is the seed's, so any day from 1 to 28 exists whatever
+/// the seed is.
+fn pick_day(window: &PromptWindow, day: i32) {
+  let wanted = day.to_string();
+  only_button(window, "calendar day cell", move |label| label == wanted)
+    .invoke_accessible_default_action();
+}
+
+/// Choose an hour on the clock face. A selector's label is
+/// `"{value} Hours or minutes of {total}"`, where `total` is 12 or 24 while
+/// hours are being chosen and 60 once minutes are — so the prefix alone names
+/// one cell, whichever `use-24-hour-format` the locale resolves to
+/// (`common/time-picker-base.slint:121-133`).
+fn pick_hour(window: &PromptWindow, hour: i32) {
+  let wanted = format!("{hour} Hours");
+  only_button(window, "clock face selector", move |label| {
+    label.starts_with(&wanted)
+  })
+  .invoke_accessible_default_action();
+}
+
+/// Whether the open calendar is sitting on a given day. A day cell binds
+/// `accessible-checked` to its own `selected`, which is
+/// `selected-date == self.d` (`common/datepicker_base.slint:60-61`, `:163`) —
+/// so this asks the widget what date it was seeded with rather than inferring
+/// it from anything the host wrote.
+fn day_selected(window: &PromptWindow, day: i32) -> bool {
+  let wanted = day.to_string();
+  only_button(window, "calendar day cell", move |label| label == wanted)
+    .accessible_checked()
+    .expect("a calendar day cell declares accessible-checked")
+}
+
+/// The hour the open time picker is sitting on, read off its own hour input —
+/// an `accessible-role: text-input` labelled `"hour"` whose accessible value
+/// is its text (`common/time-picker-base.slint:413-420`).
+fn hour_shown(window: &PromptWindow) -> String {
+  ElementQuery::from_root(window)
+    .match_predicate(|element| element.accessible_label().as_deref() == Some("hour"))
+    .find_first()
+    .expect("the open time picker must declare an hour input")
+    .accessible_value()
+    .expect("the hour input declares an accessible-value")
+    .to_string()
 }
 
 /// What the **screen** shows for one text field — the control's own
@@ -929,5 +1095,289 @@ async fn two_text_fields_typed_into_inside_one_window_both_reach_the_wire_and_ne
     values["also"],
     Value::String("and again after".to_owned()),
     "and the second field's reached the draft in the same one command"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-07/**VT-2** — the picker chain, end to end.
+///
+/// The button opens the date picker, a day cell is chosen, `OK` closes it and
+/// opens the time picker, an hour is chosen, and `OK` there composes and
+/// reports. Everything is driven through `invoke_accessible_default_action`,
+/// and every element it reaches declares an `accessible-action-default` that
+/// calls its own `clicked` — so no step depends on a popup having been laid
+/// out (`harness`-adjacent note on [`only_button`]).
+///
+/// **The draft holds one `Picked`, and the button shows it.** The two halves
+/// are asserted against different derivations on purpose: the *shape* is
+/// checked against a prefix built from the clock and the two literals a person
+/// chose, which `instant::compose` had no part in, and the *exact* value is
+/// checked against `compose` itself, which is what makes the screen and the
+/// wire provably one string rather than two that happen to agree. The
+/// arithmetic `compose` performs is PHASE-04/VT-1 … VT-3's and is not re-asserted
+/// here.
+///
+/// The date is the current month's 15th because the calendar opens on the
+/// seed's month and every month has a 15th; the hour is 3 because
+/// `get-current-time` returns the selected hour unchanged while the period
+/// selector holds its default (`common/time-picker-base.slint:494-503`).
+#[tokio::test]
+async fn picking_a_date_and_then_a_time_records_one_instant_and_the_button_shows_it() {
+  let (today, _) = instant_today();
+  let picked = composed(today.year, today.month, 15, 3);
+
+  let ((shown, held), log) = driving!(
+    rigged("fields-datetime-vt2", &[TWO_DATETIME_FIELDS]),
+    |window, tray, log| {
+      open_picker(&window, "morning", "when");
+      pick_day(&window, 15);
+      accept(&window);
+      pick_hour(&window, 3);
+      accept(&window);
+
+      until(LIVENESS_BOUND, || {
+        shown_on_screen(&window, "morning", "when") != NOT_SET
+      })
+      .await;
+      let shown = shown_on_screen(&window, "morning", "when");
+      let held = shown_on_screen(&window, "morning", "until");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (shown, held)
+    }
+  );
+
+  assert!(
+    shown.starts_with(&format!("{:04}-{:02}-15T03:00:00", today.year, today.month)),
+    "the button shows the day and the hour the person chose, on the month the \
+     picker opened on: {shown:?}"
+  );
+  assert_eq!(
+    shown, picked,
+    "and it is the composed instant entire, offset included"
+  );
+  assert_eq!(
+    held, NOT_SET,
+    "the other datetime field was never picked, and one field's pick is not \
+     the form's: {held:?}"
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(keys_of(&values), vec!["stretched", "until", "when"]);
+  assert_eq!(
+    values["when"],
+    Value::String(picked.clone()),
+    "R-57: the pick leaves the host as the string the button showed, carrying \
+     the offset it was resolved in (D4): {values:?}"
+  );
+  assert_eq!(
+    values["until"],
+    Value::String("1970-01-01T00:00:00+00:00".to_owned()),
+    "and the untouched one goes out as the epoch — the screen and the wire \
+     disagree here on purpose (D1, D2)"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-07/**VT-1** — the screen and the wire disagree,
+/// on purpose.
+///
+/// An untouched `datetime` field draws a button reading *not set*, and
+/// answering the option submits `1970-01-01T00:00:00+00:00` for it. Both
+/// halves are required and neither implies the other: `R-58` forbids omitting
+/// a value for a drawn field, so *something* has to go out, and D-6 chose a
+/// value a backend can recognise as nobody's answer — while a button showing
+/// that string would be the host claiming an answer nobody gave (§7 D1, D2).
+///
+/// The control-identity half is PHASE-05's, one kind on — and the discriminant
+/// is **the role**, measured rather than assumed. A `Button` declares a
+/// checked state just as a `CheckBox` does (it has a `checkable` property, and
+/// binds `accessible-checked` whether or not anything set it), so *declares no
+/// checked state* would have been a false statement that happened to pass for
+/// the `LineEdit`. What separates all three is `accessible-role` — `button`,
+/// `checkbox`, `text-input` — together with the value only a text input
+/// declares.
+#[tokio::test]
+async fn an_untouched_datetime_reads_not_set_on_screen_and_submits_the_epoch() {
+  let ((shown, declares), log) = driving!(
+    rigged("fields-datetime-vt1", &[TWO_DATETIME_FIELDS]),
+    |window, tray, log| {
+      let when = field_described(&window, "morning", "when")
+        .expect("a datetime field must draw a control addressable by its own id");
+      let stretched = field_described(&window, "morning", "stretched")
+        .expect("and the boolean beside it must still draw one");
+      let declares = (
+        when.accessible_value().map(|value| value.to_string()),
+        when.accessible_role(),
+        stretched.accessible_role(),
+      );
+      let shown = shown_on_screen(&window, "morning", "when");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (shown, declares)
+    }
+  );
+
+  assert_eq!(shown, NOT_SET, "the button says nobody has picked one");
+  assert_eq!(
+    declares,
+    (
+      None,
+      Some(AccessibleRole::Button),
+      Some(AccessibleRole::Checkbox)
+    ),
+    "it declares no value, which is what tells it from the line edit, and it \
+     announces itself as a button where the box beside it announces a checkbox"
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(keys_of(&values), vec!["stretched", "until", "when"]);
+  for field in ["when", "until"] {
+    assert_eq!(
+      values[field],
+      Value::String("1970-01-01T00:00:00+00:00".to_owned()),
+      "R-58 forbids omitting a value for a drawn field, and D-6's sentinel is \
+       what goes out instead: {values:?}"
+    );
+  }
+}
+
+/// Slice 009 `plan.md` PHASE-07/**VT-3** — **the re-seed**, both halves.
+///
+/// A field that has been picked reopens its picker on **its own** pick; a
+/// field that has not opens on today. Both pickers are root singletons shared
+/// by every `datetime` field in the form, so a seed written once per present
+/// rather than once per field would pass the first half and fail the second —
+/// which is why the fixture carries two fields and this case reads both
+/// (`design.md` §7 D21).
+///
+/// **Nothing survives a popup closing**, so neither half can be satisfied by
+/// leakage: `show-popup` compiles to a fresh `::new()` on every show and the
+/// closed instance is dropped from `active_popups`. What the reopened picker
+/// is sitting on can only have come from the seed the button's handler wrote
+/// out of that field's own value slot (`design.md` §5.4).
+///
+/// The day picked is chosen so that it is **not** today's: seeding from today
+/// would otherwise satisfy the first half by accident, which is the shape
+/// `docs/memory/tests-asserting-proxies.md` warns about.
+///
+/// No pointer event anywhere, so no dependency on a popup having been laid
+/// out.
+#[tokio::test]
+async fn a_picked_field_reopens_on_its_own_pick_and_an_unpicked_one_opens_on_today() {
+  let (today, _) = instant_today();
+  let elsewhen = if today.day == 15 { 16 } else { 15 };
+
+  let ((reopened, untouched, hour), _log) = driving!(
+    rigged("fields-datetime-vt3", &[TWO_DATETIME_FIELDS]),
+    |window, tray, log| {
+      open_picker(&window, "morning", "when");
+      pick_day(&window, elsewhen);
+      accept(&window);
+      pick_hour(&window, 3);
+      accept(&window);
+      until(LIVENESS_BOUND, || {
+        shown_on_screen(&window, "morning", "when") != NOT_SET
+      })
+      .await;
+
+      // The field nobody has picked, first: its picker must open on today and
+      // not on the pick the other field just made.
+      open_picker(&window, "morning", "until");
+      let untouched = (
+        day_selected(&window, today.day),
+        day_selected(&window, elsewhen),
+      );
+      cancel(&window);
+
+      // Then the field that was picked, which must open on its own pick.
+      open_picker(&window, "morning", "when");
+      let reopened = (
+        day_selected(&window, elsewhen),
+        day_selected(&window, today.day),
+      );
+      accept(&window);
+      let hour = hour_shown(&window);
+      cancel(&window);
+
+      let _ = &log;
+      (reopened, untouched, hour)
+    }
+  );
+
+  assert_eq!(
+    untouched,
+    (true, false),
+    "the unpicked field opens on today, and not on the other field's pick — \
+     which is what a seed written once per present rather than once per field \
+     would get wrong"
+  );
+  assert_eq!(
+    reopened,
+    (true, false),
+    "and the picked field opens on its own pick rather than on today"
+  );
+  assert_eq!(
+    hour, "3",
+    "the time half of the seed is retained too: the picker opens on the hour \
+     that was picked, not on the widget's own default"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-07/**VT-4** — cancelling abandons the whole edit,
+/// at either picker.
+///
+/// Two abandonments, because they fail differently. Cancelling the **date**
+/// picker never reaches a time at all; cancelling the **time** picker
+/// abandons a date that has already been chosen and stashed — which is the
+/// one a "cancel means keep the date at local midnight" reading would record
+/// (§7 D5). After both, the draft has nothing for the field, the button still
+/// reads *not set*, and the wire carries the epoch.
+///
+/// **A cancel is not a refusal, and neither raises a diagnostic line.** The
+/// pane is read as well as the wire, because a host that recorded nothing by
+/// reporting an error would satisfy the value assertions and fail the person.
+#[tokio::test]
+async fn cancelling_either_picker_records_nothing_and_leaves_the_button_alone() {
+  let ((after_date, after_time, lines), log) = driving!(
+    rigged("fields-datetime-vt4", &[TWO_DATETIME_FIELDS]),
+    |window, tray, log| {
+      open_picker(&window, "morning", "when");
+      pick_day(&window, 15);
+      cancel(&window);
+      let after_date = shown_on_screen(&window, "morning", "when");
+
+      open_picker(&window, "morning", "when");
+      pick_day(&window, 15);
+      accept(&window);
+      pick_hour(&window, 3);
+      cancel(&window);
+      let after_time = shown_on_screen(&window, "morning", "when");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (after_date, after_time, diagnostic_lines(&window))
+    }
+  );
+
+  assert_eq!(
+    after_date, NOT_SET,
+    "abandoning at the date picker leaves the button reading what it read"
+  );
+  assert_eq!(
+    after_time, NOT_SET,
+    "and abandoning at the time picker abandons the date that was already \
+     chosen with it, rather than committing it at midnight"
+  );
+  assert!(
+    lines.is_empty(),
+    "a cancel is not a refusal and reports nothing: {lines:?}"
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    values["when"],
+    Value::String("1970-01-01T00:00:00+00:00".to_owned()),
+    "nothing was recorded, so the field goes out as it was drawn: {values:?}"
   );
 }
