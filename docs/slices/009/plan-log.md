@@ -40,3 +40,32 @@ green, and the response is to go back to plan rather than to widen the phase.
 **Stage** moves to `executing`, and PHASE-01 begins. Its entry criteria are
 discharged: EN-1 by `design-log.md` D-37 and this entry, EN-2 by `just check`
 exiting 0 on a clean tree at `44fbd8e` (run 2026-09-19).
+
+## 2026-09-19 — PHASE-02's Surfaces line was short by one file
+
+**Raised.** PHASE-02's EX-3 requires that *"`Edited` and everything above it
+drop the `Eq` derive"*. `Command` is above it (`wire.rs:18-28` carries an
+`Edited` in `Command::Edit`), so the criterion compels an edit to
+`crates/goad/src/wire.rs` — and PHASE-02's **Surfaces** line did not name that
+file. The executing agent made the edit, correctly: one derive line and the doc
+that says why (`ec0c7bf`).
+
+The exposure is smaller than it looks. `slice-009.md` §Scope **does** name
+`wire.rs`, and that card is what `audit.md`'s surface diff is read against, so
+the audit's strongest instrument was never going to see an undeclared path.
+What was wrong is the phase-level record: a phase whose Surfaces list is short
+cannot be used to say what a phase was allowed to touch.
+
+**Decided.** Amend, rather than leave it to audit's Reconciliation table. User:
+*"proceed"*, on a recommendation to amend. `plan.md` PHASE-02 §Surfaces gains
+`crates/goad/src/wire.rs`, scoped to *the `Eq` derive on `Command` and its doc,
+nothing else*, and dated. This edits an accepted artefact, which is the only
+reason it was the user's call and not the plan stage's.
+
+**Noticed while doing it, and not acted on.** PHASE-03's EX-3 reads *"`Command::Edit`
+carries a `Reported`, and `Command` drops its `Eq` derive with `Edited`"* — and
+the second clause is **already true on entry**, discharged by PHASE-02. The two
+criteria overlap rather than conflict: dropping `Edited`'s `Eq` breaks `Command`'s
+derive in the same compile, so it could not have waited for PHASE-03. Left as
+written, because criterion ids are immutable and a criterion that is already true
+is discharged, not failed. PHASE-03's agent is told so up front.

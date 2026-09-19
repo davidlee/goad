@@ -261,7 +261,8 @@ the mapper draws.
 
 **Surfaces:** `crates/goad/src/draft.rs`, `crates/goad/src/view_model.rs`,
 `crates/goad/src/glass.rs`, `crates/goad/src/controller.rs` (`answer`'s
-as-drawn call only).
+as-drawn call only), `crates/goad/src/wire.rs` (the `Eq` derive on `Command`
+and its doc, nothing else — EX-3 compels it; added 2026-09-19, `plan-log.md`).
 
 **Entry**
 - EN-1 — PHASE-01/EX-1 … EX-7 discharged.
