@@ -174,6 +174,16 @@ it; otherwise it belongs in the audit.
    **`canon-delta.md:112` is the one that matters**: CD-2 is promoted into
    `SPEC-001`, so a stale identifier there would land in canon. Check it before
    promoting, not after.
+
+   **A second row, and this one is a hole rather than a rename.** PHASE-06/EX-3
+   ends *"where `interpret` refuses the entry the draft's value stands"*. That
+   clause is **discharged by construction and measured by nothing**: `text` is
+   the only drawn debounced kind, and `Typed` against `DrawnKind::Text` always
+   succeeds, so no case in the tree can reach the refusing branch. PHASE-08 draws
+   the two `number` controls and is the first phase where a pending report can be
+   refused — a case belongs there. Until it exists the clause is an untested
+   path, and the audit should record it as one rather than as a discharged
+   criterion. Raised by PHASE-06's agent, verified at `glass.rs:378-382`.
 3. **Promote the drafts.** `canon-delta.md` CD-1 and CD-2 apply to `SPEC-001`,
    with explicit user endorsement, recorded in `audit.md`'s Reconciliation
    table. A slice does not close holding an unpromoted draft.
@@ -508,7 +518,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-03 — the edit channel | **done** | 2026-09-19 |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | **done** | 2026-09-19 |
 | PHASE-05 — `text`, and the debounce's delivery | **done** | 2026-09-19 |
-| PHASE-06 — the overlay | **in progress** | 2026-09-19 |
+| PHASE-06 — the overlay | **done** | 2026-09-19 |
 | PHASE-07 — `datetime` and the two pickers | pending | |
 | PHASE-08 — `number` and its two controls | pending | |
 | PHASE-09 — `choice`, and the retirement of `FieldForm` | pending | |
