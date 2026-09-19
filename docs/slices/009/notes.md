@@ -162,6 +162,18 @@ it; otherwise it belongs in the audit.
    `review-code.md` is full strength at both tiers and is where the defects
    actually are. Budget two sessions: the review rounds on the *repairs* are
    half the cost.
+
+   **One reconciliation row is already known and endorsed.** PHASE-05 renamed
+   `undrawn_form` to `drawn_form` and widened its return to
+   `Result<DrawnKind, FieldForm>` (`plan-log.md`, *a decision taken out of
+   turn*). `plan.md` follows the code; three records still name the old
+   identifier — `design.md:151`, `:1398` (D11) and `:1513` (AC-7's row),
+   `canon-delta.md:112`, `research.md:95`. The user endorsed patching
+   `design.md` at reconcile rather than carrying it as drift (2026-09-19), so it
+   is a **Reconciliation** row and not a *Design drift not reconciled* one.
+   **`canon-delta.md:112` is the one that matters**: CD-2 is promoted into
+   `SPEC-001`, so a stale identifier there would land in canon. Check it before
+   promoting, not after.
 3. **Promote the drafts.** `canon-delta.md` CD-1 and CD-2 apply to `SPEC-001`,
    with explicit user endorsement, recorded in `audit.md`'s Reconciliation
    table. A slice does not close holding an unpromoted draft.
@@ -1957,12 +1969,16 @@ in the command that answers. The largest phase in the slice.
 | EX-5 | `src/controller.rs:278-301` | read: `edit` interprets on the walk `drawn_fields` already makes (`:290`), `interpret(...).ok_or(Refused::UnknownField)` at `:299`. No class added to `diagnostics.rs`'s enum |
 | EX-6 | `tests/renderer/wiring.rs`, `mod editing` at `:1131` | read: every `edit(…)` call site passes `&Reported::…`; the two `Command::Edit` literals at `:1612` and `:1628` carry `reported:` |
 
-  Baseline target counts at `f5e20f8`, clean tree, for the comparison at the
-  end — `cargo test --workspace`, **538**: `goad` lib 42, `tests/renderer` 190,
-  the three loop targets 1 each, `goad-boundary` `tests/checks` 43,
-  `goad-shell` lib 71 / `tests/integration` 96, `goad-semantics` lib 30 + 5
-  doc-tests. *(Re-measured at T-0; the figure that is checked at the end is the
-  one below in §What landed.)*
+  **Baseline, measured at T-0** on a clean tree at `98335cd`: `just check`
+  **exit 0**, gate total **573**; `cargo test --workspace` **538**. The
+  difference is exactly 35 — `goad-semantics`'s 30 + 5 counted twice, because
+  the gate runs `cargo test -p goad-semantics` as a command of its own.
+  Per target, from `cargo test --workspace` (the denominator VA-1 compares
+  against): `goad` lib **51**, `goad` `tests/renderer` **190**, the three loop
+  targets **1** each, `goad-boundary` `tests/checks` **43**, `goad-emit` bin
+  **34** / `tests/binary` **9**, `goad-semantics` lib **30** /
+  `tests/protocol` **5**, `goad-shell` lib **71** / `tests/integration` **96** /
+  `tests/shape` **6**. Every doc-test target is 0.
 
 **Reading list**
 
