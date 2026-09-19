@@ -374,6 +374,37 @@ impl Alternatives {
   pub fn as_slice(&self) -> &[Alternative] {
     &self.0
   }
+
+  /// The first alternative, which always exists.
+  ///
+  /// **Non-emptiness is this type's invariant, so this is where it is
+  /// exposed.** [`Alternatives::new`] is the only constructor and it returns
+  /// `EmptyAlternatives` for an empty list (`:362-364`, ten lines above), so a
+  /// value of this type has at least one member and `self.0.first()` cannot be
+  /// `None`. A consumer cannot reach that conclusion for itself in a total
+  /// expression — `AlternativeId::new` is `pub(super)`, so there is no fallback
+  /// id anywhere outside this module to fall back *to* — and every consumer
+  /// that tried would re-derive the same argument at its own call site. Stating
+  /// it once, beside the code that guarantees it, is what lets the rest of the
+  /// workspace stay free of the exception.
+  ///
+  /// # Panics
+  ///
+  /// It does not. `missing_panics_doc` reads the `expect` below rather than
+  /// the invariant above it, so this section exists to say what the lint
+  /// cannot: the only path to a `Self` is [`Alternatives::new`], and it
+  /// refuses the empty list before one is built.
+  #[expect(
+    clippy::expect_used,
+    reason = "`Alternatives::new` at :361 is the only constructor and returns `EmptyAlternatives`               at :362-364 for an empty list, so `self.0` has at least one member; the guarantee               is ten lines above this line and is checkable there"
+  )]
+  #[must_use]
+  pub fn first(&self) -> &Alternative {
+    self
+      .0
+      .first()
+      .expect("`Alternatives::new` refuses an empty list")
+  }
 }
 
 #[derive(Debug, Clone, PartialEq)]

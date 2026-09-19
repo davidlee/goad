@@ -324,27 +324,15 @@ fn drawn_form(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
     // that has an `Alternatives` in hand, which is what makes `as_drawn` and
     // every display site total (`DrawnKind::Choice`, `prototype-notes.md` P-2).
     //
-    // **The lint exception is the hatch `Cargo.toml` reserves, and the phase
-    // that emptied [`FieldForm`] is what forced it.** `Alternatives::new`
-    // rejects an empty list, so a `choice` field reaching this mapper always
-    // has a first alternative — a fact about the protocol, invisible to the
-    // compiler here. `design.md` §5.2 preferred a total expression and had one
-    // while `FieldForm::Choice` existed: the empty case could take the dead
-    // `Err` arm. Emptying the enum deletes that arm, and no fallback id is
-    // constructible, because `AlternativeId::new` is `pub(super)`.
-    #[expect(
-      clippy::expect_used,
-      reason = "`Alternatives::new` rejects the empty list, so a `choice` field reaching \
-                the mapper has a first alternative; no fallback `AlternativeId` is \
-                constructible and `FieldForm` has no arm left to report one on"
-    )]
+    // **`Alternatives::first` is why this is a total expression rather than an
+    // exception.** Non-emptiness is that type's invariant and it now exposes
+    // it, so the argument sits beside the `new` that enforces it instead of
+    // being re-derived here — which is what `design.md` §5.2 asked for and
+    // could not have while the empty case still had the dead
+    // `Err(FieldForm::Choice)` arm to fall into. `crates/goad` carries no lint
+    // exception for this at all (`plan-log.md`, 2026-09-20).
     FieldKind::Choice { alternatives } => Ok(DrawnKind::Choice {
-      first: alternatives
-        .as_slice()
-        .first()
-        .expect("`Alternatives::new` rejects an empty list")
-        .id()
-        .clone(),
+      first: alternatives.first().id().clone(),
       alternatives: alternatives.clone(),
     }),
   }
