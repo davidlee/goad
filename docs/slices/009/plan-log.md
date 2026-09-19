@@ -520,3 +520,83 @@ should not expect to migrate it.
   bind `PopupClosePolicy.no-auto-close`. Verified by the orchestrator at those
   exact lines. Not restated in `app.slint`, which is right — restating it would
   be a second source for one fact.
+
+## 2026-09-19 — PHASE-07 closes, and two corrections that are the orchestrator's
+
+Gate re-run by the orchestrator at `effbcc2`: **exit 0, gate total 584**,
+`cargo test --workspace` **549** — +4 on 580/545, the four new cases, and the
+35 difference holds. Paths touched are all inside the Surfaces; `plan-log.md`
+appears in the range only because `6106eb2` is the orchestrator's own commit.
+
+**PHASE-07 is the first phase in the slice whose Surfaces line was not short.**
+Seven were. The agent checked rather than trusted, using the operational form
+PHASE-06 contributed — list the files earlier phases of *this slice* created and
+grep each against the line. `instant.rs`, `pending.rs`, `event_loop_debounce/`
+and `event_loop_overlay/` were each grepped for `datetime` / `DateTime` /
+`FieldForm`; none needed an edit. The rule earned its place on its first use.
+
+### Correction 1 — the orchestrator read a working tree a running agent owned
+
+Answering the `FieldForm::Text` question, the orchestrator read the **working
+tree** and found `FieldForm` carrying neither `Text` nor `DateTime`, and put it
+to the agent that this was past what its message claimed. **That was wrong, and
+the git history settles it**: `edf8fc1` — committed *after* the decision landed —
+carries `Text, Number, Choice`, so `DateTime` alone had gone, exactly as the
+agent said. `Text` left at `5a17727`, after the decision. The read caught a file
+mid-write and the inference from it was unsound.
+
+**The rule, and it is about how this slice is being orchestrated.** While an
+agent holds the pen, the working tree is a *transient*, not a fact. Verify
+against commits — `git show <rev>:<path>` — and keep `git status` for one
+question only: whether the agent is mid-flight. Every other verification in this
+slice has been against committed state and has held; this was the first read of
+an uncommitted tree and it produced the first false claim.
+
+The agent was asked to say in its sheet whether it had acted ahead of the
+answer. It had not. The question should not have been put.
+
+### Correction 2 — a grep quoted as evidence for a claim it does not support
+
+The agent reports *"`grep -rn '\"kind\":\"datetime\"' crates/` now returns
+nothing"*. It returns **one**: `fields.rs:102`'s `TWO_DATETIME_FIELDS`, the
+fixture the agent itself added for VT-2 and VT-3.
+
+The **claim** is true — no *undrawn* `datetime` fixture remains — and the
+conclusion stands. The **instrument** does not show it, because after this phase
+a `datetime` fixture is evidence of a drawn control rather than an undrawn
+report, and the grep cannot tell the two apart. A later agent running the quoted
+command gets 1 and has to work out why.
+
+Third instance of the class in three phases — PHASE-06's `glass_over` count,
+PHASE-07's two — and the pattern is now specific enough to name: **a grep that
+was a good instrument before the phase can stop being one because of the phase.**
+EX-7's own migration is what changed what a `datetime` fixture means. The rule
+*cite from an instrument that prints the number* is necessary and not
+sufficient; the instrument must also still be measuring the thing.
+
+### Carried to PHASE-08 and to the audit
+
+- **The EX-7 list is nine sites and PHASE-08 inherits all of them**, now
+  including `field_form_displays_as_the_protocols_own_word`, which was not on
+  PHASE-05's list. Two of the nine **shrink** rather than migrate, and at
+  PHASE-09 both are **deleted**.
+- **VA-1 did not fork.** Every element the pickers are driven by declares
+  `accessible-role: button` and an `accessible-action-default` calling its own
+  `clicked`, so every step is `invoke_accessible_default_action`, which
+  dispatches no pointer event. §8 R9's risk was `mock_single_click`'s
+  `absolute_center()` and nothing here calls it. **No seventh `[[test]]`
+  target**; the loop tier stays at five.
+- **`settled!` exists because `future_not_send` refused it as an `async fn`** —
+  third instance in `fields.rs`. And *nothing was recorded* cannot be waited for,
+  which is why an abandonment needs a `view: null` round trip driven between it
+  and the read.
+- **A `Button` binds `accessible-checked` regardless**, measured. VT-1's first
+  draft claimed a datetime button declares no checked state; it passed against
+  the `LineEdit` and said nothing about the `CheckBox`. The discriminant is the
+  **role**.
+- **The display string is formatted twice on purpose** — `glass.rs` for the
+  screen, `draft.rs::submitted` for the wire — with the agreement **asserted** in
+  VT-2 rather than welded by a shared formatter. `submitted`'s doc calls itself
+  the single application of `R-57`, a rule about the wire; the button's text
+  answers to nothing. Worth the audit's attention as a deliberate duplication
+  with a test standing in for the constraint.
