@@ -4300,22 +4300,49 @@ target and six loop-tier arrangements, unchanged: this phase added no target.
 **STOPs — both sent, and what was done while they were out**
 
 **STOP-1 — emptying `FieldForm` deletes the only total expression
-`drawn_form`'s `choice` arm had.** `DrawnKind::Choice` carries
-`first: AlternativeId`, and building it needs `alternatives.as_slice().first()`,
-an `Option`. `design.md:843-854` enumerates two ways out and rules both dead —
-an `#[expect(clippy::expect_used)]`, and reporting an alternative-less `choice`
-as `Undrawn`. The second was **available and merely dead** when that was
-written, because `Err(FieldForm::Choice)` still typed; EX-6 deletes it. No
-fallback id is constructible (`AlternativeId::new` is `pub(super)`) and `panic`,
-`unreachable`, `todo`, `unwrap_used`, `expect_used` and `indexing_slicing` are
-all `deny` crate-wide (`Cargo.toml:136-143`). Taken under the compile carve-out:
-one `#[expect(clippy::expect_used, reason = …)]` on the arm, which is the hatch
-`Cargo.toml:181` reserves in as many words. The other defensible answer —
-`Alternatives::first` in `goad-semantics` — is stratum 1, outside the Surfaces,
-and **does not remove the problem**: the same `expect` lives inside
-`canonical.rs` unless `Alternatives` is restructured to `(Alternative, Vec<…>)`,
-which is a change to a canonical type. A second exception fell out of the same
-edit and is recorded under VA-2.
+`drawn_form`'s `choice` arm had. Settled by the user; the carve-out edit was
+replaced.** `DrawnKind::Choice` carries `first: AlternativeId`, and building it
+needs the first of an `Alternatives`. `design.md:843-854` enumerates two ways
+out and rules both dead — an `#[expect(clippy::expect_used)]`, and reporting an
+alternative-less `choice` as `Undrawn`. **The second was live and unused, not
+dead**: `Err(FieldForm::Choice)` typed, so the empty case had somewhere to go
+and nobody ever went there. EX-6 is what kills it. The design's sentence was
+true for the wrong reason and survived four review rounds saying so.
+
+Under the carve-out I took one `#[expect(clippy::expect_used)]` at the use site
+and sent it. The decision went the other way and is better: **the exception goes
+beside the invariant.** `Alternatives::first(&self) -> &Alternative` now lives on
+the type whose `new` refuses the empty list, ten lines below that refusal, with
+the reason citing it by line. `view_model.rs`'s arm is then
+`alternatives.first().id().clone()` — a total expression — and **`crates/goad`
+carries no `expect_used` exception at all**, which is what §5.2 wanted and could
+not have. Amended at `3fb897a`; PHASE-09's Surfaces gained
+`crates/goad-semantics/src/protocol/canonical.rs` **scoped to
+`Alternatives::first` alone**.
+
+Two things fell out of doing it:
+
+- **`clippy::missing_panics_doc` fires on the new `pub fn`**, because it reads
+  the `expect` and not the invariant above it. It is answered with a `# Panics`
+  section saying *it does not*, and why — not with a second silenced lint.
+- **`drawn_form`'s `#[expect(clippy::unnecessary_wraps)]` stays**, and is now
+  the only exception this phase added to `crates/goad`. It is a different lint
+  about a different property: the `Err` is uninhabited *because* all five kinds
+  draw, and collapsing the signature would delete AC-7's sixth-kind fork.
+  Removing it does not compile.
+
+**ADR-001, checked rather than assumed.** `cargo test -p goad-semantics` run on
+its own — the gate command that builds stratum 1 with its own feature set — is
+**35** (30 + 5). `Alternatives::first` is pure: it names no `src/shell/`, reads
+no clock, filesystem or subprocess, is not async, and
+`git diff --stat crates/goad-semantics/Cargo.toml Cargo.toml` is empty. An
+addition to stratum 1's API, not a crossing of it.
+
+**What was rejected upstream and is not to be retried:** restructuring
+`Alternatives` to `(Alternative, Vec<Alternative>)`, which would make
+non-emptiness structural and need no exception — it destroys `as_slice()`, which
+has callers at `view_model.rs:797` and in `goad-semantics`'s own protocol tests.
+Priced and deferred.
 
 **STOP-2 — VA-1's fork does not exist.** See VA-1 below. Work continued on
 `glass.rs`, `install.rs` and EX-7's site list while both were out; neither
@@ -4367,6 +4394,35 @@ reaches `TimerList::maybe_activate_timers`, which asserts *"Recursion in timer
 code"* (`i-slint-core-1.17.1/timers.rs:262`). `event_loop_reassert`'s driver
 therefore writes the three window events out by hand — the same three, at the
 same point, in window coordinates.
+
+**The loss, stated rather than waved at.** The two drivers are **not
+equivalent**: they *converge* on `select(index)` and they **diverge before it**.
+A row's `TouchArea` → `clicked` → `base.select(index)` binding
+(`fluent/combobox.slint:138-142`) is exercised by nothing in this repository, so
+if that binding were absent or wrong every case here stays green.
+
+**The mitigation is real, and is why AC-8 is undiminished.** That binding is
+`fluent/combobox.slint`'s — the Slint widget library's, not this project's
+markup. Nothing in `crates/goad` can break it and nothing in `crates/goad` can
+fix it. The host's obligation is that **when a selection is made, the
+alternative's id reaches the wire**, and that is what VT-2 asserts on either
+driver. What is untested is a third party's widget, at the one seam this project
+does not own.
+
+**Why the manual-offset alternative was not taken.** A case could compute a
+window point by adding the popup's origin to the row's local centre, and it
+would land. It would also pass **because the test had replicated the production
+translation** — so a change to how popups are placed would be followed silently
+instead of caught, and the case would be asserting a proxy for the thing it
+claims (`docs/memory/a-green-test-can-assert-a-proxy.md`). Rejected on that
+ground, not on effort, and I agree with the rejection.
+
+**A capability this repository did not have.** `mock_elapsed_time(1ms)` lays a
+popup out under `init_no_event_loop`: the three rows go from
+`pos (0, 0) size 0x0` to `pos (4, 4) size 512x40`, `pos (4, 44)` and
+`pos (4, 84)`. PHASE-07 never needed it because every element it drove declared
+an `accessible-action-default`. A later slice wanting popup **geometry** without
+a loop should find this rather than conclude the tier cannot produce it.
 
 **VA-2 — `FieldForm` was not deleted, and what keeping it cost**
 
@@ -4432,6 +4488,25 @@ The other seven, and what each still asserts:
 | `fields.rs`'s `A_DRAWN_AND_AN_UNDRAWN_FIELD` | **deleted** | — with its case |
 | `wiring.rs:1279`'s `noted` refusal assertion | **deleted** | the `Refused::UnknownField` claim is untouched and is carried by the `not-a-field` assertion three lines above it, which is the fabricated id `design.md` §5.1 names. The case's doc says so |
 
+**Which instrument produced each row of the table above**, because none of them
+is a grep. `grep '"kind":"choice"'` answers **nothing** on its own here: the
+*view* kind is `choice` too, so four of `mapper.rs`'s ten matches are envelopes
+and the token overcounts by construction. PHASE-08's table said so, and this is
+the phase that would otherwise have reached for it. The rows came from four
+instruments instead:
+
+| instrument | rows it produced |
+|---|---|
+| the sites `plan.md` EX-7 and `design.md` §5.1's consumer table name | every one, as the list to visit |
+| the **compiler**, once `FieldForm` was emptied | `mapper.rs`'s three `FieldForm::…` sites, which stopped compiling |
+| the **suite**, once `choice` began drawing | the six that went red on a value — `fields.rs`'s case, `reception.rs`'s, and `wiring.rs`'s four key lists |
+| `grep -rn "FieldRow {" crates/` | the two hand-built rows, which neither of the above would have raised |
+
+The general form, which PHASE-08 wrote and this phase confirms twice: **ask the
+type, not the fixture.** `FieldForm`'s variant list and `drawn_form`'s `Err`
+arms are checked by the compiler and both are now zero; a kind token inside a
+JSON string literal is checked by nobody.
+
 **EX-8 — the refusal, moved and then measured.** `Refused::UnknownField`
 reached from a field id no view declared is asserted twice over: by
 `an_edit_is_refused_by_each_selector_that_fails_and_records_nothing`'s
@@ -4454,11 +4529,31 @@ per case, counting `assert!` / `assert_eq!` / `assert_ne!` in source order.
 | **I-2** | the markup's `selected` sends `index: 0` whatever was chosen | 200 / **2** | 1 / 0 | — | the same two, at the same point |
 | **I-3** | the value channel never reports the held choice (`index` forced to 0) | 200 / **2** | 1 / 0 | — | the same two, at the same point. I-1 … I-3 break three links of one chain and a case at its end cannot tell them apart; what they show is that the chain is load-bearing |
 | **I-4** | `interpret` resolves the index one **past** the row chosen | 199 / **3** | 1 / 0 | 53 / **2** | VT-2 **#1**, *the label is what the person is looking at*, `"Well"` against `"Fine"`. VT-5 inside `choose`'s adjacency guard. `a_chosen_index_no_alternative_has_…` at its opening accepted edit. The two lib failures are PHASE-02's own `interpret` units |
-| **I-5** | `drawn_form` clones the **last** alternative as `first` | 198 / **4** | **0 / 1** | 55 / 0 | VT-1 **#3**, *an untouched `choice` sits on its first alternative*, `"Well"` against `"Badly"`; VT-4 **#7**, *a choice carries its **first alternative's id***, `String("well")` against `String("badly")`; VT-2 and VT-5 at the sync point; reassert **#5**, `Reading { … chosen: "Fine" }` |
+| **I-5** | the first alternative is the **last** — re-run at its new site, `Alternatives::first`, after the STOP-1 amendment moved the code, with identical counts and identical ordinals | 198 / **4** | **0 / 1** | 55 / 0 | VT-1 **#3**, *an untouched `choice` sits on its first alternative*, `"Well"` against `"Badly"`; VT-4 **#7**, *a choice carries its **first alternative's id***, `String("well")` against `String("badly")`; VT-2 and VT-5 at the sync point; reassert **#5**, `Reading { … chosen: "Fine" }` |
 | **I-6** | the row ships the alternatives' **ids** instead of their labels | 199 / **3** | **0 / 1** | — | VT-1 **#2**, *the labels the backend authored, in the order it declared them — not the ids*, `["badly", "fine", "well"]`; VT-2 and VT-5 in `choose`, *no alternative labelled "Fine"*; reassert **#5**, `chosen: "badly"` |
 | **I-7** | the `ComboBox` guard writes on **every** fire — the difference test removed | 202 / 0 | **0 / 1** | — | reassert **#4**, *and nothing diverged, so no guard may have written a widget back*, `1` against `0`. **AC-5's claim** |
 | **I-8** | the `ComboBox` carries **no guard at all** | 202 / 0 | **0 / 1** | — | reassert **#6**, *a widget the host never heard from is corrected on the next present, and the guard counts itself doing it*. **VT-8's claim**, with AC-5's four assertions passing above it |
 | **I-9** | `choice` **un-drawn**: `FieldForm::Choice` restored, `drawn_form` reports it, both lint exceptions removed | 192 / **10** | **0 / 1** | 54 / **1** | VT-3 at its only assertion — `("mood", Combobox)` missing from six; VT-4 **#2**, five keys not six; VT-6's three key lists; VT-7 *all five kinds draw*, `[true, true, true, false, true]`; reassert at the fixture's own `combo_box` lookup |
+
+**The two things the orchestrator asked the pass to watch, answered.**
+
+- *The row-selection assertion must fail if the wrong row is chosen.* **I-4**,
+  `interpret` resolving one past the row: VT-2 **#1** *the label is what the
+  person is looking at*, `"Well"` against `"Fine"`, and VT-5 stopped inside
+  `choose`'s adjacency guard. The middle alternative is chosen for this reason —
+  an off-by-one in either direction is visible.
+- *The id assertion must fail if an **index** or an **option** id reaches the
+  wire instead of the alternative's.* A wrong **alternative** id is I-4 and
+  I-5. The other two are **not injectable, and that is the finding rather than a
+  gap**: `draft.rs::submitted` matches `Edited::Chosen(AlternativeId)`, and
+  `AlternativeId::new` is `pub(super)` in `goad-semantics`, so neither an index
+  nor an option id can be made into the value that arm writes. The assertion is
+  still the one that would catch it if the types ever stopped saying so:
+  VT-2's fixture gives the field the **option's own id**, `morning`, and its
+  alternatives are `badly` / `fine` / `well`, so `values["morning"] ==
+  String("fine")` fails against the option id, against the field id, against the
+  label and against any spelling of an index. That is fixture design doing what
+  no injection can.
 
 **I-7 and I-8 are the discrimination VT-8 needed, so the target is not split.**
 One injection reddens *the counter stays at rest* and leaves *the counter moves*
@@ -4577,12 +4672,19 @@ to record under Evidence.
 
 **Left for PHASE-09's audit**
 
-- **STOP-1 and STOP-2 were unanswered when this phase ended.** Both took the
-  smaller of the available answers and said so; either can be reversed without
-  touching a test.
-- **Two lint exceptions are new**, and `design.md:849-852` argues against one of
-  them on a premise this phase removed. That is design drift to reconcile, not a
-  finding.
+- **Both STOPs came back and both are applied.** STOP-1 moved the exception into
+  `goad-semantics` beside the invariant (`3fb897a`); STOP-2 confirmed the driver
+  and VA-1 is amended (`c34dedf`). Neither is outstanding.
+- **One lint exception is new to `crates/goad`** —
+  `clippy::unnecessary_wraps` on `drawn_form` — and one to `goad-semantics`,
+  `clippy::expect_used` on `Alternatives::first`. `design.md:849-852` argues
+  against an exception on a premise this phase removed, and the resolution is
+  the fourth reconciliation row: the preference for a total expression stands,
+  and every consumer still gets one.
+- **The `# Panics` section on `Alternatives::first` is load-bearing**, not
+  decoration: `missing_panics_doc` fires on the `expect` and cannot see the
+  invariant, so the section is the only place a reader is told the function
+  does not panic and why.
 - **`examples/shell/backend.sh` is stale and outside every phase's Surfaces.**
   Its comment says its `text` field *"will not appear in the window — it will
   appear on the diagnostic surface"*, and its own header says the form *"carries
@@ -4617,6 +4719,13 @@ to record under Evidence.
   `install.rs` reports the `ComboBox`'s `current-index` unresolved;
   `view_model::interpret` resolves it against the drawn field, which is what
   makes AC-8 a fact about the types (`AlternativeId::new` is `pub(super)`).
+- **`Alternatives::first(&self) -> &Alternative`** in `goad-semantics` — a type
+  that refuses the empty list now **exposes** non-emptiness, so no consumer
+  re-derives the argument and none can: `AlternativeId::new` is `pub(super)`, so
+  there is no fallback id outside that module to fall back to. The one
+  `expect_used` exception sits ten lines below the `new` that guarantees it, with
+  a `# Panics` section saying what the lint cannot see. `crates/goad` carries
+  none.
 - **`fields.rs`'s choice vocabulary** — `combo_box` (**role**-filtered, because
   a field id may equal an option id and the option's `Button` answers to the
   same description), `chosen_on_screen`, `expand`, `list_items`, `offered`,
@@ -4664,8 +4773,8 @@ to record under Evidence.
   `match *self {}`, and `drawn_form` still returning `Result<_, FieldForm>`:
   three things rest on the type surviving its last variant — the sixth-kind
   fork, `diagnostics.rs`'s arm compiling unchanged, and `Undrawn::FieldForm` as
-  the place that kind goes. Two lint exceptions are what it costs, both argued
-  at the line that carries them.
+  the place that kind goes. One lint exception is what it costs in this crate,
+  `unnecessary_wraps` on `drawn_form`, argued at the line that carries it.
 
 - **The value channel is the draft overlaid with `pending.rs`** —
   `glass.rs::overlaid`, I-H's third site: an entry is shown only against the
@@ -4822,6 +4931,18 @@ to record under Evidence.
   over an argument about why an `expect` is unreachable" may have been resting
   on one. When the last variant goes, re-read every `?` and every `Err(…)` that
   named the type: a fallback that was merely unreachable becomes unwritable.
+  **The repair goes on the type that holds the invariant, not at the use.** A
+  type whose constructor refuses a state should expose the guarantee — otherwise
+  every consumer re-derives it, and where the fallback value is `pub(super)` no
+  consumer *can* solve it. Ten lines between the guarantee and the exception is
+  what makes the exception checkable.
+- **A sentence can be true for the wrong reason and survive every review.** The
+  design called the `Undrawn` escape *"dead because `Alternatives::new` rejects
+  the empty list"*. It was **live and unused** — `FieldForm::Choice` existed, so
+  the branch typed and nobody took it — and the phase that emptied the enum is
+  what made the sentence's conclusion bite. Four rounds read it as an argument
+  about the protocol. When a design rules an option out, check *which* fact is
+  doing the ruling out.
 - **A keyboard driver that raises one edit per press meets the capacity-1
   channel.** Two arrow presses inside one synchronous helper give `serve` no
   chance to drain, so the second edit is dropped and the draft keeps the first
