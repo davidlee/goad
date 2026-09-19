@@ -2981,23 +2981,271 @@ Paths are under
 
 **Tasks**
 
-- [ ] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+- [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
       with its denominator
-- [ ] T-1 the sheet, committed before any production code
-- [ ] T-2 `app.slint`: the two structs' new slots, the root seed and `picking`
+- [x] T-1 the sheet, committed before any production code (`6f0d00d`)
+- [x] T-2 `app.slint`: the two structs' new slots, the root seed and `picking`
       properties, the two popups, the `datetime` arm — and A-a, A-f and EX-3's
       re-measurement settled at the compiler (EX-3, EX-4, EX-5)
-- [ ] T-3 `view_model.rs`: `FieldKind::DateTime` moves to `Ok`, `FieldForm`
-      loses its variant (EX-2)
-- [ ] T-4 `glass.rs`: the `Picked` value arm, the *not set* arm, the seed slots
+- [x] T-3 `view_model.rs`: `FieldKind::DateTime` moves to `Ok`, `FieldForm`
+      loses `DateTime` — and, on the orchestrator's decision, `Text` (EX-2)
+- [x] T-4 `glass.rs`: the `Picked` value arm, the *not set* arm, the seed slots
       and the one `today_local` read (EX-2, EX-3)
-- [ ] T-5 `install.rs`: the `Kind::Datetime` arm through `instant::compose`
+- [x] T-5 `install.rs`: the `Kind::Datetime` arm through `instant::compose`
       (EX-5, EX-6)
-- [ ] T-6 EX-7, the fixture migration, one site at a time, recorded by name
-- [ ] T-7 VT-1 … VT-4 in `fields.rs`, each with an injection pass naming the
+- [x] T-6 EX-7, the fixture migration, one site at a time, recorded by name
+- [x] T-7 VT-1 … VT-4 in `fields.rs`, each with an injection pass naming the
       assertion **ordinal and message** it fails at
-- [ ] T-8 VA-1 and VA-2 in writing
-- [ ] T-9 `just check` exits 0 (EX-1); sheet and Harvest updated
+- [x] T-8 VA-1 and VA-2 in writing
+- [x] T-9 `just check` exits 0 (EX-1); sheet and Harvest updated
+
+**Result.** `just check` **exit 0**, gate total **584**; `cargo test
+--workspace` **549**. Both are +4 on the baseline, and the +4 is VT-1 … VT-4 —
+four `#[test]` fns in `tests/renderer/fields.rs`, whose target goes 194 → 198.
+The gate total stays exactly 35 above the workspace one. No `[[test]]` target
+was added: VA-1 did not fork.
+
+**STOP conditions raised**
+
+1. **Not a STOP, and sent as one anyway: `FieldForm::Text`.** Raised before any
+   test was written and while work continued. `drawn_form` has answered
+   `Ok(DrawnKind::Text)` since PHASE-05, so no mapper path could construct
+   `FieldForm::Text` — yet the variant was declared and
+   `mapper.rs:200` asserted its `Display`. Green, measuring nothing. It is not
+   S-1: `view_model.rs` and `mapper.rs` are both already in the Surfaces, so
+   this was a **scope** question rather than a surface one, and the sheet's
+   STOP list does not name that class. Sent with three options and a
+   recommendation; the orchestrator decided *cleared in PHASE-07* at `6106eb2`
+   and stated why in `plan-log.md`. While waiting, the whole of `app.slint`,
+   `glass.rs`, `install.rs` and the eight-fixture migration was done, and the
+   tree was left compiling and green throughout.
+
+   **Nothing else reached a STOP.** S-2 did not fire — VA-1 found the popup, so
+   no target was added and `Cargo.toml` is untouched. S-3, S-4, S-5 and S-6 did
+   not arise.
+
+   **Trap 12 was checked rather than trusted.** The files earlier phases of this
+   slice created — `src/instant.rs` and `src/pending.rs` (PHASE-04, PHASE-05),
+   `tests/event_loop_debounce/` and `tests/event_loop_overlay/` (PHASE-05,
+   PHASE-06) — were each grepped for `datetime`, `DateTime` and `FieldForm`.
+   `instant.rs` names the kind only in prose, `pending.rs` only in a doc
+   sentence about which kinds are debounced, and neither loop target mentions
+   it. So this phase's Surfaces line is the first in the slice that was **not**
+   short, and `instant.rs`'s prose was accurate about what PHASE-07 would do
+   without needing an edit.
+
+**Decisions taken during execution**
+
+- **`field_value` takes the drawn kind, because *untouched* is not one value.**
+  An untouched `text` field shows the empty string and an untouched `datetime`
+  shows *not set* and opens on today, so the `None` arm cannot be answered from
+  the `Option<&Edited>` alone. Adding the parameter states D-6's divergence as a
+  signature rather than as a comment: the arm that needs the kind is the arm
+  where the screen and the wire part.
+- **The display string is formatted in `glass.rs` and not shared with
+  `draft.rs::submitted`.** Two calls of `Timestamp::display_with_offset`, one
+  per side of the boundary. A shared formatter would make the screen and the
+  wire agree by construction, which sounds like the better shape and is not:
+  `submitted`'s doc calls itself *the single application of `R-57`*, a rule
+  about the wire, and the button's text answers to nothing. What would be lost
+  — that the two agree for a picked field — is asserted instead, in VT-2, at
+  the screen and at the wire in one case. A property measured beats a property
+  welded.
+- **`today_local()` is read once per present, unconditionally**, at the top of
+  `option_models` rather than lazily per unpicked field. It is total, its
+  failure path is absorbed where the clock cannot be reported on
+  (`instant.rs:83-91`), and a presentation with no `datetime` field pays one
+  clock read. A lazy read would be an `Option` and a branch to save that, which
+  is a cost nobody has measured being worth it.
+- **`close-policy` is not restated in `app.slint`.** Both widgets bind
+  `PopupClosePolicy.no-auto-close` at their own declarations
+  (`fluent/datepicker.slint:23`, `fluent/time-picker.slint:24`), so EX-5's
+  clause is held by what this markup instantiates. Restating it would be a
+  second source for one fact; a comment at the declaration site names the two
+  lines instead. A-f resolved that way.
+- **`canceled` is handled and ignored at both pickers**, not left unhandled.
+  `app.slint:209`'s `link-clicked` is the precedent and the reason is the same:
+  an unhandled callback is not the same statement as a handled one. Nothing is
+  cleared on the way out either — the three `picking-` properties and
+  `picked-date` are rewritten by the next open, and the only path that reaches
+  the report writes all four.
+- **`settled!` is a macro, and the reason was measured.** Written first as an
+  `async fn`, it compiled and ran green and then failed `just check`:
+  `future_not_send` is `deny` workspace-wide (`Cargo.toml:201`) and the future
+  held a `!Send` `PromptWindow`. `tick!` and `driving!` are macros for exactly
+  this and say so; the third instance is now recorded rather than rediscovered.
+
+**EX-7 — the fixture migration, by name.** Every one moved to **`number`**,
+which is the kind PHASE-08 draws, so each of these is repaired again there and
+then has nowhere left to go: `choice` is PHASE-09's, and P-13 deletes what
+rests on an undrawn field rather than migrating it a fourth time. The
+trajectory is the one every fixture's own doc comment states, and each doc was
+advanced by one phase in the same edit.
+
+| fixture | file | was | now |
+|---|---|---|---|
+| `A_DRAWN_AND_AN_UNDRAWN_FIELD` | `tests/renderer/fields.rs:89` | `noted`, `datetime` | `noted`, **`number`** |
+| `mod editing`'s `TWO_FORMS` | `tests/renderer/wiring.rs:1165` | `noted`, `datetime` | `noted`, **`number`** |
+| `grouped_fields_separated_only_by_an_undrawn_field_are_one_block` | `tests/renderer/mapper.rs:240` | `note`, `datetime` | `note`, **`number`** |
+| `a_group_whose_every_field_is_undrawn_produces_no_block` | `tests/renderer/mapper.rs:258-259` | `note` and `other`, `datetime` | both **`number`** |
+| `every_undrawn_kind_is_reported_by_option_field_and_form` | `tests/renderer/mapper.rs:305` | three undrawn kinds | **two** — the `datetime` row is **removed**, not moved. The case's claim is *every* undrawn kind, held by its own `undrawn.len()`; `number` is already in the list, so a move would have duplicated a row rather than migrated one |
+| `a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice` | `tests/renderer/mapper.rs:383` | `note`, `datetime` | `note`, **`number`** |
+| `field_reports_leave_a_parsed_body_undegraded` | `tests/renderer/mapper.rs:429` | `note`, `datetime` | `note`, **`number`** |
+| `a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_receive` | `tests/renderer/reception.rs:762` | `note`, `datetime` | `note`, **`number`** |
+| `field_form_displays_as_the_protocols_own_word` | `tests/renderer/mapper.rs:204` | four rows | **two** — `datetime`'s row goes with the variant, and `text`'s with it on the orchestrator's decision. **Not on PHASE-05's list**, and that is the fourth instance of an enumeration's reach falling short: EX-9 enumerated *fixtures carrying an undrawn field* and did not reach a **unit** asserting a `FieldForm`'s `Display` |
+
+`tests/renderer/table.rs:151-157`'s four `"kind":"text"` rows were checked
+again and left: they are `retained(…)` rows asserting a **normalizer**
+diagnostic, refused before `present` is ever called, so no drawn kind reaches
+them. `grep -rn '"kind":"datetime"\|"kind": "datetime"' crates/` now returns
+nothing.
+
+**No migrated case went vacuous**, read for what its undrawn field is *for*
+rather than for the token — PHASE-05's discipline, applied to the same list one
+kind on:
+
+- `fields.rs`'s case asserts a diagnostic line naming `noted` **and** that
+  `noted` is absent from the submitted keys. `number` is undrawn, so both halves
+  hold for the reason they held.
+- `wiring.rs`'s
+  `an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field` opens
+  with a guard assertion that the fixture really does carry an undrawn field;
+  it still fires, now naming `number`.
+- `mapper.rs`'s block cases assert that an undrawn field neither opens a block
+  nor breaks a run — a claim about *undrawn*, not about the kind.
+- `reception.rs`'s case asserts two lines in order, one per field. Both still
+  arrive.
+- `mapper.rs:305` and `mapper.rs:204` are the two that changed **meaning**
+  rather than spelling, and both are enumerations: each shrinks by a row per
+  phase and each is deleted rather than migrated at PHASE-09.
+
+**The injection pass.** Every count is `cargo test -p goad --test renderer`,
+whose denominator is **198**. Each injection was applied from a copy taken
+first, run, reverted from that copy, and the tree re-run green before the next.
+The assertion **ordinals** below are per case, counting `assert!` /
+`assert_eq!` in source order; line numbers are the file as it now stands.
+
+| # | injection | result | which assertion, and its message |
+|---|---|---|---|
+| — | none | **198 passed, 0 failed** | — |
+| **I-1** | `glass.rs`, the unpicked button shows the epoch rather than `NOT_SET` — D-6's sentinel leaking onto the screen | **194 passed, 4 failed** | VT-1 **#1** (`:1274`) *the button says nobody has picked one*; VT-4 **#1** (`:1435`); VT-3 **#1** (`:1372`). VT-2 fails at its **second wait** (`:1198`) and not at an assertion — see the finding below |
+| **I-2** | `app.slint`, the time picker reports `root.seed-date` instead of `root.picked-date`: the stash between the two halves is ignored | **196 passed, 2 failed** | VT-2 **#1** (`:1203`) *the button shows the day and the hour the person chose*; VT-3 **#1** (`:1372`), `"2026-09-19T03:00:00+10:00"` against `"2026-09-15T03:00:00+10:00"` — the pick took today rather than the day chosen |
+| **I-3** | `glass.rs`, a picked field's seed comes from `today_local` instead of `decompose`: the pick is not retained | **197 passed, 1 failed** | VT-3 **#3** (`:1384`) *the picked field opens on its own pick rather than on today*, `(false, true)` against `(true, false)`. The cleanest isolation of the pass |
+| **I-4** | `glass.rs`, the seed's clock read is the epoch rather than today — the exact defect D21 rejects | **196 passed, 2 failed** | VT-2 **#1** (`:1203`); VT-3 **#1** (`:1372`), `"1970-01-15T03:00:00+10:00"`. The calendar opens on January 1970, so the day chosen lands in 1970 |
+| **I-5** | `app.slint`, every field seeds from one fixed slot: one field's pick leaks into the next field's picker | **197 passed, 1 failed** | VT-3 **#2** (`:1377`) *the unpicked field opens on today, and not on the other field's pick*, `(false, true)`. The only injection that reaches #2 |
+| **I-6** | `app.slint`, the date picker's `accepted` reports as well: **two** `edited` per pick | **195 passed, 3 failed** | VT-4 **#2** (`:1439`) *abandoning at the time picker abandons the date that was already chosen with it*, `"2026-09-15T00:00:00+10:00"` against `"not set"`; VT-2 **#1**; VT-3 **#1**. VA-2's injection |
+| **I-7** | `app.slint`, the time picker's `canceled` commits the date at the seeded time | **197 passed, 1 failed** | VT-4 **#2** (`:1439`), identically. The other half of VA-2 |
+| **I-8** | `install.rs`, a composed pick is never reported (the `datetime` arm answers `None` after composing) | **196 passed, 2 failed** | VT-2 and VT-3 at their **waits** — a pick that never lands can only be a timeout, and is |
+| **I-9** | `view_model.rs`, `as_drawn`'s `DateTime` arm carries `Offset::constant(1)`: an untouched field submits an offset nobody picked | **195 passed, 3 failed** | VT-1 **#4** (`:1289`) *R-58 forbids omitting a value for a drawn field*, `"1970-01-01T01:00:00+01:00"` against `"1970-01-01T00:00:00+00:00"`; VT-2 **#6**; VT-4 **#4** |
+
+**VA-1 — the popup is found under `init_no_event_loop`, and the row did not
+move.** Measured, not expected: VT-2 and VT-3 both drive a `DatePickerPopup`
+and a `TimePickerPopup` from `tests/renderer/`, which runs under
+`init_no_event_loop`, and both pass. What settles it:
+
+- `ElementQuery::find_first` and `find_all` each pass `self.root.active_popups()`
+  into the walk (`search_api.rs:291-312`), so a shown popup's subtree is in
+  scope from the window root with no extra query.
+- Every element these cases drive declares `accessible-role: button` **and** an
+  `accessible-action-default` that calls its own `clicked` — a calendar day
+  cell (`common/datepicker_base.slint:59-63`), a clock-face selector
+  (`common/time-picker-base.slint:129-133`), and a `StandardButton` through
+  `Button`'s own default action. So every step is
+  `invoke_accessible_default_action`, which dispatches **no pointer event**.
+  §8 R9's risk is `mock_single_click`'s dependence on `absolute_center()`, and
+  nothing here calls it.
+- The one property read out of a popup that is not a label — the hour the time
+  picker opened on — is `accessible_value` off its own `accessible-role:
+  text-input` (`common/time-picker-base.slint:413-420`). Also layout-free.
+
+So the capability §8 R9 doubted is present, the absence of a case in this
+repository was indeed absence of a case rather than of a capability (§7 D14
+already said so for `choice`), and **no `[[test]]` target was added**.
+`Cargo.toml` is untouched and the loop tier still has five targets.
+
+**VA-2 — no `datetime` field holds half a pick.** The state machine, read off
+`app.slint` as it stands:
+
+- The **button's** `clicked` writes six root properties and calls
+  `date-picker.show()`. It reports nothing.
+- The **date picker's** `accepted(picked)` writes `root.picked-date` and calls
+  `time-picker.show()`. It reports nothing.
+- The **time picker's** `accepted(picked)` calls `root.edited(…)` once, with
+  `date: root.picked-date` and `time: picked`.
+- `canceled` at **either** picker is an empty handler.
+
+`grep -n "root.edited(" crates/goad/ui/app.slint` returns **three** call sites
+in the whole file: the `CheckBox`'s `toggled`, the `LineEdit`'s `edited`, and
+the time picker's `accepted`. There is no fourth, and the `datetime` one is on
+the time picker. That is the read; the injections are the measurement — **I-6**
+adds a second `edited` at the date step and **I-7** adds one on `canceled`, and
+each takes VT-4 from 198 passed to 197 passed / 1 failed at the same assertion,
+`"2026-09-15T00:00:00+10:00"` against `"not set"`. Both are the *date at a time
+nobody chose* reaching the draft, which is the half-pick VA-2 forbids.
+
+Two further facts the read rests on, neither assumed:
+
+- **The stash cannot be read before it is written.** `root.picked-date` is
+  reached only by the time picker's `accepted`, and the only thing that shows
+  the time picker is the date picker's `accepted`, which writes it one
+  statement earlier. There is no path to a report that skips the date.
+- **A refused `compose` records nothing and reports nothing.**
+  `install.rs::reported` answers `None` and the closure returns before any
+  send, so the button still shows what it showed — EX-6, and §5.4's *"one
+  `edited()`, or nothing if `compose` fails"*.
+
+**Findings**
+
+- **I-1 reddens VT-2 at a wait rather than at an assertion, and the reason is a
+  real property of the code.** Breaking the *not set* sentinel makes VT-2's
+  first wait — *the slot no longer reads the sentinel* — return immediately,
+  before the pick has landed; the case then presses the option while the
+  `Command::Edit` is still on the capacity-1 channel, the `Choose` is dropped,
+  and the second wait times out. So an injection aimed at the screen's sentinel
+  is reported by VT-2 as *the answer never left*. Three cases name it properly
+  and VT-2 does not; that is trap 10 in this phase, and it is recorded rather
+  than repaired, because the repair would be a second sentinel and the defect
+  **is** caught, three times over.
+- **VT-3's `untouched` half needed an injection nobody would have written by
+  looking at the code.** I-4 — the seed's clock read is the epoch — is the
+  obvious attack on *opens on today*, and it fails at **#1** instead, because
+  the seed an unpicked field opens on is also the seed the **pick** is made
+  from: a wrong seed changes the recorded value before it changes what the
+  other field's picker shows. Only I-5, which leaves the pick correct and
+  redirects the *seed's slot*, reaches #2. Same shape as PHASE-06's finding:
+  the injection that looks aimed at a claim is not the one that isolates it.
+- **The design's leakage clause is architecturally unreachable, and #2 is still
+  worth its line.** No pick can survive a popup closing, so *field B opens on
+  field A's pick* cannot happen through the popup. What I-5 shows is that it
+  can still happen through the **host** — a seed written from the wrong slot —
+  which is a different mechanism from the one D21's first draft feared and is
+  the one this assertion actually guards.
+- **Three repairs the injection pass forced**, none of them visible from a
+  green run. `settled!` and its yield (a cancel that wrongly records is
+  swallowed by the capacity-1 channel and fails two steps later as a dropped
+  `Choose`); VT-3 pinning the value that landed before it reads any seed; and
+  VT-1's control-identity assertion, which first claimed a `datetime` button
+  *declares no checked state* — **false**, measured: a Slint `Button` binds
+  `accessible-checked` whether or not anything set it, so the claim happened to
+  pass against the `LineEdit` and said nothing about the `CheckBox`. The
+  discriminant is the **role**.
+
+**Left for a later phase**
+
+- **PHASE-08 inherits the whole EX-7 list**, nine sites including the two
+  enumerations, and `field_form_displays_as_the_protocols_own_word` is now on
+  it — it was not on PHASE-05's.
+- **`only_button`, `accept`, `cancel`, `pick_day`, `pick_hour`, `day_selected`
+  and `hour_shown` are `fields.rs`'s alone** and were deliberately not lifted
+  into `harness.rs`: the module rule there is *two or more case files need it*,
+  and one does. PHASE-09's `choice` cases drive a `ComboBox`, not a popup, so
+  the rule is unlikely to be met by them either.
+- **`settled!` is the third macro in this file written for `future_not_send`.**
+  If PHASE-08 or PHASE-09 needs a fourth, the shape is established and the
+  reason is in each macro's doc.
+- **The `date` and `time` slots of `FieldEdit` are written by one control and
+  read by one arm.** PHASE-08's `slider` bool is the next discriminant to join
+  them, and nothing about the `datetime` arm is in its way.
 
 
 ## Harvest
@@ -3005,7 +3253,7 @@ Paths are under
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-06 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-07 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -3047,6 +3295,28 @@ Paths are under
 - **`diagnostics.rs`'s undrawn line names no subset** of the drawn kinds, so it
   does not go stale again as PHASE-07, -08 and -09 each draw one more.
 
+- **`datetime` draws.** `app.slint` carries one `DatePickerPopup` and one
+  `TimePickerPopup` as **root singletons** — a `PopupWindow` can be neither
+  repeated nor made conditional — plus six root properties: two seeds each
+  popup **binds** to at its own declaration site, `picked-date` (the stash
+  between the two halves of one pick), and the three `picking-` strings the
+  completed pick is reported under. A `datetime` field draws a `Button` and no
+  inline control, and the button needs no guard: it never assigns its own text.
+- **`FieldValue` and `FieldEdit` carry `date` and `time`.** On the value side
+  they are the **seed** — what this field's picker opens on, written every
+  present from `instant::decompose` of the draft's `Picked` or from one
+  `instant::today_local()` read per present for a field nobody has picked. On
+  the edit side they are the civil pair the **time** picker's `accepted`
+  reports, which `install.rs` resolves through `instant::compose`.
+- **`glass.rs::NOT_SET`** — the screen's half of D-6. A private constant with
+  one reader; `fields.rs` restates the literal deliberately, so a case cannot
+  agree with the markup by construction.
+- **`fields.rs`'s picker vocabulary** — `only_button` (exactly one match,
+  asserted, across the window *and* its `active_popups`), `accept`, `cancel`,
+  `pick_day`, `pick_hour`, `day_selected`, `hour_shown`, and `settled!`, the
+  round trip a case asserting an **absence** needs. All `fields.rs`'s: the
+  `harness.rs` rule is *two or more case files need it*, and one does.
+
 - **`src/instant.rs`** — `compose(&Date, &Time) -> Option<(Timestamp, Offset)>`,
   `decompose(Timestamp, Offset) -> (Date, Time)`, `today_local() -> (Date, Time)`,
   plus two private zone-parameterised halves, `composed_in` and
@@ -3055,8 +3325,12 @@ Paths are under
 - **`jiff`'s `tz-system` and `tzdb-zoneinfo`**, on `crates/goad` alone
   (`Cargo.toml:38`), with `POL-001`'s residue argument at the manifest pointing
   at `design.md` §10 rather than restating it.
-- **`Date` and `Time` reach Rust**, by one `export … from "std-widgets.slint"`
-  line in `app.slint`. PHASE-07 re-measures whether it is still needed.
+- **`Date` and `Time` reach Rust by *reachability*, and the export line is
+  gone.** PHASE-07 re-measured what PHASE-04 could not: with `FieldValue` and
+  `FieldEdit` carrying `date: Date, time: Time`, the generated `app.rs` emits
+  `r#Date` and `r#Time` with no `export { … } from "std-widgets.slint"` line at
+  all. An `import` alone still does not emit them (PHASE-04's four
+  measurements); a struct reached from an exported struct does.
 - **`clock.rs`'s doc states its three reaches** (`:47-72`) — the workspace
   build, where its rationale expires; the builds that exclude `crates/goad`,
   where the workaround still binds; and `cargo test -p goad-semantics`, which
@@ -3114,6 +3388,52 @@ Paths are under
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **A test tier with no event loop can still reach inside a popup.**
+  `ElementQuery::find_first` / `find_all` pass `active_popups()` into the walk
+  (`search_api.rs:291-312`), so a shown `PopupWindow`'s subtree is in scope from
+  the window root under `init_no_event_loop` — measured by driving a
+  `DatePickerPopup` and a `TimePickerPopup` end to end from
+  `tests/renderer/fields.rs`. What §8 R9 doubted was never the *visibility* of
+  a popup but `mock_single_click`'s dependence on `absolute_center()`: a popup
+  with no geometry is clicked nowhere near. Everything the pickers need —
+  a calendar day cell, a clock-face selector, a `StandardButton` — declares
+  `accessible-role: button` and an `accessible-action-default` that calls its
+  own `clicked`, so `invoke_accessible_default_action` dispatches no pointer
+  event and nothing depends on layout. **Absence of a case was again mistaken
+  for absence of a capability** (§7 D14 had already found this once for
+  `choice`).
+- **A case asserting an *absence* has to drive something the host must present
+  before it reads.** *Nothing was recorded* cannot be waited for, so reading
+  the screen straight after the abandonment asserts only that nothing had
+  arrived **yet** — and a defect that did record something then fails two steps
+  later as a dropped `Choose` and a timeout, which names nothing. Driving a
+  `view: null` round trip first (it folds as `Shift::Retained` and changes
+  nothing) turns the same defect into a comparison naming both values. The
+  yield before it is the other half: `serve` shares the test thread and the
+  command channel holds one, so a wrongly recorded `Command::Edit` is still on
+  it when the next send is made.
+- **A Slint `Button` declares `accessible-checked`.** It has a `checkable`
+  property and binds the attribute whether or not anything set it — so
+  *declares no checked state* is a false discriminant that happens to pass
+  against a `LineEdit` and says nothing about a `CheckBox`. What tells the three
+  drawn controls apart in the tree is the **role**: `button`, `checkbox`,
+  `text-input`.
+- **`export` and *reachability* are two different paths into the generated
+  code, and only the second survives.** PHASE-04 measured that an `import`
+  alone does not emit a library struct and added an `export … from` line for
+  `Date` and `Time`. Once an **exported** struct carried them as members the
+  line became dead: the generator emits a struct reached from an exported one.
+  Delete such a line on a measurement of the path you are actually on, not on
+  the path someone else measured.
+- **A seed and the value it produces cannot be attacked separately.** An
+  injection to the clock read an unpicked field's picker opens on looked like
+  the control for *opens on today* and failed a different assertion instead —
+  because the seed the picker opens on is also the seed the **pick** is made
+  from, so a wrong seed changes the recorded value before it changes what
+  another field's picker shows. The injection that isolates *this field's seed,
+  not that one's* leaves the pick correct and redirects the **slot** the
+  handler reads.
 
 - **An injection can redden the wrong claim for a reason worth keeping.**
   Removing `pending.rs`'s enqueue clear looks like the control for *the entry
