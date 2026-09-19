@@ -24,7 +24,7 @@ use tokio::sync::mpsc;
 use crate::driving::{host, quiet_event};
 use crate::harness::{
   TIMEOUT, current_view_token, element_described, field_described, glass_over, now, stub_clock,
-  until, window_and_tray,
+  until, value_of, window_and_tray,
 };
 use crate::scripting::{invocations, scripted};
 use crate::waiting::LIVENESS_BOUND;
@@ -1142,7 +1142,8 @@ mod editing {
 
   use super::{
     LIVENESS_BOUND, Refused, TIMEOUT, accessible_enabled_of, current_view_token, field_described,
-    glass_over, host, invocations, now, quiet_event, scripted, stub_clock, until, window_and_tray,
+    glass_over, host, invocations, now, quiet_event, scripted, stub_clock, until, value_of,
+    window_and_tray,
   };
 
   /// A two-option form. Both options carry drawn fields and **share a field
@@ -1572,7 +1573,7 @@ mod editing {
           blocks_of_row(&window, 0)
             .iter()
             .any(|(_, fields)| fields.contains(&"read".to_owned()))
-            && checked_in_row_model(&window, "read")
+            && checked_in_value_channel(&window, "read")
         })
         .await;
 
@@ -1612,16 +1613,14 @@ mod editing {
     );
   }
 
-  /// `read`'s value in the first option row's model, as the markup's inner
-  /// `for` would read it.
-  fn checked_in_row_model(window: &PromptWindow, field: &str) -> bool {
-    window
-      .get_options()
-      .row_data(0)
-      .into_iter()
-      .flat_map(|row| row.blocks.iter().collect::<Vec<_>>())
-      .flat_map(|block| block.fields.iter().collect::<Vec<_>>())
-      .any(|row| row.id == field && row.checked)
+  /// `morning`'s `field` in the **value** channel, joined through the row's
+  /// slot exactly as the markup's binding reads it (design.md §5.5 I-B).
+  ///
+  /// The two options of `TWO_FORMS` share the field id `read`, so the scope is
+  /// not decoration: unscoped, this would answer for whichever option came
+  /// first and report no ambiguity.
+  fn checked_in_value_channel(window: &PromptWindow, field: &str) -> bool {
+    value_of(window, "morning", field).is_some_and(|value| value.checked)
   }
 }
 

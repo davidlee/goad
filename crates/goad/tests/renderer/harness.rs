@@ -1,8 +1,9 @@
 //! What two or more case files in this target need beyond the shared
 //! host-driving helpers: a headless window and tray, a glass over them, a
 //! fixed clock, the element queries that reach an option and its fields, the
-//! backend that logs each raw request, and the poll loop `serve`-driven tests
-//! use to observe an event the driving code does not control directly.
+//! join that reads a field's value across the two channels, the backend that
+//! logs each raw request, and the poll loop `serve`-driven tests use to
+//! observe an event the driving code does not control directly.
 //! Anything two or more case files here need lives in this file; anything one
 //! of them needs stays where it is.
 //! What both *tiers* need lives in `tests/support/driving.rs` instead
@@ -16,7 +17,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
-use goad::generated::{OptionRow, PromptWindow, Tray};
+use goad::generated::{FieldValue, OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::clock::ClockError;
@@ -166,6 +167,43 @@ pub(crate) fn field_described(
   within_option(window, option)
     .match_predicate(described(field))
     .find_first()
+}
+
+/// A field's `slot`, read off the **structure** channel exactly as the
+/// markup's repeater reads it: the option row carrying `option`, its blocks,
+/// their fields, and the one whose id is `field` (design.md §5.2).
+///
+/// Scoped by option for the reason [`field_described`] is: a field id is
+/// unique only within its option (R-52), so an unscoped search would take
+/// whichever came first and report no ambiguity.
+pub(crate) fn slot_of(window: &PromptWindow, option: &str, field: &str) -> Option<i32> {
+  window
+    .get_options()
+    .iter()
+    .filter(|row| row.id == option)
+    .flat_map(|row| row.blocks.iter().collect::<Vec<_>>())
+    .flat_map(|block| block.fields.iter().collect::<Vec<_>>())
+    .find(|row| row.id == field)
+    .map(|row| row.slot)
+}
+
+/// A field's value, **joined across the two channels**: the row carries the
+/// slot and the value lives at that index of `values` (design.md §5.5 I-B).
+/// This is what a control's binding reads, and so the only honest way to ask
+/// the window what a field shows without going to the screen.
+///
+/// `None` is *no such field*, and it is deliberately not the same answer as a
+/// slot that indexes past the end of `values` — Slint answers that with a
+/// default-initialised struct rather than an error, a zero that looks like a
+/// value (§5.5 I-F), and a helper that returned `None` for it too would hide
+/// the one failure the write order can produce.
+///
+/// Here rather than in one case file because three of them need it —
+/// `fields.rs` as a synchronisation point, `wiring.rs` to watch an edit reach
+/// the channel, and `tree.rs` to read back what it put there.
+pub(crate) fn value_of(window: &PromptWindow, option: &str, field: &str) -> Option<FieldValue> {
+  let slot = slot_of(window, option, field)?;
+  window.get_values().row_data(usize::try_from(slot).ok()?)
 }
 
 /// Like `driving::scripted`, but against `logs-the-request-then-answers.sh`

@@ -7,14 +7,17 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, StyledText, VecModel};
 
+use goad_semantics::protocol::canonical::ViewId;
+
 use crate::controller::{Frame, Surface};
 use crate::diagnostics::{
   BUSY_NOTICE, Diagnostics, TrayState, next_check_line, report_platform, tooltip, tray_icon,
 };
-use crate::draft::{Draft, Edited};
-use crate::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, Tray, WindowMode};
+use crate::draft::Edited;
+use crate::generated::{
+  FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, Tray, WindowMode,
+};
 use crate::reception::Prepared;
-use crate::view_model;
 use crate::view_model::Body;
 
 /// Total, and the only method: writing every property, every call, is the
@@ -32,6 +35,25 @@ pub trait Glass {
   /// and the frame carries no value for it, because the tray is present for
   /// the life of the process. A writer for it would be a new frame field with
   /// nothing to put in it.
+  ///
+  /// **The row model is the second deliberate exception, and the argument for
+  /// it is not the first one's** (design.md §5.3). It is retained state whose
+  /// only writer is `present`, written on exactly the frames that can change
+  /// it — a new `view_id`, or nothing shown. A display server that fails
+  /// partway cannot leave it stale, because the only frame that would need to
+  /// correct it is the frame that rebuilds it outright. Totality's purpose is
+  /// that no property can be left holding a value no frame chose; that still
+  /// holds, and it now holds for two different reasons rather than one. The
+  /// *value* channel keeps the first reason unchanged: `values` and `epoch`
+  /// are written on every call.
+  ///
+  /// **Two presents showing the same `view_id` are showing the same
+  /// structure**, and that is a precondition on the caller rather than a
+  /// property of the glass's types (§5.5 I-A). What holds it in production is
+  /// `State::issue` minting a fresh id per view together with `Presentation`
+  /// never being mutated after it is received; but `Prepared`'s fields are
+  /// public and the test tiers build one by hand, so nothing here prevents one
+  /// id from carrying two structures.
   fn present(&mut self, frame: Frame<'_>);
 }
 
@@ -41,6 +63,10 @@ pub struct SlintGlass {
   window: PromptWindow,
   tray: Tray,
   options: Rc<VecModel<OptionRow>>,
+  /// The view whose structure the row model currently holds, or `None` for a
+  /// glass that has shown nothing. Read to decide whether this present has to
+  /// rebuild the rows at all (design.md §5.3, §7 D8).
+  shown: Option<ViewId>,
 }
 
 /// Hand-written because the generated component handles carry no `Debug`,
@@ -65,6 +91,7 @@ impl SlintGlass {
       window,
       tray,
       options,
+      shown: None,
     }
   }
 }
@@ -83,23 +110,65 @@ impl Glass for SlintGlass {
         WindowMode::Prompt
       });
 
-    let (heading, body, options, degraded) = match frame.shown {
-      Some(prepared) => (
-        prepared.presentation.title.clone(),
-        styled(&prepared.presentation.body),
-        option_rows(prepared),
-        prepared.presentation.body_is_degraded(),
+    let (heading, body, degraded, rows, values) = match frame.shown {
+      Some(prepared) => {
+        let (rows, values) = option_models(prepared);
+        (
+          prepared.presentation.title.clone(),
+          styled(&prepared.presentation.body),
+          prepared.presentation.body_is_degraded(),
+          rows,
+          values,
+        )
+      }
+      None => (
+        String::new(),
+        StyledText::default(),
+        false,
+        Vec::new(),
+        Vec::new(),
       ),
-      None => (String::new(), StyledText::default(), Vec::new(), false),
     };
     self.window.set_heading(heading.into());
     self.window.set_body(body);
-    self.options.set_vec(options);
-    self
-      .window
-      .set_options(ModelRc::from(Rc::clone(&self.options)));
     self.window.set_body_degraded(degraded);
     self.window.set_busy(frame.busy);
+
+    // **The order of these three writes is §5.5 I-F, and it is load-bearing in
+    // a way nothing reports when it is wrong.**
+    //
+    // `values` first, because `set_vec` instantiates the rows and a row
+    // evaluates `root.values[field.slot]` *while* it is being instantiated.
+    // With the rows written first, a new view's rows index the previous view's
+    // shorter array — which Slint answers with a default-initialised
+    // `FieldValue` rather than an error: a zero that looks like a value.
+    // Writing the new view's values while the old rows still index them costs
+    // nothing, because the next statement destroys those rows.
+    //
+    // The rows second, and **only where the view changed**: repeating over
+    // them destroys every element beneath, so a present that rebuilt them
+    // unconditionally would destroy the widget a person is working in on every
+    // tray check (§7 D8, D9).
+    //
+    // The epoch last, because the guard reads `root.values[field.slot]` when
+    // the epoch changes; bumping it first would run every guard against the
+    // previous present's values.
+    self.window.set_values(model(values));
+    let showing = frame.shown.map(|prepared| prepared.view_id.clone());
+    if self.shown != showing {
+      self.options.set_vec(rows);
+      self
+        .window
+        .set_options(ModelRc::from(Rc::clone(&self.options)));
+      self.shown = showing;
+    }
+    // Wrapping, because the epoch is a change signal and not a count: an `i32`
+    // that saturated would stop firing the guard, and one that overflowed
+    // would panic in a debug build. Every wrap is still a change, which is all
+    // a `changed` handler reads.
+    self
+      .window
+      .set_epoch(self.window.get_epoch().wrapping_add(1));
 
     let lines: Vec<SharedString> = frame
       .diagnostics
@@ -143,72 +212,94 @@ fn styled(body: &Body) -> StyledText {
   }
 }
 
+/// **Both models in one pass**, so a field's slot is its index into `values`
+/// by construction rather than by two numberings kept in step (design.md §5.5
+/// I-B). `values` is flat across the whole presentation, so the counter runs
+/// across options and blocks alike — which is why there is one loop nest here
+/// rather than one function per level.
+///
 /// One `OptionRow` per retained option, carrying the presentation's
 /// `PresentationOption`, the option's drawn fields, and the view token the
 /// markup hands back on `chosen` and on `edited` (design.md §5.3, R-14, D10,
-/// D19).
+/// D19); one `FieldValue` per drawn field, in the order the rows number them.
 ///
-/// Every row is rebuilt from scratch on every present: nothing here is
-/// cached, so nothing has an invalidation rule to get wrong. That is what
-/// `Glass::present`'s totality buys, and it is what writes a dropped edit
-/// back off the screen.
-fn option_rows(prepared: &Prepared) -> Vec<OptionRow> {
-  prepared
-    .presentation
-    .options
-    .iter()
-    .map(|option| OptionRow {
+/// Everything here is rebuilt from scratch on every present: nothing is
+/// cached, so nothing has an invalidation rule to get wrong. What changed is
+/// which of the two results the caller *writes* — the values always, the rows
+/// only for a view it has not shown — and that is `present`'s decision, not
+/// this function's.
+///
+/// **`FieldBlock` names two types**, `design.md` §5.2's Slint struct and the
+/// mapper's, and this file holds both. Only the generated one is named here
+/// now — the mapper's is reached through `option.blocks` rather than written
+/// down — so the bare name is unambiguous in this file and a phase that has to
+/// name the other again should path-qualify it.
+fn option_models(prepared: &Prepared) -> (Vec<OptionRow>, Vec<FieldValue>) {
+  let mut values: Vec<FieldValue> = Vec::new();
+  let mut rows: Vec<OptionRow> = Vec::new();
+
+  for option in &prepared.presentation.options {
+    let mut blocks: Vec<FieldBlock> = Vec::new();
+    for block in &option.blocks {
+      let mut fields: Vec<FieldRow> = Vec::new();
+      for field in &block.fields {
+        // The slot is read **before** the value is pushed, which is the whole
+        // of I-B: there is no second counter that could fall out of step with
+        // the vector's own length. `try_from` cannot fail for any presentation
+        // a backend can send — `i32::MAX` fields would not fit in memory — and
+        // `as` is denied crate-wide, so the saturating fallback is the
+        // spelling rather than a judgement about the bound.
+        let slot = i32::try_from(values.len()).unwrap_or(i32::MAX);
+        values.push(field_value(&prepared.draft.state_of(&option.id, &field.id)));
+        fields.push(FieldRow {
+          // A constant, and honest as one: `undrawn_form` sends every kind
+          // but `boolean` to `Undrawn::FieldForm`, so a drawn field *is* a
+          // boolean today (`view_model.rs:219-227`). It stops being a
+          // constant when `PresentationField` starts carrying the kind it was
+          // drawn from, which is PHASE-02 (`plan.md` PHASE-02/EX-5).
+          kind: Kind::Boolean,
+          id: field.id.as_str().into(),
+          label: field.label.as_str().into(),
+          slot,
+        });
+      }
+      blocks.push(FieldBlock {
+        // `heading: None` renders `""`, which the markup reads as an
+        // **untitled** block rather than a missing one — an ungrouped run is
+        // not drawn under a heading that does not claim it.
+        heading: block.heading.as_deref().unwrap_or_default().into(),
+        fields: model(fields),
+      });
+    }
+    rows.push(OptionRow {
       id: option.id.as_str().into(),
       label: option.label.as_str().into(),
       view: prepared.view_id.as_str().into(),
-      blocks: model(
-        option
-          .blocks
-          .iter()
-          .map(|block| field_block(&prepared.draft, option, block))
-          .collect(),
-      ),
-    })
-    .collect()
+      blocks: model(blocks),
+    });
+  }
+
+  (rows, values)
 }
 
-/// One generated `FieldBlock` from one `view_model::FieldBlock`, in declared
-/// order.
+/// One field's state channel: what the draft holds, in the slot the field's
+/// kind makes meaningful.
 ///
-/// **The name is two types here, deliberately.** `design.md` §5.2 gives the
-/// Slint struct and the mapper's struct the same name, and this file is the
-/// one that holds both: generated types keep their bare names, as `OptionRow`
-/// does, and the mapper's is path-qualified at its use sites.
+/// A **lookup**, never stored in the row model as truth: the draft is the
+/// authority and this is its projection for one present. The irrefutable `let`
+/// is load-bearing — a second `Edited` variant makes it a compile error here,
+/// which is where the decision about what each control shows for each value
+/// belongs.
 ///
-/// `heading: None` renders `""`, which the markup reads as an **untitled**
-/// block rather than a missing one — an ungrouped run is not drawn under a
-/// heading that does not claim it.
-fn field_block(
-  draft: &Draft,
-  option: &view_model::PresentationOption,
-  block: &view_model::FieldBlock,
-) -> FieldBlock {
-  FieldBlock {
-    heading: block.heading.as_deref().unwrap_or_default().into(),
-    fields: model(
-      block
-        .fields
-        .iter()
-        .map(|field| {
-          // A **lookup**, never stored in the row model as truth: the draft
-          // is the authority and this is its projection for one present. The
-          // irrefutable `let` is load-bearing — a second `Edited` variant
-          // makes it a compile error here, which is where the decision about
-          // what a checkbox row shows for a non-boolean value belongs.
-          let Edited::Checked(checked) = draft.state_of(&option.id, &field.id);
-          FieldRow {
-            id: field.id.as_str().into(),
-            label: field.label.as_str().into(),
-            checked,
-          }
-        })
-        .collect(),
-    ),
+/// The other three slots stay at their defaults until the phase that draws a
+/// control reading one. They are declared now because the struct is the
+/// channel's shape and a later phase adding a slot would rewrite every literal
+/// of it; they are not written now because nothing reads them.
+fn field_value(state: &Edited) -> FieldValue {
+  let Edited::Checked(checked) = *state;
+  FieldValue {
+    checked,
+    ..FieldValue::default()
   }
 }
 

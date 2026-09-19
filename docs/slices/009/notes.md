@@ -702,7 +702,7 @@ here rather than in the ledger, so striking them costs nothing:
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 — the value channel and the epoch | **in progress** | 2026-09-19 |
+| PHASE-01 — the value channel and the epoch | **done** | 2026-09-19 |
 | PHASE-02 — the draft's five values, and the kind-directed pure functions | pending | |
 | PHASE-03 — the edit channel | pending | |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | pending | |
@@ -841,25 +841,110 @@ STOP and consult — do not improvise past any of these:
 
 **Tasks**
 
-- [ ] T-1 markup: `Kind`, `FieldRow { id, label, kind, slot }`,
+- [x] T-1 markup: `Kind`, `FieldRow { id, label, kind, slot }`,
       `FieldValue { checked, text, number, index }`, `values`, `epoch`, the two
       counters, the `CheckBox`'s `init` and guard (EX-2, EX-4, EX-5)
-- [ ] T-2 `glass.rs`: `shown: Option<ViewId>`, `option_models` in one pass, the
-      three writes in I-F order, `field_value`, `kind_of` (EX-3, VA-2)
-- [ ] T-3 `glass.rs`: the `Glass::present` trait doc's second exception (EX-6)
-- [ ] T-4 VA-1: migrate every existing reader of `FieldRow.checked` to
+- [x] T-2 `glass.rs`: `shown: Option<ViewId>`, `option_models` in one pass, the
+      three writes in I-F order, `field_value` (EX-3, VA-2)
+- [x] T-3 `glass.rs`: the `Glass::present` trait doc's second exception (EX-6)
+- [x] T-4 VA-1: migrate every existing reader of `FieldRow.checked` to
       `values[slot]` — `fields.rs`, `tree.rs`, `wiring.rs`, `sizing.rs`
-- [ ] T-5 VT-1 and VT-2 in `tests/renderer/fields.rs`, each with an injection
+- [x] T-5 VT-1 and VT-2 in `tests/renderer/fields.rs`, each with an injection
       pass
-- [ ] T-6 the `[[test]]` target `event_loop_reassert` with its `main.rs` and
+- [x] T-6 the `[[test]]` target `event_loop_reassert` with its `main.rs` and
       one `#[test]` fn (EX-7), carrying VT-4
-- [ ] T-7 VT-5: the negative control, compiled and run, red confirmed, reverted
+- [x] T-7 VT-5: the negative control, compiled and run, red confirmed, reverted
       and the revert confirmed by `git diff`
-- [ ] T-8 `just check` exits 0 (EX-1); sheet, Status and Harvest updated
+- [x] T-8 `just check` exits 0 (EX-1); sheet, Status and Harvest updated
+
+**What landed, criterion by criterion**
+
+| | discharged by | how it was checked |
+|---|---|---|
+| EX-1 | the gate | `just check` exit 0 |
+| EX-2 | `ui/app.slint:27-29`, `:64-65` | read; `date`/`time` and the slider fields are **not** there, and the file says why |
+| EX-3 | `src/glass.rs:104-171`, `:237-296` | read, and see VA-2 |
+| EX-4 | `ui/app.slint:334-340` | VT-4 and its control |
+| EX-5 | `ui/app.slint:87-88`, `:324`, `:338` | both counters are `out property <int>` on the window root, written from the field markup |
+| EX-6 | `src/glass.rs:39-56` | read |
+| EX-7 | `Cargo.toml:47-49`, `tests/event_loop_reassert/` | one `[[test]]`, one `main.rs`, one `#[test]` fn, `init_integration_test_with_system_time()` |
+| VT-1 | `tests/renderer/fields.rs:652-703` | **red before the change** (`inits` 3 → 9) and after injection A |
+| VT-2 | `tests/renderer/fields.rs:705-736` | red under injection B |
+| VT-3 | the 187 pre-existing cases | unchanged and green, reading through `values[slot]` |
+| VT-4 | `tests/event_loop_reassert/reassert.rs` | red under injection A (`inits` 2 → 4) and under VT-5 |
+| VT-5 | the injection below | **compiled and ran**: `1 test … 0 passed; 1 failed`, `reasserts` 0 → 2 |
+| VA-1 | four sites, the counts | 548 → 551 passing, exactly the three added; every other target's count identical; nothing `ignored` |
+| VA-2 | `src/glass.rs:156`, `:159-162`, `:171` | the only writer of each of the three, in I-F order, with nothing between them that touches any of the three (`grep -n` over `src/`) |
+
+**The injection passes** (`design.md` §9), each applied, run, read, reverted,
+and the revert confirmed by `git diff`:
+
+- **A — the rows are written on every present** (`if self.shown != showing` →
+  `if true`). VT-1 red, `inits` 3 → 9; VT-4 red, `inits` 2 → 4. VT-2 stays
+  green, which is what makes it a control rather than a second copy of VT-1.
+- **B — the rows are written only for the first view ever shown**
+  (→ `if self.shown.is_none()`). VT-2 red; VT-1 stays green. The two
+  injections separate the two halves of D8: *writes too often* and *never
+  writes again*.
+- **VT-5 — the guard always writes** (the difference test removed from
+  `changed tick`). VT-4 red on the `reasserts` clause, 0 → 2 — one write per
+  field. This is the pass that proves the handler **fires**, which is what the
+  prototype's third counter (`fires`) existed for and why two counters are
+  enough here.
 
 **Decisions taken during execution**
 
+- **Two counters, not the prototype's three.** `fires` is not landed. The plan
+  says two (EX-5) and VT-5 covers what the third was for: a control that must
+  make `reasserts` *move* cannot pass unless the handler runs. VT-4 also reads
+  the **epoch** and asserts it moved, so an epoch frozen at zero fails there
+  rather than passing vacuously. Recorded because a later phase adding a text
+  or numeric guard may want `fires` back, and this is the argument it has to
+  beat.
+- **`out property`, not `in-out`.** The prototype used `in-out`; the plan says
+  `out`. `out` compiles and is assignable from a repeated child — checked
+  first, because being wrong was assumption A-b.
+- **VT-1 and VT-2 drive the production `serve`**, through `fields.rs`'s own
+  `driving!` rig and a scripted backend, rather than presenting a hand-built
+  frame. Two presents of one view is what a second exchange answering
+  `view: null` already produces, and a replacement view is what a second
+  answer carrying a view produces — so both cases are a person asking for
+  another check, and the file needed no new helper. The loop target cannot do
+  that (no runtime, no channel) and builds its `Controller` from a hand-made
+  `Outcome`, which is the prototype's `retaining`.
+- **No `tests/support/` file was extracted.** One loop target has one
+  arrangement; a second one is PHASE-05's or PHASE-06's, and *that* is when
+  the shape is known well enough to share.
+- **`slot`'s overflow fallback is `i32::MAX`, not `0`.** The prototype used
+  `unwrap_or(0)`, which would alias an impossible 2³¹-th field onto slot 0 and
+  show it another field's value; `i32::MAX` indexes past the end, which Slint
+  answers with a default. Unreachable either way — the `as` conversion is
+  denied crate-wide, so *some* fallback has to be spelled.
+- **`sizing.rs`'s fixture builds both channels in one pass**, numbering slots
+  across options exactly as `glass.rs` does, rather than giving each option
+  its own numbering and letting the surplus slots index past the end. The
+  values are all defaults, but the vector is the right *length*: a fixture
+  resting on the out-of-range default would be resting on the one failure I-F
+  exists to prevent.
+
 **Findings**
+
+- **`docs/memory/a-present-destroys-the-widget-it-writes.md` is now half
+  stale**, and a close-time fix rather than this phase's. It says
+  *"`SlintGlass::present` ends in `self.options.set_vec(rows)`"* and
+  *"every row element in the form is dropped and rebuilt on every present"* —
+  both were true of `main` when it was written and neither is true now: the
+  `set_vec` is guarded by the `view_id` and happens on a replacement view
+  only. Everything else in the note — why the destruction was load-bearing,
+  the repair, and how to measure it — is exactly what this phase implemented
+  and is still right. It is `docs/memory/`, not canon, and out of this phase's
+  Surfaces.
+- **`design.md` §5.3's ownership table says `epoch` is written by `present`,
+  every call**, and it is — but the row model's own line in that table is
+  *"one view, immutable"* for `Presentation` and says nothing about the
+  `Option<ViewId>` the glass now retains. The table lists *last presented
+  `ViewId`* already (`design.md:1002`), so nothing is missing; noted only
+  because it was checked.
 <!-- Things noticed in passing that are not this phase's job: a defect
      elsewhere, drift from the design, a surprise. Defects in this phase's own
      work get fixed, not recorded. These feed the audit; the ones that outlive
@@ -870,10 +955,33 @@ STOP and consult — do not improvise past any of these:
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** <yyyy-mm-dd> · <phase or stage> · <commit>
+**Fresh as of:** 2026-09-19 · PHASE-01 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+
+- **The two channels.** `ui/app.slint` carries `Kind`,
+  `FieldRow { id, label, kind, slot }` and
+  `FieldValue { checked, text, number, index }`, with `values` and `epoch` on
+  the window root. `glass.rs::option_models` builds both in one pass, so I-B is
+  a property of the construction; `present` writes values → rows (on a changed
+  `view_id` only) → epoch, which is I-F.
+- **Two instrument counters in production markup**, `inits` and `reasserts`,
+  `out property <int>` on the window root (§7 D15).
+- **The `CheckBox`'s guard**, the first of the five §5.2's comparand table
+  names.
+- **`Glass::present`'s second deliberate exception**, stated in the trait doc
+  with §5.3's argument.
+- **`crates/goad/tests/event_loop_reassert/`** — the fourth `[[test]]` target
+  and the **first loop-tier arrangement that presents a glass directly**: a
+  real loop, `init_integration_test_with_system_time()`, no runtime, no
+  channel, no `serve`, and a repeated `slint::Timer` stepping present → read →
+  present → read. Three later phases need this shape (AC-6, the `choice`
+  re-assert, the guard exception); it is the thing to copy, and a fifth target
+  is what a *different* arrangement costs, not a second case.
+- **`harness::slot_of` / `harness::value_of`** — the join across the two
+  channels, which is now the only honest way to ask the window what a field
+  holds without going to the screen.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -919,6 +1027,28 @@ STOP and consult — do not improvise past any of these:
   `awk NR` has held. A hand count is not checkable at a glance, so its being
   right is luck. This supersedes *verify the responder's first* as the operative
   rule — that was a pattern in who made the mistake, not in what caused it.
+- **A negative control can stand in for an instrument.** The prototype carried
+  three counters; `fires` existed only to tell *the handler never ran* from
+  *the guard found agreement*. Two counters plus an injection that makes the
+  convergence counter **move** discriminate the same two states, because a
+  control that cannot pass unless the handler fires *is* the measurement
+  `fires` was taken for. The rule generalises: before adding an instrument to
+  separate two states, ask whether a control that must go red already
+  separates them.
+- **An `out property <int>` on a Slint window root is assignable from inside a
+  repeater**, so an instrument counter does not need `in-out` and does not
+  widen the component's input surface. Measured at PHASE-01, against the
+  prototype's `in-out`.
+- **A slot fallback should index past the end, never at zero.** A
+  `i32::try_from(len)` that fell back to `0` would alias an over-long form's
+  field onto slot 0 and show it *another field's* value; falling back to
+  `i32::MAX` indexes out of range, which Slint answers with a
+  default-initialised struct. Both unreachable; only one is wrong quietly.
+- **`docs/memory/a-present-destroys-the-widget-it-writes.md` needs its first
+  two sentences amended at close.** `present` no longer ends in
+  `self.options.set_vec(rows)` and no longer rebuilds every row on every
+  present — the `set_vec` is guarded by the `view_id`. The rest of the note,
+  including the repair it recommends, is what PHASE-01 implemented and stands.
 - **A boundary instrument can forbid a word the next slice wants** (P-10).
   `scan::mentions` word-matches after splitting on non-alphanumerics and camel
   boundaries, and keeps string literals, so an identifier or a diagnostic message

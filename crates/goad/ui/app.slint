@@ -7,11 +7,26 @@ import { Button, CheckBox, Palette, ScrollView } from "std-widgets.slint";
 import "../../../assets/Inter.ttf";
 import "../../../assets/Geist.ttf";
 
-// A drawn field. `checked` is the draft's value, written every present; the
-// widget flips itself on click and the next present writes it back, so the
-// model is the authority and the widget is never asked to remember
-// (design.md §5.2, §5.4).
-export struct FieldRow { id: string, label: string, checked: bool }
+// **Two channels, one field** (design.md §5.1, §5.2). `FieldRow` is
+// *structure* — what the backend declared — and is repeated over, so writing
+// it destroys every element beneath it. `FieldValue` is *state* — what the
+// draft and the person between them make of the field — and nothing repeats
+// over it, so it is rewritten whole on every present and destroys nothing.
+//
+// `slot` is the join: a field's index into `values`. It is held by `glass.rs`
+// building both models in one pass rather than by two numberings kept in step
+// (§5.5 I-B), and `values` is flat across the whole presentation, so the
+// numbering runs across options and blocks alike.
+//
+// The kind discriminant selects which slot of `FieldValue` is meaningful. All
+// five are declared because the mapping from the protocol's field kinds must
+// be total; this renderer draws one of them so far, and each later phase adds
+// one control and the fields it reads. `FieldRow`'s `slider` / `minimum` /
+// `maximum` / `step` / `alternatives` and `FieldValue`'s `date` / `time` are
+// **not** here yet: nothing is declared before a control reads it.
+export enum Kind { boolean, text, number, choice, datetime }
+export struct FieldRow { id: string, label: string, kind: Kind, slot: int }
+export struct FieldValue { checked: bool, text: string, number: float, index: int }
 // `heading: ""` is an **untitled** block, not a missing one — an ungrouped
 // field must not be drawn under a heading that does not claim it.
 export struct FieldBlock { heading: string, fields: [FieldRow] }
@@ -45,9 +60,32 @@ export component PromptWindow inherits Window {
   // prompt mode
   in property <string> heading;
   in property <styled-text> body;        // the Slint type is `styled-text` (F-11)
-  in property <[OptionRow]> options;
+  in property <[OptionRow]> options;     // structure: written only when the view changes
+  in property <[FieldValue]> values;     // state: rewritten every present, indexed by `slot`
+  in property <int> epoch;               // bumped every present; the guard's only trigger
   in property <bool> body-degraded;
   in property <bool> busy;               // an exchange is in flight; controls disabled
+
+  // **Instruments, in production markup deliberately** (design.md §7 D15). A
+  // test-only copy of the field markup would be a parallel implementation of
+  // the thing under test: what a case measured would be the copy's element
+  // lifetimes rather than this window's.
+  //
+  // `inits` counts element constructions — an element that is destroyed and
+  // recreated runs `init` again, and one written in place does not, which is
+  // the only way element identity is observable at all
+  // (`docs/memory/a-present-destroys-the-widget-it-writes.md`). `reasserts`
+  // counts the guards that found a difference and wrote it back, which is how
+  // *the present disturbed nothing* is told from *the present corrected the
+  // widget*.
+  //
+  // A guard that never ran would leave `reasserts` at rest and look like the
+  // first of those. What tells them apart is the negative control the plan
+  // requires before the red is believed: removing the difference test makes
+  // the counter move, which it cannot do unless the handler fires
+  // (`plan.md` PHASE-01/VT-5).
+  out property <int> inits;
+  out property <int> reasserts;
 
   // either mode
   in property <string> notice;           // back-pressure, host-authored; "" = none
@@ -275,13 +313,31 @@ export component PromptWindow inherits Window {
                         alignment: start;
                         CheckBox {
                           text: field.label;
-                          // The draft is the authority. The widget flips itself
-                          // on click so the feedback is immediate; the next
-                          // present rewrites this from the model, which is what
-                          // corrects a click the host dropped (design.md §5.4).
-                          checked: field.checked;
+                          // **The value channel is the authority.** The widget
+                          // flips itself on click so the feedback is
+                          // immediate; the next present rewrites this slot,
+                          // which is what corrects a click the host dropped
+                          // (design.md §5.4).
+                          checked: root.values[field.slot].checked;
                           enabled: !root.busy;
                           accessible-description: field.id;
+                          init => { root.inits += 1; }
+                          // **The guard.** A click *assigns* `checked`, which
+                          // removes the binding above permanently — that is
+                          // what a self-assigning widget does — so the epoch
+                          // is what brings the widget back to the channel. It
+                          // compares itself against its own slot and writes
+                          // itself back only where they differ, and writing
+                          // nothing where they agree is the whole point: it is
+                          // what lets a caret, a selection or a drag survive a
+                          // present (§5.2's comparand table, §7 D8).
+                          property <int> tick: root.epoch;
+                          changed tick => {
+                            if (self.checked != root.values[field.slot].checked) {
+                              self.checked = root.values[field.slot].checked;
+                              root.reasserts += 1;
+                            }
+                          }
                           toggled => {
                             root.edited(option.view, option.id, field.id, self.checked);
                           }

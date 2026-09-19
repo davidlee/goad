@@ -14,7 +14,8 @@
 //! PHASE-02); `ingress`, the two ingress arms and the second anchor (slice 004
 //! PHASE-04); `fields`, AC-1/AC-3/AC-4/AC-5 (slice 007 PHASE-05) — the only
 //! module here that reads the request the backend received, off that
-//! backend's own invocation log.
+//! backend's own invocation log, and since slice 009 PHASE-01 the two cases
+//! that read the markup's element-construction counter.
 //!
 //! `driving` is the host-driving half of slice 001's test helpers
 //! (design.md §12.8), shared with `crates/goad-shell/tests/integration`.

@@ -27,34 +27,62 @@
 //! (`docs/memory/a-green-test-can-assert-a-proxy.md`). The only assertion left
 //! available is the literal in the markup, which a visual pass may re-tune and
 //! which no reader would learn anything from.
-use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode};
+use goad::generated::{
+  FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, WindowMode,
+};
 use i_slint_backend_testing::init_no_event_loop;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
-/// One option carrying `fields` boolean fields under a single heading, or none
-/// at all when `fields` is zero — an option with no fields draws no container,
-/// which is the shape the 007 measurement used.
-fn option_of(id: &str, fields: usize) -> OptionRow {
-  let rows: Vec<FieldRow> = (0..fields)
-    .map(|index| FieldRow {
-      id: SharedString::from(format!("f{index}")),
-      label: SharedString::from(format!("Field {index}")),
-      checked: false,
-    })
-    .collect();
-  OptionRow {
-    id: SharedString::from(id),
-    label: SharedString::from("Answer"),
-    view: SharedString::from("v1"),
-    blocks: if rows.is_empty() {
-      ModelRc::default()
-    } else {
-      ModelRc::new(VecModel::from(vec![FieldBlock {
-        heading: SharedString::from("Block"),
-        fields: ModelRc::new(VecModel::from(rows)),
-      }]))
-    },
+/// Both channels for a form of `options`, each `(option id, field count)`:
+/// one `OptionRow` per option carrying that many boolean fields under a single
+/// heading, and one `FieldValue` per field.
+///
+/// **Numbered in one pass**, exactly as `glass.rs::option_models` numbers
+/// them, so a field's slot is its index into `values` across options and
+/// blocks alike (design.md §5.5 I-B). A per-option numbering would collide the
+/// moment a case put two options on the window, which two of the three below
+/// do.
+///
+/// Every value is a default. What this module measures is a height, and no
+/// field's value changes one — but the vector is still the right *length*,
+/// because a slot indexing past the end of `values` is answered by Slint with
+/// a default-initialised struct rather than an error, and a fixture that
+/// relied on that would be resting on the one failure I-F exists to prevent.
+///
+/// An option with zero fields draws no container at all, which is the shape
+/// the 007 measurement used.
+fn form_of(options: &[(&str, usize)]) -> (Vec<OptionRow>, Vec<FieldValue>) {
+  let mut values: Vec<FieldValue> = Vec::new();
+  let mut rows: Vec<OptionRow> = Vec::new();
+
+  for (id, fields) in options {
+    let mut block: Vec<FieldRow> = Vec::new();
+    for index in 0..*fields {
+      let slot = i32::try_from(values.len()).expect("a fixture declares a handful of fields");
+      values.push(FieldValue::default());
+      block.push(FieldRow {
+        id: SharedString::from(format!("f{index}")),
+        label: SharedString::from(format!("Field {index}")),
+        kind: Kind::Boolean,
+        slot,
+      });
+    }
+    rows.push(OptionRow {
+      id: SharedString::from(*id),
+      label: SharedString::from("Answer"),
+      view: SharedString::from("v1"),
+      blocks: if block.is_empty() {
+        ModelRc::default()
+      } else {
+        ModelRc::new(VecModel::from(vec![FieldBlock {
+          heading: SharedString::from("Block"),
+          fields: ModelRc::new(VecModel::from(block)),
+        }]))
+      },
+    });
   }
+
+  (rows, values)
 }
 
 /// The size a freshly shown window asks for, with `rows` on it.
@@ -62,10 +90,14 @@ fn option_of(id: &str, fields: usize) -> OptionRow {
 /// A new window per call rather than one rewritten: the claim is about what a
 /// window asks for when it is *opened* on a given shape, which is the moment a
 /// compositor reads it.
-fn asked_for(rows: Vec<OptionRow>) -> (u32, u32) {
+fn asked_for((rows, values): (Vec<OptionRow>, Vec<FieldValue>)) -> (u32, u32) {
   let window = PromptWindow::new().expect("a headless window must construct");
   window.set_mode(WindowMode::Prompt);
   window.set_heading(SharedString::from("Fill in your interstitial journal?"));
+  // `values` before `options`, the order `present` writes them in and for the
+  // same reason: a row evaluates `root.values[field.slot]` while it is being
+  // instantiated (design.md §5.5 I-F).
+  window.set_values(ModelRc::new(VecModel::from(values)));
   window.set_options(ModelRc::new(VecModel::from(rows)));
   window.show().expect("a headless window must show");
   let size = window.window().size();
@@ -81,9 +113,9 @@ fn asked_for(rows: Vec<OptionRow>) -> (u32, u32) {
 fn the_height_a_window_asks_for_follows_what_is_on_it() {
   init_no_event_loop();
 
-  let (_, plain) = asked_for(vec![option_of("a", 0), option_of("b", 0)]);
-  let (_, two_each) = asked_for(vec![option_of("a", 2), option_of("b", 2)]);
-  let (_, five) = asked_for(vec![option_of("a", 5)]);
+  let (_, plain) = asked_for(form_of(&[("a", 0), ("b", 0)]));
+  let (_, two_each) = asked_for(form_of(&[("a", 2), ("b", 2)]));
+  let (_, five) = asked_for(form_of(&[("a", 5)]));
 
   assert!(
     plain < five && five < two_each,
@@ -102,8 +134,8 @@ fn the_height_a_window_asks_for_follows_what_is_on_it() {
 fn past_the_cap_more_content_does_not_make_the_window_taller() {
   init_no_event_loop();
 
-  let (_, forty) = asked_for(vec![option_of("a", 40)]);
-  let (_, eighty) = asked_for(vec![option_of("a", 80)]);
+  let (_, forty) = asked_for(form_of(&[("a", 40)]));
+  let (_, eighty) = asked_for(form_of(&[("a", 80)]));
 
   assert_eq!(
     forty, eighty,

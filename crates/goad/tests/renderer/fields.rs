@@ -1,18 +1,28 @@
 //! `plan.md` PHASE-05: the form on the wire — AC-1, AC-4, AC-5 and AC-3's
 //! remaining half.
 //!
+//! Slice 009 `plan.md` PHASE-01 adds two more at the foot, and they are a
+//! different kind of case: they read an **instrument counter** off the
+//! production markup to ask whether a present rebuilt the form or wrote it in
+//! place (PHASE-01/VT-1, VT-2). Element identity is not otherwise observable,
+//! which is why the counters exist at all (`design.md` §7 D15).
+//!
 //! **The only module in this target that reads what left the host.** Every
 //! other tier verifies at the screen, at a pure function, or at the row
-//! model; these four cases drive a real child process through the production
-//! `serve` and read the request that process received, off its own invocation
-//! log.
+//! model; the first four cases drive a real child process through the
+//! production `serve` and read the request that process received, off its own
+//! invocation log.
 //!
 //! That is not a preference. A field test that reads the draft back through
 //! `Controller` and stops there would stay green with `answer()` walking the
 //! draft's keys instead of the declared fields — D6, the defect most worth
 //! catching (`design.md` §9, `plan.md` S-7). So every case here either reads
-//! the log or asserts something about the screen, and VT-3 does **both**,
-//! because for AC-5 neither half implies the other.
+//! the log or asserts something about the screen, and slice 007's VT-3 does
+//! **both**, because for its AC-5 neither half implies the other.
+//!
+//! **Two `plan.md`s meet in this file and their criterion ids collide.** The
+//! first four cases carry slice 007's VT-1 … VT-4; the last two carry slice
+//! 009's PHASE-01/VT-1 and VT-2, and say so. Cite the slice with the id.
 //!
 //! The person is simulated all the way down. Every command these cases put on
 //! the channel — the request for a check, each tick, each press — is fired by
@@ -43,7 +53,7 @@ use tokio::task::LocalSet;
 use crate::driving::{host, instant};
 use crate::harness::{
   TIMEOUT, element_described, field_described, glass_over, logging_scripted, now, stub_clock,
-  until, window_and_tray,
+  until, value_of, window_and_tray,
 };
 use crate::scripting::invocations;
 use crate::waiting::LIVENESS_BOUND;
@@ -69,6 +79,12 @@ const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options"
 /// still answerable; R-58 says the response is silent about the undrawn field
 /// rather than carrying a default for it.
 const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"text","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
+
+/// A second view, distinguishable from every other fixture here by its title
+/// so a case can wait on the replacement arriving. Its option and field ids
+/// are its own, so a rebuild is visible at the screen as well as at the
+/// instrument counter (slice 009 PHASE-01/VT-2).
+const ANOTHER_FORM: &str = r#"{"view":{"kind":"choice","title":"Anything else?","options":[{"id":"evening","label":"Evening","fields":[{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
 /// A successful exchange with nothing new to show. From an `evaluate` this is
 /// `Shift::Retained`: the outstanding view, and its draft, are left exactly as
@@ -188,23 +204,21 @@ fn screen_of<const N: usize>(
     .collect()
 }
 
-/// One field's value as the **draft** holds it, read off the row model the
-/// last present built from it (`glass.rs::field_block`).
+/// One field's value as the **draft** holds it, read off the value channel the
+/// last present wrote (`glass.rs::option_models`, `harness::value_of`).
 ///
 /// **A synchronisation point, not an assertion.** A tick has reached the draft
-/// only once a present has rebuilt the row from it, and the command channel
+/// only once a present has written the slot from it, and the command channel
 /// holds one (`main.rs:86`): a second click sent before the loop has drained
 /// the first is dropped by `Wire::send` and the tick silently undoes itself.
 /// Waiting on this is what keeps that from happening, and a drop then fails as
 /// a timeout rather than as a wrong value.
+///
+/// A field the view does not declare reads as `false` rather than panicking,
+/// because every caller is a poll predicate: the one thing a synchronisation
+/// point may not do is fail before the condition it is waiting for is true.
 fn drafted(window: &PromptWindow, option: &str, field: &str) -> bool {
-  window
-    .get_options()
-    .iter()
-    .filter(|row| row.id == option)
-    .flat_map(|row| row.blocks.iter().collect::<Vec<_>>())
-    .flat_map(|block| block.fields.iter().collect::<Vec<_>>())
-    .any(|field_row| field_row.id == field && field_row.checked)
+  value_of(window, option, field).is_some_and(|value| value.checked)
 }
 
 /// The diagnostic lines the glass wrote to the window — the surface a person
@@ -629,4 +643,94 @@ async fn a_view_carrying_an_undrawn_field_is_still_shown_and_still_answers_its_d
      than carrying a default for it: {values:?}"
   );
   assert_eq!(values["read"], Value::Bool(true));
+}
+
+// ---------------------------------------------------------------------------
+// Slice 009 PHASE-01 — the two channels
+// ---------------------------------------------------------------------------
+
+/// Slice 009 `plan.md` PHASE-01/**VT-1**. A present that replaces `values`
+/// wholesale destroys no element.
+///
+/// The instrument is `inits`, a counter in production markup (§7 D15): an
+/// element that is destroyed and recreated runs its `init` handler again, and
+/// one written in place does not. Element identity is not otherwise
+/// observable — reading a control's *value* cannot tell the two apart, because
+/// a rebuilt element and a preserved one both end up holding the model's value
+/// (`docs/memory/a-present-destroys-the-widget-it-writes.md`).
+///
+/// The second present is a real one, not a second call made by the test: a
+/// `view: null` answer folds as `Shift::Retained`, and `serve` presents at the
+/// top of every iteration, so the whole of what is driven is a person asking
+/// for another check. The wait is on the next-check line the production glass
+/// wrote from the fold — `a_present_that_changes_nothing_…` above is the
+/// precedent for both the technique and the instant.
+///
+/// The count is read **after** the view is on screen, so the number compared
+/// is a real one: a case that asserted `inits == 0` throughout would pass on a
+/// window that drew nothing at all. That is what the `drawn > 0` assertion is.
+#[tokio::test]
+async fn a_present_of_the_same_view_rewrites_the_values_and_destroys_no_element() {
+  let ((drawn, survived), _log) = driving!(
+    rigged("fields-split-vt1", &[THREE_FIELDS, RETAINED]),
+    |window, tray, log| {
+      let drawn = window.get_inits();
+
+      let folded = next_check_line(instant(RETAINED_AT));
+      assert_ne!(
+        window.get_next_check(),
+        folded.as_str(),
+        "the line must not already be there, or the wait below proves nothing"
+      );
+      tray.invoke_check_now();
+      until(LIVENESS_BOUND, || {
+        window.get_next_check() == folded.as_str()
+      })
+      .await;
+
+      (drawn, window.get_inits())
+    }
+  );
+
+  assert!(
+    drawn > 0,
+    "the window must have drawn something for a survival count to mean anything"
+  );
+  assert_eq!(
+    survived, drawn,
+    "the same view was presented again: not one element may have been rebuilt"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-01/**VT-2**. A present carrying a **new**
+/// `view_id` rebuilds the rows, and `inits` moves.
+///
+/// This is the control that shows VT-1's counter is capable of moving at all.
+/// Without it a `present` that never wrote the row model under any
+/// circumstance would pass VT-1 — and so would a counter wired to nothing.
+///
+/// The second fixture carries its own title so the wait has something to watch
+/// that only the replacement could have produced; `ANOTHER_FORM` also declares
+/// a different option and field, so the rebuild is visible at the screen as
+/// well as at the counter.
+#[tokio::test]
+async fn a_present_carrying_a_new_view_rebuilds_the_rows() {
+  let ((drawn, rebuilt), _log) = driving!(
+    rigged("fields-split-vt2", &[THREE_FIELDS, ANOTHER_FORM]),
+    |window, tray, log| {
+      let drawn = window.get_inits();
+
+      tray.invoke_check_now();
+      until(LIVENESS_BOUND, || window.get_heading() == "Anything else?").await;
+
+      (drawn, window.get_inits())
+    }
+  );
+
+  assert!(drawn > 0, "the first view must have drawn its three fields");
+  assert!(
+    rebuilt > drawn,
+    "a replacement view's rows are written, which destroys and recreates every \
+     element beneath them: {drawn} then {rebuilt}"
+  );
 }

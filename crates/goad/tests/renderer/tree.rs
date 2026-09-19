@@ -18,7 +18,9 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 
-use goad::generated::{FieldBlock, FieldRow, OptionRow, PromptWindow, WindowMode};
+use goad::generated::{
+  FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, WindowMode,
+};
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ModelRc, SharedString, VecModel};
 
@@ -59,12 +61,34 @@ fn rows(entries: &[(&str, &str, &str)]) -> ModelRc<OptionRow> {
 /// query is `field_described`'s subject, not this fixture's.
 const AN_OPTION: (&str, &str, &str) = ("opt-a", "Yes", "view-1");
 
-fn field(id: &str, label: &str, checked: bool) -> FieldRow {
+/// One **structure**-channel row. Its value is not here: `slot` is the field's
+/// index into the window's `values`, which a case writes alongside
+/// (design.md §5.2, §5.5 I-B).
+///
+/// The two are kept in step by hand in this file, where `glass.rs` keeps them
+/// in step by construction — these cases build the models directly, which is
+/// what lets them ask the markup a question the glass is not part of.
+fn field(slot: i32, id: &str, label: &str) -> FieldRow {
   FieldRow {
     id: SharedString::from(id),
     label: SharedString::from(label),
-    checked,
+    kind: Kind::Boolean,
+    slot,
   }
+}
+
+/// The **value** channel for a run of boolean fields, in slot order: slot *n*
+/// is `checked[n]`.
+fn values(checked: &[bool]) -> ModelRc<FieldValue> {
+  ModelRc::new(VecModel::from(
+    checked
+      .iter()
+      .map(|checked| FieldValue {
+        checked: *checked,
+        ..FieldValue::default()
+      })
+      .collect::<Vec<FieldValue>>(),
+  ))
 }
 
 fn block(heading: &str, fields: Vec<FieldRow>) -> FieldBlock {
@@ -307,12 +331,13 @@ fn labels_in_option(window: &PromptWindow, option: &str) -> Vec<SharedString> {
 #[test]
 fn a_block_of_two_fields_renders_a_control_for_each() -> TestResult {
   let window = window()?;
+  // `values` before `options`, the order `present` writes them in and for the
+  // same reason: a row evaluates `root.values[field.slot]` while it is being
+  // instantiated (design.md §5.5 I-F).
+  window.set_values(values(&[false, true]));
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![block(
     "Before you go",
-    vec![
-      field("stretched", "Stretched", false),
-      field("read", "Read", true),
-    ],
+    vec![field(0, "stretched", "Stretched"), field(1, "read", "Read")],
   )]))));
 
   for (id, checked) in [("stretched", false), ("read", true)] {
@@ -327,14 +352,23 @@ fn a_block_of_two_fields_renders_a_control_for_each() -> TestResult {
   Ok(())
 }
 
-/// VT-2 — A-2's pin. A click assigns `checked` imperatively; the next
-/// present resets the model, which **destroys and rebuilds** every element
-/// under the repeater (`i-slint-core-1.17.1/model/repeater.rs:506-509`,
-/// `:361-381`), so the declarative binding comes back and the model is the
-/// authority again. This is what makes the draft the single source of a
-/// field's value, and it is why the repair for the focus that rebuild costs
-/// is never `set_row_data` — that path updates the surviving element and
-/// silently leaves it detached from the model (design.md §5.4).
+/// VT-2 — A-2's pin, and what the **structure** channel does when it is
+/// written. A click assigns `checked` imperatively, which removes the binding
+/// the markup declared; resetting the row model **destroys and rebuilds**
+/// every element under the repeater
+/// (`i-slint-core-1.17.1/model/repeater.rs:506-509`, `:361-381`), so a fresh
+/// binding is established and the value channel is the authority again.
+///
+/// **What changed under it, and what did not.** `present` now writes the row
+/// model only where the `view_id` it is showing has changed (slice 009
+/// PHASE-01, `design.md` §7 D8), so the rebuild this case pins is no longer
+/// what corrects a widget on an ordinary present — a guarded write triggered
+/// by the epoch is, and that is the loop tier's
+/// (`tests/event_loop_reassert/`). The rebuild is still exactly what a
+/// **replacement view** gets, where there is no interaction state worth
+/// preserving, and this is still the only case that pins it. The reason it is
+/// never `set_row_data` is unchanged: that path updates the surviving element
+/// and silently leaves it detached from the model (design.md §5.4).
 ///
 /// The field starts **checked**, so every assertion here reads a value the
 /// widget's own default cannot supply. Written the other way round it passes
@@ -343,13 +377,13 @@ fn a_block_of_two_fields_renders_a_control_for_each() -> TestResult {
 /// given (`docs/memory/a-green-test-can-assert-a-proxy.md`).
 ///
 /// The `Rc<VecModel<_>>` must be held and reset, exactly as
-/// `SlintGlass::present` does (`glass.rs:87-91`). A test handing a fresh
+/// `SlintGlass::present` does (`glass.rs:159-162`). A test handing a fresh
 /// `ModelRc` to `set_options` each time exercises nothing.
 #[test]
 fn a_model_reset_re_establishes_a_fields_checked_value() -> TestResult {
-  let checked_field =
-    || one_option_with(vec![block("", vec![field("stretched", "Stretched", true)])]);
+  let checked_field = || one_option_with(vec![block("", vec![field(0, "stretched", "Stretched")])]);
   let window = window()?;
+  window.set_values(values(&[true]));
   let options = Rc::new(VecModel::from(checked_field()));
   window.set_options(ModelRc::from(Rc::clone(&options)));
 
@@ -389,9 +423,10 @@ fn a_model_reset_re_establishes_a_fields_checked_value() -> TestResult {
 #[test]
 fn activating_a_field_control_fires_edited_with_all_four_selectors() -> TestResult {
   let window = window()?;
+  window.set_values(values(&[false]));
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![block(
     "",
-    vec![field("stretched", "Stretched", false)],
+    vec![field(0, "stretched", "Stretched")],
   )]))));
 
   let captured: Rc<RefCell<Option<EditedArgs>>> = Rc::new(RefCell::new(None));
@@ -437,20 +472,18 @@ fn activating_a_field_control_fires_edited_with_all_four_selectors() -> TestResu
 #[test]
 fn a_fields_screen_order_is_its_declared_order_across_blocks() -> TestResult {
   let window = window()?;
+  window.set_values(values(&[false; 5]));
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![
     block(
       "Before you go",
-      vec![
-        field("stretched", "Stretched", false),
-        field("read", "Read", false),
-      ],
+      vec![field(0, "stretched", "Stretched"), field(1, "read", "Read")],
     ),
     block(
       "",
       vec![
-        field("walked", "Walked", false),
-        field("called", "Called", false),
-        field("slept", "Slept", false),
+        field(2, "walked", "Walked"),
+        field(3, "called", "Called"),
+        field(4, "slept", "Slept"),
       ],
     ),
   ]))));
@@ -487,15 +520,13 @@ fn a_fields_screen_order_is_its_declared_order_across_blocks() -> TestResult {
 #[test]
 fn a_block_heading_reaches_the_screen_and_an_untitled_block_draws_none() -> TestResult {
   let window = window()?;
+  window.set_values(values(&[false; 3]));
   window.set_options(ModelRc::new(VecModel::from(one_option_with(vec![
     block(
       "Before you go",
-      vec![
-        field("stretched", "Stretched", false),
-        field("read", "Read", false),
-      ],
+      vec![field(0, "stretched", "Stretched"), field(1, "read", "Read")],
     ),
-    block("", vec![field("walked", "Walked", false)]),
+    block("", vec![field(2, "walked", "Walked")]),
   ]))));
 
   assert_eq!(
@@ -516,10 +547,8 @@ fn a_block_heading_reaches_the_screen_and_an_untitled_block_draws_none() -> Test
 #[test]
 fn an_option_with_no_fields_adds_no_element() -> TestResult {
   let window = window()?;
-  let mut rows = one_option_with(vec![block(
-    "",
-    vec![field("stretched", "Stretched", false)],
-  )]);
+  window.set_values(values(&[false]));
+  let mut rows = one_option_with(vec![block("", vec![field(0, "stretched", "Stretched")])]);
   rows.push(OptionRow {
     id: SharedString::from("opt-b"),
     label: SharedString::from("No"),
