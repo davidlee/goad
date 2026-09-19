@@ -520,7 +520,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-05 — `text`, and the debounce's delivery | **done** | 2026-09-19 |
 | PHASE-06 — the overlay | **done** | 2026-09-19 |
 | PHASE-07 — `datetime` and the two pickers | **done** | 2026-09-19 |
-| PHASE-08 — `number` and its two controls | pending | |
+| PHASE-08 — `number` and its two controls | **in progress** | 2026-09-19 |
 | PHASE-09 — `choice`, and the retirement of `FieldForm` | pending | |
 
 PHASE-04 is the only phase that can run beside another (`plan.md`
