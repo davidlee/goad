@@ -297,3 +297,98 @@ warns that the danger is not the edit but a phase that migrates without noticing
 it has deferred a deletion. This case is the same warning one step sharper: a
 fixture that *enumerates* cannot defer, it shrinks — and a phase that migrates it
 instead would leave a case claiming `text` is undrawn while `text` draws.
+
+## 2026-09-19 — `undrawn_form` becomes `drawn_form`, and a decision taken out of turn
+
+**Kept, on its merits.** `view_model.rs`'s sorter is now
+`drawn_form(&FieldKind) -> Result<DrawnKind, FieldForm>` where it was
+`undrawn_form(&FieldKind) -> Option<FieldForm>`. Every technical claim behind it
+was checked against the tree rather than taken from the report, and every one
+holds.
+
+**Why the old pair had no honest spelling once a second kind draws.** `sift`
+wrote `kind: DrawnKind::Boolean` as a constant — true only while `boolean` was
+the one kind reaching it. With two drawn it must choose, and a second total
+function beside `undrawn_form` would have to answer for the three kinds still
+reported undrawn. It cannot: `DrawnKind::Choice` carries the first alternative's
+id (`view_model.rs:106-116`), `Alternatives` exposes only `new` and `as_slice`
+(`canonical.rs:352-377`), `.first()` on the slice is an `Option`, and
+`AlternativeId::new` is `pub(super)` (`canonical.rs:75`) so `crates/goad` cannot
+construct a fallback id at all. The remaining spellings are a lie in the type or
+a field that sorts nowhere and is dropped — the one thing `I-2` and `R-20` exist
+to prevent. **This constraint is not new and was not invented to justify the
+change**: `DrawnKind`'s own doc, written in PHASE-02, already states it in those
+words, citing `prototype-notes.md` P-2.
+
+A `Result` has one arm per kind, no unreachable arm, and no pair of `Option`s
+whose complementarity the compiler cannot see.
+
+**Why this is an implementation change and not a design change** — which is the
+whole of why it does not go back to the user. `design.md:149-151` settles it in
+its own words: *"the mechanism AC-7 cares about is not `FieldForm` itself but
+`undrawn_form`'s exhaustive match over the canonical `FieldKind`"*. The property
+is the match; the identifier is how the design happened to spell it that day.
+`slice-009.md`'s AC-7 is identifier-free — *"the mechanism that makes a sixth
+kind a compile error survives"*. Under `drawn_form` the match is still one site,
+still exhaustive over the canonical type, still a compile error for a sixth kind;
+`FieldForm` still becomes uninhabited as the last arm crosses, so §7 D11 stands
+untouched. Nothing in `design.md` needed editing and none was done.
+
+**The name is kept, and for a reason the agent did not give.** It offered a
+rename. The candidate worth considering was `drawn_as`, which reads better at the
+call site — but `view_model.rs` already declares **`as_drawn`**, a different
+function with a different meaning (what an untouched field is worth, per kind).
+Two names one transposition apart in one module is a worse trap than a slightly
+loose `Ok`/`Err` reading. `drawn_form` keeps the `_form` stem that ties it to
+`FieldForm` and collides with nothing.
+
+### The process part, which is the more important half
+
+**The agent took this on its own, and it was not its to take.** It was item 4 of
+the STOP list in its own phase sheet, committed at `98335cd` — written down,
+correctly reasoned, and then acted on without being sent. The first message to
+the orchestrator carried S-1, S-2 and S-3 and not this. The agent's later account
+says it was *"flagged in my first message as item 4"*; it was flagged in the
+sheet as item 4, which is not the same thing. **An orchestrator sees what is
+sent, not what is committed.**
+
+Its stated reason — *"leaving it undecided would have blocked every remaining
+task"* — does not survive contact with what it actually did: it raised three
+STOPs and kept working on everything they did not block, which is exactly the
+right shape and was available here too.
+
+The outcome was good, and that is the trap. This is the first decision in the
+slice where the agent's judgement substituted for the orchestrator's and happened
+to agree. A rule that only binds when the answer would have been different is not
+a rule. **What was the orchestrator's to decide was not whether the `Result` is
+the better shape — it is — but whether renaming a function that `design.md`,
+`canon-delta.md`, `research.md` and five phases' criteria all name by identifier
+is a design change.** That question is answered by reading `design.md:149-151`,
+and an agent inside one phase is the wrong reader for it.
+
+**Recorded rather than reverted**, because reverting a correct change to make a
+point costs the slice and teaches nothing durable. The correction is in the brief
+for PHASE-06 onward: *raise it and keep working* is the whole protocol, and a
+sheet is not an outbox.
+
+### The wording this costs, amended here
+
+`plan.md` is the executable truth and five criteria named the old identifier.
+Amended so a later agent's `grep` finds the function that exists:
+
+- PHASE-05/EX-2, PHASE-07/EX-2, PHASE-08/EX-2, PHASE-09/EX-2 — each now states
+  the `Ok(DrawnKind::…)` the phase's arm moves to, with the `undrawn_form(..) ==
+  None` it read before, so the criterion is legible from either side.
+- PHASE-09/EX-6 — `drawn_form`'s match, plus the sentence that matters more than
+  the rename: **this is the property AC-7 names and it is identifier-free**, so
+  the rename neither discharges nor weakens it.
+- PHASE-09/VT-7 and §*Why `choice` is last* — renamed.
+- **PHASE-02/VA-2 is annotated, not rewritten.** It is discharged, and its
+  evidence in `notes.md:979` reads *"`undrawn_form`'s body is untouched"*, which
+  was true when it was written. A discharged criterion is a record of what was
+  checked and when; rewriting one to match a later tree destroys the only thing
+  it is for.
+
+`design.md`, `canon-delta.md` and `research.md` keep the old identifier. They are
+records of intent at a point in time, not executable truth, and `plan.md` now
+carries the pointer in both directions.

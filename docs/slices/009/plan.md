@@ -91,8 +91,9 @@ PHASE-02's units rather than by drawing anything. So `datetime` goes first
 ahead of `text` would mean building the debounce after the kind that does not
 need it, and revisiting `glass.rs`'s value builder for a second time.
 
-**Why `choice` is last.** `undrawn_form` sorts a kind into drawn or
-`Undrawn::FieldForm`. The moment the fifth kind draws, `FieldForm` has no
+**Why `choice` is last.** `drawn_form` sorts a kind into drawn or
+`Undrawn::FieldForm` (named `undrawn_form` until PHASE-05; see `plan-log.md`).
+The moment the fifth kind draws, `FieldForm` has no
 constructible variant, `dead_code` fires under `-D warnings`, and every fixture
 that carries an undrawn field — five of them, `prototype-notes.md` P-13 — becomes
 unsatisfiable. That retirement cannot be deferred to a tenth phase, so it lands
@@ -316,6 +317,8 @@ and its doc, nothing else — EX-3 compels it; added 2026-09-19, `plan-log.md`).
   list (`purity.rs:17-27`).
 - VA-2 — `boolean` is still the only kind the mapper draws: `undrawn_form` still
   returns a `FieldForm` for the other four, and no fixture has moved.
+  *(Discharged 2026-09-19 as written; the sorter was renamed `drawn_form` in
+  PHASE-05 and the evidence in `notes.md` is left naming what it named then.)*
 
 **Notes for the implementer**
 
@@ -551,7 +554,9 @@ alone — added 2026-09-19, `plan-log.md`),
 
 **Exit**
 - EX-1 — `just check` exits 0.
-- EX-2 — `undrawn_form` returns `None` for `FieldKind::Text`; a `text` field
+- EX-2 — the sorter answers *drawn* for `FieldKind::Text` — `drawn_form(..)` is
+  `Ok(DrawnKind::Text)`, where it was `undrawn_form(..) == None` as written
+  (renamed in this phase, `plan-log.md`); a `text` field
   draws a `LineEdit` bound to `values[field.slot].text`, carrying
   `accessible-description: field.id` and `enabled: !root.busy`, with the
   string-against-string guard on the epoch.
@@ -774,7 +779,9 @@ and the seed slots), `crates/goad/src/install.rs`,
 
 **Exit**
 - EX-1 — `just check` exits 0.
-- EX-2 — `undrawn_form` returns `None` for `FieldKind::DateTime`; the field draws
+- EX-2 — `drawn_form` answers `Ok(DrawnKind::DateTime)` for
+  `FieldKind::DateTime`, where this read `undrawn_form(..) == None` before
+  PHASE-05's rename (`plan-log.md`); the field draws
   a `Button` whose text is `values[field.slot].text` — the composed value, or
   *not set* for a field nobody has picked. The button needs **no** guard: it never
   assigns its own text, so its binding is never destroyed.
@@ -883,7 +890,9 @@ mapper's `Number` arm and `slider_bounds`), `crates/goad/src/glass.rs` (the
 
 **Exit**
 - EX-1 — `just check` exits 0.
-- EX-2 — `undrawn_form` returns `None` for `FieldKind::Number`; `FieldRow` gains
+- EX-2 — `drawn_form` answers `Ok(DrawnKind::Number(..))` for
+  `FieldKind::Number`, where this read `undrawn_form(..) == None` before
+  PHASE-05's rename (`plan-log.md`); `FieldRow` gains
   `slider: bool` and `minimum` / `maximum` / `step`, read only where `slider`.
 - EX-3 — `slider_bounds(&NumberRange) -> Option<(f32, f32)>` is the **only** site
   that chooses a `number`'s control, and answers `Some` only where all three of
@@ -998,7 +1007,9 @@ slice's five-kind acceptance criteria are discharged.
 
 **Exit**
 - EX-1 — `just check` exits 0.
-- EX-2 — `undrawn_form` returns `None` for `FieldKind::Choice`; the field draws a
+- EX-2 — `drawn_form` answers `Ok(DrawnKind::Choice { .. })` for
+  `FieldKind::Choice`, where this read `undrawn_form(..) == None` before
+  PHASE-05's rename (`plan-log.md`); the field draws a
   `ComboBox` over `FieldRow.alternatives` (labels, in declared order), reporting
   its `current-index`, with the guard comparing `self.current-index` against
   `values[field.slot].index`. An index out of range takes the
@@ -1010,8 +1021,10 @@ slice's five-kind acceptance criteria are discharged.
 - EX-5 — **AC-3.** The map carries a value for exactly the fields the host drew of
   the option answered, and no others.
 - EX-6 — **AC-7.** `FieldForm` is an empty enum rather than deleted;
-  `undrawn_form`'s exhaustive match over the canonical `FieldKind` still makes a
-  sixth kind a compile error; `Undrawn::GroupHint` and the two content forms still
+  `drawn_form`'s exhaustive match over the canonical `FieldKind` still makes a
+  sixth kind a compile error — **this is the property AC-7 names, and it is
+  identifier-free** (`design.md:149-151`), so PHASE-05's rename neither
+  discharges nor weakens it; `Undrawn::GroupHint` and the two content forms still
   report.
 - EX-7 — every site §5.1's table names is rewritten, none by deletion-of-
   convenience: `diagnostics.rs`'s undrawn line stops naming a subset that no
@@ -1048,7 +1061,7 @@ slice's five-kind acceptance criteria are discharged.
   first. Same per-kind typing for values a person produced.
 - VT-6 — **AC-3.** `tests/renderer/wiring.rs`, the existing `R-58` cases extended
   to a form of five kinds.
-- VT-7 — **AC-7.** A `view_model.rs` unit: `undrawn_form` still matches
+- VT-7 — **AC-7.** A `view_model.rs` unit: `drawn_form` still matches
   `FieldKind` exhaustively, and `Undrawn` still reports a `group` hint it cannot
   read.
 - VT-8 — the `choice` re-assert, appended to the `event_loop_reassert` target:
