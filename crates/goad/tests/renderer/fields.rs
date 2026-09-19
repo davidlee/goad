@@ -102,6 +102,41 @@ const TWO_TEXT_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","op
 /// *the last* pick are the same observation (`design.md` §5.4, §7 D21).
 const TWO_DATETIME_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"when","kind":"datetime","label":"When?"},{"id":"until","kind":"datetime","label":"Until?"}]}]},"next_check":"45 minutes"}"#;
 
+/// One option carrying a `boolean` and **three `number` fields whose ranges
+/// take different controls**. `rated` declares `[0, 10]`, which
+/// `slider_bounds` admits; `counted` declares no bound at all and `frozen`
+/// declares a one-ulp span at `2^100`, and it refuses both.
+///
+/// The refusal is the **ordinary** case, not the exceptional one: the text
+/// control is the one that always works and the `Slider` is the one with an
+/// admissibility condition, which is the opposite of how a bounds-driven
+/// reading makes it look (`design.md` §5.2).
+///
+/// **Two refusals and not one, because they fail different clauses.**
+/// `counted` fails the first — there is no bound to round-trip — and a
+/// bounds-driven implementation would catch that on its own. `frozen`'s bounds
+/// both round-trip exactly and its span is finite and strictly positive; what
+/// it fails is the *operability* clause, because a hundredth of one ulp is
+/// below half an ulp and `increment()` would move nothing. With only `counted`
+/// here, deleting the second and third clauses outright leaves this whole
+/// target green — measured, as the injection pass records.
+const THREE_NUMBER_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"rated","kind":"number","label":"How was it?","min":0,"max":10},{"id":"counted","kind":"number","label":"How many?"},{"id":"frozen","kind":"number","label":"How precisely?","min":1.2676506002282294e30,"max":1.2676507513439569e30}]}]},"next_check":"45 minutes"}"#;
+
+/// One option carrying a `number` whose **`min` is `f64::MAX`** — a legal
+/// `R-17` bound whose `Display` is 309 characters, and which `R-58` requires a
+/// value for whether or not anybody touches it.
+///
+/// A `min` with no `max` is legal and takes the text control, so this is the
+/// spelling rule measured at the element rather than at the formatter
+/// (`view_model::spelled`, PHASE-02/VT-5).
+const A_HUGE_MINIMUM: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"huge","kind":"number","label":"How much?","min":1.7976931348623157e308}]}]},"next_check":"45 minutes"}"#;
+
+/// One option carrying a `number` **drawn showing a value nobody typed**: a
+/// `min` of `3` and no `max`. Legal under `R-17`, refused a slider by
+/// `slider_bounds`'s first clause — a range missing a bound has no span — and
+/// as-drawn `3`, which is the number an entry the parse refuses falls back to.
+const A_NUMBER_DRAWN_AT_THREE: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"counted","kind":"number","label":"How many?","min":3}]}]},"next_check":"45 minutes"}"#;
+
 /// A second view, distinguishable from every other fixture here by its title
 /// so a case can wait on the replacement arriving. Its option and field ids
 /// are its own, so a rebuild is visible at the screen as well as at the
@@ -452,6 +487,71 @@ fn typed_on_screen(window: &PromptWindow, option: &str, field: &str) -> String {
     .accessible_value()
     .unwrap_or_else(|| panic!("{option}/{field} declares no accessible-value"))
     .to_string()
+}
+
+/// Which control was drawn, by the **role** it declares — the discriminant
+/// PHASE-07 learned to use after a control-identity claim about
+/// `accessible-checked` turned out to be true of the wrong widget.
+///
+/// `Slider` and `TextInput` are the two `number` can be
+/// (`fluent/slider.slint:23`, `fluent/lineedit.slint:11`), and `Checkbox` and
+/// `Button` are what the fields beside them are.
+fn role_of(window: &PromptWindow, option: &str, field: &str) -> AccessibleRole {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .accessible_role()
+    .unwrap_or_else(|| panic!("{option}/{field} declares no accessible-role"))
+}
+
+/// The range the **control itself** declares: its minimum and its maximum.
+///
+/// Read off the widget rather than off the row model, so a case asking *was a
+/// range invented?* is asking the thing a person's screen reader would ask. A
+/// `LineEdit` declares neither, which is the whole of AC-9's second half: an
+/// unbounded `number` must not acquire a range on the way to the screen.
+///
+/// **`accessible-value-step` is deliberately not read here.** Slint binds it to
+/// `min(root.step, (maximum - minimum) / 100)` (`fluent/slider.slint:29`) — a
+/// cap — and this design's step is exactly that hundredth, so the reading is
+/// the cap whatever the markup ships and would stay `0.1` on a slider left at
+/// Slint's default step of `1`. What measures the shipped step is
+/// [`step_once`], which moves the value by it.
+fn range_on_screen(window: &PromptWindow, option: &str, field: &str) -> (Option<f32>, Option<f32>) {
+  let control = field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"));
+  (
+    control.accessible_value_minimum(),
+    control.accessible_value_maximum(),
+  )
+}
+
+/// Take one step up the slider, the way a keyboard or an assistive technology
+/// does: `accessible-action-increment` calls `base.increment()`, which is
+/// exactly `set-value(value + step)` and returns without raising anything when
+/// the result equals the value it already holds
+/// (`common/slider-base.slint:117-131`).
+///
+/// So this measures the **shipped** step and the third clause of
+/// `slider_bounds` at once: a slider whose step does not move the value is one
+/// this call cannot move either.
+fn step_once(window: &PromptWindow, option: &str, field: &str) {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .invoke_accessible_increment_action();
+}
+
+/// Move one slider, the way an assistive technology does. A `Slider`'s
+/// `accessible-action-set-value` parses the string and calls `base.set-value`
+/// (`fluent/slider.slint:30-34`), which raises `changed` and nothing else
+/// (`common/slider-base.slint:117-124`) — the same callback a pointer drag
+/// raises, and the reason the markup binds `changed` rather than `released`.
+///
+/// No pointer and no layout, so this reaches the control under
+/// `init_no_event_loop` exactly as [`type_into`] does.
+fn slide_to(window: &PromptWindow, option: &str, field: &str, value: f32) {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .set_accessible_value(value.to_string());
 }
 
 // ---------------------------------------------------------------------------
@@ -1460,5 +1560,293 @@ async fn cancelling_either_picker_records_nothing_and_leaves_the_button_alone() 
     values["when"],
     Value::String("1970-01-01T00:00:00+00:00".to_owned()),
     "nothing was recorded, so the field goes out as it was drawn: {values:?}"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Slice 009 PHASE-08 — `number` and its two controls
+// ---------------------------------------------------------------------------
+
+/// Slice 009 `plan.md` PHASE-08/**VT-2**. A `number` whose range admits a
+/// slider draws one; a `number` whose range does not draws the text control.
+/// Both submit a number.
+///
+/// **The control is told apart by its role**, which is the only discriminant
+/// that says what a widget *is* rather than what it happens to have declared.
+/// The three roles are read in one reading so that a window drawing three of
+/// the same control cannot satisfy any of them.
+///
+/// **The slider's range is the backend's own**, read off the widget rather
+/// than off the row: `accessible-value-minimum` and `-maximum` are what a
+/// screen reader is told, and the step is a hundredth of the span because
+/// Slint's `accessible-value-step` caps at exactly that and this design's step
+/// meets the cap (`fluent/slider.slint:29`).
+///
+/// The slider is then **moved**, which is the half that measures `slider:
+/// true` reaching the host: its report is a `Reported::AdjustedValue`, and a
+/// renderer sending `slider: false` instead would have the host read its empty
+/// `text` slot and keep the number the field already held.
+#[tokio::test]
+async fn a_number_draws_a_slider_where_one_can_be_operated_and_a_text_field_otherwise() {
+  let ((roles, slider_range, text_range, stepped, moved), log) = driving!(
+    rigged("fields-number-vt2", &[THREE_NUMBER_FIELDS]),
+    |window, tray, log| {
+      let roles = (
+        role_of(&window, "morning", "rated"),
+        role_of(&window, "morning", "counted"),
+        role_of(&window, "morning", "frozen"),
+        role_of(&window, "morning", "stretched"),
+      );
+      let slider_range = range_on_screen(&window, "morning", "rated");
+      let text_range = range_on_screen(&window, "morning", "counted");
+
+      step_once(&window, "morning", "rated");
+      let stepped = typed_on_screen(&window, "morning", "rated");
+
+      slide_to(&window, "morning", "rated", 7.0);
+      let moved = typed_on_screen(&window, "morning", "rated");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (roles, slider_range, text_range, stepped, moved)
+    }
+  );
+
+  assert_eq!(
+    roles,
+    (
+      AccessibleRole::Slider,
+      AccessibleRole::TextInput,
+      AccessibleRole::TextInput,
+      AccessibleRole::Checkbox
+    ),
+    "one kind, two controls — and `frozen` takes the text one even though both its \
+     bounds round-trip exactly, because a step of a hundredth of one ulp moves \
+     nothing. The boolean beside them is neither control"
+  );
+  assert_eq!(
+    slider_range,
+    (Some(0.0), Some(10.0)),
+    "the slider declares the range the backend sent, and neither bound is one the \
+     host chose"
+  );
+  assert_eq!(
+    text_range,
+    (None, None),
+    "and the text control declares no range at all, because none was sent"
+  );
+  assert_eq!(
+    stepped, "0.1",
+    "one keyboard step is a hundredth of the declared span — the step the host \
+     computed and proved moves the value, not Slint's default of 1"
+  );
+  assert_eq!(moved, "7", "and the slider goes where it is put");
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    keys_of(&values),
+    vec!["counted", "frozen", "rated", "stretched"],
+    "every drawn field of the option: {values:?}"
+  );
+  assert_eq!(
+    values["rated"],
+    Value::from(7.0),
+    "R-57: a number field leaves the host as a JSON number, and this one carries what \
+     the slider was moved to — which only reaches the draft if the control reported \
+     itself as a slider"
+  );
+  assert_eq!(
+    values["counted"],
+    Value::from(0.0),
+    "and the untouched one carries what it was drawn showing rather than no key at all"
+  );
+  assert_eq!(
+    values["frozen"],
+    Value::from(1.2676506002282294e30_f64),
+    "as does the one no slider could be operated over: taking the text control costs \
+     it nothing on the wire"
+  );
+  assert_eq!(values["stretched"], Value::Bool(false));
+}
+
+/// Slice 009 `plan.md` PHASE-08/**VT-3** — **AC-9.** An unbounded `number`
+/// draws the text control, what is typed into it reaches the draft, and the
+/// value that leaves the host is a JSON number with **no invented range**.
+///
+/// AC-9's second half is the one worth writing carefully. *No range appears
+/// anywhere the backend did not send* is asserted three ways in one case,
+/// because each alone would pass on a defect the others catch: the control
+/// declares no minimum, maximum or step; what is submitted is neither clamped
+/// nor defaulted to a bound; and the value is a JSON **number** rather than
+/// the string the control carried it in.
+///
+/// The number typed is outside every range a bounds-driven implementation
+/// might have invented — above a `max` of zero, below a `min` of zero, and not
+/// a whole number — so a clamp of any kind would change it.
+#[tokio::test]
+async fn an_unbounded_number_submits_what_was_typed_and_invents_no_range() {
+  let ((range, shown), log) = driving!(
+    rigged("fields-number-vt3", &[THREE_NUMBER_FIELDS]),
+    |window, tray, log| {
+      type_into(&window, "morning", "counted", "-4.5");
+      let range = range_on_screen(&window, "morning", "counted");
+      let shown = typed_on_screen(&window, "morning", "counted");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (range, shown)
+    }
+  );
+
+  assert_eq!(
+    range,
+    (None, None),
+    "a `number` the backend sent no bound for acquires none on the way to the screen"
+  );
+  assert_eq!(shown, "-4.5", "and the control shows what was put into it");
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    values["counted"],
+    Value::from(-4.5),
+    "R-57: a JSON number, unclamped and unrounded — every bound a host might have \
+     invented would have moved this one"
+  );
+  assert!(
+    values["counted"].is_number(),
+    "and a number rather than the string the control carried it in: {values:?}"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-08/**VT-4**. A numeric text the parse refuses is
+/// recorded verbatim, and the number the field already held stands.
+///
+/// **`set_accessible_value` is the point, not a convenience.**
+/// `input-type: decimal` gates typed insertions and nothing else — the paste
+/// path never consults it, and `set_accessible_value` assigns `text` and calls
+/// `edited` from inside the markup (`fluent/lineedit.slint:16`) — so this
+/// drives the class the control actually admits, which is every string.
+///
+/// `12/25` is chosen because it is what a **repair rule would get wrong**: a
+/// rule that replaced one foreign character with `.` and parsed again would
+/// read it as `12.25`, a number the screen never showed. The host repairs
+/// nothing, so the text is recorded verbatim and the last representable number
+/// stands (`design.md` §7 D23).
+///
+/// **Two readings, and neither implies the other.** The channel carries the
+/// text, which is what the widget displays and what its guard compares itself
+/// against; the wire carries the number. A host that *discarded* the refused
+/// entry would put `3` back on the channel and still submit `3`, so the wire
+/// alone cannot see it; a host that *repaired* the entry would leave `12/25`
+/// on the channel and submit `12.25`, so the channel alone cannot see that.
+///
+/// The field is drawn at `3` rather than at zero so that *the number it
+/// already held* is a number rather than a default. It cannot be a
+/// **delivered** edit in this target: no timer fires under
+/// `init_no_event_loop`, so the only thing that delivers a held entry is the
+/// `Choose` a press carries — and an answer with no new view is
+/// `Shift::Closed`, which takes the form down. The drawn minimum is the other
+/// half of the same fallback rule (`view_model::interpret`).
+#[tokio::test]
+async fn a_numeric_text_the_parse_refuses_is_recorded_and_leaves_the_number_alone() {
+  let ((channel, shown), log) = driving!(
+    rigged("fields-number-vt4", &[A_NUMBER_DRAWN_AT_THREE, RETAINED]),
+    |window, tray, log| {
+      let drawn = value_of(&window, "morning", "counted")
+        .expect("the number field must have a value slot")
+        .text
+        .to_string();
+      assert_eq!(
+        drawn, "3",
+        "the field is drawn showing its declared minimum, or the fallback below is \
+         a fallback to nothing"
+      );
+
+      type_into(&window, "morning", "counted", "12/25");
+
+      // A present the case causes, so the reading below is of a channel the
+      // production glass has written *since* the entry was made — the same
+      // reason `settled!` drives a round trip rather than reading straight
+      // after the edit.
+      let folded = next_check_line(instant(RETAINED_AT));
+      tray.invoke_check_now();
+      until(LIVENESS_BOUND, || {
+        window.get_next_check() == folded.as_str()
+      })
+      .await;
+
+      let channel = value_of(&window, "morning", "counted")
+        .expect("the number field must still have a value slot")
+        .text
+        .to_string();
+      let shown = typed_on_screen(&window, "morning", "counted");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 3).await;
+      (channel, shown)
+    }
+  );
+
+  assert_eq!(
+    channel, "12/25",
+    "the text is recorded verbatim, so a present inside the window shows what was \
+     entered rather than writing the host's own number back over it"
+  );
+  assert_eq!(shown, "12/25", "and that is what the control is showing");
+
+  let values = submitted_values(&log, 3);
+  assert_eq!(
+    values["counted"],
+    Value::from(3.0),
+    "and the number the field already held stands — not `12.25`, which is what a \
+     one-character repair would have read, and not `null`, which is what a \
+     non-finite would serialise as"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-08/**VT-5**. A `number` declaring `f64::MAX` as
+/// its `min` draws a control carrying the `{:e}` spelling rather than 309
+/// characters, and submits the `f64` it came from.
+///
+/// PHASE-02/VT-5 is the formatter's own unit; this is the element half, and
+/// neither implies the other — a formatter can be right while nothing routes
+/// the drawn value through it, which is exactly what `glass.rs`'s untouched
+/// arm did until this phase.
+///
+/// Both halves are needed for a second reason: the spelling has to **re-parse
+/// to the number it came from**, because it is what the guard compares itself
+/// against and what a person editing the field starts from. Asserting the
+/// screen without the wire would admit a shortened spelling that reads back as
+/// something else.
+#[tokio::test]
+async fn a_number_too_long_to_write_out_is_drawn_in_scientific_notation() {
+  let (shown, log) = driving!(
+    rigged("fields-number-vt5", &[A_HUGE_MINIMUM]),
+    |window, tray, log| {
+      let shown = typed_on_screen(&window, "morning", "huge");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      shown
+    }
+  );
+
+  assert_eq!(
+    shown, "1.7976931348623157e308",
+    "the `{{:e}}` spelling, not the 309 characters `Display` would have written"
+  );
+  assert_eq!(
+    shown.parse::<f64>().ok(),
+    Some(f64::MAX),
+    "and it reads back as the number it came from, which is what the guard's \
+     comparand needs"
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    values["huge"],
+    Value::from(f64::MAX),
+    "R-58: an untouched drawn field carries a value, and it is the one the screen \
+     showed rather than an `f32` infinity"
   );
 }
