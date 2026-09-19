@@ -373,7 +373,9 @@ the host interprets it against the drawn field before anything reaches the draft
 `crates/goad/src/install.rs`, `crates/goad/src/controller.rs`,
 `crates/goad/tests/renderer/wiring.rs`, `crates/goad/tests/renderer/fields.rs`,
 `crates/goad/tests/renderer/tree.rs` (the one case that binds `on_edited`, and
-the `EditedArgs` alias it fills — added 2026-09-19, `plan-log.md`).
+the `EditedArgs` alias it fills — added 2026-09-19, `plan-log.md`),
+`crates/goad/src/diagnostics.rs` (`Refused::UnknownField`'s doc comment only,
+which EX-5 widens the reachability of — added 2026-09-19, `plan-log.md`).
 
 **Entry**
 - EN-1 — PHASE-02/EX-1 … EX-9 discharged.

@@ -114,3 +114,32 @@ PHASE-09 already names `tree.rs`. So the sweep is complete and no further phase
 is exposed by this cause.
 
 No criterion changed in any of the three phases, and no id was renumbered.
+
+## 2026-09-19 — a doc the phase makes stale is amended in that phase
+
+**Raised.** PHASE-03's EX-5 widens what earns `Refused::UnknownField`: it is now
+also what a report `interpret` cannot make sense of earns — an index no
+alternative has, a non-finite slider value, or a report whose variant is not the
+drawn field's kind. The variant's own doc at `crates/goad/src/diagnostics.rs:61-66`
+describes only the old path, and `diagnostics.rs` was not in PHASE-03's Surfaces.
+No behaviour changes: the variant and the rendered line are both untouched, and
+the line — *"could not match that control to a field of the option it names"* —
+reads correctly for the new path too.
+
+**Decided.** Amend, in this phase. **The slice has already settled this class
+twice and both times the answer was the same**: `design.md:1042` says of the
+`Glass::present` contract *"The trait's doc is code and is amended in the phase
+that lands this"*, and PHASE-04/EX-5 does exactly that for `clock.rs:47-53`
+rather than leaving it to audit's Reconciliation table. A divergence *discovered*
+at audit belongs in that table; one the slice creates knowingly does not.
+PHASE-03 §Surfaces gains `crates/goad/src/diagnostics.rs`, scoped to that doc
+comment alone.
+
+Leaving it would have stood a stale doc through PHASE-05 to PHASE-08 — which are
+precisely the phases that make the new path reachable in production — for the
+sake of reaching `diagnostics.rs`'s natural home in PHASE-09.
+
+**Two clauses are stale, not one.** The agent named the first sentence. The
+fourth is worse: *"Only reachable from a stale or malformed callback"*. After
+EX-5 a well-formed, current callback reporting a non-finite slider value earns
+this refusal, and that is neither stale nor malformed.
