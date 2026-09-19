@@ -550,7 +550,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-06 — the overlay | **done** | 2026-09-19 |
 | PHASE-07 — `datetime` and the two pickers | **done** | 2026-09-19 |
 | PHASE-08 — `number` and its two controls | **done** | 2026-09-19 |
-| PHASE-09 — `choice`, and the retirement of `FieldForm` | **in progress** | 2026-09-19 |
+| PHASE-09 — `choice`, and the retirement of `FieldForm` | **done** | 2026-09-20 |
 
 PHASE-04 is the only phase that can run beside another (`plan.md`
 §*Sequencing & rationale*); every other pair overlaps on `app.slint`,

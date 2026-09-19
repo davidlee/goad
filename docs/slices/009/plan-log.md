@@ -1008,3 +1008,75 @@ exists for. Rejected on that ground, not on effort.
 reconciliation row. Its risk is stated as layout and the real barrier is
 coordinate mapping; the mitigation it names — move to the loop tier — does not
 work and could not have. R9 should say what was measured.
+
+## 2026-09-20 — PHASE-09 closes, and the slice's nine phases are done
+
+Gate re-run by the orchestrator on the committed tree at `08dc992`: **exit 0,
+gate total 592**, `cargo test --workspace` **557**, `cargo test -p goad-semantics`
+**35** on its own. The 35 holds. `tests/renderer` is unchanged at 202 because six
+cases were deleted and six added — P-13 falling due, as the plan said it would.
+
+**STOP-1 landed as decided and the preference is restored.** `Alternatives::first`
+sits at `canonical.rs:377-402`, ten lines below the `new` whose
+`EmptyAlternatives` it argues from, with the `reason` citing those lines rather
+than *"the protocol guarantees it"*. `view_model.rs`'s arm is now
+`alternatives.first().id().clone()` — a total expression. **`crates/goad` carries
+no `expect_used` exception at all**, verified by the orchestrator: the three
+`#[expect]`s left are `too_many_arguments` (pre-existing),
+`as_conversions` (PHASE-08's cast) and `unnecessary_wraps` on `drawn_form`.
+
+**Two judgements of the agent's worth keeping.**
+
+*`clippy::missing_panics_doc` was not silenced.* The new `pub fn` gets a
+`# Panics` section that says **it does not panic, and why**. The lint reads the
+`expect` and cannot see the invariant; answering it with a doc rather than an
+`allow` means the one place a reader is told is the place the compiler made
+someone write.
+
+*It flagged an ambiguity in the orchestrator's instruction instead of guessing.*
+The instruction said *"remove the `#[expect]` you put on `drawn_form`'s arm"*,
+which was the `expect_used` one; `drawn_form` also carries
+`#[expect(clippy::unnecessary_wraps)]`, a different lint about a different
+property — the `Result` is AC-7's sixth-kind fork, and removing it does not
+compile. It removed the one meant and asked about the other.
+
+**I-5 was re-run at the moved code and the new figure is the interesting one.**
+Identical counts and ordinals — renderer 198/**4**, reassert **0/1** — and
+`cargo test -p goad-semantics` **35/35 green**. The unit tier does not see the
+defect, because it is in what the *host* does with the first alternative and not
+in the protocol. A stratum-1 addition does not move stratum-1's evidence.
+
+### The sharpest thing the slice learned, and it came from STOP-1
+
+`design.md:843-855` ruled the *report it as `Undrawn`* route **dead** *"because
+`Alternatives::new` rejects the empty list"*. The route was not dead. It was
+**live and unused** — nobody took it because `FieldForm::Choice` existed, so the
+empty case had somewhere to go — and EX-6 is what kills it. The sentence was true
+and its reason was wrong, and it survived four review rounds in that state,
+because a reader checking it finds the claim correct and stops.
+
+**A sentence can be true for the wrong reason and survive every review. Check
+which fact is doing the ruling out, not whether the ruling out is right.** That is
+in §Harvest and is the slice's strongest memory candidate.
+
+### What the nine phases leave for the audit
+
+Five reconciliation rows, all recorded in `notes.md` §*What is owed*: the
+`drawn_form` rename; PHASE-06/EX-3's refusal clause; EX-7's removal of the
+numeric guard's exception (§5.2's comparand table and §7 D13); §5.2's *"dead"*
+reasoning above; and §8 **R9**, whose risk is stated as layout where the barrier
+is coordinate mapping and whose mitigation could never have worked.
+
+**One of those is not a documentation repair.** PHASE-06/EX-3's branch is
+**unreachable through the markup for every kind**, by two mechanisms — no control
+can produce an in-kind report `interpret` refuses (`text`, `number`), and
+`install.rs::debounced` admits only `Typed`/`AdjustedText`/`AdjustedValue`, so
+`Checked`, `Chosen` and `Picked` never enter the map at all
+(`install.rs:226-231`, verified). It is an unreachable branch in production code,
+not a coverage gap, and reaching it would need a case calling `Debounce::hold`
+directly against §8 R10's *a case cannot hold an edit except by driving a
+control*. A concession to make deliberately or not at all.
+
+**VH-1 is not discharged and is the user's.** The mechanical half is done — a
+five-kind form up on screen, captured. The three observations that remain need a
+person at the keyboard.
