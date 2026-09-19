@@ -951,6 +951,229 @@ and the revert confirmed by `git diff`:
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
 
+### PHASE-02 — the draft's five values, and the kind-directed pure functions
+
+**Objective:** the draft can hold what any of the five kinds is worth, and the
+three pure functions that decide what a field shows and submits exist, are total
+over all five kinds, and are unit-tested — **while `boolean` is still the only
+kind the mapper draws**. Discharges no AC on its own; it is what PHASE-03 and the
+four kind phases are written against.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged.** PHASE-01/EX-1 … EX-7 checked against the code, not
+  inherited from the hand-over:
+
+| PHASE-01 | claimed at | checked here |
+|---|---|---|
+| EX-1 | the gate | `just check` re-run by this agent at `3769095`, clean tree: **exit 0**. Target counts recorded below |
+| EX-2 | `ui/app.slint:27-29`, `:64-65` | read: `Kind` with five variants, `FieldRow { id, label, kind, slot }`, `FieldValue { checked, text, number, index }`, `in property <[FieldValue]> values`, `in property <int> epoch`. `date` / `time` and the slider fields are **absent**, as EX-2 requires |
+| EX-3 | `src/glass.rs:69`, `:156-171` | read: `shown: Option<ViewId>` retained; `set_values` (`:156`) → `set_vec` under `if self.shown != showing` (`:158-164`) → `set_epoch` (`:169-171`). Nothing between them touches any of the three |
+| EX-4 | `ui/app.slint:332-339` | read: `property <int> tick: root.epoch; changed tick => { if (self.checked != root.values[field.slot].checked) { … } }` |
+| EX-5 | `ui/app.slint:87-88`, `:324`, `:338` | read: `out property <int> inits` / `reasserts` on the window root, incremented from the `CheckBox`'s `init` and from the guard's convergence write — production markup, not a test copy |
+| EX-6 | `src/glass.rs:39-48` | read: the row model is named as the second deliberate exception, with §5.3's argument |
+| EX-7 | `Cargo.toml:47-49`, `tests/event_loop_reassert/main.rs` | read: a fourth `[[test]]`, its own `main.rs`, `init_integration_test_with_system_time()` |
+
+  Baseline target counts at `3769095`, for the VA-1-shaped comparison at the
+  end: `goad` lib **30**, `tests/renderer` **189**, `goad-boundary`
+  `tests/checks` **43**, the three loop targets **1** each, `goad-shell` lib
+  **71** / `tests/integration` **96**, `goad-semantics` lib **30**.
+
+**Reading list**
+
+*What is being changed*
+
+- `crates/goad/src/draft.rs:26-29` — `Edited`, one variant, `Eq` derived;
+  `:51-57` — `state_of`, infallible, answering `Checked(false)` for an absent
+  key; `:84-88` — `submitted`, one arm; `:95-203` — the `#[cfg(test)] mod tests`
+  that is the shape for this phase's units, and the `ids` fixture at `:107-138`
+  that shows how an id is read off a normalized view.
+- `crates/goad/src/view_model.rs:74-78` — `PresentationField`, which gains a
+  `DrawnKind`; `:219-227` — `undrawn_form`, which **does not change** (VA-2);
+  `:243-273` — `sift`, which builds the `PresentationField`.
+- `crates/goad/src/glass.rs:298-304` — `field_value` and the irrefutable
+  `let Edited::Checked(checked) = *state;` at **`:299`**, which this phase is
+  meant to meet as a compile error. (`plan.md` PHASE-02's Notes cite it as
+  `glass.rs:203`; that was its line before PHASE-01 moved it. The plan is an
+  accepted artefact and is not edited from a phase sheet — recorded here so the
+  next reader is not sent to the wrong line.) `:253` is its one caller.
+- `crates/goad/src/controller.rs:215-242` — `answer`, whose `submitted(...)`
+  call at `:230` is this phase's only edit outside the three files above;
+  `:345` — `drawn_fields`, the walk it uses.
+- `crates/goad/src/wire.rs:21-46` — `Command`'s derives and `Command::Edit`,
+  which carries an `Edited` and so loses `Eq` with it.
+- `crates/goad/src/install.rs:38-45` — the `edited` closure. Untouched this
+  phase: `Edited::Checked` survives, and the `Reported` split is PHASE-03.
+
+*Canonical types the new ones are built from*
+
+- `crates/goad-semantics/src/protocol/canonical.rs:72-80` — `AlternativeId`,
+  `new` is `pub(super)`; `:246-258` — `FieldKind`; `:261-275` — `Alternative`;
+  `:350-377` — `Alternatives`, whose `new` rejects an empty list at `:362`;
+  `:411-459` — `NumberRange` with `min()` / `max()`; `:103-110` — `Timestamp`.
+
+*Design sections that bind*
+
+- `design.md:275-994` — §5.2 end to end. §5.2 is this phase's specification;
+  the parts that decide code here are the `draft.rs` block (`:623-665`), the
+  callers-of-the-`Option` paragraph (`:666-686`), `Reported` and `interpret`
+  (`:687-756`), the `resolve` prohibition (`:757-778`), the two `Eq` paragraphs
+  (`:779-807`), the as-drawn bullets (`:808-848`) and the formatting rule
+  (`:420-443`).
+- `design.md:1260-1261` **I-C** (one site applies `R-57`), `:1262-1264` **I-D**
+  (every id came off a view), `:1275-1285` **I-G** (a submitted number is
+  finite, held at two places and at neither boundary type).
+- `design.md` §7 — **D24** (`:1387`, `Finite` rather than a bare `f64`),
+  **D25** (`:1388`, two types joined by one kind-directed `interpret`), **D10**
+  (`:1373`, `DrawnKind` host-local), **D12** (`:1375`,
+  `Chosen(AlternativeId)`).
+- `plan.md:255-364` — PHASE-02 in full. `plan.md:366-431` (PHASE-03),
+  `:517-645` (PHASE-05), `:731-831` (PHASE-07), `:833-940` (PHASE-08),
+  `:942-1065` (PHASE-09) for what is deliberately **not** done here — in
+  particular each of those four names *its own kind's value arm in `glass.rs`*
+  in its Surfaces.
+- `canon-delta.md:14-55` — **CD-1**, which VT-3 exercises: what an untouched
+  field submits per kind, the `datetime` epoch's spelling, and the `max`-only
+  consequence. Working authority, **not promoted here**.
+
+*Prior art and measurement*
+
+- `prototype-notes.md:182-211` **P-2** — `as_drawn`'s `choice` arm is not total
+  under this crate's lint table; `DrawnKind::Choice { first, alternatives }` is
+  what was taken.
+- `prototype-notes.md:213-243` **P-3** — a `number`'s spelling is load-bearing;
+  `f64`'s `Display` never goes scientific and `f64::MAX` spells 309 characters.
+- `prototype-notes.md:340-382` **P-7** — two sets, not one trio: texts the
+  control admits that *no* parse accepts, and texts a parse accepts
+  *non-finitely*. `inf` is reachable by pasting. No code; the behaviour is
+  already what `Finite` gives.
+- `prototype-notes.md:384-412` **P-8** — `impl Eq for Finite {}` is *sound* and
+  silently restores the derives above it. Written, compiled and deleted in the
+  prototype.
+- `prototype-handback.md:68-118` **P-10** — the `resolve` instrument, verified
+  live against the tree.
+- `prototype-handback.md:137-147` **P-4** — `jiff::tz::Offset`, `Offset::UTC`,
+  `Timestamp::UNIX_EPOCH` and `display_with_offset` all compile and run under
+  today's **featureless** `jiff` as `crates/goad` already takes it
+  (`crates/goad/Cargo.toml:20`). So `Edited::Picked` and `submitted`'s datetime
+  arm need no manifest change, and PHASE-04 is not an entry condition here.
+
+*The instruments VA-1 checks a name against, read before any is written*
+
+- `crates/goad-boundary/tests/checks/structure.rs:301-315` — the `resolve`
+  identifier-word match over `crates/goad/src`; `src/scan.rs:225-235` —
+  `mentions`, the word rule it uses.
+- `crates/goad-boundary/tests/checks/vocabulary.rs:18-26` — the domain list.
+- `crates/goad-boundary/tests/checks/purity.rs:17-27` — the purity path list.
+  Its subject is stratum 1 only, so it does not reach this phase's files; read
+  anyway, because VA-1 names it.
+
+*Lint table facts this phase is shaped by* (`Cargo.toml:124-200`, the
+`[workspace.lints.clippy]` block)
+
+- `unwrap_used`, `expect_used`, `panic`, `unreachable`, `indexing_slicing` —
+  all `deny`. Every new expression is total or it does not land.
+- `as_conversions` and the four `cast_*` lints — `deny`. There is no `as` in
+  this phase, which is why `FieldValue.number` stays unwritten (below).
+- `pedantic = deny` brings `must_use_candidate`, so every new `pub` function
+  carries `#[must_use]`.
+- `dead_code` is `warn` in the manifest and an error under the gate's
+  `-D warnings`. Everything this phase adds is `pub` in a `pub mod`
+  (`lib.rs:6-16`), so the four not-yet-drawn `DrawnKind` variants and all six
+  `Reported` variants are reachable and do not trip it. `slider_bounds` would
+  be private with no caller and is **PHASE-08's**.
+
+*Memory*
+
+- `docs/memory/a-green-test-can-assert-a-proxy.md` — why every new case gets an
+  injection pass (`design.md:1408-1414`).
+- `docs/memory/a-negative-control-that-does-not-compile.md` — read the test
+  count, not the absence of `FAILED`.
+- `docs/memory/enumerate-the-class-not-the-instances.md` — the shape of
+  `interpret`'s `None` surface argument.
+
+**Assumptions & STOP conditions**
+
+Taken on faith, each with what makes it cheap to be wrong about:
+
+- **A-a.** `jiff::tz::Offset` is reachable and `Offset::UTC` /
+  `Timestamp::display_with_offset` compile with `jiff`'s default features off.
+  Measured by the prototype (P-4) and re-measured here by VT-2 going green. If
+  wrong, the phase stops: adding a feature is a dependency change and PHASE-04's.
+- **A-b.** Nothing in the workspace needs `Eq` on `Edited`, `Command`,
+  `PresentationField`, `FieldBlock` or `PresentationOption`. The prototype
+  dropped the first two and broke no call site (P-8); the last three are new
+  losses this phase causes, because `DrawnKind` carries a `NumberRange` and an
+  `Alternatives`, neither of which is `Eq`. Cheap: a `HashSet`/`BTreeSet` of one
+  of them would be a compile error naming the site.
+- **A-c.** `clippy::float_cmp` (pedantic, therefore `deny`) does not fire on an
+  `assert_eq!` over `f64` in a unit test, because the `==` is inside a `core`
+  macro expansion. If it does, the assertion is written as a bit comparison and
+  that is a local decision, not a design change.
+
+STOP and consult — do not improvise past any of these:
+
+- **S-1.** Any temptation to write `impl Eq for Finite {}`. It is sound, it
+  compiles, it restores the derives above it, and it is the trap §5.2 states at
+  the leaf. This is not a stop so much as a standing prohibition.
+- **S-2.** Any temptation to close `interpret`'s match with `_ => None`. The
+  `None` surface is three cases and the match is written so that a sixth
+  `Reported` variant or a sixth `DrawnKind` variant is a compile error.
+- **S-3.** A kind's *control* wanting to be drawn, or `FieldRow` / `FieldValue`
+  wanting a new slot. VA-2 is the line: `undrawn_form` does not change and no
+  fixture moves.
+- **S-4.** `slider_bounds`, or anything else whose caller is a later phase.
+- **S-5.** Weakening, deleting or `#[ignore]`-ing an existing case to go green.
+- **S-6.** A dependency or feature addition of any kind.
+
+**Findings raised while expanding the phase**
+
+- **EX-9's second clause cannot be implemented as written, and the design
+  settles it.** EX-9 says *"`controller::answer` supplies an untouched field's
+  value through `interpret` rather than through a second `as_drawn` call
+  site."* `interpret`'s first parameter is a `&Reported` — what a **widget**
+  reported — and `answer` has no widget and no report; it is submitting a field
+  nobody touched. There is no call to make. `design.md:666-676` states the rule
+  the plan was compressing, and states it the other way round: *"There are two
+  sites that apply `as_drawn`, and only one of them is in `controller.rs`:
+  `answer`, because `R-58` forbids omitting a value for a drawn field; and
+  `interpret` (below), to supply the number a numeric text falls back to."*
+  The two sites are `answer` and `interpret`; what `glass.rs` must stay out of
+  is `as_drawn`, and that is the constraint the clause was reaching for.
+  PHASE-02's own Surfaces line agrees with the design — it scopes `controller.rs`
+  to *"(`answer`'s as-drawn call only)"*. Taken: `answer` calls `as_drawn`,
+  `glass.rs` does not, per `plan.md:3-4` (*the plan never overrides the design;
+  if it seems to, the plan is wrong*). Not handed back as a plan defect because
+  the two readings do not produce different work — one of them produces no code
+  at all — and `plan.md` is not editable from here. Reported to the team lead.
+
+**Decisions taken during execution**
+
+- *(filled as they are taken)*
+
+**Tasks**
+
+- [ ] T-1 `draft.rs`: `Finite` — private field, fallible constructor, no `Eq`
+      (EX-2) — and VT-1, with its injection pass
+- [ ] T-2 `draft.rs`: `Edited`'s five variants and `Reported`'s six (EX-2,
+      EX-3); `Eq` dropped on `Edited` and on `wire.rs`'s `Command`
+- [ ] T-3 `draft.rs`: `state_of -> Option<Edited>` and `submitted`'s five arms
+      (EX-4), and VT-2 with its injection pass; the four existing units rewritten
+      for the `Option`, none deleted
+- [ ] T-4 `view_model.rs`: `DrawnKind` with `Choice` carrying the first id
+      beside the list, and `PresentationField.kind` (EX-5); `undrawn_form`
+      untouched (VA-2)
+- [ ] T-5 `view_model.rs`: the number formatter (EX-8), and VT-5 with its
+      injection pass
+- [ ] T-6 `view_model.rs`: `as_drawn` (EX-6), and VT-3 with its injection pass
+- [ ] T-7 `view_model.rs`: `interpret` (EX-7), and VT-4 with its injection pass
+- [ ] T-8 `glass.rs`: `field_value` over `Option<Edited>`, total across the five
+      variants, replacing the irrefutable `let` (EX-9, first half)
+- [ ] T-9 `controller.rs`: `answer`'s as-drawn call (EX-9, second half)
+- [ ] T-10 VA-1 and VA-2 walked; `just check` exits 0 (EX-1); sheet, Status and
+      Harvest updated
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
