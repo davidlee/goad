@@ -1004,6 +1004,8 @@ slice's five-kind acceptance criteria are discharged.
 `crates/goad/src/glass.rs` (the `Choice` value arm),
 `crates/goad/src/install.rs` (the mapper's `choice` arm — added 2026-09-19,
 `plan-log.md`),
+`crates/goad-semantics/src/protocol/canonical.rs` (`Alternatives::first` alone —
+added 2026-09-19 with explicit user endorsement, `plan-log.md`),
 `crates/goad/tests/renderer/{fields.rs,mapper.rs,wiring.rs,reception.rs,tree.rs}`,
 `crates/goad/tests/event_loop_reassert/` (a second claim).
 

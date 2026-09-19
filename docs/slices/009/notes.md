@@ -195,6 +195,15 @@ it; otherwise it belongs in the audit.
    design asked for the measurement and the measurement answered it. The user has
    endorsed patching `design.md` at reconcile (2026-09-19). Both sites, and A-2's
    own row, need to say what was measured.
+
+   **A fourth row.** `design.md:843-855` calls the *report it as `Undrawn`*
+   route **dead** *"because `Alternatives::new` rejects the empty list"*. That
+   was never the reason — the route was live and unused while `FieldForm::Choice`
+   existed, and PHASE-09/EX-6 is what removes it. The bullet's third clause needs
+   to say so, and to record that the one `expect` now lives in
+   `Alternatives::first` by the user's decision of 2026-09-19 (`plan-log.md`).
+   Reconciliation, not drift: the preference for a total expression stands and
+   every consumer still gets one.
 3. **Promote the drafts.** `canon-delta.md` CD-1 and CD-2 apply to `SPEC-001`,
    with explicit user endorsement, recorded in `audit.md`'s Reconciliation
    table. A slice does not close holding an unpromoted draft.

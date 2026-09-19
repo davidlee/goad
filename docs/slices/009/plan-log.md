@@ -892,3 +892,60 @@ gate run agreed, so nothing is changed. The reason the instruction exists is tha
 itself done moves the record ahead of the check that gates it — the same shape as
 `drawn_form`, where the answer was right and the authority was not. Reinforced in
 PHASE-09's brief.
+
+## 2026-09-19 — the one unavoidable `expect` goes beside the invariant, not beside the use
+
+**Raised by PHASE-09's agent as a STOP, with the smallest compiling edit already
+taken under the carve-out, while it carried on with `glass.rs`, `install.rs` and
+the fixture table.** Escalated to the user, because it is a tradeoff `design.md`
+did not settle and it reaches stratum 1.
+
+**The hole, and it is in the design rather than the plan.** PHASE-09 must build
+`DrawnKind::Choice { first, .. }` from `alternatives.as_slice().first()`, an
+`Option`. `design.md:843-855` addresses exactly this and rules out both escapes:
+an `#[expect(clippy::expect_used)]` *"contradicts this section's own preference
+for a total expression over an argument about why an `expect` is unreachable"*,
+and reporting an alternative-less `choice` as `Undrawn` is *"dead because
+`Alternatives::new` rejects the empty list before the renderer sees it"*.
+
+**The second reason was never the real one.** That arm was not dead, it was
+*live and unused* — `Err(FieldForm::Choice)` typed, because `FieldForm::Choice`
+existed. **EX-6 empties the enum and removes it.** So the design's own preference
+for a total expression had a total expression in view, and this phase deletes it.
+No fallback id is constructible (`AlternativeId::new` is `pub(super)`), and
+`unwrap_used`, `expect_used`, `panic`, `todo`, `unimplemented`, `unreachable` and
+`indexing_slicing` are all `deny` (`Cargo.toml:136-143`). One `expect` became
+unavoidable.
+
+**Decided by the user: `Alternatives::first(&self) -> &Alternative` in
+`goad-semantics`**, with the argued `#[expect]` inside it, beside the `new` that
+enforces non-emptiness. PHASE-09's Surfaces gains
+`crates/goad-semantics/src/protocol/canonical.rs`, scoped to that one function.
+
+**Why there rather than at the use site.** The invariant belongs to
+`Alternatives`. A type that refuses the empty list should *expose* non-emptiness;
+otherwise every consumer re-derives the argument, and — because
+`AlternativeId::new` is `pub(super)` — no consumer can ever solve it for itself.
+The exception then sits ten lines below the code that guarantees it, where a
+reader checking it has both halves on one screen, instead of three strata away
+arguing about a function it cannot see. `Cargo.toml:181` built the hatch for
+*"rare, individually argued exceptions"*; this is one, and it is argued where the
+argument is checkable.
+
+**What was rejected, and it is not a near miss.** Restructuring `Alternatives` to
+hold `(Alternative, Vec<Alternative>)` would make non-emptiness structural and
+need no exception at all — but it destroys `as_slice()`, which has callers in
+`view_model.rs:797` and in `goad-semantics`'s own protocol tests, and it is a
+change to a canonical protocol type for the benefit of one construction site.
+Deferred, not taken.
+
+**ADR-001 is not touched.** `Alternatives::first` is pure, names no `src/shell/`,
+reads no clock, filesystem or subprocess, and adds no dependency; `cargo test -p
+goad-semantics` remains the gate command that builds stratum 1 with its own
+feature set. This is an addition to stratum 1's API, not a crossing of it.
+
+**`design.md` §5.2's bullet is now stale in its third clause** — the *"dead"*
+reasoning for the `Undrawn` route, which was a fact about `Alternatives::new` and
+is really a fact about `FieldForm::Choice` existing. **Fourth audit row**, and it
+is reconciliation rather than drift: the design's preference is honoured, and
+only its account of *why* the alternatives were unavailable has been overtaken.
