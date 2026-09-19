@@ -1937,6 +1937,245 @@ the predicate perfectly sharp. Injection **H** confirms the predicate is live.
   hand rather than from an instrument that prints it.
 
 
+### PHASE-05 — `text`, and the debounce's delivery
+
+**Objective:** a `text` field draws, a person can type into it continuously, and
+everything they typed reaches the draft — on a timer while they keep typing, and
+in the command that answers. The largest phase in the slice.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged.** PHASE-03/EX-1 … EX-6 read off the tree at `f5e20f8`,
+  not inherited from the hand-over:
+
+| PHASE-03 | claimed at | checked here |
+|---|---|---|
+| EX-1 | the gate | the team lead re-ran `just check` at `f20564f`, clean tree: **exit 0**, **573** — a *gate* total. `cargo test --workspace` is **538**; the gate runs `cargo test -p goad-semantics` as a command of its own, so that crate's 30 + 5 are counted twice and the gate total is always exactly 35 above the workspace one. Both denominators are named wherever a count appears below |
+| EX-2 | `ui/app.slint:57`, `:122`, `:338-377` | read: `export struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int }` at `:57`; `callback edited(string, string, string, FieldEdit)` at `:122`; the `CheckBox`'s `toggled` literal names `kind` and `checked` only (`:372-377`), and `Kind.boolean` rather than `field.kind` |
+| EX-3 | `src/wire.rs:51-56`, `:28` | read: `Command::Edit { view, option, field, reported: Reported }`; `#[derive(Debug, Clone, PartialEq)]` with no `Eq` |
+| EX-4 | `src/install.rs:120-125`, `:43-53` | read: `reported(&FieldEdit) -> Option<Reported>`, one `match` on `edit.kind`, one slot read, no parse and no refusal; `Kind::Text` is in the grouped `None` arm at `:123`, which is the arm this phase fills |
+| EX-5 | `src/controller.rs:278-301` | read: `edit` interprets on the walk `drawn_fields` already makes (`:290`), `interpret(...).ok_or(Refused::UnknownField)` at `:299`. No class added to `diagnostics.rs`'s enum |
+| EX-6 | `tests/renderer/wiring.rs`, `mod editing` at `:1131` | read: every `edit(…)` call site passes `&Reported::…`; the two `Command::Edit` literals at `:1612` and `:1628` carry `reported:` |
+
+  Baseline target counts at `f5e20f8`, clean tree, for the comparison at the
+  end — `cargo test --workspace`, **538**: `goad` lib 42, `tests/renderer` 190,
+  the three loop targets 1 each, `goad-boundary` `tests/checks` 43,
+  `goad-shell` lib 71 / `tests/integration` 96, `goad-semantics` lib 30 + 5
+  doc-tests. *(Re-measured at T-0; the figure that is checked at the end is the
+  one below in §What landed.)*
+
+**Reading list**
+
+Every `path:line` below was re-derived with `grep -n` in this session — the
+slice's rule is *cite from an instrument that prints the number*, and
+`plan.md`'s own `Pending` citation (`controller.rs:385`) is already one line
+family off: it is at **`:408`**.
+
+*What is being changed*
+
+- `crates/goad/src/pending.rs` — **new**. The map, the timer, and nothing else.
+- `crates/goad/src/lib.rs:6-17` — the module list, one line.
+- `crates/goad/src/wire.rs:29-59` — `Command`; `Choose` at `:35`, `Edit` at
+  `:51`. `:140-146` — `send`, whose `Err(TrySendError::Full(_returned))` arm at
+  `:143` binds the returned command and drops it deliberately (D8).
+- `crates/goad/src/install.rs:24` — `install`'s signature; `:26-31` — `chosen`;
+  `:43-53` — the `edited` closure; `:120-125` — `reported`, whose `Kind::Text`
+  sits in the grouped arm at `:123`.
+- `crates/goad/src/controller.rs:215` — `answer`; `:278` — `edit`; `:343` —
+  `selected`, the one statement of identity-before-membership; `:675` —
+  `dispatch`'s `Choose` arm; `:203` — `refuse`, the fold of a refusal the
+  renderer made itself.
+- `crates/goad/src/view_model.rs:263-271` — `undrawn_form`; `:287-324` —
+  `sift`, whose `kind: DrawnKind::Boolean` at **`:317`** is the honest constant
+  PHASE-01 left and whose own comment at `:311-316` says the phase that draws a
+  kind replaces it with a match. `:511-528` — `as_drawn`, whose `Text` arm is
+  written; `:569-636` — `interpret`, whose `DrawnKind::Text` arm is written.
+- `crates/goad/src/glass.rs:322-339` — `field_value`, whose grouped arm names
+  `text` PHASE-05. `:289-296` — `markup_kind`, already total and unchanged.
+- `crates/goad/ui/app.slint:1` — the widget import line, which gains `LineEdit`;
+  `:336-379` — the field repeater and the `CheckBox`, which becomes one arm of a
+  kind test; `:358-364` — the guard's exact spelling.
+- `crates/goad/src/main.rs:86` — the capacity-1 channel; `:89-90` — the `Wire`
+  and the callback table; `:97` — `SlintGlass::new`, **not** touched here
+  (PHASE-06's).
+- `crates/goad/Cargo.toml:47-65` — the four `[[test]]` blocks; a fifth is added.
+
+*What breaks by compile, and where each one is*
+
+- `Command::Choose`'s new field — `install.rs:27`, `wiring.rs:1021`, `:1102`,
+  and **outside the Surfaces**: `scheduling.rs:269`, `:925`, `ingress.rs:381`.
+- `install`'s new parameter — `main.rs:90`, `fields.rs:301`, and **outside the
+  Surfaces**: `event_loop/closing.rs:57`,
+  `event_loop_schedule/scheduling.rs:84`.
+
+Both are STOP conditions and were reported before any production code was
+written; see §*STOP conditions raised* below.
+
+*The fixtures that migrate (EX-9), each re-derived*
+
+- `tests/renderer/fields.rs:81` — `A_DRAWN_AND_AN_UNDRAWN_FIELD` (plan says
+  `:71`, which is `THREE_FIELDS`'s doc).
+- `tests/renderer/wiring.rs:1158` — `mod editing`'s own `TWO_FORMS` (plan says
+  `:1157`, the last line of its doc).
+- `tests/renderer/mapper.rs:237`, `:255-256`, `:377`, `:423` — the four the plan
+  names, **and `:297`/`:321`**, which it does not: `every_undrawn_kind_is_-
+  reported_by_option_field_and_form` enumerates all four undrawn kinds and their
+  four reports and goes red the moment `text` draws. Same file, already in the
+  Surfaces, so nothing to decide — but the enumeration is short and this sheet
+  records it.
+- `tests/renderer/reception.rs:762` — the diagnostic case.
+- `tests/renderer/table.rs:151-157` carry `"kind":"text"` and are **not** in
+  this list, checked rather than assumed: all four are `retained(…)` rows
+  asserting a **normalizer** diagnostic (`table.rs:288-334`, rows `P6` at `:289` to `P12` at `:329`), refused before
+  `present` is ever called, so drawing changes nothing about them.
+
+*Design sections that bind*
+
+- §5.1 (`design.md:199-226`) — `pending.rs`, keyed not singular, kind-agnostic,
+  every entry carrying its view; (`:227-256`) — the two asymmetrical exits and
+  the enqueue rule.
+- §5.2 (`design.md:933-1018`) — the `wire.rs` block: `PendingEdit`,
+  `Choose { view, option, edits }`, `send -> bool`, the two ways a carried edit
+  fails and which of them still answers, *reported for the life of the exchange*,
+  and *no order is promised*.
+- §5.2 (`design.md:500-506`) — the controls table: `text` → `LineEdit`, sends
+  `text`, `edited`, debounced. (`:545-551`) — the guard's comparand table: the
+  text `LineEdit` compares `self.text` against `text` and converges unless they
+  are equal.
+- §5.4 (`design.md:1100-1128` *A keystroke*, `:1154-1172` *An answer*,
+  `:1174-1188` *A new view*).
+- §5.5 **I-H** (`design.md:1310-1317`) — one rule, three sites. PHASE-06 owns
+  the *shown* site; this phase owns *sent* and *drained*.
+- §9 (`design.md:1525-1543`) — the three obligations with no widget, and the two
+  signatures that widen with their four call sites named.
+- `plan.md:527-655` — PHASE-05 in full, Notes included.
+
+*Prior art*
+
+- `crates/goad/tests/event_loop_reassert/main.rs:1-28` and `reassert.rs:1-192` —
+  the arrangement the new target copies: one `[[test]]`, one `#[test]` fn,
+  `init_integration_test_with_system_time()`, a repeated `slint::Timer` stepping
+  the loop, a liveness bound that quits rather than wedges, every assertion made
+  on the test thread, and `retaining()` building a `Controller` from a hand-made
+  `Outcome`.
+- `crates/goad/tests/renderer/fields.rs:251-342` — `Rig` / `rigged`, the
+  `install` call site this phase widens, and `tick!`'s note on why the wait is
+  not optional.
+- `crates/goad/src/glass.rs:322-339` — the shape for a host-side map total over
+  five kinds while fewer are drawn, naming the phase that owns each arm.
+  `install.rs:91-119` is the same shape pointing the other way.
+
+*Memory*
+
+- `slint-testing-backend-initialises-once-per-process.md` — one arrangement, one
+  `[[test]]`, one `#[test]` fn.
+- `a-negative-control-that-does-not-compile.md` — read the **test count**, not
+  the absence of `FAILED`.
+- `change-handlers-need-an-event-loop.md` — why the debounce claims cannot live
+  in `tests/renderer/`.
+- `tests-asserting-proxies.md` — VA-2's whole subject.
+- `verify-the-enumeration-not-the-conclusion.md` — EX-9's fixture list is the
+  live instance.
+
+**Assumptions & STOP conditions**
+
+Taken on faith, each with what makes it cheap to be wrong about:
+
+- **A-a.** A `slint::Timer` may be restarted from inside its own callback, so
+  the re-arm works. Read from the locked source
+  (`i-slint-core-1.17.1/timers.rs:348-372`) and measured by the prototype
+  (`prototype-handback.md` P-11). **VT-6 is the negative control that keeps it
+  honest**, so being wrong is a red test rather than a silent loss.
+- **A-b.** `tokio::sync::mpsc::channel`, `try_send` and `try_recv` work with no
+  runtime entered. The new loop target has no runtime, and `Wire` is the only
+  way `pending.rs` delivers, so the target must hold a channel even though it
+  holds no `serve`. Cheap to be wrong about: the target panics on its first
+  step, immediately.
+- **A-c.** `ElementQuery` / `set_accessible_value` reach a `LineEdit` under
+  `init_integration_test_with_system_time()` with the window shown and sized.
+  `search_api.rs:637` is the setter; `event_loop_reassert` shows the window
+  through `present` already and the renderer tier sizes the window to 600×600
+  for the same clipping reason. Wrong ⇒ the query answers `None` at the first
+  step.
+- **A-d.** Adding a field to `Command::Choose` and a parameter to `install` are
+  the only compile breaks outside this phase's own edits. Derived by grepping
+  every construction site rather than by expectation; the build says so either
+  way, and the two lists are above.
+- **A-e.** A `bool` return on `Wire::send` disturbs no existing caller.
+  `clippy::must_use_candidate` is `allow` workspace-wide (`Cargo.toml`), so no
+  `#[must_use]` is owed and a discarded `bool` in statement position is not a
+  lint.
+
+STOP and consult — do not improvise past any of these:
+
+- **S-1.** A criterion compelling a file the Surfaces line does not name. Hit
+  three times before a line of production code; see below.
+- **S-2.** Any judgement moving into a Slint callback — a parse, a fallback, a
+  refusal. The `edited` closure gains a map write and nothing else.
+- **S-3.** A new refusal class. A carried edit that fails takes the **existing**
+  `SupersededView` or `UnknownField` posture.
+- **S-4.** Clearing an entry on anything but an enqueued send. VA-1 is the check
+  and the asymmetry is the design's, not a convenience.
+- **S-5.** Weakening, deleting or `#[ignore]`-ing an existing case to go green.
+  VA-2 exists to catch the softer version of it.
+- **S-6.** A dependency addition, or a second event-loop arrangement.
+
+**STOP conditions raised** — reported to the team lead before any production
+code, with the criterion id and the file, per `docs/AGENTS.md` §Execute:
+
+1. **EX-6 → `tests/renderer/scheduling.rs:269`, `:925`,
+   `tests/renderer/ingress.rs:381`.** `Command::Choose` gaining `edits` is a
+   compile error at every literal, and the Surfaces name only
+   `{fields,wiring,mapper,reception}.rs` under `tests/renderer/`. `design.md`
+   §9 says *every case that builds a `Command::Choose` is rewritten* without
+   enumerating them — the enumeration's reach again, not its arithmetic.
+2. **EX-8 → `tests/event_loop/closing.rs:57`,
+   `tests/event_loop_schedule/scheduling.rs:84`.** EX-8 says *"and so do the
+   four existing call sites"* and `design.md:1537-1543` names all four; the
+   Surfaces name neither of these two, which are in **PHASE-06's**.
+3. **`diagnostics.rs:219` renders a user-visible clause that becomes false
+   here** — *"this renderer draws boolean fields only"* — and `plan.md`
+   PHASE-09/EX-7 owns it. Not blocking; raised because PHASE-03 took the
+   opposite call on `Refused::UnknownField`'s doc, and this is a string a
+   person reads rather than a doc comment.
+4. **A shape question `undrawn_form` cannot answer as written.** `sift`
+   (`view_model.rs:287-324`) builds `PresentationField.kind` from a constant.
+   With two kinds drawn it must choose, and there is no *total, honest*
+   spelling that keeps `undrawn_form(&FieldKind) -> Option<FieldForm>` and adds
+   a sibling: a second total function has to answer for the three kinds that
+   are still reported undrawn, and `DrawnKind::Choice` cannot be constructed at
+   all without a fallback id (`.first()` is an `Option` and `unwrap_used` is
+   `deny`). Every fallback is either a lie in the type or a silently dropped
+   field, which is the one thing I-2/R-20 forbids. The shape that is total,
+   has one match and no unreachable arm is a single sorter,
+   `Result<DrawnKind, FieldForm>` — which is `undrawn_form` with a different
+   return type and therefore a different name. Reported, because five phases'
+   EX-2 name the identifier.
+
+**Tasks**
+
+- [ ] T-0 re-measure the baseline: `just check` exit code, gate total, and
+      `cargo test --workspace`, both with their denominators
+- [ ] T-1 `pending.rs`: the map, the entry type, the timer, the two exits
+      (EX-3, EX-4); `lib.rs` gains the module
+- [ ] T-2 `wire.rs`: `PendingEdit`, `Choose`'s `edits`, `send -> bool`
+      (EX-5, EX-6)
+- [ ] T-3 `controller.rs`: the `Choose`'s identity first, then each carried
+      edit through the walk `edit` already makes (EX-7)
+- [ ] T-4 `install.rs` + `main.rs`: the handle, the `edited` closure writing the
+      map, the `chosen` closure draining it (EX-6, EX-8)
+- [ ] T-5 `view_model.rs`: `text` stops being reported undrawn and `sift` stops
+      asserting a constant (EX-2, first half)
+- [ ] T-6 `app.slint` + `glass.rs`: the `LineEdit`, its guard, its literal, and
+      the `Text` value arm (EX-2, second half)
+- [ ] T-7 EX-9: the fixture migration, one kind at a time, recorded by name
+- [ ] T-8 VT-1, VT-3 in `fields.rs`; VT-2, VT-4 in `wiring.rs`, each with an
+      injection pass
+- [ ] T-9 the `event_loop_debounce` target: VT-5, and VT-6 as its negative
+      control — compiled, run, the test count read on both sides
+- [ ] T-10 VA-1 and VA-2 in writing; `just check` exits 0 (EX-1); sheet, Status
+      and Harvest updated
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
