@@ -753,3 +753,69 @@ of the other rather than an anagram of it. **`untouched` is the recommendation**
 it collides with nothing in the module and reads at the call site as the
 sentence the code is — *the overlay, or the draft, or what an untouched field of
 this kind shows*.
+
+## 2026-09-19 — EX-7: the exception was not dead, it was wrong
+
+**Settled by measurement, as EX-7 required, and the answer is stronger than the
+design predicted.** The numeric guard's exception — *the widget is empty and the
+held number is zero* — is **removed**. The design expected the overlay to make it
+*unnecessary*. It is worse than unnecessary: the one state it still fires in is
+the state the guard exists for.
+
+Four corners, denominator 1, `cargo test -p goad --test event_loop_numeric_guard`:
+
+| overlay | exception | result |
+|---|---|---|
+| on | **off** — shipped | **1 passed** |
+| on | on | 1 failed — `also_shown: ""`, `reasserts: 0` |
+| off | off | 1 failed — `shown: "0"`, `reasserts: 1` |
+| off | on | 1 failed — `also_shown: ""`, `reasserts: 0` |
+
+Row 3 is the negative control and it **compiles and runs**: it reproduces the
+defect the exception was originally licensed by, so the case can see a write-back.
+Row 2 is the finding — a cleared entry the host never recorded, where the channel
+holds the field's own zero and the widget is empty, is precisely the convergence
+AC-6 requires, and the exception suppresses it. Row 4 shows that holds with or
+without the overlay: **pre-overlay the price was simply invisible, because nothing
+in this project measured AC-6 for a numeric field.**
+
+**The case was strengthened because it could not discriminate.** The agent's first
+VT-6 carried only the cleared-field claim and passed in *both* row 1 and row 2 —
+it could not tell the exception's presence from its absence, and would have
+licensed removing it on no evidence at all. A second claim, on a field cleared
+after the stepper goes silent, is the reading that separates them. This is
+PHASE-06's rule applied before the fact rather than after: an injection that
+reddens *a* claim is not evidence for *the* claim, and a control that cannot go
+red for its own reason is not a control.
+
+**Two self-caught errors, both found by running rather than reading.** The first
+"overlay off" injection was `drafted.or(overlay)`, which falls back to the overlay
+exactly when `drafted` is `None` — the only case that matters — and reported *1
+passed*; it was nearly written down as *the defect does not reproduce*. The second
+"restore the exception" injection matched **two** guards, the text `LineEdit`'s
+included, and asserted its way out rather than silently editing both. An injection
+harness needs its own negative control.
+
+**A-f dissolves, and the orchestrator's `1e-300` hypothesis with it.** The
+orchestrator proposed that EX-6's `values[slot].number == 0` misfires for a held
+value below `f32`'s smallest subnormal, which narrows to `0.0` in the `float`
+slot. The reasoning was sound and is now **moot by construction**, which is the
+better outcome: with the exception gone the numeric text guard is pure
+string-against-string, `crates/goad/ui/app.slint`'s only remaining `.number`
+reads are the `Slider`'s own binding and guard, `glass.rs` has one write site for
+the slot, and EX-3's predicate admits a slider only where both bounds round-trip
+`f64 → f32 → f64` exactly — so no value that narrows can reach the slot at all.
+VA-2 holds by construction rather than by argument. **No case is owed for the
+hypothesis**: it described a hazard in a spelling that no longer exists, and a
+case pinning a removed mechanism is a test asserting a proxy.
+
+**The seventh `[[test]]` target, with honest reasoning.** The agent explicitly
+declined the easy justification. `event_loop_overlay` *does* have the needed
+arrangement — install and glass sharing one `Debounce`, a stepper draining and
+applying — so the target is **not** novel in arrangement. What earns it is
+attribution: EX-7 needs one function run four times with production changes
+between, and `event_loop_overlay`'s single `#[test]` fn also carries PHASE-06's
+claims and deliberately goes silent partway to measure a *dropped* edit, so a
+merged failure could not be attributed. That reasoning is in the target's module
+doc rather than left implicit. **Seven entries: one no-loop, six loop-tier**, one
+`#[test]` fn each, verified by the orchestrator.
