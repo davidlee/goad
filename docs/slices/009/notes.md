@@ -724,23 +724,140 @@ PHASE-04 is the only phase that can run beside another (`plan.md`
 
 ### PHASE-01 — the value channel and the epoch
 
-**Objective:** <copied from plan.md>
+**Objective:** a present writes the form's *values* on every call and rebuilds
+its *structure* only when the `view_id` changes, so a widget is corrected by a
+guarded write instead of being destroyed and rebuilt. Discharges **AC-5**.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged.** `design-log.md:795` carries D-37 (design accepted and
+  closed); `plan-log.md` §*2026-09-19 — the plan is accepted* accepts `plan.md`
+  as written at `44fbd8e` and records that no plan review runs.
+- **EN-2 — discharged.** `just check` run by this agent at `5849313`,
+  `git status` clean: **exit 0**.
 
 **Reading list**
-<!-- path:line references, the design sections that bind, prior art. -->
+
+*What is being changed*
+
+- `crates/goad/src/glass.rs:155-213` — `option_rows` → `field_block`, the two
+  functions that become one pass. `:203` is the irrefutable
+  `let Edited::Checked(checked) = …`, which stays (PHASE-02 is the phase meant
+  to meet it as a compile error).
+- `crates/goad/src/glass.rs:23-35` — the `Glass::present` trait doc whose one
+  deliberate exception becomes two (EX-6).
+- `crates/goad/ui/app.slint:10-18` — `FieldRow` / `FieldBlock` / `OptionRow`;
+  `:42-61` — the root's property and callback block; `:274-289` — the field
+  repeater and the `CheckBox`.
+- `crates/goad/Cargo.toml:8` — `autotests = false`; `:35-45` — the three
+  existing `[[test]]` blocks.
+
+*What reads a value off `FieldRow` today, and so is VA-1's list*
+
+- `tests/renderer/fields.rs:200-208` — `drafted`, a synchronisation point.
+- `tests/renderer/tree.rs:62-68` — `field(id, label, checked)`, the fixture
+  builder; `:308-328` and `:349-382` read it back.
+- `tests/renderer/wiring.rs:1617-1624` — `checked_in_row_model`.
+- `tests/renderer/sizing.rs:38-44` — builds a `FieldRow` for a size probe.
+- `tests/renderer/table.rs` — **nothing**: no `FieldRow` occurrence. It is in
+  the plan's Surfaces defensively and needs no edit.
+
+*Design sections that bind*
+
+- §5.1 *the two channels* (`design.md:110-274`), §5.3 *ownership and the
+  `Glass::present` contract change* (`:996-1073`), §5.4 *the order of the three
+  writes* (`:1166-1180`), §5.5 **I-B** (`:1258-1259`) and **I-F**
+  (`:1268-1275`), §7 **D8**, **D9**, **D15** (`:1371`, `:1372`, `:1378`), §9's
+  AC-5 row (`:1487`) and the *what still needs a real loop* paragraph
+  (`:1451-1463`), whose correction is that `init` is **not** among them.
+- `research.md:183-191` Thread 3 §*The split channel* — the measurement.
+- `plan.md:146-253` — PHASE-01 in full. PHASE-02 (`:255-364`) and PHASE-03
+  (`:366-431`) for what is deliberately **not** done here.
+
+*Prior art, read from the `slice-009-prototype` branch*
+
+- `crates/goad/src/glass.rs` there — `option_models`, the three writes, the
+  `shown: Option<ViewId>` field. Its overlay, `Pending` and `resolve` are
+  PHASE-02/05/06's and are not taken.
+- `crates/goad/ui/app.slint` there — the guard's exact spelling, and the
+  counters.
+- `crates/goad/tests/prototype/split.rs` there — the four probes VT-1/VT-2
+  descend from, and `harness.rs`'s `retaining` (a hand-built `Outcome`, no
+  backend), which the loop target reuses in spirit.
+- `spike-fields/tests/with_loop.rs` there — the only measured arrangement for
+  driving a `changed` handler: `ui.show()`, a **repeated** `slint::Timer`
+  stepping a tick counter, `quit_event_loop` from the timer, assertions on the
+  test thread.
+
+*Memory*
+
+- `a-present-destroys-the-widget-it-writes.md` — why `set_vec` is a rebuild,
+  and the `inits` / guard-counter instrument.
+- `change-handlers-need-an-event-loop.md` — `changed` fires nowhere under
+  `init_no_event_loop`; `init` does (`design.md:1456-1463`, measured).
+- `slint-testing-backend-initialises-once-per-process.md` — one arrangement,
+  one `[[test]]`, one `#[test]` fn.
+- `a-negative-control-that-does-not-compile.md` — read the test count, not the
+  absence of `FAILED`.
+- `shared-test-helper-lives-at-workspace-root-via-path.md` — every symbol of a
+  `tests/support/` file must be reachable from every includer.
 
 **Assumptions & STOP conditions**
-<!-- What is being taken on faith, and the specific conditions under which the
-     agent must stop and consult the user rather than improvise. -->
+
+Taken on faith, each with what makes it cheap to be wrong about:
+
+- **A-a.** `root.values[field.slot]` tracks from inside a nested repeater, and
+  replacing `values` wholesale destroys no element. Measured
+  (`research.md:183-191`), doubly negative-controlled. VT-1 re-measures it in
+  this markup.
+- **A-b.** An `out property <int>` on the window root may be assigned from
+  markup inside the component, including from inside a repeater. The prototype
+  used `in-out`; the plan says `out`. If `out` does not compile, `in-out` is the
+  fallback and is a local decision, not a design change.
+- **A-c.** A `changed tick` handler fires under
+  `init_integration_test_with_system_time()` **with the window shown**.
+  Measured by `with_loop.rs`, which calls `ui.show()`; `SlintGlass::present`
+  shows the window itself for a `Prompt` surface, so the arrangement gets it
+  for free.
+- **A-d.** Two counters are enough, where the prototype carried three. The
+  third (`fires`) existed to tell *the handler never ran* from *the guard found
+  agreement*. **VT-5 discharges that**: a negative control that must make the
+  convergence counter *move* cannot pass unless the handler runs. VT-4 also
+  asserts the epoch moved, so an epoch frozen at zero fails there rather than
+  passing vacuously.
+
+STOP and consult — do not improvise past any of these:
+
+- **S-1.** The plan's EX-2 turns out to need `view_model.rs` (a `DrawnKind` on
+  `PresentationField`) to give `FieldRow.kind` an honest value. `view_model.rs`
+  is **not** in this phase's Surfaces and is PHASE-02's. If `Kind::Boolean`
+  written at the one drawn kind is not acceptable, that is a plan question.
+- **S-2.** The guard cannot be made to fire in the loop target at all, or VT-4
+  cannot be made to go red under VT-5's injection. That is §8 R1 happening, and
+  the row moves rather than being written where it is green.
+- **S-3.** Any temptation to weaken, delete or `#[ignore]` an existing case to
+  get green. VA-1 exists to catch exactly that.
+- **S-4.** A dependency addition of any kind.
 
 **Tasks**
-<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
-- [ ]
+
+- [ ] T-1 markup: `Kind`, `FieldRow { id, label, kind, slot }`,
+      `FieldValue { checked, text, number, index }`, `values`, `epoch`, the two
+      counters, the `CheckBox`'s `init` and guard (EX-2, EX-4, EX-5)
+- [ ] T-2 `glass.rs`: `shown: Option<ViewId>`, `option_models` in one pass, the
+      three writes in I-F order, `field_value`, `kind_of` (EX-3, VA-2)
+- [ ] T-3 `glass.rs`: the `Glass::present` trait doc's second exception (EX-6)
+- [ ] T-4 VA-1: migrate every existing reader of `FieldRow.checked` to
+      `values[slot]` — `fields.rs`, `tree.rs`, `wiring.rs`, `sizing.rs`
+- [ ] T-5 VT-1 and VT-2 in `tests/renderer/fields.rs`, each with an injection
+      pass
+- [ ] T-6 the `[[test]]` target `event_loop_reassert` with its `main.rs` and
+      one `#[test]` fn (EX-7), carrying VT-4
+- [ ] T-7 VT-5: the negative control, compiled and run, red confirmed, reverted
+      and the revert confirmed by `git diff`
+- [ ] T-8 `just check` exits 0 (EX-1); sheet, Status and Harvest updated
 
 **Decisions taken during execution**
-<!-- Small and local: how, within what the design already settled. A choice that
-     changes the design is not one of these — stop, consult the user, and record
-     it in `design-log.md`. -->
 
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
