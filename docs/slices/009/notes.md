@@ -4,7 +4,7 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — the plan is accepted; PHASE-01 is executing
+## Handover — the plan is accepted; execution has begun
 
 Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
 again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
@@ -31,7 +31,8 @@ against `design.md` as it stands at `be49327`. **The plan is accepted**
 — `plan-log.md`, 2026-09-19, against `plan.md` as written at `44fbd8e`. Nine
 phases; PHASE-04 is the only one that can run beside another. **No plan review
 was run**, and `plan-log.md` records what that costs. `slice-009.md` **Stage**
-reads `executing`, and **PHASE-01 is in progress**.
+reads `executing`. **PHASE-01 is done** (2026-09-19); PHASE-02 is next, and
+§Status is where the current answer to that lives rather than here.
 
 The paragraphs below are the arc that produced that, kept because the next agent
 needs to know which surfaces have been rewritten and how often. Round 3's
