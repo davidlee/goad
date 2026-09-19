@@ -819,3 +819,67 @@ claims and deliberately goes silent partway to measure a *dropped* edit, so a
 merged failure could not be attributed. That reasoning is in the target's module
 doc rather than left implicit. **Seven entries: one no-loop, six loop-tier**, one
 `#[test]` fn each, verified by the orchestrator.
+
+## 2026-09-19 — PHASE-08 closes, and its best finding is about an instrument
+
+Gate re-run by the orchestrator at `75dc64e`: **exit 0, gate total 591**,
+`cargo test --workspace` **556**, difference 35. +7 on 584/549 across three
+targets — lib 52 → 54, renderer 198 → 202, one new loop target at 1.
+
+### Trap 14's rule was clean and missed both real breaks
+
+PHASE-06 contributed the rule *before trusting a Surfaces line, list the files
+earlier phases of this slice created and grep each against it*, and it was
+propagated into PHASE-07's and PHASE-08's briefs. PHASE-08 ran it, reported it
+clean — and the two files that actually broke were `tests/renderer/sizing.rs`
+and `tests/renderer/tree.rs`, **neither of which this slice created**. They build
+a `FieldRow` **by hand**, and no amount of grepping this slice's new files would
+ever have found them.
+
+**The agent's correction, which is better than the rule it corrects: the
+instrument is `grep "FieldRow {"` — the constructors of the type the criterion
+widens — not the phase's vocabulary and not the slice's new files.** A criterion
+that adds a field to a struct is answered by asking who builds that struct;
+asking who mentions `number` or `slider` answers a different question and
+answers it correctly, which is what makes it dangerous.
+
+Both rules are worth keeping and they catch different things. PHASE-06's finds a
+file the *slice* created that the plan could not have enumerated. PHASE-08's finds
+a file that predates the slice entirely and is reached only through the type. The
+ninth Surfaces amendment was the second kind, and seven briefs' worth of the
+first kind would not have found it.
+
+### D-38's witness is real and only half testable, and the agent said so
+
+`grep "slider:"` → four lines, two struct declarations plus `:581 slider: true`
+and `:650 slider: false`; `grep "field.slider"` → five, three prose and two the
+drawing `if`; `grep "edit.slider"` → one, the guard on `Kind::Number`. Both
+injections redden VT-2 #8.
+
+The sheet states plainly what no test can: **writing `field.slider` instead of
+the literal would leave every case green.** The literal is a witness that the
+control drawn is the control that reported, and only its being *wrong* is
+testable — its being *derived* is not. That is the honest form of D-38's
+argument, and it belongs in the audit's reading rather than in a green count.
+
+### EX-3 clause 3 subsumes the positivity test and not the span test
+
+Measured, not reasoned: replacing *moves the value* with `step > 0.0` admits the
+`2^100` case; deleting the span clause admits `[-f32::MAX, f32::MAX]`, because an
+infinite step does move the value in both directions. The plan's Notes said
+clause 3 *"subsumes the positivity test it replaces"* and that is exactly right
+and exactly bounded — it does not subsume the span test, and a reading that
+assumed the stronger claim would have deleted a live clause.
+
+### An instrument caught the orchestrator, too
+
+The orchestrator's first `cargo test --workspace` after the gate returned **545**
+— precisely the pre-PHASE-08 figure — against a gate of 591. It was a stale read,
+and nothing about the number looked wrong on its own. **What caught it was the
+invariant**: the gate is always exactly 35 above `--workspace`, so 591 and 545
+cannot both be true. A second run returned 556.
+
+The rule this slice keeps relearning is *cite from an instrument that prints the
+number*. This is its complement: **carry an invariant that two instruments must
+jointly satisfy, and a stale read from either is visible without a third.** The
+35 has been quoted in every phase brief as bookkeeping; it is a check.
