@@ -4263,41 +4263,369 @@ Paths under
 
 **Tasks**
 
-- [ ] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+- [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
       with its denominator
-- [ ] T-1 the sheet, committed before any production code
-- [ ] T-2 `app.slint`: `FieldRow.alternatives`, the `ComboBox` arm, its guard
+- [x] T-1 the sheet, committed before any production code
+- [x] T-2 `app.slint`: `FieldRow.alternatives`, the `ComboBox` arm, its guard
       and its `selected` literal — A-a, A-b settled at the compiler (EX-2)
-- [ ] T-3 `view_model.rs`: `FieldKind::Choice` moves to `Ok`, `FieldForm` is
+- [x] T-3 `view_model.rs`: `FieldKind::Choice` moves to `Ok`, `FieldForm` is
       **emptied** and its `Display` with it, and the three docs that describe a
       destination which now has to be re-created (EX-2, EX-6, EX-7)
-- [ ] T-4 `glass.rs`: the alternatives lookup, the row's `alternatives`, and
+- [x] T-4 `glass.rs`: the alternatives lookup, the row's `alternatives`, and
       the `Chosen` value arm parted from the `None` one (EX-2)
-- [ ] T-5 `install.rs`: the `Kind::Choice` arm, and the doc that called it
+- [x] T-5 `install.rs`: the `Kind::Choice` arm, and the doc that called it
       unreachable (EX-2)
-- [ ] T-6 EX-7's site list, one at a time, recorded by name: migrated, shrunk
+- [x] T-6 EX-7's site list, one at a time, recorded by name: migrated, shrunk
       or **deleted** — and `diagnostics.rs` **verified** rather than performed
-- [ ] T-7 VT-1 … VT-5 in `fields.rs`, each with an injection pass naming the
+- [x] T-7 VT-1 … VT-5 in `fields.rs`, each with an injection pass naming the
       assertion **ordinal and message** it fails at; VA-1 settled here
-- [ ] T-8 VT-6 in `wiring.rs` and VT-7 in `view_model.rs`'s inline `mod tests`
-- [ ] T-9 VT-8 appended to `event_loop_reassert`, with an injection pass that
+- [x] T-8 VT-6 in `wiring.rs` and VT-7 in `view_model.rs`'s inline `mod tests`
+- [x] T-9 VT-8 appended to `event_loop_reassert`, with an injection pass that
       **discriminates** its two claims — split the target if it cannot
-- [ ] T-10 EX-9: the evidence that CD-2's three changes are true of the tree;
+- [x] T-10 EX-9: the evidence that CD-2's three changes are true of the tree;
       VA-1, VA-2, VA-3 in writing
-- [ ] T-11 VH-1's mechanical half: the app up against a five-kind backend,
+- [x] T-11 VH-1's mechanical half: the app up against a five-kind backend,
       screenshots captured, what was on screen written down
-- [ ] T-12 `just check` exits 0 (EX-1); sheet and Harvest updated
+- [x] T-12 `just check` exits 0 (EX-1); sheet and Harvest updated
 
+**Result.** `just check` **exit 0**, gate total **592**; `cargo test
+--workspace` **557**. Both are +1 on the baseline, and the +1 is the net of
+three movements: `tests/renderer` **202 → 202** (six cases deleted, six added —
+VT-1 … VT-5 and EX-2's refusal), `goad` lib **54 → 55** (VT-7), and the loop
+tier unchanged at 1 each because VT-8 **appended** to an existing `#[test]`.
+The gate total stays exactly 35 above the workspace one.
+`grep -c '^\[\[test\]\]' crates/goad/Cargo.toml` is **7** — one no-loop
+target and six loop-tier arrangements, unchanged: this phase added no target.
+
+**STOPs — both sent, and what was done while they were out**
+
+**STOP-1 — emptying `FieldForm` deletes the only total expression
+`drawn_form`'s `choice` arm had.** `DrawnKind::Choice` carries
+`first: AlternativeId`, and building it needs `alternatives.as_slice().first()`,
+an `Option`. `design.md:843-854` enumerates two ways out and rules both dead —
+an `#[expect(clippy::expect_used)]`, and reporting an alternative-less `choice`
+as `Undrawn`. The second was **available and merely dead** when that was
+written, because `Err(FieldForm::Choice)` still typed; EX-6 deletes it. No
+fallback id is constructible (`AlternativeId::new` is `pub(super)`) and `panic`,
+`unreachable`, `todo`, `unwrap_used`, `expect_used` and `indexing_slicing` are
+all `deny` crate-wide (`Cargo.toml:136-143`). Taken under the compile carve-out:
+one `#[expect(clippy::expect_used, reason = …)]` on the arm, which is the hatch
+`Cargo.toml:181` reserves in as many words. The other defensible answer —
+`Alternatives::first` in `goad-semantics` — is stratum 1, outside the Surfaces,
+and **does not remove the problem**: the same `expect` lives inside
+`canonical.rs` unless `Alternatives` is restructured to `(Alternative, Vec<…>)`,
+which is a change to a canonical type. A second exception fell out of the same
+edit and is recorded under VA-2.
+
+**STOP-2 — VA-1's fork does not exist.** See VA-1 below. Work continued on
+`glass.rs`, `install.rs` and EX-7's site list while both were out; neither
+answer came back before this sheet was written, and neither blocked anything.
+
+**VA-1 — the popup click, and why the tier it was to move to does not help**
+
+§8 **R9** predicted a *geometry* failure and prescribed moving VT-2 to the loop
+tier. The geometry half is real and is fixable **in place**: one
+`i_slint_backend_testing::mock_elapsed_time(1ms)` after
+`invoke_accessible_expand_action` takes the three rows from `(0, 0) 0x0` to
+`(4, 4) 512x40`, `(4, 44)` and `(4, 84)`, under `init_no_event_loop`, with no
+loop.
+
+**The click still does not land, and no tier changes that.**
+`mock_single_click` dispatches at `absolute_center()`; `absolute_position` is
+`item.map_to_window(..)`, which for an item inside an embedded `PopupWindow`
+stops at the **popup's** own root, because a popup is a separate item tree with
+no parent link (`i-slint-core-1.17.1/item_tree.rs:628-630`). Pointer dispatch
+then translates by the popup's origin in the window
+(`i-slint-core-1.17.1/window.rs:848-856`, `geom.contains(pos - coordinates)`).
+So a popup-local `(260, 24)` is read as window `(260, 24)` and misses a popup
+sitting at `y ≈ 145`. Measured: rows laid out, click dispatched,
+`current-value` still `"Badly"`.
+
+That is coordinate mapping, not layout. VA-1's *"same driver, same assertion,
+nothing else changes"* has nowhere to go, so **VT-2 stayed in
+`tests/renderer/`** and the driver changed instead: `mock_single_click` on the
+**`ComboBox` itself** — an ordinary laid-out element of the main window, so the
+pointer lands — which focuses the box and shows the popup, then arrow keys to
+the row, then Return. `move-selection-down()` is `select(current-index + 1)` and
+a row's `clicked` is `select(index)`
+(`common/combobox-base.slint:20-39`, `fluent/combobox.slint:138-142`) — **one
+function**, so the driver reaches the same assignment and raises `selected`
+once. The row to stop at is found by reading which `ListItem` declares
+`accessible-item-selected`, which is the widget's own account of where it is
+rather than the host's.
+
+**One row per call, and the caller waits.** Each arrow raises a
+`Command::Edit`; the channel holds one and a synchronous key press gives
+`serve` no chance to drain, so two presses inside one call lose the second and
+the draft keeps the first. `choose` asserts adjacency and says why; VT-5 makes
+two hops with the draft waited for in between. This is real behaviour a person
+arrowing quickly gets, and the guard corrects the widget on the next present.
+
+**A second measurement, from the loop tier.** `mock_single_click` **cannot be
+called from inside a timer callback at all**: it advances mock time, which
+reaches `TimerList::maybe_activate_timers`, which asserts *"Recursion in timer
+code"* (`i-slint-core-1.17.1/timers.rs:262`). `event_loop_reassert`'s driver
+therefore writes the three window events out by hand — the same three, at the
+same point, in window coordinates.
+
+**VA-2 — `FieldForm` was not deleted, and what keeping it cost**
+
+`pub enum FieldForm {}` with its `Display` kept as `match *self {}`, which is
+total over an uninhabited enum. Three things rest on that and would go with the
+type:
+
+- `drawn_form` still returns `Result<DrawnKind, FieldForm>`, so a sixth
+  `FieldKind` is a compile error that has to be **sorted** — drawn, or reported
+  with a variant given back. That is the property AC-7 names, and EX-6 is right
+  that it is identifier-free: it is the match, not the name.
+- `diagnostics.rs`'s `Undrawn::FieldForm` arm compiles unchanged and keeps
+  interpolating `{form}`. Deleting `Display` would have made that line the next
+  person's problem.
+- `Undrawn::FieldForm` stays as the place a sixth kind goes.
+
+**The cost is two lint exceptions, both individually argued in the code.**
+`clippy::expect_used` on the first-alternative clone (STOP-1), and
+`clippy::unnecessary_wraps` on `drawn_form` itself — the `Err` is uninhabited
+*because* all five kinds draw, and obeying the lint would collapse the signature
+and delete the fork. Neither existed before this phase and both are named at the
+line that carries them.
+
+**VA-3 — every rewritten case still asserts something its defect would survive**
+
+Nine sites, and the two `canon-delta.md` CD-2 names are the two that **lose
+their premise outright**. Written here rather than renamed into something that
+looks equivalent:
+
+- `fields.rs::a_view_carrying_an_undrawn_field_is_still_shown_and_still_answers_its_drawn_keys`
+  and its fixture `A_DRAWN_AND_AN_UNDRAWN_FIELD` are **deleted**. The case
+  asserted R-55 (the view is still shown), the report on the diagnostic surface,
+  and R-58's first prohibition (no key for the undrawn field). All three need a
+  view carrying an undrawn **field**, and no such view can be built: `FieldForm`
+  is uninhabited, a `group`-hint field is still *drawn*, and every surviving
+  `Undrawn` variant is body-level. R-55 and the diagnostic surface are still
+  asserted elsewhere, by the content forms and by `reception.rs`; **R-58's first
+  prohibition is not asserted anywhere and cannot be.** What holds it now is the
+  shape of the walk — `Controller::answer` iterates the *drawn* fields, so a
+  value for an undrawn field has no path to `values` — which is a property of
+  the types and not a case. No substitute was invented.
+- `wiring.rs::an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field`
+  is **halved and renamed** to `…_for_another_options_field`. Its opening guard
+  assertion — *"the fixture must actually carry an undrawn field for its absence
+  below to mean anything"* — is unsatisfiable by construction and is gone with
+  the clause it guarded. The second prohibition is untouched and is still
+  asserted by the same fixture's two options sharing the field id `read`. The
+  new name names only what is left, and the doc says which half went and that
+  there is no substitute for it.
+
+The other seven, and what each still asserts:
+
+| site | fate | what it still says |
+|---|---|---|
+| `mapper.rs::field_form_displays_as_the_protocols_own_word` | **deleted** | nothing: an uninhabited enum has no value to call `to_string()` on |
+| `mapper.rs::every_undrawn_kind_is_reported_by_option_field_and_form` | **deleted** | nothing: it enumerated its subject, and the subject is empty. A one-row enumeration was already the floor at PHASE-08 |
+| `mapper.rs::grouped_fields_separated_only_by_an_undrawn_field_are_one_block` | **deleted** | nothing: *a run is over the drawn fields* needs an undrawn field between two drawn ones. The property is now held by the `Drawn` type, which an undrawn field cannot become |
+| `mapper.rs::a_group_whose_every_field_is_undrawn_produces_no_block` | **deleted** | nothing: no group's every field can be undrawn |
+| `mapper.rs::a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice` | **deleted** | nothing: a field can earn exactly one report now, so *twice* has no witness |
+| `mapper.rs::field_reports_leave_a_parsed_body_undegraded` | **shrunk** | the claim entire — `body_is_degraded` excludes both field variants — measured over the one that can still be built. Two reports became one; the exclusion did not change |
+| `reception.rs::a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_receive` | **shrunk and renamed** to `…_an_unreadable_group_hint_…` | I-2 end to end: `receive` → `present` → `Diagnostics::of` in one expression, so a view carrying a field report cannot reach the glass without the surface saying so. The **per-field** claim (one line per field, in order) is what two fields carried and one cannot |
+| `wiring.rs`'s `TWO_FORMS` | **migrated and extended** | `noted` is now drawn, and the fixture grew to five kinds for VT-6. Its doc says the undrawn half is gone and what the fixture is still the only one here that can say |
+| `fields.rs`'s `A_DRAWN_AND_AN_UNDRAWN_FIELD` | **deleted** | — with its case |
+| `wiring.rs:1279`'s `noted` refusal assertion | **deleted** | the `Refused::UnknownField` claim is untouched and is carried by the `not-a-field` assertion three lines above it, which is the fabricated id `design.md` §5.1 names. The case's doc says so |
+
+**EX-8 — the refusal, moved and then measured.** `Refused::UnknownField`
+reached from a field id no view declared is asserted twice over: by
+`an_edit_is_refused_by_each_selector_that_fails_and_records_nothing`'s
+`not-a-field`, and by the new
+`a_chosen_index_no_alternative_has_is_refused_and_records_nothing`, which is
+`interpret`'s **first** `None` case through the controller and had no case at
+all before this phase.
+
+**The injection pass**
+
+Denominators: `tests/renderer` **202**, `event_loop_reassert` **1**, `goad` lib
+**55**. Each injection was applied from a copy taken first, run, reverted from
+that copy, and the tree re-run green before the next. Assertion **ordinals** are
+per case, counting `assert!` / `assert_eq!` / `assert_ne!` in source order.
+
+| # | injection | renderer | reassert | lib | which assertion, and its message |
+|---|---|---|---|---|---|
+| — | none | **202 / 0** | **1 / 0** | **55 / 0** | — |
+| **I-1** | `install.rs`'s `Kind::Choice` arm answers `None` again — every choice edit swallowed | 200 / **2** | 1 / 0 | — | VT-2 and VT-5, at the **synchronisation point** (`until`, `harness.rs:268`), before any assertion. An edit that never lands can only ever be a timeout, and is — the wait was rewritten to stop on *the slot left its drawn value* precisely so that an edit landing **wrong** is a comparison instead |
+| **I-2** | the markup's `selected` sends `index: 0` whatever was chosen | 200 / **2** | 1 / 0 | — | the same two, at the same point |
+| **I-3** | the value channel never reports the held choice (`index` forced to 0) | 200 / **2** | 1 / 0 | — | the same two, at the same point. I-1 … I-3 break three links of one chain and a case at its end cannot tell them apart; what they show is that the chain is load-bearing |
+| **I-4** | `interpret` resolves the index one **past** the row chosen | 199 / **3** | 1 / 0 | 53 / **2** | VT-2 **#1**, *the label is what the person is looking at*, `"Well"` against `"Fine"`. VT-5 inside `choose`'s adjacency guard. `a_chosen_index_no_alternative_has_…` at its opening accepted edit. The two lib failures are PHASE-02's own `interpret` units |
+| **I-5** | `drawn_form` clones the **last** alternative as `first` | 198 / **4** | **0 / 1** | 55 / 0 | VT-1 **#3**, *an untouched `choice` sits on its first alternative*, `"Well"` against `"Badly"`; VT-4 **#7**, *a choice carries its **first alternative's id***, `String("well")` against `String("badly")`; VT-2 and VT-5 at the sync point; reassert **#5**, `Reading { … chosen: "Fine" }` |
+| **I-6** | the row ships the alternatives' **ids** instead of their labels | 199 / **3** | **0 / 1** | — | VT-1 **#2**, *the labels the backend authored, in the order it declared them — not the ids*, `["badly", "fine", "well"]`; VT-2 and VT-5 in `choose`, *no alternative labelled "Fine"*; reassert **#5**, `chosen: "badly"` |
+| **I-7** | the `ComboBox` guard writes on **every** fire — the difference test removed | 202 / 0 | **0 / 1** | — | reassert **#4**, *and nothing diverged, so no guard may have written a widget back*, `1` against `0`. **AC-5's claim** |
+| **I-8** | the `ComboBox` carries **no guard at all** | 202 / 0 | **0 / 1** | — | reassert **#6**, *a widget the host never heard from is corrected on the next present, and the guard counts itself doing it*. **VT-8's claim**, with AC-5's four assertions passing above it |
+| **I-9** | `choice` **un-drawn**: `FieldForm::Choice` restored, `drawn_form` reports it, both lint exceptions removed | 192 / **10** | **0 / 1** | 54 / **1** | VT-3 at its only assertion — `("mood", Combobox)` missing from six; VT-4 **#2**, five keys not six; VT-6's three key lists; VT-7 *all five kinds draw*, `[true, true, true, false, true]`; reassert at the fixture's own `combo_box` lookup |
+
+**I-7 and I-8 are the discrimination VT-8 needed, so the target is not split.**
+One injection reddens *the counter stays at rest* and leaves *the counter moves*
+green; the other does the reverse. Both compile, and both were read on a test
+count rather than on the absence of `FAILED` — I-9 in particular is a nine-line
+mutation that had to keep compiling, and removing the two `#[expect]`s was part
+of making it do so (`negative-control-must-compile.md`).
+
+**PHASE-06/EX-3's refusal branch — not closed, and it cannot be from here**
+
+Plainly: **no.** The overlay's *"where `interpret` refuses the entry the draft's
+value stands"* is still measured by nothing, and `choice` was not its last
+chance — it was never a chance at all, for a reason PHASE-08's `number` finding
+does not cover.
+
+`pending.rs` holds only what `install.rs::debounced` admits, and that is
+`Typed`, `AdjustedText` and `AdjustedValue` — *which controls a person changes
+continuously*. `Reported::Chosen` answers `false` there, so a `choice` edit is
+sent where it is raised and **never enters the map**. A `ComboBox` index no
+alternative has is therefore case 1 of `interpret`'s `None` surface at the
+**controller**, which is a different site from the overlay, and that is the site
+EX-2 asks about and where this phase closed it
+(`a_chosen_index_no_alternative_has_is_refused_and_records_nothing`).
+
+So the overlay's refusal branch is unreachable through the markup for **every**
+kind, by two different mechanisms: for `number` and `text` because no control
+can produce a report `interpret` refuses in-kind (PHASE-08), and for `boolean`,
+`choice` and `datetime` because their reports never reach the map. Reaching it
+would need a case that calls `Debounce::hold` directly, and the only handle is
+the one `rigged` deliberately does not retain — `design.md` §8 R10's *a case
+cannot hold an edit except by driving a control*. That is a concession to make
+deliberately or not at all, and it is **left for the audit**.
+
+**EX-9 — the evidence that CD-2's three changes are true of the tree**
+
+CD-2 is **not** applied to `SPEC-001` here; `canon-delta.md` was not opened.
+
+- **Change 1 — `R-57` stops being review-only.** The four clauses have cases.
+  `text`: `a_text_field_draws_a_line_edit_and_the_option_still_answers`
+  (PHASE-05). `number`:
+  `a_number_draws_a_slider_where_one_can_be_operated_and_a_text_field_otherwise`
+  and the three beside it (PHASE-08). `datetime`:
+  `picking_a_date_and_then_a_time_records_one_instant_and_the_button_shows_it`
+  (PHASE-07). `choice`:
+  `choosing_an_alternative_submits_its_id_where_the_field_id_is_the_options_own`.
+  And all five in one:
+  `every_untouched_kind_leaves_the_host_with_the_json_type_r57_names` and
+  `every_operated_kind_…`. The loop-tier targets to name alongside them are
+  `event_loop_debounce`, `event_loop_overlay`, `event_loop_numeric_guard` and
+  `event_loop_reassert`.
+- **Change 2 — the `R-58` row's first half is unobservable, with no substitute
+  construction.** `grep -n "pub enum FieldForm" -A 2 crates/goad/src/view_model.rs`
+  returns `pub enum FieldForm {}`. `sed -n '/fn drawn_form/,/^}/p'` returns five
+  arms and **no `Err`**. So `sift`'s `Err(form) => undrawn.push(…)` arm
+  (`view_model.rs:382`) is unreachable and `Undrawn::FieldForm` has no
+  constructor anywhere in the workspace. The two cases the row names: one is
+  deleted, one is halved and renamed — both under VA-3.
+- **Change 3 — no option field goes undrawn on account of its kind.** The same
+  two readings, and VT-7's `[true, true, true, true, true]` over the five
+  canonical kinds.
+
+**Trap 10 — both checks, both reported**
+
+- **The type's constructors.** `grep -rn "FieldRow {" crates/` returns **five**
+  lines: `ui/app.slint:59` (the declaration), `src/glass.rs:328` (the host's),
+  `tests/renderer/tree.rs:71-72` and `tests/renderer/sizing.rs:63`.
+- **The files this slice created.** `instant.rs`, `pending.rs` and the four new
+  loop-tier case files: `grep -c FieldRow` is **0** in every one. Neither check
+  alone is the answer, and this time they agree — the two hand-built rows are
+  the same two PHASE-08 found, and both predate the slice.
+
+**`sizing.rs` and `tree.rs` needed nothing, decided rather than discovered.**
+Both take `..FieldRow::default()`, so adding `alternatives` compiled them
+untouched — the compiler would not have raised them, which is the cost PHASE-08
+recorded. The decision is that neither needs the slot: `grep -n
+"field.alternatives" crates/goad/ui/app.slint` returns **one** line, `:677`,
+inside the `if field.kind == Kind.choice` arm, and both fixtures build only
+`Kind::Boolean` rows. An empty model is what those rows want and what
+`FieldRow::default()` gives them. `tree.rs` is inside the Surfaces and was left
+alone on that reasoning; `sizing.rs` is outside them and needed no carve-out.
+
+**VH-1 — the mechanical half, and what remains**
+
+**Not discharged.** VH-1 is a person running the software and answering a
+five-kind form; what is done here is getting the software up in front of one.
+
+What was run: a scratch backend and config in the session scratchpad —
+`vh1/backend.sh`, serving one option carrying `boolean`, `text`, `choice`, two
+`number`s (one inside `slider_bounds`, one unbounded) and `datetime`, with the
+last three under a `group` heading — and
+`target/debug/goad <scratchpad>/vh1/goad.toml`, launched with the Bash tool's
+`run_in_background` and no `&` (`getting-eyes-on-the-running-host.md`). The
+window was found with `niri msg windows` (id 352) and captured with
+`niri msg action screenshot-window --id 352`.
+
+**`just demo` was not used and its backend was not touched.** The demo form is
+`boolean` × 5 plus one `text`, which is not five kinds, and
+`examples/shell/backend.sh` is outside this phase's Surfaces.
+
+What is on screen, from the capture: the title and body, then one card per
+option. Under *Record it*: a `CheckBox` reading **Made a start**; a label
+**Anything notable?** over an empty `LineEdit`; a label **How did it feel?**
+over a `ComboBox` reading **Rough**, its first alternative, with a chevron; then
+a `Numbers` heading over **Out of ten** with a slider at its left stop,
+**How many interruptions?** over a `LineEdit` reading `0`, and
+**When did you stop?** over a button reading **not set**. Then *Not now* in its
+own card with no fields. Five kinds, in declared order, each showing what
+`as_drawn` says it submits — and `datetime` showing what it does **not**, which
+is D-6 on screen.
+
+**What remains, and it is a person's:** the caret staying put mid-word while a
+present lands, both pickers driven by hand, and a slider dragged across a
+present. No agent in this session can dispatch input to a real window, so those
+three are the human-observation half and are the user's to do and `audit.md`'s
+to record under Evidence.
+
+**Left for PHASE-09's audit**
+
+- **STOP-1 and STOP-2 were unanswered when this phase ended.** Both took the
+  smaller of the available answers and said so; either can be reversed without
+  touching a test.
+- **Two lint exceptions are new**, and `design.md:849-852` argues against one of
+  them on a premise this phase removed. That is design drift to reconcile, not a
+  finding.
+- **`examples/shell/backend.sh` is stale and outside every phase's Surfaces.**
+  Its comment says its `text` field *"will not appear in the window — it will
+  appear on the diagnostic surface"*, and its own header says the form *"carries
+  a field of a kind this renderer does not draw, on purpose"*. Both went false
+  at PHASE-05 and the whole paragraph is false now: there is no kind left to
+  carry. A backend author copying from this file is being taught something
+  untrue about the host.
+- **PHASE-06/EX-3's refusal branch is unreachable from every control**, for the
+  two distinct reasons above. Closing it means letting a case reach
+  `Debounce::hold`, which §8 R10 deliberately prevents.
+- **`design.md` §9's driver table and §8 R9 are both wrong about the
+  `ComboBox`**, and R9's mitigation is unavailable. VA-1 has the measurement.
+- **`FieldRow.alternatives` is carried by every row of every kind**, empty for
+  four of them. That is the same shape `slider`'s three arithmetic slots take
+  and it was not revisited here.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-08 done · see §Status
+**Fresh as of:** 2026-09-20 · PHASE-09 executed, gate 592 · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+
+- **`choice` draws, and all five kinds are drawn.** `FieldRow` carries
+  `alternatives: [string]` — the labels in declared order — and `FieldValue`'s
+  `index` is finally read: the two channels meet at a **position in that list**,
+  never at an id and never at a label. `glass.rs::alternatives_of` is the single
+  lookup both halves read, for the reason `slider_bounds_of` is called once.
+  `install.rs` reports the `ComboBox`'s `current-index` unresolved;
+  `view_model::interpret` resolves it against the drawn field, which is what
+  makes AC-8 a fact about the types (`AlternativeId::new` is `pub(super)`).
+- **`fields.rs`'s choice vocabulary** — `combo_box` (**role**-filtered, because
+  a field id may equal an option id and the option's `Button` answers to the
+  same description), `chosen_on_screen`, `expand`, `list_items`, `offered`,
+  `choose` and `press`. All `fields.rs`'s, by the `harness.rs` rule.
+- **`event_loop_reassert` carries two contrasting claims**, AC-5 and PHASE-09's
+  VT-8, measured in that order so neither passes for the other's reason. Its
+  `Reading` gained the widget's own `chosen`, so *the counter moved* and *the
+  widget was corrected* are separate readings. No seventh loop target: the
+  discrimination was measured, not assumed.
 
 - **`number` draws two controls and one function chooses between them.**
   `view_model::slider_bounds(&NumberRange) -> Option<(f32, f32)>` is the only
@@ -4330,9 +4658,14 @@ Paths under
   role), `range_on_screen` (the bounds the **widget** declares), `slide_to` and
   `step_once`. All `fields.rs`'s: the `harness.rs` rule is *two or more case
   files need it*, and one does.
-- **`FieldForm` is down to `Choice`.** A `number` field can no longer be
-  reported undrawn at all — which is a better instrument than any grep for what
-  used to rest on one.
+- **`FieldForm` is empty and is not deleted.** No field kind can be reported
+  undrawn at all, which is a better instrument than any grep for what used to
+  rest on one. `pub enum FieldForm {}` with its `Display` kept as
+  `match *self {}`, and `drawn_form` still returning `Result<_, FieldForm>`:
+  three things rest on the type surviving its last variant — the sixth-kind
+  fork, `diagnostics.rs`'s arm compiling unchanged, and `Undrawn::FieldForm` as
+  the place that kind goes. Two lint exceptions are what it costs, both argued
+  at the line that carries them.
 
 - **The value channel is the draft overlaid with `pending.rs`** —
   `glass.rs::overlaid`, I-H's third site: an entry is shown only against the
@@ -4466,6 +4799,40 @@ Paths under
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **A pointer event cannot be landed inside an embedded Slint popup from a
+  test, at any tier.** `ElementHandle::mock_single_click` dispatches at
+  `absolute_center()`; `absolute_position` is `item.map_to_window(..)`, which
+  for an item inside a `PopupWindow` stops at the **popup's** own root, because
+  a popup is a separate item tree with no parent link
+  (`i-slint-core/item_tree.rs:628-630`). Dispatch then translates by the
+  popup's origin in the window (`window.rs:848-856`), so a popup-local
+  coordinate is read as a window one and misses. Laying the popup out does not
+  help and neither does an event loop — the popup *does* lay out under
+  `init_no_event_loop` after one `mock_elapsed_time`, and the click still
+  misses. What works is driving the widget's **other** caller: for a `ComboBox`,
+  click the box itself (an ordinary window element), then arrow, because
+  `move-selection-down()` and a row's `clicked` are one `select(index)`.
+- **`mock_single_click` cannot be called from inside a timer callback.** It
+  advances mock time, which reaches `TimerList::maybe_activate_timers`, which
+  asserts *"Recursion in timer code"* (`i-slint-core/timers.rs:262`). In a
+  loop-tier stepper, write the three window events out by hand.
+- **Emptying an enum can delete a total expression somewhere else.** A dead
+  `Err` arm is still a *typed* arm, and a design that chose "a total expression
+  over an argument about why an `expect` is unreachable" may have been resting
+  on one. When the last variant goes, re-read every `?` and every `Err(…)` that
+  named the type: a fallback that was merely unreachable becomes unwritable.
+- **A keyboard driver that raises one edit per press meets the capacity-1
+  channel.** Two arrow presses inside one synchronous helper give `serve` no
+  chance to drain, so the second edit is dropped and the draft keeps the first
+  — the guard then corrects the widget, which is right, and is not what a case
+  driving *one* choice means to say. Drive one step and wait for the draft.
+- **A synchronisation point can swallow an injection's evidence.** Waiting for
+  the value channel to hold *the expected* value makes every break in the chain
+  a timeout naming nothing. Waiting for it to **leave the value it was drawn
+  with** keeps a wrong-but-delivered value a comparison naming two values, and
+  leaves only *never delivered* as a timeout — which is the one failure a
+  timeout is the honest report of.
 
 - **Slint's `accessible-value-step` is a cap, so it cannot measure the step you
   ship.** `fluent/slider.slint:29` binds it to
