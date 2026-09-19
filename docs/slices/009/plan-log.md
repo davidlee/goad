@@ -143,3 +143,63 @@ sake of reaching `diagnostics.rs`'s natural home in PHASE-09.
 fourth is worse: *"Only reachable from a stale or malformed callback"*. After
 EX-5 a well-formed, current callback reporting a non-finite slider value earns
 this refusal, and that is neither stale nor malformed.
+
+## 2026-09-19 — PHASE-04's Surfaces, and the fifth instance of the class
+
+**Raised.** PHASE-04's agent stopped on `crates/goad/ui/app.slint` and measured
+rather than argued. `compose(date: Date, time: Time)` takes **Slint's** `Date`
+and `Time` — `design.md:862-864` says so, EX-4 says it from the other side
+(`compose` *uses* jiff's `Date::new`, so its inputs are not already jiff civil
+values), and PHASE-07/EX-3 confirms the return. Those two structs are declared
+in the widget library (`widgets/common/datepicker_base.slint:7-11`,
+`time-picker-base.slint:332-336`) and are **not** generated into
+`crate::generated` today, because `app.slint:1` imports neither.
+
+Measured four ways, each built, each restored — `app.slint` copied out first and
+compared back by `sha256sum`, `git status` clean afterwards. Instrument:
+`grep -n "pub struct r#Date|pub struct r#Time"` over the build script's
+`out/app.rs`.
+
+| put in `app.slint` | `Date` / `Time` emitted |
+|---|---|
+| nothing — the tree as it stands | no |
+| `import { Date, Time } from "std-widgets.slint";` | **no** — an import alone is not an export |
+| that import *plus* `export { Date, Time }` | yes |
+| `export { Date, Time } from "std-widgets.slint";` — one line | yes |
+
+**Decided.** Amend, under the endorsement the user gave for PHASE-02's. PHASE-04
+§Surfaces gains `crates/goad/ui/app.slint` scoped to that one line, and EX-3
+gains the clause that makes the phase own it. The alternative — folding
+`instant.rs` into PHASE-07 — was priced and rejected: it costs PHASE-04 the
+independence that makes it the one phase able to run beside another, loads the
+slice's widest markup phase with three fallible functions and their units, and
+buys nothing, since PHASE-07 writes the same line one phase later.
+
+The line declares no control and reads no slot, so `app.slint:20-26`'s standing
+rule — *nothing is declared before a control reads it* — is untouched. It makes
+two library types nameable from Rust; it does not declare anything the markup
+draws.
+
+**The fifth instance, and the class holds.** The agent's own reading, which is
+right: the Surfaces lines came from `design.md` §9's enumeration of
+**constructors**, and *a file that changes only because a type above it changed*
+is not one — that was `wire.rs`'s `Eq`. This is the same shape one step further
+out: `app.slint` changes because a type must become **visible**. The design is
+not wrong; the Surfaces line is.
+
+**One thing not taken on the agent's word.** It expects the line to be
+transitional — a struct reached from an exported struct is generated without its
+own export, so PHASE-07 should be able to delete it when `FieldValue` gains
+`date` and `time`. That is a prediction, not a measurement: what was measured is
+the export path, not the reachability one. PHASE-07/EX-3 now says to re-measure
+and delete on the measurement rather than on the expectation.
+
+**VA-2's instrument is changed, and strengthened.** Its literal wording asks for
+an offset that is not `+00:00`, with an escape hatch if the CI zone makes that
+unassertable. The agent proposed `!TimeZone::system().is_unknown()`
+(`timezone.rs:705`) instead: featureless jiff falls back to `TimeZone::unknown()`
+(`timezone.rs:325-337`), so that predicate tests precisely what VA-2 exists to
+test, and unlike an offset it stays true on a UTC CI box. Accepted — it is the
+better instrument, not the escape hatch. This machine's zone is
+`Australia/Melbourne`, `is_unknown = false`, `+10`, recorded in the sheet beside
+it.

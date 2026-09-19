@@ -442,7 +442,10 @@ offset in the person's own zone, and the manifest change that makes the zone
 readable is landed with the argument `POL-001` requires.
 
 **Surfaces:** `crates/goad/src/instant.rs` (new), `crates/goad/src/lib.rs`,
-`crates/goad/Cargo.toml`, `crates/goad-shell/src/clock.rs`.
+`crates/goad/Cargo.toml`, `crates/goad-shell/src/clock.rs`,
+`crates/goad/ui/app.slint` (one line — `export { Date, Time } from
+"std-widgets.slint";` — which declares no control and reads no slot; added
+2026-09-19, `plan-log.md`).
 
 **Entry**
 - EN-1 — this plan is accepted. **No other phase is a prerequisite**; see
@@ -457,7 +460,9 @@ readable is landed with the argument `POL-001` requires.
   feature goes on that member and **not** on `[workspace.dependencies]`.
 - EX-3 — `src/instant.rs` carries `compose`, `decompose` and `today_local` with
   the signatures §5.2 gives, and is the only module in this crate that reads the
-  clock or the system time zone.
+  clock or the system time zone. `app.slint` carries the one-line export that
+  makes Slint's `Date` and `Time` nameable from Rust — measured: an `import`
+  alone does not generate them (added 2026-09-19, `plan-log.md`).
 - EX-4 — `compose` uses `Date::new` and `Time::new` and `DateTime::to_zoned`, and
   converts every integer with `i16::try_from` / `i8::try_from`. Neither
   `civil::date` nor `Date::at` appears: both panic out of range.
@@ -757,7 +762,13 @@ and the seed slots), `crates/goad/src/install.rs`,
   assigns its own text, so its binding is never destroyed.
 - EX-3 — `FieldValue` gains `date: Date` and `time: Time`, written every present
   from `instant::decompose` of the draft's `Picked`, or from
-  `instant::today_local()` where the field has not been picked.
+  `instant::today_local()` where the field has not been picked. **Re-measure
+  whether PHASE-04's one-line `export { Date, Time }` is still needed** once
+  `FieldValue` carries them: a struct reached from an exported struct is
+  expected to be generated without its own export, which would make that line
+  removable — but PHASE-04 measured only the export path, not the reachability
+  one, so delete it on a measurement and not on the expectation (added
+  2026-09-19, `plan-log.md`).
 - EX-4 — the window root carries one `Date` and one `Time` seed property and a
   `picking` record of (view, option, field). The button's handler writes the two
   seed properties from `values[field.slot]` and calls `show()`; each popup
