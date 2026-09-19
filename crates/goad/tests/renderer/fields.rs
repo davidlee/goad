@@ -1662,7 +1662,7 @@ async fn a_number_draws_a_slider_where_one_can_be_operated_and_a_text_field_othe
   );
   assert_eq!(
     values["frozen"],
-    Value::from(1.2676506002282294e30_f64),
+    Value::from(1.267_650_600_228_229_4e30_f64),
     "as does the one no slider could be operated over: taking the text control costs \
      it nothing on the wire"
   );
