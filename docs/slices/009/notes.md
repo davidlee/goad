@@ -3317,6 +3317,251 @@ Two further facts the read rests on, neither assumed:
   them, and nothing about the `datetime` arm is in its way.
 
 
+### PHASE-08 — `number` and its two controls
+
+**Objective:** a `number` field draws a slider where a slider can actually be
+operated over its declared range and a numeric text field otherwise; both
+submit a finite number, and neither writes over a person mid-entry.
+
+**Entry criteria, verified rather than assumed**
+
+Read off the tree at `a1a9961`, clean. EN-1 is PHASE-07/EX-1 … EX-7, and it is
+not inherited from a hand-over: every row below was re-read in this session.
+
+| criterion | checked here |
+|---|---|
+| PHASE-07/EX-1 | `just check` re-run here on a clean tree: **exit 0**, gate total **584**. The gate is six commands (`just -n check`), two of which run tests: `cargo test --workspace` is **549** and `cargo test -p goad-semantics` re-runs that crate's **30 + 5**, so the gate total is always exactly 35 above the workspace one. Summed per target from this run: `goad` lib 52, bin 0, the five loop targets 1 each, `tests/renderer` **198**, `goad-boundary` lib 0 / `tests/checks` 43, `goad-emit` bin 34 / `tests/binary` 9, `goad-semantics` lib 30 / `tests/protocol` 5, `goad-shell` lib 71 / `tests/integration` 96 / `tests/shape` 6, three doc-test targets 0 — 549, then +35. Every count below names its denominator |
+| PHASE-07/EX-2 | read: `src/view_model.rs:293` — `FieldKind::DateTime => Ok(DrawnKind::DateTime)`; `ui/app.slint:486-514` — the `Kind.datetime` arm is a `Button` bound to `root.values[field.slot].text` with **no** `changed tick` handler in it |
+| PHASE-07/EX-3 | read: `ui/app.slint:42` — `FieldValue` carries `date: Date, time: Time`; `src/glass.rs:454` — `instant::decompose` for a `Picked`, `:282` — one `instant::today_local()` per present. `grep -n 'export {' crates/goad/ui/app.slint` returns **nothing**: PHASE-04's `export { Date, Time }` line is gone and the structs are still emitted |
+| PHASE-07/EX-4 | read: `ui/app.slint:196-201` — `seed-date`, `seed-time`, `picked-date` and the three `picking-` strings; `:508-513` — the button's handler writes six root properties and calls `date-picker.show()`; `:700` and `:714` — each popup **binds** its seed at its own declaration site |
+| PHASE-07/EX-5 | read: `grep -n "root.edited(" crates/goad/ui/app.slint` returns exactly **three** — `:417` the `CheckBox`, `:468` the text `LineEdit`, `:719` the **time** picker's `accepted`. There is no fourth, so no completed pick can report twice |
+| PHASE-07/EX-6 | read: `src/install.rs:173-174` — the `Kind::Datetime` arm is `instant::compose(..).map(..)`, so a refused compose answers `None` and the closure returns before any send |
+| PHASE-07/EX-7 | read: `grep -rn '"kind":"datetime"' crates/goad/tests/` returns **one** line, `tests/renderer/fields.rs:102` — and that is PHASE-07's own **drawn** fixture `TWO_DATETIME_FIELDS`, not a residue. No undrawn fixture names `datetime`. (PHASE-07's sheet reported this grep as returning nothing; the claim was true when written and the instrument stopped measuring it when the phase added a drawn fixture — trap 11, and the same thing is about to happen to `number`.) |
+
+**Baseline, T-0, at `a1a9961`:** `just check` **exit 0**, gate **584**;
+`cargo test --workspace` **549**; `tests/renderer` **198**; six `[[test]]`
+targets (`grep -c '^\[\[test\]\]' crates/goad/Cargo.toml` is **6**).
+
+**Reading list**
+
+Every `path:line` below was re-derived in this session with `grep -n`, never
+counted off a `sed -n` window — the slice's rule after six bad citations
+(`notes.md` §*Citations known bad*).
+
+*What is being changed*
+
+- `crates/goad/ui/app.slint:1` — the import list, which gains `Slider`; `:40`
+  — `Kind`, unchanged; `:41` — `FieldRow`, which gains `slider`, `minimum`,
+  `maximum`, `step`; `:42` — `FieldValue`, whose `number` slot is finally
+  read; `:63` — `FieldEdit`, which gains `slider`; `:371` — `for field in
+  block.fields`; `:433-477` — the `Kind.text` label and `LineEdit`, the shape
+  both `number` arms copy; `:486-514` — the `Kind.datetime` arm, the last one
+  before these.
+- `crates/goad/src/view_model.rs:189-192` — `FieldForm`, which loses `Number`;
+  `:194-201` — its `Display`; `:289-296` — `drawn_form`, whose
+  `FieldKind::Number(_)` arm (`:294`) moves from `Err` to `Ok`; `:470` —
+  `spelled`; `:493` — `drawn_number`; `:502` — `adjusted`; `:611-636` —
+  `interpret`'s `DrawnKind::Number` arm, **already written and already total**,
+  so this phase writes no interpretation.
+- `crates/goad/src/glass.rs:278-336` — `option_models`, whose per-field push is
+  at `:307-317`; `:429-483` — `field_value`, whose
+  `None | Some(Adjusted | Chosen)` arm (`:481`) splits here; `:345-353` —
+  `markup_kind`, already total and unchanged.
+- `crates/goad/src/install.rs:165-177` — `reported`, whose
+  `Kind::Number | Kind::Choice => None` arm (`:175`) splits; `:193-198` —
+  `debounced`, where `AdjustedText` and `AdjustedValue` are **already** true
+  and stay that way.
+- `crates/goad/tests/renderer/fields.rs:89` —
+  `A_DRAWN_AND_AN_UNDRAWN_FIELD`; `:199` — `with_room_for_the_form`; `:309` —
+  `type_into`; `:448` — `typed_on_screen`; `:498-534` — `rigged`; `:555`,
+  `:585`, `:630` — `tick!`, `settled!`, `driving!`.
+- `crates/goad/tests/renderer/mapper.rs:204` — the `FieldForm` `Display` case;
+  `:237`, `:255`, `:305`, `:381`, `:419` — the six undrawn fixture rows
+  (`:258-259` is two fields in one case).
+- `crates/goad/tests/renderer/wiring.rs:1165` — `mod editing`'s `TWO_FORMS`;
+  `:1370` — `reported_lines`; `:1391` — `refusal_lines`, the one to use for
+  *was anything refused*.
+- `crates/goad/tests/renderer/reception.rs:762` — the undrawn field row, in the
+  case at `:753`.
+- `crates/goad/tests/event_loop_numeric_guard/` — new, and
+  `crates/goad/Cargo.toml:53-75`, which holds the six `[[test]]` entries a
+  seventh joins.
+
+*What it reads*
+
+- `crates/goad/src/draft.rs:42-62` — `Finite`, its `ZERO` and its fallible
+  `new`; `:75-96` — `Edited`, whose `Adjusted { number, text }` is at `:87`;
+  `:113-130` — `Reported`, whose `AdjustedText` and `AdjustedValue` are the
+  pair `FieldEdit.slider` tells apart; `:193-212` — `submitted`, whose
+  `Adjusted` arm reads the number and never the text.
+- `crates/goad-semantics/src/protocol/canonical.rs:411-451` — `NumberRange`,
+  whose `new` refuses a non-finite bound and `min > max` but **admits
+  `min == max`**, so `[1, 1]` is reachable from the wire; `:453` `min()`,
+  `:457` `max()`.
+- `crates/goad/tests/renderer/harness.rs:125` — `element_described` (a
+  `Button` type filter, so **not** usable for a `Slider` or a `LineEdit`);
+  `:145` — `described`; `:163` — `within_option`; `:183` — `field_described`,
+  which is unfiltered and is what every field case uses; `:200` — `slot_of`;
+  `:225` — `value_of`.
+
+*The widget sources, measured rather than assumed*
+
+Paths are under
+`~/.cargo/registry/src/index.crates.io-*/i-slint-compiler-1.17.1/widgets/`.
+
+- `fluent/slider.slint:9-17` — `maximum`, `minimum`, `step` and `value` all
+  `<=>` to `base`, and the two callbacks `changed` and `released`; `:23-29` —
+  `accessible-role: slider`, `accessible-value: root.value`, and
+  `accessible-value-step: min(root.step, (root.maximum - root.minimum) / 100)`,
+  a **cap** that binds at equality under this design's step; `:30-36` —
+  `accessible-action-set-value` parses the string and calls `base.set-value`,
+  and `increment` / `decrement` call `base.increment()` / `base.decrement()`;
+  `:75` — the thumb's `x` divides by `root.maximum - root.minimum`.
+- `common/slider-base.slint:8` — `step` defaults to **1**; `:79` — every key is
+  rejected while `root.step <= 0`; `:117-124` — `set-value` **returns
+  immediately** when `root.value == value`, clamps otherwise, and raises
+  `root.changed` and nothing else; `:126-131` — `increment()` is exactly
+  `set-value(value + step)`.
+- `fluent/lineedit.slint:13` — `accessible-value <=> text`; `:16` —
+  `accessible-action-set-value(v) => { text = v; edited(v); }`, which reaches
+  **no** `TextInput` insertion logic, so every case this phase writes drives
+  the unvalidated path.
+- `i-slint-core-1.17.1/string.rs:399-412` — `string_to_float` is
+  `parse::<f32>()` where the separator is `.`, which it is for every process
+  this workspace builds.
+- `i-slint-backend-testing-1.17.1/search_api.rs:585` `accessible_role`, `:616`
+  `accessible_value`, `:647` / `:658` / `:669` `accessible_value_maximum` /
+  `_minimum` / `_step` — the four readings that let a case ask the **widget**
+  what range it was drawn over rather than asking the host.
+
+*Design sections that bind*
+
+- §5.2 (`design.md:313`) — *A number at the markup boundary*, and the two
+  directions; (`:344`) — the parse is `f64::from_str` and repairs nothing;
+  (`:359`) — the separator is `.`, four write sites, none reachable;
+  (`:375`) — one rule: the text verbatim, the last representable number stands;
+  (`:390`) — the class the control admits is **every string**; (`:421`) — the
+  spelling, `Display` and `{:e}` past 24 characters; (`:444`) —
+  `slider_bounds` and its three clauses, the `2^100` ulp case included;
+  (`:496`) — the five kinds and their controls, and why `changed` and not
+  `released`; (`:542`) — the guard's comparand table; (`:581`) — the comparand
+  is the **overlaid** channel; (`:595-607`) — the exception, and *it stays
+  until a case says so*; (`:608`) — *converging on recency*, not taken;
+  (`:688`) — `Reported`, `interpret` and their signatures; (`:719`) — **D-38**,
+  the two `number` variants told apart by `FieldEdit.slider`; (`:728`) — each
+  control writes the literal, not the row.
+- §7 (`design.md:1400`) — **D13**, the comparand and its one exception;
+  (`:1403`) — **D16**, text out of a `LineEdit` and a `float` out of a
+  `Slider`; (`:1404`) — **D17**, the row carries `slider`, decided by one named
+  function; (`:1410`) — **D23**, `f64::from_str` and no repair.
+- §8 (`design.md:1430`) — **R11**, the configuration that would arm the
+  separator hazard, accepted rather than mitigated.
+- `plan.md:877-993` — PHASE-08 in full, *Notes for the implementer* included.
+
+*Prior art*
+
+- PHASE-07's sheet (`notes.md:2781-3317`) — the entry table, the injection
+  table naming the assertion **ordinal and message**, and the
+  STOP-sent-then-keep-working shape.
+- `tests/renderer/fields.rs:1025-1076` — PHASE-05's `a_text_field_draws_a_line_edit_…`,
+  the shape VT-2 … VT-5 take, including the *what each control declares*
+  discriminant.
+- `tests/event_loop_overlay/overlay.rs:1-383` — the stepper, the `Reading`
+  struct, the liveness stop and the quit, which `event_loop_numeric_guard`
+  copies in arrangement and not in claim.
+- `crates/goad/src/view_model.rs:671-1094` — the inline `mod tests`, where
+  VT-1's three units go.
+
+*Memory*
+
+- `negative-control-must-compile.md` — read the **test count** on both sides of
+  every injection, never the absence of `FAILED`. Binds twice here: the
+  injection pass, and EX-7's exception-removed run.
+- `slint-testing-backend-initialises-once-per-process.md` — one arrangement,
+  one `[[test]]`, one `#[test]` fn. Binds on the new target.
+- `tests-asserting-proxies.md` — VT-3's *no invented range* is the claim most
+  easily written so that it passes without the control having declared
+  anything.
+- `verify-the-enumeration-not-the-conclusion.md` — EX-8's table is the
+  enumeration most at risk, and it is the one PHASE-07 already found short
+  once.
+
+**Assumptions, each with what makes it cheap to be wrong about**
+
+- **A-a.** `changed(value) => { … }` parses as a **callback handler** on a
+  `Slider` rather than being taken for the `changed <property>` form the guards
+  use. Both spellings live in this markup and the parser tells them apart by
+  what follows `changed`; that is this phase's own claim. Wrong ⇒ measured at
+  T-2 before any test is written, and the answer is `changed(v) =>` with a
+  differently-named binding or reading `self.value` in a zero-argument form.
+- **A-b.** A struct field named `slider` on `FieldRow` and `FieldEdit` does not
+  collide with the `Slider` element name in the generated Rust. Cheap: a
+  compile error at T-2, and the answer is the field name the design already
+  fixes plus an `r#` the generator writes itself.
+- **A-c.** `field_described` reaches a `Slider` and a numeric `LineEdit`. It is
+  unfiltered (`harness.rs:183-191`) and matches on
+  `accessible-description`, which both arms will bind — unlike
+  `element_described`, which filters `match_inherits("Button")`. Derived by
+  reading, not expected; wrong ⇒ a role filter in the case file, no production
+  change.
+- **A-d.** `set_accessible_value` on a `Slider` drives `set-value` and so
+  `changed` (`fluent/slider.slint:30-34`), which is what makes the `Slider`
+  operable from `tests/renderer/` with no pointer and no layout. Wrong ⇒ VT-2's
+  slider half moves to the loop tier, which is a **STOP** (S-2).
+- **A-e.** Removing `FieldForm::Number` breaks exactly the sites
+  `grep -rn "FieldForm::Number" crates/` names. Derived by grepping at T-3, not
+  expected.
+- **A-f.** `FieldValue.number` has to be written for a **numeric text** field
+  as well as for a `Slider`, because EX-6's exception asks whether *the held
+  number is zero* and that is the slot it asks. That is in tension with VA-2
+  and with §5.2's *`FieldValue.number` … exist for the `Slider` alone*; the
+  tension is **dissolved by EX-7 if the exception goes**, and is a STOP (S-5)
+  if it stays. Raised with the orchestrator at T-2 rather than decided here.
+
+**STOP conditions**
+
+- **S-1.** A criterion compelling a file the Surfaces line does not name —
+  `app.slint`, `view_model.rs`, `glass.rs`, `install.rs`,
+  `tests/renderer/{fields,mapper,wiring,reception}.rs`,
+  `tests/event_loop_numeric_guard/`, `Cargo.toml`'s one `[[test]]` entry.
+- **S-2.** A `Slider` or a numeric `LineEdit` that cannot be operated under
+  `init_no_event_loop`, moving VT-2 … VT-5 to a loop target. That is S-1 as
+  well, and a second new arrangement.
+- **S-3.** Any pressure to make the host reason from a class
+  `input-type: decimal` appears to enforce — a repair rule, a pre-parse, a
+  validation in the callback. Ruled out by D23 and measured wrong by VT-4.
+- **S-4.** A second site that chooses a `number`'s control, or a markup `if`
+  that branches on a fact about the field's bounds rather than on
+  `field.slider`. D17.
+- **S-5.** EX-7 keeping the exception, which leaves a non-`Slider` `f64` → 
+  `float` crossing that VA-2's sentence does not admit (A-f).
+- **S-6.** Weakening, deleting or `#[ignore]`-ing an existing case to go green;
+  a dependency addition.
+
+**Tasks**
+
+- [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+      with its denominator
+- [ ] T-1 the sheet, committed before any production code
+- [ ] T-2 `app.slint`: the two structs' new slots, the `Slider` arm, the
+      numeric `LineEdit` arm and its guard — and A-a, A-b settled at the
+      compiler; A-f raised (EX-4, EX-5, EX-6, EX-9)
+- [ ] T-3 `view_model.rs`: `FieldKind::Number` moves to `Ok`, `FieldForm` loses
+      `Number`, `slider_bounds` and the one narrowing site — with VT-1's units
+      written red first (EX-2, EX-3)
+- [ ] T-4 `glass.rs`: the `Adjusted` value arm and the row's four new slots
+      (EX-2, EX-3)
+- [ ] T-5 `install.rs`: the `Kind::Number` arm, selecting on `edit.slider` and
+      on nothing else (EX-9)
+- [ ] T-6 EX-8, the fixture migration, one site at a time, recorded by name
+- [ ] T-7 VT-2 … VT-5 in `fields.rs`, each with an injection pass naming the
+      assertion **ordinal and message** it fails at
+- [ ] T-8 VT-6: `event_loop_numeric_guard`, negative-controlled — then EX-7,
+      the same case re-run with the exception removed, both counts recorded
+- [ ] T-9 VA-1 and VA-2 in writing
+- [ ] T-10 `just check` exits 0 (EX-1); sheet and Harvest updated
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
