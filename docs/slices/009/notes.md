@@ -704,7 +704,7 @@ here rather than in the ledger, so striking them costs nothing:
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the value channel and the epoch | **done** | 2026-09-19 |
-| PHASE-02 — the draft's five values, and the kind-directed pure functions | **in progress** | 2026-09-19 |
+| PHASE-02 — the draft's five values, and the kind-directed pure functions | **done** | 2026-09-19 |
 | PHASE-03 — the edit channel | pending | |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | pending | |
 | PHASE-05 — `text`, and the debounce's delivery | pending | |
@@ -1147,31 +1147,153 @@ STOP and consult — do not improvise past any of these:
   the two readings do not produce different work — one of them produces no code
   at all — and `plan.md` is not editable from here. Reported to the team lead.
 
-**Decisions taken during execution**
-
-- *(filled as they are taken)*
-
 **Tasks**
 
-- [ ] T-1 `draft.rs`: `Finite` — private field, fallible constructor, no `Eq`
+- [x] T-1 `draft.rs`: `Finite` — private field, fallible constructor, no `Eq`
       (EX-2) — and VT-1, with its injection pass
-- [ ] T-2 `draft.rs`: `Edited`'s five variants and `Reported`'s six (EX-2,
+- [x] T-2 `draft.rs`: `Edited`'s five variants and `Reported`'s six (EX-2,
       EX-3); `Eq` dropped on `Edited` and on `wire.rs`'s `Command`
-- [ ] T-3 `draft.rs`: `state_of -> Option<Edited>` and `submitted`'s five arms
+- [x] T-3 `draft.rs`: `state_of -> Option<Edited>` and `submitted`'s five arms
       (EX-4), and VT-2 with its injection pass; the four existing units rewritten
       for the `Option`, none deleted
-- [ ] T-4 `view_model.rs`: `DrawnKind` with `Choice` carrying the first id
+- [x] T-4 `view_model.rs`: `DrawnKind` with `Choice` carrying the first id
       beside the list, and `PresentationField.kind` (EX-5); `undrawn_form`
       untouched (VA-2)
-- [ ] T-5 `view_model.rs`: the number formatter (EX-8), and VT-5 with its
+- [x] T-5 `view_model.rs`: the number formatter (EX-8), and VT-5 with its
       injection pass
-- [ ] T-6 `view_model.rs`: `as_drawn` (EX-6), and VT-3 with its injection pass
-- [ ] T-7 `view_model.rs`: `interpret` (EX-7), and VT-4 with its injection pass
-- [ ] T-8 `glass.rs`: `field_value` over `Option<Edited>`, total across the five
+- [x] T-6 `view_model.rs`: `as_drawn` (EX-6), and VT-3 with its injection pass
+- [x] T-7 `view_model.rs`: `interpret` (EX-7), and VT-4 with its injection pass
+- [x] T-8 `glass.rs`: `field_value` over `Option<Edited>`, total across the five
       variants, replacing the irrefutable `let` (EX-9, first half)
-- [ ] T-9 `controller.rs`: `answer`'s as-drawn call (EX-9, second half)
-- [ ] T-10 VA-1 and VA-2 walked; `just check` exits 0 (EX-1); sheet, Status and
+- [x] T-9 `controller.rs`: `answer`'s as-drawn call (EX-9, second half)
+- [x] T-10 VA-1 and VA-2 walked; `just check` exits 0 (EX-1); sheet, Status and
       Harvest updated
+
+**What landed, criterion by criterion**
+
+| | discharged by | how it was checked |
+|---|---|---|
+| EX-1 | the gate | `just check` **exit 0**. Every target's count identical to the baseline except `goad` lib, 30 → 42 |
+| EX-2 | `src/draft.rs:18-62` (`Finite`), `:64-97` (`Edited`) | read: private field, `new` fallible, `ZERO`, `get`; derives are `Debug, Clone, Copy, PartialEq, PartialOrd` and **no `Eq`**. `Edited`'s five variants are §5.2's, payload for payload |
+| EX-3 | `src/draft.rs:99-126` (`Reported`), `:64-74`, `src/wire.rs:18-28` | read: six variants; `Edited` derives `PartialEq` without `Eq`, and `Command` with it. The compiler found `Command`: `E0277: the trait bound Edited: Eq is not satisfied` at `wire.rs:42` |
+| EX-4 | `src/draft.rs:145-182` (`state_of`), `:184-212` (`submitted`) | read: `-> Option<Edited>`; five arms, one per variant, still the only `pub(crate)` application of `R-57` and still the only site in the workspace that names a JSON type for a field value (`grep -rn "serde_json::Value::" crates/goad/src`) |
+| EX-5 | `src/view_model.rs:78-122` (`PresentationField` at `:83`, `DrawnKind` at `:102`) | read: `DrawnKind` with five variants, `Choice { first, alternatives }` carrying the first id beside the list; `PresentationField` carries a `DrawnKind`. `PresentationOption`, `FieldBlock` and `PresentationField` lose `Eq` with it — `NumberRange` and `Alternatives` are not `Eq` |
+| EX-6 | `src/view_model.rs:498-538` (`as_drawn` at `:511`) | read against §5.2's as-drawn bullets one by one, and measured by VT-3: `false`, `""`, the declared minimum or zero **with its spelling**, the first alternative's id, and `1970-01-01T00:00:00+00:00` |
+| EX-7 | `src/view_model.rs:530-641` (`interpret` at `:569`) | read: signature as §5.2 gives it; the `None` surface argued below; `as_drawn`'s number rule reached through the shared `drawn_number` where `held` is `None`, so no caller writes the fallback |
+| EX-8 | `src/view_model.rs:427-455` (`spelled` at `:446`) | read, and measured by VT-5 including the threshold from both sides |
+| EX-9 | `src/glass.rs:299-341` (`field_value` at `:322`, `markup_kind` at `:289`, its doc at `:282`), `src/controller.rs:226-240` (`answer`'s as-drawn call at `:237`) | read: `field_value` takes `Option<&Edited>` and is total over the five variants and the `None`; `answer` applies `as_drawn` where the draft holds nothing. See *Findings* on EX-9's second clause |
+| VT-1 | `draft.rs::a_finite_refuses_every_number_json_cannot_carry` | injection **A**, red |
+| VT-2 | `draft.rs::each_kind_submits_the_json_type_r_57_names` and `::a_picked_datetime_submits_the_offset_it_was_picked_in` | injections **B** and **C**, red |
+| VT-3 | `view_model.rs::as_drawn_answers_every_kind` and `::an_untouched_field_submits_what_canon_delta_cd_1_states` | injections **C**, **E**, **F** and **L**, red. The CD-1 case carries the `datetime` epoch's exact spelling and the `max`-only range that submits `0` |
+| VT-4 | `view_model.rs::an_in_kind_report_becomes_what_the_draft_holds`, `::a_chosen_index_no_alternative_has_is_refused`, `::a_slider_reporting_a_non_finite_number_is_refused`, `::a_report_whose_variant_is_not_the_drawn_kind_is_refused`, `::a_numeric_text_no_finite_parse_accepts_keeps_the_number_the_field_held`, `::an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing` | injections **A**, **G**, **H**, **I**, **J**, **L**, red. The mismatch case enumerates **all twenty-four** pairs and asserts the count, so no pair can pass by being silently in-kind |
+| VT-5 | `view_model.rs::a_number_spells_short_and_re_parses_to_the_number_it_came_from` | injections **K** and **L**, red — the two halves of the rule, *never scientific* and *always scientific* |
+| VA-1 | the three needle lists, walked before each name was written | `grep -rniE '(^\|[^a-z])resolves?([^a-z]\|$)'` over `crates/goad/src` returns only comments and pre-existing lines; the domain list returns only the English word *site* in comments, which `code_of` cuts; the purity list is stratum 1's and returns only pre-existing `main.rs` / `diagnostics.rs` / `startup.rs` lines. The instruments themselves are in the gate and are green — `goad-boundary` 43 passing, unchanged |
+| VA-2 | `git diff 3769095 -- crates/goad/src/view_model.rs`, and `git diff --stat 3769095 -- crates/goad/tests/ examples/` | `undrawn_form`'s body is untouched — the only `+` lines naming it are two comments — and **no test or example file was touched at all**. `tests/renderer` is 189 before and after |
+
+**The injection passes** (`design.md` §9), each applied, run, read, reverted, and
+the revert confirmed by `git diff` returning empty. The runner is
+`scratchpad/inject.py`; it patches, runs, restores from the string it read, and
+prints `git diff --stat`.
+
+| | the defect planted | what went red |
+|---|---|---|
+| A | `Finite::new` accepts every `f64` | VT-1, and both `interpret` cases that rest on the refusal |
+| B | `submitted`'s `Adjusted` arm sends the **text** | VT-2, VT-3's wire half |
+| C | `submitted`'s `Picked` arm spells `Z` (jiff's `Display`) instead of the offset | VT-2 both cases, VT-3's wire half |
+| D | `state_of` answers `Checked(false)` for an absent key — the behaviour it had | the two draft cases about absence |
+| E | `drawn_number` ignores the declared minimum | VT-3 both halves, and the untouched-fallback case |
+| F | `as_drawn`'s `choice` arm takes the **last** alternative | VT-3 both halves |
+| G | a `number` field accepts an out-of-kind `Typed` report | the twenty-four-pair case |
+| H | a `Chosen` index falls back to the first alternative instead of being refused | the out-of-range case |
+| I | a refused numeric text forgets the number the field held | the verbatim case |
+| J | a refused numeric text is **repaired** to the number's spelling — the substitution D-33 refuses | the verbatim case, and the untouched fallback |
+| K | `spelled` never reaches for `{:e}` (threshold 400) | VT-5 |
+| L | `spelled` always uses `{:e}` (threshold 0) | VT-5, VT-3, and the in-kind `AdjustedValue` case |
+| M | `field_value` inverts the draft's boolean | **6** renderer cases |
+| O | an untouched field is drawn ticked | **5** renderer cases |
+| P | `answer` invents `Checked(true)` instead of applying `as_drawn` | **5** renderer cases, including the two `R-58` ones |
+| N | `markup_kind` asserts `Kind::Boolean` for every drawn field | **nothing.** See *Findings* |
+
+**Decisions taken during execution**
+
+- **`Finite` derives `Clone` and `Copy` as well as `PartialEq` and
+  `PartialOrd`.** §5.2 says *"`PartialEq` and `PartialOrd` and nothing else"*,
+  which is an argument about **equality** and reads as an exhaustive derive list
+  only by accident: `Edited` is `Clone`, so `Finite` must be, and §5.2's own
+  signature `pub fn get(self) -> f64` takes the value. Neither is a route back
+  to the `Eq` trap, and the type's doc says so at the leaf where the trap is.
+- **`interpret` is a nested match on the kind, then the report, with no `_` in
+  either position.** Five outer arms over `DrawnKind`, each with exactly two
+  inner arms over `Reported` — the in-kind one, and an or-pattern naming the
+  other five variants. Thirty pairs, thirty explicit destinations. A sixth
+  `Reported` variant is a compile error in all five arms and a sixth `DrawnKind`
+  is a compile error in the outer match. The tuple form with one
+  `(A | B | C | D | E | F, _) => None` arm is shorter and was rejected: it
+  makes a sixth `DrawnKind` answer `None` by silence.
+- **`drawn_number(&NumberRange) -> Finite` is where `interpret` reaches
+  `as_drawn`'s number rule**, rather than destructuring `as_drawn(kind)`. EX-7
+  says `interpret` *"applies `as_drawn` itself where `held` is `None`"*, and the
+  obligation that clause carries is that **no caller** writes
+  `state_of(…).unwrap_or_else(|| as_drawn(kind))` — which is held. Destructuring
+  an `Edited` back out of `as_drawn` inside the `Number` arm would need a
+  `_ => Finite::ZERO` fallback that nothing can reach, which is the
+  `expect`-is-unreachable shape §5.2 declines. Both `as_drawn` and `interpret`
+  call `drawn_number`, so the rule still has exactly one statement.
+- **`FieldRow.kind` is now `markup_kind(&field.kind)`.** PHASE-01 left
+  `Kind::Boolean` as an honest constant with a comment saying it stops being one
+  at PHASE-02 (`plan.md` PHASE-02/EX-5); the constant moved one level in, to
+  `sift`, where `undrawn_form` is the thing that makes it honest. `markup_kind`
+  is total over `DrawnKind`, so a sixth kind is a compile error in `glass.rs`
+  too.
+- **`field_value`'s `None` and its four undrawn arms are one arm**, not two.
+  Splitting them — which reads better, and which is what PHASE-07 will do when
+  an unpicked `datetime` starts reading *not set* — is a `clippy::match_same_arms`
+  error while the two answers agree. Tried, measured, reverted, and the reason
+  is in the comment so the next phase does not re-derive it.
+- **`field_value` writes only `checked`.** The other four arms answer the
+  default, because `undrawn_form` draws only `boolean` and no control reads
+  another slot yet. Each remaining arm is owned by the phase that draws its
+  control and says so in that phase's own Surfaces (`plan.md` PHASE-05, -07,
+  -08, -09), and two of them cannot be written here at all: `index` needs the
+  drawn alternatives to locate the held id, and `number` needs an `f64` → `f32`
+  narrowing, which is `as_conversions = "deny"` and is `slider_bounds`'
+  business. Writing a slot no control reads would be untested code landing a
+  phase early — the same objection the plan makes to `slider_bounds`.
+- **The test fixtures are per-module and duplicated across `draft.rs` and
+  `view_model.rs`.** Both need an id read off a normalized view, and neither can
+  reach the other's `#[cfg(test)] mod tests`. A shared `#[cfg(test)]` module
+  would need `lib.rs`, which is not in this phase's Surfaces. Recorded rather
+  than done.
+
+**Findings**
+
+- **`markup_kind`'s four non-`boolean` arms are unmeasured, and correctly so
+  (injection N).** Planting `Kind::Boolean` for every drawn kind leaves the whole
+  suite green, because `undrawn_form` still sends the other four kinds to
+  `Undrawn::FieldForm` and nothing can construct a drawn field of another kind.
+  It is the first thing PHASE-05 measures — its EX-2 draws a `LineEdit` for a
+  `text` field, which the markup's `if` chain selects on exactly this value — so
+  no case is owed here. Recorded because a green injection is the shape of a
+  test asserting a proxy, and this one is green for a reason rather than by
+  accident.
+- **The plan's PHASE-02 Notes cite `glass.rs:203` for the irrefutable `let`;
+  it was at `:299`.** PHASE-01 moved it. The line's *doc* said what the plan
+  said it said, and the compile error arrived exactly as predicted
+  (`E0005: refutable pattern in local binding`). `plan.md` is an accepted
+  artefact and was not edited.
+- **`design.md` §5.2's `Reported::Chosen(u32)` reaches the alternatives through
+  `usize::try_from`, which is a fourth way to answer `None` on paper.** It
+  cannot fire on any platform this workspace builds for, and where it could it
+  would mean *an index no alternative has*, which **is** case 1. Noted because
+  the `None` surface being three cases is a claim the phase is asked to defend,
+  and this is the one mechanism inside the function that is not one of the three
+  by inspection.
+- **`SPEC-001`'s wire key for a `choice` field's alternatives is `options`, not
+  `alternatives`.** `normalize_alternatives` says so in as many words — *"The
+  path says `options`, because that is the key a backend author wrote"* — and
+  both new fixtures were written the other way first and failed with
+  `EmptyAlternatives { at: "view.options[0].fields[0].options" }`. The canonical
+  **type** is `Alternatives`; only the wire key is `options` (`R-16`, `R-53`).
 
 
 ## Harvest
@@ -1179,7 +1301,7 @@ STOP and consult — do not improvise past any of these:
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-01 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-02 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1206,6 +1328,23 @@ STOP and consult — do not improvise past any of these:
 - **`harness::slot_of` / `harness::value_of`** — the join across the two
   channels, which is now the only honest way to ask the window what a field
   holds without going to the screen.
+- **The five values.** `draft.rs` carries `Finite` (private field, fallible
+  constructor, **no `Eq`**), `Edited`'s five variants and `Reported`'s six.
+  `state_of` answers an `Option`; `submitted` has five arms and is still the
+  one application of `R-57` (I-C). `wire.rs`'s `Command` drops `Eq` with them.
+- **The three kind-directed pure functions**, in `view_model.rs` beside the
+  mapper: `spelled` (the number format rule), `as_drawn` (what an untouched
+  field is worth, per kind) and `interpret` (what a widget's report becomes,
+  against the drawn field and what the host already holds). All three are
+  total over `DrawnKind` with no `_` arm anywhere, and all three are unit
+  covered with an injection pass each.
+- **`DrawnKind`** — the host-local drawn half of the canonical `FieldKind`,
+  carried on `PresentationField`. `Choice` carries the first alternative's id
+  beside the list, which is what makes `as_drawn` total under a lint table that
+  denies `unwrap_used`, `expect_used` and `indexing_slicing`.
+- **`glass.rs::markup_kind`** — the drawn kind as the markup's discriminant,
+  total over `DrawnKind`. `FieldRow.kind` is now read off the field the mapper
+  drew rather than asserted as a constant, which was PHASE-01's noted debt.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -1273,6 +1412,35 @@ STOP and consult — do not improvise past any of these:
   `self.options.set_vec(rows)` and no longer rebuilds every row on every
   present — the `set_vec` is guarded by the `view_id`. The rest of the note,
   including the repair it recommends, is what PHASE-01 implemented and stands.
+- **A `deny` lint can settle a style question the design left open.**
+  `field_value`'s untouched arm and its four not-yet-drawn arms read better as
+  two arms and are one, because `clippy::match_same_arms` is an error while the
+  two answers agree. The general shape: before arguing about how a match should
+  be cut, try the cut — the lint table has an opinion and it is cheaper to read
+  than to predict.
+- **A green injection can be the right answer, and it has to be said out loud.**
+  Planting `Kind::Boolean` for every drawn kind in `glass.rs::markup_kind` left
+  all 189 renderer cases green, because nothing can yet construct a drawn field
+  of another kind. That is a correct state of the world and not a weak case —
+  but it is indistinguishable at a glance from a test asserting a proxy, so a
+  phase that runs an injection and gets green owes the record a sentence saying
+  which of the two it is, and which phase measures it first.
+- **`interpret`'s totality is a shape, not a comment.** Matching
+  `(kind, report)` as a nested match with an explicit or-pattern over the
+  five out-of-kind variants — rather than the shorter tuple match with one
+  `(A | B | …, _) => None` arm — is what makes a sixth variant of **either**
+  enum a compile error. The short form answers a sixth kind by silence, which
+  is exactly the failure `DrawnKind` exists to prevent.
+- **Enumerate the refusal surface in the case, and count it.** The mismatch
+  case walks all six reports against all five kinds, skips the six in-kind
+  pairs and asserts `refused == 24`. Sampling three pairs would have passed
+  under an injection that made one whole kind permissive; the count would not.
+- **A wire key and a canonical type can disagree on purpose.** A `choice`
+  field's alternatives arrive under the key `options` (`R-16`, `R-53`) and
+  normalize to `Alternatives`, because an alternative is a **value** and a
+  view's option is an **action**. Two fixtures were written the other way first
+  and failed with `EmptyAlternatives`. The rule: read `normalize.rs` for the
+  wire spelling, never `canonical.rs`.
 - **A boundary instrument can forbid a word the next slice wants** (P-10).
   `scan::mentions` word-matches after splitting on non-alphanumerics and camel
   boundaries, and keeps string literals, so an identifier or a diagnostic message
@@ -1294,6 +1462,17 @@ STOP and consult — do not improvise past any of these:
   backend. Not this slice's to answer (`slice-009.md` §Non-goals) and not
   reopened here; recorded so a later slice does not re-derive it. `design-log.md`
   D-36, `design.md` §8 R5.
+- **The `#[cfg(test)]` fixtures that read an id off a normalized view are
+  duplicated** between `draft.rs` and `view_model.rs`, because neither module
+  can reach the other's test module and a shared one would need `lib.rs`, which
+  was outside PHASE-02's Surfaces. PHASE-03 onwards will want the same fixture
+  again. A `#[cfg(test)] pub(crate) mod fixtures` under `lib.rs` is the obvious
+  home; it is a decision, not a repair, because `lib.rs`'s own doc says it is
+  the module tree *and nothing else*.
+- **`markup_kind`'s four non-`boolean` arms have no case behind them** until
+  PHASE-05 draws a `LineEdit`. Not a gap this phase could close — nothing can
+  construct a drawn field of another kind while `undrawn_form` is unchanged —
+  and recorded so the audit does not read it as one.
 - **Follow-up: what a supersession costs is not what R5 said it was.** A
   superseded view clears the field under the caret and loses everything typed
   into it, because `Command::Edit` mutates the retained draft and never reaches

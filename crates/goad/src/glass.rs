@@ -325,6 +325,12 @@ fn field_value(state: Option<&Edited>) -> FieldValue {
       checked: *checked,
       ..FieldValue::default()
     },
+    // Untouched, and the four kinds no control reads a slot for yet. Two
+    // different statements with the same answer today, and they are one arm
+    // because `clippy::match_same_arms` is `deny` and splitting them is an
+    // error while the answers agree. PHASE-07 is where they part — an
+    // unpicked `datetime` reads *not set* — and splitting the arm is that
+    // phase's first move.
     None
     | Some(
       Edited::Typed(_) | Edited::Adjusted { .. } | Edited::Chosen(_) | Edited::Picked { .. },
