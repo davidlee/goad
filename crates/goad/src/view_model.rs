@@ -177,9 +177,16 @@ pub enum ContentForm {
 /// it names only the forms that go undrawn, so a sixth kind added to the
 /// protocol is a compile error in the mapper's `match` rather than a field
 /// silently dropped.
+///
+/// **A variant leaves the moment its kind draws**, and not at the phase that
+/// would be tidiest — the sentence above is false for as long as a drawn kind
+/// is declared here, and a `Display` arm nothing can reach is an assertion
+/// waiting to be believed. `Text` and `DateTime` both left at PHASE-07
+/// (`plan-log.md`, 2026-09-19); `Number` leaves at PHASE-08 and `Choice` at
+/// PHASE-09, where the enum becomes empty and `Undrawn::FieldForm` is left as
+/// the place a **sixth** kind goes (§7 D11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldForm {
-  Text,
   Number,
   Choice,
 }
@@ -189,7 +196,6 @@ impl std::fmt::Display for FieldForm {
   /// the value a backend author would search their own view for.
   fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     formatter.write_str(match self {
-      Self::Text => "text",
       Self::Number => "number",
       Self::Choice => "choice",
     })

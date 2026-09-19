@@ -195,9 +195,13 @@ fn content_form_displays_as_a_noun_phrase() {
 /// `FieldForm`'s only rendering: the backend's own word for the kind, so the
 /// line a person reads names the value a backend author can search their own
 /// view for. The sentence supplies the article, as `ContentForm`'s does not.
+///
+/// **It enumerates rather than samples**, so it shrinks by a line every time a
+/// phase draws a kind — `text` and `datetime` both left at PHASE-07, `number`
+/// leaves at PHASE-08 — and at PHASE-09 it is **deleted** rather than migrated:
+/// an empty enum has no `Display` to assert (`plan-log.md`, 2026-09-19).
 #[test]
 fn field_form_displays_as_the_protocols_own_word() {
-  assert_eq!(FieldForm::Text.to_string(), "text");
   assert_eq!(FieldForm::Number.to_string(), "number");
   assert_eq!(FieldForm::Choice.to_string(), "choice");
 }
