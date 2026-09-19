@@ -1924,6 +1924,65 @@ and `windows-link` is target-gated to Windows in any case. So §10's *what it
 costs* — `std` pulling `alloc` into stratum 1's workspace build — is the whole
 of the cost, and there is no second, unpriced one.
 
+**The dependency claims VT-2, VT-3 and VA-2 rest on, measured while T-1 was
+blocked.** All three are claims about `jiff`, not about the Slint types, so
+none of them had to wait. Probe: a standalone cargo project in the scratchpad
+taking `jiff = { version = "0.2", default-features = false, features = ["tz-system", "tzdb-zoneinfo"] }`
+— the same resolution `crates/goad` now gets — so these are measurements of the
+configuration this phase lands and not of some other one.
+
+*VT-3 — the fold and the gap both succeed, and they behave as the plan
+predicted.* Measured in `America/New_York`, under jiff's default
+`Disambiguation::Compatible`:
+
+| | civil in | resolved to | instant |
+|---|---|---|---|
+| **gap** | `2024-03-10T02:30` — does not exist, 02:00 → 03:00 | `2024-03-10T03:30:00-04:00` | `2024-03-10T07:30:00Z` |
+| **fold** | `2024-11-03T01:30` — happens twice, 02:00 → 01:00 | `2024-11-03T01:30:00-04:00` | `2024-11-03T05:30:00Z` |
+
+The gap shifts **forward**, which is `design.md:892-893` verbatim. The fold
+takes the **earlier** occurrence, and the offset is what says so: `-04:00` is
+EDT, before the fall back to `-05:00` EST, and the two candidate instants are
+`05:30:00Z` and `06:30:00Z` — it took the former. Neither refused.
+
+*VT-2 — the four fallible steps all have witnesses, and the fourth's boundary
+is not where reading `DateTime::MAX` would put it.*
+
+- steps 1 and 2, the integer conversions: `i16::try_from`/`i8::try_from` of any
+  Slint `int` outside the field's width. No jiff involved.
+- step 3, the checked constructors: `Date::new(2024, 2, 30)` →
+  `Err(parameter 'day' for 2024-02 is invalid, must be in range 1..=29)`;
+  `Date::new(2024, 13, 1)` → `Err(… 'month' … 1..=12)`;
+  `Time::new(24, 0, 0, 0)` → `Err(… 'hour' … 0..=23)`. All `Result`, no panic.
+- step 4, `DateTime::to_zoned`: **`Timestamp::MAX` is
+  `9999-12-30T22:00:00.999999999Z`, a whole day below `DateTime::MAX`
+  (`9999-12-31T23:59:59.999999999`)**, so the top of the civil range does not
+  fit the timestamp range in any zone. `9999-12-31T23:59:59` was refused in all
+  five zones tried, the widest being `Pacific/Kiritimati` at `+14`. That makes
+  it a **zone-independent** witness, which is what VT-2 needs, because `compose`
+  can only ever resolve in the system zone.
+
+  And `design.md:880-883`'s reason for the fourth step — *whether a civil
+  datetime fits the timestamp range depends on the offset it is resolved in* —
+  now has a witness of its own rather than an argument: `9999-12-31T12:00:00`
+  **succeeds** at `Pacific/Kiritimati` (`→ 9999-12-30T22:00:00Z`, the range's
+  last instant) and is **refused** at `Australia/Melbourne`, `UTC`,
+  `America/New_York` and `Pacific/Midway`. One civil value, two answers, and
+  the offset is the only difference.
+
+*VA-2 — assertable here, but the number is not what should be asserted.*
+`TimeZone::system()` on this machine answers `iana_name = Some("Australia/Melbourne")`,
+`is_unknown = false`, offset `+10` (`/etc/localtime -> /etc/zoneinfo/Australia/Melbourne`,
+`TZ` unset), so *an offset that is not `+00:00`* is assertable. It should not be
+asserted: the number is a property of this machine, and a CI box would answer
+something else or the same by coincidence. `TimeZone::is_unknown()`
+(`jiff-0.2.35/src/tz/timezone.rs:705`) is the machine-independent form of the
+same claim — featureless `jiff` falls back to `TimeZone::unknown()`
+(`timezone.rs:325-337`), and a box set to UTC still answers a *known* zone, so
+`!TimeZone::system().is_unknown()` separates *the feature is on* from *the
+feature is off* on every machine and separates nothing else. The Melbourne
+offset is recorded here as what was checked beside it.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
