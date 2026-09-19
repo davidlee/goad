@@ -342,15 +342,13 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
           // not a `choice` — where the markup reads them only under
           // `Kind.choice`, exactly as it reads the three arithmetic slots only
           // under `slider`.
-          alternatives: model(
-            alternatives.map_or_else(Vec::new, |list| {
-              list
-                .as_slice()
-                .iter()
-                .map(|alternative| alternative.label().into())
-                .collect()
-            }),
-          ),
+          alternatives: model(alternatives.map_or_else(Vec::new, |list| {
+            list
+              .as_slice()
+              .iter()
+              .map(|alternative| alternative.label().into())
+              .collect()
+          })),
         });
       }
       blocks.push(FieldBlock {
