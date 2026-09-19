@@ -672,3 +672,84 @@ loop-tier arrangements. Both numbers are in use in this slice and they are not
 the same one. PHASE-08's `event_loop_numeric_guard`, if it is added, is the
 **sixth loop-tier arrangement and the seventh `[[test]]`**. State which is meant,
 always.
+
+## 2026-09-19 — PHASE-08's Surfaces, and a conflict the brief itself contained
+
+**S-1 — `FieldRow` gaining four slots (EX-2) compels two files the Surfaces line
+does not name.** `grep -rn "FieldRow {" crates/` returns exactly three
+constructors: `src/glass.rs` (in the Surfaces), `tests/renderer/tree.rs:72`
+(`field`, the structure-channel row the tree cases hang blocks on) and
+`tests/renderer/sizing.rs:63` (`form_of`, N default boolean fields measuring a
+window height). `app.slint:54` is the struct's declaration, not a constructor,
+and `goad-boundary` names `FieldRow` nowhere. **The class is closed at two; there
+is no third.** Ninth instance, and the cause is unchanged — `design.md` §9
+enumerated constructors reached *through* `glass.rs`, not literals built by hand
+beside it.
+
+**Decided: amend**, scoped to the literal alone in each file. Neither reads a
+`number`; neither assertion moved; neither case's subject changed.
+
+**`..FieldRow::default()` rather than four spelled-out fields** — the agent's
+choice, and the right one. `tree.rs` and `sizing.rs` measure structure and
+geometry, not values, so the four slots are noise there, and PHASE-09's
+`alternatives` would otherwise widen the same two literals a second time. **The
+cost is real and is recorded for the audit**: a defaulted literal means a *later*
+field added to `FieldRow` will not break these two files, so a phase that should
+look at them will not be made to. That is the correct trade for two fixtures
+whose subject is neither values nor kinds, and it would be the wrong trade in
+`glass.rs`.
+
+### The agent edited before the amendment, and the brief is why
+
+It did, said so immediately, gave its reason, and offered to change it. The
+reason: without the edit the renderer target does not build at all, so *every*
+remaining task is blocked behind the reply and the fallback is handing back a
+tree that does not compile.
+
+**That is a conflict between two instructions the orchestrator's own brief
+gave**, and the agent resolved it correctly. The brief says *a criterion
+compelling a file the Surfaces line does not name is a STOP — send it and keep
+working*, and it also says *never hand back a tree that does not compile*. When
+the compelled edit is **the edit that makes the tree compile**, the two cannot
+both be obeyed and "keep working" has nothing left to work on.
+
+**The carve-out, which belongs in every brief from here:** where the compelled
+edit is what makes the tree build, make the smallest edit that compiles, send it
+in the same breath, and treat the amendment as owed rather than as pending. The
+STOP exists so the orchestrator decides *scope*, not so a phase sits in front of
+a broken build waiting for permission to type four characters. What must never be
+pre-empted is a decision with more than one defensible answer — which this was
+not: the files are compelled by the type, and the only open question was the
+spelling, which the agent raised and did not settle alone.
+
+### An in-Surfaces finding the plan did not anticipate, and it is a good one
+
+**`glass.rs`'s untouched-field arm was wrong for `number` the moment `number`
+drew.** Its doc claimed that *"for four of the five kinds [screen and wire]
+coincide by construction, so a slot left at its default is what the field was
+drawn showing"*. False for `number`: a field declaring `min: 2.5` has an
+as-drawn value of `2.5`, while a defaulted slot is `text: ""`, `number: 0`. It
+would have **drawn an empty box and submitted `2.5`** — a screen/wire divergence
+of exactly the class D-6 exists to contain, and one no criterion named because
+the plan settles the behaviour through VT-5 (an untouched `LineEdit` must
+*carry* the `{:e}` spelling of `f64::MAX`) without naming the arm that produces
+it.
+
+The repair is a simplification: a new
+`view_model::drawn(&DrawnKind) -> Option<Edited>` — *what an untouched field
+**shows*** — answering `Some(as_drawn(kind))` for four kinds and `None` for
+`datetime` alone, applied in `glass.rs` as the last of three descending claims,
+`overlay.or(drafted).or_else(|| …)`. That deletes the `kind` parameter PHASE-07
+added to `field_value`, and leaves D-6's divergence stated once, in
+`view_model.rs`, beside the rule it diverges from.
+
+**Accepted, with the name sent back.** `view_model.rs` would then carry
+`as_drawn` (what an untouched field is *worth*) and `drawn` (what it *shows*)
+thirty-nine lines apart, alongside `drawn_form`, `drawn_number`, `DrawnKind` and
+`Drawn<'_>` — six `drawn`-rooted identifiers, two of which differ only by a
+prefix and mean different things. PHASE-06 rejected `drawn_as` for colliding with
+`as_drawn`; `drawn` is the same objection one step worse, because it is a prefix
+of the other rather than an anagram of it. **`untouched` is the recommendation**:
+it collides with nothing in the module and reads at the call site as the
+sentence the code is — *the overlay, or the draft, or what an untouched field of
+this kind shows*.

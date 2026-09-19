@@ -885,6 +885,8 @@ mapper's `Number` arm and `slider_bounds`), `crates/goad/src/glass.rs` (the
 `Number` value arm and the row's control fields), `crates/goad/src/install.rs`
 (the mapper's `number` arm — added 2026-09-19, `plan-log.md`),
 `crates/goad/tests/renderer/{fields.rs,mapper.rs,wiring.rs,reception.rs}`,
+`crates/goad/tests/renderer/{sizing.rs,tree.rs}` (the hand-built `FieldRow`
+literal alone — added 2026-09-19, `plan-log.md`),
 `crates/goad/tests/event_loop_numeric_guard/` (new), `crates/goad/Cargo.toml`
 (one `[[test]]` entry).
 
