@@ -1,4 +1,4 @@
-import { Button, CheckBox, Date, DatePickerPopup, LineEdit, Palette, ScrollView, Time, TimePickerPopup } from "std-widgets.slint";
+import { Button, CheckBox, Date, DatePickerPopup, LineEdit, Palette, ScrollView, Slider, Time, TimePickerPopup } from "std-widgets.slint";
 
 // **`Date` and `Time` need no export of their own.** PHASE-04 added one and
 // measured, four ways, that an `import` alone did not emit them; what it could
@@ -27,10 +27,23 @@ import "../../../assets/Geist.ttf";
 //
 // The kind discriminant selects which slot of `FieldValue` is meaningful. All
 // five are declared because the mapping from the protocol's field kinds must
-// be total; this renderer draws three of them so far — `boolean`, `text` and
-// `datetime` — and each later phase adds one control and the fields it reads.
-// `FieldRow`'s `slider` / `minimum` / `maximum` / `step` / `alternatives` are
-// **not** here yet: nothing is declared before a control reads it.
+// be total; this renderer draws four of them so far — `boolean`, `text`,
+// `number` and `datetime` — and each later phase adds one control and the
+// fields it reads. `FieldRow`'s `alternatives` is **not** here yet: nothing is
+// declared before a control reads it.
+//
+// **`slider` is a decision the host took, not a fact about the field.**
+// `number` is the one kind with two controls, and which one is drawn is
+// `view_model::slider_bounds`'s answer and nowhere else's — so the markup
+// obeys `field.slider` and never reasons from `minimum` and `maximum`
+// (design.md §5.2 *The control is the host's decision*, §7 D17). The other
+// three slots are that decision's arithmetic, already checked in `f32` by the
+// same function, and are read only where `slider` (§5.5 I-G).
+//
+// `FieldValue.number` is the `Slider`'s own value — the one number that
+// crosses this boundary as a `float`, over a range the host has proved
+// `f32`-exact. Every other number crosses as `text`, which is lossless for
+// every finite `f64` and is what the two `LineEdit`s display (§7 D16).
 //
 // `FieldValue`'s `date` and `time` are **what this field's picker opens on**,
 // and not a second spelling of what it shows: the button shows `text`, and
@@ -38,7 +51,7 @@ import "../../../assets/Geist.ttf";
 // draft's pick, or today at 00:00 local for a field nobody has picked
 // (design.md §5.2, §5.4).
 export enum Kind { boolean, text, number, choice, datetime }
-export struct FieldRow { id: string, label: string, kind: Kind, slot: int }
+export struct FieldRow { id: string, label: string, kind: Kind, slot: int, slider: bool, minimum: float, maximum: float, step: float }
 export struct FieldValue { checked: bool, text: string, number: float, index: int, date: Date, time: Time }
 // `heading: ""` is an **untitled** block, not a missing one — an ungrouped
 // field must not be drawn under a heading that does not claim it.
@@ -60,7 +73,20 @@ export struct OptionRow { id: string, label: string, view: string, blocks: [Fiel
 // into an instant and the offset it resolved in. The markup composes nothing,
 // for the reason it parses nothing — the resolution can fail, and a Slint
 // callback has nowhere to report a failure (design.md §5.2, §5.4).
-export struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int, date: Date, time: Time }
+//
+// `slider` is the **control's own account of itself**, and it is what tells
+// `Reported::AdjustedText` from `Reported::AdjustedValue` — the one pair of
+// report variants that share a `kind`, so `kind` alone cannot select between
+// them and no slot value can either: an empty `text` is the measured
+// cleared-field case and must reach the draft as `AdjustedText("")`, so
+// *empty means the slider was at rest* would silently eat a real edit
+// (design.md §5.2, §7 D-38). Each control writes the literal — the `Slider`'s
+// handler sends `true`, the numeric `LineEdit`'s sends `false`, and neither
+// sends `field.slider`, exactly as the `CheckBox` sends `kind: Kind.boolean`
+// rather than `field.kind`. Deriving the report from the row would make the
+// two agree by construction and cost the host its only witness that the
+// control drawn is the control that reported.
+export struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int, date: Date, time: Time, slider: bool }
 
 export enum WindowMode { prompt, diagnostic }
 
@@ -468,6 +494,148 @@ export component PromptWindow inherits Window {
                             root.edited(option.view, option.id, field.id, {
                               kind: Kind.text,
                               text: self.text,
+                            });
+                          }
+                        }
+
+                        // **`number`'s two controls, selected by `field.slider`
+                        // and by nothing else.** A slider is drawn only where
+                        // the host has proved one can actually be operated
+                        // over the declared range — both bounds `f32`-exact, a
+                        // finite positive span, and a step that moves the
+                        // value (`view_model::slider_bounds`, design.md §5.2).
+                        // Every other `number`, the unbounded one included,
+                        // takes the text control, which is the one that always
+                        // works. That is the opposite of how a bounds-driven
+                        // reading makes it look, and it is why the markup asks
+                        // a `bool` rather than looking at `minimum` and
+                        // `maximum` itself (§7 D17).
+                        //
+                        // Neither control carries a label of its own, so the
+                        // backend's is drawn above it exactly as the text
+                        // `LineEdit`'s is.
+                        if field.kind == Kind.number: Text {
+                          text: field.label;
+                          color: Palette.foreground.transparentize(0.20);
+                        }
+                        if field.kind == Kind.number && field.slider: Slider {
+                          // The three the host computed and checked together.
+                          // `step` is `(maximum - minimum) / 100`, computed
+                          // **host-side** rather than here: it is the very
+                          // step `slider_bounds` proved moves the value, and
+                          // recomputing it in the markup would be a second
+                          // site that could disagree with the one that did the
+                          // proving. Slint's default is `1`, which crosses a
+                          // `[0, 1]` range in one key press, and `0` disables
+                          // the keyboard outright (`common/slider-base.slint:8`,
+                          // `:79`).
+                          minimum: field.minimum;
+                          maximum: field.maximum;
+                          step: field.step;
+                          // **The value channel is the authority**, as it is
+                          // for every other control: the widget moves itself
+                          // under a drag so the feedback is immediate, and the
+                          // next present rewrites this slot.
+                          value: root.values[field.slot].number;
+                          enabled: !root.busy;
+                          accessible-label: field.label;
+                          accessible-description: field.id;
+                          init => { root.inits += 1; }
+                          // **The guard**, `f32` against `f32` — which is
+                          // sound rather than a residue of the boundary: a
+                          // `Slider` is drawn only over an `f32`-exact range,
+                          // and the slot is computed host-side from the same
+                          // `f64` every present. The guard detects divergence;
+                          // it never supplies a value to the wire (§5.2).
+                          //
+                          // Assigning `value` writes through to `base.value`
+                          // and does **not** raise `changed` — only
+                          // `set-value` does that, and only when the result
+                          // differs (`common/slider-base.slint:117-124`) — so
+                          // a convergence cannot report itself as an edit.
+                          property <int> tick: root.epoch;
+                          changed tick => {
+                            if (self.value != root.values[field.slot].number) {
+                              self.value = root.values[field.slot].number;
+                              root.reasserts += 1;
+                            }
+                          }
+                          // **`changed`, and nothing else.** Slint raises
+                          // `released` from the pointer and keyboard paths,
+                          // but its accessibility `set-value`, `increment` and
+                          // `decrement` all route through `set-value`, which
+                          // raises `changed` alone
+                          // (`fluent/slider.slint:30-36`,
+                          // `common/slider-base.slint:114-131`) — so a
+                          // `released`-only binding would be deaf to an
+                          // assistive technology and to every test tier.
+                          // `released` is not bound as a flush either: it has
+                          // no interface to travel on (§7 D7, D34). `changed`
+                          // fires continuously through a drag, so `install.rs`
+                          // routes it through the debounce; nothing here knows
+                          // that.
+                          changed(value) => {
+                            root.edited(option.view, option.id, field.id, {
+                              kind: Kind.number,
+                              number: value,
+                              slider: true,
+                            });
+                          }
+                        }
+                        if field.kind == Kind.number && !field.slider: LineEdit {
+                          // **A typing aid, and never a class the host may
+                          // reason from.** `input-type` gates typed insertions
+                          // only: the paste path performs no validation and
+                          // never consults it, and neither does
+                          // `set_accessible_value`, which assigns `text` and
+                          // calls `edited` from inside the markup
+                          // (`fluent/lineedit.slint:16`). So the host parses
+                          // what arrives with `f64::from_str` and repairs
+                          // nothing (§5.2, §7 D23).
+                          input-type: InputType.decimal;
+                          // The text the host holds, which for a number is
+                          // what the person typed — verbatim — beside the
+                          // number it means. The two are separate because
+                          // `f64` → text is not injective, so no re-format of
+                          // the number can stand in for a text somebody is
+                          // halfway through typing (§7 D13).
+                          text: root.values[field.slot].text;
+                          enabled: !root.busy;
+                          accessible-label: field.label;
+                          accessible-description: field.id;
+                          init => { root.inits += 1; }
+                          // **The guard, comparing string against string** —
+                          // an identity, because the host holds the text.
+                          // Comparing a re-format of the held number was
+                          // measured corrupting ordinary typing (`1.05` →
+                          // `105`, `-3` → `3`) and comparing `to-float()` was
+                          // measured equating `1e100` with `1e101`, both `f32`
+                          // infinities (§7 D13).
+                          //
+                          // The one exception is the measured cleared-field
+                          // case and nothing wider: a person who clears a
+                          // field the host holds as `0` leaves `""` in the
+                          // widget before their own debounce has recorded it,
+                          // and a bare comparison writes `"0"` back over them
+                          // mid-edit.
+                          property <int> tick: root.epoch;
+                          changed tick => {
+                            if (self.text != root.values[field.slot].text
+                                && !(self.text == "" && root.values[field.slot].number == 0)) {
+                              self.text = root.values[field.slot].text;
+                              root.reasserts += 1;
+                            }
+                          }
+                          // The literal names the control's own kind and its
+                          // own control, for the reason the `CheckBox`'s kind
+                          // literal does. The **text** is what travels: it is
+                          // lossless for every finite `f64`, which Slint's
+                          // `float` is not (§7 D16).
+                          edited => {
+                            root.edited(option.view, option.id, field.id, {
+                              kind: Kind.number,
+                              text: self.text,
+                              slider: false,
                             });
                           }
                         }

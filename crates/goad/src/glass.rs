@@ -25,7 +25,9 @@ use crate::generated::{
 use crate::instant;
 use crate::pending::Debounce;
 use crate::reception::Prepared;
-use crate::view_model::{Body, DrawnKind, PresentationField, interpret};
+use crate::view_model::{
+  Body, DrawnKind, PresentationField, drawn, exact_f32, interpret, slider_bounds, slider_step,
+};
 use crate::wire::PendingEdit;
 
 /// Total, and the only method: writing every property, every call, is the
@@ -304,16 +306,33 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
           field,
           drafted.as_ref(),
         );
-        values.push(field_value(
-          overlay.as_ref().or(drafted.as_ref()),
-          &field.kind,
-          &today,
-        ));
+        // **The control, decided once and read twice.** `slider_bounds` is
+        // the only site that chooses a `number`'s control (§7 D17); the row
+        // carries its answer and the value channel needs the same answer to
+        // know whether the `number` slot is anybody's. Calling it once is what
+        // stops the row and the slot disagreeing about which control is drawn.
+        let slider = slider_bounds_of(&field.kind);
+        // **What a control shows, in three descending claims**: what a person
+        // has just done and the host has not recorded yet, then what the draft
+        // holds, then what the field was drawn showing. The last is
+        // `view_model::drawn` and not `as_drawn` — the screen's half of the
+        // rule, which for `datetime` alone answers `None` so that the button
+        // can read *not set* while the wire carries the epoch (§7 D1, D2).
+        let shown = overlay.or(drafted).or_else(|| drawn(&field.kind));
+        values.push(field_value(shown.as_ref(), &today, slider));
         fields.push(FieldRow {
           kind: markup_kind(&field.kind),
           id: field.id.as_str().into(),
           label: field.label.as_str().into(),
           slot,
+          // The three arithmetic slots are the decision's own numbers, and
+          // they are meaningless — and read by nothing — where `slider` is
+          // false. `slider_step` is called rather than restated so that the
+          // step shipped is the step `slider_bounds` proved moves the value.
+          slider: slider.is_some(),
+          minimum: slider.map_or(0.0, |(minimum, _)| minimum),
+          maximum: slider.map_or(0.0, |(_, maximum)| maximum),
+          step: slider.map_or(0.0, |(minimum, maximum)| slider_step(minimum, maximum)),
         });
       }
       blocks.push(FieldBlock {
@@ -349,6 +368,22 @@ fn markup_kind(kind: &DrawnKind) -> Kind {
     DrawnKind::Number(_) => Kind::Number,
     DrawnKind::Choice { .. } => Kind::Choice,
     DrawnKind::DateTime => Kind::Datetime,
+  }
+}
+
+/// The bounds a `Slider` may be drawn over for this field, or `None` — for a
+/// `number` whose range no slider can be operated across, and for every kind
+/// that is not a `number` at all.
+///
+/// One line over [`view_model::slider_bounds`], and it exists to keep the
+/// `DrawnKind` match off the two call sites rather than to make a second
+/// decision: the *choice* is still made in exactly one place, and this is the
+/// lookup that reaches it. Total over `DrawnKind`, no `_` arm, for the reason
+/// [`markup_kind`] is.
+fn slider_bounds_of(kind: &DrawnKind) -> Option<(f32, f32)> {
+  match kind {
+    DrawnKind::Number(range) => slider_bounds(range),
+    DrawnKind::Boolean | DrawnKind::Text | DrawnKind::Choice { .. } | DrawnKind::DateTime => None,
   }
 }
 
@@ -404,29 +439,30 @@ const NOT_SET: &str = "not set";
 /// stands between the draft's older value and the widget. This is their
 /// projection for one present; the join is [`overlaid`]'s.
 ///
-/// **`None` is *untouched*, and the glass reads it directly rather than
-/// through `view_model::as_drawn`.** For four of the five kinds the two
-/// coincide by construction, so a slot left at its default is what the field
-/// was drawn showing; for `datetime` they do not, and the button reads *not
-/// set* while the wire carries the epoch. That divergence is D-6's, and
-/// routing the glass through `as_drawn` is exactly what would erase it
-/// (design.md §5.2).
+/// **`None` here is `datetime` and nothing else.** The caller has already
+/// applied `view_model::drawn`, which answers what an untouched field shows
+/// for the four kinds whose screen and wire agree and `None` for the one whose
+/// do not — so by the time a state reaches this function, `None` *is* the
+/// unpicked `datetime`, and [`NOT_SET`] is the sentinel it needs. Routing the
+/// glass through `as_drawn` instead is exactly what would erase that
+/// divergence, which is why it is `drawn` that is called and why the kind is
+/// no longer a parameter here: the kind-directed half of the question is
+/// answered where every other kind-directed rule is (design.md §5.2, §7 D2).
 ///
-/// **The kind is a parameter because *untouched* is not one value.** An
-/// untouched `text` field shows the empty string and an untouched `datetime`
-/// shows [`NOT_SET`] and opens its picker on today — so the `None` arm cannot
-/// be answered from the state alone, which is exactly the divergence above
-/// stated as a signature.
+/// **`index` is the one slot no control reads yet**, and `choice` is the
+/// phase that fills it (PHASE-09, whose `index` needs the drawn alternatives
+/// to locate the held id). The match is total over `Edited` all the same —
+/// that is what makes a value the draft can hold and the screen cannot show a
+/// compile error rather than a default.
 ///
-/// **Only `checked`, `text`, `date` and `time` are written**, because
-/// `boolean`, `text` and `datetime` are the only kinds `drawn_form` draws and
-/// no control reads another slot yet. The match is total over `Edited` all the
-/// same — that is what makes a value the draft can hold and the screen cannot
-/// show a compile error rather than a default. Each remaining arm is filled by
-/// the phase that draws its control and owns this value arm in its Surfaces:
-/// `number` PHASE-08 (whose `number` slot is the `Slider`'s alone), `choice`
-/// PHASE-09 (whose `index` needs the drawn alternatives to locate the held id).
-fn field_value(state: Option<&Edited>, kind: &DrawnKind, today: &(Date, Time)) -> FieldValue {
+/// `slider` is this field's control, decided upstream by
+/// [`view_model::slider_bounds`] and passed in rather than re-derived, for the
+/// reason [`option_models`] gives.
+fn field_value(
+  state: Option<&Edited>,
+  today: &(Date, Time),
+  slider: Option<(f32, f32)>,
+) -> FieldValue {
   match state {
     Some(Edited::Checked(checked)) => FieldValue {
       checked: *checked,
@@ -467,18 +503,46 @@ fn field_value(state: Option<&Edited>, kind: &DrawnKind, today: &(Date, Time)) -
     // button reads [`NOT_SET`] while the wire carries the epoch, and the
     // picker opens on today rather than on 1970 — seeding from `as_drawn`
     // would put D-6's sentinel on the screen in the one place D-6 chose it to
-    // keep out of (design.md §7 D21).
-    None if matches!(kind, DrawnKind::DateTime) => FieldValue {
+    // keep out of (design.md §7 D21). No other kind reaches this arm:
+    // `view_model::drawn` answers `Some` for the other four.
+    None => FieldValue {
       text: NOT_SET.into(),
       date: today.0.clone(),
       time: today.1.clone(),
       ..FieldValue::default()
     },
+    // **A number is two readings of one value, and which one is drawn decides
+    // what crosses.** The text is what both `LineEdit`s display and what the
+    // numeric one's guard compares itself against — lossless for every finite
+    // `f64`, which is why it is the channel a typed number travels on. The
+    // `number` slot is the `Slider`'s: it is written only where a `Slider` is
+    // drawn, and there the narrowing loses nothing, because every number such
+    // a field can hold is either a `Slider`'s own `f32` widened or the
+    // declared minimum, which `slider_bounds` has already proved `f32`-exact
+    // (design.md §5.2, §7 D16).
+    //
+    // `exact_f32` answering `None` under a drawn slider is therefore
+    // unreachable, and the slot is left at its default rather than argued
+    // about — the same trade `view_model::drawn_number` takes.
+    //
+    // **The numeric text control's guard reads this slot too**, for its one
+    // exception: *the widget is empty and the held number is zero*. Where no
+    // slider is drawn the slot is zero, so the exception reduces to *the
+    // widget is empty* — wider than the measurement licensed, and the reason
+    // EX-7 re-measures whether the exception is needed at all now that the
+    // value channel is overlaid (design.md §5.2, §9 A-2).
+    Some(Edited::Adjusted { number, text }) => FieldValue {
+      text: text.as_str().into(),
+      number: slider
+        .and_then(|_| exact_f32(number.get()))
+        .unwrap_or_default(),
+      ..FieldValue::default()
+    },
     // Untouched for a kind whose default slot *is* what it was drawn showing,
-    // and the two kinds no control reads a slot for yet. One arm because
+    // and the one kind no control reads a slot for yet. One arm because
     // `clippy::match_same_arms` is `deny` and splitting them is an error while
-    // the answers agree; PHASE-08 and PHASE-09 part them.
-    None | Some(Edited::Adjusted { .. } | Edited::Chosen(_)) => FieldValue::default(),
+    // the answers agree; PHASE-09 parts them.
+    Some(Edited::Chosen(_)) => FieldValue::default(),
   }
 }
 

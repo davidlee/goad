@@ -1153,16 +1153,16 @@ mod editing {
   /// two options sharing one as legal, which is what gives R-58's "nor a
   /// field of an option it is not answering" clause something to be false of.
   ///
-  /// `morning` also carries a `number` field, which this renderer does not
+  /// `morning` also carries a `choice` field, which this renderer does not
   /// draw. R-58 says the response is silent about such a field rather than
   /// carrying a default for it, so its absence from `values` is an assertion
   /// and not an oversight.
   ///
   /// **The undrawn kind moves one phase at a time.** It was `text` until
-  /// PHASE-05 drew it and `datetime` until PHASE-07 did; PHASE-08 moves it off
-  /// `number`, and PHASE-09 has nowhere left to move it to and deletes what
-  /// rests on it (`prototype-notes.md` P-13).
-  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"number","label":"Anything to add?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
+  /// PHASE-05 drew it, `datetime` until PHASE-07 did and `number` until
+  /// PHASE-08 did; `choice` is the last, so PHASE-09 has nowhere left to move
+  /// it to and deletes what rests on it (`prototype-notes.md` P-13).
+  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"choice","label":"Anything to add?","options":[{"id":"one","label":"One"}]}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
   /// One option, five fields, two blocks: two under a heading the backend
   /// authored, then three carrying no `group` at all — an **untitled** block,

@@ -138,15 +138,28 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire, pending: &Rc<Deb
 /// a paste reach no insertion logic at all — so there is nothing here that
 /// could be validated even if this were the place for it (§8 R11, F-52).
 ///
-/// **`None` now means two different things, and the `datetime` arm is why the
-/// return type was never scaffolding.** For `number` and `choice` it is *no
-/// control of this kind is drawn yet*: `view_model::drawn_form` draws
-/// `boolean`, `text` and `datetime`, so a field of either other kind never
-/// becomes a `FieldRow` and no control exists to raise this callback for one —
-/// the arm is unreachable rather than declined. Each is filled by the phase
-/// that draws its control: `number` PHASE-08, `choice` PHASE-09. A phase that
-/// draws a control and forgets its arm here fails that phase's own first case
-/// — the draft never sees the edit.
+/// **`Kind::Number` is the one arm that reads a second slot to pick a slot.**
+/// A `number` has two controls and they are the one pair of `Reported`
+/// variants that share a kind, so `kind` alone cannot select between them —
+/// and no slot *value* can either: an empty `text` is the measured
+/// cleared-field case and must reach the draft as `AdjustedText("")`, so
+/// *empty means the slider was at rest* would silently eat a real edit.
+/// Guessing between them is an ambiguous message being guessed at rather than
+/// failing, so the markup says which control it is and this reads `slider` and
+/// **nothing else** (design.md §5.2, §7 D-38).
+///
+/// It reads the control's own literal, not the row's: `FieldRow.slider` is the
+/// host's decision and `FieldEdit.slider` is the control's account of itself,
+/// and the two agreeing is a fact about a correct renderer rather than a
+/// tautology. `D-12` is untouched — `kind` still says `number` for both
+/// controls, which is why `slider` is a second field and not a sixth `Kind`.
+///
+/// **`None` still means two different things.** For `choice` it is *no control
+/// of this kind is drawn yet*: `view_model::drawn_form` does not draw it, so a
+/// `choice` field never becomes a `FieldRow` and no control exists to raise
+/// this callback for one — the arm is unreachable rather than declined.
+/// PHASE-09 fills it, and a phase that draws a control and forgets its arm
+/// here fails that phase's own first case: the draft never sees the edit.
 ///
 /// For `datetime` it means **the pick did not resolve**. The two pickers hand
 /// back a civil date and time and `instant::compose` turns them into an instant
@@ -172,7 +185,14 @@ fn reported(edit: &FieldEdit) -> Option<Reported> {
     // design.md §5.4).
     Kind::Datetime => instant::compose(&edit.date, &edit.time)
       .map(|(instant, offset)| Reported::Picked { instant, offset }),
-    Kind::Number | Kind::Choice => None,
+    // The `Slider` sends its own `f32` and the numeric `LineEdit` sends its
+    // text **verbatim**, unparsed and unrepaired: `f64::from_str` is applied
+    // in `view_model::interpret`, where the field's held number is, and a
+    // `1e400` or a pasted `12/25` reaches the draft as text with the last
+    // representable number standing (§7 D23).
+    Kind::Number if edit.slider => Some(Reported::AdjustedValue(edit.number)),
+    Kind::Number => Some(Reported::AdjustedText(edit.text.to_string())),
+    Kind::Choice => None,
   }
 }
 

@@ -74,6 +74,9 @@ fn field(slot: i32, id: &str, label: &str) -> FieldRow {
     label: SharedString::from(label),
     kind: Kind::Boolean,
     slot,
+    // `slider` and its three arithmetic slots are `number`'s alone and are
+    // read by nothing here (PHASE-08).
+    ..FieldRow::default()
   }
 }
 

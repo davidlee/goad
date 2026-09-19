@@ -182,12 +182,11 @@ pub enum ContentForm {
 /// would be tidiest — the sentence above is false for as long as a drawn kind
 /// is declared here, and a `Display` arm nothing can reach is an assertion
 /// waiting to be believed. `Text` and `DateTime` both left at PHASE-07
-/// (`plan-log.md`, 2026-09-19); `Number` leaves at PHASE-08 and `Choice` at
+/// (`plan-log.md`, 2026-09-19) and `Number` at PHASE-08; `Choice` leaves at
 /// PHASE-09, where the enum becomes empty and `Undrawn::FieldForm` is left as
 /// the place a **sixth** kind goes (§7 D11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldForm {
-  Number,
   Choice,
 }
 
@@ -196,7 +195,6 @@ impl std::fmt::Display for FieldForm {
   /// the value a backend author would search their own view for.
   fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     formatter.write_str(match self {
-      Self::Number => "number",
       Self::Choice => "choice",
     })
   }
@@ -291,7 +289,7 @@ fn drawn_form(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
     FieldKind::Boolean => Ok(DrawnKind::Boolean),
     FieldKind::Text => Ok(DrawnKind::Text),
     FieldKind::DateTime => Ok(DrawnKind::DateTime),
-    FieldKind::Number(_) => Err(FieldForm::Number),
+    FieldKind::Number(range) => Ok(DrawnKind::Number(*range)),
     FieldKind::Choice { .. } => Err(FieldForm::Choice),
   }
 }
@@ -476,6 +474,108 @@ fn spelled(number: f64) -> String {
   }
 }
 
+/// The one place an `f64` becomes the `float` Slint does its arithmetic in,
+/// and `None` where the narrowing would lose something.
+///
+/// `NumberRange` holds `f64` and `R-17` admits any finite one, while Slint's
+/// `float` is `f32` — so a legal bound of `1e100` would arrive as an infinity.
+/// Narrowing the *contract* by a type rather than by a decision is
+/// `CLAUDE.md`'s third invariant failing in the quietest available way, so
+/// every crossing goes through here and every caller has to say what it does
+/// with `None` (design.md §5.2 *A number at the markup boundary*, §7 D16).
+///
+/// The `as` below is the crate's only one and is checked on the very next
+/// line. There is no `TryFrom<f64> for f32` to use instead, and the rule this
+/// enforces is not "a conversion clippy would allow" but "a conversion that
+/// loses nothing" — which is narrower.
+#[expect(
+  clippy::as_conversions,
+  clippy::cast_possible_truncation,
+  clippy::float_cmp,
+  reason = "the crate's only f64 -> f32 narrowing, and the round trip is what \
+    makes it a checked conversion rather than a cast; `as` is the only \
+    spelling Rust offers for it, and exact equality is the whole of the check \
+    — a tolerance here would admit precisely the bounds this refuses"
+)]
+#[must_use]
+pub fn exact_f32(value: f64) -> Option<f32> {
+  let narrowed = value as f32;
+  (f64::from(narrowed) == value).then_some(narrowed)
+}
+
+/// A `Slider`'s step: a hundredth of the span it is drawn over.
+///
+/// Named rather than written twice because [`slider_bounds`] **checks** this
+/// step and `glass.rs` **ships** it, and a second spelling is a second thing
+/// that can drift from the one that did the proving.
+///
+/// Slint defaults `step` to `1`, which crosses a range declared `min: 0,
+/// max: 1` in one key press, and rejects every key when it is `0`
+/// (`common/slider-base.slint:8`, `:79`). Slint's own rule for
+/// `accessible-value-step` is `min(root.step, (maximum - minimum) / 100)`
+/// (`fluent/slider.slint:29`) — a **cap**, not a floor — so under this step
+/// the cap binds at equality and the increment an assistive technology is told
+/// about is the one the keyboard gives. This is presentation, which `R-18`
+/// leaves to the renderer; the `step` `slice-009.md` excludes is the
+/// **protocol** one (design.md §5.2).
+#[must_use]
+pub fn slider_step(minimum: f32, maximum: f32) -> f32 {
+  (maximum - minimum) / 100.0
+}
+
+/// The bounds a `Slider` may be drawn over, or `None` for the numeric text
+/// control. **The only place a `number`'s control is chosen** (§7 D17).
+///
+/// Every clause is evaluated in `f32`, because `f32` is what Slint will be
+/// doing the arithmetic in. It answers `Some` when all three hold:
+///
+/// 1. both bounds are present, and each round-trips `f64` → `f32` → `f64`
+///    unchanged ([`exact_f32`]);
+/// 2. the span `maximum - minimum` is finite and strictly positive;
+/// 3. the step, [`slider_step`], **moves the value**: `minimum + step` is
+///    greater than `minimum`, and `maximum - step` is less than `maximum`.
+///
+/// An exact endpoint round-trip on its own is not enough, because Slint's
+/// slider arithmetic is what has to work afterwards. The thumb is placed by
+/// dividing by `maximum - minimum` (`fluent/slider.slint:75`), so equal bounds
+/// such as `[1, 1]` divide by zero and `[-f32::MAX, f32::MAX]` has an infinite
+/// span even though both endpoints are exact. That is what clause 2 is for,
+/// and it is also what makes the division safe to perform at all.
+///
+/// **Clause 3 states operability directly rather than approximating it**, and
+/// it subsumes the `step > 0` test it replaces — not clause 2. `increment()`
+/// is exactly `set-value(value + step)` and `set-value` returns immediately
+/// when the result equals the value it already holds
+/// (`common/slider-base.slint:117-131`), so a step below half an ulp freezes
+/// the slider even where the bounds round-trip exactly and the span is finite
+/// and positive: at `minimum = 2^100` the `f32` ulp is `2^77`, and a one-ulp
+/// span gives a step of about `2^70.3`. A step that underflows to zero fails
+/// clause 3, and so would a non-finite one — but an infinite **span** passes
+/// it, because an infinite step does move the value in both directions, which
+/// is why clause 2 is not subsumed and is evaluated first.
+///
+/// None of what this rejects is a loss: each takes the text control, which is
+/// where a range a slider cannot operate belongs anyway. So the text control
+/// is the one that always works and the `Slider` is the one with an
+/// admissibility condition — the opposite of how a bounds-driven reading makes
+/// it look. A later slice that wants the choice to read a hint (`R-18` permits
+/// the renderer, and only the renderer, to branch on one), a configuration, or
+/// nothing at all, changes this body and nothing else: not the markup, not the
+/// wire, not `Edited` (design.md §5.2).
+#[must_use]
+pub fn slider_bounds(range: &NumberRange) -> Option<(f32, f32)> {
+  let minimum = exact_f32(range.min()?)?;
+  let maximum = exact_f32(range.max()?)?;
+
+  let span = maximum - minimum;
+  if !span.is_finite() || span <= 0.0 {
+    return None;
+  }
+
+  let step = slider_step(minimum, maximum);
+  (minimum + step > minimum && maximum - step < maximum).then_some((minimum, maximum))
+}
+
 /// The number a `number` field is drawn showing: its declared minimum, or zero
 /// where none was declared.
 ///
@@ -522,15 +622,16 @@ fn held_number(held: Option<&Edited>) -> Option<Finite> {
 /// What the wire carries for a field nobody has touched — what the widget is
 /// drawn showing, so the screen and the wire agree (§4's P-3, §7 D1).
 ///
-/// **Two call sites, and `glass.rs` is deliberately not one of them.**
+/// **Three call sites, and `glass.rs` is deliberately not one of them.**
 /// `controller::answer` applies it because `R-58` forbids omitting a value for
 /// a drawn field; `interpret` applies it to supply the number a numeric text
-/// falls back to. Keeping the glass out is what makes the `datetime` epoch a
-/// fact about the wire rather than a fact about the screen — a button reading
+/// falls back to; [`drawn`] applies it for the four kinds whose screen and
+/// wire agree. Keeping the glass out is what makes the `datetime` epoch a fact
+/// about the wire rather than a fact about the screen — a button reading
 /// `1970-01-01T00:00:00+00:00` would be the host showing a person an answer
-/// nobody gave (design.md §5.2, §7 D2). For the other four kinds the two
-/// coincide by construction, so `datetime` is the only kind whose display can
-/// tell *untouched* from *answered*.
+/// nobody gave (design.md §5.2, §7 D2). `datetime` is the only kind whose
+/// display can tell *untouched* from *answered*, and [`drawn`] is where that
+/// is said.
 #[must_use]
 pub fn as_drawn(kind: &DrawnKind) -> Edited {
   match kind {
@@ -548,6 +649,35 @@ pub fn as_drawn(kind: &DrawnKind) -> Edited {
       instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
       offset: Offset::UTC,
     },
+  }
+}
+
+/// What an untouched field **shows**, where that is one of the draft's values
+/// at all — the screen's half of [`as_drawn`], and the one place the two part.
+///
+/// `None` means *this kind's untouched display is not a value the draft can
+/// hold*, and `datetime` is the only kind it answers for: the button reads
+/// *not set* while the wire carries the epoch, because a button reading
+/// `1970-01-01T00:00:00+00:00` would be the host showing a person an answer
+/// nobody gave (§7 D1, D2). `glass.rs` supplies that sentinel, which is
+/// presentation and belongs there.
+///
+/// For the other four the screen and the wire agree — §4's P-3 — and this
+/// function is where that agreement is **stated** rather than left as a
+/// comment beside a defaulted slot. It stopped being safe to leave implicit
+/// when `number` began drawing: a field declared `min: 2.5` shows `2.5`
+/// because that is what it submits, and a defaulted slot would have shown an
+/// empty box and submitted `2.5` (design.md §5.2).
+///
+/// So `glass.rs` still never calls `as_drawn`, and the divergence D-6 turns on
+/// has exactly one statement, here, beside the rule it diverges from.
+#[must_use]
+pub fn drawn(kind: &DrawnKind) -> Option<Edited> {
+  match kind {
+    DrawnKind::DateTime => None,
+    DrawnKind::Boolean | DrawnKind::Text | DrawnKind::Number(_) | DrawnKind::Choice { .. } => {
+      Some(as_drawn(kind))
+    }
   }
 }
 
@@ -675,7 +805,7 @@ mod tests {
 
   use crate::draft::{Edited, Finite, Reported, submitted};
 
-  use super::{DrawnKind, as_drawn, interpret, spelled};
+  use super::{DrawnKind, as_drawn, exact_f32, interpret, slider_bounds, spelled};
 
   /// A `choice` over two declared alternatives, as the mapper would build it.
   ///
@@ -1090,5 +1220,103 @@ mod tests {
         "`{spelling}` must re-parse to the number it came from"
       );
     }
+  }
+
+  /// A range built straight, for the one function that takes a `NumberRange`
+  /// rather than a `DrawnKind`.
+  fn bounds(min: f64, max: f64) -> NumberRange {
+    NumberRange::new(Some(min), Some(max)).expect("the fixture's bounds are legal")
+  }
+
+  /// Slice 009 `plan.md` PHASE-08/**VT-1** — the three clauses of
+  /// `slider_bounds`, one case each, and an ordinary range that passes all
+  /// three.
+  ///
+  /// Each of the three is a range a **backend may legally send**:
+  /// `NumberRange::new` refuses a non-finite bound and `min > max`, and admits
+  /// `min == max` (`canonical.rs:425-451`). So none of these is a
+  /// renderer-only construction.
+  ///
+  /// The clauses are not interchangeable and the case is written so that a
+  /// missing one shows. Deleting the **span** clause leaves
+  /// `[-f32::MAX, f32::MAX]` admitted, because an infinite step *does* move
+  /// the value in both directions. Deleting the **move** clause leaves the
+  /// `2^100` range admitted, because its span is finite and strictly
+  /// positive. That is what *the third clause subsumes the positivity test*
+  /// means and does not mean: it replaces a `step > 0` test, and it does not
+  /// replace the span test above it.
+  #[test]
+  fn slider_bounds_admits_only_a_range_a_slider_can_be_operated_over() {
+    assert_eq!(
+      slider_bounds(&bounds(0.0, 10.0)),
+      Some((0.0, 10.0)),
+      "an ordinary range is a slider"
+    );
+
+    assert_eq!(
+      slider_bounds(&NumberRange::new(Some(0.0), None).expect("one bound is legal")),
+      None,
+      "a range missing a bound has no span to divide by, so there is no slider to draw"
+    );
+
+    assert_eq!(
+      slider_bounds(&bounds(0.1, 10.0)),
+      None,
+      "`0.1` is not an `f32`, so the thumb's own arithmetic would run over a \
+       minimum the backend never sent — and the span here is finite, positive \
+       and moved by its step, so no later clause catches it"
+    );
+
+    assert_eq!(
+      slider_bounds(&bounds(1.0, 1.0)),
+      None,
+      "equal bounds divide by zero where the thumb is placed        (`fluent/slider.slint:75`), and a slider over a single value offers nothing"
+    );
+
+    let edge = f64::from(f32::MAX);
+    assert_eq!(
+      slider_bounds(&bounds(-edge, edge)),
+      None,
+      "both endpoints round-trip exactly and the span is still an `f32` infinity"
+    );
+
+    // `2^100` is exact in `f32` and the next `f32` above it is `2^100 + 2^77`,
+    // so this range round-trips and its span is one ulp. A hundredth of one
+    // ulp is below half an ulp, so `minimum + step` rounds back to `minimum`
+    // and `increment()` — which is exactly `set-value(value + step)`, and
+    // `set-value` returns when the result equals the value it holds
+    // (`common/slider-base.slint:117-131`) — moves nothing. The slider would
+    // be frozen at every magnitude the range covers.
+    let base = 2f64.powi(100);
+    let ulp = 2f64.powi(77);
+    assert_eq!(
+      slider_bounds(&bounds(base, base + ulp)),
+      None,
+      "a finite, strictly positive step can still be too small to move the value"
+    );
+  }
+
+  /// Slice 009 PHASE-08/VT-1's other half: the narrowing that guards the first
+  /// clause is a **checked** conversion and not a cast.
+  #[test]
+  fn only_an_f64_that_survives_the_round_trip_crosses_as_a_float() {
+    assert_eq!(exact_f32(0.0), Some(0.0));
+    assert_eq!(exact_f32(10.5), Some(10.5));
+    assert_eq!(exact_f32(f64::from(f32::MAX)), Some(f32::MAX));
+    assert_eq!(
+      exact_f32(1e100),
+      None,
+      "a legal `R-17` bound `f32` reads as infinity"
+    );
+    assert_eq!(
+      exact_f32(0.1),
+      None,
+      "and one an `f32` can only approximate"
+    );
+    assert_eq!(
+      exact_f32(f64::MIN_POSITIVE),
+      None,
+      "a subnormal `f64` flushes to zero, which is the silent half of the class"
+    );
   }
 }

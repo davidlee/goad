@@ -759,7 +759,8 @@ fn a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_recei
         "id": "opt",
         "label": "Fine",
         "fields": [
-          { "id": "note", "kind": "number", "label": "Note" },
+          { "id": "note", "kind": "choice", "label": "Note",
+            "options": [{ "id": "one", "label": "One" }] },
           { "id": "counted", "kind": "boolean", "label": "Counted", "group": 7 }
         ]
       }]

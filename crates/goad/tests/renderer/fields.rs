@@ -76,17 +76,18 @@ const THREE_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","optio
 /// keys that an implementation keyed by field alone would collapse into one.
 const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
-/// One option carrying one `boolean` and one **`number`** field, which this
+/// One option carrying one `boolean` and one **`choice`** field, which this
 /// renderer does not draw. R-55 says the view is still shown and the option is
 /// still answerable; R-58 says the response is silent about the undrawn field
 /// rather than carrying a default for it.
 ///
 /// The undrawn kind moves one phase at a time, because a fixture's undrawn
 /// field has to name a kind that is *still* undrawn: `text` until PHASE-05
-/// drew it, `datetime` until PHASE-07 did, `number` until PHASE-08, and then
-/// there is nowhere left to move it and PHASE-09 deletes the case rather than
-/// repairing it (`prototype-notes.md` P-13).
-const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"number","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
+/// drew it, `datetime` until PHASE-07 did, `number` until PHASE-08 did — and
+/// `choice` is the **last** one. PHASE-09 draws it, so there is nowhere left
+/// to move to and the case is deleted rather than repaired a fourth time
+/// (`prototype-notes.md` P-13).
+const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"choice","label":"Anything to add?","options":[{"id":"one","label":"One"}]}]}]},"next_check":"45 minutes"}"#;
 
 /// One option carrying a `boolean` and **two `text` fields**. Two, because
 /// AC-4's element half is about a person typing into one field and then

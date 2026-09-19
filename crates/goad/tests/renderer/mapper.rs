@@ -197,12 +197,12 @@ fn content_form_displays_as_a_noun_phrase() {
 /// view for. The sentence supplies the article, as `ContentForm`'s does not.
 ///
 /// **It enumerates rather than samples**, so it shrinks by a line every time a
-/// phase draws a kind — `text` and `datetime` both left at PHASE-07, `number`
-/// leaves at PHASE-08 — and at PHASE-09 it is **deleted** rather than migrated:
-/// an empty enum has no `Display` to assert (`plan-log.md`, 2026-09-19).
+/// phase draws a kind — `text` and `datetime` both left at PHASE-07 and
+/// `number` at PHASE-08 — and at PHASE-09 it is **deleted** rather than
+/// migrated: an empty enum has no `Display` to assert (`plan-log.md`,
+/// 2026-09-19).
 #[test]
 fn field_form_displays_as_the_protocols_own_word() {
-  assert_eq!(FieldForm::Number.to_string(), "number");
   assert_eq!(FieldForm::Choice.to_string(), "choice");
 }
 
@@ -237,7 +237,8 @@ fn a_block_starts_wherever_the_group_value_changes_and_runs_are_never_merged() {
 fn grouped_fields_separated_only_by_an_undrawn_field_are_one_block() {
   let presentation = present(&one_option_with_fields(&serde_json::json!([
     boolean("a", Some(serde_json::json!("Morning"))),
-    { "id": "note", "kind": "number", "label": "Note", "group": "Morning" },
+    { "id": "note", "kind": "choice", "label": "Note", "group": "Morning",
+      "options": [{ "id": "one", "label": "One" }] },
     boolean("b", Some(serde_json::json!("Morning"))),
   ])));
 
@@ -255,8 +256,10 @@ fn grouped_fields_separated_only_by_an_undrawn_field_are_one_block() {
 fn a_group_whose_every_field_is_undrawn_produces_no_block() {
   let presentation = present(&one_option_with_fields(&serde_json::json!([
     boolean("a", None),
-    { "id": "note", "kind": "number", "label": "Note", "group": "Evening" },
-    { "id": "other", "kind": "number", "label": "Other", "group": "Evening" },
+    { "id": "note", "kind": "choice", "label": "Note", "group": "Evening",
+      "options": [{ "id": "one", "label": "One" }] },
+    { "id": "other", "kind": "choice", "label": "Other", "group": "Evening",
+      "options": [{ "id": "one", "label": "One" }] },
   ])));
 
   assert_eq!(blocks_of(&presentation), vec![(None, vec!["a"])]);
@@ -296,15 +299,20 @@ fn an_absent_group_and_an_empty_one_are_blocks_with_no_heading() {
 /// none of them reaches a block.
 ///
 /// The list shrinks by one every time a phase draws a kind — `text` left it at
-/// PHASE-05 and `datetime` at PHASE-07; `number` leaves at PHASE-08 — and at
-/// PHASE-09 there is nothing left to report and the case goes with
-/// `Undrawn::FieldForm` itself. That the list is *every* undrawn kind rather
-/// than a sample is what the final `undrawn.len()` assertion holds; `boolean`,
-/// `text` and `datetime` are drawn and so contribute nothing to it.
+/// PHASE-05, `datetime` at PHASE-07 and `number` at PHASE-08 — and at PHASE-09
+/// there is nothing left to report and the case goes with `Undrawn::FieldForm`
+/// itself. It is **deleted rather than migrated a fourth time**: the case
+/// enumerates its subject rather than sampling it, so there is nowhere for the
+/// last row to move to once `choice` draws.
+///
+/// That the list is *every* undrawn kind rather than a sample is what the
+/// final `undrawn.len()` assertion holds; the four drawn kinds contribute
+/// nothing to it. **One row is still an enumeration** — the length assertion
+/// is what says so, and it is what would fail if a fifth kind stopped being
+/// drawn.
 #[test]
 fn every_undrawn_kind_is_reported_by_option_field_and_form() {
   let view = one_option_with_fields(&serde_json::json!([
-    { "id": "many", "kind": "number", "label": "Many" },
     { "id": "pick", "kind": "choice", "label": "Pick",
       "options": [{ "id": "one", "label": "One" }] },
   ]));
@@ -323,14 +331,8 @@ fn every_undrawn_kind_is_reported_by_option_field_and_form() {
     })
     .collect();
 
-  assert_eq!(
-    reported,
-    vec![
-      ("opt", "many", FieldForm::Number),
-      ("opt", "pick", FieldForm::Choice),
-    ]
-  );
-  assert_eq!(presentation.undrawn.len(), 2, "and nothing else");
+  assert_eq!(reported, vec![("opt", "pick", FieldForm::Choice)]);
+  assert_eq!(presentation.undrawn.len(), 1, "and nothing else");
   assert!(
     blocks_of(&presentation).is_empty(),
     "an undrawn field never enters a block"
@@ -380,7 +382,8 @@ fn a_group_hint_that_is_not_a_string_is_reported_and_the_field_is_drawn_in_place
 #[test]
 fn a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice() {
   let presentation = present(&one_option_with_fields(&serde_json::json!([
-    { "id": "note", "kind": "number", "label": "Note", "group": 7 },
+    { "id": "note", "kind": "choice", "label": "Note", "group": 7,
+      "options": [{ "id": "one", "label": "One" }] },
   ])));
 
   let reported: Vec<(&str, &str, Option<FieldForm>)> = presentation
@@ -401,7 +404,7 @@ fn a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice() {
     reported,
     vec![
       ("opt", "note", None),
-      ("opt", "note", Some(FieldForm::Number)),
+      ("opt", "note", Some(FieldForm::Choice)),
     ],
     "one report per defect, each naming the option and the field, and the \
      kind named by the one that is about the kind"
@@ -426,7 +429,8 @@ fn field_reports_leave_a_parsed_body_undegraded() {
         "id": "opt",
         "label": "Fine",
         "fields": [
-          { "id": "note", "kind": "number", "label": "Note" },
+          { "id": "note", "kind": "choice", "label": "Note",
+            "options": [{ "id": "one", "label": "One" }] },
           { "id": "counted", "kind": "boolean", "label": "Counted", "group": 7 }
         ]
       }]

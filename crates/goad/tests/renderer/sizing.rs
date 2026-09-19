@@ -65,6 +65,9 @@ fn form_of(options: &[(&str, usize)]) -> (Vec<OptionRow>, Vec<FieldValue>) {
         label: SharedString::from(format!("Field {index}")),
         kind: Kind::Boolean,
         slot,
+        // `slider` and its three arithmetic slots are `number`'s alone and are
+        // read by nothing here (PHASE-08).
+        ..FieldRow::default()
       });
     }
     rows.push(OptionRow {
