@@ -4,18 +4,20 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — the design is closed; the plan is not started
+## Handover — the plan is accepted; PHASE-01 is executing
 
 Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
 again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
-again when they were integrated, again when the ledger resolved, and again when
-the design closed. Delete once the plan is accepted.
+again when they were integrated, again when the ledger resolved, again when
+the design closed, and again when the plan was accepted. Most of it is now
+history: what a phase agent needs is `plan.md`, its own phase sheet, and
+§*Traps worth naming*. Delete at the close.
 
-**Durability, as of this handover.** Everything is pushed: `main` through
-`42527cc` — the commit that integrated round 4 — and `slice-009-prototype`
-through `a1171b3` are both on `origin`. They were not before: 33 commits and the
-whole prototype branch once lived on one disk. Check `git log origin/main..main`
-before you finish.
+**Durability, as of this handover.** `slice-009-prototype` is pushed through
+`a1171b3`. **`main` is not**: everything from `be49327` onward — P-14's
+settlement, the design close, the plan, the acceptance — is local only. 33
+commits and the whole prototype branch once lived on one disk. Check
+`git log origin/main..main` before you finish, and push if the user agrees.
 
 ### Where the slice is
 
@@ -25,9 +27,11 @@ all 56 findings are terminal — 54 verified, 2 withdrawn, no blocker outstandin
 — and the Synthesis is written. **P-14 is settled** (D-36, 2026-09-18): the
 refusal is not durable, and the question behind it is `SPEC-002/OQ-4`, which
 this slice declines. **The design is accepted and closed** — D-37, 2026-09-19,
-against `design.md` as it stands at `be49327`. **`plan.md` is drafted**,
-2026-09-19, nine phases; what is owed on it is the user's choice about an
-adversarial plan review and then their acceptance. §*What is owed* item 5.
+against `design.md` as it stands at `be49327`. **The plan is accepted**
+— `plan-log.md`, 2026-09-19, against `plan.md` as written at `44fbd8e`. Nine
+phases; PHASE-04 is the only one that can run beside another. **No plan review
+was run**, and `plan-log.md` records what that costs. `slice-009.md` **Stage**
+reads `executing`, and **PHASE-01 is in progress**.
 
 The paragraphs below are the arc that produced that, kept because the next agent
 needs to know which surfaces have been rewritten and how often. Round 3's
@@ -384,9 +388,14 @@ review.**
      argued in `plan.md` §*Sequencing & rationale*: `text` is what forces
      `pending.rs` and the overlay, which every other kind's display depends on.
 
-   **What is owed now**: the user's choice about an adversarial plan review
-   (`review-plan.md`, decisions in `plan-log.md` — neither created by the plan
-   stage), and then their acceptance.
+   **Accepted 2026-09-19**, and the adversarial plan review was declined —
+   `plan-log.md` carries both, and what the second one costs. `review-plan.md`
+   does not exist and is not owed.
+
+   **The live item is execution**, phase by phase. The status table below is the
+   record, and a phase sheet is written immediately before its phase runs, never
+   earlier (`docs/AGENTS.md` §*Phase plan*: a sheet written three phases early is
+   fiction).
 
    **Handed back rather than repaired** (`docs/AGENTS.md` — the plan stage does
    not repair the design): one bad citation in `design.md` §8 R5, in
@@ -693,7 +702,7 @@ here rather than in the ledger, so striking them costs nothing:
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 — the value channel and the epoch | pending | |
+| PHASE-01 — the value channel and the epoch | **in progress** | 2026-09-19 |
 | PHASE-02 — the draft's five values, and the kind-directed pure functions | pending | |
 | PHASE-03 — the edit channel | pending | |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | pending | |
