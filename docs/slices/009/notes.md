@@ -4000,6 +4000,277 @@ reasoning is in the new target's module doc rather than left implicit.
   there is *two or more case files need it*, and one does.
 
 
+### PHASE-09 — `choice`, and the retirement of `FieldForm`
+
+**Objective:** the fifth kind draws, `Undrawn::FieldForm` becomes
+unconstructible, every consumer that assumed otherwise is rewritten rather than
+migrated a fourth time, and the slice's five-kind acceptance criteria are
+discharged.
+
+**Entry criteria, verified rather than assumed**
+
+Read off the tree at `d5a7a62`, clean. EN-1 is PHASE-08/EX-1 … EX-8, and it is
+not inherited from the hand-over: every row below was re-derived in this session
+with `grep -n`, never counted off a `sed -n` window.
+
+| criterion | checked here |
+|---|---|
+| PHASE-08/EX-1 | `just check` re-run here on a clean tree: **exit 0**, gate total **591** over 25 `test result` lines. `cargo test --workspace` is **556** — the gate runs `cargo test -p goad-semantics` as a command of its own, so that crate's 30 + 5 are counted twice and the gate total is always exactly 35 above the workspace one. Summed per target from this run: `goad` lib 54, bin 0, the six loop targets 1 each, `tests/renderer` **202**, `goad-boundary` lib 0 / `tests/checks` 43, `goad-emit` bin 34 / `tests/binary` 9, `goad-semantics` lib 30 / `tests/protocol` 5, `goad-shell` lib 71 / `tests/integration` 96 / `tests/shape` 6, four doc-test targets 0 — 556, then +35. Every count below names its denominator |
+| PHASE-08/EX-2 | read: `src/view_model.rs:292` — `FieldKind::Number(range) => Ok(DrawnKind::Number(*range))`; `ui/app.slint:54` — `FieldRow` carries `slider: bool, minimum: float, maximum: float, step: float`, and `:521` / `:585` are the two `if`s that read `field.slider` to choose the control |
+| PHASE-08/EX-3 | read: `grep -rn "slider_bounds" crates/ --include=*.rs` — the only *decision* sites are `src/view_model.rs:566` (the function) and `src/glass.rs:383` (`slider_bounds_of`, the `DrawnKind` lookup over it, called once at `:314`). No second site chooses a control. `:567-568` is the round-trip clause, and the span and move clauses follow it |
+| PHASE-08/EX-4 | read: `ui/app.slint:595` — `input-type: InputType.decimal`, the file's only occurrence; `:645-651` — the `edited` handler sends `text: self.text, slider: false`; `src/view_model.rs:748-757` — `text.parse::<f64>().ok().and_then(Finite::new).or_else(…)`, the text cloned verbatim into `Edited::Adjusted.text` |
+| PHASE-08/EX-5 | read: `grep -n "released" crates/goad/ui/app.slint` returns **three** lines, `:564`, `:570`, `:572`, and all three are prose. There is no `released` binding. `:576-582` is `changed(value) =>`, and `:534` binds `step: field.step` |
+| PHASE-08/EX-6 | read: `ui/app.slint:635-640` — `if (self.text != root.values[field.slot].text)`, string against string, with no second clause |
+| PHASE-08/EX-7 | read: `ui/app.slint:606-632` — the doc states the exception was *measured* out and names the target that fails if it returns; `tests/event_loop_numeric_guard/` exists, is the seventh `[[test]]` entry (`Cargo.toml:77-79`) and runs **1 passed / 1** in the gate log above |
+| PHASE-08/EX-8 | read: `grep -rn '"kind": *"choice"' crates/goad/tests/` — the nine migrated sites are all present and all on `choice`: `fields.rs:90`, `wiring.rs:1165`, `mapper.rs:240`, `:259`, `:261`, `:316`, `:385`, `:432`, `reception.rs:762`. `grep -n "pub enum FieldForm" -A 3 src/view_model.rs` shows **one** variant, `Choice` — which is the type-level reading PHASE-08 substituted for the grep, and it is what makes this phase's deletion forced rather than chosen |
+
+**Baseline, T-0, at `d5a7a62`:** `just check` **exit 0**, gate **591**;
+`cargo test --workspace` **556**; `tests/renderer` **202**; seven `[[test]]`
+targets (`grep -c '^\[\[test\]\]' crates/goad/Cargo.toml` is **7**) — one
+no-loop, six loop-tier.
+
+**Reading list**
+
+Every `path:line` below was re-derived in this session with `grep -n`.
+
+*What is being changed*
+
+- `crates/goad/ui/app.slint:1` — the import list, which gains `ComboBox`;
+  `:53` — `Kind`, unchanged; `:54` — `FieldRow`, which gains `alternatives`;
+  `:55` — `FieldValue`, whose `index` slot is finally read; `:89` —
+  `FieldEdit`, whose `index` slot is finally written; `:28-33` — the comment
+  that says *"this renderer draws four of them so far"* and *"`FieldRow`'s
+  `alternatives` is **not** here yet"*, both of which this phase makes false;
+  `:395-396` — the `// choice PHASE-09.` marker on the field repeater;
+  `:459-499` — the `Kind.text` label and `LineEdit`, the shape the `ComboBox`
+  arm copies; `:585-653` — the numeric `LineEdit`, the last arm before the new
+  one.
+- `crates/goad/src/view_model.rs:189-191` — `FieldForm`, which loses `Choice`
+  and keeps its name; `:193-201` — its `Display`, which loses its only arm;
+  `:180-188` — the doc that promises the variant leaves at PHASE-09; `:287-295`
+  — `drawn_form`, whose `FieldKind::Choice { .. }` arm (`:293`) moves from
+  `Err` to `Ok`; `:274-286` — the doc above it; `:35` — `body_is_degraded`'s
+  doc, which excludes `Undrawn::FieldForm` by name; `:723-796` — `interpret`,
+  whose `DrawnKind::Choice` arm (`:767-775`) is **already written and already
+  total**, so this phase writes no interpretation; `:636-652` — `as_drawn`,
+  likewise; `:801` — the inline `mod tests`, where VT-7 goes.
+- `crates/goad/src/glass.rs:280-353` — `option_models`, whose per-field push is
+  at `:314-337`; `:364-372` — `markup_kind`, already total and unchanged;
+  `:383-388` — `slider_bounds_of`, the shape the alternatives lookup copies;
+  `:461-550` — `field_value`, whose `Some(Edited::Chosen(_)) =>
+  FieldValue::default()` arm (`:548`) is what this phase parts from the `None`
+  arm — the comment there says so in as many words.
+- `crates/goad/src/install.rs:178-196` — `reported`, whose `Kind::Choice =>
+  None` arm (`:195`) becomes a `Reported::Chosen`; `:156-161` — the doc that
+  calls that arm *"unreachable rather than declined"* and names this phase;
+  `:213-` — `debounced`, where `choice` stays undebounced.
+- `crates/goad/src/draft.rs:191` — `submitted`'s doc, which sends a sixth
+  `FieldKind` to `Undrawn::FieldForm`.
+- `crates/goad/src/diagnostics.rs:209-228` — `undrawn_line`'s `FieldForm` arm.
+  **EX-7 calls this one verified, not performed**: PHASE-05 already removed the
+  subset clause, and `:215-224` is the doc saying naming the set was the
+  mistake. The arm stays; it becomes unreachable and is not deleted, because a
+  sixth kind gives `FieldForm` a variant back.
+- `crates/goad/tests/renderer/fields.rs:90` —
+  `A_DRAWN_AND_AN_UNDRAWN_FIELD`; `:979-1014` — the case built on it; `:243` —
+  `option_control`; `:359` — `shown_on_screen`; `:484` — `typed_on_screen`;
+  `:499` — `role_of`; `:599` — `rigged`; `:194` — `submitted_values`; `:209` —
+  `keys_of`.
+- `crates/goad/tests/renderer/mapper.rs:195-207` — the `FieldForm` `Display`
+  case; `:237-249` — the separated-run case; `:255-267` — the all-undrawn
+  group case; `:296-340` — the enumeration case; `:375-416` — the twice-reported
+  case; `:418-450` — the undegraded-body case.
+- `crates/goad/tests/renderer/wiring.rs:1165` — `mod editing`'s `TWO_FORMS`;
+  `:1279-1284` — the `noted` `UnknownField` assertion; `:1574-1594` — the
+  submitted-keys case; `:1596-1654` — the `R-58` MUST NOT case, whose guard
+  assertion is at `:1611-1620`.
+- `crates/goad/tests/renderer/reception.rs:753-794` — the diagnostic-surface
+  case, whose undrawn field row is `:762`.
+- `crates/goad/tests/renderer/tree.rs:71-81` — `field`, a hand-built `FieldRow`
+  taking `..FieldRow::default()`.
+- `crates/goad/tests/event_loop_reassert/reassert.rs:28` — `A_FORM`; `:45-58` —
+  `Reading` and `read`; `:116-190` — the one `#[test]`, which VT-8 appends to.
+
+*What it reads*
+
+- `crates/goad-semantics/src/protocol/canonical.rs:71-82` — `AlternativeId`,
+  `PartialEq` and `Eq`, whose `new` is `pub(super)`; `:261-274` —
+  `Alternative`, its `id()` and `label()`; `:350-378` — `Alternatives`, whose
+  `new` rejects an empty list and which offers only `as_slice`.
+- `crates/goad/src/draft.rs:196` — `Edited::Chosen`'s `submitted` arm, a JSON
+  **string** of the alternative's id.
+- `crates/goad/tests/renderer/harness.rs:125-130` — `element_described`, a
+  `Button` type filter, so **not** usable for a `ComboBox`; `:145-148` —
+  `described`; `:163-168` — `within_option`; `:183-191` — `field_described`,
+  unfiltered, which is what every field case uses; `:200` — `slot_of`; `:225` —
+  `value_of`.
+
+*The widget sources, measured rather than assumed*
+
+Paths under
+`~/.cargo/registry/src/index.crates.io-*/i-slint-compiler-1.17.1/widgets/`.
+
+- `fluent/combobox.slint:10-16` — `model`, `current-index` and `selected` all
+  `<=>` to `base`; `:28-33` — `accessible-role: combobox`,
+  `accessible-expandable: true`, `accessible-value <=> current-value`, and
+  `accessible-action-expand => base.show-popup()`, which is what
+  `invoke_accessible_expand_action` reaches; `:105-149` — the `PopupWindow`,
+  whose `for value[index] in root.model : ListItem` carries a `TouchArea` whose
+  `clicked` calls `base.select(index)`. **The `ListItem` declares no
+  `accessible-action-default`** (`fluent/components.slint:35-53`: role, label,
+  item-selectable, item-selected, item-index and nothing else), which is the
+  whole of §8 R9 — a pointer is the only way in.
+- `common/combobox-base.slint:20-31` — `select(index)` assigns
+  `root.current-index` **before** raising `selected`, so `self.current-index`
+  read inside a `selected` handler is the new index; `:16` — `selected` carries
+  the current *value*, a string, which is why the handler reads the index off
+  the element rather than out of the argument; `:75-81` — `changed model` calls
+  `reset-current`, which clamps `current-index` into the new model.
+- `i-slint-backend-testing-1.17.1/search_api.rs:915-922`
+  `invoke_accessible_expand_action`; `:968-976` `mock_single_click`, which
+  dispatches `PointerMoved` / `PointerPressed` / `PointerReleased` at
+  `absolute_center()` — a geometry read, and so the risk §8 R9 names;
+  `:743-780` — `accessible_item_selected`, `_selectable`, `_index`, the
+  readings a `ListItem` answers.
+- `i-slint-backend-testing-1.17.1/lib.rs:37-46` — `init_no_event_loop` sets
+  `mock_time: true`, so `mock_single_click`'s `mock_elapsed_time(50)` is
+  available at that tier; `:72-81` — `init_integration_test_with_system_time`
+  sets `mock_time: false`, which is the tier VT-8 sits at.
+
+*Design sections that bind*
+
+- §5.1 (`design.md:155-193`) — the consumer table **entire**, and the
+  paragraphs either side of it: there is no substitute construction, and
+  `wiring.rs:1245`'s refusal stays asserted from a fabricated id.
+- §5.2 (`design.md:282-299`) — the three Slint structs, `FieldRow`'s
+  `alternatives: [string]` among them; (`:504`) — the controls table's `choice`
+  row, `ComboBox` over the labels, shown from `index`, edit raised on
+  `selected`; (`:551`) — the guard's comparand table, `self.current-index`
+  against `index`; (`:644`) — `Chosen(AlternativeId)`; (`:700`) — `Chosen(u32)`,
+  the `ComboBox`'s `current-index`; (`:755-766`) — `interpret`'s `None` surface,
+  case 1 being an index no alternative has; (`:843-854`) — what an untouched
+  `choice` submits.
+- §5.5 (`design.md:1287`) — `AlternativeId::new` is `pub(super)`;
+  (`:1360`) — the refusal posture for an out-of-range index.
+- §7 (`design.md:1399`) — **D12**; (`:1428`) — §8 **R9**, its mitigation and
+  its falsifier; (`:1514`) — AC-8's row; (`:1522`) — the `choice` re-assert row;
+  (`:1460`) — the driver table's `ComboBox` line.
+- `canon-delta.md` **CD-2**, all three changes.
+- `prototype-notes.md` **P-13** (`:529-556`).
+- `plan.md:996-1127` — PHASE-09 in full, *Notes for the implementer* included.
+
+*Prior art*
+
+- PHASE-08's sheet (`notes.md:3331-4000`) — the entry table, the injection table
+  naming the assertion **ordinal and message**, the EX-8 migration table, and
+  the *which question each grep can still answer* table whose closing rule —
+  **ask the type, not the fixture** — is what this phase's deletions rest on.
+- `tests/renderer/fields.rs:1589-1670` — PHASE-08's
+  `a_number_draws_a_slider_…`, the shape VT-1 … VT-5 take, including the *what
+  each control declares* discriminant.
+- `tests/renderer/fields.rs:370-470` — PHASE-07's picker drivers, which reach
+  inside a popup **without layout** because every element there declares an
+  `accessible-action-default`. A `ListItem` does not; that difference is VA-1.
+
+*Memory*
+
+- `negative-control-must-compile.md` — read the **test count** on both sides of
+  every injection.
+- `tests-asserting-proxies.md` — VA-3 is this phase's largest surface: nine
+  cases lose or narrow a premise at once.
+- `verify-the-enumeration-not-the-conclusion.md` — EX-7's site list is the
+  enumeration, and PHASE-08 already found one short once.
+- `slint-testing-backend-initialises-once-per-process.md` — binds if VT-2 moves
+  tiers, and on VT-8's target.
+
+**Assumptions, each with what makes it cheap to be wrong about**
+
+- **A-a.** `alternatives: [string]` on `FieldRow` generates a
+  `ModelRc<SharedString>` that `FieldRow::default()` still supplies, so
+  `tests/renderer/sizing.rs:63` and `tests/renderer/tree.rs:72` — which both
+  take `..FieldRow::default()` — keep compiling untouched. Wrong ⇒ a compile
+  error at T-2, and `tree.rs` is inside the Surfaces while `sizing.rs` is not,
+  which would be a STOP (S-1). Trap 10 says the instrument is the type's
+  constructors, `grep -rn "FieldRow {" crates/`, and not a scan of the files
+  this slice created.
+- **A-b.** A `ComboBox` accepts `accessible-description` and `accessible-label`
+  set at its use site, although it declares five accessible properties of its
+  own. The `CheckBox`, `LineEdit`, `Slider` and `Button` arms all already do
+  this. Wrong ⇒ compile error at T-2, or a case that cannot find the field.
+- **A-c.** `self.current-index` inside a `selected` handler is the index just
+  chosen. Derived by reading `combobox-base.slint:20-31`, not expected. Wrong ⇒
+  the first case fails with an off-by-one or a stale index and the answer is to
+  resolve the `current-value` string against the model instead — which would be
+  a **STOP**, because the host would then be matching on a label.
+- **A-d.** `field_described` reaches a `ComboBox`: it is unfiltered
+  (`harness.rs:183-191`) and matches on `accessible-description`. Wrong ⇒ a role
+  filter in the case file, no production change.
+- **A-e.** `mock_single_click` lands on a `ListItem` inside a laid-out
+  `ComboBox` popup under `init_no_event_loop`. This is the one assumption the
+  design refuses to make — §8 R9 — and VA-1 is its fork. Measured at T-8 by the
+  injection pass, not by the row going green.
+- **A-f.** `FieldValue.index` is the position of the held `AlternativeId` in the
+  drawn field's alternatives, and `field_value` needs the alternatives to
+  compute it exactly as it needs `slider` to know whose the `number` slot is. So
+  `option_models` looks the alternatives up **once** and reads them twice — the
+  row's labels and the value's index — for the same reason `slider_bounds_of` is
+  called once. Wrong ⇒ the row and the slot could disagree about which list is
+  drawn, which is the defect the single call exists to prevent.
+- **A-g.** A `Chosen` id the drawn alternatives do not contain is unreachable:
+  `as_drawn` clones the first off the kind and `interpret` only ever produces
+  one it found in the list, and `AlternativeId::new` is `pub(super)`. So the
+  position lookup's `None` is left at the default rather than argued about —
+  the same trade `exact_f32`-under-a-drawn-slider takes at `glass.rs:521-527`.
+
+**STOP conditions**
+
+- **S-1.** A criterion compelling a file the Surfaces line does not name —
+  `app.slint`, `view_model.rs`, `diagnostics.rs`, `draft.rs` (one doc comment),
+  `glass.rs`, `install.rs`,
+  `tests/renderer/{fields,mapper,wiring,reception,tree}.rs`,
+  `tests/event_loop_reassert/`. Subject to the compile carve-out: where the
+  edit is what makes the tree compile, make the smallest edit that compiles and
+  send it in the same breath.
+- **S-2.** VA-1's fork turning out to be wider than *move VT-2 to the loop
+  target* — a new arrangement, a layout pass in `tests/renderer/`, or a second
+  loop `[[test]]`.
+- **S-3.** Any pressure to invent a substitute for `R-58`'s first prohibition.
+  A `group`-hint field is still drawn and every surviving `Undrawn` variant is
+  body-level; a case that *looks* like the deleted one would assert nothing.
+- **S-4.** Deleting `FieldForm` rather than emptying it. That deletes the
+  sixth-kind compile error, which is the whole of AC-7 (VA-2).
+- **S-5.** Weakening, deleting or `#[ignore]`-ing an existing case to go green
+  where it did not lose its premise; a dependency addition.
+- **S-6.** The plan turning out **wrong** rather than short.
+
+**Tasks**
+
+- [ ] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+      with its denominator
+- [ ] T-1 the sheet, committed before any production code
+- [ ] T-2 `app.slint`: `FieldRow.alternatives`, the `ComboBox` arm, its guard
+      and its `selected` literal — A-a, A-b settled at the compiler (EX-2)
+- [ ] T-3 `view_model.rs`: `FieldKind::Choice` moves to `Ok`, `FieldForm` is
+      **emptied** and its `Display` with it, and the three docs that describe a
+      destination which now has to be re-created (EX-2, EX-6, EX-7)
+- [ ] T-4 `glass.rs`: the alternatives lookup, the row's `alternatives`, and
+      the `Chosen` value arm parted from the `None` one (EX-2)
+- [ ] T-5 `install.rs`: the `Kind::Choice` arm, and the doc that called it
+      unreachable (EX-2)
+- [ ] T-6 EX-7's site list, one at a time, recorded by name: migrated, shrunk
+      or **deleted** — and `diagnostics.rs` **verified** rather than performed
+- [ ] T-7 VT-1 … VT-5 in `fields.rs`, each with an injection pass naming the
+      assertion **ordinal and message** it fails at; VA-1 settled here
+- [ ] T-8 VT-6 in `wiring.rs` and VT-7 in `view_model.rs`'s inline `mod tests`
+- [ ] T-9 VT-8 appended to `event_loop_reassert`, with an injection pass that
+      **discriminates** its two claims — split the target if it cannot
+- [ ] T-10 EX-9: the evidence that CD-2's three changes are true of the tree;
+      VA-1, VA-2, VA-3 in writing
+- [ ] T-11 VH-1's mechanical half: the app up against a five-kind backend,
+      screenshots captured, what was on screen written down
+- [ ] T-12 `just check` exits 0 (EX-1); sheet and Harvest updated
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
