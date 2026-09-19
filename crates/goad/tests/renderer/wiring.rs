@@ -1167,7 +1167,7 @@ mod editing {
   /// costs, and it is worth it: `noted` submits a JSON **string** where its
   /// neighbours submit booleans, so a key list that lost track of which option
   /// it was walking has a typed value to be wrong about as well.
-  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"choice","label":"Anything to add?","options":[{"id":"one","label":"One"}]}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
+  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"choice","label":"Anything to add?","options":[{"id":"one","label":"One"}]},{"id":"said","kind":"text","label":"In a word"},{"id":"rated","kind":"number","label":"Out of ten","min":0,"max":10},{"id":"when","kind":"datetime","label":"When?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
   /// One option, five fields, two blocks: two under a heading the backend
   /// authored, then three carrying no `group` at all — an **untitled** block,
@@ -1294,7 +1294,7 @@ mod editing {
       .expect("the option still answers");
     assert_eq!(
       submitted_keys(&answer),
-      vec!["noted", "read", "stretched"],
+      vec!["noted", "rated", "read", "said", "stretched", "when"],
       "every drawn field of `morning`, and the refusals added none: {:?}",
       answer.values
     );
@@ -1443,7 +1443,10 @@ mod editing {
       )
       .expect("every selector is good, so the option answers");
 
-    assert_eq!(submitted_keys(&answer), vec!["noted", "read", "stretched"]);
+    assert_eq!(
+      submitted_keys(&answer),
+      vec!["noted", "rated", "read", "said", "stretched", "when"]
+    );
     assert_eq!(
       submitted_value(&answer, "read"),
       Some(&serde_json::Value::Bool(true)),
@@ -1600,7 +1603,10 @@ mod editing {
     let (_, answer) = controller
       .answer(&view, "morning")
       .expect("the edited option answers");
-    assert_eq!(submitted_keys(&answer), vec!["noted", "read", "stretched"]);
+    assert_eq!(
+      submitted_keys(&answer),
+      vec!["noted", "rated", "read", "said", "stretched", "when"]
+    );
     assert_eq!(
       submitted_value(&answer, "read"),
       Some(&serde_json::Value::Bool(true))
@@ -1614,6 +1620,22 @@ mod editing {
       submitted_value(&answer, "noted"),
       Some(&serde_json::Value::String("one".to_owned())),
       "and so does the untouched `choice`, whose drawn value is its first alternative's id"
+    );
+    assert_eq!(
+      submitted_value(&answer, "said"),
+      Some(&serde_json::Value::String(String::new()))
+    );
+    assert_eq!(
+      submitted_value(&answer, "rated"),
+      Some(&serde_json::Value::from(0.0))
+    );
+    assert_eq!(
+      submitted_value(&answer, "when"),
+      Some(&serde_json::Value::String(
+        "1970-01-01T00:00:00+00:00".to_owned()
+      )),
+      "five kinds, five JSON types, and every one of them the value its widget was \
+       drawn showing — except `datetime`, which is the one that diverges (D1, D2)"
     );
   }
 
@@ -1659,7 +1681,7 @@ mod editing {
       .expect("morning answers");
     assert_eq!(
       submitted_keys(&morning),
-      vec!["noted", "read", "stretched"],
+      vec!["noted", "rated", "read", "said", "stretched", "when"],
       "exactly morning's drawn fields, and `tidied` is another option's"
     );
     assert_eq!(

@@ -858,7 +858,95 @@ mod tests {
 
   use crate::draft::{Edited, Finite, Reported, submitted};
 
-  use super::{DrawnKind, as_drawn, exact_f32, interpret, slider_bounds, spelled};
+  use super::{
+    DrawnKind, Undrawn, as_drawn, drawn_form, exact_f32, interpret, present, slider_bounds, spelled,
+  };
+
+  /// The view a document normalizes to, for a unit that needs a real
+  /// `FieldKind` rather than one it constructed.
+  fn viewed(document: &serde_json::Value) -> View {
+    let now = Timestamp::new(
+      "2026-01-01T00:00:00Z"
+        .parse()
+        .expect("the fixture must be an instant"),
+    );
+    read_response(document.to_string().as_bytes(), now)
+      .expect("the fixture must normalize")
+      .value
+      .view()
+      .expect("the fixture carries a view")
+      .clone()
+  }
+
+  /// PHASE-09/**VT-7** — **AC-7.** Every canonical `FieldKind` is drawn, and
+  /// the only field-level report left is the one that is not about a kind.
+  ///
+  /// **The property AC-7 names is a compile-time one and is identifier-free**
+  /// (`design.md:149-151`): `drawn_form` matches the canonical `FieldKind`
+  /// with no `_` arm, so a sixth protocol kind is an error there and whoever
+  /// adds it must choose — draw it, or give `FieldForm` a variant back. No
+  /// test can assert a match's exhaustiveness; what this asserts is the half
+  /// that is observable, which is that today the choice went the same way five
+  /// times. A sixth kind added and drawn passes this; a sixth kind added and
+  /// *not* drawn does not compile at all.
+  ///
+  /// The second half is `Undrawn` still doing its job for the one thing that
+  /// can still be undrawn: a `group` hint that is not a string. The field is
+  /// drawn where it was declared — coercing `7` into a heading would invent
+  /// one the backend did not author — and the report is beside it.
+  #[test]
+  fn every_canonical_field_kind_is_drawn_and_a_group_hint_is_still_reported() {
+    let view = viewed(&serde_json::json!({
+      "view": {
+        "kind": "choice",
+        "title": "T",
+        "options": [{
+          "id": "opt",
+          "label": "L",
+          "fields": [
+            { "id": "a", "kind": "boolean", "label": "A" },
+            { "id": "b", "kind": "text", "label": "B" },
+            { "id": "c", "kind": "number", "label": "C", "min": 0, "max": 10 },
+            { "id": "d", "kind": "choice", "label": "D",
+              "options": [{ "id": "one", "label": "One" }] },
+            { "id": "e", "kind": "datetime", "label": "E", "group": 7 }
+          ]
+        }]
+      }
+    }));
+    let View::Choice(choice) = &view;
+    let fields = choice.options().as_slice()[0].fields();
+
+    let drawn: Vec<bool> = fields
+      .as_slice()
+      .iter()
+      .map(|field| drawn_form(field.kind()).is_ok())
+      .collect();
+    assert_eq!(
+      drawn,
+      vec![true, true, true, true, true],
+      "all five kinds draw, so `drawn_form` has no `Err` left to answer with"
+    );
+
+    let presentation = present(&view);
+    assert_eq!(
+      presentation.undrawn,
+      vec![Undrawn::GroupHint {
+        option: choice.options().as_slice()[0].id().clone(),
+        field: fields.as_slice()[4].id().clone(),
+      }],
+      "and the one report a field can still earn is the one that is not about its kind"
+    );
+    assert_eq!(
+      presentation.options.as_slice()[0]
+        .blocks
+        .iter()
+        .flat_map(|block| block.fields.iter())
+        .count(),
+      5,
+      "every field is drawn, the badly grouped one included"
+    );
+  }
 
   /// A `choice` over two declared alternatives, as the mapper would build it.
   ///
