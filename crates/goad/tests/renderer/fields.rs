@@ -677,14 +677,28 @@ fn choose(window: &PromptWindow, option: &str, field: &str, label: &str) {
     .position(|item| item.accessible_item_selected() == Some(true))
     .expect("one row declares itself selected");
 
-  let key = if at >= from {
-    slint::platform::Key::DownArrow
-  } else {
-    slint::platform::Key::UpArrow
-  };
-  for _ in 0..at.abs_diff(from) {
-    press(window, key);
-  }
+  // **One row at a time, and the caller waits in between.** Each arrow raises
+  // `selected`, so it raises a `Command::Edit`; the command channel holds one
+  // (`main.rs:86`) and a synchronous key press gives `serve` no chance to
+  // drain, so a second press inside one call would have its edit dropped by
+  // `Wire::send` and the draft would keep the first. That is what a person
+  // arrowing quickly gets too, and the guard corrects the widget on the next
+  // present — but it is not what a case driving *one* choice means to say.
+  assert_eq!(
+    at.abs_diff(from),
+    1,
+    "{label:?} is {} rows from the current selection; choose one at a time and \
+     wait for the draft between them",
+    at.abs_diff(from)
+  );
+  press(
+    window,
+    if at > from {
+      slint::platform::Key::DownArrow
+    } else {
+      slint::platform::Key::UpArrow
+    },
+  );
   // Return closes the popup and nothing else: the selection was raised by each
   // arrow (`combobox-base.slint:41-54`). Leaving it open would cover the
   // controls the rest of the case drives.
@@ -2060,5 +2074,211 @@ async fn choosing_an_alternative_submits_its_id_where_the_field_id_is_the_option
     Value::Bool(false),
     "and the option answered is the one whose control was pressed, although its id is \
      also a field id"
+  );
+}
+
+/// Which control each field of one option drew, in the order the query's walk
+/// reaches them — the **screen's** own account of declared order, rather than
+/// the row model's slot numbering, which is the host's.
+///
+/// The option's own control is filtered out by id: it answers to the option's
+/// description, which no field here shares. The fixture that *does* share one
+/// is [`A_CHOICE_FIELD`], and it is a different case.
+fn form_on_screen(window: &PromptWindow, option: &str) -> Vec<(String, AccessibleRole)> {
+  within_option(window, option)
+    .find_all()
+    .into_iter()
+    .filter_map(|element| {
+      let described = element.accessible_description()?.to_string();
+      Some((described, element.accessible_role()?))
+    })
+    .filter(|(described, _)| described != option)
+    .collect()
+}
+
+/// Slice 009 `plan.md` PHASE-09/**VT-3** — **AC-1.** All five kinds draw, in
+/// declared order, and a `number` outside `slider_bounds` draws the text
+/// control.
+///
+/// **Element queries only; nothing is operated.** What this asserts is that
+/// six fields of five kinds each reached the screen as the control its kind
+/// calls for, and that the order on screen is the backend's declared order and
+/// not the order the markup's `if` chain tests kinds in — which, for this
+/// fixture, is a different order.
+///
+/// `rated` and `counted` are both `number` and draw different controls: the
+/// host decides on the declared range and on nothing else
+/// (`view_model::slider_bounds`, §7 D17), so a list of six roles is what says
+/// *one kind, two controls* without operating either.
+#[tokio::test]
+async fn all_five_kinds_draw_in_declared_order_and_a_numbers_control_is_the_hosts_choice() {
+  let (form, _log) = driving!(
+    rigged("fields-every-kind-vt3", &[EVERY_KIND]),
+    |window, tray, log| { form_on_screen(&window, "morning") }
+  );
+
+  assert_eq!(
+    form,
+    vec![
+      ("noted".to_owned(), AccessibleRole::TextInput),
+      ("mood".to_owned(), AccessibleRole::Combobox),
+      ("rated".to_owned(), AccessibleRole::Slider),
+      ("when".to_owned(), AccessibleRole::Button),
+      ("stretched".to_owned(), AccessibleRole::Checkbox),
+      ("counted".to_owned(), AccessibleRole::TextInput),
+    ],
+    "five kinds, six fields, in the order the backend declared them — and \
+     `rated` and `counted` are the same kind drawn two ways"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-09/**VT-4** — **AC-2, untouched.** The option's
+/// own control is pressed and nothing else is; the five as-drawn values leave
+/// the host with the JSON types `R-57` names for their kinds.
+///
+/// Read off the **child process's own request log**, so what is asserted is
+/// what a backend received rather than what the host believes it sent. Each
+/// value is a different JSON type from at least one of its neighbours —
+/// string, string, number, string, boolean, number — so a response that typed
+/// them all alike has no way to pass.
+///
+/// `R-58` forbids omitting a value for a drawn field, so six keys arrive for
+/// six fields, and each carries what the widget was drawn showing: `false`,
+/// `""`, the declared minimum or `0`, the first alternative's **id**, and —
+/// for `datetime` alone — a value the screen does **not** show. That last
+/// divergence is D-6, and this is the only case that asserts the epoch's exact
+/// spelling (`canon-delta.md` CD-1).
+#[tokio::test]
+async fn every_untouched_kind_leaves_the_host_with_the_json_type_r57_names() {
+  let (shown, log) = driving!(
+    rigged("fields-every-kind-vt4", &[EVERY_KIND]),
+    |window, tray, log| {
+      let shown = shown_on_screen(&window, "morning", "when");
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      shown
+    }
+  );
+
+  assert_eq!(
+    shown, NOT_SET,
+    "the screen says nobody picked, while the wire below carries a value"
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    keys_of(&values),
+    vec!["counted", "mood", "noted", "rated", "stretched", "when"],
+    "R-58: a value for every drawn field: {values:?}"
+  );
+  assert_eq!(values["stretched"], Value::Bool(false));
+  assert_eq!(values["noted"], Value::String(String::new()));
+  assert_eq!(
+    values["rated"],
+    Value::from(0.0),
+    "a number carries its declared minimum"
+  );
+  assert_eq!(
+    values["counted"],
+    Value::from(0.0),
+    "and one with no declared bound carries zero"
+  );
+  assert_eq!(
+    values["mood"],
+    Value::String("badly".to_owned()),
+    "a choice carries its **first alternative's id**, which is what the box was \
+     drawn showing the label of"
+  );
+  assert_eq!(
+    values["when"],
+    Value::String("1970-01-01T00:00:00+00:00".to_owned()),
+    "and a datetime nobody picked carries the epoch, offset and all — the one \
+     kind whose screen and wire disagree on purpose (D1, D2)"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-09/**VT-5** — **AC-2, operated.** Every control
+/// driven by its own driver first, and then the same log read again: the
+/// per-kind typing holds for values a person produced, not only for the ones
+/// the host drew.
+///
+/// **Six drivers, one per control, and none of them is a shortcut.** A
+/// `CheckBox`'s default action, a `LineEdit`'s `set_accessible_value` — the
+/// paste path, which validates nothing — a `Slider`'s `set_accessible_value`,
+/// a `ComboBox` clicked open and arrowed, and both pickers through their own
+/// buttons. The three continuous controls are debounced and are driven
+/// **last**, so what reaches the wire for them is the answer's own flush
+/// rather than a timer this tier cannot run (`design.md` §5.2).
+///
+/// `counted` is typed a value no bound could have produced — negative, and not
+/// a whole number — so a clamp or a round of any kind would change it.
+#[tokio::test]
+async fn every_operated_kind_leaves_the_host_with_the_json_type_r57_names() {
+  let (today, _) = instant_today();
+  let picked = composed(today.year, today.month, 15, 3);
+
+  let ((), log) = driving!(
+    rigged("fields-every-kind-vt5", &[EVERY_KIND]),
+    |window, tray, log| {
+      // Two choices, one row each, with the draft waited for in between —
+      // which is also what says the second is made from where the first left
+      // the box rather than from where it started.
+      choose(&window, "morning", "mood", "Fine");
+      until(LIVENESS_BOUND, || indexed(&window, "morning", "mood") == 1).await;
+      choose(&window, "morning", "mood", "Well");
+      until(LIVENESS_BOUND, || indexed(&window, "morning", "mood") == 2).await;
+
+      tick!(window, "morning", "stretched");
+
+      open_picker(&window, "morning", "when");
+      pick_day(&window, 15);
+      accept(&window);
+      pick_hour(&window, 3);
+      accept(&window);
+      until(LIVENESS_BOUND, || {
+        shown_on_screen(&window, "morning", "when") != NOT_SET
+      })
+      .await;
+
+      // The three continuous controls, last and undelivered: the timer cannot
+      // fire at this tier, so these reach the wire inside the `Choose` below
+      // or not at all.
+      type_into(&window, "morning", "noted", "hello");
+      type_into(&window, "morning", "counted", "-4.5");
+      slide_to(&window, "morning", "rated", 7.0);
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+    }
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    keys_of(&values),
+    vec!["counted", "mood", "noted", "rated", "stretched", "when"],
+    "{values:?}"
+  );
+  assert_eq!(values["stretched"], Value::Bool(true));
+  assert_eq!(values["noted"], Value::String("hello".to_owned()));
+  assert_eq!(
+    values["rated"],
+    Value::from(7.0),
+    "R-57: a slider's own value leaves as a JSON number"
+  );
+  assert_eq!(
+    values["counted"],
+    Value::from(-4.5),
+    "as does a typed one, unclamped and unrounded"
+  );
+  assert_eq!(
+    values["mood"],
+    Value::String("well".to_owned()),
+    "R-57: the alternative's id — the third one, so neither the first nor an \
+     off-by-one reaches this: {values:?}"
+  );
+  assert_eq!(
+    values["when"],
+    Value::String(picked),
+    "and the pick, composed host-side and carrying the offset it resolved in"
   );
 }
