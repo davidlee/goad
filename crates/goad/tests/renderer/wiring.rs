@@ -1130,7 +1130,7 @@ mod interaction {
 /// option it names and none for any other.
 mod editing {
   use goad::controller::{Controller, Ending, Exchanged, serve};
-  use goad::draft::Edited;
+  use goad::draft::Reported;
   use goad::generated::PromptWindow;
   use goad::glass::Glass;
   use goad::wire::{Cancel, Command, Notice, Stimulus};
@@ -1251,26 +1251,26 @@ mod editing {
         "a-token-from-a-replaced-view",
         "morning",
         "read",
-        Edited::Checked(true)
+        &Reported::Checked(true)
       ),
       Err(Refused::SupersededView),
       "identity is checked first, and a stale token is refused for the reason true of it"
     );
     assert_eq!(
-      controller.edit(&view, "not-an-option", "read", Edited::Checked(true)),
+      controller.edit(&view, "not-an-option", "read", &Reported::Checked(true)),
       Err(Refused::UnknownOption)
     );
     assert_eq!(
-      controller.edit(&view, "morning", "not-a-field", Edited::Checked(true)),
+      controller.edit(&view, "morning", "not-a-field", &Reported::Checked(true)),
       Err(Refused::UnknownField)
     );
     assert_eq!(
-      controller.edit(&view, "morning", "tidied", Edited::Checked(true)),
+      controller.edit(&view, "morning", "tidied", &Reported::Checked(true)),
       Err(Refused::UnknownField),
       "a field the *other* option declares is not this one's: R-52 scopes a field id to its option"
     );
     assert_eq!(
-      controller.edit(&view, "morning", "noted", Edited::Checked(true)),
+      controller.edit(&view, "morning", "noted", &Reported::Checked(true)),
       Err(Refused::UnknownField),
       "an undrawn field never entered a block, so the walk that admits an edit and the walk \
        that submits a value are the same walk"
@@ -1290,10 +1290,58 @@ mod editing {
 
     let mut nothing_retained = Controller::new();
     assert_eq!(
-      nothing_retained.edit(&view, "morning", "read", Edited::Checked(true)),
+      nothing_retained.edit(&view, "morning", "read", &Reported::Checked(true)),
       Err(Refused::SupersededView),
       "with nothing retained the view is superseded, not the option unknown — there is no \
        presentation for an option to be missing from"
+    );
+  }
+
+  /// **PHASE-03/VT-2** — `interpret`'s third `None` case, through the
+  /// controller. (Phase-qualified: the `VT-n` ids on the cases either side of
+  /// this one are slice 008's, and the two sequences collide.)
+  ///
+  /// A report whose variant is not the drawn field's kind is a renderer bug,
+  /// and it takes the refusal an unknown field already takes — reported,
+  /// nothing recorded, no new class in the taxonomy.
+  ///
+  /// **What makes the refusal attributable to `interpret` and not to a
+  /// selector is the accepted edit above it.** The same three selectors are
+  /// used twice: the first call records, so view, option and field are all
+  /// good, and the second differs only in the variant it reports. The final
+  /// assertion is the accepted value rather than `false`, so a refusal that
+  /// quietly cleared the field would fail here too.
+  ///
+  /// `view_model.rs`'s own unit enumerates all twenty-four mismatched pairs
+  /// and asserts the count; this is the half that says the `None` survives the
+  /// trip through `Controller::edit` (`design.md` §5.2, §7 D31).
+  #[tokio::test]
+  async fn a_report_that_is_not_the_drawn_fields_kind_is_refused_and_records_nothing() {
+    let (mut controller, view) = retaining("edit-wrong-kind", TWO_FORMS).await;
+
+    controller
+      .edit(&view, "morning", "read", &Reported::Checked(true))
+      .expect("`read` is a drawn field of `morning`: all three selectors are good");
+
+    assert_eq!(
+      controller.edit(
+        &view,
+        "morning",
+        "read",
+        &Reported::Typed("ticked".to_owned())
+      ),
+      Err(Refused::UnknownField),
+      "`read` is a drawn boolean, so a text report against it is a renderer bug rather \
+       than an edit — and it earns the posture an unknown field already has"
+    );
+
+    let (_, answer) = controller
+      .answer(&view, "morning")
+      .expect("the option still answers");
+    assert_eq!(
+      submitted_value(&answer, "read"),
+      Some(&serde_json::Value::Bool(true)),
+      "the refused report recorded nothing, and disturbed nothing the field already held"
     );
   }
 
@@ -1306,7 +1354,7 @@ mod editing {
     let (mut controller, view) = retaining("edit-recorded", TWO_FORMS).await;
 
     controller
-      .edit(&view, "morning", "read", Edited::Checked(true))
+      .edit(&view, "morning", "read", &Reported::Checked(true))
       .expect("a field the option declares records");
 
     let (_, answer) = controller
@@ -1351,10 +1399,10 @@ mod editing {
     );
 
     controller
-      .edit(&view, "morning", "read", Edited::Checked(true))
+      .edit(&view, "morning", "read", &Reported::Checked(true))
       .expect("morning declares `read`");
     controller
-      .edit(&view, "evening", "tidied", Edited::Checked(true))
+      .edit(&view, "evening", "tidied", &Reported::Checked(true))
       .expect("evening declares `tidied`");
 
     let (_, morning) = controller
@@ -1400,7 +1448,7 @@ mod editing {
     let (mut controller, view) = retaining("screen-from-draft", TWO_FORMS).await;
 
     controller
-      .edit(&view, "morning", "read", Edited::Checked(true))
+      .edit(&view, "morning", "read", &Reported::Checked(true))
       .expect("morning declares `read`");
     glass.present(controller.frame(false));
 
@@ -1565,7 +1613,7 @@ mod editing {
           view: view.clone(),
           option: "morning".to_owned(),
           field: "read".to_owned(),
-          value: Edited::Checked(true),
+          reported: Reported::Checked(true),
         })
         .await
         .expect("the channel must accept the edit");
@@ -1581,7 +1629,7 @@ mod editing {
           view,
           option: "morning".to_owned(),
           field: "not-a-field".to_owned(),
-          value: Edited::Checked(true),
+          reported: Reported::Checked(true),
         })
         .await
         .expect("the channel must accept the refused edit");

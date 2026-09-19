@@ -705,7 +705,7 @@ here rather than in the ledger, so striking them costs nothing:
 |-------|-------|-------|
 | PHASE-01 — the value channel and the epoch | **done** | 2026-09-19 |
 | PHASE-02 — the draft's five values, and the kind-directed pure functions | **done** | 2026-09-19 |
-| PHASE-03 — the edit channel | **in progress** | 2026-09-19 |
+| PHASE-03 — the edit channel | **done** | 2026-09-19 |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | pending | |
 | PHASE-05 — `text`, and the debounce's delivery | pending | |
 | PHASE-06 — the overlay | pending | |
@@ -1295,13 +1295,331 @@ prints `git diff --stat`.
   `EmptyAlternatives { at: "view.options[0].fields[0].options" }`. The canonical
   **type** is `Alternatives`; only the wire key is `options` (`R-16`, `R-53`).
 
+### PHASE-03 — the edit channel
+
+**Objective:** the markup hands back a typed report of what one widget did, and
+the host interprets it against the drawn field before anything reaches the
+draft. Discharges no AC on its own; it is the second half of the reshaping
+PHASE-02 began, and it is what PHASE-05 onwards send their edits through.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged.** PHASE-02/EX-1 … EX-9 checked against the code rather
+  than inherited from the hand-over:
+
+| PHASE-02 | claimed at | checked here |
+|---|---|---|
+| EX-1 | the gate | `just check` re-run by this agent at `0d7f553`, clean tree: **exit 0**. Counts below |
+| EX-2 | `src/draft.rs:18-62`, `:64-97` | read: `Finite` at `:42`, private field, `new` at `:54` returning `Option`, `ZERO` at `:49`; derives `Debug, Clone, Copy, PartialEq, PartialOrd` (`:41`) and **no `Eq`**. `Edited` at `:75`, five variants |
+| EX-3 | `src/draft.rs:99-126`, `src/wire.rs:27-28` | read: `Reported` at `draft.rs:113`, six variants — `Checked`, `Typed`, `AdjustedText`, `AdjustedValue`, `Chosen`, `Picked`. `Edited` derives `PartialEq` without `Eq` (`draft.rs:74`); `Command` likewise (`wire.rs:27`). **This is EX-3's second clause, and it is already true on entry** — see the Findings note below |
+| EX-4 | `src/draft.rs:160`, `:193` | read: `state_of -> Option<Edited>`; `submitted` is `pub(crate)`, five arms |
+| EX-5 | `src/view_model.rs:83`, `:102` | read: `PresentationField` carries a `DrawnKind`; `DrawnKind::Choice { first, alternatives }` |
+| EX-6 | `src/view_model.rs:511` | read: `as_drawn(&DrawnKind) -> Edited`, five arms |
+| EX-7 | `src/view_model.rs:569` | read: `interpret(&Reported, Option<&Edited>, &DrawnKind) -> Option<Edited>`; nested match, no `_` in either position, thirty explicit destinations |
+| EX-8 | `src/view_model.rs:446` | read: `spelled`, `{:e}` past 24 characters |
+| EX-9 | `src/glass.rs:322`, `src/controller.rs:237` | read: `field_value(Option<&Edited>)`; `answer` applies `as_drawn` where the draft holds nothing |
+
+  Baseline target counts at `0d7f553`, for the comparison at the end: `goad`
+  lib **42**, `tests/renderer` **189**, `goad-boundary` `tests/checks` **43**,
+  the three loop targets **1** each, `goad-shell` lib **71** /
+  `tests/integration` **96**, `goad-semantics` lib **30**. 563 in all.
+
+**Reading list**
+
+*What is being changed*
+
+- `crates/goad/ui/app.slint:27-29` — `Kind`, `FieldRow`, `FieldValue`; `:98` —
+  `callback edited(string, string, string, bool)`, which gains a `FieldEdit`
+  in place of the bare `bool`; `:314-345` — the `CheckBox`, whose `toggled` is
+  at `:341-343`.
+- `crates/goad/src/wire.rs:27-28` — `Command`'s derives, already `PartialEq`
+  without `Eq`; `:38-51` — `Command::Edit`, whose `value: Edited` becomes a
+  `Reported`.
+- `crates/goad/src/install.rs:37-45` — the `edited` closure, the whole of EX-4.
+  `:14` — the `use crate::draft::Edited` that becomes `Reported`.
+- `crates/goad/src/controller.rs:257-288` — `edit`, which gains the
+  interpretation on the walk it already makes (`drawn_fields` at `:352`,
+  `selected` at `:327`); `:674-680` — `dispatch`'s `Command::Edit` arm.
+- `crates/goad/tests/renderer/wiring.rs` — **the twelve sites**, in five cases:
+  `an_edit_is_refused_by_each_selector_that_fails_and_records_nothing`
+  (`:1246`; sites at `:1247`, `:1260`, `:1264`, `:1268`, `:1273`, `:1293`),
+  `an_answer_carries_a_value_for_every_drawn_field_of_the_option_it_names`
+  (`:1305`; site at `:1309`),
+  `an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field`
+  (`:1341`; sites at `:1354`, `:1357`),
+  `the_next_present_writes_every_control_back_from_the_draft` (`:1396`; site at
+  `:1403`), and
+  `an_edit_starts_no_exchange_and_a_refused_one_reports_where_a_refused_click_does`
+  (`:1531`; the two `Command::Edit` literals at `:1564` and `:1580`).
+- `crates/goad/tests/renderer/fields.rs:234-245` — `click`, which drives the
+  `CheckBox`'s default action through `install`'s closure; `:220-222` —
+  `drafted`, the synchronisation point. VT-3's vehicle.
+
+*Left alone this phase, deliberately*
+
+- `wiring.rs`'s own `TWO_FORMS` (`:1158`) is **not** `fields.rs`'s: it carries
+  a third field, `noted`, declared `text`. Four of the twelve sites read it
+  (`:1268`, `:1273`, `:1354`, `:1357`), and `:1273`'s refusal and `:1343-1352`'s
+  guard assertion both rest on `noted` still being undrawn. PHASE-05 migrates
+  it (PHASE-05/EX-9).
+- `draft.rs` — PHASE-02 already rewrote its ten unit sites for the split.
+- `glass.rs` — the value channel is untouched; this phase is the edit channel.
+
+*Design sections that bind*
+
+- `design.md:687-756` — `Reported`, `interpret`, and the `None` surface's three
+  cases. `:757-778` — the `resolve` prohibition, which binds every new name
+  here. `:779-807` — the two `Eq` paragraphs.
+- `design.md:296-309` — the Slint block: `FieldEdit`'s fields and
+  `callback edited(string, string, string, FieldEdit)`.
+- `design.md:1262-1264` **I-D** — every id on the wire came off a view;
+  `:1275-1285` **I-G** — a submitted number is finite, held at two places and
+  at neither boundary type.
+- `design.md:1500-1511` — §9's three obligations with no widget: *every case
+  that builds a `Command::Edit` or an `Edited` is rewritten for the `Reported`
+  split — twelve in `tests/renderer/wiring.rs`, ten in `draft.rs`'s own tests,
+  and the one closure in `install.rs` they exercise.*
+- `plan.md:367-432` — PHASE-03 in full. `plan.md:518-646` (PHASE-05) for what
+  is deliberately **not** done here: `pending.rs`, the debounce,
+  `Wire::send -> bool`, `Command::Choose`'s new shape and the `TWO_FORMS`
+  migration are all PHASE-05's.
+- `docs/specs/001-host-backend-protocol.md` — `R-52` (a field id is unique
+  within its option), and the refusal taxonomy `Refused::UnknownField` belongs
+  to. EX-5 adds no class to it.
+
+*Prior art*
+
+- `crates/goad/src/glass.rs:282-321` — `markup_kind` and `field_value`'s docs.
+  They are the shape for a host-side map that is total over five kinds while
+  only one is drawn, and they say which phase owns each remaining arm. The
+  closure here is the same shape pointing the other way.
+- `notes.md` §*Traps worth naming* — *a type only the controller can construct
+  cannot be built in a Slint callback* (F-37), which is the whole reason
+  `Reported` exists.
+
+**Assumptions & STOP conditions**
+
+- **A-a.** A Slint struct literal may name a subset of a struct's fields, and
+  the rest default. Measured by the design's spike (`design.md:277-279`) and
+  re-measured here the moment `app.slint` compiles.
+- **A-b.** `Kind` and `FieldEdit` reach Rust as a plain enum and a plain struct
+  through `generated.rs`'s `include_modules!()`, exactly as `Kind`,
+  `FieldRow` and `FieldValue` already do. Cheap to be wrong about: a compile
+  error naming the item.
+- **A-c.** Nothing outside `install.rs` and `controller.rs` names
+  `Command::Edit`'s payload type. Verified by `grep -rn "Command::Edit"` over
+  the workspace before the change: `install.rs:39`, `controller.rs:674`, and
+  `wiring.rs:1564`/`:1580`.
+
+STOP and consult — do not improvise past any of these:
+
+- **S-1.** Any judgement moving *into* the Slint closure: a parse, a fallback
+  value, a refusal, a clamp, a `try_from` whose failure is absorbed. EX-4 is
+  the criterion and it is the one the plan says is most likely to erode.
+- **S-2.** A new refusal class. A `None` from `interpret` takes the **existing**
+  `Refused::UnknownField` posture (EX-5).
+- **S-3.** Hand-writing an `Eq` anywhere in the `Finite` / `Edited` / `Command`
+  tower. Standing prohibition, `design.md:779-807`.
+- **S-4.** Weakening, deleting or `#[ignore]`-ing an existing case to go green.
+  VA-1 exists to catch it.
+- **S-5.** Touching a file the Surfaces line does not name — in particular
+  `glass.rs`, `view_model.rs`, `draft.rs`, `main.rs` or `pending.rs`.
+- **S-6.** Migrating `wiring.rs`'s `TWO_FORMS` off `text`. PHASE-05's.
+
+**Findings raised while expanding the phase**
+
+- **EX-3's second clause was already true on entry, and could not have
+  waited.** *"`Command` drops its `Eq` derive with `Edited`"* — `Edited` lost
+  its `Eq` in PHASE-02/EX-3, and `Command` carries an `Edited`, so the two
+  losses are one compile: `wire.rs:42` failed with
+  `E0277: the trait bound Edited: Eq is not satisfied` the moment `draft.rs`
+  changed. PHASE-02's Surfaces were amended for it (`plan-log.md`,
+  2026-09-19). Verified here at `wire.rs:27` and treated as discharged; not
+  undone and redone. What is left of EX-3 is `Command::Edit` carrying a
+  `Reported`.
+- **The closure cannot be total over `Kind` in this phase, and the design's own
+  `datetime` path is why.** `Reported::Picked` needs a `Timestamp` and an
+  `Offset`, composed by `instant.rs::compose` from a `date` and a `time` that
+  `FieldEdit` does not carry until PHASE-07 — EX-2 lists five fields and the
+  markup's standing rule is that nothing is declared before a control reads it.
+  §5.4's picking diagram already gives that arm an `Option` shape in as many
+  words: *"Composing --> Idle: one `edited()`, or nothing if `compose` fails"*.
+  So the mapper here answers `Option<Reported>` and the closure sends only on
+  `Some`; the four kinds no control draws are one grouped arm naming the phase
+  that fills each, which is `glass.rs::field_value`'s shape pointing the other
+  way. This is **not** a refusal decided in the closure: `undrawn_form` draws
+  only `boolean`, so no `FieldEdit` of another kind is constructible today.
+- **Two later phases will need `install.rs` in their Surfaces, and it is not
+  there.** `install.rs` appears in PHASE-03, PHASE-05 and PHASE-07's Surfaces
+  and **not** in PHASE-08's or PHASE-09's — yet PHASE-08 draws the two `number`
+  controls and PHASE-09 draws the `ComboBox`, and each needs its own arm in the
+  mapper this phase writes. Same shape as the gap PHASE-02 found. Reported to
+  the team lead; `plan.md` is an accepted artefact and is not edited from here.
+- **The design does not settle how the closure tells a numeric `LineEdit`'s
+  report from a `Slider`'s.** `Reported` has six variants for five kinds
+  (`AdjustedText` and `AdjustedValue` both under `number`), while the markup's
+  only discriminant is `FieldEdit.kind`, which `design-log.md` D-12 welds to
+  the **protocol** kind and never the control. The two controls send different
+  slots — §5.2's table: the `LineEdit` *"Sends `text`"*, the `Slider` *"Sends
+  `number`"* (D16) — but both under `Kind.number`, and no slot value
+  distinguishes them: an empty `text` is the measured cleared-field case, not a
+  slider. Nothing in this phase turns on it — `number` has no arm here — so it
+  is recorded rather than resolved, and it is PHASE-08's to settle before it
+  draws the second control. Reported to the team lead.
+
+**Tasks**
+
+- [x] T-1 `app.slint`: `FieldEdit`, the widened `edited` callback, and the
+      `CheckBox`'s literal (EX-2)
+- [x] T-2 `wire.rs`: `Command::Edit` carries a `Reported` (EX-3)
+- [x] T-3 `install.rs`: the closure maps a `FieldEdit` to a `Reported` and
+      nothing else (EX-4)
+- [x] T-4 `controller.rs`: `edit` interprets on the walk it already makes, and
+      a `None` takes the existing `UnknownField` posture (EX-5)
+- [x] T-5 `wiring.rs`: the twelve sites rewritten (EX-6), VT-1 and VT-2 with
+      their injection passes
+- [x] T-6 `fields.rs`: VT-3 — the toggled `CheckBox` still reaches the draft and
+      still answers. **No edit to the file was needed**; see the criterion table
+- [x] T-7 VA-1's one-by-one diff of the twelve; `just check` exits 0 (EX-1);
+      sheet, Status and Harvest updated
+- [x] T-8 `tests/renderer/tree.rs` — a **thirteenth** site, outside the
+      Surfaces as written. Unblocked: the user amended PHASE-03's Surfaces to
+      name it (`plan.md`, 2026-09-19), and PHASE-08's and PHASE-09's to name
+      `install.rs`
+- [x] T-9 `diagnostics.rs`: `Refused::UnknownField`'s doc comment, two stale
+      clauses, no code. Added to the Surfaces by the user after this phase
+      raised it (`plan-log.md`, 2026-09-19)
+
+**A thirteenth site, and it is outside the phase's Surfaces.** Widening
+`callback edited` to carry a `FieldEdit` breaks exactly one case the Surfaces
+line does not name: `tests/renderer/tree.rs:424`
+`activating_a_field_control_fires_edited_with_all_four_selectors`, which binds
+`window.on_edited` directly to capture the callback's arguments, and
+`tree.rs:33`'s `type EditedArgs = (String, String, String, bool)` that holds
+them. Verified to be the only one, by counting compile-error locations per file
+across `--all-targets`: `wiring.rs` **12**, `tree.rs` **1**, and the ten
+reported in `controller.rs` are one line — `:278`, the *arguments to this
+method are incorrect* note repeated per caller.
+
+The count of twelve is **not** wrong. `plan.md` PHASE-03/EX-6 and `design.md`
+§9 both enumerate *constructors of a `Command::Edit` or an `Edited`*, and this
+case constructs neither — it binds the markup callback. The enumeration's
+reach is what missed it, not its arithmetic.
+
+STOP taken rather than the edit: `docs/AGENTS.md` §Execute, and PHASE-02 found
+the same shape one phase ago. Reported to the team lead.
+
+**What landed, criterion by criterion**
+
+| | discharged by | how it was checked |
+|---|---|---|
+| EX-1 | the gate | `just check` **exit 0**. Every target's count identical to the baseline except `tests/renderer`, 189 → **190** — the one case PHASE-03/VT-2 adds. 564 in all |
+| EX-2 | `ui/app.slint:47` (`FieldEdit`), `:112` (the callback), `:355-369` (the `CheckBox`'s `toggled`) | read: `struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int }` and `callback edited(string, string, string, FieldEdit)`. The literal names **two** fields, `kind` and `checked`. `date` / `time` are absent, for the reason `FieldValue`'s are. Measured by injection **G**: writing one further slot in the literal turns `tree.rs`'s case red, so *naming only the fields it means* is asserted and not merely intended |
+| EX-3 | `src/wire.rs:51-56`, `:27` | read: `Command::Edit { view, option, field, reported: Reported }`. The `Eq` half was already true on entry — PHASE-02's compile forced it — and was verified, not redone |
+| EX-4 | `src/install.rs:109-114` (`reported`), `:42-54` (the closure) | read: one `match` on `edit.kind`, one slot read, no parse, no fallback, no refusal. The closure's own body is a `let … else` and a `send`. Measured by injection **A** |
+| EX-5 | `src/controller.rs:278-303` (`edit`; the `interpret` call at `:299`) | read: the report is interpreted on the walk `declared` already made, and `None` takes the **existing** `Refused::UnknownField` — no variant added to `diagnostics.rs`'s enum (`git diff` touches no file under `src/` but `wire.rs`, `install.rs` and `controller.rs`). Measured by injections **C** and **D** |
+| EX-6 | `git diff -- crates/goad/tests/renderer/wiring.rs` | the twelve, rewritten. See VA-1 |
+| VT-1 | `wiring.rs::an_edit_is_refused_by_each_selector_that_fails_and_records_nothing` | still five refusals through a `Reported`, each naming which selector failed, and the answer still carries `false` for all of them. Injection **E**, red |
+| VT-2 | `wiring.rs:1319::a_report_that_is_not_the_drawn_fields_kind_is_refused_and_records_nothing` | new. Injections **C** and **D**, red — it catches the mismatch being *recorded* and the mismatch being *accepted in silence*, which are the two ways EX-5 can be got wrong |
+| VT-3 | `tests/renderer/fields.rs`'s four `install`-driven cases, unchanged | **no edit to `fields.rs` was needed and none was made.** `click` (`fields.rs:234-245`) already drives `invoke_accessible_default_action` on the `CheckBox` through `install`'s closure, and four cases answer afterwards. That they are not proxies for the new channel is injection **A**: breaking `reported`'s `boolean` arm turns exactly those four red |
+| VA-1 | `git diff -U3 -- crates/goad/tests/renderer/wiring.rs`, read hunk by hunk | **no case was deleted and no assertion was lost.** Every one of the twelve hunks is a one-token substitution — `Edited::Checked(true)` → `&Reported::Checked(true)` at ten `edit(…)` call sites, `value:` → `reported:` at the two `Command::Edit` literals. No `Err(…)`, no `.expect(…)`, no message string, no surrounding `assert_eq!` and no part of the `answer.values` walk appears in the diff at all. The case count rose by one and fell by none: 189 → 190 |
+
+**A thirteenth site, and the Surfaces were amended for it.** `tree.rs:432`
+`activating_a_field_control_fires_edited_with_all_four_selectors` binds
+`window.on_edited` directly, and `tree.rs:33`'s `EditedArgs` alias holds what it
+captures. The fourth element is now a `FieldEdit` compared **whole** rather
+than a `bool`, which is what makes the case hold EX-2's *naming only the fields
+it means*; the three selectors it was already asserting are untouched. The user
+amended PHASE-03's Surfaces to name the file, and PHASE-08's and PHASE-09's to
+name `install.rs` for the same reason a phase later.
+
+**The injection passes** (`design.md` §9), each applied, run, restored, and the
+restore confirmed by comparing the file back to the string that was read —
+`git diff` is the wrong instrument here, because it compares against `HEAD` and
+the phase is in flight. The runner is `scratchpad/inject.py`.
+
+| | the defect planted | what went red |
+|---|---|---|
+| A | `reported()` answers `None` for `Kind::Boolean` — the edit channel is dead | **4** `fields.rs` cases: the two AC-1/AC-2 wire cases, the shared-id case, and the undrawn-field case. Nothing in `wiring.rs`, which drives `Controller::edit` directly and never through the closure — which is the honest division of labour between the two files |
+| B | the `CheckBox` reports someone else's kind (`Kind.text`) | **5**: the same four, through `interpret`'s third `None` case, **and** `tree.rs`'s callback case at the boundary the report is raised from. The discriminant travels and is checked, end to end |
+| C | a `None` from `interpret` is recorded as-drawn instead of refused | VT-2 alone |
+| D | a `None` from `interpret` is accepted in silence — nothing recorded, nothing reported | VT-2 alone. Note it is the **same** case for C and D: the accepted edit above the mismatch is what makes it catch both |
+| E | the walk admits any field id — the membership refusal is gone | VT-1, and the `serve`-driven refusal case. The refusal PHASE-03 widened is still the refusal PHASE-01 left |
+| G | the `CheckBox`'s literal writes a slot it does not mean (`index: 1`) | `tree.rs`'s case alone — the whole-report comparison is what asserts EX-2's third clause |
+
+**Decisions taken during execution**
+
+- **The mapper answers `Option<Reported>`, and the four kinds no control draws
+  are one grouped arm.** Argued in the Findings above; the short of it is that
+  `Reported::Picked` needs slots `FieldEdit` does not carry until PHASE-07, so
+  no total map exists to write. `install.rs:92-108` carries the argument at the
+  function, names the phase that owns each remaining arm, and says why the
+  `None` is *unreachable* rather than *declined* — `undrawn_form` draws
+  `boolean` alone. The shape is `glass.rs::field_value`'s, pointing the other
+  way, and the doc says so.
+- **The `CheckBox`'s literal names `Kind.boolean`, not `field.kind`.** They are
+  equal today and will stay equal, so this is not about correctness of the
+  value — it is about what can be measured. `field.kind` makes the report agree
+  with the row **by construction**, and `interpret`'s third `None` case could
+  then never fire from production markup at all. Injection **B** is the case
+  that exists because of this choice, and it goes red in five places.
+- **`Command::Edit`'s field is `reported`, not `value`.** The plan does not
+  name it; `design.md` §5.2's whole argument is that what a widget reported is
+  **not** yet what the draft holds, and calling the payload `value` re-welds
+  exactly what this phase separates. `plan.md` PHASE-05/EX-6 spells
+  `PendingEdit`'s own field `value`; that struct is PHASE-05's to name.
+- **`Controller::edit` takes `&Reported` rather than a `Reported`.**
+  `interpret` wants a reference, `dispatch` has the value in hand, and the
+  three selectors beside it are already `&str`. No clone at any call site.
+- **`tree.rs` compares the whole `FieldEdit`, not its `checked` slot.** A
+  slot-by-slot read would have been the smaller edit and would have measured
+  strictly less: the whole-value comparison is what holds the literal to naming
+  only the fields it means, and injection **G** is what says so.
+
+**Findings**
+
+- **`Refused::UnknownField`'s doc was narrower than the truth, and it is
+  amended here.** Raised rather than edited, because `diagnostics.rs` was in no
+  phase's Surfaces before PHASE-09; the user amended PHASE-03's Surfaces to
+  take it, doc comment only (`plan-log.md`, 2026-09-19 — *a doc the phase makes
+  stale is amended in that phase*, the same call `design.md:1042` and
+  PHASE-04/EX-5 already make). **Two clauses were stale, not the one that was
+  raised.** The first said the refusal is *"a field that option does not
+  declare"*; the fourth said *"Only reachable from a stale or malformed
+  callback"*, which after EX-5 is worse — a well-formed, current callback
+  reporting a non-finite slider value earns this refusal. Both rewritten at
+  `diagnostics.rs:55-67`. No behaviour: the variant and the rendered line are
+  untouched, and the line reads correctly for the new path.
+- **`mod editing`'s existing `VT-n` doc comments are slice 008's, and they
+  collide with this plan's.** The cases either side of the new one are headed
+  *VT-1*, *VT-2*, *VT-3*, *VT-5*, *VT-4*, none of them this slice's. The new
+  case is headed **PHASE-03/VT-2** and says why in its own doc. This is the
+  same hazard `notes.md` §*Traps worth naming* records for `Dn` / `D-n` / `P-n`,
+  one sequence further on: **four** id sequences now, not three, and the fourth
+  lives in test doc comments rather than in a document.
+- **`wiring.rs` never exercises `install.rs`'s closure, and `fields.rs` never
+  exercises `Controller::edit` directly.** Injection **A** turned four
+  `fields.rs` cases red and nothing in `wiring.rs`; injections **C**, **D** and
+  **E** turned `wiring.rs` cases red and nothing in `fields.rs`. That is the
+  division the two files were built for, and it is worth knowing for the phases
+  that add a control: a new arm in `reported` is measured by a `fields.rs` case
+  and by nothing else.
+- **The plan's `wiring.rs` citations are one line off, consistently and
+  harmlessly.** `design.md` §5.1's table and `plan.md` cite `:1157`, `:1245`,
+  `:1304` and `:1340`. Re-derived with `grep -n`: `TWO_FORMS` is at `:1158`
+  (`:1157` is the last line of its doc), and the other three are the
+  `#[tokio::test]` attribute line of the case each one names. Not bad
+  citations — they point at the right case — but a reader jumping to the line
+  lands one row above the name. Recorded so the next phase does not re-derive
+  it. The line numbers have since moved anyway: the new case at `:1319` sits
+  above three of them.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-02 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-03 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1345,6 +1663,15 @@ prints `git diff --stat`.
 - **`glass.rs::markup_kind`** — the drawn kind as the markup's discriminant,
   total over `DrawnKind`. `FieldRow.kind` is now read off the field the mapper
   drew rather than asserted as a constant, which was PHASE-01's noted debt.
+- **The edit channel.** `ui/app.slint` carries
+  `FieldEdit { kind, checked, text, number, index }` and
+  `callback edited(string, string, string, FieldEdit)`; `install.rs::reported`
+  maps a `FieldEdit` to a `Reported` and does nothing else; `Command::Edit`
+  carries the `Reported`; and `Controller::edit` interprets it against the
+  drawn field on the walk it already makes, refusing an uninterpretable report
+  with the `Refused::UnknownField` the taxonomy already had. Five hops, one
+  judgement, and the judgement is in the only place that holds the
+  presentation.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -1441,11 +1768,53 @@ prints `git diff --stat`.
   view's option is an **action**. Two fixtures were written the other way first
   and failed with `EmptyAlternatives`. The rule: read `normalize.rs` for the
   wire spelling, never `canonical.rs`.
+- **A doc the phase makes stale is amended in that phase, not at audit.**
+  Settled three times in this slice now: `design.md:1042` for the
+  `Glass::present` contract, PHASE-04/EX-5 for `clock.rs`, and PHASE-03 for
+  `Refused::UnknownField`. The line is the *discovery*: a divergence found at
+  audit belongs in the Reconciliation table; one the slice creates knowingly
+  does not. The corollary is that a phase whose criterion widens what a type
+  means should check its Surfaces for the type's own file before it starts.
+- **When you raise a stale doc, name every clause of it, not the one that
+  caught your eye.** `Refused::UnknownField` had two: the sentence describing
+  the refusal, and a later *"Only reachable from a stale or malformed
+  callback"* which after this phase is the more wrong of the two — the new path
+  is a well-formed, current callback. The first was reported and the second was
+  found by the person reading the report.
 - **A boundary instrument can forbid a word the next slice wants** (P-10).
   `scan::mentions` word-matches after splitting on non-alphanumerics and camel
   boundaries, and keeps string literals, so an identifier or a diagnostic message
   can red a purity instrument that has no view on either. Check the boundary
   suite's needles before naming a new function.
+- **A markup literal should name the control's own kind, never the row's.**
+  The `CheckBox` reports `Kind.boolean` rather than `field.kind`. The two are
+  equal and will stay equal, so this is not about the value — it is about what
+  can be measured: `field.kind` makes the report agree with the row *by
+  construction*, and `interpret`'s *report whose variant is not the drawn
+  field's kind* could then never fire from production markup at all. The
+  general shape: a check that compares two things is worth nothing if one of
+  them is derived from the other. Measured — planting `Kind.text` in the
+  literal turns five cases red across two files.
+- **Comparing a whole generated struct is how you assert what a literal did
+  *not* say.** Slint struct literals may name a subset of fields and the rest
+  default, which is what keeps `FieldEdit` honest per control — but a case that
+  reads one slot back cannot tell a two-field literal from a five-field one.
+  `tree.rs` compares the whole `FieldEdit` against
+  `FieldEdit { kind, checked, ..FieldEdit::default() }`, and an injection that
+  writes one further slot turns it red.
+- **An injection runner must confirm its revert against the string it read, not
+  against `git`.** `git diff --stat` compares to `HEAD`, which is the wrong
+  baseline in the middle of a phase — it reports the phase's own work as an
+  unreverted injection, every time. Compare the file's bytes back to what was
+  read. This is the same foot-gun as the prototype's `git checkout` one door
+  along: the revert check, not the revert.
+- **`tests/renderer/wiring.rs` and `tests/renderer/fields.rs` measure disjoint
+  halves of the edit path, and the injections prove it.** Breaking
+  `install.rs`'s closure turns four `fields.rs` cases red and nothing in
+  `wiring.rs`; breaking `Controller::edit` turns `wiring.rs` cases red and
+  nothing in `fields.rs`. `wiring.rs` drives the controller directly and never
+  reaches the markup callback. So a phase adding a control's arm to `reported`
+  is measured by a `fields.rs` case and by nothing else.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
@@ -1473,6 +1842,30 @@ prints `git diff --stat`.
   PHASE-05 draws a `LineEdit`. Not a gap this phase could close — nothing can
   construct a drawn field of another kind while `undrawn_form` is unchanged —
   and recorded so the audit does not read it as one.
+- **`install.rs::reported`'s four undrawn arms answer `None`, and nothing
+  measures them** — the same shape as `markup_kind`'s, and for the same reason.
+  What is worth watching is that the hole is *silent by construction*: a phase
+  that draws a control and forgets its arm here drops every edit from it. It
+  fails that phase's own first case, so it is caught — but it is caught by
+  absence of an effect rather than by a compile error, which is weaker than
+  everything else in this tower. The function's doc names the phase that owns
+  each arm for that reason.
+- **The design does not settle how the closure tells a numeric `LineEdit`'s
+  report from a `Slider`'s**, and PHASE-08 must settle it before it draws the
+  second control. `Reported` has six variants for five kinds — `AdjustedText`
+  and `AdjustedValue` both under `number` — while the markup's only
+  discriminant is `FieldEdit.kind`, which `design-log.md` D-12 welds to the
+  protocol kind and never the control. §5.2's table has the `LineEdit` sending
+  `text` and the `Slider` sending `number` (D16), both under `Kind.number`, and
+  no slot value separates them: an empty `text` is the measured cleared-field
+  case, not a slider at rest. Three shapes are available — a sixth discriminant
+  value, a second `FieldEdit` field, or `interpret` doing the split from
+  `slider_bounds` — and choosing between them is a decision, not a repair.
+- **Four id sequences collide now, not three.** `design.md` §7's `Dn`,
+  `design-log.md`'s `D-n`, `prototype-notes.md`'s `P-n` — and the `VT-n` doc
+  comments on the cases in `tests/renderer/wiring.rs`, which are **slice
+  008's**. A case added to `mod editing` for this slice has to head itself
+  `PHASE-03/VT-2` to avoid claiming a neighbour's id.
 - **Follow-up: what a supersession costs is not what R5 said it was.** A
   superseded view clears the field under the caret and loses everything typed
   into it, because `Command::Edit` mutates the retained draft and never reaches

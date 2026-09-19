@@ -58,12 +58,18 @@ pub enum Refused {
   /// The click named an option the retained presentation does not carry. A
   /// renderer bug rather than an answer: reported, never sent.
   UnknownOption,
-  /// The edit named an option the retained presentation carries and a field
-  /// that option does not declare. Distinguishable from `UnknownOption`
-  /// deliberately: the line says which of the two selectors failed. Only
-  /// reachable from a stale or malformed callback, and the same posture as
-  /// `UnknownOption` — reported, nothing recorded (`design.md` §5.5's edge
-  /// table).
+  /// The edit could not be applied to a field of the option it named. Two
+  /// ways in: that option's blocks do not declare the field, or the widget's
+  /// report is one `view_model::interpret` cannot read against the field that
+  /// was drawn — an index no alternative has, a non-finite slider value, or a
+  /// report whose variant is not the drawn field's kind.
+  ///
+  /// Distinguishable from `UnknownOption` deliberately: the line says which of
+  /// the two selectors failed. Every path into it is a **renderer bug** — the
+  /// first reachable only from a stale or malformed callback, the rest from a
+  /// well-formed and current one whose control reported something the drawn
+  /// field cannot hold — and all of them take `UnknownOption`'s posture:
+  /// reported, nothing recorded (`design.md` §5.2, and §5.5's edge table).
   UnknownField,
   /// The wall clock could not be read, so no request can be stamped.
   NoClock { detail: String },

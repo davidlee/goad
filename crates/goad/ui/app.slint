@@ -32,6 +32,20 @@ export struct FieldValue { checked: bool, text: string, number: float, index: in
 export struct FieldBlock { heading: string, fields: [FieldRow] }
 export struct OptionRow { id: string, label: string, view: string, blocks: [FieldBlock] }
 
+// **One edit, typed.** `install.rs`'s `edited` closure maps this straight to a
+// `draft.rs::Reported` and does nothing else with it — no parse, no fallback,
+// no refusal — because a Slint callback cannot mint an `AlternativeId` and
+// cannot know the last representable number a numeric field held. Both are
+// interpreted where the retained presentation is (design.md §5.2, §7 D25).
+//
+// `kind` carries the **protocol** kind and never the control, so
+// `draft.rs::submitted` stays the single application of `R-57` (§5.5 I-C), and
+// the discriminant selects which of the remaining slots is meaningful. `date`
+// and `time` are **not** here yet, for the same reason `FieldValue`'s are not:
+// nothing is declared before a control writes it. PHASE-07 adds them with the
+// pickers.
+export struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int }
+
 export enum WindowMode { prompt, diagnostic }
 
 // **The middle tone of the ramp, and the corner it is always drawn with.**
@@ -95,7 +109,7 @@ export component PromptWindow inherits Window {
   in property <string> next-check;           // the standing schedule's line, not a diagnostic row; "" = none yet
 
   callback chosen(string, string);       // (view token, OptionId.as_str())
-  callback edited(string, string, string, bool);  // view, option, field, checked
+  callback edited(string, string, string, FieldEdit);  // view, option, field, edit
   callback close-diagnostics();          // leave diagnostic mode
 
   title: root.mode == WindowMode.prompt ? "goad" : "goad — diagnostics";
@@ -338,8 +352,18 @@ export component PromptWindow inherits Window {
                               root.reasserts += 1;
                             }
                           }
+                          // **The literal names the control's own kind, not
+                          // the row's.** `field.kind` would make the report
+                          // agree with the row by construction, and
+                          // `interpret`'s third `None` case — a report whose
+                          // variant is not the drawn field's kind — could then
+                          // never fire. A `CheckBox` reports a boolean because
+                          // that is what a `CheckBox` is (design.md §5.2).
                           toggled => {
-                            root.edited(option.view, option.id, field.id, self.checked);
+                            root.edited(option.view, option.id, field.id, {
+                              kind: Kind.boolean,
+                              checked: self.checked,
+                            });
                           }
                         }
                       }

@@ -19,7 +19,7 @@ use std::error::Error;
 use std::rc::Rc;
 
 use goad::generated::{
-  FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, WindowMode,
+  FieldBlock, FieldEdit, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, WindowMode,
 };
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery, init_no_event_loop};
 use slint::{ModelRc, SharedString, VecModel};
@@ -28,9 +28,9 @@ use crate::harness::{described, element_described, field_described, within_optio
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-/// The four selectors `edited` carries: view token, option id, field id and
-/// the new `checked`.
-type EditedArgs = (String, String, String, bool);
+/// What `edited` carries: the three selectors — view token, option id, field
+/// id — and the typed report of what the widget did.
+type EditedArgs = (String, String, String, FieldEdit);
 
 const OPTIONS: [(&str, &str, &str); 3] = [
   ("opt-a", "Yes", "view-1"),
@@ -415,11 +415,19 @@ fn a_model_reset_re_establishes_a_fields_checked_value() -> TestResult {
   Ok(())
 }
 
-/// VT-3 — activating a field control fires `edited` with all four
-/// selectors: the view token, the option id, the field id and the new
-/// `checked`. Three of the four are what makes the command addressable —
-/// a field id is unique only within its option (R-52), so option and view
-/// are not decoration.
+/// VT-3 — activating a field control fires `edited` with all four arguments:
+/// the view token, the option id, the field id and the `FieldEdit` the
+/// control filled. The three selectors are what makes the command
+/// addressable — a field id is unique only within its option (R-52), so
+/// option and view are not decoration.
+///
+/// **The report is compared whole, not slot by slot**, which is how this case
+/// also holds the markup literal to naming only the fields it means
+/// (`plan.md` PHASE-03/EX-2): a `CheckBox` that wrote `text`, `number` or
+/// `index` on its way past would fail here. And `kind` is the discriminant
+/// `view_model::interpret` refuses a mismatch on, so a control reporting
+/// someone else's kind is caught at the boundary it is raised from rather
+/// than only in the controller.
 #[test]
 fn activating_a_field_control_fires_edited_with_all_four_selectors() -> TestResult {
   let window = window()?;
@@ -432,12 +440,12 @@ fn activating_a_field_control_fires_edited_with_all_four_selectors() -> TestResu
   let captured: Rc<RefCell<Option<EditedArgs>>> = Rc::new(RefCell::new(None));
   {
     let captured = Rc::clone(&captured);
-    window.on_edited(move |view, option, field, checked| {
+    window.on_edited(move |view, option, field, edit| {
       *captured.borrow_mut() = Some((
         view.to_string(),
         option.to_string(),
         field.to_string(),
-        checked,
+        edit,
       ));
     });
   }
@@ -452,7 +460,11 @@ fn activating_a_field_control_fires_edited_with_all_four_selectors() -> TestResu
       AN_OPTION.2.to_string(),
       AN_OPTION.0.to_string(),
       "stretched".to_string(),
-      true
+      FieldEdit {
+        kind: Kind::Boolean,
+        checked: true,
+        ..FieldEdit::default()
+      }
     ))
   );
   Ok(())

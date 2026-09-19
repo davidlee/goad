@@ -13,17 +13,18 @@ use serde_json::Value;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, watch};
 
-use crate::draft::Edited;
+use crate::draft::Reported;
 
 /// What a person did. There is deliberately **no** `Shutdown` variant:
 /// stopping is a decision, not a queue position, and it travels out of band
 /// (design.md §5.4, F-4).
 ///
-/// **No `Eq`.** `Edited::Adjusted` carries a `Finite`, and `draft.rs` declines
-/// an `Eq` at that leaf on purpose — writing one here instead, by hand, would
-/// claim over a float payload a reflexivity the type does not have. Nothing
-/// needs it; the cases that compare commands need `PartialEq` only
-/// (design.md §5.2, `prototype-notes.md` P-8).
+/// **No `Eq`.** `Reported::AdjustedValue` carries a bare `f32`, and
+/// `Edited::Adjusted` a `Finite` whose leaf declines an `Eq` on purpose —
+/// writing one here instead, by hand, would claim over a float payload a
+/// reflexivity the type does not have. Nothing needs it; the cases that
+/// compare commands need `PartialEq` only (design.md §5.2,
+/// `prototype-notes.md` P-8).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
   Evaluate(Stimulus),
@@ -36,16 +37,22 @@ pub enum Command {
     option: String,
   },
   /// What the person did to one field. `Choose`'s shape with one more
-  /// selector and a value: three opaque strings matched against retained
-  /// state and never parsed back, and an `Edited` whose meaning belongs to
+  /// selector and a report: three opaque strings matched against retained
+  /// state and never parsed back, and a `Reported` whose meaning belongs to
   /// `draft.rs`. This module depends on that one and not the reverse — a
   /// value's meaning belongs with what stores it, not with what carries it
   /// (`design.md` §5.2).
+  ///
+  /// It carries a **`Reported`** and not an `Edited`, because what a widget
+  /// reported is not yet what the draft holds: an index is not an
+  /// `AlternativeId` and a typed text is not a number. `controller::edit`
+  /// interprets the report against the drawn field, on the walk it already
+  /// makes (`design.md` §5.2, §7 D25).
   Edit {
     view: String,
     option: String,
     field: String,
-    value: Edited,
+    reported: Reported,
   },
   OpenDiagnostics,
   CloseDiagnostics,

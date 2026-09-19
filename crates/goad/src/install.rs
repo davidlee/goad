@@ -11,8 +11,8 @@ use std::rc::Rc;
 use slint::platform::WindowEvent;
 use slint::{CloseRequestResponse, ComponentHandle, Weak};
 
-use crate::draft::Edited;
-use crate::generated::{PromptWindow, Tray};
+use crate::draft::Reported;
+use crate::generated::{FieldEdit, Kind, PromptWindow, Tray};
 use crate::wire::{Command, Stimulus, Wire};
 use crate::zoom::Zoom;
 
@@ -30,17 +30,25 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
     });
   });
 
-  // The widget has already flipped itself, so `checked` is what the person
+  // The widget has already changed itself, so the report is what the person
   // now sees; the draft is what decides what they will see after the next
   // present. A dropped send is therefore visibly undone rather than silently
   // divergent (design.md §5.4).
+  //
+  // The closure does exactly two things: turn the `FieldEdit` into a
+  // `Reported`, and enqueue it. Everything else — the parse, the index, the
+  // fallback, the refusal — happens in `controller::edit`, where the retained
+  // presentation is.
   let editing = wire.clone();
-  window.on_edited(move |view, option, field, checked| {
+  window.on_edited(move |view, option, field, edit| {
+    let Some(report) = reported(&edit) else {
+      return;
+    };
     editing.send(Command::Edit {
       view: view.into(),
       option: option.into(),
       field: field.into(),
-      value: Edited::Checked(checked),
+      reported: report,
     });
   });
 
@@ -78,6 +86,31 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire) {
 
   let (restoring, none) = (window.as_weak(), zoom);
   tray.on_zoom_reset(move || rescale(&restoring, &none, |_| Zoom::NONE));
+}
+
+/// What the widget said, in the widget's own terms — and **nothing else**.
+///
+/// The whole of the markup boundary's edit channel: one slot read per kind,
+/// selected by the discriminant the control put there. There is no parse here,
+/// no fallback value and no refusal, because a Slint callback has nothing to
+/// report a refusal to and no draft to leave alone. `view_model::interpret`
+/// makes every one of those judgements against the drawn field, and
+/// `controller::edit` reports what it refuses (design.md §5.2, §7 D25).
+///
+/// **`None` is *no control of this kind is drawn yet*, not a refusal.**
+/// `view_model::undrawn_form` draws `boolean` alone, so a field of any other
+/// kind never becomes a `FieldRow` and no control exists to raise this
+/// callback for one — the arm is unreachable rather than declined. Each
+/// remaining kind is filled by the phase that draws its control: `text`
+/// PHASE-05, `datetime` PHASE-07 (which is also where `FieldEdit` grows the
+/// `date` and `time` slots `Reported::Picked` is composed from), `number`
+/// PHASE-08, `choice` PHASE-09. A phase that draws a control and forgets its
+/// arm here fails that phase's own first case — the draft never sees the edit.
+fn reported(edit: &FieldEdit) -> Option<Reported> {
+  match edit.kind {
+    Kind::Boolean => Some(Reported::Checked(edit.checked)),
+    Kind::Text | Kind::Number | Kind::Choice | Kind::Datetime => None,
+  }
 }
 
 /// Take one step and hand the window the scale factor it lands on.

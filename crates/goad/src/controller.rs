@@ -16,10 +16,10 @@ use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId
 use goad_semantics::schedule::wait_for;
 
 use crate::diagnostics::{Diagnostics, Refused};
-use crate::draft::{Edited, submitted};
+use crate::draft::{Reported, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
-use crate::view_model::{PresentationField, PresentationOption, as_drawn};
+use crate::view_model::{PresentationField, PresentationOption, as_drawn, interpret};
 use crate::wire::{Cancel, Command, Notice, Stimulus};
 use goad_shell::clock::Clock;
 
@@ -256,19 +256,31 @@ impl Controller {
   /// `pub(super)` in `goad-semantics`, so a key that names nothing the
   /// backend declared is not constructible here (`design.md` §5.2).
   ///
+  /// **The report is interpreted here, on the walk that was already being
+  /// made.** A widget reports in its own terms — an index, a typed text — and
+  /// only the retained presentation can say what those mean: which
+  /// alternative an index names, and what number a text that no finite parse
+  /// accepts falls back to. That is `view_model::interpret`, and the field it
+  /// needs is `declared`, which the membership check has in hand
+  /// (`design.md` §5.2, §7 D25).
+  ///
   /// # Errors
   ///
   /// [`Refused::SupersededView`] when `view` is not the retained token, or
   /// nothing is retained at all; [`Refused::UnknownOption`] when `option` is
   /// not one the retained presentation carries; [`Refused::UnknownField`]
-  /// when that option's blocks do not declare `field`. Nothing is recorded on
-  /// any of those paths.
+  /// when that option's blocks do not declare `field`, **and equally when
+  /// `interpret` answers `None`** — an index no alternative has, a non-finite
+  /// slider value, or a report whose variant is not the drawn field's kind.
+  /// All three are renderer bugs and take the posture this refusal already
+  /// has: reported, nothing recorded, and no new class added to the taxonomy
+  /// (`design.md` §5.2). Nothing is recorded on any of those paths.
   pub fn edit(
     &mut self,
     view: &str,
     option: &str,
     field: &str,
-    value: Edited,
+    reported: &Reported,
   ) -> Result<(), Refused> {
     let prepared = self.shown.as_mut().ok_or(Refused::SupersededView)?;
     let matched = selected(prepared, view, option)?;
@@ -281,6 +293,10 @@ impl Controller {
     // Cloned before the write, which is also what ends the borrow of the
     // presentation the walk above took.
     let (option_id, field_id) = (matched.id.clone(), declared.id.clone());
+    // `state_of` answers `None` for a field nobody has touched; `interpret`
+    // applies the as-drawn rule itself, so this site writes no fallback.
+    let held = prepared.draft.state_of(&option_id, &field_id);
+    let value = interpret(reported, held.as_ref(), &declared.kind).ok_or(Refused::UnknownField)?;
     prepared.draft.record(option_id, field_id, value);
     Ok(())
   }
@@ -675,9 +691,9 @@ fn dispatch(
       view,
       option,
       field,
-      value,
+      reported,
     } => controller
-      .edit(&view, &option, &field, value)
+      .edit(&view, &option, &field, &reported)
       .err()
       .map(Err),
   }
