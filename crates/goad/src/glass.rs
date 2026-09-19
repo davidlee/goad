@@ -26,7 +26,7 @@ use crate::instant;
 use crate::pending::Debounce;
 use crate::reception::Prepared;
 use crate::view_model::{
-  Body, DrawnKind, PresentationField, drawn, exact_f32, interpret, slider_bounds, slider_step,
+  Body, DrawnKind, PresentationField, exact_f32, interpret, slider_bounds, slider_step, untouched,
 };
 use crate::wire::PendingEdit;
 
@@ -315,10 +315,10 @@ fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Ve
         // **What a control shows, in three descending claims**: what a person
         // has just done and the host has not recorded yet, then what the draft
         // holds, then what the field was drawn showing. The last is
-        // `view_model::drawn` and not `as_drawn` — the screen's half of the
+        // `view_model::untouched` and not `as_drawn` — the screen's half of
         // rule, which for `datetime` alone answers `None` so that the button
         // can read *not set* while the wire carries the epoch (§7 D1, D2).
-        let shown = overlay.or(drafted).or_else(|| drawn(&field.kind));
+        let shown = overlay.or(drafted).or_else(|| untouched(&field.kind));
         values.push(field_value(shown.as_ref(), &today, slider));
         fields.push(FieldRow {
           kind: markup_kind(&field.kind),
@@ -440,12 +440,12 @@ const NOT_SET: &str = "not set";
 /// projection for one present; the join is [`overlaid`]'s.
 ///
 /// **`None` here is `datetime` and nothing else.** The caller has already
-/// applied `view_model::drawn`, which answers what an untouched field shows
+/// applied `view_model::untouched`, which answers what an untouched field shows
 /// for the four kinds whose screen and wire agree and `None` for the one whose
 /// do not — so by the time a state reaches this function, `None` *is* the
 /// unpicked `datetime`, and [`NOT_SET`] is the sentinel it needs. Routing the
 /// glass through `as_drawn` instead is exactly what would erase that
-/// divergence, which is why it is `drawn` that is called and why the kind is
+/// divergence, which is why it is `untouched` that is called and why the kind is
 /// no longer a parameter here: the kind-directed half of the question is
 /// answered where every other kind-directed rule is (design.md §5.2, §7 D2).
 ///
@@ -504,7 +504,7 @@ fn field_value(
     // picker opens on today rather than on 1970 — seeding from `as_drawn`
     // would put D-6's sentinel on the screen in the one place D-6 chose it to
     // keep out of (design.md §7 D21). No other kind reaches this arm:
-    // `view_model::drawn` answers `Some` for the other four.
+    // `view_model::untouched` answers `Some` for the other four.
     None => FieldValue {
       text: NOT_SET.into(),
       date: today.0.clone(),

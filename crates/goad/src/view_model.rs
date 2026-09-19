@@ -625,12 +625,12 @@ fn held_number(held: Option<&Edited>) -> Option<Finite> {
 /// **Three call sites, and `glass.rs` is deliberately not one of them.**
 /// `controller::answer` applies it because `R-58` forbids omitting a value for
 /// a drawn field; `interpret` applies it to supply the number a numeric text
-/// falls back to; [`drawn`] applies it for the four kinds whose screen and
+/// falls back to; [`untouched`] applies it for the four kinds whose screen and
 /// wire agree. Keeping the glass out is what makes the `datetime` epoch a fact
 /// about the wire rather than a fact about the screen — a button reading
 /// `1970-01-01T00:00:00+00:00` would be the host showing a person an answer
 /// nobody gave (design.md §5.2, §7 D2). `datetime` is the only kind whose
-/// display can tell *untouched* from *answered*, and [`drawn`] is where that
+/// display can tell *untouched* from *answered*, and [`untouched`] is where that
 /// is said.
 #[must_use]
 pub fn as_drawn(kind: &DrawnKind) -> Edited {
@@ -672,7 +672,7 @@ pub fn as_drawn(kind: &DrawnKind) -> Edited {
 /// So `glass.rs` still never calls `as_drawn`, and the divergence D-6 turns on
 /// has exactly one statement, here, beside the rule it diverges from.
 #[must_use]
-pub fn drawn(kind: &DrawnKind) -> Option<Edited> {
+pub fn untouched(kind: &DrawnKind) -> Option<Edited> {
   match kind {
     DrawnKind::DateTime => None,
     DrawnKind::Boolean | DrawnKind::Text | DrawnKind::Number(_) | DrawnKind::Choice { .. } => {
