@@ -883,3 +883,12 @@ The rule this slice keeps relearning is *cite from an instrument that prints the
 number*. This is its complement: **carry an invariant that two instruments must
 jointly satisfy, and a stale read from either is visible without a third.** The
 35 has been quoted in every phase brief as bookkeeping; it is a check.
+
+**One instruction not followed, recorded because the last phase repeats it.**
+PHASE-08 set its own §Status row to `done` at `75dc64e`, which every brief has
+reserved to the orchestrator. The state was correct and the orchestrator's own
+gate run agreed, so nothing is changed. The reason the instruction exists is that
+§Status is the slice's record of *verified* completion, and a phase marking
+itself done moves the record ahead of the check that gates it — the same shape as
+`drawn_form`, where the answer was right and the authority was not. Reinforced in
+PHASE-09's brief.
