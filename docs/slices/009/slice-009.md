@@ -1,6 +1,6 @@
 # Slice 009: the form grows the rest of its field kinds
 
-**Stage:** plan
+**Stage:** executing
 **Tier:** 2 (full) — see *Why tier 2* below.
 **Depends on:** 007 (closed, the form) and 008 (closed, the look). 006 is
 independent and still unopened.
