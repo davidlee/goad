@@ -1,5 +1,15 @@
 import { Button, CheckBox, Palette, ScrollView } from "std-widgets.slint";
 
+// **`Date` and `Time` are re-exported so Rust can name them**, and for no
+// other reason: `instant.rs`'s `compose` takes a pair of these and
+// `decompose` answers one. They are library structs
+// (`std-widgets.slint`), not builtins, and an **import alone is not an
+// export** — measured four ways against the generated `app.rs`, and neither
+// is emitted without this line. It declares no control and reads no slot, so
+// the rule below still holds. PHASE-07 re-measures whether it is still
+// needed once `FieldValue` carries `date` and `time` of its own.
+export { Date, Time } from "std-widgets.slint";
+
 // Registers the family so `font-family` below can name it. The path is
 // relative to this file, and the compiler embeds the face in the binary —
 // there is no runtime lookup and no fontconfig dependency for this family, so

@@ -706,7 +706,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-01 — the value channel and the epoch | **done** | 2026-09-19 |
 | PHASE-02 — the draft's five values, and the kind-directed pure functions | **done** | 2026-09-19 |
 | PHASE-03 — the edit channel | **done** | 2026-09-19 |
-| PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | **in progress** | 2026-09-19 |
+| PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | **done** | 2026-09-19 |
 | PHASE-05 — `text`, and the debounce's delivery | pending | |
 | PHASE-06 — the overlay | pending | |
 | PHASE-07 — `datetime` and the two pickers | pending | |
@@ -1867,15 +1867,17 @@ STOP and consult — do not improvise past any of these:
 
 - [x] T-0 expand the phase sheet; re-derive every citation; verify EN-1 and
       EN-2 against the tree
-- [!] T-1 **BLOCKED** — `app.slint`'s one-line export of `Date` and `Time`.
-      Outside the Surfaces; raised with the team lead, not taken
+- [x] T-1 `app.slint`'s one-line export of `Date` and `Time`. Was blocked;
+      the user amended the Surfaces for it (`plan.md`, `plan-log.md`,
+      2026-09-19)
 - [x] T-2 `crates/goad/Cargo.toml`: the two features (EX-2), with
       `cargo test -p goad-semantics` run deliberately either side of it
 - [x] T-3 `clock.rs:47-53`: the three reaches, doc comment only (EX-5)
-- [ ] T-4 `src/instant.rs` + `lib.rs`: `compose`, `decompose`, `today_local`
-      (EX-3, EX-4) — depends on T-1
-- [ ] T-5 VT-1, VT-2, VT-3 — depends on T-1
-- [ ] T-6 VT-4, VA-1, VA-2; `just check` exits 0 (EX-1); sheet, §Status and
+- [x] T-4 `src/instant.rs` + `lib.rs`: `compose`, `decompose`, `today_local`
+      (EX-3, EX-4)
+- [x] T-5 VT-1, VT-2, VT-3, and the injection pass that says they are not
+      proxies
+- [x] T-6 VT-4, VA-1, VA-2; `just check` exits 0 (EX-1); sheet, §Status and
       §Harvest updated
 
 **What landed while T-1 was blocked**
@@ -1982,16 +1984,183 @@ same claim — featureless `jiff` falls back to `TimeZone::unknown()`
 `!TimeZone::system().is_unknown()` separates *the feature is on* from *the
 feature is off* on every machine and separates nothing else. The Melbourne
 offset is recorded here as what was checked beside it.
+**What landed, criterion by criterion**
+
+`just check` **exit 0**. `cargo test --workspace` totals **538**; every target's
+count is identical to PHASE-03's except `goad`'s lib, **42 → 51**, which is this
+phase's nine units and nothing else.
+
+| | discharged by | how it was checked |
+|---|---|---|
+| EX-1 | the gate | `just check` exit 0, second run (the first failed `cargo fmt --all --check` alone, on three `Time` literals and one `let`; `cargo fmt --all` and re-run) |
+| EX-2 | `crates/goad/Cargo.toml:38` | landed earlier; see *What landed while T-1 was blocked* |
+| EX-3 | `src/instant.rs`, `src/lib.rs:12` | `compose`, `decompose` and `today_local` with §5.2's signatures, one departure below. `grep -rn "TimeZone\|wall_clock" crates/goad/src/` names this module and nothing else in the crate for either read, so *the only module in this crate that reads the clock or the system time zone* holds |
+| EX-4 | `instant.rs`'s `composed_in` | three `i16::try_from` / `i8::try_from`, three more for the time, then `Date::new`, `Time::new` and `DateTime::to_zoned`. `grep -n "civil::date\|Date::at\| as "` over the file: **nothing**. Measured by injections **B**, **C** and **D** |
+| EX-5 | `crates/goad-shell/src/clock.rs:47-72` | landed earlier; doc only |
+| VT-1 | `an_ordinary_date_and_time_compose_to_the_instant_the_system_zone_gives`, `decompose_reads_the_instant_at_the_offset_it_is_given_and_nowhere_else` | the first names no number this machine chose: the offset is compared against `TimeZone::system().to_offset(instant)`, which is a different route to it than `compose` takes, and the instant is compared by reading it back. The second pins `decompose` outright — the epoch reads `1970-01-01T00:00` at `+00:00` and `1969-12-31T19:00` at `-05:00`, which is `prototype-handback.md` P-4's measured pair arriving from the other side. Injections **A** and **F** |
+| VT-2 | `each_of_composes_four_fallible_steps_answers_none_rather_than_panicking`, `whether_a_civil_datetime_fits_the_timestamp_range_depends_on_its_offset` | one case per step, each naming the step it reaches: a year no `i16` holds, an hour no `i8` holds, `2024-02-30`, and `9999-12-31T23:59:59`. The second case is the fourth step's *reason* rather than its effect. Injections **B**, **C**, **D** |
+| VT-3 | `a_civil_time_inside_a_dst_gap_succeeds_by_shifting_forward`, `a_civil_time_inside_a_dst_fold_succeeds_by_taking_the_earlier_occurrence` | both **succeed**, as the plan predicted and as §9's measurement pass had already found. The fold asserts the **instant** as well as the offset, because `05:30:00Z` and `06:30:00Z` are the same clock face and only the instant separates them. Injection **E** |
+| VT-4 | the gate | `goad-shell` lib **71** and `tests/integration` **96**, both unchanged. `wall_clock`'s own cases are `controller.rs:986`, `goad-emit/src/main.rs:299` and the two event-loop targets, all green. `cargo test -p goad-semantics` run deliberately, before and after the manifest change and again at the end: 30 + 5 + 0, exit 0, identical every time |
+| VA-1 | `design.md:1534-1660` | discharged earlier and re-read at the close: §10 still says what the manifest does |
+| VA-2 | `the_system_time_zone_is_read_rather_than_fallen_back_from` | **assertable here, and asserted as a predicate rather than a number.** See below |
+
+**The one departure from §5.2's signatures, and why.** `compose` takes
+`&Date, &Time` rather than `Date, Time`. Every field read out of them is an
+`i32` and neither is consumed, so by-value trips `clippy::needless_pass_by_value`
+at `deny`; the caller — `install.rs`'s mapper — holds a `&FieldEdit` and would
+have to clone to satisfy the other spelling. Exactly PHASE-03's reasoning for
+`Controller::edit(&Reported)`, and it changes nothing about what the function
+means. `decompose` and `today_local` are as written.
+
+**Two private helpers the design does not name, and both exist for the tests to
+be able to say something true.**
+
+- `composed_in(zone, date, time)` — `compose` with the zone named rather than
+  read. `compose` is this applied to `TimeZone::system()`. Without it, VT-3
+  would have to drive DST through whatever zone the machine is in, and a CI box
+  set to UTC has no DST at all: the case would pass by being vacuous.
+- `local_midnight(zone, now)` — the pure half of `today_local`, for the same
+  reason. **This one was added on the evidence of a green injection**, not up
+  front; see below.
+
+`EX-3`'s *only module that reads the clock or the system zone* is unaffected by
+either: both are private, both take what they need, and `compose` and
+`today_local` remain the two functions that read.
+
+**The injection pass.** Ten planted defects, each applied, built, run,
+restored, and the restore confirmed by comparing the file back to the string
+that was read (`git diff` is the wrong instrument mid-phase — it compares
+against `HEAD`). Runner: `scratchpad/inject.py`. **Three of the ten did not
+compile on the first attempt and were repaired before being counted** — an
+uncompiled control greps the same as a passing one
+(`docs/memory/negative-control-must-compile.md`).
+
+| | the defect planted | what went red |
+|---|---|---|
+| A | `compose` ignores the system zone and resolves at UTC | VT-1's first case |
+| B | step 1's conversion falls back instead of refusing | VT-2's first case |
+| C | step 2's conversion falls back instead of refusing | VT-2's second case |
+| D | step 4 is an `expect` rather than a refusal | VT-2's both cases, by panicking |
+| E | the fold takes the **later** occurrence | VT-3's fold case — and only that one, which is what says the fold assertion is about disambiguation and not about arithmetic |
+| F | `split` swaps month and day | **6** cases, every one that reads a civil value back |
+| H | **the manifest's two `jiff` features are gone** | **5** cases, VA-2's among them |
+| I | `today_local` resolves at UTC rather than the system zone | **GREEN — nothing caught it.** The one residue; see below |
+| I2 | `local_midnight` ignores the zone it is handed | the two-zone case |
+| J | the midnight the pickers open on is not midnight | the two-zone case and the `today_local` case |
+| K | `today_local` hands `local_midnight` the epoch rather than the clock | the `today_local` case |
+
+**H is the evidence the residue argument could not produce.** `POL-001` says no
+gate command rejects the feature, and that is true — but with the feature
+removed, **five units go red**, VA-2's among them, and the other four because
+`TimeZone::get` cannot resolve a name without `tzdb-zoneinfo`. So the feature is
+load-bearing in a way a reader can check rather than take on the argument's
+word. It remains true that nothing *in the gate* rejects **adding** it; what H
+shows is the other direction — that removing it is not silent, once this phase's
+units exist. That is narrower than enforcement and worth exactly that much.
+
+**I is the residue, and it is recorded rather than papered over.**
+`today_local` passing `TimeZone::UTC` where it passes `TimeZone::system()` is a
+one-token defect no case catches **today**. It is not caught because Melbourne
+(`+10:00`) and UTC are on the same date at the hour this ran; between 00:00 and
+10:00 local the same injection would go red. A test cannot make them disagree:
+`std::env::set_var` is in `clippy.toml`'s `disallowed-methods` — *"Global
+process mutation is test-hostile"* — so the zone the machine is in is not
+something a unit may change.
+
+**What was done about it, which is not nothing.** The first draft of
+`today_local` was a single opaque body and injection **I** was green against it.
+The body was split into `local_midnight(zone, now)` and a one-expression
+`today_local`, and a new case — `one_instant_is_two_different_local_dates_in_two_different_zones`
+— now asserts the **class**: `2024-06-15T06:00:00Z` is the 15th at `+14:00` and
+the 14th at `-11:00`, so a `today_local` that resolved at any single fixed
+offset is wrong for somebody. Injections **I2**, **J** and **K** are all red
+against it. What is left uncaught is one token: that the zone `today_local`
+reads is the **system's**. That is the same shape as VA-2's residue and is held
+by review, which is what `design.md` §8 R8 already names as the mitigation of
+last resort.
+
+**VA-2, and why it is a predicate.** The system zone here is
+`Australia/Melbourne` (`/etc/localtime -> /etc/zoneinfo/Australia/Melbourne`,
+`TZ` unset), offset `+10:00`, so *an offset that is not `+00:00`* **was**
+assertable — it was checked by hand and is recorded in the case's doc. It is not
+what the case asserts. `!TimeZone::system().is_unknown()` tests precisely what
+VA-2 exists to test — featureless `jiff` falls back to `TimeZone::unknown()`
+(`jiff-0.2.35/src/tz/timezone.rs:325-337`), and `is_unknown` is true exactly
+then — while an offset would assert a property of whichever machine ran it, and
+a CI box set to UTC would make the literal criterion unassertable while leaving
+the predicate perfectly sharp. Injection **H** confirms the predicate is live.
+
+**Decisions taken during execution**
+
+- **`today_local` reads `goad_shell::clock::wall_clock`, not
+  `jiff::Timestamp::now()`.** One clock in the host rather than two, and the
+  jiff call *panics* on an unrepresentable system clock where `wall_clock`
+  refuses — which is the entire reason `clock.rs` exists (005/D-9, and that
+  module's own doc). The design does not name a clock API; it names the read.
+- **`today_local` absorbs the clock's failure at the epoch, and says so at the
+  function.** The signature §5.2 gives is total, and `design.md:1048` is
+  explicit that a present has no way to report a failure — that is why
+  threading the instant through `Frame` was rejected. So the refusal has to go
+  somewhere, and the epoch is the only fixed point available. This is **not**
+  the 1970 PHASE-07 is warned off: that warning is about seeding an untouched
+  field from `as_drawn` on the ordinary path, and this is a system clock
+  reading before 1970 or outside jiff's range. Recorded here because the design
+  did not settle it and no signature changes either way.
+- **The `app.slint` comment promises a re-measurement, not a deletion.** The
+  team lead's instruction, and it is right: that the export becomes redundant
+  once `FieldValue` carries `date` and `time` is a prediction about the
+  *reachability* path, and what was measured was the *export* path. A comment
+  promising a deletion that then does not happen is a stale doc of exactly the
+  kind PHASE-03 spent its last hour repairing.
+
+**Findings**
+
+- **`glass.rs:1-3` claims to be *"the only file in the crate that names a
+  generated type outside `generated.rs` itself"*, and it is not.**
+  `install.rs:15` names `FieldEdit`, `Kind`, `PromptWindow` and `Tray`, and has
+  since before this phase; `instant.rs` now names `Date` and `Time` and makes
+  it one file more false. **Not repaired**: `glass.rs` is in no Surfaces line
+  this phase, the claim was already false on entry, and PHASE-06 and PHASE-07
+  both name the file. Raised to the team lead.
+- **PHASE-03's sheet records *"564 in all"* and the per-target numbers beside
+  it do not sum to it.** Its own baseline list — `goad` lib 42, `tests/renderer`
+  189, `goad-boundary` `tests/checks` 43, three loop targets at 1, `goad-shell`
+  71 / 96, `goad-semantics` 30 — omits four targets that exist and run
+  (`goad-emit` 34, its `tests/binary` 9, `goad-shell`'s `tests/shape` 6,
+  `goad-semantics`'s `tests/protocol` 5), and with those it comes to **529**,
+  not 563. This phase's total is **538**, measured by summing every
+  `test result: ok. N` line `cargo test --workspace` prints, which is 529 + this
+  phase's 9. **Every per-target number PHASE-03 recorded is correct**; only the
+  sum and the enumeration behind it are. Not edited — another phase's record is
+  not this phase's to rewrite — and reported to the team lead. It is the same
+  cause as §*Citations known bad*'s fifth and sixth: a number arrived at by
+  hand rather than from an instrument that prints it.
+
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-03 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-04 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+
+- **`src/instant.rs`** — `compose(&Date, &Time) -> Option<(Timestamp, Offset)>`,
+  `decompose(Timestamp, Offset) -> (Date, Time)`, `today_local() -> (Date, Time)`,
+  plus two private zone-parameterised halves, `composed_in` and
+  `local_midnight`, that exist so the units can name a zone this machine is not
+  in. The crate's only reader of the clock or the system zone; nine units.
+- **`jiff`'s `tz-system` and `tzdb-zoneinfo`**, on `crates/goad` alone
+  (`Cargo.toml:38`), with `POL-001`'s residue argument at the manifest pointing
+  at `design.md` §10 rather than restating it.
+- **`Date` and `Time` reach Rust**, by one `export … from "std-widgets.slint"`
+  line in `app.slint`. PHASE-07 re-measures whether it is still needed.
+- **`clock.rs`'s doc states its three reaches** (`:47-72`) — the workspace
+  build, where its rationale expires; the builds that exclude `crates/goad`,
+  where the workaround still binds; and `cargo test -p goad-semantics`, which
+  builds neither stratum above stratum 1.
 
 - **The two channels.** `ui/app.slint` carries `Kind`,
   `FieldRow { id, label, kind, slot }` and
@@ -2045,6 +2214,46 @@ offset is recorded here as what was checked beside it.
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **A Slint `import` is not an `export`, and Rust only sees the exports.**
+  `Date` and `Time` are library structs, not builtins; importing them into
+  `app.slint` emits nothing into the generated `app.rs`, and
+  `export { Date, Time } from "std-widgets.slint";` emits both. Measured four
+  ways against `out/app.rs`. The general rule: **a type is nameable from Rust
+  only if the root `.slint` file exports it**, directly or by carrying it in an
+  exported struct — and the second half of that is a prediction here, not a
+  measurement.
+- **`jiff::Timestamp::MAX` is `9999-12-30T22:00:00.999999999Z`, a whole day
+  below `DateTime::MAX`.** So `DateTime::to_zoned` refuses the top of the civil
+  range in **every** zone, `+14:00` included. That makes
+  `9999-12-31T23:59:59` a zone-independent witness for the fourth fallible
+  step — which matters, because a function that reads the *system* zone cannot
+  be tested with a zone-dependent one. The offset-dependence is real one notch
+  lower: `9999-12-31T12:00:00` resolves at `Pacific/Kiritimati` and is refused
+  at every smaller offset.
+- **Zone-parameterise the pure half before asserting anything about a zone.**
+  Two functions here read `TimeZone::system()`, and neither behaviour worth
+  asserting — DST disambiguation, and a local date differing from UTC's — can
+  be reached through the machine's own zone: a CI box set to UTC has no DST and
+  no disagreement, and `std::env::set_var` is in `clippy.toml`'s
+  `disallowed-methods`. Splitting `composed_in(zone, …)` and
+  `local_midnight(zone, …)` out is what makes the units say something true
+  rather than something that happened to hold. What is left over is one token
+  per function — *that the zone is the system's* — and review is the only thing
+  that holds it.
+- **An assertion about a machine property should be a predicate, not a value.**
+  VA-2 asked for *an offset that is not `+00:00`*; the offset was assertable
+  here (`Australia/Melbourne`, `+10:00`) and asserting it would have encoded
+  this machine. `!TimeZone::system().is_unknown()` separates exactly *the
+  feature is on* from *the feature is off* — featureless `jiff` falls back to
+  `TimeZone::unknown()` — and separates nothing else, so a UTC box passes it
+  and still means something.
+- **Removing a feature is a louder instrument than adding one.** `POL-001`'s
+  residue is that no gate command rejects a feature switched on in a shared
+  dependency, and that stands. But an injection that *deletes* the two `jiff`
+  features turns five units red. The asymmetry is worth knowing when arguing a
+  residue: the argument is owed on the way in, and once the units exist the way
+  out is checkable.
 
 - **An injection-pass harness must revert against a commit, not the working
   tree.** The prototype's runner did `git checkout -- crates/goad/src` against an
@@ -2199,6 +2408,21 @@ offset is recorded here as what was checked beside it.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **`glass.rs:1-3` says it is the only file in the crate naming a generated
+  type, and it has not been for some time.** `install.rs:15` names four, and
+  `instant.rs` now names two. Not this phase's file to touch; PHASE-06 and
+  PHASE-07 both have it in their Surfaces.
+- **One token in `today_local` is held by review alone** — that the zone it
+  reads is the **system's**. The class is covered
+  (`one_instant_is_two_different_local_dates_in_two_different_zones`, and
+  injections I2/J/K), and the token is not: a unit cannot change the zone the
+  machine is in. Same shape as VA-2's residue, and `design.md` §8 R8 already
+  names review as the mitigation.
+- **PHASE-03's sheet totals 564 and its own per-target list comes to 529.**
+  Every per-target number it recorded is right; the sum is not. This phase's
+  538 was taken by summing the `test result: ok. N` lines the gate prints.
+  Left as written — another phase's record — and reported.
 
 - **Follow-up: `SPEC-002/OQ-4` has lost the reason it stayed open.** OQ-4 asks
   whether a host should suppress or defer a firing while a presentation is

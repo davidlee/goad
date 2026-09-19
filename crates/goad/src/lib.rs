@@ -9,6 +9,7 @@ pub mod draft;
 pub mod generated;
 pub mod glass;
 pub mod install;
+pub mod instant;
 pub mod reception;
 pub mod startup;
 pub mod view_model;
