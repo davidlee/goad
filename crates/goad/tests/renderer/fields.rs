@@ -54,8 +54,8 @@ use tokio::task::LocalSet;
 
 use crate::driving::{host, instant};
 use crate::harness::{
-  TIMEOUT, element_described, field_described, glass_overlaying, logging_scripted, now, stub_clock,
-  until, value_of, window_and_tray,
+  TIMEOUT, described, element_described, field_described, glass_overlaying, logging_scripted, now,
+  stub_clock, until, value_of, window_and_tray, within_option,
 };
 use crate::scripting::invocations;
 use crate::waiting::LIVENESS_BOUND;
@@ -75,6 +75,31 @@ const THREE_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","optio
 /// its option, so this is legal and is the whole of AC-4: two independent
 /// keys that an implementation keyed by field alone would collapse into one.
 const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
+
+/// One option carrying a `boolean` and a **`choice` whose field id is the
+/// option's own id**. `R-52` scopes a field id to its option and `R-53` puts
+/// alternative ids in a namespace of their own, so `morning` naming both an
+/// option and one of that option's fields is legal — and the option's `Button`
+/// and the field's `ComboBox` then answer to the same accessible description.
+/// Every query below filters by role or by element type for that reason
+/// (`design.md` §9, AC-8).
+///
+/// **Three alternatives, and the one chosen is the middle one.** Two would let
+/// *the id that was chosen* and *the id that was not* be told apart by a coin
+/// toss, and choosing the first or the last would let an index-off-by-one and
+/// a first-alternative fallback both pass.
+const A_CHOICE_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"morning","kind":"choice","label":"How did it go?","options":[{"id":"badly","label":"Badly"},{"id":"fine","label":"Fine"},{"id":"well","label":"Well"}]}]}]},"next_check":"45 minutes"}"#;
+
+/// One option carrying **all five kinds**, in an order none of them is
+/// declared in anywhere else, and a **sixth** field so that `number`'s two
+/// controls are both drawn: `rated` declares `[0, 10]`, which `slider_bounds`
+/// admits, and `counted` declares no bound, which it refuses.
+///
+/// The five kinds are AC-1 and AC-2's whole subject, and the declared order is
+/// part of the claim: a renderer that grouped by kind, or that drew them in
+/// the order the markup's `if` chain tests them, would pass a case that only
+/// counted controls.
+const EVERY_KIND: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"noted","kind":"text","label":"Anything to add?"},{"id":"mood","kind":"choice","label":"How did it go?","options":[{"id":"badly","label":"Badly"},{"id":"fine","label":"Fine"},{"id":"well","label":"Well"}]},{"id":"rated","kind":"number","label":"Out of ten","min":0,"max":10},{"id":"when","kind":"datetime","label":"When?"},{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"counted","kind":"number","label":"How many?"}]}]},"next_check":"45 minutes"}"#;
 
 /// One option carrying a `boolean` and **two `text` fields**. Two, because
 /// AC-4's element half is about a person typing into one field and then
@@ -539,6 +564,149 @@ fn slide_to(window: &PromptWindow, option: &str, field: &str, value: f32) {
   field_described(window, option, field)
     .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
     .set_accessible_value(value.to_string());
+}
+
+/// The `ComboBox` a `choice` field drew.
+///
+/// **Role-filtered, and that is not tidiness.** A view may legally carry a
+/// field id equal to an option id (`R-52`), and the option's own `Button` then
+/// answers to the same accessible description under the same scope — so
+/// [`field_described`]'s unfiltered `find_first` would return whichever the
+/// walk reached first and report no ambiguity. `element_described` filters by
+/// element type for the mirror-image reason; this filters by role, because a
+/// `ComboBox` is a composite and the type name beneath it is not the widget's.
+fn combo_box(window: &PromptWindow, option: &str, field: &str) -> ElementHandle {
+  within_option(window, option)
+    .match_accessible_role(AccessibleRole::Combobox)
+    .match_predicate(described(field))
+    .find_first()
+    .unwrap_or_else(|| panic!("no combo box described {field:?} under {option:?}"))
+}
+
+/// What the **screen** shows for one `choice` field: the `ComboBox`'s own
+/// `current-value`, which it publishes as its accessible value
+/// (`fluent/combobox.slint:32`).
+///
+/// A **label**, not an id. That is the point of reading it: the wire carries
+/// the alternative's id and the screen carries its label, so a case that
+/// asserts both is asserting they are different things.
+fn chosen_on_screen(window: &PromptWindow, option: &str, field: &str) -> String {
+  combo_box(window, option, field)
+    .accessible_value()
+    .unwrap_or_else(|| panic!("{option}/{field} declares no accessible-value"))
+    .to_string()
+}
+
+/// Open one `ComboBox`'s popup, the way an assistive technology does:
+/// `accessible-action-expand` calls `base.show-popup()`
+/// (`fluent/combobox.slint:33`).
+fn expand(window: &PromptWindow, option: &str, field: &str) {
+  combo_box(window, option, field).invoke_accessible_expand_action();
+}
+
+/// Every `ListItem` the window is showing, in tree order — which for an open
+/// `ComboBox` popup is the model's order, because the popup's repeater is
+/// `for value[index] in root.model` (`fluent/combobox.slint:132`).
+///
+/// From the **root** and not from the option: a `PopupWindow` is not a
+/// descendant of the element that opened it. `ElementQuery::find_all` walks
+/// `active_popups` beside the window's own tree (`search_api.rs:304-312`),
+/// which is the same reach PHASE-07's picker helpers use.
+fn list_items(window: &PromptWindow) -> Vec<ElementHandle> {
+  ElementQuery::from_root(window)
+    .match_accessible_role(AccessibleRole::ListItem)
+    .find_all()
+}
+
+/// The labels the open popup is offering, in declared order.
+fn offered(window: &PromptWindow) -> Vec<String> {
+  list_items(window)
+    .iter()
+    .map(|item| {
+      item
+        .accessible_label()
+        .unwrap_or_else(|| panic!("a ListItem declares an accessible-label"))
+        .to_string()
+    })
+    .collect()
+}
+
+/// Choose one alternative by the label a person reads, the way a person does:
+/// **click the box open, then arrow down to the row and press Return.**
+///
+/// **Why not a click on the row, which is what `design.md` §9's driver table
+/// names.** `ElementHandle::mock_single_click` dispatches at
+/// `absolute_center()`, and `absolute_position` is `item.map_to_window(..)`,
+/// which for an item inside an embedded `PopupWindow` stops at the **popup's**
+/// own root — a popup is a separate item tree with no parent link
+/// (`i-slint-core/item_tree.rs:628-630`). Pointer dispatch then translates by
+/// the popup's origin in the window (`window.rs:848-856`,
+/// `geom.contains(pos - coordinates)`), so a popup-local coordinate is read as
+/// a window one and lands outside the popup. That is not the risk §8 **R9**
+/// named and it is not fixed by the tier it named: PHASE-09/VA-1 measured the
+/// rows acquiring real geometry — `(4, 4) 512x40`, then `(4, 44)`, then
+/// `(4, 84)` — and the click still not arriving.
+///
+/// **The keyboard reaches the same function.** `move-selection-down()` is
+/// `select(current-index + 1)` and a row's `clicked` is `select(index)`
+/// (`common/combobox-base.slint:20-39`, `fluent/combobox.slint:138-142`) — one
+/// function, so what this drives is what a pointer would have driven: the
+/// index is assigned and `selected` is raised, once. The opening click is a
+/// real `mock_single_click`, on the `ComboBox` itself, which is an ordinary
+/// laid-out element of the window; it focuses the box and shows the popup
+/// (`combobox-base.slint:124-127`), and the popup's `FocusScope` then takes
+/// the arrow keys (`fluent/combobox.slint:113-122`).
+///
+/// **The popup must be closed when this is called**, which is the state a
+/// person finds it in: the opening click is dispatched at the box's own centre
+/// and an open popup covers it.
+fn choose(window: &PromptWindow, option: &str, field: &str, label: &str) {
+  combo_box(window, option, field).mock_single_click(slint::platform::PointerEventButton::Left);
+
+  let offered = offered(window);
+  let at = offered
+    .iter()
+    .position(|offered| offered == label)
+    .unwrap_or_else(|| panic!("no alternative labelled {label:?}, only {offered:?}"));
+  // Where the **widget** says it is, read off the row that declares itself
+  // selected (`is-selected: index == root.current-index`,
+  // `fluent/combobox.slint:134`) rather than off the host's own value channel,
+  // which is what the case is about to assert.
+  let from = list_items(window)
+    .iter()
+    .position(|item| item.accessible_item_selected() == Some(true))
+    .expect("one row declares itself selected");
+
+  let key = if at >= from {
+    slint::platform::Key::DownArrow
+  } else {
+    slint::platform::Key::UpArrow
+  };
+  for _ in 0..at.abs_diff(from) {
+    press(window, key);
+  }
+  // Return closes the popup and nothing else: the selection was raised by each
+  // arrow (`combobox-base.slint:41-54`). Leaving it open would cover the
+  // controls the rest of the case drives.
+  press(window, slint::platform::Key::Return);
+}
+
+/// One key, pressed and released on the window the way a person's keyboard
+/// reaches it. `ElementHandle` has no key API — keys go to whatever holds
+/// focus, which is the point.
+fn press(window: &PromptWindow, key: slint::platform::Key) {
+  let window = ComponentHandle::window(window);
+  window.dispatch_event(slint::platform::WindowEvent::KeyPressed { text: key.into() });
+  window.dispatch_event(slint::platform::WindowEvent::KeyReleased { text: key.into() });
+}
+
+/// The index the **value channel** holds for one `choice` field — what the
+/// widget's `current-index` is bound to, and so the host's own account of what
+/// it drew.
+fn indexed(window: &PromptWindow, option: &str, field: &str) -> i32 {
+  value_of(window, option, field)
+    .unwrap_or_else(|| panic!("no value slot for {field:?} under {option:?}"))
+    .index
 }
 
 // ---------------------------------------------------------------------------
@@ -1782,5 +1950,115 @@ async fn a_number_too_long_to_write_out_is_drawn_in_scientific_notation() {
     Value::from(f64::MAX),
     "R-58: an untouched drawn field carries a value, and it is the one the screen \
      showed rather than an `f32` infinity"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Slice 009 PHASE-09 — `choice`
+// ---------------------------------------------------------------------------
+
+/// Slice 009 `plan.md` PHASE-09/**VT-1**. A `choice` field draws a `ComboBox`
+/// whose model is the alternatives' **labels**, in declared order.
+///
+/// Three readings, because each alone would pass on a defect the others catch.
+/// The role says a `ComboBox` was drawn and not one of the four controls
+/// beside it. The popup's rows say what it was drawn *over*: the labels the
+/// backend authored, in the order it declared them, and none of the ids — a
+/// renderer that shipped ids would show a person `badly` where the backend
+/// wrote `Badly`. And the value shows the field is sitting on its first
+/// alternative, which is what `as_drawn` says an untouched `choice` holds.
+///
+/// The field id is the option's own id, so [`combo_box`]'s role filter is
+/// load-bearing here rather than incidental.
+#[tokio::test]
+async fn a_choice_field_draws_a_combo_box_over_the_alternatives_labels() {
+  let ((roles, labels, shown), _log) = driving!(
+    rigged("fields-choice-vt1", &[A_CHOICE_FIELD]),
+    |window, tray, log| {
+      let roles = (
+        combo_box(&window, "morning", "morning")
+          .accessible_role()
+          .expect("a combo box declares an accessible-role"),
+        role_of(&window, "morning", "stretched"),
+      );
+      expand(&window, "morning", "morning");
+      let labels = offered(&window);
+      let shown = chosen_on_screen(&window, "morning", "morning");
+      (roles, labels, shown)
+    }
+  );
+
+  assert_eq!(
+    roles,
+    (AccessibleRole::Combobox, AccessibleRole::Checkbox),
+    "the fifth kind draws its own control, and the boolean beside it is not it"
+  );
+  assert_eq!(
+    labels,
+    vec!["Badly", "Fine", "Well"],
+    "the labels the backend authored, in the order it declared them — not the ids"
+  );
+  assert_eq!(
+    shown, "Badly",
+    "an untouched `choice` sits on its first alternative, which is what it submits"
+  );
+}
+
+/// Slice 009 `plan.md` PHASE-09/**VT-2** — **AC-8.** Choosing an alternative
+/// submits the **alternative's id**, and a view whose field id equals an
+/// option id still answers correctly.
+///
+/// **Three things that could be sent and only one that may be.** The label is
+/// what a person sees, the index is what the `ComboBox` reports, and the id is
+/// what `R-57` requires — so the case asserts the label on screen, the index in
+/// the value channel, and the id on the wire, and no two of them are the same
+/// string. `fine` is the middle alternative, so an off-by-one and a
+/// first-alternative fallback are both visible.
+///
+/// **The field id is the option id, and that is AC-8's other half.** Both the
+/// field's `ComboBox` and the option's `Button` answer to the accessible
+/// description `morning`; the case chooses through the one and answers through
+/// the other, and a query that confused them would drive the wrong widget.
+///
+/// The host cannot mint an `AlternativeId` — `AlternativeId::new` is
+/// `pub(super)` in `goad-semantics` — so an id reaching the wire was
+/// necessarily cloned off the view the backend sent. That is why this is a
+/// fact about the types and not a rule somebody follows (`design.md` §7 D12).
+#[tokio::test]
+async fn choosing_an_alternative_submits_its_id_where_the_field_id_is_the_options_own() {
+  let ((shown, index), log) = driving!(
+    rigged("fields-choice-vt2", &[A_CHOICE_FIELD]),
+    |window, tray, log| {
+      choose(&window, "morning", "morning", "Fine");
+      until(LIVENESS_BOUND, || {
+        indexed(&window, "morning", "morning") == 1
+      })
+      .await;
+      let shown = chosen_on_screen(&window, "morning", "morning");
+      let index = indexed(&window, "morning", "morning");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (shown, index)
+    }
+  );
+
+  assert_eq!(shown, "Fine", "the label is what the person is looking at");
+  assert_eq!(index, 1, "and the index is what the control reported");
+
+  assert_eq!(answered_option(&log, 2), "morning");
+  let values = submitted_values(&log, 2);
+  assert_eq!(keys_of(&values), vec!["morning", "stretched"]);
+  assert_eq!(
+    values["morning"],
+    Value::String("fine".to_owned()),
+    "R-57: a `choice` leaves the host as the **alternative's id** — not the label the \
+     person read and not the index the widget reported: {values:?}"
+  );
+  assert_eq!(
+    values["stretched"],
+    Value::Bool(false),
+    "and the option answered is the one whose control was pressed, although its id is \
+     also a field id"
   );
 }
