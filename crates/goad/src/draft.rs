@@ -186,10 +186,13 @@ impl Draft {
 ///
 /// It is **not** the compiler's guard against the *protocol* growing a kind.
 /// `Edited` is host-local; a sixth `FieldKind` leaves this match exhaustive.
-/// The site that breaks is the mapper arm in `present()`, which matches the
-/// canonical `FieldKind` and must sort the new kind into drawn or
-/// `Undrawn::FieldForm`. What this match guards is the *host* growing a drawn
-/// kind without deciding what it submits.
+/// The site that breaks is `view_model::drawn_form`, which matches the
+/// canonical `FieldKind` and must sort the new kind into drawn or reported.
+/// Reported is no longer somewhere it can simply go: every kind draws, so
+/// `FieldForm` is uninhabited and the destination has to be **re-created** —
+/// a variant given back — before a new kind can be sent there. What this match
+/// guards is the *host* growing a drawn kind without deciding what it
+/// submits.
 pub(crate) fn submitted(edited: &Edited) -> serde_json::Value {
   match edited {
     Edited::Checked(value) => serde_json::Value::Bool(*value),

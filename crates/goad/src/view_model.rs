@@ -32,8 +32,11 @@ impl Presentation {
   /// not send as text — rejected markdown, HTML, or a URI. Drives the
   /// marker beside the body; the *reason* lives in the diagnostic list and
   /// appears nowhere else. Derived from `undrawn`, not stored, so the rule
-  /// has one statement. Note what it excludes: `Undrawn::FieldForm` and
-  /// `Undrawn::GroupHint` are undrawn but say nothing about the body.
+  /// has one statement. Note what it excludes: `Undrawn::GroupHint` is
+  /// undrawn but says nothing about the body, and so — were it constructible —
+  /// would `Undrawn::FieldForm`. It is not: every field kind draws, so
+  /// [`FieldForm`] is uninhabited and the exclusion names a variant nothing
+  /// can contribute. The arm stays because a sixth protocol kind gives it back.
   #[must_use]
   pub fn body_is_degraded(&self) -> bool {
     self.undrawn.iter().any(|undrawn| {

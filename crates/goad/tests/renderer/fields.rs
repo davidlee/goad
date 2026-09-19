@@ -2044,8 +2044,14 @@ async fn choosing_an_alternative_submits_its_id_where_the_field_id_is_the_option
     rigged("fields-choice-vt2", &[A_CHOICE_FIELD]),
     |window, tray, log| {
       choose(&window, "morning", "morning", "Fine");
+      // **A synchronisation point, and the assertions are below it.** Waiting
+      // for the slot to stop reading the value it was *drawn* with, rather
+      // than for it to hold the expected one, is what makes a choice that
+      // lands **wrong** fail as a comparison naming two indices instead of as
+      // a timeout naming none. A choice that never lands at all can only ever
+      // be a timeout, and is.
       until(LIVENESS_BOUND, || {
-        indexed(&window, "morning", "morning") == 1
+        indexed(&window, "morning", "morning") != 0
       })
       .await;
       let shown = chosen_on_screen(&window, "morning", "morning");
@@ -2224,9 +2230,9 @@ async fn every_operated_kind_leaves_the_host_with_the_json_type_r57_names() {
       // which is also what says the second is made from where the first left
       // the box rather than from where it started.
       choose(&window, "morning", "mood", "Fine");
-      until(LIVENESS_BOUND, || indexed(&window, "morning", "mood") == 1).await;
+      until(LIVENESS_BOUND, || indexed(&window, "morning", "mood") != 0).await;
       choose(&window, "morning", "mood", "Well");
-      until(LIVENESS_BOUND, || indexed(&window, "morning", "mood") == 2).await;
+      until(LIVENESS_BOUND, || indexed(&window, "morning", "mood") != 1).await;
 
       tick!(window, "morning", "stretched");
 
