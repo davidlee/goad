@@ -65,3 +65,7 @@ path = "tests/event_loop_schedule/main.rs"
 [[test]]
 name = "event_loop_reassert"
 path = "tests/event_loop_reassert/main.rs"
+
+[[test]]
+name = "event_loop_debounce"
+path = "tests/event_loop_debounce/main.rs"

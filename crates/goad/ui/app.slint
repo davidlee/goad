@@ -1,4 +1,4 @@
-import { Button, CheckBox, Palette, ScrollView } from "std-widgets.slint";
+import { Button, CheckBox, LineEdit, Palette, ScrollView } from "std-widgets.slint";
 
 // **`Date` and `Time` are re-exported so Rust can name them**, and for no
 // other reason: `instant.rs`'s `compose` takes a pair of these and
@@ -30,8 +30,8 @@ import "../../../assets/Geist.ttf";
 //
 // The kind discriminant selects which slot of `FieldValue` is meaningful. All
 // five are declared because the mapping from the protocol's field kinds must
-// be total; this renderer draws one of them so far, and each later phase adds
-// one control and the fields it reads. `FieldRow`'s `slider` / `minimum` /
+// be total; this renderer draws two of them so far — `boolean` and `text` —
+// and each later phase adds one control and the fields it reads. `FieldRow`'s `slider` / `minimum` /
 // `maximum` / `step` / `alternatives` and `FieldValue`'s `date` / `time` are
 // **not** here yet: nothing is declared before a control reads it.
 export enum Kind { boolean, text, number, choice, datetime }
@@ -328,51 +328,115 @@ export component PromptWindow inherits Window {
                       alignment: start;
                       spacing: 4px;
 
-                      // The `HorizontalLayout` is what stops the control
-                      // filling the block's width. A `CheckBox` given the whole
-                      // row draws its focus ring around the whole row, so a
-                      // focused field reads as a banner across the window
-                      // rather than as the box and label it is.
-                      for field in block.fields: HorizontalLayout {
+                      // **One `if` per drawn kind, and the row is the
+                      // discriminant.** `FieldRow.kind` is written by
+                      // `glass.rs::markup_kind` off the drawn field, which is
+                      // total over `DrawnKind` — so a kind no arm below draws
+                      // is a compile error there rather than a field that
+                      // renders as nothing here. The kinds with no arm yet are
+                      // reported undrawn and never become a `FieldRow` at all
+                      // (`view_model::drawn_form`): `datetime` PHASE-07,
+                      // `number` PHASE-08, `choice` PHASE-09.
+                      for field in block.fields: VerticalLayout {
                         alignment: start;
-                        CheckBox {
+                        spacing: 2px;
+
+                        // The `HorizontalLayout` is what stops the control
+                        // filling the block's width. A `CheckBox` given the whole
+                        // row draws its focus ring around the whole row, so a
+                        // focused field reads as a banner across the window
+                        // rather than as the box and label it is.
+                        if field.kind == Kind.boolean: HorizontalLayout {
+                          alignment: start;
+                          CheckBox {
+                            text: field.label;
+                            // **The value channel is the authority.** The widget
+                            // flips itself on click so the feedback is
+                            // immediate; the next present rewrites this slot,
+                            // which is what corrects a click the host dropped
+                            // (design.md §5.4).
+                            checked: root.values[field.slot].checked;
+                            enabled: !root.busy;
+                            accessible-description: field.id;
+                            init => { root.inits += 1; }
+                            // **The guard.** A click *assigns* `checked`, which
+                            // removes the binding above permanently — that is
+                            // what a self-assigning widget does — so the epoch
+                            // is what brings the widget back to the channel. It
+                            // compares itself against its own slot and writes
+                            // itself back only where they differ, and writing
+                            // nothing where they agree is the whole point: it is
+                            // what lets a caret, a selection or a drag survive a
+                            // present (§5.2's comparand table, §7 D8).
+                            property <int> tick: root.epoch;
+                            changed tick => {
+                              if (self.checked != root.values[field.slot].checked) {
+                                self.checked = root.values[field.slot].checked;
+                                root.reasserts += 1;
+                              }
+                            }
+                            // **The literal names the control's own kind, not
+                            // the row's.** `field.kind` would make the report
+                            // agree with the row by construction, and
+                            // `interpret`'s third `None` case — a report whose
+                            // variant is not the drawn field's kind — could then
+                            // never fire. A `CheckBox` reports a boolean because
+                            // that is what a `CheckBox` is (design.md §5.2).
+                            toggled => {
+                              root.edited(option.view, option.id, field.id, {
+                                kind: Kind.boolean,
+                                checked: self.checked,
+                              });
+                            }
+                          }
+                        }
+
+                        // **A `LineEdit` carries no label of its own**, so the
+                        // one the backend authored is drawn above it rather than
+                        // as placeholder text, which disappears the moment
+                        // somebody types. `accessible-label` carries the same
+                        // string, so what is announced and what is drawn are one
+                        // value; `accessible-description` stays the id, which is
+                        // what every renderer case selects on
+                        // (`harness::field_described`).
+                        if field.kind == Kind.text: Text {
                           text: field.label;
-                          // **The value channel is the authority.** The widget
-                          // flips itself on click so the feedback is
-                          // immediate; the next present rewrites this slot,
-                          // which is what corrects a click the host dropped
-                          // (design.md §5.4).
-                          checked: root.values[field.slot].checked;
+                          color: Palette.foreground.transparentize(0.20);
+                        }
+                        if field.kind == Kind.text: LineEdit {
+                          // **The value channel is the authority**, exactly as
+                          // it is for the box above: the widget writes itself as
+                          // a person types so the feedback is immediate, and the
+                          // next present rewrites this slot.
+                          text: root.values[field.slot].text;
                           enabled: !root.busy;
+                          accessible-label: field.label;
                           accessible-description: field.id;
                           init => { root.inits += 1; }
-                          // **The guard.** A click *assigns* `checked`, which
-                          // removes the binding above permanently — that is
-                          // what a self-assigning widget does — so the epoch
-                          // is what brings the widget back to the channel. It
-                          // compares itself against its own slot and writes
-                          // itself back only where they differ, and writing
-                          // nothing where they agree is the whole point: it is
-                          // what lets a caret, a selection or a drag survive a
-                          // present (§5.2's comparand table, §7 D8).
+                          // **The guard, comparing string against string.**
+                          // Typing *assigns* `text`, which removes the binding
+                          // above permanently, so the epoch is what brings the
+                          // widget back to the channel. String against string is
+                          // an identity here — the host holds the text a person
+                          // typed — and writing nothing where they agree is what
+                          // lets the caret survive a present (§5.2's comparand
+                          // table, §7 D8).
                           property <int> tick: root.epoch;
                           changed tick => {
-                            if (self.checked != root.values[field.slot].checked) {
-                              self.checked = root.values[field.slot].checked;
+                            if (self.text != root.values[field.slot].text) {
+                              self.text = root.values[field.slot].text;
                               root.reasserts += 1;
                             }
                           }
-                          // **The literal names the control's own kind, not
-                          // the row's.** `field.kind` would make the report
-                          // agree with the row by construction, and
-                          // `interpret`'s third `None` case — a report whose
-                          // variant is not the drawn field's kind — could then
-                          // never fire. A `CheckBox` reports a boolean because
-                          // that is what a `CheckBox` is (design.md §5.2).
-                          toggled => {
+                          // The literal names the control's own kind, for the
+                          // reason the `CheckBox`'s does. `edited` fires per
+                          // keystroke and `install.rs` routes it through the
+                          // debounce; nothing here knows that, and nothing here
+                          // should.
+                          edited => {
                             root.edited(option.view, option.id, field.id, {
-                              kind: Kind.boolean,
-                              checked: self.checked,
+                              kind: Kind.text,
+                              text: self.text,
                             });
                           }
                         }

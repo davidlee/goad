@@ -32,9 +32,24 @@ pub enum Command {
   /// and never parsed back into a value. `view` is the `ViewId` the markup
   /// was given; without it a delayed click answers whichever interaction
   /// happens to be outstanding when it is dequeued (F-13).
+  /// `edits` is everything `pending.rs` was holding when the person answered,
+  /// carried **inside** the command rather than sent before it. The channel
+  /// holds one (`main.rs:86`) and `serve` shares the UI thread through
+  /// `spawn_local`, so a Slint callback — synchronous, no await — cannot let
+  /// `serve` drain between two sends: the second `try_send` of a flush does
+  /// not merely risk `Full`, it is certain of it. One send is what lets D-8's
+  /// *"the debounce flushes when the draft becomes an answer"* hold by the
+  /// shape of the command rather than by a queue ordering that was never
+  /// available (`design.md` §5.1, §5.4).
+  ///
+  /// **No order is promised over `edits`, and none should be.** The keys are
+  /// distinct by construction, so any order yields the same draft — and the
+  /// callback holds `(option, field)` keys with no declaration order to derive
+  /// one from.
   Choose {
     view: String,
     option: String,
+    edits: Vec<PendingEdit>,
   },
   /// What the person did to one field. `Choose`'s shape with one more
   /// selector and a report: three opaque strings matched against retained
@@ -56,6 +71,30 @@ pub enum Command {
   },
   OpenDiagnostics,
   CloseDiagnostics,
+}
+
+/// One edit `pending.rs` was still holding when the person answered, travelling
+/// inside the [`Command::Choose`] that answers.
+///
+/// **It names its own view**, because an entry outlives the view that produced
+/// it and the map is keyed by strings a replacement view is free to reuse: the
+/// controller checks each carried edit's view against the retained one and
+/// refuses a stale edit `SupersededView` — while still answering, because the
+/// answer is about the view that *is* retained (`design.md` §5.2, §5.5 I-H).
+///
+/// **And its own option**, because the map is keyed by (option, field) and a
+/// person can type into one option's field and then answer another. That edit
+/// is recorded and simply is not submitted: `answer` walks the answered
+/// option's drawn fields.
+///
+/// `value` is a `Reported` for the same reason [`Command::Edit`] carries one —
+/// what a widget reported is not yet what the draft holds.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PendingEdit {
+  pub view: String,
+  pub option: String,
+  pub field: String,
+  pub value: Reported,
 }
 
 /// Why an evaluation is being asked for. The variants are the `Event.kind`
@@ -137,11 +176,31 @@ impl Wire {
   /// and dropped one line before the task's own `quit_event_loop`. It leaves
   /// the signal exactly as it found it — there is nothing left to explain a
   /// dropped action to, and nothing left to lower it either.
-  pub fn send(&self, command: Command) {
+  ///
+  /// **`true` means enqueued, and it is the only thing a caller may conclude.**
+  /// It says nothing about whether the command was handled or accepted. The
+  /// two callers that need it — the debounce timer and the `chosen` callback —
+  /// clear `pending.rs` on `true` and keep their entries on `false`, because a
+  /// refusal has already been reported and the guard corrects the widget,
+  /// whereas a `Full` send delivered nothing at all (`design.md` §5.1, §5.2).
+  /// `Closed` is `false` for the same reason `Full` is: nothing was enqueued.
+  ///
+  /// The result is **advisory**, so every caller that ignores it is unaffected
+  /// and the back-pressure notice is still raised and lowered exactly where it
+  /// was. `TrySendError::Full` already handed the whole command back one line
+  /// below, and that site discards it deliberately (D8) — this is a return
+  /// type, not a new mechanism (F-39).
+  pub fn send(&self, command: Command) -> bool {
     match self.commands.try_send(command) {
-      Ok(()) => self.notice.set(false),
-      Err(TrySendError::Full(_returned)) => self.notice.set(true),
-      Err(TrySendError::Closed(_)) => (),
+      Ok(()) => {
+        self.notice.set(false);
+        true
+      }
+      Err(TrySendError::Full(_returned)) => {
+        self.notice.set(true);
+        false
+      }
+      Err(TrySendError::Closed(_)) => false,
     }
   }
 
@@ -260,8 +319,29 @@ mod tests {
   fn send_enqueues_when_the_channel_has_room() {
     let (tx, mut rx) = mpsc::channel(1);
     let wire = Wire::new(tx, Cancel::new(), Notice::new());
-    wire.send(Command::OpenDiagnostics);
+    assert!(wire.send(Command::OpenDiagnostics), "the channel had room");
     assert_eq!(rx.try_recv(), Ok(Command::OpenDiagnostics));
+  }
+
+  /// **PHASE-05/EX-5.** What `send` reports is what the debounce's two exits
+  /// turn on: an entry leaves `pending.rs` on the **enqueue**, so a `false`
+  /// here is what keeps a held edit held. The notice is asserted beside it,
+  /// because the report is an addition to that behaviour and not a
+  /// replacement for it.
+  #[test]
+  fn send_reports_a_full_channel_and_still_raises_the_notice() {
+    let (tx, _rx) = mpsc::channel(1);
+    let notice = Notice::new();
+    let wire = Wire::new(tx, Cancel::new(), notice.clone());
+
+    assert!(wire.send(Command::OpenDiagnostics), "the first fills it");
+    assert!(!notice.raised(), "and an accepted send lowers the signal");
+
+    assert!(
+      !wire.send(Command::CloseDiagnostics),
+      "capacity is one, so the second was not enqueued and its caller must be told"
+    );
+    assert!(notice.raised(), "and the dropped action is explained");
   }
 
   #[test]
@@ -271,7 +351,10 @@ mod tests {
     let notice = Notice::new();
     notice.set(true);
     let wire = Wire::new(tx, Cancel::new(), notice.clone());
-    wire.send(Command::CloseDiagnostics); // must not panic (F-20)
+    assert!(
+      !wire.send(Command::CloseDiagnostics), // must not panic (F-20)
+      "nothing was enqueued, which is the only thing the report claims"
+    );
     assert!(
       notice.raised(),
       "a closed channel leaves the signal as it found it: nothing was delivered, so \

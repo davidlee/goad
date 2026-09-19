@@ -9,6 +9,7 @@ use goad::diagnostics;
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
+use goad::pending::Debounce;
 use goad::startup::{self, Launch, StartupError};
 use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
@@ -87,7 +88,12 @@ fn start(path: &Path) -> Result<(), StartupError> {
   let cancel = Cancel::new();
   let notice = Notice::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
-  install(&window, &tray, &wire); // the callback table
+  //    The debounce, created **here** and not inside `install`, because
+  //    `SlintGlass` is given a clone of the same handle (PHASE-06): the
+  //    callbacks and the glass must share one map, never hold two
+  //    (`design.md` §9, R10).
+  let pending = Rc::new(Debounce::new());
+  install(&window, &tray, &wire, &pending); // the callback table
 
   // 7. The glass. The `VecModel` is created once and lives for the process;
   //    `present` re-hands its `ModelRc` on every call, so no property has to

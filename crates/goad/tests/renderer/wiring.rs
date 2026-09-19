@@ -1021,6 +1021,7 @@ mod interaction {
         tx.send(Command::Choose {
           view: stale_view,
           option: "yes".to_owned(),
+          edits: Vec::new(),
         })
         .await
         .expect("the channel must accept the queued click");
@@ -1102,6 +1103,7 @@ mod interaction {
         tx.send(Command::Choose {
           view,
           option: "yes".to_owned(),
+          edits: Vec::new(),
         })
         .await
         .expect("the channel must accept the click");
@@ -1133,7 +1135,7 @@ mod editing {
   use goad::draft::Reported;
   use goad::generated::PromptWindow;
   use goad::glass::Glass;
-  use goad::wire::{Cancel, Command, Notice, Stimulus};
+  use goad::wire::{Cancel, Command, Notice, PendingEdit, Stimulus};
   use goad_semantics::protocol::canonical::{FieldId, UserResponse};
   use goad_shell::ingress::Ingress;
   use slint::{ComponentHandle, Model};
@@ -1151,11 +1153,16 @@ mod editing {
   /// two options sharing one as legal, which is what gives R-58's "nor a
   /// field of an option it is not answering" clause something to be false of.
   ///
-  /// `morning` also carries a `text` field, which this renderer does not
+  /// `morning` also carries a `datetime` field, which this renderer does not
   /// draw. R-58 says the response is silent about such a field rather than
   /// carrying a default for it, so its absence from `values` is an assertion
   /// and not an oversight.
-  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"text","label":"Anything to add?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
+  ///
+  /// **The undrawn kind moves one phase at a time.** It was `text` until
+  /// PHASE-05 drew it; PHASE-07 moves it off `datetime`, PHASE-08 off
+  /// `number`, and PHASE-09 has nowhere left to move it to and deletes what
+  /// rests on it (`prototype-notes.md` P-13).
+  const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"datetime","label":"Anything to add?"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
   /// One option, five fields, two blocks: two under a heading the backend
   /// authored, then three carrying no `group` at all — an **untitled** block,
@@ -1342,6 +1349,221 @@ mod editing {
       submitted_value(&answer, "read"),
       Some(&serde_json::Value::Bool(true)),
       "the refused report recorded nothing, and disturbed nothing the field already held"
+    );
+  }
+
+  /// One pending edit, as `pending.rs` would have handed it to the `chosen`
+  /// callback. A helper rather than a literal at each site, so a case's own
+  /// line says which of the four selectors it is bending.
+  fn carrying(view: &str, option: &str, field: &str, value: Reported) -> PendingEdit {
+    PendingEdit {
+      view: view.to_owned(),
+      option: option.to_owned(),
+      field: field.to_owned(),
+      value,
+    }
+  }
+
+  /// The diagnostic lines the controller is holding. `Diagnostics::refused`
+  /// **replaces** rather than accumulates, so the count is what says a refusal
+  /// was reported once and not per carried edit.
+  fn reported_lines(controller: &Controller) -> Vec<String> {
+    controller
+      .frame(false)
+      .diagnostics
+      .lines()
+      .iter()
+      .map(ToString::to_string)
+      .collect()
+  }
+
+  /// The **refusals** among the reported lines, which is not the same question
+  /// as whether anything was reported at all.
+  ///
+  /// Every refusal `Diagnostics::refused` renders carries this prefix and
+  /// nothing else does (`diagnostics.rs:157-185`, whose doc calls it *"the
+  /// same prefix as any other refusal"*). A presentation also reports the
+  /// fields it drew no control for, and those are not refusals — so on a
+  /// fixture carrying an undrawn field, "nothing was refused" and "nothing was
+  /// reported" have different answers. Asserting the second when you mean the
+  /// first passes only while the fixture happens to hold no undrawn field, and
+  /// EX-9 moves undrawn fields between fixtures in four separate phases.
+  fn refusal_lines(controller: &Controller) -> Vec<String> {
+    reported_lines(controller)
+      .into_iter()
+      .filter(|line| line.starts_with("no action taken:"))
+      .collect()
+  }
+
+  /// **PHASE-05/VT-2** — a `Choose` that carries the flush. (Phase-qualified:
+  /// the bare `VT-n` ids on the cases around this one are slice 008's.)
+  ///
+  /// The debounce's second exit. A carried edit is applied through the walk
+  /// `edit` already makes, and *then* the answer is built — so what leaves the
+  /// host includes typing the timer had not yet delivered. This is the
+  /// single-send flush asserted rather than assumed: one command does both
+  /// halves, because a flush made of separate sends cannot survive a
+  /// capacity-1 channel that a synchronous Slint callback has no way to let
+  /// drain.
+  ///
+  /// **The second `answer` is not decoration.** It is what says the carried
+  /// edit reached the **draft** rather than being folded into one response on
+  /// its way past: a `choose` that built the value into the answer and left
+  /// the draft alone would pass the first assertion and fail the second.
+  #[tokio::test]
+  async fn a_choose_applies_the_edits_it_carries_and_answers_from_a_draft_that_includes_them() {
+    let (mut controller, view) = retaining("choose-carries", TWO_FORMS).await;
+
+    let (_, answer) = controller
+      .choose(
+        &view,
+        "morning",
+        &[
+          carrying(&view, "morning", "read", Reported::Checked(true)),
+          carrying(&view, "evening", "tidied", Reported::Checked(true)),
+        ],
+      )
+      .expect("every selector is good, so the option answers");
+
+    assert_eq!(submitted_keys(&answer), vec!["read", "stretched"]);
+    assert_eq!(
+      submitted_value(&answer, "read"),
+      Some(&serde_json::Value::Bool(true)),
+      "the carried edit reached the draft before the answer was built from it"
+    );
+    assert_eq!(
+      submitted_value(&answer, "stretched"),
+      Some(&serde_json::Value::Bool(false)),
+      "and the field nobody touched still carries what it was drawn with"
+    );
+
+    let (_, again) = controller
+      .answer(&view, "morning")
+      .expect("the option answers a second time");
+    assert_eq!(
+      submitted_value(&again, "read"),
+      Some(&serde_json::Value::Bool(true)),
+      "the edit is in the draft, not merely in the response it travelled with"
+    );
+
+    let (_, evening) = controller
+      .answer(&view, "evening")
+      .expect("the other option answers too");
+    assert_eq!(
+      submitted_value(&evening, "tidied"),
+      Some(&serde_json::Value::Bool(true)),
+      "an edit for an option the person did not answer is recorded and simply not submitted"
+    );
+    assert!(
+      refusal_lines(&controller).is_empty(),
+      "nothing was refused: {:?}",
+      reported_lines(&controller)
+    );
+  }
+
+  /// **PHASE-05/VT-4** — the two ways a carried edit fails, which are not
+  /// symmetrical.
+  ///
+  /// A **stale view** is a race: the person typed into a view that has since
+  /// been replaced, and then answered the replacement. It is refused
+  /// `SupersededView` and reported — the typing really was discarded — and
+  /// **the answer still goes**, because it is about the view that *is*
+  /// retained and nothing about it is incomplete. Two stale edits report
+  /// **once**, because `Diagnostics::refused` replaces rather than
+  /// accumulates.
+  ///
+  /// An **undeclared option or field** is a renderer bug: the markup and the
+  /// retained presentation disagree. It takes the posture an out-of-range
+  /// `ComboBox` index already has — reported through the existing refusal
+  /// site, nothing recorded, and **no answer**, because an answer the host
+  /// knows was built from an incomplete draft is worse than a refusal a
+  /// person can see.
+  ///
+  /// The accepted edit beside the stale ones is what makes the surviving
+  /// answer attributable: a `choose` that abandoned every carried edit at the
+  /// first refusal would pass a case that carried only stale ones.
+  #[tokio::test]
+  async fn a_stale_carried_edit_is_refused_once_and_still_answers_but_an_undeclared_one_does_not() {
+    let (mut controller, view) = retaining("choose-refusals", TWO_FORMS).await;
+
+    let (_, answer) = controller
+      .choose(
+        &view,
+        "morning",
+        &[
+          carrying(
+            "a-token-from-a-replaced-view",
+            "morning",
+            "read",
+            Reported::Checked(true),
+          ),
+          carrying(
+            "another-replaced-view",
+            "morning",
+            "read",
+            Reported::Checked(true),
+          ),
+          carrying(&view, "morning", "stretched", Reported::Checked(true)),
+        ],
+      )
+      .expect("the answer is about the retained view, and nothing about it is incomplete");
+
+    assert_eq!(
+      submitted_value(&answer, "read"),
+      Some(&serde_json::Value::Bool(false)),
+      "neither stale edit recorded anything"
+    );
+    assert_eq!(
+      submitted_value(&answer, "stretched"),
+      Some(&serde_json::Value::Bool(true)),
+      "and the edit beside them, which named the retained view, did"
+    );
+
+    let lines = reported_lines(&controller);
+    assert_eq!(
+      lines.len(),
+      1,
+      "two stale edits, one line: reported once and not per edit — {lines:?}"
+    );
+    assert!(
+      lines[0].contains("since been replaced"),
+      "and it is the line `SupersededView` already renders: {lines:?}"
+    );
+
+    assert_eq!(
+      controller.choose(
+        &view,
+        "morning",
+        &[carrying(
+          &view,
+          "morning",
+          "not-a-field",
+          Reported::Checked(true)
+        )]
+      ),
+      Err(Refused::UnknownField),
+      "a carried edit naming a field the retained view does not declare is a renderer bug, \
+       and no answer is built from a draft the host knows is incomplete"
+    );
+    assert_eq!(
+      controller.choose(
+        &view,
+        "morning",
+        &[carrying(
+          &view,
+          "not-an-option",
+          "read",
+          Reported::Checked(true)
+        )]
+      ),
+      Err(Refused::UnknownOption),
+      "and so is one naming an option it does not declare"
+    );
+
+    assert_eq!(
+      controller.choose("a-token-from-a-replaced-view", "morning", &[]),
+      Err(Refused::SupersededView),
+      "the `Choose`'s own identity is checked first, before anything it carries"
     );
   }
 

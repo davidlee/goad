@@ -310,12 +310,12 @@ fn markup_kind(kind: &DrawnKind) -> Kind {
 /// routing the glass through `as_drawn` is exactly what would erase it
 /// (design.md §5.2).
 ///
-/// **Only `checked` is written**, because `boolean` is the only kind
-/// `undrawn_form` draws and no control reads another slot yet. The match is
-/// total over `Edited` all the same — that is what makes a value the draft can
-/// hold and the screen cannot show a compile error rather than a default. Each
-/// remaining arm is filled by the phase that draws its control and owns this
-/// value arm in its Surfaces: `text` PHASE-05, `datetime` PHASE-07 (with the
+/// **Only `checked` and `text` are written**, because `boolean` and `text` are
+/// the only kinds `drawn_form` draws and no control reads another slot yet. The
+/// match is total over `Edited` all the same — that is what makes a value the
+/// draft can hold and the screen cannot show a compile error rather than a
+/// default. Each remaining arm is filled by the phase that draws its control
+/// and owns this value arm in its Surfaces: `datetime` PHASE-07 (with the
 /// `date` and `time` seed slots), `number` PHASE-08 (whose `number` slot is the
 /// `Slider`'s alone), `choice` PHASE-09 (whose `index` needs the drawn
 /// alternatives to locate the held id).
@@ -325,16 +325,22 @@ fn field_value(state: Option<&Edited>) -> FieldValue {
       checked: *checked,
       ..FieldValue::default()
     },
-    // Untouched, and the four kinds no control reads a slot for yet. Two
+    // The text a person typed, verbatim. It is what the guard compares itself
+    // against — string against string, so the comparison is an identity — and
+    // what the `LineEdit`'s binding reads (design.md §5.2's comparand table).
+    Some(Edited::Typed(text)) => FieldValue {
+      text: text.as_str().into(),
+      ..FieldValue::default()
+    },
+    // Untouched, and the three kinds no control reads a slot for yet. Two
     // different statements with the same answer today, and they are one arm
     // because `clippy::match_same_arms` is `deny` and splitting them is an
     // error while the answers agree. PHASE-07 is where they part — an
     // unpicked `datetime` reads *not set* — and splitting the arm is that
     // phase's first move.
-    None
-    | Some(
-      Edited::Typed(_) | Edited::Adjusted { .. } | Edited::Chosen(_) | Edited::Picked { .. },
-    ) => FieldValue::default(),
+    None | Some(Edited::Adjusted { .. } | Edited::Chosen(_) | Edited::Picked { .. }) => {
+      FieldValue::default()
+    }
   }
 }
 

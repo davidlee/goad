@@ -269,6 +269,7 @@ async fn an_instruction_from_a_respond_shortens_the_wait_past_a_far_default_poll
       tx.send(Command::Choose {
         view,
         option: "yes".to_owned(),
+        edits: Vec::new(),
       })
       .await
       .expect("the channel must accept the click");
@@ -925,6 +926,7 @@ async fn a_refusal_that_did_not_come_from_the_timer_leaves_the_deadline_standing
       tx.send(Command::Choose {
         view: "a token nothing ever minted".to_owned(),
         option: "yes".to_owned(),
+        edits: Vec::new(),
       })
       .await
       .expect("the channel must accept the click");

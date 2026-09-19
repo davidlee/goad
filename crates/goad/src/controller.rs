@@ -20,7 +20,7 @@ use crate::draft::{Reported, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
 use crate::view_model::{PresentationField, PresentationOption, as_drawn, interpret};
-use crate::wire::{Cancel, Command, Notice, Stimulus};
+use crate::wire::{Cancel, Command, Notice, PendingEdit, Stimulus};
 use goad_shell::clock::Clock;
 
 /// What the person is looking at. One window, three states, **one value** —
@@ -246,6 +246,77 @@ impl Controller {
         values,
       },
     ))
+  }
+
+  /// Answer, carrying whatever the debounce was still holding.
+  ///
+  /// **Identity of the command is checked once, first**, exactly as it is for a
+  /// click that carries nothing: a `Choose` whose `view` is not the retained
+  /// token refuses the whole thing and records nothing. `selected` is that
+  /// check and it is not repeated here.
+  ///
+  /// Past it, each carried edit is applied through the walk [`Self::edit`]
+  /// already makes, and the two ways one can fail are **not** symmetrical:
+  ///
+  /// - **its `view` is not the retained one.** The person typed into a view
+  ///   that has since been replaced and then answered the replacement. The
+  ///   refusal is reported — the typing really was discarded — and **the
+  ///   answer still goes**, because it is about the view that *is* retained
+  ///   and nothing about it is incomplete. Two stale edits report **once**,
+  ///   not twice, because `Diagnostics::refused` replaces rather than
+  ///   accumulates.
+  /// - **its option or field is not one the retained view declares.** The
+  ///   markup and the retained presentation disagree, which is a renderer bug
+  ///   rather than a race. It takes the posture an out-of-range `ComboBox`
+  ///   index already has: reported through the existing refusal site, nothing
+  ///   further recorded, and **no answer sent** — an answer the host knows was
+  ///   built from an incomplete draft is worse than a refusal a person can see
+  ///   (`design.md` §5.2).
+  ///
+  /// The reported line lasts for the life of the exchange and no longer;
+  /// `absorb` replaces the diagnostics wholesale when it folds. Nothing here
+  /// promises longer, and D-36 is why nothing tries.
+  ///
+  /// No order is assumed over `edits`: the keys are distinct by construction,
+  /// so any order yields the same draft.
+  ///
+  /// # Errors
+  ///
+  /// Whatever [`Self::answer`] refuses, and [`Refused::UnknownOption`] or
+  /// [`Refused::UnknownField`] from a carried edit the retained view does not
+  /// declare.
+  pub fn choose(
+    &mut self,
+    view: &str,
+    option: &str,
+    edits: &[PendingEdit],
+  ) -> Result<(ViewId, UserResponse), Refused> {
+    // Identity before the edits: a `Choose` naming a replaced view is refused
+    // for the reason that is true of it, and nothing it carries is applied.
+    // The block is what ends the borrow — `selected` hands back a reference
+    // into the retained presentation, and the loop below writes it.
+    {
+      let prepared = self.shown.as_ref().ok_or(Refused::SupersededView)?;
+      selected(prepared, view, option)?;
+    }
+
+    let mut superseded = false;
+    for edit in edits {
+      match self.edit(&edit.view, &edit.option, &edit.field, &edit.value) {
+        Ok(()) => {}
+        // The one refusal that does not stop the answer.
+        Err(Refused::SupersededView) => superseded = true,
+        // Returned rather than reported here: `serve`'s single refusal site
+        // reports what `dispatch` hands back, and a second write would say the
+        // same thing twice.
+        Err(refused) => return Err(refused),
+      }
+    }
+    if superseded {
+      self.refuse(&Refused::SupersededView);
+    }
+
+    self.answer(view, option)
   }
 
   /// Record what the person did to one field of one option.
@@ -672,15 +743,21 @@ fn dispatch(
       now,
       event: stimulus.event(now),
     })),
-    Command::Choose { view, option } => Some(controller.answer(&view, &option).and_then(
-      |(view_id, answer)| {
-        stamp(clock).map(|now| Pending::Respond {
-          now,
-          view_id,
-          answer,
-        })
-      },
-    )),
+    Command::Choose {
+      view,
+      option,
+      edits,
+    } => Some(
+      controller
+        .choose(&view, &option, &edits)
+        .and_then(|(view_id, answer)| {
+          stamp(clock).map(|now| Pending::Respond {
+            now,
+            view_id,
+            answer,
+          })
+        }),
+    ),
     // An edit is not an exchange: it writes retained state and the loop
     // continues to the top, which presents and so writes the screen back from
     // the draft. `None` on success for that reason, and no clock is read —

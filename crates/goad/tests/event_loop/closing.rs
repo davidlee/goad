@@ -17,6 +17,7 @@ use goad::controller::{Controller, Ending, serve};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
+use goad::pending::Debounce;
 use goad::wire::{Cancel, Command, Notice, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock::wall_clock;
@@ -54,7 +55,10 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
   let cancel = Cancel::new();
   let notice = Notice::new();
   let wire = Wire::new(tx, cancel.clone(), notice.clone());
-  install(&window, &tray, &wire);
+  // Bound rather than inlined: PHASE-06 gives `SlintGlass::new` a clone of
+  // **this** handle, and R10 is one value cloned into two places.
+  let pending = Rc::new(Debounce::new());
+  install(&window, &tray, &wire, &pending);
 
   let glass = SlintGlass::new(
     window.clone_strong(),

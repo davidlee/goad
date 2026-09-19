@@ -381,6 +381,7 @@ async fn the_view_an_ingested_evaluation_returns_reaches_the_window_and_is_answe
       tx.send(Command::Choose {
         view,
         option: "yes".to_owned(),
+        edits: Vec::new(),
       })
       .await
       .expect("the channel must accept the answer");

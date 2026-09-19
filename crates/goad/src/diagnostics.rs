@@ -215,8 +215,16 @@ fn undrawn_line(undrawn: &Undrawn) -> String {
     } => {
       let option = option.as_str();
       let field = field.as_str();
+      // **Names the field's own form and no subset of the drawn ones.** The
+      // clause that used to be here — *"this renderer draws boolean fields
+      // only"* — was true while `boolean` was the one kind drawn, and went
+      // false the moment a second did. Naming the set is the mistake, not the
+      // count: any enumeration is stale again at the next phase that draws a
+      // kind. What a backend author can act on is which of *their* field was
+      // not drawn, which is the part that never goes stale
+      // (`plan.md` PHASE-05 Surfaces, `plan-log.md` 2026-09-19).
       format!(
-        "not drawn: option {option} field {field} is a {form} field; this renderer draws boolean fields only"
+        "not drawn: option {option} field {field} is a {form} field, which this renderer has no control for"
       )
     }
     Undrawn::GroupHint { option, field } => {

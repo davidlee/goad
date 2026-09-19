@@ -34,12 +34,14 @@
 //! every other module here carries it (`clippy::tests_outside_test_module`).
 
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use goad::controller::{Controller, Ending, serve};
 use goad::diagnostics::next_check_line;
 use goad::generated::{PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
+use goad::pending::Debounce;
 use goad::wire::{Cancel, Command, Notice, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::host::Host;
@@ -74,11 +76,23 @@ const THREE_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","optio
 /// keys that an implementation keyed by field alone would collapse into one.
 const TWO_FORMS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"read","kind":"boolean","label":"Read"}]},{"id":"evening","label":"Evening","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"tidied","kind":"boolean","label":"Tidied"}]}]},"next_check":"45 minutes"}"#;
 
-/// One option carrying one `boolean` and one **`text`** field, which this
+/// One option carrying one `boolean` and one **`datetime`** field, which this
 /// renderer does not draw. R-55 says the view is still shown and the option is
 /// still answerable; R-58 says the response is silent about the undrawn field
 /// rather than carrying a default for it.
-const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"text","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
+///
+/// The undrawn kind moves one phase at a time, because a fixture's undrawn
+/// field has to name a kind that is *still* undrawn: `text` until PHASE-05
+/// drew it, `datetime` until PHASE-07 draws it, `number` until PHASE-08, and
+/// then there is nowhere left to move it and PHASE-09 deletes the case rather
+/// than repairing it (`prototype-notes.md` P-13).
+const A_DRAWN_AND_AN_UNDRAWN_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"read","kind":"boolean","label":"Read"},{"id":"noted","kind":"datetime","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
+
+/// One option carrying a `boolean` and **two `text` fields**. Two, because
+/// AC-4's element half is about a person typing into one field and then
+/// another inside one debounce window: a single field cannot tell a map keyed
+/// by (option, field) from one holding a single edit.
+const TWO_TEXT_FIELDS: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"stretched","kind":"boolean","label":"Stretched"},{"id":"noted","kind":"text","label":"Anything to add?"},{"id":"also","kind":"text","label":"And then?"}]}]},"next_check":"45 minutes"}"#;
 
 /// A second view, distinguishable from every other fixture here by its title
 /// so a case can wait on the replacement arriving. Its option and field ids
@@ -244,6 +258,29 @@ fn click(window: &PromptWindow, option: &str, field: &str) {
     .invoke_accessible_default_action();
 }
 
+/// Type into one field, the way `set_accessible_value` does: it assigns the
+/// widget's `text` and calls `edited` **from inside the markup**
+/// (`widgets/fluent/lineedit.slint:16`), reaching no `TextInput` insertion
+/// logic at all — the same shape a paste has. So this drives the host's own
+/// `edited` callback and the control's self-assignment together, which is what
+/// a keystroke does.
+fn type_into(window: &PromptWindow, option: &str, field: &str, text: &str) {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .set_accessible_value(text);
+}
+
+/// What the **screen** shows for one text field — the control's own
+/// `accessible-value`, which the widget binds two-way to its `text`
+/// (`fluent/lineedit.slint:13`).
+fn typed_on_screen(window: &PromptWindow, option: &str, field: &str) -> String {
+  field_described(window, option, field)
+    .unwrap_or_else(|| panic!("no control described {field:?} under {option:?}"))
+    .accessible_value()
+    .unwrap_or_else(|| panic!("{option}/{field} declares no accessible-value"))
+    .to_string()
+}
+
 // ---------------------------------------------------------------------------
 // Driving the production loop
 // ---------------------------------------------------------------------------
@@ -298,10 +335,16 @@ fn rigged(case: &str, instructions: &[&str]) -> Rig {
   // The one `Wire`, cloned into each callback and nowhere else — and the
   // sender lives only inside it, so nothing in this file can put a `Command`
   // on the channel except by activating an element a person would.
+  //
+  // The debounce likewise: created here and reachable only through the
+  // callbacks, so a case cannot hold an edit or flush one except by driving a
+  // control. PHASE-06 gives `glass_over` a clone of this same handle, which is
+  // when the `Rig` has to retain it; nothing here needs it yet.
   install(
     &window,
     &tray,
     &Wire::new(commands_in, cancel.clone(), notice.clone()),
+    &Rc::new(Debounce::new()),
   );
   Rig {
     window,
@@ -732,5 +775,155 @@ async fn a_present_carrying_a_new_view_rebuilds_the_rows() {
     rebuilt > drawn,
     "a replacement view's rows are written, which destroys and recreates every \
      element beneath them: {drawn} then {rebuilt}"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Slice 009 PHASE-05 — `text`, and the debounce's delivery
+// ---------------------------------------------------------------------------
+
+/// Slice 009 `plan.md` PHASE-05/**VT-1**. A `text` field draws a `LineEdit`,
+/// and the option still answers.
+///
+/// The control is found by the same option-scoped description query every
+/// other field case uses, so *it drew* and *it is addressable* are one
+/// assertion. What separates a `LineEdit` from the `CheckBox` beside it is the
+/// property each declares: a text input carries an `accessible-value` and no
+/// `accessible-checked`, and a checkbox the reverse. Both are read, in both
+/// directions, because either one alone would pass on a window that drew two
+/// of the same control.
+///
+/// The answer half is `R-57`'s typing for a kind nothing had submitted before:
+/// an untouched `text` field goes out as a JSON **string**, and the empty one
+/// is the as-drawn value rather than an absence — `R-58` forbids omitting a
+/// value for a drawn field.
+#[tokio::test]
+async fn a_text_field_draws_a_line_edit_and_the_option_still_answers() {
+  let ((typed, checked_value, typed_value), log) = driving!(
+    rigged("fields-text-vt1", &[TWO_TEXT_FIELDS]),
+    |window, tray, log| {
+      let noted = field_described(&window, "morning", "noted")
+        .expect("the text field must draw a control addressable by its own id");
+      let stretched = field_described(&window, "morning", "stretched")
+        .expect("and the boolean beside it must still draw one");
+
+      let typed = (
+        noted.accessible_value().map(|value| value.to_string()),
+        noted.accessible_checked(),
+      );
+      let checked_value = (
+        stretched.accessible_value().map(|value| value.to_string()),
+        stretched.accessible_checked(),
+      );
+      let typed_value = typed_on_screen(&window, "morning", "also");
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (typed, checked_value, typed_value)
+    }
+  );
+
+  assert_eq!(
+    typed,
+    (Some(String::new()), None),
+    "a text input declares a value and no checked state"
+  );
+  assert_eq!(
+    checked_value,
+    (None, Some(false)),
+    "and the checkbox beside it declares a checked state and no value — so the two \
+     controls are told apart by what they are, not by where they sit"
+  );
+  assert_eq!(typed_value, "", "an untouched text field shows nothing");
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(
+    keys_of(&values),
+    vec!["also", "noted", "stretched"],
+    "every drawn field of the option, the two new ones included: {values:?}"
+  );
+  assert_eq!(
+    values["noted"],
+    Value::String(String::new()),
+    "R-57: a text field leaves the host as a JSON string, and an untouched one carries \
+     the empty string rather than no key at all"
+  );
+  assert_eq!(values["also"], Value::String(String::new()));
+  assert_eq!(values["stretched"], Value::Bool(false));
+}
+
+/// Slice 009 `plan.md` PHASE-05/**VT-3** — **AC-4, the element half.**
+///
+/// Two text fields are typed into and then the option is pressed. Everything
+/// typed reaches the draft, and the `inits` counter is unchanged across the
+/// typing — the element was **not destroyed while it was being typed into**,
+/// which is the whole of what AC-4 is about and the thing no value assertion
+/// can see (`docs/memory/a-present-destroys-the-widget-it-writes.md`).
+///
+/// **The answer is what makes this tier possible.** This target runs under
+/// `init_no_event_loop`, where no timer ever fires — so the only thing that
+/// can deliver what was typed is the `Choose` the press sends, carrying the
+/// map's whole contents in one command. The timer's own half of the delivery
+/// rule is measured where a timer can fire, in `tests/event_loop_debounce/`.
+///
+/// **Two fields, not one.** A map keyed by (option, field) and a single held
+/// edit are indistinguishable until a second field is typed into inside the
+/// same window: with one entry the second keystroke would simply replace the
+/// first field's, and only `also` would reach the wire.
+///
+/// The count is read after the view is on screen, so the number compared is a
+/// real one — `drawn > 0` is what keeps it from passing on a window that drew
+/// nothing.
+#[tokio::test]
+async fn two_text_fields_typed_into_inside_one_window_both_reach_the_wire_and_neither_is_rebuilt() {
+  let ((drawn, survived, screen), log) = driving!(
+    rigged("fields-text-vt3", &[TWO_TEXT_FIELDS]),
+    |window, tray, log| {
+      let drawn = window.get_inits();
+
+      type_into(&window, "morning", "noted", "walked before breakfast");
+      type_into(&window, "morning", "also", "and again after");
+
+      let survived = window.get_inits();
+      let screen = (
+        typed_on_screen(&window, "morning", "noted"),
+        typed_on_screen(&window, "morning", "also"),
+      );
+
+      option_control(&window, "morning").invoke_accessible_default_action();
+      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      (drawn, survived, screen)
+    }
+  );
+
+  assert!(
+    drawn > 0,
+    "the window must have drawn something for a survival count to mean anything"
+  );
+  assert_eq!(
+    survived, drawn,
+    "not one element may have been rebuilt while a person was typing into it: \
+     {drawn} then {survived}"
+  );
+  assert_eq!(
+    screen,
+    (
+      "walked before breakfast".to_owned(),
+      "and again after".to_owned()
+    ),
+    "and both controls still show what was typed into them"
+  );
+
+  let values = submitted_values(&log, 2);
+  assert_eq!(keys_of(&values), vec!["also", "noted", "stretched"]);
+  assert_eq!(
+    values["noted"],
+    Value::String("walked before breakfast".to_owned()),
+    "the first field's text survived the person moving to the second: {values:?}"
+  );
+  assert_eq!(
+    values["also"],
+    Value::String("and again after".to_owned()),
+    "and the second field's reached the draft in the same one command"
   );
 }

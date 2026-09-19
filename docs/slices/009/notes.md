@@ -507,7 +507,7 @@ here rather than in the ledger, so striking them costs nothing:
 | PHASE-02 — the draft's five values, and the kind-directed pure functions | **done** | 2026-09-19 |
 | PHASE-03 — the edit channel | **done** | 2026-09-19 |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | **done** | 2026-09-19 |
-| PHASE-05 — `text`, and the debounce's delivery | **in progress** | 2026-09-19 |
+| PHASE-05 — `text`, and the debounce's delivery | **done** | 2026-09-19 |
 | PHASE-06 — the overlay | pending | |
 | PHASE-07 — `datetime` and the two pickers | pending | |
 | PHASE-08 — `number` and its two controls | pending | |
@@ -2170,37 +2170,271 @@ code, with the criterion id and the file, per `docs/AGENTS.md` §Execute:
 
 **Tasks**
 
-- [ ] T-0 re-measure the baseline: `just check` exit code, gate total, and
+- [x] T-0 re-measure the baseline: `just check` exit code, gate total, and
       `cargo test --workspace`, both with their denominators
-- [ ] T-1 `pending.rs`: the map, the entry type, the timer, the two exits
+- [x] T-1 `pending.rs`: the map, the entry type, the timer, the two exits
       (EX-3, EX-4); `lib.rs` gains the module
-- [ ] T-2 `wire.rs`: `PendingEdit`, `Choose`'s `edits`, `send -> bool`
+- [x] T-2 `wire.rs`: `PendingEdit`, `Choose`'s `edits`, `send -> bool`
       (EX-5, EX-6)
-- [ ] T-3 `controller.rs`: the `Choose`'s identity first, then each carried
+- [x] T-3 `controller.rs`: the `Choose`'s identity first, then each carried
       edit through the walk `edit` already makes (EX-7)
-- [ ] T-4 `install.rs` + `main.rs`: the handle, the `edited` closure writing the
+- [x] T-4 `install.rs` + `main.rs`: the handle, the `edited` closure writing the
       map, the `chosen` closure draining it (EX-6, EX-8)
-- [ ] T-5 `view_model.rs`: `text` stops being reported undrawn and `sift` stops
+- [x] T-5 `view_model.rs`: `text` stops being reported undrawn and `sift` stops
       asserting a constant (EX-2, first half)
-- [ ] T-6 `app.slint` + `glass.rs`: the `LineEdit`, its guard, its literal, and
+- [x] T-6 `app.slint` + `glass.rs`: the `LineEdit`, its guard, its literal, and
       the `Text` value arm (EX-2, second half)
-- [ ] T-7 EX-9: the fixture migration, one kind at a time, recorded by name
-- [ ] T-8 VT-1, VT-3 in `fields.rs`; VT-2, VT-4 in `wiring.rs`, each with an
+- [x] T-7 EX-9: the fixture migration, one kind at a time, recorded by name
+- [x] T-8 VT-1, VT-3 in `fields.rs`; VT-2, VT-4 in `wiring.rs`, each with an
       injection pass
-- [ ] T-9 the `event_loop_debounce` target: VT-5, and VT-6 as its negative
+- [x] T-9 the `event_loop_debounce` target: VT-5, and VT-6 as its negative
       control — compiled, run, the test count read on both sides
-- [ ] T-10 VA-1 and VA-2 in writing; `just check` exits 0 (EX-1); sheet, Status
-      and Harvest updated
+- [x] T-10 VA-1 and VA-2 in writing; `just check` exits 0 (EX-1); sheet, Status
+      and Harvest updated — **the gate half was ticked before the gate had ever
+      run**, and could not have run: the tree did not compile. Completed by the
+      orchestrator, below.
+
+**The fixture migration (EX-9), by name.** Every one moved to **`datetime`**,
+which is the kind PHASE-07 draws — so each of these is repaired again there,
+again in PHASE-08 for `number`, and **deleted** in PHASE-09, where there is no
+kind left to move to (`prototype-notes.md` P-13). The deferral is the risk, not
+the edit, so it is written here rather than left to be rediscovered.
+
+| fixture | file | was | now |
+|---|---|---|---|
+| `A_DRAWN_AND_AN_UNDRAWN_FIELD` | `tests/renderer/fields.rs:81` | `noted`, `text` | `noted`, `datetime` |
+| `mod editing`'s `TWO_FORMS` | `tests/renderer/wiring.rs:1158` | `noted`, `text` | `noted`, `datetime` |
+| `grouped_fields_separated_only_by_an_undrawn_field_are_one_block` | `tests/renderer/mapper.rs:237` | `note`, `text` | `note`, `datetime` |
+| `a_group_whose_every_field_is_undrawn_produces_no_block` | `tests/renderer/mapper.rs:255-256` | `note` and `other`, `text` | both `datetime` |
+| `every_undrawn_kind_is_reported_by_option_field_and_form` | `tests/renderer/mapper.rs:297` | four undrawn kinds | **three** — the `text` row is removed rather than moved, because the case's claim is *every* undrawn kind and there are now three. Not in EX-9's list; same file, so no Surfaces question |
+| `a_field_that_is_both_undrawn_and_badly_grouped_is_reported_twice` | `tests/renderer/mapper.rs:377` | `note`, `text` | `note`, `datetime` |
+| `field_reports_leave_a_parsed_body_undegraded` | `tests/renderer/mapper.rs:423` | `note`, `text` | `note`, `datetime` |
+| `a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_receive` | `tests/renderer/reception.rs:762` | `note`, `text` | `note`, `datetime` |
+
+`tests/renderer/table.rs:151-157` carry `"kind":"text"` and were **checked and
+left alone**: all four are `retained(…)` rows asserting a *normalizer*
+diagnostic, refused before `present` is ever called.
+
+**VA-2 — no guard assertion went vacuous in the move.** Each migrated case was
+read for what its undrawn field is *for*, not only for the token:
+
+- `fields.rs`'s case asserts a diagnostic line naming `noted` **and** that
+  `noted` is absent from the submitted keys. Both still hold, and `datetime` is
+  still undrawn, so neither half became true for a new reason.
+- `wiring.rs`'s `an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field`
+  opens with an explicit **guard assertion** that the fixture really does carry
+  an undrawn field (`contains("not drawn: option morning field noted")`). It
+  still fires, and the refusal case above it still earns `UnknownField` for
+  `noted` for the same reason it did — the field is not in a block.
+- `mapper.rs`'s block cases assert that an undrawn field neither opens a block
+  nor breaks a run; `datetime` is undrawn, so the shape they measure is
+  unchanged.
+- `mapper.rs:297` is the one that changed meaning rather than spelling, and its
+  doc now says so: the list is *every* undrawn kind, it shrinks by one per
+  phase, and `undrawn.len()` is what holds it to being a list rather than a
+  sample.
+- `reception.rs`'s case asserts **two** lines, one per field, in order. Both
+  still arrive.
+
+**VA-1 — an entry leaves on the enqueue, read at both exits.**
+
+- **The timer** (`pending.rs::tick`). The entry is cloned out of the map, the
+  command is built from the clone, and `held.remove` runs **only** under
+  `if enqueued`. A `false` — `Full` or `Closed` — removes nothing, and the
+  `if !…is_empty()` re-arm below therefore fires again and offers the same
+  entry on the next tick.
+- **The answer** (`install.rs`'s `chosen`). `Debounce::carried` reads the map
+  into `Vec<PendingEdit>` and clears nothing; `Debounce::delivered` is the
+  clear, and it is called **only** under `if enqueued`. The two are separate
+  methods precisely so that a drain cannot clear as it reads.
+
+The asymmetry with a *refusal* is the point: a refused edit has been reported
+and the guard corrects the widget on the next present, so the entry is done
+with. A `Full` send delivered nothing at all, so the entry must stand — and the
+widget goes on showing it, because the entry is still there for PHASE-06's
+overlay to read.
+
+**Decisions taken during execution**
+
+- **The type is `Debounce`, not `Pending`.** `controller.rs:408` already
+  declares a private `enum Pending` — the exchange a command turns into — and
+  §8 R10 calls the map's type `Pending` in passing. Two private types of that
+  name in one crate, one behind an `Rc`, is a readability trap with no compile
+  error to catch it. `Debounce` is what every document in the slice calls the
+  mechanism (`design.md` §5.1 opens *"`pending.rs` holds the debounce"*), and
+  the entry type beside it is `Held` — so the module reads *the debounce holds
+  a map of held edits*. The map's key stays `(option, field)` and the module
+  file keeps the plan's name.
+- **`undrawn_form` became `drawn_form`, answering `Result<DrawnKind, FieldForm>`.**
+  The long form is at the function and was reported to the team lead before it
+  was written; the short of it is that `sift`'s `kind: DrawnKind::Boolean`
+  constant has to become a choice once a second kind draws, and no *second*
+  total function can be written beside `undrawn_form`: `DrawnKind::Choice`
+  carries the first alternative's id, `Alternatives` exposes only `as_slice()`,
+  and `AlternativeId::new` is `pub(super)`, so there is no id to fall back to.
+  Every remaining spelling is a lie in the type or a field that sorts nowhere
+  and is dropped, which `I-2` and `R-20` forbid. Each property the criteria
+  name survives — one exhaustive match over `FieldKind`, so a sixth kind is
+  still one compile error (AC-7); `text` no longer reported undrawn (EX-2); and
+  each later phase still moves one arm from `Err` to `Ok`. **PHASE-06 … PHASE-09
+  EX-2 name the old identifier**, which is the team lead's to amend.
+- **Routing lives in `install.rs`, in `debounced`, and reads the report's own
+  variant.** Not the drawn field's kind, for the reason the markup's literals
+  name their own kind: reading the row would make the routing agree with the
+  row by construction. Total over `Reported` with no `_` arm, so a seventh
+  variant is a compile error rather than a control that silently stops being
+  debounced. `pending.rs` itself still does not branch on kind (EX-3).
+- **`Controller::choose`, not a widened `answer`.** `answer` is `&self` and is
+  called from three places that carry no edits; applying edits needs `&mut`.
+  `choose` is named for the command and does the three things §5.2 puts in
+  order: identity, then the carried edits, then the answer.
+- **A carried edit's `UnknownOption` / `UnknownField` is returned, not reported
+  in place.** `serve`'s single refusal site already reports what `dispatch`
+  hands back, and a `self.refuse` beside the `return` would write the same line
+  twice. The `SupersededView` case *is* reported in place, because it is the one
+  refusal the answer survives — there is no `Err` for `serve` to report.
+- **The `LineEdit` draws its label as a `Text` above it**, because a `LineEdit`
+  carries none of its own and placeholder text disappears the moment somebody
+  types. `accessible-label` carries the same string so what is drawn and what
+  is announced are one value; `accessible-description` stays `field.id`, which
+  is what every renderer case selects on. The design's controls table is silent
+  on the label, so this is a local presentation decision and is recorded as one.
+- **`BTreeMap`, not a hash map.** Which entry the timer takes is then a fact
+  about the map rather than about an iteration order nothing pins. It does
+  **not** become a promised order — see the finding below.
+- **Two new `wire.rs` units rather than none.** `send`'s report is what both of
+  the debounce's exits turn on, and the existing two cases called it as a
+  statement. Both now assert the report, and a third asserts the `Full` case
+  the enqueue rule exists for. Nothing was weakened: the notice assertions they
+  already carried are untouched and still beside the new ones.
+
+**Findings**
+
+- **The delivery order is the map's key order, and a case must not pin it.**
+  The first draft of the loop target asserted *which* of two fields arrives on
+  the first tick and went red: `("morning","also")` sorts before
+  `("morning","noted")`, so `also` is delivered first. The behaviour is right —
+  `design.md` §5.2 promises no order — and the case now asserts that exactly
+  one field has moved off its as-drawn `""` and that whichever moved carries
+  **its own** text. Worth recording because the red looked like a delivery bug
+  and was a test asserting something the design deliberately does not say.
+- **One injection is not available in this arrangement, and it is the design's
+  own point.** *The timer sends every entry per tick* cannot be discriminated
+  under a capacity-1 channel: the second `try_send` comes back `Full`, the entry
+  stays by the enqueue rule, and the re-arm offers it again — an observable
+  identical to one-per-tick. `design.md` §5.1 says as much
+  (*"one entry per tick is … a consequence of the capacity-one channel rather
+  than a choice made here"*), so no control was written for a claim that has no
+  failing case.
+- **`Wire::send` returning a `bool` broke three callers syntactically and none
+  semantically.** `on_close_diagnostics`, `on_check_now` and
+  `on_show_diagnostics` are expression-bodied closures returning `()`; each
+  gained braces. EX-5's *"every existing caller is unaffected"* is about
+  behaviour and holds — `must_use_candidate` is `allow` workspace-wide, so no
+  `#[must_use]` is owed and no caller is obliged to read the report.
+- **`slint::Timer::start` is safe under `init_no_event_loop`**, checked rather
+  than assumed: it is `CURRENT_TIMERS.try_with(…)` over a plain thread-local
+  with no platform dependency (`i-slint-core-1.17.1/timers.rs:78-94`). So the
+  renderer tier registers a timer that never fires, which is exactly what makes
+  the answer path the only delivery there.
+- **`Debounce` implements `Debug` by hand**, because `slint::Timer` implements
+  none and `missing_debug_implementations` is denied workspace-wide. It reports
+  the keys and each entry's view and **not** the `Reported` values, which are a
+  person's typing.
+- **`diagnostics.rs:219` now renders a clause that is false**, and it is
+  PHASE-09/EX-7's by the plan: *"this renderer draws boolean fields only"*, with
+  two kinds drawn. Raised to the team lead rather than repaired, because
+  `diagnostics.rs` is in PHASE-09's Surfaces and not this phase's.
+  **Decided into this phase** (`plan-log.md`, S-3) and repaired by the
+  orchestrator: the line now names the field's own form and no subset at all,
+  so it does not go stale again at PHASE-07, -08 or -09.
+
+**Completed by the orchestrator, 2026-09-19.** The phase agent reached ~356k
+tokens — well past the 200k rule in its brief — and stopped processing its
+inbox: it asked four times for a decision that had been made, committed
+(`69642b7`) and sent before its second request, and never acknowledged any of
+the four replies. It left the tree correct, uncommitted and not compiling. On
+the user's call it was not woken; the orchestrator took the pen with the agent
+idle, so there was never a second writer.
+
+What was outstanding and is now done:
+
+- The five edits S-1 and S-2 amended into Surfaces. The three `Command::Choose`
+  literals took `edits: Vec::new()`. The two `install` call sites took a
+  **named** `let pending = Rc::new(Debounce::new())` rather than the inline
+  `&Rc::new(..)` the in-Surfaces site used, because PHASE-06 gives
+  `SlintGlass::new` a clone of *that* handle and R10 is one value cloned into
+  two places, never two values. Inlining would have forced PHASE-06 to un-inline
+  it.
+- **S-3**, which the agent's own outstanding list omitted.
+- **VT-2 was red, and the defect was in the case.** It is the one thing the
+  agent could not have found: `tests/renderer` did not compile, so none of its
+  four cases had ever been run.
+
+**The VT-2 defect, because the class is worth more than the instance.** Its
+closing assertion read `reported_lines(&controller).is_empty()` under the
+message *"nothing was refused"*. Those are different questions. A presentation
+reports the fields it drew no control for, and an undrawn report is not a
+refusal — so once EX-9 migrated `wiring.rs`'s `TWO_FORMS` from `text` to
+`datetime`, the fixture still carried an undrawn field and the assertion failed
+on a line that was entirely correct.
+
+Repaired by naming the distinction once, in a helper beside `reported_lines`:
+`refusal_lines` filters on the `no action taken:` prefix that
+`Diagnostics::refused` puts on every refusal and nothing else carries
+(`diagnostics.rs:157-185`, whose own doc calls it *"the same prefix as any other
+refusal"*).
+
+**Injection-passed, because a repair that turns a red test green is the exact
+shape of a weakened test.** Adding one stale-view edit to VT-2's carried list
+reddens it again — on the refusal line, with every earlier assertion still
+passing — so the assertion still catches what it was written to catch and has
+stopped catching what was never a refusal. Reverted from a copy taken first.
+
+**This is `tests-asserting-proxies` running the other way.** That memory is
+about a green test asserting a proxy for the property it claims. Here the proxy
+(*no diagnostics at all*) was **stricter** than the property (*no refusal*), so
+it did not hide a defect — it invented one, and it did so at the hands of a
+fixture migration in the same phase. A stricter proxy is not a safer proxy; it
+is a test that fails for reasons its message cannot explain. Worth holding
+through PHASE-07, -08 and -09, each of which migrates these fixtures again.
+
+**`refusal_lines` is the helper PHASE-07 onward should use**, and `wiring.rs`
+now has both: ask `reported_lines` what was reported, `refusal_lines` what was
+refused.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-19 · PHASE-04 done · see §Status
+**Fresh as of:** 2026-09-19 · PHASE-05 done · see §Status
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+
+- **`src/pending.rs`** — `Debounce`: a `BTreeMap<(option, field), Held>`, one
+  `slint::Timer`, and nothing else. Every entry carries the view it was made on
+  (I-H). Two exits, deliberately asymmetrical: an entry leaves on the
+  **enqueue**, so a `Full` send clears nothing. `Debug` by hand — `slint::Timer`
+  has none — reporting keys and views but never a person's typing.
+- **`Wire::send -> bool`**, and `Command::Choose { view, option, edits }`
+  carrying the flush in **one** send, because a capacity-1 channel plus a
+  synchronous Slint callback makes the second `try_send` of any flush `Full`
+  always rather than sometimes.
+- **`drawn_form(&FieldKind) -> Result<DrawnKind, FieldForm>`**, replacing
+  `undrawn_form`. One match, one arm per kind, no unreachable arm; each later
+  phase moves one arm `Err` → `Ok`. AC-7's mechanism is the exhaustive match and
+  is identifier-free (`design.md:149-151`). `plan-log.md` carries the argument
+  and the process correction.
+- **`crates/goad/tests/event_loop_debounce/`** — the fifth `[[test]]` target and
+  the arrangement that proves the timer re-arms. Its stepper drains on a 25 ms
+  timer against a 150 ms debounce, which is why nothing drains *inside* a tick
+  callback.
+- **`wiring.rs::refusal_lines`** — the refusals among the reported lines, which
+  is not the question `reported_lines` answers. Use it from PHASE-07 on.
+- **`diagnostics.rs`'s undrawn line names no subset** of the drawn kinds, so it
+  does not go stale again as PHASE-07, -08 and -09 each draw one more.
 
 - **`src/instant.rs`** — `compose(&Date, &Time) -> Option<(Timestamp, Offset)>`,
   `decompose(Timestamp, Offset) -> (Date, Time)`, `today_local() -> (Date, Time)`,

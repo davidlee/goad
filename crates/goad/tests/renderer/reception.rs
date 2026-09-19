@@ -759,7 +759,7 @@ fn a_view_carrying_an_undrawn_field_reaches_the_diagnostic_surface_through_recei
         "id": "opt",
         "label": "Fine",
         "fields": [
-          { "id": "note", "kind": "text", "label": "Note" },
+          { "id": "note", "kind": "datetime", "label": "Note" },
           { "id": "counted", "kind": "boolean", "label": "Counted", "group": 7 }
         ]
       }]

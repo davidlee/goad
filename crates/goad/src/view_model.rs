@@ -255,18 +255,40 @@ fn heading_of(key: Option<&str>) -> Option<String> {
   key.filter(|name| !name.is_empty()).map(str::to_owned)
 }
 
-/// The form of a field this renderer does not draw, or `None` for one it
-/// does. Matching `FieldKind` exhaustively is what makes a sixth kind a
-/// compile error here rather than a field silently dropped — and it is the
-/// site that breaks for that, not `draft.rs`'s `submitted`, whose match is
-/// over a host-local type.
-fn undrawn_form(kind: &FieldKind) -> Option<FieldForm> {
+/// How this renderer draws a field of one kind — or the form it reports
+/// instead, for a kind it draws no control for.
+///
+/// **One match over the canonical `FieldKind`, and the only one.** Matching it
+/// exhaustively is what makes a sixth kind a compile error here rather than a
+/// field silently dropped — and it is the site that breaks for that, not
+/// `draft.rs`'s `submitted`, whose match is over a host-local type (AC-7,
+/// §7 D11).
+///
+/// **PHASE-05 replaced `undrawn_form` with this**, and the reason is that a
+/// second drawn kind left the old pair with no honest spelling. `sift` used to
+/// write `DrawnKind::Boolean` as a constant, true because `boolean` was the
+/// only kind that reached it. With two kinds drawn it has to choose, and a
+/// *second* total function beside `undrawn_form` would have to answer for the
+/// three kinds still reported undrawn: `DrawnKind::Choice` carries the first
+/// alternative's id, `Alternatives` offers only `as_slice`, `.first()` is an
+/// `Option`, and `AlternativeId::new` is `pub(super)` — so there is no id to
+/// fall back to. Every way out of that is either a lie in the type or a field
+/// that sorts nowhere and is dropped, which is the one thing `I-2` and `R-20`
+/// forbid. A `Result` has exactly one arm per kind, no unreachable arm, and no
+/// pair of `Option`s whose complementarity the compiler cannot see.
+///
+/// Each `Err` arm is filled in by the phase that draws its control:
+/// `datetime` PHASE-07, `number` PHASE-08, `choice` PHASE-09. When the last
+/// one moves across, `FieldForm` has no constructible variant and
+/// `Undrawn::FieldForm` becomes the place a *sixth* kind would go rather than
+/// a report anything can reach (§5.1's consumer table).
+fn drawn_form(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
   match kind {
-    FieldKind::Boolean => None,
-    FieldKind::Text => Some(FieldForm::Text),
-    FieldKind::DateTime => Some(FieldForm::DateTime),
-    FieldKind::Number(_) => Some(FieldForm::Number),
-    FieldKind::Choice { .. } => Some(FieldForm::Choice),
+    FieldKind::Boolean => Ok(DrawnKind::Boolean),
+    FieldKind::Text => Ok(DrawnKind::Text),
+    FieldKind::DateTime => Err(FieldForm::DateTime),
+    FieldKind::Number(_) => Err(FieldForm::Number),
+    FieldKind::Choice { .. } => Err(FieldForm::Choice),
   }
 }
 
@@ -297,24 +319,22 @@ fn sift(option: &Opt) -> (Vec<Drawn<'_>>, Vec<Undrawn>) {
       });
     }
 
-    match undrawn_form(field.kind()) {
-      Some(form) => undrawn.push(Undrawn::FieldForm {
+    // The drawn kind and the undrawn report are **one** decision, taken once,
+    // above: a field is drawn *as* what `drawn_form` answers, or reported *as*
+    // what it refuses. There is no third outcome and so no field that sorts
+    // nowhere.
+    match drawn_form(field.kind()) {
+      Err(form) => undrawn.push(Undrawn::FieldForm {
         option: option.id().clone(),
         field: field.id().clone(),
         form,
       }),
-      None => drawn.push(Drawn {
+      Ok(kind) => drawn.push(Drawn {
         key: run.key(),
         field: PresentationField {
           id: field.id().clone(),
           label: field.label().to_owned(),
-          // A constant, and honest as one: `undrawn_form` above sends every
-          // kind but `boolean` to `Undrawn::FieldForm`, so a field reaching
-          // this arm *is* a boolean today. The phase that draws a kind adds
-          // its arm to `undrawn_form` and, in the same edit, the arm that
-          // makes this a match over `field.kind()` — the two are one decision
-          // and this is the one place that reads it.
-          kind: DrawnKind::Boolean,
+          kind,
         },
       }),
     }
