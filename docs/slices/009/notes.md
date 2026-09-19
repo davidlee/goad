@@ -2975,10 +2975,6 @@ Paths are under
 - **S-6.** Weakening, deleting or `#[ignore]`-ing an existing case to go green;
   a dependency addition.
 
-**STOP conditions raised**
-
-*(filled in as they happen)*
-
 **Tasks**
 
 - [x] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
@@ -3005,6 +3001,32 @@ four `#[test]` fns in `tests/renderer/fields.rs`, whose target goes 194 → 198.
 The gate total stays exactly 35 above the workspace one. No `[[test]]` target
 was added: VA-1 did not fork.
 
+**Three measurements, two of which are new facts rather than confirmations**
+
+- **A-a — a popup can be *shown* from a handler two repeaters deep.** Measured:
+  `date-picker.show()` inside the `datetime` `Button`'s `clicked`, nested in
+  `for option` → `for block` → `for field`, **compiles**. The design had
+  measured only the **converse** — that a popup's *properties* cannot be
+  assigned from an enclosing component's handler (`design.md:1236-1243`) — and
+  took reachability by id from a descendant as given. It is now measured, and
+  it is what makes the seed mechanism legal at all: the handler writes root
+  properties and calls `show()`, and nothing reaches inside the popup.
+- **EX-3 — reachability emits the structs, not the export.** `export { Date,
+  Time } from "std-widgets.slint"` is **deleted**. With it gone and
+  `FieldValue` / `FieldEdit` carrying `date: Date, time: Time`, the generated
+  `app.rs` still emits `pub struct r#Date { day, month, year }` and
+  `pub struct r#Time { hour, minute, second }` — read out of the build
+  directory's `app.rs` rather than inferred from the build succeeding — and
+  `instant.rs:22`'s `use crate::generated::{Date, Time}` compiles. PHASE-04's
+  four measurements stand: an `import` alone still emits nothing. What is new
+  is the second path, which PHASE-04 had no exported struct to test with.
+- **EX-5's `close-policy` is the widgets' own.** `fluent/datepicker.slint:23`
+  and `fluent/time-picker.slint:24` each bind `PopupClosePolicy.no-auto-close`
+  at their own declaration, so the criterion is held by what this markup
+  instantiates. Not restated in `app.slint` — a second source for one fact is a
+  second thing that can go stale — and a comment at the declaration site names
+  both lines.
+
 **STOP conditions raised**
 
 1. **Not a STOP, and sent as one anyway: `FieldForm::Text`.** Raised before any
@@ -3019,6 +3041,38 @@ was added: VA-1 did not fork.
    and stated why in `plan-log.md`. While waiting, the whole of `app.slint`,
    `glass.rs`, `install.rs` and the eight-fixture migration was done, and the
    tree was left compiling and green throughout.
+
+   **The tree did not match the message when it was sent, and the orchestrator
+   read it in that window.** Asked plainly which it was, the answer is *in
+   flight*, and the detail is worth more than the verdict:
+
+   1. T-3's edit replaced the whole `pub enum FieldForm { … }` block in one
+      scripted substitution, and I wrote the replacement as `{ Number, Choice }`
+      — dropping `Text` as well as `DateTime`, which is not what I had reasoned
+      to one paragraph earlier.
+   2. The message went out saying *"I removed `DateTime` only … and left `Text`
+      alone"*. That was true of the **decision** and false of the **tree**,
+      which I had not re-read before sending.
+   3. The next compile is what found it: *no variant, associated function, or
+      constant named `Text` found for enum `goad::view_model::FieldForm`*,
+      raised at `mapper.rs:200`.
+   4. I **restored** `Text` and its `Display` arm, so that the tree said what
+      the orchestrator had been told, and carried on with everything the
+      question did not block.
+   5. `6106eb2` landed mid injection pass; `Text` went again at `5a17727`.
+
+   So the state that was read is step 1's, an unintended one, and step 4 moved
+   the **tree** to match the message rather than the message to match the tree.
+   Nothing was folded in ahead of the answer.
+
+   **The class this belongs to is the slice's oldest.** *Cite from an instrument
+   that prints the number* — six bad `path:line` citations in this slice came
+   from claims about the tree that were never read off it, and this is the same
+   defect wearing a different hat: a claim about the tree written from intent.
+   `grep -n "pub enum FieldForm" -A 6` before sending costs nothing and would
+   have caught it. The rule binds here even though the answer agreed with the
+   accident, which is the whole of *a rule that binds only when the answer
+   would have differed is not a rule*.
 
    **Nothing else reached a STOP.** S-2 did not fire — VA-1 found the popup, so
    no target was added and `Cargo.toml` is untouched. S-3, S-4, S-5 and S-6 did
@@ -3161,7 +3215,14 @@ and a `TimePickerPopup` from `tests/renderer/`, which runs under
 So the capability §8 R9 doubted is present, the absence of a case in this
 repository was indeed absence of a case rather than of a capability (§7 D14
 already said so for `choice`), and **no `[[test]]` target was added**.
-`Cargo.toml` is untouched and the loop tier still has five targets.
+`Cargo.toml` is untouched: `grep -c "^\[\[test\]\]" crates/goad/Cargo.toml`
+is **6**, and the six are `renderer`, `event_loop`, `event_loop_schedule`,
+`event_loop_reassert`, `event_loop_debounce` and `event_loop_overlay` — one
+no-loop target and **five** loop-tier arrangements. Both counts are in use in
+this slice and they are not the same number; a seventh would have had to be a
+genuinely different arrangement rather than a second case
+(`docs/memory/slint-testing-backend-initialises-once-per-process.md`), and none
+was needed.
 
 **VA-2 — no `datetime` field holds half a pick.** The state machine, read off
 `app.slint` as it stands:
@@ -3235,6 +3296,14 @@ Two further facts the read rests on, neither assumed:
 - **PHASE-08 inherits the whole EX-7 list**, nine sites including the two
   enumerations, and `field_form_displays_as_the_protocols_own_word` is now on
   it — it was not on PHASE-05's.
+- **PHASE-09 deletes two cases rather than migrating them, and should not go
+  looking for a fourth hop.** `every_undrawn_kind_is_reported_by_option_field_and_form`
+  (`mapper.rs:305`) and `field_form_displays_as_the_protocols_own_word`
+  (`mapper.rs:204`) both **enumerate** their subject rather than sampling it, so
+  each shrinks by a row per phase and neither has anywhere to go once `choice`
+  draws: there is no undrawn kind left to report, and an **empty enum has no
+  `Display` to assert**. Each case's own doc says so at the case; this line is
+  here because a phase agent reads the sheet before it reads the case.
 - **`only_button`, `accept`, `cancel`, `pick_day`, `pick_hour`, `day_selected`
   and `hour_shown` are `fields.rs`'s alone** and were deliberately not lifted
   into `harness.rs`: the module rule there is *two or more case files need it*,
