@@ -3752,6 +3752,50 @@ The instrument that replaces the grep is not a grep. `FieldForm` now declares
 at all* — `grep -n "pub enum FieldForm" -A 3 crates/goad/src/view_model.rs` is
 the reading, and it is a property of the type rather than of a search string.
 
+**Which question each grep can still answer.** This phase's ambiguity is worse
+than PHASE-07's, because a `number` fixture is now drawn **as either of two
+controls**, so one search string spans three states rather than two. Written out
+so a later phase does not have to rediscover which reading is worthless:
+
+| the grep | what it still answers | what it no longer answers |
+|---|---|---|
+| `'"kind":"number"'` | *which fixtures mention a numeric field*, and nothing beyond that | **drawn vs undrawn** — no `number` field can be undrawn any more; and **slider vs text**, which no fixture's kind token has ever carried |
+| `'"kind":"choice"'` | nothing on its own — the **view** kind is `choice` too, so `mapper.rs` and `reception.rs` match on their envelopes | *which fixtures carry an undrawn field*. Scope it to a `"fields"` context, or read `FieldForm` instead |
+| `grep -n "pub enum FieldForm" -A 3` | **which kinds can still go undrawn**, exactly and by type | — |
+| `grep -n "slider:" ui/app.slint` | **which control writes which literal** — four lines, two declarations and two literals | — |
+| `grep -rn "FieldRow {" crates/` | **every hand-built row**, which is the class trap 14's per-file scan cannot reach | — |
+
+The rule under it: after this phase, **ask the type, not the fixture.**
+`drawn_form`'s match and `FieldForm`'s variants are total and are checked by the
+compiler; a kind token in a JSON string is checked by nobody.
+
+**The `1e-300` hypothesis — right on its arithmetic, and moot on its reader**
+
+The orchestrator asked, before EX-7 was measured, for a case where the host holds
+`1e-300`: finite and legal under `R-17`, far below `f32`'s smallest subnormal,
+so it narrows to `0.0` in the `float` slot — and EX-6's exception, reading
+`values[slot].number == 0`, would then fire on a field the host does **not**
+hold as zero and withhold a correction it owes.
+
+**The arithmetic is right and is recorded.**
+`only_an_f64_that_survives_the_round_trip_crosses_as_a_float` asserts
+`exact_f32(f64::MIN_POSITIVE) == None`, *a subnormal `f64` flushes to zero, which
+is the silent half of the class* — `f64::MIN_POSITIVE` is ≈`2.2e-308`, four
+decades below `1e-300` and far below `f32`'s ≈`1.4e-45`, so it is the same
+defect one notch harder.
+
+**It has no reader left.** EX-7 deleted the exception, so no non-`Slider` control
+consults `number`; and `glass.rs` writes the slot only where a slider is drawn,
+which `slider_bounds` admits only over bounds that round-trip `f32` exactly. So
+there is nothing to reproduce the misfire in — the case would assert a branch
+that cannot be reached rather than a behaviour that can.
+
+What the hypothesis was worth is not nothing: had EX-7 gone the other way it was
+a **third** independent reason the `number` spelling was unavailable, beside
+VA-2's narrowing and the AC-6 suppression the measurement actually found. The
+unit above is what keeps the arithmetic in the tree without a case that measures
+nothing.
+
 **VA-1 — nothing non-finite can reach the wire**
 
 `draft.rs:202` is the only site that maps a number onto the wire:
