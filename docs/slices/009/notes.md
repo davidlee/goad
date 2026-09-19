@@ -2778,6 +2778,228 @@ on it: there is no `RefCell` guard alive anywhere in `glass.rs`.
   `interpret` refuses the entry the draft's value stands* has no case that can
   reach it today.
 
+### PHASE-07 — `datetime` and the two pickers
+
+**Objective:** a `datetime` field draws a button showing its value or *not
+set*, a person picks a date and then a time, and one conforming instant
+carrying the offset they picked in reaches the draft.
+
+**Entry criteria, verified rather than assumed**
+
+Read off the tree at `ac816ac`, clean. EN-1 is PHASE-06/EX-1 … EX-4; EN-2 is
+PHASE-04/EX-1 … EX-5. Neither is inherited from a hand-over.
+
+| criterion | checked here |
+|---|---|
+| PHASE-06/EX-1 | `just check` re-run in this session on a clean tree: **exit 0**, gate total **580**. `cargo test --workspace` is **545** — the gate runs `cargo test -p goad-semantics` as a command of its own, so that crate's 30 + 5 are counted twice and the gate total is always exactly 35 above the workspace one. Every count below names its denominator |
+| PHASE-06/EX-2 | read: `src/glass.rs:104-117` — `SlintGlass::new` takes `pending: Rc<Debounce>`; `src/main.rs:95-96` binds the handle and lends it to `install` **before** `:103`'s `SlintGlass::new`. `tests/renderer/harness.rs:76-87` — `glass_overlaying` clones the caller's handle, and `glass_over` (`:69-71`) delegates with a fresh one |
+| PHASE-06/EX-3 | read: `src/glass.rs:371-385` — `overlaid` finds the entry by (view, option, field) and passes it through `view_model::interpret`; `:296-305` — `overlay.as_ref().or(drafted.as_ref())`, so a refused entry leaves the draft's value standing. No second `Reported → FieldValue` mapping exists in the file |
+| PHASE-06/EX-4 | read: `src/glass.rs:258-266` — *"The value channel has two sources, and no cache either way"*, with the reason there is still nothing to invalidate |
+| PHASE-04/EX-2 | read: `crates/goad/Cargo.toml:38` — `jiff = { workspace = true, features = ["tz-system", "tzdb-zoneinfo"] }`, on this member and not on `[workspace.dependencies]` |
+| PHASE-04/EX-3 | read: `src/instant.rs:62` `compose`, `:73` `decompose`, `:92` `today_local`; `ui/app.slint:11` carries `export { Date, Time } from "std-widgets.slint"` — the line EX-3 re-measures |
+| PHASE-04/EX-4 | read: `src/instant.rs:123-137` — `jiff::civil::Date::new`, `jiff::civil::Time::new`, `DateTime::from_parts(..).to_zoned(..)`, every integer through `i16::try_from` / `i8::try_from`. `grep -n "civil::date\|Date::at" src/instant.rs` returns only the doc sentence at `:30` saying they are not used |
+| PHASE-04/EX-5 | read: `crates/goad-shell/src/clock.rs:47-53` and the paragraph at `:56-` — the three reaches are stated; no code change in that file |
+
+**Baseline, T-0, at `ac816ac`:** `just check` **exit 0**, gate **580**;
+`cargo test --workspace` **545**. Per target from the gate run: `goad` lib
+**52**, `tests/renderer` **194**, the five loop targets **1** each,
+`goad-boundary` `tests/checks` **43**, `goad-emit` bin **34** / `tests/binary`
+**9**, `goad-semantics` lib **30** / `tests/protocol` **5** (twice), `goad-shell`
+lib **71** / `tests/integration` **96** / `tests/shape` **6**.
+
+**Reading list**
+
+Every `path:line` below was re-derived in this session with `grep -n`, never
+counted off a `sed -n` window — the slice's rule after six bad citations
+(`notes.md` §*Citations known bad*).
+
+*What is being changed*
+
+- `crates/goad/ui/app.slint:11` — the `export { Date, Time }` line EX-3
+  re-measures; `:1` — the import list, which gains the two popups; `:37-39` —
+  `Kind`, `FieldRow`, `FieldValue`; `:57` — `FieldEdit`; `:81` — the
+  `PromptWindow` root; `:88` — `values`; `:122` — the `edited` callback;
+  `:169` — the last private root property before the layout; `:172` — the root
+  `VerticalLayout`, whose siblings the two popups become; `:340` — `for field
+  in block.fields`; `:349` and `:406` — the `boolean` and `text` arms, the
+  shape the `datetime` arm copies.
+- `crates/goad/src/view_model.rs:181-186` — `FieldForm`, which loses
+  `DateTime`; `:188-200` — its `Display`; `:285-292` — `drawn_form`, whose
+  `FieldKind::DateTime` arm (`:289`) moves from `Err` to `Ok`.
+- `crates/goad/src/glass.rs:277-325` — `option_models`, whose per-field push is
+  at `:305`; `:410-435` — `field_value`, whose `None | Some(Adjusted | Chosen |
+  Picked)` arm (`:429-431`) splits here; `:339-347` — `markup_kind`, already
+  total and unchanged.
+- `crates/goad/src/install.rs:160-166` — `reported`, whose
+  `Kind::Number | Kind::Choice | Kind::Datetime => None` arm (`:164`) splits;
+  `:182-187` — `debounced`, where `Reported::Picked` is already **not**
+  debounced and stays that way.
+- `crates/goad/tests/renderer/fields.rs:89` — `A_DRAWN_AND_AN_UNDRAWN_FIELD`;
+  `:186-188` — `with_room_for_the_form`; `:251-262` — `click`; `:267-275` —
+  `type_into`; `:326-360` — `rigged`, which binds one `Debounce` and takes
+  `glass_overlaying`; `:400-452` — `driving!`.
+- `crates/goad/tests/renderer/mapper.rs:199-204` — the `FieldForm` `Display`
+  case, which loses its `datetime` row; `:237`, `:255-256`, `:307`, `:382`,
+  `:428` — the undrawn fixture rows; `:329` and `:403` — the two
+  `FieldForm::DateTime` expectations.
+- `crates/goad/tests/renderer/wiring.rs:1165` — `mod editing`'s `TWO_FORMS`;
+  `:1370-1389` — `reported_lines`; `:1391-1400` — `refusal_lines`, the helper
+  PHASE-05 added and the one to use for *was anything refused*.
+- `crates/goad/tests/renderer/reception.rs:762` — the undrawn field row.
+
+*What it reads*
+
+- `crates/goad/src/instant.rs:62` — `compose(&Date, &Time) -> Option<(Timestamp,
+  Offset)>`; `:73` — `decompose(Timestamp, Offset) -> (Date, Time)`, pure;
+  `:92` — `today_local() -> (Date, Time)`, both impure reads, total.
+- `crates/goad/src/draft.rs:193-213` — `submitted`, whose `Picked` arm
+  (`:208-210`) is the one `display_with_offset` call; `:160-166` — `state_of`.
+- `crates/goad/src/view_model.rs:531-548` — `as_drawn`, whose `DateTime` arm is
+  the epoch; `:647-657` — `interpret`'s `DrawnKind::DateTime` arm, already
+  written and already total.
+- `crates/goad/tests/renderer/harness.rs:203-214` — `slot_of`;
+  `:216-230` — `value_of`, the two-channel join.
+
+*The widget sources, measured rather than assumed*
+
+Paths are under
+`~/.cargo/registry/src/index.crates.io-*/i-slint-compiler-1.17.1/widgets/`.
+
+- `fluent/datepicker.slint:13-23` — `DatePickerPopup inherits PopupWindow`,
+  `in property <Date> date <=> base.date`, `canceled()`, `accepted(date: Date)`,
+  and **`close-policy: PopupClosePolicy.no-auto-close` already bound at `:23`**;
+  `:80-96` — the two `StandardButton`s, each calling `root.close()` before its
+  callback.
+- `fluent/time-picker.slint:13-24` — `TimePickerPopup`, `in property <Time> time
+  <=> base.time`, the same two callbacks, and `close-policy` at `:24`.
+- `common/datepicker_base.slint:46-63` — `CalendarDelegate`, which binds
+  `accessible-role: button`, `accessible-label: root.text` (the day number) and
+  `accessible-action-default`; `:277` — `property <Date> current-date:
+  root.date`, a **binding** off the seed; `:457-459` — `ok-enabled()`, true
+  whenever `selection-mode` is; `:461-467` — `get-current-date()`.
+- `common/time-picker-base.slint:352` — `in property <Time> time: { hour: 12 }`;
+  `:387` — `current-time: root.time`, again a binding; `:494-503` —
+  `get-current-time()`, which returns `current-time` unchanged while
+  `am-selected` holds its default `true` (`:356`), so a seeded time round-trips
+  whatever `use-24-hour-format` resolves to.
+- `common/standardbutton.slint:17-32` — the `ok` button's text is `@tr("OK")`,
+  which is the accessible label an `OK` query selects on.
+- `i-slint-backend-testing-1.17.1/search_api.rs:291-312` — `find_first` and
+  `find_all` both pass `self.root.active_popups()` into the walk; `:606` —
+  `invoke_accessible_default_action`.
+
+*Design sections that bind*
+
+- §5.4 (`design.md:1206-1222`) — *Picking a datetime*, the state machine and
+  the one-`edited` rule; (`:1224-1229`) — each popup seeded on open, and **the
+  seed is justified by the field that has been picked**; (`:1231-1234`) — the
+  seed is the host's and the markup only copies it; (`:1236-1253`) — the last
+  hop is a **binding**, not an assignment, and why; (`:1255-1264`) — a popup
+  does not live between opens.
+- §5.2 (`design.md:505`) — the `datetime` row of the controls table; (`:554-558`)
+  — the button needs **no** guard; (`:292-299`) — `FieldValue`'s `date` / `time`.
+- §7 (`design.md:1391`) — **D4**, the pick carries the offset; (`:1392`) —
+  **D5**, cancel at either picker abandons the whole edit; (`:1406`) — **D19**,
+  a DST fold or gap resolves and the button shows the result; (`:1408`) —
+  **D21**, the seed, the binding, and the three rejected alternatives.
+- `plan.md:767-885` — PHASE-07 in full, *Notes for the implementer* included.
+
+*Prior art*
+
+- PHASE-05's sheet (`notes.md:2207-2226`) — the fixture-migration table, whose
+  shape EX-7's copies; `:2228-2247` — the read-each-case-for-what-its-undrawn-
+  field-is-*for* discipline.
+- PHASE-06's sheet (`notes.md:2416-2780`) — the injection table naming the
+  assertion **ordinal and message**, and the STOP-sent-then-keep-working shape.
+- `tests/renderer/fields.rs:804-857` and `:881-933` — PHASE-05's two drawing
+  cases, the shape VT-1 … VT-4 take.
+
+*Memory*
+
+- `a-negative-control-that-does-not-compile.md` — read the **test count** on
+  both sides of every injection, never the absence of `FAILED`.
+- `slint-testing-backend-initialises-once-per-process.md` — one arrangement,
+  one `[[test]]`, one `#[test]` fn. Binds if VA-1 forks to a loop target.
+- `verify-the-enumeration-not-the-conclusion.md` — a correct finding can carry
+  a wrong sub-claim; the EX-7 table below is the enumeration most at risk.
+- `tests-asserting-proxies.md` — VT-3's re-seed is the case most easily written
+  so that it passes without the seed doing anything.
+
+**Assumptions, each with what makes it cheap to be wrong about**
+
+- **A-a.** A `PopupWindow` declared as a sibling of the root `VerticalLayout`
+  can be `show()`n from a handler on a `Button` nested inside a `for` two
+  repeaters deep. The design measured the *converse* — that a popup's
+  **properties** cannot be assigned from an enclosing handler — and says
+  `show()` is permitted; that it is reachable **by id from a descendant** is
+  this phase's own claim. Wrong ⇒ measured at T-2, before any test is written,
+  and the answer is a root callback the button calls instead.
+- **A-b.** `find_first` reaching `active_popups` is enough for a case under
+  `init_no_event_loop` to address a calendar day cell. Expected from
+  `search_api.rs:291-312`, but no case in this repository has laid a popup out
+  yet (§8 R9). Wrong ⇒ **VA-1's fork**, which is a STOP, not a weakening.
+- **A-c.** `field_value` needs the field's drawn **kind**, because *untouched*
+  is `""` for `text` and *not set* for `datetime` and the state alone cannot
+  tell them apart. Cheap: it is a private function with one caller
+  (`glass.rs:305`).
+- **A-d.** `today_local()` is read **once per present**, at the top of
+  `option_models`, and not once per unpicked field. It is total and its
+  failure path is absorbed (`instant.rs:83-91`), so an unconditional read costs
+  a presentation with no `datetime` field one clock read and nothing else.
+  Wrong ⇒ a lazy read, one `Option` in one function.
+- **A-e.** Removing `FieldForm::DateTime` breaks exactly the five sites
+  `grep -rn "FieldForm::DateTime" crates/` names, all inside the Surfaces.
+  Derived by grepping, not expected.
+- **A-f.** `close-policy: no-auto-close` is already bound by both widgets
+  (`fluent/datepicker.slint:23`, `fluent/time-picker.slint:24`), so EX-5's
+  clause is satisfied by the declaration this markup instantiates. Restating it
+  at the instantiation site is a guard against a future default rather than a
+  correction; decided at T-2 on whether it compiles as an override.
+
+**STOP conditions**
+
+- **S-1.** A criterion compelling a file the Surfaces line does not name —
+  `app.slint`, `view_model.rs`, `glass.rs`, `install.rs`,
+  `tests/renderer/{fields,mapper,wiring,reception}.rs`. In particular a new
+  `[[test]]` target, which needs `Cargo.toml` and a new directory.
+- **S-2.** VA-1's fork: the popup cannot be found under `init_no_event_loop`
+  and VT-2 / VT-3 must move to a loop target. That is S-1 as well.
+- **S-3.** Anything that would make a `datetime` field carry an **inline**
+  control, or a second instance of either popup — both are ruled out by a
+  measured compiler constraint, so wanting one means the design is wrong rather
+  than short.
+- **S-4.** More than one `edited` per completed pick, or any path on which a
+  date is recorded without a time. VA-2.
+- **S-5.** Seeding from `as_drawn`, or threading the clock through `Frame`.
+  Both are decided against (D21, `plan.md` Notes).
+- **S-6.** Weakening, deleting or `#[ignore]`-ing an existing case to go green;
+  a dependency addition.
+
+**STOP conditions raised**
+
+*(filled in as they happen)*
+
+**Tasks**
+
+- [ ] T-0 baseline: `just check`, gate total, `cargo test --workspace`, each
+      with its denominator
+- [ ] T-1 the sheet, committed before any production code
+- [ ] T-2 `app.slint`: the two structs' new slots, the root seed and `picking`
+      properties, the two popups, the `datetime` arm — and A-a, A-f and EX-3's
+      re-measurement settled at the compiler (EX-3, EX-4, EX-5)
+- [ ] T-3 `view_model.rs`: `FieldKind::DateTime` moves to `Ok`, `FieldForm`
+      loses its variant (EX-2)
+- [ ] T-4 `glass.rs`: the `Picked` value arm, the *not set* arm, the seed slots
+      and the one `today_local` read (EX-2, EX-3)
+- [ ] T-5 `install.rs`: the `Kind::Datetime` arm through `instant::compose`
+      (EX-5, EX-6)
+- [ ] T-6 EX-7, the fixture migration, one site at a time, recorded by name
+- [ ] T-7 VT-1 … VT-4 in `fields.rs`, each with an injection pass naming the
+      assertion **ordinal and message** it fails at
+- [ ] T-8 VA-1 and VA-2 in writing
+- [ ] T-9 `just check` exits 0 (EX-1); sheet and Harvest updated
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
