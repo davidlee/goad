@@ -18,7 +18,13 @@ use crate::draft::Edited;
 /// What a person did. There is deliberately **no** `Shutdown` variant:
 /// stopping is a decision, not a queue position, and it travels out of band
 /// (design.md §5.4, F-4).
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// **No `Eq`.** `Edited::Adjusted` carries a `Finite`, and `draft.rs` declines
+/// an `Eq` at that leaf on purpose — writing one here instead, by hand, would
+/// claim over a float payload a reflexivity the type does not have. Nothing
+/// needs it; the cases that compare commands need `PartialEq` only
+/// (design.md §5.2, `prototype-notes.md` P-8).
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
   Evaluate(Stimulus),
   /// Both strings are opaque **selectors**, matched against retained state

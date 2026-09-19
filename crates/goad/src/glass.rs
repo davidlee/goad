@@ -18,7 +18,7 @@ use crate::generated::{
   FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, Tray, WindowMode,
 };
 use crate::reception::Prepared;
-use crate::view_model::Body;
+use crate::view_model::{Body, DrawnKind};
 
 /// Total, and the only method: writing every property, every call, is the
 /// design's answer to a display server that fails partway through an
@@ -250,14 +250,11 @@ fn option_models(prepared: &Prepared) -> (Vec<OptionRow>, Vec<FieldValue>) {
         // `as` is denied crate-wide, so the saturating fallback is the
         // spelling rather than a judgement about the bound.
         let slot = i32::try_from(values.len()).unwrap_or(i32::MAX);
-        values.push(field_value(&prepared.draft.state_of(&option.id, &field.id)));
+        values.push(field_value(
+          prepared.draft.state_of(&option.id, &field.id).as_ref(),
+        ));
         fields.push(FieldRow {
-          // A constant, and honest as one: `undrawn_form` sends every kind
-          // but `boolean` to `Undrawn::FieldForm`, so a drawn field *is* a
-          // boolean today (`view_model.rs:219-227`). It stops being a
-          // constant when `PresentationField` starts carrying the kind it was
-          // drawn from, which is PHASE-02 (`plan.md` PHASE-02/EX-5).
-          kind: Kind::Boolean,
+          kind: markup_kind(&field.kind),
           id: field.id.as_str().into(),
           label: field.label.as_str().into(),
           slot,
@@ -282,24 +279,56 @@ fn option_models(prepared: &Prepared) -> (Vec<OptionRow>, Vec<FieldValue>) {
   (rows, values)
 }
 
+/// The drawn kind, as the markup's discriminant. Total over `DrawnKind`, so a
+/// sixth kind added there is a compile error here rather than a field drawn as
+/// something else.
+///
+/// This is where PHASE-01's honest constant went: the kind is now read off the
+/// field the mapper drew (`view_model::PresentationField`) instead of being
+/// asserted here.
+fn markup_kind(kind: &DrawnKind) -> Kind {
+  match kind {
+    DrawnKind::Boolean => Kind::Boolean,
+    DrawnKind::Text => Kind::Text,
+    DrawnKind::Number(_) => Kind::Number,
+    DrawnKind::Choice { .. } => Kind::Choice,
+    DrawnKind::DateTime => Kind::Datetime,
+  }
+}
+
 /// One field's state channel: what the draft holds, in the slot the field's
 /// kind makes meaningful.
 ///
 /// A **lookup**, never stored in the row model as truth: the draft is the
-/// authority and this is its projection for one present. The irrefutable `let`
-/// is load-bearing — a second `Edited` variant makes it a compile error here,
-/// which is where the decision about what each control shows for each value
-/// belongs.
+/// authority and this is its projection for one present.
 ///
-/// The other three slots stay at their defaults until the phase that draws a
-/// control reading one. They are declared now because the struct is the
-/// channel's shape and a later phase adding a slot would rewrite every literal
-/// of it; they are not written now because nothing reads them.
-fn field_value(state: &Edited) -> FieldValue {
-  let Edited::Checked(checked) = *state;
-  FieldValue {
-    checked,
-    ..FieldValue::default()
+/// **`None` is *untouched*, and the glass reads it directly rather than
+/// through `view_model::as_drawn`.** For four of the five kinds the two
+/// coincide by construction, so a slot left at its default is what the field
+/// was drawn showing; for `datetime` they do not, and the button reads *not
+/// set* while the wire carries the epoch. That divergence is D-6's, and
+/// routing the glass through `as_drawn` is exactly what would erase it
+/// (design.md §5.2).
+///
+/// **Only `checked` is written**, because `boolean` is the only kind
+/// `undrawn_form` draws and no control reads another slot yet. The match is
+/// total over `Edited` all the same — that is what makes a value the draft can
+/// hold and the screen cannot show a compile error rather than a default. Each
+/// remaining arm is filled by the phase that draws its control and owns this
+/// value arm in its Surfaces: `text` PHASE-05, `datetime` PHASE-07 (with the
+/// `date` and `time` seed slots), `number` PHASE-08 (whose `number` slot is the
+/// `Slider`'s alone), `choice` PHASE-09 (whose `index` needs the drawn
+/// alternatives to locate the held id).
+fn field_value(state: Option<&Edited>) -> FieldValue {
+  match state {
+    Some(Edited::Checked(checked)) => FieldValue {
+      checked: *checked,
+      ..FieldValue::default()
+    },
+    None
+    | Some(
+      Edited::Typed(_) | Edited::Adjusted { .. } | Edited::Chosen(_) | Edited::Picked { .. },
+    ) => FieldValue::default(),
   }
 }
 

@@ -19,7 +19,7 @@ use crate::diagnostics::{Diagnostics, Refused};
 use crate::draft::{Edited, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
-use crate::view_model::{PresentationField, PresentationOption};
+use crate::view_model::{PresentationField, PresentationOption, as_drawn};
 use crate::wire::{Cancel, Command, Notice, Stimulus};
 use goad_shell::clock::Clock;
 
@@ -223,12 +223,19 @@ impl Controller {
     // the shape of the walk rather than by a rule an agent must remember.
     // With the `SupersededView` refusal above, every key submitted here
     // provably came from a field the currently-retained view declared.
+    // `state_of` answers `None` for a field nobody touched, and `R-58`
+    // forbids omitting a value for a drawn field — so this is one of the two
+    // sites that apply `as_drawn`, and the only one in this file
+    // (`design.md` §5.2). `glass.rs` deliberately is not the other: it reads
+    // the `None` as *untouched* and shows an unpicked `datetime` as *not
+    // set*, while the value here is the epoch.
     let values: BTreeMap<_, _> = drawn_fields(matched)
       .map(|field| {
-        (
-          field.id.clone(),
-          submitted(&prepared.draft.state_of(&matched.id, &field.id)),
-        )
+        let edited = prepared
+          .draft
+          .state_of(&matched.id, &field.id)
+          .unwrap_or_else(|| as_drawn(&field.kind));
+        (field.id.clone(), submitted(&edited))
       })
       .collect();
 
