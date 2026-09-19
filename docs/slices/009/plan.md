@@ -1080,6 +1080,29 @@ added 2026-09-19 with explicit user endorsement, `plan-log.md`),
   sits — same driver, same assertion — and nothing else changes. The injection
   pass is what proves the row can go red rather than passing vacuously. Record
   which way it went.
+
+  **Amended 2026-09-19 (`plan-log.md`): the fork does not exist, and the reason
+  is not R9's.** R9's geometry half is real and is fixable *in place* — one
+  `mock_elapsed_time(1ms)` after the expand action lays the rows out under
+  `init_no_event_loop`. But `mock_single_click` dispatches at
+  `absolute_center()`, and `absolute_position` is `map_to_window`, which is
+  `map_to_item_tree_impl(p, |_| false)` (`i-slint-core-1.17.1/item_tree.rs:628`)
+  — the predicate never matches, so for an item inside a `PopupWindow` it stops
+  at the **popup's** own root. Dispatch then subtracts the popup's origin from
+  what it assumes is a window point (`window.rs:849-856`). A popup-local point
+  is therefore read as a window point and misses. **That is coordinate mapping,
+  not layout, so the loop tier changes nothing** and VA-1's *"same driver, same
+  assertion"* has nowhere to go.
+
+  **VT-2 stays in `tests/renderer/` and its driver changes**: a real
+  `mock_single_click` on the **`ComboBox` itself** — an ordinary laid-out element
+  of the main window — then arrow keys to the row, then Return.
+  `move-selection-down()` is `select(current-index + 1)` and a row's `clicked` is
+  `select(index)` (`common/combobox-base.slint:20-39`), so both reach the same
+  assignment and raise `selected` once. The row to stop at is found by reading
+  which `ListItem` declares `accessible-item-selected`. **State the loss in the
+  sheet**: a row's own `clicked` binding is exercised by no case, and that
+  binding is in the Slint widget library rather than in this project's markup.
 - VA-2 — §8 **R3**: `FieldForm` was not deleted for being empty. Deleting it also
   deletes the sixth-kind compile error.
 - VA-3 — every rewritten case still asserts something the defect it guards would

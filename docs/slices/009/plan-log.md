@@ -949,3 +949,62 @@ reasoning for the `Undrawn` route, which was a fact about `Alternatives::new` an
 is really a fact about `FieldForm::Choice` existing. **Fourth audit row**, and it
 is reconciliation rather than drift: the design's preference is honoured, and
 only its account of *why* the alternatives were unavailable has been overtaken.
+
+## 2026-09-19 — VA-1's fork does not exist, and R9 named the wrong half
+
+**Raised by PHASE-09's agent as a STOP, with VT-2 written and green on a
+substitute driver and the injection pass still to run.** Verified by the
+orchestrator at the Slint source rather than from the report.
+
+**What §8 R9 predicted.** *"A popup with no geometry is clicked nowhere near"* —
+mitigation: move the row to the loop tier, where the popup is laid out.
+
+**Half right, and the half it named is not the blocker.** The geometry problem is
+real and is fixable **in place**: one `i_slint_backend_testing::mock_elapsed_time(1ms)`
+after `invoke_accessible_expand_action` takes the three rows from `(0,0) 0x0` to
+`(4,4) 512x40`, `(4,44)` and `(4,84)`, under `init_no_event_loop`, with no loop.
+
+**The click still cannot land, at either tier.** `mock_single_click` dispatches at
+`absolute_center()`; `absolute_position` is `map_to_window`, which is
+`map_to_item_tree_impl(p, |_| false)` — the predicate never matches, so the walk
+stops at the top of whichever item tree the item is in, and a `PopupWindow` is a
+separate tree with no parent link (`i-slint-core-1.17.1/item_tree.rs:628-630`).
+Pointer dispatch then does `geom.contains(pos - coordinates)` for a
+`ChildWindow` popup (`window.rs:849-856`), i.e. it expects a **window** point and
+translates inward. A popup-local `(260, 24)` is read as window `(260, 24)` and
+misses a popup sitting at `y ≈ 145`. Measured end to end: rows laid out, click
+dispatched, `current-value` unchanged.
+
+**So the fork has nowhere to go.** The loop tier lays the popup out — which the
+agent had already achieved without it — and leaves the mapping exactly as it is.
+**The plan is wrong here rather than short**, which is the first time in nine
+phases; every previous STOP was an enumeration that did not reach far enough.
+
+**Decided: VT-2 stays in `tests/renderer/` and its driver changes.** A real
+`mock_single_click` on the **`ComboBox` itself** — an ordinary laid-out element of
+the main window, so the pointer lands — then arrow keys to the row, then Return.
+`move-selection-down()` is `select(current-index + 1)` and a row's `clicked` is
+`select(index)` (`common/combobox-base.slint:20-39`): **one function**, so the
+substitute reaches the same assignment and raises `selected` once. The row to
+stop at is read from which `ListItem` declares `accessible-item-selected` — the
+widget's own account of where it is, not the host's.
+
+**What is lost, stated rather than glossed.** No case exercises a row's own
+`clicked` binding. If that binding were absent or wrong, the keyboard path stays
+green. **The mitigation is that the binding is not this project's code** — it is
+`fluent/combobox.slint`'s, in the Slint widget library. The host's obligation is
+that *when a selection is made* the alternative's **id** reaches the wire, and
+that is what VT-2 asserts on either driver. AC-8 is undiminished.
+
+**The manual-offset alternative is worse than unavailable, and was not taken.**
+A case could compute a window point by adding the popup's origin to the row's
+local centre and click that. It would land — and it would pass *because the test
+had replicated the production translation*, so a change to that translation would
+be followed silently rather than caught. That is a test asserting a proxy for the
+thing it claims, which is the defect `docs/memory/tests-asserting-proxies.md`
+exists for. Rejected on that ground, not on effort.
+
+**For the audit: §8 R9's own text is now half wrong** and this is the fifth
+reconciliation row. Its risk is stated as layout and the real barrier is
+coordinate mapping; the mitigation it names — move to the loop tier — does not
+work and could not have. R9 should say what was measured.

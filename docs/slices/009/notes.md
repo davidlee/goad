@@ -204,6 +204,15 @@ it; otherwise it belongs in the audit.
    `Alternatives::first` by the user's decision of 2026-09-19 (`plan-log.md`).
    Reconciliation, not drift: the preference for a total expression stands and
    every consumer still gets one.
+
+   **A fifth row.** `design.md` §8 **R9** states its risk as layout — *a popup
+   with no geometry is clicked nowhere near* — and names moving the row to the
+   loop tier as the mitigation. Both halves are wrong in a way only measurement
+   showed: layout is fixable in place with `mock_elapsed_time`, and the real
+   barrier is **coordinate mapping** (`item_tree.rs:628-630`,
+   `window.rs:849-856`), which no tier changes. R9 should say what was measured,
+   and record that VT-2's driver is a click on the `ComboBox` plus keys rather
+   than a click on the row (`plan-log.md`, 2026-09-19).
 3. **Promote the drafts.** `canon-delta.md` CD-1 and CD-2 apply to `SPEC-001`,
    with explicit user endorsement, recorded in `audit.md`'s Reconciliation
    table. A slice does not close holding an unpromoted draft.
