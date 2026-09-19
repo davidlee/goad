@@ -116,6 +116,12 @@ const RETAINED: &str = r#"{"view":null,"next_check":"2026-06-01T00:00:00Z"}"#;
 /// The instant `RETAINED` instructs, for the line the glass writes from it.
 const RETAINED_AT: &str = "2026-06-01T00:00:00Z";
 
+/// A second [`RETAINED`], at a second instant — for a case that has to observe
+/// **two** presents it did not cause, and tell them apart.
+const RETAINED_AGAIN: &str = r#"{"view":null,"next_check":"2026-07-01T00:00:00Z"}"#;
+/// The instant `RETAINED_AGAIN` instructs.
+const RETAINED_AGAIN_AT: &str = "2026-07-01T00:00:00Z";
+
 // ---------------------------------------------------------------------------
 // Reading the wire
 // ---------------------------------------------------------------------------
@@ -551,6 +557,55 @@ macro_rules! tick {
     let (window, option, field) = (&$window, $option, $field);
     click(window, option, field);
     until(LIVENESS_BOUND, || drafted(window, option, field)).await;
+  }};
+}
+
+/// `settled!(window, tray, at)` — ask for a check, wait for the **fold** to
+/// reach the screen, and answer with what the `datetime` field then shows.
+///
+/// **What a case asserting an absence needs.** *Nothing was recorded* cannot
+/// be waited for, so a case that merely read the button after a cancel would
+/// be asserting that nothing had arrived **yet** — and a defect that did
+/// record something would fail later, as a dropped `Choose` and a timeout,
+/// rather than here as a value. Driving a round trip the host must present
+/// before the read turns that into a comparison: had the cancel recorded
+/// anything, this present is where it would appear.
+///
+/// `view: null` folds as `Shift::Retained`, which leaves the draft exactly as
+/// it was, so the round trip itself changes nothing it is being used to
+/// observe. The wait is on the next-check line the production glass wrote from
+/// the fold, at an instant no other exchange in the case could have
+/// produced — `a_present_that_changes_nothing_leaves_a_half_filled_form_on_the_screen_and_on_the_wire`
+/// is the precedent.
+///
+/// A macro rather than a function for the reason [`tick!`] and [`driving!`]
+/// are: it holds an `.await`, and a function holding it would be an `async fn`
+/// whose future holds a `!Send` `PromptWindow` — measured, as
+/// `future_not_send` refusing exactly this (`Cargo.toml:201`).
+macro_rules! settled {
+  ($window:expr, $tray:expr, $at:expr) => {{
+    let (window, tray) = (&$window, &$tray);
+    let folded = next_check_line(instant($at));
+    assert_ne!(
+      window.get_next_check(),
+      folded.as_str(),
+      "the line must not already be there, or the wait below proves nothing"
+    );
+    // **Yield before sending.** The command channel holds one (`main.rs:86`)
+    // and `serve` shares this thread through `spawn_local`, so a step that
+    // wrongly put a `Command::Edit` on the channel is still holding it when
+    // this one runs: without the yield the check below is the send that is
+    // dropped, and the defect fails as a timeout that names nothing rather
+    // than as a value on the screen. In the case where nothing was recorded —
+    // the one this macro is for — there is nothing on the channel and the
+    // yield changes nothing.
+    tokio::task::yield_now().await;
+    tray.invoke_check_now();
+    until(LIVENESS_BOUND, || {
+      window.get_next_check() == folded.as_str()
+    })
+    .await;
+    shown_on_screen(window, "morning", "when")
   }};
 }
 
@@ -1134,6 +1189,12 @@ async fn picking_a_date_and_then_a_time_records_one_instant_and_the_button_shows
       pick_hour(&window, 3);
       accept(&window);
 
+      // **A synchronisation point, and the assertion is below it.** Waiting
+      // for the slot to stop reading the sentinel rather than for it to hold
+      // the expected string is what makes a defect fail as a comparison
+      // naming two values instead of as a timeout naming none: a pick that
+      // lands *wrong* satisfies this wait and then fails `assert_eq!`. A pick
+      // that never lands at all can only ever be a timeout, and is.
       until(LIVENESS_BOUND, || {
         shown_on_screen(&window, "morning", "when") != NOT_SET
       })
@@ -1267,8 +1328,9 @@ async fn an_untouched_datetime_reads_not_set_on_screen_and_submits_the_epoch() {
 async fn a_picked_field_reopens_on_its_own_pick_and_an_unpicked_one_opens_on_today() {
   let (today, _) = instant_today();
   let elsewhen = if today.day == 15 { 16 } else { 15 };
+  let picked = composed(today.year, today.month, elsewhen, 3);
 
-  let ((reopened, untouched, hour), _log) = driving!(
+  let ((reopened, untouched, hour, landed), _log) = driving!(
     rigged("fields-datetime-vt3", &[TWO_DATETIME_FIELDS]),
     |window, tray, log| {
       open_picker(&window, "morning", "when");
@@ -1276,6 +1338,11 @@ async fn a_picked_field_reopens_on_its_own_pick_and_an_unpicked_one_opens_on_tod
       accept(&window);
       pick_hour(&window, 3);
       accept(&window);
+      // The same synchronisation point, and for the same reason: the pickers
+      // below are read only once the pick they are seeded from has reached
+      // the slot they are seeded out of. That the pick that landed is the one
+      // this case made is asserted below, so a seed is never read off a slot
+      // whose contents were not checked.
       until(LIVENESS_BOUND, || {
         shown_on_screen(&window, "morning", "when") != NOT_SET
       })
@@ -1301,10 +1368,20 @@ async fn a_picked_field_reopens_on_its_own_pick_and_an_unpicked_one_opens_on_tod
       cancel(&window);
 
       let _ = &log;
-      (reopened, untouched, hour)
+      (
+        reopened,
+        untouched,
+        hour,
+        shown_on_screen(&window, "morning", "when"),
+      )
     }
   );
 
+  assert_eq!(
+    landed, picked,
+    "the pick this case seeds from is the one that was made, so every seed \
+     read above was read off a slot holding a known value"
+  );
   assert_eq!(
     untouched,
     (true, false),
@@ -1340,22 +1417,25 @@ async fn a_picked_field_reopens_on_its_own_pick_and_an_unpicked_one_opens_on_tod
 #[tokio::test]
 async fn cancelling_either_picker_records_nothing_and_leaves_the_button_alone() {
   let ((after_date, after_time, lines), log) = driving!(
-    rigged("fields-datetime-vt4", &[TWO_DATETIME_FIELDS]),
+    rigged(
+      "fields-datetime-vt4",
+      &[TWO_DATETIME_FIELDS, RETAINED, RETAINED_AGAIN]
+    ),
     |window, tray, log| {
       open_picker(&window, "morning", "when");
       pick_day(&window, 15);
       cancel(&window);
-      let after_date = shown_on_screen(&window, "morning", "when");
+      let after_date = settled!(window, tray, RETAINED_AT);
 
       open_picker(&window, "morning", "when");
       pick_day(&window, 15);
       accept(&window);
       pick_hour(&window, 3);
       cancel(&window);
-      let after_time = shown_on_screen(&window, "morning", "when");
+      let after_time = settled!(window, tray, RETAINED_AGAIN_AT);
 
       option_control(&window, "morning").invoke_accessible_default_action();
-      until(LIVENESS_BOUND, || invocations(&log) >= 2).await;
+      until(LIVENESS_BOUND, || invocations(&log) >= 4).await;
       (after_date, after_time, diagnostic_lines(&window))
     }
   );
@@ -1374,7 +1454,7 @@ async fn cancelling_either_picker_records_nothing_and_leaves_the_button_alone() 
     "a cancel is not a refusal and reports nothing: {lines:?}"
   );
 
-  let values = submitted_values(&log, 2);
+  let values = submitted_values(&log, 4);
   assert_eq!(
     values["when"],
     Value::String("1970-01-01T00:00:00+00:00".to_owned()),
