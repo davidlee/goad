@@ -55,8 +55,8 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
   let cancel = Cancel::new();
   let notice = Notice::new();
   let wire = Wire::new(tx, cancel.clone(), notice.clone());
-  // Bound rather than inlined: PHASE-06 gives `SlintGlass::new` a clone of
-  // **this** handle, and R10 is one value cloned into two places.
+  // Bound rather than inlined: the glass below is given a clone of **this**
+  // handle, and R10 is one value cloned into two places.
   let pending = Rc::new(Debounce::new());
   install(&window, &tray, &wire, &pending);
 
@@ -64,6 +64,7 @@ fn a_real_close_request_ends_serve_and_then_the_loop() {
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    Rc::clone(&pending),
   );
 
   let config = Config {

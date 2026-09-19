@@ -89,7 +89,7 @@ fn start(path: &Path) -> Result<(), StartupError> {
   let notice = Notice::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
   //    The debounce, created **here** and not inside `install`, because
-  //    `SlintGlass` is given a clone of the same handle (PHASE-06): the
+  //    `SlintGlass` is given a clone of the same handle (step 7): the
   //    callbacks and the glass must share one map, never hold two
   //    (`design.md` §9, R10).
   let pending = Rc::new(Debounce::new());
@@ -100,10 +100,15 @@ fn start(path: &Path) -> Result<(), StartupError> {
   //    survive a hide. `new` also writes the initial tray icon and tooltip,
   //    because the tray registers nothing until a non-empty image is assigned
   //    and the loop's first `present` happens after the event loop starts.
+  //
+  //    `Rc::clone(&pending)` and **not** a second `Debounce`: the overlay only
+  //    overlays where the glass reads the map the callbacks write. Two values
+  //    compile, run, and measure nothing (`design.md` §8 R10).
   let glass = SlintGlass::new(
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    Rc::clone(&pending),
   );
 
   // 8. The first evaluation enters through the ordinary channel, so item 11

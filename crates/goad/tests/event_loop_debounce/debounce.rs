@@ -149,11 +149,6 @@ fn the_timer_delivers_one_edit_per_tick_and_re_arms_while_the_map_is_not_empty()
   // renderer case declares a size.
   ComponentHandle::window(&window).set_size(slint::PhysicalSize::new(600, 600));
 
-  let mut glass = SlintGlass::new(
-    window.clone_strong(),
-    tray.clone_strong(),
-    Rc::new(VecModel::<OptionRow>::default()),
-  );
   let mut controller = retaining();
   let view = controller
     .frame(false)
@@ -173,6 +168,17 @@ fn the_timer_delivers_one_edit_per_tick_and_re_arms_while_the_map_is_not_empty()
   // The production callback table, so what is driven below is the `edited`
   // closure `main.rs` installs and not a second copy of it.
   install(&window, &tray, &wire, &pending);
+  // **The glass reads the same handle**, which is why it is built here and not
+  // before the wire: one `Debounce`, cloned into the callbacks and the glass,
+  // never two values (`design.md` §8 R10). Nothing in this case asserts the
+  // overlay — `event_loop_overlay` does — but a second handle here would be the
+  // anti-pattern sitting in the file a reader is most likely to copy.
+  let mut glass = SlintGlass::new(
+    window.clone_strong(),
+    tray.clone_strong(),
+    Rc::new(VecModel::<OptionRow>::default()),
+    Rc::clone(&pending),
+  );
 
   // Recorded from inside the loop, read on the test thread once
   // `run_event_loop_until_quit` has returned — the two share the one thread

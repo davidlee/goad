@@ -54,7 +54,7 @@ use tokio::task::LocalSet;
 
 use crate::driving::{host, instant};
 use crate::harness::{
-  TIMEOUT, element_described, field_described, glass_over, logging_scripted, now, stub_clock,
+  TIMEOUT, element_described, field_described, glass_overlaying, logging_scripted, now, stub_clock,
   until, value_of, window_and_tray,
 };
 use crate::scripting::invocations;
@@ -326,7 +326,11 @@ struct Rig {
 fn rigged(case: &str, instructions: &[&str]) -> Rig {
   let (window, tray) = window_and_tray();
   with_room_for_the_form(&window);
-  let glass = glass_over(&window, &tray);
+  // One handle, bound before both readers and cloned into each. The glass
+  // overlays what the callbacks hold, so a second `Debounce` here would leave
+  // every case below green and measure nothing (`design.md` §8 R10).
+  let pending = Rc::new(Debounce::new());
+  let glass = glass_overlaying(&window, &tray, &pending);
   let (command, log) = logging_scripted(case, instructions);
   let backend = host(command, TIMEOUT, now());
   let (commands_in, commands) = mpsc::channel::<Command>(1);
@@ -336,15 +340,15 @@ fn rigged(case: &str, instructions: &[&str]) -> Rig {
   // sender lives only inside it, so nothing in this file can put a `Command`
   // on the channel except by activating an element a person would.
   //
-  // The debounce likewise: created here and reachable only through the
-  // callbacks, so a case cannot hold an edit or flush one except by driving a
-  // control. PHASE-06 gives `glass_over` a clone of this same handle, which is
-  // when the `Rig` has to retain it; nothing here needs it yet.
+  // The debounce likewise: reachable only through the callbacks and the
+  // glass, so a case cannot hold an edit or flush one except by driving a
+  // control. The `Rig` retains neither — the glass holds one clone and the
+  // callbacks the other, which is all the sharing the overlay needs.
   install(
     &window,
     &tray,
     &Wire::new(commands_in, cancel.clone(), notice.clone()),
-    &Rc::new(Debounce::new()),
+    &pending,
   );
   Rig {
     window,

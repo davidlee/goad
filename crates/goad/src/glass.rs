@@ -1,6 +1,11 @@
-//! `crates/goad/src/glass.rs` — stratum 3, and the only file in the crate
-//! that names a generated type outside `generated.rs` itself (design.md
-//! §5.3).
+//! `crates/goad/src/glass.rs` — stratum 3, and the file that writes every
+//! property the window declares (design.md §5.3).
+//!
+//! It is **not** the only file in the crate that names a generated type, and
+//! saying so was a claim that outlived the code: `install.rs:15` names four of
+//! them and `instant.rs:23` two more. What is true of this file is narrower and
+//! is what the design rests on — every *write* to a window property happens
+//! here, in `present`, so totality is checkable by reading one function.
 
 use std::fmt;
 use std::rc::Rc;
@@ -17,8 +22,10 @@ use crate::draft::Edited;
 use crate::generated::{
   FieldBlock, FieldRow, FieldValue, Kind, OptionRow, PromptWindow, Tray, WindowMode,
 };
+use crate::pending::Debounce;
 use crate::reception::Prepared;
-use crate::view_model::{Body, DrawnKind};
+use crate::view_model::{Body, DrawnKind, PresentationField, interpret};
+use crate::wire::PendingEdit;
 
 /// Total, and the only method: writing every property, every call, is the
 /// design's answer to a display server that fails partway through an
@@ -67,6 +74,17 @@ pub struct SlintGlass {
   /// glass that has shown nothing. Read to decide whether this present has to
   /// rebuild the rows at all (design.md §5.3, §7 D8).
   shown: Option<ViewId>,
+  /// **The same handle `install`'s callbacks hold**, never a second one
+  /// (design.md §5.3, §8 R10). The caller creates it once and clones it into
+  /// both, because two `Debounce` values would leave every case asserting the
+  /// overlay green while measuring nothing — there is no compile error to
+  /// catch it and no failure to read.
+  ///
+  /// Read here and written nowhere: `present` looks up what a control has
+  /// raised and the host has not recorded yet. Nothing in this file clears it;
+  /// the map empties on the enqueue of the send that carries each entry
+  /// (`pending.rs`, design.md §5.4).
+  pending: Rc<Debounce>,
 }
 
 /// Hand-written because the generated component handles carry no `Debug`,
@@ -83,8 +101,17 @@ impl SlintGlass {
   /// because the tray registers nothing until a non-empty image is
   /// assigned (`builtins.slint:3241-3244`) and the loop's first `present`
   /// happens only after the event loop has started.
+  ///
+  /// `pending` is **a clone of the handle `install` was given**, and the caller
+  /// creates it before either (`main.rs:95-107`). A glass given a `Debounce` of
+  /// its own overlays nothing and says nothing about it, which is §8 R10.
   #[must_use]
-  pub fn new(window: PromptWindow, tray: Tray, options: Rc<VecModel<OptionRow>>) -> Self {
+  pub fn new(
+    window: PromptWindow,
+    tray: Tray,
+    options: Rc<VecModel<OptionRow>>,
+    pending: Rc<Debounce>,
+  ) -> Self {
     tray.set_image(tray_icon(TrayState::Idle));
     tray.set_hover_text(tooltip(&Diagnostics::default(), false).into());
     Self {
@@ -92,6 +119,7 @@ impl SlintGlass {
       tray,
       options,
       shown: None,
+      pending,
     }
   }
 }
@@ -112,7 +140,7 @@ impl Glass for SlintGlass {
 
     let (heading, body, degraded, rows, values) = match frame.shown {
       Some(prepared) => {
-        let (rows, values) = option_models(prepared);
+        let (rows, values) = option_models(prepared, &self.pending);
         (
           prepared.presentation.title.clone(),
           styled(&prepared.presentation.body),
@@ -229,14 +257,27 @@ fn styled(body: &Body) -> StyledText {
 /// only for a view it has not shown — and that is `present`'s decision, not
 /// this function's.
 ///
+/// **The value channel has two sources, and no cache either way.** A field's
+/// value is what the draft holds, *overlaid* with what `pending.rs` is holding
+/// for that (option, field) — see [`overlaid`]. That does not weaken the
+/// sentence above: `pending.rs` is live state with one writer and a stated
+/// lifetime, read at the instant it is needed and copied nowhere that could go
+/// stale, so there is still nothing to invalidate (design.md §5.3).
+///
+/// `carried()` is read **once** for the whole presentation rather than per
+/// field: it holds only what a person has touched inside the last 150 ms, so
+/// the scan per field is over ones and twos, and the alternative is rebuilding
+/// a map out of a map.
+///
 /// **`FieldBlock` names two types**, `design.md` §5.2's Slint struct and the
 /// mapper's, and this file holds both. Only the generated one is named here
 /// now — the mapper's is reached through `option.blocks` rather than written
 /// down — so the bare name is unambiguous in this file and a phase that has to
 /// name the other again should path-qualify it.
-fn option_models(prepared: &Prepared) -> (Vec<OptionRow>, Vec<FieldValue>) {
+fn option_models(prepared: &Prepared, pending: &Debounce) -> (Vec<OptionRow>, Vec<FieldValue>) {
   let mut values: Vec<FieldValue> = Vec::new();
   let mut rows: Vec<OptionRow> = Vec::new();
+  let held = pending.carried();
 
   for option in &prepared.presentation.options {
     let mut blocks: Vec<FieldBlock> = Vec::new();
@@ -250,9 +291,18 @@ fn option_models(prepared: &Prepared) -> (Vec<OptionRow>, Vec<FieldValue>) {
         // `as` is denied crate-wide, so the saturating fallback is the
         // spelling rather than a judgement about the bound.
         let slot = i32::try_from(values.len()).unwrap_or(i32::MAX);
-        values.push(field_value(
-          prepared.draft.state_of(&option.id, &field.id).as_ref(),
-        ));
+        // The draft, then the overlay over it. `or` and not `unwrap_or`: where
+        // there is no entry, or where `interpret` refuses the one there is,
+        // the draft's value stands (design.md §5.3).
+        let drafted = prepared.draft.state_of(&option.id, &field.id);
+        let overlay = overlaid(
+          &held,
+          prepared.view_id.as_str(),
+          option.id.as_str(),
+          field,
+          drafted.as_ref(),
+        );
+        values.push(field_value(overlay.as_ref().or(drafted.as_ref())));
         fields.push(FieldRow {
           kind: markup_kind(&field.kind),
           id: field.id.as_str().into(),
@@ -296,11 +346,49 @@ fn markup_kind(kind: &DrawnKind) -> Kind {
   }
 }
 
-/// One field's state channel: what the draft holds, in the slot the field's
-/// kind makes meaningful.
+/// **What `pending.rs` holds for one field, where it holds anything for it** —
+/// the third of I-H's three sites, and the whole of this phase (design.md §5.3
+/// *A field's value is the draft's, overlaid*, §7 D26, D27).
+///
+/// `None` means *show the draft's value*, and it means that for both of the
+/// reasons it can: no entry for this field, or an entry `interpret` refuses.
+/// A refused entry is a renderer bug and is reported by the command that
+/// carries it, never by a present — so the draft's value stands and this
+/// function says nothing (design.md §5.2).
+///
+/// **It goes through `interpret` and not through a mapping of its own.**
+/// `pending.rs` holds a `Reported`; the display is written from an `Edited`; a
+/// second `Reported` → `FieldValue` mapping beside the existing `Edited` one
+/// is the duplication the design avoids everywhere else, and it would be a
+/// second place for the two to disagree about what a report means.
+///
+/// **The view test is I-H.** An entry made on a view that has since been
+/// replaced is not shown, because the ids it is keyed by are strings the new
+/// view is free to reuse — without this, a stale entry would be written into a
+/// new view's widget. Nothing here removes it: the timer sends it under its own
+/// view, the controller refuses it `SupersededView`, and it leaves the map
+/// because the send was enqueued (design.md §5.4, *A new view*).
+fn overlaid(
+  held: &[PendingEdit],
+  view: &str,
+  option: &str,
+  field: &PresentationField,
+  drafted: Option<&Edited>,
+) -> Option<Edited> {
+  held
+    .iter()
+    .find(|entry| entry.view == view && entry.option == option && entry.field == field.id.as_str())
+    .and_then(|entry| interpret(&entry.value, drafted, &field.kind))
+}
+
+/// One field's state channel: what the draft holds — overlaid with what a
+/// control has raised and the host has not recorded yet — in the slot the
+/// field's kind makes meaningful.
 ///
 /// A **lookup**, never stored in the row model as truth: the draft is the
-/// authority and this is its projection for one present.
+/// authority — and, for as long as an edit is in flight, `pending.rs` is what
+/// stands between the draft's older value and the widget. This is their
+/// projection for one present; the join is [`overlaid`]'s.
 ///
 /// **`None` is *untouched*, and the glass reads it directly rather than
 /// through `view_model::as_drawn`.** For four of the five kinds the two

@@ -82,8 +82,8 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
   let stopper = cancel.clone();
   let notice = Notice::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
-  // Bound rather than inlined: PHASE-06 gives `SlintGlass::new` a clone of
-  // **this** handle, and R10 is one value cloned into two places.
+  // Bound rather than inlined: the glass below is given a clone of **this**
+  // handle, and R10 is one value cloned into two places.
   let pending = Rc::new(Debounce::new());
   install(&window, &tray, &wire, &pending);
 
@@ -91,6 +91,7 @@ fn a_scheduled_evaluation_fires_under_the_production_topology() {
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    Rc::clone(&pending),
   );
 
   let (command, log) = scripted("event-loop-schedule", &[NOTHING_INSTRUCTED]);

@@ -5,18 +5,25 @@ deleted. Read that commit for the code; this note is the durable part.
 
 ## The fact
 
-`SlintGlass::present` ends in `self.options.set_vec(rows)` — and `set_vec`
-calls `ModelNotify::reset()`, whose `RepeaterTracker::reset` does
-`instances.clear()` (`i-slint-core/model/repeater.rs`). **Every row element in
-the form is dropped and rebuilt on every present.** The loop presents at the top
-of every iteration, including after an `Edit`, so ticking one checkbox rebuilds
-the whole form.
+`set_vec` calls `ModelNotify::reset()`, whose `RepeaterTracker::reset` does
+`instances.clear()` (`i-slint-core/model/repeater.rs`). **Every row element
+under a repeater is dropped and rebuilt.** `set_vec` in a present is a
+*rebuild*, not a cheaper `set_row_data`.
 
 `set_row_data` does not do this. It notifies `row_changed`, which calls
 `comp.update(row, data)` on the **existing** instance. Nothing is destroyed.
 
 Measured: five presents in place construct **zero** elements; one `set_vec`
 constructs one per row.
+
+**Where `set_vec` is called from is a separate decision, and it has moved.**
+The spike measured a `present` that called it unconditionally, so every present
+rebuilt the form and ticking one checkbox destroyed the widget that was ticked.
+`SlintGlass::present` now calls it **only where the `view_id` it is showing has
+changed**, and it is not the last thing the function does — the epoch is
+(slice 009, design.md §7 D8, §5.5 I-F). So a present that changes nothing
+destroys nothing. That does not retire this note: the repair below is what
+makes the *rebuilding* present safe, and a new view still takes that path.
 
 ## Why the destruction is load-bearing, and not an oversight
 
@@ -29,9 +36,11 @@ Measured, not inferred: click the box, then `set_row_data` a row saying
 `false`, and the widget stays `true`. The rebuild is the only thing that gives
 it a fresh binding — and a rebuilt element does converge, also measured.
 
-So design §5.4's A-2 — *the draft is the authority; the present corrects a click
-the host dropped* — is resting on the destruction specifically. Switching to
-`set_row_data` for the layout benefit alone silently breaks it.
+So *the draft is the authority; the present corrects a click the host dropped*
+was resting on the destruction specifically. Switching to `set_row_data` for the
+layout benefit alone would silently have broken it — and so would the
+conditional `set_vec` the code now has, which is why the repair below landed in
+the same slice as the condition.
 
 ## The repair that keeps both
 
@@ -85,6 +94,11 @@ assertions.
 - Before concluding a widget tracks its model, click it first. An unclicked
   widget's binding is intact and will converge on its own, so a test that never
   interacts measures nothing (`a-green-test-can-assert-a-proxy.md`).
+- A widget the host has been told about and one it has not are indistinguishable
+  to a guard that reads only the model. If an edit can be in flight — debounced,
+  queued, or refused — the value channel has to carry what is in flight as well
+  as what is recorded, or the guard corrects a person mid-sentence
+  (slice 009, design.md §7 D26).
 
 Related: `change-handlers-need-an-event-loop.md`,
 `a-green-test-can-assert-a-proxy.md`,

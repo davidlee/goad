@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use goad::generated::{FieldValue, OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
+use goad::pending::Debounce;
 use goad_semantics::protocol::canonical::Timestamp;
 use goad_shell::clock::ClockError;
 use goad_shell::config::Command as ShellCommand;
@@ -57,11 +58,31 @@ pub(crate) fn window_and_tray() -> (PromptWindow, Tray) {
   )
 }
 
+/// A glass over this window whose **overlay is empty and stays empty**: the
+/// `Debounce` it reads is its own, and no callback writes it.
+///
+/// Right for every case that does not call `install`, which is all but one of
+/// this target's — with no callback table there is nothing to hold an edit and
+/// nothing to overlay. A case that **does** call `install` must take
+/// [`glass_overlaying`] and hand it the same handle, because a glass holding a
+/// second `Debounce` overlays nothing and says nothing about it: every
+/// assertion stays green while measuring nothing (`design.md` §8 R10).
 pub(crate) fn glass_over(window: &PromptWindow, tray: &Tray) -> SlintGlass {
+  glass_overlaying(window, tray, &Rc::new(Debounce::new()))
+}
+
+/// [`glass_over`], reading the debounce the callback table writes — **one
+/// handle, cloned**, never a second value (`design.md` §5.3, §8 R10).
+pub(crate) fn glass_overlaying(
+  window: &PromptWindow,
+  tray: &Tray,
+  pending: &Rc<Debounce>,
+) -> SlintGlass {
   SlintGlass::new(
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    Rc::clone(pending),
   )
 }
 

@@ -15,6 +15,7 @@ use std::time::Duration;
 use goad::controller::{Controller, Exchanged};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::{Glass, SlintGlass};
+use goad::pending::Debounce;
 use goad_semantics::protocol::canonical::{Timestamp, View, ViewId};
 use goad_semantics::protocol::normalize::read_response;
 use goad_shell::backend::transport::Captured;
@@ -118,10 +119,15 @@ fn a_second_present_of_the_same_frame_rebuilds_nothing_and_corrects_nothing() {
 
   let window = PromptWindow::new().expect("the headless testing backend always builds a window");
   let tray = Tray::new().expect("the headless testing backend always builds a tray");
+  // A `Debounce` of its own, because this case installs no callback table and
+  // so has nothing to share one with: no control here can raise an edit, so the
+  // overlay has nothing to overlay. Where a case **does** call `install`, the
+  // glass must be given a clone of that handle (`design.md` §8 R10).
   let mut glass = SlintGlass::new(
     window.clone_strong(),
     tray.clone_strong(),
     Rc::new(VecModel::<OptionRow>::default()),
+    Rc::new(Debounce::new()),
   );
   let controller = retaining();
 
