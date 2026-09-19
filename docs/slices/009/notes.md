@@ -4,408 +4,196 @@ Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
 after the slice closes is lifted into the Harvest section.
 
-## Handover — the plan is accepted; execution has begun
+## Handover — four phases are done; you are orchestrating the other five
 
-Written 2026-09-18 for a fresh agent, rewritten when the prototype handed back,
-again when D-29 … D-32 landed, again when round 4's seven were dispositioned,
-again when they were integrated, again when the ledger resolved, again when
-the design closed, and again when the plan was accepted. Most of it is now
-history: what a phase agent needs is `plan.md`, its own phase sheet, and
-§*Traps worth naming*. Delete at the close.
+Written 2026-09-19 for a fresh agent taking over execution. The design and plan
+stages are closed and their handover text is gone; what is below is what running
+PHASE-05 … PHASE-09 actually needs. Delete at the close.
 
-**Durability, as of this handover.** `slice-009-prototype` is pushed through
-`a1171b3`. **`main` is not**: everything from `be49327` onward — P-14's
-settlement, the design close, the plan, the acceptance — is local only. 33
-commits and the whole prototype branch once lived on one disk. Check
-`git log origin/main..main` before you finish, and push if the user agrees.
+**Your job is to orchestrate, not to implement.** One phase, one agent, one
+session (`docs/AGENTS.md` §Execute). You hold the thread: you mark a phase in
+progress, brief its agent, verify what comes back against the tree rather than
+against the report, take the decisions that are yours, escalate the ones that
+are the user's, and commit the bookkeeping. Four phases have run this way and
+the pattern holds — it is described under *How to brief a phase agent* below.
 
 ### Where the slice is
 
-Design accepted by the user at draft, then rewritten across four review rounds.
-**The review loop is closed.** `review-design.md` reads `**State:** resolved`:
-all 56 findings are terminal — 54 verified, 2 withdrawn, no blocker outstanding
-— and the Synthesis is written. **P-14 is settled** (D-36, 2026-09-18): the
-refusal is not durable, and the question behind it is `SPEC-002/OQ-4`, which
-this slice declines. **The design is accepted and closed** — D-37, 2026-09-19,
-against `design.md` as it stands at `be49327`. **The plan is accepted**
-— `plan-log.md`, 2026-09-19, against `plan.md` as written at `44fbd8e`. Nine
-phases; PHASE-04 is the only one that can run beside another. **No plan review
-was run**, and `plan-log.md` records what that costs. `slice-009.md` **Stage**
-reads `executing`. **PHASE-01 is done** (2026-09-19); PHASE-02 is next, and
-§Status is where the current answer to that lives rather than here.
+Design closed (`design-log.md` D-37), plan accepted (`plan-log.md`), **PHASE-01
+through PHASE-04 done**, PHASE-05 … PHASE-09 pending. §Status is the record.
+`just check` has exited 0 at every phase boundary, each figure re-run by the
+orchestrator rather than taken from a report: **551, 563, 564, 573** — and those
+are **gate** totals. **Always quote a count with its denominator.** The gate runs
+`cargo test -p goad-semantics` as a command of its own, so `goad-semantics`'s
+30 + 5 are counted twice and the gate total is always exactly 35 above
+`cargo test --workspace`, which is **538** now. PHASE-03's sheet named one
+denominator over a list enumerating the other; both its numbers were right and
+the sentence was not. Annotated in place, and §Open carries the arithmetic.
 
-The paragraphs below are the arc that produced that, kept because the next agent
-needs to know which surfaces have been rewritten and how often. Round 3's
-thirteen findings — F-6, F-20, F-26, F-29,
-F-32 and F-38 … F-45 — are **integrated** into `design.md`, `slice-009.md` and
-`canon-delta.md`. Rounds 1 and 2's are integrated too, and round 3 verified 18 of
-them. Plan not started.
+Three decisions landed *during* execution and bind what is left: **D-36** (the
+refusal is not durable), **D-37** (the design is accepted), **D-38**
+(`FieldEdit` carries `slider`). `plan-log.md` carries five more, all of them
+amendments to `plan.md` rather than to the design.
 
-Integrating raised four more, F-46 … F-49, dispositioned, integrated and
-**confirmed by the user** (D-25). None is a blocker. So all seventeen read
-`_pending round 4_` and every one of them is awaiting nothing but a terminal
-outcome from a raiser.
+### How to brief a phase agent
 
-**Then the prototype ran, and stopped after `text`.** It handed back fifteen
-findings (`prototype-handback.md`, `a1171b3`), one of which — **P-10** — stops
-the slice closing as designed: a live `ADR-001` instrument asserts that no
-production line under `crates/goad/src` names the identifier `resolve`, and §5.2
-names the new function `resolve`. Four decisions came out of it, D-29 … D-32,
-and **none of the fifteen is in the ledger**: D-29 routes them through the log
-instead, because a measurement is neither a reviewer's finding nor a user's
-choice. `number`, `choice` and `datetime` were never built and §9's validation
-table was never attempted, so nothing the prototype says is evidence about them.
+What has worked, and each element is there because something went wrong without
+it:
 
-**The review loop is still open, and what it is waiting on is outcomes rather
-than repairs.** D-29 … D-32 and the prototype's repairs were integrated first
-(2026-09-18, a fresh agent per D-21); §*What is owed* item 1 says where each one
-landed and what the pass found doing it. **One thing was not applied: P-14**, which is a
-decision rather than a repair — settled later as D-36, §*P-14 — settled*. `design.md` was
-current truth again after that pass, and the design's function is now
-**`interpret`**.
+- **Two steps, explicitly not merged.** The sheet first — reading list with
+  re-derived `path:line`, assumptions, STOP conditions, tasks — then execute.
+  Say so, because an agent told only to "do PHASE-0n" writes the sheet last.
+- **Tell it to verify its own entry criteria** rather than inheriting your word
+  for them. All four did; none found a lie, but the reading is how they learned
+  the previous phase.
+- **Lift the phase's traps out of `plan.md` into the brief.** The Notes for the
+  implementer are load-bearing and long; an agent that skims them writes
+  `resolve`, or `impl Eq for Finite {}`, or a `_ => None` arm.
+- **Name the STOP conditions in your own words**, and say that a criterion
+  compelling a file the Surfaces line does not name is one of them. That is what
+  produced every one of the five amendments.
+- **Ask for one thing you cannot verify yourself.** "Did the negative control
+  actually go red, and what did the counter read?" got a number; "is it
+  covered?" would have got a yes.
+- **Forbid**: `git stash`, `git checkout`, `reset`, `rebase`, `push`, editing
+  `design.md` / `design-log.md` / `plan.md` / `plan-log.md` / `canon-delta.md` /
+  any `review-*.md`, amending canon, and deleting or weakening a test to go
+  green. Allow `add` and `commit` on `main`, with the session trailers.
+- **Give it the budget rule**: at ~200k tokens, stop, write a `PARTIAL` note
+  naming what is and is not done, leave the tree green, hand back.
 
-**Round 4 then raised seven, a fresh agent dispositioned them, and a third
-session integrated them** (items 2, 2a and 2b). All seven repairs are applied;
-the largest retired §5.2's locale account (D-33), reversing D-16 as a net
-deletion. **`design.md` is current truth again**, and what is owed on those
-seven is one thing: round 4's raiser setting their outcomes.
+### Five things that have actually bitten
 
-**What changed in the integration**, in one line each, because the ledger's
-Responses do not all say where the text landed:
+1. **The Surfaces lines are short, and it is one cause.** Five times now.
+   `plan.md`'s Surfaces were derived from `design.md` §9's enumeration of
+   **constructors**, so a file that changes because a type above it changed
+   (`wire.rs`), because it *binds* a markup callback (`tree.rs`), because a doc
+   in it went stale (`diagnostics.rs`), or because a type must become *visible*
+   (`app.slint`) was never in the enumeration's reach. §9 is not wrong. Expect a
+   sixth; the user has endorsed amending, and `plan-log.md` is where it goes,
+   dated and scoped. **The remaining phases most exposed are PHASE-07 and
+   PHASE-09**, which add markup and retire a type respectively.
+2. **A plan citation can be stale.** PHASE-01 moved the line PHASE-02's notes
+   cited (`glass.rs:203` → `:299`). Re-derive with `grep -n`; the slice's rule
+   is *cite from an instrument that prints the number*.
+3. **"Done" is not idle.** A phase agent reports the phase green and then makes
+   a further *record* commit minutes later. Wait for the idle notification
+   before committing anything or spawning the next agent. If you must write in
+   that window, `git add <explicit paths>` — never `-A`.
+4. **A true sentence goes stale by widening.** Twice in PHASE-03: §9's *twelve*
+   was accurate about constructors and silent about binders;
+   `Refused::UnknownField`'s doc was accurate about the only path that then
+   existed. Neither is a bad citation. The working rule is in §Harvest: when a
+   phase widens what a type or rule means, re-read every sentence that
+   enumerated it, including the ones still true.
+5. **Four id sequences collide**, not three: `design.md` §7's `Dn`,
+   `design-log.md`'s `D-n`, `prototype-notes.md`'s `P-n`, and slice 008's `VT-n`
+   doc comments already in `wiring.rs`. Cite the file with the id, and
+   phase-qualify a new `VT-n` in a test doc (`PHASE-03/VT-2` is the precedent).
 
-- the F-40 family became one mechanism: a pending entry carries the view it was
-  made on (§7 D27), the value channel is the draft overlaid with it (§7 D26), the
-  timer delivers one entry per tick and re-arms, and `Wire::send` reports whether
-  the command was enqueued. §5.5 states it as **I-H**, which is new.
-- `resolve` takes `held: Option<&Edited>` and applies `as_drawn` itself, so the
-  two `as_drawn` sites are now `answer` and `resolve` rather than `answer` and
-  `edit`. (That function is `interpret` from D-30 onward; this paragraph records
-  round 3's integration and is left as it was written.)
-- §9 gained four rows — two fields in one window, the numeric exception measured
-  against the overlay, the picker re-seed (F-44), and a rewritten AC-6 driver
-  (F-47) — and §8 gained **R10**.
-- `slice-009.md` §Scope gained `main.rs` and the overlay; AC-6 gained one
-  sentence of precision.
+### What the remaining phases must honour
 
-### Why a fresh agent, and not the session that dispositioned these
+- **PHASE-05** is the largest. `pending.rs`, the timer's one-per-tick re-arm,
+  `Wire::send -> bool`, `Command::Choose` carrying the flush. Its notes name the
+  channel-capacity argument for why the flush travels *inside* `Choose`; that is
+  measured, not a preference.
+- **PHASE-07/EX-3** carries an instruction added after the plan was accepted:
+  **re-measure** whether PHASE-04's one-line `export { Date, Time }` is still
+  needed once `FieldValue` gains those fields, and delete it on the measurement
+  rather than on the expectation. Only the export path was measured; the
+  reachability one was not.
+- **PHASE-08/EX-9** is D-38 and was added after acceptance: `FieldEdit` carries
+  `slider: bool`, the mapper selects on it and nothing else, and **each control
+  writes its own literal** — never `field.slider`. Deriving the report from the
+  row costs the host its only witness that the control drawn is the control that
+  reported. `design.md` §5.2 carries the argument.
+- **PHASE-09** retires `Undrawn::FieldForm` and deletes the fixtures that have
+  been migrating one kind at a time since PHASE-05 (`prototype-notes.md` P-13).
+  There is no kind left to move them to.
 
-D-21. The session that writes a disposition does not integrate it, and this has
-now paid for itself three times: round 1's responder was wrong about four of its
-own repairs, round 2's integrator found four more defects, and the session that
-integrated round 2 found F-37 — a blocker — by trying to write the repair down.
-Round 3 then found that same session had inverted F-32's citation and overclaimed
-a type property (F-42). **Expect to find something. Integrating is a form of
-review.**
+### One thing the user has not been asked
+
+`install.rs::reported`'s four undrawn arms answer `None`, so **a phase that
+draws a control and forgets its mapper arm drops every edit from that control.**
+It fails that phase's own first case, so it is caught — but by *absence of an
+effect* rather than by a compile error, which is weaker than everything else in
+this tower, where a sixth kind is a compile error in four places. PHASE-03 could
+not make it stronger without a panic (denied crate-wide) or declaring markup
+fields before a control reads them (against the standing rule), so the
+mitigation is the schedule in the function's doc naming each arm's owning phase.
+**Making it stronger is a decision, not a repair.** Raise it if a phase trips on
+it; otherwise it belongs in the audit.
+
+### Useful facts nobody should rediscover
+
+- **`wiring.rs` and `fields.rs` measure disjoint halves of the edit path**,
+  proven by injection: breaking `install.rs`'s closure reddens four `fields.rs`
+  cases and nothing in `wiring.rs`; breaking `Controller::edit` reddens
+  `wiring.rs` and nothing in `fields.rs`. **A new arm in `reported` is measured
+  by a `fields.rs` case and by nothing else.** PHASE-05, -07, -08 and -09 each
+  need this.
+- **An import is not an export.** Slint generates a widget-library struct into
+  `crate::generated` only if `app.slint` *exports* it; importing it does
+  nothing. Measured four ways in PHASE-04.
+- **`cargo test -p goad-semantics` never links the `jiff` the workspace build
+  links.** Measured with `cargo tree -e features` either side of PHASE-04's
+  manifest change: `--workspace` resolves `alloc, std, tz-system,
+  tzdb-zoneinfo`; `-p goad-semantics`, `-p goad-shell` and `-p goad-emit` each
+  resolve none.
 
 ### What holds the truth
 
 | file | state |
 |---|---|
-| `review-design.md` | **the ledger.** F-1 … F-56. The first forty-nine are terminal; F-50 … F-56 carry a disposition and a Response and are awaiting an outcome from round 4's raiser. Every Response is written to be complete without the session that wrote it: they are your brief |
-| `design.md` | **current truth, through round 4's integration and D-36.** All seven of round 4's repairs are applied (item 2b); §5.2 and §5.5 carry P-14's answer and §8 R5 is restated |
-| `design-log.md` | D-1 … D-36. Append-only. D-29 supersedes D-27's second paragraph and **D-33 reverses D-16**. Note the header: `D-n` here is **not** `Dn` in `design.md` §7 |
-| `research.md` | Thread 3 is everything measured |
-| `canon-delta.md` | CD-1, CD-2. F-45 touches CD-2 |
-| `spike-fields/` | **deleted from the tree** at the design close (D-37). In history at `4f93d41`; `git checkout 4f93d41 -- spike-fields` restores all thirteen files |
-| `prototype-notes.md` | **the artefact**: P-1 … P-15 in full, with the reasoning. P-15 is withdrawn in place. Lifted onto `main` 2026-09-18 |
-| `prototype-handback.md` | the index and the recommendation, and §What it did not test — read that before citing any of it. Lifted onto `main` 2026-09-18 |
-| `prototype-delta.md` | the thirteen round-3 findings as P1a was briefed on them. **Historical** from P1b onward — `design.md` is the authority. Lifted onto `main` 2026-09-18 |
+| `plan.md` | **the executable truth.** Nine phases, criterion ids immutable. Amended six times since acceptance — five Surfaces lines and PHASE-08/EX-9 — every one dated and logged. Read a phase's Notes for the implementer in full; they are long and load-bearing |
+| `design.md` | **current truth**, including D-38's `slider` discriminant in §5.2. Do not edit it; a design change goes back to the user |
+| `design-log.md` | D-1 … D-38. Append-only. `D-n` here is **not** `Dn` in `design.md` §7 |
+| `plan-log.md` | five dated entries, all amendments to `plan.md`. This is where a sixth Surfaces amendment goes |
+| `canon-delta.md` | CD-1, CD-2 — the slice's working authority on two `SPEC-001` changes. **Promoted at audit with explicit user endorsement, by nobody else** |
+| `notes.md` §Phase sheets | one per completed phase, left in place. PHASE-01's and PHASE-02's are the shape to match |
+| `notes.md` §Harvest | lifted into `docs/memory/` at the close. Keep it current *in* each phase, not after |
+| `review-design.md` | closed, 2563 lines, `**State:** resolved`. Read one finding if you need it; do not read it through |
 
 ### What is owed, in order
 
-1. ~~**Integrate D-29 … D-32 and the prototype's repairs into the design.**~~
-   **Done, 2026-09-18**, by a fresh agent per D-21. Every row below landed;
-   `design.md`, `slice-009.md` and `canon-delta.md` carry them. The decisions
-   were in `design-log.md` and the evidence in `prototype-notes.md` on
-   `slice-009-prototype`, which is the artefact.
+1. **PHASE-05 … PHASE-09**, one agent each. PHASE-05 is the largest and
+   PHASE-09 the widest.
+2. **Audit** — a fresh agent, `audit.md`, its Brief written *before* looking.
+   `review-code.md` is full strength at both tiers and is where the defects
+   actually are. Budget two sessions: the review rounds on the *repairs* are
+   half the cost.
+3. **Promote the drafts.** `canon-delta.md` CD-1 and CD-2 apply to `SPEC-001`,
+   with explicit user endorsement, recorded in `audit.md`'s Reconciliation
+   table. A slice does not close holding an unpromoted draft.
+4. **At the close**, three documentation repairs this slice has earned and
+   deferred, all in `docs/memory/`:
+   - `a-present-destroys-the-widget-it-writes.md` is **half stale** — it says
+     `present` ends in `self.options.set_vec(rows)` and that every row is
+     rebuilt on every present. PHASE-01 made both false. The rest of the note
+     is exactly what PHASE-01 implemented and is still right.
+   - `a-popup-is-rebuilt-on-every-show.md` cites
+     `widgets/fluent/components.slint:15-19`; the correct range is `:49-53`.
+   - `glass.rs:1-3` claims to be the only file in the crate naming a generated
+     type. `install.rs:15` names four and `instant.rs` two more. **PHASE-06 and
+     PHASE-07 both have `glass.rs` in their Surfaces** — whichever runs first
+     should fix it rather than leaving it to the close.
+5. **Lift §Harvest into `slice-009.md` §Follow-ups and `docs/memory/`**, write
+   §Summary, set the stage to `done`.
 
-   | | change | where it actually landed |
-   |---|---|---|
-   | ~~D-30~~ | `resolve` → **`interpret`**, and the constraint stated | §5.1 (diagram and the `Reported` sentence), §5.2 (the function, and the constraint beside it), §5.3, §5.5 I-G and the edges table, §7 D12 / D25 / D26, `slice-009.md` §Scope. **Not §9** — the table said §9 and §9 never named the function |
-   | ~~D-31~~ | the `None` surface becomes **three** cases | §5.2, and §5.5's edges row, which had enumerated exactly the two D-31 supersedes |
-   | ~~D-32~~ | `Display`, and `{:e}` beyond **24 characters** | §5.2 (a new paragraph beside the parse rule, and the `number` as-drawn bullet), §9 (a new row, `tests/renderer/fields.rs` over a `view_model.rs` unit) |
-   | ~~P-2~~ | the live way out: `DrawnKind::Choice` carries the first id beside the list | §5.2's `choice` as-drawn bullet, with the two dead routes named; and §5.1's one-line description of `DrawnKind`, which the repair also changes |
-   | ~~P-7~~ | two sets, not one trio | §5.2 (the sentence corrected in place, then the two sets stated), **and** §5.5's edges row, which repeated the claim verbatim |
-   | ~~P-8~~ | `Finite` carries no `Eq` either, and why | §5.2, beside the `Eq` paragraph F-48 wrote |
-   | ~~P-12~~ | A-1's row re-tiers: `init` runs under `init_no_event_loop` | §9 — the *what still needs a real loop* paragraph, and AC-4's tier, which was split across both tiers and is now wholly `tests/renderer/` |
-   | ~~P-11~~ | the timer re-arm is measured, not only read | §5.1's citation |
-   | ~~P-4~~ | §10's argument gates `compose` and `today_local` and nothing else | §10 (a new *what the feature does not gate* paragraph), `canon-delta.md` CD-1's open question |
+### Durability
 
-   **What this pass found**, written up rather than applied where it is a
-   decision:
+**`main` is 19+ commits ahead of `origin` and nothing since `44fbd8e` is
+pushed.** 33 commits and a whole branch once lived on one disk in this project.
+Check `git log origin/main..main` before you finish, and ask the user — pushing
+is theirs to authorise, not yours.
 
-   - **`P-n` is a *third* id sequence, and it collides where it hurts.**
-     `design.md` §4's guiding principles are `P-1`, `P-2`, `P-3`; the
-     prototype's findings are `P-1 … P-15`. All three of the prototype's
-     colliding ids land in §5.2, and §5.2 already cited §4's `P-3` in the very
-     sentence the as-drawn repairs sit under. Two mitigations applied: no
-     prototype `P-n` appears in `design.md` at all — the design states what is
-     so, and the provenance lives here — and the surviving citation now reads
-     **§4's P-3**. §*Traps worth naming* now carries it beside the
-     `D-n` / `Dn` pair.
-   - **P-7 and D-31 were each owed in §5.5's edges table as well**, and the
-     table above named only §5.2. Both edges rows restated the claim being
-     repaired, word for word. This is `docs/memory/`'s *prose outside §9's
-     obligations table binds nothing* seen from the other side: a claim
-     repeated in two places is repaired in one.
-   - **D-32 puts a constraint on the grammar the plan pins.** §5.2 leaves
-     *which characters make up the numeric grammar* to the plan; D-32's own
-     rationale asserts that both spellings re-parse "under the grammar P-5
-     pinned, **which admits `e` and `E`**". Without `e` in the grammar, `1e5`
-     is a text with exactly one foreign character and the parse rule reads it
-     as `1.5`. Stated in §5.2 as a constraint the plan inherits, not left to be
-     rediscovered.
-   - **The rename needs no §9 row.** The instrument is
-     `crates/goad-boundary/tests/checks/structure.rs:308` and `just check` runs
-     `cargo test --workspace`, so the constraint is already in the gate. §5.2
-     says so, so nobody writes a row for it.
-   - **`interpret` was checked against the rest of the boundary suite** before
-     it was written in: the domain-vocabulary list (`vocabulary.rs:18-25`), the
-     purity path list (`purity.rs:17-27`) and `structure.rs`'s three call-form
-     greps. Clear of all of them. This is the harvest's *check the boundary
-     suite's needles before naming a new function*, performed.
+## Reference — carried from the design and review stages
 
-   **P-14: settled as D-36**, 2026-09-18. See §*P-14 — settled* below; the
-   recipe this section used to carry could not have produced the race, and
-   working out why is what answered the question.
-
-   **Not touched, deliberately:** `review-design.md` (D-29 — the seventeen stay
-   `_pending round 4_`); canon; `design-log.md` (no user decision was taken
-   this pass); §5.1's pricing of the `FieldForm` consumers (P-13 is the
-   plan's).
-
-2. **Round 4 — raised, and the seventeen closed.** Done 2026-09-18 by a fresh
-   Claude agent (D-28); Codex is out of credits and the protocol asks for a fresh
-   raiser, not a fresh model. The Brief was written into the ledger **before** the
-   review and says what a change of model buys and costs.
-
-   - **All seventeen carry a terminal outcome: `verified`.** None contested, none
-     withdrawn. Each Outcome line says what discharges it, and several re-derive
-     the Response's citation from the locked source rather than trusting it.
-     **F-29 is verified with a recorded residue**: §5.1 and §5.2's `today_local`
-     doc comment both name the three impurity sites, so the finding's requirement
-     is met, but §5.2's closing prose still reads *"Those two reads — the system
-     zone, in `compose`, and the clock, here"*, which is the sentence round 3
-     quoted. True of the two *kinds*; misleading as an enumeration of sites. One
-     sentence, not worth a third contest.
-   - **Seven new findings, `F-50` … `F-56`** — five `major`, two `minor`, **no
-     blocker**. They are raised and indexed; **none is dispositioned**. What is
-     owed on them, in order: disposition, confirm each with the user, then
-     integrate **with a different session** (D-21).
-   - **A `## Probed and sound — round 4` list** records eleven things re-derived
-     from the locked source this round, including the two that would have been
-     blockers had they gone the other way: the guard's convergence write does not
-     re-enter `pending.rs`, and the chained pickers never have two popups open at
-     once.
-
-   **The shape of what round 4 found.** Three rounds of `gpt-5.6-sol` had checked
-   `string_to_float`'s *logic* repeatedly and correctly; none asked **who writes
-   its input**. Four of the seven are that class — a claim about a dependency
-   that is true of the code and false of the configuration this application
-   actually runs in, or an enumeration that is closed on paper and open in the
-   source. That is the model change paying off, and it is also the warning: a
-   fourth `gpt-5.6-sol` round would probably not have found F-50 or F-52, and this
-   round found no citation error at all, which those rounds were very good at.
-
-   **No bad citation was found this round.** Every `design.md` and `canon-delta.md`
-   citation checked — `structure.rs:308`, `scan.rs:225-234`, `timers.rs:348-372`,
-   `slider-base.slint:117-131`, `fluent/slider.slint:29`, `lineedit.slint:16`,
-   `string.rs:398-412`, `items/text.rs:2205-2230`, `canonical.rs:362`,
-   `controller.rs:738-739`, `wire.rs:127-133`, `main.rs:85-101`,
-   `view_model.rs:31` — is right. §*Citations known bad* still lists three and
-   they are all still responders'.
-
-2a. ~~**Disposition `F-50` … `F-56`, with a fresh agent.**~~ **Done,
-   2026-09-18**, by a fresh Claude agent (D-21, and the user's call when offered
-   the choice between that and a hat-switch). All seven carry a disposition and a
-   Response written to be read without the session that wrote it: **six
-   `fix-now`, one `doc-wrong`** (F-53). None became a blocker. Every disposition
-   was confirmed with the user before it was written down; three of them reverse
-   something already decided and are in `design-log.md` as **D-33, D-34 and
-   D-35**, cited to the finding ids.
-
-   **F-50, F-51 and F-52 took one repair, not three**, which is what the handover
-   said to expect and is the whole difficulty of that surface. The repair
-   **retires** §5.2's locale account rather than completing it: the parse rule
-   becomes `f64::from_str` and nothing else. See D-33 for the argument. It is a
-   net deletion — two paragraphs of §5.2, the *two sets* framing, and the plan's
-   numeric grammar with D-32's `e` / `E` constraint, which the rule now discharges
-   by itself.
-
-   **What writing the repairs down found**, four things, which is the third time
-   this stage has paid for itself:
-
-   - **F-50 was one write site short, and the missing one is the dangerous
-     direction.** `mark_all_translations_dirty`
-     (`i-slint-core-1.17.1/translations.rs:304-310`) reads
-     `sys_locale::get_locale()` and sets the separator from it, under
-     `cfg(all(feature = "gettext-rs", target_family = "unix"))`. Compiled out
-     here — `gettext` is not among `slint`'s defaults and `gettextrs` is absent
-     from `Cargo.lock` — so F-50's conclusion stands. What changes is the shape of
-     the hazard: it is one manifest feature away on unix rather than unreachable,
-     which is why the repair records a risk (§8 R11) instead of only deleting.
-   - **§9's own principal driver bypasses `input-type` too.** A
-     `set_accessible_value` assigns `text` and calls `edited` from inside the
-     markup (`widgets/fluent/lineedit.slint:16`), so it reaches no `TextInput`
-     insertion logic — exactly like the paste path F-52 found. Every numeric case
-     the plan writes therefore drives the unvalidated path by default, and the
-     design had been reasoning from a class its own cases never exercise. It also
-     means F-52's new §9 row costs nothing but a case.
-   - **F-51 carries one false generalisation** and the repair must not inherit
-     it: `format!("{:e}", 1e300)` is `1e300`, with no separator. `{:e}` emits one
-     only for a mantissa that needs one. The finding's worked example (`min: 2.5`)
-     is non-integral and stands.
-   - **F-54's third consequence does not hold.** `goad-emit` takes `goad-shell`
-     without `crates/goad` (`crates/goad-emit/Cargo.toml`), so `-p goad-emit` and
-     `-p goad-shell` resolve `jiff` without `std` today and would not if stratum 2
-     asked for it. `clock.rs`'s workaround is not dead code kept for an expired
-     reason; its reach is narrower than its own comment claims. §10 states three
-     reaches, not one.
-
-   **Two things the dispositions found that the design owed anyway**, and both
-   land as part of a repair rather than as new findings:
-
-   - **`canon-delta.md` CD-1 has no driver.** Nothing in §9 asserts what an
-     untouched field submits per kind — the thing CD-1 promotes to canon. F-56's
-     repair gives it one, because splitting AC-2's row produces exactly that case
-     as the cheap half.
-   - **F-53's exception list cannot be closed.** Four instances now and a fifth on
-     a strict reading (a touched field of an option nobody answers is displayed
-     and submitted by nothing). That is why the repair deletes the claim rather
-     than lengthening the list — third time for this class, after F-21 and F-42.
-
-2b. ~~**Integrate the seven, with a different session.**~~ **Done, 2026-09-18**,
-   by a fresh session (D-21). All five repairs are applied to `design.md` and
-   `slice-009.md`; `canon-delta.md` needed nothing and canon is untouched. The
-   table below is left as it was written, as the index to what landed where.
-
-   **What this pass found**, all of it verification rather than repair — this is
-   the first integration in the slice that turned up no defect in what it was
-   handed:
-
-   - **One citation was one line off, and this one is the reviewer's.** F-54's
-     Evidence line cites `clock.rs:46-52` for the doc comment that refuses
-     `jiff::Timestamp::now()`, and the Response repeated it. The comment is at
-     **`:47-53`**; `:46` is blank. §10 carries the corrected range. It is the
-     fourth entry in §*Citations known bad* and the first not written by a
-     responder — so *verify the responder's first* is a priority, not a
-     sufficient check.
-   - **`clock.rs`'s comment cites a `D25` that is not this design's.** It means
-     slice 005's decision; §7 D25 in this design is `interpret`. §10 says which
-     one it means rather than reproducing the collision — the `D-n` / `Dn` /
-     `P-n` trap, now with a fourth sequence reaching in from another slice.
-   - **F-55's "check they are, rather than assuming" checked out.** §5.1's *two
-     ways an edit leaves `pending.rs`* enumerates the timer and the `Choose`
-     drain, and §5.3's ownership row gives the same two. Neither named
-     `released`, so removing the flush leaves both true as written and nothing
-     was owed in either place.
-   - **Every absence claim the repairs rest on was re-derived from the locked
-     source**, because F-50's whole shape is an absence: `set_locale` has
-     exactly one caller in the registry (`i-slint-backend-testing`);
-     `crates/` names none of `set_locale`, `select_bundled_translation` or
-     `with_bundled_translations`; `build.rs` passes only `with_debug_info` and
-     `with_style`; `gettext` appears **zero** times in `Cargo.lock`;
-     `accept_text_input` has exactly two call sites (`:1067`, `:1117`) with
-     `StandardShortcut::Paste` dispatched ahead of both at `:1034`; and
-     `goad-emit` takes `goad-semantics`, `goad-shell` and `serde_json` and not
-     `crates/goad`. The four separator write sites are at the lines the
-     Response gives.
-   - **One historical note was struck**, in §*Integration notes the ledger did
-     not carry*: round 3's *the overlay creates a property worth stating as an
-     invariant* is exactly the generalisation F-53 retires, and it was sitting
-     in this file as a reason to put it back.
-   - **The repair for F-53 made the same mistake once, in its own first
-     draft.** The replacement paragraph said each divergence *"has its own edges
-     row below"*; the untouched `datetime` has none — it lives in §5.2, D-6 and
-     CD-1. Caught before it was committed, and it is the fourth instance of the
-     class in this slice: writing *what is not claimed* is itself an
-     opportunity to claim something unchecked.
-
-   The Responses are the brief and are complete; this table is an index to them,
-   not a substitute.
-
-   | | lands in |
-   |---|---|
-   | F-50 / F-51 / F-52 — one repair | §5.2: delete *Parsing the text is done under the rule…*, *The host cannot read that separator…*, *Two sets of texts…* and the `e` / `E` constraint paragraph; add the separator-fact paragraph (four write sites) and the every-string paragraph. §5.5's *numeric text that is not a number* edge row loses its locale variants. §7 **D23** rewritten in place. §8 gains **R11**. §9 gains one row: a numeric text the parse refuses, `set_accessible_value("12/25")`, `tests/renderer/fields.rs` |
-   | F-53 | §5.5 **I-H** only. Keep the three-site rule and the drained / kept / stale clauses; delete the *what the screen shows is what an answer would submit* generalisation and the *one place* sentence; add the paragraph saying what is not claimed |
-   | F-54 | §10 gains the three-reaches paragraph. `slice-009.md` §Scope gains `crates/goad-shell/src/clock.rs`. §10 states the doc-comment amendment the way §5.3 states `Glass::present`'s |
-   | F-55 | §5.2's controls table row and `Slider` paragraph; §7 **D7** rewritten in place. §5.1's *two ways an edit leaves `pending.rs`* and §5.3's ownership row become true as written — **check they are, rather than assuming** |
-   | F-56 | §9: AC-2's row becomes two. Nothing in `slice-009.md` AC-2 changes |
-
-   **Watch for**, because each has caught a session in this slice already:
-
-   - **A claim repeated in two places is repaired in one.** P-7 and D-31 were both
-     owed in §5.5's edges table as well as in §5.2. F-50's repair touches §5.2 and
-     §5.5; grep for *separator*, *locale*, *two sets*, *grammar* across
-     `design.md` before calling it done, and for *released* on F-55's.
-   - **No production line under `crates/goad/src` may name `resolve`**
-     (`goad-boundary/tests/checks/structure.rs:308`). Nothing in these repairs
-     introduces a name, but check anything you do introduce against
-     `vocabulary.rs:18-25`, `purity.rs:17-27` and `structure.rs`'s three call-form
-     greps.
-   - **§7 rewrites an entry in place under its own id; `design-log.md` never
-     does.** Two entries are rewritten here, D23 and D7.
-   - **`design.md` carries no prototype `P-n`.** D-32's rationale in the log cites
-     *the grammar P-5 pinned*; there is no longer a grammar, so nothing in
-     `design.md` should cite one.
-
-2c. ~~**Round 4's raiser sets the outcomes on F-50 … F-56.**~~ **Done,
-   2026-09-18** (`68946ef`), by a fresh agent: a bounded verification pass on the
-   repairs, not a round 5. **All seven `verified`**, none contested, no new
-   findings. Corrected in `aeef6ab` — the raiser's own two line numbers were
-   wrong and are struck in place; no outcome changed. That is the fifth entry in
-   §*Citations known bad* and the rule it produces is in the Harvest.
-
-2d. ~~**Write the Synthesis and resolve the ledger.**~~ **Done, 2026-09-18**
-   (`f985acc`). `review-design.md` §Synthesis carries the closure story and the
-   header reads `**State:** resolved`. Item 4 onward follows.
-
-
-3. ~~**Bring the prototype's record back.**~~ **Done, 2026-09-18.**
-   `prototype-notes.md`, `prototype-delta.md` and `prototype-handback.md` are on
-   `main` in this folder, copied verbatim from `slice-009-prototype`. The code is
-   **referenced, not promoted** — the slice re-derives from its own plan. The
-   branch may now be retired; nothing on it is needed but the twelve commits of
-   code the handback indexes, and those are referenced by hash.
-
-4. ~~**Re-ask the user for acceptance.**~~ **Done, 2026-09-19** (D-37). The
-   design had changed four times since theirs — rounds 2, 3 and 4's integrations
-   and D-36. Accepted as it stands at `be49327`. `slice-009.md` **Stage** now
-   reads `plan`.
-
-5. ~~**Plan**, with a fresh agent.~~ **Drafted 2026-09-19.** `plan.md` carries
-   nine phases; the Coverage table discharges all ten acceptance criteria.
-
-   Three of its inputs, and what each did to it:
-
-   - **P-13** — the undrawn fixture migrates once per phase. Priced: each kind
-     phase carries a migration exit criterion (PHASE-05/EX-9 and its references),
-     and PHASE-09 owns the deletion, which is why `choice` is last.
-   - **D-36** — the refusal is not durable. Absorbed into PHASE-05/VT-4: a
-     `Choose` carrying two stale edits reports **once**, not twice, and the answer
-     still goes.
-   - **The handback's §Recommendation** — `datetime` first. Taken, but narrowed
-     to *first among the kinds that remain after `text`*, and the disagreement is
-     argued in `plan.md` §*Sequencing & rationale*: `text` is what forces
-     `pending.rs` and the overlay, which every other kind's display depends on.
-
-   **Accepted 2026-09-19**, and the adversarial plan review was declined —
-   `plan-log.md` carries both, and what the second one costs. `review-plan.md`
-   does not exist and is not owed.
-
-   **The live item is execution**, phase by phase. The status table below is the
-   record, and a phase sheet is written immediately before its phase runs, never
-   earlier (`docs/AGENTS.md` §*Phase plan*: a sheet written three phases early is
-   fiction).
-
-   **Handed back rather than repaired** (`docs/AGENTS.md` — the plan stage does
-   not repair the design): one bad citation in `design.md` §8 R5, in
-   §*Citations known bad* as the sixth entry. Nothing else in the design failed
-   verification against the code; the spot-check is in the plan-stage report.
-
-6. ~~**Delete `spike-fields/`**~~ **Done, 2026-09-19**, with the design close
-   (D-37). It is in history at `4f93d41` and nothing that cites it loses its
-   warrant: every citation is to a measurement already written down.
+Everything below was written while the design was being built and reviewed. It
+is kept because four of its sections are still live — §*Citations known bad*,
+§*Traps worth naming*, §*Facts verified by hand* and §*Integration notes* — and
+the rest is the argument behind decisions the remaining phases inherit. None of
+it describes work that is still owed.
 
 ### P-14 — settled, and the recipe that was here could not have worked
 
@@ -1526,7 +1314,7 @@ the same shape one phase ago. Reported to the team lead.
 
 | | discharged by | how it was checked |
 |---|---|---|
-| EX-1 | the gate | `just check` **exit 0**. Every target's count identical to the baseline except `tests/renderer`, 189 → **190** — the one case PHASE-03/VT-2 adds. 564 in all |
+| EX-1 | the gate | `just check` **exit 0**. Every target's count identical to the baseline except `tests/renderer`, 189 → **190** — the one case PHASE-03/VT-2 adds. 564 in all — *and that is the **gate** total, while the per-target list beside it enumerates `cargo test --workspace`, which is 529. Both numbers are right and the sentence names one denominator for two quantities; annotated 2026-09-19 by the team lead, see §Open* |
 | EX-2 | `ui/app.slint:47` (`FieldEdit`), `:112` (the callback), `:355-369` (the `CheckBox`'s `toggled`) | read: `struct FieldEdit { kind: Kind, checked: bool, text: string, number: float, index: int }` and `callback edited(string, string, string, FieldEdit)`. The literal names **two** fields, `kind` and `checked`. `date` / `time` are absent, for the reason `FieldValue`'s are. Measured by injection **G**: writing one further slot in the literal turns `tree.rs`'s case red, so *naming only the fields it means* is asserted and not merely intended |
 | EX-3 | `src/wire.rs:51-56`, `:27` | read: `Command::Edit { view, option, field, reported: Reported }`. The `Eq` half was already true on entry — PHASE-02's compile forced it — and was verified, not redone |
 | EX-4 | `src/install.rs:109-114` (`reported`), `:42-54` (the closure) | read: one `match` on `edit.kind`, one slot read, no parse, no fallback, no refusal. The closure's own body is a `let … else` and a `send`. Measured by injection **A** |
@@ -2132,7 +1920,19 @@ the predicate perfectly sharp. Injection **H** confirms the predicate is live.
   `test result: ok. N` line `cargo test --workspace` prints, which is 529 + this
   phase's 9. **Every per-target number PHASE-03 recorded is correct**; only the
   sum and the enumeration behind it are. Not edited — another phase's record is
-  not this phase's to rewrite — and reported to the team lead. It is the same
+  not this phase's to rewrite — and reported to the team lead.
+
+  **Team lead, 2026-09-19: the sum is not wrong either, and that matters.**
+  Measured both ways on a clean tree at `e27d4cd`: `just check` totals **573**
+  and `cargo test --workspace` totals **538**, and the difference is exactly 35
+  — the gate runs `cargo test -p goad-semantics` as its own command, so
+  `goad-semantics`'s 30 + 5 are counted twice. The same arithmetic holds at
+  PHASE-03's boundary: 564 gate, 529 workspace, difference 35. So **564 and 529
+  are both correct and are different quantities**, and PHASE-03's sheet names
+  one denominator over a list enumerating the other. This is
+  `docs/memory/verify-the-enumeration-not-the-conclusion.md` in both directions
+  — the finding is real and its sub-claim was not. **Quote a count with its
+  denominator from here on**: *gate* or *workspace*. It is the same
   cause as §*Citations known bad*'s fifth and sixth: a number arrived at by
   hand rather than from an instrument that prints it.
 
