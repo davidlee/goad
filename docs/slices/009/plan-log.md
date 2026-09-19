@@ -600,3 +600,75 @@ sufficient; the instrument must also still be measuring the thing.
   the single application of `R-57`, a rule about the wire; the button's text
   answers to nothing. Worth the audit's attention as a deliberate duplication
   with a test standing in for the constraint.
+
+## 2026-09-19 — Correction 1 is itself corrected, and the window was the orchestrator's to close
+
+The entry above says the orchestrator's read *"caught a file mid-write and the
+inference from it was unsound"*, and that the agent's account was right. **Half
+of that is wrong, and the agent supplied the half.**
+
+What actually happened, from the agent's own account and consistent with the
+history:
+
+1. The T-3 edit replaced the whole `pub enum FieldForm { … }` block in **one
+   scripted substitution**, written as `{ Number, Choice }` — dropping `Text` as
+   well as `DateTime`, which is not what the agent had reasoned to a paragraph
+   earlier.
+2. The message went out saying *"I removed `DateTime` only … and left `Text`
+   alone"*: true of the **decision**, false of the **tree**, which had not been
+   re-read before sending.
+3. The next compile found it — *no variant … named `Text` found for enum
+   `FieldForm`* at `mapper.rs:200`.
+4. The agent **restored** `Text`, moving the tree to match what the orchestrator
+   had been told.
+5. `6106eb2` landed mid injection pass; `Text` went again at `5a17727`.
+
+So **the read was accurate** — the tree really did carry neither variant — and it
+is the **inference** that was wrong: the agent had not acted ahead of the answer,
+it had misreported its own tree. `edf8fc1` carries `Text, Number, Choice` because
+step 4 had already repaired step 1, not because `Text` had never gone.
+
+**Both rules survive, and they are different rules.** *While an agent holds the
+pen the working tree is a transient* still stands — a read of an uncommitted tree
+cannot distinguish a deliberate state from a mistake being fixed one minute
+later, which is exactly what went wrong here. And the agent's own diagnosis is
+the slice's oldest rule in a new hat: **cite from an instrument that prints the
+number.** Six bad `path:line` citations in this slice came from claims about the
+tree written from intent rather than read off it; a claim about an *enum's
+variants* written from intent is the same defect.
+`grep -n "pub enum FieldForm" -A 6` before sending costs nothing.
+
+**The agent volunteered this against its own interest**, when the accident and
+the decision had converged on the same tree and nobody would have looked again.
+That is the behaviour the *out of turn* entry above asked for.
+
+### The write window was the orchestrator's to close, and it was opened twice
+
+`f5ad3d6` landed **after** `5adfa38` closed PHASE-07 and **after** `a1a9961`
+spawned PHASE-08. Second occurrence: `ae22b19` did the same across the PHASE-06 →
+PHASE-07 boundary. Nothing was lost either time — both were `notes.md`-only and
+the commits sequenced — but twice is a pattern and the cause is not the one the
+handover names.
+
+The handover's rule is *wait for the idle notification before committing or
+spawning the next agent*. **That rule is insufficient, because idle is not
+terminal**: PHASE-07 sent its idle notification, and was then woken by a question
+from the orchestrator that explicitly asked it to *record the answer in its
+sheet* — which is an instruction to write and commit. **The orchestrator opened
+the window it then failed to wait for.**
+
+The operational form, for PHASE-09 and the audit: a follow-up question to a
+closed phase's agent either asks for an answer **in the reply only**, or the next
+phase does not start until that answer has landed. Asking a finished agent to
+write is starting it again.
+
+### One count that was ambiguous in both directions
+
+The agent's completion report said *"five targets"* meaning the **loop tier**;
+`grep -c "^\[\[test\]\]" crates/goad/Cargo.toml` is **6** —
+`renderer`, `event_loop`, `event_loop_schedule`, `event_loop_reassert`,
+`event_loop_debounce`, `event_loop_overlay` — one no-loop target plus five
+loop-tier arrangements. Both numbers are in use in this slice and they are not
+the same one. PHASE-08's `event_loop_numeric_guard`, if it is added, is the
+**sixth loop-tier arrangement and the seventh `[[test]]`**. State which is meant,
+always.
