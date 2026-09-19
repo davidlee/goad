@@ -704,7 +704,7 @@ here rather than in the ledger, so striking them costs nothing:
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the value channel and the epoch | **done** | 2026-09-19 |
-| PHASE-02 — the draft's five values, and the kind-directed pure functions | pending | |
+| PHASE-02 — the draft's five values, and the kind-directed pure functions | **in progress** | 2026-09-19 |
 | PHASE-03 — the edit channel | pending | |
 | PHASE-04 — the instant, the `jiff` feature, and `clock.rs`'s doc | pending | |
 | PHASE-05 — `text`, and the debounce's delivery | pending | |
