@@ -469,3 +469,60 @@ The measured guard stays.
   `SpinBox`, a `LineEdit`, or a slider over an invented range, which would be
   the host inventing domain meaning — is a design question with an invariant
   behind it.
+
+## Upstream slint development docs — read during audit session 2
+
+`~/.local/src/slint/docs/development/` is a slint source checkout's internals
+documentation. Five of its seventeen files bear on this slice's findings.
+
+**Read the version caveat first.** The checkout is `v1.17.0-1435-g88c5e6a32` —
+1435 commits past the `v1.17.0` tag. This workspace pins `=1.17.1`
+(`Cargo.toml:54-56`), a patch release off that same tag. **The docs therefore
+describe a tree newer than the one that ships here.** They are good for
+*mechanism and intent*; where they and the vendored 1.17.1 source disagree, the
+vendored source is what runs, and every finding in `review-code.md` cites the
+vendored source rather than these files.
+
+### What they corroborate, and what they add
+
+**`window-backend-integration.md` §Popup Management — bears on F-R1.** It
+documents `PopupWindow`'s structure and `PopupClosePolicy`'s three values
+(`CloseOnClick`, `CloseOnClickOutside`, `NoAutoClose`) and **names no
+host-side API for closing a popup**. The only inspection route it offers is
+`WindowInner::from_pub(&window).active_popups()`, which is `i-slint-core`
+internals this workspace does not depend on. So the markup-side
+`dismiss-pickers()` the injection pass settled on is not a workaround for a
+missing API — it is the sanctioned road, and the finding's observation that
+`close_all_popups` has exactly one caller is consistent with that.
+
+**`input-event-system.md` §Key Event Processing — bears on F-R1.** The key
+dispatch diagram reads *"If popup active → send to popup"* **before** *"Send to
+focus item"*. That is the documented statement of the keyboard half of F-R1,
+which the audit's loop-tier case measured independently.
+
+**`property-binding-deep-dive.md` §ChangeTracker — bears on F-R5.** It states
+the intended contract in as many words: a `PropertyTracker` is *"notified when
+dependencies become dirty"*, a `ChangeTracker` *"when the evaluated value
+actually changes"*. F-R5 is therefore a defect **against a documented
+intent**, not a quirk to be lived with: `SharedImageBuffer::eq` comparing
+`data.as_ptr()` makes two byte-identical icons compare unequal, so the tracker
+fires on a value that did not actually change. It strengthens F-R5's
+`fix-now` — rasterise the two icons once and hand out clones.
+
+**`model-repeater-system.md` §Performance — bears on D8, F-S1, F-S5.** Its
+Common Issues table names *"Recreating model on every change → Modify existing
+model, don't replace"*, and its first performance rule is *"Prefer modify over
+replace"*. That is D8's guard, arrived at independently and for the same
+reason. Worth knowing that the repeated `options` model already follows it —
+`present` writes it only where the `ViewId` changed — and that the per-present
+`VecModel` for `values` is **not** an instance of the anti-pattern, because
+`values` is read by `root.values[field.slot]` bindings rather than repeated
+over, so replacing it destroys no element.
+
+### What they do not answer
+
+Nothing in these files documents what a **disabled** item does with input that
+is delivered to it. `TextInput::key_event` returning `EventIgnored` on
+`!enabled` (`items/text.rs:954`) and `TouchArea`'s disabled branch cancelling a
+live grab (`items/input_items.rs:81-93`) remain read from the vendored source,
+which is where F-A1 and F-R2 cite them.
