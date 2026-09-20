@@ -96,18 +96,72 @@ own its own pickers is a slice, not a finding.
 
 ## Evidence
 
-<!-- What was run and what it said. Not a claim of correctness — the basis for
-     one. -->
+### Tests and checks
 
-- **Tests / checks:** <commands run, results>
-- **Acceptance criteria:** each AC in `slice-nnn.md`, met / not met, with the
-  evidence.
-- **Verification criteria:** each VT/VA/VH in `plan.md`, discharged or not.
-- **Surface delta:** paths actually changed vs. the surfaces each phase
-  declared. Undeclared paths are the highest-signal lead — scope creep, a
-  missed design update, or an undocumented touch. Declared-but-untouched means
-  dropped work or a stale design. Neither is automatically a finding; both are
-  places to look.
+`just check` — **exit 0**, run at `b1f9de4`. **592** tests across 25 targets,
+matching the total PHASE-09 recorded. The gate is build, both test tiers, the
+`deno check` of `examples/typescript/backend.ts`, `cargo clippy --workspace
+--all-targets -D warnings`, and `cargo fmt --all --check`.
+
+What that does **not** establish is stated once, here, rather than implied by
+the number. `POL-001` §Verification names the boundaries: the gate is four
+ADR-001 instruments plus the domain-vocabulary scan plus **one residue nothing
+enforces** — a feature switched on in a dependency stratum 1 shares. This slice
+takes that residue (`jiff`'s `tz-system` and `tzdb-zoneinfo`), and
+`design.md` §10 carries the argument `POL-001` requires in place of a check.
+Read and accepted: the argument is complete, it measures rather than predicts
+what the feature does and does not gate, and it correctly narrows rather than
+retires `clock.rs`'s workaround. **PHASE-04/VA-1 discharged.**
+
+### Surface delta
+
+Every path touched under `crates/` is inside some phase's declared Surfaces,
+with two exceptions, both trivial and neither a lead:
+
+- `crates/goad/tests/renderer/main.rs` — undeclared, +3/-1, module declarations
+  for nothing but the files that *were* declared.
+- `Cargo.lock` — undeclared, and a consequence of the `Cargo.toml` lines that
+  were.
+
+`crates/goad-semantics/src/protocol/canonical.rs` is **stratum 1 and was
+touched**, which reads as a breach until the plan is consulted: PHASE-09's
+Surfaces carry it explicitly, *"`Alternatives::first` alone — added 2026-09-19
+with explicit user endorsement"*. The path is declared and the change is
+sound. What is stale is `slice-009.md` §Governing canon, which still reads
+*"all of this slice is stratum 3; nothing reaches `goad-semantics`"* — see
+Reconciliation.
+
+Declared and untouched: `crates/goad/tests/renderer/table.rs` (PHASE-01) and
+`tests/support/` (PHASE-01, conditional on a helper being extracted — it was
+not). Neither is dropped work.
+
+`spike-fields/` is deleted, which D-19 required at design close.
+
+**The undeclared path that matters is one nobody touched.**
+`examples/shell/backend.sh` is outside every phase's Surfaces and is now false
+about the running product in three places: its header says the form *"carries a
+field of a kind this renderer does not draw, on purpose"* (`:15`); its `note`
+field is annotated *"it will not appear in the window"* (`:101`) and *"its id
+will be absent from the `values` recorded above"* (`:102`). All three were true
+when written and none is now. The last is not stale prose — it describes
+runtime behaviour a person running `just demo` will watch the host contradict.
+The gate cannot see it: the example typecheck covers
+`examples/typescript/backend.ts` and nothing covers this file.
+
+### Stratum purity
+
+`cargo test -p goad-semantics` builds and passes as part of the gate.
+`Alternatives::first` is pure — it names no `src/shell/`, reads no clock,
+filesystem or subprocess, and adds no dependency. ADR-001 holds.
+
+### Acceptance criteria
+
+<!-- filled from the human run, the wire log, and review-code.md's suite
+     dimension -->
+
+### Verification criteria
+
+<!-- VT / VA / VH per phase -->
 
 ## Code review
 
