@@ -29,7 +29,15 @@ use crate::draft::Reported;
 use crate::wire::{Command, PendingEdit, Wire};
 
 /// How long a control may keep changing before the host is told (D-4).
-const DEBOUNCE: Duration = Duration::from_millis(150);
+///
+/// **`pub` so a case can be timed against it rather than against a copy of it**
+/// (`review-code.md` F-T1). `event_loop_full`'s central reading is a fact about
+/// a `Full` send only while this deadline falls between two named steps, and
+/// that relation used to live in a comment restating the literal — which a
+/// tuning change here would have falsified silently, taking the only case that
+/// holds the enqueue rule with it. The targets that depend on it now assert the
+/// relation at compile time.
+pub const DEBOUNCE: Duration = Duration::from_millis(150);
 
 /// One edit, and the view it was raised on.
 ///
@@ -239,9 +247,22 @@ impl Debounce {
   /// the draft, so a present landing inside that interval would write the
   /// pre-typing value back over the widget. `serve` closes the interval from
   /// its end: it applies every queued command that resolves without an
-  /// exchange **before** it presents, so the next present is never one that
-  /// has not yet served this send. The rule below is about the enqueue; the
-  /// drain is what makes the enqueue enough.
+  /// exchange **before** it presents.
+  ///
+  /// **That covers the outer loop's present, and it is not every present**
+  /// (`review-code.md` F-B3). `serve` presents at three sites:
+  /// `controller.rs:898`, which the drain precedes; `:994`, reached
+  /// synchronously from `:898`'s `select!` with nothing able to enqueue in
+  /// between; and **`:1046`**, the inner `select!`'s ingress-`None` arm, which
+  /// is reached after an await, is preceded by no drain, and lands while an
+  /// exchange is outstanding — this interval exactly. The exposure there is
+  /// bounded at one widget revert per *process* and only once the ingress
+  /// accept task has ended (SPEC-003/R-15), which is why it is stated rather
+  /// than drained: a second drain would buy that one revert and put a second
+  /// copy of this rule in the loop.
+  ///
+  /// The rule below is about the enqueue; the drain is what makes the enqueue
+  /// enough at the site that carries the traffic.
   ///
   /// The borrow is dropped before the send and taken again after it. Nothing
   /// re-enters this module from a `try_send` today, and the shape says so

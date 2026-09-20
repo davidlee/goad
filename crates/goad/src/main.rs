@@ -1,4 +1,15 @@
 // crates/goad/src/main.rs — stratum 3
+//
+// **The same deny as `lib.rs`, because a crate root is not a crate**
+// (`review-code.md` F-T2). `#![deny(…)]` is an inner attribute on one
+// compilation unit, and `crates/goad` has two roots: cargo builds this binary
+// as a separate crate that merely *depends* on the library, so `lib.rs:35` does
+// not reach a line of this file. `Cargo.toml:50-51` is `[lints] workspace =
+// true`, which is exclusive — a package-local `[lints.clippy]` table cannot sit
+// beside it — so a crate-root attribute is the mechanism; it was simply put in
+// one of the two roots. `lib.rs`'s comment carries the reasoning and is not
+// repeated here.
+#![deny(clippy::wildcard_enum_match_arm)]
 
 use std::path::Path;
 use std::process::ExitCode;

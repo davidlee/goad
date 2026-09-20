@@ -400,14 +400,24 @@ pub fn report_startup(error: &StartupError) {
 /// `Refused::NoClock`'s reason above: the `Display` happens at the one site
 /// that has the value, so this module names no Slint error type and stays
 /// testable with a literal.
+///
+/// **"could not be drawn" is the shared half of two failures** — a window that
+/// refused to be shown, and a window that was gone before it could be adjusted
+/// (`review-code.md` F-B5). Each caller supplies the half that distinguishes
+/// them, in `detail`, which is why this line stops where it does.
 #[must_use]
 pub fn report_platform_line(detail: &str) -> String {
   format!("goad: the window could not be drawn: {detail}")
 }
 
-/// stderr, and the process keeps running. The only caller is
-/// `SlintGlass::present`, when `show()` or `hide()` fails after the loop has
-/// started.
+/// stderr, and the process keeps running.
+///
+/// **Two callers** (`review-code.md` F-B5): `SlintGlass::present`
+/// (`glass.rs:276`), when `show()` or `hide()` fails after the loop has
+/// started, and `install`'s `rescale` (`install.rs:251`), when the one weak
+/// handle in the crate fails to upgrade. The second arrived with F-R8's repair
+/// and this sentence was not amended with it — recorded here because the commit
+/// that added it set out to correct five false doc claims and created a sixth.
 pub fn report_platform(detail: &str) {
   line_to(std::io::stderr().lock(), &report_platform_line(detail));
 }

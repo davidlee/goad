@@ -63,6 +63,19 @@ const ONE_TEXT_FIELD: &str = r#"{"view":{"kind":"choice","title":"Proceed?","opt
 /// that types is not the step that reads after a tick.
 const STEP: Duration = Duration::from_millis(25);
 
+/// **The window reading B is a fact inside, asserted rather than commented**
+/// (`review-code.md` F-T1). Below the lower bound the debounce fires before
+/// step 3 occupies the channel and `assert!(enqueued)` fails loudly; above the
+/// upper bound it fires *after* reading B, so the entry stands because no tick
+/// has fired rather than because a tick found the channel full — and the case
+/// goes green measuring nothing. A tuning change to [`goad::pending::DEBOUNCE`]
+/// now fails to compile instead.
+const _: () = assert!(
+  STEP.as_millis() < goad::pending::DEBOUNCE.as_millis()
+    && goad::pending::DEBOUNCE.as_millis() < STEP.as_millis() * 9,
+  "reading B is vacuous unless the debounce deadline falls between step 3 and step 11"
+);
+
 /// The stop the case cannot be allowed to run without: a predicate that never
 /// becomes true must fail on a count rather than wedge the gate, so nothing
 /// here panics from inside the loop.
@@ -226,7 +239,7 @@ fn a_tick_whose_send_comes_back_full_clears_nothing_and_the_entry_is_delivered_l
           "the occupying send must succeed into an empty channel, or the case measures nothing"
         );
       }
-      // Before any tick can have fired: 150 ms after step 2 is step 8.
+      // Before any tick can have fired — the window is asserted at `STEP`.
       4 => read("A typed, channel occupied, before any tick", &controller),
       // **Past the first tick, with the channel never drained.** The tick's
       // send came back `Full`, so the entry must still be held.

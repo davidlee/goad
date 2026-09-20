@@ -63,6 +63,29 @@ fn no_file_under_the_crate_is_an_image() {
   );
 }
 
+/// **The case F-R5's repair owed** (`review-code.md` F-B6). Every other case in
+/// this file asserts the icon's *pixel contents*, which are identical whether
+/// `tray_icon` rasterises afresh or hands back a retained handle — so reverting
+/// the repair left all 203 renderer cases green and the gate said nothing.
+///
+/// What the repair is about is **identity**. `slint` compares an `Image` by
+/// buffer address (`i-slint-core/graphics/image.rs:211-223`), so a fresh
+/// rasterisation on every present is a change to the tray's `ChangeTracker`,
+/// and a desktop tray service is asked to re-register an icon that has not
+/// changed. Two calls for one state must therefore be the *same* image, and two
+/// calls for different states must not be.
+#[test]
+fn one_state_yields_one_image_and_two_states_do_not() {
+  assert!(
+    tray_icon(TrayState::Idle) == tray_icon(TrayState::Idle),
+    "two reads of one state must be the same image, or every present re-pushes      the icon to the tray service"
+  );
+  assert!(
+    tray_icon(TrayState::Idle) != tray_icon(TrayState::Fault),
+    "and two states must not collapse to one image, or the tray stops      reporting the state at all"
+  );
+}
+
 fn find_images(dir: &Path, extensions: &[&str], found: &mut Vec<PathBuf>) {
   let Ok(entries) = std::fs::read_dir(dir) else {
     return;

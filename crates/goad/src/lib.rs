@@ -21,13 +21,26 @@
 // the two its unit tests had — destructuring the `a_choice()` fixture — are
 // `let … else` now, which is the better spelling anyway.
 //
-// **Not workspace-wide, and the reason is not cost.** The other four such
-// matches are the opposite case: `ProtocolError::source`, and three in
-// `goad-shell/src/ingress/` (`envelope.rs:106`, `:118`, `mod.rs:752`). Each is
-// a match that chooses *no behaviour from the variant* — no source, not an
-// object, an invalid envelope — so the wildcard's body is the right answer for
-// a variant that does not exist yet, and denying it there would buy four
-// `#[expect]`s and no property. Widening it is a decision, not this slice's.
+// **Not workspace-wide, and widening it is a decision for another slice**
+// (`review-code.md` F-T3, which corrected the count and one characterisation
+// this comment previously carried). Catch-all arms over an enum outside
+// `crates/goad` number **six to eight**, not four: `ProtocolError::source`
+// (`goad-semantics/src/error.rs:238`), `goad-shell/src/ingress/envelope.rs:106`
+// and `:118`, `ingress/mod.rs:752` and `:585`, `config.rs:47`, and two unit-test
+// arms in `state.rs:171` and `:186` — which count, because this deny
+// demonstrably reaches `goad`'s own lib *test* target. The three arms in
+// `normalize.rs` are correctly excluded: they match on `wire.kind.as_str()`, a
+// `&str`, which this lint does not see.
+//
+// Most of them choose *no behaviour from the variant* — no source, an invalid
+// envelope — so the wildcard's body is the right answer for a variant that does
+// not exist yet. **One is the opposite**, and saying otherwise was the error:
+// `envelope.rs:116-122` reads the variant, and that is the entire point of the
+// arm — `other => Err(EnvelopeFault::NotAnObject { found: json_type_name(&other) })`.
+//
+// So the reason is **cost after all**, and more of it than the sentence that
+// stood here claimed: more sites, not fewer. That strengthens the conclusion
+// rather than weakening it, which is why the conclusion is unchanged.
 //
 // Verified rather than assumed: with F-S3's surviving mutation applied —
 // `Boolean` and `Text` arms deleted and `_ => Ok(DrawnKind::Boolean)` added —

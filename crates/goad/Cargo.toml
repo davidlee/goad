@@ -79,6 +79,10 @@ name = "event_loop_numeric_guard"
 path = "tests/event_loop_numeric_guard/main.rs"
 
 [[test]]
+name = "event_loop_answer"
+path = "tests/event_loop_answer/main.rs"
+
+[[test]]
 name = "event_loop_busy"
 path = "tests/event_loop_busy/main.rs"
 

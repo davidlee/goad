@@ -3,8 +3,10 @@
 //!
 //! Both pickers are root singletons declared outside the
 //! `if root.mode == WindowMode.prompt` block (`ui/app.slint:946`, `:960`), so
-//! neither the row rebuild nor `hide()` reaches them (`glass.rs:189-195`,
-//! `:225-231`), and both bind `PopupClosePolicy.no-auto-close`
+//! neither the row rebuild nor `hide()` reaches them (`glass.rs:269-276`,
+//! `:307`) — only `present`'s own dismiss does, at `:264-265`, and this case
+//! holds all three of the ways the form can stop being up that it covers. Both
+//! bind `PopupClosePolicy.no-auto-close`
 //! (`fluent/datepicker.slint:23`, `fluent/time-picker.slint:24`). Nothing in
 //! `goad` closes an active popup: `close_all_popups` has one caller,
 //! `WindowInner::set_component` (`i-slint-core-1.17.1/window.rs:608`, `:1979`),
@@ -42,7 +44,7 @@ const MORNING: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[
 /// The view that replaces it. **A different option id**, so the new view's
 /// control cannot be confused with the old one's in a callback log, and so
 /// that finding it at all is evidence the rows were rebuilt — `present` writes
-/// the row model only where the `ViewId` changed (`glass.rs:189-195`).
+/// the row model only where the `ViewId` changed (`glass.rs:269-276`).
 const EVENING: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"evening","label":"Evening","fields":[{"id":"noted","kind":"text","label":"Anything to add?"},{"id":"when","kind":"datetime","label":"When?"}]}]},"next_check":"45 minutes"}"#;
 
 /// How often the stepper runs — long enough that the loop renders between two
@@ -262,6 +264,15 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
       .borrow_mut()
       .push(format!("{view}/{option}"));
   });
+  // **The diagnostics pane's exit button, into the same log** — it is a click
+  // that either reaches a control or does not, which is what every other entry
+  // in this log records (`review-code.md` F-B2).
+  let recording_close = Rc::clone(&chosen);
+  window.on_close_diagnostics(move || {
+    recording_close
+      .borrow_mut()
+      .push("close-diagnostics".to_string());
+  });
   let recording_edits = Rc::clone(&edits);
   window.on_edited(move |view, option, field, edit| {
     recording_edits
@@ -338,13 +349,38 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
       }
       11 => {
         read("G the picker reopened, under v2");
+        // **The third way the form stops being up**, and the one F-R1's repair
+        // did not reach (`review-code.md` F-B2): the *surface* changes while
+        // `shown` does not. In production this is the tray menu's
+        // `show-diagnostics`.
+        controller.open_diagnostics();
+        glass.present(controller.frame(false));
+      }
+      12 => {
+        read("H the diagnostics pane up, and the picker dismissed with the form");
+        click_button_described(&stepped, "close-diagnostics");
+      }
+      13 => {
+        read("I the pane's own exit button reached");
+        controller.close_diagnostics();
+        glass.present(controller.frame(false));
+      }
+      14 => {
+        read("J back on the form");
+        // Reopened for the same reason step 10 reopens: the hide claim below
+        // is about `hide()`, so it needs a picker that is up for *its* reason
+        // and not one left over from an earlier step.
+        click_button_described(&stepped, "when");
+      }
+      15 => {
+        read("K the picker reopened once more, under v2");
         // `Shift::Closed`: an answered view with nothing to replace it, which
         // is `present`'s `Surface::Hidden` and `window.hide()`.
         controller.absorb(Exchanged::Answer, outcome(None));
         glass.present(controller.frame(false));
       }
-      12 => {
-        read("H after hide()");
+      16 => {
+        read("L after hide()");
         quit();
       }
       _ => quit(),
@@ -366,11 +402,15 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
     clicked,
     typed,
     reopened,
+    diagnostic,
+    exited,
+    returned,
+    reopened_again,
     hidden,
   ] = readings.as_slice()
   else {
     panic!(
-      "the stepper must have taken all eight readings within {LIVENESS_BOUND:?}: {readings:?}"
+      "the stepper must have taken all twelve readings within {LIVENESS_BOUND:?}: {readings:?}"
     );
   };
 
@@ -415,20 +455,56 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
     "and its text field must take a keystroke, by the same route the control took \
      one: {typed:?}"
   );
+  // **The surface claim** (`review-code.md` F-B2). `open_diagnostics()` takes
+  // the whole prompt block out of the tree with `shown` untouched, so the
+  // view-change test that holds the two claims above is false here. A host
+  // that dismissed pickers on a view change alone reads green on everything
+  // above and red on these two.
+  assert!(
+    reopened.picker,
+    "the arrangement for the claim below: a picker must be up going into the \
+     mode switch, or what follows is vacuous: {reopened:?}"
+  );
+  assert!(
+    !diagnostic.picker,
+    "a picker belongs to the form, and a mode switch takes the form off the \
+     screen — so the picker must go with it, or it covers a pane it does not \
+     belong to: {reopened:?} then {diagnostic:?}"
+  );
+  // And what that costs when it is wrong, measured rather than argued: the
+  // pane's only exit button is beneath the picker. This reads the click
+  // through, which is the same route every control assertion above takes.
+  assert_eq!(
+    exited.chosen,
+    vec![
+      "v1/morning".to_string(),
+      "v2/evening".to_string(),
+      "close-diagnostics".to_string()
+    ],
+    "and the pane's own exit button must be reachable by pointer once the \
+     picker is gone — a picker left up swallows this click and leaves the \
+     window unanswerable: {diagnostic:?} then {exited:?}"
+  );
+  assert!(
+    !returned.picker,
+    "returning to the form must not resurrect it: {returned:?}"
+  );
+
   // The hide claim, and the precondition without which it measures nothing: a
   // picker that is up *going into* the hide. A host that dismissed pickers on
   // the replacement alone and not on `hide()` reads red here and green
   // everywhere else, which is the point of taking the reading separately.
   assert!(
-    reopened.picker,
+    reopened_again.picker,
     "the arrangement for the claim below: the field's button must reopen a \
      picker once the view has been replaced, or `hide()` is handed a window \
-     with nothing open and the assertion after this one is vacuous: {reopened:?}"
+     with nothing open and the assertion after this one is vacuous: \
+     {reopened_again:?}"
   );
   assert!(
     !hidden.picker,
-    "and a picker must not outlive the window it was opened from: {reopened:?} \
-     then {hidden:?}"
+    "and a picker must not outlive the window it was opened from: \
+     {reopened_again:?} then {hidden:?}"
   );
 }
 

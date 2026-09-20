@@ -73,6 +73,15 @@ pub struct SlintGlass {
   window: PromptWindow,
   tray: Tray,
   options: Rc<VecModel<OptionRow>>,
+  /// The diagnostics report's lines, **retained for the same reason
+  /// `options` is** (`review-code.md` F-B9). A fresh `ModelRc` here is not a
+  /// cheap write: `ModelRc`'s `PartialEq` is `core::ptr::eq`
+  /// (`i-slint-core/model.rs:719-729`), so `Repeater::model` sees a different
+  /// pointer, resets its inner state to `RepeaterInner::default()`
+  /// (`model/repeater.rs:559-573`) and rebuilds every line element. This is
+  /// F-R5's mechanism — slint comparing by identity where the host hands it a
+  /// new object each present — one consumer over.
+  diagnostics: Rc<VecModel<SharedString>>,
   /// The view whose structure the row model currently holds, or `None` for a
   /// glass that has shown nothing. Read to decide whether this present has to
   /// rebuild the rows at all (design.md §5.3, §7 D8).
@@ -121,6 +130,7 @@ impl SlintGlass {
       window,
       tray,
       options,
+      diagnostics: Rc::new(VecModel::default()),
       shown: None,
       pending,
     }
@@ -210,6 +220,12 @@ impl Glass for SlintGlass {
     // the order is kept because it costs nothing and is the shape that stays
     // correct if the markup acquires one.
     //
+    // **Nothing may be placed between these two statements**, which is the
+    // other half of the same rule: a call that runs markup there — the picker
+    // dismiss did, until F-B8 — latches the transient just as an `init`
+    // handler would. The dismiss now happens above, before `values` is
+    // written at all.
+    //
     // The rows second, and **only where the view changed**: repeating over
     // them destroys every element beneath, so a present that rebuilt them
     // unconditionally would destroy the widget a person is working in on every
@@ -218,21 +234,39 @@ impl Glass for SlintGlass {
     // The epoch last, because the guard reads `root.values[field.slot]` when
     // the epoch changes; bumping it first would run every guard against the
     // previous present's values.
-    self.window.set_values(model(values));
     let showing = frame.shown.map(|prepared| prepared.view_id.clone());
-    if self.shown != showing {
-      // **Before the rows go**, because an open picker belongs to the view
-      // that is leaving — and nothing else closes it. Neither the row rebuild
-      // below nor the `hide()` further down reaches a popup: both pickers are
-      // root singletons outside the prompt-mode block and both bind
-      // `no-auto-close`, so a picker left up covers a window whose controls
-      // are then unreachable by pointer and by keyboard (F-R1).
-      //
-      // **One call site, and this is the one**, because a hide is itself a
-      // change of `shown` — `Shift::Replaced` and `Shift::Closed` both land
-      // here. A picker can only be opened from a form, so while `shown` does
-      // not change the picker that is up belongs to the view that is up.
+
+    // **A picker belongs to a form that is up, and this is the one place that
+    // says so.** Nothing else closes one: neither the row rebuild below nor
+    // the `hide()` further down reaches a popup, because both pickers are root
+    // singletons outside the prompt-mode block and both bind `no-auto-close`.
+    // A picker left up covers a window whose controls are unreachable by
+    // pointer and by keyboard (F-R1).
+    //
+    // **Two ways for the form to stop being up, not one** (`review-code.md`
+    // F-B2). The view changing is `Shift::Replaced` and `Shift::Closed`
+    // together. The *surface* changing is the one F-R1's repair missed: a
+    // `Focus::Diagnostics` switch takes the whole prompt block out of the tree
+    // with `shown` untouched, so the view-change test is false and the picker
+    // stayed up over the diagnostics pane — whose only exit button was then
+    // unreachable. Reachable in production from the tray menu.
+    //
+    // **Before `set_values`, not between it and `set_vec`** (F-B8). Closing a
+    // picker restores focus to the element it was opened from
+    // (`WindowInner::close_popup_impl`), which runs markup — and between those
+    // two statements is the I-F transient, where the old rows index the new
+    // view's values. Hoisting it out means the transient spans two adjacent
+    // statements again and no markup runs inside it, which is a stronger thing
+    // to hold than the comment clause the finding asked for.
+    //
+    // Closing a picker that is not open is a no-op: the generated `close()` is
+    // `popup_id.take().map(…)`.
+    if self.shown != showing || !matches!(frame.surface, Surface::Prompt) {
       self.window.invoke_dismiss_pickers();
+    }
+
+    self.window.set_values(model(values));
+    if self.shown != showing {
       self.options.set_vec(rows);
       self
         .window
@@ -253,9 +287,10 @@ impl Glass for SlintGlass {
       .iter()
       .map(SharedString::from)
       .collect();
+    self.diagnostics.set_vec(lines);
     self
       .window
-      .set_diagnostic_lines(ModelRc::new(VecModel::from(lines)));
+      .set_diagnostic_lines(ModelRc::from(Rc::clone(&self.diagnostics)));
 
     let next_check = frame.next_check.map(next_check_line).unwrap_or_default();
     self.window.set_next_check(next_check.into());

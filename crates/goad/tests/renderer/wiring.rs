@@ -468,10 +468,23 @@ mod busy {
   async fn busy_clears_and_controls_re_enable_after_a_success() {
     let (window, tray) = window_and_tray();
     let mut glass = glass_over(&window, &tray);
-    let (command, _log) = scripted("wiring-busy-success", &[TWO_OPTIONS]);
+    let (command, _log) = scripted("wiring-busy-success", &[TWO_OPTIONS, TWO_OPTIONS]);
     let mut backend = host(command, TIMEOUT, now());
     let mut controller = Controller::new();
     with_room_for_every_control(&window);
+
+    // **A view first, because after the `busy` narrowing there is no other way
+    // to get here** (`review-code.md` F-B7). An `Exchanged::Answer` exists only
+    // as a `Pending::Respond`, only `Command::Choose` produces one, and
+    // `Controller::choose` refuses `SupersededView` with nothing shown
+    // (`controller.rs:312`) — so engaging on a fresh `Controller` arranges a
+    // frame `serve` cannot build. It was reachable before this slice, when the
+    // startup evaluation engaged with nothing shown; the narrowing removed the
+    // state and left the case behind it. This is the shape the sibling case
+    // below already used.
+    let arrived = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, arrived);
+    glass.present(controller.frame(false));
 
     controller.engage(Exchanged::Answer);
     glass.present(controller.frame(false));
@@ -479,9 +492,20 @@ mod busy {
       window.get_busy(),
       "the person's own answer must be shown in flight"
     );
+    // Readable now, and it was not before: with nothing shown the window held
+    // no options and `accessible_enabled_of` answered `None`, so this case
+    // could not hold the button's half of its own name.
+    assert_eq!(accessible_enabled_of(&window, "yes"), Some(false));
+    assert_eq!(accessible_enabled_of(&window, "no"), Some(false));
 
+    // **`Answer`, to match the `engage` above.** `serve` computes
+    // `exchanged = pending.exchanged()` once (`controller.rs:992`) and hands
+    // the same value to `engage` (`:993`) and `absorb` (`:1020`), so the pair
+    // never diverges in production. It changes no `Shift` here — `reduce` folds
+    // both the same way — but a case that pairs them differently from `serve`
+    // is arranging something `serve` does not do.
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
-    controller.absorb(Exchanged::Evaluation, outcome);
+    controller.absorb(Exchanged::Answer, outcome);
     glass.present(controller.frame(false));
 
     assert!(!controller.frame(false).busy);
@@ -517,8 +541,9 @@ mod busy {
     assert_eq!(accessible_enabled_of(&window, "yes"), Some(false));
     assert_eq!(accessible_enabled_of(&window, "no"), Some(false));
 
+    // `Answer`, to match the `engage` above — see the sibling case's note.
     let failing = backend.evaluate(now(), quiet_event(now())).await;
-    controller.absorb(Exchanged::Evaluation, failing);
+    controller.absorb(Exchanged::Answer, failing);
     glass.present(controller.frame(false));
 
     assert!(!controller.frame(false).busy);
@@ -1852,8 +1877,10 @@ mod editing {
       "and so must the button that would answer with it"
     );
 
+    // `Answer`, to match the `engage` above — see
+    // `busy_clears_and_controls_re_enable_after_a_success`.
     let landed = backend.evaluate(now(), quiet_event(now())).await;
-    controller.absorb(Exchanged::Evaluation, landed);
+    controller.absorb(Exchanged::Answer, landed);
     glass.present(controller.frame(false));
     assert_eq!(
       enabled(&window),

@@ -56,7 +56,7 @@ use goad::controller::{Controller, Exchanged, serve};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
-use goad::pending::Debounce;
+use goad::pending::{DEBOUNCE, Debounce};
 use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_semantics::protocol::canonical::{Request, Timestamp, View, ViewId};
 use goad_semantics::protocol::normalize::read_response;
@@ -93,12 +93,46 @@ const SECOND: &str = "y";
 /// and short enough that the whole case finishes well inside the 3 s
 /// `MINIMUM_SPACING` at which `serve`'s standing timer would fire an
 /// evaluation of its own.
-const STEP: Duration = Duration::from_millis(50);
+///
+/// **Halved to 25 ms for reading B's margin** (`review-code.md` F-B4). B claims
+/// the entry is *still* in the map, so it must be taken inside the debounce
+/// window — and that is the one bound here that **load pushes towards
+/// violation**, because a stalled stepper stretches the interval it caps. At
+/// 50 ms it was measured violated twice under oversubscription, at 153 ms and
+/// 742 ms, passing on the order two timers happened to be dispatched in. The
+/// other two bounds are the safe direction: load stretches them *away* from
+/// their limits. 25 ms is `event_loop_debounce`'s and `event_loop_full`'s step,
+/// so the loop is known to render inside one.
+const STEP: Duration = Duration::from_millis(25);
 
-/// The debounce window is 150 ms (`pending.rs`), so a tick lands three steps
-/// after the keystroke that armed it. Stated here because every step number
-/// below is read against it.
-const TICK_STEPS: u8 = 3;
+/// How many steps a debounce tick lands after the keystroke that armed it.
+///
+/// **Still a literal, but no longer a copy** (`review-code.md` F-T1's class,
+/// applied here as well as in `full.rs`). It used to restate `pending.rs` in a
+/// comment, with every step number below read against it — so a tuning change
+/// to the production constant left the schedule saying one thing and doing
+/// another, silently. The assertion below is what makes it derived in the only
+/// sense that matters: a `DEBOUNCE` this number is wrong for **fails to
+/// compile**. Written out rather than computed because the workspace lint set
+/// denies both the integer division and the cast that computing it needs, and
+/// an `#[expect]` for each would buy nothing the assertion does not already
+/// hold.
+const TICK_STEPS: u128 = 6;
+
+const _: () = assert!(
+  DEBOUNCE.as_millis() == STEP.as_millis() * TICK_STEPS,
+  "a tick lands TICK_STEPS steps after the key, so the debounce must be exactly that many steps"
+);
+
+const _: () = assert!(
+  STEP.as_millis() < DEBOUNCE.as_millis(),
+  "reading B is taken one step after the key and claims the entry is still held, so one step must fit inside the debounce window"
+);
+
+const _: () = assert!(
+  STEP.as_millis() * 10 > DEBOUNCE.as_millis(),
+  "reading C is taken ten steps after the key and claims the tick has fired, so ten steps must exceed the debounce window"
+);
 
 /// The stop the case cannot run without. Nothing panics from inside the loop:
 /// the steps record, the loop is quit, and every assertion is made on the test
@@ -385,37 +419,41 @@ fn a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it() {
     //
     // ```
     //  1  —                 `serve` presents the form it was handed
-    //  2  click             the field takes focus
-    //  3  type FIRST        tick due at 6; `serve` is parked in the outer select
-    //  7  read A            served and presented: the control
-    //  8  Evaluate          the exchange starts, and the backend is held
-    //  9  type SECOND       a real key event, while the exchange is in flight
-    // 10  read B            the entry is in the map; the overlay still covers it
-    // 13  read C            the tick fired at 12: the entry left on the enqueue
-    // 14  release           the backend answers; `serve` folds and presents
-    // 16  read D            the claim
-    // 17  stop              and the loop ends when `serve` returns
+    //  4  click             the field takes focus
+    //  6  type FIRST        tick due at 12; `serve` is parked in the outer select
+    // 14  read A            served and presented: the control
+    // 16  Evaluate          the exchange starts, and the backend is held
+    // 18  type SECOND       a real key event, while the exchange is in flight
+    // 19  read B            the entry is in the map; the overlay still covers it
+    // 28  read C            the tick fired at 24: the entry left on the enqueue
+    // 30  release           the backend answers; `serve` folds and presents
+    // 34  read D            the claim
+    // 36  stop              and the loop ends when `serve` returns
     // ```
+    //
+    // **B is one step after the key and C is ten**, which is the asymmetry the
+    // margins above are about: B's bound is the only one a stalled stepper
+    // walks towards.
     step += 1;
     match step {
-      2 => click_line_edit(&stepped, "noted"),
-      3 => key(&stepped, FIRST.into()),
-      7 => read("A typed, ticked and served with nothing in flight"),
-      8 => {
+      4 => click_line_edit(&stepped, "noted"),
+      6 => key(&stepped, FIRST.into()),
+      14 => read("A typed, ticked and served with nothing in flight"),
+      16 => {
         sending.send(Command::Evaluate(Stimulus::Requested));
       }
-      9 => key(&stepped, SECOND.into()),
-      10 => read("B typed during the exchange, still held"),
-      13 => read("C the tick enqueued it inside the exchange"),
-      14 => {
+      18 => key(&stepped, SECOND.into()),
+      19 => read("B typed during the exchange, still held"),
+      28 => read("C the tick enqueued it inside the exchange"),
+      30 => {
         if let Some(release) = release.take() {
           match release.send(()) {
             Ok(()) | Err(()) => (),
           }
         }
       }
-      16 => read("D the exchange folded, and the present that followed"),
-      17 => stopper.stop(),
+      34 => read("D the exchange folded, and the present that followed"),
+      36 => stopper.stop(),
       _ => {}
     }
   });
@@ -475,7 +513,7 @@ fn a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it() {
   // The window the defect lived in, established rather than assumed.
   assert!(
     enqueued.exchanging,
-    "still mid-exchange {TICK_STEPS} steps later, or the tick did not land \
+    "still mid-exchange ten steps later, and a tick is due {TICK_STEPS} steps after the key, or it did not land \
      inside one: {typed:?} then {enqueued:?}"
   );
   assert_eq!(
