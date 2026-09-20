@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the crane packages | done | 2026-09-21 |
-| PHASE-02 — the home-manager module | pending | |
+| PHASE-02 — the home-manager module | in progress | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | pending | |
 | PHASE-04 — the configuration path, named | pending | |
 | PHASE-05 — the cutover, and the evidence | pending | |
@@ -239,6 +239,108 @@ STOP and consult rather than improvise:
   `target/debug/goad examples/demo.toml` holding `./goad-demo.sock`. The first
   is the host PHASE-05's cutover replaces; worth knowing before that phase
   moves the user service.
+
+### PHASE-02 — the home-manager module
+
+**Objective:** the systemd user unit is generated from a store path by a module
+this repository owns, with no `EnvironmentFile`.
+
+**Reading list**
+
+- `docs/slices/006/plan.md` §PHASE-02 — the contract: EX-1..EX-5, VA-1..VA-3,
+  and its *Notes for the implementer*. EX-2's three-row table is the unit,
+  field for field.
+- `docs/slices/006/design.md` §5.2(d) — the option surface; §5.4 — where this
+  module sits in the cutover PHASE-05 performs; §8 R1 (the tarball consumer
+  stamps no revision — EX-4's comment) and R3 (nothing scans `.nix` — VA-2).
+- **Prior art, in this order, all outside this repository and all read-only:**
+  `~/dev/satan-attrd/nix/module.nix` (the option surface),
+  `~/satan/goad/goad.service` (the unit's fields — they come across as
+  *defaults* a consumer may override, not constants),
+  `~/flakes/modules/home/linux/satan-attrd.nix` (what PHASE-05's consumer will
+  look like — four lines).
+- `flake.nix` as PHASE-01 left it — `goadPackages`, the `packages.${system}`
+  merge, and the `outputs` attrset the export joins.
+- `crates/goad-boundary/tests/checks/vocabulary.rs`, `DOMAIN` — VA-2's word
+  list. Read-only; this phase writes no Rust.
+- `crates/goad/src/main.rs` — the exit-2 mapping every `StartupError` takes.
+  It is the contract `RestartPreventExitStatus = 2` encodes, and the argument
+  for the module living in this repository (OQ-1). Read-only.
+- `docs/memory/path-flake-ref-breaks-on-demo-socket.md` — the harness must use
+  `builtins.getFlake "git+file:///home/david/dev/goad"`; the bare path form dies
+  on the socket. `negative-control-must-compile.md` — the same discipline
+  applies to VA-1's harness: it must actually evaluate and actually print.
+- `docs/AGENTS.md` §Execute.
+
+**Assumptions & STOP conditions**
+
+Taken on faith:
+
+- The `lib.evalModules` harness route works: it was built and run at plan time
+  against a module of this shape (F-3). Its two known costs are recorded in
+  VA-1 — `lib` from the flake's own locked nixpkgs, and the `git+file://`
+  reference.
+- PHASE-01's packages evaluate, so `cfg.package` has something real to be.
+
+STOP and consult rather than improvise:
+
+- **A home-manager flake input.** This repository has none and is not getting
+  one; that is a dependency addition (`docs/AGENTS.md` §Execute) and VA-1's
+  harness exists precisely to avoid it. If the harness will not evaluate,
+  stop — do not reach for the input.
+- **The option surface.** No `configFile` option, no typed environment
+  options. OQ-1 excluded both deliberately; a phase does not reopen it.
+- **A flat attrset instead of home-manager's three blocks.** It would satisfy
+  a field list read literally and be rejected or dropped at the PHASE-05
+  cutover — the one place this plan says a module defect must not be repaired
+  (F-11).
+- **Any surface outside** `nix/module.nix`, `flake.nix` (the export only), and
+  this sheet. In particular: `~/flakes` is **PHASE-05's** and is not touched
+  here, and the prior-art trees are read-only.
+- Session budget past ~200k tokens: PARTIAL checkpoint and hand over.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+
+- [ ] T-1 — read the three prior-art files before writing anything.
+- [ ] T-2 — EX-1: `nix/module.nix` with exactly §5.2(d)'s three options —
+      `enable`, `package` (required, **no default**), `extraConfig` (`{}`).
+- [ ] T-3 — EX-2: `config = mkIf cfg.enable` giving `home.packages` and
+      `systemd.user.services.goad` in `Unit` / `Service` / `Install`, every
+      field as the plan's table states, **no `EnvironmentFile`**, and
+      `extraConfig` merging over `Service` and no other block.
+- [ ] T-4 — EX-4: the module's comment carries R1 — a tarball consumer stamps
+      no revision, so AC-5 stops holding silently; the consumer is a git input
+      by construction.
+- [ ] T-5 — VA-3, before evaluating anything: `git add nix/module.nix`. An
+      untracked file is outside the flake's git-tree source.
+- [ ] T-6 — EX-3: exported as `homeManagerModules.default`; `nix flake show`
+      lists it.
+- [ ] T-7 — VA-1: the throwaway `lib.evalModules` harness. Stub module
+      declaring only `home.packages` and `systemd.user.services`, the real
+      module, a fragment enabling it with a fake package. Print
+      `config.systemd.user.services.goad`; check **every** EX-2 field by name;
+      check `EnvironmentFile` is **absent**, not empty. Record the rendered
+      attrset here, then discard the harness. It checks the generator, not
+      home-manager's acceptance — that is PHASE-05/VH-2.
+- [ ] T-8 — VA-2, the review obligation I4: read `nix/module.nix` and the unit
+      text it produces for domain vocabulary against `DOMAIN`, and **say here
+      that it was read**. Nothing enforces this — no ADR-001 instrument and not
+      the vocabulary scan reads `.nix`.
+- [ ] T-9 — EX-5: `just check` exits 0 (it does not read `.nix`; run it anyway).
+      Refactor pass, sheet current, §Status `done`, §Harvest updated in place,
+      commit.
+
+**What was observed**
+<!-- Verification criteria are observations, not claims. -->
+
+**Decisions taken during execution**
+<!-- Small and local: how, within what the design already settled. A choice that
+     changes the design is not one of these — stop, consult the user, and record
+     it in `design-log.md`. -->
+
+**Findings**
+<!-- Things noticed in passing that are not this phase's job. -->
 
 ## Harvest
 
