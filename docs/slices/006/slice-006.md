@@ -1,6 +1,6 @@
 # Slice 006: packaging and the startup surface
 
-**Stage:** design
+**Stage:** planned
 **Tier:** 1 (thin) — see *What would raise the tier* below. `design.md` runs
 46 lines over the tier 1 cap by explicit user decision, recorded at its head and
 in `design-log.md`; nothing else about the tier changes.

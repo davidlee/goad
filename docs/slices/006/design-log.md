@@ -482,3 +482,17 @@ other, citing the finding id.
   blockers, all `fix-now`, nothing outstanding. The tier stays 1. Three risks
   are recorded as knowingly standing in its Synthesis, the third being that the
   round 2 repairs carry no adversarial pass.
+
+### 2026-09-21 — the plan is accepted; execution opens at PHASE-01
+
+- **Asked:** acceptance of the five-phase plan, the joint design + plan ledger
+  having resolved at `4f9fb9d` — eleven findings over two rounds, no blockers,
+  all `fix-now`, nothing outstanding.
+- **Decided:** *"plan accepted"*.
+- **Consequence:** the plan stage closes and execution opens at PHASE-01, the
+  crane packages. `slice-006.md` §Stage reads `planned`; `notes.md` §Status
+  carries all five phases at `pending`. The tier stays 1. PHASE-01's phase sheet
+  is written immediately before its agent starts, per `docs/AGENTS.md` §Phase
+  plan — not now. Three risks stand knowingly, recorded in `review-design.md`
+  §Synthesis: I4 has no instrument, PHASE-01's named cut has no trigger, and the
+  round 2 repairs carry no adversarial pass.

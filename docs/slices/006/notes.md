@@ -8,7 +8,11 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 — the crane packages | pending | |
+| PHASE-02 — the home-manager module | pending | |
+| PHASE-03 — `--version`, on both binaries | pending | |
+| PHASE-04 — the configuration path, named | pending | |
+| PHASE-05 — the cutover, and the evidence | pending | |
 
 ## Phase sheets
 
