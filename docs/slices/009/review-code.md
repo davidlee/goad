@@ -119,17 +119,33 @@ conclusion.
 | F-R1 | major | | |
 | F-R2 | major | | |
 | F-S3 | major | | |
+| F-R3 | major | | |
 | F-S4 | minor | | |
 | F-S5 | minor | | |
+| F-R4 | minor | | |
+| F-R5 | minor | | |
+| F-R6 | minor | | |
+| F-R7 | minor | | |
 | F-P3 | nit | | |
 | F-P4 | nit | | |
 | F-S6 | nit | | |
 | F-S7 | nit | | |
+| F-R8 | nit | | |
+| F-R9 | nit | | |
 
-**Round 1 closed with three dimensions reported.** **Fourteen** findings: one
-blocker, five majors, four minors and four nits. (Clerical, audit session 2:
-the table above carried `F-P1` and `F-P2` twice and the count read *eleven*.
-No finding was added, removed or altered.) F-S1 and F-S2 were
+**Round 1, completed.** **Twenty-one** findings: one blocker, six majors,
+eight minors and six nits.
+
+The renderer dimension reported `F-R1` and `F-R2` and then stopped, leaving two
+of its briefed areas unattacked — shared mutable state with handle splitting
+and re-entrancy, and resource behaviour. Audit session 2 ran those two as a
+fresh agent rather than reading the absence of findings as a clean surface;
+`F-R3`–`F-R9` are what it found, and they close round 1. Every one is reasoned
+from the tree and the vendored `slint 1.17.1` sources rather than run, and each
+severity line says so.
+
+(Clerical, audit session 2: the table above carried `F-P1` and `F-P2` twice and
+the count read *eleven*. No finding was added, removed or altered.) F-S1 and F-S2 were
 mutation-confirmed by the audit; F-R1 is reasoned from locked sources and
 **not run**, and says so.
 
@@ -700,6 +716,492 @@ stated as a load-bearing invariant in `glass.rs:168-186` and in §5.5.
 **Response:**
 
 **Outcome:**
+
+### F-R3 — the entry leaves the map on the enqueue, but a present can land before the command is served, and that present writes the draft's stale value over the widget a person is typing into
+
+**Severity:** major — **reasoned from the tree and the locked sources, not
+run.** The recipe at the end is what settles it.
+**Location:** `crates/goad/src/pending.rs:212-214` (the removal);
+`crates/goad/src/controller.rs:839` (the present at the top of every outer
+iteration), `:944-979` (the inner loop, which does not drain `commands`);
+`crates/goad/src/glass.rs:283`, `:302-308`, `:326` (the overlay lookup);
+`crates/goad/ui/app.slint:489-494`, `:642-647` (the guards that do the writing)
+
+**Expected.** `design.md` §5.3, quoted at `glass.rs:320-326`: a control shows
+*"what a person has just done and the host has not recorded yet, then what the
+draft holds"*. The overlay exists to cover exactly the interval between a
+keystroke and the host recording it. **AC-5**: *"A present that changes nothing
+about a field does not disturb it: no destroyed element, no moved caret, no
+interrupted drag."*
+
+**Observed.** The overlay's cover ends one step too early. `Debounce::tick`
+removes the entry the instant `Wire::send` reports the command **enqueued**
+(`pending.rs:212-214`), and `pending.rs:189-193` prices that as safe because
+*"the guard corrects the widget on the next present"*. That reasoning assumes
+the next present happens **after** `serve` has folded the edit. It does not
+have to, and in the ordinary case it does not:
+
+```
+t=0     person types "abc"           hold() → map{(opt,fld) → "abc"}, timer armed 150 ms
+t=0     serve is parked in select!   (outer loop, controller.rs:840)
+t=20    sleep arm fires              Fired::Scheduled → engage() → present(busy=true)
+                                     → serve now awaits the backend (controller.rs:928-943)
+t=150   the debounce tick fires      update_timers_and_animations() runs it from the event
+                                     loop, independently of serve's polling
+                                     wire.send(Command::Edit{ "abc" }) → channel EMPTY
+                                     (serve took Scheduled from the timer arm, not the
+                                     channel) → try_send Ok → ENTRY REMOVED
+t=380   the backend replies          absorb() → inner loop breaks (controller.rs:953)
+                                     → OUTER LOOP TOP → glass.present(...)  ← controller.rs:839
+                                        pending.carried()  is EMPTY        (removed at t=150)
+                                        the draft           has NEVER SEEN "abc" (still queued)
+                                        ⇒ values[slot].text = the pre-typing value
+                                        ⇒ set_epoch → the guard fires → self.text = old value
+t=381   serve reaches select!        recv() yields the queued Edit → controller.edit(…)
+                                     → present again → "abc" restored
+```
+
+The interleave needs nothing unusual. The channel is capacity 1
+(`main.rs:86`), `serve` does not drain it while it is inside the inner
+`select!` (`controller.rs:944-978`), and `reduce`'s
+`(Exchanged::Evaluation, false, _) → Shift::Retained` (`controller.rs:454-456`)
+is the ordinary result of a scheduled poll — the view and the draft are both
+retained, so the stale value the guard writes is a real previous value rather
+than a cleared field.
+
+**This is not only a flicker.** The present at `controller.rs:839` carries
+`busy = false`, so the control is re-enabled at exactly the moment it is
+holding the wrong text. A person typing on from there builds on the reverted
+string, and the characters typed before the revert are gone from the widget and
+from the next report. The same window reverts a `Slider` mid-drag and a numeric
+`LineEdit` mid-number.
+
+**Evidence.** Four checkable facts, no person required:
+
+1. `pending.rs:212-214` — `if enqueued { self.held.borrow_mut().remove(&(option, field)); }`.
+   The entry is gone at enqueue.
+2. `controller.rs:839` — `glass.present(controller.frame(notice.raised()));` is
+   the **first** statement of the outer loop body, before the `select!` that
+   would dequeue the command.
+3. `controller.rs:944-978` — the inner loop's three arms are `cancel.stopped()`,
+   `&mut call` and `ingress.arrival()`. `commands` is not among them, so a
+   command enqueued during an exchange waits for the outer loop.
+4. `i-slint-core-1.17.1/platform.rs:289-293` —
+   `update_timers_and_animations()` runs `maybe_activate_timers` from the event
+   loop, so the debounce tick fires on its own schedule and not on `serve`'s.
+
+**Why nothing reports it.** All three debounce-bearing loop targets drain the
+channel and apply the edit **before** any present:
+`tests/event_loop_overlay/overlay.rs:238-249` does
+`while let Ok(command) = rx.try_recv() { … controller.edit(…) }` at the top of
+every step, and the schedule comment at `:265-266` reads *"present between the
+ticks: one value off the draft"* — off the draft precisely because the harness
+has already applied what production leaves queued. The one interleave that
+matters is structurally unreachable in the rig.
+
+**Checked by the audit (session 2): the mechanism holds, one sub-claim does
+not yet.** Facts 2 and 3 were read directly — `controller.rs:839` is the first
+statement of the outer loop body and carries the comment `// busy = false
+here`; the inner `select!` at `:945-978` has exactly three arms and `commands`
+is not one of them. Fact 1 is already mutation-confirmed under F-S2. So **the
+reverting present is real**.
+
+What is **not** established is the cost F-R3 puts on it — *"a person typing on
+from there builds on the reverted string"*. That needs the event loop to turn
+between the reverting present and the correcting one, and on the trace as
+written it does not: `glass.present` is synchronous, the following `select!`
+finds `commands.recv()` already ready, and `Command::Edit` resolves through
+`controller.edit` to `None` without an await, so both presents happen inside a
+single poll of `serve` and the stale text is written and overwritten before any
+frame is painted. On that reading the cost is **AC-5, not AC-4**: the guard
+writes twice across a present that should have disturbed nothing, `reasserts`
+is non-zero, and the caret moves — which is the criterion, and enough.
+
+Two things could still make it AC-4. A `Shift::Replaced` at that absorb
+refuses the queued edit `SupersededView` and the characters are genuinely gone
+— though §8 **R5** already prices a view replacement that way. And any await
+introduced between those two presents turns it back into lost typing. Both are
+reasons to settle it with the case rather than to argue it down.
+
+**It bears directly on the F-A1 repair, in the wrong direction.** Today the
+controls are deaf for the whole exchange, so a tick landing mid-exchange comes
+from typing that finished before the exchange began. Narrowing `busy` makes
+typing *during* an `Evaluate` the ordinary case, which is precisely when this
+interleave fires. Repairing F-A1 without answering F-R3 trades an exchange-long
+deafness for a per-poll revert.
+
+**To settle it**, one loop-tier case: hold the backend's reply, type, let the
+tick enqueue while the exchange is in flight, complete the exchange, and read
+the `LineEdit`'s text at the present that follows — before the step that drains
+the channel. Or, cheaper, assert `reasserts == 0` across that present, which is
+AC-5's own instrument.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R4 — one full present, `window.show()`'s instantiation pass included, per refused ingress arrival, at a rate an untrusted writer sets
+
+**Severity:** minor — **reasoned from the tree and the locked sources, not run.**
+**Location:** `crates/goad/src/controller.rs:856-866`, `:877-894` and `:839`;
+`crates/goad/src/glass.rs:225-231`
+
+**Expected.** `design.md` §5.4 puts the ingress arm last *"so that a watcher
+emitting at machine rate cannot starve a scheduled firing"* (`controller.rs:852-855`),
+and SPEC-002/R-12's spacing floors the rate at which an arrival may cause an
+**exchange**. Nothing floors the rate at which a refused arrival causes a
+**present**.
+
+**Observed.** In the outer loop, `Some(arrival) => Fired::Ingested(arrival)`
+(`controller.rs:865`) goes to `ingest`, which returns `None` for all three
+refusal shapes — a malformed envelope (`:676-679`), inside the spacing
+(`:683-687`), an unreadable clock (`:697-701`). `serve` then takes
+`let Some(attempted) = attempted else { continue; }` (`:892-894`) back to the
+top of the loop, whose first statement is `glass.present(...)` (`:839`).
+`ingest`'s `TooSoon` branch returns **before** the anchor is written
+(`:683-687` precedes `:692`), so being refused for arriving too soon does not
+itself slow the next refusal.
+
+One present is not cheap. `option_models` rebuilds the entire row-model tree —
+every `OptionRow`, `FieldBlock`, `FieldRow` and alternatives `ModelRc` — and
+`present` then discards it whenever the view is unchanged (`glass.rs:146`
+against `:189-195`). A fresh `VecModel` is allocated for `values` and another
+for `diagnostic_lines`. `epoch` is bumped, which queues the `changed tick`
+ChangeTracker of **every drawn control**. And `self.window.show()`
+(`glass.rs:227`) is not a no-op on an already-visible window: it runs
+`ensure_tree_instantiated()`, `update_window_properties()`, `set_visible(true)`
+and `renderer().resize()` every time
+(`i-slint-core-1.17.1/window.rs:1626-1653`), and `ensure_tree_instantiated`
+runs the instantiation-plus-change-handler loop up to ten times
+(`window.rs:648-665`).
+
+**Evidence.** The control-flow chain above is four line citations in one file.
+The cost of `show()` is `window.rs:1634-1648`. The claim that a refused arrival
+presents nothing belongs to the **inner** loop's arm and is accurate about
+itself (`controller.rs:966-971`); the outer loop is a second site the comment
+does not reach.
+
+**Why it is not merely cosmetic.** It is the amplifier for F-R3 and for F-R5: a
+writer on the ingress socket sets how often the guard pass runs against a form
+a person is typing into, and how often F-R5's tray push goes out.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R5 — the tray icon is re-rasterised and pushed to the desktop's tray service on every present, because slint compares an `Image` by buffer pointer
+
+**Severity:** minor — **reasoned from the locked sources, not run.**
+**Location:** `crates/goad/src/glass.rs:220`;
+`crates/goad/src/diagnostics.rs:452-467`
+
+**Expected.** `glass.rs:33-35` — every property is written every call, which is
+the answer to a display server failing partway through an update. Writing a
+property whose value has not changed is expected to cost the write and nothing
+downstream; `SharedString` behaves that way, which is why the sibling
+`set_hover_text` at `glass.rs:221-223` is not raised here.
+
+**Observed.** `tray_icon` builds a **new** `SharedPixelBuffer` on every call
+(`diagnostics.rs:458`) and fills it by evaluating `pixel_at` for each of
+`ICON_EDGE² = 32 × 32` pixels, each of which integrates
+`SAMPLES_PER_EDGE² = 16` coverage samples (`diagnostics.rs:418`, `:441`,
+`:459-464`, `:473-477`) — ~16 000 sample tests and a 4 KiB allocation per
+present, for an icon with exactly two possible values.
+
+The downstream cost is the one worth reporting. `SystemTrayIcon::init`
+installs an `icon_tracker` whose notify calls `handle.set_icon(icon)` on the
+platform handle (`i-slint-core-1.17.1/items/system_tray.rs:326-341`), and a
+`ChangeTracker` fires only when the new value is `!=` the old
+(`properties/change_tracker.rs:131-134`). `Image` derives `PartialEq` over
+`ImageInner` (`graphics/image.rs:774`), whose `EmbeddedImage` arm compares
+`l_buffer == r_buffer` (`:643`) — and `SharedImageBuffer::eq` compares
+**`data.as_ptr()`**, not contents (`graphics/image.rs:211-223`). A freshly
+allocated buffer never shares an address with the one it replaces, so two
+byte-identical idle icons compare unequal and the tracker fires. The platform
+tray icon is therefore re-set on **every** present: every command, every
+scheduled poll, and — via F-R4 — every refused arrival.
+
+**Evidence.** `graphics/image.rs:211-223` is the whole finding; the rest is the
+call chain. The negative control is in the same file: the tooltip travels as a
+`SharedString`, which compares by content, so `tooltip_tracker`
+(`system_tray.rs:143`) fires only on a real change. The two properties are
+written side by side at `glass.rs:220-223` and behave differently.
+
+**The cheap repair exists.** `tray_icon` has two possible results; rasterising
+each once and handing out clones keeps the buffer pointer stable, which makes
+the tracker fire exactly when the state changes and costs nothing at the
+boundary.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R6 — once armed, the `Debounce` is a reference cycle through slint's thread-local timer list and is never dropped
+
+**Severity:** minor — **reasoned from the locked sources, not run.**
+**Location:** `crates/goad/src/pending.rs:170-176` (`arm`)
+
+**Expected.** `pending.rs:53-56` — *"Two fields and no more … this module holds
+no way to reach the loop of its own accord"*, and `pending.rs:57-59` explains
+`&Rc<Self>` as *"so the timer's callback can hold the map it will read"*. The
+lifetime consequence of that choice is not stated anywhere.
+
+**Observed.** `arm` builds `let holding = Rc::clone(self);` and moves it into
+the callback. `Timer::start` does **not** store the closure in the `Timer`
+struct — the `Timer` holds only a `Cell<Option<NonZeroUsize>>` id
+(`i-slint-core-1.17.1/timers.rs:61-66`) — it boxes the closure into the
+thread-local `CURRENT_TIMERS` slab (`timers.rs:84-93`). So the graph is
+
+```
+Rc<Debounce> ──► Debounce.timer: slint::Timer ──(id)──► CURRENT_TIMERS[id].callback
+      ▲                                                            │
+      └────────────────────────────────────────────────────────────┘
+                         the closure holds Rc<Debounce>
+```
+
+The only thing that removes the slab entry is `Timer::drop`
+(`timers.rs:188-203`), which cannot run while the strong count is held up by
+the entry it would remove. After one `arm`, the `Debounce`, its `BTreeMap` and
+the `Wire` clone inside the closure are retained for the life of the thread.
+`tick` re-arms rather than stopping (`pending.rs:218-220`), and a final tick
+that empties the map leaves the last closure registered.
+
+**Evidence.** `timers.rs:61-66` (the `Timer` holds an id, not a callback),
+`:84-93` (the closure goes to the thread-local), `:188-203` (`Drop` is the only
+deregistration). The cycle is closed by `pending.rs:171` plus `:174`.
+
+**What it does and does not cost today.** In production, nothing: `main.rs:95`
+creates one `Debounce` for the process. It costs one leaked map and one
+retained `mpsc::Sender<Command>` clone per test target that arms the timer, and
+it is the reason `Ending::Closed` can never be reached from the callback side
+(F-R9). It becomes real the moment a future slice makes a `Debounce` per view
+or per window, which is what the raise is for: the type's doc argues its field
+count and says nothing about its lifetime, so the next author has nothing to
+read. `Weak::upgrade` inside the callback, or a `timer.stop()` on the empty
+tick, closes it.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R7 — `Glass::present`'s doc says a `show()` failure is reported and the process keeps running; one failure inside `show()` panics before it can return
+
+**Severity:** minor — **reasoned from the locked sources, not run.**
+**Location:** `crates/goad/src/glass.rs:131-134` and `:225-231`
+
+**Expected.** The method's own doc: *"Infallible: every property setter returns
+`()`. A `show()` or `hide()` failure is reported on stderr through
+`diagnostics::report_platform` and `present` returns; the process keeps
+running."* That is a claim about code, and it is what the handling at
+`glass.rs:229-231` is built to deliver.
+
+**Observed.** `WindowInner::show` returns `Result<(), PlatformError>` and
+propagates `set_visible(true)?` (`i-slint-core-1.17.1/window.rs:1636`), which
+is the failure the glass handles. Twelve lines later the same function calls
+`self.window_adapter().renderer().resize(size).unwrap()`
+(`window.rs:1648`). A renderer resize failure therefore aborts the process from
+inside `show()` and never reaches `report_platform`.
+
+**Evidence.** `window.rs:1626-1653`, one `?` and one `.unwrap()` in the same
+function. `present` calls `show()` on every non-hidden frame
+(`glass.rs:225-228`), so the exposure is every present, not startup only.
+
+**Scope, stated honestly.** This is not a backend input taking the host down —
+no protocol message reaches it — so the fourth invariant is not breached. What
+is wrong is narrower: a doc comment makes a code claim about `show()`'s failure
+surface that the vendored source contradicts, and a reader planning the
+display-server-fails-partway story will take the claim at face value.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R8 — `rescale` swallows the one weak-handle upgrade in the crate with no report
+
+**Severity:** nit
+**Location:** `crates/goad/src/install.rs:242-245`
+
+**Observed.** `let Some(window) = window.upgrade() else { return; };` is the
+crate's only `Weak::upgrade`. It is the correct shape, and the failure is
+unreachable today — the three zoom callbacks live in the tray's callback table,
+which is held by the `Tray` handle `SlintGlass` clones strongly
+(`main.rs:96-98`), so the `PromptWindow` outlives every caller. What the site
+does not do is say anything when it fails: no `report_platform`, no
+`debug_log`, no diagnostics line. `CLAUDE.md`'s *"Every refusal is reported and
+says which side was wrong"* is about backend refusals rather than this, so this
+is taste rather than canon — raised because it is the one place in the renderer
+where an action a person took can vanish without a trace, and because the
+`else` branch reads as deliberate handling rather than as an unreachable arm.
+
+**Evidence.** `install.rs:117`, `:120`, `:123` are the three `as_weak()` sites;
+`install.rs:243` is the only upgrade. `grep -n "upgrade" crates/goad/src/*.rs`
+returns that one line.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R9 — `Ending::Closed` says "only reachable at teardown"; in production it is reachable at no time at all
+
+**Severity:** nit
+**Location:** `crates/goad/src/controller.rs:76-77` and `:842-844`
+
+**Observed.** `Ending::Closed` is taken when `commands.recv()` yields `None`,
+which requires every `mpsc::Sender<Command>` to have been dropped. In
+production none of them ever is: `main.rs:86` binds `tx` for the whole of
+`start`, which outlives `run_event_loop_until_quit`; `Wire::new` takes a clone
+(`main.rs:89`) and `install` clones it into seven callbacks
+(`install.rs:39`, `:65`, `:82`, `:93`, `:99`, `:104`, `:109`) that live in the
+window's and the tray's callback tables for the life of the process; and
+F-R6's cycle retains an eighth inside the armed timer's closure. The real
+shutdown path is `Ending::Stopped` via `Cancel`, which is what `install.rs:95`
+and `:110` trip.
+
+**Evidence.** The eight retention sites above, plus `main.rs:86`. The variant is
+reachable from the test tiers, which drop their senders, so it is not dead code
+— only the doc's account of *when* is wrong.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### Note — `pending.rs`'s re-arm argument cites the wrong `timers.rs` arm
+
+Not raised as a finding: the conclusion is right and the behaviour holds. But
+`pending.rs:161-168` rests its re-arm argument on `timers.rs`'s `SingleShot`
+path, and that is not the path this code takes — `Timer::start` boxes every
+callback as `MultiFire` regardless of the `TimerMode` it is given
+(`timers.rs:86-91`). The re-emplacement logic the argument depends on is the
+`MultiFire` one, and it holds. Recorded here so the citation can be corrected
+with the rest of the record rather than re-derived by the next reader.
+
+## What was checked and found clean
+
+A bare "no findings" is unusable, so this is what was checked and what would
+have shown it dirty.
+
+### Every `RefCell` borrow, and why none can be re-entered
+
+`grep -n "RefCell\|borrow" crates/goad/src/*.rs` returns exactly one `RefCell`
+in the crate: `Debounce::held` (`pending.rs:74`). Seven borrow sites:
+
+| site | borrow | live across | verdict |
+|---|---|---|---|
+| `pending.rs:89` | `borrow()` | `Debug::fmt` | no site formats a `Debounce`; `SlintGlass`'s own `Debug` is `finish_non_exhaustive` (`glass.rs:96-100`) |
+| `pending.rs:118` | `borrow_mut()` | `insert` of a `String` pair and a `Held` | the `RefMut` is a statement temporary, dropped at the `;` before `self.arm(wire)` on the next line |
+| `pending.rs:139` | `borrow()` | `.iter().map(…).collect()` | the closure clones `String` and `Reported` only; no call into Slint, no user code |
+| `pending.rs:157` | `borrow_mut()` | `clear()` | drops `String`/`Reported`; neither has a `Drop` that can re-enter |
+| `pending.rs:201` | `borrow()` | the `let next = …` initialiser | **not** live across `wire.send` at `:207`: the temporary dies at the end of the `let` statement. The doc at `:195-197` claims this and it is true |
+| `pending.rs:214` | `borrow_mut()` | `remove` | statement temporary inside `if enqueued` |
+| `pending.rs:218` | `borrow()` | an `if` **condition** | condition temporaries are dropped before the block, so it is not live across `self.arm(wire)` |
+
+The re-entrancy question that matters is whether any `install.rs` callback can
+run while one of those is live. It cannot, for a reason that is worth writing
+down because it is not obvious: **`present` does execute markup code.**
+`glass.rs:227` calls `window.show()`, and `WindowInner::show` runs
+`ensure_tree_instantiated()` (`window.rs:1634`), which materialises repeaters —
+firing `init => { root.inits += 1; }` — and runs queued change handlers,
+firing every `changed tick` guard, in a loop of up to ten passes
+(`window.rs:648-665`). Slint's `changed` handlers are otherwise deferred: a
+property write only queues the `ChangeTracker` on a thread-local list
+(`properties/change_tracker.rs:13`, `:29-30`), which `update_timers_and_animations`
+drains at `platform.rs:292`. So the guards run inside `present`, at the `show()`
+line — and none of them can raise an edit callback:
+
+- **`LineEdit`** — all six `TextInput::edited` raise sites are internal edit
+  operations: key insertion (`items/text.rs:1102`), android preedit commit
+  (`:1214`), selection delete (`:1707`), paste (`:1827`), undo (`:2144`), redo
+  (`:2190`). An external write to `text` reaches none of them, so
+  `app.slint:491` and `:644` cannot re-enter `on_edited`.
+- **`CheckBox`** — `toggled` is raised only from the touch area
+  (`fluent/checkbox.slint:96-101`), the space/enter key handler (`:109-115`)
+  and `accessible-action-default` (`:25-30`). Assigning `checked` raises
+  nothing, so `app.slint:438` is safe.
+- **`Slider`** and **`ComboBox`** — argued in the markup at `app.slint:557-562`
+  and `:694-697` with citations, and both hold.
+- The `datetime` `Button` carries no guard (`app.slint:736-741`).
+
+Had any of those raised its callback, the consequence would not have been a
+panic — no borrow is live at `show()` — but a **phantom edit**: the host's own
+correction re-entering `Debounce::hold` and being sent to the backend as
+something a person did. That is what was being looked for and it is not there.
+
+`Rc` handles: one `Rc<Debounce>` (`main.rs:95`), cloned into the two callbacks
+that use it (`install.rs:39`, `:65`) and into the glass (`main.rs:107`) — R10
+holds, one value and no second map. One `Rc<VecModel<OptionRow>>`
+(`main.rs:106`), held only by the glass. One `Rc<Cell<Zoom>>`
+(`install.rs:115`), shared by the three zoom callbacks. No `Rc` is downgraded
+anywhere; the crate's only `Weak` is F-R8's.
+
+### Growth, and where it was looked for
+
+- **The retained `options` model.** `set_vec` replaces the vector and calls
+  `notify.reset()` (`model.rs:404-407`), which clears `tracked_rows`
+  (`model/model_peer.rs:87-96`) — nothing accumulates per view. Re-handing the
+  same `Rc` through `ModelRc::from` on every view change (`glass.rs:191-193`)
+  re-attaches the repeater's peer, and `attach_peer` →
+  `DependencyListHead::append` begins with `node.remove()`
+  (`properties.rs:189-191`), so the peer list does not grow. The node itself is
+  a per-repeater `OnceCell` (`model_peer.rs:137`, `:158-170`), one per
+  repeater, not one per attach.
+- **The per-present models.** `values`, `diagnostic_lines`, the block/field
+  models and each `choice`'s alternatives are allocated fresh each present
+  (`glass.rs:187`, `:210-212`, `:345-351`, `:359`, `:366`, `:604-606`) and the
+  previous ones are dropped by the property write. Churn, not growth — see
+  F-R4 for the churn.
+- **Timers.** There is exactly one `slint::Timer` in the crate
+  (`pending.rs:75`). `arm` re-uses its id through `start_or_restart_timer`
+  (`timers.rs:86-92`, `:347-370`), so a burst of keystrokes produces one slab
+  entry, not one per keystroke. Re-arming from inside the tick is sound and for
+  the reason `pending.rs:161-168` gives — with one correction to the citation:
+  the `SingleShot` removal path at `timers.rs:320-325` is **not** the path this
+  code takes, because `Timer::start` boxes every callback as
+  `CallbackVariant::MultiFire` whatever the `TimerMode` (`timers.rs:86-91`);
+  only the free `Timer::single_shot` uses `SingleShot` (`:111-121`). The
+  MultiFire re-emplacement logic the doc quotes is the right one, and it holds.
+  The cleanup gap is F-R6, not a rearm bug.
+- **Popups.** `active_popups` does not accumulate through the ordinary path:
+  `show_popup` closes sibling popups under the same parent item before creating
+  a new one (`window.rs:1781-1786`), and both pickers call `root.close()`
+  **before** raising `accepted` or `canceled`
+  (`fluent/datepicker.slint:84-85`, `:94-95`;
+  `fluent/time-picker.slint:91-92`, `:101-102`), so the date picker is gone
+  before `app.slint:950` shows the time picker. The popup that is *never*
+  closed is F-R1's, and it is F-R1's.
+- **Diagnostics.** `Diagnostics::lines` is a `Vec<String>` rebuilt per exchange
+  and replaced wholesale by `absorb` (`controller.rs:194`), not appended to;
+  every push site is bounded by one report's content
+  (`diagnostics.rs:127-151`) and each line is length-capped by `finish`.
+- **The window after `hide()`.** `SlintGlass` holds `window` and `tray` as
+  strong clones for the life of the process by design (`glass.rs:70-71`,
+  `main.rs:103-108`), and `hide()` releases the platform keepalive it took
+  (`window.rs:1656-1663` against `:1626-1632`), so the pair is balanced. Hiding
+  with nothing shown clears the row model (`glass.rs:188-195` with
+  `showing = None`), so a hidden window is not holding a dead view's elements.
+
+### Ordering between the three schedulers
+
+The three cannot interleave *within* a step: the Slint callbacks and the
+`Debounce` tick both run to completion on the UI thread with no await, and
+`serve` is a `spawn_local` task on the same thread. Within one event-loop
+iteration the order is fixed and readable —
+`update_timers_and_animations` runs `maybe_activate_timers` and then
+`run_change_handlers` (`platform.rs:289-293`), so a tick always precedes the
+guard pass it could affect. `delivered()` clearing the whole map
+(`pending.rs:157`) is sound for the reason its doc gives: `carried()` and
+`delivered()` are two statements of one synchronous callback
+(`install.rs:41-48`), and nothing can be inserted between them.
+
+What is **not** ordered is the gap between the tick's enqueue and `serve`'s
+dequeue, which is F-R3 — the one place where a present, a tick and the serve
+loop see three different answers for the same field.
 
 ## Synthesis
 
