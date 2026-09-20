@@ -454,3 +454,31 @@ other, citing the finding id.
   lines, 55 over; the head states the number and why it moved. F-5 discharges an
   endorsed decision rather than taking a new one, and F-4 keeps the slice tier 1
   by not claiming a second entry in POL-001's count.
+
+### 2026-09-20 — round 2: the photograph that could not fail, and the bound accepted
+
+- **Asked:** round 2 verified seven of eight repairs, **contested F-4**, and
+  raised three more. Two calls.
+- **F-9 — VA-7 was F-1's proxy class in better clothes.** `goad-shot` is
+  reachable only from the dev shell, which exports both `LD_LIBRARY_PATH` and
+  `FONTCONFIG_FILE`; `--set-default` is a no-op against a caller's value and
+  `--prefix` prepends to a list already naming all five `guiLibs`, so a wrapper
+  missing both flags photographs identically. **A**: repair the invocation —
+  `env -u` the two variables, absolutise the paths. **B**: drop VA-7 and rest
+  PHASE-01 on VA-6's reading of the wrapper text.
+- **Decided:** *"Strip the two variables"* — A. Confirmed from inside the dev
+  shell before landing: the two are absent under the `env -u` prefix, `PATH`
+  survives for the demo backend, and cage and grim are reached by store path.
+- **The review bound.** Round 2 is the last tier 1 allows, so these four repairs
+  land with no adversarial pass — and round 2 is precisely what caught a round 1
+  Response that overstated its repair (F-4). **A**: accept the bound, verify
+  mechanically. **B**: raise to tier 2, which buys an unbounded ledger and
+  cannot be undone. **C**: land them, then one verification-only pass.
+- **Decided:** *"Accept the bound; I verify mechanically"* — A. Each repair was
+  checked by the check that would have failed had it not landed, and the ledger
+  records the responder switching to the raiser's role to set those outcomes,
+  which the ledger Protocol permits when declared.
+- **Consequence:** `review-design.md` is **resolved** — eleven findings, no
+  blockers, all `fix-now`, nothing outstanding. The tier stays 1. Three risks
+  are recorded as knowingly standing in its Synthesis, the third being that the
+  round 2 repairs carry no adversarial pass.

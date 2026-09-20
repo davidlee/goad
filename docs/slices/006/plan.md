@@ -101,10 +101,11 @@ across three files each.
 | AC-8 | every phase's gate — PHASE-01/EX-8, PHASE-02/EX-5, PHASE-03/EX-7, PHASE-04/EX-5 · PHASE-05/VH-1 |
 | AC-9 | PHASE-05/VA-2 |
 
-`design.md` §9's twelve verification rows, in its order: the manifest joins
-(PHASE-01/VA-1) · the source filter (PHASE-01/VA-3) · both packages build
-(PHASE-01/EX-2, EX-3) · an empty environment (PHASE-01/VA-4, and the wrapper
-row `design.md` §9 gained at F-1: PHASE-01/VA-6, VA-7) · `--version` at
+`design.md` §9's **thirteen** verification rows — twelve as accepted, plus the
+one F-1 added — in its order: the manifest joins (PHASE-01/VA-1) · the source
+filter (PHASE-01/VA-3) · both packages build (PHASE-01/EX-2, EX-3) · an empty
+environment (PHASE-01/VA-4) · the wrapper carries both variables
+(PHASE-01/VA-6, VA-7) · `--version` at
 the binary tier (PHASE-03/VT-2) · `version_line` both branches (PHASE-03/VT-1) ·
 the argument table (PHASE-03/VT-3) · every path-holding error names its path
 (PHASE-04/VT-1, VT-2) · the unit's restart semantics (PHASE-02/VA-1,
@@ -184,12 +185,31 @@ comment).
   is the very fact `slice-006.md` §Purpose cites as what makes the defect
   invisible.
 - VA-7 — **a window with text in it, headless, in the phase that wrote the
-  wrapper.** Run the packaged binary under this repository's own instrument —
-  `goad-shot -o <png> -s 5 -- ./result/bin/goad examples/demo.toml`, which is
-  `flake.nix`'s `goadShot`: cage on the wlroots headless backend, grim for the
-  photograph, `SLINT_BACKEND=winit-software`. **Open the PNG and look at it**;
-  a blank window, or a window with boxes where glyphs should be, fails this
-  criterion. That a file was produced is not the criterion.
+  wrapper.** `flake.nix`'s `goadShot` is the instrument: cage on the wlroots
+  headless backend, grim for the photograph, `SLINT_BACKEND=winit-software`.
+  **The invocation is the criterion** (F-9) — `goad-shot` is reachable only from
+  the dev shell, which exports both `LD_LIBRARY_PATH` and `FONTCONFIG_FILE`, and
+  `--set-default` is by design a no-op against a caller's value while `--prefix`
+  prepends to a list already naming all five `guiLibs`. Run it from the dev
+  shell unchanged and a wrapper missing **both** flags photographs identically.
+  So strip exactly those two, and absolutise every path, because cage's child
+  starts wherever cage does — `goadShot`'s own comment says so, which is why it
+  already absolutises `GOAD_SHOT_OUT`, and `examples/demo.toml`'s `command` is
+  relative again inside it:
+
+  ```
+  env -u LD_LIBRARY_PATH -u FONTCONFIG_FILE \
+    goad-shot -o "$PWD/shot.png" -s 5 -- \
+    "$PWD/result/bin/goad" "$PWD/examples/demo.toml"
+  ```
+
+  `PATH` is kept: the demo backend is `["bash", "examples/shell/backend.sh"]`.
+  Unsetting the two costs cage and grim nothing — they are store binaries with
+  their own rpath. **Open the PNG and look at it**; a blank window, or one with
+  boxes where glyphs should be, fails this criterion, and so does an empty
+  compositor. That a file was produced is not the criterion.
+  If the run collides with a `just demo` already holding `./goad-demo.sock`,
+  that is the collision and not a packaging defect — stop the other host.
   This does **not** discharge AC-1's second half — that is PHASE-05/VH-1, a
   person, under systemd, on the real compositor (A3). It is here so that a
   fontless wrapper is caught four phases earlier than it otherwise would be.
@@ -261,10 +281,19 @@ this repository owns, with no `EnvironmentFile`.
   `configFile` option and no typed environment options — both deliberately
   excluded (OQ-1).
 - EX-2 — `config = mkIf cfg.enable` gives `home.packages = [cfg.package]` and
-  `systemd.user.services.goad` with `ExecStart = "${cfg.package}/bin/goad"`,
-  `After`/`PartOf`/`WantedBy = graphical-session.target`,
-  `Restart = "on-failure"`, `RestartPreventExitStatus = 2`, `RestartSec = 2`,
-  and **no `EnvironmentFile`** (AC-7, AC-3).
+  `systemd.user.services.goad` **in home-manager's three blocks** — a flat
+  attrset satisfies a field list read literally, renders an attrset VA-1's
+  permissive stub finds every field in, and is then rejected or dropped by
+  home-manager at the PHASE-05 cutover, which is the one place this plan says a
+  module defect must not be repaired (F-11):
+
+  | block | |
+  |---|---|
+  | `Unit` | `After`, `PartOf` = `graphical-session.target` |
+  | `Service` | `ExecStart = "${cfg.package}/bin/goad"`, `Restart = "on-failure"`, `RestartPreventExitStatus = 2`, `RestartSec = 2`, and **no `EnvironmentFile`** — `cfg.extraConfig` merges over this block and no other |
+  | `Install` | `WantedBy = graphical-session.target` |
+
+  (AC-7, AC-3.)
 - EX-3 — exported as `homeManagerModules.default`; `nix flake show` lists it.
 - EX-4 — the module's comment carries R1: a tarball consumer stamps no revision,
   so AC-5 stops holding silently — the consumer is a git input by construction.
@@ -295,7 +324,8 @@ this repository owns, with no `EnvironmentFile`.
 - VA-2 — **I4, the review obligation**: no domain vocabulary in `nix/module.nix`
   or the unit text it produces. Nothing checks this — neither the
   domain-vocabulary scan nor any of ADR-001's four instruments reads `.nix`
-  (POL-001 §Verification's *residue*; Cross-thread 4; R3). Read it, and say in
+  (a review obligation, not an enforced rule; it does not join POL-001
+  §Verification's count — Cross-thread 4; `design.md` §8 R3). Read it, and say in
   `notes.md` that it was read. The scan's own word list is
   `crates/goad-boundary/tests/checks/vocabulary.rs`, `DOMAIN`.
 - VA-3 — `git add nix/module.nix` before evaluating: an untracked file is

@@ -6,7 +6,7 @@ share one ledger and this review runs **at most two rounds**
 (`docs/AGENTS.md` §Tiers).
 **Reviewer:** fresh agent, Claude Opus 5
 **Opened:** 2026-09-20
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -115,18 +115,37 @@ in `slice-006.md` §What would raise the tier, and in `design-log.md`), and
 anything downstream of it; and the absence of a separate `review-plan.md`, which
 is correct at this tier.
 
+**Round 2** — 2026-09-20 — Outcomes on F-1 … F-8, and the repairs themselves as
+the new subject. The attack list is the one handed to this round before anything
+was reopened, in its order: whether each repair landed in the **artefact** and
+not only in the Response describing it; whether any fixed the instance and left
+the class; VA-7, the criterion the responder flagged as the one they were least
+sure of; F-3's `lib.evalModules` harness and whether its stated split leaves
+AC-7's generator half discharged by something that cannot fail; F-5's paragraph
+against what the 2026-09-20 decision actually attached; F-4's completeness
+against a fresh grep rather than against the sites the finding listed; and
+PHASE-01's size now that the plan names a cut. Round 1 declined to price that
+cut; round 2 either endorses the one named or says why not.
+
+The standing exclusions hold, and one is now larger: the design's overrun, at
+53 lines, is an explicit user decision taken twice, and nothing downstream of it
+is filed.
+
 ## Findings
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | fix-now | |
-| F-2 | major | fix-now | |
-| F-3 | major | fix-now | |
-| F-4 | major | fix-now | |
-| F-5 | major | fix-now | |
-| F-6 | minor | fix-now | |
-| F-7 | minor | fix-now | |
-| F-8 | minor | fix-now | |
+| F-1 | major | fix-now | verified |
+| F-2 | major | fix-now | verified |
+| F-3 | major | fix-now | verified |
+| F-4 | major | fix-now · re-disposed r2 | contested → verified |
+| F-5 | major | fix-now | verified |
+| F-6 | minor | fix-now | verified |
+| F-7 | minor | fix-now | verified |
+| F-8 | minor | fix-now | verified |
+| F-9 | major | fix-now | verified |
+| F-10 | minor | fix-now | verified |
+| F-11 | minor | fix-now | verified |
 
 ### F-1 — AC-3's only discharge cannot fail for the defect it guards
 
@@ -190,7 +209,7 @@ wrapper is caught in the phase that wrote it rather than four phases later.
 VA-4 survives, scoped in writing to AC-3's absence claim. AC-1's second half is
 untouched and remains PHASE-05/VH-1, a person, under systemd.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-2 — PHASE-01/VA-4 asserts an emit output that PHASE-03 makes false
 
@@ -226,7 +245,7 @@ must not be pinned there. The converse case the finding credits the plan with �
 emit's existing binary test surviving because `cargo test` never sets the
 variable — is unaffected and stands.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-3 — PHASE-02/VA-1 prescribes an evaluation this repository has no machinery for
 
@@ -273,7 +292,7 @@ criterion also states what the harness does **not** hold: permissive stub types
 check the module's output, not home-manager's acceptance of it, and
 PHASE-05/VH-2 remains the loader's half of AC-7.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-4 — "POL-001 §Verification's *residue* category" is not what POL-001 says
 
@@ -322,7 +341,16 @@ verified independently, is untouched: no ADR-001 instrument and not the
 vocabulary scan reads `.nix`. `research.md` Cross-thread 4 stated it as an
 analogy and was right; the design compressed the analogy into a citation.
 
-**Outcome:**
+**Outcome:** contested — three of the four sites that carried the phrase are
+repaired; `plan.md` PHASE-02/VA-2, which this finding's Location named, still
+reads *"(POL-001 §Verification's *residue*; Cross-thread 4; R3)"*. It is the
+load-bearing instance of the four: the criterion that **is** the obligation. The
+Response's *"All four sites now say…"* counts the design's three and the plan's
+one as repaired — `grep -n residue docs/slices/006/plan.md` returns line 298.
+One correction the other way, and the responder was right not to act on it: this
+finding's Location also listed `design.md` §8 R3, which carries the fact and
+never carried the citation. That site needed nothing; the count of real sites
+was four, not five.
 
 ### F-5 — the one piece of work the non-NixOS decision attached is not in the design
 
@@ -368,7 +396,7 @@ further over the tier 1 cap, from 46 to 53 (355 lines as landed); the overrun
 was put to the user again with the two alternatives, and again accepted. The
 document head now states the new number and why it moved.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-6 — P-1's "self-enforcing" claim is not what S-1 measured
 
@@ -416,7 +444,7 @@ now requires a comment **at the `tokio` entry** saying why it stays on one line.
 breaks in `~/flakes` — so the comment is the only thing at that site that can,
 and the entries around it are already argued the same way.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-7 — two §Coverage rows do not survive checking
 
@@ -455,7 +483,7 @@ doc-comment criterion. AC-4's row now names PHASE-03/VT-1 — the only place
 PHASE-05/VA-1, which observes it on a real binary. AC-3's row is rewritten by
 F-1 in the same pass.
 
-**Outcome:**
+**Outcome:** verified
 
 ### F-8 — AC-5's only discharge can pass against a binary from before the slice
 
@@ -493,6 +521,118 @@ only in the parenthetical; an exit 2 on either side fails it. The ordering is
 written into the criterion rather than left to the order the list happens to be
 read in.
 
+**Outcome:** verified
+
+### F-9 — VA-7's photograph is taken in the one environment that hides what it is for
+
+**Severity:** major
+**Location:** `plan.md` PHASE-01/VA-7; `design.md` §9, the *the wrapper carries
+both variables* row
+
+**Expected:** VA-7 is the second of the two remedies for F-1, chosen by the user
+over the wrapper reading alone *"so that a fontless wrapper is caught in the
+phase that wrote it"*. Its whole marginal value over VA-6 is that it runs the
+wrapper's values rather than reading them: VA-6 catches a wrapper **missing** a
+flag, VA-7 is what would catch a wrapper whose flag is present and useless.
+
+**Observed:** as written it can catch neither. `goad-shot` is on `PATH` only
+inside the dev shell (`flake.nix`, `goadShot` is in `projectPkgs`, and
+`projectPkgs` is the devShell's `packages`), so the agent running VA-7 is in the
+dev shell by construction — and the dev shell exports **both** of the variables
+the wrapper exists to supply: `LD_LIBRARY_PATH = lib.makeLibraryPath guiLibs`
+and `FONTCONFIG_FILE = fontsConf`. `headlessEnv` does not unset them and cage's
+child inherits them. Against that environment:
+
+- `--set-default FONTCONFIG_FILE` is by design a no-op when the caller already
+  has one — `design.md` §5.2(a), *"`--set-default` and not `--set`, so a
+  caller's own `FONTCONFIG_FILE` still wins (S-4)"*. A wrapper that omits the
+  flag **entirely** photographs identically.
+- `--prefix LD_LIBRARY_PATH` prepends to a value that already names all five
+  `guiLibs`. A wrapper that omits that flag too photographs identically.
+
+So the photograph shows that *the dev shell's* environment draws text, which is
+the status quo this slice replaces, and VA-4's rescoping to *"the absence claim
+only"* leaves VA-6 — a reading of the wrapper's text — as the only criterion in
+the phase that can fail on a half-wrapped binary. That is where F-1 started.
+
+**Evidence:** `flake.nix`, `devShells.${system}.default`, the two variables set
+on `mkShell`, and `projectPkgs`/`goadShot` for where the tool lives;
+`design.md` §5.2(a) for `--set-default`'s deliberate deference to the caller;
+`research.md` S-4, which measured the wrapper's effect under `env -i` precisely
+because an inherited environment cannot show it. The criterion needs its
+invocation pinned: strip exactly the two variables (`env -u LD_LIBRARY_PATH -u
+FONTCONFIG_FILE goad-shot …` keeps `PATH`, which the demo backend needs), and —
+separately — name absolute paths for the config and the output, because
+`flake.nix`'s own `goadShot` comment says *"cage's child starts wherever cage
+does"* and that is why it already absolutises `GOAD_SHOT_OUT`, while
+`examples/demo.toml` is passed relative and its `command` is
+`["bash", "examples/shell/backend.sh"]`, relative again.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-10 — the count of `design.md` §9's rows went stale in the repair that added one
+
+**Severity:** minor
+**Location:** `plan.md` §Coverage, the paragraph below the AC table
+
+**Expected:** PHASE-04/EX-3 states this repository's rule for exactly this
+class, against `StartupError`'s doc comment: *"Fix the class: check the count
+after the edit rather than incrementing the stale number."*
+
+**Observed:** F-1's repair added a row to `design.md` §9, which now has
+**thirteen**. `plan.md` §Coverage still opens *"`design.md` §9's **twelve**
+verification rows, in its order"*, and the enumeration that follows folds the
+new row into the *an empty environment* item — *"(PHASE-01/VA-4, and the wrapper
+row `design.md` §9 gained at F-1: PHASE-01/VA-6, VA-7)"* — so the list is no
+longer one item per row and no longer in the design's order either. The mapping
+is complete; the count and the shape that makes it checkable are not.
+
+**Evidence:** `design.md` §9's table, thirteen rows under the header;
+`plan.md` §Coverage; `plan.md` PHASE-04/EX-3 for the rule.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-11 — EX-2's field list names no unit blocks, which is the one thing the harness cannot catch
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-02/EX-2, checked by PHASE-02/VA-1
+
+**Expected:** VA-1 states its own limit honestly — *"the stub's option types are
+permissive, so this checks the module's own output, not home-manager's
+acceptance of it"* — and then discharges AC-7's generator half by checking
+*"every field in EX-2 by name"*. For that split to hold, EX-2 must name the
+thing a permissive stub cannot: **where** each field goes. home-manager's
+`systemd.user.services.<name>` is three attrsets — `Unit`, `Service`, `Install`
+— and `design.md` §5.2(d) knows it, defining `extraConfig` as *"merged over the
+generated **`Service`** block"*.
+
+**Observed:** EX-2 lists the fields flat: `ExecStart`, `After`/`PartOf`/
+`WantedBy`, `Restart`, `RestartPreventExitStatus`, `RestartSec`, no
+`EnvironmentFile`. Nothing says `Service.ExecStart`, `Unit.After`,
+`Install.WantedBy`. A module that puts them at the top level, or `WantedBy`
+under `Unit`, satisfies EX-2 read literally and renders an attrset in which
+VA-1 finds every field by name — and home-manager either rejects it or drops it
+silently. That failure then surfaces at PHASE-05, out of repo, at the cutover,
+which is the one place the plan says a module defect must **not** be repaired
+(*"it is a finding against PHASE-01 or PHASE-02 and is repaired there"*).
+
+**Evidence:** `design.md` §5.2(d), *"merged over the generated `Service`
+block"*; `research.md` Thread 2's prior art, which records both the shape —
+`~/dev/satan-attrd/nix/module.nix`'s `systemd.user.services.<name> = { Unit;
+Service; Install; }` — and the unit this one replaces,
+`~/satan/goad/goad.service`, whose fields are already sorted into `[Unit]`,
+`[Service]` and `[Install]` and whose `Install.WantedBy` research writes
+qualified while writing the rest bare.
+
+**Disposition:**
+**Response:**
+
 **Outcome:**
 
 ## Synthesis
@@ -500,3 +640,118 @@ read in.
 <!-- Written when the ledger resolves. The closure story: what the review
      changed, what it confirmed, and the risks it knowingly leaves standing. A
      reader who trusts this section should not need to read the findings. -->
+
+---
+
+## Round 2 repairs — F-4 re-disposed, F-9 … F-11 disposed
+
+Written by the **responder**. The two-round bound (`docs/AGENTS.md` §Tiers)
+means there is no round 3, and the user chose to accept the bound with
+mechanical verification rather than raise the tier (`design-log.md`,
+2026-09-20). **The outcomes below were therefore set by the responder acting as
+raiser** — the Protocol permits one agent to hold both roles provided the switch
+is deliberate and declared, and this is that declaration. Each names the check
+that would have failed had the repair not landed, and each check was run.
+
+### F-4 — re-disposition, after a correct contest
+
+**Disposition:** fix-now
+**Response:** The contest is upheld in full and the error was the responder's.
+The round 1 Response claimed *"All four sites now say…"* having repaired three;
+`plan.md` PHASE-02/VA-2 — the criterion that **is** the obligation, and so the
+load-bearing instance — still carried *"(POL-001 §Verification's residue;
+Cross-thread 4; R3)"*. It now reads *a review obligation, not an enforced rule;
+it does not join POL-001 §Verification's count*. The raiser's own correction is
+accepted with it: `design.md` §8 R3 carries the fact and never carried the
+citation, so the true count was four sites, not five.
+This is the round's most useful finding, and not for its size: a Response that
+overstates a repair is indistinguishable from one that describes it, and only a
+second pass over the artefact separates them
+(`docs/memory/writing-the-repair-down-is-the-review.md`).
+**Outcome:** verified — `grep -n residue docs/slices/006/plan.md` is empty, and
+the only surviving match across both documents is `design.md` §5.4's *"OQ-2's
+accepted residue"*, the ordinary word used of OQ-2's own decision.
+
+### F-9
+
+**Disposition:** fix-now
+**Response:** Correct, and confirmed from inside the shell the criterion would
+have run in: `goad-shot` resolves only from the dev shell, and both
+`LD_LIBRARY_PATH` and `FONTCONFIG_FILE` are set there. With `--set-default` a
+no-op against a caller's value and `--prefix` prepending to a list already
+naming all five `guiLibs`, a wrapper missing both flags photographs identically
+— VA-7's entire marginal value over VA-6 was nullified by its own environment.
+The repair is the raiser's: the invocation, not the criterion. VA-7 now runs
+under `env -u LD_LIBRARY_PATH -u FONTCONFIG_FILE`, keeps `PATH` because the demo
+backend is `["bash", "examples/shell/backend.sh"]`, and absolutises the binary,
+config and output paths on `goadShot`'s own stated grounds. An empty compositor
+now fails the criterion explicitly, and a `./goad-demo.sock` collision with a
+running `just demo` is named as a collision rather than a packaging defect. The
+`-s 5` settle is left as a starting guess, as the finding says it should be.
+**Outcome:** verified — under the exact `env -u` prefix both variables are
+absent and `PATH` is present (run); `goad-shot` reaches cage and grim by store
+path, so stripping costs them nothing (read from the script).
+
+### F-10
+
+**Disposition:** fix-now
+**Response:** Correct, and it is PHASE-04/EX-3's class exactly — a count stated
+in one place and changed in another. §Coverage now says **thirteen**, says why
+(twelve as accepted, plus F-1's), and gives the wrapper row its own item instead
+of folding it into the empty-environment row.
+**Outcome:** verified — `design.md` §9 has 13 data rows, and §Coverage lists one
+item per row.
+
+### F-11
+
+**Disposition:** fix-now
+**Response:** Correct, and the failure path is the one that matters: a flat
+module satisfies EX-2 read literally, renders an attrset VA-1's permissive stub
+passes, and surfaces at the PHASE-05 cutover — which this plan names as the one
+place a module defect must not be repaired. EX-2 is now a three-row table,
+`Unit` / `Service` / `Install`, with `extraConfig` merging over `Service` and no
+other. `design.md` §5.2(d) carried the same flat list and is corrected in place,
+length-neutral, since it is the contract the criterion transcribes. The raiser's
+judgement that this is EX-2's to close and not VA-1's is accepted: the harness
+observes content, not shape, and says so.
+**Outcome:** verified — both documents name the three blocks, in the shape the
+F-3 harness actually rendered at plan time.
+
+## Synthesis
+
+Two rounds, eleven findings, no blockers: five major and three minor in round 1,
+one major and two minor in round 2. Every finding was disposed `fix-now`; none
+was `tolerated`, `follow-up` or `settle-in-code`, and nothing is outstanding —
+so the tier 1 bound is met without a third round and without raising the tier.
+
+**What the review changed.** Three defects were structural rather than textual.
+*AC-3 had no criterion that could fail*: every check `design.md` §9 prescribed,
+and the plan inherited, passed on a binary wrapped with one of its two variables
+— the exact defect `slice-006.md` §Purpose exists to retire (F-1) — and the
+first repair was itself blind, because the instrument runs in a dev shell that
+supplies both variables (F-9). It took both rounds to get a check that
+discriminates. *A citation filed the slice's unenforced obligation under POL-001
+§Verification's residue*, which names one residue about a different fact, in the
+one section whose subject is not blurring its own enumeration; left standing it
+reads as an amendment, and an amendment is tier 2 (F-4). *The statement the user
+accepted instead of option C* on 2026-09-20 had never been written into the
+design, while `notes.md` §Open load-bore on it (F-5). The rest repaired criteria
+that named the wrong thing (F-2, F-7, F-8, F-10, F-11) or credited the wrong
+mechanism (F-6).
+
+**What it confirmed.** The phase decomposition, the independence of the two
+halves, and the placement of the acceptance criteria no phase can discharge
+alone. PHASE-01's size was examined in both rounds and left standing, with the
+cut now named. P-1 and P-2 are the plan's to take. F-3's harness — built and run
+before it was written into a criterion — closes the module's generator half
+honestly and states in the criterion what it does not reach.
+
+**Risks knowingly left standing.** Three. **I4 has nothing enforcing it**: no
+ADR-001 instrument and not the vocabulary scan reads `.nix`, and this slice adds
+none, because adding one amends POL-001 and is tier 2. **PHASE-01's named cut
+has no trigger** — an agent mid-phase has no signal for *going to overrun*, so
+the cut is available to a reader of the plan and not to the agent executing it.
+**The round 2 repairs carry no adversarial pass**: they were verified
+mechanically by the responder acting as raiser, under the bound the user chose
+to accept. F-4 is the standing evidence for why that is a real cost — a Response
+that overstated a repair survived a round.

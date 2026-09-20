@@ -168,10 +168,11 @@ ban on `std::env::var` is untouched.
 | `extraConfig` | `{}` | merged over the generated `Service` block |
 
 `config = mkIf cfg.enable` gives `home.packages = [cfg.package]` and
-`systemd.user.services.goad` with `ExecStart = "${cfg.package}/bin/goad"`,
-`After`/`PartOf`/`WantedBy = graphical-session.target`, `Restart = "on-failure"`,
-`RestartPreventExitStatus = 2`, `RestartSec = 2`, and **no `EnvironmentFile`**
-(AC-7, AC-3).
+`systemd.user.services.goad` in home-manager's three blocks: `Unit` with
+`After`/`PartOf`, `Service` with `ExecStart = "${cfg.package}/bin/goad"`,
+`Restart = "on-failure"`, `RestartPreventExitStatus = 2`, `RestartSec = 2` and
+**no `EnvironmentFile`**, `Install` with `WantedBy` — all three
+`graphical-session.target` (AC-7, AC-3). `extraConfig` merges over `Service`.
 
 **(e) `goad`'s argument surface.** `Launch` gains `Version`, and `arguments`'
 doc table gains one row:
