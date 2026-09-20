@@ -7,60 +7,85 @@ Written after the last phase is done. Two jobs in one document:
 2. **Reconcile** — make the record true again. The code is what shipped; the
    specs must say so, or the code must change.
 
-## PARTIAL — session 1 checkpoint (2026-09-20)
+## PARTIAL — session 2 checkpoint (2026-09-20)
 
 **Read this before anything else.** The audit is part-done. This section is the
-state of it; delete it when the audit closes.
+state of it; it replaces session 1's, and it is deleted when the audit closes.
 
 ### What is finished
 
-- The **Brief** below, written before any evidence was gathered (`aaeb5bf`).
-- **Evidence**: the gate, the surface delta, stratum purity, and PHASE-04/VA-1's
-  residue argument. The AC table and the VT/VA/VH walk are **not** done.
-- **`review-code.md` round 1, two of three dimensions**: the pure layer and the
-  suite. Seven findings — one blocker, two majors, two minors, two nits.
-- **Four user decisions**, recorded in `audit-log.md` with their reasons.
+- The **Brief** below, written before any evidence (`aaeb5bf`).
+- **Evidence**: the gate, the surface delta, stratum purity, PHASE-04/VA-1's
+  residue argument, and the AC table. The VT/VA/VH walk is **not** done.
+- **`review-code.md` round 1, complete** — all three dimensions, plus the two
+  attack areas the renderer dimension briefed and never reached. **Twenty-one
+  findings**: one blocker, six majors, eight minors, six nits.
+- **Every finding dispositioned with the user** (`audit-log.md`, second entry).
+- **Three repairs landed and gate-verified**: F-A1, F-R2 and F-R3 (`665dcf3`).
+  `just check` exit 0 at **595** tests, run independently of the agent that
+  made them.
+- **Research**: the upstream slint development docs, and slint 1.18.0 assessed
+  against this slice (`research.md`, `bfe1189`, `102ab65`).
 
 ### What is outstanding, in the order it should be taken
 
-1. **The third review dimension has not reported.** `review-renderer` was still
-   running when this session wrapped: shared mutable state across the Slint
-   callback, the timer and the async serve loop; the guard and write order;
-   handle splitting; the markup's per-control bindings; what a person loses and
-   when; resource behaviour. **Re-run it as a fresh agent** — do not assume the
-   surface is clean because no findings arrived. Its brief is in
-   `review-code.md` §Brief. One question was put to it and not answered: what a
-   `ComboBox` with its popup open, and a `datetime` `Button` with a picker
-   open, cost when `busy` goes true mid-interaction. F-A1 has the other five
-   of the seven `enabled: !root.busy` sites priced.
-2. **F-S3 and the suite dimension's AC table** were truncated in transit and
-   were not recovered. F-S3's claim, as far as it arrived: *AC-7's mechanism is
-   held by no instrument in the gate* — `view_model.rs:317` (`drawn_form`) and
-   the case at `:889`. Re-derive it rather than trusting this summary.
-3. **The repairs**, all four decisions in `audit-log.md`. Then
-   **`review-code.md` round 2 over the repairs themselves** — `docs/memory/`
-   records that the rounds on the repairs are about half the total cost, so
-   budget for them rather than treating round 2 as a formality.
+1. **F-R1's repair was in flight when this was written.** A fresh agent held
+   the tree: cherry-pick `feceab6` from the worktree at
+   `.claude/worktrees/agent-a710c49bf117b9aad` (the red-by-design loop-tier
+   case), add a `dismiss-pickers()` to `app.slint` called from `present`'s
+   `self.shown != showing` branch, injection-check both halves of that call
+   site. **Check `git log` first** — if its commit is there and `just check` is
+   green, this is done; if not, it is the next thing.
+2. **The remaining repairs**, all dispositioned `fix-now` and none started:
+   F-S2, F-S1, F-S3, F-S4, F-S5, F-R4, F-R5, F-P3, F-P4, F-S6, F-R8, F-R9.
+   The four `doc-wrong`: F-P1, F-P2, F-R6, F-R7. And **F-S7**, dispositioned
+   *settle first* — one mutation decides whether I-F is unobservable or merely
+   untested.
+3. **`review-code.md` round 2, over the repairs themselves.** Three things are
+   already known to be waiting for it, disclosed by the repair agents rather
+   than found by review — they are written out in full in
+   `docs/slices/009/notes.md` under *Audit session 2*, and the sharpest is
+   that **`wiring.rs::busy`'s two cases engage an `Answer` and fold an
+   `Evaluation`**, a sequence that cannot happen. A green case whose setup is
+   impossible is the shape `docs/memory/tests-asserting-proxies.md` records,
+   and it now sits inside the repair that closed the blocker.
 4. **Reconciliation and Closure**, neither started. The rows already known are
-   listed under Reconciliation below.
+   listed under Reconciliation below, and the **AC table above still reads
+   AC-4 and AC-5 as NOT MET** — true when written, and now to be re-walked
+   against the repairs rather than edited on the strength of them.
 
-### The budget, revised
+### The budget, revised again
 
-The handover that opened this audit planned two sessions and said a third would
-be needed **if the slider became a repair rather than a follow-up**. It did —
-the readout half is landing in this slice (`audit-log.md`). Plan **three**: this
-one, one for the repairs and round 2, one for reconciliation and close.
+Session 1 planned two, revised to three when the slider readout became a
+repair. Round 1 then grew from fourteen findings to twenty-one and two of the
+new ones wanted real code. **Four**: this one, one for the remaining repairs
+and round 2, one for reconciliation and close.
 
-### Two things not to rediscover
+### What not to rediscover
 
-- **`git status` is clean and the suite is green at 592.** Two mutations were
-  applied and reverted during this session to verify F-S1 and F-S2
-  (`pending.rs`, `glass.rs`); both were restored from copies and the tree was
-  checked clean afterwards. No mutation is in the tree.
-- **`Alternatives::first` cannot panic**, **`R-58`'s MUST holds structurally**,
-  **I-F's write order is correct**, and **`pending.rs`'s map is bounded and its
-  timer terminates**. Each was checked against the code rather than the doc
-  comment. Do not re-derive them.
+- **The gate is green at 595**, verified by this session running `just check`
+  itself rather than taking a repair agent's word for it. Three mutations were
+  applied and reverted here (`view_model.rs` twice, `app.slint` once) to
+  re-derive F-S3 and confirm F-S5; each was restored from a copy and the tree
+  checked clean.
+- **The `busy` narrowing needed no design decision**, and the question put at
+  handover is answered rather than deferred: `Command::Edit` is not an exchange
+  and `Command::Choose` has exactly one origin, so `Pending::Respond` holds iff
+  the person clicked an option button. One flag, one line, no second flag for
+  the option `Button`'s slice-003 guard.
+- **F-S3's stated mutation is false.** Two of its three shapes go red on the
+  lints. The hole is one shape only, and the ledger carries the table.
+- **No `enabled` binding in this markup is observable through the surface the
+  suite drives** — `invoke_accessible_default_action` dispatches with no
+  `accessible-enabled` check. Any case about a disabled control must deliver a
+  real pointer or key event, at the loop tier.
+- **slint 1.18.0 fixes none of the three defects repaired here**, and the
+  upgrade is its own slice. `research.md` carries the assessment and four
+  migration hazards, three of which land on the suite's primary instrument.
+- Still standing from session 1, each checked against the code rather than a
+  doc comment: **`Alternatives::first` cannot panic**, **`R-58`'s MUST holds
+  structurally**, **I-F's write order is correct**, **`pending.rs`'s map is
+  bounded and its timer terminates**.
 
 ## Brief
 
@@ -272,14 +297,21 @@ Findings live in `review-code.md`, copied from
 vocabulary, subject `implementation`. Findings are not restated here.
 
 - **Ledger:** `review-code.md`
-- **State:** open · round 1 of at least 2, two of three dimensions reported
-- **Outstanding blockers:** **F-A1** — dispositioned *fix now* by the user
-  (`audit-log.md`), not yet repaired.
+- **State:** open · **round 1 complete**, all three dimensions plus the two
+  attack areas the renderer dimension briefed and never reached. Round 2, over
+  the repairs, has not run.
+- **Outstanding blockers:** **none.** **F-A1** was the only one; it is
+  dispositioned *fix now* (`audit-log.md`) and **repaired** at `665dcf3`,
+  together with F-R2 and F-R3. The gate is green at 595.
+- **Twenty-one findings**, every one dispositioned with the user: sixteen
+  `fix-now`, four `doc-wrong`, one *settle first*.
 
-Round 1 raised seven: one blocker, two majors, two minors, two nits. Both
-majors were **mutation-confirmed by the audit rather than accepted on the
-reviewer's report**, which is the standard `docs/memory/` asks for — a claim
-about the tree can go stale under the agent that made it.
+Round 1 raised twenty-one. Five were **mutation-confirmed or measured by the
+audit rather than accepted on the reviewer's report**, which is the standard
+`docs/memory/` asks for — a claim about the tree can go stale under the agent
+that made it. Two of those re-derivations changed the finding: **F-S3's stated
+mutation does not lint clean**, and **F-R1 is wider than it was written** — the
+picker survives `hide()` as well as a view replacement.
 
 ## Verdict
 
