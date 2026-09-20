@@ -362,7 +362,17 @@ accumulates continuously and is not in this repo.
   costs something measurable now that someone is using goad, the transport slice
   is next; if it does not, it waits longer.
 - Still open from 003, and still a protocol question: SPEC-002 OQ-4, a scheduled
-  firing superseding a view a person is mid-answering.
+  firing superseding a view a person is mid-answering. **009 removed half its
+  reason for being open.** OQ-4 stays open partly because suppression *"asks the
+  host to judge that a view is worth protecting, which is domain meaning it does
+  not hold"* — and after 009 the host retains a draft and a keyed pending map, so
+  *typed into and not yet answered* is interaction state it can read without
+  understanding anything about the domain. The other half is untouched: deferral
+  still needs a second pending state and a second writer of the deadline, and the
+  answer may belong to the backend. Not reopened by 009 (`slice-009.md`
+  §Non-goals); `design.md` §8 R5 and `design-log.md` D-36 carry the reasoning.
+  Not to be confused with **SPEC-001** OQ-4 above, which is a different question
+  with the same number.
 
 ### 008 — the renderer gets a look ✔
 

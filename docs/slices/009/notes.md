@@ -5784,6 +5784,22 @@ a memory, the memory is the current truth.
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
+**Swept at close, 2026-09-20**, because nothing in the lifecycle walks this list
+against `slice-009.md` §Follow-ups and the audit had not. Dispositions, in the
+order the entries appear below:
+
+| entry | disposition |
+|---|---|
+| `today_local`'s system zone held by review alone | **promoted** — `slice-009.md` §Follow-ups **#10** |
+| PHASE-03's sheet totals 564 against a list summing to 529 | **already resolved** and left here in error. The team lead settled it on 2026-09-19 inside PHASE-04's sheet: 564 is the *gate* total and 529 the *workspace* one, the difference is `goad-semantics` counted twice, and **both are correct**. The rule it set — quote a count with its denominator — is in force |
+| `SPEC-002/OQ-4` has lost half the reason it stayed open | **carried** — `docs/roadmap.md` §*Still open from 003* now states it, including that it is not `SPEC-001`'s OQ-4. `design.md` §8 R5 already carried the reasoning |
+| the duplicated `#[cfg(test)]` view fixtures | **still open, correctly.** A decision for a later design stage, not a repair: the obvious home is a `#[cfg(test)] pub(crate) mod fixtures` under `lib.rs`, whose own doc says it is the module tree and nothing else |
+| `markup_kind`'s four non-`boolean` arms have no case | **superseded.** All five kinds draw; every arm is exercised |
+| `install.rs::reported`'s four undrawn arms answer `None` | **superseded** by the same phases — `reported` now maps all five kinds |
+| the numeric `LineEdit` / `Slider` discriminant is unsettled | **settled** by PHASE-08: `Kind::Number if edit.slider` |
+| four id sequences collide | **durable, and it is Harvest's** rather than a follow-up: a naming hazard for whoever writes the next `VT-n` doc comment |
+| what a supersession costs is not what R5 said | **discharged in place** — `design.md` §8 R5 restated, and the audit read the row as it now stands |
+
 - **One token in `today_local` is held by review alone** — that the zone it
   reads is the **system's**. The class is covered
   (`one_instant_is_two_different_local_dates_in_two_different_zones`, and
