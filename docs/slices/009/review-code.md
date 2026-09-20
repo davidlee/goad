@@ -153,6 +153,43 @@ orchestrator's own unraised leads could not become an echo.
 | F-B8 | nit | doc-wrong | |
 | F-B9 | nit | fix-now | |
 
+**Round 3 opened** — 2026-09-20, over round 2's twelve repairs, none of which
+had been reviewed by anyone. One fresh agent in its own worktree, told to
+confirm `0b0975b` before reading anything and told not to read `audit.md`. It
+set the thirteen Outcomes above — the twelve, plus `F-B4`'s margin half — by
+**re-running every mutation each Response names** against production code,
+restoring from copies rather than with `git`. **Eleven `verified`, two
+`contested`.**
+
+Its worktree arrived at `f352124`, **38 commits stale** — the second recorded
+instance, and the failure Step 0 exists to catch. It was a clean ancestor with
+no unique commits, so it fast-forwarded and took every reading at `0b0975b`.
+
+| id | severity | disposition | outcome |
+|----|----------|-------------|---------|
+| F-C6 | major | fix-now | |
+| F-C3 | major | fix-now | |
+| F-C1 | minor | fix-now | |
+| F-C2 | minor | fix-now | |
+| F-C4 | minor | fix-now | |
+| F-C5 | minor | doc-wrong | |
+
+**Two of round 3's three handed leads came out clean on its own evidence**, and
+the third was right. `glass.rs`'s reorder closes the I-F transient structurally
+and costs a person nothing — measured, `picker: true` after a same-view
+re-present. `drain.rs`'s re-indexed readings B, C and D are each non-vacuous
+under off-by-a-step probes and still catch F-R3's real defect. **`F-B9`'s repair
+does not close `F-B9`**, and that is `F-C6`.
+
+**Round 3's trend is not zero**, so `docs/memory/review-rounds-stop-on-a-measured-trend.md`
+does not license stopping. Its *shape* has changed, which is the thing that
+decides what round 4 is: **one live defect** (`F-C6`, a nit-class rebuild),
+**one coverage gap with production behaviour separately measured correct**
+(`F-C3`), and **four claims that are wrong in prose**. Round 1 was a blocker and
+six majors of live defect; round 2 was two majors about what holds a repair.
+Round 4 is therefore scoped to round 3's repairs rather than opened as a fresh
+adversarial round — the user's decision, `audit-log.md`, sixth entry.
+
 **The behaviour dimension** held the six findings whose repair produced
 behaviour — `F-A1`, `F-R2`, `F-R3`, `F-R1`, `F-R5`, `F-R8` — and applied every
 mutation each Response names to production code rather than reading the account.
@@ -2132,7 +2169,7 @@ The comment at `:229` that did the arithmetic points at the assertion instead.
 F-T1 names it as the sibling precedent — and now carries three assertions of
 its own against the same constant.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, by running all three of the Response's claims. (1) `pending.rs`'s `DEBOUNCE` 150 ms → 400 ms makes `full.rs` **fail to compile**: *"reading B is vacuous unless the debounce deadline falls between step 3 and step 11"*. (2) The same mutation across the crate fails `drain.rs` too, on two of its three assertions — so the class, not the instance. (3) Non-vacuous at the shipped constant: with F-S2's injection I1 applied (`pending.rs`'s `if enqueued` guard replaced by an unconditional `remove`) the target **reddens**, where under F-T1's own report that injection was green. The coverage the finding said was missing is there and reddens on the rule it names. The Response's claim that the *rejected* closer rescales silently was not re-run and is not load-bearing for the Outcome.
 
 ### F-T2 — the `wildcard_enum_match_arm` deny does not reach `crates/goad/src/main.rs`, and `lib.rs` says it covers "this crate"
 
@@ -2201,7 +2238,7 @@ gives `error: wildcard match will also match any future added variants`, cited
 to `main.rs:12:9` — the new attribute — for both the `bin` and the `bin test`
 units. Probe removed; `git status` clean.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, run. The deny is at `main.rs:12`, and F-T2's own probe — a `_ =>` arm over `FieldKind` appended to `main.rs`, which the finding measured linting **clean** — now fails for **both** compilation units: `cargo clippy -p goad --all-targets` errors on `bin "goad"` and `bin "goad" test`. Probe removed; tree clean.
 
 ### F-T3 — `lib.rs`'s enumeration of the workspace's other wildcard matches undercounts them, and mischaracterises one
 
@@ -2288,6 +2325,23 @@ variant, and that is the entire point of the arm.
 of it than the old sentence claimed — which strengthens the conclusion rather
 than weakening it, so the conclusion is unchanged and says so.
 
+**Outcome:** **`contested`** — set by round 3, run. **The count half verifies and the replacement sentence does not, on the same axis the finding was about.**
+
+The count was re-derived independently rather than read: a grep for wildcard and `other` arms over `goad-shell/src` and `goad-semantics/src` returns exactly eleven, being the eight the comment lists — each line number read and each correct — plus `normalize.rs`'s three, which match on `wire.kind.as_str()`, a `&str` the lint does not see, and are correctly excluded. *Six to eight* is right; *four* was wrong.
+
+What does not survive is the sentence that replaced it. `lib.rs:35-39` read *"Most of them choose no behaviour from the variant — no source, **an invalid envelope** — … **One is the opposite**"*. At least **three** of the eight read the variant, and the comment names its own clearest counterexample as its example of one that does not:
+
+- `ingress/mod.rs:752` — `other => Refusal::InvalidEnvelope(other)`, which is the *"an invalid envelope"* the sentence cites. The variant is carried into the refusal and materially determines the output: `mod.rs:484-485` gives reason `"reserved_source"` for `InvalidEnvelope(EnvelopeFault::ReservedSource)` and `"invalid_envelope"` for every other, and `:510`/`:535` read the wrapped fault for `Display` and `source`. A new `EnvelopeFault` through that arm produces a different observable refusal.
+- `state.rs:171` and `:186` — `other => panic!("…: {other:?}")`, the variant formatted into the message.
+
+By F-T3's own stated criterion — `envelope.rs`'s `found: json_type_name(&other)` *"reads the variant; that is the entire point of the arm"* — `mod.rs:752` is indistinguishable from it.
+
+**Confirmed by the orchestrator at the source before re-disposition**, both sites read directly rather than taken from the report.
+
+**Re-disposition (session 6, confirmed with the user): `fix-now`, by dropping the axis rather than restating it.** Two attempts at that sentence have now been wrong in opposite directions, and the axis is not load-bearing — the conclusion rests on **cost**, which the corrected count establishes on its own.
+
+**Response:** The characterisation deleted, not re-attempted. `lib.rs` now states the cost, and then states in as many words that **no claim is made about how many arms read the matched variant**, why the omission is deliberate, and what the second attempt got wrong — naming `ingress/mod.rs`'s arm and `Refusal::reason`'s split. A claim nothing checks, restated, is how the comment went wrong twice; the third version does not make one.
+
 **Outcome:**
 
 ### F-T4 — three citations of `glass.rs:189` point at a comment, not at the guard they name
@@ -2333,7 +2387,7 @@ was repointed on **substance** as well as number: `hide()` is at `:307`, and
 the dismiss it was really about moved to `:264-265` under F-B2, so that
 sentence now names all three sites and what each one is.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, run. All three citations repoint correctly, measured against the tree: `fields.rs:1310` → `glass.rs:269` (the guard); `picker.rs:6` → `:307` (`hide()`) and `:264-265` (the dismiss), the second repointed on substance as the Response claims, naming all three sites. One residue is **folded into `F-C2` rather than contested**: both `picker.rs` citations give the guard's block as `glass.rs:269-276` and the block ends at `:275`. The guard is at the range's start, so nothing is mislocated — an overshoot, not a mispointing.
 
 ### F-B1 — `serve` can stop engaging altogether and the whole suite stays green: slice 003's double-submit guard is held by no case through the production loop
 
@@ -2402,7 +2456,9 @@ The control is the backend's own `entered`/`answered` counters: without them
 `busy == true` could pass on an exchange the person did not start, and a click
 that missed the button would read the same as one that was refused.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, run. The finding's own mutation, which previously left every target green, now fails `event_loop_answer` and **only** `event_loop_answer`. The message names the defect rather than a proxy, and `entered: 2, answered: 1` beside it shows the control did its job — the click reached the button and the exchange was outstanding, so `busy: false` is the defect and not a missed driver.
+
+**Verified on its own content.** One *additional* claim in the Response — that reading A holds the narrowing's other half — is false by measurement and is raised separately as **`F-C1`**. It is a bonus property rather than what F-B1 asked for, which is why this is `verified` and not `contested`.
 
 ### F-B2 — a picker survives `open_diagnostics()`, and the diagnostics pane's only exit button is then unreachable by pointer
 
@@ -2479,7 +2535,9 @@ button is wired into the same click log every other control assertion uses.
 The click-through assertion is the cost measured rather than argued: with the
 picker up, `close-diagnostics` never reaches the log.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, run, **and it is the strongest repair in the set.** Injection: the new clause deleted, `glass.rs:264` back to `if self.shown != showing {`. `event_loop_picker` reddens at reading H and **no other target does**.
+
+**The click-through half was checked separately, because assertion order hides it.** With the `:468` assertion neutralised, the *cost* assertion fires and shows the window really is unanswerable: `["v1/morning", "v2/evening"]` against an expected `[…, "close-diagnostics"]`. That is a measured user-visible consequence rather than a flag — the class the Brief warns about, avoided.
 
 ### F-B3 — `pending.rs`'s new claim that the drain makes *the next present* safe is false for one of `serve`'s three present sites
 
@@ -2531,7 +2589,7 @@ exposure there is one widget revert per *process* and only once the ingress
 accept task has ended (SPEC-003/R-15), so a second drain would buy that one
 revert and put a second copy of the rule in the loop.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3 (read, with the enumeration run). The sentence is narrowed exactly as dispositioned (`pending.rs:244-262`): it says the drain covers the outer loop's present, enumerates all three sites with what each is, and names the one it does not reach. `grep -n 'glass.present' crates/goad/src/controller.rs` returns exactly the three sites the sentence enumerates, and `:1046` read in context is inside the inner `select!`'s `ingress.arrival()` arm, in the `None =>` branch, reached after an await with no drain before it. Nothing overstated.
 
 ### F-B4 — all three new loop targets fail under CPU oversubscription, and the failure is the liveness bound rather than any assertion: the stepper harness stalls
 
@@ -2645,7 +2703,16 @@ converting a stalled stepper into a red that reads like a defect. A 40x nominal
 margin was not enough, so widening bounds is not the repair — the harness is,
 and it is a follow-up.
 
-**Outcome:**
+**Outcome:** `verified` — **the margin half only**; the stepper-harness half is a follow-up and no Outcome is set on it here. Set by round 3, run.
+
+Three claims, all three held, and a fourth question answered that the Response does not raise.
+
+1. *`STEP` halved; B's threatened margin doubles at no wall-clock cost.* Both schedules reconstructed and compared **by wall-clock rather than step index** (`git show 665dcf3:…/drain.rs` against the current file). Every interval is preserved except B's, which halves as intended, and C's, which grows. The claim is accurate.
+2. *The three `const` assertions hold the relations.* Run under F-T1 — `DEBOUNCE` → 400 ms fails to compile here on two of the three.
+3. *The re-indexed schedule still measures what it did* — the claim *"six consecutive green runs"* does not establish. The defect the target exists for was injected instead: `serve`'s present hoisted back above the drain, F-R3's original order. `event_loop_drain` fails and is the only target that does, with `shown: "x"` — the person's `y` reverted on screen.
+4. **Is any reading now vacuous?** Answered by moving each reading across the tick it is defined against: read B 19 → 25 (past the tick at 24) FAILS with `held: 0` where 1 is required; read C 28 → 22 (before it) FAILS with `held: 1` where 0 is required. Neither is vacuous; the re-index is sound.
+
+Two residues raised as **`F-C4`** (a stale figure in the schedule's own header) and **`F-C5`** (the one bound that got *worse*, measured).
 
 ### F-B5 — F-R8's repair falsifies `report_platform`'s own doc comment and emits a message that says the wrong thing
 
@@ -2686,7 +2753,7 @@ sentence saying why *"could not be drawn"* is the shared half of two failures
 and the distinguishing half comes from each caller's `detail`, which is what
 makes the composed message read correctly rather than wrongly.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3 (read). `diagnostics.rs:413-420` names **two** callers and says the second arrived with F-R8's repair; `grep -rn 'report_platform(' crates/goad/src crates/goad/tests` returns exactly two call sites, so the count is right, and `report_platform_line` gained the sentence about the shared and distinguishing halves. Both halves of the disposition landed. The `glass.rs:276` line number in that new doc is wrong — the call is at `:311` — and is **folded into `F-C2`** rather than contested, since the finding's content was the *count* of callers and that is now correct.
 
 ### F-B6 — F-R5's repair, the one behaviour change in `d9fe587`, is held by nothing in the gate
 
@@ -2731,7 +2798,7 @@ F-R5's original defect, restored — the new case **FAILS** and the other 203
 `renderer` cases pass. The gate now notices the repair's removal, which is the
 whole of the finding.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, run. The exact injection: `tray_icon`'s `thread_local!` body reverted to `rasterise(state)`, restoring F-R5's original defect. `renderer` reddens on `tray::one_state_yields_one_image_and_two_states_do_not` and **203 other cases pass** — the new case is the only one that fails, which is the finding's own table reproduced. The gate now notices the repair's removal, which was the whole of the finding.
 
 ### F-B7 — `wiring.rs::busy_clears_and_controls_re_enable_after_a_success` now arranges a frame `serve` cannot produce, and all three narrowed cases pair an `engage(Answer)` with an `absorb(Evaluation)`
 
@@ -2791,7 +2858,7 @@ same value to both. It changes no `Shift` — the reviewer checked `reduce` and
 recorded that nothing they assert is false — so this is an arrangement
 correction, not a defect repair, and the comments say which.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3, run. The substantive half — *"it can now read the button's half of its own name"* — is the checkable one and it checks out. With the new `absorb`-before-`engage` removed, reverting the case to its pre-repair arrangement, `accessible_enabled_of` answers `None` where it now answers `Some(false)`: the frame the case builds is one where the window actually holds options. The claim is real, not decorative. The pairing half is **read**: all three cases now `absorb` with the `Exchanged` they engaged with. Two of the three line numbers in that comment are wrong — **`F-C2`**.
 
 ### F-B8 — `invoke_dismiss_pickers()` runs markup code inside the I-F transient, and the rule the I-F comment states covers only `init` handlers
 
@@ -2842,7 +2909,11 @@ what future markup and future callers may do: *nothing may be placed between
 these two statements*, stated beside the `init`-handler rule it sits with, and
 naming the dismiss as the call that did it.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 3 (read, with the structural fact run). Closed structurally, as claimed: `set_values` (`glass.rs:268`) and the `set_vec` guard (`:269`) are **adjacent**, and nothing that can run markup sits inside the I-F transient. The comment gained the forward-looking clause too — *"Nothing may be placed between these two statements"* — naming the dismiss as the call that did it, so both what the disposition chose and what the finding originally asked for are present.
+
+The ordering question the hoist raises was checked rather than assumed: `set_mode` is the **first** statement of `present`, so on a surface change the mode is already `Diagnostic` when the dismiss runs; both pickers are root singletons outside the prompt-mode block, so the dismiss still reaches them, and F-B2's reading H proves it by pointer.
+
+**Stated honestly: the hoist is held by nothing.** Moving the dismiss back between `set_values` and `set_vec` leaves every target green (15/15). That is consistent with the repair rather than against it — F-S7 established the transient is unobservable today and F-B8 is explicitly forward-looking — so it is reported here, not raised.
 
 ### F-B9 — the diagnostics repeater is handed a fresh `ModelRc` on every present, so every line element is destroyed and rebuilt each time the pane is up
 
@@ -2937,6 +3008,304 @@ so there is no case to redden, and F-B6 has just established what an unheld
 repair is worth. The case that would hold it is an `init` counter on the
 repeated `Text`, read across two presents in diagnostic mode; it is **not**
 written, and that is the honest residue of this repair.
+
+**Outcome:** **`contested`** — set by round 3, run. **The repair does not close the finding.** The behaviour F-B9 describes is live at `0b0975b`, and the doc comment the repair added says it is not.
+
+Round 3 built the case F-B9's own Response names — an `init` counter on the repeated `Text`, read across presents in diagnostic mode — because the brief asked whether that named case is the right one. **It is: it catches the live defect on the first run**, `inits` reading 1 → 2 → 3 across three presents, with a clean negative control (0 → 0 → 0, counter removed).
+
+**Why the repair misses.** The Response's mechanism is right about the path it names and it is not the only path:
+
+- `ModelRc`'s `PartialEq` is `core::ptr::eq`, so `ModelRc::from(Rc::clone(&self.diagnostics))` *is* pointer-equal every present. That half of the claim is true.
+- But `VecModel::set_vec` is `*self.array.borrow_mut() = new.into(); self.notify.reset();` and `RepeaterTracker::reset` is `self.is_dirty.set(true); self.inner.borrow_mut().instances.clear();` — **every instance dropped, without the model pointer being consulted at all.**
+
+The `set_vec` ran on every present, unguarded. The sibling the repair models itself on — `self.options.set_vec(rows)` — is **inside** `if self.shown != showing`. The pattern was copied without the half that makes it work, and the Response explicitly rejected that half: *"This removes a parallel implementation rather than adding a guard, which is why it was preferred to wrapping the write in a condition."* **The guard was the necessary part.**
+
+**Confirmed independently by the orchestrator before re-disposition**, all three vendored citations read verbatim at `i-slint-core-1.17.1` and the production guard asymmetry read at `glass.rs:269-290`.
+
+**Re-disposition (session 6, confirmed with the user): `fix-now`.** Guard the write on content, keep the retained `VecModel`, land the case, and correct the doc comment that states pointer identity as sufficient. Carried as **`F-C6`**, where the repair and its injection pass are recorded.
+
+**Outcome:**
+
+
+## § Round 3 findings
+
+Raised by round 3's reviewer over `665dcf3..0b0975b`, concentrating on
+`68cbe90` and `6993a56`. Four run, two read with a run component; each says
+which. Dispositions confirmed with the user in one consultation
+(`audit-log.md`, sixth entry).
+
+### F-C6 — `F-B9`'s repair does not close `F-B9`: the diagnostics repeater still rebuilds every line on every present
+
+**Severity:** `major` — **run**
+**Location:** `crates/goad/src/glass.rs:290` (the write), `:76-83` (the doc
+comment that states the mechanism); against `i-slint-core-1.17.1`
+`model.rs::VecModel::set_vec` and `model/repeater.rs::RepeaterTracker::reset`
+
+**Expected.** F-B9's own requirement: a property written on every present whose
+slint comparison is by identity rather than content destroys and re-instantiates
+every element behind it, and the sibling in the same function shows the shape
+that does not — `self.options.set_vec(rows)` writes into a **retained**
+`VecModel` **and is guarded**.
+
+**Observed.** F-B9's repair retained the `VecModel` and left the write
+unguarded. That closes the *pointer* path and leaves the *mutation* path open.
+Two independent paths reset a repeater, and the Response addressed one:
+
+- `ModelRc`'s `PartialEq` is `core::ptr::eq`, so handing the window
+  `ModelRc::from(Rc::clone(&self.diagnostics))` is pointer-equal every present.
+  **True, and closed.**
+- `VecModel::set_vec` is `*self.array.borrow_mut() = new.into();
+  self.notify.reset();`, and `RepeaterTracker::reset` is
+  `self.is_dirty.set(true); self.inner.borrow_mut().instances.clear();` —
+  **every instance dropped without the model pointer being consulted at all.**
+
+So an unconditional `set_vec` of *identical* content rebuilds every line element
+anyway, on every present, for as long as the pane is up.
+
+**Evidence — run.** The case F-B9's Response names, built: an `init` counter on
+the repeated `Text`, read across three presents in diagnostic mode with nothing
+absorbed between them.
+
+```
+inits: first=1  second=2  third=3      ← the repaired tree
+inits: first=0  second=0  third=0      ← negative control, counter removed
+inits: first=1  second=1  third=1      ← with the write guarded on content
+```
+
+All three vendored citations and the production guard asymmetry were
+**re-read at the source by the orchestrator** before the re-disposition was
+priced, rather than taken from the report.
+
+**Disposition:** `fix-now` — and it is the re-disposition of `F-B9`, which
+returns to open `contested`.
+**Response:** The write is guarded on **content**, in a named function whose doc
+carries the two-path mechanism: `glass.rs::write_if_changed` compares
+`row_count` and then element-wise, and calls `set_vec` only on a difference. The
+`VecModel` stays retained — both paths are now closed, and the field's doc
+comment says why retention alone was not enough, replacing the text that stated
+pointer identity as sufficient.
+
+The guard is on content rather than on `shown` **because these lines change
+independently of the view**, which is the reason the sibling's identity test is
+right for the sibling and would be wrong here. That distinction is written
+beside both.
+
+**The case landed with it**, and it is F-B9's own named case rather than a new
+one: `renderer/wiring.rs::a_re_present_with_unchanged_lines_does_not_rebuild_them`.
+In diagnostic mode the prompt elements are not instantiated, so the only `init`
+that can fire is the repeated `Text`'s — which is what makes a count taken there
+read this repeater and nothing else. The markup gains the sixth `init` handler,
+documented as the only instrument that reaches a repeater, since a repeater has
+no `ChangeTracker` behind it.
+
+**Injection-passed, and the control compiles** — the first attempt did not, and
+was rewritten rather than reported:
+
+```
+guard removed outright        → `error: unused import: Model`  (control does not compile)
+guard computed and ignored    → FAILED: built once at 1, then 2 and 3
+guard restored                → ok
+```
+
+`docs/memory/negative-control-must-compile.md` is why the first was not allowed
+to stand as the injection pass.
+
+**Outcome:**
+
+### F-C3 — the condition that keeps a person's open picker alive across a routine present is held by no case
+
+**Severity:** `major` — **run**
+**Location:** `crates/goad/src/glass.rs:264`
+
+**Expected.** F-R1's requirement has a converse the design depends on just as
+much: a picker **must** survive a present that does not take its form away.
+`glass.rs:246-248` states it as the reason the guard exists — *"a present that
+rebuilt them unconditionally would destroy the widget a person is working in on
+every tray check (§7 D8, D9)."*
+
+**Observed.** The dismiss condition, rewritten in round 2, reads
+`if self.shown != showing || !matches!(frame.surface, Surface::Prompt)`. Three
+of its four behaviours are held by `event_loop_picker` — view replaced, surface
+switched, window hidden. **The fourth, that it does *not* fire on a routine
+Prompt present with the view unchanged, was held by nothing.** That is the
+behaviour a person notices: `serve` presents on every scheduled check, every
+`next_check` update and every notice change.
+
+**Evidence — run.** The dismiss made unconditional, the whole guard removed:
+`cargo test -p goad --no-fail-fast` → **15 targets, every one ok, 0 failures.**
+The gate would not have noticed.
+
+**And the production behaviour is correct**, checked before raising so as not to
+report a live defect that is not there: re-presenting the *same* view leaves
+`picker: true`. This is a coverage finding only.
+
+**Disposition:** `fix-now`
+**Response:** One reading added to `event_loop_picker`, in the existing stepper
+— a routine present that replaces nothing, taken between the picker opening and
+the view replacement, with the assertion stated as the converse of the claim
+beneath it. The schedule's steps and reading letters were re-lettered
+accordingly; the readings destructure by **name**, so a miscount fails to
+compile rather than silently shifting a claim onto the wrong reading.
+
+**Injection-passed against the mutation that motivated it** — the same
+unconditional dismiss that left all 15 targets green:
+
+```
+FAILED: a present that neither replaced the view nor changed the surface must
+leave an open picker alone, or every scheduled check closes it under the person
+using it: Reading { at: "C the picker open, under v1", picker: true, … }
+                then Reading { at: "D the same view presented again, …",
+                               picker: false, … }
+```
+
+**Outcome:**
+
+### F-C1 — `event_loop_answer`'s control reading asserts a proxy, and its own message says it holds something it does not
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/tests/event_loop_answer/answer.rs:338-348`
+
+**Expected.** `docs/memory/a-green-test-can-assert-a-proxy.md`, and this
+ledger's Brief: *"An injection pass proves a case can go red — not that it goes
+red for the defect the criterion is about."* The assertion's own message is the
+requirement it is held to: *"an evaluation that engaged would fail here, which
+is the other half of the narrowing"*. F-B1's Response repeats it into the
+ledger.
+
+**Observed.** It does not. Reading A is taken at step 5, **after** the
+evaluation has landed (`entered: 1, answered: 1`), and `absorb` clears `busy` on
+landing regardless of what engaged it. The engage is transient and already
+cleared when A is read, so `!idle.busy` is true whatever `serve` engaged with.
+
+**Evidence — run.** The mutation that makes every exchange engage:
+`cargo test -p goad --test event_loop_answer` → **ok, 1 passed.** The case the
+message says *"would fail here"* does not fail. The property itself **is** held,
+by `event_loop_drain`, under the same mutation applied crate-wide — which is why
+this is `minor`: nothing is uncovered, and what is wrong is a claim written into
+a new test file and into the ledger.
+
+**Disposition:** `fix-now`
+**Response:** The false clause deleted from the assertion message, and what the
+control does **not** hold written beside it rather than left for the next reader
+to measure: that the reading is taken after the evaluation has landed, that
+`absorb` clears `busy` whatever engaged it, that the mutation leaves the target
+green, and that the property lives in `event_loop_drain`, whose arrangement
+reads `busy` while an exchange is still **outstanding** — which is where a
+spurious engage is visible. A reading that earned the sentence would have to be
+taken there.
+
+F-B1's Response is **not** edited; this ledger is append-only, and the
+correction stands here and in F-B1's Outcome, which records the same thing.
+
+**Outcome:**
+
+### F-C2 — six `file.rs:NNN` citations are wrong, three of them created by the commit that closed `F-T4`
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/src/diagnostics.rs:416`, `pending.rs:101`,
+`instant.rs:76`; `crates/goad/tests/event_loop_answer/main.rs:9`,
+`renderer/wiring.rs:502-503`, `event_loop_picker/picker.rs:6`, `:47`
+
+**Expected.** F-T4's own Expected, which is the requirement and not a finding
+id: each is *"a locating citation in a doc comment, offered so a reader can
+re-run a mutation or find a mechanism."* And `AGENTS.md`: **fix the class, not
+the instance.**
+
+**Observed.** F-T4 repaired its three instances by hand. **Nothing held the
+class**, and `68cbe90` — the commit that closed F-T4 — created three more. Three
+of the first four point at a **comment line**, which is F-T4's finding verbatim.
+Two were wrong before round 2 as well; one (`instant.rs:76`) was exactly right
+when written and was moved by round 2's own `glass.rs` edits — which is the
+point: **a correct line number is a fact with a short half-life.**
+
+**Disposition:** `fix-now`, and **not by re-numbering** — the user's decision,
+taken after the premise was corrected. The citations are in shipped source, not
+in the slice folder, so they outlive the slice and are read by whoever next
+opens the file.
+**Response:** Each of the eight becomes a **symbol** rather than a line number —
+`glass.rs::field_value`, `glass.rs::present`, `SlintGlass::present`, `install`'s
+`rescale`, `serve`'s own `controller.engage(exchanged)`, `controller.rs`'s
+private `enum Pending`, `present`'s `invoke_dismiss_pickers()`. Where the
+sentence already named the symbol, the parenthetical line number is simply
+deleted as the redundancy it was.
+
+A symbol cannot rot the way a line number does, so this is a class repair rather
+than a third round of re-numbering — but **it is a discipline and not an
+instrument, and nothing enforces it.** No gate check was added: one was
+considered and would need a spike to price honestly, and the user's decision was
+to close the slice rather than open that. **That residue is stated here rather
+than left implicit**, and it belongs to the same family as `POL-001`'s
+dependency-feature residue: a real property, held by nobody.
+
+**Outcome:**
+
+### F-C4 — `drain.rs`'s schedule header states a `STEP` the file no longer has
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/tests/event_loop_drain/drain.rs:415`
+
+**Expected.** The block comment at `:415-436` is the reader's map of the whole
+case — where every step index is explained — and its first sentence is a
+statement of fact about the file.
+`docs/memory/a-count-in-a-comment-is-a-claim-nothing-checks.md` bears directly.
+
+**Observed.** It read *"**The run, at 50 ms a step against a 150 ms
+debounce.**"* `STEP` is `Duration::from_millis(25)`, halved by F-B4's own
+repair. The step *arithmetic* below it was correctly re-derived; only the header
+sentence was stale — and it is the sentence a reader checks the arithmetic
+against.
+
+**Evidence — run.** `grep -n 'const STEP'` → `106:… from_millis(25)`;
+`awk 'NR==415'` → the sentence. Confirmed independently by the orchestrator.
+
+**Disposition:** `fix-now`
+**Response:** The header now says *"at `STEP` a step against `DEBOUNCE`"* —
+named rather than restated — and says why: the `const` assertions bound `STEP`
+against `DEBOUNCE`, nothing bounds prose, so **prose does not carry numbers it
+does not own.** The sibling shape at `full.rs:62` is noted in the finding as
+still true today and was left alone.
+
+**Outcome:**
+
+### F-C5 — the one bound `F-B4` measured actually failing got worse, and the Response says the re-index cost nothing
+
+**Severity:** `minor` — **run**, instrumented
+**Location:** `crates/goad/tests/event_loop_drain/drain.rs:438-458`; against
+`crates/goad/src/controller.rs`'s `MINIMUM_SPACING`
+
+**Expected.** F-B4's Response states the trade it made: *"the threatened margin
+doubles to 6.0x **at no wall-clock cost**"*, and its own table names a third
+bound — step 1 to the last step must stay under `MINIMUM_SPACING`, or `serve`'s
+standing timer fires an unplanned evaluation into the case — at 799 ms, 3.75x,
+asserted by nothing. `docs/memory/margin-size-is-not-margin-direction.md`: rank
+a timed bound by which way load moves it. **This is the bound load moves towards
+violation, and the only one F-B4 recorded actually failing** — at 6.44 s.
+
+**Observed.** The re-index preserved every wall-clock interval except B's,
+halved on purpose — each one checked, and the claim is true of all of them. But
+the **run got longer**: 17 steps at 50 ms became 36 at 25 ms.
+
+**Evidence — run**, instrumented at the bound and the instrumentation reversed.
+The reviewer measured 876.7 ms. **The orchestrator re-measured it rather than
+transcribing a figure it had not taken** — the first instrument was wrong (the
+clock was declared inside the per-tick closure and reset every tick, reading
+90 ns) and was rebuilt before any number was believed:
+
+| | old | new |
+|---|---|---|
+| total run | 799 ms (F-B4's figure) | **~877 ms** — 876.9 / 877.2 / 878.3 over three runs |
+| margin to `MINIMUM_SPACING` 3 s | 3.75x | **3.42x** |
+
+A 9.7% erosion, on the bound with the worst direction.
+
+**Disposition:** `doc-wrong`
+**Response:** The distinction recorded beside the bound it concerns: *"at no
+wall-clock cost"* was true of the **intervals between readings** and not of the
+**total**, and the comment now says so, carries the measured figure, and says
+the next schedule change is made against 877 ms rather than against "no cost".
+Widening `MINIMUM_SPACING` or asserting the total is the stepper-harness
+follow-up's business, not this slice's — stated there so the follow-up is not
+rediscovered.
 
 **Outcome:**
 

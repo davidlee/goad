@@ -361,3 +361,120 @@ case already does.
 Retain a `VecModel` and `set_vec` into it, as `options` already does: three
 lines, and it removes a parallel implementation of something the file otherwise
 does one way.
+
+## 2026-09-20 — round 3 closed: two re-dispositions and six findings, taken together
+
+Round 3 reviewed round 2's twelve repairs, which no one had reviewed. One fresh
+agent, its own worktree, told to confirm the tree before reading and not to read
+`audit.md`. It set thirteen Outcomes by re-running every mutation each Response
+names — **eleven `verified`, two `contested`** — and raised six findings.
+
+**Its worktree arrived 38 commits stale, at `f352124`.** Step 0 caught it; it
+was a clean ancestor with no unique commits, so it fast-forwarded and took every
+reading at `0b0975b`. **Second recorded instance.**
+`docs/memory/subagent-worktrees-can-be-stale.md` is no longer a one-off and
+should say so at harvest: the check is not a formality, and a session that
+skipped it would have reviewed a tree two sessions old and reported confidently
+about it.
+
+### The two contests — both confirmed at the source before they were priced
+
+The rule that has now held six times: **verify before pricing.** Both contests
+were re-read by the orchestrator at the vendored and production sources rather
+than accepted from the report, and both survived.
+
+**`F-B9` → `fix-now`.** The repair does not close the finding. Retaining the
+`VecModel` closes the *pointer* path; `VecModel::set_vec` ends in
+`notify.reset()` and `RepeaterTracker::reset` clears every instance **without
+consulting the pointer at all**, so the *mutation* path stayed open and the
+unguarded write rebuilt every line element on every present. The sibling the
+repair copied — `options.set_vec` — is inside `if self.shown != showing`; **the
+guard the Response explicitly rejected was the necessary half.** Measured 1→2→3
+across three presents, 1→1→1 with a content guard.
+
+This is the second time in this audit that **a repair was wrong about what it
+held**, and the first where the Response named the very case that would have
+caught it and declined to write it. F-B9's Response was honest about the
+residue; the residue was the defect.
+
+**`F-T3` → `fix-now`, by dropping the axis rather than restating it.** The
+repair corrected a false count and wrote a **new false characterisation** into
+production source: it called `ingress/mod.rs`'s `other => InvalidEnvelope(other)`
+an arm that chooses no behaviour from the variant, when `Refusal::reason` splits
+`InvalidEnvelope(ReservedSource)` from every other and the variant therefore
+reaches the wire. Two attempts, wrong in opposite directions.
+
+**Decided: delete the axis, do not re-characterise.** It is not load-bearing —
+the conclusion rests on cost, which the corrected count establishes — and the
+comment now says in as many words that no claim is made about it, and why. **A
+claim nothing checks, restated, is how this comment went wrong twice.**
+
+### F-C2 — the user's premise was corrected, and the decision changed with it
+
+The user's first instinct was to patch best-effort and accept, on the ground
+that the citations are *"of historical interest only after the slice is done"*.
+**That is true of the slice folder and false of these:** they are doc comments
+in `crates/goad/src/`, shipped, and read by whoever next opens the file.
+
+**Decided with the premise corrected: repair the class, not the instances, and
+add no gate instrument.** Every citation becomes a **symbol** rather than a line
+number. A symbol cannot rot; re-numbering has now failed twice, the second time
+in the very commit that closed `F-T4`. A gate check was considered and rejected
+**on the user's explicit decision to close the slice rather than spike one** —
+not on a cost estimate, which would have been an estimate.
+
+**The residue is stated in the finding** rather than left implicit: nothing
+enforces the symbol discipline. It joins `POL-001`'s dependency-feature residue
+as a real property held by nobody.
+
+### The remaining four — `fix-now`, except `F-C5`
+
+**`F-C3`** (`major`) is a coverage finding and the reviewer proved it both ways:
+the dismiss made unconditional leaves **all fifteen targets green**, and
+production behaviour is separately measured correct. One reading added.
+
+**`F-C1`** is the project's named failure mode in its exact shape — a green
+reading whose message names a defect it would not catch. The clause is deleted
+and what the control does *not* hold is written beside it. **F-B1's Response is
+not edited**: the ledger is append-only, and the correction lives in F-C1 and in
+F-B1's Outcome.
+
+**`F-C4`** is one sentence. **`F-C5`** is `doc-wrong`: *"at no wall-clock cost"*
+was true of the intervals and false of the total. **The orchestrator re-measured
+rather than transcribe a figure it had not taken** — and its first instrument
+was wrong, a clock declared inside the per-tick closure that reset every tick
+and read 90 ns. It was rebuilt before any number was believed: ~877 ms over
+three runs, against 799 ms, margin 3.75x → 3.42x.
+
+### Round 4 — scoped to the repairs, and that is the user's decision
+
+**Round 3's trend is not zero**, so the stopping rule does not apply and it was
+not claimed to. What changed is the **shape**: round 1 was a blocker and six
+majors of live defect; round 2, two majors about what holds a repair; round 3,
+**one live defect, one coverage gap with behaviour separately measured correct,
+and four claims wrong in prose.** The defects are gone; what remains is the
+record disagreeing with the code.
+
+**Decided: round 4 is a verification pass over round 3's repairs, not a fresh
+adversarial round.** If it returns no code defect, the slice closes. One
+session, not two.
+
+### The tray icon — a **follow-up**, not a finding, and the reason matters
+
+VH-2 turned up an observation nothing in the gate could have: two tray icons,
+one of which disappeared and returned while **neither host process died**
+(`NRestarts=0`, both PIDs continuous for twenty minutes). The non-recovery
+mechanism is real and was confirmed — `glass.rs` calls `set_image` on every
+present, but F-R5's repair made `tray_icon` return a stable-address clone and
+slint's `ChangeTracker` fires only on `!=`, so **nothing re-registers an icon
+the platform has dropped.**
+
+**It is a follow-up and not a slice finding, deliberately.** What is missing is
+the cause of the disappearance, and the user's own report was hedged. Raising it
+would be substantiating a mechanism on half its evidence — the failure
+`docs/memory/dont-feed-the-raiser-your-finding.md` and
+`docs/memory/verify-the-enumeration-not-the-conclusion.md` both describe.
+
+**The class is worth keeping** and is the harvest item: *a repair that removes a
+redundant write also removes the self-healing that redundancy was accidentally
+providing.* F-R5 was right; this is its unpriced half.
