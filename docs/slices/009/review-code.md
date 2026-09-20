@@ -777,7 +777,40 @@ F-S3 establishes is that nothing would report its removal — which is the same
 shape as F-S2, one level up.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired with the instrument the finding's own re-derivation points at, which is
+neither of the two closers it names.
+
+**`trybuild` cannot express this property.** It proves that code *fails* to
+compile; the hole is a wildcard arm that compiles, lints clean and leaves the
+suite green. A fixture could not add a sixth `FieldKind` either — the enum is
+`goad-semantics`'. The dependency was authorised and then not taken, because it
+would have bought nothing.
+
+**`clippy::wildcard_enum_match_arm`, denied for the `goad` crate**
+(`lib.rs`). It is a clippy *restriction* lint, off by default, and F-S3 itself
+notes it is absent from the workspace lint set. It holds exactly the surviving
+shape, and the three shapes now stand as: a wildcard over the new variant alone
+→ `match_wildcard_for_single_variants`; one whose body disagrees with an
+absorbed kind → `fields.rs:2120`; one whose body agrees → **this lint**.
+
+**Verified, not assumed.** With the finding's surviving mutation applied —
+`Boolean` and `Text` arms deleted, `_ => Ok(DrawnKind::Boolean)` added —
+`cargo clippy -p goad --all-targets -- -D warnings` fails. Baseline clean, and
+`just check` exits 0 at 597.
+
+**No exceptions, and no canon.** `goad`'s production code has no wildcard over
+an enum; the two in its unit tests, destructuring the `a_choice()` fixture, are
+`let … else` now. Crate-scoped rather than workspace-wide — **and the reason is
+not cost**: the other four such matches (`ProtocolError::source`, and
+`goad-shell/src/ingress/envelope.rs:106`, `:118`, `mod.rs:752`) each choose *no
+behaviour from the variant*, so the wildcard's body is the right answer for a
+variant that does not exist yet and denying it there buys four `#[expect]`s and
+no property.
+
+Because this is a lint-table entry inside the gate's existing clippy pass rather
+than a new boundary instrument, **POL-001 is untouched** and the gate's
+instrument count is unchanged. That was the alternative's price and it is not
+paid.
 
 **Outcome:**
 

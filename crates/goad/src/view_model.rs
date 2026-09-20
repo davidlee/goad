@@ -1031,12 +1031,12 @@ mod tests {
       },
       "no declared bound falls back to zero"
     );
+    let DrawnKind::Choice { first, .. } = a_choice() else {
+      panic!("the fixture is a choice");
+    };
     assert_eq!(
       as_drawn(&a_choice()),
-      Edited::Chosen(match a_choice() {
-        DrawnKind::Choice { first, .. } => first,
-        other => panic!("the fixture is a choice: {other:?}"),
-      }),
+      Edited::Chosen(first),
       "the first alternative in declared order"
     );
     assert_eq!(
@@ -1120,12 +1120,16 @@ mod tests {
       }),
       "a slider has nothing to display, so the host's own spelling is the text"
     );
+    let DrawnKind::Choice {
+      alternatives: declared,
+      ..
+    } = a_choice()
+    else {
+      panic!("the fixture is a choice");
+    };
     assert_eq!(
       interpret(&Reported::Chosen(1), None, &a_choice()),
-      Some(Edited::Chosen(match a_choice() {
-        DrawnKind::Choice { alternatives, .. } => alternatives.as_slice()[1].id().clone(),
-        other => panic!("the fixture is a choice: {other:?}"),
-      })),
+      Some(Edited::Chosen(declared.as_slice()[1].id().clone())),
       "the index is interpreted against the drawn field's alternatives"
     );
     assert_eq!(
