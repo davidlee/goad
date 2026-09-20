@@ -121,7 +121,7 @@ conclusion.
 | F-S3 | major | fix-now | verified |
 | F-R3 | major | fix-now | verified |
 | F-S4 | minor | fix-now | verified |
-| F-S5 | minor | fix-now | **contested** → re-open |
+| F-S5 | minor | fix-now → **follow-up** | **contested** |
 | F-R4 | minor | fix-now → **follow-up** | verified |
 | F-R5 | minor | fix-now | verified |
 | F-R6 | minor | doc-wrong | verified |
@@ -139,19 +139,19 @@ orchestrator's own unraised leads could not become an echo.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-T1 | minor | | |
-| F-T2 | minor | | |
-| F-T3 | minor | | |
-| F-T4 | nit | | |
-| F-B1 | major | | |
-| F-B2 | major | | |
-| F-B3 | minor | | |
-| F-B4 | minor | | |
-| F-B5 | minor | | |
-| F-B6 | minor | | |
-| F-B7 | minor | | |
-| F-B8 | nit | | |
-| F-B9 | nit | | |
+| F-T1 | minor | fix-now | |
+| F-T2 | minor | fix-now | |
+| F-T3 | minor | fix-now | |
+| F-T4 | nit | fix-now | |
+| F-B1 | major | fix-now | |
+| F-B2 | major | fix-now | |
+| F-B3 | minor | doc-wrong | |
+| F-B4 | minor | **split** — fix-now / follow-up | |
+| F-B5 | minor | doc-wrong | |
+| F-B6 | minor | fix-now | |
+| F-B7 | minor | fix-now | |
+| F-B8 | nit | doc-wrong | |
+| F-B9 | nit | fix-now | |
 
 **The behaviour dimension** held the six findings whose repair produced
 behaviour — `F-A1`, `F-R2`, `F-R3`, `F-R1`, `F-R5`, `F-R8` — and applied every
@@ -1329,6 +1329,38 @@ than it needs to be:
 
 `app.slint` restored from `$SCRATCH/orig/app.slint`; `git status` clean.
 
+**Re-disposition** (2026-09-20, `audit-log.md` fifth entry): `fix-now` →
+**`follow-up`**.
+
+**The contest was re-run before it was priced.** Session 4 could not re-run it —
+the machine was carrying eight concurrent `cargo` processes — so it was re-run
+on a quiet one, at `31a1400`:
+
+```
+crates/goad/ui/app.slint:478-481
+changed tick => { self.checked = root.values[field.slot].checked; }   # unconditional, uncounted
+
+cargo test -p goad --no-fail-fast   →   every target green, 0 failures
+```
+
+The `CheckBox` is written on every present — the caret destroyed on every tray
+check, AC-5's second clause — and `reasserts` reads `0`. `app.slint` restored
+from a copy; `git status` clean. **The contest holds.**
+
+**Decided: `follow-up`.** The three options were priced rather than estimated.
+The markup scan is rejected on its **canon** cost and not its code cost:
+`POL-001` §Verification enumerates its instruments and `CLAUDE.md` forbids
+compressing them into one count, so a fifth category is a policy amendment taken
+mid-audit for a `minor`. `tolerated` is rejected because it writes off a
+property this slice's own reviewer can state exactly.
+
+**What lands in this slice is the withdrawal, not a repair.** The Response's two
+claims that went beyond what landed are withdrawn — the counter is a consequence
+of a write *through `counted-*`*, not of a write; and the class is
+**completeness**, held by five call sites and by nothing else. The repair itself
+stands and is an improvement on what it replaced. The finding's own sentence
+stands as true of the repaired tree.
+
 ### F-S6 — `event_loop_debounce`'s "one edit per tick" cannot fail for its own claim
 
 **Severity:** nit
@@ -2076,6 +2108,10 @@ schedule from it — so a change to the production constant either keeps the
 schedule right or fails to compile. A target timed against a copy of a constant
 it cannot see is timed against nothing.
 
+**Disposition:** `fix-now` — and the closer **verified before it was priced**, not after (`audit-log.md`, fifth entry).
+**Response:**
+**Outcome:**
+
 ### F-T2 — the `wildcard_enum_match_arm` deny does not reach `crates/goad/src/main.rs`, and `lib.rs` says it covers "this crate"
 
 **Severity:** `minor` — **run.**
@@ -2130,6 +2166,10 @@ today, so nothing is being absorbed. This is a finding about a boundary stated
 wrongly in the place a future reader will look, on a crate root that holds
 `serve` — the crate's largest match statements — and it costs one line to close:
 the same `#![deny(clippy::wildcard_enum_match_arm)]` at the top of `main.rs`.
+
+**Disposition:** `fix-now`
+**Response:**
+**Outcome:**
 
 ### F-T3 — `lib.rs`'s enumeration of the workspace's other wildcard matches undercounts them, and mischaracterises one
 
@@ -2203,6 +2243,10 @@ stated reason, *"and the reason is not cost"*, which rests on the count and on
 the characterisation. Both are now written into production source as fact. The
 repair is to correct the sentence, not to widen the lint.
 
+**Disposition:** `fix-now`
+**Response:**
+**Outcome:**
+
 ### F-T4 — three citations of `glass.rs:189` point at a comment, not at the guard they name
 
 **Severity:** `nit` — **run.**
@@ -2236,6 +2280,10 @@ comment above it) and all three citations were written or touched after that, so
 nothing caught the drift.
 
 ---
+
+**Disposition:** `fix-now`
+**Response:**
+**Outcome:**
 
 ### F-B1 — `serve` can stop engaging altogether and the whole suite stays green: slice 003's double-submit guard is held by no case through the production loop
 
@@ -2280,7 +2328,7 @@ behaviour is unheld — the half a future refactor is most likely to drop, on th
 exact line this slice narrowed. The shape of the missing case is
 `event_loop_drain`'s with `Command::Choose` in place of `Command::Evaluate`.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 **Outcome:**
 
@@ -2337,7 +2385,7 @@ a view replacement too; `dismiss-pickers()` does not close it, but its
 `close-on-click-outside` policy means one swallowed click dismisses it, which is
 why it is a footnote.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 **Outcome:**
 
@@ -2379,7 +2427,7 @@ qualification is **the sentence**. The cheap repair is to drain before that
 present too, or to narrow the sentence to the outer loop's present and say which
 site is excluded and why.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — narrow the sentence and name the excluded site, rather than drain before `controller.rs:1046`.
 **Response:**
 **Outcome:**
 
@@ -2463,7 +2511,7 @@ the safe side of load"* is **not** a contradiction: it is about the deadlines
 *under test*, where slowness moves a deadline to an earlier step index. This is
 about liveness, which is the other direction.
 
-**Disposition:**
+**Disposition:** **split.** The 1.33x margin is `fix-now`; the stepper harness's behaviour under oversubscription is **`follow-up`** (`audit-log.md`, fifth entry).
 **Response:**
 **Outcome:**
 
@@ -2497,7 +2545,7 @@ returns `install.rs:251` and `glass.rs:276`; the doc comment at
 The finding is that **a commit whose stated purpose was to correct five false
 doc claims created a sixth**, and the nearest fix is one sentence.
 
-**Disposition:**
+**Disposition:** `doc-wrong`
 **Response:**
 **Outcome:**
 
@@ -2532,7 +2580,7 @@ on the strength of the probe, not on the Response's account. This finding is onl
 that **the gate would not notice its removal**, and that the case which closes it
 is the four lines of the probe.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 **Outcome:**
 
@@ -2580,7 +2628,7 @@ sibling case already uses, absorb a view before engaging.
 **excluded**: they are pure `Controller` cases about `absorb` clearing a flag,
 assert nothing about a screen, and their minimality is the point.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 **Outcome:**
 
@@ -2622,7 +2670,7 @@ stated rule names `init` handlers, and there is now a second way to latch the
 transient that it does not name. One clause — *and nothing between these two
 statements may read `root.values`* — closes it.
 
-**Disposition:**
+**Disposition:** `doc-wrong`
 **Response:**
 **Outcome:**
 
@@ -2702,7 +2750,7 @@ parallel implementation of a thing `options` already does one way.
 `init` counter on the repeated `Text` read across two presents in diagnostic
 mode — the shape `inits` already uses on the prompt side.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 **Outcome:**
 

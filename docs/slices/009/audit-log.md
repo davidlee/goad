@@ -257,3 +257,107 @@ finds nothing.
 **Decided: confirm and name the site.** `Run::of` is named alongside `present`.
 Canon carries no revision history, so it reads as the evergreen statement rather
 than as a correction — which is the right shape, because nothing was wrong.
+
+---
+
+## 2026-09-20 — round 2 closed: thirteen dispositions, taken together
+
+Round 2's two dimensions are both complete. Every finding they left open was put
+to the user with its price stated rather than estimated, and two were
+**verified before they were priced** — the lesson this audit has now learned four
+times over.
+
+### F-S5 — **`follow-up`**, and the contest was re-run before it was priced
+
+The contest holds. Session 4 could not re-run it — the machine was carrying
+eight concurrent `cargo` processes — so it was re-run here on a quiet one:
+`app.slint:479-481` with the `CheckBox`'s assignment unconditional and the
+`counted-bool` call dropped leaves **every `-p goad` target green** with
+`reasserts` at `0`. The widget is written on every present, the caret is
+destroyed on every tray check, and the instrument says nothing.
+
+**Decided: `follow-up`.** The property — *every write to a guarded widget goes
+through a counter* — is real, unheld, and now owned. The markup scan was priced
+honestly against the other two options and rejected on its **canon** cost, not
+its code cost: `POL-001` §Verification enumerates its instruments and
+`CLAUDE.md` forbids compressing them into one count, so a fifth category is a
+policy amendment taken mid-audit for a `minor`. `tolerated` was rejected because
+it writes off a property this slice's own reviewer found and can state exactly.
+
+What lands now is the Response's two overreaching claims withdrawn, and the
+finding's own sentence left standing as true of the repaired tree.
+
+### F-B4 — **drain's margin now; the stepper harness is a follow-up**
+
+Two problems arrived in one finding and they are priced separately.
+
+**Decided: fix the margin, defer the harness.** `drain.rs`'s
+step 9 → step 13 bound must exceed the 150 ms debounce and runs at 200 ms — a
+**1.33x margin**, and it is tight whether or not the machine is loaded. That is
+a defect in the case and it is fixed in this slice.
+
+The other half is not: all three new loop targets fail at roughly 6x
+oversubscription (picker 4/8, drain 2/8, busy 1/8), and **the failure is the
+liveness backstop rather than any assertion** — the slint-timer stepper stalls
+for tens of seconds and `LIVENESS_BOUND` converts the stall into a red that
+reads like a defect. A 40x nominal margin was not enough, so widening the bounds
+is not the repair; the harness is. That is a different unit of work, and it is
+deferred for that reason and not for being large.
+
+**Two independent witnesses.** Session 4's own `just check` failed here on
+`event_loop_busy` at loadavg 198, and the reviewer reproduced it under a
+controlled batch and instrumented it at the bound, without being told. Recorded
+because a load-sensitive `just check` sits against `POL-001`'s *the gate exits
+0*, and slice 003's suite stayed green at the same load.
+
+### F-B2 and F-B1 — both **`fix-now`**, and both are majors
+
+**F-B2.** A picker survives `open_diagnostics()` and the diagnostics pane's only
+exit button is then unreachable by pointer, reachable in production from the
+tray menu. It is F-R1's class one surface over, and F-R1's own Response
+predicted it. Measured **with a positive control** — the same driver, the same
+element query and the same click raise the callback once the picker is gone — so
+the blocked click is not a driver that missed. It is fixed rather than deferred
+because the criterion F-R1 was repaired to meet is the same one this defeats.
+
+**F-B1.** `serve`'s `engage` call site is held by nothing: replacing
+`controller.engage(exchanged)` with `engage(Exchanged::Evaluation)` kills slice
+003's double-submit guard in production and **the entire suite stays green**.
+All nine cases that hold `busy` call `engage` themselves. Fixed now because the
+half of a repair that *keeps* a behaviour is the half a refactor drops, and this
+slice narrowed that exact line. Noted against it, and accepted: the case is a
+fourth loop-tier target, which F-B4 has just established is the load-fragile
+tier.
+
+### The remaining eight — **`fix-now`, all of them**
+
+Sentences, two lint attributes and one verified `const` assertion. None changes
+behaviour except F-B9, and none is deferred.
+
+**F-T1's closer was verified before it was priced, and is cheaper than its own
+author proposed.** The proposal was to derive each target's step schedule from
+`DEBOUNCE`; what was built instead is `pub` on the constant plus eight lines of
+`const _: () = assert!(…)` in `full.rs`. Measured: green at the shipped 150 ms,
+and F-T1's own 150 → 400 mutation now **fails to compile** —
+*"reading B is vacuous unless the debounce deadline falls between step 3 and
+step 11"*. Derivation would have rescaled silently and kept the case green,
+which is a weaker instrument than the one the finding asked for.
+
+`F-T2` (one `#![deny]` on the second crate root), `F-T3` (the undercount — six to
+eight sites, not four, and one of the four characterised backwards), `F-T4`
+(three citations pointing at prose), `F-B5` (a commit that corrected five false
+doc claims and created a sixth), `F-B8` (one clause on the I-F comment), and
+`F-B3` — whose repair is to **narrow the sentence** to the outer loop's present
+and name the excluded site, rather than to drain before `controller.rs:1046`:
+that present costs one widget revert per *process* and only after ingress has
+died, and a behaviour change there buys less than the honest sentence does.
+
+`F-B6` promotes the reviewer's four-line probe into a real case — it is the case
+F-R5's repair owed, and without it the gate does not notice the repair's
+removal. `F-B7` absorbs a view before engaging, which is what its own sibling
+case already does.
+
+**F-B9 is the orchestrator's finding and the user disposed it like any other.**
+Retain a `VecModel` and `set_vec` into it, as `options` already does: three
+lines, and it removes a parallel implementation of something the file otherwise
+does one way.
