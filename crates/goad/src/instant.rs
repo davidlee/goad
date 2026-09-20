@@ -54,7 +54,30 @@ use crate::generated::{Date, Time};
 /// takes the earlier occurrence and a gap shifts forward, both **succeeding**
 /// (§7 D13, D19). The button then shows the composed value, so a person sees
 /// the shift rather than being deceived by it, and the instant reaches the
-/// backend carrying the offset it was resolved in.
+/// backend carrying the offset it was resolved in — **rounded to the nearest
+/// minute, which for a sub-minute offset is not the offset it was resolved
+/// in** (F-P1).
+///
+/// A tzdb zone's pre-standardisation LMT offset carries seconds:
+/// `Australia/Melbourne` is `+09:39:52` before 1895-02-01.
+/// `Timestamp::display_with_offset` computes the civil datetime at the *exact*
+/// offset and then prints the offset rounded —
+/// `print_timestamp_with_offset_buf` calls `offset.to_datetime(*timestamp)` and
+/// then `print_offset_rounded_buf`, whose doc reads *"If the given offset has
+/// non-zero seconds, then they are rounded to the nearest minute"*
+/// (`jiff-0.2.35/src/fmt/temporal/printer.rs:310-318`, `:772-775`). Measured:
+/// `Europe/Amsterdam` −30 s, `Europe/Paris` +21 s, `Australia/Melbourne` −8 s,
+/// composing 1880-06-15T12:00:00 in each.
+///
+/// **`R-57` is not breached, and there is no repair available.** RFC 3339's
+/// `time-numoffset` is `("+" / "-") time-hour ":" time-minute` — it cannot
+/// express a sub-minute offset at all, so rounding is the only conforming
+/// behaviour. Nothing a person sees disagrees either: the button carries the
+/// same rounded string (`glass.rs:523-527`) and `decompose` reopens the pickers
+/// on the exact civil value, so the round trip through the host is lossless.
+/// What was wrong was this sentence claiming a fidelity the wire format has no
+/// room for. PHASE-04/VT-1 cannot see it: it composes a 2024 date, where every
+/// zone's offset is a whole number of minutes.
 ///
 /// Takes references rather than values: the caller is `install.rs`'s mapper,
 /// which holds a `&FieldEdit`, and every field read out of these is an `i32`.

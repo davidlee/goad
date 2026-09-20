@@ -70,8 +70,16 @@ pub struct PresentationOption {
 ///
 /// Layout, not a concept: a block is where a heading is drawn, and the host
 /// takes no position on what the backend groups by. `heading: None` is a block
-/// with no heading — an ungrouped run, or a `group` the backend sent empty —
-/// never a missing block.
+/// with no heading — never a missing block.
+///
+/// **Three different runs produce `heading: None`, and they do not all merge**
+/// (F-P4). `Run::Unreadable` and `Run::Ungrouped` both key `None`, so adjacent
+/// ones join into a single block (`:261-266`). `Run::Named("")` — a `group` the
+/// backend sent empty — keys `Some("")`, so it does **not** merge with an
+/// adjacent ungrouped field, and `blocks_from` opens a second headingless block
+/// beside the first. `R-18` leaves grouping to the renderer, so this is
+/// admitted rather than wrong; it is written down because the three cases read
+/// identically once they are here.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldBlock {
   pub heading: Option<String>,

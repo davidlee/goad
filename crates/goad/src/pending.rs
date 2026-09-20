@@ -59,6 +59,37 @@ struct Held {
 /// [`Self::carried`] and [`Self::delivered`] — take `&self`, so PHASE-06's
 /// overlay reads it without one.
 ///
+/// **The lifetime consequence of that choice, which this type's argument for
+/// its own shape did not state** (F-R6). `arm` moves an `Rc<Self>` into the
+/// callback, and `Timer::start` does not keep the closure in the `Timer` —
+/// the `Timer` holds a `Cell<Option<NonZeroUsize>>` id
+/// (`i-slint-core-1.17.1/timers.rs:61-66`) and the closure is boxed into the
+/// thread-local `CURRENT_TIMERS` slab (`:84-93`). So after one `arm` the graph
+/// is a cycle:
+///
+/// ```text
+/// Rc<Debounce> ──► Debounce.timer ──(id)──► CURRENT_TIMERS[id].callback
+///       ▲                                              │
+///       └──────────────────────────────────────────────┘
+///                  the closure holds Rc<Debounce>
+/// ```
+///
+/// The only thing that removes the slab entry is `Timer::drop`
+/// (`:188-203`), which cannot run while the strong count is held up by the
+/// entry it would remove. `tick` re-arms rather than stopping, and a final tick
+/// that empties the map still leaves a closure registered. **Once armed, a
+/// `Debounce` — its map and the `Wire` clone inside the closure — is retained
+/// for the life of the thread.**
+///
+/// In production that costs nothing: `main.rs:95` creates exactly one for the
+/// process. It costs one leaked map and one retained `mpsc::Sender<Command>`
+/// per test target that arms, and it is why [`crate::controller::Ending::Closed`]
+/// is unreachable from the callback side (F-R9). It becomes real the moment a
+/// future slice wants a `Debounce` per view or per window — which is what this
+/// note is for, since the type's shape argues its field count and said nothing
+/// about how long it lives. `Weak::upgrade` inside the callback, or a
+/// `timer.stop()` on the empty tick, closes it.
+///
 /// **Not `Pending`.** `controller.rs:408` already declares a private
 /// `enum Pending` — the exchange a command turns into — and two private types
 /// of that name in one crate, one of them behind an `Rc`, is a readability
@@ -167,6 +198,16 @@ impl Debounce {
   /// locked source and then measured under a real loop, because the whole
   /// delivery rule rests on it (`prototype-handback.md` P-11). The negative
   /// control is `tests/event_loop_debounce/`.
+  ///
+  /// **`TimerMode::SingleShot` below is not `CallbackVariant::SingleShot`, and
+  /// the two take different arms.** `Timer::start` boxes *every* callback as
+  /// `CallbackVariant::MultiFire` whatever `TimerMode` it is handed
+  /// (`timers.rs:84-93`), and it is the `MultiFire` arm (`:316`) that falls
+  /// through to the re-emplacement cited above. The `CallbackVariant::SingleShot`
+  /// arm (`:317-322`) `continue`s past it and removes the timer outright — so a
+  /// reader who takes the `SingleShot` in this call to mean that arm will
+  /// conclude the re-arm cannot work. `TimerMode` governs rescheduling;
+  /// `CallbackVariant` governs disposal of the boxed closure.
   fn arm(self: &Rc<Self>, wire: &Wire) {
     let holding = Rc::clone(self);
     let sending = wire.clone();

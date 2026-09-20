@@ -11,6 +11,7 @@ use std::rc::Rc;
 use slint::platform::WindowEvent;
 use slint::{CloseRequestResponse, ComponentHandle, Weak};
 
+use crate::diagnostics::report_platform;
 use crate::draft::Reported;
 use crate::generated::{FieldEdit, Kind, PromptWindow, Tray};
 use crate::instant;
@@ -240,7 +241,14 @@ fn debounced(report: &Reported) -> bool {
 /// The compositor's scale is divided back out of what the window reports
 /// rather than remembered from startup; `Zoom::base_of` says why.
 fn rescale(window: &Weak<PromptWindow>, zoom: &Cell<Zoom>, step: impl Fn(Zoom) -> Zoom) {
+  // **Reported rather than swallowed** (F-R8). This is the crate's only
+  // `Weak::upgrade`, and it is unreachable today: the three zoom callbacks
+  // live in the tray's callback table, which `SlintGlass` holds strongly
+  // (`main.rs:96-98`), so the `PromptWindow` outlives every caller. What the
+  // site must not do is let an action a person took vanish without a trace —
+  // it is the one place in the renderer where that was possible.
   let Some(window) = window.upgrade() else {
+    report_platform("zoom: the window was gone before the scale could be set");
     return;
   };
   let was = zoom.get();

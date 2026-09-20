@@ -73,7 +73,17 @@ pub enum Exchanged {
 pub enum Ending {
   /// The stop signal was tripped.
   Stopped,
-  /// Every sender was dropped. Only reachable at teardown.
+  /// Every sender was dropped.
+  ///
+  /// **Reachable from the test tiers, and in production from nowhere at all**
+  /// (F-R9). Eight `mpsc::Sender<Command>` clones outlive the loop: `main.rs:86`
+  /// binds `tx` for the whole of `start`, which outlives
+  /// `run_event_loop_until_quit`; `Wire::new` takes one (`main.rs:89`) and
+  /// `install` clones it into seven callbacks (`install.rs:39`, `:65`, `:82`,
+  /// `:93`, `:99`, `:104`, `:109`) that live in the window's and the tray's
+  /// callback tables for the life of the process; and the armed debounce timer's
+  /// closure retains an eighth (F-R6). The production shutdown path is
+  /// `Stopped`, via `Cancel` — `install.rs:95` and `:110` trip it.
   Closed,
 }
 

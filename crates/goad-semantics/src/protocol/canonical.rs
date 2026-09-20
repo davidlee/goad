@@ -379,7 +379,7 @@ impl Alternatives {
   ///
   /// **Non-emptiness is this type's invariant, so this is where it is
   /// exposed.** [`Alternatives::new`] is the only constructor and it returns
-  /// `EmptyAlternatives` for an empty list (`:362-364`, ten lines above), so a
+  /// `EmptyAlternatives` for an empty list (`:362-364`, twenty lines above), so a
   /// value of this type has at least one member and `self.0.first()` cannot be
   /// `None`. A consumer cannot reach that conclusion for itself in a total
   /// expression — `AlternativeId::new` is `pub(super)`, so there is no fallback
@@ -396,7 +396,9 @@ impl Alternatives {
   /// refuses the empty list before one is built.
   #[expect(
     clippy::expect_used,
-    reason = "`Alternatives::new` at :361 is the only constructor and returns `EmptyAlternatives`               at :362-364 for an empty list, so `self.0` has at least one member; the guarantee               is ten lines above this line and is checkable there"
+    reason = "`Alternatives::new` at :361 is the only constructor and returns `EmptyAlternatives` \
+              at :362-364 for an empty list, so `self.0` has at least one member; the guarantee \
+              is above this line and is checkable there"
   )]
   #[must_use]
   pub fn first(&self) -> &Alternative {

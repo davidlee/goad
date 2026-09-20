@@ -128,10 +128,22 @@ impl SlintGlass {
 }
 
 impl Glass for SlintGlass {
-  /// Infallible: every property setter returns `()`. A `show()` or
-  /// `hide()` failure is reported on stderr through
-  /// `diagnostics::report_platform` and `present` returns; the process
-  /// keeps running, with no de-duplication (design.md §5.3).
+  /// Infallible: every property setter returns `()`. The `show()` or `hide()`
+  /// failure that *is* returned is reported on stderr through
+  /// `diagnostics::report_platform` and `present` returns; the process keeps
+  /// running, with no de-duplication (design.md §5.3).
+  ///
+  /// **Not every failure inside `show()` is one of those** (F-R7).
+  /// `WindowInner::show` propagates `set_visible(true)?`
+  /// (`i-slint-core-1.17.1/window.rs:1636`) — the failure this handles — and
+  /// twelve lines later calls `renderer().resize(size).unwrap()` (`:1648`). A
+  /// renderer resize failure aborts the process from inside `show()` and never
+  /// reaches `report_platform`. `present` calls `show()` on every non-hidden
+  /// frame, so that exposure is every present rather than startup only. No
+  /// protocol message reaches it, so the fourth invariant is intact; what is
+  /// corrected here is the account of `show()`'s failure surface, which a
+  /// reader planning the display-server-fails-partway story would otherwise
+  /// take at face value.
   fn present(&mut self, frame: Frame<'_>) {
     self
       .window
@@ -165,16 +177,38 @@ impl Glass for SlintGlass {
     self.window.set_body_degraded(degraded);
     self.window.set_busy(frame.busy);
 
-    // **The order of these three writes is §5.5 I-F, and it is load-bearing in
-    // a way nothing reports when it is wrong.**
+    // **The order of these three writes is §5.5 I-F. It is a constraint on
+    // what this markup may do, not an invariant the current markup depends
+    // on** — measured, F-S7.
     //
     // `values` first, because `set_vec` instantiates the rows and a row
     // evaluates `root.values[field.slot]` *while* it is being instantiated.
     // With the rows written first, a new view's rows index the previous view's
-    // shorter array — which Slint answers with a default-initialised
-    // `FieldValue` rather than an error: a zero that looks like a value.
-    // Writing the new view's values while the old rows still index them costs
-    // nothing, because the next statement destroys those rows.
+    // array — which Slint answers with a default-initialised `FieldValue`
+    // rather than an error: a zero that looks like a value. Writing the new
+    // view's values while the old rows still index them costs nothing, because
+    // the next statement destroys those rows.
+    //
+    // **That transient is currently unobservable, and swapping these two
+    // statements leaves the whole suite green.** The reason is not the order:
+    // every `root.values[…]` read in `app.slint` is either a lazy,
+    // dependency-tracked binding (`:426`, `:479`, `:550`, `:613`, `:686`,
+    // `:746`) — which the write below invalidates, so it re-evaluates before
+    // anything reads it — or a click-time read (`:762-763`). The five guards do
+    // break their binding by self-assigning, but they fire on `changed epoch`,
+    // and the epoch bump is the *last* statement in either order, so a guard
+    // never runs against stale values. `present` is synchronous, so no test and
+    // no person can observe a state between these statements; only a statement
+    // that **latches** the transient could make the order matter, and the one
+    // candidate is `set_vec`'s instantiation pass. All six `init` handlers are
+    // `root.inits += 1`.
+    //
+    // **So the rule this comment exists to state is forward-looking: no `init`
+    // handler may read `root.values`.** One that seeded itself at init — the
+    // shape `seed-date`/`seed-time` use at click time — would latch the stale
+    // read and make this order load-bearing for real. Nothing enforces that;
+    // the order is kept because it costs nothing and is the shape that stays
+    // correct if the markup acquires one.
     //
     // The rows second, and **only where the view changed**: repeating over
     // them destroys every element beneath, so a present that rebuilt them

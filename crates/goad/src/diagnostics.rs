@@ -448,8 +448,43 @@ const SAMPLES_PER_PIXEL: u32 = 16;
 ///
 /// No icon file, no build-time generator, no image decoder: this is the
 /// whole rule.
+/// **Rasterised once per thread, and handed out as clones**, because slint
+/// compares an `Image` by its *buffer address* and not by its contents:
+/// `SharedImageBuffer::eq` is `data.as_ptr()` equality
+/// (`i-slint-core-1.17.1/graphics/image.rs:211-223`), reached through
+/// `ImageInner`'s `EmbeddedImage` arm (`:643`) and `Image`'s derived
+/// `PartialEq` (`:774`). A freshly allocated buffer never shares an address
+/// with the one it replaces, so two byte-identical idle icons compared
+/// unequal, `SystemTrayIcon`'s `icon_tracker` fired
+/// (`items/system_tray.rs:326-341`, and `ChangeTracker` fires only on `!=`,
+/// `properties/change_tracker.rs:131-134`) and the platform tray icon was
+/// re-set on **every** present — every command, every scheduled poll, and
+/// every refused ingress arrival (F-R5).
+///
+/// Cloning an `Image` shares the buffer, so the address is stable and the
+/// tracker now fires exactly when the state changes. The sibling
+/// `set_hover_text` needed none of this: a `SharedString` compares by content,
+/// which is why `tooltip_tracker` was always well behaved.
+///
+/// Thread-local rather than a global, because `slint::Image` is neither `Send`
+/// nor `Sync`. Each test thread rasterises its own pair; stability within a
+/// thread is what the tracker reads.
 #[must_use]
 pub fn tray_icon(state: TrayState) -> slint::Image {
+  thread_local! {
+    static ICONS: (slint::Image, slint::Image) =
+      (rasterise(TrayState::Idle), rasterise(TrayState::Fault));
+  }
+
+  ICONS.with(|icons| match state {
+    TrayState::Idle => icons.0.clone(),
+    TrayState::Fault => icons.1.clone(),
+  })
+}
+
+/// The rule itself: idle is an annulus and fault a filled disc, sampled
+/// 4x4 per pixel. Called exactly twice per thread, by `tray_icon`.
+fn rasterise(state: TrayState) -> slint::Image {
   let (colour, inner_sq) = match state {
     TrayState::Idle => (IDLE, INNER_SQ_IDLE),
     TrayState::Fault => (FAULT, INNER_SQ_FAULT),
