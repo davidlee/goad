@@ -4635,40 +4635,125 @@ inside the `if field.kind == Kind.choice` arm, and both fixtures build only
 `FieldRow::default()` gives them. `tree.rs` is inside the Surfaces and was left
 alone on that reasoning; `sizing.rs` is outside them and needed no carve-out.
 
-**VH-1 — the mechanical half, and what remains**
+**VH-1 — discharged, and what it found**
 
-**Not discharged.** VH-1 is a person running the software and answering a
-five-kind form; what is done here is getting the software up in front of one.
+**Discharged 2026-09-20.** A person ran the software and answered a five-kind
+form, twice. Two of the three human observations pass; the third fails, and the
+failure is exactly what `design.md`'s **A-6** was deferred to AC-10 to measure.
 
-What was run: a scratch backend and config in the session scratchpad —
-`vh1/backend.sh`, serving one option carrying `boolean`, `text`, `choice`, two
-`number`s (one inside `slider_bounds`, one unbounded) and `datetime`, with the
-last three under a `group` heading — and
-`target/debug/goad <scratchpad>/vh1/goad.toml`, launched with the Bash tool's
-`run_in_background` and no `&` (`getting-eyes-on-the-running-host.md`). The
-window was found with `niri msg windows` (id 352) and captured with
-`niri msg action screenshot-window --id 352`.
+**The rig, and how it differs from the execution run.** A scratch backend and
+config in the session scratchpad — `vh1/backend.sh`, one option carrying
+`boolean`, `text`, `choice`, two `number`s (one inside `slider_bounds`, one
+unbounded) and `datetime`, the last three under a `group` heading. Two
+deliberate differences from the run above:
 
-**`just demo` was not used and its backend was not touched.** The demo form is
-`boolean` × 5 plus one `text`, which is not five kinds, and
-`examples/shell/backend.sh` is outside this phase's Surfaces.
+- **The view is drawn once; every later evaluate answers `"view": null`.**
+  `Host::evaluate` leaves the interaction outstanding on a null view
+  (`host.rs:140`, `WhenNothingToShow::LeaveOutstanding`), so each present
+  re-writes the *values* of one `view_id`. That is AC-5's condition. A second
+  drawn view would mint a fresh id (`state.rs:76`) and rebuild the form, which
+  is not what the criterion is about.
+- **`next_check` is `"1 second"`**, so presents land every **3.003 s** —
+  SPEC-002/R-4's floor, measured across 301 evaluates. A person cannot type or
+  drag for three seconds without one arriving.
 
-What is on screen, from the capture: the title and body, then one card per
-option. Under *Record it*: a `CheckBox` reading **Made a start**; a label
-**Anything notable?** over an empty `LineEdit`; a label **How did it feel?**
-over a `ComboBox` reading **Rough**, its first alternative, with a chevron; then
-a `Numbers` heading over **Out of ten** with a slider at its left stop,
-**How many interruptions?** over a `LineEdit` reading `0`, and
-**When did you stop?** over a button reading **not set**. Then *Not now* in its
-own card with no fields. Five kinds, in declared order, each showing what
-`as_drawn` says it submits — and `datetime` showing what it does **not**, which
-is D-6 on screen.
+**What a person answered, off the backend's own log:**
 
-**What remains, and it is a person's:** the caret staying put mid-word while a
-present lands, both pickers driven by hand, and a slider dragged across a
-present. No agent in this session can dispatch input to a real window, so those
-three are the human-observation half and are the user's to do and `audit.md`'s
-to record under Evidence.
+```
+run 1  {"counted":0.0, "mood":"fine",  "note":"I drank coffee",
+        "rated":5.34957218170166, "started":true,
+        "when":"2026-09-20T03:00:00+10:00"}
+run 2  {"counted":0.0, "mood":"rough", "note":"",
+        "rated":4.29337215423584, "started":false,
+        "when":"2026-09-21T14:25:00+10:00"}
+```
+
+Six keys both times, exactly the six fields drawn on the option answered and no
+others — **AC-3**, `R-58`, twice over rather than once. A string, a number, an
+alternative **id** (`"fine"`, not the label `Fine` — **AC-8**), and an RFC 3339
+instant with an explicit offset — **AC-2**. `counted` was unbounded and returned
+`0.0` with no range invented — **AC-9**. `"I drank coffee"` arrived whole —
+**AC-4**. Run 2 is the untouched-field control: `started: false`,
+`mood: "rough"` (the first alternative), `note: ""` — every field nobody touched
+submitted what it was drawn showing.
+
+**The three observations**
+
+- **The caret mid-word across a present — passes.** Typing was recorded
+  character for character and the caret stayed where it was put.
+- **Both pickers by hand — passes**, with usability findings, all of them
+  upstream.
+- **A slider drag across a present — fails.** The drag ends mid-gesture and the
+  pointer slides off the handle.
+
+**The failure, and what it lands on.** `controller.rs:921-922` engages and
+presents with `busy = true` before **every** exchange, a routine scheduled poll
+included. `busy` disables every control in the form — seven `enabled:
+!root.busy` sites in `app.slint` — and for a `Slider` that reaches
+`slider-base.slint:5`, `enabled <=> touch-area.enabled`. A `TouchArea` disabled
+mid-press loses its grab, and `moved` early-returns; once re-enabled the press
+is over though the button is still physically held. That is AC-5's own wording —
+*no destroyed element, no moved caret, **no interrupted drag*** — breached.
+
+**A-6 (`design.md:1339`) is literally true and its cost estimate is wrong.**
+Nothing is destroyed. *Being wrong costs focus, not data* is the part that
+fails: it costs a pointer grab, and for a slider the drag **is** the data entry.
+A-6 was recorded *not measured … a person's observation under AC-10*, and this
+is that observation.
+
+**No tier can see it.** No case in any target holds a pointer press across a
+present. `tests/renderer/fields.rs:558` drives `set-value` directly and its own
+doc calls it *"the same callback a pointer drag"* uses — true of the value,
+false of the grab. A green test asserting a proxy
+(`docs/memory/a-green-test-can-assert-a-proxy.md`).
+
+**Four leads for the audit.** Recorded as leads, not opened as a ledger — the
+priorities are the user's, set at the end of the run.
+
+1. **`busy` disables every control on every exchange.** One defect, two
+   severities: a one-frame flash of the whole form when idle, a dead drag when a
+   gesture is in flight. **The flash needs fixing; the drag is backlogged
+   *attached to it*, not as a separate row** — because two fixes stop the flash
+   and only one stops the drag. Narrowing what `busy` means (*your answer is in
+   flight*, not *the host is talking to the backend*) fixes both; suppressing
+   the busy present for a fast exchange fixes the flash and leaves the drag, now
+   invisible until a slow backend. `Controller::engaged`'s only consumer is
+   `frame.busy` (`controller.rs:400`) — the `engaged` **wire** reason SPEC-003
+   refuses on is decided structurally, in `refuse_during_exchange`
+   (`controller.rs:634`), and no narrowing here touches SPEC-003/R-12. The flag
+   dates from slice 003's state machine (`003/design.md:339`), designed when a
+   double click on an option `Button` was the thing to prevent.
+2. **A bounded `number` is the only drawn kind a person cannot read.** No
+   readout, and `step` does not quantise a drag: `set-value` clamps to the range
+   and never snaps (`slider-base.slint:117-124`); `step` serves only
+   `increment`/`decrement`. A 0–10 slider returned `5.34957218170166` — the
+   window width on the wire, ~0.017 per pixel over 595 px of travel. **The host
+   is already quantising; the question is whether the quantum is the `step` it
+   computed or an accident of the window.** A readout *forces* quantisation: a
+   rounded display over an unrounded value is the divergence §5.2's P-3 exists
+   to prevent. No prior art — `design.md` never weighed a readout, and D17 is
+   about which control is drawn, not what it displays. The write-back machinery
+   is already there: `serve` presents before every command it handles, the
+   debounce is 150 ms (`pending.rs:32`), the value channel writes
+   `values[slot].number` and the guard snaps the handle. **The user's first
+   priority** — a serious compromise of the field type's usefulness. Note the
+   interaction with 1: a readout and an aimable step make fine-grained
+   adjustment the normal mode, which is the case the dead drag bites.
+3. **A set `datetime` is drawn as its wire spelling** — the button reads
+   `2026-09-20T03:00:00+10:00`. §7 **D1**/**D2** gave the *untouched* case a
+   human form (*not set*) and left the set case unstated. This project's, and
+   fixable.
+4. **Upstream, `std-widgets` 1.17.1.** `TimePickerPopup` hides the hour dial on
+   the move to minutes; the way back — clicking the hour box — works but is
+   undiscoverable. `DatePickerPopup` padding, and a hover ellipse swallowing the
+   month `>` button. This project declares both popups (`app.slint:946`, `:960`)
+   and supplies a date and a time; nothing short of its own picker reaches them.
+
+**One thing checked and cleared.** Run 1 submitted `03:00:00` after a minute was
+picked, which would have been a fifth finding — a minute selection that does not
+commit. Run 2 picked `14:25` deliberately: the button read `14:25` and the wire
+carried `2026-09-21T14:25:00+10:00`. The button and the wire agree; run 1 ended
+on zero. No fifth finding.
 
 **Left for PHASE-09's audit**
 
