@@ -7,6 +7,61 @@ Written after the last phase is done. Two jobs in one document:
 2. **Reconcile** — make the record true again. The code is what shipped; the
    specs must say so, or the code must change.
 
+## PARTIAL — session 1 checkpoint (2026-09-20)
+
+**Read this before anything else.** The audit is part-done. This section is the
+state of it; delete it when the audit closes.
+
+### What is finished
+
+- The **Brief** below, written before any evidence was gathered (`aaeb5bf`).
+- **Evidence**: the gate, the surface delta, stratum purity, and PHASE-04/VA-1's
+  residue argument. The AC table and the VT/VA/VH walk are **not** done.
+- **`review-code.md` round 1, two of three dimensions**: the pure layer and the
+  suite. Seven findings — one blocker, two majors, two minors, two nits.
+- **Four user decisions**, recorded in `audit-log.md` with their reasons.
+
+### What is outstanding, in the order it should be taken
+
+1. **The third review dimension has not reported.** `review-renderer` was still
+   running when this session wrapped: shared mutable state across the Slint
+   callback, the timer and the async serve loop; the guard and write order;
+   handle splitting; the markup's per-control bindings; what a person loses and
+   when; resource behaviour. **Re-run it as a fresh agent** — do not assume the
+   surface is clean because no findings arrived. Its brief is in
+   `review-code.md` §Brief. One question was put to it and not answered: what a
+   `ComboBox` with its popup open, and a `datetime` `Button` with a picker
+   open, cost when `busy` goes true mid-interaction. F-A1 has the other five
+   of the seven `enabled: !root.busy` sites priced.
+2. **F-S3 and the suite dimension's AC table** were truncated in transit and
+   were not recovered. F-S3's claim, as far as it arrived: *AC-7's mechanism is
+   held by no instrument in the gate* — `view_model.rs:317` (`drawn_form`) and
+   the case at `:889`. Re-derive it rather than trusting this summary.
+3. **The repairs**, all four decisions in `audit-log.md`. Then
+   **`review-code.md` round 2 over the repairs themselves** — `docs/memory/`
+   records that the rounds on the repairs are about half the total cost, so
+   budget for them rather than treating round 2 as a formality.
+4. **Reconciliation and Closure**, neither started. The rows already known are
+   listed under Reconciliation below.
+
+### The budget, revised
+
+The handover that opened this audit planned two sessions and said a third would
+be needed **if the slider became a repair rather than a follow-up**. It did —
+the readout half is landing in this slice (`audit-log.md`). Plan **three**: this
+one, one for the repairs and round 2, one for reconciliation and close.
+
+### Two things not to rediscover
+
+- **`git status` is clean and the suite is green at 592.** Two mutations were
+  applied and reverted during this session to verify F-S1 and F-S2
+  (`pending.rs`, `glass.rs`); both were restored from copies and the tree was
+  checked clean afterwards. No mutation is in the tree.
+- **`Alternatives::first` cannot panic**, **`R-58`'s MUST holds structurally**,
+  **I-F's write order is correct**, and **`pending.rs`'s map is bounded and its
+  timer terminates**. Each was checked against the code rather than the doc
+  comment. Do not re-derive them.
+
 ## Brief
 
 **Subject:** `a698217..HEAD` on `main` — 107 commits, 35 files and +7535/-595
@@ -167,10 +222,17 @@ filesystem or subprocess, and adds no dependency. ADR-001 holds.
 
 Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
-vocabulary, subject `implementation`. Do not restate findings here.
+vocabulary, subject `implementation`. Findings are not restated here.
 
 - **Ledger:** `review-code.md`
-- **State:** open | resolved · outstanding blockers: none | <ids>
+- **State:** open · round 1 of at least 2, two of three dimensions reported
+- **Outstanding blockers:** **F-A1** — dispositioned *fix now* by the user
+  (`audit-log.md`), not yet repaired.
+
+Round 1 raised seven: one blocker, two majors, two minors, two nits. Both
+majors were **mutation-confirmed by the audit rather than accepted on the
+reviewer's report**, which is the standard `docs/memory/` asks for — a claim
+about the tree can go stale under the agent that made it.
 
 ## Verdict
 
@@ -184,15 +246,32 @@ vocabulary, subject `implementation`. Do not restate findings here.
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
+**Not started.** The rows below are the divergences this session established;
+each still needs its change written and applied. Endorsement for the canon rows
+is recorded in `audit-log.md`, except where the `done` column says otherwise.
+
 | document | change | reason | done |
 |----------|--------|--------|------|
-| `specs/NNN-…md §4` | | code diverged at `path:line`; code is right | [ ] |
-| `draft-spec.md` → `specs/NNN-slug.md` | promote | drafted during this slice | [ ] |
+| `canon-delta.md` CD-2 Change 3 | `undrawn_form` → `drawn_form` | cites a function PHASE-05 renamed; promoting it verbatim writes a dangling citation into canon | [ ] |
+| `specs/001 §Verification`, `R-58` row | name the surviving half of the MUST NOT, and say the other half is held by the shape of `answer`'s walk | **canon is untrue now**: it cites two cases `24e8e82` deleted | [ ] |
+| `specs/001 §Verification`, `R-57` row | retire *"review, not a test"*; name the new cases; and correct the closing citation from `present` to `drawn_form` | the premise — no renderer draws those kinds — expired this slice. The citation drift is CD-2's fourth change and CD-2 does not carry it | [ ] |
+| `specs/001 §Verification`, `R-55` row | drop the sentence naming option fields; say where the sixth-kind path is held | no option field is undrawn on account of its kind any more | [ ] |
+| `specs/001 §Verification`, `R-18` row | confirm or correct *"`view_model.rs::present` reads exactly one key"* | the read moved to `Run::of` (`view_model.rs:250`); same call tree, so possibly still true. **Unverified — check before touching** | [ ] |
+| `specs/001 §7` | CD-1, **descriptive**, plus a clause for the cleared bounded `number` | `R-58` forbids omitting a value and `OQ-2` is unlanded, so the host must supply one; F-P2 shows the cleared case is stated nowhere | [ ] |
+| `specs/001 §8` OQ-4 | evergreen replacement of *"no evidence asks for one yet"* | **user discussion open, not decided.** The fork is asymmetric: `R-18` already admits the hint half with no protocol change | [ ] |
+| `slice-009.md` §Governing canon | *"nothing reaches `goad-semantics`"* is false | PHASE-09 touched `canonical.rs` with explicit endorsement, declared in `plan.md` | [ ] |
+| `examples/shell/backend.sh` | three statements, `:15`, `:101`, `:102` | all three went false this slice; the gate cannot see this file | [ ] |
+| `docs/roadmap.md` §Open decisions | record that OQ-4 stays shut and why | `design.md` §10 names this as owed at close | [ ] |
+| `plan.md` §Coverage, `design.md` §9 AC-4 row | name a case for AC-4's element half that can observe a present | F-S1: the named case is vacuous; four others do hold the mechanism | [ ] |
 
-**Design drift not reconciled:** <where the implementation departs from
-`design.md` and the design was left as-is, with the reason. The design is a
-record of intent at a point in time; it is not retro-fitted to the code
-without saying so.>
+**Design drift not reconciled:** not yet written. The candidates this session
+found, each to be confirmed before it is recorded — `design.md` §9's AC-7 row
+and D11 cite `undrawn_form`; §9's driver table and §8 **R9** are wrong about
+the `ComboBox` and R9's mitigation is unavailable (PHASE-09/VA-1 has the
+measurement); `:849-852` argues against a lint exception on a premise PHASE-09
+removed, and one landed in `goad-semantics` instead; **A-6**'s *"costs focus,
+not data"* is falsified by F-A1; and I-H's divergence list is missing both
+F-P1's rounding and F-P2's cleared number.
 
 ## Closure
 
