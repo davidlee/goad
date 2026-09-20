@@ -111,21 +111,74 @@ conclusion.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | | | |
+| F-A1 | blocker | | |
 
-### F-1 — <one-line claim>
+### F-A1 — every field control is deaf for the whole backend round trip, so a keystroke typed during an exchange is discarded, not deferred
 
-**Severity:** blocker | major | minor | nit
-**Location:** `path:line` or `design.md §5.2`
+**Severity:** blocker
+**Location:** `crates/goad/src/controller.rs:921-922` and `:195`;
+`crates/goad/ui/app.slint:128`, and the seven `enabled: !root.busy` sites at
+`:423`, `:476`, `:547`, `:610`, `:683`, `:743`, `:784`
 
-**Expected:** <what the artefact or canon says should be true>
-**Observed:** <what is actually there>
-**Evidence:** <the citation that makes this checkable rather than an opinion>
+**Expected.** `slice-009.md` **AC-4**: *"Typing into a `text` field records
+every character. Stated as an observable because the defect it excludes — one
+character per click — is what the re-present work exists to prevent."* And
+**AC-5**: *"A present that changes nothing about a field does not disturb it:
+no destroyed element, no moved caret, no interrupted drag."*
 
-**Disposition:** aligned | fix-now | doc-wrong | follow-up | tolerated | settle-in-code
-**Response:** <the responder's reasoning, and what was changed>
+**Observed.** `Controller::engage` sets `engaged` and `serve` presents with
+`busy = true` before **every** exchange (`controller.rs:921-922`), a routine
+scheduled poll included. `engaged` is not cleared until `absorb` folds the
+completed exchange (`controller.rs:195`), so `busy` is true for the **entire
+backend round trip**, not for a frame. `frame.busy` disables all seven field
+controls.
 
-**Outcome:** verified | contested | withdrawn
+Slint does not queue input for a disabled item — it drops it. `TextInput::
+key_event` returns `EventIgnored` when `!enabled` before any handling
+(`i-slint-core-1.17.1/items/text.rs:954`), and `TextInput::input_event` does
+the same for pointer events (`:848`). `LineEdit` binds `enabled <=>
+text-input.enabled` (`widgets/common/lineedit-base.slint:11`), and a `Slider`
+reaches `enabled <=> touch-area.enabled`.
+
+So the class is one sentence: **any key or pointer event delivered to any field
+control while an exchange is in flight is discarded.** Three distinct costs,
+one cause:
+
+- a `Slider` mid-drag loses its grab — VH-1's measured failure, AC-5;
+- a `LineEdit` mid-word **loses the characters typed during the exchange** —
+  AC-4, and the one defect AC-4 was written to exclude;
+- every other control flashes disabled — cosmetic.
+
+**What VH-1's run could not see, and why it is not evidence against this.** The
+caret *is* preserved: nothing issues a focus-out on disable, and `text.rs:1990`
+only stops *rendering* the cursor (`cursor_visible() && self.enabled()`). So
+*"the caret stayed where it was put"* is true and is a different claim from
+*"every character was recorded"* — the same proxy shape the drag finding turned
+on. The rig's scratch `backend.sh` answers in milliseconds, so the deaf window
+was too short to type into. It is the exchange's duration, not the present
+interval, and a backend that takes 300 ms makes this routine.
+
+**Evidence.** Concrete and checkable without a person: hold a backend's reply
+for 500 ms, present, type during the wait, and the characters are absent from
+the draft and from the wire. No case in any tier delivers an input event to a
+control while `busy` is true — `tests/renderer/fields.rs` drives
+`set_accessible_value`, which assigns `text` and calls `edited` directly
+(`fluent/lineedit.slint:16`) and therefore bypasses `key_event` and its
+`enabled` guard entirely. That is why the suite is green over a criterion it
+does not reach.
+
+**Relation to the record.** `design.md` **A-6** — *"Disabling a widget while an
+exchange is in flight does not destroy it … being wrong costs focus, not
+data"* — is the assumption this falsifies. `notes.md`'s VH-1 block already
+records the drag half and prices the class as *"a one-frame flash of the whole
+form when idle, a dead drag when a gesture is in flight."* The flash is not one
+frame and the loss is not only a drag: it is an exchange-long deafness, and
+AC-4 is inside its blast radius.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
 
 ## Synthesis
 
