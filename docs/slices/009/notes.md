@@ -4684,6 +4684,115 @@ what was seen, not that it was run: VH-1's value was entirely in the third
 observation, and a run reported as *"looked fine"* would have carried none of
 it.
 
+**VH-2 — run 1, PARTIAL: observations 1-4, and a confound found mid-run**
+
+**2026-09-20, session 6.** The user ran
+`GOAD_DEMO_PULSE=1 GOAD_DEMO_DELAY=3 just demo` and worked the form. Four of the
+ten observations are discharged. **Observations 5-10 are not run** — the picker
+across two presents, the `Mood` id on the wire, `Pages` cleared, `When`
+untouched, and the `DELAY=6` timeout. They need one form submission and a
+restart, and they carry AC-2, AC-3, AC-8, AC-9 and CD-1.
+
+**What was observed, in the user's words.**
+
+> 1. the flash of redrawing things is gone
+> 2. the slider drag stop is no longer happening. I do see a 'still working on
+>    the last request' message sometimes in the footer.
+> 3. at some point, using the keyboard to change 'Mood' value, it would be reset
+>    to a prev value, but I can't observe this anymore.
+> 4. no issues with text field (cursor, loss of entry), just occasionally the
+>    message comes up while typing.
+
+**What each settles.**
+
+| # | criterion | reading |
+|---|---|---|
+| 1 | **AC-5**, no destroyed element | positive |
+| 2 | **AC-5**, no interrupted drag — VH-1's measured failure | positive |
+| 4 | **AC-4**, every character recorded; **AC-5**, no moved caret | positive |
+| 3 | **AC-6** | positive, **both halves** |
+
+**AC-4 and AC-5 were the two criteria reading NOT MET**, and their remaining
+halves — a caret and a drag — are observable by no test tier. These are the
+first positive readings either has had.
+
+**Observation 3 is AC-6 passing, and it was nearly written off as a defect.**
+The footer message is not what its wording suggests: `diagnostics.rs`'s
+`BUSY_NOTICE` is **back-pressure**, raised by `Wire::send` on
+`TrySendError::Full` against a **capacity-1** channel. It means *a command was
+dropped*, not *your answer is in flight*. Under `GOAD_DEMO_DELAY=3` the serve
+loop is parked inside an exchange for three seconds in every four, so the
+channel is full most of the time and the notice is expected.
+
+`install.rs` then splits the two paths, and **the split is exactly AC-6's**:
+
+```
+ edited ──► debounced? ──yes──► pending.rs holds it ──► the present SHOWS it
+   │                                                    (text: no revert)
+   └───────────────no──► send() straight out
+                            └─ Full → dropped, held nowhere
+                                      └─ the next present CORRECTS it
+                                         (choice: reverts)
+```
+
+AC-6: *"a widget whose edit the host refused or **dropped** is corrected by the
+next present… **Dropped** means the host holds the value in neither the draft
+nor `pending.rs`: an edit still waiting on the debounce is **shown** rather than
+corrected."* A `choice` is not debounced, so a dropped `Mood` is held nowhere
+and comes back; text is debounced, so a dropped keystroke is held and stays.
+**The user observed both, and they differed in exactly the direction AC-6
+names.** That is AC-6 read in the only tier that can see it.
+
+**The confound, found mid-run and not attributable to the demo.** Two hosts were
+running throughout: the demo, and `~/.cargo/bin/goad` under an **enabled**
+`goad.service` user unit, up since before the session started. Two hosts, two
+tray icons. `systemctl --user stop goad.service` before any further VH run —
+`enabled` means it returns with the session.
+
+**The tray observation, and why it became a follow-up rather than a finding.**
+One of the two icons disappeared and returned. Neither process died:
+`NRestarts=0`, `ExecMainStartTimestamp` unchanged, both PIDs continuous for
+twenty minutes — so this is tray-icon behaviour, not a lifecycle artefact. The
+**non-recovery** mechanism is real and confirmed: `glass.rs` calls `set_image`
+on every present, but F-R5's repair made `tray_icon` return a stable-address
+clone and slint's `ChangeTracker` fires only on `!=`, so nothing re-registers an
+icon the platform has dropped. What is **missing** is the cause of the
+disappearance, and the user's own report was hedged (*"I think\* only one"*).
+Raising it on half a mechanism and a hedged witness is the failure
+`docs/memory/verify-the-enumeration-not-the-conclusion.md` describes. It is a
+follow-up, and the class it carries is the harvest item: **a repair that removes
+a redundant write also removes the self-healing that redundancy was accidentally
+providing.**
+
+**One measurement taken during the run, because "the pulse is no longer firing"
+could not be settled from inside the app.** A present that disturbs nothing is
+invisible by construction, and session 5's repairs removed the two things that
+had made it visible — F-R5's tray re-push and F-B9's repeater rebuild. Measured
+from outside instead, by watching the backend subprocess:
+
+```
+16:57:14  pid 45633  ┐ 3s alive = GOAD_DEMO_DELAY
+16:57:18  pid 45726  ┘
+16:57:22  pid 45775    a new pid every 4.05s, five firings, no drift
+16:57:26  pid 45824
+16:57:30  pid 45874
+```
+
+**Four seconds is the correct number and it identifies which rule binds.** The
+backend sleeps 3 s then answers `next_check: "1 second"`, so the instructed
+check falls at T+4; `SPEC-002/R-4` floors scheduled firings at T+3. **The
+instructed instant is later, so R-4 is not binding here** — the backend's own
+instruction is, honoured to within 50 ms across five firings, and `ADR-004`'s
+anchor (spaced from the previous *firing*, not from its reply) is what puts it
+at 4 and not 7.
+
+`examples/shell/backend.sh`'s comment says presents land *"about every three
+seconds (SPEC-002/R-4 floors the spacing)"*. The cadence is four and R-4 is not
+the rule producing it. **Not raised as a finding** — the file is reachable by no
+gate command and the sentence is approximately right about the interval — but it
+is recorded here, and it is a candidate for the same symbol-over-number
+discipline `F-C2` landed.
+
 **VH-1 — discharged, and what it found**
 
 **Discharged 2026-09-20.** A person ran the software and answered a five-kind
