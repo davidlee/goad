@@ -133,6 +133,24 @@ conclusion.
 | F-R8 | nit | fix-now | |
 | F-R9 | nit | fix-now | verified |
 
+**Round 2 opened** — 2026-09-20, over the repairs. Two dimensions, each a fresh
+agent in its own worktree, each told not to read `audit.md` so that the
+orchestrator's own unraised leads could not become an echo.
+
+| id | severity | disposition | outcome |
+|----|----------|-------------|---------|
+| F-T1 | minor | | |
+| F-T2 | minor | | |
+| F-T3 | minor | | |
+| F-T4 | nit | | |
+
+**The instruments dimension** re-ran every mutation named in all six Responses
+it held, applied to production code and restored from a copy, and every one
+reproduced its reported reading — F-S4's four included, each confirmed to have
+*compiled*. Five verified. **F-S5 is `contested` on a measured line** and returns
+to open. It also ran two claims the Responses had reported as *checked* rather
+than run — F-S6's whole-map `tick`, and F-S3's surviving shape — and both hold.
+
 **The Outcome column, and who sets it.** Round 1's three raisers were agents
 that no longer exist, so the protocol's *"Outcome — set by the raiser"* has no
 author to return to. The user's decision (`audit.md`, *The Outcome split*)
@@ -324,7 +342,38 @@ makes B's reading a fact about `Full` rather than about anything else. The
 negative control compiles (`docs/memory/negative-control-must-compile.md`): I3 is
 a drain, not a deleted line.
 
-**Outcome:**
+**Outcome:** `verified`
+
+**Evidence.**
+
+All three named injections re-run against `crates/goad/tests/event_loop_full/`,
+each applied, run, read, and restored from a copy. Every one reproduces the
+reported reading exactly.
+
+| # | mutation, by `file:line` | reading I got |
+|---|---|---|
+| I1 | `pending.rs:263-265`, `if enqueued { … remove }` → `let _ = enqueued;` + unconditional remove | **red at B**, `full.rs:298`: `Reading { at: "B …", held: 0, handled: 0 }`, `left: (0, 0)` `right: (1, 0)` |
+| I2 | `pending.rs:269`, `if !self.held.borrow().is_empty()` → `if false && …` | **red at C alone**, `full.rs:306`: `held: 1, handled: 0`, `left: (1, 0)` `right: (0, 1)` — B passed, so the readings discriminate independently |
+| I3 | `full.rs:228`, `let _ = rx.try_recv();` added after the step-3 occupying send | **red at B**, `full.rs:299`: `held: 0, handled: 0` against `(1, 0)` |
+
+I3 compiled and ran (`docs/memory/negative-control-must-compile.md`) — it is an
+added statement, not a deleted line.
+
+**The unnamed mutation I went looking for.** I enumerated what `tick` could do
+wrong and each is caught: always-remove → I1, red at B; never-remove
+(`if enqueued` → `if false`) → red at C, since `handled` reaches 1 while `held`
+stays 1; a `Wire::send` that always reports `true` → same reading as I1. The
+`Full` branch is genuinely driven by this target as it stands.
+
+**What I found instead is a durability defect, not a coverage one**, and it is
+raised as **`F-T1`**: B's reading is only non-vacuous because of an unstated
+arithmetic relation between the test's step schedule and `DEBOUNCE`, a private
+constant in `pending.rs`. Raising `DEBOUNCE` from 150 ms to 400 ms — a tuning
+change, nothing more — leaves `event_loop_full` **green with the enqueue rule
+deleted**. That does not make the repair wrong today; it is a separate finding
+about how long the repair lasts.
+
+`pending.rs` and `full.rs` restored; `git status` clean.
 
 ### F-S1 — AC-4's named element-half case cannot observe a present, so its `inits` comparison is vacuous
 
@@ -388,7 +437,53 @@ reader arriving at AC-4's element half is sent somewhere true. `plan.md`
 §Coverage and `design.md` §9's AC-4 row are the remaining half and are already a
 Reconciliation row.
 
-**Outcome:**
+**Outcome:** `verified`
+
+**Evidence.**
+
+The repair is the case's own doc comment at
+`crates/goad/tests/renderer/fields.rs:1302-1323`. Two things had to be true of
+it: that what it now says about the vacuity is *true*, and that the four cases
+it redirects to *do* hold the element half.
+
+**The vacuity claim is true, and re-measured.** D8 applied — `glass.rs:223`'s
+`if self.shown != showing {` rewritten to `if true {`, so every present runs
+`invoke_dismiss_pickers()`, `set_vec(rows)` and `set_options(…)` and destroys
+every field element:
+
+```
+cargo test --workspace --no-fail-fast   →   exit 101
+test fields::two_text_fields_typed_into_inside_one_window_both_reach_the_wire_and_neither_is_rebuilt ... ok
+```
+
+The case named for AC-4's element half passes with every element destroyed on
+every present. The doc's own account of *why* — no `.await` between the two
+`get_inits()` readings, `install.rs:70` routing a `Reported::Typed` into
+`Debounce::hold` rather than sending, and `init_no_event_loop` so no timer
+fires — matches the code as read.
+
+**The four named cases all redden** under the same mutation, and so do two the
+doc does not name:
+
+```
+busy::a_key_is_recorded_while_the_host_polls_and_dropped_while_the_answer_is_in_flight   (not named)
+drain::a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it           (not named)
+numeric_guard::a_present_inside_the_window_does_not_write_a_zero_back_over_a_cleared_field
+overlay::a_present_shows_a_held_edit_and_corrects_one_the_host_never_recorded
+reassert::a_second_present_corrects_nothing_and_a_widget_the_host_never_heard_from_is_corrected
+fields::a_present_of_the_same_view_rewrites_the_values_and_destroys_no_element
+```
+
+Under-claiming, not over-claiming: the doc says the half is held "by four other
+cases" and six hold it. Nothing to contest.
+
+`glass.rs` restored from `$SCRATCH/orig/glass.rs`; `git status` clean.
+
+**One residue, raised separately as `F-T4`**: the doc's locating citation
+`glass.rs:189` does not point at the guard, which is at `:223`. The symbol it
+quotes (`if self.shown != showing`) is unique, so a reader still finds it; the
+line number does not. Two more citations in `event_loop_picker/picker.rs` carry
+the same stale range.
 
 ### F-P1 — a `datetime` picked at a sub-minute zone offset submits a string denoting an instant up to 30 s from the one the host retains
 
@@ -870,7 +965,51 @@ than a new boundary instrument, **POL-001 is untouched** and the gate's
 instrument count is unchanged. That was the alternative's price and it is not
 paid.
 
-**Outcome:**
+**Outcome:** `verified`
+
+**Evidence.**
+
+The repair is `#![deny(clippy::wildcard_enum_match_arm)]` at
+`crates/goad/src/lib.rs:35`. Four shapes run against
+`cargo clippy -p goad --all-targets -- -D warnings`, each applied to
+`view_model.rs`'s `drawn_form` (`:325-347`) and restored from a copy. Baseline
+clippy clean.
+
+| shape | reading |
+|---|---|
+| `_ => Ok(DrawnKind::Boolean),` beneath all five arms — F-S3's own mutation | **red**: `unreachable pattern` *and* `these match arms have identical bodies` |
+| `Boolean` arm deleted, `_ => Ok(DrawnKind::Boolean),` added — wildcard over **one** variant | **red**: `wildcard matches only a single variant and will also match any future added variants` |
+| `Boolean` and `Text` arms deleted, `_ => Ok(DrawnKind::Boolean),` added — the shape that used to survive | **red**: `wildcard match will also match any future added variants`, cited to `lib.rs:35` |
+| **the fourth shape I went looking for** — same, but a *named binding* catch-all `other => { let _ = other; Ok(DrawnKind::Boolean) }` rather than `_` | **red**, same lint. The lint is not spelling-sensitive |
+
+So the three shapes the Response enumerates are each held by the instrument it
+names, and the obvious evasion of the new one is held too.
+
+**The remaining shapes, enumerated rather than asserted.** A sixth `FieldKind`
+can reach `drawn_form` silently only through a catch-all. An *explicit*
+`FieldKind::NewKind => …` arm is not a hole — it is AC-7's fork being taken
+deliberately, which is what AC-7 asks for. `#[non_exhaustive]` on `FieldKind`
+would force a catch-all and so redden the gate, which is the right outcome. The
+only remaining evasion is rewriting `drawn_form` as an `if let` chain with a
+fallback `else`, which no lint reaches and which is a visible rewrite rather
+than an omission.
+
+**The deliberate exceptions check out as a decision, and not as an
+enumeration.** Denying the lint at `ProtocolError::source`,
+`goad-shell/src/ingress/envelope.rs:106`, `:118` and `mod.rs:752` would buy
+`#[expect]`s and no property — I read each and the conclusion holds. But the
+comment's *count* of them is wrong and its characterisation of one of them is
+wrong, which is raised separately as **`F-T3`**. That does not move this
+Outcome: F-S3's own subject is AC-7's mechanism, and the mechanism is held.
+
+**One thing the Response states wrongly about its own instrument's reach**, and
+it is raised as **`F-T2`**: `#![deny(…)]` in `lib.rs` governs the *library*
+compilation unit. `crates/goad/src/main.rs` is a second crate root and is not
+covered. That does not touch AC-7 — `drawn_form` is in the library — so the
+finding's own subject is repaired, and `F-T2` is about the boundary statement,
+not about AC-7.
+
+`view_model.rs` restored; `git status` clean.
 
 ### F-S4 — PHASE-05 is the one phase of this slice with no injection table, and it is AC-4's phase
 
@@ -925,7 +1064,29 @@ instead. An uncompiled control greps the same as a passing one.
 `plan.md` PHASE-05/T-8's tick is now true of the record rather than of an
 intention.
 
-**Outcome:**
+**Outcome:** `verified`
+
+**Evidence.**
+
+All four mutations re-run against the tree as it stands, each applied to
+production code, the target run, the message read, and the file restored from a
+copy. **Every one compiled** — each produced a test run rather than a compile
+error, which is the check
+`docs/memory/negative-control-must-compile.md` asks for.
+
+| # | mutation, by `file:line` | reading I got |
+|---|---|---|
+| P1 | `view_model.rs:328`, `FieldKind::Text => Ok(DrawnKind::Text)` → `Ok(DrawnKind::Boolean)` | **red**, 6 cases; `fields.rs:500`: *"morning/also declares no accessible-value"* — the message the table names |
+| P2 | `controller.rs:317`, `for edit in edits` → `for edit in edits.iter().take(0)` | **red**, 6 cases; first at `wiring.rs:1500` — the line the table names |
+| P3 | `pending.rs:172`, `.take(1)` inserted into `carried()`'s iterator | **red**, 2 cases; `fields.rs:1380`, `"noted": String("")` against `"walked before breakfast"` — the reading the table names |
+| P4 | `controller.rs:321`, `Err(Refused::SupersededView) => superseded = true` → `= false` | **red**, 1 case; `left: 0` `right: 1` — and it compiled, which is why the table's reshaping from `=> {}` was needed |
+
+The table in `notes.md` §*Audit session 3* is accurate in every column I can
+check, and P3's claim — that the pass reddens VT-3's *wire* half and nothing
+reddens its `inits` half — is consistent with what I measured independently
+under F-S1's D8 run.
+
+`view_model.rs`, `controller.rs`, `pending.rs` restored; `git status` clean.
 
 ### F-S5 — `reasserts` is a self-report: decoupling the count from the write survives every case
 
@@ -985,7 +1146,94 @@ One function per slot type because slint has no generics here. The exposure
 grew with every control a future slice added, which is why this is the class
 rather than the instance.
 
-**Outcome:**
+**Outcome:** `contested`
+
+**Evidence.**
+
+The Response's own measurement reproduces exactly. `app.slint:479-481`, the
+`CheckBox` guard's assignment hoisted out of its comparison with the counting
+call kept:
+
+```
+reassert.rs:298 — FAILED
+  Reading { inits: 3, reasserts: 0, epoch: 1, … } then Reading { inits: 3, reasserts: 2, epoch: 2, … }
+  left: 2   right: 0
+```
+
+`event_loop_overlay` and `event_loop_numeric_guard` stay green, so `reassert.rs`
+is the one that discriminates — as reported.
+
+**But the property the finding was about is not held.** F-S5's claim is:
+*"`reasserts` is a self-report: decoupling the count from the write survives
+every case."* The repair couples the count to a write **that goes through the
+counting function**. Nothing requires a write to go through it. Dropping the
+call is one line, and it is the shape a future author who does not know why
+`counted-bool` exists would write by default:
+
+```slint
+// crates/goad/ui/app.slint:479-481
+changed tick => {
+  self.checked = root.values[field.slot].checked;   // unconditional, uncounted
+}
+```
+
+Measured, on the repaired tree:
+
+```
+cargo test --workspace --no-fail-fast   →   SUITE GREEN
+just check                              →   exit 0, 29 `test result: ok` lines summing to 597
+```
+
+The `CheckBox` is now written on **every** present — the caret destroyed on
+every tray check, AC-5's second clause — and `reasserts` reads `0`. That is
+F-S5's original sentence, still true of the repaired tree. What changed is the
+spelling of the mutation, not whether the instrument can miss it.
+
+`reasserts` still reports the markup's account of itself. It reports *how many
+counted writes happened*, which is the markup's own statement, rather than *how
+many writes happened*.
+
+**What must be re-dispositioned, and why.** Two claims in the Response go beyond
+what landed and should be withdrawn or instrumented:
+
+1. *"a write that should not have happened is now a count that should not have
+   happened"* — true only of a write routed through `counted-*`.
+2. *"The exposure grew with every control a future slice added, which is why
+   this is the class rather than the instance"* — the class is *completeness*:
+   every write to a guarded widget goes through a counter. Five call sites hold
+   that by convention, and nothing checks the convention. A sixth control, or an
+   edit to any of the five, restores the original exposure in full.
+
+**The instrument that would hold it, named because the protocol asks the raiser
+not to contest without one.** `crates/goad-boundary/tests/checks/` already runs
+a line-based scan over every member's **sources and markup** — the
+domain-vocabulary scan, whose reach `POL-001` §Verification states in those
+words. A sibling scan over `ui/app.slint` asserting that every assignment of the
+form `self.<prop> = …` inside a `changed tick` handler has `root.counted-` on
+its right-hand side is the same mechanism, the same file tree, and would have
+reddened under the mutation above. That is a claim about what would hold the
+property, and I ran the mutation it is derived from rather than reasoning to it
+(`docs/memory/verify-the-proposed-instrument.md` — it is stated as a candidate,
+not as a verified closer; whoever takes it should injection-pass it).
+
+**What I also checked, and found sound**, so the re-disposition is not wider
+than it needs to be:
+
+- **The five guards are consistent with their own counters.** Every call pairs
+  the right slot type with the right function: `counted-bool`↔`.checked`
+  (`:480`), `counted-string`↔`.text` (`:532`, `:683`), `counted-float`↔`.number`
+  (`:606`), `counted-int`↔`.index` (`:739`). No guard reads one slot and writes
+  another. No `counted-*` call sits anywhere its result is discarded.
+- **The set of five is complete for the controls that need one.** Six
+  interactive controls are declared in the field repeater
+  (`app.slint:455`, `:511`, `:568`, `:631`, `:709`, `:770`); five self-assign
+  and carry a guard. The sixth, the `datetime` `Button` at `:770`, never
+  assigns its own `text`, so its declarative binding is never broken and a
+  present corrects it without a guard. I read the whole picker path
+  (`:787-798`, and `dismiss-pickers`) to confirm nothing writes that button's
+  `text` imperatively. The comment at `:774-778` states this correctly.
+
+`app.slint` restored from `$SCRATCH/orig/app.slint`; `git status` clean.
 
 ### F-S6 — `event_loop_debounce`'s "one edit per tick" cannot fail for its own claim
 
@@ -1023,7 +1271,35 @@ rule this case cannot reach is held by a real driver in
 **Disposition unchanged** (`fix-now`, repaired in this slice); what changed is
 the repair, from *add a driver* to *stop claiming what cannot be driven*.
 
-**Outcome:**
+**Outcome:** `verified`
+
+**Evidence.**
+
+The Response makes one load-bearing factual claim — that at capacity 1 a `tick`
+which iterated the whole map is *indistinguishable* from one-per-tick — and
+reports it as "checked before acting on it" without a run. I ran it.
+
+`pending.rs:249-267`, `tick`'s single-entry `next` replaced with a `Vec` of the
+whole map and the body turned into a `for` loop, `if enqueued { remove }` kept:
+
+```
+cargo test --workspace --no-fail-fast   →   exit 0, no failures
+```
+
+The whole suite is green under a whole-map `tick`, `event_loop_debounce`
+included. The claim is correct, the finding's suggested repair would not have
+produced a driver, and the weakened assertion at `debounce.rs:271-276` — *"at
+most one command per tick reaches the controller"* — is what is true of the run.
+
+The doc at `debounce.rs:127-147` states the unobservability and points at
+`tests/event_loop_full/` for the rule this case cannot reach, which I verified
+independently under F-S2. Nothing to contest.
+
+`pending.rs` restored; `git status` clean.
+
+---
+
+## § New findings
 
 ### F-S7 — the I-F write order has no case that could see it wrong, and may be unobservable
 
@@ -1549,6 +1825,259 @@ callback as `MultiFire` regardless of the `TimerMode` it is given
 (`timers.rs:86-91`). The re-emplacement logic the argument depends on is the
 `MultiFire` one, and it holds. Recorded here so the citation can be corrected
 with the rest of the record rather than re-derived by the next reader.
+
+### F-T1 — `event_loop_full`'s central reading is non-vacuous only by arithmetic on a literal copy of a private constant, and the copy going stale is silent
+
+**Severity:** `minor` — **run.**
+
+**Location:** `crates/goad/tests/event_loop_full/full.rs:64` (`STEP`), `:73`
+(`STEPS`), `:229` (the comment that does the arithmetic), `:233` (reading B);
+against `crates/goad/src/pending.rs:32` (`const DEBOUNCE`).
+
+**Expected.** `full.rs:14-19` states what reading B is for: *"**B is the
+claim.** The entry must still be there: the send came back `Full` … **C is what
+stops B passing for the wrong reason**."* The target exists because F-S2 found
+that the `Full` branch was held by nothing; it is the only driver of that branch
+in the workspace. `design.md` §9: *"Every new case gets an injection pass"* — and
+an injection pass establishes that a case reddens *now*, not that it goes on
+doing so.
+
+**Observed.** B is a reading taken at step 11, and it is a fact about a `Full`
+send only while the debounce deadline falls between step 3 and step 11. Nothing
+asserts that. The relation is carried by one comment — `full.rs:229`, *"Before
+any tick can have fired: 150 ms after step 2 is step 8"* — which restates
+`DEBOUNCE` as a literal. `DEBOUNCE` is a **private** `const` at `pending.rs:32`,
+not `pub`, so no test can read it and no compiler keeps the two in step.
+
+The window is `STEP * 1 < DEBOUNCE < STEP * 9`, i.e. 25 ms < `DEBOUNCE` < 225 ms
+against the shipped 150 ms. **The two bounds fail differently:**
+
+- **Below**: the debounce fires before step 3 occupies the channel, the tick's
+  send succeeds into an empty channel, and `assert!(enqueued)` at `:224-227`
+  fails — **loudly**, with a message naming the precondition. Good.
+- **Above**: the debounce fires *after* reading B. The entry then stands at B
+  because no tick has fired, not because a tick found the channel full; the
+  drain at step 12 empties the channel; the re-armed tick fires into an empty
+  channel and delivers; C passes. **The case is green and measures nothing.**
+
+**Evidence.** Both bounds run, each applied to the tree and restored from a copy.
+
+Upper bound, and it is the one that matters — a production tuning change alone:
+
+```
+# crates/goad/src/pending.rs:32
+-const DEBOUNCE: Duration = Duration::from_millis(150);
++const DEBOUNCE: Duration = Duration::from_millis(400);
+
+cargo test -p goad --test event_loop_full   →   test result: ok. 1 passed
+```
+
+Then, on top of that, F-S2's own injection I1 — `pending.rs:263-265`'s
+`if enqueued` guard deleted, which is the rule this whole target exists to hold:
+
+```
+cargo test -p goad --test event_loop_full   →   test result: ok. 1 passed
+```
+
+**The enqueue rule is deleted and the only case that holds it is green.**
+
+Lower bound, reproduced by making the stepper slow instead (`full.rs:64`,
+`STEP` 25 ms → 200 ms), which is what a stalled machine does to it:
+
+```
+panicked at crates/goad/tests/event_loop_full/full.rs:224:9:
+the occupying send must succeed into an empty channel, or the case measures nothing
+```
+
+That panic is raised from inside a slint timer callback and produces a clean
+test failure rather than a wedge — measured, not assumed. It is also the one
+place `full.rs:66-68`'s *"nothing here panics from inside the loop"* is untrue of
+the file; the consequence is nil, which is why that is not raised separately.
+
+**Scope, stated honestly.** This is **not** a flake under load. Both timers are
+wall-clock; a slow machine delays the *stepper*, which moves the debounce
+deadline to an *earlier* step index — away from the silent bound and towards the
+loud one. The lower bound's margin is a 150 ms stall inside one 25 ms inter-step
+interval: six-fold, and its failure is attributable. What this finding is about
+is a **code** change to `DEBOUNCE`, and the fact that the resulting loss of
+coverage is invisible.
+
+**The sibling precedent is in the same slice.**
+`crates/goad/tests/event_loop_drain/drain.rs:98-101` declares
+`const TICK_STEPS: u8 = 3` with *"The debounce window is 150 ms (`pending.rs`),
+so a tick lands three steps after the keystroke that armed it. Stated here
+because every step number below is read against it."* — the same literal copy,
+but named, and used in the failure message at `:478`. `full.rs` has the relation
+in a comment only. Neither derives it from the constant, because the constant is
+private; `drain.rs` at least makes the dependency greppable.
+
+**What would close it**, stated as a candidate rather than a verified closer
+(`docs/memory/verify-the-proposed-instrument.md`): make `DEBOUNCE` `pub`, or
+expose a `Debounce::window()`, and have each loop target compute its step
+schedule from it — so a change to the production constant either keeps the
+schedule right or fails to compile. A target timed against a copy of a constant
+it cannot see is timed against nothing.
+
+### F-T2 — the `wildcard_enum_match_arm` deny does not reach `crates/goad/src/main.rs`, and `lib.rs` says it covers "this crate"
+
+**Severity:** `minor` — **run.**
+
+**Location:** `crates/goad/src/lib.rs:35` (the attribute), `:18-22` (the claim);
+`crates/goad/src/main.rs` (the uncovered compilation unit).
+
+**Expected.** `POL-001` §Verification sets the standard this comment is written
+against: *"What each command holds, and what it does not, is the part that must
+not be overstated."* The comment claims a boundary — *"it is denied for **this
+crate only**, at no cost in exceptions: `goad`'s production code has no wildcard
+over an enum at all"* — and the F-S3 Response repeats it as *"a lint-table entry
+inside the gate's existing clippy pass"*.
+
+**Observed.** `#![deny(…)]` is an inner attribute on a **crate root**, and
+`crates/goad` has two: `src/lib.rs` and `src/main.rs`. Cargo compiles the binary
+as a separate crate that merely *depends* on the library, so the attribute does
+not apply to it. `crates/goad/Cargo.toml:50-51` is `[lints] workspace = true`,
+which is exclusive — a package-local `[lints.clippy]` table cannot sit beside
+it — so a crate-root attribute was a reasonable mechanism; it was simply put in
+one of the two roots.
+
+It is also not a lint-table entry. The workspace lint table is
+`Cargo.toml:[workspace.lints.clippy]` and reaches every target of every member;
+a crate-root attribute reaches one compilation unit. The two have different
+boundaries, and the Response names the first while having written the second.
+
+**Evidence.** A wildcard over a project enum appended to `main.rs`:
+
+```rust
+#[expect(dead_code, reason = "review probe")]
+fn probe(kind: &goad_semantics::protocol::canonical::FieldKind) -> u8 {
+  use goad_semantics::protocol::canonical::FieldKind;
+  match kind {
+    FieldKind::Choice { .. } => 1,
+    _ => 0,
+  }
+}
+```
+
+```
+cargo clippy -p goad --all-targets -- -D warnings   →   exit 0, clean
+```
+
+The identical wildcard inside `lib.rs`'s module tree is `error: wildcard match
+will also match any future added variants`, cited to `lib.rs:35` — measured
+under F-S3 above. `main.rs` restored; `git status` clean.
+
+**Scope, stated honestly.** **AC-7 is not affected.** `drawn_form` is in the
+library, so the mechanism F-S3 is about is held. `main.rs` carries no `_ =>` arm
+today, so nothing is being absorbed. This is a finding about a boundary stated
+wrongly in the place a future reader will look, on a crate root that holds
+`serve` — the crate's largest match statements — and it costs one line to close:
+the same `#![deny(clippy::wildcard_enum_match_arm)]` at the top of `main.rs`.
+
+### F-T3 — `lib.rs`'s enumeration of the workspace's other wildcard matches undercounts them, and mischaracterises one
+
+**Severity:** `minor` — **run.**
+
+**Location:** `crates/goad/src/lib.rs:24-30`.
+
+**Expected.** The comment is the written reason the deny is crate-scoped rather
+than workspace-wide, and it is explicit that the reason is a fact about the
+codebase rather than a budget: *"**Not workspace-wide, and the reason is not
+cost.** The other four such matches are the opposite case: `ProtocolError::source`,
+and three in `goad-shell/src/ingress/` (`envelope.rs:106`, `:118`,
+`mod.rs:752`). Each is a match that chooses *no behaviour from the variant* …
+so the wildcard's body is the right answer for a variant that does not exist
+yet, and denying it there would buy four `#[expect]`s and no property."*
+`docs/memory/check-precedent-before-calling-it-coupling.md` and
+`docs/memory/verify-the-enumeration-not-the-conclusion.md` both bear: a claim
+about the codebase is checkable, and a correct finding can carry a wrong
+sub-claim into the artefact.
+
+**Observed.** Two defects in one sentence.
+
+**The count is not four.** Catch-all arms over an enum outside `crates/goad`:
+
+| site | scrutinee | in the comment's list? |
+|---|---|---|
+| `goad-semantics/src/error.rs:238` (`ProtocolError::source`) | `ProtocolError` | yes |
+| `goad-shell/src/ingress/envelope.rs:106` | `ProtocolError` | yes |
+| `goad-shell/src/ingress/envelope.rs:118` | `serde_json::Value` | yes |
+| `goad-shell/src/ingress/mod.rs:752` | `EnvelopeFault` | yes |
+| `goad-shell/src/ingress/mod.rs:585` | `Option<&Refusal>` | **no** |
+| `goad-shell/src/config.rs:47` | `Option<OsString>` | **no** |
+| `goad-shell/src/state.rs:171`, `:186` (unit tests) | `Result<_, StateError>` | **no** |
+
+Six to eight rather than four, depending on whether the two unit-test arms
+count — and they do, because the deny in `lib.rs` demonstrably reaches `goad`'s
+own lib **test** target: F-S3's shape-3 run reports `could not compile goad (lib
+test)`. The three arms at `normalize.rs:182`, `:246` and `:381` are correctly
+excluded — they match on `wire.kind.as_str()`, a `&str`, which this lint does
+not see.
+
+**And one of the four is the opposite of what the comment says it is.**
+`envelope.rs:116-122` reads the variant; that is the entire point of the arm:
+
+```rust
+match value {
+  serde_json::Value::Object(object) => Ok(object),
+  other => Err(EnvelopeFault::NotAnObject {
+    found: json_type_name(&other),      // behaviour chosen from the variant
+  }),
+}
+```
+
+*"Each is a match that chooses no behaviour from the variant"* is false of this
+one.
+
+**Evidence.** The enumeration, then each site read rather than counted off the
+grep:
+
+```
+grep -rn '^ *_[a-z_]* =>| *other =>| *_ =>' crates/goad-shell/src crates/goad-semantics/src --include=*.rs
+sed -n '116,122p' crates/goad-shell/src/ingress/envelope.rs
+sed -n '583,586p' crates/goad-shell/src/ingress/mod.rs
+sed -n  '43,49p'  crates/goad-shell/src/config.rs
+```
+
+**Scope, stated honestly.** The *conclusion* — deny for `goad`, widening is a
+decision for another slice — survives, and is if anything better supported: more
+sites means a larger cost, not a smaller one. What does not survive is the
+stated reason, *"and the reason is not cost"*, which rests on the count and on
+the characterisation. Both are now written into production source as fact. The
+repair is to correct the sentence, not to widen the lint.
+
+### F-T4 — three citations of `glass.rs:189` point at a comment, not at the guard they name
+
+**Severity:** `nit` — **run.**
+
+**Location:** `crates/goad/tests/renderer/fields.rs:1310`;
+`crates/goad/tests/event_loop_picker/picker.rs:6`, `:45`.
+
+**Expected.** Each is a locating citation in a doc comment, offered so a reader
+can re-run a mutation or find a mechanism: *"delete the `if self.shown !=
+showing` guard at `glass.rs:189` so every present destroys every field element"*
+(`fields.rs:1310`), and *"`present` writes the row model only where the `ViewId`
+changed (`glass.rs:189-195`)"* (`picker.rs:45`).
+
+**Observed.** `if self.shown != showing {` is at `crates/goad/src/glass.rs:223`
+and its block runs to `:241`. `glass.rs:189` is the middle of the I-F ordering
+comment — a line of prose.
+
+**Evidence.**
+
+```
+grep -n 'if self.shown != showing' crates/goad/src/glass.rs   →   223
+sed -n '186,191p' crates/goad/src/glass.rs                    →   prose, no code
+grep -rn 'glass.rs:189' crates/                               →   the three sites above
+```
+
+**Scope, stated honestly.** A nit, and it does not touch F-S1's substance: the
+`fields.rs` citation quotes the guard's source text, which is unique in the
+file, so the mutation is still reproducible — I reproduced it from that quote.
+Raised because the line moved *inside this slice* (`d9fe587` inserted the F-S7
+comment above it) and all three citations were written or touched after that, so
+nothing caught the drift.
+
+---
 
 ## What was checked and found clean
 
