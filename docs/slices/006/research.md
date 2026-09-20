@@ -252,12 +252,12 @@ Out-of-tree prior art is cited by file and symbol too.
 ## Thread 3 — the spike (measured, 2026-09-20)
 
 A working `crane` package was built in this tree, exercised, and reverted; the
-flake, its lock and `Cargo.toml` are back at `c658b1a`. The spike sources are
-kept outside the repository at
-`/tmp/claude-1000/-home-david-dev-goad/45a0c96b-.../scratchpad/flake.nix.spike`
-— a scratch path, not an artefact: everything load-bearing is written down
-here. Every row below is ✓ by construction — it is an observation, not a claim
-about someone else's code.
+flake, its lock and `Cargo.toml` are back at `c658b1a`. **The apparatus is kept
+at `docs/slices/006/spike/`** — its `README.md` says what each throwaway
+package was for and lists what is deliberately wrong with it for the
+deliverable, so the claims below can be checked against something runnable
+rather than against this prose. Every row is ✓ by construction: it is an
+observation of a build that ran, not a claim about someone else's code.
 
 ### What was built
 
