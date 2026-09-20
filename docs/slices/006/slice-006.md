@@ -113,7 +113,10 @@ the `~/flakes` wiring that consumes whatever this slice exports.
 Binding:
 
 - **POL-001** — the phase gate. The slice adds a build path the gate does not
-  run. Whether it joins is OQ-2, and the answer decides the tier.
+  run, and **it stays out of it**: OQ-2 was answered no, so this policy is not
+  amended and the tier stays 1. What binds is the prohibition itself — no
+  command may be removed, weakened or made conditional, and nothing this slice
+  does to the `justfile` may touch the six the block names.
 - **ADR-001** — one-way strata. The startup-surface half is stratum 3 work;
   OQ-3 asks whether the path belongs in stratum 2's error type instead, which
   is a question about direction and must be answered against this ADR rather
