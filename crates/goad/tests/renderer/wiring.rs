@@ -536,7 +536,7 @@ mod busy {
     // to get here** (`review-code.md` F-B7). An `Exchanged::Answer` exists only
     // as a `Pending::Respond`, only `Command::Choose` produces one, and
     // `Controller::choose` refuses `SupersededView` with nothing shown
-    // (`controller.rs:312`) — so engaging on a fresh `Controller` arranges a
+    // — so engaging on a fresh `Controller` arranges a
     // frame `serve` cannot build. It was reachable before this slice, when the
     // startup evaluation engaged with nothing shown; the narrowing removed the
     // state and left the case behind it. This is the shape the sibling case

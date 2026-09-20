@@ -65,3 +65,8 @@ same slice's PHASE-04 cases were mutation-checked against six injected defects
 at the time of writing and every one was load-bearing. The pass is what
 separates the two phases, not the care taken — the three weak cases were
 written as carefully as the strong ones.
+
+---
+
+**Also cited as `tests-asserting-proxies.md`.** Slice-009 and slice-007 artefacts reference this
+lesson under that name; it has only ever lived here.

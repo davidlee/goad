@@ -7,128 +7,6 @@ Written after the last phase is done. Two jobs in one document:
 2. **Reconcile** — make the record true again. The code is what shipped; the
    specs must say so, or the code must change.
 
-## PARTIAL — session 6 checkpoint (2026-09-20)
-
-**Read this before anything else.** The audit is part-done. This section is the
-state of it; it replaces session 5's, and it is deleted when the audit closes.
-
-### What session 6 finished
-
-- **Round 3 is complete**, over round 2's twelve repairs, which no one had
-  reviewed. One fresh agent, its own worktree, told to confirm the tree before
-  reading and not to read this file. **Thirteen Outcomes set by re-running every
-  mutation each Response names** — the twelve plus `F-B4`'s margin half —
-  **eleven `verified`, two `contested`**. Six findings, `F-C1`–`F-C6`, two
-  `major`.
-- **`F-T1`–`F-T4`'s Outcomes are set**, which closes session 5's item 2. No
-  finding in this ledger now lacks an Outcome except round 3's own six.
-- **Both contests were confirmed at the source by the orchestrator before they
-  were priced**, not accepted from the report. `F-B9`'s three vendored citations
-  read verbatim at `i-slint-core-1.17.1`; `F-T3`'s counterexample read at
-  `ingress/mod.rs:752` and `Refusal::reason`. Both survived.
-- **Eight dispositions confirmed with the user in one consultation**
-  (`audit-log.md`, sixth entry), including two re-dispositions.
-- **All seven repairs landed**, and the two that produce behaviour are
-  **injection-passed**: `F-C6` (1→2→3 red, 1→1→1 green) and `F-C3` (the
-  unconditional dismiss that had left all fifteen targets green now reddens
-  `event_loop_picker`).
-- **VH-2 is part-run.** Four of ten observations discharged, recorded in
-  `notes.md` §VH-2 in the user's own words.
-
-### The gate
-
-**Exit 0** at this checkpoint. **30** `test result: ok` lines summing to
-**600** — **565 distinct cases across 22 targets**, with `goad-semantics`' 35
-built and run twice under two feature configurations (600 − 35 = 565). **600 is
-a sum, not a census**, and is not to be repeated as a count of cases.
-
-Up from 30 / 599: one new case, `F-C6`'s.
-
-### What is outstanding, in the order it should be taken
-
-1. **Round 4, and the user has decided its scope: a verification pass over
-   round 3's seven repairs, not a fresh adversarial round.** Round 3's trend is
-   not zero, so the stopping rule does not apply — but the *shape* changed, and
-   that is what the decision rests on: round 1 was a blocker and six majors of
-   live defect, round 2 two majors about what holds a repair, round 3 **one live
-   defect, one coverage gap with production behaviour separately measured
-   correct, and four claims wrong in prose**. If round 4 returns no code defect,
-   the slice closes. Ids `F-D1` onward.
-
-   **Where this session is most likely to be wrong:**
-   - **`F-C6`'s guard is on content and the sibling's is on identity.** The
-     reason they differ is written beside both, but nothing holds it. A reading
-     that asserted the *sibling* still rebuilds only on a view change would be
-     the missing converse — the same shape as `F-C3`.
-   - **`F-C3`'s re-lettering moved every reading from D onward.** The
-     destructure is by name so a miscount cannot compile, but a reading whose
-     *letter* moved while its claim did not is exactly `drain.rs`'s F-B4/F-C4
-     failure one file over. Check the labels against the steps.
-   - **`F-C2` repaired a class with a discipline, not an instrument.** Nothing
-     enforces symbol-over-line-number. The residue is stated in the finding; it
-     is not held.
-
-2. **VH-2, observations 5-10 — and they carry five criteria.** Not run: the
-   picker across two presents (`F-R1`), `Mood` untouched (**AC-2**, **AC-8** —
-   the wire must carry the alternative **id** `"good"`, not the label), `Pages`
-   cleared (**AC-9**, and `F-P2`), `When` untouched (**CD-1**, now canon), and
-   the `DELAY=6` timeout. **AC-3** rides on the same submission. One form
-   answered and one restart discharges all of them.
-
-   **Stop `goad.service` first** — `systemctl --user stop goad.service`. It is
-   `enabled`, it returns with the session, and it put a second host and a second
-   tray icon into run 1.
-
-3. **Re-walk AC-4 and AC-5.** The table still reads both **NOT MET**. VH-2 run 1
-   gives each its **first positive reading** — the redraw flash gone, the drag
-   surviving, the caret holding. Re-walk against those readings and against the
-   repairs; **AC-6 also now has a human-tier reading** and its row should say so.
-
-4. **Verdict, Closure, Summary, Follow-ups**, none written. `slice-009.md`
-   §Follow-ups must carry **F-R4**, the **slider quantisation** follow-up,
-   **F-S5**, **F-B4's harness half**, and now **the tray icon's missing
-   re-assertion path** (`audit-log.md`, sixth entry).
-
-5. **Harvest → `docs/memory/` is not started**, ~120 items plus sessions 5 and
-   6. It wants its own pass and should not be the tail of another.
-
-### What not to rediscover
-
-- **A repair can be wrong about what it holds, and the Response can name the
-  case that would have caught it.** `F-B9`'s Response was honest that it was not
-  injection-passed and named the case; **the residue was the defect**, and the
-  named case caught it on the first run.
-- **Verify before pricing — six times now**, and this session it changed two
-  answers and caught one of its own instruments. The first attempt at `F-C5`'s
-  measurement declared the clock **inside the per-tick closure**, so it reset
-  every tick and read 90 ns. A number is not measured until the instrument is.
-- **A negative control must compile.** `F-C6`'s first injection removed the
-  guard outright and failed on `unused import: Model` — which greps the same as
-  a pass. Rewritten as *compute and ignore*.
-- **A claim nothing checks, restated, goes wrong again.** `F-T3`'s sentence was
-  wrong twice in opposite directions. The third version **makes no claim on that
-  axis** and says why.
-- **A present that disturbs nothing is invisible**, and this session's own
-  repairs removed the two things that had made the pulse visible (F-R5's tray
-  push, F-B9's repeater rebuild). Settle "is it firing?" from **outside** — the
-  backend subprocess PID cycles once per firing.
-- `examples/shell/backend.sh` and `examples/demo.toml` are reachable by **no**
-  gate command. `backend.sh`'s *"about every three seconds (R-4 floors it)"* is
-  wrong on both halves — the cadence is four and the backend's instruction is
-  what binds — recorded in `notes.md` §VH-2, not raised.
-- Still standing: **`Alternatives::first` cannot panic**, **`R-58`'s MUST holds
-  structurally**, **`pending.rs`'s map is bounded and its timer terminates**,
-  and **slint 1.18.0 fixes none of this slice's defects**.
-
-### The budget
-
-Seven sessions, six spent. **Session 7 takes round 4, the AC re-walk, the close
-and the Harvest** — and it can only do that if VH-2's remaining six observations
-are run, because three of the criteria wait on them. If the Harvest cannot be
-given a real pass inside session 7, it is better taken as an eighth than done
-tired: `docs/memory/audit-stage-needs-its-own-budget.md` has now been confirmed
-four times.
-
 ## Brief
 
 **Subject:** `a698217..HEAD` on `main` — 107 commits, 35 files and +7535/-595
@@ -287,46 +165,93 @@ filesystem or subprocess, and adds no dependency. ADR-001 holds.
 
 ### Acceptance criteria
 
-Two independent readings, and they do not agree about the same things. **The
-human run** (VH-1, `notes.md` PHASE-09 sheet) answered a five-kind form twice
-and its wire log discharges AC-1, AC-2, AC-3, AC-8 and AC-9 directly. **The
-suite dimension of `review-code.md`** asked a different question of each
-criterion — *what is the simplest production change that breaks this and leaves
-its case green?* That table is below, and where the two disagree the mutation
-wins, because a green run and an injection pass report different things.
+**Three independent readings, taken at different times and asking different
+questions.**
+
+- **VH-1** (`notes.md` PHASE-09 sheet) answered a five-kind form twice, before
+  any audit repair. Its wire log discharges AC-1, AC-2, AC-3, AC-8 and AC-9
+  directly, and it is what found **AC-4 and AC-5 unmet**.
+- **The suite dimension of `review-code.md`** asked the mutation question of
+  every criterion — *what is the simplest production change that breaks this and
+  leaves its case green?* Where it and a green run disagree, the mutation wins:
+  a run reports that something worked once, an injection pass reports what the
+  gate would notice.
+- **VH-2** (`notes.md` §VH-2) ran the repaired software across three sessions
+  and ten observations, with `goad.service` stopped so a second host could not
+  confound it. It carries the **only** readings that exist for a caret, a drag
+  and a live picker, and it re-reads AC-2, AC-3, AC-8 and AC-9 against the tree
+  as it now stands.
+
+The table below is walked against the **readings**, not against the repairs.
 
 | AC | verdict | evidence, and what holds it |
 |---|---|---|
 | AC-1 five kinds, declared order | **met** | `fields.rs:2120`; six (description, role) pairs in tree order, injection I-9 red. Confirmed on screen by VH-1 |
-| AC-2 `R-57` types, untouched | **met** | `fields.rs:2158`, off the child process's own request log; six keys each a different JSON type from its neighbour. VH-1's run 2 is the untouched control |
+| AC-2 `R-57` types, untouched | **met** | `fields.rs:2158`, off the child process's own request log; six keys each a different JSON type from its neighbour. VH-1's run 2 is the untouched control, and **VH-2 observation 8** re-reads it on the repaired tree: `mood` untouched submits `"good"` |
 | AC-2 `R-57` types, operated | **met** | `fields.rs:2222`. Partly self-agreeing for `datetime` — the expected value is computed by the production `instant::compose` — but the format is pinned by literals at `draft.rs:402`, `:439` and the shape by `fields.rs:1428` |
-| AC-3 `R-58` | **met, with a knowing reduction** | `wiring.rs:1706` drives the *other option's field* half over two options sharing the id `read`. The *undrawn field* half is **unobservable by construction** once all five kinds draw; `canon-delta.md` CD-2 records that rather than substituting a case. Checked independently: `answer` walks `drawn_fields` and `Fields::new` refuses duplicate ids, so no entry can be dropped or collapsed |
-| AC-4 every character recorded | **NOT MET** | **F-A1.** A character typed while an exchange is in flight is discarded, not deferred. The draft/wire half of the suite is real; the `inits` half is vacuous (**F-S1**) and the delivery rule's failure direction is untested (**F-S2**). Dispositioned *fix now* — `audit-log.md` |
-| AC-5 a present disturbs nothing | **NOT MET** | **VH-1 and F-A1.** The element and write halves hold (`reassert.rs:236`, I-7 red). The caret and the drag are observed by no tier, and the drag fails on a person. Instrument fidelity is itself in question — **F-S5**. Dispositioned *fix now* |
-| AC-6 refused or dropped edit corrected | **met** | `overlay.rs:191`, negative-controlled at `notes.md:2729`. A literal *refusal* is not separately driven; the guard is cause-blind and no surviving mutation was found |
+| AC-3 `R-58` | **met, with a knowing reduction** | `wiring.rs:1706` drives the *other option's field* half over two options sharing the id `read`. The *undrawn field* half is **unobservable by construction** once all five kinds draw; `canon-delta.md` CD-2 records that rather than substituting a case. Checked independently: `answer` walks `drawn_fields` and `Fields::new` refuses duplicate ids, so no entry can be dropped or collapsed. **VH-2's single submission** carried all six fields to the backend on the repaired tree |
+| AC-4 every character recorded | **met** | Was **NOT MET** on **F-A1**: a character typed while an exchange was in flight was discarded rather than deferred. Three repairs changed it — `busy` narrowed to *your answer is in flight*, `commands` drained before the present (**F-R3**), and `serve`'s `engage` call site given a case at all (**F-B1**). Held mechanically by `event_loop_busy::a_key_is_recorded_while_the_host_polls_and_dropped_while_the_answer_is_in_flight` — **the first case in the crate to deliver a real `KeyPressed` to a `LineEdit`** — by `event_loop_drain::a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it`, and by `event_loop_full`'s three readings, which is the driver **F-S2** asked for. **F-S1**'s vacuous `inits` half is repaired in the case's own doc. Read on a person at **VH-2 run 1, observation 4**: *"no issues with text field (cursor, loss of entry)"*. The remaining drop — a key typed while *your own answer* is in flight — is the contract, not the defect, and is what the case's name says |
+| AC-5 a present disturbs nothing | **met** | Was **NOT MET** on VH-1's measured drag failure. The element and write halves held throughout (`reassert.rs:236`, I-7 red). The caret and the drag are observable by **no tier** — that is why D-10 assigned them to a human run — and both now have their **first positive readings**, at **VH-2 run 1**: *"the flash of redrawing things is gone"* (observation 1) and *"the slider drag stop is no longer happening"* (observation 2). Two guards gained instruments during the audit: the repeater's, at **F-C6**'s `renderer/wiring.rs::a_re_present_with_unchanged_lines_does_not_rebuild_them`, and the picker's converse, at **F-C3**. **Instrument fidelity remains unheld and is a follow-up — F-S5**: a write to a guarded widget that bypasses the counter survives every case |
+| AC-6 refused or dropped edit corrected | **met** | `overlay.rs:191`, negative-controlled at `notes.md:2729`. A literal *refusal* is still not separately driven; the guard is cause-blind and no surviving mutation was found. **Now also read in the human tier, which is the only one that sees both halves at once**: at **VH-2 run 1, observation 3** a dropped `Mood` — a `choice`, undebounced, held nowhere — reverted on the next present, while dropped keystrokes — debounced, held in `pending.rs` — did not. The two differed in exactly the direction AC-6's *dropped* clause names, and the observation was nearly written off as a defect before the footer notice was traced to `Wire::send`'s back-pressure on a capacity-1 channel |
 | AC-7 undrawn reported, sixth kind a compile error | **met — held by nothing** | The `GroupHint` half is asserted. The compile-error half is real today but **no instrument in the gate keeps it real**: adding a `_` arm to `drawn_form` compiles, lints clean and leaves the gate green (**F-S3**) |
-| AC-8 alternative id, not an option id | **met** | `fields.rs:2042`; label, index and id asserted as three different strings, I-4 and I-5 both red. VH-1's log carries `"fine"`, not `Fine` |
-| AC-9 unbounded number, no invented range | **met** | `fields.rs:1803`, three prongs. VH-1's `counted` returned `0.0` with no range invented |
-| AC-10 gate green, a person has answered | **partly** | `just check` exits 0 at 592. A person ran it (VH-1) — and what that run found is why AC-4 and AC-5 are unmet above |
+| AC-8 alternative id, not an option id | **met** | `fields.rs:2042`; label, index and id asserted as three different strings, I-4 and I-5 both red. VH-1's log carries `"fine"`, not `Fine`; **VH-2 observation 8** carries `"good"`, not `Good`, on the repaired tree |
+| AC-9 unbounded number, no invented range | **met** | `fields.rs:1803`, three prongs. VH-1's `counted` returned `0.0` with no range invented, and **VH-2 observation 6** re-reads the harder case — `Pages written` **cleared to empty** submits `0.0`, not a minimum and not `""`. `0.0` is `serde_json`'s spelling of the `f64` zero; `view_model.rs::spelled` is `f64::to_string`, so the same value reads `0` on screen. Not a fourth screen/wire divergence — the bounded case, which *does* submit its minimum, is the one `design.md` §5.5 I-H gained a clause for (**F-P2**) |
+| AC-10 gate green, a person has answered | **met** | `just check` exits **0** — **30 `test result: ok` lines summing to 600**, which is **565 distinct cases across 22 targets** with `goad-semantics`' 35 built and run twice under two feature configurations. 600 is a sum, not a census. A person ran the software twice: **VH-1** answered a five-kind form and found AC-4 and AC-5 unmet; **VH-2** ran the repairs across ten observations and gives both their first positive readings |
 
 **Two structural facts about the suite, both established by enumeration rather
-than assertion, and both bearing on the repair.**
+than assertion. Both were round 1's readings, and the repairs moved one of
+them** — recorded here as the before and the after, because a claim about the
+suite is exactly the kind this audit has watched go stale.
 
-- **Only one field control is driven by real input events** — the `ComboBox`,
-  in three cases (`fields.rs:2042`, `:2222`, `reassert.rs:236`), by
-  `mock_single_click` and by hand-written `KeyPressed`/`PointerPressed`.
-  `CheckBox`, both `LineEdit`s, the `Slider` and the `datetime` `Button` are
-  reached **only** through the accessibility surface. **No case anywhere
-  delivers a `KeyPressed` to a `LineEdit`**; every text entry is
+- **Round 1: only one field control is driven by real input events** — the
+  `ComboBox`, in three cases (`fields.rs:2042`, `:2222`, `reassert.rs:236`).
+  `CheckBox`, both `LineEdit`s, the `Slider` and the `datetime` `Button` were
+  reached **only** through the accessibility surface, and **no case anywhere
+  delivered a `KeyPressed` to a `LineEdit`** — every text entry was
   `set_accessible_value`, which `fluent/lineedit.slint:16` implements as an
   assignment plus a call to `edited`, reaching no `TextInput` insertion logic.
-  That is the mechanical reason no tier ever moves a caret — and the reason
-  F-A1 is invisible to all 592 tests.
-- **No case operates any control while `root.busy` is true.** The three
-  busy-aware cases read `accessible_enabled` and drive nothing. Of the seven
-  `enabled: !root.busy` bindings only the two predating this slice are
-  asserted at all: **deleting the binding from any of slice 009's five new
-  controls leaves the whole suite green.**
+  That was the mechanical reason no tier could move a caret, and the reason
+  F-A1 was invisible to the whole suite as it then stood.
+
+  **This is no longer true, and F-A1's repair is what changed it.**
+  `event_loop_busy` and `event_loop_drain` both dispatch real
+  `KeyPressed`/`KeyReleased` to a focused `LineEdit`, and `drain.rs::key`'s doc
+  says why in as many words: `set_accessible_value` *"would assign the text and
+  call `edited` from inside the markup, reaching neither `TextInput::key_event`
+  nor the `enabled` gate this case's arrangement turns on."* The caret itself is
+  still observable by no tier — that half stands, and is why VH-2 was owed.
+
+- **Round 1: no case operates any control while `root.busy` is true.** The three
+  busy-aware cases read `accessible_enabled` and drove nothing. Of the seven
+  `enabled: !root.busy` bindings only the two predating this slice were asserted
+  at all: deleting the binding from any of slice 009's five new controls left
+  the whole suite green.
+
+  **Overtaken, and re-measured at close rather than left open.** The binding
+  was deleted from each field control and the suite run — `cargo test -p goad
+  --no-fail-fast`, `app.slint` restored from a copy and verified byte-identical
+  to `21e5827` afterwards. **Two of the six are now held; four are held by
+  nothing:**
+
+  | control | `enabled: !root.busy` held by |
+  |---|---|
+  | `boolean` `CheckBox` | **yes** — `renderer::wiring::both_controls_are_disabled_while_the_answer_is_in_flight_and_enabled_after_it` |
+  | `text` `LineEdit` | **yes** — `event_loop_busy::a_key_is_recorded_while_the_host_polls_and_dropped_while_the_answer_is_in_flight` |
+  | `number` `Slider` | **no** |
+  | `number` `LineEdit` | **no** |
+  | `choice` `ComboBox` | **no** |
+  | `datetime` `Button` | **no** |
+
+  Removing all six reddens `event_loop_busy` and `renderer`; removing **only**
+  the four leaves every target green, 205 passed in `renderer` and no failure
+  anywhere. So the two that are held are held by the two cases this audit added
+  — **F-A1/F-R2's and F-B1's** — and the four that are not were never covered by
+  anything.
+
+  **This is a coverage gap, not a defect**: the bindings are present and correct,
+  and production disables all six. It is the same class as **F-S5** — a real
+  property held by nobody — and it lands in §Follow-ups beside it, now with a
+  number rather than as a suspicion.
 
 ### Verification criteria
 
@@ -348,27 +273,116 @@ Findings live in `review-code.md`, copied from
 vocabulary, subject `implementation`. Findings are not restated here.
 
 - **Ledger:** `review-code.md`
-- **State:** open · **round 1 complete**, all three dimensions plus the two
-  attack areas the renderer dimension briefed and never reached. Round 2, over
-  the repairs, has not run.
-- **Outstanding blockers:** **none.** **F-A1** was the only one; it is
-  dispositioned *fix now* (`audit-log.md`) and **repaired** at `665dcf3`,
-  together with F-R2 and F-R3. The gate is green at 595.
-- **Twenty-one findings**, every one dispositioned with the user: sixteen
-  `fix-now`, four `doc-wrong`, one *settle first*.
+- **State:** **closed after four rounds.** Every finding has a disposition
+  confirmed with the user and a terminal Outcome.
+- **Outstanding blockers:** **none.** **F-A1** was the only one ever raised; it
+  was dispositioned *fix now* (`audit-log.md`) and repaired at `665dcf3`
+  together with F-R2 and F-R3.
+- **Forty-seven findings.** Thirty-five `fix-now` at raise, eight `doc-wrong`,
+  one *settle first*, and three re-dispositioned to `follow-up` after their
+  price was established rather than estimated — **F-R4**, **F-S5**, and
+  **F-B4**'s harness half. Two were `contested` and returned to open —
+  **F-B9** and **F-T3** — and both re-dispositions were confirmed at the source
+  by the orchestrator before they were priced.
 
-Round 1 raised twenty-one. Five were **mutation-confirmed or measured by the
-audit rather than accepted on the reviewer's report**, which is the standard
-`docs/memory/` asks for — a claim about the tree can go stale under the agent
-that made it. Two of those re-derivations changed the finding: **F-S3's stated
-mutation does not lint clean**, and **F-R1 is wider than it was written** — the
-picker survives `hide()` as well as a view replacement.
+**The four rounds, and the shape is the argument for stopping.** Each round
+reviewed the previous round's repairs, which no one else had looked at.
+
+| round | findings | what they were |
+|---|---|---|
+| 1 | 21 | **one blocker and six majors of live defect** — `busy` deaf to input, a picker outliving its view, a present reverting a draft |
+| 2 | 13 | **two majors about what holds a repair** — `serve`'s `engage` site held by no case, a repeater rebuilt every present |
+| 3 | 6 | **one live defect, one coverage gap with production behaviour separately measured correct, and four claims wrong in prose** |
+| 4 | 7 | **no behavioural defect at all.** Seven claims wrong in prose: two counts, a step number, a wrap width, a uniqueness, a cost priced by a mechanism that does not exist, and a citation class |
+
+The defects were gone by round 4 and what remained was the record disagreeing
+with the code. **That is why round 4 was scoped as a verification pass and why
+there is no round 5** (`audit-log.md`, seventh entry): every round-4 finding is
+script-checkable, and every one of them is a thing a *reading* agent had already
+got wrong at least once.
+
+**Verification was not taken on report.** Across the four rounds the audit
+re-ran or re-measured rather than transcribing, and it changed an answer seven
+times. Round 1: **F-S3's stated mutation does not lint clean**, and **F-R1 is
+wider than it was written** — the picker survives `hide()` too. Round 2:
+**F-T1's closer is cheaper than its own author proposed**, and the `const`
+assertion makes the finding's mutation fail to *compile*. Round 3: both
+contests confirmed at the vendored source, and **the audit's own first
+instrument was wrong** — a clock declared inside the per-tick closure, reading
+90 ns. Round 4: **F-D3's enumeration and F-D5's count were both corrected at
+the source**, and both corrections widened the finding.
 
 ## Verdict
 
-<!-- The slice's closure story, written once, here. Draws on the ledger's
-     synthesis and on the evidence above; restates neither. Does this slice do
-     what it set out to do, and what is being accepted knowingly? -->
+**The slice does what it set out to do, and it closes.** All ten acceptance
+criteria are met — none waived — the gate exits 0, and a person has run the
+software twice and seen the new behaviour. No blocker is outstanding.
+
+**What it set out to do.** Take a renderer that drew one of five field kinds and
+make it draw all five, without narrowing the wire contract to the subset the
+renderer happens to implement. That is the project's own named failure mode, and
+the boundary test and the reconciliation both hold it: `R-57`'s types and
+`R-58`'s rule are now verified per kind rather than by review, and the premise
+that justified the old wording — *"including the four no renderer in this
+repository draws yet"* — is retired from canon because it expired.
+
+**What the audit actually found, and it was not in the new drawing code.** The
+slice replaced the mechanism by which a present reaches the form, and the defect
+was there: `busy` meant *the host is talking to the backend*, and a disabled
+Slint item **discards** input rather than queueing it. Every character typed
+during a routine poll was lost. AC-4 and AC-5 were both unmet from that one
+cause, and **no test in the suite could see it** — nothing delivered a real key
+event to a text field, and nothing operated any control while `busy` was true.
+It took a person running the software to find it, which is what
+`AGENTS.md` §Tiers exists for and why VH-1's value was entirely in one of its
+three observations.
+
+**Two criteria were repaired rather than waived**, and that was the decision the
+slice turned on. The Closure checklist would have admitted a waiver; the user
+declined it, on the ground that suppressing the symptom left the deafness
+intact and invisible until a slow backend. AC-4 and AC-5 now read **met**, on
+readings a person took against the repaired build.
+
+**What is accepted knowingly.** Five things, each owned in `slice-009.md`
+§Follow-ups rather than closed here, and none deferred for being large:
+
+- **`F-R4`** — one full present per refused ingress arrival. Deferred because
+  the question underneath it belongs to canon: `SPEC-003/R-15` requires a
+  refusal decided while idle to reach the diagnostics surface, and canon's own
+  verification instrument reads the retained model rather than the window, so it
+  would not report the change.
+- **`F-S5`, and four unheld `enabled` bindings.** Both are the same class — a
+  real property held by nobody — and both are now measured rather than
+  suspected. The instrument-fidelity one was priced against its **canon** cost,
+  not its code cost: a markup scan would be a fifth boundary instrument and
+  `POL-001` §Verification enumerates them.
+- **`F-B4`'s harness half.** Three loop targets fail at ~6x CPU
+  oversubscription, on the liveness backstop rather than on any assertion. A
+  40x nominal margin was not enough, so widening bounds is not the repair.
+- **The tray icon's missing re-assertion path** — `F-R5`'s unpriced half, and
+  the class is the durable part: *a repair that removes a redundant write also
+  removes the self-healing that redundancy was accidentally providing.* Raised
+  as a follow-up and not as a finding, deliberately: the cause of the
+  disappearance is unknown and the witness was hedged.
+- **The citation discipline is a discipline, not an instrument.** Seventeen
+  in-repo line citations remain, none wrong today, nothing stopping the next
+  edit from breaking one.
+
+**One thing is deliberately unfinished.** `SPEC-001` OQ-4's wording is an open
+discussion, not an omission. The audit's position — that the fork is
+asymmetric, because `R-18` already permits a renderer and only a renderer to
+branch on a hint, so the hint half needs no protocol change — is recorded in
+`audit-log.md` and was not decided. `roadmap.md` carries what 009 found.
+
+**The honest summary of the review is that its later rounds were about the
+record, not the code.** Rounds 1 and 2 found defects; rounds 3 and 4 found
+sentences. Four claims wrong in prose, then seven — two counts, a step number, a
+wrap width, a uniqueness, a cost priced by a mechanism that does not exist, and
+a citation class that regenerated **twice inside the commits that repaired it**.
+That is a real quality signal and it is not a code-quality one: this slice's
+code is held by 565 cases and its prose is held by nobody, and the closing act
+of the audit was to replace a reading agent with a twenty-line script and watch
+it find three failures two careful readings had missed.
 
 ## Reconciliation
 
@@ -416,15 +430,64 @@ reach the closing argument, and only a re-read found it.
 | `examples/shell/backend.sh` | three statements, `:15`, `:101`, `:102` | all three went false this slice; the gate cannot see this file, and one of them describes runtime behaviour a person running `just demo` watches the host contradict | [x] |
 | `docs/roadmap.md` §Open decisions, §009 | OQ-4 stays shut, the trigger was not met, and what 009 produced is an **affordance cost** rather than an inexpressibility; the residue's fork named as asymmetric | `design.md` §10 names this as owed at close | [x] |
 
-**Design drift not reconciled:** *(written at close)*
+**Design drift not reconciled.**
+
+- **`design.md` §5.2's `to-float` reading (D-16) is gone from the code and its
+  residue is now gone from the design**, but the *record of the reversal* stays
+  where it happened — D-33 in `design-log.md`. The design document states the
+  rule the code implements; it does not narrate having changed its mind.
+- **`design.md` §9 **A-6** stands as written and is marked false in one clause.**
+  The assumption holds; *"costs focus, not data"* does not, and `F-A1` is why.
+  Amended as a measured note beside the reasoning rather than by rewriting the
+  reasoning, because the assumption was reasonable when it was made and the
+  measurement is the interesting part.
+- **`design.md` §8 **R9**'s mitigation never existed**, and neither driver-table
+  row moved. The risk was misidentified — coordinate mapping, not layout — and
+  the `ComboBox` is answered by a click on itself plus keys. Recorded rather
+  than retro-fitted: the design's *prediction* was wrong in a way worth
+  preserving, since it is what sent PHASE-07 looking for a capability that was
+  there all along.
+- **`design.md` §5.5 **I-F** was demoted from an invariant to a forward
+  constraint**, on measurement (`F-S7`): the transient it describes is
+  unobservable and no case can be written against it. The design's original
+  wording implied the markup depends on it. It does not; a future `init` handler
+  could make it matter, which is what the constraint now says.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `slice-nnn.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+- [x] **All findings dispositioned; no blockers outstanding.** 47 findings
+      across four rounds in `review-code.md`, every one dispositioned with the
+      user and carrying a terminal Outcome. `F-A1` was the only blocker ever
+      raised and was repaired at `665dcf3`.
+- [x] **All acceptance criteria met**, none waived. AC-4 and AC-5 were repaired
+      rather than waived — the decision the slice turned on — and their final
+      readings are a person's, because no test tier can see a caret or a drag.
+- [x] **Tests and checks green.** `just check` exits 0: **30** `test result: ok`
+      lines summing to **600**, which is **565 distinct cases across 22
+      targets**, `goad-semantics`' 35 built and run twice under two feature
+      configurations. 600 is a sum, not a census.
+- [x] **Specs / policy / ADRs reconciled, with user endorsement where amended.**
+      Sixteen rows in the Reconciliation table above, endorsements cited to
+      `audit-log.md`. `POL-001` is untouched and the gate's instrument count is
+      unchanged. `SPEC-001` OQ-4 is deliberately not amended and says so.
+- [x] **`canon-delta.md` promoted.** CD-1 and CD-2 both corrected first, then
+      applied — CD-2's Change 3 amended before promotion because `F-S3` landed
+      after it was drafted and would have written a half-truth into canon. No
+      `draft-spec.md` was opened. The slice closes holding no unpromoted draft.
+- [x] **`slice-009.md` Summary and Follow-ups written.** Nine follow-ups, each
+      with the reason it is not in this slice.
+- [x] **`notes.md` Harvest current; durable facts lifted to `docs/memory/`.**
+      Nineteen new memories, plus two amendments where this slice **falsified**
+      an existing one — `a-count-in-a-comment-is-a-claim-nothing-checks.md`
+      claimed a stale `path:line` breaks when followed, and it does not; and
+      `a-present-destroys-the-widget-it-writes.md` now carries `F-C6`'s
+      two-path mechanism.
+- [x] **`slice-009.md` stage set to `done`.**
+
+**One process note for whoever opens the next slice.** This audit took **seven
+sessions** against a plan of four, and the overrun was entirely in the review
+loop: four rounds, each over the previous round's repairs, with the repairs
+themselves costing about half the total. `docs/memory/audit-stage-needs-its-own-budget`
+is confirmed for the fourth time. The thing that finally ended it was not
+another round — it was replacing a reading agent with a twenty-line script,
+which found three defects two careful readings had reported clean.

@@ -4,11 +4,13 @@
 //! does **not** drain on every step. That drain is why no case anywhere
 //! produced a `Full` send from `Debounce::tick`, and so why the branch that
 //! keeps a person's typing was held by nothing (`review-code.md` **F-S2**).
-//! All three debounce-bearing loop targets drain on every step and say so
-//! (`overlay.rs:236`, `numeric_guard.rs:241`, `debounce.rs:213`), and
-//! `tests/renderer` never fires the timer at all. `wire.rs:331` unit-tests that
-//! `send` *reports* `false`, which is a different claim from *the caller acts
-//! on it*.
+//! All three debounce-bearing loop targets drain on every step and say so in
+//! a comment beside their stepper's drain (`event_loop_overlay`,
+//! `event_loop_numeric_guard`, `event_loop_debounce`), and `tests/renderer`
+//! never fires the timer at all.
+//! `wire.rs::send_reports_a_full_channel_and_still_raises_the_notice`
+//! unit-tests that `send` *reports* `false`, which is a different claim from
+//! *the caller acts on it*.
 //!
 //! The rule under test is `plan.md` PHASE-05/**EX-4** and **VA-1**: *an entry
 //! leaves the map when the send that carries it is enqueued, not when it is

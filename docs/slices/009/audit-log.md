@@ -545,3 +545,104 @@ drew and merely silent on provenance, rather than false.
 **Decided: `follow-up`.** It carries a spec question — what the line should say
 for each of R-26's three branches — that belongs in SPEC-002 §6 and not in this
 slice's close. Lands in `slice-009.md` §Follow-ups.
+
+## 2026-09-20 — round 4 closed, and the F-D3 decision was taken twice
+
+Round 4 ran as decided: a verification pass over session 6's seven repairs, not
+a fresh adversarial round. **It returned no behavioural defect and no
+`blocker`** — seven findings, `F-D1`–`F-D7`, five `minor` and two `nit`, every
+one of them a claim in prose that is false of the tree. All thirteen of round
+3's mutations reproduce as recorded. That is the condition the slice closes on.
+
+**Its worktree arrived 42 commits stale** and fast-forwarded from a clean
+ancestor. **Third instance**, and a fourth followed within the hour on the
+citation-conversion agent, at the same commit `f352124`. This is no longer a
+subagent hazard to be checked for; it is a defect in how worktrees are
+provisioned here, and the harvest should say so.
+
+**Two of the reviewer's sub-claims were corrected at the source before any
+disposition was priced**, which is the seventh time this audit has done that and
+the third time it changed an answer: `F-D3`'s enumeration and `F-D5`'s count.
+Both corrections **widen** the finding rather than weaken it.
+
+### Six repairs, all `fix-now`, and two of them delete rather than correct
+
+`F-D1` and `F-D2` are the shape worth naming: both were off-by-one claims — *"All
+six `init` handlers"* when there are seven, *"step 10 reopens"* when it is step
+11 — and **both were repaired by removing the number, not by fixing it**.
+*"Every `init` handler in the markup is `root.inits += 1`"* and *"the same
+reason as the earlier reopen"* cannot go stale. Correcting the counts would have
+been the third instance of a class this slice has already paid for three times.
+
+`F-D4` replaces the account of the 75 ms with the arithmetic the step arms
+support, and **keeps both measurements with their instruments named** rather
+than choosing one: 876.9 / 877.2 / 878.3 and 876.1 / 875.6 / 874.9. Two
+instruments agreeing to 0.4% is a stronger statement than either alone.
+`F-D5` states what holds instead of a uniqueness that was false. `F-D6` stops
+pricing a guard by a mechanism `set_vec` does not have. `F-D7` rewraps three
+lines — and the finding's own stated margin is corrected, because these files
+carry unwrappable 113-character identifiers and cannot keep a 78-column rule.
+
+### `F-D3` — decided, then re-decided when the residue was measured
+
+**First decision: fix the four, state the residue, add a rule to `CLAUDE.md`.**
+Taken on the understanding that the residue was *"smaller than 59 and larger
+than 3, and nobody has measured it"* — the audit's own words. A gate instrument
+was again declined, consistent with session 6.
+
+`CLAUDE.md` gained the rule under §Working here: **cite by symbol, never by line
+number**, with the evidence attached and the vendored exception carved out,
+because a blanket rule would send the next agent converting
+`i-slint-core-1.17.1/model.rs:211`, where the line number is the only useful
+form.
+
+**Then the residue was measured, and the premise did not survive it.** A script
+written for the mechanical check — the one the user endorsed in place of a fifth
+review round — resolves every in-repo citation and prints what is actually at
+the line. **53 in-repo citations; 27 land on a comment or a blank line; about 24
+of those are simply wrong.** And the cause is concentrated:
+
+| cited as | meaning | actually at | times |
+|---|---|---|---|
+| `main.rs:86` / `:87` | the capacity-1 command channel | `main.rs:98` | **9** |
+| `main.rs:89` | `Wire::new` | `:101` | 1 |
+| `main.rs:95` | the shared `Debounce` | `:106` | 2 |
+| `main.rs:96-98` | the window outliving its callers | blank | 1 |
+| `pending.rs:212-214` | *"the `if enqueued`"* | a doc line | 2 |
+
+**One file's anchors moved and took thirteen citations across seven files with
+them**, two of them inside `event_loop_full/full.rs`'s injection table — the
+evidence for `F-S2`, a finding this audit raised and closed.
+
+**Re-decided: convert the ~24 now.** The option first rejected had become much
+cheaper (nine of the twenty-four are the same citation) and the option first
+taken had become much weaker — *"state the residue"* would have meant writing
+down that half the crate's citations are wrong and closing anyway. The 26 that
+currently land on code are **left alone**: they are right today, the new rule
+covers them going forward, and converting them is the full enumeration pass that
+was declined for its own reasons.
+
+**The measurement is the point.** Both decisions were correct on the information
+available; what changed was that the information stopped being an estimate.
+`docs/memory/price-the-rejected-option-against-code.md` is about not ruling an
+option out on an estimate — this is its converse, and the harvest should carry
+it: **a residue nobody has measured is not a small residue, and "state the
+residue" is only honest once it has a number.**
+
+### Round 5 — **not run**, and this is the stopping decision
+
+Repairing seven prose findings writes new prose that nobody reviews, which is
+precisely how `F-T4` became `F-C2` became `F-D3`. Three options were put.
+
+**Decided: mechanical verification, no round 5.** These seven are counts, line
+numbers, a wrap width and one arithmetic claim — every one of them
+script-checkable, and every one of them a thing a *reading* agent has now got
+wrong at least once. A fifth agent round would spend a session re-reading what a
+script settles in a minute.
+`docs/memory/review-rounds-stop-on-a-measured-trend.md` names exactly this exit,
+and the trend here is stronger than the one that memory was written from: round
+4 found **zero** code defects.
+
+The resolver script is **not landed**. It stays in the session scratchpad, per
+the standing decision to close the slice rather than spike a gate instrument.
+Landing it is a follow-up and is recorded as one.

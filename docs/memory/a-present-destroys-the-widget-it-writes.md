@@ -62,16 +62,61 @@ The guard is the whole point. Writing nothing when nothing diverged is what
 lets a caret, a text selection or a slider drag survive a present — there is no
 mechanism by which an untouched widget could be disturbed.
 
+## Two paths reset a repeater, and retaining the model closes only one
+
+Found at slice 009's audit (`review-code.md` F-B9, then F-C6, which is F-B9's
+repair being wrong about what it held).
+
+Handing the window a **fresh** `ModelRc` on every present rebuilds everything,
+because `ModelRc`'s `PartialEq` is `core::ptr::eq`. The obvious repair is to
+retain one `Rc<VecModel<_>>` and `set_vec` into it. **That is not sufficient**,
+and the reason is worth keeping:
+
+```
+VecModel::set_vec   =  *self.array.borrow_mut() = new.into();  self.notify.reset();
+RepeaterTracker::reset =  self.is_dirty.set(true);  self.inner.borrow_mut().instances.clear();
+```
+
+`reset` clears every instance **without consulting the model pointer at all**.
+So an unconditional `set_vec` of *identical* content still destroys and rebuilds
+every element, on every present, for as long as the repeater is up. Retaining
+the model closes the **pointer** path and leaves the **mutation** path wide
+open. Measured with the `inits` counter below: 1 → 2 → 3 across three presents
+with the write unguarded, 1 → 1 → 1 with it guarded.
+
+**So every `set_vec` in a present needs a guard, and the guard's subject depends
+on what the model tracks.** Slice 009 ships both and the asymmetry is
+deliberate:
+
+- the **form**'s rows change only when the view does, so the guard is on
+  identity — `if self.shown != showing`;
+- the **diagnostics**' lines change independently of the view, so the guard is
+  on **content** — `row_count`, then element-wise, in `glass.rs::write_if_changed`.
+
+An identity guard on the diagnostics would miss every change; a content guard on
+the form would be a pointless pass over rows that only ever change together with
+the view.
+
+One cost, stated honestly because slice 009 first stated it wrongly: on the path
+that **does** write, the content comparison is work **added**, not shared.
+`set_vec` is a move plus `notify.reset()` — it allocates nothing and touches no
+element, so it does none of the element-wise work a guard might be imagined to
+be reusing.
+
 ## How to measure it
 
 Element identity is not otherwise observable, so count construction in the
 markup:
 
 ```slint
-in-out property <int> inits;
-…
+out property <int> inits;      // `out` suffices — assignable from inside a
+…                              // repeater, and does not widen the input surface
 CheckBox { init => { root.inits += 1; } }
 ```
+
+For a **repeater** this is not merely convenient, it is the only instrument
+there is: a repeater has no `ChangeTracker` behind it, so no `changed` handler
+can reach it.
 
 An element that is destroyed and recreated runs `init` again; one that is
 updated in place does not. Add a second counter inside the re-assert's guard and

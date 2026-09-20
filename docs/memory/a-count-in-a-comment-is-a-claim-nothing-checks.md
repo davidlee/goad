@@ -27,8 +27,15 @@ same asymmetry as `a-green-test-can-assert-a-proxy.md`: the artefact asserts
 more confidence than it holds.
 
 It is not that agents are careless with counts. It is that a count is the one
-kind of claim in a comment with **no** feedback path at all. A stale
-`path:line` at least breaks when someone follows it.
+kind of claim in a comment with **no** feedback path at all.
+
+**Amended after slice 009, which falsified the sentence that used to end this
+paragraph.** It read: *"A stale `path:line` at least breaks when someone follows
+it."* It does not. A stale line number resolves silently to whatever is now at
+that line — usually a comment — and nobody follows it, so it rots exactly as a
+count does and is read as a link rather than as a claim. Measured: 53 in-repo
+line citations, 27 landing on a comment or a blank line. See
+`cite-by-symbol-not-line-number.md`.
 
 ## How to apply
 
@@ -45,6 +52,24 @@ kind of claim in a comment with **no** feedback path at all. A stale
   007's PHASE-02 T-11 got a total right by summing greps and still described the
   wrong list.
 
-Related: `cite-requirements-not-finding-ids.md` and
-`a-repair-sweep-misses-the-binding-site.md` — both about a comment saying
+## This memory existing was not enough
+
+Slice 009 broke the *"prefer not writing the count"* rule twice more — `F-C4`
+(a schedule header naming a `STEP` the file no longer had), `F-D1` (*"All six
+`init` handlers"* when a repair had made it seven) — and `F-D1`'s miscount was
+introduced by the commit that closed `F-C6`, whose own Response and commit
+message both called the new handler *"the sixth"*.
+
+So the operative lesson is stronger than the one first written here: **a rule
+recorded in `docs/memory/` does not stop the next agent writing the count.**
+What stopped it, eventually, was repairing the two findings by **deleting the
+number** rather than correcting it — *"Every `init` handler in the markup is
+`root.inits += 1`"*, *"the same reason as the earlier reopen"*. There is then
+nothing left to go stale, and no third round.
+
+Correcting a count is repairing the instance. Removing it is repairing the class.
+
+Related: `cite-by-symbol-not-line-number.md`,
+`cite-requirements-not-finding-ids.md` and
+`a-repair-sweep-misses-the-binding-site.md` — all about a comment saying
 something that used to be true.

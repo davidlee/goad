@@ -5,9 +5,12 @@
 record: document-truth divergences are the audit's reconciliation, and appear
 here only where a doc comment or a declared surface makes a *code* claim that
 is false.
-**Reviewer:** fresh agents, three dimensions, round 1 — Opus 5
+**Reviewer:** fresh agents — three dimensions in round 1, then one per round
 **Opened:** 2026-09-20
-**State:** open
+**Closed:** 2026-09-20
+**State:** **closed.** Forty-seven findings across four rounds, every one
+dispositioned with the user and carrying a terminal Outcome. No blocker
+outstanding.
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -2342,7 +2345,11 @@ By F-T3's own stated criterion — `envelope.rs`'s `found: json_type_name(&other
 
 **Response:** The characterisation deleted, not re-attempted. `lib.rs` now states the cost, and then states in as many words that **no claim is made about how many arms read the matched variant**, why the omission is deliberate, and what the second attempt got wrong — naming `ingress/mod.rs`'s arm and `Refusal::reason`'s split. A claim nothing checks, restated, is how the comment went wrong twice; the third version does not make one.
 
-**Outcome:**
+**Outcome:** `verified` — round 4 read **all eight cited sites at source** and confirmed
+`Refusal::reason`'s split, which is the counterexample the second attempt got
+backwards. The third version makes no claim on that axis, so there is no claim
+left to go wrong; what it does assert — the count, and the cost the conclusion
+rests on — is checkable and checks out.
 
 ### F-T4 — three citations of `glass.rs:189` point at a comment, not at the guard they name
 
@@ -3024,7 +3031,15 @@ The `set_vec` ran on every present, unguarded. The sibling the repair models its
 
 **Re-disposition (session 6, confirmed with the user): `fix-now`.** Guard the write on content, keep the retained `VecModel`, land the case, and correct the doc comment that states pointer identity as sufficient. Carried as **`F-C6`**, where the repair and its injection pass are recorded.
 
-**Outcome:**
+**Outcome:** `verified` — the re-disposition is discharged at **`F-C6`**, whose content
+guard closes the mutation path this contest identified. Round 4 re-ran it: the
+control compiles, and the counter reads 1→2→3 unguarded against 1→1→1 guarded.
+
+The lesson stands on its own and is the harvest item: **a repair can be wrong
+about what it holds, and its own Response can name the case that would have
+caught it.** F-B9's Response was honest that it was not injection-passed and
+named the case; the residue it declined to write was the defect, and the named
+case caught it on the first run.
 
 
 ## § Round 3 findings
@@ -3110,7 +3125,18 @@ guard restored                → ok
 `docs/memory/negative-control-must-compile.md` is why the first was not allowed
 to stand as the injection pass.
 
-**Outcome:**
+**Outcome:** `verified` — and the mutation re-run by round 4, not taken from the record: the
+negative control compiles and the counter reads 1→2→3 with the guard computed
+and ignored, 1→1→1 with it restored. **The brief's first lead is closed as a
+non-finding**: the sibling's converse *is* held — removing `if self.shown !=
+showing` reddens six targets, `fields::a_present_of_the_same_view_rewrites_the_values_and_destroys_no_element`
+among them — so the asymmetry between a content guard and an identity guard is
+sound and instrumented on both sides.
+
+**Two residues, both raised as round 4 findings rather than absorbed here:** the
+doc comment one file over still said *"All six `init` handlers"* when this repair
+made it seven (**F-D1**), and this repair's 19 added lines moved the guard
+`renderer/fields.rs` cites by line number, recreating `F-T4` (**F-D3**).
 
 ### F-C3 — the condition that keeps a person's open picker alive across a routine present is held by no case
 
@@ -3158,7 +3184,14 @@ using it: Reading { at: "C the picker open, under v1", picker: true, … }
                                picker: false, … }
 ```
 
-**Outcome:**
+**Outcome:** `verified`, and the lead it was raised under is closed. Round 4 checked **all
+thirteen reading letters against the steps they are taken at** — the failure this
+finding's own repair risked, and `drain.rs`'s F-B4/F-C4 failure one file over —
+and every one is correct. The unconditional dismiss reddens **exactly one**
+target, with the message this Response quotes.
+
+**Residue:** a cross-reference in prose still named the old step number, which the
+by-name destructure cannot reach (**F-D2**).
 
 ### F-C1 — `event_loop_answer`'s control reading asserts a proxy, and its own message says it holds something it does not
 
@@ -3197,7 +3230,10 @@ taken there.
 F-B1's Response is **not** edited; this ledger is append-only, and the
 correction stands here and in F-B1's Outcome, which records the same thing.
 
-**Outcome:**
+**Outcome:** `verified`. Round 4 re-ran the mutation and read the new comment claim by claim:
+`engage(Answer)` crate-wide leaves `event_loop_answer` green and reddens
+`event_loop_drain` at reading B, which is what the replacement text says and
+where it says the property lives.
 
 ### F-C2 — six `file.rs:NNN` citations are wrong, three of them created by the commit that closed `F-T4`
 
@@ -3237,7 +3273,21 @@ to close the slice rather than open that. **That residue is stated here rather
 than left implicit**, and it belongs to the same family as `POL-001`'s
 dependency-feature residue: a real property, held by nobody.
 
-**Outcome:**
+**Outcome:** `verified` **as to the eight instances, and the Response's central claim is
+corrected here rather than edited above** — this ledger is append-only, and the
+precedent is `F-C1` correcting `F-B1`.
+
+All seven symbols the repair introduced exist and name what their sentences
+claim; `report_platform` really does have exactly two callers. But *"this is a
+class repair"* is **not true of the tree**. Round 4 found three surviving
+citations already wrong and a fourth created by the same commit (**F-D3**); the
+audit's own measurement then put the class at **53 in-repo citations, 27 landing
+on a comment or a blank line**, with one file's drift accounting for thirteen of
+them. The repair converted the instances the finding listed. The class was never
+enumerated.
+
+What the repair did establish stands: a symbol cannot rot, and the discipline is
+now in `CLAUDE.md` rather than in one finding's Response.
 
 ### F-C4 — `drain.rs`'s schedule header states a `STEP` the file no longer has
 
@@ -3265,7 +3315,8 @@ against `DEBOUNCE`, nothing bounds prose, so **prose does not carry numbers it
 does not own.** The sibling shape at `full.rs:62` is noted in the finding as
 still true today and was left alone.
 
-**Outcome:**
+**Outcome:** `verified`. The header no longer names a `STEP` the file does not have, and round
+4 read the schedule against the arms.
 
 ### F-C5 — the one bound `F-B4` measured actually failing got worse, and the Response says the re-index cost nothing
 
@@ -3307,7 +3358,16 @@ Widening `MINIMUM_SPACING` or asserting the total is the stepper-harness
 follow-up's business, not this slice's — stated there so the follow-up is not
 rediscovered.
 
-**Outcome:**
+**Outcome:** `verified` **as to the measurement, and the account of it is superseded by
+F-D4.** Round 4 re-measured the total on a second, independent instrument —
+876.1 / 875.6 / 874.9 ms against this Response's 876.9 / 877.2 / 878.3 — so the
+headline and the ~3.4x margin are confirmed twice over, which is a stronger
+statement than either run alone.
+
+What did not survive is the block's **explanation**: it said the re-index held
+every interval and still made the run longer, when B→C grew 150 → 225 ms and that
++75 ms *is* the whole increase. It also instructed against `876.7 ms`, a figure
+none of the six measurements produced. Both are repaired under **F-D4**.
 
 
 ## § Round 4 findings
@@ -3353,9 +3413,18 @@ commit that closed the finding before it.
 
 **Evidence — run.** `grep -c` at `68fa186`, and the seven sites read.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now`
+**Response:** **The count is removed rather than corrected**, which is the class fix: the
+sentence now reads *"Every `init` handler in the markup is `root.inits += 1` and
+reads nothing."* Nothing about it can go stale when a handler is added, and the
+forward-looking rule the comment exists to state — *no `init` handler may read
+`root.values`* — is unchanged and is what a future handler is actually held to.
+
+Correcting six to seven would have been the third instance of a class this slice
+has now paid for three times (`F-C4`, `F-D1`, and `F-C6`'s own commit message).
+`app.slint`'s *"the six on the prompt side"* is **left standing**: it is true,
+and it counts a set the reader can see in the file it is written in.
+**Outcome:** `verified` — repaired and mechanically re-checked; see §Round 4's synthesis.
 
 ### F-D2 — `F-C3`'s re-lettering moved the reopen step and left a cross-reference pointing at the keystroke
 
@@ -3379,9 +3448,12 @@ reach.
 **Evidence — run.** The step arms read at `68fa186`; every reading letter
 checked against its step.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now`
+**Response:** The step number is dropped rather than corrected — *"Reopened, and for the same
+reason as the earlier reopen"*. There is exactly one earlier reopen, so the
+reference is unambiguous and there is no number left to move. The reason itself
+is written out in full at that earlier step and is not duplicated here.
+**Outcome:** `verified` — repaired and mechanically re-checked; see §Round 4's synthesis.
 
 ### F-D3 — `F-C6` re-created `F-T4` in the commit that closed `F-C2`, and the class `F-C2` claims to have repaired is not repaired
 
@@ -3434,9 +3506,76 @@ wrong. `git log -S` dates them: `fields.rs:1310` from `68cbe90` (round 2's
 repairs), `tree.rs:383` from `f10c032` (PHASE-01), `ingress.rs:229` from slice
 004.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now` — **decided twice.** First as *fix the four named
+citations, state the residue, and add the discipline to `CLAUDE.md`*, on the
+audit's own description of the residue as *"smaller than 59 and larger than 3,
+and nobody has measured it"*. Then re-decided once it **was** measured, because
+the premise did not survive the measurement. `audit-log.md`, seventh entry.
+
+**Response:** Three things landed.
+
+**1. The rule, in `CLAUDE.md` §Working here** — *cite by symbol, never by line
+number*, carrying the evidence with it and carving out the vendored case
+explicitly, since `i-slint-core-1.17.1/model.rs:211` is pinned to an exact
+version and the line number is the only useful form there. A blanket rule would
+send the next agent converting those too.
+
+**2. The class measured, not estimated.** A resolver written for this round's
+mechanical verification reads every in-repo `file.rs:NNN` in a comment and
+prints the line that is actually there:
+
+| | before | after |
+|---|---|---|
+| in-repo citations | **53** | **17** |
+| landing on a comment or blank line | **27** | **2** |
+| of those, wrong | **~24** | **0** |
+
+The two survivors are the accepted exceptions — sentences that cite a doc
+comment *because they say so* (`renderer/harness.rs`'s header reference, and
+`wiring.rs`'s *"whose doc calls it"*). **Thirteen** of the original wrong ones
+came from a single file's drift: `main.rs:86`/`:87` was cited across seven files
+as *"the command channel holds one"*, for a channel that had moved to
+`main.rs:98`.
+
+**3. Twenty-nine citations converted to symbols**, and three more after that —
+see below. Where no symbol exists, the form is the enclosing function plus a
+**quoted fragment** of the line: ``the capacity-1 channel `start` creates
+(`mpsc::channel::<Command>(1)`)``. A fragment is greppable and cannot rot, and
+it is why this slice's one surviving mutation citation lived through a
+re-numbering. The 26 citations already landing on the code they describe were
+**left alone**: right today, covered by the new rule going forward, and
+converting them is the full enumeration pass that was declined on its own
+merits.
+
+**The class regenerated inside its own repair, for the second time in this
+slice, and the resolver is what caught it.** The conversion commit edited doc
+comments in `controller.rs` and `wire.rs`, which moved everything below them —
+and **three citations that had been correct before it became wrong**:
+`controller.rs:312` (`Controller::choose`'s `SupersededView` refusal, cited from
+`renderer/wiring.rs` and `event_loop_answer/answer.rs`) and `wire.rs:331` (a
+unit test, cited from `event_loop_full/main.rs`). Exactly `F-T4`'s shape, exactly
+`F-C6`'s mistake, one commit later.
+
+All three are repaired by symbol. **Nothing was re-numbered**, which is the
+whole point: `wiring.rs`'s sentence already named `Controller::choose`, so the
+citation was deleted as redundant rather than corrected.
+
+**What is *not* held.** No gate instrument enforces the discipline — that
+remains the user's standing decision to close this slice rather than spike one
+(`audit-log.md`, sixth entry), reaffirmed at the seventh. The resolver stays in
+the session scratchpad; landing it is in `slice-009.md` §Follow-ups. The residue
+is now a known quantity rather than an unknown one: **17 line citations, none
+wrong today, nothing stopping the next edit from breaking one.**
+
+**Outcome:** `verified` — **mechanically, not by a fifth review round**
+(`audit-log.md`, seventh entry). The resolver was re-run against the repaired
+tree: 53 → 17 in-repo, 27 → 2 landing on a comment, both survivors being the
+stated exceptions, and every converted citation gone from the report with
+nothing else changed. `just check` exits 0.
+
+That the check *found three fresh failures in the repair itself* is the
+argument for having run it: a reading agent had already reported this class
+clean, twice.
 
 ### F-D4 — `F-C5`'s block explains the 77 ms with a claim the schedule six lines above it contradicts, and carries a fourth figure
 
@@ -3487,9 +3626,22 @@ MEASURED-TOTAL-RUN 874.934722ms      (load 1.77 on 32 cores)
 instruments put the run at ~875–878 ms against a 3 s `MINIMUM_SPACING`, a margin
 of ~3.4x either way.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now`
+**Response:** **The account is replaced by the arithmetic the step arms actually support**, and
+the spurious figure is gone. The block now says that the re-index did **not**
+hold the intervals, that **B to C grew from 3 steps (150 ms) to 9 (225 ms)** and
+that this +75 ms is the whole of the increase with the rest cancelling (+25 at
+the head, −25 into B), and that the same stretch **widened C's own margin** from
+200 ms (1.33x `DEBOUNCE`) to 250 ms (1.67x) — which is where the total's margin
+went.
+
+**Both measurements are kept and both are attributed**, rather than one being
+chosen: *"875-878 ms — 876.9 / 877.2 / 878.3 (F-C5) and 876.1 / 875.6 / 874.9
+(F-D4), both on an idle machine"*. Two instruments agreeing to 0.4% is a
+stronger statement than either alone, and a reader who re-measures and gets 875
+now finds that expected instead of a discrepancy. The instruction is to price
+against **~877 ms and a 3.4x margin**. `876.7` appears nowhere.
+**Outcome:** `verified` — repaired and mechanically re-checked; see §Round 4's synthesis.
 
 ### F-D5 — "the one consumer of model identity that has no `ChangeTracker` behind it" — no repeater in the file has one
 
@@ -3517,9 +3669,18 @@ reaches this repeater. What is false is the reason given for it.
 **Evidence — run.** `grep -n "for .* in "` and `grep -n "changed "` over
 `app.slint` at `68fa186`, each match read.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now`
+**Response:** **What holds is stated instead of a uniqueness that was false.** Both copies now
+say that **no** repeater in `app.slint` has a `ChangeTracker` behind it — the
+file's only `changed` handlers are on `tick`, a property — so for a repeater
+`inits` is the only instrument there is. That is the claim the case actually
+needs, and it is checkable by two greps rather than by knowing what the other
+repeaters do.
+
+`wiring.rs`'s copy additionally records that the uniqueness it used to claim was
+false and cites `F-D5`, because the next reader of that paragraph is someone
+deciding whether the case is vacuous and should not have to re-derive it.
+**Outcome:** `verified` — repaired and mechanically re-checked; see §Round 4's synthesis.
 
 ### F-D6 — `write_if_changed`'s doc attributes work to `set_vec` that `set_vec` does not do, and concludes the guard is free when it is not
 
@@ -3545,9 +3706,18 @@ shape in `F-C5`, `F-D4` and here.
 **Evidence — reasoned.** `set_vec` and `RepeaterTracker::reset` read at the
 vendored source, the same citations `F-C6` used.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now`
+**Response:** The doc no longer prices the guard by a mechanism `set_vec` does not have. It
+now says `set_vec` is a move into the `RefCell` plus `notify.reset()` — so it
+allocates nothing and touches no element — and that **the comparison is work
+added rather than shared**. The trade is then stated as a trade rather than as a
+free lunch: one pass over the lines on the path that writes, against destroying
+and rebuilding every element on the path that would not have needed to.
+
+This is the third time this audit has found a cost priced by an imagined
+mechanism (`F-C5`, `F-D4`, here). The pattern is worth the harvest: **a
+performance claim in a comment is a measurement claim, and nothing checks it.**
+**Outcome:** `verified` — repaired and mechanically re-checked; see §Round 4's synthesis.
 
 ### F-D7 — three comment lines left unwrapped by `F-C2`'s hand edits
 
@@ -3562,9 +3732,20 @@ comment lines past the margin; `wiring.rs:560` is 118 characters.
 
 **Evidence — run.** Column count over the lines `F-C2`'s commit touched.
 
-**Disposition:**
-**Response:**
-**Outcome:**
+**Disposition:** `fix-now`
+**Response:** Three comment lines rewrapped — `instant.rs`, `lib.rs`, and
+`renderer/wiring.rs`'s 118-character line — plus one more that this round's own
+`F-D3` repair had lengthened past the margin, and two paragraphs reflowed where
+the first rewrap left an orphaned line.
+
+**The finding's stated margin is corrected**: the files do not wrap at 78. The
+convention is **80**, and `rustfmt`'s own `max_width` for code is 100. The
+distinction matters because these files carry comment lines of 89, 102 and 113
+characters that **cannot** be wrapped — they are single Rust identifiers, test
+function names spelled as sentences. A blanket "wrap at 78" would be a rule the
+file is structurally unable to keep. What the finding is really about is lines
+that *could* be wrapped and were not, and all of those are now.
+**Outcome:** `verified` — repaired and mechanically re-checked; see §Round 4's synthesis.
 
 ## What was checked and found clean
 
@@ -3689,6 +3870,89 @@ loop see three different answers for the same field.
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+**Forty-seven findings, four rounds, one blocker.** Each round after the first
+reviewed the previous round's repairs, which nobody else had looked at — and
+each of rounds 2 and 3 found a major **in a repair**. That is the single most
+useful structural fact this review produced: the repairs were where the
+remaining defects were.
+
+### What the review changed
+
+**The host stopped eating input.** `F-A1` was the blocker: `busy` meant *the
+host is talking to the backend*, and a disabled Slint item **discards** input
+rather than queueing it, so every character typed during a routine poll was
+lost. AC-4 and AC-5 were both unmet from that one cause. `busy` now means *your
+answer is in flight*. `F-R3` landed with it — narrowing `busy` makes typing
+during an evaluation the ordinary case, which is exactly the window in which a
+debounce tick could enqueue an edit the serve loop had not yet served, leaving
+the following present to write a stale value back over the widget a person was
+typing into.
+
+**A picker stopped outliving its form.** `F-R1`, and `F-B2` one surface over:
+an open picker survived a view replacement, a `hide()`, and
+`open_diagnostics()`, leaving the form beneath unreachable by pointer *and* by
+keyboard while its widgets stayed alive.
+
+**Two guards stopped being free.** `F-R5` (a tray icon re-rasterised and pushed
+to the desktop's tray service on every present, because slint compares an
+`Image` by buffer pointer) and `F-B9`/`F-C6` (a diagnostics repeater destroying
+and rebuilding every line on every present).
+
+**And the suite learned to see what it was asserting.** Before this review, no
+case anywhere delivered a real `KeyPressed` to a `LineEdit` and no case operated
+any control while `busy` was true — so `F-A1` was invisible to every test that
+existed. Two loop targets now type real key events across the busy transition.
+
+### What it confirmed
+
+`Alternatives::first` cannot panic. `R-58`'s MUST holds structurally, because
+`answer` walks `drawn_fields` and `Fields::new` refuses duplicate ids.
+`pending.rs`'s map is bounded and its timer terminates. Every `RefCell` borrow
+in the crate is non-re-entrant, and the review enumerated why rather than
+asserting it. slint 1.18.0 fixes none of this slice's defects.
+
+### The shape of the rounds, which is why it stopped
+
+| round | findings | what they were |
+|---|---|---|
+| 1 | 21 | a blocker and six majors of **live defect** |
+| 2 | 13 | two majors about **what holds a repair** |
+| 3 | 6 | one live defect, one coverage gap, four claims wrong in prose |
+| 4 | 7 | **no behavioural defect at all** |
+
+Round 4's seven were counts, a step number, a wrap width, a uniqueness claim, a
+cost priced by a mechanism that does not exist, and a citation class. All
+script-checkable, and all things a *reading* agent had already got wrong at
+least once — including the reviewers. So the round-4 repairs were verified
+**mechanically** rather than by a fifth round, and that check immediately earned
+itself: it found three citations that the conversion commit had freshly broken,
+after two careful readings had reported the class clean.
+
+### Risks knowingly left standing
+
+- **`F-S5`** — *every write to a guarded widget goes through the counter* is
+  real, unheld, and now owned. Hoisting an assignment out of its comparison
+  leaves every target green with `reasserts` at `0`.
+- **Four of six `enabled: !root.busy` bindings are held by nothing** — the
+  `number` `Slider`, the `number` `LineEdit`, the `choice` `ComboBox` and the
+  `datetime` `Button`. Measured at close, not suspected: removing all four
+  leaves every target green. The two that *are* held are held by cases this
+  review added.
+- **`F-R4`** — one full present per refused ingress arrival, at a rate an
+  untrusted writer sets. Deferred because the question underneath it is
+  canon's, not this slice's: `SPEC-003/R-15` requires a refusal decided while
+  idle to reach the diagnostics surface, and canon's own verification case reads
+  the retained model rather than the window.
+- **`F-B4`'s harness half** — all three new loop targets fail at roughly 6x CPU
+  oversubscription, and the failure is the liveness backstop rather than any
+  assertion. Two independent witnesses. A load-sensitive `just check` sits
+  against `POL-001`'s *the gate exits 0*.
+- **The citation discipline is a discipline, not an instrument** (`F-C2`,
+  `F-D3`). 17 in-repo line citations remain, none wrong today, and nothing stops
+  the next edit breaking one.
+- **Three properties are real, unheld, and not expressible as a case** — I-F's
+  write order (`F-S7`), one-edit-per-tick (`F-S6`), and PHASE-06/EX-3's
+  refusing-`interpret` clause. Reaching for a case is the wrong move for all
+  three; each is settled by enumeration and says so.
+- `examples/shell/backend.sh` and `examples/demo.toml` are reachable by **no**
+  gate command.

@@ -41,7 +41,7 @@ use tokio::sync::{mpsc, oneshot};
 
 /// One option with one field. The option's `Button` is what the person
 /// presses, and pressing it is the only road to `Pending::Respond`
-/// (`install.rs:40`, `controller.rs:312`).
+/// (`install`'s `chosen` callback, and `Controller::choose`).
 const A_FORM: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"morning","label":"Morning","fields":[{"id":"noted","kind":"text","label":"Anything to add?"}]}]},"next_check":"45 minutes"}"#;
 
 /// No view, so the answer folds `Shift::Retained` and the form survives it —

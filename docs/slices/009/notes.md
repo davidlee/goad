@@ -5206,6 +5206,33 @@ the case's own author hit. The guard is intact.
 
 ## Harvest
 
+**Lifted to `docs/memory/` at close (2026-09-20).** `docs/memory/` went from 47
+files to 78. What landed, and what did not:
+
+- **Nineteen new memories** from this slice's own work — the citation class, the
+  four measurement lessons, the review-loop lessons, and the slint / jiff /
+  injection mechanics. Named in `audit.md` §Closure.
+- **Two amendments where this slice falsified an existing memory.**
+  `a-count-in-a-comment-is-a-claim-nothing-checks.md` claimed *"a stale
+  `path:line` at least breaks when someone follows it"* — measured: it does not,
+  and 27 of 53 citations were silently pointing at a comment. And it already
+  carried the rule this slice then broke twice more, which is now recorded in
+  it: a rule in `docs/memory/` does not stop the next agent writing the count.
+  `a-present-destroys-the-widget-it-writes.md` gains `F-C6`'s two-path mechanism.
+- **Ten memories that the record was already citing and that did not exist.**
+  Found at close by resolving every `docs/memory/` reference in `docs/`: slices
+  007 and 009 cite thirteen files by name, and only three of those names
+  resolved. The citing files are logs and ledgers — append-only — so the fix was
+  to write the memories, not to correct the citations. Two of the thirteen were
+  the same lesson under a different name and are now alias pointers.
+- **Not lifted:** the per-phase mechanics that are true only of this
+  implementation, and the `### Open` items below, which became `slice-009.md`
+  §Follow-ups instead.
+
+The bullets below are the raw material and are kept as written; where one is now
+a memory, the memory is the current truth.
+
+
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 

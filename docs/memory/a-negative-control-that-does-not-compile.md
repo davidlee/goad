@@ -46,3 +46,8 @@ controls were being run at all.
 
 Related: `a-green-test-can-assert-a-proxy.md`,
 `a-bound-is-not-tested-at-the-bound.md`, `a-test-rule-binds-to-a-defect-not-a-surface.md`.
+
+---
+
+**Also cited as `negative-control-must-compile.md`.** Slice-009 and slice-007 artefacts reference this
+lesson under that name; it has only ever lived here.
