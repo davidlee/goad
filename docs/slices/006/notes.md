@@ -58,3 +58,12 @@ after the slice closes is lifted into the Harvest section.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **A documented non-nix build path** — raised at design, 2026-09-20, and
+  deliberately deferred by the user (`design-log.md`, *the non-NixOS path is
+  `cargo install`, and C is a follow-up*). It is a design goal that goad runs on
+  non-NixOS systems; this slice states in `design.md` that the non-nix path is
+  plain `cargo install --path crates/goad --locked`, needing neither the wrapper
+  nor `~/.config/goad/env`, but nothing documents or verifies it. Candidate
+  scope for the follow-up slice: where that statement lives for a reader who is
+  not holding this design, and whether anything checks it.

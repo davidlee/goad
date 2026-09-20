@@ -1,7 +1,9 @@
 # Slice 006: packaging and the startup surface
 
 **Stage:** design
-**Tier:** 1 (thin) — see *What would raise the tier* below.
+**Tier:** 1 (thin) — see *What would raise the tier* below. `design.md` runs
+46 lines over the tier 1 cap by explicit user decision, recorded at its head and
+in `design-log.md`; nothing else about the tier changes.
 **Depends on:** nothing. Independent of 007, 008 and 009 by design. It was
 sequenced after them because 009 held `crates/goad/src/main.rs` dirty and this
 repository runs one writer per worktree; 009 closed at `af76b4c` while this
@@ -45,19 +47,31 @@ say what it is.
 
 ## Scope
 
-- `flake.nix` — crane, the source filter, the package outputs, the wrapper, and
-  the module export.
-- `nix/module.nix` — new; the systemd user unit, if OQ-1 puts it here.
-- `justfile` — the `install` recipe and whatever survives of its env half.
-- `crates/goad/src/startup.rs` — `Launch`, `arguments` and its table,
-  `StartupError::Config`.
-- `crates/goad/src/main.rs` — the `--version` destination, beside `--help`'s.
-- `crates/goad/src/diagnostics.rs` — only if the version line is written there.
-- `crates/goad/build.rs` — only if the sha arrives through it (OQ-4).
-- `crates/goad-shell/src/error.rs` — only if OQ-3 puts the path in stratum 2.
+- `flake.nix` — crane, the source filter, the package outputs, the wrapper, the
+  revision, and the module export.
+- `nix/module.nix` — new; the systemd user unit. OQ-1 put it here.
+- `justfile` — a new `package` recipe (OQ-2b). The `install` recipe is
+  unchanged; its env half is kept (OQ-6).
+- `Cargo.toml` — the workspace manifest's two-line `tokio` entry, joined onto
+  one line. A precondition of evaluating anything with crane, not a preference
+  (`research.md` Thread 3 S-1).
+- `crates/goad/src/startup.rs` — `Launch`, `arguments` and its table, and
+  `StartupError::Config` replaced by two path-carrying arms.
+- `crates/goad/src/main.rs` — the `--version` destination beside `--help`'s, and
+  `start`'s two-arm split of `Config::load`.
+- `crates/goad/src/diagnostics.rs` — `version_line`, and `USAGE`'s third form.
+- `crates/goad/Cargo.toml` and `crates/goad/tests/binary/` — new; a binary test
+  target, which `goad-emit` has and `goad` does not.
+- `crates/goad-emit/src/main.rs`, `crates/goad-emit/src/render.rs` — emit's
+  `--version` takes the same shape (OQ-7).
 - `crates/goad/tests/renderer/startup.rs` — the argument table and the display
   text are both already tested there.
 - `docs/roadmap.md` — at close.
+
+Checked and **not** in scope, both of which design closed: `crates/goad/build.rs`
+(OQ-4 takes `option_env!`, not a build script) and
+`crates/goad-shell/src/error.rs` (OQ-3 kept the path at stratum 3, so
+`ConfigError` is untouched).
 
 Outside the repository and required as evidence rather than as a deliverable:
 the `~/flakes` wiring that consumes whatever this slice exports.
@@ -75,7 +89,10 @@ the `~/flakes` wiring that consumes whatever this slice exports.
   service is a different lifetime and a different question.
 - **`goad-emit`'s startup diagnostics are not reopened.** It already carries
   the shape this slice gives `goad` — `StartupFault::Unparseable { path, fault
-  }` — and is the prior art, not the work.
+  }` — and is the prior art, not the work. Its **`--version` is in scope**:
+  OQ-7 found the same *which install is running?* defect in emit, which
+  `just install` installs and AC-2 packages, and `--version` is not a startup
+  diagnostic.
 - **No `--config PATH` flag.** It is a standing 005 follow-up and it is a
   second way to name the file this slice is about naming. One at a time.
 - **No release, no CI, no crates.io.** `publish = false` is not provisional.
@@ -91,8 +108,11 @@ the `~/flakes` wiring that consumes whatever this slice exports.
 - [ ] AC-3 — Nothing a caller sets in the environment is required by either
       binary. Stated as an absence because that is what `wrapProgram` buys, and
       the env file is what it retires.
-- [ ] AC-4 — `goad --version` prints a version and the git revision it was
-      built from, on stdout, exit 0 — and is not read as a configuration path.
+- [ ] AC-4 — `goad --version` prints, on stdout and exit 0, the package version
+      and — **when the build stamped one** — the git revision it came from; and
+      is not read as a configuration path. A `cargo install`ed binary stamps no
+      revision and prints the bare version, which is what AC-5 rests on
+      (OQ-4, OQ-7; `design.md` D3).
 - [ ] AC-5 — A nix-built `goad` and a `cargo install`ed `goad` can be told
       apart from their `--version` output alone.
 - [ ] AC-6 — Every `StartupError` that has a path in hand names it. Today
@@ -116,11 +136,13 @@ Binding:
   run, and **it stays out of it**: OQ-2 was answered no, so this policy is not
   amended and the tier stays 1. What binds is the prohibition itself — no
   command may be removed, weakened or made conditional, and nothing this slice
-  does to the `justfile` may touch the six the block names.
-- **ADR-001** — one-way strata. The startup-surface half is stratum 3 work;
-  OQ-3 asks whether the path belongs in stratum 2's error type instead, which
-  is a question about direction and must be answered against this ADR rather
-  than around it.
+  does to the `justfile` may touch the six the block names. The new `package`
+  recipe (OQ-2b) sits outside the block and carries no standing obligation, so
+  it amends nothing.
+- **ADR-001** — one-way strata. The startup-surface half is stratum 3 work.
+  OQ-3 asked whether the path belonged in stratum 2's error type instead and
+  was **answered at stratum 3**, so `goad_shell` is untouched and nothing here
+  crosses a stratum in a new direction.
 - **SPEC-003** R-3, R-4 — ingress startup failures name the path, and say what
   was found. This slice touches `StartupError`'s `Display` and must not weaken
   them; AC-6 states the obligation in the direction of the change.
@@ -134,52 +156,42 @@ crate, and no binary is added or moved between strata).
 
 ## Open questions
 
-- OQ-1 — **Where the home-manager module lives.** `~/flakes` holds two house
-  patterns: `modules/home/linux/satan-attrd.nix` imports a module the project
-  exports; `modules/home/linux/behaviour.nix` writes panopticon's unit inline.
-  The unit carries facts only goad knows — which exit code is a refusal, what
-  it is `PartOf` — and the question is whether that is enough to put a
-  `nix/module.nix` in this repository.
-- OQ-2 — **Does `nix build` join the phase gate?** **Answered: no**
-  (`design-log.md`, 2026-09-20). POL-001 is untouched and the tier stays 1. The
-  accepted residue: a `flake.nix` that stops building is green here and broken
-  in `~/flakes`, which is where it is noticed. A third option — a `just package`
-  recipe outside the gate, run at audit — was raised and **not** answered; it is
-  carried into `design.md` §6.
-- OQ-3 — **Which stratum names the configuration path.** Both shapes are
-  already in this tree: `IngressError { path, fault }` carries it in stratum 2;
-  `goad-emit`'s `StartupFault::Unparseable { path, fault }` wraps it at
-  stratum 3. `goad` has the value at the seam and drops it —
-  `main::start(path)` calls `Config::load(path).map_err(StartupError::Config)`.
-  Whichever is taken, the design says why the other was not, because the
-  divergence is what a reader will ask about.
-- OQ-4 — **Where the revision comes from on the `cargo install` path**, which
-  has no flake and may have no git. `self.rev` / `self.dirtyRev` answers the
-  nix side; the other side is a decision about what an unknown revision prints.
-  AC-5 is a constraint on this answer, not a consequence of it.
-- OQ-5 — **Does the package build run the tests?** The choice was posed as
-  *pass `fontsConf` into the check phase* or *`doCheck = false`*. The spike
-  (`research.md` Thread 3 S-3) measured it and the fonts are the second of at
-  least three obstacles: without a tzdb the lib tier fails first, and with both
-  provisions a timing-sensitive `event_loop_schedule` case still fails in the
-  sandbox. Evidence is in; the **decision is the design's** and is not yet taken.
-- OQ-6 — **What happens to `~/.config/goad/env`.** It exists for the
-  `cargo install` path alone once the nix binary is wrapped. Deleting it breaks
-  that path; keeping it leaves a file whose two values can still go stale, with
-  one fewer consumer to notice.
+**All answered.** Each was decided in the design interview and is recorded in
+`design-log.md` with its argument; `design.md` §7 carries the decision and the
+rejected alternative. Kept here as the slice's own record of what was open.
+
+| | question | answer |
+|---|---|---|
+| OQ-1 | where the home-manager module lives | **in this repository** — `nix/module.nix`, exported as `homeManagerModules.default`; `~/flakes` gets the four-line consumer. `RestartPreventExitStatus=2` is this repository's exit-code contract. |
+| OQ-2 | does `nix build` join the phase gate | **no.** POL-001 untouched, tier stays 1. |
+| OQ-2b | the carried third option — a `just package` recipe | **yes**, outside the gate and with no standing obligation on future slices. An obligation would have been canon, and tier 2. |
+| OQ-3 | which stratum names the configuration path | **stratum 3.** `ConfigError` is also emit's; a path inside it prints twice there, and repairing that is a non-goal. |
+| OQ-4 | where the revision comes from | **the flake stamps `GOAD_REVISION`**; the `cargo install` path stamps none. Both stamping a real sha would make the two indistinguishable, failing AC-5. |
+| OQ-5 | does the package build run the tests | **no** — `doCheck = false`, on three measured obstacles (`research.md` S-3). `just check` is what holds the tests. |
+| OQ-6 | what happens to `~/.config/goad/env` | **kept.** goad must keep running on non-NixOS systems. Its reader becomes a person; nothing reads it automatically once the module carries no `EnvironmentFile`. |
+| OQ-7 | raised in research — does `goad-emit --version` change shape too | **yes**, the same shape. The *which install is running?* defect is equally emit's. |
+
+One question raised during the interview was **deferred rather than answered**:
+whether goad's non-NixOS story needs more than `cargo install` — documentation,
+and something that verifies it. It is a follow-up, held in `notes.md` §Open.
 
 ## What would raise the tier
 
-Tier 1 as opened: nothing here writes or amends canon, and nothing changes the
-wire contract. Two things would change that. **One is now settled and one is
-still open:**
+Tier 1 as opened, and **tier 1 at design acceptance**: nothing here writes or
+amends canon, and nothing changes the wire contract. Both routes to tier 2 that
+were open are now closed:
 
-- **OQ-2 answered yes** would have amended POL-001. It was answered **no**, so
-  this route to tier 2 is closed and no canon amendment is in prospect.
-- **OQ-3 answered in stratum 2** — still open. Moving a path into `ConfigError`
-  changes a type `goad-emit` also consumes, and the design surface grows the
-  seam between two binaries. That is a size judgement, not a canon one, but it
-  is the shape that would push past the 300-line cap.
+- **OQ-2 answered yes** would have amended POL-001. It was answered **no**.
+  OQ-2b's `package` recipe sits outside the gate block and carries no standing
+  obligation, so it does not reopen this.
+- **OQ-3 answered in stratum 2** would have changed a type `goad-emit` also
+  consumes. It was answered **stratum 3**.
+
+A third pressure appeared instead and was **declined**: `design.md` exceeds the
+tier 1 line cap, and the user chose to run over rather than split the slice or
+raise the tier (`design-log.md`, 2026-09-20). That is a deviation from
+`docs/AGENTS.md` §Tiers taken on explicit instruction, not a tier change — the
+two-round bound on the shared design-and-plan ledger is unchanged.
 
 A tier may be raised mid-slice and never lowered.
 
