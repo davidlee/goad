@@ -7,137 +7,175 @@ Written after the last phase is done. Two jobs in one document:
 2. **Reconcile** — make the record true again. The code is what shipped; the
    specs must say so, or the code must change.
 
-## PARTIAL — session 3 checkpoint (2026-09-20)
+## PARTIAL — session 4 checkpoint (2026-09-20)
 
 **Read this before anything else.** The audit is part-done. This section is the
-state of it; it replaces session 2's, and it is deleted when the audit closes.
+state of it; it replaces session 3's, and it is deleted when the audit closes.
 
-### What is finished
+### What session 4 finished
 
-- The **Brief** below, written before any evidence (`aaeb5bf`).
-- **Evidence**: the gate, the surface delta, stratum purity, PHASE-04/VA-1's
-  residue argument, and the AC table. The VT/VA walk is **not** done.
-- **`review-code.md` round 1, complete** — twenty-one findings, every one
-  dispositioned with the user (`audit-log.md`, second entry).
-- **Nineteen of twenty-one findings repaired**, across six commits, each
-  gate-verified by this session running `just check` itself:
-  - `db1d702` **F-R1** — an open picker is dismissed when the shown view
-    changes. Injection pass B1/B2/B3 re-run against the committed tree.
-  - `d9fe587` **F-R5, F-R8, F-S7, F-P1, F-R7, F-R9, F-P4, F-R6, F-P3** and the
-    ledger's un-raised Note.
-  - `4f0af74` **F-S2** (new loop target `event_loop_full/`), **F-S6**, **F-S1**.
-  - `da4ced0` **F-S5** — the guards assign through counting functions.
-  - `511d307` **F-S4** — PHASE-05's injection pass, run at last, all four red.
-  - `faccd95` **F-S3** — `clippy::wildcard_enum_match_arm` denied for `goad`.
-- **Ledger Responses written for all nineteen.** **Outcomes are blank
-  throughout and that is deliberate** — see *The Outcome split* below.
-- **Gate green at 597**, `just check` exit 0, zero warnings, tree clean at
-  `faccd95`.
+- **The two findings round 1 left blocked on a decision, both answered**
+  (`audit-log.md`, third entry). **F-R4** re-dispositioned `fix-now` →
+  **`follow-up`**; **F-P2** endorsed and applied across four `design.md` sites.
+- **Nine Outcomes set by the orchestrator as declared raiser** — the findings
+  whose repair is a document: `F-P1`–`F-P4`, `F-R4`, `F-R6`, `F-R7`, `F-R9`,
+  `F-S7`. Each checked against the tree, not against the Response.
+- **Round 2, instruments dimension — complete.** `F-S1`, `F-S2`, `F-S3`,
+  `F-S4`, `F-S6` **`verified`**; **`F-S5` `contested`**. Four new findings,
+  `F-T1`–`F-T4`, all run, none a blocker. Its report is copied to the session
+  scratchpad and its findings are transcribed into the ledger in full.
+- **Reconciliation: applied.** Sixteen rows, not eleven — five were
+  `notes.md`'s own list, endorsed 2026-09-19 and never transcribed here. CD-1
+  and CD-2 corrected and promoted into `SPEC-001`; `slice-009.md`,
+  `examples/shell/backend.sh`, `docs/roadmap.md`, `research.md`, `plan.md` and
+  seven `design.md` sites all reconciled. Two further canon amendments were put
+  to the user and endorsed (`audit-log.md`, fourth entry).
+- **`just demo` now shows the slice, and VH-2 has a committed rig.** Neither
+  example drew a `number`, `choice` or `datetime`; the shell backend now carries
+  one field of every kind, plus `GOAD_DEMO_DELAY` and `GOAD_DEMO_PULSE`.
+  **VH-2's brief is in `notes.md`** — ten observations, each naming what it
+  settles and what failure looks like.
 
 ### What is outstanding, in the order it should be taken
 
-1. **Two findings, both blocked on a user decision, neither started.**
-   - **F-R4** — *one full present per refused ingress arrival, at a rate an
-     untrusted writer sets.* **There is no repair that is not a design
-     change**, and this was established rather than assumed: `option_models`
-     computes each field's slot while building `values`, so splitting it
-     duplicates the walk — the parallel implementation `CLAUDE.md` forbids —
-     and `show()` on an already-visible window is the *totality* argument at
-     `glass.rs:33-35`, not an oversight. What is actually open is **whether a
-     refused arrival should present at all**; it currently does, because the
-     refusal folds onto diagnostics and the present is what displays it. Put
-     to the user, unanswered: re-disposition to `follow-up`, or take the
-     design decision now.
-   - **F-P2** — dispositioned `doc-wrong`, and its repair edits `design.md`,
-     a record of intent. Its argument that this is not retro-fitting is sound
-     (the three sentences are residue of D-16, which D-33 already reversed)
-     and CD-1's cleared-number clause is already decided (`audit-log.md`), but
-     **explicit endorsement was asked for and not given**. Do not write it
-     without.
-2. **`review-code.md` round 2, over the repairs.** Not started. **Four raises
-   are already waiting**, each disclosed by the work rather than found by
-   review, and none folded in quietly:
-   - **`Focus::Diagnostics` leaves a picker up.** `Surface` derives from
-     `(focus, shown.is_some())` (`controller.rs:162-167`), so the mode switch
-     to `WindowMode::Diagnostic` empties the prompt block without changing
-     `shown` — F-R1's dismiss branch is not taken. Outside F-R1's two measured
-     shifts; the case for it is one more step in `event_loop_picker`.
-   - **`wiring.rs::busy`'s two cases engage an `Answer` and fold an
-     `Evaluation`**, a sequence that cannot happen after the narrowing. A green
-     case whose setup is impossible is `docs/memory/tests-asserting-proxies.md`'s
-     shape, and it sits inside the repair that closed the blocker. **Raise or
-     clear it deliberately; do not inherit session 2's reasoning for leaving it.**
+1. **Round 2's behaviour dimension was still running at handover.** It holds the
+   six Outcomes nobody else can set — **`F-A1`, `F-R2`, `F-R3`, `F-R1`,
+   `F-R5`, `F-R8`** — and raises new findings as `F-B1`onward. Its report:
+
+   ```
+   .claude/worktrees/agent-acef2b6c85bf3c2d1/ROUND2-BEHAVIOUR.md
+   ```
+
+   It was told to write as it goes, so partial content is there either way.
+   **Read the file, not a summary of it.** Transcribe exactly as the instruments
+   dimension was transcribed. It was also asked to settle one thing on its own
+   evidence rather than inherit it: whether `wiring.rs`'s `busy` cases still have
+   a reachable arrangement after the narrowing.
+
+2. **`F-S5` is `contested` and returns to open — re-dispose it with the user.**
+   **Verify the contesting mutation first**; it was not re-run here, because the
+   machine was carrying eight concurrent `cargo` processes. It is one line at
+   `app.slint:479-481` — the `CheckBox` guard's assignment made unconditional
+   *and* the `counted-bool` call dropped — reported as leaving `just check` exit
+   0 at 597.
+
+   The options, with the price stated rather than estimated:
+   - **Build the markup scan** the reviewer names — a sibling of the
+     domain-vocabulary scan in `crates/goad-boundary/tests/checks/`, asserting
+     every `self.<prop> = …` inside a `changed tick` has `root.counted-` on its
+     right-hand side. **The mechanism is verified to exist**: `vocabulary.rs`
+     already scans `.slint` and carries a `.slint` positive control
+     (`vocabulary.rs:167`). **The price is canon**, and this is where it differs
+     from F-S3: `POL-001` §Verification enumerates four ADR-001 instruments plus
+     the vocabulary scan plus the residue, and `CLAUDE.md` forbids compressing
+     them into one count — so a fifth category means amending `POL-001`.
+   - **`follow-up`** — the completeness property is real and unheld, and owned.
+   - **`tolerated`** — five call sites, held by convention, rationale written.
+
+   There is no shape that closes it inside the markup: nothing in Slint can
+   forbid a raw assignment, which is why only an external scan reaches it.
+
+3. **`F-T1`–`F-T4` have no disposition.** Confirm each with the user.
+   **`F-T1` is the one with teeth** — `event_loop_full` is the only driver of
+   the `Full` branch in the workspace, and a *tuning* change to `DEBOUNCE`
+   (150 → 400 ms) leaves it green with the enqueue rule deleted. Its proposed
+   closer — make `DEBOUNCE` reachable and derive each target's step schedule
+   from it — is stated by its own author as a candidate, not a verified closer.
+   **Verify it before pricing it**; that has been the session's repeated lesson.
+
+4. **Three leads still unmatched by any reviewer**, held back deliberately so
+   they could be found independently rather than confirmed on request
+   (`docs/memory/dont-feed-the-raiser-your-finding.md`). **Check the behaviour
+   report before raising any of them** — if it found one, that is two witnesses;
+   if not, raise as declared raiser:
    - **`set_diagnostic_lines` allocates a fresh `VecModel` on every present**
-     (`glass.rs:257-259`), so the diagnostics repeater rebuilds its whole list
-     every time. **This is F-R5's exact class, one surface over, and F-R5's
-     repair did not touch it.**
-   - **The four `goad-shell`/`goad-semantics` wildcard matches** F-S3's repair
-     deliberately did not cover. Not a defect — each chooses no behaviour from
-     the variant — but the reasoning is in a comment in `goad/src/lib.rs` and
-     nothing holds it.
-3. **Re-walk AC-4 and AC-5.** The AC table still reads both **NOT MET**. That
-   was true when written. Re-walk against the repairs — **do not edit it on the
-   strength of them**.
-4. **Reconciliation and Closure**, neither started. Eleven rows below, none
-   applied; *Design drift not reconciled* unwritten.
+     (`glass.rs`), so the diagnostics repeater rebuilds its whole list every
+     time. F-R5's exact class, one surface over, and F-R5's repair did not touch
+     it. The instruments dimension did not hold that surface.
+   - **`Focus::Diagnostics` leaves a picker up.** `Surface` derives from
+     `(focus, shown.is_some())`, so the mode switch to `WindowMode::Diagnostic`
+     empties the prompt block without changing `shown` — F-R1's dismiss branch
+     is not taken.
+   - **The liveness backstop turns a loaded machine into a red that reads like a
+     defect.** *This one is session 4's own witness and is not in either
+     brief's answer.* `just check` failed here with
+     `event_loop_busy` reporting *"the stepper must have taken all three
+     readings within 10s: []"* at load average 198 on 32 cores — zero readings
+     in 64 s, then one in 38 s on a re-run. `LIVENESS_BOUND` exists to stop a
+     hung gate (`busy.rs:269-271`) and its expiry is reported as a failed
+     assertion. Seven targets carry one: 5 s ×5, 10 s, 20 s ×2. **The
+     instruments dimension's *"timing margins are on the safe side of load"* is
+     not a contradiction** — it is about the deadlines *under test*, where
+     slowness moves a deadline to an earlier step index. This is about liveness,
+     which is the other direction. State it that way or it will read as an echo.
 
-### The Outcome split, agreed with the user this session
+5. **Re-walk AC-4 and AC-5.** The table still reads both **NOT MET**, which was
+   true when written. Re-walk against the repairs — **do not edit it on the
+   strength of them** — and note that both criteria's remaining halves (a caret,
+   a drag) are observable by **no tier** and therefore wait on VH-2.
 
-No finding has an `Outcome`, and the ledger is not done until every one is
-`verified` or `withdrawn`. The original raisers were three agents that no
-longer exist. The user's decision:
+6. **VH-2.** The user has undertaken to run it before close. Record what was
+   *observed*, here under Evidence and in `notes.md` — naming what was seen, not
+   that it was run.
 
-- **Round 2's reviewers set Outcomes** for the findings that produced real code
-  — F-A1, F-R1, F-R2, F-R3, and this session's repair block. A fresh
-  adversarial eye over the work the Responses describe writes `contested` with
-  evidence rather than an opinion.
-- **The orchestrator sets them as declared raiser** for the four `doc-wrong`
-  and the nits, where there is no code to attack — saying so in the ledger.
+7. **Verdict, Closure, Summary, Follow-ups**, none written.
+   `slice-009.md` §Follow-ups must carry **F-R4** (a `follow-up` disposition has
+   to land there), the **slider quantisation** follow-up (`audit-log.md`, first
+   entry), and whatever F-S5 and F-T1 become. **Harvest → `docs/memory/` is not
+   started** and the Harvest is ~120 items; it wants its own pass.
+
+### The gate
+
+**No Rust changed this session.** Every edit was documentation, plus
+`examples/shell/backend.sh` and `examples/demo.toml`, neither of which the gate
+compiles — `deno check` covers the TypeScript example only. So the last
+authoritative reading stands: **exit 0 at `5227ec1`**, 597 as a sum over 29
+`test result: ok` lines, **562 distinct cases across 21 targets**, with
+`goad-semantics`' 35 built and run twice under two feature configurations.
+
+**Re-run `just check` on a quiet machine before trusting anything.** The run
+attempted here failed on `event_loop_busy` under load, which is item 4's third
+lead and not a defect in the tree.
 
 ### What not to rediscover
 
-- **A finding can correctly identify that nothing holds a property and still be
-  wrong about what would hold it.** This hit three times: **F-S6**'s
-  channel-filling case drives F-S2's claim and not its own (at capacity 1 a
-  `tick` iterating the whole map is indistinguishable from one-per-tick);
-  **F-S5**'s approved observable-state case is unreachable, because the
-  observable is the caret and no tier can see one; **F-S3**'s `trybuild` closer
-  cannot express the property at all, since the hole is a wildcard that *does*
-  compile. In each the disposition stood and the repair changed. **Verify a
-  proposed instrument before building it**, exactly as a finding's claim about
-  the tree is verified.
-- **`trybuild` was authorised by the user and deliberately not fetched**, for
-  the reason above. No dependency was added.
-- **F-S3 cost no canon.** It is a lint-table entry inside the gate's existing
-  clippy pass, not a fifth boundary instrument, so **POL-001 is untouched and
-  the gate's instrument count is unchanged**.
-- **597 is a sum over 28 `test result: ok` lines, not 597 distinct cases** —
-  `just check` runs `cargo test --workspace` then `cargo test -p goad-semantics`,
-  double-counting the pure tier. The inherited 592/595/596 have the same
-  property. State it once in Evidence rather than letting the number imply a
-  census.
-- **F-S5's repair is measured as a pair**: under `root.reasserts += 1` beside
-  the write, the finding's own mutation leaves `event_loop_reassert`,
-  `_overlay` and `_numeric_guard` all three green; under the counting call
-  `reassert.rs:298` goes red with `reasserts: 2` against `0`.
-- **The ledger's un-raised Note was half wrong.** Its conclusion holds — the
-  citation wants correcting — but both cited line ranges are accurate. The real
-  hazard is that `TimerMode::SingleShot` and `CallbackVariant::SingleShot` are
-  different types taking different arms: `Timer::start` boxes every callback as
-  `MultiFire` whatever mode it is given (`timers.rs:84-93`).
-- Still standing from earlier sessions, each checked against the code rather
-  than a doc comment: **`Alternatives::first` cannot panic**, **`R-58`'s MUST
-  holds structurally**, **`pending.rs`'s map is bounded and its timer
-  terminates**, **no `enabled` binding is observable through the accessibility
-  surface**, and **slint 1.18.0 fixes none of this slice's defects**.
+- **A finding can be right that nothing holds a property and wrong about what
+  would hold it.** Three times in session 3, and F-S5 is the fourth shape of it
+  — there the *repair* was wrong about what it held, which the raiser caught by
+  running one more mutation than the Response had. **Verify a proposed
+  instrument before pricing it**, every time.
+- **The same shape again, from the other end:** three properties this slice
+  found are real, unheld, and **not expressible as a case** — I-F's write order
+  (F-S7), `event_loop_debounce`'s one-edit-per-tick (F-S6), and PHASE-06/EX-3's
+  refusing-`interpret` clause (enumerated this session: only three `Reported`
+  variants are debounced, each accepted against its own kind, and a kind
+  mismatch would need one `view_id` to denote two presentations, which the
+  host-minted counter forbids). Reaching for a case is the wrong move for all
+  three.
+- **A reconciliation list kept in `notes.md` did not reach `audit.md`** and was
+  found only by re-reading. Five endorsed rows, one of which would have written
+  a dangling citation into canon.
+- **Worktrees for subagents are not reliably at `HEAD`.** One of the two was
+  created twenty-five commits behind, with no `review-code.md` in it at all; its
+  agent noticed, fast-forwarded, and said so. **Have the next agents print
+  `git log --oneline -1` before they read anything.**
+- **597 is a sum, not a census** — stated once in Evidence and not to be
+  repeated as a count of cases.
+- Still standing, each checked against the code rather than a doc comment:
+  **`Alternatives::first` cannot panic**, **`R-58`'s MUST holds structurally**,
+  **`pending.rs`'s map is bounded and its timer terminates**, **no `enabled`
+  binding is observable through the accessibility surface**, and **slint 1.18.0
+  fixes none of this slice's defects**.
 
 ### The budget
 
-Four sessions planned; this is the third and it did not overrun. **Session 4
-takes round 2, the AC re-walk, reconciliation and close** — and
-`docs/memory/audit-stage-needs-its-own-budget.md` says the rounds on the
-repairs are about half the cost, so **round 2 is not a formality and may want
-session 5**. Nineteen findings' worth of repair is what round 2 is reviewing.
+Four sessions were planned and this is the fourth. It did not overrun; the audit
+is simply larger than four, which
+`docs/memory/audit-stage-needs-its-own-budget.md` predicted in as many words —
+the review rounds on the *repairs* are about half the cost, and round 2 raised
+four new findings and contested a repair. **Session 5 takes the behaviour
+report, the five open dispositions, the AC re-walk, VH-2 and the close.** The
+Harvest lift alone is worth planning for.
 
 ## Brief
 
