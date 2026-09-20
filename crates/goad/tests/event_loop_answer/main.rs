@@ -5,9 +5,10 @@
 //! else to not-engaged, and slice 003's double-submit guard, AC-4 and AC-5 all
 //! read the result. **The mapping is held nine times over and the argument
 //! that produces it was held nowhere**: every case that arranges `busy` calls
-//! `Controller::engage` itself, so replacing `controller.engage(exchanged)` at
-//! `controller.rs:993` with `engage(Exchanged::Evaluation)` — the production
-//! loop never engaging at all — left the entire `-p goad` suite green.
+//! `Controller::engage` itself, so replacing `serve`'s own
+//! `controller.engage(exchanged)` with `engage(Exchanged::Evaluation)` — the
+//! production loop never engaging at all — left the entire `-p goad` suite
+//! green.
 //!
 //! `event_loop_drain` catches the *opposite* mutation, because its arrangement
 //! is a key typed during an evaluation and hardcoding `Answer` disables the

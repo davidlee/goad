@@ -10,7 +10,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, StyledText, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, StyledText, VecModel};
 
 use goad_semantics::protocol::canonical::{Alternatives, ViewId};
 
@@ -74,13 +74,32 @@ pub struct SlintGlass {
   tray: Tray,
   options: Rc<VecModel<OptionRow>>,
   /// The diagnostics report's lines, **retained for the same reason
-  /// `options` is** (`review-code.md` F-B9). A fresh `ModelRc` here is not a
-  /// cheap write: `ModelRc`'s `PartialEq` is `core::ptr::eq`
-  /// (`i-slint-core/model.rs:719-729`), so `Repeater::model` sees a different
-  /// pointer, resets its inner state to `RepeaterInner::default()`
-  /// (`model/repeater.rs:559-573`) and rebuilds every line element. This is
-  /// F-R5's mechanism — slint comparing by identity where the host hands it a
-  /// new object each present — one consumer over.
+  /// `options` is, and written through [`write_if_changed`] because
+  /// retention alone does not hold the property** (`review-code.md` F-B9,
+  /// F-C6).
+  ///
+  /// Two independent paths rebuild this repeater, and closing one leaves the
+  /// other open:
+  ///
+  /// - **Model identity.** `ModelRc`'s `PartialEq` is `core::ptr::eq`
+  ///   (`i-slint-core::model::ModelRc`'s `PartialEq` impl), so handing the
+  ///   window a fresh `ModelRc` each present makes `Repeater::model` see a
+  ///   different pointer and reset its inner state. Retaining this `Rc` and
+  ///   cloning it closes that path. This is F-R5's mechanism — slint
+  ///   comparing by identity where the host hands it a new object — one
+  ///   consumer over.
+  /// - **Model mutation.** `VecModel::set_vec` is
+  ///   `*array.borrow_mut() = new; notify.reset()`
+  ///   (`i-slint-core::model::VecModel::set_vec`), and
+  ///   `RepeaterTracker::reset` is `is_dirty.set(true); instances.clear()`
+  ///   (`i-slint-core::model::repeater::RepeaterTracker::reset`). **Every
+  ///   instance is dropped without the model pointer being consulted**, so an
+  ///   unconditional `set_vec` of identical content rebuilds every line
+  ///   element anyway.
+  ///
+  /// The sibling `options` is guarded on `shown`, an identity test that is
+  /// right for it because its rows change exactly when the view does. These
+  /// lines change independently of the view, so the guard here is on content.
   diagnostics: Rc<VecModel<SharedString>>,
   /// The view whose structure the row model currently holds, or `None` for a
   /// glass that has shown nothing. Read to decide whether this present has to
@@ -287,7 +306,7 @@ impl Glass for SlintGlass {
       .iter()
       .map(SharedString::from)
       .collect();
-    self.diagnostics.set_vec(lines);
+    write_if_changed(&self.diagnostics, lines);
     self
       .window
       .set_diagnostic_lines(ModelRc::from(Rc::clone(&self.diagnostics)));
@@ -684,4 +703,30 @@ fn field_value(
 /// the row builders above nest two levels of it.
 fn model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> {
   ModelRc::new(VecModel::from(items))
+}
+
+/// Replace `model`'s contents only when they differ, because `set_vec` does
+/// not check.
+///
+/// `VecModel::set_vec` ends in `notify.reset()`, and a `RepeaterTracker`'s
+/// `reset` clears every instantiated element — see [`SlintGlass::diagnostics`]
+/// for the two citations and why retaining the model does not reach this.
+/// Writing identical content is therefore not a no-op: it destroys and
+/// rebuilds every repeated element, on every present, for as long as the pane
+/// is up (`review-code.md` F-C6).
+///
+/// The comparison is `row_count` then element-wise, which is the same work
+/// `set_vec` would do allocating the replacement — so the guard costs nothing
+/// on the path where it does write, and saves the rebuild on the path where it
+/// does not.
+fn write_if_changed(model: &VecModel<SharedString>, lines: Vec<SharedString>) {
+  let unchanged = model.row_count() == lines.len()
+    && lines
+      .iter()
+      .enumerate()
+      .all(|(row, line)| model.row_data(row).as_ref() == Some(line));
+  if unchanged {
+    return;
+  }
+  model.set_vec(lines);
 }

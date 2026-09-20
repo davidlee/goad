@@ -212,6 +212,63 @@ mod transitions {
     );
   }
 
+  /// F-B9 and F-C6: a present carrying the **same** diagnostic lines must not
+  /// destroy and rebuild the line elements.
+  ///
+  /// The instrument is `inits`, the same production counter the prompt side
+  /// uses (§7 D15). In diagnostic mode the prompt elements are not
+  /// instantiated, so the only `init` that can fire is the repeated `Text`'s
+  /// — which is why a count taken here reads this repeater and nothing else.
+  ///
+  /// **What makes it non-vacuous, and it is the whole reason this case
+  /// exists.** The repeater is the one consumer of model identity with no
+  /// `ChangeTracker` behind it, so no `changed` handler reaches it and the
+  /// element counter is the only instrument that does. F-B9's repair retained
+  /// the `VecModel` — which closes the *pointer* path — and left the write
+  /// unguarded, which leaves the *mutation* path open: `set_vec` ends in
+  /// `notify.reset()` and a `RepeaterTracker`'s `reset` clears every instance
+  /// without consulting the pointer at all. This case reads 1 / 2 / 3 against
+  /// that tree and 1 / 1 / 1 against the guard.
+  ///
+  /// **Negative control** (`plan.md` PHASE-01/VT-5's shape): remove the
+  /// content test in `glass.rs::write_if_changed` and the counter moves on
+  /// every present. It cannot move unless the handler fires, so a green
+  /// reading here is the elements surviving rather than the handler being
+  /// absent.
+  #[tokio::test]
+  async fn a_re_present_with_unchanged_lines_does_not_rebuild_them() {
+    let (window, tray) = window_and_tray();
+    let mut glass = glass_over(&window, &tray);
+    let (command, _log) = scripted("wiring-fc6", &[A_PROTOCOL_FAILURE]);
+    let mut backend = host(command, TIMEOUT, now());
+    let mut controller = Controller::new();
+
+    let outcome = backend.evaluate(now(), quiet_event(now())).await;
+    controller.absorb(Exchanged::Evaluation, outcome);
+    controller.open_diagnostics();
+
+    glass.present(controller.frame(false));
+    assert!(in_diagnostic_mode(&window));
+    let built = window.get_inits();
+    assert!(
+      built > 0,
+      "the first present must build the line elements, or there is nothing to count"
+    );
+
+    // Nothing absorbed between these, so every frame carries the same lines.
+    glass.present(controller.frame(false));
+    let second = window.get_inits();
+    glass.present(controller.frame(false));
+    let third = window.get_inits();
+
+    assert_eq!(
+      (second, third),
+      (built, built),
+      "a present that changes no line must leave the elements alone; \
+       built once at {built}, then {second} and {third}"
+    );
+  }
+
   /// PHASE-04/VT-2: the standing next-check line reaches its own window
   /// property, "" before any exchange has resolved one; it does not
   /// affect `Diagnostics::state()` (a standing schedule is not a fault);
@@ -499,9 +556,8 @@ mod busy {
     assert_eq!(accessible_enabled_of(&window, "no"), Some(false));
 
     // **`Answer`, to match the `engage` above.** `serve` computes
-    // `exchanged = pending.exchanged()` once (`controller.rs:992`) and hands
-    // the same value to `engage` (`:993`) and `absorb` (`:1020`), so the pair
-    // never diverges in production. It changes no `Shift` here — `reduce` folds
+    // `exchanged = pending.exchanged()` once and hands the same value to
+    // `engage` and to `absorb`, so the pair never diverges in production. It changes no `Shift` here — `reduce` folds
     // both the same way — but a case that pairs them differently from `serve`
     // is arranging something `serve` does not do.
     let outcome = backend.evaluate(now(), quiet_event(now())).await;

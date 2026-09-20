@@ -412,9 +412,9 @@ pub fn report_platform_line(detail: &str) -> String {
 
 /// stderr, and the process keeps running.
 ///
-/// **Two callers** (`review-code.md` F-B5): `SlintGlass::present`
-/// (`glass.rs:276`), when `show()` or `hide()` fails after the loop has
-/// started, and `install`'s `rescale` (`install.rs:251`), when the one weak
+/// **Two callers** (`review-code.md` F-B5): `SlintGlass::present`, when
+/// `show()` or `hide()` fails after the loop has started, and `install`'s
+/// `rescale`, when the one weak
 /// handle in the crate fails to upgrade. The second arrived with F-R8's repair
 /// and this sentence was not amended with it — recorded here because the commit
 /// that added it set out to correct five false doc claims and created a sixth.

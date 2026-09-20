@@ -2,9 +2,9 @@
 //! rather than argued.
 //!
 //! Both pickers are root singletons declared outside the
-//! `if root.mode == WindowMode.prompt` block (`ui/app.slint:946`, `:960`), so
-//! neither the row rebuild nor `hide()` reaches them (`glass.rs:269-276`,
-//! `:307`) — only `present`'s own dismiss does, at `:264-265`, and this case
+//! `if root.mode == WindowMode.prompt` block, so neither `present`'s row
+//! rebuild nor its `hide()` reaches them — only its own
+//! `invoke_dismiss_pickers()` does, and this case
 //! holds all three of the ways the form can stop being up that it covers. Both
 //! bind `PopupClosePolicy.no-auto-close`
 //! (`fluent/datepicker.slint:23`, `fluent/time-picker.slint:24`). Nothing in
@@ -44,7 +44,7 @@ const MORNING: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[
 /// The view that replaces it. **A different option id**, so the new view's
 /// control cannot be confused with the old one's in a callback log, and so
 /// that finding it at all is evidence the rows were rebuilt — `present` writes
-/// the row model only where the `ViewId` changed (`glass.rs:269-276`).
+/// the row model only where the `ViewId` changed (`glass.rs::present`).
 const EVENING: &str = r#"{"view":{"kind":"choice","title":"Proceed?","options":[{"id":"evening","label":"Evening","fields":[{"id":"noted","kind":"text","label":"Anything to add?"},{"id":"when","kind":"datetime","label":"When?"}]}]},"next_check":"45 minutes"}"#;
 
 /// How often the stepper runs — long enough that the loop renders between two
@@ -324,20 +324,31 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
       // The arrangement: a picker open, and the view replaced under it.
       6 => {
         read("C the picker open, under v1");
-        controller.absorb(Exchanged::Evaluation, presenting("v2", EVENING));
+        // **A routine present that replaces nothing**, and it is the half of
+        // the guard nothing else here reads (`review-code.md` F-C3). `serve`
+        // presents on every scheduled check, every `next_check` update and
+        // every notice change; the dismiss condition must not fire on any of
+        // them, or a person's open picker closes under their hands several
+        // times a minute. Measured: with the dismiss made unconditional,
+        // every target in the crate stayed green before this reading existed.
         glass.present(controller.frame(false));
       }
       7 => {
-        read("D the view replaced, with the picker open");
-        click_button_described(&stepped, "evening");
+        read("D the same view presented again, with the picker open");
+        controller.absorb(Exchanged::Evaluation, presenting("v2", EVENING));
+        glass.present(controller.frame(false));
       }
       8 => {
-        read("E the new view's option answered by pointer");
+        read("E the view replaced, with the picker open");
+        click_button_described(&stepped, "evening");
+      }
+      9 => {
+        read("F the new view's option answered by pointer");
         click_line_edit(&stepped, "noted");
       }
-      9 => key(&stepped, "y".into()),
-      10 => {
-        read("F the new view's text field typed into");
+      10 => key(&stepped, "y".into()),
+      11 => {
+        read("G the new view's text field typed into");
         // **Reopened, and the reopening is load-bearing.** The hide claim
         // below is about `hide()` and not about the replacement above it, so
         // it needs a picker that is up *for this step's reason*. Without this
@@ -347,8 +358,8 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
         // that is exactly what the first draft of this file did.
         click_button_described(&stepped, "when");
       }
-      11 => {
-        read("G the picker reopened, under v2");
+      12 => {
+        read("H the picker reopened, under v2");
         // **The third way the form stops being up**, and the one F-R1's repair
         // did not reach (`review-code.md` F-B2): the *surface* changes while
         // `shown` does not. In production this is the tray menu's
@@ -356,31 +367,31 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
         controller.open_diagnostics();
         glass.present(controller.frame(false));
       }
-      12 => {
-        read("H the diagnostics pane up, and the picker dismissed with the form");
+      13 => {
+        read("I the diagnostics pane up, and the picker dismissed with the form");
         click_button_described(&stepped, "close-diagnostics");
       }
-      13 => {
-        read("I the pane's own exit button reached");
+      14 => {
+        read("J the pane's own exit button reached");
         controller.close_diagnostics();
         glass.present(controller.frame(false));
       }
-      14 => {
-        read("J back on the form");
+      15 => {
+        read("K back on the form");
         // Reopened for the same reason step 10 reopens: the hide claim below
         // is about `hide()`, so it needs a picker that is up for *its* reason
         // and not one left over from an earlier step.
         click_button_described(&stepped, "when");
       }
-      15 => {
-        read("K the picker reopened once more, under v2");
+      16 => {
+        read("L the picker reopened once more, under v2");
         // `Shift::Closed`: an answered view with nothing to replace it, which
         // is `present`'s `Surface::Hidden` and `window.hide()`.
         controller.absorb(Exchanged::Answer, outcome(None));
         glass.present(controller.frame(false));
       }
-      16 => {
-        read("L after hide()");
+      17 => {
+        read("M after hide()");
         quit();
       }
       _ => quit(),
@@ -398,6 +409,7 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
     control_click,
     control_key,
     opened,
+    survived,
     replaced,
     clicked,
     typed,
@@ -410,7 +422,7 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
   ] = readings.as_slice()
   else {
     panic!(
-      "the stepper must have taken all twelve readings within {LIVENESS_BOUND:?}: {readings:?}"
+      "the stepper must have taken all thirteen readings within {LIVENESS_BOUND:?}: {readings:?}"
     );
   };
 
@@ -434,7 +446,17 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
      picker up once the field's button was clicked — {control_key:?} then {opened:?}"
   );
 
-  // The claim.
+  // The claim, and its converse first — a guard that fired on every present
+  // would satisfy the claim below while destroying the behaviour the guard
+  // exists to protect (`review-code.md` F-C3, and F-B1's shape: the half of a
+  // repair that *keeps* a behaviour is the half a refactor drops).
+  assert!(
+    survived.picker,
+    "a present that neither replaced the view nor changed the surface must \
+     leave an open picker alone, or every scheduled check closes it under the \
+     person using it: {opened:?} then {survived:?}"
+  );
+
   assert!(
     !replaced.picker,
     "a present carrying a new view id replaces the form, and the picker belonging \

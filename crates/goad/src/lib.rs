@@ -32,15 +32,19 @@
 // `normalize.rs` are correctly excluded: they match on `wire.kind.as_str()`, a
 // `&str`, which this lint does not see.
 //
-// Most of them choose *no behaviour from the variant* — no source, an invalid
-// envelope — so the wildcard's body is the right answer for a variant that does
-// not exist yet. **One is the opposite**, and saying otherwise was the error:
-// `envelope.rs:116-122` reads the variant, and that is the entire point of the
-// arm — `other => Err(EnvelopeFault::NotAnObject { found: json_type_name(&other) })`.
+// So the reason is **cost**, and more of it than the sentence that first stood
+// here claimed: more sites, not fewer. That strengthens the conclusion rather
+// than weakening it, which is why the conclusion is unchanged.
 //
-// So the reason is **cost after all**, and more of it than the sentence that
-// stood here claimed: more sites, not fewer. That strengthens the conclusion
-// rather than weakening it, which is why the conclusion is unchanged.
+// **No claim is made here about how many of those arms read the matched
+// variant**, and the omission is deliberate. Two attempts at that sentence have
+// now been wrong, in opposite directions (`review-code.md` F-T3 and its
+// contest): the second called `ingress/mod.rs`'s `other => InvalidEnvelope(other)`
+// an arm that chooses no behaviour from the variant, when `Refusal::reason`
+// splits `InvalidEnvelope(ReservedSource)` from every other and the variant
+// therefore reaches the wire. The axis is not load-bearing — the decision is
+// about the cost of widening the deny, which the count establishes on its own —
+// and a claim nothing checks, restated, is how this comment went wrong twice.
 //
 // Verified rather than assumed: with F-S3's surviving mutation applied —
 // `Boolean` and `Text` arms deleted and `_ => Ok(DrawnKind::Boolean)` added —

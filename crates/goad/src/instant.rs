@@ -73,7 +73,7 @@ use crate::generated::{Date, Time};
 /// `time-numoffset` is `("+" / "-") time-hour ":" time-minute` — it cannot
 /// express a sub-minute offset at all, so rounding is the only conforming
 /// behaviour. Nothing a person sees disagrees either: the button carries the
-/// same rounded string (`glass.rs:523-527`) and `decompose` reopens the pickers
+/// same rounded string (`glass.rs::field_value`) and `decompose` reopens the pickers
 /// on the exact civil value, so the round trip through the host is lossless.
 /// What was wrong was this sentence claiming a fidelity the wire format has no
 /// room for. PHASE-04/VT-1 cannot see it: it composes a 2024 date, where every

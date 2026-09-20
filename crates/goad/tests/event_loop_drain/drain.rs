@@ -412,10 +412,16 @@ fn a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it() {
         epoch: stepped.get_epoch(),
       });
     };
-    // **The run, at 50 ms a step against a 150 ms debounce.** Every reading
-    // is a step after the act it reports on: a pointer event is hit-tested
-    // against laid-out geometry, and a present's guard writes are counted
-    // when `serve` gets to them.
+    // **The run, at `STEP` a step against `DEBOUNCE`** — named rather than
+    // restated, because the sentence that stood here said *50 ms a step* for
+    // as long as it took someone to read it against `STEP`, which F-B4 had
+    // halved to 25 ms (`review-code.md` F-C4). The `const` assertions above
+    // bound `STEP` against `DEBOUNCE`; nothing bounds prose, so prose does not
+    // carry numbers it does not own.
+    //
+    // Every reading is a step after the act it reports on: a pointer event is
+    // hit-tested against laid-out geometry, and a present's guard writes are
+    // counted when `serve` gets to them.
     //
     // ```
     //  1  —                 `serve` presents the form it was handed
@@ -434,6 +440,20 @@ fn a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it() {
     // **B is one step after the key and C is ten**, which is the asymmetry the
     // margins above are about: B's bound is the only one a stalled stepper
     // walks towards.
+    //
+    // **The whole run is a bound too, and it is the one that has actually been
+    // seen to fail** (`review-code.md` F-C5). Step 1 to the last step must stay
+    // under `controller::MINIMUM_SPACING` — 3 s — or `serve`'s standing timer
+    // fires an unplanned evaluation into the middle of the case. Nothing
+    // asserts it. F-B4's re-index kept every interval between readings the same
+    // (B's excepted, halved on purpose) and still made the **run** longer, 17
+    // steps at 50 ms becoming 36 at 25: measured at **~877 ms** (876.9 / 877.2
+    // / 878.3 over three runs on an idle machine), against 799 ms before, so
+    // the margin fell from 3.75x to 3.42x. F-B4's *"at no wall-clock
+    // cost"* was true of the intervals and not of the total, which is the
+    // distinction to keep: a future change to this schedule is made against
+    // 876.7 ms, not against "no cost". Widening the bound or asserting the
+    // total is the stepper-harness follow-up's business, not this file's.
     step += 1;
     match step {
       4 => click_line_edit(&stepped, "noted"),

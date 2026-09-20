@@ -343,9 +343,21 @@ fn an_answer_sent_through_serve_engages_and_a_landed_one_disengages() {
       && idle.answered == 1,
     "the arrangement: one evaluation has been and gone, its form is on screen \
      with its option button live, and `busy` is false because nothing is in \
-     flight — an evaluation that engaged would fail here, which is the other \
-     half of the narrowing: {idle:?}"
+     flight: {idle:?}"
   );
+  // **What this control does not hold, said here so the next reader does not
+  // have to measure it** (`review-code.md` F-C1). It is tempting to read the
+  // `!idle.busy` above as the narrowing's other half — that the evaluation
+  // which put this form up did *not* engage. It is not. This reading is taken
+  // after the evaluation has landed (`entered: 1, answered: 1`), and `absorb`
+  // clears `busy` on landing whatever engaged it, so the engage is already
+  // gone and `!idle.busy` is true either way. Measured: making every exchange
+  // engage leaves this target green.
+  //
+  // The property is real and is held by `event_loop_drain`, whose arrangement
+  // reads `busy` while an exchange is still outstanding — which is where a
+  // spurious engage is visible. A reading that earned the sentence would have
+  // to be taken there, not here.
 
   // The arrangement for the claim, and it is what stops the claim passing for
   // the wrong reason: the click must actually have reached the button and

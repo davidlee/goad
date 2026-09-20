@@ -98,7 +98,7 @@ struct Held {
 /// about how long it lives. `Weak::upgrade` inside the callback, or a
 /// `timer.stop()` on the empty tick, closes it.
 ///
-/// **Not `Pending`.** `controller.rs:408` already declares a private
+/// **Not `Pending`.** `controller.rs` already declares a private
 /// `enum Pending` — the exchange a command turns into — and two private types
 /// of that name in one crate, one of them behind an `Rc`, is a readability
 /// trap. This is named for the mechanism every document in the slice calls it
