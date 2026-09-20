@@ -7,6 +7,21 @@
 command = ["bash", "examples/shell/backend.sh"]
 timeout = "5s"
 
+# The backend inherits this process's environment, which the demo backend uses
+# for one knob of its own: `GOAD_DEMO_DELAY` holds its reply, in seconds.
+#
+#   GOAD_DEMO_DELAY=3 just demo    a window long enough to type into, drag
+#                                  through, and watch — the host stays live
+#                                  through an evaluation and disables the form
+#                                  only while *your own answer* is in flight
+#   GOAD_DEMO_DELAY=6 just demo    past the timeout above: the exchange is
+#                                  refused, the refusal reaches the diagnostic
+#                                  surface, and the host checks again
+#
+# It is not a protocol feature. It is in the demo backend because the things
+# worth watching here are host behaviours during an exchange, and an exchange
+# that completes in milliseconds cannot be watched.
+
 [schedule]
 default_poll = "30m"
 

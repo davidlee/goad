@@ -4635,6 +4635,55 @@ inside the `if field.kind == Kind.choice` arm, and both fixtures build only
 `FieldRow::default()` gives them. `tree.rs` is inside the Surfaces and was left
 alone on that reasoning; `sizing.rs` is outside them and needed no carve-out.
 
+**VH-2 — the run the repairs are owed** *(prepared 2026-09-20, session 4)*
+
+VH-1 found **AC-4 and AC-5 unmet**. Both were repaired at audit and **nobody has
+looked at the result**. `AGENTS.md`: *a slice does not close until a person has
+run the software and seen the new behaviour.* Two of the things to look at —
+a slider mid-drag and the caret mid-word — are observable by **no tier**, which
+is why D-10 assigned them here in the first place.
+
+**The rig is committed this time.** VH-1 used a scratch backend in a session
+scratchpad, which is why nothing about it survived. `examples/shell/backend.sh`
+now carries one field of every kind and two knobs, and `just demo` is the whole
+of the setup:
+
+```
+GOAD_DEMO_PULSE=1 GOAD_DEMO_DELAY=3 just demo
+```
+
+`PULSE` draws the form once and then answers `"view": null` to every scheduled
+check at one-second intervals, so the host keeps the same view outstanding and
+re-presents it about every three seconds (SPEC-002/R-4's floor) — VH-1's rig
+condition, and the only condition under which *a present disturbs nothing* means
+anything. `DELAY` holds each reply for three seconds, which is the window that
+did not exist in VH-1's millisecond rig and is why AC-4's defect was invisible
+to it.
+
+**What to observe, and what each one settles.**
+
+| # | do this | what it settles | what failure looks like |
+|---|---|---|---|
+| 1 | Type a word into **Anything notable?** without stopping, across at least two presents | **AC-5's caret clause.** No tier can see a caret | the caret jumps to the end, or the word comes out reordered |
+| 2 | Keep typing while the **answer** is in flight — press an option button, then type immediately | **the contract kept.** `busy` still means *your answer is in flight*, and the form is inert then | characters land after you have already answered |
+| 3 | Drag the **Energy** slider slowly across at least one present | **AC-5's drag clause — VH-1's measured failure.** The one thing the narrowing was for | the drag dies mid-gesture and the thumb stops following the pointer |
+| 4 | Watch the number beside the slider while you drag | **the readout**, landed this slice (`audit-log.md`). It shows the host's own `spelled(number)` — the exact string the wire carries, unrounded and therefore ugly, which is the argument for the quantisation follow-up in a form a person can see | it disagrees with what the backend logs on stderr |
+| 5 | Open the **When** picker and leave it open for two presents | **F-R1.** A picker used to survive the view it belongs to and lock the form | the picker outlives a view replacement, or a picker over no form at all |
+| 6 | Clear **Pages written** to empty and answer | **F-P2.** An unbounded `number` drawn at zero submits `0` | anything else |
+| 7 | Type into **Energy**'s box — it has bounds, so it is a slider; use **Pages** instead — then clear it and answer | **F-P2's other half.** A cleared *bounded* field would submit its `min`; `Pages` has no bounds, so this reads the unbounded case | — |
+| 8 | Answer with **Mood** untouched | **AC-2, AC-8.** `mood` submits `"good"` — the first alternative's **id**, not its label `Good` | a label, or an option id |
+| 9 | Answer with **When** untouched | **CD-1, now canon.** The button reads *not set*; the wire carries `1970-01-01T00:00:00+00:00` | the button showing a 1970 date |
+| 10 | Restart with `GOAD_DEMO_DELAY=6` | past `demo.toml`'s 5s timeout: the refusal reaches the diagnostic surface and **the host carries on** | the host stops checking, or goes down |
+
+Read every answer back off the **diagnostic surface inside the app** — the
+backend's `answered …` line goes to stderr and the host shows it (R-42), so
+nothing needs a second terminal.
+
+**Record what was observed here, then in `audit.md` under Evidence.** Naming
+what was seen, not that it was run: VH-1's value was entirely in the third
+observation, and a run reported as *"looked fine"* would have carried none of
+it.
+
 **VH-1 — discharged, and what it found**
 
 **Discharged 2026-09-20.** A person ran the software and answered a five-kind
