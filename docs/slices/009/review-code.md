@@ -116,8 +116,22 @@ conclusion.
 | F-S1 | major | | |
 | F-P1 | minor | | |
 | F-P2 | minor | | |
+| F-R1 | major | | |
+| F-R2 | major | | |
+| F-S3 | major | | |
+| F-P1 | minor | | |
+| F-P2 | minor | | |
+| F-S4 | minor | | |
+| F-S5 | minor | | |
 | F-P3 | nit | | |
 | F-P4 | nit | | |
+| F-S6 | nit | | |
+| F-S7 | nit | | |
+
+**Round 1 closed with three dimensions reported.** Eleven findings: one
+blocker, five majors, four minors — plus four nits. F-S1 and F-S2 were
+mutation-confirmed by the audit; F-R1 is reasoned from locked sources and
+**not run**, and says so.
 
 ### F-A1 — every field control is deaf for the whole backend round trip, so a keystroke typed during an exchange is discarded, not deferred
 
@@ -394,6 +408,213 @@ None` is a block with no heading — an ungrouped run, or a `group` the backend
 sent empty"* — reads as though the two cases are the same. Layout only; `R-18`
 leaves it to the renderer and the behaviour is arguably right. Raised because
 the type's doc does not distinguish them.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+
+### F-R1 — an open picker survives a view replacement and locks the person out of the whole form
+
+**Severity:** major — **reasoned from the locked sources and not run.** The
+four citations below are what make it checkable; settle it before dispositioning.
+**Location:** `crates/goad/ui/app.slint:946-973`; `crates/goad/src/glass.rs:189-195`, `:225-231`
+
+**Expected.** `design.md` §5.4 *Picking a datetime* and §5.5's edges table end a
+pick in exactly one of `accepted`, `canceled`, or `compose` failing. §8 **R5**
+prices a view replacement as *the field clears under the caret*. Nothing in
+canon or the design contemplates a picker still on screen after the view it
+belongs to is gone.
+
+**Observed.** Nothing in `goad` ever closes an active popup. Both pickers are
+root singletons declared **outside** the `if root.mode == WindowMode.prompt`
+block, so neither the mode switch nor `set_vec` reaches them, and `hide()` does
+not either.
+
+**Evidence**, four facts from `slint 1.17.1` as vendored:
+
+1. `fluent/datepicker.slint:23`, `fluent/time-picker.slint:24` — both bind
+   `close-policy: PopupClosePolicy.no-auto-close`. A click outside does not
+   close them.
+2. `i-slint-core-1.17.1/window.rs:1979` — `close_all_popups` has exactly one
+   caller, `window.rs:608` inside `set_component`, and `goad` calls
+   `set_component` once, at construction. No host action closes an open picker.
+3. `window.rs:843-871` — for a `ChildWindow` popup with the pointer outside its
+   geometry, `item_tree` is set to `None` and the loop `break`s (`Menu` is the
+   only continuing kind). The mouse event is then delivered **nowhere** — not to
+   the popup, and not to the window beneath.
+4. `window.rs:1158-1166` — Escape closes the top popup only for `CloseOnClick`
+   and `CloseOnClickOutside`. Neither picker is either.
+
+**The sequence.** A person opens a `datetime` picker; a scheduled firing
+completes; `absorb` takes `Shift::Replaced` or `Shift::Closed`; `present`
+rebuilds the rows or hides the window. **The picker is still up, every control
+beneath it is unreachable by pointer and by keyboard, and the only exit is the
+picker's own Cancel.** Completing the pick instead sends `Command::Edit` under a
+now-stale `root.picking-view` and is refused `SupersededView`.
+
+**To settle it**, one loop-tier case: open the picker, present a new `view_id`,
+assert the popup is still visible or that a click on an option button raises
+nothing.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-R2 — the `busy` class, enumerated: two of the seven sites are worse than F-A1 priced, and one is not gated at all
+
+**Severity:** major — this is **F-A1's class completed**, not a separate defect
+**Location:** `crates/goad/ui/app.slint:423`, `:476`, `:547`, `:610`, `:683`, `:743`, `:784`
+
+| # | site | line | cost when `busy` goes true mid-interaction |
+|---|---|---|---|
+| 1 | `CheckBox` | `:423` | focus ring; the click is discarded |
+| 2 | text `LineEdit` | `:476` | **dropped keystrokes** (F-A1) |
+| 3 | numeric `LineEdit` | `:610` | **dropped keystrokes** (F-A1) |
+| 4 | `Slider` | `:547` | **pointer grab lost** (VH-1) |
+| 5 | `ComboBox` with its popup open | `:683` | **the selection is silently swallowed and the dropdown closes.** `common/combobox-base.slint:20-23`: `select()` opens `if !root.enabled { return; }`, so `current-index` is unchanged and `selected` is never raised — but the popup item's `TouchArea` (`fluent/combobox.slint:138-143`) carries **no** `enabled` gate and still runs `popup.close()`. The click lands, does nothing, and closes the list. **Strictly worse than the `CheckBox`:** the person watches the dropdown respond and has no signal that nothing was chosen |
+| 6 | `datetime` `Button` with a picker open | `:743` | **`busy` does not reach it at all.** The `Button`'s `enabled` gates only *opening*; the popups carry no `enabled` and no conditional (`:946`, `:960`), so an open picker stays fully operative through the whole round trip while every other control is inert. Nothing is lost at the widget — the loss is downstream, as F-R1 describes |
+| 7 | option `Button` | `:784` | the answering click is discarded *(the reviewer's row was truncated in transit — recover it)* |
+
+**Why this matters to the repair the user chose.** Narrowing `busy` fixes sites
+1–4 and 7. It does **not** fix 5 or 6 on its own: 5 is a missing `enabled` gate
+on a popup item inside `std-widgets`, and 6 is a binding this project never
+wrote. Both have to be answered explicitly or the class is fixed in name only.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-S3 — AC-7's compile-error mechanism is held by nothing in the gate
+
+**Severity:** major
+**Location:** `crates/goad/src/view_model.rs:317` (`drawn_form`); the case at `:889`
+
+**Expected.** AC-7: *"the mechanism that makes a sixth kind a compile error
+survives — `R-55` is discharged for five kinds, not deleted."* `plan.md`
+PHASE-09/VT-7: *"`drawn_form` still matches `FieldKind` exhaustively."*
+
+**Observed.** The case maps `drawn_form(field.kind()).is_ok()` over five fields
+and asserts `[true; 5]`. Its own doc concedes *"No test can assert a match's
+exhaustiveness."* VA-2 is an agent read, not a check.
+`crates/goad-boundary/tests/checks/` contains no instrument naming
+`drawn_form`, `FieldKind` or a wildcard arm, and `clippy::wildcard_enum_match_arm`
+is not in the workspace lint set — `Cargo.toml:185` denies only
+`wildcard_imports`.
+
+**Evidence.** Add `_ => Ok(DrawnKind::Boolean),` as a final arm of
+`drawn_form`. It compiles, lints clean, VT-7 stays green and `just check` stays
+green — and a sixth protocol kind then renders **silently as a checkbox**
+instead of forcing the draw-or-report fork. `FieldKind`
+(`canonical.rs:246`) is not `#[non_exhaustive]`, so the property is real today;
+nothing in the gate keeps it real. A compile-fail case (`trybuild`) or a
+boundary scan for a wildcard arm in `drawn_form` would close it.
+
+**Note for disposition.** AC-7 says the mechanism must *survive*. It does. What
+F-S3 establishes is that nothing would report its removal — which is the same
+shape as F-S2, one level up.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-S4 — PHASE-05 is the one phase of this slice with no injection table, and it is AC-4's phase
+
+**Severity:** minor
+**Location:** `notes.md` — injection tables at `:719`, `:1032`, `:1388`,
+`:1869`, `:2726`, `:3211`, `:3680`, `:4525`. **None between `:1992` and `:2444`.**
+
+**Expected.** `design.md` §9: *"Every new case gets an injection pass … the one
+phase of slice 005 without it produced all three weak cases."* `plan.md`
+PHASE-05/T-8 is ticked *"VT-1, VT-3 in `fields.rs`; VT-2, VT-4 in `wiring.rs`,
+each with an injection pass."*
+
+**Observed.** The sheet records that the phase agent overran and left the tree
+not compiling, so *"none of its four cases had ever been run"* (`notes.md:2410`).
+One injection is recorded afterwards, for the orchestrator's repair of
+`wiring.rs` VT-2 alone (`:2427`). `two_text_fields_typed_into_…` is named
+nowhere in `notes.md`, and no per-case red/green reading exists for PHASE-05's
+`fields.rs` rows. PHASE-05's `event_loop_debounce` negative control **is**
+recorded as compiled and run.
+
+**Evidence.** **F-S1 is the defect this missing pass would have found.** An
+injection aimed at PHASE-05/VT-3's stated claim cannot redden it — which is
+exactly what an injection pass reports and a green run does not. `design.md`
+§9's own sentence predicted this outcome for the phase that skips it, and it
+came true in the same slice that wrote it down.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-S5 — `reasserts` is a self-report: decoupling the count from the write survives every case
+
+**Severity:** minor
+**Location:** `crates/goad/ui/app.slint:436-440`, `:489-493`, `:564-568`, `:642-646`, `:699-703`
+
+**Expected.** AC-5, measured in `reassert.rs:293` and `overlay.rs:337` as
+`reasserts == 0`.
+
+**Observed.** `root.reasserts += 1` sits *inside* the
+`if (self.x != root.values[…].x)` block, beside the write. Every recorded
+injection mutates the two together, so each is discriminating — but the
+instrument measures what the markup **says** it did, not what it did.
+
+**Evidence.** In any one guard, hoist the assignment out of the conditional and
+leave the increment inside. Every widget is then written on every present — the
+caret destroyed on every tray check, which is AC-5's second clause — while
+`reasserts` stays `0`, so `reassert.rs`, `overlay.rs` and `numeric_guard.rs` all
+stay green. No tier observes the caret (D-10 assigns it to AC-10's human half),
+so nothing else catches it. **Exposure grows with each control a future slice
+adds.**
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-S6 — `event_loop_debounce`'s "one edit per tick" cannot fail for its own claim
+
+**Severity:** nit
+**Location:** `crates/goad/tests/event_loop_debounce/debounce.rs:270-275`
+
+**Observed.** Asserts `after_one.handled == 1`. The case's own comment states
+the limitation and `notes.md:2361` records it as a deliberate non-control.
+
+**Evidence.** Make `tick` iterate the whole map and `try_send` each entry: the
+second `try_send` returns `Full`, the entry stands by the enqueue rule, the
+re-arm offers it next tick — `handled` is still `1` then `2` and both readings
+pass. Raised because it **interacts with F-S2**: one case that fills the
+channel gives both claims a driver.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-S7 — the I-F write order has no case that could see it wrong, and may be unobservable
+
+**Severity:** nit
+**Location:** `crates/goad/src/glass.rs:187-195`
+
+**Observed.** PHASE-01/VA-2 assigned this to an agent read, correctly — but the
+failure mode needs a view replacement to a form with **more** fields than the
+one it replaces, and no case does that. `fields.rs`'s only replacement is
+`THREE_FIELDS` (3) → `ANOTHER_FORM` (1), and the three other loop targets never
+change `view_id`.
+
+**Evidence.** Swap `set_values` with the `if self.shown != showing` block: the
+whole suite stays green. The reviewer could identify **no observable
+consequence** of the swap either, on the ground that `root.values[field.slot]`
+is a declarative binding that re-evaluates when `values` is written. **If that
+is right, I-F is unobservable rather than merely untested and VA-2's premise
+concerns a transient nothing reads.** Worth settling one way, because I-F is
+stated as a load-bearing invariant in `glass.rs:168-186` and in §5.5.
 
 **Disposition:**
 **Response:**

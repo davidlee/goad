@@ -211,12 +211,59 @@ filesystem or subprocess, and adds no dependency. ADR-001 holds.
 
 ### Acceptance criteria
 
-<!-- filled from the human run, the wire log, and review-code.md's suite
-     dimension -->
+Two independent readings, and they do not agree about the same things. **The
+human run** (VH-1, `notes.md` PHASE-09 sheet) answered a five-kind form twice
+and its wire log discharges AC-1, AC-2, AC-3, AC-8 and AC-9 directly. **The
+suite dimension of `review-code.md`** asked a different question of each
+criterion — *what is the simplest production change that breaks this and leaves
+its case green?* That table is below, and where the two disagree the mutation
+wins, because a green run and an injection pass report different things.
+
+| AC | verdict | evidence, and what holds it |
+|---|---|---|
+| AC-1 five kinds, declared order | **met** | `fields.rs:2120`; six (description, role) pairs in tree order, injection I-9 red. Confirmed on screen by VH-1 |
+| AC-2 `R-57` types, untouched | **met** | `fields.rs:2158`, off the child process's own request log; six keys each a different JSON type from its neighbour. VH-1's run 2 is the untouched control |
+| AC-2 `R-57` types, operated | **met** | `fields.rs:2222`. Partly self-agreeing for `datetime` — the expected value is computed by the production `instant::compose` — but the format is pinned by literals at `draft.rs:402`, `:439` and the shape by `fields.rs:1428` |
+| AC-3 `R-58` | **met, with a knowing reduction** | `wiring.rs:1706` drives the *other option's field* half over two options sharing the id `read`. The *undrawn field* half is **unobservable by construction** once all five kinds draw; `canon-delta.md` CD-2 records that rather than substituting a case. Checked independently: `answer` walks `drawn_fields` and `Fields::new` refuses duplicate ids, so no entry can be dropped or collapsed |
+| AC-4 every character recorded | **NOT MET** | **F-A1.** A character typed while an exchange is in flight is discarded, not deferred. The draft/wire half of the suite is real; the `inits` half is vacuous (**F-S1**) and the delivery rule's failure direction is untested (**F-S2**). Dispositioned *fix now* — `audit-log.md` |
+| AC-5 a present disturbs nothing | **NOT MET** | **VH-1 and F-A1.** The element and write halves hold (`reassert.rs:236`, I-7 red). The caret and the drag are observed by no tier, and the drag fails on a person. Instrument fidelity is itself in question — **F-S5**. Dispositioned *fix now* |
+| AC-6 refused or dropped edit corrected | **met** | `overlay.rs:191`, negative-controlled at `notes.md:2729`. A literal *refusal* is not separately driven; the guard is cause-blind and no surviving mutation was found |
+| AC-7 undrawn reported, sixth kind a compile error | **met — held by nothing** | The `GroupHint` half is asserted. The compile-error half is real today but **no instrument in the gate keeps it real**: adding a `_` arm to `drawn_form` compiles, lints clean and leaves the gate green (**F-S3**) |
+| AC-8 alternative id, not an option id | **met** | `fields.rs:2042`; label, index and id asserted as three different strings, I-4 and I-5 both red. VH-1's log carries `"fine"`, not `Fine` |
+| AC-9 unbounded number, no invented range | **met** | `fields.rs:1803`, three prongs. VH-1's `counted` returned `0.0` with no range invented |
+| AC-10 gate green, a person has answered | **partly** | `just check` exits 0 at 592. A person ran it (VH-1) — and what that run found is why AC-4 and AC-5 are unmet above |
+
+**Two structural facts about the suite, both established by enumeration rather
+than assertion, and both bearing on the repair.**
+
+- **Only one field control is driven by real input events** — the `ComboBox`,
+  in three cases (`fields.rs:2042`, `:2222`, `reassert.rs:236`), by
+  `mock_single_click` and by hand-written `KeyPressed`/`PointerPressed`.
+  `CheckBox`, both `LineEdit`s, the `Slider` and the `datetime` `Button` are
+  reached **only** through the accessibility surface. **No case anywhere
+  delivers a `KeyPressed` to a `LineEdit`**; every text entry is
+  `set_accessible_value`, which `fluent/lineedit.slint:16` implements as an
+  assignment plus a call to `edited`, reaching no `TextInput` insertion logic.
+  That is the mechanical reason no tier ever moves a caret — and the reason
+  F-A1 is invisible to all 592 tests.
+- **No case operates any control while `root.busy` is true.** The three
+  busy-aware cases read `accessible_enabled` and drive nothing. Of the seven
+  `enabled: !root.busy` bindings only the two predating this slice are
+  asserted at all: **deleting the binding from any of slice 009's five new
+  controls leaves the whole suite green.**
 
 ### Verification criteria
 
-<!-- VT / VA / VH per phase -->
+Discharged by reading this session, against the code rather than the phase
+sheet's own account: **PHASE-01/VA-2** (I-F's write order, `glass.rs:187-202`
+— though see **F-S7** on whether it is observable at all), **PHASE-04/VA-1**
+(the `jiff` residue argument), **PHASE-02/VA-1** (the vocabulary scan; the only
+matches in `src/` and `app.slint` are the word *uninhabited*).
+
+The rest of the VT/VA walk is **not done** and is session 2's. Two are already
+contradicted by findings: **PHASE-05/T-8** is ticked for injection passes that
+`notes.md` has no table for (**F-S4**), and **PHASE-05/VA-1** claims the
+enqueue rule was confirmed when nothing exercises it (**F-S2**).
 
 ## Code review
 
