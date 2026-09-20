@@ -32,7 +32,7 @@
 //!
 //! | # | mutation | reading |
 //! |---|---|---|
-//! | I1 | `pending.rs:212-214`'s `if enqueued` removed, so `tick` always removes | **red at B** — `held: 0, handled: 0` against `(1, 0)`. The claim |
+//! | I1 | `Debounce::tick`'s `if enqueued` check removed, so `tick` always removes | **red at B** — `held: 0, handled: 0` against `(1, 0)`. The claim |
 //! | I2 | the re-arm neutered (`if false && …`) | **red at C alone** — `held: 1, handled: 0` against `(0, 1)`; B passes, so the two readings discriminate independently |
 //! | I3 | the occupying send drained again immediately, so the channel is empty at tick time | **red at B** — `held: 0, handled: 0`: with a channel that is not full the send succeeds and the entry goes, which is what makes B's reading a fact about `Full` |
 
@@ -175,8 +175,9 @@ fn a_tick_whose_send_comes_back_full_clears_nothing_and_the_entry_is_delivered_l
     .as_str()
     .to_owned();
 
-  // **Capacity one, as production has it** (`main.rs:87`). This is what makes
-  // the whole case possible: one command in the channel and the next send
+  // **Capacity one, as production has it** (`start`'s
+  // `mpsc::channel::<Command>(1)`). This is what makes the whole case
+  // possible: one command in the channel and the next send
   // comes back `Full`.
   let (tx, mut rx) = mpsc::channel::<Command>(1);
   let wire = Wire::new(tx, Cancel::new(), Notice::new());
@@ -304,7 +305,7 @@ fn a_tick_whose_send_comes_back_full_clears_nothing_and_the_entry_is_delivered_l
     "the typed edit must be held and nothing delivered before any tick: {a:?}"
   );
 
-  // **The finding.** `pending.rs:212-214` removes the entry only `if enqueued`;
+  // **The finding.** `Debounce::tick` removes the entry only `if enqueued`;
   // replace that with an unconditional remove and this is the assertion that
   // goes red. Under the tree as it stands the send came back `Full`, delivered
   // nothing, and the entry stands.

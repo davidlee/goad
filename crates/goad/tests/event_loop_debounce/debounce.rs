@@ -124,9 +124,9 @@ struct Reading {
 /// and both are asserted, because they are the two halves of the delivery
 /// rule and an injection aimed at one must not be masked by the other:
 ///
-/// - **one per tick.** The command channel holds one (`main.rs:87`) and
-///   `serve` shares the UI thread, so one command per tick is the most that is
-///   ever available.
+/// - **one per tick.** `start`'s channel holds one
+///   (`mpsc::channel::<Command>(1)`) and `serve` shares the UI thread, so one
+///   command per tick is the most that is ever available.
 ///
 ///   **This reading cannot discriminate `tick`'s one-per-tick rule from a
 ///   `tick` that iterated the whole map, and at capacity 1 nothing can**

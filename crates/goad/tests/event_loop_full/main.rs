@@ -15,8 +15,9 @@
 //! accepted*, and *a `Full` send clears nothing*. That asymmetry is the whole
 //! reason `Wire::send` returns a `bool` (PHASE-05/EX-5), and in production it
 //! is reachable whenever a tick lands while `serve` is awaiting an exchange
-//! with a command already queued — the channel is capacity 1 (`main.rs:87`)
-//! and `serve` does not drain while it is in `select!`. A second tick 150 ms
+//! with a command already queued — the channel is capacity 1 (`start`'s
+//! `mpsc::channel::<Command>(1)`) and `serve` does not drain while it is in
+//! `select!`. A second tick 150 ms
 //! into any exchange is the ordinary case.
 //!
 //! A `[[test]]` target of its own, and exactly one `#[test]` fn in it, for the

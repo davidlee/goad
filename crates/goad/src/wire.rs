@@ -33,10 +33,11 @@ pub enum Command {
   /// was given; without it a delayed click answers whichever interaction
   /// happens to be outstanding when it is dequeued (F-13).
   /// `edits` is everything `pending.rs` was holding when the person answered,
-  /// carried **inside** the command rather than sent before it. The channel
-  /// holds one (`main.rs:86`) and `serve` shares the UI thread through
-  /// `spawn_local`, so a Slint callback — synchronous, no await — cannot let
-  /// `serve` drain between two sends: the second `try_send` of a flush does
+  /// carried **inside** the command rather than sent before it. `start`'s
+  /// channel holds one (`mpsc::channel::<Command>(1)`) and `serve` shares the
+  /// UI thread through `spawn_local`, so a Slint callback — synchronous, no
+  /// await — cannot let `serve` drain between two sends: the second
+  /// `try_send` of a flush does
   /// not merely risk `Full`, it is certain of it. One send is what lets D-8's
   /// *"the debounce flushes when the draft becomes an answer"* hold by the
   /// shape of the command rather than by a queue ordering that was never

@@ -89,10 +89,11 @@ struct Held {
 /// `Debounce` — its map and the `Wire` clone inside the closure — is retained
 /// for the life of the thread.**
 ///
-/// In production that costs nothing: `main.rs:95` creates exactly one for the
-/// process. It costs one leaked map and one retained `mpsc::Sender<Command>`
-/// per test target that arms, and it is why [`crate::controller::Ending::Closed`]
-/// is unreachable from the callback side (F-R9). It becomes real the moment a
+/// In production that costs nothing: `start` creates exactly one for the
+/// process (`Rc::new(Debounce::new())`). It costs one leaked map and one
+/// retained `mpsc::Sender<Command>` per test target that arms, and it is why
+/// [`crate::controller::Ending::Closed`] is unreachable from the callback
+/// side (F-R9). It becomes real the moment a
 /// future slice wants a `Debounce` per view or per window — which is what this
 /// note is for, since the type's shape argues its field count and said nothing
 /// about how long it lives. `Weak::upgrade` inside the callback, or a
@@ -228,9 +229,10 @@ impl Debounce {
 
   /// One tick: send **one** entry, and re-arm while the map is not empty.
   ///
-  /// One per tick is not a policy choice. The command channel holds one
-  /// (`main.rs:86`) and `serve` shares the UI thread through `spawn_local`, so
-  /// one command per tick is the most that is ever available. It costs nothing
+  /// One per tick is not a policy choice. `start`'s channel holds one
+  /// (`mpsc::channel::<Command>(1)`) and `serve` shares the UI thread through
+  /// `spawn_local`, so one command per tick is the most that is ever
+  /// available. It costs nothing
   /// in correctness: the answer path drains whatever is left in a single
   /// command, so nothing waits on the timer to be *right*, only to be *early*
   /// (`design.md` §5.4).

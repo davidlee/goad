@@ -1378,8 +1378,7 @@ mod tests {
   ///
   /// Each of the three is a range a **backend may legally send**:
   /// `NumberRange::new` refuses a non-finite bound and `min > max`, and admits
-  /// `min == max` (`canonical.rs:425-451`). So none of these is a
-  /// renderer-only construction.
+  /// `min == max`. So none of these is a renderer-only construction.
   ///
   /// The clauses are not interchangeable and the case is written so that a
   /// missing one shows. Deleting the **span** clause leaves

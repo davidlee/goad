@@ -164,8 +164,9 @@ pub fn install(window: &PromptWindow, tray: &Tray, wire: &Wire, pending: &Rc<Deb
 /// back a civil date and time and `instant::compose` turns them into an instant
 /// and the offset it resolved in — host-side, where it can fail: an
 /// out-of-range integer, a civil date `Date::new` refuses, a `DateTime`
-/// `to_zoned` refuses (`instant.rs:40-51`). That is §5.4's *"one `edited()`, or
-/// nothing if `compose` fails"*, and nothing is recorded on that path: the
+/// `to_zoned` refuses (`compose`'s `None` surface). That is §5.4's *"one
+/// `edited()`, or nothing if `compose` fails"*, and nothing is recorded on
+/// that path: the
 /// button still shows what it showed, which is the person's signal that the
 /// pick did not take.
 ///
@@ -244,7 +245,8 @@ fn rescale(window: &Weak<PromptWindow>, zoom: &Cell<Zoom>, step: impl Fn(Zoom) -
   // **Reported rather than swallowed** (F-R8). This is the crate's only
   // `Weak::upgrade`, and it is unreachable today: the three zoom callbacks
   // live in the tray's callback table, which `SlintGlass` holds strongly
-  // (`main.rs:96-98`), so the `PromptWindow` outlives every caller. What the
+  // (`start` binds `window`, `PromptWindow::new()`, before either), so the
+  // `PromptWindow` outlives every caller. What the
   // site must not do is let an action a person took vanish without a trace —
   // it is the one place in the renderer where that was possible.
   let Some(window) = window.upgrade() else {

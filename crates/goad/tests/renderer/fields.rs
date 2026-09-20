@@ -283,9 +283,10 @@ fn screen_of<const N: usize>(
 /// last present wrote (`glass.rs::option_models`, `harness::value_of`).
 ///
 /// **A synchronisation point, not an assertion.** A tick has reached the draft
-/// only once a present has written the slot from it, and the command channel
-/// holds one (`main.rs:86`): a second click sent before the loop has drained
-/// the first is dropped by `Wire::send` and the tick silently undoes itself.
+/// only once a present has written the slot from it, and `start`'s channel
+/// holds one (`mpsc::channel::<Command>(1)`): a second click sent before the
+/// loop has drained the first is dropped by `Wire::send` and the tick
+/// silently undoes itself.
 /// Waiting on this is what keeps that from happening, and a drop then fails as
 /// a timeout rather than as a wrong value.
 ///
@@ -304,7 +305,7 @@ const NOT_SET: &str = "not set";
 
 /// Today, in the person's own zone — the seed an unpicked field's picker opens
 /// on, read through the production function so a case's expectation and the
-/// glass's seed cannot be two different days (`instant.rs:92`).
+/// glass's seed cannot be two different days (`today_local`).
 fn instant_today() -> (goad::generated::Date, goad::generated::Time) {
   goad::instant::today_local()
 }
@@ -678,10 +679,11 @@ fn choose(window: &PromptWindow, option: &str, field: &str, label: &str) {
     .expect("one row declares itself selected");
 
   // **One row at a time, and the caller waits in between.** Each arrow raises
-  // `selected`, so it raises a `Command::Edit`; the command channel holds one
-  // (`main.rs:86`) and a synchronous key press gives `serve` no chance to
-  // drain, so a second press inside one call would have its edit dropped by
-  // `Wire::send` and the draft would keep the first. That is what a person
+  // `selected`, so it raises a `Command::Edit`; `start`'s channel holds one
+  // (`mpsc::channel::<Command>(1)`) and a synchronous key press gives `serve`
+  // no chance to drain, so a second press inside one call would have its
+  // edit dropped by `Wire::send` and the draft would keep the first. That is
+  // what a person
   // arrowing quickly gets too, and the guard corrects the widget on the next
   // present — but it is not what a case driving *one* choice means to say.
   assert_eq!(
@@ -730,7 +732,7 @@ fn indexed(window: &PromptWindow, option: &str, field: &str) -> i32 {
 /// Everything one case drives, assembled exactly as `main.rs` assembles it:
 /// a headless window and tray, a glass over them, the room the query needs, a
 /// host over a real child process, and `install`'s callback table around a
-/// **capacity-1** channel (`main.rs:86-90`).
+/// **capacity-1** channel (`start`'s `mpsc::channel::<Command>(1)`).
 ///
 /// A plain struct built by a plain function, and every case runs its own
 /// `LocalSet` around the production `serve` — the shape every other
@@ -813,9 +815,10 @@ fn rigged(case: &str, instructions: &[&str]) -> Rig {
 ///
 /// **The wait is not optional.** The click flips the widget immediately —
 /// that is the feedback — so the widget's own state says nothing about
-/// whether the edit reached the loop, and the command channel holds one
-/// (`main.rs:86`): a second click sent before the first is drained is dropped
-/// by `Wire::send`, and the next present writes the tick back off the screen.
+/// whether the edit reached the loop, and `start`'s channel holds one
+/// (`mpsc::channel::<Command>(1)`): a second click sent before the first is
+/// drained is dropped by `Wire::send`, and the next present writes the tick
+/// back off the screen.
 /// Waiting on the draft's own projection is what keeps that from happening,
 /// and a drop then fails as a timeout rather than as a wrong value.
 ///
@@ -861,8 +864,9 @@ macro_rules! settled {
       folded.as_str(),
       "the line must not already be there, or the wait below proves nothing"
     );
-    // **Yield before sending.** The command channel holds one (`main.rs:86`)
-    // and `serve` shares this thread through `spawn_local`, so a step that
+    // **Yield before sending.** `start`'s channel holds one
+    // (`mpsc::channel::<Command>(1)`) and `serve` shares this thread through
+    // `spawn_local`, so a step that
     // wrongly put a `Command::Edit` on the channel is still holding it when
     // this one runs: without the yield the check below is the send that is
     // dropped, and the defect fails as a timeout that names nothing rather
@@ -1303,8 +1307,9 @@ async fn a_text_field_draws_a_line_edit_and_the_option_still_answers() {
 /// doc's defect** (F-S1). Between the two `get_inits()` readings there is no
 /// `.await`, so `serve` — a `spawn_local` task on the same `LocalSet` — cannot
 /// be scheduled; nothing has been enqueued for it in any case, because
-/// `install.rs:70` routes a `Reported::Typed` into `Debounce::hold` rather than
-/// sending a command, and this target runs under `init_no_event_loop`, so the
+/// `install`'s `on_edited` callback routes a `Reported::Typed` into
+/// `Debounce::hold` rather than sending a command, and this target runs under
+/// `init_no_event_loop`, so the
 /// timer never fires. **No present occurs between the readings**, and the
 /// equality is guaranteed by the executor rather than by D8. Mutation-confirmed:
 /// delete the `if self.shown != showing` guard in `SlintGlass::present`, so

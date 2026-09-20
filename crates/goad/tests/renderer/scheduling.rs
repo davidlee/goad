@@ -287,8 +287,8 @@ async fn an_instruction_from_a_respond_shortens_the_wait_past_a_far_default_poll
 /// deadline pending; a person-driven `evaluate` then instructs 100 ms, and
 /// the scheduled firing lands inside `until(LIVENESS_BOUND)` — which it cannot do if
 /// the pending 60 s deadline had survived (this is the case
-/// `max(retained, incoming)` gets wrong, `schedule.rs:204-208`). *Liveness.
-/// Measured ~270 ms against the 5 s liveness bound, ~18x.*
+/// `max(retained, incoming)` gets wrong, as `schedule::resolve`'s own doc
+/// says). *Liveness. Measured ~270 ms against the 5 s liveness bound, ~18x.*
 #[tokio::test]
 async fn an_earlier_instruction_supersedes_a_pending_far_deadline() {
   let (window, tray) = window_and_tray();

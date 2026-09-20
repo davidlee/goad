@@ -76,14 +76,16 @@ pub enum Ending {
   /// Every sender was dropped.
   ///
   /// **Reachable from the test tiers, and in production from nowhere at all**
-  /// (F-R9). Eight `mpsc::Sender<Command>` clones outlive the loop: `main.rs:86`
-  /// binds `tx` for the whole of `start`, which outlives
-  /// `run_event_loop_until_quit`; `Wire::new` takes one (`main.rs:89`) and
-  /// `install` clones it into seven callbacks (`install.rs:39`, `:65`, `:82`,
-  /// `:93`, `:99`, `:104`, `:109`) that live in the window's and the tray's
-  /// callback tables for the life of the process; and the armed debounce timer's
+  /// (F-R9). Eight `mpsc::Sender<Command>` clones outlive the loop: `start`
+  /// binds `tx` in the channel it creates (`mpsc::channel::<Command>(1)`) for
+  /// the whole of the function, which outlives `run_event_loop_until_quit`;
+  /// `Wire::new` takes one and `install` clones it into seven callbacks — the
+  /// `chosen`, `editing`, `closing`, `quitting`, `checking`, `showing` and
+  /// `stopping` bindings — that live in the window's and the tray's callback
+  /// tables for the life of the process; and the armed debounce timer's
   /// closure retains an eighth (F-R6). The production shutdown path is
-  /// `Stopped`, via `Cancel` — `install.rs:95` and `:110` trip it.
+  /// `Stopped`, via `Cancel` — `quitting.stop()` and `stopping.stop()` trip
+  /// it.
   Closed,
 }
 
@@ -751,8 +753,8 @@ fn ingest(
 ///
 /// Lifted out of `serve` so that the ingested road and the command road meet
 /// at one value: an arrival cannot become a `Command` — `Stimulus` is `Copy`
-/// and hard-codes `source: "host"` (`wire.rs:62-64`, D-13) — so the join has to
-/// be the `Pending` both roads produce.
+/// and hard-codes `source: "host"` in `Stimulus::event` (D-13) — so the join
+/// has to be the `Pending` both roads produce.
 fn dispatch(
   command: Command,
   controller: &mut Controller,

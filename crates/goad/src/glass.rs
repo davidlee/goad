@@ -2,9 +2,10 @@
 //! property the window declares (design.md §5.3).
 //!
 //! It is **not** the only file in the crate that names a generated type, and
-//! saying so was a claim that outlived the code: `install.rs:15` names four of
-//! them and `instant.rs:23` two more. What is true of this file is narrower and
-//! is what the design rests on — every *write* to a window property happens
+//! saying so was a claim that outlived the code: install.rs's `use
+//! crate::generated` import names four of them and `instant.rs:23` two more.
+//! What is true of this file is narrower and is what the design rests on —
+//! every *write* to a window property happens
 //! here, in `present`, so totality is checkable by reading one function.
 
 use std::fmt;
@@ -134,8 +135,10 @@ impl SlintGlass {
   /// happens only after the event loop has started.
   ///
   /// `pending` is **a clone of the handle `install` was given**, and the caller
-  /// creates it before either (`main.rs:95-107`). A glass given a `Debounce` of
-  /// its own overlays nothing and says nothing about it, which is §8 R10.
+  /// creates it before either — `start` binds `pending`
+  /// (`Rc::new(Debounce::new())`) before calling `install` and constructing
+  /// `SlintGlass::new`. A glass given a `Debounce` of its own overlays nothing
+  /// and says nothing about it, which is §8 R10.
   #[must_use]
   pub fn new(
     window: PromptWindow,

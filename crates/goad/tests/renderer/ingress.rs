@@ -83,7 +83,7 @@ const ANTI_SPIN_WINDOW: Duration = Duration::from_millis(500);
 /// The floor, mirrored. `controller::MINIMUM_SPACING` is private on purpose
 /// (D-5: a host operational budget, not a value anything outside the loop
 /// reads), so a case that needs to reason about it states it here — the same
-/// call `renderer/scheduling.rs:52`'s `FLOOR_MILLIS` makes, and the mirror is
+/// call `renderer/scheduling.rs`'s `FLOOR_MILLIS` makes, and the mirror is
 /// checked by nothing but this comment.
 const MINIMUM_SPACING: Duration = Duration::from_secs(3);
 
@@ -862,8 +862,9 @@ const INSTRUCT_1S: &str = r#"{"view":null,"next_check":"1 second"}"#;
 /// (`controller.rs`'s `ingest`: one write site, `event_floor_until`).
 ///
 /// **EX-5.** No priming exchange: `floor_until` starts already elapsed
-/// (`controller.rs:601`) and nothing has fired the timer yet at test start,
-/// so the one envelope this case sends is the *first* attempted firing of
+/// (`serve` binds `let mut floor_until = started;`) and nothing has fired the
+/// timer yet at test start, so the one envelope this case sends is the
+/// *first* attempted firing of
 /// any kind — the only write `floor_until` could receive here is exactly the
 /// one under test. It pins its own `next_check` short (300 ms, the "short
 /// `next_check`" AC-6(i) names); the resulting **scheduled** firing — the
@@ -951,9 +952,10 @@ async fn an_ingested_firing_never_writes_the_scheduled_floor() {
 /// exchange has been absorbed, an envelope arrives at T0+ε and is accepted —
 /// the event anchor starts already elapsed and nothing has written it yet —
 /// and **its own exchange is answered the identical instruction**, so its
-/// own resolved deadline is also no later than T0+1s
-/// (`controller.rs:507-512`, SPEC-001/R-26) and the two hypotheses disagree
-/// only about whether this ingested firing wrote `floor_until`. **EX-5**:
+/// own resolved deadline is also no later than T0+1s (`ingest`'s accepted
+/// arm, `Some(Pending::Evaluate { now, event })`, SPEC-001/R-26) and the two
+/// hypotheses disagree only about whether this ingested firing wrote
+/// `floor_until`. **EX-5**:
 /// both exchanges this case lets complete are pinned as stated above, and
 /// the fourth (whichever lands from the floor's release) is pinned a minute
 /// off so nothing further fires inside the window measured.
