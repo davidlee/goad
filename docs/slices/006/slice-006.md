@@ -1,6 +1,6 @@
 # Slice 006: packaging and the startup surface
 
-**Stage:** scoping
+**Stage:** design
 **Tier:** 1 (thin) — see *What would raise the tier* below.
 **Depends on:** nothing. Independent of 007, 008 and 009 by design. It was
 sequenced after them because 009 held `crates/goad/src/main.rs` dirty and this
@@ -137,9 +137,12 @@ crate, and no binary is added or moved between strata).
   The unit carries facts only goad knows — which exit code is a refusal, what
   it is `PartOf` — and the question is whether that is enough to put a
   `nix/module.nix` in this repository.
-- OQ-2 — **Does `nix build` join the phase gate?** If it does, POL-001 is
-  amended and this slice is tier 2. If it does not, a `flake.nix` that stops
-  building is green here and broken in `~/flakes`, which is where it is noticed.
+- OQ-2 — **Does `nix build` join the phase gate?** **Answered: no**
+  (`design-log.md`, 2026-09-20). POL-001 is untouched and the tier stays 1. The
+  accepted residue: a `flake.nix` that stops building is green here and broken
+  in `~/flakes`, which is where it is noticed. A third option — a `just package`
+  recipe outside the gate, run at audit — was raised and **not** answered; it is
+  carried into `design.md` §6.
 - OQ-3 — **Which stratum names the configuration path.** Both shapes are
   already in this tree: `IngressError { path, fault }` carries it in stratum 2;
   `goad-emit`'s `StartupFault::Unparseable { path, fault }` wraps it at
@@ -151,12 +154,12 @@ crate, and no binary is added or moved between strata).
   has no flake and may have no git. `self.rev` / `self.dirtyRev` answers the
   nix side; the other side is a decision about what an unknown revision prints.
   AC-5 is a constraint on this answer, not a consequence of it.
-- OQ-5 — **Does the package build run the tests?** crane's `doCheck` is on by
-  default, and the renderer tests need a fontconfig configuration to construct
-  a component at all — `flake.nix`'s jail comment records 58 of 156 cases
-  panicking in fontique with `NoMatch` without one, measured when it was
-  written. So the choice is *pass `fontsConf` into the check phase* or
-  *`doCheck = false`, leaving verification to the gate*.
+- OQ-5 — **Does the package build run the tests?** The choice was posed as
+  *pass `fontsConf` into the check phase* or *`doCheck = false`*. The spike
+  (`research.md` Thread 3 S-3) measured it and the fonts are the second of at
+  least three obstacles: without a tzdb the lib tier fails first, and with both
+  provisions a timing-sensitive `event_loop_schedule` case still fails in the
+  sandbox. Evidence is in; the **decision is the design's** and is not yet taken.
 - OQ-6 — **What happens to `~/.config/goad/env`.** It exists for the
   `cargo install` path alone once the nix binary is wrapped. Deleting it breaks
   that path; keeping it leaves a file whose two values can still go stale, with
@@ -165,15 +168,15 @@ crate, and no binary is added or moved between strata).
 ## What would raise the tier
 
 Tier 1 as opened: nothing here writes or amends canon, and nothing changes the
-wire contract. Two things would change that, and both are open questions above
-rather than surprises:
+wire contract. Two things would change that. **One is now settled and one is
+still open:**
 
-- **OQ-2 answered yes** — a command added to the gate is an amendment to
-  POL-001, and the slice becomes tier 2.
-- **OQ-3 answered in stratum 2** — moving a path into `ConfigError` changes a
-  type `goad-emit` also consumes, and the design surface grows the seam between
-  two binaries. That is a size judgement, not a canon one, but it is the shape
-  that would push past the 300-line cap.
+- **OQ-2 answered yes** would have amended POL-001. It was answered **no**, so
+  this route to tier 2 is closed and no canon amendment is in prospect.
+- **OQ-3 answered in stratum 2** — still open. Moving a path into `ConfigError`
+  changes a type `goad-emit` also consumes, and the design surface grows the
+  seam between two binaries. That is a size judgement, not a canon one, but it
+  is the shape that would push past the 300-line cap.
 
 A tier may be raised mid-slice and never lowered.
 

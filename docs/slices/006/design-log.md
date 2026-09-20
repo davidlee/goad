@@ -60,3 +60,26 @@ other, citing the finding id.
 - **Decided:** *"yeah, spike first"*.
 - **Consequence:** research gains a measured section rather than a predicted
   one; OQ-2's answer can be priced against a real build time.
+
+### 2026-09-20 — OQ-2: `nix build` does not join the phase gate
+
+- **Asked:** whether `nix build` joins POL-001's command block (amending canon,
+  raising this slice to tier 2), stays out of it entirely, or lands as a
+  `just package` recipe outside the gate that audit is obliged to run before a
+  slice closes.
+- **Recommended:** joining the gate. The spike had measured the cost at 22s
+  warm and 1s for a no-op, against a gate that already runs two test tiers and
+  a deno typecheck; and the failures the spike produced — an evaluation error
+  from `fromTOML`, two source-filter regressions failing in 6–7s — are exactly
+  the class a fast command catches.
+- **Decided:** *"No, for now."*
+- **Consequence:** POL-001 is untouched and **the slice stays tier 1** —
+  `design.md` capped at 300 lines, design and plan reviewed in one ledger of at
+  most two rounds. `research.md` Thread 1's amendment-candidate list is now
+  empty. The residue the answer accepts, stated so it is not rediscovered: a
+  `flake.nix` that stops building is green in this repository and breaks in
+  `~/flakes`, which is where it is noticed.
+- **Not answered, and carried:** whether the third option — a `just package`
+  recipe outside the gate, run at audit — is wanted. "No, for now" settled gate
+  membership, not that. It belongs in `design.md` §6 as an open question and
+  must be put to the user before design is accepted.

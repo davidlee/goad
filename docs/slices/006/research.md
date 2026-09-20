@@ -62,9 +62,11 @@ Out-of-tree prior art is cited by file and symbol too.
 
 ### Amendment candidates
 
-- **POL-001** — only if OQ-2 is answered *yes*. That answer raises the tier.
-  No other canon looks likely to need changing: the startup-surface half moves a
-  value inside a stratum-3 type and changes text SPEC-003 does not fix.
+**None.** POL-001 was the only candidate, and only if OQ-2 were answered *yes*;
+it was answered **no** on 2026-09-20 (`design-log.md`), so the gate is not
+amended and the slice stays tier 1. Nothing else looks likely to need changing:
+the startup-surface half moves a value inside a stratum-3 type and changes text
+SPEC-003 does not fix.
 
 ## Thread 2 — code map
 
