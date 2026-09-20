@@ -424,3 +424,33 @@ other, citing the finding id.
   design and plan, at most two rounds. The escape if round 2 leaves serious
   findings open is unchanged and still applies: `settle-in-code` with a named
   phase and a named test, or raise the tier.
+
+### 2026-09-20 — round 1 of the joint ledger: two calls the repairs needed
+
+- **Asked:** `review-design.md` round 1 raised eight findings, no blockers, five
+  major. Six were mechanical repairs to `plan.md`. Two needed the user, because
+  both amend a design that is accepted, committed and already 46 lines over the
+  tier 1 cap.
+- **F-1 — AC-3's only discharge cannot fail for the defect it guards.** Every
+  check in PHASE-01/VA-4 passes on a binary wrapped with `LD_LIBRARY_PATH` and
+  not `FONTCONFIG_FILE`, which is exactly the half-wrapped case `slice-006.md`
+  §Purpose exists to retire; `design.md` §9's own row prescribes the same blind
+  checks. **A**: read the generated wrapper for both variables — deterministic,
+  seconds. **B**: A, plus run the packaged binary under this repository's own
+  `goadShot` (cage + grim, headless) and look at the photograph.
+- **Decided:** *"Wrapper text + headless run"* — B. A fontless wrapper is now
+  caught in the phase that wrote it rather than at PHASE-05, four phases later.
+  AC-1's second half is unmoved: still a person, under systemd (PHASE-05/VH-1).
+- **F-4 and F-5 — the two design amendments.** F-4: four sites file the
+  unscanned `.nix` surface under *"POL-001 §Verification's residue category"*,
+  which canon does not have — it names one residue, about feature unification,
+  in the one section whose subject is not blurring its own enumeration. F-5: the
+  statement the user accepted **instead of** option C on 2026-09-20 — that the
+  wrapper and the env file are nix-path mechanisms and a non-NixOS machine needs
+  neither — was never written into `design.md`, while `notes.md` §Open's
+  follow-up load-bears on it being there. Options put: both (cap grows); F-4
+  only, F-5 deferred; both with ~4 lines cut elsewhere to hold at 46.
+- **Decided:** *"Both, cap grows to ~50 over"*. As landed the design is 355
+  lines, 55 over; the head states the number and why it moved. F-5 discharges an
+  endorsed decision rather than taking a new one, and F-4 keeps the slice tier 1
+  by not claiming a second entry in POL-001's count.

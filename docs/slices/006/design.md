@@ -5,10 +5,12 @@
      Reference forms: canon by id (`SPEC-003 §4`, `ADR-007`, `POL-002`);
      doc-local refs bare — OQ-1 (§6), D1 (§7), R1 (§8). Ids are immutable. -->
 
-**Tier 1, 46 lines over the cap, by explicit decision.** `docs/AGENTS.md`
+**Tier 1, 53 lines over the cap, by explicit decision.** `docs/AGENTS.md`
 §Tiers caps a tier 1 design at 300 lines and prescribes splitting the slice
-above it. The surface here is eight contracts across four files, two crates and
-two languages (§5.2); the alternatives — splitting, or raising to tier 2 — were
+above it. It was 46 over at acceptance; round 1 of `review-design.md` added
+seven, F-4 and F-5, with the overrun put to the user again and again accepted.
+The surface here is eight contracts across four files, two crates and two
+languages (§5.2); the alternatives — splitting, or raising to tier 2 — were
 put to the user and declined (`design-log.md`, 2026-09-20). Everything else
 about tier 1 is unchanged, the two-round bound on the shared design-and-plan
 ledger included.
@@ -40,6 +42,12 @@ retired, the backend is not packaged, there is no NixOS module and no darwin, no
 `--config PATH` flag, no release and no CI. `goad-emit`'s startup diagnostics
 are untouched; its `--version` is in scope, by OQ-7 (§6).
 
+**Packaging with nix does not narrow where goad runs.** The wrapper and
+`~/.config/goad/env` are both *nix-path* mechanisms. A non-NixOS machine needs
+neither: `cargo install --path crates/goad --locked`, a linker that finds the
+GUI libraries, and a fontconfig with a system configuration. True today and
+written down nowhere until here (`design-log.md`, 2026-09-20; F-5).
+
 ## 2. Current state
 
 Cited in `research.md` rather than restated here. Five facts carry this design:
@@ -63,7 +71,7 @@ Cited in `research.md` rather than restated here. Five facts carry this design:
 | **POL-001** — the gate is six commands, policy first and recipe second | nothing here joins it (OQ-2). `just package` sits outside the block and amends no canon (OQ-2b). |
 | **ADR-001** — one-way strata | `goad_shell` is stratum 2, `crates/goad` stratum 3. Either could carry the path; stratum 3 is chosen on cohesion, not direction (OQ-3). |
 | **SPEC-003** R-3, R-4 | `StartupError::Ingress` names its path and what was found. Untouched here, and AC-6 must not weaken it. |
-| **the vocabulary invariant** | binds `nix/module.nix` and the unit it writes. **No instrument reads `.nix`** — POL-001 §Verification's *residue* category (Cross-thread 4). |
+| **the vocabulary invariant** | binds `nix/module.nix` and the unit it writes. **No instrument reads `.nix`** — a review obligation, not an enforced rule. POL-001 §Verification's enumeration is unchanged by it (Cross-thread 4). |
 | crane parses every manifest with `builtins.fromTOML`, which is TOML 1.0 | `Cargo.toml`'s two-line `tokio` entry must be joined before anything evaluates. A precondition, not a preference (S-1). |
 | `cleanCargoSource` keeps `.rs`, `.toml`, `.lock` | `ui/app.slint` and the faces it imports must be re-admitted or `build.rs` fails (S-2). |
 | the nix sandbox has no tzdb, no session bus, no writable font cache | `doCheck = false` (S-3, OQ-5). |
@@ -254,8 +262,8 @@ it belongs to the cargo path and `just install` keeps writing it (OQ-6).
 - **I3** — a nix-built and a `cargo install`ed `goad` differ in `--version`
   output (AC-5).
 - **I4** — no domain vocabulary in `nix/module.nix` or the unit it writes.
-  **Nothing checks this.** It is a review obligation, POL-001 §Verification's
-  *residue* category (Cross-thread 4).
+  **Nothing checks this.** A review obligation, not an enforced rule, and not a
+  second entry in POL-001 §Verification's count (Cross-thread 4; F-4).
 
 **Assumptions**
 
@@ -327,7 +335,8 @@ rejected.
 | the manifest joins | `nix flake check`-free: evaluation succeeds where it failed at S-1 | the precondition |
 | the source filter | S-2's two negative controls rebuilt and still failing | D9, the contract in §5.2(b) |
 | `nix build .#goad`, `.#goad-emit` | `just package` | AC-1 first half, AC-2 |
-| an empty environment | `env -i …/bin/goad --help`, and the same for emit's `--version` | AC-3, I2 |
+| an empty environment | `env -i …/bin/goad --help`, and the same for emit's `--version` | AC-3, I2 — the *absence* claim only |
+| the wrapper carries **both** variables | read the generated wrapper for `--prefix LD_LIBRARY_PATH` **and** `--set-default FONTCONFIG_FILE`; a headless run under `goad-shot` | AC-3 against the half-wrapped case, which the row above cannot see (F-1) |
 | `--version` at the binary tier | a new `[[test]] name = "binary"` in `crates/goad`, spawning `CARGO_BIN_EXE_goad` | AC-4, D10 |
 | `version_line` both branches | unit tests in `diagnostics.rs` and `render.rs` | AC-5, I3 |
 | the argument table | the existing `crates/goad/tests/renderer/startup.rs` cases, one row added | AC-4's second half |
@@ -342,5 +351,5 @@ rejected.
 **None.** No spec, policy or ADR is written, amended or contradicted: OQ-2 kept
 `nix build` off POL-001's block (D8) and OQ-3 kept the change inside stratum 3
 (D1). `research.md` Thread 1's amendment-candidate list is empty. The slice
-carries one unenforced obligation rather than a canon change — I4, in POL-001
-§Verification's *residue* category.
+carries one unenforced obligation rather than a canon change — I4, which does
+**not** join POL-001 §Verification's count: adding to that is tier 2 (F-4).
