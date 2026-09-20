@@ -98,6 +98,8 @@ pub struct Frame<'a> {
   pub surface: Surface,
   pub shown: Option<&'a Prepared>,
   pub diagnostics: &'a Diagnostics,
+  /// Whether **the person's own answer** is in flight — not whether the host
+  /// is talking to the backend. See [`Controller::engage`].
   pub busy: bool,
   pub next_check: Option<Timestamp>,
   /// Whether back-pressure is outstanding. The one frame property the
@@ -114,7 +116,8 @@ pub struct Frame<'a> {
 /// presentation, its `ViewId` and the draft; the canonical options are inside
 /// the presentation),
 /// the diagnostics, the window mode and its visibility (`Surface`, derived
-/// below), and whether an exchange is in flight.
+/// below), and whether the person's own answer is in flight (`engaged` —
+/// [`Controller::engage`] states why it is not *any* exchange).
 ///
 /// One thing the screen shows is retained and is **not** here: back-pressure.
 /// It lives at the edge, in a `wire::Notice` the loop samples at present time,
@@ -380,12 +383,30 @@ impl Controller {
     self.focus = Focus::Automatic;
   }
 
-  /// An exchange is starting. Sets `engaged`, which the next frame carries.
+  /// An exchange is starting. Sets `engaged`, which the next frame carries as
+  /// `busy`.
+  ///
+  /// **`busy` means *your answer is in flight*, not *the host is talking to
+  /// the backend*** (`review-code.md` F-A1, F-R2). Only an
+  /// `Exchanged::Answer` engages. An `Exchanged::Evaluation` — a scheduled
+  /// poll, a tray check, an ingested event — is the host's own business and
+  /// leaves every control live, because Slint *discards* input for a disabled
+  /// item rather than queueing it (`i-slint-core/items/text.rs:954`), so
+  /// disabling the form for the length of a round trip loses the characters
+  /// typed during it.
+  ///
+  /// What stays disabled is what the disable was written for: the option
+  /// `Button`'s double-submit guard. `Command::Choose` has exactly one origin
+  /// (`install.rs:40`) and is the only road to `Pending::Respond`, so a
+  /// `Respond` is always the person's own click and the guard now fires
+  /// exactly when it wants to and at no other time.
+  ///
   /// `absorb` clears it; nothing else sets or clears it. The two calls are
   /// one pair, in one place — `serve`'s exchange arm — so an exchange cannot
-  /// leave the controls disabled for the rest of the process (F-21).
-  pub fn engage(&mut self) {
-    self.engaged = true;
+  /// leave the controls disabled for the rest of the process (F-21). An
+  /// evaluation's pair still holds: clearing what it never set is a no-op.
+  pub fn engage(&mut self, exchanged: Exchanged) {
+    self.engaged = exchanged == Exchanged::Answer;
   }
 
   /// Everything the glass needs, borrowed. `notice` is passed in rather than
@@ -836,59 +857,97 @@ where
   let mut event_floor_until = started;
 
   let ending = 'serving: loop {
-    glass.present(controller.frame(notice.raised())); // busy = false here
-    let fired = select! { biased;
-      () = cancel.stopped()       => break Ending::Stopped,
-      received = commands.recv()  => match received {
-        None          => break Ending::Closed,
-        Some(command) => Fired::Command(command),
-      },
-      () = &mut sleep => {
-        // The one and only write site: the spacing is measured between
-        // scheduled firings and nothing else clears it (SPEC-002/R-4).
-        floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
-        Fired::Scheduled
-      },
-      // **Last**, so that a watcher emitting at machine rate cannot starve a
-      // scheduled firing: `biased` means an always-ready arm starves
-      // everything below it, and this is the arm an untrusted writer paces
-      // (`design.md` §5.4).
-      arrival = ingress.arrival() => match arrival {
-        // Disposed of here, before any `Fired` is built: `refusal_re_arms` is
-        // never reached, the standing deadline is not reset, and neither
-        // anchor is written. A dead accept task changes nothing about the
-        // schedule.
-        None => {
-          controller.refuse(&ingress_stopped());
-          continue;
-        }
-        Some(arrival) => Fired::Ingested(arrival),
-      },
-    };
-    // A refusal that came from the timer arm re-arms at the floor (EX-7);
-    // every other refusal leaves the deadline untouched. Read before `fired`
-    // is consumed below, and true of the whole iteration.
-    let refusal_re_arms = matches!(fired, Fired::Scheduled);
+    // **Drained before the present, and that order is the whole of it**
+    // (`review-code.md` F-R3). `Debounce::tick` drops its entry the instant
+    // `Wire::send` reports the command *enqueued* (`pending.rs`), so between
+    // that enqueue and this loop serving the command, a person's keystrokes
+    // are held by neither the overlay nor the draft. A present landing inside
+    // that interval writes the pre-typing value back over the widget they are
+    // typing into — and it lands there routinely, because the command is
+    // enqueued while this loop is parked inside an exchange and the first
+    // thing it does on coming out of one is present.
+    //
+    // So: apply every queued command that resolves without an exchange, and
+    // stop at the first that needs one. `dispatch` is the same entry point the
+    // `select!` below uses, so nothing is dispatched twice and nothing is
+    // dropped; what it yields travels to the same `attempted` either way.
+    //
+    // **This bypasses the `biased` `cancel.stopped()` arm for one command,
+    // and that is harmless.** The only drained command that reaches the
+    // backend is a `Choose`, and the inner `select!` it lands in is `biased`
+    // on `cancel.stopped()` too — so a stop already tripped breaks there and
+    // drops `call` before it is ever polled, and no subprocess is spawned.
+    let mut drained = None;
+    while drained.is_none() {
+      let Ok(command) = commands.try_recv() else {
+        break;
+      };
+      drained = dispatch(command, &mut controller, clock);
+    }
 
-    // Two roads, one exchange. An arrival becomes a `Pending::Evaluate`
-    // directly, because `Stimulus` cannot carry an event (D-13); a command
-    // takes the road it always has. `None` from either is *there is nothing to
-    // exchange*.
-    let attempted = match fired {
-      Fired::Ingested(arrival) => {
-        ingest(arrival, &mut controller, &mut event_floor_until, clock).map(Ok)
-      }
-      Fired::Command(command) => dispatch(command, &mut controller, clock),
-      // Goes through the same `stamp` as every other command (EX-6).
-      Fired::Scheduled => dispatch(
-        Command::Evaluate(Stimulus::Scheduled),
-        &mut controller,
-        clock,
-      ),
+    glass.present(controller.frame(notice.raised())); // busy = false here
+
+    // A drained command never came from the timer arm, so `refusal_re_arms`
+    // is `false` for it by the same argument the refusal site below makes:
+    // the flag is `matches!(fired, Fired::Scheduled)`, and only the timer arm
+    // builds a `Fired::Scheduled`.
+    let (attempted, refusal_re_arms) = if let Some(drained) = drained {
+      (Some(drained), false)
+    } else {
+      let fired = select! { biased;
+        () = cancel.stopped()       => break Ending::Stopped,
+        received = commands.recv()  => match received {
+          None          => break Ending::Closed,
+          Some(command) => Fired::Command(command),
+        },
+        () = &mut sleep => {
+          // The one and only write site: the spacing is measured between
+          // scheduled firings and nothing else clears it (SPEC-002/R-4).
+          floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
+          Fired::Scheduled
+        },
+        // **Last**, so that a watcher emitting at machine rate cannot starve a
+        // scheduled firing: `biased` means an always-ready arm starves
+        // everything below it, and this is the arm an untrusted writer paces
+        // (`design.md` §5.4).
+        arrival = ingress.arrival() => match arrival {
+          // Disposed of here, before any `Fired` is built: `refusal_re_arms` is
+          // never reached, the standing deadline is not reset, and neither
+          // anchor is written. A dead accept task changes nothing about the
+          // schedule.
+          None => {
+            controller.refuse(&ingress_stopped());
+            continue;
+          }
+          Some(arrival) => Fired::Ingested(arrival),
+        },
+      };
+      // A refusal that came from the timer arm re-arms at the floor (EX-7);
+      // every other refusal leaves the deadline untouched. Read before `fired`
+      // is consumed below, and true of the whole iteration.
+      let refusal_re_arms = matches!(fired, Fired::Scheduled);
+
+      // Two roads, one exchange. An arrival becomes a `Pending::Evaluate`
+      // directly, because `Stimulus` cannot carry an event (D-13); a command
+      // takes the road it always has. `None` from either is *there is nothing to
+      // exchange*.
+      let attempted = match fired {
+        Fired::Ingested(arrival) => {
+          ingest(arrival, &mut controller, &mut event_floor_until, clock).map(Ok)
+        }
+        Fired::Command(command) => dispatch(command, &mut controller, clock),
+        // Goes through the same `stamp` as every other command (EX-6).
+        Fired::Scheduled => dispatch(
+          Command::Evaluate(Stimulus::Scheduled),
+          &mut controller,
+          clock,
+        ),
+      };
+      (attempted, refusal_re_arms)
     };
-    // A diagnostics command, or an arrival `ingest` has already answered and
-    // folded. Neither has anything to send, and neither is a refusal this
-    // loop still owes a report for.
+    // A diagnostics command, an edit the drain applied, or an arrival `ingest`
+    // has already answered and folded. None of them has anything to send, and
+    // none is a refusal this loop still owes a report for.
     let Some(attempted) = attempted else {
       continue;
     };
@@ -918,8 +977,11 @@ where
     let requested_at = pending.now();
     let exchanged = pending.exchanged();
 
-    controller.engage();
-    glass.present(controller.frame(notice.raised())); // busy = true, controls disabled
+    controller.engage(exchanged);
+    // `busy` iff this is the person's own answer, in which case the option
+    // buttons are disabled and the rest of the form with them; an evaluation
+    // presents with every control live (F-A1, F-R2).
+    glass.present(controller.frame(notice.raised()));
 
     // One future, built from the enum. `host` is borrowed mutably for
     // exactly as long as this block lives, which is this iteration;

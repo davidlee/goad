@@ -913,12 +913,38 @@ mod busy {
     }
   }
 
+  /// **The narrowing** (`review-code.md` F-A1, F-R2): `busy` is *your answer
+  /// is in flight*, so only an answer engages. An evaluation — a scheduled
+  /// poll, a tray check, an ingested event — leaves every control live,
+  /// because a disabled item discards input rather than queueing it.
+  ///
+  /// The pure statement of it. What it costs a person when it is wrong is
+  /// measured where a real key event can be delivered
+  /// (`tests/event_loop_busy/`).
+  #[test]
+  fn an_evaluation_does_not_engage_and_an_answer_does() {
+    let mut controller = Controller::new();
+    controller.engage(Exchanged::Evaluation);
+    assert!(
+      !controller.frame(false).busy,
+      "a scheduled poll is the host's own business: the form stays live"
+    );
+    controller.engage(Exchanged::Answer);
+    assert!(
+      controller.frame(false).busy,
+      "the person's own answer is what disables the option buttons"
+    );
+  }
+
   #[test]
   fn busy_is_false_after_absorbing_a_success() {
     let mut controller = Controller::new();
-    controller.engage();
-    assert!(controller.frame(false).busy, "engage() must set it first");
-    controller.absorb(Exchanged::Evaluation, bare());
+    controller.engage(Exchanged::Answer);
+    assert!(
+      controller.frame(false).busy,
+      "engage(Answer) must set it first"
+    );
+    controller.absorb(Exchanged::Answer, bare());
     assert!(
       !controller.frame(false).busy,
       "absorb() must clear it (F-21)"
@@ -931,12 +957,12 @@ mod busy {
     use goad_shell::host::Failure;
 
     let mut controller = Controller::new();
-    controller.engage();
+    controller.engage(Exchanged::Answer);
     let outcome = Outcome {
       failure: Some(Failure::Backend(BackendError::ExitStatus { code: Some(1) })),
       ..bare()
     };
-    controller.absorb(Exchanged::Evaluation, outcome);
+    controller.absorb(Exchanged::Answer, outcome);
     assert!(
       !controller.frame(false).busy,
       "a failed outcome must clear `engaged` too — the negative control that matters"

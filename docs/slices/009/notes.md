@@ -4786,6 +4786,105 @@ on zero. No fifth finding.
   four of them. That is the same shape `slider`'s three arithmetic slots take
   and it was not revisited here.
 
+### Audit session 2 — repairs
+
+**F-A1 / F-R2 (narrow `busy`) and F-R3 (drain `commands` before the present),
+taken together** — `audit-log.md`'s second entry is the disposition; nothing
+below reopens it.
+
+#### What changed
+
+| file | change |
+|---|---|
+| `controller.rs` | `engage(&mut self, exchanged: Exchanged)` sets `engaged = exchanged == Exchanged::Answer`. One line, plus the doc that was false |
+| `controller.rs` | `serve`'s outer loop drains `commands` through `dispatch` **before** `glass.present`, stopping at the first command that needs an exchange |
+| `pending.rs` | `tick`'s doc gains the clause F-R3 falsified: *the next present* is safe to lean on **because** `serve` drains first |
+| `app.slint` | the `busy` property's comment |
+| `tests/renderer/table.rs` | `mod busy` gains `an_evaluation_does_not_engage_and_an_answer_does` — the pure statement of the narrowing |
+| `tests/renderer/{table,wiring}.rs` | five existing `engage()` calls become `engage(Exchanged::Answer)`; one case renamed, three messages and one doc paragraph corrected |
+| `tests/event_loop_busy/` | new target — the narrowing, with real key events |
+| `tests/event_loop_drain/` | new target — the drain, under the production `serve` |
+
+The drain's shape is the audit's sketch with one change: `match drained { … }`
+trips `clippy::single_match_else`, so it is an `if let … else`. Everything else
+the sketch predicted held — `dispatch` is the right entry point, the
+`refusal_re_arms` argument carries, and the `cancel` bypass is harmless for the
+reason the sketch gives (now written into the comment rather than left to the
+reader).
+
+#### Why the two new cases are in the loop tier, and what each holds
+
+Neither claim is reachable from `tests/renderer/`. `invoke_accessible_default_
+action` dispatches with no `accessible-enabled` check and `set_accessible_value`
+is an assignment plus a call to `edited`, so **no** case driven through the
+accessibility surface can observe an `enabled` binding — measured at the audit:
+deleting any of this slice's five `enabled: !root.busy` bindings leaves the
+whole suite green. Both new cases deliver real `WindowEvent` pointer and key
+events to a laid-out window.
+
+- **`event_loop_busy`** — three readings differing only in what the frame
+  before them carried. Nothing engaged → the key is recorded (the control);
+  `engage(Evaluation)` → recorded (**the claim**); `engage(Answer)` → not
+  recorded (slice 003's double-submit guard, kept). Reads the `edited`
+  callback log *and* the widget's own text.
+- **`event_loop_drain`** — the production topology (multi-thread runtime,
+  `install`, capacity-1 channel, `SlintGlass`, `serve` under `spawn_local`)
+  with the backend **held** rather than spawned: a `Backend` impl handing each
+  exchange a `oneshot` the case releases. Four readings walk the window the
+  defect lived in, and `held` — the debounce map's own size, read on both
+  sides of the tick — is what stops the case measuring an edit the overlay
+  still covered.
+
+**`reasserts`, not the widget's text, is F-R3's discriminator, and the reason
+is worth keeping.** Both presents the old loop made happen inside **one** poll
+of `serve` — `glass.present` is synchronous and the queued `Command::Edit` is
+already ready at the `select!` below it — so the text ends up correct either
+way. What differs is that the guard *runs at each present*, because
+`present` ends in `window.show()` and `WindowInner::show` calls
+`ensure_tree_instantiated`, which runs the change handlers
+(`i-slint-core-1.17.1/window.rs:648-663`, `:1628`). The injection below
+measures it: `reasserts: 2` under the un-drained loop.
+
+#### Injection pass
+
+Each mutation was applied to production code, the target run, the message
+read, the mutation reverted and the revert confirmed by `git diff`.
+
+| # | case | mutation | reading |
+|---|---|---|---|
+| 1 | `event_loop_busy` | `engage` back to `self.engaged = true` | **red** — `busy: true, shown: "", edits: ["…noted=a"]`: the key typed during the evaluation was discarded |
+| 2 | `event_loop_busy` | `enabled: !root.busy` deleted from the text `LineEdit` (`app.slint:480`) | **red** — `edits: [… ,"…noted=c"]`: the key typed while the *answer* was in flight was recorded, so the case holds the binding as well as the flag |
+| 3 | `event_loop_drain` | the drain neutered (`while false && …`), i.e. the old present-first loop | **red** — `reasserts: 2` at reading D, text still `"xy"`: exactly the two guard writes F-R3 predicts, and exactly why the text cannot be the instrument |
+| 4 | `event_loop_drain` | `engage` back to `self.engaged = true` | **red at reading B** — `shown: "x", held: 0`: with the form disabled there is no edit to hold, no tick and nothing to drain |
+
+Green readings: both targets pass with the tree as committed; `just check`
+exits 0 at **595** (592 + one `renderer` unit case + the two loop cases).
+
+#### Noticed in passing
+
+- **`ensure_tree_instantiated` runs change handlers, so `glass.present` runs
+  the guard synchronously.** F-R4 cites the ten-iteration loop for its cost;
+  what it does not say is that the loop's second half is
+  `ChangeTracker::run_change_handlers_once()`. That is why `reasserts` can be
+  read at a step that made no render, and it is the mechanism the whole of
+  F-R3's observability rests on.
+- **Neither new case drives the `Fired::Scheduled` arm**, and it would not add
+  anything if it did: `Fired::Scheduled` dispatches
+  `Command::Evaluate(Stimulus::Scheduled)`, which becomes the same
+  `Pending::Evaluate` and the same `Exchanged::Evaluation` a requested
+  evaluation does. `event_loop_drain` uses `Stimulus::Requested` so the case
+  does not have to wait out `MINIMUM_SPACING` (3 s) for the standing timer.
+- **`tests/renderer/wiring.rs`'s `mod busy` cases engage an *answer* and fold
+  an *evaluation***, which is now a story that cannot happen. Left as it is
+  for `mod busy`'s second case, which needs a real scripted exchange to fold;
+  the two `table.rs` unit cases were made coherent (`absorb(Answer, …)`) since
+  they fold a constructed `Outcome` and cost nothing.
+- **A held `Backend` in the test tier is new here.** `goad-shell`'s
+  `FakeBackend` is the prior art but answers from a ready future, and it is not
+  reachable from `crates/goad/tests/`. If a third target wants one, that is the
+  moment to put it in `tests/support/`, not before.
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never

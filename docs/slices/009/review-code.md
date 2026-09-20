@@ -228,7 +228,25 @@ frame and the loss is not only a drag: it is an exchange-long deafness, and
 AC-4 is inside its blast radius.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Applied. `Controller::engage` takes the
+`Exchanged` and sets `engaged = exchanged == Exchanged::Answer`
+(`controller.rs`); `serve`'s one call site passes the `exchanged` it already
+computes. `busy` now means *your answer is in flight*, so the form stays live
+through a scheduled poll, a tray check and an ingested event, and the option
+`Button`'s slice-003 double-submit guard fires exactly when it was written to.
+Corrected with it: `engage`'s doc and its F-21 argument, `Frame::busy`'s, the
+`Controller` struct's, the inline comment at the busy present, and
+`app.slint`'s `busy` comment.
+
+Measured where it can be: `tests/event_loop_busy/` delivers a **real** key
+event to a focused `LineEdit` in a laid-out window under three frames —
+nothing engaged (the control), an evaluation in flight (the claim), an answer
+in flight (the contract kept) — because, as this finding establishes, no case
+driven through the accessibility surface can see an `enabled` binding at all.
+`tests/event_loop_drain/` makes the same claim through the production `serve`
+with a real exchange outstanding. Injection: `engage` reverted to
+`self.engaged = true` reddens both. `notes.md` §*Audit session 2* has the
+readings.
 
 **Outcome:**
 
@@ -595,7 +613,22 @@ on a popup item inside `std-widgets`, and 6 is a binding this project never
 wrote. Both have to be answered explicitly or the class is fixed in name only.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Applied with F-A1 — they are one repair and
+one line. Sites 1-4 and 7 are answered by the narrowing: 1-4 are no longer
+disabled by an exchange the person did not start, and 7 disables exactly for
+the answer it guards, which is what it was written for. Its `enabled:
+!root.busy` is untouched, as this finding argues it should be.
+
+Sites 5 and 6 are **not** answered here and are not claimed to be:
+`audit-log.md` records 5 as unreachable after the narrowing (a click cannot
+reach a button beneath an open dropdown) and 6 as F-R1's, which lands with
+F-R1's repair.
+
+Held by a new case in each tier: `renderer/table.rs`'s
+`an_evaluation_does_not_engage_and_an_answer_does` for the flag, and
+`tests/event_loop_busy/` for what it costs a person — the latter reddens both
+when `engage` is reverted **and** when the text `LineEdit`'s `enabled` binding
+is deleted, so it holds the markup as well as the controller.
 
 **Outcome:**
 
@@ -895,7 +928,33 @@ the channel. Or, cheaper, assert `reasserts == 0` across that present, which is
 AC-5's own instrument.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Applied. `serve`'s outer loop now drains
+`commands` through the existing `dispatch` **before** `glass.present`,
+applying every queued command that resolves without an exchange and stopping
+at the first that needs one. `refusal_re_arms` is `false` for a drained
+command by construction; the drain bypasses the outer `biased`
+`cancel.stopped()` arm for one command, which is harmless because the inner
+`select!` a drained `Choose` lands in is `biased` on `cancel.stopped()` too
+and so drops `call` before the backend is polled — written into the comment
+rather than left to the reader. `pending.rs`'s *"the guard corrects the widget
+on the next present"* is corrected in place: it is true again, and it is the
+drain that makes it so.
+
+**The sub-claim this finding left open is settled, and against the finding's
+headline.** Both presents happen inside one poll of `serve`, so the widget's
+text ends up correct either way and the cost is AC-5's, not AC-4's — exactly
+as the audit's re-reading predicted. What makes it observable at all is that
+`glass.present` ends in `window.show()`, whose `ensure_tree_instantiated` runs
+the change handlers (`i-slint-core-1.17.1/window.rs:648-663`), so the guard
+runs synchronously at each present: the un-drained loop writes the pre-typing
+value back and then writes the typed value back, and `reasserts` counts both.
+
+`tests/event_loop_drain/` is the case, under the production topology with the
+backend held by a `oneshot` rather than by a `sleep`. It reads the debounce
+map's size on both sides of the tick, so it cannot pass while measuring an
+edit the overlay still covered. Injection: the drain neutered gives
+`reasserts: 2` at the reading after the fold, with the text still correct —
+which is both the defect and the reason the text is not the instrument.
 
 **Outcome:**
 

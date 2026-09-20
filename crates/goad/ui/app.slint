@@ -125,7 +125,11 @@ export component PromptWindow inherits Window {
   in property <[FieldValue]> values;     // state: rewritten every present, indexed by `slot`
   in property <int> epoch;               // bumped every present; the guard's only trigger
   in property <bool> body-degraded;
-  in property <bool> busy;               // an exchange is in flight; controls disabled
+  // **The person's own answer is in flight** — not merely that the host is
+  // talking to the backend. A disabled item *discards* input rather than
+  // queueing it, so this may not be true for a scheduled poll: it would eat
+  // the characters typed during one (`controller::Controller::engage`).
+  in property <bool> busy;               // controls disabled
 
   // **Instruments, in production markup deliberately** (design.md §7 D15). A
   // test-only copy of the field markup would be a parallel implementation of

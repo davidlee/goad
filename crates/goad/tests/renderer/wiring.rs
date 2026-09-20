@@ -473,9 +473,12 @@ mod busy {
     let mut controller = Controller::new();
     with_room_for_every_control(&window);
 
-    controller.engage();
+    controller.engage(Exchanged::Answer);
     glass.present(controller.frame(false));
-    assert!(window.get_busy(), "the exchange must be shown in flight");
+    assert!(
+      window.get_busy(),
+      "the person's own answer must be shown in flight"
+    );
 
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Evaluation, outcome);
@@ -500,7 +503,7 @@ mod busy {
     controller.absorb(Exchanged::Evaluation, outcome);
     glass.present(controller.frame(false));
 
-    controller.engage();
+    controller.engage(Exchanged::Answer);
     glass.present(controller.frame(false));
     assert!(window.get_busy());
     // The direction that discriminates, and the one this case's own name
@@ -1810,11 +1813,15 @@ mod editing {
   /// checkbox through `field_described` keeps this one at the screen rather
   /// than the row model.
   ///
-  /// What this protects is `design.md` §5.4: the window is inert exactly while
-  /// `serve`'s outer loop is not reading commands, so the one-slot command
-  /// channel is never asked to hold two edits at once.
+  /// What this protects is slice 003's double-submit guard: the option button,
+  /// and the fields that would be answered with it, are inert exactly while
+  /// **the person's own answer** is in flight. Not while *any* exchange is —
+  /// `busy` was narrowed at slice 009's audit (`review-code.md` F-A1, F-R2),
+  /// because a disabled item discards input rather than queueing it, so
+  /// holding the form inert for a scheduled poll ate the characters typed
+  /// during one.
   #[tokio::test]
-  async fn both_controls_are_disabled_while_an_exchange_is_in_flight_and_enabled_after_it() {
+  async fn both_controls_are_disabled_while_the_answer_is_in_flight_and_enabled_after_it() {
     let (window, tray) = window_and_tray();
     let mut glass = glass_over(&window, &tray);
     with_room_for_the_form(&window);
@@ -1832,12 +1839,12 @@ mod editing {
         .accessible_enabled()
     };
 
-    controller.engage();
+    controller.engage(Exchanged::Answer);
     glass.present(controller.frame(false));
     assert_eq!(
       enabled(&window),
       Some(false),
-      "a checkbox must be inert while the host is mid-exchange"
+      "a checkbox must be inert while the person's own answer is in flight"
     );
     assert_eq!(
       accessible_enabled_of(&window, "morning"),
@@ -1851,7 +1858,7 @@ mod editing {
     assert_eq!(
       enabled(&window),
       Some(true),
-      "and live again once the exchange has landed"
+      "and live again once the answer has landed"
     );
     assert_eq!(accessible_enabled_of(&window, "morning"), Some(true));
   }

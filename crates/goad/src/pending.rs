@@ -192,6 +192,16 @@ impl Debounce {
   /// offered again on the next tick. That is why `Wire::send` reports at all
   /// (`design.md` §5.1, §5.2).
   ///
+  /// **What makes *the next present* safe to lean on is the drain, and
+  /// nothing else** (`review-code.md` F-R3). Between the enqueue here and
+  /// `serve` serving that command, the value is held by neither this map nor
+  /// the draft, so a present landing inside that interval would write the
+  /// pre-typing value back over the widget. `serve` closes the interval from
+  /// its end: it applies every queued command that resolves without an
+  /// exchange **before** it presents, so the next present is never one that
+  /// has not yet served this send. The rule below is about the enqueue; the
+  /// drain is what makes the enqueue enough.
+  ///
   /// The borrow is dropped before the send and taken again after it. Nothing
   /// re-enters this module from a `try_send` today, and the shape says so
   /// rather than relying on it.
