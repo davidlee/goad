@@ -34,8 +34,18 @@ goad-shell     = { path = "crates/goad-shell" }
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
 jiff       = { version = "0.2", default-features = false }
-tokio      = { version = "1",
-               features = ["process", "time", "rt", "io-util", "macros"] }
+# **One line, and it must stay one line.** crane parses every manifest in the
+# workspace with `builtins.fromTOML` — unconditionally, in `cleanCargoToml`,
+# to build its dummy source — and that parser (Lix 2.95.2) implements TOML 1.0,
+# in which a newline inside an inline table is not legal; it is TOML 1.1, which
+# cargo accepts. Split across two lines, this entry fails `nix build .#goad`
+# at **evaluation**, before anything compiles: *toml::parse_inline_table:
+# missing closing bracket `}`* (006 S-1). Supplying `pname`/`version`
+# explicitly is not a workaround — the dummy-source derivation still parses it.
+#
+# `just check` cannot see a re-split, because cargo accepts both spellings.
+# This comment is the only thing at this site that can.
+tokio      = { version = "1", features = ["process", "time", "rt", "io-util", "macros"] }
 
 # Backend configuration parsing. The gating key it carried is gone with the
 # `shell` feature it belonged to: that key is not meaningful in

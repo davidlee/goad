@@ -95,11 +95,15 @@ STOP and consult rather than improvise:
 **Tasks**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
 
-- [ ] T-1 — EX-1, first and alone: join the `tokio` entry onto one line, add
+- [x] T-1 — EX-1, first and alone: join the `tokio` entry onto one line, add
       the comment saying why it must stay there (S-1: `builtins.fromTOML` is
       TOML 1.0; a newline inside an inline table is TOML 1.1, and `just check`
       cannot see a re-split). `just check` exits 0. **Commit before the flake
       is touched.**
+      *Done.* `just check` exits 0 in 21s with the entry joined, and
+      `nix eval --impure --expr '(builtins.fromTOML (builtins.readFile
+      /home/david/dev/goad/Cargo.toml)).workspace.package.version'` now returns
+      `"0.1.0"` where S-1 recorded a parse error. Commit `<t1>`.
 - [ ] T-2 — VA-1: `nix eval .#packages.x86_64-linux.goad.drvPath` returns,
       where S-1 failed. Record the output.
 - [ ] T-3 — EX-2..EX-5: the flake. crane via `crane.mkLib pkgs |>
