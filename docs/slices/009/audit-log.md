@@ -478,3 +478,70 @@ would be substantiating a mechanism on half its evidence — the failure
 **The class is worth keeping** and is the harvest item: *a repair that removes a
 redundant write also removes the self-healing that redundancy was accidentally
 providing.* F-R5 was right; this is its unpriced half.
+
+## 2026-09-20 — VH-2 completed, and the two things its last observation turned up
+
+VH-2 is discharged in full: observations 5, 6, 8 and 9 in run 2 and observation
+10 in run 3, all with `goad.service` stopped so run 1's two-host confound could
+not recur. `notes.md` §VH-2 holds what was seen, in the user's words. **AC-2,
+AC-3, AC-8, AC-9 and CD-1 all read positive**, and `F-R1` and `F-P2` are
+confirmed on a person.
+
+Observation 10 passed on evidence the orchestrator had framed wrongly twice,
+and both corrections came from the run rather than from reasoning: the cadence
+after a refusal is `default_poll`, not the delay (**SPEC-001/R-29**, R-26's
+third branch — read back off the screenshot as 08:24:50Z − 30 min = the failure
+instant), and **the diagnostic surface does not accumulate**, so "a refusal line
+every N seconds" was never the shape of the evidence. What says the host carried
+on is that it reports a resolved next check at all.
+
+### The demo's `DELAY=6` path — **fix now**, comment and interval both
+
+The documented knob prepares a person for one line and produces two, then goes
+quiet for thirty minutes. Neither surprise is a host defect: the second line is
+`backend.sh`'s own `sleep` surviving as a **grandchild** holding inherited
+stderr — the exact class
+`goad-shell/tests/integration/transport.rs::a_grandchild_holding_stderr_costs_the_cleanup_budget_and_nothing_else`
+holds — and the silence is `default_poll`.
+
+**Decided: fix both.** `demo.toml`'s `GOAD_DEMO_DELAY=6` comment now names all
+three things to expect and why two of them are not defects, and
+`default_poll` drops from `30m` to **30s** so the host is seen to check again.
+30 s is above the 3 s minimum spacing, so nothing here starts testing the floor
+(SPEC-002 §6), and no test reads this file's value.
+
+The file is reachable by no gate command, which is why this is a decision rather
+than a finding — and is the same reason `backend.sh`'s cadence comment was
+recorded rather than raised.
+
+### `next check (instructed)` — **follow-up**, and priced rather than estimated
+
+The line reports `now + default_poll` — R-26's third branch, which R-26
+distinguishes from an instruction in as many words — under a label that says
+*instructed*. Not an edge case: a backend that never sends `next_check` is
+legitimate (R-26 admits it; **SPEC-002/R-1**'s own verification case is exactly
+that backend), so for such a backend **every** reported check carries the wrong
+attribution. The harm is misdirection at the one moment the line is
+load-bearing: a person debugging *"why isn't my `next_check` taking effect?"*
+is pointed at the wrong side of the boundary, which is what the failure taxonomy
+exists to prevent.
+
+**Two things were established before the disposition, not assumed.**
+
+- **The string predates this slice** — slice 003, `21811b7`, PHASE-04 — so it is
+  outside this review's subject, `a698217..HEAD`.
+- **The fix is not a relabel.** `schedule.rs::resolve` returns a bare
+  `Timestamp`; the branch it took is discarded at the moment it is taken. Making
+  the line honest means `resolve` reporting its branch, threaded through `State`
+  to the diagnostics line — a change to a **pure stratum-1 function**, its
+  callers and its verification.
+
+**And the finding is weaker than it first reads**, which is recorded because the
+severity turns on it: `SPEC-002` §6 and `diagnostics.rs::next_check_line`'s doc
+are both entirely about a different axis — *instruction* as against
+**prediction**. On that reading the word is precise about the contrast the spec
+drew and merely silent on provenance, rather than false.
+
+**Decided: `follow-up`.** It carries a spec question — what the line should say
+for each of R-26's three branches — that belongs in SPEC-002 §6 and not in this
+slice's close. Lands in `slice-009.md` §Follow-ups.

@@ -445,15 +445,22 @@ fn a_tick_enqueued_during_an_exchange_survives_the_present_that_follows_it() {
     // seen to fail** (`review-code.md` F-C5). Step 1 to the last step must stay
     // under `controller::MINIMUM_SPACING` — 3 s — or `serve`'s standing timer
     // fires an unplanned evaluation into the middle of the case. Nothing
-    // asserts it. F-B4's re-index kept every interval between readings the same
-    // (B's excepted, halved on purpose) and still made the **run** longer, 17
-    // steps at 50 ms becoming 36 at 25: measured at **~877 ms** (876.9 / 877.2
-    // / 878.3 over three runs on an idle machine), against 799 ms before, so
-    // the margin fell from 3.75x to 3.42x. F-B4's *"at no wall-clock
-    // cost"* was true of the intervals and not of the total, which is the
-    // distinction to keep: a future change to this schedule is made against
-    // 876.7 ms, not against "no cost". Widening the bound or asserting the
-    // total is the stepper-harness follow-up's business, not this file's.
+    // asserts it. F-B4's re-index — 17 steps at 50 ms becoming 36 at 25 — did
+    // **not** hold the intervals between readings, and the run got longer
+    // *because* of that rather than despite it: **B to C grew from 3 steps
+    // (150 ms) to 9 (225 ms)**, and that +75 ms is the whole of the increase,
+    // the rest cancelling (+25 at the head, −25 into B, halved on purpose).
+    // The same stretch widened C's own margin, from 4 steps after the key
+    // (200 ms, 1.33x `DEBOUNCE`) to 10 (250 ms, 1.67x) — which is where the
+    // *total's* margin went, 3.75x to 3.42x.
+    //
+    // Measured on two independent instruments at **875-878 ms** against 799 ms
+    // before — 876.9 / 877.2 / 878.3 (F-C5) and 876.1 / 875.6 / 874.9 (F-D4),
+    // both on an idle machine. A future change to this schedule is priced
+    // against ~877 ms and a 3.4x margin, not against F-B4's *"at no wall-clock
+    // cost"*, which was true of the intervals and not of the total. Widening
+    // the bound or asserting the total is the stepper-harness follow-up's
+    // business, not this file's.
     step += 1;
     match step {
       4 => click_line_edit(&stepped, "noted"),

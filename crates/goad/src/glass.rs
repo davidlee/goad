@@ -229,8 +229,8 @@ impl Glass for SlintGlass {
     // never runs against stale values. `present` is synchronous, so no test and
     // no person can observe a state between these statements; only a statement
     // that **latches** the transient could make the order matter, and the one
-    // candidate is `set_vec`'s instantiation pass. All six `init` handlers are
-    // `root.inits += 1`.
+    // candidate is `set_vec`'s instantiation pass. Every `init` handler in
+    // the markup is `root.inits += 1` and reads nothing.
     //
     // **So the rule this comment exists to state is forward-looking: no `init`
     // handler may read `root.values`.** One that seeded itself at init — the
@@ -715,10 +715,13 @@ fn model<T: Clone + 'static>(items: Vec<T>) -> ModelRc<T> {
 /// rebuilds every repeated element, on every present, for as long as the pane
 /// is up (`review-code.md` F-C6).
 ///
-/// The comparison is `row_count` then element-wise, which is the same work
-/// `set_vec` would do allocating the replacement — so the guard costs nothing
-/// on the path where it does write, and saves the rebuild on the path where it
-/// does not.
+/// The comparison is `row_count` then element-wise. That is **not** free on
+/// the writing path: `set_vec` is a move into the `RefCell` plus
+/// `notify.reset()`, so it allocates nothing and touches no element, and the
+/// comparison is work added rather than shared. The trade is deliberate — one
+/// pass over the lines on the path that writes, against destroying and
+/// rebuilding every element on the path that would not have needed to
+/// (F-D6).
 fn write_if_changed(model: &VecModel<SharedString>, lines: Vec<SharedString>) {
   let unchanged = model.row_count() == lines.len()
     && lines

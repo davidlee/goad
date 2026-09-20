@@ -1307,8 +1307,8 @@ async fn a_text_field_draws_a_line_edit_and_the_option_still_answers() {
 /// sending a command, and this target runs under `init_no_event_loop`, so the
 /// timer never fires. **No present occurs between the readings**, and the
 /// equality is guaranteed by the executor rather than by D8. Mutation-confirmed:
-/// delete the `if self.shown != showing` guard at `glass.rs:269` so every
-/// present destroys every field element, and this case still passes.
+/// delete the `if self.shown != showing` guard in `SlintGlass::present`, so
+/// every present destroys every field element, and this case still passes.
 ///
 /// It is kept, because the *draft and wire* half above is real and is this
 /// case's actual subject. What it does not carry is AC-4's element half.

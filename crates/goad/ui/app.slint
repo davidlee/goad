@@ -934,10 +934,11 @@ export component PromptWindow inherits Window {
                   // `init` here for the same reason the six on the prompt
                   // side carry one (§7 D15): a repeated element destroyed and
                   // rebuilt runs `init` again, and that is the only way its
-                  // identity is observable. This repeater is the one consumer
-                  // of model identity that has no `ChangeTracker` behind it,
-                  // so `inits` is the only instrument that reaches it
-                  // (`review-code.md` F-B9, F-C6).
+                  // identity is observable. No repeater in this file has a
+                  // `ChangeTracker` behind it — the only `changed` handlers
+                  // here are on `tick`, a property — so for a repeater `inits`
+                  // is the only instrument there is
+                  // (`review-code.md` F-B9, F-C6, F-D5).
                   for line[index] in root.diagnostic-lines: Text {
                     text: line;
                     wrap: word-wrap;

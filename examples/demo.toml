@@ -14,16 +14,38 @@ timeout = "5s"
 #                                  through, and watch — the host stays live
 #                                  through an evaluation and disables the form
 #                                  only while *your own answer* is in flight
-#   GOAD_DEMO_DELAY=6 just demo    past the timeout above: the exchange is
-#                                  refused, the refusal reaches the diagnostic
-#                                  surface, and the host checks again
+#   GOAD_DEMO_DELAY=6 just demo    past the timeout above. Three things to
+#                                  expect, because two of them read as defects
+#                                  and are not:
+#                                    - `no action taken: backend did not
+#                                      respond within 5000ms` — the refusal,
+#                                      on the diagnostic surface
+#                                    - `cleanup unverified: …within 500ms` —
+#                                      this backend's `sleep` is a *grandchild*
+#                                      of the host holding inherited stderr, so
+#                                      it outlives the `bash` the host kills.
+#                                      The host's, not the backend's, and
+#                                      bounded (`CLEANUP_LIMIT`)
+#                                    - the reported next check jumps by
+#                                      `default_poll` below, not by the delay:
+#                                      a failed exchange accepts no instruction
+#                                      and resolves as if none arrived
+#                                      (SPEC-001/R-29, R-26's third branch).
+#                                      The diagnostic surface shows only the
+#                                      most recent frame, so what says the host
+#                                      carried on is that it reports a next
+#                                      check at all
 #
 # It is not a protocol feature. It is in the demo backend because the things
 # worth watching here are host behaviours during an exchange, and an exchange
 # that completes in milliseconds cannot be watched.
 
 [schedule]
-default_poll = "30m"
+# Short on purpose: a person watching `GOAD_DEMO_DELAY=6` must see the host
+# check *again* after a refusal, and at the 30 minutes a real configuration
+# would use, the demo looks like it stopped. Above the 3 s minimum spacing
+# (SPEC-002 §6), so nothing here is testing the floor.
+default_poll = "30s"
 
 # The event-ingress socket. With `just demo` running, emit an envelope from a
 # second shell:

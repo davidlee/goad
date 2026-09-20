@@ -221,9 +221,11 @@ mod transitions {
   /// — which is why a count taken here reads this repeater and nothing else.
   ///
   /// **What makes it non-vacuous, and it is the whole reason this case
-  /// exists.** The repeater is the one consumer of model identity with no
-  /// `ChangeTracker` behind it, so no `changed` handler reaches it and the
-  /// element counter is the only instrument that does. F-B9's repair retained
+  /// exists.** No repeater has a `ChangeTracker` behind it — `app.slint`'s
+  /// only `changed` handlers are on `tick` — so no `changed` handler reaches
+  /// this one and the element counter is the only instrument that does. The
+  /// uniqueness this sentence used to claim was false (F-D5); what it needs,
+  /// and what holds, is that nothing else reaches it. F-B9's repair retained
   /// the `VecModel` — which closes the *pointer* path — and left the write
   /// unguarded, which leaves the *mutation* path open: `set_vec` ends in
   /// `notify.reset()` and a `RepeaterTracker`'s `reset` clears every instance
@@ -557,9 +559,10 @@ mod busy {
 
     // **`Answer`, to match the `engage` above.** `serve` computes
     // `exchanged = pending.exchanged()` once and hands the same value to
-    // `engage` and to `absorb`, so the pair never diverges in production. It changes no `Shift` here — `reduce` folds
-    // both the same way — but a case that pairs them differently from `serve`
-    // is arranging something `serve` does not do.
+    // `engage` and to `absorb`, so the pair never diverges in production. It
+    // changes no `Shift` here — `reduce` folds both the same way — but a case
+    // that pairs them differently from `serve` is arranging something `serve`
+    // does not do.
     let outcome = backend.evaluate(now(), quiet_event(now())).await;
     controller.absorb(Exchanged::Answer, outcome);
     glass.present(controller.frame(false));

@@ -380,7 +380,7 @@ fn a_block_of_two_fields_renders_a_control_for_each() -> TestResult {
 /// given (`docs/memory/a-green-test-can-assert-a-proxy.md`).
 ///
 /// The `Rc<VecModel<_>>` must be held and reset, exactly as
-/// `SlintGlass::present` does (`glass.rs:159-162`). A test handing a fresh
+/// `SlintGlass::present` does for `self.options`. A test handing a fresh
 /// `ModelRc` to `set_options` each time exercises nothing.
 #[test]
 fn a_model_reset_re_establishes_a_fields_checked_value() -> TestResult {

@@ -226,7 +226,7 @@ fn logged_request(log: &Path, n: usize) -> serde_json::Value {
 /// A `Glass` that counts presentations and delegates to the **real** one.
 ///
 /// It wraps `SlintGlass` rather than replacing it because the cost
-/// `review-design.md` F-15 names is `glass.rs:67-121`'s own work — eleven
+/// `review-design.md` F-15 names is `SlintGlass::present`'s own work — eleven
 /// window properties, two `VecModel` rebuilds, the tray image and the tooltip,
 /// `show()`/`hide()` — and a stub would measure none of it. `Rc<Cell<usize>>`
 /// is enough: `serve`'s `G` is not required to be `Send`.

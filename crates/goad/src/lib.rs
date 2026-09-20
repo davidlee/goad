@@ -39,8 +39,9 @@
 // **No claim is made here about how many of those arms read the matched
 // variant**, and the omission is deliberate. Two attempts at that sentence have
 // now been wrong, in opposite directions (`review-code.md` F-T3 and its
-// contest): the second called `ingress/mod.rs`'s `other => InvalidEnvelope(other)`
-// an arm that chooses no behaviour from the variant, when `Refusal::reason`
+// contest): the second called `ingress/mod.rs`'s
+// `other => InvalidEnvelope(other)` an arm that chooses no behaviour from the
+// variant, when `Refusal::reason`
 // splits `InvalidEnvelope(ReservedSource)` from every other and the variant
 // therefore reaches the wire. The axis is not load-bearing — the decision is
 // about the cost of widening the deny, which the count establishes on its own —

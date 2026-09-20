@@ -4793,6 +4793,91 @@ gate command and the sentence is approximately right about the interval — but 
 is recorded here, and it is a candidate for the same symbol-over-number
 discipline `F-C2` landed.
 
+**VH-2 — run 2: observations 5, 6, 8 and 9, and one spelling worth recording**
+
+**2026-09-20, session 7.** `systemctl --user stop goad.service` first, which
+removes run 1's confound. The user ran
+`GOAD_DEMO_PULSE=1 GOAD_DEMO_DELAY=3 just demo`, held a picker open, and
+answered one form. **Four more observations discharged; only 10 remains.**
+
+**What was observed.**
+
+| # | observed | criterion | reading |
+|---|---|---|---|
+| 5 | the picker held open across two presents, and survived them | **F-R1** | positive |
+| 6 | `pages: 0.0` | **AC-9**, **F-P2** | positive |
+| 8 | `mood: "good"` | **AC-2**, **AC-8** | positive — the alternative's **id**, not the label `Good` |
+| 9 | `when: 1970-…` | **CD-1**, now canon | positive |
+| — | the submission round-tripped at all | **AC-3** | positive |
+
+**`0.0` is the wire being honest, and is not a fourth screen/wire divergence.**
+`serde_json` spells every `f64` with a decimal point, so the JSON number zero
+reaches the backend as `0.0`; `view_model.rs::spelled` is `f64::to_string`, so
+the same value reads `0` on screen. Recorded because the observation table
+(above) says *"submits `0`"* and a later reader comparing the two strings would
+otherwise have a divergence to explain. What **AC-9** and **F-P2** required is
+that a cleared *unbounded* `number` submits **zero** — not its minimum, which is
+the bounded case `design.md` §5.5 I-H gained a clause for, and not an empty
+string.
+
+**VH-2 — run 3: observation 10, and two things in one screenshot**
+
+**2026-09-20, session 7.** `GOAD_DEMO_DELAY=6 just demo`, past `demo.toml`'s
+5 s timeout. **VH-2 is complete: all ten observations discharged.** What the
+diagnostic surface showed:
+
+```
+Diagnostics
+next check (instructed): 2026-09-20T08:24:50Z
+
+no action taken: backend did not respond within 5000ms
+cleanup unverified: backend was not disposed of within 500ms
+```
+
+**Observation 10 passes, and the evidence is the next-check line rather than a
+stream of refusals.** The orchestrator's framing of the expected result was
+wrong twice and both corrections came from the run:
+
+- **The cadence is the default poll, not the delay.** A failed exchange accepts
+  no instruction and resolves as if none arrived — `SPEC-001/R-29`, and R-26's
+  third fallback is `now + default_poll`. `demo.toml` sets `default_poll =
+  "30m"`. The failure instant reads back off the screenshot: 08:24:50Z − 30 min
+  = **07:54:50Z**, against a wall clock of 07:55:48Z when the shot was checked.
+  R-29's *"an elapsed one is consumed for the default poll from the instant of
+  the failure"*, observed on a person's screen.
+- **Diagnostics do not accumulate** (the user's correction). The surface shows
+  the most recent frame's lines only, so "a new refusal line every N seconds"
+  was never the shape of the evidence. What says the host carries on is that it
+  **retains and reports a resolved next check** at all.
+
+**The `cleanup unverified` line is the shell backend's shape, not a host
+defect.** `backend.sh:55` is `sleep "$GOAD_DEMO_DELAY"` — a child of `bash`,
+therefore a **grandchild** of the host, holding the stderr it inherited. The
+host kills `bash` at the timeout; the `sleep` outlives it and the disposal
+cannot be verified inside `CLEANUP_LIMIT`. That is the exact class
+`goad-shell/tests/integration/transport.rs::a_grandchild_holding_stderr_costs_the_cleanup_budget_and_nothing_else`
+holds, down to `CleanupFailure::TimedOut { after: CLEANUP_LIMIT }`.
+
+**Two things recorded here for disposition, neither a slice-009 code defect.**
+
+1. **`demo.toml`'s `GOAD_DEMO_DELAY=6` comment names only the refusal.** A
+   person following it sees a **second** line they were not told to expect,
+   which reads as a host defect and is the backend leaving a grandchild; and
+   then sees nothing for thirty minutes, which reads as the host having
+   stopped. Same class as `backend.sh`'s wrong cadence comment: a documented
+   demo knob whose output is not what the comment prepares a person for. Both
+   files are reachable by **no** gate command.
+
+2. **`next check (instructed)` is false in this state, and predates this
+   slice.** The value reported is `now + default_poll` — R-26's third fallback,
+   which R-26 distinguishes from an instruction in as many words. No
+   instruction was ever held: with `DELAY=6` every exchange times out, so the
+   first refusal of a fresh process is already in this state. The string is
+   slice **003**'s (`21811b7`, PHASE-04), outside this review's subject
+   (`a698217..HEAD`), so it is recorded rather than raised — but it is a
+   user-facing claim about provenance that is wrong in a reachable and
+   documented state, and `diagnostics.rs:335`'s own doc comment repeats it.
+
 **VH-1 — discharged, and what it found**
 
 **Discharged 2026-09-20.** A person ran the software and answered a five-kind

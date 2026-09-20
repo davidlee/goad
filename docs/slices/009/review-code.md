@@ -3310,6 +3310,262 @@ rediscovered.
 **Outcome:**
 
 
+## § Round 4 findings
+
+Raised by round 4's reviewer over `0b0975b..8731326 -- crates/`, **scoped as a
+verification pass over seven repairs rather than a fresh adversarial round**
+(`audit-log.md`, sixth entry). Every mutation each round-3 Response names was
+re-run and **all thirteen reproduce as recorded**; the gate read exit 0, 30
+`test result: ok` lines summing to 600.
+
+**No behavioural defect, and no `blocker`.** Seven findings, five `minor` and
+two `nit`, every one of them a claim in prose that is false of the tree.
+
+**Its worktree arrived 42 commits stale, at `f352124`** — a clean strict
+ancestor with no unique commits, fast-forwarded with `git merge --ff-only`, all
+readings then taken at `68fa186`. **Third recorded instance** (25, 38, 42).
+`docs/memory/subagent-worktrees-can-be-stale.md` records a one-off; the pattern
+is now at the spawn site and belongs there.
+
+**Two of the reviewer's own sub-claims were corrected at the source by the
+orchestrator before any disposition was priced**, which is
+`docs/memory/verify-the-enumeration-not-the-conclusion.md` working: `F-D3`'s
+enumeration and `F-D5`'s count. Both corrections make the finding stronger, and
+both are stated in the finding rather than left for a Response to inherit.
+
+### F-D1 — `glass.rs`'s I-F comment says "All six `init` handlers"; `F-C6` made it seven
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/src/glass.rs:232`
+
+**Expected.** `docs/memory/a-count-in-a-comment-is-a-claim-nothing-checks.md`,
+and this slice's own three instrument findings. The sentence exists so a reader
+can check the reasoning against the markup.
+
+**Observed.** `grep -c "inits += 1" crates/goad/ui/app.slint` returns **7**. The
+comment says six. `F-C6`'s repair added the seventh — documented in its own
+Response as *"the markup gains the **sixth** `init` handler"*, and the commit
+message repeats it, which is why the sentence one file over went unamended.
+
+The conclusion the sentence supports survives; the count a reader would check it
+against does not. **Same class as `F-C4`, and created the same way** — by the
+commit that closed the finding before it.
+
+**Evidence — run.** `grep -c` at `68fa186`, and the seven sites read.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-D2 — `F-C3`'s re-lettering moved the reopen step and left a cross-reference pointing at the keystroke
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/tests/event_loop_picker/picker.rs:381`
+
+**Expected.** `F-C3`'s Response: *"The schedule's steps and reading letters were
+re-lettered accordingly; the readings destructure by **name**, so a miscount
+fails to compile rather than silently shifting a claim onto the wrong reading."*
+The destructure protects the readings. It does not protect prose that names a
+step number.
+
+**Observed.** Step 15's comment reads *"Reopened for the same reason **step 10**
+reopens"*. Step 10 is `key(&stepped, "y".into())`; the reopen is **step 11**.
+
+**This is the lead the brief named, and it is the only place it landed**: all
+thirteen reading letters check out against the steps they are taken at. What
+moved was a cross-reference in prose, which is the half the destructure cannot
+reach.
+
+**Evidence — run.** The step arms read at `68fa186`; every reading letter
+checked against its step.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-D3 — `F-C6` re-created `F-T4` in the commit that closed `F-C2`, and the class `F-C2` claims to have repaired is not repaired
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/tests/renderer/fields.rs:1310`;
+`crates/goad/tests/renderer/tree.rs:383`;
+`crates/goad/tests/renderer/ingress.rs:229`; `crates/goad/src/main.rs:6`
+
+**Expected.** `F-C2`'s Response: *"A symbol cannot rot the way a line number
+does, so **this is a class repair** rather than a third round of re-numbering."*
+And `F-T4`'s requirement: a locating citation is *"offered so a reader can re-run
+a mutation or find a mechanism"*.
+
+**Observed — one created by the repair's own commit.** `F-C6` added 19 lines of
+doc comment to `SlintGlass::diagnostics`, moving everything below down by 19.
+`fields.rs:1310` says *"delete the `if self.shown != showing` guard at
+`glass.rs:269`"*. The guard is at **`:288`**; `glass.rs:269` is now a line of
+prose inside the picker-dismiss comment. **`F-T4`'s finding verbatim**,
+recreated by the commit whose purpose was to end that class, on a citation round
+3 had just verified. The mutation is still reproducible only because the
+sentence quotes the guard's source text.
+
+**Observed — three more that are wrong today**, all inside `F-C2`'s own stated
+surfaces:
+
+| citation | what the sentence says it locates | where that is |
+|---|---|---|
+| `tree.rs:383` → `glass.rs:159-162` | *"The `Rc<VecModel<_>>` must be held and reset, exactly as `SlintGlass::present` does"* | `:159-162` is the `impl Glass for SlintGlass` doc; the hold-and-reset is `:288-292` |
+| `ingress.rs:229` → `glass.rs:67-121` | `present`'s own work — *"eleven window properties, two `VecModel` rebuilds, the tray image and the tooltip, `show()`/`hide()`"* | `present` is `:176-332`; `:67-121` is the trait method signature, the struct and its `Debug` impl |
+| `main.rs:6` → `lib.rs:35` | the `#![deny(clippy::wildcard_enum_match_arm)]` attribute | the attribute is `lib.rs:52`; `F-T3`'s repair in the same commit moved it four lines further away |
+
+**The reviewer's enumeration is corrected, and the correction widens the
+finding.** It reported these as *"three the enumeration missed"*. Counted at the
+source instead: **about 59 in-repo line citations survive in
+`crates/goad/src` and `crates/goad/tests`** — `main.rs` 15, `install.rs` 7,
+`controller.rs` 5, and a long tail — against the eight instances `F-C2`
+converted. The honest statement is not that three were missed but that **the
+class was never enumerated**: `F-C2` converted the instances the finding listed.
+
+**And the counter-argument is recorded, because the disposition turns on it:**
+not all 59 are convertible. `install.rs:39`, `:65`, `:82` name three closure
+clone sites *inside one function*, which no symbol distinguishes. So the
+residue is smaller than 59 and larger than 3, and nobody has measured it.
+
+**Evidence — run.** `grep -rn '\.rs:[0-9]' crates/goad/src crates/goad/tests`,
+classified against the repo's own filenames to separate in-repo citations from
+vendored ones (`i-slint-*`, `jiff-*`), each in-repo target read at `68fa186`, and
+the three pre-existing ones re-read at `0b0975b` to establish they were already
+wrong. `git log -S` dates them: `fields.rs:1310` from `68cbe90` (round 2's
+repairs), `tree.rs:383` from `f10c032` (PHASE-01), `ingress.rs:229` from slice
+004.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-D4 — `F-C5`'s block explains the 77 ms with a claim the schedule six lines above it contradicts, and carries a fourth figure
+
+**Severity:** `minor` — **run**, instrumented, and arithmetic
+**Location:** `crates/goad/tests/event_loop_drain/drain.rs:444-457`
+
+**Expected.** `F-C5`'s Response: *"the comment now says so, carries the measured
+figure, and says the next schedule change is made against 877 ms."* The block's
+job is to price the next change to this schedule.
+
+**Observed — the explanation is false.** The block says `F-B4`'s re-index *"kept
+every interval between readings the same (B's excepted, halved on purpose) and
+**still** made the run longer"*. Two intervals between readings changed, and the
+growth **is** them rather than incidental to them:
+
+| interval | at `STEP` 50 ms | at `STEP` 25 ms | Δ |
+|---|---|---|---|
+| step 1 → the click | 1 × 50 = 50 | 3 × 25 = 75 | **+25** |
+| key SECOND → B | 1 × 50 = 50 | 1 × 25 = 25 | −25 *(B's, on purpose)* |
+| A → B | 3 × 50 = 150 | 5 × 25 = 125 | **−25** |
+| B → C | 3 × 50 = 150 | 9 × 25 = **225** | **+75** |
+| C → D | 3 × 50 = 150 | 6 × 25 = 150 | 0 |
+
++25 − 25 + 75 = **+75 ms**, which is the whole of 800 → 875 nominal. The run got
+longer *because* B→C was stretched by half. Underneath it, `C` moved from 4
+steps after the key (200 ms, 1.33× `DEBOUNCE`) to 10 (250 ms, 1.67×) — so the
+re-index **widened C's margin**, and that is where the 3.75x → 3.42x erosion
+came from.
+
+**Observed — a fourth figure.** The block states the total as *"~877 ms (876.9 /
+877.2 / 878.3 over three runs)"* and then instructs that *"a future change to
+this schedule is made against **876.7 ms**"*. 876.7 is none of the three and is
+below all of them.
+
+**Evidence — run.** The step arms and `const STEP` read at `68fa186`; the old
+schedule read at `89dc6f1` rather than reconstructed. The total re-measured on a
+second, independent instrument — an `Instant` on the first stepper tick,
+`elapsed()` at step 36, instrumentation reversed and `git status --short`
+verified clean:
+
+```
+MEASURED-TOTAL-RUN 876.125463ms
+MEASURED-TOTAL-RUN 875.595812ms
+MEASURED-TOTAL-RUN 874.934722ms      (load 1.77 on 32 cores)
+```
+
+**The headline is sound and only the account of it is wrong**: two independent
+instruments put the run at ~875–878 ms against a 3 s `MINIMUM_SPACING`, a margin
+of ~3.4x either way.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-D5 — "the one consumer of model identity that has no `ChangeTracker` behind it" — no repeater in the file has one
+
+**Severity:** `minor` — **run**
+**Location:** `crates/goad/ui/app.slint:937-939`, and the sibling sentence at
+`crates/goad/tests/renderer/wiring.rs:224-226`
+
+**Expected.** The sentence is the justification for the sixth — now seventh —
+`init` handler: it says why `inits` is the only instrument that can reach this
+repeater, by asserting the others are reachable another way.
+
+**Observed.** The uniqueness is false. The markup's only `changed` handlers are
+**five `changed tick`**, on a property rather than on any model, so **no**
+repeater in the file has a `ChangeTracker` behind it. The sentence implies the
+other repeaters do.
+
+**The reviewer's count is corrected**: it reported *"three repeaters"*. There are
+**four** — `root.options` (`:357`), `option.blocks` (`:401`), `block.fields`
+(`:446`) and `root.diagnostic-lines` (`:941`). A fifth `for ` match at `:845` is
+a word in a comment.
+
+**The operative conclusion survives**: `inits` *is* the only instrument that
+reaches this repeater. What is false is the reason given for it.
+
+**Evidence — run.** `grep -n "for .* in "` and `grep -n "changed "` over
+`app.slint` at `68fa186`, each match read.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-D6 — `write_if_changed`'s doc attributes work to `set_vec` that `set_vec` does not do, and concludes the guard is free when it is not
+
+**Severity:** `nit` — **reasoned**, against `i-slint-core-1.17.1`
+**Location:** `crates/goad/src/glass.rs`, `write_if_changed`'s doc comment
+
+**Expected.** The sentence prices the guard for the next reader: *"The comparison
+is `row_count` then element-wise, which is the same work `set_vec` would do
+allocating the replacement — so the guard costs nothing on the path where it
+does write."*
+
+**Observed.** `VecModel::set_vec` is `*self.array.borrow_mut() = new.into();
+self.notify.reset();`. `Vec<T> → Vec<T>` through `into()` is a **move**: it
+allocates nothing and touches no element. So `set_vec` does none of the work the
+sentence attributes to it — and the conclusion that follows is wrong in the same
+step: on the path where it does write, the guard's element-wise pass is **added**
+to `set_vec`, not shared with it.
+
+The cost is small and the repair is right; what is wrong is a doc comment
+pricing it by a mechanism that does not exist. This audit has now found that
+shape in `F-C5`, `F-D4` and here.
+
+**Evidence — reasoned.** `set_vec` and `RepeaterTracker::reset` read at the
+vendored source, the same citations `F-C6` used.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-D7 — three comment lines left unwrapped by `F-C2`'s hand edits
+
+**Severity:** `nit` — **run**
+**Location:** `crates/goad/tests/renderer/wiring.rs:560` and two others
+
+**Expected.** The file wraps comments at 78 columns, and `cargo fmt` does not
+reflow a comment, so the wrap is held by hand or not at all.
+
+**Observed.** Replacing a line number with a longer symbol lengthened three
+comment lines past the margin; `wiring.rs:560` is 118 characters.
+
+**Evidence — run.** Column count over the lines `F-C2`'s commit touched.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
 ## What was checked and found clean
 
 A bare "no findings" is unusable, so this is what was checked and what would

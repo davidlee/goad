@@ -378,9 +378,9 @@ fn an_open_picker_does_not_outlive_the_view_it_belongs_to_and_the_form_stays_ans
       }
       15 => {
         read("K back on the form");
-        // Reopened for the same reason step 10 reopens: the hide claim below
-        // is about `hide()`, so it needs a picker that is up for *its* reason
-        // and not one left over from an earlier step.
+        // Reopened, and for the same reason as the earlier reopen: the hide
+        // claim below is about `hide()`, so it needs a picker that is up for
+        // *its* reason and not one left over from an earlier step.
         click_button_described(&stepped, "when");
       }
       16 => {

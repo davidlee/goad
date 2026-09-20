@@ -95,3 +95,8 @@ missing, stop and ask rather than installing it.
 - No code without an accepted plan.
 - Red / green / **refactor**.
 - Stop and consult on anything the design did not settle.
+- **Cite by symbol, never by line number.** `file.rs:120` in a doc comment is
+  wrong the next time anything above it moves. This class has now rotted three
+  times in one slice, twice in the very commit that repaired it. Name the
+  function, the constant or the test. Vendored citations keep their line
+  numbers — they are pinned to an exact version and cannot move.
