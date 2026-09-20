@@ -7,123 +7,127 @@ Written after the last phase is done. Two jobs in one document:
 2. **Reconcile** — make the record true again. The code is what shipped; the
    specs must say so, or the code must change.
 
-## PARTIAL — session 5 checkpoint (2026-09-20)
+## PARTIAL — session 6 checkpoint (2026-09-20)
 
 **Read this before anything else.** The audit is part-done. This section is the
-state of it; it replaces session 4's, and it is deleted when the audit closes.
+state of it; it replaces session 5's, and it is deleted when the audit closes.
 
-### What session 5 finished
+### What session 6 finished
 
-- **Round 2 is complete, both dimensions.** The behaviour dimension's six
-  Outcomes are all **`verified`**, none contested, every mutation re-run against
-  production code rather than read. Its report raised **eight** new findings,
-  `F-B1`–`F-B8`, two `major`. All transcribed in full, with a table row each.
-- **`F-B9` raised by the orchestrator as declared raiser** — the last of the
-  three held-back leads. The other two were found independently: `F-B2` is the
-  `Focus::Diagnostics` picker, measured with a positive control, and `F-B4` is
-  the liveness bound under load, instrumented at the bound. **Two witnesses
-  each, not echoes.**
-- **Thirteen dispositions, every one confirmed with the user** (`audit-log.md`,
-  fifth entry). `F-S5` → **`follow-up`**; `F-B4` **splits**, its margin now and
-  its harness a follow-up; the other eleven `fix-now` or `doc-wrong`.
-- **Two verifications before pricing, and both changed the answer.** F-S5's
-  contest re-ran and **holds** — the suite is green with the `CheckBox` written
-  unconditionally and uncounted. F-T1's proposed closer was measured to *rescale
-  silently*; what landed is a `const` assertion that **fails to compile**
-  instead, which is cheaper and holds more.
-- **All twelve repairs landed, with Responses in the ledger.** Three are
-  injection-passed against the mutation that motivated them: F-B2, F-B1 and
-  F-B6. F-T2's boundary claim is injection-passed too.
+- **Round 3 is complete**, over round 2's twelve repairs, which no one had
+  reviewed. One fresh agent, its own worktree, told to confirm the tree before
+  reading and not to read this file. **Thirteen Outcomes set by re-running every
+  mutation each Response names** — the twelve plus `F-B4`'s margin half —
+  **eleven `verified`, two `contested`**. Six findings, `F-C1`–`F-C6`, two
+  `major`.
+- **`F-T1`–`F-T4`'s Outcomes are set**, which closes session 5's item 2. No
+  finding in this ledger now lacks an Outcome except round 3's own six.
+- **Both contests were confirmed at the source by the orchestrator before they
+  were priced**, not accepted from the report. `F-B9`'s three vendored citations
+  read verbatim at `i-slint-core-1.17.1`; `F-T3`'s counterexample read at
+  `ingress/mod.rs:752` and `Refusal::reason`. Both survived.
+- **Eight dispositions confirmed with the user in one consultation**
+  (`audit-log.md`, sixth entry), including two re-dispositions.
+- **All seven repairs landed**, and the two that produce behaviour are
+  **injection-passed**: `F-C6` (1→2→3 red, 1→1→1 green) and `F-C3` (the
+  unconditional dismiss that had left all fifteen targets green now reddens
+  `event_loop_picker`).
+- **VH-2 is part-run.** Four of ten observations discharged, recorded in
+  `notes.md` §VH-2 in the user's own words.
 
 ### The gate
 
-**Exit 0** at `6993a56`. **30** `test result: ok` lines summing to **599** —
-**564 distinct cases across 22 targets**, with `goad-semantics`' 35 built and
-run twice under two feature configurations (599 − 35 = 564). **599 is a sum,
-not a census**, and is not to be repeated as a count of cases.
+**Exit 0** at this checkpoint. **30** `test result: ok` lines summing to
+**600** — **565 distinct cases across 22 targets**, with `goad-semantics`' 35
+built and run twice under two feature configurations (600 − 35 = 565). **600 is
+a sum, not a census**, and is not to be repeated as a count of cases.
 
-Up from 29 / 597: one new target (`event_loop_answer`) and two new cases (its
-own, and the tray identity case F-R5's repair owed).
+Up from 30 / 599: one new case, `F-C6`'s.
 
 ### What is outstanding, in the order it should be taken
 
-1. **Round 3 is owed, and it is the next thing.** Twelve repairs landed this
-   session and **none has been reviewed**. `AGENTS.md` §*Audit & reconcile*:
-   *"Repeat rounds until the repairs are themselves reviewed and nothing serious
-   remains."* This is not a formality — round 2 found two majors and **contested
-   a repair**, so the trend is not zero and
-   `docs/memory/review-rounds-stop-on-a-measured-trend.md` does not license
-   stopping. The surface: `665dcf3`..`68cbe90`, with `event_loop_answer`,
-   `event_loop_picker`'s four new readings and `glass.rs`'s reordered present as
-   fresh code. Ids `F-C1` onward.
+1. **Round 4, and the user has decided its scope: a verification pass over
+   round 3's seven repairs, not a fresh adversarial round.** Round 3's trend is
+   not zero, so the stopping rule does not apply — but the *shape* changed, and
+   that is what the decision rests on: round 1 was a blocker and six majors of
+   live defect, round 2 two majors about what holds a repair, round 3 **one live
+   defect, one coverage gap with production behaviour separately measured
+   correct, and four claims wrong in prose**. If round 4 returns no code defect,
+   the slice closes. Ids `F-D1` onward.
 
-   **Three things to put in its brief, because they are where this session is
-   most likely to be wrong:**
-   - **`glass.rs`'s present changed order.** The dismiss moved *above*
-     `set_values` and now fires on a surface change. F-B8 is claimed closed
-     **structurally** by that hoist. Have the reviewer settle on its own
-     evidence whether the I-F transient is really closed again, and whether
-     dismissing on every non-prompt present costs anything.
-   - **`F-B9` is not injection-passed and its Response says so.** The case that
-     would hold it is named there. Do not let a reviewer discover that as a
-     finding; let it check whether the named case is the right one.
-   - **`drain.rs`'s schedule was re-indexed wholesale.** Six green runs is not
-     an injection pass. Its three new `const` assertions were checked against
-     `DEBOUNCE` → 400 ms; its *step numbers* were not checked against anything.
+   **Where this session is most likely to be wrong:**
+   - **`F-C6`'s guard is on content and the sibling's is on identity.** The
+     reason they differ is written beside both, but nothing holds it. A reading
+     that asserted the *sibling* still rebuilds only on a view change would be
+     the missing converse — the same shape as `F-C3`.
+   - **`F-C3`'s re-lettering moved every reading from D onward.** The
+     destructure is by name so a miscount cannot compile, but a reading whose
+     *letter* moved while its claim did not is exactly `drain.rs`'s F-B4/F-C4
+     failure one file over. Check the labels against the steps.
+   - **`F-C2` repaired a class with a discipline, not an instrument.** Nothing
+     enforces symbol-over-line-number. The residue is stated in the finding; it
+     is not held.
 
-2. **Four Outcomes have no raiser to return to** — `F-T1`–`F-T4`'s dimension
-   closed. Round 3 sets them, or the orchestrator does as declared raiser, on
-   the split the user already decided (`review-code.md`, §Findings).
+2. **VH-2, observations 5-10 — and they carry five criteria.** Not run: the
+   picker across two presents (`F-R1`), `Mood` untouched (**AC-2**, **AC-8** —
+   the wire must carry the alternative **id** `"good"`, not the label), `Pages`
+   cleared (**AC-9**, and `F-P2`), `When` untouched (**CD-1**, now canon), and
+   the `DELAY=6` timeout. **AC-3** rides on the same submission. One form
+   answered and one restart discharges all of them.
 
-3. **Re-walk AC-4 and AC-5.** The table still reads both **NOT MET**, which was
-   true when written. Re-walk against the repairs — **do not edit it on the
-   strength of them**. Note that F-B2 and F-B1 both bear on AC-4 now, and that
-   both criteria's remaining halves (a caret, a drag) are observable by **no
-   tier** and wait on VH-2.
+   **Stop `goad.service` first** — `systemctl --user stop goad.service`. It is
+   `enabled`, it returns with the session, and it put a second host and a second
+   tray icon into run 1.
 
-4. **VH-2.** The user has undertaken to run it before close. The rig is
-   committed: `GOAD_DEMO_PULSE=1 GOAD_DEMO_DELAY=3 just demo`, and `notes.md`
-   §VH-2 carries ten observations, each naming what it settles and what failure
-   looks like. Record what was **observed**, not that it was run.
+3. **Re-walk AC-4 and AC-5.** The table still reads both **NOT MET**. VH-2 run 1
+   gives each its **first positive reading** — the redraw flash gone, the drag
+   surviving, the caret holding. Re-walk against those readings and against the
+   repairs; **AC-6 also now has a human-tier reading** and its row should say so.
 
-5. **Verdict, Closure, Summary, Follow-ups**, none written.
-   `slice-009.md` §Follow-ups must carry **F-R4**, the **slider quantisation**
-   follow-up (`audit-log.md`, first entry), **F-S5** and **F-B4's harness
-   half**. **Harvest → `docs/memory/` is not started** and the Harvest is ~120
-   items; it wants its own pass.
+4. **Verdict, Closure, Summary, Follow-ups**, none written. `slice-009.md`
+   §Follow-ups must carry **F-R4**, the **slider quantisation** follow-up,
+   **F-S5**, **F-B4's harness half**, and now **the tray icon's missing
+   re-assertion path** (`audit-log.md`, sixth entry).
+
+5. **Harvest → `docs/memory/` is not started**, ~120 items plus sessions 5 and
+   6. It wants its own pass and should not be the tail of another.
 
 ### What not to rediscover
 
-- **A repair can be wrong about what it holds, exactly as a finding can.** F-S5
-  is the fourth instance and the first where it was the *repair*. Verified again
-  this session on a quiet machine.
-- **Verify a proposed instrument before pricing it.** Twice this session, and
-  both times the proposal was worse than what verification produced: F-T1's
-  derivation would have rescaled silently, and F-B4's *smaller* margin turned out
-  to be the safe one.
-- **A margin's size does not say which direction load moves it.** `drain.rs`'s
-  1.33x is safe under load and its 3.0x is not. Read the bound, not the ratio.
-- **Interaction identity is the host's, not the controller's.** A view handed
-  straight to `Controller` is one `goad-shell` never issued, and a `Choose`
-  against it is refused *"no interaction is outstanding"*. Found by building
-  F-B1's case, not by reading.
-- **Three properties are real, unheld, and not expressible as a case** — I-F
-  (F-S7), one-edit-per-tick (F-S6), and PHASE-06/EX-3's refusing-`interpret`
-  clause. Reaching for a case is the wrong move for all three.
-- `examples/shell/backend.sh` and `examples/demo.toml` are reachable by **no
-  gate command**. Check them by hand after editing.
+- **A repair can be wrong about what it holds, and the Response can name the
+  case that would have caught it.** `F-B9`'s Response was honest that it was not
+  injection-passed and named the case; **the residue was the defect**, and the
+  named case caught it on the first run.
+- **Verify before pricing — six times now**, and this session it changed two
+  answers and caught one of its own instruments. The first attempt at `F-C5`'s
+  measurement declared the clock **inside the per-tick closure**, so it reset
+  every tick and read 90 ns. A number is not measured until the instrument is.
+- **A negative control must compile.** `F-C6`'s first injection removed the
+  guard outright and failed on `unused import: Model` — which greps the same as
+  a pass. Rewritten as *compute and ignore*.
+- **A claim nothing checks, restated, goes wrong again.** `F-T3`'s sentence was
+  wrong twice in opposite directions. The third version **makes no claim on that
+  axis** and says why.
+- **A present that disturbs nothing is invisible**, and this session's own
+  repairs removed the two things that had made the pulse visible (F-R5's tray
+  push, F-B9's repeater rebuild). Settle "is it firing?" from **outside** — the
+  backend subprocess PID cycles once per firing.
+- `examples/shell/backend.sh` and `examples/demo.toml` are reachable by **no**
+  gate command. `backend.sh`'s *"about every three seconds (R-4 floors it)"* is
+  wrong on both halves — the cadence is four and the backend's instruction is
+  what binds — recorded in `notes.md` §VH-2, not raised.
 - Still standing: **`Alternatives::first` cannot panic**, **`R-58`'s MUST holds
   structurally**, **`pending.rs`'s map is bounded and its timer terminates**,
   and **slint 1.18.0 fixes none of this slice's defects**.
 
 ### The budget
 
-Five sessions planned, five spent. **Session 6 takes round 3 and its repairs;
-session 7 takes the AC re-walk, VH-2, the close and the Harvest.** That is the
-shape `docs/memory/audit-stage-needs-its-own-budget.md` predicts — the rounds
-on the *repairs* are about half the cost — and this session is its third
-confirmation. The Harvest lift alone is worth planning for and should not be
-the tail of another pass.
+Seven sessions, six spent. **Session 7 takes round 4, the AC re-walk, the close
+and the Harvest** — and it can only do that if VH-2's remaining six observations
+are run, because three of the criteria wait on them. If the Harvest cannot be
+given a real pass inside session 7, it is better taken as an eighth than done
+tired: `docs/memory/audit-stage-needs-its-own-budget.md` has now been confirmed
+four times.
 
 ## Brief
 
