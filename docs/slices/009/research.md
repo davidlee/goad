@@ -475,13 +475,21 @@ The measured guard stays.
 `~/.local/src/slint/docs/development/` is a slint source checkout's internals
 documentation. Five of its seventeen files bear on this slice's findings.
 
-**Read the version caveat first.** The checkout is `v1.17.0-1435-g88c5e6a32` —
-1435 commits past the `v1.17.0` tag. This workspace pins `=1.17.1`
-(`Cargo.toml:54-56`), a patch release off that same tag. **The docs therefore
-describe a tree newer than the one that ships here.** They are good for
-*mechanism and intent*; where they and the vendored 1.17.1 source disagree, the
-vendored source is what runs, and every finding in `review-code.md` cites the
-vendored source rather than these files.
+**Read the version note first, and then the way round it.** The checkout is at
+`v1.18.0` (released 2026-09-16); this workspace pins `=1.17.1`
+(`Cargo.toml:54-56`). So the working tree of those docs describes a **later
+release** than the one that ships here.
+
+The skew costs nothing, because the checkout carries the `v1.17.1` tag. Read
+the version-matched docs directly and the question does not arise:
+
+```zsh
+git -C ~/.local/src/slint show v1.17.1:docs/development/input-event-system.md
+```
+
+Every finding in `review-code.md` cites the **vendored** 1.17.1 source under
+`~/.cargo/registry/`, never these files; the docs are read for mechanism and
+intent.
 
 ### What they corroborate, and what they add
 
@@ -526,3 +534,44 @@ is delivered to it. `TextInput::key_event` returning `EventIgnored` on
 `!enabled` (`items/text.rs:954`) and `TouchArea`'s disabled branch cancelling a
 live grab (`items/input_items.rs:81-93`) remain read from the vendored source,
 which is where F-A1 and F-R2 cite them.
+
+### slint 1.18.0 — assessed against this slice, 2026-09-20
+
+The release is four days old and the question was whether to take it now. **It
+fixes none of the three defects under repair**, which is the answer:
+
+- **F-A1 / F-R2** — `enabled` semantics are untouched. A disabled item still
+  drops input rather than queueing it.
+- **F-R1** — the three `PopupWindow` entries are an offset calculation, a
+  base/derived shared-`is-open` bug, and `#12602`, *showing or closing a
+  `PopupWindow` from a repeated or conditional element*. **None of them gives
+  the host a way to close an open popup**, which is F-R1's actual gap, so the
+  markup-side dismiss stays the repair.
+- **F-R2 row 5** — the `ComboBox` popup item's missing `enabled` gate is not in
+  the list. The one `ComboBox` entry is about writing `current-value`.
+
+**One opportunity it does open**, recorded and not taken: with `#12602` fixed,
+the pickers *could* be declared inside the `if root.mode == WindowMode.prompt`
+block, so the mode switch would destroy them and F-R1 would close structurally
+rather than by an explicit dismiss. That is a design change, it is not needed
+once the dismiss lands, and it belongs to whatever slice takes the upgrade.
+
+**Four migration hazards to price when that slice runs**, all of which bear on
+the suite rather than on the product:
+
+1. **"Redundant inner elements of compound widgets are now hidden from the
+   accessibility tree."** The whole renderer tier selects by accessible role
+   and description (`tests/renderer/tree.rs`, `fields.rs`). This is the one
+   that could move a large number of the 592.
+2. **"Accessibility: Exposed the content of text inputs to assistive
+   technologies, including the text selection."** Every text case drives
+   `set_accessible_value`; the semantics around it are being changed.
+3. **`Slider`: the `pressed` property now follows the touch area** (`#13385`) —
+   the property VH-1's drag failure turns on.
+4. **`show()` / `hide()` on `SystemTrayIcon` components fixed** — this host has
+   a tray, and `glass.rs` calls `show()` on every present.
+
+**Sequencing.** Not during this audit: all twenty-one findings cite 1.17.1
+sources, so a bump moves the citation base and changes the audit's subject
+(`a698217..HEAD`) while repairs are in flight. It is its own slice, and the
+hazard list above is what that slice starts from.
