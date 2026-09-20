@@ -245,7 +245,7 @@ STOP and consult rather than improvise:
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-01 · `<phase01>`
+**Fresh as of:** 2026-09-21 · PHASE-01 · `69e3b30`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
