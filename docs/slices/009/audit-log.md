@@ -156,3 +156,63 @@ Round 1 nearly doubled and two of the new findings want real code. Session 2
 takes the three repairs that gate — `F-A1`/`F-R2`, `F-R1`, `F-R3` — and
 checkpoints. Session 3 takes the remaining repairs and round 2. Session 4 takes
 reconciliation and close.
+
+---
+
+## 2026-09-20 — the two findings round 1 left blocked on a decision
+
+Both were put to the user in session 3 and not answered; both are answered now,
+at the head of session 4, before round 2 was launched.
+
+### F-R4 — **re-dispositioned `fix-now` → `follow-up`**
+
+The finding is correct and there is no repair inside this slice that is not a
+design change. Established, not assumed, and re-derived this session rather
+than inherited: `option_models` builds `rows` and `values` in **one** walk in
+which the slot **is** `values.len()` (`glass.rs:343`), which is invariant I-B —
+*"there is no second counter that could fall out of step with the vector's own
+length"*. `values` is written on every present and only `rows` is conditional,
+so splitting the walk to skip the discarded half reintroduces exactly the
+second counter I-B forbids, and `CLAUDE.md` forbids the parallel
+implementation that would be.
+
+**Two things changed since it was raised, both in its favour.** The two costs
+it was raised as the amplifier *for* are repaired: **F-R5** removed the
+per-present tray push and **F-R3** removed the per-present guard revert. What
+remains per refused arrival is one discarded `rows` build, two `VecModel`
+allocations, an epoch bump whose guards then write nothing, and `show()`'s
+instantiation pass — **CPU on the UI thread, with no user-visible
+disturbance**.
+
+**And the question underneath it is canon's, not this slice's.** The *inner*
+loop already holds the opposite position deliberately: an arrival refused
+during an exchange presents nothing (`controller.rs:1029-1048`), cited to
+SPEC-003/R-15 and `review-design.md` F-15. R-15 requires a refusal decided
+**while idle** to reach the diagnostics surface, so suppressing the outer
+loop's present defers that to the next scheduled firing — and R-15's own
+verification case reads `served.controller.frame(false).diagnostics`
+(`renderer/ingress.rs:1230`), the retained model rather than the window, so
+**canon's instrument would not report the change**. Deciding when an idle
+refusal must become visible is a spec amendment with its own verification, not
+a repair.
+
+Lands in `slice-009.md` §Follow-ups, where a `follow-up` disposition is
+required to land. It is not deferred for being large: it is deferred because
+it is a different unit of work.
+
+### F-P2 — **endorsed: `design.md` is corrected**
+
+Explicit endorsement given for the edit `doc-wrong` requires. Two changes,
+and the second is the one that carries the new information:
+
+- The three sentences at `design.md:356`, `:1323` and `:1345` are corrected to
+  the rule the code implements. They are residue of the **superseded** `to-float`
+  reading (D-16), left behind when D-33 reversed it; removing them completes a
+  revision the design already took rather than fitting the design to the code.
+  `:356`'s purpose had gone independently — it justified a guard exception
+  PHASE-08/EX-7 measured out.
+- §5.5 **I-H**'s divergence list gains the fourth divergence: a cleared bounded
+  `number` shows `""` and submits **its minimum**. This is not a correction of
+  anything; it is a screen/wire divergence stated in no document at all, which
+  is why `canon-delta.md` CD-1 gains the matching clause (decided above, this
+  file).

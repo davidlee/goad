@@ -114,24 +114,39 @@ conclusion.
 | F-A1 | blocker | fix-now | |
 | F-S2 | major | fix-now | |
 | F-S1 | major | fix-now | |
-| F-P1 | minor | doc-wrong | |
-| F-P2 | minor | doc-wrong | |
+| F-P1 | minor | doc-wrong | verified |
+| F-P2 | minor | doc-wrong | verified |
 | F-R1 | major | fix-now | |
 | F-R2 | major | fix-now | |
 | F-S3 | major | fix-now | |
 | F-R3 | major | fix-now | |
 | F-S4 | minor | fix-now | |
 | F-S5 | minor | fix-now | |
-| F-R4 | minor | fix-now | |
+| F-R4 | minor | fix-now → **follow-up** | verified |
 | F-R5 | minor | fix-now | |
-| F-R6 | minor | doc-wrong | |
-| F-R7 | minor | doc-wrong | |
-| F-P3 | nit | fix-now | |
-| F-P4 | nit | fix-now | |
+| F-R6 | minor | doc-wrong | verified |
+| F-R7 | minor | doc-wrong | verified |
+| F-P3 | nit | fix-now | verified |
+| F-P4 | nit | fix-now | verified |
 | F-S6 | nit | fix-now | |
-| F-S7 | nit | *settle first* | |
+| F-S7 | nit | *settle first* → **doc-wrong** | verified |
 | F-R8 | nit | fix-now | |
-| F-R9 | nit | fix-now | |
+| F-R9 | nit | fix-now | verified |
+
+**The Outcome column, and who sets it.** Round 1's three raisers were agents
+that no longer exist, so the protocol's *"Outcome — set by the raiser"* has no
+author to return to. The user's decision (`audit.md`, *The Outcome split*)
+divides it by what the repair produced rather than by severity:
+
+- **Round 2's reviewers**, as raisers, set the Outcome for the twelve findings
+  whose repair produced **code** — `F-A1`, `F-R2`, `F-R3`, `F-R1`, `F-R5`,
+  `F-R8`, and `F-S1`–`F-S6`. A fresh adversarial eye over the work each
+  Response describes writes `contested` on evidence rather than an opinion.
+- **The orchestrator**, as **declared raiser**, sets it for the nine whose
+  repair is a **document** and where there is no code to attack — `F-P1`–`F-P4`,
+  `F-R4`, `F-R6`, `F-R7`, `F-R9`, `F-S7`. Each of those Outcomes says so in as
+  many words, and each was checked against the tree rather than against the
+  Response's account of itself.
 
 **Round 1, completed.** **Twenty-one** findings: one blocker, six majors,
 eight minors and six nits.
@@ -423,7 +438,7 @@ lossless because the button carries the same rounded string and `decompose`
 reopens on the exact civil value, and why PHASE-04/VT-1 cannot see it. I-H's
 divergence list is `design.md`'s and is a Reconciliation row, not this.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and this finding's repair is a document rather than code, so there is nothing for round 2's adversarial eye to attack; the user's decision on the Outcome split assigns it here. Verified against the tree rather than the Response: `instant.rs:54-80` now states the rounding in the sentence that used to claim the offset was carried intact, gives the mechanism and the three measured deltas, says why `R-57` survives — RFC 3339's `time-numoffset` has no seconds field, so rounding is the only conforming behaviour — says the host's own round trip is lossless, and says why PHASE-04/VT-1 cannot see it. The disposition is right for the reason given: there is no repair on the code side to prefer. I-H's divergence list was the finding's other half and is repaired under F-P2.
 
 ### F-P2 — `design.md` says in three places that a cleared numeric field submits `0`; it submits the number the field already held
 
@@ -463,9 +478,52 @@ I-H's list, and `canon-delta.md` CD-1 does not reach it either — CD-1 is about
 *untouched*, not *cleared*. A backend author cannot discover it anywhere.
 
 **Disposition:** `doc-wrong`
-**Response:**
+**Response:** Repaired in the document, with the **explicit user endorsement** an edit to
+`design.md` requires and did not have when this was written (`audit-log.md`,
+2026-09-20, third entry). Four sites, and the fourth is the one that carries new
+information rather than correcting old:
 
-**Outcome:**
+- **`:356`** now says empty text is *not* zero, gives the mechanism —
+  `"".parse::<f64>()` is an `Err` like any other unaccepted text, so `interpret`
+  falls through to `held_number` (`view_model.rs:793-802`) — and says `0` results
+  only where the field was drawn at zero.
+- **`:1345`**, the edges row, now states the held number and, with it, the thing
+  the old row got right for the wrong reason: the clear survives in **both**
+  windows by the same mechanism, because once recorded the draft's text is `""`
+  and until it is recorded the overlay carries the pending `""` (D26). The strings
+  agree either way, which is why no exception is needed.
+- **§5.5 I-H** now lists the cleared field as submitting the number it held, and
+  gains **F-P1's** sub-minute-offset divergence in the same list — the fourth and
+  fifth entries on a list that had three.
+- **§9 A-2 and §7 D13**, which both still stated the guard's exception as live.
+  This is the third row of `notes.md`'s own reconciliation list and was endorsed
+  2026-09-19: PHASE-08/EX-7 ran the exception four ways and removed it, not as
+  dead weight but because carrying it suppresses the convergence AC-6 requires.
+  A-2 asked whether the exception survived the overlay and the measurement
+  answered; the row now says what was measured.
+
+**Why this is a revision the design already took, and not a retro-fit.** The
+three sentences are residue of D-16's `to-float` reading, which **D-33 reversed**
+when the host stopped parsing through the control; the code implements §5.2's
+own stated rule. `:356`'s purpose had gone independently of the reversal — it
+justified the guard exception PHASE-08/EX-7 measured out, and that exception is
+now gone from the markup at all five sites (`app.slint:531`, `:605`, `:682`, and
+the two the `counted-*` repair touched), with `tests/event_loop_numeric_guard/`'s
+second reading failing if anybody restores it (`app.slint:677-679`).
+
+`canon-delta.md` CD-1 gains the matching clause, so a backend author reading an
+empty box and a `2.5` on the wire can discover why — that is the decision of
+`audit-log.md`'s first entry and is a Reconciliation row, not this.
+
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The
+original raiser no longer exists and this finding produced no code, so there is
+nothing for round 2's adversarial eye to attack; the user's decision on the
+Outcome split (`audit.md`) assigns it here. Verified by reading the four sites
+against the tree rather than against the Response: `"".parse::<f64>()` is `Err`
+and `interpret`'s fallback is `.or_else(|| held_number(held))`
+(`view_model.rs:793-802`); the five guards carry no exception; and the wire claim
+— a field declared `{"kind":"number","min":2.5}`, cleared, submits `2.5` — is the
+finding's own, unchanged and still true.
 
 ### F-P3 — `Alternatives::first`'s locating citation points the wrong way, and its `reason` string carries mangled whitespace
 
@@ -496,7 +554,7 @@ and are untouched. The substance was re-checked and stands: `Alternatives` is a
 tuple struct with a private field, `new` is its only constructor, there is no
 `Default` or `Deserialize`, and `first()` cannot panic.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and this finding's repair is a document rather than code, so there is nothing for round 2's adversarial eye to attack; the user's decision on the Outcome split assigns it here. Verified by reading `canonical.rs:378-404`: the `reason` is a continued (`\`) literal with no collapsed runs, and its copy of the phrase now says only *"above this line"* rather than carrying a count from inside an attribute. The doc's locator reads *"twenty lines above"* and is correct — `Alternatives::new` is at `:361` and its empty-list refusal at `:362-364`, read from a doc sentence at `:383`. The substance was re-checked independently and stands: `new` is the only constructor, the field is private, there is no `Default` or `Deserialize`, and `first()` cannot panic.
 
 ### F-P4 — `group: ""` opens a new block; an unreadable `group` does not
 
@@ -520,7 +578,7 @@ merge — `Unreadable` and `Ungrouped` key `None` and join, `Named("")` keys
 grouping to the renderer, so this is admitted rather than wrong; what was missing
 was any statement that the three read identically once they arrive.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and this finding's repair is a document rather than code, so there is nothing for round 2's adversarial eye to attack; the user's decision on the Outcome split assigns it here. Verified at `view_model.rs:68-82`: the doc now names all three runs that produce `heading: None`, says `Unreadable` and `Ungrouped` key `None` and join while `Named("")` keys `Some("")` and opens a second headingless block, and says `R-18` leaves grouping to the renderer so the behaviour is admitted rather than wrong. That is exactly what the finding asked for — it raised the type's doc, not the behaviour, and allowed the behaviour to stand.
 
 
 ### F-R1 — an open picker survives a view replacement and locks the person out of the whole form
@@ -1015,7 +1073,11 @@ the order costs nothing and is the shape that stays correct if the markup
 acquires one. `design.md` §5.5's statement of I-F as a live invariant is a
 Reconciliation row.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and the repair is a comment rather than code, so there is nothing for round 2 to attack; the Outcome split assigns it here.
+
+Verified by re-running the finding's own mutation rather than reading the Response's account of it, and by reading the comment that landed. The comment at `glass.rs:185-212` no longer states I-F as an invariant the current markup depends on. It says the transient is unobservable, enumerates *why* — every `root.values[…]` read is either a dependency-tracked binding the `set_values` write invalidates or a click-time read, and the five guards fire on `changed epoch`, which is the last statement in either order — and then states the constraint that actually holds the order: **no `init` handler may read `root.values`**.
+
+**That is the right shape, and it is worth saying why**, because a finding of this kind usually ends in a case. There is nothing to write a case against: the property is a prohibition on markup that does not exist. The comment is the only instrument available, nothing enforces it, and the Response says so rather than implying the order is held. `design.md` §5.5's statement of I-F as a live invariant is the remaining half and is a Reconciliation row.
 
 ### F-R3 — the entry leaves the map on the enqueue, but a present can land before the command is served, and that present writes the draft's stale value over the widget a person is typing into
 
@@ -1212,10 +1274,54 @@ does not reach.
 writer on the ingress socket sets how often the guard pass runs against a form
 a person is typing into, and how often F-R5's tray push goes out.
 
-**Disposition:** `fix-now`
-**Response:**
+**Disposition:** `fix-now` → **re-dispositioned `follow-up`** (`audit-log.md`,
+2026-09-20, third entry). The finding stands in full; what changed is where it
+is answered.
+**Response:** **There is no repair inside this slice that is not a design
+change, and that was established rather than assumed.**
 
-**Outcome:**
+`option_models` builds `rows` and `values` in **one** walk in which the slot
+*is* `values.len()` (`glass.rs:343`) — invariant **I-B**, *"there is no second
+counter that could fall out of step with the vector's own length"*. `values` is
+written on every present (`glass.rs:221`) and only `rows` is conditional
+(`:223-241`), so splitting the walk to skip the half that is discarded
+reintroduces precisely the second counter I-B exists to forbid, and is the
+parallel implementation `CLAUDE.md` forbids. `show()` on an already-visible
+window is the *totality* argument at `glass.rs:33-35`, not an oversight.
+Flooring the rate instead is worse: `ingest`'s `TooSoon` branch returns before
+the anchor is written, and writing it there would let a flood push the anchor
+forward indefinitely and starve the events SPEC-002/R-12 spaces.
+
+**What is left of the cost, measured against the tree as it now stands rather
+than as the finding found it.** The two amplifiers this finding was raised as
+the amplifier *for* are repaired: **F-R5** removed the per-present tray
+re-rasterisation and push, and **F-R3** removed the per-present guard revert.
+What remains per refused arrival is one discarded `rows` build, two `VecModel`
+allocations, an epoch bump whose guards then compare equal and write nothing,
+and `show()`'s instantiation pass — **CPU on the UI thread, with no
+user-visible disturbance**, at a rate a local writer sets.
+
+**And the question underneath it belongs to canon.** The *inner* loop already
+holds the opposite position deliberately: an arrival refused during an exchange
+presents nothing (`controller.rs:1029-1048`), cited to SPEC-003/R-15 and
+`review-design.md` F-15. R-15 requires a refusal decided **while idle** to reach
+the diagnostics surface, so suppressing the outer loop's present defers that to
+the next scheduled firing — and R-15's own verification case reads
+`served.controller.frame(false).diagnostics`
+(`tests/renderer/ingress.rs:1230`), the retained model rather than the window,
+so **canon's instrument would not report the change**. Deciding when an idle
+refusal must become visible is a spec amendment with its own verification, and
+it is what the follow-up carries.
+
+Not deferred for being large — `AGENTS.md` forbids that, and this is not large.
+Deferred because it is a different unit of work. Landed in `slice-009.md`
+§Follow-ups, which is where a `follow-up` disposition is required to land.
+
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**, per
+the Outcome split (`audit.md`). The finding produced no code, so there is
+nothing for round 2 to attack. The finding's own control-flow claim was
+re-derived from the tree this session and is unchanged:
+`controller.rs:945-947` → `:961-963` → `continue` → `:898` `glass.present`.
 
 ### F-R5 — the tray icon is re-rasterised and pushed to the desktop's tray service on every present, because slint compares an `Image` by buffer pointer
 
@@ -1330,7 +1436,7 @@ cost, the link to F-R9, and the two closers (`Weak::upgrade` in the callback, or
 `timer.stop()` on the empty tick). The type argued its field count and said
 nothing about its lifetime; it does now.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and this finding's repair is a document rather than code, so there is nothing for round 2's adversarial eye to attack; the user's decision on the Outcome split assigns it here. Verified at `pending.rs:62-91`, and the cycle re-derived from the vendored source rather than from the finding: `timers.rs:84-93` boxes the callback into the thread-local slab as `CallbackVariant::MultiFire` — read directly — and `:188-203` is `Drop`, the only deregistration. The doc carries the graph, the diagram, the per-test-target cost, the link to F-R9 and both closers. `doc-wrong` is the right disposition because the cost in production is zero (`main.rs:95` creates one `Debounce` per process) and what was missing was the statement, not a different shape.
 
 ### F-R7 — `Glass::present`'s doc says a `show()` failure is reported and the process keeps running; one failure inside `show()` panics before it can return
 
@@ -1370,7 +1476,7 @@ than startup only, and says explicitly that no protocol message reaches it, so
 the fourth invariant is intact. Nothing about the handling changed: the claim was
 the defect.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and this finding's repair is a document rather than code, so there is nothing for round 2's adversarial eye to attack; the user's decision on the Outcome split assigns it here. Verified at `glass.rs:130-146`: the contract now separates the failure it handles — `set_visible(true)?`, propagated out of `WindowInner::show` (`window.rs:1636`) — from `renderer().resize(size).unwrap()` twelve lines later (`:1648`), says the exposure is every present rather than startup only, and says no protocol message reaches it so the fourth invariant is intact. The handling is unchanged, which is right: the claim was the defect.
 
 ### F-R8 — `rescale` swallows the one weak-handle upgrade in the crate with no report
 
@@ -1432,7 +1538,7 @@ in production from nowhere at all — with the eight retention sites enumerated
 timer closure) and the real shutdown path named as `Stopped` via `Cancel`. The
 variant is not dead code and was not removed.
 
-**Outcome:**
+**Outcome:** `verified` — set by the orchestrator as **declared raiser**. The original raiser no longer exists, and this finding's repair is a document rather than code, so there is nothing for round 2's adversarial eye to attack; the user's decision on the Outcome split assigns it here. Verified at `controller.rs:76-87`: `Ending::Closed` no longer says *"only reachable at teardown"*. It says reachable from the test tiers, which drop their senders, and from nowhere at all in production, with the eight retention sites enumerated and `Stopped` via `Cancel` named as the real shutdown path. The variant was not removed, which is right — it is reachable, just not there.
 
 ### Note — `pending.rs`'s re-arm argument cites the wrong `timers.rs` arm
 
