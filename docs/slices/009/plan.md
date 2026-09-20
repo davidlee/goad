@@ -134,7 +134,7 @@ worse than a partial one.
 | AC-1 — five kinds drawn, in declared order | PHASE-09/EX-3, PHASE-09/VT-3 |
 | AC-2 — each kind submits the JSON type `R-57` names, untouched and operated | PHASE-09/EX-4, PHASE-09/VT-4 and PHASE-09/VT-5 |
 | AC-3 — `R-58`: a value for exactly the drawn fields of the answered option | PHASE-09/EX-5, PHASE-09/VT-6 |
-| AC-4 — typing records every character | PHASE-05/EX-4, PHASE-05/VT-3 and PHASE-05/VT-5 |
+| AC-4 — typing records every character | PHASE-05/EX-4, PHASE-05/VT-3 and PHASE-05/VT-5. **VT-3's element half does not discharge it** — the `inits` comparison is vacuous (audit, F-S1), and the element mechanism is held by four other cases named at VT-3 below. The criterion's own defect was found at audit (F-A1) and is discharged by `tests/event_loop_busy/` |
 | AC-5 — a present that changes nothing disturbs nothing | PHASE-01/EX-4, PHASE-01/VT-4 |
 | AC-6 — a refused or dropped edit is corrected, element preserved, negative-controlled | PHASE-06/EX-3, PHASE-06/VT-1 |
 | AC-7 — an undrawn kind is still reported; the sixth-kind compile error survives | PHASE-09/EX-6, PHASE-09/VT-7 and PHASE-09/VA-2 |
@@ -607,6 +607,19 @@ alone — added 2026-09-19, `plan-log.md`),
   `set_accessible_value` on each of two text fields, then the option control's
   default action; the draft holds both texts, and the `init` counter is unchanged
   — the element was not destroyed while it was being typed into.
+
+  **Reconciled at audit (F-S1): the draft half is real and the `init` half is
+  vacuous.** There is no `.await` between the two `get_inits()` readings, so
+  `serve` cannot be scheduled; nothing is enqueued for it in any case, because
+  `install.rs:70` routes a `Reported::Typed` into `Debounce::hold`; and the tier
+  runs under `init_no_event_loop`, so no timer fires. No present occurs between
+  the readings and the equality is the executor's. **The mechanism is not
+  unheld** — deleting `glass.rs`'s `if self.shown != showing` guard reddens four
+  cases, one in each relevant target: `numeric_guard.rs`,
+  `overlay.rs`, `reassert.rs`, and
+  `fields.rs::a_present_of_the_same_view_rewrites_the_values_and_destroys_no_element`.
+  The case is kept for the half that is its actual subject, and its own doc now
+  states the vacuity and names those four.
 - VT-4 — `tests/renderer/wiring.rs`: a carried edit naming a superseded view is
   refused `SupersededView`, is reported once rather than per edit, and the answer
   still goes. A carried edit naming a field the retained view does not declare is
@@ -708,6 +721,21 @@ alone — added 2026-09-19, `plan-log.md`),
   presented**. The overlay goes through `interpret`, not through a second
   `Reported → FieldValue` mapping. Where `interpret` refuses the entry the
   draft's value stands.
+
+  **Reconciled at audit: that last clause is discharged by construction and
+  cannot be given a case.** `notes.md` carried it as an untested path, with a
+  case owed at PHASE-08 once `number` drew. Enumerated at audit instead, and the
+  refusing branch is **unreachable**. `install.rs:229-230` debounces exactly
+  `Typed`, `AdjustedText` and `AdjustedValue`; against the field's own
+  `DrawnKind` those are accepted, accepted, and accepted-unless-non-finite —
+  and a `Slider` cannot carry a non-finite, because `slider_bounds` draws one
+  only over finite `f32`-exact bounds. A kind *mismatch* would need one
+  `view_id` to denote two different presentations, and `view_id` is host-minted
+  with a moving counter (`goad-shell/src/state.rs`), while `overlaid` matches
+  on it — so the entry of a replaced view never meets the new view's field.
+  The clause is therefore a totality statement like the others in this design,
+  not coverage that is owed. Same shape as F-S7 and F-S6: a property that is
+  real, unheld, and not expressible as a case.
 - EX-4 — `glass.rs`'s doc stops claiming the value channel has one source: it is
   derived from `Prepared` and `pending.rs`, and there is still no cache and
   therefore still no invalidation rule.

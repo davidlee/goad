@@ -875,6 +875,18 @@ wire, and not by the shape of `Reported` (§5.5 I-G).
   unreachable, and reporting an alternative-less `choice` as `Undrawn` is dead
   because `Alternatives::new` rejects the empty list before the renderer sees
   it.
+
+  > **Both halves of that last sentence want correcting, and the first one is
+  > the substantive error** (reconciled at audit; endorsed 2026-09-19). The
+  > `Undrawn` route was not dead *because* `Alternatives::new` rejects the empty
+  > list — it was **live and unused**, for as long as `FieldForm::Choice`
+  > existed to report it through. PHASE-09/EX-6 is what removed it, by drawing
+  > `choice` and emptying `FieldForm`. And the preference for a total expression
+  > stands and every consumer still gets one, but the `expect` was not avoided
+  > everywhere: one lives in `Alternatives::first`
+  > (`goad-semantics/src/protocol/canonical.rs`), by the user's decision of
+  > 2026-09-19 (`plan-log.md`), so that the argument is made once beside the
+  > invariant rather than re-derived at each call site.
 - `datetime` → `Picked { UNIX_EPOCH, Offset::UTC }`, which renders
   `1970-01-01T00:00:00+00:00` — on the wire only. The button reads *not set*.
 
@@ -1318,6 +1330,21 @@ naming the call.
   rather than an error. The guard reads the same slot when the epoch changes, so
   bumping the epoch before `values` runs every guard against the previous
   present's values.
+
+  > **Measured at audit (F-S7): the order is kept, and it is a forward
+  > constraint rather than an invariant this markup depends on.** Swapping
+  > `set_values` below the rows leaves the whole suite green, and no observable
+  > consequence exists to write a case against — every `root.values[…]` read in
+  > `app.slint` is either a dependency-tracked binding the write invalidates or
+  > a click-time read, and the five guards fire on `changed epoch`, which is the
+  > last statement in either order. `present` is synchronous, so neither a case
+  > nor a person can see a state between its statements. Only a statement that
+  > **latched** the transient could make the order matter, and the one candidate
+  > is `set_vec`'s instantiation pass — where all six `init` handlers are
+  > `root.inits += 1`. **So the rule this invariant actually states is: no
+  > `init` handler may read `root.values`.** Nothing enforces that; the order is
+  > kept because it costs nothing and is the shape that stays correct if the
+  > markup ever acquires one. The comment at `glass.rs:185-212` says so.
 - **I-G.** A submitted `number` is finite — held by the type, not by the call
   sites. `serde_json::Value::from(f64)` turns a non-finite into JSON `null`,
   which `R-57` does not admit, so `Edited::Adjusted` holds a `Finite`: private
@@ -1362,7 +1389,7 @@ naming the call.
 | A-3 | `changed` fires under a real loop and not under `init_no_event_loop` | **measured** (Thread 3). It covers a `changed <property>` handler of ours and one inside a widget alike. The pickers' re-seed was taken for the second kind and is not one: a popup is rebuilt on every show, so a seed arrives through a binding (§5.4) |
 | A-4 | The four fallible steps §5.2 lists are the whole of `compose`'s failure surface | not measured; being wrong costs a visible no-op, because every one of them returns `None`. The first draft priced it that way while using `civil::date` and `Date::at`, which **panic**, and while omitting `to_zoned`, which returns a `Result`; the checked constructors and the fourth step are what make the price true |
 | A-5 | A `ComboBox`'s `current-index` survives a `values` rewrite like the others | not separately measured; same guard shape. §9 carries a *`choice` re-asserting* row in the loop tier, with its own driver, rather than leaving this to the phrase "the loop test covers it" |
-| A-6 | Disabling a widget while an exchange is in flight does not destroy it | not measured; being wrong costs focus, not data — a person's observation under AC-10 |
+| A-6 | Disabling a widget while an exchange is in flight does not destroy it | **the assumption holds and its price was wrong** — audit, F-A1. Nothing is destroyed: no focus-out is issued on disable and `text.rs:1990` only stops *rendering* the cursor. But *"costs focus, not data"* is false. Slint **discards** input for a disabled item rather than queueing it (`text.rs:954`, `:848`), and `busy` was true for the whole backend round trip, so every character typed during an exchange was lost — AC-4's defect exactly, and invisible to all 592 tests because every text case drove `set_accessible_value`, which bypasses `enabled`. Repaired by narrowing `busy` to *your answer is in flight*; the row is left stating what was assumed, because that is what this table is for |
 
 **Edges.**
 
@@ -1452,6 +1479,7 @@ and the code is the same either way.
 | R7 | A second 64-to-32-bit narrowing is introduced somewhere the review did not reach. Two were found in one round — the `number` channel and the picker's `int` fields — which is the shape of a class, not of two accidents | Every host↔markup conversion is checked rather than cast, and §5.2 names the rule; I-G asserts the one that reaches the wire | a value arriving as infinity, a zero, or a truncation, for an input the protocol admits |
 | R8 | A later stratum 1 source comes to depend on a capability this feature switched on in a dependency stratum 1 shares | **Review, and nothing else.** No gate command rejects this — `POL-001` says so in as many words, which is why it requires the decision to be argued instead. §10 carries the argument | a `goad-semantics` source whose behaviour changes with a feature its own manifest does not ask for |
 | R9 | AC-8 needs a pointer event inside a popup, and no case in this repository has yet had a popup laid out under `init_no_event_loop`. `mock_single_click` dispatches at the element's `absolute_center()`, so a popup with no geometry is clicked nowhere near | The injection pass, run and read before the row is believed. If the click cannot be made to land, the row moves to the loop tier, where the other `choice` row already sits — same driver, same assertion — and nothing else in the design changes | an injection that cannot make AC-8 go red |
+| R9, **as measured** | Both halves above are wrong, in a way only running it showed (PHASE-09/VA-1; `plan-log.md`, 2026-09-19). **Layout is not the barrier** — it is fixable in place with `mock_elapsed_time`. The real barrier is **coordinate mapping**: a popup's items are addressed in the popup's own space and the click is dispatched in the window's (`item_tree.rs:628-630`, `window.rs:849-856`), and **no tier changes that**, so the stated mitigation was unavailable. What the row's driver became is a click on the `ComboBox` itself plus key events, not a click on the popup row | the mitigation this row named does not exist, so a row that had needed it would have had nowhere to go |
 | R10 | The overlay is wired to two different `Pending` values — one in `install`, one in `SlintGlass` — and every case stays green while measuring nothing. Silent, and the natural shape for a test that constructs the two halves separately | One `Rc`, created before both and cloned into each; `main.rs` already has that order (§5.3). §9's two-field row and AC-6 are both written so that a split handle makes them fail rather than pass | a case asserting the overlay that passes without `install` having been called |
 | R11 | The decimal separator stops being `.`. `slint`'s `gettext` feature arms it from the system locale on unix (`translations.rs:304-310`), and bundled translations arm it anywhere. What that costs is the control's, not the host's: a field drawn showing a non-integral number cannot then be typed into a character at a time, because the control refuses every candidate longer than two bytes that contains the `.` the host's own formatter writes (`items/text.rs:2208-2229`, `string.rs:398-412`). Deletion and select-all-retype still work | Accepted rather than mitigated, and it is why the locale account was retired rather than completed (D-33): no host parse rule repairs a control that refuses the text. A slice that takes the feature owns this | `gettext` in a manifest, `gettextrs` in `Cargo.lock`, or `with_bundled_translations` in `build.rs` |
 
@@ -1534,6 +1562,7 @@ would be F-44.
 | AC-2, operated | `tests/renderer/fields.rs`, the same log | the driver above for each control, then the option control's `invoke_accessible_default_action` | the same per-kind typing for values a person produced. It inherits two fallbacks and states them rather than citing them: if `mock_single_click` cannot be landed on a laid-out popup (R9), or the picker chain cannot be found under `init_no_event_loop`, this row moves to the loop target with the rows it depends on |
 | AC-3 | `tests/renderer/wiring.rs`, existing cases extended | `Controller::edit` and `answer` directly | `R-58` over a form of five kinds |
 | AC-4 | `tests/renderer/fields.rs`, both halves — `init` runs there, so the element half needs no loop | `set_accessible_value` on each of two text fields, then the option control's default action — the answer flush makes the typed path synchronous | the draft holds what was typed; **two text fields edited inside one window both survive**; `inits` is unchanged, so the element was not destroyed while it was |
+| AC-4, **as measured** | the draft-and-wire half is where this row named it. **The element half is not**, and the row was wrong about why it would be reachable there (audit, **F-S1**) | `set_accessible_value` is right for the first half and cannot reach the second at all — it assigns `text` and calls `edited` (`fluent/lineedit.slint:16`), bypassing `key_event` and its `enabled` guard | The `inits` comparison this row asks for is **vacuous**: there is no `.await` between the two readings, so `serve` cannot be scheduled; nothing is enqueued for it anyway, because `install.rs:70` routes a `Reported::Typed` into `Debounce::hold`; and `tests/renderer` runs under `init_no_event_loop`, so no timer fires. **No present occurs between the readings** and the equality is the executor's. The criterion is not lost — four cases redden under the D8 mutation (`numeric_guard.rs`, `overlay.rs`, `reassert.rs`, and `fields.rs::a_present_of_the_same_view_rewrites_the_values_and_destroys_no_element`) — and the case's own doc now names them |
 | AC-5 | the loop target | two `present` calls carrying the same frame | `reasserts` unchanged, `inits` unchanged |
 | AC-6 | the loop target, negative-controlled | `set_accessible_value` on a `LineEdit` whose `Wire` reaches no controller, then **let the loop run past the debounce** so the entry is sent and leaves `pending.rs`, then a present. Both halves are needed: while the entry is still held the host *does* hold the value and the widget correctly stands — it is the enqueued-but-never-handled send that makes this the dropped-edit case | `reasserts` increments, the widget holds the draft's value again, `inits` unchanged |
 | AC-7 | `view_model.rs` unit | — | `drawn_form` (`undrawn_form` as planned) still matches `FieldKind` exhaustively; `Undrawn` still reports a `group` hint it cannot read. **The exhaustive match is held by the gate only with F-S3's repair** — `clippy::wildcard_enum_match_arm`, denied for `goad` — because a wildcard arm absorbing a sixth kind compiles |
