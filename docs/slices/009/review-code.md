@@ -490,6 +490,62 @@ now-stale `root.picking-view` and is refused `SupersededView`.
 assert the popup is still visible or that a click on an option button raises
 nothing.
 
+**Settled by measurement (audit session 2) — confirmed, and wider than the
+finding states.** A new loop-tier target,
+`crates/goad/tests/event_loop_picker/{main.rs,picker.rs}`, drives it with
+controls on both sides of every claim: the same click and the same keystroke,
+made once with no picker up and once with a picker up, so a silent no-op cannot
+be read as a driver that missed. All four slint citations were independently
+re-verified in the vendored sources. Renderer tier was rejected for a stated
+mechanical reason — it runs `init_no_event_loop` (`tests/renderer/harness.rs:54`)
+so nothing is laid out and `absolute_position` has nothing behind it, which is
+why the existing picker cases drive `invoke_accessible_default_action`, the one
+API that cannot answer the question.
+
+| | measured |
+|---|---|
+| survives a view replacement | **yes.** The rows rebuilt (`morning` → `evening`) and all 34 of the date picker's elements — `Next month`, `Previous month`, 30 day cells, `Cancel`, `OK` — were still in the tree |
+| survives `hide()` | **yes, and this is the worse half.** On `Shift::Closed` the *form's* buttons left the tree and the picker's 34 stayed. A picker over nothing |
+| the form beneath, by pointer | **unreachable.** The same click that raised `chosen v1/morning` with no picker up raised **nothing** with one up; `invoke_accessible_default_action` on that same option raised `chosen v2/evening`, so **the widget is alive and only input routing is blocked** |
+| the form beneath, by keyboard | **unreachable.** `x` into the `LineEdit` raised `edited … text="x"` as a control; `y` with the picker up raised nothing |
+| the exit | `Escape` does **not** dismiss (citation 4 confirmed). A real pointer click on the picker's own `Cancel` **does** close it, even after the view was replaced — so it is not a permanent lockout, which is what caps this below `blocker`. Completing the pick raised `edited v1/morning/when` — the **replaced** view's token, which `Controller::edit` refuses `SupersededView`. F-R1's prediction, exact |
+| `busy` | irrelevant — `false` throughout. **F-R2's row 6 confirmed as written** |
+
+**The case is RED by design**: it asserts the contract (`design.md` §5.4, §5.5,
+§8 **R5**), so it lands *with* the repair and not before. Every other `-p goad`
+target stays green beside it.
+
+**The injection pass also settles the repair's shape.**
+
+| # | injection | expected | read |
+|---|---|---|---|
+| baseline | none | red | red, on *the picker must not still be on screen* |
+| A | a `dismiss-pickers()` in the markup, invoked from `present`'s `self.shown != showing` branch | green | **green** |
+| B1 | A narrowed to `showing.is_some()` — replacement only | red on the hide claim alone | **red, hide claim only** |
+| B2 | A narrowed to `showing.is_none()` — hide only | red on the replacement claim | **red, replacement claim** |
+| B3 | A intact, the driver's press/release removed | red on the first control | **red, first control** |
+
+Injection A says **one call site suffices**: the hide present is itself a change
+of `shown`, so the `self.shown != showing` branch covers `Shift::Replaced` and
+`Shift::Closed` together. B1's first run exposed a proxy defect in the case's
+own draft — with the replacement repaired, the hide step was handed a window
+with nothing open and read green on a claim it never exercised; the committed
+case reopens the picker before the hide and its comment records why.
+
+**Not settled, and stated rather than glossed.** Whether the blocked click was
+outside the popup's geometry or absorbed by its interior — popup element
+positions are popup-local (`item_tree.rs:626-629`) — though both branches of
+`window.rs:843-871` end the same way, so the verdict is unaffected. What a real
+compositor paints after `hide()`, which needs a `just demo` reproduction.
+Which element held focus while the picker was up. And the `SupersededView`
+refusal end to end: the stale token was measured, the refusal reaching the
+diagnostics surface was not, because asserting it would contradict the contract
+the case holds.
+
+**Severity: stays `major`**, moved from *reasoned* to *measured*, with the scope
+widened — it is not the whole *form* but the whole *window*, and it outlives the
+window being hidden.
+
 **Disposition:**
 **Response:**
 
