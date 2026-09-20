@@ -187,6 +187,18 @@ impl Glass for SlintGlass {
     self.window.set_values(model(values));
     let showing = frame.shown.map(|prepared| prepared.view_id.clone());
     if self.shown != showing {
+      // **Before the rows go**, because an open picker belongs to the view
+      // that is leaving — and nothing else closes it. Neither the row rebuild
+      // below nor the `hide()` further down reaches a popup: both pickers are
+      // root singletons outside the prompt-mode block and both bind
+      // `no-auto-close`, so a picker left up covers a window whose controls
+      // are then unreachable by pointer and by keyboard (F-R1).
+      //
+      // **One call site, and this is the one**, because a hide is itself a
+      // change of `shown` — `Shift::Replaced` and `Shift::Closed` both land
+      // here. A picker can only be opened from a form, so while `shown` does
+      // not change the picker that is up belongs to the view that is up.
+      self.window.invoke_dismiss_pickers();
       self.options.set_vec(rows);
       self
         .window

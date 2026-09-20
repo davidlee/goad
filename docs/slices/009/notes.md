@@ -4884,6 +4884,82 @@ exits 0 at **595** (592 + one `renderer` unit case + the two loop cases).
   reachable from `crates/goad/tests/`. If a third target wants one, that is the
   moment to put it in `tests/support/`, not before.
 
+**F-R1 (an open picker outlives the view it belongs to)** — `audit-log.md`'s
+first entry is the disposition, and the shape was fixed by the injection pass
+recorded under F-R1 in `review-code.md`. Nothing below reopens either.
+
+#### What changed
+
+| file | change |
+|---|---|
+| `app.slint` | `public function dismiss-pickers()` — `date-picker.close(); time-picker.close();`. The **first** host→markup call in this file; everything else is a callback going the other way |
+| `glass.rs` | `self.window.invoke_dismiss_pickers()` as the first statement of `present`'s `self.shown != showing` branch |
+| `Cargo.toml`, `tests/event_loop_picker/` | the case, cherry-picked from `feceab6`. The conflict was the `[[test]]` list and nothing else |
+
+**Why a `public function` and not a callback.** slint exposes no host-side API
+for closing a popup — `close_all_popups` has one caller, `set_component`
+(`i-slint-core-1.17.1/window.rs:608`, `:1979`), and `WindowInner::active_popups`
+is that crate's internals, which this workspace does not depend on. The popup's
+own `close()` is the supported route, so the host has to reach *into* the
+markup, and `public function` is slint's construct for that direction. A
+callback would work and would read as markup→host at every other site in the
+file.
+
+**It needs no `is-open` guard.** A generated `close()` is
+`Option<NonZeroU32>::take().map(…)` over the popup's id
+(`i-slint-compiler-1.17.1/generator/rust.rs:3792-3804`), so closing a picker
+that is not open is a no-op. That is what lets one function close both without
+either knowing which is up.
+
+**One call site, verified against the code rather than assumed.** `showing` is
+`frame.shown.map(…)`, and `Shift::Closed` makes it `None` while `self.shown`
+still holds the answered view — so the hide present *is* a change of `shown`
+and lands in the same branch as the replacement. A picker can only be opened
+from a form, so while `shown` does not change, the picker that is up belongs to
+the view that is up.
+
+#### Red, then green
+
+| | reading |
+|---|---|
+| before the repair, tree at `bb94dda` | **red** at `picker.rs:398` — *a present carrying a new view id … must not still be on screen*: `C the picker open, under v1` then `D the view replaced, with the picker open`, `picker: true` in both. Both controls held (`chosen: ["v1/morning"]`, `edits: ["v1/morning/noted=x"]`), so the driver was working |
+| after the repair | **green**, 1 passed |
+
+#### Injection pass
+
+Applied to the tree as committed, the target run, the message read, the file
+restored from a copy and the restore confirmed by `git diff --stat`.
+
+| # | mutation | expected | reading |
+|---|---|---|---|
+| B1 | the dismiss narrowed to `showing.is_some()` — replacement only | red on the hide claim alone | **red at `picker.rs:428`** — *a picker must not outlive the window it was opened from*: `G the picker reopened, under v2` then `H after hide()`, `picker: true` in both. Every replacement claim green |
+| B2 | the dismiss narrowed to `showing.is_none()` — hide only | red on the replacement claim | **red at `picker.rs:398`**, the baseline's message exactly |
+| B3 | the driver's press/release removed from `click` | red on the first control | **red at `picker.rs:372`** — `A the option answered by pointer, no picker up`, `chosen: []` |
+
+B1 is the reading that says the case's step-10 reopen is load-bearing: without
+it the hide claim would have read green under a replacement-only repair, which
+is the proxy failure `docs/memory/tests-asserting-proxies.md` names and which
+the case's own author hit. The guard is intact.
+
+`just check` exits 0 at **596** — 595 plus this one case.
+
+#### Noticed in passing
+
+- **A third path leaves a picker up, and it is not F-R1's.** `Surface` is
+  derived from `(focus, shown.is_some())` (`controller.rs:162-167`), so
+  `Focus::Diagnostics` over a shown view yields `Surface::Diagnostics` with
+  `frame.shown` still `Some`. `present` then writes `WindowMode::Diagnostic` —
+  the whole prompt block leaves the tree — with `shown` unchanged, so the
+  dismiss branch is not taken and an open picker would sit over the diagnostics
+  pane. **Not repaired here:** F-R1 is scoped to `Shift::Replaced` and
+  `Shift::Closed`, both measured, and the injection pass fixed the repair at
+  one call site; adding a second quietly is what the brief forbids. It wants
+  its own finding, and the case for it is one more step in this target.
+- **The gate's test count double-counts the pure tier.** `just check` runs
+  `cargo test --workspace` and then `cargo test -p goad-semantics`, so 596 is
+  the sum over 28 `test result: ok` lines rather than 596 distinct cases. The
+  number is a trend instrument, which is all `audit.md` uses it for.
+
 
 ## Harvest
 

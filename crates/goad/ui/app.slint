@@ -975,6 +975,31 @@ export component PromptWindow inherits Window {
     }
     canceled => { }
   }
+
+  // **The one thing the host cannot do for itself.** `slint` exposes no way to
+  // close an open popup from Rust: `close_all_popups` has a single caller,
+  // `WindowInner::set_component` (`i-slint-core-1.17.1/window.rs:608`, `:1979`),
+  // and `active_popups` is that crate's internals, which this workspace does
+  // not depend on. A popup's own `close()` is the supported route, so the host
+  // reaches it through a function declared here.
+  //
+  // **Called wherever the shown view changes** (`glass.rs`), which is the
+  // replacement and the hide alike. Both pickers are root singletons declared
+  // outside the `if root.mode == WindowMode.prompt` block, so neither the row
+  // rebuild nor `hide()` reaches them, and both bind
+  // `PopupClosePolicy.no-auto-close`. Without this a picker outlives the view
+  // it belongs to — and every control beneath it is unreachable by pointer and
+  // by keyboard, while the widgets themselves stay alive (F-R1).
+  //
+  // Closing one that is not open is a no-op: the generated `close()` takes an
+  // `Option<NonZeroU32>` and does nothing when it is `None`
+  // (`i-slint-compiler-1.17.1/generator/rust.rs:3792-3804`). So this needs no
+  // `is-open` guard, and neither picker needs to know whether the other is the
+  // one that is up.
+  public function dismiss-pickers() {
+    date-picker.close();
+    time-picker.close();
+  }
 }
 
 export component Tray inherits SystemTrayIcon {

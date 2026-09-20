@@ -565,7 +565,34 @@ widened — it is not the whole *form* but the whole *window*, and it outlives t
 window being hidden.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired at injection A's shape, unchanged. `ui/app.slint` gains
+`public function dismiss-pickers()` — `date-picker.close(); time-picker.close();`
+— and `glass.rs` calls `invoke_dismiss_pickers()` as the first statement of
+`present`'s `self.shown != showing` branch. One call site, and the reasoning was
+re-checked against the code rather than carried over: `showing` is
+`frame.shown.map(…)`, so `Shift::Closed` makes it `None` against a `self.shown`
+that still holds the answered view, and the hide present is itself a change of
+`shown`. A `public function` rather than a callback because the direction is
+host→markup, which nothing else in this file does; no `is-open` guard, because a
+generated `close()` is `Option<NonZeroU32>::take().map(…)`
+(`i-slint-compiler-1.17.1/generator/rust.rs:3792-3804`) and closing a picker
+that is not open is a no-op.
+
+The loop-tier case landed as written, cherry-picked from `feceab6` with no
+assertion weakened: **red** at `picker.rs:398` before the repair with both
+controls holding, **green** after. The injection pass was re-run against the
+committed tree — B1 (`showing.is_some()`) red on the hide claim alone at `:428`,
+B2 (`showing.is_none()`) red on the replacement claim at `:398`, B3 (press and
+release removed) red on the first control at `:372`. `just check` exits 0 at
+**596**. Readings and the injection table are in `notes.md` §*Audit session 2 —
+repairs*.
+
+**Not repaired, and recorded rather than folded in:** a third path leaves a
+picker up. `Focus::Diagnostics` over a shown view derives `Surface::Diagnostics`
+with `frame.shown` still `Some` (`controller.rs:162-167`), so `present` writes
+`WindowMode::Diagnostic` — the prompt block leaves the tree — without changing
+`shown`, and the dismiss branch is not taken. That is outside this finding's two
+measured shifts and wants a finding of its own.
 
 **Outcome:**
 
