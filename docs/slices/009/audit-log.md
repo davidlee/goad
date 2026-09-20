@@ -216,3 +216,44 @@ and the second is the one that carries the new information:
   anything; it is a screen/wire divergence stated in no document at all, which
   is why `canon-delta.md` CD-1 gains the matching clause (decided above, this
   file).
+
+---
+
+## 2026-09-20 — two canon amendments the recorded endorsement did not reach
+
+Reconciliation surfaced two changes to `SPEC-001` §Verification that the first
+entry's *"CD-2, corrected and then promoted"* does not cover. Both were put to
+the user with the evidence and both are endorsed.
+
+### CD-2 Change 3 — **amended before promotion, because F-S3 landed after it was drafted**
+
+Change 3 says the `R-55` row should name where the sixth-kind path is held:
+*"`view_model.rs::undrawn_form`'s exhaustive match, which is a compile-time
+guard rather than a case."* Two things are wrong with promoting that verbatim.
+The identifier is the one PHASE-05 renamed — already known, already endorsed.
+The **claim** is the new problem: **F-S3** established that an exhaustive match
+is a guard against a sixth kind only while nobody absorbs it into a wildcard
+arm, and a `_` arm compiles, lints clean under the workspace set, and leaves
+the gate green. What holds the property is the match **plus**
+`clippy::wildcard_enum_match_arm`, denied for the `goad` crate.
+
+**Decided: amend Change 3, then promote.** The `R-55` row names both. Canon
+that says the match is the guard would be true of the source and false of the
+gate, which is the failure `docs/memory/a-count-in-a-comment-is-a-claim-nothing-checks.md`
+and this slice's own three instrument findings are all instances of. The
+amendment costs one clause; **`POL-001` is still untouched and the gate's
+instrument count is unchanged**, because F-S3's repair is a lint-table entry
+inside the existing clippy pass rather than a fifth boundary instrument.
+
+### The `R-18` row — **confirmed, and the site named**
+
+The row says *"`view_model.rs::present` reads exactly one key, `group`"*. This
+was carried in `audit.md`'s table as *unverified — check before touching*. It is
+now checked: the read moved to `Run::of` (`view_model.rs:258`), which `present`
+still reaches through `sift` (`:363-368`). **The claim is true**; what has
+decayed is its locating power, since a reader grepping `present` for `group`
+finds nothing.
+
+**Decided: confirm and name the site.** `Run::of` is named alongside `present`.
+Canon carries no revision history, so it reads as the evergreen statement rather
+than as a correction — which is the right shape, because nothing was wrong.

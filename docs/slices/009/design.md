@@ -148,9 +148,16 @@ interprets it; and `PendingEdit`, which is what `Command::Choose` carries (§5.2
 five are drawn it has no variants left, so it becomes an empty enum and
 `Undrawn::FieldForm` can no longer be constructed. That is fine for AC-7,
 because the mechanism AC-7 cares about is not `FieldForm` itself but
-`undrawn_form`'s exhaustive match over the canonical `FieldKind`. That match
-still fails to compile if the protocol grows a sixth kind, and whoever adds it
-then has to decide: draw it, or give `FieldForm` a variant back.
+`drawn_form`'s exhaustive match over the canonical `FieldKind` (named
+`undrawn_form` here and until PHASE-05 renamed it — `plan-log.md`, 2026-09-19).
+That match still fails to compile if the protocol grows a sixth kind, and
+whoever adds it then has to decide: draw it, or give `FieldForm` a variant back.
+
+**One thing this argument assumed and did not say**, found at audit by **F-S3**:
+the match fails to compile only while nobody absorbs the new kind into a
+wildcard arm. A `_` arm compiles, lints clean under the workspace set, and
+leaves the gate green. `clippy::wildcard_enum_match_arm`, denied for the `goad`
+crate, is what closes that and is the second half of what holds AC-7.
 
 **What that costs is an enumeration, not a rename**, and it is written out here
 because every entry is a live site that will not compile or will silently lie:
@@ -603,12 +610,22 @@ is empty and the held number is zero.
 
 **That exception is probably now dead, and it stays until a case says so.** The
 overlay appears to subsume it: a cleared field is a pending `AdjustedText("")`,
-`interpret` reads that as the text `""` beside a number of zero, the channel
-carries `""`, and the strings agree on their own. But this comparand has been
-wrong three times in this review, twice on reasoning, so the exception is carried
-into the implementation and removed only after `numeric_guard.rs`'s case has been
-re-run against the overlay and shown not to need it. §9 carries that as an
-obligation rather than leaving it in prose.
+`interpret` reads that as the text `""` beside the number the field already
+held, the channel carries `""`, and the strings agree on their own. But this
+comparand has been wrong three times in this review, twice on reasoning, so the
+exception is carried into the implementation and removed only after
+`numeric_guard.rs`'s case has been re-run against the overlay and shown not to
+need it. §9 carries that as an obligation rather than leaving it in prose.
+
+> **Measured, and the obligation is discharged: the exception is gone**
+> (PHASE-08/EX-7, `plan-log.md` *the exception was not dead, it was wrong*).
+> It was run four ways. The paragraph above is right that the overlay subsumes
+> it, and it understates the result — the exception is not merely redundant but
+> **wrong**, because it suppresses exactly the convergence AC-6 requires. The
+> shipped rule is therefore the plain one: **converge unless the strings match**,
+> at all five guard sites. This note is here rather than in place of the two
+> paragraphs above because what they record is the reasoning that asked for the
+> measurement, and the measurement is what settled it (§9 A-2, §7 D13).
 
 **Converging on recency was the third candidate and is not taken.** A per-slot
 revision the host bumps deletes the comparand rather than correcting it, and is
@@ -1404,7 +1421,7 @@ and the code is the same either way.
 | D8 | A present writes in place exactly when the `view_id` is unchanged (D-9) | Comparing rows and skipping the write (Thread 4) — blind to the only divergence that matters. And "rebuild when a command was refused", on two grounds, neither of them the identity of the refused command: `TrySendError::Full(T)` hands the whole `Command::Edit` back, so the field **is** available and `wire.rs:127-133` discards it deliberately. First, the alternative rests on a completed enumeration of the ways an edit can be lost, which `docs/memory/enumerate-the-class-not-the-instances.md` warns about and which Thread 4 never finished; the measured guard needs no such enumeration. Second, even with the field in hand, the only correction available without the epoch is a targeted row rebuild (Thread 4, *not taken but available*) — and the field being rebuilt is the field the person was typing in, because that is where edits come from. Narrower than a whole-form rebuild, and fatal the same way |
 | D9 | Structure and value on two channels (D-9) | Retaining the nested model tree so values can be written in place. A cache with an invalidation rule, in a file whose current doc is that it has neither |
 | D10 | `DrawnKind`, a host-local enum | Carrying the canonical `FieldKind` on `PresentationField`. It avoids a second enum but lets a sixth protocol kind reach a drawn field and fall silently through the markup's `if` chain |
-| D11 | `FieldForm` becomes uninhabited, not deleted | Deleting it. `undrawn_form`'s exhaustive match is what AC-7 protects, and an empty enum keeps `Undrawn::FieldForm` as the place a sixth kind goes |
+| D11 | `FieldForm` becomes uninhabited, not deleted | Deleting it. `drawn_form`'s exhaustive match (`undrawn_form` when this was decided) is what AC-7 protects, and an empty enum keeps `Undrawn::FieldForm` as the place a sixth kind goes |
 | D12 | `Chosen(AlternativeId)`, interpreted from an index in `controller.edit` | The markup handing back the alternative id as a string. The host cannot mint an `AlternativeId`, so interpreting against the presentation is what makes AC-8 a fact about the types |
 | D13 | The host holds the text a person typed beside the number it means, so the numeric `LineEdit`'s guard compares string against string — an identity, and **with no exception**. The decision as taken carried one, an empty widget against a held zero (D-18); PHASE-08/EX-7 re-measured it against the overlay and removed it, because a cleared field is a pending `""` and the strings agree on their own, while the exception suppresses the convergence AC-6 requires (§9 A-2) | Comparing `to-float()`, which the first draft took: it parses to `f32`, so two legal `f64`s can compare equal while the strings differ, and the case the guard exists for is the one where the host never recorded the edit. Comparing the widget's text against a re-format of the held `f64`, which the second draft took: **measured** corrupting ordinary typing, `1.05` → `105` and `-3` → `3`, because `f64` → text is not injective. And converging on a per-slot **revision** instead, which deletes the comparand rather than correcting it and is the better shape in the abstract — measured available, and ruled out by its own cases, since `-` and `1e400` are edits the host cannot record as numbers and that is exactly when a revision converges. A bare string comparison without the exception was measured writing `"0"` over a person clearing a field to retype |
 | D14 | The loop tier takes whatever targets its rows need, one arrangement each (D-10, widened at D-14); everything a `changed <property>` handler or a timer does not produce stays in `tests/renderer/` | Writing the guard's cases in `tests/renderer/`, where they would be green and measure nothing. And D-10's own "one binary, one test fn", which §9 outgrew: five claims need discriminating and one injection pass cannot separate them inside a single `#[test]`. Also rejected, after it was briefly believed: moving the `choice` and `datetime` cases to the loop tier on the ground that the no-loop tier cannot reach inside a popup. It can — the testing backend's own `test_popups` does it, and absence of a case in this repository was mistaken for absence of a capability |
@@ -1519,7 +1536,7 @@ would be F-44.
 | AC-4 | `tests/renderer/fields.rs`, both halves — `init` runs there, so the element half needs no loop | `set_accessible_value` on each of two text fields, then the option control's default action — the answer flush makes the typed path synchronous | the draft holds what was typed; **two text fields edited inside one window both survive**; `inits` is unchanged, so the element was not destroyed while it was |
 | AC-5 | the loop target | two `present` calls carrying the same frame | `reasserts` unchanged, `inits` unchanged |
 | AC-6 | the loop target, negative-controlled | `set_accessible_value` on a `LineEdit` whose `Wire` reaches no controller, then **let the loop run past the debounce** so the entry is sent and leaves `pending.rs`, then a present. Both halves are needed: while the entry is still held the host *does* hold the value and the widget correctly stands — it is the enqueued-but-never-handled send that makes this the dropped-edit case | `reasserts` increments, the widget holds the draft's value again, `inits` unchanged |
-| AC-7 | `view_model.rs` unit | — | `undrawn_form` still matches `FieldKind` exhaustively; `Undrawn` still reports a `group` hint it cannot read |
+| AC-7 | `view_model.rs` unit | — | `drawn_form` (`undrawn_form` as planned) still matches `FieldKind` exhaustively; `Undrawn` still reports a `group` hint it cannot read. **The exhaustive match is held by the gate only with F-S3's repair** — `clippy::wildcard_enum_match_arm`, denied for `goad` — because a wildcard arm absorbing a sixth kind compiles |
 | AC-8 | `tests/renderer/fields.rs` | `invoke_accessible_expand_action`, then `mock_single_click` on the named `ListItem` | a `choice` submits an **alternative** id, and a view whose field id equals an option id still answers correctly |
 | AC-9 | `tests/renderer/fields.rs` | `set_accessible_value` on the numeric `LineEdit` | an unbounded `number` draws the text control and submits a number; no range appears that the backend did not send |
 | a `number` whose spelling is long | `tests/renderer/fields.rs`, over a `view_model.rs` unit for the formatter itself | the formatter directly, on `f64::MAX` and on a number that spells inside the bound; then an element query on a `number` field declaring `f64::MAX` as its `min` | the spelling is `{:e}` beyond 24 characters and `Display` at or below it, each re-parses under the host's parse rule to the `f64` it came from, and the drawn `LineEdit` carries the short form rather than 309 characters (D-32) |

@@ -38,13 +38,23 @@ a value nobody would pick rather than one that looks like an answer
 any of this, and the `datetime` case in particular will be read off the wire as
 a bug unless the spec says otherwise.
 
-**Open — settle before promoting.** Whether the epoch is stated **normatively**
-(a backend MAY rely on it to mean *untouched*) or **descriptively** (this is
-what this host sends; it is not a sentinel, and `R-58`'s existing instruction —
-do not send the field — remains the way to distinguish unanswered). The
-descriptive form keeps this slice's *no protocol change* non-goal intact and
-leaves `OQ-2` as the answer to the question the sentinel would half-answer. The
-normative form is more useful to a backend author and harder to withdraw.
+**Settled — the descriptive form** (`audit-log.md`, 2026-09-20). A backend MAY
+NOT rely on the epoch to mean *untouched*: it is what this host sends, it is not
+a sentinel, and `R-58`'s existing instruction — do not send the field — remains
+the way to distinguish unanswered. This keeps the slice's *no protocol change*
+non-goal intact and leaves `OQ-2` as the answer to the question a sentinel would
+half-answer. The normative form was more useful to a backend author and harder
+to withdraw, and was declined on the second count.
+
+**And a fourth clause this entry did not have, exposed by F-P2.** State what a
+**cleared** bounded `number` submits, because it is not what an *untouched* one
+submits and no document said either. `"".parse::<f64>()` is an `Err`, so a
+cleared field keeps the number it already held: a field declared
+`{"kind":"number","min":2.5}`, cleared and then answered, shows an empty box and
+submits `2.5`. Only a field drawn at zero — no `min`, or `min: 0` — submits `0`.
+CD-1 as drafted does not reach this, because CD-1 is about *untouched* rather
+than *cleared*, and a backend author reading an empty box against a `2.5` on the
+wire could discover it nowhere.
 
 The spelling itself is no longer a prediction. `1970-01-01T00:00:00+00:00` is
 what `Timestamp::UNIX_EPOCH` displays through `display_with_offset` at
@@ -78,6 +88,14 @@ this slice that is false for all four. Replace it with the cases that now
 assert them, and name the new event-loop targets alongside the existing
 renderer cases.
 
+**And the row's closing sentence carries the same stale citation Change 3 did.**
+It names *"the `FieldKind` arm in `view_model.rs::present`"* as the site that
+must change when the protocol grows a sixth kind. That arm is `drawn_form`'s,
+and `present` is a different function in the same module. Correcting it here
+rather than leaving it to a reader is the whole point of promoting a delta
+rather than the row as written (`audit.md` Reconciliation; `audit-log.md`,
+2026-09-20).
+
 **Change 2 — the `R-58` row names two cases whose premise stops existing, and
 one half of the rule stops being observable.** The row cites
 `crates/goad/tests/renderer/fields.rs::a_view_carrying_an_undrawn_field_is_still_shown_and_still_answers_its_drawn_keys`
@@ -109,8 +127,20 @@ and URI content are admitted and undrawn the same way"*. After this slice no
 option field is undrawn on account of its kind. The mechanism is unchanged and
 still asserted by the content-form and markdown cases; the sentence naming
 option fields is what has to go, and the row should say instead where the
-sixth-kind path is held — `view_model.rs::undrawn_form`'s exhaustive match,
-which is a compile-time guard rather than a case.
+sixth-kind path is held.
+
+**Amended at audit, twice, and the second amendment changes the claim rather
+than the spelling** (`audit-log.md`, 2026-09-20). The function is
+`view_model.rs::drawn_form` — PHASE-05 renamed it from `undrawn_form` and
+widened its return to `Result<DrawnKind, FieldForm>` (`plan-log.md`,
+2026-09-19), so promoting the name as drafted would write a dangling citation
+into canon. And the *property* as drafted is incomplete: **F-S3** established
+that an exhaustive match stops a sixth kind only while nobody absorbs it into a
+wildcard arm, and a `_` arm compiles, lints clean under the workspace set and
+leaves the gate green. So the row must name **both** halves — `drawn_form`'s
+exhaustive match, and `clippy::wildcard_enum_match_arm` denied for the `goad`
+crate, which is what makes the match a guard the gate holds rather than a
+property of the source as it happens to be written today.
 
 **Why.** A Verification row that cites a reason which has expired is worse than
 one that cites nothing: it tells a future reader the clause cannot be tested. A

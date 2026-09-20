@@ -418,7 +418,8 @@ slice 002 recorded.
 - **The tier is size, and the non-goals are what keep it off canon.** `step` on
   a `number` stays a hint at most; SPEC-001/OQ-4 (a date without a time) stays
   shut. If drawing a date picker shows a date-only field cannot be expressed,
-  that reopens OQ-4 at no tier cost, because the tier is already 2.
+  that reopens OQ-4 at no tier cost, because the tier is already 2. **It did
+  not**: the field is expressible and OQ-4 stayed shut — see §Open decisions.
 - **The finding with the sharpest planning consequence:** `changed` handlers fire
   nowhere under `init_no_event_loop`, and the whole `tests/renderer/` tier uses
   it — so a case written there asserting the re-assert would be green while
@@ -545,5 +546,18 @@ condition rather than a position.
   the question will arrive under: both pickers are popups, a popup cannot be
   repeated, and `DatePickerPopup` yields a bare `{year, month, day}` where R-57
   requires an instant with an offset.
+  **009 is done and OQ-4 stays shut.** The trigger it set for reopening —
+  a date-only field turning out not to be expressible — **was not met**: a date
+  without a time is expressible as a `datetime` at 00:00 local, and 009 draws
+  it. What 009 produced instead is the evidence the question was waiting for,
+  and it is a different kind of thing: an **affordance cost**, not an
+  inexpressibility. A backend wanting only a date makes the person walk a time
+  picker to get there, and 009's D5 declined the shortcut that would have hidden
+  that cost. So the residue is now sharper than it was — the fork is *its own
+  kind, or a hint on `datetime`* — and it is **asymmetric**, because SPEC-001/R-18
+  already permits a renderer, and only a renderer, to branch on a hint: the hint
+  half needs no protocol change at all. Whoever reopens this is choosing between
+  a protocol addition and a renderer convention, not between a format and
+  silence.
   (007 design D3; raised as F-14, and the decision reversed under F-21, in that
-  slice's design review.)
+  slice's design review. 009 design §10; `docs/slices/009/audit.md`.)

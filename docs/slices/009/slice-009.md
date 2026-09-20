@@ -119,8 +119,14 @@ the one way `docs/AGENTS.md` §Tiers names as failing the rule dishonestly.
 ## Governing canon
 
 Binding: **SPEC-001** R-16, R-17, R-18, R-35, R-52, R-53, R-55, R-57, R-58.
-**ADR-001** and **POL-001** — all of this slice is stratum 3; nothing reaches
-`goad-semantics`. `POL-001` §Verification also names the residue this slice
+**ADR-001** and **POL-001** — this slice is stratum 3 with **one declared
+exception**: PHASE-09 adds `Alternatives::first` to
+`crates/goad-semantics/src/protocol/canonical.rs`, with explicit user
+endorsement (2026-09-19), declared in that phase's Surfaces and carried in
+`plan-log.md`. The addition is pure — it names no `src/shell/`, reads no clock,
+filesystem or subprocess, and adds no dependency — so ADR-001 holds; what would
+have been false is the sentence this replaces, *"nothing reaches
+`goad-semantics`"*. `POL-001` §Verification also names the residue this slice
 triggers, a feature switched on in a dependency stratum 1 shares; `design.md`
 §10 carries the argument it requires.
 

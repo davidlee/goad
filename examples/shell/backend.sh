@@ -11,11 +11,14 @@
 # a window is there. A real backend reads its own state and answers `view: null`
 # far more often than not.
 #
-# The form it sends is **protocol-shaped, not renderer-shaped**. It carries a
-# field of a kind this renderer does not draw, on purpose: what a backend author
-# copies from here is the contract, and a renderer that draws a subset of it
-# reports the rest rather than narrowing what may be sent (SPEC-001/R-55). A
-# form trimmed to what today's window happens to draw would teach the opposite.
+# The form it sends is **protocol-shaped, not renderer-shaped**, and that is the
+# rule rather than an artefact of what the window happens to draw: what a
+# backend author copies from here is the contract, and a renderer that draws a
+# subset of it reports the rest rather than narrowing what may be sent
+# (SPEC-001/R-55). This renderer now draws all five field kinds, so nothing in
+# the form below is undrawn any more — the form did not change, the window
+# caught up with it. A form trimmed to what today's window happens to draw would
+# teach the opposite lesson and would have needed rewriting when it did.
 
 request=$(cat)
 
@@ -97,11 +100,12 @@ case $type in
         # runs of two. Nothing here is sorted and nothing is merged; the host
         # takes no position on what a backend groups by.
         #
-        # `note` is a `text` field. This renderer draws `boolean` and reports
-        # every other kind undrawn, so it will not appear in the window — it
-        # will appear on the diagnostic surface, and its id will be absent from
-        # the `values` recorded above. That is R-55 working, and it is the one
-        # thing in this file that only matters because it is *not* drawn.
+        # `note` is a `text` field, and it is drawn: this renderer draws all
+        # five kinds, so its id is among the `values` recorded above like any
+        # other. It was written here when the renderer drew `boolean` alone and
+        # reported every other kind undrawn, to show R-55 working from the
+        # backend's side. Nothing in the form had to change when the window
+        # grew — which was the point of writing it this way.
         printf '%s\n' '{
           "view": {
             "kind": "choice",

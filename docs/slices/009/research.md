@@ -92,7 +92,7 @@ Canon claims cite the document id (`SPEC-001/R-16`). Code claims cite
 
 | path | why |
 |---|---|
-| `crates/goad/src/view_model.rs:230` | `undrawn_form` — the exhaustive `match` over `FieldKind` that sorts a kind into drawn or `Undrawn::FieldForm`. Four arms move from undrawn to drawn. |
+| `crates/goad/src/view_model.rs:325` | `drawn_form` — the exhaustive `match` over `FieldKind` that sorts a kind into drawn or `Undrawn::FieldForm`. Four arms move from undrawn to drawn. (Read as `undrawn_form` at `:230` when this research was done; PHASE-05 renamed it and widened its return to `Result<DrawnKind, FieldForm>` — `plan-log.md`, 2026-09-19.) |
 | `crates/goad/src/view_model.rs:131` | `FieldForm` — the undrawn-form enum. It is *not* a mirror of `FieldKind` by design; if every kind is drawn it may have no variants left, which is a decision, not a deletion. |
 | `crates/goad/src/draft.rs:30` | `Edited` — one variant today, `Checked(bool)`. Its doc states outright that drawing a second kind should be *"a `submitted` arm rather than a reshaping of `Command`, `Draft`, `install.rs`"*. |
 | `crates/goad/src/draft.rs:88` | `submitted` — the single application of R-57. Four arms to add. |
