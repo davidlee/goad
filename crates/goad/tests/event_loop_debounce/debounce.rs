@@ -124,10 +124,27 @@ struct Reading {
 /// and both are asserted, because they are the two halves of the delivery
 /// rule and an injection aimed at one must not be masked by the other:
 ///
-/// - **one per tick.** The command channel holds one (`main.rs:86`) and
+/// - **one per tick.** The command channel holds one (`main.rs:87`) and
 ///   `serve` shares the UI thread, so one command per tick is the most that is
-///   ever available. A timer that sent both entries at once would fail the
-///   first reading.
+///   ever available.
+///
+///   **This reading cannot discriminate `tick`'s one-per-tick rule from a
+///   `tick` that iterated the whole map, and at capacity 1 nothing can**
+///   (F-S6, and the finding's own suggested repair does not work). Give the
+///   mutant two entries and an empty channel: it sends the first, which
+///   succeeds and is removed, then the second, which comes back `Full` and
+///   stands by the enqueue rule. One command in the channel and one entry left
+///   — identical to production, and `tick` is synchronous, so no drain can
+///   interleave between the two sends to tell them apart. Filling the channel
+///   first does not help either: then *neither* shape delivers anything.
+///
+///   So what this assertion holds is the weaker claim that is actually true of
+///   the run — **at most one command reaches the controller per tick** — which
+///   is a fact about the channel's capacity as much as about `tick`. The
+///   stronger claim is unobservable rather than untested, the same shape as
+///   F-S7, and it is left stated rather than instrumented. The rule that *is*
+///   held, by a real driver, is the one this case cannot reach: a `Full` send
+///   clears nothing, in `tests/event_loop_full/`.
 /// - **and it re-arms.** A `slint::Timer` may be restarted from inside its own
 ///   callback (`i-slint-core-1.17.1/timers.rs:348-372`), and the second entry
 ///   is reachable by no other route: nothing here answers, so there is no
@@ -253,8 +270,9 @@ fn the_timer_delivers_one_edit_per_tick_and_re_arms_while_the_map_is_not_empty()
 
   assert_eq!(
     after_one.handled, 1,
-    "one entry per tick, and nothing answered — the channel holds one, so a timer that \
-     sent both at once could not have been delivered anyway: {after_one:?}"
+    "at most one command per tick reaches the controller, and nothing answered — the \
+     channel holds one, so a timer that sent both at once could not have delivered the \
+     second anyway, which is why this cannot say more than it does: {after_one:?}"
   );
   // **Which** of the two arrives first is not asserted, and must not be: no
   // order is promised over the map and none is needed, because the keys are

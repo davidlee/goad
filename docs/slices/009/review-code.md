@@ -285,7 +285,29 @@ tick 150 ms into any exchange is the ordinary case.
 `tick`; it is the one rule in the debounce that nothing would report breaking.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired with the driver the finding asks for: **`crates/goad/tests/event_loop_full/`**,
+a new loop target. `event_loop_debounce`'s arrangement with the stepper's
+every-step drain removed — that drain being exactly why no case anywhere produced
+a `Full` send from `tick`.
+
+One `text` field, so `held` counts the entry under test and nothing else. The
+channel is occupied by a `Command::Evaluate` inside the same debounce window and
+left occupied across the tick. Three readings: **A** the entry is held and
+nothing delivered; **B** a tick has fired against a full channel and the entry
+*still stands*; **C** the channel drained and the re-armed tick delivered the
+same entry, read back through `answer`.
+
+B is PHASE-05/VA-1. C is what stops B passing because no tick ever fired.
+
+**Injection pass**, each applied to the tree, run, read, and restored from a
+copy: **I1** `pending.rs:212-214`'s `if enqueued` removed so `tick` always
+removes → **red at B**, `held: 0` against `1`. **I2** the re-arm neutered →
+**red at C alone**, `held: 1, handled: 0` against `(0, 1)`, with B passing, so
+the two readings discriminate independently. **I3** the occupancy drained again
+immediately so the channel is empty at tick time → **red at B**, which is what
+makes B's reading a fact about `Full` rather than about anything else. The
+negative control compiles (`docs/memory/negative-control-must-compile.md`): I3 is
+a drain, not a deleted line.
 
 **Outcome:**
 
@@ -335,7 +357,21 @@ name a case for AC-4's element half that does not do that job, and the case's
 doc comment states a claim it does not make.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired where the defect is — the case's own doc — and the record half is left
+to Reconciliation rather than done twice.
+
+The doc comment now states that the `inits` comparison **is** vacuous and why:
+no `.await` between the two readings, so `serve` cannot be scheduled; nothing
+enqueued for it in any case, because `install.rs:70` routes a `Reported::Typed`
+into `Debounce::hold`; and `init_no_event_loop`, so no timer fires. No present
+occurs between the readings and the equality is the executor's. The
+mutation is named in the doc so the next reader can re-run it.
+
+**The case is kept**: its draft-and-wire half is real and is its actual subject.
+The four cases that *do* redden under the D8 mutation are named in the doc, so a
+reader arriving at AC-4's element half is sent somewhere true. `plan.md`
+§Coverage and `design.md` §9's AC-4 row are the remaining half and are already a
+Reconciliation row.
 
 **Outcome:**
 
@@ -376,7 +412,16 @@ I-H's divergence list. PHASE-04/VT-1 cannot see it — it composes a 2024 date,
 where every zone's offset is a whole number of minutes.
 
 **Disposition:** `doc-wrong`
-**Response:**
+**Response:** Dispositioned `doc-wrong` and repaired there, because **there is no repair
+available on the other side**. RFC 3339's `time-numoffset` is
+`("+" / "-") time-hour ":" time-minute` and cannot express a sub-minute offset at
+all, so rounding is the only conforming behaviour and `R-57` is not breached. The
+finding's mechanism was re-read from the locked source and stands
+(`printer.rs:310-318`, `:772-775`). `instant.rs`'s doc now states the rounding,
+the measured deltas, why `R-57` survives it, that the host's own round trip is
+lossless because the button carries the same rounded string and `decompose`
+reopens on the exact civil value, and why PHASE-04/VT-1 cannot see it. I-H's
+divergence list is `design.md`'s and is a Reconciliation row, not this.
 
 **Outcome:**
 
@@ -441,7 +486,15 @@ tuple struct with a private field, `new` is its only constructor, there is no
 `first()` cannot panic.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired. The `reason` literal's two runs of collapsed whitespace are a
+continued (`\`) literal now, matching `view_model.rs:536-541`; *"ten lines
+above"* became *"twenty lines above"* in the doc, and the `reason`'s own copy of
+the phrase — which sat 37 lines *below* what it pointed at — now says only
+*"above this line"*, since a count from inside an attribute goes stale the next
+time anything above it moves. The `:361` and `:362-364` references were accurate
+and are untouched. The substance was re-checked and stands: `Alternatives` is a
+tuple struct with a private field, `new` is its only constructor, there is no
+`Default` or `Deserialize`, and `first()` cannot panic.
 
 **Outcome:**
 
@@ -460,7 +513,12 @@ leaves it to the renderer and the behaviour is arguably right. Raised because
 the type's doc does not distinguish them.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired in the doc; the behaviour stands, as the finding allows. `FieldBlock`'s
+doc now says that **three** runs produce `heading: None` and that they do not all
+merge — `Unreadable` and `Ungrouped` key `None` and join, `Named("")` keys
+`Some("")` and opens a second headingless block beside them. `R-18` leaves
+grouping to the renderer, so this is admitted rather than wrong; what was missing
+was any statement that the three read identically once they arrive.
 
 **Outcome:**
 
@@ -805,7 +863,26 @@ pass. Raised because it **interacts with F-S2**: one case that fills the
 channel gives both claims a driver.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** **The finding is right that the assertion cannot fail for its own claim, and its
+suggested repair does not work.** Checked before acting on it: at capacity 1 —
+`main.rs:87`, and the harness the same — a `tick` that iterated the whole map is
+*indistinguishable* from one-per-tick. Give the mutant two entries and an empty
+channel and it sends the first, which succeeds and is removed, then the second,
+which comes back `Full` and stands by the enqueue rule: one command queued and
+one entry left, identical to production. `tick` is synchronous, so no drain can
+interleave between the two sends. Filling the channel first is worse — then
+neither shape delivers anything. So "one case that fills the channel gives both
+claims a driver" gives F-S2 a driver and not this one.
+
+Repaired by making the case say what is true of it. The assertion now reads *at
+most one command per tick reaches the controller* — a fact about the channel's
+capacity as much as about `tick` — and the doc states in full why the stronger
+claim is unobservable rather than untested, which is the same shape as F-S7. The
+rule this case cannot reach is held by a real driver in
+`tests/event_loop_full/`, and the doc points there.
+
+**Disposition unchanged** (`fix-now`, repaired in this slice); what changed is
+the repair, from *add a driver* to *stop claiming what cannot be driven*.
 
 **Outcome:**
 
@@ -831,7 +908,31 @@ stated as a load-bearing invariant in `glass.rs:168-186` and in §5.5.
 **Disposition:** *settle first* — one mutation
 decides whether I-F is unobservable or merely untested; dispositioned once it
 is answered.
-**Response:**
+**Response:** **Settled by measurement, then dispositioned `doc-wrong`.** The mutation the
+finding asks for — `set_values` swapped below the `if self.shown != showing`
+block — was applied and `cargo test --workspace --no-fail-fast` came back exit 0,
+zero failures. So the green reading reproduces.
+
+**And the reviewer's suspicion is right: I-F is unobservable, not merely
+untested.** Enumerated rather than reasoned from the headline. Every
+`root.values[…]` read in `app.slint` is either a lazy, dependency-tracked binding
+(`:426`, `:479`, `:550`, `:613`, `:686`, `:746`), which the `set_values` write
+invalidates so it re-evaluates before anything reads it, or a click-time read
+(`:762-763`). The five guards do break their binding by self-assigning, but they
+fire on `changed epoch`, and the epoch bump is the **last** statement in either
+order — so a guard never runs against stale values. `present` is synchronous, so
+neither a case nor a person can observe a state between its statements; only a
+statement that **latches** the transient could make the order matter, and the one
+candidate is `set_vec`'s instantiation pass, where all six `init` handlers are
+`root.inits += 1`.
+
+**The order is kept and the comment is rewritten as the forward constraint that
+actually holds it: no `init` handler may read `root.values`.** One that seeded
+itself at init — the shape `seed-date`/`seed-time` use at click time — would
+latch the stale read and make this load-bearing for real. Nothing enforces that;
+the order costs nothing and is the shape that stays correct if the markup
+acquires one. `design.md` §5.5's statement of I-F as a live invariant is a
+Reconciliation row.
 
 **Outcome:**
 
@@ -1079,7 +1180,16 @@ the tracker fire exactly when the state changes and costs nothing at the
 boundary.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired, and it is the one behaviour change in this group. `tray_icon` now
+rasterises the two icons once per thread and hands out clones; the rule itself
+moved unchanged into `rasterise`. The mechanism is recorded on `tray_icon` so the
+next author does not rediscover it: slint compares an `Image` by buffer
+*address* (`graphics/image.rs:211-223`, reached through `:643` and `:774`), so a
+freshly allocated buffer never compared equal to the one it replaced and
+`icon_tracker` (`items/system_tray.rs:326-341`) fired on every present.
+Thread-local rather than a global because `slint::Image` is neither `Send` nor
+`Sync`; stability within a thread is what a `ChangeTracker` reads. The sibling
+`set_hover_text` needed nothing: a `SharedString` compares by content.
 
 **Outcome:**
 
@@ -1128,7 +1238,16 @@ read. `Weak::upgrade` inside the callback, or a `timer.stop()` on the empty
 tick, closes it.
 
 **Disposition:** `doc-wrong`
-**Response:**
+**Response:** Dispositioned `doc-wrong` and repaired there: the cycle is real, and in
+production it costs nothing, so what was missing was the statement rather than a
+different shape. `Debounce`'s doc now carries the retention argument in full —
+`arm` moves an `Rc<Self>` into a closure that `Timer::start` boxes into the
+thread-local slab rather than into the `Timer` (`timers.rs:61-66`, `:84-93`),
+and only `Timer::drop` (`:188-203`) removes that entry, which cannot run while
+the entry holds the strong count up — with the diagram, the per-test-target
+cost, the link to F-R9, and the two closers (`Weak::upgrade` in the callback, or
+`timer.stop()` on the empty tick). The type argued its field count and said
+nothing about its lifetime; it does now.
 
 **Outcome:**
 
@@ -1161,7 +1280,14 @@ surface that the vendored source contradicts, and a reader planning the
 display-server-fails-partway story will take the claim at face value.
 
 **Disposition:** `doc-wrong`
-**Response:**
+**Response:** Repaired in the doc. `Glass::present`'s contract now separates the failure it
+*does* handle — `set_visible(true)?`, propagated out of `WindowInner::show`
+(`window.rs:1636`) — from `renderer().resize(size).unwrap()` twelve lines later
+(`:1648`), which aborts from inside `show()` and never reaches
+`report_platform`. The doc says so, says the exposure is every present rather
+than startup only, and says explicitly that no protocol message reaches it, so
+the fourth invariant is intact. Nothing about the handling changed: the claim was
+the defect.
 
 **Outcome:**
 
@@ -1187,7 +1313,13 @@ where an action a person took can vanish without a trace, and because the
 returns that one line.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired. The upgrade now calls `report_platform` before returning, so the one
+place in the renderer where an action a person took could vanish without a trace
+says something. The finding's own reading is kept in the comment: the failure is
+unreachable today, because the three zoom callbacks live in the tray's callback
+table that `SlintGlass` holds strongly (`main.rs:96-98`), so the `PromptWindow`
+outlives every caller. Reported rather than made unreachable-by-construction,
+because the `else` branch reading as deliberate handling was half the finding.
 
 **Outcome:**
 
@@ -1212,7 +1344,12 @@ reachable from the test tiers, which drop their senders, so it is not dead code
 — only the doc's account of *when* is wrong.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired in the doc. `Ending::Closed` no longer says *"only reachable at
+teardown"*: it says reachable from the test tiers, which drop their senders, and
+in production from nowhere at all — with the eight retention sites enumerated
+(`main.rs:86`, `main.rs:89`, `install.rs`'s seven callbacks, and F-R6's armed
+timer closure) and the real shutdown path named as `Stopped` via `Cancel`. The
+variant is not dead code and was not removed.
 
 **Outcome:**
 

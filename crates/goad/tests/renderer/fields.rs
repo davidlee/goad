@@ -1297,10 +1297,29 @@ async fn a_text_field_draws_a_line_edit_and_the_option_still_answers() {
 /// Slice 009 `plan.md` PHASE-05/**VT-3** — **AC-4, the element half.**
 ///
 /// Two text fields are typed into and then the option is pressed. Everything
-/// typed reaches the draft, and the `inits` counter is unchanged across the
-/// typing — the element was **not destroyed while it was being typed into**,
-/// which is the whole of what AC-4 is about and the thing no value assertion
-/// can see (`docs/memory/a-present-destroys-the-widget-it-writes.md`).
+/// typed reaches the draft and both controls still show it.
+///
+/// **The `inits` comparison here is vacuous, and saying otherwise was this
+/// doc's defect** (F-S1). Between the two `get_inits()` readings there is no
+/// `.await`, so `serve` — a `spawn_local` task on the same `LocalSet` — cannot
+/// be scheduled; nothing has been enqueued for it in any case, because
+/// `install.rs:70` routes a `Reported::Typed` into `Debounce::hold` rather than
+/// sending a command, and this target runs under `init_no_event_loop`, so the
+/// timer never fires. **No present occurs between the readings**, and the
+/// equality is guaranteed by the executor rather than by D8. Mutation-confirmed:
+/// delete the `if self.shown != showing` guard at `glass.rs:189` so every
+/// present destroys every field element, and this case still passes.
+///
+/// It is kept, because the *draft and wire* half above is real and is this
+/// case's actual subject. What it does not carry is AC-4's element half.
+///
+/// **That half is held, by four other cases**, each of which reddens under the
+/// same mutation — `numeric_guard::a_present_inside_the_window_does_not_write_a_zero_back_over_a_cleared_field`,
+/// `overlay::a_present_shows_a_held_edit_and_corrects_one_the_host_never_recorded`,
+/// `reassert::a_second_present_corrects_nothing_and_a_widget_the_host_never_heard_from_is_corrected`,
+/// and `fields::a_present_of_the_same_view_rewrites_the_values_and_destroys_no_element`.
+/// So D8 is well held; what was wrong was `plan.md` §Coverage and `design.md`
+/// §9 naming *this* case for it.
 ///
 /// **The answer is what makes this tier possible.** This target runs under
 /// `init_no_event_loop`, where no timer ever fires — so the only thing that
