@@ -230,10 +230,19 @@ own its own pickers is a slice, not a finding.
 
 ### Tests and checks
 
-`just check` — **exit 0**, run at `b1f9de4`. **592** tests across 25 targets,
-matching the total PHASE-09 recorded. The gate is build, both test tiers, the
-`deno check` of `examples/typescript/backend.ts`, `cargo clippy --workspace
---all-targets -D warnings`, and `cargo fmt --all --check`.
+`just check` — **exit 0**, re-run at `5227ec1` by this session. The gate is
+build, both test tiers, the `deno check` of `examples/typescript/backend.ts`,
+`cargo clippy --workspace --all-targets -D warnings`, and `cargo fmt --all
+--check`.
+
+**The number, stated once so it cannot imply a census.** The gate prints **597**
+as a *sum* over 29 `test result: ok` lines, eight of which report zero. That is
+**562 distinct cases across 21 targets**: `just check` runs `cargo test
+--workspace` and then `cargo test -p goad-semantics`, so that crate's 35 are
+built and run **twice**, under two feature configurations — which is the point
+of the second command (`ADR-001`, `POL-001` §Verification: stratum 1 must stand
+alone), not an accident. The inherited 584/592/595/596 all have the same
+property. The slice began at 549+35.
 
 What that does **not** establish is stated once, here, rather than implied by
 the number. `POL-001` §Verification names the boundaries: the gate is four
@@ -377,32 +386,47 @@ picker survives `hide()` as well as a view replacement.
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
-**Not started.** The rows below are the divergences this session established;
-each still needs its change written and applied. Endorsement for the canon rows
-is recorded in `audit-log.md`, except where the `done` column says otherwise.
+**Applied.** Every row below is done, and the table is the record of what
+changed rather than a list of intentions. Endorsement for the canon rows is in
+`audit-log.md` — the first entry for CD-1, CD-2, the example and the roadmap;
+the third for F-P2's `design.md` edit; the fourth for the two amendments CD-2
+did not carry.
+
+**Sixteen rows, not eleven.** Five of them are `notes.md`'s own reconciliation
+list (`notes.md` §*What is owed*), endorsed 2026-09-19 and never transcribed
+here — which is itself worth recording: a list kept in the work file did not
+reach the closing argument, and only a re-read found it.
+
+### Canon
 
 | document | change | reason | done |
 |----------|--------|--------|------|
-| `canon-delta.md` CD-2 Change 3 | `undrawn_form` → `drawn_form` | cites a function PHASE-05 renamed; promoting it verbatim writes a dangling citation into canon | [ ] |
-| `specs/001 §Verification`, `R-58` row | name the surviving half of the MUST NOT, and say the other half is held by the shape of `answer`'s walk | **canon is untrue now**: it cites two cases `24e8e82` deleted | [ ] |
-| `specs/001 §Verification`, `R-57` row | retire *"review, not a test"*; name the new cases; and correct the closing citation from `present` to `drawn_form` | the premise — no renderer draws those kinds — expired this slice. The citation drift is CD-2's fourth change and CD-2 does not carry it | [ ] |
-| `specs/001 §Verification`, `R-55` row | drop the sentence naming option fields; say where the sixth-kind path is held | no option field is undrawn on account of its kind any more | [ ] |
-| `specs/001 §Verification`, `R-18` row | confirm or correct *"`view_model.rs::present` reads exactly one key"* | the read moved to `Run::of` (`view_model.rs:250`); same call tree, so possibly still true. **Unverified — check before touching** | [ ] |
-| `specs/001 §7` | CD-1, **descriptive**, plus a clause for the cleared bounded `number` | `R-58` forbids omitting a value and `OQ-2` is unlanded, so the host must supply one; F-P2 shows the cleared case is stated nowhere | [ ] |
-| `specs/001 §8` OQ-4 | evergreen replacement of *"no evidence asks for one yet"* | **user discussion open, not decided.** The fork is asymmetric: `R-18` already admits the hint half with no protocol change | [ ] |
-| `slice-009.md` §Governing canon | *"nothing reaches `goad-semantics`"* is false | PHASE-09 touched `canonical.rs` with explicit endorsement, declared in `plan.md` | [ ] |
-| `examples/shell/backend.sh` | three statements, `:15`, `:101`, `:102` | all three went false this slice; the gate cannot see this file | [ ] |
-| `docs/roadmap.md` §Open decisions | record that OQ-4 stays shut and why | `design.md` §10 names this as owed at close | [ ] |
-| `plan.md` §Coverage, `design.md` §9 AC-4 row | name a case for AC-4's element half that can observe a present | F-S1: the named case is vacuous; four others do hold the mechanism | [ ] |
+| `specs/001 §6.2` | CD-1 promoted **descriptively**, as an *untouched value* table beside the sibling *what each kind submits* table, with both consequences: the `max`-only `0`, and F-P2's cleared bounded `number` submitting its `min` | `R-58` forbids omitting a value and `OQ-2` is unlanded, so the host must supply one, and a backend author could discover none of it. CD-1 named §7; §6.2 is where a backend author meets the sibling table, and the relocation is recorded here rather than made silently | [x] |
+| `specs/001 §6.2` | *"including the four no renderer in this repository draws yet"* — an expired premise, on no list | this renderer draws all five. Found while placing CD-1 | [x] |
+| `specs/001 §Verification`, `R-58` row | names the surviving half of the MUST NOT (`an_answer_carries_no_value_for_another_options_field`), and says the other half is held by the shape of `answer`'s walk rather than by a case | **canon was untrue**: both cited cases were deleted by PHASE-09 and both greps now return nothing | [x] |
+| `specs/001 §Verification`, `R-57` row | *"review, not a test"* retired; the two `every_{untouched,operated}_kind_leaves_the_host_with_the_json_type_r57_names` cases and the three per-kind cases named; closing citation corrected `present` → `drawn_form` | the premise — no renderer draws those kinds — expired this slice. The citation is CD-2's fourth change and CD-2 did not carry it | [x] |
+| `specs/001 §Verification`, `R-55` row | the option-fields sentence dropped; the sixth-kind path named as **two** things — `drawn_form`'s exhaustive match **and** `clippy::wildcard_enum_match_arm` | no option field is undrawn on account of its kind any more; and **F-S3 landed after CD-2 was drafted**, so CD-2's *"the match is the guard"* would have written a half-truth into canon (`audit-log.md`, fourth entry) | [x] |
+| `specs/001 §Verification`, `R-18` row | **confirmed**, and the site named: the read is `Run::of`, reached from `present` through `sift` | the claim is true of the call tree and was carried here as unverified. What had decayed was its locating power | [x] |
+| `specs/001 §8` OQ-4 | **not amended.** Still an open user discussion | the audit's position — that the fork is asymmetric, since `R-18` already admits the hint half with no protocol change — is recorded in `audit-log.md` and was not decided. `roadmap.md` carries what 009 found | [ ] — deliberately |
+| `canon-delta.md` CD-1, CD-2 | corrected, then promoted; the file records what landed | `AGENTS.md`: a slice does not close holding an unpromoted draft | [x] |
 
-**Design drift not reconciled:** not yet written. The candidates this session
-found, each to be confirmed before it is recorded — `design.md` §9's AC-7 row
-and D11 cite `undrawn_form`; §9's driver table and §8 **R9** are wrong about
-the `ComboBox` and R9's mitigation is unavailable (PHASE-09/VA-1 has the
-measurement); `:849-852` argues against a lint exception on a premise PHASE-09
-removed, and one landed in `goad-semantics` instead; **A-6**'s *"costs focus,
-not data"* is falsified by F-A1; and I-H's divergence list is missing both
-F-P1's rounding and F-P2's cleared number.
+### The slice's own record
+
+| document | change | reason | done |
+|----------|--------|--------|------|
+| `slice-009.md` §Governing canon | *"nothing reaches `goad-semantics`"* replaced by the declared exception and its purity argument | PHASE-09 touched `canonical.rs` with explicit endorsement, declared in `plan.md` | [x] |
+| `design.md` §5.2, §5.5 I-H, §5.5 edges, §9 A-2, §7 D13 | the cleared numeric field submits the number it held, not `0`; I-H gains that and F-P1's sub-minute offset; A-2 and D13 stop stating a guard exception PHASE-08/EX-7 removed | **F-P2**, endorsed. Three sentences are residue of D-16, reversed at D-33; the exception rows are `notes.md`'s third row, endorsed 2026-09-19 | [x] |
+| `design.md` §5.5 **I-F** | recorded as a **forward constraint** — no `init` handler may read `root.values` — rather than an invariant this markup depends on | **F-S7**, settled by measurement: the transient is unobservable and no case can be written against it | [x] |
+| `design.md` §8 **R9**, §9 driver table (AC-2 operated, AC-8) | R9's risk is coordinate mapping, not layout, and the mitigation it named does not exist; neither row moved, because the `ComboBox` answers to a click on itself plus keys | `notes.md`'s fifth row, endorsed 2026-09-19. PHASE-09/VA-1 has the measurement | [x] |
+| `design.md` §9 **A-6** | the assumption holds; *"costs focus, not data"* is false | **F-A1** | [x] |
+| `design.md` §7, the `choice` as-drawn bullet | the *report it as `Undrawn`* route was **live and unused**, not dead for the reason given; and one `expect` does live in `Alternatives::first`, by decision | `notes.md`'s fourth row, endorsed 2026-09-19 | [x] |
+| `design.md` §9 AC-4 row, `plan.md` §Coverage and PHASE-05/VT-3 | the `inits` half is vacuous and why; the four cases that **do** hold the mechanism named | **F-S1** | [x] |
+| `design.md` §5.2 comparand table, §1 AC-7 argument, D11, §9 AC-7 row; `research.md`; `canon-delta.md` | `undrawn_form` → `drawn_form`; and AC-7's argument gains F-S3's missing clause — the match stops a sixth kind only while no wildcard absorbs it | `notes.md`'s first row, endorsed 2026-09-19. **`canon-delta.md` is the one that mattered**: it is promoted into canon, so a stale identifier there would have landed there | [x] |
+| `plan.md` PHASE-06/EX-3 | the refusing-`interpret` clause is discharged **by construction**, enumerated, not an untested path owed a case | `notes.md`'s second row. Enumerated at audit: only three `Reported` variants are debounced, each accepted against its own kind, and a kind mismatch would need one `view_id` to denote two presentations — which the host-minted counter forbids | [x] |
+| `examples/shell/backend.sh` | three statements, `:15`, `:101`, `:102` | all three went false this slice; the gate cannot see this file, and one of them describes runtime behaviour a person running `just demo` watches the host contradict | [x] |
+| `docs/roadmap.md` §Open decisions, §009 | OQ-4 stays shut, the trigger was not met, and what 009 produced is an **affordance cost** rather than an inexpressibility; the residue's fork named as asymmetric | `design.md` §10 names this as owed at close | [x] |
+
+**Design drift not reconciled:** *(written at close)*
 
 ## Closure
 
