@@ -5707,3 +5707,43 @@ about the tree is verified.
   weakens the display-server-fails-partway answer. What is left is whether a
   refused arrival should present at all, and that is a question the design did
   not settle.
+
+### Audit session 5 — round 2's repairs
+
+Harvest candidates from this session, for the lift into `docs/memory/` at
+close. Each is something a future agent would otherwise rediscover the hard
+way.
+
+- **Interaction identity is the host's, not the controller's.** A view handed
+  straight to `Controller` (the `retaining()` shape three loop targets use) is
+  one `goad-shell` never issued, so a `Command::Choose` against it is refused
+  with `StateError::NoOutstandingView` — *"no interaction is outstanding, so v1
+  answers nothing"* — and never reaches the backend. A case that needs a real
+  answer must drive a real evaluation first. Found by building `F-B1`'s case
+  and reading the refusal out of the diagnostics surface, not by reading code.
+- **A timed bound's margin ratio does not say which way load moves it.**
+  `drain.rs`'s 1.33x (`gap > DEBOUNCE`) is safe under load; its 3.0x
+  (`gap < DEBOUNCE`) is the fragile one, and was measured violated twice while
+  the case still passed on timer dispatch order. Rank by direction first.
+- **`ModelRc`'s `PartialEq` is `core::ptr::eq`** (`i-slint-core/model.rs:719`),
+  and `Repeater::model` resets `RepeaterInner::default()` on a pointer
+  difference (`model/repeater.rs:559-573`). So handing a property a fresh
+  `ModelRc` every present rebuilds every repeated element. This is the same
+  identity-comparison trap as `SharedImageBuffer` (F-R5) with a different
+  consumer — and **"has a `ChangeTracker` behind it" does not test for it**,
+  which is how the enumeration missed it.
+- **A `const _: () = assert!(…)` against a `pub` production constant is a
+  cheaper instrument than deriving a test's schedule from it**, and a stronger
+  one: derivation rescales silently and keeps the case green, while the
+  assertion fails to compile and names the reason. Two targets carry one now.
+- **The workspace lint set denies integer division and `as` casts in test
+  code.** Computing a step count from a `Duration` needs two `#[expect]`s; a
+  literal plus an assertion needs none and holds the same property.
+- **`#![deny(…)]` is per *compilation unit*, and `crates/goad` has two roots.**
+  A deny in `lib.rs` reaches no line of `main.rs`. `[lints] workspace = true`
+  in `Cargo.toml` is exclusive, so a package-local `[lints.clippy]` table
+  cannot sit beside it — a crate-root attribute in *each* root is the
+  mechanism.
+- **Process note, and it held three times this session:** verify a proposed
+  closer before pricing it. F-T1's proposal would have rescaled silently;
+  F-B4's stated margin was the wrong one; F-S5's contest reproduced exactly.
