@@ -83,3 +83,76 @@ true on its own terms and is now the wrong sentence: what 009 found is not
 inexpressibility but an affordance cost. The recommendation is an **evergreen**
 replacement — no slice number, no history, since `roadmap.md:519-547` already
 carries the narrative and canon carries no revision history.
+
+---
+
+## 2026-09-20 — round 1 completed, and every finding dispositioned
+
+Round 1 grew from fourteen findings to **twenty-one** when the renderer
+dimension's two unattacked areas were run as a fresh agent rather than read as
+a clean surface (`review-code.md`, `F-R3`–`F-R9`). Two results changed what the
+repairs have to do.
+
+### F-R1 — **fix now**, and it is settled by measurement rather than argument
+
+F-R1 was raised *reasoned, not run*. It is now run: a loop-tier target drives
+it with controls on both sides of every claim, and it is **confirmed and wider
+than it was written** — the picker survives `hide()` as well as a view
+replacement, so a person can be left with a picker over nothing, and the form
+beneath is unreachable by pointer *and* by keyboard while the widgets
+themselves stay alive. The injection pass fixed the repair's shape at **one
+call site**: `present`'s `self.shown != showing` branch covers `Shift::Replaced`
+and `Shift::Closed` together. The case is red by design and lands with the
+repair.
+
+### F-R3 — **fix now, by draining `commands` before the present**
+
+Narrowing `busy` (F-A1, decided last session) makes typing during an
+`Evaluate` the ordinary case — which is exactly the window in which a debounce
+tick enqueues an edit that `serve` has not yet served, leaving the present at
+`controller.rs:839` to write the draft's stale value back over the widget.
+**Repairing F-A1 without this one trades an exchange-long deafness for a
+per-poll revert**, so the two land together.
+
+Four shapes were put. **Decided: drain `commands` before the present** — apply
+every queued command that resolves without an exchange, stopping at the first
+that needs one. The reason it is preferred to the other three is that it is
+what the three loop-tier harnesses already do (`overlay.rs:238-249`), which is
+*why* the rig cannot see the defect: production is being made to do what the
+rig does. Rejected on their shape, not their cost — moving the present is the
+same effect in a less obvious form; holding the entry until the edit is served
+reverses PHASE-05/EX-4, which is the only reason `Wire::send` returns a `bool`;
+and a `commands` arm in the inner `select!` reopens the re-entrancy the design
+closed.
+
+### The `busy` narrowing needs no second flag, and no new decision
+
+Put to the user as a design question and withdrawn as one: `Command::Edit` is
+not an exchange (`controller.rs:766-776` returns `None`), and `Command::Choose`
+has exactly one origin (`install.rs:40`). So `Pending::Respond` holds **iff the
+person clicked an option button** — there is no `Respond` they did not
+initiate, and the option `Button`'s slice-003 double-submit guard wants exactly
+the narrowed meaning. One flag, one line: `controller.engage(exchanged)`.
+`F-R2`'s sites 5 and 6 are answered — 5 becomes unreachable (a click cannot
+reach the button beneath an open dropdown, `window.rs:843-871`), and 6 is F-R1
+rather than a `busy` problem.
+
+### Every remaining finding, dispositioned together
+
+**fix-now:** `F-A1`, `F-R2`, `F-R1`, `F-R3`, `F-S2`, `F-S1`, `F-S3`, `F-S4`,
+`F-S5`, `F-R4`, `F-R5`, `F-P3`, `F-P4`, `F-R8`, `F-R9`, `F-S6`.
+**doc-wrong:** `F-P1`, `F-P2`, `F-R6`, `F-R7`.
+**settle, then dispose:** `F-S7` — one mutation decides whether I-F is
+unobservable or merely untested.
+
+`F-S3` is dispositioned against the audit's re-derivation rather than the
+finding's headline: the stated mutation does **not** lint clean, and the hole
+is one shape only — a wildcard absorbing an existing kind with a body that
+agrees with it. A boundary scan closes it.
+
+### The budget, revised again — **four sessions**
+
+Round 1 nearly doubled and two of the new findings want real code. Session 2
+takes the three repairs that gate — `F-A1`/`F-R2`, `F-R1`, `F-R3` — and
+checkpoints. Session 3 takes the remaining repairs and round 2. Session 4 takes
+reconciliation and close.

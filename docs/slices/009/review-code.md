@@ -111,27 +111,27 @@ conclusion.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-A1 | blocker | | |
-| F-S2 | major | | |
-| F-S1 | major | | |
-| F-P1 | minor | | |
-| F-P2 | minor | | |
-| F-R1 | major | | |
-| F-R2 | major | | |
-| F-S3 | major | | |
-| F-R3 | major | | |
-| F-S4 | minor | | |
-| F-S5 | minor | | |
-| F-R4 | minor | | |
-| F-R5 | minor | | |
-| F-R6 | minor | | |
-| F-R7 | minor | | |
-| F-P3 | nit | | |
-| F-P4 | nit | | |
-| F-S6 | nit | | |
-| F-S7 | nit | | |
-| F-R8 | nit | | |
-| F-R9 | nit | | |
+| F-A1 | blocker | fix-now | |
+| F-S2 | major | fix-now | |
+| F-S1 | major | fix-now | |
+| F-P1 | minor | doc-wrong | |
+| F-P2 | minor | doc-wrong | |
+| F-R1 | major | fix-now | |
+| F-R2 | major | fix-now | |
+| F-S3 | major | fix-now | |
+| F-R3 | major | fix-now | |
+| F-S4 | minor | fix-now | |
+| F-S5 | minor | fix-now | |
+| F-R4 | minor | fix-now | |
+| F-R5 | minor | fix-now | |
+| F-R6 | minor | doc-wrong | |
+| F-R7 | minor | doc-wrong | |
+| F-P3 | nit | fix-now | |
+| F-P4 | nit | fix-now | |
+| F-S6 | nit | fix-now | |
+| F-S7 | nit | *settle first* | |
+| F-R8 | nit | fix-now | |
+| F-R9 | nit | fix-now | |
 
 **Round 1, completed.** **Twenty-one** findings: one blocker, six majors,
 eight minors and six nits.
@@ -227,7 +227,7 @@ form when idle, a dead drag when a gesture is in flight."* The flash is not one
 frame and the loss is not only a drag: it is an exchange-long deafness, and
 AC-4 is inside its blast radius.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -266,7 +266,7 @@ tick 150 ms into any exchange is the ordinary case.
 **The code is right and the coverage is absent.** This is not a defect in
 `tick`; it is the one rule in the debounce that nothing would report breaking.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -316,7 +316,7 @@ narrower and is a record defect: `plan.md` §Coverage and `design.md` §9 both
 name a case for AC-4's element half that does not do that job, and the case's
 doc comment states a claim it does not make.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -357,7 +357,7 @@ false is the fidelity claim in `instant.rs`'s doc and the completeness of
 I-H's divergence list. PHASE-04/VT-1 cannot see it — it composes a 2024 date,
 where every zone's offset is a whole number of minutes.
 
-**Disposition:**
+**Disposition:** `doc-wrong`
 **Response:**
 
 **Outcome:**
@@ -399,7 +399,7 @@ and submits its minimum. That is a fourth screen/wire divergence, it is not in
 I-H's list, and `canon-delta.md` CD-1 does not reach it either — CD-1 is about
 *untouched*, not *cleared*. A backend author cannot discover it anywhere.
 
-**Disposition:**
+**Disposition:** `doc-wrong`
 **Response:**
 
 **Outcome:**
@@ -422,7 +422,7 @@ tuple struct with a private field, `new` is its only constructor, there is no
 `Default` or `Deserialize`, and no in-module site constructs an empty one.
 `first()` cannot panic.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -441,7 +441,7 @@ sent empty"* — reads as though the two cases are the same. Layout only; `R-18`
 leaves it to the renderer and the behaviour is arguably right. Raised because
 the type's doc does not distinguish them.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -546,7 +546,7 @@ the case holds.
 widened — it is not the whole *form* but the whole *window*, and it outlives the
 window being hidden.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -594,7 +594,7 @@ needs no second flag.
 on a popup item inside `std-widgets`, and 6 is a binding this project never
 wrote. Both have to be answered explicitly or the class is fixed in name only.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -658,7 +658,7 @@ against this table rather than against the headline.
 F-S3 establishes is that nothing would report its removal — which is the same
 shape as F-S2, one level up.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -688,7 +688,7 @@ exactly what an injection pass reports and a green run does not. `design.md`
 §9's own sentence predicted this outcome for the phase that skips it, and it
 came true in the same slice that wrote it down.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -725,7 +725,7 @@ stay green. No tier observes the caret (D-10 assigns it to AC-10's human half),
 so nothing else catches it. **Exposure grows with each control a future slice
 adds.**
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -744,7 +744,7 @@ re-arm offers it next tick — `handled` is still `1` then `2` and both readings
 pass. Raised because it **interacts with F-S2**: one case that fills the
 channel gives both claims a driver.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -768,7 +768,9 @@ is right, I-F is unobservable rather than merely untested and VA-2's premise
 concerns a transient nothing reads.** Worth settling one way, because I-F is
 stated as a load-bearing invariant in `glass.rs:168-186` and in §5.5.
 
-**Disposition:**
+**Disposition:** *settle first* — one mutation
+decides whether I-F is unobservable or merely untested; dispositioned once it
+is answered.
 **Response:**
 
 **Outcome:**
@@ -892,7 +894,7 @@ the `LineEdit`'s text at the present that follows — before the step that drain
 the channel. Or, cheaper, assert `reasserts == 0` across that present, which is
 AC-5's own instrument.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -942,7 +944,7 @@ does not reach.
 writer on the ingress socket sets how often the guard pass runs against a form
 a person is typing into, and how often F-R5's tray push goes out.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -990,7 +992,7 @@ each once and handing out clones keeps the buffer pointer stable, which makes
 the tracker fire exactly when the state changes and costs nothing at the
 boundary.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -1039,7 +1041,7 @@ count and says nothing about its lifetime, so the next author has nothing to
 read. `Weak::upgrade` inside the callback, or a `timer.stop()` on the empty
 tick, closes it.
 
-**Disposition:**
+**Disposition:** `doc-wrong`
 **Response:**
 
 **Outcome:**
@@ -1072,7 +1074,7 @@ is wrong is narrower: a doc comment makes a code claim about `show()`'s failure
 surface that the vendored source contradicts, and a reader planning the
 display-server-fails-partway story will take the claim at face value.
 
-**Disposition:**
+**Disposition:** `doc-wrong`
 **Response:**
 
 **Outcome:**
@@ -1098,7 +1100,7 @@ where an action a person took can vanish without a trace, and because the
 `install.rs:243` is the only upgrade. `grep -n "upgrade" crates/goad/src/*.rs`
 returns that one line.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
@@ -1123,7 +1125,7 @@ and `:110` trip.
 reachable from the test tiers, which drop their senders, so it is not dead code
 — only the doc's account of *when* is wrong.
 
-**Disposition:**
+**Disposition:** `fix-now`
 **Response:**
 
 **Outcome:**
