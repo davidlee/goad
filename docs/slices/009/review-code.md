@@ -844,7 +844,30 @@ so nothing else catches it. **Exposure grows with each control a future slice
 adds.**
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired by making the counter a **consequence** of the write rather than a
+sibling of it. All five guards now assign through a counting function —
+`root.counted-bool(…)`, `-string`, `-float`, `-int`, declared beside `reasserts`
+— so the count happens because the assignment evaluated its right-hand side. A
+write that should not have happened is now a count that should not have
+happened.
+
+The approved shape was an observable-state case, and it is **not reachable**:
+the observable F-S5's mutation changes is the caret, and no tier can see one
+(D-10 assigns it to AC-10's human half; `reassert.rs` already reads the
+`ComboBox`'s own `chosen`, and writing the same value back does not move it).
+So the instrument was fixed instead of a case being added around it.
+
+**Measured as a pair**, applying the finding's own mutation — the `CheckBox`
+guard's assignment hoisted out of its comparison — to each shape in turn:
+
+| shape | `event_loop_reassert`, `_overlay`, `_numeric_guard` |
+|---|---|
+| `root.reasserts += 1` beside the write (as shipped) | **all three green** — the defect is invisible, confirming the finding |
+| the counting call (as repaired) | **red at `reassert.rs:298`**, `reasserts: 2` against `0` |
+
+One function per slot type because slint has no generics here. The exposure
+grew with every control a future slice added, which is why this is the class
+rather than the instance.
 
 **Outcome:**
 

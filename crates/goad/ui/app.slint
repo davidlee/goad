@@ -152,6 +152,44 @@ export component PromptWindow inherits Window {
   out property <int> inits;
   out property <int> reasserts;
 
+  // **The counter is a consequence of the write, not a sibling of it** (F-S5).
+  // `root.reasserts += 1` beside the assignment measured what the markup *said*
+  // it did: hoist any guard's assignment out of its comparison and every widget
+  // is written on every present — the caret destroyed on every tray check, which
+  // is AC-5's second clause — while `reasserts` stays `0` and `reassert.rs`,
+  // `overlay.rs` and `numeric_guard.rs` all stay green. No tier observes a
+  // caret (D-10 assigns it to AC-10's human half), so nothing else caught it.
+  //
+  // Routing each write through a counting function makes the two inseparable:
+  // the count happens because the assignment evaluated its right-hand side, so
+  // a write that should not have happened is a count that should not have
+  // happened. One per slot type, because slint has no generics here.
+  //
+  // **Measured as a pair**, applying F-S5's own mutation — the `CheckBox`
+  // guard's assignment hoisted out of its comparison — to each shape in turn:
+  // under `root.reasserts += 1` beside the write, `event_loop_reassert`,
+  // `event_loop_overlay` and `event_loop_numeric_guard` are all three green;
+  // under the counting call, `reassert.rs:298` goes red with `reasserts: 2`
+  // against `0`. The exposure the old shape carried grew with every control a
+  // future slice added, which is why this is the class fixed and not the
+  // instance.
+  function counted-bool(value: bool) -> bool {
+    root.reasserts += 1;
+    return value;
+  }
+  function counted-string(value: string) -> string {
+    root.reasserts += 1;
+    return value;
+  }
+  function counted-float(value: float) -> float {
+    root.reasserts += 1;
+    return value;
+  }
+  function counted-int(value: int) -> int {
+    root.reasserts += 1;
+    return value;
+  }
+
   // either mode
   in property <string> notice;           // back-pressure, host-authored; "" = none
 
@@ -439,8 +477,7 @@ export component PromptWindow inherits Window {
                             property <int> tick: root.epoch;
                             changed tick => {
                               if (self.checked != root.values[field.slot].checked) {
-                                self.checked = root.values[field.slot].checked;
-                                root.reasserts += 1;
+                                self.checked = root.counted-bool(root.values[field.slot].checked);
                               }
                             }
                             // **The literal names the control's own kind, not
@@ -492,8 +529,7 @@ export component PromptWindow inherits Window {
                           property <int> tick: root.epoch;
                           changed tick => {
                             if (self.text != root.values[field.slot].text) {
-                              self.text = root.values[field.slot].text;
-                              root.reasserts += 1;
+                              self.text = root.counted-string(root.values[field.slot].text);
                             }
                           }
                           // The literal names the control's own kind, for the
@@ -567,8 +603,7 @@ export component PromptWindow inherits Window {
                           property <int> tick: root.epoch;
                           changed tick => {
                             if (self.value != root.values[field.slot].number) {
-                              self.value = root.values[field.slot].number;
-                              root.reasserts += 1;
+                              self.value = root.counted-float(root.values[field.slot].number);
                             }
                           }
                           // **`changed`, and nothing else.** Slint raises
@@ -645,8 +680,7 @@ export component PromptWindow inherits Window {
                           property <int> tick: root.epoch;
                           changed tick => {
                             if (self.text != root.values[field.slot].text) {
-                              self.text = root.values[field.slot].text;
-                              root.reasserts += 1;
+                              self.text = root.counted-string(root.values[field.slot].text);
                             }
                           }
                           // The literal names the control's own kind and its
@@ -702,8 +736,7 @@ export component PromptWindow inherits Window {
                           property <int> tick: root.epoch;
                           changed tick => {
                             if (self.current-index != root.values[field.slot].index) {
-                              self.current-index = root.values[field.slot].index;
-                              root.reasserts += 1;
+                              self.current-index = root.counted-int(root.values[field.slot].index);
                             }
                           }
                           // The literal names the control's own kind, for the
