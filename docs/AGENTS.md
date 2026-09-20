@@ -170,6 +170,6 @@ mv ./docs/slices/123/slice-nnn.md ./docs/slices/123/slice-123.md
 ### Close
 
 - Work the Closure checklist at the foot of `audit.md`.
-- Write the `## Summary` and `## Follow-ups` sections of `slice-nnn.md`. Follow-ups become future slices; do not leave them only in the audit.
+- Write the `## Summary` and `## Follow-ups` sections of `slice-nnn.md`. Follow-ups become future slices; do not leave them only in the audit. Draw them from `notes.md` §Open, and disposition **every** entry there — promoted, carried, superseded, settled, or still open and why. An entry left unswept is a candidate nobody declined.
 - Lift durable facts from `notes.md` Harvest into `docs/memory/` — anything a future agent would otherwise rediscover the hard way.
 - Set the slice stage to `done`.

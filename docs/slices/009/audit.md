@@ -567,6 +567,7 @@ reach the closing argument, and only a re-read found it.
 | `design.md` §5.2 comparand table, §1 AC-7 argument, D11, §9 AC-7 row; `research.md`; `canon-delta.md` | `undrawn_form` → `drawn_form`; and AC-7's argument gains F-S3's missing clause — the match stops a sixth kind only while no wildcard absorbs it | `notes.md`'s first row, endorsed 2026-09-19. **`canon-delta.md` is the one that mattered**: it is promoted into canon, so a stale identifier there would have landed there | [x] |
 | `plan.md` PHASE-06/EX-3 | the refusing-`interpret` clause is discharged **by construction**, enumerated, not an untested path owed a case | `notes.md`'s second row. Enumerated at audit: only three `Reported` variants are debounced, each accepted against its own kind, and a kind mismatch would need one `view_id` to denote two presentations — which the host-minted counter forbids | [x] |
 | `plan.md` PHASE-05/VA-2 | a parenthetical: the case its evidence names was halved and renamed by PHASE-09, and `notes.md` is left naming what it named then | found by the criteria walk. Same treatment PHASE-02/VA-2 already carries for `undrawn_form` → `drawn_form` | [x] |
+| `docs/templates/slice/audit.md` §Closure, `docs/AGENTS.md` §Close | a box for the §Open sweep, and the clause naming §Open as where §Follow-ups is drawn from | **endorsed by the user.** The template's §Open already said *"candidates for follow-ups"* and nothing walked it; a box with no methodology behind it would have been a box, so both moved | [x] |
 | `docs/templates/slice/audit.md` §Closure | a box for the verification-criteria walk, beside the acceptance-criteria one | **endorsed by the user.** The walk is asked for once, inside `AGENTS.md`'s Evidence bullet, and the checklist that ends a slice never asked again — which is how six sessions passed without the omission being noticed | [x] |
 | `docs/roadmap.md` §*Still open from 003* | `SPEC-002`/OQ-4 gains what 009 changed about it — the host now retains a draft and a keyed pending map, so *typed into and not yet answered* is interaction state, which removes half of OQ-4's stated reason for being open — and a line saying it is not `SPEC-001`'s OQ-4 | found by the `notes.md` §Open sweep. The reasoning was already in `design.md` §8 R5; the line a later slice actually reads still said *"still a protocol question"* and nothing else. The Reconciliation row above covers **SPEC-001**'s OQ-4 — a different question with the same number, which is how this one was missed | [x] |
 | `notes.md` §Open | nine entries dispositioned in a table at the head of the section | nothing in the lifecycle walks §Open against `slice-009.md` §Follow-ups, and this audit had not. One promoted (**#10**), one carried to the roadmap, one found **already resolved and left here in error**, three superseded by later phases, one settled, one discharged in place, one still open and correctly so | [x] |
@@ -624,9 +625,11 @@ reach the closing argument, and only a re-read found it.
 - [x] **`slice-009.md` Summary and Follow-ups written.** Nine follow-ups, each
       with the reason it is not in this slice.
 - [x] **`notes.md` §Open swept against §Follow-ups.** Nine entries, each
-      dispositioned in the section itself. Not a box the template carries — the
-      Harvest box below is the nearest and does not reach §Open, which is where
-      a slice's unresolved candidates actually sit.
+      dispositioned in the section itself. The template carried no box for this
+      when the sweep was done — the Harvest box below is the nearest and does
+      not reach §Open, which is where a slice's unresolved candidates actually
+      sit. Added with the user's endorsement, together with the clause in
+      `AGENTS.md` §Close that gives it something to enforce.
 - [x] **`notes.md` Harvest current; durable facts lifted to `docs/memory/`.**
       Nineteen new memories, plus two amendments where this slice **falsified**
       an existing one — `a-count-in-a-comment-is-a-claim-nothing-checks.md`
