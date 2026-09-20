@@ -98,19 +98,24 @@ own its own pickers is a slice, not a finding.
 
 ### Tests and checks
 
-`just check` — **exit 0**, re-run at `5227ec1` by this session. The gate is
-build, both test tiers, the `deno check` of `examples/typescript/backend.ts`,
-`cargo clippy --workspace --all-targets -D warnings`, and `cargo fmt --all
---check`.
+`just check` — **exit 0**, re-run at close. The gate is build, both test tiers,
+the `deno check` of `examples/typescript/backend.ts`, `cargo clippy --workspace
+--all-targets -D warnings`, and `cargo fmt --all --check`.
 
-**The number, stated once so it cannot imply a census.** The gate prints **597**
-as a *sum* over 29 `test result: ok` lines, eight of which report zero. That is
-**562 distinct cases across 21 targets**: `just check` runs `cargo test
+**The number, stated once so it cannot imply a census.** The gate prints **600**
+as a *sum* over **30** `test result: ok` lines, several of which report zero.
+That is **565 distinct cases across 22 targets**: `just check` runs `cargo test
 --workspace` and then `cargo test -p goad-semantics`, so that crate's 35 are
 built and run **twice**, under two feature configurations — which is the point
 of the second command (`ADR-001`, `POL-001` §Verification: stratum 1 must stand
-alone), not an accident. The inherited 584/592/595/596 all have the same
-property. The slice began at 549+35.
+alone), not an accident.
+
+**600 is a sum, not a census, and is not to be repeated as a count of cases.**
+The figures this audit passed through — 584, 592, 595, 596, 597, 599, 600 — all
+have the same property, which is why the sentence above exists. The slice began
+at 549 + 35. The audit added sixteen cases: round 1's repairs, then `F-B6`,
+`F-B1`, `F-T1`'s `const` assertions, `F-C3`'s thirteenth reading and `F-C6`'s
+repeater counter.
 
 What that does **not** establish is stated once, here, rather than implied by
 the number. `POL-001` §Verification names the boundaries: the gate is four
@@ -255,16 +260,131 @@ suite is exactly the kind this audit has watched go stale.
 
 ### Verification criteria
 
-Discharged by reading this session, against the code rather than the phase
-sheet's own account: **PHASE-01/VA-2** (I-F's write order, `glass.rs:187-202`
-— though see **F-S7** on whether it is observable at all), **PHASE-04/VA-1**
-(the `jiff` residue argument), **PHASE-02/VA-1** (the vocabulary scan; the only
-matches in `src/` and `app.slint` are the word *uninhabited*).
+`plan.md` carries **62** verification criteria across nine phases — **44 `VT`**,
+each claiming a case, and **18 `VA`**, each claiming an argument. **All 62 are
+now walked against the code**, which is what `docs/AGENTS.md` §*Audit &
+reconcile* asks for and what session 1 deferred and no session picked up.
 
-The rest of the VT/VA walk is **not done** and is session 2's. Two are already
-contradicted by findings: **PHASE-05/T-8** is ticked for injection passes that
-`notes.md` has no table for (**F-S4**), and **PHASE-05/VA-1** claims the
-enqueue rule was confirmed when nothing exercises it (**F-S2**).
+| phase | criteria | referenced in the record before this walk |
+|---|---|---|
+| PHASE-01 | 7 | 1 |
+| PHASE-02 | 7 | 1 |
+| PHASE-03 | 4 | 1 |
+| PHASE-04 | 6 | 2 |
+| PHASE-05 | 8 | 2 |
+| PHASE-06 | 5 | 0 |
+| PHASE-07 | 6 | 0 |
+| PHASE-08 | 8 | 0 |
+| PHASE-09 | 11 | 2 |
+
+Nine of 62 had been referenced anywhere in `audit.md`, `audit-log.md`,
+`review-code.md` or `notes.md`; 53 had not. The walk was finished rather than
+carried because **two of the three criteria the audit had walked independently
+were contradicted** — **PHASE-05/T-8** ticked for injection passes `notes.md`
+has no table for (**F-S4**) and **PHASE-05/VA-1** claiming the enqueue rule
+confirmed when nothing exercised it (**F-S2**). That is a rate on a sample of
+three, not an estimate of 53, but it is what the walk is for.
+
+**The 53 were never bare ticks.** Every one of the 62 has a substantive entry
+in its phase sheet: a table row naming cases and injection letters, or a titled
+argument. So the walk checks written evidence against the code, rather than
+filling a void — which is why it cost one session and not four.
+
+**It was split by what a script can reach.** `scratchpad/criteria.py` asks the
+two questions F-S4 turned on; the other 30 were walked by hand. Both halves are
+reproducible: the checker builds its own denominator from `cargo test -- --list`
+rather than from any number written here.
+
+#### The scripted half — 32 criteria
+
+- **Every file-qualified case name a sheet entry gives exists in the built
+  suite.** The one apparent exception is PHASE-09/**VA-3**, whose entry names
+  eight `mapper.rs`, `fields.rs`, `wiring.rs` and `reception.rs` cases that are
+  absent — *correctly*: VA-3's whole subject is their **deletion**, and it
+  states per case what each no longer asserts and where the claim went.
+- **Every injection letter cited resolves to a definition in its own phase
+  sheet.** Sixteen criteria cite one; none is undefined.
+- Thirteen criteria name a bare backticked symbol the suite does not carry. All
+  thirteen are API, harness or `[[test]]`-directory names —
+  `init_no_event_loop`, `mock_single_click`, `invoke_accessible_expand_action`,
+  `cast_possible_truncation`, `event_loop_*` — each confirmed present in the
+  tree. No claimed case is missing behind them.
+- Independently: the built suite lists **565** distinct cases, which is the
+  number §Closure states.
+
+#### The hand half — 30 criteria
+
+The 30 the script cannot reach — 18 `VA` arguments and 12 `VT`s whose sheet
+entry names no case. All 30 walked; every one discharged. What the walk did
+rather than read:
+
+- **PHASE-05/VT-6's negative control was run, and it had never been.** PHASE-05
+  is the one phase with no VT evidence table — that absence *is* F-S4 — so its
+  six were walked from nothing. VT-5 and VT-6 are the two claims of the single
+  `event_loop_debounce` case,
+  `the_timer_delivers_one_edit_per_tick_and_re_arms_while_the_map_is_not_empty`.
+  Removing the re-arm from `Debounce::tick` takes the target to
+  `0 passed; 1 failed` at the **second** claim — `left: 1, right: 2`, *the timer
+  re-armed while the map was not empty* — with the first claim still passing.
+  That is exactly the discrimination the module doc claims. Reverted, `git diff`
+  empty.
+- **PHASE-06's recorded injection was re-run rather than taken on report.**
+  Inverting the overlay's lookup in `carried` — `entry.view == view` to `!=` —
+  reproduces the sheet's reading exactly: the first assertion, `("", "")`
+  against the typed pair, `reasserts: 2`. The table is true about the code.
+- **PHASE-05/VT-4** is
+  `a_stale_carried_edit_is_refused_once_and_still_answers_but_an_undeclared_one_does_not`,
+  and it asserts all four clauses the criterion names — the `SupersededView`
+  refusal, **one** reported line for two stale edits, the answer still going,
+  and `Err(Refused::UnknownField)` with no answer for the undeclared field. It
+  carries a non-stale edit beside the stale ones, so a `choose` that abandoned
+  every carried edit at the first refusal could not pass it. VT-1 and VT-2
+  likewise located and read.
+- **PHASE-01/VT-3 and VA-1 are held by construction**, which is stronger than
+  the sheet claims: `FieldRow` no longer declares `checked` at all, so no case
+  *can* read a value off the row and still compile. The two surviving `.checked`
+  readers go through `value_of`, which is `get_values().row_data(slot)`.
+- **PHASE-07/VA-2 re-checked against `app.slint` as it now stands**, not as
+  PHASE-07 left it: six `root.edited(` sites since PHASE-08 and PHASE-09 added
+  theirs, the `datetime` one still only on the time picker's `accepted`, and
+  `canceled` still an empty handler at both pickers. No field holds half a pick.
+- **PHASE-08/VT-1's single unit**,
+  `slider_bounds_admits_only_a_range_a_slider_can_be_operated_over`, carries all
+  four clauses the criterion names — ordinary range, equal bounds, an `f32` span
+  of infinity, and the `2^100` ulp case — and its doc states why no clause
+  subsumes another. VA-2's ` as f32` / ` as f64` grep still returns exactly one
+  line, `exact_f32`'s own checked narrowing.
+- **PHASE-09/VA-2's property is a compile-time one and survives**: `FieldForm`
+  is still `pub enum FieldForm {}` and `drawn_form` still returns
+  `Result<DrawnKind, FieldForm>`, so a sixth `FieldKind` is still a compile
+  error that has to be sorted rather than defaulted.
+
+#### What the walk found
+
+**No criterion is unmet, and there is no second F-S2.** One record-vs-code
+divergence, of **F-D3**'s class rather than F-S2's:
+
+- **PHASE-05/VA-2's evidence names a case that no longer exists.**
+  `wiring.rs::an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field`
+  was **halved and renamed** `…_for_another_options_field` by PHASE-09, which
+  PHASE-09/VA-3 records in full. The sheet was true when written. Repaired the
+  way this plan already repairs it elsewhere: PHASE-02/**VA-2** carries a
+  parenthetical saying its sorter was renamed in a later phase and the evidence
+  is left naming what it named then, and PHASE-05/VA-2 now carries the same
+  note.
+
+Line drift in three cited readings — PHASE-07/VA-1's `[[test]]` count of **6**
+(now **12**, PHASE-08 and PHASE-09 having added targets), PHASE-08/VA-2's
+`view_model.rs:502` and its three `app.slint` reads — is a point-in-time record
+behaving as one. The **properties** each cites were re-checked and all three
+hold; only the coordinates moved. This is the class `CLAUDE.md` names and
+§Follow-ups #8 proposes an instrument for.
+
+**The instruments.** `scratchpad/criteria.py` (the two scripted questions) and
+`scratchpad/inject.py` (apply one defect, run one target, restore, verify the
+restore by `git diff`). Neither is a gate instrument and neither is proposed as
+one here; `criteria.py` is the nearest existing material for §Follow-ups #8.
+
 
 ## Code review
 
@@ -368,6 +488,25 @@ readings a person took against the repaired build.
   in-repo line citations remain, none wrong today, nothing stopping the next
   edit from breaking one.
 
+**The walk that was nearly skipped was finished instead.** The audit's
+independent walk of `plan.md`'s **62** verification criteria had been deferred
+in session 1 and picked up by nobody through six; 9 of 62 were referenced
+anywhere in the record. It is now complete — §*Verification criteria* above —
+split between a scripted half that asks whether every named case exists and
+every cited injection is defined, and a hand half of 30. **No criterion is
+unmet.** The two measurements the walk added rather than read are PHASE-05/VT-6's
+negative control, run for the first time, and PHASE-06's recorded injection,
+re-run and found true. One divergence surfaced, of F-D3's class: a PHASE-05
+evidence row naming a case PHASE-09 renamed, repaired by the note PHASE-02/VA-2
+already sets the precedent for.
+
+The reason this was not carried as a follow-up is in the section itself: the
+sentence that deferred it — *"the rest of the walk is not done and is session
+2's"* — is exactly the artefact a follow-up row would have become. `docs/templates/slice/audit.md`
+§Closure now carries a box for the walk, which is what was missing: the
+checklist that ends a slice enumerated the acceptance criteria and never asked
+about the verification ones.
+
 **One thing is deliberately unfinished.** `SPEC-001` OQ-4's wording is an open
 discussion, not an omission. The audit's position — that the fork is
 asymmetric, because `R-18` already permits a renderer and only a renderer to
@@ -427,6 +566,8 @@ reach the closing argument, and only a re-read found it.
 | `design.md` §9 AC-4 row, `plan.md` §Coverage and PHASE-05/VT-3 | the `inits` half is vacuous and why; the four cases that **do** hold the mechanism named | **F-S1** | [x] |
 | `design.md` §5.2 comparand table, §1 AC-7 argument, D11, §9 AC-7 row; `research.md`; `canon-delta.md` | `undrawn_form` → `drawn_form`; and AC-7's argument gains F-S3's missing clause — the match stops a sixth kind only while no wildcard absorbs it | `notes.md`'s first row, endorsed 2026-09-19. **`canon-delta.md` is the one that mattered**: it is promoted into canon, so a stale identifier there would have landed there | [x] |
 | `plan.md` PHASE-06/EX-3 | the refusing-`interpret` clause is discharged **by construction**, enumerated, not an untested path owed a case | `notes.md`'s second row. Enumerated at audit: only three `Reported` variants are debounced, each accepted against its own kind, and a kind mismatch would need one `view_id` to denote two presentations — which the host-minted counter forbids | [x] |
+| `plan.md` PHASE-05/VA-2 | a parenthetical: the case its evidence names was halved and renamed by PHASE-09, and `notes.md` is left naming what it named then | found by the criteria walk. Same treatment PHASE-02/VA-2 already carries for `undrawn_form` → `drawn_form` | [x] |
+| `docs/templates/slice/audit.md` §Closure | a box for the verification-criteria walk, beside the acceptance-criteria one | **endorsed by the user.** The walk is asked for once, inside `AGENTS.md`'s Evidence bullet, and the checklist that ends a slice never asked again — which is how six sessions passed without the omission being noticed | [x] |
 | `examples/shell/backend.sh` | three statements, `:15`, `:101`, `:102` | all three went false this slice; the gate cannot see this file, and one of them describes runtime behaviour a person running `just demo` watches the host contradict | [x] |
 | `docs/roadmap.md` §Open decisions, §009 | OQ-4 stays shut, the trigger was not met, and what 009 produced is an **affordance cost** rather than an inexpressibility; the residue's fork named as asymmetric | `design.md` §10 names this as owed at close | [x] |
 
@@ -462,6 +603,10 @@ reach the closing argument, and only a re-read found it.
 - [x] **All acceptance criteria met**, none waived. AC-4 and AC-5 were repaired
       rather than waived — the decision the slice turned on — and their final
       readings are a person's, because no test tier can see a caret or a drag.
+- [x] **Each verification criterion in `plan.md` walked against the code.** All
+      **62**, split between `scratchpad/criteria.py`'s two scripted questions
+      (32) and a hand walk (30). None unmet. One F-D3-class divergence, repaired
+      in `plan.md`. §*Verification criteria* carries the readings.
 - [x] **Tests and checks green.** `just check` exits 0: **30** `test result: ok`
       lines summing to **600**, which is **565 distinct cases across 22
       targets**, `goad-semantics`' 35 built and run twice under two feature

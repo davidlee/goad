@@ -67,6 +67,7 @@ without saying so.>
 
 - [ ] All findings dispositioned; no blockers outstanding
 - [ ] All acceptance criteria met, or explicitly waived by the user
+- [ ] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
 - [ ] Tests and checks green
 - [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
 - [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down

@@ -636,6 +636,10 @@ alone — added 2026-09-19, `plan-log.md`),
 - VA-2 — the migrated fixtures still assert what they asserted: each one's
   undrawn field is still undrawn, and no case's guard assertion became vacuous in
   the move. `prototype-notes.md` P-13.
+  *(Discharged as written; `an_answer_carries_no_value_for_another_option_or_for_an_undrawn_field`
+  was halved and renamed `…_for_another_options_field` in PHASE-09 — PHASE-09/VA-3
+  records which half went — and the evidence in `notes.md` is left naming what it
+  named then.)*
 
 **Notes for the implementer**
 
