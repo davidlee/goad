@@ -111,26 +111,26 @@ conclusion.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-A1 | blocker | fix-now | |
-| F-S2 | major | fix-now | |
-| F-S1 | major | fix-now | |
+| F-A1 | blocker | fix-now | verified |
+| F-S2 | major | fix-now | verified |
+| F-S1 | major | fix-now | verified |
 | F-P1 | minor | doc-wrong | verified |
 | F-P2 | minor | doc-wrong | verified |
-| F-R1 | major | fix-now | |
-| F-R2 | major | fix-now | |
-| F-S3 | major | fix-now | |
-| F-R3 | major | fix-now | |
-| F-S4 | minor | fix-now | |
-| F-S5 | minor | fix-now | |
+| F-R1 | major | fix-now | verified |
+| F-R2 | major | fix-now | verified |
+| F-S3 | major | fix-now | verified |
+| F-R3 | major | fix-now | verified |
+| F-S4 | minor | fix-now | verified |
+| F-S5 | minor | fix-now | **contested** → re-open |
 | F-R4 | minor | fix-now → **follow-up** | verified |
-| F-R5 | minor | fix-now | |
+| F-R5 | minor | fix-now | verified |
 | F-R6 | minor | doc-wrong | verified |
 | F-R7 | minor | doc-wrong | verified |
 | F-P3 | nit | fix-now | verified |
 | F-P4 | nit | fix-now | verified |
-| F-S6 | nit | fix-now | |
+| F-S6 | nit | fix-now | verified |
 | F-S7 | nit | *settle first* → **doc-wrong** | verified |
-| F-R8 | nit | fix-now | |
+| F-R8 | nit | fix-now | verified |
 | F-R9 | nit | fix-now | verified |
 
 **Round 2 opened** — 2026-09-20, over the repairs. Two dimensions, each a fresh
@@ -143,6 +143,33 @@ orchestrator's own unraised leads could not become an echo.
 | F-T2 | minor | | |
 | F-T3 | minor | | |
 | F-T4 | nit | | |
+| F-B1 | major | | |
+| F-B2 | major | | |
+| F-B3 | minor | | |
+| F-B4 | minor | | |
+| F-B5 | minor | | |
+| F-B6 | minor | | |
+| F-B7 | minor | | |
+| F-B8 | nit | | |
+| F-B9 | nit | | |
+
+**The behaviour dimension** held the six findings whose repair produced
+behaviour — `F-A1`, `F-R2`, `F-R3`, `F-R1`, `F-R5`, `F-R8` — and applied every
+mutation each Response names to production code rather than reading the account.
+**All six are `verified`; none is contested.** Two Responses are *understated* by
+their own evidence: F-A1's reversion reddens three targets in two tiers rather
+than the two claimed, and F-R2's markup claim — run rather than taken — makes
+`event_loop_busy` **the first case in the project that can see an `enabled`
+binding at all**. Where a repair had no case, the reviewer built a probe rather
+than accepting the Response (F-R5), and the probe is what exposed **F-B6**.
+**Eight new findings, `F-B1`–`F-B8`**, two of them `major`; both majors are about
+what *holds* a repair or what a repair did not reach, not about a line that is
+wrong. It also settled, on its own evidence rather than inheriting it, that
+`wiring.rs`'s first `busy` case is now unreachable — **F-B7**.
+
+**`F-B9` is the orchestrator's**, raised as declared raiser after both dimensions
+closed. It was held back from both briefs; the behaviour dimension reached the
+surface and excluded it on a test that does not cover a repeater.
 
 **The instruments dimension** re-ran every mutation named in all six Responses
 it held, applied to production code and restored from a copy, and every one
@@ -281,7 +308,33 @@ with a real exchange outstanding. Injection: `engage` reverted to
 `self.engaged = true` reddens both. `notes.md` §*Audit session 2* has the
 readings.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 2's behaviour dimension as raiser.
+
+**Evidence.** The mutation the Response names, run rather than read:
+`controller.rs:418-420` reverted to `let _ = exchanged; self.engaged = true;`,
+then `cargo test -p goad --no-fail-fast`:
+
+| target | result |
+|---|---|
+| `event_loop_busy` | **FAILED** at `busy.rs:296` — *"a key typed while the host is polling the backend must be recorded"*, `left ["v1/morning/noted=a"]` / `right […, "…noted=b"]` |
+| `event_loop_drain` | **FAILED** at `drain.rs:462` — `left "x"` / `right "xy"` |
+| `renderer` | **FAILED** — `table::busy::an_evaluation_does_not_engage_and_an_answer_does` |
+| every other `-p goad` target | green |
+
+**The Response's *"reddens both"* is understated: three targets redden, in two
+tiers.** The slint half of the claim was re-derived from the vendored
+`i-slint-core-1.17.1` sources and is unchanged.
+
+**The class, re-enumerated at the markup.** After the narrowing, six of
+`app.slint`'s seven `enabled: !root.busy` sites are no longer disabled by an
+exchange the person did not start, and the seventh — the option `Button` — is
+disabled exactly for the answer it guards: `controller.rs:312` is
+`self.shown.as_ref().ok_or(Refused::SupersededView)?`, so `choose` is the only
+road to `Pending::Respond` and it needs a shown view.
+
+**What the repair does not reach, carried forward rather than held against it.**
+The `engage` **call site** inside `serve` is held by nothing — **F-B1**. The
+production line is correct as written; that is a coverage finding.
 
 ### F-S2 — the enqueue rule has no case in the direction that loses a person's typing
 
@@ -805,7 +858,29 @@ with `frame.shown` still `Some` (`controller.rs:162-167`), so `present` writes
 `shown`, and the dismiss branch is not taken. That is outside this finding's two
 measured shifts and wants a finding of its own.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 2's behaviour dimension as raiser.
+
+**Evidence.** All four citations re-derived from the vendored `1.17.1` sources.
+The generated `close()` is `popup_id.take().map(…)`, so closing a picker that is
+not open is a no-op and no `is-open` guard is needed, as the Response argues.
+
+*The full injection table, re-run* against `crates/goad/src/glass.rs`, restored
+from a scratch copy between each:
+
+| injection | applied at | read |
+|---|---|---|
+| the `invoke_dismiss_pickers()` line deleted | `glass.rs:235` | **red at `picker.rs:398`**, `picker: true` at reading D |
+| `if showing.is_some() { … }` — replacement only | `glass.rs:235` | **red at `picker.rs:428`**, the hide claim alone, `picker: true` at reading H |
+| `if showing.is_none() { … }` — hide only | `glass.rs:235` | **red at `picker.rs:398`**, the replacement claim alone |
+
+**Every line number the Response quotes is the line the run produced**, and the
+case is not a proxy: four controls, failing independently under the injections.
+
+**The class, enumerated.** *A popup outlives the surface it belongs to.* Both
+pickers across `Shift::Replaced` and across `Shift::Closed` — reached, measured.
+Both across a `Focus::Diagnostics` mode switch — **not reached: F-B2**, measured
+with a positive control. The `ComboBox` dropdown across a view replacement —
+not reached; F-B2's scope note.
 
 ### F-R2 — the `busy` class, enumerated: two of the seven sites are worse than F-A1 priced, and one is not gated at all
 
@@ -868,7 +943,26 @@ Held by a new case in each tier: `renderer/table.rs`'s
 when `engage` is reverted **and** when the text `LineEdit`'s `enabled` binding
 is deleted, so it holds the markup as well as the controller.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 2's behaviour dimension as raiser.
+
+**Evidence.** Both named instruments redden under the `engage` reversion
+recorded at F-A1's Outcome above.
+
+*The Response's second claim, run rather than taken.* Deleting the text
+`LineEdit`'s `enabled: !root.busy` at `app.slint:517` — `event_loop_busy`
+**FAILED** at `busy.rs:321`, `left [a, b, c]` / `right [a, b]`, every other
+target green. **This is the first case in the project that can see an `enabled`
+binding at all**; F-A1's own evidence records that before this slice, deleting
+any of them left all 592 green.
+
+*Sites 5 and 6, checked at the markup and the routing rather than accepted.*
+Site 5 (`ComboBox`): `fluent/combobox.slint:112` binds
+`close-policy: close-on-click-outside`, and `i-slint-core-1.17.1/window.rs:824`
+is the arm that closes on an outside press and `:843-871` then delivers it
+nowhere — so the click that would reach the option `Button` beneath the dropdown
+closes the dropdown instead. `audit-log.md`'s *unreachable after the narrowing*
+holds. Site 6 (the `datetime` `Button`): answered by F-R1's repair for the two
+shifts it measured, and **not** for a third — **F-B2**.
 
 ### F-S3 — AC-7's compile-error mechanism is held by nothing in the gate
 
@@ -1503,7 +1597,28 @@ edit the overlay still covered. Injection: the drain neutered gives
 `reasserts: 2` at the reading after the fold, with the text still correct —
 which is both the defect and the reason the text is not the instrument.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 2's behaviour dimension as raiser.
+
+**Evidence.** The claim re-derived at the tree: `controller.rs:890-897` is the
+drain, `:898` is still the first present of the iteration, the inner `select!`
+at `:1017-1045` still has exactly three arms and `commands` is not among them,
+and `Wire::send` is `try_send` only (`wire.rs:193-205`) at capacity 1 — so the
+interleave the finding describes is the one the drain now covers.
+
+*The mutation the Response names, run.* The drain body wrapped in `if false`:
+`event_loop_drain` **FAILED** at `drain.rs:496` with `reasserts: 2` against `0`,
+exactly as claimed, and the widget's text correct at both readings — which is
+also why the Response is right that the text is not the instrument. Every other
+`-p goad` target green, so **`event_loop_drain` is the sole instrument**.
+
+**What the case would survive, recorded rather than raised.** It queues exactly
+one command, so it cannot tell the committed `while drained.is_none()` loop from
+a single `try_recv`. Harmless at the current capacity of 1, and no mutation of
+the loop body changes behaviour there — but the loop's *iteration* is untested
+and its correctness rests on two facts in two other files.
+
+**The new comment the repair added is not true of all three present sites** —
+**F-B3**. The timing of the case that holds the repair is **F-B4**.
 
 ### F-R4 — one full present, `window.show()`'s instantiation pass included, per refused ingress arrival, at a rate an untrusted writer sets
 
@@ -1654,7 +1769,37 @@ Thread-local rather than a global because `slint::Image` is neither `Send` nor
 `Sync`; stability within a thread is what a `ChangeTracker` reads. The sibling
 `set_hover_text` needed nothing: a `SharedString` compares by content.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 2's behaviour dimension as raiser — and
+see **F-B6**, which is about what *holds* the repair, not whether it is right.
+
+**Evidence.** The finding's single load-bearing citation read directly rather
+than taken: `i-slint-core-1.17.1/graphics/image.rs:211-223` is
+`impl PartialEq for SharedImageBuffer`, and all three arms compare
+`data.as_ptr()` — address, not contents.
+
+*The repair, measured.* No case in the tree asserts image identity, so the
+reviewer built one, appended temporarily to `tests/renderer/tray.rs`:
+
+```rust
+let a = tray_icon(TrayState::Idle);
+let b = tray_icon(TrayState::Idle);
+assert!(a == b);
+assert!(a != tray_icon(TrayState::Fault));
+```
+
+Green at `5227ec1`. With `tray_icon`'s body reverted to the pre-repair
+`rasterise(state)`, the probe **FAILED** and all 203 other `renderer` cases
+passed. Probe removed with the reversion left in place: **every `-p goad` target
+green** — which is **F-B6**. Both files restored.
+
+**The class, enumerated.** *A property written on every present whose slint
+comparison is by identity rather than content.* `set_image` — repaired.
+`set_hover_text` — `SharedString`, content, correctly excluded. The reviewer
+excluded `set_values` and `set_diagnostic_lines` on the ground that neither has
+a `ChangeTracker` behind it, which is true and is the right test **for this
+class**; a repeater is a second consumer of model identity that the test does
+not reach, and that is **F-B9**, raised separately and not against this
+Outcome.
 
 ### F-R6 — once armed, the `Debounce` is a reference cycle through slint's thread-local timer list and is never dropped
 
@@ -1784,7 +1929,20 @@ table that `SlintGlass` holds strongly (`main.rs:96-98`), so the `PromptWindow`
 outlives every caller. Reported rather than made unreachable-by-construction,
 because the `else` branch reading as deliberate handling was half the finding.
 
-**Outcome:**
+**Outcome:** `verified` — set by round 2's behaviour dimension as raiser.
+
+**Evidence.** `install.rs:245-252` now reports before returning. The branch is
+unreachable today for the reason the finding and the new comment both give, so
+no mutation can exercise it and none is claimed. What *is* checkable is the
+enumeration, and it holds:
+`grep -rn "report_platform(" crates/goad/src crates/goad/tests` returns exactly
+`install.rs:251` and `glass.rs:276`, and `grep -n "upgrade" crates/goad/src/*.rs`
+still returns one line. The repair is what the finding asked for.
+
+**Raised against the same three lines:** `report_platform`'s own doc comment
+still says *"The only caller is `SlintGlass::present`"*, and the string it emits
+is prefixed *"the window could not be drawn"*. Neither is true of the new call
+site. **F-B5**.
 
 ### F-R9 — `Ending::Closed` says "only reachable at teardown"; in production it is reachable at no time at all
 
@@ -2078,6 +2236,476 @@ comment above it) and all three citations were written or touched after that, so
 nothing caught the drift.
 
 ---
+
+### F-B1 — `serve` can stop engaging altogether and the whole suite stays green: slice 003's double-submit guard is held by no case through the production loop
+
+**Severity:** major — **run**
+**Location:** `crates/goad/src/controller.rs:993` (`controller.engage(exchanged);`)
+
+**Expected.** F-A1's Response: *"the option `Button`'s slice-003 double-submit
+guard fires exactly when it was written to"*, and `Controller::engage`'s own doc
+(`controller.rs:405-412`). The claim is about `serve`, and `serve` is the only
+place `engage` is called in production.
+
+**Observed.** `engage` maps `Exchanged::Answer` to `engaged`; the **call site**
+supplies the `Exchanged`, and nothing checks that it supplies the right one.
+Replacing `controller.engage(exchanged)` with
+`controller.engage(Exchanged::Evaluation)` — the production loop never engaging
+at all, so the option `Button` is never disabled and slice 003's double-submit
+guard is dead — leaves **every target of `cargo test -p goad --no-fail-fast`
+green**, all three new loop targets and all 203 `renderer` cases included.
+
+Every case that holds `busy` calls `Controller::engage` **itself**:
+`event_loop_busy/busy.rs:246,254`; `renderer/table.rs:927,932,942,960`;
+`renderer/wiring.rs:476,506,1842`. The mapping inside `engage` is held nine
+times over; the argument that produces it is held nowhere.
+
+`event_loop_drain` *does* run the production `serve` and catches the **opposite**
+mutation — hardcoding `Exchanged::Answer` reddens it at `drain.rs:462` — because
+its whole arrangement is a key typed during an evaluation. There is no
+counterpart case for an answer in flight under `serve`.
+
+**Evidence.** Three runs, each restored from a scratch copy:
+
+| mutation at `controller.rs:993` | `cargo test -p goad --no-fail-fast` |
+|---|---|
+| `controller.engage(Exchanged::Answer)` | `event_loop_drain` FAILED at `drain.rs:462`; 13 other targets green |
+| `controller.engage(Exchanged::Evaluation)` | **all targets green**, 0 failures |
+| unmutated | all targets green |
+
+**Scope, stated honestly.** The production line is **correct** as written; this
+is a coverage finding, not a live defect, and it contests neither F-A1's nor
+F-R2's repair. What it says is that the half of the repair that *keeps* a
+behaviour is unheld — the half a future refactor is most likely to drop, on the
+exact line this slice narrowed. The shape of the missing case is
+`event_loop_drain`'s with `Command::Choose` in place of `Command::Evaluate`.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B2 — a picker survives `open_diagnostics()`, and the diagnostics pane's only exit button is then unreachable by pointer
+
+**Severity:** major — **run**, with a positive control
+**Location:** `crates/goad/src/glass.rs:224-241` (the dismiss is inside
+`if self.shown != showing`); `crates/goad/src/controller.rs:172-178`
+(`surface()`); `crates/goad/ui/app.slint:952-956` (the pane's
+`close-diagnostics` button)
+
+**Expected.** F-R1: *"Nothing in canon or the design contemplates a picker still
+on screen after the view it belongs to is gone"*, and `CLAUDE.md`'s fourth
+invariant in its host form — no host action may leave the window unanswerable.
+`design.md` §5.4/§5.5 end a pick in `accepted`, `canceled`, or `compose`
+failing.
+
+**Observed.** `surface()` maps `(Focus::Diagnostics, _)` to
+`Surface::Diagnostics` while `frame.shown` stays `Some` — `frame()`
+(`controller.rs:426-435`) passes `self.shown.as_ref()` unconditionally — so
+`present` writes `WindowMode::Diagnostic`, taking the whole prompt block out of
+the tree, with `showing == self.shown`. **The dismiss branch is not taken** and
+the picker stays up over the diagnostics pane, whose every control is then
+unreachable by pointer, the one button that leaves it included.
+
+**Evidence.** Measured by temporarily extending
+`tests/event_loop_picker/picker.rs` (restored; byte-identical to `5227ec1`
+afterwards). Step 11's `absorb(…)` replaced with `controller.open_diagnostics()`,
+then `close-diagnostics` clicked with the picker up, then the picker dismissed
+by a real pointer click on its own `Cancel` and `close-diagnostics` clicked
+again:
+
+```
+H  after open_diagnostics() and a click on close-diagnostics
+   picker: true,  chosen: ["v1/morning", "v2/evening"]
+
+I  the same click with the picker dismissed - the control
+   picker: false, chosen: ["v1/morning", "v2/evening", "close-diagnostics"]
+```
+
+**Reading I is the positive control**: same driver, same element query, same
+click, and it raises the callback once the picker is gone. So H is not a driver
+that missed.
+
+Reachable in production: `Command::OpenDiagnostics` comes from the tray menu
+(`app.slint:1074`), a native surface a person can reach while a picker is up.
+
+**Scope, stated honestly.** `major` and not `blocker` for F-R1's own reason: the
+picker's `Cancel` still closes it, so it is not a permanent lockout. A second,
+weaker member of the class is recorded rather than glossed — the `ComboBox`
+dropdown is opened from inside a repeated row and `active_popups` holds the
+popup's item tree strongly (`window.rs:1955-1962`), so a dropdown should outlive
+a view replacement too; `dismiss-pickers()` does not close it, but its
+`close-on-click-outside` policy means one swallowed click dismisses it, which is
+why it is a footnote.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B3 — `pending.rs`'s new claim that the drain makes *the next present* safe is false for one of `serve`'s three present sites
+
+**Severity:** minor — **reasoned from the tree, not run**
+**Location:** `crates/goad/src/pending.rs:236-244`;
+`crates/goad/src/controller.rs:1046`
+
+**Expected.** The comment `665dcf3` added at `pending.rs:236-244`: *"`serve`
+closes the interval from its end: it applies every queued command that resolves
+without an exchange **before** it presents, so **the next present is never one
+that has not yet served this send**."* A universally quantified claim about
+`serve`'s presents, written by this repair, in the file the repair corrects.
+
+**Observed.** `serve` has three present sites — `controller.rs:898` (the outer,
+drained), `:994` (the busy present, reached synchronously from `:898`'s
+`select!` with nothing able to enqueue in between), and **`:1046`**, inside the
+inner `select!`'s `ingress.arrival() => None` arm. That third present is reached
+**after an await**, is not preceded by a drain, and lands precisely while an
+exchange is outstanding — F-R3's own window. A debounce tick that enqueued
+during that exchange has left the map (`pending.rs:212-214`) and has not been
+served, so this present writes the pre-typing value back over the widget: F-R3's
+exact defect, at a site the repair does not reach.
+
+**Evidence.**
+- `grep -n "glass.present" crates/goad/src/controller.rs` → `898`, `994`,
+  `1046`. Only `898` is preceded by the drain.
+- `controller.rs:1040-1047` is the arm, and its own comment says it *"costs one
+  presentation per **process**"* — so the exposure is bounded at one, and only
+  once the ingress accept task has ended (`ingress_stopped()`,
+  `controller.rs:674-682`, SPEC-003/R-15).
+- `event_loop_drain` cannot see it: it builds `Ingress::none()`, so that arm
+  never fires.
+
+**Scope, stated honestly.** The behavioural cost is small — at most one widget
+revert per process, and only after ingress has died. What is wrong without
+qualification is **the sentence**. The cheap repair is to drain before that
+present too, or to narrow the sentence to the outer loop's present and say which
+site is excluded and why.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B4 — all three new loop targets fail under CPU oversubscription, and the failure is the liveness bound rather than any assertion: the stepper harness stalls
+
+**Severity:** minor — **run**, instrumented at the bound
+**Location:** `crates/goad/tests/event_loop_drain/drain.rs:96-106`,
+`crates/goad/tests/event_loop_busy/busy.rs:54,59`,
+`crates/goad/tests/event_loop_picker/picker.rs:52,57` — the `STEP` /
+`LIVENESS_BOUND` pairs, and each file's step schedule
+
+**Expected.** `docs/memory/timed-test-margins-are-measured-at-the-bound.md`:
+measure at the bound the assertion governs, under real oversubscription. Slice
+003's recorded worst margin *anywhere in the suite* is **10.8x**, with 13/13
+full-suite runs green at loadavg 164-170 on 32 cores. `POL-001`: the gate exits
+0.
+
+**Observed.** One sustained batch, 192 spin loops on 32 cores, each target run 8
+times in sequence, uninstrumented, at a sustained loadavg of 195-198:
+
+| target | result |
+|---|---|
+| `event_loop_drain` | pass 6, **fail 2** |
+| `event_loop_busy` | pass 7, **fail 1** |
+| `event_loop_picker` | pass 4, **fail 4** |
+
+**Every captured failure is the liveness bound, not a claim** — the stepper did
+not reach its last reading inside 10 s / 20 s, against nominal runs of
+240 ms / 850 ms:
+
+```
+busy.rs:276 — the stepper must have taken all three readings within 10s:
+  [ Reading { at: "A a key with nothing engaged", busy: false, shown: "a",
+              edits: ["v1/morning/noted=a"] } ]
+```
+
+So the mechanism is not a tight assertion margin; it is the whole slint-timer
+stepper stalling for tens of seconds under load, with the liveness bound then
+converting a stall into a red gate rather than a hang. **A 40x nominal margin
+(`busy`) was not enough.**
+
+`event_loop_drain` carries three genuinely tight quantities the other two do
+not. Instrumented at the bound, the instrumentation reversed afterwards:
+
+| bound | assertion it governs | idle | margin |
+|---|---|---|---|
+| step 9 → step 10 must be **< 150 ms** | `typed.held == 1`, `drain.rs:470` | 50.4 ms | **3.0x** |
+| step 9 → step 13 must be **> 150 ms** | `enqueued.held == 0`, `drain.rs:482` | 200.2 ms | **1.33x** |
+| step 1 → step 17 must be **< 3 s** | nothing asserts it; past `MINIMUM_SPACING` (`controller.rs:554`) `serve`'s standing timer fires an unplanned evaluation | 799 ms | 3.75x |
+
+**Evidence.** Loaded, same instrumentation, 192-256 spinners:
+
+```
+BOUND step9->step10 = 153.604776ms  ← over its bound, and the case still passed
+BOUND step9->step10 = 741.998273ms  ← 5x over its bound, and the case still passed
+BOUND step1->step17 = 6.44441056s   ← over MINIMUM_SPACING; that run FAILED
+```
+
+**The two passes over a violated bound are worth as much as the failures**: at
+742 ms between step 9 and step 10 the debounce *had* elapsed and `typed.held ==
+1` held anyway, because the stepper and the debounce timer happened to be
+dispatched in that order inside one `update_timers_and_animations` pass. The
+assertion passed for a reason its message does not name.
+
+Reproduce: 192 `(while :; do :; done) &` on a 32-core box, then
+`cargo test -p goad --test event_loop_picker` eight times.
+
+**Scope, stated honestly.** A repeat batch at a *lower* sustained load passed
+6/6 `picker` and 5/6 `busy`, so the threshold is somewhere between roughly 3x
+and 6x oversubscription on this machine and the failure rate is not a stable
+number; the loadavg figures are approximate. What is not approximate: **at the
+load the project's own memory document uses as its standard, this suite does not
+stay green, and slice 003's did.**
+
+**Independently witnessed.** Session 4's own `just check` failed here on
+`event_loop_busy` at loadavg 198, reporting *"the stepper must have taken all
+three readings within 10s: []"* — zero readings in 64 s, then one in 38 s on a
+re-run. That witness and this finding were produced without contact; the
+reviewer was not told of it. The instruments dimension's *"timing margins are on
+the safe side of load"* is **not** a contradiction: it is about the deadlines
+*under test*, where slowness moves a deadline to an earlier step index. This is
+about liveness, which is the other direction.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B5 — F-R8's repair falsifies `report_platform`'s own doc comment and emits a message that says the wrong thing
+
+**Severity:** minor — **read**
+**Location:** `crates/goad/src/diagnostics.rs:404-413`;
+`crates/goad/src/install.rs:251`
+
+**Expected.** This ledger's Subject: *"document-truth divergences … appear here
+only where a doc comment or a declared surface makes a code claim that is
+false."* `d9fe587`'s own commit message: *"five doc claims the code
+contradicts"*.
+
+**Observed.** `diagnostics.rs:408-410` still reads *"…and the process keeps
+running. **The only caller is `SlintGlass::present`**, when `show()` or `hide()`
+fails after the loop has started."* `d9fe587` added a second caller **in the
+same commit** and did not amend it. `report_platform_line` (`:404-406`) renders
+`"goad: the window could not be drawn: {detail}"`, so the new call site emits
+*"goad: the window could not be drawn: zoom: the window was gone before the
+scale could be set"* — a window that was gone, reported as one that could not be
+drawn.
+
+**Evidence.** `grep -rn "report_platform(" crates/goad/src crates/goad/tests`
+returns `install.rs:251` and `glass.rs:276`; the doc comment at
+`diagnostics.rs:409` is unchanged from before `d9fe587`
+(`git show d9fe587 -- crates/goad/src/diagnostics.rs` touches only
+`tray_icon`/`rasterise`).
+
+**Scope, stated honestly.** Nothing behaves wrongly; the branch is unreachable.
+The finding is that **a commit whose stated purpose was to correct five false
+doc claims created a sixth**, and the nearest fix is one sentence.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B6 — F-R5's repair, the one behaviour change in `d9fe587`, is held by nothing in the gate
+
+**Severity:** minor — **run**
+**Location:** `crates/goad/src/diagnostics.rs:473-485` (`tray_icon`'s
+`thread_local!`); `crates/goad/tests/renderer/tray.rs`
+
+**Expected.** `AGENTS.md` §*Execute*: red / green / refactor. F-R5's own Response
+calls this *"the one behaviour change in this group"*. The Brief's standing
+warning: *"Every new case here claims an injection pass."* Here there is no case
+at all.
+
+**Observed.** Reverting `tray_icon`'s body to the pre-repair `rasterise(state)`
+— restoring exactly the defect F-R5 raised — leaves **every target of
+`cargo test -p goad --no-fail-fast` green**, all 203 `renderer` cases included.
+`tests/renderer/tray.rs` asserts the icon's *pixel contents*, which are
+identical either way; nothing asserts its **identity**, which is the whole of
+the finding.
+
+**Evidence.**
+
+| tree | probe appended to `tray.rs` | result |
+|---|---|---|
+| `5227ec1` | `assert!(tray_icon(Idle) == tray_icon(Idle))` | green |
+| `tray_icon` body → `rasterise(state)` | same probe | **FAILED**; the other 203 `renderer` cases passed |
+| `tray_icon` body → `rasterise(state)` | probe removed | **all `-p goad` targets green** |
+
+**Scope, stated honestly.** The repair is correct — F-R5's Outcome is `verified`
+on the strength of the probe, not on the Response's account. This finding is only
+that **the gate would not notice its removal**, and that the case which closes it
+is the four lines of the probe.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B7 — `wiring.rs::busy_clears_and_controls_re_enable_after_a_success` now arranges a frame `serve` cannot produce, and all three narrowed cases pair an `engage(Answer)` with an `absorb(Evaluation)`
+
+**Severity:** minor — **read, with the reachability argument run against the code**
+**Location:** `crates/goad/tests/renderer/wiring.rs:468-492`, and `:495-527`,
+`:1824-1866` for the pairing
+
+**Expected.** `docs/memory/tests-asserting-proxies.md`: a case's arrangement must
+be one the production path can reach, or what it measures is not what its name
+says.
+
+**Observed, two things.**
+
+1. **The first case's busy present is now unreachable.** It runs
+   `controller.engage(Exchanged::Answer)` on a fresh `Controller::new()`, so
+   `shown == None`, then asserts `window.get_busy()`. In production an
+   `Exchanged::Answer` exists only as a `Pending::Respond`, which only
+   `Command::Choose` produces, and `Controller::choose` begins
+   `self.shown.as_ref().ok_or(Refused::SupersededView)?` (`controller.rs:312`).
+   So `engaged == true` with `shown == None` is a frame `serve` cannot build.
+   **Before the narrowing it *was* reachable** — the startup evaluation engaged
+   with nothing shown — so this is a state the repair removed and the case kept.
+2. **All three narrowed cases fold the exchange with the wrong `Exchanged`.**
+   Each does `engage(Exchanged::Answer)` and later
+   `absorb(Exchanged::Evaluation, …)`. `serve` computes
+   `exchanged = pending.exchanged()` **once** (`controller.rs:992`) and hands the
+   same value to both, so the pair never diverges in production.
+
+**Evidence.** `controller.rs:301-314`, `:992-993`, `:1020`. `reduce`
+(`controller.rs:482-490`) was checked for whether the mismatch changes the fold,
+and in all three cases it does not: `(Evaluation, true, false)` and
+`(Answer, true, false)` are both `Replaced`; `(Evaluation, false, true)` and
+`(Answer, false, true)` are both `Retained`. **So the cases still assert
+something true, and nothing they assert is wrong.**
+
+**Scope, stated honestly.** No assertion is false and none regressed at
+`665dcf3` — the change was mechanical. What the narrowing did is make one
+arrangement unreachable without anything noticing, which is worth one comment or
+a reshaped case, not a rewrite; the honest minimal repair for (1) is the one the
+sibling case already uses, absorb a view before engaging.
+`renderer/table.rs`'s `busy_is_false_after_absorbing_a_success` and
+`..._a_failure` also engage an `Answer` with nothing shown and are deliberately
+**excluded**: they are pure `Controller` cases about `absorb` clearing a flag,
+assert nothing about a screen, and their minimality is the point.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B8 — `invoke_dismiss_pickers()` runs markup code inside the I-F transient, and the rule the I-F comment states covers only `init` handlers
+
+**Severity:** nit — **read**
+**Location:** `crates/goad/src/glass.rs:180-241`;
+`i-slint-core-1.17.1/window.rs:1949-1951`
+
+**Expected.** `glass.rs:180-212`'s I-F comment: *"Writing the new view's values
+while the old rows still index them costs nothing, **because the next statement
+destroys those rows**. … **So the rule this comment exists to state is
+forward-looking: no `init` handler may read `root.values`.**"*
+
+**Observed.** `set_values` is no longer immediately followed by
+`self.options.set_vec(rows)`. `db1d702` inserted
+`self.window.invoke_dismiss_pickers()` between them, and that call is not inert
+markup: `WindowInner::close_popup_impl` ends with
+
+```rust
+if let Some(focus) = current_popup.focus_item_in_parent.upgrade() {
+    self.set_focus_item(&focus, true, FocusReason::PopupActivation);
+}
+```
+
+so closing a picker restores focus to the `datetime` `Button` inside the row that
+is about to be destroyed, running whatever focus handling that element and its
+`fluent` ancestors declare — **inside the window where the old rows index the new
+view's `values`**.
+
+**Evidence.** Benign today, and checked:
+`grep -n "changed \|focus" crates/goad/ui/app.slint` returns five `changed tick`
+guards and no `focus-changed`/`focus-gained` handler in this project's markup, so
+nothing of the host's runs there. The generated `close()` is a no-op when the
+popup is not open, so the ordinary present reaches none of this.
+
+**Scope, stated honestly.** A nit, and only forward-looking: the I-F comment's
+stated rule names `init` handlers, and there is now a second way to latch the
+transient that it does not name. One clause — *and nothing between these two
+statements may read `root.values`* — closes it.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-B9 — the diagnostics repeater is handed a fresh `ModelRc` on every present, so every line element is destroyed and rebuilt each time the pane is up
+
+**Severity:** nit — **read, at the vendored source**
+**Raised by the orchestrator as declared raiser**, having been held back from
+both round-2 briefs so that a reviewer could find it independently
+(`docs/memory/dont-feed-the-raiser-your-finding.md`). The behaviour dimension
+reached the surface and excluded it on a test that does not cover this consumer
+— see below — so this is raised rather than confirmed, and F-R5's Outcome
+records the same thing.
+
+**Location:** `crates/goad/src/glass.rs:250-258`; `crates/goad/ui/app.slint:934`
+(the repeater), `:837` (the mode gate); against
+`i-slint-core-1.17.1/model.rs:719-729` and `model/repeater.rs:559-573`.
+
+**Expected.** F-R5's class as this ledger states it: *"a property written on
+every present whose slint comparison is by identity rather than content."* And
+the sibling in the same function: `self.options.set_vec(rows)` (`glass.rs:236`)
+is **guarded** by `if self.shown != showing` and writes into a **retained**
+`VecModel`.
+
+**Observed.** `glass.rs:256-258` runs on **every** present, unguarded:
+
+```rust
+self.window.set_diagnostic_lines(ModelRc::new(VecModel::from(lines)));
+```
+
+A fresh `ModelRc` each time. `ModelRc`'s `PartialEq` is
+`core::ptr::eq` (`model.rs:719-729`) — **address, not contents**, the same
+mechanism as the `SharedImageBuffer` comparison F-R5 is about. `Repeater::model`
+(`model/repeater.rs:559-573`) reads:
+
+```rust
+if model.is_dirty() {
+    let old_model = model.get_internal();
+    let m = model.get();
+    if old_model != m {
+        *self.data().inner.borrow_mut() = RepeaterInner::default();   // every instance dropped
+        self.data().is_dirty.set(true);
+        …
+    }
+}
+```
+
+So while the diagnostics pane is up, each present destroys and re-instantiates
+**every** line `Text`.
+
+**Evidence.** Read at the vendored sources above, and the repeaters enumerated
+rather than assumed — `grep -n "in root\.\|in field\.\|in option\." crates/goad/ui/app.slint`
+returns exactly three: `root.options` (`:357`), `option.blocks` (`:401`) and
+`root.diagnostic-lines` (`:934`). Of the three, **`diagnostic-lines` is the only
+one handed a fresh `ModelRc`**; `options` is fed by `set_vec` into a retained
+model *and* is guarded.
+
+**Why the behaviour dimension's enumeration did not reach it, stated precisely.**
+F-R5's Outcome excludes `set_values` and `set_diagnostic_lines` because
+*"neither has a `ChangeTracker` behind it"*. That is **true, and it is the right
+test for a `changed` handler** — which is what F-R5's tray push was. A repeater
+is a second consumer of model identity and has no `ChangeTracker`; the exclusion
+test does not cover it. A correct enumeration carrying a sub-claim that does not
+reach one member — `docs/memory/verify-the-enumeration-not-the-conclusion.md`.
+
+**Scope, stated honestly, and it is narrow.** The repeater is inside
+`if root.mode == WindowMode.diagnostic` (`app.slint:837`), so **while the prompt
+is up it has no instances** and the cost is the `Vec<SharedString>` and the
+`ModelRc` alone. The rebuild is real only while a person is looking at the
+diagnostics pane, and a `Text` carries no caret, selection or focus, so **no
+user-visible state is destroyed** — this is not F-R1's class and it is not
+claimed to be. It is CPU on the UI thread, proportional to the line count, at
+every scheduled firing and every arrival, and **the fix is the sibling's own
+pattern**: retain a `VecModel` and `set_vec` into it, which also removes the
+parallel implementation of a thing `options` already does one way.
+
+**Not run.** No case observes it and none was built. What would settle it is an
+`init` counter on the repeated `Text` read across two presents in diagnostic
+mode — the shape `inits` already uses on the prompt side.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
 
 ## What was checked and found clean
 
