@@ -119,8 +119,6 @@ conclusion.
 | F-R1 | major | | |
 | F-R2 | major | | |
 | F-S3 | major | | |
-| F-P1 | minor | | |
-| F-P2 | minor | | |
 | F-S4 | minor | | |
 | F-S5 | minor | | |
 | F-P3 | nit | | |
@@ -128,8 +126,10 @@ conclusion.
 | F-S6 | nit | | |
 | F-S7 | nit | | |
 
-**Round 1 closed with three dimensions reported.** Eleven findings: one
-blocker, five majors, four minors — plus four nits. F-S1 and F-S2 were
+**Round 1 closed with three dimensions reported.** **Fourteen** findings: one
+blocker, five majors, four minors and four nits. (Clerical, audit session 2:
+the table above carried `F-P1` and `F-P2` twice and the count read *eleven*.
+No finding was added, removed or altered.) F-S1 and F-S2 were
 mutation-confirmed by the audit; F-R1 is reasoned from locked sources and
 **not run**, and says so.
 
@@ -186,6 +186,22 @@ control while `busy` is true — `tests/renderer/fields.rs` drives
 (`fluent/lineedit.slint:16`) and therefore bypasses `key_event` and its
 `enabled` guard entirely. That is why the suite is green over a criterion it
 does not reach.
+
+**Evidence, completed by the audit (session 2) — the accessibility surface
+bypasses `enabled` on *every* control, not only on a `LineEdit`.** F-A1 names
+one road (`set_accessible_value`). The other is
+`ElementHandle::invoke_accessible_default_action`
+(`i-slint-backend-testing-1.17.1/search_api.rs:606-613`), which calls
+`item.accessible_action(&AccessibilityAction::Default)` with **no
+`accessible-enabled` check**, and `fluent/button.slint:34` implements that
+action as `i-touch-area.clicked()` — the callback, not the event. So a
+disabled `Button` still raises `root.clicked()` through the test surface. That
+is the mechanism behind the audit's enumerated fact that *deleting `enabled:
+!root.busy` from any of this slice's five new controls leaves all 592 green*:
+**no `enabled` binding in this markup is observable through the surface the
+suite drives.** It bears directly on the repair — a case that claims the
+narrowing works must deliver a real pointer or key event, never an accessible
+action.
 
 **Relation to the record.** `design.md` **A-6** — *"Disabling a widget while an
 exchange is in flight does not destroy it … being wrong costs focus, not
@@ -478,6 +494,29 @@ nothing.
 | 6 | `datetime` `Button` with a picker open | `:743` | **`busy` does not reach it at all.** The `Button`'s `enabled` gates only *opening*; the popups carry no `enabled` and no conditional (`:946`, `:960`), so an open picker stays fully operative through the whole round trip while every other control is inert. Nothing is lost at the widget — the loss is downstream, as F-R1 describes |
 | 7 | option `Button` | `:784` | the answering click is discarded *(the reviewer's row was truncated in transit — recover it)* |
 
+**Row 7, recovered by the audit (session 2).** The reviewer's truncated cell,
+re-derived from the vendored sources rather than reconstructed from the
+summary:
+
+> **the answering press is cancelled mid-press and no `clicked` is raised.**
+> `fluent/button.slint:12` binds `enabled <=> i-touch-area.enabled`. When a
+> `TouchArea` holding the grab is disabled,
+> `i-slint-core-1.17.1/items/input_items.rs:81-93` clears `has_hover`,
+> releases the grab, sets `pressed` false, delivers `PointerEventKind::Cancel`
+> and returns `ForwardAndIgnore` — so the release raises nothing. Same
+> mechanism as the `Slider`'s lost grab (VH-1); `slider-base.slint` binds its
+> `TouchArea` the same way.
+
+**This site is different in kind from the other six and the difference is the
+whole of its disposition.** Here the disable is *deliberate*: it is slice 003's
+double-submit guard (`03138da`), and during the exchange it guards — the
+person's own answer — it is correct. The defect is only that it also fires for
+an exchange the person did not start. `Command::Choose` has exactly one origin
+(`install.rs:40`, the option `Button`'s `clicked`) and is the only road to
+`Pending::Respond` (`controller.rs:746-760`), so after the narrowing this site
+disables **exactly** when its own guard wants it to and at no other time. It
+needs no second flag.
+
 **Why this matters to the repair the user chose.** Narrowing `busy` fixes sites
 1–4 and 7. It does **not** fix 5 or 6 on its own: 5 is a missing `enabled` gate
 on a popup item inside `std-widgets`, and 6 is a binding this project never
@@ -512,6 +551,36 @@ instead of forcing the draw-or-report fork. `FieldKind`
 (`canonical.rs:246`) is not `#[non_exhaustive]`, so the property is real today;
 nothing in the gate keeps it real. A compile-fail case (`trybuild`) or a
 boundary scan for a wildcard arm in `drawn_form` would close it.
+
+**Evidence, re-derived by the audit (session 2) — the stated mutation is wrong,
+and the hole is narrower than the finding claims.** Three shapes were run
+against `cargo clippy -p goad --all-targets -- -D warnings`:
+
+| mutation to `drawn_form` | gate |
+|---|---|
+| add `_ => Ok(DrawnKind::Boolean),` beneath all five arms — **F-S3's own mutation** | **red.** `unreachable_patterns` (denied via `-D unused`) *and* `clippy::match_same_arms` (pedantic) |
+| delete the `Boolean` arm, add `_ => Ok(DrawnKind::Boolean),` — a wildcard covering **one** variant | **red.** `clippy::match_wildcard_for_single_variants` (pedantic) |
+| delete the `Boolean` and `Text` arms, add `_ => Ok(DrawnKind::Boolean),` — a wildcard covering **two** | **green.** Clippy clean |
+
+So the lint set already holds the property in two of its three shapes, and
+F-S3's *"it compiles, lints clean"* is false as written. Enumerating what a
+sixth `FieldKind` variant could actually do:
+
+- wildcard covering the new variant **alone** → `match_wildcard_for_single_variants`, gate red;
+- wildcard covering the new variant **and an existing one, with a body that
+  disagrees with that existing kind** → the suite reddens (`fields.rs:2120`
+  asserts all five kinds draw in declared order);
+- wildcard covering the new variant **and an existing one, with a body that
+  agrees with that existing kind** — e.g. absorbing `Boolean` into
+  `_ => Ok(DrawnKind::Boolean)` → **lints clean, suite green, sixth kind draws
+  silently as a checkbox.**
+
+**That last row is the whole hole, and it is the only one.** The finding's
+substance survives and its recommended closers (a `trybuild` compile-fail case,
+or a boundary scan for a wildcard arm in `drawn_form`) are still the right
+ones — but *"held by nothing in the gate"* overstates it. The severity was set
+at raise time and is not renegotiated here; the disposition should be taken
+against this table rather than against the headline.
 
 **Note for disposition.** AC-7 says the mechanism must *survive*. It does. What
 F-S3 establishes is that nothing would report its removal — which is the same
@@ -564,6 +633,17 @@ came true in the same slice that wrote it down.
 `if (self.x != root.values[…].x)` block, beside the write. Every recorded
 injection mutates the two together, so each is discriminating — but the
 instrument measures what the markup **says** it did, not what it did.
+
+**Confirmed by the audit (session 2), not taken on report.** The `CheckBox`
+guard at `app.slint:436-440` rewritten so the assignment runs unconditionally
+and only the increment stays inside the comparison:
+
+```
+cargo test --workspace --no-fail-fast  →  exit 0, all 592 green
+```
+
+The widget is now written on every present and `reasserts` still reads `0`.
+The tree was restored from a copy and `git status` checked clean afterwards.
 
 **Evidence.** In any one guard, hoist the assignment out of the conditional and
 leave the increment inside. Every widget is then written on every present — the
