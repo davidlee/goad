@@ -74,6 +74,26 @@ demo: (run "examples/demo.toml")
 emit source kind:
   cargo run -p goad-emit -- --socket ./goad-demo.sock --source {{source}} --kind {{kind}}
 
+# Not in the gate, and deliberately: POL-001's six commands are the gate and
+# nothing here joins them (D8). The residue that buys is stated in the design —
+# a `flake.nix` that stops building is green at the gate and breaks in the
+# consuming flake. This recipe is where that is found, by someone running it.
+#
+# The flake reference is the **bare git form** — `.#goad`, never `path:.`. A
+# `path:` reference copies the working directory into the store, and this one
+# holds `goad-demo.sock`, a unix socket nix refuses outright, and
+# `.claude/worktrees/`, six gitignored worktrees it would copy anyway. The bare
+# form reads the git tree instead, which has its own edge: **an untracked file
+# is invisible to it.** `git add` a new file before building, or the build is of
+# a tree that does not contain it.
+#
+# `--no-link` so that no `result` symlink lands in the checkout; the two store
+# paths are printed instead.
+
+# Build both binaries with nix. Not part of `check`.
+package:
+  nix build --no-link --print-out-paths .#goad .#goad-emit
+
 # Not in the gate: it installs outside the repository.
 #
 # `cargo install --path .` cannot work here — the workspace root is a virtual
@@ -86,9 +106,14 @@ emit source kind:
 # window that draws no text. A binary installed without both is broken in a way
 # nothing reports until a window next happens to draw.
 #
-# That coupling is why this recipe is a stopgap. Slice 006 builds the package
-# with crane and wraps the environment into the binary, at which point there is
-# no pair to keep in sync and no env file to go stale.
+# That coupling is what `just package` retires — on the nix path only. A
+# wrapped binary carries both variables itself, and the home-manager unit names
+# no `EnvironmentFile` at all. This recipe is the *cargo* path, which goad must
+# keep working on machines that are not NixOS, so here the pair survives and the
+# env file with it (OQ-6, D7). What changed is its reader: after slice 006
+# nothing automatic reads it, only a person. The store paths it names go stale
+# like any others, and nothing reports that they have; the repair is to run this
+# recipe again (R2).
 #
 # `${VAR:?...}` rather than a bare expansion: run outside the dev shell both are
 # empty, and an env file naming two empty values is the same silent breakage

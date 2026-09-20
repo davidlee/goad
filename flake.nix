@@ -1,17 +1,19 @@
 {
-  description = "goad: dev shell";
+  description = "goad: dev shell and packages";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
     pub.url = "github:davidlee/nix-config?dir=flakes/pub";
     llm-agents.url = "github:numtide/llm-agents.nix";
+    crane.url = "github:ipetkov/crane";
   };
 
   outputs = inputs @ {
     self,
     nixpkgs,
     rust-overlay,
+    crane,
     ...
   }: let
     system = "x86_64-linux";
@@ -109,8 +111,14 @@
       ' bash "$@"
     '';
 
+    # One toolchain binding, shared by the devShell and crane. crane's own
+    # default is nixpkgs-stable rustc, which is older than this workspace's
+    # `edition = "2024"`; it would also lint against a different compiler than
+    # the gate does.
+    rust = pkgs.rust-bin.beta.latest.default;
+
     devToolPkgs = with pkgs; [
-      rust-bin.beta.latest.default
+      rust
       rust-analyzer
       pkg-config
       just
@@ -201,8 +209,121 @@
         allowSelfAsSubagent = true;
       };
     };
+
+    # ---- the packages ----
+
+    craneLib = (crane.mkLib pkgs).overrideToolchain rust;
+
+    # One version, read from the manifest rather than repeated here as a
+    # literal: what the binaries print is what cargo compiled them with.
+    #
+    # It enforces nothing, and must not be read as though it did. `Cargo.toml`
+    # must stay TOML 1.0-parseable — see the `tokio` entry's own comment — and
+    # what holds that is crane, which parses every manifest in `cleanCargoToml`
+    # whether or not this line exists. Deleting this read would loosen nothing.
+    workspaceVersion =
+      (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
+
+    # crane's stock filter keeps `.rs`, `.toml` and `.lock` and nothing else,
+    # which drops both halves of what `build.rs` reads: `crates/goad/ui/app.slint`,
+    # and the two faces it imports out of `assets/`.
+    #
+    # Spelled by **directory, not by extension** — a future non-font asset then
+    # needs no flake edit. Both halves are load-bearing, and both fail loudly:
+    # without `.slint`, `build.rs` cannot open `app.slint`; with `.slint` but
+    # without `assets/`, the Slint compiler cannot resolve the font imports.
+    # Measured twice — once at the spike (S-2), once as PHASE-01's VA-3, each
+    # time as a derivation that was built and observed to fail.
+    src = let
+      # A prefix and not a basename: `hasSuffix "assets"` would also admit a
+      # file called `assets` anywhere in the tree.
+      assetsDir = "${toString ./assets}/";
+    in
+      lib.cleanSourceWith {
+        src = ./.;
+        filter = path: type:
+          (craneLib.filterCargoSources path type)
+          || (lib.hasSuffix ".slint" path)
+          || (lib.hasPrefix assetsDir path);
+        name = "goad-source";
+      };
+
+    # One dependency layer over `--workspace`, shared by both binaries: emit's
+    # dependencies are a subset of goad's, so a second layer would rebuild what
+    # this one already holds.
+    cargoArtifacts = craneLib.buildDepsOnly {
+      # `pname` and `version` are explicit on all three derivations here: the
+      # workspace root is a virtual manifest with no `[package]`, so crane's
+      # `crateNameFromCargoToml` has nothing to read.
+      pname = "goad-deps";
+      version = workspaceVersion;
+      inherit src;
+      cargoExtraArgs = "--locked --workspace";
+      nativeBuildInputs = [pkgs.pkg-config];
+      buildInputs = guiLibs;
+      doCheck = false;
+    };
+
+    # The revision the binaries print, from PHASE-03 on. Set-but-empty is
+    # unset, the rule `crates/goad/build.rs` already states for `SLINT_STYLE`:
+    # a tarball fetch has neither attribute and prints a bare version rather
+    # than a guess (design.md §5.2(c), A1).
+    revision = self.shortRev or self.dirtyShortRev or "";
+
+    # `doCheck = false` on all three derivations above and below, and not as an
+    # economy — do not reach for `doCheck = true` here. The nix sandbox has no
+    # tzdb (six `instant.rs` cases fail on it), no session bus and no writable
+    # font cache, and `event_loop_schedule` still fails on timing once both are
+    # supplied. Worse, crane's `checkPhaseCargoCommand` inherits
+    # `cargoExtraArgs`, so the obvious spelling — `doCheck = true` beside a
+    # `--bin` selector — runs `cargo test -p goad --bin goad`, which is the
+    # binary target's own unit tests, of which `main.rs` has none: it **reports
+    # green having run nothing** (S-3, OQ-5, D5). What holds the tests is the
+    # gate, `just check`.
+    goadPackages = {
+      goad = craneLib.buildPackage {
+        pname = "goad";
+        version = workspaceVersion;
+        inherit src cargoArtifacts;
+        cargoExtraArgs = "--locked -p goad --bin goad";
+        nativeBuildInputs = [pkgs.pkg-config pkgs.makeWrapper];
+        buildInputs = guiLibs;
+        doCheck = false;
+        GOAD_REVISION = revision;
+        # The whole point of the package: the binary carries its environment,
+        # so there is no second thing to install and nothing to go stale.
+        # `--prefix` because the libraries are dlopen'd, so `ldd` resolves
+        # clean on a binary that still opens no window without them;
+        # `--set-default` and not `--set` so a caller's own fontconfig
+        # configuration still wins.
+        postInstall = ''
+          wrapProgram $out/bin/goad \
+            --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath guiLibs}" \
+            --set-default FONTCONFIG_FILE "${fontsConf}"
+        '';
+        meta.mainProgram = "goad";
+      };
+
+      # No wrapper and no `guiLibs`: emit writes a line to a socket and has no
+      # renderer to dlopen anything for (S-4).
+      goad-emit = craneLib.buildPackage {
+        pname = "goad-emit";
+        version = workspaceVersion;
+        inherit src cargoArtifacts;
+        cargoExtraArgs = "--locked -p goad-emit --bin goad-emit";
+        nativeBuildInputs = [pkgs.pkg-config];
+        doCheck = false;
+        GOAD_REVISION = revision;
+        meta.mainProgram = "goad-emit";
+      };
+    };
   in {
-    packages.${system} = jailPkgs;
+    # A merge, not a replacement: the three jail packages stay exported, and
+    # losing one is a regression nothing in the gate would see.
+    packages.${system} =
+      jailPkgs
+      // goadPackages
+      // {default = goadPackages.goad;};
 
     devShells.${system}.default = pkgs.mkShell {
       packages =
