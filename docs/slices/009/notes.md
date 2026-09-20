@@ -5578,3 +5578,83 @@ the case's own author hit. The guard is intact.
   the backend (`controller.rs:661-675`). The row said *widens the window* and
   named diagnostic-pane noise as the signal. Restated in place. Nothing in the
   slice changes; the audit should read the row as written now.
+
+### Audit session 3 — the remaining repairs
+
+`audit-log.md`'s second entry holds the dispositions; nothing below reopens
+one. Three commits: the mechanical and doc-wrong group (`d9fe587`), the `Full`
+send's driver (`4f0af74`), and the `reasserts` instrument (`da4ced0`).
+
+#### PHASE-05's injection pass, run at last — F-S4
+
+The finding is that PHASE-05 is the one phase of this slice with no injection
+table, and it is AC-4's phase. The table is below; it is run now rather than
+reconstructed, against the tree as it stands, each mutation applied to
+production code, the target run, the message read, the file restored from a
+copy and the restore confirmed by `git status`.
+
+| # | case | mutation | reading |
+|---|---|---|---|
+| P1 | VT-1 `a_text_field_draws_a_line_edit_and_the_option_still_answers` | `drawn_form`'s `FieldKind::Text` arm to `DrawnKind::Boolean` — the kind draws a checkbox | **red** — *morning/also declares no accessible-value* (`fields.rs:500`) |
+| P2 | VT-2 `a_choose_applies_the_edits_it_carries_and_answers_from_a_draft_that_includes_them` | `choose`'s edit loop to `edits.iter().take(0)` — the carried edits are never applied | **red** at `wiring.rs:1500` |
+| P3 | VT-3 `two_text_fields_typed_into_…` | `carried()` to `.take(1)` — only one held entry is flushed | **red** at `fields.rs:1380`, `noted: ""` against `"walked before breakfast"` |
+| P4 | VT-4 `a_stale_carried_edit_is_refused_once_and_still_answers_but_an_undeclared_one_does_not` | the `SupersededView` arm to `superseded = false` — the stale edit is swallowed and never reported | **red** — *two stale edits, one line: reported once and not per edit*, `0` against `1` |
+
+Two of these needed reshaping to keep the negative control compiling
+(`docs/memory/negative-control-must-compile.md`): P4's first shape was
+`=> {}`, which leaves `superseded` never written and trips `unused_mut` under
+`-D warnings`, so it assigns `false` instead; an uncompiled control greps the
+same as a passing one.
+
+**What the pass confirms, and what it does not.** All four reach red, so none
+of PHASE-05's cases is wholly vacuous. **P3 is the one worth reading closely:**
+it reddens VT-3's *wire* half, which is the half F-S1 found to be real — and no
+mutation here reddens VT-3's `inits` half, because that half cannot be
+reddened. F-S1 is what this pass would have caught, and it took a separate
+finding to catch it because the pass was skipped. `design.md` §9's sentence
+about the phase that skips the pass came true in the same slice that wrote it.
+
+#### Three repairs where the finding's own recommendation did not survive contact
+
+Recorded together because they are one shape: a reviewer proposes an
+instrument, and the instrument turns out to be unreachable. In each case the
+disposition stands and the repair changed.
+
+- **F-S6** asked for a case that fills the channel, on the grounds that it
+  would drive both its claim and F-S2's. It drives F-S2's only. At capacity 1
+  a `tick` that iterated the whole map is *indistinguishable* from one-per-tick
+  — two entries and an empty channel: the mutant sends the first, which
+  succeeds and is removed, then the second, which comes back `Full` and stands
+  by the enqueue rule, leaving one command queued and one entry held, exactly
+  as production does. `tick` is synchronous, so no drain interleaves. Repaired
+  by weakening the assertion's stated claim to what is true of the run.
+- **F-S5**'s approved repair was a case asserting observable widget state. The
+  observable its mutation changes is the **caret**, and no tier can see one —
+  `reassert.rs` already reads the `ComboBox`'s own `chosen`, and writing the
+  same value back does not move it. Repaired by fixing the *instrument*: every
+  guard assigns through a counting function, so the count is a consequence of
+  the write rather than a sibling of it.
+- **F-S7** was dispositioned *settle first*, and settled: unobservable rather
+  than untested, and the comment now states the forward constraint that holds
+  it.
+
+The common lesson, and it is the one `docs/memory/tests-asserting-proxies.md`
+is about from the other end: **a finding can correctly identify that nothing
+holds a property and still be wrong about what would hold it.** Verify the
+proposed instrument before building it, the same way the finding's own claim
+about the tree is verified.
+
+#### Noticed in passing
+
+- **`set_diagnostic_lines` allocates a fresh `VecModel` on every present**
+  (`glass.rs:257-259`), so the diagnostics repeater rebuilds its whole list
+  every time — the same class of defect as F-R5, one surface over. Not raised
+  as part of any finding here; it wants its own, in round 2.
+- **F-R4 has no repair that is not a design change**, and it is written up for
+  the user rather than repaired. `option_models` cannot be split without
+  duplicating the walk that assigns slots, which is the parallel implementation
+  `CLAUDE.md` forbids; and `show()` on an already-visible window is the
+  *totality* argument at `glass.rs:33-35`, not an oversight — skipping it
+  weakens the display-server-fails-partway answer. What is left is whether a
+  refused arrival should present at all, and that is a question the design did
+  not settle.

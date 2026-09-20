@@ -807,7 +807,32 @@ exactly what an injection pass reports and a green run does not. `design.md`
 came true in the same slice that wrote it down.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Repaired by running the pass, now, against the tree as it stands — rather than
+reconstructing what PHASE-05 would have found. The table is in `notes.md`
+§*Audit session 3*; each mutation was applied to production code, the target
+run, the message read, and the file restored from a copy.
+
+| # | case | mutation | reading |
+|---|---|---|---|
+| P1 | VT-1 | `drawn_form`'s `Text` arm to `DrawnKind::Boolean` | **red** — *morning/also declares no accessible-value* |
+| P2 | VT-2 | `choose`'s edit loop to `.take(0)` | **red** at `wiring.rs:1500` |
+| P3 | VT-3 | `carried()` to `.take(1)` | **red** at `fields.rs:1380`, `noted: ""` against `"walked before breakfast"` |
+| P4 | VT-4 | the `SupersededView` arm to `superseded = false` | **red** — `0` reports against `1` |
+
+All four reach red, so none of PHASE-05's cases is wholly vacuous. **P3 is the
+reading that matters**: it reddens VT-3's *wire* half — the half F-S1 found to
+be real — and nothing here reddens VT-3's `inits` half, because that half
+cannot be reddened. So the finding's own claim is confirmed from the other
+side: F-S1 is exactly what this pass would have caught, and it took a separate
+finding to catch it because the pass was skipped.
+
+P4 needed reshaping to keep the negative control compiling
+(`docs/memory/negative-control-must-compile.md`): `=> {}` leaves `superseded`
+never written and trips `unused_mut` under `-D warnings`, so it assigns `false`
+instead. An uncompiled control greps the same as a passing one.
+
+`plan.md` PHASE-05/T-8's tick is now true of the record rather than of an
+intention.
 
 **Outcome:**
 
