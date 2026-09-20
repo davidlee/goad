@@ -85,3 +85,7 @@ path = "tests/event_loop_busy/main.rs"
 [[test]]
 name = "event_loop_drain"
 path = "tests/event_loop_drain/main.rs"
+
+[[test]]
+name = "event_loop_picker"
+path = "tests/event_loop_picker/main.rs"
