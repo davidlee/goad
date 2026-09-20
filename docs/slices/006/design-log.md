@@ -46,3 +46,17 @@ other, citing the finding id.
   and `crates/goad/src/startup.rs`; AC-4, AC-5 and AC-6 are the startup-surface
   half; OQ-1 and OQ-2 carry what was deliberately left open, and OQ-2's answer
   is one of the two things that would raise the tier.
+
+### 2026-09-20 — the empirical questions are spiked before the design is drafted
+
+- **Asked:** whether to settle OQ-5 (`doCheck`), the source-filter shape and
+  half of OQ-6 (whether `wrapProgram` actually retires `~/.config/goad/env`) by
+  building, or to draft the design from argument and leave all three to a phase.
+- **Recommended:** spike first — in this tree, uncommitted, with the finding
+  lifted into `research.md` and the flake reverted before the design is drafted,
+  so the design cites measurements and the implementation still happens under an
+  accepted plan. The cost named on the other side: design writing `flake.nix`
+  before there is a plan is the thing `docs/AGENTS.md` exists to prevent.
+- **Decided:** *"yeah, spike first"*.
+- **Consequence:** research gains a measured section rather than a predicted
+  one; OQ-2's answer can be priced against a real build time.
