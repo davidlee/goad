@@ -2109,7 +2109,29 @@ schedule right or fails to compile. A target timed against a copy of a constant
 it cannot see is timed against nothing.
 
 **Disposition:** `fix-now` — and the closer **verified before it was priced**, not after (`audit-log.md`, fifth entry).
-**Response:**
+**Response:** `DEBOUNCE` is `pub`, and `full.rs` asserts the window rather than
+restating it. **The proposed closer was verified before it was priced, and
+replaced by a cheaper one that holds more.** The proposal — derive each
+target's step schedule from the constant — was measured to *rescale silently*:
+the case stays green at any `DEBOUNCE` and never reports the loss. What landed
+is eight lines beside `STEP`:
+
+```rust
+const _: () = assert!(
+  STEP.as_millis() < goad::pending::DEBOUNCE.as_millis()
+    && goad::pending::DEBOUNCE.as_millis() < STEP.as_millis() * 9,
+  "reading B is vacuous unless the debounce deadline falls between step 3 and step 11"
+);
+```
+
+Measured both ways: green at the shipped 150 ms, and F-T1's own 150 → 400
+mutation is now `error[E0080]: evaluation panicked: reading B is vacuous …`.
+The comment at `:229` that did the arithmetic points at the assertion instead.
+
+**The class, not the instance.** `drain.rs` carried the same literal copy —
+F-T1 names it as the sibling precedent — and now carries three assertions of
+its own against the same constant.
+
 **Outcome:**
 
 ### F-T2 — the `wildcard_enum_match_arm` deny does not reach `crates/goad/src/main.rs`, and `lib.rs` says it covers "this crate"
@@ -2168,7 +2190,17 @@ wrongly in the place a future reader will look, on a crate root that holds
 the same `#![deny(clippy::wildcard_enum_match_arm)]` at the top of `main.rs`.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** `#![deny(clippy::wildcard_enum_match_arm)]` added to
+`crates/goad/src/main.rs`, with a comment saying why a second copy exists: a
+crate root is not a crate, and `crates/goad` has two. `lib.rs`'s reasoning is
+not repeated there.
+
+**Injection-passed**, because the repair claims a boundary moved. The same
+wildcard over `FieldKind` that F-T2 measured linting *clean* in `main.rs` now
+gives `error: wildcard match will also match any future added variants`, cited
+to `main.rs:12:9` — the new attribute — for both the `bin` and the `bin test`
+units. Probe removed; `git status` clean.
+
 **Outcome:**
 
 ### F-T3 — `lib.rs`'s enumeration of the workspace's other wildcard matches undercounts them, and mischaracterises one
@@ -2244,7 +2276,18 @@ the characterisation. Both are now written into production source as fact. The
 repair is to correct the sentence, not to widen the lint.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** The sentence corrected rather than the lint widened, which is
+what the finding asked for. The comment now names **six to eight** sites, lists
+each, says why the two unit-test arms count (the deny reaches `goad`'s own lib
+*test* target, which F-S3's shape-3 run demonstrated), says why the three
+`normalize.rs` arms are excluded (`&str`, which the lint does not see), and
+states that **`envelope.rs:116-122` is the opposite case** — it reads the
+variant, and that is the entire point of the arm.
+
+*"And the reason is not cost"* is withdrawn. The reason **is** cost, and more
+of it than the old sentence claimed — which strengthens the conclusion rather
+than weakening it, so the conclusion is unchanged and says so.
+
 **Outcome:**
 
 ### F-T4 — three citations of `glass.rs:189` point at a comment, not at the guard they name
@@ -2282,7 +2325,14 @@ nothing caught the drift.
 ---
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** All three citations repointed, against the line numbers as they
+stand **after** this session's `glass.rs` edits rather than before them —
+writing them first would have reproduced the finding. The guard is at
+`glass.rs:269`, its block runs to `:276`, and `picker.rs:6`'s second citation
+was repointed on **substance** as well as number: `hide()` is at `:307`, and
+the dismiss it was really about moved to `:264-265` under F-B2, so that
+sentence now names all three sites and what each one is.
+
 **Outcome:**
 
 ### F-B1 — `serve` can stop engaging altogether and the whole suite stays green: slice 003's double-submit guard is held by no case through the production loop
@@ -2329,7 +2379,29 @@ exact line this slice narrowed. The shape of the missing case is
 `event_loop_drain`'s with `Command::Choose` in place of `Command::Evaluate`.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** A new loop target, `crates/goad/tests/event_loop_answer/`, with
+the case F-B1 names: a **real pointer click** on the option button, through the
+production `serve`, with the answer held by a `oneshot` the case owns.
+
+**Injection-passed, and it is the whole point of the finding.** With
+`controller.engage(exchanged)` replaced by `engage(Exchanged::Evaluation)` at
+`controller.rs:990` — the mutation that previously left every target of
+`cargo test -p goad --no-fail-fast` green — `event_loop_answer` **FAILS and is
+the only target that does**.
+
+**One thing the finding did not say, found in building it.** Interaction
+identity is the **host's**, not the controller's: a view handed straight to
+`Controller` is one `goad-shell` never issued, and the `Choose` against it is
+refused with *"no interaction is outstanding, so v1 answers nothing"* — so the
+case drives a real evaluation first and answers the form that comes back. That
+is also why the arrangement is stronger than the shape F-B1 proposed: reading A
+asserts that the evaluation which put the form up **did not** engage, which is
+the narrowing's other half, in the same case.
+
+The control is the backend's own `entered`/`answered` counters: without them
+`busy == true` could pass on an exchange the person did not start, and a click
+that missed the button would read the same as one that was refused.
+
 **Outcome:**
 
 ### F-B2 — a picker survives `open_diagnostics()`, and the diagnostics pane's only exit button is then unreachable by pointer
@@ -2386,7 +2458,27 @@ a view replacement too; `dismiss-pickers()` does not close it, but its
 why it is a footnote.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** The dismiss now fires on a **surface** change as well as a view
+change, and moved **above** `set_values`:
+
+```rust
+if self.shown != showing || !matches!(frame.surface, Surface::Prompt) {
+  self.window.invoke_dismiss_pickers();
+}
+```
+
+**Hoisting it closes F-B8 structurally rather than by a comment clause**, which
+is why the two landed together: the I-F transient spans `set_values` →
+`set_vec` again, with nothing between them that can run markup. F-B8's asked-for
+repair was one sentence; this is the property that sentence was describing.
+
+`event_loop_picker` grew four readings (H–K) and the diagnostics pane's exit
+button is wired into the same click log every other control assertion uses.
+**Injection-passed:** deleting the new clause reddens it at reading H —
+`picker: true` after `open_diagnostics()` — and reddens **no other target**.
+The click-through assertion is the cost measured rather than argued: with the
+picker up, `close-diagnostics` never reaches the log.
+
 **Outcome:**
 
 ### F-B3 — `pending.rs`'s new claim that the drain makes *the next present* safe is false for one of `serve`'s three present sites
@@ -2428,7 +2520,17 @@ present too, or to narrow the sentence to the outer loop's present and say which
 site is excluded and why.
 
 **Disposition:** `doc-wrong` — narrow the sentence and name the excluded site, rather than drain before `controller.rs:1046`.
-**Response:**
+**Response:** The sentence narrowed and the excluded site named, in
+`pending.rs` itself. It now says the drain covers the outer loop's present,
+enumerates `serve`'s three present sites with what each one is, and names
+`controller.rs:1046` as the one it does not reach — after an await, preceded by
+no drain, landing inside exactly this interval.
+
+**Not drained**, and the reason is written down rather than left implicit: the
+exposure there is one widget revert per *process* and only once the ingress
+accept task has ended (SPEC-003/R-15), so a second drain would buy that one
+revert and put a second copy of the rule in the loop.
+
 **Outcome:**
 
 ### F-B4 — all three new loop targets fail under CPU oversubscription, and the failure is the liveness bound rather than any assertion: the stepper harness stalls
@@ -2512,7 +2614,37 @@ the safe side of load"* is **not** a contradiction: it is about the deadlines
 about liveness, which is the other direction.
 
 **Disposition:** **split.** The 1.33x margin is `fix-now`; the stepper harness's behaviour under oversubscription is **`follow-up`** (`audit-log.md`, fifth entry).
-**Response:**
+**Response (the margin half only — the harness is a follow-up).**
+
+**And the finding's two margins point in opposite directions, which the
+disposition got the wrong way round before it was re-derived.** `drain.rs`'s
+1.33x is `step 9 → step 13 > 150 ms`: load *stretches* that interval, so it
+moves **away** from its bound and can only fail if the stepper ran faster than
+nominal. The bound load actually threatens is `step 9 → step 10 < 150 ms`,
+nominally 3.0x — and F-B4's own instrumentation measured it **violated twice**,
+at 153 ms and 742 ms, passing on the order two timers happened to be dispatched
+in.
+
+So `STEP` is halved, 50 ms → 25 ms, with reading B kept **one step** after the
+key: the threatened margin doubles to 6.0x at no wall-clock cost, and 25 ms is
+already `event_loop_debounce`'s and `event_loop_full`'s step, so the loop is
+known to render inside one. The schedule is re-indexed around it and reading C
+moved to ten steps after the key. Six consecutive green runs.
+
+**And the class, since `drain.rs` is F-T1's named sibling precedent.**
+`TICK_STEPS` no longer restates `pending.rs` in a comment; three `const`
+assertions state the relations the readings depend on, and `DEBOUNCE` → 400 ms
+now fails to compile here too. It stays a literal because the workspace lint set
+denies both the integer division and the cast that computing it needs, and the
+assertion holds the property either way — said in the doc comment rather than
+left for a reader to wonder about.
+
+**What this does not fix, and the disposition says so:** all three loop targets
+still fail at roughly 6x oversubscription, and the failure is `LIVENESS_BOUND`
+converting a stalled stepper into a red that reads like a defect. A 40x nominal
+margin was not enough, so widening bounds is not the repair — the harness is,
+and it is a follow-up.
+
 **Outcome:**
 
 ### F-B5 — F-R8's repair falsifies `report_platform`'s own doc comment and emits a message that says the wrong thing
@@ -2546,7 +2678,14 @@ The finding is that **a commit whose stated purpose was to correct five false
 doc claims created a sixth**, and the nearest fix is one sentence.
 
 **Disposition:** `doc-wrong`
-**Response:**
+**Response:** Both halves corrected. `report_platform`'s doc names **two**
+callers — `glass.rs:276` and `install.rs:251` — and says the second arrived with
+F-R8's repair and this sentence was not amended with it, which is the finding's
+actual content and is worth a reader's attention. `report_platform_line` gains a
+sentence saying why *"could not be drawn"* is the shared half of two failures
+and the distinguishing half comes from each caller's `detail`, which is what
+makes the composed message read correctly rather than wrongly.
+
 **Outcome:**
 
 ### F-B6 — F-R5's repair, the one behaviour change in `d9fe587`, is held by nothing in the gate
@@ -2581,7 +2720,17 @@ that **the gate would not notice its removal**, and that the case which closes i
 is the four lines of the probe.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** The probe promoted to a real case,
+`tray::one_state_yields_one_image_and_two_states_do_not`, with a doc comment
+saying why every other case in the file misses it: they assert the icon's
+**pixel contents**, which are identical either way, and the repair is about
+**identity**.
+
+**Injection-passed:** with `tray_icon`'s body reverted to `rasterise(state)` —
+F-R5's original defect, restored — the new case **FAILS** and the other 203
+`renderer` cases pass. The gate now notices the repair's removal, which is the
+whole of the finding.
+
 **Outcome:**
 
 ### F-B7 — `wiring.rs::busy_clears_and_controls_re_enable_after_a_success` now arranges a frame `serve` cannot produce, and all three narrowed cases pair an `engage(Answer)` with an `absorb(Evaluation)`
@@ -2629,7 +2778,19 @@ sibling case already uses, absorb a view before engaging.
 assert nothing about a screen, and their minimality is the point.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** Both halves, and the first is the one with content.
+`busy_clears_and_controls_re_enable_after_a_success` now absorbs a view before
+it engages — the shape its own sibling already used — so its frame is one
+`serve` can build. **It can now read the button's half of its own name**:
+`accessible_enabled_of` answers `Some(false)` at the busy present, where before
+it answered `None` because the window held no options.
+
+All three narrowed cases now fold with the `Exchanged` they engaged with,
+matching `serve`, which computes it once (`controller.rs:992`) and hands the
+same value to both. It changes no `Shift` — the reviewer checked `reduce` and
+recorded that nothing they assert is false — so this is an arrangement
+correction, not a defect repair, and the comments say which.
+
 **Outcome:**
 
 ### F-B8 — `invoke_dismiss_pickers()` runs markup code inside the I-F transient, and the rule the I-F comment states covers only `init` handlers
@@ -2671,7 +2832,16 @@ transient that it does not name. One clause — *and nothing between these two
 statements may read `root.values`* — closes it.
 
 **Disposition:** `doc-wrong`
-**Response:**
+**Response:** Closed **structurally rather than by the clause the finding asked
+for**, as part of F-B2: the dismiss moved above `set_values`, so nothing that
+can run markup sits inside the I-F transient at all and the two statements are
+adjacent again.
+
+The I-F comment gains the rule anyway, because the comment exists to constrain
+what future markup and future callers may do: *nothing may be placed between
+these two statements*, stated beside the `init`-handler rule it sits with, and
+naming the dismiss as the call that did it.
+
 **Outcome:**
 
 ### F-B9 — the diagnostics repeater is handed a fresh `ModelRc` on every present, so every line element is destroyed and rebuilt each time the pane is up
@@ -2751,7 +2921,23 @@ parallel implementation of a thing `options` already does one way.
 mode — the shape `inits` already uses on the prompt side.
 
 **Disposition:** `fix-now`
-**Response:**
+**Response:** `SlintGlass` retains a `Rc<VecModel<SharedString>>` and writes it
+with `set_vec`, exactly as `options` is written — so the property is handed the
+**same** `ModelRc` every present and `Repeater::model`'s pointer comparison no
+longer resets. The field's doc comment carries the mechanism and the two
+vendored citations, and names it as F-R5's, one consumer over.
+
+**This removes a parallel implementation rather than adding a guard**, which is
+why it was preferred to wrapping the write in a condition: the file now does
+model-writing one way.
+
+**Not injection-passed, and the ledger should not pretend otherwise.** Nothing
+observes a repeater rebuild — the elements carry no caret, selection or focus —
+so there is no case to redden, and F-B6 has just established what an unheld
+repair is worth. The case that would hold it is an `init` counter on the
+repeated `Text`, read across two presents in diagnostic mode; it is **not**
+written, and that is the honest residue of this repair.
+
 **Outcome:**
 
 
