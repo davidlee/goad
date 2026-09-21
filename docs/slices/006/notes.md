@@ -902,7 +902,7 @@ check` exits 0; `git status` shows exactly the three declared surfaces.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-04 · `<this phase's commit>`
+**Fresh as of:** 2026-09-21 · PHASE-04 · `1bb66de`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
