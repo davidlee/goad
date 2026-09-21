@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — the home-manager module | done | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | done | 2026-09-21 |
 | PHASE-04 — the configuration path, named | done | 2026-09-21 |
-| PHASE-05 — the cutover, and the evidence | in progress | 2026-09-21 |
+| PHASE-05 — the cutover, and the evidence | cutover done, AC-9 open | 2026-09-21 |
 
 ## Phase sheets
 
@@ -1432,6 +1432,111 @@ are written here when reported (P-9).*
   names. Both facts shape the sequence: the symlink occupies the path
   home-manager wants, and the socket cannot be held by two hosts.
 
+*The cutover itself, 2026-09-21. The boundary set at the start of this phase —
+an agent prepares, the person executes — was lifted by the person partway
+through ("you get it working"), so everything below from the switch onward was
+run by the orchestrator except VH-1, which cannot be delegated.*
+
+- **The sequence was not run in its stated order, and P-6 went first.** Before
+  any of P-1..P-5, `rm ~/satan/goad/goad.service` and `rm
+  ~/.config/systemd/user/goad.service` were both run, then `daemon-reload`. The
+  symlink removal is the pre-switch step and was correct; the other is EX-3,
+  and it destroyed the fallback the whole of §5.4's ordering exists to keep. No
+  harm followed — the host process survived as an orphan (`LoadState=not-found`
+  with `ActiveState=active`, MainPID still serving), and the unit's text was
+  recovered verbatim from the terminal's own `systemctl --user cat` output and
+  written back. But the recovery block named an artefact that exists in no
+  repository, so its only copy was scrollback. See §Findings.
+- **P-1, as found: the consumer was a stub.**
+  `~/flakes/modules/home/linux/goad.nix` had been created with the `imports`
+  line alone — no `services.goad.enable`, no `package`. `enable` defaults
+  false and `package` carries no default by design (PHASE-02), so a switch on
+  that file installs no unit and no package and reports success. Completed to
+  T-3's fragment (b) before switching. Fragments (a) and (c) were already
+  applied and staged.
+- **P-1, the lock: the goad input had locked a dirty tree.**
+  `~/flakes/flake.lock` held `"dirtyRev":
+  "22f412c1afb6e07dc984b4d10f5c538d5949c406-dirty"`. Cause was in this
+  repository, not that one: `flake.lock` here had been rewritten by a `nix
+  flake update` at 10:58 (every input advanced) and left uncommitted, and a
+  `git+file://` input reads a dirty working tree as dirty. `flake.nix`'s
+  `revision` binding is `self.shortRev or self.dirtyShortRev or ""`, so the
+  cutover would have installed a binary printing `0.1.0 (22f412c-dirty)` —
+  honest, but not the artefact PHASE-01 verified, and VA-1's comparison would
+  have been against a build nothing else describes. Repaired by restoring the
+  committed lock (`git show HEAD:flake.lock > flake.lock`; the working tree
+  then matched HEAD at `22f412c`) and re-locking with `nix flake update goad`,
+  which resolved to `ref=refs/heads/main&rev=22f412c1…` with no dirty
+  attribute and rolled goad's five transitive inputs back to the committed
+  pins.
+- **T-2 re-observed on the clean tree.** `just package` exited 0. The store
+  paths differ from those recorded above because `GOAD_REVISION` is part of
+  the derivation and the revision advanced `af01ead` → `22f412c`:
+
+  ```
+  /nix/store/225f81n4mnwxs5bgp95k3lrbbwix1881-goad-0.1.0
+  /nix/store/1k83k1kas8bl8nc8fxayv5kdp0x18z3h-goad-emit-0.1.0
+  ```
+
+- **P-2, the switch.** `cd ~/flakes && just home-switch` exited 0. Six
+  derivations built, `goad.service.drv` among them, and the activation's
+  closing line was `Starting units: goad.service, stasis.service`.
+- **VH-2 (AC-7) — the unit systemd loaded.** Every row asked for, verbatim
+  from `systemctl --user cat goad`:
+
+  ```
+  # /home/david/.config/systemd/user/goad.service
+  #   -> /nix/store/dlix0wqckvifqmc9xg3bskav89dbhmg8-goad.service/goad.service
+  ExecStart=/nix/store/225f81n4mnwxs5bgp95k3lrbbwix1881-goad-0.1.0/bin/goad
+  Description=goad — personal intervention shell
+  Restart=on-failure
+  RestartPreventExitStatus=2
+  RestartSec=2
+  ```
+
+  `EnvironmentFile` absent — `grep -c EnvironmentFile` printed `0`. The
+  `ExecStart` store path is character-for-character the one `just package`
+  printed, so the module took the package and not something under `/home`.
+  `systemctl --user status` then read `active (running)`, `Loaded:` naming the
+  `.config` path, `Main PID: 464078 (.goad-wrapped)` — the wrapper is what
+  systemd supervises, so `LD_LIBRARY_PATH` and `FONTCONFIG_FILE` are being set
+  by the package rather than by any file beside it.
+- **VH-1 (AC-8, AC-1's second half) — the window, with text in it. The
+  person's own words: "diagnostics window shows: nothing to report."** Taken
+  from the tray menu's **Diagnostics** item rather than from a scheduled
+  showing, because no slot was due and `backend.py` may legitimately answer a
+  forced check with nothing to display — which would have been no evidence
+  either way. The diagnostics pane draws unconditionally, so a window
+  containing glyphs is exactly the criterion and the backend having nothing to
+  report is orthogonal to it. Fontconfig is reaching the renderer.
+- **The tray icon is now created, and previously was not.** Every prior start
+  in the journal carries `Slint: Failed to create system tray icon: 0` — the
+  cargo binary under the hand-written unit, on 2026-09-20 16:44 and
+  2026-09-21 09:04. The packaged binary's start at 13:35 logs no such line and
+  the icon is drawn. Unasked-for by any criterion and worth recording: the
+  wrapper repaired a GUI-stack defect nobody had attributed to packaging.
+- **VH-3 (AC-2's second half) — an envelope into the running host.** The
+  nix-built `goad-emit` at
+  `/nix/store/1k83k1kas8bl8nc8fxayv5kdp0x18z3h-goad-emit-0.1.0/bin/goad-emit
+  --source cutover --kind smoke` exited **0**: the host accepted the event.
+  No `--socket`; emit read the ingress path out of
+  `~/.config/goad/config.toml` and found the new host holding it.
+- **The stale socket was reclaimed, not tripped over.** The old host's
+  `/run/user/1000/goad.sock` was left on disk by the out-of-order teardown
+  with nothing listening. The new host rebound it at 13:35. This is `reclaim`
+  in `goad-shell`'s `ingress` doing what it documents — probe, take the lock
+  beside the path, unlink the stale file, bind — and it is the reason the
+  misordered teardown cost nothing.
+- **P-6 (EX-3) — the hand-written unit retired**, after VH-1..VH-3 and not
+  before, on the restored copy. `~/.config/systemd/user/goad.service` is
+  home-manager's symlink into
+  `/nix/store/q8zqz2pyx2sb3ymin79bdnpp0ijmx8fg-home-manager-files`;
+  `~/satan/goad/` keeps `backend.py`, `data/`, `field-notes.md`, `justfile`
+  and `README.md`. Only the unit went.
+- **P-7 and P-8 are not yet run.** `just install` needs the dev shell and was
+  declined when offered. `~/.cargo/bin/goad` is still the 2026-09-16 binary
+  and still exits 2 on `--version`, so VA-1's comparison and AC-9 stand open.
+
 **Decisions taken during execution**
 
 - **The consumer is three files, not one, and the third is
@@ -1450,6 +1555,29 @@ are written here when reported (P-9).*
 - **T-5 was taken from the store path, not `./result`.** `just package` uses
   `--no-link` and produces no out-link; building one would have added an
   untracked symlink for no gain. Same artefact, same bytes.
+- **The phase's boundary was lifted mid-execution, by the person.** This phase
+  was planned as "agent preps, you execute" precisely because it writes outside
+  this repository. Partway through the person said "you get it working", which
+  moved the switch, the `~/flakes` repair and the verification back to the
+  orchestrator. VH-1 stayed with the person because it is an observation no
+  process can make on their behalf, not because of the boundary.
+- **The committed `flake.lock` was restored rather than the update
+  committed.** The alternative was to accept the 10:58 `nix flake update` and
+  re-run the phase gate against it. Rejected: an unrequested toolchain and
+  nixpkgs advance in the middle of a cutover changes the artefact under the
+  criteria that are measuring it, and every store path recorded in this phase
+  would have needed re-deriving to say anything. The update is one
+  `nix flake update` away whenever it is wanted deliberately — §Open carries
+  it.
+- **VH-1 was taken from the tray's Diagnostics pane, not a scheduled
+  showing.** The criterion is that the packaged binary draws a window with
+  text in it — a fontconfig property. A scheduled showing additionally depends
+  on `backend.py` having something to say at that moment, which is domain
+  behaviour this host deliberately knows nothing about, and "Check now" can
+  answer with no window at all without that being evidence of anything. The
+  `Tray` component's `Menu` in `ui/app.slint` offers `Diagnostics`, which
+  draws unconditionally. Strictly stronger evidence for the criterion, and
+  independent of the backend.
 
 **Findings**
 
@@ -1471,6 +1599,41 @@ are written here when reported (P-9).*
   `0.1.0`. That is what makes VA-1's pair differ in the parenthetical alone —
   it is a property of the recipe, not of the comparison, and a future
   `GOAD_REVISION` in `just install` would quietly make VA-1 unfalsifiable.
+- **A recovery block is only as durable as the artefact it names, and this one
+  named a file under no version control.** §T-4's recovery step was `ln -s
+  ~/satan/goad/goad.service …`, correct for every failure it anticipated and
+  worth nothing against the one that happened: the file being removed. That
+  path is not tracked — `/home/david` is a git repository and it was never
+  added — and the unit's text appears verbatim in no document here;
+  `research.md` paraphrases three of its directives and `design.md` describes
+  the module that replaces it. Recovery worked only because the person had run
+  `systemctl --user cat` in the same terminal minutes earlier. A sequence that
+  is going to destroy something should carry the thing it destroys, or say
+  where a copy is.
+- **The consumer can be written wrong in a way that switches green.** A
+  home-manager module file that imports `inputs.goad.homeManagerModules.default`
+  and sets nothing installs nothing: `enable` defaults false, and the switch
+  succeeds. The module's own header (`nix/module.nix`) prescribes the
+  four-line consumer, but nothing detects a three-line one. Same shape as
+  PHASE-02's VA-3 and T-3's `git add` caveat — a switch reporting success is
+  not evidence that it took the module.
+- **A dirty working tree changes what a `git+file://` consumer builds, and the
+  version line is where it shows.** `flake.nix`'s
+  `self.shortRev or self.dirtyShortRev or ""` means a dirty tree stamps
+  `<rev>-dirty` rather than failing, so the tell is visible — but only to
+  someone reading the version line, and the consumer's lock records it as
+  `dirtyRev` where nobody looks. The `-dirty` suffix is the designed-in
+  witness and it worked; what nothing holds is that an uncommitted change in
+  this repository silently redefines what a switch elsewhere installs.
+- **The stale-socket path was exercised in production for the first time.**
+  `reclaim`'s documented sequence handled a socket left by a host killed out
+  from under its unit. Nothing was arranged to test this; the misordered
+  teardown produced the condition and the host rebound cleanly at 13:35.
+- **The wrapper fixed system-tray icon creation.** Not asked for by any
+  criterion of this slice, not predicted by its design, and visible only by
+  comparing journal lines across the cutover. Worth an §Open entry: something
+  in `guiLibs` or `FONTCONFIG_FILE` was missing from the devshell-captured
+  environment the hand-written unit used, and the packaged build has it.
 
 ## Harvest
 
@@ -1625,3 +1788,28 @@ are written here when reported (P-9).*
   any more, so this is latent rather than live — the question for a follow-up
   is whether a stratum 2 error that names no subject should carry that wording
   at all.
+- **A `nix flake update` is owed, deliberately, and is not lost.** An update of
+  every input was made in this repository at 10:58 on 2026-09-21 and left
+  uncommitted; it was restored to the committed lock during PHASE-05 so the
+  cutover measured the artefact the phase gate had verified. Whenever it is
+  wanted, it is `nix flake update` followed by `just check` and `just package`,
+  and then `nix flake update goad` in `~/flakes` to carry it across. Doing it
+  as its own commit is the point — an input advance that arrives inside another
+  change is indistinguishable from that change.
+- **The wrapper made the system tray icon work, and nothing knows why.**
+  Journal lines before the cutover carry `Slint: Failed to create system tray
+  icon: 0` on every start of the cargo binary under the hand-written unit; the
+  packaged binary logs none and draws the icon. So something the wrapper
+  provides — a library in `guiLibs`, or `FONTCONFIG_FILE` — was absent from the
+  `LD_LIBRARY_PATH` `just install` captured into `~/.config/goad/env`. Which,
+  and whether the cargo path should also get it, is unanswered. It matters
+  beyond cosmetics: `~/.config/goad/env` is the non-nix story's only
+  environment, so the same gap is what a non-NixOS user would meet. Related to
+  the non-nix build path entry above.
+- **AC-9 and VA-1's comparison are still open.** P-7 (`just install` from the
+  dev shell) and P-8 were offered and declined during the cutover;
+  `~/.cargo/bin/goad` remains the 2026-09-16 binary, which exits 2 on
+  `--version`. The cutover does not depend on them — the packaged path is
+  live and observed — but the criterion that the cargo path still works, and
+  the comparison that distinguishes the two version lines, have not been made.
+  They can be run at any time; until then this phase is not `done`.
