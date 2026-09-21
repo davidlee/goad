@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — the home-manager module | done | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | done | 2026-09-21 |
 | PHASE-04 — the configuration path, named | done | 2026-09-21 |
-| PHASE-05 — the cutover, and the evidence | cutover done, AC-9 open | 2026-09-21 |
+| PHASE-05 — the cutover, and the evidence | done | 2026-09-21 |
 
 ## Phase sheets
 
@@ -1533,9 +1533,30 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   `/nix/store/q8zqz2pyx2sb3ymin79bdnpp0ijmx8fg-home-manager-files`;
   `~/satan/goad/` keeps `backend.py`, `data/`, `field-notes.md`, `justfile`
   and `README.md`. Only the unit went.
-- **P-7 and P-8 are not yet run.** `just install` needs the dev shell and was
-  declined when offered. `~/.cargo/bin/goad` is still the 2026-09-16 binary
-  and still exits 2 on `--version`, so VA-1's comparison and AC-9 stand open.
+- **P-7, VA-2 then VA-1 (AC-9, AC-5).** `nix develop --command just install`
+  by the person, exit 0; both cargo binaries and `~/.config/goad/env` rewritten
+  at 13:43. The comparison, all four at exit 0:
+
+  ```
+  ~/.cargo/bin/goad            --version → 0.1.0
+  ~/.cargo/bin/goad-emit       --version → 0.1.0
+  <store>/bin/goad             --version → 0.1.0 (22f412c)
+  <store>/bin/goad-emit        --version → 0.1.0 (22f412c)
+  ```
+
+  The parenthetical is the only difference, on both binaries, which is what
+  AC-5 asks: the packaged path carries the revision and the cargo path does
+  not, and neither is broken by the other existing. The cargo `goad` exiting
+  **0** here is the whole of AC-9 — before this it exited 2, reading
+  `--version` as a configuration path.
+- **P-8, EX-4 (OQ-6) — the env file survives.** `~/.config/goad/env` exists,
+  mtime 13:43 from that `just install`, and names two non-empty store paths.
+  Nothing automatic reads it any more: the packaged binary is wrapped and the
+  module's unit names no `EnvironmentFile`. It belongs to the cargo path and
+  the cutover left it alone.
+- **The running service was unaffected by P-7.** `MainPID=464078`,
+  `ExecMainStartTimestamp` still 13:35:30 — `just install` writes to
+  `~/.cargo/bin` and touches nothing systemd supervises.
 
 **Decisions taken during execution**
 
@@ -1629,11 +1650,16 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   `reclaim`'s documented sequence handled a socket left by a host killed out
   from under its unit. Nothing was arranged to test this; the misordered
   teardown produced the condition and the host rebound cleanly at 13:35.
-- **The wrapper fixed system-tray icon creation.** Not asked for by any
-  criterion of this slice, not predicted by its design, and visible only by
-  comparing journal lines across the cutover. Worth an §Open entry: something
-  in `guiLibs` or `FONTCONFIG_FILE` was missing from the devshell-captured
-  environment the hand-written unit used, and the packaged build has it.
+- **The system tray icon creates now and did not before, and the environment
+  is not the reason.** Journal lines before the cutover carry `Slint: Failed to
+  create system tray icon: 0` on every start of the cargo binary under the
+  hand-written unit; the packaged binary logs none and draws the icon. The
+  first explanation reached for — that the wrapper carries a library
+  `~/.config/goad/env` lacked — is **wrong, and was checked**: after P-7 the
+  wrapper script and the env file name the same five store paths (gcc-lib,
+  fontconfig-lib, libglvnd, libxkbcommon, wayland) and the same `fonts.conf`.
+  Byte-identical. Whatever the difference is, it is not `guiLibs` and not
+  `FONTCONFIG_FILE`. See §Open.
 
 ## Harvest
 
@@ -1796,16 +1822,20 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   and then `nix flake update goad` in `~/flakes` to carry it across. Doing it
   as its own commit is the point — an input advance that arrives inside another
   change is indistinguishable from that change.
-- **The wrapper made the system tray icon work, and nothing knows why.**
-  Journal lines before the cutover carry `Slint: Failed to create system tray
-  icon: 0` on every start of the cargo binary under the hand-written unit; the
-  packaged binary logs none and draws the icon. So something the wrapper
-  provides — a library in `guiLibs`, or `FONTCONFIG_FILE` — was absent from the
-  `LD_LIBRARY_PATH` `just install` captured into `~/.config/goad/env`. Which,
-  and whether the cargo path should also get it, is unanswered. It matters
-  beyond cosmetics: `~/.config/goad/env` is the non-nix story's only
-  environment, so the same gap is what a non-NixOS user would meet. Related to
-  the non-nix build path entry above.
+- **`Slint: Failed to create system tray icon: 0` stopped happening, and the
+  cause is not established.** It appears on every pre-cutover start of the
+  cargo binary and on none of the packaged binary's. The environment is ruled
+  out — the wrapper and `~/.config/goad/env` carry identical library paths and
+  the identical `fonts.conf` (§Findings). Two candidates remain, and this slice
+  distinguished neither: the cargo binary was built 2026-09-16 and the code has
+  moved since, so it may simply be older; or it is a start-order race, since
+  both failing starts are at or near session start and the packaged binary's
+  observed start was 13:35, hours into a session with the status-notifier host
+  certainly up. The second would mean `After=graphical-session.target` is not
+  sufficient for the tray, which is a module question and would be a real
+  defect in what this slice shipped. Cheap to settle: start the freshly
+  installed cargo binary against a throwaway config and read its journal, then
+  restart the unit at login. Worth doing before the tray is trusted.
 - **AC-9 and VA-1's comparison are still open.** P-7 (`just install` from the
   dev shell) and P-8 were offered and declined during the cutover;
   `~/.cargo/bin/goad` remains the 2026-09-16 binary, which exits 2 on
