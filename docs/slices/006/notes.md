@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the crane packages | done | 2026-09-21 |
-| PHASE-02 — the home-manager module | in progress | 2026-09-21 |
+| PHASE-02 — the home-manager module | done | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | pending | |
 | PHASE-04 — the configuration path, named | pending | |
 | PHASE-05 — the cutover, and the evidence | pending | |
@@ -302,52 +302,189 @@ STOP and consult rather than improvise:
 **Tasks**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
 
-- [ ] T-1 — read the three prior-art files before writing anything.
-- [ ] T-2 — EX-1: `nix/module.nix` with exactly §5.2(d)'s three options —
+- [x] T-1 — read the three prior-art files before writing anything.
+      *Done.* The option surface is `~/dev/satan-attrd/nix/module.nix`'s, less
+      its three typed environment options (OQ-1 excluded those); the unit's
+      fields and two of its comments are `~/satan/goad/goad.service`'s.
+- [x] T-2 — EX-1: `nix/module.nix` with exactly §5.2(d)'s three options —
       `enable`, `package` (required, **no default**), `extraConfig` (`{}`).
-- [ ] T-3 — EX-2: `config = mkIf cfg.enable` giving `home.packages` and
+- [x] T-3 — EX-2: `config = mkIf cfg.enable` giving `home.packages` and
       `systemd.user.services.goad` in `Unit` / `Service` / `Install`, every
       field as the plan's table states, **no `EnvironmentFile`**, and
       `extraConfig` merging over `Service` and no other block.
-- [ ] T-4 — EX-4: the module's comment carries R1 — a tarball consumer stamps
+- [x] T-4 — EX-4: the module's comment carries R1 — a tarball consumer stamps
       no revision, so AC-5 stops holding silently; the consumer is a git input
       by construction.
-- [ ] T-5 — VA-3, before evaluating anything: `git add nix/module.nix`. An
+- [x] T-5 — VA-3, before evaluating anything: `git add nix/module.nix`. An
       untracked file is outside the flake's git-tree source.
-- [ ] T-6 — EX-3: exported as `homeManagerModules.default`; `nix flake show`
+- [x] T-6 — EX-3: exported as `homeManagerModules.default`; `nix flake show`
       lists it.
-- [ ] T-7 — VA-1: the throwaway `lib.evalModules` harness. Stub module
+- [x] T-7 — VA-1: the throwaway `lib.evalModules` harness. Stub module
       declaring only `home.packages` and `systemd.user.services`, the real
       module, a fragment enabling it with a fake package. Print
       `config.systemd.user.services.goad`; check **every** EX-2 field by name;
       check `EnvironmentFile` is **absent**, not empty. Record the rendered
       attrset here, then discard the harness. It checks the generator, not
       home-manager's acceptance — that is PHASE-05/VH-2.
-- [ ] T-8 — VA-2, the review obligation I4: read `nix/module.nix` and the unit
+      *Done, and discarded.* It evaluated and printed; the attrset is below.
+- [x] T-8 — VA-2, the review obligation I4: read `nix/module.nix` and the unit
       text it produces for domain vocabulary against `DOMAIN`, and **say here
       that it was read**. Nothing enforces this — no ADR-001 instrument and not
       the vocabulary scan reads `.nix`.
-- [ ] T-9 — EX-5: `just check` exits 0 (it does not read `.nix`; run it anyway).
+- [x] T-9 — EX-5: `just check` exits 0 (it does not read `.nix`; run it anyway).
       Refactor pass, sheet current, §Status `done`, §Harvest updated in place,
       commit.
 
 **What was observed**
 <!-- Verification criteria are observations, not claims. -->
 
+- **VA-3** — `git add nix/module.nix` ran before the first evaluation, and
+  every evaluation below read the git tree (`warning: Git tree … is dirty`,
+  which is the tracked-but-modified `flake.nix`).
+- **EX-3** — `nix flake show --all-systems` lists `homeManagerModules` beside
+  `devShells` and `packages`, and prints it as `homeManagerModules: unknown`:
+  `nix flake show` has no type for a module output and does not descend into
+  one, so "lists it" is the whole of what that command can say. That the export
+  is a module and not a broken path was checked separately —
+  `builtins.isFunction (getFlake …).homeManagerModules.default` → `true`.
+- **VA-1** — the harness evaluated, printed, and was discarded. Rendered
+  `config.systemd.user.services.goad`, verbatim (the store path is the fake
+  package's; `lib` came from the flake's own locked nixpkgs, and the reference
+  was `git+file:///home/david/dev/goad`):
+
+  ```json
+  {
+    "Install": { "WantedBy": ["graphical-session.target"] },
+    "Service": {
+      "ExecStart": "/nix/store/qp72s4kmlsxc4sa7jw38fnvjbjb7qwwa-goad-fake/bin/goad",
+      "Restart": "on-failure",
+      "RestartPreventExitStatus": 2,
+      "RestartSec": 2
+    },
+    "Unit": {
+      "After": ["graphical-session.target"],
+      "PartOf": ["graphical-session.target"]
+    }
+  }
+  ```
+
+  Field by field, and by name, against EX-2's table:
+
+  | EX-2 | rendered at | value |
+  |---|---|---|
+  | `After` | `Unit.After` | `["graphical-session.target"]` |
+  | `PartOf` | `Unit.PartOf` | `["graphical-session.target"]` |
+  | `ExecStart` | `Service.ExecStart` | `"${cfg.package}/bin/goad"`, interpolated |
+  | `Restart` | `Service.Restart` | `"on-failure"` |
+  | `RestartPreventExitStatus` | `Service.RestartPreventExitStatus` | `2` |
+  | `RestartSec` | `Service.RestartSec` | `2` |
+  | `WantedBy` | `Install.WantedBy` | `["graphical-session.target"]` |
+
+  The blocks are `["Install", "Service", "Unit"]` — three, not a flat attrset
+  (F-11). `Service`'s own field list is exactly
+  `["ExecStart", "Restart", "RestartPreventExitStatus", "RestartSec"]`.
+- **VA-1, `EnvironmentFile` absent rather than empty** — `?` tested on all four
+  places it could hide, all `false`: `Service`, `Unit`, `Install`, and the
+  service attrset's top level. It does not appear in `Service`'s field list
+  above either.
+- **VA-1, `extraConfig` merges over `Service` and no other block** — rendered a
+  second time with `extraConfig = { RestartSec = 10; Nice = 9; }`:
+  `Service.RestartSec` → `10` (the module's own value is a default a consumer
+  overrides), `Service.Nice` → `9` (a field the module never sets), `Unit` and
+  `Install` compare equal to the first render, and the block list is unchanged.
+- **VA-1, two properties beyond the field list.** Both are EX-1/EX-2 claims that
+  a field-by-field check of the enabled case cannot see:
+  - `config = mkIf cfg.enable` — with `enable = false`, `systemd.user.services`
+    renders `{}` and `home.packages` renders `[]`. Nothing leaks past the
+    guard.
+  - `package` is required with no default — `enable = true` and no `package`
+    fails evaluation with *`error: The option 'services.goad.package' was
+    accessed but has no value defined. Try setting the option.`*, and the
+    option carries no `default` attribute at all (`opts.package ? default` →
+    `false`).
+- **The option surface is exactly three** — `builtins.attrNames` of
+  `options.services.goad` → `["enable", "extraConfig", "package"]`. No
+  `configFile`, no typed environment options (OQ-1). `enable`'s rendered
+  description is *"Whether to enable goad, the personal intervention shell."*;
+  `extraConfig`'s default is `{}`.
+- **VA-2 — the module and the unit text it produces were read for domain
+  vocabulary, and are clean.** Read against `DOMAIN` in
+  `crates/goad-boundary/tests/checks/vocabulary.rs` — `habit`, `streak`,
+  `journal`, `site`, `goal`, `reminder`, `compliance` — by word and
+  case-insensitively, which is how `goad_boundary::scan::mentions` matches. I
+  read `nix/module.nix` whole (comments included, where the Rust scan's
+  `code_of` would strip them, so this is the stricter reading), and the unit
+  text is the rendered attrset above: three `graphical-session.target`
+  strings, a store path, `on-failure`, and two integers. A word-boundary grep
+  agrees — zero for all seven, against `systemd` at 4 as the positive control
+  that the pattern matches anything at all. **Nothing enforces this**: no
+  ADR-001 instrument and not the domain-vocabulary scan reads `.nix` (design
+  §8 R3, I4).
+- **EX-5** — `just check` exits 0. `alejandra --check nix/module.nix flake.nix`
+  also passes, which is the style the rest of the repository's nix is written
+  in; it is not on the gate and `just check` never opened either file.
+
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
 
+- **`Description` and `Type = "simple"` are not carried across from
+  `~/satan/goad/goad.service`.** EX-2's table and design §5.2(d) agree on
+  `Unit` = `After` + `PartOf`, and the plan calls the table "the unit, field
+  for field"; `Type = "simple"` is systemd's default for an `ExecStart`-only
+  unit, so it says nothing. One consequence is worth naming rather than
+  discovering at the cutover: `extraConfig` merges over `Service` **only**, so
+  a consumer cannot add `Unit.Description` through it either, and
+  `systemctl --user status goad` will show the unit name where the old unit
+  showed *"goad — personal intervention shell"*. If that description is wanted
+  it is an amendment to §5.2(d), not a phase choice.
+- **`extraConfig` is `attrsOf anything`, merged with `//`.** Shallow override,
+  which is what "merged over the generated `Service` block" means for a flat
+  list of systemd directives; `recursiveUpdate` would be the same thing at this
+  depth while implying the block nests. `anything` rather than `str` because
+  systemd directives are strings, integers, booleans and lists — the unit's own
+  `RestartPreventExitStatus = 2` is an integer, so a stricter type would forbid
+  overriding a field the module itself sets.
+- **The export is `import ./nix/module.nix`, not the bare path.** Both work in
+  a consumer's `imports`; `import` makes the file evaluate at export time, so a
+  syntax error is a failure here rather than out of repo. It is also the prior
+  art's spelling.
+- **A `session` binding inside the module's `let`** for
+  `graphical-session.target`, named once and used three times. The three
+  references are the same thing by design (AC-3), not a coincidence that could
+  drift.
+- **The harness checked two things VA-1 did not name** — the `mkIf` guard and
+  the missing-`package` error, both recorded above. They cost one evaluation
+  each and close the gap between "every field is right" and "the module only
+  ever produces those fields".
+
 **Findings**
 <!-- Things noticed in passing that are not this phase's job. -->
+
+- **`nix flake show` cannot see into a module output.** It prints
+  `homeManagerModules: unknown` and stops, so a flake that exported a broken
+  path or a non-module would still "list it". EX-3 as written is satisfied, but
+  the check that carries weight is the `builtins.isFunction` eval recorded
+  above, and VA-1 past it. Worth knowing wherever a nix output is verified by
+  `flake show` alone.
+- **The git-input hazard (R1) is documented where the importer reads, not
+  where the mistake is made.** The module's header says to fetch goad as a git
+  input and why; the line that could get it wrong is the `inputs.goad.url` in
+  `~/flakes`, which PHASE-05 writes. PHASE-05 already has the bare-git-form
+  requirement in its EX-1 — this is the same fact arriving from the other side,
+  and the two should agree.
+- **PHASE-01's `result` out-link finding did not bite here.** This phase built
+  nothing: `nix flake show` and `nix eval` leave no out-link, so `git status`
+  stayed clean apart from the two declared surfaces. The finding still stands
+  for PHASE-05.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-01 · `69e3b30`
+**Fresh as of:** 2026-09-21 · PHASE-02 · `PENDING`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -360,6 +497,12 @@ STOP and consult rather than improvise:
 - `justfile` — `just package`, outside POL-001's chain.
 - `Cargo.toml` — the `tokio` entry joined, with the comment that is the only
   thing at that site able to see a re-split.
+- `nix/module.nix` — the home-manager module, exported from `flake.nix` as
+  `homeManagerModules.default`. Three options (`enable`, `package` with no
+  default, `extraConfig`), one unit in `Unit` / `Service` / `Install`, all three
+  targets `graphical-session.target`, **no `EnvironmentFile`**, and a header
+  comment carrying R1 (fetch goad as a git input; a tarball prints a bare
+  version and says nothing).
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -378,6 +521,21 @@ STOP and consult rather than improvise:
 - **A `just demo` in the checkout blocks any second host** on
   `./goad-demo.sock`. A configuration copy with an absolute ingress path
   photographs the packaged binary without stopping the user's host.
+- **A home-manager module can be rendered with no home-manager input.**
+  `lib.evalModules` over three modules — a stub declaring only the options the
+  module under test *sets*, the module itself, and a fragment enabling it —
+  prints the generated attrset. `lib` comes from the flake's own locked
+  nixpkgs (`flake.inputs.nixpkgs.lib`), and `derivation { name; system;
+  builder; }` is a fake package that satisfies `types.package` without building
+  anything. What it does **not** hold: the stub's types are permissive, so this
+  is the module's output and not home-manager's acceptance of it.
+- **`nix flake show` prints `homeManagerModules: unknown` and does not
+  descend.** It has no type for a module output, so it proves the attribute
+  exists and nothing more; `builtins.isFunction` on the export is the cheap
+  check that it evaluates.
+- **`alejandra` is on this machine's system PATH, not in the devshell**, and
+  the repository's `.nix` already complies with it. Nothing on the gate reads
+  `.nix` at all — neither for format nor for vocabulary.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

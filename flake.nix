@@ -325,6 +325,12 @@
       // goadPackages
       // {default = goadPackages.goad;};
 
+    # Not under `${system}`, unlike `packages` and `devShells` above: a
+    # home-manager module is a function of the consumer's own module arguments,
+    # so it is system-agnostic, and it is the consumer that reaches back into
+    # `packages.${pkgs.system}` to say which build the unit runs.
+    homeManagerModules.default = import ./nix/module.nix;
+
     devShells.${system}.default = pkgs.mkShell {
       packages =
         projectPkgs
