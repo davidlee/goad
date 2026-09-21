@@ -1174,9 +1174,16 @@ grep -A4 '"goad"' /home/david/flakes/flake.lock | head -20
 ```
 
 Observe: a `goad` node appears, `"type": "git"`, `"url":
-"file:///home/david/dev/goad"`, and a `"rev"` whose first seven characters are
-`af01ead` — the commit this sheet was written from. A `"type": "tarball"` here
-is the failure the input comment warns about. (This step is optional: the
+"file:///home/david/dev/goad"`, and a `"rev"` that starts with whatever
+
+```sh
+git -C /home/david/dev/goad rev-parse --short HEAD
+```
+
+answers. **Compare against that, not against a revision written here** — this
+sheet is committed to the tree it describes, so every literal revision in it is
+one commit stale the moment it lands. A `"type": "tarball"` is the failure the
+input comment warns about. (This step is optional: the
 switch locks anyway. It is worth doing alone because it separates *the input
 resolves* from *the switch works*.)
 
@@ -1218,6 +1225,10 @@ cd /home/david/flakes && just home-switch
 systemctl --user status goad
 ```
 
+`home-switch` is `home-manager switch --flake '.#david'` behind a
+`check-flake-root` guard, so the `cd` is not cosmetic: the `.` resolves against
+the working directory.
+
 Observe: the switch exits 0 and its activation output mentions
 `goad.service`; `status` then shows `active (running)` and a `Loaded:` line
 whose path is `/home/david/.config/systemd/user/goad.service` — now
@@ -1239,7 +1250,7 @@ Observe, by name:
 | expect | value |
 |---|---|
 | `Description=` | `goad — personal intervention shell` |
-| `ExecStart=` | a **store path** ending `/bin/goad` — today's build is `/nix/store/rgsn4p821bqmkjq0w9j6s2g98l23iq06-goad-0.1.0/bin/goad` |
+| `ExecStart=` | a **store path** ending `/bin/goad`. What it should equal: `nix path-info /home/david/dev/goad#goad` run from a clean tree. It is a store path that matters here, not which one — a path under `/home/david` would mean the module took something other than the package |
 | `Restart=` | `on-failure` |
 | `RestartPreventExitStatus=` | `2` |
 | `RestartSec=` | `2` |
@@ -1266,7 +1277,8 @@ defect in the wrapper, repaired in PHASE-01, never patched in `~/flakes`.
 **P-5 — VH-3, an envelope into the running host (AC-2's second half)**
 
 ```sh
-/nix/store/zmpmc6xkmyj7p7hp7dfdr7415j35y1kz-goad-emit-0.1.0/bin/goad-emit --source cutover --kind smoke
+EMIT=$(nix build --no-link --print-out-paths /home/david/dev/goad#goad-emit)
+"$EMIT/bin/goad-emit" --source cutover --kind smoke
 echo "exit=$?"
 journalctl --user -u goad -n 20 --no-pager
 ```
@@ -1316,12 +1328,14 @@ Then VA-1, **in this order** (F-8):
 
 ```sh
 /home/david/.cargo/bin/goad --version ; echo "exit=$?"
-/nix/store/rgsn4p821bqmkjq0w9j6s2g98l23iq06-goad-0.1.0/bin/goad --version ; echo "exit=$?"
+NIXGOAD=$(nix build --no-link --print-out-paths /home/david/dev/goad#goad)
+"$NIXGOAD/bin/goad" --version ; echo "exit=$?"
 ```
 
 Expect `0.1.0` at exit 0 from the cargo path — `just install` sets no
-`GOAD_REVISION`, so there is no parenthetical — and `0.1.0 (af01ead)` at exit 0
-from the nix path. **Both must exit 0 and both must print a version line**,
+`GOAD_REVISION`, so there is no parenthetical — and `0.1.0 (<short rev>)` at
+exit 0 from the nix path, the revision being whatever
+`git -C /home/david/dev/goad rev-parse --short HEAD` answers. **Both must exit 0 and both must print a version line**,
 agreeing on `0.1.0` and differing only in the parenthetical. An exit 2 on
 either side fails VA-1 rather than passing it: that is today's pre-slice binary
 reading `--version` as a configuration path, which "differs" while
