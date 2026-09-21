@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 — the crane packages | done | 2026-09-21 |
 | PHASE-02 — the home-manager module | done | 2026-09-21 |
-| PHASE-03 — `--version`, on both binaries | in progress | 2026-09-21 |
+| PHASE-03 — `--version`, on both binaries | done | 2026-09-21 |
 | PHASE-04 — the configuration path, named | pending | |
 | PHASE-05 — the cutover, and the evidence | pending | |
 
@@ -548,57 +548,161 @@ STOP and consult rather than improvise:
 **Tasks**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
 
-- [ ] T-1 — **red first.** VT-1's unit cases for `version_line`'s both
+- [x] T-1 — **red first.** VT-1's unit cases for `version_line`'s both
       branches, in `diagnostics.rs`'s existing `mod tests` and in
       `render.rs`'s. `Some("08528b5")` → `0.1.0 (08528b5)`; `None` → `0.1.0`.
-- [ ] T-2 — EX-2, EX-5: `version_line` in both crates, matching each module's
+      *Done.* Both red with *`error[E0432]: unresolved import
+      `super::version_line`*, in `goad` (lib test) and in `goad-emit`
+      (bin test), before either function existed.
+- [x] T-2 — EX-2, EX-5: `version_line` in both crates, matching each module's
       own visibility (`render.rs` is `pub(crate)`, not §5.2(g)'s illustrative
       `pub fn`). Green.
-- [ ] T-3 — VT-3 red, then EX-1: `Launch::Version`, the guard **before** the
+- [x] T-3 — VT-3 red, then EX-1: `Launch::Version`, the guard **before** the
       catch-all `[only]` arm, `arguments`' doc table row. Cases in
       `mod arguments_table` — `--version` is `Launch::Version` and **not**
       `Launch::Config(PathBuf::from("--version"))`; `goad x --version` is still
       `Usage`.
-- [ ] T-4 — EX-4 and its case in `mod usage_block`: `USAGE` gains the third
+      *Done.* Red first with *`error[E0599]: no variant … named `Version`
+      found for enum `Launch``*.
+- [x] T-4 — EX-4 and its case in `mod usage_block`: `USAGE` gains the third
       form, as emit's already lists.
-- [ ] T-5 — EX-2's caller: `run`'s `Version` arm writes `version_line` to
+- [x] T-5 — EX-2's caller: `run`'s `Version` arm writes `version_line` to
       stdout and returns `Ok(())`, beside `Help`'s. No `"goad: "` prefix —
       stderr says who spoke, a direct answer on stdout need not.
-- [ ] T-6 — EX-3: the caller passes
+      *Done.* Adding the variant first red `main.rs` with *`error[E0004]:
+      non-exhaustive patterns: `Launch::Version` not covered`* — the
+      crate-root `#![deny(clippy::wildcard_enum_match_arm)]` is why that
+      match has no catch-all to absorb it silently.
+- [x] T-6 — EX-3: the caller passes
       `option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty())`.
       Set-but-empty is unset. Same in emit (EX-5), replacing the bare
       `env!("CARGO_PKG_VERSION")`.
-- [ ] T-7 — EX-6 and VT-2: `[[test]] name = "binary"`, path
+- [x] T-7 — EX-6 and VT-2: `[[test]] name = "binary"`, path
       `tests/binary/main.rs`, in `crates/goad/Cargo.toml`; the target
       transcribed from emit's, doc comment and `#[cfg(test)] mod …` included.
       Spawn `env!("CARGO_BIN_EXE_goad")` with `--version`; assert stdout trims
       to the package version, exit 0, stderr empty.
-- [ ] T-8 — VA-1, if PHASE-01's packages still build: `nix build .#goad &&
+      *Done*, and EX-6's premise checked rather than trusted — see **What was
+      observed**.
+- [x] T-8 — VA-1, if PHASE-01's packages still build: `nix build .#goad &&
       ./result/bin/goad --version` prints `0.1.0 (<short rev>)`; a `cargo run`
       prints bare `0.1.0`. Record both strings verbatim. Use
       `--no-link --print-out-paths` or clean up the out-link; `result` is not
       ignored by this repository.
-- [ ] T-9 — EX-7: `just check` exits 0. **Refactor pass** — the step where the
+- [x] T-9 — EX-7: `just check` exits 0. **Refactor pass** — the step where the
       design survives contact. Sheet current, §Status `done`, §Harvest updated
       in place, commit.
 
 **What was observed**
 <!-- Verification criteria are observations, not claims. -->
 
+- **VA-1, the two version lines, verbatim.** Built at `4484eaf` with the
+  working tree dirty, so the stamp carries the dirty marker PHASE-01 recorded:
+
+  | build | invocation | stdout | exit |
+  |---|---|---|---|
+  | nix | `env -i …-goad-0.1.0/bin/goad --version` | `0.1.0 (4484eaf-dirty)` | 0 |
+  | nix | `env -i …-goad-emit-0.1.0/bin/goad-emit --version` | `0.1.0 (4484eaf-dirty)` | 0 |
+  | cargo | `cargo run -q -p goad --bin goad -- --version` | `0.1.0` | 0 |
+  | cargo | `cargo run -q -p goad-emit -- --version` | `0.1.0` | 0 |
+
+  That is **I3 sighted on both binaries** — a nix-built and a `cargo`-built
+  `goad` differ in what `--version` says — and the bare form carries no
+  placeholder. AC-5's discharge is still PHASE-05/VA-1's; this is a sighting.
+  Store paths: `/nix/store/ncqvifv9rygpk2yrg0s893p3iaspfj28-goad-0.1.0` and
+  `/nix/store/j3n228yvbyfgidszg6kgss9qw0fg7i2c-goad-emit-0.1.0`, built with
+  `nix build --no-link --print-out-paths`, so no out-link landed in the
+  checkout. `git add -A` ran first: the bare git form cannot see an untracked
+  file, and `tests/binary/` was new.
+- **EX-4, the third usage form, from the built binary.** `env -i …/bin/goad
+  --help` prints, in full:
+
+  ```
+  usage: goad [<config-path>]
+         goad -h | --help
+         goad --version
+
+  With no argument the configuration is read from
+  $XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when
+  XDG_CONFIG_HOME is unset, empty, or not absolute.
+  ```
+- **EX-6's premise, checked rather than trusted.** With the `[[test]] name =
+  "binary"` block removed, `cargo test -p goad` prints **no** `Running
+  tests/binary/…` line, emits no error, and exits 0 — the target is silently
+  not built, exactly as `autotests = false` implies
+  (`docs/memory/negative-control-must-compile.md`). The block was restored and
+  `git diff crates/goad/Cargo.toml` is empty, so nothing of the control
+  survived; the case runs again and passes.
+- **VT-2 at its own tier** — `cargo test -p goad --test binary` runs
+  `version::version_prints_the_package_version_on_stdout_and_exits_0`, 1
+  passed. Under the gate `GOAD_REVISION` is unset, so what it sees is the
+  bare `0.1.0`; the stamped branch is VT-1's alone.
+- **Emit's existing binary assertion passes unchanged** — `cargo test -p
+  goad-emit`: 36 unit cases and 9 binary cases, all passing, with
+  `version_prints_the_package_version_on_stdout_and_exits_0` still asserting
+  equality against `CARGO_PKG_VERSION` rather than a `starts_with`. The
+  premise held: `cargo test` never sets `GOAD_REVISION`.
+- **EX-7** — `just check` exits 0, after the refactor pass and with everything
+  applied.
+
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
 
+- **`diagnostics::print_version(revision)` exists, beside `print_usage`.** EX-2
+  names `version_line` and says `run`'s arm *writes it to stdout*; it does not
+  say through what. `diagnostics.rs`'s own shape answers that — every
+  user-visible string on this surface has a pure `*_line` half and an outlet
+  beside it (`print_usage`, `report_startup`, `report_platform`), and the
+  outlet is the only thing that touches a stream. The alternative was `main.rs`
+  calling `goad_shell::report::line_to` itself, which would put the second
+  stdout outlet outside the module whose whole claim is that it holds them all.
+  Emit needs no equivalent: `to_stdout` already exists in its `main`, which is
+  that crate's own answer to the same question.
+- **`option_env!` sits in each `main`, not inside `version_line`.** EX-3 says
+  *the caller passes* it, and that is what keeps `version_line` pure and both
+  of its branches a unit case rather than a build configuration. It is also
+  what makes the two crates' copies genuinely independent: each reads the
+  `GOAD_REVISION` of its own compilation.
+- **`dash_dash_version` asserts equality to `Launch::Version` and nothing
+  else.** VT-3 states the property as *`Launch::Version` and **not**
+  `Launch::Config(PathBuf::from("--version"))`*; on an enum deriving
+  `PartialEq` the equality is the stronger of the two and subsumes the
+  inequality, which would also pass for `Launch::Help`. The regression the
+  second half names is recorded in the case's doc comment instead, where it
+  says what the behaviour used to be.
+- **The `[[test]]` block goes after `renderer`, not at the end**, so the eleven
+  `event_loop_*` targets stay contiguous.
+- **`diagnostics.rs`'s module doc gains one clause.** It names each outlet on
+  this surface and said "two"; there are now three. That is a count this
+  phase's change falsifies, so it was repaired rather than left. Nothing else
+  in the file moved — `mod tests` was added to, not restructured.
+
 **Findings**
 <!-- Things noticed in passing that are not this phase's job. -->
+
+- **`Launch` has no `-V`.** `--version` is the only spelling, matching emit,
+  which also takes only `--version`. Nothing in the design asked for the short
+  form and nothing here adds one; worth knowing only because `-h` *does* have
+  a short form beside `--help`, so the two flags are not symmetric.
+- **`crates/goad`'s `tests/binary/` is a second consumer of a convention that
+  lives in `goad-emit`.** `goad`/`code_of`/`stdout_of`/`stderr_of` are now
+  written twice, once per crate, because nothing at stratum 3 is shared and
+  neither crate may depend on the other. Four four-line helpers is a cheap
+  duplication and transcribing was the instruction, but a third binary tier
+  would be the point to stop copying. Not this slice's call.
+- **`StartupError`'s doc still says "The eight variants"** and lists nine
+  (`Ingress` was added without the count moving). PHASE-04 rewrites that
+  surface into ten, so it is that phase's to fix; noted here so it is not
+  mistaken for drift this phase introduced.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-02 · `7914864`
+**Fresh as of:** 2026-09-21 · PHASE-03 · `4484eaf`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -617,6 +721,19 @@ STOP and consult rather than improvise:
   targets `graphical-session.target`, **no `EnvironmentFile`**, and a header
   comment carrying R1 (fetch goad as a git input; a tarball prints a bare
   version and says nothing).
+- **`--version`, on both binaries.** `diagnostics::version_line` /
+  `print_version` in `crates/goad` and `render::version_line` in
+  `crates/goad-emit`: the package version, plus the revision in parentheses
+  when the build stamped one, and **no placeholder** when it did not. Each
+  `main` passes
+  `option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty())`.
+- **`Launch::Version`**, guarded before `arguments`' catch-all arm, so
+  `goad --version` is answered instead of being opened as a configuration file
+  of that name. `goad x --version` is still `StartupError::Usage`.
+  `diagnostics::USAGE` lists the third form.
+- **`crates/goad/tests/binary/`** — the crate's first binary tier, declared as
+  `[[test]] name = "binary"`. One case: `--version` on stdout at exit 0, stderr
+  empty. Feasible headless only because both zero-exits precede any Slint call.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -650,6 +767,22 @@ STOP and consult rather than improvise:
 - **`alejandra` is on this machine's system PATH, not in the devshell**, and
   the repository's `.nix` already complies with it. Nothing on the gate reads
   `.nix` at all — neither for format nor for vocabulary.
+- **`autotests = false` makes an undeclared `tests/` target silently not
+  built** — measured, not assumed: with the `[[test]]` block removed,
+  `cargo test -p goad` prints no `Running tests/binary/…` line, reports no
+  error, and exits 0. A whole tier of cases can be added to this workspace and
+  leave the gate green while never running once. Both `goad` and `goad-emit`
+  carry the flag.
+- **The revision is readable at compile time without touching `build.rs`.**
+  `option_env!` is a macro, so `clippy.toml`'s `disallowed-methods` ban on
+  `std::env::var` does not apply and no `#[expect]` is needed — unlike
+  `build.rs`'s `SLINT_STYLE` read, which needed one. `.filter(|v|
+  !v.is_empty())` is what makes set-but-empty read as unset, which is the case
+  a flake consumed as a tarball produces (`GOAD_REVISION=""`).
+- **`cargo test` never sets `GOAD_REVISION`**, so no test that spawns a binary
+  can reach the stamped branch. A binary-tier `--version` case can only ever
+  see the bare version; the stamped form has to be a unit case over a pure
+  function taking the revision as an argument, or it is not tested at all.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
@@ -662,3 +795,10 @@ STOP and consult rather than improvise:
   nor `~/.config/goad/env`, but nothing documents or verifies it. Candidate
   scope for the follow-up slice: where that statement lives for a reader who is
   not holding this design, and whether anything checks it.
+- **Four binary-tier helpers are now written twice**, once in
+  `crates/goad-emit/tests/binary/exchange.rs` and once in
+  `crates/goad/tests/binary/version.rs` — transcribed deliberately
+  (plan §PHASE-03/VT-2: do not invent a second convention), and cheap at two
+  copies. Nothing at stratum 3 is shared and neither crate may depend on the
+  other, so a third binary tier is where this would need an answer rather than
+  a third copy.

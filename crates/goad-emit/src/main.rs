@@ -70,7 +70,12 @@ fn main() -> ExitCode {
       ExitCode::SUCCESS
     }
     Ok(Invocation::Version) => {
-      to_stdout(env!("CARGO_PKG_VERSION"));
+      // The revision is read at compile time and never at run time, and
+      // set-but-empty is unset — `crates/goad`'s `run` carries the reasoning
+      // for both, and this is the same rule for the same variable.
+      to_stdout(&render::version_line(
+        option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty()),
+      ));
       ExitCode::SUCCESS
     }
     Ok(Invocation::Send(request)) => exchange(request),

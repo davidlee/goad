@@ -171,7 +171,7 @@ mod usage_block {
     assert!(!USAGE.ends_with('\n'));
     assert_eq!(
       USAGE,
-      "usage: goad [<config-path>]\n       goad -h | --help\n\nWith no argument the configuration is read from\n$XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when\nXDG_CONFIG_HOME is unset, empty, or not absolute."
+      "usage: goad [<config-path>]\n       goad -h | --help\n       goad --version\n\nWith no argument the configuration is read from\n$XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when\nXDG_CONFIG_HOME is unset, empty, or not absolute."
     );
   }
 
@@ -377,6 +377,29 @@ mod arguments_table {
   #[test]
   fn dash_dash_help() {
     assert_eq!(arguments(argv(&["--help"]), &no_env).unwrap(), Launch::Help);
+  }
+
+  /// 006/PHASE-03/VT-3, AC-4. The guard sits **before** the catch-all arm, so
+  /// `--version` is an invocation rather than a path: until 006 it fell
+  /// through to `Launch::Config("--version")` and the host reported that it
+  /// could not read a configuration file by that name.
+  #[test]
+  fn dash_dash_version() {
+    assert_eq!(
+      arguments(argv(&["--version"]), &no_env).unwrap(),
+      Launch::Version
+    );
+  }
+
+  /// 006/PHASE-03/VT-3. `--version` is a whole invocation and not a flag that
+  /// attaches to one: two arguments are still two arguments, and the host does
+  /// not guess which was meant (design.md §5.2(e)).
+  #[test]
+  fn a_path_beside_the_version_flag_is_still_too_many_arguments() {
+    assert!(matches!(
+      arguments(argv(&["x", "--version"]), &no_env),
+      Err(StartupError::Usage)
+    ));
   }
 
   #[test]

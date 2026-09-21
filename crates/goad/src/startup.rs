@@ -8,12 +8,14 @@ use std::path::PathBuf;
 use goad_shell::config::IngressConfig;
 use goad_shell::ingress::{self, Ingress, IngressError};
 
-/// What the arguments asked for. Two outcomes, and `--help` is one of them
-/// rather than an early `exit` hidden inside argument parsing — so `main` keeps
-/// its single exit-code decision (§5.4's entry point).
+/// What the arguments asked for. Three outcomes, and the two that answer and
+/// stop are outcomes here rather than an early `exit` hidden inside argument
+/// parsing — so `main` keeps its single exit-code decision (§5.4's entry
+/// point).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Launch {
   Help,
+  Version,
   Config(PathBuf),
 }
 
@@ -95,6 +97,7 @@ pub fn listener(configured: Option<&IngressConfig>) -> Result<Ingress, StartupEr
 /// |---|---|
 /// | none | whatever [`goad_shell::config::default_path`] answers, which is where its own table states the XDG rule; `None` ⇒ [`StartupError::NoConfigPath`], whose text names both variables. |
 /// | `-h` or `--help` | the usage block on stdout, exit 0 — its text is §5.4's, and `--help` is its only destination |
+/// | `--version` | [`crate::diagnostics::version_line`] on stdout, exit 0 |
 /// | exactly one, anything else | that path, verbatim; `$XDG_CONFIG_HOME` is not consulted |
 /// | two or more | [`StartupError::Usage`] on stderr, exit 2 — the host does not guess which was meant |
 ///
@@ -113,6 +116,9 @@ pub fn arguments(
       .map(Launch::Config)
       .ok_or(StartupError::NoConfigPath),
     [only] if only == "-h" || only == "--help" => Ok(Launch::Help),
+    // Before the catch-all, or `--version` is a path and the host opens a
+    // file by that name.
+    [only] if only == "--version" => Ok(Launch::Version),
     [only] => Ok(Launch::Config(PathBuf::from(only))),
     _ => Err(StartupError::Usage),
   }

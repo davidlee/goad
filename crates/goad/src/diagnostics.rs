@@ -7,7 +7,9 @@
 //! pipeline every line on
 //! this surface goes through. PHASE-08 adds the startup surface's own two
 //! outlets, `USAGE`, `print_usage` and `report_startup`, before a tray or a
-//! window exists. The module carries the arithmetic deny because both halves
+//! window exists; 006 adds a third, `version_line` and `print_version`, which
+//! answers before one exists too. The module carries the arithmetic deny
+//! because both halves
 //! compute over lengths a backend or a transport chose (D53, design.md
 //! §5.4).
 #![deny(clippy::arithmetic_side_effects)]
@@ -369,6 +371,7 @@ pub const BUSY_NOTICE: &str = "still working on the last request — try again i
 /// does not reprint this block (principle 4).
 pub const USAGE: &str = "usage: goad [<config-path>]
        goad -h | --help
+       goad --version
 
 With no argument the configuration is read from
 $XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when
@@ -377,6 +380,34 @@ XDG_CONFIG_HOME is unset, empty, or not absolute.";
 /// stdout, exit 0. The only caller is `--help`.
 pub fn print_usage() {
   line_to(std::io::stdout().lock(), USAGE);
+}
+
+/// The `--version` answer: the package version, and the revision the build
+/// stamped — when it stamped one.
+///
+/// **No placeholder for the unstamped case.** `cargo install` stamps nothing
+/// and a tarball consumer of the flake stamps nothing either; both say
+/// `0.1.0` and stop there. A `(revision unknown)` would be this module
+/// reporting a fact it does not have, which is the one thing every line on
+/// this surface may not do.
+///
+/// No `"goad: "` prefix, unlike [`report_startup_line`]: the prefix is there
+/// because stderr must say who spoke, and a direct answer to a direct
+/// question on stdout need not — `goad-emit`'s `--version` is the precedent.
+/// The revision is taken as an argument rather than read here, so this stays
+/// pure and both branches are a test rather than a build configuration.
+#[must_use]
+pub fn version_line(revision: Option<&str>) -> String {
+  match revision {
+    Some(revision) => format!("{} ({revision})", env!("CARGO_PKG_VERSION")),
+    None => env!("CARGO_PKG_VERSION").to_owned(),
+  }
+}
+
+/// stdout, exit 0. The only caller is `--version`, and it hands the revision
+/// its own build was stamped with.
+pub fn print_version(revision: Option<&str>) {
+  line_to(std::io::stdout().lock(), &version_line(revision));
 }
 
 /// The exact string `report_startup` writes, with no destination — the pure
@@ -557,8 +588,26 @@ fn sample_covered(x: u32, y: u32, i: u32, j: u32, inner_sq: u32) -> bool {
 // this file's own test fixtures.
 #[cfg(test)]
 mod tests {
-  use super::next_check_line;
+  use super::{next_check_line, version_line};
   use goad_semantics::protocol::canonical::Timestamp;
+
+  /// PHASE-03/VT-1, AC-5's rendering half. The **stamped** branch is
+  /// unreachable anywhere else under `cargo test`: nothing in the gate sets
+  /// `GOAD_REVISION`, so the binary tier can only ever see the bare form.
+  /// This case is the real assertion for it, not a proxy for one
+  /// (`docs/memory/tests-asserting-proxies.md`).
+  #[test]
+  fn a_stamped_build_names_its_revision_beside_the_version() {
+    assert_eq!(version_line(Some("08528b5")), "0.1.0 (08528b5)");
+  }
+
+  /// No placeholder. A build that stamped no revision says only what is
+  /// known — `(revision unknown)` would be the host reporting a fact it does
+  /// not have (design.md §4, principle 2).
+  #[test]
+  fn an_unstamped_build_says_only_the_version() {
+    assert_eq!(version_line(None), "0.1.0");
+  }
 
   /// Truncated, not rounded to nearest. Half-expand would render
   /// `04:34:14.987Z` as `04:34:15Z` — an instant up to half a second

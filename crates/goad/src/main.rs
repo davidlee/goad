@@ -52,6 +52,22 @@ fn run() -> Result<(), StartupError> {
       diagnostics::print_usage(); // stdout, and `run` returns Ok
       Ok(())
     }
+    Launch::Version => {
+      // `option_env!` and not `std::env::var`: the revision is a property of
+      // the build, read by `rustc` at compile time, and never of the run — a
+      // binary a caller could talk into reporting another revision would be
+      // reporting nothing. It is also a macro, so `clippy.toml`'s ban on
+      // `std::env::var` is untouched rather than evaded.
+      //
+      // **Set-but-empty is unset**, the rule `build.rs` already states for
+      // `SLINT_STYLE`: a flake consumed as a tarball has no revision to stamp
+      // and stamps `""`, which must read as unstamped and not as a revision
+      // whose name is empty.
+      diagnostics::print_version(
+        option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty()),
+      );
+      Ok(())
+    }
     Launch::Config(path) => start(&path),
   }
 }

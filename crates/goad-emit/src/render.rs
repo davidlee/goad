@@ -168,6 +168,22 @@ pub(crate) fn startup_error_line(error: &StartupFault) -> String {
   }
 }
 
+/// The `--version` answer: the package version, and the revision the build
+/// stamped — when it stamped one.
+///
+/// **No placeholder for the unstamped case**, and no `"goad-emit: "` prefix:
+/// this is a direct answer on stdout, not a report about a fault. The shape
+/// and the reasoning are `crates/goad`'s `diagnostics::version_line`; the two
+/// are separate because stratum 3 has two binaries and no shared crate, and
+/// each reads the `GOAD_REVISION` of its own compilation (design.md §5.2(g)).
+#[must_use]
+pub(crate) fn version_line(revision: Option<&str>) -> String {
+  match revision {
+    Some(revision) => format!("{} ({revision})", env!("CARGO_PKG_VERSION")),
+    None => env!("CARGO_PKG_VERSION").to_owned(),
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::path::Path;
@@ -176,9 +192,27 @@ mod tests {
   use goad_shell::error::ConfigError;
   use goad_shell::ingress::client::{Answered, SendFault};
 
-  use super::{fault_line, refused_line, startup_error_line, usage_error_line};
+  use super::{fault_line, refused_line, startup_error_line, usage_error_line, version_line};
   use crate::StartupFault;
   use crate::args::UsageError;
+
+  /// 006/PHASE-03/VT-1, AC-5's rendering half. The **stamped** branch is
+  /// unreachable anywhere else under `cargo test`: nothing in the gate sets
+  /// `GOAD_REVISION`, so `tests/binary/`'s own `--version` case can only ever
+  /// see the bare form. This case is the real assertion for it, not a proxy
+  /// for one (`docs/memory/tests-asserting-proxies.md`).
+  #[test]
+  fn a_stamped_build_names_its_revision_beside_the_version() {
+    assert_eq!(version_line(Some("08528b5")), "0.1.0 (08528b5)");
+  }
+
+  /// No placeholder. A build that stamped no revision says only what is
+  /// known — the `cargo install` path is exactly this branch, and it is not a
+  /// fault to be reported.
+  #[test]
+  fn an_unstamped_build_says_only_the_version() {
+    assert_eq!(version_line(None), "0.1.0");
+  }
 
   fn refusal(reason: &str, retry_after_ms: Option<u64>, detail: Option<&str>) -> Answered {
     Answered::Refused {

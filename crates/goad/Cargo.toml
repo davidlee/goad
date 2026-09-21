@@ -54,6 +54,12 @@ workspace = true
 name = "renderer"
 path = "tests/renderer/main.rs"
 
+# `autotests = false` above, so a target that is not named here is **silently
+# not built** — no error, no case, and a green gate (006/PHASE-03/EX-6).
+[[test]]
+name = "binary"
+path = "tests/binary/main.rs"
+
 [[test]]
 name = "event_loop"
 path = "tests/event_loop/main.rs"
