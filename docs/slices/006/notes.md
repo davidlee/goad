@@ -1029,6 +1029,21 @@ check` exits 0; `git status` shows exactly the three declared surfaces.
   rendering the ingress error *"beside its **eight** siblings"*; after
   PHASE-04's split there are nine. Canon, so untouched mid-slice — a
   *document stale, code right* row for `audit.md`'s Reconciliation table.
+- **Owed at reconcile: SPEC-003 cites three source sites by line number, and
+  all three are wrong.** Found by the orchestrator at `4ff4adb` while checking
+  the row above. In R-4's verification row, `crates/goad/src/main.rs:21-29` for
+  `main`'s single `match run()` — it is at `:35` today, and the citation was
+  **already wrong before this slice opened**: at `4f9fb9d` lines 21-29 were
+  `use` declarations. PHASE-04 moved it one further by adding a `use`. In R-3's
+  row, `crates/goad-shell/src/ingress/mod.rs:99` for `BindFault::LivenessUnknown`
+  (it is at `:100`) and `:235` for `TryLockError::Error` (`:236`); this slice
+  touched neither file, so both were already off by one. This is the rot class
+  `CLAUDE.md` §Working here names as having rotted three times in one slice —
+  *cite by symbol, never by line number* — and canon is where it is worst,
+  because nothing re-reads canon on the commit that moves the line. Two rows for
+  `audit.md`: the citations themselves (*document stale, code right*), and the
+  question of whether the rule should bind canon explicitly, which is an
+  amendment and needs endorsement. Both are canon, so untouched mid-slice.
 - **`ConfigError::Read`'s own text still says *configuration could not be
   read*** and names no file. Deliberate (EX-4, OQ-3, D1): a path inside it
   would print twice in `goad-emit`. Nothing at stratum 3 renders that string
