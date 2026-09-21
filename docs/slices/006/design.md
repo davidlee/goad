@@ -5,10 +5,12 @@
      Reference forms: canon by id (`SPEC-003 §4`, `ADR-007`, `POL-002`);
      doc-local refs bare — OQ-1 (§6), D1 (§7), R1 (§8). Ids are immutable. -->
 
-**Tier 1, 53 lines over the cap, by explicit decision.** `docs/AGENTS.md`
+**Tier 1, 60 lines over the cap, by explicit decision.** `docs/AGENTS.md`
 §Tiers caps a tier 1 design at 300 lines and prescribes splitting the slice
 above it. It was 46 over at acceptance; round 1 of `review-design.md` added
-seven, F-4 and F-5, with the overrun put to the user again and again accepted.
+seven, F-4 and F-5, with the overrun put to the user again and again accepted,
+and the 2026-09-21 `Description` amendment three more. The number is this
+file's length less 300, recounted at each amendment: it had drifted two low.
 The surface here is eight contracts across four files, two crates and two
 languages (§5.2); the alternatives — splitting, or raising to tier 2 — were
 put to the user and declined (`design-log.md`, 2026-09-20). Everything else
@@ -169,8 +171,10 @@ ban on `std::env::var` is untouched.
 
 `config = mkIf cfg.enable` gives `home.packages = [cfg.package]` and
 `systemd.user.services.goad` in home-manager's three blocks: `Unit` with
-`After`/`PartOf`, `Service` with `ExecStart = "${cfg.package}/bin/goad"`,
-`Restart = "on-failure"`, `RestartPreventExitStatus = 2`, `RestartSec = 2` and
+`Description` (the string the hand-written unit carried, kept so the cutover
+changes nothing a person reads — a constant, since `extraConfig` reaches
+`Service` alone) and `After`/`PartOf`, `Service` with
+`ExecStart = "${cfg.package}/bin/goad"`, `Restart = "on-failure"`, `RestartPreventExitStatus = 2`, `RestartSec = 2` and
 **no `EnvironmentFile`**, `Install` with `WantedBy` — all three
 `graphical-session.target` (AC-7, AC-3). `extraConfig` merges over `Service`.
 

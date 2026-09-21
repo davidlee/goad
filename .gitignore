@@ -14,3 +14,10 @@ target/
 # goad's working directory. The host unlinks neither on exit (`SPEC-003/R-5`).
 /goad-demo.sock
 /goad-demo.sock.lock
+
+# nix build out-links. `result` alone is covered by the user's global ignore
+# file on this machine; the rule belongs here as well, and covers the numbered
+# and named forms a multi-package build produces (`just package` uses
+# `--no-link` and needs none of this, but a bare `nix build` does).
+/result
+/result-*

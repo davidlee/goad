@@ -496,3 +496,30 @@ other, citing the finding id.
   plan — not now. Three risks stand knowingly, recorded in `review-design.md`
   §Synthesis: I4 has no instrument, PHASE-01's named cut has no trigger, and the
   round 2 repairs carry no adversarial pass.
+
+### 2026-09-21 — the unit keeps its `Description`
+
+- **Asked:** PHASE-02 declined to carry `Description` and `Type = "simple"`
+  across from the hand-written `~/satan/goad/goad.service`, because §5.2(d) and
+  PHASE-02/EX-2 both give `Unit` as `After` + `PartOf` only. `Type = "simple"`
+  is systemd's default and its absence changes nothing; `Description` is not.
+  The consequence is visible: `systemctl --user status goad` would show the
+  unit name where the old unit showed *goad — personal intervention shell*,
+  and because `extraConfig` merges over `Service` alone, a consumer could not
+  add it back either. Three options put: **A** add `Description` to `Unit` and
+  amend §5.2(d); **B** leave the module faithful to §5.2(d) as written and
+  record it at audit as drift; **C** widen `extraConfig` to merge over all
+  three blocks, which would let a consumer set it — and anything else.
+- **Recommended:** A. C alters the option's contract, and *"merged over the
+  generated `Service` block"* is wording `review-design.md` reviewed.
+- **Decided:** *"Add Description to Unit"* — A.
+- **Consequence:** §5.2(d) now names `Description` in the `Unit` row;
+  `nix/module.nix` carries it with the reason at the site. It is a **constant,
+  not a default**: `extraConfig` still reaches `Service` and no other block, so
+  this is the one field of the unit a consumer cannot override. `design.md` is
+  a slice artefact and not canon, so no canon endorsement is involved. The
+  field is read by a person at PHASE-05/VH-2, which observes the unit systemd
+  actually loaded. The amendment also recounted the design's overrun, which the
+  head had been under-declaring by two since the round 1 repairs landed: it now
+  states 60, which is the file's length less 300, and says the number is
+  recounted at each amendment.

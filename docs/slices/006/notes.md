@@ -439,6 +439,11 @@ STOP and consult rather than improvise:
   `systemctl --user status goad` will show the unit name where the old unit
   showed *"goad — personal intervention shell"*. If that description is wanted
   it is an amendment to §5.2(d), not a phase choice.
+  **Superseded 2026-09-21, after PHASE-03**: it was put to the user as an
+  amendment and the description was restored — §5.2(d)'s `Unit` row now names
+  `Description`, and `nix/module.nix` carries it as a constant (`design-log.md`,
+  *the unit keeps its `Description`*). `Type = "simple"` stays out. The call to
+  raise it rather than carry it silently is what made that possible.
 - **`extraConfig` is `attrsOf anything`, merged with `//`.** Shallow override,
   which is what "merged over the generated `Service` block" means for a flat
   list of systemd directives; `recursiveUpdate` would be the same thing at this

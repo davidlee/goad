@@ -70,6 +70,13 @@ in {
 
     systemd.user.services.goad = {
       Unit = {
+        # The text `systemctl --user status goad` shows. A constant and not a
+        # default: `extraConfig` merges over `Service` alone, so a consumer
+        # cannot override this one. It is the string the hand-written unit this
+        # module replaces carried, kept so the cutover changes nothing a person
+        # reads.
+        Description = "goad — personal intervention shell";
+
         After = [session];
         PartOf = [session];
       };
