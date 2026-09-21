@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 — the crane packages | done | 2026-09-21 |
 | PHASE-02 — the home-manager module | done | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | done | 2026-09-21 |
-| PHASE-04 — the configuration path, named | pending | |
+| PHASE-04 — the configuration path, named | in progress | 2026-09-21 |
 | PHASE-05 — the cutover, and the evidence | pending | |
 
 ## Phase sheets
@@ -701,6 +701,109 @@ STOP and consult rather than improvise:
   (`Ingress` was added without the count moving). PHASE-04 rewrites that
   surface into ten, so it is that phase's to fix; noted here so it is not
   mistaken for drift this phase introduced.
+
+### PHASE-04 — the configuration path, named
+
+**Objective:** every `StartupError` that holds a path names it. `goad
+/nonexistent/wat.toml` says which file it tried.
+
+**Reading list**
+
+- `docs/slices/006/plan.md` §PHASE-04 — the contract: EX-1..EX-5, VT-1, VT-2,
+  VA-1, VA-2, and its four *Notes for the implementer*, which settle the match
+  shape, the `Read`-against-the-rest cut, the absence of `PartialEq`, and the
+  clone.
+- `docs/slices/006/design.md` §5.2(f) — the two arms and their exact rendered
+  text; §4 principle 3 (the two spellings already in the tree, not a third).
+- `crates/goad/src/startup.rs` — `StartupError`, its doc comment (**it says
+  eight and there are nine**; `Ingress` went unrecorded in slice 004), the
+  `Config` arm, and the `Display` impl.
+- `crates/goad/src/main.rs` — `start`, the seam where the path is in hand, and
+  the crate-root `#![deny(clippy::wildcard_enum_match_arm)]` that rules out a
+  binding catch-all.
+- `crates/goad-emit/src/main.rs` — `socket_path`. **The shape to transcribe**:
+  `Err(ConfigError::Read(fault))`, `Err(fault)`, `Ok(..)` as arms of a match on
+  the `Result`, not on the `ConfigError`.
+- `crates/goad-shell/src/error.rs` — `ConfigError`, and `Config::load`'s
+  `Read(std::io::Error)` against its five other variants. **`ConfigError` is
+  untouched** (EX-4, OQ-3, D1).
+- `crates/goad/tests/renderer/startup.rs` — `mod display_text`, its existing
+  `config_is_unwrapped_and_unprefixed` (which VT-1 replaces) and
+  `ingress_is_unwrapped_and_unprefixed_and_names_the_path` (which VT-2 requires
+  to pass **unchanged**).
+- `docs/specs/` SPEC-003 R-3 and R-4 — what binds the `Ingress` case, and why
+  AC-6 must not weaken it.
+- `docs/memory/verify-the-enumeration-not-the-conclusion.md` — VA-1 is a claim
+  about the type, not about the three cases. Walk the enum.
+- `docs/AGENTS.md` §Execute — red / green / **refactor**.
+
+**Assumptions & STOP conditions**
+
+Taken on faith:
+
+- Nine variants today, eight claimed in the doc. **Verified by the orchestrator
+  at `c67262e`**: `NoConfigPath Usage Config Clock Runtime Platform EventLoop
+  Enqueue Ingress`. After the split, ten. Count after the edit; do not
+  increment the stale number.
+- PHASE-03 landed on the same three files and is done. Nothing of it is
+  half-applied — the gate was re-run independently.
+
+STOP and consult rather than improvise:
+
+- **Touching `goad_shell::error::ConfigError`.** Putting a path inside it would
+  print twice in `goad-emit`, and repairing that is a declared non-goal
+  (EX-4, OQ-3, D1).
+- **A third rendering spelling.** The two are already in this tree; §4
+  principle 3 says use them.
+- **A binding catch-all in the match.** That sits directly under `main.rs`'s
+  `wildcard_enum_match_arm` deny. `just lint` is the arbiter — if the lint and
+  this sheet disagree, the lint wins and the note is the thing that was wrong.
+- **Weakening `ingress_is_unwrapped_and_unprefixed_and_names_the_path`** to
+  make room for anything. SPEC-003 binds it.
+- **Any surface outside** `crates/goad/src/startup.rs`,
+  `crates/goad/src/main.rs`, `crates/goad/tests/renderer/startup.rs`, and this
+  sheet.
+- Session budget past ~200k tokens: PARTIAL checkpoint and hand over.
+
+**Tasks**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+
+- [ ] T-1 — **red first.** VT-1: in `mod display_text`, replace
+      `config_is_unwrapped_and_unprefixed` with one case per new arm, each
+      asserting the rendered line **contains the path** and reads as §5.2(f)
+      states. Assert on `Display` — `StartupError` has no `PartialEq`.
+- [ ] T-2 — EX-1: `Config(ConfigError)` becomes `ConfigUnreadable { path,
+      fault: std::io::Error }` and `ConfigUnparseable { path, fault:
+      ConfigError }`, rendered `"{path} could not be read: {fault}"` and
+      `"{path}: {fault}"`. Green.
+- [ ] T-3 — EX-2: `main::start` splits them at the seam, transcribing emit's
+      `socket_path` match — on the `Result`, not on the `ConfigError`. The two
+      new arms carry a `PathBuf`, so `start` clones the path it was handed;
+      that is the cost of naming it, paid once per failed startup.
+- [ ] T-4 — EX-3: `StartupError`'s doc comment says **ten**. Count the variants
+      after the edit and write what you counted. Fix the class, not the
+      instance: the stale eight is what incrementing produces.
+- [ ] T-5 — VT-2: `ingress_is_unwrapped_and_unprefixed_and_names_the_path`
+      still passes, unchanged. Do not touch it.
+- [ ] T-6 — VA-1, by enumeration: walk `StartupError`. Ten variants; exactly
+      three hold a path (`ConfigUnreadable`, `ConfigUnparseable`, `Ingress`);
+      all three name it; the other seven hold none. Write the walk here — the
+      claim is about the type.
+- [ ] T-7 — VA-2: run it. `goad /nonexistent/wat.toml` names the file it tried,
+      and no longer prints the line S-4 recorded. Record the string verbatim.
+- [ ] T-8 — EX-5: `just check` exits 0. **Refactor pass.** Sheet current,
+      §Status `done`, §Harvest updated in place, commit.
+
+**What was observed**
+<!-- Verification criteria are observations, not claims. -->
+
+**Decisions taken during execution**
+<!-- Small and local: how, within what the design already settled. A choice that
+     changes the design is not one of these — stop, consult the user, and record
+     it in `design-log.md`. -->
+
+**Findings**
+<!-- Things noticed in passing that are not this phase's job. -->
 
 ## Harvest
 
