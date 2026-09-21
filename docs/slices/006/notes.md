@@ -484,7 +484,7 @@ STOP and consult rather than improvise:
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-02 · `PENDING`
+**Fresh as of:** 2026-09-21 · PHASE-02 · `7914864`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
