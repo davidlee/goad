@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 — the home-manager module | done | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | done | 2026-09-21 |
 | PHASE-04 — the configuration path, named | done | 2026-09-21 |
-| PHASE-05 — the cutover, and the evidence | pending | |
+| PHASE-05 — the cutover, and the evidence | in progress | 2026-09-21 |
 
 ## Phase sheets
 
@@ -896,6 +896,127 @@ check` exits 0; `git status` shows exactly the three declared surfaces.
   read*** and names no file. Untouched by design (EX-4, OQ-3, D1) — a path
   inside it would print twice in `goad-emit`. Worth knowing that the misleading
   string still exists at stratum 2; nothing at stratum 3 renders it any more.
+
+### PHASE-05 — the cutover, and the evidence
+
+**Objective:** the software has been run: a nix-built binary under systemd, a
+window with text in it, and a `--version` that tells the two install paths
+apart.
+
+**How this phase is run** — endorsed by the user, 2026-09-21: **an agent preps,
+the person executes.** Nothing outside `/home/david/dev/goad` is written by an
+agent. The agent takes the machine-side criteria and drafts the `~/flakes`
+consumer *as text in this sheet*; the person applies it, switches, cuts the
+service over, and makes the three VH observations. The orchestrator writes what
+the person reports back into this sheet.
+
+This is not a softening of the criteria. VH-1, VH-2 and VH-3 are human
+acceptance in the plan and always were — `docs/AGENTS.md` §Tiers: *a slice does
+not close until a person has run the software and seen the new behaviour*, and
+no green gate is that evidence.
+
+**Reading list**
+
+- `docs/slices/006/plan.md` §PHASE-05 — the contract: EX-1..EX-5, VH-1..VH-3,
+  VA-1..VA-3, and its four *Notes for the implementer*. §5.4's sequence is the
+  one thing in this phase that must not be reordered.
+- `docs/slices/006/design.md` §5.4 — the cutover's lifecycle.
+- `docs/slices/006/slice-006.md` §Acceptance criteria — AC-1, AC-2, AC-5, AC-7,
+  AC-8 and AC-9 all finish here or are re-observed here.
+- `~/flakes/modules/home/linux/satan-attrd.nix` — the consumer pattern, and
+  `~/flakes/flake.nix`'s `satan-attrd` input block. **Read-only.**
+- `nix/module.nix` — the module's own header already carries the four-line
+  consumer and the git-input warning.
+- PHASE-01's §What was observed above — VA-7's `goad-shot` invocation, which is
+  the nearest thing to VH-1 that an agent can reach, and is **not** VH-1.
+
+**The one place the precedent must not be copied**
+
+`~/flakes` wires `satan-attrd` as `url = "path:/home/david/dev/satan-attrd"`.
+**goad cannot use a `path:` input.** The repository root holds `goad-demo.sock`,
+a unix socket nix refuses outright, and `.claude/worktrees/` holds gitignored
+worktrees it would copy anyway (`docs/memory/path-flake-ref-breaks-on-demo-socket.md`).
+The input is the **bare git form**, `git+file:///home/david/dev/goad`, which
+satan-attrd's own header says it should itself become. Two consequences the
+person should know before switching:
+
+- a git input reads the **committed** tree, so anything uncommitted is invisible
+  to the switch — EN-1 exists for this;
+- `self.shortRev` exists over a git input, so `goad --version` prints a
+  revision. Over a **tarball** URL it would not, and AC-5 would fail silently
+  (R1, and the module header says so).
+
+**Assumptions & STOP conditions**
+
+- **The agent writes nothing outside `/home/david/dev/goad`.** Not `~/flakes`,
+  not `~/.config/systemd/user/`, not `~/satan/`. It drafts; it does not apply.
+- **`just install` (VA-2) writes to `~/.cargo/bin` and `~/.config/goad/env`.**
+  That is outside the repository, and it is the person's to run, not the
+  agent's — it replaces the very binary VA-1 compares against, and ordering is
+  the criterion (F-8).
+- **`~/.cargo/bin/goad` is running right now** (PHASE-01 finding), as is a
+  `target/debug/goad` on `./goad-demo.sock`. The cutover replaces the first.
+- **§5.4's sequence is not reorderable**: stand up the consumer, move the
+  service onto the module's unit, *then* remove the hand-written unit.
+  Removing first leaves nothing running if the module is wrong.
+- **A defect found here is repaired in PHASE-01 or PHASE-02, not patched in
+  `~/flakes`.** Nothing in this phase is a deliverable of the repository.
+- `docs/roadmap.md` is updated **at close**, not here.
+
+**Tasks — agent-reachable**
+<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
+
+- [ ] T-1 — EN-1: confirm PHASE-01..04 are all `done` here and committed, and
+      the tree is clean. A git input cannot see an uncommitted `flake.nix`.
+- [ ] T-2 — VA-3: `just package` runs green from the committed tree. Record
+      both store paths.
+- [ ] T-3 — read `~/flakes/flake.nix`'s input block and
+      `~/flakes/modules/home/linux/satan-attrd.nix`, then **draft, in this
+      sheet, as text**: the input entry for goad in the bare git form, and the
+      consumer module on the `satan-attrd.nix` pattern — header comment
+      included, in that file's voice. Say which file each goes in and where.
+      **Do not write either file.**
+- [ ] T-4 — draft the exact command sequence the person will run, in §5.4's
+      order, with the observation to make after each. One command per line,
+      copy-pasteable, absolute where it matters.
+- [ ] T-5 — VA-1's first half, agent-side: record what `./result/bin/goad
+      --version` prints from the committed tree, verbatim. The comparison is
+      the person's, after VA-2.
+
+**Tasks — person-only**
+<!-- These are not agent-reachable. Prose defers; a checklist box catches.
+     `docs/memory/a-deferred-step-needs-a-checklist-box.md`. -->
+
+- [ ] P-1 — EX-1: apply the drafted input and consumer to `~/flakes`.
+- [ ] P-2 — EX-2: switch, and the user service runs from the module's unit.
+- [ ] P-3 — VH-2: `systemctl --user cat goad` — confirm `Restart=on-failure`,
+      `RestartPreventExitStatus=2`, `RestartSec=2`, an `ExecStart` that is a
+      **store path**, `Description`, and **no `EnvironmentFile=`**.
+- [ ] P-4 — VH-1: the window, **with text in it**. AC-8 and AC-1's second half.
+      No green gate is this evidence.
+- [ ] P-5 — VH-3: the nix-built `goad-emit` puts an envelope into the running
+      host's socket and the host reacts.
+- [ ] P-6 — EX-3: remove `~/satan/goad/goad.service` and its symlink in
+      `~/.config/systemd/user/` — **after** P-2 is observed, never before.
+- [ ] P-7 — VA-2: `just install` from the dev shell, then VA-1's comparison.
+      **This ordering is the criterion** (F-8): today's `~/.cargo/bin/goad`
+      predates the slice and answers `--version` with exit 2, which "differs"
+      while demonstrating nothing. **Both invocations must exit 0 and both must
+      print a version line**, agreeing on the package version and differing
+      only in the parenthetical.
+- [ ] P-8 — EX-4: `~/.config/goad/env` still exists and `just install` still
+      wrote it. Not removed by this cutover.
+- [ ] P-9 — EX-5: report each observation; the orchestrator writes it into
+      §What was observed below, naming what was seen, so `audit.md` can cite it
+      rather than re-run it.
+
+**What was observed**
+<!-- Verification criteria are observations, not claims. The VH rows are the
+     person's own words about what they saw. -->
+
+**Decisions taken during execution**
+
+**Findings**
 
 ## Harvest
 
