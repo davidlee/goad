@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 — the crane packages | done | 2026-09-21 |
 | PHASE-02 — the home-manager module | done | 2026-09-21 |
 | PHASE-03 — `--version`, on both binaries | done | 2026-09-21 |
-| PHASE-04 — the configuration path, named | in progress | 2026-09-21 |
+| PHASE-04 — the configuration path, named | done | 2026-09-21 |
 | PHASE-05 — the cutover, and the evidence | pending | |
 
 ## Phase sheets
@@ -768,49 +768,141 @@ STOP and consult rather than improvise:
 **Tasks**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
 
-- [ ] T-1 — **red first.** VT-1: in `mod display_text`, replace
+- [x] T-1 — **red first.** VT-1: in `mod display_text`, replace
       `config_is_unwrapped_and_unprefixed` with one case per new arm, each
       asserting the rendered line **contains the path** and reads as §5.2(f)
       states. Assert on `Display` — `StartupError` has no `PartialEq`.
-- [ ] T-2 — EX-1: `Config(ConfigError)` becomes `ConfigUnreadable { path,
+- [x] T-2 — EX-1: `Config(ConfigError)` becomes `ConfigUnreadable { path,
       fault: std::io::Error }` and `ConfigUnparseable { path, fault:
       ConfigError }`, rendered `"{path} could not be read: {fault}"` and
       `"{path}: {fault}"`. Green.
-- [ ] T-3 — EX-2: `main::start` splits them at the seam, transcribing emit's
+- [x] T-3 — EX-2: `main::start` splits them at the seam, transcribing emit's
       `socket_path` match — on the `Result`, not on the `ConfigError`. The two
       new arms carry a `PathBuf`, so `start` clones the path it was handed;
       that is the cost of naming it, paid once per failed startup.
-- [ ] T-4 — EX-3: `StartupError`'s doc comment says **ten**. Count the variants
+- [x] T-4 — EX-3: `StartupError`'s doc comment says **ten**. Count the variants
       after the edit and write what you counted. Fix the class, not the
       instance: the stale eight is what incrementing produces.
-- [ ] T-5 — VT-2: `ingress_is_unwrapped_and_unprefixed_and_names_the_path`
+- [x] T-5 — VT-2: `ingress_is_unwrapped_and_unprefixed_and_names_the_path`
       still passes, unchanged. Do not touch it.
-- [ ] T-6 — VA-1, by enumeration: walk `StartupError`. Ten variants; exactly
+- [x] T-6 — VA-1, by enumeration: walk `StartupError`. Ten variants; exactly
       three hold a path (`ConfigUnreadable`, `ConfigUnparseable`, `Ingress`);
       all three name it; the other seven hold none. Write the walk here — the
       claim is about the type.
-- [ ] T-7 — VA-2: run it. `goad /nonexistent/wat.toml` names the file it tried,
+- [x] T-7 — VA-2: run it. `goad /nonexistent/wat.toml` names the file it tried,
       and no longer prints the line S-4 recorded. Record the string verbatim.
-- [ ] T-8 — EX-5: `just check` exits 0. **Refactor pass.** Sheet current,
+- [x] T-8 — EX-5: `just check` exits 0. **Refactor pass.** Sheet current,
       §Status `done`, §Harvest updated in place, commit.
 
 **What was observed**
 <!-- Verification criteria are observations, not claims. -->
+
+**VA-1 — the enum walk, after the edit.** `StartupError` has **ten** variants,
+counted off the type and not off the previous number. Each, and whether it holds
+a path:
+
+| # | variant | holds a path | names it |
+|---|---|---|---|
+| 1 | `NoConfigPath` | no — a unit; there *is* no path, which is the fault | n/a |
+| 2 | `Usage` | no — a unit | n/a |
+| 3 | `ConfigUnreadable { path, fault }` | **yes**, a `PathBuf` | yes — `"{} could not be read: {fault}"`, `path.display()` |
+| 4 | `ConfigUnparseable { path, fault }` | **yes**, a `PathBuf` | yes — `"{}: {fault}"`, `path.display()` |
+| 5 | `Clock(ClockError)` | no — `BeforeEpoch` and `OutOfRange` carry no path | n/a |
+| 6 | `Runtime(std::io::Error)` | no — the runtime builder's error, about threads, not files | n/a |
+| 7 | `Platform(slint::PlatformError)` | no | n/a |
+| 8 | `EventLoop(slint::EventLoopError)` | no | n/a |
+| 9 | `Enqueue` | no — a unit | n/a |
+| 10 | `Ingress(IngressError)` | **yes**, inside `IngressError` | yes — `IngressError`'s own `Display` is `"{}: {}"` over `path.display()` and the fault, and `StartupError` renders it unwrapped |
+
+Three hold a path, all three name it, the other seven hold none. The claim is
+about the type: the walk is the whole enum, not the three cases.
+
+**VA-2 — run, verbatim.** Against the debug binary, tree at this commit:
+
+```
+$ goad /nonexistent/wat.toml
+goad: /nonexistent/wat.toml could not be read: No such file or directory (os error 2)
+exit=2
+```
+
+The line `research.md` S-4 recorded — `goad: configuration could not be read: No
+such file or directory (os error 2)` — is gone: it named no file, and this one
+does. The second arm, observed against a fixture holding `[backend]\ncommand = `:
+
+```
+$ goad ./bad.toml
+goad: ./bad.toml: configuration is not valid: TOML parse error at line 2, column 11
+  |
+2 | command =
+  |           ^
+string values must be quoted, expected literal string
+
+exit=2
+```
+
+S-4's other half, which is PHASE-03's and was confirmed in passing: `goad
+--version` prints `0.1.0` at exit 0, so the two invocations no longer print the
+same line.
+
+**The deny, measured rather than taken on faith.** The sheet's STOP condition
+said a binding catch-all *sits directly under* `main.rs`'s
+`wildcard_enum_match_arm` deny. Probed: an arm spelled `other => …` in a
+`map_err(|fault| match fault { … })` over `ConfigError` fails the build —
+*wildcard match will also match any future added variants* — so the lint counts
+a named binding as a wildcard and the `Result`-shaped match is required, not
+preferred. The probe was reverted; `cargo clippy -p goad --bin goad
+--all-targets` is clean at this commit.
+
+**VT-1 / VT-2 / EX-5.** `display_text::config_unreadable_names_the_path_and_the_fault`
+and `display_text::config_unparseable_names_the_path_and_renders_the_fault_unprefixed`
+were written first and failed to compile (`no variant named ConfigUnreadable`),
+which is the red. `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path`
+passes **unchanged** — it does not appear in this phase's diff at all. `just
+check` exits 0; `git status` shows exactly the three declared surfaces.
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
 
+- **The stale count was in three doc comments, not one.** EX-3 names the enum's;
+  `tests/renderer/startup.rs` carried two more — the module header's *"`Display`
+  for each of its eight variants"* and `stderr_outlets`' *"a ninth variant …
+  exactly as it renders the other eight"*. Fixing the class means the number
+  stops being the thing maintained by hand: the enum's doc says **ten** because
+  the plan requires a count there, and the two in the test file now state the
+  claim without an ordinal (*every variant it has*, *every sibling*). A count
+  nothing checks is what rotted twice.
+- **`start` splits with early `return`s, not emit's tail expression.** The three
+  arm patterns are transcribed exactly — `Err(ConfigError::Read(fault))`,
+  `Err(fault)`, `Ok(..)`, matched on the `Result` — but `socket_path` *ends* at
+  its match and `start` continues past it, so the two error arms return and the
+  `Ok` arm binds. `clippy::wildcard_enum_match_arm` is satisfied: no top-level
+  arm is a wildcard or a bare binding. `just lint` was the arbiter and passed.
+- **`source_walk::startup_error_source_is_always_none` gained the two new
+  variants.** Its own doc claims *every variant answers `None`* while
+  enumerating a subset; naming the arms this phase introduced keeps the
+  enumeration honest as the type grows. Nothing existing in it was changed.
+
 **Findings**
 <!-- Things noticed in passing that are not this phase's job. -->
+
+- **SPEC-003's R-4 verification row now undercounts.** It says the ingress case
+  is *"rendered beside its **eight** siblings"* by
+  `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` — nine
+  after this split. Canon, so not amended mid-slice: a reconciliation row for
+  `audit.md`, in the *document stale, code right* column.
+- **`ConfigError::Read`'s own text still reads *configuration could not be
+  read*** and names no file. Untouched by design (EX-4, OQ-3, D1) — a path
+  inside it would print twice in `goad-emit`. Worth knowing that the misleading
+  string still exists at stratum 2; nothing at stratum 3 renders it any more.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-03 · `4484eaf`
+**Fresh as of:** 2026-09-21 · PHASE-04 · `<this phase's commit>`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -842,6 +934,14 @@ STOP and consult rather than improvise:
 - **`crates/goad/tests/binary/`** — the crate's first binary tier, declared as
   `[[test]] name = "binary"`. One case: `--version` on stdout at exit 0, stderr
   empty. Feasible headless only because both zero-exits precede any Slint call.
+- **`StartupError::ConfigUnreadable` and `ConfigUnparseable`** replace
+  `Config(ConfigError)`, each carrying the `PathBuf` the host tried and
+  rendering one of the two spellings already in the tree — `"{path} could not
+  be read: {fault}"` and `"{path}: {fault}"`, which is `goad-emit`'s
+  `startup_error_line` verbatim minus its prefix. `main::start` makes the cut
+  at the seam, matching on `Config::load`'s `Result` the way emit's
+  `socket_path` does. `goad_shell::error::ConfigError` is untouched.
+  `StartupError` now has **ten** variants and its doc comment says ten.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -891,6 +991,19 @@ STOP and consult rather than improvise:
   can reach the stamped branch. A binary-tier `--version` case can only ever
   see the bare version; the stamped form has to be a unit case over a pure
   function taking the revision as an argument, or it is not tested at all.
+- **`clippy::wildcard_enum_match_arm` counts a *named binding* as a wildcard,
+  not only `_`** — measured, not assumed: an arm spelled `other => …` in a
+  match on `ConfigError`, under `crates/goad/src/main.rs`'s crate-root deny,
+  fails the build with *wildcard match will also match any future added
+  variants*. So `map_err(|fault| match fault { … })` is not available in that
+  file at all, and matching on the enclosing `Result` is a requirement rather
+  than a style preference: `Err(fault)` is a tuple-struct pattern at the arm's
+  top level and the binding sits inside it, which the lint does not reach.
+- **A path in a stratum 3 error costs a clone and nothing else.** `start` holds
+  a `&Path` and the variant holds a `PathBuf`, so the diagnostic is paid for
+  with one `to_path_buf()` on a path that is already failing to start a
+  process. The alternative — putting the path into `ConfigError` at stratum 2 —
+  would print it twice in `goad-emit`, which renders the path itself.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
@@ -910,3 +1023,15 @@ STOP and consult rather than improvise:
   copies. Nothing at stratum 3 is shared and neither crate may depend on the
   other, so a third binary tier is where this would need an answer rather than
   a third copy.
+- **Owed at reconcile: SPEC-003's R-4 verification row undercounts the
+  siblings.** It describes
+  `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` as
+  rendering the ingress error *"beside its **eight** siblings"*; after
+  PHASE-04's split there are nine. Canon, so untouched mid-slice — a
+  *document stale, code right* row for `audit.md`'s Reconciliation table.
+- **`ConfigError::Read`'s own text still says *configuration could not be
+  read*** and names no file. Deliberate (EX-4, OQ-3, D1): a path inside it
+  would print twice in `goad-emit`. Nothing at stratum 3 renders that string
+  any more, so this is latent rather than live — the question for a follow-up
+  is whether a stratum 2 error that names no subject should carry that wording
+  at all.

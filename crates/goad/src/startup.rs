@@ -19,8 +19,8 @@ pub enum Launch {
   Config(PathBuf),
 }
 
-/// The eight variants, and their exact text. Two come from argument and
-/// environment handling, six from the steps after it. `Debug`, `Display`,
+/// The ten variants, and their exact text. Two come from argument and
+/// environment handling, eight from the steps after it. `Debug`, `Display`,
 /// `std::error::Error` with the **default** `source()`, and no `PartialEq` —
 /// a `slint::PlatformError` inside it has none (F-17).
 #[derive(Debug)]
@@ -30,8 +30,21 @@ pub enum StartupError {
   NoConfigPath,
   /// Two or more positional arguments.
   Usage,
-  /// Stratum 2's own configuration error, unwrapped and unprefixed.
-  Config(goad_shell::error::ConfigError),
+  /// The configuration file is missing or could not be read. The path is
+  /// carried because the remedy is a thing done *to that file*, and
+  /// `ConfigError`'s own text names no file (`goad-emit`'s `StartupFault`
+  /// makes the same cut, against the same `ConfigError::Read`).
+  ConfigUnreadable {
+    path: PathBuf,
+    fault: std::io::Error,
+  },
+  /// The file was read and is not a configuration this host could start on.
+  /// Stratum 2's own error, unprefixed — it already says what was wrong with
+  /// the contents, so the path is all this arm adds.
+  ConfigUnparseable {
+    path: PathBuf,
+    fault: goad_shell::error::ConfigError,
+  },
   /// The wall clock could not be read.
   Clock(goad_shell::clock::ClockError),
   /// The async runtime could not be built.
@@ -59,7 +72,10 @@ impl std::fmt::Display for StartupError {
         f,
         "too many arguments: goad takes at most one, the path of the configuration file; run `goad --help` for usage"
       ),
-      Self::Config(error) => write!(f, "{error}"),
+      Self::ConfigUnreadable { path, fault } => {
+        write!(f, "{} could not be read: {fault}", path.display())
+      }
+      Self::ConfigUnparseable { path, fault } => write!(f, "{}: {fault}", path.display()),
       Self::Clock(error) => write!(f, "{error}"),
       Self::Runtime(error) => write!(f, "the async runtime could not be started: {error}"),
       Self::Platform(error) => write!(f, "the display could not be opened: {error}"),

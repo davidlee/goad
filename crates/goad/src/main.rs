@@ -26,6 +26,7 @@ use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
 use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock;
 use goad_shell::config::Config;
+use goad_shell::error::ConfigError;
 use goad_shell::host::Host;
 use slint::{ComponentHandle, VecModel};
 use tokio::sync::mpsc;
@@ -77,7 +78,29 @@ fn start(path: &Path) -> Result<(), StartupError> {
   //    command and timeout are cloned out of the config for the transport;
   //    the config itself is not yet moved — step 3 still needs to read its
   //    `ingress` field before step 4 moves it into the host.
-  let config = Config::load(path).map_err(StartupError::Config)?;
+  //    The two configuration arms are split **here**, where the path is in
+  //    hand: `ConfigError` names no file, and a host that cannot say which
+  //    file it tried has told the person nothing they can act on (006/S-4).
+  //    The match is on the `Result` and not on the `ConfigError` — the shape
+  //    `goad-emit`'s `socket_path` already uses, against the same `Read`
+  //    against the rest, and the one this file's `wildcard_enum_match_arm`
+  //    deny admits. The clone is the cost of naming the path, paid once per
+  //    failed startup.
+  let config = match Config::load(path) {
+    Err(ConfigError::Read(fault)) => {
+      return Err(StartupError::ConfigUnreadable {
+        path: path.to_path_buf(),
+        fault,
+      });
+    }
+    Err(fault) => {
+      return Err(StartupError::ConfigUnparseable {
+        path: path.to_path_buf(),
+        fault,
+      });
+    }
+    Ok(config) => config,
+  };
   let now = clock::wall_clock().map_err(StartupError::Clock)?;
   let backend = ProcessBackend::new(config.backend.command.clone(), config.backend.timeout);
 

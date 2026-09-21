@@ -1,7 +1,7 @@
 //! Item 17 — the startup surface, mostly pure functions with no window;
 //! `listener` is the exception, since binding a socket is what it does
 //! (design.md §9 item 17, §5.4's exact strings). `StartupError`'s `Display`
-//! for each of its eight variants and `ClockError`'s for both of its,
+//! for **every** variant it has and `ClockError`'s for both of its,
 //! asserted verbatim; the usage block produced by one `const` and
 //! byte-identical wherever it appears; a usage error's text not containing
 //! the usage block; both `source()`s `None`; the argument table's rows; and
@@ -47,14 +47,41 @@ mod display_text {
     );
   }
 
+  /// 006/PHASE-04/VT-1, AC-6. The file the host tried is named, because the
+  /// remedy is a thing done *to that file* — until 006 this line was
+  /// `ConfigError`'s own, which says *configuration could not be read* and
+  /// not which configuration (`research.md` S-4).
   #[test]
-  fn config_is_unwrapped_and_unprefixed() {
-    let expected = ConfigError::Read(std::io::Error::other("permission denied")).to_string();
-    let wrapped = StartupError::Config(ConfigError::Read(std::io::Error::other(
-      "permission denied",
-    )))
+  fn config_unreadable_names_the_path_and_the_fault() {
+    let path = std::path::PathBuf::from("/nonexistent/wat.toml");
+    let rendered = StartupError::ConfigUnreadable {
+      path: path.clone(),
+      fault: std::io::Error::other("permission denied"),
+    }
     .to_string();
-    assert_eq!(wrapped, expected);
+    assert_eq!(
+      rendered,
+      "/nonexistent/wat.toml could not be read: permission denied"
+    );
+    assert!(rendered.contains(path.display().to_string().as_str()));
+  }
+
+  /// 006/PHASE-04/VT-1, AC-6. The second arm, and the unprefixed spelling:
+  /// `ConfigError`'s own text already says what was wrong with the file, so
+  /// the path is all this arm adds.
+  #[test]
+  fn config_unparseable_names_the_path_and_renders_the_fault_unprefixed() {
+    let path = std::path::PathBuf::from("/nonexistent/wat.toml");
+    let rendered = StartupError::ConfigUnparseable {
+      path: path.clone(),
+      fault: ConfigError::EmptyCommand,
+    }
+    .to_string();
+    assert_eq!(
+      rendered,
+      format!("/nonexistent/wat.toml: {}", ConfigError::EmptyCommand)
+    );
+    assert!(rendered.contains(path.display().to_string().as_str()));
   }
 
   #[test]
@@ -127,18 +154,34 @@ mod display_text {
 mod source_walk {
   use std::error::Error;
 
-  use super::{ClockError, StartupError};
+  use super::{ClockError, ConfigError, StartupError};
 
   /// AC-8, F-47: a chain-walking reporter must not be able to print an
-  /// already-rendered inner message a second time. EX-1's "`source()` arm" for
-  /// the ninth variant: `Ingress` stays covered by the same default — the
-  /// type overrides nothing, so every variant, old or new, answers `None`.
+  /// already-rendered inner message a second time. The type overrides
+  /// nothing, so every variant, however many there are, answers `None` — the
+  /// arms added since are named here as they arrive rather than counted.
   #[test]
   fn startup_error_source_is_always_none() {
     use goad_shell::ingress::{BindFault, IngressError};
 
     assert!(StartupError::NoConfigPath.source().is_none());
     assert!(StartupError::Usage.source().is_none());
+    assert!(
+      StartupError::ConfigUnreadable {
+        path: std::path::PathBuf::from("/nonexistent/wat.toml"),
+        fault: std::io::Error::other("permission denied"),
+      }
+      .source()
+      .is_none()
+    );
+    assert!(
+      StartupError::ConfigUnparseable {
+        path: std::path::PathBuf::from("/nonexistent/wat.toml"),
+        fault: ConfigError::EmptyCommand,
+      }
+      .source()
+      .is_none()
+    );
     assert!(
       StartupError::Clock(ClockError::BeforeEpoch)
         .source()
@@ -214,9 +257,9 @@ mod stderr_outlets {
   }
 
   /// AC-9's stratum 3 half, the other outlet: `diagnostics::report_startup_line`
-  /// renders a ninth `StartupError` variant exactly as it renders the other
-  /// eight — `goad: {error}` — since it is generic over `StartupError`'s own
-  /// `Display` rather than matching on the variant.
+  /// renders `Ingress` exactly as it renders every sibling — `goad: {error}`
+  /// — since it is generic over `StartupError`'s own `Display` rather than
+  /// matching on the variant.
   #[test]
   fn report_startup_line_renders_ingress_like_its_siblings() {
     use goad_shell::ingress::{BindFault, IngressError};
