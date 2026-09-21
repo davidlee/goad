@@ -966,22 +966,27 @@ person should know before switching:
 **Tasks — agent-reachable**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
 
-- [ ] T-1 — EN-1: confirm PHASE-01..04 are all `done` here and committed, and
+- [x] T-1 — EN-1: confirm PHASE-01..04 are all `done` here and committed, and
       the tree is clean. A git input cannot see an uncommitted `flake.nix`.
-- [ ] T-2 — VA-3: `just package` runs green from the committed tree. Record
+- [x] T-2 — VA-3: `just package` runs green from the committed tree. Record
       both store paths.
-- [ ] T-3 — read `~/flakes/flake.nix`'s input block and
+- [x] T-3 — read `~/flakes/flake.nix`'s input block and
       `~/flakes/modules/home/linux/satan-attrd.nix`, then **draft, in this
       sheet, as text**: the input entry for goad in the bare git form, and the
       consumer module on the `satan-attrd.nix` pattern — header comment
       included, in that file's voice. Say which file each goes in and where.
       **Do not write either file.**
-- [ ] T-4 — draft the exact command sequence the person will run, in §5.4's
+      *Done.* Three files, not two — see below. Nothing in `~/flakes` was
+      written.
+- [x] T-4 — draft the exact command sequence the person will run, in §5.4's
       order, with the observation to make after each. One command per line,
       copy-pasteable, absolute where it matters.
-- [ ] T-5 — VA-1's first half, agent-side: record what `./result/bin/goad
+- [x] T-5 — VA-1's first half, agent-side: record what `./result/bin/goad
       --version` prints from the committed tree, verbatim. The comparison is
       the person's, after VA-2.
+      *Done*, from the store path rather than `./result` — `just package` uses
+      `--no-link` and builds no out-link, and the store path is the same
+      artefact.
 
 **Tasks — person-only**
 <!-- These are not agent-reachable. Prose defers; a checklist box catches.
@@ -1010,13 +1015,448 @@ person should know before switching:
       §What was observed below, naming what was seen, so `audit.md` can cite it
       rather than re-run it.
 
+#### T-3 — the drafted `~/flakes` changes
+
+Not written. Text only, for the person to apply as P-1.
+
+**Three files, not one.** A module file under `~/flakes/modules/home/linux/` is
+inert until something imports it: `satan-attrd.nix` is named in
+`~/flakes/hosts/Sleipnir/home.nix` and nowhere else. So the consumer is (a) an
+input, (b) a new module file, (c) one line in the host's home config.
+
+**And one `git add`.** `~/flakes` is **not its own git repository** —
+`git -C ~/flakes rev-parse --show-toplevel` answers `/home/david`. The flake
+ref `.` that `just home-switch` passes therefore resolves against the `$HOME`
+git tree, and an **untracked** file is invisible to it. This is PHASE-02's VA-3
+again, one directory up: `git add` the new module before switching, or
+home-manager will evaluate a configuration that does not contain it. (Tracked
+files that are merely *modified* are visible, so `flake.nix` and `home.nix`
+need no special handling — but staging all three together is simpler than
+remembering which.)
+
+**(a) `~/flakes/flake.nix` — the input.** Inside `inputs = { … }`, after the
+`satan-attrd` block and before the long `oubliette` comment:
+
+```nix
+    # goad — personal intervention shell. Local checkout at ~/dev/goad.
+    #
+    # A *git* input, never `path:`. The repository root holds a live unix
+    # socket (`goad-demo.sock`) that nix refuses to copy outright, and
+    # `.claude/worktrees/` holds gitignored agent worktrees a `path:` copy
+    # would take anyway.
+    #
+    # The git form is also what makes `goad --version` worth anything: the
+    # build stamps `self.shortRev` into the binary, and a *tarball* URL has no
+    # such attribute — the version line then prints a bare `0.1.0` with no
+    # revision, and nothing anywhere reports that it happened.
+    #
+    # A git input reads the **committed** tree: anything uncommitted in
+    # ~/dev/goad is invisible to a switch. `nix flake update goad` advances the
+    # pin.
+    goad.url = "git+file:///home/david/dev/goad";
+```
+
+**No `follows`, deliberately** — the one judgement call in this draft, and the
+plan does not settle it. goad pins `nixpkgs` and `rust-overlay` as a pair, and
+crane builds the binary against the toolchain that overlay resolves out of
+*that* nixpkgs; `inputs.nixpkgs.follows = "nixpkgs-home"` would build a closure
+other than the one `just package` verified here, which is the artefact this
+phase exists to run. The cost of not following is one more nixpkgs in
+`~/flakes/flake.lock` — which this flake already accepts on purpose for
+`llm-agents`. If you would rather share the copy, add the follows *after* the
+cutover is observed, and re-observe VH-1 on the rebuilt binary.
+
+**(b) `~/flakes/modules/home/linux/goad.nix` — a new file**, whole:
+
+```nix
+# goad — personal intervention shell.  A Slint window the host owns and a
+# user-supplied backend drives; one JSON document per exchange over stdio,
+# plus an ingress socket goad-emit writes to.  The host understands none of
+# the domain — items, slots and the record format are backend.py's business.
+#
+# Source: ~/dev/goad (git+file:// input — a git input, never `path:`: the
+# repo root holds a live unix socket nix refuses to copy, and only a git
+# input carries the self.shortRev that `goad --version` prints).
+#
+# State + artefacts:
+#   Config at ~/.config/goad/config.toml — the path `goad` with no argument
+#   reads.  It names the backend command and the ingress socket.
+#   Backend and its per-day records: ~/satan/goad/ (backend.py, data/).
+#   ~/.config/goad/env belongs to the *cargo* install path (`just install`)
+#   and is NOT read by this unit: the packaged binary is wrapped and carries
+#   LD_LIBRARY_PATH and FONTCONFIG_FILE itself, so there is no second file
+#   to drift against the build the unit runs.
+#
+# Replaces the hand-written unit at ~/satan/goad/goad.service.
+#
+# A refusal is exit 2 and the unit's RestartPreventExitStatus stops rather
+# than loops; the diagnostic naming the configuration file is on stderr.
+#
+# Smoke:
+#   systemctl --user status goad
+#   journalctl --user -u goad -f
+#   goad --version          # 0.1.0 (<rev>) — a bare 0.1.0 means a tarball
+{
+  inputs,
+  pkgs,
+  ...
+}: {
+  imports = [inputs.goad.homeManagerModules.default];
+
+  services.goad = {
+    enable = true;
+    package = inputs.goad.packages.${pkgs.system}.goad;
+  };
+}
+```
+
+Exactly the `satan-attrd.nix` shape, and exactly the four-line consumer
+`nix/module.nix`'s own header prescribes. `goad-emit` is deliberately **not**
+installed by this: the module puts `cfg.package` on `home.packages` and nothing
+else, and VH-3 runs the packaged `goad-emit` from its store path.
+
+**(c) `~/flakes/hosts/Sleipnir/home.nix` — the import.** In the `imports` list,
+under the `# machine-specific` comment, after the `satan-attrd.nix` line:
+
+```nix
+    ../../modules/home/linux/goad.nix
+```
+
+**Determined by reading, and worth knowing before you switch**
+
+- `extraSpecialArgs` on `homeConfigurations."david"` passes `inputs`, and
+  `pkgs` is the module argument home-manager always supplies, so both names the
+  consumer uses are in scope — the same two `satan-attrd.nix` relies on.
+- goad's flake fixes `system = "x86_64-linux"` and exports
+  `packages.x86_64-linux` only; the home config's `pkgs.system` is
+  `x86_64-linux`. They meet.
+- `~/flakes` currently has uncommitted work in `flake.nix`, `flake.lock`,
+  `hosts/Sleipnir/config.nix`, `modules/nixos/greeter.nix`,
+  `modules/nixos/umbriel.nix` and `modules/shared/cli/_packages/dev.nix`. A
+  switch takes all of it. Nothing to do about it here — just know that a
+  failed switch may be about something other than goad.
+
+**Not determined by reading — handled by ordering instead**
+
+`~/.config/systemd/user/goad.service` is today a symlink to
+`~/satan/goad/goad.service`, and it sits on exactly the path home-manager wants
+for its generated unit. Standalone home-manager refuses to clobber a file it
+does not own (*Existing file … is in the way*) and this configuration sets no
+`backupFileExtension` — only `darwin/default.nix` does. Whether the switch
+would abort or quietly take the path was not settled by reading, and settling
+it empirically means running `home-manager build`, which writes outside this
+repository. **The sequence removes the symlink before the switch instead**,
+which makes the question moot and costs nothing: `~/satan/goad/goad.service`
+stays on disk until P-6, so one `ln -s` puts the old service back.
+
+#### T-4 — the sequence, for the person
+
+§5.4's order: stand up the consumer, move the service onto the module's unit,
+*then* retire the hand-written one. Each block says what to look for. Do not
+run P-6 until P-2 through P-5 have all been seen.
+
+**P-1 — apply the three fragments (EX-1)**
+
+```sh
+$EDITOR /home/david/flakes/flake.nix                       # fragment (a)
+$EDITOR /home/david/flakes/modules/home/linux/goad.nix     # fragment (b), new
+$EDITOR /home/david/flakes/hosts/Sleipnir/home.nix         # fragment (c)
+git -C /home/david add flakes/flake.nix flakes/modules/home/linux/goad.nix flakes/hosts/Sleipnir/home.nix
+git -C /home/david status --short flakes/
+```
+
+Observe: all three listed as staged. An untracked `goad.nix` is invisible to
+the switch — see T-3.
+
+```sh
+cd /home/david/flakes && nix flake lock
+grep -A4 '"goad"' /home/david/flakes/flake.lock | head -20
+```
+
+Observe: a `goad` node appears, `"type": "git"`, `"url":
+"file:///home/david/dev/goad"`, and a `"rev"` whose first seven characters are
+`af01ead` — the commit this sheet was written from. A `"type": "tarball"` here
+is the failure the input comment warns about. (This step is optional: the
+switch locks anyway. It is worth doing alone because it separates *the input
+resolves* from *the switch works*.)
+
+Optional, and cheap:
+
+```sh
+cd /home/david/flakes && nix fmt
+```
+
+The flake's own treefmt (alejandra + statix). Re-`git add` if it reformats.
+
+**Before the switch — free the unit name, keep the fallback**
+
+```sh
+systemctl --user stop goad
+systemctl --user is-active goad
+ls -l /home/david/.config/systemd/user/goad.service
+rm /home/david/.config/systemd/user/goad.service
+```
+
+Observe: `inactive`; the `ls` shows the symlink still pointing at
+`/home/david/satan/goad/goad.service` before you remove it.
+
+Two reasons, both hard:
+
+1. home-manager writes its generated unit to exactly that path and will not
+   clobber a file it does not own (T-3's last paragraph).
+2. The old host holds the ingress socket `/run/user/1000/goad.sock`. A second
+   host on the same socket is a `StartupError`, which is exit 2, which
+   `RestartPreventExitStatus=2` then declines to retry — you would switch
+   successfully into a stopped service.
+
+This is **not** EX-3. The unit file itself is untouched; only the symlink goes.
+
+**P-2 — switch (EX-2)**
+
+```sh
+cd /home/david/flakes && just home-switch
+systemctl --user status goad
+```
+
+Observe: the switch exits 0 and its activation output mentions
+`goad.service`; `status` then shows `active (running)` and a `Loaded:` line
+whose path is `/home/david/.config/systemd/user/goad.service` — now
+home-manager's symlink into the store, not the old one into `~/satan`.
+
+If either fails, the recovery block at the end of this section puts the old
+service back. **Do not repair a module or package defect in `~/flakes`** — it
+is a finding against PHASE-01 or PHASE-02 and is repaired there.
+
+**P-3 — VH-2, the unit systemd actually loaded (AC-7)**
+
+```sh
+systemctl --user cat goad
+systemctl --user cat goad | grep -c EnvironmentFile
+```
+
+Observe, by name:
+
+| expect | value |
+|---|---|
+| `Description=` | `goad — personal intervention shell` |
+| `ExecStart=` | a **store path** ending `/bin/goad` — today's build is `/nix/store/rgsn4p821bqmkjq0w9j6s2g98l23iq06-goad-0.1.0/bin/goad` |
+| `Restart=` | `on-failure` |
+| `RestartPreventExitStatus=` | `2` |
+| `RestartSec=` | `2` |
+| `EnvironmentFile=` | **absent** — the `grep -c` prints `0` |
+
+`Description` is in the module but **not** in PHASE-02's rendered attrset
+recorded above in this file: that render predates commit `c67262e`, which added
+it. The unit you are reading is current; there is no discrepancy to chase.
+
+**P-4 — VH-1, the window, with text in it (AC-8, AC-1's second half)**
+
+Look at the screen. Both halves are the criterion: a window, **and** text
+drawn in it. No command prints this and no green gate is this evidence.
+
+If there is no window at all:
+
+```sh
+journalctl --user -u goad -n 50 --no-pager
+```
+
+A window that opens but draws **no text** is `FONTCONFIG_FILE` — a packaging
+defect in the wrapper, repaired in PHASE-01, never patched in `~/flakes`.
+
+**P-5 — VH-3, an envelope into the running host (AC-2's second half)**
+
+```sh
+/nix/store/zmpmc6xkmyj7p7hp7dfdr7415j35y1kz-goad-emit-0.1.0/bin/goad-emit --source cutover --kind smoke
+echo "exit=$?"
+journalctl --user -u goad -n 20 --no-pager
+```
+
+The store path is deliberate: this is the **nix-built** `goad-emit` VH-3 asks
+for, and the module installs only `goad` on PATH. No `--socket` — emit reads
+the ingress path out of `~/.config/goad/config.toml`, which names
+`/run/user/1000/goad.sock`, and the host under the new unit is the one holding
+it.
+
+Observe: **exit 0** (the host accepted the event) or **exit 1** (the host
+refused it) — either is the host reacting, which is what VH-3 asks. **Exit 2 is
+not**: it means no usable answer could be had — nothing listening on that
+socket, or a path mismatch. The window should also move to whatever the backend
+answered with.
+
+**P-6 — EX-3, retire the hand-written unit. Only after P-2..P-5.**
+
+```sh
+rm /home/david/satan/goad/goad.service
+ls -l /home/david/.config/systemd/user/goad.service
+ls /home/david/satan/goad/
+```
+
+Observe: the `.config` entry is home-manager's store symlink (it was replaced
+at P-2); `~/satan/goad/` keeps `backend.py`, `data/`, `justfile`, `README.md`
+and `field-notes.md` — only the unit goes.
+
+**After this the recovery block below no longer exists.** That is precisely why
+it is last.
+
+**P-7 — VA-2, then VA-1's comparison (AC-9, AC-5)**
+
+From the repository's dev shell — direnv, or `nix develop`. `just install`
+refuses to run outside it: both environment variables it writes come from
+`flake.nix`, and an env file naming two empty values is the silent breakage
+written down.
+
+```sh
+just install
+ls -l /home/david/.cargo/bin/goad /home/david/.cargo/bin/goad-emit
+```
+
+Observe: exits 0; both binaries have just-updated mtimes.
+
+Then VA-1, **in this order** (F-8):
+
+```sh
+/home/david/.cargo/bin/goad --version ; echo "exit=$?"
+/nix/store/rgsn4p821bqmkjq0w9j6s2g98l23iq06-goad-0.1.0/bin/goad --version ; echo "exit=$?"
+```
+
+Expect `0.1.0` at exit 0 from the cargo path — `just install` sets no
+`GOAD_REVISION`, so there is no parenthetical — and `0.1.0 (af01ead)` at exit 0
+from the nix path. **Both must exit 0 and both must print a version line**,
+agreeing on `0.1.0` and differing only in the parenthetical. An exit 2 on
+either side fails VA-1 rather than passing it: that is today's pre-slice binary
+reading `--version` as a configuration path, which "differs" while
+demonstrating nothing. Record both strings verbatim.
+
+`goad-emit` answers too, if you want the pair:
+
+```sh
+/home/david/.cargo/bin/goad-emit --version ; echo "exit=$?"
+```
+
+**P-8 — EX-4, the env file survives (OQ-6)**
+
+```sh
+ls -l /home/david/.config/goad/env
+cat /home/david/.config/goad/env
+```
+
+Observe: it exists, its mtime is from the `just install` you just ran, and it
+names two non-empty store paths — `LD_LIBRARY_PATH` and `FONTCONFIG_FILE`.
+Nothing automatic reads it any more; the packaged binary is wrapped and the
+module's unit names no `EnvironmentFile`. It belongs to the cargo path and the
+cutover does not remove it.
+
+**Recovery — valid until P-6, and only until then**
+
+If the switch fails, or the new unit will not start and you want the old
+service back now:
+
+```sh
+systemctl --user stop goad
+rm -f /home/david/.config/systemd/user/goad.service
+ln -s /home/david/satan/goad/goad.service /home/david/.config/systemd/user/goad.service
+systemctl --user daemon-reload
+systemctl --user start goad
+systemctl --user status goad
+```
+
+A stopgap, not a revert: the next `just home-switch` puts home-manager's unit
+back. To revert properly, undo the three P-1 edits and switch again.
+
+This is the whole reason §5.4's sequence is what it is —
+`~/satan/goad/goad.service` is still on disk, so the fallback is one `ln -s`.
+After P-6 it is not.
+
 **What was observed**
 <!-- Verification criteria are observations, not claims. The VH rows are the
      person's own words about what they saw. -->
 
+*The agent half. VH-1..VH-3, VA-2 and VA-1's comparison are the person's and
+are written here when reported (P-9).*
+
+- **T-1, EN-1** — PHASE-01 through PHASE-04 all read `done` in §Status above.
+  `git status --porcelain` printed nothing; `git log --oneline -1` was
+  `af01ead 006: PHASE-05's phase sheet — the cutover, and the evidence`. The
+  committed tree and the working tree are the same tree, so the git input has
+  everything.
+- **T-2, VA-3** — `just package` exited 0 from that tree. Two store paths,
+  verbatim:
+
+  ```
+  /nix/store/rgsn4p821bqmkjq0w9j6s2g98l23iq06-goad-0.1.0
+  /nix/store/zmpmc6xkmyj7p7hp7dfdr7415j35y1kz-goad-emit-0.1.0
+  ```
+
+  The build was warm and re-derived both packages; `--no-link` means there is
+  no `./result` and the tree stayed clean.
+- **T-5, VA-1's first half** — from the store path above, verbatim, both at
+  exit 0:
+
+  ```
+  $ /nix/store/rgsn4p821bqmkjq0w9j6s2g98l23iq06-goad-0.1.0/bin/goad --version
+  0.1.0 (af01ead)
+  $ /nix/store/zmpmc6xkmyj7p7hp7dfdr7415j35y1kz-goad-emit-0.1.0/bin/goad-emit --version
+  0.1.0 (af01ead)
+  ```
+
+  `git rev-parse --short HEAD` is `af01ead`, so the parenthetical is this
+  commit and `self.shortRev` reached the binary. **This is a sighting of AC-5,
+  not its discharge** — the comparison is VA-1's and is the person's, after
+  VA-2 (P-7).
+- **The pre-slice cargo binary, for contrast, and why P-7's order is the
+  criterion** — `~/.cargo/bin/goad --version` today prints
+  `goad: configuration could not be read: No such file or directory (os error
+  2)` and exits **2**. It reads `--version` as a configuration path: it
+  predates PHASE-03, and its message predates PHASE-04's named path too. It
+  "differs" from a stamped version line while demonstrating nothing AC-5 asks
+  for (F-8, `research.md` S-4). After P-7's `just install` it must print
+  `0.1.0` at exit 0.
+- **The live service, as found** — `goad.service` is `active`, PID 4024,
+  `FragmentPath=/home/david/.config/systemd/user/goad.service`, which is a
+  symlink to `/home/david/satan/goad/goad.service`. Its host holds
+  `/run/user/1000/goad.sock` — the ingress path `~/.config/goad/config.toml`
+  names. Both facts shape the sequence: the symlink occupies the path
+  home-manager wants, and the socket cannot be held by two hosts.
+
 **Decisions taken during execution**
 
+- **The consumer is three files, not one, and the third is
+  `hosts/Sleipnir/home.nix`.** A module under `~/flakes/modules/home/linux/` is
+  inert until the host's `imports` names it. EX-1 describes the module's
+  content and is silent on reachability; drafting only the content would have
+  produced a switch that changed nothing and a cutover that appeared to fail.
+- **The goad input takes no `follows`.** Not settled by the plan. Reasoning and
+  the alternative are in T-3 under fragment (a).
+- **The symlink at `~/.config/systemd/user/goad.service` is removed before the
+  switch, not after.** §5.4's sequence is about not destroying the fallback
+  before the replacement is proven; the fallback is
+  `~/satan/goad/goad.service`, which stays on disk until P-6. Removing the
+  symlink frees the path home-manager needs without touching the fallback, and
+  it stops the host that holds the ingress socket. EX-3 is still P-6.
+- **T-5 was taken from the store path, not `./result`.** `just package` uses
+  `--no-link` and produces no out-link; building one would have added an
+  untracked symlink for no gain. Same artefact, same bytes.
+
 **Findings**
+
+- **`~/flakes` is not its own git repository.** Its root is `/home/david`, so
+  the flake ref `.` resolves against the `$HOME` git tree and an untracked file
+  under `~/flakes` is invisible to a switch. Same class as PHASE-02's VA-3, one
+  directory up, and the reason P-1 stages all three files.
+- **Standalone home-manager on this machine sets no `backupFileExtension`** —
+  only `darwin/default.nix` does — so a foreign file on a generated unit's path
+  has no fallback behaviour to rely on. Not verified empirically: doing so
+  means `home-manager build`, which writes outside this repository. The
+  sequence sidesteps it.
+- **PHASE-02's recorded render lacks `Description`, and that is not a defect.**
+  The attrset recorded under PHASE-02 §What was observed was taken before
+  commit `c67262e`, which added `Unit.Description`. VH-2 asks for
+  `Description`; the current module has it. Worth knowing before someone reads
+  the two side by side at audit.
+- **`just install` stamps no revision**, so the cargo path prints a bare
+  `0.1.0`. That is what makes VA-1's pair differ in the parenthetical alone —
+  it is a property of the recipe, not of the comparison, and a future
+  `GOAD_REVISION` in `just install` would quietly make VA-1 unfalsifiable.
 
 ## Harvest
 
