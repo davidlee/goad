@@ -321,6 +321,15 @@ review to verified, ADR-005 written. Eight durable facts lifted to
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 004 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-3, FU-6, FU-10, FU-13, FU-14, FU-15, FU-31.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 <!-- Deferred work surfaced by this slice. Each becomes a future slice or a
      line in a spec. -->
 

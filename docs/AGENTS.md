@@ -9,6 +9,8 @@ Documentation in `./docs/`
 `memory/` contains noteworthy facts or processes.
 `slices/` contain sequentially numbered coherent changes.
 `specs/` contain evergreen specifications; they are normative truth.
+`follow-ups.md` is every deferred item still open, across all slices.
+`roadmap.md` is what has a position in the sequence, and why that one.
 
 `specs`, `policy` and `adr` are **governing canon**. They must be abided by, or amended (with explicit user endorsement). Do not fail to read any which may be relevant:
 ```zsh
@@ -96,6 +98,11 @@ another; that is not double handling.
 `audit.md` is the exception that proves the rule: it is the slice's closing
 argument, and it draws on all four without copying any of them.
 
+Two files outside the slice folder take from it at close, and neither is a fifth
+copy of anything: `docs/follow-ups.md` takes the **status** of each follow-up
+(the slice keeps the reasoning), and `docs/memory/` takes the durable facts from
+Harvest.
+
 ### Slice
 
 - User begins a design conversation about new work sufficient to scope a new slice.
@@ -171,5 +178,8 @@ mv ./docs/slices/123/slice-nnn.md ./docs/slices/123/slice-123.md
 
 - Work the Closure checklist at the foot of `audit.md`.
 - Write the `## Summary` and `## Follow-ups` sections of `slice-nnn.md`. Follow-ups become future slices; do not leave them only in the audit. Draw them from `notes.md` §Open, and disposition **every** entry there — promoted, carried, superseded, settled, or still open and why. An entry left unswept is a candidate nobody declined.
+- **Promote each surviving follow-up into `docs/follow-ups.md`** and put its id back in `slice-nnn.md` §Follow-ups. The slice's own section keeps the reasoning — why it is a follow-up and not a repair, and what it was priced at — because that is a claim about what was decided then and does not go stale. The ledger carries what does: whether it is still open. **Merge rather than append**: a claim another slice already raised gets that row's citation extended, not a second row agreeing with the first.
+- **Every ledger row carries a kill condition** — the grep, the symbol or the event that would prove it closed. A row that says only what is wrong makes every future verification a research task, which is what the 2026-09-23 collation was.
+- **Re-verify the ledger rows naming a file this slice touched**, and strike the ones this slice killed, with what killed them. Bounded, and mechanical because the rows cite symbols. A closed slice is never re-read on its own; this is the only thing that stops the ledger rotting the way nine §Follow-ups sections did — 007 left six entries that 008 and 009 had already closed, one of them still cited in production markup.
 - Lift durable facts from `notes.md` Harvest into `docs/memory/` — anything a future agent would otherwise rediscover the hard way.
 - Set the slice stage to `done`.

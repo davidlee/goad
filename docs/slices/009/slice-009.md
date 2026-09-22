@@ -229,6 +229,15 @@ canon deltas promoted.
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 009 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-2 (**slice 011**), FU-8, FU-10, FU-11, FU-13, FU-19, FU-25, FU-26, FU-31, FU-38.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 Each is owned work, not a wish. The first five were dispositioned `follow-up`
 against a stated price during the audit; the rest were found at close.
 

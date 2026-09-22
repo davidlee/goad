@@ -326,6 +326,15 @@ reading and by review.
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 007 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-4, FU-5, FU-10, FU-16, FU-31, FU-39.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 Each of these becomes a future slice or a named piece of one. They are not
 parked here instead of being decided — each has a decision behind it, recorded
 in `audit.md`'s Reconciliation or in `review-code.md`.

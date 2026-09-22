@@ -303,6 +303,15 @@ the `Presentation` boundary: Slint's testing API exposes no accessor for a
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 002 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-9, FU-12, FU-32, FU-34.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 - **Drive one exchange through the production runtime topology.** `closing.rs`
   instantiates the real arrangement — Slint's executor polling a
   `tokio::process` future under an `EnterGuard` — but never drives an

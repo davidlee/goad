@@ -5,6 +5,10 @@ amends nothing. `docs/specs/`, `docs/policy/` and `docs/adr/` govern; a slice's
 own `slice-nnn.md` is the truth about that slice's scope. This file exists to
 answer one question: *what is the next slice, and why that one?*
 
+**It is not the follow-up list.** `docs/follow-ups.md` is, and it is where a
+deferred item lives until it is dead or scheduled. Only what has a **position**
+appears here: the sequence, and the decisions in §Open decisions.
+
 Revise it in place whenever the answer changes. No changelog.
 
 ## Where this stands
@@ -87,9 +91,10 @@ SPEC-001 §6.2 gained what an untouched field submits per kind, and its
 §Verification rows for R-55, R-57 and R-58 were corrected against cases that no
 longer existed; OQ-4 stays shut with its reason changed — see §Open decisions.
 `CLAUDE.md` gained *cite by symbol* after the class was measured rather than
-argued: 53 in-repo line citations, 27 pointing at the wrong thing. Nine
-follow-ups, the first of them one full present per **refused** ingress arrival,
-whose question underneath is canon's.
+argued: 53 in-repo line citations, 27 pointing at the wrong thing. Its
+follow-ups are the largest set any slice has left, and the first of them is one
+full present per **refused** ingress arrival, whose question underneath is
+canon's.
 
 **2026-09-22.** Slice 006 is closed. Everything between *built* and *running
 daily*: a crane build produces a wrapped binary that is self-contained anywhere,
@@ -104,6 +109,26 @@ sibling count and its three wrong line-number citations, and `CLAUDE.md`, whose
 own finding is a follow-up: `RestartPreventExitStatus=2` suppresses the one
 `StartupError` that succeeds on a retry.
 
+**2026-09-23. The follow-ups were collated, and they now have a home.** Nine
+slices had left sixty-nine claims across nine `slice-nnn.md` §Follow-ups
+sections, plus three more in `notes.md` §Open that no closing argument ever
+swept. **Eleven were dead** — 007 alone had six, five of them killed by 008 and
+009 doing exactly what they were scheduled to do, and nobody had noticed because
+nothing re-reads a closed slice. One of the eleven was still load-bearing while
+false: *keyboard focus does not survive a present* was closed by 009, and it had
+a live citation in `app.slint` and an 008 item blocked on it.
+
+The cost was not collecting them. It was that each entry said what was wrong and
+never what would prove it fixed, so every verification was a fresh research
+task. **`docs/follow-ups.md` is the answer**: one row per claim however many
+slices raised it, an immutable id, and a **kill condition** on every row, so a
+sweep is mechanical. `docs/AGENTS.md` §Close now requires a closing slice to
+re-verify the rows naming a file it touched — bounded, and only possible because
+the rows cite symbols. Three rows took sequence positions; the ranking axis is
+threat first, cost as the tiebreaker, and it is written down in the ledger's
+band headings rather than stored per row, because a stored rank goes stale the
+way the entries it ranks did.
+
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
 ledger, code review unchanged. 49,631 lines of slice documentation for 16,891
@@ -113,7 +138,9 @@ lines of Rust is the number that prompted it.
 
 Brief §20 suggests eight implementation phases. Slices 001–003 carried its
 phases 1–4; the rest are re-cut below, ordered by value per token rather than by
-the brief's order.
+the brief's order — and, since 2026-09-23, by **threat** where a follow-up has
+earned a position: what it puts at risk, with what it costs as the tiebreaker.
+`docs/follow-ups.md` states that axis and holds everything without a position.
 
 ```mermaid
 graph LR
@@ -127,12 +154,16 @@ graph LR
   S7["007 ✔<br/>the renderer<br/>grows a form"]
   S8["008 ✔<br/>the renderer<br/>gets a look"]
   S9["009 ✔<br/>the rest of<br/>the field kinds"]
-  S10["010<br/>socket transport"]
-  S11["011<br/>starter experience"]
+  S10["010<br/>the exit-code<br/>taxonomy"]
+  S11["011<br/>the refused<br/>arrival's present"]
+  S12["012<br/>stratum 3 joins<br/>the allowlist"]
+  S13["013<br/>socket transport"]
+  S14["014<br/>starter experience"]
 
   T2{{"ADR-002 T2<br/>second binary"}}
 
-  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9 --> S10 --> S11
+  S1 --> S2 --> S3 --> S4 --> S5 --> USE --> S6 --> S7 --> S8 --> S9 --> S10
+  S10 --> S11 --> S12 --> S13 --> S14
   T2 -.-> S5
   USE -.->|field notes| S7
 
@@ -153,15 +184,28 @@ graph LR
 | 007 the renderer grows a form ✔ | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
 | 008 the renderer gets a look ✔ | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
 | 009 the rest of the field kinds ✔ | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
-| 010 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
-| 011 starter experience | 1 | documenting for others documents what exists |
+| 010 the exit-code taxonomy | 2 | the only follow-up with measured harm on the running host. It reaches SPEC-003's failure vocabulary |
+| 011 the refused arrival's present | 2 | an untrusted writer sets the rate. Suppressing the present is a SPEC-003/R-15 amendment with its own verification |
+| 012 stratum 3 joins the allowlist | 2 | tier 2 by construction — one manifest row plus a POL-001 §Verification amendment. The smallest of the three, and it waited on daily use to show whether stratum 3 drifts |
+| 013 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
+| 014 starter experience | 1 | documenting for others documents what exists |
 
-Four changes from the old order, all deliberate:
+Changes from the old order, all deliberate:
 
-- **Socket transport stays late.** The old roadmap already called it "the
-  least user-visible remaining item". Spawn-per-invocation still has not been
-  measured as a problem by anyone using goad — but now someone is, so the
-  measurement is available rather than hypothetical. Use promotes it if it hurts.
+- **Three follow-ups took positions ahead of socket transport** (2026-09-23,
+  the collation recorded in §Where this stands). They are ordered by what they
+  threaten, not by what they cost: 010 has already taken the running host down,
+  011 is reachable by an untrusted writer who is not misbehaving, and 012 holds
+  a property nothing holds today. `docs/follow-ups.md` FU-1, FU-2 and FU-7 are
+  the rows; each keeps its id there while it is a slice, so a reader arriving
+  from a closed slice's §Follow-ups lands on the schedule rather than a
+  dead end.
+- **Socket transport stays late, and moved again.** The old roadmap already
+  called it "the least user-visible remaining item". Spawn-per-invocation still
+  has not been measured as a problem by anyone using goad — and 007 made it
+  measurably *less* urgent by collapsing fourteen spawns per slot into one. Its
+  own trigger is unfired while three items ahead of it have evidence, which is
+  why they passed it rather than it slipping.
 - **The starter experience stays last.** Documentation written earlier
   documents intentions.
 - **The look is its own slice, and it is 008.** It was inside 007 until scoping
@@ -392,18 +436,11 @@ accumulates continuously and is not in this repo.
 - It is also where **socket transport (009) gets promoted or dropped**: if spawn-per-invocation
   costs something measurable now that someone is using goad, the transport slice
   is next; if it does not, it waits longer.
-- Still open from 003, and still a protocol question: SPEC-002 OQ-4, a scheduled
-  firing superseding a view a person is mid-answering. **009 removed half its
-  reason for being open.** OQ-4 stays open partly because suppression *"asks the
-  host to judge that a view is worth protecting, which is domain meaning it does
-  not hold"* — and after 009 the host retains a draft and a keyed pending map, so
-  *typed into and not yet answered* is interaction state it can read without
-  understanding anything about the domain. The other half is untouched: deferral
-  still needs a second pending state and a second writer of the deadline, and the
-  answer may belong to the backend. Not reopened by 009 (`slice-009.md`
-  §Non-goals); `design.md` §8 R5 and `design-log.md` D-36 carry the reasoning.
-  Not to be confused with **SPEC-001** OQ-4 above, which is a different question
-  with the same number.
+- It is also where **SPEC-002 OQ-4** — a scheduled firing superseding a view a
+  person is mid-answering — gained its sharpest fact: ADR-004's exemptions reach
+  exactly the person filling a form. The question now lives in §Open decisions
+  with the rest of the protocol's, because four slices have arrived at it and it
+  was reachable from none of them here.
 
 ### 008 — the renderer gets a look ✔
 
@@ -473,7 +510,64 @@ slice 002 recorded.
   cannot be repeated, and R-57 wants an RFC 3339 instant with an offset while
   `DatePickerPopup` yields a bare date.
 
-### 010 — persistent socket transport
+### 010 — the exit-code taxonomy
+
+From slice 006's audit (`docs/follow-ups.md` FU-1). **Tier 2** — it reaches
+SPEC-003's failure vocabulary.
+
+*Never started* and *stopped running* are one exit code today. `start` ends
+`run_event_loop_until_quit().map_err(StartupError::Platform)`, so a compositor
+going away under a host that has run for hours exits 2 exactly as a bad
+configuration does — and `nix/module.nix`'s `RestartPreventExitStatus` then
+suppresses the one restart that would have succeeded.
+
+- **First because it is the only item with measured harm**: four exit-2s in two
+  days, two of them leaving the host down for around two hours, read off the
+  running service's own journal.
+- Reaches the startup surface, `main`'s single exit decision, and the spec's
+  failure vocabulary. What landed in 006 is the honest comment naming `Platform`
+  as the known exception; this is the repair.
+
+### 011 — the refused arrival's present
+
+From slice 009's audit (`docs/follow-ups.md` FU-2, `F-R4`). **Tier 2** — a
+SPEC-003/R-15 amendment with its own verification.
+
+One full present, `show()`'s instantiation pass included, per **refused** ingress
+arrival — at a rate an untrusted writer sets.
+
+- **Second because a writer reaches it without misbehaving.** Suppressing the
+  present defers the refusal to the next scheduled firing, which is what R-15
+  requires reach the diagnostics surface, so the amendment is the work rather
+  than a rider on it.
+- R-15's own verification case reads the retained model rather than the window,
+  so canon's instrument would not report the change. That is why this is a spec
+  amendment and not a repair.
+- Not a licence to split `option_models`' single walk: that reintroduces the
+  second counter invariant **I-B** forbids.
+
+### 012 — stratum 3 joins the allowlist
+
+From slice 005's OQ-3 (`docs/follow-ups.md` FU-7). **Tier 2 by construction** —
+one manifest row plus a POL-001 §Verification amendment.
+
+`allowlist.rs` bills exactly the two strata whose value is what they *cannot*
+reach, which is how POL-001 §Verification scopes it. The consequence its own
+module doc states: **a stratum-3 manifest is billed by nothing there.**
+`crates/goad-emit`'s freedom from the renderer is held by the crate edge and by
+review, not by the instrument — and `crates/goad` has been in the same position
+since 002.
+
+- The smallest of the three, and last of them for that reason. 005 named *after
+  006* as the earliest sensible point — when daily use had shown whether stratum
+  3 drifts at all — and 006 is closed.
+- The amendment must say what the new instrument holds and what it does not
+  reach: `CLAUDE.md` forbids compressing the boundary instruments into a count.
+- Two other candidate instruments share that amendment's price
+  (`docs/follow-ups.md` FU-8, FU-9). Worth asking whether they ride along before
+  opening a second POL-001 change later.
+
+### 013 — persistent socket transport
 
 Brief §20 phase 6, §6.1, §6.3. **Tier 2** — it amends SPEC-001's transport
 section.
@@ -483,13 +577,13 @@ when the socket is absent or unusable, and defined reconnect behaviour. The
 semantic protocol is identical across transports — SPEC-001 already says so.
 
 - **Carries from 001:** `BackendError::PipeMissing` and `cleanup_only` are
-  reachable by no test (F-15, tolerated at audit). Either a unit test that
+  reachable by no test (`docs/follow-ups.md` FU-35). Either a unit test that
   fabricates the state, or removal, when the transport is reworked.
 - **Also cheap here:** no end-to-end case exists for a backend that writes
-  nothing, or for brief §10.1/§10.2 through a real process. Both are held at
-  other tiers today. If this slice rebuilds the failure matrix, add them.
+  nothing, or for brief §10.1/§10.2 through a real process (FU-36). Both are held
+  at other tiers today. If this slice rebuilds the failure matrix, add them.
 
-### 011 — starter experience
+### 014 — starter experience
 
 Brief §20 phase 7, §15, §21. **Tier 1** unless capability declaration lands.
 
@@ -518,32 +612,60 @@ Brief §21. Where each criterion is discharged.
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
 | 9 | an external script sends an opaque event | 004 ✔; 005 makes it ergonomic |
 | 10 | the event reaches the backend uninterpreted | 004 ✔ |
-| 11 | backend may run as a persistent JSONL socket service | 010 |
-| 12 | fallback to process invocation when it is unavailable | 010 |
+| 11 | backend may run as a persistent JSONL socket service | 013 |
+| 12 | fallback to process invocation when it is unavailable | 013 |
 | 13 | crashes, timeouts, invalid JSON do not crash the GUI | 001 ✔ taxonomy; 002 surfaces it |
-| 14 | example backend implements the journal with no host change | 011 |
-| 15 | an agent implements a backend from repository material alone | 011 |
+| 14 | example backend implements the journal with no host change | 014 |
+| 15 | an agent implements a backend from repository material alone | 014 |
 | 16 | no domain concepts enter the host model | 001 ✔ boundary test; **standing, every slice** |
 
 ## Not on the sequence
 
-Carried from slice 001's follow-ups, deliberately unscheduled. Each has a
-condition rather than a position.
+**`docs/follow-ups.md` holds these**, with a kill condition on every row. This
+section used to carry slice 001's three deliberately-unscheduled items and
+nothing else, which is how a follow-up list starts: one slice's residue, in the
+document that answers a different question. The rest of the project's residue
+stayed in nine `slice-nnn.md` §Follow-ups sections, where nothing re-read it.
 
-- **The boundary scanner is a text scan.** A `//` inside a string literal hides
-  the rest of its line, `/* */` is not cut, all-caps compounds do not split, and
-  path tokens match as substrings. Latent today; the build gate holds the
-  stratum property independently. Revisit the first time `src/` acquires one of
-  those forms (F-45, F-49).
-- **Time-of-day strings no author writes on purpose** — `1:2:3:4:5` and `99:99`
-  parse as a time of day, `T1:30` is unparseable where `T18:00` is not, and a
-  config `timeout` written as a full datetime is told it is a time of day.
-  Recorded, not acted on. A fixture per case if any is ever reported.
-- **Slice 001's design drift**, listed in its `audit.md`. Left as written by
-  user decision: SPEC-001 is the living truth, and each departure is documented
-  at its site in the code.
+What lives there and not here: everything deferred with a **condition** rather
+than a position — the ledger's Band 5, which is where 001's three went, and the
+bands above it. What stays here is what has a position, which is §Sequence.
 
 ## Open decisions
+
+The protocol's open questions, and the arguments behind them. Each is a decision
+with a case to answer rather than a task with a price, which is why they are
+here and not in `docs/follow-ups.md` — that file carries them as FU-31 so a
+sweep does not miss them, and points back at this section.
+
+- **Whether a scheduled firing may supersede a view a person is mid-answering
+  (SPEC-002 OQ-4).** Raised by 003, reached again by 004 from a second stimulus,
+  and sharpened by 007 and 009. **Half its stated reason for being open is
+  gone:** OQ-4 stays open partly because suppression *"asks the host to judge
+  that a view is worth protecting, which is domain meaning it does not hold"* —
+  and after 009 the host retains a draft and a keyed pending map, so *typed into
+  and not yet answered* is interaction state it can read without understanding
+  anything about the domain. The other half is untouched: deferral still needs a
+  second pending state and a second writer of the deadline, and the answer may
+  belong to the backend.
+  **The fact 007 added is the one to hold on to.** What bounds the behaviour is
+  ADR-004's three-second floor, anchored on the previous scheduled firing — **and
+  its exemptions reach exactly the person filling a form.** ADR-004 never delays
+  an evaluation a person asked for, so pressing **Check now** mid-form replaces
+  the form with no floor at all. Neither document says this; it is only visible
+  from a slice holding both.
+  *Recommendation:* the likeliest answer is a backend affordance, which makes
+  this a protocol question rather than a loop one — so it lands wherever OQ-1's
+  capability mechanism lands, not before. Not to be confused with **SPEC-001**
+  OQ-4 below, which is a different question with the same number.
+  (003 `review-code.md` F-6; 004 OQ-8; 007 D13; 009 `design.md` §8 R5,
+  `design-log.md` D-36.)
+
+- **Whether a stale `view_id` survives a host restart (SPEC-001 OQ-3).** R-32's
+  rejection of a stale id is scoped to one process lifetime, because nothing
+  persists. *Recommendation:* it is not a decision until something does — it
+  reopens with persistence and is dormant, not deferred. Raised by 001 and
+  recorded nowhere until the 2026-09-23 collation.
 
 - **Where capability declaration (OQ-1) and validation feedback (OQ-2) land.**
   Both are additive fields on a view — `field.value`, `field.error`, a
@@ -554,8 +676,10 @@ condition rather than a position.
   (F-7 corrected the original analysis, which claimed otherwise). Per-field
   errors are semantics and must be typed fields, never keys in `hints`.
   *Recommendation:* they are their own tier 2 slice, taken when use says a form
-  needs to reject an answer — not folded into 010, where they would make a
-  documentation slice canon-changing and blow its tier.
+  needs to reject an answer — not folded into the starter experience, where they
+  would make a documentation slice canon-changing and blow its tier. (That
+  sentence named 010 until 2026-09-23; 010 was never the documentation slice,
+  and is now the exit-code taxonomy.)
   **OQ-2 now has a concrete trigger and a way around it.** An accumulative
   checklist re-presented through the day wants the answers already given to come
   back ticked, which is exactly `field.value`. The way around it costs nothing:

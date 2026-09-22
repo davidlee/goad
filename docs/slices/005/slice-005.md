@@ -307,6 +307,15 @@ enumerations did.
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 005 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-7 (**slice 012**), FU-18, FU-27.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 <!-- Deferred work surfaced by this slice. Each becomes a future slice or a
      line in a spec. -->
 

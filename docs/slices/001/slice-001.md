@@ -320,6 +320,15 @@ in three corpora; `just check` exit 0 in both columns, seven commands.
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 001 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-3, FU-31, FU-32, FU-33, FU-35, FU-36, FU-41.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 <!-- Written at close. Entries raised earlier are marked with the stage that
      raised them, so they are not lost between stages. -->
 

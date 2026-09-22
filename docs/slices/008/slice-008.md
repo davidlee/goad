@@ -81,6 +81,15 @@ Five durable facts are lifted into `docs/memory/`:
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 008 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-4, FU-17, FU-20, FU-21, FU-22, FU-23, FU-24.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 Live detail is in `notes.md` §*Still on the list*; these are the durable items.
 
 - **L-4 — the diagnostic surface cannot be selected or copied.** The pane has

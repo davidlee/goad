@@ -390,6 +390,15 @@ The slice produced **SPEC-002** (the host's scheduling behaviour) and
 
 ## Follow-ups
 
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 003 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-10, FU-11, FU-12, FU-31, FU-32, FU-40.
+>
+> Swept 2026-09-23 at `3ecaa11`. Anything below that the ledger does not list is
+> struck in its §Closed table, with what killed it.
+
 - **A scheduled evaluation can supersede a view a person is mid-answering.**
   Raised at code review (`review-code.md` F-6) and dispositioned
   `accept-in-part`: the behaviour is documented (design D-22, `draft-spec.md`
