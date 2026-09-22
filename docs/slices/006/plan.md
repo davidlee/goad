@@ -254,8 +254,8 @@ filter.
 - **`goad-shot` is already in the devshell** (`flake.nix`, `goadShot`) and this
   slice is the first thing to use it. It starts the app, sleeps `-s` seconds,
   photographs and kills; a GUI launched any other way from an agent session
-  needs a background launch, not an `&`
-  (`docs/memory/gui-launch-needs-a-pipe.md`). Five seconds is a starting guess
+  needs a background launch, not an `&` — which exits 144, and a pipe does not
+  fix it. Five seconds is a starting guess
   — if the photograph is of an empty compositor, raise it before concluding
   anything about fonts.
 - **Do not delete the spike.** It is a record of a measurement; `audit.md` says

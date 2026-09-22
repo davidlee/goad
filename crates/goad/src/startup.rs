@@ -8,10 +8,13 @@ use std::path::PathBuf;
 use goad_shell::config::IngressConfig;
 use goad_shell::ingress::{self, Ingress, IngressError};
 
-/// What the arguments asked for. Three outcomes, and the two that answer and
-/// stop are outcomes here rather than an early `exit` hidden inside argument
+/// What the arguments asked for. `Help` and `Version` answer and stop, and
+/// they are outcomes here rather than an early `exit` hidden inside argument
 /// parsing — so `main` keeps its single exit-code decision (§5.4's entry
-/// point).
+/// point). **Named, never counted**, the rule `StartupError`'s doc below
+/// states: this enum's count was hand-incremented from two to three when
+/// `Version` arrived, which is the act PHASE-04/EX-3 forbids
+/// (`review-code.md` F-10).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Launch {
   Help,

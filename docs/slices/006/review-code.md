@@ -177,16 +177,90 @@ already recorded as owed at reconcile; anything inside `docs/slices/006/`, which
 the subject excludes; and design findings already disposed in
 `review-design.md`, unless the code diverged from the disposition.
 
+**Round 2** — 2026-09-22 — Written before `git diff 91d46fe..HEAD` was opened.
+Subject: the round-1 repair commit `9f53fe5` entire, everything the round-1
+Responses claim, and the binary tier as it now stands. Attacked in this order of
+expected yield:
+
+1. **The two mutations, re-run rather than read.** Both Responses close on a
+   measured claim — `ExitCode::from(2) → from(1)` reddens four of six binary
+   cases, and deleting `.filter(…)` from both `version_line`s reddens exactly
+   two unit cases and nothing else. Run the raiser's own mutation rather than
+   reading its result, with `--no-fail-fast` or the coverage reads thinner than
+   it is — `docs/memory/verify-the-proposed-instrument.md` is this repository's
+   statement of why. A Response is a claim about the tree; the
+   mutation is the only thing that makes it a measurement. `review-design.md`
+   F-4 is this slice's standing precedent for a Response that overstated.
+2. **`tests/binary/exit_codes.rs`, case by case, against what each claims to
+   walk.** Five cases and a sixth pre-existing one. The Response says *one per
+   exit code `main` can choose, walked by the arm that chooses it* — two claims,
+   and the second is the falsifiable one. For each case: which `StartupError`
+   arm does the spawned process actually reach, and would it still reach that
+   arm on a machine configured differently? `no_argument_and_no_configuration_home`
+   is the suspicious one — it depends on `env_remove` of two variables being
+   sufficient to keep a real process off the machine's real configuration, and a
+   case that silently reaches a *different* arm still asserts exit 2 and still
+   passes. `docs/memory/a-green-test-can-assert-a-proxy.md` is the class.
+3. **The helper extraction, as a refactor.** Four helpers moved from
+   `version.rs` into `process.rs` "unchanged, plus one variant". Moves are where
+   behaviour leaks: `autotests = false` means a file not reached by a `mod`
+   declaration is silently not built, and round 1 measured that exposure on the
+   `[[test]]` block itself. Does `cargo test -p goad --test binary` actually
+   execute every case in all three files, and did `version.rs` lose anything in
+   the move?
+4. **F-4's sweep, against the class it declared.** The repair did not just fix
+   two comments, it stated a rule — **name, never count** — and rules are swept,
+   not spot-fixed (`docs/memory/a-repair-sweep-misses-the-binding-site.md`). Are
+   there surviving counts of a growing list in the surfaces this slice wrote?
+   The two deliberate exemptions are named in the Response and are sound; what I
+   am looking for is a third instance nobody looked for, including one the
+   repair commit itself wrote.
+5. **What the repair commit touched beyond the repairs.** `git diff --stat` over
+   `91d46fe..HEAD` first, and anything outside the six findings' declared
+   locations is the strongest lead — the same rule the audit applies to phase
+   surfaces. Round 1 cleared the wrapper, the flake, the module and the source
+   filter at `177f383`; a repair that disturbed any of them is cleared by
+   nothing.
+6. **F-2's repair, for whether one home per crate is one home.** The rule moved
+   inside `version_line`, in two crates. Two copies of a function are still two
+   copies; the question is whether they now agree in behaviour at every input,
+   not whether they read alike. Both crates' cases, and both call sites handing
+   `option_env!` on unjudged.
+7. **The binary tier as a whole**, which is round 1's own item 2. `goad-emit`'s
+   nine cases are the yardstick and `goad` now has six. What can the tier see
+   that the renderer tier cannot, and what of that is still unobserved?
+8. **F-3, F-5 and F-6 as small verifications.** A citation that now resolves,
+   `just -n check` still printing POL-001 §Compliance's six in order, the
+   follow-up actually landed in `slice-006.md` with an accurate statement of the
+   option surface, and both prose slips gone without a new one arriving.
+9. **The gate, and the invariants, re-run at `9f53fe5`.** `just check` to exit
+   0. No `path:line` citation added by the repair — `CLAUDE.md` §Working here,
+   and the class F-3 was about. Nothing into `src/semantics/`, no domain
+   vocabulary.
+
+**Invariants held to:** the same as round 1 — `CLAUDE.md`'s five, ADR-001's
+direction rule, POL-001's six-command block and its counting rule, SPEC-003 R-3
+and R-4, and the slice's own I1–I4 and A1–A3 — plus the Protocol's own rule that
+a disposition is discharged by the tree and not by its Response.
+
+**Not in scope and not filed:** everything round 1 excluded, unchanged. Plus:
+F-5 is `follow-up` and its *deferral* is not reopened here — only whether the
+follow-up landed and says what it says it says.
+
 ## Findings
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | fix-now |  |
-| F-2 | minor | fix-now |  |
-| F-3 | minor | fix-now |  |
-| F-4 | nit | fix-now |  |
-| F-5 | nit | follow-up |  |
-| F-6 | nit | fix-now |  |
+| F-1 | major | fix-now | verified |
+| F-2 | minor | fix-now | verified |
+| F-3 | minor | fix-now | verified |
+| F-4 | nit | fix-now | verified |
+| F-5 | nit | follow-up | verified |
+| F-6 | nit | fix-now | verified |
+| F-7 | minor | fix-now |  |
+| F-8 | minor | fix-now |  |
+| F-9 | nit | fix-now |  |
+| F-10 | nit | fix-now |  |
 
 ### F-1 — the exit-code contract `RestartPreventExitStatus=2` encodes is asserted by no test at any tier
 
@@ -298,7 +372,15 @@ Not done, and named as the boundary: nothing here reaches `Clock`, `Runtime`,
 broken clock or a held socket; the claim the cases support is that *the
 constant* is 2, and every reachable arm agrees on it.
 
-**Outcome:**
+**Outcome:** verified — the mutation re-run in an out-of-tree copy of `9f53fe5`
+reproduces the Response exactly: `ExitCode::from(2) → from(1)`,
+`cargo test -p goad --test binary --no-fail-fast` → **4 failed, 2 passed**, and
+the two that pass are the two zero-exits. The tier runs six cases, all six
+executed under `cargo test --workspace`. Each failure's panic output carries the
+stderr line of the arm its doc names, so the four exit-2 cases reach the four
+arms claimed and not some other. The residue the Response declares — six arms
+needing a compositor, a broken clock or a held socket — is stated accurately and
+is not held against it.
 
 ### F-2 — "set-but-empty is unset" is written twice, argued twice, and held by nothing
 
@@ -374,7 +456,14 @@ binaries and no shared crate, and each must read the `GOAD_REVISION` of its own
 compilation (design.md §5.2(g)) — but each copy is now a function with a test
 rather than an argument in a comment.
 
-**Outcome:**
+**Outcome:** verified — `.filter(|revision| !revision.is_empty())` deleted from
+**both** `version_line`s, `cargo test --workspace --no-fail-fast`: exactly
+`diagnostics::tests::a_build_stamped_with_an_empty_revision_is_an_unstamped_build`
+and `render::tests::…` red, nothing else in the workspace, which is the
+Response's claim to the word. Both call sites now hand `option_env!("GOAD_REVISION")`
+on unjudged (`main.rs`'s `Launch::Version` arm, `goad-emit`'s
+`Invocation::Version` arm). The drift this leaves in the plan and the design is
+F-8 and is not held against the repair.
 
 ### F-3 — the `justfile` names a canonical block that no longer exists, and cites `AGENTS.md` by line number
 
@@ -437,7 +526,12 @@ replaces them, since the sentence no longer makes a claim about drafts.
 `just -n check` is unchanged and still prints POL-001 §Compliance's six
 commands in order.
 
-**Outcome:**
+**Outcome:** verified — `docs/policy/001-the-phase-gate.md` §Compliance exists
+and its fenced block is `just -n check`'s six commands in the same order,
+compared line for line; `docs/slices/002/design.md` §5.6 resolves to *The
+ADR-002 trigger check, and the gate the split leaves*. Both `docs/AGENTS.md`
+line numbers are gone and the header carries no `path:line` citation of any
+kind.
 
 ### F-4 — the slice repaired two stale counts of one class and wrote a third
 
@@ -505,7 +599,13 @@ list that a policy edit changes on purpose; and this ledger's own Synthesis
 counts findings, which is a statement about a finished round and cannot go
 stale.
 
-**Outcome:**
+**Outcome:** verified on both locations the finding named — `StartupError`'s
+doc carries no cardinal and states the rule with its reason; the renderer tier's
+*"`ClockError`'s for both of its"* is now *"for every one of its"*. The rule as
+decided is sound and the two exemptions are correctly reasoned. That the sweep
+stopped at the two named sites, and passed over `Launch`'s doc in the same file,
+is raised as **F-10** rather than contested here: the finding asked for a rule
+where there was none, and it got one.
 
 ### F-5 — `extraConfig`'s type admits shapes home-manager's `Service` block rejects
 
@@ -581,7 +681,10 @@ block, and `enable = false` with no `package` evaluating to `{}` — all of it
 rebuilt from scratch rather than read out of `notes.md`, which is the stronger
 form of the same check.
 
-**Outcome:**
+**Outcome:** verified — the follow-up is in `slice-006.md` §Follow-ups, not
+left in the disposition, and it states the option surface, both candidate types
+and the reason neither is obviously right. The deferral is a judgement the user
+took and is not reopened.
 
 ### F-6 — two prose slips in comments this slice added
 
@@ -624,7 +727,374 @@ bare `006` is now `006/PHASE-03`, the form the rest of the slice uses.
 already uses, cutting the same `Read` from the rest"*. The doubled preposition
 was the whole slip; the sentence's claim is unchanged.
 
+**Outcome:** verified — both named slips are gone: `diagnostics.rs`'s module
+doc reads *"The module carries the arithmetic deny because both halves compute
+over lengths…"* on one wrap and spells the slice `006/PHASE-03`; `main.rs`'s
+step-1 comment reads *"cutting the same `Read` from the rest"*. No new slip in
+the repaired text. One orphan wrap survives four lines above
+(*"…the escape/bound / pipeline every line on / this surface goes through"*) and
+is **not** filed: `git show 4f9fb9d:crates/goad/src/diagnostics.rs` has it
+verbatim, so it is outside F-6's stated scope of *text this slice wrote*.
+
+### F-7 — nothing holds which of the two configuration arms `start` routes to; the two binary cases assert what both satisfy
+
+**Severity:** minor
+**Location:** `crates/goad/src/main.rs`, `start`'s `match Config::load(path)`;
+`crates/goad/tests/binary/exit_codes.rs`,
+`an_unreadable_configuration_exits_2_and_names_the_path` and
+`an_unparseable_configuration_exits_2_and_names_the_path`
+
+**Expected:** PHASE-04/EX-1 and EX-2 are the phase's substance: one arm becomes
+two, split *at the seam where the path is in hand*, rendered
+`"{path} could not be read: {fault}"` and `"{path}: {fault}"` (`design.md`
+§5.2(f)). D2 chose two arms over one precisely to avoid the doubled prefix that
+one spelling produces on the commonest failure. A split is only a split if the
+two halves stay on their own sides, and this repository holds that kind of
+claim with a case that the wrong side reddens.
+
+**Observed:** the routing is held by nothing. Both new binary cases assert exit
+2, the `"goad: "` prefix and `stderr.contains(path)` — three properties
+**both** arms satisfy, since both `Display` impls open with the path. The
+renderer tier's `mod display_text` constructs `StartupError` values directly
+and never calls `start`, so it holds the two texts and not the choice between
+them; `grep` finds no other caller of `Config::load` or of `start` anywhere in
+`crates/goad/tests/`.
+
+Misrouting a read failure into the parse arm therefore leaves the whole gate
+green — measured, not argued — while changing the line a person reads into
+exactly the doubled-prefix spelling D2 rejected.
+
+This is not a defect in F-1's repair: F-1 was about the constant, the constant
+is now held, and `exit_codes.rs`'s own doc comments claim only what they
+assert. It is that the two cases the repair added are the closest thing in the
+tree to a test of PHASE-04's central change, and they are
+`docs/memory/a-green-test-can-assert-a-proxy.md`'s shape — green against the
+regression they sit next to. The cheap repair is one more assertion per case,
+on the phrase only that arm says: `goad-emit`'s
+`render.rs` already does exactly this and says why — *"a case asserting only
+that stays green when two arms … Each of the three file faults is paired with
+a phrase only its own arm says (F-7)"* — so the convention exists one crate
+over and was not transcribed with the helpers.
+
+**Evidence:** measured in a copy of `9f53fe5` exported with `git archive`,
+outside the repository, `CARGO_TARGET_DIR` outside it as well. `start`'s first
+arm, and nothing else, replaced by:
+
+```rust
+Err(ConfigError::Read(fault)) => {
+  return Err(StartupError::ConfigUnparseable {
+    path: path.to_path_buf(),
+    fault: ConfigError::Read(fault),
+  });
+}
+```
+
+```
+cargo test --workspace --no-fail-fast                  → 0 failed
+cargo clippy --workspace --all-targets -- -D warnings  → exit 0
+```
+
+and the binary built from each, run against a missing file:
+
+```
+unmutated  goad: /nonexistent/wat.toml could not be read: No such file or directory (os error 2)
+mutated    goad: /nonexistent/wat.toml: configuration could not be read: No such file or directory (os error 2)
+```
+
+Both exit 2, so the four exit-code assertions are untouched; the mutated line
+is `ConfigError::Read`'s own *configuration could not be read* behind the
+path — the doubled prefix `design.md` §7 D2 names as the reason there are two
+arms at all. The copy was restored textually and verified byte-identical to
+`HEAD` before anything else was run.
+
+**Disposition:** fix-now
+**Response:** Accepted, including the reading that this is not a defect in
+F-1's repair but a gap the repair's two cases were the closest thing in the
+tree to filling.
+
+Each configuration case now asserts **its own arm's rendering, up to the part
+that varies**, and nothing beyond it:
+
+| case | asserts |
+|---|---|
+| `an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says` | `starts_with("goad: /nonexistent/wat.toml could not be read: ")` |
+| `an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says` | `starts_with(&format!("goad: {}: ", path.display()))` |
+
+The two prefixes are the arms' own contributions and cannot both be true of
+one line: `ConfigUnreadable` renders the path, a **space**, then *could not be
+read*; `ConfigUnparseable` renders the path and a **colon**, adding nothing
+else because `ConfigError` already says what was wrong with the contents. Each
+case was renamed to say what it now holds.
+
+Both stop at the colon. The text past it is stratum 2's — `toml`'s own message,
+carrying a line, a column and a caret excerpt — and pinning it here would make
+a stratum-3 process case brittle against a dependency's wording for no gain,
+which is the shape `docs/memory/tests-asserting-proxies.md` warns about from
+the other direction.
+
+**The finding's own mutation now reds, and reds precisely.** `start`'s `Read`
+arm routed into `ConfigUnparseable`,
+`cargo test -p goad --test binary --no-fail-fast`: **1 failed, 5 passed** — the
+unreadable case, and only it. Restored textually; `git diff` on `main.rs` is
+empty and `just check` exits 0.
+
+The convention is `goad-emit`'s and is now cited at the site, so the next
+transcription of that tier takes the assertion with the helpers rather than
+after a review.
+
 **Outcome:**
+
+### F-8 — two round-1 repairs made five plan and design statements false, and nothing records the drift
+
+**Severity:** minor
+**Location:** `docs/slices/006/plan.md` PHASE-03/EX-3 and EX-5, PHASE-04/EX-3;
+`docs/slices/006/design.md` §5.2(f) and §5.2(g); `docs/slices/006/notes.md`
+§Open
+
+**Expected:** `docs/AGENTS.md` §Audit — the audit walks *each verification
+criterion in `plan.md`*, and `design.md` *is a record of intent at a point in
+time. Do not retro-fit it to the code silently; where the implementation
+departed and the design stands as written, say so under* **Design drift not
+reconciled**. The mechanism for carrying that from a repair to the audit is a
+row in `notes.md` §Open: this slice already uses it three times, each opening
+*"Owed at reconcile:"*.
+
+**Observed:** F-2's and F-4's repairs each reversed a decision the plan states
+as an exit criterion, and the phases stay `done` with no row anywhere saying
+so.
+
+F-2 moved the emptiness filter from the call sites into `version_line`. That
+makes false:
+
+- PHASE-03/**EX-3** — *"the caller passes
+  `option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty())`"*.
+  The callers now pass `option_env!("GOAD_REVISION")` bare.
+- PHASE-03/**EX-5** — `goad-emit` takes *"the same `option_env!` filter"* in
+  `main`'s `Invocation::Version` arm. It no longer does.
+- `design.md` §5.2(g) — *"Callers pass
+  `option_env!("GOAD_REVISION").filter(…)`."*
+
+and it reverses a decision `notes.md` PHASE-03 §Decisions records with its
+argument: *"**`option_env!` sits in each `main`, not inside `version_line`.**
+EX-3 says *the caller passes* it, and that is what keeps `version_line` pure
+and both of its branches a unit case rather than a build configuration."*
+F-2 established that the argument's second half was wrong. Nothing says so
+where the argument is written.
+
+F-4 removed `StartupError`'s variant count. That makes false:
+
+- PHASE-04/**EX-3** — *"`StartupError`'s doc comment says **ten** variants"*.
+- `design.md` §5.2(f) — *"The doc comment's 'eight variants' becomes ten."*
+
+and reverses `notes.md` PHASE-04 §Decisions, which states the opposite rule in
+terms: *"the enum's doc says **ten** because the plan requires a count there"*.
+
+Neither repair is wrong — both are improvements, and both were the user's
+decision. What is missing is the record. `notes.md` §Audit's round-1 entry
+describes the repairs and the rule and says nothing about the criteria they
+falsify; §Open carries no row for either; `audit.md` is still the untouched
+template, so its **Design drift not reconciled** slot has nothing to draw on.
+An audit walking `plan.md` from the top finds three exit criteria unmet on
+phases marked `done` and no explanation, which is the reading that costs the
+most to undo.
+
+**Evidence:** `plan.md` PHASE-03/EX-3 and EX-5 and PHASE-04/EX-3, quoted above
+from the current file; `design.md` §5.2(f) *"The doc comment's 'eight
+variants' becomes ten"* and §5.2(g) *"Callers pass
+`option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty())`"*, both
+unchanged by `git diff 91d46fe..HEAD` — the repair commit touches neither file.
+Against the tree: `grep -rn 'version_line\|print_version' crates --include=*.rs`
+shows both call sites passing `option_env!("GOAD_REVISION")` unfiltered, and
+`StartupError`'s doc comment contains no cardinal. `grep -rn 'drift' ` over
+`notes.md`, `audit.md` and `design-log.md` returns three hits, none of them
+this; `notes.md` §Open's three *"Owed at reconcile:"* rows are SPEC-003's
+undercount, SPEC-003's three line-number citations, and the `CLAUDE.md`
+*name, never count* candidate — the pattern this needs two more of.
+
+**Disposition:** fix-now
+**Response:** Accepted without reservation. The repairs were right and the
+record of what they cost was missing, which is the whole finding.
+
+One row added to `notes.md` §Open, in the established *"Owed at reconcile:"*
+form, carrying all five statements as a table — `plan.md` PHASE-03/EX-3 and
+EX-5 and PHASE-04/EX-3, `design.md` §5.2(f) and §5.2(g) — each against what the
+tree says after the repair. It names `audit.md` §**Design drift not
+reconciled** as its destination, and records that both repairs also reverse an
+argument `notes.md` §Decisions states: the decisions stand as the record of
+what was decided then, and the row is what says they were superseded.
+
+One row rather than two, because it is one class with one cause — a
+disposition taken at audit that changes code the plan described — and splitting
+it would make the audit walk it twice.
+
+**Nothing in `plan.md` or `design.md` was edited.** `docs/AGENTS.md` is
+explicit that a design is a record of intent at a point in time and is not
+retro-fitted to the code silently; the reconciliation row is the mechanism that
+exists instead, and reaching for the file would have been the easier and wrong
+repair.
+
+**Outcome:**
+
+### F-9 — the commit that repaired a citation to a file that does not exist wrote one
+
+**Severity:** nit
+**Location:** `docs/slices/006/notes.md`, §Audit, *"`review-code.md` round 1 —
+the repairs"*
+
+**Expected:** F-3 in this ledger is the class, one commit earlier: a citation
+whose target is not there sends the next agent to a path that does not resolve,
+and the `justfile`'s pointer at `docs/slices/002/draft-policy.md` was repaired
+for exactly that reason. `CLAUDE.md` §Working here governs the neighbouring
+form.
+
+**Observed:** the §Audit entry attributes the re-run mutations to
+`docs/memory/mutate-check-the-coverage-claim.md`. There is no such file.
+`docs/memory/` holds 78 entries and none of them is it — the rule being cited
+is real, but it lives in the agent's own session memory and not in this
+repository, which is the failure mode: a private note cited as though it were
+a repository fact a reader can open.
+
+Three siblings predate the commit and miss for the same reason —
+`docs/memory/subagent-session-budget.md` and
+`docs/memory/gui-launch-needs-a-pipe.md` in PHASE-01's sheet (the latter also
+in `plan.md` PHASE-01), and
+`docs/memory/a-deferred-step-needs-a-checklist-box.md` in PHASE-05's. Filed as
+one finding because the class is one class, and filed at all only because F-3
+established that this slice files this class on its own surfaces.
+
+**Evidence:**
+
+```
+for f in $(grep -rho 'docs/memory/[a-z0-9-]*\.md' docs/slices/006/) ; do
+  [ -e "$f" ] || echo "MISSING: $f"
+done | sort -u
+→ MISSING: docs/memory/a-deferred-step-needs-a-checklist-box.md
+  MISSING: docs/memory/gui-launch-needs-a-pipe.md
+  MISSING: docs/memory/mutate-check-the-coverage-claim.md
+  MISSING: docs/memory/subagent-session-budget.md
+```
+
+`git diff 91d46fe..HEAD -- docs/slices/006/notes.md` contains the
+`mutate-check` line as an addition; the other three appear in no hunk of the
+repair commit at all.
+Every other path cited in an added line of the repair commit resolves, and the
+commit adds **no** `path:line` citation anywhere — that half of `CLAUDE.md`
+§Working here held.
+
+**Disposition:** fix-now
+**Response:** Accepted. The finding is exactly right about the mechanism, and
+the instance is mine: `docs/memory/mutate-check-the-coverage-claim.md` is a
+note in an agent's own session memory, cited in a repository artefact as though
+a reader could open it.
+
+All four are repaired by stating the rule in prose and dropping the path — the
+rules are real and worth keeping, the pointers were never followable:
+
+| site | now reads |
+|---|---|
+| `notes.md` §Audit | *"a reviewer's mutation is re-run by the responder or the coverage claim is the reviewer's word — with `--no-fail-fast`, or the count stops at the first failure"* |
+| `notes.md` PHASE-01 sheet | *"A run that overruns finishes badly rather than finishing late."* |
+| `notes.md` PHASE-05 sheet | *"a step named only in a paragraph is a step a person executing skips"* |
+| `plan.md` PHASE-01 | *"a background launch, not an `&` — which exits 144, and a pipe does not fix it"* |
+
+`plan.md` was edited and F-8's rule about not retro-fitting does not cover it:
+a broken pointer is not a statement of intent, and replacing it with the
+sentence it pointed at changes no criterion, no decision and no verification.
+The distinction is worth naming because the two findings land in the same
+commit and pull in opposite directions.
+
+`docs/memory/` in this repository is a different thing from an agent's memory
+directory and the two are easy to conflate from inside a session. The lasting
+answer is the one already applied: if the rule is worth citing, write the rule.
+
+**Outcome:**
+
+### F-10 — *name, never count* was decided, and the counterexample eleven lines above the repair was not swept
+
+**Severity:** nit
+**Location:** `crates/goad/src/startup.rs`, `Launch`'s doc comment
+
+**Expected:** the Protocol's guardrail — *fix the class, not the instance*.
+F-4's repair did more than fix two comments: it decided a rule, wrote it into
+`StartupError`'s doc as the reason the count is gone, named the two counts it
+deliberately exempted, and put the rule to the user as a `CLAUDE.md` candidate.
+A rule stated that widely is swept, and the first place to sweep is the file it
+was written in.
+
+**Observed:** `Launch`'s doc, eleven lines above `StartupError`'s in the same
+file, carries two counts of the same growing list and was not touched:
+
+> *What the arguments asked for. **Three outcomes**, and **the two** that
+> answer and stop are outcomes here rather than an early `exit` hidden inside
+> argument parsing…*
+
+`Launch` is the enum this slice **grew** — it had two variants and gained
+`Version` — and the slice's own edit changed *"Two outcomes"* to *"Three
+outcomes"*. That is the act PHASE-04/EX-3 names and forbids in terms: *"Fix the
+class: check the count after the edit rather than incrementing the stale
+number."* The count is correct today for the same reason `StartupError`'s was
+correct at eight until `Ingress` arrived.
+
+What makes this worth a line is not the number — today it is right. It is
+that the site was passed over by three separate enumerations of this class,
+each of which set out to be exhaustive: PHASE-03 §Findings (*"`StartupError`'s
+doc still says 'The eight variants'"*), PHASE-04 §Decisions (*"The stale count
+was in **three** doc comments, not one … Fixing the class means the number
+stops being the thing maintained by hand"*), and F-4's Response, whose *"Two
+counts were deliberately **not** touched"* paragraph is where a reader looks
+for what was considered and left. PHASE-04's sentence is literally true —
+`Launch`'s number was not *stale*, because PHASE-03 had just hand-maintained
+it — and that is the point: the class it names is a number maintained by hand,
+and the fourth one in the same file had been maintained by hand in the same
+slice, three phases earlier. `docs/memory/verify-the-enumeration-not-the-conclusion.md`
+is the standing warning and this is a clean instance of it: three correct
+conclusions, each resting on an enumeration that missed the same file's other
+enum.
+
+One weaker instance is noted and **not** filed as a count of a growing list,
+because it reads as a statement about a finished sequence rather than a live
+cardinality: `diagnostics.rs`'s module doc, *"006/PHASE-03 adds a third"*. The
+module header's *"the three things `run` needs"* is the same judgement call and
+is left to the responder.
+
+**Evidence:** `git show 4f9fb9d:crates/goad/src/startup.rs` — *"What the
+arguments asked for. **Two** outcomes, and `--help` is one of them"* — against
+the current file's *"**Three** outcomes, and **the two** that answer and stop"*;
+the enum gained `Version` in PHASE-03. `git diff 91d46fe..HEAD --
+crates/goad/src/startup.rs` is a single hunk, `@@ -19,10 +19,18 @@ pub enum
+Launch {` — the enum whose doc this finding is about is what git names as the
+repair's enclosing context.
+The three enumerations are at `notes.md` PHASE-03 §Findings, `notes.md`
+PHASE-04 §Decisions, and this ledger's F-4 Response.
+
+**Disposition:** fix-now
+**Response:** Accepted, and it is the better catch of the two nits: the miss is
+not the count, it is that *"Two counts were deliberately **not** touched"* is
+the sentence a reader trusts to be exhaustive, and it was written eleven lines
+below a third.
+
+`Launch`'s doc now names its members instead of counting them — *"`Help` and
+`Version` answer and stop, and they are outcomes here rather than an early
+`exit` hidden inside argument parsing"* — and states, at the site, that this
+enum's count was hand-incremented from two to three when `Version` arrived,
+which is the act PHASE-04/EX-3 forbids in terms. Naming the increment rather
+than quietly removing the number is deliberate: the next agent who reads the
+rule gets the instance that produced it.
+
+The two judgement calls the finding left to the responder are both **left
+standing**, and the line between them and a swept count is worth stating once:
+*name, never count* is about a cardinality of a list that **grows**.
+`diagnostics.rs`'s *"006/PHASE-03 adds a third"* is a statement about a
+finished sequence of phases, and the module header's *"the three things `run`
+needs"* names a fixed tuple that a new `StartupError` variant or a new `Launch`
+outcome does not change. Neither can be falsified by the edit the rule exists
+to survive.
+
+That reasoning is in `notes.md` §Audit rather than repeated at each site, so
+the rule has one statement and the exemptions have one list.
+
+**Outcome:**
+
 
 ## Synthesis — round 1
 
@@ -782,3 +1252,136 @@ rather than filed.
   measurement.
 - **`just install` and `just demo`** were not run: out of bounds. AC-9 was
   checked from its artefacts instead, above.
+
+## Synthesis — round 2
+
+**Six outcomes, all `verified`. Four new findings: two minor, two nits. No
+blockers, and none raised.**
+
+| | |
+|---|---|
+| F-1 … F-6 | `verified` — every repair the round-1 Responses claim is in the tree, and both mutations they close on reproduce exactly |
+| F-7 | minor — nothing holds which of the two configuration arms `start` routes to; the two binary cases assert what both satisfy |
+| F-8 | minor — two round-1 repairs made five plan and design statements false, and nothing records the drift |
+| F-9 | nit — the commit that repaired a citation to a file that does not exist wrote one |
+| F-10 | nit — *name, never count* was decided, and the counterexample eleven lines above the repair was not swept |
+
+**The repairs hold.** That is the round's main result and it was the thing most
+worth attacking: `review-design.md` F-4 is this slice's own precedent for a
+Response that survives a round while overstating, and nothing of that shape is
+here. Both mutations were re-run rather than read, in an out-of-tree copy, with
+`--no-fail-fast`, and both landed on the Responses' numbers to the case:
+`ExitCode::from(2) → from(1)` reds four of six and passes the two zero-exits;
+deleting the emptiness filter from both `version_line`s reds exactly the two
+new unit cases and nothing else in the workspace. `just check` exits 0 at
+`9f53fe5`.
+
+**What the four new findings have in common is not the code.** F-7 is the only
+one about behaviour, and even there the behaviour is right — what is missing is
+the instrument. F-8, F-9 and F-10 are all the same shape as round 1's two with
+teeth, one turn further on: *the things holding the claims true are thinner
+than the claims.* Round 1 said that about the code's tests. Round 2 says it
+about the repairs' own record — a plan whose exit criteria two repairs
+falsified, a citation to a file that is not there, a rule declared and not
+swept to the enum eleven lines above it. None of them gates anything. All of
+them cost the next agent, which is the standard this repository sets.
+
+**F-7 is the one to weigh properly**, because it sits exactly where a reviewer
+is least likely to look: inside the repair that closed the round's only major.
+F-1 asked for the constant and got it. The two cases that came with it look
+like a test of PHASE-04's central change and are not one — both arms open their
+`Display` with the path, so *exit 2, the prefix, the path* is satisfied by
+either, and misrouting one into the other leaves the workspace green and clippy
+clean. The convention that would close it already exists one crate over, in
+`goad-emit`'s `render.rs`, written against this exact failure and cited to that
+ledger's own F-7.
+
+### What was attacked and found nothing in
+
+**The whole repair diff, not only the six locations.** Fourteen files, and
+nothing outside the findings' declared surfaces: no `flake.nix`, no
+`nix/module.nix`, no `Cargo.toml`, no `flake.lock`. The `justfile` change is
+the header comment F-3 named and nothing else — `just -n check` still prints
+POL-001 §Compliance's six commands in order, compared line for line against the
+policy's fenced block. So round 1's clearances of the wrapper, the source
+filter, the packages merge and the module were not disturbed, because nothing
+the repair touched reaches them.
+
+**The binary tier, whole, and not only the cases the repair added.** Six cases
+execute under `cargo test --workspace` — the `[[test]] name = "binary"` target
+is reached, and all three files are reached through `main.rs`'s three `mod`
+declarations. Round 1's own item 2 for this round is discharged: `--help`, the
+no-argument path with neither `XDG_CONFIG_HOME` nor `HOME`, and stderr's
+`goad: ` prefix on a real process are all now held, the last two against
+`report_startup_line` rather than against a literal. Every case is
+environment-independent in the way it claims: `goad_with_no_config_home`
+`env_remove`s both variables and the mutation run proves the process really
+reaches `NoConfigPath`, since the panic output carries that arm's exact line.
+
+**`scratch_config`, for a parallel implementation.** It is not one.
+`std::env::temp_dir()` qualified by case name and process id is this
+repository's established spelling in seven files — `goad-shell`'s `config.rs`,
+its integration `ingress.rs`, the renderer tier's `startup.rs` and
+`ingress.rs`, `goad-emit`'s `main.rs` and its `exchange.rs`, and the root
+`tests/support/scripting.rs` — all of them saying `tempfile` is not on the
+manifest. The new helper follows it and cleans up before its assertions, so a
+panicking case leaves nothing behind.
+
+**The helper extraction.** `process.rs` is the four helpers plus
+`goad_with_no_config_home`; the only change in the move is a private `command`
+factored out of `goad`, which both spawners now share. `version.rs` lost
+nothing but the definitions. Two copies across the two crates remain, and
+`notes.md` §Open carries that as a known duplication with the reason — updated
+in the repair commit to name the new file, which is the bookkeeping F-8 says
+was not done for the plan.
+
+**`version_line`'s two copies, for whether they now agree.** Identical bodies,
+identical filter, one new case each with the same name and the same assertion.
+Both call sites pass `option_env!` bare; `grep` finds no third caller of either
+function in the workspace.
+
+**Citation rot in the repair.** The repair commit adds **no** `path:line`
+citation anywhere — checked over every added line of the diff, not sampled.
+Every file path in an added line resolves except the one F-9 is about; the
+crate-relative forms (`tests/binary/exit_codes.rs` cited from `startup.rs`)
+resolve against their crate root and are the file's existing convention.
+
+**The invariants.** Nothing in the repair reaches `crates/goad-semantics`, so
+ADR-001's direction rule is not at issue and the four instruments are checking
+the same configuration they were. The vocabulary scan does not read the two new
+files — `excluded_dirs: &["tests", "target"]`, D13 and D17, an explicit design
+decision and not a gap this repair opened. The new test text carries no word
+from `DOMAIN`.
+
+**`StartupError`'s new doc claim, *"Every variant is exit 2"*.** True, and held
+structurally rather than by the cases: `main`'s `match` has one `Err` arm and
+`clippy::wildcard_enum_match_arm` is denied at that crate root. The four
+reachable arms are now asserted; the six that need a compositor, a broken clock
+or a held socket are not, which is what F-1's Response says in terms.
+
+### What I could not check, and why
+
+- **The same three as round 1**, for the same reasons and unchanged by the
+  repair: AC-1's window with text in it, AC-2's envelope into the running
+  host's socket, and a dirty-tree revision build. The first two bind the live
+  service's socket; the third needs a tracked file modified.
+- **`just install` and `just demo`** — out of bounds, as in round 1.
+- **home-manager's own acceptance of `extraConfig`'s type.** Unchanged by the
+  repair and still F-5's subject, now a landed follow-up.
+- **Whether the six unreachable `StartupError` arms exit 2 on a real process.**
+  Stated as the boundary in F-1's Response and taken as accurate; reaching
+  `Platform` needs a compositor, `Ingress` needs a held socket, and the socket
+  this review may not touch is the one that would do it.
+- **`nix build`, re-run.** Not re-run: the repair changes no derivation input
+  that `nix build` reads differently — `flake.nix`, `Cargo.toml` and
+  `flake.lock` are untouched — and round 1's store evidence therefore still
+  describes the same artefact. Stated as inference, not as a measurement.
+
+### What a round 3 should attack, if there is one
+
+`docs/memory/review-rounds-stop-on-a-measured-trend.md` is the relevant rule
+and the trend is measurable: round 1 found one major in the code, round 2 found
+one minor in the code and three in the record. If F-7 is repaired, the thing to
+check is the repair's own mutation — the arm-swap above, run — and after that
+the honest reading is that the ledger has stopped producing code defects and
+should close on mechanical verification rather than on a fourth round.

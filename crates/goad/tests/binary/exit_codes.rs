@@ -73,25 +73,42 @@ fn no_argument_and_no_configuration_home_exits_2() {
 }
 
 /// `StartupError::ConfigUnreadable` — 006/AC-6's arm, at the tier that runs
-/// the binary. The `fault` is the OS's own text and varies, so the path is
-/// what is asserted: the remedy is a thing done *to that file*, and until 006
-/// this line named no file at all (`research.md` S-4).
+/// the binary. The `fault` is the OS's own text and varies, so what is
+/// asserted is the arm's **own** rendering up to it: the path, then a space,
+/// then *could not be read*. The remedy is a thing done to that file, and
+/// until 006 this line named no file at all (`research.md` S-4).
+///
+/// **Each case asserts the prefix only its own arm produces** (F-7, and
+/// `goad-emit`'s `render.rs` says it first). Naming the file is common to
+/// both arms, and so is exiting 2 and saying `goad: `, so a case asserting
+/// only those three survives routing a read failure into the parse arm —
+/// after which a person whose configuration is absent reads
+/// `goad: <path>: configuration could not be read`, the doubled prefix
+/// `design.md` §7 D2 chose two arms to avoid.
 #[test]
-fn an_unreadable_configuration_exits_2_and_names_the_path() {
+fn an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says() {
   let output = goad(&["/nonexistent/wat.toml"]);
 
   assert_eq!(code_of(&output), 2, "{}", stderr_of(&output));
   let stderr = stderr_of(&output);
-  assert!(stderr.starts_with("goad: "), "{stderr}");
-  assert!(stderr.contains("/nonexistent/wat.toml"), "{stderr}");
+  assert!(
+    stderr.starts_with("goad: /nonexistent/wat.toml could not be read: "),
+    "{stderr}"
+  );
 }
 
 /// `StartupError::ConfigUnparseable` — the other half of 006's split, and the
 /// one that proves the split is a split: a file that *was* read and is not a
 /// configuration exits with the same code as one that could not be read, and
 /// names the same path.
+///
+/// Its own rendering is the path and a **colon**, with stratum 2's message
+/// behind it unprefixed — this arm adds nothing but the file name, because
+/// `ConfigError` already says what was wrong with the contents. Asserted to
+/// the colon and no further: the text past it is `toml`'s, carries a line, a
+/// column and a caret excerpt, and is not this tier's to pin.
 #[test]
-fn an_unparseable_configuration_exits_2_and_names_the_path() {
+fn an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says() {
   let path = scratch_config("unparseable", "this is not toml {{{");
 
   let output = goad(&[&path.display().to_string()]);
@@ -99,8 +116,10 @@ fn an_unparseable_configuration_exits_2_and_names_the_path() {
   drop(std::fs::remove_file(&path));
 
   assert_eq!(code_of(&output), 2, "{stderr}");
-  assert!(stderr.starts_with("goad: "), "{stderr}");
-  assert!(stderr.contains(&path.display().to_string()), "{stderr}");
+  assert!(
+    stderr.starts_with(&format!("goad: {}: ", path.display())),
+    "{stderr}"
+  );
 }
 
 /// A file of this case's own, named for the case and the process, so a

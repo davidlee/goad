@@ -90,7 +90,7 @@ STOP and consult rather than improvise:
   where glyphs should be, is the defect the slice exists to remove. Report it;
   do not relax the criterion.
 - Session budget past ~200k tokens: PARTIAL checkpoint here and hand to a fresh
-  agent (`docs/memory/subagent-session-budget.md`).
+  agent. A run that overruns finishes badly rather than finishing late.
 
 **Tasks**
 <!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
@@ -989,8 +989,8 @@ person should know before switching:
       artefact.
 
 **Tasks — person-only**
-<!-- These are not agent-reachable. Prose defers; a checklist box catches.
-     `docs/memory/a-deferred-step-needs-a-checklist-box.md`. -->
+<!-- These are not agent-reachable. Prose defers; a checklist box catches:
+     a step named only in a paragraph is a step a person executing skips. -->
 
 - [ ] P-1 — EX-1: apply the drafted input and consumer to `~/flakes`.
 - [ ] P-2 — EX-2: switch, and the user service runs from the module's unit.
@@ -1683,8 +1683,10 @@ confirmed with the user, 2026-09-22, who took all six recommendations.
 | F-6 | fix-now | two prose slips |
 
 **Two mutations were run, not argued.** Both are the reviewer's own, re-run
-here rather than taken from the report (`docs/memory/mutate-check-the-coverage-claim.md`),
-with `--no-fail-fast` so the count is the real one:
+here rather than taken from the report — a reviewer's mutation is re-run by
+the responder or the coverage claim is the reviewer's word — with
+`--no-fail-fast`, or the count stops at the first failure and the coverage
+reads thinner than it is:
 
 ```
 ExitCode::from(2) → from(1)
@@ -1724,6 +1726,59 @@ held by the compiler rather than only by a test, the new `[[test]]` target
 actually executing, `just -n check` matching POL-001 in order, and no
 `path:line` citation added anywhere in the diff. None of that is repair work
 and none of it is restated here; it is in the ledger's Synthesis.
+
+
+### `review-code.md` round 2 — outcomes, and four more
+
+Round 1's six findings all came back **verified**: the raiser re-ran both
+mutations in an out-of-tree copy of `9f53fe5` and got the same numbers, rather
+than reading the Responses. F-4 was verified on the two locations it named and
+its unswept counterexample raised as F-10 instead of contesting the finding —
+the repair was right, the sweep was not finished.
+
+Four new, no blockers. Dispositions confirmed with the user, 2026-09-22.
+
+| id | disposition | what landed |
+|---|---|---|
+| F-7 | fix-now | each binary configuration case asserts the prefix only its own arm produces |
+| F-8 | fix-now | two `Owed at reconcile:` rows above, for the criteria F-2 and F-4 falsified |
+| F-9 | fix-now | four `docs/memory/` citations that resolve to nothing, replaced by the rule in prose |
+| F-10 | fix-now | `Launch`'s doc swept — *name, never count* applied where it was declared |
+
+**F-7 is the round's substance.** Both configuration cases asserted exit 2, the
+`goad: ` prefix and the path — three properties **both** arms satisfy, since
+both renderings open with the path. Routing a read failure into the parse arm
+therefore left the gate green while turning the line a person reads into
+`goad: <path>: configuration could not be read`, the doubled prefix
+`design.md` §7 D2 chose two arms to avoid. Each case now asserts its own arm's
+rendering up to the varying part — `"goad: <path> could not be read: "` against
+`"goad: <path>: "` — and nothing beyond it, since the text past the colon is
+`toml`'s own and carries a line, a column and a caret excerpt.
+
+Measured after the repair, the mutation the finding used:
+
+```
+start's Read arm routed into ConfigUnparseable
+  cargo test -p goad --test binary --no-fail-fast
+  → 1 failed, 5 passed  (the unreadable case, and only it)
+     before the repair: 0 failed, and the whole gate green
+```
+
+Restored textually; `git diff` on `main.rs` is empty.
+
+**F-9 is this ledger's F-3 class, written by the commit that repaired F-3.**
+`docs/memory/` is a real directory with 78 entries and none of the four cited
+names is among them — the rules are real but live in an agent's session
+memory, not in this repository, which makes them a pointer a reader cannot
+follow. All four now state the rule in prose instead. `plan.md`'s was edited
+too: a broken pointer is not a statement of intent, and replacing it changes no
+criterion.
+
+**F-10.** `Launch`'s doc, eleven lines above the count F-4 removed, carried two
+counts of the enum **this slice grew** — and the slice's own edit incremented
+*"Two outcomes"* to *"Three"*, the act PHASE-04/EX-3 names and forbids. Three
+separate enumerations of this class passed over it, F-4's Response included.
+The doc now names `Help` and `Version` and says why the count is gone.
 
 
 ## Harvest
@@ -1862,6 +1917,26 @@ and none of it is restated here; it is in the ledger's Synthesis.
   survives an edit above it and a number does not — and this slice is the third
   time a count in this repository went stale. Canon is amended only with
   explicit user endorsement, at audit; this is the row to put to them.
+- **Owed at reconcile: three exit criteria and two design statements were
+  falsified by `review-code.md` F-2's repair and F-4's, and the phases they
+  belong to stay `done`.** Neither repair is wrong — both were the user's
+  decision at audit — but `design.md` is a record of intent and must not be
+  retro-fitted, so the departure is recorded here and belongs under
+  `audit.md` §**Design drift not reconciled**:
+
+  | statement | says | the tree, after the repair |
+  |---|---|---|
+  | `plan.md` PHASE-03/EX-3 | the **caller** passes `option_env!(…).filter(…)` | callers pass `option_env!("GOAD_REVISION")` bare |
+  | `plan.md` PHASE-03/EX-5 | `goad-emit` takes the same `option_env!` filter | same — the filter is inside `render::version_line` |
+  | `design.md` §5.2(g) | *"Callers pass `option_env!(…).filter(…)`"* | same |
+  | `plan.md` PHASE-04/EX-3 | `StartupError`'s doc comment says **ten** variants | it states no count, by rule |
+  | `design.md` §5.2(f) | *"The doc comment's 'eight variants' becomes ten"* | same |
+
+  Both repairs also reverse an argument `notes.md` records as a decision —
+  PHASE-03's *"`option_env!` sits in each `main`, not inside `version_line`"*,
+  whose second half F-2 measured false, and PHASE-04's *"the enum's doc says
+  **ten** because the plan requires a count there"*. The decisions stand as the
+  record of what was decided then; this row is what says they were superseded.
 - **Owed at reconcile: SPEC-003's R-4 verification row undercounts the
   siblings.** It describes
   `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` as
