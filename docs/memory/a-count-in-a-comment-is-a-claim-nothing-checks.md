@@ -69,6 +69,26 @@ nothing left to go stale, and no third round.
 
 Correcting a count is repairing the instance. Removing it is repairing the class.
 
+## Slice 006 put it in canon
+
+It happened twice more in one slice — `StartupError`'s doc said *eight* with
+nine in the enum, and the repair for that missed a second count eleven lines
+above it in the same file, in the enum the slice had itself grown from two
+variants to three by **hand-incrementing the number**. Three separate
+enumerations of the class, each setting out to be exhaustive, passed over it.
+
+So the rule is now in `CLAUDE.md` §Working here rather than only here, stated as
+one rule with two halves and one reason: **name, never count — and cite by
+symbol, never by line number.** A named thing survives an edit above it; a
+number does not. It binds canon explicitly, because that is where it rots worst:
+nothing re-reads a spec on the commit that moves the line it cites or adds the
+variant it counts. Slice 006's audit found three wrong line citations in
+SPEC-003, **two of which had been wrong before that slice opened**.
+
+The exemption, stated once so it does not have to be re-argued: a count of
+something that **cannot grow** — a closed list a test holds, or a statement
+about a finished sequence.
+
 Related: `cite-by-symbol-not-line-number.md`,
 `cite-requirements-not-finding-ids.md` and
 `a-repair-sweep-misses-the-binding-site.md` — all about a comment saying

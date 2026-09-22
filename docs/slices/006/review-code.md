@@ -9,8 +9,8 @@
 `crates/goad/tests/renderer/startup.rs`, `flake.lock`, `flake.nix`, `justfile`,
 `nix/module.nix`. HEAD is `177f383`.
 **Reviewer:** fresh agent, Claude Opus 5
-**Opened:** 2026-09-21
-**State:** open
+**Opened:** 2026-09-21 · **resolved:** 2026-09-22, round 3
+**State:** resolved — ten findings, all `verified`, no blocker raised
 
 Per `docs/AGENTS.md` §Tiers this ledger is **full strength with rounds
 unbounded at both tiers** — the tier 1 two-round bound applies to
@@ -842,7 +842,21 @@ The convention is `goad-emit`'s and is now cited at the site, so the next
 transcription of that tier takes the assertion with the helpers rather than
 after a review.
 
-**Outcome:**
+**Outcome:** verified — the mutation was **re-run here**, not read from the
+Response, and reproduces it to the case: `start`'s `Read` arm routed into
+`ConfigUnparseable`, `cargo test -p goad --test binary --no-fail-fast` →
+**1 failed, 5 passed**, the failure being
+`an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says` and
+only it. The failing case's output is the line the finding exists to prevent —
+`goad: /nonexistent/wat.toml: configuration could not be read: No such file or
+directory (os error 2)`, `design.md` §7 D2's doubled prefix. Restored textually;
+`git diff` on `main.rs` is empty and `just check` exits 0 on the restored tree.
+
+Each case asserts a prefix the other arm cannot produce — the path then a
+**space** against the path then a **colon** — so neither survives the swap. The
+Response's declared boundary is accurate and is not held against it: neither
+case pins text past the colon, because that text is `toml`'s and carries a line,
+a column and a caret excerpt.
 
 ### F-8 — two round-1 repairs made five plan and design statements false, and nothing records the drift
 
@@ -933,7 +947,17 @@ retro-fitted to the code silently; the reconciliation row is the mechanism that
 exists instead, and reaching for the file would have been the easier and wrong
 repair.
 
-**Outcome:**
+**Outcome:** verified — the row is in `notes.md` §Open in the established
+*"Owed at reconcile:"* form, carrying all five statements as a table against
+what the tree says after each repair, naming `audit.md` §**Design drift not
+reconciled** as its destination, and recording that the two `notes.md`
+§Decisions entries the repairs reverse stand as the record of what was decided
+then. `git diff 4f9fb9d..HEAD -- docs/slices/006/plan.md docs/slices/006/design.md`
+confirms the claim that neither file was retro-fitted: `design.md` is untouched
+by the repair commits and `plan.md`'s only change is F-9's own pointer repair.
+
+The row's destination is discharged — `audit.md` §Design drift not reconciled
+carries all five.
 
 ### F-9 — the commit that repaired a citation to a file that does not exist wrote one
 
@@ -1007,7 +1031,21 @@ commit and pull in opposite directions.
 directory and the two are easy to conflate from inside a session. The lasting
 answer is the one already applied: if the rule is worth citing, write the rule.
 
-**Outcome:**
+**Outcome:** verified, and the scan was **widened** rather than repeated. All
+four cited names now appear only inside this ledger, in F-3's and F-9's own
+text, where they are the finding's subject and not a pointer offered to a
+reader. Every `docs/…md` path cited anywhere else in `docs/slices/006/` — not
+only under `docs/memory/` — resolves:
+
+```
+for f in $(grep -rhoE 'docs/[a-z0-9/.-]+\.md' docs/slices/006/ --exclude=review-code.md | sort -u)
+do [ -e "$f" ] || echo "MISSING: $f" ; done
+→ (nothing)
+```
+
+`docs/slices/002/draft-policy.md` is the one other unresolvable path in the
+folder and is F-3's quoted subject, in this ledger, for the same reason. The
+`justfile`'s two citations both resolve.
 
 ### F-10 — *name, never count* was decided, and the counterexample eleven lines above the repair was not swept
 
@@ -1093,7 +1131,27 @@ to survive.
 That reasoning is in `notes.md` §Audit rather than repeated at each site, so
 the rule has one statement and the exemptions have one list.
 
-**Outcome:**
+**Outcome:** verified, **and the class was swept rather than the site
+re-read.** `Launch`'s doc names `Help` and `Version`, carries *"Named, never
+counted"*, and states at the site that this enum's count was hand-incremented
+from two to three — which is the instance that produced the rule, kept where
+the next agent meets it.
+
+The sweep: every doc line **this slice added** (`git diff 4f9fb9d..HEAD --
+'*.rs'`, added lines, grepped for cardinals) was read. Fifteen hits, none of
+them a count of a list that grows — *two binaries*, *two crates*, *two tiers*,
+*two configuration arms*, *two arguments*, and `startup.rs`'s two deliberate
+narrations of the rule itself. Nothing this slice wrote is left uncounted.
+
+**The class does exist outside the slice, and is filed as a follow-up rather
+than as an incomplete sweep.** `goad-emit`'s `StartupFault` doc says *"Four of
+the five are `AC-4`'s configuration road"* over a five-variant enum, and
+`render.rs` says *"which of the **six** it was"* and *"The six divide by which
+side was wrong"* over `SendFault`'s six. Both counts are correct today and both
+are exactly what *name, never count* is about. Neither line is in this slice's
+diff — the slice's only edit to those two files is the `Version` arm and
+`version_line` — so sweeping them is work this slice did not open, and doing it
+under an audit would be the scope creep the surface delta exists to catch.
 
 
 ## Synthesis — round 1
@@ -1385,3 +1443,47 @@ one minor in the code and three in the record. If F-7 is repaired, the thing to
 check is the repair's own mutation — the arm-swap above, run — and after that
 the honest reading is that the ledger has stopped producing code defects and
 should close on mechanical verification rather than on a fourth round.
+
+## Synthesis — round 3
+
+**Four outcomes, all `verified`. No new findings, and none sought.** The ledger
+is **done** by the Protocol's definition: ten findings, every one `verified`,
+no `blocker` raised in any round.
+
+**A verification pass was chosen over a fresh adversarial sweep, deliberately.**
+Round 2's own §*What a round 3 should attack* names the condition — *if F-7 is
+repaired, the thing to check is the repair's own mutation, and after that the
+honest reading is that the ledger has stopped producing code defects*. The trend
+behind that is measurable and this round did not change it: round 1, one major
+in the code; round 2, one minor in the code and three in the record; round 3,
+nothing. Two rounds of adversarial attack over the same fourteen files, each
+finding a thinner class than the last, is the shape
+`docs/memory/review-rounds-stop-on-a-measured-trend.md` says to close on rather
+than to answer with a fourth round. A fresh sweep was available and is not
+claimed to have been done — what was done is stated per finding, and the
+residue below is stated with it.
+
+**The repairs hold, and two of the four were checked by widening rather than by
+re-reading.** F-7's mutation was re-run in the working tree (mutate, measure,
+restore in one `finally`, `git diff` empty afterwards) and reproduced the
+Response's numbers to the case, with the failing case's output carrying exactly
+the doubled-prefix line D2 exists to prevent. F-9's scan was widened from
+`docs/memory/` to every `docs/…md` path cited anywhere in the slice folder and
+returns clean outside this ledger. F-10's sweep was extended from the named site
+to every doc line the slice added, and found nothing further **in the slice** —
+while finding the same class twice in `goad-emit`, outside the diff, which is
+filed as a follow-up rather than as an incomplete repair.
+
+**What this round did not do, and what carries the risk instead.** It did not
+re-attack the wrapper, the source filter, the module, the packages merge or the
+gate — round 1 cleared them, round 2 established that the repairs reach none of
+them, and this round's four repairs reach none of them either: `git diff
+9f53fe5..eaba835` touches `crates/goad/src/main.rs`, `crates/goad/tests/binary/`,
+`crates/goad/src/startup.rs`, `plan.md` and `notes.md`, and no `.nix` file, no
+`Cargo.toml` and no `flake.lock`. The three things no round could check are
+unchanged and unchanged in their reasons: AC-1's window with text in it, AC-2's
+envelope into the running host's socket, and a dirty-tree revision build. All
+three are a person's evidence, they are PHASE-05's, and `audit.md` §Evidence is
+where they are weighed — not here.
+
+**State:** resolved.

@@ -95,8 +95,19 @@ missing, stop and ask rather than installing it.
 - No code without an accepted plan.
 - Red / green / **refactor**.
 - Stop and consult on anything the design did not settle.
-- **Cite by symbol, never by line number.** `file.rs:120` in a doc comment is
-  wrong the next time anything above it moves. This class has now rotted three
-  times in one slice, twice in the very commit that repaired it. Name the
-  function, the constant or the test. Vendored citations keep their line
-  numbers — they are pinned to an exact version and cannot move.
+- **Name, never count — and cite by symbol, never by line number.** One rule
+  with two halves and one reason: a named thing survives an edit above it, a
+  number does not.
+
+  *By symbol.* `file.rs:120` in a doc comment is wrong the next time anything
+  above it moves. This class has now rotted three times in one slice, twice in
+  the very commit that repaired it. Name the function, the constant or the
+  test. Vendored citations keep their line numbers — they are pinned to an
+  exact version and cannot move.
+
+  *Never count.* A doc that says *"the eight variants"* is false at the ninth,
+  and nothing in the gate reads it. Name the members, or name the rule they
+  share. This binds **canon too**, which is where it rots worst: nothing
+  re-reads a spec on the commit that moves the line it cites or adds the
+  variant it counts. The exemption is a count of something that cannot grow —
+  a closed list a test holds, or a statement about a finished sequence.

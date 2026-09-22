@@ -1509,12 +1509,14 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   either way. The diagnostics pane draws unconditionally, so a window
   containing glyphs is exactly the criterion and the backend having nothing to
   report is orthogonal to it. Fontconfig is reaching the renderer.
-- **The tray icon is now created, and previously was not.** Every prior start
-  in the journal carries `Slint: Failed to create system tray icon: 0` — the
-  cargo binary under the hand-written unit, on 2026-09-20 16:44 and
-  2026-09-21 09:04. The packaged binary's start at 13:35 logs no such line and
-  the icon is drawn. Unasked-for by any criterion and worth recording: the
-  wrapper repaired a GUI-stack defect nobody had attributed to packaging.
+- **The tray icon was created on this start, and was not on the two before
+  it.** Every prior start in the journal carries `Slint: Failed to create
+  system tray icon: 0` — the cargo binary under the hand-written unit, on
+  2026-09-20 16:44 and 2026-09-21 09:04. The packaged binary's start at 13:35
+  logs no such line and the icon is drawn. **The inference drawn here — that
+  the wrapper repaired a GUI-stack defect — is false, and was falsified by the
+  same journal at audit: see §Findings.** The observation stands; three starts
+  was not a sample.
 - **VH-3 (AC-2's second half) — an envelope into the running host.** The
   nix-built `goad-emit` at
   `/nix/store/1k83k1kas8bl8nc8fxayv5kdp0x18z3h-goad-emit-0.1.0/bin/goad-emit
@@ -1650,16 +1652,29 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   `reclaim`'s documented sequence handled a socket left by a host killed out
   from under its unit. Nothing was arranged to test this; the misordered
   teardown produced the condition and the host rebound cleanly at 13:35.
-- **The system tray icon creates now and did not before, and the environment
-  is not the reason.** Journal lines before the cutover carry `Slint: Failed to
-  create system tray icon: 0` on every start of the cargo binary under the
-  hand-written unit; the packaged binary logs none and draws the icon. The
-  first explanation reached for — that the wrapper carries a library
-  `~/.config/goad/env` lacked — is **wrong, and was checked**: after P-7 the
-  wrapper script and the env file name the same five store paths (gcc-lib,
-  fontconfig-lib, libglvnd, libxkbcommon, wayland) and the same `fonts.conf`.
-  Byte-identical. Whatever the difference is, it is not `guiLibs` and not
-  `FONTCONFIG_FILE`. See §Open.
+- **The system tray icon fails intermittently, on both install paths, and
+  nothing this slice did changed that.** Corrected at audit against the
+  journal, which by then held eight post-cutover starts instead of one:
+  **five carry `Slint: Failed to create system tray icon: 0` and three do
+  not** (14:23:31, 14:33:02, 00:56:26, 11:25:53 and 20:20:30 against 13:35:30,
+  11:23:27 and 16:03:45). The packaged binary is not exempt; 13:35 was a
+  start that happened to succeed.
+
+  That retires both explanations this slice reached for. **The environment is
+  not the reason** — checked and still true: after P-7 the wrapper script and
+  `~/.config/goad/env` name the same five store paths (gcc-lib,
+  fontconfig-lib, libglvnd, libxkbcommon, wayland) and the same `fonts.conf`,
+  byte-identical. **Nor is the binary's age**, which was the other candidate:
+  the failing starts are the packaged binary's own. Nor is it
+  `After=graphical-session.target` being insufficient, in the form that
+  question was asked — the failures are not clustered at session start, and
+  two of them are hours in.
+
+  So there is no defect here attributable to this slice, and the §Open entry
+  that carried the question is closed as settled rather than carried: what is
+  left is an intermittent GUI-stack fault in Slint's tray creation, on a tray
+  that works often enough that nobody has been blocked by it, with no evidence
+  pointing at anything goad owns.
 
 ## Audit
 
@@ -1865,7 +1880,25 @@ defect this slice shipped.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-22 · audit, `review-code.md` round 1 repaired
+**Fresh as of:** 2026-09-22 · **slice closed.** Review resolved at round 3;
+`audit.md` written; canon amended with endorsement.
+
+**Lifted to `docs/memory/` at close** — seven new entries, and one amended:
+`autotests-false-hides-an-undeclared-test-target.md`,
+`wildcard-enum-match-arm-counts-a-named-binding.md`,
+`crane-cargoextraargs-replaces-locked.md`,
+`render-a-home-manager-module-without-home-manager.md`,
+`nix-build-in-a-checkout-reads-the-git-tree.md`,
+`the-journal-is-the-audit-instrument-for-a-shipped-unit.md`,
+`exit-2-means-two-different-failures.md`; and
+`a-count-in-a-comment-is-a-claim-nothing-checks.md`, which now records that
+006 promoted the rule into `CLAUDE.md`.
+
+What stayed here rather than being lifted is slice-local rationale — why a path
+in a stratum 3 error costs one clone, why `just demo` blocks a second host —
+and the two Harvest entries whose facts are already in
+`path-flake-ref-breaks-on-demo-socket.md` and
+`fontconfig-needs-makefontsconf-not-just-buildinputs.md`.
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -2051,19 +2084,39 @@ defect this slice shipped.
   and then `nix flake update goad` in `~/flakes` to carry it across. Doing it
   as its own commit is the point — an input advance that arrives inside another
   change is indistinguishable from that change.
-- **`Slint: Failed to create system tray icon: 0` stopped happening, and the
-  cause is not established.** It appears on every pre-cutover start of the
-  cargo binary and on none of the packaged binary's. The environment is ruled
-  out — the wrapper and `~/.config/goad/env` carry identical library paths and
-  the identical `fonts.conf` (§Findings). Two candidates remain, and this slice
-  distinguished neither: every failing observation was of the 2026-09-16 cargo
-  binary, which the code has moved past, so it may simply have been older —
-  `~/.cargo/bin/` was reinstalled at 13:43 and has not been started since; or
-  it is a start-order race, since
-  both failing starts are at or near session start and the packaged binary's
-  observed start was 13:35, hours into a session with the status-notifier host
-  certainly up. The second would mean `After=graphical-session.target` is not
-  sufficient for the tray, which is a module question and would be a real
-  defect in what this slice shipped. Cheap to settle: start the freshly
-  installed cargo binary against a throwaway config and read its journal, then
-  restart the unit at login. Worth doing before the tray is trusted.
+- **SETTLED at audit — the tray icon's intermittent failure is not this
+  slice's.** This entry asked whether `Slint: Failed to create system tray
+  icon: 0` had stopped happening because the packaged binary fixed it or
+  because `After=graphical-session.target` is insufficient, the second of
+  which would have been a defect in what this slice shipped. Neither. Read
+  against a journal that by audit held **eight** post-cutover starts rather
+  than the one PHASE-05 saw, the line is on five of them and absent from
+  three, on the packaged binary throughout — so it is intermittent and
+  independent of the install path, and it is not clustered at session start.
+  The environment was already ruled out and stays ruled out. §Findings above
+  carries the corrected record; nothing is carried forward from here.
+- **RAISED at audit — `RestartPreventExitStatus=2` suppresses the one restart
+  that would succeed, and this is the follow-up.** `nix/module.nix` argues the
+  directive from three `StartupError` variants — a bad configuration, an
+  unreadable clock, a held ingress socket — and concludes *none of those
+  succeeds on a retry* about all ten. `Platform` is the counterexample and it
+  is the only exit-2 that has ever actually occurred here: `start` ends
+  `run_event_loop_until_quit().map_err(StartupError::Platform)`, so a
+  compositor going away under a host that has run for hours exits 2 exactly as
+  a host that never started does, and systemd is told not to bring it back.
+  Measured in the journal at audit: four such exits on 2026-09-21 and
+  2026-09-22, two of them followed by no restart at all — gaps of 2h12m and
+  1h59m with the host simply absent. The three restarts that did follow came
+  13–20s later, which is not `RestartSec=2`; they are the session re-triggering
+  `WantedBy`, not systemd retrying.
+
+  Dispositioned by the user at audit, 2026-09-22, as a **follow-up slice**
+  rather than an in-slice repair: separating *never started* from *stopped
+  running* is an exit-code taxonomy change reaching the startup surface and
+  `SPEC-003`'s failure vocabulary, not an edit to a unit file. What landed
+  in-slice is the honest comment — `nix/module.nix` now names `Platform` as the
+  known exception and says the directive is knowingly wrong in that one case.
+  The follow-up is in `slice-006.md` §Follow-ups.
+
+  It is a clean instance of *verify the enumeration, not the conclusion*: three
+  variants named, ten in the enum, and the one omitted is the one that fires.

@@ -67,6 +67,19 @@ diagnostic pane that had never been on screen until someone put it there. 007
 added **R-57** and **R-58** to SPEC-001 — what a submitted value's JSON type is,
 and which fields a `respond` carries.
 
+**2026-09-22.** Slice 006 is closed. Everything between *built* and *running
+daily*: a crane build produces a wrapped binary that is self-contained anywhere,
+a home-manager module in this repository builds the systemd user unit from a
+store path, both binaries answer `--version` — with the git revision when the
+build stamped one, which is what tells a nix install from a `cargo install` —
+and every `StartupError` holding a path now names it. The hand-written unit
+outside the repository is retired. It amended no canon by design; it amended
+three documents at audit, all rot rather than decision — SPEC-003's stale
+sibling count and its three wrong line-number citations, and `CLAUDE.md`, whose
+*cite by symbol* rule gained its other half, *name, never count*. The audit's
+own finding is a follow-up: `RestartPreventExitStatus=2` suppresses the one
+`StartupError` that succeeds on a retry.
+
 **009 is open and is the last of the standing hazard slice 002 recorded**: the
 renderer draws one of R-16's five field kinds, and this slice draws the other
 four. No protocol change. Scoping produced a spike rather than a design
@@ -92,7 +105,7 @@ graph LR
   S4["004 ✔<br/>event ingress"]
   S5["005 ✔<br/>goad emit"]
   USE(["daily use<br/><i>not a slice</i>"])
-  S6["006<br/>packaging +<br/>the startup surface"]
+  S6["006 ✔<br/>packaging +<br/>the startup surface"]
   S7["007<br/>the renderer<br/>grows a form"]
   S8["008<br/>the renderer<br/>gets a look"]
   S9["009<br/>the rest of<br/>the field kinds"]
@@ -118,7 +131,7 @@ graph LR
 | 004 event ingress ✔ | 2 | 003 built the scheduled evaluation path; an event is a second stimulus into it. Opened tier 1, raised at scoping |
 | 005 `goad emit` ✔ | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
 | *daily use* | — | not a slice, and not waiting on one. It is where the next two get their scope |
-| 006 packaging + the startup surface | 1 | small and bounded, and it removes a class of silent failure from the thing now running every day |
+| 006 packaging + the startup surface ✔ | 1 | small and bounded, and it removes a class of silent failure from the thing now running every day |
 | 007 the renderer grows a form | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
 | 008 the renderer gets a look ✔ | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
 | 009 the rest of the field kinds | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
@@ -271,7 +284,7 @@ configuration, `--socket` overriding.
 - Follow-ups standing: `--timeout`, `--config PATH`, and the stratum-3
   allowlist row.
 
-### 006 — packaging and the startup surface
+### 006 — packaging and the startup surface ✔
 
 Brief §20 phases 7–8 in part, §15, §17. **Tier 1.**
 
