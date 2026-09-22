@@ -67,6 +67,30 @@ diagnostic pane that had never been on screen until someone put it there. 007
 added **R-57** and **R-58** to SPEC-001 — what a submitted value's JSON type is,
 and which fields a `respond` carries.
 
+**2026-09-20.** Slice 009 is closed, and with it the standing hazard slice 002
+recorded. The renderer draws all five of R-16's field kinds, so a backend can
+ask for a note, a quantity, a selection and an instant and gets back what R-57
+says it will — verified per kind against the child process's own request log
+rather than by review. No protocol was added. Scoping produced a spike rather
+than a design document, because the load-bearing question — whether a form can
+survive a present — was measurable rather than arguable, and the spike
+overturned the framing it was built to confirm. **The larger change is
+underneath**: a present used to rebuild the whole form, costing a checkbox its
+focus ring and a text field every keystroke after the first, and now writes
+through two channels behind a guard, so a present that changes nothing changes
+nothing. **The defect that mattered was invisible to the whole suite.** `busy`
+meant *the host is talking to the backend*, and a disabled Slint item discards
+input rather than queueing it, so every character typed during a routine poll
+was lost — nothing in 565 cases delivered a real key event to a text field, and
+it took a person running the software to find what four review rounds had not.
+SPEC-001 §6.2 gained what an untouched field submits per kind, and its
+§Verification rows for R-55, R-57 and R-58 were corrected against cases that no
+longer existed; OQ-4 stays shut with its reason changed — see §Open decisions.
+`CLAUDE.md` gained *cite by symbol* after the class was measured rather than
+argued: 53 in-repo line citations, 27 pointing at the wrong thing. Nine
+follow-ups, the first of them one full present per **refused** ingress arrival,
+whose question underneath is canon's.
+
 **2026-09-22.** Slice 006 is closed. Everything between *built* and *running
 daily*: a crane build produces a wrapped binary that is self-contained anywhere,
 a home-manager module in this repository builds the systemd user unit from a
@@ -79,12 +103,6 @@ sibling count and its three wrong line-number citations, and `CLAUDE.md`, whose
 *cite by symbol* rule gained its other half, *name, never count*. The audit's
 own finding is a follow-up: `RestartPreventExitStatus=2` suppresses the one
 `StartupError` that succeeds on a retry.
-
-**009 is open and is the last of the standing hazard slice 002 recorded**: the
-renderer draws one of R-16's five field kinds, and this slice draws the other
-four. No protocol change. Scoping produced a spike rather than a design
-document, because the load-bearing question — whether a form can survive a
-present — turned out to be measurable rather than arguable.
 
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
@@ -106,9 +124,9 @@ graph LR
   S5["005 ✔<br/>goad emit"]
   USE(["daily use<br/><i>not a slice</i>"])
   S6["006 ✔<br/>packaging +<br/>the startup surface"]
-  S7["007<br/>the renderer<br/>grows a form"]
-  S8["008<br/>the renderer<br/>gets a look"]
-  S9["009<br/>the rest of<br/>the field kinds"]
+  S7["007 ✔<br/>the renderer<br/>grows a form"]
+  S8["008 ✔<br/>the renderer<br/>gets a look"]
+  S9["009 ✔<br/>the rest of<br/>the field kinds"]
   S10["010<br/>socket transport"]
   S11["011<br/>starter experience"]
 
@@ -121,7 +139,7 @@ graph LR
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
   classDef use fill:#1f3d5c,stroke:#3a6ea5,color:#fff
-  class S1,S2,S3,S4,S5,S7,S8 done
+  class S1,S2,S3,S4,S5,S6,S7,S8,S9 done
   class T2 trigger
   class USE use
 ```
@@ -132,9 +150,9 @@ graph LR
 | 005 `goad emit` ✔ | 1 | needs 004's listener to emit into — a CLI with no socket cannot be tested end to end |
 | *daily use* | — | not a slice, and not waiting on one. It is where the next two get their scope |
 | 006 packaging + the startup surface ✔ | 1 | small and bounded, and it removes a class of silent failure from the thing now running every day |
-| 007 the renderer grows a form | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
+| 007 the renderer grows a form ✔ | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
 | 008 the renderer gets a look ✔ | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
-| 009 the rest of the field kinds | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
+| 009 the rest of the field kinds ✔ | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
 | 010 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
 | 011 starter experience | 1 | documenting for others documents what exists |
 
@@ -323,7 +341,7 @@ working tree last compiled.
   wrapped binary once the wrapped binary exists, so the two land together or not
   at all.
 
-### 007 — the renderer grows a form — **done**
+### 007 — the renderer grows a form ✔
 
 Closed 2026-09-15. SPEC-001 gained **R-57** (a submitted value's JSON type is
 fixed by the field's `kind`) and **R-58** (a `respond` carries values for
@@ -419,9 +437,13 @@ than the widget library's.
   turns out to need a protocol affordance, that is the signal it belongs in a
   different slice.
 
-### 009 — the form grows the rest of its field kinds
+### 009 — the form grows the rest of its field kinds ✔
 
-Brief §10.2, §11.1. **Tier 2** — on size, not on canon.
+Brief §10.2, §11.1. **Tier 2** — on size, not on canon. **Closed
+2026-09-20.** `docs/slices/009/` carries the record, `slice-009.md` §Summary
+the closing argument and §Follow-ups the nine that outlived it. The entries
+below are the scoping argument as it stood, kept where later slices still
+rest on them.
 
 The renderer draws one of `SPEC-001/R-16`'s five field kinds. This slice draws
 the other four — `text`, `number`, `choice`, `datetime` — so a backend can ask
@@ -490,7 +512,7 @@ Brief §21. Where each criterion is discharged.
 | 2 | configuration points at a trivial scripting backend | 001 ✔ (config + example); observable at 002 |
 | 3 | host periodically asks the backend | 003 ✔ |
 | 4 | backend returns no view without error | 001 ✔ |
-| 5 | simple choice rendered correctly | 002 ✔; 007 draws boolean fields; 009 draws the other four kinds |
+| 5 | simple choice rendered correctly | 002 ✔; 007 boolean fields ✔; 009 the other four kinds ✔ |
 | 6 | selection delivers a response to the backend | 002 ✔ |
 | 7 | `next_check` from evaluation and from response | 001 ✔ |
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
