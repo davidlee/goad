@@ -1781,6 +1781,85 @@ separate enumerations of this class passed over it, F-4's Response included.
 The doc now names `Help` and `Version` and says why the count is gone.
 
 
+### Handover — what audit still owes
+
+Written 2026-09-22 at `eaba835`, for a fresh agent finishing the audit stage.
+Both code-review rounds are repaired and committed; `just check` exits 0 and
+the tree is clean. **`audit.md` is still the untouched template — every section
+of it is owed.**
+
+**Read before acting:** `CLAUDE.md`, `docs/AGENTS.md` §Audit & reconcile and
+§Close, `slice-006.md`, `design.md`, `plan.md`, this file, and
+`review-code.md` whole. `docs/specs/`, `docs/policy/` and `docs/adr/` are
+governing canon.
+
+**Where the review stands.** Ten findings, no blockers, none contested. F-1..F-6
+are `verified`; **F-7..F-10 have dispositions and Responses and empty
+`**Outcome:**` lines.** The Protocol's *Done* is every finding `verified` or
+`withdrawn`, so those four outcomes are owed before the ledger closes — a
+raiser's call, on the repairs in `eaba835`, not the responder's.
+
+Whether that needs a full round 3 is a judgement for the fresh agent, and the
+measured trend is the input: neither round found a **code** defect. Round 1
+found one coverage gap (F-1) and five claims outrunning their instruments;
+round 2 found one more coverage gap (F-7) and three record-keeping defects.
+Every behaviour this slice set out to produce was observed working in both
+rounds. A verification pass over the four repairs is the proportionate answer;
+a fresh adversarial sweep is not obviously wrong, but say which was chosen and
+why.
+
+**The audit's own work, none of it started:**
+
+1. `audit.md` §Brief — **written before looking**, per `docs/AGENTS.md`.
+2. §Evidence — the gate; each AC in `slice-006.md` §Acceptance criteria; each
+   VT/VA/VH in `plan.md`; and the **surface delta**, paths actually changed
+   against the surfaces each phase declared. The surface delta is the one piece
+   no stage of this slice has done at all, and `docs/AGENTS.md` calls undeclared
+   paths the strongest lead. `git diff --stat 4f9fb9d..HEAD` is the input.
+3. §Code review — link the ledger, state the blocker count. Do not copy
+   findings.
+4. §Verdict, §Reconciliation, and the §Closure checklist.
+
+**Five rows are waiting for reconcile, and three of them amend canon — which
+needs explicit user endorsement, asked before writing.** All five are in §Open
+above, in full:
+
+| row | canon? | what it is |
+|---|---|---|
+| SPEC-003 R-4's verification row undercounts the siblings — eight, and there are nine | **yes** | a stale count in a spec |
+| SPEC-003 cites three source sites by line number | **yes** | `CLAUDE.md` §Working here forbids the class |
+| should `CLAUDE.md` state *name, never count*? | **yes** | decided in-slice at F-4; canon states only the location half |
+| three exit criteria and two design statements falsified by F-2's and F-4's repairs | no | goes under §**Design drift not reconciled**; `plan.md` and `design.md` stay as written |
+| `ConfigError::Read`'s own text | no | a stratum 2 wording question, not a divergence |
+
+**Then close** (`docs/AGENTS.md` §Close): sweep **every** §Open entry into
+`slice-006.md` §Follow-ups with a disposition — promoted, carried, superseded,
+settled, or still open and why; an unswept entry is a candidate nobody
+declined. F-5's follow-up is already there and is the only one. Write
+`slice-006.md` §Summary. Lift durable facts from Harvest into `docs/memory/`.
+Set the stage — **`slice-006.md` still says `planned`, which is wrong and has
+been since PHASE-01**. `docs/roadmap.md` §006 will want a line.
+
+**Two §Open entries are work, not bookkeeping**, and neither blocks close:
+the parked deliberate `nix flake update` (its own commit, then `just check`,
+`just package`, then `nix flake update goad` in `~/flakes`), and the
+unexplained tray-icon question — restart the unit at next login and read the
+journal; if `Slint: Failed to create system tray icon: 0` returns, then
+`After=graphical-session.target` is insufficient and `nix/module.nix` has a
+defect this slice shipped.
+
+**Constraints that bind the fresh agent:**
+
+- Never `git stash`, `git checkout`, `git reset`, or anything else that can
+  discard working-tree state. Mutations are restored textually and verified
+  with `git diff`.
+- A live `goad` runs against `/run/user/1000/goad.sock` and a person depends on
+  it. Do not bind it, do not `just install`, do not `just demo`.
+- Canon is amended only with explicit user endorsement, and only at audit.
+- Cite by symbol, never by line number.
+- Confirm each disposition with the user before acting on it.
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
