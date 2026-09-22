@@ -1661,12 +1661,77 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   Byte-identical. Whatever the difference is, it is not `guiLibs` and not
   `FONTCONFIG_FILE`. See §Open.
 
+## Audit
+
+<!-- The audit stage's own working record: what each review round changed, and
+     what it deliberately did not. The ledgers hold the findings; this holds
+     the work. -->
+
+### `review-code.md` round 1 — the repairs
+
+Six findings, one major, no blockers. Raised by a fresh agent with the
+subject `git diff 4f9fb9d..HEAD` excluding `docs/slices/006/`; dispositions
+confirmed with the user, 2026-09-22, who took all six recommendations.
+
+| id | disposition | what landed |
+|---|---|---|
+| F-1 | fix-now | `crates/goad/tests/binary/exit_codes.rs`, five cases; helpers extracted to `tests/binary/process.rs` |
+| F-2 | fix-now | the emptiness test moved inside `version_line` in both crates, one new unit case each |
+| F-3 | fix-now | the `justfile` header cites POL-001 §Compliance; two `AGENTS.md` line numbers gone |
+| F-4 | fix-now | **name, never count** — `StartupError`'s doc and the renderer tier's surviving count |
+| F-5 | follow-up | `extraConfig`'s type, in `slice-006.md` §Follow-ups |
+| F-6 | fix-now | two prose slips |
+
+**Two mutations were run, not argued.** Both are the reviewer's own, re-run
+here rather than taken from the report (`docs/memory/mutate-check-the-coverage-claim.md`),
+with `--no-fail-fast` so the count is the real one:
+
+```
+ExitCode::from(2) → from(1)
+  cargo test -p goad --test binary --no-fail-fast
+  → 4 failed, 2 passed   (before the repair: 0 failed, and the gate green)
+
+.filter(|revision| !revision.is_empty()) removed from both version_line
+  cargo test --workspace --no-fail-fast
+  → exactly the two new empty-revision cases fail, nothing else
+     (before the repair: 0 failed, and the gate green)
+```
+
+Both restored textually — never `git checkout` — and `just check` exits 0 on
+the restored tree.
+
+**The decision F-4 forced: name, never count.** Two files changed in one phase
+took opposite strategies for the same class of stale claim, and neither was
+recorded as a choice. The rule now is the universal, with the members named
+where naming them is useful: *"Every way `run` can fail … `NoConfigPath` and
+`Usage` come from argument and environment handling; the rest from the steps
+after it."* It is `CLAUDE.md` §Working here's *cite by symbol, never by line
+number* applied to a cardinality instead of a location, and holds for the same
+reason — the named thing survives an edit above it, the number does not.
+
+Two counts were left standing deliberately: POL-001 §Compliance's *six
+commands* (canon's own count of a closed list, changed on purpose by a policy
+edit) and a review ledger's Synthesis counting its own findings (a statement
+about a finished round, which cannot go stale). The rule is about counts of
+things that grow.
+
+**What the round did not change.** The larger half of the ledger is the part
+that found nothing — the wrapper read from the store, `doCheck = false` on all
+three derivations with `--locked` surviving, the 126-file source filter, the
+jail packages surviving the `packages` merge, the `lib.evalModules` harness
+rebuilt from scratch, all ten `StartupError` variants walked, `Launch::Version`
+held by the compiler rather than only by a test, the new `[[test]]` target
+actually executing, `just -n check` matching POL-001 in order, and no
+`path:line` citation added anywhere in the diff. None of that is repair work
+and none of it is restated here; it is in the ledger's Synthesis.
+
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-21 · PHASE-04 · `1bb66de`
+**Fresh as of:** 2026-09-22 · audit, `review-code.md` round 1 repaired
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1782,11 +1847,21 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   not holding this design, and whether anything checks it.
 - **Four binary-tier helpers are now written twice**, once in
   `crates/goad-emit/tests/binary/exchange.rs` and once in
-  `crates/goad/tests/binary/version.rs` — transcribed deliberately
+  `crates/goad/tests/binary/process.rs` — transcribed deliberately
   (plan §PHASE-03/VT-2: do not invent a second convention), and cheap at two
-  copies. Nothing at stratum 3 is shared and neither crate may depend on the
+  copies. The second copy moved out of `version.rs` into a module of its own
+  at `review-code.md` F-1, when a second case file needed it; a third *file*
+  copying them would have been the drift, and does not exist. Nothing at stratum 3 is shared and neither crate may depend on the
   other, so a third binary tier is where this would need an answer rather than
   a third copy.
+- **Candidate for reconcile: should `CLAUDE.md` state *name, never count*?**
+  Decided inside the slice at `review-code.md` F-4 and applied to
+  `StartupError`'s doc and the renderer tier's module doc, but `CLAUDE.md`
+  §Working here currently states only the location half of it (*cite by symbol,
+  never by line number*). The two rules have one reason — a named thing
+  survives an edit above it and a number does not — and this slice is the third
+  time a count in this repository went stale. Canon is amended only with
+  explicit user endorsement, at audit; this is the row to put to them.
 - **Owed at reconcile: SPEC-003's R-4 verification row undercounts the
   siblings.** It describes
   `display_text::ingress_is_unwrapped_and_unprefixed_and_names_the_path` as
@@ -1827,8 +1902,10 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   cargo binary and on none of the packaged binary's. The environment is ruled
   out — the wrapper and `~/.config/goad/env` carry identical library paths and
   the identical `fonts.conf` (§Findings). Two candidates remain, and this slice
-  distinguished neither: the cargo binary was built 2026-09-16 and the code has
-  moved since, so it may simply be older; or it is a start-order race, since
+  distinguished neither: every failing observation was of the 2026-09-16 cargo
+  binary, which the code has moved past, so it may simply have been older —
+  `~/.cargo/bin/` was reinstalled at 13:43 and has not been started since; or
+  it is a start-order race, since
   both failing starts are at or near session start and the packaged binary's
   observed start was 13:35, hours into a session with the status-notifier host
   certainly up. The second would mean `After=graphical-session.target` is not
@@ -1836,10 +1913,3 @@ run by the orchestrator except VH-1, which cannot be delegated.*
   defect in what this slice shipped. Cheap to settle: start the freshly
   installed cargo binary against a throwaway config and read its journal, then
   restart the unit at login. Worth doing before the tray is trusted.
-- **AC-9 and VA-1's comparison are still open.** P-7 (`just install` from the
-  dev shell) and P-8 were offered and declined during the cutover;
-  `~/.cargo/bin/goad` remains the 2026-09-16 binary, which exits 2 on
-  `--version`. The cutover does not depend on them — the packaged path is
-  live and observed — but the criterion that the cargo path still works, and
-  the comparison that distinguishes the two version lines, have not been made.
-  They can be run at any time; until then this phase is not `done`.

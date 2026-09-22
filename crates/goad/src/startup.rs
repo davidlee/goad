@@ -19,10 +19,18 @@ pub enum Launch {
   Config(PathBuf),
 }
 
-/// The ten variants, and their exact text. Two come from argument and
-/// environment handling, eight from the steps after it. `Debug`, `Display`,
-/// `std::error::Error` with the **default** `source()`, and no `PartialEq` —
-/// a `slint::PlatformError` inside it has none (F-17).
+/// Every way `run` can fail to reach the event loop, and the exact text of
+/// each. `NoConfigPath` and `Usage` come from argument and environment
+/// handling; the rest from the steps after it. **Named, never counted** — a
+/// count is stale at the next variant and nothing in the gate reads it, which
+/// is how the number here said eight with nine in the enum (PHASE-04/EX-3,
+/// `review-code.md` F-4). `Debug`, `Display`, `std::error::Error` with the
+/// **default** `source()`, and no `PartialEq` — a `slint::PlatformError`
+/// inside it has none (F-17).
+///
+/// Every variant is exit **2**: `main` has one `match` over `run`'s `Result`
+/// and no arm of it distinguishes between these. `nix/module.nix` depends on
+/// that numeral by value, and `tests/binary/exit_codes.rs` is what holds it.
 #[derive(Debug)]
 pub enum StartupError {
   /// Neither `XDG_CONFIG_HOME` nor `HOME` names a directory, and no argument

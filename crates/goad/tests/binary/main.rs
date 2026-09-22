@@ -6,10 +6,16 @@
 //! `version_line` rendering it are both held as pure cases one tier down, and
 //! neither says that the two are wired together.
 //!
-//! It is feasible **without a display** only because both zero-exits precede
-//! any Slint call (006/design.md §5.4). Nothing here may construct a window:
-//! a case that reached `start` would need a compositor and would red on every
-//! headless machine the gate runs on.
+//! The exit code is the half a pure test cannot reach at all, and
+//! `nix/module.nix` depends on the failure code by value — `exit_codes.rs`
+//! carries the reasoning (`review-code.md` F-1).
+//!
+//! It is feasible **without a display** only because every answer it asserts
+//! is reached before the first Slint call (006/design.md §5.4) — the two
+//! zero-exits inside `run`, and the startup failures `start` settles in its
+//! first step. Nothing here may construct a window: a case that reached step 5
+//! would need a compositor and would red on every headless machine the gate
+//! runs on.
 //!
 //! What it deliberately does not hold is the **stamped** revision. Nothing in
 //! the gate sets `GOAD_REVISION`, so a process spawned here can only ever see
@@ -21,5 +27,9 @@
 // explains: a `tests/` target is always built with `--test`, so this is never
 // off, and without it `clippy::tests_outside_test_module` fires and
 // `clippy.toml`'s `allow-expect-in-tests` does not apply.
+#[cfg(test)]
+mod exit_codes;
+#[cfg(test)]
+mod process;
 #[cfg(test)]
 mod version;

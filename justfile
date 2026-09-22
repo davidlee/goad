@@ -4,12 +4,11 @@
 # clone in the dev shell (AC-1). A shell entered before that landed will resolve
 # `just` from the user's nix profile instead; reload it.
 #
-# `docs/slices/002/draft-policy.md`'s command block is canonical — the slice's
-# working authority until it is promoted at audit (`docs/AGENTS.md:36`, `:38`) —
+# `docs/policy/001-the-phase-gate.md` §Compliance's command block is canonical,
 # and `docs/slices/002/design.md` §5.6 is where it is derived. Every recipe here
 # runs the same command with the same arguments as a line of it, in the same
 # order — not the same characters: a fenced block carries neither comments nor
-# recipe line wrapping. Change the block first, then mirror. `just -n check`
+# recipe line wrapping. Change the policy first, then mirror. `just -n check`
 # prints the sequence for comparison (PHASE-01/VA-3).
 
 # Run the whole phase gate — six commands, in order.

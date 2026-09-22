@@ -7,11 +7,10 @@
 //! pipeline every line on
 //! this surface goes through. PHASE-08 adds the startup surface's own two
 //! outlets, `USAGE`, `print_usage` and `report_startup`, before a tray or a
-//! window exists; 006 adds a third, `version_line` and `print_version`, which
-//! answers before one exists too. The module carries the arithmetic deny
-//! because both halves
-//! compute over lengths a backend or a transport chose (D53, design.md
-//! §5.4).
+//! window exists; 006/PHASE-03 adds a third, `version_line` and
+//! `print_version`, which answers before one exists too. The module carries
+//! the arithmetic deny because both halves compute over lengths a backend or a
+//! transport chose (D53, design.md §5.4).
 #![deny(clippy::arithmetic_side_effects)]
 
 use std::fmt::{self, Write as _};
@@ -395,10 +394,18 @@ pub fn print_usage() {
 /// because stderr must say who spoke, and a direct answer to a direct
 /// question on stdout need not — `goad-emit`'s `--version` is the precedent.
 /// The revision is taken as an argument rather than read here, so this stays
-/// pure and both branches are a test rather than a build configuration.
+/// pure and every branch is a test rather than a build configuration.
+///
+/// **Set-but-empty is unset**, the rule `build.rs` already states for
+/// `SLINT_STYLE`: a flake consumed as a tarball has no revision to stamp and
+/// stamps `""`, which must read as unstamped and not as a revision whose name
+/// is empty. The test is **here**, inside the one function that decides the
+/// line, and not at the call site: a rule spelled at each caller is a rule
+/// the unit tier cannot reach and two transcriptions that can disagree
+/// (`review-code.md` F-2).
 #[must_use]
 pub fn version_line(revision: Option<&str>) -> String {
-  match revision {
+  match revision.filter(|revision| !revision.is_empty()) {
     Some(revision) => format!("{} ({revision})", env!("CARGO_PKG_VERSION")),
     None => env!("CARGO_PKG_VERSION").to_owned(),
   }
@@ -607,6 +614,16 @@ mod tests {
   #[test]
   fn an_unstamped_build_says_only_the_version() {
     assert_eq!(version_line(None), "0.1.0");
+  }
+
+  /// **Set-but-empty is unset** (`review-code.md` F-2). `flake.nix` stamps
+  /// `self.shortRev or self.dirtyShortRev or ""`, and the third branch is
+  /// what a tarball consumer gets: `GOAD_REVISION=""` reaches `option_env!`
+  /// as `Some("")`, which must read as unstamped. Without the filter this
+  /// prints `0.1.0 ()` — measured, and green everywhere else.
+  #[test]
+  fn a_build_stamped_with_an_empty_revision_is_an_unstamped_build() {
+    assert_eq!(version_line(Some("")), "0.1.0");
   }
 
   /// Truncated, not rounded to nearest. Half-expand would render

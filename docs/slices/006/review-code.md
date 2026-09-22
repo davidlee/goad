@@ -181,12 +181,12 @@ the subject excludes; and design findings already disposed in
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major |  |  |
-| F-2 | minor |  |  |
-| F-3 | minor |  |  |
-| F-4 | nit |  |  |
-| F-5 | nit |  |  |
-| F-6 | nit |  |  |
+| F-1 | major | fix-now |  |
+| F-2 | minor | fix-now |  |
+| F-3 | minor | fix-now |  |
+| F-4 | nit | fix-now |  |
+| F-5 | nit | follow-up |  |
+| F-6 | nit | fix-now |  |
 
 ### F-1 — the exit-code contract `RestartPreventExitStatus=2` encodes is asserted by no test at any tier
 
@@ -248,8 +248,55 @@ arm: `goad /nonexistent/wat.toml`, a syntactically bad file, a file missing a
 required field, and a directory all print a path-naming line on stderr and exit
 2. That is what makes this a missing test and not a bug.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted in full, including the reading of why the renderer
+tier's rule is insufficient now: it covers the arms, not the constant.
+
+`crates/goad/tests/binary/exit_codes.rs` is new and holds five cases — one per
+exit code `main` can choose, walked by the arm that chooses it:
+
+| case | arm | asserts |
+|---|---|---|
+| `help_prints_the_usage_block_on_stdout_and_exits_0` | `Ok(())` | exit 0, `USAGE` verbatim on stdout, stderr empty |
+| `too_many_arguments_exits_2_and_says_who_spoke` | `StartupError::Usage` | exit 2, the **whole** stderr line, stdout empty |
+| `no_argument_and_no_configuration_home_exits_2` | `NoConfigPath` | exit 2, the whole line |
+| `an_unreadable_configuration_exits_2_and_names_the_path` | `ConfigUnreadable` | exit 2, the `goad: ` prefix, the path |
+| `an_unparseable_configuration_exits_2_and_names_the_path` | `ConfigUnparseable` | exit 2, the prefix, the path |
+
+Two of them are compared against `report_startup_line(&StartupError::Usage)`
+and `…::NoConfigPath` rather than against a literal, so the line and the
+`"goad: "` prefix are pinned on a real process without restating text the
+renderer tier already asserts verbatim. The two configuration arms assert the
+prefix and the path only: `fault` is the OS's own words and varies.
+
+**The mutation the finding measured now reds.** `ExitCode::from(2)` →
+`from(1)`, `cargo test -p goad --test binary --no-fail-fast`: four of the six
+cases fail, the two zero-exits pass. Restored, and `just check` exits 0.
+
+Three things were written down rather than left implicit, because the finding
+is as much about the claim as the test:
+
+- `tests/renderer/startup.rs`'s module doc now says what it covers and what it
+  does not — *"That covers the **arms**; it does not cover the **constant**
+  either arm names"* — and names the file that holds the rest. The sentence
+  the finding quoted stays, because it was never wrong.
+- `StartupError`'s own doc states the contract at the type: every variant is
+  exit 2, `nix/module.nix` depends on the numeral by value, and
+  `tests/binary/exit_codes.rs` is what holds it.
+- `exit_codes.rs`'s module doc carries the reasoning, including the measured
+  consequence — a restart loop on a host that cannot start — so the next agent
+  reads why the cases exist and not only what they assert.
+
+The spawn helpers moved out of `version.rs` into `tests/binary/process.rs`
+unchanged, plus one variant: `goad_with_no_config_home`, which `env_remove`s
+both variables so the no-argument case cannot reach the machine's real
+configuration. Copying four helpers into the second file would have been the
+same drift this tier exists to catch.
+
+Not done, and named as the boundary: nothing here reaches `Clock`, `Runtime`,
+`Platform`, `EventLoop`, `Enqueue` or `Ingress`. Those need a compositor, a
+broken clock or a held socket; the claim the cases support is that *the
+constant* is 2, and every reachable arm agrees on it.
 
 **Outcome:**
 
@@ -303,8 +350,29 @@ the flake's expression were checked directly —
 `dirtyShortRev` for a dirty one and `""` for a tarball — so the empty case the
 filter exists for is reachable and is the one A1 names.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted, and repaired the way the finding names: the emptiness
+test moved **inside** `version_line`, in both crates.
+
+`revision.filter(|revision| !revision.is_empty())` is now the scrutinee of the
+`match`, and each call site hands `option_env!("GOAD_REVISION")` on unjudged.
+One function decides the line; the rule has one home per crate instead of two,
+and it is reachable from the tier that already holds the other two branches.
+
+One new case in each crate,
+`a_build_stamped_with_an_empty_revision_is_an_unstamped_build`, asserting
+`version_line(Some(""))` is `0.1.0`. **Mutation-checked**: with the filter
+removed from both, `cargo test --workspace --no-fail-fast` reds exactly those
+two cases and nothing else — which is the finding's point restated, since
+before the move the same deletion reddened nothing.
+
+The reasoning moved with the rule rather than being deleted from the call
+sites: `version_line`'s doc now carries the `build.rs`/`SLINT_STYLE`
+precedent and the tarball case, and each call site keeps one line saying where
+the decision lives. The two crates still hold two copies — stratum 3 has two
+binaries and no shared crate, and each must read the `GOAD_REVISION` of its own
+compilation (design.md §5.2(g)) — but each copy is now a function with a test
+rather than an argument in a comment.
 
 **Outcome:**
 
@@ -353,8 +421,21 @@ and promotion sentences, so the numbers are currently right and silently. `just
 `grep -rn draft-policy` outside `docs/slices/00{1,2}/` returns nothing else —
 the `justfile` is the only surviving citation.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted. Pre-existing, and filed correctly: the `justfile` is a
+declared surface of this slice, the slice edited it twice, and POL-001 names it
+as its mirror in this direction.
+
+The header now reads *"`docs/policy/001-the-phase-gate.md` §Compliance's
+command block is canonical"*, with the derivation pointer to
+`docs/slices/002/design.md` §5.6 kept — that file exists and is the record of
+where the block came from. The draft-authority clause is gone, because the
+draft was promoted, and both `docs/AGENTS.md` line-number citations are gone
+with it: they were load-bearing only for the draft rule they explained. Nothing
+replaces them, since the sentence no longer makes a claim about drafts.
+
+`just -n check` is unchanged and still prints POL-001 §Compliance's six
+commands in order.
 
 **Outcome:**
 
@@ -398,8 +479,31 @@ environment handling. `mod display_text` has a case naming each of the ten
 (`Clock` twice), so the strengthened claim holds at `177f383`. The diff hunks
 for both doc changes are in the same commit range as PHASE-04/EX-3's repair.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted, and the rule decided rather than left to the next
+agent: **name, never count.**
+
+`StartupError`'s doc no longer opens with *"The ten variants … Two come from
+argument and environment handling, eight from the steps after it."* It reads
+*"Every way `run` can fail to reach the event loop, and the exact text of
+each. `NoConfigPath` and `Usage` come from argument and environment handling;
+the rest from the steps after it"*, and says why in one clause — a count is
+stale at the next variant, nothing in the gate reads it, and that is exactly
+how the number said eight with nine in the enum. `tests/renderer/startup.rs`'s
+surviving count, *"`ClockError`'s for both of its"*, went the same way.
+
+This is the same rule as `CLAUDE.md` §Working here's *cite by symbol, never by
+line number*, applied to a cardinality instead of a location, and for the same
+reason: the thing named survives an edit above it and the number does not. It
+is recorded in `notes.md` §Audit, and Harvest §Open carries it as a candidate
+row for reconcile — whether `CLAUDE.md` should state it is the user's call at
+audit, not a repair's.
+
+Two counts were deliberately **not** touched. POL-001 §Compliance's *"six
+commands"* and the `justfile`'s mirror of it are canon's own count of a closed
+list that a policy edit changes on purpose; and this ledger's own Synthesis
+counts findings, which is a statement about a finished round and cannot go
+stale.
 
 **Outcome:**
 
@@ -451,8 +555,31 @@ and no `EnvironmentFile=`; `systemctl --user show-environment` names neither
 `LD_LIBRARY_PATH` nor `FONTCONFIG_FILE`, so the wrapper is what supplies them
 in the deployed configuration and AC-3 holds there rather than by inheritance.
 
-**Disposition:**
-**Response:**
+**Disposition:** follow-up
+**Response:** Accepted as real, deferred as a judgement rather than a defect.
+
+The finding is right that the refusal happens one repository away from the
+module that documents the restriction, and right that `attrsOf anything` is
+looser than the destination. What it does not settle — and what a repair under
+audit pressure would settle badly — is which shapes are legitimate.
+`attrsOf (oneOf [bool int str (listOf str)])` is a guess at systemd's value
+grammar, and home-manager's own `unitOption` is the right type but reaching it
+means either a home-manager input this repository deliberately does not take
+(OQ-1, and the `lib.evalModules` harness exists precisely because of that
+choice) or copying its definition, which is a third transcription of a rule
+this ledger has already found two of. A narrowing that refuses a directive a
+consumer was entitled to is worse than one that accepts a shape they will be
+told about by the type checker one repository over.
+
+Landed in `slice-006.md` §Follow-ups with the option surface, the two candidate
+types and the reason neither is obviously right — not put down in a
+disposition.
+
+Everything else in the Evidence is a confirmation and is taken as one: three
+blocks, no `EnvironmentFile`, `extraConfig` merging over `Service` and no other
+block, and `enable = false` with no `package` evaluating to `{}` — all of it
+rebuilt from scratch rather than read out of `notes.md`, which is the stronger
+form of the same check.
 
 **Outcome:**
 
@@ -487,8 +614,15 @@ in `diagnostics.rs`; the step-1 comment above `let config = match Config::load(p
 in `main.rs`'s `start`. `cargo fmt --all --check` passes —
 rustfmt does not rewrap doc comments, so nothing in the gate sees either.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted. Both repaired.
+
+`diagnostics.rs`'s module doc is rewrapped — the orphan line is gone — and the
+bare `006` is now `006/PHASE-03`, the form the rest of the slice uses.
+
+`main.rs`'s step-1 comment now reads *"the shape `goad-emit`'s `socket_path`
+already uses, cutting the same `Read` from the rest"*. The doubled preposition
+was the whole slip; the sentence's claim is unchanged.
 
 **Outcome:**
 

@@ -176,9 +176,14 @@ pub(crate) fn startup_error_line(error: &StartupFault) -> String {
 /// and the reasoning are `crates/goad`'s `diagnostics::version_line`; the two
 /// are separate because stratum 3 has two binaries and no shared crate, and
 /// each reads the `GOAD_REVISION` of its own compilation (design.md §5.2(g)).
+///
+/// **Set-but-empty is unset**, and the test is here rather than at the call
+/// site for the reason the sibling states: one function decides the line, so
+/// the unit tier can reach the rule and the two crates cannot drift apart
+/// unnoticed (`review-code.md` F-2).
 #[must_use]
 pub(crate) fn version_line(revision: Option<&str>) -> String {
-  match revision {
+  match revision.filter(|revision| !revision.is_empty()) {
     Some(revision) => format!("{} ({revision})", env!("CARGO_PKG_VERSION")),
     None => env!("CARGO_PKG_VERSION").to_owned(),
   }
@@ -212,6 +217,14 @@ mod tests {
   #[test]
   fn an_unstamped_build_says_only_the_version() {
     assert_eq!(version_line(None), "0.1.0");
+  }
+
+  /// **Set-but-empty is unset** (`review-code.md` F-2). A tarball consumer of
+  /// the flake stamps `GOAD_REVISION=""`, which `option_env!` hands on as
+  /// `Some("")`; without the filter this binary prints `0.1.0 ()`.
+  #[test]
+  fn a_build_stamped_with_an_empty_revision_is_an_unstamped_build() {
+    assert_eq!(version_line(Some("")), "0.1.0");
   }
 
   fn refusal(reason: &str, retry_after_ms: Option<u64>, detail: Option<&str>) -> Answered {

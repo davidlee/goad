@@ -70,12 +70,12 @@ fn main() -> ExitCode {
       ExitCode::SUCCESS
     }
     Ok(Invocation::Version) => {
-      // The revision is read at compile time and never at run time, and
-      // set-but-empty is unset — `crates/goad`'s `run` carries the reasoning
-      // for both, and this is the same rule for the same variable.
-      to_stdout(&render::version_line(
-        option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty()),
-      ));
+      // The revision is read at compile time and never at run time —
+      // `crates/goad`'s `run` carries the reasoning, and this is the same
+      // rule for the same variable. Handed on unjudged: set-but-empty is
+      // unset, and `render::version_line` is where that is decided and
+      // tested (`review-code.md` F-2).
+      to_stdout(&render::version_line(option_env!("GOAD_REVISION")));
       ExitCode::SUCCESS
     }
     Ok(Invocation::Send(request)) => exchange(request),

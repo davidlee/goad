@@ -1,29 +1,6 @@
-//! `--version`, against the built binary. The helpers are
-//! `crates/goad-emit/tests/binary/exchange.rs`'s, transcribed rather than
-//! reinvented: one convention for spawning a goad binary, not two.
-use std::process::Output;
-
-fn goad(arguments: &[&str]) -> Output {
-  std::process::Command::new(env!("CARGO_BIN_EXE_goad"))
-    .args(arguments)
-    .output()
-    .expect("the built binary must be runnable")
-}
-
-fn code_of(output: &Output) -> i32 {
-  output
-    .status
-    .code()
-    .expect("the binary must exit rather than be signalled")
-}
-
-fn stderr_of(output: &Output) -> String {
-  String::from_utf8(output.stderr.clone()).expect("goad writes UTF-8")
-}
-
-fn stdout_of(output: &Output) -> String {
-  String::from_utf8(output.stdout.clone()).expect("goad writes UTF-8")
-}
+//! `--version`, against the built binary. The spawn helpers are
+//! `crate::process`'s — see there for why they are not in this file.
+use crate::process::{code_of, goad, stderr_of, stdout_of};
 
 /// 006/PHASE-03/VT-2, AC-4: the version on **stdout**, so a caller can read it
 /// as a value, and exit 0.

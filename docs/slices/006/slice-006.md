@@ -233,3 +233,17 @@ Facts already paid for, which design should not rediscover:
 
 <!-- Deferred work surfaced by this slice. Each becomes a future slice or a
      line in a spec. -->
+
+- **Tighten `extraConfig`'s type in `nix/module.nix`**
+  (`review-code.md` F-5). The declared type is
+  `lib.types.attrsOf lib.types.anything`, which accepts a nested attribute set
+  and merges it straight into `Service`: `extraConfig = { Unit = { … }; }`
+  renders as `Service.Unit` and is refused by home-manager's own type checker
+  in the consumer's tree, one repository away from the module that documents
+  the restriction. A tighter type —
+  `attrsOf (oneOf [bool int str (listOf str)])`, or home-manager's own
+  `unitOption` if it can be reached without taking a home-manager input —
+  would refuse it at the site that states the rule. Deferred rather than fixed
+  in-slice because which shapes are legitimate is a judgement about the option
+  surface, not a defect in it, and the wrong narrowing costs a consumer a
+  directive they were entitled to.

@@ -60,13 +60,9 @@ fn run() -> Result<(), StartupError> {
       // reporting nothing. It is also a macro, so `clippy.toml`'s ban on
       // `std::env::var` is untouched rather than evaded.
       //
-      // **Set-but-empty is unset**, the rule `build.rs` already states for
-      // `SLINT_STYLE`: a flake consumed as a tarball has no revision to stamp
-      // and stamps `""`, which must read as unstamped and not as a revision
-      // whose name is empty.
-      diagnostics::print_version(
-        option_env!("GOAD_REVISION").filter(|revision| !revision.is_empty()),
-      );
+      // Handed on unjudged: set-but-empty is unset, and `version_line` is
+      // where that is decided and tested (`review-code.md` F-2).
+      diagnostics::print_version(option_env!("GOAD_REVISION"));
       Ok(())
     }
     Launch::Config(path) => start(&path),
@@ -82,10 +78,10 @@ fn start(path: &Path) -> Result<(), StartupError> {
   //    hand: `ConfigError` names no file, and a host that cannot say which
   //    file it tried has told the person nothing they can act on (006/S-4).
   //    The match is on the `Result` and not on the `ConfigError` — the shape
-  //    `goad-emit`'s `socket_path` already uses, against the same `Read`
-  //    against the rest, and the one this file's `wildcard_enum_match_arm`
-  //    deny admits. The clone is the cost of naming the path, paid once per
-  //    failed startup.
+  //    `goad-emit`'s `socket_path` already uses, cutting the same `Read`
+  //    from the rest, and the one this file's `wildcard_enum_match_arm` deny
+  //    admits. The clone is the cost of naming the path, paid once per failed
+  //    startup.
   let config = match Config::load(path) {
     Err(ConfigError::Read(fault)) => {
       return Err(StartupError::ConfigUnreadable {

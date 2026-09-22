@@ -1,7 +1,7 @@
 //! Item 17 — the startup surface, mostly pure functions with no window;
 //! `listener` is the exception, since binding a socket is what it does
 //! (design.md §9 item 17, §5.4's exact strings). `StartupError`'s `Display`
-//! for **every** variant it has and `ClockError`'s for both of its,
+//! for **every** variant it has and `ClockError`'s for every one of its,
 //! asserted verbatim; the usage block produced by one `const` and
 //! byte-identical wherever it appears; a usage error's text not containing
 //! the usage block; both `source()`s `None`; the argument table's rows; and
@@ -9,7 +9,10 @@
 //!
 //! No test here runs the binary or asserts an exit code (§9's own rule) —
 //! `main`'s one `match` over `run()`'s `Result` is what chooses the code,
-//! and every value that `match` sees is already covered here.
+//! and every value that `match` sees is already covered here. That covers
+//! the **arms**; it does not cover the **constant** either arm names, which
+//! `nix/module.nix` depends on by value. `tests/binary/exit_codes.rs` holds
+//! that, one tier up (`review-code.md` F-1).
 
 use std::ffi::OsString;
 use std::path::PathBuf;
