@@ -85,8 +85,8 @@ in {
         {
           ExecStart = "${cfg.package}/bin/goad";
 
-          # The directives argue from **phase**, not from cause
-          # (`crates/goad/src/exit.rs`). A status says what happened; what to
+          # The directives argue from **phase**, not from cause (SPEC-004,
+          # process exit status; `crates/goad/src/exit.rs`). A status says what happened; what to
           # do about it is this unit's policy, and the number predicts
           # nothing. 0 is an end as asked — a quit from the tray, the window
           # closed, or `--help` / `--version` answered — and is not

@@ -9,12 +9,12 @@
 //! (design.md §5.1). The prose below names its two halves only to say which
 //! cut they are on.
 //!
-//! The rule the numbers follow, stated here rather than cited: **the axis is
-//! phase, not cause.** 0 is the process doing what it was asked, 2 is a host
+//! The rule the numbers follow, stated here and owned by SPEC-004 (process
+//! exit status): **the axis is phase, not cause.** 0 is the process doing what it was asked, 2 is a host
 //! that never started — whatever the cause — and 1 is a host that started and
 //! stopped without being asked to. Each number says what happened and
 //! nothing about what to do next: restarting, or not, is the supervisor's
-//! policy. No arm below reads a `StartupError` variant.
+//! policy (SPEC-004 P-D). No arm below reads a `StartupError` variant.
 
 use crate::startup::StartupError;
 

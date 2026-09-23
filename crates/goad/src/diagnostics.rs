@@ -457,7 +457,7 @@ pub fn report_exit(outcome: &Result<Ended, StartupError>) {
 /// line worth reading — save where the event-loop call fails on entry, when
 /// the *stopped running* sentence says the host had been running and it had
 /// not, because the host cannot tell that call from a loop that ran (the
-/// seam's cost, `draft-spec.md` §5 *What the seam costs*). Otherwise: a host
+/// seam's cost, SPEC-004 §5 *What the seam costs*). Otherwise: a host
 /// that never started writes `report_startup_line`'s, and a host that started
 /// and stopped writes one of the two below. Both name the **phase** and not the cause — the call can
 /// fail for whatever the platform backend decides, and the host does not know

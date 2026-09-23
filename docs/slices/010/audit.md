@@ -88,7 +88,7 @@ figure for figure.
 | AC-2 | **met** (draft) | `draft-spec.md` **Owns** is *the exit status of this project's binaries*; §2 *Boundaries* says `goad-emit` is nominally owned and not yet governed; §4's head restricts every requirement to the host. |
 | AC-3 | **met** | `start`'s last two statements are `let call = slint::run_event_loop_until_quit();` and `Ok(exit::ended(call, stop_signal.is_stopped()))` — no `StartupError` on the loop's end. `StartupError`'s type doc says the loop's ending travels in `Ended`; `StartupError::Platform`'s doc names `set_xdg_app_id`, `PromptWindow::new`, `Tray::new` and not the loop call. Held after the slice by `structure::the_loop_s_ending_is_never_a_startup_failure`. |
 | AC-4 | **met** | `main` is `run()` → `diagnostics::report_exit` → `ExitCode::from(exit::status(&outcome))`; `exit::status` is pure over `&Result<Ended, StartupError>`. Every shape asserted in `exit_status` (`as_asked_is_0`, `stopped_running_is_1` over a real `slint::PlatformError::from`, `stopped_running_with_no_error_is_1`, `every_startup_failure_is_2`); the `Err` arm is `Err(_) => 2`, reading no variant. |
-| AC-5 | **met** | `git diff b444c6a..HEAD -- crates/goad/tests/binary/exit_codes.rs` has **no removed line outside the `//!` module doc**; additions are `an_unbindable_ingress_path_exits_2` and a helper, `scratch_path` (see VT/VA, PHASE-03 EX-3). All pre-existing cases green. **Carried finding:** one existing case's doc comment is now false and AC-5 forbids the edit (Reconciliation, P3-a). |
+| AC-5 | **met; waived for doc comments** (user, `design-log.md` *at audit*: AC-5 protects the cases' behaviour, so a false doc comment on an existing case is repaired rather than kept — P3-a, `review-code.md` F-6) | `git diff b444c6a..HEAD -- crates/goad/tests/binary/exit_codes.rs` has **no removed line outside the `//!` module doc**; additions are `an_unbindable_ingress_path_exits_2` and a helper, `scratch_path` (see VT/VA, PHASE-03 EX-3). All pre-existing cases green. **Carried finding:** one existing case's doc comment is now false and AC-5 forbids the edit (Reconciliation, P3-a). |
 | AC-6 | **met at the renderer tier; the process half is AC-9** | `diagnostics::report_exit_line` answers `goad: the host was running and stopped: {error}` and `…stopped, and no error was reported`; `stderr_outlets::the_stopped_line_is_not_the_line_a_host_that_never_started_writes` asserts both differ from `report_startup_line` over `StartupError::Platform`. `main` writes it through `report_exit`. |
 | AC-7 | **met in its letter; one doubt raised** | `nix/module.nix`'s `Service` comment: no exception paragraph, no *do not succeed on a retry*, no `SPEC-003`, no `Platform`; argues from phase. Directives byte-identical (`git diff -U0 … \| grep '^[-+][^-+]' \| grep -v '^[-+] *#'` empty; `nix-instantiate --parse` exits 0). **Doubt, A-1:** its *"so a restart changes nothing a person has not changed first"* is itself a retryability claim, the class AC-7 calls false of `Runtime` — though `plan.md` PHASE-03/EX-4 dictated those words. |
 | AC-8 | **pending — audit (canon)** | Applicable: the case Change 1 names, `exit_codes::an_unbindable_ingress_path_exits_2`, exists and passes. Not applied; needs endorsement (Reconciliation rows C-3…C-5). |
@@ -307,21 +307,25 @@ the user's endorsement of the Reconciliation rows.
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
-**DRAFT — nothing here is applied.** Rows marked **canon** need the user's
-explicit endorsement before they are written. Rows touching a source file wait
-for the code-review ledger (`review-code.md`) and are repaired from it. Row ids
-are this table's own, for reference in the endorsement question.
+Rows marked **canon** need the user's explicit endorsement before they are
+written; C-1…C-6 were endorsed (`design-log.md`, *at audit*) and applied with
+the round-1 repairs, as were P2, P3-a, P3-b, P3-c and A-1 (`notes.md`
+§Handover, *Repairs, round 1*). A-1's recommended wording was not used
+verbatim: its *rather than retry into the rate limiter* predicts that the
+retry fails, the class `review-code.md` F-1 removes, so the unit comment
+states the policy alone. Row ids are this table's own, for reference in the
+endorsement question.
 
 **Canon — promotion (`plan.md` §What no phase does)**
 
 | id | document | change | reason | done |
 |----|----------|--------|--------|------|
-| C-1 | `docs/slices/010/draft-spec.md` → `docs/specs/004-process-exit-status.md` | promote: number it SPEC-004; replace the **Status** paragraph (*draft … Not canon … suggested slug*) with the canon status line the other specs carry; `SPEC-NNN` → `SPEC-004` throughout | drafted during this slice (AC-1, AC-2); a slice does not close holding an unpromoted draft | [ ] |
-| C-2 | the promoted spec, §7 | remove the `DRAFT-ONLY` comment | promotion obligation (`design.md` §10, D6). Precondition **checked here**: every `module::case` citation in `draft-spec.md` resolves in the tree (§Evidence, PHASE-01 EX-6) | [ ] |
-| C-3 | `docs/specs/003-host-event-ingress.md` §7, R-4's cell | `canon-delta.md` Change 1, as stated there | AC-8; the stale *no test target links the binary* and the conflation recorded as fact. The case it names exists | [ ] |
-| C-4 | `docs/specs/003-host-event-ingress.md` §7, R-3's cell | `canon-delta.md` Change 3: *"the same position as R-4's exit code below and R-5's process exit"* → *"the same position as R-5's process exit"* | not separable from C-3 | [ ] |
-| C-5 | `docs/specs/003-host-event-ingress.md` §9 | `canon-delta.md` Change 2, with `SPEC-00N` → `SPEC-004` | separable from C-3/C-4; R-4's cell defers to the new spec | [ ] |
-| C-6 | `nix/module.nix` comment; `crates/goad/src/exit.rs` `//!`; `StartupError`'s type doc (`crates/goad/src/startup.rs`) | add the `SPEC-004` citation | D6: no spec number until promotion, then all three sites. Source edits — land with the code-review repairs | [ ] |
+| C-1 | `docs/slices/010/draft-spec.md` → `docs/specs/004-process-exit-status.md` | promote: number it SPEC-004; replace the **Status** paragraph (*draft … Not canon … suggested slug*) with the canon status line the other specs carry; `SPEC-NNN` → `SPEC-004` throughout | drafted during this slice (AC-1, AC-2); a slice does not close holding an unpromoted draft | [x] |
+| C-2 | the promoted spec, §7 | remove the `DRAFT-ONLY` comment | promotion obligation (`design.md` §10, D6). Precondition **checked here**: every `module::case` citation in `draft-spec.md` resolves in the tree (§Evidence, PHASE-01 EX-6) | [x] |
+| C-3 | `docs/specs/003-host-event-ingress.md` §7, R-4's cell | `canon-delta.md` Change 1, as stated there | AC-8; the stale *no test target links the binary* and the conflation recorded as fact. The case it names exists | [x] |
+| C-4 | `docs/specs/003-host-event-ingress.md` §7, R-3's cell | `canon-delta.md` Change 3: *"the same position as R-4's exit code below and R-5's process exit"* → *"the same position as R-5's process exit"* | not separable from C-3 | [x] |
+| C-5 | `docs/specs/003-host-event-ingress.md` §9 | `canon-delta.md` Change 2, with `SPEC-00N` → `SPEC-004` | separable from C-3/C-4; R-4's cell defers to the new spec | [x] |
+| C-6 | `nix/module.nix` comment; `crates/goad/src/exit.rs` `//!`; `StartupError`'s type doc (`crates/goad/src/startup.rs`) | add the `SPEC-004` citation | D6: no spec number until promotion, then all three sites. Source edits — land with the code-review repairs | [x] |
 
 **Close (AC-10 and `notes.md` §Open)**
 
@@ -337,11 +341,11 @@ are this table's own, for reference in the endorsement question.
 |----|-----------------|----------------|------|
 | P1-a | the crate-root `wildcard_enum_match_arm` deny does not reach `exit::status`'s match (PHASE-01) | **memory, not code**: add the cost to `docs/memory/wildcard-enum-match-arm-counts-a-named-binding.md` (matching the enclosing `Result` escapes the lint, so exhaustiveness is then held by cases, not by the deny); `design.md` §3's sentence left as written and listed under *Design drift* below | [ ] |
 | P1-b | `lib.rs`'s header carries `path:line` citations (PHASE-01) | **follow-up, merged**: extend FU-10's citation (citation discipline enforced by nothing) with these sites rather than a new row; not this slice's code | [ ] |
-| P2 | `diagnostics.rs`'s `//!` says `report_exit` was *"renamed"*; it replaced a different function (PHASE-02) | **repair in the slice**, one word: *replaced*. Via the code-review ledger | [ ] |
-| P3-a | `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc says *"`Ok(())` is exit 0"*, false since PHASE-02; AC-5 forbids the edit (PHASE-03) | **user decision**: waive AC-5's letter for doc comments — its purpose is that no case's *assertions* change and 2 keeps its consumers — and repair the sentence (*`run` answering `Ok(Ended::AsAsked)` is exit 0*). Leaving a known-false doc to honour an AC's wording is the worse outcome | [ ] |
-| P3-b | `nix/module.nix`: *"0 is the window being closed, which was asked for"* — narrower than true (PHASE-03) | **repair in the slice**, comment only: *0 is as asked — a quit from the tray, the window closed, or `--help` / `--version` answered*. Lands with C-6 | [ ] |
-| P3-c | `tests/binary/main.rs`'s doc: startup failures settle in `start`'s *"first step"*; the new case settles at step 3 (PHASE-03) | **repair in the slice**: *before the first Slint call* (the phrase the same sentence already uses), dropping the step number | [ ] |
-| A-1 | **raised at audit.** `nix/module.nix`: *"2 is a host that never started … so a restart changes nothing a person has not changed first"* is a retryability claim — the class AC-7 removes as false of `Runtime`. `plan.md` PHASE-03/EX-4 dictated the words, so the executor followed the plan | **user decision, recommended repair**: state it as the unit's policy, not a fact about retries — *2 is a host that never started; this unit leaves that to a person rather than retry into the rate limiter* — matching `draft-spec.md` §3 P-D (policy is built on the statuses, not asserted by them). Lands with C-6/P3-b | [ ] |
+| P2 | `diagnostics.rs`'s `//!` says `report_exit` was *"renamed"*; it replaced a different function (PHASE-02) | **repair in the slice**, one word: *replaced*. Via the code-review ledger | [x] |
+| P3-a | `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc says *"`Ok(())` is exit 0"*, false since PHASE-02; AC-5 forbids the edit (PHASE-03) | **user decision**: waive AC-5's letter for doc comments — its purpose is that no case's *assertions* change and 2 keeps its consumers — and repair the sentence (*`run` answering `Ok(Ended::AsAsked)` is exit 0*). Leaving a known-false doc to honour an AC's wording is the worse outcome | [x] |
+| P3-b | `nix/module.nix`: *"0 is the window being closed, which was asked for"* — narrower than true (PHASE-03) | **repair in the slice**, comment only: *0 is as asked — a quit from the tray, the window closed, or `--help` / `--version` answered*. Lands with C-6 | [x] |
+| P3-c | `tests/binary/main.rs`'s doc: startup failures settle in `start`'s *"first step"*; the new case settles at step 3 (PHASE-03) | **repair in the slice**: *before the first Slint call* (the phrase the same sentence already uses), dropping the step number | [x] |
+| A-1 | **raised at audit.** `nix/module.nix`: *"2 is a host that never started … so a restart changes nothing a person has not changed first"* is a retryability claim — the class AC-7 removes as false of `Runtime`. `plan.md` PHASE-03/EX-4 dictated the words, so the executor followed the plan | **user decision, recommended repair**: state it as the unit's policy, not a fact about retries — *2 is a host that never started; this unit leaves that to a person rather than retry into the rate limiter* — matching `draft-spec.md` §3 P-D (policy is built on the statuses, not asserted by them). Lands with C-6/P3-b | [x] |
 | A-2 | **raised at audit.** PHASE-03's task boxes are all unticked and T-3's red-first quote is missing; PHASE-02's T-13 unticked | **record only**: a note in `notes.md` at close that the evidence is in §Mutation evidence / §Decisions and M-13/M-14 stand in for T-3's red. No code consequence | [ ] |
 
 **Design drift not reconciled:**

@@ -1357,3 +1357,20 @@ the round-2 reviewer.
 - **Gate** at the end of Part 1: `just check` exit 0, **638 passed**, 0 failed
   (633 + the F-2 case, `display_text::answer_unwritten`, the F-3 binary case,
   and two `report::tests`).
+
+**Part 2 — canon promotion** (the commit after `ebaba86`). C-2's precondition
+re-checked immediately before: every `module::case` citation in the draft and
+in `canon-delta.md` resolves to one definition (`help_prints_…` to two, the
+second being `goad-emit`'s namesake, as round 1 recorded). C-1 `git mv`
+`draft-spec.md` → `docs/specs/004-process-exit-status.md`, Status → `active`
+in SPEC-003's header form, `SPEC-NNN` → `SPEC-004`; C-2 `DRAFT-ONLY` comment
+removed; C-3/C-4/C-5 applied to SPEC-003 as `canon-delta.md` states, with
+`SPEC-00N` → `SPEC-004`; C-6 in the same commit — `nix/module.nix`,
+`exit.rs` `//!`, `StartupError`'s doc — plus `report_exit_line`'s doc, whose
+F-5 repair had cited `draft-spec.md` §5 until the number existed. Nix
+directives byte-identical against `b444c6a^`; `nix-instantiate --parse` exit 0.
+`audit.md`: C-1…C-6, P2, P3-a, P3-b, P3-c, A-1 ticked; the AC-5 waiver
+recorded in the AC table; the Reconciliation preamble no longer says
+*nothing here is applied*. Not touched: `audit.md`'s AC-8 row still reads
+*pending — not applied* (the Evidence section is a snapshot at `58df7c3`; the
+verdict is audit's to write). `just check` exit 0, **638 passed**.

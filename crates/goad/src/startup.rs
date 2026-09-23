@@ -37,8 +37,8 @@ pub enum Launch {
 /// The number every variant of this type answers is `exit::status`'s single
 /// `Err` arm, which reads no variant here — a variant cannot be filed under a
 /// different number without someone editing that arm and writing a per-cause
-/// judgement down where a reviewer sees it. What the number means is the
-/// spec's. `nix/module.nix` depends on it by value, and
+/// judgement down where a reviewer sees it. What the number means is
+/// SPEC-004's (R-3). `nix/module.nix` depends on it by value, and
 /// `tests/binary/exit_codes.rs` is what holds it.
 #[derive(Debug)]
 pub enum StartupError {

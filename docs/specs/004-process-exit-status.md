@@ -1,12 +1,7 @@
-# SPEC-NNN: process exit status
+# SPEC-004: process exit status
 
-**Status:** draft — slice 010's working authority. **Not canon.** It is numbered
-and moved to `docs/specs/` at promotion (`docs/AGENTS.md` §Canon that does not
-exist yet), and until then nothing outside `docs/slices/010/` may cite it.
-Suggested slug at promotion: `004-process-exit-status.md`.
-
+**Status:** active
 **Kind:** technical
-
 **Owns:** the exit status of this project's binaries — what each status means,
 what a reader may infer from it and what it may not, and the line on standard
 error that accompanies a failure.
@@ -15,7 +10,7 @@ error that accompanies a failure.
      it came to be true. No changelog, no revision history, no "we used to".
      Amending it requires explicit user endorsement.
      Requirement ids (R-N) are immutable — append, never renumber. Cite from
-     elsewhere as SPEC-NNN/R-N once this document is numbered. -->
+     elsewhere as SPEC-004/R-N. -->
 
 ## 1. Intent
 
@@ -244,16 +239,9 @@ are held by the tests §7 names, which is where a change to them is visible.
 Each row names the kind of verification and what discharges it, so the claim is
 checkable rather than asserted. Paths are relative to the repository root.
 
-<!-- DRAFT-ONLY, removed at promotion. While this document is a draft, the rows
-     below are written in the present indicative and some of the cases they name
-     do not exist yet: they are what the slice writing this document commits to.
-     A citation that does not resolve is an unfinished promotion, exactly as a
-     surviving `SPEC-00N` placeholder is, and `design.md` §10 carries removing
-     this comment and checking every citation as promotion obligations. Once
-     promoted, every row is a statement about the tree and nothing else. --> Where
-a clause cannot be reached by a cooperating test, the row says so in terms, says
-what review holds **and what it does not**, rather than passing over it —
-SPEC-003/R-3's `LivenessUnknown` cell is the form.
+Where a clause cannot be reached by a cooperating test, the row says so in
+terms, says what review holds **and what it does not**, rather than passing over
+it — SPEC-003/R-3's `LivenessUnknown` cell is the form.
 
 | requirement | verified by |
 |---|---|
