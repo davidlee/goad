@@ -411,3 +411,14 @@ not yet the gate** — confirmed or overturned when the design is presented.
   taken with these decisions. Accepted cost: a reader that closes the pipe
   before reading gets a broken-pipe line and 2. `goad-emit` shares the pattern
   through `line_to` and is a follow-up row.
+
+### 2026-09-23 — two edits the repair made beyond its brief
+
+- **Asked:** (1) the repair agent did not apply A-1's recommended text: its
+  *"rather than retry into the rate limiter"* predicts a retry fails, the class
+  F-1 removes; `nix/module.nix` states only the unit's policy. (2) It dropped
+  SPEC-004 §7 R-3's *"All but one are unchanged by this document's arrival"* —
+  a count and a history in canon. Accept both?
+- **Decided:** "happy with both of them".
+- **Consequence:** A-1 is discharged by the policy-only wording; the R-3 cell
+  edit is endorsed canon. Round 2 of `review-code.md` runs on `aede3df..cc0db76`.
