@@ -92,7 +92,7 @@ figure for figure.
 | AC-6 | **met at the renderer tier; the process half is AC-9** | `diagnostics::report_exit_line` answers `goad: the host was running and stopped: {error}` and `…stopped, and no error was reported`; `stderr_outlets::the_stopped_line_is_not_the_line_a_host_that_never_started_writes` asserts both differ from `report_startup_line` over `StartupError::Platform`. `main` writes it through `report_exit`. |
 | AC-7 | **met in its letter; one doubt raised** | `nix/module.nix`'s `Service` comment: no exception paragraph, no *do not succeed on a retry*, no `SPEC-003`, no `Platform`; argues from phase. Directives byte-identical (`git diff -U0 … \| grep '^[-+][^-+]' \| grep -v '^[-+] *#'` empty; `nix-instantiate --parse` exits 0). **Doubt, A-1:** its *"so a restart changes nothing a person has not changed first"* is itself a retryability claim, the class AC-7 calls false of `Runtime` — though `plan.md` PHASE-03/EX-4 dictated those words. |
 | AC-8 | **pending — audit (canon)** | Applicable: the case Change 1 names, `exit_codes::an_unbindable_ingress_path_exits_2`, exists and passes. Not applied; needs endorsement (Reconciliation rows C-3…C-5). |
-| AC-9 | **pending — a person** | Steps below, under *AC-9 — on the running host*. Not observed by this audit. |
+| AC-9 | **met** — observed 2026-09-23 | On the running host, build `0.1.0 (96a1704)`: a tray quit exited `0/SUCCESS` with no line and no restart; a lost display (route 2) exited `1/FAILURE` with the one *stopped running* line last, restarted 2 s later. Record under *AC-9 — on the running host*, §Observed. |
 | AC-10 | **pending — close** | `docs/follow-ups.md` FU-1 still reads *four such exits* and *a compositor going away* (Reconciliation row R-1). |
 | AC-11 | **met** | `exit::ended` decides on `stop_requested` alone (`if stop_requested { AsAsked } else { StoppedRunning(call.err()) }`); the four `ended::` cases cover each result × request, the two error cases over one `loop_error()`. `start` passes `stop_signal.is_stopped()` read in the statement after the call, on a clone taken before `cancel` moves into `serve` (read here in `start`, not taken from PHASE-02/VA-1). `Cancel::is_stopped` is `*self.rx.borrow()`, held by `tests::is_stopped_is_false_until_stop_and_stays_true`. |
 
@@ -281,6 +281,34 @@ host's own Wayland connection breaking (`Broken pipe`) with the compositor up
   loss tripped `Cancel` — A5, §8 R1); no restart within a few seconds.
 - [ ] Record here: the date, the route, the journal lines quoted, and the gap
   between the exit and `Started`.
+
+**Observed — 2026-09-23, by the user, on `Sleipnir`**
+
+- **Deploy.** `ExecStart=/nix/store/yjfd4n3bx8phis2rssr2ifb7y1542xxz-goad-0.1.0/bin/goad`;
+  `--version` answered `0.1.0 (96a1704)`.
+- **A quit is 0, with no line.** Tray **Quit**: `Active: inactive (dead)`,
+  `Main PID: 2413919 (code=exited, status=0/SUCCESS)`; the journal tail after
+  `Started` holds no `goad: ` line and no `Scheduled restart job`.
+- **A lost display is 1, with the line, back in 2 s — route 2.** The host's
+  Wayland socket was found from the compositor's side (the `wayland-0` row
+  whose peer inode is one of the host's; fd 11 of PID 2447030) and shut down
+  with `gdb -batch -ex 'call (int)shutdown(11, 2)'`. The route is no longer
+  untested, and it reproduces the production failure: the three `Broken pipe`
+  lines are the ones `research.md` §Thread 3 quotes from the six outages.
+
+  ```
+  23:51:22 systemd[1435]: Started goad — personal intervention shell.
+  23:55:41 goad[2447030]: Io error: Broken pipe (os error 32)   (×3)
+  23:55:41 goad[2447030]: goad: the host was running and stopped: Error running winit event loop: Exit Failure: 1
+  23:55:41 systemd[1435]: goad.service: Main process exited, code=exited, status=1/FAILURE
+  23:55:43 systemd[1435]: goad.service: Scheduled restart job, restart counter is at 1.
+  23:55:43 systemd[1435]: Started goad — personal intervention shell.
+  ```
+
+  Then `active (running)`, new PID 2468699, `NRestarts=1`. Exit to `Started`:
+  **2 s** (`RestartSec`). The `goad: ` line is the old process's **last** —
+  nothing follows it from PID 2447030, which settles review round 1's *not
+  reached* (a write after `report_exit` on a real stop): none observed.
 
 ## Code review
 
