@@ -101,14 +101,14 @@ Lines of attack, written before reading the diff:
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | | |
-| F-2 | major | | |
-| F-3 | minor | | |
-| F-4 | minor | | |
-| F-5 | minor | | |
-| F-6 | minor | | |
-| F-7 | nit | | |
-| F-8 | nit | | |
+| F-1 | major | fix-now | |
+| F-2 | major | fix-now | |
+| F-3 | minor | fix-now | |
+| F-4 | minor | fix-now | |
+| F-5 | minor | fix-now | |
+| F-6 | minor | fix-now | |
+| F-7 | nit | fix-now | |
+| F-8 | nit | fix-now | |
 
 ### F-1 — Three comments read a retry prediction off status 2, which the draft spec forbids and AC-7 names
 
@@ -153,8 +153,8 @@ when it exits (`draft-spec.md` §6 says so in terms). The class is *a document
 restating the retryability axis the spec rejects*; fixing only the unit comment
 would leave the module that owns the numbers teaching it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted as raised, and as a class: every sentence in the slice's diff that reads a retry outcome off a status is repaired, not only the three quoted. `nix/module.nix` states the unit's policy (restart 1, do not restart 2) as the unit's choice, arguing from phase, predicting nothing; it names both routes into 0 (the window's close request and the tray's quit). `exit.rs`'s module doc and `exit_codes.rs`'s module doc state what each number means and leave restart to the supervisor (`draft-spec.md` §3 P-D). Carries audit A-1 (user decision, `design-log.md` *at audit*). The repair greps the diff for the class (*restart*, *retry*, *gains nothing*, *changes nothing*) and says in the commit what it found.
 
 **Outcome:**
 
@@ -199,8 +199,8 @@ hold *last line* only for errors that cannot contain a newline: a proxy for the
 property. The `diagnostics` module doc claims *"the escape/bound pipeline every
 line on this surface goes through"*; these two outlets do not go through it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Verified at `f9620b6`: `finish` (escape, then bound) is applied by `Diagnostics::of`, `Diagnostics::refused` and `next_check_line`; the three stderr outlets — `report_startup_line`, `report_exit_line`, `report_platform_line` — interpolate raw. No recorded reason for the bypass. **User decision (2026-09-23): route all three through `finish(…, LINE_LIMIT)`** — one line, the platform's cause kept, escaped as `\n`. Rejected: first line only (loses the winit cause on line 2); `goad: ` on every line (the last still says neither phase nor cause). A renderer-tier case builds a multi-line `PlatformError` through `From<String>` and asserts each outlet's answer contains no line terminator and begins with its fixed prefix; `draft-spec.md` §7's R-4 row cites it for *last line* in place of the two single-literal cases' proxy. The module doc's *every line on this surface* becomes true rather than reworded.
 
 **Outcome:**
 
@@ -225,8 +225,8 @@ exits 0 with nothing on standard error.
 nothing holds that `AsAsked` was earned. Either the code or R-1's wording
 ("answered") is wrong; which is a disposition.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Accepted: the code is wrong, not R-1. **User decision (2026-09-23): fix-now in `goad`, follow-up for `goad-emit`.** `print_usage` and `print_version` report whether the write succeeded; a failed write is a failure before the loop call, so exit 2 (R-3) through a new `StartupError` variant with an R-4 line on stderr (`goad: the answer could not be written to standard output: {error}`, through the F-2 pipeline). `line_to` stays best-effort for its other callers; its doc's *the exit code still carries the fact* is corrected where it is false. Held by a binary-tier case spawning `--help` with stdout on `/dev/full`, asserting 2 and the prefix, cited in §7's R-1 row for the *only if* half. Cost recorded: a reader that closes the pipe before reading (`| head -0`) now gets a broken-pipe line and 2. `goad-emit` shares the pattern and is a row in `slice-010.md` §Follow-ups.
 
 **Outcome:**
 
@@ -248,8 +248,8 @@ compiled with the devshell's `rustc` prints `true`. The choice of `u8` may
 still be right (a number reads better in an assertion failure); the argument
 given for it is not.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Reword; keep `u8`. The true reason is the one the raiser names: a bare number is what an assertion failure prints and what a supervisor reads. The false claim about `ExitCode` goes.
 
 **Outcome:**
 
@@ -275,8 +275,8 @@ Smaller: `report_exit`'s doc, *"stderr, once, last."*, is untrue for
 **Evidence:** the doc text against `draft-spec.md` §5 and R-6's own exception
 clause; `report_exit_line`'s `Ok(Ended::AsAsked) => None` arm.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** `report_exit_line`'s *exactly one situation* names its exception in the sentence (the call failing on entry, `draft-spec.md` §5 *What the seam costs*). `report_exit`'s *once, last* says `Ended::AsAsked` writes nothing.
 
 **Outcome:**
 
@@ -308,8 +308,8 @@ clause; `report_exit_line`'s `Ok(Ended::AsAsked) => None` arm.
 and against `an_unbindable_ingress_path_exits_2`'s own doc (*"`startup::listener`
 runs at `start` step 3"*).
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Under the AC-5 waiver for doc comments (`design-log.md` *at audit*). `exit_codes.rs` says `exit::status` chooses; the `help_…` case's doc says `Ok(Ended::AsAsked)`; `tests/binary/main.rs` names the rule (*before the first Slint call*) instead of *first step* and *the two zero-exits*. Carries P3-a and P3-c.
 
 **Outcome:**
 
@@ -332,8 +332,8 @@ changes the fallback list, and the doc names the winit version but not this.
 **Evidence:** the doc text; `i-slint-backend-selector-1.17.1/lib.rs`
 `create_default_backend`; `cargo tree` above.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The doc says what the removal holds — a case that does not settle before Slint fails fast rather than hanging — and what it rests on: `goad` builds with Slint's winit backend alone, so a feature that admits another backend changes the fallback.
 
 **Outcome:**
 
@@ -351,8 +351,8 @@ outlet renamed `report_exit` at 010/PHASE-02"*) and did not add
 
 **Evidence:** the module doc against `diagnostics::report_exit_line`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Add `report_exit_line` to the inventory, beside `report_exit`. Carries PHASE-02's *renamed* finding on the same sentence.
 
 **Outcome:**
 

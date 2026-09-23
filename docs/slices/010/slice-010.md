@@ -255,6 +255,21 @@ its recovery mechanism corrected.
   **Dead when** the spec's §4 carries a requirement whose subject is
   `goad-emit`, and its §2 no longer says that binary is ungoverned.
 
+- **`goad-emit` answers `--help` and `--version` with 0 when the answer was
+  not written.** It shares `goad_shell::report::line_to`, best effort by design,
+  so `goad-emit --help > /dev/full` exits 0 with nothing on standard error —
+  the pattern `review-code.md` F-3 repaired in `goad`. Not repaired here because
+  that binary's statuses are ungoverned (the row above), and fixing its
+  behaviour ahead of the requirement would be a status decided by no document.
+
+  **Priced at:** the same shape as `goad`'s repair — the two answering paths
+  report a failed write, `main` maps it to a non-zero status, one binary-tier
+  case on `/dev/full` in `crates/goad-emit/tests/binary/exchange.rs`.
+
+  **Dead when** `goad-emit --help > /dev/full` exits non-zero with a line on
+  standard error, held by a case — naturally inside the slice that kills the
+  row above.
+
 - ~~**No binary-tier case reaches an ingress bind failure.**~~ **Struck
   2026-09-23** — no longer deferred, and landed in this slice as
   `exit_codes::an_unbindable_ingress_path_exits_2`. The deferral was sound on

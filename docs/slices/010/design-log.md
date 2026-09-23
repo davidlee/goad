@@ -390,3 +390,24 @@ not yet the gate** — confirmed or overturned when the design is presented.
 - **Consequence:** promotion proceeds; the AC-5 waiver is recorded in
   `audit.md`. (3) is the same class as `review-code.md` round 1 F-1, raised
   independently — the repair of F-1 carries it.
+
+### 2026-09-23 — code review round 1: the stderr line escaped, and a question answered only when written
+
+- **Asked** (`review-code.md` round 1): (1) **F-2** — the three stderr outlets
+  interpolate `{error}` raw, so a multi-line `PlatformError` writes several
+  lines and the last names neither binary nor phase. Route them through the
+  module's existing `finish` (escape, bound); or keep the first line; or prefix
+  every line. (2) **F-3** — `goad --help > /dev/full` exits 0: fix the code, or
+  reword R-1's *answered*. (3) F-1, F-4…F-8 as fix-now.
+- **Recommended:** `finish`; fix the code, `goad-emit` as a follow-up; yes.
+- **Decided:** "F-2 - A"; F-3 fix-now + follow-up, after clarifying that plain
+  `--help` still exits 0 — only a failed write exits 2, which is coreutils'
+  convention (`ls --help > /dev/full` exits 1). The rest as recommended.
+- **Consequence:** one pipeline for every line the host writes, and R-4's §7 row
+  cites a multi-line case for *last line* instead of the single-literal proxy.
+  A failed `--help`/`--version` write is a startup failure: a new
+  `StartupError` variant, status 2 under R-3, and a binary-tier case on
+  `/dev/full` in R-1's row. Both are amendments to the endorsed draft spec's §7,
+  taken with these decisions. Accepted cost: a reader that closes the pipe
+  before reading gets a broken-pipe line and 2. `goad-emit` shares the pattern
+  through `line_to` and is a follow-up row.
