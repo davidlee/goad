@@ -1052,6 +1052,17 @@ deleting a test. `git add <explicit paths>` only. You are the only writer.
 
 - **Assumption 4 (recorded, not fixed — audit's to disposition).** `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc comment (`crates/goad/tests/binary/exit_codes.rs`) opens *"`Ok(())` is exit 0"*, which has been false since PHASE-02: `run` now answers `Ok(Ended::AsAsked)`, not `Ok(())`. AC-5 forbids touching any existing case's body or doc comment in this file — its module doc is the one permitted edit — so the stale sentence stands. Tension: AC-5's wording (no existing case touched) against a case's doc comment that is now factually wrong. Not this phase's to resolve.
 
+- **Orchestrator re-measure at `c67dd9c`**: `just check` exit 0, gate **633**
+  (baseline 632 + the one case). Diff read against the surfaces: five paths,
+  all declared.
+- **`nix/module.nix`'s comment says *"0 is the window being closed, which was
+  asked for"*.** Narrower than true: the tray's quit and `--help` / `--version`
+  are 0 as well, and EX-4 quotes the rule as *"0 is as asked"*
+  (`draft-spec.md` R-1 names both routes). Comment-only repair; for audit.
+- **`tests/binary/main.rs`'s module doc says the startup failures settle in
+  `start`'s *"first step"*.** A sentence this phase edited, and the case this
+  phase added settles at step 3 (`startup::listener`). For audit.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
@@ -1203,29 +1214,28 @@ sentence about what a running host has been seen to do is checked against this.
   ambiguous, and a new `StartupError` variant inherits it) still holds and
   needs only its quoted code repaired to match the tree.
 
-## Handover — 2026-09-23, PHASE-02 done, PHASE-03 next
+## Handover — 2026-09-23, all three phases done, audit next
 
-Written for a fresh agent. The slice is **executing**; `plan.md` accepted, no
-plan review (`plan-log.md`). **PHASE-01 `done`** at `ab5604f`, **PHASE-02
-`done`** at `5b23720`: `main` is three lines, `run`/`start` answer
-`Result<Ended, StartupError>`, `report_exit` replaced `report_startup`, and
-`structure::the_loop_s_ending_is_never_a_startup_failure` holds the call's
-line (its natural red recorded in PHASE-02's T-2).
+Written for a fresh agent. **PHASE-01 `done`** at `ab5604f`, **PHASE-02** at
+`5b23720`, **PHASE-03** at `c67dd9c`. Every phase was re-measured by the
+orchestrator at its commit, not taken from the report: final `just check`
+**exit 0**, gate **633**, `cargo test --workspace` **598** (35 counted twice,
+`goad-semantics`' 30 + 5); `goad` `binary` **7**, `renderer` **221**,
+`goad-boundary` `checks` **46**. Mutations M-1…M-14 are recorded in their
+phases' sheets; audit cites those rows.
 
-Re-measured by the orchestrator at `5b23720`, not taken from the report:
-`just check` **exit 0**, gate **632**, `cargo test --workspace` **597** (35
-counted twice, `goad-semantics`' 30 + 5); `checks` **46**, `renderer` **221**,
-`goad` `binary` **6**. M-9 re-run independently and matched.
+**Next is audit** (`docs/AGENTS.md` §Audit & reconcile; plan two sessions —
+the review rounds on the repairs are half the cost). It owes, beyond the
+standard walk: AC-9 on the running host (lost display → 1 and back within
+`RestartSec`; a quit → 0); canon promotion per `plan.md` §What no phase does;
+FU-1 at close (AC-10); the `research.md` count sweep.
 
-**Carried to audit** (each in its phase's §Findings): the crate-root
-`wildcard_enum_match_arm` deny does not reach `exit::status` (PHASE-01);
-`lib.rs`'s `path:line` citations (PHASE-01); `diagnostics.rs`'s *"renamed"*
-(PHASE-02); `docs/memory/exit-2-means-two-different-failures.md` stale (§Open,
-close lifts it).
-
-**Next:** the orchestrator writes PHASE-03's sheet (it does not exist yet, and
-must not be written by its executor), then a fresh agent runs it. PHASE-03's
-hazard is in `plan.md`'s notes: the bindable-path mutation launches a real host
-on this machine (`WAYLAND_DISPLAY` is set) until `process::command` removes the
-display variables — never run it before that change lands, and use `timeout`
-on any manual spawn.
+**Findings carried to audit**, each in its phase's §Findings:
+- PHASE-01: the crate-root `wildcard_enum_match_arm` deny does not reach
+  `exit::status`; `lib.rs`'s `path:line` citations.
+- PHASE-02: `diagnostics.rs`'s `//!` doc says *"renamed"* (cause: the sheet
+  narrowed VA-2).
+- PHASE-03: `help_prints_the_usage_block_on_stdout_and_exits_0`'s *"`Ok(())`
+  is exit 0"* (AC-5 forbids the edit); the nix comment's *0 is the window
+  being closed*; `tests/binary/main.rs`'s *"first step"*.
+- Close: `docs/memory/exit-2-means-two-different-failures.md` is stale (§Open).
