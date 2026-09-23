@@ -838,6 +838,214 @@ to re-raise it. `grep -rn "exit::ended|Ended::" crates/goad/src` outside
   code review to disposition. The class — a sheet tightening a plan criterion
   without saying so — is the orchestrator's to carry.
 
+### PHASE-03 — the binary tier and the consumer
+
+**Objective:** the binary tier cannot reach a display, a case reads an ingress
+bind failure's status and its own line off the built binary, both binary-tier
+module docs state the two-tier cut as it now is, and `nix/module.nix` argues
+from phase.
+
+Written by the orchestrator, not the executor. **Where this sheet restates a
+`plan.md` criterion it quotes it; where it narrows one it says so** — PHASE-02's
+sheet narrowed VA-2 silently and cost a false sentence (§PHASE-02 §Findings).
+
+**Surfaces** (`plan.md` PHASE-03, quoted; anything outside is a STOP):
+*"`crates/goad/tests/binary/process.rs`, `crates/goad/tests/binary/main.rs`
+(module doc only), `crates/goad/tests/binary/exit_codes.rs` (one case added;
+module doc; no existing case touched), `nix/module.nix` (the `Service` block's
+comment only)."* Plus this sheet, and `draft-spec.md` §7 / `design.md` §9 /
+`canon-delta.md` Change 1 **only** if the new case is renamed, same commit.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged by the orchestrator at `5b23720`** (*"PHASE-02 `done`,
+  its EX criteria hold on HEAD"*): §Status says `done`; `just check` **exit 0**,
+  gate **632**, workspace **597**; M-9 re-run independently and matched.
+  HEAD `38eb5f3` is documentation only on top of it.
+
+**Baseline**: `goad` `tests/binary` **6** (`exit_codes` 5 + `version` 1),
+`renderer` **221**, `checks` **46**, workspace **597**, gate **632**. This phase
+adds one case: expected end `binary` **7**, workspace **598**, gate **633**,
+nothing else moved. A figure that differs is a finding.
+
+**Reading list** — by symbol, never `path:line`.
+
+*What is being written*
+
+- `crates/goad/tests/binary/process.rs` — `command` removes `WAYLAND_DISPLAY`,
+  `WAYLAND_SOCKET` and `DISPLAY` from every spawn (`env_remove`, as
+  `goad_with_no_config_home` already does for its two). Its doc says why
+  (`design.md` §5.2, *The binary tier cannot reach a display*): past the socket
+  the binary opens a real host on a machine with a display and
+  `Command::output` waits for ever; with the three removed, the pinned winit
+  answers *neither WAYLAND_DISPLAY nor WAYLAND_SOCKET nor DISPLAY is set* and
+  the case fails fast. Also that **nothing but this doc holds the removal** —
+  deleting it is green until a case gets past the socket, and then the gate
+  hangs rather than reds (§5.2's last sentence).
+- `crates/goad/tests/binary/exit_codes.rs`
+  - **`an_unbindable_ingress_path_exits_2`** (the name is a commitment:
+    `draft-spec.md` §7 R-3/R-4, `canon-delta.md` Change 1). Two scratch files
+    named for the case and the process id, as `scratch_config` names its one:
+    a **regular file** at the would-be socket path, and a configuration that
+    loads and names it under `[ingress] path`. `plan.md` measured this body:
+    `[backend] command = ["true"]`, `timeout = "5s"`; `[schedule]
+    default_poll = "30s"`; `[ingress] path = "<the regular file>"` → exit 2,
+    stderr `goad: <path>: not a socket — found a regular file`. Assert status
+    **2** and that stderr **starts with** `format!("goad: {}: ", socket.display())`
+    — the prefix only the ingress arm writes (P-1). Remove both files before
+    asserting, as `an_unparseable_configuration_…` does. Its **doc says why
+    the status alone would not do**: headless, a bindable path exits 2 too, at
+    `PromptWindow::new`, with the display's line (P-1, measured).
+  - `scratch_config` is used as it stands; if it must change, that is inside
+    the surface — record why.
+  - **Module doc** (AC-5's one permitted change; VA-2). Today it says
+    *"`tests/renderer/startup.rs` covers the **arms** — every value `main`'s one
+    `match` over `run()`'s `Result` can see. What it cannot see is the constant
+    each arm names, because no pure test runs a process"*, and that a case past
+    step 4 *"would red"*. Both false after PHASE-02/this phase. It states the
+    cut from this side: the renderer tier holds **the numbers** (`exit::status`
+    is pure); this tier holds that the **process** answers them to a caller.
+    And what the spawn guarantees instead of *would red*. The history paragraph
+    (*"Before these cases, `ExitCode::from(2)` could be changed…"*) is history
+    and may stay. PHASE-02 rewrote `tests/renderer/startup.rs`'s module doc
+    from the other side (EX-5) — read it and make the two agree.
+  - **No existing case is touched** — not its body and not its doc comment
+    (`slice-010.md` AC-5: *"The file's module doc is the one permitted
+    change"*). See Assumption 4.
+- `crates/goad/tests/binary/main.rs` — **module doc only.** It says *"The exit
+  code is the half a pure test cannot reach at all"* and *"a case that reached
+  step 5 would need a compositor and would red on every headless machine"*.
+  After this phase: the numbers are held one tier down; this tier holds the
+  process answering them; and a case past the socket fails fast on the
+  display's line because `process::command` removes the display variables.
+- `nix/module.nix` — the `Service` block's **comment** only (EX-4, quoted):
+  *"no exception paragraph and none of its three false claims — no known
+  exception to its own directive, no *do not succeed on a retry*, no
+  *`SPEC-003`'s failure vocabulary*. It states the phase rule: 2 is a host that
+  never started, so a restart changes nothing a person has not changed first;
+  1 is a host that stopped running, which `Restart = "on-failure"` brings back
+  after `RestartSec`; 0 is as asked. No spec number (D6). The directives are
+  byte-identical."* Argue from phase, not from the field evidence: no outage
+  counts or dates (`plan.md` notes). It currently names `main` mapping every
+  `StartupError` to 2 — the number is now `exit::status`'s single `Err` arm.
+
+*Design sections that bind*
+
+- **§5.2** — *The two-tier cut moves, and both module docs say so*; *The
+  binary tier cannot reach a display*; the `nix/module.nix` paragraph.
+- **§9** — the `exit_codes::an_unbindable_ingress_path_exits_2` row; the
+  mutations *classifier `Err(_) => 2` → `=> 1`* and *The new binary case*.
+- **§7 D6** — no spec number anywhere this phase writes, the nix comment
+  included.
+- **`draft-spec.md` §7** R-3 and R-4 rows; **`canon-delta.md` Change 1** — the
+  text that will cite this case at promotion.
+- **`design-log.md`**, *P-1, raised at plan* — why the prefix and why the
+  display-free spawn.
+
+*Prior art*
+
+- `an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says`
+  and `scratch_config` — scratch file, spawn, remove, then assert a prefix.
+- `an_unreadable_configuration_…`'s doc — *"Each case asserts the prefix only
+  its own arm produces"*; the new doc is the same argument for the ingress arm.
+- `goad_with_no_config_home` — `env_remove` on the shared `command`.
+
+*Memory*
+
+- `docs/memory/negative-control-must-compile.md` — every mutation row records
+  that the mutated build compiled.
+- `docs/memory/tests-asserting-proxies.md` — the status alone is the proxy
+  here; the mutations below are what prove the prefix is not.
+
+**Assumptions**
+
+1. Every existing binary-tier case settles before the first Slint call, so
+   removing the display variables changes none of their outcomes.
+2. `startup::listener` runs at `start` step 3, before any Slint call, and a
+   regular file at the path is refused there with the line above (measured at
+   plan).
+3. **The one thing this phase is first to test** (VA-1): with the variables
+   removed, a spawn that gets past the socket **exits in seconds on this
+   machine** (where `WAYLAND_DISPLAY` is set) with the display's line. P-1
+   predicted it; nobody has run it.
+4. `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc opens
+   *"`Ok(())` is exit 0"* — false since PHASE-02 (`run` answers
+   `Ok(Ended::AsAsked)`). AC-5 forbids touching it. **Do not edit it**; record
+   it under §Findings for audit (the tension is AC-5's wording against a case
+   doc going stale, and it is audit's to disposition).
+
+**Hazard — read before anything else.** Until `process::command` removes the
+display variables, a spawn that binds its socket launches a **real host on
+the desktop** and `Command::output` never returns. So: land the spawn change
+**first** (T-2); never run M-13 or M-14 before it; wrap every manual spawn in
+`timeout 20`; and after M-13/M-14, `rm -f` any socket the bind left in the
+temp directory.
+
+**STOP conditions**
+
+- A criterion compels a file outside **Surfaces**.
+- An existing binary-tier case changes outcome when the display variables are
+  removed.
+- VA-1 does not hold: a past-the-socket spawn hangs, or exits other than 2
+  with the display's line.
+- A mutation does not compile, does not red the cases its row names, or reds
+  others.
+- The nix comment cannot state the phase rule without a directive changing.
+- **Budget** ~200k: stop green, `PARTIAL` note here, commit, report.
+
+**Forbidden.** `git stash`, `git checkout`, `git reset`, `git rebase`,
+`git commit --amend`, `git push`. Editing `design.md`, `design-log.md`,
+`plan.md`, `plan-log.md`, `canon-delta.md`, `draft-spec.md`, `slice-010.md` or
+any `review-*.md`, except the rename carve-out. Amending canon. Weakening or
+deleting a test. `git add <explicit paths>` only. You are the only writer.
+
+**Tasks**
+
+- [ ] T-1 — `git log --oneline -1` is `38eb5f3` or a documentation-only
+      descendant adding this sheet; tree clean. Record it.
+- [ ] T-2 — **The spawn change** (`process.rs`) and its doc. `cargo test -p
+      goad --test binary --no-fail-fast`: **6** green (VT-2's first half; also
+      run `version`).
+- [ ] T-3 — **VT-1**, `an_unbindable_ingress_path_exits_2`. Red first on an
+      assertion: write it asserting the wrong prefix (e.g. the config path
+      instead of the socket path) and see it red on stderr, then correct it.
+      Quote both.
+- [ ] T-4 — **VA-1**, measured: run M-13 (below) under `time`; record wall
+      time, status and stderr's first line. This is P-1's prediction checked.
+- [ ] T-5 — **Docs**: `exit_codes.rs`'s module doc, `tests/binary/main.rs`'s
+      module doc, `process::command`'s doc.
+- [ ] T-6 — **`nix/module.nix`** comment. `git diff nix/module.nix` touches
+      comment lines only (VA-3) — quote `git diff -U0 nix/module.nix | grep
+      '^[-+][^-+]' | grep -v '^[-+] *#'` coming back empty. `nix-instantiate
+      --parse nix/module.nix > /dev/null` exits 0.
+- [ ] T-7 — **Refactor.** Read the three docs and the nix comment as a
+      stranger: no *would red*, no *cannot see the constant*, no count, no spec
+      number, the two tier docs agree with `tests/renderer/startup.rs`'s.
+- [ ] T-8 — **EX-5, mutations** — table below, one at a time, byte-copy
+      restore from the scratchpad, `diff`-verified. Scope: `cargo test -p goad
+      --test renderer --test binary --no-fail-fast`.
+- [ ] T-9 — **EX-3**: `git diff 5b23720 -- crates/goad/tests/binary/exit_codes.rs`
+      shows the module doc, the added case (and any `use` it needs), and
+      nothing else. Quote the stat and say which hunks are which.
+- [ ] T-10 — **EX-6**: `an_unbindable_ingress_path_exits_2` resolves by that
+      name; grep `draft-spec.md` and `canon-delta.md` for it.
+- [ ] T-11 — **EX-1**: `just check` exit 0; figures against the baseline.
+- [ ] T-12 — Commit (`010: PHASE-03 — …`). §Status PHASE-03 → `done`;
+      §Harvest in place; §Findings (Assumption 4 at least), §Decisions,
+      §Mutation evidence complete. Then go idle — no commit after reporting.
+
+**Mutation evidence**
+
+| # | the edit (quoted) | must red, by name | compiled? | redded | restore green? |
+|---|---|---|---|---|---|
+| M-12 | `exit::status`: `Err(_) => 2,` → `Err(_) => 1,` | `exit_status::every_startup_failure_is_2`; every failing case in `exit_codes.rs` — `too_many_arguments_exits_2_and_says_who_spoke`, `no_argument_and_no_configuration_home_exits_2`, `an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says`, `an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says`, `an_unbindable_ingress_path_exits_2` | | | |
+| M-13 | the new case's ingress path points at a **bindable** path (a non-existent name in the temp dir) — **after T-2 only** | `an_unbindable_ingress_path_exits_2`, **on the stderr prefix, not the status**, and it **exits rather than hangs** | | | |
+| M-14 | `start`: `startup::listener(config.ingress.as_ref())?` → `startup::listener(None)?` — **after T-2 only**; `main.rs` is outside Surfaces, so this edit is temporary by construction and its restore is `diff`-verified like the rest | `an_unbindable_ingress_path_exits_2`, on the prefix, exits rather than hangs | | | |
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
