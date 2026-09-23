@@ -1214,28 +1214,66 @@ sentence about what a running host has been seen to do is checked against this.
   ambiguous, and a new `StartupError` variant inherits it) still holds and
   needs only its quoted code repaired to match the tree.
 
-## Handover — 2026-09-23, all three phases done, audit next
+## Handover — 2026-09-23, audit under way: review round 1 in, repairs next
 
-Written for a fresh agent. **PHASE-01 `done`** at `ab5604f`, **PHASE-02** at
-`5b23720`, **PHASE-03** at `c67dd9c`. Every phase was re-measured by the
-orchestrator at its commit, not taken from the report: final `just check`
-**exit 0**, gate **633**, `cargo test --workspace` **598** (35 counted twice,
-`goad-semantics`' 30 + 5); `goad` `binary` **7**, `renderer` **221**,
-`goad-boundary` `checks` **46**. Mutations M-1…M-14 are recorded in their
-phases' sheets; audit cites those rows.
+Written for a **fresh orchestrator**. Read `CLAUDE.md` → `docs/AGENTS.md`
+§Audit & reconcile and §Close → this section → `audit.md` → `review-code.md`.
 
-**Next is audit** (`docs/AGENTS.md` §Audit & reconcile; plan two sessions —
-the review rounds on the repairs are half the cost). It owes, beyond the
-standard walk: AC-9 on the running host (lost display → 1 and back within
-`RestartSec`; a quit → 0); canon promotion per `plan.md` §What no phase does;
-FU-1 at close (AC-10); the `research.md` count sweep.
+**Where it is.** All three phases `done` (`ab5604f`, `5b23720`, `c67dd9c`),
+each re-measured by the orchestrator. Audit has:
 
-**Findings carried to audit**, each in its phase's §Findings:
-- PHASE-01: the crate-root `wildcard_enum_match_arm` deny does not reach
-  `exit::status`; `lib.rs`'s `path:line` citations.
-- PHASE-02: `diagnostics.rs`'s `//!` doc says *"renamed"* (cause: the sheet
-  narrowed VA-2).
-- PHASE-03: `help_prints_the_usage_block_on_stdout_and_exits_0`'s *"`Ok(())`
-  is exit 0"* (AC-5 forbids the edit); the nix comment's *0 is the window
-  being closed*; `tests/binary/main.rs`'s *"first step"*.
-- Close: `docs/memory/exit-2-means-two-different-failures.md` is stale (§Open).
+- `audit.md` — Brief (`58df7c3`, written before the evidence), Evidence, the
+  AC table, the VT/VA/VH walk, surface delta (**no undeclared paths**), a
+  **draft** Reconciliation table (C-1…C-6, and rows for every carried finding
+  with a recommended disposition), and **the AC-9 steps for the user**, in nu
+  syntax, under *AC-9 — on the running host*. Gate at `f9620b6`: `just check`
+  exit 0, **633**; workspace **598**.
+- `review-code.md` — round 1 (`df2adde`, reviewer independent: it did not read
+  the carried findings before writing). **No blocker; F-1, F-2 major; F-3…F-6
+  minor; F-7, F-8 nit.** The ledger is the artefact — read it, not this list.
+  F-1 overlaps audit's A-1 and PHASE-03's nix finding; F-6 overlaps P3-a/P3-c;
+  F-2…F-5 are new.
+- **User decisions at audit**, `design-log.md` (*at audit*): canon C-1…C-6
+  **endorsed**; **AC-5 waived for doc comments** (record the waiver in
+  `audit.md` against AC-5); A-1 **reworded as policy**. Nothing has been
+  promoted or repaired yet — every `done` box in §Reconciliation is open.
+
+**Next, in order.**
+
+1. **Disposition round 1 with the user** — each finding, confirm before
+   acting (`docs/AGENTS.md`). **F-2 is likely a decision, not a spelling**: the
+   platform error's `Display` spans several lines, so the final stderr "line"
+   is not one line and its last line names neither binary nor phase (R-4,
+   P-B). How a multi-line error becomes one line — escape it through the
+   module's existing escape/bound pipeline, or take its first line, or
+   something else — is the user's call; check first whether the pipeline
+   `diagnostics.rs`'s `//!` doc describes already applies to other lines and
+   why these two bypass it. F-3 (`--help > /dev/full` exits 0) may be a spec
+   question about R-1's *answered* rather than a code fix.
+2. **One fresh repair agent** for the dispositioned findings plus the carried
+   doc repairs (P2 *renamed*, P3-a under the waiver, P3-b, P3-c, A-1) and
+   **C-6** (the `SPEC-004` citations — only after C-1 lands, or in the same
+   commit). Fix the class, not the instance: F-1 is *any* retry prediction off
+   status 2, in every file.
+3. **Canon promotion C-1…C-5** — endorsed; apply exactly as `canon-delta.md`
+   and §Reconciliation state, tick each row. C-2 only after re-checking every
+   case §7 names resolves (true at `f9620b6`).
+4. **Round 2** — a reviewer on the repairs, same ledger. Code review is
+   unbounded at this tier; budget for round 3 (`audit-stage-needs-its-own-budget`
+   in the orchestrator's memory: the repairs' review is half the cost).
+5. **AC-9 with the user** — hand them the steps from `audit.md` pasted into
+   chat, not a pointer to them. It needs the new build on their host. The
+   reviewer's *not reached*: whether anything writes to stderr **after**
+   `report_exit` on a real stop (a pending `serve` future dropped after
+   `main` returns) — watch for it in the journal during AC-9.
+6. **Close** — `docs/AGENTS.md` §Close: FU-1 struck (AC-10); `research.md`
+   count sweep; §Open swept; P1-a into the wildcard memory file and
+   `design.md` §3 under design drift; P1-b onto the FU-10 row;
+   `docs/memory/exit-2-means-two-different-failures.md` updated; follow-ups
+   ledger re-verified for rows naming touched files.
+
+**Housekeeping.** The round-1 reviewer's worktree is still on disk
+(`.claude/worktrees/agent-adaf66fe96d296402`, branch
+`worktree-agent-adaf66fe96d296402`, its one commit cherry-picked as `df2adde`);
+remove it with `git worktree remove` once round 2 is spawned. The older
+`goad-009-proto` worktree is not this slice's.
