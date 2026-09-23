@@ -1,4 +1,4 @@
-# Audit & reconciliation — Slice NNN
+# Audit & reconciliation — Slice 010
 
 Written after the last phase is done. Two jobs in one document:
 
@@ -9,10 +9,43 @@ Written after the last phase is done. Two jobs in one document:
 
 ## Brief
 
-**Subject:** <commit range / branch under audit>
-**Question:** <what would have to be true for this slice to be finished, and
-which of those the audit intends to actually check. Write it before looking, so
-the audit is not shaped by what turned out to be easy to find.>
+**Subject:** `b444c6a..f9620b6` on `main` — `b444c6a` is the slice's first
+commit (design approved), `f9620b6` the hand-over to audit. The code under
+audit is PHASE-01 `ab5604f`, PHASE-02 `5b23720` and PHASE-03 `c67dd9c`.
+
+**Question:** the slice is finished when all of these hold.
+
+1. **The gate is green on the tree as committed** — `just check` exits 0, and
+   the figures are re-measured here, not taken from `notes.md`.
+2. **Every acceptance criterion in `slice-010.md` is met by something in the
+   tree**, named by symbol: the draft spec's phase cut and §Owns (AC-1, AC-2);
+   `StartupError` no longer carrying the loop's ending (AC-3); the pure exit
+   decision and its one-tier-down cases, including a real
+   `slint::PlatformError` (AC-4, AC-11); `exit_codes.rs`'s existing cases
+   byte-identical outside the module doc (AC-5); the *stopped running* line
+   (AC-6); `nix/module.nix`'s paragraph gone with all three false claims
+   (AC-7); the SPEC-003 cells, which are canon-delta only until promotion
+   (AC-8); the running-host observation (AC-9) and FU-1 (AC-10), which are
+   audit/close work and are reported as pending, not met.
+3. **Every VT/VA/VH in `plan.md` is discharged against the tree** — each
+   phase sheet's claim is checked by reading the named symbol or re-running
+   the named command; a mutation is re-run only where the claim cannot be read
+   off the code.
+4. **Nothing was touched that no phase declared.** `git diff --stat` per
+   phase commit against that phase's Surfaces; every undeclared path named.
+5. **The invariants hold at the new code**: no domain vocabulary in the new
+   module; `src/semantics/` untouched (ADR-001); a backend or display failure
+   still never leaves the host unable to be invoked again — here, that *stopped
+   running* is not suppressed by the unit's `RestartPreventExitStatus`.
+6. **The record can be made true**: every document the slice must change is a
+   Reconciliation row, and every finding carried from the phases has a
+   recommended disposition.
+
+**Checked here:** 1–4, 6 fully; 5 by grep and reading the unit file. **Not
+checked here:** AC-9 needs a person on the running host — this audit writes
+the steps, it does not observe the result. Adversarial code review is the
+separate `review-code.md` ledger. Canon is drafted as rows and not applied: it
+waits for the user's endorsement.
 
 <!-- This is the audit's scope — evidence, criteria, canon. The code review's
      own lines of attack belong in `review-code.md`'s Brief, not here. -->
