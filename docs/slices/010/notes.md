@@ -8,7 +8,9 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 | pending | 2026-09-23 |
+| PHASE-02 | pending | 2026-09-23 |
+| PHASE-03 | pending | 2026-09-23 |
 
 ## Phase sheets
 
@@ -144,75 +146,47 @@ sentence about what a running host has been seen to do is checked against this.
   there. Not raised as a finding: `research.md` was context to this review and
   not its subject. Sweep it at audit.
 
-## Handover — 2026-09-23, plan stopped at design verification
+## Handover — 2026-09-23, plan drafted, awaiting acceptance
 
-Written for a fresh agent. The slice is **in plan**, and the planner has
-**stopped before writing `plan.md`** on a design claim that failed verification
-against the tree (`docs/AGENTS.md` §Plan: an unresolved design issue goes back
-to design). `plan.md` is still the template and no code has been written.
+Written for a fresh agent. The slice is **in plan**. `plan.md` is drafted
+(three phases: the pure layer, the seam, the binary tier and the consumer) and
+**not yet accepted**; no code has been written, and no phase sheet exists —
+each is written immediately before its phase (`docs/AGENTS.md` §Phase plan).
 
-**What verified clean, at `b444c6a`.** Every symbol and call site `design.md` §5
-names: `main`/`run`/`start` and the four `StartupError::Platform` sites; the
-`StartupError` doc sentences §5.2 repairs; `report_startup`, its one caller and
-the `//!` sentence naming it; `report_startup_line`'s doc opening on
-`report_startup`; `Cancel` holding its own `watch::Receiver`, `Cancel::stopped`
-as the future, `Notice::raised` as the `*self.rx.borrow()` precedent and
-`tests::a_raised_notice_stays_raised_until_it_is_lowered` beside it;
-`install`'s `on_close_requested` and `tray.on_quit` as the two `stop` routes;
-`structure.rs`'s `code_of`, `production_lines`, `occurrences_where`,
-`calls_resolve` and `counting_itself`; `display_text::platform` building
-`PlatformError::from`; `stderr_outlets::report_startup_line_renders_ingress_like_its_siblings`;
-`scratch_config`; `lib.rs`'s counting header; `nix/module.nix`'s directives and
-exception paragraph; `PlatformError`'s `#[non_exhaustive]` and
-`From<String>`, and `loop_error`'s assignments in the vendored winit backend.
-The only production-code mentions of `run_event_loop_until_quit` outside
-`start` are doc comments (`StartupError::Platform`, `controller.rs`), which
-`code_of` strips.
+**What happened at plan.** Verification of `design.md` against the tree at
+`b444c6a` passed except for **P-1**: `exit_codes::an_unbindable_ingress_path_exits_2`,
+asserting the status alone, was green for any startup failure — measured, a
+bindable path exits 2 headlessly at `PromptWindow::new`, and on this machine
+(`WAYLAND_DISPLAY` set) the corresponding mutant would launch a real host and
+hang the gate. The user took both repairs and a site check over a review round
+(`design-log.md`, *P-1, raised at plan*): the case asserts the ingress arm's
+stderr prefix, and `process::command` removes the display variables.
+`design.md` §5.2 and §9, `draft-spec.md` §7 R-4, `canon-delta.md` Change 1 and
+`slice-010.md` §Scope were repaired in `9f0a503`; the site check found no other
+sentence claiming the case holds only the status (the closed ledger's wording
+is history).
 
-**What failed — P-1, a design defect: `exit_codes::an_unbindable_ingress_path_exits_2`
-is a proxy.** As specified it asserts the status and nothing on standard error
-(`draft-spec.md` §7 R-4's row says so in terms). But a configuration that gets
-**past** the ingress step exits 2 as well, at `PromptWindow::new`, whenever no
-display is reachable — so the case is green whether or not the ingress bind is
-what failed. Measured with `target/debug/goad` against scratch configurations:
+**Verified clean at plan**, so a phase need not re-derive it: every symbol
+`design.md` §5 names exists as described — the four `StartupError::Platform`
+sites in `start`; `Cancel` holding its own receiver and `Notice::raised` as the
+`*self.rx.borrow()` precedent; `install`'s two `stop` routes; `structure.rs`'s
+`code_of`, `production_lines`, `occurrences_where`, `calls_resolve`,
+`counting_itself`; `display_text::platform`; `report_startup`'s single caller
+and its doc sites; `lib.rs`'s counting header; `nix/module.nix`'s directives;
+`slint::PlatformError`'s `#[non_exhaustive]`, `From<String>`, a hand-written
+`Debug` and no `PartialEq`. The only non-`start` production mentions of
+`run_event_loop_until_quit` are doc comments `code_of` strips.
+`tests/renderer/main.rs` does **not** carry the `wildcard_enum_match_arm` deny.
 
-| configuration | environment | status | stderr |
-|---|---|---|---|
-| ingress path is a regular file | display present | 2 | `goad: <path>: not a socket — found a regular file` |
-| ingress path bindable | `WAYLAND_DISPLAY`, `DISPLAY` unset | 2 | `goad: the display could not be opened: … neither WAYLAND_DISPLAY nor WAYLAND_SOCKET nor DISPLAY is set.` |
+**PHASE-01 STOP conditions** (in `plan.md`): `Cancel::is_stopped`,
+`exit::ended` and the `Option` arms have never compiled in the tree; a lint
+that fires is a spelling, and a fix that changes a type or an arm's meaning is
+a STOP. §9's mutations are unrun; each phase owns its share (`plan.md`
+§Coverage) and records them under **Mutation evidence** in its sheet.
 
-Consequences in the approved artefacts:
+**For audit, beyond `plan.md` §What no phase does:** `lib.rs`'s header carries
+`path:line` citations outside the counting sentence PHASE-01 replaces — not
+this slice's, a finding to disposition; `research.md`'s count.
 
-- `design.md` §9's mutation *"pointing the new case at a bindable path must red
-  it"* is false headless (green, row 2 above). On the machine the gate actually
-  runs on — `WAYLAND_DISPLAY` is set in the dev shell — the mutant launches a
-  real host, and `process::goad`'s `Command::output()` has no timeout: the
-  gate **hangs**, it does not red.
-- `canon-delta.md` Change 1 cites the case as holding R-4's non-zero exit for an
-  ingress bind failure; as specified it holds *some startup failure*, which the
-  existing cases already held.
-- Adjacent, not a new defect: `exit_codes.rs`'s module doc and
-  `tests/binary/main.rs`'s say a case reaching step 5 *would red on every
-  machine the gate runs on*. On this machine it would hang. The first of the two
-  is rewritten by this slice anyway.
-
-**A repair to put to the user, not taken.** Either (a) the case also asserts the
-ingress arm's own line — the *says only what its own arm says* pattern its
-siblings already follow — which amends `draft-spec.md` §7's R-4 row, `design.md`
-§9, and possibly Change 1's wording; and/or (b) the binary tier's spawn strips
-`WAYLAND_DISPLAY`, `WAYLAND_SOCKET` and `DISPLAY`, so no case and no mutant can
-reach a real display — which touches `tests/binary/process.rs`, outside
-§Scope. (a) is what kills the proxy; (b) is what makes the mutation a red and
-not a hang.
-
-**Minor, for the plan once design settles (not a stop).** `Launch`'s doc in
-`startup.rs` says Help and Version are outcomes *"so `main` keeps its single
-exit-code decision"*. After the slice `main` has no decision; `exit::status`
-does. `design.md` §5.2's `startup.rs` list does not name this sentence. It is
-inside a declared surface, so a phase can repair it.
-
-**Still owed from the design handover:** `Cancel::is_stopped`, `exit::ended`
-and the `Option` arms have never compiled in the tree (stand-in types only);
-§9's mutations, F-63's split-arm mutant among them, are unrun. Both become
-PHASE-01 STOP conditions once the plan is written. `research.md`'s count
-(*"its five tests"*) is an audit sweep.
+**Next:** the user decides on an adversarial plan review (`review-plan.md`)
+and accepts the plan; then PHASE-01's sheet is written and the phase runs.
