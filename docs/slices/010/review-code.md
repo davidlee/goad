@@ -7,7 +7,7 @@
 `nix/module.nix`. Held to `draft-spec.md` (the slice's working canon) R-1…R-7,
 `slice-010.md` AC-1…AC-11, and `CLAUDE.md`'s rules.
 **Reviewer:** fresh agent (Claude Opus 5.5), round 1, own worktree; a second
-fresh agent, round 2, own worktree
+fresh agent, round 2, own worktree; a third fresh agent, round 3, own worktree
 **Opened:** 2026-09-23
 **State:** open
 
@@ -136,11 +136,48 @@ Lines of attack:
 7. **The gate.** `just check` exits 0 at `3434b76` before any mutation; the
    total recorded.
 
+**Round 3** — 2026-09-23 — the round-2 repairs, `5b51c90..1c1fe9d` on `main`
+(`e0f1488`, `07c71f3`, `1c1fe9d`), and the `docs/follow-ups.md` FU-4 edit
+the repair made beyond its brief. Fresh agent, own worktree (fast-forwarded
+from `5b51c90`). Written before the diff was read; `notes.md` §Handover
+*Repairs, round 2* not read until the findings and outcomes below were
+written.
+
+Lines of attack:
+
+1. **Outcomes as a class.** F-1 (re-disposed) and F-9…F-15, each against
+   the class its Response names: F-1's retry vocabulary over `crates/`,
+   `nix/` *and* `docs/specs/`; F-9's present-tense history over all of
+   SPEC-004, not §1 alone; F-10/F-11/F-15 over every stderr outlet.
+2. **One escape or two.** Whether `diagnostics`' stderr path and `finish`
+   share one escape function or each has its own. Whether dropping the bound
+   is safe for every `{error}` that reaches a stderr outlet: who controls
+   each one's length (the user's file, the platform, a backend, a peer on
+   the socket).
+3. **Tests red on their regression.** Mutation-run each new or changed case
+   (the long-configuration tail case, the terminator case, the flush case),
+   with mutations that compile: restore the bound, drop the terminator step,
+   remove the flush.
+4. **Stale claims of the old shape.** Grep the repo (outside closed slices'
+   records) for any sentence that still says a stderr line is bounded, that
+   *every line* passes `finish`, or that names `LINE_LIMIT` for stderr.
+5. **The amended canon.** SPEC-004 §1, §5's diagram, the R-1 and R-4 §7
+   rows: true of the code; inside the endorsed scope (`design-log.md`,
+   *code review round 2*); no counts; no line-number citations; every cited
+   symbol resolves; formatted like the surrounding canon (and the diagram
+   parses).
+6. **The *today*s left standing.** SPEC-004 §2 and §8: each *today* judged
+   as true of the tree, a history, or a retry prediction.
+7. **Beyond the brief.** The FU-4 edit in `docs/follow-ups.md`: what it
+   changed, whether it was asked for, whether it is true.
+8. **The gate.** `just check` exits 0 at `1c1fe9d` before any mutation; the
+   total recorded.
+
 ## Findings
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | fix-now | contested |
+| F-1 | major | fix-now | verified |
 | F-2 | major | fix-now | verified |
 | F-3 | minor | fix-now | verified |
 | F-4 | minor | fix-now | verified |
@@ -148,13 +185,21 @@ Lines of attack:
 | F-6 | minor | fix-now | verified |
 | F-7 | nit | fix-now | verified |
 | F-8 | nit | fix-now | verified |
-| F-9 | minor | fix-now | |
-| F-10 | minor | fix-now | |
-| F-11 | nit | fix-now | |
-| F-12 | minor | doc-wrong | |
-| F-13 | minor | fix-now | |
-| F-14 | nit | fix-now | |
-| F-15 | nit | fix-now | |
+| F-9 | minor | fix-now | verified |
+| F-10 | minor | fix-now | verified |
+| F-11 | nit | fix-now | verified |
+| F-12 | minor | doc-wrong | verified |
+| F-13 | minor | fix-now | verified |
+| F-14 | nit | fix-now | verified |
+| F-15 | nit | fix-now | verified |
+| F-16 | minor | | |
+| F-17 | nit | | |
+| F-18 | nit | | |
+| F-19 | minor | | |
+| F-20 | nit | | |
+| F-21 | nit | | |
+| F-22 | nit | | |
+| F-23 | nit | | |
 
 ### F-1 — Three comments read a retry prediction off status 2, which the draft spec forbids and AC-7 names
 
@@ -223,6 +268,21 @@ canon, where the Response's own citation (P-D) lives. Evidence:
 (The same paragraph's present-tense history is a separate defect, F-9.)
 
 **Re-disposition (round 2):** fix-now. The contest is correct: the class grep stopped at `crates` and `nix`. SPEC-004 §1's paragraph is rewritten with F-9 (user decision and canon endorsement, 2026-09-23), and the class grep (*restart*, *retry*, *next try*, *gains nothing*, *changes nothing*, *would have come back*) is re-run over `docs/specs/` as well as `crates` and `nix`, its result stated in the commit.
+
+**Outcome (round 3):** verified. §1's paragraph is gone, and with it
+*next try*. The class grep (*next try*, *come(s) back*, *gains nothing*,
+*changes nothing*, *would have come*, *restart … changes/gains/would*,
+*retry will/would*, *would fail/succeed again*) over `crates/`, `nix/`,
+`docs/specs/`, `docs/policy/`, `docs/adr/`, `docs/brief.md` and
+`docs/follow-ups.md` finds no retry outcome read off a status. Every hit is
+unrelated (a present that *changes nothing*, a value that *comes back*).
+`07c71f3`'s message states the grep and its result. Outside that scope,
+`docs/memory/exit-2-means-two-different-failures.md` still says *"Ask, at
+the variant, whether it would succeed on a retry"*. It is not canon, and
+`audit.md`'s reconciliation row R-2 already carries its rewrite, so it is
+not raised here. Two retry-axis sentences the repair judged true of the tree
+are F-18 and F-19, which are new findings and not a contest. Neither reads
+an outcome off a status.
 
 ### F-2 — The "line" beside a platform failure is several lines, and the last one names neither the binary nor what happened
 
@@ -569,7 +629,14 @@ the prediction in the same paragraph. This finding is its tense.
 
 **Disposition:** fix-now
 **Response:** **User decision (2026-09-23), with F-1's re-disposition:** SPEC-004 §1's *today* paragraph is rewritten to state the rule alone — the status names the phase the process ended in, a fact it observes, not a judgement about whether trying again would work. The history lives in `slice-010.md` and FU-1. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (round 3). §1 now states the rule alone. It has no
+*today*, no *every failure exits 2*, and no *this document is the repair*.
+The next paragraph's *"Once this exists"* is now *"With the status
+stated"*, the same tense class inside §1, so it was caught too. A grep of
+SPEC-004 for *today*, *repair*, *arrival*, *used to*, *no longer* and
+*previously* leaves §2's and §8's *today*s. Those are judged under the
+round-3 Brief item 6. One of them is false (F-18). The sentence the repair
+wrote keeps an absolute that §5 qualifies (F-16).
 
 ### F-10 — The line bound cuts the cause off a configuration error
 
@@ -610,7 +677,25 @@ case holds a configuration line's tail: the binary tier asserts
 
 **Disposition:** fix-now
 **Response:** **User decision:** the stderr outlets (`report_startup_line`, `report_exit_line`, `report_platform_line`) escape and do **not** bound. The bound exists for lengths a backend or transport chose (D53); these lines carry the user's own configuration's parse error or the platform's, and journald's own limit is far above `LINE_LIMIT`. Rejected: raising the bound to `STDERR_LIMIT` (moves the threshold, keeps the class). A case holds that a long configuration error keeps its message tail.
-**Outcome:**
+**Outcome:** verified (round 3). `report_startup_line`,
+`report_exit_line`'s `StoppedRunning(Some(_))` arm and
+`report_platform_line` now take `one_line`. `one_line` is
+`Escaped(without_one_terminator(composed))`, and it has no bound.
+`finish` and `LINE_LIMIT` are left with in-window callers only. Mutations,
+all compiled:
+- A bound restored inside `one_line` (`bound(…, LINE_LIMIT)`) reds
+  `a_configuration_error_far_along_a_long_line_keeps_the_parser_s_message`
+  on the *more characters not shown* assertion. It also reds
+  `no_stderr_outlet_bounds_its_line`.
+- Reverting `report_platform_line` alone to `finish(…, LINE_LIMIT)` reds
+  `no_stderr_outlet_bounds_its_line` and
+  `no_stderr_outlet_ends_in_a_visible_terminator`.
+- Reverting `report_startup_line` alone reds all three new cases.
+
+So the per-outlet loop does not hide an outlet. Measured on the process: a
+configuration whose line has 100,000 characters writes one 200,260-byte line
+ending *`` unexpected key or value, expected newline, `#` ``*, which is the
+message kept. What that length costs is F-20.
 
 ### F-11 — Every configuration-parse line now ends in a visible `\n`
 
@@ -637,7 +722,19 @@ line has.
 
 **Disposition:** fix-now
 **Response:** With F-10: the stderr outlets drop at most one trailing terminator through the existing `without_one_terminator` before escaping — the rule this module already follows for captures, reused, not restated.
-**Outcome:**
+**Outcome:** verified (round 3). The terminator step reuses
+`without_one_terminator`. There is one escape, `Escaped`, composed two
+ways: `finish` escapes and bounds, and `one_line` drops a terminator and
+escapes. So nothing is implemented twice. Two mutations, both compiled:
+- Dropping `without_one_terminator` from `one_line` reds
+  `no_stderr_outlet_ends_in_a_visible_terminator`, and the long-line case
+  as well.
+- Replacing only the `StoppedRunning(Some(_))` arm with a bare `Escaped`
+  reds `no_stderr_outlet_ends_in_a_visible_terminator` alone. That case's
+  loop covers the arm.
+
+Measured: `goad bad.toml` now ends ``expected `=`$`` under `cat -A`. The
+visible `\n` is gone.
 
 ### F-12 — A closed standard output still answers a question with 0
 
@@ -669,7 +766,13 @@ both sentences to *a write that failed*, is a disposition.
 
 **Disposition:** doc-wrong
 **Response:** Verified by `strace`: before `main`, Rust's runtime polls fds 0–2, finds fd 1 `POLLNVAL`, and reopens it on `/dev/null`; the answer is written there, as `> /dev/null` would. Exit 0 is right. **User decision:** the `AnswerUnwritten` doc and SPEC-004 R-1's §7 row say *a write the stream refused*, and state the runtime's reopening once, as the reason a closed handle is not that. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (round 3). Re-traced at `1c1fe9d` with `strace -e
+trace=poll,openat,write goad --version >&-`. The trace shows `poll` on fds
+0–2 answering `fd=1, revents=POLLNVAL`, then `openat("/dev/null", O_RDWR) =
+1`, then `write(1, "0.1.0\n", 6) = 6`, and the process exits 0. `--version
+> /dev/full` still writes the `AnswerUnwritten` line and exits 2. Both
+sentences now say *refused*. `AnswerUnwritten`'s doc points to the R-1 row
+and does not restate it. No test holds the closed-handle sentence (F-21).
 
 ### F-13 — `try_line_to`'s flush is unheld, and unreachable from its callers
 
@@ -698,7 +801,11 @@ holds it, and nothing reds on its removal.
 
 **Disposition:** fix-now
 **Response:** Keep the flush: `try_line_to` takes any `Write`, and its contract — whether the line arrived — is false without it for a buffered sink. Add a `report` unit case with a sink whose write succeeds and whose flush fails, asserting `try_line_to` answers the error.
-**Outcome:**
+**Outcome:** verified (round 3). `RefusesFlush` accepts every write and
+fails the flush with `StorageFull`. Mutation, compiled: `sink.flush()`
+replaced with `{ let _ = &mut sink; Ok(()) }` reds
+`a_refused_flush_is_reported_to_a_caller_whose_line_is_the_answer` at its
+`expect_err`, and the other four `report` cases pass. Restored by byte copy.
 
 ### F-14 — SPEC-004 §5's diagram still sends every question to 0
 
@@ -719,7 +826,12 @@ the promotion did not revisit it.
 
 **Disposition:** fix-now
 **Response:** SPEC-004 §5's diagram gains the edge from a question whose answer could not be written to 2. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (round 3). The diagram now splits the question:
+`Invoked --> Question`, then `Question --> Answered: the answer was written`
+and `Question --> NeverStarted: the stream refused the answer`. The syntax is
+valid `stateDiagram-v2`, and `NeverStarted --> [*]: 2` already existed.
+§5's prose under the diagram still describes the question without the
+refusal (F-17).
 
 ### F-15 — *Every line on this surface goes through the pipeline* has one arm that does not
 
@@ -741,7 +853,21 @@ sentences.
 
 **Disposition:** fix-now
 **Response:** Carried by F-10's repair: the module doc and the canon sentence say which step each surface takes (escape and bound for the in-window surface; escape alone for stderr), and no longer claim *every line* for a fixed literal. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (round 3). SPEC-004's R-4 row now reads *"Each line
+of this report that **interpolates a value** takes `diagnostics`' one
+escape"*, which is true: the `StoppedRunning(None)` literal interpolates
+nothing. `report_startup_line`'s doc says *every **composed** line on
+standard error*. The module doc says *every composed line on the in-window
+surface goes through* `finish`, and *the host's own standard error takes
+`one_line` instead*. Read alone, that second sentence would cover the
+literal too. Read after the first, it means composed lines. This is left as
+taste, not raised.
+A grep of `crates/`, `nix/` and `docs/` for *escape/bound*,
+*escape-and-bound*, *every line on this/that surface*, `LINE_LIMIT` and
+`finish` finds no claim that a host stderr line is bounded. Closed slices'
+records (001–009) and this ledger were excluded. One test name,
+`the_line_goes_through_the_escape_and_bound_pipeline`, remains. It is about
+`next_check_line`, which is in-window, so it is correct.
 
 ### Checked and found complete (round 2)
 
@@ -814,6 +940,268 @@ sentences.
   makes it unheld for `goad`'s.
 - **Seen there and not raised here:** `audit.md`'s AC-8 row still reads
   *pending — not applied*. That verdict belongs to audit.
+
+### F-16 — SPEC-004 §1 now says the phase *is* a fact the process observes; §5 says *very nearly* and names where it is not
+
+**Severity:** minor
+**Location:** `docs/specs/004-process-exit-status.md` §1 *Intent*, second
+paragraph, the sentence the repair wrote.
+
+**Expected:** SPEC-004 §2 adopts SPEC-003 P-D for absolute clauses: *"a clause
+here that says a mechanism always holds or never fails names its exception and
+bounds it"*. §5 is where the exception is: *"Which phase the process ended in
+is **very nearly** a fact it observes … The phase axis has one imprecision, it
+is at the seam named below"*. *What the seam costs* then says that for a call
+failing on entry the host reports *stopped running* and *"the host cannot know
+it"*.
+
+**Observed:** §1 now reads *"The status names **the phase the process ended
+in**: how far the process got, which **is a fact it observes**, and not a
+judgement about whether trying again would work."* The sentence makes the
+absolute claim. It names no exception and points nowhere. That is the claim
+§5 qualifies two sections later, for the one shape where the host does
+*not* observe how far it got. The old paragraph had the same clause. The
+repair rewrote the paragraph around the clause and kept it.
+
+**Evidence:** the two quoted sentences side by side; §5 *What the seam costs*.
+This is the first sentence a reader meets that states the rule. So it is
+the one where the exception most needs to be in the sentence, or pointed to
+from it.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-17 — §5's prose still describes every question as answered
+
+**Severity:** nit
+**Location:** `docs/specs/004-process-exit-status.md` §5, *Both edges that
+reach 0 are the same class.*
+
+**Observed:** *"An invocation that is a question answers on standard output
+and has nothing further to do; a running host that is asked to stop ends
+because it was. Both did what was asked."* Since F-14, the diagram above
+it has a question that did not answer: `Question --> NeverStarted: the
+stream refused the answer`. The paragraph is about the edges into 0, so
+context narrows it to the answered question. But the sentence itself states
+the unconditional, which is exactly what F-14 raised about the diagram.
+
+**Evidence:** the paragraph against the diagram directly above it, and
+against `exit_codes::an_answer_that_cannot_be_written_exits_2`.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-18 — SPEC-004 §2 says `goad-emit`'s statuses *have no owner today*; the same section says they are owned
+
+**Severity:** nit
+**Location:** `docs/specs/004-process-exit-status.md` §2 *Boundaries*, the
+**SPEC-001 §2** bullet.
+
+**Observed:** *"SPEC-001 §2 puts the `goad emit` command line out of its own
+scope, which is why that binary's statuses **have no owner today** and why this
+document claims the boundary."* The first bullet of the same list reads
+*"`goad-emit` is **nominally owned** and not yet governed. §Owns is stated at
+the wider boundary deliberately"*. OQ-2 also says *nominally owned*. Once
+this document claims the boundary, the statuses have an owner, and the
+*today* is the draft's tense. `07c71f3`'s message judged this *today* true
+of the tree. Read against its own section, it is not.
+
+**Evidence:** the two bullets; §8 OQ-2. This is F-9's class, *canon stating
+the pre-promotion state as the present*, in the section after §1.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-19 — OQ-1 judges each cause's restart policy, the axis the document puts out of scope
+
+**Severity:** minor
+**Location:** `docs/specs/004-process-exit-status.md` §8, OQ-1.
+
+**Expected:** §2: restart, retry and backoff **policy** *"is never asserted
+here (§3 P-D)"*. §6 *What may not be inferred*: *"a display that was not
+there at one moment may be there at the next"*. §6 *A stated consequence*: a
+consumer that suppresses restarts on 2 suppresses both the display and the
+configuration, and *"subdividing the class means deciding, per cause, whether
+a retry could succeed"*.
+
+**Observed:** OQ-1 closes the question with *"Not today (§6's stated
+consequence): **the candidate causes either want suppression or are indifferent
+to it**"*. That sentence decides, per cause, what a restart policy should do.
+Take §6's own example cause, a display absent at startup. It does not *want*
+suppression, since it may be there at the next attempt. It is *indifferent*
+only under one supervisor's arrangement (the unit's session target restarts
+it; `design.md` §5.4). §6 argues from the axis being rejected. OQ-1 argues
+from a verdict on that axis.
+
+**Evidence:** the quoted clause against §2's out-of-scope sentence and §6's
+example. Brief item 6 asked for §8's *today*s to be judged. This is the
+clause that *Not today* rests on. It was promoted unchanged in round 1, and
+`07c71f3` left it as *true of the tree*. It is not a *today*, so the
+repair's grep could not reach it.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-20 — An unbounded stderr line is linear in the configuration line's length, and nothing says what that costs
+
+**Severity:** nit
+**Location:** `diagnostics::one_line` doc (`crates/goad/src/diagnostics.rs`);
+SPEC-004 §7 R-4's row (*"and no bound"*).
+
+**Observed:** measured at `1c1fe9d`, a configuration with one 100,000-character
+line and an error at its end makes `goad` write **one 200,260-byte line**.
+That is about twice the column: the source excerpt, then a caret line padded to
+the column. The stream still holds one line, and it ends in the message, so
+R-4 holds on the stream. The shipped supervisor reads it through journald,
+and journald's `LineMax=` (48K by default) splits a longer line into several
+records. The last record the journal shows for that run is then a fragment.
+It begins partway through the caret padding and does not begin `goad: `.
+`one_line`'s doc gives the reason for no bound and says nothing of what the
+lack of one costs. The R-4 row says the same, and so does F-10's Response.
+F-10's Response also cited *"journald's own limit is far above
+`LINE_LIMIT`"*: true, but the relevant comparison is now against an
+unbounded line.
+
+**Evidence:** the measurement (`huge.toml`, `note = "a…a" x` with 100,000
+`a`s, `wc -lc` on standard error: `1 200260`). Who controls the length of
+each `{error}` that reaches a stderr outlet: the configuration file and
+the paths in it (the person), OS error text, and Slint/winit text. The last
+is reached through `StartupError::Platform`/`EventLoop`,
+`Ended::StoppedRunning` and `report_platform`'s callers
+(`SlintGlass::present`, and `install`'s `rescale` literal). **No backend- or
+peer-authored text reaches any stderr outlet**, so the missing bound is not
+a length a backend chose. D53's reason does not apply, and the user's
+decision stands on its own terms. This finding is about the unstated cost,
+not the decision.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-21 — R-1's row states the closed-descriptor behaviour in a *verified by* cell and names nothing that holds it
+
+**Severity:** nit
+**Location:** `docs/specs/004-process-exit-status.md` §7, R-1's row, *"A
+closed standard output is not a refusal: before `main`, Rust's runtime …
+reopens it on `/dev/null` … and the question exits 0."*
+
+**Observed:** every other clause in the row names a case, or says it is
+review or evidence and what that holds. This one states a property of the
+standard library's startup, and through it an exit status, with no holder.
+A binary-tier case could reach it: spawn `--help` with fd 1 closed, then
+assert 0 and an empty standard error. It is not a clause *no cooperating
+test can reach* (§2's rule for §7), so it is neither held nor declared
+unheld. If a toolchain or target stops sanitising the descriptors, the
+sentence becomes false, and nothing in the gate sees it happen.
+
+**Evidence:** the row text; the `strace` in F-12's round-3 Outcome.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-22 — Two in-place substitutions left their lines unwrapped
+
+**Severity:** nit
+**Location:** `docs/specs/004-process-exit-status.md` §1, the line beginning
+*"With the status stated, a supervisor — `nix/module.nix`'s systemd unit is
+the one this"*, at 86 columns, where the surrounding prose wraps at 80;
+`diagnostics::finish`'s doc, the line *"in-window surface passes through
+this — decoding (step 2) happens only for stderr, before"*, about 95
+columns, beside lines wrapped at 80.
+
+**Evidence:** `awk 'length > 80'` over SPEC-004's prose (table rows
+excluded). Three other lines are over 80, all pre-existing and all 87
+columns or fewer: one each in §3, §8 and §9. The repair's diff shows both
+lines as word substitutions that were not rewrapped. On its own this is
+taste, and the pre-existing lines show the document is not strict about it.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-23 — *stderr* now names two streams in `diagnostics`, and two docs beside the repair use it unqualified
+
+**Severity:** nit
+**Location:** `diagnostics` (`crates/goad/src/diagnostics.rs`): `STDERR_LIMIT`'s
+doc, *"The stderr line's own bound: **the only line whose whole value is
+diagnostic prose a person reads**"*; `finish`'s doc, *"decoding (step 2)
+happens only for stderr"*.
+
+**Observed:** both mean a **backend's** captured stderr, one line on the
+in-window surface. The repair added *"the host's own standard error"* to the
+module doc, `LINE_LIMIT`'s doc and `one_line`'s doc, the stream
+`report_startup_line` writes to. Beside those, `STDERR_LIMIT`'s *the only
+line whose whole value is diagnostic prose a person reads* now reads as
+false. The host's own stderr lines are that too, and they are the unbounded
+ones.
+
+**Evidence:** the quoted docs against `one_line`'s doc and the module doc.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### Checked and found complete (round 3)
+
+- **Worktree.** It was at `5b51c90`. `git merge --ff-only main` brought it
+  to `1c1fe9d` before any reading.
+- **The gate.** `just check` exits 0 at `1c1fe9d` before any mutation:
+  **642 passed**, 0 failed, 0 ignored, over 31 `test result` lines.
+- **Mutations, all compiled, all restored by byte copy from the scratch
+  directory, `git status` clean after each.** One attempt at the
+  `StoppedRunning` arm did not compile (a misplaced `.to_string()`). It was
+  discarded, and the recompiled version is the one recorded under F-11.
+  - A bound restored in `one_line` reds the long-line case and the no-bound
+    case.
+  - Dropping the terminator step from `one_line` reds the terminator case
+    and the long-line case.
+  - `report_platform_line` alone on `finish` reds the no-bound case and the
+    terminator case.
+  - `report_startup_line` alone on `finish` reds all three new cases.
+  - The `StoppedRunning(Some(_))` arm without the terminator step reds the
+    terminator case.
+  - `try_line_to`'s flush removed reds the new `report` case.
+- **One escape.** `Escaped` is the only escape in `diagnostics`. `finish`
+  and `one_line` compose it with `bound` and with `without_one_terminator`
+  respectively. `without_one_terminator`'s own doc describes the capture use
+  alone, and `one_line`'s doc states the reuse and the reason for it.
+- **Citations.** The six case names the repair cited or added each resolve
+  to exactly one `fn` in `crates/`: the three new `stderr_outlets` cases,
+  `a_multi_line_platform_error_is_one_line_from_every_outlet`,
+  `an_answer_that_cannot_be_written_exits_2` and
+  `a_refused_flush_is_reported_to_a_caller_whose_line_is_the_answer`.
+  SPEC-004 has no `file:NN` citation. The amended rows count nothing.
+- **Scope.** The canon edits are the ones `design-log.md` *code review round
+  2* endorsed: §1, §5's diagram, R-1's row and R-4's pipeline sentence.
+  Nothing else in SPEC-004 moved.
+- **FU-4, beyond the brief.** The old sentence, *"every diagnostic line in
+  the same binary passes `finish(.., LINE_LIMIT)`"*, became false when the
+  stderr outlets left `finish`. The new sentence, *"every composed line on
+  the in-window diagnostic surface passes `finish`, which bounds it"*, is
+  true: every `finish` caller is in-window. `tooltip` bounds lines that were
+  already finished. The edit keeps a follow-up ledger row true, touches no
+  canon, and the notes record it. `docs/slices/007/slice-007.md`'s copy of
+  the sentence was left as a closed record, correctly.
+- **SPEC-004 §2/§8 *today*s, judged** (Brief item 6). §2's *"What
+  `goad-emit` does today is in its own source"*: true, and not a
+  prediction. §2's *"no owner today"*: false (F-18). OQ-1's *"Not today"*:
+  a decision, not a prediction, but the clause it rests on is F-19. OQ-2's
+  *"ungoverned today"* and OQ-3's *"Nothing consumes such a thing today"*:
+  true of the tree. No *today* reads a retry outcome off a status.
+
+**Cross-check, round 3, written after the findings and outcomes above**
+(`notes.md` §Handover *Repairs, round 2*, read only now).
+- **Agree:** the red-first reports for the three `stderr_outlets` cases
+  and the flush case match the mutations above. The 642 total matches. The
+  FU-4 edit and the `slice-007.md` exclusion are recorded there.
+- **Disagree:** the notes put §2's *"no owner today"* with the *today*s that
+  are *true of the tree*. Against §2's own first bullet it is not (F-18).
+- **Not in the notes:** F-16, F-17, F-19, F-20, F-21, F-22, F-23.
 
 ## Synthesis
 
