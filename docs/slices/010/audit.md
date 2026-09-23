@@ -55,15 +55,232 @@ waits for the user's endorsement.
 <!-- What was run and what it said. Not a claim of correctness — the basis for
      one. -->
 
-- **Tests / checks:** <commands run, results>
-- **Acceptance criteria:** each AC in `slice-nnn.md`, met / not met, with the
-  evidence.
-- **Verification criteria:** each VT/VA/VH in `plan.md`, discharged or not.
-- **Surface delta:** paths actually changed vs. the surfaces each phase
-  declared. Undeclared paths are the highest-signal lead — scope creep, a
-  missed design update, or an undocumented touch. Declared-but-untouched means
-  dropped work or a stale design. Neither is automatically a finding; both are
-  places to look.
+Gathered at `58df7c3` (the brief's commit, documentation only on top of
+`f9620b6`). Every figure below was re-run or re-read here, not copied from a
+phase sheet; where a sheet's record is the only evidence, the row says so.
+
+### Tests / checks
+
+`just check` — **exit 0**. It runs `cargo build --workspace`, `cargo test
+--workspace`, `cargo test -p goad-semantics`, `deno check
+examples/typescript/backend.ts`, `cargo clippy --workspace --all-targets -- -D
+warnings`, `cargo fmt --all --check` (the sequence `just -n check` prints).
+
+| figure | value |
+|---|---|
+| test results summed over every `test result:` line | **633 passed, 0 failed**, 0 ignored |
+| of which `cargo test --workspace` | 598 |
+| of which `cargo test -p goad-semantics` (counted again) | 35 (30 lib + 5 `protocol`) |
+| `goad` lib | 59 |
+| `goad` `tests/renderer` | 221 |
+| `goad` `tests/binary` | 7 (re-run alone as well: 7 passed) |
+| `goad-boundary` `tests/checks` | 46 |
+| clippy `-D warnings` / fmt | no output — clean |
+
+Matches the orchestrator's re-measure at `c67dd9c` (`notes.md` §Handover)
+figure for figure.
+
+### Acceptance criteria
+
+| AC | state | evidence, by symbol |
+|---|---|---|
+| AC-1 | **met** (draft) | `draft-spec.md` §4 R-1/R-2/R-3 cut on phase — 0 as asked, 1 stopped running, 2 never started; §2 *Out of scope* and §3 P-D put restart policy with the supervisor. Canon only at promotion (Reconciliation). |
+| AC-2 | **met** (draft) | `draft-spec.md` **Owns** is *the exit status of this project's binaries*; §2 *Boundaries* says `goad-emit` is nominally owned and not yet governed; §4's head restricts every requirement to the host. |
+| AC-3 | **met** | `start`'s last two statements are `let call = slint::run_event_loop_until_quit();` and `Ok(exit::ended(call, stop_signal.is_stopped()))` — no `StartupError` on the loop's end. `StartupError`'s type doc says the loop's ending travels in `Ended`; `StartupError::Platform`'s doc names `set_xdg_app_id`, `PromptWindow::new`, `Tray::new` and not the loop call. Held after the slice by `structure::the_loop_s_ending_is_never_a_startup_failure`. |
+| AC-4 | **met** | `main` is `run()` → `diagnostics::report_exit` → `ExitCode::from(exit::status(&outcome))`; `exit::status` is pure over `&Result<Ended, StartupError>`. Every shape asserted in `exit_status` (`as_asked_is_0`, `stopped_running_is_1` over a real `slint::PlatformError::from`, `stopped_running_with_no_error_is_1`, `every_startup_failure_is_2`); the `Err` arm is `Err(_) => 2`, reading no variant. |
+| AC-5 | **met** | `git diff b444c6a..HEAD -- crates/goad/tests/binary/exit_codes.rs` has **no removed line outside the `//!` module doc**; additions are `an_unbindable_ingress_path_exits_2` and a helper, `scratch_path` (see VT/VA, PHASE-03 EX-3). All pre-existing cases green. **Carried finding:** one existing case's doc comment is now false and AC-5 forbids the edit (Reconciliation, P3-a). |
+| AC-6 | **met at the renderer tier; the process half is AC-9** | `diagnostics::report_exit_line` answers `goad: the host was running and stopped: {error}` and `…stopped, and no error was reported`; `stderr_outlets::the_stopped_line_is_not_the_line_a_host_that_never_started_writes` asserts both differ from `report_startup_line` over `StartupError::Platform`. `main` writes it through `report_exit`. |
+| AC-7 | **met in its letter; one doubt raised** | `nix/module.nix`'s `Service` comment: no exception paragraph, no *do not succeed on a retry*, no `SPEC-003`, no `Platform`; argues from phase. Directives byte-identical (`git diff -U0 … \| grep '^[-+][^-+]' \| grep -v '^[-+] *#'` empty; `nix-instantiate --parse` exits 0). **Doubt, A-1:** its *"so a restart changes nothing a person has not changed first"* is itself a retryability claim, the class AC-7 calls false of `Runtime` — though `plan.md` PHASE-03/EX-4 dictated those words. |
+| AC-8 | **pending — audit (canon)** | Applicable: the case Change 1 names, `exit_codes::an_unbindable_ingress_path_exits_2`, exists and passes. Not applied; needs endorsement (Reconciliation rows C-3…C-5). |
+| AC-9 | **pending — a person** | Steps below, under *AC-9 — on the running host*. Not observed by this audit. |
+| AC-10 | **pending — close** | `docs/follow-ups.md` FU-1 still reads *four such exits* and *a compositor going away* (Reconciliation row R-1). |
+| AC-11 | **met** | `exit::ended` decides on `stop_requested` alone (`if stop_requested { AsAsked } else { StoppedRunning(call.err()) }`); the four `ended::` cases cover each result × request, the two error cases over one `loop_error()`. `start` passes `stop_signal.is_stopped()` read in the statement after the call, on a clone taken before `cancel` moves into `serve` (read here in `start`, not taken from PHASE-02/VA-1). `Cancel::is_stopped` is `*self.rx.borrow()`, held by `tests::is_stopped_is_false_until_stop_and_stays_true`. |
+
+### Verification criteria
+
+Each VT's case was resolved by `grep -rn "fn <name>\b" crates` — every one
+named below resolves, in the file the plan names — and the gate above ran it.
+Mutations are **not** re-run here, except where noted: the sheets record each
+as compiled, with the red set named and a `diff`-verified restore, and the
+orchestrator re-ran M-9 independently at `5b23720`.
+
+**PHASE-01** (`ab5604f`)
+
+| id | discharged? | how checked here |
+|---|---|---|
+| VT-1 | yes | `exit_status`'s four cases resolve and pass; `stopped_running_is_1` builds via `slint::PlatformError::from`; `every_startup_failure_is_2` names variants, no count. |
+| VT-2 | yes | `ended`'s four cases resolve; the two error cases share `loop_error()`; the carried error compared by `to_string()`. |
+| VT-3 | yes | `stderr_outlets`' five named cases resolve and pass. |
+| VT-4 | yes | `wire::tests::is_stopped_is_false_until_stop_and_stays_true` resolves and passes (`goad` lib 59). Sits before the back-pressure divider, not beside the named sibling — a recorded, sound decision. |
+| VA-1 | yes | clippy `-D warnings` over the real types, clean in this gate run. |
+| VA-2 | yes | the domain scan (`vocabulary::no_workspace_member_names_the_users_domain`) walks each member's directory excluding `tests`, so `crates/goad/src/exit.rs` is in its reach; it is green. By hand: no `DOMAIN` word in any code token or literal added under `crates/goad/src` — the only hits are *call site* in doc comments, which the scan cuts. |
+| EX-5 (M-1…M-8) | yes, per the sheet | each compiled, each red set named and exact. Not re-run. |
+| EX-6 | yes | every `module::case` citation in `draft-spec.md` and `canon-delta.md` resolves (all of them, not only PHASE-01's). |
+
+**PHASE-01 finding, verified as stated:** `exit::status`'s match is not held
+by the crate-root `wildcard_enum_match_arm` deny — not re-measured here; the
+sheet's negative control compiled. Carried (P1-a).
+
+**PHASE-02** (`5b23720`)
+
+| id | discharged? | how checked here |
+|---|---|---|
+| VT-1 | yes, per the sheet | the red is quoted in T-2 (`main.rs`'s `.map_err(StartupError::Platform)?;` line, on the shape assertion); green now. |
+| VT-2 | yes | `counting_itself::the_bare_loop_call_ends_at_the_call` and `…a_loop_call_with_its_result_re_filed_does_not` resolve and pass; the latter covers both the `map_err(…)?` and bare-`?` spellings. |
+| VT-3 | yes | binary tier green; `exit_codes.rs` untouched at `5b23720` (`git show --stat` lists no binary-tier path). |
+| VA-1 | yes, re-read here | (a) and (b): `start`'s last two statements as quoted under AC-11. (c) `grep -rn 'StoppedRunning(' crates/goad/src` — one construction, in `exit::ended`; the rest are the declaration and patterns in `exit::status` and `report_exit_line`. (d) both readers answer `u8` / `Option<String>`; `run` and `start` only wrap `Ended` in `Ok`. |
+| VA-2 | yes | `grep -rn 'report_startup\b' crates` finds nothing (only `report_startup_line`). The sheet's narrowing of this criterion caused a false word — carried (P2). |
+| EX-7 (M-9…M-11) | yes, per the sheet | M-9 re-run by the orchestrator. |
+| EX-8 | yes | `structure::the_loop_s_ending_is_never_a_startup_failure` resolves. |
+
+**PHASE-03** (`c67dd9c`)
+
+| id | discharged? | how checked here |
+|---|---|---|
+| VT-1 | yes | `exit_codes::an_unbindable_ingress_path_exits_2` resolves and passes; asserts status 2 and the prefix `goad: <socket>: `. **Record gap:** T-3's red-first quote (a wrong prefix, then corrected) is not in the sheet; M-13 and M-14 each redding the case on its prefix are equivalent evidence that it asserts. |
+| VT-2 | yes | binary tier 7 green with `process::command` removing the display variables. |
+| VA-1 | yes, per the sheet | `process::command` removes `WAYLAND_DISPLAY`, `WAYLAND_SOCKET`, `DISPLAY`, doc says why; M-13 measured 0.545s wall with the display line on stderr. Not re-run (it would need the bindable-path edit). |
+| VA-2 | yes, re-read here | `exit_codes.rs`'s doc states the cut from the process side, no *cannot see the constant*, no *would red*; `tests/binary/main.rs`'s doc says what the spawn guarantees. One stale phrase in the latter — carried (P3-c). |
+| VA-3 | yes, re-run here | comment-only diff; `nix-instantiate --parse nix/module.nix` exit 0. |
+| EX-3 | yes, with one addition | the diff is the module doc, the case, and `scratch_path` — a helper the case needs, recorded in §Decisions. Additive; no pre-existing line removed. |
+| EX-5 (M-12…M-14) | yes, per the sheet | |
+| EX-6 | yes | see PHASE-01 EX-6. |
+
+**Record gap across PHASE-03's sheet:** every task box T-1…T-12 is unticked,
+though §Mutation evidence, §Decisions and the orchestrator's re-measure show
+the work done. PHASE-02's T-13 (commit) is likewise unticked. Neither is a
+code finding (A-2).
+
+### Surface delta
+
+`git diff --stat b444c6a..f9620b6`, per phase commit against that phase's
+**Surfaces**:
+
+- **PHASE-01 `ab5604f`**: `exit.rs` (new), `lib.rs`, `wire.rs`,
+  `diagnostics.rs` (additions only — no removed line), `tests/renderer/startup.rs`
+  — all declared. `draft-spec.md` / `design.md` not touched, correctly: no case
+  was renamed.
+- **PHASE-02 `5b23720`**: `main.rs`, `startup.rs` (docs only),
+  `diagnostics.rs`, `tests/renderer/startup.rs` (module doc only — no changed
+  line outside `//!`), `goad-boundary/tests/checks/structure.rs` — all
+  declared.
+- **PHASE-03 `c67dd9c`**: `tests/binary/process.rs`, `tests/binary/main.rs`
+  (module doc only), `tests/binary/exit_codes.rs`, `nix/module.nix` (comment
+  only) — all declared.
+- **Outside any phase**: `docs/slices/010/{canon-delta,design-log,design,draft-spec,slice-010}.md`
+  changed at `9f0a503`, the P-1 repair made at the plan stage before any phase,
+  endorsed in `design-log.md`. The remaining commits touch only `notes.md`,
+  `plan.md`, `plan-log.md`.
+
+**Undeclared paths: none.** Declared-but-untouched: none beyond the
+conditional `draft-spec.md` / `design.md` rows, which were conditional on a
+rename that did not happen. `crates/goad-semantics` untouched (ADR-001).
+
+### AC-9 — on the running host
+
+For a person on the machine. **Not observed by this audit.** Commands are for
+nu, one per line; `<PID>` and `<FD>` are typed in by hand.
+
+The host runs as the home-manager unit `goad.service`, built from
+`/home/david/flakes`, whose `goad` input is `git+file:///home/david/dev/goad`
+— the **committed** `main`, so nothing here needs the working tree clean
+beyond what is committed. Measured at audit: the lock pins `40caa4a`
+(pre-slice), the unit is `inactive`, and `/home/david/flakes/flake.lock`
+already carries an unrelated uncommitted bump of the `satan` input that the
+switch below will include.
+
+**Deploy the slice**
+
+- [ ] Update the input and switch:
+  ```nu
+  cd /home/david/flakes
+  nix flake update goad
+  just home-switch
+  systemctl --user start goad
+  ```
+- [ ] Confirm the unit runs this slice's build — the revision printed must be
+  `main`'s current short hash, not `40caa4a`:
+  ```nu
+  systemctl --user cat goad | lines | where {|l| $l | str starts-with "ExecStart="}
+  ```
+  then run the printed path with `--version`, and compare with
+  `git -C /home/david/dev/goad log --oneline -1`.
+- [ ] Confirm the directives: `Restart=on-failure`,
+  `RestartPreventExitStatus=2`, `RestartUSec=2s`:
+  ```nu
+  systemctl --user show goad -p Restart -p RestartPreventExitStatus -p RestartUSec -p ActiveState -p MainPID
+  ```
+
+**A quit is 0, with no line** (`draft-spec.md` §7 R-1's evidence for the edge
+no test reaches)
+
+- [ ] Choose **Quit** from the tray menu.
+- [ ] Read the unit:
+  ```nu
+  systemctl --user status goad
+  journalctl --user -u goad --since "5 min ago" -o short-iso
+  ```
+  Expect: `inactive (dead)`; the exit recorded as `status=0/SUCCESS`; **no**
+  `goad: ` line from that process; **no** `Scheduled restart job` after it.
+- [ ] Bring it back: `systemctl --user start goad`.
+- [ ] *(optional, the other route R-1 defines as asked)* with the prompt window
+  shown, close it with the compositor's close binding; expect the same as a
+  quit. Then `systemctl --user start goad`.
+
+**A lost display is 1, with the *stopped running* line, back within
+`RestartSec`** (`design.md` §5.5 A2; §8 R1)
+
+**No known, tested way to lose only the host's display connection exists.**
+Killing the compositor is not it: the unit is `PartOf` the graphical session,
+so systemd stops the host with the session — a different end, and it takes the
+desktop with it. A compositor close binding is not it either: that is a close
+request, which is *as asked* and correctly 0. The observed failure was the
+host's own Wayland connection breaking (`Broken pipe`) with the compositor up
+(`research.md` §Thread 3). Two routes:
+
+- **Route 1 — wait for it.** It happened six times in two days before this
+  slice. Leave the host running; after the next one, read the journal as below.
+  This is the real failure and needs no instrument.
+- **Route 2 — provoke it. Untested; nobody has run this.** Shut down the
+  host's end of its Wayland socket from outside, with `gdb` — the compositor
+  stays up and sees the client go. `ptrace_scope` is 1 on this machine, so the
+  attach needs `sudo`; `gdb` is not installed, so it is built from nixpkgs.
+  If this route yields anything other than exit 1 with the line, record what
+  was seen: that is a finding against the method before it is one against the
+  code.
+  - [ ] Find the process and its Wayland socket:
+    ```nu
+    systemctl --user show goad -p MainPID --value
+    ss -xpn | lines | where {|l| $l | str contains "wayland-0"}
+    ss -xpn | lines | where {|l| $l | str contains "goad"}
+    ```
+    The compositor's row on `/run/user/1000/wayland-0` names a peer inode;
+    the `goad` row whose own inode is that peer carries `fd=<FD>`.
+  - [ ] Build gdb, attach, shut the socket down, detach:
+    ```nu
+    let gdb = (nix build nixpkgs#gdb --no-link --print-out-paths | lines | first)
+    sudo $"($gdb)/bin/gdb" -p <PID> -batch -ex 'call (int)shutdown(<FD>, 2)'
+    ```
+
+**Read the result** (either route)
+
+- [ ] Read the unit:
+  ```nu
+  journalctl --user -u goad --since "10 min ago" -o short-iso
+  systemctl --user status goad
+  systemctl --user show goad -p NRestarts -p ExecMainStatus -p ActiveState
+  ```
+  Expect, in order: a line `goad: the host was running and stopped: …` (or
+  `…stopped, and no error was reported`) from the old process;
+  `Main process exited, code=exited, status=1/FAILURE`; `Scheduled restart job`;
+  `Started goad` about **2 s** after the exit; the unit `active (running)` with
+  a new PID and `NRestarts` one higher.
+- [ ] **Any of these is a finding, and the slice does not close on it:**
+  status **2**, or the line `goad: the display could not be opened: …` (the
+  loss reached an earlier step — A2 is wrong); status **0** with no line (the
+  loss tripped `Cancel` — A5, §8 R1); no restart within a few seconds.
+- [ ] Record here: the date, the route, the journal lines quoted, and the gap
+  between the exit and `Started`.
 
 ## Code review
 
@@ -72,7 +289,8 @@ Findings live in `review-code.md`, copied from
 vocabulary, subject `implementation`. Do not restate findings here.
 
 - **Ledger:** `review-code.md`
-- **State:** open | resolved · outstanding blockers: none | <ids>
+- **State:** open · outstanding blockers: not yet known — the ledger is
+  being written by a concurrent reviewer and is not in this tree yet.
 
 ## Verdict
 
@@ -80,21 +298,67 @@ vocabulary, subject `implementation`. Do not restate findings here.
      synthesis and on the evidence above; restates neither. Does this slice do
      what it set out to do, and what is being accepted knowingly? -->
 
+Not yet written: it waits on the code-review ledger, AC-9's observation, and
+the user's endorsement of the Reconciliation rows.
+
 ## Reconciliation
 
 <!-- Making the record true. One row per document that must change, and the
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
-| document | change | reason | done |
-|----------|--------|--------|------|
-| `specs/NNN-…md §4` | | code diverged at `path:line`; code is right | [ ] |
-| `draft-spec.md` → `specs/NNN-slug.md` | promote | drafted during this slice | [ ] |
+**DRAFT — nothing here is applied.** Rows marked **canon** need the user's
+explicit endorsement before they are written. Rows touching a source file wait
+for the code-review ledger (`review-code.md`) and are repaired from it. Row ids
+are this table's own, for reference in the endorsement question.
 
-**Design drift not reconciled:** <where the implementation departs from
-`design.md` and the design was left as-is, with the reason. The design is a
-record of intent at a point in time; it is not retro-fitted to the code
-without saying so.>
+**Canon — promotion (`plan.md` §What no phase does)**
+
+| id | document | change | reason | done |
+|----|----------|--------|--------|------|
+| C-1 | `docs/slices/010/draft-spec.md` → `docs/specs/004-process-exit-status.md` | promote: number it SPEC-004; replace the **Status** paragraph (*draft … Not canon … suggested slug*) with the canon status line the other specs carry; `SPEC-NNN` → `SPEC-004` throughout | drafted during this slice (AC-1, AC-2); a slice does not close holding an unpromoted draft | [ ] |
+| C-2 | the promoted spec, §7 | remove the `DRAFT-ONLY` comment | promotion obligation (`design.md` §10, D6). Precondition **checked here**: every `module::case` citation in `draft-spec.md` resolves in the tree (§Evidence, PHASE-01 EX-6) | [ ] |
+| C-3 | `docs/specs/003-host-event-ingress.md` §7, R-4's cell | `canon-delta.md` Change 1, as stated there | AC-8; the stale *no test target links the binary* and the conflation recorded as fact. The case it names exists | [ ] |
+| C-4 | `docs/specs/003-host-event-ingress.md` §7, R-3's cell | `canon-delta.md` Change 3: *"the same position as R-4's exit code below and R-5's process exit"* → *"the same position as R-5's process exit"* | not separable from C-3 | [ ] |
+| C-5 | `docs/specs/003-host-event-ingress.md` §9 | `canon-delta.md` Change 2, with `SPEC-00N` → `SPEC-004` | separable from C-3/C-4; R-4's cell defers to the new spec | [ ] |
+| C-6 | `nix/module.nix` comment; `crates/goad/src/exit.rs` `//!`; `StartupError`'s type doc (`crates/goad/src/startup.rs`) | add the `SPEC-004` citation | D6: no spec number until promotion, then all three sites. Source edits — land with the code-review repairs | [ ] |
+
+**Close (AC-10 and `notes.md` §Open)**
+
+| id | document | change | reason | done |
+|----|----------|--------|--------|------|
+| R-1 | `docs/follow-ups.md` FU-1 | struck, with what killed it (this slice's `exit::ended` / `exit::status` and the `nix/module.nix` comment) and its three corrections: six exits not four; a broken connection, not a departing compositor; the session target, not systemd, recovered the fast cases. Its *"SPEC-003's failure vocabulary"* goes too — FU-1's own error, per AC-7 | AC-10 | [ ] |
+| R-2 | `docs/memory/exit-2-means-two-different-failures.md` | **rewrite, not re-quote.** `notes.md` §Open says its standing fact still holds; it does not — after this slice exit 2 means *never started* only. What survives is the lesson (an enumeration of three variants argued for ten), which its *Why the enumeration was convincing* section already carries. Title and *The fact* restated as history-free: what exit 2 means now and why it once did not belongs in the spec and the slice, so the file keeps only the lesson | stale since PHASE-02 | [ ] |
+| R-3 | `docs/slices/010/research.md` §Cross-thread findings | *"keeps its meaning and its five tests"* → *"keeps its meaning and its tests"* | a count falsified by `an_unbindable_ingress_path_exits_2` (`CLAUDE.md` — never count) | [ ] |
+
+**Carried findings — recommended disposition (one line each)**
+
+| id | finding (phase) | recommendation | done |
+|----|-----------------|----------------|------|
+| P1-a | the crate-root `wildcard_enum_match_arm` deny does not reach `exit::status`'s match (PHASE-01) | **memory, not code**: add the cost to `docs/memory/wildcard-enum-match-arm-counts-a-named-binding.md` (matching the enclosing `Result` escapes the lint, so exhaustiveness is then held by cases, not by the deny); `design.md` §3's sentence left as written and listed under *Design drift* below | [ ] |
+| P1-b | `lib.rs`'s header carries `path:line` citations (PHASE-01) | **follow-up, merged**: extend FU-10's citation (citation discipline enforced by nothing) with these sites rather than a new row; not this slice's code | [ ] |
+| P2 | `diagnostics.rs`'s `//!` says `report_exit` was *"renamed"*; it replaced a different function (PHASE-02) | **repair in the slice**, one word: *replaced*. Via the code-review ledger | [ ] |
+| P3-a | `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc says *"`Ok(())` is exit 0"*, false since PHASE-02; AC-5 forbids the edit (PHASE-03) | **user decision**: waive AC-5's letter for doc comments — its purpose is that no case's *assertions* change and 2 keeps its consumers — and repair the sentence (*`run` answering `Ok(Ended::AsAsked)` is exit 0*). Leaving a known-false doc to honour an AC's wording is the worse outcome | [ ] |
+| P3-b | `nix/module.nix`: *"0 is the window being closed, which was asked for"* — narrower than true (PHASE-03) | **repair in the slice**, comment only: *0 is as asked — a quit from the tray, the window closed, or `--help` / `--version` answered*. Lands with C-6 | [ ] |
+| P3-c | `tests/binary/main.rs`'s doc: startup failures settle in `start`'s *"first step"*; the new case settles at step 3 (PHASE-03) | **repair in the slice**: *before the first Slint call* (the phrase the same sentence already uses), dropping the step number | [ ] |
+| A-1 | **raised at audit.** `nix/module.nix`: *"2 is a host that never started … so a restart changes nothing a person has not changed first"* is a retryability claim — the class AC-7 removes as false of `Runtime`. `plan.md` PHASE-03/EX-4 dictated the words, so the executor followed the plan | **user decision, recommended repair**: state it as the unit's policy, not a fact about retries — *2 is a host that never started; this unit leaves that to a person rather than retry into the rate limiter* — matching `draft-spec.md` §3 P-D (policy is built on the statuses, not asserted by them). Lands with C-6/P3-b | [ ] |
+| A-2 | **raised at audit.** PHASE-03's task boxes are all unticked and T-3's red-first quote is missing; PHASE-02's T-13 unticked | **record only**: a note in `notes.md` at close that the evidence is in §Mutation evidence / §Decisions and M-13/M-14 stand in for T-3's red. No code consequence | [ ] |
+
+**Design drift not reconciled:**
+
+- `design.md` §3 says every match the design adds is written without a
+  wildcard over an enum, beside the crate's `wildcard_enum_match_arm` deny, in
+  a way that reads as though the deny holds it. For `exit::status` the deny
+  does not reach; the four `exit_status` cases and M-1/M-2 hold it. The design
+  stays as written (a record of intent); P1-a puts the fact where the next
+  reader looks.
+- `design.md` §9 places `is_stopped_is_false_until_stop_and_stays_true`
+  *beside* `a_raised_notice_stays_raised_until_it_is_lowered`; it sits on the
+  `Cancel` side of `wire.rs`'s own divider instead (PHASE-01 §Decisions). Left
+  as written; no citation depends on the position.
+- `design.md` §9 / `plan.md` PHASE-03/EX-3 allow the new case and nothing else
+  in `exit_codes.rs`; a helper, `scratch_path`, came with it (PHASE-03
+  §Decisions). Left as written; additive, and AC-5 holds.
 
 ## Closure
 
@@ -104,7 +368,7 @@ without saying so.>
 - [ ] Tests and checks green
 - [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
 - [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
-- [ ] `slice-nnn.md` Summary and Follow-ups written
+- [ ] `notes.md` §Open swept against `slice-010.md` §Follow-ups; every entry dispositioned
+- [ ] `slice-010.md` Summary and Follow-ups written
 - [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+- [ ] `slice-010.md` stage set to `done`
