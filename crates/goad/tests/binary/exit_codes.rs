@@ -26,7 +26,9 @@ use std::path::PathBuf;
 use goad::diagnostics::{USAGE, report_startup_line};
 use goad::startup::StartupError;
 
-use crate::process::{code_of, goad, goad_with_no_config_home, stderr_of, stdout_of};
+use crate::process::{
+  code_of, goad, goad_with_no_config_home, goad_with_stdout_full, stderr_of, stdout_of,
+};
 
 /// `Ok(())` is exit 0, and `--help` is the arm that reaches it with something
 /// on stdout. The block itself is one `const` asserted verbatim one tier down;
@@ -156,6 +158,27 @@ fn an_unbindable_ingress_path_exits_2() {
     stderr.starts_with(&format!("goad: {}: ", socket.display())),
     "{stderr}"
   );
+}
+
+/// `StartupError::AnswerUnwritten` — a question whose answer never reached
+/// standard output was not answered, so it is not exit 0 (R-1's *only if*):
+/// it is a failure before the loop call, 2, with its line on stderr. Both
+/// questions, at this tier and not one down: the write that fails is to the
+/// process's own stdout, which only a spawn can put on a device that refuses
+/// it — `print_usage` and `print_version` lock the stdout of whatever process
+/// calls them, and at the renderer tier that is the test harness's.
+#[test]
+fn an_answer_that_cannot_be_written_exits_2() {
+  for question in ["--help", "--version"] {
+    let output = goad_with_stdout_full(&[question]);
+    let stderr = stderr_of(&output);
+
+    assert_eq!(code_of(&output), 2, "{question}: {stderr}");
+    assert!(
+      stderr.starts_with("goad: the answer could not be written to standard output: "),
+      "{question}: {stderr}"
+    );
+  }
 }
 
 /// A file of this case's own, named for the case and the process, so a

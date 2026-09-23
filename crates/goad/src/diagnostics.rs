@@ -21,7 +21,7 @@ use goad_semantics::protocol::normalize::Discarded;
 use goad_shell::backend::transport::Captured;
 use goad_shell::error::CleanupFailure;
 use goad_shell::host::Failure;
-use goad_shell::report::line_to;
+use goad_shell::report::{line_to, try_line_to};
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
 use crate::exit::Ended;
@@ -366,7 +366,7 @@ pub fn next_check_line(at: Timestamp) -> String {
 /// `Diagnostics` and never touches the tray.
 pub const BUSY_NOTICE: &str = "still working on the last request — try again in a moment";
 
-/// One `const`, no trailing newline — [`line_to`]'s `writeln!` supplies the
+/// One `const`, no trailing newline — [`try_line_to`]'s `writeln!` supplies the
 /// one, and two sources of that newline would be a fact stated twice. Its
 /// only destination is `--help`; a usage error names the flag instead and
 /// does not reprint this block (principle 4).
@@ -378,9 +378,14 @@ With no argument the configuration is read from
 $XDG_CONFIG_HOME/goad/config.toml, and from $HOME/.config/goad/config.toml when
 XDG_CONFIG_HOME is unset, empty, or not absolute.";
 
-/// stdout, exit 0. The only caller is `--help`.
-pub fn print_usage() {
-  line_to(std::io::stdout().lock(), USAGE);
+/// stdout. The only caller is `--help`, which is answered only if this
+/// arrived: a failed write is the caller's to report, not this outlet's to
+/// swallow (010 `review-code.md` F-3).
+///
+/// # Errors
+/// Standard output's own, when the block could not be written to it.
+pub fn print_usage() -> std::io::Result<()> {
+  try_line_to(std::io::stdout().lock(), USAGE)
 }
 
 /// The `--version` answer: the package version, and the revision the build
@@ -413,10 +418,14 @@ pub fn version_line(revision: Option<&str>) -> String {
   }
 }
 
-/// stdout, exit 0. The only caller is `--version`, and it hands the revision
-/// its own build was stamped with.
-pub fn print_version(revision: Option<&str>) {
-  line_to(std::io::stdout().lock(), &version_line(revision));
+/// stdout. The only caller is `--version`, and it hands the revision its own
+/// build was stamped with; as with [`print_usage`], the question is answered
+/// only if the line arrived.
+///
+/// # Errors
+/// Standard output's own, when the line could not be written to it.
+pub fn print_version(revision: Option<&str>) -> std::io::Result<()> {
+  try_line_to(std::io::stdout().lock(), &version_line(revision))
 }
 
 /// The exact string `report_exit` writes for a startup failure, via

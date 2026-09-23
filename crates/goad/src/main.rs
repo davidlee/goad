@@ -47,7 +47,7 @@ fn run() -> Result<Ended, StartupError> {
   // generic fn item does not coerce to `&dyn Fn(&str) -> Option<OsString>`.
   match startup::arguments(std::env::args_os(), &|name| std::env::var_os(name))? {
     Launch::Help => {
-      diagnostics::print_usage(); // stdout, and `run` returns Ok
+      diagnostics::print_usage().map_err(StartupError::AnswerUnwritten)?;
       Ok(Ended::AsAsked)
     }
     Launch::Version => {
@@ -59,7 +59,8 @@ fn run() -> Result<Ended, StartupError> {
       //
       // Handed on unjudged: set-but-empty is unset, and `version_line` is
       // where that is decided and tested (`review-code.md` F-2).
-      diagnostics::print_version(option_env!("GOAD_REVISION"));
+      diagnostics::print_version(option_env!("GOAD_REVISION"))
+        .map_err(StartupError::AnswerUnwritten)?;
       Ok(Ended::AsAsked)
     }
     Launch::Config(path) => start(&path),

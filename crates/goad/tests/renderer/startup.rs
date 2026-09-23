@@ -141,6 +141,16 @@ mod display_text {
     );
   }
 
+  #[test]
+  fn answer_unwritten() {
+    let io_error = std::io::Error::other("no space left on device");
+    let expected = format!("the answer could not be written to standard output: {io_error}");
+    assert_eq!(
+      StartupError::AnswerUnwritten(io_error).to_string(),
+      expected
+    );
+  }
+
   /// AC-9's stratum 3 half: `Display` renders the `IngressError` unprefixed
   /// — no repeated wrapper text, like `Config`'s and `Clock`'s arms above —
   /// and the message names the path.
@@ -204,6 +214,11 @@ mod source_walk {
       .source()
       .is_none()
     );
+    assert!(
+      StartupError::AnswerUnwritten(std::io::Error::other("no space left on device"))
+        .source()
+        .is_none()
+    );
   }
 
   #[test]
@@ -233,9 +248,15 @@ mod usage_block {
   /// binary — this crate's own test process shares stdout across
   /// concurrently running tests, and redirecting the real fd here is not a
   /// safe way to observe it.
+  ///
+  /// Whether the write arrived is not asserted here, for the same reason: the
+  /// harness's stdout is not this case's to vouch for. A write that fails is
+  /// `exit_codes::an_answer_that_cannot_be_written_exits_2`'s, on a spawn.
   #[test]
   fn print_usage_does_not_panic() {
-    print_usage();
+    match print_usage() {
+      Ok(()) | Err(_) => (),
+    }
   }
 }
 
@@ -364,6 +385,7 @@ mod exit_status {
         path: PathBuf::from("/run/goad/ingress.sock"),
         fault: BindFault::InUse,
       }),
+      StartupError::AnswerUnwritten(std::io::Error::other("no space left on device")),
     ];
 
     for error in named {

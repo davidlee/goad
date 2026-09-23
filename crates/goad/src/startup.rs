@@ -24,7 +24,8 @@ pub enum Launch {
 
 /// Every way `run` can fail to reach the event loop, and the exact text of
 /// each. `NoConfigPath` and `Usage` come from argument and environment
-/// handling; the rest from the steps after it. The loop's own ending, once
+/// handling, `AnswerUnwritten` from answering a question, and the rest from
+/// `start`'s steps. The loop's own ending, once
 /// the loop is reached, is not among these: it travels in `Ended`, built by
 /// `exit::ended`, and no arm here speaks for it (010/PHASE-02). **Named,
 /// never counted** — a count is stale at the next variant and nothing in the
@@ -75,6 +76,10 @@ pub enum StartupError {
   Enqueue,
   /// The configured ingress socket could not be bound.
   Ingress(IngressError),
+  /// `--help` or `--version` was asked, and its answer could not be written
+  /// to standard output. A question whose answer reached nobody was not
+  /// answered, so it is not an end *as asked* (010 `review-code.md` F-3).
+  AnswerUnwritten(std::io::Error),
 }
 
 impl std::fmt::Display for StartupError {
@@ -98,6 +103,10 @@ impl std::fmt::Display for StartupError {
       Self::EventLoop(error) => write!(f, "the event loop would not accept the host task: {error}"),
       Self::Enqueue => write!(f, "the first request could not be enqueued"),
       Self::Ingress(error) => write!(f, "{error}"),
+      Self::AnswerUnwritten(error) => write!(
+        f,
+        "the answer could not be written to standard output: {error}"
+      ),
     }
   }
 }

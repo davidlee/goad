@@ -25,6 +25,20 @@ pub(crate) fn goad_with_no_config_home(arguments: &[&str]) -> Output {
     .expect("the built binary must be runnable")
 }
 
+/// The same spawn with standard output on `/dev/full`, where every write
+/// fails (`ENOSPC`), so a case can see what the process does when its answer
+/// cannot be written. Linux's device; the gate runs nowhere else.
+pub(crate) fn goad_with_stdout_full(arguments: &[&str]) -> Output {
+  let full = std::fs::OpenOptions::new()
+    .write(true)
+    .open("/dev/full")
+    .expect("/dev/full must be openable for writing");
+  command(arguments)
+    .stdout(full)
+    .output()
+    .expect("the built binary must be runnable")
+}
+
 /// **The binary tier cannot reach a display** (`design.md` §5.2). Every case
 /// here settles before the first Slint call, and nothing but this removal
 /// keeps it that way: past the socket, a spawn that still sees a display
