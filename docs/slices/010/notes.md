@@ -410,7 +410,7 @@ and `wire.rs`'s case is covered by T-5's own two stand-ins.
   user and `verified` (round 6's by site check). The ledger is the
   artefact; nothing about it is restated here.
 - **PHASE-01**: `crates/goad/src/exit.rs` (`Ended`, `ended`, `status`),
-  `Cancel::is_stopped`, `diagnostics::report_exit_line`, and the fourteen cases
+  `Cancel::is_stopped`, `diagnostics::report_exit_line`, and the cases
   `draft-spec.md` §7 names for them. M-1…M-8 run, compiled and recorded in this
   sheet's §Mutation evidence; audit cites those rows rather than re-deriving
   them. Nothing calls the new code from `main` — that is PHASE-02.
@@ -525,13 +525,29 @@ sentence about what a running host has been seen to do is checked against this.
   there. Not raised as a finding: `research.md` was context to this review and
   not its subject. Sweep it at audit.
 
-## Handover — 2026-09-23, plan accepted, PHASE-01's sheet written
+## Handover — 2026-09-23, PHASE-01 done, PHASE-02 next
 
 Written for a fresh agent. The slice is **executing**. `plan.md` is accepted at
 `448f678` and **no plan review runs** (`plan-log.md`, and what that costs is
-recorded there). No code has been written. **PHASE-01's sheet is written**, in
-§Phase sheets above, and its EN-1 is discharged by measurement there — the gate
-exits 0 at `448f678`, total **615**, `cargo test --workspace` **580**.
+recorded there). **PHASE-01 is `done`** at `ab5604f`: the pure layer is in the
+tree, asserted one tier down, and nothing calls it from `main` yet.
+
+The gate was re-run by the orchestrator at `ab5604f` rather than taken from the
+phase agent's report: **exit 0**, gate total **629**, `cargo test --workspace`
+**594** — the gate runs `cargo test -p goad-semantics` as a command of its own,
+so that crate's 30 + 5 are counted twice and the total stays exactly 35 above
+the workspace figure. `goad` lib **58 → 59**, `goad` `tests/renderer`
+**208 → 221**.
+
+**PHASE-01's negative control is the result worth carrying forward**, and it is
+in §Findings: the crate-root `wildcard_enum_match_arm` deny does **not** reach
+`exit::status`'s match. Re-measured by the orchestrator — `_ => 1` in place of
+the last two arms compiles and leaves `cargo clippy -p goad --all-targets --
+-D warnings` green. What holds that match's exhaustiveness is `exit_status`'s
+cases and M-1/M-2, not the gate. No code is wrong; `design.md` §3's sentence
+about the deny is what reads stronger than the gate is, and it is audit's to
+disposition.
+
 PHASE-02's and PHASE-03's sheets do not exist and must not be written ahead of
 their phases (`docs/AGENTS.md` §Phase plan: a sheet written three phases early
 is fiction).
@@ -571,7 +587,9 @@ a STOP. §9's mutations are unrun; each phase owns its share (`plan.md`
 `path:line` citations outside the counting sentence PHASE-01 replaces — not
 this slice's, a finding to disposition; `research.md`'s count.
 
-**Next:** PHASE-01 runs, from its sheet. One phase, one agent, one session:
-set PHASE-01 to `in progress` in §Status, work the sheet's tasks in order, keep
-the sheet current as you go rather than at the end, and end green with §Status,
-§Mutation evidence, §Findings and §Harvest all written.
+**Next:** write PHASE-02's sheet, then run it. One phase, one agent, one
+session. PHASE-02/EN-1 is *PHASE-01 `done` in §Status, and its EX criteria hold
+on HEAD* — verify that against the tree rather than against this paragraph.
+PHASE-02 opens with a case that **reds on today's tree**
+(`structure::the_loop_s_ending_is_never_a_startup_failure`), which is the one
+natural red in the slice; record it.
