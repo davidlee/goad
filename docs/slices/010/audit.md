@@ -197,21 +197,21 @@ switch below will include.
 
 **Deploy the slice**
 
-- [ ] Update the input and switch:
+- [x] Update the input and switch:
   ```nu
   cd /home/david/flakes
   nix flake update goad
   just home-switch
   systemctl --user start goad
   ```
-- [ ] Confirm the unit runs this slice's build — the revision printed must be
+- [x] Confirm the unit runs this slice's build — the revision printed must be
   `main`'s current short hash, not `40caa4a`:
   ```nu
   systemctl --user cat goad | lines | where {|l| $l | str starts-with "ExecStart="}
   ```
   then run the printed path with `--version`, and compare with
   `git -C /home/david/dev/goad log --oneline -1`.
-- [ ] Confirm the directives: `Restart=on-failure`,
+- [x] Confirm the directives: `Restart=on-failure`,
   `RestartPreventExitStatus=2`, `RestartUSec=2s`:
   ```nu
   systemctl --user show goad -p Restart -p RestartPreventExitStatus -p RestartUSec -p ActiveState -p MainPID
@@ -220,16 +220,16 @@ switch below will include.
 **A quit is 0, with no line** (`draft-spec.md` §7 R-1's evidence for the edge
 no test reaches)
 
-- [ ] Choose **Quit** from the tray menu.
-- [ ] Read the unit:
+- [x] Choose **Quit** from the tray menu.
+- [x] Read the unit:
   ```nu
   systemctl --user status goad
   journalctl --user -u goad --since "5 min ago" -o short-iso
   ```
   Expect: `inactive (dead)`; the exit recorded as `status=0/SUCCESS`; **no**
   `goad: ` line from that process; **no** `Scheduled restart job` after it.
-- [ ] Bring it back: `systemctl --user start goad`.
-- [ ] *(optional, the other route R-1 defines as asked)* with the prompt window
+- [x] Bring it back: `systemctl --user start goad`.
+- [ ] *(not run)* *(optional, the other route R-1 defines as asked)* with the prompt window
   shown, close it with the compositor's close binding; expect the same as a
   quit. Then `systemctl --user start goad`.
 
@@ -254,7 +254,7 @@ host's own Wayland connection breaking (`Broken pipe`) with the compositor up
   If this route yields anything other than exit 1 with the line, record what
   was seen: that is a finding against the method before it is one against the
   code.
-  - [ ] Find the process and its Wayland socket:
+  - [x] Find the process and its Wayland socket:
     ```nu
     systemctl --user show goad -p MainPID --value
     ss -xpn | lines | where {|l| $l | str contains "wayland-0"}
@@ -262,7 +262,7 @@ host's own Wayland connection breaking (`Broken pipe`) with the compositor up
     ```
     The compositor's row on `/run/user/1000/wayland-0` names a peer inode;
     the `goad` row whose own inode is that peer carries `fd=<FD>`.
-  - [ ] Build gdb, attach, shut the socket down, detach:
+  - [x] Build gdb, attach, shut the socket down, detach:
     ```nu
     let gdb = (nix build nixpkgs#gdb --no-link --print-out-paths | lines | first)
     sudo $"($gdb)/bin/gdb" -p <PID> -batch -ex 'call (int)shutdown(<FD>, 2)'
@@ -270,7 +270,7 @@ host's own Wayland connection breaking (`Broken pipe`) with the compositor up
 
 **Read the result** (either route)
 
-- [ ] Read the unit:
+- [x] Read the unit:
   ```nu
   journalctl --user -u goad --since "10 min ago" -o short-iso
   systemctl --user status goad
@@ -281,11 +281,11 @@ host's own Wayland connection breaking (`Broken pipe`) with the compositor up
   `Main process exited, code=exited, status=1/FAILURE`; `Scheduled restart job`;
   `Started goad` about **2 s** after the exit; the unit `active (running)` with
   a new PID and `NRestarts` one higher.
-- [ ] **Any of these is a finding, and the slice does not close on it:**
+- [x] **Any of these is a finding, and the slice does not close on it:**
   status **2**, or the line `goad: the display could not be opened: …` (the
   loss reached an earlier step — A2 is wrong); status **0** with no line (the
   loss tripped `Cancel` — A5, §8 R1); no restart within a few seconds.
-- [ ] Record here: the date, the route, the journal lines quoted, and the gap
+- [x] Record here: the date, the route, the journal lines quoted, and the gap
   between the exit and `Started`.
 
 **Observed — 2026-09-23, by the user, on `Sleipnir`**
