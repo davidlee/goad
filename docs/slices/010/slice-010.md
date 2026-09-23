@@ -1,6 +1,6 @@
 # Slice 010: the exit-code taxonomy
 
-**Stage:** plan
+**Stage:** executing — `plan.md` accepted 2026-09-23 at `448f678`, no plan review (`plan-log.md`)
 **Tier:** 2 (full) — the slice writes new canon: a spec owning the exit status
 of this project's binaries, and an amendment to SPEC-003 — its R-4 and R-3
 verification cells, and its References.
