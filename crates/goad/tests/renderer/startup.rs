@@ -373,7 +373,7 @@ mod exit_status {
   }
 }
 
-/// F-7: the two stderr outlets' exact strings (design.md §5.4), asserted
+/// F-7: the stderr outlets' exact strings (design.md §5.4), asserted
 /// against the pure half of each — no sink to fake, no subprocess.
 mod stderr_outlets {
   use super::{Ended, StartupError, report_exit_line, report_platform_line, report_startup_line};
@@ -478,6 +478,44 @@ mod stderr_outlets {
       Some(never_started),
       "and so did one whose call reported no error"
     );
+  }
+
+  /// **A line, and the last one** (R-4), for an error that is not one line.
+  /// Slint's backend selector builds its `PlatformError` with one line per
+  /// backend it tried (`create_default_backend`, `i-slint-backend-selector`),
+  /// so a raw interpolation writes several lines and the last names neither
+  /// the binary nor the phase. Each outlet answers one line that begins with
+  /// its own fixed prefix and still ends with the platform's last line —
+  /// escaped, not dropped (010 `review-code.md` F-2).
+  #[test]
+  fn a_multi_line_platform_error_is_one_line_from_every_outlet() {
+    let error = || {
+      slint::PlatformError::from(
+        "Could not initialize backend.\nError from Winit backend: neither WAYLAND_DISPLAY nor WAYLAND_SOCKET nor DISPLAY is set.\nNo backends configured."
+          .to_owned(),
+      )
+    };
+    let outlets = [
+      (
+        "goad: the display could not be opened: ",
+        report_startup_line(&StartupError::Platform(error())),
+      ),
+      (
+        "goad: the host was running and stopped: ",
+        report_exit_line(&Ok(Ended::StoppedRunning(Some(error()))))
+          .expect("stopped running has a line"),
+      ),
+      (
+        "goad: the window could not be drawn: ",
+        report_platform_line(&error().to_string()),
+      ),
+    ];
+
+    for (prefix, line) in outlets {
+      assert!(!line.contains(['\n', '\r']), "{line}");
+      assert!(line.starts_with(prefix), "{line}");
+      assert!(line.ends_with("\\nNo backends configured."), "{line}");
+    }
   }
 }
 

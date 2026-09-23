@@ -422,11 +422,14 @@ pub fn print_version(revision: Option<&str>) {
 /// The exact string `report_exit` writes for a startup failure, via
 /// `report_exit_line`'s `Err` arm — with no destination here, the pure half,
 /// so a test can assert it with no sink to fake (F-7). `{error}` is
-/// `StartupError`'s `Display`, one rendering, no `source()` walk — the same
-/// rule every other line on this surface follows.
+/// `StartupError`'s `Display`, one rendering, no `source()` walk, and the
+/// whole line goes through `finish` — the same rules every other line on this
+/// surface follows. `finish` is what keeps it **one** line: a platform error
+/// can carry several, and a raw interpolation would leave a last line naming
+/// neither the binary nor what happened (010 `review-code.md` F-2).
 #[must_use]
 pub fn report_startup_line(error: &StartupError) -> String {
-  format!("goad: {error}")
+  finish(&format!("goad: {error}"), LINE_LIMIT)
 }
 
 /// stderr, once, last.
@@ -450,9 +453,10 @@ pub fn report_exit(outcome: &Result<Ended, StartupError>) {
 pub fn report_exit_line(outcome: &Result<Ended, StartupError>) -> Option<String> {
   match outcome {
     Ok(Ended::AsAsked) => None,
-    Ok(Ended::StoppedRunning(Some(error))) => {
-      Some(format!("goad: the host was running and stopped: {error}"))
-    }
+    Ok(Ended::StoppedRunning(Some(error))) => Some(finish(
+      &format!("goad: the host was running and stopped: {error}"),
+      LINE_LIMIT,
+    )),
     Ok(Ended::StoppedRunning(None)) => {
       Some("goad: the host was running and stopped, and no error was reported".to_owned())
     }
@@ -474,7 +478,10 @@ pub fn report_exit_line(outcome: &Result<Ended, StartupError>) -> Option<String>
 /// them, in `detail`, which is why this line stops where it does.
 #[must_use]
 pub fn report_platform_line(detail: &str) -> String {
-  format!("goad: the window could not be drawn: {detail}")
+  finish(
+    &format!("goad: the window could not be drawn: {detail}"),
+    LINE_LIMIT,
+  )
 }
 
 /// stderr, and the process keeps running.
