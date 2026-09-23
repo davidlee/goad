@@ -1374,3 +1374,62 @@ recorded in the AC table; the Reconciliation preamble no longer says
 *nothing here is applied*. Not touched: `audit.md`'s AC-8 row still reads
 *pending — not applied* (the Evidence section is a snapshot at `58df7c3`; the
 verdict is audit's to write). `just check` exit 0, **638 passed**.
+
+### Repairs, round 2 — 2026-09-23
+
+Scope: `review-code.md` F-1 (*Re-disposition, round 2*), F-9…F-15, as
+dispositioned in `5b51c90` and endorsed in `design-log.md` (*code review round
+2*). Commits `e0f1488` (code, tests, docs) and `07c71f3` (SPEC-004).
+
+- **F-10/F-11/F-15** — a helper `one_line` beside `finish`: at most one
+  trailing terminator dropped through `without_one_terminator`, then
+  `Escaped`, and no bound. `report_startup_line`, `report_exit_line`'s
+  `StoppedRunning(Some(_))` arm and `report_platform_line` take it; `finish`
+  and `LINE_LIMIT` remain the in-window surface's. The `StoppedRunning(None)`
+  literal is left as it was: the docs now claim the step for *composed*
+  lines, not *every line*. Red first, `stderr_outlets` in
+  `crates/goad/tests/renderer/startup.rs`:
+  - `a_configuration_error_far_along_a_long_line_keeps_the_parser_s_message`
+    (a real `Config::parse` error at column 1511):
+    `goad: /home/someone/.config/goad/config.toml: configuration is not valid: TOML parse error at line 1, column 1511\n  |\n1 | note = "aaaa…` — cut before toml's message, on the *more characters not shown* assertion.
+  - `no_stderr_outlet_ends_in_a_visible_terminator`:
+    `…key with no value, expected `=`\n`.
+  - `no_stderr_outlet_bounds_its_line`: `goad: the display could not be opened: xxxx…` cut before ` tail`.
+  - `LINE_LIMIT` reliance checked: no test or canon relied on it bounding a
+    stderr line. Docs amended — `diagnostics`' module doc, `LINE_LIMIT`'s,
+    `finish`'s, `report_startup_line`'s; SPEC-004 §7 R-4's pipeline sentence
+    (now citing the three cases). **Beyond the brief:** `docs/follow-ups.md`
+    FU-4's *"every diagnostic line in the same binary passes `finish(..,
+    LINE_LIMIT)`"* narrowed to the in-window surface, since it became false.
+    `docs/slices/007/slice-007.md` carries the same sentence and was left as a
+    closed slice's record.
+- **F-12** — `StartupError::AnswerUnwritten`'s doc and SPEC-004 §7 R-1's row
+  say *a write the stream refused*; the row states once that Rust's runtime
+  reopens a closed fd 0–2 on `/dev/null` before `main`, and the doc points to
+  it. No code change.
+- **F-13** — `report::tests::a_refused_flush_is_reported_to_a_caller_whose_line_is_the_answer`,
+  a sink (`RefusesFlush`) whose write succeeds and whose flush fails.
+  **Mutation:** `sink.flush()` → `Ok(())` reds it (`4 passed; 1 failed`);
+  restored by byte copy, 5/5.
+- **F-14** — §5's diagram: `Invoked --> Question`, then `Question -->
+  Answered: the answer was written` and `Question --> NeverStarted: the stream
+  refused the answer`.
+- **F-1/F-9** — §1's *today* paragraph replaced by the rule alone; *"Once this
+  exists"* in the next paragraph became *"With the status stated"* (the same
+  tense class, inside §1).
+- **Class grep** (*restart*, *retry*, *next try*, *gains nothing*, *changes
+  nothing*, *would have come back*, *today*, plus *trying again*, *comes
+  back*) over SPEC-004, the lines `cc0db76` added to SPEC-003, `crates`, and
+  `nix`. No retry prediction read off a status survives. SPEC-004's remaining
+  hits state the rule (§1, §2, §3, §5, §6). Hits in `crates`/`nix` are
+  unrelated (`retry_after_ms`, timers, `today_local`, the ingress lock's
+  upgrade note) or state policy (`nix/module.nix`, `exit.rs`,
+  `exit_codes.rs`'s *the unit would then restart* — the unit's behaviour
+  under a changed numeral, not a retry outcome). **Not repaired, outside the
+  endorsed scope:** SPEC-004 §2's two *today*s (*"What `goad-emit` does
+  today"*, *"no owner today"*) and §8's *Not today* / *ungoverned today* /
+  *today and inventing* — true of the tree, not predictions; any rewording
+  is a canon edit outside §1/§5/R-1/pipeline sentence.
+- **Gate:** `just check` exit 0, **642 passed**, 0 failed, 0 ignored, over
+  31 `test result` lines (638 + three `stderr_outlets` cases + one
+  `report::tests`).
