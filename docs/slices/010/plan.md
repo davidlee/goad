@@ -95,15 +95,15 @@ Audit cites these rows; it does not re-derive them.
 |----|---------------|
 | AC-1 | `draft-spec.md` as written at design; its §7 citations resolved by PHASE-01/EX-6, PHASE-02/EX-8, PHASE-03/EX-6; **promoted at audit** |
 | AC-2 | `draft-spec.md` §Owns and §2 as written at design; **promoted at audit** |
-| AC-3 | PHASE-02/EX-2, EX-3 |
-| AC-4 | PHASE-01/EX-2, EX-5 (the pure function and every shape); PHASE-02/EX-2 (`main` is only that function's caller) |
-| AC-5 | PHASE-03/EX-3 — and every phase's `just check` |
-| AC-6 | PHASE-01/EX-4 (the line), PHASE-02/EX-2 (`main` writes it); the observation on the host is **audit** (AC-9) |
+| AC-3 | PHASE-02/EX-2, EX-3; PHASE-02/EX-6 holds it after the slice (the call's line) |
+| AC-4 | PHASE-01/EX-2 and VT-1 (the pure function and every shape it sees, a real `PlatformError` among them), EX-5 (mutations); PHASE-02/EX-2 (`main` is only that function's caller) |
+| AC-5 | PHASE-02/VT-3 (first run against the rewired `main`); PHASE-03/EX-3 — and every phase's `just check` |
+| AC-6 | PHASE-01/EX-4 and VT-3 (the line, and its distinctness), PHASE-02/EX-2 (`main` writes it); the observation on the host is **audit** (AC-9) |
 | AC-7 | PHASE-03/EX-4 |
 | AC-8 | PHASE-03/EX-2 makes it applicable (the case Change 1 names exists); **applied at audit** (`canon-delta.md` Changes 1–3) |
 | AC-9 | **audit only** — `audit.md` §Evidence. No phase can: nothing in the gate provides a display |
 | AC-10 | **close only** — `docs/follow-ups.md` FU-1 |
-| AC-11 | PHASE-01/EX-3 (`exit::ended`, `Cancel::is_stopped`); PHASE-02/EX-2 and VA-1 (`start` feeds it the post-call read) |
+| AC-11 | PHASE-01/EX-2, EX-3, VT-2 and VT-4 (`exit::ended` over each result with and without a request, one error value; `Cancel::is_stopped`); PHASE-02/EX-2 and VA-1 (`start` feeds it the post-call read) |
 
 `design.md` §9's validation rows map onto the phases as follows: the
 `exit_status`, `ended`, `stderr_outlets` and `Cancel::is_stopped` rows are
