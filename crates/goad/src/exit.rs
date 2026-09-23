@@ -12,9 +12,9 @@
 //! The rule the numbers follow, stated here rather than cited: **the axis is
 //! phase, not cause.** 0 is the process doing what it was asked, 2 is a host
 //! that never started — whatever the cause — and 1 is a host that started and
-//! stopped without being asked to. A supervisor may restart 1 and gains
-//! nothing by restarting 2, and no arm below reads a `StartupError` variant to
-//! decide that.
+//! stopped without being asked to. Each number says what happened and
+//! nothing about what to do next: restarting, or not, is the supervisor's
+//! policy. No arm below reads a `StartupError` variant.
 
 use crate::startup::StartupError;
 
@@ -64,10 +64,10 @@ pub fn ended(call: Result<(), slint::PlatformError>, stop_requested: bool) -> En
 
 /// The number, over the whole of what `run` can answer.
 ///
-/// `u8` and not `ExitCode`: `ExitCode` carries no `PartialEq`, so a function
-/// answering one could not be asserted by any test, and the constant would go
-/// back to living in `main` where nothing reads it. `main` widens — the same
-/// pure/impure cut `report_exit_line` and `report_exit` make.
+/// `u8` and not `ExitCode`: a bare number is what a supervisor reads and what
+/// a failed assertion prints, where an `ExitCode` prints its `Debug` wrapper.
+/// `main` widens — the same pure/impure cut `report_exit_line` and
+/// `report_exit` make.
 #[must_use]
 pub fn status(outcome: &Result<Ended, StartupError>) -> u8 {
   match outcome {

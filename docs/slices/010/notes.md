@@ -1277,3 +1277,83 @@ each re-measured by the orchestrator. Audit has:
 `worktree-agent-adaf66fe96d296402`, its one commit cherry-picked as `df2adde`);
 remove it with `git worktree remove` once round 2 is spawned. The older
 `goad-009-proto` worktree is not this slice's.
+
+### Repairs, round 1 — 2026-09-23
+
+Repair agent, one writer, on `main` from `e412953`. Every `review-code.md`
+round-1 finding repaired as its Response states; the Outcome column is left for
+the round-2 reviewer.
+
+- **F-2** — `aede3df`. `report_startup_line`, `report_exit_line`'s
+  *stopped running* arm and `report_platform_line` go through `finish(…,
+  LINE_LIMIT)`; `report_exit_line`'s `Err` arm inherits it from
+  `report_startup_line`. Red first:
+  `stderr_outlets::a_multi_line_platform_error_is_one_line_from_every_outlet`
+  panicked with the raw three-line text (`goad: the display could not be
+  opened: Could not initialize backend.` / `Error from Winit backend: …` /
+  `No backends configured.`). The case also asserts the line still *ends*
+  with the escaped `\nNo backends configured.`, so first-line-only (the
+  rejected option) reds it too.
+- **F-3** — `33c4654`. Shape chosen: **a sibling in stratum 2**,
+  `goad_shell::report::try_line_to` (write, then flush, answering the
+  `io::Result`), with `line_to` delegating to it and discarding. Why: one
+  implementation of *write a line*, two policies over it; `print_usage` /
+  `print_version` answer `io::Result<()>` and `run` maps it to the new
+  `StartupError::AnswerUnwritten(io::Error)` (*"the answer could not be
+  written to standard output: {error}"*). `goad-emit`'s `to_stdout` /
+  `to_stderr` call `line_to` unchanged; the only difference they see is a
+  `flush` after the `writeln!`, whose result is discarded with the write's —
+  on a line-buffered stdout and an unbuffered stderr it writes nothing further,
+  so no status or byte they produce moves (its binary tier is green). The
+  flush is there because a buffered sink reports its failure only at the
+  flush, and Rust's exit-time flush reports it to nobody. `line_to`'s *the
+  exit code still carries the fact* is gone — false for an answering caller,
+  and for `report_platform`, whose process keeps running. Red first:
+  `exit_codes::an_answer_that_cannot_be_written_exits_2` — `left: 0, right: 2`
+  for `--help` on `/dev/full`. Both questions are covered by that one
+  binary-tier case: the failing write is the process's own stdout, which only a
+  spawn can point at a refusing device (the print fns lock the stdout of
+  whichever process calls them — at the renderer tier, the harness's).
+  Also red-first by compile: `report::tests` gained the two `try_line_to`
+  cases before the function existed. `StartupError::AnswerUnwritten` added to
+  `display_text`, `source_walk` and `every_startup_failure_is_2`.
+- **F-1 class grep** — `git diff b444c6a^..HEAD -- crates nix` for
+  `restart|retry|retries|gains nothing|changes nothing|try again|trying again|recover|cannot start|would fail|brings back|comes back|next try`,
+  plus the same over every touched file. Hits that were predictions:
+  `exit.rs` `//!` (*gains nothing by restarting 2*), `nix/module.nix`'s
+  `Service` comment (*a restart changes nothing…*, *suppresses the one retry
+  that would only loop…*, *brings back*), `exit_codes.rs` `//!` (*a host that
+  cannot start … until systemd's start limiter gives up*). All three
+  repaired. Non-hits: `nix/module.nix`'s `Description` comment (*the cutover
+  changes nothing a person reads* — about text, not status), `BUSY_NOTICE`
+  (*try again in a moment* — back-pressure, not a status), and the directive
+  names themselves. The unit comment now states policy: 0 as asked (tray
+  quit, window closed, `--help` / `--version` answered) and not restarted; 1
+  restarted after `RestartSec`; 2 left to a person, `RestartPreventExitStatus`
+  being that choice. A-1's *rather than retry into the rate limiter* was not
+  used: it predicts the retry fails, which is the class. Directives
+  byte-identical (`git diff -U0 nix/module.nix | grep '^[-+][^-+]' | grep -v
+  '^[-+] *#'` empty); `nix-instantiate --parse` exit 0.
+- **F-4** (`exit::status`'s `u8` reason), **F-5** (`report_exit_line` names
+  the on-entry exception; `report_exit` says `AsAsked` writes nothing), **F-6
+  / P3-a / P3-c** (`exit_codes.rs` says `exit::status` chooses; the `help_…`
+  doc says `Ok(Ended::AsAsked)`; `tests/binary/main.rs` names the rule — the
+  questions `run` answers and the failures that settle before the first
+  component — not *first step* or *the two zero-exits*), **F-7**
+  (`process::command` says what the removal holds and that it rests on
+  Slint's winit backend alone — `cargo tree -p goad -e normal -i
+  i-slint-backend-linuxkms` prints nothing), **F-8 / P2** (`diagnostics` `//!`:
+  *replaced*, and names `report_exit_line`). Also `stderr_outlets`' doc lost
+  its count (*the two stderr outlets*).
+- **`draft-spec.md` §7** — R-1 cites `an_answer_that_cannot_be_written_exits_2`
+  for `AsAsked` being earned; R-3's list names it and drops its history clause
+  (*All but one are unchanged by this document's arrival* — a count, and a
+  changelog in an evergreen document); R-4 cites it as a prefix case, and
+  cites `a_multi_line_platform_error_is_one_line_from_every_outlet` for *one
+  line* in place of the single-literal proxy, leaving *nothing after it* as
+  review. Every new citation resolves once (`grep -rn "fn <name>\b" crates`).
+- `slice-010.md` §Follow-ups' `goad-emit` `--help` row notes that
+  `try_line_to` exists, which lowers its price.
+- **Gate** at the end of Part 1: `just check` exit 0, **638 passed**, 0 failed
+  (633 + the F-2 case, `display_text::answer_unwritten`, the F-3 binary case,
+  and two `report::tests`).

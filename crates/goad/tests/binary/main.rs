@@ -11,9 +11,9 @@
 //! carries the reasoning (`review-code.md` F-1).
 //!
 //! It is feasible **without a display** because every answer it asserts is
-//! reached before the first Slint call (006/design.md §5.4) — the two
-//! zero-exits inside `run`, and the startup failures `start` settles in its
-//! first step — and because `process::command` removes `WAYLAND_DISPLAY`,
+//! reached before the first Slint call (006/design.md §5.4) — the questions
+//! `run` answers, and the startup failures that settle before `start`
+//! constructs its first component — and because `process::command` removes `WAYLAND_DISPLAY`,
 //! `WAYLAND_SOCKET` and `DISPLAY` from every spawn: a case that got past the
 //! socket would otherwise open a real host and wait on it for ever; instead
 //! it fails fast at `PromptWindow::new`, with the display's line, on every

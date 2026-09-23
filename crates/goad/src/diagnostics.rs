@@ -4,12 +4,12 @@
 //! `FAULT` and `tray_icon`. PHASE-05 added `Reported`, `Refused`,
 //! `Diagnostics`, `tooltip`, `BUSY_NOTICE`, the remaining outlets
 //! (`goad_shell::report::line_to`, `report_platform`) and the escape/bound
-//! pipeline every line on
-//! this surface goes through. PHASE-08 adds the startup surface's own
-//! outlets, `USAGE` and `print_usage`, and the impure outlet renamed
-//! `report_exit` at 010/PHASE-02, before a tray or a window exists;
-//! 006/PHASE-03 adds `version_line` and `print_version`, which answer
-//! before one exists too. The module carries
+//! pipeline every line on this surface goes through. PHASE-08 adds the
+//! startup surface's own outlets, `USAGE` and `print_usage`, and the impure
+//! outlet that 010/PHASE-02 replaced with `report_exit` and its pure half,
+//! `report_exit_line`, before a tray or a window exists; 006/PHASE-03 adds
+//! `version_line` and `print_version`, which answer before one exists too.
+//! The module carries
 //! the arithmetic deny because both halves compute over lengths a backend or a
 //! transport chose (D53, design.md §5.4).
 #![deny(clippy::arithmetic_side_effects)]
@@ -441,7 +441,8 @@ pub fn report_startup_line(error: &StartupError) -> String {
   finish(&format!("goad: {error}"), LINE_LIMIT)
 }
 
-/// stderr, once, last.
+/// stderr, once, last — or nothing at all, for `Ended::AsAsked`, whose
+/// status has nothing to report.
 pub fn report_exit(outcome: &Result<Ended, StartupError>) {
   if let Some(line) = report_exit_line(outcome) {
     line_to(std::io::stderr().lock(), &line);
@@ -453,9 +454,12 @@ pub fn report_exit(outcome: &Result<Ended, StartupError>) {
 /// to fake (F-7).
 ///
 /// Each sentence is true of exactly one situation, which is what makes the
-/// line worth reading: a host that never started writes
-/// `report_startup_line`'s, and a host that started and stopped writes one of
-/// the two below. Both name the **phase** and not the cause — the call can
+/// line worth reading — save where the event-loop call fails on entry, when
+/// the *stopped running* sentence says the host had been running and it had
+/// not, because the host cannot tell that call from a loop that ran (the
+/// seam's cost, `draft-spec.md` §5 *What the seam costs*). Otherwise: a host
+/// that never started writes `report_startup_line`'s, and a host that started
+/// and stopped writes one of the two below. Both name the **phase** and not the cause — the call can
 /// fail for whatever the platform backend decides, and the host does not know
 /// which, so the cause travels in `{error}` where it belongs.
 #[must_use]

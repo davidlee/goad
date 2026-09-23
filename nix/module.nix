@@ -86,15 +86,14 @@ in {
           ExecStart = "${cfg.package}/bin/goad";
 
           # The directives argue from **phase**, not from cause
-          # (`crates/goad/src/exit.rs`). 2 is a host that never started —
-          # whatever `StartupError` variant, a bad configuration, an
-          # unreadable clock, an ingress socket already held — so a restart
-          # changes nothing a person has not changed first, and
-          # `RestartPreventExitStatus` suppresses the one retry that would
-          # only loop until systemd's rate limiter gives up. 1 is a host that
-          # had started and stopped without being asked to, which `Restart =
-          # "on-failure"` brings back after `RestartSec`. 0 is the window
-          # being closed, which was asked for.
+          # (`crates/goad/src/exit.rs`). A status says what happened; what to
+          # do about it is this unit's policy, and the number predicts
+          # nothing. 0 is an end as asked — a quit from the tray, the window
+          # closed, or `--help` / `--version` answered — and is not
+          # restarted. 1 is a host that had started and stopped without
+          # being asked to, and this unit restarts it after `RestartSec`. 2
+          # is a host that never started, whatever the cause, and this unit
+          # leaves it to a person: `RestartPreventExitStatus` is that choice.
           Restart = "on-failure";
           RestartPreventExitStatus = 2;
           RestartSec = 2;

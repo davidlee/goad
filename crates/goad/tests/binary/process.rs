@@ -40,13 +40,16 @@ pub(crate) fn goad_with_stdout_full(arguments: &[&str]) -> Output {
 }
 
 /// **The binary tier cannot reach a display** (`design.md` §5.2). Every case
-/// here settles before the first Slint call, and nothing but this removal
-/// keeps it that way: past the socket, a spawn that still sees a display
-/// opens a real host, and `Command::output` waits on it for ever. At the
-/// pinned winit (0.30.13), removing all three leaves no backend to fall back
-/// to — it answers *neither `WAYLAND_DISPLAY` nor `WAYLAND_SOCKET` nor
-/// `DISPLAY` is set* — so a case past the socket fails fast with the
-/// display's line on every machine instead. **Nothing but this doc holds the
+/// here is meant to settle before the first Slint call; what this removal
+/// holds is the case that does not. Past the socket, a spawn that still sees
+/// a display opens a real host, and `Command::output` waits on it for ever;
+/// with all three removed, it fails fast with the display's line on every
+/// machine instead. That rests on two facts: at the pinned winit (0.30.13)
+/// the removal answers *neither `WAYLAND_DISPLAY` nor `WAYLAND_SOCKET` nor
+/// `DISPLAY` is set*, and `goad` builds Slint with its winit backend alone,
+/// so there is no other backend for the selector to fall back to — a Slint
+/// feature that admits another (`backend-linuxkms`, `backend-qt`) changes the
+/// fallback and this guarantee with it. **Nothing but this doc holds the
 /// removal**: deleting it is green until some case gets past the socket, and
 /// then the gate hangs on a machine with a display rather than redding.
 fn command(arguments: &[&str]) -> Command {

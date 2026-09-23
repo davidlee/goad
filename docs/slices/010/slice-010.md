@@ -264,7 +264,9 @@ its recovery mechanism corrected.
 
   **Priced at:** the same shape as `goad`'s repair — the two answering paths
   report a failed write, `main` maps it to a non-zero status, one binary-tier
-  case on `/dev/full` in `crates/goad-emit/tests/binary/exchange.rs`.
+  case on `/dev/full` in `crates/goad-emit/tests/binary/exchange.rs`. The
+  outlet already exists: `goad_shell::report::try_line_to`, `line_to`'s
+  sibling that answers the write's `io::Result`.
 
   **Dead when** `goad-emit --help > /dev/full` exits non-zero with a line on
   standard error, held by a case — naturally inside the slice that kills the

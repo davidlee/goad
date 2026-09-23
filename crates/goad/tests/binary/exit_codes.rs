@@ -1,4 +1,4 @@
-//! The exit code `main` chooses, against the built binary.
+//! The exit code `exit::status` chooses, against the built binary.
 //!
 //! **`nix/module.nix` depends on the failure code by value.** Its `Service`
 //! block carries `RestartPreventExitStatus=2`, and that directive is the whole
@@ -6,10 +6,8 @@
 //! a consumer's: the numeral is this repository's contract, so this repository
 //! holds it. Before these cases, `ExitCode::from(2)` could be changed to
 //! `from(1)` and the whole gate stayed green — measured, `review-code.md` F-1
-//! — and the consequence is the one the directive exists to prevent:
-//! `Restart=on-failure` restarting a host that cannot start, on a bad
-//! configuration or an ingress socket already held, until systemd's start
-//! limiter gives up.
+//! — and the unit would then restart a host that never started, the one end
+//! its policy leaves to a person.
 //!
 //! `tests/renderer/startup.rs` holds the **numbers** — `exit::status` is a
 //! pure function, and that tier holds every shape it can see. What it cannot
@@ -30,10 +28,10 @@ use crate::process::{
   code_of, goad, goad_with_no_config_home, goad_with_stdout_full, stderr_of, stdout_of,
 };
 
-/// `Ok(())` is exit 0, and `--help` is the arm that reaches it with something
-/// on stdout. The block itself is one `const` asserted verbatim one tier down;
-/// what this holds is that `main` reaches it, puts it on **stdout**, and stops
-/// there.
+/// `run` answering `Ok(Ended::AsAsked)` is exit 0, and `--help` is the arm
+/// that reaches it with something on stdout. The block itself is one `const`
+/// asserted verbatim one tier down; what this holds is that `main` reaches it,
+/// puts it on **stdout**, and stops there.
 #[test]
 fn help_prints_the_usage_block_on_stdout_and_exits_0() {
   let output = goad(&["--help"]);
