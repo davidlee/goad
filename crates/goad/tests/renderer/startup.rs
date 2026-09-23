@@ -17,7 +17,10 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use goad::diagnostics::{USAGE, print_usage, report_platform_line, report_startup_line};
+use goad::diagnostics::{
+  USAGE, print_usage, report_exit_line, report_platform_line, report_startup_line,
+};
+use goad::exit::{self, Ended};
 use goad::startup::{Launch, StartupError, arguments, listener};
 use goad_shell::clock::ClockError;
 use goad_shell::config::IngressConfig;
@@ -234,10 +237,144 @@ mod usage_block {
   }
 }
 
+/// The decision, over each result the event-loop call can answer, with and
+/// without a stop having been requested. It is decided on the **request**: the
+/// call answers `Err` for a requested stop and `Ok` for an unrequested one, so
+/// every pair below holds one result against both requests and no case can
+/// pass by reading the result.
+mod ended {
+  use super::{Ended, exit};
+
+  /// **One** error value across the pair below, so the only difference between
+  /// the two cases is the request.
+  fn loop_error() -> slint::PlatformError {
+    slint::PlatformError::from("the display connection was lost")
+  }
+
+  /// The end this slice exists for. `Ended` has no `PartialEq` — its payload is
+  /// `slint::PlatformError`, which has none — so the variant is matched and the
+  /// carried error compared by its rendering.
+  #[test]
+  fn a_loop_error_with_no_stop_requested_is_stopped_running() {
+    let error = loop_error();
+    let given = error.to_string();
+
+    let Ended::StoppedRunning(Some(carried)) = exit::ended(Err(error), false) else {
+      panic!("a loop error with no stop requested is a host that stopped running, carrying it");
+    };
+
+    assert_eq!(
+      carried.to_string(),
+      given,
+      "the error the call answered is the error the variant carries"
+    );
+  }
+
+  /// The same error, the other request. A stop was asked for, so this is the
+  /// process doing what it was asked however the call reported it.
+  #[test]
+  fn a_loop_error_after_a_requested_stop_is_as_asked() {
+    assert!(
+      matches!(exit::ended(Err(loop_error()), true), Ended::AsAsked),
+      "a requested stop is as asked even when the call answered an error"
+    );
+  }
+
+  /// `Ok` is not evidence that nobody asked: the platform backend can end the
+  /// loop and clear the error that ended it (F-53).
+  #[test]
+  fn a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running() {
+    let Ended::StoppedRunning(carried) = exit::ended(Ok(()), false) else {
+      panic!("a loop that returned Ok with no stop requested is a host that stopped running");
+    };
+
+    assert!(
+      carried.is_none(),
+      "the host reports what it was given and invents no error the platform did not raise"
+    );
+  }
+
+  #[test]
+  fn a_loop_that_returned_ok_after_a_requested_stop_is_as_asked() {
+    assert!(
+      matches!(exit::ended(Ok(()), true), Ended::AsAsked),
+      "the ordinary quit: a stop was asked for and the call answered Ok"
+    );
+  }
+}
+
+/// The number, over every shape `exit::status` can see. The axis is phase and
+/// not cause: 0 is the process doing what it was asked, 1 a host that started
+/// and stopped without being asked to, 2 a host that never started.
+mod exit_status {
+  use super::{ClockError, ConfigError, Ended, PathBuf, StartupError, exit};
+
+  #[test]
+  fn as_asked_is_0() {
+    assert_eq!(exit::status(&Ok(Ended::AsAsked)), 0);
+  }
+
+  /// A **real** `slint::PlatformError`, built the way `display_text::platform`
+  /// builds one, because this is the arm the failure observed on a running
+  /// host actually produces.
+  #[test]
+  fn stopped_running_is_1() {
+    let error = slint::PlatformError::from("no display");
+    assert_eq!(exit::status(&Ok(Ended::StoppedRunning(Some(error)))), 1);
+  }
+
+  /// The end with no error to carry is the same end. `None` means the platform
+  /// backend cleared the error that ended the loop, not that nothing failed —
+  /// so it is 1, and the host still stopped running.
+  #[test]
+  fn stopped_running_with_no_error_is_1() {
+    assert_eq!(exit::status(&Ok(Ended::StoppedRunning(None))), 1);
+  }
+
+  /// Variants **named, never counted**: a count is false at the next variant
+  /// and nothing re-reads it. What holds the *whatever its cause* half is not
+  /// this list but `exit::status`'s single `Err(_)` arm, which reads no variant
+  /// — so a variant cannot be filed under another number without that arm being
+  /// edited. This case asserts the number for each named variant rather than a
+  /// property a wrong classifier would survive
+  /// (`docs/memory/tests-asserting-proxies.md`).
+  #[test]
+  fn every_startup_failure_is_2() {
+    use goad_shell::ingress::{BindFault, IngressError};
+
+    let named = [
+      StartupError::NoConfigPath,
+      StartupError::Usage,
+      StartupError::ConfigUnreadable {
+        path: PathBuf::from("/nonexistent/wat.toml"),
+        fault: std::io::Error::other("permission denied"),
+      },
+      StartupError::ConfigUnparseable {
+        path: PathBuf::from("/nonexistent/wat.toml"),
+        fault: ConfigError::EmptyCommand,
+      },
+      StartupError::Clock(ClockError::BeforeEpoch),
+      StartupError::Runtime(std::io::Error::other("no threads available")),
+      StartupError::Platform(slint::PlatformError::from("no display")),
+      StartupError::EventLoop(slint::EventLoopError::EventLoopTerminated),
+      StartupError::Enqueue,
+      StartupError::Ingress(IngressError {
+        path: PathBuf::from("/run/goad/ingress.sock"),
+        fault: BindFault::InUse,
+      }),
+    ];
+
+    for error in named {
+      let named_variant = error.to_string();
+      assert_eq!(exit::status(&Err(error)), 2, "{named_variant}");
+    }
+  }
+}
+
 /// F-7: the two stderr outlets' exact strings (design.md §5.4), asserted
 /// against the pure half of each — no sink to fake, no subprocess.
 mod stderr_outlets {
-  use super::{StartupError, report_platform_line, report_startup_line};
+  use super::{Ended, StartupError, report_exit_line, report_platform_line, report_startup_line};
 
   #[test]
   fn report_startup_line_is_the_error_prefixed_with_goad() {
@@ -272,6 +409,73 @@ mod stderr_outlets {
       fault: BindFault::InUse,
     });
     assert_eq!(report_startup_line(&error), format!("goad: {error}"));
+  }
+
+  /// Status 0 writes no line. The one arm that has nothing to report, and the
+  /// `Option` is what says so rather than an empty string a caller would print.
+  #[test]
+  fn report_exit_line_says_nothing_when_the_end_was_as_asked() {
+    assert_eq!(report_exit_line(&Ok(Ended::AsAsked)), None);
+  }
+
+  /// **Exactly** `report_startup_line`, which is what keeps the binary tier's
+  /// own assertions about a startup failure's stderr true across this slice.
+  #[test]
+  fn report_exit_line_for_a_startup_failure_is_the_startup_line() {
+    for error in [
+      StartupError::Usage,
+      StartupError::NoConfigPath,
+      StartupError::Platform(slint::PlatformError::from("no display")),
+    ] {
+      let expected = report_startup_line(&error);
+      assert_eq!(report_exit_line(&Err(error)), Some(expected));
+    }
+  }
+
+  /// The phase, not the cause: the cause is the platform backend's and travels
+  /// in `{error}`.
+  #[test]
+  fn a_host_that_stopped_running_says_it_had_been_running() {
+    let error = slint::PlatformError::from("no display");
+    let expected = format!("goad: the host was running and stopped: {error}");
+    assert_eq!(
+      report_exit_line(&Ok(Ended::StoppedRunning(Some(error)))),
+      Some(expected)
+    );
+  }
+
+  /// The same end with no error to name. It says the error was not reported
+  /// rather than inventing one, and it is still a host that had been running.
+  #[test]
+  fn a_host_that_stopped_running_with_no_error_says_it_had_been_running() {
+    assert_eq!(
+      report_exit_line(&Ok(Ended::StoppedRunning(None))),
+      Some("goad: the host was running and stopped, and no error was reported".to_owned())
+    );
+  }
+
+  /// The pair above pins each sentence; this is what makes them claims about
+  /// **distinguishability** rather than snapshots of a string. The never-started
+  /// line over `StartupError::Platform` is the one line either could plausibly
+  /// have been made identical to, since both are a display failing.
+  #[test]
+  fn the_stopped_line_is_not_the_line_a_host_that_never_started_writes() {
+    let never_started = report_startup_line(&StartupError::Platform(slint::PlatformError::from(
+      "no display",
+    )));
+
+    assert_ne!(
+      report_exit_line(&Ok(Ended::StoppedRunning(Some(
+        slint::PlatformError::from("no display")
+      )))),
+      Some(never_started.clone()),
+      "a host that stopped running did start; the never-started line would say it had not"
+    );
+    assert_ne!(
+      report_exit_line(&Ok(Ended::StoppedRunning(None))),
+      Some(never_started),
+      "and so did one whose call reported no error"
+    );
   }
 }
 

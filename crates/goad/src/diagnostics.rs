@@ -23,6 +23,7 @@ use goad_shell::host::Failure;
 use goad_shell::report::line_to;
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
+use crate::exit::Ended;
 use crate::startup::StartupError;
 use crate::view_model::Undrawn;
 
@@ -429,6 +430,30 @@ pub fn report_startup_line(error: &StartupError) -> String {
 /// stderr, and `main` returns `ExitCode::from(2)`.
 pub fn report_startup(error: &StartupError) {
   line_to(std::io::stderr().lock(), &report_startup_line(error));
+}
+
+/// The line a non-zero exit is accompanied by, and `None` for the status that
+/// has nothing to report. The pure half, so every arm is a test with no sink
+/// to fake (F-7).
+///
+/// Each sentence is true of exactly one situation, which is what makes the
+/// line worth reading: a host that never started writes
+/// `report_startup_line`'s, and a host that started and stopped writes one of
+/// the two below. Both name the **phase** and not the cause — the call can
+/// fail for whatever the platform backend decides, and the host does not know
+/// which, so the cause travels in `{error}` where it belongs.
+#[must_use]
+pub fn report_exit_line(outcome: &Result<Ended, StartupError>) -> Option<String> {
+  match outcome {
+    Ok(Ended::AsAsked) => None,
+    Ok(Ended::StoppedRunning(Some(error))) => {
+      Some(format!("goad: the host was running and stopped: {error}"))
+    }
+    Ok(Ended::StoppedRunning(None)) => {
+      Some("goad: the host was running and stopped, and no error was reported".to_owned())
+    }
+    Err(error) => Some(report_startup_line(error)),
+  }
 }
 
 /// The exact string `report_platform` writes, with no destination — the pure

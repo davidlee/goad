@@ -1,10 +1,8 @@
 // crates/goad/src/lib.rs — the module tree, and nothing else (design.md
-// §5.1). One `pub mod` line per phase; ten at PHASE-08, nine after 005
-// lifted `clock` to stratum 2 (005/D-9), and ten again with `draft` — the
-// one new file 007 adds, and the only pure one in this crate besides
-// `view_model`. Slice 009 adds two more: `instant`, which holds the two
-// impure reads `draft` may not make, and `pending`, which holds the
-// debounce.
+// §5.1). One `pub mod` line per module, and the list below is the whole of
+// it — which is why no sentence here says how many there are. A count in a
+// comment is a claim nothing re-reads, false at the next module that lands
+// and unnoticed until someone counts (`CLAUDE.md` §Working here).
 // **AC-7's mechanism, held by the gate rather than by review** (`review-code.md`
 // F-S3). `drawn_form` matching `FieldKind` exhaustively is what makes a sixth
 // protocol kind choose between drawing and reporting; nothing kept that true.
@@ -55,6 +53,7 @@
 pub mod controller;
 pub mod diagnostics;
 pub mod draft;
+pub mod exit;
 pub mod generated;
 pub mod glass;
 pub mod install;

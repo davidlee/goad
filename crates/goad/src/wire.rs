@@ -250,6 +250,24 @@ impl Cancel {
       receiver.wait_for(|&tripped| tripped).await.ok();
     }
   }
+
+  /// Whether a stop had been requested by the moment of the call, read
+  /// without awaiting.
+  ///
+  /// **Not [`Cancel::stopped`]**, and the two must not be confused at a call
+  /// site: that one is the *future* that resolves when a stop is requested,
+  /// and awaiting it where this is meant waits for ever on a host nobody
+  /// asked to stop. This answers the same level-held signal now, so the read
+  /// is `watch::Receiver::borrow` and not `stopped`'s `wait_for` —
+  /// `Notice::raised` is the same read on the sibling signal.
+  ///
+  /// Its caller reads it after the event-loop call has returned, where the
+  /// value is final: every route that trips this signal is a callback the
+  /// loop runs (design.md §5.1).
+  #[must_use]
+  pub fn is_stopped(&self) -> bool {
+    *self.rx.borrow()
+  }
 }
 
 /// The back-pressure signal. `tokio::sync::watch::<bool>` again, and
@@ -381,6 +399,23 @@ mod tests {
     );
     cancel.stop();
     waiting.await.expect("the waiting task must not panic");
+  }
+
+  /// The level-held property, read synchronously. `stopped` above holds the
+  /// same property for a waiter; this holds it for a reader, which is what the
+  /// event loop's end needs (design.md §5.1).
+  #[test]
+  fn is_stopped_is_false_until_stop_and_stays_true() {
+    let cancel = Cancel::new();
+    assert!(!cancel.is_stopped(), "a fresh signal has not been tripped");
+    cancel.stop();
+    assert!(cancel.is_stopped());
+    assert!(
+      cancel.is_stopped(),
+      "once tripped it stays tripped: reading the signal does not consume it"
+    );
+    cancel.stop();
+    assert!(cancel.is_stopped(), "and tripping it again is idempotent");
   }
 
   // ---- the back-pressure signal ----

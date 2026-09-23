@@ -8,7 +8,7 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending | 2026-09-23 |
+| PHASE-01 | done | 2026-09-23 |
 | PHASE-02 | pending | 2026-09-23 |
 | PHASE-03 | pending | 2026-09-23 |
 
@@ -212,35 +212,55 @@ or deleting a test to go green. `git add <explicit paths>` and `git commit` on
 
 **Tasks**
 
-- [ ] T-1 — Record the baseline above by re-running nothing: it is measured in
+- [x] T-1 — Record the baseline above by re-running nothing: it is measured in
       this sheet at `448f678`. Confirm the tree is still clean and HEAD still
-      `448f678` before the first edit.
-- [ ] T-2 — `exit.rs` with a **deliberately wrong** `status` and `ended` (e.g.
+      `448f678` before the first edit. **Done:** tree clean; HEAD is `aeca5a6`,
+      which is *documentation only* on top of `448f678` (`notes.md`,
+      `plan-log.md`, `slice-010.md` — the commit that wrote this sheet). No
+      compiled file differs, so the measured baseline stands and EN-1's *at or
+      after the plan's acceptance commit* holds.
+- [x] T-2 — `exit.rs` with a **deliberately wrong** `status` and `ended` (e.g.
       `status` answering 0 for everything, `ended` answering `AsAsked` whatever
       it is given), plus `pub mod exit;` in `lib.rs`. This is the red fixture:
       *a red that is only "does not compile" proves the case exists, not that it
-      asserts.*
-- [ ] T-3 — **VT-1**, `mod exit_status` in `tests/renderer/startup.rs`:
+      asserts.* **Done:** both bodies were stand-ins (`status` answering 0,
+      `ended` answering `AsAsked`) and the crate built green before a case was
+      written, so every red below is a failing assertion.
+- [x] T-3 — **VT-1**, `mod exit_status` in `tests/renderer/startup.rs`:
       `as_asked_is_0`, `stopped_running_is_1` (a real `slint::PlatformError`
       through `From<String>`), `stopped_running_with_no_error_is_1`,
       `every_startup_failure_is_2` (**named** representative variants, never
       counted — include `Platform`, which stays 2 in the `Err` channel and is
       the variant this slice takes the loop's ending away from). Watch each red
       → write `status`'s body → green.
-- [ ] T-4 — **VT-2**, `mod ended` in the same file:
+- [x] T-4 — **VT-2**, `mod ended` in the same file:
       `a_loop_error_with_no_stop_requested_is_stopped_running` (asserts the
       carried error is the one given),
       `a_loop_error_after_a_requested_stop_is_as_asked` — both over **one**
       error value — `a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running`
       (carries `None`) and
       `a_loop_that_returned_ok_after_a_requested_stop_is_as_asked`. Red → write
-      `ended`'s body → green.
-- [ ] T-5 — **VT-4**, `tests::is_stopped_is_false_until_stop_and_stays_true` in
+      `ended`'s body → green. **Done, and with two stand-ins rather than one.**
+      The sheet's stand-in (`AsAsked` whatever it is given) reds only the two
+      `…is_stopped_running` cases; the two `…is_as_asked` cases expect `AsAsked`
+      and pass against it. So a second stand-in — `StoppedRunning(call.err())`
+      whatever was requested — was run before the real body, and redded exactly
+      the other two. Every case in the module has now been seen to fail an
+      assertion. Both stand-ins are the shapes M-7 and M-6 mutate to, so this
+      cost one extra build and measured the same thing twice over.
+- [x] T-5 — **VT-4**, `tests::is_stopped_is_false_until_stop_and_stays_true` in
       `wire.rs`'s own test module, beside
       `a_raised_notice_stays_raised_until_it_is_lowered`. Red against a wrong
       body (a constant `false`) → write `*self.rx.borrow()` → green. Document
       `is_stopped` against `Cancel::stopped` so the two cannot be confused.
-- [ ] T-6 — **VT-3**, into the existing `stderr_outlets`:
+      **Done**, with both stand-ins as in T-4: a constant `false` reds
+      `assert!(cancel.is_stopped())` after `stop`, a constant `true` reds
+      *a fresh signal has not been tripped*. The case sits with the other
+      `Cancel` cases and **before** the `// ---- the back-pressure signal ----`
+      divider, not literally beside
+      `a_raised_notice_stays_raised_until_it_is_lowered`, which is on the far
+      side of that divider — see §Decisions taken during execution.
+- [x] T-6 — **VT-3**, into the existing `stderr_outlets`:
       `report_exit_line_says_nothing_when_the_end_was_as_asked`,
       `report_exit_line_for_a_startup_failure_is_the_startup_line`,
       `a_host_that_stopped_running_says_it_had_been_running`,
@@ -248,30 +268,57 @@ or deleting a test to go green. `git add <explicit paths>` and `git commit` on
       `the_stopped_line_is_not_the_line_a_host_that_never_started_writes` (both
       stopped lines against `report_startup_line` over `StartupError::Platform`
       — the one line either could plausibly have been made identical to). Red →
-      write `report_exit_line` → green.
-- [ ] T-7 — **Refactor.** Not optional. Read the Surfaces back as a reader
+      write `report_exit_line` → green. **Done**, two stand-ins again: a
+      constant unrelated line reds the four that pin a value, and a stand-in
+      answering `report_startup_line` over `StartupError::Platform("no
+      display")` for every end — M-3 and M-4 at once — reds the fifth, the
+      distinctness case, which the first stand-in cannot. `renderer` is **221**
+      after this (208 + 13: 4 + 4 + 5).
+- [x] T-7 — **Refactor.** Not optional. Read the Surfaces back as a reader
       would: do the docs say the rule rather than restate the code, is there a
       duplicated string, does anything in `exit.rs` name `diagnostics`.
-- [ ] T-8 — **EX-2's second half**: `lib.rs`'s header counting sentences
+      **Done.** Three repairs, all to prose I had written (the design's own doc
+      comments are unchanged): `exit.rs`'s module doc first claimed the module
+      *never names* `diagnostics`, which `status`'s own doc — the design's
+      wording — falsifies by naming `report_exit_line` and `report_exit`; then
+      claimed the dependency *may not be added in either direction*, which is
+      false the other way, since `diagnostics` imports `Ended`. It now states
+      the one-way rule and says **imports**, which is the invariant. No
+      duplicated string in the sources: the two stopped sentences exist once
+      each in `diagnostics.rs`, and the tests pin them as
+      `report_startup_line`'s cases already pin that one. No `DOMAIN` word in
+      any of the three files.
+- [x] T-8 — **EX-2's second half**: `lib.rs`'s header counting sentences
       replaced by the rule. Leave the rest of that comment alone and record it
-      under §Findings.
-- [ ] T-9 — **EX-5**, the mutation evidence. Every row of the table below, each
+      under §Findings. **Done:** the whole run from *"One `pub mod` line per
+      phase; ten at PHASE-08 …"* to *"… and `pending`, which holds the
+      debounce."* is replaced by the rule and why there is no number. The rest
+      of the header — the `wildcard_enum_match_arm` argument and its `path:line`
+      citations — is untouched; the finding stands below.
+- [x] T-9 — **EX-5**, the mutation evidence. Every row of the table below, each
       restored before the next, each recorded with the quoted edit, the command,
       that the build **compiled**, the cases that redded **by name**, and a green
       restore. Scoped: `cargo test -p goad --test renderer --no-fail-fast`, and
       `cargo test -p goad --lib` for `wire.rs`. `--no-fail-fast` is not optional
       — without it the red set looks thinner than it is.
-- [ ] T-10 — **EX-6**: every case name `draft-spec.md` §7 cites that this phase
+- [x] T-10 — **EX-6**: every case name `draft-spec.md` §7 cites that this phase
       owns resolves in the tree, by the name cited. The list is closed: every
       case name in T-3 … T-6. Grep each; a name that does not resolve is either
       a typo or a rename, and a rename is the same-commit obligation above.
-- [ ] T-11 — **VA-2**: confirm the vocabulary scan ran over `exit.rs` and the
+- [x] T-11 — **VA-2**: confirm the vocabulary scan ran over `exit.rs` and the
       new `diagnostics.rs` sentences. It is in `just check`; what needs
       confirming is that the new file is in its reach, not that the command ran.
-- [ ] T-12 — **EX-1**: `just check` exits 0. Quote the new gate total **and**
+- [x] T-12 — **EX-1**: `just check` exits 0. Quote the new gate total **and**
       its workspace denominator, and the two per-target figures, against the
-      baseline above.
-- [ ] T-13 — Commit. Update §Status (PHASE-01 → `done`), update §Harvest **in
+      baseline above. **Done: `just check` exits 0.** Gate total **629**;
+      `cargo test --workspace` **594**. The 35 the gate counts twice is
+      `goad-semantics`' 30 + 5, unchanged, so the gate total is exactly 35 above
+      the workspace one as it was at the baseline. Against `448f678`: workspace
+      580 → 594, **+14**, which is the whole of what this phase adds and no more
+      — `goad` lib 58 → **59** (`is_stopped_is_false_until_stop_and_stays_true`)
+      and `goad` `tests/renderer` 208 → **221** (4 `exit_status` + 4 `ended` +
+      5 `stderr_outlets`). Every doc-test target is still 0.
+- [x] T-13 — Commit. Update §Status (PHASE-01 → `done`), update §Harvest **in
       place**, and leave §Findings and §Mutation evidence complete before
       handing off.
 
@@ -282,14 +329,26 @@ or deleting a test to go green. `git add <explicit paths>` and `git commit` on
 
 | # | the edit (quoted) | must red, by name | compiled? | redded | restore green? |
 |---|---|---|---|---|---|
-| M-1 | classifier: `Ok(Ended::StoppedRunning(_)) => 1` → `=> 2` | `stopped_running_is_1`, `stopped_running_with_no_error_is_1` | | | |
-| M-2 | classifier: arm split so `Ok(Ended::StoppedRunning(None)) => 0` (F-53's exit 0, moved one function downstream) | `stopped_running_with_no_error_is_1` | | | |
-| M-3 | line: `StoppedRunning(Some(_))` answers `report_startup_line`'s sentence over `StartupError::Platform` | `the_stopped_line_is_not_the_line_a_host_that_never_started_writes`, `a_host_that_stopped_running_says_it_had_been_running` | | | |
-| M-4 | line: `StoppedRunning(None)` answers a never-started line | `the_stopped_line_is_not_the_line_a_host_that_never_started_writes`, `a_host_that_stopped_running_with_no_error_says_it_had_been_running` | | | |
-| M-5 | decision: `AsAsked` for every `Ok` (F-53's wrong shape) | `a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running` | | | |
-| M-6 | decision: `StoppedRunning` whatever was requested | `a_loop_error_after_a_requested_stop_is_as_asked`, `a_loop_that_returned_ok_after_a_requested_stop_is_as_asked` | | | |
-| M-7 | decision: `AsAsked` whatever was requested | `a_loop_error_with_no_stop_requested_is_stopped_running`, `a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running` | | | |
-| M-8 | decision: `None` carried for an `Err` | `a_loop_error_with_no_stop_requested_is_stopped_running` | | | |
+| M-1 | `exit::status`: `Ok(Ended::StoppedRunning(_)) => 1,` → `=> 2,` | `stopped_running_is_1`, `stopped_running_with_no_error_is_1` | yes | exactly those two, and nothing else: `219 passed; 2 failed` | yes |
+| M-2 | `exit::status`: arm split — `Ok(Ended::StoppedRunning(None)) => 0,` above `Ok(Ended::StoppedRunning(Some(_))) => 1,` | `stopped_running_with_no_error_is_1` | yes | exactly that one: `220 passed; 1 failed` | yes |
+| M-3 | `report_exit_line`: `Ok(Ended::StoppedRunning(Some(error))) => Some(report_startup_line(&StartupError::Platform(slint::PlatformError::from(error.to_string()))))` | `the_stopped_line_is_not_the_line_a_host_that_never_started_writes`, `a_host_that_stopped_running_says_it_had_been_running` | yes | exactly those two: `219 passed; 2 failed` | yes |
+| M-4 | `report_exit_line`: `Ok(Ended::StoppedRunning(None)) => Some(report_startup_line(&StartupError::Platform(slint::PlatformError::from("no display"))))` | `the_stopped_line_is_not_the_line_a_host_that_never_started_writes`, `a_host_that_stopped_running_with_no_error_says_it_had_been_running` | yes | exactly those two: `219 passed; 2 failed` | yes |
+| M-5 | `exit::ended`: `if stop_requested \|\| call.is_ok() {` — `AsAsked` for every `Ok` (F-53's shape) | `a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running` | yes | exactly that one: `220 passed; 1 failed` | yes |
+| M-6 | `exit::ended`: body `let _ = stop_requested; Ended::StoppedRunning(call.err())` | `a_loop_error_after_a_requested_stop_is_as_asked`, `a_loop_that_returned_ok_after_a_requested_stop_is_as_asked` | yes | exactly those two: `219 passed; 2 failed` | yes |
+| M-7 | `exit::ended`: body `let _ = (call, stop_requested); Ended::AsAsked` | `a_loop_error_with_no_stop_requested_is_stopped_running`, `a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running` | yes | exactly those two: `219 passed; 2 failed` | yes |
+| M-8 | `exit::ended`: the `else` arm becomes `let _ = call; Ended::StoppedRunning(None)` | `a_loop_error_with_no_stop_requested_is_stopped_running` | yes | exactly that one: `220 passed; 1 failed` | yes |
+
+**How each row was measured.** One mutation at a time, applied to a tree
+restored from a byte copy of `exit.rs` and `diagnostics.rs` taken before the
+first; `cargo test -p goad --test renderer --no-fail-fast`; the restore
+verified by `diff` against that copy. **compiled?** is read from the run
+producing a `test result:` line at all and no `error[E…]` — a mutation that did
+not build would be no evidence
+(`docs/memory/negative-control-must-compile.md`). The green denominator is
+**221**, so a row reading `219 passed; 2 failed` accounts for every case in the
+target. No mutation redded a case its row does not name. `cargo test -p goad
+--lib` was not needed: the table mutates `exit.rs` and `diagnostics.rs` only,
+and `wire.rs`'s case is covered by T-5's own two stand-ins.
 
 **Decisions taken during execution**
 
@@ -297,7 +356,38 @@ or deleting a test to go green. `git add <explicit paths>` and `git commit` on
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
 
+- **Where `is_stopped_is_false_until_stop_and_stays_true` sits in `wire.rs`.**
+  `design.md` §9 locates it *"beside
+  `a_raised_notice_stays_raised_until_it_is_lowered`"*. That case is on the far
+  side of the file's own `// ---- the back-pressure signal ----` divider, and
+  putting a `Cancel` case after that divider would make the divider false. The
+  case sits in the same `#[cfg(test)] mod tests`, with the other `Cancel` cases
+  (`stopped_resolves_immediately_when_already_tripped`,
+  `stopped_does_not_resolve_until_stop_is_called`) and immediately before the
+  divider. The named case is still its shape template, which is what §9 was
+  citing it for. No rename, so no `draft-spec.md` / `design.md` edit is owed.
+
 **Findings**
+
+- **`clippy::wildcard_enum_match_arm` does not reach `exit::status`'s match,
+  and the gate therefore holds its exhaustiveness by nothing.** Measured here,
+  by negative control: replacing the last two arms with `_ => 1` leaves
+  `cargo clippy -p goad --all-targets -- -D warnings` **green** (the mutated
+  build compiled — checked). Two probes in the same file say why: a wildcard
+  over `&Ended` fires `match_wildcard_for_single_variants`, but a wildcard over
+  `&Result<Ended, StartupError>` beneath an `Ok(Ended::AsAsked)` arm fires
+  neither lint. This is the flip side of
+  `docs/memory/wildcard-enum-match-arm-counts-a-named-binding.md`, which is
+  cited in this sheet's §Assumptions as the reason to match on the enclosing
+  `Result`: escaping the lint is exactly what that shape does, and the memory
+  records the escape as a remedy without recording what it costs. **Not a STOP
+  and not a defect** — no lint fired, and the code is written as `design.md`
+  §5.2 gives it, without a wildcard. What is wrong is the *claim*: `design.md`
+  §3's *"Every match this design adds is written without a wildcard over an
+  enum"* is true of the code and reads as though the deny were what keeps it
+  true. For `status` it is not; what keeps it true is `exit_status`'s four
+  cases and M-1/M-2. For audit to disposition — the candidate repairs are a
+  sentence in §3 and a line in that memory file, and neither is this phase's.
 
 - **`lib.rs`'s header carries `path:line` citations that break the *cite by
   symbol* rule** — `fields.rs:2120`, `goad-semantics/src/error.rs:238`,
@@ -310,7 +400,7 @@ or deleting a test to go green. `git add <explicit paths>` and `git commit` on
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-23 · design review closed, F-1…F-68 `verified` · `8c1fabb` plus this slice's uncommitted documents
+**Fresh as of:** 2026-09-23 · PHASE-01 `done`, the pure layer green in the tree · `aeca5a6` plus this phase's commit
 
 ### Produced
 
@@ -319,6 +409,11 @@ or deleting a test to go green. `git add <explicit paths>` and `git commit` on
   `verified` in round 5. Rounds 5 and 6: F-53…F-68, disposed with the
   user and `verified` (round 6's by site check). The ledger is the
   artefact; nothing about it is restated here.
+- **PHASE-01**: `crates/goad/src/exit.rs` (`Ended`, `ended`, `status`),
+  `Cancel::is_stopped`, `diagnostics::report_exit_line`, and the fourteen cases
+  `draft-spec.md` §7 names for them. M-1…M-8 run, compiled and recorded in this
+  sheet's §Mutation evidence; audit cites those rows rather than re-deriving
+  them. Nothing calls the new code from `main` — that is PHASE-02.
 
 ### Learned
 
@@ -357,6 +452,28 @@ sweeps it at the same standard as the artefacts.
   string literals. **Not in its comments**: `mentions` cuts them off through
   `code_of` before matching, which this entry and `design.md` §3 missed until
   round 5 (F-57).
+- **The workspace lints pass the pure layer over the real Slint types.**
+  `clippy::pedantic` and the crate-root `wildcard_enum_match_arm` deny raise
+  **nothing** on `exit::ended`, `exit::status`, `report_exit_line`'s `Option`
+  arms or `Cancel::is_stopped` as `design.md` §5.2 writes them. The design
+  review's spike over stand-ins predicted this correctly; the assumption is now
+  measured and PHASE-01's likeliest STOP did not occur.
+- **But the deny does not *hold* `exit::status`.** Measured by negative
+  control, with the mutated build seen to compile: a `_` arm over
+  `&Result<Ended, StartupError>` beneath `Ok(Ended::AsAsked)` fires neither
+  `wildcard_enum_match_arm` nor `match_wildcard_for_single_variants`, while the
+  same wildcard over `&Ended` fires the latter. Matching on the enclosing
+  `Result` — the remedy
+  `docs/memory/wildcard-enum-match-arm-counts-a-named-binding.md` prescribes —
+  is also how a match leaves the lint's reach. Full entry in §Findings, for
+  audit.
+- **A decision function needs two stand-ins, not one, to red every case.** The
+  plan's stand-in for `ended` (`AsAsked` whatever it is given) cannot red the
+  two cases that *expect* `AsAsked`; the same holds for `is_stopped`'s constant
+  `false` and for `report_exit_line`'s constant line, which cannot red the
+  distinctness case. Running the opposite stand-in first costs one build and is
+  what makes *every* case a seen failing assertion rather than a case merely
+  present (`docs/memory/tests-asserting-proxies.md`).
 - **`slint::PlatformError::from("no display")` is already precedent**, in
   `display_text::platform` (`crates/goad/tests/renderer/startup.rs`). The new
   case builds its value the same way rather than inventing a fixture.
@@ -388,20 +505,21 @@ sentence about what a running host has been seen to do is checked against this.
   `Ended::StoppedRunning` carries `Option<slint::PlatformError>`. Round 6
   found one design-level gap in that repair (F-63, a missing case) and prose;
   both were repaired and closed by a site check instead of a round 7.
-- **Spiked, not yet run in the tree:** `clippy::wildcard_enum_match_arm` and
-  `clippy::pedantic` (the workspace's levels, same clippy 0.1.99 as the repo)
-  pass `exit::status`'s match, over stand-in types. Round 6 re-ran it over
-  `exit::ended`, `exit::status` and `report_exit_line` as `design.md` §5.2
-  writes them, with `clippy::pedantic`, and they pass (stand-ins again). A negative control — a top-level `_ =>` over
-  `Ended` — was confirmed red. Stand-ins are not `slint::PlatformError`, so the
-  first executing phase still confirms it in the tree; if it fires, the arm
-  needs a spelling, not a design change.
+- **Settled at PHASE-01, and no longer open:** the lints were spiked over
+  stand-in types at design rounds 5 and 6; they have now run in the tree over
+  the real `slint::PlatformError` and raise nothing (§Learned). `exit::ended`,
+  `exit::status`, `report_exit_line` and `Cancel::is_stopped` are built and
+  asserted. What the negative control added is a **new** open item, in
+  §Findings: the crate-root deny does not reach `exit::status`'s match at all,
+  so `design.md` §3's sentence about it reads stronger than the gate is.
 
-- **`Cancel::is_stopped` and `exit::ended` are specified and unbuilt.** The
-  name is chosen around `Cancel::stopped`, which is the existing future; a
-  phase agent must not conflate them, and the `watch::Receiver` read is
-  `*self.rx.borrow()`, as `Notice::raised` already does. `start` binds the loop
-  call's result in its own statement and reads `is_stopped` in the next.
+- **`start`'s wiring is still specified and unbuilt** — PHASE-02's. The read is
+  `stop_signal.is_stopped()`, taken in the statement after the one that binds
+  the loop call's result, on a clone kept before `cancel` moves into `serve`.
+  `Cancel::is_stopped` now exists and is documented against `Cancel::stopped`,
+  which is the existing **future**: awaiting the latter where the former is
+  meant waits for ever on a host nobody asked to stop. Neither `stop` nor
+  `stopped` was touched.
 - **`research.md` carries a count** — *"the numeral 2 keeps its meaning and its
   five tests"* — which `exit_codes.rs` will falsify the moment a case is added
   there. Not raised as a finding: `research.md` was context to this review and
