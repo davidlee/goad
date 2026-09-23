@@ -192,14 +192,14 @@ Lines of attack:
 | F-13 | minor | fix-now | verified |
 | F-14 | nit | fix-now | verified |
 | F-15 | nit | fix-now | verified |
-| F-16 | minor | | |
-| F-17 | nit | | |
-| F-18 | nit | | |
-| F-19 | minor | | |
-| F-20 | nit | | |
-| F-21 | nit | | |
-| F-22 | nit | | |
-| F-23 | nit | | |
+| F-16 | minor | fix-now | |
+| F-17 | nit | fix-now | |
+| F-18 | nit | fix-now | |
+| F-19 | minor | fix-now | |
+| F-20 | nit | fix-now | |
+| F-21 | nit | fix-now | |
+| F-22 | nit | fix-now | |
+| F-23 | nit | fix-now | |
 
 ### F-1 — Three comments read a retry prediction off status 2, which the draft spec forbids and AC-7 names
 
@@ -968,8 +968,8 @@ This is the first sentence a reader meets that states the rule. So it is
 the one where the exception most needs to be in the sentence, or pointed to
 from it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** SPEC-004 §1 names the seam in the sentence: the phase is observed, except that a loop call failing on entry is reported as *stopped running* (§5 *What the seam costs*). Endorsed canon edit.
 **Outcome:**
 
 ### F-17 — §5's prose still describes every question as answered
@@ -989,8 +989,8 @@ the unconditional, which is exactly what F-14 raised about the diagram.
 **Evidence:** the paragraph against the diagram directly above it, and
 against `exit_codes::an_answer_that_cannot_be_written_exits_2`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** §5's prose names the refused answer beside the answered question, as the diagram does. Endorsed canon edit.
 **Outcome:**
 
 ### F-18 — SPEC-004 §2 says `goad-emit`'s statuses *have no owner today*; the same section says they are owned
@@ -1011,8 +1011,8 @@ of the tree. Read against its own section, it is not.
 **Evidence:** the two bullets; §8 OQ-2. This is F-9's class, *canon stating
 the pre-promotion state as the present*, in the section after §1.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** §2 drops *today*: `goad-emit`'s statuses are nominally owned and not governed. Endorsed canon edit.
 **Outcome:**
 
 ### F-19 — OQ-1 judges each cause's restart policy, the axis the document puts out of scope
@@ -1042,8 +1042,8 @@ clause that *Not today* rests on. It was promoted unchanged in round 1, and
 `07c71f3` left it as *true of the tree*. It is not a *today*, so the
 repair's grep could not reach it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** OQ-1 keeps only the reason that holds — subdividing reintroduces the per-cause judgement §5 rejects — and drops the per-cause restart verdict. Endorsed canon edit.
 **Outcome:**
 
 ### F-20 — An unbounded stderr line is linear in the configuration line's length, and nothing says what that costs
@@ -1078,8 +1078,8 @@ a length a backend chose. D53's reason does not apply, and the user's
 decision stands on its own terms. This finding is about the unstated cost,
 not the decision.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** The decision stands; its cost is written down in `one_line`'s doc and R-4's §7 row: a line past journald's `LineMax` is split, and the last record then does not begin `goad: `. Endorsed canon edit.
 **Outcome:**
 
 ### F-21 — R-1's row states the closed-descriptor behaviour in a *verified by* cell and names nothing that holds it
@@ -1100,8 +1100,8 @@ sentence becomes false, and nothing in the gate sees it happen.
 
 **Evidence:** the row text; the `strace` in F-12's round-3 Outcome.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** R-1's row says the closed-stdout behaviour is the Rust runtime's, evidenced by the traced run, and held by no test — a test would pin the toolchain, not this code. Endorsed canon edit.
 **Outcome:**
 
 ### F-22 — Two in-place substitutions left their lines unwrapped
@@ -1120,8 +1120,8 @@ columns or fewer: one each in §3, §8 and §9. The repair's diff shows both
 lines as word substitutions that were not rewrapped. On its own this is
 taste, and the pre-existing lines show the document is not strict about it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Rewrap both.
 **Outcome:**
 
 ### F-23 — *stderr* now names two streams in `diagnostics`, and two docs beside the repair use it unqualified
@@ -1142,8 +1142,8 @@ ones.
 
 **Evidence:** the quoted docs against `one_line`'s doc and the module doc.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** `STDERR_LIMIT`'s doc says it bounds a captured backend's stderr, distinct from the host's own stderr lines.
 **Outcome:**
 
 ### Checked and found complete (round 3)

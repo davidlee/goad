@@ -438,3 +438,13 @@ not yet the gate** — confirmed or overturned when the design is presented.
   `main` (traced), so exit 0 is right and the words narrow to *a write the
   stream refused*. SPEC-004 §1, R-1's §7 row, §5's diagram and the pipeline
   sentence are amended. Round 3 reviews these repairs alone.
+
+### 2026-09-23 — code review round 3: prose only, and no round 4
+
+- **Asked:** F-16…F-23, all prose (six in SPEC-004), as fix-now; endorse the
+  SPEC-004 edits; and, since round 3 found no code defect after round 2's two,
+  close the review by the orchestrator's site check rather than a round 4
+  (`review-rounds-stop-on-a-measured-trend`).
+- **Decided:** "agreed".
+- **Consequence:** one repair commit; each site checked against its finding and
+  the outcomes set by the orchestrator acting as raiser. Then AC-9, then close.
