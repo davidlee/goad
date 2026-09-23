@@ -129,6 +129,19 @@ threat first, cost as the tiebreaker, and it is written down in the ledger's
 band headings rather than stored per row, because a stored rank goes stale the
 way the entries it ranks did.
 
+**2026-09-24.** Slice 010 is closed. The host's exit status names the phase it
+ended in — 0 as asked, 1 stopped running, 2 never started — and SPEC-004 says
+what each means and what a supervisor may infer from it. The unit's directives
+did not change; its argument did, and the status it suppresses is now only ever
+a host that never started. **Observed on the running host**, provoked the way
+production fails — the host's end of its Wayland socket shut down from outside
+— a lost display exits 1 with its line and is back two seconds later; the
+outage the slice opened on lasted two hours. The code review found the change's
+reach rather than its core: a platform error's stderr "line" was several lines,
+and a `--help` whose answer never arrived exited 0. Both were repaired in the
+slice. Its follow-ups are `goad-emit`'s: that binary's statuses are owned by
+SPEC-004 and governed by nothing yet.
+
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
 ledger, code review unchanged. 49,631 lines of slice documentation for 16,891
@@ -154,7 +167,7 @@ graph LR
   S7["007 ✔<br/>the renderer<br/>grows a form"]
   S8["008 ✔<br/>the renderer<br/>gets a look"]
   S9["009 ✔<br/>the rest of<br/>the field kinds"]
-  S10["010<br/>the exit-code<br/>taxonomy"]
+  S10["010 ✔<br/>the exit-code<br/>taxonomy"]
   S11["011<br/>the refused<br/>arrival's present"]
   S12["012<br/>stratum 3 joins<br/>the allowlist"]
   S13["013<br/>socket transport"]
@@ -170,7 +183,7 @@ graph LR
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
   classDef use fill:#1f3d5c,stroke:#3a6ea5,color:#fff
-  class S1,S2,S3,S4,S5,S6,S7,S8,S9 done
+  class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10 done
   class T2 trigger
   class USE use
 ```
@@ -184,7 +197,7 @@ graph LR
 | 007 the renderer grows a form ✔ | 2 | the value slice. The *view* needs no protocol change — R-15 already admits it — but the *response* does: nothing says what JSON type a submitted value has |
 | 008 the renderer gets a look ✔ | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
 | 009 the rest of the field kinds ✔ | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
-| 010 the exit-code taxonomy | 2 | the only follow-up with measured harm on the running host. It reaches SPEC-003's failure vocabulary |
+| 010 the exit-code taxonomy ✔ | 2 | the only follow-up with measured harm on the running host. It reaches SPEC-003's failure vocabulary |
 | 011 the refused arrival's present | 2 | an untrusted writer sets the rate. Suppressing the present is a SPEC-003/R-15 amendment with its own verification |
 | 012 stratum 3 joins the allowlist | 2 | tier 2 by construction — one manifest row plus a POL-001 §Verification amendment. The smallest of the three, and it waited on daily use to show whether stratum 3 drifts |
 | 013 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
@@ -510,10 +523,16 @@ slice 002 recorded.
   cannot be repeated, and R-57 wants an RFC 3339 instant with an offset while
   `DatePickerPopup` yields a bare date.
 
-### 010 — the exit-code taxonomy
+### 010 — the exit-code taxonomy ✔
 
-From slice 006's audit (`docs/follow-ups.md` FU-1). **Tier 2** — it reaches
-SPEC-003's failure vocabulary.
+From slice 006's audit (`docs/follow-ups.md` FU-1). **Tier 2** — it wrote a
+new spec and amended SPEC-003's verification. **Closed 2026-09-24.**
+`docs/slices/010/` carries the record, `slice-010.md` §Summary the closing
+argument and §Follow-ups what outlived it. The entries below are the scoping
+argument as it stood, and two of its facts were wrong: the *failure
+vocabulary* it names is SPEC-003's ingress refusal-reason set, which the
+repair never reached, and the cause was the host's own display connection
+breaking with the compositor up — six exits, not four (FU-1, struck).
 
 *Never started* and *stopped running* are one exit code today. `start` ends
 `run_event_loop_until_quit().map_err(StartupError::Platform)`, so a compositor

@@ -78,7 +78,13 @@ warnings`, `cargo fmt --all --check` (the sequence `just -n check` prints).
 | clippy `-D warnings` / fmt | no output — clean |
 
 Matches the orchestrator's re-measure at `c67dd9c` (`notes.md` §Handover)
-figure for figure.
+figure for figure. The table is a snapshot at `58df7c3`, before the code
+review's repairs.
+
+**At close** (2026-09-24, the tree of the `010: close` commit, re-run by the
+closing agent): `just check` **exit 0** — **642 passed**, 0 failed, 0 ignored,
+over 31 `test result:` lines. The rise from 633 is the repairs' cases
+(`notes.md` §Handover, *Repairs, round 1* and *round 2*); clippy and fmt clean.
 
 ### Acceptance criteria
 
@@ -91,9 +97,9 @@ figure for figure.
 | AC-5 | **met; waived for doc comments** (user, `design-log.md` *at audit*: AC-5 protects the cases' behaviour, so a false doc comment on an existing case is repaired rather than kept — P3-a, `review-code.md` F-6) | `git diff b444c6a..HEAD -- crates/goad/tests/binary/exit_codes.rs` has **no removed line outside the `//!` module doc**; additions are `an_unbindable_ingress_path_exits_2` and a helper, `scratch_path` (see VT/VA, PHASE-03 EX-3). All pre-existing cases green. **Carried finding:** one existing case's doc comment is now false and AC-5 forbids the edit (Reconciliation, P3-a). |
 | AC-6 | **met at the renderer tier; the process half is AC-9** | `diagnostics::report_exit_line` answers `goad: the host was running and stopped: {error}` and `…stopped, and no error was reported`; `stderr_outlets::the_stopped_line_is_not_the_line_a_host_that_never_started_writes` asserts both differ from `report_startup_line` over `StartupError::Platform`. `main` writes it through `report_exit`. |
 | AC-7 | **met in its letter; one doubt raised** | `nix/module.nix`'s `Service` comment: no exception paragraph, no *do not succeed on a retry*, no `SPEC-003`, no `Platform`; argues from phase. Directives byte-identical (`git diff -U0 … \| grep '^[-+][^-+]' \| grep -v '^[-+] *#'` empty; `nix-instantiate --parse` exits 0). **Doubt, A-1:** its *"so a restart changes nothing a person has not changed first"* is itself a retryability claim, the class AC-7 calls false of `Runtime` — though `plan.md` PHASE-03/EX-4 dictated those words. |
-| AC-8 | **pending — audit (canon)** | Applicable: the case Change 1 names, `exit_codes::an_unbindable_ingress_path_exits_2`, exists and passes. Not applied; needs endorsement (Reconciliation rows C-3…C-5). |
+| AC-8 | **met** — applied at `cc0db76`, endorsed (`design-log.md`, *at audit*) | SPEC-003 §7 R-4's cell names `exit_codes::an_unbindable_ingress_path_exits_2`, which exists and passes, and no longer claims no test target links the binary; R-3's *"same position"* narrowed to R-5's process exit (Reconciliation C-3…C-5). |
 | AC-9 | **met** — observed 2026-09-23 | On the running host, build `0.1.0 (96a1704)`: a tray quit exited `0/SUCCESS` with no line and no restart; a lost display (route 2) exited `1/FAILURE` with the one *stopped running* line last, restarted 2 s later. Record under *AC-9 — on the running host*, §Observed. |
-| AC-10 | **pending — close** | `docs/follow-ups.md` FU-1 still reads *four such exits* and *a compositor going away* (Reconciliation row R-1). |
+| AC-10 | **met** — at close | `docs/follow-ups.md` FU-1 struck under §Closed, with what killed it (`exit::ended`, `exit::status`, the `nix/module.nix` comment) and its three corrections — six exits, a broken connection, the session target — plus its *SPEC-003's failure vocabulary* error (Reconciliation R-1). |
 | AC-11 | **met** | `exit::ended` decides on `stop_requested` alone (`if stop_requested { AsAsked } else { StoppedRunning(call.err()) }`); the four `ended::` cases cover each result × request, the two error cases over one `loop_error()`. `start` passes `stop_signal.is_stopped()` read in the statement after the call, on a clone taken before `cancel` moves into `serve` (read here in `start`, not taken from PHASE-02/VA-1). `Cancel::is_stopped` is `*self.rx.borrow()`, held by `tests::is_stopped_is_false_until_stop_and_stays_true`. |
 
 ### Verification criteria
@@ -317,8 +323,9 @@ Findings live in `review-code.md`, copied from
 vocabulary, subject `implementation`. Do not restate findings here.
 
 - **Ledger:** `review-code.md`
-- **State:** open · outstanding blockers: not yet known — the ledger is
-  being written by a concurrent reviewer and is not in this tree yet.
+- **State:** closed 2026-09-23, after three rounds and a site check ·
+  outstanding blockers: **0** (none raised) · F-1…F-23 all `verified`. Its
+  Synthesis is the account; nothing is restated here.
 
 ## Verdict
 
@@ -326,8 +333,35 @@ vocabulary, subject `implementation`. Do not restate findings here.
      synthesis and on the evidence above; restates neither. Does this slice do
      what it set out to do, and what is being accepted knowingly? -->
 
-Not yet written: it waits on the code-review ledger, AC-9's observation, and
-the user's endorsement of the Reconciliation rows.
+**The slice does what it set out to do.** It opened on a host that lost its
+display after hours of running, exited with the status a bad configuration
+exits with, and was held down for two hours by a directive written for the
+bad configuration. The status now names the phase the process ended in; the
+decision is a pure function asserted one tier down for every shape it can see;
+the seam where the loop's end used to be re-filed is held by a structure scan;
+and the running host, provoked the way production fails, exited 1 with its line
+and was back in `RestartSec`. Canon was written for it (SPEC-004) and corrected
+where it had recorded the defect as fact (SPEC-003 R-4). The code review raised
+no blocker; what it found was the reach of the change — stderr lines that were
+several lines, and a question answered 0 when the answer never arrived — and
+both were repaired inside the slice rather than deferred.
+
+**Accepted knowingly:**
+
+- **The seam.** An event-loop call that fails on entry is reported as *stopped
+  running*, though the loop never began: the host cannot tell that call from a
+  loop that ran. Declared in SPEC-004 §5 *What the seam costs*, not hidden. The
+  call site that hands the loop's end to `exit::ended` is held by review, and a
+  real lost display reaching that arm by the AC-9 observation alone — no test
+  tier can reach it.
+- **No bound on a stderr line.** A line past journald's `LineMax=` is split into
+  several records, so the last record the journal shows need not begin
+  `goad: `. Chosen over a bound that would cut a parser's message, which comes
+  last (SPEC-004 §7 R-4's row).
+- **`goad-emit`'s statuses are owned and not governed** (FU-42), and it still
+  answers `--help` / `--version` with 0 when the answer was not written — the
+  defect F-3 repaired in the host (FU-43). Both wait for the slice that admits
+  that binary to SPEC-004.
 
 ## Reconciliation
 
@@ -359,22 +393,22 @@ endorsement question.
 
 | id | document | change | reason | done |
 |----|----------|--------|--------|------|
-| R-1 | `docs/follow-ups.md` FU-1 | struck, with what killed it (this slice's `exit::ended` / `exit::status` and the `nix/module.nix` comment) and its three corrections: six exits not four; a broken connection, not a departing compositor; the session target, not systemd, recovered the fast cases. Its *"SPEC-003's failure vocabulary"* goes too — FU-1's own error, per AC-7 | AC-10 | [ ] |
-| R-2 | `docs/memory/exit-2-means-two-different-failures.md` | **rewrite, not re-quote.** `notes.md` §Open says its standing fact still holds; it does not — after this slice exit 2 means *never started* only. What survives is the lesson (an enumeration of three variants argued for ten), which its *Why the enumeration was convincing* section already carries. Title and *The fact* restated as history-free: what exit 2 means now and why it once did not belongs in the spec and the slice, so the file keeps only the lesson | stale since PHASE-02 | [ ] |
-| R-3 | `docs/slices/010/research.md` §Cross-thread findings | *"keeps its meaning and its five tests"* → *"keeps its meaning and its tests"* | a count falsified by `an_unbindable_ingress_path_exits_2` (`CLAUDE.md` — never count) | [ ] |
+| R-1 | `docs/follow-ups.md` FU-1 | struck, with what killed it (this slice's `exit::ended` / `exit::status` and the `nix/module.nix` comment) and its three corrections: six exits not four; a broken connection, not a departing compositor; the session target, not systemd, recovered the fast cases. Its *"SPEC-003's failure vocabulary"* goes too — FU-1's own error, per AC-7 | AC-10 | [x] |
+| R-2 | `docs/memory/exit-2-means-two-different-failures.md` | **rewrite, not re-quote.** `notes.md` §Open says its standing fact still holds; it does not — after this slice exit 2 means *never started* only. What survives is the lesson (an enumeration of three variants argued for ten), which its *Why the enumeration was convincing* section already carries. Title and *The fact* restated as history-free: what exit 2 means now and why it once did not belongs in the spec and the slice, so the file keeps only the lesson | stale since PHASE-02 | [x] |
+| R-3 | `docs/slices/010/research.md` §Cross-thread findings | *"keeps its meaning and its five tests"* → *"keeps its meaning and its tests"* | a count falsified by `an_unbindable_ingress_path_exits_2` (`CLAUDE.md` — never count) | [x] |
 
 **Carried findings — recommended disposition (one line each)**
 
 | id | finding (phase) | recommendation | done |
 |----|-----------------|----------------|------|
-| P1-a | the crate-root `wildcard_enum_match_arm` deny does not reach `exit::status`'s match (PHASE-01) | **memory, not code**: add the cost to `docs/memory/wildcard-enum-match-arm-counts-a-named-binding.md` (matching the enclosing `Result` escapes the lint, so exhaustiveness is then held by cases, not by the deny); `design.md` §3's sentence left as written and listed under *Design drift* below | [ ] |
-| P1-b | `lib.rs`'s header carries `path:line` citations (PHASE-01) | **follow-up, merged**: extend FU-10's citation (citation discipline enforced by nothing) with these sites rather than a new row; not this slice's code | [ ] |
+| P1-a | the crate-root `wildcard_enum_match_arm` deny does not reach `exit::status`'s match (PHASE-01) | **memory, not code**: add the cost to `docs/memory/wildcard-enum-match-arm-counts-a-named-binding.md` (matching the enclosing `Result` escapes the lint, so exhaustiveness is then held by cases, not by the deny); `design.md` §3's sentence left as written and listed under *Design drift* below | [x] |
+| P1-b | `lib.rs`'s header carries `path:line` citations (PHASE-01) | **follow-up, merged**: extend FU-10's citation (citation discipline enforced by nothing) with these sites rather than a new row; not this slice's code | [x] |
 | P2 | `diagnostics.rs`'s `//!` says `report_exit` was *"renamed"*; it replaced a different function (PHASE-02) | **repair in the slice**, one word: *replaced*. Via the code-review ledger | [x] |
 | P3-a | `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc says *"`Ok(())` is exit 0"*, false since PHASE-02; AC-5 forbids the edit (PHASE-03) | **user decision**: waive AC-5's letter for doc comments — its purpose is that no case's *assertions* change and 2 keeps its consumers — and repair the sentence (*`run` answering `Ok(Ended::AsAsked)` is exit 0*). Leaving a known-false doc to honour an AC's wording is the worse outcome | [x] |
 | P3-b | `nix/module.nix`: *"0 is the window being closed, which was asked for"* — narrower than true (PHASE-03) | **repair in the slice**, comment only: *0 is as asked — a quit from the tray, the window closed, or `--help` / `--version` answered*. Lands with C-6 | [x] |
 | P3-c | `tests/binary/main.rs`'s doc: startup failures settle in `start`'s *"first step"*; the new case settles at step 3 (PHASE-03) | **repair in the slice**: *before the first Slint call* (the phrase the same sentence already uses), dropping the step number | [x] |
 | A-1 | **raised at audit.** `nix/module.nix`: *"2 is a host that never started … so a restart changes nothing a person has not changed first"* is a retryability claim — the class AC-7 removes as false of `Runtime`. `plan.md` PHASE-03/EX-4 dictated the words, so the executor followed the plan | **user decision, recommended repair**: state it as the unit's policy, not a fact about retries — *2 is a host that never started; this unit leaves that to a person rather than retry into the rate limiter* — matching `draft-spec.md` §3 P-D (policy is built on the statuses, not asserted by them). Lands with C-6/P3-b | [x] |
-| A-2 | **raised at audit.** PHASE-03's task boxes are all unticked and T-3's red-first quote is missing; PHASE-02's T-13 unticked | **record only**: a note in `notes.md` at close that the evidence is in §Mutation evidence / §Decisions and M-13/M-14 stand in for T-3's red. No code consequence | [ ] |
+| A-2 | **raised at audit.** PHASE-03's task boxes are all unticked and T-3's red-first quote is missing; PHASE-02's T-13 unticked | **record only**: a note in `notes.md` at close that the evidence is in §Mutation evidence / §Decisions and M-13/M-14 stand in for T-3's red. No code consequence | [x] |
 
 **Design drift not reconciled:**
 
@@ -394,13 +428,13 @@ endorsement question.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
-- [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `notes.md` §Open swept against `slice-010.md` §Follow-ups; every entry dispositioned
-- [ ] `slice-010.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-010.md` stage set to `done`
+- [x] All findings dispositioned; no blockers outstanding
+- [x] All acceptance criteria met, or explicitly waived by the user
+- [x] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
+- [x] Tests and checks green
+- [x] Specs / policy / ADRs reconciled, with user endorsement where amended
+- [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
+- [x] `notes.md` §Open swept against `slice-010.md` §Follow-ups; every entry dispositioned
+- [x] `slice-010.md` Summary and Follow-ups written
+- [x] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
+- [x] `slice-010.md` stage set to `done`

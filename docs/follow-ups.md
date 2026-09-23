@@ -40,21 +40,8 @@ eleven are struck under §Closed, with what killed each one.
 
 Evidence of the host failing on the machine it runs on.
 
-### FU-1 — the exit-code taxonomy
-**Raised by** 006 · **cost** tier 2, `SPEC-003`'s failure vocabulary · **scheduled as slice 010**
-
-`start` ends `run_event_loop_until_quit().map_err(StartupError::Platform)`, so a
-compositor going away under a host that has run for hours exits 2 exactly as a
-host that never started does. `nix/module.nix`'s `RestartPreventExitStatus`
-argues itself from variants that cannot succeed on a retry; `Platform` is the
-counterexample and the only exit-2 that has actually happened. Four such exits
-in two days, two of them leaving the host down for around two hours. The repair
-reaches the startup surface, `main`'s single exit decision, and SPEC-003's
-failure vocabulary.
-
-**Dead when** `main`'s exit decision separates *never started* from *stopped
-running*, and `nix/module.nix` no longer names `Platform` as a known exception
-to its own directive.
+None open. FU-1, the only row this band has held, was closed by slice 010 —
+struck under §Closed.
 
 ---
 
@@ -115,24 +102,28 @@ one reaching the diagnostics pane gets, taken beside the bounds
 `diagnostics.rs` already states rather than added in passing.
 
 ### FU-5 — stratum-3 test helpers have no shared home
-**Raised by** 006, 007 (F-17, F-22) · **cost** tier 1
+**Raised by** 006, 007 (F-17, F-22), 010 · **cost** tier 1
 
-`claim` reaches four of the six helpers that promise a unique temp path. Both
-stragglers are `goad-emit`'s: `tests/binary/exchange.rs`'s `socket_path`, and
+`claim` does not reach every helper that promises a unique temp path, and
+`claim`'s own doc, which counts them, is short: it predates the helpers in
+`crates/goad/tests/binary/exit_codes.rs` — `scratch_config` (006), which
+overwrites its file as it hands the path out, and `scratch_path` (010) beside
+it. `goad-emit` has two more: `tests/binary/exchange.rs`'s `socket_path`, and
 `src/main.rs`'s `config_home`, which is inside a `#[cfg(test)]` module in a
 production file and is **destructive** — it writes or removes `config.toml`
 under the directory as it hands it out, so two cases sharing a name have one
 clobber the other's fixture mid-run. Measured at one failure in six under a
 deliberate collision, with no panic and no name in the message. The obstacle is
-measured: neither target `#[path]`-includes `tests/support/scripting.rs`, and
+measured: none of those targets `#[path]`-includes `tests/support/scripting.rs`, and
 adding the include yields `dead_code` warnings that are errors under the gate.
-Same cause as the four binary-tier helpers transcribed into both
-`goad-emit/tests/binary/exchange.rs` and `goad/tests/binary/process.rs` —
+Same cause as the binary-tier helpers transcribed into both
+`goad-emit/tests/binary/exchange.rs` and `goad/tests/binary/process.rs` — the
+spawn, `code_of`, `stderr_of` and `stdout_of` —
 nothing at stratum 3 is shared and neither crate may depend on the other.
 
 **Start from the grep, not from a list**: `claim`'s own doc carries the class
 and the grep that finds it (`process::id()`). The enumeration came up short
-twice.
+twice in 007, and its count again by 010.
 
 **Dead when** every helper promising a unique path goes through `claim`, from a
 support file a target can include without the scripted-backend helpers.
@@ -203,14 +194,16 @@ instrument, if the residue ever grows enough to be worth automating.
 feature, or a check holds it.
 
 ### FU-10 — citation discipline is enforced by nothing
-**Raised by** 003, 004, 007, 009 (#8) · **cost** the instrument is tier 2; the sweep is tier 1 with a judgement per site
+**Raised by** 003, 004, 007, 009 (#8), 010 (P1-b) · **cost** the instrument is tier 2; the sweep is tier 1 with a judgement per site
 
 Two halves, one cause. **The rule**:
 `docs/memory/cite-requirements-not-finding-ids.md` was settled at 001's audit
 and closes with *"Do not extend the practice."* Slice 001's own code is exempt
 by that decision; nothing else is. **Measured at `3ecaa11`: `F-N` appears 335
 times across 54 files.** 004 named 37 sites in six files and the class has
-grown well past them. Separately, nothing resolves a `docs/memory/` citation —
+grown well past them. 010 found `crates/goad/src/lib.rs`'s header comment
+citing by `file.rs:NNN` (`fields.rs`, `error.rs`, `envelope.rs`,
+`ingress/mod.rs`, `config.rs`, `state.rs`). Separately, nothing resolves a `docs/memory/` citation —
 `path-flake-ref-breaks-on-demo-socket.md` was cited by a plan and six phase
 briefs while not existing. And `CLAUDE.md`'s *cite by symbol* is held by no
 gate step: the class regenerated **twice inside the commits that repaired it**,
@@ -328,6 +321,37 @@ arrival at a window holding a half-filled form. The second is 007's own state;
 the other two are 003's and 004's mechanisms meeting it.
 
 **Dead when** each has a case.
+
+### FU-42 — `goad-emit`'s exit statuses are owned and not governed
+**Raised by** 010 · **cost** tier 2 — an append to `SPEC-004`, no code expected
+
+`SPEC-004`'s §Owns is the exit status of this project's binaries, and its §4
+writes requirements for the host alone; §2 says so, so that silence about the
+second binary is not read as a rule. `goad-emit`'s `main`
+(`crates/goad-emit/src/main.rs`) decides its statuses on a different axis from
+the host's — whether the host answered the envelope, and what it answered — and
+nothing normative states it: `SPEC-001` §2 puts that command line out of its
+own scope. The admission was designed to be an append: a column in §6,
+requirements in §4, §7 rows against the cases
+`crates/goad-emit/tests/binary/exchange.rs` already holds.
+
+**Dead when** `SPEC-004` §4 carries a requirement whose subject is `goad-emit`,
+and its §2 no longer says that binary is ungoverned.
+
+### FU-43 — `goad-emit` answers `--help` and `--version` with 0 when the answer was not written
+**Raised by** 010 (`review-code.md` F-3) · **cost** tier 1, after FU-42
+
+`goad-emit --help > /dev/full` exits 0 with nothing on standard error: its
+`to_stdout` goes through `goad_shell::report::line_to`, best effort by design.
+The host had the same defect and 010 repaired it through
+`goad_shell::report::try_line_to`, `line_to`'s sibling that answers the write's
+`io::Result`. Not repaired in `goad-emit` because its statuses are ungoverned
+(FU-42): a status chosen ahead of the requirement is a status decided by no
+document. The shape is the host's repair, plus one binary-tier case on
+`/dev/full` in `crates/goad-emit/tests/binary/exchange.rs`.
+
+**Dead when** `goad-emit --help > /dev/full` exits non-zero with a line on
+standard error, held by a case — naturally inside the slice that kills FU-42.
 
 ---
 
@@ -631,11 +655,56 @@ at its site in the code. Listed so a sweep does not read it as an omission.
 
 **Dead when** never — struck only if the decision is reversed.
 
+### FU-44 — the methodology tells a writer to cite by line number
+**Raised by** 010 · **cost** a `docs/AGENTS.md` and `docs/templates/` edit
+
+`CLAUDE.md` §Working here says *cite by symbol, never by line number*; the
+documents a slice is written from still ask for `path:line` —
+`docs/templates/slice/research.md`'s citation form, `docs/templates/slice/notes.md`'s
+reading-list comment, `docs/templates/slice/audit.md`'s example row,
+`docs/templates/review-ledger.md`'s **Location**, and `docs/AGENTS.md` §Phase
+plan's reading list. They were not swept when the rule landed. Find them by
+grep, not from this list:
+
+```text
+grep -rn 'path:line' docs/AGENTS.md docs/templates
+```
+
+Not FU-10, which is about nothing *enforcing* the rule; this is the method
+*prescribing* its breach, and it is killed by an edit rather than an instrument.
+
+**Dead when** that grep prints nothing.
+
 ---
 
 ## Closed
 
 Struck, not deleted, so a reader who remembers one finds what killed it.
+
+**Closed by slice 010, 2026-09-24:**
+
+### ~~FU-1 — the exit-code taxonomy~~
+**Raised by** 006 · **closed by** 010
+
+~~`start` re-filed the event-loop call's end as `StartupError::Platform`, so a
+host that lost its display after running for hours exited 2 exactly as a host
+that never started, and `nix/module.nix`'s `RestartPreventExitStatus=2`
+suppressed the one restart that would have worked.~~
+
+**What killed it:** `exit::ended` and `exit::status` (`crates/goad/src/exit.rs`)
+cut the status on phase — 0 as asked, 1 stopped running, 2 never started —
+`StartupError` no longer carries the loop's end, and `nix/module.nix`'s
+`Service` comment states the unit's policy over those statuses and names no
+exception. `SPEC-004` governs it. Observed on the running host: a lost display
+exits 1 and the unit is back in `RestartSec`.
+
+**The row was wrong in three places, and the corrections are part of the
+record:** there were **six** such exits in two days, not four; the cause was
+the host's own display connection breaking with the compositor still up, not a
+compositor going away; and what brought the fast cases back was the session
+target cycling, not systemd. Its *"SPEC-003's failure vocabulary"* was wrong
+too — that is the ingress refusal-reason set, never the exit status — and the
+repair reached no such thing.
 
 **Swept 2026-09-23 at `3ecaa11`:**
 

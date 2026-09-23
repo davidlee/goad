@@ -1,38 +1,35 @@
-# `goad` exit 2 means *never started* **and** *stopped running*, and the unit cannot tell them apart
+# A directive keyed on an exit status inherits every cause that status covers, including ones added later
 
-Found at slice 006's audit, from the journal.
+Found at slice 006's audit, from the journal; the status it was about was
+re-cut by slice 010. What each of the host's statuses means now is SPEC-004 —
+this file does not restate it, and keeps only the lesson.
 
 ## The fact
 
-`main` has one `match` over `run()`'s `Result` and maps every `StartupError` to
-exit **2**. That includes `Platform`, and `start` ends:
-
-```rust
-slint::run_event_loop_until_quit().map_err(StartupError::Platform)?;
-```
-
-So a compositor that goes away under a host which has been running for ten hours
-exits 2 **exactly as** a host that could not read its configuration does.
-
-`nix/module.nix` carries `RestartPreventExitStatus=2`, argued from three
-variants that genuinely do not succeed on a retry — a bad configuration, an
-unreadable clock, a held ingress socket. `Platform` is the fourth case and it
-*does* succeed on a retry. It is also the only exit-2 that has ever occurred on
-the daily-driver machine.
+A supervisor's directive keyed on a status — systemd's
+`RestartPreventExitStatus`, a script's `case $?` — is a claim about **every**
+path in the program that reaches that status, not about the paths the author
+had in mind. When the status is chosen by mapping a whole error type to one
+number, the directive also covers every variant added to that type afterwards.
 
 ## Why the enumeration was convincing and still wrong
 
-Three variants were named and the conclusion drawn about ten. Every named one
-supported it. This is the standing shape of
-`verify-the-enumeration-not-the-conclusion.md`: a correct conclusion about the
-members you listed, applied to a set you did not walk.
+The directive was argued from three variants and applied to ten. Every named
+one supported the conclusion; the one that did not was never named, and it was
+the only one that had ever happened on the daily-driver machine. This is the
+standing shape of `verify-the-enumeration-not-the-conclusion.md`: a correct
+conclusion about the members you listed, applied to a set you did not walk.
 
 ## How to apply
 
-- Until the taxonomy is split (a standing follow-up from 006), treat exit 2 as
-  **ambiguous**, and do not add a second consumer that keys on it.
-- Any new `StartupError` variant inherits exit 2 and therefore inherits the
-  restart directive. Ask, at the variant, whether it would succeed on a retry.
-- The general rule for a supervisor: a directive keyed on an exit code inherits
-  that code's **whole** taxonomy, including variants added after the directive
-  was written.
+- Before writing or reviewing a directive keyed on a status, find what chooses
+  the status and walk **every** path into it — not the variants the comment
+  names.
+- Prefer a status whose meaning is a fact the process observes (how far it
+  got) over one whose meaning is a prediction (whether a retry would work).
+  A prediction has to be re-judged per cause; an observation does not, which
+  is why SPEC-004 cuts on phase.
+- When adding a cause that reaches an existing status, ask at the cause whether
+  each consumer of that status is still right about it.
+
+Related: `the-journal-is-the-audit-instrument-for-a-shipped-unit.md`.

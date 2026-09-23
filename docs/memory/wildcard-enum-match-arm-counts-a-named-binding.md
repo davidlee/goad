@@ -34,3 +34,18 @@ invention.
 So: in a file with this deny, "split one error arm into two" is a decision about
 **which value you match on**, made before you start writing, not a refactor you
 can reach for afterwards.
+
+## The cost: the same move takes the match out of the lint's reach
+
+Measured at slice 010, PHASE-01, by negative control with the mutated build seen
+to compile. `exit::status` matches on `&Result<Ended, StartupError>`; a `_` arm
+added beneath `Ok(Ended::AsAsked)` fires **neither** `wildcard_enum_match_arm`
+nor `match_wildcard_for_single_variants`. The same wildcard in a match over
+`&Ended` fires the latter.
+
+So matching on the enclosing `Result` is both the remedy above and the way a
+match leaves the deny altogether. Where a function is written that way, its
+exhaustiveness is held by its **cases** — one per shape, each seen to fail
+under a mutation — and not by the crate-root deny. Do not write, in a design or
+a doc comment, that the deny holds such a match; check with a compiled negative
+control (`negative-control-must-compile.md`).

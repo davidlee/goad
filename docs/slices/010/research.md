@@ -180,7 +180,7 @@ as it does today. The repair is neutral in that shape, and never worse.
   once the numeral stops colliding with *never started*.
 - **No change to the module's directives is needed — only to its reasoning.**
   `Restart = "on-failure"` with `RestartPreventExitStatus = 2` restarts an exit
-  1 as written. The numeral 2 keeps its meaning and its five tests. What
+  1 as written. The numeral 2 keeps its meaning and its tests. What
   changes in `nix/module.nix` is the comment: the exception paragraph goes, and
   the remaining argument stops claiming *these cannot succeed on a retry* —
   which is false for `Runtime` and for `Ingress` in-use — and says what it

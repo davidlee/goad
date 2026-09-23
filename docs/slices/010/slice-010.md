@@ -1,6 +1,6 @@
 # Slice 010: the exit-code taxonomy
 
-**Stage:** executing — `plan.md` accepted 2026-09-23 at `448f678`, no plan review (`plan-log.md`)
+**Stage:** done — closed 2026-09-24; `audit.md` is the verdict, `review-code.md` the review, SPEC-004 the canon it produced
 **Tier:** 2 (full) — the slice writes new canon: a spec owning the exit status
 of this project's binaries, and an amendment to SPEC-003 — its R-4 and R-3
 verification cells, and its References.
@@ -104,52 +104,52 @@ its recovery mechanism corrected.
 
 ## Acceptance criteria
 
-- [ ] AC-1 — A draft spec in the slice folder states the host's exit statuses
+- [x] AC-1 — A draft spec in the slice folder states the host's exit statuses
       cut on **phase**: 0 as asked, 1 stopped running, 2 never started.
       It says what a supervisor may infer from each, and states that a
       restart policy is built on the statuses rather than asserted by them.
-- [ ] AC-2 — Its §Owns is the wider boundary — the exit status of this
+- [x] AC-2 — Its §Owns is the wider boundary — the exit status of this
       project's binaries — and §2 records that `goad-emit` is nominally owned
       and not yet governed.
-- [ ] AC-3 — The loop's ending no longer travels as a `StartupError`.
+- [x] AC-3 — The loop's ending no longer travels as a `StartupError`.
       `StartupError`'s own claim — "every way `run` can fail to reach the
       event loop" — is true of the type again.
-- [ ] AC-4 — `main`'s numeral is chosen by a pure function over an outcome
+- [x] AC-4 — `main`'s numeral is chosen by a pure function over an outcome
       value, and every **shape** that function can see is asserted one tier
       down — including a real `slint::PlatformError` built through
       `From<String>` classifying as *stopped running*. The `Err` shape ranges
       over every `StartupError` variant, and what holds it is the arm reading
       none of them, not a case per variant.
-- [ ] AC-5 — Every existing case in `tests/binary/exit_codes.rs` still passes
+- [x] AC-5 — Every existing case in `tests/binary/exit_codes.rs` still passes
       **unmodified**: 2 keeps its meaning and its consumers. The file's module
       doc is the one permitted change, since it explains the two-tier cut and
       must name the new class.
-- [ ] AC-6 — A host that stops running exits 1, and its stderr line says the
+- [x] AC-6 — A host that stops running exits 1, and its stderr line says the
       host **was** running — distinguishable from *the display could not be
       opened*, which is now only said by a host that never started.
-- [ ] AC-7 — `nix/module.nix` names no known exception to its own directive,
+- [x] AC-7 — `nix/module.nix` names no known exception to its own directive,
       and its comment states the phase rule rather than a retryability claim
       that is false of `Runtime` and of `Ingress` in-use. **Its third false
       claim goes with them**: that the repair reaches *SPEC-003's failure
       vocabulary*, which is the ingress refusal-reason set and never the exit
       status — FU-1's own error, repeated there. The whole paragraph is
       removed, so none of the three may survive the edit.
-- [ ] AC-8 — SPEC-003/R-4's verification cell no longer says no test target
+- [x] AC-8 — SPEC-003/R-4's verification cell no longer says no test target
       links the binary, and no longer records the conflation as a fact. It
       **names a case**: SPEC-003 §7's preamble forbids amending that document to
       hold a row naming no test for a clause that can be reached, and removing
       the false unreachability claim removes the escape the old sentence used
       (`review-design.md` F-26). R-3's *"same position"* analogy is narrowed in
       the same movement (`canon-delta.md` Change 3).
-- [ ] AC-9 — A person observes it on the running host: the display connection
+- [x] AC-9 — A person observes it on the running host: the display connection
       is lost, the journal shows `status=1`, and the unit is back within
       `RestartSec`. Recorded in `audit.md` §Evidence (`docs/AGENTS.md`
       §Tiers).
-- [ ] AC-10 — `docs/follow-ups.md` FU-1 is struck with what killed it, and its
+- [x] AC-10 — `docs/follow-ups.md` FU-1 is struck with what killed it, and its
       three factual corrections are carried: six exits not four, a broken
       connection not a departing compositor, and the session target not
       systemd as what recovered the fast cases.
-- [ ] AC-11 — Whether a stop was asked for decides between 0 and 1, however
+- [x] AC-11 — Whether a stop was asked for decides between 0 and 1, however
       the event-loop call reports its end: a requested stop is 0 even when the
       call answers an error, and an unrequested end is 1 even when the call
       answers `Ok`. The decision is a pure function over the call's result and
@@ -214,20 +214,42 @@ its recovery mechanism corrected.
 
 ## Summary
 
-<!-- Written at close: what actually landed, in three or four lines. -->
+The host's exit status now names the phase it ended in: 0 as asked, 1 stopped
+running, 2 never started. `exit::ended` decides between 0 and 1 on whether a
+stop was requested, `exit::status` chooses the number, and `StartupError` no
+longer carries the event loop's end. SPEC-004 states what each status means and
+what a supervisor may infer from it; SPEC-003's R-4 and R-3 cells were
+corrected, and `nix/module.nix` states its restart policy over the statuses
+instead of an argument about retries. On the running host, a lost display now
+exits 1 with a *stopped running* line and is back two seconds later — the
+two-hour outage the slice opened on is a two-second one.
+
+The review found more than the slice set out to fix. Every stderr line that
+carries a value is now one escaped line, not the several lines a platform
+error spans; and `--help` or `--version` whose answer could not be written
+exits 2 instead of 0.
 
 ## Follow-ups
 
-<!-- Deferred work surfaced by this slice. Each becomes a future slice or a
-     line in a spec. -->
+> **Whether these are still open is `docs/follow-ups.md`'s**, not this
+> section's. What is below is what slice 010 *raised* — the reasoning, and the
+> price it was deferred against — and it stands as written, because it is a
+> claim about what was decided then. The ledger carries the part that goes
+> stale. This slice's rows: FU-5 and FU-10 (extended), FU-42, FU-43, FU-44.
+> It closed FU-1, struck in the ledger's §Closed.
+>
+> Two rows came from `audit.md` rather than from below: FU-10 gained
+> `lib.rs`'s `file.rs:NNN` citations (P1-b), and FU-5 gained `exit_codes.rs`'s
+> `scratch_config` and `scratch_path`, found when the rows naming files this
+> slice touched were re-verified at close.
 
-- The **research template's citation form** says code claims cite `path:line`,
+- **FU-44.** The **research template's citation form** says code claims cite `path:line`,
   which contradicts `CLAUDE.md` §Working here — *cite by symbol, never by line
   number*. `docs/templates/` was not swept when the rule landed in 009 and
   gained its second half in 006. Not this slice's to fix; raised here so the
   sweep has a record.
 
-- **`goad-emit`'s exit statuses are nominally owned and not governed.** The new
+- **FU-42. `goad-emit`'s exit statuses are nominally owned and not governed.** The new
   spec's §Owns is the exit status of this project's binaries, and its §4 writes
   requirements for the host alone; §2 says so plainly, so that silence about the
   second binary is not read as a rule (`design-log.md`, 2026-09-23). What that
@@ -255,8 +277,8 @@ its recovery mechanism corrected.
   **Dead when** the spec's §4 carries a requirement whose subject is
   `goad-emit`, and its §2 no longer says that binary is ungoverned.
 
-- **`goad-emit` answers `--help` and `--version` with 0 when the answer was
-  not written.** It shares `goad_shell::report::line_to`, best effort by design,
+- **FU-43. `goad-emit` answers `--help` and `--version` with 0 when the answer
+  was not written.** It shares `goad_shell::report::line_to`, best effort by design,
   so `goad-emit --help > /dev/full` exits 0 with nothing on standard error —
   the pattern `review-code.md` F-3 repaired in `goad`. Not repaired here because
   that binary's statuses are ungoverned (the row above), and fixing its

@@ -1068,7 +1068,7 @@ deleting a test. `git add <explicit paths>` only. You are the only writer.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-23 · PHASE-03 `done`, `main`'s binary spawned and read by the binary tier · `f0ecb3c` plus this phase's commit
+**Fresh as of:** 2026-09-24 · slice closed · the `010: close` commit
 
 ### Produced
 
@@ -1082,6 +1082,10 @@ deleting a test. `git add <explicit paths>` only. You are the only writer.
   `draft-spec.md` §7 names for them. M-1…M-8 run, compiled and recorded in this
   sheet's §Mutation evidence; audit cites those rows rather than re-deriving
   them. Nothing calls the new code from `main` — that is PHASE-02.
+- **PHASE-02**: `start` hands the event-loop call's result and
+  `stop_signal.is_stopped()` to `exit::ended`; `main` is `run()` →
+  `diagnostics::report_exit` → `exit::status`; `StartupError` no longer carries
+  the loop's end, held by `structure::the_loop_s_ending_is_never_a_startup_failure`.
 - **PHASE-03**: `crates/goad/tests/binary/process.rs`'s spawn removes
   `WAYLAND_DISPLAY`, `WAYLAND_SOCKET` and `DISPLAY` from every binary-tier
   spawn, so a case that gets past the socket fails fast at `PromptWindow::new`
@@ -1094,6 +1098,17 @@ deleting a test. `git add <explicit paths>` only. You are the only writer.
   and recorded in this sheet's §Mutation evidence. `draft-spec.md` §7's R-3/R-4
   rows and `canon-delta.md` Change 1 already cite the case by its landed name —
   no rename, no canon edit needed this phase.
+
+- **Audit and code review**: `audit.md` (evidence, AC-9 observed on the running
+  host, reconciliation, verdict) and `review-code.md` (closed; its Synthesis).
+  SPEC-004 promoted from the draft; SPEC-003 R-3/R-4/§9 amended.
+- **Lifted to `docs/memory/` at close**:
+  `losing-only-the-hosts-display-connection.md` (the `gdb` `shutdown` route,
+  proven at AC-9); `wildcard-enum-match-arm-counts-a-named-binding.md` gained
+  the cost measured here (P1-a); `exit-2-means-two-different-failures.md`
+  rewritten to its lesson alone (R-2);
+  `the-journal-is-the-audit-instrument-for-a-shipped-unit.md` corrected — the
+  cause was a broken connection, not a departing compositor.
 
 ### Learned
 
@@ -1180,12 +1195,17 @@ sentence about what a running host has been seen to do is checked against this.
 
 ### Open
 
-- **The design review is closed** (F-1…F-68 `verified`). Round 5's blocker,
+**Swept at close, 2026-09-24**, against `slice-010.md` §Follow-ups. Every entry
+below is dispositioned in its own bold lead; none carries into the ledger, since
+each was settled inside the slice. The ledger rows the slice raised came from
+§Follow-ups and `audit.md` (FU-5, FU-10, FU-42, FU-43, FU-44).
+
+- **Settled.** **The design review is closed** (F-1…F-68 `verified`). Round 5's blocker,
   F-53, changed the design: every end is decided on the request, and
   `Ended::StoppedRunning` carries `Option<slint::PlatformError>`. Round 6
   found one design-level gap in that repair (F-63, a missing case) and prose;
   both were repaired and closed by a site check instead of a round 7.
-- **Settled at PHASE-01, and no longer open:** the lints were spiked over
+- **Settled at close** (P1-a: memory, and `audit.md` §Design drift). **Settled at PHASE-01, and no longer open:** the lints were spiked over
   stand-in types at design rounds 5 and 6; they have now run in the tree over
   the real `slint::PlatformError` and raise nothing (§Learned). `exit::ended`,
   `exit::status`, `report_exit_line` and `Cancel::is_stopped` are built and
@@ -1193,18 +1213,21 @@ sentence about what a running host has been seen to do is checked against this.
   §Findings: the crate-root deny does not reach `exit::status`'s match at all,
   so `design.md` §3's sentence about it reads stronger than the gate is.
 
-- **`start`'s wiring is still specified and unbuilt** — PHASE-02's. The read is
+- **Settled by PHASE-02** (`5b23720`). **`start`'s wiring is still specified and unbuilt** — PHASE-02's. The read is
   `stop_signal.is_stopped()`, taken in the statement after the one that binds
   the loop call's result, on a clone kept before `cancel` moves into `serve`.
   `Cancel::is_stopped` now exists and is documented against `Cancel::stopped`,
   which is the existing **future**: awaiting the latter where the former is
   meant waits for ever on a host nobody asked to stop. Neither `stop` nor
   `stopped` was touched.
-- **`research.md` carries a count** — *"the numeral 2 keeps its meaning and its
+- **Settled at close** (`audit.md` R-3). **`research.md` carries a count** — *"the numeral 2 keeps its meaning and its
   five tests"* — which `exit_codes.rs` will falsify the moment a case is added
   there. Not raised as a finding: `research.md` was context to this review and
   not its subject. Sweep it at audit.
-- **`docs/memory/exit-2-means-two-different-failures.md` is stale after
+- **Settled at close** (`audit.md` R-2) — and this entry was wrong that the
+  standing fact still held: after PHASE-02 exit 2 means *never started* only,
+  so the file was rewritten to its lesson rather than re-quoted.
+  **`docs/memory/exit-2-means-two-different-failures.md` is stale after
   PHASE-02, for close to lift.** It quotes `main` as having "one `match` over
   `run()`'s `Result`" and the pre-seam call line
   (`` slint::run_event_loop_until_quit().map_err(StartupError::Platform)?; ``)
@@ -1453,3 +1476,31 @@ and endorsed in `design-log.md` (*code review round 3*). One commit.
   distinct from the host's own standard error (F-23).
 - **Gate:** `just check` exit 0, **642 passed**, 0 failed, 0 ignored, over
   31 `test result` lines — unchanged, as no code moved.
+
+### Close — 2026-09-24
+
+One writer, on `main` from `41a1bec`. `docs/AGENTS.md` §Close worked in full;
+`audit.md` §Closure ticked.
+
+- **Reconciliation** R-1 (FU-1 struck under the ledger's §Closed, with its
+  three corrections and its *SPEC-003's failure vocabulary* error), R-2, R-3,
+  P1-a, P1-b and A-2 done. `audit.md`'s AC-8, AC-10 and *Code review* rows
+  brought current.
+- **Ledger re-verified** for the rows naming a file the slice touched
+  (`git diff --stat b444c6a^..HEAD`): FU-1 killed; FU-5's count was short —
+  `exit_codes.rs`'s `scratch_config` and `scratch_path` are unheld helpers of
+  its class, so the row was extended and its counts replaced by names; FU-4
+  (`diagnostics.rs`, `finish`) still true as round 2 narrowed it; FU-10 extended
+  (P1-b); FU-28 (`nix/module.nix`'s `extraConfig` type) still
+  `attrsOf anything`. **Not repaired, and outside close:** `claim`'s own doc in
+  `tests/support/scripting.rs` still counts *six helpers … this holds four* —
+  a code comment, FU-5's to fix.
+- **A-2, record only.** PHASE-03's task boxes T-1…T-12 and PHASE-02's T-13 are
+  unticked, and T-3's red-first quote is missing. The work is evidenced by each
+  sheet's §Mutation evidence and §Decisions and by the orchestrator's
+  re-measure; M-13 and M-14, each redding
+  `exit_codes::an_unbindable_ingress_path_exits_2` on its prefix, stand in for
+  T-3's red. The boxes are left as they were: ticking them now would record a
+  check at a time it was not made.
+- **Nit:** `diagnostics::report_exit_line`'s doc rewrapped to 80 columns.
+- **Gate:** see `audit.md` §Evidence, *At close*.

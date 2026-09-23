@@ -19,10 +19,12 @@ Two things fell out of one reading in slice 006:
   was not.
 - **A restart directive that suppresses the one restart that works.**
   `RestartPreventExitStatus=2` was argued from three `StartupError` variants and
-  applied to all ten. The omitted one, `Platform`, is raised by
-  `run_event_loop_until_quit` — a compositor going away under a host that has
-  run for hours — and it was the only exit-2 that had ever occurred. Twice the
-  host stayed down for about two hours.
+  applied to all ten. The omitted one, `Platform`, was then also raised by
+  `run_event_loop_until_quit` — a host that had run for hours losing its own
+  display connection, with the compositor still up — and it was the only
+  exit-2 that had ever occurred. Twice the host stayed down for about two
+  hours. Slice 010 re-cut the statuses on phase (SPEC-004); the lesson is the
+  reading, not the directive.
 
 ## How to apply
 
