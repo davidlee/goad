@@ -353,3 +353,22 @@ not yet the gate** — confirmed or overturned when the design is presented.
 - **Decided:** "yeah accept".
 - **Consequence:** the slice moves to plan. `plan.md` is written by a fresh
   agent against `design.md` and `draft-spec.md` as committed.
+
+### 2026-09-23 — P-1, raised at plan: the ingress case could not tell its failure from a display's
+
+- **Asked:** the planner, verifying the design against the tree, measured that
+  a configuration past the ingress step also exits 2 headlessly, at
+  `PromptWindow::new` — so `exit_codes::an_unbindable_ingress_path_exits_2`,
+  asserting the status alone, is green for any startup failure, and §9's
+  bindable-path mutation is green headless and a hang on a machine with a
+  display (`notes.md` Handover). (a) The case also asserts the ingress arm's
+  stderr prefix; (b) the binary tier's spawn removes `WAYLAND_DISPLAY`,
+  `WAYLAND_SOCKET` and `DISPLAY`, widening §Scope by `tests/binary/process.rs`
+  and `tests/binary/main.rs`'s module doc. And: a seventh review round, or a
+  site check?
+- **Decided:** "take both" / "compare the sites".
+- **Consequence:** `design.md` §5.2 gains the display-free spawn and §9 the
+  prefix and a second mutation (`start` handing `listener` `None`);
+  `draft-spec.md` §7's R-4 row says the case holds a prefix of standard error;
+  `canon-delta.md` Change 1 says so too; `slice-010.md` §Scope names the two
+  binary-tier files. Closed by the planner's site check, not a review round.

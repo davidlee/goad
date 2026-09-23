@@ -52,7 +52,9 @@ It carries two defects of different kinds.
 > `exit_codes::an_unbindable_ingress_path_exits_2`
 > (`crates/goad/tests/binary/exit_codes.rs`) spawns the built binary against a
 > configuration naming an ingress path it cannot bind and asserts the status a
-> caller reads. `startup::listener` (`crates/goad/src/startup.rs`) runs before
+> caller reads, and that standard error opens with the socket's own path —
+> which only this failure's line begins with, so a later failure exiting the
+> same number cannot pass for it. `startup::listener` (`crates/goad/src/startup.rs`) runs before
 > the first Slint call, so this settles headlessly, as the other cases in that
 > target do. For the variants no case reaches, what
 > holds the status is the **shape** of `exit::status`

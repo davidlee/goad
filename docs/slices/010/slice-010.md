@@ -51,10 +51,14 @@ matches its directives. The two-hour outage becomes a two-second one.
   stop that was asked for reaches 0 however the event-loop call reports it. No
   new state: `Cancel` already keeps its own receiver.
 - `crates/goad/tests/binary/exit_codes.rs` — **one case added**,
-  `an_unbindable_ingress_path_exits_2`, and `scratch_config` extended to write a
-  configuration that loads (endorsed 2026-09-23, `design-log.md`). AC-5 is
-  unaffected: every existing case still passes unmodified, and an addition is
-  not a modification.
+  `an_unbindable_ingress_path_exits_2`, asserting the status and the stderr
+  prefix only the ingress arm writes, over a configuration that loads
+  (endorsed 2026-09-23, `design-log.md`). AC-5 is unaffected: every existing
+  case still passes unmodified, and an addition is not a modification.
+- `crates/goad/tests/binary/process.rs` — `command` removes the display
+  variables from every spawn, so no case or mutant at that tier can open a
+  host; and the module doc of `crates/goad/tests/binary/main.rs`, which states
+  that tier's headless premise (endorsed 2026-09-23, `design-log.md`, P-1).
 - `crates/goad-boundary/tests/checks/structure.rs` — **one case**,
   `the_loop_s_ending_is_never_a_startup_failure`, the guard for `design.md` §8
   R2 (endorsed 2026-09-23, `design-log.md`): the event-loop call has one

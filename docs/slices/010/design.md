@@ -457,6 +457,26 @@ that target exists. Each doc states the new cut; neither is left asserting the
 old one. `exit_codes.rs`'s doc is AC-5's one permitted edit, and
 `renderer/startup.rs`'s is a surface this design adds to §Scope.
 
+**The binary tier cannot reach a display** (P-1, `design-log.md`). Every case
+there settles before the first Slint call, and nothing but that fact keeps it
+headless: `process::command` (`crates/goad/tests/binary/process.rs`) spawns the
+binary with the caller's environment, so on a machine with a display a case —
+or a mutant — that gets past the socket opens a real host, and
+`Command::output` waits on it for ever. Headless, the same case exits 2 at
+`PromptWindow::new`, which is why a case holding one startup failure asserts
+its own arm's line and not the status alone.
+
+`command` removes `WAYLAND_DISPLAY`, `WAYLAND_SOCKET` and `DISPLAY` from every
+spawn, and its doc says why. At the pinned winit (0.30.13) that leaves no
+backend to fall back to — it answers *neither WAYLAND_DISPLAY nor
+WAYLAND_SOCKET nor DISPLAY is set* — so a case past the socket fails fast with
+the display's line on every machine. `tests/binary/main.rs`'s module doc and
+`exit_codes.rs`'s each say a case reaching step 5 *would red*; both state what
+the spawn guarantees instead. No existing case's text changes, so AC-5 holds.
+**What holds the removal is its doc and nothing else**: deleting it is green
+until some case gets past the socket, and then the gate hangs on a machine with
+a display rather than redding.
+
 ### 5.3 Data, state & ownership
 
 Nothing is stored and nothing is derived twice.
@@ -795,7 +815,7 @@ table; this is the implementation view.
 | `Cancel::is_stopped` answers false before `stop` and true after it, and stays true | `tests::is_stopped_is_false_until_stop_and_stays_true`, `crates/goad/src/wire.rs` (the module's own `#[cfg(test)] mod tests`, beside `a_raised_notice_stays_raised_until_it_is_lowered`) |
 | a loop `Err` is *stopped running*, carrying that error, when no stop was requested, and *as asked* when one was — both over **one** error value built through `From<String>` | `ended::a_loop_error_with_no_stop_requested_is_stopped_running` and `ended::a_loop_error_after_a_requested_stop_is_as_asked`, `crates/goad/tests/renderer/startup.rs` |
 | a loop that returned `Ok` is *stopped running*, carrying no error, when no stop was requested, and *as asked* when one was | `ended::a_loop_that_returned_ok_with_no_stop_requested_is_stopped_running` and `ended::a_loop_that_returned_ok_after_a_requested_stop_is_as_asked`, same file |
-| a configured ingress path the host cannot bind exits 2, read from the process by a caller | `exit_codes::an_unbindable_ingress_path_exits_2`, `crates/goad/tests/binary/exit_codes.rs` (F-26) |
+| a configured ingress path the host cannot bind exits 2, read from the process by a caller, and standard error opens `goad: ` and that socket's path — the prefix only the ingress arm writes | `exit_codes::an_unbindable_ingress_path_exits_2`, `crates/goad/tests/binary/exit_codes.rs` (F-26, P-1) |
 | a lost display on the running host exits 1 and the unit comes back within `RestartSec` | `audit.md` §Evidence, AC-9 |
 
 **Mutations the plan should confirm are caught**, so the coverage claim is
@@ -834,7 +854,12 @@ measured rather than asserted.
   cases. Carrying `None` for an `Err` must red
   `a_loop_error_with_no_stop_requested_is_stopped_running`.
 - **The new binary case.** Pointing `exit_codes.rs`'s new case at a bindable
-  path must red `an_unbindable_ingress_path_exits_2`.
+  path must red `an_unbindable_ingress_path_exits_2`, and so must `start`
+  handing `startup::listener` `None` in place of the configured ingress — the
+  bind never happens. Both reach the display and exit **2** there, so each reds
+  on the stderr prefix and not on the status: a case asserting the status alone
+  is green for both (P-1, measured). Each must red rather than hang, which is
+  what the binary tier's display-free spawn is for (§5.2).
 
 **What no mutation here can measure**: `start` passing `exit::ended` a constant
 `false`, or a read taken before the call, is green everywhere — the wiring is in
