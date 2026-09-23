@@ -5,7 +5,6 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
     pub.url = "github:davidlee/nix-config?dir=flakes/pub";
-    llm-agents.url = "github:numtide/llm-agents.nix";
     crane.url = "github:ipetkov/crane";
   };
 
@@ -24,7 +23,7 @@
     };
     inherit (pkgs) lib stdenv;
 
-    jailLib = inputs.pub.lib.${system}.mkJailedAgents {inherit (inputs) llm-agents;};
+    jailLib = inputs.pub.lib.${system}.mkJailedAgents {};
 
     # Shared libraries a Slint binary dlopen()s at runtime. Not build inputs —
     # they must be on LD_LIBRARY_PATH inside and outside the jail or the window
