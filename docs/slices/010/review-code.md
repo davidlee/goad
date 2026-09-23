@@ -148,13 +148,13 @@ Lines of attack:
 | F-6 | minor | fix-now | verified |
 | F-7 | nit | fix-now | verified |
 | F-8 | nit | fix-now | verified |
-| F-9 | minor | | |
-| F-10 | minor | | |
-| F-11 | nit | | |
-| F-12 | minor | | |
-| F-13 | minor | | |
-| F-14 | nit | | |
-| F-15 | nit | | |
+| F-9 | minor | fix-now | |
+| F-10 | minor | fix-now | |
+| F-11 | nit | fix-now | |
+| F-12 | minor | doc-wrong | |
+| F-13 | minor | fix-now | |
+| F-14 | nit | fix-now | |
+| F-15 | nit | fix-now | |
 
 ### F-1 — Three comments read a retry prediction off status 2, which the draft spec forbids and AC-7 names
 
@@ -221,6 +221,8 @@ pattern list includes *next try* and *comes back*. The class is now in
 canon, where the Response's own citation (P-D) lives. Evidence:
 `grep -n 'next try' docs/specs/004-process-exit-status.md` returns §1's line.
 (The same paragraph's present-tense history is a separate defect, F-9.)
+
+**Re-disposition (round 2):** fix-now. The contest is correct: the class grep stopped at `crates` and `nix`. SPEC-004 §1's paragraph is rewritten with F-9 (user decision and canon endorsement, 2026-09-23), and the class grep (*restart*, *retry*, *next try*, *gains nothing*, *changes nothing*, *would have come back*) is re-run over `docs/specs/` as well as `crates` and `nix`, its result stated in the commit.
 
 ### F-2 — The "line" beside a platform failure is several lines, and the last one names neither the binary nor what happened
 
@@ -565,8 +567,8 @@ promotion already treated a history clause in canon as a defect. This is a
 second instance of the same class, three sections earlier. F-1's contest is
 the prediction in the same paragraph. This finding is its tense.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** **User decision (2026-09-23), with F-1's re-disposition:** SPEC-004 §1's *today* paragraph is rewritten to state the rule alone — the status names the phase the process ended in, a fact it observes, not a judgement about whether trying again would work. The history lives in `slice-010.md` and FU-1. Endorsed canon edit.
 **Outcome:**
 
 ### F-10 — The line bound cuts the cause off a configuration error
@@ -606,8 +608,8 @@ and it knows nothing about which part of a composed line is the cause. No
 case holds a configuration line's tail: the binary tier asserts
 `an_unparseable_configuration_…`'s prefix only, by design.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** **User decision:** the stderr outlets (`report_startup_line`, `report_exit_line`, `report_platform_line`) escape and do **not** bound. The bound exists for lengths a backend or transport chose (D53); these lines carry the user's own configuration's parse error or the platform's, and journald's own limit is far above `LINE_LIMIT`. Rejected: raising the bound to `STDERR_LIMIT` (moves the threshold, keeps the class). A case holds that a long configuration error keeps its message tail.
 **Outcome:**
 
 ### F-11 — Every configuration-parse line now ends in a visible `\n`
@@ -633,8 +635,8 @@ goad: …/bad.toml: configuration is not valid: TOML parse error at line 1, colu
 line through `finish` without the terminator step that the backend's stderr
 line has.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** With F-10: the stderr outlets drop at most one trailing terminator through the existing `without_one_terminator` before escaping — the rule this module already follows for captures, reused, not restated.
 **Outcome:**
 
 ### F-12 — A closed standard output still answers a question with 0
@@ -665,8 +667,8 @@ property.
 edge the repair does reach. Whether to close this gap in code, or to narrow
 both sentences to *a write that failed*, is a disposition.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Verified by `strace`: before `main`, Rust's runtime polls fds 0–2, finds fd 1 `POLLNVAL`, and reopens it on `/dev/null`; the answer is written there, as `> /dev/null` would. Exit 0 is right. **User decision:** the `AnswerUnwritten` doc and SPEC-004 R-1's §7 row say *a write the stream refused*, and state the runtime's reopening once, as the reason a closed handle is not that. Endorsed canon edit.
 **Outcome:**
 
 ### F-13 — `try_line_to`'s flush is unheld, and unreachable from its callers
@@ -694,8 +696,8 @@ the flush's presence from its absence.
 The flush may be right as defence against a future buffered caller. Nothing
 holds it, and nothing reds on its removal.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Keep the flush: `try_line_to` takes any `Write`, and its contract — whether the line arrived — is false without it for a buffered sink. Add a `report` unit case with a sink whose write succeeds and whose flush fails, asserting `try_line_to` answers the error.
 **Outcome:**
 
 ### F-14 — SPEC-004 §5's diagram still sends every question to 0
@@ -715,8 +717,8 @@ the promotion did not revisit it.
 
 **Evidence:** the diagram text against `an_answer_that_cannot_be_written_exits_2`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** SPEC-004 §5's diagram gains the edge from a question whose answer could not be written to 2. Endorsed canon edit.
 **Outcome:**
 
 ### F-15 — *Every line on this surface goes through the pipeline* has one arm that does not
@@ -737,8 +739,8 @@ module doc *"becomes true rather than reworded"*.
 **Evidence:** the arm's text in `report_exit_line`, against the two quoted
 sentences.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** Carried by F-10's repair: the module doc and the canon sentence say which step each surface takes (escape and bound for the in-window surface; escape alone for stderr), and no longer claim *every line* for a fixed literal. Endorsed canon edit.
 **Outcome:**
 
 ### Checked and found complete (round 2)

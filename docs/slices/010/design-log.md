@@ -422,3 +422,19 @@ not yet the gate** — confirmed or overturned when the design is presented.
 - **Decided:** "happy with both of them".
 - **Consequence:** A-1 is discharged by the policy-only wording; the R-3 cell
   edit is endorsed canon. Round 2 of `review-code.md` runs on `aede3df..cc0db76`.
+
+### 2026-09-23 — code review round 2: the stderr line escaped and not bounded
+
+- **Asked** (`review-code.md` round 2): F-1 contested (a retry prediction in
+  SPEC-004 §1) with F-9 (that paragraph's *today*); F-10 (the bound cuts toml's
+  message, which it writes last), F-11, F-15; F-12 (`--help >&-` exits 0);
+  F-13 (the flush untested); F-14 (§5's diagram) — and endorsement of the
+  canon edits these need in SPEC-004.
+- **Decided:** "F-1/F-9 rewrite; escape without capping; F-12 wording; F-13
+  test and F-14 diagram: accepted / canon edits endorsed".
+- **Consequence:** the stderr outlets escape (after dropping one trailing
+  terminator) and are not bounded — the bound is for lengths a backend chose.
+  F-12 is doc-wrong: Rust's runtime reopens a closed fd 1 on `/dev/null` before
+  `main` (traced), so exit 0 is right and the words narrow to *a write the
+  stream refused*. SPEC-004 §1, R-1's §7 row, §5's diagram and the pipeline
+  sentence are amended. Round 3 reviews these repairs alone.
