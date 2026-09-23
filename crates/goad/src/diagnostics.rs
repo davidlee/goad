@@ -95,8 +95,10 @@ pub struct Diagnostics {
   fault: bool,
 }
 
-/// The stderr line's own bound: the only line whose whole value is
-/// diagnostic prose a person reads (design.md §5.4).
+/// The bound on a captured backend's stderr, one line on the in-window
+/// surface: the only in-window line whose whole value is diagnostic prose a
+/// person reads (design.md §5.4). The host's own standard error lines are not
+/// this stream and are not bounded — `one_line` says why.
 const STDERR_LIMIT: usize = 4096;
 /// Every other in-window line's bound: enough for a serde message quoting a
 /// document, an OS error, or a discarded `raw`. The host's own standard error
@@ -309,9 +311,9 @@ fn bound(escaped: &str, limit: usize) -> String {
 }
 
 /// Steps 3 and 4 together: escape, then bound. Every composed line on the
-/// in-window surface passes through this — decoding (step 2) happens only for stderr, before
-/// `composed` is built, so `composed` here is always already-decoded text
-/// (design.md §5.4's pipeline).
+/// in-window surface passes through this — decoding (step 2) happens only for
+/// a captured backend's stderr, before `composed` is built, so `composed` here
+/// is always already-decoded text (design.md §5.4's pipeline).
 fn finish(composed: &str, limit: usize) -> String {
   bound(&Escaped(composed).to_string(), limit)
 }
@@ -323,6 +325,11 @@ fn finish(composed: &str, limit: usize) -> String {
 /// so a bound that keeps a prefix would cut the cause (010 `review-code.md`
 /// F-10). The terminator is dropped for the reason it is dropped from a
 /// backend's stderr: escaped, it would show a `\n` that was never content.
+///
+/// **What no bound costs**: a line past journald's `LineMax=` (48K by default)
+/// is split into several records, and the last record the journal shows for
+/// the run then does not begin `goad: `. The length is the person's own — their
+/// configuration, its paths — or the OS's or the platform's; never a backend's.
 fn one_line(composed: &str) -> String {
   Escaped(without_one_terminator(composed)).to_string()
 }

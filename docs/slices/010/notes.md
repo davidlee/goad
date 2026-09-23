@@ -1433,3 +1433,23 @@ dispositioned in `5b51c90` and endorsed in `design-log.md` (*code review round
 - **Gate:** `just check` exit 0, **642 passed**, 0 failed, 0 ignored, over
   31 `test result` lines (638 + three `stderr_outlets` cases + one
   `report::tests`).
+
+### Repairs, round 3 — 2026-09-23
+
+Scope: `review-code.md` F-16…F-23, prose only, as dispositioned in `5c0dbe3`
+and endorsed in `design-log.md` (*code review round 3*). One commit.
+
+- **SPEC-004** — §1 names the seam in the rule's sentence and points to §5
+  *What the seam costs* (F-16), and its supervisor sentence is rewrapped
+  (F-22); §2's SPEC-001 bullet drops *no owner today* for *nominally owned
+  here, and not governed* (F-18); §5's *Both edges* prose names the refused
+  answer as *never started* (F-17); OQ-1 keeps only the per-cause-judgement
+  reason (F-19); R-1's §7 row says the closed-stdout behaviour is the Rust
+  runtime's, evidenced by a traced run, and held by no test (F-21); R-4's §7
+  row states the cost of no bound — journald's `LineMax=` split (F-20).
+- **`diagnostics`** — `one_line`'s doc states the same cost and who controls
+  the length (F-20); `finish`'s doc rewrapped and its *stderr* qualified
+  (F-22, F-23); `STDERR_LIMIT`'s doc names a captured backend's stderr,
+  distinct from the host's own standard error (F-23).
+- **Gate:** `just check` exit 0, **642 passed**, 0 failed, 0 ignored, over
+  31 `test result` lines — unchanged, as no code moved.
