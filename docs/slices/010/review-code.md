@@ -6,7 +6,8 @@
 `structure` scan, the binary- and renderer-tier cases, and the unit comment in
 `nix/module.nix`. Held to `draft-spec.md` (the slice's working canon) R-1…R-7,
 `slice-010.md` AC-1…AC-11, and `CLAUDE.md`'s rules.
-**Reviewer:** fresh agent (Claude Opus 5.5), round 1, own worktree
+**Reviewer:** fresh agent (Claude Opus 5.5), round 1, own worktree; a second
+fresh agent, round 2, own worktree
 **Opened:** 2026-09-23
 **State:** open
 
@@ -97,18 +98,63 @@ Lines of attack, written before reading the diff:
 6. **Project rules.** Domain vocabulary, cite-by-symbol, name-never-count,
    strata. And whether `just check` reaches what the docs say it reaches.
 
+**Round 2** — 2026-09-23 — the round-1 repairs, `e412953..3434b76` on `main`
+(`aede3df`, `33c4654`, `ebaba86`, `cc0db76`): code, tests, the
+`nix/module.nix` comment, and the promoted canon (`docs/specs/004-process-exit-status.md`,
+the `docs/specs/003-host-event-ingress.md` amendments) held to
+`canon-delta.md` and `audit.md` §Reconciliation C-1…C-6. Fresh agent, own
+worktree. Written before the diff was read; `notes.md` §Handover *Repairs,
+round 1* not read until the round-2 findings and outcomes below were written.
+
+Lines of attack:
+
+1. **Outcomes as a class.** For each of F-1…F-8, re-derive the class the
+   Response names and grep the whole tree for it, not the three quoted sites —
+   in particular F-1's retry vocabulary across `crates/`, `nix/` and canon,
+   and F-2's raw `{error}` interpolation into any stderr outlet.
+2. **Tests red on their regression.** Mutation-run each new case (the
+   multi-line outlet case, the `/dev/full` case) with a mutation that compiles;
+   record the failing assertion.
+3. **`line_to` / `try_line_to`.** The added flush and fallibility: every
+   caller in `goad`'s host stderr outlets and in `goad-emit`; whether a
+   caller's behaviour changed; whether *one way to write a line* is true
+   (count the write paths to stdout/stderr in the binaries).
+4. **`StartupError::AnswerUnwritten`.** Its line through the escape pipeline;
+   its status (2, through `exit::status`, reading no variant); its `Display`;
+   whether every doc, comment and spec clause that enumerates `StartupError`'s
+   variants or the edges into 0 and 2 is still true — and whether 0 is still
+   *only if* earned once `--help` can fail.
+5. **F-2's escape, downstream.** Whether any binary-tier case asserts an exact
+   stderr line that the escape or bound now changes; what the journal reader
+   now sees (a `\n` escape, a bound truncation marker) and whether the spec
+   says so.
+6. **Promoted canon against the delta.** SPEC-004 against `draft-spec.md` as
+   endorsed and `canon-delta.md` exactly; SPEC-003's amended cells and §9;
+   every `module::case` citation in canon resolves to exactly one definition;
+   no line-number citation added; no `DRAFT` / `draft-spec` / `SPEC-NNN`
+   residue outside the slice folder; name-never-count in the new canon.
+7. **The gate.** `just check` exits 0 at `3434b76` before any mutation; the
+   total recorded.
+
 ## Findings
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | fix-now | |
-| F-2 | major | fix-now | |
-| F-3 | minor | fix-now | |
-| F-4 | minor | fix-now | |
-| F-5 | minor | fix-now | |
-| F-6 | minor | fix-now | |
-| F-7 | nit | fix-now | |
-| F-8 | nit | fix-now | |
+| F-1 | major | fix-now | contested |
+| F-2 | major | fix-now | verified |
+| F-3 | minor | fix-now | verified |
+| F-4 | minor | fix-now | verified |
+| F-5 | minor | fix-now | verified |
+| F-6 | minor | fix-now | verified |
+| F-7 | nit | fix-now | verified |
+| F-8 | nit | fix-now | verified |
+| F-9 | minor | | |
+| F-10 | minor | | |
+| F-11 | nit | | |
+| F-12 | minor | | |
+| F-13 | minor | | |
+| F-14 | nit | | |
+| F-15 | nit | | |
 
 ### F-1 — Three comments read a retry prediction off status 2, which the draft spec forbids and AC-7 names
 
@@ -156,7 +202,25 @@ would leave the module that owns the numbers teaching it.
 **Disposition:** fix-now
 **Response:** Accepted as raised, and as a class: every sentence in the slice's diff that reads a retry outcome off a status is repaired, not only the three quoted. `nix/module.nix` states the unit's policy (restart 1, do not restart 2) as the unit's choice, arguing from phase, predicting nothing; it names both routes into 0 (the window's close request and the tray's quit). `exit.rs`'s module doc and `exit_codes.rs`'s module doc state what each number means and leave restart to the supervisor (`draft-spec.md` §3 P-D). Carries audit A-1 (user decision, `design-log.md` *at audit*). The repair greps the diff for the class (*restart*, *retry*, *gains nothing*, *changes nothing*) and says in the commit what it found.
 
-**Outcome:**
+**Outcome:** contested (round 2). The three quoted sites are repaired, and a
+grep of `crates/` and `nix/` for the class finds no surviving prediction. But
+the Response's scope was *every sentence in the slice's diff*, and the slice's
+diff included the draft spec, now `docs/specs/004-process-exit-status.md`. Its
+§1 *Intent*, second paragraph, promoted unchanged:
+
+> A supervisor told 2 is told *a person must change something first*, and so
+> does nothing; which is right for the configuration and wrong for the
+> display, **where the host would have come back on the next try**.
+
+That sentence reads a retry outcome off a cause, and it is exactly what the
+same document's §6 *What may not be inferred* forbids: *"a display that was
+not there at one moment **may** be there at the next … Neither number is a
+prediction."* `notes.md` shows why the grep missed it: it ran over
+`git diff b444c6a^..HEAD -- crates nix`, not over the draft, though its own
+pattern list includes *next try* and *comes back*. The class is now in
+canon, where the Response's own citation (P-D) lives. Evidence:
+`grep -n 'next try' docs/specs/004-process-exit-status.md` returns §1's line.
+(The same paragraph's present-tense history is a separate defect, F-9.)
 
 ### F-2 — The "line" beside a platform failure is several lines, and the last one names neither the binary nor what happened
 
@@ -202,7 +266,19 @@ line on this surface goes through"*; these two outlets do not go through it.
 **Disposition:** fix-now
 **Response:** Verified at `f9620b6`: `finish` (escape, then bound) is applied by `Diagnostics::of`, `Diagnostics::refused` and `next_check_line`; the three stderr outlets — `report_startup_line`, `report_exit_line`, `report_platform_line` — interpolate raw. No recorded reason for the bypass. **User decision (2026-09-23): route all three through `finish(…, LINE_LIMIT)`** — one line, the platform's cause kept, escaped as `\n`. Rejected: first line only (loses the winit cause on line 2); `goad: ` on every line (the last still says neither phase nor cause). A renderer-tier case builds a multi-line `PlatformError` through `From<String>` and asserts each outlet's answer contains no line terminator and begins with its fixed prefix; `draft-spec.md` §7's R-4 row cites it for *last line* in place of the two single-literal cases' proxy. The module doc's *every line on this surface* becomes true rather than reworded.
 
-**Outcome:**
+**Outcome:** verified (round 2). All three stderr outlets now call
+`finish(…, LINE_LIMIT)`. The `Err` arm of `report_exit_line` inherits it
+through `report_startup_line`. A grep of `crates/*/src` for
+stdout/stderr writes finds six sites. All six are in `goad-emit`'s
+`to_stdout`/`to_stderr` or `diagnostics`, and no other outlet interpolates
+raw. Mutation, compiled: taking `finish` off `report_exit_line`'s
+`StoppedRunning(Some(_))` arm (the middle of the case's three outlets) reds
+`stderr_outlets::a_multi_line_platform_error_is_one_line_from_every_outlet`
+at its per-outlet assertion, so the loop does not hide an outlet. The case's
+`ends_with("\\nNo backends configured.")` also reds first-line-only and
+replace-with-space. Measured on the process: `goad bad.toml` writes exactly
+one line. What the repair costs a person reading that line is F-10 and F-11.
+*Every line on this surface* is true save one arm (F-15).
 
 ### F-3 — `--help` and `--version` exit 0 when the answer could not be written
 
@@ -228,7 +304,18 @@ nothing holds that `AsAsked` was earned. Either the code or R-1's wording
 **Disposition:** fix-now
 **Response:** Accepted: the code is wrong, not R-1. **User decision (2026-09-23): fix-now in `goad`, follow-up for `goad-emit`.** `print_usage` and `print_version` report whether the write succeeded; a failed write is a failure before the loop call, so exit 2 (R-3) through a new `StartupError` variant with an R-4 line on stderr (`goad: the answer could not be written to standard output: {error}`, through the F-2 pipeline). `line_to` stays best-effort for its other callers; its doc's *the exit code still carries the fact* is corrected where it is false. Held by a binary-tier case spawning `--help` with stdout on `/dev/full`, asserting 2 and the prefix, cited in §7's R-1 row for the *only if* half. Cost recorded: a reader that closes the pipe before reading (`| head -0`) now gets a broken-pipe line and 2. `goad-emit` shares the pattern and is a row in `slice-010.md` §Follow-ups.
 
-**Outcome:**
+**Outcome:** verified (round 2), for the class the Response names: a write
+that the device *refuses*. Measured: `goad --version > /dev/full` writes
+`goad: the answer could not be written to standard output: No space left on
+device (os error 28)` and exits 2. Mutations, both compiled (the arm's `?`
+replaced with `match … { Ok(()) | Err(_) => () }`): swallowing `--help`'s
+result reds `exit_codes::an_answer_that_cannot_be_written_exits_2` with
+`--help: left: 0, right: 2`, and swallowing `--version`'s reds it too, so the
+case's loop holds both questions. `exit::status` still reads no variant. The
+`AnswerUnwritten` `Display` goes through `finish`. The `StartupError` doc's
+sources sentence names the new variant. `goad-emit`'s row is in
+`slice-010.md` §Follow-ups. The Response does not reach one edge: a
+*closed* standard output still exits 0 (F-12).
 
 ### F-4 — `exit::status`'s stated reason for `u8` is false on the pinned toolchain
 
@@ -251,7 +338,10 @@ given for it is not.
 **Disposition:** fix-now
 **Response:** Reword; keep `u8`. The true reason is the one the raiser names: a bare number is what an assertion failure prints and what a supervisor reads. The false claim about `ExitCode` goes.
 
-**Outcome:**
+**Outcome:** verified (round 2). The `PartialEq` claim is gone, and the new
+reason is true. On the devshell's `rustc`, `println!("{:?}",
+ExitCode::from(2))` prints `ExitCode(unix_exit_status(2))`, the *`Debug`
+wrapper* the doc names.
 
 ### F-5 — `report_exit_line` says each sentence is true of exactly one situation; the seam makes that false
 
@@ -278,7 +368,11 @@ clause; `report_exit_line`'s `Ok(Ended::AsAsked) => None` arm.
 **Disposition:** fix-now
 **Response:** `report_exit_line`'s *exactly one situation* names its exception in the sentence (the call failing on entry, `draft-spec.md` §5 *What the seam costs*). `report_exit`'s *once, last* says `Ended::AsAsked` writes nothing.
 
-**Outcome:**
+**Outcome:** verified (round 2). `report_exit_line`'s doc puts the on-entry
+exception inside the *exactly one situation* sentence and cites SPEC-004 §5
+*What the seam costs*, which exists under that heading. `report_exit`'s doc
+reads *or nothing at all, for `Ended::AsAsked`*. No other doc in
+`diagnostics` claims one-situation-per-sentence.
 
 ### F-6 — Binary-tier docs still describe the pre-slice seam, and one counts
 
@@ -311,7 +405,13 @@ runs at `start` step 3"*).
 **Disposition:** fix-now
 **Response:** Under the AC-5 waiver for doc comments (`design-log.md` *at audit*). `exit_codes.rs` says `exit::status` chooses; the `help_…` case's doc says `Ok(Ended::AsAsked)`; `tests/binary/main.rs` names the rule (*before the first Slint call*) instead of *first step* and *the two zero-exits*. Carries P3-a and P3-c.
 
-**Outcome:**
+**Outcome:** verified (round 2). All three sites are repaired. The rule in
+`tests/binary/main.rs` is *the questions `run` answers, and the startup
+failures that settle before `start` constructs its first component*. It
+covers `an_answer_that_cannot_be_written_exits_2`, which settles in `run`,
+and `an_unbindable_ingress_path_exits_2` at `start` step 3. It also agrees
+with `exit_codes.rs`'s *past step 4 fails fast at `PromptWindow::new`*.
+No count survives in either module doc.
 
 ### F-7 — `process::command`'s doc conflates what the removal holds, and leaves out what it depends on
 
@@ -335,7 +435,10 @@ changes the fallback list, and the doc names the winit version but not this.
 **Disposition:** fix-now
 **Response:** The doc says what the removal holds — a case that does not settle before Slint fails fast rather than hanging — and what it rests on: `goad` builds with Slint's winit backend alone, so a feature that admits another backend changes the fallback.
 
-**Outcome:**
+**Outcome:** verified (round 2). The doc now says what the removal holds: a
+case that does not settle fails fast rather than hanging. It names the winit
+pin and the winit-only build, and it names the features that would change
+the fallback (`backend-linuxkms`, `backend-qt`).
 
 ### F-8 — `diagnostics`' module inventory omits the pure half the slice added
 
@@ -354,7 +457,9 @@ outlet renamed `report_exit` at 010/PHASE-02"*) and did not add
 **Disposition:** fix-now
 **Response:** Add `report_exit_line` to the inventory, beside `report_exit`. Carries PHASE-02's *renamed* finding on the same sentence.
 
-**Outcome:**
+**Outcome:** verified (round 2). The module doc reads *the impure outlet that
+010/PHASE-02 replaced with `report_exit` and its pure half,
+`report_exit_line`*. The PHASE-02 *renamed* wording is gone.
 
 ### Checked and found complete (round 1)
 
@@ -428,6 +533,285 @@ now).
   `wildcard_enum_match_arm` deny not reaching `exit::status`, and `lib.rs`'s
   `path:line` citations — PHASE-01's, outside this round's diff-line scan;
   no disagreement.
+
+### F-9 — SPEC-004 §1 states the pre-slice host as the present
+
+**Severity:** minor
+**Location:** `docs/specs/004-process-exit-status.md` §1 *Intent*, second
+paragraph.
+
+**Expected:** `docs/AGENTS.md` §Documentation: *"Canon is normative and
+evergreen: it states what is true now. No changelogs, no revision history."*
+The spec's own header comment says the same (*"No changelog, no revision
+history, no 'we used to'"*). The repair applied this rule to R-3's §7 cell,
+dropping *"All but one are unchanged by this document's arrival"* as *"a
+count and a history in canon"*, and the user endorsed that
+(`design-log.md`, 2026-09-23, *two edits the repair made beyond its brief*).
+
+**Observed:**
+
+> The host's number **today** says less than it appears to. **Every failure
+> exits 2**, whether the host could not read its configuration before it
+> opened anything or ran for hours and then lost its display. … **This
+> document is the repair**: …
+
+At `3434b76` this is false of the tree. Under R-2 and `exit::status`, a host
+that lost its display exits 1. The paragraph was true while the document was
+a draft, and the promotion did not re-read it.
+
+**Evidence:** the quoted text against SPEC-004 R-2 and against
+`exit_status::stopped_running_is_1`. The design-log entry above shows the
+promotion already treated a history clause in canon as a defect. This is a
+second instance of the same class, three sections earlier. F-1's contest is
+the prediction in the same paragraph. This finding is its tense.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-10 — The line bound cuts the cause off a configuration error
+
+**Severity:** minor
+**Location:** `diagnostics::report_startup_line` (the `finish(…, LINE_LIMIT)`
+F-2 added), for `StartupError::ConfigUnparseable`.
+
+**Expected:** F-2's Response: *"one line, **the platform's cause kept**"*.
+SPEC-004 §6: *"Why is in the line R-4 requires, and not in the number."*
+The bound was chosen for a line *"enough for a serde message quoting a
+document, an OS error"* (`LINE_LIMIT`'s doc). That line is a message, and it
+was never meant to be one that carries a source excerpt.
+
+**Observed:** `toml`'s `Display` puts the message **last**. It comes after
+the position, the quoted source line and a caret line padded with spaces to
+the error's column. So the excerpt costs about twice the column in
+characters before the message begins. Once the escaped line passes 1024
+characters, `bound` keeps the first 1024 and the message is the part it cuts.
+Measured, on a config whose sixth line has an error at column 1511
+(`note = "aaa…" x`):
+
+```
+goad: …/long.toml: configuration is not valid: TOML parse error at line 6, column 1511\n  |\n6 | note = "aaaa…aaaa [2235 more characters not shown]
+```
+
+The person gets a position, then a run of the source line, then the marker.
+What was wrong with the file is gone. Before F-2 the whole message reached
+the stream. The threshold is roughly (1024 − prefix) / 2 — a column of about
+450 with a short path. That is rare, but the cost falls on the one arm
+whose text comes from a parser (§6: *why is in the line*). The F-2 decision
+was taken on a platform error, and its evidence did not include this arm.
+
+**Evidence:** the transcript above (`target/debug/goad` at `3434b76`,
+`long.toml` built by a scratch script). `bound` keeps a prefix by design,
+and it knows nothing about which part of a composed line is the cause. No
+case holds a configuration line's tail: the binary tier asserts
+`an_unparseable_configuration_…`'s prefix only, by design.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-11 — Every configuration-parse line now ends in a visible `\n`
+
+**Severity:** nit
+**Location:** `diagnostics::report_startup_line`, via `finish`, for
+`StartupError::ConfigUnparseable`.
+
+**Expected:** the precedent in the same module. `without_one_terminator`
+exists because a backend's stderr ending in its own newline *"rendered … as a
+visible `\n` at the end of the record"*, and it strips one terminator before
+`finish` for exactly that reason.
+
+**Observed:** `toml`'s message ends in a newline. Escaped, that newline
+becomes a literal `\n` at the end of the line, before the real terminator:
+
+```
+$ goad bad.toml     # contents: this is not toml {{{
+goad: …/bad.toml: configuration is not valid: TOML parse error at line 1, column 6\n  |\n1 | this is not toml {{{\n  |      ^\nkey with no value, expected `=`\n
+```
+
+**Evidence:** the transcript above, at `3434b76`. F-2 routed the startup
+line through `finish` without the terminator step that the backend's stderr
+line has.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-12 — A closed standard output still answers a question with 0
+
+**Severity:** minor
+**Location:** `run`'s `Launch::Help` / `Launch::Version` arms
+(`crates/goad/src/main.rs`). The docs that overstate this edge are
+`StartupError::AnswerUnwritten`'s doc (`crates/goad/src/startup.rs`) and
+SPEC-004 §7 R-1's row.
+
+**Expected:** what the docs claim.
+- `AnswerUnwritten`: *"A question whose answer **reached nobody** was not
+  answered, so it is not an end *as asked*."*
+- SPEC-004 §7 R-1: *"That `Ended::AsAsked` is earned — a question answered
+  only if its **answer arrived** — is binary tier."*
+
+**Observed:** `goad --help >&-` (standard output closed) exits **0** and
+writes nothing to standard error. Measured at `3434b76`: `closed status=0`.
+Rust's standard library treats a write to a closed standard stream (`EBADF`)
+as a success. This is measured, not read from source here: no rust-src in
+the devshell. So `try_line_to` answers `Ok(())`. The repair holds a write the
+device *refused* (`/dev/full`, a broken pipe). It does not hold one that
+*arrived nowhere*. The canon row and the variant's doc state the stronger
+property.
+
+**Evidence:** the measurement above. The one case,
+`an_answer_that_cannot_be_written_exits_2`, uses `/dev/full`, which is the
+edge the repair does reach. Whether to close this gap in code, or to narrow
+both sentences to *a write that failed*, is a disposition.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-13 — `try_line_to`'s flush is unheld, and unreachable from its callers
+
+**Severity:** minor
+**Location:** `goad_shell::report::try_line_to`
+(`crates/goad-shell/src/report.rs`).
+
+**Expected:** a mechanism its doc gives a reason for is held by a case that
+reds without it (`docs/memory/tests-asserting-proxies.md`).
+
+**Observed:** the doc says *"Flushed before answering: a buffered sink can
+report its failure only at the flush, and a flush left to the process's exit
+reports it to nobody."* Mutation, compiled: `sink.flush()` replaced with
+`Ok(())`. Then `cargo test -p goad-shell --lib report` passes 4/4 and
+`cargo test -p goad --test binary` passes 8/8, including
+`an_answer_that_cannot_be_written_exits_2`. Nothing reds. Both production
+callers pass a sink the flush never matters for. One is `StdoutLock`, which
+is line-buffered, and `writeln!`'s terminator already forces the write, so
+`ENOSPC` surfaces from `writeln!` itself. The other is `StderrLock`, which
+is unbuffered. The `Broken` test sink fails on `write`, so it cannot tell
+the flush's presence from its absence.
+
+**Evidence:** the mutation above, restored by byte copy, `git status` clean.
+The flush may be right as defence against a future buffered caller. Nothing
+holds it, and nothing reds on its removal.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-14 — SPEC-004 §5's diagram still sends every question to 0
+
+**Severity:** nit
+**Location:** `docs/specs/004-process-exit-status.md` §5, the `stateDiagram`.
+
+**Expected:** R-1 as the repair reads it: 0 for *a question, answered*, and
+answered only if the answer was written (§7 R-1's row).
+
+**Observed:** the edge `Invoked --> Answered: the invocation was a question`
+makes *being a question* sufficient for `Answered` → 0. A question whose
+answer was refused now exits 2. `NeverStarted`'s edge, *a step before the
+event-loop call failed*, can be read to cover that, but only because the
+reader already knows it does. The diagram was drawn before F-3's repair, and
+the promotion did not revisit it.
+
+**Evidence:** the diagram text against `an_answer_that_cannot_be_written_exits_2`.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### F-15 — *Every line on this surface goes through the pipeline* has one arm that does not
+
+**Severity:** nit
+**Location:** `diagnostics` module doc (*"the escape/bound pipeline every
+line on this surface goes through"*); SPEC-004 §7 R-4's row (*"every line on
+that surface goes through `diagnostics`' one escape-and-bound pipeline"*);
+`report_exit_line`'s `Ok(Ended::StoppedRunning(None))` arm.
+
+**Observed:** that arm answers
+`"goad: the host was running and stopped, and no error was reported".to_owned()`
+without `finish`. The output is the same, because a fixed ASCII literal
+escapes and bounds to itself. But the universal claim, now written into
+canon, is false as a statement about the code. F-2's Response said the
+module doc *"becomes true rather than reworded"*.
+
+**Evidence:** the arm's text in `report_exit_line`, against the two quoted
+sentences.
+
+**Disposition:**
+**Response:**
+**Outcome:**
+
+### Checked and found complete (round 2)
+
+- **Worktree.** It was at `40caa4a`, 26 commits behind. `git merge
+  --ff-only main` brought it to `3434b76` before any reading.
+- **The gate.** `just check` exits 0 at `3434b76` before any mutation:
+  **638 passed**, 0 failed, 0 ignored, over 31 `test result` lines. This
+  matches the repair's reported total.
+- **Mutations, all compiled, all restored by byte copy from the scratch
+  directory, `diff` and `git status` clean after each.**
+  - `--help` arm swallowed: reds `an_answer_that_cannot_be_written_exits_2`.
+  - `--version` arm swallowed: reds `an_answer_that_cannot_be_written_exits_2`.
+  - `finish` off `StoppedRunning(Some(_))`: reds
+    `a_multi_line_platform_error_is_one_line_from_every_outlet`.
+  - `try_line_to`'s flush removed: nothing reds (F-13).
+- **`line_to` callers.** `goad-emit`'s `to_stdout` and `to_stderr`, and
+  `goad`'s `report_exit` and `report_platform`. The added flush discards
+  its result with the write's. It moves no byte or status on a
+  line-buffered stdout or an unbuffered stderr. A grep of `crates/*/src`
+  finds no stdout/stderr write outside `report`'s two functions, so *one
+  way to write a line* holds: one implementation, with two policies over it.
+- **`AnswerUnwritten`.** Its status is 2 through `exit::status`'s single
+  `Err` arm, and it appears in `every_startup_failure_is_2`. Its `Display`
+  is pinned by `display_text::answer_unwritten`, and `source()` is `None`
+  (`source_walk`). The line goes through `finish`. The docs that enumerate
+  where `StartupError`s come from are still true, and so are the docs that
+  enumerate the edges into 0 or 2. Those are `StartupError`'s type doc, the
+  `nix/module.nix` comment (0 names the tray quit, the window close and
+  the answered question), SPEC-004 §6's instance list (named as instances)
+  and §7 R-3's list of unreached causes (`Clock`, `Runtime`, `Platform`,
+  `EventLoop`, `Enqueue`, which is complete against the enum). The one
+  exception is §5's diagram (F-14).
+- **F-2's escape against the binary tier.** No binary-tier case changed
+  meaning. `too_many_arguments_…` and `no_argument_…` compare the stream
+  with `report_startup_line` itself, so they track the escape. The prefix
+  cases stop before any text the escape could touch. The scratch paths
+  contain no `\` or control character.
+- **Promotion against the delta, exactly.** Change 1's replacement
+  sentence and Change 2's bullet appear verbatim in SPEC-003 once
+  whitespace is normalised and `SPEC-00N` → `SPEC-004` is applied.
+  Change 3's old phrase is gone and its new one is present. SPEC-004
+  differs from the draft only in its header (Status `active`, the
+  `SPEC-NNN` references), the removed `DRAFT-ONLY` comment, and the §7
+  rows the repair amended.
+- **Citations.** Every backticked `module::case` and case name in SPEC-004,
+  and in SPEC-003's R-3 and R-4 rows, resolves to exactly one `fn`
+  definition in `crates/`. The one exception is
+  `help_prints_the_usage_block_on_stdout_and_exits_0`, which resolves twice
+  because `goad-emit` has a namesake; SPEC-004 path-qualifies it, as round
+  1 recorded. Neither spec has a `file:NN` line citation.
+- **Residue.** `SPEC-NNN`, `SPEC-00N`, `draft-spec` and `DRAFT` appear
+  nowhere outside `docs/slices/` except `docs/AGENTS.md`'s method text and
+  `docs/follow-ups.md`'s generic `SPEC-NNN/R-N` form. `crates/` and
+  `nix/` cite no draft.
+- **Nix.** The directives are unchanged. The comment states policy per
+  number and predicts nothing.
+
+**Cross-check, round 2, written after the findings and outcomes above**
+(`notes.md` §Handover *Repairs, round 1*, read only now).
+- **Agree:** the F-2 and F-3 red-first reports match the mutations above.
+  The 638 total matches. The notes also claim C-2's precondition held, and
+  a citation re-check agrees.
+- **Explains F-1's contest:** the class grep ran over `-- crates nix`
+  only. Its pattern list includes *comes back* and *next try*, and run over
+  the draft it would have hit §1.
+- **Not in the notes:** F-9 (the notes record removing R-3's history
+  clause, not §1's), F-10, F-11, F-12, F-14, F-15. **F-13's premise is in
+  the notes, and read the other way:** the notes say the flush *"writes
+  nothing further"* for `goad-emit`'s sinks. That is the same fact that
+  makes it unheld for `goad`'s.
+- **Seen there and not raised here:** `audit.md`'s AC-8 row still reads
+  *pending — not applied*. That verdict belongs to audit.
 
 ## Synthesis
 
