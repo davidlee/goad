@@ -25,9 +25,23 @@ pub(crate) fn goad_with_no_config_home(arguments: &[&str]) -> Output {
     .expect("the built binary must be runnable")
 }
 
+/// **The binary tier cannot reach a display** (`design.md` §5.2). Every case
+/// here settles before the first Slint call, and nothing but this removal
+/// keeps it that way: past the socket, a spawn that still sees a display
+/// opens a real host, and `Command::output` waits on it for ever. At the
+/// pinned winit (0.30.13), removing all three leaves no backend to fall back
+/// to — it answers *neither `WAYLAND_DISPLAY` nor `WAYLAND_SOCKET` nor
+/// `DISPLAY` is set* — so a case past the socket fails fast with the
+/// display's line on every machine instead. **Nothing but this doc holds the
+/// removal**: deleting it is green until some case gets past the socket, and
+/// then the gate hangs on a machine with a display rather than redding.
 fn command(arguments: &[&str]) -> Command {
   let mut command = Command::new(env!("CARGO_BIN_EXE_goad"));
-  command.args(arguments);
+  command
+    .args(arguments)
+    .env_remove("WAYLAND_DISPLAY")
+    .env_remove("WAYLAND_SOCKET")
+    .env_remove("DISPLAY");
   command
 }
 

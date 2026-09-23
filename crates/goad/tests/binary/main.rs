@@ -10,12 +10,14 @@
 //! `nix/module.nix` depends on the failure code by value — `exit_codes.rs`
 //! carries the reasoning (`review-code.md` F-1).
 //!
-//! It is feasible **without a display** only because every answer it asserts
-//! is reached before the first Slint call (006/design.md §5.4) — the two
+//! It is feasible **without a display** because every answer it asserts is
+//! reached before the first Slint call (006/design.md §5.4) — the two
 //! zero-exits inside `run`, and the startup failures `start` settles in its
-//! first step. Nothing here may construct a window: a case that reached step 5
-//! would need a compositor and would red on every headless machine the gate
-//! runs on.
+//! first step — and because `process::command` removes `WAYLAND_DISPLAY`,
+//! `WAYLAND_SOCKET` and `DISPLAY` from every spawn: a case that got past the
+//! socket would otherwise open a real host and wait on it for ever; instead
+//! it fails fast at `PromptWindow::new`, with the display's line, on every
+//! machine the gate runs on.
 //!
 //! What it deliberately does not hold is the **stamped** revision. Nothing in
 //! the gate sets `GOAD_REVISION`, so a process spawned here can only ever see

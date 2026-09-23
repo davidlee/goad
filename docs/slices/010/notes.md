@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 | done | 2026-09-23 |
 | PHASE-02 | done | 2026-09-23 |
-| PHASE-03 | pending | 2026-09-23 |
+| PHASE-03 | done | 2026-09-23 |
 
 ## Phase sheets
 
@@ -1038,20 +1038,26 @@ deleting a test. `git add <explicit paths>` only. You are the only writer.
 
 | # | the edit (quoted) | must red, by name | compiled? | redded | restore green? |
 |---|---|---|---|---|---|
-| M-12 | `exit::status`: `Err(_) => 2,` → `Err(_) => 1,` | `exit_status::every_startup_failure_is_2`; every failing case in `exit_codes.rs` — `too_many_arguments_exits_2_and_says_who_spoke`, `no_argument_and_no_configuration_home_exits_2`, `an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says`, `an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says`, `an_unbindable_ingress_path_exits_2` | | | |
-| M-13 | the new case's ingress path points at a **bindable** path (a non-existent name in the temp dir) — **after T-2 only** | `an_unbindable_ingress_path_exits_2`, **on the stderr prefix, not the status**, and it **exits rather than hangs** | | | |
-| M-14 | `start`: `startup::listener(config.ingress.as_ref())?` → `startup::listener(None)?` — **after T-2 only**; `main.rs` is outside Surfaces, so this edit is temporary by construction and its restore is `diff`-verified like the rest | `an_unbindable_ingress_path_exits_2`, on the prefix, exits rather than hangs | | | |
+| M-12 | `exit::status`: `Err(_) => 2,` → `Err(_) => 1,` | `exit_status::every_startup_failure_is_2`; every failing case in `exit_codes.rs` — `too_many_arguments_exits_2_and_says_who_spoke`, `no_argument_and_no_configuration_home_exits_2`, `an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says`, `an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says`, `an_unbindable_ingress_path_exits_2` | yes | exactly the six named, nothing else (`cargo test -p goad --test renderer --test binary`: binary 2/7, renderer 220/221) | yes, `diff` against the scratchpad byte copy |
+| M-13 | the new case's ingress path points at a **bindable** path — realised by *not* writing the regular file at `socket` before the spawn, so the path is free to bind (`an_unbindable_ingress_path_exits_2` itself, temporary) | `an_unbindable_ingress_path_exits_2`, **on the stderr prefix, not the status**, and it **exits rather than hangs** | yes | status assertion (2) passed; the prefix assertion panicked on `goad: the display could not be opened: Could not initialize backend. … neither WAYLAND_DISPLAY nor WAYLAND_SOCKET nor DISPLAY is set.`; `time` measured **0.545s** wall — VA-1 discharged | yes, `diff` against the scratchpad byte copy |
+| M-14 | `start`: `startup::listener(config.ingress.as_ref())?` → `startup::listener(None)?` — **after T-2 only**; `crates/goad/src/main.rs` is outside Surfaces, so this edit is temporary by construction and its restore is `diff`-verified like the rest | `an_unbindable_ingress_path_exits_2`, on the prefix, exits rather than hangs | yes | status assertion (2) passed; the prefix assertion panicked on the same display line as M-13; exited well inside the `timeout 20` wrapper | yes, `diff` against the scratchpad byte copy |
 
 **Decisions taken during execution**
 
+- **A second scratch-path helper, `scratch_path`, added beside `scratch_config`.** The new case needs a path for the regular file occupying the would-be socket, which `scratch_config` does not build (it also writes TOML content). Rather than inline the naming scheme a second time, `scratch_path(case, extension)` factors the shared `goad-{case}-{pid}.{extension}` naming out for the one thing `scratch_config` does not cover. `scratch_config` itself is untouched — no rename-carve-out needed. Recorded per the sheet's instruction to say why if anything in this area changes.
+- **VA-1 and M-13 run as one measurement.** T-4 asks to run M-13 under `time`; rather than construct a second, throwaway spawn harness for VA-1, the sheet's own M-13 mutation (temporarily removing the pre-write of the regular file at `socket`, so the path is bindable) is exactly the "spawn that gets past the socket" VA-1 asks for. Run once, under `timeout 20`, restored and `diff`-verified before moving on. `bind` leaves a sidecar `goad-an_unbindable_ingress_path-<pid>.socket.lock` in the temp directory even though the process never got to unbind it; it was removed by hand and confirmed gone with `ls`.
+- **nix/module.nix comment rewritten from the phase rule, not edited line-by-line.** The exception paragraph and the "do not succeed on a retry" claim were removed as a block rather than patched, since keeping any sentence built on "Platform is the exception" would still be the argument-from-cause EX-4 forbids. The three directives (`Restart`, `RestartPreventExitStatus`, `RestartSec`) are byte-identical to before — confirmed by `git diff -U0 nix/module.nix | grep '^[-+][^-+]' | grep -v '^[-+] *#'` coming back empty.
+
 **Findings**
+
+- **Assumption 4 (recorded, not fixed — audit's to disposition).** `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc comment (`crates/goad/tests/binary/exit_codes.rs`) opens *"`Ok(())` is exit 0"*, which has been false since PHASE-02: `run` now answers `Ok(Ended::AsAsked)`, not `Ok(())`. AC-5 forbids touching any existing case's body or doc comment in this file — its module doc is the one permitted edit — so the stale sentence stands. Tension: AC-5's wording (no existing case touched) against a case's doc comment that is now factually wrong. Not this phase's to resolve.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-23 · PHASE-01 `done`, the pure layer green in the tree · `aeca5a6` plus this phase's commit
+**Fresh as of:** 2026-09-23 · PHASE-03 `done`, `main`'s binary spawned and read by the binary tier · `f0ecb3c` plus this phase's commit
 
 ### Produced
 
@@ -1065,6 +1071,18 @@ deleting a test. `git add <explicit paths>` only. You are the only writer.
   `draft-spec.md` §7 names for them. M-1…M-8 run, compiled and recorded in this
   sheet's §Mutation evidence; audit cites those rows rather than re-deriving
   them. Nothing calls the new code from `main` — that is PHASE-02.
+- **PHASE-03**: `crates/goad/tests/binary/process.rs`'s spawn removes
+  `WAYLAND_DISPLAY`, `WAYLAND_SOCKET` and `DISPLAY` from every binary-tier
+  spawn, so a case that gets past the socket fails fast at `PromptWindow::new`
+  instead of opening a real host (measured, VA-1: **0.545s** wall, exit 2, the
+  display's line). `exit_codes::an_unbindable_ingress_path_exits_2` reaches
+  `StartupError::Ingress` headlessly and asserts the socket's own prefix, not
+  the status alone. `exit_codes.rs`'s and `main.rs`'s module docs, and
+  `nix/module.nix`'s `Service` comment, now argue from **phase** — no *would
+  red*, no exception paragraph, no spec number (D6). M-12…M-14 run, compiled
+  and recorded in this sheet's §Mutation evidence. `draft-spec.md` §7's R-3/R-4
+  rows and `canon-delta.md` Change 1 already cite the case by its landed name —
+  no rename, no canon edit needed this phase.
 
 ### Learned
 

@@ -11,14 +11,16 @@
 //! configuration or an ingress socket already held, until systemd's start
 //! limiter gives up.
 //!
-//! `tests/renderer/startup.rs` covers the **arms** — every value `main`'s one
-//! `match` over `run()`'s `Result` can see. What it cannot see is the constant
-//! each arm names, because no pure test runs a process. That is the cut
-//! between the two tiers and the reason these cases are here and not there.
+//! `tests/renderer/startup.rs` holds the **numbers** — `exit::status` is a
+//! pure function, and that tier holds every shape it can see. What it cannot
+//! reach is the **process**: that the number it answers is what a caller of
+//! the binary actually observes. That is the cut between the two tiers and
+//! the reason these cases are here and not there.
 //!
-//! Every case is headless: each reaches its answer before the first Slint
-//! call (006/design.md §5.4). A case that reached `start` past step 4 would
-//! need a compositor and would red on every machine the gate runs on.
+//! Every case is headless: `process::command`'s spawn removes
+//! `WAYLAND_DISPLAY`, `WAYLAND_SOCKET` and `DISPLAY`, so a case that reaches
+//! `start` past step 4 fails fast at `PromptWindow::new`, with the display's
+//! line, instead of opening a real host.
 use std::path::PathBuf;
 
 use goad::diagnostics::{USAGE, report_startup_line};
@@ -122,10 +124,51 @@ fn an_unparseable_configuration_exits_2_and_says_only_what_its_own_arm_says() {
   );
 }
 
+/// `StartupError::Ingress` — `startup::listener` runs at `start` step 3,
+/// before any Slint call, so a regular file at the configured path is
+/// refused there and this case stays headless.
+///
+/// **The status alone would not do.** Headless, a bindable path also exits 2
+/// — at `PromptWindow::new`, with the display's line — so a case asserting
+/// only `code_of(&output)` is green whether the socket bound or not. What
+/// tells the two apart is the **prefix**: `goad: ` and the socket's own path,
+/// which only `StartupError::Ingress`'s line begins with (P-1,
+/// `design-log.md`).
+#[test]
+fn an_unbindable_ingress_path_exits_2() {
+  let socket = scratch_path("an_unbindable_ingress_path", "socket");
+  std::fs::write(&socket, "").expect("the scratch socket path must be writable");
+  let config = scratch_config(
+    "an_unbindable_ingress_path",
+    &format!(
+      "[backend]\ncommand = [\"true\"]\ntimeout = \"5s\"\n\n[schedule]\ndefault_poll = \"30s\"\n\n[ingress]\npath = \"{}\"\n",
+      socket.display()
+    ),
+  );
+
+  let output = goad(&[&config.display().to_string()]);
+  let stderr = stderr_of(&output);
+  drop(std::fs::remove_file(&config));
+  drop(std::fs::remove_file(&socket));
+
+  assert_eq!(code_of(&output), 2, "{stderr}");
+  assert!(
+    stderr.starts_with(&format!("goad: {}: ", socket.display())),
+    "{stderr}"
+  );
+}
+
 /// A file of this case's own, named for the case and the process, so a
 /// parallel run cannot collide with a sibling.
 fn scratch_config(case: &str, contents: &str) -> PathBuf {
   let path = std::env::temp_dir().join(format!("goad-{case}-{}.toml", std::process::id()));
   std::fs::write(&path, contents).expect("the scratch configuration must be writable");
   path
+}
+
+/// A path of this case's own, named the same way `scratch_config` names its
+/// file, for a case that needs a scratch path `scratch_config` does not
+/// write itself — here, the regular file occupying the would-be socket.
+fn scratch_path(case: &str, extension: &str) -> PathBuf {
+  std::env::temp_dir().join(format!("goad-{case}-{}.{extension}", std::process::id()))
 }

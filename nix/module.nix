@@ -85,30 +85,16 @@ in {
         {
           ExecStart = "${cfg.package}/bin/goad";
 
-          # Restart a crash, not a refusal. Exit 2 is any `StartupError` —
-          # `main` in `crates/goad/src/main.rs` maps every one of them to it,
-          # and each new variant inherits that — so it covers a bad
-          # configuration, an unreadable clock, and an ingress socket already
-          # held by a live host. Those do not succeed on a retry, and
-          # `Restart = "always"` would turn each into a restart loop that ends
-          # in systemd's rate limiter. Exit 0 is the window being closed, which
-          # was meant.
-          #
-          # **`Platform` is the exception, and this directive suppresses the
-          # one restart that would work.** `start` ends
-          # `run_event_loop_until_quit().map_err(StartupError::Platform)`, so a
-          # compositor that goes away under a host which has been running for
-          # hours exits 2 exactly as a host that never started does, and
-          # systemd is told not to bring it back. Measured on this machine at
-          # 006's audit: four such exits in two days, two of them leaving the
-          # host down for around two hours until a person noticed. The repair
-          # is an exit-code taxonomy that separates *never started* from
-          # *stopped running*, which is a change to the startup surface and to
-          # `SPEC-003`'s failure vocabulary rather than to this file —
-          # `slice-006.md` §Follow-ups carries it. Until then the directive is
-          # knowingly wrong in that one case, and saying so here is what keeps
-          # the next reader from re-deriving the same conclusion from the same
-          # three variants.
+          # The directives argue from **phase**, not from cause
+          # (`crates/goad/src/exit.rs`). 2 is a host that never started —
+          # whatever `StartupError` variant, a bad configuration, an
+          # unreadable clock, an ingress socket already held — so a restart
+          # changes nothing a person has not changed first, and
+          # `RestartPreventExitStatus` suppresses the one retry that would
+          # only loop until systemd's rate limiter gives up. 1 is a host that
+          # had started and stopped without being asked to, which `Restart =
+          # "on-failure"` brings back after `RestartSec`. 0 is the window
+          # being closed, which was asked for.
           Restart = "on-failure";
           RestartPreventExitStatus = 2;
           RestartSec = 2;
