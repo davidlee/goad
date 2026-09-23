@@ -4,7 +4,10 @@
 //! `FAULT` and `tray_icon`. PHASE-05 added `Reported`, `Refused`,
 //! `Diagnostics`, `tooltip`, `BUSY_NOTICE`, the remaining outlets
 //! (`goad_shell::report::line_to`, `report_platform`) and the escape/bound
-//! pipeline every line on this surface goes through. PHASE-08 adds the
+//! pipeline, `finish`, that every composed line on the in-window surface goes
+//! through. The host's own standard error takes `one_line` instead — one
+//! terminator dropped, then the same escape, and no bound (010
+//! `review-code.md` F-10). PHASE-08 adds the
 //! startup surface's own outlets, `USAGE` and `print_usage`, and the impure
 //! outlet that 010/PHASE-02 replaced with `report_exit` and its pure half,
 //! `report_exit_line`, before a tray or a window exists; 006/PHASE-03 adds
@@ -95,8 +98,9 @@ pub struct Diagnostics {
 /// The stderr line's own bound: the only line whose whole value is
 /// diagnostic prose a person reads (design.md §5.4).
 const STDERR_LIMIT: usize = 4096;
-/// Every other line's bound: enough for a serde message quoting a document,
-/// an OS error, or a discarded `raw`.
+/// Every other in-window line's bound: enough for a serde message quoting a
+/// document, an OS error, or a discarded `raw`. The host's own standard error
+/// is not bounded — `one_line` says why.
 const LINE_LIMIT: usize = 1024;
 /// The tray tooltip's bound: one line in a panel.
 const TOOLTIP_LIMIT: usize = 120;
@@ -304,12 +308,23 @@ fn bound(escaped: &str, limit: usize) -> String {
   format!("{kept} [{elided} more characters not shown]")
 }
 
-/// Steps 3 and 4 together: escape, then bound. Every line on this surface
-/// passes through this — decoding (step 2) happens only for stderr, before
+/// Steps 3 and 4 together: escape, then bound. Every composed line on the
+/// in-window surface passes through this — decoding (step 2) happens only for stderr, before
 /// `composed` is built, so `composed` here is always already-decoded text
 /// (design.md §5.4's pipeline).
 fn finish(composed: &str, limit: usize) -> String {
   bound(&Escaped(composed).to_string(), limit)
+}
+
+/// A line for the host's own standard error: at most one trailing terminator
+/// dropped, then escaped — **not** bounded. The bound is for lengths a backend
+/// or a transport chose (D53); these lines carry the platform's text or the
+/// person's own configuration's parse error, whose message `toml` writes last,
+/// so a bound that keeps a prefix would cut the cause (010 `review-code.md`
+/// F-10). The terminator is dropped for the reason it is dropped from a
+/// backend's stderr: escaped, it would show a `\n` that was never content.
+fn one_line(composed: &str) -> String {
+  Escaped(without_one_terminator(composed)).to_string()
 }
 
 /// Composed here, with the other user-visible strings, rather than beside
@@ -432,13 +447,13 @@ pub fn print_version(revision: Option<&str>) -> std::io::Result<()> {
 /// `report_exit_line`'s `Err` arm — with no destination here, the pure half,
 /// so a test can assert it with no sink to fake (F-7). `{error}` is
 /// `StartupError`'s `Display`, one rendering, no `source()` walk, and the
-/// whole line goes through `finish` — the same rules every other line on this
-/// surface follows. `finish` is what keeps it **one** line: a platform error
-/// can carry several, and a raw interpolation would leave a last line naming
+/// whole line goes through `one_line`, as every composed line on standard
+/// error does. The escape is what keeps it **one** line: a platform error can
+/// carry several, and a raw interpolation would leave a last line naming
 /// neither the binary nor what happened (010 `review-code.md` F-2).
 #[must_use]
 pub fn report_startup_line(error: &StartupError) -> String {
-  finish(&format!("goad: {error}"), LINE_LIMIT)
+  one_line(&format!("goad: {error}"))
 }
 
 /// stderr, once, last — or nothing at all, for `Ended::AsAsked`, whose
@@ -466,10 +481,9 @@ pub fn report_exit(outcome: &Result<Ended, StartupError>) {
 pub fn report_exit_line(outcome: &Result<Ended, StartupError>) -> Option<String> {
   match outcome {
     Ok(Ended::AsAsked) => None,
-    Ok(Ended::StoppedRunning(Some(error))) => Some(finish(
-      &format!("goad: the host was running and stopped: {error}"),
-      LINE_LIMIT,
-    )),
+    Ok(Ended::StoppedRunning(Some(error))) => Some(one_line(&format!(
+      "goad: the host was running and stopped: {error}"
+    ))),
     Ok(Ended::StoppedRunning(None)) => {
       Some("goad: the host was running and stopped, and no error was reported".to_owned())
     }
@@ -491,10 +505,7 @@ pub fn report_exit_line(outcome: &Result<Ended, StartupError>) -> Option<String>
 /// them, in `detail`, which is why this line stops where it does.
 #[must_use]
 pub fn report_platform_line(detail: &str) -> String {
-  finish(
-    &format!("goad: the window could not be drawn: {detail}"),
-    LINE_LIMIT,
-  )
+  one_line(&format!("goad: the window could not be drawn: {detail}"))
 }
 
 /// stderr, and the process keeps running.

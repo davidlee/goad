@@ -102,8 +102,8 @@ surface predates that slice. That ground does not survive a second deferral.
 **Raised by** 007 (F-4, F-16), 008 (L-7) · **cost** tier 1 — a decision about the look, no canon
 
 `title`, `option.label` and `block.heading` bind straight to a `Text` with no
-bound, while every diagnostic line in the same binary passes
-`finish(.., LINE_LIMIT)`. Not an injection risk — Slint's `Text` interprets no
+bound, while every composed line on the in-window diagnostic surface passes
+`finish`, which bounds it. Not an injection risk — Slint's `Text` interprets no
 markup — the exposure is layout, and a backend need not misbehave to reach it.
 The same decision covers `Diagnostics::of`'s unbounded **lists**: the undrawn
 report is linear in an option's undrawn fields, `discarded` is unbounded the

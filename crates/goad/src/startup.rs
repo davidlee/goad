@@ -76,9 +76,11 @@ pub enum StartupError {
   Enqueue,
   /// The configured ingress socket could not be bound.
   Ingress(IngressError),
-  /// `--help` or `--version` was asked, and its answer could not be written
-  /// to standard output. A question whose answer reached nobody was not
-  /// answered, so it is not an end *as asked* (010 `review-code.md` F-3).
+  /// `--help` or `--version` was asked, and standard output refused the
+  /// write of its answer. A question whose answer the stream refused was not
+  /// answered, so it is not an end *as asked* (010 `review-code.md` F-3). A
+  /// closed standard output is not a refusal; SPEC-004 §7, R-1's row, says
+  /// why (010 `review-code.md` F-12).
   AnswerUnwritten(std::io::Error),
 }
 

@@ -539,6 +539,75 @@ mod stderr_outlets {
       assert!(line.ends_with("\\nNo backends configured."), "{line}");
     }
   }
+
+  /// `StartupError::ConfigUnparseable` over what `Config::parse` really
+  /// answers for `text`, at a path with no character the escape touches.
+  fn unparseable(text: &str) -> StartupError {
+    StartupError::ConfigUnparseable {
+      path: std::path::PathBuf::from("/home/someone/.config/goad/config.toml"),
+      fault: goad_shell::config::Config::parse(text).expect_err("the text is not TOML"),
+    }
+  }
+
+  /// **Not bounded** (010 `review-code.md` F-10). `toml` writes its message
+  /// last, after the position, the quoted source line and a caret line padded
+  /// to the error's column, so a bound that keeps a prefix cuts exactly the
+  /// part that says what was wrong. An error far along a long line is the
+  /// shape that reaches it: the reviewer's was at a column past 1500.
+  #[test]
+  fn a_configuration_error_far_along_a_long_line_keeps_the_parser_s_message() {
+    let error = unparseable(&format!("note = \"{}\" x\n", "a".repeat(1500)));
+    let message = error.to_string();
+    let last = message.lines().last().expect("toml's message has a line");
+
+    let line = report_startup_line(&error);
+
+    assert!(!line.contains("more characters not shown"), "{line}");
+    assert!(line.ends_with(last), "{line}");
+  }
+
+  /// **At most one terminator dropped, then escaped** (010 `review-code.md`
+  /// F-11). `toml`'s message ends in a newline, and escaping it verbatim shows
+  /// a person a `\n` that was the writing convention, not the message — the
+  /// reason `diagnostics::without_one_terminator` exists for a backend's
+  /// stderr. Every stderr outlet takes the same step.
+  #[test]
+  fn no_stderr_outlet_ends_in_a_visible_terminator() {
+    let error = unparseable("this is not toml {{{\n");
+    assert!(
+      error.to_string().ends_with('\n'),
+      "the case needs a message that ends in its own terminator"
+    );
+    let ended = || slint::PlatformError::from("no display\n".to_owned());
+
+    for line in [
+      report_startup_line(&error),
+      report_exit_line(&Err(error)).expect("a startup failure has a line"),
+      report_exit_line(&Ok(Ended::StoppedRunning(Some(ended()))))
+        .expect("stopped running has a line"),
+      report_platform_line(&ended().to_string()),
+    ] {
+      assert!(!line.ends_with("\\n"), "{line}");
+      assert!(!line.contains(['\n', '\r']), "{line}");
+    }
+  }
+
+  /// **No stderr outlet bounds its line**: the bound is for lengths a backend
+  /// or a transport chose (D53), and these carry the platform's or the
+  /// configuration parser's own text, whole.
+  #[test]
+  fn no_stderr_outlet_bounds_its_line() {
+    let long = || slint::PlatformError::from(format!("{} tail", "x".repeat(4000)));
+
+    for line in [
+      report_startup_line(&StartupError::Platform(long())),
+      report_exit_line(&Ok(Ended::StoppedRunning(Some(long()))))
+        .expect("stopped running has a line"),
+      report_platform_line(&long().to_string()),
+    ] {
+      assert!(line.ends_with(" tail"), "{line}");
+    }
+  }
 }
 
 mod usage_error_does_not_reprint_the_block {

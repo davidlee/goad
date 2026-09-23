@@ -50,6 +50,20 @@ mod tests {
     }
   }
 
+  /// A sink that accepts every write and refuses the flush — a buffered sink
+  /// whose failure surfaces only there, so a line that was never flushed
+  /// cannot pass for one that arrived.
+  struct RefusesFlush;
+
+  impl std::io::Write for RefusesFlush {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+      Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+      Err(std::io::Error::from(std::io::ErrorKind::StorageFull))
+    }
+  }
+
   #[test]
   fn a_line_reaches_the_sink_with_one_terminator() {
     let mut sink = Vec::new();
@@ -73,5 +87,14 @@ mod tests {
   fn an_unwritable_sink_is_reported_to_a_caller_whose_line_is_the_answer() {
     let error = try_line_to(Broken, "an answer nobody receives").expect_err("the sink refused");
     assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe);
+  }
+
+  /// The flush's own failure is the answer too (010 `review-code.md` F-13):
+  /// every write succeeded, and the line still did not arrive.
+  #[test]
+  fn a_refused_flush_is_reported_to_a_caller_whose_line_is_the_answer() {
+    let error =
+      try_line_to(RefusesFlush, "an answer still buffered").expect_err("the flush refused");
+    assert_eq!(error.kind(), std::io::ErrorKind::StorageFull);
   }
 }
