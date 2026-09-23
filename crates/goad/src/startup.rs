@@ -10,11 +10,11 @@ use goad_shell::ingress::{self, Ingress, IngressError};
 
 /// What the arguments asked for. `Help` and `Version` answer and stop, and
 /// they are outcomes here rather than an early `exit` hidden inside argument
-/// parsing — so `main` keeps its single exit-code decision (§5.4's entry
-/// point). **Named, never counted**, the rule `StartupError`'s doc below
-/// states: this enum's count was hand-incremented from two to three when
-/// `Version` arrived, which is the act PHASE-04/EX-3 forbids
-/// (`review-code.md` F-10).
+/// parsing — so the exit-code decision stays in one place, `exit::status`
+/// over whatever `run` answers (§5.4's entry point). **Named, never
+/// counted**, the rule `StartupError`'s doc below states: this enum's count
+/// was hand-incremented from two to three when `Version` arrived, which is
+/// the act PHASE-04/EX-3 forbids (`review-code.md` F-10).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Launch {
   Help,
@@ -24,16 +24,21 @@ pub enum Launch {
 
 /// Every way `run` can fail to reach the event loop, and the exact text of
 /// each. `NoConfigPath` and `Usage` come from argument and environment
-/// handling; the rest from the steps after it. **Named, never counted** — a
-/// count is stale at the next variant and nothing in the gate reads it, which
-/// is how the number here said eight with nine in the enum (PHASE-04/EX-3,
-/// `review-code.md` F-4). `Debug`, `Display`, `std::error::Error` with the
-/// **default** `source()`, and no `PartialEq` — a `slint::PlatformError`
-/// inside it has none (F-17).
+/// handling; the rest from the steps after it. The loop's own ending, once
+/// the loop is reached, is not among these: it travels in `Ended`, built by
+/// `exit::ended`, and no arm here speaks for it (010/PHASE-02). **Named,
+/// never counted** — a count is stale at the next variant and nothing in the
+/// gate reads it, which is how the number here said eight with nine in the
+/// enum (PHASE-04/EX-3, `review-code.md` F-4). `Debug`, `Display`,
+/// `std::error::Error` with the **default** `source()`, and no `PartialEq` —
+/// a `slint::PlatformError` inside it has none (F-17).
 ///
-/// Every variant is exit **2**: `main` has one `match` over `run`'s `Result`
-/// and no arm of it distinguishes between these. `nix/module.nix` depends on
-/// that numeral by value, and `tests/binary/exit_codes.rs` is what holds it.
+/// The number every variant of this type answers is `exit::status`'s single
+/// `Err` arm, which reads no variant here — a variant cannot be filed under a
+/// different number without someone editing that arm and writing a per-cause
+/// judgement down where a reviewer sees it. What the number means is the
+/// spec's. `nix/module.nix` depends on it by value, and
+/// `tests/binary/exit_codes.rs` is what holds it.
 #[derive(Debug)]
 pub enum StartupError {
   /// Neither `XDG_CONFIG_HOME` nor `HOME` names a directory, and no argument
@@ -61,7 +66,7 @@ pub enum StartupError {
   /// The async runtime could not be built.
   Runtime(std::io::Error),
   /// A Slint platform call failed — `set_xdg_app_id`, `PromptWindow::new`,
-  /// `Tray::new`, or `run_event_loop_until_quit`.
+  /// or `Tray::new`.
   Platform(slint::PlatformError),
   /// The host task could not be scheduled onto the event loop.
   EventLoop(slint::EventLoopError),

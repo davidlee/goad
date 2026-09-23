@@ -2,13 +2,14 @@
 //!
 //! PHASE-04 landed the tray rasteriser: `TrayState`, `ICON_EDGE`, `IDLE`,
 //! `FAULT` and `tray_icon`. PHASE-05 added `Reported`, `Refused`,
-//! `Diagnostics`, `tooltip`, `BUSY_NOTICE`, the two remaining outlets
+//! `Diagnostics`, `tooltip`, `BUSY_NOTICE`, the remaining outlets
 //! (`goad_shell::report::line_to`, `report_platform`) and the escape/bound
 //! pipeline every line on
-//! this surface goes through. PHASE-08 adds the startup surface's own two
-//! outlets, `USAGE`, `print_usage` and `report_startup`, before a tray or a
-//! window exists; 006/PHASE-03 adds a third, `version_line` and
-//! `print_version`, which answers before one exists too. The module carries
+//! this surface goes through. PHASE-08 adds the startup surface's own
+//! outlets, `USAGE` and `print_usage`, and the impure outlet renamed
+//! `report_exit` at 010/PHASE-02, before a tray or a window exists;
+//! 006/PHASE-03 adds `version_line` and `print_version`, which answer
+//! before one exists too. The module carries
 //! the arithmetic deny because both halves compute over lengths a backend or a
 //! transport chose (D53, design.md §5.4).
 #![deny(clippy::arithmetic_side_effects)]
@@ -418,8 +419,9 @@ pub fn print_version(revision: Option<&str>) {
   line_to(std::io::stdout().lock(), &version_line(revision));
 }
 
-/// The exact string `report_startup` writes, with no destination — the pure
-/// half, so a test can assert it with no sink to fake (F-7). `{error}` is
+/// The exact string `report_exit` writes for a startup failure, via
+/// `report_exit_line`'s `Err` arm — with no destination here, the pure half,
+/// so a test can assert it with no sink to fake (F-7). `{error}` is
 /// `StartupError`'s `Display`, one rendering, no `source()` walk — the same
 /// rule every other line on this surface follows.
 #[must_use]
@@ -427,9 +429,11 @@ pub fn report_startup_line(error: &StartupError) -> String {
   format!("goad: {error}")
 }
 
-/// stderr, and `main` returns `ExitCode::from(2)`.
-pub fn report_startup(error: &StartupError) {
-  line_to(std::io::stderr().lock(), &report_startup_line(error));
+/// stderr, once, last.
+pub fn report_exit(outcome: &Result<Ended, StartupError>) {
+  if let Some(line) = report_exit_line(outcome) {
+    line_to(std::io::stderr().lock(), &line);
+  }
 }
 
 /// The line a non-zero exit is accompanied by, and `None` for the status that

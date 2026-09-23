@@ -17,6 +17,7 @@ use std::rc::Rc;
 
 use goad::controller::Controller;
 use goad::diagnostics;
+use goad::exit::{self, Ended};
 use goad::generated::{OptionRow, PromptWindow, Tray};
 use goad::glass::SlintGlass;
 use goad::install::install;
@@ -32,18 +33,14 @@ use slint::{ComponentHandle, VecModel};
 use tokio::sync::mpsc;
 
 fn main() -> ExitCode {
-  match run() {
-    Ok(()) => ExitCode::SUCCESS,
-    Err(error) => {
-      diagnostics::report_startup(&error); // "goad: {error}" on stderr
-      ExitCode::from(2)
-    }
-  }
+  let outcome = run();
+  diagnostics::report_exit(&outcome);
+  ExitCode::from(exit::status(&outcome))
 }
 
 /// `main` cannot use `?`, because it returns `ExitCode`. This is the fallible
 /// half, and it is the only place a `StartupError` is produced.
-fn run() -> Result<(), StartupError> {
+fn run() -> Result<Ended, StartupError> {
   // The environment is passed in, not reached for, because `arguments` is pure
   // over both (§9 item 17). The closure is not redundant and cannot be replaced
   // by `&std::env::var_os`: `var_os` is generic over `K: AsRef<OsStr>`, and a
@@ -51,7 +48,7 @@ fn run() -> Result<(), StartupError> {
   match startup::arguments(std::env::args_os(), &|name| std::env::var_os(name))? {
     Launch::Help => {
       diagnostics::print_usage(); // stdout, and `run` returns Ok
-      Ok(())
+      Ok(Ended::AsAsked)
     }
     Launch::Version => {
       // `option_env!` and not `std::env::var`: the revision is a property of
@@ -63,13 +60,13 @@ fn run() -> Result<(), StartupError> {
       // Handed on unjudged: set-but-empty is unset, and `version_line` is
       // where that is decided and tested (`review-code.md` F-2).
       diagnostics::print_version(option_env!("GOAD_REVISION"));
-      Ok(())
+      Ok(Ended::AsAsked)
     }
     Launch::Config(path) => start(&path),
   }
 }
 
-fn start(path: &Path) -> Result<(), StartupError> {
+fn start(path: &Path) -> Result<Ended, StartupError> {
   // 1. The config, the clock and the backend, before any UI exists. The
   //    command and timeout are cloned out of the config for the transport;
   //    the config itself is not yet moved — step 3 still needs to read its
@@ -132,6 +129,10 @@ fn start(path: &Path) -> Result<(), StartupError> {
   // 6. The bridge. One `Wire`, cloned into each callback and nowhere else.
   let (tx, rx) = mpsc::channel::<Command>(1);
   let cancel = Cancel::new();
+  //    A clone kept back before `cancel` moves into `serve` below, for the
+  //    same reason `pending` is (step 7): the read after the loop call needs
+  //    the signal, and by then `cancel` itself belongs to the task.
+  let stop_signal = cancel.clone();
   let notice = Notice::new();
   let wire = Wire::new(tx.clone(), cancel.clone(), notice.clone());
   //    The debounce, created **here** and not inside `install`, because
@@ -186,6 +187,13 @@ fn start(path: &Path) -> Result<(), StartupError> {
   })
   .map_err(StartupError::EventLoop)?;
 
-  slint::run_event_loop_until_quit().map_err(StartupError::Platform)?;
-  Ok(())
+  // The seam (design.md §5.1, §5.2). The call's own line ends at the call —
+  // nothing is applied to its result here, on pain of
+  // `structure::the_loop_s_ending_is_never_a_startup_failure` — and the read
+  // comes after it on the page, not by argument-evaluation order: every route
+  // that trips `Cancel` is a callback the loop runs, so once the call has
+  // returned, `stop_signal.is_stopped()` is final. The loop's ending is not a
+  // startup failure; `exit::ended` decides which end it was.
+  let call = slint::run_event_loop_until_quit();
+  Ok(exit::ended(call, stop_signal.is_stopped()))
 }

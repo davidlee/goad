@@ -5,14 +5,16 @@
 //! asserted verbatim; the usage block produced by one `const` and
 //! byte-identical wherever it appears; a usage error's text not containing
 //! the usage block; both `source()`s `None`; the argument table's rows; and
-//! the two stderr outlets' exact strings, via their pure `_line` half (F-7).
+//! `report_startup_line`'s, `report_exit_line`'s and `report_platform_line`'s
+//! exact strings, via their pure half (F-7).
 //!
-//! No test here runs the binary or asserts an exit code (§9's own rule) —
-//! `main`'s one `match` over `run()`'s `Result` is what chooses the code,
-//! and every value that `match` sees is already covered here. That covers
-//! the **arms**; it does not cover the **constant** either arm names, which
-//! `nix/module.nix` depends on by value. `tests/binary/exit_codes.rs` holds
-//! that, one tier up (`review-code.md` F-1).
+//! No test here runs the binary (§9's own rule). The number `main` answers is
+//! `exit::status`'s, a pure function, and this tier holds every shape it can
+//! see — the **numbers** as well as the arms, now that neither lives in a
+//! `match` inside `main`. What this tier cannot reach is the **process**:
+//! that the number `exit::status` answers is what a caller of the binary
+//! actually observes. `tests/binary/exit_codes.rs` holds that, one tier up
+//! (`review-code.md` F-1).
 
 use std::ffi::OsString;
 use std::path::PathBuf;

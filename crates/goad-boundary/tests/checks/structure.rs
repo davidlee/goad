@@ -200,6 +200,16 @@ fn calls_resolve(code: &str) -> bool {
   })
 }
 
+/// design.md §5.2's shape for the event-loop call's own line: nothing is
+/// applied to its result there, however the application is spelled. `code` is
+/// already `code_of`-stripped by `production_lines`, so this only trims and
+/// compares the tail — a shape rather than a list of the spellings a
+/// re-filing could wear, because the needles kept leaking (`?` directly on
+/// the call, `map_err(Into::into)`, an imported variant, an alias).
+fn ends_at_the_loop_call(code: &str) -> bool {
+  code.trim_end().ends_with("run_event_loop_until_quit();")
+}
+
 fn report(found: &[Occurrence]) -> String {
   found
     .iter()
@@ -277,6 +287,31 @@ fn the_subject_directories_are_found_and_are_not_empty() {
 fn quit_event_loop_has_exactly_one_call_site() {
   let found = occurrences_of(SUBJECT_DIR, "quit_event_loop(");
   assert_eq!(found.len(), 1, "found:\n{}", report(&found));
+}
+
+/// design.md §5.2 R2: exactly one production line of `crates/goad/src` names
+/// `run_event_loop_until_quit`, and that line ends at the call — nothing is
+/// applied to the loop's result on the line that makes it, so the loop's
+/// ending cannot be re-filed as a startup failure on that line however the
+/// re-filing is spelled.
+///
+/// **What this case does not reach** (`review-design.md` F-55): a re-filing
+/// written off the call's own line that does not name the function — of the
+/// call's binding, or of the `Ended` that `exit::ended` answers, in `start`,
+/// `run` or `main`. That is review.
+#[test]
+fn the_loop_s_ending_is_never_a_startup_failure() {
+  let named = occurrences_of(SUBJECT_DIR, "run_event_loop_until_quit");
+  assert_eq!(named.len(), 1, "found:\n{}", report(&named));
+
+  let not_ending_at_the_call = occurrences_where(SUBJECT_DIR, |code| {
+    code.contains("run_event_loop_until_quit") && !ends_at_the_loop_call(code)
+  });
+  assert!(
+    not_ending_at_the_call.is_empty(),
+    "found:\n{}",
+    report(&not_ending_at_the_call)
+  );
 }
 
 /// Item 14f, second half: the token is `tokio::spawn`, not `spawn` —
@@ -379,7 +414,8 @@ fn schedule_resolve_is_called_only_from_host() {
 /// `vocabulary.rs`.
 mod counting_itself {
   use super::{
-    calls_resolve, code_of, code_without_literals, mentions, production_lines, workspace_root,
+    calls_resolve, code_of, code_without_literals, ends_at_the_loop_call, mentions,
+    production_lines, workspace_root,
   };
 
   #[test]
@@ -524,6 +560,28 @@ mod counting_itself {
       "use goad_semantics::schedule::resolve;",
     ] {
       assert!(!calls_resolve(line), "wrongly counted as a call: {line}");
+    }
+  }
+
+  /// `ends_at_the_loop_call`'s own control, half one: the shape the design
+  /// names — `    let call = slint::run_event_loop_until_quit();` — passes.
+  #[test]
+  fn the_bare_loop_call_ends_at_the_call() {
+    assert!(ends_at_the_loop_call(
+      "    let call = slint::run_event_loop_until_quit();"
+    ));
+  }
+
+  /// Half two: the call followed by a re-filing of its result, either
+  /// spelling, does not — the shape that would let the loop's ending be
+  /// re-filed as a startup failure on the call's own line.
+  #[test]
+  fn a_loop_call_with_its_result_re_filed_does_not() {
+    for line in [
+      "    slint::run_event_loop_until_quit().map_err(StartupError::Platform)?;",
+      "    slint::run_event_loop_until_quit()?;",
+    ] {
+      assert!(!ends_at_the_loop_call(line), "wrongly counted: {line}");
     }
   }
 

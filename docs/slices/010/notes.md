@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-09-23 |
-| PHASE-02 | pending | 2026-09-23 |
+| PHASE-02 | done | 2026-09-23 |
 | PHASE-03 | pending | 2026-09-23 |
 
 ## Phase sheets
@@ -617,51 +617,141 @@ are the **only** writer on this tree while you run.
 
 **Tasks**
 
-- [ ] T-1 — `git log --oneline -1` is `e7aca88` or a documentation-only
+- [x] T-1 — `git log --oneline -1` is `e7aca88` or a documentation-only
       descendant of it that adds this sheet; tree clean. Record it.
-- [ ] T-2 — **VT-1, the slice's one natural red.** Write
+
+      `abdbba7` — "010: PHASE-02's sheet is written, EN-1 measured at
+      e7aca88", a documentation-only descendant of `e7aca88` adding this
+      sheet. Tree clean.
+- [x] T-2 — **VT-1, the slice's one natural red.** Write
       `ends_at_the_loop_call` and `the_loop_s_ending_is_never_a_startup_failure`
       against today's tree. Run `cargo test -p goad-boundary --test checks
       the_loop_s_ending --no-fail-fast`; it must **red on an assertion**, naming
       `crates/goad/src/main.rs` and the `.map_err(StartupError::Platform)?;`
       line. Quote the failure here.
-- [ ] T-3 — **The seam** (`main.rs`) and `report_exit` in / `report_startup`
+
+      Redded as expected, on the emptiness assertion (`structure.rs:310` at
+      the time of the run):
+      ```
+      thread 'structure::the_loop_s_ending_is_never_a_startup_failure' panicked at crates/goad-boundary/tests/checks/structure.rs:310:3:
+      found:
+      /home/david/dev/goad/crates/goad-boundary/../../crates/goad/src/main.rs:189
+      ```
+      `main.rs:189` is `slint::run_event_loop_until_quit().map_err(StartupError::Platform)?;`
+      — the count assertion passed (one occurrence), the shape assertion
+      failed on it.
+- [x] T-3 — **The seam** (`main.rs`) and `report_exit` in / `report_startup`
       out (`diagnostics.rs`), in one movement. `cargo build -p goad`; then T-2's
       command **green**. Quote it.
-- [ ] T-4 — **VT-3.** `cargo test -p goad --test binary --no-fail-fast`: all
+
+      `cargo build -p goad` — clean. `cargo test -p goad-boundary --test
+      checks the_loop_s_ending --no-fail-fast`:
+      ```
+      test structure::the_loop_s_ending_is_never_a_startup_failure ... ok
+      test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out
+      ```
+- [x] T-4 — **VT-3.** `cargo test -p goad --test binary --no-fail-fast`: all
       **6** green, `git diff` over `crates/goad/tests/binary/` empty.
-- [ ] T-5 — **VT-2.** The two `counting_itself` controls. Red them first
+
+      All 6 (`exit_codes`'s 5 + `version`'s 1) green, unmodified. Assumption 6
+      holds: the rewired `main` leaves the binary tier untouched.
+- [x] T-5 — **VT-2.** The two `counting_itself` controls. Red them first
       against a deliberately wrong `ends_at_the_loop_call` (e.g. `|_| true`
       reds the second, `|_| false` the first); then the real body.
-- [ ] T-6 — **Docs** (EX-3, EX-4, EX-5): `startup.rs`'s four sites,
+
+      `|_| true`: `the_bare_loop_call_ends_at_the_call` ok,
+      `a_loop_call_with_its_result_re_filed_does_not` FAILED (as predicted).
+      `|_| false`: the first FAILED, the second ok (as predicted). Restored
+      body byte-identical to T-2's (`diff` clean against the scratchpad
+      copy); `cargo test -p goad-boundary --test checks structure
+      --no-fail-fast`: **22** passed, 0 failed, 24 filtered out.
+- [x] T-6 — **Docs** (EX-3, EX-4, EX-5): `startup.rs`'s four sites,
       `diagnostics.rs`'s two, `renderer/startup.rs`'s module doc, and every
       comment in `main.rs` the new shape made false.
-- [ ] T-7 — **Refactor.** Not optional. Read each surface back as a stranger
+
+      `startup.rs`: `Launch`'s doc now says the decision stays in
+      `exit::status`; `StartupError`'s type doc adds where the loop's ending
+      went (`Ended`, via `exit::ended`) and its `Err`-arm-number paragraph is
+      replaced (no spec number, D6); `Platform`'s variant doc drops
+      `run_event_loop_until_quit`. `diagnostics.rs`: `report_startup_line`'s
+      doc re-anchored to `report_exit`; the module `//!` doc names
+      `report_exit` and stays true as history ("the impure outlet renamed
+      `report_exit` at 010/PHASE-02", with no counting word and — per T-10's
+      grep — no literal occurrence of the removed name inside `crates/`).
+      `renderer/startup.rs`'s module doc: names each `_line`
+      function rather than counting them, and states the moved cut — this
+      tier now holds the numbers, the binary tier holds that the process
+      answers them to a caller. `main.rs`: step 6's new clone has its own
+      comment; step 9's comment stands (never claimed the loop's error was a
+      startup failure); the final block's comment states the seam.
+- [x] T-7 — **Refactor.** Not optional. Read each surface back as a stranger
       would: does any doc still say the loop's error is a startup failure, that
       `main` matches, or count something; is `ends_at_the_loop_call` the only
       new matcher (no parallel walk); does `main.rs` still read top to bottom.
-- [ ] T-8 — **EX-7, the scan mutations.** Each applied alone to a tree restored
+
+      Re-read all five surfaces. No remaining sentence claims the loop's
+      error is a startup failure, or that `main` matches over anything (it
+      has no `match`); the two doc sentences rewritten for this phase
+      (`startup.rs`'s `Launch` doc, `diagnostics.rs`'s module `//!`) carry no
+      counting word. `ends_at_the_loop_call` is the only new matcher, used
+      through the existing `occurrences_where`/`occurrences_of` — no second
+      walk. `main.rs` reads top to bottom: `main`, `run`, `start`, its nine
+      numbered steps unchanged in shape, step 6's clone and the closing seam
+      each carrying its own comment. Tidied two doc-comment line wraps left
+      ragged by the edit (no content change). `cargo fmt --all -- --check`
+      clean; `cargo clippy -p goad -p goad-boundary --all-targets -- -D
+      warnings`: 0 warnings.
+- [x] T-8 — **EX-7, the scan mutations.** Each applied alone to a tree restored
       from a byte copy of `main.rs` (scratchpad, never `git checkout`), run
       with `cargo test --workspace --no-fail-fast`, recorded below, restored and
       `diff`ed against the copy. Fill in *compiled?* and *redded*; the red set
       must be **exactly** the one case.
-- [ ] T-9 — **VA-1**, the review no test reaches. Record each, by symbol, under
+- [x] T-9 — **VA-1**, the review no test reaches. Record each, by symbol, under
       §VA-1 below: (a) `is_stopped` is read on `stop_signal`, a clone of the
       `Cancel` handed to `serve`, in the statement after the call's own; (b)
       `exit::ended` receives the call's own result, unmapped; (c) no site in
       `crates/goad/src` other than `exit::ended` constructs
       `Ended::StoppedRunning` — `grep -rn 'StoppedRunning(' crates/goad/src`,
       quoted, and each hit classified (construction vs pattern); (d) nothing
-      downstream of `exit::ended` turns an `Ended` into an `Err`.
-- [ ] T-10 — **VA-2.** `grep -rn "report_startup\b" crates docs/slices/010`,
+      downstream of `exit::ended` turns an `Ended` into an `Err`. See §VA-1.
+- [x] T-10 — **VA-2.** `grep -rn "report_startup\b" crates docs/slices/010`,
       quoted; every hit outside `crates/` is slice history, and there is none
       in `crates/`.
-- [ ] T-11 — **EX-8.** Every case `draft-spec.md` §7 cites that this phase owns
+
+      First pass had one hit in `crates/`: T-6's `diagnostics.rs` module doc
+      named the removed identifier literally ("born `report_startup`") to
+      keep the sentence historically true. Reworded to state the same fact —
+      PHASE-08 added an outlet later renamed `report_exit` — without the
+      literal name (§Decisions). Re-grepped: every remaining hit is under
+      `docs/slices/010/` (`design.md`, `design-log.md`, `plan.md`,
+      `review-design.md`, `slice-010.md`, this file) — the slice's own
+      history. Zero in `crates/`. Rebuilt and reran the full workspace suite
+      after the edit: unchanged, all green.
+- [x] T-11 — **EX-8.** Every case `draft-spec.md` §7 cites that this phase owns
       resolves by the name cited — the closed list is the three case names in
       T-2 and T-5. Grep each.
-- [ ] T-12 — **EX-1.** `just check` exits 0. Quote the gate total **and** the
+
+      Grepped each of the three (`the_loop_s_ending_is_never_a_startup_failure`,
+      `the_bare_loop_call_ends_at_the_call`,
+      `a_loop_call_with_its_result_re_filed_does_not`) against `draft-spec.md`.
+      Only the first is cited (§7, R-2's row, as
+      `structure::the_loop_s_ending_is_never_a_startup_failure`), and it
+      resolves exactly to `structure.rs:303`'s `fn
+      the_loop_s_ending_is_never_a_startup_failure`. The other two are not
+      cited in §7, so there is nothing stale for them to be.
+- [x] T-12 — **EX-1.** `just check` exits 0. Quote the gate total **and** the
       workspace denominator, and `checks` / `renderer` / `binary`, against the
       baseline above.
+
+      `just check` — **exit 0**. `cargo test --workspace` sums to **597**
+      (unchanged from baseline); `cargo test -p goad-semantics`'s standalone
+      step adds its 35 (30 + 5) again for a gate total of **632**
+      (baseline 629 + the 3 new `checks` cases). Against the baseline:
+      `checks` **46** (was 43, +3 — the `the_loop_s_ending_is_never_a_startup_failure`
+      top-level case and the two `counting_itself` controls), `renderer`
+      **221** (unchanged), `goad`'s `binary` **6** (unchanged). `deno check`,
+      `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt
+      --all --check` each produced no output — clean.
 - [ ] T-13 — Commit (`010: PHASE-02 — …`). §Status PHASE-02 → `done`.
       §Harvest updated **in place** (add the stale memory file under what close
       must lift). §Findings, §Decisions and §Mutation evidence complete. Then go
@@ -671,15 +761,63 @@ are the **only** writer on this tree while you run.
 
 | # | the edit (quoted) | must red, by name | compiled? | redded (workspace, `--no-fail-fast`) | restore green? |
 |---|---|---|---|---|---|
-| M-9 | `start`: `let call = Ok(slint::run_event_loop_until_quit().map_err(StartupError::Platform)?);` | `the_loop_s_ending_is_never_a_startup_failure` only | | | |
-| M-10 | `main.rs`: add `use goad::startup::StartupError::Platform;`; `start`: `let call = Ok(slint::run_event_loop_until_quit().map_err(Platform)?);` | `the_loop_s_ending_is_never_a_startup_failure` only | | | |
-| M-11 | `main.rs`: a second, real production call, **over several lines so its own line ends at the call** — this row isolates the count half — e.g. `#[allow(dead_code)]` / `fn loop_again() {` / `  let _ = slint::run_event_loop_until_quit();` / `}` | `the_loop_s_ending_is_never_a_startup_failure` only, on the **count** assertion | | | |
+| M-9 | `start`: `let call = Ok(slint::run_event_loop_until_quit().map_err(StartupError::Platform)?);` | `the_loop_s_ending_is_never_a_startup_failure` only | yes | exactly `the_loop_s_ending_is_never_a_startup_failure` | yes — restored from scratchpad byte copy, `diff` clean |
+| M-10 | `main.rs`: add `use goad::startup::StartupError::Platform;`; `start`: `let call = Ok(slint::run_event_loop_until_quit().map_err(Platform)?);` | `the_loop_s_ending_is_never_a_startup_failure` only | yes | exactly `the_loop_s_ending_is_never_a_startup_failure` | yes — restored from scratchpad byte copy, `diff` clean |
+| M-11 | `main.rs`: a second, real production call, **over several lines so its own line ends at the call** — this row isolates the count half — e.g. `#[allow(dead_code)]` / `fn loop_again() {` / `  let _ = slint::run_event_loop_until_quit();` / `}` | `the_loop_s_ending_is_never_a_startup_failure` only, on the **count** assertion | yes | exactly `the_loop_s_ending_is_never_a_startup_failure`, on the count assertion (`left: 2, right: 1`, naming `main.rs:197` and `main.rs:203`) | yes — restored from scratchpad byte copy, `diff` clean |
 
 **VA-1**
 
 <!-- (a)–(d) from T-9, each with the symbol it was checked against. -->
 
+(a) `main.rs`'s `start`: `stop_signal` is bound at step 6 (`let stop_signal =
+cancel.clone();`, immediately after `Cancel::new()` and before `cancel` moves
+into the step-9 `spawn_local` closure that hands it to `serve`), and read at
+`stop_signal.is_stopped()` in the statement immediately after `let call =
+slint::run_event_loop_until_quit();` — after the call, not before it and not
+by argument-evaluation order.
+
+(b) The same statement: `Ok(exit::ended(call, stop_signal.is_stopped()))` —
+`call` is bound on the line above with no `.map_err`, no `?`, nothing applied
+to it; it is `exit::ended`'s first argument unmapped.
+
+(c) `grep -rn 'StoppedRunning(' crates/goad/src`:
+```
+crates/goad/src/exit.rs:46:  StoppedRunning(Option<slint::PlatformError>),
+crates/goad/src/exit.rs:61:    Ended::StoppedRunning(call.err())
+crates/goad/src/exit.rs:75:    Ok(Ended::StoppedRunning(_)) => 1,
+crates/goad/src/diagnostics.rs:453:    Ok(Ended::StoppedRunning(Some(error))) => {
+crates/goad/src/diagnostics.rs:456:    Ok(Ended::StoppedRunning(None)) => {
+```
+Classified: `exit.rs:46` is the variant's own declaration (neither
+construction nor pattern — the type itself); `exit.rs:61`, inside
+`exit::ended`, is the one **construction**; `exit.rs:75`
+(`exit::status`), `diagnostics.rs:453` and `diagnostics.rs:456`
+(`report_exit_line`) are all **patterns**, matching on a value already
+built. No construction site exists outside `exit::ended`.
+
+(d) Every downstream reader of an `Ended` matches on `&Result<Ended,
+StartupError>` and answers a plain value, never an `Err`: `exit::status`
+(`Ok(Ended::AsAsked) => 0`, `Ok(Ended::StoppedRunning(_)) => 1`, `Err(_) =>
+2` — all `u8`) and `diagnostics::report_exit_line`
+(`Ok(Ended::AsAsked) => None`, the two `StoppedRunning` arms `=> Some(..)`,
+`Err(error) => Some(report_startup_line(error))` — all `Option<String>`).
+`main`'s `run` and `start` only ever wrap an `Ended` in `Ok`, never unwrap one
+to re-raise it. `grep -rn "exit::ended|Ended::" crates/goad/src` outside
+`exit.rs` shows no other site.
+
 **Decisions taken during execution**
+
+- The sheet's VA-2 (`grep … crates docs/slices/010`, "there is none in
+  `crates/`") is stricter than `plan.md`'s original VA-2 ("no *surviving*
+  reference to the removed outlet outside the slice's own history") — the
+  sheet forbids the literal string anywhere under `crates/`, even inside a
+  true historical aside. Followed the sheet, the operative instruction for
+  this phase: `diagnostics.rs`'s module doc states the same historical fact
+  (PHASE-08 added an outlet later renamed `report_exit`) without spelling
+  the old identifier, satisfying both the letter of T-10 and design.md's
+  "stay true as history" for T-6. Not a STOP — the two versions asked for
+  the same outcome by a different route, and the stricter one was
+  satisfiable without weakening any doc's truth.
 
 **Findings**
 
@@ -812,6 +950,15 @@ sentence about what a running host has been seen to do is checked against this.
   five tests"* — which `exit_codes.rs` will falsify the moment a case is added
   there. Not raised as a finding: `research.md` was context to this review and
   not its subject. Sweep it at audit.
+- **`docs/memory/exit-2-means-two-different-failures.md` is stale after
+  PHASE-02, for close to lift.** It quotes `main` as having "one `match` over
+  `run()`'s `Result`" and the pre-seam call line
+  (`` slint::run_event_loop_until_quit().map_err(StartupError::Platform)?; ``)
+  — `main` no longer matches over anything, and the call's own line now ends
+  bare (`crates/goad/src/main.rs`'s `start`). The file is outside PHASE-02's
+  surfaces, so it was not edited here; its standing fact (exit 2 is
+  ambiguous, and a new `StartupError` variant inherits it) still holds and
+  needs only its quoted code repaired to match the tree.
 
 ## Handover — 2026-09-23, PHASE-01 done, PHASE-02 next
 
