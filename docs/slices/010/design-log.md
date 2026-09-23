@@ -372,3 +372,21 @@ not yet the gate** — confirmed or overturned when the design is presented.
   `draft-spec.md` §7's R-4 row says the case holds a prefix of standard error;
   `canon-delta.md` Change 1 says so too; `slice-010.md` §Scope names the two
   binary-tier files. Closed by the planner's site check, not a review round.
+
+### 2026-09-23 — at audit: canon endorsed, AC-5 waived for doc comments, the nix retry claim reworded
+
+- **Asked** (`audit.md` §Reconciliation): (1) endorse the canon rows C-1…C-6 as
+  drafted — `draft-spec.md` to `docs/specs/004-process-exit-status.md`, its
+  `DRAFT-ONLY` comment removed, `canon-delta.md` Changes 1–3 applied to
+  SPEC-003 (1 and 3 together), and the `SPEC-004` citations in
+  `nix/module.nix`, `exit.rs` and `StartupError`'s doc with the code repairs;
+  (2) `help_prints_the_usage_block_on_stdout_and_exits_0`'s doc says
+  *"`Ok(())` is exit 0"*, false since PHASE-02, and AC-5 forbids touching an
+  existing case — waive or hold; (3) audit's A-1: the new nix comment's
+  *"a restart changes nothing a person has not changed first"* is a
+  retryability claim — reword as the unit's policy, or keep.
+- **Decided:** endorse all; waive AC-5 for doc comments (it protects the cases'
+  behaviour) and repair the sentence; reword as policy.
+- **Consequence:** promotion proceeds; the AC-5 waiver is recorded in
+  `audit.md`. (3) is the same class as `review-code.md` round 1 F-1, raised
+  independently — the repair of F-1 carries it.
