@@ -395,6 +395,294 @@ and `wire.rs`'s case is covered by T-5's own two stand-ins.
   slice's to repair: EX-2 replaces only the counting sentences. Raised here for
   audit to disposition (`plan.md` §What no phase does).
 
+### PHASE-02 — the seam
+
+**Objective:** `main` has no branch: `run` answers `Result<Ended,
+StartupError>`, the loop's end reaches `exit::ended` with a read of the stop
+signal taken after the call, `StartupError` no longer carries the loop's end,
+and a gate case holds the call's line.
+
+Written by the orchestrator, not the executor (`notes.md` §Handover; the 010
+split): with no plan review, this sheet is the plan's only adversarial reading
+before code, so it is written by someone who will not execute it.
+
+**Surfaces** (`plan.md` PHASE-02; anything outside this list is a STOP):
+`crates/goad/src/main.rs`, `crates/goad/src/startup.rs` (**docs only**),
+`crates/goad/src/diagnostics.rs` (`report_exit` in, `report_startup` out,
+`report_startup_line`'s doc, the module's `//!` doc — nothing else),
+`crates/goad/tests/renderer/startup.rs` (**module doc only**),
+`crates/goad-boundary/tests/checks/structure.rs`. `draft-spec.md` §7 and
+`design.md` §9 **only** if a case is renamed, and then in the same commit.
+
+**Entry criteria, verified rather than assumed**
+
+- **EN-1 — discharged by the orchestrator at `e7aca88`**, before this sheet was
+  written:
+  - *PHASE-01 `done` in §Status* — yes, 2026-09-23.
+  - *its EX criteria hold on HEAD* — `just check` **exit 0**; gate total
+    **629**, `cargo test --workspace` **594** (the 35 counted twice is
+    `goad-semantics`' 30 + 5). `exit::{Ended, ended, status}`,
+    `Cancel::is_stopped` and `diagnostics::report_exit_line` exist.
+    HEAD `e7aca88` is documentation only on top of PHASE-01's `ab5604f`.
+
+**Baseline for the targets this phase touches**, from that run: `goad`
+`tests/renderer` **221**, `goad` `tests/binary` **6** (`exit_codes` 5 +
+`version` 1), `goad-boundary` `tests/checks` **43**. This phase adds three
+cases to `checks` (one in the file's top level, two in `counting_itself`), so
+the expected end state is `checks` **46**, workspace **597**, gate **632** —
+and every other figure unchanged. A figure that differs is a finding.
+
+**Reading list** — by symbol, never `path:line`.
+
+*What is being written*
+
+- `crates/goad/src/main.rs`
+  - `main` becomes `design.md` §5.2's three lines, exactly:
+    `let outcome = run();`, `diagnostics::report_exit(&outcome);`,
+    `ExitCode::from(exit::status(&outcome))`. Imports gain `goad::exit::{self,
+    Ended}` (or the spelling rustfmt/clippy settle on).
+  - `run` → `Result<Ended, StartupError>`; the `Help` and `Version` arms answer
+    `Ok(Ended::AsAsked)`. `run`'s doc (*"This is the fallible half, and it is
+    the only place a `StartupError` is produced"*) must still be true after the
+    change — re-read it; `start` produces them too, as it does today.
+  - `start` → `Result<Ended, StartupError>`. In step 6, **immediately after
+    `let cancel = Cancel::new();`** and before `cancel` moves into `serve`:
+    `let stop_signal = cancel.clone();`, with a comment in the file's voice
+    saying why (the `pending` / `Rc::clone(&pending)` comment in step 6–7 is
+    the precedent for "a clone kept back for a reason"). The last two
+    statements become:
+    ```rust
+    let call = slint::run_event_loop_until_quit();
+    Ok(exit::ended(call, stop_signal.is_stopped()))
+    ```
+    The call written **by its path**; no `use slint::run_event_loop_until_quit`.
+    Two statements, not one: the read comes after the call on the page, not by
+    argument-evaluation order (`design.md` §5.2). Step 9's comment and any
+    comment that says the loop's error is a startup failure are repaired.
+- `crates/goad/src/diagnostics.rs`
+  - `report_startup` **removed**. `report_exit` in its place, doc *"stderr,
+    once, last."* (`design.md` §5.2), body writing `report_exit_line`'s line,
+    if any, through `line_to(std::io::stderr().lock(), …)` — as the outlet it
+    replaces does.
+  - `report_startup_line`'s doc opens *"The exact string `report_startup`
+    writes"* — re-anchor it to `report_exit` (F-34). Its name, signature and
+    text do not change: the binary tier names that text and AC-5 forbids
+    touching those cases.
+  - The module `//!` doc names `report_startup` among PHASE-08's outlets. It
+    must name `report_exit` instead **and stay true as history** — `report_exit`
+    was not added at PHASE-08. The sentence is the executor's to spell; the
+    constraint is that no sentence in it is false. It also counts (*"two
+    outlets"*, *"a third"*); `CLAUDE.md` *name, never count* applies to any
+    sentence you rewrite. Do not rewrite sentences you are not otherwise
+    touching.
+- `crates/goad/src/startup.rs` — **docs only**, no signature or text change:
+  - `Launch`'s doc: *"so `main` keeps its single exit-code decision"* — say
+    where that decision now is (`exit::status`).
+  - `StartupError`'s type doc: *every way `run` can fail to reach the event
+    loop* becomes true; add a sentence saying where the loop's ending went
+    (`Ended`, via `exit::ended`).
+  - The paragraph *"Every variant is exit **2**: `main` has one `match` over
+    `run`'s `Result`…"* is replaced by the rule: the number is `exit::status`'s
+    single `Err` arm, which reads no variant; what 2 means is the spec's — **no
+    spec number** (D6). Whether `nix/module.nix` depending on the numeral and
+    `tests/binary/exit_codes.rs` holding it stay is your call; they are still
+    true.
+  - `Platform`'s variant doc names `set_xdg_app_id`, `PromptWindow::new` and
+    `Tray::new`, and **not** `run_event_loop_until_quit`.
+- `crates/goad/tests/renderer/startup.rs` — **module doc only.** It says *"No
+  test here runs the binary or asserts an exit code"* and that `main`'s one
+  `match` chooses the code. After this phase the numbers are a pure function's
+  answers and this tier holds them; the binary tier holds that the **process**
+  answers them to a caller (EX-5). No sentence may say this tier asserts no exit
+  code. It also says *"the two stderr outlets' exact strings"* — PHASE-01 made
+  that three `_line` functions; name them, don't count them.
+- `crates/goad-boundary/tests/checks/structure.rs`
+  - A named predicate **`ends_at_the_loop_call(code: &str) -> bool`**, beside
+    `calls_resolve`: the line's `code_of`-stripped text, trimmed, ends
+    `run_event_loop_until_quit();`. Documented as `calls_resolve` is.
+  - **`the_loop_s_ending_is_never_a_startup_failure`**, top level, beside
+    `quit_event_loop_has_exactly_one_call_site`: exactly one production line of
+    `SUBJECT_DIR` names `run_event_loop_until_quit`, and that line satisfies
+    `ends_at_the_loop_call`. Build it on `occurrences_where` /
+    `occurrences_of` — **no second walk**. One spelling that needs no change to
+    `Occurrence`: assert `occurrences_of(SUBJECT_DIR, "run_event_loop_until_quit")`
+    has length 1, and `occurrences_where(SUBJECT_DIR, |code| code.contains(…) &&
+    !ends_at_the_loop_call(code))` is empty — each with `report(&found)` in the
+    message. Its **doc states what it does not reach** (`design.md` §5.2, *What
+    the case does not reach*, F-55): a re-filing written off the call's line
+    that does not name the function — of `call`, or of the `Ended` — in
+    `start`, `run` or `main`; that is review. The vocabulary scan's doc is the
+    precedent for a scan saying its own limit.
+  - In `counting_itself`: **`the_bare_loop_call_ends_at_the_call`** (the
+    string `    let call = slint::run_event_loop_until_quit();` passes) and
+    **`a_loop_call_with_its_result_re_filed_does_not`** (the call followed by
+    `.map_err(StartupError::Platform)?;`, and by `?;` alone, both fail). Add
+    `ends_at_the_loop_call` to that module's `use super::{…}`.
+  - The file's `//!` doc is **not** an inventory of its cases; do not make it
+    one.
+
+*Design sections that bind*
+
+- **§5.1** — *The decision is a pure function, and `start` only feeds it*: the
+  clone before `serve`, the call bound, **then** the read; every route that
+  trips `Cancel` is a callback the loop runs, so once the call returns the value
+  is final.
+- **§5.2** — the `main.rs` block, the `diagnostics.rs` block and the paragraph
+  under it (F-34, the `//!` doc), the `startup.rs` list, the `structure.rs`
+  paragraphs through *What the case does not reach*, and *The two-tier cut
+  moves*.
+- **§9** — the `structure` and `counting_itself` rows, and the three **scan**
+  mutations.
+- **§3** — the vocabulary scan reads `crates/**/*.rs` outside `tests/`; comments
+  are stripped before matching. `journal` must not appear in code or string
+  literals in `main.rs` or `diagnostics.rs`.
+- **§7 D6** — no spec number in any doc this phase writes.
+- **`draft-spec.md` §7**, R-1's and R-2's rows — the working canon for VA-1.
+  **Test names are commitments.**
+
+*Prior art — copy these rather than inventing*
+
+- `quit_event_loop_has_exactly_one_call_site` and
+  `slint_spawn_local_is_the_one_spawn_this_crate_uses` — the count-of-one shape
+  and its failure message.
+- `calls_resolve` and `the_call_matcher_counts_calls_and_nothing_else` — a
+  named line predicate beside the matchers, and its string controls in
+  `counting_itself`.
+- `report_platform` / `report_platform_line` — outlet over pure half.
+- `pending` in `start` (step 6, and `Rc::clone(&pending)` in step 7) — a handle
+  kept back from a move for a stated reason.
+
+*Memory that bears on this phase*
+
+- `docs/memory/negative-control-must-compile.md` — every scan mutation is
+  recorded as having compiled. §9 spells the two re-filings so they compile;
+  the obvious spelling (`let call = …map_err(…)?;`) makes `call` a `()` and
+  does not.
+- `a-standing-guard-may-not-reach-a-new-file` (the orchestrator's store, lifted
+  at close) — the scan case is a **new instrument**. Its string controls prove
+  the predicate reads a line; only the mutations, against real source, prove it
+  reaches the tree.
+- `docs/memory/a-green-test-can-assert-a-proxy.md` — the case asserts the
+  **shape**, not a needle; a case that only counted `map_err` would be a proxy.
+
+**Assumptions**
+
+Verified at plan or by the orchestrator at `e7aca88`; not re-derived.
+
+1. The only production line of `crates/goad/src` naming
+   `run_event_loop_until_quit` is `start`'s last-but-one statement; the doc
+   comments in `startup.rs` (`Platform`'s) and `controller.rs` (`Ending::Closed`)
+   that name it are stripped by `code_of`. `controller.rs`'s sentence stays true
+   after this phase (`tx` still outlives the call) and is **not** a surface.
+2. `exit.rs` and `main.rs` have no `#[cfg(test)]` item, so `production_lines`
+   reads them whole.
+3. `report_startup` has exactly one caller (`main`) and no reference outside
+   `crates/goad/src` except in slice folders' history.
+4. `Cancel: Clone`, and `Cancel::is_stopped` is `&self → bool`.
+5. The workspace denies `unused` except `dead_code = "warn"` (root
+   `Cargo.toml` `[lints]`). So a dead function compiles under `cargo test` (a
+   warning, not an error), and `unused_must_use` is denied — the second-call
+   mutation must bind the result (`let _ = …;` or `let _call = …;`).
+6. **The one thing this phase is first to test:** that the rewired `main`
+   leaves every binary-tier case green **unmodified** (VT-3). No case there
+   reaches the event loop; if one reds, it is not a wording problem — STOP.
+
+**Known staleness outside the surfaces** — do **not** edit; they are other
+phases' or close's, and listed so you do not mistake them for misses:
+`nix/module.nix`'s comment quoting the old call line and
+`tests/binary/exit_codes.rs`'s / `tests/binary/main.rs`'s module docs
+(PHASE-03); `docs/memory/exit-2-means-two-different-failures.md` quoting the
+old `match` and call line (close, from §Harvest — add it there).
+
+**STOP conditions** — stop and consult; do not improvise past any.
+
+- A criterion compels a file outside **Surfaces**.
+- A binary-tier case reds against the rewired `main` (Assumption 6).
+- A scan mutation does not compile in the §9 spelling, or does not red
+  `the_loop_s_ending_is_never_a_startup_failure`, or reds **anything else**
+  across the workspace.
+- A lint fires on `main`, `run`, `start` or `report_exit` and the only fix
+  changes a type, a signature or an arm's meaning.
+- The plan turns out wrong while executing. Go back; do not repair it here.
+- **Budget.** At ~200k tokens: stop at a green point, write `PARTIAL` here
+  naming what is and is not done, hand back.
+
+**Forbidden.** `git stash`, `git checkout`, `git reset`, `git rebase`,
+`git commit --amend`, `git push`. Editing `design.md`, `design-log.md`,
+`plan.md`, `plan-log.md`, `canon-delta.md`, `draft-spec.md` or any
+`review-*.md` — except the renamed-case carve-out above. Amending canon.
+Weakening or deleting a test to go green. `git add <explicit paths>` (never
+`-A`) and `git commit` on `main` are allowed, with the session trailers. You
+are the **only** writer on this tree while you run.
+
+**Tasks**
+
+- [ ] T-1 — `git log --oneline -1` is `e7aca88` or a documentation-only
+      descendant of it that adds this sheet; tree clean. Record it.
+- [ ] T-2 — **VT-1, the slice's one natural red.** Write
+      `ends_at_the_loop_call` and `the_loop_s_ending_is_never_a_startup_failure`
+      against today's tree. Run `cargo test -p goad-boundary --test checks
+      the_loop_s_ending --no-fail-fast`; it must **red on an assertion**, naming
+      `crates/goad/src/main.rs` and the `.map_err(StartupError::Platform)?;`
+      line. Quote the failure here.
+- [ ] T-3 — **The seam** (`main.rs`) and `report_exit` in / `report_startup`
+      out (`diagnostics.rs`), in one movement. `cargo build -p goad`; then T-2's
+      command **green**. Quote it.
+- [ ] T-4 — **VT-3.** `cargo test -p goad --test binary --no-fail-fast`: all
+      **6** green, `git diff` over `crates/goad/tests/binary/` empty.
+- [ ] T-5 — **VT-2.** The two `counting_itself` controls. Red them first
+      against a deliberately wrong `ends_at_the_loop_call` (e.g. `|_| true`
+      reds the second, `|_| false` the first); then the real body.
+- [ ] T-6 — **Docs** (EX-3, EX-4, EX-5): `startup.rs`'s four sites,
+      `diagnostics.rs`'s two, `renderer/startup.rs`'s module doc, and every
+      comment in `main.rs` the new shape made false.
+- [ ] T-7 — **Refactor.** Not optional. Read each surface back as a stranger
+      would: does any doc still say the loop's error is a startup failure, that
+      `main` matches, or count something; is `ends_at_the_loop_call` the only
+      new matcher (no parallel walk); does `main.rs` still read top to bottom.
+- [ ] T-8 — **EX-7, the scan mutations.** Each applied alone to a tree restored
+      from a byte copy of `main.rs` (scratchpad, never `git checkout`), run
+      with `cargo test --workspace --no-fail-fast`, recorded below, restored and
+      `diff`ed against the copy. Fill in *compiled?* and *redded*; the red set
+      must be **exactly** the one case.
+- [ ] T-9 — **VA-1**, the review no test reaches. Record each, by symbol, under
+      §VA-1 below: (a) `is_stopped` is read on `stop_signal`, a clone of the
+      `Cancel` handed to `serve`, in the statement after the call's own; (b)
+      `exit::ended` receives the call's own result, unmapped; (c) no site in
+      `crates/goad/src` other than `exit::ended` constructs
+      `Ended::StoppedRunning` — `grep -rn 'StoppedRunning(' crates/goad/src`,
+      quoted, and each hit classified (construction vs pattern); (d) nothing
+      downstream of `exit::ended` turns an `Ended` into an `Err`.
+- [ ] T-10 — **VA-2.** `grep -rn "report_startup\b" crates docs/slices/010`,
+      quoted; every hit outside `crates/` is slice history, and there is none
+      in `crates/`.
+- [ ] T-11 — **EX-8.** Every case `draft-spec.md` §7 cites that this phase owns
+      resolves by the name cited — the closed list is the three case names in
+      T-2 and T-5. Grep each.
+- [ ] T-12 — **EX-1.** `just check` exits 0. Quote the gate total **and** the
+      workspace denominator, and `checks` / `renderer` / `binary`, against the
+      baseline above.
+- [ ] T-13 — Commit (`010: PHASE-02 — …`). §Status PHASE-02 → `done`.
+      §Harvest updated **in place** (add the stale memory file under what close
+      must lift). §Findings, §Decisions and §Mutation evidence complete. Then go
+      idle — make no commit after reporting.
+
+**Mutation evidence**
+
+| # | the edit (quoted) | must red, by name | compiled? | redded (workspace, `--no-fail-fast`) | restore green? |
+|---|---|---|---|---|---|
+| M-9 | `start`: `let call = Ok(slint::run_event_loop_until_quit().map_err(StartupError::Platform)?);` | `the_loop_s_ending_is_never_a_startup_failure` only | | | |
+| M-10 | `main.rs`: add `use goad::startup::StartupError::Platform;`; `start`: `let call = Ok(slint::run_event_loop_until_quit().map_err(Platform)?);` | `the_loop_s_ending_is_never_a_startup_failure` only | | | |
+| M-11 | `main.rs`: a second, real production call, **over several lines so its own line ends at the call** — this row isolates the count half — e.g. `#[allow(dead_code)]` / `fn loop_again() {` / `  let _ = slint::run_event_loop_until_quit();` / `}` | `the_loop_s_ending_is_never_a_startup_failure` only, on the **count** assertion | | | |
+
+**VA-1**
+
+<!-- (a)–(d) from T-9, each with the symbol it was checked against. -->
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
