@@ -821,6 +821,23 @@ to re-raise it. `grep -rn "exit::ended|Ended::" crates/goad/src` outside
 
 **Findings**
 
+- **Orchestrator re-measure at `5b23720`**: `just check` exit 0, gate **632**;
+  M-9 re-run independently — compiled (no `error[E…]`), `cargo test
+  --workspace --no-fail-fast` **596 passed, 1 failed**, the one being
+  `structure::the_loop_s_ending_is_never_a_startup_failure`; restored and
+  `diff`-clean. Matches the row above.
+- **`diagnostics.rs`'s `//!` doc says `report_exit` was the outlet
+  *"renamed"* at 010/PHASE-02. It was not renamed**: `report_startup(&StartupError)`
+  was removed and `report_exit(&Result<Ended, StartupError>)`, a different
+  function over a different value, replaced it (`design.md` §5.2). The cause is
+  this sheet, not the executor: its VA-2 forbade the old identifier anywhere
+  under `crates/`, stricter than `plan.md` PHASE-02/VA-2 (*"no surviving
+  reference … outside the slice's own history"*), and the only way to keep the
+  history while obeying it was a paraphrase. One-word repair (*replaced*, or
+  name `report_startup` as history, which the plan's VA-2 admits); for audit's
+  code review to disposition. The class — a sheet tightening a plan criterion
+  without saying so — is the orchestrator's to carry.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
@@ -960,71 +977,29 @@ sentence about what a running host has been seen to do is checked against this.
   ambiguous, and a new `StartupError` variant inherits it) still holds and
   needs only its quoted code repaired to match the tree.
 
-## Handover — 2026-09-23, PHASE-01 done, PHASE-02 next
+## Handover — 2026-09-23, PHASE-02 done, PHASE-03 next
 
-Written for a fresh agent. The slice is **executing**. `plan.md` is accepted at
-`448f678` and **no plan review runs** (`plan-log.md`, and what that costs is
-recorded there). **PHASE-01 is `done`** at `ab5604f`: the pure layer is in the
-tree, asserted one tier down, and nothing calls it from `main` yet.
+Written for a fresh agent. The slice is **executing**; `plan.md` accepted, no
+plan review (`plan-log.md`). **PHASE-01 `done`** at `ab5604f`, **PHASE-02
+`done`** at `5b23720`: `main` is three lines, `run`/`start` answer
+`Result<Ended, StartupError>`, `report_exit` replaced `report_startup`, and
+`structure::the_loop_s_ending_is_never_a_startup_failure` holds the call's
+line (its natural red recorded in PHASE-02's T-2).
 
-The gate was re-run by the orchestrator at `ab5604f` rather than taken from the
-phase agent's report: **exit 0**, gate total **629**, `cargo test --workspace`
-**594** — the gate runs `cargo test -p goad-semantics` as a command of its own,
-so that crate's 30 + 5 are counted twice and the total stays exactly 35 above
-the workspace figure. `goad` lib **58 → 59**, `goad` `tests/renderer`
-**208 → 221**.
+Re-measured by the orchestrator at `5b23720`, not taken from the report:
+`just check` **exit 0**, gate **632**, `cargo test --workspace` **597** (35
+counted twice, `goad-semantics`' 30 + 5); `checks` **46**, `renderer` **221**,
+`goad` `binary` **6**. M-9 re-run independently and matched.
 
-**PHASE-01's negative control is the result worth carrying forward**, and it is
-in §Findings: the crate-root `wildcard_enum_match_arm` deny does **not** reach
-`exit::status`'s match. Re-measured by the orchestrator — `_ => 1` in place of
-the last two arms compiles and leaves `cargo clippy -p goad --all-targets --
--D warnings` green. What holds that match's exhaustiveness is `exit_status`'s
-cases and M-1/M-2, not the gate. No code is wrong; `design.md` §3's sentence
-about the deny is what reads stronger than the gate is, and it is audit's to
-disposition.
+**Carried to audit** (each in its phase's §Findings): the crate-root
+`wildcard_enum_match_arm` deny does not reach `exit::status` (PHASE-01);
+`lib.rs`'s `path:line` citations (PHASE-01); `diagnostics.rs`'s *"renamed"*
+(PHASE-02); `docs/memory/exit-2-means-two-different-failures.md` stale (§Open,
+close lifts it).
 
-PHASE-02's and PHASE-03's sheets do not exist and must not be written ahead of
-their phases (`docs/AGENTS.md` §Phase plan: a sheet written three phases early
-is fiction).
-
-**What happened at plan.** Verification of `design.md` against the tree at
-`b444c6a` passed except for **P-1**: `exit_codes::an_unbindable_ingress_path_exits_2`,
-asserting the status alone, was green for any startup failure — measured, a
-bindable path exits 2 headlessly at `PromptWindow::new`, and on this machine
-(`WAYLAND_DISPLAY` set) the corresponding mutant would launch a real host and
-hang the gate. The user took both repairs and a site check over a review round
-(`design-log.md`, *P-1, raised at plan*): the case asserts the ingress arm's
-stderr prefix, and `process::command` removes the display variables.
-`design.md` §5.2 and §9, `draft-spec.md` §7 R-4, `canon-delta.md` Change 1 and
-`slice-010.md` §Scope were repaired in `9f0a503`; the site check found no other
-sentence claiming the case holds only the status (the closed ledger's wording
-is history).
-
-**Verified clean at plan**, so a phase need not re-derive it: every symbol
-`design.md` §5 names exists as described — the four `StartupError::Platform`
-sites in `start`; `Cancel` holding its own receiver and `Notice::raised` as the
-`*self.rx.borrow()` precedent; `install`'s two `stop` routes; `structure.rs`'s
-`code_of`, `production_lines`, `occurrences_where`, `calls_resolve`,
-`counting_itself`; `display_text::platform`; `report_startup`'s single caller
-and its doc sites; `lib.rs`'s counting header; `nix/module.nix`'s directives;
-`slint::PlatformError`'s `#[non_exhaustive]`, `From<String>`, a hand-written
-`Debug` and no `PartialEq`. The only non-`start` production mentions of
-`run_event_loop_until_quit` are doc comments `code_of` strips.
-`tests/renderer/main.rs` does **not** carry the `wildcard_enum_match_arm` deny.
-
-**PHASE-01 STOP conditions** (in `plan.md`): `Cancel::is_stopped`,
-`exit::ended` and the `Option` arms have never compiled in the tree; a lint
-that fires is a spelling, and a fix that changes a type or an arm's meaning is
-a STOP. §9's mutations are unrun; each phase owns its share (`plan.md`
-§Coverage) and records them under **Mutation evidence** in its sheet.
-
-**For audit, beyond `plan.md` §What no phase does:** `lib.rs`'s header carries
-`path:line` citations outside the counting sentence PHASE-01 replaces — not
-this slice's, a finding to disposition; `research.md`'s count.
-
-**Next:** write PHASE-02's sheet, then run it. One phase, one agent, one
-session. PHASE-02/EN-1 is *PHASE-01 `done` in §Status, and its EX criteria hold
-on HEAD* — verify that against the tree rather than against this paragraph.
-PHASE-02 opens with a case that **reds on today's tree**
-(`structure::the_loop_s_ending_is_never_a_startup_failure`), which is the one
-natural red in the slice; record it.
+**Next:** the orchestrator writes PHASE-03's sheet (it does not exist yet, and
+must not be written by its executor), then a fresh agent runs it. PHASE-03's
+hazard is in `plan.md`'s notes: the bindable-path mutation launches a real host
+on this machine (`WAYLAND_DISPLAY` is set) until `process::command` removes the
+display variables — never run it before that change lands, and use `timeout`
+on any manual spawn.
