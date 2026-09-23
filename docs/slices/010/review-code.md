@@ -9,7 +9,7 @@
 **Reviewer:** fresh agent (Claude Opus 5.5), round 1, own worktree; a second
 fresh agent, round 2, own worktree; a third fresh agent, round 3, own worktree
 **Opened:** 2026-09-23
-**State:** open
+**State:** closed
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -192,14 +192,14 @@ Lines of attack:
 | F-13 | minor | fix-now | verified |
 | F-14 | nit | fix-now | verified |
 | F-15 | nit | fix-now | verified |
-| F-16 | minor | fix-now | |
-| F-17 | nit | fix-now | |
-| F-18 | nit | fix-now | |
-| F-19 | minor | fix-now | |
-| F-20 | nit | fix-now | |
-| F-21 | nit | fix-now | |
-| F-22 | nit | fix-now | |
-| F-23 | nit | fix-now | |
+| F-16 | minor | fix-now | verified |
+| F-17 | nit | fix-now | verified |
+| F-18 | nit | fix-now | verified |
+| F-19 | minor | fix-now | verified |
+| F-20 | nit | fix-now | verified |
+| F-21 | nit | fix-now | verified |
+| F-22 | nit | fix-now | verified |
+| F-23 | nit | fix-now | verified |
 
 ### F-1 — Three comments read a retry prediction off status 2, which the draft spec forbids and AC-7 names
 
@@ -970,7 +970,7 @@ from it.
 
 **Disposition:** fix-now
 **Response:** SPEC-004 §1 names the seam in the sentence: the phase is observed, except that a loop call failing on entry is reported as *stopped running* (§5 *What the seam costs*). Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-17 — §5's prose still describes every question as answered
 
@@ -991,7 +991,7 @@ against `exit_codes::an_answer_that_cannot_be_written_exits_2`.
 
 **Disposition:** fix-now
 **Response:** §5's prose names the refused answer beside the answered question, as the diagram does. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-18 — SPEC-004 §2 says `goad-emit`'s statuses *have no owner today*; the same section says they are owned
 
@@ -1013,7 +1013,7 @@ the pre-promotion state as the present*, in the section after §1.
 
 **Disposition:** fix-now
 **Response:** §2 drops *today*: `goad-emit`'s statuses are nominally owned and not governed. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-19 — OQ-1 judges each cause's restart policy, the axis the document puts out of scope
 
@@ -1044,7 +1044,7 @@ repair's grep could not reach it.
 
 **Disposition:** fix-now
 **Response:** OQ-1 keeps only the reason that holds — subdividing reintroduces the per-cause judgement §5 rejects — and drops the per-cause restart verdict. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-20 — An unbounded stderr line is linear in the configuration line's length, and nothing says what that costs
 
@@ -1080,7 +1080,7 @@ not the decision.
 
 **Disposition:** fix-now
 **Response:** The decision stands; its cost is written down in `one_line`'s doc and R-4's §7 row: a line past journald's `LineMax` is split, and the last record then does not begin `goad: `. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-21 — R-1's row states the closed-descriptor behaviour in a *verified by* cell and names nothing that holds it
 
@@ -1102,7 +1102,7 @@ sentence becomes false, and nothing in the gate sees it happen.
 
 **Disposition:** fix-now
 **Response:** R-1's row says the closed-stdout behaviour is the Rust runtime's, evidenced by the traced run, and held by no test — a test would pin the toolchain, not this code. Endorsed canon edit.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-22 — Two in-place substitutions left their lines unwrapped
 
@@ -1122,7 +1122,7 @@ taste, and the pre-existing lines show the document is not strict about it.
 
 **Disposition:** fix-now
 **Response:** Rewrap both.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### F-23 — *stderr* now names two streams in `diagnostics`, and two docs beside the repair use it unqualified
 
@@ -1144,7 +1144,7 @@ ones.
 
 **Disposition:** fix-now
 **Response:** `STDERR_LIMIT`'s doc says it bounds a captured backend's stderr, distinct from the host's own stderr lines.
-**Outcome:**
+**Outcome:** verified (orchestrator site check at `cb7d2bc`, in place of a round 4 — `design-log.md`, *round 3: prose only*).
 
 ### Checked and found complete (round 3)
 
@@ -1205,4 +1205,13 @@ ones.
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. -->
+Closed 2026-09-23 after three rounds and a site check. Round 1 found the
+slice's two majors — retry predictions read off status 2 (F-1), and a final
+stderr "line" that was several lines (F-2) — and a question that exited 0
+unanswered (F-3). Round 2's repairs of those raised two code defects (F-10, the
+bound cutting a parser's message; F-13, an untested flush) and moved F-1's class
+into canon it had not been grepped over. Round 3 found prose only (F-16…F-23),
+so the review closed on the orchestrator's site check rather than a fourth
+round. Every finding `verified`; no blocker raised. Class lessons: a class grep
+must cover canon as well as code; a bound suits lengths a peer chose, not a
+line whose cause comes last.
