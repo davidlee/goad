@@ -103,20 +103,20 @@ only); name-never-count.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | | |
-| F-2 | major | | |
-| F-3 | major | | |
-| F-4 | minor | | |
-| F-5 | minor | | |
-| F-6 | minor | | |
-| F-7 | minor | | |
-| F-8 | minor | | |
-| F-9 | minor | | |
-| F-10 | minor | | |
-| F-11 | minor | | |
-| F-12 | minor | | |
-| F-13 | nit | | |
-| F-14 | nit | | |
+| F-1 | major | doc-wrong | |
+| F-2 | major | doc-wrong | |
+| F-3 | major | doc-wrong | |
+| F-4 | minor | doc-wrong | |
+| F-5 | minor | doc-wrong | |
+| F-6 | minor | doc-wrong | |
+| F-7 | minor | doc-wrong | |
+| F-8 | minor | doc-wrong | |
+| F-9 | minor | doc-wrong | |
+| F-10 | minor | doc-wrong | |
+| F-11 | minor | doc-wrong | |
+| F-12 | minor | doc-wrong | |
+| F-13 | nit | doc-wrong | |
+| F-14 | nit | doc-wrong | |
 
 ### F-1 — A refusal-site refusal or the ingress-stopped fold does not carry an owed refusal: it erases it
 
@@ -144,7 +144,7 @@ start (the engage present precedes `absorb`).
 (`SupersededView`), a refused `Edit`, a scheduled firing with an unreadable
 clock (`NoClock`), ingress dying.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. User decided 2026-09-26 (`design-log.md`): the owed state is *the surface is stale*, not *this refusal is owed*; an overwritten refusal is not shown, and retention stays with FU-3.
 **Response:**
 
 **Outcome:**
@@ -181,7 +181,7 @@ idle, an update of the surface follows every refusal within the interval
 **Evidence:** the design's own T2(c) asserts only the *last* key; §5.4
 *Refusal inside an interval* ("that present shows … the latest fold"); F-1.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. User decided 2026-09-26 (`design-log.md`): R-15 is worded around an update of the surface within the interval showing the latest refusal, with the overwrite named as its exception (P-D); the clock-overflow fallback named too.
 **Response:**
 
 **Outcome:**
@@ -209,7 +209,7 @@ The delta's reason ("'Reaches' in §6.3 now carries R-15's bound") does not
 address either. §6.3 needs an entry in `canon-delta.md`.
 **Evidence:** SPEC-003 §6.3's bullets, read against the amended R-15 and D8.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. §6.3 gains a `canon-delta.md` entry.
 **Response:**
 
 **Outcome:**
@@ -232,7 +232,7 @@ edge into the plan.
 **Evidence:** the mutation as written in §9, traced through the arm's
 precondition and reset.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -255,7 +255,7 @@ bound (c) at `I` + slack from the last reply, with `LIVENESS_BOUND` kept only as
 the backstop.
 **Evidence:** T2(c)'s text; `LIVENESS_BOUND` in `tests/support/waiting.rs`.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -283,7 +283,7 @@ R2's `const _: () = assert!` ties the gap to the spacing only. It should also
 tie `g` below `I + I/2`, or M6 should be restated.
 **Evidence:** T3's text in §9; the arithmetic above.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -307,7 +307,7 @@ the window still shows A's line at the send, which also makes M7's red
 unconditional.
 **Evidence:** T4's text; `POLL_INTERVAL` in `tests/support/waiting.rs`.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -340,7 +340,7 @@ constant.
 bound as written; memories `timed-test-margins-are-measured-at-the-bound`,
 `margin-size-is-not-margin-direction`.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -379,7 +379,7 @@ should give the structural reason instead of the counterfactual.
 **Evidence:** `bind`, `accept_loop`, `handle` (`crates/goad-shell/src/ingress/mod.rs`);
 SPEC-003 §6.4.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -406,7 +406,7 @@ fold, or well under `MINIMUM_SPACING`.
 (assertions 1–3, `ANTI_SPIN_WINDOW`); `LIVENESS_BOUND`; `serve`'s initial
 `sleep`.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -426,7 +426,7 @@ means declaring it immediately before `'idle: loop`. The tests would catch the
 wrong reading. The design should not leave it to them.
 **Evidence:** the three phrasings cited.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -448,7 +448,7 @@ precondition, or to add one step to T4: a refusal decided shortly after the
 command's present is still shown at once when `F` has passed.
 **Evidence:** D5; T3's sequence.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -473,7 +473,7 @@ the drain's duration.
 `tokio-time-runs-under-slints-executor` measured a deadline 10 s past, not one
 near the wheel's current tick.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**
@@ -496,7 +496,7 @@ near the wheel's current tick.
   refusal after quiet still costs one, by design, so the strike at close must
   restate the kill condition rather than claim it as written.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:**
 
 **Outcome:**

@@ -67,3 +67,20 @@ other, citing the finding id.
 - **Decided:** "b)"
 - **Consequence:** the design coalesces on both edges at 1 s. R-15's amendment
   in `canon-delta.md` states the rule; its wording is endorsed at audit.
+
+### 2026-09-26 — F-1, F-2: what R-15 promises when a refusal is overwritten
+
+- **Asked:** `review-design.md` F-1 and F-2 — `Controller::refuse` replaces the
+  whole retained `Diagnostics`, so an owed refusal is overwritten, unshown, by
+  the next refusal (flood, refused command, ingress-stopped fold). The drafted
+  R-15 promised every idle refusal reaches the surface within the interval,
+  which the design cannot keep. Word R-15 around what the code guarantees — an
+  update of the surface within the interval, showing the latest refusal — or
+  widen the slice into retention (FU-3)?
+- **Recommended:** the update guarantee; name the overwrite as the exception;
+  retention stays FU-3's.
+- **Decided:** "word R-15 around that update guarantee, name the overwrite as
+  its exception, and leave retention to FU-3."
+- **Consequence:** the owed flag means *the surface is stale*. R-15's draft in
+  `canon-delta.md` is rewritten; FU-3's row gains this slice's citation at
+  close (a flood now shows fewer refusals than before, by design).
