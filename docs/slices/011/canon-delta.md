@@ -42,7 +42,10 @@ each exception to be named:
 - **Clock overflow.** In that fallback, every refusal updates the surface, so
   the per-interval limit does not hold.
 
-The host decides all three.
+The host decides all of them. The overwrite is the host's even though the
+refusal that overwrites may have been decided elsewhere, for example a shape
+refusal decided by whatever accepts connections: the surface holds one fold
+because the host chose that retention (FU-3).
 
 The rule is not an exception to R-12. R-12 forbids holding back **envelopes**,
 and this rule holds back only updates of the surface.
@@ -54,16 +57,17 @@ first sentence through the sentence naming §6.4 is new, as is the final clause)
 > reported on the host's own diagnostics surface, so that it is visible to a
 > person who is not the writer: the surface MUST be updated **within a fixed
 > interval** of that refusal being decided, and the update shows the latest
-> refusal decided by then. Two exceptions, both the host's: a refusal
-> overwritten on the surface before that update — by any later refusal — is
-> never shown, because what the surface retains is not this requirement's; and
-> an update still due when the host's loop ends is not made. A writer the host
+> refusal decided by then. Its exceptions are the host's own. A refusal
+> overwritten on the surface before that update is never shown, whichever side
+> decided the later refusal, because the surface holds what the host chooses to
+> retain, and that is not this requirement's. An update still due when the
+> host's loop ends is not made. A writer the host
 > does not control sets the rate of refused envelopes, so updates of the
 > surface caused only by refused envelopes MUST NOT exceed one per interval: a
 > refused envelope decided when no such update has been made within the last
 > interval is shown without waiting for the interval, and one decided inside an
 > interval is shown when that interval ends, unless another update has come
-> sooner. The one exception is the host's own arithmetic: where the end of an
+> sooner. That limit yields to the host's own arithmetic: where the end of an
 > interval cannot be represented on the host's clock, the interval is not held
 > and every refusal updates the surface. The interval is the host's own —
 > fixed, not configurable, and not visible to a writer, which is why §6.4 does
@@ -90,8 +94,8 @@ belong there. The cell says so, so that nobody later reads its absence from
 
 **Why.** Two statements become false under Change 1 (review F-3). Both lists
 are grouped by the side that decides the refusal, and that grouping stands.
-The new exceptions come from a different side: a later refusal, or the host's
-stop.
+The new exceptions are the host's, as Change 1 states: its retention, whatever
+side decided the refusal that overwrites, and its stop.
 
 **As it will be stated.** Each of the following replaces the quoted text
 exactly. The rest of §6.3 is unchanged.
@@ -119,9 +123,9 @@ exactly. The rest of §6.3 is unchanged.
    *always* is exact." becomes:
 
    > reachable only when it is idle, so the loop's state never withholds them.
-   > What can withhold one is R-15's pair of exceptions: a later refusal
-   > overwriting it before the surface is next updated, or the loop ending
-   > first.
+   > What can withhold one is R-15's overwrite and loop-end exceptions: a
+   > later refusal overwriting it before the surface is next updated, or the
+   > loop ending first.
 
 4. In the `unavailable` paragraph, the counts of its causes, which no test
    holds, are replaced:
@@ -147,11 +151,12 @@ and bullets for reading. At promotion it becomes one table cell, with the
 breaks joined by `;` as the current cells are.
 
 > renderer, all `crates/goad/tests/renderer/ingress.rs`. Every case below
-> observes the **window**. The test glass records, at each update inside
-> `serve`, the instant, the surface and the lines it wrote, and timed claims
-> are measured from that record — not from the retained `Diagnostics`, which
-> cannot show whether anything was displayed, and not from a poller, whose own
-> lag would count against the bound.
+> reads the **window**. At each update inside `serve`, the test glass first
+> delegates to the real glass, then records the instant together with the
+> window's own mode and diagnostic lines. Timed claims are measured from that
+> record. They are not read from the retained `Diagnostics`, which cannot show
+> whether anything was displayed, nor from a poller, whose lag would count
+> against the bound.
 >
 > **The rule and the bound.**
 >
@@ -162,9 +167,12 @@ breaks joined by `;` as the current cells are.
 >   refusals caused, and from nothing else.
 > - `ingress::a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
 >   — a writer sends distinct refused envelopes flat out across several
->   intervals. Consecutive updates are never closer than the interval, and
->   never further apart than twice it while the flood runs; a debounce would
->   fail the second. The last update names the last envelope's refusal, within
+>   intervals. The deadline that ends each interval fires at most once per
+>   interval, and each update follows its firing after the loop's own turn. So
+>   consecutive updates are asserted no closer than half the interval, which
+>   an update per refusal fails by orders of magnitude. While the flood runs
+>   they are never further apart than twice the interval, which a debounce
+>   fails. The last update names the last envelope's refusal, within
 >   twice the interval of its reply.
 > - `ingress::a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`
 >   — while a refusal is still unshown, a person's command updates the surface

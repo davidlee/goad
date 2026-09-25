@@ -540,7 +540,7 @@ update was given". Memories: `a-refusal-is-recorded-not-shown`,
 **Evidence:** `Frame` (`controller.rs`: `pub surface`, `pub diagnostics: &'a Diagnostics`); `SlintGlass::present` (`glass.rs`, `set_mode`, diagnostics via `write_if_changed`); the VT-7 comment "the window's own `diagnostic_lines`, written unconditionally by `glass.rs`".
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Take the stronger branch: `RecordingGlass` records what the window holds **after** delegating, so every case reads the window as AC-3 and the canon row say.
-**Response:**
+**Response:** I took the stronger branch. design.md D12 and §9 *Test support*: `RecordingGlass` now holds the window it wraps, delegates to `SlintGlass::present` first, and then records `(at, mode, lines)` from `window.get_mode()` and `window.get_diagnostic_lines()`. §9 adds a read-the-window control, M0 (drop `write_if_changed`): T2, T3 and T4 must go red. The lead of canon-delta Change 3 now says the glass delegates first and then records the window's own mode and lines.
 
 **Outcome:**
 
@@ -562,7 +562,7 @@ loop-end exceptions"), or name the rule they share.
 **Evidence:** the quoted phrases; `canon-delta.md` *The count rule*.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Name the exceptions, never count them, in canon and design alike.
-**Response:**
+**Response:** Counts replaced by names. canon-delta Change 1: 'Two exceptions, both the host's' becomes 'Its exceptions are the host's own', and 'The one exception' becomes 'That limit yields to the host's own arithmetic'. Change 2.3: 'R-15's pair of exceptions' becomes 'R-15's overwrite and loop-end exceptions'. design.md §10 names the overwrite, loop-end and clock-overflow exceptions, and I-3 now reads 'Only the `Fired::Ingested`/`None` path and the new arm change'.
 
 **Outcome:**
 
@@ -585,7 +585,7 @@ criterion P-D requires is answered two ways within one delta.
 **Evidence:** the three quoted sentences; SPEC-003 §6.3's first bullet.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. The overwrite is the host's: what the surface retains is the host's choice (FU-3), whatever side the overwriting refusal blames. Change 2 is brought into line with Change 1.
-**Response:**
+**Response:** The overwrite is the host's. The R-15 cell in canon-delta Change 1 now says an overwritten refusal is never shown 'whichever side decided the later refusal, because the surface holds what the host chooses to retain'. Change 1's *Why* explains that the overwrite belongs to the host even when a shape refusal decided by the accept side does the overwriting. Change 2's *Why* now matches: 'the host's, as Change 1 states: its retention … and its stop'.
 
 **Outcome:**
 
@@ -611,7 +611,7 @@ its direction honestly.
 **Evidence:** §5.2's arm (`reset; continue 'serving;`); I-1's own wording; the top of `serve`'s loop (drain, then `glass.present(controller.frame(…))`).
 
 **Disposition:** `doc-wrong` — responder: orchestrator. T2(a)'s load label corrected; the canon row states the guarantee I-1 actually holds, no stronger.
-**Response:**
+**Response:** design.md §9 T2(a) now asserts gaps of at least `I/2`, and is labelled as moving toward red under load: a stall between an arm firing and its present shortens the next gap one-for-one, with a margin of `I/2`. M1 still gives µs gaps. I-1 is restated per arm firing, with each present following after the drain. The flood bullet in canon-delta Change 3 now claims only what I-1 holds: at most one firing per interval, each update following its firing after the loop's turn, and an assertion that updates are no closer than half the interval.
 
 **Outcome:**
 
@@ -631,7 +631,7 @@ the passing case.
 **Evidence:** T4's precondition and bound, traced under M7.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Tighten to I/4.
-**Response:**
+**Response:** design.md §9 T4: the precondition is tightened to `sent − A.at < I/4`. Under M7, `at − sent ≥ 3I/4`, which gives a red margin of at least `I/4`.
 
 **Outcome:**
 
@@ -648,7 +648,7 @@ refusal is never shown.
 **Evidence:** `research.md` at `c57b670` (the probe table: 8.8 s, 6.8 s, 8.3 s); `design-log.md` F-1/F-2 entry.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Figures from c57b670; Scope restated to the update guarantee.
-**Response:**
+**Response:** design.md §1 now uses the figures from `c57b670`: ~318 µs against 3.6 µs, and tray activations of 6.8–8.8 s. In slice-011.md, OQ-1 uses the same figures, and the *Scope* sentence is restated to the update guarantee, with overwritten refusals never shown. The same edit tightens design.md from 352 to 278 lines, with the mechanism unchanged and no decision, invariant, test or mutation dropped.
 
 **Outcome:**
 

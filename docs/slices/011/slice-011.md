@@ -42,8 +42,10 @@ design proceeds (OQ-1).
 - `serve` (`crates/goad/src/controller.rs`) — the outer loop's refusal path, and
   whatever bounds the presents it causes. It coalesces: a
   refusal-only change presents at once after quiet, then at most once per
-  interval, trailing edge, so the latest refusal is always shown
-  (`design-log.md`, 2026-09-26).
+  interval, trailing edge. After a refusal decided while idle, the surface is
+  updated within the interval and shows what the diagnostics then hold. A
+  refusal overwritten before that update is never shown (`design-log.md`,
+  2026-09-26, and F-1/F-2).
 - `crates/goad/tests/renderer/ingress.rs` — R-15's positive case, rewritten to
   read the window; new cases for the bound and the latest refusal under a flood,
   and for a command during a coalesced interval, all timed from a recording
@@ -149,7 +151,7 @@ re-priced with the measurement if the slice concludes it is not worth doing.
 - ~~OQ-1 — What does AC-1's measurement show, and is it worth repairing?~~
   **Repair.** The present is ~99 % of a refused arrival's UI-thread cost with
   the form up; one local writer pins the UI thread and delays a tray activation
-  by up to 8 s (`research.md` Thread 3; `design-log.md`, 2026-09-26).
+  by 6.8–8.8 s (`research.md` at `c57b670`; `design-log.md`, 2026-09-26).
 - ~~OQ-2 — The interval, and does R-15 state the number or the rule?~~
   **Both edges, 1 s.** The first refusal after quiet presents at once; a burst
   causes at most one further refusal-only present per interval, always the
