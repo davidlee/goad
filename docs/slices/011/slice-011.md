@@ -80,14 +80,15 @@ re-priced with the measurement if the slice concludes it is not worth doing.
 
 ## Acceptance criteria
 
-- [ ] AC-1 — The UI-thread cost of one refused arrival is **measured on the
+- [x] AC-1 — The UI-thread cost of one refused arrival is **measured on the
       running host** against a flooding writer, with the window up and hidden.
       The instrument, its denominator and what it does not reach are in
       `research.md`, and the user has decided on it before design proceeds.
 - [ ] AC-2 — Refused arrivals decided while idle, at any rate, cause at most a
       bounded number of presents per interval. A renderer case asserts the
-      bound against a writer emitting flat out, and fails if a refusal
-      presents immediately.
+      bound against a writer emitting flat out, and fails if every refusal
+      presents. A second asserts that a lone refusal after quiet still
+      presents at once (the leading edge).
 - [ ] AC-3 — The last refusal decided while idle reaches the **window** — not
       only the retained model — within the stated bound, and a case reads the
       window to show it.
