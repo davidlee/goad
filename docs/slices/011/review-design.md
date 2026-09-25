@@ -4,7 +4,7 @@
 at `d57f503`
 **Reviewer:** fresh agent, Opus
 **Opened:** 2026-09-26
-**State:** open
+**State:** open (F-21, F-22 awaiting disposition)
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -109,6 +109,12 @@ Each re-timed case gets a trace of every named mutation and a load direction
 for each bound. The new VT-7 assertion and the AC-4 and AC-7 edits are checked
 against the tree.
 
+**Round 3** — 2026-09-26 — verification only, at `7a7a4d8`. Three checks: the
+F-15…F-20 repairs against the tree; the tightening of `design.md` (352 → 278
+lines), diffed from `361d5a3`, for any decision, invariant, assertion, mutation
+or load-direction claim it lost or altered beyond those repairs; and whether the
+new control M0 reds T2, T3 and T4. The settled mechanism is not re-attacked.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -127,12 +133,14 @@ against the tree.
 | F-12 | minor | doc-wrong | verified |
 | F-13 | nit | doc-wrong | verified |
 | F-14 | nit | doc-wrong | verified |
-| F-15 | minor | doc-wrong | |
-| F-16 | minor | doc-wrong | |
-| F-17 | minor | doc-wrong | |
-| F-18 | minor | doc-wrong | |
-| F-19 | nit | doc-wrong | |
-| F-20 | nit | doc-wrong | |
+| F-15 | minor | doc-wrong | verified |
+| F-16 | minor | doc-wrong | verified |
+| F-17 | minor | doc-wrong | verified |
+| F-18 | minor | doc-wrong | verified |
+| F-19 | nit | doc-wrong | verified |
+| F-20 | nit | doc-wrong | verified |
+| F-21 | minor | | |
+| F-22 | nit | | |
 
 ### F-1 — A refusal-site refusal or the ingress-stopped fold does not carry an owed refusal: it erases it
 
@@ -542,7 +550,7 @@ update was given". Memories: `a-refusal-is-recorded-not-shown`,
 **Disposition:** `doc-wrong` — responder: orchestrator. Take the stronger branch: `RecordingGlass` records what the window holds **after** delegating, so every case reads the window as AC-3 and the canon row say.
 **Response:** I took the stronger branch. design.md D12 and §9 *Test support*: `RecordingGlass` now holds the window it wraps, delegates to `SlintGlass::present` first, and then records `(at, mode, lines)` from `window.get_mode()` and `window.get_diagnostic_lines()`. §9 adds a read-the-window control, M0 (drop `write_if_changed`): T2, T3 and T4 must go red. The lead of canon-delta Change 3 now says the glass delegates first and then records the window's own mode and lines.
 
-**Outcome:**
+**Outcome:** verified — design.md D12 and §9 *Test support*: `RecordingGlass` holds the window, delegates to `SlintGlass::present` first, then records `get_mode()` and `get_diagnostic_lines()`. Recording the `Frame` is named as the rejected option. canon-delta Change 3's lead says the same. M0 discriminates the two readings (see Round 3).
 
 ### F-16 — The repair puts new counts into canon and the design
 
@@ -564,7 +572,7 @@ loop-end exceptions"), or name the rule they share.
 **Disposition:** `doc-wrong` — responder: orchestrator. Name the exceptions, never count them, in canon and design alike.
 **Response:** Counts replaced by names. canon-delta Change 1: 'Two exceptions, both the host's' becomes 'Its exceptions are the host's own', and 'The one exception' becomes 'That limit yields to the host's own arithmetic'. Change 2.3: 'R-15's pair of exceptions' becomes 'R-15's overwrite and loop-end exceptions'. design.md §10 names the overwrite, loop-end and clock-overflow exceptions, and I-3 now reads 'Only the `Fired::Ingested`/`None` path and the new arm change'.
 
-**Outcome:**
+**Outcome:** verified — no count survives in the passages the repair touched: "Its exceptions are the host's own", "That limit yields to the host's own arithmetic", "R-15's overwrite and loop-end exceptions"; design §10 and I-3 name their members.
 
 ### F-17 — The delta says two different things about which side decides the new exceptions, and "both the host's" conflicts with §6.3's own grouping
 
@@ -587,7 +595,7 @@ criterion P-D requires is answered two ways within one delta.
 **Disposition:** `doc-wrong` — responder: orchestrator. The overwrite is the host's: what the surface retains is the host's choice (FU-3), whatever side the overwriting refusal blames. Change 2 is brought into line with Change 1.
 **Response:** The overwrite is the host's. The R-15 cell in canon-delta Change 1 now says an overwritten refusal is never shown 'whichever side decided the later refusal, because the surface holds what the host chooses to retain'. Change 1's *Why* explains that the overwrite belongs to the host even when a shape refusal decided by the accept side does the overwriting. Change 2's *Why* now matches: 'the host's, as Change 1 states: its retention … and its stop'.
 
-**Outcome:**
+**Outcome:** verified — Change 1's cell and *Why* and Change 2's *Why* now give one answer: the overwrite is the host's (its retention), whichever side decided the overwriting refusal.
 
 ### F-18 — T2(a)'s load direction is labelled "safe", but a stall can shrink the gap it bounds, and the canon row states a stronger bound than I-1
 
@@ -613,7 +621,7 @@ its direction honestly.
 **Disposition:** `doc-wrong` — responder: orchestrator. T2(a)'s load label corrected; the canon row states the guarantee I-1 actually holds, no stronger.
 **Response:** design.md §9 T2(a) now asserts gaps of at least `I/2`, and is labelled as moving toward red under load: a stall between an arm firing and its present shortens the next gap one-for-one, with a margin of `I/2`. M1 still gives µs gaps. I-1 is restated per arm firing, with each present following after the drain. The flood bullet in canon-delta Change 3 now claims only what I-1 holds: at most one firing per interval, each update following its firing after the loop's turn, and an assertion that updates are no closer than half the interval.
 
-**Outcome:**
+**Outcome:** verified — T2(a) is labelled toward red, with a stated mechanism and margin; the canon row claims only what is asserted. The repair's side effect on what (a) can detect is raised as F-21.
 
 ### F-19 — T4's precondition admits a send so late that M7's red margin reaches zero
 
@@ -633,7 +641,7 @@ the passing case.
 **Disposition:** `doc-wrong` — responder: orchestrator. Tighten to I/4.
 **Response:** design.md §9 T4: the precondition is tightened to `sent − A.at < I/4`. Under M7, `at − sent ≥ 3I/4`, which gives a red margin of at least `I/4`.
 
-**Outcome:**
+**Outcome:** verified — the precondition is `sent − A.at < I/4`; under M7 `at − sent ≥ 3I/4`, a red margin of at least `I/4`.
 
 ### F-20 — Stale figures and one stale sentence left by the repair
 
@@ -649,6 +657,54 @@ refusal is never shown.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Figures from c57b670; Scope restated to the update guarantee.
 **Response:** design.md §1 now uses the figures from `c57b670`: ~318 µs against 3.6 µs, and tray activations of 6.8–8.8 s. In slice-011.md, OQ-1 uses the same figures, and the *Scope* sentence is restated to the update guarantee, with overwritten refusals never shown. The same edit tightens design.md from 352 to 278 lines, with the mechanism unchanged and no decision, invariant, test or mutation dropped.
+
+**Outcome:** verified — design.md §1 and slice-011.md OQ-1 carry `c57b670`'s figures (~318 µs against 3.6 µs; 6.8–8.8 s); the ~330 µs in §2 is gone; *Scope* states the update guarantee and the overwrite.
+
+### F-21 — Relaxing T2(a) to `I/2` stops any case holding the interval's lower bound
+
+**Severity:** minor
+**Location:** `design.md` §9 T2 (a) ("at least `I/2` apart"); canon-delta Change 3's flood bullet; the R-15 cell ("MUST NOT exceed one per interval")
+
+**Expected:** R-15's rule, at most one refusal-caused update per interval, is
+held by some case close to `I`. At `361d5a3` T2(a) held it to `I − 50 ms`.
+**Observed:** F-18's repair halves the tolerance to fix the load label. Now a
+mutation `REFUSAL_PRESENT_INTERVAL = 600 ms` passes every case: T2(a) sees
+600 ms ≥ 500 ms; (b) and (c) are upper bounds; T3 and T4 read the leading edge
+and a command. So the canon MUST is held only to "at most two per interval".
+The canon cell now honestly says "no closer than half the interval", so this is
+not an overclaim. It is a weaker test than the requirement needs, and it did
+not have to be. The stall F-18 describes *moves* one present later: it
+lengthens the gap before that present and shortens the gap after it by the same
+amount. It does not add a present. So a **count** over the flood holds the rule
+with stall-robustness: flood presents ≤ `1 + ceil((last.at − first.at + ε) / I)`,
+with `ε` covering one `d1`. That catches 600 ms, and M1 reds it by orders of
+magnitude. The pairwise `I/2` check can stay as the direct M1 witness.
+**Evidence:** the T2 row at `361d5a3` (`I − 50 ms`) against `7a7a4d8` (`I/2`); I-1 (arm firings ≥ `I` apart, set from the arm's own `now`, so present delays never add firings).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-22 — M0's wording admits a reading under which nothing reds
+
+**Severity:** nit
+**Location:** `design.md` §9 *Read-the-window control*
+
+**Observed:** "Drop `write_if_changed` from `SlintGlass::present`" is meant as
+*delete the call*: `write_if_changed(&self.diagnostics, lines)` is the only
+writer of the diagnostics model. Under that reading the window's lines stay
+empty and all three cases red (traced in Round 3). An implementer can also read
+it as *drop the if-changed optimisation* and write unconditionally, which is
+what the phrase often means. Under that reading the window still receives every
+line, and T2, T3 and T4 stay green. The control then proves nothing, and memory
+`negative-control-must-compile` warns about exactly that kind of silent pass.
+Name it by its effect: "delete the `write_if_changed(&self.diagnostics, lines)`
+call, so the diagnostics model is never written".
+**Evidence:** `SlintGlass::present` (`glass.rs`), its one `write_if_changed(&self.diagnostics, lines)` call.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -720,6 +776,78 @@ No new major or blocker. Round 2's new findings are about how exactly the
 canon cell and the test instrument are worded and labelled (F-15…F-18), plus
 two nits. None of them reopens the mechanism.
 
+## Round 3 — verification
+
+**F-15…F-20.** All six are verified. Each outcome says what was checked.
+
+**The tightening (`361d5a3` → `7a7a4d8`).** Every D, I, A, R, T, M and VT id
+survives; M0 is new. Read side by side, nothing load-bearing was dropped or
+altered beyond the F-15…F-20 repairs:
+
+- D1–D13 keep their decisions and rejected alternatives.
+- I-1…I-4 keep their claims. I-1's "at least `I` minus one drain" became "the
+  present follows after the drain", which is the same fact.
+- A-1 and A-2 are intact.
+- R1's "lower bounds are safe" is removed. That is correct: F-18 showed it was
+  false.
+- Every T-row assertion and every control M1–M8 is unchanged, except T2(a)
+  (F-18) and T4's precondition (F-19).
+- Every load direction is stated.
+- Dropped text is explanatory only: the "(F-4)" note on M2, "(F still ~1.75 s
+  off)" on M6, the diagram's parenthetical, D6's "one site, one rule", and D12's
+  "writer's clock as upper-bound origin". The last is still implied by T2(c)
+  and T3's use of `sent` and reply times.
+
+The one thing the cut and repair lost in effect is F-21.
+
+**M0.** Traced with M0 read as deleting the diagnostics write:
+
+- **T2.** No present's window lines carry a flood key, so no present counts
+  as a flood present. (b)'s "at least two precede the last reply" and (c) go
+  red; (a) is vacuous.
+- **T3.** No present shows R1, so R1's `at − sent` cannot be found, and the
+  case goes red. The same holds for R2.
+- **T4.** The precondition ("the last present shows A") fails, which is red.
+
+Under a `Frame`-recording glass all three would stay green, so M0 does tell
+the two instruments apart. The one gap is its wording (F-22).
+
 ## Synthesis
 
-<!-- Written when the ledger resolves. -->
+**Not resolved yet.** F-21 (minor) and F-22 (nit) are raised in Round 3 and
+still need a disposition. Neither blocks: no blocker was ever raised. Both are
+one-line design edits, and verifying them is mechanical: T2 gains a count
+assertion that 600 ms fails, and M0 is reworded by its effect. The text below
+stands once they are verified; State then moves to `resolved`.
+
+**What the review changed.** Round 1's three majors were one defect seen from
+three sides: the draft R-15 promised that *each* idle refusal reaches the
+surface, but `Controller::refuse` replaces the whole slot. The user chose to
+word R-15 around an **update** of the surface within the interval. That update
+shows the latest refusal decided by then. The exceptions are named: overwrite,
+loop end and clock overflow, all the host's. SPEC-003 §6.3 gained a delta so its
+*always* claims stay true. The test plan moved from a poller to a glass that
+records the **window** inside `serve`. Every timed bound now states which way
+load moves it. Every control was re-pinned so that it reds regardless of how
+long setup takes: M5, M6, M8, M7 via T4's precondition, VT-7's new assertion,
+and M0. Counts introduced into canon were replaced by names.
+
+**What it confirmed.** The mechanism was sound from the start:
+
+- a nested `'idle` loop that keeps the top present unconditional;
+- one pinned `Sleep` arm above ingress serving both edges;
+- throttle, not debounce;
+- neither scheduling anchor touched.
+
+§2's account of the current code was accurate. No simpler design was found.
+
+**Risks left standing, knowingly.**
+
+- The per-arrival yield is what actually gives the UI thread back, and no test
+  holds it (R3). A person's run under AC-6 is its only witness.
+- A flood now shows fewer of its refusals, and a refusal-site refusal can
+  overwrite a stale fold unshown. Retention is FU-3's, and its row gains this
+  slice's citation at close.
+- Every timed upper bound can still go red on a stalled machine. Each has a
+  margin of at least `I/4`, and the plan measures those margins under
+  oversubscription.
