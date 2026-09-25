@@ -1,100 +1,174 @@
 # Canon delta — Slice 011
 
 One entry per affected document (`docs/AGENTS.md` §Canon that does not exist
-yet, or must change). Each names the document, the section, the change **as it
-will be stated**, and why. Nothing here is applied mid-slice. It is applied at
-audit, with the user's explicit endorsement, and recorded in `audit.md`'s
-Reconciliation table.
+yet, or must change). Each entry names the document and the section, gives the
+change **as it will be stated**, and says why. Nothing here is applied
+mid-slice. It is applied at audit, with the user's explicit endorsement, and
+recorded in `audit.md`'s Reconciliation table.
 
 **Vocabulary.** Canon text below says **"update of the surface"** where code
 and `design.md` say *present*. SPEC-001's `Presentation` is the backend's view,
-and a canon sentence about "presentations" would read as being about that.
-SPEC-003 §7's current R-12 row does say "presentations", and that row is
-rewritten here anyway.
+so a canon sentence about "presentations" would read as being about that view.
+
+**The count rule** (`CLAUDE.md`, name never count). Every count in a passage
+this delta touches is either replaced or justified as exempt. "Eight" as the
+size of the reason set is exempt. It is a closed list that a test holds:
+`ingress::the_reason_token_set_is_closed_at_eight`, R-14's row.
 
 ---
 
 ## SPEC-003 (host event ingress)
 
-The changes: the text of the R-15 requirement, and the R-15 and R-12 cells in
-§7. No requirement id is added, removed or renumbered.
+The entries below touch the R-15 requirement, §6.3, and §7's R-15 and R-12
+cells. No requirement id is added, removed or renumbered.
 
 ### Change 1 — §4, R-15's requirement
 
-**Why.** R-15 requires an idle refusal to reach the diagnostics surface, but
-says nothing about when. Today it reaches the surface at once, because each
-refusal costs a full update of the surface, and a writer sets the rate. On the
-running host that pins the UI thread (`research.md` Thread 3). The user chose to
-coalesce on both edges at an interval that lives in code (`design-log.md`,
-OQ-1, OQ-2).
+**Why.** R-15 says an idle refusal reaches the diagnostics surface, but not
+when. Today every idle refusal reaches it at once, because each one costs a
+full update, and the writer sets the rate. On the running host that pins the UI
+thread (`research.md` Thread 3). The user chose to coalesce on both edges, with
+the interval living in code (`design-log.md`, OQ-1, OQ-2).
 
-This amendment states the rule that repair follows. It is careful to show that
-the rule is not an exception to R-12: R-12 forbids holding back **envelopes**,
-and nothing here holds one back. P-D requires any new absolute to name its
-exception. For the new *within* clause that exception is the loop ending, and
-the deciding side is the host.
+The user also chose to word R-15 around what the code guarantees: an update of
+the surface within the interval, showing the latest refusal decided by then
+(`design-log.md`, F-1/F-2). The rule states that guarantee, and P-D requires
+each exception to be named:
 
-**As it will be stated** (the whole cell). New: the *within* clause that ends
-the first sentence, the three sentences after it, and the last clause of the
-final sentence. The rest is the current text.
+- **Overwrite.** `Controller::refuse` replaces the whole slot. A refusal that
+  is overwritten before the update is never shown. What the slot retains is
+  FU-3's question.
+- **Loop end.** An update still due when the loop ends is never made.
+- **Clock overflow.** In that fallback, every refusal updates the surface, so
+  the per-interval limit does not hold.
+
+The host decides all three.
+
+The rule is not an exception to R-12. R-12 forbids holding back **envelopes**,
+and this rule holds back only updates of the surface.
+
+**As it will be stated** (the whole cell; everything from the colon in the
+first sentence through the sentence naming §6.4 is new, as is the final clause):
 
 > A refusal the host decides **while no exchange is in flight** MUST also be
 > reported on the host's own diagnostics surface, so that it is visible to a
-> person who is not the writer, and MUST reach that surface **within a fixed
-> interval** of being decided, unless the host's loop ends first. A writer the
-> host does not control sets the rate of refused envelopes, so the updates of
-> that surface they alone cause MUST NOT exceed one per interval: an envelope
-> refused when no such update has been made within the last interval is shown
-> at once, and one refused inside an interval is shown when that interval ends
-> — as the latest refusal decided by then — unless another update of the
-> surface has carried it sooner. The interval is the host's own: fixed, not
-> configurable, and not visible to a writer. It spaces updates of the surface
-> and nothing else — no reply waits for it (R-8, R-12), and it begins no
-> evaluation (SPEC-002/R-12). A refusal decided while an exchange *is* in
-> flight, and one decided after the host's loop has ended, are reported to the
-> writer only. This is a bound on what the surface can hold, not a licence to
-> be silent: **every envelope's** refusal reaches its writer in the reply R-8
-> requires. The one refusal that reaches no writer is the one that answers no
-> envelope — the ingress-stopped `unavailable` of §6.3, for which this surface
-> is the only report there is; it is shown at once and never held to the
-> interval.
+> person who is not the writer: the surface MUST be updated **within a fixed
+> interval** of that refusal being decided, and the update shows the latest
+> refusal decided by then. Two exceptions, both the host's: a refusal
+> overwritten on the surface before that update — by any later refusal — is
+> never shown, because what the surface retains is not this requirement's; and
+> an update still due when the host's loop ends is not made. A writer the host
+> does not control sets the rate of refused envelopes, so updates of the
+> surface caused only by refused envelopes MUST NOT exceed one per interval: a
+> refused envelope decided when no such update has been made within the last
+> interval is shown without waiting for the interval, and one decided inside an
+> interval is shown when that interval ends, unless another update has come
+> sooner. The one exception is the host's own arithmetic: where the end of an
+> interval cannot be represented on the host's clock, the interval is not held
+> and every refusal updates the surface. The interval is the host's own —
+> fixed, not configurable, and not visible to a writer, which is why §6.4 does
+> not list it. It spaces updates of the surface and nothing else: no reply
+> waits for it (R-8, R-12), and it begins no evaluation (SPEC-002/R-12). A
+> refusal decided while an exchange *is* in flight, and one decided after the
+> host's loop has ended, are reported to the writer only. This is a bound on
+> what the surface can hold, not a licence to be silent: **every envelope's**
+> refusal reaches its writer in the reply R-8 requires. The one refusal that
+> reaches no writer is the one that answers no envelope — the ingress-stopped
+> `unavailable` of §6.3, for which this surface is the only report there is;
+> it is shown without waiting and is never held to the interval.
 
 The number is not in canon. It is `REFUSAL_PRESENT_INTERVAL` in
-`crates/goad/src/controller.rs`, the way ADR-004's floor is `MINIMUM_SPACING`.
-The last clause records `design.md` D6: that refusal is never coalesced.
+`crates/goad/src/controller.rs`, the same way ADR-004's floor is
+`MINIMUM_SPACING`.
 
-### Change 2 — §7, R-15's verification cell
+**Why not §6.4.** §6.4 lists the bounds a watcher's author has to know. This
+interval is invisible to every writer and changes no reply, so it does not
+belong there. The cell says so, so that nobody later reads its absence from
+§6.4 as an omission.
+
+### Change 2 — §6.3, *Which refusals a person sees*, and the `unavailable` paragraph
+
+**Why.** Two statements become false under Change 1 (review F-3). Both lists
+are grouped by the side that decides the refusal, and that grouping stands.
+The new exceptions come from a different side: a later refusal, or the host's
+stop.
+
+**As it will be stated.** Each of the following replaces the quoted text
+exactly. The rest of §6.3 is unchanged.
+
+1. The lead-in, "Only those the host decides while no exchange is in flight
+   also reach the diagnostics surface a person reads (R-15). **Which of the
+   eight that is turns on which side decided the refusal**", becomes:
+
+   > Only those the host decides while no exchange is in flight are also
+   > reported on the diagnostics surface a person reads, on R-15's terms.
+   > **Which of the eight those are turns on which side decided the refusal**
+
+   "Eight" is kept; the count rule above explains why.
+
+2. In the first bullet, "so the loop's state on arrival is what decides their
+   fate: they reach the surface when it happened to be idle, and **not
+   otherwise**." becomes:
+
+   > so the loop's state on arrival is what decides whether they may reach the
+   > surface: only when it happened to be idle, and **not otherwise** — and
+   > then on R-15's terms, so one overwritten by a later refusal before the
+   > surface is next updated is not shown.
+
+3. In the second bullet, "reachable only when it is idle, so for these two
+   *always* is exact." becomes:
+
+   > reachable only when it is idle, so the loop's state never withholds them.
+   > What can withhold one is R-15's pair of exceptions: a later refusal
+   > overwriting it before the surface is next updated, or the loop ending
+   > first.
+
+4. In the `unavailable` paragraph, the counts of its causes, which no test
+   holds, are replaced:
+   - "**`unavailable` covers four causes, and one of them does not pass.**"
+     becomes "**`unavailable` covers the causes below, and one of them does not
+     pass.**";
+   - "The fourth cause is" becomes "The last cause is";
+   - "The reason set remains closed at the eight above — what this admits is a
+     fourth cause of one of them, not a ninth token." becomes "The reason set
+     remains closed at the eight above — what this admits is one more cause of
+     one of them, not a new token."
+
+### Change 3 — §7, R-15's verification cell
 
 **Why.** The positive case reads `Served.controller`'s retained `Diagnostics`
-after the loop has stopped. That read stays green even if nothing is ever shown
-(FU-2; memory `a-refusal-is-recorded-not-shown`). R-15 now also carries a
-bound and a rule, and neither can be observed anywhere but the window.
+after the loop has stopped, so it stays green even if nothing is ever shown
+(FU-2; memory `a-refusal-is-recorded-not-shown`). R-15 now carries a bound and
+a rule, and the timing of an update is observable only where the update
+happens.
 
-**As it will be stated** (the whole cell). It is laid out in paragraphs and
-bullets here so it can be read. At promotion it goes into §7's table as one
-cell, with the breaks joined by `;`, the way the current cells are written.
+**As it will be stated** (the whole cell). It is laid out here in paragraphs
+and bullets for reading. At promotion it becomes one table cell, with the
+breaks joined by `;` as the current cells are.
 
-> renderer, all `crates/goad/tests/renderer/ingress.rs`, and every case below
-> reads the **window**, not the retained `Diagnostics`, because a refusal that
-> is folded but never shown is exactly what a read of the retained value cannot
-> see.
+> renderer, all `crates/goad/tests/renderer/ingress.rs`. Every case below
+> observes the **window**. The test glass records, at each update inside
+> `serve`, the instant, the surface and the lines it wrote, and timed claims
+> are measured from that record — not from the retained `Diagnostics`, which
+> cannot show whether anything was displayed, and not from a poller, whose own
+> lag would count against the bound.
 >
-> **The bound and the rule.**
+> **The rule and the bound.**
 >
-> - `ingress::a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once`:
->   a lone refusal after a quiet interval is on the window at once. So is a
->   second one after a further quiet interval, so the edge re-arms and does not
->   hold only at startup.
-> - `ingress::a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`:
->   a writer sends distinct refused envelopes flat out across several
->   intervals. It costs the surface at most one update per interval beyond the
->   first. While the flood is still running, the window's line never stays
->   unchanged for longer than the interval plus a stated slack; a debounce,
->   which shows nothing until the writer pauses, fails that. When the flood
->   ends, the window names the last envelope's refusal.
-> - `ingress::a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`:
->   an update the interval is holding back does not hold back one a person
->   asked for, and that update carries the refusal.
+> - `ingress::a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once`
+>   — a refusal decided after a quiet interval is shown within a fraction of
+>   the interval. So is a later one decided just after an update a person
+>   caused, once the interval has passed: the interval runs from updates that
+>   refusals caused, and from nothing else.
+> - `ingress::a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
+>   — a writer sends distinct refused envelopes flat out across several
+>   intervals. Consecutive updates are never closer than the interval, and
+>   never further apart than twice it while the flood runs; a debounce would
+>   fail the second. The last update names the last envelope's refusal, within
+>   twice the interval of its reply.
+> - `ingress::a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`
+>   — while a refusal is still unshown, a person's command updates the surface
+>   within a fraction of the interval, and that update shows the refusal.
 >
 > **The negative.**
 > `ingress::a_shape_refusal_decided_during_an_exchange_does_not_reach_the_diagnostics_surface`
@@ -107,60 +181,67 @@ cell, with the breaks joined by `;`, the way the current cells are written.
 > **The last clause, from both sides.**
 > `ingress::a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating`
 > and
-> `ingress::ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`:
-> the ingress-stopped `unavailable` is the one refusal that answers no
-> envelope, and it reaches the surface whether the loop was idle or
-> mid-exchange when ingress died.
+> `ingress::ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`
+> — the ingress-stopped `unavailable` is the one refusal that answers no
+> envelope. It reaches the surface whether the loop was idle or mid-exchange
+> when ingress died, and when the loop was idle it does so well before any
+> scheduled firing, so it is not held to the interval.
 >
 > **Review, not a test.**
 >
-> - `serve`'s `select!` polls the deadline that ends an interval ahead of
->   arrivals, so a writer that keeps arrivals always ready cannot starve it. In
->   this tier the accept task shares the loop's thread, so no flood keeps
->   arrivals ready on every poll, and no case can tell the two orders apart.
-> - A refusal still not shown when the loop ends is never shown. The stop path
->   shows nothing to anyone.
+> - A flood does not take the person's window. `serve` yields to the event
+>   loop once per arrival because ingress holds one arrival at a time and
+>   produces the next only after replying to the last (§6.4). No renderer case
+>   observes the event loop's share of the thread; the witness is a person's
+>   run.
+> - The loop checks the deadline that ends an interval ahead of arrivals, so
+>   the bound rests on the timer alone and not on that one-at-a-time shape.
+> - An update still due when the loop ends is not made; the stop path shows
+>   nothing to anyone.
 
-### Change 3 — §7, R-12's verification cell
+### Change 4 — §7, R-12's verification cell
 
 **Why.** The cell cites
 `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
 and records *one presentation per refusal* as a measured fact ("845/845, 1.000
 per refusal, ~1690/s — F-15's settlement"). Change 1 makes that ratio wrong by
-design. The figure also came from the headless tier and does not describe the
-running host (`research.md`, *Cross-thread findings*). So the figure is dropped,
-not replaced. The case keeps its R-12 half under a name that says only that, and
-the presentation claim moves to R-15's cell (`design.md` D13).
+design. The figure was also measured headless and does not describe the running
+host (`research.md`, *Cross-thread findings*). It is dropped, not replaced
+(`design.md` D13). The cell's count is also replaced.
 
-**As it will be stated.** One clause of the cell is replaced, and the rest
-stays verbatim. The old clause:
+**As it will be stated.** Two clauses change; the rest of the cell is verbatim.
 
-> `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
-> — a writer emitting flat out produces a bounded number of evaluations over a
-> window far shorter than the spacing, the excess replies name the bound, and
-> the same test **records** the number of presentations the host makes over
-> that window (measured 845/845, 1.000 per refusal, ~1690/s — F-15's
-> settlement) rather than merely detecting a rate;
+1. The clause
 
-The new clause:
+   > `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
+   > — a writer emitting flat out produces a bounded number of evaluations over
+   > a window far shorter than the spacing, the excess replies name the bound,
+   > and the same test **records** the number of presentations the host makes
+   > over that window (measured 845/845, 1.000 per refusal, ~1690/s — F-15's
+   > settlement) rather than merely detecting a rate;
 
-> `ingress::a_flat_out_writer_raises_no_evaluation_rate` — a writer emitting
-> flat out produces a bounded number of evaluations over a window far shorter
-> than the spacing, and the excess replies name the bound. What the same flood
-> costs a person's surface is R-15's, and is verified there;
+   becomes
+
+   > `ingress::a_flat_out_writer_raises_no_evaluation_rate` — a writer emitting
+   > flat out produces a bounded number of evaluations over a window far
+   > shorter than the spacing, and the excess replies name the bound. What the
+   > same flood costs a person's surface is R-15's, and is verified there;
+
+2. "The anchor's independence in **three** directions:" becomes
+
+   > The anchor's independence, in each direction a case below names:
 
 ---
 
 ## SPEC-002 (host scheduling behaviour)
 
-### Change 4 — §7, R-12's verification cell (citation only)
+### Change 5 — §7, R-12's verification cell (citation only)
 
 **Why.** The cell cites the same case by its old name. **Its claim does not
-change**: the words it attaches to that case are already exactly the R-12 half
-the renamed case keeps. This is the one entry outside SPEC-003, and it is
-mechanical.
+change.** The words it attaches to that case are already exactly the R-12 half
+the renamed case keeps.
 
-**As it will be stated.** In the cell's first sentence,
+**As it will be stated.**
 
 > `crates/goad/tests/renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
 
@@ -174,13 +255,13 @@ and nothing else in the cell changes.
 
 ## Checked, and not changed
 
-- **SPEC-003 §6.3** (*Which refusals a person sees*) and **§5** (*When ingress
-  stops*). Where they say a refusal *reaches* the surface, it still does, and
-  R-15 now bounds when. The grouping by which side decides stands.
-- **SPEC-003 P-C.** Nothing an envelope receives is delayed; what is held back
-  is the surface update.
-- **ADR-004, SPEC-002/R-4.** The new deadline writes neither anchor, and it
-  begins no evaluation (`design.md` I-4).
-- **No new ADR.** The rule lives in R-15. The reversal most likely to happen
-  by accident is a throttle turning into a debounce, and T2's M3 guards
-  against it (`design.md` §9).
+- **SPEC-003 §5**, *When ingress stops*: the ingress-stopped fold is still
+  reported, and it is not coalesced (Change 1's final clause).
+- **SPEC-003 §6.4**: the interval does not belong there (see *Why not §6.4*
+  under Change 1).
+- **SPEC-003 P-C**: nothing an envelope receives is delayed.
+- **ADR-004, SPEC-002/R-4**: the new deadline writes neither anchor and begins
+  no evaluation (`design.md` I-4).
+- **No new ADR**: the rule lives in R-15. `design.md` §9's controls M3
+  (debounce) and M8 (interval from any update) guard the reversals most likely
+  to happen by accident.

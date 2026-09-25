@@ -145,7 +145,7 @@ start (the engage present precedes `absorb`).
 clock (`NoClock`), ingress dying.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. User decided 2026-09-26 (`design-log.md`): the owed state is *the surface is stale*, not *this refusal is owed*; an overwritten refusal is not shown, and retention stays with FU-3.
-**Response:**
+**Response:** Per the user's decision, the owed state is now *the surface is stale*. `refusal_owed` is renamed `surface_stale`. design.md §5.4 (*While the surface is stale*) now says that a refusal-site refusal or the ingress-stopped fold overwrites the stale fold unshown, while a diagnostics command, an edit or the engage present shows it. The same change is made in the §5.1 diagram, I-2, D8, §6 OQ-5, R4 (FU-3) and slice-011.md OQ-5.
 
 **Outcome:**
 
@@ -182,7 +182,7 @@ idle, an update of the surface follows every refusal within the interval
 *Refusal inside an interval* ("that present shows … the latest fold"); F-1.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. User decided 2026-09-26 (`design-log.md`): R-15 is worded around an update of the surface within the interval showing the latest refusal, with the overwrite named as its exception (P-D); the clock-overflow fallback named too.
-**Response:**
+**Response:** canon-delta Change 1 rewrites R-15 around the update guarantee: the surface is updated within the interval and shows the latest refusal decided by then. It names the overwrite and loop-end exceptions, and separately the clock-overflow exception to the one-per-interval limit. design.md I-2 is restated the same way.
 
 **Outcome:**
 
@@ -210,7 +210,7 @@ address either. §6.3 needs an entry in `canon-delta.md`.
 **Evidence:** SPEC-003 §6.3's bullets, read against the amended R-15 and D8.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. §6.3 gains a `canon-delta.md` entry.
-**Response:**
+**Response:** New canon-delta Change 2 covers SPEC-003 §6.3. It rewrites the lead-in and the first two bullets on R-15's terms (overwrite, loop end), and it replaces the unavailable paragraph's cause counts.
 
 **Outcome:**
 
@@ -233,7 +233,7 @@ edge into the plan.
 precondition and reset.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §9 T2 row: M2 (stale set only when `F` has passed) is now claimed to turn red on (c) only.
 
 **Outcome:**
 
@@ -256,7 +256,7 @@ the backstop.
 **Evidence:** T2(c)'s text; `LIVENESS_BOUND` in `tests/support/waiting.rs`.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §9 T2(c) is now bounded at `at − last reply ≤ 2I`, which is `I` + slack `I`, measured from the recording glass. `LIVENESS_BOUND` is no longer the bound. The canon-delta Change 3 flood bullet says the same.
 
 **Outcome:**
 
@@ -284,7 +284,7 @@ tie `g` below `I + I/2`, or M6 should be restated.
 **Evidence:** T3's text in §9; the arithmetic above.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §9 T3 is re-pinned so that neither control depends on how long the priming exchange takes. M5 is now trailing-edge-only (`F = now + I` when stale is first set), which turns R1 red deterministically. R2 is a numbered shape refusal sent at R1's present + 1.25·I, so it has no spacing dependency. M6 is now `now + 3I`, which leaves `F` about 1.75 s off at R2.
 
 **Outcome:**
 
@@ -308,7 +308,7 @@ unconditional.
 **Evidence:** T4's text; `POLL_INTERVAL` in `tests/support/waiting.rs`.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §9 T4 now has a precondition, read from the recording glass when the command is sent: the last present shows A and not B, and `sent − A.at < I/2`. M7's red therefore rests on `at − sent ≤ I/2`, where the trailing present would land about `I` after A.
 
 **Outcome:**
 
@@ -341,7 +341,7 @@ bound as written; memories `timed-test-margins-are-measured-at-the-bound`,
 `margin-size-is-not-margin-direction`.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md D12 and §9 test support: `CountingGlass` becomes `RecordingGlass`, which logs `(Instant, Surface, lines)` inside `present`. Every gap and span is measured from that log, so there is no poller and span no longer comes from the writer. Each bound's load direction and margin is in §9's *load →* column. R1 is rewritten: lower bounds are safe under load; upper bounds have ≥ `I/2` of margin and are measured at the bound.
 
 **Outcome:**
 
@@ -380,7 +380,7 @@ should give the structural reason instead of the counterfactual.
 SPEC-003 §6.4.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §2 now states the real mechanism: `bind`'s `mpsc::channel(1)` and the sequential `accept_loop` mean `serve` yields once per arrival, and the UI thread was lost to the present's cost, not to starvation. D4 now justifies the arm's position on ordering alone: when both are ready, the owed update goes first, so I-2 rests on the timer and not on goad-shell's channel shape. R3 records the yield per arrival as untested (AC-6 is its witness). canon-delta Change 3's review bullets are rewritten to match.
 
 **Outcome:**
 
@@ -407,7 +407,7 @@ fold, or well under `MINIMUM_SPACING`.
 `sleep`.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md R2 and the §9 VT-7 row: VT-7 gains one assertion, that the first present showing 'ingress has stopped' is recorded less than `MINIMUM_SPACING/2` after `serve` is spawned. The mutation (the fold's `continue` retargeted to `'idle`) is then shown only by the engage present at `MINIMUM_SPACING`, so it turns red deterministically. slice-011.md AC-4 is restated to permit this.
 
 **Outcome:**
 
@@ -427,7 +427,7 @@ wrong reading. The design should not leave it to them.
 **Evidence:** the three phrasings cited.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §5.2 now specifies `let mut surface_stale = false;` declared immediately before `'idle: loop`, outside its body, once per entry into the idle wait and surviving that wait's iterations. §5.3 and D7 are aligned with it.
 
 **Outcome:**
 
@@ -449,7 +449,7 @@ command's present is still shown at once when `F` has passed.
 **Evidence:** D5; T3's sequence.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md §9 T3 adds control M8 (`F` also reset at every top present). R2 follows a diagnostics command's present after `F` has passed, so M8 turns it red. D5 cites it. The canon-delta Change 3 T3 bullet states the rule, and 'No ADR' cites M3 and M8.
 
 **Outcome:**
 
@@ -474,7 +474,7 @@ the drain's duration.
 near the wheel's current tick.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** design.md A-1 now says a past deadline fires once the driver has advanced past it (`Wheel::insert`), so the leading edge may wait one driver turn. §5.4 now says 'no later than the timer driver's next turn'. I-1 is restated for arm firings, with presents at least `I` minus one drain apart. The canon wording says 'without waiting for the interval' in place of 'at once'.
 
 **Outcome:**
 
@@ -497,7 +497,7 @@ near the wheel's current tick.
   restate the kill condition rather than claim it as written.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
-**Response:**
+**Response:** canon-delta states the count rule: 'eight' is exempt because `the_reason_token_set_is_closed_at_eight` holds it. R-12's 'three directions' is replaced (Change 4.2), and §6.3's cause counts are replaced (Change 2.4). Change 1's *Why not §6.4* says why the interval is not listed there. design.md §10 and slice-011.md AC-7 note that FU-2's *Dead when* is restated at close.
 
 **Outcome:**
 

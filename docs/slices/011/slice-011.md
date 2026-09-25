@@ -46,7 +46,8 @@ design proceeds (OQ-1).
   (`design-log.md`, 2026-09-26).
 - `crates/goad/tests/renderer/ingress.rs` — R-15's positive case, rewritten to
   read the window; new cases for the bound and the latest refusal under a flood,
-  and for a command during a coalesced interval; and
+  and for a command during a coalesced interval, all timed from a recording
+  glass (`design.md` D12); one added assertion in `a_dead_accept_task_…`; and
   `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`,
   whose recorded ratio is the thing this slice changes. It keeps its R-12 half,
   renamed (`design.md` §9, D13).
@@ -55,7 +56,8 @@ design proceeds (OQ-1).
 decided while idle is owed, and by when), its verification row — which reads
 the retained model, not the window, so it would not report the change — and
 R-12's verification row, which records *one presentation per refusal* as a
-measured fact. SPEC-002's R-12 row cites the same case, and only that citation
+measured fact. SPEC-003 §6.3 has two statements that R-15's exceptions make
+false, and its counts of causes are replaced. SPEC-002's R-12 row cites the same case, and only that citation
 changes, to the renamed case.
 
 **At close.** `docs/follow-ups.md` FU-2 — struck with what killed it, or
@@ -100,7 +102,10 @@ re-priced with the measurement if the slice concludes it is not worth doing.
       command, a scheduled firing and a refusal during an exchange present
       exactly as they did. Every existing case in
       `crates/goad/tests/renderer/ingress.rs` other than those AC-2 and AC-3
-      supersede passes unmodified.
+      supersede keeps every assertion it has. The one exception is
+      `a_dead_accept_task_…`: it moves mechanically to the recording glass and
+      gains one assertion, which guards the ingress-stopped path's loop label
+      (`design.md` §9, R2; review F-10).
 - [ ] AC-5 — SPEC-003/R-15 states what a refusal decided while idle is owed and
       by when; its verification row names cases that read the window; R-12's
       row no longer records one presentation per refusal. Promoted from
@@ -109,7 +114,11 @@ re-priced with the measurement if the slice concludes it is not worth doing.
       stay responsive with the latest refusal on the diagnostics surface.
       Recorded in `audit.md` §Evidence (`docs/AGENTS.md` §Tiers).
 - [ ] AC-7 — `docs/follow-ups.md` FU-2 is struck with what killed it, or
-      re-priced with AC-1's figures if the slice ends without a repair.
+      re-priced with AC-1's figures if the slice ends without a repair. The
+      strike restates FU-2's *Dead when*, which a lone refusal after quiet
+      still does not literally meet. The restated condition: refused arrivals
+      cost at most one present per interval, and R-15 states the update
+      guarantee (`design.md` §10; review F-14).
 
 ## Governing canon
 
@@ -153,10 +162,13 @@ re-priced with the measurement if the slice concludes it is not worth doing.
 - ~~OQ-4 — The tray.~~ **The same bound.** One present writes both the window
   and the tray, and updating the tray on its own would need a partial present
   (`design.md` D9).
-- ~~OQ-5 — An owed present when the loop leaves idle.~~ **Moot, except at the
-  end.** A command, a refusal-site refusal or the engage present carries it.
-  A loop that ends drops it, and R-15 states that exception (`design.md` §5.4,
-  D8).
+- ~~OQ-5 — An owed present when the loop leaves idle.~~ **What is owed is an
+  update of a stale surface, not a particular refusal.** Any present that
+  happens first shows whatever the diagnostics then hold: a diagnostics
+  command, an edit, or the engage present. A refusal-site refusal or the
+  ingress-stopped fold overwrites the stale fold before it is shown, and R-15
+  names that exception. When the loop ends, the pending update is not made
+  (`design.md` §5.4, D8; `design-log.md`, F-1/F-2).
 
 ## Summary
 
