@@ -1,8 +1,9 @@
 # Research — Slice 011
 
-**Producers:** Thread 1 and Thread 2 — research agent, reading the tree and
-canon. Thread 3 — research agent, measuring on the running host (release build,
-real compositor), with an attribution control built in a scratch worktree.
+**Producers:** research agent, for all three threads. Threads 1 and 2 come
+from reading the tree and canon. Thread 3 measured the running host (release
+build, real compositor) against an attribution control, with runs interleaved
+and screened for contention.
 **As of:** 2026-09-26 · `fa266da`
 
 Evidence artefact for design and plan. Later stages cite this instead of
@@ -27,9 +28,10 @@ form. An uncited claim is unverifiable by definition.
 Measurement claims cite the script that produced them and the raw table below.
 Scripts are in the session scratchpad
 (`/tmp/claude-1000/-home-david-dev-goad/6c6c55c8-54ff-4559-b124-444887286d5d/scratchpad/`),
-which does not outlive the session: `measure.py`, `run-set.sh`, `probe.sh`,
-`derive.py`, `backend.sh`, `scratch.toml`, `control.patch`, and the raw
-`results.jsonl`. Their content that matters is restated here.
+which does not outlive the session: `measure.py`, `interleave.py`,
+`probe.sh`, `derive2.py`, `backend.sh`, `scratch-head.toml`,
+`scratch-ctl.toml`, `control.patch`, and the raw `results2.jsonl` and
+`probes2.jsonl`. Their content that matters is restated here.
 
 ## Thread 1 — governing canon
 
@@ -120,212 +122,334 @@ explicitly disclaims the running platform. 009's F-R4 was reasoned, not run.
 
 ## Thread 3 — the cost of a refused arrival's present
 
+**Every figure below comes from the second measurement session.** The runs
+were interleaved and screened for contention, as set out under *Contention*.
+A first session measured the same conditions without either safeguard. Its
+`shape` figures agreed with these to within 5 % on CPU per refusal. Its
+`too_soon` form-up figure read 15 % higher (389 µs against 339 µs). It is
+superseded, and it is not load-bearing anywhere in this file.
+
 ### Instruments
 
-1. **Per-thread CPU.** `/proc/<pid>/task/<tid>/stat` fields `utime + stime`,
-   read at the start and end of a ~9.9 s window (`measure.py`). Clock ticks at
-   100 Hz, so resolution is 10 ms per reading — ≤0.2 % of a 9.9 s window.
-   The UI thread is the thread whose tid equals the pid (the Slint event loop,
-   where `serve` runs). All host threads are also summed.
-2. **Compositor CPU**, same window, whole process. **The compositor is
-   `umbriel`, not niri** — niri is not running on this machine; `umbriel`
-   owns `wayland-0`.
-3. **Refusal count** — every reply the writers read, by reason. The
-   denominator for per-refusal figures is the refusals in the writers' 10 s
-   run, scaled to the sampled window (`derive.py`).
-4. **Responsiveness probe** (`probe.sh`). Two seconds into a flood, the tray's
-   *Diagnostics* item is activated over D-Bus (`com.canonical.dbusmenu.Event`,
-   id 3, `clicked`); `umbriel windows` is polled every 0.25 s until the scratch
-   host's window title becomes `goad — diagnostics`. The latency is from the
-   click to the first poll that sees the new title.
+1. **UI-thread CPU per refusal: the lead figure.** It is the change in
+   `utime + stime` from `/proc/<pid>/task/<tid>/stat`, read at the start and
+   end of a ~9.9 s window (`measure.py`), divided by the refusals answered in
+   that window. The UI thread is the thread whose tid equals the pid. That is
+   the Slint event loop, and `serve` runs on it. The counter ticks at 100 Hz,
+   so one reading resolves to 10 ms, which is ≤0.2 % of a window. The same
+   figure is also computed over **all host threads** summed.
+2. **Refusal count**: every reply the writers read, by reason, over their 10 s
+   run, scaled to the sampled window (`derive2.py`). This is the denominator.
+3. **Achieved refusals/s and % of a core**: reported, but **load-sensitive**
+   (see *Contention*).
+4. **Compositor CPU**: whole process, same window. **The compositor is
+   `umbriel`, not niri.** niri is not running on this machine; `umbriel` owns
+   `wayland-0`.
+5. **Responsiveness probe** (`probe.sh`). Two seconds into a flood, the
+   driver activates the tray's *Diagnostics* item over D-Bus
+   (`com.canonical.dbusmenu.Event`, id 3, `clicked`). It then polls
+   `umbriel windows` every 0.25 s until the scratch host's window title
+   becomes `goad — diagnostics`. The figure is the time from the click to
+   that title.
 
-**What they hold.** (1) is the UI thread's total CPU, whatever it spent it on.
-(4) is end to end from a tray activation to the compositor reporting the
-window's new state: it detects an event loop that is not getting round to
-input-side work.
+**What they hold.** (1) is how much CPU the UI thread spent per refusal,
+whatever it spent it on. Set against the control, it shows how much of that
+the present costs. (5) runs end to end, from a tray activation to the window's
+new state as the compositor reports it. It detects an event loop that is not
+getting round to input-side work.
 
 **What they do not reach.**
 
-- (1) does not break a present down. It says how much the UI thread spent, and
-  (with the control) how much of that the present was — not whether
-  `option_models`, the Slint binding re-evaluation the epoch bump triggers, or
-  `show()` dominates.
-- (1) cannot see rendering done on other threads. Slint's renderer here runs
-  on the UI thread (no other host thread was busy beyond the tokio workers),
-  so this is a small gap.
-- (2) is the compositor's **whole-process** CPU. It includes every other client
-  on a busy desktop (idle baseline 2.2–5.6 % of a core varies with what the
-  person at the machine was doing). Differences of a few points are noise.
-- (4) is not typing. A tray activation reaches the loop by a different route
-  from a key press, and nothing here types into a field. Whether a person's
-  keystrokes lag under a flood is **unobserved** and belongs to a human run
-  (AC-6).
-- The machine was shared (32 cores; other agents and a model process at
-  ~50 % of a core). Per-thread CPU is robust to that; wall-clock latency in (4)
-  is less so.
+- (1) does not break a present down. It cannot say whether `option_models`,
+  the Slint binding re-evaluation that the epoch bump triggers, or `show()`
+  dominates.
+- (1) cannot see rendering done on other threads. Here the renderer runs on
+  the UI thread, and no other host thread was busy beyond the tokio workers,
+  so this gap is small.
+- (4) counts the compositor's **whole process**, which includes every other
+  client on a busy desktop. With no flood it ran 2.2–2.9 % of a core in
+  the kept windows, and up to 5.6 % in the first session. A difference of a
+  point or two is noise.
+- (5) is not typing. A tray activation reaches the loop by a different route
+  from a key press, and nothing here types into a field. Whether keystrokes
+  lag under a flood is **unobserved** and belongs to AC-6's human run.
+
+### Contention
+
+Other agents on this machine, working in other repos, run cargo builds
+intermittently. The machine has 32 cores, and load averages during the
+session ranged from 1.9 to 14.7.
+
+- **Screening.** `measure.py` polls `/proc` every 0.2 s through each window
+  for any process whose comm is a build tool: `rustc`, `cargo`, `cc`,
+  `gcc`, `clang`, `ld`, `mold`, `rust-lld`, `sccache`, or a
+  `build-script-*`. This session ran no build while measuring; both
+  binaries were built beforehand. So any such process is foreign. A window
+  that saw one is **discarded and repeated**, and it stays in the raw table
+  marked as discarded. Before each window the driver waits until no build
+  process has been seen for 2 s (5 s for the probes after the first three).
+  `/proc/loadavg` is recorded at each window's start and end.
+- **Discarded.** 9 of the 57 CPU windows, and 6 of the 12 probe runs.
+- **Interleaving.** Both builds ran at once as two scratch hosts, each on its
+  own socket (`scratch-head.toml`, `scratch-ctl.toml`). The driver
+  (`interleave.py`) alternated them every run: control then head, then head
+  then control, and so on. The probes alternated control, head, head, control,
+  control, head, with a fresh host for each. A build landing mid-session
+  therefore falls on both arms, not on one.
+- **What the screen reaches.** It catches build tools by process name. It
+  does not catch other heavy work, such as test binaries, a browser or a
+  model process (one was running at about 50 % of a core), and it misses a
+  build that starts and ends between two 0.2 s polls. The load average is
+  recorded so that such load is at least visible.
+- **What contention does to each figure.** CPU-seconds per refusal (lead
+  figure) is robust: a preempted thread accrues no CPU time. The discarded
+  windows show this. Their per-refusal CPU stays close to the kept windows'.
+  Form head `shape` read 325.5 µs discarded against 315.8–320.8 kept, which
+  is +2.4 % on the mean. The control read 3.6–4.1 µs against 3.5–3.6, up to
+  +14 % on a small figure. So contention nudges the figure up a little and
+  cannot account for a hundredfold difference. Nothing here separates the
+  cause of that nudge (cache, frequency). **Achieved rates, %
+  of a core and probe latency are load-sensitive.** They depend on wall
+  time and on scheduling. The probe was the most sensitive of all. Head
+  probes that overlapped a build answered in 1.05 s and 0.53 s. Clean ones
+  answered in 6.8–8.8 s. That the first session's 0.5 s head probes were
+  contended too is a plausible inference; nothing recorded it.
 
 ### Setup
 
-- **Build**: release, `cargo build --release -p goad` at `fa266da`, copied to
-  the scratchpad as `goad-head`. The daily `goad` systemd service was left
-  running and untouched; it has its own config, socket and backend, and its
-  window was distinguished from the scratch host's by title.
-- **Config** (`scratch.toml`): `default_poll = "1h"`, ingress socket in the
-  scratchpad, backend `backend.sh`: the demo backend's form (every field kind;
-  `next_check` 45 minutes) for the host's own evaluations; for any watcher's
-  accepted envelope a null view, so the form stays outstanding and is never
-  replaced. With `SCRATCH_HIDDEN=1` every answer is a null view, so there is no
-  form and the window is hidden.
-- **Writer**: four Python processes, each looping connect → send one line →
-  read the one-line reply → close. Two envelopes: `shape` (`{"source":"flood"}`,
-  refused `invalid_envelope`, identical text every time) and `too_soon` (a valid
-  envelope; one is accepted per 3 s spacing and runs a null-view exchange, the
-  rest are refused `too_soon` or, while that exchange is in flight, `engaged`).
-  The writers are not the bottleneck against the head build: 0.2–0.6 CPU-s of
-  their 40 available per window.
-- **Conditions**: (a) idle, no flood; (b) window hidden (no form); (c) window up
-  with the form; (d) the diagnostics pane up — reached by activating the tray's
-  *Diagnostics* item over D-Bus, so (d) was measurable after all. Three 10 s
-  runs of each kind per condition.
+- **Builds**: release, `cargo build --release -p goad` at `fa266da`,
+  installed in the scratchpad as `goad-head`. The control, `goad-ctl`, is the
+  same with `control.patch` applied. Both were built before any measuring,
+  and the control's worktree was removed after its build. The daily `goad`
+  systemd service kept running untouched. It has its own config, socket and
+  backend, and its window is told apart by title.
+- **Config**: `default_poll = "1h"`; each host has its own ingress socket in
+  the scratchpad. The backend is `backend.sh`:
+  - for the host's own evaluations, the demo backend's form, with a field of
+    every kind and `next_check` 45 minutes out;
+  - for a watcher's accepted envelope, a null view, so the form stays
+    outstanding;
+  - with `SCRATCH_HIDDEN=1`, a null view for everything, so there is no form
+    and the window is hidden.
+- **Writer**: four Python processes. Each loops: connect, send one line, read
+  the one-line reply, close. There are two envelopes:
+  - `shape`, which is refused `invalid_envelope` with the same text every
+    time;
+  - `too_soon`, a valid envelope. One of these is accepted per 3 s spacing
+    and runs a null-view exchange. The rest are refused `too_soon`, or
+    `engaged` while that exchange is in flight.
+
+  Against the head build with the form up, the writers used under 1 CPU-s of
+  the 40 available per window, so they are not the bottleneck there.
+- **Conditions**, each run as three 10 s windows per build per envelope:
+  - (a) idle;
+  - (b) window hidden (no form);
+  - (c) form up;
+  - (d) diagnostics pane up, reached by activating *Diagnostics* over D-Bus
+    on both hosts.
 
 ### Attribution control
 
-`control.patch`, applied in a scratch worktree of `fa266da` and built release
-as `goad-ctl`: `serve` gains `skip_present`, set when the ingested arm's
-`ingest` returns `None`, and the top-of-loop present is skipped once when it is
-set. Nothing else changes.
+`control.patch` makes one change to `serve`. It adds `skip_present`, which is
+set when the ingested arm's `ingest` returns `None`, and while it is set the
+top-of-loop present is skipped once. Nothing else changes.
 
-**Checked that it skips before trusting it.** With the form up, the tray's
-`ToolTip` before and after a 2 s `shape` flood of 157 740 refusals was
-`goad — waiting for an answer` both times. On the head build the same flood
-leaves `goad — no action taken: an event was refused (invalid_envelope):
-missing required key `kind``. The refusal is folded but not presented in the
-control, exactly as intended. The worktree has been removed.
+**Checked that it skips before trusting it.** With the form up, the control
+host's tray `ToolTip` read `goad — waiting for an answer` both before and
+after a 2 s `shape` flood of 157 740 refusals. After the same flood, the head
+build's tooltip names the `invalid_envelope` refusal. So the control folds a
+refusal but does not present it.
+
+### Derived figures — CPU per refusal (lead)
+
+Kept windows only, three per row. "all-thread" adds the tokio workers, which
+do the accept, the read and the reply.
+
+| condition | n | µs UI-thread CPU / refusal, mean (min–max) | µs all-thread CPU / refusal, mean | refusals/s mean (load-sensitive) |
+|---|---|---|---|---|
+| form up, head, `shape` | 3 | **317.8** (315.8–320.8) | 327.6 | 3136 |
+| form up, control, `shape` | 3 | **3.6** (3.5–3.6) | 13.0 | 107143 |
+| form up, head, `too_soon` | 3 | 339.1 (333.5–344.0) | 420.4 | 2818 |
+| form up, control, `too_soon` | 3 | 3.7 (3.6–3.7) | 13.9 | 100298 |
+| pane up, head, `shape` | 3 | **56.6** (56.5–56.6) | 66.2 | 17620 |
+| pane up, control, `shape` | 3 | 3.5 (3.5–3.6) | 12.8 | 109532 |
+| pane up, head, `too_soon` | 3 | 62.4 (61.4–63.6) | 88.9 | 14840 |
+| pane up, control, `too_soon` | 3 | 3.6 (3.6–3.6) | 13.6 | 103016 |
+| hidden, head, `shape` | 3 | **4.3** (4.2–4.5) | 14.1 | 104264 |
+| hidden, control, `shape` | 3 | 3.5 (3.5–3.5) | 12.7 | 110249 |
+| hidden, head, `too_soon` | 3 | 4.6 (4.5–4.6) | 17.9 | 92931 |
+| hidden, control, `too_soon` | 3 | 3.7 (3.6–3.8) | 14.0 | 100214 |
+
+Idle windows (condition a) recorded **0.00 UI-thread CPU-s** in every window,
+on both builds.
+
+- **The present's share of a refusal's UI-thread CPU:**
+  - form up: (317.8 − 3.6) / 317.8 ≈ **99 %**, about 314 µs of present per
+    refusal;
+  - pane up: (56.6 − 3.5) / 56.6 ≈ 94 %;
+  - hidden: 0.8 µs, 0.3–1 µs across the two envelopes. A hidden present with
+    no view does almost nothing.
+- **What no repair of FU-2 removes:** about 3.6 µs of UI-thread CPU per
+  refusal, and about 13 µs across all threads. That covers the socket,
+  `ingest`, the reply and the fold.
+- The `too_soon` rows are slightly dearer than `shape` because they include
+  about four accepted exchanges per window, each with its own presents and
+  backend spawn.
+- **How much of a core a flood takes (load-sensitive):**
+  - With the form up, the head build's UI thread used 9.05–9.88 CPU-s in each
+    ~9.9 s window, which is **saturated**. The ceiling it reaches, about 3 100
+    refusals/s, is the reciprocal of the present's cost, not a property of
+    the writer.
+  - With the pane up, it is saturated again, at about 17 600/s.
+  - The control never saturates (3.5–3.9 CPU-s per window). There the writers
+    set the rate, about 100 000/s.
+  - At the head build's ceiling of about 3 100/s, the control's cost would be
+    about 1.1 % of a core.
+
+### Compositor (load-sensitive)
+
+These are `umbriel`'s whole-process CPU ranges over the kept windows. With no
+flood, it used 2.2–2.9 % of a core.
+
+| surface | head flood | control flood |
+|---|---|---|
+| form up | 2.8–4.2 % | 2.3–3.0 % |
+| pane up | 5.0–5.8 % | 2.3–2.8 % |
+| hidden | 2.2–3.3 % | 2.1–2.6 % |
+
+The largest effect is with the pane up, and it is about 3 points of a core.
+The flood costs the compositor little.
+
+### Responsiveness probe (load-sensitive)
+
+Form up, four writers, `shape` flood, click at t = 2 s. The flood ends at
+t = 10 s, which is 8 s after the click.
+
+| build | clean runs: click → title change | runs discarded (build seen) |
+|---|---|---|
+| head | **8.8 s, 6.8 s, 8.3 s** | 2 (they answered in 1.05 s and 0.53 s) |
+| control | 0.014 s, 0.014 s, 0.014 s | 4 (all answered in 0.013–0.019 s) |
+
+For reference, the first session measured the head build with no flood at
+≤0.04 s.
+
+On a quiet machine, a flood holds a tray activation off for 7–9 s: most or
+all of the flood's remaining 8 s. With the present skipped, the activation
+lands inside the first 0.25 s poll.
 
 ### Raw table
 
-`derive.py` over `results.jsonl`. "% core" is CPU-s over the sampled window.
-Idle runs (condition a): UI thread **0.00 CPU-s** in every idle window,
-compositor 2.2–5.6 % of a core; not repeated below.
+The output of `derive2.py` over `results2.jsonl`, with every window
+included; discarded windows are marked. It repeats the per-refusal CPU for
+each window and the load average at the window's start and end.
 
-| run | refusals | refusals/s | UI thread CPU-s | UI thread % core | µs UI CPU / refusal | host all threads % core | compositor % core | writers CPU-s |
-|---|---|---|---|---|---|---|---|---|
-| form-head/shape/1 | 29937 | 2994 | 9.86 | 99.6 | 332.7 | 102.8 | 3.2 | 0.22 |
-| form-head/shape/2 | 29176 | 2918 | 9.82 | 99.2 | 339.9 | 102.8 | 4.2 | 0.30 |
-| form-head/shape/3 | 30703 | 3070 | 9.86 | 99.6 | 324.4 | 102.7 | 3.2 | 0.23 |
-| form-head/too_soon/1 | 20355 | 2036 | 8.67 | 87.6 | 430.2 | 118.1 | 8.6 | 0.64 |
-| form-head/too_soon/2 | 22511 | 2251 | 8.73 | 88.2 | 391.7 | 118.1 | 7.3 | 0.57 |
-| form-head/too_soon/3 | 27627 | 2763 | 9.46 | 95.5 | 345.8 | 121.4 | 3.8 | 0.33 |
-| form-ctl/shape/1 | 1036658 | 103666 | 3.71 | 37.5 | 3.6 | 139.9 | 2.4 | 6.91 |
-| form-ctl/shape/2 | 491863 | 49186 | 1.97 | 19.9 | 4.0 | 75.3 | 7.0 | 4.32 |
-| form-ctl/shape/3 | 676685 | 67668 | 2.70 | 27.3 | 4.0 | 115.7 | 3.5 | 5.53 |
-| form-ctl/too_soon/1 | 660312 | 66031 | 2.69 | 27.2 | 4.1 | 107.1 | 4.7 | 5.15 |
-| form-ctl/too_soon/2 | 886507 | 88651 | 3.32 | 33.5 | 3.8 | 127.8 | 3.9 | 5.98 |
-| form-ctl/too_soon/3 | 589277 | 58928 | 2.45 | 24.7 | 4.2 | 99.2 | 5.4 | 4.93 |
-| hidden-head/shape/1 | 1094590 | 109459 | 4.54 | 45.9 | 4.2 | 147.4 | 2.3 | 6.82 |
-| hidden-head/shape/2 | 922253 | 92225 | 3.98 | 40.2 | 4.4 | 130.9 | 2.9 | 6.32 |
-| hidden-head/shape/3 | 1048401 | 104840 | 4.49 | 45.3 | 4.3 | 145.5 | 2.2 | 6.83 |
-| hidden-head/too_soon/1 | 778491 | 77849 | 3.73 | 37.7 | 4.8 | 153.1 | 4.4 | 6.18 |
-| hidden-head/too_soon/2 | 524595 | 52460 | 2.79 | 28.2 | 5.4 | 130.3 | 5.6 | 4.91 |
-| hidden-head/too_soon/3 | 713103 | 71310 | 3.40 | 34.3 | 4.8 | 140.3 | 3.3 | 5.67 |
-| hidden-ctl/shape/1 | 813905 | 81390 | 3.11 | 31.4 | 3.9 | 135.5 | 2.5 | 6.66 |
-| hidden-ctl/shape/2 | 616094 | 61609 | 2.52 | 25.5 | 4.1 | 102.1 | 5.3 | 5.43 |
-| hidden-ctl/shape/3 | 691089 | 69109 | 2.75 | 27.8 | 4.0 | 113.5 | 3.8 | 6.03 |
-| hidden-ctl/too_soon/1 | 971448 | 97145 | 3.62 | 36.6 | 3.8 | 139.8 | 2.3 | 6.66 |
-| hidden-ctl/too_soon/2 | 949658 | 94966 | 3.52 | 35.6 | 3.7 | 134.6 | 2.5 | 6.45 |
-| hidden-ctl/too_soon/3 | 980898 | 98090 | 3.61 | 36.5 | 3.7 | 138.8 | 2.3 | 6.63 |
-| diag-head/shape/1 | 182238 | 18224 | 9.85 | 99.5 | 54.6 | 117.3 | 5.2 | 1.17 |
-| diag-head/shape/2 | 182305 | 18230 | 9.86 | 99.6 | 54.6 | 117.1 | 5.0 | 1.18 |
-| diag-head/shape/3 | 182742 | 18274 | 9.86 | 99.6 | 54.5 | 117.3 | 5.3 | 1.18 |
-| diag-head/too_soon/1 | 162721 | 16272 | 9.69 | 97.9 | 60.1 | 138.4 | 5.7 | 1.32 |
-| diag-head/too_soon/2 | 161686 | 16169 | 9.66 | 97.6 | 60.3 | 138.5 | 5.6 | 1.28 |
-| diag-head/too_soon/3 | 157688 | 15769 | 9.36 | 94.5 | 60.0 | 135.1 | 5.4 | 1.23 |
-
-The `too_soon` rows include about four accepted exchanges per window (null
-view, so the form stays); their own presents and backend spawns are in these
-figures, which is why `too_soon` reads slightly dearer than `shape`. The
-control's rates vary run to run because there the writers, not the host, are
-the limit (4–7 CPU-s of writer time).
-
-**Responsiveness probe** — latency from the tray's *Diagnostics* click (t = 2 s)
-to the window title changing, form up, 10 s `shape` flood:
-
-| build | writers | runs | click → title change |
-|---|---|---|---|
-| head | 0 (no flood) | 1 | ≤0.04 s |
-| head | 4 | 4 | **8.3 s (after the flood ended)**, 0.5 s, 0.5 s, **5.7 s** |
-| head | 1 | 1 | 1.3 s |
-| control | 4 | 1 | ≤0.02 s |
-
-### Derived figures
-
-- **UI-thread CPU per refused arrival, head build**, means of three runs:
-  - form up: **332 µs** (`shape`), 389 µs (`too_soon`);
-  - diagnostics pane up: **55 µs** (`shape`), 60 µs (`too_soon`);
-  - hidden (no form): **4.3 µs** (`shape`), 5.0 µs (`too_soon`).
-- **Control, present skipped**: **3.9 µs** per refusal, form up or hidden
-  alike.
-- **Share that is the present**, form up: (332 − 3.9) / 332 ≈ **99 %**. With
-  the pane up: (55 − 3.9) / 55 ≈ 93 %. Hidden: within noise of zero — a hidden
-  present with no view does almost nothing.
-- **How much of a core a flooding local writer takes**, form up: the UI
-  thread's **whole core** (99.2–99.6 % in every `shape` run) at ~3 000
-  refusals/s; the host's threads together ~103 %. It is saturated, so the rate
-  is the present's reciprocal, not the writer's. One writer alone also
-  saturates it (probe row: 9.86 CPU-s in 9.9 s). Pane up: again the whole core,
-  at ~18 000/s. Hidden: 28–46 % of a core at 50 000–110 000/s, writer-bound.
-- **Without the present** (control, form up): 20–38 % of a core at
-  50 000–100 000 refusals/s, and there the writers are the limit. At the head
-  build's saturated rate of ~3 000/s the control would spend ~1.2 % of a core.
-- **Compositor**: form-up floods ran 3.2–8.6 % of a core against a 2.2–5.6 %
-  idle baseline; pane-up floods 5.0–5.7 %. At most a few points, inside the
-  desktop's own noise. The flood does not make the compositor work hard — a
-  saturated UI thread commits few frames.
+| run | refusals | UI thread CPU-s | µs UI CPU / refusal | µs all-thread CPU / refusal | refusals/s (load-sensitive) | loadavg start→end |
+|---|---|---|---|---|---|---|
+| form-ctl/idle/1 | 0 | 0.00 | — | — | 0 | 7.79→7.23 |
+| form-head/idle/1 (discarded: build seen) | 0 | 0.00 | — | — | 0 | 6.81→6.15 |
+| form-head/idle/1 | 0 | 0.00 | — | — | 0 | 10.16→10.08 |
+| form-head/idle/2 | 0 | 0.00 | — | — | 0 | 9.43→8.45 |
+| form-ctl/idle/2 | 0 | 0.00 | — | — | 0 | 7.85→6.88 |
+| form-ctl/idle/3 | 0 | 0.00 | — | — | 0 | 6.20→5.48 |
+| form-head/idle/3 | 0 | 0.00 | — | — | 0 | 5.12→4.64 |
+| form-ctl/shape/1 (discarded: build seen) | 1065083 | 3.75 | 3.6 | 13.0 | 106508 | 4.64→4.56 |
+| form-ctl/shape/1 (discarded: build seen) | 722809 | 2.96 | 4.1 | 16.9 | 72281 | 8.72→8.61 |
+| form-ctl/shape/1 (discarded: build seen) | 803796 | 3.16 | 4.0 | 16.8 | 80380 | 7.66→7.39 |
+| form-ctl/shape/1 (discarded: build seen) | 1073492 | 3.80 | 3.6 | 13.0 | 107349 | 7.39→6.88 |
+| form-ctl/shape/1 (discarded: build seen) | 843002 | 3.24 | 3.9 | 14.2 | 84300 | 14.65→13.33 |
+| form-ctl/shape/1 | 1034514 | 3.70 | 3.6 | 13.5 | 103451 | 7.94→7.41 |
+| form-head/shape/1 | 31491 | 9.88 | 316.9 | 326.2 | 3149 | 6.90→6.15 |
+| form-head/shape/2 | 31501 | 9.85 | 315.8 | 325.8 | 3150 | 6.15→5.58 |
+| form-ctl/shape/2 | 1091435 | 3.81 | 3.5 | 12.8 | 109144 | 5.21→4.94 |
+| form-ctl/shape/3 | 1088338 | 3.80 | 3.5 | 12.9 | 108834 | 4.94→4.64 |
+| form-head/shape/3 (discarded: build seen) | 30537 | 9.84 | 325.5 | 337.0 | 3054 | 4.35→4.72 |
+| form-head/shape/3 | 31075 | 9.87 | 320.8 | 330.9 | 3108 | 4.43→4.20 |
+| form-ctl/too_soon/1 | 1025550 | 3.69 | 3.6 | 13.6 | 102555 | 4.20→4.17 |
+| form-head/too_soon/1 | 28684 | 9.65 | 339.8 | 421.5 | 2868 | 4.00→4.21 |
+| form-head/too_soon/2 | 27411 | 9.05 | 333.5 | 413.8 | 2741 | 4.21→4.02 |
+| form-ctl/too_soon/2 | 1018599 | 3.68 | 3.6 | 13.7 | 101860 | 3.94→3.79 |
+| form-ctl/too_soon/3 | 964788 | 3.56 | 3.7 | 14.4 | 96479 | 3.65→3.70 |
+| form-head/too_soon/3 | 28447 | 9.69 | 344.0 | 426.1 | 2845 | 3.70→4.18 |
+| diag-ctl/shape/1 (discarded: build seen) | 1080992 | 3.80 | 3.6 | 12.9 | 108099 | 3.69→3.58 |
+| diag-ctl/shape/1 | 1093062 | 3.84 | 3.5 | 12.9 | 109306 | 3.58→3.57 |
+| diag-head/shape/1 | 176092 | 9.87 | 56.6 | 66.3 | 17609 | 3.69→3.58 |
+| diag-head/shape/2 | 175975 | 9.86 | 56.6 | 66.2 | 17598 | 3.37→3.24 |
+| diag-ctl/shape/2 | 1095755 | 3.84 | 3.5 | 12.8 | 109576 | 3.24→3.13 |
+| diag-ctl/shape/3 | 1097141 | 3.86 | 3.6 | 12.8 | 109714 | 2.96→3.48 |
+| diag-head/shape/3 | 176537 | 9.87 | 56.5 | 66.0 | 17654 | 3.48→3.47 |
+| diag-ctl/too_soon/1 | 1028546 | 3.67 | 3.6 | 13.6 | 102855 | 3.28→3.47 |
+| diag-head/too_soon/1 | 157808 | 9.72 | 62.2 | 87.4 | 15781 | 3.27→3.63 |
+| diag-head/too_soon/2 | 142851 | 9.00 | 63.6 | 91.1 | 14285 | 3.63→3.61 |
+| diag-ctl/too_soon/2 | 1030546 | 3.70 | 3.6 | 13.6 | 103055 | 3.56→3.64 |
+| diag-ctl/too_soon/3 | 1031374 | 3.67 | 3.6 | 13.6 | 103137 | 3.64→3.69 |
+| diag-head/too_soon/3 (discarded: build seen) | 156591 | 9.65 | 62.2 | 88.2 | 15659 | 3.55→3.94 |
+| diag-head/too_soon/3 | 144553 | 8.79 | 61.4 | 88.2 | 14455 | 3.87→3.96 |
+| hidden-ctl/idle/1 | 0 | 0.00 | — | — | 0 | 3.34→2.98 |
+| hidden-head/idle/1 | 0 | 0.00 | — | — | 0 | 2.82→2.61 |
+| hidden-head/idle/2 | 0 | 0.00 | — | — | 0 | 2.61→2.52 |
+| hidden-ctl/idle/2 | 0 | 0.00 | — | — | 0 | 2.48→2.25 |
+| hidden-ctl/idle/3 | 0 | 0.00 | — | — | 0 | 2.15→1.97 |
+| hidden-head/idle/3 | 0 | 0.00 | — | — | 0 | 1.97→1.91 |
+| hidden-ctl/shape/1 | 1099013 | 3.78 | 3.5 | 12.7 | 109901 | 2.07→2.14 |
+| hidden-head/shape/1 | 933431 | 4.16 | 4.5 | 15.4 | 93343 | 2.28→2.47 |
+| hidden-head/shape/2 | 1097125 | 4.60 | 4.2 | 13.5 | 109712 | 2.47→2.63 |
+| hidden-ctl/shape/2 | 1100052 | 3.84 | 3.5 | 12.7 | 110005 | 2.50→2.58 |
+| hidden-ctl/shape/3 | 1108401 | 3.85 | 3.5 | 12.7 | 110840 | 2.61→2.75 |
+| hidden-head/shape/3 | 1097374 | 4.55 | 4.2 | 13.5 | 109737 | 2.75→2.86 |
+| hidden-ctl/too_soon/1 | 1038274 | 3.70 | 3.6 | 13.5 | 103827 | 2.71→2.75 |
+| hidden-head/too_soon/1 | 930945 | 4.23 | 4.6 | 18.3 | 93094 | 2.69→3.12 |
+| hidden-head/too_soon/2 | 905988 | 4.06 | 4.5 | 17.7 | 90599 | 3.12→3.72 |
+| hidden-ctl/too_soon/2 | 932831 | 3.48 | 3.8 | 14.9 | 93283 | 3.91→3.85 |
+| hidden-ctl/too_soon/3 | 1035311 | 3.68 | 3.6 | 13.5 | 103531 | 3.85→4.30 |
+| hidden-head/too_soon/3 | 950998 | 4.30 | 4.6 | 17.8 | 95100 | 4.12→4.09 |
 
 ### Conclusion
 
-**The present is the cost.** With a form up, it is about 99 % of the UI
-thread's work per refused arrival — ~330 µs against ~4 µs for everything else
-(socket, `ingest`, reply, fold). No repair of FU-2 can remove the ~4 µs; a
-repair that bounds presents removes nearly all the rest.
+**The present is the cost.** With a form up, it is about 99 % of a refused
+arrival's UI-thread CPU: about 318 µs against 3.6 µs for everything else. That
+holds in every clean window and in every discarded one too, so contention does
+not explain it. Bounding presents would remove nearly all of it. The last
+3.6 µs belong to ingress, and FU-2 cannot touch them.
 
-**And it matters, which the headless tier could not show.** On the real
-platform, a local writer flooding refusals — one writer is enough — pins the UI
-thread at 100 % of a core for as long as it writes, and the host's window
-stops acting on input promptly: a tray activation took 0.5 s to 8+ s to reach
-the window across four runs, once not until the flood stopped. With the present
-skipped (the control), the same flood leaves the UI thread two-thirds idle and
-the activation lands at once. The compositor is barely affected. Whether typing
-into a field lags is unobserved (AC-6).
+**It matters, and the headless tier could not have shown it.** With the form
+up, a single local writer is enough to saturate the UI thread. On a quiet
+machine the window then stops acting on a tray activation for most of the
+flood, typically 7–9 s of an 8 s span. With the present skipped, the same
+flood leaves the activation at about 14 ms. The compositor is barely affected.
+Whether typing into a field lags is unobserved (AC-6).
 
-The cost depends on the surface: dearest with the form up, ~6× cheaper with the
-diagnostics pane up, negligible with no view. The case to repair for is the
-form being up — which is exactly when a person is in the window.
+The cost depends on the surface. It is highest with the form up, about 5.6×
+lower with the diagnostics pane up, and negligible with no view. The case to
+repair for is the form being up, which is exactly when a person is in the
+window.
 
 ## Cross-thread findings
 
-- **R-12's row records 1690/s as the measured rate; on the real platform the
-  rate is ~3 000/s and it is the UI thread's ceiling, not the writer's.** The
-  headless number was the loop's throughput under the test tier's backend,
-  whose present is not this one's (its build profile is unrecorded). R-12's row is superseded anyway (AC-2), but no
-  amended row should carry either number forward as though it described the
-  running host.
-- **The latency probe shows why "the last refusal reaches the window within a
-  bound" (AC-3) is not only a diagnostics concern.** The unbounded presents
-  delay everything else the event loop owes the person. Where the delay sits
-  was not traced: `serve`'s `biased` `select!` polls `commands` before
-  `ingress`, so once a command is in the channel it wins — the delay is
-  upstream of that, in the event loop getting round to the tray activation.
-  That is consistent with `serve` rarely yielding while an arrival is always
-  ready, but it is an inference, not a measurement.
+- **R-12's row records 1690/s; on the real platform the ceiling is about
+  3 100/s, and it belongs to the UI thread, not the writer.** Slice 004's
+  number was the loop's throughput under the test tier's backend, whose
+  present is a different one (and whose build profile went unrecorded).
+  R-12's row is being superseded anyway (AC-2), but no amended row should
+  carry either figure forward as a description of the running host. A rate
+  is load-sensitive in any case; CPU per refusal is the figure that
+  survives.
+- **The probe shows why AC-3's bound is not only a diagnostics concern.**
+  Unbounded presents delay everything else the event loop owes the person.
+  Where the delay sits was not traced. `serve`'s `biased` `select!` polls
+  `commands` before `ingress`, so once a command is in the channel it wins.
+  The delay must therefore come before that, in the event loop getting round
+  to the tray activation. That is consistent with `serve` rarely yielding
+  while an arrival is always ready. It is an inference, not a measurement.
+  The contended probes answering *faster* fit it too, since a preempted UI
+  thread gives the loop gaps. That is also inference.
 
 ## Design-input deltas
 
-- OQ-1 answered by measurement: **worth repairing**. The cost is not marginal
-  — it is the whole UI thread under a flood from one local writer, with a
-  person-visible symptom.
-- The coalescing leaning is supported by the control: skipping the present
-  took the UI thread from saturated to ~4 µs per refusal. A bound of one present
-  per interval at 3 s would put the flood's present cost at ~0.01 % of a core.
+- OQ-1 is answered by measurement: **worth repairing**. A flood from one local
+  writer takes the whole UI thread, with a symptom a person can see.
+- The control supports coalescing. Skipping the present takes the UI thread
+  from saturated to about 3.6 µs per refusal. With at most one refusal-only
+  present per interval, a flood's present cost becomes about 314 µs per
+  interval, which is negligible at any interval of a second or more.
 - AC-6's human run should include typing into a field during a flood with the
-  form up — the one symptom this research could not reach.
+  form up. That is the one symptom this research could not reach.
