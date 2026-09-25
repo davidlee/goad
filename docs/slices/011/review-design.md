@@ -99,24 +99,40 @@ Invariants held: the five in `CLAUDE.md`; SPEC-003/R-8, R-12, R-15, P-C, P-D;
 SPEC-002/R-4, R-12 and ADR-004 (one write site per anchor); ADR-001 (stratum 3
 only); name-never-count.
 
+**Round 2** — 2026-09-26 — the repairs at `361d5a3`: each F-1…F-14 repair
+checked against the tree rather than its Response, then the repairs attacked
+as new surface. The rewritten R-15 and the new §6.3 entry are checked for
+exactly-what-the-code-does, P-D (including which side decides each new
+exception) and counts. `surface_stale` is traced across every transition,
+including the drain. `RecordingGlass` is checked for what it actually observes.
+Each re-timed case gets a trace of every named mutation and a load direction
+for each bound. The new VT-7 assertion and the AC-4 and AC-7 edits are checked
+against the tree.
+
 ## Findings
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | doc-wrong | |
-| F-2 | major | doc-wrong | |
-| F-3 | major | doc-wrong | |
-| F-4 | minor | doc-wrong | |
-| F-5 | minor | doc-wrong | |
-| F-6 | minor | doc-wrong | |
-| F-7 | minor | doc-wrong | |
-| F-8 | minor | doc-wrong | |
-| F-9 | minor | doc-wrong | |
-| F-10 | minor | doc-wrong | |
-| F-11 | minor | doc-wrong | |
-| F-12 | minor | doc-wrong | |
-| F-13 | nit | doc-wrong | |
-| F-14 | nit | doc-wrong | |
+| F-1 | major | doc-wrong | verified |
+| F-2 | major | doc-wrong | verified |
+| F-3 | major | doc-wrong | verified |
+| F-4 | minor | doc-wrong | verified |
+| F-5 | minor | doc-wrong | verified |
+| F-6 | minor | doc-wrong | verified |
+| F-7 | minor | doc-wrong | verified |
+| F-8 | minor | doc-wrong | verified |
+| F-9 | minor | doc-wrong | verified |
+| F-10 | minor | doc-wrong | verified |
+| F-11 | minor | doc-wrong | verified |
+| F-12 | minor | doc-wrong | verified |
+| F-13 | nit | doc-wrong | verified |
+| F-14 | nit | doc-wrong | verified |
+| F-15 | minor | | |
+| F-16 | minor | | |
+| F-17 | minor | | |
+| F-18 | minor | | |
+| F-19 | nit | | |
+| F-20 | nit | | |
 
 ### F-1 — A refusal-site refusal or the ingress-stopped fold does not carry an owed refusal: it erases it
 
@@ -147,7 +163,7 @@ clock (`NoClock`), ingress dying.
 **Disposition:** `doc-wrong` — responder: orchestrator. User decided 2026-09-26 (`design-log.md`): the owed state is *the surface is stale*, not *this refusal is owed*; an overwritten refusal is not shown, and retention stays with FU-3.
 **Response:** Per the user's decision, the owed state is now *the surface is stale*. `refusal_owed` is renamed `surface_stale`. design.md §5.4 (*While the surface is stale*) now says that a refusal-site refusal or the ingress-stopped fold overwrites the stale fold unshown, while a diagnostics command, an edit or the engage present shows it. The same change is made in the §5.1 diagram, I-2, D8, §6 OQ-5, R4 (FU-3) and slice-011.md OQ-5.
 
-**Outcome:**
+**Outcome:** verified — design.md §5.4 *While the surface is stale* now splits the paths correctly: command / `Edit` / engage present show the stale fold; refusal site and ingress-stopped fold overwrite it (checked against `Controller::refuse` and the drain, which calls no `refuse`). Diagram, I-2, D8, OQ-5 agree.
 
 ### F-2 — Amended R-15 puts a per-refusal MUST the design cannot meet, and its exceptions are not all named (P-D)
 
@@ -184,7 +200,7 @@ idle, an update of the surface follows every refusal within the interval
 **Disposition:** `doc-wrong` — responder: orchestrator. User decided 2026-09-26 (`design-log.md`): R-15 is worded around an update of the surface within the interval showing the latest refusal, with the overwrite named as its exception (P-D); the clock-overflow fallback named too.
 **Response:** canon-delta Change 1 rewrites R-15 around the update guarantee: the surface is updated within the interval and shows the latest refusal decided by then. It names the overwrite and loop-end exceptions, and separately the clock-overflow exception to the one-per-interval limit. design.md I-2 is restated the same way.
 
-**Outcome:**
+**Outcome:** verified — Change 1 now binds an *update* within the interval showing the latest refusal, names overwrite and loop end, and separately the clock-overflow exception to the per-interval limit. I-2 matches. New issues in the rewritten text are raised as F-16 and F-17.
 
 ### F-3 — SPEC-003 §6.3 is marked "checked, not changed", but two of its statements become false
 
@@ -212,7 +228,7 @@ address either. §6.3 needs an entry in `canon-delta.md`.
 **Disposition:** `doc-wrong` — responder: orchestrator. §6.3 gains a `canon-delta.md` entry.
 **Response:** New canon-delta Change 2 covers SPEC-003 §6.3. It rewrites the lead-in and the first two bullets on R-15's terms (overwrite, loop end), and it replaces the unavailable paragraph's cause counts.
 
-**Outcome:**
+**Outcome:** verified — Change 2 quotes the §6.3 lead-in, both bullets and the `unavailable` paragraph exactly as they stand in SPEC-003, and the replacements are true under Change 1.
 
 ### F-4 — T2: M2 does not turn (b) red; only (c) catches it
 
@@ -235,7 +251,7 @@ precondition and reset.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §9 T2 row: M2 (stale set only when `F` has passed) is now claimed to turn red on (c) only.
 
-**Outcome:**
+**Outcome:** verified — T2 row claims M2 → (c) only.
 
 ### F-5 — The trailing edge after a flood is held only by `LIVENESS_BOUND`, not by the interval
 
@@ -258,7 +274,7 @@ the backstop.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §9 T2(c) is now bounded at `at − last reply ≤ 2I`, which is `I` + slack `I`, measured from the recording glass. `LIVENESS_BOUND` is no longer the bound. The canon-delta Change 3 flood bullet says the same.
 
-**Outcome:**
+**Outcome:** verified — (c) is now `at − last reply ≤ 2I`, read from the log; the trailing present lands within `I` of the last decision, so margin `I`.
 
 ### F-6 — T3's controls M5 and M6 go red only under timing the design does not pin
 
@@ -286,7 +302,7 @@ tie `g` below `I + I/2`, or M6 should be restated.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §9 T3 is re-pinned so that neither control depends on how long the priming exchange takes. M5 is now trailing-edge-only (`F = now + I` when stale is first set), which turns R1 red deterministically. R2 is a numbered shape refusal sent at R1's present + 1.25·I, so it has no spacing dependency. M6 is now `now + 3I`, which leaves `F` about 1.75 s off at R2.
 
-**Outcome:**
+**Outcome:** verified — M5 (trailing-edge only) reds R1 with no timing precondition; R2 no longer depends on the spacing; M6 at `3I` leaves `F` ≈ 1.75 s off at R2. M8 likewise deterministic.
 
 ### F-7 — T4 can pass without an owed refusal ever existing
 
@@ -310,7 +326,7 @@ unconditional.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §9 T4 now has a precondition, read from the recording glass when the command is sent: the last present shows A and not B, and `sent − A.at < I/2`. M7's red therefore rests on `at − sent ≤ I/2`, where the trailing present would land about `I` after A.
 
-**Outcome:**
+**Outcome:** verified — the precondition makes the owed state explicit. A residual margin issue at the precondition's edge is raised as F-19.
 
 ### F-8 — The new timed upper bounds fail in the gate's direction under load, and R1 records only the benign direction
 
@@ -343,7 +359,7 @@ bound as written; memories `timed-test-margins-are-measured-at-the-bound`,
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md D12 and §9 test support: `CountingGlass` becomes `RecordingGlass`, which logs `(Instant, Surface, lines)` inside `present`. Every gap and span is measured from that log, so there is no poller and span no longer comes from the writer. Each bound's load direction and margin is in §9's *load →* column. R1 is rewritten: lower bounds are safe under load; upper bounds have ≥ `I/2` of margin and are measured at the bound.
 
-**Outcome:**
+**Outcome:** verified — serve-side recording removes the poller and the writer-side span; every bound carries a load direction. One direction label is wrong (F-18).
 
 ### F-9 — The starvation argument defends an unreachable state, and misses what actually gives the UI thread back
 
@@ -382,7 +398,7 @@ SPEC-003 §6.4.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §2 now states the real mechanism: `bind`'s `mpsc::channel(1)` and the sequential `accept_loop` mean `serve` yields once per arrival, and the UI thread was lost to the present's cost, not to starvation. D4 now justifies the arm's position on ordering alone: when both are ready, the owed update goes first, so I-2 rests on the timer and not on goad-shell's channel shape. R3 records the yield per arrival as untested (AC-6 is its witness). canon-delta Change 3's review bullets are rewritten to match.
 
-**Outcome:**
+**Outcome:** verified — §2 states the channel(1)/sequential-accept yield, D4 rests on ordering alone, R3 and the canon review bullets state the untested yield honestly.
 
 ### F-10 — R3's control for the ingress-stopped `continue` reds for a different reason than stated, and can go green under load
 
@@ -409,7 +425,7 @@ fold, or well under `MINIMUM_SPACING`.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md R2 and the §9 VT-7 row: VT-7 gains one assertion, that the first present showing 'ingress has stopped' is recorded less than `MINIMUM_SPACING/2` after `serve` is spawned. The mutation (the fold's `continue` retargeted to `'idle`) is then shown only by the engage present at `MINIMUM_SPACING`, so it turns red deterministically. slice-011.md AC-4 is restated to permit this.
 
-**Outcome:**
+**Outcome:** verified — under the mutation the fold first appears at the engage present at `MINIMUM_SPACING`; the new `< MINIMUM_SPACING/2` assertion reds that deterministically. AC-4 restated to permit it.
 
 ### F-11 — `refusal_owed`'s scope is stated ambiguously, and one reading loses every owed present
 
@@ -429,7 +445,7 @@ wrong reading. The design should not leave it to them.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §5.2 now specifies `let mut surface_stale = false;` declared immediately before `'idle: loop`, outside its body, once per entry into the idle wait and surviving that wait's iterations. §5.3 and D7 are aligned with it.
 
-**Outcome:**
+**Outcome:** verified — §5.2 pins the declaration immediately before `'idle: loop`.
 
 ### F-12 — D5's "interval runs from refusal-caused presents only" is canon, but no named control holds it
 
@@ -451,7 +467,7 @@ command's present is still shown at once when `F` has passed.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md §9 T3 adds control M8 (`F` also reset at every top present). R2 follows a diagnostics command's present after `F` has passed, so M8 turns it red. D5 cites it. The canon-delta Change 3 T3 bullet states the rule, and 'No ADR' cites M3 and M8.
 
-**Outcome:**
+**Outcome:** verified — M8 (reset `F` at every top present) moves `F` at the command's present, so R2 waits ≈ `I`; red regardless of how long the priming exchange takes.
 
 ### F-13 — "Presents at once, with no await that parks" is stronger than A-1's evidence
 
@@ -476,7 +492,7 @@ near the wheel's current tick.
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** design.md A-1 now says a past deadline fires once the driver has advanced past it (`Wheel::insert`), so the leading edge may wait one driver turn. §5.4 now says 'no later than the timer driver's next turn'. I-1 is restated for arm firings, with presents at least `I` minus one drain apart. The canon wording says 'without waiting for the interval' in place of 'at once'.
 
-**Outcome:**
+**Outcome:** verified — A-1, §5.4 and I-1 now say what tokio 1.53.1's wheel does.
 
 ### F-14 — Counts and unchecked sections carried through the delta; FU-2's kill condition not literally met
 
@@ -498,6 +514,141 @@ near the wheel's current tick.
 
 **Disposition:** `doc-wrong` — responder: orchestrator, under the autonomy grant. Repaired in `design.md`/`canon-delta.md`.
 **Response:** canon-delta states the count rule: 'eight' is exempt because `the_reason_token_set_is_closed_at_eight` holds it. R-12's 'three directions' is replaced (Change 4.2), and §6.3's cause counts are replaced (Change 2.4). Change 1's *Why not §6.4* says why the interval is not listed there. design.md §10 and slice-011.md AC-7 note that FU-2's *Dead when* is restated at close.
+
+**Outcome:** verified — "eight" is exempt as a closed set held by `the_reason_token_set_is_closed_at_eight` (R-14's row); "three directions" and §6.3's cause counts are replaced; *Why not §6.4* added; AC-7 restates FU-2's *Dead when*. The repair itself introduced new counts (F-16).
+
+### F-15 — `RecordingGlass` records the frame it is handed, not the window, while the canon row says every case "observes the window"
+
+**Severity:** minor
+**Location:** `design.md` D12, §9 *Test support* ("appends `Presented { at, surface, lines }` inside `present`, before it delegates"); `canon-delta.md` Change 3's lead ("Every case below observes the **window** … the lines it wrote")
+
+**Expected:** AC-3 requires the refusal to reach "the **window** — not only the
+retained model". The R-15 row claims each case observes the window.
+**Observed:** A record taken inside `present` *before* delegating can only read
+the `Frame`. That is `frame.surface` and `frame.diagnostics`, and
+`Frame::diagnostics` borrows the retained `Diagnostics`. The record therefore
+proves *that* a present happened and *what the retained model held* at that
+instant. That closes FU-2's gap, since a suppressed present now shows. But it is
+not what `SlintGlass::present` wrote. A regression in the write (the
+diagnostics `write_if_changed`, or `set_mode`) would leave every timed case
+green. The case VT-7 already reads, `window.get_diagnostic_lines()`, is one
+call away. `RecordingGlass` can hold a handle to the window it wraps, delegate
+first, then record `window.get_diagnostic_lines()` and `window.get_mode()`.
+The alternative is to word the canon cell as what it is: "the frame each
+update was given". Memories: `a-refusal-is-recorded-not-shown`,
+`a-green-test-can-assert-a-proxy`.
+**Evidence:** `Frame` (`controller.rs`: `pub surface`, `pub diagnostics: &'a Diagnostics`); `SlintGlass::present` (`glass.rs`, `set_mode`, diagnostics via `write_if_changed`); the VT-7 comment "the window's own `diagnostic_lines`, written unconditionally by `glass.rs`".
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-16 — The repair puts new counts into canon and the design
+
+**Severity:** minor
+**Location:** `canon-delta.md` Change 1 (R-15 cell: "**Two** exceptions, both the host's"; "**The one** exception is the host's own arithmetic"), Change 2.3 ("R-15's **pair** of exceptions"); `design.md` §10 ("**three** named exceptions"), I-3 ("**Two** changes only")
+
+**Expected:** The delta's own count rule: "Every count in a passage this delta
+touches is either replaced or justified as exempt" (`CLAUDE.md`, name never
+count). An exception list is not a closed set a test holds. It is exactly the
+kind of list P-D expects to grow when a clause is checked again, which is what
+round 1 did.
+**Observed:** Each of these counts appears in text the repair wrote, and none
+is justified. §6.3's "R-15's pair of exceptions" is a count in one spec
+section of a list that lives in another, and nothing re-reads it when R-15
+gains an exception. Name the exceptions instead ("R-15's overwrite and
+loop-end exceptions"), or name the rule they share.
+**Evidence:** the quoted phrases; `canon-delta.md` *The count rule*.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-17 — The delta says two different things about which side decides the new exceptions, and "both the host's" conflicts with §6.3's own grouping
+
+**Severity:** minor
+**Location:** `canon-delta.md` Change 1 *Why* ("The host decides all three") and cell ("Two exceptions, both the host's"); Change 2 *Why* ("The new exceptions come from a different side: a later refusal, or the host's stop")
+
+**Expected:** P-D's criterion: an absolute clause answers *which side decides
+the thing it is absolute about*, and answers it once.
+**Observed:** Change 1 attributes the overwrite to the host, while Change 2
+attributes it to "a later refusal". §6.3 groups refusals by deciding side, and
+under that grouping the later refusal that most often overwrites is a shape
+refusal. §6.3 puts those under "decided by whatever accepts connections", paced
+by the writer, not the host. There is a defensible reading in which the host
+decides: the overwrite happens because the host retains one fold (FU-3), and
+the host decides that retention. But the cell must say that, not "both the
+host's" alongside a *Why* that says "a different side". As written, the
+criterion P-D requires is answered two ways within one delta.
+**Evidence:** the three quoted sentences; SPEC-003 §6.3's first bullet.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-18 — T2(a)'s load direction is labelled "safe", but a stall can shrink the gap it bounds, and the canon row states a stronger bound than I-1
+
+**Severity:** minor
+**Location:** `design.md` §9 T2 row ((a) "≥ `I − 50 ms`", *load →* "(a) safe"); `canon-delta.md` Change 3 flood bullet ("Consecutive updates are never closer than the interval")
+
+**Expected:** The label says which way load moves each bound. The canon cell
+states what I-1 holds.
+**Observed:** The arm resets `F` from `now` in its own body. The present
+it causes, and so the log's `at`, comes later: after `continue 'serving`, the
+drain, and `controller.frame`. Call that delay `d1`. The next logged gap is
+`I + (arm latency) + d2 − d1`. A preemption inside `d1` of the *earlier*
+present shortens the following gap one-for-one. At the oversubscription the
+user runs, a 50 ms descheduling is not exotic. So load moves (a) toward red,
+not away from it. The chance is small, but the "safe" label is the claim R1
+relies on. Separately, the canon cell says updates are "never closer than the
+interval", while I-1 says "at least `I` minus one drain" and the test asserts
+`I − 50 ms`. Canon should state I-1's form. The test can either stamp the arm's
+own instant (a second log, written by the arm) or keep `I − 50 ms` and label
+its direction honestly.
+**Evidence:** §5.2's arm (`reset; continue 'serving;`); I-1's own wording; the top of `serve`'s loop (drain, then `glass.present(controller.frame(…))`).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-19 — T4's precondition admits a send so late that M7's red margin reaches zero
+
+**Severity:** nit
+**Location:** `design.md` §9 T4 row
+
+**Observed:** Under M7 the first present after `sent` is the trailing one, at
+about `A.at + I`. Its `at − sent` is therefore about `I − (sent − A.at)`. The
+precondition admits `sent − A.at` up to `I/2`, so at the edge M7 lands at about
+`I/2`, which is the bound itself. `d1` and arm latency then decide the colour.
+In the normal run `sent − A.at` is a few milliseconds and the margin is about
+`I/2`. The indeterminacy exists only after a stall. Tightening the
+precondition to `< I/4` makes M7's red margin at least `I/4` without changing
+the passing case.
+**Evidence:** T4's precondition and bound, traced under M7.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-20 — Stale figures and one stale sentence left by the repair
+
+**Severity:** nit
+**Location:** `design.md` §1 ("up to 8 s") and §2 ("~330 µs"); `slice-011.md` *Scope* ("so the latest refusal is always shown") and OQ-1 ("up to 8 s")
+
+**Observed:** `research.md` was re-run at `c57b670`. It now gives ~318 µs per
+refusal with the form up, and tray activations of 6.8–8.8 s during a flood.
+"Up to 8 s" is now below the measured range, not an upper bound. "The latest
+refusal is always shown" is what F-1/F-2 decided is not promised: an overwritten
+refusal is never shown.
+**Evidence:** `research.md` at `c57b670` (the probe table: 8.8 s, 6.8 s, 8.3 s); `design-log.md` F-1/F-2 entry.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -535,6 +686,39 @@ Checked against the tree and found complete:
 - **No simpler design found.** A trailing edge needs a timer arm. Folding it
   into `sleep` breaks R-4's one write site, and a skip-flag breaks I-3. The
   nested loop is the smallest shape that keeps the top present unconditional.
+
+## Round 2 — what is sound
+
+Every F-1…F-14 repair is verified above. It was checked against the tree and
+the current SPEC-003 text, not against the Response.
+
+**What the repairs made no worse.** Traced, not taken on trust:
+
+- **`surface_stale` across transitions.** Command, `Edit`, scheduled firing
+  (clock readable or not), accepted arrival, refusal site, ingress death,
+  stop and closed channel all do what §5.4 says. The drain calls no
+  `Controller::refuse`: a refused `Edit` or `Choose` comes back as
+  `Some(Err)` and is folded at the refusal site *after* the top present. So
+  nothing overwrites a fold between `continue 'serving` and the present.
+- **T2's controls** M1 → (a), M3 → (b), M4 → (b) and M2 → (c) all go red as
+  claimed. (b)'s `2I` and (c)'s `2I` each carry a margin of about `I`.
+- **T3's controls** M5, M6 and M8 go red independent of the priming exchange.
+  The command-then-R2 order is safe because `commands` is above ingress in the
+  `biased` `select!`.
+- **VT-7's new assertion** reds the retargeted `continue` deterministically:
+  3 s against 1.5 s. The only other way a fold reaches that window is the
+  initial arm.
+- **§6.3 Change 2** quotes SPEC-003 exactly. The "eight" exemption is real:
+  R-14's row names the test that holds it.
+- **D4's new rationale, and the review bullets in Change 3,** are
+  structurally honest.
+- **AC-4's and AC-7's edits** permit exactly VT-7's mechanical switch plus one
+  assertion, and restate FU-2's kill condition. Nothing else in AC-4 is
+  loosened.
+
+No new major or blocker. Round 2's new findings are about how exactly the
+canon cell and the test instrument are worded and labelled (F-15…F-18), plus
+two nits. None of them reopens the mechanism.
 
 ## Synthesis
 
