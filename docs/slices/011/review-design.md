@@ -127,12 +127,12 @@ against the tree.
 | F-12 | minor | doc-wrong | verified |
 | F-13 | nit | doc-wrong | verified |
 | F-14 | nit | doc-wrong | verified |
-| F-15 | minor | | |
-| F-16 | minor | | |
-| F-17 | minor | | |
-| F-18 | minor | | |
-| F-19 | nit | | |
-| F-20 | nit | | |
+| F-15 | minor | doc-wrong | |
+| F-16 | minor | doc-wrong | |
+| F-17 | minor | doc-wrong | |
+| F-18 | minor | doc-wrong | |
+| F-19 | nit | doc-wrong | |
+| F-20 | nit | doc-wrong | |
 
 ### F-1 — A refusal-site refusal or the ingress-stopped fold does not carry an owed refusal: it erases it
 
@@ -539,7 +539,7 @@ update was given". Memories: `a-refusal-is-recorded-not-shown`,
 `a-green-test-can-assert-a-proxy`.
 **Evidence:** `Frame` (`controller.rs`: `pub surface`, `pub diagnostics: &'a Diagnostics`); `SlintGlass::present` (`glass.rs`, `set_mode`, diagnostics via `write_if_changed`); the VT-7 comment "the window's own `diagnostic_lines`, written unconditionally by `glass.rs`".
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. Take the stronger branch: `RecordingGlass` records what the window holds **after** delegating, so every case reads the window as AC-3 and the canon row say.
 **Response:**
 
 **Outcome:**
@@ -561,7 +561,7 @@ gains an exception. Name the exceptions instead ("R-15's overwrite and
 loop-end exceptions"), or name the rule they share.
 **Evidence:** the quoted phrases; `canon-delta.md` *The count rule*.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. Name the exceptions, never count them, in canon and design alike.
 **Response:**
 
 **Outcome:**
@@ -584,7 +584,7 @@ host's" alongside a *Why* that says "a different side". As written, the
 criterion P-D requires is answered two ways within one delta.
 **Evidence:** the three quoted sentences; SPEC-003 §6.3's first bullet.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. The overwrite is the host's: what the surface retains is the host's choice (FU-3), whatever side the overwriting refusal blames. Change 2 is brought into line with Change 1.
 **Response:**
 
 **Outcome:**
@@ -610,7 +610,7 @@ own instant (a second log, written by the arm) or keep `I − 50 ms` and label
 its direction honestly.
 **Evidence:** §5.2's arm (`reset; continue 'serving;`); I-1's own wording; the top of `serve`'s loop (drain, then `glass.present(controller.frame(…))`).
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. T2(a)'s load label corrected; the canon row states the guarantee I-1 actually holds, no stronger.
 **Response:**
 
 **Outcome:**
@@ -630,7 +630,7 @@ precondition to `< I/4` makes M7's red margin at least `I/4` without changing
 the passing case.
 **Evidence:** T4's precondition and bound, traced under M7.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. Tighten to I/4.
 **Response:**
 
 **Outcome:**
@@ -647,7 +647,7 @@ refusal is always shown" is what F-1/F-2 decided is not promised: an overwritten
 refusal is never shown.
 **Evidence:** `research.md` at `c57b670` (the probe table: 8.8 s, 6.8 s, 8.3 s); `design-log.md` F-1/F-2 entry.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. Figures from c57b670; Scope restated to the update guarantee.
 **Response:**
 
 **Outcome:**
