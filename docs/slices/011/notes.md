@@ -1,4 +1,4 @@
-# Notes — Slice NNN
+# Notes — Slice 011
 
 Durable per-slice scratchpad and the only record of progress. Phase sheets are
 expanded here just before execution and left in place; anything worth keeping
@@ -8,7 +8,9 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 — the recording glass | pending | 2026-09-26 |
+| PHASE-02 — the coalescing loop | pending | 2026-09-26 |
+| PHASE-03 — under load, and in front of a person | pending | 2026-09-26 |
 
 ## Phase sheets
 
