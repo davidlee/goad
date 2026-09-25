@@ -1,7 +1,7 @@
 # Slice 011: the refused arrival's present
 
-**Stage:** design — scoped 2026-09-26; the measurement (AC-1) comes first and
-may send the slice back to the user before any design is drawn
+**Stage:** design — scoped 2026-09-26; AC-1 measured (`research.md` Thread 3),
+repair decided
 **Tier:** 2 (full) — the slice amends canon: SPEC-003/R-15, and the
 verification rows of R-15 and R-12, which record the present a refusal costs.
 **Depends on:** —
@@ -40,9 +40,10 @@ design proceeds (OQ-1).
 **Code, if the measurement warrants it.**
 
 - `serve` (`crates/goad/src/controller.rs`) — the outer loop's refusal path, and
-  whatever bounds the presents it causes. The **leaning** is to coalesce: a
-  refusal-only change is presented at most once per interval, on the trailing
-  edge, so the last refusal is always shown (`design-log.md`, 2026-09-26).
+  whatever bounds the presents it causes. It coalesces: a
+  refusal-only change presents at once after quiet, then at most once per
+  interval, trailing edge, so the latest refusal is always shown
+  (`design-log.md`, 2026-09-26).
 - `crates/goad/tests/renderer/ingress.rs` — R-15's cases, and
   `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`,
   whose recorded ratio is the thing this slice changes.
@@ -131,12 +132,15 @@ re-priced with the measurement if the slice concludes it is not worth doing.
 
 ## Open questions
 
-- OQ-1 — What does AC-1's measurement show, and is it worth repairing? If the
-  cost is negligible, the slice may end at AC-7's re-pricing.
-- OQ-2 — The interval. `MINIMUM_SPACING` (3 s) is the obvious candidate, since
-  it already bounds what an arrival may cause; a shorter one keeps a watcher's
-  author closer to real time. Which, and does R-15 state the number or the
-  rule?
+- ~~OQ-1 — What does AC-1's measurement show, and is it worth repairing?~~
+  **Repair.** The present is ~99 % of a refused arrival's UI-thread cost with
+  the form up; one local writer pins the UI thread and delays a tray activation
+  by up to 8 s (`research.md` Thread 3; `design-log.md`, 2026-09-26).
+- ~~OQ-2 — The interval, and does R-15 state the number or the rule?~~
+  **Both edges, 1 s.** The first refusal after quiet presents at once; a burst
+  causes at most one further refusal-only present per interval, always the
+  latest. R-15 states the rule; the number lives in code
+  (`design-log.md`, 2026-09-26).
 - OQ-3 — Where the coalescing deadline lives: a second `select!` arm in `serve`
   beside the schedule's `sleep`, or folded into the existing one. The first adds
   loop state; the second risks the scheduled firing's single write site

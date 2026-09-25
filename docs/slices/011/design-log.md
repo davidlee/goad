@@ -40,3 +40,30 @@ other, citing the finding id.
 - **Decided:** "yes".
 - **Consequence:** the orchestrator decides design and plan questions that do
   not touch canon, and records them in this log as its own, marked as such.
+
+### 2026-09-26 — OQ-1: is it worth repairing (the measurement gate)
+
+- **Asked:** `research.md` Thread 3 — with the form up, the present is ~99 % of
+  a refused arrival's UI-thread cost (~330 µs against ~4 µs with the present
+  skipped); one local writer pins the UI thread at a full core, and a tray
+  activation took 0.5–8.3 s to reach the window during a flood (≤0.02 s with
+  the present skipped). Repair, or re-price FU-2 and stop?
+- **Recommended:** repair; the control supports coalescing.
+- **Decided:** repair (implicit in choosing the bound, next entry).
+- **Consequence:** OQ-1 closed. FU-2's "no user-visible disturbance" is wrong
+  on the real platform and is corrected at close.
+
+### 2026-09-26 — OQ-2: the bound R-15 states
+
+- **Asked:** (a) trailing edge only, at `MINIMUM_SPACING` (3 s) — even a lone
+  refusal waits up to 3 s; or (b) leading and trailing edge at a short interval
+  (1 s suggested) — the first refusal after quiet presents at once, as today,
+  and a burst causes at most one further present per interval, always the
+  latest.
+- **Recommended:** (b) at 1 s; R-15 states the rule (a refusal decided while
+  idle reaches the diagnostics surface within the interval; at most one
+  refusal-only present per interval), the number lives in code as ADR-004's
+  floor does.
+- **Decided:** "b)"
+- **Consequence:** the design coalesces on both edges at 1 s. R-15's amendment
+  in `canon-delta.md` states the rule; its wording is endorsed at audit.
