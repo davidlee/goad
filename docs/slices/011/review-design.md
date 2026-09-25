@@ -139,8 +139,8 @@ new control M0 reds T2, T3 and T4. The settled mechanism is not re-attacked.
 | F-18 | minor | doc-wrong | verified |
 | F-19 | nit | doc-wrong | verified |
 | F-20 | nit | doc-wrong | verified |
-| F-21 | minor | | |
-| F-22 | nit | | |
+| F-21 | minor | doc-wrong | |
+| F-22 | nit | doc-wrong | |
 
 ### F-1 — A refusal-site refusal or the ingress-stopped fold does not carry an owed refusal: it erases it
 
@@ -681,7 +681,7 @@ with `ε` covering one `d1`. That catches 600 ms, and M1 reds it by orders of
 magnitude. The pairwise `I/2` check can stay as the direct M1 witness.
 **Evidence:** the T2 row at `361d5a3` (`I − 50 ms`) against `7a7a4d8` (`I/2`); I-1 (arm firings ≥ `I` apart, set from the arm's own `now`, so present delays never add firings).
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. Take the raiser's instrument: T2 counts the flood's presents against `1 + ceil((last.at − first.at + ε)/I)`, which load cannot pass; keep the I/2 gap assertion as the debounce/throttle discriminator only if it still earns a mutation.
 **Response:**
 
 **Outcome:**
@@ -703,7 +703,7 @@ Name it by its effect: "delete the `write_if_changed(&self.diagnostics, lines)`
 call, so the diagnostics model is never written".
 **Evidence:** `SlintGlass::present` (`glass.rs`), its one `write_if_changed(&self.diagnostics, lines)` call.
 
-**Disposition:**
+**Disposition:** `doc-wrong` — responder: orchestrator. Name M0 by its effect: delete the `write_if_changed(&self.diagnostics, lines)` call.
 **Response:**
 
 **Outcome:**
