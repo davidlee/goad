@@ -1,7 +1,7 @@
 # Slice 011: the refused arrival's present
 
 **Stage:** design — scoped 2026-09-26; AC-1 measured (`research.md` Thread 3),
-repair decided
+repair decided; `design.md` and `canon-delta.md` drafted
 **Tier:** 2 (full) — the slice amends canon: SPEC-003/R-15, and the
 verification rows of R-15 and R-12, which record the present a refusal costs.
 **Depends on:** —
@@ -44,15 +44,19 @@ design proceeds (OQ-1).
   refusal-only change presents at once after quiet, then at most once per
   interval, trailing edge, so the latest refusal is always shown
   (`design-log.md`, 2026-09-26).
-- `crates/goad/tests/renderer/ingress.rs` — R-15's cases, and
+- `crates/goad/tests/renderer/ingress.rs` — R-15's positive case, rewritten to
+  read the window; new cases for the bound and the latest refusal under a flood,
+  and for a command during a coalesced interval; and
   `ingress::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`,
-  whose recorded ratio is the thing this slice changes.
+  whose recorded ratio is the thing this slice changes. It keeps its R-12 half,
+  renamed (`design.md` §9, D13).
 
 **Canon.** `canon-delta.md` for SPEC-003: R-15's requirement (what a refusal
 decided while idle is owed, and by when), its verification row — which reads
 the retained model, not the window, so it would not report the change — and
 R-12's verification row, which records *one presentation per refusal* as a
-measured fact.
+measured fact. SPEC-002's R-12 row cites the same case, and only that citation
+changes, to the renamed case.
 
 **At close.** `docs/follow-ups.md` FU-2 — struck with what killed it, or
 re-priced with the measurement if the slice concludes it is not worth doing.
@@ -142,16 +146,17 @@ re-priced with the measurement if the slice concludes it is not worth doing.
   causes at most one further refusal-only present per interval, always the
   latest. R-15 states the rule; the number lives in code
   (`design-log.md`, 2026-09-26).
-- OQ-3 — Where the coalescing deadline lives: a second `select!` arm in `serve`
-  beside the schedule's `sleep`, or folded into the existing one. The first adds
-  loop state; the second risks the scheduled firing's single write site
-  (SPEC-002/R-4).
-- OQ-4 — The tray. A refusal changes `Diagnostics::state()`, which the tray
-  icon reads, so coalescing the present delays the tray too. Acceptable under
-  the same bound, or must the tray stay immediate?
-- OQ-5 — Does a coalesced present that is still owed when the loop leaves idle
-  (an exchange begins) get dropped, or presented first? The exchange's own
-  presents may make it moot.
+- ~~OQ-3 — Where the coalescing deadline lives.~~ **A second pinned `Sleep`,
+  with its own arm just above ingress, inside a new `'idle` wait loop.** A
+  refused arrival resumes waiting, and the top present stays unconditional.
+  Neither anchor is touched (`design.md` D1–D4).
+- ~~OQ-4 — The tray.~~ **The same bound.** One present writes both the window
+  and the tray, and updating the tray on its own would need a partial present
+  (`design.md` D9).
+- ~~OQ-5 — An owed present when the loop leaves idle.~~ **Moot, except at the
+  end.** A command, a refusal-site refusal or the engage present carries it.
+  A loop that ends drops it, and R-15 states that exception (`design.md` §5.4,
+  D8).
 
 ## Summary
 
