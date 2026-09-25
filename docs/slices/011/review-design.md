@@ -4,7 +4,7 @@
 at `d57f503`
 **Reviewer:** fresh agent, Opus
 **Opened:** 2026-09-26
-**State:** open (F-21, F-22 awaiting disposition)
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -115,6 +115,9 @@ lines), diffed from `361d5a3`, for any decision, invariant, assertion, mutation
 or load-direction claim it lost or altered beyond those repairs; and whether the
 new control M0 reds T2, T3 and T4. The settled mechanism is not re-attacked.
 
+**Round 4** — 2026-09-26 — verification of F-21 and F-22 at `48da1d0`, and a
+judgement on the residue the author reported for T2(a)'s count.
+
 ## Findings
 
 | id | severity | disposition | outcome |
@@ -139,8 +142,8 @@ new control M0 reds T2, T3 and T4. The settled mechanism is not re-attacked.
 | F-18 | minor | doc-wrong | verified |
 | F-19 | nit | doc-wrong | verified |
 | F-20 | nit | doc-wrong | verified |
-| F-21 | minor | doc-wrong | |
-| F-22 | nit | doc-wrong | |
+| F-21 | minor | doc-wrong | verified |
+| F-22 | nit | doc-wrong | verified |
 
 ### F-1 — A refusal-site refusal or the ingress-stopped fold does not carry an owed refusal: it erases it
 
@@ -684,7 +687,7 @@ magnitude. The pairwise `I/2` check can stay as the direct M1 witness.
 **Disposition:** `doc-wrong` — responder: orchestrator. Take the raiser's instrument: T2 counts the flood's presents against `1 + ceil((last.at − first.at + ε)/I)`, which load cannot pass; keep the I/2 gap assertion as the debounce/throttle discriminator only if it still earns a mutation.
 **Response:** design.md §9 T2(a) is now a count: flood presents ≤ `1 + ceil((last.at − first.at + ε)/I)`, with `ε = I/2`. It turns red under M1 by orders of magnitude, and under a new M9 (`I` = 600 ms). The pairwise `I/2` gap check is dropped, because no named mutation needed it beyond the count. The load label is restated: the count goes toward red only when the first flood present lags its firing by more than `ε`, with a margin of `I/2`. The flood bullet in canon-delta Change 3 now describes the count.
 
-**Outcome:**
+**Outcome:** verified — T2(a) is now a count, `≤ 1 + ceil((last.at − first.at + ε)/I)` with `ε = I/2`. Checked: I-1 makes arm firings at least `I` apart, so `span ≥ (n−1)I − d1`, and the bound is at least `n` whenever the first present's lag `d1 ≤ ε`. Correct under any stall elsewhere, as labelled. M1 reds by orders of magnitude. M9 (600 ms) reds: over a 2.5 s flood there are 6 presents across a 3.0 s span, against a ceiling of 5. The canon cell claims exactly this. The residual resolution is judged in Round 4.
 
 ### F-22 — M0's wording admits a reading under which nothing reds
 
@@ -706,7 +709,7 @@ call, so the diagnostics model is never written".
 **Disposition:** `doc-wrong` — responder: orchestrator. Name M0 by its effect: delete the `write_if_changed(&self.diagnostics, lines)` call.
 **Response:** design.md §9 now names M0 by its effect: delete the `write_if_changed(&self.diagnostics, lines)` call in `SlintGlass::present`, so the diagnostics model is never written.
 
-**Outcome:**
+**Outcome:** verified — M0 now reads "delete the `write_if_changed(&self.diagnostics, lines)` call … so the diagnostics model is never written", which is the one call site in `SlintGlass::present`. Round 3's trace holds.
 
 ## Round 1 — what is sound
 
@@ -812,42 +815,83 @@ The one thing the cut and repair lost in effect is F-21.
 Under a `Frame`-recording glass all three would stay green, so M0 does tell
 the two instruments apart. The one gap is its wording (F-22).
 
+## Round 4 — verification and the count's residue
+
+F-21 and F-22 are verified; see their outcomes.
+
+**The residue.** The author reported that the count catches an interval shrunk
+to about 0.7 s but not to 0.8 s. My trace over a 2.5 s flood with the mirrored
+`I` = 1 s puts the line slightly lower.
+
+| code interval | presents | span | ceiling | result |
+|---|---|---|---|---|
+| 0.6 s | 6 | 3.0 s | 1 + ceil(3.5) = 5 | red |
+| 0.7 s | 5 | 2.8 s | 1 + ceil(3.3) = 5 | green |
+
+The threshold is about 0.65 s, and it moves with the flood's phase. The
+integer ceiling makes resolution coarse, roughly `I` divided by the number of
+intervals the flood spans. So the rule "at most one refusal-caused update per
+interval" is held to within about 1.5×. Below that, the constant's value is held
+by review and by the mirror comment, as `MINIMUM_SPACING` is.
+
+**Judged acceptable, so no finding is raised.** Three reasons:
+
+1. R-15 states the rule, not the number. The reversals the rule exists to
+   prevent are caught with wide margins: an update per refusal (M1), a debounce
+   (M3), an interval that is too long (M4, M6), and an interval that runs from
+   any present (M8).
+2. An interval shortened by less than half is not a regression a person can
+   see. Neither the cost of a flood nor the window's responsiveness changes
+   shape.
+3. A sharper bound costs real time. Each extra interval of flood buys about
+   `1/n` of resolution, and T2 already runs for 2.5 s of real time.
+
+Two things the plan should carry. First, record T2(a)'s resolution beside the
+case, stating the interval it cannot distinguish. Use the traced figure, not
+0.7 s. Second, see M9 fail: its margin is one present, and a stall that drops
+a firing turns it green, so it needs a run under load.
+
 ## Synthesis
 
-**Not resolved yet.** F-21 (minor) and F-22 (nit) are raised in Round 3 and
-still need a disposition. Neither blocks: no blocker was ever raised. Both are
-one-line design edits, and verifying them is mechanical: T2 gains a count
-assertion that 600 ms fails, and M0 is reworded by its effect. The text below
-stands once they are verified; State then moves to `resolved`.
+**Resolved.** All 22 findings are `verified`; none was withdrawn, and no blocker
+was ever raised. Four rounds ran: two full review rounds, one verification pass
+over the repairs and the tightening, and one final verification.
 
-**What the review changed.** Round 1's three majors were one defect seen from
-three sides: the draft R-15 promised that *each* idle refusal reaches the
-surface, but `Controller::refuse` replaces the whole slot. The user chose to
-word R-15 around an **update** of the surface within the interval. That update
-shows the latest refusal decided by then. The exceptions are named: overwrite,
-loop end and clock overflow, all the host's. SPEC-003 §6.3 gained a delta so its
-*always* claims stay true. The test plan moved from a poller to a glass that
-records the **window** inside `serve`. Every timed bound now states which way
-load moves it. Every control was re-pinned so that it reds regardless of how
-long setup takes: M5, M6, M8, M7 via T4's precondition, VT-7's new assertion,
-and M0. Counts introduced into canon were replaced by names.
+**What the review changed.**
 
-**What it confirmed.** The mechanism was sound from the start:
+- **R-15's promise.** Round 1's three majors were one defect seen from three
+  sides. The draft R-15 promised that *each* idle refusal reaches the surface,
+  but `Controller::refuse` replaces the whole slot. The user chose to word R-15
+  around an **update** of the surface within the interval, showing the latest
+  refusal decided by then. Its exceptions are named as the host's own:
+  overwrite (whichever side decided the overwriting refusal), loop end, and
+  clock overflow. SPEC-003 §6.3 gained a delta, so its *always* claims stay
+  true.
+- **The test plan.** It no longer uses a poller. A glass inside `serve` draws
+  first and then records the **window**, and M0 proves the recorder reads the
+  window rather than the model. Every timed bound states which way load moves
+  it. The per-interval rule is held by a count that is robust to stalls, not by
+  pairwise gaps. Every control reds regardless of how long setup takes: M5, M6,
+  M7 (behind T4's precondition), M8, M9, and VT-7's new assertion.
+- **Canon wording.** Counts introduced into canon were replaced by names.
 
-- a nested `'idle` loop that keeps the top present unconditional;
-- one pinned `Sleep` arm above ingress serving both edges;
-- throttle, not debounce;
-- neither scheduling anchor touched.
-
-§2's account of the current code was accurate. No simpler design was found.
+**What it confirmed.** The mechanism was sound from the start: a nested
+`'idle` loop keeping the top present unconditional; one pinned `Sleep` arm
+above ingress serving both edges; throttle, not debounce; and neither
+scheduling anchor touched. §2's account of the current code was accurate, and
+no simpler design was found. The tightening from 352 to 278 lines lost nothing
+load-bearing.
 
 **Risks left standing, knowingly.**
 
-- The per-arrival yield is what actually gives the UI thread back, and no test
-  holds it (R3). A person's run under AC-6 is its only witness.
-- A flood now shows fewer of its refusals, and a refusal-site refusal can
-  overwrite a stale fold unshown. Retention is FU-3's, and its row gains this
-  slice's citation at close.
-- Every timed upper bound can still go red on a stalled machine. Each has a
-  margin of at least `I/4`, and the plan measures those margins under
-  oversubscription.
+- **The yield per arrival is untested.** It is what actually gives the UI thread
+  back (R3), and AC-6's human run is its only witness.
+- **Retention.** A flood shows fewer of its refusals, and a refusal-site refusal
+  can overwrite a stale fold without it ever being shown. That is FU-3's, and
+  its row gains this slice's citation at close.
+- **Timed upper bounds under load.** Each can still go red on a stalled
+  machine. Every one has a margin of at least `I/4`, and the plan measures them
+  under oversubscription.
+- **The interval's resolution.** T2's count holds the interval only to about
+  1.5×. Below that, the constant is held by review, as `MINIMUM_SPACING` is
+  (Round 4).
