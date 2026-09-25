@@ -682,7 +682,7 @@ magnitude. The pairwise `I/2` check can stay as the direct M1 witness.
 **Evidence:** the T2 row at `361d5a3` (`I − 50 ms`) against `7a7a4d8` (`I/2`); I-1 (arm firings ≥ `I` apart, set from the arm's own `now`, so present delays never add firings).
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Take the raiser's instrument: T2 counts the flood's presents against `1 + ceil((last.at − first.at + ε)/I)`, which load cannot pass; keep the I/2 gap assertion as the debounce/throttle discriminator only if it still earns a mutation.
-**Response:**
+**Response:** design.md §9 T2(a) is now a count: flood presents ≤ `1 + ceil((last.at − first.at + ε)/I)`, with `ε = I/2`. It turns red under M1 by orders of magnitude, and under a new M9 (`I` = 600 ms). The pairwise `I/2` gap check is dropped, because no named mutation needed it beyond the count. The load label is restated: the count goes toward red only when the first flood present lags its firing by more than `ε`, with a margin of `I/2`. The flood bullet in canon-delta Change 3 now describes the count.
 
 **Outcome:**
 
@@ -704,7 +704,7 @@ call, so the diagnostics model is never written".
 **Evidence:** `SlintGlass::present` (`glass.rs`), its one `write_if_changed(&self.diagnostics, lines)` call.
 
 **Disposition:** `doc-wrong` — responder: orchestrator. Name M0 by its effect: delete the `write_if_changed(&self.diagnostics, lines)` call.
-**Response:**
+**Response:** design.md §9 now names M0 by its effect: delete the `write_if_changed(&self.diagnostics, lines)` call in `SlintGlass::present`, so the diagnostics model is never written.
 
 **Outcome:**
 

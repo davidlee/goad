@@ -168,9 +168,11 @@ breaks joined by `;` as the current cells are.
 > - `ingress::a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
 >   — a writer sends distinct refused envelopes flat out across several
 >   intervals. The deadline that ends each interval fires at most once per
->   interval, and each update follows its firing after the loop's own turn. So
->   consecutive updates are asserted no closer than half the interval, which
->   an update per refusal fails by orders of magnitude. While the flood runs
+>   interval, and a stall moves an update without adding one. So the flood's
+>   updates are counted against one more than the number of intervals their
+>   span covers, with a stated allowance for the first update's lag. An update
+>   per refusal fails that count by orders of magnitude, and so does an interval
+>   much shorter than the host's. While the flood runs
 >   they are never further apart than twice the interval, which a debounce
 >   fails. The last update names the last envelope's refusal, within
 >   twice the interval of its reply.
