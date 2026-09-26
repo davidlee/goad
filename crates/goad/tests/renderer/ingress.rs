@@ -172,12 +172,6 @@ fn cleanup(path: &Path) {
 struct Timed {
   sent: Instant,
   reply: String,
-  #[expect(
-    dead_code,
-    reason = "EX-4 asks every connection to yield the reply's instant; no \
-              case in this phase reads it yet — PHASE-02's T2(c) bound \
-              (design.md §9) is the first caller"
-  )]
   replied: Instant,
 }
 
@@ -766,6 +760,203 @@ async fn a_flat_out_writer_raises_no_evaluation_rate() {
       record.reply
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// T2 — slice 011 `design.md` §9, PHASE-02: the coalescing loop's own bound
+// ---------------------------------------------------------------------------
+
+/// T2's own key, one per flood request: `t2-{index}`. Numbered, so a specific
+/// request's present can be found by **exact** match — the surface's own
+/// backtick-delimited `unknown key` line — never a bare substring, which
+/// `t2-1` and `t2-17` would collide on (slice 011 `notes.md` PHASE-02, *key
+/// matching must be exact*).
+fn t2_key(index: usize) -> String {
+  format!("t2-{index}")
+}
+
+/// [`t2_key`]'s envelope: [`ENVELOPE`]'s shape, plus one key none of
+/// `SPEC-003` §6.2's four admits, numbered so [`flat_out`] gives every
+/// request in the flood its own.
+fn t2_envelope(index: usize) -> String {
+  format!(
+    r#"{{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{{"count_last_hour":4}},"{}":true}}"#,
+    t2_key(index)
+  )
+}
+
+/// Whether `present`'s lines name `key` exactly, backtick-delimited as the
+/// surface renders `EnvelopeFault::Unknown`.
+fn names_key(present: &Presented, key: &str) -> bool {
+  let needle = format!("`{key}`");
+  present.lines.iter().any(|line| line.contains(&needle))
+}
+
+/// Whether `present` is one of T2's own flood presents: it names some `t2-`
+/// key, T2's own prefix, distinct from T3's `t3-r2` and T4's `t4-a`/`t4-b`.
+fn is_flood_present(present: &Presented) -> bool {
+  present
+    .lines
+    .iter()
+    .any(|line| line.contains("unknown key `t2-"))
+}
+
+/// How long the flood runs: several `REFUSAL_PRESENT_INTERVAL`s, so (a)'s
+/// ceiling has more than one interval to bound.
+const COALESCING_FLOOD_WINDOW: Duration = Duration::from_millis(2500);
+
+/// `design.md` §9 T2. Refused arrivals decided while idle cause at most one
+/// present per `REFUSAL_PRESENT_INTERVAL`, on both edges (`plan.md` VT-1).
+///
+/// **Pinned via a command, not an envelope** (`plan-log.md` PL-6, as T4
+/// does): the flood is a shape refusal, so it never touches
+/// `event_floor_until`, and the only thing needing pinning here is the
+/// *schedule* — a minute off, so `serve`'s own scheduled firing cannot land
+/// inside the 2.5 s flood window and the case does not have to argue that it
+/// can't.
+///
+/// **Red on today's loop, on (a)**, recorded before the loop existed
+/// (`plan.md` PHASE-02/VT-1): every refusal presents today, so the count is
+/// the flood's own size — orders of magnitude over the ceiling.
+///
+/// **(a)'s resolution** (review Round 4): below about 0.65 s — a threshold
+/// that moves with the flood's phase against the arm — the count cannot tell
+/// `REFUSAL_PRESENT_INTERVAL` from a shorter interval apart, and below it the
+/// constant's value is held by review and by this file's own mirror comment,
+/// exactly as `MINIMUM_SPACING`'s is.
+#[tokio::test]
+async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest() {
+  let path = socket_path("t2");
+  let (window, tray) = window_and_tray();
+  let presented = Rc::new(RefCell::new(Vec::new()));
+  let glass = RecordingGlass {
+    inner: glass_over(&window, &tray),
+    window: window.clone_strong(),
+    log: Rc::clone(&presented),
+  };
+  let (command, log) = scripted("t2", &[NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let (served, records) = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
+      });
+
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))
+      })
+      .await;
+
+      let records = flat_out(&path, COALESCING_FLOOD_WINDOW, t2_envelope).await;
+      let last_index = records
+        .len()
+        .checked_sub(1)
+        .expect("the flood must have written at least one request");
+      let last_key = t2_key(last_index);
+      until(LIVENESS_BOUND, || {
+        presented
+          .borrow()
+          .iter()
+          .any(|present| names_key(present, &last_key))
+      })
+      .await;
+
+      stopper.stop();
+      (handle.await.expect("serve must not panic"), records)
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+  assert!(
+    !records.is_empty(),
+    "the writer must actually have written something"
+  );
+  let last_key = t2_key(records.len() - 1);
+
+  let presented_snapshot = presented.borrow();
+  let flood_presents: Vec<&Presented> = presented_snapshot
+    .iter()
+    .filter(|present| is_flood_present(present))
+    .collect();
+  assert!(
+    !flood_presents.is_empty(),
+    "the flood must have caused at least one present"
+  );
+  let first_present = *flood_presents.first().expect("checked non-empty above");
+  let last_present = *flood_presents.last().expect("checked non-empty above");
+
+  // (a) — at most one present per interval. Toward red only if the *first*
+  // flood present lags its own arm firing by more than `ε = I/2`, which
+  // shortens the measured span; a lag anywhere else lengthens it
+  // (`design.md` §9).
+  let epsilon_ms = (REFUSAL_PRESENT_INTERVAL / 2).as_millis();
+  let span_ms = last_present
+    .at
+    .saturating_duration_since(first_present.at)
+    .as_millis()
+    .saturating_add(epsilon_ms);
+  let interval_ms = REFUSAL_PRESENT_INTERVAL.as_millis();
+  let ceiling = 1 + span_ms.div_ceil(interval_ms);
+  let count = u128::try_from(flood_presents.len()).expect("a present count fits a u128");
+  assert!(
+    count <= ceiling,
+    "at most one present per interval: {count} presents against a ceiling of {ceiling}"
+  );
+
+  // (b) — consecutive flood presents at most 2I apart, and at least two
+  // precede the last reply. Toward red; margin `I` (`design.md` §9).
+  for pair in flood_presents.windows(2) {
+    let gap = pair[1].at.saturating_duration_since(pair[0].at);
+    assert!(
+      gap <= REFUSAL_PRESENT_INTERVAL * 2,
+      "consecutive flood presents are at most 2I apart: {gap:?}"
+    );
+  }
+  let last_reply = records.last().expect("checked non-empty above").replied;
+  let preceding_last_reply = flood_presents
+    .iter()
+    .filter(|present| present.at <= last_reply)
+    .count();
+  assert!(
+    preceding_last_reply >= 2,
+    "at least two flood presents precede the last reply: {preceding_last_reply}"
+  );
+
+  // (c) — the last present names the last key, and follows the last reply
+  // within 2I. Toward red; margin `I` (`design.md` §9).
+  assert!(
+    names_key(last_present, &last_key),
+    "the last flood present names the last key: {:?}",
+    last_present.lines
+  );
+  let c_lag = last_present.at.saturating_duration_since(last_reply);
+  assert!(
+    c_lag <= REFUSAL_PRESENT_INTERVAL * 2,
+    "the last key's present follows its reply within 2I: {c_lag:?}"
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1391,6 +1582,153 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once() {
       assert!(
         r2_lag <= REFUSAL_PRESENT_INTERVAL / 2,
         "R2's refusal reaches the window, in `Diagnostic` mode, at once: {r2_lag:?} after sent"
+      );
+
+      stopper.stop();
+      handle.await.expect("serve must not panic")
+    })
+    .await;
+  cleanup(&path);
+
+  assert_eq!(served.ending, Ending::Stopped);
+}
+
+// ---------------------------------------------------------------------------
+// T4 — slice 011 `design.md` §9, PHASE-02: a command is never coalesced
+// ---------------------------------------------------------------------------
+
+/// T4's own two numbered shape refusals, A and B: [`ENVELOPE`]'s shape plus
+/// one key `SPEC-003` §6.2's four do not admit, under T4's own prefix —
+/// distinct from T2's `t2-N` and T3's `t3-r2`.
+const T4_REFUSAL_A: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4},"t4-a":true}"#;
+const T4_REFUSAL_B: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4},"t4-b":true}"#;
+
+/// `design.md` §9 T4. A `Fired::Command` whose `dispatch` answers `None`
+/// still leaves `'idle` for the top present, whatever the coalescing arm is
+/// doing — a diagnostics command is not a refused arrival, and coalescing it
+/// would make an operator's own click wait on `REFUSAL_PRESENT_INTERVAL`.
+/// **That is this case's whole point; M7 is the mutation that breaks it.**
+///
+/// **Pinned via a command, not an envelope** (`plan-log.md` PL-6, as T2
+/// does): otherwise `serve`'s initial arm, at `MINIMUM_SPACING`, is a
+/// scheduled firing the case would have to argue cannot land inside it, and
+/// the pin keeps A on the leading edge, because `next_refusal_present` has
+/// never fired.
+///
+/// **Red on today's loop, on the precondition** (`plan.md` PHASE-02/VT-2): B
+/// presents at once today, so "the last present shows A and not B" is false
+/// before the loop coalesces anything. Recorded as such; it is not this
+/// case's own evidence — M7 is.
+#[tokio::test]
+async fn a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal() {
+  let path = socket_path("t4");
+  let (window, tray) = window_and_tray();
+  let presented = Rc::new(RefCell::new(Vec::new()));
+  let glass = RecordingGlass {
+    inner: glass_over(&window, &tray),
+    window: window.clone_strong(),
+    log: Rc::clone(&presented),
+  };
+  let (command, log) = scripted("t4", &[NEXT_CHECK_A_MINUTE_OFF]);
+  let backend = host(command, TIMEOUT, now());
+  let controller = Controller::new();
+  let (tx, rx) = mpsc::channel::<Command>(1);
+  let cancel = Cancel::new();
+  let stopper = cancel.clone();
+  let ingress = bind(&path).expect("binding a fresh path must succeed");
+
+  let local = LocalSet::new();
+  let served = local
+    .run_until(async {
+      let handle = tokio::task::spawn_local(async move {
+        serve(
+          backend,
+          controller,
+          rx,
+          cancel,
+          Notice::new(),
+          stub_clock,
+          glass,
+          ingress,
+        )
+        .await
+      });
+
+      tx.send(Command::Evaluate(Stimulus::Requested))
+        .await
+        .expect("the channel must accept the first send");
+      until(LIVENESS_BOUND, || invocations(&log) >= 1).await;
+      until(LIVENESS_BOUND, || {
+        window.get_next_check()
+          == goad::diagnostics::next_check_line(instant("2026-01-01T00:01:00Z"))
+      })
+      .await;
+
+      // A, decided while idle.
+      let a = send_timed(&path, T4_REFUSAL_A).await;
+      assert_eq!(reason(&a.reply), "invalid_envelope", "{}", a.reply);
+      until(LIVENESS_BOUND, || {
+        presented
+          .borrow()
+          .iter()
+          .any(|present| present.lines.iter().any(|line| line.contains("t4-a")))
+      })
+      .await;
+
+      // B, at once — while the surface still shows only A.
+      let b = send_timed(&path, T4_REFUSAL_B).await;
+      assert_eq!(reason(&b.reply), "invalid_envelope", "{}", b.reply);
+
+      // Precondition, read from the log at the moment the command is sent
+      // (`plan.md` PHASE-02 notes): the last present shows A and not B, and
+      // the command is sent well inside A's own interval.
+      let sent = Instant::now();
+      let precondition = {
+        let presented_snapshot = presented.borrow();
+        let last = presented_snapshot
+          .last()
+          .expect("A's present is logged: just polled for")
+          .clone();
+        let shows_a = last.lines.iter().any(|line| line.contains("t4-a"));
+        let shows_b = last.lines.iter().any(|line| line.contains("t4-b"));
+        assert!(
+          shows_a && !shows_b,
+          "precondition: the last present shows A and not B: {:?}",
+          last.lines
+        );
+        sent.saturating_duration_since(last.at)
+      };
+      assert!(
+        precondition < REFUSAL_PRESENT_INTERVAL / 4,
+        "precondition: the command is sent well inside A's own interval: {precondition:?}"
+      );
+
+      tx.send(Command::OpenDiagnostics)
+        .await
+        .expect("the channel had room: nothing else has used it");
+
+      until(LIVENESS_BOUND, || {
+        presented.borrow().iter().any(|present| {
+          present.at > sent
+            && matches!(present.mode, WindowMode::Diagnostic)
+            && present.lines.iter().any(|line| line.contains("t4-b"))
+        })
+      })
+      .await;
+      let carrying_present = presented
+        .borrow()
+        .iter()
+        .find(|present| {
+          present.at > sent
+            && matches!(present.mode, WindowMode::Diagnostic)
+            && present.lines.iter().any(|line| line.contains("t4-b"))
+        })
+        .cloned()
+        .expect("just polled for");
+      let lag = carrying_present.at.saturating_duration_since(sent);
+      assert!(
+        lag <= REFUSAL_PRESENT_INTERVAL / 2,
+        "the command presents at once and carries B: {lag:?} after sent"
       );
 
       stopper.stop();

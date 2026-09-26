@@ -555,6 +555,17 @@ impl Pending {
 /// test buy time by moving a bound (`design.md` D-5).
 const MINIMUM_SPACING: std::time::Duration = std::time::Duration::from_secs(3);
 
+/// How long a refused arrival's fold may sit on the diagnostics surface
+/// before the surface is updated to show it (SPEC-003/R-15,
+/// `docs/slices/011/design.md` §5.2, D11, OQ-2).
+///
+/// **Not** `MINIMUM_SPACING`'s "no second constant": that constant bounds how
+/// often the host *fires* an evaluation of its own accord (R-4, R-12). This
+/// one bounds how long a fold the host has already decided may go
+/// *unpresented* — a different axis, and reusing `MINIMUM_SPACING` would tie
+/// the two together for no reason either document gives.
+const REFUSAL_PRESENT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// The longest wait the host will park a timer on. Reached only when
 /// `now + wait` would overflow the platform's monotonic clock.
 ///
@@ -638,9 +649,11 @@ fn spacing_elapsed(now: tokio::time::Instant, floor: tokio::time::Instant) -> bo
 /// The two are one act: SPEC-003/R-8 owes the writer a reply and R-15 owes a
 /// person the same fact, and a refusal that did one without the other would be
 /// a second route to one of them. Whether the fold is ever *presented* is the
-/// arm's business, not this function's — the outer arm `continue`s to the top
-/// of the loop and presents; the inner arm resumes waiting and `absorb`
-/// supersedes it, which is R-15's bound (`design.md` §5.2).
+/// arm's business, not this function's — the outer arm marks the surface
+/// stale and `continue 'idle`s, so the fold reaches the top present once
+/// `REFUSAL_PRESENT_INTERVAL` allows it rather than at once; the inner arm
+/// resumes waiting and `absorb` supersedes it, which is R-15's bound
+/// (`design.md` §5.2, §5.4).
 fn refuse_arrival(controller: &mut Controller, answer: Answer, refusal: &Refusal) {
   answer.refused(refusal);
   controller.refuse(&folded(refusal));
@@ -687,9 +700,12 @@ fn ingress_stopped() -> Refused {
 /// the steps only an arm reached while nothing is in flight can decide.
 ///
 /// `None` is *there is nothing to exchange* — every refusal it decides has
-/// already been answered to its writer and folded onto the surface, which is
-/// why the loop `continue`s on it rather than passing it to the shared refusal
-/// site (which would fold it a second time and consult `refusal_re_arms`).
+/// already been answered to its writer and folded onto the surface, so the
+/// caller marks the surface stale and `continue 'idle`s rather than passing it
+/// to the shared refusal site (which would fold it a second time and consult
+/// `refusal_re_arms`) or presenting it at once: that present is the
+/// coalescing arm's job, no sooner than `REFUSAL_PRESENT_INTERVAL`
+/// (`design.md` §5.2).
 ///
 /// **The anchor's one write site.** It is written on an *attempted* ingested
 /// evaluation — steps 4 and 5 both, so a clock that cannot be read produces one
@@ -867,6 +883,11 @@ where
   // `too_soon`; an envelope arriving while it is still in flight is refused
   // `engaged` one step earlier, like any other.
   let mut event_floor_until = started;
+  // The coalescing arm's own deadline (`design.md` §5.2, §5.3). Starts
+  // already elapsed, exactly as `sleep` and `event_floor_until` do: there is
+  // no previous refusal-caused present to space this one from. One write
+  // site, the arm itself, below.
+  let mut next_refusal_present = Box::pin(tokio::time::sleep_until(started));
 
   let ending = 'serving: loop {
     // **Drained before the present, and that order is the whole of it**
@@ -906,60 +927,93 @@ where
     let (attempted, refusal_re_arms) = if let Some(drained) = drained {
       (Some(drained), false)
     } else {
-      let fired = select! { biased;
-        () = cancel.stopped()       => break Ending::Stopped,
-        received = commands.recv()  => match received {
-          None          => break Ending::Closed,
-          Some(command) => Fired::Command(command),
-        },
-        () = &mut sleep => {
-          // The one and only write site: the spacing is measured between
-          // scheduled firings and nothing else clears it (SPEC-002/R-4).
-          floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
-          Fired::Scheduled
-        },
-        // **Last**, so that a watcher emitting at machine rate cannot starve a
-        // scheduled firing: `biased` means an always-ready arm starves
-        // everything below it, and this is the arm an untrusted writer paces
-        // (`design.md` §5.4).
-        arrival = ingress.arrival() => match arrival {
-          // Disposed of here, before any `Fired` is built: `refusal_re_arms` is
-          // never reached, the standing deadline is not reset, and neither
-          // anchor is written. A dead accept task changes nothing about the
-          // schedule.
-          None => {
-            controller.refuse(&ingress_stopped());
-            continue;
+      // Fresh on every entry into the wait, and never cleared inside it
+      // (`design.md` §5.3, D7): the only thing that ends the wait with the
+      // surface still stale is the arm below, and it does not need a
+      // read-then-clear because nothing loops back into `'idle` after it.
+      let mut surface_stale = false;
+      'idle: loop {
+        let fired = select! { biased;
+          () = cancel.stopped()       => break 'serving Ending::Stopped,
+          received = commands.recv()  => match received {
+            None          => break 'serving Ending::Closed,
+            Some(command) => Fired::Command(command),
+          },
+          () = &mut sleep => {
+            // The one and only write site: the spacing is measured between
+            // scheduled firings and nothing else clears it (SPEC-002/R-4).
+            floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
+            Fired::Scheduled
+          },
+          // The coalescing arm (`design.md` §5.2, D4). Sits above
+          // `ingress.arrival()` so that, when both are ready, the due update
+          // goes first — I-2 then rests on this ordering, not on goad-shell's
+          // channel shape. Builds no `Fired`: it never reaches an exchange,
+          // only the top of `'serving`, which presents.
+          () = &mut next_refusal_present, if surface_stale => {
+            let now = tokio::time::Instant::now();
+            next_refusal_present
+              .as_mut()
+              .reset(now.checked_add(REFUSAL_PRESENT_INTERVAL).unwrap_or(now));
+            continue 'serving;
           }
-          Some(arrival) => Fired::Ingested(arrival),
-        },
-      };
-      // A refusal that came from the timer arm re-arms at the floor (EX-7);
-      // every other refusal leaves the deadline untouched. Read before `fired`
-      // is consumed below, and true of the whole iteration.
-      let refusal_re_arms = matches!(fired, Fired::Scheduled);
+          // **Last**, so that a watcher emitting at machine rate cannot starve a
+          // scheduled firing: `biased` means an always-ready arm starves
+          // everything below it, and this is the arm an untrusted writer paces
+          // (`design.md` §5.4).
+          arrival = ingress.arrival() => match arrival {
+            // Disposed of here, before any `Fired` is built: `refusal_re_arms` is
+            // never reached, the standing deadline is not reset, and neither
+            // anchor is written. A dead accept task changes nothing about the
+            // schedule. Not coalesced (D6): it happens once per process and is
+            // the only report of its condition, so it goes straight to the top
+            // present rather than waiting on `next_refusal_present`.
+            None => {
+              controller.refuse(&ingress_stopped());
+              continue 'serving;
+            }
+            Some(arrival) => Fired::Ingested(arrival),
+          },
+        };
+        // A refusal that came from the timer arm re-arms at the floor (EX-7);
+        // every other refusal leaves the deadline untouched. Read before `fired`
+        // is consumed below, and true of the whole iteration.
+        let refusal_re_arms = matches!(fired, Fired::Scheduled);
 
-      // Two roads, one exchange. An arrival becomes a `Pending::Evaluate`
-      // directly, because `Stimulus` cannot carry an event (D-13); a command
-      // takes the road it always has. `None` from either is *there is nothing to
-      // exchange*.
-      let attempted = match fired {
-        Fired::Ingested(arrival) => {
-          ingest(arrival, &mut controller, &mut event_floor_until, clock).map(Ok)
-        }
-        Fired::Command(command) => dispatch(command, &mut controller, clock),
-        // Goes through the same `stamp` as every other command (EX-6).
-        Fired::Scheduled => dispatch(
-          Command::Evaluate(Stimulus::Scheduled),
-          &mut controller,
-          clock,
-        ),
-      };
-      (attempted, refusal_re_arms)
+        // Two roads, one exchange. An arrival becomes a `Pending::Evaluate`
+        // directly, because `Stimulus` cannot carry an event (D-13); a command
+        // takes the road it always has. `None` from either is *there is nothing to
+        // exchange*.
+        let attempted = match fired {
+          // The only path that diverges (I-3): `ingest` answering `None` means
+          // the arrival has already been answered and folded, and the fold is
+          // owed a present only within `REFUSAL_PRESENT_INTERVAL`, not at
+          // once — so this marks the surface stale and resumes the wait
+          // rather than breaking out to the top.
+          Fired::Ingested(arrival) => {
+            let Some(pending) = ingest(arrival, &mut controller, &mut event_floor_until, clock)
+            else {
+              surface_stale = true;
+              continue 'idle;
+            };
+            Some(Ok(pending))
+          }
+          Fired::Command(command) => dispatch(command, &mut controller, clock),
+          // Goes through the same `stamp` as every other command (EX-6).
+          Fired::Scheduled => dispatch(
+            Command::Evaluate(Stimulus::Scheduled),
+            &mut controller,
+            clock,
+          ),
+        };
+        break 'idle (attempted, refusal_re_arms);
+      }
     };
-    // A diagnostics command, an edit the drain applied, or an arrival `ingest`
-    // has already answered and folded. None of them has anything to send, and
-    // none is a refusal this loop still owes a report for.
+    // A diagnostics command, or an edit the drain applied. A refused arrival
+    // no longer reaches here: `ingest`'s `None` marks the surface stale and
+    // resumes the wait instead, so this `None` is only ever a command that
+    // resolved without an exchange, and none of them is a refusal this loop
+    // still owes a report for.
     let Some(attempted) = attempted else {
       continue;
     };
