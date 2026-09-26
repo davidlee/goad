@@ -84,3 +84,13 @@ other, citing the finding id.
 - **Consequence:** the owed flag means *the surface is stale*. R-15's draft in
   `canon-delta.md` is rewritten; FU-3's row gains this slice's citation at
   close (a flood now shows fewer refusals than before, by design).
+
+### 2026-09-26 — M8's red lands on R1; M8b added (orchestrator, under the grant)
+
+- **Found at PHASE-02:** M8 (F reset at every top present) reds T3 on R1, not
+  R2 as `design.md` §9 predicted — T3's pin exchange presents at the top and
+  moves F before R1 arrives.
+- **Decided:** M8 stands as evidence, its label corrected in `notes.md`; M8b
+  (F reset only on the no-exchange command exit) is added and must red T3 on
+  R2, which is D5's rejected alternative exactly. `design.md` is not
+  retro-fitted; audit lists the label under *Design drift not reconciled*.

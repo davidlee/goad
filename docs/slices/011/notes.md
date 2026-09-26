@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 — the recording glass | done | 2026-09-26 |
-| PHASE-02 — the coalescing loop | in progress (blocked, see phase sheet Findings) | 2026-09-26 |
+| PHASE-02 — the coalescing loop | done | 2026-09-26 |
 | PHASE-03 — under load, and in front of a person | pending | 2026-09-26 |
 
 ## Phase sheets
@@ -234,6 +234,8 @@ orchestrator's review repair on top of `94251b6`). EX-6's AC-4 diff runs from
   byte-identical.
 - `docs/slices/011/design.md` §9, `canon-delta.md` — only on a rename.
 - `docs/slices/011/notes.md` — this sheet, §Status, §Harvest.
+- `docs/slices/011/design-log.md` — **widened mid-phase** (orchestrator
+  message, 2026-09-26): one append-only entry recording the M8/M8b decision.
 
 **Reading list** (by symbol; `grep -n` then `sed -n`)
 - `plan.md` §PHASE-02 whole; §Coverage (the M-table, *Why these spellings*,
@@ -331,9 +333,10 @@ behaviour and record the respelling.
 | M5 | when `surface_stale` is first set, reset `next_refusal_present` to `now + I` | T3 (R1's bound) | yes | T3: red on R1's bound only (`1.00182714s after sent`); T2 and T4 stay green, exactly as the table predicts (only T3's single refusal is distinguishable under "first set" vs "every set"). | yes; suite green (15/15). |
 | M6 | the arm resets to `now + 3I` | T3 (R2's bound) | yes | T3: red on R2's bound (`1.75313219s after sent`). **Also reds T2(b)** (`3.001371732s` gap) — observation: tripling the arm's own re-arm interval lengthens the gap between *any* two arm-caused presents, not just the one between R1 and R2, so a repeated flood (T2) is equally exposed. | yes; suite green (15/15). |
 | M7 | a `Fired::Command` whose `dispatch` answers `None` `continue 'idle`s | T4 (`at − sent`) | yes | T4: red, "the command presents at once and carries B: 1.014437143s after sent" (`≥ 3I/4`, as the plan's trace predicts). T2, T3 and the rest of the suite stay green. | yes; suite green (15/15). |
-| M8 | the top present also resets `next_refusal_present` to `now + I` | T3 (R2's bound) | yes | **Reds T3, but on R1's bound, not R2's — see Findings.** Reproduced 3/3 runs: `998.817499ms`, `998.434945ms`, `997.729061ms` after `sent`, all ≈ `I`. T2, T4 and the rest of the suite stay green. | yes; suite green (15/15) after each run. |
-| M9 | `REFUSAL_PRESENT_INTERVAL` = 600 ms (production constant only) | T2(a), by one present — **≥ 5 runs at rest, every one red**; record each run's flood-present gaps | not yet run — phase stopped at M8 | | |
-| R2 | the ingress-stopped fold `continue 'idle`s instead of `'serving` | VT-7's added assertion (3) | not yet run — phase stopped at M8 | | |
+| M8 | the top present also resets `next_refusal_present` to `now + I` | T3 (**R1's** bound — `design.md` §9's "R2" label is wrong; see Findings) | yes | T3: red on R1's bound, 3/3 runs (`998.817499ms`, `998.434945ms`, `997.729061ms` after `sent`, all ≈ `I`). T3's pin is an accepted envelope whose own top present, under this mutation, resets F before R1 ever arrives, so R1 pays the delay. T2, T4 and the rest of the suite stay green. **Accepted as evidence** (orchestrator decision, `design-log.md`); the table's original "→ R2" was corrected here, not in `design.md`. | yes; suite green (15/15) after each run. |
+| M8b | in the `let Some(attempted) = attempted else { … }` branch, reset `next_refusal_present` to `now.checked_add(REFUSAL_PRESENT_INTERVAL).unwrap_or(now)` before the `continue` — D5's own rejected case, "a person's action holds back the next update" | T3 (R2's bound); R1 must stay green (the pin exchange does not take this branch) | yes | T3: red on R2's bound only, 3/3 runs (`1.004176922s after sent`, reproduced twice more). R1 stays green, exactly as predicted: T3's pin is an accepted envelope, which takes the exchange path, not this no-exchange branch. T2, T4 and the rest of the suite stay green. | yes; suite green (15/15) after each run. |
+| M9 | `REFUSAL_PRESENT_INTERVAL` = 600 ms (production constant only) | T2(a), by one present — **≥ 5 runs at rest, every one red**; record each run's flood-present gaps | yes | T2(a): red in **5/5 runs at rest**, every one `6 presents against a ceiling of 5` — the test's own mirror stays at 1 s, so the ceiling is computed at the old interval while production presents every 600 ms; exactly the plan's own trace ("six presents against a ceiling of five"). Gaps recorded via a temporary `eprintln!` in T2 (added, run, then removed — `ingress.rs` restored byte-identical after): run 1 `[600.365604ms, 601.266288ms, 600.735586ms, 601.00196ms, 601.898939ms]`; run 2 `[600.677542ms, 601.00451ms, 601.022384ms, 600.96552ms, 601.88661ms]`; run 3 `[600.527576ms, 601.000203ms, 600.998619ms, 601.031062ms, 602.011755ms]`; run 4 `[600.089409ms, 601.001627ms, 600.996342ms, 601.006177ms, 601.466501ms]`; run 5 `[600.441637ms, 600.996266ms, 600.997022ms, 600.999941ms, 601.863772ms]`. Lag at rest is a few ms, as the plan's note predicts. | yes: `controller.rs` and `ingress.rs` both `diff -q` identical to their pre-mutation scratchpad copies; `git diff --stat` shows no change to either; full `ingress::` suite re-ran green (15/15). |
+| R2 | the ingress-stopped fold `continue 'idle`s instead of `'serving` | VT-7's added assertion (3) | yes | VT-7: red on assertion 3, "the fold reaches the window at once, not after a scheduled firing: 3.001943844s after spawn" — the fold is trapped inside `'idle` until the scheduled arm eventually fires at `MINIMUM_SPACING`, matching `design.md` §9's own prediction ("shown only at `MINIMUM_SPACING`, by the engage present") exactly. Every other case, including T2/T3/T4, stays green. | yes; suite green (15/15). |
 
 **Held by review (VA-1)** — record each by symbol here: D4 (arm above
 `ingress.arrival()`); D8 (no present on the `Ending` arms); D6 (ingress-stopped
@@ -344,6 +347,48 @@ per-arrival yield still rests on `bind`'s `mpsc::channel(1)` and
 `accept_loop`'s `handle` awaiting the answer — cite by symbol in
 `goad_shell::ingress`). **VA-2**: no new identifier or string in
 `controller.rs` contains the word `site` (the domain scan's `DOMAIN` list).
+
+**VA-1, reviewed 2026-09-26 (orchestrator's own read, not a fresh reviewer):**
+- **D4** — confirmed by reading `serve`: the coalescing arm
+  (`() = &mut next_refusal_present, if surface_stale => { .. }`) is the arm
+  immediately above `arrival = ingress.arrival() => match arrival { .. }`,
+  both inside the same `select! { biased; .. }`. `biased` ordering means the
+  arm is checked, and wins if ready, before ingress is polled.
+- **D8** — confirmed: both `Ending` arms (`break 'serving Ending::Stopped`,
+  `break 'serving Ending::Closed`) leave `'serving` directly into
+  `Served { ending, .. }`; nothing between the `break` and the function's
+  return calls `glass.present`.
+- **D6** — confirmed: the ingress-stopped fold's arm (`None => { .. continue
+  'serving; }`) neither reads nor writes `surface_stale` or
+  `next_refusal_present`; the one refusal site (`Err(refused) => { ..; if
+  refusal_re_arms { sleep.as_mut().reset(floor_until); } continue; }`, outside
+  `'idle`) likewise never touches either. Neither is coalesced with a refused
+  arrival.
+- **I-3** — confirmed by reading the `match fired` inside `'idle`: only the
+  `Fired::Ingested(arrival)` arm's `None` case diverges (`surface_stale =
+  true; continue 'idle;`); `Fired::Command` and `Fired::Scheduled` always
+  `break 'idle (attempted, refusal_re_arms)` regardless of `Some`/`None`,
+  exactly as before this phase.
+- **I-4** — confirmed: `floor_until` is written only in the `&mut sleep` arm;
+  `event_floor_until` only inside `ingest`, on an attempted ingested
+  evaluation; `sleep` is reset only at the timer arm and at the exchange's
+  own completion (`sleep.as_mut().reset(deadline_after(..))`). The new arm
+  writes only `next_refusal_present`.
+- **R3** — cited by symbol, unchanged this phase (`goad-shell` is outside
+  Surfaces and untouched): `goad_shell::ingress::bind`
+  (`crates/goad-shell/src/ingress/mod.rs`) creates `mpsc::channel(1)`, and
+  `accept_loop` calls `handle(stream, &arrivals).await`, holding the accept
+  task on each connection's reply before accepting the next. This is what
+  paces an untrusted writer (`design.md` §5.4's remark by the inner arm) and
+  is R-15's only witness beyond AC-6.
+
+**VA-2** — verified two ways: (1) `git diff ccc9d61^ ccc9d61 -- crates/goad/src/controller.rs`
+shows every occurrence of the substring `site` is inside a comment (`write
+site`, `refusal site`), none in an identifier or string literal; (2)
+`cargo test -p goad-boundary --test checks -- vocabulary` and the full
+`no_workspace_member_names_the_users_domain` case both pass, and the scan's
+own test suite confirms `code_of` strips comments before matching (so a
+comment's "site" is not what the scan would catch in the first place).
 
 **Order** (the plan's): T2, T4 → **see them red on today's loop and record
 how** (T2 on (a); T4 on its precondition — expected; if either is green, STOP)
@@ -369,11 +414,11 @@ sheet, report `STATUS: BLOCKED`:
 - [x] green; refactor
 - [x] EX-4 doc comments (`refuse_arrival`, `ingest`, the `let Some(attempted)` comment, the inner arm's F-15 remark)
 - [x] T3's doc names M5, M6, M8 as its controls; `Timed.replied`'s `expect` gone (already done in PHASE-01's own text — no further edit needed)
-- [ ] mutations M0–M9, R2 run and recorded — **M0–M8 done; M9 and R2 not run, phase stopped at M8 (see Findings)**
-- [ ] VA-1, VA-2 recorded
-- [ ] EX-6: `git diff 485980b -- crates/goad/tests/renderer/ingress.rs` adds T2, T4 and changes no existing case beyond T3's doc and `Timed`
-- [ ] `just check` exits 0
-- [ ] §Status `done`; §Harvest updated
+- [x] mutations M0–M9, M8b, R2 run and recorded (M8b added per orchestrator decision, `design-log.md`)
+- [x] VA-1, VA-2 recorded
+- [x] EX-6: `git diff 485980b -- crates/goad/tests/renderer/ingress.rs` adds T2, T4 and changes no existing case beyond `Timed`'s `#[expect(dead_code, …)]` removal; `scheduling.rs` and `wiring.rs` untouched (empty diff); `event_loop*` targets all pass
+- [x] `just check` exits 0
+- [x] §Status `done`; §Harvest updated
 
 **Decisions taken during execution**
 - `ingest`'s `None` arm is spelled as a `let Some(pending) = ingest(..) else { surface_stale = true; continue 'idle; }; Some(Ok(pending))`, matching `dispatch`'s existing `Option<Result<Pending, Refused>>` shape (`.map(Ok)`'s equivalent) rather than restructuring the `match fired` arms' types.
@@ -404,17 +449,32 @@ sheet, report `STATUS: BLOCKED`:
   assertion it names.
   **Per the phase sheet's own STOP condition** ("A mutation does not red its
   named case, or reds it on a different assertion... Do not add or tighten a
-  case to make it red without consulting"), this phase stops here rather than
-  reinterpreting M8's spelling or T3's assertions unilaterally. M9 and R2 are
-  not yet run.
+  case to make it red without consulting"), this phase stopped here and
+  reported `STATUS: BLOCKED` rather than reinterpreting M8's spelling or T3's
+  assertions unilaterally.
+  **Resolved** (orchestrator, under the autonomy grant, `design-log.md`
+  2026-09-26): M8 stands as written; its red on R1 is accepted as valid
+  evidence that the mutation reds T3, and the mutation table above is
+  corrected to name R1 rather than R2. **`design.md` §9's own "M8 → R2" label
+  is wrong and is left as-is** — not retro-fitted mid-slice — and is recorded
+  here for audit's *Design drift not reconciled*. M8b is added to the table
+  to hold D5's actual rejected case ("a person's action holds back the next
+  update"), spelled as resetting `next_refusal_present` in the
+  `let Some(attempted) = attempted else { … }` exit rather than at every top
+  present; it is the row that must red T3 on R2's bound specifically, with R1
+  staying green (T3's pin exchange never takes that branch).
+  **Design drift not reconciled, for audit:** `design.md` §9's T3 row states
+  "M8: F also reset at every top present (against D5) → R2"; the actual
+  behaviour is → R1, for the reason above. `design.md` is not amended
+  mid-slice (`docs/AGENTS.md`); audit reconciles or formally amends it.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-09-26 · PHASE-01 done · the `011: PHASE-01 — the
-recording glass` commit
+**Fresh as of:** 2026-09-26 · PHASE-02 done · the
+`011: PHASE-02 — the coalescing loop` commit
 
 ### Produced
 - `RecordingGlass`/`Presented` (`ingress.rs`) — the log every timed claim in
@@ -422,32 +482,58 @@ recording glass` commit
   first, then reads `(Instant::now(), window.get_mode(), window.get_diagnostic_lines())`.
 - `Timed` (`ingress.rs`) — one connection's `sent`/`reply`/`replied`.
   `write_one` is the sole connect-write-read primitive; `send`, `send_timed`
-  and `flat_out` all go through it.
-- `flat_out`'s new shape: `impl Fn(usize) -> String + Send + 'static` in place
-  of a constant `&'static str`, so PHASE-02's numbered flood (T2) can give
-  each request its own key without a second writer loop.
-- `REFUSAL_PRESENT_INTERVAL` (`ingress.rs`, private, 1 s) — the test file's
-  own mirror of PHASE-02's not-yet-written production constant, ahead of it
-  (EX-6).
-- Three cases carried over renamed/rewritten: `a_flat_out_writer_raises_no_evaluation_rate`
-  (T1, ex-VT-5), `a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once`
-  (T3, ex-`…reaches_the_diagnostics_surface`), and
+  and `flat_out` all go through it. `replied` is now read (T2(c)).
+- `flat_out`'s shape: `impl Fn(usize) -> String + Send + 'static` in place of
+  a constant `&'static str`, so a numbered flood (T2) can give each request
+  its own key without a second writer loop.
+- `controller::REFUSAL_PRESENT_INTERVAL` (private, 1 s, D11) — the coalescing
+  arm's own throttle, alongside `MINIMUM_SPACING` but bounding a different
+  axis (how long a fold may sit unpresented, not how often the host fires).
+  `ingress.rs`'s own mirror (from PHASE-01) now matches it.
+- The coalescing loop itself (`controller.rs::serve`): `next_refusal_present`,
+  `surface_stale`, the `'idle: loop`, and the arm sitting above
+  `ingress.arrival()` (D4). `ingest`'s `None` path now marks the surface stale
+  and `continue 'idle`s instead of reaching the top present at once — the one
+  behavioural change in the whole function (I-3).
+- Two cases added: `a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
+  (T2) and `a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`
+  (T4), both pinned via a live `Command::Evaluate` rather than an accepted
+  envelope (PL-6).
+- Three cases carried over renamed/rewritten in PHASE-01:
+  `a_flat_out_writer_raises_no_evaluation_rate` (T1, ex-VT-5),
+  `a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once` (T3,
+  ex-`…reaches_the_diagnostics_surface`), and
   `a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating`
-  (VT-7, name unchanged, body moved onto the log plus one assertion).
+  (VT-7) — all three pass unchanged against the new loop except T3's doc,
+  which now names M5/M6/M8 as its controls.
 
 ### Learned
-- `Duration / 2` is clippy-clean under this workspace's lint table (`integer_division`
-  is type-gated to primitive integers, not `Duration`'s `Div<u32>`); no
-  `checked_div`/`mul_f64` fallback was needed for a Duration halving here.
-- `expect(dead_code, reason = …)` on one struct field is the sanctioned way to
-  land an EX-4-mandated field a later phase reads — `Cargo.toml`'s own comment
-  names this shape, and it applies exactly here (`Timed.replied`).
+- `Duration / 2` (and `* 2`, `* 3`) is clippy-clean under this workspace's
+  lint table (`integer_division` is type-gated to primitive integers, not
+  `Duration`'s `Div<u32>`/`Mul<u32>`); `u128::as_millis() / 2` **is** flagged,
+  so a duration halved for millisecond arithmetic should be halved as a
+  `Duration` first, then converted.
 - A mutation to `glass.rs`'s single write site reds cases outside the phase
-  that touched it (`ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`,
-  PHASE-04's), because it reads the window directly rather than through a
-  log — worth knowing before treating an M0 run's failure list as exhaustive
-  against a phase's own mutation table.
+  that touched it (PHASE-01's finding, reconfirmed in PHASE-02: the same M0
+  also reds `ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`).
+  More generally in PHASE-02: several mutations that change a *global*
+  quantity (the production interval's value, or the arm's own re-arm
+  interval) red more than their named case, because the same knob governs
+  every case that relies on it — recorded per-row rather than fought.
+- **A mutation can red the right case on the wrong assertion, and that is not
+  automatically a bug in the mutation.** M8 ("the top present also resets F on
+  any present", D5's own rejected alternative) reds T3 on R1 rather than R2,
+  because T3's own pin (an accepted envelope) produces a top present that
+  moves F before R1 arrives — a fact about *this test's* pin, not about the
+  mutation. `design.md` §9's "M8 → R2" label was wrong; corrected in
+  `notes.md`, left as a *design drift not reconciled* for audit rather than
+  edited mid-slice, and D5's actual case (a person's action, i.e. any
+  no-exchange command, holding back the update) was covered by a new row,
+  M8b, spelled at the one place that case can actually occur — the
+  `let Some(attempted) = attempted else { .. }` exit.
 
 ### Open
-- PHASE-02 is what gives `controller::REFUSAL_PRESENT_INTERVAL` a production
-  value and reads `Timed.replied` for the first time (T2(c)'s bound).
+- **Design drift not reconciled** (for audit): `design.md` §9's T3 row states
+  "M8: F also reset at every top present (against D5) → R2"; PHASE-02 found
+  the actual red lands on R1. `design-log.md`'s 2026-09-26 entry records the
+  decision; audit reconciles or formally amends `design.md`.
