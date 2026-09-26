@@ -64,3 +64,13 @@ The user accepted `plan.md` as committed at `d2617c1`, PL-1..PL-8 standing,
 and declined a `review-plan.md` round — the 010 precedent. The orchestrator
 writes each phase sheet, so the plan's one adversarial reading before code is
 by someone who will not execute it.
+
+### 2026-09-26 — load testing de-emphasised (PHASE-03)
+
+The user: "the CPU load testing I'm not too fussed with — nothing in the
+design load tests did anything to make my machine sweat." PHASE-03's
+oversubscription work (VA-2's busy loops, EX-2's and EX-3's under-load
+columns, EX-4) is to be cut back when its sheet is written: margins and M9
+measured at rest, the loaded columns dropped or reduced to whatever the user's
+ordinary workload supplies. PL-7 is superseded to that extent. PHASE-01 and
+PHASE-02 are unaffected. The sheet states exactly which criteria it narrows.
