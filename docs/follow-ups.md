@@ -50,22 +50,8 @@ struck under §Closed.
 A conforming backend, or a legitimate writer, walks into it. This is where the
 invariant *a backend failure never takes the host down* is thinnest.
 
-### FU-2 — what a refused ingress arrival costs
-**Raised by** 009 (`F-R4`) · **cost** tier 2, a `SPEC-003/R-15` amendment with its own verification · **scheduled as slice 011**
-
-One full present — `show()`'s instantiation pass included — per **refused**
-arrival, at a rate an untrusted writer sets. Suppressing it defers the refusal
-to the next scheduled firing, which is what R-15 requires reach the diagnostics
-surface; and R-15's own verification case reads the retained model rather than
-the window, so canon's instrument would not report the change. Splitting
-`option_models`' single walk would reintroduce the second counter invariant
-**I-B** forbids — so that is not the route.
-
-**Dead when** a refused arrival no longer costs a present, and R-15 plus its
-verification row say what a refusal decided while idle is now owed.
-
 ### FU-3 — what the diagnostics slot holds
-**Raised by** 001, 004 (three entries) · **cost** tier 2 — it reaches `SPEC-003` OQ-3 and three refusal paths that predate ingress
+**Raised by** 001, 004 (three entries), 011 (`design.md` R4) · **cost** tier 2 — it reaches `SPEC-003` OQ-3 and three refusal paths that predate ingress
 
 `Diagnostics::refused` replaces the whole retained value, and ingress is an
 unbounded author of it from outside the process — measured at roughly 1690/s,
@@ -78,6 +64,13 @@ An accepted ingested evaluation is not distinguishable on the surface either
 host-authored faults and externally-triggered refusals — reaching
 `SupersededView`, `UnknownOption` and `NoClock`, so it cannot be settled inside
 the ingress arm.
+
+011 made it sharper without touching retention. Refusal-caused updates of the
+surface are now coalesced to one per interval (`SPEC-003/R-15`), and the slot is
+still replaced on every refusal. So a flood shows fewer of its refusals than it
+did, and a refusal decided where the envelope arrived can overwrite a stale
+fold before anyone sees it. R-15 names that overwrite as the host's exception
+and leaves what the surface retains to this row.
 
 **Severity decays.** 004 raised this `minor` on the ground that the single-slot
 surface predates that slice. That ground does not survive a second deferral.
@@ -194,7 +187,7 @@ instrument, if the residue ever grows enough to be worth automating.
 feature, or a check holds it.
 
 ### FU-10 — citation discipline is enforced by nothing
-**Raised by** 003, 004, 007, 009 (#8), 010 (P1-b) · **cost** the instrument is tier 2; the sweep is tier 1 with a judgement per site
+**Raised by** 003, 004, 007, 009 (#8), 010 (P1-b), 011 (`review-code.md` F-12) · **cost** the instrument is tier 2; the sweep is tier 1 with a judgement per site
 
 Two halves, one cause. **The rule**:
 `docs/memory/cite-requirements-not-finding-ids.md` was settled at 001's audit
@@ -203,7 +196,11 @@ by that decision; nothing else is. **Measured at `3ecaa11`: `F-N` appears 335
 times across 54 files.** 004 named 37 sites in six files and the class has
 grown well past them. 010 found `crates/goad/src/lib.rs`'s header comment
 citing by `file.rs:NNN` (`fields.rs`, `error.rs`, `envelope.rs`,
-`ingress/mod.rs`, `config.rs`, `state.rs`). Separately, nothing resolves a `docs/memory/` citation —
+`ingress/mod.rs`, `config.rs`, `state.rs`). 011 found the same form, not
+moved by that slice, in `crates/goad/src/controller.rs`'s module docs,
+`crates/goad/tests/event_loop_drain/main.rs`, `goad-emit`'s `exchange.rs` and
+`goad-shell`'s `ingress/mod.rs` — the grep `grep -rnE "\.rs:[0-9]" crates` is
+the enumeration, not a list here. Separately, nothing resolves a `docs/memory/` citation —
 `path-flake-ref-breaks-on-demo-socket.md` was cited by a plan and six phase
 briefs while not existing. And `CLAUDE.md`'s *cite by symbol* is held by no
 gate step: the class regenerated **twice inside the commits that repaired it**,
@@ -218,9 +215,9 @@ a runtime quirk** belongs in `docs/memory/` and is cited by file name.
 is zero.
 
 ### FU-11 — properties held by nothing, needing a harness rather than a case
-**Raised by** 003, 009 (#4, #10) · **cost** tier 1 each, but each needs something a unit cannot do
+**Raised by** 003, 009 (#4, #10), 011 · **cost** tier 1 each, but each needs something a unit cannot do
 
-Four, sharing a shape — real, correct, and asserted by nothing:
+They share a shape — real, correct, and asserted by nothing:
 
 - **`today_local`'s system zone.** `instant.rs` reads the system zone to seed
   an unpicked `datetime` picker; that the zone is the **system's** is held by
@@ -235,6 +232,11 @@ Four, sharing a shape — real, correct, and asserted by nothing:
 - **`FLOOR_MILLIS`** in the renderer test tier is a hand-copy of the private
   `controller::MINIMUM_SPACING`, so changing the floor leaves the compile-time
   assertion that protects the anti-spin bound passing against a stale number.
+  `renderer/ingress.rs` mirrors the same constant, and since 011 also
+  `controller::REFUSAL_PRESENT_INTERVAL`, each checked by nothing but its
+  comment. For the second, `a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
+  reds a production interval shorter than about 0.85 s against the 1 s mirror;
+  between that and the mirror, the value is held by review.
 - **The break-and-revert criteria are one-shot experiments.** Each established
   that an instrument fails when the thing it holds is removed, and each was
   reverted. The *necessity* argument lives in prose — `SPEC-002` §7 R-4 and
@@ -352,6 +354,26 @@ document. The shape is the host's repair, plus one binary-tier case on
 
 **Dead when** `goad-emit --help > /dev/full` exits non-zero with a line on
 standard error, held by a case — naturally inside the slice that kills FU-42.
+
+### FU-45 — two schedule additions in `serve` panic on clock overflow
+**Raised by** 011 (`review-code.md` F-8) · **cost** tier 1, with one design choice
+
+`serve` (`crates/goad/src/controller.rs`) adds `MINIMUM_SPACING` to an
+`Instant` with the panicking `+` at two sites: the initial `sleep`'s
+`started + MINIMUM_SPACING`, and the scheduled arm's write of `floor_until`.
+The file's own rule, stated at `deadline_after` and followed by `ingest` and
+011's coalescing arm, is `checked_add`, because a panic there takes the host
+down. In the one regime where `SPEC-003/R-15`'s clock-overflow clause applies
+(the host's clock too near its end to hold the end of an interval), the next
+scheduled firing panics, so the degraded-but-live state R-15 describes is not
+one the host can stay in. Pre-existing and practically unreachable on a
+monotonic-since-boot clock. The initial arm's fallback is a design choice, not
+a repair.
+
+**Dead when** both sites use a checked add and a unit case holds each
+fallback — or withdrawn if a later slice moves `serve`'s timers to a clock that
+cannot overflow within the process's life, which makes R-15's clock-overflow
+clause, and this row, moot.
 
 ---
 
@@ -680,6 +702,31 @@ Not FU-10, which is about nothing *enforcing* the rule; this is the method
 ## Closed
 
 Struck, not deleted, so a reader who remembers one finds what killed it.
+
+**Closed by slice 011, 2026-09-26:**
+
+### ~~FU-2 — what a refused ingress arrival costs~~
+**Raised by** 009 (`F-R4`) · **closed by** 011
+
+~~One full present — `show()`'s instantiation pass included — per **refused**
+arrival, at a rate an untrusted writer sets.~~
+
+**Dead when, restated.** The row's condition, *a refused arrival no longer
+costs a present*, is not literally met and was not meant to be: a lone refusal
+after quiet still presents at once, so that a person sees it. At close it was
+restated as the design required (slice 011 `design.md` §10): refused arrivals
+cost at most one present per interval, and R-15 states the update guarantee.
+
+**What killed it:** `serve`'s `'idle` loop coalesces refusal-only updates —
+`surface_stale` marks the surface stale, and the `next_refusal_present` arm
+updates it at most once per `REFUSAL_PRESENT_INTERVAL`, on both edges.
+`SPEC-003/R-15` states the guarantee and its exceptions, and its verification
+row reads the window through `RecordingGlass`:
+`ingress::a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
+holds the bound. The row's other worry, that suppressing the present would
+defer a refusal to the next scheduled firing, does not arise: the interval is
+the deferral's bound, not the schedule. Seen on the running host by the user
+(slice 011 AC-6).
 
 **Closed by slice 010, 2026-09-24:**
 

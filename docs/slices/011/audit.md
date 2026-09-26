@@ -120,7 +120,7 @@ auditor on `73cce4e` (the Brief commit; code identical to `fdc2229`);
 | AC-4 | met | The AC-4 diff above; `scheduling.rs`, `wiring.rs`, `event_loop*` untouched and green. T4 (a command presents at once) held by M7; VT-7's added assertion held by R2 — **both re-run here**. An accepted arrival, a scheduled firing and a refusal during an exchange: unchanged paths (I-3, PHASE-02/VA-1 by reading, re-read here). | re-verified |
 | AC-5 | met at close | Canon-delta Changes 1–5 endorsed by the user and promoted to SPEC-003 and SPEC-002 (Reconciliation, canon rows) | re-verified by the closer: *from* texts matched, cited cases resolve |
 | AC-6 | met | The user's run, PHASE-03/VH-1 record in `notes.md`: run on 2026-09-26 against `64f75d4` (the code is identical at HEAD — later commits touch `notes.md` and `audit.md` only), following the seven hand-over steps, step 6 loosened to "the last key printed, or a few above it". The user's words: *"I ran that, it was all exactly as expected."* — one statement covering typing held, the pane opening promptly, pane and tooltip updating about once a second with rising `flood-<n>` keys, and the pane settling after Ctrl-C. | from notes (the user's own report) |
-| AC-7 | **pending** — close | `docs/follow-ups.md` FU-2 strike with the restated *Dead when*. | — |
+| AC-7 | met at close | `docs/follow-ups.md` FU-2 struck under §Closed with the restated *Dead when* and what killed it | the closer |
 
 ### Verification criteria (`plan.md`)
 
@@ -316,11 +316,12 @@ about the code was checked against `serve` and the cases it names.
 | `crates/goad/tests/renderer/ingress.rs` — the `REFUSAL_PRESENT_INTERVAL` mirror, T3's doc, `flat_out`'s doc | remove the phase-time narrative; T3's doc names M8b as R2's control | audit finding A-2 | code wrong | [x] fixed as `review-code.md` F-5 |
 | `ingress.rs` T1/T2/T4 docs; `controller.rs` new comments | cite slice 011's documents explicitly; T2/T4's "PL-6" is `docs/slices/011/plan-log.md`'s; T1's "VT-2" is `plan.md`'s | audit finding A-3; bare names resolve to slice 004's | code wrong | [x] fixed as `review-code.md` F-10, class closed in `crates/` |
 | `docs/memory/a-refusal-is-recorded-not-shown.md` | its first consequence ("one canon verification case reads `served.controller.frame(false).diagnostics`") becomes false once the R-15 row is promoted; re-state it as history or strike it | `plan.md` PHASE-03/EX-7 residue, `notes.md` §Open | doc stale — at close | [ ] |
-| `docs/follow-ups.md` FU-2 | strike, restating *Dead when* as "refused arrivals cost at most one present per interval, and R-15 states the update guarantee" (`design.md` §10, review F-14) | AC-7 | close | [ ] |
-| `docs/follow-ups.md` FU-3 | extend the row's citation with slice 011: a flood now shows fewer of its refusals, and a refusal-site refusal can overwrite a stale fold (`design.md` R4) | `notes.md` §Open | close | [ ] |
+| `docs/follow-ups.md` FU-2 | strike, restating *Dead when* as "refused arrivals cost at most one present per interval, and R-15 states the update guarantee" (`design.md` §10, review F-14) | AC-7 | close | [x] struck under §Closed, *Dead when* restated |
+| `docs/follow-ups.md` FU-3 | extend the row's citation with slice 011: a flood now shows fewer of its refusals, and a refusal-site refusal can overwrite a stale fold (`design.md` R4) | `notes.md` §Open | close | [x] citation extended with 011 |
 | `crates/goad/src/pending.rs`, `Debounce::tick`'s doc | name `serve`'s present sites by role, not by line number or count | `review-code.md` F-7, F-11; outside every phase's Surfaces, taken in audit because this slice's edit moved the lines | code wrong | [x] fixed in review |
-| `docs/follow-ups.md` — new row | the two panicking `Instant + MINIMUM_SPACING` sites in `serve`, with F-8's two-exit *Dead when* | `review-code.md` F-8 | close | [ ] |
-| `docs/follow-ups.md` FU-10 | extend the citation with the workspace-internal `file.rs:NNN` residue F-12 enumerates | `review-code.md` F-12 | close | [ ] |
+| `docs/follow-ups.md` — new row | the two panicking `Instant + MINIMUM_SPACING` sites in `serve`, with F-8's two-exit *Dead when* | `review-code.md` F-8 | close | [x] FU-45 |
+| `docs/follow-ups.md` FU-10 | extend the citation with the workspace-internal `file.rs:NNN` residue F-12 enumerates | `review-code.md` F-12 | close | [x] citation extended with 011 |
+| `docs/follow-ups.md` FU-11 | extend the `FLOOR_MILLIS` bullet with `ingress.rs`'s mirrors of `MINIMUM_SPACING` and `REFUSAL_PRESENT_INTERVAL`, each checked by nothing but its comment; replace the row's count of its bullets | the closer's re-verification of rows naming a touched file; `review-code.md` *T2(a)'s residual resolution* | close | [x] citation extended with 011 |
 
 **Design drift not reconciled:**
 
