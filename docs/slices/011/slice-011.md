@@ -1,7 +1,6 @@
 # Slice 011: the refused arrival's present
 
-**Stage:** execute — plan accepted 2026-09-26 (`plan-log.md`), no plan review;
-progress in `notes.md` §Status
+**Stage:** done — closed 2026-09-26; audit and reconciliation in `audit.md`
 **Tier:** 2 (full) — the slice amends canon: SPEC-003/R-15, and the
 verification rows of R-15 and R-12, which record the present a refusal costs.
 **Depends on:** —
@@ -92,15 +91,15 @@ re-priced with the measurement if the slice concludes it is not worth doing.
       running host** against a flooding writer, with the window up and hidden.
       The instrument, its denominator and what it does not reach are in
       `research.md`, and the user has decided on it before design proceeds.
-- [ ] AC-2 — Refused arrivals decided while idle, at any rate, cause at most a
+- [x] AC-2 — Refused arrivals decided while idle, at any rate, cause at most a
       bounded number of presents per interval. A renderer case asserts the
       bound against a writer emitting flat out, and fails if every refusal
       presents. A second asserts that a lone refusal after quiet still
       presents at once (the leading edge).
-- [ ] AC-3 — The last refusal decided while idle reaches the **window** — not
+- [x] AC-3 — The last refusal decided while idle reaches the **window** — not
       only the retained model — within the stated bound, and a case reads the
       window to show it.
-- [ ] AC-4 — Nothing else about the loop changes: an accepted arrival, a
+- [x] AC-4 — Nothing else about the loop changes: an accepted arrival, a
       command, a scheduled firing and a refusal during an exchange present
       exactly as they did. Every existing case in
       `crates/goad/tests/renderer/ingress.rs` other than those AC-2 and AC-3
@@ -108,14 +107,14 @@ re-priced with the measurement if the slice concludes it is not worth doing.
       `a_dead_accept_task_…`: it moves mechanically to the recording glass and
       gains one assertion, which guards the ingress-stopped path's loop label
       (`design.md` §9, R2; review F-10).
-- [ ] AC-5 — SPEC-003/R-15 states what a refusal decided while idle is owed and
+- [x] AC-5 — SPEC-003/R-15 states what a refusal decided while idle is owed and
       by when; its verification row names cases that read the window; R-12's
       row no longer records one presentation per refusal. Promoted from
       `canon-delta.md` with the user's endorsement.
-- [ ] AC-6 — A person floods refusals at the running host and sees the window
+- [x] AC-6 — A person floods refusals at the running host and sees the window
       stay responsive with the latest refusal on the diagnostics surface.
       Recorded in `audit.md` §Evidence (`docs/AGENTS.md` §Tiers).
-- [ ] AC-7 — `docs/follow-ups.md` FU-2 is struck with what killed it, or
+- [x] AC-7 — `docs/follow-ups.md` FU-2 is struck with what killed it, or
       re-priced with AC-1's figures if the slice ends without a repair. The
       strike restates FU-2's *Dead when*, which a lone refusal after quiet
       still does not literally meet. The restated condition: refused arrivals
@@ -174,4 +173,62 @@ re-priced with the measurement if the slice concludes it is not worth doing.
 
 ## Summary
 
+A refused arrival decided while idle no longer costs a present of its own.
+AC-1's measurement on the running host showed the present was ~99 % of a
+refused arrival's UI-thread cost, and one local writer pinned the UI thread
+(`research.md`). `serve` now coalesces refusal-only updates of the surface on
+both edges: the first refusal after quiet is shown at once, and a burst causes
+at most one further update per `REFUSAL_PRESENT_INTERVAL` (1 s), always showing
+the latest fold. It does this with a second pinned deadline,
+`next_refusal_present`, and a `surface_stale` flag inside a new `'idle` wait
+loop. No reply, command, scheduled firing or evaluation waits for it, and
+neither scheduling anchor is touched.
+
+The renderer cases now read the **window** through `RecordingGlass`, not the
+retained `Diagnostics`, so R-15's verification observes what a person sees. T2
+bounds a flood's updates by count and by gap and checks the last one names the
+last refusal. T3 holds the leading edge, and T4 holds a command during a
+coalesced interval. Each timed bound is held by a named mutation (`notes.md`
+PHASE-02). The user ran a flood against the host and saw the window stay
+responsive with the latest refusal shown (AC-6).
+
+Canon: SPEC-003's R-15 states the update guarantee, the per-interval limit
+and its exceptions (overwrite, loop end, clock overflow). §6.3 is made
+consistent with it, and R-15's and R-12's verification rows cite the new
+cases. SPEC-002's R-12 row follows the rename and names its independence
+cases rather than counting them. The code review ran four rounds: 14 findings,
+all verified, none blocking (`review-code.md`).
+
 ## Follow-ups
+
+Promoted to `docs/follow-ups.md`:
+
+- **FU-2 — struck.** This slice was FU-2. Its *Dead when*, restated as the
+  design required (`design.md` §10), is met: refused arrivals cost at most one
+  present per interval, and R-15 states the update guarantee.
+- **FU-3 — citation extended** (`design.md` R4). Coalescing slows updates; it
+  does not change retention, so a flood now shows fewer of its refusals and a
+  refusal-site refusal can overwrite a stale fold before it is shown. That is
+  the user's choice (`design-log.md`, F-1/F-2), and it leaves FU-3's question
+  as it was. Not a repair here, because retention is a non-goal of this slice.
+- **FU-45 — new** (`review-code.md` F-8). Two `Instant + MINIMUM_SPACING`
+  additions in `serve` still panic on clock overflow, so R-15's clock-overflow
+  clause describes a state the host cannot stay in. Pre-existing, practically
+  unreachable, and the initial arm's fallback is a design choice rather than a
+  repair — priced at tier 1.
+- **FU-10 — citation extended** (`review-code.md` F-12). The workspace-internal
+  `file.rs:NNN` citations this slice did not move remain outside the slice's
+  surfaces. FU-10's *Dead when* already covers them.
+- **FU-11 — citation extended.** `ingress.rs`'s `REFUSAL_PRESENT_INTERVAL` is a
+  hand-copy of the private production constant, checked by nothing but its
+  comment, as `FLOOR_MILLIS` is. T2(a) reds an interval shorter than about
+  0.85 s, but between that and 1 s the value is held by review
+  (`review-code.md`, *Risks knowingly left standing*).
+
+`notes.md` §Open, each entry:
+
+- **Design drift, `design.md` §9 T3's "M8 → R2"** — settled: recorded under
+  `audit.md` *Design drift not reconciled*, with M8b as the control for R2.
+- **FU-3's added citation** — promoted: FU-3's row cites 011.
+- **Memory `a-refusal-is-recorded-not-shown`** — settled at close: amended so
+  it is true of the promoted R-15 row (`docs/memory/`).
