@@ -244,10 +244,22 @@ vocabulary, subject `implementation`. Do not restate findings here.
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
-**Draft — nothing below is applied.** Canon rows wait on the user's
-endorsement, obtained by the orchestrator. Classification: *doc stale* (code
-right, document must change), *code wrong* (a finding, fixed in the slice),
-*decision* (the user's).
+Drafted by the auditor; completed at close. The user endorsed every canon row
+on 2026-09-26 (`design-log.md`, *audit: dispositions and canon endorsement*:
+"Approve all" — Changes 1–5, Change 3 as amended by `review-code.md` F-1,
+Change 5 extended). Classification: *doc stale* (code right, document must
+change), *code wrong* (a finding, fixed in the slice), *decision* (the user's).
+
+**Promotion.** Before each edit the closer confirmed the delta's *from* text
+verbatim in the spec (a scripted exact-match replace that aborts on any count
+but one; the §6.3 prose by exact edits). Every *from* text matched. After
+promotion every case name the promoted R-15 and R-12 cells cite resolves:
+`cargo test -p goad --test renderer -- --list` for the `ingress::` cases, and
+`cargo test -p goad --lib -- --list` for
+`controller::tests::a_writer_arriving_exactly_at_the_anchor_is_outside_the_spacing`.
+No canon document names the retired case names any more. Change 3's
+paragraphs and bullets are joined into one cell with `;`, each bold heading
+running into its first item with a space.
 
 **Canon — `canon-delta.md` promotion (AC-5).** Each change's *from* text was
 checked against the current spec and matches verbatim; each change's claim
@@ -255,12 +267,12 @@ about the code was checked against `serve` and the cases it names.
 
 | document | change | reason | class | done |
 |----------|--------|--------|-------|------|
-| `specs/003-host-event-ingress.md` §4, R-15's requirement | Replace the cell with `canon-delta.md` Change 1's text: the update guarantee within a fixed interval, the per-interval limit on refusal-caused updates with its leading edge, and the overwrite, loop-end and clock-overflow exceptions; the ingress-stopped `unavailable` shown without waiting | the rule changed: `serve`'s `'idle` loop, `next_refusal_present`, `surface_stale` and the coalescing arm implement exactly the stated rule (`REFUSAL_PRESENT_INTERVAL` holds the number, not canon) | doc stale | [ ] |
-| `specs/003-host-event-ingress.md` §6.3, *Which refusals a person sees* and the `unavailable` paragraph | Change 2, items 1–4: the lead-in on R-15's terms; the first bullet's "not otherwise" gains the overwrite; the second bullet's "*always* is exact" replaced; the counts of `unavailable`'s causes replaced ("four causes" → "the causes below", "The fourth cause" → "The last cause", "a fourth cause … not a ninth token" → "one more cause … not a new token") | the two statements R-15's exceptions make false (review F-3); the causes' count is held by no test | doc stale | [ ] |
-| `specs/003-host-event-ingress.md` §7, R-15 row | Change 3, joined into one cell with `;`: T3, T2, T4 for the rule and bound; the negative case; VT-7 and `ingress_stopping_during_an_exchange_…` for the last clause; the review-only items | the old row cites `…_reaches_the_diagnostics_surface`, which no longer exists and read the retained model | doc stale | [ ] |
-| `specs/003-host-event-ingress.md` §7, R-12 row | Change 4: the flat-out clause renamed to `a_flat_out_writer_raises_no_evaluation_rate`, the "845/845, 1.000 per refusal, ~1690/s" record dropped and pointed at R-15; "in **three** directions" → "in each direction a case below names" | the case was renamed and its presentation assertion removed (D13); the ratio is wrong by design | doc stale | [ ] |
-| `specs/002-host-scheduling-behaviour.md` §7, R-12 row | Change 5: the case citation renamed to `a_flat_out_writer_raises_no_evaluation_rate`; nothing else | the case was renamed | doc stale | [ ] |
-| `specs/002-host-scheduling-behaviour.md` §7, R-12 row — the counts | **Not in the delta.** The cell keeps "in all three directions rather than one" and "Each of the three was shown to fail", the same count Change 4 removes from SPEC-003's twin R-12 cell. Either extend Change 5 to name the rule as Change 4 does, or record the count as exempt (a finished sequence: the three named cases, mutation-tested in slice 004) | the delta's own count rule covers "every count in a passage this delta touches", and Change 5 touches this cell | **decision** | [ ] |
+| `specs/003-host-event-ingress.md` §4, R-15's requirement | Replace the cell with `canon-delta.md` Change 1's text: the update guarantee within a fixed interval, the per-interval limit on refusal-caused updates with its leading edge, and the overwrite, loop-end and clock-overflow exceptions; the ingress-stopped `unavailable` shown without waiting | the rule changed: `serve`'s `'idle` loop, `next_refusal_present`, `surface_stale` and the coalescing arm implement exactly the stated rule (`REFUSAL_PRESENT_INTERVAL` holds the number, not canon) | doc stale | [x] promoted verbatim |
+| `specs/003-host-event-ingress.md` §6.3, *Which refusals a person sees* and the `unavailable` paragraph | Change 2, items 1–4: the lead-in on R-15's terms; the first bullet's "not otherwise" gains the overwrite; the second bullet's "*always* is exact" replaced; the counts of `unavailable`'s causes replaced ("four causes" → "the causes below", "The fourth cause" → "The last cause", "a fourth cause … not a ninth token" → "one more cause … not a new token") | the two statements R-15's exceptions make false (review F-3); the causes' count is held by no test | doc stale | [x] promoted verbatim, items 1–4 |
+| `specs/003-host-event-ingress.md` §7, R-15 row | Change 3, joined into one cell with `;`: T3, T2, T4 for the rule and bound; the negative case; VT-7 and `ingress_stopping_during_an_exchange_…` for the last clause; the review-only items | the old row cites `…_reaches_the_diagnostics_surface`, which no longer exists and read the retained model | doc stale | [x] promoted as amended by F-1 ("the whole intervals their span holds") |
+| `specs/003-host-event-ingress.md` §7, R-12 row | Change 4: the flat-out clause renamed to `a_flat_out_writer_raises_no_evaluation_rate`, the "845/845, 1.000 per refusal, ~1690/s" record dropped and pointed at R-15; "in **three** directions" → "in each direction a case below names" | the case was renamed and its presentation assertion removed (D13); the ratio is wrong by design | doc stale | [x] promoted verbatim |
+| `specs/002-host-scheduling-behaviour.md` §7, R-12 row | Change 5 item 1: the case citation renamed to `a_flat_out_writer_raises_no_evaluation_rate` | the case was renamed | doc stale | [x] promoted verbatim |
+| `specs/002-host-scheduling-behaviour.md` §7, R-12 row — the counts | **Not in the delta.** The cell keeps "in all three directions rather than one" and "Each of the three was shown to fail", the same count Change 4 removes from SPEC-003's twin R-12 cell. Either extend Change 5 to name the rule as Change 4 does, or record the count as exempt (a finished sequence: the three named cases, mutation-tested in slice 004) | the delta's own count rule covers "every count in a passage this delta touches", and Change 5 touches this cell | **decision** — the user extended Change 5 (items 2 and 3) to quantify by rule | [x] promoted verbatim |
 
 **Not canon.**
 
