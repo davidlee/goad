@@ -64,3 +64,12 @@ after the slice closes is lifted into the Harvest section.
   slice of its own discharges the journal as written (`design-log.md`,
   2026-09-26, OQ-1). The roadmap's coverage row 14 still says *"012, or its own
   slice"*. Candidate follow-up at close.
+
+- **`claude plugin eval` and `claude plugin details` exist** (Claude Code
+  2.1.280). `eval` runs eval cases against a plugin with a no-plugin baseline
+  arm, and `details` reports a plugin's projected token cost. Both bear on
+  AC-1/AC-8's walk method, which was decided before they were known
+  (`research.md` R-d). For design: adopt, or say why not.
+- **SPEC-004 OQ-2** — `goad-emit`'s statuses are owned but not governed. The
+  checker entering §4 makes that asymmetry sharper (`research.md`
+  *Cross-thread* 4).
