@@ -57,3 +57,10 @@ grant*). None is in `design.md`. Each is open to the user at plan acceptance.
   person runs it in PHASE-03, so that a usability problem surfaces before
   audit. Audit cites the observation in `audit.md` §Evidence, which is where
   AC-6 requires it.
+
+### 2026-09-26 — plan accepted, with no plan review
+
+The user accepted `plan.md` as committed at `d2617c1`, PL-1..PL-8 standing,
+and declined a `review-plan.md` round — the 010 precedent. The orchestrator
+writes each phase sheet, so the plan's one adversarial reading before code is
+by someone who will not execute it.

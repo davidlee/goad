@@ -1,7 +1,7 @@
 # Slice 011: the refused arrival's present
 
-**Stage:** design — scoped 2026-09-26; AC-1 measured (`research.md` Thread 3),
-repair decided; `design.md` and `canon-delta.md` drafted
+**Stage:** execute — plan accepted 2026-09-26 (`plan-log.md`), no plan review;
+progress in `notes.md` §Status
 **Tier:** 2 (full) — the slice amends canon: SPEC-003/R-15, and the
 verification rows of R-15 and R-12, which record the present a refusal costs.
 **Depends on:** —
