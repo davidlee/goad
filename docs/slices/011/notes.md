@@ -8,7 +8,7 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 — the recording glass | pending | 2026-09-26 |
+| PHASE-01 — the recording glass | done | 2026-09-26 |
 | PHASE-02 — the coalescing loop | pending | 2026-09-26 |
 | PHASE-03 — under load, and in front of a person | pending | 2026-09-26 |
 
@@ -124,7 +124,7 @@ traps, not a restatement.
 
 | id | edit | command | must red | compiled? | redded (case, assertion) | restore green |
 |---|---|---|---|---|---|---|
-| M0 | `SlintGlass::present`: `write_if_changed(&self.diagnostics, lines);` → `drop(lines);` | `cargo test -p goad --test renderer --no-fail-fast -- ingress::` | T3 (R1 never shown); VT-7 (assertion 1, and the added one) | | | |
+| M0 | `SlintGlass::present`: `write_if_changed(&self.diagnostics, lines);` → `drop(lines);` | `cargo test -p goad --test renderer --no-fail-fast -- ingress::` | T3 (R1 never shown); VT-7 (assertion 1, and the added one) | yes | T3: red, `until` timed out waiting for R1's `too_soon` present (never shown). VT-7: red, `until` timed out waiting for assertion 1's fold present (never shown) — the added assertion (3) was never reached, since assertion 1's `until` panics first. `ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface` (not in this phase's table; reads the live window directly) also reds under this global mutation — recorded here as an observation, not a finding. | yes: `cp` back from scratchpad, `md5sum` matched the pre-mutation copy, `git diff --stat` empty for `glass.rs`; full `ingress::` suite re-ran green (13/13). |
 
 Mutations: copy the file to the scratchpad, edit, run, copy back. **Never**
 `git checkout`, `git stash`, `reset`, `rebase`, `commit --amend`.
@@ -140,36 +140,107 @@ report `STATUS: BLOCKED`:
   handover here, report `STATUS: PARTIAL`.
 
 **Tasks**
-- [ ] set §Status PHASE-01 `in progress`
-- [ ] EX-6 mirror of `REFUSAL_PRESENT_INTERVAL`
-- [ ] `Presented`, `RecordingGlass`; `CountingGlass` gone (EX-2)
-- [ ] timed writer records; `flat_out` over an envelope-per-index fn (EX-4)
-- [ ] VT-7 onto the log + added assertion (VT-3)
-- [ ] T1 (VT-2)
-- [ ] T3 (VT-1)
-- [ ] refactor pass
-- [ ] M0 run and recorded (EX-3, VA-1)
-- [ ] EX-5 diff check: `git diff <entry> -- crates/goad/tests/renderer/ingress.rs` touches no other case
-- [ ] `just check` exits 0 (EX-1)
-- [ ] §Status `done`; §Harvest updated
+- [x] set §Status PHASE-01 `in progress`
+- [x] EX-6 mirror of `REFUSAL_PRESENT_INTERVAL`
+- [x] `Presented`, `RecordingGlass`; `CountingGlass` gone (EX-2)
+- [x] timed writer records; `flat_out` over an envelope-per-index fn (EX-4)
+- [x] VT-7 onto the log + added assertion (VT-3)
+- [x] T1 (VT-2)
+- [x] T3 (VT-1)
+- [x] refactor pass
+- [x] M0 run and recorded (EX-3, VA-1)
+- [x] EX-5 diff check: `git diff <entry> -- crates/goad/tests/renderer/ingress.rs` touches no other case
+- [x] `just check` exits 0 (EX-1)
+- [x] §Status `done`; §Harvest updated
 
 **Decisions taken during execution**
+- `send`'s own signature (`async fn send(path, envelope) -> String`) is kept
+  exactly as it was, for its ~13 unrelated callers (STOP condition: no edit to
+  a case outside the table). `write_one` now returns a `Timed` record
+  (`sent`, `reply`, `replied`); `send` is a one-line wrapper over a new
+  `send_timed`, which is what T3 calls for its own timing. `flat_out` takes
+  `impl Fn(usize) -> String + Send + 'static` (an owned `String` per index,
+  not `&'static str`) so a future numbered flood — PHASE-02's T2 — can build
+  a distinct key per request; this phase's own two constant floods (T1,
+  PHASE-05/VT-6) just ignore the index.
+- `Timed.replied` is written but read by nothing in this phase (EX-4 asks
+  for it; only PHASE-02's T2(c) reads it). Left in with
+  `#[expect(dead_code, reason = …)]`, the carve-out `Cargo.toml` already
+  documents for exactly this shape (a phased field landing ahead of its
+  caller), rather than dropped and re-added next phase.
+- `Duration / 2` (I/2, and `MINIMUM_SPACING / 2` in VT-7's added assertion)
+  passed `cargo clippy -p goad --tests -- -D warnings` unchanged — no
+  `checked_div`/`mul_f64` fallback was needed for the halving. The 1.25×
+  factor in T3 (`REFUSAL_PRESENT_INTERVAL.mul_f64(1.25)`) has no integer
+  spelling and uses `mul_f64` throughout.
+- VT-7's assertion 1 (the fold on the surface) was moved onto the
+  `RecordingGlass` log rather than left reading `window.get_diagnostic_lines()`
+  directly: the added assertion 3 needs the same log entry's `at`, and reading
+  both off one source keeps the case's two window-derived claims consistent
+  with the phase's objective ("every timed claim … read from a log"). The old
+  numbering 1/2/3 became 1/2/3/4 (3 added, old 3 renumbered 4) — doc comment
+  updated to match, cited by name rather than position where reused elsewhere
+  in the same comment.
+- PHASE-05/VT-6's `flat_out` call site
+  (`after_a_flood_of_malformed_envelopes_the_host_still_evaluates`) was
+  respelled (`MALFORMED` → `|_index| MALFORMED.to_owned()`, and the reason
+  loop reads `record.reply`) to match the new `flat_out` signature. This is
+  the one sanctioned exception in the phase sheet's own text ("every existing
+  constant-envelope caller keeps its assertions, however its call is
+  spelled … including `after_a_flood_of_malformed_envelopes…`") — its
+  assertions are byte-for-byte the same, confirmed by the `git diff` (only
+  the `flat_out` call line and the loop variable's name changed).
 
 **Findings**
+- M0 also reds `ingress::ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`
+  (PHASE-04/"R-15's last clause" case), which is outside this phase's table
+  and untouched by this phase's diff. It reads `window.get_diagnostic_lines()`
+  directly rather than through a log, so a mutation to the shared production
+  write path reds it too. Not a defect in this phase's work — recorded because
+  the mutation table only names T3 and VT-7, and a future reader diffing the
+  actual `cargo test --no-fail-fast` output against this table should not
+  read the third failure as a regression.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** <yyyy-mm-dd> · <phase or stage> · <commit>
+**Fresh as of:** 2026-09-26 · PHASE-01 done · the `011: PHASE-01 — the
+recording glass` commit
 
 ### Produced
-<!-- What now exists: modules, contracts, docs. -->
+- `RecordingGlass`/`Presented` (`ingress.rs`) — the log every timed claim in
+  this file now reads, replacing `CountingGlass`. Delegates to `SlintGlass`
+  first, then reads `(Instant::now(), window.get_mode(), window.get_diagnostic_lines())`.
+- `Timed` (`ingress.rs`) — one connection's `sent`/`reply`/`replied`.
+  `write_one` is the sole connect-write-read primitive; `send`, `send_timed`
+  and `flat_out` all go through it.
+- `flat_out`'s new shape: `impl Fn(usize) -> String + Send + 'static` in place
+  of a constant `&'static str`, so PHASE-02's numbered flood (T2) can give
+  each request its own key without a second writer loop.
+- `REFUSAL_PRESENT_INTERVAL` (`ingress.rs`, private, 1 s) — the test file's
+  own mirror of PHASE-02's not-yet-written production constant, ahead of it
+  (EX-6).
+- Three cases carried over renamed/rewritten: `a_flat_out_writer_raises_no_evaluation_rate`
+  (T1, ex-VT-5), `a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once`
+  (T3, ex-`…reaches_the_diagnostics_surface`), and
+  `a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating`
+  (VT-7, name unchanged, body moved onto the log plus one assertion).
 
 ### Learned
-<!-- Durable facts a future agent would otherwise rediscover. Candidates for
-     `docs/memory/`. -->
+- `Duration / 2` is clippy-clean under this workspace's lint table (`integer_division`
+  is type-gated to primitive integers, not `Duration`'s `Div<u32>`); no
+  `checked_div`/`mul_f64` fallback was needed for a Duration halving here.
+- `expect(dead_code, reason = …)` on one struct field is the sanctioned way to
+  land an EX-4-mandated field a later phase reads — `Cargo.toml`'s own comment
+  names this shape, and it applies exactly here (`Timed.replied`).
+- A mutation to `glass.rs`'s single write site reds cases outside the phase
+  that touched it (`ingress_stopping_during_an_exchange_still_reaches_the_diagnostics_surface`,
+  PHASE-04's), because it reads the window directly rather than through a
+  log — worth knowing before treating an M0 run's failure list as exhaustive
+  against a phase's own mutation table.
 
 ### Open
-<!-- Still unresolved at this point. Candidates for follow-ups. -->
+- PHASE-02 is what gives `controller::REFUSAL_PRESENT_INTERVAL` a production
+  value and reads `Timed.replied` for the first time (T2(c)'s bound).
