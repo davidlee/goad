@@ -95,9 +95,10 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 | F-8 | minor | follow-up | verified |
 | F-9 | nit | fix-now | verified |
 | F-10 | minor | fix-now | verified |
-| F-11 | minor | fix-now | |
-| F-12 | nit | fix-now + follow-up | |
-| F-13 | nit | fix-now | |
+| F-11 | minor | fix-now | verified |
+| F-12 | nit | fix-now + follow-up | verified |
+| F-13 | nit | fix-now | verified |
+| F-14 | minor | | |
 
 ### F-1 — T2(a)'s ceiling carries a whole spare present; a 30 % shorter interval passes it
 
@@ -310,7 +311,7 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Disposition:** `fix-now` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
 **Response:** `serve`'s top-present comment now reads *every `continue 'serving`, bare or labelled, lands here. `continue 'idle` does not — that is the coalescing wait.* `pending.rs`'s `Debounce::tick` doc: *where every `continue 'serving` lands*.
 
-**Outcome:**
+**Outcome:** `verified` — the `serve` comment and `Debounce::tick`'s doc now quantify over `continue 'serving` and name `continue 'idle` as the exception. Checked against `serve`: `continue 'serving` (the coalescing arm, the ingress-`None` fold) and the bare `continue`s after the `'idle` block (the `let Some(attempted)` else branch, the refusal site) all bind to `'serving`. `continue 'idle` is the refused arrival's.
 
 ### F-12 — F-7's class sweep lists three stale line citations; the same grep finds more
 
@@ -326,7 +327,7 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Disposition:** `fix-now` on the Response; the residue is `follow-up` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
 **Response:** F-7's Response is corrected here rather than rewritten (append-only): its sweep's list of three was not the class. The grep in this finding's **Observed** is the enumeration, and none of those citations was moved by this slice. The residue — workspace-internal line citations in `controller.rs`'s module docs, `lib.rs`, `event_loop_drain`, `goad-emit`'s `exchange.rs` and `goad-shell`'s `ingress/mod.rs` — merges into `docs/follow-ups.md` FU-10 (nothing enforces *cite by symbol*) at close, its citation extended; not a new row.
 
-**Outcome:**
+**Outcome:** `verified` — the correction is appended here rather than by rewriting F-7, which is right for an append-only ledger. Routing the residue into FU-10 is correct. FU-10 (`docs/follow-ups.md`) is *citation discipline is enforced by nothing*, already names `file.rs:NNN` citations (`fields.rs`, `error.rs`, `envelope.rs`), and its *Dead when* is a gate instrument resolving every in-repo `file.rs:NNN`. That condition covers every site in this finding, so a new row would duplicate it.
 
 ### F-13 — The F-2 rewrite says the coalescing arm presents every coalesced fold; a person's present can come first, and then the arm never fires
 
@@ -341,6 +342,23 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 
 **Disposition:** `fix-now` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
 **Response:** The three sites now say the next present shows the fold, *no later than the end of the current* interval, *by the coalescing arm unless a command or an exchange presents first* (`refuse_arrival`, `ingest`); the `Fired::Ingested` comment says *the next present shows the fold*, dropping the arm's sole ownership.
+
+**Outcome:** `verified` for this finding's claim: none of the three sites gives the arm sole ownership any more, and "no later than the end of the current one" matches R-15. The repaired sentence's subject ("the next present shows **it**") is untrue in the overwrite case, so it is raised as F-14 rather than contesting this finding.
+
+
+### F-14 — The F-13 rewrite says "the next present shows it"; under a flood the next present shows a later refusal
+
+*Raised in round 3, against the F-13 repair.*
+
+**Severity:** minor
+**Location:** `crates/goad/src/controller.rs`: the doc of `refuse_arrival` ("the next present shows it"); the doc of `ingest` ("the next present shows it"); the comment on the `Fired::Ingested` branch ("the next present shows the fold").
+
+**Expected:** R-15 as drafted in canon-delta Change 1: the update "shows the latest refusal decided by then", and "a refusal overwritten on the surface before that update is never shown". `Controller::refuse` replaces the whole retained `Diagnostics`.
+**Observed:** each sentence says the next present shows *this* refusal. Inside an interval, a later refused arrival overwrites it before the next present. So does a refusal-site refusal, or the ingress-stopped fold. In each case the next present shows the later fold, and this one is never shown. The flood case is the one the slice exists for. During T2, almost every refusal is overwritten, and the next present shows `t2-<k>` for some later `k`. So the sentence is false in the common case, not only in a corner. The F-2 and F-13 wording had the same gap; F-13's repair turned it into an explicit claim.
+**Evidence:** `Controller::refuse` (`self.diagnostics = Diagnostics::refused(refused)`); T2's flood presents each name one key out of many refusals. A repair consistent with canon: "the next present shows the latest fold — at once after a quiet `REFUSAL_PRESENT_INTERVAL`, and otherwise no later than the end of the current one …", or append "unless a later refusal has replaced it (R-15's overwrite exception)".
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -446,3 +464,13 @@ F-13 (nit, "the coalescing arm presents it"). No code or test defect was found.
 
 Round 3 needs to look only at the F-11 and F-13 wording, and at F-12's
 Response edit.
+
+**Round 3 (raiser: F-11 to F-13 only).** F-11, F-12 and F-13 are `verified`.
+The quantifier in `serve` and in `pending.rs` is now exact. F-12's correction is
+appended rather than rewritten, and its residue belongs in FU-10, whose *Dead
+when* already covers every site listed. F-13's repair removed the arm's sole
+ownership but introduced one new untrue subject, raised as **F-14** (minor):
+"the next present shows **it**" is false whenever a later refusal overwrites
+this one first, and during a flood that is almost always. No mechanism or test
+was re-examined this round. The closing synthesis is deferred: F-14 is open,
+and its repair is one phrase ("the latest fold") at the three sites F-13 named.
