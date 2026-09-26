@@ -475,6 +475,110 @@ sheet, report `STATUS: BLOCKED`:
   and is now coalesced. Rewritten. M8b re-run by the orchestrator: T3 red on
   R2's bound only (≈1.004 s after sent); restored. `just check` exits 0.
 
+### PHASE-03 — under load, and in front of a person
+
+**Objective** (quoted, `plan.md` PHASE-03): *every timed bound's margin is
+known at the bound on a loaded machine, M9 is seen red under load, a person
+has seen the host stay responsive under a flood, and every case the canon
+delta cites exists by that name.*
+
+**Narrowed by the user's decision** (`plan-log.md`, *load testing
+de-emphasised*): the oversubscription work is cut. Stated exactly:
+
+| plan criterion | as the plan states it | in this sheet |
+|---|---|---|
+| EN-2 | orchestrator confirms no other session is measuring | **dropped** — this phase generates no load |
+| EX-2 | worst at rest **and under load**, run counts, loadavg at start and end | **at rest only**, ≥ 10 runs; `/proc/loadavg` still recorded at start and end of each batch, so the machine's ordinary load is on the record |
+| EX-3 | M9 ≥ 10 runs at rest **and** under load; ≥ 1 loaded run red | M9 ≥ 10 runs **at rest**, every one red, per-firing lag recorded |
+| EX-4 | `just check` once under load | **dropped** |
+| VA-2 | four busy loops per core | **dropped** — no busy loops, no `timeout … while :` |
+| STOPs | "a timed assertion reds under load"; "no M9 run under load is red"; "EN-2 cannot be confirmed" | replaced by: **a timed assertion reds at rest**, or **any M9 run at rest is green** |
+
+Everything else — EX-1, EX-5, EX-6, EX-7, VA-1 (at rest), VH-1 — binds as
+`plan.md` states it. **VH-1 is not the executor's**: the orchestrator hands
+AC-6 to the user after this sheet's machine work is done.
+
+**Entry** — PHASE-02 `done`; HEAD at or after `0533411` (its review commit).
+
+**Surfaces — a closed list.**
+- `docs/slices/011/flood.py` (new).
+- `docs/slices/011/notes.md` — this sheet, §Status, §Harvest.
+- `docs/slices/011/canon-delta.md`, `design.md` §9 — only if EX-5 finds a
+  name drifted.
+- `crates/goad/tests/renderer/ingress.rs` and `crates/goad/src/controller.rs`
+  — **temporary** instrumentation and M9 only, scratchpad copy and back,
+  byte-identical (`git diff --stat` empty). No committed code change: if a
+  margin fails, STOP.
+
+**Reading list**
+- `plan.md` §PHASE-03 whole (EX-2's list of quantities is binding; its
+  *Notes for the implementer*, less the load paragraphs).
+- `design.md` §9 (T2, T3, T4, VT-7 rows — bounds and load direction).
+- `ingress.rs` by symbol: T2 `a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`,
+  T3 `a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once`,
+  T4 `a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`,
+  VT-7 `a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating`.
+- §PHASE-02 above: its M9 rows (the gaps it recorded are this phase's
+  baseline).
+- `canon-delta.md` Changes 3, 4, 5 — the case names they cite.
+
+**Margin evidence (EX-2, at rest).** Temporary `eprintln!` lines print each
+quantity; run `cargo test -p goad --test renderer -- --nocapture` (the
+**whole** target, parallel, as the gate runs it) ≥ 10 times; remove the
+instrumentation (`print_stderr` is `deny`). One row per quantity: bound,
+which way load moves it, worst value, run count. The quantities (quoted
+from EX-2):
+- T2(a): count against ceiling, and the first flood present's lag behind its
+  refusal's `sent`;
+- T2(b): the widest gap between consecutive flood presents, and how many
+  presents precede the last reply;
+- T2(c): `at − last reply`;
+- T2's per-firing lag: each gap minus `I`;
+- T3: `at − sent` for R1 and for R2;
+- T4: `sent − A.at`, and `at − sent`;
+- VT-7: the first time `ingress has stopped` is shown, less the spawn instant.
+
+Rank the rows by direction first, then size (memory
+`margin-size-is-not-margin-direction`). T4's precondition (`sent − A.at <
+I/4`) is the tightest bound load pushes toward red.
+
+**flood.py (EX-6)** — as `plan.md` states: standard-library Python 3 only;
+args socket path and writer count (default 4); each writer loops connect →
+one numbered unknown-key envelope → read reply → close; once a second prints
+refusals so far and the last key; Ctrl-C prints the last key and exits 0;
+header says what it is for and that it is not part of the gate. Envelope:
+`{"source":"flood","kind":"flood","timestamp":"2026-01-01T00:00:00Z","data":{},"flood-<n>":0}`.
+**Smoke it** without the host: the host needs a display, and putting a window
+on the user's screen is VH-1's job, not this phase's. Run a throwaway
+standard-library listener in the scratchpad that accepts on a socket path,
+logs each line it reads and answers `{"accepted":false,"reason":"invalid_envelope"}`.
+Confirm `flood.py` connects, sends one valid JSON line per connection with a
+rising `flood-<n>` key, prints once a second, and on SIGINT prints the last key
+and exits 0. Record what was checked, and that the real host's replies are
+first seen at VH-1.
+
+**Tasks**
+- [ ] §Status PHASE-03 `in progress`
+- [ ] margin evidence at rest, ≥ 10 runs, table filled, instrumentation removed
+- [ ] M9 ≥ 10 runs at rest, tally + per-firing lag, restored
+- [ ] EX-5: every case name in `canon-delta.md` Changes 3–5 and `design.md` §9 appears in `cargo test -p goad --test renderer -- --list`; drift repaired in one commit, recorded
+- [ ] `flood.py` written and smoke-checked
+- [ ] EX-7: §Harvest current; §Open carries FU-3's added citation, memory `a-refusal-is-recorded-not-shown` to re-check at close, and the M8 label drift
+- [ ] `just check` exits 0 on the clean tree (EX-1)
+- [ ] §Status: PHASE-03 `in progress — awaiting VH-1` (the orchestrator sets `done` after the user's run)
+
+**STOP conditions**
+- A timed assertion reds at rest, or any M9 run at rest is green.
+- A file outside Surfaces needs to change, or a committed code change looks
+  necessary.
+- ~200k tokens: hand over here, `STATUS: PARTIAL`.
+
+**VH-1 record** (orchestrator fills after the user's run)
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
