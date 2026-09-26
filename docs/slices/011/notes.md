@@ -210,6 +210,175 @@ report `STATUS: BLOCKED`:
   M0 re-run by the orchestrator reds T3, VT-7 and the case above, and nothing
   else; `glass.rs` restored byte-identical.
 
+### PHASE-02 — the coalescing loop
+
+**Objective** (quoted, `plan.md` PHASE-02): *refused arrivals decided while
+idle cause at most one present per interval, on both edges, and every other
+path to the top present is unchanged.*
+
+**Written by the orchestrator, not the executor.** Where it restates a plan
+criterion it quotes it; where it narrows one it says so. It narrows none.
+
+**Entry** — PHASE-01 `done`; its closing commit is **`485980b`** (the
+orchestrator's review repair on top of `94251b6`). EX-6's AC-4 diff runs from
+`485980b`.
+
+**Surfaces — a closed list. Anything else is a STOP.**
+- `crates/goad/src/controller.rs` — `serve`, the new constant, and the doc
+  comments EX-4 lists. Nothing else in the file.
+- `crates/goad/tests/renderer/ingress.rs` — T2 and T4 added; T3's doc gains
+  the names of its controls; `Timed.replied`'s `#[expect(dead_code, …)]` goes
+  (T2(c) reads it — the `expect` becomes unfulfilled and fails the gate if
+  left).
+- `crates/goad/src/glass.rs` — M0 only, scratchpad copy and back,
+  byte-identical.
+- `docs/slices/011/design.md` §9, `canon-delta.md` — only on a rename.
+- `docs/slices/011/notes.md` — this sheet, §Status, §Harvest.
+
+**Reading list** (by symbol; `grep -n` then `sed -n`)
+- `plan.md` §PHASE-02 whole; §Coverage (the M-table, *Why these spellings*,
+  *Held by review*); §Sequencing (*What is red on today's loop*).
+- `design.md` §5 whole (§5.1–§5.5 — the loop's shape, state table, dynamics,
+  I-1..I-4, A-1), §7 D3–D9 and D11, §9 T2, T3, T4 rows.
+- `controller.rs`: `serve` whole; `refuse_arrival`; `ingest`'s doc; the
+  `MINIMUM_SPACING` constant and its doc (the new constant's doc sits beside
+  it and says why it is **not** the "no second constant" that doc forbids).
+- `ingress.rs`: the PHASE-01 additions — `Timed`, `write_one`, `send_timed`,
+  `flat_out`, `Presented`, `RecordingGlass`, `REFUSAL_PRESENT_INTERVAL`,
+  `T3_NUMBERED_REFUSAL`, and T3 (`a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once`)
+  as the model for a log-reading case.
+
+**The loop, as `design.md` §5.2 and the plan's note fix it.**
+
+```
+'serving: loop {
+  drain; glass.present(..);                          // unchanged
+  let (attempted, refusal_re_arms) = if let Some(drained) = drained { .. }
+  else {
+    let mut surface_stale = false;                   // fresh per entry
+    'idle: loop {
+      let fired = select! { biased;
+        cancel      => break 'serving Ending::Stopped,
+        commands    => None => break 'serving Ending::Closed, Some(c) => Fired::Command(c),
+        &mut sleep  => { floor_until = ..; Fired::Scheduled }      // unchanged
+        () = &mut next_refusal_present, if surface_stale => {       // NEW, D4: here
+          next_refusal_present.as_mut().reset(now.checked_add(I).unwrap_or(now));
+          continue 'serving;                                        // top presents
+        }
+        arrival     => None => { controller.refuse(&ingress_stopped()); continue 'serving; }
+                       Some(a) => Fired::Ingested(a),
+      };
+      ..;  // Fired::Ingested whose ingest answers None:
+           //   surface_stale = true; continue 'idle;
+      break 'idle (attempted, refusal_re_arms);
+    }
+  };
+  let Some(attempted) = attempted else { continue; };   // OUTSIDE 'idle — bare continue = 'serving
+  refusal site ..                                       // OUTSIDE 'idle
+  ..
+}
+```
+
+- `next_refusal_present` is `Box::pin(tokio::time::sleep_until(started))`,
+  declared beside `event_floor_until`. One write site: the new arm.
+- A `Fired::Command` whose `dispatch` answers `None` must still leave `'idle`
+  (to the top present). **That is T4's whole point**; M7 is the mutation that
+  breaks it.
+- `ingest` answers `None` for shape refusals, `too_soon`, **and** an unreadable
+  clock (step 4). All three are "an arrival already answered and folded", and
+  all three coalesce. That is the design's I-3 path, not a new decision.
+
+**Test traps**
+- **Key matching must be exact.** A numbered key `t2-17` is a substring of
+  `t2-170`. Match the surface's rendering with its backticks —
+  ``unknown key `t2-17` `` — never a bare `contains(key)`. Give T2 and T4
+  their own prefixes, distinct from T3's `t3-r2`.
+- **T2's flood** uses `flat_out` with an envelope-per-index closure (`ENVELOPE`'s
+  shape plus one numbered unknown key). "Flood presents" are logged presents
+  whose lines carry a T2 key. "The last key" is the last record's. The case
+  waits (`until`) until a present names the last key, then stops.
+- **T2(a)** — count ≤ `1 + ceil((last.at − first.at + ε) / I)`, `ε = I/2`, in
+  integer milliseconds via `u128::div_ceil`; counts compared through
+  `try_from`. Its doc states the resolution limit (≈0.65 s, phase-dependent —
+  the plan's figure, not 0.7 s) and that below it the constant is held by
+  review and the mirror, as `MINIMUM_SPACING`'s is.
+- **T2(c)** reads `Timed.replied` of the last record: `at − replied ≤ 2I`.
+- **T4's `sent`** for the command is an `Instant` the case stamps immediately
+  before `tx.send(Command::OpenDiagnostics)`. The precondition is read from
+  the log at that moment: the last present shows A and not B, and
+  `sent − A.at < I/4`. Then the first present with `at > sent` is
+  `WindowMode::Diagnostic`, shows B, `at − sent ≤ I/2`.
+- **T2 and T4 pin first**: `Command::Evaluate(Stimulus::Requested)` answered by
+  `NEXT_CHECK_A_MINUTE_OFF`, awaited until the `next_check` line shows (as T1
+  and T3 await it). PL-6 says why.
+- Each new case gets its own `socket_path` name and its own `scripted` name.
+- Every timed bound carries a comment naming **which way load moves it**
+  (design §9's load column). No measured figures in comments.
+
+**Mutation evidence** — every row: quote the edit, compiled?, which cases red
+**by name and assertion**, restore green, `git status` clean after. Command
+unless noted: `cargo test -p goad --test renderer --no-fail-fast -- ingress::`.
+If a spelling does not compile against the real code, respell to the same
+behaviour and record the respelling.
+
+| id | edit | must red | compiled? | redded (case, assertion) | restore green |
+|---|---|---|---|---|---|
+| M0 | `glass.rs` `SlintGlass::present`: `write_if_changed(&self.diagnostics, lines);` → `drop(lines);` | T2 (b), (c); T3; T4 (precondition) | | | |
+| M1 | in the `Fired::Ingested`/`None` branch, insert `if !surface_stale { continue 'serving; }` before `surface_stale = true;` | T2(a), by orders of magnitude. Also T4's precondition | | | |
+| M2 | set `surface_stale` only when `next_refusal_present.deadline() <= Instant::now()` | T2(c) | | | |
+| M3 | the `None` branch also resets `next_refusal_present` to `now + I` | T2(b) | | | |
+| M4 | `REFUSAL_PRESENT_INTERVAL` = 3 s (production constant only) | T2(b) | | | |
+| M5 | when `surface_stale` is first set, reset `next_refusal_present` to `now + I` | T3 (R1's bound) | | | |
+| M6 | the arm resets to `now + 3I` | T3 (R2's bound) | | | |
+| M7 | a `Fired::Command` whose `dispatch` answers `None` `continue 'idle`s | T4 (`at − sent`) | | | |
+| M8 | the top present also resets `next_refusal_present` to `now + I` | T3 (R2's bound) | | | |
+| M9 | `REFUSAL_PRESENT_INTERVAL` = 600 ms (production constant only) | T2(a), by one present — **≥ 5 runs at rest, every one red**; record each run's flood-present gaps | | | |
+| R2 | the ingress-stopped fold `continue 'idle`s instead of `'serving` | VT-7's added assertion (3) | | | |
+
+**Held by review (VA-1)** — record each by symbol here: D4 (arm above
+`ingress.arrival()`); D8 (no present on the `Ending` arms); D6 (ingress-stopped
+fold and refusal site not coalesced); I-3 (only the `Ingested`/`None` path and
+the new arm changed behaviour; every other `continue` reaches the top); I-4
+(`floor_until`, `event_floor_until`, `sleep` keep one write site each); R3 (the
+per-arrival yield still rests on `bind`'s `mpsc::channel(1)` and
+`accept_loop`'s `handle` awaiting the answer — cite by symbol in
+`goad_shell::ingress`). **VA-2**: no new identifier or string in
+`controller.rs` contains the word `site` (the domain scan's `DOMAIN` list).
+
+**Order** (the plan's): T2, T4 → **see them red on today's loop and record
+how** (T2 on (a); T4 on its precondition — expected; if either is green, STOP)
+→ the loop → green → refactor → EX-4 docs → mutations → `just check`.
+
+**STOP conditions** — stop at a compiling point, record here, commit the
+sheet, report `STATUS: BLOCKED`:
+- A mutation does not red its named case, or reds it on a different
+  assertion. Do not add or tighten a case to make it red.
+- T2 or T4 is green on today's loop before the change.
+- Any existing case other than T1, T3 and VT-7 needs an edit to stay green
+  (AC-4) — and T1, T3, VT-7 may not need one either (VT-3), except T3's doc.
+- A lint (e.g. `needless_continue`) can be satisfied only by changing a label,
+  an arm's position, or a write site. Spelling-only fixes are fine.
+- A file outside Surfaces needs to change.
+- ~200k tokens: stop at a compiling point, hand over here, `STATUS: PARTIAL`.
+
+**Tasks**
+- [ ] §Status PHASE-02 `in progress`
+- [ ] T2 written; red on today's loop, recorded
+- [ ] T4 written; red on today's loop (precondition), recorded
+- [ ] `REFUSAL_PRESENT_INTERVAL`, `next_refusal_present`, `'idle`, `surface_stale`, the arm
+- [ ] green; refactor
+- [ ] EX-4 doc comments (`refuse_arrival`, `ingest`, the `let Some(attempted)` comment, the inner arm's F-15 remark)
+- [ ] T3's doc names M5, M6, M8 as its controls; `Timed.replied`'s `expect` gone
+- [ ] mutations M0–M9, R2 run and recorded
+- [ ] VA-1, VA-2 recorded
+- [ ] EX-6: `git diff 485980b -- crates/goad/tests/renderer/ingress.rs` adds T2, T4 and changes no existing case beyond T3's doc and `Timed`
+- [ ] `just check` exits 0
+- [ ] §Status `done`; §Harvest updated
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
