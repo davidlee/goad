@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 — the recording glass | done | 2026-09-26 |
 | PHASE-02 — the coalescing loop | done | 2026-09-26 |
-| PHASE-03 — under load, and in front of a person | in progress — awaiting VH-1 | 2026-09-26 |
+| PHASE-03 — under load, and in front of a person | done | 2026-09-26 |
 
 ## Phase sheets
 
@@ -574,6 +574,15 @@ first seen at VH-1.
 - ~200k tokens: hand over here, `STATUS: PARTIAL`.
 
 **VH-1 record** (orchestrator fills after the user's run)
+
+Run by the user on 2026-09-26 against `64f75d4`, following the seven steps as
+handed over in chat (the plan's steps; step 6 loosened to "the last key
+printed, or a few above it", because keys in flight across `flood.py`'s four
+writers at Ctrl-C are refused by the host but never tallied). The user's
+report, verbatim: *"I ran that, it was all exactly as expected."* One
+statement covering steps 3–6: typing held and was not reverted, the pane
+opened promptly, the pane and tooltip updated about once a second with rising
+`flood-<n>` keys, and the pane settled on the last key after Ctrl-C.
 
 **Decisions taken during execution**
 - **T2's per-firing gap moved ahead of the (a) assertion.** The instrumentation
