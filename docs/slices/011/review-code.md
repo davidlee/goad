@@ -98,7 +98,7 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 | F-11 | minor | fix-now | verified |
 | F-12 | nit | fix-now + follow-up | verified |
 | F-13 | nit | fix-now | verified |
-| F-14 | minor | | |
+| F-14 | minor | fix-now | |
 
 ### F-1 — T2(a)'s ceiling carries a whole spare present; a 30 % shorter interval passes it
 
@@ -357,8 +357,8 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Observed:** each sentence says the next present shows *this* refusal. Inside an interval, a later refused arrival overwrites it before the next present. So does a refusal-site refusal, or the ingress-stopped fold. In each case the next present shows the later fold, and this one is never shown. The flood case is the one the slice exists for. During T2, almost every refusal is overwritten, and the next present shows `t2-<k>` for some later `k`. So the sentence is false in the common case, not only in a corner. The F-2 and F-13 wording had the same gap; F-13's repair turned it into an explicit claim.
 **Evidence:** `Controller::refuse` (`self.diagnostics = Diagnostics::refused(refused)`); T2's flood presents each name one key out of many refusals. A repair consistent with canon: "the next present shows the latest fold — at once after a quiet `REFUSAL_PRESENT_INTERVAL`, and otherwise no later than the end of the current one …", or append "unless a later refusal has replaced it (R-15's overwrite exception)".
 
-**Disposition:**
-**Response:**
+**Disposition:** `fix-now` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
+**Response:** all three sites now say *the next present shows the latest fold*; `refuse_arrival`'s and `ingest`'s docs add *which a later refusal may already have replaced*, R-15's overwrite exception, so the sentence is true under a flood.
 
 **Outcome:**
 

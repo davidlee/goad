@@ -655,9 +655,10 @@ fn spacing_elapsed(now: tokio::time::Instant, floor: tokio::time::Instant) -> bo
 /// arm's business, not this function's. The inner arm resumes waiting and
 /// `absorb` supersedes it, which is R-15's bound (`design.md` §5.2). The
 /// outer arm marks the surface stale and `continue 'idle`s: the next present
-/// shows it — at once after a quiet `REFUSAL_PRESENT_INTERVAL`, and otherwise
-/// no later than the end of the current one, by the coalescing arm unless a
-/// command or an exchange presents first (`docs/slices/011/design.md` §5.4).
+/// shows the latest fold, which a later refusal may already have replaced —
+/// at once after a quiet `REFUSAL_PRESENT_INTERVAL`, and otherwise no later
+/// than the end of the current one, by the coalescing arm unless a command or
+/// an exchange presents first (`docs/slices/011/design.md` §5.4).
 fn refuse_arrival(controller: &mut Controller, answer: Answer, refusal: &Refusal) {
   answer.refused(refusal);
   controller.refuse(&folded(refusal));
@@ -708,7 +709,8 @@ fn ingress_stopped() -> Refused {
 /// diagnostics, so the caller marks the surface stale and `continue 'idle`s
 /// rather than passing it to the shared refusal site (which would fold it a
 /// second time and consult `refusal_re_arms`) or breaking out to the top
-/// present itself: the next present shows it — at once after a quiet
+/// present itself: the next present shows the latest fold, which a later
+/// refusal may already have replaced — at once after a quiet
 /// `REFUSAL_PRESENT_INTERVAL`, and otherwise no later than the end of the
 /// current one, by the coalescing arm unless a command or an exchange
 /// presents first (`docs/slices/011/design.md` §5.2, §5.4).
@@ -1000,7 +1002,7 @@ where
         let attempted = match fired {
           // The only path that diverges (slice 011 I-3): `ingest` answering
           // `None` means the arrival has already been answered and folded, and
-          // the next present shows the fold — at once after a quiet interval,
+          // the next present shows the latest fold — at once after a quiet interval,
           // otherwise no later than the end of the current one — so this marks the
           // surface stale and resumes the wait rather than breaking out to the
           // top.
