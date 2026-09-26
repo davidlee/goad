@@ -142,6 +142,14 @@ and a `--help` whose answer never arrived exited 0. Both were repaired in the
 slice. Its follow-ups are `goad-emit`'s: that binary's statuses are owned by
 SPEC-004 and governed by nothing yet.
 
+**2026-09-26.** Slice 011 is closed. A refused ingress arrival no longer costs
+a present of its own: refusal-caused updates of the surface are coalesced to
+one per interval, the first after quiet shown at once and the latest always
+the one shown. SPEC-003's R-15 now says when a refusal decided while idle
+updates the surface, and its verification reads the window rather than the
+retained model. A person flooded the running host and saw the window stay
+responsive. What the surface retains is still FU-3's.
+
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
 ledger, code review unchanged. 49,631 lines of slice documentation for 16,891
@@ -168,7 +176,7 @@ graph LR
   S8["008 ✔<br/>the renderer<br/>gets a look"]
   S9["009 ✔<br/>the rest of<br/>the field kinds"]
   S10["010 ✔<br/>the exit-code<br/>taxonomy"]
-  S11["011<br/>the refused<br/>arrival's present"]
+  S11["011 ✔<br/>the refused<br/>arrival's present"]
   S12["012<br/>the backend<br/>author's kit"]
   S13["013<br/>stratum 3 joins<br/>the allowlist"]
   S14["014<br/>socket transport"]
@@ -183,7 +191,7 @@ graph LR
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
   classDef use fill:#1f3d5c,stroke:#3a6ea5,color:#fff
-  class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10 done
+  class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 done
   class T2 trigger
   class USE use
 ```
@@ -198,7 +206,7 @@ graph LR
 | 008 the renderer gets a look ✔ | 1 | split out of 007. It follows the form because the form is what makes the window worth looking at, and what makes it uglier first |
 | 009 the rest of the field kinds ✔ | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
 | 010 the exit-code taxonomy ✔ | 2 | the only follow-up with measured harm on the running host. It reaches SPEC-003's failure vocabulary |
-| 011 the refused arrival's present | 2 | an untrusted writer sets the rate. Suppressing the present is a SPEC-003/R-15 amendment with its own verification |
+| 011 the refused arrival's present ✔ | 2 | an untrusted writer sets the rate. Suppressing the present is a SPEC-003/R-15 amendment with its own verification |
 | 012 the backend author's kit | 2 | the wire contract has stood still since 007 and is what backends are written against; the next user is an agent writing one. Tier 2 because a new binary enters SPEC-004's scope |
 | 013 stratum 3 joins the allowlist | 2 | tier 2 by construction — one manifest row plus a POL-001 §Verification amendment. The smallest of the three, and it waited on daily use to show whether stratum 3 drifts |
 | 014 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
@@ -552,10 +560,16 @@ suppresses the one restart that would have succeeded.
   failure vocabulary. What landed in 006 is the honest comment naming `Platform`
   as the known exception; this is the repair.
 
-### 011 — the refused arrival's present
+### 011 — the refused arrival's present ✔
 
 From slice 009's audit (`docs/follow-ups.md` FU-2, `F-R4`). **Tier 2** — a
-SPEC-003/R-15 amendment with its own verification.
+SPEC-003/R-15 amendment with its own verification. **Closed 2026-09-26.**
+`docs/slices/011/` carries the record, `slice-011.md` §Summary the closing
+argument and §Follow-ups what outlived it. The entries below are the scoping
+argument as it stood. One of them did not survive design: a present suppressed
+is not deferred to the next scheduled firing. It is coalesced to one per
+interval, the first after quiet shown at once, and R-15 states that bound
+(FU-2, struck).
 
 One full present, `show()`'s instantiation pass included, per **refused** ingress
 arrival — at a rate an untrusted writer sets.
@@ -591,7 +605,7 @@ Decided at the 2026-09-26 conversation, before scoping:
 - **The reference cannot drift silently.** It is a thinner, backend-facing view
   of SPEC-001..003, not a second spec; every wire example it ships is a fixture
   the gate runs through normalization.
-- **Taken after 011**, which is designed and planned.
+- **Taken after 011**, closed 2026-09-26.
 
 Open for scoping:
 
