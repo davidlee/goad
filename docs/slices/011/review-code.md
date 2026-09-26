@@ -85,16 +85,19 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | minor | fix-now | |
-| F-2 | minor | fix-now | |
-| F-3 | minor | fix-now | |
-| F-4 | nit | fix-now | |
-| F-5 | minor | fix-now | |
-| F-6 | minor | fix-now | |
-| F-7 | minor | fix-now | |
-| F-8 | minor | follow-up | |
-| F-9 | nit | fix-now | |
-| F-10 | minor | fix-now | |
+| F-1 | minor | fix-now | verified |
+| F-2 | minor | fix-now | verified |
+| F-3 | minor | fix-now | verified |
+| F-4 | nit | fix-now | verified |
+| F-5 | minor | fix-now | verified |
+| F-6 | minor | fix-now | verified |
+| F-7 | minor | fix-now | verified |
+| F-8 | minor | follow-up | verified |
+| F-9 | nit | fix-now | verified |
+| F-10 | minor | fix-now | verified |
+| F-11 | minor | | |
+| F-12 | nit | | |
+| F-13 | nit | | |
 
 ### F-1 — T2(a)'s ceiling carries a whole spare present; a 30 % shorter interval passes it
 
@@ -134,7 +137,7 @@ Measured on the live tree (sole writer), production `REFUSAL_PRESENT_INTERVAL` m
 
 The resolution is therefore about 0.85 s (was ≈0.65 s under `div_ceil`). It sits where a shorter interval fits a fourth firing inside the 2.5 s flood window, so it moves with the flood's phase against the arm and with the window. `just check` green after the edit.
 
-**Outcome:**
+**Outcome:** `verified` — `ceiling = 1 + span_ms.div_euclid(interval_ms)` is floor division on `u128`. The floor form is sound: the arm resets its deadline to `now + I`, where `now` is read after the previous deadline has passed, so firings are at least `I` apart; the only red-ward term is the first present's lag behind its firing, which `ε = I/2` covers. Re-measured in the live tree (production constant mutated, restored byte-identical, `git diff --stat` empty): 600 ms → 6 vs 4, red 2/2; 800 ms → 5 vs 4, red 2/2; 850 ms and 900 ms green 2/2 each; HEAD green 3/3 over the full `ingress::` suite. That matches the new *(a)'s resolution* text ("shorter than about 0.85 s fails"). By arithmetic the threshold is about `COALESCING_FLOOD_WINDOW / 3`, about 0.83 s, and the doc already says it moves with phase and window, so it does not overclaim. M9's margin is now two presents. Canon-delta Change 3's "one more than the whole intervals their span holds, with a stated allowance for the first update's lag" is exactly `1 + floor((span + ε) / I)`.
 
 ### F-2 — Three doc comments describe the interval as a delay from the refusal; the leading edge presents at once
 
@@ -156,7 +159,7 @@ The resolution is therefore about 0.85 s (was ≈0.65 s under `div_ceil`). It si
 
 Class sweep: the `Fired::Ingested` comment in `serve` said the fold is "owed a present only within `REFUSAL_PRESENT_INTERVAL`, not at once" — the same half-truth; rewritten to the two-edge form. No other comment in `controller.rs` states the interval as a delay.
 
-**Outcome:**
+**Outcome:** `verified` — all three comments now say the first refused arrival after a quiet interval presents at once and later ones wait for the interval's end, and the constant's doc gives both halves and places the fold in the retained `Diagnostics`. One residual overstatement in the new wording ("the coalescing arm presents it") is raised separately as F-13, so that this outcome does not have to absorb it.
 
 ### F-3 — `surface_stale`'s comment claims only the arm ends the wait with the surface stale; every exit does
 
@@ -170,7 +173,7 @@ Class sweep: the `Fired::Ingested` comment in `serve` said the fold is "owed a p
 **Disposition:** `fix-now` — also raised by the audit as A-1 (`audit.md`); one repair. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:** the comment above `let mut surface_stale = false;` now gives the true reason no clear is needed: no exit from `'idle` carries the flag anywhere; every exit that does not end the loop reaches a present (the top present or the engage present), which shows the stale fold unless a refusal replaced it first (R-15's overwrite exception), and the next wait starts `false`; the exits that end the loop (stop, a closed command channel) leave the due update unmade (D8). To make "the top present" and "the engage present" resolvable by name, the two `glass.present` calls in `serve` gained a one-line role comment each (`// The top present: every `continue` in this loop lands here.` and `// The engage present.`) — comment only. Also closes the audit's A-1.
 
-**Outcome:**
+**Outcome:** `verified` — re-traced at HEAD. The only writers of the retained diagnostics are `Controller::absorb` and `Controller::refuse` (`grep "self.diagnostics ="`), so every exit that does not end the loop does reach the top present or the engage present with the fold intact unless a refusal replaced it. The new comment is true.
 
 ### F-4 — The rewritten `let Some(attempted)` comment keeps "an edit the drain applied", which cannot reach it
 
@@ -184,7 +187,7 @@ Class sweep: the `Fired::Ingested` comment in `serve` said the fold is "owed a p
 **Disposition:** `fix-now`. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:** the comment above `let Some(attempted) = attempted else { continue; };` now says the `None` is a diagnostics command or an `Edit` taken by the `'idle` `select!`'s `commands.recv()` arm, that the drain never hands over a `None` (it applies such a command itself and carries on), and that a refused arrival does not reach here either. "an edit the drain applied" is gone.
 
-**Outcome:**
+**Outcome:** `verified`.
 
 ### F-5 — Test doc comments still narrate the pre-PHASE-02 loop as "today's"
 
@@ -211,7 +214,7 @@ Class sweep: the `Fired::Ingested` comment in `serve` said the fold is "owed a p
 
 Class sweep beyond the named instances: the section header over T1 still read "VT-5 — …, and `review-design.md` F-15's settlement", the presentation-cost claim the slice removed from that case — now "VT-5 (slice 011's T1) — AC-5, SPEC-003/R-12: the evaluation rate". VT-7's doc gained its control (slice 011's R2 mutation) beside assertion 3. Three comments counted SPEC-003 §6.2's keys ("none of the four … admits": `T3_NUMBERED_REFUSAL`, `t2_envelope`, `T4_REFUSAL_A`'s doc) — now "a key SPEC-003 §6.2 does not admit"; `T4_REFUSAL_A`'s "own two" dropped. T2's doc named the flood window as "2.5 s"; now `COALESCING_FLOOD_WINDOW`. Also closes the audit's A-2.
 
-**Outcome:**
+**Outcome:** `verified` — no "today", "this phase" or "will then" remains in the slice's test comments. T1 now cites `plan.md` PHASE-01/VT-2. I checked the new *Controls* paragraphs for T2, T3 and T4 against `notes.md`'s mutation table: M1 and M9 red (a), M3 and M4 red (b), M2 reds (c) through the wait, M5 and M8 red R1, M8b and M6 red R2, M7 reds T4's lag and M1 reds T4's precondition. All match the recorded runs.
 
 ### F-6 — T3's and T4's timed bounds carry no load-direction comment
 
@@ -231,7 +234,7 @@ Class sweep beyond the named instances: the section header over T1 still read "V
 
 `grep -n "Toward red" crates/goad/tests/renderer/ingress.rs` now finds T2's three, T3's two, T4's two and VT-7's.
 
-**Outcome:**
+**Outcome:** `verified` — the four comments are in place and every direction is toward red, as `design.md` §9 states. T4's lag comment ("under M7 … at least `3I/4` after `sent`, so the red margin is at least `I/4`") follows from the precondition `< I/4`.
 
 ### F-7 — `Debounce::tick`'s doc cites `serve`'s present sites by line number, now further adrift, and counts them
 
@@ -247,7 +250,7 @@ Class sweep beyond the named instances: the section header over T1 still read "V
 
 Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-existing and outside this slice's surfaces, not repaired: `crates/goad-emit/tests/binary/exchange.rs` cites `tests/integration/ingress.rs:1296`; `crates/goad-shell/src/ingress/mod.rs` cites `tests/integration/ingress.rs:185`; `crates/goad/tests/renderer/ingress.rs`'s PHASE-05 banner cites `plan.md:1493-1585` (slice 004's plan — a doc line range, not code).
 
-**Outcome:**
+**Outcome:** `verified` for the finding's own claim: the line numbers and the count are gone, and the three sites are named by role. Two things are raised separately. The repair's new clause "where every `continue` lands", shared with the new top-present comment in `serve`, is untrue; it is F-11. The Response's class sweep lists three instances, but the same grep finds more; that is F-12. On the three instances the Response names: none is a finding against this slice. `crates/goad-emit/tests/binary/exchange.rs` and `crates/goad-shell/src/ingress/mod.rs` both cite `crates/goad-shell/tests/integration/ingress.rs`, which this slice did not touch (`git diff --stat d2617c1 HEAD -- crates/goad-shell crates/goad-emit` is empty), so the slice moved none of their lines. The PHASE-05 banner in `ingress.rs` cites a line range in slice 004's closed `plan.md`. That document is frozen, so the citation is pinned the way a vendored one is.
 
 ### F-8 — R-15's new clock-overflow clause describes a regime in which the adjacent timer arm panics
 
@@ -261,7 +264,7 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Disposition:** `follow-up` — not introduced by this slice, and the fallback for `sleep`'s initial arm is a design choice, not a repair. Lands in `slice-011.md` §Follow-ups and `docs/follow-ups.md` with a kill condition. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:** no code change. At close, a row lands in `slice-011.md` §Follow-ups and in `docs/follow-ups.md`: the two panicking `Instant + MINIMUM_SPACING` sites in `serve` (the initial `sleep`'s `started + MINIMUM_SPACING`, and the scheduled arm's write of `floor_until`) are brought onto `checked_add`, with the fallback for the initial arm decided by design (it is a choice, not a repair). Kill condition: the row is closed when both sites use a checked add and a unit case holds each fallback — or withdrawn if a later slice replaces `serve`'s timers with a clock that cannot overflow within the process's life, making R-15's clock-overflow clause (and this row) moot.
 
-**Outcome:**
+**Outcome:** `verified` — `follow-up` with a named row in both places and a kill condition that has two exits: closed when both sites use a checked add and a unit case holds each fallback, or withdrawn if the timers move to a clock that cannot overflow.
 
 ### F-9 — `flood.py`'s "last key" is the last key *recorded after its reply*, which can sit either side of what the host shows
 
@@ -275,7 +278,7 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Disposition:** `fix-now` — `flood.py`'s docstring and prints say "last key answered", and that it may sit either side of the window's. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:** `docs/slices/011/flood.py`: the module docstring says the main thread prints "the last key answered: the key of the reply most recently read", adds a paragraph that it may sit either side of the key the window shows last (indices claimed before connecting, recorded after reading the reply; the host decides in accept order, the script records in reply order), and to expect the window's key near the printed one, not equal to it. `Tally`'s docstring and both `print`s say "last key answered". Class: the docstring's "none of SPEC-003 §6.2's four admits" count → "a key SPEC-003 §6.2 does not admit". `python3 -m py_compile` clean; the script was not re-run (VH-1 is done).
 
-**Outcome:**
+**Outcome:** `verified` — the docstring, `Tally`'s docstring and both prints say "last key answered", and the new paragraph states the either-side ordering with the right mechanism.
 
 ### F-10 — Bare `design.md` / `plan.md` / `plan-log.md` citations in the new comments resolve to slice 004's documents
 
@@ -289,6 +292,55 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 - `ingress.rs`: T2's and T4's `plan-log.md` PL-6 → slice 011's; T2's `plan.md` VT-1 → slice 011 `plan.md` PHASE-02/VT-1; T4's `design.md` §9 → slice 011, with `plan.md` PHASE-02/VT-2; T3's and `Timed`'s `plan.md` ids qualified as slice 011's (`Timed`'s `EX-4` → PHASE-01/EX-4); T1's VT-2 (see F-5); VT-7's two "VT-3" → slice 011 `plan.md` PHASE-01/VT-3; the mirror's "D11" → slice 011; T2's (a)/(b)/(c) and T4's precondition comment → slice 011; `RecordingGlass::present`'s "the M0 control" → "slice 011's M0 control". `RecordingGlass`'s "(PL-8)" is slice 004's PL-8 (the counting glass) and stays bare. Also closes the audit's A-3.
 
 **Also in this round:** `canon-delta.md` Change 5 extended per the user's decision (`design-log.md`, *audit: dispositions and canon endorsement*): SPEC-002 §7 R-12's "in all three directions rather than one:" → "in each direction a case below names, not in one alone:", and "Each of the three was shown…" → "Each of those cases was shown…", quoted from/to as Changes 1–4 do; the cases themselves are already named in the cell. `docs/specs/` untouched.
+
+**Outcome:** `verified` — I ran the class grep over `git diff -U0 d2617c1 HEAD -- crates/` for `.md`, D/I/OQ/PL/VT/EX/PHASE/M/F ids and `§`, then read every unqualified hit in context. Each one is one of three things: qualified by "slice 011" or `docs/slices/011/` earlier in the same sentence or paragraph (`surface_stale`'s D8, T2's (a) comment, T2, T3 and T4's *Controls* paragraphs, the mirror's M4 and M9); a pre-existing slice-004 citation re-indented into `'idle` (EX-6, EX-7, the "**Last**" arm's `design.md` §5.4, `refuse_arrival`'s §5.2); or an intentional slice-004 reference (`RecordingGlass`'s PL-8). The class is closed in `crates/`.
+
+
+### F-11 — The new top-present comment, and `Debounce::tick`'s doc, say every `continue` lands at the top present; `continue 'idle` does not
+
+*Raised in round 2, against the F-3/F-7 repairs.*
+
+**Severity:** minor
+**Location:** `crates/goad/src/controller.rs`, `serve`: the comment "The top present: every `continue` in this loop lands here."; `crates/goad/src/pending.rs`, the doc of `Debounce::tick`: "the top present, at the head of every `'serving` iteration — where every `continue` lands, the coalescing arm's included".
+
+**Expected:** comments that are true of `serve`. The slice's own mechanism is a `continue` that does *not* reach the top present: a refused arrival `continue 'idle`s so that it does not present (`design.md` D2).
+**Observed:** `continue 'idle` sits lexically inside `'serving`, in the `Fired::Ingested` branch, and resumes the `'idle` `select!` without presenting. So "every `continue` in this loop lands here" is false in exactly the case the slice added. The statement true of the code is: every `continue 'serving`, bare or labelled, lands here; `continue 'idle` resumes the wait. The same quantifier appears in `pending.rs`, where it underwrites the F-R3 drain argument. That argument is unaffected, because `continue 'idle` presents nothing, but the sentence overclaims.
+**Evidence:** `grep -n "continue" crates/goad/src/controller.rs` inside `serve` finds `continue 'serving` (the coalescing arm and the ingress-`None` fold), `continue 'idle` (the refused arrival), and bare `continue` after the `'idle` block (the `let Some(attempted)` else branch and the refusal site), which bind to `'serving`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-12 — F-7's class sweep lists three stale line citations; the same grep finds more
+
+*Raised in round 2, against F-7's Response.*
+
+**Severity:** nit
+**Location:** `review-code.md` F-7 **Response**, the paragraph beginning "Class sweep beyond the named instance".
+
+**Expected:** memory `verify-the-enumeration-not-the-conclusion`. A sweep that says what it found should list what the grep returns, or say what it filtered out.
+**Observed:** it names three instances. `grep -rnE "\.rs:[0-9]" crates` also returns workspace-internal, non-vendored line citations: `controller.rs`'s module docs (`goad-shell/src/host.rs:76`, `host.rs:100-109`, `install.rs:40`); `crates/goad/src/lib.rs`'s list (`fields.rs:2120`, `goad-semantics/src/error.rs:238`, `goad-shell/src/ingress/envelope.rs:106`/`:118`, `ingress/mod.rs:752`/`:585`, `config.rs:47`, `state.rs:171`/`:186`); and `crates/goad/tests/event_loop_drain/main.rs` (`event_loop_overlay/overlay.rs:238-249`). None of these was moved by this slice. The slice changed only `controller.rs` and `renderer/ingress.rs` under `crates/`, and the only citation *into* either file by line was `pending.rs`'s, which is now fixed. So none is a finding against this slice. The defect is only that the Response's enumeration presents three as the whole class. Correcting that is a sentence in the Response; whether to sweep the rest is a separate question, for a follow-up or not, and the responder decides it.
+**Evidence:** the grep above, and `git diff --stat d2617c1 HEAD -- crates/` (two files).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-13 — The F-2 rewrite says the coalescing arm presents every coalesced fold; a person's present can come first, and then the arm never fires
+
+*Raised in round 2, against the F-2 repair.*
+
+**Severity:** nit
+**Location:** `crates/goad/src/controller.rs`: the doc of `refuse_arrival` ("the coalescing arm presents it: at once after a quiet `REFUSAL_PRESENT_INTERVAL`, otherwise when the current one ends"); the doc of `ingest` ("that present is the coalescing arm's job, which makes it at once … and otherwise when the current one ends"); the comment on the `Fired::Ingested` branch ("the fold's present is the coalescing arm's").
+
+**Expected:** R-15 as drafted: a fold "is shown when that interval ends, **unless another update has come sooner**", and a fold that is overwritten is never shown. `design.md` §5.4, *While stale*.
+**Observed:** a diagnostics command, an `Edit`, or the start of an exchange that arrives while the fold is stale presents it through the top present or the engage present. The next wait then starts with `surface_stale = false`, so the arm never fires for that fold. T4 is this case exactly. The three sentences give the arm sole ownership. The `REFUSAL_PRESENT_INTERVAL` doc words the same rule correctly ("none later than one interval after"). The lighter repair is "no later than the end of the current interval" in place of "otherwise when the current one ends".
+**Evidence:** `serve`: `let mut surface_stale = false;` sits before `'idle: loop`. T4 (`a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`) asserts that the command's present, not the arm's, carries B.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -360,3 +412,37 @@ mutation (the ingress-stopped fold `continue 'idle`), with `git status` clean
 before and after — another agent mutating in place. The first scratch run went
 red on VT-7 for that reason; the copy was re-taken from `git show HEAD:` before
 any result above was recorded. Memory `one-writer-per-worktree` applies.
+
+**Round 2 (raiser: outcomes on the round-1 repairs, and an attack on them).**
+F-1 through F-10 are all `verified`. Three new findings were raised, all
+against the repair text and none against the mechanism: F-11 (minor, the new
+"every `continue` lands" quantifier), F-12 (nit, F-7's sweep enumeration) and
+F-13 (nit, "the coalescing arm presents it"). No code or test defect was found.
+
+*Verified complete in round 2:*
+
+- **T2(a)'s floor form**, by argument and by live mutation (restored
+  byte-identical): 600 and 800 ms red, 850 and 900 ms green, HEAD green 3/3.
+  The resolution text is accurate and hedged correctly.
+- **Canon-delta Change 3** matches the test's formula term for term.
+- **Canon-delta Change 5**: both quoted "from" strings match SPEC-002 §7 R-12's
+  current row character for character. Its "in each direction a case below
+  names" is the same phrase Change 4 uses, and "two anchors" is correctly
+  exempted as a closed pair.
+- **The new role comments** ("the top present", "the engage present") are
+  the right anchors for `pending.rs`. Its semantic claim still holds: the
+  engage present follows synchronously from the top present, which is the
+  drained path, or from the `'idle` `select!`. Only the "every `continue`"
+  clause is wrong (F-11).
+- **The rewritten `surface_stale` and `let Some(attempted)` comments** are
+  true. Only `absorb` and `refuse` write the retained diagnostics.
+- **The mirror constant's doc and T2/T3/T4's *Controls* paragraphs** agree
+  with `notes.md`'s recorded mutation runs.
+- **The F-10 class is closed in `crates/`**, by the diff-wide grep.
+- **The three out-of-slice line citations** named by the repairer are not
+  findings against this slice. The slice moved none of them, and the slice-004
+  `plan.md` range is pinned to a closed document.
+- **F-8's follow-up** carries a two-exit kill condition.
+
+Round 3 needs to look only at the F-11 and F-13 wording, and at F-12's
+Response edit.
