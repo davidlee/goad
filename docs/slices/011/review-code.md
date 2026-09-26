@@ -3,7 +3,7 @@
 **Subject:** implementation — `d2617c1..fdc2229` over `crates/` (`crates/goad/src/controller.rs`, `crates/goad/tests/renderer/ingress.rs`), plus `docs/slices/011/flood.py`
 **Reviewer:** fresh agent (Claude Opus 5.5), adversarial code reviewer, did not build it
 **Opened:** 2026-09-26
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -98,7 +98,7 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 | F-11 | minor | fix-now | verified |
 | F-12 | nit | fix-now + follow-up | verified |
 | F-13 | nit | fix-now | verified |
-| F-14 | minor | fix-now | |
+| F-14 | minor | fix-now | verified |
 
 ### F-1 — T2(a)'s ceiling carries a whole spare present; a 30 % shorter interval passes it
 
@@ -360,7 +360,7 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Disposition:** `fix-now` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
 **Response:** all three sites now say *the next present shows the latest fold*; `refuse_arrival`'s and `ingest`'s docs add *which a later refusal may already have replaced*, R-15's overwrite exception, so the sentence is true under a flood.
 
-**Outcome:**
+**Outcome:** `verified` — all three sites now say the next present shows *the latest fold*, which is what `Controller::refuse`'s whole-slot replacement and R-15 ("shows the latest refusal decided by then") make true, including under a flood. One remark, not raised: in `refuse_arrival`'s and `ingest`'s docs, the clause "which a later refusal may already have replaced" attaches grammatically to "the latest fold", which by definition nothing later has replaced. The intended antecedent is *this* refusal's fold. That is awkward rather than false, since no reading makes the sentence claim something the code does not do. If anyone touches the sentence again: "the next present shows the latest fold (a later refusal may already have replaced this one)".
 
 ## Synthesis
 
@@ -474,3 +474,88 @@ ownership but introduced one new untrue subject, raised as **F-14** (minor):
 this one first, and during a flood that is almost always. No mechanism or test
 was re-examined this round. The closing synthesis is deferred: F-14 is open,
 and its repair is one phrase ("the latest fold") at the three sites F-13 named.
+
+**Round 4 (raiser: F-14 only).** F-14 is `verified`. The repaired sentences are
+true. One awkward antecedent is noted in its Outcome and not raised.
+
+### Closing synthesis
+
+**Resolved.** 14 findings, all `verified`, none withdrawn, no blocker and no
+major. The review ran four rounds: round 1 raised findings, and rounds 2–4
+verified repairs, with each repair round raising findings only against the text
+of the repair it was checking.
+
+**What the review changed.**
+
+- **One test got sharper.** T2(a)'s ceiling now rounds down (F-1). The
+  rounding-up form admitted one extra refusal-caused update on every run, so an
+  interval about 30 % short of the host's passed. Now an interval shorter than
+  about 0.85 s fails the count, and M9 fails by two updates rather than one.
+  Canon-delta Change 3 says the same thing ("the whole intervals their span
+  holds").
+- **Prose made true of the code.** In `controller.rs`:
+  - The constant's doc now states both halves of the throttle (F-2).
+  - The refusal docs say the first refusal after a quiet interval presents at
+    once, and that the next present shows the latest fold (F-2, F-13, F-14).
+  - The `surface_stale` and `let Some(attempted)` comments give the real
+    reasons (F-3, F-4).
+  - The top present and the engage present are named, and the quantifier is
+    exact: every `continue 'serving` lands on the top present, `continue 'idle`
+    does not (F-11).
+
+  In `ingress.rs`:
+  - The narration of the pre-PHASE-02 loop is gone, and each case names its
+    controls (F-5).
+  - Each timed bound carries its load direction (F-6).
+  - Every citation the slice added names slice 011 (F-10).
+
+  In `pending.rs`, `serve`'s present sites are named by role, not by line
+  number (F-7). `flood.py` says "last key answered" and explains why that key
+  can fall either side of the one the window shows (F-9).
+- **Canon-delta Changes 3 and 5** were amended: the T2 count wording, and
+  SPEC-002 R-12's two counts ("three" becomes a rule).
+
+**What it confirmed** (checked in round 1, and not moved by any repair):
+
+- **Every way out of `'idle`.** Each exit that does not end the loop reaches
+  the top present or the engage present. Stop and a closed channel leave a due
+  update unmade (D8).
+- **R-15 as drafted holds of the code**, with its overwrite, loop-end and
+  clock-overflow exceptions, and the code does nothing the draft does not say.
+- **The deadline.** The arm is its only writer (D5).
+- **No starvation under `biased`.** D4's ordering is what upholds the delivery
+  bound in production, where tokio's timers run on `main.rs`'s multi-thread
+  runtime.
+- **I-4.** The schedule's three existing values keep a single write site each.
+- **Invariants.** No semantics or domain vocabulary changed.
+- **Mutation evidence.** `notes.md`'s rows were cross-checked against the
+  *Controls* paragraphs. The interval mutations were re-run by this review.
+
+**Risks knowingly left standing.**
+
+- **F-8 → follow-up.** Two `Instant + MINIMUM_SPACING` additions in `serve`
+  (the initial `sleep` and the scheduled arm's `floor_until` write) still panic
+  on clock overflow. So R-15's degraded-but-live clock-overflow clause describes
+  a state the host cannot stay in. It is practically unreachable on a
+  monotonic-since-boot clock. The row goes in `slice-011.md` §Follow-ups and
+  `docs/follow-ups.md`. It is closed when both sites use a checked add and a
+  unit test holds each fallback, or withdrawn if the timers move to a clock
+  that cannot overflow.
+- **F-12 → FU-10.** Workspace-internal `file.rs:NNN` citations this slice did
+  not move remain in `controller.rs`'s module docs, `lib.rs`, `event_loop_drain`,
+  `goad-emit`'s `exchange.rs` and `goad-shell`'s `ingress/mod.rs`. They merge
+  into FU-10 (*citation discipline is enforced by nothing*), whose *Dead when*
+  already covers them.
+- **The window, not the pixels.** T2–T4 and VT-7 read the window's own
+  properties (`get_mode`, `get_diagnostic_lines`) after the real
+  `SlintGlass::present`. A regression in the write to the window goes red (M0).
+  One in rendering those properties to the screen, or in the tray's tooltip and
+  image, does not. The on-screen witness is AC-6, run by the user as VH-1, and
+  no test repeats it.
+- **T2(a)'s residual resolution.** An interval between about 0.85 s and the
+  host's 1 s passes the count. In that band the constant's value is held by
+  review and by the test's mirror comment, as `MINIMUM_SPACING`'s is.
+- **The yield per arrival** (design R3) keeps the event loop responsive during
+  a flood. It rests on goad-shell's `channel(1)` and sequential accept, and is
+  witnessed only by AC-6.
+
