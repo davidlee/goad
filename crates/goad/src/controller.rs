@@ -555,15 +555,18 @@ impl Pending {
 /// test buy time by moving a bound (`design.md` D-5).
 const MINIMUM_SPACING: std::time::Duration = std::time::Duration::from_secs(3);
 
-/// How long a refused arrival's fold may sit on the diagnostics surface
-/// before the surface is updated to show it (SPEC-003/R-15,
-/// `docs/slices/011/design.md` §5.2, D11, OQ-2).
+/// The throttle on presents that refused arrivals cause: at most one per
+/// interval, and none later than one interval after the refusal it shows
+/// (SPEC-003/R-15, `docs/slices/011/design.md` §5.2, §5.4, D11, OQ-2). A refused
+/// arrival's fold waits in the retained `Diagnostics`, off the surface, only
+/// when such a present has already happened within the interval; after a
+/// quiet interval the next one presents at once.
 ///
 /// **Not** `MINIMUM_SPACING`'s "no second constant": that constant bounds how
 /// often the host *fires* an evaluation of its own accord (R-4, R-12). This
-/// one bounds how long a fold the host has already decided may go
-/// *unpresented* — a different axis, and reusing `MINIMUM_SPACING` would tie
-/// the two together for no reason either document gives.
+/// one spaces presents of folds the host has already decided — a different
+/// axis, and reusing `MINIMUM_SPACING` would tie the two together for no
+/// reason either document gives.
 const REFUSAL_PRESENT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
 
 /// The longest wait the host will park a timer on. Reached only when
@@ -643,17 +646,18 @@ fn spacing_elapsed(now: tokio::time::Instant, floor: tokio::time::Instant) -> bo
   now >= floor
 }
 
-/// Answer one arrival's writer, and fold the same refusal onto the
-/// diagnostics surface.
+/// Answer one arrival's writer, and fold the same refusal into the retained
+/// diagnostics.
 ///
 /// The two are one act: SPEC-003/R-8 owes the writer a reply and R-15 owes a
 /// person the same fact, and a refusal that did one without the other would be
 /// a second route to one of them. Whether the fold is ever *presented* is the
-/// arm's business, not this function's — the outer arm marks the surface
-/// stale and `continue 'idle`s, so the fold reaches the top present once
-/// `REFUSAL_PRESENT_INTERVAL` allows it rather than at once; the inner arm
-/// resumes waiting and `absorb` supersedes it, which is R-15's bound
-/// (`design.md` §5.2, §5.4).
+/// arm's business, not this function's. The inner arm resumes waiting and
+/// `absorb` supersedes it, which is R-15's bound (`design.md` §5.2). The
+/// outer arm marks the surface stale and `continue 'idle`s, and the
+/// coalescing arm presents it: at once after a quiet
+/// `REFUSAL_PRESENT_INTERVAL`, otherwise when the current one ends
+/// (`docs/slices/011/design.md` §5.4).
 fn refuse_arrival(controller: &mut Controller, answer: Answer, refusal: &Refusal) {
   answer.refused(refusal);
   controller.refuse(&folded(refusal));
@@ -700,12 +704,13 @@ fn ingress_stopped() -> Refused {
 /// the steps only an arm reached while nothing is in flight can decide.
 ///
 /// `None` is *there is nothing to exchange* — every refusal it decides has
-/// already been answered to its writer and folded onto the surface, so the
-/// caller marks the surface stale and `continue 'idle`s rather than passing it
-/// to the shared refusal site (which would fold it a second time and consult
-/// `refusal_re_arms`) or presenting it at once: that present is the
-/// coalescing arm's job, no sooner than `REFUSAL_PRESENT_INTERVAL`
-/// (`design.md` §5.2).
+/// already been answered to its writer and folded into the retained
+/// diagnostics, so the caller marks the surface stale and `continue 'idle`s
+/// rather than passing it to the shared refusal site (which would fold it a
+/// second time and consult `refusal_re_arms`) or breaking out to the top
+/// present itself: that present is the coalescing arm's job, which makes it
+/// at once after a quiet `REFUSAL_PRESENT_INTERVAL` and otherwise when the
+/// current one ends (`docs/slices/011/design.md` §5.2, §5.4).
 ///
 /// **The anchor's one write site.** It is written on an *attempted* ingested
 /// evaluation — steps 4 and 5 both, so a clock that cannot be read produces one
@@ -883,10 +888,10 @@ where
   // `too_soon`; an envelope arriving while it is still in flight is refused
   // `engaged` one step earlier, like any other.
   let mut event_floor_until = started;
-  // The coalescing arm's own deadline (`design.md` §5.2, §5.3). Starts
-  // already elapsed, exactly as `sleep` and `event_floor_until` do: there is
-  // no previous refusal-caused present to space this one from. One write
-  // site, the arm itself, below.
+  // The coalescing arm's own deadline (`docs/slices/011/design.md` §5.2,
+  // §5.3). Starts already elapsed, exactly as `sleep` and `event_floor_until`
+  // do: there is no previous refusal-caused present to space this one from.
+  // One write site, the arm itself, below.
   let mut next_refusal_present = Box::pin(tokio::time::sleep_until(started));
 
   let ending = 'serving: loop {
@@ -918,6 +923,7 @@ where
       drained = dispatch(command, &mut controller, clock);
     }
 
+    // The top present: every `continue` in this loop lands here.
     glass.present(controller.frame(notice.raised())); // busy = false here
 
     // A drained command never came from the timer arm, so `refusal_re_arms`
@@ -928,9 +934,13 @@ where
       (Some(drained), false)
     } else {
       // Fresh on every entry into the wait, and never cleared inside it
-      // (`design.md` §5.3, D7): the only thing that ends the wait with the
-      // surface still stale is the arm below, and it does not need a
-      // read-then-clear because nothing loops back into `'idle` after it.
+      // (`docs/slices/011/design.md` §5.3, D7). No clear is needed because
+      // no exit from `'idle` carries the flag anywhere: every exit that does
+      // not end the loop reaches a present — the top present, or the engage
+      // present — which shows the stale fold unless a refusal has replaced it
+      // first (R-15's overwrite exception), and the next wait starts `false`.
+      // The exits that end the loop (stop, a closed command channel) leave a
+      // due update unmade, which R-15 also names (D8).
       let mut surface_stale = false;
       'idle: loop {
         let fired = select! { biased;
@@ -945,11 +955,11 @@ where
             floor_until = tokio::time::Instant::now() + MINIMUM_SPACING;
             Fired::Scheduled
           },
-          // The coalescing arm (`design.md` §5.2, D4). Sits above
-          // `ingress.arrival()` so that, when both are ready, the due update
-          // goes first — I-2 then rests on this ordering, not on goad-shell's
-          // channel shape. Builds no `Fired`: it never reaches an exchange,
-          // only the top of `'serving`, which presents.
+          // The coalescing arm (`docs/slices/011/design.md` §5.2, D4). Sits
+          // above `ingress.arrival()` so that, when both are ready, the due
+          // update goes first — that design's I-2 then rests on this
+          // ordering, not on goad-shell's channel shape. Builds no `Fired`:
+          // it never reaches an exchange, only the top present.
           () = &mut next_refusal_present, if surface_stale => {
             let now = tokio::time::Instant::now();
             next_refusal_present
@@ -965,9 +975,10 @@ where
             // Disposed of here, before any `Fired` is built: `refusal_re_arms` is
             // never reached, the standing deadline is not reset, and neither
             // anchor is written. A dead accept task changes nothing about the
-            // schedule. Not coalesced (D6): it happens once per process and is
-            // the only report of its condition, so it goes straight to the top
-            // present rather than waiting on `next_refusal_present`.
+            // schedule. Not coalesced (slice 011 D6): it happens once per
+            // process and is the only report of its condition, so it goes
+            // straight to the top present rather than waiting on
+            // `next_refusal_present`.
             None => {
               controller.refuse(&ingress_stopped());
               continue 'serving;
@@ -985,11 +996,12 @@ where
         // takes the road it always has. `None` from either is *there is nothing to
         // exchange*.
         let attempted = match fired {
-          // The only path that diverges (I-3): `ingest` answering `None` means
-          // the arrival has already been answered and folded, and the fold is
-          // owed a present only within `REFUSAL_PRESENT_INTERVAL`, not at
-          // once — so this marks the surface stale and resumes the wait
-          // rather than breaking out to the top.
+          // The only path that diverges (slice 011 I-3): `ingest` answering
+          // `None` means the arrival has already been answered and folded, and
+          // the fold's present is the coalescing arm's — at once after a quiet
+          // interval, otherwise when the current one ends — so this marks the
+          // surface stale and resumes the wait rather than breaking out to the
+          // top.
           Fired::Ingested(arrival) => {
             let Some(pending) = ingest(arrival, &mut controller, &mut event_floor_until, clock)
             else {
@@ -1009,9 +1021,11 @@ where
         break 'idle (attempted, refusal_re_arms);
       }
     };
-    // A diagnostics command, or an edit the drain applied. A refused arrival
-    // no longer reaches here: `ingest`'s `None` marks the surface stale and
-    // resumes the wait instead, so this `None` is only ever a command that
+    // A diagnostics command, or an `Edit`, taken by the `'idle` `select!`'s
+    // `commands.recv()` arm — the drain never hands over a `None`, because
+    // it applies such a command itself and carries on. A refused arrival does
+    // not reach here either: `ingest`'s `None` marks the surface stale and
+    // resumes the wait instead. So this `None` is only ever a command that
     // resolved without an exchange, and none of them is a refusal this loop
     // still owes a report for.
     let Some(attempted) = attempted else {
@@ -1044,9 +1058,9 @@ where
     let exchanged = pending.exchanged();
 
     controller.engage(exchanged);
-    // `busy` iff this is the person's own answer, in which case the option
-    // buttons are disabled and the rest of the form with them; an evaluation
-    // presents with every control live (F-A1, F-R2).
+    // The engage present. `busy` iff this is the person's own answer, in
+    // which case the option buttons are disabled and the rest of the form
+    // with them; an evaluation presents with every control live (F-A1, F-R2).
     glass.present(controller.frame(notice.raised()));
 
     // One future, built from the enum. `host` is borrowed mutably for

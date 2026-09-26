@@ -118,7 +118,21 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presents against a ceiling of 5", one dropped firing from green, `review-design.md` Round 4) to red-by-two (ceiling 4 by the same arithmetic). Canon-delta Change 3's words "one more than the number of intervals their span covers" describe the `div_ceil` form, so the canon text carries the same slack and would need the matching edit ("one more than the whole intervals their span holds").
 
 **Disposition:** `fix-now` — round down (floor) in T2(a); amend `canon-delta.md` Change 3's wording to match; re-derive T2(a)'s stated resolution by measurement, not arithmetic. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** `a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest` (T2) now computes `ceiling = 1 + span_ms.div_euclid(interval_ms)` — floor; `div_euclid` because clippy's `integer_division` is denied, and on `u128` it is the same division. (a)'s comment says why it rounds down; the doc's *(a)'s resolution* paragraph is rewritten from the measurement below, stated as where the ceiling falls rather than as a timing the case asserts, and naming its dependence on the flood's phase and `COALESCING_FLOOD_WINDOW`. `canon-delta.md` Change 3's T2 bullet now reads "one more than the whole intervals their span holds", with an amendment note under the Change's heading.
+
+Measured on the live tree (sole writer), production `REFUSAL_PRESENT_INTERVAL` mutated in place from a scratchpad backup and restored byte-identical after each set (`cmp` clean, `git diff --stat` empty for `controller.rs`); T2 run alone with a temporary count/ceiling `eprintln!`, since removed:
+
+| production interval | count / ceiling | runs | result |
+|---|---|---|---|
+| 1000 ms | 4 / 4 | 5 | green 5/5 |
+| 900 ms | 4 / 4 | 3 | green 3/3 |
+| 850 ms | 4 / 4 | 3 | green 3/3 |
+| 825 ms | 5 / 4 | 3 | red 3/3 |
+| 800 ms | 5 / 4 | 3 | red 3/3 |
+| 700 ms | 5 / 4 | 3 | red 3/3 |
+| 600 ms (M9) | 6 / 4 | 3 | red 3/3, by two |
+
+The resolution is therefore about 0.85 s (was ≈0.65 s under `div_ceil`). It sits where a shorter interval fits a fourth firing inside the 2.5 s flood window, so it moves with the flood's phase against the arm and with the window. `just check` green after the edit.
 
 **Outcome:**
 
@@ -135,7 +149,12 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** `serve`'s `next_refusal_present` starts at `sleep_until(started)` and is reset only by the arm; T3's R1 bound (`at − sent ≤ I/2`) and T4's A are green precisely because the leading edge does not wait (M5 reds T3 when it does, `notes.md`).
 
 **Disposition:** `fix-now` — the three comments state the throttle: the leading edge presents at once, at most one refusal-caused present per interval. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** the three comments now state the throttle — at once after a quiet interval, otherwise when the current one ends; at most one refusal-caused present per interval:
+- `REFUSAL_PRESENT_INTERVAL`'s doc: leads with the throttle (at most one per interval, none later than one interval after the refusal it shows), says the fold waits in the retained `Diagnostics`, off the surface, only when such a present has already happened within the interval, and that after a quiet interval the next one presents at once. Its second paragraph now says this constant *spaces* presents, not "how long a fold may go unpresented".
+- `refuse_arrival`'s doc: "rather than at once" is gone; the outer arm's fold is presented by the coalescing arm "at once after a quiet `REFUSAL_PRESENT_INTERVAL`, otherwise when the current one ends". Its summary line says the refusal is folded "into the retained diagnostics", not "onto the diagnostics surface", which the slice's own vocabulary contradicts.
+- `ingest`'s `None` paragraph: "no sooner than `REFUSAL_PRESENT_INTERVAL`" replaced with the same two-edge statement; "folded onto the surface" → "folded into the retained diagnostics" (it sat next to "marks the surface stale").
+
+Class sweep: the `Fired::Ingested` comment in `serve` said the fold is "owed a present only within `REFUSAL_PRESENT_INTERVAL`, not at once" — the same half-truth; rewritten to the two-edge form. No other comment in `controller.rs` states the interval as a delay.
 
 **Outcome:**
 
@@ -149,7 +168,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** the `select!` arms inside `'idle`: `break 'serving Ending::Stopped`, `break 'serving Ending::Closed`, `Fired::Command`/`Fired::Scheduled` → `break 'idle`, ingress `None` → `continue 'serving`. None of them reads or clears the flag.
 
 **Disposition:** `fix-now` — also raised by the audit as A-1 (`audit.md`); one repair. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** the comment above `let mut surface_stale = false;` now gives the true reason no clear is needed: no exit from `'idle` carries the flag anywhere; every exit that does not end the loop reaches a present (the top present or the engage present), which shows the stale fold unless a refusal replaced it first (R-15's overwrite exception), and the next wait starts `false`; the exits that end the loop (stop, a closed command channel) leave the due update unmade (D8). To make "the top present" and "the engage present" resolvable by name, the two `glass.present` calls in `serve` gained a one-line role comment each (`// The top present: every `continue` in this loop lands here.` and `// The engage present.`) — comment only. Also closes the audit's A-1.
 
 **Outcome:**
 
@@ -163,7 +182,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** `serve`: `let (attempted, refusal_re_arms) = if let Some(drained) = drained { (Some(drained), false) } else { … }`.
 
 **Disposition:** `fix-now`. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** the comment above `let Some(attempted) = attempted else { continue; };` now says the `None` is a diagnostics command or an `Edit` taken by the `'idle` `select!`'s `commands.recv()` arm, that the drain never hands over a `None` (it applies such a command itself and carries on), and that a refused arrival does not reach here either. "an edit the drain applied" is gone.
 
 **Outcome:**
 
@@ -182,7 +201,15 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** the quoted lines, against `serve` at `fdc2229`; `grep -n "VT-2" docs/slices/011/design.md` → no match.
 
 **Disposition:** `fix-now` — also raised by the audit as A-2, which adds that T3's doc omits M8b, the control on R2 (`design-log.md`, *M8b added*). *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** every test comment narrating the pre-PHASE-02 loop is rewritten to present tense at HEAD; red-before-green history stays in `notes.md`.
+- Mirror `REFUSAL_PRESENT_INTERVAL`: no "ahead of PHASE-02", "today's loop", "will then"; says T2, T3 and T4 state their bounds against it, and that mutating the production constant alone therefore moves the loop without moving the bounds — what M4 and M9 rely on.
+- T3: "Green on today's loop" paragraph replaced by a **Controls** paragraph naming each bound's controls by what they break — R1: M5, M8 (with why: the pin exchange's own top present reaches it first); R2: M8b (D5's rejected alternative) and M6. This adds the M8b the audit's A-2 found missing, and corrects M8's target from R2 to R1 (`notes.md` PHASE-02).
+- T2: "Red on today's loop" replaced by a **Controls** paragraph (M1, M9 → (a); M3, M4 → (b); M2 → (c), through the wait for the last key's present, as `notes.md` records).
+- T4: "Red on today's loop … B presents at once today" replaced by a **Controls** paragraph (M7 → the lag; M1 → the precondition).
+- T1: `design.md` VT-2 → slice 011 `plan.md` PHASE-01/VT-2.
+- `flat_out`: "this phase's own two" → "T1's `ENVELOPE` or PHASE-05/VT-6's `MALFORMED`"; "PHASE-02's coalescing loop needs" → "T2 needs".
+
+Class sweep beyond the named instances: the section header over T1 still read "VT-5 — …, and `review-design.md` F-15's settlement", the presentation-cost claim the slice removed from that case — now "VT-5 (slice 011's T1) — AC-5, SPEC-003/R-12: the evaluation rate". VT-7's doc gained its control (slice 011's R2 mutation) beside assertion 3. Three comments counted SPEC-003 §6.2's keys ("none of the four … admits": `T3_NUMBERED_REFUSAL`, `t2_envelope`, `T4_REFUSAL_A`'s doc) — now "a key SPEC-003 §6.2 does not admit"; `T4_REFUSAL_A`'s "own two" dropped. T2's doc named the flood window as "2.5 s"; now `COALESCING_FLOOD_WINDOW`. Also closes the audit's A-2.
 
 **Outcome:**
 
@@ -196,7 +223,13 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** `grep -n -i "toward red" crates/goad/tests/renderer/ingress.rs` → only T2's three comments and VT-7's doc.
 
 **Disposition:** `fix-now` — one load-direction comment per timed bound, directions from `design.md` §9. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** one load-direction comment beside each bound, directions from `design.md` §9, no measured figures:
+- T3, R1's `r1_lag <= I/2`: toward red — a stall between `sent` and the present only lengthens the lag; margin about `I/2`.
+- T3, R2's `r2_lag <= I/2`: toward red, as R1's; margin about `I/2`.
+- T4, the precondition `< I/4`: toward red — fails only after a stall longer than `I/4` between A's present and the send.
+- T4, the lag `<= I/2`: toward red — a stall only lengthens it; under M7 the next present is the trailing one, at least `3I/4` after `sent`, so the red margin is at least `I/4`.
+
+`grep -n "Toward red" crates/goad/tests/renderer/ingress.rs` now finds T2's three, T3's two, T4's two and VT-7's.
 
 **Outcome:**
 
@@ -210,7 +243,9 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** `grep -n "glass.present" crates/goad/src/controller.rs` at HEAD and at `d2617c1`; `grep -rn "controller.rs:[0-9]" crates docs/{specs,policy,adr}` finds this as the only such citation (class is one instance).
 
 **Disposition:** `fix-now` — name the three present sites by symbol; the file is outside every phase's Surfaces, taken in audit because this slice's edit is what moved the lines. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** `Debounce::tick`'s doc (`crates/goad/src/pending.rs`) now names `serve`'s presents by role, with no line numbers and no count: **the top present**, at the head of every `'serving` iteration, where every `continue` lands (the coalescing arm's included), which the drain precedes; **the engage present**, after `controller.engage`, reached synchronously from the top present or from the `'idle` `select!` that yields the firing; **the inner `select!`'s ingress-`None` arm**, reached after an await with no drain. The first two names are anchored in `serve` by the role comments added under F-3. The semantic claim is the reviewer's, re-checked against the loop: unchanged.
+
+Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-existing and outside this slice's surfaces, not repaired: `crates/goad-emit/tests/binary/exchange.rs` cites `tests/integration/ingress.rs:1296`; `crates/goad-shell/src/ingress/mod.rs` cites `tests/integration/ingress.rs:185`; `crates/goad/tests/renderer/ingress.rs`'s PHASE-05 banner cites `plan.md:1493-1585` (slice 004's plan — a doc line range, not code).
 
 **Outcome:**
 
@@ -224,7 +259,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** `grep -n "Instant::now() +\|started +" crates/goad/src/controller.rs` → the two `serve` sites (plus one in a `#[cfg(test)]` test, harmless).
 
 **Disposition:** `follow-up` — not introduced by this slice, and the fallback for `sleep`'s initial arm is a design choice, not a repair. Lands in `slice-011.md` §Follow-ups and `docs/follow-ups.md` with a kill condition. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** no code change. At close, a row lands in `slice-011.md` §Follow-ups and in `docs/follow-ups.md`: the two panicking `Instant + MINIMUM_SPACING` sites in `serve` (the initial `sleep`'s `started + MINIMUM_SPACING`, and the scheduled arm's write of `floor_until`) are brought onto `checked_add`, with the fallback for the initial arm decided by design (it is a choice, not a repair). Kill condition: the row is closed when both sites use a checked add and a unit case holds each fallback — or withdrawn if a later slice replaces `serve`'s timers with a clock that cannot overflow within the process's life, making R-15's clock-overflow clause (and this row) moot.
 
 **Outcome:**
 
@@ -238,7 +273,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Evidence:** `writer_loop`: `index = tally.claim(); write_one(path, index); tally.record(index)`.
 
 **Disposition:** `fix-now` — `flood.py`'s docstring and prints say "last key answered", and that it may sit either side of the window's. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** `docs/slices/011/flood.py`: the module docstring says the main thread prints "the last key answered: the key of the reply most recently read", adds a paragraph that it may sit either side of the key the window shows last (indices claimed before connecting, recorded after reading the reply; the host decides in accept order, the script records in reply order), and to expect the window's key near the printed one, not equal to it. `Tally`'s docstring and both `print`s say "last key answered". Class: the docstring's "none of SPEC-003 §6.2's four admits" count → "a key SPEC-003 §6.2 does not admit". `python3 -m py_compile` clean; the script was not re-run (VH-1 is done).
 
 **Outcome:**
 
@@ -249,7 +284,11 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** by the convention `ingress.rs`'s own notes state, a bare `design.md`, `plan.md` or `plan-log.md` there means slice 004's. T2 and T4 cite "`plan-log.md` PL-6" (004's PL-6 is unrelated); T1 cites a `plan.md` id as `design.md`; the new comments in `controller.rs` cite bare `design.md` for slice 011's sections.
 
 **Disposition:** `fix-now` — fix the class across both files: every citation this slice added names `docs/slices/011/…` or "slice 011". *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
-**Response:**
+**Response:** every citation this slice added in both files now names slice 011 (`docs/slices/011/…` in `controller.rs`; "slice 011 …" in `ingress.rs`, whose bare `design.md`/`plan.md`/`plan-log.md` mean slice 004's). Found by `git diff -U0 d2617c1 -- <file> | grep '^+'` filtered for `.md`, `D<n>`, `I-<n>`, `OQ-`, `PL-`, `VT-`, `EX-`, `PHASE-0[123]`, `M<n>`, then read line by line.
+- `controller.rs`: `next_refusal_present`'s comment, the `surface_stale` comment, the coalescing arm's comment (`design.md` §5.2, D4 → `docs/slices/011/design.md`; "I-2" → "that design's I-2"), the ingress-`None` fold's "(D6)" and the `Fired::Ingested` comment's "(I-3)" → "slice 011 …", `refuse_arrival`'s and `ingest`'s new sentences. `refuse_arrival`'s surviving "R-15's bound (`design.md` §5.2)" is slice 004's, pre-existing, and left bare by that convention; slice 011's §5.4 is cited separately beside it.
+- `ingress.rs`: T2's and T4's `plan-log.md` PL-6 → slice 011's; T2's `plan.md` VT-1 → slice 011 `plan.md` PHASE-02/VT-1; T4's `design.md` §9 → slice 011, with `plan.md` PHASE-02/VT-2; T3's and `Timed`'s `plan.md` ids qualified as slice 011's (`Timed`'s `EX-4` → PHASE-01/EX-4); T1's VT-2 (see F-5); VT-7's two "VT-3" → slice 011 `plan.md` PHASE-01/VT-3; the mirror's "D11" → slice 011; T2's (a)/(b)/(c) and T4's precondition comment → slice 011; `RecordingGlass::present`'s "the M0 control" → "slice 011's M0 control". `RecordingGlass`'s "(PL-8)" is slice 004's PL-8 (the counting glass) and stays bare. Also closes the audit's A-3.
+
+**Also in this round:** `canon-delta.md` Change 5 extended per the user's decision (`design-log.md`, *audit: dispositions and canon endorsement*): SPEC-002 §7 R-12's "in all three directions rather than one:" → "in each direction a case below names, not in one alone:", and "Each of the three was shown…" → "Each of those cases was shown…", quoted from/to as Changes 1–4 do; the cases themselves are already named in the cell. `docs/specs/` untouched.
 
 **Outcome:**
 

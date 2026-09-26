@@ -9,10 +9,16 @@ person can watch the window and tray stay responsive while it runs
 Usage: flood.py SOCKET_PATH [WRITER_COUNT]
 
 Each of WRITER_COUNT (default 4) threads loops: connect to SOCKET_PATH,
-send one envelope carrying a key none of SPEC-003 §6.2's four admits,
-numbered `flood-<n>` off one shared counter, read the reply, close. Once a
-second the main thread prints the refusal count so far and the last key
-sent. Ctrl-C prints the last key once more and exits 0.
+send one envelope carrying a key SPEC-003 §6.2 does not admit, numbered
+`flood-<n>` off one shared counter, read the reply, close. Once a second the
+main thread prints the refusal count so far and the last key answered: the
+key of the reply most recently read. Ctrl-C prints it once more and exits 0.
+
+The last key answered is not necessarily the key the window shows last, and
+may sit either side of it: writers claim their indices before connecting and
+record them after reading the reply, so the host decides in the order it
+accepts connections while this script records in the order replies are read.
+Expect the window's key to be near the printed one, not equal to it.
 """
 
 from __future__ import annotations
@@ -41,8 +47,9 @@ def envelope(n: int) -> str:
 
 class Tally:
   """Shared state across writers: the next index to send, the count of
-  replies read, and the last key sent — one lock, so "the last key" and
-  "refusals so far" the main thread prints always agree with each other."""
+  replies read, and the last key answered (the key of the reply most recently
+  read) — one lock, so "the last key answered" and "refusals so far" the main
+  thread prints always agree with each other."""
 
   def __init__(self) -> None:
     self.lock = threading.Lock()
@@ -109,10 +116,10 @@ def main(argv: list[str]) -> int:
     while True:
       time.sleep(1)
       refusals, last_key = tally.snapshot()
-      print(f"refusals so far: {refusals}, last key: {last_key}")
+      print(f"refusals so far: {refusals}, last key answered: {last_key}")
   except KeyboardInterrupt:
     _, last_key = tally.snapshot()
-    print(f"last key: {last_key}")
+    print(f"last key answered: {last_key}")
     stop.set()
     return 0
 

@@ -59,8 +59,8 @@ use crate::waiting::LIVENESS_BOUND;
 /// at the point of use rather than trusting the line.
 const ENVELOPE: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4}}"#;
 
-/// T3's own numbered shape refusal: `ENVELOPE`'s shape, plus one key none of
-/// the four `SPEC-003` §6.2 admits. `EnvelopeFault::Unknown` names the key
+/// T3's own numbered shape refusal: `ENVELOPE`'s shape, plus one key
+/// `SPEC-003` §6.2 does not admit. `EnvelopeFault::Unknown` names the key
 /// verbatim on the surface, so this case's own presents are found by a key no
 /// other case's flood can produce (slice 011 `plan.md` PHASE-01 notes: "give
 /// T3 its own key prefix").
@@ -96,13 +96,13 @@ const ANTI_SPIN_WINDOW: Duration = Duration::from_millis(500);
 /// checked by nothing but this comment.
 const MINIMUM_SPACING: Duration = Duration::from_secs(3);
 
-/// The coalescing loop's own throttle, mirrored ahead of PHASE-02, which
-/// gives `controller::REFUSAL_PRESENT_INTERVAL` its production value (D11,
-/// slice 011 `design.md` OQ-2). Private for the same reason
-/// `MINIMUM_SPACING` above is, and the mirror is checked by nothing but this
-/// comment. T3 (below) states its bounds against this value while today's
-/// loop still presents every refusal at once — PHASE-02's mutations are what
-/// exercise the throttle this constant will then gate.
+/// The coalescing loop's own throttle, mirrored:
+/// `controller::REFUSAL_PRESENT_INTERVAL` (slice 011 `design.md` D11, OQ-2).
+/// Private for the same reason `MINIMUM_SPACING` above is, and the mirror is
+/// checked by nothing but this comment. T2, T3 and T4 state their bounds
+/// against this value; a mutation of the production constant alone
+/// therefore moves the loop without moving the bounds, which is what M4 and
+/// M9 rely on (slice 011 `design.md` §9).
 const REFUSAL_PRESENT_INTERVAL: Duration = Duration::from_secs(1);
 
 const _: () = assert!(
@@ -165,7 +165,7 @@ fn cleanup(path: &Path) {
   }
 }
 
-/// One connection's timing (slice 011 `design.md` D12, `plan.md` EX-4):
+/// One connection's timing (slice 011: `design.md` D12, `plan.md` PHASE-01/EX-4):
 /// `sent` is stamped immediately before the socket connects, so it reads on
 /// the same clock as a [`Presented::at`] below, and `replied` is stamped as
 /// soon as the reply line is read.
@@ -220,11 +220,10 @@ async fn send_timed(path: &Path, envelope: &str) -> Timed {
 /// A writer emitting envelopes flat out for `window`: one connection after
 /// another, each awaiting its reply before opening the next, with nothing
 /// between them. `envelope_at` is called with each connection's 0-based
-/// index, so a flood can vary its payload per request — PHASE-02's coalescing
-/// loop needs a numbered key per refusal — while a constant flood, such as
-/// this phase's own two (`ENVELOPE`, and PHASE-05/VT-6's `MALFORMED`), simply
-/// ignores it. One writer loop, reused rather than repeated (DRY): no second
-/// `flat_out`.
+/// index, so a flood can vary its payload per request — T2 needs a numbered
+/// key per refusal — while a constant flood, such as T1's `ENVELOPE` or
+/// PHASE-05/VT-6's `MALFORMED`, simply ignores it. One writer loop, reused
+/// rather than repeated (DRY): no second `flat_out`.
 async fn flat_out(
   path: &Path,
   window: Duration,
@@ -316,7 +315,7 @@ impl fmt::Debug for RecordingGlass {
 impl Glass for RecordingGlass {
   /// **Delegates first, then reads** (slice 011 `plan.md` PHASE-01 notes).
   /// Reading before the delegate returns would log the *previous* present's
-  /// window, which the M0 control could not tell apart from this one.
+  /// window, which slice 011's M0 control could not tell apart from this one.
   fn present(&mut self, frame: Frame<'_>) {
     self.inner.present(frame);
     let model = self.window.get_diagnostic_lines();
@@ -666,11 +665,11 @@ async fn a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_l
 }
 
 // ---------------------------------------------------------------------------
-// VT-5 — AC-5, SPEC-003/R-12, and `review-design.md` F-15's settlement
+// VT-5 (slice 011's T1) — AC-5, SPEC-003/R-12: the evaluation rate
 // ---------------------------------------------------------------------------
 
 /// The flat-out writer, and its R-12 half (VT-5, renamed; slice 011
-/// `design.md` D13, T1).
+/// `design.md` D13 and §9's T1).
 ///
 /// **EX-11 member.** The one exchange it lets complete pins `next_check` a
 /// minute off, so no scheduled firing presents anything inside the measured
@@ -684,10 +683,10 @@ async fn a_second_envelope_inside_the_spacing_is_refused_too_soon_and_says_how_l
 ///    spacing, over a window far shorter than the spacing;
 /// 2. every excess reply says `too_soon`.
 ///
-/// **No presentation-cost claim here** (slice 011 `design.md` VT-2): what the
-/// same flood costs a person's surface is SPEC-003/R-15's, and is verified
-/// there (`canon-delta.md` Change 4). The counting glass this case used to
-/// need for that claim is gone with it.
+/// **No presentation-cost claim here** (slice 011 `plan.md` PHASE-01/VT-2):
+/// what the same flood costs a person's surface is SPEC-003/R-15's, and is
+/// verified there (slice 011 `canon-delta.md` Change 4). The counting glass
+/// this case used to need for that claim is gone with it.
 #[tokio::test]
 async fn a_flat_out_writer_raises_no_evaluation_rate() {
   let path = socket_path("vt5");
@@ -763,7 +762,7 @@ async fn a_flat_out_writer_raises_no_evaluation_rate() {
 }
 
 // ---------------------------------------------------------------------------
-// T2 — slice 011 `design.md` §9, PHASE-02: the coalescing loop's own bound
+// T2 — slice 011 `design.md` §9 and PHASE-02: the coalescing loop's own bound
 // ---------------------------------------------------------------------------
 
 /// T2's own key, one per flood request: `t2-{index}`. Numbered, so a specific
@@ -775,9 +774,9 @@ fn t2_key(index: usize) -> String {
   format!("t2-{index}")
 }
 
-/// [`t2_key`]'s envelope: [`ENVELOPE`]'s shape, plus one key none of
-/// `SPEC-003` §6.2's four admits, numbered so [`flat_out`] gives every
-/// request in the flood its own.
+/// [`t2_key`]'s envelope: [`ENVELOPE`]'s shape, plus one key `SPEC-003`
+/// §6.2 does not admit, numbered so [`flat_out`] gives every request in the
+/// flood its own.
 fn t2_envelope(index: usize) -> String {
   format!(
     r#"{{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{{"count_last_hour":4}},"{}":true}}"#,
@@ -805,25 +804,29 @@ fn is_flood_present(present: &Presented) -> bool {
 /// ceiling has more than one interval to bound.
 const COALESCING_FLOOD_WINDOW: Duration = Duration::from_millis(2500);
 
-/// `design.md` §9 T2. Refused arrivals decided while idle cause at most one
-/// present per `REFUSAL_PRESENT_INTERVAL`, on both edges (`plan.md` VT-1).
+/// T2 (slice 011: `design.md` §9, `plan.md` PHASE-02/VT-1). Refused arrivals
+/// decided while idle cause at most one present per
+/// `REFUSAL_PRESENT_INTERVAL`, on both edges.
 ///
-/// **Pinned via a command, not an envelope** (`plan-log.md` PL-6, as T4
-/// does): the flood is a shape refusal, so it never touches
+/// **Pinned via a command, not an envelope** (slice 011 `plan-log.md` PL-6,
+/// as T4 does): the flood is a shape refusal, so it never touches
 /// `event_floor_until`, and the only thing needing pinning here is the
 /// *schedule* — a minute off, so `serve`'s own scheduled firing cannot land
-/// inside the 2.5 s flood window and the case does not have to argue that it
-/// can't.
+/// inside `COALESCING_FLOOD_WINDOW` and the case does not have to argue that
+/// it can't.
 ///
-/// **Red on today's loop, on (a)**, recorded before the loop existed
-/// (`plan.md` PHASE-02/VT-1): every refusal presents today, so the count is
-/// the flood's own size — orders of magnitude over the ceiling.
+/// **Controls** (slice 011 `design.md` §9): a present per refusal (M1) and a
+/// 600 ms interval (M9) red (a); a debounce (M3) and a 3 s interval (M4) red
+/// (b); presenting on the leading edge only (M2) reds (c), through the wait
+/// for the last key's present.
 ///
-/// **(a)'s resolution** (review Round 4): below about 0.65 s — a threshold
-/// that moves with the flood's phase against the arm — the count cannot tell
-/// `REFUSAL_PRESENT_INTERVAL` from a shorter interval apart, and below it the
-/// constant's value is held by review and by this file's own mirror comment,
-/// exactly as `MINIMUM_SPACING`'s is.
+/// **(a)'s resolution.** An interval shorter than about 0.85 s fails the
+/// count; one between that and `REFUSAL_PRESENT_INTERVAL` passes it, so in
+/// that band the constant's value is held by review and by this file's own
+/// mirror comment, exactly as `MINIMUM_SPACING`'s is. The figure is where the
+/// ceiling falls, not a timing the case asserts: it moves with the flood's
+/// phase against the arm and with `COALESCING_FLOOD_WINDOW` (slice 011
+/// `review-code.md` F-1).
 #[tokio::test]
 async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest() {
   let path = socket_path("t2");
@@ -908,10 +911,13 @@ async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_lates
   let first_present = *flood_presents.first().expect("checked non-empty above");
   let last_present = *flood_presents.last().expect("checked non-empty above");
 
-  // (a) — at most one present per interval. Toward red only if the *first*
-  // flood present lags its own arm firing by more than `ε = I/2`, which
-  // shortens the measured span; a lag anywhere else lengthens it
-  // (`design.md` §9).
+  // (a) — at most one present per interval. Presents from firings at least
+  // `I` apart span at least `I` per present after the first, so the ceiling
+  // is one more than the *whole* intervals the span holds: rounded down, as
+  // rounding up would admit one extra present on every run (slice 011
+  // `review-code.md` F-1). Toward red only if the *first* flood present lags
+  // its own arm firing by more than `ε = I/2`, which shortens the measured
+  // span; a lag anywhere else lengthens it (slice 011 `design.md` §9).
   let epsilon_ms = (REFUSAL_PRESENT_INTERVAL / 2).as_millis();
   let span_ms = last_present
     .at
@@ -919,7 +925,7 @@ async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_lates
     .as_millis()
     .saturating_add(epsilon_ms);
   let interval_ms = REFUSAL_PRESENT_INTERVAL.as_millis();
-  let ceiling = 1 + span_ms.div_ceil(interval_ms);
+  let ceiling = 1 + span_ms.div_euclid(interval_ms);
   let count = u128::try_from(flood_presents.len()).expect("a present count fits a u128");
   assert!(
     count <= ceiling,
@@ -927,7 +933,7 @@ async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_lates
   );
 
   // (b) — consecutive flood presents at most 2I apart, and at least two
-  // precede the last reply. Toward red; margin `I` (`design.md` §9).
+  // precede the last reply. Toward red; margin `I` (slice 011 `design.md` §9).
   for pair in flood_presents.windows(2) {
     let gap = pair[1].at.saturating_duration_since(pair[0].at);
     assert!(
@@ -946,7 +952,7 @@ async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_lates
   );
 
   // (c) — the last present names the last key, and follows the last reply
-  // within 2I. Toward red; margin `I` (`design.md` §9).
+  // within 2I. Toward red; margin `I` (slice 011 `design.md` §9).
   assert!(
     names_key(last_present, &last_key),
     "the last flood present names the last key: {:?}",
@@ -992,13 +998,15 @@ async fn a_flood_of_refusals_updates_the_window_once_per_interval_with_the_lates
 /// That the fold happened **once** is held by assertion 2: a second fold
 /// would add a second entry to the log.
 ///
-/// **Assertion 3, added** (slice 011 `plan.md` VT-3). The fold's own present
-/// comes less than `MINIMUM_SPACING / 2` after `spawned` — taken immediately
-/// before `spawn_local`, so it is comparable to the log's `at`. Toward red
-/// under load: nothing else runs before the first `arrival()` poll finds the
-/// channel closed, so the fold is ordinarily logged within milliseconds of
-/// `spawned`, and a slower scheduler only shortens that margin, never lengthens
-/// it — a margin of about 1.5 s (`MINIMUM_SPACING / 2`) against that.
+/// **Assertion 3, added** (slice 011 `plan.md` PHASE-01/VT-3). The fold's
+/// own present comes less than `MINIMUM_SPACING / 2` after `spawned` — taken
+/// immediately before `spawn_local`, so it is comparable to the log's `at`.
+/// Toward red under load: nothing else runs before the first `arrival()` poll
+/// finds the channel closed, so the fold is ordinarily logged within
+/// milliseconds of `spawned`, and a slower scheduler only shortens that
+/// margin, never lengthens it — a margin of about 1.5 s
+/// (`MINIMUM_SPACING / 2`) against that. Slice 011's R2 mutation (the fold
+/// resuming the wait instead of reaching the top present) is its control.
 #[tokio::test]
 async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_evaluating() {
   let path = socket_path("vt7");
@@ -1030,7 +1038,7 @@ async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_eva
   let served = local
     .run_until(async {
       // Taken immediately before `spawn_local`, so it reads on the same clock
-      // as the log's own `at` (VT-3).
+      // as the log's own `at` (slice 011 `plan.md` PHASE-01/VT-3).
       let spawned = Instant::now();
       let handle = tokio::task::spawn_local(async move {
         serve(
@@ -1452,7 +1460,7 @@ async fn a_scheduled_firing_does_not_clear_the_event_floor() {
 // ---------------------------------------------------------------------------
 
 /// **T3** (PHASE-05/VT-4, positive half, rewritten onto the window — slice
-/// 011 `design.md` §9, `plan.md` PHASE-01/VT-1). A refusal the loop decides
+/// 011: `design.md` §9, `plan.md` PHASE-01/VT-1). A refusal the loop decides
 /// while idle — `too_soon`, decided only while idle (`design.md` §5.4 step
 /// 3) — reaches the window at once, and so does a refusal decided once the
 /// diagnostics pane is open.
@@ -1476,10 +1484,14 @@ async fn a_scheduled_firing_does_not_clear_the_event_floor() {
 /// 1.25 · `REFUSAL_PRESENT_INTERVAL`: late enough that R1's own present has
 /// settled, early enough that nothing scheduled intervenes.
 ///
-/// **Green on today's loop** (`plan.md` PHASE-01/VT-1): nothing throttles a
-/// refusal's presentation yet, so both bounds — `at − sent ≤
-/// REFUSAL_PRESENT_INTERVAL / 2` — hold with a wide margin. PHASE-02's M5,
-/// M6 and M8 are its controls, once the coalescing loop exists to mutate.
+/// **Controls** (slice 011 `design.md` §9, `notes.md` PHASE-02). R1's bound
+/// is the leading edge: waiting a whole interval before the first update
+/// (M5), or restarting the interval at every top present (M8, which the pin
+/// exchange's own present reaches before R1 arrives), reds it. R2's bound is
+/// that only refusal-caused updates start an interval: restarting it when a
+/// person's command presents without an exchange (M8b, D5's rejected
+/// alternative) reds it, and so does the arm re-arming for three intervals
+/// (M6).
 #[tokio::test]
 async fn a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once() {
   let path = socket_path("p5vt4");
@@ -1547,6 +1559,8 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once() {
         })
         .cloned()
         .expect("R1's present must be logged: just polled for");
+      // Toward red: a stall anywhere between `sent` and the present only
+      // lengthens the lag. Margin about `I/2` (slice 011 `design.md` §9).
       let r1_lag = r1_present.at.saturating_duration_since(r1.sent);
       assert!(
         r1_lag <= REFUSAL_PRESENT_INTERVAL / 2,
@@ -1578,6 +1592,7 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once() {
         })
         .cloned()
         .expect("R2's present must be logged: just polled for");
+      // Toward red, as R1's: margin about `I/2` (slice 011 `design.md` §9).
       let r2_lag = r2_present.at.saturating_duration_since(r2.sent);
       assert!(
         r2_lag <= REFUSAL_PRESENT_INTERVAL / 2,
@@ -1594,31 +1609,31 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once() {
 }
 
 // ---------------------------------------------------------------------------
-// T4 — slice 011 `design.md` §9, PHASE-02: a command is never coalesced
+// T4 — slice 011 `design.md` §9 and PHASE-02: a command is never coalesced
 // ---------------------------------------------------------------------------
 
-/// T4's own two numbered shape refusals, A and B: [`ENVELOPE`]'s shape plus
-/// one key `SPEC-003` §6.2's four do not admit, under T4's own prefix —
+/// T4's own numbered shape refusals, A and B: [`ENVELOPE`]'s shape plus one
+/// key `SPEC-003` §6.2 does not admit, under T4's own prefix —
 /// distinct from T2's `t2-N` and T3's `t3-r2`.
 const T4_REFUSAL_A: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4},"t4-a":true}"#;
 const T4_REFUSAL_B: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{"count_last_hour":4},"t4-b":true}"#;
 
-/// `design.md` §9 T4. A `Fired::Command` whose `dispatch` answers `None`
+/// T4 (slice 011: `design.md` §9, `plan.md` PHASE-02/VT-2). A
+/// `Fired::Command` whose `dispatch` answers `None`
 /// still leaves `'idle` for the top present, whatever the coalescing arm is
 /// doing — a diagnostics command is not a refused arrival, and coalescing it
 /// would make an operator's own click wait on `REFUSAL_PRESENT_INTERVAL`.
 /// **That is this case's whole point; M7 is the mutation that breaks it.**
 ///
-/// **Pinned via a command, not an envelope** (`plan-log.md` PL-6, as T2
-/// does): otherwise `serve`'s initial arm, at `MINIMUM_SPACING`, is a
+/// **Pinned via a command, not an envelope** (slice 011 `plan-log.md` PL-6,
+/// as T2 does): otherwise `serve`'s initial arm, at `MINIMUM_SPACING`, is a
 /// scheduled firing the case would have to argue cannot land inside it, and
 /// the pin keeps A on the leading edge, because `next_refusal_present` has
 /// never fired.
 ///
-/// **Red on today's loop, on the precondition** (`plan.md` PHASE-02/VT-2): B
-/// presents at once today, so "the last present shows A and not B" is false
-/// before the loop coalesces anything. Recorded as such; it is not this
-/// case's own evidence — M7 is.
+/// **Controls** (slice 011 `design.md` §9, `notes.md` PHASE-02): M7 reds
+/// the lag; a present per refusal (M1) reds the precondition, because B is
+/// then already shown.
 #[tokio::test]
 async fn a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal() {
   let path = socket_path("t4");
@@ -1680,8 +1695,8 @@ async fn a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_
       assert_eq!(reason(&b.reply), "invalid_envelope", "{}", b.reply);
 
       // Precondition, read from the log at the moment the command is sent
-      // (`plan.md` PHASE-02 notes): the last present shows A and not B, and
-      // the command is sent well inside A's own interval.
+      // (slice 011 `plan.md` PHASE-02 notes): the last present shows A and
+      // not B, and the command is sent well inside A's own interval.
       let sent = Instant::now();
       let precondition = {
         let presented_snapshot = presented.borrow();
@@ -1698,6 +1713,8 @@ async fn a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_
         );
         sent.saturating_duration_since(last.at)
       };
+      // Toward red: fails only after a stall longer than `I/4` between A's
+      // present and the send (slice 011 `design.md` §9).
       assert!(
         precondition < REFUSAL_PRESENT_INTERVAL / 4,
         "precondition: the command is sent well inside A's own interval: {precondition:?}"
@@ -1725,6 +1742,9 @@ async fn a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_
         })
         .cloned()
         .expect("just polled for");
+      // Toward red: a stall only lengthens the lag. Under M7 the next present
+      // is the trailing one, at least `3I/4` after `sent`, so the red margin
+      // is at least `I/4` (slice 011 `design.md` §9).
       let lag = carrying_present.at.saturating_duration_since(sent);
       assert!(
         lag <= REFUSAL_PRESENT_INTERVAL / 2,

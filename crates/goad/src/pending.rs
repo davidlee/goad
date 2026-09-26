@@ -252,12 +252,15 @@ impl Debounce {
   /// exchange **before** it presents.
   ///
   /// **That covers the outer loop's present, and it is not every present**
-  /// (`review-code.md` F-B3). `serve` presents at three sites:
-  /// `controller.rs:898`, which the drain precedes; `:994`, reached
-  /// synchronously from `:898`'s `select!` with nothing able to enqueue in
-  /// between; and **`:1046`**, the inner `select!`'s ingress-`None` arm, which
-  /// is reached after an await, is preceded by no drain, and lands while an
-  /// exchange is outstanding — this interval exactly. The exposure there is
+  /// (`review-code.md` F-B3). `serve`'s presents, by role: **the top
+  /// present**, at the head of every `'serving` iteration — where every
+  /// `continue` lands, the coalescing arm's included — which the drain
+  /// precedes; **the engage present**, after `controller.engage`, reached
+  /// synchronously from the top present or from the `'idle` `select!` that
+  /// yields the firing, with nothing able to enqueue in between; and **the
+  /// inner `select!`'s ingress-`None` arm**, which is reached after an await,
+  /// is preceded by no drain, and lands while an exchange is outstanding —
+  /// this interval exactly. The exposure there is
   /// bounded at one widget revert per *process* and only once the ingress
   /// accept task has ended (SPEC-003/R-15), which is why it is stated rather
   /// than drained: a second drain would buy that one revert and put a second

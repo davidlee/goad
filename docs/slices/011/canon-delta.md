@@ -140,6 +140,10 @@ exactly. The rest of §6.3 is unchanged.
 
 ### Change 3 — §7, R-15's verification cell
 
+*Amended by `review-code.md` F-1:* the T2 bullet's count is "the whole
+intervals their span holds" (rounded down), not "the number of intervals their
+span covers" (rounded up), which admitted one extra update on every run.
+
 **Why.** The positive case reads `Served.controller`'s retained `Diagnostics`
 after the loop has stopped, so it stays green even if nothing is ever shown
 (FU-2; memory `a-refusal-is-recorded-not-shown`). R-15 now carries a bound and
@@ -169,8 +173,8 @@ breaks joined by `;` as the current cells are.
 >   — a writer sends distinct refused envelopes flat out across several
 >   intervals. The deadline that ends each interval fires at most once per
 >   interval, and a stall moves an update without adding one. So the flood's
->   updates are counted against one more than the number of intervals their
->   span covers, with a stated allowance for the first update's lag. An update
+>   updates are counted against one more than the whole intervals their span
+>   holds, with a stated allowance for the first update's lag. An update
 >   per refusal fails that count by orders of magnitude, and so does an interval
 >   much shorter than the host's. While the flood runs
 >   they are never further apart than twice the interval, which a debounce
@@ -245,21 +249,39 @@ host (`research.md`, *Cross-thread findings*). It is dropped, not replaced
 
 ## SPEC-002 (host scheduling behaviour)
 
-### Change 5 — §7, R-12's verification cell (citation only)
+### Change 5 — §7, R-12's verification cell (citation, and its counts)
 
 **Why.** The cell cites the same case by its old name. **Its claim does not
 change.** The words it attaches to that case are already exactly the R-12 half
-the renamed case keeps.
+the renamed case keeps. The cell also counts its independence cases twice
+("three"), and no test holds that count; the user extended this change to
+replace both counts, as Change 4 does for SPEC-003's R-12 cell
+(`design-log.md`, *audit: dispositions and canon endorsement*). The cases
+themselves are already named in the cell, so the rewrite quantifies by rule.
 
-**As it will be stated.**
+**As it will be stated.** Each of the following replaces the quoted text
+exactly. The rest of the cell is unchanged.
 
-> `crates/goad/tests/renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
+1. > `crates/goad/tests/renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate_and_costs_one_presentation_per_refusal`
 
-becomes
+   becomes
 
-> `crates/goad/tests/renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate`
+   > `crates/goad/tests/renderer/ingress.rs::a_flat_out_writer_raises_no_evaluation_rate`
 
-and nothing else in the cell changes.
+2. > **The independence of the two anchors** (§3 P-E), in all three directions rather than one:
+
+   becomes
+
+   > **The independence of the two anchors** (§3 P-E), in each direction a case below names, not in one alone:
+
+3. > Each of the three was shown to fail when the anchor it holds is broken, rather than merely observed to pass
+
+   becomes
+
+   > Each of those cases was shown to fail when the anchor it holds is broken, rather than merely observed to pass
+
+"Two anchors" is kept: it names R-12's own closed pair (R-4's scheduled
+anchor and this one), not a list that can grow.
 
 ---
 
