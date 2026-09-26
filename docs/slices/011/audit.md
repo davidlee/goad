@@ -244,15 +244,55 @@ vocabulary, subject `implementation`. Do not restate findings here.
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
-| document | change | reason | done |
-|----------|--------|--------|------|
-| `specs/NNN-…md §4` | | code diverged at `path:line`; code is right | [ ] |
-| `draft-spec.md` → `specs/NNN-slug.md` | promote | drafted during this slice | [ ] |
+**Draft — nothing below is applied.** Canon rows wait on the user's
+endorsement, obtained by the orchestrator. Classification: *doc stale* (code
+right, document must change), *code wrong* (a finding, fixed in the slice),
+*decision* (the user's).
 
-**Design drift not reconciled:** <where the implementation departs from
-`design.md` and the design was left as-is, with the reason. The design is a
-record of intent at a point in time; it is not retro-fitted to the code
-without saying so.>
+**Canon — `canon-delta.md` promotion (AC-5).** Each change's *from* text was
+checked against the current spec and matches verbatim; each change's claim
+about the code was checked against `serve` and the cases it names.
+
+| document | change | reason | class | done |
+|----------|--------|--------|-------|------|
+| `specs/003-host-event-ingress.md` §4, R-15's requirement | Replace the cell with `canon-delta.md` Change 1's text: the update guarantee within a fixed interval, the per-interval limit on refusal-caused updates with its leading edge, and the overwrite, loop-end and clock-overflow exceptions; the ingress-stopped `unavailable` shown without waiting | the rule changed: `serve`'s `'idle` loop, `next_refusal_present`, `surface_stale` and the coalescing arm implement exactly the stated rule (`REFUSAL_PRESENT_INTERVAL` holds the number, not canon) | doc stale | [ ] |
+| `specs/003-host-event-ingress.md` §6.3, *Which refusals a person sees* and the `unavailable` paragraph | Change 2, items 1–4: the lead-in on R-15's terms; the first bullet's "not otherwise" gains the overwrite; the second bullet's "*always* is exact" replaced; the counts of `unavailable`'s causes replaced ("four causes" → "the causes below", "The fourth cause" → "The last cause", "a fourth cause … not a ninth token" → "one more cause … not a new token") | the two statements R-15's exceptions make false (review F-3); the causes' count is held by no test | doc stale | [ ] |
+| `specs/003-host-event-ingress.md` §7, R-15 row | Change 3, joined into one cell with `;`: T3, T2, T4 for the rule and bound; the negative case; VT-7 and `ingress_stopping_during_an_exchange_…` for the last clause; the review-only items | the old row cites `…_reaches_the_diagnostics_surface`, which no longer exists and read the retained model | doc stale | [ ] |
+| `specs/003-host-event-ingress.md` §7, R-12 row | Change 4: the flat-out clause renamed to `a_flat_out_writer_raises_no_evaluation_rate`, the "845/845, 1.000 per refusal, ~1690/s" record dropped and pointed at R-15; "in **three** directions" → "in each direction a case below names" | the case was renamed and its presentation assertion removed (D13); the ratio is wrong by design | doc stale | [ ] |
+| `specs/002-host-scheduling-behaviour.md` §7, R-12 row | Change 5: the case citation renamed to `a_flat_out_writer_raises_no_evaluation_rate`; nothing else | the case was renamed | doc stale | [ ] |
+| `specs/002-host-scheduling-behaviour.md` §7, R-12 row — the counts | **Not in the delta.** The cell keeps "in all three directions rather than one" and "Each of the three was shown to fail", the same count Change 4 removes from SPEC-003's twin R-12 cell. Either extend Change 5 to name the rule as Change 4 does, or record the count as exempt (a finished sequence: the three named cases, mutation-tested in slice 004) | the delta's own count rule covers "every count in a passage this delta touches", and Change 5 touches this cell | **decision** | [ ] |
+
+**Not canon.**
+
+| document | change | reason | class | done |
+|----------|--------|--------|-------|------|
+| `crates/goad/src/controller.rs`, `serve` — the comment on `surface_stale` | state the true reason it is never cleared (every exit from `'idle` presents or ends the loop, `design.md` §5.3) | audit finding A-1 | code wrong | [ ] |
+| `crates/goad/tests/renderer/ingress.rs` — the `REFUSAL_PRESENT_INTERVAL` mirror, T3's doc, `flat_out`'s doc | remove the phase-time narrative; T3's doc names M8b as R2's control | audit finding A-2 | code wrong | [ ] |
+| `ingress.rs` T1/T2/T4 docs; `controller.rs` new comments | cite slice 011's documents explicitly; T2/T4's "PL-6" is `docs/slices/011/plan-log.md`'s; T1's "VT-2" is `plan.md`'s | audit finding A-3; bare names resolve to slice 004's | code wrong | [ ] |
+| `docs/memory/a-refusal-is-recorded-not-shown.md` | its first consequence ("one canon verification case reads `served.controller.frame(false).diagnostics`") becomes false once the R-15 row is promoted; re-state it as history or strike it | `plan.md` PHASE-03/EX-7 residue, `notes.md` §Open | doc stale — at close | [ ] |
+| `docs/follow-ups.md` FU-2 | strike, restating *Dead when* as "refused arrivals cost at most one present per interval, and R-15 states the update guarantee" (`design.md` §10, review F-14) | AC-7 | close | [ ] |
+| `docs/follow-ups.md` FU-3 | extend the row's citation with slice 011: a flood now shows fewer of its refusals, and a refusal-site refusal can overwrite a stale fold (`design.md` R4) | `notes.md` §Open | close | [ ] |
+
+**Design drift not reconciled:**
+
+- **`design.md` §9, T3's row: "M8 … → R2".** M8 (the top present also resets
+  `next_refusal_present`) reds T3 on **R1's** bound, not R2's: T3's pin is an
+  accepted envelope, and that exchange's own top present moves the deadline
+  before R1 is sent. Decided under the autonomy grant (`design-log.md`,
+  2026-09-26, *M8's red lands on R1; M8b added*): M8 stands as evidence, and
+  **M8b** — the deadline reset in the `let Some(attempted) = attempted else`
+  exit, D5's rejected case exactly — reds R2 only. §9 carries neither the
+  corrected label nor the M8b row. Left as written: the design records the
+  intent (M8 guards D5, and it does), and the mechanism is in `notes.md`
+  PHASE-02's mutation table.
+- **`design.md` §9's controls column lists each mutation's named red only.**
+  Several also red other cases (M0 → `ingress_stopping_during_an_exchange_…`;
+  M3 → T3 R1; M4 → T3 R2; M6 → T2(b)), each explained in `notes.md`. Not a
+  change of intent; left as written.
+- **D7 is held by a test, not only by review.** The design places D7 among
+  its decisions, with no control; the auditor's probe AP-1 (the flag hoisted
+  out of `'idle`) reds T3 on R2. The design understates its own coverage here;
+  left as written.
 
 ## Closure
 
