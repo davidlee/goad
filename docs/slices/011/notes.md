@@ -468,6 +468,13 @@ sheet, report `STATUS: BLOCKED`:
   behaviour is → R1, for the reason above. `design.md` is not amended
   mid-slice (`docs/AGENTS.md`); audit reconciles or formally amends it.
 
+- **Orchestrator review at `f564c29`.** The loop matches `design.md` §5.2
+  (labels, write sites, the arm's position, the `None` path through `'idle`).
+  One EX-4 item was not met: the inner arm's F-15 remark still placed
+  F-15's cost in the inner `Some` branch, when that cost was the outer arm's
+  and is now coalesced. Rewritten. M8b re-run by the orchestrator: T3 red on
+  R2's bound only (≈1.004 s after sent); restored. `just check` exits 0.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never

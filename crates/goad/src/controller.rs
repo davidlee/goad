@@ -1094,9 +1094,10 @@ where
           // It costs one presentation per **process**, not per refusal:
           // `Ingress::arrival` parks the arm as it yields `None`, so this
           // branch is reached at most once and no writer can reach it at all.
-          // The `Some` branch below is the one an untrusted writer paces, and
-          // it still presents nothing — `review-design.md` F-15's measured
-          // cost and R-15's negative case both live there.
+          // The `Some` branch below is the one an untrusted writer paces
+          // during an exchange, and it presents nothing: R-15's negative case
+          // holds that. The same writer while idle is the outer arm's, which
+          // coalesces its presents (`REFUSAL_PRESENT_INTERVAL`).
           None => {
             controller.refuse(&ingress_stopped());
             glass.present(controller.frame(notice.raised()));
