@@ -1,0 +1,137 @@
+# Slice 012: the backend author's kit
+
+**Stage:** design
+**Tier:** 2 (full) — a new binary, the checker, enters SPEC-004's scope, and
+whatever the checker reports may need canon of its own.
+**Depends on:** —
+
+## Purpose
+
+A goad backend is written against the wire contract, and that contract has
+stood still since 007. Today the only way to learn it is to read this
+repository: SPEC-001..003, the two examples, and whatever the host's normalizer
+happens to accept. The next backend author is, in practice, a coding agent
+working in someone else's repository — and nothing is packaged for it.
+
+Once this lands, that agent gets everything needed to write a goad backend
+**without reading this repo**, and a way to find out — before a person runs the
+host — whether what it wrote is accepted, and if not, which side is wrong.
+Discharges brief §21 AC-15.
+
+## Scope
+
+Decided before scoping (roadmap §012, 2026-09-26):
+
+- **A plugin the repo exposes**, agent-generic: a Claude Code manifest and a
+  Codex manifest over one skill. The skill carries a backend-facing reference,
+  new examples and scripts.
+- **A headless checker binary.** It drives a backend command with requests and
+  judges each reply with the host's own normalizer and failure taxonomy, saying
+  which side was wrong. It is a new binary, so SPEC-004 names its exit status.
+- **A reference that cannot drift silently.** A thinner, backend-facing view of
+  SPEC-001..003 — not a second spec. Every wire example it ships is a fixture
+  the gate runs through normalization.
+
+**Consumer jails** — `jailed-consumer-{claude,codex}` in `flake.nix`: the
+exported goad packages and the skill, a fresh home per walk, launched outside
+the checkout. They prove the kit stands alone; they are not shipped to anyone.
+
+**Examples, split by job** (`design-log.md`, 2026-09-26, superseding the
+roadmap's "moved, not copied"). The current `examples/` are host exercisers —
+`just demo` and `goad-shell`'s integration tests run them — and stay in the
+repo, renamed so they do not read as the file to copy. The skill ships **new**
+examples, written to be both teaching examples and demo backends — each
+silent (`view: null`) unless it has a reason to speak, owning its own state,
+and demonstrable in under a minute from **Check now** or `goad-emit`:
+
+| example | language | behaviour |
+|---|---|---|
+| focus check | Python | a choice view titled with the current focus: *continue for 10 min* (with a progress-log text field) / *switch focus to ___* (text field) / *take a quick break* |
+| Downloads triage | shell + `jq` | a user-owned `inotifywait` watcher emits each new file; the backend asks where it goes (a choice field) and moves it |
+| breadcrumbs | TypeScript (deno) | a context switch (shell `chpwd` or workspace hook) emits *leaving X*; the backend asks where you were, and shows the note back on return |
+
+`python3`, `jq` and `inotify-tools` join the devshell so the gate can run them
+(`design-log.md`, 2026-09-26).
+
+Surfaces, to be narrowed in design: a new crate for the checker; the plugin
+tree; `flake.nix`; `examples/` (renamed); the gate (`justfile`, POL-001) for the fixture
+check; SPEC-004 for the checker's status.
+
+## Non-goals
+
+- **Socket transport** (014), **SPEC-001 OQ-1** (capabilities) and **OQ-2** —
+  each amends the kit when it lands. The kit documents the process transport
+  only.
+- **Brief §21 AC-14**, the interstitial-journal example. The scenario is to be
+  replaced; its replacement is not this slice's.
+- **An SDK.** Brief §15.2: the examples demonstrate that none is required.
+- **Any change to the wire contract.** The kit describes it; it does not move it.
+
+## Acceptance criteria
+
+- [ ] AC-1 — A fresh agent in a consumer jail — the skill and the flake's
+  exported goad packages, nothing else from this repository — writes a backend
+  the checker accepts, and a person has run the host against it and seen the
+  behaviour. Walked once with Claude Code and once with Codex, headless, from
+  one fixed prompt. The jail's negative control passes first: the checkout, the
+  shared agent home and the source derivation are each unreadable inside it.
+- [ ] AC-2 — Every wire example the reference ships is normalized by the gate;
+  an example the host would refuse fails `just check`.
+- [ ] AC-3 — The checker, run against a backend, reports each refusal with the
+  side that was wrong, using the host's normalizer and failure taxonomy — not a
+  reimplementation of either.
+- [ ] AC-4 — SPEC-004 states the checker's exit status.
+- [ ] AC-5 — The skill ships new examples in more than one language, each a
+  small, complete backend a person would want to see run; the checker accepts
+  each in the gate. The host exercisers stay in the repo, and nothing presents
+  them as the file a backend author copies.
+- [ ] AC-6 — A person has run the checker against the shipped examples and a
+  broken backend, and seen the report (`docs/AGENTS.md` §Tiers).
+- [ ] AC-7 — Canon states that each refusal the checker reports names the side
+  at fault and the requirement it breaks, and a test holds it for every refusal
+  kind the normalizer can produce.
+- [ ] AC-8 — Token spend (input, output, cache), turns and wall time are
+  recorded for every walk, first and re-walk. Indicative, not a benchmark: no
+  threshold, but the re-walk does not regress.
+- [ ] AC-9 — Every friction item from a walk — the agent's `ISSUES.md` and a
+  read of its transcript — is dispositioned: fixed in the kit (and re-walked),
+  or a follow-up. Any network fetch beyond the model API is a friction item.
+
+## Governing canon
+
+- SPEC-001 host/backend protocol — the contract the reference views and the
+  checker judges against.
+- SPEC-002 scheduling behaviour, SPEC-003 event ingress — the reference's other
+  two sources.
+- SPEC-004 process exit status — the checker enters its scope.
+- ADR-001 one-way strata, ADR-003 workspace of strata — where the checker
+  crate sits, and what it may name.
+- POL-001 the phase gate — the fixture check joins it.
+- ADR-002, ADR-004, ADR-005 — checked; to confirm in design.
+
+## Open questions
+
+- ~~OQ-1 — AC-14, the interstitial-journal example: in this slice, or its own?~~
+  **Neither** — the journal scenario is to be replaced, and its replacement is
+  scoped separately (`design-log.md`, 2026-09-26).
+- ~~OQ-2 — Is the checker's report canon, or only its exit status (SPEC-004)?~~
+  **Its exit status, and its claims:** each refusal names the side at fault and
+  the requirement it breaks. Its format is not canon (`design-log.md`,
+  2026-09-26). Where that requirement lives is for design; where the
+  requirement id comes from is for research.
+- ~~OQ-3 — How AC-1 is walked: which agent, which jail, what it is given, what
+  counts as passing.~~ **Both agents, headless, in consumer jails built by
+  this flake; checker pass plus a person running it; tokens and friction
+  measured** — AC-1, AC-8, AC-9 (`design-log.md`, 2026-09-26). The walk's task
+  and the jail's exact contents are for design.
+- OQ-4 — Which requests the checker sends: evaluate only, or also response and
+  event, and with what fabricated payloads.
+- OQ-5 — Where the checker sits among the strata, and whether it is a new
+  binary or a `goad` subcommand.
+- OQ-6 — Where the plugin lives in the tree, and how a consumer installs it.
+- OQ-7 — The walk's task and language — a behaviour none of the examples
+  implement, in a language none of them use.
+
+## Summary
+
+## Follow-ups
