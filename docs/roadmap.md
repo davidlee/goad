@@ -169,9 +169,9 @@ graph LR
   S9["009 ✔<br/>the rest of<br/>the field kinds"]
   S10["010 ✔<br/>the exit-code<br/>taxonomy"]
   S11["011<br/>the refused<br/>arrival's present"]
-  S12["012<br/>stratum 3 joins<br/>the allowlist"]
-  S13["013<br/>socket transport"]
-  S14["014<br/>starter experience"]
+  S12["012<br/>the backend<br/>author's kit"]
+  S13["013<br/>stratum 3 joins<br/>the allowlist"]
+  S14["014<br/>socket transport"]
 
   T2{{"ADR-002 T2<br/>second binary"}}
 
@@ -199,16 +199,16 @@ graph LR
 | 009 the rest of the field kinds ✔ | 2 | the renderer draws one kind of five. Tier 2 on **size**, not canon: no protocol change, and the design must also settle how a form survives a present, which typed input makes urgent |
 | 010 the exit-code taxonomy ✔ | 2 | the only follow-up with measured harm on the running host. It reaches SPEC-003's failure vocabulary |
 | 011 the refused arrival's present | 2 | an untrusted writer sets the rate. Suppressing the present is a SPEC-003/R-15 amendment with its own verification |
-| 012 stratum 3 joins the allowlist | 2 | tier 2 by construction — one manifest row plus a POL-001 §Verification amendment. The smallest of the three, and it waited on daily use to show whether stratum 3 drifts |
-| 013 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
-| 014 starter experience | 1 | documenting for others documents what exists |
+| 012 the backend author's kit | 2 | the wire contract has stood still since 007 and is what backends are written against; the next user is an agent writing one. Tier 2 because a new binary enters SPEC-004's scope |
+| 013 stratum 3 joins the allowlist | 2 | tier 2 by construction — one manifest row plus a POL-001 §Verification amendment. The smallest of the three, and it waited on daily use to show whether stratum 3 drifts |
+| 014 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
 
 Changes from the old order, all deliberate:
 
 - **Three follow-ups took positions ahead of socket transport** (2026-09-23,
   the collation recorded in §Where this stands). They are ordered by what they
   threaten, not by what they cost: 010 has already taken the running host down,
-  011 is reachable by an untrusted writer who is not misbehaving, and 012 holds
+  011 is reachable by an untrusted writer who is not misbehaving, and 013 holds
   a property nothing holds today. `docs/follow-ups.md` FU-1, FU-2 and FU-7 are
   the rows; each keeps its id there while it is a slice, so a reader arriving
   from a closed slice's §Follow-ups lands on the schedule rather than a
@@ -219,8 +219,13 @@ Changes from the old order, all deliberate:
   measurably *less* urgent by collapsing fourteen spawns per slot into one. Its
   own trigger is unfired while three items ahead of it have evidence, which is
   why they passed it rather than it slipping.
-- **The starter experience stays last.** Documentation written earlier
-  documents intentions.
+- **The starter experience moved up to 012 (2026-09-26), ahead of the
+  allowlist and socket transport.** It had stayed last because documentation
+  written earlier documents intentions. The objection holds only for material
+  that can drift silently, so the slice is scoped so that it cannot: every
+  wire example the kit ships is a fixture the gate normalizes, and a checker
+  binary judges a backend with the host's own normalizer. What still moves
+  under it — socket transport, OQ-1, OQ-2 — each amends the kit when it lands.
 - **The look is its own slice, and it is 008.** It was inside 007 until scoping
   split it: a slice that redraws the layout *and* lands a wire contract produces
   a diff in which a layout regression and a protocol regression look alike. It
@@ -565,7 +570,38 @@ arrival — at a rate an untrusted writer sets.
 - Not a licence to split `option_models`' single walk: that reintroduces the
   second counter invariant **I-B** forbids.
 
-### 012 — stratum 3 joins the allowlist
+### 012 — the backend author's kit
+
+Brief §15, §20 phase 7, §21. **Tier 2** — a new binary enters SPEC-004's scope,
+and whatever the checker reports may need canon of its own. Was 014, the
+starter experience; moved up 2026-09-26.
+
+A backend author — in practice, a coding agent in someone else's repository —
+gets everything needed to write a goad backend **without reading this repo**.
+Discharges brief §21 AC-15.
+
+Decided at the 2026-09-26 conversation, before scoping:
+
+- **Packaged as a plugin the repo exposes**, agent-generic: both a Claude Code
+  and a Codex manifest over one skill. The skill carries a backend-facing
+  reference, the examples (moved, not copied) and scripts.
+- **A headless checker binary is in scope.** It drives a backend command with
+  requests and judges each reply with the host's own normalizer and failure
+  taxonomy, saying which side was wrong. Without it the slice is documentation.
+- **The reference cannot drift silently.** It is a thinner, backend-facing view
+  of SPEC-001..003, not a second spec; every wire example it ships is a fixture
+  the gate runs through normalization.
+- **Taken after 011**, which is designed and planned.
+
+Open for scoping:
+
+- AC-14 (the interstitial-journal example) — in, or its own slice. It proves a
+  real domain needs no host change, which is a different claim from AC-15.
+- Whether the checker's report is canon, or only its exit status (SPEC-004).
+- How AC-15 is walked: a fresh, jailed agent with the plugin and nothing else.
+- Not folded in: socket transport (014), OQ-1, OQ-2 — see *Open decisions*.
+
+### 013 — stratum 3 joins the allowlist
 
 From slice 005's OQ-3 (`docs/follow-ups.md` FU-7). **Tier 2 by construction** —
 one manifest row plus a POL-001 §Verification amendment.
@@ -586,7 +622,7 @@ since 002.
   (`docs/follow-ups.md` FU-8, FU-9). Worth asking whether they ride along before
   opening a second POL-001 change later.
 
-### 013 — persistent socket transport
+### 014 — persistent socket transport
 
 Brief §20 phase 6, §6.1, §6.3. **Tier 2** — it amends SPEC-001's transport
 section.
@@ -601,19 +637,6 @@ semantic protocol is identical across transports — SPEC-001 already says so.
 - **Also cheap here:** no end-to-end case exists for a backend that writes
   nothing, or for brief §10.1/§10.2 through a real process (FU-36). Both are held
   at other tiers today. If this slice rebuilds the failure matrix, add them.
-
-### 014 — starter experience
-
-Brief §20 phase 7, §15, §21. **Tier 1** unless capability declaration lands.
-
-The backend author's guide, minimal backends in several languages, the
-interstitial-journal example, and the complete acceptance suite walked end to
-end. Discharges brief §21 AC-14 and AC-15 — an agent reads repository-local
-material and writes a working backend without touching the host.
-
-- Last on purpose: documentation written earlier documents intentions.
-- **Capability declaration (OQ-1)** and **validation feedback (OQ-2)** most
-  plausibly land here — see *Open decisions*. Either one makes this tier 2.
 
 ## v0.1.0 acceptance coverage
 
@@ -631,11 +654,11 @@ Brief §21. Where each criterion is discharged.
 | 8 | a later valid `next_check` supersedes an earlier one | 001 ✔ as semantics; 003 ✔ observable over time, in both directions |
 | 9 | an external script sends an opaque event | 004 ✔; 005 makes it ergonomic |
 | 10 | the event reaches the backend uninterpreted | 004 ✔ |
-| 11 | backend may run as a persistent JSONL socket service | 013 |
-| 12 | fallback to process invocation when it is unavailable | 013 |
+| 11 | backend may run as a persistent JSONL socket service | 014 |
+| 12 | fallback to process invocation when it is unavailable | 014 |
 | 13 | crashes, timeouts, invalid JSON do not crash the GUI | 001 ✔ taxonomy; 002 surfaces it |
-| 14 | example backend implements the journal with no host change | 014 |
-| 15 | an agent implements a backend from repository material alone | 014 |
+| 14 | example backend implements the journal with no host change | 012, or its own slice — open at scoping |
+| 15 | an agent implements a backend from repository material alone | 012 |
 | 16 | no domain concepts enter the host model | 001 ✔ boundary test; **standing, every slice** |
 
 ## Not on the sequence

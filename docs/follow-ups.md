@@ -154,7 +154,7 @@ name what the new one holds and what it does not reach. A slice taking one
 should consider taking the others in the same amendment.
 
 ### FU-7 — stratum 3 carries no manifest allowlist row
-**Raised by** 005 (OQ-3, F-3) · **cost** tier 2 by construction · **scheduled as slice 012**
+**Raised by** 005 (OQ-3, F-3) · **cost** tier 2 by construction · **scheduled as slice 013**
 
 `crates/goad` has been unbilled since 002 and `crates/goad-emit` joined it.
 `allowlist.rs`'s own module doc states the consequence so it is not
@@ -583,7 +583,7 @@ has been decided either.
 **Dead when** anything opens a URL, or a policy says nothing will.
 
 ### FU-35 — `BackendError::PipeMissing` and `cleanup_only` are reachable by no test
-**Raised by** 001 (F-15, tolerated) · **cost** tier 1 · **carried to slice 013**
+**Raised by** 001 (F-15, tolerated) · **cost** tier 1 · **carried to slice 014**
 
 Either a unit test that fabricates the state, or removing the variant, when the
 transport is reworked.
@@ -591,7 +591,7 @@ transport is reworked.
 **Dead when** the transport slice takes one of the two.
 
 ### FU-36 — no end-to-end case for a silent backend
-**Raised by** 001 · **cost** tier 1 · **carried to slice 013**
+**Raised by** 001 · **cost** tier 1 · **carried to slice 014**
 
 Nor for brief §10.1/§10.2 through a real process. Both are held at other tiers
 through the one read site, and tolerated at audit. Cheap to add with the
