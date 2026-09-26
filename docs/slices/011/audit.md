@@ -352,12 +352,29 @@ about the code was checked against `serve` and the cases it names.
 ## Closure
 
 - [x] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
+- [x] All acceptance criteria met, or explicitly waived by the user
 - [x] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
-- [ ] Tests and checks green
+- [x] Tests and checks green
 - [x] Specs / policy / ADRs reconciled, with user endorsement where amended
 - [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
-- [ ] `slice-nnn.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+- [x] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
+- [x] `slice-nnn.md` Summary and Follow-ups written
+- [x] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
+- [x] `slice-nnn.md` stage set to `done`
+
+**Closed 2026-09-26.** `just check` exits 0 on the closing tree. Worked by the
+closer, one commit per step:
+
+- **Canon** — Changes 1–5 promoted; every *from* text matched (Reconciliation).
+- **Ledger** — FU-2 struck; FU-3, FU-10 and FU-11 extended with 011; FU-45
+  raised for `review-code.md` F-8. Rows naming a file this slice touched were
+  re-verified against the tree: FU-3, FU-4 (R-15 still bounds no list),
+  FU-6 (§6.1 untouched), FU-10, FU-11, FU-14 (`folded` and the renderer's
+  reply parser still as cited), FU-15 and FU-27 (§6.4 untouched), FU-16,
+  FU-19 and FU-31 (SPEC-002 text they cite untouched), FU-40. None other was
+  killed by this slice.
+- **Memory** — lifted: `halve-a-duration-not-its-millis.md`,
+  `a-mutation-can-red-the-right-case-on-the-wrong-assertion.md`,
+  `read-the-diagnostic-before-the-first-assert.md`. Amended:
+  `a-refusal-is-recorded-not-shown.md`, true of the promoted R-15 row.
+- **Roadmap** — 011 marked done.
