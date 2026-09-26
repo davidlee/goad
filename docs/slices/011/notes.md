@@ -200,6 +200,15 @@ report `STATUS: BLOCKED`:
   the mutation table only names T3 and VT-7, and a future reader diffing the
   actual `cargo test --no-fail-fast` output against this table should not
   read the third failure as a regression.
+- **Orchestrator review at the phase commit (`94251b6`) — two assertions the
+  move weakened, repaired.** VT-7's assertion 1 had polled for the window
+  holding **exactly one** line (`row_count() == 1`); the move kept only "some
+  line names the fold", and its `assert!` re-tested the predicate the `find`
+  had just matched, so it could not fail. It now asserts the fold present's
+  `lines.len() == 1`. T3's R1 predicate had dropped the old case's
+  `was refused` conjunct; restored at both sites. `just check` exits 0 after;
+  M0 re-run by the orchestrator reds T3, VT-7 and the case above, and nothing
+  else; `glass.rs` restored byte-identical.
 
 ## Harvest
 

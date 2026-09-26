@@ -876,12 +876,10 @@ async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_eva
         })
         .cloned()
         .expect("the fold must be logged: just polled for");
-      assert!(
-        fold
-          .lines
-          .iter()
-          .any(|line| line.contains("ingress has stopped")),
-        "the one refusal that answers no envelope says so: {:?}",
+      assert_eq!(
+        fold.lines.len(),
+        1,
+        "the one refusal that answers no envelope is the surface's only line: {:?}",
         fold.lines
       );
 
@@ -1339,16 +1337,23 @@ async fn a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once() {
       let r1 = send_timed(&path, ENVELOPE).await;
       assert_eq!(reason(&r1.reply), "too_soon", "{}", r1.reply);
       until(LIVENESS_BOUND, || {
-        presented
-          .borrow()
-          .iter()
-          .any(|present| present.lines.iter().any(|line| line.contains("too_soon")))
+        presented.borrow().iter().any(|present| {
+          present
+            .lines
+            .iter()
+            .any(|line| line.contains("too_soon") && line.contains("was refused"))
+        })
       })
       .await;
       let r1_present = presented
         .borrow()
         .iter()
-        .find(|present| present.lines.iter().any(|line| line.contains("too_soon")))
+        .find(|present| {
+          present
+            .lines
+            .iter()
+            .any(|line| line.contains("too_soon") && line.contains("was refused"))
+        })
         .cloned()
         .expect("R1's present must be logged: just polled for");
       let r1_lag = r1_present.at.saturating_duration_since(r1.sent);
