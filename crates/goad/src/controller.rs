@@ -654,10 +654,10 @@ fn spacing_elapsed(now: tokio::time::Instant, floor: tokio::time::Instant) -> bo
 /// a second route to one of them. Whether the fold is ever *presented* is the
 /// arm's business, not this function's. The inner arm resumes waiting and
 /// `absorb` supersedes it, which is R-15's bound (`design.md` §5.2). The
-/// outer arm marks the surface stale and `continue 'idle`s, and the
-/// coalescing arm presents it: at once after a quiet
-/// `REFUSAL_PRESENT_INTERVAL`, otherwise when the current one ends
-/// (`docs/slices/011/design.md` §5.4).
+/// outer arm marks the surface stale and `continue 'idle`s: the next present
+/// shows it — at once after a quiet `REFUSAL_PRESENT_INTERVAL`, and otherwise
+/// no later than the end of the current one, by the coalescing arm unless a
+/// command or an exchange presents first (`docs/slices/011/design.md` §5.4).
 fn refuse_arrival(controller: &mut Controller, answer: Answer, refusal: &Refusal) {
   answer.refused(refusal);
   controller.refuse(&folded(refusal));
@@ -708,9 +708,10 @@ fn ingress_stopped() -> Refused {
 /// diagnostics, so the caller marks the surface stale and `continue 'idle`s
 /// rather than passing it to the shared refusal site (which would fold it a
 /// second time and consult `refusal_re_arms`) or breaking out to the top
-/// present itself: that present is the coalescing arm's job, which makes it
-/// at once after a quiet `REFUSAL_PRESENT_INTERVAL` and otherwise when the
-/// current one ends (`docs/slices/011/design.md` §5.2, §5.4).
+/// present itself: the next present shows it — at once after a quiet
+/// `REFUSAL_PRESENT_INTERVAL`, and otherwise no later than the end of the
+/// current one, by the coalescing arm unless a command or an exchange
+/// presents first (`docs/slices/011/design.md` §5.2, §5.4).
 ///
 /// **The anchor's one write site.** It is written on an *attempted* ingested
 /// evaluation — steps 4 and 5 both, so a clock that cannot be read produces one
@@ -923,7 +924,8 @@ where
       drained = dispatch(command, &mut controller, clock);
     }
 
-    // The top present: every `continue` in this loop lands here.
+    // The top present: every `continue 'serving`, bare or labelled, lands
+    // here. `continue 'idle` does not — that is the coalescing wait.
     glass.present(controller.frame(notice.raised())); // busy = false here
 
     // A drained command never came from the timer arm, so `refusal_re_arms`
@@ -998,8 +1000,8 @@ where
         let attempted = match fired {
           // The only path that diverges (slice 011 I-3): `ingest` answering
           // `None` means the arrival has already been answered and folded, and
-          // the fold's present is the coalescing arm's — at once after a quiet
-          // interval, otherwise when the current one ends — so this marks the
+          // the next present shows the fold — at once after a quiet interval,
+          // otherwise no later than the end of the current one — so this marks the
           // surface stale and resumes the wait rather than breaking out to the
           // top.
           Fired::Ingested(arrival) => {

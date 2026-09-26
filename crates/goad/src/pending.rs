@@ -254,7 +254,7 @@ impl Debounce {
   /// **That covers the outer loop's present, and it is not every present**
   /// (`review-code.md` F-B3). `serve`'s presents, by role: **the top
   /// present**, at the head of every `'serving` iteration — where every
-  /// `continue` lands, the coalescing arm's included — which the drain
+  /// `continue 'serving` lands, the coalescing arm's included — which the drain
   /// precedes; **the engage present**, after `controller.engage`, reached
   /// synchronously from the top present or from the `'idle` `select!` that
   /// yields the firing, with nothing able to enqueue in between; and **the

@@ -95,9 +95,9 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 | F-8 | minor | follow-up | verified |
 | F-9 | nit | fix-now | verified |
 | F-10 | minor | fix-now | verified |
-| F-11 | minor | | |
-| F-12 | nit | | |
-| F-13 | nit | | |
+| F-11 | minor | fix-now | |
+| F-12 | nit | fix-now + follow-up | |
+| F-13 | nit | fix-now | |
 
 ### F-1 — T2(a)'s ceiling carries a whole spare present; a 30 % shorter interval passes it
 
@@ -307,8 +307,8 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Observed:** `continue 'idle` sits lexically inside `'serving`, in the `Fired::Ingested` branch, and resumes the `'idle` `select!` without presenting. So "every `continue` in this loop lands here" is false in exactly the case the slice added. The statement true of the code is: every `continue 'serving`, bare or labelled, lands here; `continue 'idle` resumes the wait. The same quantifier appears in `pending.rs`, where it underwrites the F-R3 drain argument. That argument is unaffected, because `continue 'idle` presents nothing, but the sentence overclaims.
 **Evidence:** `grep -n "continue" crates/goad/src/controller.rs` inside `serve` finds `continue 'serving` (the coalescing arm and the ingress-`None` fold), `continue 'idle` (the refused arrival), and bare `continue` after the `'idle` block (the `let Some(attempted)` else branch and the refusal site), which bind to `'serving`.
 
-**Disposition:**
-**Response:**
+**Disposition:** `fix-now` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
+**Response:** `serve`'s top-present comment now reads *every `continue 'serving`, bare or labelled, lands here. `continue 'idle` does not — that is the coalescing wait.* `pending.rs`'s `Debounce::tick` doc: *where every `continue 'serving` lands*.
 
 **Outcome:**
 
@@ -323,8 +323,8 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Observed:** it names three instances. `grep -rnE "\.rs:[0-9]" crates` also returns workspace-internal, non-vendored line citations: `controller.rs`'s module docs (`goad-shell/src/host.rs:76`, `host.rs:100-109`, `install.rs:40`); `crates/goad/src/lib.rs`'s list (`fields.rs:2120`, `goad-semantics/src/error.rs:238`, `goad-shell/src/ingress/envelope.rs:106`/`:118`, `ingress/mod.rs:752`/`:585`, `config.rs:47`, `state.rs:171`/`:186`); and `crates/goad/tests/event_loop_drain/main.rs` (`event_loop_overlay/overlay.rs:238-249`). None of these was moved by this slice. The slice changed only `controller.rs` and `renderer/ingress.rs` under `crates/`, and the only citation *into* either file by line was `pending.rs`'s, which is now fixed. So none is a finding against this slice. The defect is only that the Response's enumeration presents three as the whole class. Correcting that is a sentence in the Response; whether to sweep the rest is a separate question, for a follow-up or not, and the responder decides it.
 **Evidence:** the grep above, and `git diff --stat d2617c1 HEAD -- crates/` (two files).
 
-**Disposition:**
-**Response:**
+**Disposition:** `fix-now` on the Response; the residue is `follow-up` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
+**Response:** F-7's Response is corrected here rather than rewritten (append-only): its sweep's list of three was not the class. The grep in this finding's **Observed** is the enumeration, and none of those citations was moved by this slice. The residue — workspace-internal line citations in `controller.rs`'s module docs, `lib.rs`, `event_loop_drain`, `goad-emit`'s `exchange.rs` and `goad-shell`'s `ingress/mod.rs` — merges into `docs/follow-ups.md` FU-10 (nothing enforces *cite by symbol*) at close, its citation extended; not a new row.
 
 **Outcome:**
 
@@ -339,8 +339,8 @@ Class sweep beyond the named instance (`grep -rn "\.rs:[0-9]" crates`), all pre-
 **Observed:** a diagnostics command, an `Edit`, or the start of an exchange that arrives while the fold is stale presents it through the top present or the engage present. The next wait then starts with `surface_stale = false`, so the arm never fires for that fold. T4 is this case exactly. The three sentences give the arm sole ownership. The `REFUSAL_PRESENT_INTERVAL` doc words the same rule correctly ("none later than one interval after"). The lighter repair is "no later than the end of the current interval" in place of "otherwise when the current one ends".
 **Evidence:** `serve`: `let mut surface_stale = false;` sits before `'idle: loop`. T4 (`a_command_during_a_coalesced_interval_presents_at_once_and_carries_the_refusal`) asserts that the command's present, not the arm's, carries B.
 
-**Disposition:**
-**Response:**
+**Disposition:** `fix-now` *(Responder: orchestrator, under the user's fix-the-class approval of 2026-09-26 — wording only.)*
+**Response:** The three sites now say the next present shows the fold, *no later than the end of the current* interval, *by the coalescing arm unless a command or an exchange presents first* (`refuse_arrival`, `ingest`); the `Fired::Ingested` comment says *the next present shows the fold*, dropping the arm's sole ownership.
 
 **Outcome:**
 
