@@ -94,3 +94,13 @@ other, citing the finding id.
   (F reset only on the no-exchange command exit) is added and must red T3 on
   R2, which is D5's rejected alternative exactly. `design.md` is not
   retro-fitted; audit lists the label under *Design drift not reconciled*.
+
+### 2026-09-26 — audit: dispositions and canon endorsement (user)
+- **Asked:** the dispositions for `review-code.md` round 1 (F-1..F-9, and the
+  audit's A-1..A-3, entered as F-3, F-5 and F-10), and endorsement of
+  `canon-delta.md` Changes 1–5, with one open question: SPEC-002's R-12 row
+  counts "all three directions".
+- **Decided:** "Approve all". F-8 is a follow-up, every other finding
+  `fix-now`. Changes 1–5 endorsed, Change 3 as amended by F-1, and Change 5
+  **extended** to name SPEC-002's independence cases rather than count them.
+  Canon is applied at audit once round 2 has settled the wording.

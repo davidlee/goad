@@ -85,15 +85,16 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | minor | | |
-| F-2 | minor | | |
-| F-3 | minor | | |
-| F-4 | nit | | |
-| F-5 | minor | | |
-| F-6 | minor | | |
-| F-7 | minor | | |
-| F-8 | minor | | |
-| F-9 | nit | | |
+| F-1 | minor | fix-now | |
+| F-2 | minor | fix-now | |
+| F-3 | minor | fix-now | |
+| F-4 | nit | fix-now | |
+| F-5 | minor | fix-now | |
+| F-6 | minor | fix-now | |
+| F-7 | minor | fix-now | |
+| F-8 | minor | follow-up | |
+| F-9 | nit | fix-now | |
+| F-10 | minor | fix-now | |
 
 ### F-1 — T2(a)'s ceiling carries a whole spare present; a 30 % shorter interval passes it
 
@@ -116,7 +117,7 @@ Where the bodies likely are: the interaction of the interval deadline with arriv
 
 The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presents against a ceiling of 5", one dropped firing from green, `review-design.md` Round 4) to red-by-two (ceiling 4 by the same arithmetic). Canon-delta Change 3's words "one more than the number of intervals their span covers" describe the `div_ceil` form, so the canon text carries the same slack and would need the matching edit ("one more than the whole intervals their span holds").
 
-**Disposition:**
+**Disposition:** `fix-now` — round down (floor) in T2(a); amend `canon-delta.md` Change 3's wording to match; re-derive T2(a)'s stated resolution by measurement, not arithmetic. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -133,7 +134,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 - `REFUSAL_PRESENT_INTERVAL`: "How long a refused arrival's fold may sit on the diagnostics surface before the surface is updated to show it" — states only the latency half, not the one-per-interval rate it exists to enforce, and says the fold sits "on the diagnostics surface" when it sits in the retained `Diagnostics`, *off* the surface — which is the whole distinction this slice's canon draws ("update of the surface").
 **Evidence:** `serve`'s `next_refusal_present` starts at `sleep_until(started)` and is reset only by the arm; T3's R1 bound (`at − sent ≤ I/2`) and T4's A are green precisely because the leading edge does not wait (M5 reds T3 when it does, `notes.md`).
 
-**Disposition:**
+**Disposition:** `fix-now` — the three comments state the throttle: the leading edge presents at once, at most one refusal-caused present per interval. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -147,7 +148,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** "the only thing that ends the wait with the surface still stale is the arm below, and it does not need a read-then-clear because nothing loops back into `'idle` after it." A command, a scheduled firing, the ingress-stopped fold, `cancel.stopped()` and a closed command channel all leave `'idle` with `surface_stale` possibly `true` (the last two are D8's unmade update). What makes the missing clear safe is that the flag is re-declared on every entry and each non-ending exit reaches a present — not that the arm is the only stale exit.
 **Evidence:** the `select!` arms inside `'idle`: `break 'serving Ending::Stopped`, `break 'serving Ending::Closed`, `Fired::Command`/`Fired::Scheduled` → `break 'idle`, ingress `None` → `continue 'serving`. None of them reads or clears the flag.
 
-**Disposition:**
+**Disposition:** `fix-now` — also raised by the audit as A-1 (`audit.md`); one repair. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -161,7 +162,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** "A diagnostics command, or an edit the drain applied." The drain loop (`while drained.is_none()`) only ever hands over a `Some`; an edit the drain applies yields `None` and the drain carries on. The `None` here is a diagnostics command or an `Edit` taken by the `'idle` `select!`'s `commands.recv()` arm. The sentence predates the slice, but the slice rewrote the paragraph around it and added "this `None` is only ever a command that resolved without an exchange", which is true and sits next to the false half.
 **Evidence:** `serve`: `let (attempted, refusal_re_arms) = if let Some(drained) = drained { (Some(drained), false) } else { … }`.
 
-**Disposition:**
+**Disposition:** `fix-now`. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -180,7 +181,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 - Also `flat_out`'s doc: "such as **this phase's** own two" — phase-relative, and wrong in a file every later slice edits.
 **Evidence:** the quoted lines, against `serve` at `fdc2229`; `grep -n "VT-2" docs/slices/011/design.md` → no match.
 
-**Disposition:**
+**Disposition:** `fix-now` — also raised by the audit as A-2, which adds that T3's doc omits M8b, the control on R2 (`design-log.md`, *M8b added*). *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -194,7 +195,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** T2 (a), (b), (c) and VT-7's assertion 3 carry one; the four bounds in T3 and T4 carry none. The directions in `design.md` §9 are right (all four are toward red); they are just not where the plan put them.
 **Evidence:** `grep -n -i "toward red" crates/goad/tests/renderer/ingress.rs` → only T2's three comments and VT-7's doc.
 
-**Disposition:**
+**Disposition:** `fix-now` — one load-direction comment per timed bound, directions from `design.md` §9. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -208,7 +209,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** the three `glass.present` calls in `serve` are at 921, 1055 and 1108 at HEAD (they were at 900, 996, 1048 at `d2617c1`, so the citation was already off by two before this slice; the slice widened it to 23–62 lines). "three sites" is a count nothing holds. The semantic claim still holds — I checked it against the new loop: the engage present is still reached synchronously from the `select!` that yields the firing (now the `'idle` one), and the new arm's present is the top present, which the drain precedes. So the repair is naming: *the top present*, *the engage present*, *the inner `select!`'s ingress-`None` arm*.
 **Evidence:** `grep -n "glass.present" crates/goad/src/controller.rs` at HEAD and at `d2617c1`; `grep -rn "controller.rs:[0-9]" crates docs/{specs,policy,adr}` finds this as the only such citation (class is one instance).
 
-**Disposition:**
+**Disposition:** `fix-now` — name the three present sites by symbol; the file is outside every phase's Surfaces, taken in audit because this slice's edit is what moved the lines. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -222,7 +223,7 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** two sites in the same `serve` still use the panicking `+`. In the only regime where the new arm's fallback matters (a clock within `REFUSAL_PRESENT_INTERVAL` of its end), `now + MINIMUM_SPACING` also overflows, so the next scheduled firing panics — the host goes down within one schedule, and R-15's degraded-but-live clause is not a state the host can sit in. Pre-existing (not introduced by this slice), practically unreachable on a monotonic-since-boot clock, but the slice promotes a canon sentence about exactly this regime, and the class was fixed site-by-site rather than whole.
 **Evidence:** `grep -n "Instant::now() +\|started +" crates/goad/src/controller.rs` → the two `serve` sites (plus one in a `#[cfg(test)]` test, harmless).
 
-**Disposition:**
+**Disposition:** `follow-up` — not introduced by this slice, and the fallback for `sleep`'s initial arm is a design choice, not a repair. Lands in `slice-011.md` §Follow-ups and `docs/follow-ups.md` with a kill condition. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
@@ -236,7 +237,18 @@ The floor form also widens M9 (600 ms) from red-by-one (`notes.md` M9: "6 presen
 **Observed:** `writer_loop` claims an index, connects, reads the reply, then `record`s. Across four writers, the host decides in *accept* order while `last_key` is set in *record* order, and indices are claimed before connecting. So the host's last-decided key can be **below** the printed one (writer B claims 10, writer A claims 11, A is accepted first, B decided last → window shows `flood-10`; A records after B → prints `flood-11`), not only "a few above it". The docstring's "sent" is also wrong: it is the last *replied*. Harmless to VH-1 (already run), but the hand-over wording is the one a person would repeat.
 **Evidence:** `writer_loop`: `index = tally.claim(); write_one(path, index); tally.record(index)`.
 
-**Disposition:**
+**Disposition:** `fix-now` — `flood.py`'s docstring and prints say "last key answered", and that it may sit either side of the window's. *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
+**Response:**
+
+**Outcome:**
+
+### F-10 — Bare `design.md` / `plan.md` / `plan-log.md` citations in the new comments resolve to slice 004's documents
+
+*Raised by the audit as A-3 (`audit.md`), entered here by the responder so round 2 verifies it.* Severity `minor`.
+
+**Observed:** by the convention `ingress.rs`'s own notes state, a bare `design.md`, `plan.md` or `plan-log.md` there means slice 004's. T2 and T4 cite "`plan-log.md` PL-6" (004's PL-6 is unrelated); T1 cites a `plan.md` id as `design.md`; the new comments in `controller.rs` cite bare `design.md` for slice 011's sections.
+
+**Disposition:** `fix-now` — fix the class across both files: every citation this slice added names `docs/slices/011/…` or "slice 011". *(Responder: orchestrator. Confirmed by the user 2026-09-26.)*
 **Response:**
 
 **Outcome:**
