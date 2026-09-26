@@ -118,7 +118,7 @@ auditor on `73cce4e` (the Brief commit; code identical to `fdc2229`);
 | AC-2 | met | T2 `a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest` (a): M1 reds it at 56352 presents against a ceiling of 4; M9 at 600 ms reds it 10/10 at rest. Leading edge: T3 `a_too_soon_refusal_decided_while_idle_reaches_the_window_at_once` R1, redded by M5. | T2/T3 green re-verified; M1, M5, M9 from notes |
 | AC-3 | met, with a reach note | T2(c), T3, T4 read `RecordingGlass`'s log, which reads the window's `diagnostic_lines` and `mode` after `SlintGlass::present` returns; M0 reds all three (from notes; re-run by the orchestrator). **Reach:** the log reads the window's *properties*, not rendered pixels. T2 runs in prompt mode, where the diagnostics pane is not displayed; T3's R2 and T4 assert `WindowMode::Diagnostic`. That is D12's stated choice, and AC-6 is the pixel-level witness. | green re-verified; M0 from notes |
 | AC-4 | met | The AC-4 diff above; `scheduling.rs`, `wiring.rs`, `event_loop*` untouched and green. T4 (a command presents at once) held by M7; VT-7's added assertion held by R2 — **both re-run here**. An accepted arrival, a scheduled firing and a refusal during an exchange: unchanged paths (I-3, PHASE-02/VA-1 by reading, re-read here). | re-verified |
-| AC-5 | **pending** — owed at this audit | Canon-delta Changes 1–5 are drafted as Reconciliation rows below; promotion awaits the user's endorsement. | — |
+| AC-5 | met at close | Canon-delta Changes 1–5 endorsed by the user and promoted to SPEC-003 and SPEC-002 (Reconciliation, canon rows) | re-verified by the closer: *from* texts matched, cited cases resolve |
 | AC-6 | met | The user's run, PHASE-03/VH-1 record in `notes.md`: run on 2026-09-26 against `64f75d4` (the code is identical at HEAD — later commits touch `notes.md` and `audit.md` only), following the seven hand-over steps, step 6 loosened to "the last key printed, or a few above it". The user's words: *"I ran that, it was all exactly as expected."* — one statement covering typing held, the pane opening promptly, pane and tooltip updating about once a second with rising `flood-<n>` keys, and the pane settling after Ctrl-C. | from notes (the user's own report) |
 | AC-7 | **pending** — close | `docs/follow-ups.md` FU-2 strike with the restated *Dead when*. | — |
 
@@ -229,14 +229,48 @@ vocabulary, subject `implementation`. Do not restate findings here.
 
 - **Ledger:** [`review-code.md`](review-code.md) — written by a separate
   reviewer in parallel with this audit.
-- **State:** open · outstanding blockers: pending (the ledger is not yet
-  committed).
+- **State:** resolved · outstanding blockers: **0**.
+- **Rounds:** four. Round 1 raised F-1..F-10 (F-10 is the audit's A-3 entered
+  by the responder; F-3 and F-5 absorb A-1 and A-2); rounds 2–4 verified the
+  repairs and raised F-11..F-14 against the repair text only.
+- **Totals:** 14 findings, all `verified`, none withdrawn; no blocker, no
+  major. Dispositions: every finding `fix-now` except F-8 (`follow-up`) and
+  F-12 (`fix-now` on its Response, residue `follow-up` into FU-10).
+  Dispositions confirmed by the user on 2026-09-26 (`design-log.md`, *audit:
+  dispositions and canon endorsement*); F-11..F-14 under their fix-the-class
+  approval of the same day.
 
 ## Verdict
 
 <!-- The slice's closure story, written once, here. Draws on the ledger's
      synthesis and on the evidence above; restates neither. Does this slice do
      what it set out to do, and what is being accepted knowingly? -->
+
+**Done.** The slice set out to stop a writer the host does not control from
+setting the rate of updates to a person's surface, and it does: refusal-caused
+updates coalesce to at most one per `REFUSAL_PRESENT_INTERVAL`, on both edges,
+without delaying any reply, command or evaluation. The evidence above and the
+ledger's synthesis agree that `serve`'s `'idle` loop implements exactly the
+rule R-15 now states, that every exit from `'idle` presents or ends the loop,
+and that I-1..I-4 hold. The timed cases read the window, not the retained
+model; the mutations re-run here (M7, R2, AP-1) and by the review (interval
+mutations) went red where claimed. AC-5 and AC-7 are discharged at close:
+canon is promoted (Reconciliation) and FU-2 is struck. `just check` is green.
+
+**Accepted knowingly** (each carried, none silent):
+
+- **Pixels are not tested.** T2–T4 and VT-7 read window properties; rendering
+  and the tray are witnessed only by the user's run (AC-6).
+- **T2(a)'s resolution band.** An interval between about 0.85 s and 1 s passes
+  the count; the constant's value there is held by review, as
+  `MINIMUM_SPACING`'s is.
+- **The yield per arrival** (design R3) rests on goad-shell's one-at-a-time
+  ingress and is witnessed only by AC-6.
+- **Clock overflow** (F-8): R-15's fallback clause describes a state two
+  panicking additions in `serve` do not let the host stay in — a new ledger
+  row, practically unreachable.
+- **Retention** (FU-3): a flood now shows fewer of its refusals, by the
+  user's decision (`design-log.md`, F-1/F-2).
 
 ## Reconciliation
 
@@ -278,12 +312,15 @@ about the code was checked against `serve` and the cases it names.
 
 | document | change | reason | class | done |
 |----------|--------|--------|-------|------|
-| `crates/goad/src/controller.rs`, `serve` — the comment on `surface_stale` | state the true reason it is never cleared (every exit from `'idle` presents or ends the loop, `design.md` §5.3) | audit finding A-1 | code wrong | [ ] |
-| `crates/goad/tests/renderer/ingress.rs` — the `REFUSAL_PRESENT_INTERVAL` mirror, T3's doc, `flat_out`'s doc | remove the phase-time narrative; T3's doc names M8b as R2's control | audit finding A-2 | code wrong | [ ] |
-| `ingress.rs` T1/T2/T4 docs; `controller.rs` new comments | cite slice 011's documents explicitly; T2/T4's "PL-6" is `docs/slices/011/plan-log.md`'s; T1's "VT-2" is `plan.md`'s | audit finding A-3; bare names resolve to slice 004's | code wrong | [ ] |
+| `crates/goad/src/controller.rs`, `serve` — the comment on `surface_stale` | state the true reason it is never cleared (every exit from `'idle` presents or ends the loop, `design.md` §5.3) | audit finding A-1 | code wrong | [x] fixed as `review-code.md` F-3 |
+| `crates/goad/tests/renderer/ingress.rs` — the `REFUSAL_PRESENT_INTERVAL` mirror, T3's doc, `flat_out`'s doc | remove the phase-time narrative; T3's doc names M8b as R2's control | audit finding A-2 | code wrong | [x] fixed as `review-code.md` F-5 |
+| `ingress.rs` T1/T2/T4 docs; `controller.rs` new comments | cite slice 011's documents explicitly; T2/T4's "PL-6" is `docs/slices/011/plan-log.md`'s; T1's "VT-2" is `plan.md`'s | audit finding A-3; bare names resolve to slice 004's | code wrong | [x] fixed as `review-code.md` F-10, class closed in `crates/` |
 | `docs/memory/a-refusal-is-recorded-not-shown.md` | its first consequence ("one canon verification case reads `served.controller.frame(false).diagnostics`") becomes false once the R-15 row is promoted; re-state it as history or strike it | `plan.md` PHASE-03/EX-7 residue, `notes.md` §Open | doc stale — at close | [ ] |
 | `docs/follow-ups.md` FU-2 | strike, restating *Dead when* as "refused arrivals cost at most one present per interval, and R-15 states the update guarantee" (`design.md` §10, review F-14) | AC-7 | close | [ ] |
 | `docs/follow-ups.md` FU-3 | extend the row's citation with slice 011: a flood now shows fewer of its refusals, and a refusal-site refusal can overwrite a stale fold (`design.md` R4) | `notes.md` §Open | close | [ ] |
+| `crates/goad/src/pending.rs`, `Debounce::tick`'s doc | name `serve`'s present sites by role, not by line number or count | `review-code.md` F-7, F-11; outside every phase's Surfaces, taken in audit because this slice's edit moved the lines | code wrong | [x] fixed in review |
+| `docs/follow-ups.md` — new row | the two panicking `Instant + MINIMUM_SPACING` sites in `serve`, with F-8's two-exit *Dead when* | `review-code.md` F-8 | close | [ ] |
+| `docs/follow-ups.md` FU-10 | extend the citation with the workspace-internal `file.rs:NNN` residue F-12 enumerates | `review-code.md` F-12 | close | [ ] |
 
 **Design drift not reconciled:**
 
@@ -305,15 +342,20 @@ about the code was checked against `serve` and the cases it names.
   its decisions, with no control; the auditor's probe AP-1 (the flag hoisted
   out of `'idle`) reds T3 on R2. The design understates its own coverage here;
   left as written.
+- **`design.md` §9, T2's row (a): `1 + ceil(…)`.** The test now rounds down —
+  one more than the whole intervals the span holds (`review-code.md` F-1) —
+  because the ceiling admitted one extra update on every run and a 30 %
+  shorter interval passed it. Promoted canon (SPEC-003 §7, R-15) states the
+  floor form. The design is left as written; the test and canon agree.
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
+- [x] All findings dispositioned; no blockers outstanding
 - [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
+- [x] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
 - [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
+- [x] Specs / policy / ADRs reconciled, with user endorsement where amended
+- [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
 - [ ] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
 - [ ] `slice-nnn.md` Summary and Follow-ups written
 - [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
