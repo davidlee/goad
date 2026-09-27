@@ -53,9 +53,25 @@ and demonstrable in under a minute from **Check now** or `goad-emit`:
 `python3`, `jq` and `inotify-tools` join the devshell so the gate can run them
 (`design-log.md`, 2026-09-26).
 
-Surfaces, to be narrowed in design: a new crate for the checker; the plugin
-tree; `flake.nix`; `examples/` (renamed); the gate (`justfile`, POL-001) for the fixture
-check; SPEC-004 for the checker's status.
+Surfaces (settled in the design conversation, `design-log.md`; exact files
+are design's):
+
+- `crates/goad-check` — new, stratum 3, driving `goad_shell::host::Host`; its
+  tests carry every kit check (OQ-9).
+- `crates/goad-semantics`, `crates/goad-shell` — `requirement()` and `fault()`
+  beside each error taxonomy; the host kind names and a pure R-57
+  value-per-kind lifted into stratum 1; fixture `requirement` lists corrected
+  (OQ-8, OQ-4).
+- `crates/goad` — `Stimulus::kind` and `draft.rs::submitted` delegate to the
+  lifted code (OQ-4).
+- `kit/` and the root marketplace manifests — the plugin (OQ-6).
+- `examples/` renamed; its referencing sites, including `goad-shell`'s
+  integration tests and `justfile`.
+- `flake.nix` — `goad-kit` and `goad-check` packages, the consumer jails,
+  `python3`, `jq`, `inotify-tools`, `ruby`.
+- **Canon**, drafted in `canon-delta.md`: SPEC-001 (requirement id and side
+  at fault on each refusal; R-56's verification row), SPEC-004 (`goad-check`
+  and `goad-emit`), POL-001 (the command block's `deno check` paths).
 
 ## Non-goals
 
@@ -80,7 +96,8 @@ check; SPEC-004 for the checker's status.
 - [ ] AC-3 — The checker, run against a backend, reports each refusal with the
   side that was wrong, using the host's normalizer and failure taxonomy — not a
   reimplementation of either.
-- [ ] AC-4 — SPEC-004 states the checker's exit status.
+- [ ] AC-4 — SPEC-004 states the exit status of `goad-check` and of
+  `goad-emit`.
 - [ ] AC-5 — The skill ships new examples in more than one language, each a
   small, complete backend a person would want to see run; the checker accepts
   each in the gate. The host exercisers stay in the repo, and nothing presents
@@ -124,13 +141,26 @@ check; SPEC-004 for the checker's status.
   this flake; checker pass plus a person running it; tokens and friction
   measured** — AC-1, AC-8, AC-9 (`design-log.md`, 2026-09-26). The walk's task
   and the jail's exact contents are for design.
-- OQ-4 — Which requests the checker sends: evaluate only, or also response and
-  event, and with what fabricated payloads.
-- OQ-5 — Where the checker sits among the strata, and whether it is a new
-  binary or a `goad` subcommand.
-- OQ-6 — Where the plugin lives in the tree, and how a consumer installs it.
-- OQ-7 — The walk's task and language — a behaviour none of the examples
-  implement, in a language none of them use.
+- ~~OQ-4 — Which requests the checker sends: evaluate only, or also response and
+  event, and with what fabricated payloads.~~ **Evaluate with the three host
+  kinds and one unrecognised one; author-supplied forwarded events; respond
+  per view, R-57-typed; kind names and R-57 typing lifted into stratum 1**
+  (`design-log.md`, 2026-09-26).
+- ~~OQ-5 — Where the checker sits among the strata, and whether it is a new
+  binary or a `goad` subcommand.~~ **`crates/goad-check`**, stratum 3, driving
+  `goad_shell::host::Host`; renderer-free (`design-log.md`, 2026-09-26).
+- ~~OQ-6 — Where the plugin lives in the tree, and how a consumer installs it.~~
+  **`kit/`, with root marketplace manifests pointing at it; the flake exports
+  `goad-kit` and `goad-check`; jails load the store path** (`design-log.md`,
+  2026-09-27).
+- ~~OQ-7 — The walk's task and language — a behaviour none of the examples
+  implement, in a language none of them use.~~ **An end-of-day wrap-up, in
+  Ruby, stdlib only** (`design-log.md`, 2026-09-27).
+- ~~OQ-8 — Where a refusal's requirement id and side at fault come from.~~
+  **Total `requirement()` and `fault()` beside each error taxonomy in strata 1
+  and 2, witnessed by the fixture corpus; sides are backend, host,
+  configuration, environment; canon in SPEC-001** (`design-log.md`,
+  2026-09-26).
 
 ## Summary
 

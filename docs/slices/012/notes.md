@@ -73,3 +73,8 @@ after the slice closes is lifted into the Harvest section.
 - **SPEC-004 OQ-2** — `goad-emit`'s statuses are owned but not governed. The
   checker entering §4 makes that asymmetry sharper (`research.md`
   *Cross-thread* 4).
+- **`claude plugin eval` as a regression harness for kit edits.** Not adopted
+  for AC-1 (`design-log.md`, 2026-09-27, OQ-7). Candidate follow-up at close.
+- **`Shape` refusals cite R-44 only.** Naming the requirement the backend
+  misread needs normalization to report a path for serde failures
+  (`design-log.md`, 2026-09-26, OQ-8). Candidate follow-up at close.

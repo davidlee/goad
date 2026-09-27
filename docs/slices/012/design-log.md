@@ -147,3 +147,120 @@ other, citing the finding id.
   carried into design.
 - **Decided:** *"confirm both."*
 - **Consequence:** dependency addition endorsed. Stage → design.
+
+### 2026-09-26 — OQ-5: where the checker sits
+
+- **Asked:** a `goad check` subcommand (links Slint; SPEC-004's `goad`
+  classes describe an event loop), or a new stratum-3 crate `crates/goad-check`
+  driving `goad_shell::host::Host<ProcessBackend>` — renderer-free, sibling of
+  `goad-emit` under ADR-003, reading the author's goad config via
+  `Config::load`, with a `-- <argv>` convenience. Sub-question (canon):
+  govern `goad-emit` in SPEC-004 at the same time as the checker, or only the
+  checker (research.md R-b).
+- **Recommended:** `crates/goad-check`; both binaries into SPEC-004.
+- **Decided:** yes, to both, and to the name.
+- **Consequence:** SPEC-004 gains the checker and `goad-emit` — a
+  `canon-delta.md` entry. AC-4 widens to both binaries.
+
+### 2026-09-26 — OQ-8: where a refusal's requirement id and side at fault come from
+
+- **Asked:** (raised by research, R-a) nothing in code carries either today.
+  Proposed: total `requirement()` and `fault()` beside each taxonomy —
+  `ProtocolError`, `BoundsError`, `ScheduleError` (stratum 1); `BackendError`,
+  `CleanupFailure`, `StateError` (stratum 2) — exhaustive, so the compiler
+  holds completeness; the fixture corpus as independent witness (each refusal
+  fixture's error names an id in its own `requirement` list), with the two
+  R-17 `Json` fixtures' lists corrected. `Shape` cites R-44 only; recovering
+  the misread requirement needs a serde path — follow-up. Sides: backend,
+  host, configuration (`Spawn`), and "neither: observation"
+  (`CleanupFailure`, SPEC-001/R-54). Canon in SPEC-001, which owns the
+  taxonomy.
+- **Decided:** all agreed. *"'environment' might be more consistent than
+  'neither: observation'."*
+- **Consequence:** the sides are **backend, host, configuration,
+  environment**. Which variants are *environment* rather than *host* is
+  design's to settle, variant by variant. Surfaces widen to `goad-semantics`
+  and `goad-shell`. A `canon-delta.md` entry for SPEC-001. Follow-up
+  candidate: a path for `Shape` refusals.
+
+### 2026-09-26 — OQ-4: which requests the checker sends
+
+- **Asked:** evaluate under `source: "host"` with `startup`, `requested`,
+  `scheduled`, and one unrecognised host kind (making SPEC-001/R-56's
+  tolerance testable; amends its §7 row, "review, not a test"); forwarded
+  events supplied by the author (flag or file), never guessed; respond for
+  each view seen, one option, values for exactly its fields (R-58), typed per
+  R-57, through `Host::respond`. The checker's blame is honest only if its own
+  values obey R-57, and the kind names and R-57 typing live in `goad`, which
+  links Slint (research.md R-b, corrected). Options: lift both into stratum 1
+  (`goad` delegates); depend on `goad` (links the renderer — the thing
+  `goad-emit`'s crate edge prevents); restate R-57 (second encoding — ruled
+  out). Examples take state and target directories from the environment; the
+  gate points them at a temp directory (R-49 side effects).
+- **Recommended:** the request set; lift both into stratum 1; environment-
+  configured examples.
+- **Decided:** yes.
+- **Consequence:** `goad-semantics` gains the host kind names and a pure R-57
+  value-per-kind; `goad`'s `Stimulus::kind` and `draft.rs::submitted`
+  delegate — `goad` joins the surfaces. `canon-delta.md` entry: SPEC-001 §7,
+  R-56's verification row. Event-driven examples ship their events beside the
+  backend.
+
+### 2026-09-27 — OQ-6: where the plugin lives, and how it is installed
+
+- **Asked:** (research.md R-d) the kit in its own subdirectory `kit/` —
+  Claude Code and Codex manifests over one `skills/goad-backend/` (SKILL.md,
+  reference, examples and their event files, scripts) — with the marketplace
+  manifests at the repo root, `source: ./kit`, because a root-source plugin
+  copies the whole repo into the consumer's plugin cache. The flake exports
+  `packages.goad-kit` (that tree only) and `packages.goad-check`. Consumers:
+  `claude plugin marketplace add davidlee/goad` + `claude plugin install
+  goad@goad`; `codex plugin marketplace add` + `codex plugin add`. Binaries
+  from flake packages or `cargo install --git`; SKILL.md says how. Consumer
+  jails load the store path (`claude --plugin-dir`, a local-path Codex
+  marketplace). Caveat: `marketplace add owner/repo` clones the repo; the
+  instructions recommend `--sparse kit`. `claude plugin validate kit/` as a
+  phase exit check, not a gate step.
+- **Recommended:** as asked.
+- **Decided:** agree.
+- **Consequence:** surfaces gain `kit/`, root marketplace manifests, and two
+  flake packages.
+
+### 2026-09-27 — OQ-7: the walk's task and language; `claude plugin eval`
+
+- **Asked:** task — an end-of-day wrap-up: silent until a configured local
+  hour; asks energy (number 1–5), anything left open (boolean), resume at
+  (datetime); logs locally; `next_check` the next day's occurrence as an
+  absolute instant with an offset (SPEC-001/R-22). Stated to the agent in
+  plain language, no protocol words. It exercises what the examples leave
+  unexercised, so it tests the reference rather than copying. Language — Ruby
+  (stdlib JSON and time, no package fetch); Go the alternative, but `go run`
+  compiles per spawn and risks the timeout. The runtime joins the consumer
+  jail's closure explicitly. `claude plugin eval` (no-plugin baseline) not
+  adopted for AC-1: Codex has no equivalent, and a baseline without the kit
+  can learn the protocol only by fetching the repo; a follow-up as a
+  regression harness for kit edits.
+- **Decided:** *"yep. Ruby's slightly finicky under nixOS but that's only with
+  bundler, the interpreter / stdlib is a single package.. sold"*
+- **Consequence:** the walk prompt must not lead the agent toward bundler or
+  gems — stdlib only; a gem install is friction (AC-9). `ruby` joins the
+  consumer jails' closure. `plugin eval` → `notes.md` §Open.
+
+### 2026-09-27 — OQ-9: how the kit joins the gate
+
+- **Asked:** every kit check in `goad-check`'s own tests under the existing
+  `cargo test --workspace` — reference response examples through
+  `read_response`, event examples through `ingress::envelope::normalize`,
+  request examples compared against `Request` serialization (no request
+  reader exists; the host's writer is the authority), and the checker run
+  against each shipped example with its event file and a temp state
+  directory. POL-001 changes only its `deno check` paths (exerciser rename,
+  new TypeScript example); no new gate command. AC-2 made non-vacuous: every
+  reference example is a file or a fenced block with a tagged info-string
+  (e.g. `json goad:response`), and the extractor fails on an untagged `json`
+  block. The fixture corpus is not shipped whole; the reference cites a
+  curated handful through the gate-checked path, and the walk's `ISSUES.md`
+  decides whether a fuller catalogue is an easy win.
+- **Decided:** agree.
+- **Consequence:** `canon-delta.md` entry for POL-001's command block. Design
+  questions all settled; next, `design.md`.
