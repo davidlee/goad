@@ -78,3 +78,9 @@ after the slice closes is lifted into the Harvest section.
 - **`Shape` refusals cite R-44 only.** Naming the requirement the backend
   misread needs normalization to report a path for serde failures
   (`design-log.md`, 2026-09-26, OQ-8). Candidate follow-up at close.
+- **R-16 has no non-empty clause for a `choice` field's `options`.**
+  `EmptyAlternatives` cites R-52, as SPEC-001 §7 and the corpus do. A canon
+  wording fix, not a behaviour change (design.md §6 OQ-6). Candidate follow-up.
+- **The jail library fixes the home per profile.** 012 binds a launcher-made
+  home over `$HOME` locally; a home-name parameter upstream in
+  `davidlee/nix-config` is cleaner (design.md §6 OQ-7). Candidate follow-up.

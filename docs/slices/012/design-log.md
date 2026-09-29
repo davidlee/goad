@@ -264,3 +264,22 @@ other, citing the finding id.
 - **Decided:** agree.
 - **Consequence:** `canon-delta.md` entry for POL-001's command block. Design
   questions all settled; next, `design.md`.
+
+### 2026-09-29 — design.md §6: the nine questions raised in drafting
+
+- **Asked:** design.md §6 OQ-1..OQ-9 (drafting's numbering, distinct from
+  `slice-012.md`'s), each with a recommendation: (1) `PipeMissing` → R-37,
+  host; `Io` → R-45, environment — the host obligation left undischarged,
+  stated in the SPEC-001 canon entry; (2) lift `as_drawn` into stratum 1 so the
+  checker submits what an untouched host form submits — orchestrator noted the
+  cost: renderer defaults (the epoch, min-or-zero) move into stratum 1; (3) the
+  checker answers the first option only, and names the rest; (4) no `scripts/`
+  in the skill; (5) a cleanup failure alone exits 1; (6) `EmptyAlternatives`
+  cites R-52, follow-up for a non-empty clause in R-16; (7) a launcher-made home
+  bound over `$HOME` in this flake, follow-up for an upstream home-name
+  parameter; (8) `goad` is in the consumer jail; (9) ADR-003's member list in
+  `canon-delta.md`.
+- **Recommended:** all nine as stated.
+- **Decided:** *"accept all nine"*.
+- **Consequence:** design.md §6 settled; its rows stand as drafted. Two
+  follow-up candidates to `notes.md` §Open.

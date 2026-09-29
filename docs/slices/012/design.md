@@ -1,76 +1,966 @@
-# Design — Slice 012: {title}
+# Design — Slice 012: the backend author's kit
 
 <!-- The *current* design, not its history. Revision chronology, review
      findings, and dispositions live in `design-log.md`.
      Reference forms: canon by id (`SPEC-003 §4`, `ADR-007`, `POL-002`);
      doc-local refs bare — OQ-1 (§6), D1 (§7), R1 (§8). Ids are immutable. -->
 
+**Status:** draft, for section-by-section presentation. Every decision cites
+its `design-log.md` entry by date and question id. Where the design
+conversation did not settle something, it is in §6 with options and a
+recommendation, and the text elsewhere marks the dependency *(pending OQ-n)*.
+
 ## 1. Design problem
 
-<!-- In plain language: what changes, why it matters, and the boundary of this
-     design. The reader should not need the slice doc or review history to
-     orient themselves. -->
+A goad backend is written against SPEC-001..003. Today the only way to learn
+that contract is to read this repository. The next backend author is a coding
+agent working in someone else's repository, and nothing is packaged for it.
+
+This slice builds four things:
+
+1. **A checker**, `goad-check`. It is a headless binary that drives a backend
+   command through the host's own `Host`. It reports each refusal with the
+   side at fault and the SPEC-001 requirement concerned, and exits with a
+   status SPEC-004 governs.
+2. **The data the checker reports.** Each error taxonomy gets `requirement()`
+   and `fault()`, in the stratum that owns it. The checker only prints what
+   the host already knows.
+3. **A kit**, `kit/`. It is a plugin for Claude Code and Codex over one skill,
+   containing a backend-facing reference, three new examples, and the
+   examples' event files and watchers. Every JSON or TOML example the reference
+   ships is checked by the gate.
+4. **A walk.** A fresh agent in a consumer jail sees only the kit and the
+   exported binaries, and writes a backend from one fixed prompt. The walk is
+   measured, and its friction is dispositioned.
+
+**Boundary.** The wire contract does not move (slice §Non-goals). The kit
+documents the process transport only. The current `examples/` stay as host
+exercisers under a new name.
 
 ## 2. Current state
 
-<!-- How it works today, cited. Cite `research.md` rather than restating it. -->
+Cited from `research.md`. Rows marked ✓ there, or re-verified for this draft,
+are the only ones this design relies on.
+
+- **No refusal carries a requirement id or a side at fault** (R-a). Both exist
+  only as prose in doc comments. Requirement ids appear in code only in the
+  fixture envelopes' `requirement` arrays. Verified again for this draft
+  against `goad_semantics::error` and `goad_shell::error`, and by tabulating
+  every error fixture with `jq`. The tabulation is the basis of §5.2.3.
+- **`Host<B: Backend>` is the whole headless exchange** (R-b): transport,
+  `read_response`, schedule resolution, and interaction state. Its `Outcome`
+  has three reporting channels: `failure: Option<Failure>` (`Backend` or
+  `State`), `discarded: Vec<Discarded>`, and `cleanup:
+  Option<CleanupFailure>`. It needs a tokio runtime and has no renderer
+  dependency.
+- **Two encodings the checker needs are in `goad`**, which links Slint:
+  - the host kind names: `wire.rs::Stimulus`, with `kind` and `event`;
+  - R-57's value mapping, `draft.rs::submitted`, which is `pub(crate)`,
+    together with its `Finite` leaf and the untouched-value policy
+    `view_model::as_drawn` (R-b; re-verified).
+- **No request reader exists.** Requests are outbound only (R-c, R-g).
+  `OptionId::new` and `FieldId::new` are `pub(super)`, so a test cannot mint a
+  response's ids from strings. `ViewId::new` is `pub`.
+- **Forwarded events enter through `goad_shell::ingress::envelope::normalize`**
+  in stratum 2 (ADR-005). Its refusals are `EnvelopeFault`, which is SPEC-003's
+  taxonomy.
+- **Configuration.** `Config::load` / `Config::parse` require
+  `backend.timeout` and `schedule.default_poll` and have no defaults.
+  `config::default_path` is the host's discovery rule. `ConfigError` is a
+  separate type about the user's file, not about a backend.
+- **`goad-emit`'s statuses** are 0 (the host accepted), 1 (the host refused
+  and said why), and 2 (no usable answer). SPEC-004 owns them but does not
+  govern them (§2, OQ-2).
+- **The exercisers**: `examples/shell/backend.sh` and
+  `examples/typescript/backend.ts`. They are run by `just demo`, `harness.rs`
+  and `round_trip.rs`, and the gate typechecks the second. Research R-f lists
+  every referencing site.
+- **The jail library** (`pub` flake, `jailed-agents.nix`, read for this
+  draft). `persist-home` is fixed per *profile* (`specDev` → `"agent"`). The
+  base options bind `$PWD` at `/workspace/<basename>` and start there.
+  `commonPkgs` already includes `python3`. There is no per-invocation home
+  parameter.
 
 ## 3. Forces & constraints
 
-<!-- Canon that binds, technical limits, cost, timing, prior commitments. -->
+- **ADR-001 / ADR-003.** Stratum 1 is pure. The checker is an entry point, so
+  it goes in stratum 3 as its own member, like `goad-emit`. The vocabulary
+  scan reads the checker's `src/`. `kit/` is outside `crates/` and is not
+  scanned.
+- **SPEC-001 §7, R-57 row: "a mapping stated in two places is a mapping that
+  can drift."** This binds the checker's own `respond`, whose values must obey
+  R-57/R-58. Otherwise the checker blames a backend that rightly refused a
+  mistyped value.
+- **P-B (SPEC-001).** The checker judges ambiguity no differently from the
+  host, because the host's code does the judging.
+- **SPEC-004 §3 P-A..P-D bind every binary**, governed or not: a status names
+  a class; a non-zero status comes with a line on stderr; the numbers are a
+  contract; a status gives no advice.
+- **POL-001.** The gate is a fixed command block. No new command is added
+  (`design-log.md` 2026-09-27, OQ-9). Only the `deno check` paths change.
+- **Side effects are real** (SPEC-001/R-49). The checker spawns the author's
+  command with the inherited environment.
+- **CLAUDE.md: name, never count; cite by symbol.** This applies to the kit's
+  prose as well as to canon.
+- **The walk sees only what a consumer sees** (`design-log.md` 2026-09-26,
+  OQ-3 isolation).
 
 ## 4. Guiding principles
 
-<!-- The few rules that settle the arguments below. Two or three, not ten. -->
+1. **The checker adds choice and reporting, nothing else.** Every judgement is
+   the host's code: normalizer, taxonomy, interaction identity, R-57 values.
+   If the checker has to decide what something *means*, that meaning belongs
+   in stratum 1 or 2, or it is a second encoding.
+2. **One encoding, one witness.** Each fact (requirement id, side, kind name,
+   R-57 type) is stated in exactly one place. A second, independent artefact
+   witnesses it: the fixture corpus, or the reference's tagged examples.
+3. **The kit is checked the way it is read.** What the reference shows as
+   accepted, refused or sent, the gate runs through the same door.
 
 ## 5. Proposed design
 
 ### 5.1 System model
 
-<!-- The load-bearing structure and who owns what. Prefer a Mermaid
-     context/container/component diagram once there is more than one part. -->
+```mermaid
+flowchart TB
+  subgraph S1["stratum 1 — goad-semantics"]
+    ERR1["error: ProtocolError / BoundsError / ScheduleError<br/>+ requirement() + fault()<br/>Requirement, AtFault"]
+    STIM["canonical::Stimulus (moved from goad)"]
+    SUB["canonical::Submitted + Finite (R-57, moved)<br/>Submitted::as_drawn (pending OQ-2)"]
+  end
+  subgraph S2["stratum 2 — goad-shell"]
+    ERR2["error: BackendError / CleanupFailure / StateError<br/>+ requirement() + fault()"]
+    HOST["host::Host&lt;ProcessBackend&gt;"]
+    ENV["ingress::envelope::normalize"]
+    CFG["config::Config"]
+  end
+  subgraph S3["stratum 3"]
+    GOAD["goad (renderer) — delegates to Stimulus, Submitted"]
+    EMIT["goad-emit"]
+    CHECK["goad-check (new)"]
+  end
+  KIT["kit/ — plugin, SKILL.md, reference, examples"]
+  CHECK --> HOST & ENV & CFG & STIM & SUB & ERR1 & ERR2
+  GOAD --> STIM & SUB
+  CHECK -. "tests: every tagged fence, every example" .-> KIT
+```
+
+**Who owns what.**
+
+| thing | owner | notes |
+|---|---|---|
+| requirement id and side, per variant | the taxonomy's own stratum | `goad-check` prints them and never maps them |
+| which requests are sent, and the report | `goad-check` | report format is not canon (`design-log.md` 2026-09-26, OQ-2) |
+| host kind names | stratum 1, `Stimulus` | `goad` and `goad-check` both name it |
+| R-57's value per kind | stratum 1, `Submitted` | `goad` and `goad-check` both build one |
+| all kit checks | `goad-check`'s test target | under `cargo test --workspace` (`design-log.md` 2026-09-27, OQ-9) |
 
 ### 5.2 Interfaces & contracts
 
-<!-- Signatures, wire shapes, CLI surfaces, error cases. Exact names. -->
+#### 5.2.1 `goad-check` — command line
+
+(`design-log.md` 2026-09-26, OQ-5, which settled the crate, the config-file
+form and `-- <argv>`; 2026-09-26, OQ-4, which settled the request set and
+author-supplied events.)
+
+```
+goad-check [--config PATH] [--event FILE]...
+goad-check [--timeout SPAN] [--event FILE]... -- PROGRAM [ARG]...
+goad-check -h | --help
+goad-check --version
+```
+
+- **Config form.** `--config PATH` loads the author's goad configuration with
+  `Config::load`. With neither `--config` nor `--`, the path is
+  `config::default_path`, the host's own rule. The checker runs exactly the
+  command and timeout the host will run. It ignores `[ingress]`: it opens no
+  socket.
+- **Argv form.** Everything after `--` is the command, built with
+  `config::Command::new`. So an empty argv is refused by the same rule
+  (R-36).
+  - `--timeout SPAN` is parsed with the host's one duration grammar,
+    `schedule::parse_span`. The default is `5s`, the value
+    `examples/demo.toml` uses.
+  - `schedule.default_poll` is the fixed value `30m`. It only affects how the
+    report shows a resolved next check when none was sent.
+  - `--timeout` together with `--config` is a usage error: the file already
+    states the timeout.
+- **`--event FILE`**, repeatable, in order. Each file holds one SPEC-003
+  envelope, the bytes a watcher would write to the socket. Each is read
+  through `envelope::normalize`, so a `source: "host"` envelope is refused
+  there (SPEC-003/R-13). The checker never guesses a forwarded event
+  (`design-log.md` 2026-09-26, OQ-4).
+- Arguments are parsed in the pure style of `goad-emit`'s `args.rs`: one
+  `Invocation` value; `main` alone reads the environment, files and the
+  clock.
+
+#### 5.2.2 `goad-check` — run sequence
+
+```mermaid
+sequenceDiagram
+  participant C as goad-check
+  participant H as Host (goad-shell)
+  participant B as backend process
+  C->>C: parse args, load Config, normalize each --event file
+  Note over C: any failure here → status 2, nothing judged
+  loop for each request in the plan
+    C->>H: evaluate(now, event)
+    H->>B: spawn, write request, read response
+    H-->>C: Outcome {view, discarded, failure, cleanup, stderr}
+    C->>C: report the exchange
+    opt Outcome carries a view
+      C->>C: choose the first option; values = Submitted::as_drawn per field (pending OQ-2, OQ-3)
+      C->>H: respond(now, view_id, UserResponse)
+      H->>B: spawn, write respond, read response
+      H-->>C: Outcome — report; answer again while a view comes back, bounded
+    end
+  end
+  C->>C: verdict → status 0 or 1
+```
+
+**The request plan**, in order (`design-log.md` 2026-09-26, OQ-4):
+
+1. `evaluate`, `Stimulus::Startup`
+2. `evaluate`, `Stimulus::Requested`
+3. `evaluate`, `Stimulus::Scheduled`
+4. `evaluate`, `source: "host"`, kind `goad-check-unrecognised`: the R-56
+   probe. R-56 allows a host to originate a kind outside the three, and
+   requires a backend to tolerate it. The probe kind is a `goad-check`
+   constant. A test asserts it is none of `Stimulus`'s kinds.
+5. `evaluate` with each `--event` envelope, in the order given.
+
+`event.timestamp` and `now` are the wall clock (`clock::wall_clock`) at each
+step, and `data` is `null`, as `Stimulus::event` builds it.
+
+**Answering.**
+- After any `Outcome` that carries a view, the checker answers it through
+  `Host::respond`, using the minted `view_id`. The host therefore enforces
+  interaction identity (R-32) itself.
+- The answer is **one option**, with a value for exactly that option's fields
+  (R-58), each built as `Submitted` (R-57) *(pending OQ-2, OQ-3)*.
+- A backend may chain views: a respond that returns a new view. The checker
+  keeps answering until a respond returns `view: null` or a failure, up to a
+  **chain bound of 8** per request. Hitting the bound is reported as a
+  checker observation, not as a protocol refusal.
+
+**What is judged.** Every channel of every `Outcome`:
+
+| channel | what the checker reports | requirement and side from |
+|---|---|---|
+| `failure: Failure::Backend(e)` | a refusal | `e.requirement()`, `e.fault()`; for `Protocol(p)` this delegates to `p` |
+| `failure: Failure::State(e)` | a refusal. It cannot arise unless the checker itself is wrong, and it says so. | `e.requirement()`, `e.fault()` |
+| `discarded: Discarded::Schedule{reason, ..}` | a discard | `reason.requirement()`, `reason.fault()` |
+| `cleanup: Some(c)` | a cleanup observation | `c.requirement()`, `c.fault()` |
+| any failure on the R-56 probe | the refusal as above, **and** "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend | the probe is the checker's; the refusal is the host's |
+| `stderr` | shown verbatim under the exchange, truncation flagged | — |
+
+#### 5.2.3 `requirement()` and `fault()`
+
+(`design-log.md` 2026-09-26, OQ-8.) In `goad_semantics::error`:
+
+```rust
+/// A SPEC-001 requirement id. Displays as `R-44`; a report prefixes the spec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Requirement(u16);
+
+/// The side a refusal is the fault of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtFault { Backend, Host, Configuration, Environment }
+```
+
+Each taxonomy enum gets `pub fn requirement(&self) -> Requirement` and `pub fn
+fault(&self) -> AtFault`, each a total `match` with no `_` arm. So a new
+variant fails to compile until both are decided.
+
+The type is named `AtFault` and not `Fault`. In this workspace `…Fault` names a
+*reason*: `SpanFault`, `SendFault`, `StartupFault`, `EnvelopeFault`. Here the
+method `fault()` answers *who*.
+
+**Meaning of the id.** For a backend- or configuration-side refusal, the id is
+the requirement that was broken. For a host- or environment-side one, the id is
+the host obligation the refusal left undischarged, because no author broke
+anything *(pending OQ-1 for the two rows it affects)*.
+
+**The table.** Variants are verified against the enums at 7388b5c. The
+fixture column lists each error fixture's `requirement` array as it stands.
+
+| taxonomy | variant | id | side | fixture witness (current lists) |
+|---|---|---|---|---|
+| `ProtocolError` | `Json` | R-44 | backend | `protocol-text/R-17-a-nan-literal-for-a-bound` [R-17], `R-17-an-infinite-literal-for-a-bound` [R-17]. **Corrected to [R-17, R-44]**: see below |
+| | `Shape` | R-44 | backend | every `Shape` fixture already lists R-44 |
+| | `DuplicateKey` | R-44 | backend | [R-44], [R-52, R-44] |
+| | `NestedHints` | R-18 | backend | [R-18, R-47] |
+| | `UnsupportedProtocolVersion` | R-3 | backend | [R-3] |
+| | `UnsupportedPrimitive` | R-12 | backend | each lists R-12 |
+| | `InapplicableKey` | R-53 when `key` is `"fields"`, otherwise R-50 | backend | R-50 ×3 [R-50]; `R-53-an-alternative-carrying-fields` [R-53] |
+| | `MissingField` | R-10 | backend | [R-10] |
+| | `EmptyOptions` | R-13 | backend | [R-13] ×2 |
+| | `DuplicateOptionId` | R-14 | backend | [R-14, R-52] |
+| | `DuplicateFieldId` | R-52 | backend | [R-52] |
+| | `DuplicateAlternativeId` | R-52 | backend | [R-52, R-53] |
+| | `EmptyAlternatives` | R-52 | backend | [R-52, R-53]; see OQ-6 |
+| | `Bounds(b)` | `b.requirement()` | `b.fault()` | — |
+| | `Schedule(s)` | `s.requirement()` | `s.fault()` | never an `Err`; witnessed through `Discarded` |
+| `BoundsError` | `NotFinite` | R-17 | backend | unreachable from JSON (its own doc) |
+| | `Inverted` | R-17 | backend | `R-17-inverted-bounds` [R-17] |
+| `ScheduleError` | `NotAString` | R-25 | backend | `schedule/R-25-not-a-string` [R-21, R-25]; `protocol/R-25-next-check-of-the-wrong-type` [R-25, R-51] |
+| | `MissingOffset` | R-22 | backend | [R-22, R-25] ×2 |
+| | `TimeOfDay` | R-21 | backend | [R-21, R-25] ×5 |
+| | `CalendarUnit` | R-23 | backend | [R-23, R-25] ×2 |
+| | `OutOfRange` | R-25 | backend | [R-25] |
+| | `Unparseable` | R-25 | backend | [R-25] ×4 |
+| `BackendError` | `Spawn` | R-36 | configuration | not fixtured (transport) |
+| | `Timeout` | R-41 | backend | — |
+| | `ExitStatus` | R-40 | backend | — |
+| | `OutputTooLarge` | R-43 | backend | — |
+| | `PipeMissing` | R-37 *(OQ-1)* | host | — |
+| | `Io` | R-45 *(OQ-1)* | environment | — |
+| | `Protocol(p)` | `p.requirement()` | `p.fault()` | — |
+| `CleanupFailure` | `TimedOut` | R-48 | environment | — |
+| | `Io` | R-48 | environment | — |
+| `StateError` | `NoOutstandingView` | R-32 | host | — |
+| | `StaleViewId` | R-32 | host | — |
+
+Rationale for the rows that are not obvious:
+
+- **`Json` → R-44.** R-44 names *malformed JSON*, "bytes that are not one JSON
+  document", as its own class. R-38's trailing-content case arrives as `Json`
+  through `From<serde_json::Error>`. R-17 is wrong for every other malformed
+  document.
+  - **The two R-17 `Json` fixtures' lists become [R-17, R-44].** R-17 stays
+    because those fixtures do verify R-17: a non-finite bound cannot even be
+    written as JSON.
+  - Nothing else in the corpus changes.
+- **`InapplicableKey` splits on `key`.** R-53 *requires* `fields` on an
+  alternative to be refused "with the same error as any other protocol key
+  used where its position gives it no meaning". So a separate variant would
+  break R-53, and one variant must answer two ids.
+  - `normalize_alternative` is the only site that raises it with `fields`
+    (verified: `inapplicable("fields", "choice", …)` is the only `fields`
+    call).
+  - The witness test holds the split.
+- **`Spawn` → R-36, configuration.** A spawn failure breaks no protocol rule,
+  but R-36 is the rule an author needs: the command is an argv and **no shell
+  is interposed**. The side was decided as configuration (`design-log.md`
+  2026-09-26, OQ-8).
+- **`Timeout` → backend.** R-41 bounds the backend's opportunity to answer. A
+  timeout set too short is a configuration fault, but the host cannot tell
+  that from a slow backend. Backend is the side the evidence supports. The
+  report prints the configured timeout, so an author can see the alternative.
+- **`MissingField` → R-10.** `view` is its only raise site. If another site
+  appears, it will need a fixture, and the witness will then catch a wrong id.
+- **`StateError` → host.** Only the caller of `Host::respond` names a
+  `view_id`, and that caller is the host's own renderer or the checker. A
+  backend cannot cause one.
+- **`ConfigError`, `EnvelopeFault` and `SpanFault` get neither method.** They
+  are not SPEC-001 refusals of a backend. In the checker they end the run
+  before judging (§5.4, status 2), and their `Display` is the line.
+  `EnvelopeFault` ids belong to SPEC-003, which is out of this slice
+  (`notes.md` §Open candidate).
+
+**The witness** (principle 2) is one test over both protocol corpora, in
+`goad-semantics`' `tests/protocol/normalize.rs`, beside
+`every_reachable_error_in_the_taxonomy_is_named_by_a_fixture`: *every error
+fixture's produced error names a requirement in that fixture's own list*. A
+companion does the same over the schedule corpus and the `Discarded`
+fixtures: *every discard fixture's reason names a requirement in its list*.
+
+Today the witness fails on the two R-17 `Json` fixtures. That failure is the
+red step, and the list correction is the green one.
+
+#### 5.2.4 Stratum-1 lifts, and how `goad` delegates
+
+(`design-log.md` 2026-09-26, OQ-4.)
+
+- **`Stimulus` moves** from `crates/goad/src/wire.rs` to
+  `goad_semantics::protocol::canonical`, beside `Event`, with its `kind` and
+  `event` methods unchanged. `goad` imports it from there, because clippy
+  denies `pub_use`, so there is no re-export.
+  - Its unit tests move with it (`a_scheduled_stimulus_names_itself_scheduled`,
+    `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`).
+  - One `Stimulus::kind` remains "the one place the host names a kind", and
+    SPEC-001 §7's R-56 row is re-pointed (canon-delta).
+  - Moving the type rather than wrapping it keeps a single type. "Delegate" in
+    `slice-012.md` is met by `goad` having no kind strings of its own.
+- **`Submitted` and `Finite` move** to stratum 1:
+  - `Submitted` is one variant per `FieldKind`: `Boolean(bool)`,
+    `Text(String)`, `Number(Finite)`, `Choice(AlternativeId)`, and
+    `DateTime { instant: Timestamp, offset: Offset }`.
+  - `Submitted::to_json(&self) -> serde_json::Value` is the single R-57 site.
+    It is today's `draft::submitted` body.
+  - `Finite` moves unchanged, together with its doc on why it has no `Eq`.
+  - In `goad`, `Edited` keeps its widget state (`Adjusted.text`) and gains
+    `Edited::submitted(&self) -> Submitted`, a projection that decides no
+    type. `draft::submitted` becomes `edited.submitted().to_json()`.
+  - `draft.rs::tests::a_boolean_field_submits_a_json_boolean` and its siblings
+    move to stratum 1 against `Submitted`. `goad` keeps one test that the
+    projection is the identity on each variant.
+- **`Submitted::as_drawn(&FieldKind) -> Submitted`** *(pending OQ-2)*. This is
+  what a field nobody touched submits: `false`, `""`, the minimum or `0`, the
+  first alternative, and the epoch at `+00:00`. It is today's
+  `view_model::as_drawn`.
+  - `goad` delegates to it.
+  - For the `choice` arm to be total, stratum 1 gives `Alternatives` a total
+    `first(&self) -> &AlternativeId`. It owns the non-empty invariant that
+    `Alternatives::new` enforces, so it can store the first element apart
+    from the rest. `DrawnKind::Choice.first` then has no job left, and its
+    removal is a refactor-step candidate.
+- **Opportunity, not required:** the reserved source `"host"` is spelled in
+  `Stimulus::event` and again in `envelope.rs`'s `ReservedSource` check. A
+  `pub const HOST_SOURCE` beside `Stimulus` would make it one encoding. It is
+  flagged for the plan, because it costs one line and touches a file this
+  slice already edits.
+
+#### 5.2.5 The report and exit status
+
+The report goes to **stdout**, because it is the answer to the invocation. Its
+format is free. What canon fixes (canon-delta, SPEC-001) is that **every
+refusal line names the side at fault and the requirement**, for example:
+
+```
+evaluate startup ............ view: "Still on: writing?" (3 options)
+  respond continue .......... view: null · next check 2026-09-27T10:40:00+10:00
+evaluate goad-check-unrecognised
+  REFUSED  backend  SPEC-001/R-40  backend exited with status 1 (body discarded)
+           backend  SPEC-001/R-56  a backend MUST tolerate a kind it does not recognise
+  stderr:  KeyError: 'goad-check-unrecognised'
+verdict: 1 exchange refused
+```
+
+**Exit status** (canon-delta, SPEC-004). These follow the phase cut in SPEC-004
+§5 (how far the process got), not the cause:
+
+| status | class | when |
+|---|---|---|
+| 0 | **accepted** | every planned exchange ran and the host reported nothing on any channel. Also `--help` and `--version`. |
+| 1 | **refused** | every planned exchange ran and the host reported at least one refusal, discard or cleanup failure. This includes `Spawn` and the R-56 probe. |
+| 2 | **not judged** | the checker never reached its first exchange: a usage error, a configuration it cannot find or parse, an event file it cannot read or that `envelope::normalize` refuses, an unreadable clock, or no runtime. |
+
+- A cleanup-only report counts as 1 *(pending OQ-5)*.
+- Status 2 always has a `goad-check: …` line on stderr (SPEC-004 P-B).
+  Status 1 ends with a one-line summary on stderr.
+
+#### 5.2.6 The kit tree
+
+(`design-log.md` 2026-09-27, OQ-6.)
+
+```
+.claude-plugin/marketplace.json        name "goad"; plugins [{name "goad", source "./kit"}]
+.agents/plugins/marketplace.json       Codex marketplace; source {source "local", path "./kit"}
+kit/
+  .claude-plugin/plugin.json           name, description, version, author, license
+  .codex-plugin/plugin.json            the same, plus "skills": "./skills/" and an interface block
+  skills/goad-backend/
+    SKILL.md
+    reference/
+      protocol.md       requests, responses, views, fields, content, R-57 values, interaction identity
+      scheduling.md     next_check forms and how the host resolves them (SPEC-001 R-21..R-29, SPEC-002)
+      events.md         forwarded events: the envelope, goad-emit, the socket, the reserved source (SPEC-003)
+      running.md        the process transport, the goad config file, stdout/stderr, timeout, exit
+      checking.md       goad-check: forms, what it sends, reading its report, sides, statuses
+    examples/
+      focus-check/        backend.py, config.toml, README.md
+      downloads-triage/   backend.sh, watch.sh, config.toml, events/file-arrived.json, README.md
+      breadcrumbs/        backend.ts, chpwd.zsh, config.toml, events/changed-directory.json, README.md
+```
+
+The plugin is the `kit/` subdirectory, so a consumer's plugin cache never
+receives the repository (research R-d). The versions in both manifests are
+`workspace.package.version`. A phase exit check (not a gate step) confirms
+they match, and runs `claude plugin validate kit/`.
+
+**SKILL.md's job.** SKILL.md is the entry point. It is short, and it
+routes rather than teaches:
+
+- when to use the skill (writing or fixing a goad backend);
+- the loop: write → `goad-check` → fix → write the config → a person runs
+  goad;
+- how to get the binaries: flake packages, or `cargo install --git … goad-check
+  goad-emit`;
+- a pointer to each reference file by the question it answers;
+- the examples, each described in one line by what it demonstrates.
+
+SKILL.md contains no wire examples of its own: those live in the reference,
+where the gate checks them.
+
+**The reference's structure.** It is a backend-facing view, not a second
+spec:
+
+- It is organised by what an author does (answer a request, ask a question,
+  schedule, forward events, run, check), not by spec section.
+- Each rule it states cites the SPEC-001/002/003 id it restates, in the form a
+  `goad-check` report prints (`SPEC-001/R-13`). A report line then leads
+  straight to its explanation.
+- It states only what an author must do or may rely on. Host-internal rules
+  are left out: bounds, cleanup, renderer subsets. Where they matter, one line
+  says what the author observes.
+- **Coverage test**: *every requirement id any taxonomy variant can answer
+  appears in the reference*. A test in `goad-check` builds one instance per
+  variant, the `every_protocol_error` pattern from `error.rs` extended to
+  stratum 2, and greps the reference for each id.
+
+**The tagged-fence convention** (`design-log.md` 2026-09-27, OQ-9). Every
+` ```json ` and ` ```toml ` block in `kit/**/*.md` carries a `goad:` role in
+its info string. The extractor **fails the test on an untagged or unknown-role
+json/toml block**, so the checked set cannot silently shrink.
+
+| info string | checked by | passes when |
+|---|---|---|
+| `json goad:response` | `read_response` | accepted with an empty `discarded` |
+| `json goad:response refused R-N` | `read_response` | `Err(e)` with `e.requirement()` = R-N |
+| `json goad:response discarded R-N` | `read_response` | accepted, with exactly one discard whose `reason.requirement()` = R-N |
+| `json goad:request` (evaluate) | build `Request::Evaluate` from the block's `now` and `event`, serialize, compare as `serde_json::Value` | equal |
+| `json goad:request` (respond) | the same. Option and field ids come from the **nearest preceding view-carrying `goad:response` block in the same file**, normalized; each value must equal `Submitted::to_json` of a value of its field's kind, over exactly that option's fields | equal, and R-57/R-58 hold |
+| `json goad:envelope` | `envelope::normalize` | accepted |
+| `toml goad:config` | `Config::parse` | accepted |
+
+- Fences in other languages (`python`, `sh`, `ts`, `text`) are not checked. A
+  JSON fragment, such as a lone `"body"` line, cannot be shown as `json`, by
+  design. The reference shows fragments inside a whole document, or as
+  `text`.
+- The extractor is a small CommonMark fence scanner in `goad-check`'s
+  `tests/`: backtick or tilde fences, info string split on whitespace. It
+  needs no Markdown dependency.
+
+**The examples** (`design-log.md` 2026-09-26, "which behaviours" and
+"example languages"). Each example:
+
+- is silent (`view: null`) unless it has a reason to speak;
+- treats any unrecognised host kind as `scheduled` (R-56);
+- keeps its state under `$XDG_STATE_HOME/<example>/`, defaulting to
+  `~/.local/state`;
+- writes diagnostics to stderr only;
+- uses only the language's standard library, plus `jq` for the shell
+  example.
+
+Environment configuration uses standard names and no invented knobs
+(`design-log.md` 2026-09-26, OQ-4). The gate sets `HOME` and `XDG_*` to a
+temporary directory.
+
+| example | trigger | behaviour | state and targets |
+|---|---|---|---|
+| focus check (Python) | `requested`; `scheduled` once the current block has ended | a choice titled with the current focus. *continue for 10 min* has a `text` field for a progress note; *switch focus to ___* has a `text` field; *take a quick break*. With no focus set, it asks for one. `next_check` is the block's end as an absolute instant with an offset. | `state.json`, `log.jsonl` |
+| Downloads triage (shell + `jq`) | a forwarded `file-arrived` event. `watch.sh` runs `inotifywait -m` on `$XDG_DOWNLOAD_DIR` (default `~/Downloads`) and calls `goad-emit`. | "Where does *name* go?" *Move* has a `choice` field whose alternatives are the XDG user directories; *Leave it*. Arrivals are queued in state. Each respond handles the head of the queue and returns the next view while the queue is not empty, which shows view chaining and R-33. | `queue.json`; moves into `$XDG_DOCUMENTS_DIR` etc. (default `~/<Name>`) |
+| breadcrumbs (TypeScript, deno) | a forwarded `changed-directory` event from `chpwd.zsh` (`{from, to}`) | asks "Where were you in *from*?" with a `text` note. On respond it stores the note, and if *to* has a note, returns a view showing it (*Thanks* / *Clear*). | `notes.json` keyed by directory |
+
+- Each example has a `config.toml` and a README. The README says how to see
+  the example in under a minute, from **Check now** or with `goad-emit` and
+  the example's event file.
+- The breadcrumbs example has no imports, so `deno check` and `deno run` need
+  no network.
+
+#### 5.2.7 The exerciser rename
+
+(`design-log.md` 2026-09-26, "moved, or split by job".) `examples/` becomes
+**`exercisers/`**. The TypeScript file stays an exerciser rather than being
+retired, because `harness.rs` and `round_trip.rs` drive it. Both headers stop
+presenting the files as the thing to copy, and point at the kit.
+
+| site | change |
+|---|---|
+| `examples/` → `exercisers/` (`shell/backend.sh`, `typescript/{backend.ts,README.md}`, `demo.toml`) | `git mv`. Headers rewritten: "a host exerciser; to write a backend, see `kit/`". `backend.ts`'s "Copy this file" goes. |
+| `exercisers/demo.toml` | `command = ["bash", "exercisers/shell/backend.sh"]` |
+| `justfile` `typecheck` | one command: `deno check exercisers/typescript/backend.ts kit/skills/goad-backend/examples/breadcrumbs/backend.ts` |
+| `justfile` `demo` | `run "exercisers/demo.toml"` |
+| **POL-001 §Compliance** | the same `deno check` line (canon-delta) |
+| `crates/goad-shell/tests/integration/harness.rs` | the deno argv path |
+| `crates/goad-shell/tests/integration/round_trip.rs` | the `include_str!` path. The doc comment calling `backend.sh` "the file a person copies to write their own" is rewritten. |
+| `README.md` | `just demo` paragraph; one line pointing backend authors to `kit/` and the plugin install |
+| `.gitignore`, `flake.nix` | comments |
+| `docs/roadmap.md` | the `just demo` line |
+| `docs/memory/` (`a-backend-exchange-has-no-useful-duration`, `deno-run-does-not-typecheck`, `path-flake-ref-breaks-on-demo-socket`) | path mentions |
+| `docs/brief.md` | **unchanged**: it is the brief as given, and its tree is a sketch |
+| closed slices' docs | unchanged: records |
+
+Stale counts found while tracing, to be fixed where they are touched:
+
+- `crates/goad-boundary/tests/checks/allowlist.rs`'s module doc says "Three of
+  the workspace's five members" and names the stratum-3 members. `goad-check`
+  joins them.
+- ADR-003's "five since slice 005" (canon-delta).
+
+#### 5.2.8 Flake
+
+(`design-log.md` 2026-09-26, OQ-3 isolation; 2026-09-27, OQ-6, OQ-7.)
+
+- **`packages.goad-check`**: `craneLib.buildPackage` with `cargoExtraArgs =
+  "--locked -p goad-check --bin goad-check"`, sharing `cargoArtifacts`, with
+  no wrapper and no `guiLibs`, as `goad-emit` has.
+- **`packages.goad-kit`**: `lib.cleanSourceWith` over `./kit` only, copied to
+  `$out`, so the store path is the plugin root.
+- **The devshell** adds `python3`, `jq` and `inotify-tools` to `projectPkgs`
+  (endorsed 2026-09-26). `ruby` goes into the consumer jails only.
+- **`jailed-consumer-claude`, `jailed-consumer-codex`**: built with `mkJail`'s
+  makers and a **consumer option set**, not `jailEnvOptions`:
+  - `extraPkgs`: `goad-check`, `goad-emit`, `goad` (pending OQ-8), `ruby`,
+    `jq`, and the agent. Not `projectPkgs`: no Rust toolchain, no deno, no
+    Slint mount, no `goadHeadless`.
+  - `extraOptions`: `apiKeysViaFd`, `CLAUDE_CODE_SHELL`, `set-env "GOAD_KIT"
+    "${goad-kit}"`, which puts the kit in the closure, and a **walk-home
+    bind** *(pending OQ-7)*. The jail library fixes `persist-home "agent"` per
+    profile, and that home has held goad development sessions. The consumer
+    jail binds a launcher-created empty directory over `$HOME` after the
+    profile's options, so the later bind shadows the shared home.
+  - No `ro-bind` of the Slint sources.
+  - `commonPkgs` brings `python3` and `git`. That is acceptable: neither is
+    goad.
+- **Launch outside the checkout.** A launcher script, `nix/walk.sh`, exposed as
+  `just walk AGENT`, outside the gate:
+  - creates `$XDG_STATE_HOME/goad-walks/<agent>-<UTC stamp>/{home,work}`;
+  - `cd`s into `work`, so the base option binds `work` at
+    `/workspace/work`;
+  - runs the negative control, then the walk (§5.4).
+- **Negative control**, run inside the same jail invocation shape before each
+  walk. Each check must *fail* to read:
+  - `/home/david/dev/goad/CLAUDE.md`, the checkout;
+  - the shared `agent` home's path;
+  - `/home/david/.claude/projects/-home-david-dev-goad/memory/`;
+  - any `/nix/store/*-goad-source`.
+
+  Each must *succeed*: `goad-check --version`, `ls "$GOAD_KIT/skills"`, and
+  `ruby -e 'require "json"'`. A control that cannot fail proves nothing, so
+  the script first runs the same reads outside the jail and asserts they
+  succeed.
+
+#### 5.2.9 The walk
+
+(`design-log.md` 2026-09-26, OQ-3 method; 2026-09-27, OQ-7.)
+
+**The prompt**, fixed and shared by both agents. It uses no protocol words and
+does not lead toward gems:
+
+> On this machine there is a desktop tool called goad. It can pop up a small
+> form, pass the answers to a program you write, and ask that program when to
+> check in next. A skill for writing such programs is installed. Write me an
+> end-of-day wrap-up in Ruby, using only Ruby's standard library — no gems and
+> no bundler. It should stay quiet until 17:30 local time (make the time easy
+> to change). Then it asks me how my energy was, from 1 to 5; whether I left
+> anything open; and when I'll pick things up again. Save each answer to a
+> local log file, and check in again the next day at the same time. Write the
+> configuration goad needs to run it, and make sure it works before you
+> finish. When you are done, write `ISSUES.md`: every point where you got
+> stuck or had to guess — what you were trying to do, what you expected, what
+> you hit, and what you did about it.
+
+**Headless invocation** (research R-e):
+
+- Claude:
+  `jailed-consumer-claude -p "$PROMPT" --plugin-dir "$GOAD_KIT"
+  --output-format stream-json --verbose --dangerously-skip-permissions >
+  transcript.jsonl`. The final line is the `result` object.
+- Codex: setup runs in the fresh home first and is not measured:
+  `codex plugin marketplace add "$GOAD_KIT"; codex plugin add goad@goad`.
+  Then `codex exec --json --skip-git-repo-check
+  --dangerously-bypass-approvals-and-sandbox "$PROMPT" > transcript.jsonl`.
+  The script measures wall time around the call. Whether Codex installs from a
+  store path is unverified (R1).
+
+**What is recorded**, in `docs/slices/012/walks.md`, one row per walk:
+
+- agent, walk (first or re-walk), and model;
+- turns: Claude's `num_turns`, or Codex's count of `agent_message` and
+  `command_execution` items;
+- wall time: Claude's `duration_ms`, or the script's measurement;
+- tokens: input (uncached), cache read, cache write, output, and
+  thinking/reasoning. Codex's `input_tokens − cached_input_tokens` gives its
+  uncached input, because Codex's cached count is a subset while Claude's
+  cache fields are disjoint;
+- cost (Claude only);
+- web fetches: `server_tool_use` counts, plus any `curl`/`wget`/`nix
+  run`/package fetch found in the transcript;
+- the `goad-check` verdict on the agent's backend, run by the orchestrator
+  after the walk;
+- whether a person ran goad against it, and what they saw.
+
+Raw transcripts stay in the walk directory, outside the repository. Each
+agent's `ISSUES.md` is copied to `docs/slices/012/walks/<agent>-<n>-ISSUES.md`.
+
+**The transcript read.** A fresh agent reads each transcript and tags each
+friction item as *retried*, *guessed*, *read outside the kit*, *network fetch*
+or *checker confusion*, citing the event index. Each item from either source
+becomes a row in `walks.md` with a disposition:
+
+- **kit fix** (an easy win: skill, reference, example or checker wording; no
+  canon, no wire), or
+- **follow-up**, with the reason.
+
+**Re-walk rule.** After the kit fixes land, each agent gets **one** fresh
+re-walk, with a new home and the same prompt. It must pass AC-1, and does not
+regress in turns or total tokens by the person's judgement (figures are
+indicative, AC-8). Friction from a re-walk is dispositioned the same way. A
+second re-walk happens only by user decision.
 
 ### 5.3 Data, state & ownership
 
-<!-- What is stored, where it lives, who may write it, what is derived and
-     therefore disposable. -->
+- **`goad-check` holds no state across runs.** Within a run, `Host` holds the
+  outstanding interaction and the resolved next check. The checker holds only
+  its request plan and the report under construction.
+- **The backend's state is real** (R-49). A run against someone's live
+  configuration mutates their state: the focus log grows, and a Downloads file
+  moves. `checking.md` says so, and advises running with `XDG_STATE_HOME`
+  (and, for the triage example, `XDG_DOWNLOAD_DIR`) pointed at a scratch
+  directory. The checker never alters the environment it passes on.
+- **Gate state**: each gate test gets a fresh temporary `HOME`/`XDG_*`,
+  removed at the end.
+- **Walk artefacts**: the walk directory (outside the repository) is
+  disposable. `walks.md` and the copied `ISSUES.md` files are the record.
 
 ### 5.4 Lifecycle & dynamics
 
-<!-- Behaviour over time: startup, failure, retry, concurrency. Use a Mermaid
-     sequence or state diagram when behaviour crosses a boundary or branches
-     materially. -->
+**The checker's phases** map onto its statuses. *Not judged* is everything
+before the first `evaluate`: argument parsing, config load, event-file
+normalization, clock, runtime. After the first `evaluate`, every planned
+exchange runs to completion, whatever an earlier exchange did. A backend that
+fails at startup is still asked the rest, as the host would ask it again
+(P-C). The run always reaches a verdict.
+
+**Timing.** Each exchange waits at most the timeout plus the cleanup limit
+(R-41). The worst case is (plan length + chain responds) × that sum. There is
+no checker-level deadline: SPEC-004 P-D, and `goad-emit`'s precedent of
+"wrap it if you need one".
+
+**Concurrency.** None. A current-thread tokio runtime; one exchange at a
+time.
 
 ### 5.5 Invariants, assumptions & edge cases
 
-<!-- What must always hold; what is assumed without proof; what happens at the
-     edges. Each assumption is a place the design can break. -->
+**Invariants.**
+- I-1: `goad-check` contains no requirement id or side literal except the R-56
+  probe's, which is the checker's own claim about its own probe.
+- I-2: `goad-check` contains no kind→JSON-type mapping. Values come from
+  `Submitted`.
+- I-3: every json/toml fence under `kit/` is checked, or the gate fails.
+- I-4: every shipped example passes `goad-check` in the gate with its own
+  config and event files.
+- I-5: nothing under `kit/` references a path in this repository outside
+  `kit/`.
+
+**Assumptions.**
+- A-1: `normalize_alternative` remains the only raiser of
+  `InapplicableKey { key: "fields" }`. If it is not, the witness fails.
+- A-2: Claude Code loads a plugin from a read-only store path via
+  `--plugin-dir`. Measured only against a writable path so far.
+- A-3: a later `--bind` over `$HOME` shadows `persist-home` in bwrap. Checked
+  by the negative control.
+- A-4: `inotifywait` is not needed by the gate. The event file stands in for
+  the watcher, and `watch.sh` is exercised by a person at audit.
+
+**Edges.**
+- A backend that answers every respond with a new view hits the chain bound
+  (§5.2.2).
+- A view whose chosen option has no fields gets `values: {}`.
+- An `--event` file with `source: "host"` gets status 2 through
+  `EnvelopeFault::ReservedSource`.
+- A `number` field declaring `max: -10` and no `min` is answered with `0`,
+  outside its range. This is the as-drawn value the host itself submits. The
+  report shows the values sent, so a backend that refuses it is not silently
+  blamed (R-35 puts validation in the backend).
 
 ## 6. Open questions
 
-<!-- Carried from `slice-nnn.md` OQ-N plus any raised here. Nothing may remain
-     open at design acceptance without an explicit user decision to defer. -->
+Carried from `slice-012.md`: OQ-1..OQ-9 there are all settled. The ones below
+were raised in drafting. **All nine are settled as recommended**
+(`design-log.md`, 2026-09-29). Each changes a row or a clause above, and none
+changes the slice's shape.
+
+- **OQ-1 — `requirement()` for `BackendError::Io` and `PipeMissing`.** Nobody
+  broke a rule in either case.
+  - (a) Each cites the host obligation left undischarged: `PipeMissing` →
+    R-37 (the request could not be written), side host; `Io` → R-45 (a
+    backend failure never takes the host down), side environment.
+  - (b) Cite R-37 or R-38 for `Io` by guess. The variant merges write, wait
+    and read failures, so any single transport id is wrong for some of them.
+  - (c) Split `Io` into write/wait/read variants. That is a taxonomy change
+    outside the decided scope.
+  - (d) `requirement()` returns `Option` and answers `None` for these two.
+    Honest, but AC-7 asks every refusal to name one.
+
+  **Recommend (a).** The canon clause (canon-delta, SPEC-001 R-59) states the
+  "left undischarged" reading for host and environment sides, so it is not a
+  convention held only in code.
+- **OQ-2 — Where the checker's answer values come from.** OQ-4 settled "a pure
+  R-57 value-per-kind in stratum 1". It did not say whether *which* value is
+  also lifted.
+  - (a) Lift `view_model::as_drawn` as `Submitted::as_drawn(&FieldKind)`.
+    `goad` delegates, and the checker submits exactly what an untouched host
+    form submits. One encoding. The cost is that renderer policy moves into
+    stratum 1: the epoch sentinel, and min-or-zero. It also needs a total
+    `Alternatives::first`.
+  - (b) Lift only `Submitted` and `to_json`. The checker chooses its own
+    values with a `match` on `FieldKind` building `Submitted` variants. The
+    compiler holds the value types, but the kind→variant pairing is written
+    twice (checker and `goad`).
+
+  **Recommend (a)**: the checker's blame is then about what the real host
+  sends.
+- **OQ-3 — Which option the checker answers.**
+  - (a) The first option only. The report names the options not exercised.
+  - (b) Every option: re-issue the request that produced the view before each
+    respond. That repeats side effects (a Downloads file cannot be moved
+    twice) and turns a check into a script.
+  - (c) (a) plus `--option ID` to choose.
+
+  **Recommend (a)** now. (c) only if the walk asks for it.
+- **OQ-4 — "Scripts" in the skill.** `slice-012.md` §Scope says the skill
+  carries "scripts". No script with a job of its own has been identified: the
+  watchers (`watch.sh`, `chpwd.zsh`) belong to their examples, and the checker
+  is a binary. **Recommend no `scripts/` directory**, added later only if walk
+  friction names one.
+- **OQ-5 — A cleanup failure alone: status 0 or 1?** It is environment-side,
+  but the host would report it. It usually means the backend left a child
+  holding stderr, which the author can fix. **Recommend 1.** The class is "the
+  host reported something", and the cause is in the report (SPEC-004 P-A).
+- **OQ-6 — `EmptyAlternatives` has no requirement that states it.** R-16 says
+  a `choice` field MUST carry its own `options`, but no requirement says they
+  are non-empty. SPEC-001 §7 files the case under R-52's row. **Recommend
+  citing R-52 now**, as the corpus and §7 do, and a follow-up to add a
+  non-empty clause to R-16. That is a wording fix to canon, not a wire
+  change: the behaviour already refuses.
+- **OQ-7 — A fresh home per walk, given the jail library's fixed
+  `persist-home`.**
+  - (a) Bind a launcher-created directory over `$HOME` in the consumer jail's
+    `extraOptions`: local to this flake, and checked by the negative control.
+  - (b) Add a home-name parameter to `makeJailedAgent` upstream in
+    `davidlee/nix-config`: cleaner, but outward-facing and outside this
+    repository.
+  - (c) Use the `offline` profile's separate home: shared across walks, and it
+    has no network.
+
+  **Recommend (a)**, with (b) as a follow-up.
+- **OQ-8 — Is the `goad` binary in the consumer jail?** AC-1 says "the flake's
+  exported goad packages". `goad` is wrapped with its GUI libraries, so
+  `--help`/`--version` run headless, but no window can open in the jail.
+  **Recommend including it**: an agent will look for it, and its absence would
+  itself be friction. The person runs the host outside the jail.
+- **OQ-9 — ADR-003 in the canon delta.** ADR-003's Decision enumerates the
+  workspace members. `goad-check` joining is an accumulating reference, which
+  `docs/AGENTS.md` says keeps an ADR accurate without superseding it.
+  **Recommend adding it** to `canon-delta.md` (done, marked for
+  confirmation).
 
 ## 7. Decisions, rationale & alternatives
 
-<!-- D1, D2… One row per decision that a later reader might otherwise reverse
-     by accident: what was chosen, what was rejected, and why. -->
+| id | decision | rejected | why | source |
+|---|---|---|---|---|
+| D1 | `crates/goad-check`, stratum 3, driving `Host<ProcessBackend>` | a `goad check` subcommand | links Slint; SPEC-004's `goad` classes describe an event loop | 2026-09-26 OQ-5 |
+| D2 | requirement id and side as total methods beside each taxonomy | a mapping in the checker | a second encoding of SPEC-001 | 2026-09-26 OQ-8 |
+| D3 | sides: backend, host, configuration, environment | "neither: observation" | the user's wording | 2026-09-26 OQ-8 |
+| D4 | `AtFault` as the side's type name | `Fault`, `Side` | `…Fault` names a reason elsewhere in the workspace; `fault() -> AtFault` reads as "who" | this draft |
+| D5 | `Json` → R-44; the R-17 text fixtures gain R-44 | `Json` → R-17 | R-17 is wrong for every other malformed document | this draft, from research R-a |
+| D6 | `InapplicableKey` splits R-50/R-53 on `key` | a new variant | R-53 requires the same error | this draft |
+| D7 | the request plan: three host kinds, one unrecognised kind, author events; respond per view | evaluate only | makes R-56's tolerance testable and exercises respond | 2026-09-26 OQ-4 |
+| D8 | `Stimulus` moved, `Submitted`/`Finite` lifted to stratum 1 | depend on `goad`; restate in the checker | renderer in a headless binary; second encoding | 2026-09-26 OQ-4 |
+| D9 | forwarded events as SPEC-003 envelope files through `envelope::normalize` | `--source/--kind/--data` flags | the file is what a watcher sends and what the example ships; one door | 2026-09-26 OQ-4 ("flag or file"), this draft |
+| D10 | report format free; ids and sides canon | a parseable format | agents adapt; no second wire format | 2026-09-26 OQ-2 |
+| D11 | statuses 0 accepted / 1 refused / 2 not judged | a status per side | SPEC-004 P-A: a class, never a cause | this draft |
+| D12 | `kit/` as plugin source; marketplace manifests at the root | root as plugin source | would copy the repository into the plugin cache | 2026-09-27 OQ-6 |
+| D13 | every kit check in `goad-check`'s tests; no new gate command | a new POL-001 command | `cargo test --workspace` already runs them | 2026-09-27 OQ-9 |
+| D14 | tagged fences; untagged json/toml fails | checking only tagged blocks | otherwise the checked set can shrink silently | 2026-09-27 OQ-9 |
+| D15 | one `deno check` command with two paths | a second `deno check` line | POL-001's block keeps its shape | this draft |
+| D16 | `examples/` → `exercisers/`; the TS exerciser kept | retire it | the integration tier drives it | 2026-09-26 split; this draft |
+| D17 | examples use `XDG_*` and `HOME` for state and targets | per-example variables | standard names; the gate points them at a temp directory | 2026-09-26 OQ-4 |
+| D18 | walk in Ruby, stdlib only; end-of-day wrap-up; no protocol words | Go; `claude plugin eval` | per-spawn compile; no Codex equivalent, and a no-kit baseline must fetch the repo | 2026-09-27 OQ-7 |
+| D19 | network left on; any fetch beyond the model API is friction | network off | cuts the model API too | 2026-09-26 OQ-3 method |
+| D20 | both binaries governed by SPEC-004 | the checker only | leaves the second binary ungoverned and the third governed | 2026-09-26 OQ-5 |
 
 ## 8. Risks & mitigations
 
-<!-- R1, R2… Risk, likelihood/impact, mitigation, and the signal that tells you
-     it is happening. -->
+| id | risk | likelihood / impact | mitigation | signal |
+|---|---|---|---|---|
+| R1 | Codex cannot install a plugin from a read-only store path, or does not read skills from it | medium / blocks the Codex walk | prototype the jail and both plugin loads **first**, before any kit prose (memory: prototype before the next review round) | `codex plugin add` errors; the skill is not listed in the transcript |
+| R2 | the `$HOME` bind does not shadow `persist-home`, and the walk sees prior goad sessions | low / invalidates AC-1 | the negative control reads the shared home's path | the control's shared-home check succeeds |
+| R3 | gate tests spawning python/deno/bash become timing-flaky under load | medium / red gate | example tests use a generous `--timeout` in their own config; nothing asserts durations (memory: margin direction) | intermittent `Timeout` in example tests |
+| R4 | the reference drifts from canon in prose that no fence reaches | medium / wrong guidance | ids cited per rule; the coverage test over ids; audit reads the reference against SPEC-001 §4 | walk friction pointing at the reference |
+| R5 | the lifts change `goad`'s behaviour (a submitted value's spelling) | low / renderer regression | the moved tests move verbatim; `fields.rs`' untouched/operated renderer tests stay in `goad` and must stay green | a renderer-tier failure |
+| R6 | the checker blames a backend for the checker's own values | low / false blame | I-2; values printed in the report; OQ-2 (a) | a backend rejects an as-drawn value |
+| R7 | a walk agent reads the network for the protocol | medium / AC-9 friction | the kit is self-sufficient; the transcript read flags it | a fetch in the transcript |
+| R8 | stale counts in docs this slice touches | high / canon rot | the rename table lists each; canon-delta rewrites counts as names | grep for "five members", "six commands" |
 
 ## 9. Validation
 
-<!-- How the design will be shown correct: the tests, checks, and observations
-     the plan must produce. Feeds the plan's verification criteria. -->
+Red/green per behaviour. Tests are named by behaviour.
+
+**Stratum 1 (`goad-semantics`)**
+- `error.rs`: `every_protocol_error_names_a_requirement_and_a_side`, and
+  likewise for bounds and schedule. These are exhaustive-match tables beside
+  the existing `must_name`.
+- `tests/protocol/normalize.rs`:
+  `every_refusal_fixture_names_a_requirement_in_its_own_list` and
+  `every_discard_fixture_names_a_requirement_in_its_own_list`. Red on the two
+  R-17 `Json` fixtures, then green after the list correction.
+- `canonical.rs`: the moved `Stimulus` tests;
+  `every_submitted_kind_writes_the_json_type_r57_names`; the moved `draft.rs`
+  value tests; `an_as_drawn_choice_submits_the_first_alternative` and siblings
+  *(OQ-2 a)*; `alternatives_first_is_the_first_declared`.
+
+**Stratum 2 (`goad-shell`)**
+- `error.rs`: `every_backend_error_names_a_requirement_and_a_side`, and
+  likewise for cleanup and state.
+
+**Stratum 3 (`goad`)**
+- `the_projection_to_submitted_is_the_identity_on_each_kind`. The existing
+  renderer-tier R-57/R-58 tests stay green unchanged.
+
+**`goad-check`**
+- Unit, in `args.rs`: the invocation table (config form, argv form, `--event`
+  order, `--timeout` with `--config` refused, help, version).
+- Binary tier (`tests/binary/`, `CARGO_BIN_EXE_goad-check`):
+  - `a_conforming_backend_is_accepted_and_exits_0`;
+  - `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`;
+  - `a_refused_view_is_reported_with_its_requirement_and_the_backend_side`;
+  - `a_discarded_next_check_is_reported_and_exits_1`;
+  - `an_unspawnable_command_is_reported_against_the_configuration`;
+  - `an_unreadable_config_exits_2_and_says_who_spoke`;
+  - `a_reserved_source_event_file_exits_2`;
+  - `a_chained_view_is_answered_until_null`;
+  - `a_view_answered_carries_exactly_its_options_fields`.
+
+  The backends here are small `bash` fixtures under `tests/`.
+- Kit tier (`tests/kit/`):
+  - `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, with a
+    negative control: `an_untagged_json_fence_is_refused`, over an inline
+    string;
+  - `every_requirement_a_refusal_can_name_is_explained_in_the_reference`;
+  - `each_shipped_example_is_accepted_by_the_checker`: config form, the
+    example's event files, temp `HOME`/`XDG_*`;
+  - `downloads_triage_moves_the_file_it_was_asked_about`: side effect
+    asserted;
+  - `nothing_in_the_kit_names_a_path_outside_it` (I-5).
+- `the_probe_kind_is_none_of_the_host_s_own`.
+
+**Mutation checks** (memory: mutation-check the coverage claim), run once at
+the execute phase and recorded in `notes.md`:
+- flip one `requirement()` arm → the witness fails;
+- untag one fence → the extractor fails;
+- make an example exit 1 on the probe → its kit test fails.
+
+**Outside the gate**
+- `claude plugin validate kit/` passes.
+- `nix build .#goad-check .#goad-kit .#jailed-consumer-claude
+  .#jailed-consumer-codex` succeeds.
+- The negative control passes: each forbidden read fails inside, and each
+  control read succeeds outside.
+
+**Observed by a person** (AC-1, AC-6):
+- the checker against the three examples and a broken backend;
+- `just demo` on the renamed exerciser;
+- each example seen running in goad;
+- each walk's backend seen running in goad.
 
 ## 10. Canon impact
 
-<!-- Specs, policies, ADRs this design amends, adds, or contradicts. Each entry
-     is a debt reconciliation must settle. -->
+Drafted in `canon-delta.md`, applied at audit with endorsement:
+
+- **SPEC-001**: new R-59 (side and requirement on every refusal; the four
+  sides; the "left undischarged" reading, pending OQ-1). R-59's §7 row.
+  R-56's row (tolerance now tested; the kind site moved). R-57's row (single
+  site moved). §7's review-held paragraph rewritten to name its rows, not
+  count them.
+- **SPEC-004**: `goad-emit` and `goad-check` governed. §2 Boundaries, §3 P-C,
+  §4's head and new requirements, §6 tables, §7 rows, and OQ-2 closed.
+- **POL-001**: §Compliance's `deno check` line.
+- **ADR-003**: the member list gains `crates/goad-check` *(OQ-9, for
+  confirmation)*.
+- **Checked, no change**: ADR-001 (no stratum rule moves; the lifts are
+  downward), ADR-002 (superseded), ADR-004, ADR-005 (the checker uses the
+  stratum-2 envelope door as ADR-005 places it), SPEC-002, SPEC-003.
