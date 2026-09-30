@@ -85,3 +85,903 @@ buried:
    Are the recorded measures obtainable from what a capsule returns?
 10. **Completeness against slice-012.md.** Every AC and surface has a design
     home, and nothing in the design exceeds the slice's scope.
+
+## Findings
+
+**Round 1** — raiser: fresh agent, Opus, at `bf7a161`.
+
+| id | severity | disposition | outcome |
+|----|----------|-------------|---------|
+| F-1 | blocker | | |
+| F-2 | major | | |
+| F-3 | major | | |
+| F-4 | major | | |
+| F-5 | minor | | |
+| F-6 | major | | |
+| F-7 | major | | |
+| F-8 | major | | |
+| F-9 | major | | |
+| F-10 | major | | |
+| F-11 | major | | |
+| F-12 | minor | | |
+| F-13 | minor | | |
+| F-14 | minor | | |
+| F-15 | minor | | |
+| F-16 | minor | | |
+| F-17 | major | | |
+| F-18 | major | | |
+| F-19 | minor | | |
+| F-20 | minor | | |
+| F-21 | minor | | |
+| F-22 | minor | | |
+| F-23 | minor | | |
+| F-24 | minor | | |
+| F-25 | minor | | |
+| F-26 | minor | | |
+| F-27 | minor | | |
+| F-28 | nit | | |
+| F-29 | nit | | |
+| F-30 | minor | | |
+| F-31 | minor | | |
+| F-32 | nit | | |
+
+### F-1 — R-59's meaning of the id is false of most rows of its own table
+
+**Severity:** blocker
+**Location:** `canon-delta.md` SPEC-001 Change 1 (R-59, "For a backend or configuration side, the requirement is the one broken. For a host or environment side … the host obligation the refusal left undischarged"); `design.md` §5.2.3 *Meaning of the id* and the table
+
+**Expected:** Canon states a reading of the requirement id that is true of every
+answer the table gives, since R-59 is what AC-7 promotes and every report line
+will be read through it.
+
+**Observed:** The two readings fit almost none of the rows.
+- *Backend side, "the one broken".* SPEC-001's transport and failure rows are
+  host obligations; a backend cannot break them. R-40 ("A non-zero exit status
+  MUST be reported as a failure"), R-41 ("the configured timeout bounds…"),
+  R-43 ("Every read … MUST be bounded"), R-44 ("Each of these MUST map to its
+  own distinct error") and R-38 all say what the host does. `ExitStatus` → R-40,
+  `Timeout` → R-41, `OutputTooLarge` → R-43, `Json`/`Shape`/`DuplicateKey` →
+  R-44 therefore name a rule the refusal *discharged*, not one the backend
+  broke. The code already says so of the transport: `process.rs`'s write path
+  comments "R-37 obliges the host to write and close, nothing obliges the
+  backend to read".
+- *Configuration side.* `Spawn` → R-36: R-36 is about the command's shape (an
+  argv, no shell, empty refused at load). A non-empty argv naming a missing
+  program breaks no clause of R-36; the design concedes it ("A spawn failure
+  breaks no protocol rule").
+- *Host/environment side, "left undischarged".* `Io` → R-45 ("No backend
+  failure may terminate the host…"): reporting `Io` and carrying on is R-45
+  **kept**. `CleanupFailure` → R-48: R-48 requires the host to initiate
+  termination, wait a bounded interval, and report failure to observe it as a
+  distinct outcome — the refusal is that report, so R-48 is discharged.
+  `StateError` → R-32 ("MUST be rejected, and the backend MUST NOT be
+  contacted"): the refusal *is* R-32 discharged.
+
+Only the view/field rows phrased as backend-facing constraints (R-10, R-13,
+R-14, R-52, R-17, R-21..R-25) fit "broken" naturally. Most rows fit neither
+reading; a third one — "the requirement under which the host refused" — would
+fit all of them, but the delta does not state it.
+
+**Evidence:** SPEC-001 §4 rows R-37, R-38, R-40, R-41, R-43, R-44, R-45, R-48,
+R-32, R-36 as written; `canon-delta.md` R-59 text; `design.md` §5.2.3 table and
+its "`Spawn` → R-36" rationale; `crates/goad-shell/src/backend/process.rs`
+`body`, the comment on its `BrokenPipe` arm (R-37).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-2 — `StateError` → host contradicts R-59's own definition of the host side
+
+**Severity:** major
+**Location:** `design.md` §5.2.3 (`StateError` rows; rationale "`StateError` → host"); `canon-delta.md` R-59's **host** clause
+
+**Expected:** A side of **host** means, per R-59, "the host's own code failed an
+obligation this spec places on it".
+
+**Observed:** A stale answer is reachable in the real host without any host
+defect. `wire.rs::Command`'s doc (F-13) says the markup carries the `ViewId` so
+that "a delayed click" does not answer whichever interaction is outstanding
+when it is dequeued: a person clicking on a view R-33 has just replaced reaches
+`Host::respond` with a superseded id, and `StaleViewId` is the host correctly
+refusing it. Blaming **host** for that says the host's code failed, which is
+false, and a person reading the renderer's diagnostics (should a later slice
+carry R-59 there) is told the host is broken. The rationale ("that caller is the
+host's own renderer or the checker") argues only *not backend*; it does not
+reach *host at fault*.
+
+**Evidence:** `crates/goad/src/wire.rs` `Command::Choose` doc (F-13, "a delayed
+click"); SPEC-001/R-33, R-32; `crates/goad-shell/src/error.rs` `StateError` doc
+("the backend did nothing wrong, and it was not asked"); `canon-delta.md` R-59
+host clause.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-3 — The R-56 probe blames the backend for any failure on it, including ones it never caused
+
+**Severity:** major
+**Location:** `design.md` §5.2.2 *What is judged*, row "any failure on the R-56 probe"; §5.2.5 example; canon-delta SPEC-001 Change 3 (R-56 row)
+
+**Expected:** The checker adds an R-56 blame only where the failure is evidence
+the backend did not tolerate an unrecognised kind (brief line 2: the checker's
+blame must be honest).
+
+**Observed:** The row adds "SPEC-001/R-56 … side backend" on **any** failure of
+the probe exchange. So:
+- an unspawnable command (`Spawn`, side configuration) fails every exchange, and
+  the probe additionally reports that a backend which never ran broke R-56;
+- `Io` (environment), `PipeMissing` (host), `Timeout` under load, likewise;
+- a backend that fails identically on `startup`, `requested` and `scheduled`
+  (say, a shape error in a view it always returns) is charged with R-56 on top,
+  though the kind played no part.
+The claim is only supported when the same backend succeeded on the known kinds
+and the failure is backend-side.
+
+**Evidence:** `design.md` §5.2.2 table; `BackendError` variants and their
+sides in §5.2.3; SPEC-001/R-56 tolerance clause ("never as a protocol error").
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-4 — `Timeout` → backend contradicts R-59's environment clause, and the rationale says why
+
+**Severity:** major
+**Location:** `design.md` §5.2.3 rationale "`Timeout` → backend"; `canon-delta.md` R-59 **environment** clause
+
+**Expected:** Each side assignment follows R-59's definitions.
+
+**Observed:** R-59 defines **environment** to include "the host observed a
+condition it cannot attribute to either program". The design's rationale for
+`Timeout` is precisely that the host "cannot tell that from a slow backend" —
+a too-short configured timeout, or a loaded machine (the design's own R3 names
+load-induced `Timeout` in the gate), is not the backend's fault. By R-59's text
+the answer is environment (or configuration), not backend. The same tension
+touches `ExitStatus { code: None }` (a signal — the OOM killer or a person's
+`kill` is not the backend) and `Spawn` carrying `EAGAIN`/`ENOMEM`/`EMFILE`
+(resource exhaustion, not the configuration). "One kind names one side" forces
+these; the delta should either say so as an accepted imprecision, as SPEC-004
+§5 does for its seam, or define the sides so the answers follow.
+
+**Evidence:** `canon-delta.md` R-59; `design.md` §5.2.3 rationale bullets for
+`Timeout` and `Spawn`; §8 R3; `BackendError::ExitStatus` doc ("`None` means the
+child was signalled").
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-5 — `PipeMissing` → R-37 names the stdin rule for a variant raised for any of three handles
+
+**Severity:** minor
+**Location:** `design.md` §5.2.3 `PipeMissing` row; §6 OQ-1 (a)
+
+**Expected:** The id names the obligation concerned.
+
+**Observed:** `process.rs` raises `PipeMissing` when any of `stdin`, `stdout`
+or `stderr` is `None` after spawn (one `let … else` over the triple). R-37 is
+about stdin only; a missing stdout leaves R-38/R-39 concerned, a missing stderr
+R-39/R-42. OQ-1's own argument against (b) — "the variant merges … so any
+single transport id is wrong for some of them" — applies to `PipeMissing` too.
+
+**Evidence:** `crates/goad-shell/src/backend/process.rs`, the `let (Some(stdin),
+Some(stdout), Some(stderr)) = … else { … PipeMissing … }` in `exchange`;
+SPEC-001/R-37, R-38, R-39.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-6 — R-59's reach is ambiguous, and on its plain reading covers refusals given no method
+
+**Severity:** major
+**Location:** `canon-delta.md` R-59 ("Every refusal the host reports — each distinct error R-44 requires, … — MUST name…"); `design.md` §5.2.3 "`ConfigError`, `EnvelopeFault` and `SpanFault` get neither method"
+
+**Expected:** R-59's subject is closed and every member of it has a
+`requirement()` and `fault()`.
+
+**Observed:**
+- "Every refusal the host reports" followed by a dash list does not say whether
+  the list is the set or examples of it. Read plainly, it includes
+  `ConfigError::EmptyCommand` — SPEC-001/R-36 itself says an empty vector "is
+  refused when the command is loaded" — and `EnvelopeFault` (SPEC-003 refusals
+  the host reports to a writer). Both get neither method by design.
+- The list cites "each cleanup failure R-54 requires"; R-54 requires separate
+  channels, R-48 requires the report, and the table answers R-48.
+- R-59 also says the requirement is "of this spec", which an `EnvelopeFault`
+  (a SPEC-003 refusal) cannot satisfy.
+
+**Evidence:** SPEC-001/R-36 ("refused when the command is loaded"); `canon-delta.md`
+R-59; `design.md` §5.2.3 last rationale bullet; `crates/goad-shell/src/error.rs`
+`ConfigError::EmptyCommand`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-7 — The checker cannot reach time-gated behaviour, so its acceptance can cover no view at all
+
+**Severity:** major
+**Location:** `design.md` §5.2.1 (no `--now`), §5.2.2 ("`now` are the wall clock at each step"), §5.2.9 prompt; `slice-012.md` AC-1
+
+**Expected:** AC-1's "writes a backend the checker accepts" is evidence that the
+backend's interaction works.
+
+**Observed:** The walk prompt asks for a backend that "should stay quiet until
+17:30 local time". The checker sends every request at the wall clock and has
+no way to set `now`. Run at 10:00 (by the agent, or by the orchestrator "after
+the walk"), a correct wrap-up answers `view: null` to every request; the view,
+its three fields (`number`, `boolean`, `datetime`) and the respond path are
+never exercised, and the verdict is status 0 — "accepted". The same holds for
+any time-gated backend a real author writes, and for the focus check's
+`scheduled` arm. Neither the report nor the status distinguishes "no view was
+ever returned" from "every view was answered and accepted". The prompt's "make
+the time easy to change" may lead an agent to work around it, but nothing in
+the design depends on that.
+
+**Evidence:** `design.md` §5.2.1 synopsis; §5.2.2 request plan and the `now`
+sentence; §5.2.9 prompt text; SPEC-004 canon-delta `goad-check` §6 row 0 ("Nothing
+about requests it did not send").
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-8 — `goad-check`'s statuses are not total
+
+**Severity:** major
+**Location:** `design.md` §5.2.5 status table, §5.4; `canon-delta.md` SPEC-004 R-11..R-13
+
+**Expected:** Brief line 6: 0/1/2 total and disjoint over every way a run ends
+(SPEC-004 R-15 as drafted forbids any other).
+
+**Observed:** Ends no row assigns:
+- **Clock unreadable mid-run.** `clock::wall_clock` returns
+  `Result<_, ClockError>` and the plan reads it "at each step"; status 2 is
+  only for failures before the first exchange, and 0/1 require "every planned
+  exchange ran".
+- **Chain bound hit and nothing else reported.** It is "a checker observation,
+  not a protocol refusal", so R-11 reads 0 ("the host reported nothing") while
+  the exchange did not run to completion; the design does not say.
+- **The report cannot be written.** §5.2.5 calls stdout "the answer to the
+  invocation"; `report::line_to`'s doc says a line that *is* the answer must
+  use `try_line_to`, and SPEC-004 §5 files an unwritten answer as a failure for
+  the host. R-11 still reads 0.
+- **`Failure::State`**, which "cannot arise unless the checker itself is
+  wrong", exits 1, "refused": a checker defect reads to a caller as a backend
+  judgement.
+
+**Evidence:** `crates/goad-shell/src/clock.rs` `wall_clock` signature;
+`crates/goad-shell/src/report.rs` `line_to` doc; SPEC-004 §5 state diagram
+(`Question → NeverStarted: the stream refused the answer`); `design.md` §5.2.2
+chain-bound bullet and `Failure::State` row.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-9 — SPEC-004's new §2 prose contradicts the checker's own status assignments
+
+**Severity:** major
+**Location:** `canon-delta.md` SPEC-004 Change 1 ("`goad-check` reports **a judgement** — the host's own code refused something the backend did — and a checker that never reached a backend has none to give")
+
+**Expected:** §2's characterisation of the class matches R-12/R-13.
+
+**Observed:** Status 1 includes `Spawn` (design §5.2.5: "This includes `Spawn`")
+— the checker never reached a backend, yet exits 1, not 2. It includes a
+cleanup-only report (environment) and `Failure::State` (the checker's own
+defect) — neither is "something the backend did". The §2 sentence would be
+false of R-12 on promotion.
+
+**Evidence:** `canon-delta.md` SPEC-004 Change 1 and Change 3 R-12; `design.md`
+§5.2.5 status 1 row and "A cleanup-only report counts as 1".
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-10 — Drafted R-8 is false of `goad-emit` today, and no code change is scoped
+
+**Severity:** major
+**Location:** `canon-delta.md` SPEC-004 Change 3 R-8 ("…or the invocation was a question … and its answer was written"); `slice-012.md` §Surfaces
+
+**Expected:** Governing `goad-emit` states what it does, or the slice changes it
+(design §2 says SPEC-004 "owns them but does not govern them"; no `goad-emit`
+surface is declared).
+
+**Observed:** `goad-emit`'s `--help` and `--version` write through `to_stdout`
+→ `report::line_to`, which is best-effort and discards the write error, then
+return `ExitCode::SUCCESS`. So `goad-emit` exits 0 when its answer was **not**
+written — R-8's "only if" is false of it. The host holds the opposite
+(`exit_codes::an_answer_that_cannot_be_written_exits_2`, cited in SPEC-004 R-1's
+row). Either R-8 is weakened for `goad-emit`, or `crates/goad-emit` joins the
+surfaces with a test; neither is in the design.
+
+**Evidence:** `crates/goad-emit/src/main.rs` `main` (`Invocation::Help` /
+`Version` arms) and `to_stdout`; `crates/goad-shell/src/report.rs` `line_to`
+("Best effort … wrong for a line that **is** the answer"); SPEC-004 §7 R-1 row.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-11 — `goad-emit`'s status-1 row predicts a retry and misdescribes busy refusals
+
+**Severity:** major
+**Location:** `canon-delta.md` SPEC-004 Change 4, `goad-emit` table, row 1
+
+**Expected:** SPEC-004 §3 P-D ("A status says what happened, never what to do
+about it") and §6 ("Neither number is a prediction").
+
+**Observed:** Row 1 says "The envelope was judged and found wanting … Sending
+the same bytes again will be refused again unless the host's state changed."
+SPEC-003 §6.3's refusal reasons include `engaged` ("retry, or do not"),
+`too_soon` (with `retry_after_ms`, "a reader MAY act on it") and `unavailable`
+("wait"). For those, the envelope was not found wanting, and the same bytes
+sent later are expected to succeed. The inference is false for three of the
+reasons that exit 1, and it is a prediction about retrying either way.
+
+**Evidence:** SPEC-003 §6.3 reason table; SPEC-003/R-14; SPEC-004 §3 P-D and §6
+"What may not be inferred"; `crates/goad-emit/src/main.rs` `exchange` (every
+`Answered::Refused` → 1).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-12 — SPEC-004 gains a stdout requirement while its scope excludes stdout, and §2's exception list is not extended
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-004 Change 3 R-12 ("Its report MUST carry…") and R-14/R-15
+
+**Expected:** A spec's requirements sit inside its §Owns and §2 scope, and
+edits keep the passages that enumerate its clauses true.
+
+**Observed:**
+- SPEC-004 §2 *Out of scope* lists "the content of standard output, which is
+  an answer to an invocation"; §Owns names the status and the stderr line.
+  R-12 now constrains the checker's stdout report. The delta amends neither.
+- SPEC-004 §2 names the clauses carrying an exception under SPEC-003 P-D —
+  "R-7's …, R-4's …, R-6's …". R-14 and R-15 each carry one ("an end this
+  document does not assign"); the paragraph is not updated.
+- §9 References gains no SPEC-001/R-59, which R-12 now depends on.
+
+**Evidence:** SPEC-004 §Owns, §2 *Out of scope*, §2 P-D paragraph, §9;
+`canon-delta.md` SPEC-004 Changes 1–6.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-13 — The delta writes new counts into canon and keeps old ones in passages it touches
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-004 Change 1 ("**Three binaries, three cuts.**"); SPEC-001 Change 4 (R-57 row)
+
+**Expected:** CLAUDE.md's count rule, which the delta's own header adopts:
+"Every count in a passage this delta touches is either replaced or justified
+as exempt."
+
+**Observed:**
+- "Three binaries, three cuts" — the same sentence ends "A new binary is an
+  append to §4", so the count is of a set it expects to grow.
+- Change 4's replacement for R-57's closing keeps "a *sixth* kind"; R-16's
+  kinds are an open list (SPEC-001 OQ-4 contemplates another).
+- The untouched middle of R-57's row keeps "All five clauses" and "six keys",
+  in a row the delta edits at both ends, without an exemption stated.
+
+**Evidence:** `canon-delta.md` header, SPEC-004 Change 1, SPEC-001 Change 4;
+SPEC-001 §7 R-57 row as it stands; CLAUDE.md *Name, never count*.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-14 — The rewritten R-57 row is wrong about what fails to compile, and leaves a stale sentence behind
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-001 Change 4
+
+**Expected:** The row states the mechanism that forces a new kind to be decided,
+and every sentence it keeps stays true after the move.
+
+**Observed:**
+- "The site that must change when the protocol grows a sixth kind is this
+  match's type, `Submitted`, which must gain a variant before `to_json`
+  compiles". Adding a `FieldKind` variant does not stop `to_json` compiling —
+  `to_json` matches `Submitted`, not `FieldKind`. What fails is
+  `Submitted::as_drawn(&FieldKind)`'s match (and `goad`'s `drawn_form`).
+- The kept middle says the `datetime` format "is pinned by literals at
+  `draft.rs`". The design moves those tests to stratum 1 (`design.md` §5.2.4:
+  "`draft.rs::tests::a_boolean_field_submits_a_json_boolean` and its siblings
+  move to stratum 1"), so the literals will not be at `draft.rs`.
+
+**Evidence:** `canon-delta.md` SPEC-001 Change 4; SPEC-001 §7 R-57 row; `design.md`
+§5.2.4 `Submitted` bullets.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-15 — The rewritten §7 closing paragraph omits R-59's own review-held part
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-001 Change 5 vs Change 2
+
+**Expected:** The paragraph that names the review-held rows names all of them.
+
+**Observed:** Change 2's R-59 row says "The transport, cleanup and state kinds
+have no fixture, and their answers are held by review of the tables." Change 5's
+closing paragraph names R-9/R-19, R-18, R-20, R-30, R-49 and R-56's emission half,
+and not R-59's.
+
+**Evidence:** `canon-delta.md` SPEC-001 Changes 2 and 5.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-16 — design.md still attributes the report obligation to SPEC-001 after R-59 was narrowed
+
+**Severity:** minor
+**Location:** `design.md` §5.2.5 ("What canon fixes (canon-delta, SPEC-001) is that **every refusal line names the side at fault and the requirement**")
+
+**Expected:** Per design-log 2026-09-30 (*R-59's reach*), R-59 fixes what a
+refusal names; the checker's obligation to print both is SPEC-004 R-12.
+
+**Observed:** §5.2.5 still cites SPEC-001 for the report-line obligation. The
+narrowing is applied in `canon-delta.md` and not carried into the design.
+`slice-012.md` AC-7 ("Canon states that each refusal the checker reports names
+…") likewise reads as the pre-narrowing SPEC-001 claim.
+
+**Evidence:** `design-log.md` 2026-09-30 *design.md §7–§10; R-59's reach*;
+`design.md` §5.2.5; `canon-delta.md` R-59 last sentence and SPEC-004 R-12.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-17 — The negative control's source probe cannot find `goad-source`
+
+**Severity:** major
+**Location:** `design.md` §5.2.8 *Negative control* ("a store path holding `docs/specs/` — goad's source"); `slice-012.md` AC-1 ("no goad source in its store")
+
+**Expected:** The probe fails whenever goad source is in the guest store.
+
+**Observed:** The crane source derivation, `goad-source`, is filtered by
+`craneLib.filterCargoSources` plus `.slint` and `assets/`: it holds every
+`crates/**/*.rs` — the normalizer, the taxonomy — and no `docs/`. If it reached
+the guest store (a closure reference from any exported package), the
+`docs/specs/` probe finds nothing and the control passes. The spike probed
+"every `*-goad-source` path"; the design narrowed the probe to `docs/specs/`.
+The host-side positive control does not catch this either: on the host it can
+be satisfied by the flake's whole-repo `-source` copy, not by `goad-source`.
+
+**Evidence:** `flake.nix` `src = … lib.cleanSourceWith { … filterCargoSources …;
+name = "goad-source"; }`; `research.md` §"Spike: R1 and R2" (R2 bullet);
+`design.md` §5.2.8.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-18 — The capsule's own target points at goad's source, and fetching it is only friction
+
+**Severity:** major
+**Location:** `design.md` §5.2.8 (`goad-walk/flake.nix`: `inputs.goad`), *Network* bullet, D19; `slice-012.md` AC-1, AC-9
+
+**Expected:** AC-1: the walk has "the skill and the flake's exported goad
+packages, nothing else from this repository".
+
+**Observed:** The capsule clones `goad-walk`, whose `flake.nix` and
+`flake.lock` name `goad` as an input — the full repository, canon included.
+The proxy admits "a short package-manager allowlist"; if that includes nix's
+fetchers or the forge (the design does not say), `nix flake archive` or a plain
+fetch of the locked URL gives the agent SPEC-001. The design classifies any such
+fetch as friction (AC-9), but a walk whose agent read the spec has not met
+AC-1, and nothing says the transcript read fails AC-1 on it. The input's form
+is also unspecified; memory `path-flake-ref-breaks-on-demo-socket` says a
+`path:` reference to this repository breaks on the demo socket.
+
+**Evidence:** `design.md` §5.2.8 tree and bullets; §5.2.9 *The transcript read*
+(tags only); `slice-012.md` AC-1, AC-9; `docs/memory/path-flake-ref-breaks-on-demo-socket.md`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-19 — How a person runs, and the orchestrator checks, the walk's backend is unspecified
+
+**Severity:** minor
+**Location:** `design.md` §5.2.9 *What is recorded* ("the `goad-check` verdict … run by the orchestrator after the walk"; "whether a person ran goad against it"); AC-1
+
+**Expected:** AC-1's second half ("a person has run the host against it and
+seen the behaviour") has a stated route.
+
+**Observed:** The agent writes its configuration inside the capsule, so its
+`command` names capsule paths (`/work/goad-walk/…`) and a capsule `ruby`. The
+host devshell has no `ruby` (design §5.2.8: "`ruby` goes into the walk's tool
+set only"), and no window opens in the capsule. Whether the checker is run in
+the guest or on the collected tree, and how the person runs the host against a
+Ruby backend on the host, is not said. Running it with a rewritten config would
+no longer be the agent's config.
+
+**Evidence:** `design.md` §5.2.8 devshell and tool-set bullets, *A walk*;
+§5.2.9; `slice-012.md` AC-1.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-20 — Two recorded measures have a witness that cannot see what they count
+
+**Severity:** minor
+**Location:** `design.md` §5.2.9 *What is recorded*
+
+**Expected:** Each measure is obtainable from what the capsule returns (brief
+line 9).
+
+**Observed:**
+- *Fetch attempts.* "An attempt counts whether or not the proxy let it
+  through", but the second witness is "the capsule proxy's log of **refused**
+  requests"; an allowed fetch beyond the model API has only the transcript.
+- *Tokens.* The design normalises Codex's `cached_input_tokens` as a subset of
+  `input_tokens`; research R-e also lists `cache_write_input_tokens`, whose
+  relation to `input_tokens` is not measured, so the Codex "uncached input" and
+  "cache write" columns may double count.
+
+**Evidence:** `design.md` §5.2.9; `research.md` R-e Codex bullet.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-21 — The respond-request fence check needs an R-57 reader the design does not specify
+
+**Severity:** minor
+**Location:** `design.md` §5.2.6 tagged-fence table, `json goad:request` (respond) row; §5.5 I-2
+
+**Expected:** Principle 2 and I-2: no second kind→JSON-type mapping.
+
+**Observed:** The row passes when "each value must equal `Submitted::to_json`
+of a value of its field's kind". To find that value the test must read a JSON
+value back into `Submitted` per `FieldKind` — for `number` a `Finite`, for
+`datetime` an RFC 3339 instant and offset, for `choice` an alternative — which
+is the inverse of R-57 written a second time, in `goad-check`'s tests. No
+reader exists (§2: "No request reader exists"). The evaluate row similarly
+builds a `Request` from the block's own `now` and `event`, so it checks the
+envelope keys and nothing about `source`/`kind`; that is the whole of what it
+can check, and the design should say so.
+
+**Evidence:** `design.md` §5.2.6 table; §2 fourth bullet; §5.5 I-2;
+`crates/goad-semantics/src/protocol/canonical.rs` `Event`/`UserResponse`
+(`Serialize` only).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-22 — The reference coverage test is vacuous for R-3 and misses new variants
+
+**Severity:** minor
+**Location:** `design.md` §5.2.6 *Coverage test*; §9 `every_requirement_a_refusal_can_name_is_explained_in_the_reference`
+
+**Expected:** The test fails when an id a variant answers is absent from the
+reference, including for a variant added later.
+
+**Observed:**
+- It "greps the reference for each id" in the form `SPEC-001/R-13`.
+  `UnsupportedProtocolVersion` answers R-3; `SPEC-001/R-3` is a prefix of
+  `SPEC-001/R-32`, `R-36`, `R-37`, all of which the reference will cite, so R-3
+  is "found" whether or not it is explained. The design does not require a word
+  boundary.
+- It "builds one instance per variant, the `every_protocol_error` pattern …
+  extended to stratum 2". That helper is a private `#[cfg(test)]` function in
+  `goad-semantics`' `error.rs`, unreachable from `goad-check`'s tests, and it is
+  a `vec![…]`, not a match: a variant added later gets its `requirement()` arm
+  (the compiler forces it) and no instance here, so its id is never checked.
+
+**Evidence:** `crates/goad-semantics/src/error.rs` `mod tests::every_protocol_error`;
+`design.md` §5.2.3 (`UnsupportedProtocolVersion` → R-3), §5.2.6.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-23 — The corpus witness and the first mutation check are weaker than stated
+
+**Severity:** minor
+**Location:** `design.md` §5.2.3 *The witness*; §9 *Mutation checks* ("flip one `requirement()` arm → the witness fails")
+
+**Expected:** The named mutation reds the named test.
+
+**Observed:**
+- Every schedule-corpus error fixture lists R-25; every `Shape` fixture lists
+  R-44. Flipping `MissingOffset`, `TimeOfDay` or `CalendarUnit` to R-25 passes
+  the discard witness; so does flipping `DuplicateOptionId` R-14 → R-52 or
+  `EmptyAlternatives` R-52 → R-53 (both lists hold both). The witness catches
+  a flip only to an id outside the fixture's list.
+- A flip in any stratum-2 arm (`Spawn`, `Timeout`, …) has no fixture at all.
+- The mutation check does not name which arm is flipped, so it can be
+  discharged with one that happens to red.
+- The green step edits two fixtures' lists to agree with the code; the witness
+  is then independent only where the lists were not edited to fit.
+
+**Evidence:** `tests/fixtures/schedule/*.json` `requirement` arrays (each error
+case includes R-25); `tests/fixtures/protocol/R-14-duplicate-option-ids.json`
+[R-14, R-52]; `R-52-a-choice-field-with-no-alternatives.json` [R-52, R-53];
+`design.md` §9.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-24 — The fence extractor's reach is narrower than I-3 claims
+
+**Severity:** minor
+**Location:** `design.md` §5.2.6 *tagged-fence convention*; §5.5 I-3 ("every json/toml fence under `kit/` is checked, or the gate fails")
+
+**Expected:** The checked set cannot shrink silently (D14).
+
+**Observed:** The extractor keys on info strings `json` and `toml`. A wire
+example written as ` ```jsonc `, ` ```JSON `, ` ```json5 `, ` ```js `, or as a
+CommonMark **indented** code block, is not seen and not refused. An author (or
+a walk-driven kit fix) can move an example out of the checked set without the
+gate noticing.
+
+**Evidence:** `design.md` §5.2.6 bullets ("backtick or tilde fences, info string
+split on whitespace"); §5.5 I-3; §7 D14.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-25 — `Alternatives::first` already exists; the design proposes building it again
+
+**Severity:** minor
+**Location:** `design.md` §5.2.4 *`Submitted::as_drawn`* bullet; §6 OQ-2 (a) ("It also needs a total `Alternatives::first`"); §9 `alternatives_first_is_the_first_declared`
+
+**Expected:** No parallel implementation (CLAUDE.md); design premises verified
+against the tree.
+
+**Observed:** `canonical.rs` has `pub fn first(&self) -> &Alternative`, total,
+with its invariant argued beside it (slice 009, `d92e6ec`), and
+`view_model.rs` already calls `alternatives.first().id()` to fill
+`DrawnKind::Choice.first`. The design proposes a new total `first` returning
+`&AlternativeId`, a changed storage representation ("store the first element
+apart from the rest"), and a new test.
+
+**Evidence:** `crates/goad-semantics/src/protocol/canonical.rs`
+`Alternatives::first`; `crates/goad/src/view_model.rs` (`first:
+alternatives.first().id().clone()`); `git log -S'pub fn first(&self) -> &Alternative'`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-26 — Nothing holds that `goad-check` links no renderer
+
+**Severity:** minor
+**Location:** `canon-delta.md` ADR-003 Change 1 bullet ("it links no renderer"); `design.md` D1, §5.5
+
+**Expected:** A property canon asserts has an instrument, or its row says it is
+review.
+
+**Observed:** `allowlist.rs`'s doc states "a stratum-3 manifest is billed by
+nothing here"; `goad-emit`'s freedom from Slint is "held by the crate edge and
+by review", and its `Cargo.toml` argues it in a comment. The design lists no
+invariant, test or manifest comment for `goad-check`; a later `goad` dependency
+(to reach, say, a renderer helper) would pass the gate.
+
+**Evidence:** `crates/goad-boundary/tests/checks/allowlist.rs` module doc;
+`crates/goad-emit/Cargo.toml` comment; `design.md` §5.5 invariants.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-27 — How an example's config names its backend, and its event names its file, is unstated
+
+**Severity:** minor
+**Location:** `design.md` §5.2.6 *The examples* and table; I-4; §9 `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about`
+
+**Expected:** Each example runs from its `config.toml` "in under a minute", and
+the gate runs it the same way.
+
+**Observed:** The host passes `command` verbatim and spawns with its own
+working directory; `Config` resolves nothing relative to the file
+(`exercisers/demo.toml` is cwd-relative, research R-f). A kit example in a
+read-only store path, or copied to `~/.config/goad/`, cannot name its backend
+by a relative path that works for a desktop-launched host. The design does not
+say what the example configs contain, nor what cwd the gate test uses. The
+triage event file is static JSON, so the file it names cannot follow the gate's
+temporary `XDG_DOWNLOAD_DIR`.
+
+**Evidence:** `crates/goad-shell/src/config.rs` (no path resolution for
+`command`); `research.md` R-f (`examples/demo.toml`, "cwd-relative"); `design.md`
+§5.2.6.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-28 — Risk ids R7 and R8 are each used twice
+
+**Severity:** nit
+**Location:** `design.md` §8
+
+**Expected:** Doc-local ids are unique and immutable (the file's own header).
+
+**Observed:** §8 has R7 (registering `goad-walk`) and R7 (network reads), R8
+(proxy refuses) and R8 (stale counts).
+
+**Evidence:** `design.md` §8 table.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-29 — Stale references survive the move to capsules and the rename
+
+**Severity:** nit
+**Location:** `design.md` §2 (jail-library bullet), §6 OQ-8 ("consumer jail"), §8 R1 mitigation ("prototype the jail"), §5.2.1 (`examples/demo.toml`); `slice-012.md` OQ-3 and OQ-6 answers ("consumer jails", "jails load the store path"); §5.2.7 rename table
+
+**Expected:** The artefact states current truth.
+
+**Observed:** Each names the superseded bwrap jails, or the pre-rename path.
+The rename table omits `docs/memory/cite-requirements-not-finding-ids.md`
+(which names `examples/`) and the `justfile` `typecheck` comment ("The example
+backend is documentation agents edit").
+
+**Evidence:** the cited sections; `git grep -n 'examples/' -- ':!docs/slices'`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-30 — Surfaces and scope in `slice-012.md` do not match the design
+
+**Severity:** minor
+**Location:** `slice-012.md` §Scope, §Surfaces (Canon bullet)
+
+**Expected:** Brief line 10: every surface the design touches is declared, and
+the slice says what the design decided.
+
+**Observed:**
+- The Canon bullet names SPEC-001, SPEC-004, POL-001; the delta also amends
+  ADR-003.
+- `crates/goad-boundary` (the allowlist doc, design §5.2.7) is not declared.
+- §Scope still says the skill carries "scripts"; design §6 OQ-4 settled on
+  none.
+- If F-10 is fixed in code, `crates/goad-emit` is an undeclared surface.
+
+**Evidence:** `slice-012.md` §Scope and §Surfaces; `design.md` §5.2.7, §6 OQ-4,
+§10.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-31 — The new SPEC-004 §7 rows do not meet §7's own form
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-004 Change 5
+
+**Expected:** SPEC-004 §7: where no cooperating test reaches a clause, the row
+"says what review holds **and what it does not**".
+
+**Observed:** The R-8..R-10 row defers its content ("What no case reaches is
+named in the row as R-3's row names it"); R-14's row ("each binary's cases that
+read standard error") does not say which hold the whole line, a prefix, or
+*last line*, as R-4's row does case by case; R-15's "the compiler and review"
+states no limit. R-13's clock and runtime causes are headless-unreachable, and
+no row says so.
+
+**Evidence:** SPEC-004 §7 intro and R-3/R-4 rows; `canon-delta.md` SPEC-004
+Change 5.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-32 — The reference cites a spec it does not ship
+
+**Severity:** nit
+**Location:** `design.md` §5.2.6 *The reference's structure* ("Each rule it states cites the SPEC-001/002/003 id it restates")
+
+**Expected:** The kit stands alone (AC-1); a fetch beyond the model API is
+friction (AC-9).
+
+**Observed:** Every rule carries `SPEC-001/R-N`, and every report line prints
+one, but no spec is in the kit. An agent following a citation to its source
+has nowhere local to go, which invites exactly the fetch AC-9 counts. The
+design may intend this; it does not say the reference tells the reader the ids
+are resolved in the reference itself.
+
+**Evidence:** `design.md` §5.2.6; I-5; `slice-012.md` AC-9.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### Round 1 — what holds
+
+Checked against source and found sound, so round 2 can narrow:
+
+- **Taxonomy inventory.** Every variant in §5.2.3's table exists as named in
+  `goad_semantics::error` and `goad_shell::error`, and none is missing.
+  `ProtocolError::from(serde_json::Error)` sends `Syntax`/`Eof`/`Io` to `Json`
+  (so R-38's empty stdout and trailing content arrive as `Json`), and `Data` to
+  `Shape`.
+- **Fixture tabulation.** The protocol and protocol-text error fixtures'
+  `requirement` lists are as §5.2.3 states; the two R-17 `Json` fixtures are the
+  only ones whose list lacks the design's id. `InapplicableKey`'s `fields` case
+  is the only R-53 fixture. The schedule corpus's lists support §5.2.3's
+  schedule ids (subject to F-23's weakness).
+- **Headless reuse (brief line 2, AC-3).** `Host::respond` verifies the `view_id`
+  before touching the transport; `Outcome` carries the channels §5.2.2 lists;
+  `UserResponse` and `Event` have public fields; option and field ids can be
+  cloned off a presented view, so the checker needs no `pub(super)` widening.
+  `envelope::normalize(&[u8]) -> Result<Event, EnvelopeFault>` is the one door
+  for `--event` files.
+- **First option only (brief line 3).** Answering one option with values for
+  exactly its fields, built as the host builds them, refuses nothing SPEC-001
+  admits; R-58's "fields the host drew" is met by a checker that behaves as a
+  host drawing every kind. No wire narrowing found in the checker's request set
+  or in its handling of discards, hints or `view: null`. The `source: "host"`
+  event-file refusal matches SPEC-003/R-13.
+- **Strata (brief line 4).** The lifts (`Stimulus`, `Submitted`, `Finite`,
+  `as_drawn`) need only `jiff`, `serde_json` and canonical types, all on
+  stratum 1's allowlist; `Stimulus` in `goad`'s `wire.rs` carries nothing
+  renderer-specific. `goad-check` names strata 1 and 2 only. Clippy's
+  `pub_use` denial is correctly given as the reason for no re-export.
+- **Vocabulary (brief line 5).** `goad-boundary`'s `members` enumerates
+  `workspace.members` from the root manifest, so `goad-check`'s `src/` is
+  scanned the moment it joins; `tests/` is excluded, and `kit/` is outside every
+  member. Nothing domain-shaped is proposed for a host crate's `src/`.
+- **`goad-emit` statuses 1 and 2** as drafted (R-9, R-10) match `main.rs`
+  (every `Answered::Refused` → 1; `SendFault`, `StartupFault` and usage errors →
+  2, each with a stderr line). Only R-8's "answer written" clause (F-10) and the
+  §6 inference (F-11) diverge.
+- **POL-001.** One `deno check` line with two paths keeps the block's shape;
+  the "six commands" exemption is sound because `just -n check` holds it.
+- **Rename reach.** Every `examples/` site outside `docs/slices/` is in the
+  rename table except the two F-29 names.
+
+Not reached in depth this round: whether `claude plugin validate` and the
+Codex `interface` block accept the manifests as drafted (§5.2.6), and the
+example behaviours' own protocol correctness (they do not exist yet).
