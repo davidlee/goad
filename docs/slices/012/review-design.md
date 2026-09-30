@@ -151,13 +151,13 @@ override's fixture consequence.
 | F-31 | minor | doc-wrong | verified |
 | F-32 | nit | doc-wrong | verified |
 | F-33 | major | doc-wrong | verified |
-| F-34 | major | | |
-| F-35 | major | | |
-| F-36 | minor | | |
-| F-37 | minor | | |
-| F-38 | minor | | |
-| F-39 | minor | | |
-| F-40 | nit | | |
+| F-34 | major | doc-wrong | |
+| F-35 | major | doc-wrong | |
+| F-36 | minor | doc-wrong | |
+| F-37 | minor | doc-wrong | |
+| F-38 | minor | doc-wrong | |
+| F-39 | minor | doc-wrong | |
+| F-40 | nit | doc-wrong | |
 
 ### F-1 — R-59's meaning of the id is false of most rows of its own table
 
@@ -746,6 +746,8 @@ reference, including for a variant added later.
 
 **Outcome:** contested — the repair asserts a compile gate the stated mechanism does not give. An exhaustive `match` with no `_` arm beside a builder forces a new variant to gain an **arm**, not an **instance** in the builder: the builder is a `vec![…]` (or equivalent list) and the match runs over whatever instances it holds, so a variant with an arm and no instance compiles and is never checked. SPEC-003 §7 R-14 row states exactly this limit of the same pattern ("whether the assertion then also fails depends on that author adding a witness beside the arm the compiler made them write"). `InapplicableKey` also needs **two** instances (`fields` and another key) to reach both ids, which one arm per variant cannot force. Either the builder must be generated from the match (each arm returning its own instance or instances, the builder calling it for one representative per arm), or `design.md` §5.2.6 must state the limit as SPEC-003 does. Its companion half — the non-digit boundary for R-3 — holds.
 
+**Response (round 2):** Held: an arm beside a list forces an arm, never an instance, and one arm cannot force `InapplicableKey`'s two. The repair decided at round 2 (`design-log.md` 2026-09-30, *design review round 2: dispositions*) is to generate the instance list from the exhaustive match, each arm returning its own instances. **Not applied:** as a mechanism it is circular. A `match` needs a value of each variant to run the arm that builds that variant's instances, so the seeds are the same hand-kept list, and a variant added with an arm and no seed compiles and is never checked — the same gap. Stable Rust has no way to enumerate an enum's variants without a derive dependency (`strum`) or a hand-kept list. The remaining options are the raiser's second — state the limit in `design.md` §5.2.6 in SPEC-003 §7 R-14's terms — or a dependency on a variant-enumerating derive, which is a dependency decision. Returned to the user; `design.md` §5.2.6 still carries round 1's wording until it is decided.
+
 ### F-23 — The corpus witness and the first mutation check are weaker than stated
 
 **Severity:** minor
@@ -1094,8 +1096,8 @@ carries what lets a reader see the other".
 `crates/goad-shell/src/error.rs` `CleanupFailure::TimedOut` (carries `after`
 only) and its doc on the grandchild case; SPEC-001/R-54.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `CleanupFailure` → **backend**, under R-59's declared imprecision — the usual cause is the backend's own process tree, and naming the side on which a cause usually lies asserts no process state, so R-54 is not engaged. The **environment** side loses "or the host could not observe what it needed to" and is "the operating system failed the host" alone, so no side means "unknown" and `Timeout` no longer fits two. The imprecision's examples gain "a disposal the operating system delayed", and what the refusal carries is the limit it waited. `canon-delta.md` R-59; `design.md` §5.2.3 table, *Meaning of the id* and the `CleanupFailure` rationale; §6 OQ-5; the kit reference's side descriptions (`design.md` §5.2.6) point a reader at their own process tree for a cleanup failure.
 
 **Outcome:**
 
@@ -1130,8 +1132,8 @@ lists (each pairs R-44 with R-3, R-11, R-13, R-15, R-19 or R-52);
 `tests/fixtures/protocol-text/R-17-*`; SPEC-001/R-15, R-17, R-38;
 `research.md` R-a *Shape is coarse by construction*.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*), in the raiser's terms: R-44 is named where **the kind cannot tell** which more specific rule an instance broke — `Shape` (serde's coarse category), `Json` (R-17's literals and R-38's framing arrive alike), `DuplicateKey`, and `Spawn` (R-44's own list item). That is a statement about the kind, so it no longer contradicts "a property of the refusal's kind and not of the instance". `canon-delta.md` R-59; `design.md` §5.2.3 *Meaning of the id* and the `Json` rationale, which now names R-38 and R-17 as the rules the kind cannot tell apart.
 
 **Outcome:**
 
@@ -1159,8 +1161,8 @@ a directory or set a working directory.
 resolution); `crates/goad-shell/tests/integration/round_trip.rs`
 `rooted_at_the_workspace`; `design.md` §5.2.1, §5.2.6.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): the checker spawns exactly as the host does, from its own working directory, and says so. `design.md` §5.2.1 states that a relative program or argument is resolved against the directory the checker was started in, as the host resolves it against its own; §5.2.6: the gate test and the README both start the checker from the example's directory, and the README says a desktop-launched host needs `command` made absolute; the `rooted_at_the_workspace` citation is dropped as not a precedent. §5.2.9: the guest verdict is run from `/work/goad-walk`, the directory the agent checked from, and the person-run's rewrite covers any relative path.
 
 **Outcome:**
 
@@ -1182,8 +1184,8 @@ the unfixed kit and still read as "the re-walk".
 **Evidence:** `design.md` §5.2.8 tree and *A walk* bullet; §5.2.9 *What is
 recorded* and *Re-walk rule*.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `design.md` §5.2.8 *A walk* and §5.2.9 *Re-walk rule*: before a re-walk, `goad-walk`'s `flake.lock` is updated to the goad revision carrying the kit fixes and committed to its `main`; `walks.md` records the pinned goad revision on every walk row, so a re-walk on the old lock is visible as one.
 
 **Outcome:**
 
@@ -1209,8 +1211,8 @@ it one of the lists edited to agree with the code.
 **Evidence:** SPEC-001/R-44, R-16, R-52; `design.md` §5.2.3, §6 OQ-6;
 `notes.md` §Open (R-16 entry).
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*) **reverses U8**: `canon-delta.md` SPEC-001 gains a change to R-16 — "a `choice` field MUST carry its own `options`, **at least one**, whose shape R-53 constrains" — a wording fix, since the host already refuses. `EmptyAlternatives` → R-16; the fixture `R-52-a-choice-field-with-no-alternatives`'s list gains R-16 (the round 1 R-44 addition is dropped). `design.md` §5.2.3 row and rationale, §6 OQ-6, §10; the R-16 follow-up in `notes.md` §Open closes; `slice-012.md` §Surfaces names the R-16 change.
 
 **Outcome:**
 
@@ -1231,8 +1233,8 @@ write/wait/read failures are not the backend's either.
 **Evidence:** SPEC-001/R-45; `crates/goad-shell/src/error.rs`
 `BackendError::PipeMissing` doc; `canon-delta.md` R-59 scope clause.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `PipeMissing` → **host**, **R-37** — the host asked for the pipe that carries the request R-37 requires it to write and close, and only a host defect removes it; R-37 is the rule the host refused under. R-59's R-45 clause now covers `Io` alone, and is reworded so its subject is the exchange failure no requirement makes a refusal (the host reports it and stays able to invoke the backend again) rather than a "backend failure". `canon-delta.md` R-59; `design.md` §5.2.3 row, *Meaning of the id*, the `Io`/`PipeMissing` rationale, §6 OQ-1.
 
 **Outcome:**
 
@@ -1249,8 +1251,8 @@ does not make the doc true.
 
 **Evidence:** `crates/goad-shell/src/config.rs` `pub struct Command`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `design.md` §5.2.1's opportunity note names both routes to an empty command — the public `Command::new` and the public `program`/`arguments` fields — and says the doc is made true only by closing both.
 
 **Outcome:**
 
