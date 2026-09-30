@@ -75,6 +75,10 @@ after the slice closes is lifted into the Harvest section.
   *Cross-thread* 4).
 - **`claude plugin eval` as a regression harness for kit edits.** Not adopted
   for AC-1 (`design-log.md`, 2026-09-27, OQ-7). Candidate follow-up at close.
+- **`goad`'s own reporters do not carry R-59's side and requirement.** R-59 was
+  narrowed to what a refusal names; the diagnostics surface (SPEC-003/R-15)
+  and `goad`'s stderr are not bound to show both (`design-log.md`, 2026-09-30).
+  Rendering work once R-59 lands. Candidate follow-up at close.
 - **`Shape` refusals cite R-44 only.** Naming the requirement the backend
   misread needs normalization to report a path for serde failures
   (`design-log.md`, 2026-09-26, OQ-8). Candidate follow-up at close.

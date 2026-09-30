@@ -302,3 +302,19 @@ other, citing the finding id.
   (`max: -10`, no `min` → `0`) raised as a follow-up against the renderer.
 - **Consequence:** design.md stands as presented. Next: §7–§10 review, then
   adversarial design review.
+
+### 2026-09-30 — design.md §7–§10; R-59's reach
+
+- **Asked:** the drafted R-59 ended "anything that reports such a refusal to a
+  person MUST carry both" — binding `goad`'s diagnostics surface (SPEC-003/R-15)
+  and its stderr, which no decision put in scope. (a) narrow: R-59 fixes what a
+  refusal *names*; the checker's obligation to print both moves to SPEC-004
+  R-12; the window follows in its own slice. (b) keep, and take the renderer's
+  diagnostics into this slice.
+- **Recommended:** (a). Also: spike R1 (Codex/Claude plugin load from a
+  read-only store path) and R2 (`$HOME` bind hides the shared home) before the
+  adversarial design review.
+- **Decided:** *"yes, narrow and spike"*.
+- **Consequence:** `canon-delta.md` R-59 narrowed; its §7 row drops the
+  reporter tests, which move to SPEC-004 §7's R-11..R-13 row under R-12. A
+  follow-up to `notes.md` §Open. Spike next, then the review.
