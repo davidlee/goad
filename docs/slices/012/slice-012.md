@@ -32,9 +32,11 @@ Decided before scoping (roadmap §012, 2026-09-26):
   SPEC-001..003 — not a second spec. Every wire example it ships is a fixture
   the gate runs through normalization.
 
-**Consumer jails** — `jailed-consumer-{claude,codex}` in `flake.nix`: the
-exported goad packages and the skill, a fresh home per walk, launched outside
-the checkout. They prove the kit stands alone; they are not shipped to anyone.
+**A walk capsule** — an oubliette capsule whose target is `goad-walk`, a
+sibling repo whose flake exports the goad packages and the kit as its tool set:
+a fresh home per walk, credentials pushed in, egress through an allowlisting
+proxy (`design-log.md`, 2026-09-30, superseding the consumer jails). It proves
+the kit stands alone; it is not shipped to anyone.
 
 **Examples, split by job** (`design-log.md`, 2026-09-26, superseding the
 roadmap's "moved, not copied"). The current `examples/` are host exercisers —
@@ -67,8 +69,10 @@ are design's):
 - `kit/` and the root marketplace manifests — the plugin (OQ-6).
 - `examples/` renamed; its referencing sites, including `goad-shell`'s
   integration tests and `justfile`.
-- `flake.nix` — `goad-kit` and `goad-check` packages, the consumer jails,
-  `python3`, `jq`; `ruby` in the consumer jails only.
+- `flake.nix` — `goad-kit` and `goad-check` packages, `python3`, `jq`.
+- `~/dev/goad-walk` — a new sibling repo: the walk capsule's target, with
+  `ruby` in its tool set only. Its registration with oubliette is
+  oubliette-side configuration.
 - **Canon**, drafted in `canon-delta.md`: SPEC-001 (requirement id and side
   at fault on each refusal; R-56's verification row), SPEC-004 (`goad-check`
   and `goad-emit`), POL-001 (the command block's `deno check` paths).
@@ -85,12 +89,12 @@ are design's):
 
 ## Acceptance criteria
 
-- [ ] AC-1 — A fresh agent in a consumer jail — the skill and the flake's
+- [ ] AC-1 — A fresh agent in a walk capsule — the skill and the flake's
   exported goad packages, nothing else from this repository — writes a backend
   the checker accepts, and a person has run the host against it and seen the
   behaviour. Walked once with Claude Code and once with Codex, headless, from
-  one fixed prompt. The jail's negative control passes first: the checkout, the
-  shared agent home and the source derivation are each unreadable inside it.
+  one fixed prompt. The capsule's negative control passes first: no goad
+  source in its store, and no prior agent session in its home.
 - [ ] AC-2 — Every wire example the reference ships is normalized by the gate;
   an example the host would refuse fails `just check`.
 - [ ] AC-3 — The checker, run against a backend, reports each refusal with the

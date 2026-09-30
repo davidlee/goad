@@ -29,7 +29,7 @@ This slice builds four things:
    containing a backend-facing reference, three new examples, and the
    examples' event files and watchers. Every JSON or TOML example the reference
    ships is checked by the gate.
-4. **A walk.** A fresh agent in a consumer jail sees only the kit and the
+4. **A walk.** A fresh agent in an oubliette capsule sees only the kit and the
    exported binaries, and writes a backend from one fixed prompt. The walk is
    measured, and its friction is dispositioned.
 
@@ -80,6 +80,10 @@ are the only ones this design relies on.
   base options bind `$PWD` at `/workspace/<basename>` and start there.
   `commonPkgs` already includes `python3`. There is no per-invocation home
   parameter.
+- **Oubliette** (`~/dev/oubliette`): firecracker microVM capsules, each
+  holding a clone of one target repository and its exported tool set, a
+  fresh volume for `$HOME`, credentials pushed from the host, and egress
+  through an allowlisting proxy. The user drives doctrine slices this way.
 
 ## 3. Forces & constraints
 
@@ -581,7 +585,7 @@ Stale counts found while tracing, to be fixed where they are touched:
 
 #### 5.2.8 Flake
 
-(`design-log.md` 2026-09-26, OQ-3 isolation; 2026-09-27, OQ-6, OQ-7.)
+(`design-log.md` 2026-09-26, OQ-3 isolation; 2026-09-27, OQ-6, OQ-7; 2026-09-30.)
 
 - **`packages.goad-check`**: `craneLib.buildPackage` with `cargoExtraArgs =
   "--locked -p goad-check --bin goad-check"`, sharing `cargoArtifacts`, with
@@ -594,38 +598,54 @@ Stale counts found while tracing, to be fixed where they are touched:
   §"Spike: R1 and R2").
 - **The devshell** adds `python3` and `jq` to `projectPkgs` (endorsed
   2026-09-26; `inotify-tools` dropped 2026-09-30, A-4). `ruby` goes into the
-  consumer jails only.
-- **`jailed-consumer-claude`, `jailed-consumer-codex`**: built with `mkJail`'s
-  makers and a **consumer option set**, not `jailEnvOptions`:
-  - `extraPkgs`: `goad-check`, `goad-emit`, `goad`, `ruby`,
-    `jq`, `goad-kit`, and the agent. Not `projectPkgs`: no Rust toolchain, no deno, no
-    Slint mount, no `goadHeadless`.
-  - `extraOptions`: `apiKeysViaFd`, `CLAUDE_CODE_SHELL`, `set-env "GOAD_KIT"
-    "${goad-kit}"`, and a **walk-home bind**. The variable does not put the
-    kit in the jail; `goad-kit` in `extraPkgs` does (spike). The jail library fixes `persist-home "agent"` per
-    profile, and that home has held goad development sessions. The consumer
-    jail binds a launcher-created empty directory over `$HOME` after the
-    profile's options, so the later bind shadows the shared home.
-  - No `ro-bind` of the Slint sources.
-  - `commonPkgs` brings `python3` and `git`. That is acceptable: neither is
-    goad.
-- **Launch outside the checkout.** A launcher script, `nix/walk.sh`, exposed as
-  `just walk AGENT`, outside the gate:
-  - creates `$XDG_STATE_HOME/goad-walks/<agent>-<UTC stamp>/{home,work}`;
-  - `cd`s into `work`, so the base option binds `work` at
-    `/workspace/work`;
-  - runs the negative control, then the walk (§5.4).
-- **Negative control**, run inside the same jail invocation shape before each
-  walk. Each check must *fail* to read:
-  - `/home/david/dev/goad/CLAUDE.md`, the checkout;
-  - the shared `agent` home's path;
-  - `/home/david/.claude/projects/-home-david-dev-goad/memory/`;
-  - any `/nix/store/*-goad-source`.
+  walk's tool set only.
 
-  Each must *succeed*: `goad-check --version`, `ls "$GOAD_KIT/kit/skills"`, and
-  `ruby -e 'require "json"'`. A control that cannot fail proves nothing, so
-  the script first runs the same reads outside the jail and asserts they
-  succeed.
+**The walk's environment** (`design-log.md` 2026-09-30, walk venue). The walk
+runs in an oubliette capsule, not a bwrap jail. Oubliette (`~/dev/oubliette`)
+confines an agent in a firecracker microVM holding a git clone of one *target*
+repository and that target's exported tool set, with a fresh volume for
+`$HOME` and egress through an allowlisting proxy. The capsule clones its
+target, so the target cannot be this repository:
+
+```
+~/dev/goad-walk/        its own git repo, a sibling; the capsule clones only this
+  flake.nix             inputs.goad → packages.<system>.default: a tool set of
+                        goad-check, goad-emit, goad, goad-kit, ruby, jq;
+                        packages.<system>.goad-kit re-exported
+  README.md             one paragraph: what this repo is for
+```
+
+- **Registered with oubliette as a target**, per its target contract
+  (`docs/contract-target.md` there: a git repo on the host exporting one tool
+  package). The registration is oubliette-side configuration, not goad code.
+- **`goad-kit` is in the tool set**, so it is in the guest's store. A
+  `set-env` alone would not have put it there (spike).
+- **No Rust toolchain, deno, Slint sources or `goadHeadless`** in the tool
+  set. `goad` is there for `--help`; no window opens in a capsule (OQ-8), and
+  no display is needed: `goad-check` and `goad-emit` are headless.
+- **Credentials** go in as environment variables on the ssh command that
+  starts each walk, as for doctrine slices. Nothing credential-bearing is in
+  the tool set, whose store paths are world-readable.
+- **Network**: the capsule proxy admits the model APIs and a short
+  package-manager allowlist, and refuses everything else. D19 changes with
+  it: a fetch *attempt* beyond the model API is friction, whether or not the
+  proxy let it through.
+- **A walk** is: a fresh capsule (fresh volume, fresh `$HOME`) provisioned at
+  `goad-walk`'s `main`; the negative control; the plugin setup; the walk; then
+  the agent's tree committed in the guest by the orchestrator and brought
+  back by `capsule-collect`, quarantined. Transcripts are written outside the
+  checkout, in `/work/walk-logs/`, and moved into the commit afterwards, so
+  the agent never sees them.
+- **Negative control**, over ssh in the same capsule before each walk. Each
+  probe must find *nothing*:
+  - a store path holding `docs/specs/` — goad's source;
+  - a session under `~/.claude/projects` or `~/.codex/sessions` — a home
+    that has held sessions.
+
+  Each must *succeed*: `goad-check --version`, `ls "$KIT/kit/skills"`, and
+  `ruby -e 'require "json"'`. A probe that cannot find anything proves
+  nothing, so the script first runs the same probes on the host, against its
+  store and the shared jail home, and asserts each finds something there.
 
 #### 5.2.9 The walk
 
@@ -649,14 +669,19 @@ does not lead toward gems:
 
 **Headless invocation** (research R-e):
 
+`$KIT` is `goad-kit`'s store path, which the host-side walk script reads with
+`nix eval` on `goad-walk#goad-kit` and passes on the ssh command line; every command runs in
+`/work/goad-walk`.
+
 - Claude:
-  `jailed-consumer-claude -p "$PROMPT" --plugin-dir "$GOAD_KIT/kit"
+  `claude -p "$PROMPT" --plugin-dir "$KIT/kit"
   --output-format stream-json --verbose --dangerously-skip-permissions >
-  transcript.jsonl`. The final line is the `result` object.
+  /work/walk-logs/transcript.jsonl`. The final line is the `result` object.
 - Codex: setup runs in the fresh home first and is not measured:
-  `codex plugin marketplace add "$GOAD_KIT"; codex plugin add goad@goad`.
+  `codex plugin marketplace add "$KIT"; codex plugin add goad@goad`.
   Then `codex exec --json --skip-git-repo-check
-  --dangerously-bypass-approvals-and-sandbox "$PROMPT" > transcript.jsonl`.
+  --dangerously-bypass-approvals-and-sandbox "$PROMPT" >
+  /work/walk-logs/transcript.jsonl`.
   The script measures wall time around the call. Both agents install from a
   store path (spike, R1).
 
@@ -671,13 +696,16 @@ does not lead toward gems:
   uncached input, because Codex's cached count is a subset while Claude's
   cache fields are disjoint;
 - cost (Claude only);
-- web fetches: `server_tool_use` counts, plus any `curl`/`wget`/`nix
-  run`/package fetch found in the transcript;
+- fetch attempts: `server_tool_use` counts, plus any `curl`/`wget`/`nix
+  run`/package fetch found in the transcript, and the capsule proxy's log of
+  refused requests as a second witness. An attempt counts whether or not the
+  proxy let it through;
 - the `goad-check` verdict on the agent's backend, run by the orchestrator
   after the walk;
 - whether a person ran goad against it, and what they saw.
 
-Raw transcripts stay in the walk directory, outside the repository. Each
+Raw transcripts come back in the collected commit and stay in the quarantine
+and `goad-walk`, outside this repository. Each
 agent's `ISSUES.md` is copied to `docs/slices/012/walks/<agent>-<n>-ISSUES.md`.
 
 **The transcript read.** A fresh agent reads each transcript and tags each
@@ -707,8 +735,8 @@ second re-walk happens only by user decision.
   directory. The checker never alters the environment it passes on.
 - **Gate state**: each gate test gets a fresh temporary `HOME`/`XDG_*`,
   removed at the end.
-- **Walk artefacts**: the walk directory (outside the repository) is
-  disposable. `walks.md` and the copied `ISSUES.md` files are the record.
+- **Walk artefacts**: the capsule and its collected commits (outside this
+  repository) are disposable. `walks.md` and the copied `ISSUES.md` files are the record.
 
 ### 5.4 Lifecycle & dynamics
 
@@ -744,9 +772,9 @@ time.
 - A-1: `normalize_alternative` remains the only raiser of
   `InapplicableKey { key: "fields" }`. If it is not, the witness fails.
 - A-2: Claude Code loads a plugin from a read-only store path via
-  `--plugin-dir`. Measured only against a writable path so far.
-- A-3: a later `--bind` over `$HOME` shadows `persist-home` in bwrap. Checked
-  by the negative control.
+  `--plugin-dir`. Confirmed by the spike (`research.md` §"Spike: R1 and R2").
+- A-3: a fresh capsule volume holds no agent sessions. Checked by the negative
+  control.
 - A-4: `inotifywait` is not needed by the gate. The event file stands in for
   the watcher, and `watch.sh` is exercised by a person at audit.
 
@@ -822,7 +850,8 @@ changes the slice's shape.
   non-empty clause to R-16. That is a wording fix to canon, not a wire
   change: the behaviour already refuses.
 - **OQ-7 — A fresh home per walk, given the jail library's fixed
-  `persist-home`.**
+  `persist-home`.** *Superseded 2026-09-30: the walk runs in an oubliette
+  capsule, whose volume is fresh (§5.2.8). The spike showed (a) worked.*
   - (a) Bind a launcher-created directory over `$HOME` in the consumer jail's
     `extraOptions`: local to this flake, and checked by the negative control.
   - (b) Add a home-name parameter to `makeJailedAgent` upstream in
@@ -865,19 +894,22 @@ changes the slice's shape.
 | D16 | `examples/` → `exercisers/`; the TS exerciser kept | retire it | the integration tier drives it | 2026-09-26 split; this draft |
 | D17 | examples use `XDG_*` and `HOME` for state and targets | per-example variables | standard names; the gate points them at a temp directory | 2026-09-26 OQ-4 |
 | D18 | walk in Ruby, stdlib only; end-of-day wrap-up; no protocol words | Go; `claude plugin eval` | per-spawn compile; no Codex equivalent, and a no-kit baseline must fetch the repo | 2026-09-27 OQ-7 |
-| D19 | network left on; any fetch beyond the model API is friction | network off | cuts the model API too | 2026-09-26 OQ-3 method |
+| D19 | network through the capsule proxy; any fetch attempt beyond the model API is friction, allowed or refused | network off | cuts the model API too | 2026-09-26 OQ-3 method; 2026-09-30 |
 | D20 | both binaries governed by SPEC-004 | the checker only | leaves the second binary ungoverned and the third governed | 2026-09-26 OQ-5 |
+| D21 | walk in an oubliette capsule whose target is a sibling repo, `goad-walk` | bwrap consumer jails with a walk-home bind | a fresh home and credentials without a jail-library change; the capsule clones its target, so the target cannot be this repo | 2026-09-30 |
 
 ## 8. Risks & mitigations
 
 | id | risk | likelihood / impact | mitigation | signal |
 |---|---|---|---|---|
 | R1 | Codex cannot install a plugin from a read-only store path, or does not read skills from it — **install verified by the spike** (`research.md` §"Spike: R1 and R2"); the model reading the skill is not | medium / blocks the Codex walk | prototype the jail and both plugin loads **first**, before any kit prose (memory: prototype before the next review round) | `codex plugin add` errors; the skill is not listed in the transcript |
-| R2 | the `$HOME` bind does not shadow `persist-home`, and the walk sees prior goad sessions | low / invalidates AC-1 | the negative control reads the shared home's path | the control's shared-home check succeeds |
+| R2 | ~~the `$HOME` bind does not shadow `persist-home`~~ — retired: the walk moved to a capsule (2026-09-30); the spike showed the bind held | — | — | — |
 | R3 | gate tests spawning python/deno/bash become timing-flaky under load | medium / red gate | example tests use a generous `--timeout` in their own config; nothing asserts durations (memory: margin direction) | intermittent `Timeout` in example tests |
 | R4 | the reference drifts from canon in prose that no fence reaches | medium / wrong guidance | ids cited per rule; the coverage test over ids; audit reads the reference against SPEC-001 §4 | walk friction pointing at the reference |
 | R5 | the lifts change `goad`'s behaviour (a submitted value's spelling) | low / renderer regression | the moved tests move verbatim; `fields.rs`' untouched/operated renderer tests stay in `goad` and must stay green | a renderer-tier failure |
 | R6 | the checker blames a backend for the checker's own values | low / false blame | I-2; values printed in the report; OQ-2 (a) | a backend rejects an as-drawn value |
+| R7 | registering `goad-walk` as an oubliette target, or bringing a walk's tree back, costs more than the walk | medium / delays AC-1 | `goad-walk` is the contract's floor and nothing more; stand up one capsule and run the negative control before any kit prose, as the spike did for R1 | the control cannot run, or `capsule-collect` returns nothing |
+| R8 | the proxy refuses a fetch the agent needed, and the walk stalls rather than recording friction | low / an unfinished walk | the prompt already rules out gems; refusals are counted from the proxy log | a transcript that ends in retries against a refused host |
 | R7 | a walk agent reads the network for the protocol | medium / AC-9 friction | the kit is self-sufficient; the transcript read flags it | a fetch in the transcript |
 | R8 | stale counts in docs this slice touches | high / canon rot | the rename table lists each; canon-delta rewrites counts as names | grep for "five members", "six commands" |
 
@@ -941,10 +973,10 @@ the execute phase and recorded in `notes.md`:
 
 **Outside the gate**
 - `claude plugin validate kit/` passes.
-- `nix build .#goad-check .#goad-kit .#jailed-consumer-claude
-  .#jailed-consumer-codex` succeeds.
-- The negative control passes: each forbidden read fails inside, and each
-  control read succeeds outside.
+- `nix build .#goad-check .#goad-kit` succeeds, and `goad-walk`'s tool set
+  builds against this checkout's `main`.
+- The negative control passes: each probe finds nothing in the capsule, and
+  something on the host.
 
 **Observed by a person** (AC-1, AC-6):
 - the checker against the three examples and a broken backend;

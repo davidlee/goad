@@ -318,3 +318,25 @@ other, citing the finding id.
 - **Consequence:** `canon-delta.md` R-59 narrowed; its §7 row drops the
   reporter tests, which move to SPEC-004 §7's R-11..R-13 row under R-12. A
   follow-up to `notes.md` §Open. Spike next, then the review.
+
+### 2026-09-30 — where the walk runs
+
+- **Asked:** the R1/R2 spike found a fresh walk home is logged out, and the
+  shared home holding the logins is what the walk must hide. Options put: API
+  keys through 1Password; copy credential files per walk; log in by hand.
+- **User's alternative:** run the walks in an oubliette microVM capsule
+  (`~/dev/oubliette`), driven over ssh with credentials as environment
+  variables, home set-up automated — as doctrine slices are driven. No
+  display is needed (checker and emitter are headless; OQ-8 already keeps the
+  window out). The target is *"a flake that specifies the environment"*: a
+  sibling repo, `~/dev/goad-walk`. The proxy refuses all but the model APIs
+  and a short package-manager allowlist.
+- **Also:** the kit-shape correction from the spike (`goad-kit` is a
+  marketplace root; Claude loads `$KIT/kit`) — *"yep"*.
+- **Decided:** capsule walks; `goad-walk` a sibling repo; fetch attempts are
+  friction whether or not the proxy allowed them.
+- **Consequence:** `design.md` §5.2.8–§5.2.9 rewritten (D21; D19 amended; R2
+  retired; R7, R8 added; A-3 replaced; OQ-7 marked superseded).
+  `slice-012.md`'s consumer jails become a walk capsule, and AC-1's negative
+  control is restated for a capsule. The bwrap spike stays as evidence for
+  the kit shape and the closure finding.
