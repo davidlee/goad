@@ -112,6 +112,14 @@ verdict cut for `goad-check`'s statuses against every end in §5.2.2 and §5.4,
 new count, line citation, or stale restatement elsewhere; (e) the U8
 override's fixture consequence.
 
+**Round 3** — 2026-09-30 — narrow: the round 3 repairs at `ca5bfba`. Probing
+only (a) R-59 as reframed (`canon-delta.md` SPEC-001 Change 1) against its
+own letter and every row of `design.md` §5.2.3, with R-45's rewording
+(SPEC-001 Change 7, row addition included) and every restatement of R-59 in
+`design.md`, `canon-delta.md` (SPEC-004 included), `slice-012.md` and
+`notes.md`; (b) F-22's round 3 Response against `design.md` §5.2.6; then set
+Outcomes on F-22 and F-34..F-40. Nothing else is in scope.
+
 ## Findings
 
 **Round 1** — raiser: fresh agent, Opus, at `bf7a161`.
