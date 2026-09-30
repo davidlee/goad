@@ -41,3 +41,23 @@ ledger (`review-plan.md`).
 - **Consequence:** `plan.md` folds PL-1..PL-7; the `config::positive_duration`
   change (`design-log.md` 2026-10-01, G2) joins PHASE-03 beside `from_argv`'s,
   since both open `config.rs` for the checker. `review-plan.md` is opened.
+
+### 2026-10-01 — the capsule splits out of PHASE-05
+
+- **Asked:** the user said oubliette needs a flake exporting the walk's
+  environment (`goad-walk`'s tool set, whose stub at 99cc374 already exists)
+  and one or two slices of its own work to support more than one target
+  repository. PHASE-05 bundled host-side work with the capsule, so that wait
+  would hold PHASE-06..PHASE-08, which do not need it. Proposed: PHASE-05
+  keeps the packages, manifests, validation, `goad-walk`'s full tool set, and
+  both agents loading the plugin on the host in a fresh home (R1 as far as
+  the host reaches it); a new PHASE-11 takes the walk script, the negative
+  control, the plugin loads in the capsule and `capsule-collect`, entered when
+  oubliette can take `goad-walk`, done before PHASE-09, and free to run beside
+  PHASE-06..PHASE-08. The cost: R7's mitigation, "before any kit prose",
+  becomes "as early as oubliette allows"; the kit's prose does not depend on
+  the walk's venue, so R7 firing late changes the walk, not the reference.
+- **Recommended:** split.
+- **Decided:** *"yes, that's right. sure, let's split it."*
+- **Consequence:** `plan.md` PHASE-05 narrowed, PHASE-11 added, sequencing,
+  coverage and PHASE-09/EN-2 updated; `notes.md` §Status gains PHASE-11.

@@ -18,6 +18,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-08 | pending | 2026-10-01 |
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
+| PHASE-11 | pending | 2026-10-01 |
 
 ## Phase sheets
 

@@ -34,11 +34,13 @@ and gated; then it is walked.
 - **PHASE-04 — `goad-check`.** The binary, its arguments, its run sequence,
   its report and its statuses, with the binary tier (`design.md` §5.2.1,
   §5.2.2, §5.2.5).
-- **PHASE-05 — packages, the plugin's shell, and a capsule.** The flake
-  exports `goad-check` and `goad-kit`; the manifests and a minimal `SKILL.md`
-  exist; `goad-walk` builds the full tool set; one capsule is stood up, its
-  negative control passes, and both agents load the plugin in it (`design.md`
-  §5.2.6, §5.2.8; R1, R7).
+- **PHASE-05 — packages and the plugin's shell.** The flake exports
+  `goad-check` and `goad-kit`; the manifests and a minimal `SKILL.md` exist
+  and validate; both agents load the plugin from its store path on the host;
+  `goad-walk` builds the full tool set (`design.md` §5.2.6, §5.2.8; R1).
+- **PHASE-11 — the capsule.** The walk script; one capsule stood up, its
+  negative control passed, both agents loading the plugin in it, and a tree
+  collected (`design.md` §5.2.8; R1, R7). Waits on oubliette.
 - **PHASE-06 — the examples.** The three kit examples, each accepted by the
   checker in the gate; `python3` and `jq` in the devshell; the second
   `deno check` path (`design.md` §5.2.6 *The examples*).
@@ -80,8 +82,10 @@ Canon keeps its old citations until audit promotes the delta.
 
 ```
 PHASE-01 ─┐
-PHASE-02 ─┼─► PHASE-04 ─► PHASE-05 ─► PHASE-06 ─► PHASE-07 ─► PHASE-08 ─► PHASE-09 ─► PHASE-10
-PHASE-03 ─┘                 (capsule)   (examples)  (fences)    (coverage)   (walks)     (fix, re-walk)
+PHASE-02 ─┼─► PHASE-04 ─► PHASE-05 ─► PHASE-06 ─► PHASE-07 ─► PHASE-08 ─┬─► PHASE-09 ─► PHASE-10
+PHASE-03 ─┘               (packages)  (examples)  (fences)    (coverage) │   (walks)     (fix, re-walk)
+                              │                                          │
+                              └─► PHASE-11 (capsule; waits on oubliette) ┘
 ```
 
 **Why the host changes come first.** The checker only prints what the host
@@ -95,12 +99,16 @@ worktree with one writer, merged in order. Their surfaces are disjoint by
 file. The default is sequential; parallel is the user's call at phase-plan
 time.
 
-**Why the capsule comes before any prose** (`design.md` §8 R1 and R7, and
-their mitigations). The capsule mechanism, `capsule-collect`, and whether each
-model reads a skill loaded from a store path have never been run. PHASE-05
-stands all three up with a placeholder skill, so a blocker there costs a
-manifest and a script, not a written reference. It needs `goad-check` to exist,
-because the negative control runs `goad-check --version`.
+**Why the plugin loads come early, and the capsule splits out** (`design.md`
+§8 R1 and R7, and their mitigations; `plan-log.md` 2026-10-01, *the capsule
+splits out*). Whether each model reads a skill loaded from a store path has
+never been run; PHASE-05 runs it on the host with a placeholder skill, before
+any prose, so a blocker costs a manifest and not a reference. The capsule
+(PHASE-11) waits on oubliette work outside this slice, so it runs as early as
+oubliette allows, beside PHASE-06..PHASE-08, and must be done before
+PHASE-09. The kit's prose does not depend on where the walk runs, so R7
+firing late changes the walk's shape, not the reference. PHASE-05 needs
+`goad-check` to exist, because `goad-walk`'s tool set holds it.
 
 **Why the examples come before the reference.** The reference's examples cite
 real backends, and the examples are the kit's highest-value content for the
@@ -118,8 +126,8 @@ kit fixes answer. The re-walk rule (`design.md` §5.2.9) requires the fixes on
 `main` and `goad-walk`'s lock moved to that revision before either re-walk.
 
 **Size.** Each phase fits one session, bookkeeping included. PHASE-04 is the
-largest in code; PHASE-07 and PHASE-08 in prose. PHASE-05, PHASE-09 and
-PHASE-10 are long in wall time and in person time, not in tokens. A phase that
+largest in code; PHASE-07 and PHASE-08 in prose. PHASE-09, PHASE-10 and
+PHASE-11 are long in wall time and in person time, not in tokens. A phase that
 reaches its budget unfinished checkpoints PARTIAL in its sheet and hands over.
 
 **Mutation evidence** goes in the phase's sheet in `notes.md`, under a
@@ -136,7 +144,7 @@ breach that an instrument is shown to catch.
 
 | AC | discharged by |
 |----|---------------|
-| AC-1 | PHASE-05/EX-5 (the capsule, its negative control); PHASE-09/EX-3 (each first walk: control passed, verdict 0 with a view answered, no goad source read) and PHASE-09/VH-1 (a person ran each walk's backend); PHASE-10/EX-4 and PHASE-10/VH-1 (each re-walk, the same) |
+| AC-1 | PHASE-11/EX-1, EX-2 (the capsule, its negative control, the plugin in it); PHASE-09/EX-3 (each first walk: control passed, verdict 0 with a view answered, no goad source read) and PHASE-09/VH-1 (a person ran each walk's backend); PHASE-10/EX-4 and PHASE-10/VH-1 (each re-walk, the same) |
 | AC-2 | PHASE-07/VT-1 (every json/toml fence in the kit is tagged and checked) with VT-2..VT-4 (its negative controls) and VA-2 (the untag mutation); PHASE-08/EX-1 (the same test over the finished reference) |
 | AC-3 | PHASE-04/VT-2 (each refusal reported with side and requirement, from the host's `Outcome`) and PHASE-04/VA-1, VA-2 (I-1, I-2); PHASE-01/VT-1, VT-2 (the data it prints) |
 | AC-4 | PHASE-03/VT-1 (`goad-emit`); PHASE-04/VT-2 (`goad-check`'s three statuses); the statement itself is `canon-delta.md` SPEC-004, **promoted at audit** |
@@ -165,9 +173,9 @@ breach that an instrument is shown to catch.
 an example exits 1 on the probe — PHASE-06/VA-2; one fence untagged —
 PHASE-07/VA-2. Its *outside the gate* checks: `claude plugin validate` —
 PHASE-05/EX-3, PHASE-08/EX-4, PHASE-10/EX-2; `nix build` and `goad-walk`'s
-tool set — PHASE-05/EX-1, EX-4; the negative control — PHASE-05/EX-5 and
+tool set — PHASE-05/EX-1, EX-4; the negative control — PHASE-11/EX-1 and
 before every walk. Its *observed by a person* runs: PHASE-03/VH-1 (`just
-demo`), PHASE-06/VH-1..VH-3, PHASE-09/VH-1, PHASE-10/VH-1.
+demo`), PHASE-06/VH-1..VH-3, PHASE-09/VH-1, PHASE-10/VH-1; the capsule session — PHASE-11/VH-1.
 
 ---
 
@@ -485,30 +493,24 @@ list only); `canon-delta.md` (test paths only).
 
 ---
 
-## PHASE-05 — packages, the plugin's shell, and a capsule
+## PHASE-05 — packages and the plugin's shell
 
 **Objective:** the flake exports `goad-check` and `goad-kit`; the plugin's
-manifests exist and validate; `goad-walk` builds the full tool set; and a
-capsule has been provisioned from it, has passed its negative control, and has
-had the plugin loaded and the skill seen by both agents.
+manifests exist and validate; both agents, on the host in a fresh home, load
+the plugin from its store path and see the skill; and `goad-walk` builds the
+full tool set.
 
 **Surfaces:** `flake.nix` (`packages.goad-check`, `packages.goad-kit`);
 `.claude-plugin/marketplace.json`; `.agents/plugins/marketplace.json`;
 `kit/.claude-plugin/plugin.json`; `kit/.codex-plugin/plugin.json`;
 `kit/skills/goad-backend/SKILL.md` (a placeholder: frontmatter and a line);
 `README.md` (the kit and plugin-install line); `justfile` (`package` gains
-`goad-check` and `goad-kit`, `install` gains `goad-check`, PL-6); `docs/slices/012/walk/` (new: the walk script, the
-negative control, the fixed prompt); `~/dev/goad-walk/{flake.nix, flake.lock,
-README.md}`, committed in that repository.
+`goad-check` and `goad-kit`, `install` gains `goad-check`, PL-6);
+`~/dev/goad-walk/{flake.nix, flake.lock, README.md}`, committed in that
+repository.
 
 **Entry**
 - EN-1 — PHASE-04 done.
-- EN-2 — the user has registered `goad-walk` as an oubliette target
-  (oubliette's `docs/contract-target.md`: its `target.nix` and the host's
-  target input). Oubliette-side configuration, not this slice's; it may be
-  done at any time before this phase.
-- EN-3 — Claude and Codex credentials are available as environment variables
-  for the ssh command that starts a capsule session.
 
 **Exit**
 - EX-1 — `nix build --no-link .#goad-check .#goad-kit` succeeds from the bare
@@ -521,47 +523,28 @@ README.md}`, committed in that repository.
   `goad-kit`, `ruby` and `jq`, with `goad-kit` re-exported, its stubs for the
   two pending packages gone, its README current, its lock pinned to this
   phase's goad commit, and it builds.
-- EX-5 — in a fresh capsule provisioned at `goad-walk`'s `main`, the negative
-  control passes: each source pattern and the session probe finds nothing
-  there, and on the host each finds something, each source pattern
-  separately; `goad-check --version`, `ls "$KIT/kit/skills"` and `ruby -e
-  'require "json"'` succeed.
-- EX-6 — in that capsule, `claude --plugin-dir "$KIT/kit"` and Codex after
-  `codex plugin marketplace add "$KIT"; codex plugin add goad@goad` each
-  answer a trivial headless prompt by naming the `goad-backend` skill; and the
-  walk script's collection step brings a committed tree back through
-  `capsule-collect`.
 - EX-7 — `just package` builds `goad-check` and `goad-kit`, and `just
   install` installs `goad-check` (PL-6).
+- EX-8 — on the host, in a fresh home that has held no session,
+  `claude -p --plugin-dir "$KIT/kit"` and Codex after `codex plugin
+  marketplace add "$KIT"; codex plugin add goad@goad` each answer a trivial
+  headless prompt by naming the `goad-backend` skill, `$KIT` being
+  `goad-walk#goad-kit`'s store path (R1, as far as the host reaches it;
+  `plan-log.md` 2026-10-01, *the capsule splits out*).
 
 **Verification**
 - VA-1 — Codex's manifest, `interface` block included, is accepted:
   `codex plugin marketplace add` and `codex plugin add goad@goad` against the
   `goad-kit` store path in a fresh `CODEX_HOME` on the host succeed, and
   `~/.codex/plugins/cache/` holds only `kit/`'s contents.
-- VA-2 — the walk script does what `design.md` §5.2.8–§5.2.9 say: `$KIT` from
-  `nix eval` on `goad-walk#goad-kit`, the control before each walk, the
-  agent invocations as §5.2.9 spells them, transcripts in `/work/walk-logs/`,
-  the tree committed and collected. The fixed prompt is stored verbatim.
-- VA-3 — whether the capsule proxy logs allowed requests, or only refused
-  ones, is found out and recorded in the phase sheet (F-20); PHASE-09's
-  fetch-attempt column depends on it.
-- VA-4 — nothing credential-bearing is in `goad-walk`'s tool set or in the
-  walk directory.
-
-**Verification (human)**
-- VH-1 — the user watches the capsule session of EX-5 and EX-6 and accepts
-  the negative control's output.
+- VA-4 — nothing credential-bearing is in `goad-walk`'s tool set.
 
 **Notes for the implementer**
 - The spike (`spike/`, `research.md` §"Spike: R1 and R2") is prior art for
   the plugin loads; `goad-kit` is a marketplace root, and Claude loads
   `"$KIT/kit"`.
-- The walk script lives in the slice folder and not in `goad-walk`, because
-  the capsule clones `goad-walk` and its agent would read the script, the
-  prompt and the control's patterns (PL-5).
-- STOP if either plugin load or `capsule-collect` fails in a way the kit
-  cannot fix: that is R1 or R7 firing, and the walk's shape is the user's.
+- STOP if either plugin load fails in a way the kit cannot fix: that is R1
+  firing, and the walk's shape is the user's.
 
 ---
 
@@ -726,6 +709,7 @@ stay in the quarantine and `goad-walk`, outside this repository.
 **Entry**
 - EN-1 — PHASE-08 done, on `main`; `goad-walk`'s lock pins that revision
   (the script's lock bump, committed in `goad-walk`).
+- EN-2 — PHASE-11 done.
 
 **Exit**
 - EX-1 — before each walk, in its capsule, the negative control passed.
@@ -797,3 +781,60 @@ walk/}`; `~/dev/goad-walk/flake.lock`, committed in that repository.
 - VH-1 — as PHASE-09/VH-1, for each re-walk.
 - VH-2 — the person judges, from `walks.md`, that neither re-walk regressed in
   turns or total tokens (AC-8; indicative, no threshold).
+
+---
+
+## PHASE-11 — the capsule
+
+**Objective:** the walk script exists, and a capsule provisioned from
+`goad-walk` has passed its negative control, had the plugin loaded and the
+skill seen by both agents, and brought a committed tree back through
+`capsule-collect`.
+
+**Surfaces:** `docs/slices/012/walk/` (new: the walk script, the negative
+control, the fixed prompt; PL-5).
+
+**Entry**
+- EN-1 — PHASE-05 done.
+- EN-2 — oubliette can take `goad-walk` as a target, and the user has
+  registered it (oubliette's `docs/contract-target.md`). Oubliette-side work,
+  including support for more than one target repository, and not this
+  slice's.
+- EN-3 — Claude and Codex credentials are available as environment variables
+  for the ssh command that starts a capsule session.
+
+**Exit**
+- EX-1 — in a fresh capsule provisioned at `goad-walk`'s `main`, the negative
+  control passes: each source pattern and the session probe finds nothing
+  there, and on the host each finds something, each source pattern
+  separately; `goad-check --version`, `ls "$KIT/kit/skills"` and `ruby -e
+  'require "json"'` succeed.
+- EX-2 — in that capsule, `claude --plugin-dir "$KIT/kit"` and Codex after
+  `codex plugin marketplace add "$KIT"; codex plugin add goad@goad` each
+  answer a trivial headless prompt by naming the `goad-backend` skill; and the
+  walk script's collection step brings a committed tree back through
+  `capsule-collect`.
+
+**Verification**
+- VA-1 — the walk script does what `design.md` §5.2.8–§5.2.9 say: `$KIT` from
+  `nix eval` on `goad-walk#goad-kit`, the control before each walk, the
+  agent invocations as §5.2.9 spells them, transcripts in `/work/walk-logs/`,
+  the tree committed and collected. The fixed prompt is stored verbatim.
+- VA-2 — whether the capsule proxy logs allowed requests, or only refused
+  ones, is found out and recorded in the phase sheet (F-20); PHASE-09's
+  fetch-attempt column depends on it.
+- VA-3 — nothing credential-bearing is in the walk directory.
+
+**Verification (human)**
+- VH-1 — the user watches the capsule session of EX-1 and EX-2 and accepts
+  the negative control's output.
+
+**Notes for the implementer**
+- The walk script lives in the slice folder and not in `goad-walk`, because
+  the capsule clones `goad-walk` and its agent would read the script, the
+  prompt and the control's patterns (PL-5).
+- STOP if either plugin load or `capsule-collect` fails in the capsule in a
+  way the kit cannot fix: that is R1 or R7 firing, and the walk's shape is the
+  user's.
+- Its surfaces are disjoint from PHASE-06..PHASE-08's, so it may run beside
+  them, in its own worktree, whenever EN-2 holds.
