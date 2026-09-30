@@ -446,3 +446,27 @@ other, citing the finding id.
   table, rationale), §5.2.6 (coverage test states its limit; `checking.md`),
   §6 OQ-1, §10; `slice-012.md` AC-7 and OQ-2/OQ-8; `notes.md`. F-22 gets a
   round 3 Response. Round 3, narrow, follows the repair.
+
+### 2026-09-30 — design review round 3: dispositions
+
+- **Asked:** round 3 (`review-design.md`, 445699c) verified F-22 and
+  F-34..F-40 and found no R-59 defect; it raised F-41..F-43, none a blocker.
+  Proposed, each `doc-wrong`:
+  - F-41: R-45's §7 row addition names the modes its survival witness runs,
+    and says `Spawn`, `Io` and `PipeMissing` reach the caller through
+    `Host::no_action` and that their survival is held by review — a spawn
+    failure cannot be a mode of the one parameterized backend.
+  - F-42: the row's counts are replaced by names — a view, then every mode in
+    `PROTOCOL_MODES` and `TRANSPORT_MODES`, then the answer to that view. The
+    orchestrator's check: the test runs nineteen exchanges (view, seventeen
+    failures, answer); the row's "nineteen … then a successful one" counts
+    twenty.
+  - F-43: `CleanupFailure::Io` → R-48's rationale rests on R-48's obligation
+    to initiate termination and wait, which a failed `start_kill`/`wait` call
+    leaves failing through the operating system.
+  - Then the raiser verifies the three mechanically and the ledger resolves;
+    the design goes to plan.
+- **Recommended:** as proposed.
+- **Decided:** *"yes"*.
+- **Consequence:** `canon-delta.md` SPEC-001 Change 7; `design.md` §5.2.3
+  `CleanupFailure::Io` rationale; ledger Responses on F-41..F-43.
