@@ -102,6 +102,16 @@ buried:
 10. **Completeness against slice-012.md.** Every AC and surface has a design
     home, and nothing in the design exceeds the slice's scope.
 
+**Round 2** — 2026-09-30 — the round 1 repairs at `c821fc5`, and their
+dispositions. Probing: (a) each Response against what actually changed, then
+set Outcomes; (b) the new R-59 as a whole — its closed scope (including the
+R-45 clause added while repairing), one reading of the id, the declared
+imprecision, and `CleanupFailure` → environment in particular; (c) the
+verdict cut for `goad-check`'s statuses against every end in §5.2.2 and §5.4,
+`Failure::State` included; (d) whether any repair introduced a defect or a
+new count, line citation, or stale restatement elsewhere; (e) the U8
+override's fixture consequence.
+
 ## Findings
 
 **Round 1** — raiser: fresh agent, Opus, at `bf7a161`.
