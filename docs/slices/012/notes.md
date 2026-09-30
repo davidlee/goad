@@ -83,12 +83,28 @@ after the slice closes is lifted into the Harvest section.
   misread needs normalization to report a path for serde failures
   (`design-log.md`, 2026-09-26, OQ-8). Candidate follow-up at close.
 - **R-16 has no non-empty clause for a `choice` field's `options`.**
-  `EmptyAlternatives` cites R-52, as SPEC-001 §7 and the corpus do. A canon
-  wording fix, not a behaviour change (design.md §6 OQ-6). Candidate follow-up.
-- **The jail library fixes the home per profile.** 012 binds a launcher-made
-  home over `$HOME` locally; a home-name parameter upstream in
-  `davidlee/nix-config` is cleaner (design.md §6 OQ-7). Candidate follow-up.
+  `EmptyAlternatives` cites R-44, since no more specific requirement states
+  the rule (`design-log.md` 2026-09-30, U8); SPEC-001 §7's R-52 row still
+  files the fixture under R-52. A canon wording fix, not a behaviour change
+  (design.md §6 OQ-6); landing it re-points `EmptyAlternatives` to R-16.
+  Candidate follow-up.
+- **The jail library fixes the home per profile.** A home-name parameter
+  upstream in `davidlee/nix-config` is cleaner than a local bind (design.md
+  §6 OQ-7). The walk no longer needs either: it runs in an oubliette capsule
+  (2026-09-30). Candidate follow-up only if a jail is used again.
 - **An untouched `number` field can submit a value outside its own range.**
   `view_model::as_drawn` answers min-or-zero, so `max: -10` with no `min`
   submits `0`. Existing host behaviour; the checker mirrors it (design.md §5.5
   edges). Candidate follow-up against the renderer.
+- **`goad-check --now`.** Not built: a time-gated backend is checked at an
+  hour it speaks, and the report says when no view was returned
+  (`design-log.md` 2026-09-30, U3; review F-7). Build it only if walk friction
+  names it; it strains SPEC-001/R-7's "current instant" and reaches only
+  backends that read `now`. Candidate follow-up.
+- **FU-7's citation extends to `goad-check`.** Nothing bills a stratum-3
+  manifest, so `goad-check` linking no renderer is held by its manifest
+  comment and review (design.md §5.5 I-6; review F-26). Extend FU-7 at close.
+- **FU-5's citation extends to the kit fence scanner.** `goad-check`'s tests
+  carry a second fence scanner beside `goad-shell`'s `round_trip.rs`
+  `fenced_block`, because test targets share no helpers across crates
+  (design.md §5.2.6). Extend FU-5 at close.

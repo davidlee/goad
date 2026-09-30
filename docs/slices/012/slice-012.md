@@ -23,8 +23,9 @@ Discharges brief §21 AC-15.
 Decided before scoping (roadmap §012, 2026-09-26):
 
 - **A plugin the repo exposes**, agent-generic: a Claude Code manifest and a
-  Codex manifest over one skill. The skill carries a backend-facing reference,
-  new examples and scripts.
+  Codex manifest over one skill. The skill carries a backend-facing reference
+  and new examples; no scripts, since none has a job of its own
+  (`design.md` §6 OQ-4).
 - **A headless checker binary.** It drives a backend command with requests and
   judges each reply with the host's own normalizer and failure taxonomy, saying
   which side was wrong. It is a new binary, so SPEC-004 names its exit status.
@@ -63,9 +64,16 @@ are design's):
 - `crates/goad-semantics`, `crates/goad-shell` — `requirement()` and `fault()`
   beside each error taxonomy; the host kind names and a pure R-57
   value-per-kind lifted into stratum 1; fixture `requirement` lists corrected
-  (OQ-8, OQ-4).
+  (OQ-8, OQ-4); `config::Command::from_argv` made public for the checker's
+  argv form (review F-33).
 - `crates/goad` — `Stimulus::kind` and `draft.rs::submitted` delegate to the
   lifted code (OQ-4).
+- `crates/goad-emit` — an answer to `--help`/`--version` that stdout refuses
+  exits 2 (`design-log.md`, 2026-09-30, U6).
+- `crates/goad-boundary` — the allowlist module doc's member list, which
+  `goad-check` joins.
+- `crates/goad-check/Cargo.toml` — a comment arguing that it links no
+  renderer, as `goad-emit`'s does (FU-7).
 - `kit/` and the root marketplace manifests — the plugin (OQ-6).
 - `examples/` renamed; its referencing sites, including `goad-shell`'s
   integration tests and `justfile`.
@@ -74,8 +82,9 @@ are design's):
   `ruby` in its tool set only. Its registration with oubliette is
   oubliette-side configuration.
 - **Canon**, drafted in `canon-delta.md`: SPEC-001 (requirement id and side
-  at fault on each refusal; R-56's verification row), SPEC-004 (`goad-check`
-  and `goad-emit`), POL-001 (the command block's `deno check` paths).
+  at fault on each refusal; R-56's and R-57's verification rows), SPEC-004
+  (`goad-check` and `goad-emit`), POL-001 (the command block's `deno check`
+  paths), ADR-003 (the member list gains `goad-check`).
 
 ## Non-goals
 
@@ -91,10 +100,12 @@ are design's):
 
 - [ ] AC-1 — A fresh agent in a walk capsule — the skill and the flake's
   exported goad packages, nothing else from this repository — writes a backend
-  the checker accepts, and a person has run the host against it and seen the
-  behaviour. Walked once with Claude Code and once with Codex, headless, from
-  one fixed prompt. The capsule's negative control passes first: no goad
-  source in its store, and no prior agent session in its home.
+  the checker accepts, with at least one view answered, and a person has run
+  the host against it and seen the behaviour. Walked once with Claude Code and
+  once with Codex, headless, from one fixed prompt. The capsule's negative
+  control passes first: no goad source in its store, and no prior agent
+  session in its home. A walk whose agent read goad's source fails this
+  criterion and is re-run.
 - [ ] AC-2 — Every wire example the reference ships is normalized by the gate;
   an example the host would refuse fails `just check`.
 - [ ] AC-3 — The checker, run against a backend, reports each refusal with the
@@ -109,8 +120,8 @@ are design's):
 - [ ] AC-6 — A person has run the checker against the shipped examples and a
   broken backend, and seen the report (`docs/AGENTS.md` §Tiers).
 - [ ] AC-7 — Canon states that each refusal the checker reports names the side
-  at fault and the requirement it breaks, and a test holds it for every refusal
-  kind the normalizer can produce.
+  at fault and the requirement under which the host refused, and a test holds
+  it for every refusal kind the normalizer can produce.
 - [ ] AC-8 — Token spend (input, output, cache), turns and wall time are
   recorded for every walk, first and re-walk. Indicative, not a benchmark: no
   threshold, but the re-walk does not regress.
@@ -137,14 +148,16 @@ are design's):
   scoped separately (`design-log.md`, 2026-09-26).
 - ~~OQ-2 — Is the checker's report canon, or only its exit status (SPEC-004)?~~
   **Its exit status, and its claims:** each refusal names the side at fault and
-  the requirement it breaks. Its format is not canon (`design-log.md`,
+  the requirement under which the host refused (wording revised at design
+  review, `design-log.md` 2026-09-30, U1). Its format is not canon (`design-log.md`,
   2026-09-26). Where that requirement lives is for design; where the
   requirement id comes from is for research.
 - ~~OQ-3 — How AC-1 is walked: which agent, which jail, what it is given, what
-  counts as passing.~~ **Both agents, headless, in consumer jails built by
-  this flake; checker pass plus a person running it; tokens and friction
-  measured** — AC-1, AC-8, AC-9 (`design-log.md`, 2026-09-26). The walk's task
-  and the jail's exact contents are for design.
+  counts as passing.~~ **Both agents, headless, in a walk capsule (consumer
+  jails at first, superseded 2026-09-30); checker pass plus a person running
+  it; tokens and friction measured** — AC-1, AC-8, AC-9 (`design-log.md`,
+  2026-09-26, 2026-09-30). The walk's task and the capsule's exact contents
+  are the design's.
 - ~~OQ-4 — Which requests the checker sends: evaluate only, or also response and
   event, and with what fabricated payloads.~~ **Evaluate with the three host
   kinds and one unrecognised one; author-supplied forwarded events; respond
@@ -155,8 +168,8 @@ are design's):
   `goad_shell::host::Host`; renderer-free (`design-log.md`, 2026-09-26).
 - ~~OQ-6 — Where the plugin lives in the tree, and how a consumer installs it.~~
   **`kit/`, with root marketplace manifests pointing at it; the flake exports
-  `goad-kit` and `goad-check`; jails load the store path** (`design-log.md`,
-  2026-09-27).
+  `goad-kit` and `goad-check`; the walk capsule gets the store path through
+  `goad-walk`'s tool set** (`design-log.md`, 2026-09-27, 2026-09-30).
 - ~~OQ-7 — The walk's task and language — a behaviour none of the examples
   implement, in a language none of them use.~~ **An end-of-day wrap-up, in
   Ruby, stdlib only** (`design-log.md`, 2026-09-27).
