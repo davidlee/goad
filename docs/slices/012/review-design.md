@@ -124,6 +124,7 @@ buried:
 | F-30 | minor | | |
 | F-31 | minor | | |
 | F-32 | nit | | |
+| F-33 | major | | |
 
 ### F-1 — R-59's meaning of the id is false of most rows of its own table
 
@@ -937,6 +938,42 @@ are resolved in the reference itself.
 **Response:**
 
 **Outcome:**
+
+### F-33 — The argv form does not reuse the host's empty-command refusal
+
+*Raised by the Codex second witness (an independent read-only pass, not shown
+this ledger), verified by the orchestrator against the source.*
+
+**Severity:** major
+**Location:** `design.md` §5.2.1 *Argv form*
+
+**Expected:** An empty program is refused before transport, by the same rule
+the host applies (SPEC-001/R-36), as §5.2.1 claims.
+
+**Observed:** §5.2.1 builds the argv form's command with
+`config::Command::new` and says an empty argv "is refused by the same rule".
+`Command::new` accepts any program, the empty string included. The refusal is
+`Command::from_argv`, which is private to `config` and reached only through
+`Config::parse`.
+
+**Evidence:** `crates/goad-shell/src/config.rs`: `Command::new`,
+`Command::from_argv`, `Config::parse`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### Second witness — corroboration
+
+Codex raised five findings without seeing this ledger. Four match findings
+above, raised independently: its clock-failure status gap is F-8; its
+"names rules that were not broken" (Spawn → R-36, Timeout → R-41,
+EmptyAlternatives → R-52) is F-1 and F-4, and adds `EmptyAlternatives` → R-52 as
+an instance; its R-56 over-blame is F-3; its source-probe gap is F-17. The
+fifth is F-33. It found sound: reuse of `Host<ProcessBackend>`, the strata
+placement, `--event` through `envelope::normalize`, the fence scanner's
+rejection of untagged fences, and the vocabulary boundary.
 
 ### Round 1 — what holds
 
