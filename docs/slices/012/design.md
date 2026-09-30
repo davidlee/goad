@@ -586,19 +586,23 @@ Stale counts found while tracing, to be fixed where they are touched:
 - **`packages.goad-check`**: `craneLib.buildPackage` with `cargoExtraArgs =
   "--locked -p goad-check --bin goad-check"`, sharing `cargoArtifacts`, with
   no wrapper and no `guiLibs`, as `goad-emit` has.
-- **`packages.goad-kit`**: `lib.cleanSourceWith` over `./kit` only, copied to
-  `$out`, so the store path is the plugin root.
+- **`packages.goad-kit`**: a marketplace root, not a plugin root:
+  `lib.cleanSourceWith` over `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json` and `./kit`, and nothing else. Codex
+  installs only from a marketplace root, and copies only `kit/` into its
+  cache; Claude loads the plugin root, `"$GOAD_KIT/kit"` (`research.md`
+  §"Spike: R1 and R2").
 - **The devshell** adds `python3` and `jq` to `projectPkgs` (endorsed
   2026-09-26; `inotify-tools` dropped 2026-09-30, A-4). `ruby` goes into the
   consumer jails only.
 - **`jailed-consumer-claude`, `jailed-consumer-codex`**: built with `mkJail`'s
   makers and a **consumer option set**, not `jailEnvOptions`:
   - `extraPkgs`: `goad-check`, `goad-emit`, `goad`, `ruby`,
-    `jq`, and the agent. Not `projectPkgs`: no Rust toolchain, no deno, no
+    `jq`, `goad-kit`, and the agent. Not `projectPkgs`: no Rust toolchain, no deno, no
     Slint mount, no `goadHeadless`.
   - `extraOptions`: `apiKeysViaFd`, `CLAUDE_CODE_SHELL`, `set-env "GOAD_KIT"
-    "${goad-kit}"`, which puts the kit in the closure, and a **walk-home
-    bind**. The jail library fixes `persist-home "agent"` per
+    "${goad-kit}"`, and a **walk-home bind**. The variable does not put the
+    kit in the jail; `goad-kit` in `extraPkgs` does (spike). The jail library fixes `persist-home "agent"` per
     profile, and that home has held goad development sessions. The consumer
     jail binds a launcher-created empty directory over `$HOME` after the
     profile's options, so the later bind shadows the shared home.
@@ -618,7 +622,7 @@ Stale counts found while tracing, to be fixed where they are touched:
   - `/home/david/.claude/projects/-home-david-dev-goad/memory/`;
   - any `/nix/store/*-goad-source`.
 
-  Each must *succeed*: `goad-check --version`, `ls "$GOAD_KIT/skills"`, and
+  Each must *succeed*: `goad-check --version`, `ls "$GOAD_KIT/kit/skills"`, and
   `ruby -e 'require "json"'`. A control that cannot fail proves nothing, so
   the script first runs the same reads outside the jail and asserts they
   succeed.
@@ -646,15 +650,15 @@ does not lead toward gems:
 **Headless invocation** (research R-e):
 
 - Claude:
-  `jailed-consumer-claude -p "$PROMPT" --plugin-dir "$GOAD_KIT"
+  `jailed-consumer-claude -p "$PROMPT" --plugin-dir "$GOAD_KIT/kit"
   --output-format stream-json --verbose --dangerously-skip-permissions >
   transcript.jsonl`. The final line is the `result` object.
 - Codex: setup runs in the fresh home first and is not measured:
   `codex plugin marketplace add "$GOAD_KIT"; codex plugin add goad@goad`.
   Then `codex exec --json --skip-git-repo-check
   --dangerously-bypass-approvals-and-sandbox "$PROMPT" > transcript.jsonl`.
-  The script measures wall time around the call. Whether Codex installs from a
-  store path is unverified (R1).
+  The script measures wall time around the call. Both agents install from a
+  store path (spike, R1).
 
 **What is recorded**, in `docs/slices/012/walks.md`, one row per walk:
 
@@ -868,7 +872,7 @@ changes the slice's shape.
 
 | id | risk | likelihood / impact | mitigation | signal |
 |---|---|---|---|---|
-| R1 | Codex cannot install a plugin from a read-only store path, or does not read skills from it | medium / blocks the Codex walk | prototype the jail and both plugin loads **first**, before any kit prose (memory: prototype before the next review round) | `codex plugin add` errors; the skill is not listed in the transcript |
+| R1 | Codex cannot install a plugin from a read-only store path, or does not read skills from it — **install verified by the spike** (`research.md` §"Spike: R1 and R2"); the model reading the skill is not | medium / blocks the Codex walk | prototype the jail and both plugin loads **first**, before any kit prose (memory: prototype before the next review round) | `codex plugin add` errors; the skill is not listed in the transcript |
 | R2 | the `$HOME` bind does not shadow `persist-home`, and the walk sees prior goad sessions | low / invalidates AC-1 | the negative control reads the shared home's path | the control's shared-home check succeeds |
 | R3 | gate tests spawning python/deno/bash become timing-flaky under load | medium / red gate | example tests use a generous `--timeout` in their own config; nothing asserts durations (memory: margin direction) | intermittent `Timeout` in example tests |
 | R4 | the reference drifts from canon in prose that no fence reaches | medium / wrong guidance | ids cited per rule; the coverage test over ids; audit reads the reference against SPEC-001 §4 | walk friction pointing at the reference |
