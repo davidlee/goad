@@ -61,3 +61,40 @@ ledger (`review-plan.md`).
 - **Decided:** *"yes, that's right. sure, let's split it."*
 - **Consequence:** `plan.md` PHASE-05 narrowed, PHASE-11 added, sequencing,
   coverage and PHASE-09/EN-2 updated; `notes.md` §Status gains PHASE-11.
+
+### 2026-10-01 — plan review round 1: dispositions
+
+- **Asked:** `review-plan.md` round 1 (b407b8b): no blocker, F-1..F-21.
+  Every finding proposed `doc-wrong`. The design-touching five (F-4, F-6,
+  F-11, F-13, F-18) are recorded in `design-log.md` 2026-10-01, *plan review
+  round 1: design-touching dispositions*. The rest, as proposed:
+  - F-1 PHASE-05 gains a credentials entry for the fresh home; its STOP
+    separates an authentication failure from R1.
+  - F-2 the placeholder `SKILL.md` carries a body-only marker; PHASE-05/EX-8
+    and PHASE-11/EX-2 ask for a fact only the body states at the pinned
+    revision.
+  - F-3 PHASE-09 owns the lock bump to PHASE-08's revision.
+  - F-5 reach re-proven where later phases add kit files; the coverage test
+    and the example test enumerate their sets, refusing an empty one;
+    PHASE-10 re-reads I-1, I-2 and fence reach.
+  - F-7 a mutation reds the discard witness; a non-vacuity guard.
+  - F-8 I-1's grep reads non-comment code. F-9 the `"host"` rule scoped to
+    non-test code; the probe names `HOST_SOURCE`. F-10 the choice
+    expectation is the fixture's literal id.
+  - F-12 parallel phases need the orchestrator to own `notes.md` §Status and
+    the `canon-delta.md` test-name edits at merge; sequential stays default.
+  - F-14 each example's gate test asserts a view answered. F-15 the named
+    run-sequence and structural properties get cases or VA reads. F-16 ids
+    sit in a heading under `reference/`; "the specs are not shipped" and
+    "nothing host-internal" get criteria.
+  - F-17 **supersedes PL-4's rationale**: the recipe departs from POL-001
+    §Statement's "policy first, recipe second" mid-slice because canon is
+    not edited mid-slice (`docs/AGENTS.md` §Canon that does not exist yet)
+    and the rename would otherwise break the gate; POL-001's block names a
+    path that no longer exists from PHASE-03 until audit promotes the delta.
+    The recipe's comment is true at each step.
+  - F-19..F-21 mechanical.
+- **Recommended:** as listed.
+- **Decided:** *"yeah go ahead"*.
+- **Consequence:** dispositions in the ledger; a fresh agent repairs
+  `plan.md` and `design.md`; the raiser runs round 2.

@@ -508,3 +508,37 @@ other, citing the finding id.
 - **Consequence:** `design.md` §5.2.1 (`--timeout`) and §5.2.4 (delegation)
   amended; `plan.md` PHASE-02/EN-2 and PHASE-04/EN-2 discharged by this
   entry.
+
+### 2026-10-01 — plan review round 1: design-touching dispositions
+
+- **Asked:** plan review round 1 (`review-plan.md`, b407b8b) raised five
+  findings whose repair changes `design.md`, each verified in the tree by the
+  orchestrator:
+  - **F-11** — G1's conversion "in `draft.rs`, through `adjusted`" cannot be
+    built: `adjusted` and `spelled` are private to `view_model.rs`, and
+    `draft.rs` does not import `view_model`. Proposed: a private `as_edited`
+    in `view_model.rs` beside `adjusted`, not a crate-wide `From` impl;
+    `adjusted`'s doc stays true. Supersedes G1's placement only.
+  - **F-18** — §5.2.6's reason for a second fence scanner ("one crate's test
+    targets cannot reach another's helpers") is false: members share helpers
+    from `tests/support/` through `#[path]` (memory
+    `shared-test-helper-lives-at-workspace-root-via-path`). Proposed: the
+    scanner lives in `tests/support/`, included by `round_trip.rs` and
+    `goad-check`'s kit tests; `goad-check`'s binary tier includes the existing
+    support files where they fit, and any copy the `dead_code` obstacle forces
+    is named in FU-5's extension.
+  - **F-6** — I-5 has no rule. Proposed: the test fails on a relative path in
+    `kit/` that escapes `kit/`, and on a mention of `<name>/` for any
+    top-level entry of the repository root other than `kit`, read at test
+    time; with a negative control over an inline string.
+  - **F-4** — `AtFault` has no printed form, so the checker would map sides
+    itself. Proposed: `Display` on `AtFault` in stratum 1, printing
+    `backend`, `host`, `configuration`, `environment`.
+  - **F-13** — PHASE-04 is too large for a session. Proposed: split; the run
+    itself (request plan, answering, chains, R-56 condition, refusal lines)
+    becomes PHASE-12.
+- **Recommended:** each as proposed.
+- **Decided:** *"yeah go ahead"*.
+- **Consequence:** `design.md` §5.2.3 (`AtFault`), §5.2.4 (the conversion's
+  home), §5.2.6 (the scanner; I-5's rule), §5.5 I-5, §9 amended by the repair
+  agent; `plan.md` repaired; round 2 verifies.
