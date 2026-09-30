@@ -47,6 +47,22 @@ file; it does not start a new ledger.
 
 | | |
 |---|---|
+| `verified` | Disposition accepted. Done. |
+| `contested` | Disagree; hands back to the responder for re-disposition. Not terminal — the finding returns to open. |
+| `withdrawn` | The finding was wrong. Terminal. |
+
+**Done** = every finding `verified` or `withdrawn`, and no `blocker` outstanding.
+A ledger with no findings at all is **not** done — it means the review has not
+run yet.
+
+**Guardrails.** Do not reach for `follow-up` because the fix is large. Do not
+normalise `tolerated` without a real reason. Do not downgrade a `blocker` to get
+past the gate. `settle-in-code` is not a way to end an argument you are losing:
+it needs a named phase and a named test, it is unavailable to a `blocker`, and a
+finding that survives its phase returns to the ledger `contested`. Reject a
+finding on **evidence**, never on assertion. Confirm each disposition with the
+user before acting on it. Fix the class, not the instance, and do not introduce
+new defects repairing old ones.
 
 ## Brief
 
