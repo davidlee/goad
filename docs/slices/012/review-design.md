@@ -92,39 +92,39 @@ buried:
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | blocker | | |
-| F-2 | major | | |
-| F-3 | major | | |
-| F-4 | major | | |
-| F-5 | minor | | |
-| F-6 | major | | |
-| F-7 | major | | |
-| F-8 | major | | |
-| F-9 | major | | |
-| F-10 | major | | |
-| F-11 | major | | |
-| F-12 | minor | | |
-| F-13 | minor | | |
-| F-14 | minor | | |
-| F-15 | minor | | |
-| F-16 | minor | | |
-| F-17 | major | | |
-| F-18 | major | | |
-| F-19 | minor | | |
-| F-20 | minor | | |
-| F-21 | minor | | |
-| F-22 | minor | | |
-| F-23 | minor | | |
-| F-24 | minor | | |
-| F-25 | minor | | |
-| F-26 | minor | | |
-| F-27 | minor | | |
-| F-28 | nit | | |
-| F-29 | nit | | |
-| F-30 | minor | | |
-| F-31 | minor | | |
-| F-32 | nit | | |
-| F-33 | major | | |
+| F-1 | blocker | doc-wrong | |
+| F-2 | major | doc-wrong | |
+| F-3 | major | doc-wrong | |
+| F-4 | major | doc-wrong | |
+| F-5 | minor | doc-wrong | |
+| F-6 | major | doc-wrong | |
+| F-7 | major | doc-wrong | |
+| F-8 | major | doc-wrong | |
+| F-9 | major | doc-wrong | |
+| F-10 | major | doc-wrong | |
+| F-11 | major | doc-wrong | |
+| F-12 | minor | doc-wrong | |
+| F-13 | minor | doc-wrong | |
+| F-14 | minor | doc-wrong | |
+| F-15 | minor | doc-wrong | |
+| F-16 | minor | doc-wrong | |
+| F-17 | major | doc-wrong | |
+| F-18 | major | doc-wrong | |
+| F-19 | minor | doc-wrong | |
+| F-20 | minor | doc-wrong | |
+| F-21 | minor | doc-wrong | |
+| F-22 | minor | doc-wrong | |
+| F-23 | minor | doc-wrong | |
+| F-24 | minor | doc-wrong | |
+| F-25 | minor | doc-wrong | |
+| F-26 | minor | follow-up | |
+| F-27 | minor | doc-wrong | |
+| F-28 | nit | doc-wrong | |
+| F-29 | nit | doc-wrong | |
+| F-30 | minor | doc-wrong | |
+| F-31 | minor | doc-wrong | |
+| F-32 | nit | doc-wrong | |
+| F-33 | major | doc-wrong | |
 
 ### F-1 — R-59's meaning of the id is false of most rows of its own table
 
@@ -168,8 +168,8 @@ R-32, R-36 as written; `canon-delta.md` R-59 text; `design.md` §5.2.3 table and
 its "`Spawn` → R-36" rationale; `crates/goad-shell/src/backend/process.rs`
 `body`, the comment on its `BrokenPipe` arm (R-37).
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held, and wider than raised: R-3, R-12, R-18, R-23 and R-25 are host obligations too. U1 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): R-59 states **one** reading — the id is the requirement *under which the host refused*: the one stating the rule the refusal enforces, R-44 only where no more specific requirement states one. Sides are defined by where the cause lies. Rewritten in `canon-delta.md` SPEC-001 Change 1 (R-59), `design.md` §5.2.3 *Meaning of the id* and its rationale, §6 OQ-1, §10, and `slice-012.md` AC-7 and OQ-2. Rows that move: `Spawn` → R-44, `Io` and `PipeMissing` → R-45 (the rule under which the host reports a failure no requirement makes a refusal, and carries on), `EmptyAlternatives` → R-44 (U8), whose fixture's list gains R-44 as the two R-17 `Json` fixtures' do. `ExitStatus` → R-40, `Timeout` → R-41, `OutputTooLarge` → R-43, the R-44 kinds, `CleanupFailure` → R-48 and `StateError` → R-32 keep their ids, which now read truly.
 
 **Outcome:**
 
@@ -197,8 +197,8 @@ click"); SPEC-001/R-33, R-32; `crates/goad-shell/src/error.rs` `StateError` doc
 ("the backend did nothing wrong, and it was not asked"); `canon-delta.md` R-59
 host clause.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U1 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): the **host** side becomes "the cause lies on the host's side of the seam — its own code, or whoever answered through it". A delayed click is a caller on the host's side, so `StateError` → host now fits without asserting a host defect. `canon-delta.md` R-59 and `design.md` §5.2.3's `StateError` rationale are rewritten to say so.
 
 **Outcome:**
 
@@ -225,8 +225,8 @@ and the failure is backend-side.
 **Evidence:** `design.md` §5.2.2 table; `BackendError` variants and their
 sides in §5.2.3; SPEC-001/R-56 tolerance clause ("never as a protocol error").
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.2's probe row adds the R-56 line only when the probe's failure has `fault()` = backend **and** at least one of the three known-kind evaluates made no failure; otherwise the probe's refusal is reported as any other and nothing is added. `canon-delta.md` SPEC-001 Change 3 ("reports a backend that fails on it") is made equally precise. §9 gains `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`; §5.2.5's example is unchanged, since its backend succeeded on `startup`.
 
 **Outcome:**
 
@@ -253,8 +253,8 @@ these; the delta should either say so as an accepted imprecision, as SPEC-004
 `Timeout` and `Spawn`; §8 R3; `BackendError::ExitStatus` doc ("`None` means the
 child was signalled").
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U1 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): R-59 declares its imprecision rather than redefining sides to fit: one kind names one side; where a kind's cause can lie on another side — a timeout the configuration set too short, a signal sent from outside the backend, a spawn refused for want of resources — the kind keeps its side, and the refusal carries what lets a reader see the other: the configured timeout, that the backend was signalled, the operating system's error. The **environment** clause loses "a condition it cannot attribute to either program" and becomes "the operating system failed the host, or the host could not observe what it needed to". `Timeout` stays backend; `design.md` §5.2.3's rationale now cites the declared imprecision. Written in `canon-delta.md` R-59 and `design.md` §5.2.3.
 
 **Outcome:**
 
@@ -275,8 +275,8 @@ single transport id is wrong for some of them" — applies to `PipeMissing` too.
 Some(stdout), Some(stderr)) = … else { … PipeMissing … }` in `exchange`;
 SPEC-001/R-37, R-38, R-39.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U1 (`design-log.md` 2026-09-30, *design review round 1: dispositions*) chose `Io` and `PipeMissing` → R-45, so no transport id is claimed for a variant raised over three handles; the finding's mechanism no longer applies. `design.md` §5.2.3's `PipeMissing` row and §6 OQ-1 are rewritten. (The draft proposed `tolerated`, conditional on the rejected alternative; under the chosen one the artefact was the defect.)
 
 **Outcome:**
 
@@ -303,8 +303,8 @@ SPEC-001/R-37, R-38, R-39.
 R-59; `design.md` §5.2.3 last rationale bullet; `crates/goad-shell/src/error.rs`
 `ConfigError::EmptyCommand`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held in every sub-claim. U1 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): R-59's subject is closed — "each distinct error R-44 requires, each other exchange failure the host reports and survives under R-45, each discarded instruction R-25 requires, each cleanup failure R-48 requires, and each answer refused under R-32, and no other" — and says outright that a refusal of the configuration file at load and a refusal of a forwarded envelope (SPEC-003) are outside it. R-54 → R-48. The R-45 clause is added because `Io` and `PipeMissing` are in no R-44 list item and U1 gives them methods. Written in `canon-delta.md` R-59; `design.md` §5.2.3's last rationale bullet cites the exclusion.
 
 **Outcome:**
 
@@ -332,8 +332,8 @@ the design depends on that.
 sentence; §5.2.9 prompt text; SPEC-004 canon-delta `goad-check` §6 row 0 ("Nothing
 about requests it did not send").
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U3 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): no `--now`. The report ends with a line when no exchange returned a view, saying respond was not exercised (`design.md` §5.2.5), and `canon-delta.md` SPEC-004 §6 row 0 names that line. `slice-012.md` AC-1 becomes "a backend the checker accepts, with at least one view answered"; the orchestrator runs the verdict at a time the backend speaks, or through the agent's own time setting (`design.md` §5.2.9). `--now` is a follow-up if walk friction names it (`notes.md` §Open). §9 gains `a_backend_that_returns_no_view_is_accepted_and_says_respond_was_not_exercised`.
 
 **Outcome:**
 
@@ -366,8 +366,8 @@ about requests it did not send").
 (`Question → NeverStarted: the stream refused the answer`); `design.md` §5.2.2
 chain-bound bullet and `Failure::State` row.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U2 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): the statuses cut on whether a **verdict** was delivered — every planned exchange made and the whole report written. 0 and 1 are a verdict with nothing / something reported; 2 is no verdict, whatever the cause: before the first exchange, a clock unreadable mid-run, a report that cannot be written (through `report::try_line_to`), or `Failure::State`, the checker's own defect, whose line says so. Hitting the chain bound is a report observation and does not change the status. `design.md` §5.2.2, §5.2.5, §5.4; `canon-delta.md` SPEC-004 R-11..R-13 and §6.
 
 **Outcome:**
 
@@ -387,8 +387,8 @@ false of R-12 on promotion.
 **Evidence:** `canon-delta.md` SPEC-004 Change 1 and Change 3 R-12; `design.md`
 §5.2.5 status 1 row and "A cleanup-only report counts as 1".
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. Follows U2 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): SPEC-004 §2's sentence becomes "`goad-check` reports **a verdict** — what the host reported running this command — and a checker that delivered none has none to give", which is true of `Spawn` (a verdict of 1) and of `Failure::State` (now 2). `canon-delta.md` SPEC-004 Change 1.
 
 **Outcome:**
 
@@ -413,8 +413,8 @@ surfaces with a test; neither is in the design.
 `Version` arms) and `to_stdout`; `crates/goad-shell/src/report.rs` `line_to`
 ("Best effort … wrong for a line that **is** the answer"); SPEC-004 §7 R-1 row.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U6 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): `goad-emit` is fixed rather than R-8 weakened. Its `--help`/`--version` answers go through `report::try_line_to`; an answer not written exits 2 with a stderr line, as the host's `StartupError::AnswerUnwritten` does. `design.md` §5.2.5 gains the `goad-emit` paragraph and §9 its binary test, modelled on `exit_codes::an_answer_that_cannot_be_written_exits_2`; `canon-delta.md` R-10 names the unwritten answer among its causes; `crates/goad-emit` joins `slice-012.md` §Surfaces (F-30).
 
 **Outcome:**
 
@@ -438,8 +438,8 @@ reasons that exit 1, and it is a prediction about retrying either way.
 "What may not be inferred"; `crates/goad-emit/src/main.rs` `exchange` (every
 `Answered::Refused` → 1).
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held, with one sub-claim narrowed: for an ingress-stopped `unavailable` the same bytes will not succeed later, but the row predicts either way (P-D). `canon-delta.md` SPEC-004 Change 4, `goad-emit` row 1's inference becomes "A host answered and refused this envelope; the reason is on standard error. Nothing about whether the same bytes would be accepted later." and its *what happened* no longer says "judged and found wanting".
 
 **Outcome:**
 
@@ -463,8 +463,8 @@ edits keep the passages that enumerate its clauses true.
 **Evidence:** SPEC-004 §Owns, §2 *Out of scope*, §2 P-D paragraph, §9;
 `canon-delta.md` SPEC-004 Changes 1–6.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `canon-delta.md` SPEC-004 gains a Change for §Owns and §2 *Out of scope*, carving out R-12's claim about what `goad-check`'s report carries; the P-D paragraph names R-14's exception (the unassigned end writing no line, as R-4's) and R-15's (the end it does not choose, as R-7's) by clause; §9 gains SPEC-001/R-59 and SPEC-003 §6.3.
 
 **Outcome:**
 
@@ -488,8 +488,8 @@ as exempt."
 **Evidence:** `canon-delta.md` header, SPEC-004 Change 1, SPEC-001 Change 4;
 SPEC-001 §7 R-57 row as it stands; CLAUDE.md *Name, never count*.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `canon-delta.md`: "Three binaries, three cuts" → "Each binary, its own cut"; "a sixth kind" → "a new kind"; R-57's kept middle: "All five clauses" → "Every clause", "six keys" → "keys each a different JSON type from its neighbour". Change 4 now names the middle as touched.
 
 **Outcome:**
 
@@ -515,8 +515,8 @@ and every sentence it keeps stays true after the move.
 **Evidence:** `canon-delta.md` SPEC-001 Change 4; SPEC-001 §7 R-57 row; `design.md`
 §5.2.4 `Submitted` bullets.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `canon-delta.md` SPEC-001 Change 4's closing sentence: adding a kind stops `Submitted::as_drawn`'s match over `FieldKind` compiling until the kind has a `Submitted` variant and an untouched value, and `view_model.rs::drawn_form`'s until it is sorted into drawn or `Undrawn::FieldForm`. The kept middle's "literals at `draft.rs`" → "literals at `canonical.rs`".
 
 **Outcome:**
 
@@ -534,8 +534,8 @@ and not R-59's.
 
 **Evidence:** `canon-delta.md` SPEC-001 Changes 2 and 5.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `canon-delta.md` SPEC-001 Change 5's closing paragraph adds: R-59's answers for the transport, cleanup and state kinds are held by review of the tables, having no fixture.
 
 **Outcome:**
 
@@ -555,8 +555,8 @@ narrowing is applied in `canon-delta.md` and not carried into the design.
 **Evidence:** `design-log.md` 2026-09-30 *design.md §7–§10; R-59's reach*;
 `design.md` §5.2.5; `canon-delta.md` R-59 last sentence and SPEC-004 R-12.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.5 cites SPEC-004/R-12 for the report-line obligation and SPEC-001/R-59 only for what each refusal names. `slice-012.md` AC-7 follows U1 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): "the requirement under which the host refused".
 
 **Outcome:**
 
@@ -580,8 +580,8 @@ be satisfied by the flake's whole-repo `-source` copy, not by `goad-source`.
 name = "goad-source"; }`; `research.md` §"Spike: R1 and R2" (R2 bullet);
 `design.md` §5.2.8.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.8's source probe matches any store path named `*-goad-source`, **or** holding `crates/goad-semantics/src/error.rs`, **or** holding `docs/specs/`. The host-side positive control must find a hit for each pattern separately, so the whole-repo `-source` copy cannot stand in for `goad-source`. `slice-012.md` AC-1 unchanged in substance.
 
 **Outcome:**
 
@@ -606,8 +606,8 @@ is also unspecified; memory `path-flake-ref-breaks-on-demo-socket` says a
 **Evidence:** `design.md` §5.2.8 tree and bullets; §5.2.9 *The transcript read*
 (tags only); `slice-012.md` AC-1, AC-9; `docs/memory/path-flake-ref-breaks-on-demo-socket.md`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held as a gap. U4 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): `goad-walk`'s `goad` input is a host-local `git+file:///…/goad` URL (the form memory `path-flake-ref-breaks-on-demo-socket` recommends), so the guest's lock names a path that does not exist there and the fetch route is closed whatever the proxy admits. `design.md` §5.2.8 states the input's form; `slice-012.md` AC-1 and `design.md` §5.2.9 add: a walk whose agent read goad's source fails AC-1 and is re-run.
 
 **Outcome:**
 
@@ -630,8 +630,8 @@ no longer be the agent's config.
 **Evidence:** `design.md` §5.2.8 devshell and tool-set bullets, *A walk*;
 §5.2.9; `slice-012.md` AC-1.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.9: the verdict is `goad-check --config <the agent's config>` run by the orchestrator in the guest over ssh, unaltered, before collection. The person-run is on the collected tree on the host, with `ruby` from `nix shell nixpkgs#ruby`, and the config's command path rewritten from `/work/goad-walk/…`; the diff is recorded in `walks.md`.
 
 **Outcome:**
 
@@ -654,8 +654,8 @@ line 9).
 
 **Evidence:** `design.md` §5.2.9; `research.md` R-e Codex bullet.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.9: fetch attempts use the proxy's full request log if oubliette keeps one; otherwise allowed fetches have the transcript as their only witness, and the row says so. Tokens: Codex's raw fields are recorded; the derived uncached column waits until the first walk shows whether `cache_write_input_tokens` is a subset of `input_tokens`.
 
 **Outcome:**
 
@@ -680,8 +680,8 @@ can check, and the design should say so.
 `crates/goad-semantics/src/protocol/canonical.rs` `Event`/`UserResponse`
 (`Serialize` only).
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. U5 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): the respond row uses the lifted code as a type oracle — each value's JSON type equals that of `Submitted::as_drawn(kind).to_json()`, and a `choice` value is one of the field's alternative ids; over exactly the option's fields. It states what it does not hold: the RFC 3339 spelling of a `datetime`. No reader, no second mapping. The evaluate row says it holds framing only. `design.md` §5.2.6 table and §5.5 I-2.
 
 **Outcome:**
 
@@ -708,8 +708,8 @@ reference, including for a variant added later.
 **Evidence:** `crates/goad-semantics/src/error.rs` `mod tests::every_protocol_error`;
 `design.md` §5.2.3 (`UnsupportedProtocolVersion` → R-3), §5.2.6.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.6 and §9: the coverage test matches each id followed by a non-digit (or the end), so `SPEC-001/R-3` is not found inside `R-32`. `goad-check`'s tests build their own instances, and each builder carries an adjacent exhaustive `match` with no `_` arm, so a new variant does not compile until it has an instance there.
 
 **Outcome:**
 
@@ -737,8 +737,8 @@ case includes R-25); `tests/fixtures/protocol/R-14-duplicate-option-ids.json`
 [R-14, R-52]; `R-52-a-choice-field-with-no-alternatives.json` [R-52, R-53];
 `design.md` §9.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held in every sub-claim. U7 (`design-log.md` 2026-09-30, *design review round 1: dispositions*): the membership witness is kept, and its reach is stated where it is claimed. `canon-delta.md` SPEC-001 Change 2: the corpus "catches an answer outside the fixture's own list". `design.md` §5.2.3 *The witness* says the same and names what it misses (flips inside a list; stratum-2 arms). §9's mutation is named: flip `NestedHints` R-18 → R-3, outside [R-18, R-47]. Rationale for not tightening: an exact `names` key on each fixture would be written with the code it witnesses and lose the independence that is the witness's point; the lists predate this slice.
 
 **Outcome:**
 
@@ -758,8 +758,8 @@ gate noticing.
 **Evidence:** `design.md` §5.2.6 bullets ("backtick or tilde fences, info string
 split on whitespace"); §5.5 I-3; §7 D14.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.6: the extractor refuses any fence whose first info word, lowercased, begins `json` or `toml` (`jsonc`, `json5`, `JSON`) unless it is exactly `json`/`toml` with a `goad:` role. Indented code blocks are not checked, and I-3 says so.
 
 **Outcome:**
 
@@ -782,8 +782,8 @@ apart from the rest"), and a new test.
 `Alternatives::first`; `crates/goad/src/view_model.rs` (`first:
 alternatives.first().id().clone()`); `git log -S'pub fn first(&self) -> &Alternative'`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.4: `Submitted::as_drawn` uses `alternatives.first().id().clone()`. The new `first`, the storage change and `alternatives_first_is_the_first_declared` are dropped; OQ-2 (a)'s "needs a total `Alternatives::first`" is struck, and `DrawnKind::Choice.first`'s removal stays a refactor-step candidate (its doc is already stale).
 
 **Outcome:**
 
@@ -804,8 +804,8 @@ invariant, test or manifest comment for `goad-check`; a later `goad` dependency
 **Evidence:** `crates/goad-boundary/tests/checks/allowlist.rs` module doc;
 `crates/goad-emit/Cargo.toml` comment; `design.md` §5.5 invariants.
 
-**Disposition:**
-**Response:**
+**Disposition:** follow-up
+**Response:** Held. The instrument is FU-7's (`docs/follow-ups.md`, stratum 3 carries no manifest allowlist row); its citation is extended at close, recorded in `notes.md` §Open. Now: `design.md` §5.5 gains I-6, "`goad-check` links no renderer: held by its manifest and review; FU-7", and `crates/goad-check/Cargo.toml` carries a comment arguing it as `goad-emit`'s does (`slice-012.md` §Surfaces).
 
 **Outcome:**
 
@@ -830,8 +830,8 @@ temporary `XDG_DOWNLOAD_DIR`.
 `command`); `research.md` R-f (`examples/demo.toml`, "cwd-relative"); `design.md`
 §5.2.6.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.6: each example's `command` is relative to the example directory; the gate test copies the example to a temporary directory and runs there (the `round_trip.rs` rebasing precedent). The README's minute-long route is `goad-check --config config.toml` from the example directory; for goad, copy the directory and make `command` absolute. Triage events carry a file **name**, resolved by the backend under `$XDG_DOWNLOAD_DIR`; `watch.sh` emits the basename.
 
 **Outcome:**
 
@@ -847,8 +847,8 @@ temporary `XDG_DOWNLOAD_DIR`.
 
 **Evidence:** `design.md` §8 table.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §8: the second R7 and R8 become R9 and R10.
 
 **Outcome:**
 
@@ -866,8 +866,8 @@ backend is documentation agents edit").
 
 **Evidence:** the cited sections; `git grep -n 'examples/' -- ':!docs/slices'`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held, plus one site: `exercisers/typescript/README.md`'s own `command` line, which `round_trip.rs::the_readme_s_own_config_loads_and_runs_the_example` parses. `design.md` §5.2.7's table gains it, `docs/memory/cite-requirements-not-finding-ids.md` and the `justfile` `typecheck` comment. Jail wording in `design.md` §2, OQ-8, §8 R1 and `slice-012.md` OQ-3/OQ-6 answers becomes capsule wording; §5.2.1's `examples/demo.toml` becomes `exercisers/demo.toml`.
 
 **Outcome:**
 
@@ -890,8 +890,8 @@ the slice says what the design decided.
 **Evidence:** `slice-012.md` §Scope and §Surfaces; `design.md` §5.2.7, §6 OQ-4,
 §10.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `slice-012.md` §Surfaces: Canon adds ADR-003; `crates/goad-boundary` (the allowlist doc), `crates/goad-emit` (U6) and `crates/goad-check/Cargo.toml`'s comment (F-26) are declared. §Scope drops "scripts" (OQ-4).
 
 **Outcome:**
 
@@ -913,8 +913,8 @@ no row says so.
 **Evidence:** SPEC-004 §7 intro and R-3/R-4 rows; `canon-delta.md` SPEC-004
 Change 5.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `canon-delta.md` SPEC-004 Change 5: the R-8..R-10 row is written out, naming what no case reaches; R-14's row states per case whether it holds the whole line, a prefix or the last line; R-15's row says the compiler holds literal-only `ExitCode`s and no test holds a signal or panic end; R-13's row says the clock and runtime causes are headless-unreachable.
 
 **Outcome:**
 
@@ -934,8 +934,8 @@ are resolved in the reference itself.
 
 **Evidence:** `design.md` §5.2.6; I-5; `slice-012.md` AC-9.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.6: the reference states that the specs are not shipped, and that every id a report prints is explained in the reference, each at an anchor of its own.
 
 **Outcome:**
 
@@ -959,8 +959,8 @@ the host applies (SPEC-001/R-36), as §5.2.1 claims.
 **Evidence:** `crates/goad-shell/src/config.rs`: `Command::new`,
 `Command::from_argv`, `Config::parse`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held. `design.md` §5.2.1: the argv form is built with `config::Command::from_argv`, made public; an empty argv or program is a usage error, status 2. `crates/goad-shell` is already a declared surface.
 
 **Outcome:**
 
