@@ -166,9 +166,9 @@ Outcomes on F-22 and F-34..F-40. Nothing else is in scope.
 | F-38 | minor | doc-wrong | verified |
 | F-39 | minor | doc-wrong | verified |
 | F-40 | nit | doc-wrong | verified |
-| F-41 | minor | | |
-| F-42 | minor | | |
-| F-43 | nit | | |
+| F-41 | minor | doc-wrong | |
+| F-42 | minor | doc-wrong | |
+| F-43 | nit | doc-wrong | |
 
 ### F-1 — R-59's meaning of the id is false of most rows of its own table
 
@@ -1343,8 +1343,8 @@ can provoke" is false of `Spawn`, and the row names only `Io` and
 `a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure`;
 `canon-delta.md` SPEC-001 Change 7.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held (`design-log.md` 2026-09-30, *design review round 3: dispositions*). `canon-delta.md` SPEC-001 Change 7 now restates R-45's §7 row whole. The claim that the witness reaches every failure a test can provoke is gone. The row names the failures the witness runs: the protocol refusals among `PROTOCOL_MODES`, and the transport failures `TRANSPORT_MODES` names (`Timeout`, `OutputTooLarge`, `ExitStatus`, and `Protocol` for a body that will not parse). It says the witness does not run `Spawn`, `Io` or `PipeMissing`, since a spawn failure cannot be a mode of one parameterized backend and no test provokes the other two. Each of the three reaches the caller through `Host::no_action` (checked: `Host::exchange` sends every `Err` in `Exchange::result` there, and the process transport returns all three that way), with `a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure` cited for `Spawn`. That they leave the host able to invoke the backend again is held by review. Change 7's Why cites this finding. `design.md` §10 restates the row's change to match.
 
 **Outcome:**
 
@@ -1370,8 +1370,8 @@ the stale "nineteen" would be promoted untouched beside the new sentence.
 `one_host_survives_every_misbehaving_backend_and_still_works`; `canon-delta.md`
 header.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held (`design-log.md` 2026-09-30, *design review round 3: dispositions*). `canon-delta.md` SPEC-001 Change 7 replaces "one `Host`, nineteen consecutive exchanges against a single parameterized backend (thirteen protocol bodies and four transport failures), then a successful one" with a named sequence: one `Host` and a single parameterized backend, an exchange that presents a view, then one exchange for every mode in `PROTOCOL_MODES` and `TRANSPORT_MODES`, then the answer to that view. No count is left in the row. Change 7's Why records the false count (the old sentence counted twenty) and cites this finding. `design.md` §10 restates the change to match.
 
 **Outcome:**
 
@@ -1399,8 +1399,8 @@ than lean on the observation clause.
 (`start_kill().map_err(CleanupFailure::Io)`, `wait().await.map_err(CleanupFailure::Io)`);
 `canon-delta.md` R-59; `design.md` §5.2.3.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Held (`design-log.md` 2026-09-30, *design review round 3: dispositions*). `design.md` §5.2.3's `CleanupFailure::Io` rationale now rests on clause (i) and R-48's obligation to initiate termination and wait to observe the backend reaped. A failed `start_kill` or `wait` is that obligation failing through the operating system, so the side is environment. The rationale says explicitly that R-48's "failure to observe cleanup within that interval" is `TimedOut`'s clause, not this one's. No other restatement of the reasoning exists in `design.md`, `canon-delta.md`, `slice-012.md` or `notes.md`.
 
 **Outcome:**
 

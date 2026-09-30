@@ -155,13 +155,28 @@ without reading the variant. P-C is unchanged: it states the principle for what 
 backend sends, and the reworded R-45 is wider than it and does not
 contradict it.
 
+The §7 row is restated whole rather than extended (`design-log.md`
+2026-09-30, *design review round 3: dispositions*). It counted its witness's
+exchanges, and one count was already false: "nineteen … then a successful
+one" is twenty, where the test runs a view, one exchange per mode, and the
+answer (review F-42). It now names them instead: `PROTOCOL_MODES` and
+`TRANSPORT_MODES` are the test's own constants. And the reworded R-45 now
+covers `Spawn`, which the witness does not run: the row names the failures
+the witness runs and the three it does not, instead of claiming it reaches
+every failure a test can provoke (review F-41).
+
 **As it will be stated.** R-45 becomes:
 
 > No failure of an exchange with the backend, whichever side caused it, may terminate the host, and none may leave it unable to invoke the backend again.
 
-The §7 row for R-45 gains, at its end:
+The §7 row for R-45 becomes, whole:
 
-> . Its witness reaches the failures a test can provoke; `Io` and `PipeMissing`, which no test provokes, reach the caller through the same `Host::no_action` path, and that they leave the host able to invoke the backend again is held by review
+> | R-45 | integration: `failure_matrix.rs::one_host_survives_every_misbehaving_backend_and_still_works` — one `Host` and a single parameterized backend: an exchange that presents a view, then one exchange for every mode in `PROTOCOL_MODES` and `TRANSPORT_MODES`, then the answer to that view. Reuse is witnessed by state the failures did not touch, not by the last exchange working: a suite that asserts only the last exchange passes against a `Host` rebuilt every iteration. The failures it runs are the protocol refusals among `PROTOCOL_MODES` and the transport failures `TRANSPORT_MODES` names: a timeout (`Timeout`), an output flood (`OutputTooLarge`), a valid answer disclaimed by a non-zero exit (`ExitStatus`) and a body that will not parse (`Protocol`). It does not run `Spawn`, `Io` or `PipeMissing`. A spawn failure cannot be a mode of one parameterized backend, which must be spawned to be instructed, and no test provokes the other two. Each of the three reaches the caller through the same `Host::no_action` path as the failures it runs — `Spawn` is seen reaching it by `failure_matrix.rs::a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure` — and that they leave the host able to invoke the backend again is held by review |
+
+It replaces "one `Host`, nineteen consecutive exchanges against a single
+parameterized backend (thirteen protocol bodies and four transport failures),
+then a successful one" with the named sequence, and appends the last three
+sentences. The reuse sentence is kept as it stands.
 
 ---
 

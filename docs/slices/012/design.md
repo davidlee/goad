@@ -443,10 +443,13 @@ Rationale for the rows that are not obvious:
   process state, so R-54 is not engaged; the line still names none. A
   loaded machine that did not finish disposal in time is R-59's declared
   imprecision, and the line carries the limit disposal was given.
-- **`CleanupFailure::Io` → R-48, environment** (confirmed at round 3). The
-  operating system failed a disposal call — that is the environment side's
-  whole definition — and the host failed to observe cleanup, which is R-48's
-  rule.
+- **`CleanupFailure::Io` → R-48, environment** (confirmed at round 3; F-43),
+  clause (i). R-48 obliges every returning path to initiate termination of
+  the backend and to wait to observe it reaped. `CleanupFailure::Io` is
+  `start_kill` or `wait` failing outright: that obligation failing through
+  the operating system, which is the environment side's whole definition.
+  It is not R-48's "failure to observe cleanup within that interval": that
+  clause is a bound elapsing, which is `TimedOut`.
 - **`PipeMissing` → R-45, host** (F-39; round 3), clause (iii). The host asked
   for all three pipes, so only a host defect removes one. No requirement names
   the failure: R-37 governs the request the stdin pipe carries, not the
@@ -1259,8 +1262,9 @@ Drafted in `canon-delta.md`, applied at audit with endorsement:
   exchange or of an answer; the requirement by kind, one clause per case; the
   four sides by where the cause lies; one side per kind, its imprecision
   declared). R-45 reworded to cover a failure of an exchange whichever side
-  caused it, and its §7 row states what its witness does not reach; P-C, checked, is
-  narrower and not contradicted. R-59's §7 row,
+  caused it, and its §7 row, restated whole, names its witness's modes
+  rather than counting them and states what the witness does not reach
+  (F-41, F-42); P-C, checked, is narrower and not contradicted. R-59's §7 row,
   its witness's reach stated. R-56's row (tolerance now tested, on a stated
   condition; the kind site moved). R-57's row (single site moved; rewritten
   whole). §7's review-held paragraph rewritten to name its rows, not count
