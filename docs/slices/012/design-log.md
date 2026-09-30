@@ -401,3 +401,48 @@ other, citing the finding id.
   repair (now `Io` only).
 - **Consequence:** round 2 repairs; the orchestration hands off to a fresh
   agent for round 3.
+
+### 2026-09-30 — R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs
+
+- **Asked:** round 2's repairs left R-59 failing its own letter (scope, via
+  R-44's list, missed kinds each required by their own requirement;
+  `PipeMissing` → R-37 was false; `Io` → R-45, `CleanupFailure::TimedOut` →
+  backend and R-44 for `DuplicateKey`/`Spawn` strained). Four questions:
+  1. **Reframe R-59** rather than patch it: (a) scope by channel — what the
+     host reports on each channel of an exchange or answer: a failure, a
+     discarded instruction, a cleanup failure, a refused answer; config-load
+     and forwarded-envelope refusals excluded in terms; (b) the id, one clause
+     per case — (i) the requirement stating the rule the kind enforces, (ii)
+     R-44 where the kind cannot tell which more specific rule an instance
+     broke, or where R-44's list is the only requirement that names the
+     refusal, (iii) for a failure no requirement makes a refusal, R-45; (c)
+     sides by where the cause lies — backend, "the cause lies in what the
+     backend sent or did" — the declared imprecision kept. Orchestrator's
+     check of every §5.2.3 row found three amendments: R-45's subject is
+     "backend failure", which `PipeMissing` (host) and `Io` (environment) are
+     not by its letter, so R-45 is reworded in the canon delta — "No failure
+     of an exchange with the backend, whichever side caused it, may terminate
+     the host…" — a wording fix, since the host already behaves so; (ii)'s
+     second half names the refusal, not a rule (no rule says a command must
+     be spawnable); R-59 names its subject once ("each report on those
+     channels (below, a refusal)"), since a cleanup failure refuses nothing,
+     and every restatement uses that noun.
+  2. **`PipeMissing` → R-45, host**, under (b)(iii) — reversing round 2's
+     R-37, recommended by the orchestrator in error.
+  3. **F-22 (contested):** no hand-kept instance list can be forced complete
+     in stable Rust; the proposed generate-from-match is circular. Options:
+     state the limit in SPEC-003 §7 R-14's terms (compile gate plus review,
+     not an assertion); add a variant-enumerating derive (`strum`); a test
+     reading variant names from source text (precedent: `goad-boundary`'s
+     `structure.rs`) — not recommended, it parses another crate's Rust by text.
+  4. **Confirm round 2's repairer's two unbriefed changes:** `CleanupFailure`
+     split by variant (`TimedOut` → backend; `CleanupFailure::Io` stays
+     environment, a failed OS call and a failure to observe cleanup under
+     R-48); `checking.md` names, per imprecise kind, where else a cause may lie.
+- **Recommended:** 1 with all three amendments; 2; 3 state the limit; 4 confirm.
+- **Decided:** *"accepted"* — all four as recommended.
+- **Consequence:** `canon-delta.md` SPEC-001 R-59 rewritten on the reframe,
+  and a new change rewording R-45; `design.md` §5.2.3 (*Meaning of the id*,
+  table, rationale), §5.2.6 (coverage test states its limit; `checking.md`),
+  §6 OQ-1, §10; `slice-012.md` AC-7 and OQ-2/OQ-8; `notes.md`. F-22 gets a
+  round 3 Response. Round 3, narrow, follows the repair.
