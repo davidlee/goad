@@ -417,3 +417,38 @@ What follows from the finding:
   `cargo test --workspace`. POL-001 then changes only in its `deno check`
   path(s).
 - Nothing here touches the wire contract.
+
+## Spike: R1 and R2 (2026-09-30)
+
+Run before the adversarial design review (`design-log.md` 2026-09-30). The
+fixture is `spike/`: a stub kit whose skill carries a marker, and consumer
+jails for Claude, Codex and a plain shell, built from the pinned `pub` jail
+library with `design.md` §5.2.8's options. `spike/run.sh` reproduces every
+result below. Claude Code 2.1.280, codex-cli 0.155.1.
+
+- **R2 holds.** A launcher-made directory bound over `$HOME` after
+  `persist-home` shadows the shared `agent` home. From inside: the checkout,
+  `~/.claude`, `~/.codex`, the goad memory directory and every
+  `*-goad-source` path are unreadable; outside, each is readable (the control).
+  Writes to `$HOME` land in the walk home.
+- **`set-env` does not put a store path in the jail.** With `GOAD_KIT` set
+  only by `set-env`, the variable is present and the path is absent: bwrap
+  binds the runtime closure of the jail's packages, and an environment string
+  is not one. The kit must be a package dependency (`extraPkgs`). §5.2.8's
+  claim that `set-env` puts it in the closure is wrong.
+- **R1, Codex: the kit-only store path is refused.** `codex plugin
+  marketplace add "$GOAD_KIT"` fails: *"marketplace root does not contain a
+  supported manifest"*. Codex installs from a marketplace root, and §5.2.8's
+  `goad-kit` is the plugin root (`./kit`). A store path shaped like the
+  repository — `.agents/plugins/marketplace.json` beside `kit/` — adds,
+  installs (`goad@goad`, *installed, enabled*), and Codex copies only `kit/`
+  into `~/.codex/plugins/cache/`, so the consumer's cache still never holds
+  more than the plugin. Read-only is no obstacle.
+- **R1, Claude: both forms load from a store path.** `--plugin-dir
+  "$GOAD_KIT"` (the plugin root) lists `goad-backend` in `claude plugin
+  details`; so does a marketplace add of the repository-shaped path followed
+  by `plugin install goad@goad`.
+- **Not reached: the model seeing the skill.** A fresh home is logged out:
+  Claude answers *"Not logged in · Please run /login"*, Codex `401
+  Unauthorized`. Nothing in the design says how a walk authenticates, and the
+  shared home — where the logins live — is exactly what R2 hides. Open.
