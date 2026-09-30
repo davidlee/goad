@@ -4,7 +4,7 @@
 at `ec5e0e8`, against `slice-012.md` and `research.md`
 **Reviewer:** fresh agent, Opus (raiser); a Codex pass as an independent second witness
 **Opened:** 2026-09-30
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -166,9 +166,9 @@ Outcomes on F-22 and F-34..F-40. Nothing else is in scope.
 | F-38 | minor | doc-wrong | verified |
 | F-39 | minor | doc-wrong | verified |
 | F-40 | nit | doc-wrong | verified |
-| F-41 | minor | doc-wrong | |
-| F-42 | minor | doc-wrong | |
-| F-43 | nit | doc-wrong | |
+| F-41 | minor | doc-wrong | verified |
+| F-42 | minor | doc-wrong | verified |
+| F-43 | nit | doc-wrong | verified |
 
 ### F-1 — R-59's meaning of the id is false of most rows of its own table
 
@@ -1346,7 +1346,7 @@ can provoke" is false of `Spawn`, and the row names only `Io` and
 **Disposition:** doc-wrong
 **Response:** Held (`design-log.md` 2026-09-30, *design review round 3: dispositions*). `canon-delta.md` SPEC-001 Change 7 now restates R-45's §7 row whole. The claim that the witness reaches every failure a test can provoke is gone. The row names the failures the witness runs: the protocol refusals among `PROTOCOL_MODES`, and the transport failures `TRANSPORT_MODES` names (`Timeout`, `OutputTooLarge`, `ExitStatus`, and `Protocol` for a body that will not parse). It says the witness does not run `Spawn`, `Io` or `PipeMissing`, since a spawn failure cannot be a mode of one parameterized backend and no test provokes the other two. Each of the three reaches the caller through `Host::no_action` (checked: `Host::exchange` sends every `Err` in `Exchange::result` there, and the process transport returns all three that way), with `a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure` cited for `Spawn`. That they leave the host able to invoke the backend again is held by review. Change 7's Why cites this finding. `design.md` §10 restates the row's change to match.
 
-**Outcome:**
+**Outcome:** verified — the row no longer claims to reach every failure a test can provoke. It names what the witness runs and the three it does not run (`Spawn`, `Io`, `PipeMissing`), and gives the reason a spawn failure cannot be one of its modes. Checked against `one_host_survives_every_misbehaving_backend_and_still_works` (a view, then `PROTOCOL_MODES` and `TRANSPORT_MODES`, then the answer) and against the mode meanings in the single-mode cases for ``, ``, `` and ``. No test outside `process.rs` provokes `PipeMissing` or `BackendError::Io`. `Host::exchange` sends every transport `Err` through `Host::no_action`.
 
 ### F-42 — Change 7 edits R-45's §7 row and leaves its counts, one of which is already false
 
@@ -1373,7 +1373,7 @@ header.
 **Disposition:** doc-wrong
 **Response:** Held (`design-log.md` 2026-09-30, *design review round 3: dispositions*). `canon-delta.md` SPEC-001 Change 7 replaces "one `Host`, nineteen consecutive exchanges against a single parameterized backend (thirteen protocol bodies and four transport failures), then a successful one" with a named sequence: one `Host` and a single parameterized backend, an exchange that presents a view, then one exchange for every mode in `PROTOCOL_MODES` and `TRANSPORT_MODES`, then the answer to that view. No count is left in the row. Change 7's Why records the false count (the old sentence counted twenty) and cites this finding. `design.md` §10 restates the change to match.
 
-**Outcome:**
+**Outcome:** verified — the row, restated whole, names the sequence and the test's own constants and keeps no count. The Why records the inconsistency: the test runs nineteen exchanges in all, so the old parenthesis plus "then a successful one" did not add up. That is the substance F-42 raised, though the count that was wrong is the parenthesis, not "nineteen".
 
 ### F-43 — `CleanupFailure::Io` → R-48 rests on reading a failed call as R-48's timed-out observation
 
@@ -1402,7 +1402,7 @@ than lean on the observation clause.
 **Disposition:** doc-wrong
 **Response:** Held (`design-log.md` 2026-09-30, *design review round 3: dispositions*). `design.md` §5.2.3's `CleanupFailure::Io` rationale now rests on clause (i) and R-48's obligation to initiate termination and wait to observe the backend reaped. A failed `start_kill` or `wait` is that obligation failing through the operating system, so the side is environment. The rationale says explicitly that R-48's "failure to observe cleanup within that interval" is `TimedOut`'s clause, not this one's. No other restatement of the reasoning exists in `design.md`, `canon-delta.md`, `slice-012.md` or `notes.md`.
 
-**Outcome:**
+**Outcome:** verified — the rationale now rests on R-48's obligation to initiate termination and wait, which a failed `start_kill` or `wait` is, and assigns the interval clause to `TimedOut`. This matches R-48's text and `process.rs`.
 
 ### Round 3 — what holds
 
