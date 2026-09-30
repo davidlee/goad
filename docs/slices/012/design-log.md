@@ -373,3 +373,31 @@ other, citing the finding id.
 - **Consequence:** dispositions written into the ledger; a fresh agent repairs
   `design.md`, `canon-delta.md` and `slice-012.md`; the kept raiser runs
   round 2.
+
+### 2026-09-30 — design review round 2: dispositions
+
+- **Asked:** round 2 (`review-design.md`, 74f7301) verified 32 of round 1's
+  repairs, contested F-22, raised F-34..F-40. Four new findings are R-59's
+  wording again. Proposed:
+  - F-35: R-44 is named where **the kind cannot tell** which more specific
+    rule an instance broke (the raiser's wording), not "where no more specific
+    requirement states one".
+  - F-34: `CleanupFailure` → **backend**, under the declared imprecision; the
+    environment side loses "could not observe what it needed to".
+  - F-38: **reverse U8** — add "and at least one" to R-16 in this slice's canon
+    delta; `EmptyAlternatives` → R-16; the fixture's list gains R-16; the R-16
+    follow-up in `notes.md` closes.
+  - F-39: `PipeMissing` → **host**, **R-37** (the host asked for the pipe; only
+    a host defect removes it). R-59's R-45 clause then covers `Io` alone.
+  - F-22 (contested): the instance list is generated from the exhaustive
+    match — each arm returns its own instances, `InapplicableKey` two.
+  - F-36, F-37, F-40 mechanical: the checker spawns as the host does, from
+    its working directory, and the gate and README start both from the example
+    directory; re-walks bump `goad-walk`'s lock and `walks.md` records the
+    goad revision; the `config::Command` note names its public fields.
+  - Round 3 narrow (R-59 and F-22 only), then stop. If R-59 still leaks, the
+    definition is the problem and gets reframed, not patched.
+- **Decided:** *"sure"*. Also confirmed: the R-45 clause added in round 1's
+  repair (now `Io` only).
+- **Consequence:** round 2 repairs; the orchestration hands off to a fresh
+  agent for round 3.
