@@ -1436,3 +1436,107 @@ Checked at `cc9f9af`, within the Round 3 brief only:
   the derive is an owned candidate.
 
 Open after round 3: F-41, F-42, F-43, all mechanical; none gates.
+
+## Synthesis
+
+**What the review changed.** The centre moved most. SPEC-001/R-59 was drafted
+to say a refusal names "the requirement broken" or "the obligation left
+undischarged", and neither reading was true of most rows of `design.md`
+§5.2.3 (F-1). Two rounds of patching left some sentence false of some row
+each time (F-4, F-6, F-34, F-35, F-38, F-39), so R-59 was reframed rather than
+patched again, and the reframed text holds against every row:
+- **Scope.** What the host reports on the channels of an exchange or an answer.
+  Rejecting the configuration file at load, and rejecting a forwarded envelope,
+  are excluded in terms.
+- **The requirement named**, one clause per case. By default it is the
+  requirement stating the rule the kind enforces. It is R-44 where the kind
+  cannot tell which more specific rule was broken, or where R-44's list alone
+  names the refusal. It is R-45 for an exchange failure that no requirement
+  names.
+- **Sides** are where the cause lies.
+
+Four canon wording fixes followed from the reframe:
+- R-16 gains *at least one*, so `EmptyAlternatives` has a rule to cite.
+- R-45 covers a failure of an exchange whichever side caused it.
+- `CleanupFailure` splits by variant: `TimedOut` → backend, `Io` → environment.
+- `PipeMissing` → R-45, side host.
+
+Around the checker:
+- **Exit statuses** now cut on whether a verdict was delivered (F-8, F-9). A
+  mid-run clock failure, an unwritten report and `Failure::State` exit 2
+  instead of falling between classes.
+- **The R-56 probe** blames the backend only for a backend-side failure from a
+  backend that answered a known kind (F-3).
+- **Silence.** The report says when no exchange returned a view, and AC-1 now
+  needs a view answered (F-7).
+
+In SPEC-004:
+- `goad-emit` is governed. Its unwritten `--help`/`--version` answer is fixed
+  in code rather than weakened in canon (F-10).
+- Its refusal row no longer predicts a retry (F-11).
+- §Owns, *Out of scope*, the P-D paragraph and §9 now cover what the new rows
+  claim (F-12).
+
+The walk:
+- The capsule's source probe matches `goad-source` by name (F-17).
+- `goad-walk`'s host-local `git+file:` input closes the route to goad's source,
+  and a walk whose agent read that source fails AC-1 (F-18).
+- The verdict run, the person-run and the lock bump before a re-walk are
+  specified (F-19, F-37).
+
+Also changed:
+- The respond-fence check uses a JSON-type oracle over `Submitted::as_drawn`
+  rather than a second R-57 mapping (F-21).
+- The existing `Alternatives::first` is reused instead of rebuilt (F-25).
+- The argv form uses `config::Command::from_argv`, made public (F-33).
+- Canon counts are replaced by names (F-13, F-42).
+
+**What the review confirmed.**
+- Driving `goad_shell::host::Host` headlessly judges with the host's own
+  normalizer, taxonomy and interaction identity, so AC-3 holds by construction.
+- The stratum-1 lifts (`Stimulus`, `Submitted`, `Finite`, `as_drawn`) stay
+  inside stratum 1's allowlist. `goad-check` names only strata 1 and 2.
+- `goad-boundary`'s member enumeration puts the new crate's `src/` under the
+  vocabulary scan with no edit.
+- Answering one option with as-drawn values refuses nothing SPEC-001 admits.
+- `--event` files pass through `envelope::normalize`, the one ingress door.
+- POL-001's block keeps its shape.
+- The Codex second witness reached the same conclusions independently.
+
+**Limits stated rather than enforced.** Each is written where it is claimed,
+and a reader should treat it as review-held:
+- **The reference coverage test** (F-22). A new taxonomy variant fails to
+  compile only where a match forces an arm. Whether its author adds an instance
+  — two for `InapplicableKey` — is review, as SPEC-003 §7's R-14 row states for
+  the same pattern. A variant-enumerating derive would make it an assertion;
+  the user declined it for now, and it is a candidate in `notes.md` §Open.
+- **The corpus witness** (F-23). It catches an answer outside a fixture's own
+  `requirement` list and nothing else: not a flip to another id the same list
+  holds (every schedule error fixture lists R-25), and nothing in the
+  stratum-2 arms, which have no fixture. Review of the §5.2.3 table holds both.
+- **R-59's declared imprecision.** One kind names one side. A timeout set too
+  short, a signal sent from outside, a spawn starved of resources, or a
+  disposal a loaded machine did not finish keeps its kind's side. The refusal
+  carries what lets a reader see the other side, and `checking.md` says where
+  to look.
+- **R-45's reach.** Its witness,
+  `failure_matrix.rs::one_host_survives_every_misbehaving_backend_and_still_works`,
+  does not run `Spawn`, `Io` or `PipeMissing`. That they leave the host able to
+  invoke the backend again is held by review.
+- **Two gaps in the gate's reach.** The fence extractor does not see indented
+  code blocks (I-3). A respond fence's `datetime` spelling is not checked (F-21).
+- **I-6.** `goad-check` links no renderer, held by its manifest comment and
+  review. No instrument bills a stratum-3 manifest; that is FU-7's, extended at
+  close (F-26).
+
+**Risks left standing.**
+- **No `--now`.** A time-gated backend is accepted with no view exercised when
+  checked at a silent hour. The report says so, and AC-1 requires a view; the
+  flag is a candidate follow-up if a walk asks for it.
+- **The walk is unrun.** Plugin loading from a store path is spiked. Whether
+  each model reads the skill, and whether oubliette keeps a full proxy request
+  log, are not (design §8 R1, R7; F-20).
+- **Never reached.** Whether `claude plugin validate` and Codex's `interface`
+  block accept the manifests as drafted (`design.md` §5.2.6), and whether the
+  kit examples, which do not yet exist, are correct against the protocol. The
+  plan's phase exit checks and the audit own both.
