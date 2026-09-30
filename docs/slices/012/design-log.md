@@ -485,3 +485,26 @@ other, citing the finding id.
 - **Decided:** *"yes. hand over for planning"* — `design.md` and
   `canon-delta.md` approved as they stand at 422aac8.
 - **Consequence:** `slice-012.md` stage → plan. A fresh agent drafts `plan.md`.
+
+### 2026-10-01 — two gaps the plan draft found (G1, G2)
+
+- **Asked:** the planner (05e017c) stopped on two points the design left
+  unsettled, both verified in code by the orchestrator:
+  - **G1** — §5.2.4 says `goad` delegates to `Submitted::as_drawn(&FieldKind)`,
+    but `view_model::as_drawn` takes a `DrawnKind` and returns an `Edited`
+    whose `Adjusted` carries display text that `glass` draws through
+    `view_model::untouched`. Delegating needs a `DrawnKind` → `FieldKind`
+    rebuild and a `Submitted` → `Edited` conversion; without the second, the
+    screen keeps a second untouched-value policy.
+  - **G2** — §5.2.1 parses `--timeout` with `schedule::parse_span`, which
+    accepts `0s` and `-1s`. The host's usable-timeout rule is `config.rs`'
+    private `unsigned`; the checker would otherwise restate it.
+- **Recommended:** G1 — `impl From<Submitted> for Edited` in `draft.rs`,
+  spelling numbers through `adjusted`; `view_model::as_drawn` rebuilds the
+  `FieldKind` and delegates; the identity test holds `Submitted` → `Edited` →
+  `Submitted`. G2 — make `unsigned` public as `config::positive_duration`;
+  its errors are status-2 usage errors.
+- **Decided:** *"i'll take your recommendations"*.
+- **Consequence:** `design.md` §5.2.1 (`--timeout`) and §5.2.4 (delegation)
+  amended; `plan.md` PHASE-02/EN-2 and PHASE-04/EN-2 discharged by this
+  entry.

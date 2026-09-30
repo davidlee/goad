@@ -29,7 +29,8 @@ and gated; then it is walked.
   (`design.md` §5.2.4).
 - **PHASE-03 — the ground the checker stands on.** `examples/` becomes
   `exercisers/` (`design.md` §5.2.7); `goad-emit`'s unwritten answer exits 2
-  (§5.2.5); `config::Command::from_argv` is public (§5.2.1).
+  (§5.2.5); `config::Command::from_argv` and `config::positive_duration`
+  are public (§5.2.1); `version_line` has one home (`plan-log.md` PL-7).
 - **PHASE-04 — `goad-check`.** The binary, its arguments, its run sequence,
   its report and its statuses, with the binary tier (`design.md` §5.2.1,
   §5.2.2, §5.2.5).
@@ -251,15 +252,14 @@ kind each have one encoding, in `goad_semantics::protocol::canonical`, and
 `crates/goad/src/{wire.rs, draft.rs, view_model.rs, controller.rs, install.rs,
 main.rs, glass.rs}` (imports and the delegation only, in the last four);
 `crates/goad/tests/` (imports of `Stimulus`);
-`crates/goad-shell/src/ingress/envelope.rs` (only if the user places
-`HOST_SOURCE` here — see Notes); `canon-delta.md` (test names only).
+`crates/goad-shell/src/ingress/envelope.rs` (`HOST_SOURCE`, `plan-log.md`
+PL-2); `canon-delta.md` (test names only).
 
 **Entry**
 - EN-1 — PHASE-01's entry holds (this phase does not depend on PHASE-01).
-- EN-2 — `design.md` §5.2.4 says how `view_model::as_drawn`, which takes a
-  host-local `DrawnKind` and returns an `Edited`, delegates to
-  `Submitted::as_drawn(&FieldKind) -> Submitted`: the route from `DrawnKind` to
-  `FieldKind`, and from `Submitted` back to an `Edited` with its display text.
+- EN-2 — `design.md` §5.2.4 says how `view_model::as_drawn` delegates to
+  `Submitted::as_drawn`: a `FieldKind` rebuilt from the `DrawnKind`, and
+  `impl From<Submitted> for Edited` back (`design-log.md` 2026-10-01, G1).
 
 **Exit**
 - EX-1 — `Stimulus` is in `canonical.rs` beside `Event`, `kind` and `event`
@@ -272,6 +272,11 @@ main.rs, glass.rs}` (imports and the delegation only, in the last four);
 - EX-3 — `Submitted::as_drawn` is the one statement of the untouched-value
   policy; `view_model::as_drawn` delegates to it by EN-2's route, and
   `view_model::untouched` still shows what `as_drawn` submits (P-3).
+- EX-6 — `HOST_SOURCE` is a `pub const` beside `Stimulus`; `Stimulus::event`
+  and `envelope.rs`' `ReservedSource` check both name it, and no other
+  `"host"` source literal remains in `crates/*/src` (PL-2).
+- EX-7 — `DrawnKind::Choice` has no `first`; its stale doc goes with it
+  (PL-3).
 - EX-4 — `goad`'s renderer tier is green unchanged: `fields.rs`'s R-57/R-58
   cases, and `view_model.rs`'s `as_drawn` tests (R5).
 - EX-5 — the doc citations that move are by symbol (`Stimulus::event`'s doc
@@ -288,7 +293,8 @@ main.rs, glass.rs}` (imports and the delegation only, in the last four);
   `a_picked_datetime_submits_the_offset_it_was_picked_in` and the rest of that
   group); `an_as_drawn_choice_submits_the_first_alternative` and a sibling per
   kind, including the `number` min-or-zero and `datetime` epoch cases.
-- VT-3 — `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`.
+- VT-3 — `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`,
+  holding also the round trip `Submitted` → `Edited` → `Submitted` (G1).
 - VA-1 — `cargo test -p goad-semantics` (the gate's stratum-1 command) builds
   the moved code with stratum 1's own features; no feature was added to a
   dependency shared with stratum 1 (POL-001's residue).
@@ -301,9 +307,8 @@ main.rs, glass.rs}` (imports and the delegation only, in the last four);
 **Notes for the implementer**
 - `clippy::pub_use` is denied: `goad` imports from `goad_semantics`, no
   re-export (`design.md` §5.2.4).
-- The design's *opportunity* items for this phase — `HOST_SOURCE`, and
-  removing `DrawnKind::Choice.first` in the refactor step — are placed here
-  only if the user accepts them at plan review (see the plan-review report).
+- `DrawnKind::Choice.first` goes in the refactor step, after the delegation
+  is green (PL-3).
 - `DrawnKind` is deliberately not `FieldKind` (its own doc, D10). Do not make
   it one.
 
@@ -323,8 +328,10 @@ round_trip.rs}`, `README.md` (the `just demo` paragraph), `.gitignore` and
 `flake.nix` (comments), `docs/roadmap.md`, the four `docs/memory/` files the
 table names; `crates/goad-emit/src/main.rs`,
 `crates/goad-emit/tests/binary/exchange.rs`;
-`crates/goad-shell/src/config.rs` (`from_argv`'s visibility, and its doc if the
-user places the `Command` doc repair here).
+`crates/goad-shell/src/config.rs` (`from_argv`'s and `unsigned`'s
+visibility, and the `Command` doc, PL-1); `version_line`'s homes
+(`crates/goad-shell/src/report.rs`, `crates/goad/src/diagnostics.rs`,
+`crates/goad-emit/src/render.rs` and their callers, PL-7).
 
 **Entry**
 - EN-1 — PHASE-01's entry holds (independent of PHASE-01 and PHASE-02).
@@ -345,6 +352,16 @@ user places the `Command` doc repair here).
   on stderr.
 - EX-5 — `config::Command::from_argv` is `pub`, with its doc naming the
   checker's argv form as its second caller.
+- EX-6 — `config.rs`' `unsigned` is `pub` as `config::positive_duration`,
+  its doc naming `goad-check`'s `--timeout` as its second caller
+  (`design-log.md` 2026-10-01, G2).
+- EX-7 — `config::Command`'s doc names the routes that hold the empty command
+  out (`Config::parse`, `from_argv`) and no longer claims it is
+  unrepresentable (PL-1).
+- EX-8 — `version_line` is defined once, in `goad_shell::report`, taking the
+  package version as a parameter: `env!("CARGO_PKG_VERSION")` expands in the
+  crate that compiles it, so each binary passes its own. `goad` and
+  `goad-emit` call it, and their `--version` output is unchanged (PL-7).
 
 **Verification**
 - VT-1 — `goad-emit` binary tier: `an_answer_that_cannot_be_written_exits_2`
@@ -353,6 +370,10 @@ user places the `Command` doc repair here).
   same name; seen red before `main.rs` changes.
 - VT-2 — `round_trip.rs`'s `the_readme_s_own_config_loads_and_runs_the_example`
   and `harness.rs`' deno cases are green on the new paths.
+- VT-3 — `config.rs` unit tests: `positive_duration` refuses `0s` and `-1s`
+  under the key it is given.
+- VT-4 — `goad`'s and `goad-emit`'s existing `--version` cases stay green
+  across the lift.
 - VA-1 — `just -n check` prints the POL-001 sequence with EX-3's line in
   fourth place.
 - VA-2 — the README's counts touched here are replaced by names ("the
@@ -383,9 +404,9 @@ list only); `canon-delta.md` (test paths only).
 
 **Entry**
 - EN-1 — PHASE-01, PHASE-02 and PHASE-03 done.
-- EN-2 — `design.md` §5.2.1 says how `--timeout`'s positivity is judged.
-  `schedule::parse_span` accepts `0s` and `-1s`; the host's rule for a usable
-  timeout is `config.rs`' private `unsigned`.
+- EN-2 — `design.md` §5.2.1 judges `--timeout` by
+  `config::positive_duration` (`design-log.md` 2026-10-01, G2), public since
+  PHASE-03/EX-6.
 
 **Exit**
 - EX-1 — the command line of `design.md` §5.2.1: config form (`--config`,
@@ -413,8 +434,8 @@ list only); `canon-delta.md` (test paths only).
 
 **Verification**
 - VT-1 — `args.rs` unit tests: the invocation table (config form, argv form,
-  `--event` order, `--timeout` with `--config` refused, an empty argv and an
-  empty program refused, help, version).
+  `--event` order, `--timeout` with `--config` refused, `--timeout 0s`
+  refused, an empty argv and an empty program refused, help, version).
 - VT-2 — binary tier, `tests/binary/`, each case §9 names:
   `a_conforming_backend_is_accepted_and_exits_0`,
   `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`,
@@ -451,6 +472,8 @@ list only); `canon-delta.md` (test paths only).
 
 **Notes for the implementer**
 - Build the runtime, backend and `Host` the way `goad`'s `main.rs` `start` does; read that site first.
+- `--version` calls `goad_shell::report::version_line` (PHASE-03/EX-8); no
+  third copy.
 - Mirror `goad-emit`'s shape: pure `args.rs`, a `render`-style module that
   owns every line's text, `main` alone reading the environment, files and the
   clock. `autotests = false` with `[[test]]` targets, as every member does.
@@ -473,8 +496,8 @@ had the plugin loaded and the skill seen by both agents.
 `.claude-plugin/marketplace.json`; `.agents/plugins/marketplace.json`;
 `kit/.claude-plugin/plugin.json`; `kit/.codex-plugin/plugin.json`;
 `kit/skills/goad-backend/SKILL.md` (a placeholder: frontmatter and a line);
-`README.md` (the kit and plugin-install line); `justfile` (`package`, only
-if the user accepts it); `docs/slices/012/walk/` (new: the walk script, the
+`README.md` (the kit and plugin-install line); `justfile` (`package` gains
+`goad-check` and `goad-kit`, `install` gains `goad-check`, PL-6); `docs/slices/012/walk/` (new: the walk script, the
 negative control, the fixed prompt); `~/dev/goad-walk/{flake.nix, flake.lock,
 README.md}`, committed in that repository.
 
@@ -508,6 +531,8 @@ README.md}`, committed in that repository.
   answer a trivial headless prompt by naming the `goad-backend` skill; and the
   walk script's collection step brings a committed tree back through
   `capsule-collect`.
+- EX-7 — `just package` builds `goad-check` and `goad-kit`, and `just
+  install` installs `goad-check` (PL-6).
 
 **Verification**
 - VA-1 — Codex's manifest, `interface` block included, is accepted:
@@ -534,8 +559,7 @@ README.md}`, committed in that repository.
   `"$KIT/kit"`.
 - The walk script lives in the slice folder and not in `goad-walk`, because
   the capsule clones `goad-walk` and its agent would read the script, the
-  prompt and the control's patterns. (Placement is a decision put to the user
-  at plan review.)
+  prompt and the control's patterns (PL-5).
 - STOP if either plugin load or `capsule-collect` fails in a way the kit
   cannot fix: that is R1 or R7 firing, and the walk's shape is the user's.
 

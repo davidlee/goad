@@ -197,8 +197,13 @@ goad-check --version
     contradict it: `Command::new`, whose callers are tests and `from_argv`,
     and the public `program` and `arguments` fields, which a struct literal
     fills directly (F-40). The doc is true only once both are closed.
-  - `--timeout SPAN` is parsed with the host's one duration grammar,
-    `schedule::parse_span`. The default is `5s`, the value
+  - `--timeout SPAN` is judged by the host's own rule for a usable
+    timeout: `config.rs`' private `unsigned`, made public as
+    `config::positive_duration` for this (`design-log.md` 2026-10-01, G2). It
+    parses with `schedule::parse_span`, refuses zero and negative spans, which
+    `parse_span` alone accepts, and converts to `std::time::Duration`. Called
+    with the key `"--timeout"`, its `ConfigError::Duration` or `NonPositive`
+    is a usage error, status 2. The default is `5s`, the value
     `exercisers/demo.toml` uses.
   - `schedule.default_poll` is the fixed value `30m`. It only affects how the
     report shows a resolved next check when none was sent.
@@ -518,7 +523,18 @@ agree with the code.
   what a field nobody touched submits: `false`, `""`, the minimum or `0`, the
   first alternative, and the epoch at `+00:00`. It is today's
   `view_model::as_drawn`.
-  - `goad` delegates to it.
+  - `goad` delegates to it (`design-log.md` 2026-10-01, G1).
+    `view_model::as_drawn` keeps its signature, `&DrawnKind -> Edited`,
+    because `glass` draws the `Edited` it returns through
+    `view_model::untouched`. It rebuilds the `FieldKind` from the `DrawnKind`,
+    which carries the range and the alternatives, calls
+    `Submitted::as_drawn`, and converts the result back through `impl
+    From<Submitted> for Edited` in `draft.rs`. That conversion spells a number
+    through the existing `adjusted`, and decides no value, so the untouched
+    policy stays stated once. `the_projection_to_submitted_is_the_identity_on_each_kind`
+    also holds the round trip `Submitted` → `Edited` → `Submitted`. The other
+    direction is not an identity: a typed spelling such as `2.50` is not
+    kept.
   - The `choice` arm is `alternatives.first().id().clone()`, over the total
     `Alternatives::first` that already exists in `canonical.rs` (F-25);
     `view_model::drawn_form` already calls it. Nothing new is built for it.
