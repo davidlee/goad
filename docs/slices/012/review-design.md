@@ -748,6 +748,8 @@ reference, including for a variant added later.
 
 **Response (round 2):** Held: an arm beside a list forces an arm, never an instance, and one arm cannot force `InapplicableKey`'s two. The repair decided at round 2 (`design-log.md` 2026-09-30, *design review round 2: dispositions*) is to generate the instance list from the exhaustive match, each arm returning its own instances. **Not applied:** as a mechanism it is circular. A `match` needs a value of each variant to run the arm that builds that variant's instances, so the seeds are the same hand-kept list, and a variant added with an arm and no seed compiles and is never checked — the same gap. Stable Rust has no way to enumerate an enum's variants without a derive dependency (`strum`) or a hand-kept list. The remaining options are the raiser's second — state the limit in `design.md` §5.2.6 in SPEC-003 §7 R-14's terms — or a dependency on a variant-enumerating derive, which is a dependency decision. Returned to the user; `design.md` §5.2.6 still carries round 1's wording until it is decided.
 
+**Response (round 3):** Disposition unchanged (`doc-wrong`); the repair is decided by the user (`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*, question 3): state the limit. `design.md` §5.2.6's coverage test no longer claims that a new variant "does not compile until it has an instance here". It states the limit in SPEC-003 §7 R-14's terms: a new variant fails to compile only where a match forces an arm; whether its author then adds an instance beside the arm — two for `InapplicableKey`, one per id it answers — is review, not an assertion; stable Rust cannot force it without a variant-enumerating derive (`strum`), which the user declined for now. The added direction is compile gate plus review. The derive is recorded as a candidate follow-up in `notes.md` §Open. The non-digit boundary for R-3 stands as round 1 repaired it.
+
 ### F-23 — The corpus witness and the first mutation check are weaker than stated
 
 **Severity:** minor
@@ -1137,6 +1139,8 @@ lists (each pairs R-44 with R-3, R-11, R-13, R-15, R-19 or R-52);
 
 **Outcome:**
 
+**Response (round 3):** Superseded in part by the R-59 reframe (`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*, question 1). The first half stands: R-44 is named where the kind cannot tell which more specific rule an instance broke (`Json`, `Shape`, `DuplicateKey`). `Spawn` no longer rests on it — "R-44's own list item" names the refusal, not a rule, since no rule says a command must be spawnable — so R-59's R-44 clause gains a second half: "or where R-44's list is the only requirement that names the refusal". That covers `Spawn`, and `DuplicateKey` on a key that is not an id. `canon-delta.md` SPEC-001 Change 1; `design.md` §5.2.3 *Meaning of the id* (clause (ii)) and the `Spawn` and `DuplicateKey` rationale.
+
 ### F-36 — With a relative command, the checker does not run what the host will run
 
 **Severity:** minor
@@ -1237,6 +1241,8 @@ write/wait/read failures are not the backend's either.
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `PipeMissing` → **host**, **R-37** — the host asked for the pipe that carries the request R-37 requires it to write and close, and only a host defect removes it; R-37 is the rule the host refused under. R-59's R-45 clause now covers `Io` alone, and is reworded so its subject is the exchange failure no requirement makes a refusal (the host reports it and stays able to invoke the backend again) rather than a "backend failure". `canon-delta.md` R-59; `design.md` §5.2.3 row, *Meaning of the id*, the `Io`/`PipeMissing` rationale, §6 OQ-1.
 
 **Outcome:**
+
+**Response (round 3):** Round 2's repair is reversed (`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*, question 2). `PipeMissing` → R-37 was false: R-37 governs the request the stdin pipe carries, not the presence of a pipe, and the variant is raised for any of the three handles. `PipeMissing` → **R-45**, side host, under R-59's clause for a failure of an exchange that no requirement names; `Io` stays there, side environment. The finding's mechanism — R-45's subject is "backend failure", which neither variant is — is met at the source: `canon-delta.md` SPEC-001 Change 7 rewords R-45 to "No failure of an exchange with the backend, whichever side caused it, may terminate the host, and none may leave it unable to invoke the backend again", a wording fix since `Host` already returns every transport error through one path, and its §7 row states that its witness does not reach `Io` or `PipeMissing`. `canon-delta.md` SPEC-001 Change 1 and Change 7; `design.md` §5.2.3 table, *Meaning of the id* (clause (iii)), the `PipeMissing` and `Io` rationale, §6 OQ-1, §10.
 
 ### F-40 — `Command`'s public fields contradict the same doc the opportunity note blames on `new`
 

@@ -12,7 +12,7 @@ placeholders from `design.md` §9. At audit each is re-pointed to the symbol
 that shipped. Nothing here cites a line number.
 
 `design.md` §6's questions are settled (`design-log.md`, 2026-09-29), and so
-are design review round 1's (`design-log.md`, 2026-09-30); the entries below
+are design review's (`design-log.md`, 2026-09-30); the entries below
 state their outcomes.
 
 ---
@@ -28,19 +28,35 @@ they get back which side was wrong". No requirement states it, and nothing in
 code carried it (`research.md` R-a). The user decided that the claim is canon,
 that SPEC-001 owns it because it owns the taxonomy, and that there are four
 sides (`design-log.md` 2026-09-26, OQ-2 and OQ-8). The format of whatever
-reports the claim is not canon. Design review settled what the id means, what
-each side means, the imprecision one side per kind costs, and the closed set
-the requirement covers (`design-log.md` 2026-09-30, *design review round 1:
-dispositions*, U1), and round 2 corrected the id rule for kinds that cannot
-tell which rule an instance broke, narrowed the environment side, and moved
-`PipeMissing` and `CleanupFailure::TimedOut` (`design-log.md` 2026-09-30,
-*design review round 2: dispositions*). Most of SPEC-001's transport and
-failure rows are host obligations a backend cannot break, so the id is read
-as the rule the host **refused under**, never as a rule someone broke.
+reports the claim is not canon. Design review rounds 1 and 2 settled the
+imprecision one side per kind costs and moved `CleanupFailure::TimedOut`
+(`design-log.md` 2026-09-30, *design review round 1: dispositions*, U1, and
+*design review round 2: dispositions*). Each round patched a sentence and
+left another false of some row, so round 3 reframed the requirement rather
+than patching it again (`design-log.md` 2026-09-30, *R-59 reframed;
+PipeMissing; F-22; round 2's unbriefed repairs*):
+
+- **Scope by channel.** R-59 covers what the host reports on each channel of
+  an exchange or of an answer — a failure, a discarded instruction, a cleanup
+  failure, a refused answer — named once as a **refusal**, and not a list of
+  other requirements' items, which missed kinds each required by their own
+  requirement. What the host reports when it rejects the configuration file at
+  load, or a forwarded envelope, is outside it in terms.
+- **The id, one clause per case.** Most of SPEC-001's transport and failure
+  rows are host obligations a backend cannot break, so the id is never read
+  as a rule someone broke. It is the requirement stating the rule the kind
+  enforces; R-44 where the kind cannot tell which more specific rule an
+  instance broke, or where R-44's list is the only requirement that names the
+  refusal (no rule says a command must be spawnable); R-45 for a failure of
+  an exchange no requirement names, since R-45 governs what the host does
+  with it. R-45 is reworded to cover such a failure whichever side caused it
+  (Change 7).
+- **Sides by where the cause lies**, one side per kind, the imprecision
+  declared.
 
 **As it will be stated** (a new row after R-47):
 
-> | R-59 | Every refusal the host reports of an exchange or an answer — each distinct error R-44 requires, each failure of an exchange that no requirement makes a refusal and that the host reports and survives as R-45 requires, each discarded instruction R-25 requires, each cleanup failure R-48 requires, and each answer refused under R-32, and no other — MUST name the **side at fault** and the **requirement** of this spec under which the host refused. That is the requirement stating the rule the refusal enforces. R-44 is named where the kind cannot tell which more specific rule an instance broke, and R-45 is named for a failure of an exchange that no requirement makes a refusal, since R-45 is the rule under which the host reports it and stays able to invoke the backend again. The side is **backend**, what the backend sent or did is what the host refused; **configuration**, the user's configuration named something the host could not use; **host**, the cause lies on the host's side of the seam — its own code, or whoever answered through it; **environment**, the operating system failed the host. The id and the side are properties of the refusal's kind and not of the instance, so one kind names one side and one requirement — save where one kind is required by two requirements to be the same error: R-53 requires `fields` on an alternative to be refused as R-50's error is, and that kind's requirement is read off what the error names. Where a kind's cause can lie on another side — a timeout the configuration set too short, a signal sent from outside the backend, a spawn refused for want of resources, a disposal a loaded machine did not finish in time — the kind still names its one side, and the refusal carries what lets a reader see the other: the configured timeout, that the backend was signalled, the operating system's error, the limit disposal was given. A refusal of the user's configuration file when it is loaded, and a refusal of a forwarded envelope (SPEC-003), are outside this requirement. What a refusal names is fixed here; how it is worded is not, and whether a surface that reports it to a person carries both is that surface's own spec's to say. | §7 |
+> | R-59 | Each report the host makes on the channels of an exchange or of an answer — a failure, a discarded instruction, a cleanup failure, a refused answer (below, a **refusal**) — MUST name the **side at fault** and a **requirement** of this spec. The requirement is, by the refusal's kind: the requirement stating the rule the kind enforces; R-44, where the kind cannot tell which more specific rule an instance broke, or where R-44's list is the only requirement that names the refusal; and, for a failure of an exchange that no requirement names, R-45, the requirement governing what the host does with it. The side is where the refusal's cause lies: **backend**, in what the backend sent or did; **configuration**, in the user's configuration, which named something the host could not use; **host**, on the host's side of the seam — its own code, or whoever answered through it; **environment**, in the operating system, which failed the host. The requirement and the side are properties of the refusal's kind and not of the instance, so one kind names one side and one requirement — save where one kind is required by two requirements to be the same error: R-53 requires `fields` on an alternative to be refused as R-50's error is, and that kind's requirement is read off what the error names. Where a kind's cause can lie on another side — a timeout the configuration set too short, a signal sent from outside the backend, a spawn refused for want of resources, a disposal a loaded machine did not finish in time — the kind still names its one side, and the refusal carries what lets a reader see the other: the configured timeout, that the backend was signalled, the operating system's error, the limit disposal was given. What the host reports when it rejects the user's configuration file at load, or a forwarded envelope (SPEC-003), is on no channel of an exchange and outside this requirement. What a refusal names is fixed here; how it is worded is not, and whether a surface that reports it to a person carries both is that surface's own spec's to say. | §7 |
 
 
 ### Change 2 — §7: R-59's row
@@ -112,7 +128,7 @@ The closing paragraph becomes:
 
 **Why.** No requirement stated that a `choice` field's alternatives are
 non-empty, though the host refuses an empty list (`EmptyAlternatives`). R-59
-needs a requirement stating the rule each refusal enforces, and neither R-52
+needs a requirement stating the rule the kind enforces, and neither R-52
 (uniqueness) nor R-44 (whose shape items do not include an empty array) is
 one (review F-38; `design-log.md` 2026-09-30, *design review round 2:
 dispositions*, reversing round 1's U8). A wording fix: the wire does not move.
@@ -125,6 +141,27 @@ dispositions*, reversing round 1's U8). A wording fix: the wire does not move.
 In the §7 row for R-13, R-14 and R-16, after the `R-16-a-number-field-with{,out}-bounds` fixtures, add:
 
 > ; R-16's *at least one* by `R-52-a-choice-field-with-no-alternatives`, whose list names R-16, and unit `canonical.rs::an_empty_alternatives_is_rejected_as_alternatives_never_as_options`
+
+### Change 7 — §4 and §7: R-45 covers a failure of an exchange whichever side caused it
+
+**Why.** R-59 names R-45 for a failure of an exchange no requirement names:
+`BackendError::Io`, side environment, and `BackendError::PipeMissing`, side
+host. R-45's subject is "backend failure", which neither is by its letter, so
+R-59 would name a requirement that does not govern the failure
+(`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's
+unbriefed repairs*; review F-39). A wording fix: the host already behaves so,
+since `Host` returns every transport error through `Host::no_action`
+without reading the variant. P-C is unchanged: it states the principle for what a
+backend sends, and the reworded R-45 is wider than it and does not
+contradict it.
+
+**As it will be stated.** R-45 becomes:
+
+> No failure of an exchange with the backend, whichever side caused it, may terminate the host, and none may leave it unable to invoke the backend again.
+
+The §7 row for R-45 gains, at its end:
+
+> . Its witness reaches the failures a test can provoke; `Io` and `PipeMissing`, which no test provokes, reach the caller through the same `Host::no_action` path, and that they leave the host able to invoke the backend again is held by review
 
 ---
 
@@ -164,7 +201,7 @@ gains, after "the line on standard error that accompanies a failure":
 In *Out of scope*, "and the content of standard output, which is an answer to
 an invocation rather than a report of how the process ended" gains:
 
-> , save R-12's claim about what `goad-check`'s report carries, which is a statement about each refusal the host reported and not about the report's format
+> , save R-12's claim about what `goad-check`'s report carries, which is a statement about each refusal (SPEC-001/R-59) the host reported and not about the report's format
 
 **The P-D paragraph** ("R-7's is the status it does not choose, R-4's is that
 same end writing no line, R-6's is the seam §5 names") gains, before "and each
@@ -209,7 +246,7 @@ After R-7, add:
 > | id | requirement | verified by |
 > |----|-------------|-------------|
 > | R-11 | `goad-check` MUST exit **0** if, and only if, it delivered a verdict and the host reported nothing on any exchange — no failure, no discarded instruction and no cleanup failure — or the invocation was a question and its answer was written. | §7 |
-> | R-12 | `goad-check` MUST exit **1** when it delivered a verdict and the host reported at least one refusal, discarded instruction or cleanup failure on any exchange, whichever side SPEC-001/R-59 names for it. Its report MUST carry, for each, the side and the requirement SPEC-001/R-59 names; neither is in the number. | §7 |
+> | R-12 | `goad-check` MUST exit **1** when it delivered a verdict and the host reported at least one failure, discarded instruction or cleanup failure on any exchange, whichever side SPEC-001/R-59 names for it. Its report MUST carry, for each — a refusal in SPEC-001/R-59's sense — the side and the requirement R-59 names; neither is in the number. | §7 |
 > | R-13 | `goad-check` MUST exit **2** when it delivered no verdict: whatever its cause and whenever it arose — an argument it cannot use, a configuration it cannot find, read or parse, an event file it cannot read or that the host's ingress refuses, a clock or runtime it cannot obtain, a report or an answer that standard output refused, or a defect in the checker itself. It MUST NOT distinguish among those causes by status. | §7 |
 >
 > **`goad-emit` and `goad-check`**
@@ -238,12 +275,12 @@ may be inferred from each." The existing table is headed **The host**. Add:
 > | status | class | what happened | what a reader may infer |
 > |---|---|---|---|
 > | 0 | **accepted** | A verdict was delivered, and the host reported nothing. Also a question answered. | The host, running this command with this configuration, would have reported nothing for the requests the checker sent. Nothing about requests it did not send, nor about views the chain bound left unanswered — the report says when it was hit — nor about answering a view when no exchange returned one, which the report also says. |
-> | 1 | **refused** | A verdict was delivered, and the host reported something. | The report names each refusal's side and requirement. The number does not say whose fault it was. |
+> | 1 | **refused** | A verdict was delivered, and the host reported something. | The report names each refusal's side and requirement (SPEC-001/R-59). The number does not say whose fault it was. |
 > | 2 | **not judged** | No verdict was delivered. | Nothing about the backend. Exchanges may have run before the run stopped; what the host reported of them is not a verdict. |
 
 The "What may not be inferred" paragraph gains:
 
-> For `goad-check`, 0 is not a claim that the backend is correct — only that nothing the checker sent was refused — and 1 is not a claim that the backend is at fault: the side is in the report.
+> For `goad-check`, 0 is not a claim that the backend is correct — only that the host reported nothing of what the checker sent — and 1 is not a claim that the backend is at fault: the side is in the report.
 
 ### Change 5 — §7: rows for R-8..R-15
 

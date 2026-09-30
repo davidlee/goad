@@ -23,9 +23,10 @@ agent working in someone else's repository, and nothing is packaged for it.
 This slice builds four things:
 
 1. **A checker**, `goad-check`. It is a headless binary that drives a backend
-   command through the host's own `Host`. It reports each refusal with the
-   side at fault and the SPEC-001 requirement under which the host refused,
-   and exits with a status SPEC-004 governs.
+   command through the host's own `Host`. It reports each refusal — each
+   failure, discarded instruction and cleanup failure the host reports
+   (SPEC-001/R-59) — with the side at fault and the SPEC-001 requirement R-59
+   assigns its kind, and exits with a status SPEC-004 governs.
 2. **The data the checker reports.** Each error taxonomy gets `requirement()`
    and `fault()`, in the stratum that owns it. The checker only prints what
    the host already knows.
@@ -66,7 +67,7 @@ are the only ones this design relies on.
   `OptionId::new` and `FieldId::new` are `pub(super)`, so a test cannot mint a
   response's ids from strings. `ViewId::new` is `pub`.
 - **Forwarded events enter through `goad_shell::ingress::envelope::normalize`**
-  in stratum 2 (ADR-005). Its refusals are `EnvelopeFault`, which is SPEC-003's
+  in stratum 2 (ADR-005). Its rejections are `EnvelopeFault`, which is SPEC-003's
   taxonomy.
 - **Configuration.** `Config::load` / `Config::parse` require
   `backend.timeout` and `schedule.default_poll` and have no defaults.
@@ -266,15 +267,17 @@ that cannot be read at any step ends the run with no verdict (§5.2.5).
   checker observation, not as a protocol refusal, and does not change the
   status (U2).
 
-**What is judged.** Every channel of every `Outcome`:
+**What is judged.** Every channel of every `Outcome`. What the host reports
+on the failure, discarded and cleanup channels is a **refusal** in
+SPEC-001/R-59's sense, and names what R-59 assigns its kind:
 
 | channel | what the checker reports | requirement and side from |
 |---|---|---|
-| `failure: Failure::Backend(e)` | a refusal | `e.requirement()`, `e.fault()`; for `Protocol(p)` this delegates to `p` |
+| `failure: Failure::Backend(e)` | a failure | `e.requirement()`, `e.fault()`; for `Protocol(p)` this delegates to `p` |
 | `failure: Failure::State(e)` | the checker's own defect: it cannot arise unless the checker named a `view_id` wrongly. The run ends with no verdict, status 2, and the line says so (U2). | `e.requirement()`, `e.fault()`, shown in the line |
-| `discarded: Discarded::Schedule{reason, ..}` | a discard | `reason.requirement()`, `reason.fault()` |
-| `cleanup: Some(c)` | a cleanup observation | `c.requirement()`, `c.fault()` |
-| a failure on the R-56 probe | the refusal as above. **Only** when its `fault()` is backend **and** at least one of the three known-kind evaluates made no failure, the report adds "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend (F-3). A backend that fails alike on every kind, or a failure on another side, is not charged with R-56. | the probe and its condition are the checker's; the refusal is the host's |
+| `discarded: Discarded::Schedule{reason, ..}` | a discarded instruction | `reason.requirement()`, `reason.fault()` |
+| `cleanup: Some(c)` | a cleanup failure | `c.requirement()`, `c.fault()` |
+| a failure on the R-56 probe | the failure as above. **Only** when its `fault()` is backend **and** at least one of the three known-kind evaluates made no failure, the report adds "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend (F-3). A backend that fails alike on every kind, or a failure on another side, is not charged with R-56. | the probe and its condition are the checker's; the failure is the host's |
 | `stderr` | shown verbatim under the exchange, truncation flagged | — |
 
 #### 5.2.3 `requirement()` and `fault()`
@@ -299,32 +302,43 @@ The type is named `AtFault` and not `Fault`. In this workspace `…Fault` names 
 *reason*: `SpanFault`, `SendFault`, `StartupFault`, `EnvelopeFault`. Here the
 method `fault()` answers *who*.
 
-**Meaning of the id** (U1; F-1, F-4, F-6; round 2: F-34, F-35, F-39). One reading, for every side: the id
-is the requirement **under which the host refused** — the one stating the rule
-the refusal enforces. Most of SPEC-001's transport and failure rows are host
-obligations a backend cannot break (R-40, R-41, R-43, R-44), so "the rule
-broken" would be false of most rows.
+**Meaning of the id** (U1; F-1, F-4, F-6; round 2: F-34, F-35, F-39; round
+3: the reframe, `design-log.md` 2026-09-30, *R-59 reframed; PipeMissing;
+F-22; round 2's unbriefed repairs*). R-59 fixes what each refusal names by
+its kind, never by the instance. Most of SPEC-001's transport and failure
+rows are host obligations a backend cannot break (R-40, R-41, R-43, R-44), so
+the id is never read as "the rule broken". It is one of three:
 
-- **R-44** is named where the kind cannot tell which more specific rule an
-  instance broke (`Json`, `Shape`, `DuplicateKey`), or where R-44's own list
-  is the rule (`Spawn`).
-- **R-45** is named for a failure of an exchange that no requirement makes a
-  refusal (`Io`): it is the rule under which the host reports the failure and
-  stays able to invoke the backend again.
-- **Sides** are where the cause lies: **backend**, what the backend sent or
-  did is what the host refused; **configuration**, the user's configuration
-  named something the host could not use; **host**, the cause lies on the
-  host's side of the seam — its own code, or whoever answered through it;
-  **environment**, the operating system failed the host.
+- **(i) the requirement stating the rule the kind enforces** — the default,
+  and most rows.
+- **(ii) R-44**, where the kind cannot tell which more specific rule an
+  instance broke (`Json`, `Shape`, `DuplicateKey`), or where R-44's list is
+  the only requirement that names the refusal (`Spawn`, and `DuplicateKey`
+  again).
+- **(iii) R-45**, for a failure of an exchange that no requirement names
+  (`Io`, `PipeMissing`): R-45 governs what the host does with it — reports
+  it and stays able to invoke the backend again. R-45 is reworded to cover
+  such a failure whichever side caused it (`canon-delta.md` SPEC-001 Change
+  7); by its current letter, "backend failure", it covers neither.
+
+The rest of R-59:
+
+- **Scope is closed, by channel.** What the host reports on the channels of
+  an exchange or of an answer — a failure, a discarded instruction, a cleanup
+  failure, a refused answer — and nothing else. R-59 names these once as a
+  **refusal**, and where this design speaks of what R-59 governs it uses the
+  word in that sense.
+- **Sides** are where the cause lies: **backend**, in what the backend sent or
+  did; **configuration**, in the user's configuration, which named something
+  the host could not use; **host**, on the host's side of the seam — its own
+  code, or whoever answered through it; **environment**, in the operating
+  system, which failed the host.
 - **One kind, one side, one id.** A kind whose cause can lie on another side
   keeps its one side — the declared imprecision — and its refusal carries what
   lets a reader see the other: `Timeout` its configured window, `ExitStatus {
   code: None }` that the backend was signalled, `Spawn` the operating
   system's error, `CleanupFailure::TimedOut` the limit disposal was given.
   The one exception to one id per kind is R-53's (below).
-- **Scope is closed** (R-59): R-44's distinct errors, the exchange failures
-  no requirement makes a refusal (R-45), R-25's discards, R-48's cleanup failures, and R-32's
-  refused answers — and no other.
 
 **The table.** Variants are verified against the enums at 7388b5c. The
 fixture column lists each error fixture's `requirement` array as it stands.
@@ -358,7 +372,7 @@ fixture column lists each error fixture's `requirement` array as it stands.
 | | `Timeout` | R-41 | backend | — |
 | | `ExitStatus` | R-40 | backend | — |
 | | `OutputTooLarge` | R-43 | backend | — |
-| | `PipeMissing` | R-37 *(OQ-1)* | host | — |
+| | `PipeMissing` | R-45 *(OQ-1)* | host | — |
 | | `Io` | R-45 *(OQ-1)* | environment | — |
 | | `Protocol(p)` | `p.requirement()` | `p.fault()` | — |
 | `CleanupFailure` | `TimedOut` | R-48 | backend | — |
@@ -368,20 +382,25 @@ fixture column lists each error fixture's `requirement` array as it stands.
 
 Rationale for the rows that are not obvious:
 
-- **`Json` → R-44.** R-44 names *malformed JSON*, "bytes that are not one JSON
-  document", as its own class. The kind cannot tell which more specific rule
-  an instance broke (F-35): R-38's empty stdout and trailing content, and
-  R-17's non-finite literals, all arrive as `Json` through
-  `From<serde_json::Error>`, beside every other malformed document.
-- **`Shape` → R-44**, for the same reason. serde's category is coarse by
+- **`Json` → R-44**, clause (ii). R-44 names *malformed JSON*, "bytes that
+  are not one JSON document", as its own class. The kind cannot tell which
+  more specific rule an instance broke (F-35): R-38's empty stdout and
+  trailing content, and R-17's non-finite literals, all arrive as `Json`
+  through `From<serde_json::Error>`, beside every other malformed document.
+- **`Shape` → R-44**, clause (ii), for the same reason. serde's category is coarse by
   construction (`research.md` R-a): a `Shape` fixture may pair R-44 with R-3,
   R-11, R-13, R-15, R-19 or R-52, and the kind cannot say which.
   - **The two R-17 `Json` fixtures' lists become [R-17, R-44].** R-17 stays
     because those fixtures do verify R-17: a non-finite bound cannot even be
     written as JSON.
+- **`DuplicateKey` → R-44**, clause (ii) on both halves. No requirement
+  but R-44's list names a key repeated within one object; where the key is
+  an id, R-52's rule is broken too
+  (`protocol-text/R-52-a-duplicate-key-inside-an-option`), and the kind cannot
+  tell.
 - **`EmptyAlternatives` → R-16** (F-38, reversing U8). R-16 gains "at least
   one" in this slice's canon delta (SPEC-001 Change 6), so it states the rule
-  the host refuses under; R-52 is about uniqueness, and R-44's shape items do
+  the kind enforces, clause (i); R-52 is about uniqueness, and R-44's shape items do
   not include an empty array. `R-52-a-choice-field-with-no-alternatives`' list
   becomes [R-52, R-53, R-16]; R-52 and R-53 stay, as the fixture's own
   claims. Nothing else in the corpus changes.
@@ -393,14 +412,16 @@ Rationale for the rows that are not obvious:
     (verified: `inapplicable("fields", "choice", …)` is the only `fields`
     call).
   - The witness test holds the split.
-- **`Spawn` → R-44, configuration** (U1). "Command not spawnable" is in R-44's
-  list, and R-36 does not make a spawn failure a refusal: a non-empty argv
-  naming a missing program breaks no clause of it. The reference's R-44 entry
-  points to R-36 for how a command is formed (no shell interposed). The side
+- **`Spawn` → R-44, configuration** (U1), clause (ii): R-44's list ("command
+  not spawnable") is the only requirement that names it. No rule says a
+  command must be spawnable: R-36 governs how a command is formed, and a
+  non-empty argv naming a missing program breaks no clause of it. The
+  reference's R-44 entry points to R-36 for how a command is formed (no shell
+  interposed). The side
   was decided as configuration (`design-log.md` 2026-09-26, OQ-8); a spawn
   refused for want of resources is the declared imprecision, visible in the
   operating system's error the refusal carries.
-- **`Timeout` → backend.** R-41 is the rule the host refused under. A timeout
+- **`Timeout` → backend.** R-41 states the rule the kind enforces. A timeout
   set too short is a configuration fault, and a loaded machine an
   environment one, but the host cannot tell either from a slow backend. That
   is R-59's declared imprecision: the kind keeps backend, and the report
@@ -414,26 +435,30 @@ Rationale for the rows that are not obvious:
   renderer (a person's delayed click on a view R-33 has replaced) or the
   checker. The host side means the cause lies there, not that host code is
   defective. A backend cannot cause one.
-- **`CleanupFailure::TimedOut` → R-48, backend** (F-34). The backend was not
+- **`CleanupFailure::TimedOut` → R-48, backend** (F-34). R-48 states the rule
+  the kind enforces: a bounded wait to observe disposal. The backend was not
   seen reaped with its stderr drained within the cleanup limit. The usual
   cause is the backend's own process tree — a child left holding a pipe — so
   the side is backend. Naming the side a cause usually lies on asserts no
   process state, so R-54 is not engaged; the line still names none. A
   loaded machine that did not finish disposal in time is R-59's declared
   imprecision, and the line carries the limit disposal was given.
-- **`CleanupFailure::Io` → R-48, environment.** The operating system failed a
-  disposal call: that is the environment side's whole definition.
-- **`PipeMissing` → R-37, host** (F-39). The host asked for all three pipes;
-  only a host defect removes one, and the one that carries the request is the
-  pipe R-37 requires the host to write and close. The variant is raised for
-  any of the three handles, and names R-37 for all of them.
-- **`Io` → R-45, environment** (U1; F-5). No requirement makes it a refusal;
-  R-45 is the rule under which the host reports it and stays able to invoke
-  the backend again. No transport id is claimed, since `Io` merges write,
-  wait and read failures.
-- **`ConfigError`, `EnvelopeFault` and `SpanFault` get neither method.** R-59
-  puts a refusal of the configuration file at load, and a refusal of a
-  forwarded envelope, outside its scope (F-6). In the checker they end the run
+- **`CleanupFailure::Io` → R-48, environment** (confirmed at round 3). The
+  operating system failed a disposal call — that is the environment side's
+  whole definition — and the host failed to observe cleanup, which is R-48's
+  rule.
+- **`PipeMissing` → R-45, host** (F-39; round 3), clause (iii). The host asked
+  for all three pipes, so only a host defect removes one. No requirement names
+  the failure: R-37 governs the request the stdin pipe carries, not the
+  presence of the pipe, and the variant is raised for any of the three
+  handles. Round 2's R-37 was reversed at round 3.
+- **`Io` → R-45, environment** (U1; F-5), clause (iii). No requirement names
+  it. No transport id is claimed, since `Io` merges write, wait and read
+  failures, each an operating-system call that failed.
+- **`ConfigError`, `EnvelopeFault` and `SpanFault` get neither method.** What
+  the host reports when it rejects the configuration file at load, or a
+  forwarded envelope, is on no channel of an exchange, and R-59 puts it
+  outside its scope in terms (F-6). In the checker they end the run
   with no verdict (§5.4, status 2), and their `Display` is the line.
   `EnvelopeFault` ids belong to SPEC-003, which is out of this slice
   (`notes.md` §Open candidate).
@@ -535,7 +560,7 @@ still a phase in SPEC-004 §5's sense — how far the process got — not a caus
 | status | class | when |
 |---|---|---|
 | 0 | **accepted** | a verdict was delivered, and the host reported nothing on any channel. Also `--help` and `--version`, answered. |
-| 1 | **refused** | a verdict was delivered, and the host reported at least one refusal, discard or cleanup failure, whichever side. This includes `Spawn` and the R-56 probe. |
+| 1 | **refused** | a verdict was delivered, and the host reported at least one refusal — a failure, a discarded instruction or a cleanup failure — whichever side. This includes `Spawn` and the R-56 probe. |
 | 2 | **not judged** | no verdict was delivered, whatever the cause and whenever it arose: a usage error, a configuration it cannot find or parse, an event file it cannot read or that `envelope::normalize` refuses, a clock unreadable before or during the run, no runtime, a report or an answer stdout refused, or `Failure::State`, the checker's own defect. |
 
 - A cleanup-only report counts as 1.
@@ -620,8 +645,15 @@ spec:
   - `goad-check`'s tests build their own instance of each variant. The
     `every_protocol_error` helper in `goad-semantics`' `error.rs` is private
     to its crate's tests, so it cannot be reused. Each builder sits beside an
-    exhaustive `match` over its enum with no `_` arm, so a variant added later
-    does not compile until it has an instance here.
+    exhaustive `match` over its enum with no `_` arm.
+  - **Its limit**, stated as SPEC-003 §7's R-14 row states the same pattern's
+    (F-22; `design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22;
+    round 2's unbriefed repairs*). A new variant fails to **compile** only
+    where a match forces an arm; whether its author then adds an instance
+    beside the arm — two for `InapplicableKey`, one per id it answers — is
+    review, not an assertion. Stable Rust cannot force it without a
+    variant-enumerating derive, which the user declined for now
+    (`notes.md` §Open). The added direction is compile gate plus review.
   - An id matches only when followed by a non-digit or the end, so
     `SPEC-001/R-3` is not found inside `SPEC-001/R-32`.
 
@@ -993,9 +1025,9 @@ changes the slice's shape.
 
 - **OQ-1 — `requirement()` for `BackendError::Io` and `PipeMissing`.** Nobody
   broke a rule in either case.
-  - (a) `Io` cites R-45, the rule under which the host reports a failure no
-    requirement makes a refusal and carries on, side environment;
-    `PipeMissing` cites R-37, side host.
+  - (a) Both cite R-45, the requirement governing what the host does with a
+    failure of an exchange no requirement names — it reports it and carries
+    on; `Io` side environment, `PipeMissing` side host.
   - (b) Cite R-37 or R-38 for `Io` by guess. The variant merges write, wait
     and read failures, so any single transport id is wrong for some of them.
   - (c) Split `Io` into write/wait/read variants. That is a taxonomy change
@@ -1004,10 +1036,14 @@ changes the slice's shape.
     Honest, but AC-7 asks every refusal to name one.
 
   **Settled (a)**, as amended at design review. Round 1 (U1; F-5) moved both
-  to R-45; round 2 (F-39) returned `PipeMissing` to R-37, side host, because
-  R-45 is about backend failures and a missing pipe is the host's own. R-59
-  states the R-45 reading for `Io`, so it is not a convention held only in
-  code.
+  to R-45; round 2 (F-39) moved `PipeMissing` to R-37, side host, because
+  R-45 was about backend failures and a missing pipe is the host's own; round
+  3 reversed that — R-37 governs the request, not the pipe — and returned it
+  to R-45, side host, with R-45 reworded to cover a failure of an exchange
+  whichever side caused it (`canon-delta.md` SPEC-001 Change 7;
+  `design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's
+  unbriefed repairs*). R-59 states the R-45 reading, so it is not a
+  convention held only in code.
 - **OQ-2 — Where the checker's answer values come from.** OQ-4 settled "a pure
   R-57 value-per-kind in stratum 1". It did not say whether *which* value is
   also lifted.
@@ -1096,7 +1132,7 @@ changes the slice's shape.
 | D19 | network through the capsule proxy; any fetch attempt beyond the model API is friction, allowed or refused | network off | cuts the model API too | 2026-09-26 OQ-3 method; 2026-09-30 |
 | D20 | both binaries governed by SPEC-004 | the checker only | leaves the second binary ungoverned and the third governed | 2026-09-26 OQ-5 |
 | D21 | walk in an oubliette capsule whose target is a sibling repo, `goad-walk` | bwrap consumer jails with a walk-home bind | a fresh home and credentials without a jail-library change; the capsule clones its target, so the target cannot be this repo | 2026-09-30 |
-| D22 | R-59's id is the requirement the host refused under; R-44 where the kind cannot tell which more specific rule an instance broke, R-45 for a failure nothing makes a refusal; sides by where the cause lies; one side per kind, imprecision declared; a closed scope | "broken" for backend/configuration and "left undischarged" for host/environment; the table as the only definition | the two readings fit almost no row; a table-only definition leaves AC-7 unfalsifiable | 2026-09-30 U1; round 2 (F-34, F-35, F-39) |
+| D22 | R-59's scope is what the host reports on the channels of an exchange or answer; its id is the requirement stating the rule the kind enforces, R-44 where the kind cannot tell which more specific rule an instance broke or R-44's list alone names it, R-45 for a failure of an exchange no requirement names; sides by where the cause lies; one side per kind, imprecision declared | "broken" for backend/configuration and "left undischarged" for host/environment; the table as the only definition; a scope listing other requirements' items | the two readings fit almost no row; a table-only definition leaves AC-7 unfalsifiable; the listed scope missed kinds each required by their own requirement | 2026-09-30 U1; round 2 (F-34, F-35, F-39); round 3, *R-59 reframed* |
 | D23 | no `--now`; the report says when no view was returned; AC-1 needs a view answered | a `--now` flag | new surface that strains R-7's "current instant", and reaches only backends that read `now` | 2026-09-30 U3 |
 | D24 | `goad-walk`'s `goad` input is a host-local `git+file:` URL; reading goad's source fails AC-1 | the proxy refusing the forge | closes the route whatever the proxy admits | 2026-09-30 U4 |
 | D25 | respond fences held by a JSON-type oracle against `Submitted::as_drawn` | a stratum-1 `Submitted::from_json`; as-drawn-only examples | no reader nobody else uses; examples that teach real values | 2026-09-30 U5 |
@@ -1219,9 +1255,12 @@ Drafted in `canon-delta.md`, applied at audit with endorsement:
 
 - **SPEC-001**: R-16 gains "at least one" for a `choice` field's `options`,
   and its §7 row the fixture and unit that hold it (F-38). New R-59 (side and
-  requirement on every refusal in a closed
-  scope; the requirement the host refused under; the four sides by where the
-  cause lies; one side per kind, its imprecision declared). R-59's §7 row,
+  requirement on every refusal — what the host reports on the channels of an
+  exchange or of an answer; the requirement by kind, one clause per case; the
+  four sides by where the cause lies; one side per kind, its imprecision
+  declared). R-45 reworded to cover a failure of an exchange whichever side
+  caused it, and its §7 row states what its witness does not reach; P-C, checked, is
+  narrower and not contradicted. R-59's §7 row,
   its witness's reach stated. R-56's row (tolerance now tested, on a stated
   condition; the kind site moved). R-57's row (single site moved; rewritten
   whole). §7's review-held paragraph rewritten to name its rows, not count

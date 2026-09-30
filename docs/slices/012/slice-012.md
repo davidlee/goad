@@ -83,7 +83,8 @@ are design's):
   oubliette-side configuration.
 - **Canon**, drafted in `canon-delta.md`: SPEC-001 (requirement id and side
   at fault on each refusal; R-16's non-empty clause for a `choice` field's
-  `options`; R-56's and R-57's verification rows), SPEC-004
+  `options`; R-45 reworded to cover a failure of an exchange whichever side
+  caused it; R-56's and R-57's verification rows), SPEC-004
   (`goad-check` and `goad-emit`), POL-001 (the command block's `deno check`
   paths), ADR-003 (the member list gains `goad-check`).
 
@@ -120,9 +121,11 @@ are design's):
   them as the file a backend author copies.
 - [ ] AC-6 — A person has run the checker against the shipped examples and a
   broken backend, and seen the report (`docs/AGENTS.md` §Tiers).
-- [ ] AC-7 — Canon states that each refusal the checker reports names the side
-  at fault and the requirement under which the host refused, and a test holds
-  it for every refusal kind the normalizer can produce.
+- [ ] AC-7 — Canon states that each refusal the checker reports — each
+  failure, discarded instruction or cleanup failure the host reports on an
+  exchange — names the side at fault and the requirement SPEC-001/R-59 assigns
+  its kind, and a test holds it for every refusal kind the normalizer can
+  produce.
 - [ ] AC-8 — Token spend (input, output, cache), turns and wall time are
   recorded for every walk, first and re-walk. Indicative, not a benchmark: no
   threshold, but the re-walk does not regress.
@@ -149,8 +152,9 @@ are design's):
   scoped separately (`design-log.md`, 2026-09-26).
 - ~~OQ-2 — Is the checker's report canon, or only its exit status (SPEC-004)?~~
   **Its exit status, and its claims:** each refusal names the side at fault and
-  the requirement under which the host refused (wording revised at design
-  review, `design-log.md` 2026-09-30, U1). Its format is not canon (`design-log.md`,
+  the requirement SPEC-001/R-59 assigns its kind — the one stating the rule the
+  kind enforces, R-44 or R-45 where R-59 says (wording revised at design
+  review, `design-log.md` 2026-09-30, U1, and reframed at round 3, `design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*). Its format is not canon (`design-log.md`,
   2026-09-26). Where that requirement lives is for design; where the
   requirement id comes from is for research.
 - ~~OQ-3 — How AC-1 is walked: which agent, which jail, what it is given, what
@@ -177,8 +181,9 @@ are design's):
 - ~~OQ-8 — Where a refusal's requirement id and side at fault come from.~~
   **Total `requirement()` and `fault()` beside each error taxonomy in strata 1
   and 2, witnessed by the fixture corpus; sides are backend, host,
-  configuration, environment; canon in SPEC-001** (`design-log.md`,
-  2026-09-26).
+  configuration, environment, by where the cause lies; canon in SPEC-001**
+  (`design-log.md`, 2026-09-26; sides defined at design review, U1, and R-59
+  reframed at round 3, `design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*).
 
 ## Summary
 

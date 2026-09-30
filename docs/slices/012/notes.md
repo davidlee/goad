@@ -99,6 +99,14 @@ after the slice closes is lifted into the Harvest section.
   (`design-log.md` 2026-09-30, U3; review F-7). Build it only if walk friction
   names it; it strains SPEC-001/R-7's "current instant" and reaches only
   backends that read `now`. Candidate follow-up.
+- **A variant-enumerating derive for the reference coverage test.** The
+  coverage test's instances are hand-kept, so a new variant compiles once its
+  arm exists, with or without an instance: compile gate plus review, as
+  SPEC-003 §7's R-14 row states for the same pattern (design.md §5.2.6;
+  review F-22). A derive such as `strum`'s would make it an assertion; the
+  user declined it for now (`design-log.md` 2026-09-30, *R-59 reframed;
+  PipeMissing; F-22; round 2's unbriefed repairs*). Candidate follow-up, with
+  SPEC-003's R-14 case as a second user.
 - **FU-7's citation extends to `goad-check`.** Nothing bills a stratum-3
   manifest, so `goad-check` linking no renderer is held by its manifest
   comment and review (design.md §5.5 I-6; review F-26). Extend FU-7 at close.
