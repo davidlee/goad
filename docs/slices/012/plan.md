@@ -20,9 +20,9 @@ up in a capsule before any prose is written for it; then the kit is written
 and gated; then it is walked.
 
 - **PHASE-01 — refusals name a requirement and a side.** `Requirement`,
-  `AtFault`, and total `requirement()`/`fault()` on every taxonomy in strata 1
-  and 2 (`design.md` §5.2.3). The corpus witness, red on three fixtures and
-  green after their lists are corrected.
+  `AtFault` (each with its `Display`), and total `requirement()`/`fault()` on
+  every taxonomy in strata 1 and 2 (`design.md` §5.2.3). The corpus
+  witnesses, red on the fixtures whose lists §5.2.3 corrects and green after.
 - **PHASE-02 — the host's kinds and R-57 values live in stratum 1.**
   `Stimulus`, `Submitted`, `Finite` and `Submitted::as_drawn` move or are
   lifted to `goad_semantics::protocol::canonical`; `goad` delegates
@@ -31,21 +31,27 @@ and gated; then it is walked.
   `exercisers/` (`design.md` §5.2.7); `goad-emit`'s unwritten answer exits 2
   (§5.2.5); `config::Command::from_argv` and `config::positive_duration`
   are public (§5.2.1); `version_line` has one home (`plan-log.md` PL-7).
-- **PHASE-04 — `goad-check`.** The binary, its arguments, its run sequence,
-  its report and its statuses, with the binary tier (`design.md` §5.2.1,
-  §5.2.2, §5.2.5).
+- **PHASE-04 — `goad-check`: the crate and its edges.** The binary, its
+  arguments in both forms, the steps before the first exchange, the report
+  writer and the statuses, with every status-2 case in the binary tier
+  (`design.md` §5.2.1, §5.2.5).
+- **PHASE-12 — `goad-check`: the run.** The request plan, answering and
+  chains, the report of every channel with its refusal lines, and the R-56
+  condition, with the binary cases that need a run (`design.md` §5.2.2,
+  §5.2.5, §5.4).
 - **PHASE-05 — packages and the plugin's shell.** The flake exports
-  `goad-check` and `goad-kit`; the manifests and a minimal `SKILL.md` exist
-  and validate; both agents load the plugin from its store path on the host;
-  `goad-walk` builds the full tool set (`design.md` §5.2.6, §5.2.8; R1).
+  `goad-check` and `goad-kit`; the manifests and a placeholder `SKILL.md`
+  exist and validate; both agents load the plugin from its store path on the
+  host; `goad-walk` builds the full tool set (`design.md` §5.2.6, §5.2.8; R1).
 - **PHASE-11 — the capsule.** The walk script; one capsule stood up, its
   negative control passed, both agents loading the plugin in it, and a tree
   collected (`design.md` §5.2.8; R1, R7). Waits on oubliette.
-- **PHASE-06 — the examples.** The three kit examples, each accepted by the
-  checker in the gate; `python3` and `jq` in the devshell; the second
+- **PHASE-06 — the examples.** The kit examples — focus check, Downloads
+  triage and breadcrumbs — each accepted by the checker in the gate having
+  answered a view; `python3` and `jq` in the devshell; the kit example's
   `deno check` path (`design.md` §5.2.6 *The examples*).
 - **PHASE-07 — the fence gate, and the protocol and transport reference.** The
-  tagged-fence extractor and every role's check; `protocol.md` and
+  shared fence scanner and every role's check; `protocol.md` and
   `running.md`; I-5's path test.
 - **PHASE-08 — the rest of the reference, and its coverage.** `scheduling.md`,
   `events.md`, `checking.md`, the finished `SKILL.md`; the coverage test over
@@ -62,14 +68,16 @@ No phase can do these: they are audit's or close's by `docs/AGENTS.md`. Each is
 also a checklist item — PHASE-10/VA-4 checks that `notes.md` §Open carries
 every one, so none is left to prose.
 
-- **Promote `canon-delta.md`** — SPEC-001 Changes 1–7, SPEC-004 Changes 1–7,
-  POL-001 Change 1, ADR-003 Change 1 — with the user's endorsement, recording
-  each in `audit.md`'s Reconciliation table. AC-4 and AC-7's canon half land
-  only here.
+- **Promote `canon-delta.md`** — every change it holds, for SPEC-001,
+  SPEC-004, POL-001 and ADR-003 — with the user's endorsement, recording each
+  in `audit.md`'s Reconciliation table. AC-4 and AC-7's canon half land only
+  here. POL-001 Change 1 also ends the recipe's departure from POL-001
+  §Statement (PHASE-03/EX-3).
 - **Record the person-runs** in `audit.md` §Evidence, citing the VH criteria
   below by id.
-- **Extend FU-5 and FU-7** in `docs/follow-ups.md` (`notes.md` §Open names the
-  shipped symbols, PHASE-04/VA-5 and PHASE-07/VA-4).
+- **Extend FU-5 and FU-7** in `docs/follow-ups.md` from `notes.md` §Open's
+  rows, which name the shipped symbols (PHASE-04/VA-5, VA-7;
+  PHASE-12/VA-7; PHASE-07/VA-4).
 - **Disposition every other §Open candidate** at close.
 
 **Test names are commitments.** `design.md` §9 and `canon-delta.md` name the
@@ -82,53 +90,72 @@ Canon keeps its old citations until audit promotes the delta.
 
 ```
 PHASE-01 ─┐
-PHASE-02 ─┼─► PHASE-04 ─► PHASE-05 ─► PHASE-06 ─► PHASE-07 ─► PHASE-08 ─┬─► PHASE-09 ─► PHASE-10
-PHASE-03 ─┘               (packages)  (examples)  (fences)    (coverage) │   (walks)     (fix, re-walk)
-                              │                                          │
-                              └─► PHASE-11 (capsule; waits on oubliette) ┘
+PHASE-02 ─┼─► PHASE-04 ─► PHASE-12 ─► PHASE-05 ─► PHASE-06 ─► PHASE-07 ─► PHASE-08 ─┬─► PHASE-09 ─► PHASE-10
+PHASE-03 ─┘   (crate,     (the run)   (packages)  (examples)  (fences)    (coverage) │   (walks)     (fix, re-walk)
+              statuses)                   │                                         │
+                                          └─► PHASE-11 (capsule; waits on oubliette)┘
 ```
 
 **Why the host changes come first.** The checker only prints what the host
 knows (`design.md` §4, principle 1). It cannot be written until each taxonomy
-answers `requirement()` and `fault()` (PHASE-01), until the kinds and R-57
-values it sends have a stratum-1 home (PHASE-02), and until it can build a
-command by the host's own rule (PHASE-03).
+answers `requirement()` and `fault()` and each answer prints itself
+(PHASE-01), until the kinds and R-57 values it sends have a stratum-1 home
+(PHASE-02), and until it can build a command by the host's own rule
+(PHASE-03).
 
 **PHASE-01, PHASE-02 and PHASE-03 may run in parallel**, each in its own
-worktree with one writer, merged in order. Their surfaces are disjoint by
-file. The default is sequential; parallel is the user's call at phase-plan
-time.
+worktree with one writer, merged in order. The default is sequential;
+parallel is the user's call at phase-plan time. Their code surfaces are
+disjoint by file, and `notes.md` and `canon-delta.md` are not: every phase
+writes `notes.md` (the §Status table and its own phase sheet), and each may
+edit `canon-delta.md`'s test names. So a phase run in parallel writes
+neither `notes.md` §Status nor `canon-delta.md`: it records its status
+changes and its test-name changes in its own phase sheet, and the
+orchestrator applies both at merge. The same rule
+binds PHASE-11 when it runs beside PHASE-06..PHASE-08.
+
+**Why the checker is two phases.** One phase holding the crate, its edges and
+its run does not fit one session with its binary tier. The split is at the
+first exchange. PHASE-04 builds everything decided before it and after the
+last one: the command line, configuration and event files, the report writer
+and the status cut, and every way to status 2. It ends green, with a run that
+makes no exchange. PHASE-12 fills the run: the request plan, the answers, the
+channel lines and the R-56 condition.
 
 **Why the plugin loads come early, and the capsule splits out** (`design.md`
 §8 R1 and R7, and their mitigations; `plan-log.md` 2026-10-01, *the capsule
 splits out*). Whether each model reads a skill loaded from a store path has
 never been run; PHASE-05 runs it on the host with a placeholder skill, before
-any prose, so a blocker costs a manifest and not a reference. The capsule
-(PHASE-11) waits on oubliette work outside this slice, so it runs as early as
-oubliette allows, beside PHASE-06..PHASE-08, and must be done before
-PHASE-09. The kit's prose does not depend on where the walk runs, so R7
-firing late changes the walk's shape, not the reference. PHASE-05 needs
-`goad-check` to exist, because `goad-walk`'s tool set holds it.
+any prose, so a blocker costs a manifest and not a reference. PHASE-05 needs
+`goad-check` to exist, because `goad-walk`'s tool set holds it; it follows
+PHASE-12 rather than running beside it, which costs nothing R1 needs, since
+the loads still precede every line of kit prose. The capsule (PHASE-11)
+waits on oubliette work outside this slice, so it runs as early as oubliette
+allows, beside PHASE-06..PHASE-08, and must be done before PHASE-09. The
+kit's prose does not depend on where the walk runs, so R7 firing late changes
+the walk's shape, not the reference.
 
 **Why the examples come before the reference.** The reference's examples cite
 real backends, and the examples are the kit's highest-value content for the
 walk. The examples' gate test also creates `goad-check`'s `kit` test target,
 which PHASE-07 extends.
 
-**Why the reference is two phases.** Reading SPEC-001..003 and writing five
-reference files with tagged fences does not fit one session with its tests.
-The split is at the coverage test: PHASE-07 builds the fence gate and the two
-files most of the requirement ids live in; PHASE-08 writes the coverage test
-red, and turns it green with the remaining three files.
+**Why the reference is two phases.** Reading SPEC-001..003 and writing every
+reference file with tagged fences does not fit one session with its tests.
+The split is at the coverage test: PHASE-07 builds the fence gate and writes
+`protocol.md` and `running.md`, where most of the requirement ids live;
+PHASE-08 writes the coverage test red, and turns it green with
+`scheduling.md`, `events.md` and `checking.md`.
 
 **Why the walks are two phases.** The first walks produce the friction the
 kit fixes answer. The re-walk rule (`design.md` §5.2.9) requires the fixes on
 `main` and `goad-walk`'s lock moved to that revision before either re-walk.
 
-**Size.** Each phase fits one session, bookkeeping included. PHASE-04 is the
-largest in code; PHASE-07 and PHASE-08 in prose. PHASE-09, PHASE-10 and
-PHASE-11 are long in wall time and in person time, not in tokens. A phase that
-reaches its budget unfinished checkpoints PARTIAL in its sheet and hands over.
+**Size.** Each phase fits one session, bookkeeping included. PHASE-04 and
+PHASE-12 are the largest in code; PHASE-07 and PHASE-08 in prose. PHASE-09,
+PHASE-10 and PHASE-11 are long in wall time and in person time, not in
+tokens. A phase that reaches its budget unfinished checkpoints PARTIAL in its
+sheet and hands over.
 
 **Mutation evidence** goes in the phase's sheet in `notes.md`, under a
 **Mutation evidence** heading, one row per mutation: the edit (quoted), the
@@ -138,19 +165,30 @@ evidence (`docs/memory/negative-control-must-compile.md`). Runs use `--no-fail-f
 A mutation is applied by copying the file to the scratchpad and copying it
 back — never `git checkout` or `git stash` — and `git status` is clean after
 each restore. The same rules bind every **reach proof** below: a planted
-breach that an instrument is shown to catch.
+breach that an instrument is shown to catch. A mutation of a script or a
+Markdown file has no build; its row records that the mutated file was the
+one the test read.
+
+**Invariant reads** name their command, and every hit is read and recorded.
+I-1's command reads non-comment code only: `grep -rnE
+'R-[0-9]+|AtFault::|"(backend|host|configuration|environment)"'
+crates/goad-check/src | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'`, which
+drops whole-line comments; a hit that remains is read, and a trailing comment
+on a code line is recorded as one. I-2's is every `FieldKind` match in
+`crates/goad-check`, `src` and `tests`, each read for a kind mapped to a JSON
+type or a value.
 
 ## Coverage
 
 | AC | discharged by |
 |----|---------------|
 | AC-1 | PHASE-11/EX-1, EX-2 (the capsule, its negative control, the plugin in it); PHASE-09/EX-3 (each first walk: control passed, verdict 0 with a view answered, no goad source read) and PHASE-09/VH-1 (a person ran each walk's backend); PHASE-10/EX-4 and PHASE-10/VH-1 (each re-walk, the same) |
-| AC-2 | PHASE-07/VT-1 (every json/toml fence in the kit is tagged and checked) with VT-2..VT-4 (its negative controls) and VA-2 (the untag mutation); PHASE-08/EX-1 (the same test over the finished reference) |
-| AC-3 | PHASE-04/VT-2 (each refusal reported with side and requirement, from the host's `Outcome`) and PHASE-04/VA-1, VA-2 (I-1, I-2); PHASE-01/VT-1, VT-2 (the data it prints) |
-| AC-4 | PHASE-03/VT-1 (`goad-emit`); PHASE-04/VT-2 (`goad-check`'s three statuses); the statement itself is `canon-delta.md` SPEC-004, **promoted at audit** |
-| AC-5 | PHASE-06/VT-1, VT-2 (each example accepted; the triage side effect) and PHASE-06/VA-3 (each example read against the reference and SPEC-001); PHASE-03/EX-1 (the exercisers renamed and no longer presented as the file to copy) |
+| AC-2 | PHASE-07/VT-1 (every json/toml fence in the kit is tagged and checked) with VT-2..VT-4 (its negative controls) and VA-2 (the untag mutation); PHASE-08/EX-1 and VA-2 (the same test over the finished reference, reach proven in a file PHASE-08 writes); PHASE-10/VA-5 (reach for any file the fixes add) |
+| AC-3 | PHASE-12/VT-1 (each refusal reported with side and requirement, from the host's `Outcome`) and PHASE-12/VA-1, VA-2 (I-1, I-2 over the finished crate); PHASE-04/VA-1, VA-2 (the same, before the run); PHASE-01/VT-1, VT-2 (the data it prints, and its printed form) |
+| AC-4 | PHASE-03/VT-1 (`goad-emit`); PHASE-04/VT-2 (`goad-check`'s status 2) and PHASE-12/VT-1, VT-2 (its statuses 0 and 1, and status 2 mid-run); the statement itself is `canon-delta.md` SPEC-004, **promoted at audit** |
+| AC-5 | PHASE-06/VT-1, VT-2 (each example accepted, having answered a view; the triage side effect) and PHASE-06/VA-3 (each example read against the reference and SPEC-001); PHASE-03/EX-1 (the exercisers renamed and no longer presented as the file to copy) |
 | AC-6 | PHASE-06/VH-1 |
-| AC-7 | PHASE-01/VT-1, VT-2, VT-3 (total methods for every refusal kind; the corpus witness); the statement is `canon-delta.md` SPEC-001 Changes 1–2, **promoted at audit** |
+| AC-7 | PHASE-01/VT-1, VT-2, VT-3 (total methods for every refusal kind; the corpus witnesses) with VA-2 and VA-4 (a mutation that reds each witness); the statement is `canon-delta.md` SPEC-001 Changes 1–2, **promoted at audit** |
 | AC-8 | PHASE-09/EX-2; PHASE-10/EX-3, EX-4 and VH-2 (the re-walk does not regress) |
 | AC-9 | PHASE-09/EX-4, VA-2; PHASE-10/EX-1, EX-5 |
 
@@ -158,24 +196,28 @@ breach that an instrument is shown to catch.
 
 | test | phase |
 |---|---|
-| `every_protocol_error_names_a_requirement_and_a_side`, and its bounds and schedule siblings | 01 |
+| `every_protocol_error_names_a_requirement_and_a_side`, and its bounds and schedule siblings; `every_side_displays_as_the_word_a_report_prints` | 01 |
 | `every_backend_error_names_a_requirement_and_a_side`, and its cleanup and state siblings | 01 |
 | `every_refusal_fixture_names_a_requirement_in_its_own_list`, `every_discard_fixture_names_a_requirement_in_its_own_list` | 01 |
 | the moved `Stimulus` tests; `every_submitted_kind_writes_the_json_type_r57_names`; the moved `draft.rs` value tests; `an_as_drawn_choice_submits_the_first_alternative` and siblings | 02 |
-| `the_projection_to_submitted_is_the_identity_on_each_kind` | 02 |
+| `the_projection_to_submitted_is_the_identity_on_each_kind`; `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind` | 02 |
 | `goad-emit`: `an_answer_that_cannot_be_written_exits_2` | 03 |
-| `goad-check` `args.rs` invocation table; every binary-tier case in §9; `the_probe_kind_is_none_of_the_host_s_own` | 04 |
+| `goad-check` `args.rs` invocation table; `an_unreadable_config_exits_2_and_says_who_spoke`, `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`, `a_report_that_cannot_be_written_exits_2` (its `--help` half) | 04 |
+| every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own` | 12 |
 | `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | 06 |
-| `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it` | 07 |
+| `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`; `round_trip.rs`' README case through the shared scanner | 07 |
 | `every_requirement_a_refusal_can_name_is_explained_in_the_reference`, and its R-32/R-3 negative control | 08 |
 
 `design.md` §9's mutation checks: `NestedHints` flipped to R-3 — PHASE-01/VA-2;
 an example exits 1 on the probe — PHASE-06/VA-2; one fence untagged —
-PHASE-07/VA-2. Its *outside the gate* checks: `claude plugin validate` —
-PHASE-05/EX-3, PHASE-08/EX-4, PHASE-10/EX-2; `nix build` and `goad-walk`'s
-tool set — PHASE-05/EX-1, EX-4; the negative control — PHASE-11/EX-1 and
-before every walk. Its *observed by a person* runs: PHASE-03/VH-1 (`just
-demo`), PHASE-06/VH-1..VH-3, PHASE-09/VH-1, PHASE-10/VH-1; the capsule session — PHASE-11/VH-1.
+PHASE-07/VA-2. The plan adds: a `ScheduleError` arm flipped outside its
+fixtures' lists — PHASE-01/VA-4; the R-56 condition dropped —
+PHASE-12/VA-5; an example made silent — PHASE-06/VA-5. Its *outside the
+gate* checks: `claude plugin validate` — PHASE-05/EX-3, PHASE-08/EX-4,
+PHASE-10/EX-2; `nix build` and `goad-walk`'s tool set — PHASE-05/EX-1, EX-4;
+the negative control — PHASE-11/EX-1 and before every walk. Its *observed by
+a person* runs: PHASE-03/VH-1 (`just demo`), PHASE-06/VH-1..VH-3,
+PHASE-09/VH-1, PHASE-10/VH-1; the capsule session — PHASE-11/VH-1.
 
 ---
 
@@ -183,8 +225,8 @@ demo`), PHASE-06/VH-1..VH-3, PHASE-09/VH-1, PHASE-10/VH-1; the capsule session �
 
 **Objective:** every refusal kind the host can report answers, by a total
 match, the requirement and the side SPEC-001/R-59 (`canon-delta.md` SPEC-001
-Change 1) assigns it, and the fixture corpus witnesses the protocol and
-schedule answers.
+Change 1) assigns it, each prints itself, and the fixture corpus witnesses the
+protocol and schedule answers.
 
 **Surfaces:** `crates/goad-semantics/src/error.rs`;
 `crates/goad-semantics/tests/protocol/normalize.rs` (and `runner.rs`, only if
@@ -202,25 +244,29 @@ the discard witness needs the schedule corpus's envelope);
 
 **Exit**
 - EX-1 — `goad_semantics::error` holds `Requirement` (displays as `R-N`) and
-  `AtFault { Backend, Host, Configuration, Environment }`, as `design.md`
-  §5.2.3 gives them.
+  `AtFault { Backend, Host, Configuration, Environment }`, whose `Display` is
+  a total match printing `backend`, `host`, `configuration`, `environment`,
+  as `design.md` §5.2.3 gives them.
 - EX-2 — `ProtocolError`, `BoundsError` and `ScheduleError` in stratum 1, and
   `BackendError`, `CleanupFailure` and `StateError` in stratum 2, each have
   `requirement()` and `fault()`: total matches with no `_` arm, answering
   exactly §5.2.3's table — `InapplicableKey` split on `key`, `Bounds`,
   `Schedule` and `Protocol` delegating.
 - EX-3 — `ConfigError`, `EnvelopeFault` and `SpanFault` have neither method.
-- EX-4 — the three fixture lists read as §5.2.3 corrects them — the two R-17
-  `Json` fixtures [R-17, R-44], `R-52-a-choice-field-with-no-alternatives`
-  [R-52, R-53, R-16] — and no other fixture list is edited.
-- EX-5 — the witness's red on exactly those three fixtures is recorded in the
-  phase sheet, before the list corrections.
+- EX-4 — the fixture lists §5.2.3 corrects read as it corrects them — the
+  R-17 `Json` fixtures `R-17-a-nan-literal-for-a-bound` and
+  `R-17-an-infinite-literal-for-a-bound` [R-17, R-44], and
+  `R-52-a-choice-field-with-no-alternatives` [R-52, R-53, R-16] — and no
+  other fixture list is edited.
+- EX-5 — the refusal witness's red on exactly those fixtures is recorded in
+  the phase sheet, before the list corrections.
 
 **Verification**
 - VT-1 — `goad-semantics` `error.rs` tests:
   `every_protocol_error_names_a_requirement_and_a_side` and its bounds and
   schedule siblings, beside `must_name`, each an exhaustive table of §5.2.3's
-  rows.
+  rows; `every_side_displays_as_the_word_a_report_prints`, a table over each
+  `AtFault` variant beside an exhaustive match.
 - VT-2 — `goad-shell` `error.rs` tests:
   `every_backend_error_names_a_requirement_and_a_side` and its cleanup and
   state siblings.
@@ -228,7 +274,13 @@ the discard witness needs the schedule corpus's envelope);
   `every_refusal_fixture_names_a_requirement_in_its_own_list` over the
   `protocol` and `protocol-text` corpora, and
   `every_discard_fixture_names_a_requirement_in_its_own_list` over the
-  `Discarded` fixtures and the schedule corpus.
+  `Discarded` fixtures and the schedule corpus. Each witness refuses an empty
+  set: it asserts it read at least one fixture from each corpus it covers,
+  counted per corpus, and for the discard witness the `Discarded` fixtures and
+  the schedule error fixtures separately. The schedule corpus's runner
+  (`SCHEDULE`, `check_schedule` in `runner.rs`) is private, and
+  `assert_corpus`'s vacuity guard holds only for a `Corpus` run, so this guard
+  is the witness's own.
 - VA-1 — the §5.2.3 table and the code agree row for row, read side by side
   and recorded in the phase sheet; this is the review the witness's stated
   reach leaves (F-23).
@@ -236,15 +288,22 @@ the discard witness needs the schedule corpus's envelope);
   `every_refusal_fixture_names_a_requirement_in_its_own_list`. Recorded.
 - VA-3 — `canon-delta.md` SPEC-001 Change 2's test names resolve to the
   shipped cases.
+- VA-4 — mutation: `ScheduleError::NotAString`'s `requirement()` arm R-25 →
+  R-3 reds `every_discard_fixture_names_a_requirement_in_its_own_list`, whose
+  failure names both `protocol/R-25-next-check-of-the-wrong-type` (a
+  `Discarded` fixture, [R-25, R-51]) and `schedule/R-25-not-a-string`
+  ([R-21, R-25]) — one fixture from each half. Recorded.
 
 **Notes for the implementer**
-- Red first: write the witness tests, see them fail on the three fixtures
-  (EX-5), correct the lists, then the methods. `every_protocol_error` in
-  `error.rs`' tests already builds one of each variant; extend it, do not
-  write a second builder.
-- The `requirement` array is the fixture's claim, not the code's: the three
-  corrections are the only lists edited to agree with the code (`design.md`
-  §5.2.3, *Its reach*).
+- Red first: write the witness tests, see the refusal witness fail on the
+  fixtures EX-4 names (EX-5), correct the lists, then the methods. The
+  discard witness has no list to correct, so it is green from its first run;
+  VA-4 is what shows it can fail. `every_protocol_error` in `error.rs`' tests
+  already builds one of each variant; extend it, do not write a second
+  builder.
+- The `requirement` array is the fixture's claim, not the code's: the
+  corrections EX-4 names are the only lists edited to agree with the code
+  (`design.md` §5.2.3, *Its reach*).
 - STOP if any other fixture's produced error falls outside its own list: that
   is a §5.2.3 row the design got wrong, not a list to edit.
 
@@ -257,17 +316,20 @@ kind each have one encoding, in `goad_semantics::protocol::canonical`, and
 `goad` names no kind string and decides no submitted value's JSON type.
 
 **Surfaces:** `crates/goad-semantics/src/protocol/canonical.rs`;
-`crates/goad/src/{wire.rs, draft.rs, view_model.rs, controller.rs, install.rs,
-main.rs, glass.rs}` (imports and the delegation only, in the last four);
-`crates/goad/tests/` (imports of `Stimulus`);
+`crates/goad/src/{wire.rs, draft.rs, view_model.rs}`;
+`crates/goad/src/{controller.rs, install.rs, main.rs, glass.rs}` (imports and
+the delegation only); `crates/goad/tests/` (imports of `Stimulus`);
+`crates/goad/Cargo.toml` (its dependency comment only);
 `crates/goad-shell/src/ingress/envelope.rs` (`HOST_SOURCE`, `plan-log.md`
 PL-2); `canon-delta.md` (test names only).
 
 **Entry**
 - EN-1 — PHASE-01's entry holds (this phase does not depend on PHASE-01).
 - EN-2 — `design.md` §5.2.4 says how `view_model::as_drawn` delegates to
-  `Submitted::as_drawn`: a `FieldKind` rebuilt from the `DrawnKind`, and
-  `impl From<Submitted> for Edited` back (`design-log.md` 2026-10-01, G1).
+  `Submitted::as_drawn`: a `FieldKind` rebuilt from the `DrawnKind`, and a
+  private `as_edited` in `view_model.rs` back (`design-log.md` 2026-10-01,
+  *plan review round 1: design-touching dispositions*, superseding G1's
+  placement).
 
 **Exit**
 - EX-1 — `Stimulus` is in `canonical.rs` beside `Event`, `kind` and `event`
@@ -278,17 +340,29 @@ PL-2); `canon-delta.md` (test names only).
   `draft::submitted` is `edited.submitted().to_json()`, and
   `Edited::submitted` decides no type.
 - EX-3 — `Submitted::as_drawn` is the one statement of the untouched-value
-  policy; `view_model::as_drawn` delegates to it by EN-2's route, and
-  `view_model::untouched` still shows what `as_drawn` submits (P-3).
+  policy; `view_model::as_drawn` delegates to it by EN-2's route, through a
+  private `as_edited` beside `adjusted` that spells a number through
+  `adjusted`, so `adjusted`'s doc stays true; `draft.rs` still imports nothing
+  from `view_model`; and `view_model::untouched` still shows what `as_drawn`
+  submits (P-3).
 - EX-6 — `HOST_SOURCE` is a `pub const` beside `Stimulus`; `Stimulus::event`
-  and `envelope.rs`' `ReservedSource` check both name it, and no other
-  `"host"` source literal remains in `crates/*/src` (PL-2).
+  and `envelope.rs`' `ReservedSource` check both name it. Outside comments and
+  `#[cfg(test)]` modules, no `"host"` string literal remains in
+  `crates/*/src`: `grep -rn '"host"' crates/*/src`, each hit read and
+  recorded as a comment or a test (PL-2). Tests keep the literal: they witness
+  the wire spelling, and are not a second encoding of it.
 - EX-7 — `DrawnKind::Choice` has no `first`; its stale doc goes with it
   (PL-3).
 - EX-4 — `goad`'s renderer tier is green unchanged: `fields.rs`'s R-57/R-58
-  cases, and `view_model.rs`'s `as_drawn` tests (R5).
+  cases. `view_model.rs`' `as_drawn` and `untouched` tests are unchanged save
+  where EX-7 reaches them (R5): the helper `a_choice` drops `first`, and
+  `as_drawn_answers_every_kind`'s choice expectation becomes the fixture's
+  literal alternative id, `"first"` — not `alternatives.first()`, which is the
+  expression the delegated code computes, so the case would check the code
+  against itself.
 - EX-5 — the doc citations that move are by symbol (`Stimulus::event`'s doc
-  cites `canonical.rs` by line today).
+  cites `canonical.rs` by line today); `crates/goad/Cargo.toml`'s comment no
+  longer names `Stimulus::event` among `goad`'s reasons for `serde_json`.
 
 **Verification**
 - VT-1 — `canonical.rs` tests: `a_scheduled_stimulus_names_itself_scheduled`
@@ -301,8 +375,10 @@ PL-2); `canon-delta.md` (test names only).
   `a_picked_datetime_submits_the_offset_it_was_picked_in` and the rest of that
   group); `an_as_drawn_choice_submits_the_first_alternative` and a sibling per
   kind, including the `number` min-or-zero and `datetime` epoch cases.
-- VT-3 — `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`,
-  holding also the round trip `Submitted` → `Edited` → `Submitted` (G1).
+- VT-3 — `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`.
+- VT-4 — `view_model.rs`:
+  `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`, the
+  round trip `Submitted` → `Edited` → `Submitted` over each kind.
 - VA-1 — `cargo test -p goad-semantics` (the gate's stratum-1 command) builds
   the moved code with stratum 1's own features; no feature was added to a
   dependency shared with stratum 1 (POL-001's residue).
@@ -333,13 +409,14 @@ copy, `goad-emit` exits 2 when its answer cannot be written, and
 (PHASE-05): `exercisers/demo.toml`, `exercisers/typescript/README.md`,
 `justfile` (`typecheck`, `demo`), `crates/goad-shell/tests/integration/{harness.rs,
 round_trip.rs}`, `README.md` (the `just demo` paragraph), `.gitignore` and
-`flake.nix` (comments), `docs/roadmap.md`, the four `docs/memory/` files the
+`flake.nix` (comments), `docs/roadmap.md`, the `docs/memory/` files the
 table names; `crates/goad-emit/src/main.rs`,
 `crates/goad-emit/tests/binary/exchange.rs`;
 `crates/goad-shell/src/config.rs` (`from_argv`'s and `unsigned`'s
 visibility, and the `Command` doc, PL-1); `version_line`'s homes
 (`crates/goad-shell/src/report.rs`, `crates/goad/src/diagnostics.rs`,
-`crates/goad-emit/src/render.rs` and their callers, PL-7).
+`crates/goad-emit/src/render.rs` and their callers, PL-7);
+`canon-delta.md` (test names only).
 
 **Entry**
 - EN-1 — PHASE-01's entry holds (independent of PHASE-01 and PHASE-02).
@@ -352,9 +429,15 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 - EX-2 — `git grep -n 'examples/' -- ':!docs/slices' ':!docs/brief.md'` finds
   only POL-001's command block, which audit amends.
 - EX-3 — the `justfile`'s `typecheck` is `deno check
-  exercisers/typescript/backend.ts`, and its comment is rewritten as §5.2.7
-  says. This is `canon-delta.md` POL-001 Change 1's line less the kit path,
-  which PHASE-06 adds.
+  exercisers/typescript/backend.ts`: `canon-delta.md` POL-001 Change 1's line
+  less the kit path, which PHASE-06 adds. Its comment is true of this step:
+  it names the one exerciser it typechecks and why (`deno run` does not), and
+  says the recipe departs from POL-001's command block until audit promotes
+  POL-001 Change 1. That departs from POL-001 §Statement's "a change goes into
+  this policy first and into the recipe second", because canon is not edited
+  mid-slice and the rename would otherwise break the gate (`plan-log.md`
+  2026-10-01, *plan review round 1: dispositions*, superseding PL-4's
+  rationale).
 - EX-4 — `goad-emit`'s `--help` and `--version` write through
   `report::try_line_to`; an unwritten answer exits 2 with a `goad-emit: …` line
   on stderr.
@@ -375,15 +458,17 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 - VT-1 — `goad-emit` binary tier: `an_answer_that_cannot_be_written_exits_2`
   (`--help` and `--version`, stdout on `/dev/full`; status 2; the last stderr
   line begins `goad-emit: `), modelled on `goad`'s `exit_codes.rs` case of the
-  same name; seen red before `main.rs` changes.
+  same name; seen red before `main.rs` changes. If it ships outside
+  `exchange.rs`, `canon-delta.md` SPEC-004 Change 5's R-8..R-10 row is
+  re-pointed in the same commit.
 - VT-2 — `round_trip.rs`'s `the_readme_s_own_config_loads_and_runs_the_example`
   and `harness.rs`' deno cases are green on the new paths.
 - VT-3 — `config.rs` unit tests: `positive_duration` refuses `0s` and `-1s`
   under the key it is given.
 - VT-4 — `goad`'s and `goad-emit`'s existing `--version` cases stay green
   across the lift.
-- VA-1 — `just -n check` prints the POL-001 sequence with EX-3's line in
-  fourth place.
+- VA-1 — `just -n check` prints POL-001 §Compliance's command block with its
+  `deno check` line replaced by EX-3's, and no other difference; recorded.
 - VA-2 — the README's counts touched here are replaced by names ("the
   ten-line shell backend").
 
@@ -397,18 +482,20 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 
 ---
 
-## PHASE-04 — `goad-check`
+## PHASE-04 — `goad-check`: the crate and its edges
 
-**Objective:** a headless `goad-check` binary drives a backend command through
-`goad_shell::host::Host`, reports each refusal with the side and requirement
-its kind answers, and exits 0, 1 or 2 as `canon-delta.md` SPEC-004 R-11..R-15
-state.
+**Objective:** a headless `goad-check` binary parses both command forms,
+loads its configuration and event files by the host's rules, writes its
+report through the report writer, and exits 0, 1 or 2 as `canon-delta.md`
+SPEC-004 R-11..R-15 state, with every way to status 2 in its binary tier. It
+makes no exchange yet; that is PHASE-12's.
 
 **Surfaces:** `crates/goad-check/` (new: `Cargo.toml`, `src/`,
 `tests/binary/` and its bash fixtures); the root `Cargo.toml`'s `members`
 (appended after `goad-emit`, before `goad-boundary`) and `Cargo.lock`;
 `crates/goad-boundary/tests/checks/allowlist.rs` (its module doc's member
-list only); `canon-delta.md` (test paths only).
+list only); `canon-delta.md` (test paths only). `tests/support/` is read and
+may be included, not edited.
 
 **Entry**
 - EN-1 — PHASE-01, PHASE-02 and PHASE-03 done.
@@ -422,29 +509,116 @@ list only); `canon-delta.md` (test paths only).
   `Command::from_argv`, `--timeout` (default `5s`, a usage error with
   `--config`), repeatable `--event FILE` through `envelope::normalize`, `-h`,
   `--help`, `--version`. `args.rs` is pure and returns one `Invocation`.
-- EX-2 — the request plan of §5.2.2 in order, the R-56 probe kind a
-  `goad-check` constant, each view answered with its first option and
-  `Submitted::as_drawn` per field, chains followed to `view: null` or a
-  failure up to the bound of 8.
-- EX-3 — the report on stdout through `report::try_line_to`: every channel of
-  every `Outcome` as §5.2.2's table gives it, each refusal line with side and
-  `SPEC-001/R-N`, the R-56 line only on its condition, stderr verbatim with
-  truncation flagged, the no-view line when no exchange returned a view, and
-  the values sent.
-- EX-4 — statuses as §5.2.5: every cause of 2 through one
-  `ExitCode::from(2)` that reads no cause; the last stderr line on 1 and 2
-  begins `goad-check: `.
+- EX-3 — the report writer: a `render`-style module owns every line's text,
+  and every stdout line goes through `report::try_line_to`. The verdict line
+  and the no-view line are written here. Until PHASE-12 a run makes no
+  exchange, so its report is the no-view line and the verdict, and no test
+  asserts a status-0 or status-1 verdict.
+- EX-4 — statuses as §5.2.5: a delivered verdict is 0 with no refusal and 1
+  with at least one, cut by one function PHASE-12 feeds; every cause of 2
+  reaches one `ExitCode::from(2)` that reads no cause; `main` returns an
+  `ExitCode` built from literals, one per class; the last stderr line on 1
+  and 2 begins `goad-check: `.
 - EX-5 — `crates/goad-check/Cargo.toml` names only strata 1 and 2 and
   workspace dependencies already in the lockfile, with a comment arguing it
   links no renderer, as `goad-emit`'s does (I-6).
 - EX-6 — `allowlist.rs`' module doc names `goad-check` among the stratum-3
   members, by name and without a count.
+- EX-7 — the steps before the first exchange, each ending the run with no
+  verdict, status 2, on failure: the configuration loaded, each `--event`
+  file normalized in the order given, the clock read, a current-thread
+  runtime and a `Host` built the way `goad`'s `main.rs` `start` builds them.
+- EX-8 — `--version` prints `goad_shell::report::version_line` with this
+  crate's package version and its compilation's `GOAD_REVISION`, as
+  `goad-emit`'s does (PHASE-03/EX-8).
 
 **Verification**
 - VT-1 — `args.rs` unit tests: the invocation table (config form, argv form,
-  `--event` order, `--timeout` with `--config` refused, `--timeout 0s`
-  refused, an empty argv and an empty program refused, help, version).
-- VT-2 — binary tier, `tests/binary/`, each case §9 names:
+  `--event` order, `--timeout` with `--config` refused, `--timeout 0s` and
+  `-1s` refused, an empty argv and an empty program refused, help, version).
+- VT-2 — binary tier, `tests/binary/`, the status-2 cases §9 names:
+  `an_unreadable_config_exits_2_and_says_who_spoke`,
+  `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`,
+  and `a_report_that_cannot_be_written_exits_2` with its `--help` half
+  (PHASE-12/VT-2 adds the run half). Each asserts status 2 and the
+  `goad-check: ` prefix on the **last** stderr line.
+- VA-1 — I-1 by the command under *Invariant reads*: no hit outside a comment
+  at this phase. Recorded.
+- VA-2 — I-2 by the command under *Invariant reads*; each match found is
+  read and recorded.
+- VA-3 — reach: `goad-boundary`'s
+  `no_workspace_member_names_the_users_domain` reads `crates/goad-check/src`
+  — a planted domain word in a string literal, in code that compiles, reds it;
+  restored. Clippy reaches the crate's `src` and `tests` — a planted
+  `.unwrap()` in each reds `cargo clippy --workspace --all-targets -- -D
+  warnings`; restored. Both recorded.
+- VA-4 — `canon-delta.md` SPEC-004 Change 5's `goad-check` test paths, for
+  the cases this phase ships, are re-pointed from `…` to the shipped files.
+- VA-5 — `notes.md` §Open's FU-7 row names `crates/goad-check/Cargo.toml`'s
+  comment as what holds I-6.
+- VA-6 — R-13 and R-15, structurally: `grep -n 'ExitCode' crates/goad-check/src`
+  shows the one `ExitCode::from(2)`, reached by every status-2 path without
+  reading its cause, and one literal per class; read and recorded.
+- VA-7 — shared helpers: the binary tier reads each `tests/support/` file's
+  whole exported surface, and includes each file whose every symbol it uses
+  (`design.md` §5.2.6). Each helper it copies instead is named by symbol in
+  `notes.md` §Open's FU-5 row, with the file it could not include.
+
+**Notes for the implementer**
+- Build the runtime, backend and `Host` the way `goad`'s `main.rs` `start` does; read that site first.
+- Mirror `goad-emit`'s shape: pure `args.rs`, a `render`-style module that
+  owns every line's text, `main` alone reading the environment, files and the
+  clock. `autotests = false` with `[[test]]` targets, as every member does.
+- Test backends are small `bash` scripts under `tests/binary/`. Nothing
+  asserts a duration (R3). Read `tests/support/scripting.rs`' `scripted` and
+  `tests/backends/answers-as-instructed.sh` before writing one: a backend
+  told what to do per invocation may serve PHASE-12's cases too.
+- A new external dependency (a temp-dir crate, an argument parser) is a STOP.
+- `Failure::State` cannot be provoked by a cooperating test; the path to 2 is
+  structural (SPEC-004 Change 5's R-11..R-13 row).
+
+---
+
+## PHASE-12 — `goad-check`: the run
+
+**Objective:** `goad-check` sends the request plan, answers every view and
+follows chains, reports every channel of every `Outcome` with the side and
+requirement its kind answers, and charges R-56 only on its condition
+(`design.md` §5.2.2, §5.4).
+
+**Surfaces:** `crates/goad-check/src/`; `crates/goad-check/tests/binary/`
+and its bash fixtures; `canon-delta.md` (test paths only). `tests/support/`
+is read and may be included, not edited.
+
+**Entry**
+- EN-1 — PHASE-04 done.
+
+**Exit**
+- EX-1 — the request plan of §5.2.2 in order: `Stimulus::Startup`,
+  `Requested`, `Scheduled`, the R-56 probe, then each `--event` envelope in
+  the order given. The probe kind is a `goad-check` constant, and its event's
+  source is `HOST_SOURCE`, not a literal. `event.timestamp` and `now` are the
+  wall clock at each step. Each view is answered through `Host::respond` with
+  the minted `view_id`, its first option, and `Submitted::as_drawn` for each
+  of that option's fields; chains are followed to `view: null` or a failure,
+  up to the bound of 8 per request.
+- EX-2 — every planned exchange is made whatever an earlier exchange did
+  (§5.4); only a clock unreadable mid-run, a report line stdout refuses, or
+  `Failure::State` ends the run early, with no verdict, status 2.
+- EX-3 — the report: every channel of every `Outcome` as §5.2.2's table
+  gives it; each refusal line prints its side and `SPEC-001/R-N` through
+  `AtFault`'s and `Requirement`'s `Display`; the R-56 line only on its
+  condition; stderr verbatim with truncation flagged; the values sent; the
+  chain-bound observation.
+- EX-4 — the run feeds PHASE-04's status cut: at least one refusal on any
+  channel, a cleanup failure alone included, is 1; none is 0; the chain bound
+  changes no status.
+- EX-5 — the checker opens no socket and alters none of the environment it
+  passes on (§5.2.1, §5.3): it names no `ingress` item but
+  `envelope::normalize`, and sets, removes or clears no environment variable.
+
+**Verification**
+- VT-1 — binary tier, the run cases §9 names:
   `a_conforming_backend_is_accepted_and_exits_0`,
   `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`,
   `a_refused_view_is_reported_with_its_requirement_and_the_backend_side`,
@@ -452,44 +626,44 @@ list only); `canon-delta.md` (test paths only).
   `an_unspawnable_command_is_reported_against_the_configuration`,
   `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`,
   `a_backend_that_returns_no_view_is_accepted_and_says_respond_was_not_exercised`,
-  `an_unreadable_config_exits_2_and_says_who_spoke`,
-  `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`,
-  `a_report_that_cannot_be_written_exits_2` (the run and `--help`),
   `a_chained_view_is_answered_until_null`,
   `a_chain_past_its_bound_is_reported_and_does_not_change_the_status`,
-  `a_view_answered_carries_exactly_its_options_fields`. The non-zero cases
+  `a_view_answered_carries_exactly_its_options_fields`; and the plan's own:
+  `a_backend_failing_at_startup_is_still_asked_the_rest` (a backend that
+  logs each request's kind and fails the first: the log holds every planned
+  kind), and `event_files_are_sent_in_the_order_given` (two `--event` files,
+  the backend's log holds their kinds in the order given). The non-zero cases
   SPEC-004/R-14's row names assert the `goad-check: ` prefix on the **last**
   stderr line.
+- VT-2 — `a_report_that_cannot_be_written_exits_2` gains its run half: a run
+  with stdout on `/dev/full` exits 2, the last stderr line beginning
+  `goad-check: `.
 - VT-3 — `the_probe_kind_is_none_of_the_host_s_own`, a unit test beside the
   probe constant (a binary-only crate's constant is not reachable from
   `tests/binary/`), asserting it is none of `Stimulus`'s kinds.
-- VA-1 — I-1: `grep -nE 'R-[0-9]+|AtFault::'` over `crates/goad-check/src`
-  finds only the R-56 probe's claim.
-- VA-2 — I-2: no `FieldKind` match in `crates/goad-check` (src or tests) maps a
-  kind to a JSON type or a value; each match found is read and recorded.
-- VA-3 — reach: `goad-boundary`'s
-  `no_workspace_member_names_the_users_domain` reads `crates/goad-check/src`
-  — a planted domain word in a string literal, in code that compiles, reds it;
-  restored. Clippy reaches the crate's `src` and `tests` — a planted
-  `.unwrap()` in each reds `cargo clippy --workspace --all-targets -- -D
-  warnings`; restored. Both recorded.
-- VA-4 — `canon-delta.md` SPEC-001 Change 3's and SPEC-004 Change 5's
-  `goad-check` test paths are re-pointed from `…` to the shipped files.
-- VA-5 — `notes.md` §Open's FU-7 row names `crates/goad-check/Cargo.toml`'s
-  comment as what holds I-6.
+- VA-1 — I-1 over the finished crate, by the command under *Invariant reads*:
+  the only hit outside a comment is the R-56 probe's claim. Recorded.
+- VA-2 — I-2 over the finished crate, `src` and `tests`. Recorded.
+- VA-3 — EX-5: `grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
+  crates/goad-check/src` finds only the `envelope` import and its call.
+  Recorded.
+- VA-4 — PHASE-04/VA-6's structural read, over `main` as this phase leaves
+  it.
+- VA-5 — mutation: the R-56 condition's "at least one of the known-kind evaluates
+  made no failure" dropped, so any backend-side failure on the
+  probe is charged, reds
+  `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`.
+  Recorded.
+- VA-6 — `canon-delta.md` SPEC-001 Change 3's and SPEC-004 Change 5's
+  `goad-check` test paths, for the cases this phase ships, are re-pointed
+  from `…` to the shipped files.
+- VA-7 — as PHASE-04/VA-7, for any helper this phase adds.
 
 **Notes for the implementer**
-- Build the runtime, backend and `Host` the way `goad`'s `main.rs` `start` does; read that site first.
-- `--version` calls `goad_shell::report::version_line` (PHASE-03/EX-8); no
-  third copy.
-- Mirror `goad-emit`'s shape: pure `args.rs`, a `render`-style module that
-  owns every line's text, `main` alone reading the environment, files and the
-  clock. `autotests = false` with `[[test]]` targets, as every member does.
-- Test backends are small `bash` scripts under `tests/binary/`. Nothing
-  asserts a duration (R3).
-- A new external dependency (a temp-dir crate, an argument parser) is a STOP.
-- `Failure::State` cannot be provoked by a cooperating test; the path to 2 is
-  structural (SPEC-004 Change 5's R-11..R-13 row).
+- The probe names `HOST_SOURCE` (PHASE-02/EX-6); I-1's command greps for a
+  `"host"` literal.
+- Test backends as PHASE-04's notes say. Nothing asserts a duration (R3).
+- A new external dependency is a STOP.
 
 ---
 
@@ -497,54 +671,73 @@ list only); `canon-delta.md` (test paths only).
 
 **Objective:** the flake exports `goad-check` and `goad-kit`; the plugin's
 manifests exist and validate; both agents, on the host in a fresh home, load
-the plugin from its store path and see the skill; and `goad-walk` builds the
-full tool set.
+the plugin from its store path and read the skill's body; and `goad-walk`
+builds the full tool set.
 
 **Surfaces:** `flake.nix` (`packages.goad-check`, `packages.goad-kit`);
 `.claude-plugin/marketplace.json`; `.agents/plugins/marketplace.json`;
 `kit/.claude-plugin/plugin.json`; `kit/.codex-plugin/plugin.json`;
-`kit/skills/goad-backend/SKILL.md` (a placeholder: frontmatter and a line);
-`README.md` (the kit and plugin-install line); `justfile` (`package` gains
-`goad-check` and `goad-kit`, `install` gains `goad-check`, PL-6);
-`~/dev/goad-walk/{flake.nix, flake.lock, README.md}`, committed in that
-repository.
+`kit/skills/goad-backend/SKILL.md` (a placeholder: frontmatter, and a body
+line stating a marker that neither the frontmatter nor any other file under
+`kit/` states); `README.md` (the kit and plugin-install line); `justfile`
+(`package` gains `goad-check` and `goad-kit`, `install` gains `goad-check`,
+PL-6); `~/dev/goad-walk/{flake.nix, flake.lock, README.md}`, committed in
+that repository.
 
 **Entry**
-- EN-1 — PHASE-04 done.
+- EN-1 — PHASE-12 done.
+- EN-2 — Claude and Codex credentials are available as API keys in
+  environment variables to a session started in a fresh home. Nothing
+  credential-bearing is written into the home, a committed file or
+  `goad-walk`.
 
 **Exit**
 - EX-1 — `nix build --no-link .#goad-check .#goad-kit` succeeds from the bare
-  git form (new files `git add`ed first). `goad-kit` holds the two marketplace
-  manifests and `kit/`, and nothing else.
-- EX-2 — both plugin manifests carry `workspace.package.version`, checked
-  against `Cargo.toml` and recorded.
+  git form (new files `git add`ed first). The built `goad-check --version`
+  prints the flake's revision beside the version, as `goad-emit`'s does
+  (`GOAD_REVISION`). `goad-kit` holds `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json` and `kit/`, and nothing else.
+- EX-2 — `kit/.claude-plugin/plugin.json` and `kit/.codex-plugin/plugin.json`
+  carry `workspace.package.version`, checked against `Cargo.toml` and
+  recorded.
 - EX-3 — `claude plugin validate kit/` passes.
 - EX-4 — `goad-walk`'s tool set is `goad-check`, `goad-emit`, `goad`,
-  `goad-kit`, `ruby` and `jq`, with `goad-kit` re-exported, its stubs for the
-  two pending packages gone, its README current, its lock pinned to this
-  phase's goad commit, and it builds.
+  `goad-kit`, `ruby` and `jq`, with `goad-kit` re-exported, its stubs for
+  `goad-check` and `goad-kit` gone, its README current, its `flake.lock`
+  pinned to this phase's goad commit and committed to its `main`, and it
+  builds.
 - EX-7 — `just package` builds `goad-check` and `goad-kit`, and `just
   install` installs `goad-check` (PL-6).
-- EX-8 — on the host, in a fresh home that has held no session,
-  `claude -p --plugin-dir "$KIT/kit"` and Codex after `codex plugin
-  marketplace add "$KIT"; codex plugin add goad@goad` each answer a trivial
-  headless prompt by naming the `goad-backend` skill, `$KIT` being
-  `goad-walk#goad-kit`'s store path (R1, as far as the host reaches it;
-  `plan-log.md` 2026-10-01, *the capsule splits out*).
+- EX-8 — on the host, in a fresh home that has held no session, from an
+  empty working directory, `$KIT` being `goad-walk#goad-kit`'s store path:
+  first `claude -p` and `codex exec`, with no plugin, each answer a trivial
+  prompt, which shows the credentials reach the session; then `claude -p
+  --plugin-dir "$KIT/kit"`, and Codex after `codex plugin marketplace add
+  "$KIT"; codex plugin add goad@goad`, each answer a headless prompt asking
+  for the goad skill's marker with the marker `SKILL.md`'s body states,
+  verbatim. The prompt does not contain the marker. (R1, as far as the host
+  reaches it; `plan-log.md` 2026-10-01, *the capsule splits out*.)
 
 **Verification**
 - VA-1 — Codex's manifest, `interface` block included, is accepted:
   `codex plugin marketplace add` and `codex plugin add goad@goad` against the
-  `goad-kit` store path in a fresh `CODEX_HOME` on the host succeed, and
-  `~/.codex/plugins/cache/` holds only `kit/`'s contents.
+  `goad-kit` store path, with `CODEX_HOME` a fresh directory on the host,
+  succeed, and `$CODEX_HOME/plugins/cache/` holds only `kit/`'s contents.
 - VA-4 — nothing credential-bearing is in `goad-walk`'s tool set.
 
 **Notes for the implementer**
 - The spike (`spike/`, `research.md` §"Spike: R1 and R2") is prior art for
   the plugin loads; `goad-kit` is a marketplace root, and Claude loads
-  `"$KIT/kit"`.
-- STOP if either plugin load fails in a way the kit cannot fix: that is R1
-  firing, and the walk's shape is the user's.
+  `"$KIT/kit"`. Its stub `SKILL.md` carried a body-only marker for the same
+  purpose.
+- A skill's name and description reach the model from the frontmatter,
+  through the harness's skill listing; only the body shows the skill was
+  read. So EX-8 asks for the body's marker, not the skill's name.
+- STOP if a bare prompt fails in the fresh home: that is authentication, not
+  R1 — fix the credentials (EN-2), and do not read a plugin load's failure
+  until the bare prompt answers.
+- STOP if either plugin load fails, once the bare prompt answers, in a way
+  the kit cannot fix: that is R1 firing, and the walk's shape is the user's.
 
 ---
 
@@ -552,13 +745,15 @@ repository.
 
 **Objective:** the kit ships the focus check, Downloads triage and breadcrumbs
 examples of `design.md` §5.2.6, each accepted by `goad-check` in the gate
-with its own config and event files, and a person has seen each run.
+with its own config and event files, having answered a view, and a person
+has seen each run.
 
 **Surfaces:** `kit/skills/goad-backend/examples/` (new: `focus-check/`,
 `downloads-triage/`, `breadcrumbs/`, as §5.2.6's tree lists them);
 `crates/goad-check/tests/kit/` (new target) and `crates/goad-check/Cargo.toml`
 (its `[[test]]`); `flake.nix` (`python3` and `jq` in `projectPkgs`);
-`justfile` (`typecheck`'s second path); `canon-delta.md` (test paths only).
+`justfile` (`typecheck`'s kit path, and its comment); `canon-delta.md` (test
+paths only).
 
 **Entry**
 - EN-1 — PHASE-05 done. The devshell is reloaded after `flake.nix` changes.
@@ -571,16 +766,23 @@ with its own config and event files, and a person has seen each run.
 - EX-2 — each README says how to see the example in under a minute from its
   directory, and how to run it from anywhere else.
 - EX-3 — the `justfile`'s `typecheck` is exactly `canon-delta.md` POL-001
-  Change 1's line.
+  Change 1's line. Its comment is true of this step: one exerciser and one
+  kit example, both typechecked because `deno run` does not, as §5.2.7 says,
+  and the departure from POL-001's block still named until audit.
 
 **Verification**
-- VT-1 — `kit` tier: `each_shipped_example_is_accepted_by_the_checker` — each
-  example copied to a temporary directory, the checker started there in the
-  config form with the example's event files, `HOME` and `XDG_*` temporary.
+- VT-1 — `kit` tier: `each_shipped_example_is_accepted_by_the_checker` —
+  every directory under `kit/skills/goad-backend/examples/`, enumerated and
+  not listed, refusing an empty set; each copied to a temporary directory,
+  the checker started there in the config form with the example's event
+  files, `HOME` and `XDG_*` temporary. Each run exits 0 **and** its report
+  shows at least one view answered: it holds a respond line and not the
+  no-view line.
 - VT-2 — `downloads_triage_moves_the_file_it_was_asked_about`: the file the
   event names, created under the temporary `XDG_DOWNLOAD_DIR`, is moved to
   the as-drawn target.
-- VA-1 — `just -n check` prints EX-3's line in fourth place.
+- VA-1 — `just -n check` prints POL-001 §Compliance's command block with its
+  `deno check` line replaced by EX-3's, and no other difference.
 - VA-2 — mutation: one example made to exit 1 on the probe's kind reds VT-1.
   Recorded.
 - VA-3 — each example is read against SPEC-001 R-56, R-57, R-58 and R-33 and
@@ -589,10 +791,12 @@ with its own config and event files, and a person has seen each run.
 - VA-4 — `canon-delta.md` SPEC-001 Change 3's kit-tier path for
   `each_shipped_example_is_accepted_by_the_checker` is re-pointed to the
   shipped file.
+- VA-5 — mutation: one example made silent, answering `view: null` to every
+  request, reds VT-1 while it still exits 0. Recorded.
 
 **Verification (human)**
 - VH-1 — AC-6: a person runs `goad-check --config config.toml` in each
-  example's directory, and against a broken backend (one of PHASE-04's
+  example's directory, and against a broken backend (one of PHASE-12's
   refusing fixtures), and sees each report — sides, requirements, the verdict
   line and the status.
 - VH-2 — a person runs `goad config.toml` in each example's directory and sees
@@ -606,16 +810,23 @@ with its own config and event files, and a person has seen each run.
 - A README's `json` and `toml` blocks follow the tagged-fence convention
   (§5.2.6) now; PHASE-07's test will hold them.
 - Example configs carry a generous timeout; no test asserts a duration (R3).
+- Each example speaks in the gate at any hour: the focus check on
+  `requested`, Downloads triage and breadcrumbs on their event files. VT-1's view assertion
+  depends on that; an example that speaks only at some hours needs a request
+  that reaches it.
 
 ---
 
 ## PHASE-07 — the fence gate, and the protocol and transport reference
 
 **Objective:** every `json` and `toml` fence in the kit is tagged and checked
-by the gate through the host's own doors, and the reference's `protocol.md`
-and `running.md` exist with their examples checked.
+by the gate through the host's own doors, by a fence scanner the workspace
+shares; the kit names no path outside itself; and the reference's
+`protocol.md` and `running.md` exist with their examples checked.
 
-**Surfaces:** `crates/goad-check/tests/kit/`;
+**Surfaces:** `crates/goad-check/tests/kit/`; `tests/support/` (new: the
+fence scanner's file); `crates/goad-shell/tests/integration/{main.rs,
+round_trip.rs}` (the scanner's include, and `fenced_block` removed);
 `kit/skills/goad-backend/reference/{protocol.md, running.md}`; the example
 READMEs (fence tags only).
 
@@ -626,7 +837,8 @@ READMEs (fence tags only).
 - EX-1 — the extractor is §5.2.6's: a CommonMark fence scanner for backtick
   and tilde fences, info string split on whitespace; a block whose first info
   word, lowercased, begins `json` or `toml` fails unless that word is exactly
-  `json` or `toml` with a known `goad:` role.
+  `json` or `toml` with a known `goad:` role. VT-1 reads every `*.md` under
+  `kit/`, enumerated and not listed, refusing an empty set.
 - EX-2 — each role in §5.2.6's table is checked as the table says: responses
   through `read_response` (accepted, refused by id, discarded by id); evaluate
   requests by framing; respond requests by framing, R-58's field set and the
@@ -634,25 +846,46 @@ READMEs (fence tags only).
   `envelope::normalize`; configs through `Config::parse`.
 - EX-3 — `protocol.md` and `running.md` state only what an author must do or
   may rely on, organised by task, each rule citing its id as a report prints
-  it (`SPEC-001/R-13`), each id at an anchor of its own.
+  it (`SPEC-001/R-13`), each id in a heading line of its own — the anchor
+  PHASE-08's coverage test reads.
+- EX-4 — the scanner lives in `tests/support/`, included by `goad-check`'s
+  `kit` target and `goad-shell`'s `integration` target, every symbol used by
+  both (§5.2.6, *It is shared, not second*); `round_trip.rs`' `fenced_block`
+  is gone.
+- EX-5 — I-5 holds by §5.2.6's rule, *The kit stands alone*.
 
 **Verification**
 - VT-1 — `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`.
 - VT-2 — `an_untagged_json_fence_is_refused`, over an inline string.
 - VT-3 — `a_jsonc_fence_is_refused`, over an inline string.
 - VT-4 — `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`.
-- VT-5 — `nothing_in_the_kit_names_a_path_outside_it` (I-5).
+- VT-5 — `nothing_in_the_kit_names_a_path_outside_it` (I-5): every file under
+  `kit/`, enumerated, refusing an empty set; the repository root's entries
+  read at test time, refusing a list without `kit` and `crates`.
+- VT-6 — `a_path_outside_the_kit_is_refused`, over inline strings: one
+  escaping relative path, and one mention of another top-level entry, each
+  refused.
+- VT-7 — `round_trip.rs`' `the_readme_s_own_config_loads_and_runs_the_example`
+  is green, reading the README's config through the shared scanner.
 - VA-1 — the extractor's count of checked fences is non-zero and equals a
   count taken by hand over the kit, recorded.
 - VA-2 — mutation: one fence in `protocol.md` untagged reds VT-1. Recorded.
 - VA-3 — `protocol.md` and `running.md` read against SPEC-001 §4 and §6:
   nothing contradicts it, and nothing host-internal is taught. Recorded.
-- VA-4 — `notes.md` §Open's FU-5 row names the kit fence scanner's symbol
-  beside `round_trip.rs`' `fenced_block`.
+- VA-4 — `notes.md` §Open's FU-5 row names the shared scanner's file and
+  symbol, and says it replaced `round_trip.rs`' `fenced_block` rather than
+  copying it.
+- VA-5 — reach: a relative path escaping `kit/`, planted in an example
+  README, reds VT-5; restored. Recorded.
+- VA-6 — I-2 over `crates/goad-check`'s tests as this phase leaves them (the
+  respond oracle), by the command under *Invariant reads*. Recorded.
 
 **Notes for the implementer**
 - The respond oracle writes no reader of `Submitted` (U5); I-2 binds tests too.
 - Fragments are shown whole or as `text` (§5.2.6).
+- Read `docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md`
+  before adding the shared file: an includer that leaves a symbol unused
+  fails the gate at its own build.
 
 ---
 
@@ -660,38 +893,55 @@ READMEs (fence tags only).
 
 **Objective:** the reference is complete — `scheduling.md`, `events.md`,
 `checking.md` and the finished `SKILL.md` — and the gate holds that every
-requirement any refusal kind can name is explained in it.
+requirement any refusal kind can name is explained in it, at an anchor of its
+own.
 
 **Surfaces:** `kit/skills/goad-backend/reference/{scheduling.md, events.md,
-checking.md}`; `kit/skills/goad-backend/SKILL.md`;
-`crates/goad-check/tests/kit/`.
+checking.md}` (and `protocol.md`, `running.md` for the statement EX-5 names);
+`kit/skills/goad-backend/SKILL.md`; `crates/goad-check/tests/kit/`.
 
 **Entry**
 - EN-1 — PHASE-07 done.
 
 **Exit**
-- EX-1 — VT-1 of PHASE-07 is green over the finished kit.
+- EX-1 — PHASE-07/VT-1 is green over the finished kit, and VA-2 shows it
+  read a file this phase wrote.
 - EX-2 — `SKILL.md` routes and does not teach: when to use it, the loop, how
   to get the binaries, one pointer per reference file by the question it
   answers, one line per example; no wire example of its own.
 - EX-3 — `checking.md` explains the checker's forms and what it sends, the
   four sides in R-59's terms, where else to look for each kind with a declared
   imprecision, that a run mutates real state (and the `XDG_*` advice), that a
-  relative `command` resolves against the starting directory, and the three
-  statuses.
+  relative `command` resolves against the starting directory, and statuses
+  0, 1 and 2.
 - EX-4 — `claude plugin validate kit/` passes, and the manifests' versions
   still match.
+- EX-5 — the reference says the specs are not shipped, and that every id a
+  report prints is explained in the reference itself (§5.2.6, *The
+  reference's structure*).
 
 **Verification**
 - VT-1 — `every_requirement_a_refusal_can_name_is_explained_in_the_reference`:
   one instance per variant (two for `InapplicableKey`), each builder beside an
-  exhaustive match with no `_` arm; an id matches only when followed by a
-  non-digit or the end. Seen red before the three files are written.
+  exhaustive match with no `_` arm. It reads every `*.md` under
+  `kit/skills/goad-backend/reference/`, enumerated and not listed, refusing
+  an empty set, and an id counts only in a Markdown heading line; an id
+  matches only when followed by a non-digit or the end. Seen red before
+  `scheduling.md`, `events.md` and `checking.md` are written.
 - VT-2 — its negative control over an inline string where `SPEC-001/R-32`
-  appears and `SPEC-001/R-3` does not.
-- VA-1 — `scheduling.md` and `events.md` read against SPEC-001 R-21..R-29,
-  SPEC-002 and SPEC-003; `checking.md` against `design.md` §5.2.5 and
-  `canon-delta.md` SPEC-004. Recorded.
+  appears in a heading, `SPEC-001/R-3` does not appear, and `SPEC-001/R-40`
+  appears only in body text: R-32 is found, and R-3 and R-40 are not.
+- VA-1 — every reference file read: `scheduling.md` and `events.md` against
+  SPEC-001 R-21..R-29, SPEC-002 and SPEC-003; `checking.md` against
+  `design.md` §5.2.5 and `canon-delta.md` SPEC-004; and all of them, with
+  `protocol.md` and `running.md`, for nothing host-internal taught — bounds,
+  cleanup and renderer subsets appear at most as one line saying what the
+  author observes — and for EX-5's statement. Recorded.
+- VA-2 — reach: an untagged `json` fence planted in `scheduling.md` reds
+  PHASE-07/VT-1; restored. Recorded.
+- VA-3 — I-2 over `crates/goad-check`'s tests as this phase leaves them (the
+  matches beside the coverage builders), by the command under *Invariant
+  reads*. Recorded.
 
 ---
 
@@ -703,12 +953,12 @@ and read; and every friction item is dispositioned.
 
 **Surfaces:** `docs/slices/012/walks.md` (new);
 `docs/slices/012/walks/<agent>-1-ISSUES.md` (new);
-`docs/slices/012/walk/` (fixes to the script only). Walk trees and transcripts
-stay in the quarantine and `goad-walk`, outside this repository.
+`docs/slices/012/walk/` (fixes to the script only);
+`~/dev/goad-walk/flake.lock`, committed in that repository. Walk trees and
+transcripts stay in the quarantine and `goad-walk`, outside this repository.
 
 **Entry**
-- EN-1 — PHASE-08 done, on `main`; `goad-walk`'s lock pins that revision
-  (the script's lock bump, committed in `goad-walk`).
+- EN-1 — PHASE-08 done, on `main`.
 - EN-2 — PHASE-11 done.
 
 **Exit**
@@ -727,6 +977,9 @@ stay in the quarantine and `goad-walk`, outside this repository.
   transcript item — is a `walks.md` row dispositioned **kit fix** or
   **follow-up** with its reason. A fetch attempt beyond the model API is an
   item.
+- EX-5 — before either walk, `goad-walk`'s `flake.lock` is bumped to
+  PHASE-08's revision on `main` and committed to `goad-walk`'s `main`; each
+  walk row's pinned revision is that one.
 
 **Verification**
 - VA-1 — the verdict and the negative control are re-read from the collected
@@ -776,6 +1029,11 @@ walk/}`; `~/dev/goad-walk/flake.lock`, committed in that repository.
 - VA-3 — `notes.md` §Open's FU-5 and FU-7 rows name the shipped symbols.
 - VA-4 — `notes.md` §Open carries each item of **Owed to audit and close**
   above.
+- VA-5 — the standing guards reach what the fixes changed: I-1 and I-2 by
+  the commands under *Invariant reads*, if `crates/goad-check` changed; and
+  for each `*.md` the fixes add under `kit/`, an untagged `json` fence
+  planted in it reds PHASE-07/VT-1, restored. Recorded, or recorded as not
+  arising.
 
 **Verification (human)**
 - VH-1 — as PHASE-09/VH-1, for each re-walk.
@@ -788,7 +1046,7 @@ walk/}`; `~/dev/goad-walk/flake.lock`, committed in that repository.
 
 **Objective:** the walk script exists, and a capsule provisioned from
 `goad-walk` has passed its negative control, had the plugin loaded and the
-skill seen by both agents, and brought a committed tree back through
+skill's body read by both agents, and brought a committed tree back through
 `capsule-collect`.
 
 **Surfaces:** `docs/slices/012/walk/` (new: the walk script, the negative
@@ -809,10 +1067,13 @@ control, the fixed prompt; PL-5).
   there, and on the host each finds something, each source pattern
   separately; `goad-check --version`, `ls "$KIT/kit/skills"` and `ruby -e
   'require "json"'` succeed.
-- EX-2 — in that capsule, `claude --plugin-dir "$KIT/kit"` and Codex after
-  `codex plugin marketplace add "$KIT"; codex plugin add goad@goad` each
-  answer a trivial headless prompt by naming the `goad-backend` skill; and the
-  walk script's collection step brings a committed tree back through
+- EX-2 — in that capsule, first `claude -p` and `codex exec`, with no plugin,
+  each answer a trivial prompt; then `claude -p --plugin-dir "$KIT/kit"`, and
+  Codex after `codex plugin marketplace add "$KIT"; codex plugin add
+  goad@goad`, each answer a headless prompt asking for the goad skill's
+  marker with the marker verbatim — the one `SKILL.md`'s body states at the
+  goad revision `goad-walk`'s lock pins, PHASE-05's until PHASE-09 moves it;
+  and the walk script's collection step brings a committed tree back through
   `capsule-collect`.
 
 **Verification**
@@ -833,8 +1094,11 @@ control, the fixed prompt; PL-5).
 - The walk script lives in the slice folder and not in `goad-walk`, because
   the capsule clones `goad-walk` and its agent would read the script, the
   prompt and the control's patterns (PL-5).
+- STOP if a bare prompt fails in the capsule: that is authentication (EN-3),
+  not R1.
 - STOP if either plugin load or `capsule-collect` fails in the capsule in a
   way the kit cannot fix: that is R1 or R7 firing, and the walk's shape is the
   user's.
-- Its surfaces are disjoint from PHASE-06..PHASE-08's, so it may run beside
-  them, in its own worktree, whenever EN-2 holds.
+- Its code surfaces are disjoint from PHASE-06..PHASE-08's, so it may run
+  beside them, in its own worktree, whenever EN-2 holds — by the rule in
+  §Sequencing for `notes.md`.

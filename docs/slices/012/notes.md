@@ -19,6 +19,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
 | PHASE-11 | pending | 2026-10-01 |
+| PHASE-12 | pending | 2026-10-01 |
 
 ## Phase sheets
 
@@ -120,7 +121,15 @@ after the slice closes is lifted into the Harvest section.
 - **FU-7's citation extends to `goad-check`.** Nothing bills a stratum-3
   manifest, so `goad-check` linking no renderer is held by its manifest
   comment and review (design.md §5.5 I-6; review F-26). Extend FU-7 at close.
-- **FU-5's citation extends to the kit fence scanner.** `goad-check`'s tests
-  carry a second fence scanner beside `goad-shell`'s `round_trip.rs`
-  `fenced_block`, because test targets share no helpers across crates
-  (design.md §5.2.6). Extend FU-5 at close.
+- **FU-5's citation extends to whatever `goad-check`'s tests copy.** The
+  fence scanner is not a copy: it is shared from `tests/support/`, included by
+  `goad-check`'s `kit` target and `goad-shell`'s `integration` target, and it
+  replaces `round_trip.rs`' `fenced_block` (design.md §5.2.6; `design-log.md`
+  2026-10-01, *plan review round 1: design-touching dispositions*).
+  `goad-check`'s binary tier includes the existing `tests/support/` files
+  where it uses every symbol in them; each helper it copies instead — the
+  binary-tier helpers FU-5 names (the spawn, `code_of`, `stderr_of`,
+  `stdout_of`) or a helper promising a unique temp path — is named here by
+  symbol when it ships, with the file it could not include (plan.md
+  PHASE-04/VA-7, PHASE-12/VA-7). Extend FU-5 at close with those names, or
+  record that none was copied.

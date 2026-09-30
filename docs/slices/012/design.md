@@ -294,10 +294,17 @@ SPEC-001/R-59's sense, and names what R-59 assigns its kind:
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Requirement(u16);
 
-/// The side a refusal's cause lies on (SPEC-001/R-59).
+/// The side a refusal's cause lies on (SPEC-001/R-59). Displays as the word a
+/// report prints: `backend`, `host`, `configuration`, `environment`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtFault { Backend, Host, Configuration, Environment }
 ```
+
+Both types print themselves through `Display`, and `AtFault`'s is a total
+`match` with no `_` arm (`design-log.md` 2026-10-01, *plan review round 1:
+design-touching dispositions*). So the checker prints a side and never maps
+one: a second spelling of the side names in `goad-check` would be the
+mapping §5.1 forbids, and I-1 holds it out.
 
 Each taxonomy enum gets `pub fn requirement(&self) -> Requirement` and `pub fn
 fault(&self) -> AtFault`, each a total `match` with no `_` arm. So a new
@@ -528,13 +535,20 @@ agree with the code.
     because `glass` draws the `Edited` it returns through
     `view_model::untouched`. It rebuilds the `FieldKind` from the `DrawnKind`,
     which carries the range and the alternatives, calls
-    `Submitted::as_drawn`, and converts the result back through `impl
-    From<Submitted> for Edited` in `draft.rs`. That conversion spells a number
-    through the existing `adjusted`, and decides no value, so the untouched
-    policy stays stated once. `the_projection_to_submitted_is_the_identity_on_each_kind`
-    also holds the round trip `Submitted` → `Edited` → `Submitted`. The other
-    direction is not an identity: a typed spelling such as `2.50` is not
-    kept.
+    `Submitted::as_drawn`, and converts the result back through a private
+    `as_edited(Submitted) -> Edited` in `view_model.rs`, beside `adjusted`
+    (`design-log.md` 2026-10-01, *plan review round 1: design-touching
+    dispositions*, superseding G1's placement in `draft.rs`). It spells a
+    number through `adjusted`, and decides no value, so the untouched policy
+    stays stated once, and `adjusted`'s doc — every site that produces an
+    `Adjusted` without a person having typed comes through it — stays true.
+    It is not a crate-wide `From` impl: `draft.rs` does not import
+    `view_model`, and `as_drawn` is its only caller.
+  - `view_model.rs`' tests hold the round trip `Submitted` → `Edited` →
+    `Submitted`, beside `as_edited`, since it is private there:
+    `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`. The
+    other direction is not an identity: a typed spelling such as `2.50` is
+    not kept.
   - The `choice` arm is `alternatives.first().id().clone()`, over the total
     `Alternatives::first` that already exists in `canonical.rs` (F-25);
     `view_model::drawn_form` already calls it. Nothing new is built for it.
@@ -698,14 +712,41 @@ as json/toml when its first info word, lowercased, begins `json` or `toml`
   JSON fragment, such as a lone `"body"` line, cannot be shown as `json`, by
   design. The reference shows fragments inside a whole document, or as
   `text`.
-- The extractor is a small CommonMark fence scanner in `goad-check`'s
-  `tests/`: backtick or tilde fences, info string split on whitespace. It
-  needs no Markdown dependency. **Indented** code blocks are not seen, and are
-  not checked (I-3 says so).
-- `goad-shell`'s `round_trip.rs` already has a `fenced_block` test helper.
-  One crate's test targets cannot reach another's helpers — the class FU-5
-  records for stratum 3 — so the scanner is a second one, knowingly; FU-5's
-  citation is extended at close (`notes.md` §Open).
+- The extractor is a small CommonMark fence scanner: backtick or tilde
+  fences, info string split on whitespace. It needs no Markdown dependency.
+  **Indented** code blocks are not seen, and are not checked (I-3 says so).
+- **It is shared, not second** (`design-log.md` 2026-10-01, *plan review
+  round 1: design-touching dispositions*). It lives at the workspace root in
+  `tests/support/`, included through `#[path]` by `goad-check`'s `kit` target
+  and by `goad-shell`'s `integration` target, whose `round_trip.rs`
+  `fenced_block` it replaces — the pattern
+  `docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md`
+  records. Every symbol in the file is used by both includers, or `dead_code`
+  fails the gate at the includer that leaves one unused; the file holds the
+  scanner and nothing else.
+- `goad-check`'s binary tier includes the existing `tests/support/` files
+  where every symbol in them is one it uses. A helper it needs from a file it
+  cannot include whole is copied, and each copy is named by symbol in FU-5's
+  extension at close (`notes.md` §Open).
+
+**The kit stands alone** (I-5; `design-log.md` 2026-10-01, *plan review
+round 1: design-touching dispositions*).
+`nothing_in_the_kit_names_a_path_outside_it` reads every file under `kit/`,
+refusing an empty set, and fails on either of:
+
+- **an escaping relative path**: a path containing `../` that, resolved
+  lexically from the directory of the file that holds it, leaves `kit/`;
+- **a mention of another top-level entry**: `<name>/`, for any entry of the
+  repository root other than `kit`, where the character before `<name>` is
+  not one a path continues through (a letter, a digit, `.`, `_`, `-` or
+  `/`) — so `kit/.claude-plugin/` is not a mention of the root's
+  `.claude-plugin`.
+
+The root's entries are read when the test runs, not listed, so a directory
+added to the repository later is covered without an edit; the test refuses an
+entry list that lacks `kit` and `crates`, the sign it read the wrong root. A
+negative control, `a_path_outside_the_kit_is_refused`, holds each half over
+an inline string.
 
 **The examples** (`design-log.md` 2026-09-26, "which behaviours" and
 "example languages"). Each example:
@@ -1006,7 +1047,9 @@ time.
 - I-4: every shipped example passes `goad-check` in the gate with its own
   config and event files.
 - I-5: nothing under `kit/` references a path in this repository outside
-  `kit/`.
+  `kit/`: no relative path escapes it, and no file mentions another
+  top-level entry of the repository, read at test time (§5.2.6, *The kit
+  stands alone*).
 - I-6: `goad-check` links no renderer. Held by its manifest, whose comment
   argues it as `goad-emit`'s does, and by review; no instrument bills a
   stratum-3 manifest (FU-7; F-26).
@@ -1181,7 +1224,8 @@ Red/green per behaviour. Tests are named by behaviour.
 **Stratum 1 (`goad-semantics`)**
 - `error.rs`: `every_protocol_error_names_a_requirement_and_a_side`, and
   likewise for bounds and schedule. These are exhaustive-match tables beside
-  the existing `must_name`.
+  the existing `must_name`. `every_side_displays_as_the_word_a_report_prints`,
+  over each `AtFault` variant.
 - `tests/protocol/normalize.rs`:
   `every_refusal_fixture_names_a_requirement_in_its_own_list` and
   `every_discard_fixture_names_a_requirement_in_its_own_list`. Red on the two
@@ -1197,8 +1241,18 @@ Red/green per behaviour. Tests are named by behaviour.
   likewise for cleanup and state.
 
 **Stratum 3 (`goad`)**
-- `the_projection_to_submitted_is_the_identity_on_each_kind`. The existing
-  renderer-tier R-57/R-58 tests stay green unchanged.
+- `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`.
+- `view_model.rs`:
+  `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`, the
+  round trip `Submitted` → `Edited` → `Submitted` through the private
+  `as_edited` (§5.2.4).
+- The existing renderer-tier R-57/R-58 tests stay green unchanged.
+
+**Shared test support** (§5.2.6)
+- The fence scanner in `tests/support/`: `goad-shell`'s
+  `round_trip.rs::the_readme_s_own_config_loads_and_runs_the_example` reads
+  the README's config through it and stays green, and the kit tier's fence
+  tests below read every kit file through it.
 
 **`goad-emit`** (U6)
 - Binary tier: `an_answer_that_cannot_be_written_exits_2`, modelled on the
@@ -1244,7 +1298,9 @@ Red/green per behaviour. Tests are named by behaviour.
     example's event files, temp `HOME`/`XDG_*`;
   - `downloads_triage_moves_the_file_it_was_asked_about`: side effect
     asserted;
-  - `nothing_in_the_kit_names_a_path_outside_it` (I-5).
+  - `nothing_in_the_kit_names_a_path_outside_it` (I-5), with its negative
+    control `a_path_outside_the_kit_is_refused` over inline strings: one
+    escaping relative path, one mention of another top-level entry.
 - `the_probe_kind_is_none_of_the_host_s_own`.
 
 **Mutation checks** (memory: mutation-check the coverage claim), run once at
