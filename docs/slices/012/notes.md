@@ -82,12 +82,10 @@ after the slice closes is lifted into the Harvest section.
 - **`Shape` refusals cite R-44 only.** Naming the requirement the backend
   misread needs normalization to report a path for serde failures
   (`design-log.md`, 2026-09-26, OQ-8). Candidate follow-up at close.
-- **R-16 has no non-empty clause for a `choice` field's `options`.**
-  `EmptyAlternatives` cites R-44, since no more specific requirement states
-  the rule (`design-log.md` 2026-09-30, U8); SPEC-001 §7's R-52 row still
-  files the fixture under R-52. A canon wording fix, not a behaviour change
-  (design.md §6 OQ-6); landing it re-points `EmptyAlternatives` to R-16.
-  Candidate follow-up.
+- ~~**R-16 has no non-empty clause for a `choice` field's `options`.**~~
+  **Closed in this slice** (`design-log.md` 2026-09-30, *design review round
+  2: dispositions*; review F-38): `canon-delta.md` SPEC-001 Change 6 adds "at
+  least one" to R-16, and `EmptyAlternatives` cites R-16.
 - **The jail library fixes the home per profile.** A home-name parameter
   upstream in `davidlee/nix-config` is cleaner than a local bind (design.md
   §6 OQ-7). The walk no longer needs either: it runs in an oubliette capsule

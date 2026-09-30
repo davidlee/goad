@@ -11,7 +11,8 @@ conversation did not settle at drafting is in §6 with its options; all of it
 is now settled (`design-log.md`, 2026-09-29). Design review round 1's
 dispositions are applied (`design-log.md`, 2026-09-30, *design review round 1:
 dispositions*; cited below as U1..U8, with the finding ids of
-`review-design.md`).
+`review-design.md`), and so are round 2's (*design review round 2:
+dispositions*; cited by finding id). Round 2's F-22 is open.
 
 ## 1. Design problem
 
@@ -179,17 +180,22 @@ goad-check --version
 - **Config form.** `--config PATH` loads the author's goad configuration with
   `Config::load`. With neither `--config` nor `--`, the path is
   `config::default_path`, the host's own rule. The checker runs exactly the
-  command and timeout the host will run. It ignores `[ingress]`: it opens no
-  socket.
+  command and timeout the host will run, and spawns it as the host does:
+  neither resolves anything relative to the config file, so a relative
+  program or argument is resolved against the directory the process was
+  started in (F-36). A relative `command` the checker accepts from one
+  directory is therefore one a host started elsewhere cannot spawn;
+  `checking.md` says so. It ignores `[ingress]`: it opens no socket.
 - **Argv form.** Everything after `--` is the command, built with
   `config::Command::from_argv`, made public for this (F-33). So an empty argv,
   or an empty program, is refused by the same rule the host applies at load
   (R-36): a usage error, status 2. `Command::new` accepts any program and is
   not used.
   - *Opportunity, for the plan:* `config::Command`'s doc says the empty
-    command "is not representable past this boundary", which the public
-    `Command::new` contradicts; its callers are tests and `from_argv`. Making
-    `new` validate, or taking it out of the public API, repairs the doc.
+    command "is not representable past this boundary". Two public routes
+    contradict it: `Command::new`, whose callers are tests and `from_argv`,
+    and the public `program` and `arguments` fields, which a struct literal
+    fills directly (F-40). The doc is true only once both are closed.
   - `--timeout SPAN` is parsed with the host's one duration grammar,
     `schedule::parse_span`. The default is `5s`, the value
     `exercisers/demo.toml` uses.
@@ -293,29 +299,31 @@ The type is named `AtFault` and not `Fault`. In this workspace `…Fault` names 
 *reason*: `SpanFault`, `SendFault`, `StartupFault`, `EnvelopeFault`. Here the
 method `fault()` answers *who*.
 
-**Meaning of the id** (U1; F-1, F-4, F-6). One reading, for every side: the id
+**Meaning of the id** (U1; F-1, F-4, F-6; round 2: F-34, F-35, F-39). One reading, for every side: the id
 is the requirement **under which the host refused** — the one stating the rule
 the refusal enforces. Most of SPEC-001's transport and failure rows are host
 obligations a backend cannot break (R-40, R-41, R-43, R-44), so "the rule
 broken" would be false of most rows.
 
-- **R-44** is named only where no more specific requirement states the rule.
-- **R-45** is named for an exchange failure no requirement makes a refusal
-  (`Io`, `PipeMissing`): it is the rule under which the host reports the
-  failure and carries on.
+- **R-44** is named where the kind cannot tell which more specific rule an
+  instance broke (`Json`, `Shape`, `DuplicateKey`), or where R-44's own list
+  is the rule (`Spawn`).
+- **R-45** is named for a failure of an exchange that no requirement makes a
+  refusal (`Io`): it is the rule under which the host reports the failure and
+  stays able to invoke the backend again.
 - **Sides** are where the cause lies: **backend**, what the backend sent or
   did is what the host refused; **configuration**, the user's configuration
   named something the host could not use; **host**, the cause lies on the
   host's side of the seam — its own code, or whoever answered through it;
-  **environment**, the operating system failed the host, or the host could
-  not observe what it needed to.
+  **environment**, the operating system failed the host.
 - **One kind, one side, one id.** A kind whose cause can lie on another side
   keeps its one side — the declared imprecision — and its refusal carries what
   lets a reader see the other: `Timeout` its configured window, `ExitStatus {
   code: None }` that the backend was signalled, `Spawn` the operating
-  system's error. The one exception to one id per kind is R-53's (below).
-- **Scope is closed** (R-59): R-44's distinct errors, the other exchange
-  failures R-45 covers, R-25's discards, R-48's cleanup failures, and R-32's
+  system's error, `CleanupFailure::TimedOut` the limit disposal was given.
+  The one exception to one id per kind is R-53's (below).
+- **Scope is closed** (R-59): R-44's distinct errors, the exchange failures
+  no requirement makes a refusal (R-45), R-25's discards, R-48's cleanup failures, and R-32's
   refused answers — and no other.
 
 **The table.** Variants are verified against the enums at 7388b5c. The
@@ -335,7 +343,7 @@ fixture column lists each error fixture's `requirement` array as it stands.
 | | `DuplicateOptionId` | R-14 | backend | [R-14, R-52] |
 | | `DuplicateFieldId` | R-52 | backend | [R-52] |
 | | `DuplicateAlternativeId` | R-52 | backend | [R-52, R-53] |
-| | `EmptyAlternatives` | R-44 | backend | [R-52, R-53]. **Corrected to [R-52, R-53, R-44]**: see below; OQ-6 |
+| | `EmptyAlternatives` | R-16 | backend | [R-52, R-53]. **Corrected to [R-52, R-53, R-16]**: see below; OQ-6 |
 | | `Bounds(b)` | `b.requirement()` | `b.fault()` | — |
 | | `Schedule(s)` | `s.requirement()` | `s.fault()` | never an `Err`; witnessed through `Discarded` |
 | `BoundsError` | `NotFinite` | R-17 | backend | unreachable from JSON (its own doc) |
@@ -350,10 +358,10 @@ fixture column lists each error fixture's `requirement` array as it stands.
 | | `Timeout` | R-41 | backend | — |
 | | `ExitStatus` | R-40 | backend | — |
 | | `OutputTooLarge` | R-43 | backend | — |
-| | `PipeMissing` | R-45 *(OQ-1)* | host | — |
+| | `PipeMissing` | R-37 *(OQ-1)* | host | — |
 | | `Io` | R-45 *(OQ-1)* | environment | — |
 | | `Protocol(p)` | `p.requirement()` | `p.fault()` | — |
-| `CleanupFailure` | `TimedOut` | R-48 | environment | — |
+| `CleanupFailure` | `TimedOut` | R-48 | backend | — |
 | | `Io` | R-48 | environment | — |
 | `StateError` | `NoOutstandingView` | R-32 | host | — |
 | | `StaleViewId` | R-32 | host | — |
@@ -361,19 +369,22 @@ fixture column lists each error fixture's `requirement` array as it stands.
 Rationale for the rows that are not obvious:
 
 - **`Json` → R-44.** R-44 names *malformed JSON*, "bytes that are not one JSON
-  document", as its own class. R-38's trailing-content case arrives as `Json`
-  through `From<serde_json::Error>`. R-17 is wrong for every other malformed
-  document.
+  document", as its own class. The kind cannot tell which more specific rule
+  an instance broke (F-35): R-38's empty stdout and trailing content, and
+  R-17's non-finite literals, all arrive as `Json` through
+  `From<serde_json::Error>`, beside every other malformed document.
+- **`Shape` → R-44**, for the same reason. serde's category is coarse by
+  construction (`research.md` R-a): a `Shape` fixture may pair R-44 with R-3,
+  R-11, R-13, R-15, R-19 or R-52, and the kind cannot say which.
   - **The two R-17 `Json` fixtures' lists become [R-17, R-44].** R-17 stays
     because those fixtures do verify R-17: a non-finite bound cannot even be
     written as JSON.
-- **`EmptyAlternatives` → R-44** (U8). No requirement states that a `choice`
-  field's alternatives are non-empty: R-16 requires `options`, and R-52 is
-  about uniqueness. So no more specific requirement states the rule, and R-44
-  is the one the host refused under. `R-52-a-choice-field-with-no-alternatives`'
-  list becomes [R-52, R-53, R-44]; R-52 and R-53 stay, as the fixture's own
-  claims. The R-16 wording gap is a follow-up (OQ-6). Nothing else in the
-  corpus changes.
+- **`EmptyAlternatives` → R-16** (F-38, reversing U8). R-16 gains "at least
+  one" in this slice's canon delta (SPEC-001 Change 6), so it states the rule
+  the host refuses under; R-52 is about uniqueness, and R-44's shape items do
+  not include an empty array. `R-52-a-choice-field-with-no-alternatives`' list
+  becomes [R-52, R-53, R-16]; R-52 and R-53 stay, as the fixture's own
+  claims. Nothing else in the corpus changes.
 - **`InapplicableKey` splits on `key`.** R-53 *requires* `fields` on an
   alternative to be refused "with the same error as any other protocol key
   used where its position gives it no meaning". So a separate variant would
@@ -403,17 +414,23 @@ Rationale for the rows that are not obvious:
   renderer (a person's delayed click on a view R-33 has replaced) or the
   checker. The host side means the cause lies there, not that host code is
   defective. A backend cannot cause one.
-- **`CleanupFailure` → R-48, environment.** The host could not observe the
-  backend reaped and its stderr drained within the cleanup limit. The cause is
-  often the backend's — a child left holding a pipe — but R-54 forbids the
-  host to name a process state it has not observed, so the side is the one
-  the host can stand behind. This is R-59's declared imprecision; the line
-  carries the limit it waited, which is all the host saw.
-- **`Io`, `PipeMissing` → R-45** (U1; F-5). No requirement makes either a
-  refusal; R-45 is the rule under which the host reports each and stays able
-  to invoke the backend again. No transport id is claimed, since `Io` merges
-  write, wait and read failures, and `PipeMissing` is raised for any of the
-  three handles.
+- **`CleanupFailure::TimedOut` → R-48, backend** (F-34). The backend was not
+  seen reaped with its stderr drained within the cleanup limit. The usual
+  cause is the backend's own process tree — a child left holding a pipe — so
+  the side is backend. Naming the side a cause usually lies on asserts no
+  process state, so R-54 is not engaged; the line still names none. A
+  loaded machine that did not finish disposal in time is R-59's declared
+  imprecision, and the line carries the limit disposal was given.
+- **`CleanupFailure::Io` → R-48, environment.** The operating system failed a
+  disposal call: that is the environment side's whole definition.
+- **`PipeMissing` → R-37, host** (F-39). The host asked for all three pipes;
+  only a host defect removes one, and the one that carries the request is the
+  pipe R-37 requires the host to write and close. The variant is raised for
+  any of the three handles, and names R-37 for all of them.
+- **`Io` → R-45, environment** (U1; F-5). No requirement makes it a refusal;
+  R-45 is the rule under which the host reports it and stays able to invoke
+  the backend again. No transport id is claimed, since `Io` merges write,
+  wait and read failures.
 - **`ConfigError`, `EnvelopeFault` and `SpanFault` get neither method.** R-59
   puts a refusal of the configuration file at load, and a refusal of a
   forwarded envelope, outside its scope (F-6). In the checker they end the run
@@ -590,6 +607,11 @@ spec:
 - It says that the specs are not shipped, and that every id a report prints is
   explained in the reference itself, each at an anchor of its own (F-32), so a
   citation never sends a reader looking outside the kit.
+- `checking.md` explains the four sides in R-59's terms, and for each kind
+  whose cause can lie elsewhere (the declared imprecision) says where else to
+  look: a timeout, at the configured window; a signalled backend, at what
+  else sends signals; a timed-out disposal, at the backend's own child
+  processes, since the host names no process state (R-54).
 - It states only what an author must do or may rely on. Host-internal rules
   are left out: bounds, cleanup, renderer subsets. Where they matter, one line
   says what the author observes.
@@ -658,15 +680,17 @@ temporary directory.
 - Each example has a `config.toml` and a README. The README says how to see
   the example in under a minute, from **Check now** or with `goad-emit` and
   the example's event file.
-- **How a config names its backend** (F-27). `Config` resolves nothing
-  relative to the file, and the host spawns in its own working directory. So
-  each example's `command` is relative to **the example's directory**:
-  - the README's minute-long route is `goad-check --config config.toml`, run
-    from the example's directory;
-  - to run it in goad, the README says to copy the directory out and make
-    `command` absolute;
-  - the gate test copies the example to a temporary directory and runs there,
-    as `round_trip.rs`'s `rooted_at_the_workspace` rebases a relative command.
+- **How a config names its backend** (F-27, F-36). `Config` resolves nothing
+  relative to the file, and the checker and the host each spawn from their own
+  working directory (§5.2.1). So each example's `command` is relative to
+  **the example's directory**, and everything that runs it starts there:
+  - the README's minute-long route is `goad-check --config config.toml`, and
+    `goad config.toml` for the host, both run from the example's
+    directory;
+  - for a host started anywhere else — a desktop launcher, a service — the
+    README says to copy the directory out and make `command` absolute;
+  - the gate test copies the example to a temporary directory and starts the
+    checker with that directory as its working directory.
 - **How an event names its file.** The triage event carries a file **name**,
   which the backend resolves under `$XDG_DOWNLOAD_DIR`; `watch.sh` emits the
   basename. So the static event file works under the gate's temporary
@@ -759,7 +783,8 @@ target, so the target cannot be this repository:
   it: a fetch *attempt* beyond the model API is friction, whether or not the
   proxy let it through.
 - **A walk** is: a fresh capsule (fresh volume, fresh `$HOME`) provisioned at
-  `goad-walk`'s `main`; the negative control; the plugin setup; the walk; then
+  `goad-walk`'s `main`, whose `flake.lock` pins the goad revision the walk
+  sees (F-37); the negative control; the plugin setup; the walk; then
   the agent's tree committed in the guest by the orchestrator and brought
   back by `capsule-collect`, quarantined. Transcripts are written outside the
   checkout, in `/work/walk-logs/`, and moved into the commit afterwards, so
@@ -837,16 +862,21 @@ does not lead toward gems:
   refused requests, an allowed fetch has the transcript as its only witness,
   and the row says so (F-20). An attempt counts whether or not the proxy let
   it through;
+- the goad revision `goad-walk`'s lock pinned (F-37);
 - the `goad-check` verdict on the agent's backend (F-19): the orchestrator
   runs `goad-check --config <the agent's config>` in the guest over ssh,
-  unaltered, before collection, at an hour the backend speaks — after its
+  unaltered, from `/work/goad-walk` — the directory the agent worked and
+  checked from, so a relative `command` resolves as it did for the agent
+  (F-36) — before collection, at an hour the backend speaks — after its
   configured time, or through the agent's own time setting, which the prompt
   asks for (U3). AC-1 needs status 0 **with at least one view answered**; a
   report saying no view was returned does not meet it;
 - whether a person ran goad against it, and what they saw. The person runs it
   on the host against the collected tree, with `ruby` from `nix shell
   nixpkgs#ruby` (the devshell has none), and the config's `command` rewritten
-  from `/work/goad-walk/…` to the collected path. The diff to the config is
+  from `/work/goad-walk/…` to the collected path — every path in it made
+  absolute, since the host is not started from the agent's directory
+  (F-36). The diff to the config is
   recorded in `walks.md`, since it is no longer exactly the agent's.
 
 Raw transcripts come back in the collected commit and stay in the quarantine
@@ -864,8 +894,11 @@ becomes a row in `walks.md` with a disposition:
   canon, no wire), or
 - **follow-up**, with the reason.
 
-**Re-walk rule.** After the kit fixes land, each agent gets **one** fresh
-re-walk, with a new home and the same prompt. It must pass AC-1, and does not
+**Re-walk rule.** After the kit fixes land on goad's `main`, `goad-walk`'s
+`flake.lock` is updated to that revision and committed to its `main`; only
+then does each agent get **one** fresh re-walk (F-37). A re-walk whose row
+records the old revision measured the unfixed kit and does not count. The
+re-walk has a new home and the same prompt. It must pass AC-1, and does not
 regress in turns or total tokens by the person's judgement (figures are
 indicative, AC-8). Friction from a re-walk is dispositioned the same way. A
 second re-walk happens only by user decision.
@@ -960,9 +993,9 @@ changes the slice's shape.
 
 - **OQ-1 — `requirement()` for `BackendError::Io` and `PipeMissing`.** Nobody
   broke a rule in either case.
-  - (a) Each cites R-45, the rule under which the host reports a failure no
-    requirement makes a refusal and carries on: `PipeMissing` side host,
-    `Io` side environment.
+  - (a) `Io` cites R-45, the rule under which the host reports a failure no
+    requirement makes a refusal and carries on, side environment;
+    `PipeMissing` cites R-37, side host.
   - (b) Cite R-37 or R-38 for `Io` by guess. The variant merges write, wait
     and read failures, so any single transport id is wrong for some of them.
   - (c) Split `Io` into write/wait/read variants. That is a taxonomy change
@@ -970,10 +1003,11 @@ changes the slice's shape.
   - (d) `requirement()` returns `Option` and answers `None` for these two.
     Honest, but AC-7 asks every refusal to name one.
 
-  **Settled (a)**, as amended at design review (U1; F-5): `PipeMissing` no
-  longer cites R-37, which is about stdin alone while the variant is raised
-  for any of three handles. R-59 states the R-45 reading, so it is not a
-  convention held only in code.
+  **Settled (a)**, as amended at design review. Round 1 (U1; F-5) moved both
+  to R-45; round 2 (F-39) returned `PipeMissing` to R-37, side host, because
+  R-45 is about backend failures and a missing pipe is the host's own. R-59
+  states the R-45 reading for `Io`, so it is not a convention held only in
+  code.
 - **OQ-2 — Where the checker's answer values come from.** OQ-4 settled "a pure
   R-57 value-per-kind in stratum 1". It did not say whether *which* value is
   also lifted.
@@ -1001,17 +1035,18 @@ changes the slice's shape.
   watchers (`watch.sh`, `chpwd.zsh`) belong to their examples, and the checker
   is a binary. **Recommend no `scripts/` directory**, added later only if walk
   friction names one.
-- **OQ-5 — A cleanup failure alone: status 0 or 1?** It is environment-side,
-  but the host would report it. It usually means the backend left a child
-  holding stderr, which the author can fix. **Recommend 1.** The class is "the
+- **OQ-5 — A cleanup failure alone: status 0 or 1?** A timed-out disposal is
+  backend-side (F-34), a failed disposal call environment-side, and the host
+  reports both. It usually means the backend left a child holding stderr,
+  which the author can fix. **Settled 1.** The class is "the
   host reported something", and the cause is in the report (SPEC-004 P-A).
 - **OQ-6 — `EmptyAlternatives` has no requirement that states it.** R-16 says
   a `choice` field MUST carry its own `options`, but no requirement says they
-  are non-empty. SPEC-001 §7 files the case under R-52's row. **Settled:
-  cite R-44** (U8, superseding the earlier "cite R-52": R-52 is about
-  uniqueness, and under R-59's reading R-44 is the rule the host refused
-  under), with a follow-up to add a non-empty clause to R-16. That is a
-  wording fix to canon, not a wire change: the behaviour already refuses.
+  are non-empty. SPEC-001 §7 files the case under R-52's row. **Settled: add
+  "at least one" to R-16 in this slice's canon delta, and cite R-16** (F-38,
+  reversing U8's R-44, which superseded the earlier "cite R-52"). R-52 is
+  about uniqueness, and R-44 does not state the rule either. A wording fix to
+  canon, not a wire change: the behaviour already refuses.
 - **OQ-7 — A fresh home per walk, given the jail library's fixed
   `persist-home`.** *Superseded 2026-09-30: the walk runs in an oubliette
   capsule, whose volume is fresh (§5.2.8). The spike showed (a) worked.*
@@ -1061,12 +1096,13 @@ changes the slice's shape.
 | D19 | network through the capsule proxy; any fetch attempt beyond the model API is friction, allowed or refused | network off | cuts the model API too | 2026-09-26 OQ-3 method; 2026-09-30 |
 | D20 | both binaries governed by SPEC-004 | the checker only | leaves the second binary ungoverned and the third governed | 2026-09-26 OQ-5 |
 | D21 | walk in an oubliette capsule whose target is a sibling repo, `goad-walk` | bwrap consumer jails with a walk-home bind | a fresh home and credentials without a jail-library change; the capsule clones its target, so the target cannot be this repo | 2026-09-30 |
-| D22 | R-59's id is the requirement the host refused under; R-44 where nothing more specific states it, R-45 for a failure nothing makes a refusal; sides by where the cause lies; one side per kind, imprecision declared; a closed scope | "broken" for backend/configuration and "left undischarged" for host/environment; the table as the only definition | the two readings fit almost no row; a table-only definition leaves AC-7 unfalsifiable | 2026-09-30 U1, U8 |
+| D22 | R-59's id is the requirement the host refused under; R-44 where the kind cannot tell which more specific rule an instance broke, R-45 for a failure nothing makes a refusal; sides by where the cause lies; one side per kind, imprecision declared; a closed scope | "broken" for backend/configuration and "left undischarged" for host/environment; the table as the only definition | the two readings fit almost no row; a table-only definition leaves AC-7 unfalsifiable | 2026-09-30 U1; round 2 (F-34, F-35, F-39) |
 | D23 | no `--now`; the report says when no view was returned; AC-1 needs a view answered | a `--now` flag | new surface that strains R-7's "current instant", and reaches only backends that read `now` | 2026-09-30 U3 |
 | D24 | `goad-walk`'s `goad` input is a host-local `git+file:` URL; reading goad's source fails AC-1 | the proxy refusing the forge | closes the route whatever the proxy admits | 2026-09-30 U4 |
 | D25 | respond fences held by a JSON-type oracle against `Submitted::as_drawn` | a stratum-1 `Submitted::from_json`; as-drawn-only examples | no reader nobody else uses; examples that teach real values | 2026-09-30 U5 |
 | D26 | `goad-emit` exits 2 on an unwritten answer | weaken SPEC-004/R-8 for `goad-emit` | one rule for the edge across all three binaries | 2026-09-30 U6 |
 | D27 | the corpus witness is membership, its reach stated | an exact id key per fixture | written with the code it witnesses, it stops being independent | 2026-09-30 U7 |
+| D28 | R-16 gains "at least one" in this slice; `EmptyAlternatives` → R-16 | R-44 now and R-16 as a follow-up (U8) | R-44 does not state the rule, so R-59 would be false of the row until the follow-up landed | 2026-09-30 round 2 (F-38) |
 
 ## 8. Risks & mitigations
 
@@ -1181,7 +1217,9 @@ the execute phase and recorded in `notes.md`:
 
 Drafted in `canon-delta.md`, applied at audit with endorsement:
 
-- **SPEC-001**: new R-59 (side and requirement on every refusal in a closed
+- **SPEC-001**: R-16 gains "at least one" for a `choice` field's `options`,
+  and its §7 row the fixture and unit that hold it (F-38). New R-59 (side and
+  requirement on every refusal in a closed
   scope; the requirement the host refused under; the four sides by where the
   cause lies; one side per kind, its imprecision declared). R-59's §7 row,
   its witness's reach stated. R-56's row (tolerance now tested, on a stated

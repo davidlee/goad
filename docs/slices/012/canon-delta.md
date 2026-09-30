@@ -31,13 +31,16 @@ sides (`design-log.md` 2026-09-26, OQ-2 and OQ-8). The format of whatever
 reports the claim is not canon. Design review settled what the id means, what
 each side means, the imprecision one side per kind costs, and the closed set
 the requirement covers (`design-log.md` 2026-09-30, *design review round 1:
-dispositions*, U1). Most of SPEC-001's transport and failure rows are host
-obligations a backend cannot break, so the id is read as the rule the host
-**refused under**, never as a rule someone broke.
+dispositions*, U1), and round 2 corrected the id rule for kinds that cannot
+tell which rule an instance broke, narrowed the environment side, and moved
+`PipeMissing` and `CleanupFailure::TimedOut` (`design-log.md` 2026-09-30,
+*design review round 2: dispositions*). Most of SPEC-001's transport and
+failure rows are host obligations a backend cannot break, so the id is read
+as the rule the host **refused under**, never as a rule someone broke.
 
 **As it will be stated** (a new row after R-47):
 
-> | R-59 | Every refusal the host reports of an exchange or an answer — each distinct error R-44 requires, each other exchange failure the host reports and survives under R-45, each discarded instruction R-25 requires, each cleanup failure R-48 requires, and each answer refused under R-32, and no other — MUST name the **side at fault** and the **requirement** of this spec under which the host refused. That is the requirement stating the rule the refusal enforces. R-44 is named only where no more specific requirement states one, and R-45 is named for an exchange failure no requirement makes a refusal, since R-45 is the rule under which the host reports it and carries on. The side is **backend**, what the backend sent or did is what the host refused; **configuration**, the user's configuration named something the host could not use; **host**, the cause lies on the host's side of the seam — its own code, or whoever answered through it; **environment**, the operating system failed the host, or the host could not observe what it needed to. The id and the side are properties of the refusal's kind and not of the instance, so one kind names one side and one requirement — save where one kind is required by two requirements to be the same error: R-53 requires `fields` on an alternative to be refused as R-50's error is, and that kind's requirement is read off what the error names. Where a kind's cause can lie on another side — a timeout the configuration set too short, a signal sent from outside the backend, a spawn refused for want of resources — the kind still names its one side, and the refusal carries what lets a reader see the other: the configured timeout, that the backend was signalled, the operating system's error. A refusal of the user's configuration file when it is loaded, and a refusal of a forwarded envelope (SPEC-003), are outside this requirement. What a refusal names is fixed here; how it is worded is not, and whether a surface that reports it to a person carries both is that surface's own spec's to say. | §7 |
+> | R-59 | Every refusal the host reports of an exchange or an answer — each distinct error R-44 requires, each failure of an exchange that no requirement makes a refusal and that the host reports and survives as R-45 requires, each discarded instruction R-25 requires, each cleanup failure R-48 requires, and each answer refused under R-32, and no other — MUST name the **side at fault** and the **requirement** of this spec under which the host refused. That is the requirement stating the rule the refusal enforces. R-44 is named where the kind cannot tell which more specific rule an instance broke, and R-45 is named for a failure of an exchange that no requirement makes a refusal, since R-45 is the rule under which the host reports it and stays able to invoke the backend again. The side is **backend**, what the backend sent or did is what the host refused; **configuration**, the user's configuration named something the host could not use; **host**, the cause lies on the host's side of the seam — its own code, or whoever answered through it; **environment**, the operating system failed the host. The id and the side are properties of the refusal's kind and not of the instance, so one kind names one side and one requirement — save where one kind is required by two requirements to be the same error: R-53 requires `fields` on an alternative to be refused as R-50's error is, and that kind's requirement is read off what the error names. Where a kind's cause can lie on another side — a timeout the configuration set too short, a signal sent from outside the backend, a spawn refused for want of resources, a disposal a loaded machine did not finish in time — the kind still names its one side, and the refusal carries what lets a reader see the other: the configured timeout, that the backend was signalled, the operating system's error, the limit disposal was given. A refusal of the user's configuration file when it is loaded, and a refusal of a forwarded envelope (SPEC-003), are outside this requirement. What a refusal names is fixed here; how it is worded is not, and whether a surface that reports it to a person carries both is that surface's own spec's to say. | §7 |
 
 
 ### Change 2 — §7: R-59's row
@@ -104,6 +107,24 @@ backend clause is now tested.
 The closing paragraph becomes:
 
 > Nothing here is marked unverified. The rows for R-9/R-19, R-18, R-20, R-30 and R-49 are held by review rather than by a test, each for a reason stated in the row: the subject is a property of the source text or of the contract, not a behaviour anything can execute. R-56's emission half is held by review for the reason its row gives, and so are R-59's answers for the transport, cleanup and state kinds, which have no fixture. R-49 constrains the other side of the seam, and no checker can observe a side effect a backend did not report.
+
+### Change 6 — §4 and §7: R-16 states that a `choice` field offers at least one alternative
+
+**Why.** No requirement stated that a `choice` field's alternatives are
+non-empty, though the host refuses an empty list (`EmptyAlternatives`). R-59
+needs a requirement stating the rule each refusal enforces, and neither R-52
+(uniqueness) nor R-44 (whose shape items do not include an empty array) is
+one (review F-38; `design-log.md` 2026-09-30, *design review round 2:
+dispositions*, reversing round 1's U8). A wording fix: the wire does not move.
+
+**As it will be stated.** In R-16, "a `choice` field MUST carry its own
+`options`, whose shape R-53 constrains" becomes:
+
+> a `choice` field MUST carry its own `options`, at least one, whose shape R-53 constrains
+
+In the §7 row for R-13, R-14 and R-16, after the `R-16-a-number-field-with{,out}-bounds` fixtures, add:
+
+> ; R-16's *at least one* by `R-52-a-choice-field-with-no-alternatives`, whose list names R-16, and unit `canonical.rs::an_empty_alternatives_is_rejected_as_alternatives_never_as_options`
 
 ---
 

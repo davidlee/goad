@@ -82,7 +82,8 @@ are design's):
   `ruby` in its tool set only. Its registration with oubliette is
   oubliette-side configuration.
 - **Canon**, drafted in `canon-delta.md`: SPEC-001 (requirement id and side
-  at fault on each refusal; R-56's and R-57's verification rows), SPEC-004
+  at fault on each refusal; R-16's non-empty clause for a `choice` field's
+  `options`; R-56's and R-57's verification rows), SPEC-004
   (`goad-check` and `goad-emit`), POL-001 (the command block's `deno check`
   paths), ADR-003 (the member list gains `goad-check`).
 
