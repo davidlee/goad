@@ -108,6 +108,14 @@ procedure (PHASE-05, PHASE-11, PHASE-09, PHASE-10) against `design.md`
 §5.2.8–§5.2.9; the kit's gate tests reaching files written in later phases;
 the person-runs.
 
+**Round 2** — 2026-10-01 — the round 1 repairs (58777b9), and anything they
+introduced. Each F-1..F-21 repair is held against its Response and the user's
+decision (`plan-log.md` and `design-log.md` 2026-10-01, *plan review round 1*),
+and checked across the class, not only the instance. The same invariants as
+round 1 bind the repaired text. Where the bodies are likely buried: the
+PHASE-04 / PHASE-12 split and its renumbered citations; the new I-5 rule;
+`main` between PHASE-04 and PHASE-12; PHASE-08/VT-1's anchor rule.
+
 ## Findings
 
 **Round 1** — raised 2026-10-01 against `plan.md` at 046d492 (unchanged
@@ -116,27 +124,38 @@ at that commit.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | doc-wrong | |
-| F-2 | major | doc-wrong | |
-| F-3 | major | doc-wrong | |
-| F-4 | major | doc-wrong | |
-| F-5 | major | doc-wrong | |
-| F-6 | major | doc-wrong | |
-| F-7 | major | doc-wrong | |
-| F-8 | minor | doc-wrong | |
-| F-9 | minor | doc-wrong | |
-| F-10 | minor | doc-wrong | |
-| F-11 | minor | doc-wrong | |
-| F-12 | minor | doc-wrong | |
-| F-13 | minor | doc-wrong | |
-| F-14 | minor | doc-wrong | |
-| F-15 | minor | doc-wrong | |
-| F-16 | minor | doc-wrong | |
-| F-17 | minor | doc-wrong | |
-| F-18 | minor | doc-wrong | |
-| F-19 | nit | doc-wrong | |
-| F-20 | nit | doc-wrong | |
-| F-21 | nit | doc-wrong | |
+| F-1 | major | doc-wrong | verified |
+| F-2 | major | doc-wrong | verified |
+| F-3 | major | doc-wrong | verified |
+| F-4 | major | doc-wrong | verified |
+| F-5 | major | doc-wrong | verified |
+| F-6 | major | doc-wrong | verified |
+| F-7 | major | doc-wrong | verified |
+| F-8 | minor | doc-wrong | verified |
+| F-9 | minor | doc-wrong | verified |
+| F-10 | minor | doc-wrong | verified |
+| F-11 | minor | doc-wrong | verified |
+| F-12 | minor | doc-wrong | verified |
+| F-13 | minor | doc-wrong | verified |
+| F-14 | minor | doc-wrong | verified |
+| F-15 | minor | doc-wrong | verified |
+| F-16 | minor | doc-wrong | verified |
+| F-17 | minor | doc-wrong | verified |
+| F-18 | minor | doc-wrong | verified |
+| F-19 | nit | doc-wrong | verified |
+| F-20 | nit | doc-wrong | verified |
+| F-21 | nit | doc-wrong | verified |
+
+**Round 2** — raised 2026-10-01 against `plan.md` and `design.md` at 58777b9.
+
+| id | severity | disposition | outcome |
+|----|----------|-------------|---------|
+| F-22 | minor | | |
+| F-23 | minor | | |
+| F-24 | minor | | |
+| F-25 | minor | | |
+| F-26 | minor | | |
+| F-27 | nit | | |
 
 ### F-1 — PHASE-05/EX-8 asks two agents to answer a prompt from a fresh home, and nothing gives them credentials there
 
@@ -162,7 +181,7 @@ true   # fresh home: "Not logged in"`. The spike ran the same step EX-8 asks for
 **Disposition:** doc-wrong
 **Response:** PHASE-05 gains a credentials entry (API keys as environment variables in the fresh home); its STOP separates an authentication failure from R1. *(Repair: PHASE-05 gains EN-2 (API keys in the fresh home); EX-8 runs a bare `claude -p`/`codex exec` prompt before any plugin load, and a new STOP reads its failure as authentication, not R1. PHASE-11/EX-2 and its notes take the same bare-prompt step.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-05/EN-2 (API keys in the fresh home), EX-8's bare prompts before any load, and a separate authentication STOP; the class reaches PHASE-11 (EX-2's bare prompts, the matching STOP).
 
 ### F-2 — "naming the goad-backend skill" proves the skill is listed, not that the model can read it; R1's open half is not reached
 
@@ -192,7 +211,7 @@ the name instead.
 **Disposition:** doc-wrong
 **Response:** The placeholder `SKILL.md` carries a body-only marker; PHASE-05/EX-8 and PHASE-11/EX-2 ask for a fact only the body states at the pinned revision. *(Repair: PHASE-05 §Surfaces specifies a body-only marker in the placeholder `SKILL.md`; PHASE-05/EX-8 and PHASE-11/EX-2 ask for it verbatim from a prompt that does not contain it, PHASE-11's at the revision `goad-walk`'s lock pins; PHASE-05's notes say why the name is not enough.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-05 §Surfaces puts a body-only marker in the placeholder; EX-8 and PHASE-11/EX-2 ask for it verbatim, and the prompt does not contain it.
 
 ### F-3 — PHASE-09/EN-1's lock bump to PHASE-08's revision is owned by no phase
 
@@ -226,7 +245,7 @@ is staged but not committed (`git status --short` → `A flake.lock`).
 **Disposition:** doc-wrong
 **Response:** PHASE-09 owns the lock bump: `~/dev/goad-walk/flake.lock` joins its surfaces, and an exit criterion bumps it to PHASE-08's revision and commits it before either walk. *(Repair: PHASE-09 §Surfaces gains `~/dev/goad-walk/flake.lock`; EN-1 no longer assumes the bump, and new PHASE-09/EX-5 bumps and commits it before either walk. PHASE-05/EX-4 now commits the lock it pins.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-09/EX-5 owns the bump before either walk, and PHASE-09 §Surfaces lists `~/dev/goad-walk/flake.lock`; PHASE-11/EX-2 names PHASE-05's revision until then.
 
 ### F-4 — Nothing gives `AtFault` a printed form, so PHASE-04 must either map sides itself or edit stratum 1 outside its surfaces
 
@@ -255,7 +274,7 @@ claim".
 **Disposition:** doc-wrong
 **Response:** `AtFault` gains `Display` in stratum 1 (`design-log.md` 2026-10-01, *plan review round 1*); PHASE-01 delivers it. *(Repair: `design.md` §5.2.3 gives `AtFault` a total-match `Display` printing the four side words; PHASE-01/EX-1 delivers it, and PHASE-01/VT-1 adds `every_side_displays_as_the_word_a_report_prints`. I-1's command (§Sequencing, *Invariant reads*) now also greps the side words as string literals.)*
 
-**Outcome:**
+**Outcome:** verified — `design.md` §5.2.3 gives `AtFault` a total `Display`; PHASE-01/EX-1 and VT-1 (`every_side_displays_as_the_word_a_report_prints`); PHASE-12/EX-3 prints through it; I-1's command greps the four side words.
 
 ### F-5 — The kit's standing guards are shown to reach only the files that exist when they are written; later phases add files and nothing re-proves reach
 
@@ -290,7 +309,7 @@ not fire, not that it looked; make the phase prove reach").
 **Disposition:** doc-wrong
 **Response:** PHASE-08 plants an untagged fence in a file it writes; the coverage test reads every `*.md` under `reference/` by enumeration; PHASE-06's example test enumerates the example directories and refuses an empty set; PHASE-10 re-reads I-1, I-2 and fence reach for any file it adds. *(Repair: PHASE-08/VA-2 plants an untagged fence in `scheduling.md`; PHASE-07/EX-1 and PHASE-08/VT-1 enumerate every `*.md` under `kit/` and `reference/`, and PHASE-06/VT-1 every example directory, each refusing an empty set; PHASE-10/VA-5 re-reads I-1, I-2 and fence reach. Siblings: I-2 is re-read where kit tests are added (PHASE-07/VA-6, PHASE-08/VA-3), and I-1/I-2 over the finished checker (PHASE-12/VA-1, VA-2).)*
 
-**Outcome:**
+**Outcome:** verified — Fence reach re-proven in a PHASE-08 file (PHASE-08/VA-2) and for PHASE-10's (VA-5); the coverage, example and fence tests enumerate and refuse an empty set; I-2 re-read at PHASE-07/VA-6, PHASE-08/VA-3, PHASE-12/VA-2; I-1 at PHASE-12/VA-1 and PHASE-10/VA-5.
 
 ### F-6 — I-5's test has no stated rule and no negative control, so a vacuous version passes
 
@@ -313,7 +332,7 @@ and states no rule for it.
 **Disposition:** doc-wrong
 **Response:** I-5's rule stated in the design (`design-log.md` 2026-10-01): an escaping relative path, or a mention of any other top-level repository entry, read at test time; negative control over an inline string. *(Repair: `design.md` §5.2.6 *The kit stands alone* and §5.5 I-5 state the rule, §9 adds `a_path_outside_the_kit_is_refused`; PHASE-07 gains EX-5, VT-5's enumeration and root guard, VT-6 (the negative control) and VA-5 (a planted escaping path). The rule adds a boundary so `kit/.claude-plugin/` is not a mention of the root's `.claude-plugin`.)*
 
-**Outcome:**
+**Outcome:** verified — `design.md` §5.2.6 *The kit stands alone* states the rule; PHASE-07/VT-6 is its negative control and VA-5 its reach proof. The rule itself raises F-22.
 
 ### F-7 — The discard witness has no red step and no mutation, so nothing shows it can fail
 
@@ -343,7 +362,7 @@ list is corrected, so the corpus gives the discard witness no red.
 **Disposition:** doc-wrong
 **Response:** A mutation flipping a `ScheduleError` arm outside its fixtures' lists reds the discard witness; the witness asserts it read a non-zero number of fixtures. *(Repair: PHASE-01/VA-4 flips `ScheduleError::NotAString` R-25 → R-3, reddening the discard witness on one fixture from each half; PHASE-01/VT-3 makes each witness refuse an empty set per corpus. PHASE-01's notes say the discard witness has no red step of its own.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-01/VA-4's `NotAString` R-25 → R-3 is outside both fixtures' lists ([R-21, R-25] and [R-25, R-51], checked against the tree), and VT-3 adds a per-corpus non-vacuity guard.
 
 ### F-8 — PHASE-04/VA-1's grep matches requirement ids in comments, which house style requires
 
@@ -367,7 +386,7 @@ crates/goad-emit/src/*.rs` finds:
 **Disposition:** doc-wrong
 **Response:** I-1's check reads non-comment code only. *(Repair: I-1's command, stated once under §Sequencing *Invariant reads*, drops whole-line comments and has each remaining hit read; PHASE-04/VA-1 and PHASE-12/VA-1 cite it.)*
 
-**Outcome:**
+**Outcome:** verified — *Invariant reads* drops whole-line comments, `///` and `//!` included, and records trailing comments. The R-56 condition's own `AtFault::` hit is F-27.
 
 ### F-9 — PHASE-02/EX-6's "no other `"host"` source literal remains in `crates/*/src`" is false by construction, and the rule is not carried to the probe
 
@@ -395,7 +414,7 @@ own verification.
 **Disposition:** doc-wrong
 **Response:** The rule is scoped to non-test code; PHASE-04's probe names `HOST_SOURCE`. *(Repair: PHASE-02/EX-6 scopes the rule to code outside comments and `#[cfg(test)]` modules, with each grep hit read and recorded; PHASE-12/EX-1 has the probe's event source be `HOST_SOURCE`, and I-1's command greps for a `"host"` literal.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-02/EX-6 is scoped to non-test code with each hit read; PHASE-12/EX-1 has the probe name `HOST_SOURCE`, and I-1's command catches a `"host"` literal.
 
 ### F-10 — PHASE-02/EX-4 says `view_model.rs`' `as_drawn` tests stay unchanged; EX-7 forces them to change
 
@@ -421,7 +440,7 @@ as_drawn_answers_every_kind`.
 **Disposition:** doc-wrong
 **Response:** EX-4 names the tests that change; the choice expectation is the fixture's literal id, not `alternatives.first()`. *(Repair: PHASE-02/EX-4 names the two tests EX-7 reaches, `a_choice` and `as_drawn_answers_every_kind`, and makes the choice expectation the fixture's literal id `"first"`.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-02/EX-4 uses the fixture's literal id; `view_model.rs`' `a_choice` fixture's first alternative is `{ "id": "first" }`, and `AlternativeId::as_str` makes the comparison writable from `goad`.
 
 ### F-11 — G1's `From<Submitted> for Edited` in `draft.rs` "through the existing `adjusted`" cannot reach it; the plan does not say which moves
 
@@ -449,7 +468,7 @@ imports `use crate::draft::{Edited, Finite, Reported};`.
 **Disposition:** doc-wrong
 **Response:** The conversion is a private `as_edited` in `view_model.rs` beside `adjusted` (`design-log.md` 2026-10-01). *(Repair: `design.md` §5.2.4 places a private `as_edited` in `view_model.rs` beside `adjusted` and moves the round trip to `view_model.rs`' tests, §9 naming it; PHASE-02/EN-2 and EX-3 follow it, and new PHASE-02/VT-4 holds the round trip, VT-3 keeping only the projection.)*
 
-**Outcome:**
+**Outcome:** verified — `design.md` §5.2.4 and PHASE-02/EX-3 put a private `as_edited` beside `adjusted`, keep `draft.rs` free of `view_model`, and move the round trip to `view_model.rs` (VT-4).
 
 ### F-12 — "Their surfaces are disjoint by file" is false for PHASE-01..PHASE-03, and for PHASE-11 beside PHASE-06..PHASE-08
 
@@ -472,7 +491,7 @@ only)", and PHASE-02 §Surfaces ends the same way. `notes.md` §Status is a sing
 **Disposition:** doc-wrong
 **Response:** Parallel running requires the orchestrator to own `notes.md` §Status and to make `canon-delta.md` test-name edits at merge; sequential stays the default. *(Repair: §Sequencing's parallel paragraph says `notes.md` and `canon-delta.md` are shared, and that a phase run in parallel writes neither §Status nor `canon-delta.md`, the orchestrator applying both at merge; PHASE-11's note cites the rule.)*
 
-**Outcome:**
+**Outcome:** verified — §Sequencing now says which files are shared and gives the orchestrator the §Status and `canon-delta.md` edits at merge; PHASE-11's note points at the same rule. What the rule leaves is F-26.
 
 ### F-13 — PHASE-04 is the slice's largest code phase, and it is not split or given a checkpoint
 
@@ -500,7 +519,7 @@ PARTIAL checkpoint would leave a compiling, green tree.
 **Disposition:** doc-wrong
 **Response:** Split: the run itself becomes PHASE-12 (`design-log.md` 2026-10-01). *(Repair: PHASE-04 keeps the crate, both command forms, the steps before the first exchange (new EX-7), the report writer (EX-3 narrowed), the statuses and the status-2 cases (VT-2 narrowed); the run moves to new PHASE-12. PHASE-04/EX-2 and VT-3 are removed, now PHASE-12/EX-1 and VT-3; the diagram, rationale, Coverage, §9 table and PHASE-05/EN-1 are updated.)*
 
-**Outcome:**
+**Outcome:** verified — The split resolves: every `PHASE-04/…` and `PHASE-12/…` citation in `plan.md`, `notes.md` and `design-log.md` names a criterion that exists (grep of `PHASE-(04|12)/[A-Z]{2}-[0-9]+`), and the §9 table splits the binary cases by phase. The interim state on `main` raises F-23.
 
 ### F-14 — PHASE-06/VT-1 accepts an example that never asks anything
 
@@ -523,7 +542,7 @@ answered" of a walk; VT-1 does not require it of an example.
 **Disposition:** doc-wrong
 **Response:** Each example's gate test also asserts at least one view answered. *(Repair: PHASE-06/VT-1 also asserts each report shows a view answered, and PHASE-06/VA-5 makes an example silent to show it reds; PHASE-06's notes say why each example speaks at any hour.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-06/VT-1 asserts a respond line and no no-view line; VA-5's silent-example mutation reds it.
 
 ### F-15 — Run-sequence and structural properties of the checker have no criterion
 
@@ -553,7 +572,7 @@ status through one `ExitCode::from(2)` that reads no cause") and the R-15 row
 **Disposition:** doc-wrong
 **Response:** Cases or VA reads for each named property. *(Repair: PHASE-12/VT-1 adds `a_backend_failing_at_startup_is_still_asked_the_rest` and `event_files_are_sent_in_the_order_given`; PHASE-12/EX-5 and VA-3 hold no socket and no environment change; PHASE-04/VA-6 and PHASE-12/VA-4 read `main` for R-13 and R-15.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-12/EX-2, EX-5, VT-1's two added cases, VA-3's grep; PHASE-04/EX-4 and VA-6, re-read at PHASE-12/VA-4.
 
 ### F-16 — Parts of the reference's contract are stated in exits but held by nothing
 
@@ -580,7 +599,7 @@ non-digit boundary.
 **Disposition:** doc-wrong
 **Response:** The coverage test requires each id in a heading line under `reference/`; PHASE-08 criteria for "the specs are not shipped" and "nothing host-internal". *(Repair: PHASE-08/VT-1 counts an id only in a heading line under `reference/`, and VT-2's negative control adds a body-only id; PHASE-07/EX-3 puts each id in a heading; PHASE-08/EX-5 and VA-1 hold the specs-not-shipped statement and nothing host-internal across every reference file.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-07/EX-3 puts each id in a heading line, PHASE-08/VT-1 counts only heading lines under `reference/`, VT-2 controls it; PHASE-08/EX-5 and VA-1 hold the not-shipped statement and host-internal reading. The heading rule raises F-24, and its id set F-25.
 
 ### F-17 — The recipe changes before the policy, against POL-001's letter, and the plan does not say it overrides it
 
@@ -611,7 +630,7 @@ depart from. The consequences:
 **Disposition:** doc-wrong
 **Response:** `plan-log.md` 2026-10-01, *plan review round 1: dispositions*, supersedes PL-4's rationale and names the POL-001 sentence departed from; the recipe comment is true at each step; VA-1 wording corrected. *(Repair: PHASE-03/EX-3 names the POL-001 §Statement sentence departed from and cites `plan-log.md` 2026-10-01, *plan review round 1: dispositions*; its comment and PHASE-06/EX-3's are true at each step; PHASE-03/VA-1 and PHASE-06/VA-1 compare against POL-001's block with one line replaced. §Owed to audit notes Change 1 ends the departure.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-03/EX-3 names the departure and its reason (`plan-log.md` supersedes PL-4's rationale); VA-1 in PHASE-03 and PHASE-06 compares against POL-001's block with one line replaced; each step's comment is true of that step.
 
 ### F-18 — `goad-check`'s tests grow FU-5's class beyond the fence scanner, and the plan names only the scanner
 
@@ -643,7 +662,7 @@ target can include without the scripted-backend helpers".
 **Disposition:** doc-wrong
 **Response:** The scanner moves to `tests/support/`, shared with `round_trip.rs`; the binary tier includes existing support files where they fit; any forced copy named in FU-5's extension (`design-log.md` 2026-10-01). *(Repair: `design.md` §5.2.6 moves the scanner to `tests/support/`, shared with `round_trip.rs`, and states the binary tier's include rule; PHASE-07 §Surfaces, EX-4, VT-7 and VA-4, and PHASE-04/VA-7 and PHASE-12/VA-7 carry it; `notes.md` §Open's FU-5 bullet is corrected.)*
 
-**Outcome:**
+**Outcome:** verified — `design.md` §5.2.6 shares the scanner from `tests/support/`; PHASE-07/EX-4, VT-7, VA-4; PHASE-04/VA-7 and PHASE-12/VA-7 name any copied helper in `notes.md` §Open's FU-5 row.
 
 ### F-19 — Phase surfaces omit files the phase's own rules may have it edit
 
@@ -667,7 +686,7 @@ comment above `[dependencies]` in `crates/goad/Cargo.toml`.
 **Disposition:** doc-wrong
 **Response:** Surfaces added. *(Repair: PHASE-03 §Surfaces gains `canon-delta.md` (VT-1 says when it changes); PHASE-02 §Surfaces gains `crates/goad/Cargo.toml`, and EX-5 its comment. Sibling: PHASE-12 and PHASE-07 list their shared and `canon-delta.md` surfaces.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-03 §Surfaces gains `canon-delta.md` with VT-1's re-point clause; PHASE-02 §Surfaces gains the manifest comment, and EX-5 holds it.
 
 ### F-20 — Counts of open lists in the plan's own text
 
@@ -686,7 +705,7 @@ reference and the examples are open lists, and PHASE-10 may add to either.
 **Disposition:** doc-wrong
 **Response:** Counts replaced by names. *(Repair: the counts named in the finding are replaced by names, and a sweep replaced the rest over open lists — the fixture lists, the example directories, the marketplace manifests, the pending packages, the reference files and the statuses.)*
 
-**Outcome:**
+**Outcome:** verified — A rescan finds only closed or finished counts (`two phases`, `two --event files`, the four sides, two for `InapplicableKey`).
 
 ### F-21 — Small inaccuracies in the plugin and package criteria
 
@@ -710,6 +729,172 @@ revision;`); `crates/goad-emit/src/main.rs`
 
 **Disposition:** doc-wrong
 **Response:** All three corrected. *(Repair: PHASE-05/VA-1 checks `$CODEX_HOME/plugins/cache/`; PHASE-11/EX-2 spells `claude -p`; PHASE-05/EX-1 checks the built `--version` prints the revision.)*
+
+**Outcome:** verified — PHASE-05/VA-1 reads `$CODEX_HOME/plugins/cache/`; PHASE-11/EX-2 has `-p`; PHASE-05/EX-1 and PHASE-04/EX-8 carry `GOAD_REVISION`.
+
+### F-22 — I-5's rule reads whatever the checkout holds, and refuses consumer paths that name nothing in this repository
+
+**Severity:** minor
+**Location:** `design.md` §5.2.6 *The kit stands alone*; `plan.md` PHASE-07/VT-5, VT-6
+
+**Expected:** A gate test's verdict is a property of the committed tree, and
+I-5 refuses a reference to *this repository's* paths outside `kit/`.
+**Observed:** The repair was flagged for a second look, and the evidence
+supports two problems.
+- **The verdict depends on the checkout.** "The root's entries are read when
+  the test runs" means the entries of the working directory, and that
+  includes untracked and ignored ones. The same commit can therefore pass on
+  a clean clone and fail here, or the reverse, depending on what local
+  scratch directories exist.
+- **It refuses generic paths.** The rule refuses any `<name>/` whose `<name>`
+  is a root entry. Several root entries share names with paths a backend
+  author's own project uses, and these name nothing in this repository:
+  - `.claude/`, e.g. a project's `.claude/skills/`, is an entry here, since
+    the checkout holds `.claude/worktrees/`.
+  - `tests/` and `docs/`.
+  - `.claude-plugin/`, which the kit itself contains as
+    `kit/.claude-plugin/`. The rule exempts that spelling only when a path
+    character precedes it. SKILL.md or an install line that writes
+    `` `.claude-plugin/plugin.json` `` in backticks is refused.
+
+  None of these is a reference to a path outside `kit/`.
+**Evidence:** `comm -23 <(ls -A | sort) <(git ls-files | cut -d/ -f1 | sort -u)`
+at the repository root → `.claude .direnv .envrc .git goad-demo.sock
+goad-demo.sock.lock spike-fields target`. Any of these, and any directory a
+developer adds, joins the refused set on that machine only. `flake.nix` sets
+`doCheck = false` on every derivation, so the test runs only in a checkout.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-23 — Between PHASE-04 and PHASE-12, `main` carries a checker that accepts every backend without running it
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-04/EX-3, EX-4; §Sequencing *Why the checker is two phases*
+
+**Expected:** Every commit on `main` is green, and green means something true
+about the binary. SPEC-004's draft R-11 reads 0 as "the host reported
+nothing" of what the checker sent (`canon-delta.md` SPEC-004 Change 4:
+"would have reported nothing for the requests the checker sent").
+**Observed:** PHASE-04 ends with "a run that makes no exchange". Its report
+is the no-view line and a verdict, so `goad-check --config <anything
+loadable>` exits **0, accepted** without spawning the command. That includes a
+command that does not exist, which PHASE-12 reports as `Spawn`, status 1.
+Nothing in PHASE-04 refuses this state or marks it: EX-3 says "no test asserts
+a status-0 or status-1 verdict". The plan's own PARTIAL rule (§Sequencing
+*Size*) lets PHASE-12 span sessions, and this binary is what `main` ships
+while it does. An interim run that ends with no verdict, status 2, would be
+true and would need no rework later.
+**Evidence:** `plan.md` PHASE-04/EX-3 ("Until PHASE-12 a run makes no
+exchange, so its report is the no-view line and the verdict"); §Sequencing
+("It ends green, with a run that makes no exchange"); PHASE-12/VT-1's
+`an_unspawnable_command_is_reported_against_the_configuration`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-24 — PHASE-08/VT-1 counts an id in "a Markdown heading line", and a `#` comment inside a fenced block reads as one
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-08/VT-1, VT-2; PHASE-07/EX-3
+
+**Expected:** The coverage test finds an id only where a reader finds its
+explanation: at a heading (F-16's repair).
+**Observed:** The repair was flagged for a second look. The reference's
+fences are full of lines that begin `#`: `toml goad:config` blocks, and the
+examples' shell and Python code that the reference shows. A `# SPEC-001/R-36`
+comment in a TOML fence is a "line beginning `#`". A line-based reading
+counts it as a heading, and no explanation exists there. VT-1 does not say
+that fenced lines are skipped, although the shared scanner (PHASE-07/EX-4)
+already knows where fences are. VT-2's control holds body text and not a
+fenced comment, so an implementation that counts fenced `#` lines passes it.
+There is also a smaller gap. PHASE-07/EX-3 asks for "each id in a heading
+line **of its own**", but VT-1 counts every id in any heading, so one heading
+naming five ids satisfies the test.
+**Evidence:** `plan.md` PHASE-08/VT-2's inline string: a heading, an absent
+id, and body text, with no fence. `design.md` §5.2.6's role table: the
+`toml goad:config` role, whose TOML comments start with `#`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-25 — The coverage test's id set omits R-56, which the checker's own report prints
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-08/VT-1, EX-5; `design.md` §5.2.2, §5.2.6
+
+**Expected:** PHASE-08/EX-5 has the reference say "that every id a report
+prints is explained in the reference itself", and F-32's point is that a
+report line leads a reader straight to its explanation.
+**Observed:** VT-1's set is "every requirement a refusal can name", built from
+one instance per taxonomy variant. The checker also prints `SPEC-001/R-56`
+on the probe's condition, and that id is the checker's own claim, not any
+variant's answer. No variant answers R-56, so the gate never requires it in
+the reference. EX-5's statement is then held for R-56 only by VA-1's reading.
+**Evidence:** `design.md` §5.2.3's table has no row answering R-56.
+`design.md` §5.2.5's sample report prints `backend  SPEC-001/R-56  a backend
+MUST tolerate a kind it does not recognise`. PHASE-12/EX-3 prints "the R-56
+line only on its condition".
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-26 — The parallel rule still has every parallel phase append a phase sheet at one place in `notes.md`
+
+**Severity:** minor
+**Location:** `plan.md` §Sequencing (*PHASE-01, PHASE-02 and PHASE-03 may run in parallel*); PHASE-11 notes
+
+**Expected:** F-12's repair: a phase run in parallel leaves the shared files
+to the orchestrator at merge.
+**Observed:** The rule moves each parallel phase's status and test-name
+changes "in its own phase sheet", and phase sheets live in `notes.md` under
+`## Phase sheets` (`docs/AGENTS.md` §Phase plan). Two or three worktrees
+therefore each append a sheet after the same template block. Git then reports
+overlapping hunks at the same location in the same file, and the orchestrator
+has to resolve them by hand. The rule claims `notes.md` is taken out of the
+parallel phases' hands, but it moves the writes rather than removing them.
+**Evidence:** `notes.md` §Phase sheets holds one template block, `### PHASE-01
+— <name>`, and nothing after it but `## Harvest`, so every new sheet lands
+there.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-27 — Loose ends in the repaired criteria
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-12/VA-1, PHASE-12 §Surfaces, PHASE-05 §Surfaces, PHASE-08/EX-2
+
+**Expected:** Criteria that the intended code meets as written.
+**Observed:**
+- PHASE-12/VA-1 says "the only hit outside a comment is the R-56 probe's
+  claim". The R-56 *condition* ("only when its `fault()` is backend",
+  `design.md` §5.2.2) compares with `AtFault::Backend` and is a second hit on
+  I-1's grep. Its wording should name the condition as well.
+- PHASE-12's binary cases read a backend's log of request kinds
+  (`a_backend_failing_at_startup_is_still_asked_the_rest`,
+  `event_files_are_sent_in_the_order_given`). If parsing that log needs a
+  dev-dependency, `crates/goad-check/Cargo.toml` is not in PHASE-12's
+  surfaces.
+- PHASE-05's marker line has no stated fate. PHASE-08/EX-2's finished
+  `SKILL.md` "routes and does not teach", which implies the marker goes, but
+  neither PHASE-08 nor PHASE-11 says whether it stays for any later load
+  check.
+**Evidence:** `plan.md` PHASE-12 §Surfaces (`src/`, `tests/binary/`,
+`canon-delta.md`); PHASE-05 §Surfaces (the marker); PHASE-08/EX-2.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
