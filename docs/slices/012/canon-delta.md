@@ -11,7 +11,8 @@ this delta touches is either replaced or justified as exempt. Test names are
 placeholders from `design.md` §9. At audit each is re-pointed to the symbol
 that shipped. Nothing here cites a line number.
 
-Entries marked *(pending OQ-n)* depend on an open question in `design.md` §6.
+`design.md` §6's questions are settled (`design-log.md`, 2026-09-29); the
+entries below state their outcomes.
 
 ---
 
@@ -32,8 +33,6 @@ reports the claim is not canon.
 
 > | R-59 | Every refusal the host reports — each distinct error R-44 requires, each discarded instruction R-25 requires, each cleanup failure R-54 requires, and each answer refused under R-32 — MUST name the **side at fault** and the **requirement** of this spec it concerns, and anything that reports such a refusal to a person MUST carry both. The side is one of **backend**, the backend sent or did something this spec refuses; **configuration**, the user's configuration named something the host could not use, such as a command it cannot spawn; **host**, the host's own code failed an obligation this spec places on it; **environment**, the operating system failed the host, or the host observed a condition it cannot attribute to either program. For a backend or configuration side, the requirement is the one broken. For a host or environment side, nobody broke a requirement, and it is the host obligation the refusal left undischarged. The id is a property of the refusal's kind and not of the instance, so one kind names one requirement; where one kind is required by two requirements to be the same error — R-53's `fields` on an alternative, which R-53 requires to be refused as R-50's error is — the requirement is read off what the error names. What a refusal names is fixed here; how it is worded is not. | §7 |
 
-*(pending OQ-1: the "left undischarged" sentence stands only if `design.md`
-OQ-1 resolves to (a).)*
 
 ### Change 2 — §7: R-59's row
 
@@ -77,15 +76,13 @@ workspace rather than across one crate.
 **As it will be stated.** Replace the opening through "…in both directions."
 with:
 
-> unit, at the **single site** a submitted value is written: `Submitted::to_json` (`crates/goad-semantics/src/protocol/canonical.rs`), a total match over `Submitted`, whose variants are `FieldKind`'s one for one, tested by `canonical.rs::tests::every_submitted_kind_writes_the_json_type_r57_names`. Both writers go through it: the renderer's `draft::submitted` (`crates/goad/src/draft.rs`) projects its widget state onto `Submitted` and decides no type — `draft.rs::tests::the_projection_to_submitted_is_the_identity_on_each_kind` — and the checker builds `Submitted` directly.
+> unit, at the **single site** a submitted value is written: `Submitted::to_json` (`crates/goad-semantics/src/protocol/canonical.rs`), a total match over `Submitted`, whose variants are `FieldKind`'s one for one, tested by `canonical.rs::tests::every_submitted_kind_writes_the_json_type_r57_names`. Both writers go through it: the renderer's `draft::submitted` (`crates/goad/src/draft.rs`) projects its widget state onto `Submitted` and decides no type — `draft.rs::tests::the_projection_to_submitted_is_the_identity_on_each_kind` — and the checker builds `Submitted` directly. What a field nobody touched submits is `Submitted::as_drawn`, which both writers share.
 
 Replace the closing sentence ("The site that must change when the *protocol*
 grows a sixth kind is not this match…") with:
 
 > The site that must change when the *protocol* grows a sixth kind is this match's type, `Submitted`, which must gain a variant before `to_json` compiles — and, for the renderer, the `FieldKind` arm in `view_model.rs::drawn_form`, which must sort the new kind into drawn or `Undrawn::FieldForm`.
 
-*(pending OQ-2: if (a), add "and what a field nobody touched submits is
-`Submitted::as_drawn`, which both writers share".)*
 
 ### Change 5 — §7: the paragraphs about rows held by review
 
@@ -162,8 +159,6 @@ After R-7, add:
 > | R-14 | Every non-zero exit R-9, R-10, R-12 or R-13 assigns MUST be accompanied by a line on standard error, naming the binary that wrote it and what happened, as the last line that binary writes there. The exception is an end this document does not assign — a signal, or a panic in the binary's own runtime — which §5 bounds for the host and which is bounded here in the same terms. | §7 |
 > | R-15 | Neither binary may exit with a status this document does not define, save for an end it does not choose. Admitting a new status is an amendment here first. | §7 |
 
-*(pending OQ-5: R-11 and R-12 include cleanup failures; if OQ-5 resolves to 0,
-both clauses drop "or cleanup failure".)*
 
 ### Change 4 — §6: the other binaries' tables
 

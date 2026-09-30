@@ -84,3 +84,7 @@ after the slice closes is lifted into the Harvest section.
 - **The jail library fixes the home per profile.** 012 binds a launcher-made
   home over `$HOME` locally; a home-name parameter upstream in
   `davidlee/nix-config` is cleaner (design.md §6 OQ-7). Candidate follow-up.
+- **An untouched `number` field can submit a value outside its own range.**
+  `view_model::as_drawn` answers min-or-zero, so `max: -10` with no `min`
+  submits `0`. Existing host behaviour; the checker mirrors it (design.md §5.5
+  edges). Candidate follow-up against the renderer.

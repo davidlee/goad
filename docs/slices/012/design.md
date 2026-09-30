@@ -7,8 +7,8 @@
 
 **Status:** draft, for section-by-section presentation. Every decision cites
 its `design-log.md` entry by date and question id. Where the design
-conversation did not settle something, it is in §6 with options and a
-recommendation, and the text elsewhere marks the dependency *(pending OQ-n)*.
+conversation did not settle at drafting is in §6 with its options; all of it
+is now settled (`design-log.md`, 2026-09-29).
 
 ## 1. Design problem
 
@@ -126,7 +126,7 @@ flowchart TB
   subgraph S1["stratum 1 — goad-semantics"]
     ERR1["error: ProtocolError / BoundsError / ScheduleError<br/>+ requirement() + fault()<br/>Requirement, AtFault"]
     STIM["canonical::Stimulus (moved from goad)"]
-    SUB["canonical::Submitted + Finite (R-57, moved)<br/>Submitted::as_drawn (pending OQ-2)"]
+    SUB["canonical::Submitted + Finite (R-57, moved)<br/>Submitted::as_drawn"]
   end
   subgraph S2["stratum 2 — goad-shell"]
     ERR2["error: BackendError / CleanupFailure / StateError<br/>+ requirement() + fault()"]
@@ -209,7 +209,7 @@ sequenceDiagram
     H-->>C: Outcome {view, discarded, failure, cleanup, stderr}
     C->>C: report the exchange
     opt Outcome carries a view
-      C->>C: choose the first option; values = Submitted::as_drawn per field (pending OQ-2, OQ-3)
+      C->>C: choose the first option; values = Submitted::as_drawn per field
       C->>H: respond(now, view_id, UserResponse)
       H->>B: spawn, write respond, read response
       H-->>C: Outcome — report; answer again while a view comes back, bounded
@@ -237,7 +237,7 @@ step, and `data` is `null`, as `Stimulus::event` builds it.
   `Host::respond`, using the minted `view_id`. The host therefore enforces
   interaction identity (R-32) itself.
 - The answer is **one option**, with a value for exactly that option's fields
-  (R-58), each built as `Submitted` (R-57) *(pending OQ-2, OQ-3)*.
+  (R-58), each built as `Submitted` (R-57).
 - A backend may chain views: a respond that returns a new view. The checker
   keeps answering until a respond returns `view: null` or a failure, up to a
   **chain bound of 8** per request. Hitting the bound is reported as a
@@ -279,7 +279,7 @@ method `fault()` answers *who*.
 **Meaning of the id.** For a backend- or configuration-side refusal, the id is
 the requirement that was broken. For a host- or environment-side one, the id is
 the host obligation the refusal left undischarged, because no author broke
-anything *(pending OQ-1 for the two rows it affects)*.
+anything.
 
 **The table.** Variants are verified against the enums at 7388b5c. The
 fixture column lists each error fixture's `requirement` array as it stands.
@@ -395,7 +395,7 @@ red step, and the list correction is the green one.
   - `draft.rs::tests::a_boolean_field_submits_a_json_boolean` and its siblings
     move to stratum 1 against `Submitted`. `goad` keeps one test that the
     projection is the identity on each variant.
-- **`Submitted::as_drawn(&FieldKind) -> Submitted`** *(pending OQ-2)*. This is
+- **`Submitted::as_drawn(&FieldKind) -> Submitted`**. This is
   what a field nobody touched submits: `false`, `""`, the minimum or `0`, the
   first alternative, and the epoch at `+00:00`. It is today's
   `view_model::as_drawn`.
@@ -436,7 +436,7 @@ verdict: 1 exchange refused
 | 1 | **refused** | every planned exchange ran and the host reported at least one refusal, discard or cleanup failure. This includes `Spawn` and the R-56 probe. |
 | 2 | **not judged** | the checker never reached its first exchange: a usage error, a configuration it cannot find or parse, an event file it cannot read or that `envelope::normalize` refuses, an unreadable clock, or no runtime. |
 
-- A cleanup-only report counts as 1 *(pending OQ-5)*.
+- A cleanup-only report counts as 1.
 - Status 2 always has a `goad-check: …` line on stderr (SPEC-004 P-B).
   Status 1 ends with a one-line summary on stderr.
 
@@ -588,16 +588,17 @@ Stale counts found while tracing, to be fixed where they are touched:
   no wrapper and no `guiLibs`, as `goad-emit` has.
 - **`packages.goad-kit`**: `lib.cleanSourceWith` over `./kit` only, copied to
   `$out`, so the store path is the plugin root.
-- **The devshell** adds `python3`, `jq` and `inotify-tools` to `projectPkgs`
-  (endorsed 2026-09-26). `ruby` goes into the consumer jails only.
+- **The devshell** adds `python3` and `jq` to `projectPkgs` (endorsed
+  2026-09-26; `inotify-tools` dropped 2026-09-30, A-4). `ruby` goes into the
+  consumer jails only.
 - **`jailed-consumer-claude`, `jailed-consumer-codex`**: built with `mkJail`'s
   makers and a **consumer option set**, not `jailEnvOptions`:
-  - `extraPkgs`: `goad-check`, `goad-emit`, `goad` (pending OQ-8), `ruby`,
+  - `extraPkgs`: `goad-check`, `goad-emit`, `goad`, `ruby`,
     `jq`, and the agent. Not `projectPkgs`: no Rust toolchain, no deno, no
     Slint mount, no `goadHeadless`.
   - `extraOptions`: `apiKeysViaFd`, `CLAUDE_CODE_SHELL`, `set-env "GOAD_KIT"
     "${goad-kit}"`, which puts the kit in the closure, and a **walk-home
-    bind** *(pending OQ-7)*. The jail library fixes `persist-home "agent"` per
+    bind**. The jail library fixes `persist-home "agent"` per
     profile, and that home has held goad development sessions. The consumer
     jail binds a launcher-created empty directory over `$HOME` after the
     profile's options, so the later bind shadows the shared home.
@@ -952,7 +953,7 @@ the execute phase and recorded in `notes.md`:
 Drafted in `canon-delta.md`, applied at audit with endorsement:
 
 - **SPEC-001**: new R-59 (side and requirement on every refusal; the four
-  sides; the "left undischarged" reading, pending OQ-1). R-59's §7 row.
+  sides; the "left undischarged" reading). R-59's §7 row.
   R-56's row (tolerance now tested; the kind site moved). R-57's row (single
   site moved). §7's review-held paragraph rewritten to name its rows, not
   count them.

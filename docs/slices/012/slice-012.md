@@ -50,8 +50,8 @@ and demonstrable in under a minute from **Check now** or `goad-emit`:
 | Downloads triage | shell + `jq` | a user-owned `inotifywait` watcher emits each new file; the backend asks where it goes (a choice field) and moves it |
 | breadcrumbs | TypeScript (deno) | a context switch (shell `chpwd` or workspace hook) emits *leaving X*; the backend asks where you were, and shows the note back on return |
 
-`python3`, `jq` and `inotify-tools` join the devshell so the gate can run them
-(`design-log.md`, 2026-09-26).
+`python3` and `jq` join the devshell so the gate can run them (`design-log.md`,
+2026-09-26, 2026-09-30).
 
 Surfaces (settled in the design conversation, `design-log.md`; exact files
 are design's):
@@ -68,7 +68,7 @@ are design's):
 - `examples/` renamed; its referencing sites, including `goad-shell`'s
   integration tests and `justfile`.
 - `flake.nix` — `goad-kit` and `goad-check` packages, the consumer jails,
-  `python3`, `jq`, `inotify-tools`, `ruby`.
+  `python3`, `jq`; `ruby` in the consumer jails only.
 - **Canon**, drafted in `canon-delta.md`: SPEC-001 (requirement id and side
   at fault on each refusal; R-56's verification row), SPEC-004 (`goad-check`
   and `goad-emit`), POL-001 (the command block's `deno check` paths).

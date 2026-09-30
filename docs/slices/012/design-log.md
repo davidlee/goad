@@ -283,3 +283,22 @@ other, citing the finding id.
 - **Decided:** *"accept all nine"*.
 - **Consequence:** design.md §6 settled; its rows stand as drafted. Two
   follow-up candidates to `notes.md` §Open.
+
+### 2026-09-30 — design.md presented section by section
+
+- **Asked:** §1–§5.1 (framing, principles, system model); §5.2.1–5.2.3
+  (checker CLI, run sequence, the requirement/side table — judgement calls:
+  `Timeout` → backend, chain bound 8, `EnvelopeFault` without ids); §5.2.4–
+  5.2.6 (lifts, report and statuses 0/1/2, kit tree, tagged fences, examples —
+  drafting added: focus check asks for a focus when none is set; triage chains
+  through a queue); §5.2.7–§5.5 (rename to `exercisers/`, flake, consumer
+  jails, `just walk`, negative control, the walk prompt verbatim, recording,
+  re-walk rule, state, edges).
+- **Decided:** confirmed each (*"confirm"*, *"ok"*, *"ok"*, *"yep"*). With the
+  last: `inotify-tools` **dropped** from the devshell (A-4: event files stand
+  in for watchers in the gate; a person exercises `watch.sh` at audit),
+  superseding that part of the 2026-09-26 dependency entry; the walk prompt
+  accepted as worded; the untouched `number` value outside its own range
+  (`max: -10`, no `min` → `0`) raised as a follow-up against the renderer.
+- **Consequence:** design.md stands as presented. Next: §7–§10 review, then
+  adversarial design review.
