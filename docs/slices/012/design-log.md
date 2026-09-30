@@ -470,3 +470,18 @@ other, citing the finding id.
 - **Decided:** *"yes"*.
 - **Consequence:** `canon-delta.md` SPEC-001 Change 7; `design.md` §5.2.3
   `CleanupFailure::Io` rationale; ledger Responses on F-41..F-43.
+
+### 2026-09-30 — the design as a whole, after review
+
+- **Asked:** the design review ledger resolved (`review-design.md`, State
+  resolved at e4db7f5, Synthesis at 422aac8). The design changed through three
+  rounds since it was approved section by section; `docs/AGENTS.md` asks for
+  approval again. Summary put: R-59 reframed, four canon wording fixes (R-16,
+  R-45 and its §7 row, `CleanupFailure` split, `PipeMissing` → R-45), verdict-cut
+  statuses, the R-56 probe condition, the no-view line and AC-1's view, SPEC-004
+  governing `goad-emit` with its code fix, the capsule walk; the stated limits
+  (F-22, F-23, R-59's imprecision, R-45's reach) and what no round reached
+  (manifest validation, the examples' correctness).
+- **Decided:** *"yes. hand over for planning"* — `design.md` and
+  `canon-delta.md` approved as they stand at 422aac8.
+- **Consequence:** `slice-012.md` stage → plan. A fresh agent drafts `plan.md`.

@@ -1,6 +1,6 @@
 # Slice 012: the backend author's kit
 
-**Stage:** design
+**Stage:** plan
 **Tier:** 2 (full) — a new binary, the checker, enters SPEC-004's scope, and
 whatever the checker reports may need canon of its own.
 **Depends on:** —
