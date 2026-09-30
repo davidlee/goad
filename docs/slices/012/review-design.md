@@ -147,7 +147,7 @@ Outcomes on F-22 and F-34..F-40. Nothing else is in scope.
 | F-19 | minor | doc-wrong | verified |
 | F-20 | minor | doc-wrong | verified |
 | F-21 | minor | doc-wrong | verified |
-| F-22 | minor | doc-wrong | contested |
+| F-22 | minor | doc-wrong | verified |
 | F-23 | minor | doc-wrong | verified |
 | F-24 | minor | doc-wrong | verified |
 | F-25 | minor | doc-wrong | verified |
@@ -159,13 +159,16 @@ Outcomes on F-22 and F-34..F-40. Nothing else is in scope.
 | F-31 | minor | doc-wrong | verified |
 | F-32 | nit | doc-wrong | verified |
 | F-33 | major | doc-wrong | verified |
-| F-34 | major | doc-wrong | |
-| F-35 | major | doc-wrong | |
-| F-36 | minor | doc-wrong | |
-| F-37 | minor | doc-wrong | |
-| F-38 | minor | doc-wrong | |
-| F-39 | minor | doc-wrong | |
-| F-40 | nit | doc-wrong | |
+| F-34 | major | doc-wrong | verified |
+| F-35 | major | doc-wrong | verified |
+| F-36 | minor | doc-wrong | verified |
+| F-37 | minor | doc-wrong | verified |
+| F-38 | minor | doc-wrong | verified |
+| F-39 | minor | doc-wrong | verified |
+| F-40 | nit | doc-wrong | verified |
+| F-41 | minor | | |
+| F-42 | minor | | |
+| F-43 | nit | | |
 
 ### F-1 — R-59's meaning of the id is false of most rows of its own table
 
@@ -758,6 +761,8 @@ reference, including for a variant added later.
 
 **Response (round 3):** Disposition unchanged (`doc-wrong`); the repair is decided by the user (`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*, question 3): state the limit. `design.md` §5.2.6's coverage test no longer claims that a new variant "does not compile until it has an instance here". It states the limit in SPEC-003 §7 R-14's terms: a new variant fails to compile only where a match forces an arm; whether its author then adds an instance beside the arm — two for `InapplicableKey`, one per id it answers — is review, not an assertion; stable Rust cannot force it without a variant-enumerating derive (`strum`), which the user declined for now. The added direction is compile gate plus review. The derive is recorded as a candidate follow-up in `notes.md` §Open. The non-digit boundary for R-3 stands as round 1 repaired it.
 
+**Outcome (round 3):** verified — `design.md` §5.2.6 now states the limit in SPEC-003 §7 R-14's terms (compile gate on the arm, review on the instance, `InapplicableKey`'s two instances named), no longer claims a compile gate on the instance, and the derive is an owned candidate in `notes.md` §Open. The non-digit boundary stands. The round 2 `contested` above is superseded.
+
 ### F-23 — The corpus witness and the first mutation check are weaker than stated
 
 **Severity:** minor
@@ -1109,7 +1114,7 @@ only) and its doc on the grandchild case; SPEC-001/R-54.
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `CleanupFailure` → **backend**, under R-59's declared imprecision — the usual cause is the backend's own process tree, and naming the side on which a cause usually lies asserts no process state, so R-54 is not engaged. The **environment** side loses "or the host could not observe what it needed to" and is "the operating system failed the host" alone, so no side means "unknown" and `Timeout` no longer fits two. The imprecision's examples gain "a disposal the operating system delayed", and what the refusal carries is the limit it waited. `canon-delta.md` R-59; `design.md` §5.2.3 table, *Meaning of the id* and the `CleanupFailure` rationale; §6 OQ-5; the kit reference's side descriptions (`design.md` §5.2.6) point a reader at their own process tree for a cleanup failure.
 
-**Outcome:**
+**Outcome:** verified (round 3) — `TimedOut` → backend under the declared imprecision, `CleanupFailure::Io` → environment; the environment side is "the operating system failed the host" alone, so it no longer means *unknown* and `Timeout` fits one side; R-59 lists the loaded-machine disposal among its imprecisions, and `checking.md` points a reader at their own child processes. §6 OQ-5 agrees.
 
 ### F-35 — "R-44 only where no more specific requirement states one" is an instance rule applied to kinds, and is false of `Shape` and `Json`
 
@@ -1145,7 +1150,7 @@ lists (each pairs R-44 with R-3, R-11, R-13, R-15, R-19 or R-52);
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*), in the raiser's terms: R-44 is named where **the kind cannot tell** which more specific rule an instance broke — `Shape` (serde's coarse category), `Json` (R-17's literals and R-38's framing arrive alike), `DuplicateKey`, and `Spawn` (R-44's own list item). That is a statement about the kind, so it no longer contradicts "a property of the refusal's kind and not of the instance". `canon-delta.md` R-59; `design.md` §5.2.3 *Meaning of the id* and the `Json` rationale, which now names R-38 and R-17 as the rules the kind cannot tell apart.
 
-**Outcome:**
+**Outcome:** verified (round 3) — clause (ii) is a statement about the kind (`Json`, `Shape`, `DuplicateKey`), and its second half covers `Spawn` without calling a list item a rule. Checked against every §5.2.3 row: no row names R-44 where a more specific rule is stated for the kind.
 
 **Response (round 3):** Superseded in part by the R-59 reframe (`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*, question 1). The first half stands: R-44 is named where the kind cannot tell which more specific rule an instance broke (`Json`, `Shape`, `DuplicateKey`). `Spawn` no longer rests on it — "R-44's own list item" names the refusal, not a rule, since no rule says a command must be spawnable — so R-59's R-44 clause gains a second half: "or where R-44's list is the only requirement that names the refusal". That covers `Spawn`, and `DuplicateKey` on a key that is not an id. `canon-delta.md` SPEC-001 Change 1; `design.md` §5.2.3 *Meaning of the id* (clause (ii)) and the `Spawn` and `DuplicateKey` rationale.
 
@@ -1176,7 +1181,7 @@ resolution); `crates/goad-shell/tests/integration/round_trip.rs`
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): the checker spawns exactly as the host does, from its own working directory, and says so. `design.md` §5.2.1 states that a relative program or argument is resolved against the directory the checker was started in, as the host resolves it against its own; §5.2.6: the gate test and the README both start the checker from the example's directory, and the README says a desktop-launched host needs `command` made absolute; the `rooted_at_the_workspace` citation is dropped as not a precedent. §5.2.9: the guest verdict is run from `/work/goad-walk`, the directory the agent checked from, and the person-run's rewrite covers any relative path.
 
-**Outcome:**
+**Outcome:** verified (round 3) — §5.2.1 states that the checker resolves a relative program or argument against its own working directory as the host does; §5.2.6 starts the gate test and the README from the example directory and tells a desktop user to make `command` absolute; the `rooted_at_the_workspace` citation is gone.
 
 ### F-37 — A re-walk sees kit fixes only after `goad-walk`'s lock is bumped, and the design does not say so
 
@@ -1199,7 +1204,7 @@ recorded* and *Re-walk rule*.
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `design.md` §5.2.8 *A walk* and §5.2.9 *Re-walk rule*: before a re-walk, `goad-walk`'s `flake.lock` is updated to the goad revision carrying the kit fixes and committed to its `main`; `walks.md` records the pinned goad revision on every walk row, so a re-walk on the old lock is visible as one.
 
-**Outcome:**
+**Outcome:** verified (round 3) — §5.2.8 and §5.2.9 require the lock bump before a re-walk, and `walks.md` records the pinned goad revision on every row.
 
 ### F-38 — After U8, `EmptyAlternatives` names a requirement that states no rule it enforces
 
@@ -1226,7 +1231,7 @@ it one of the lists edited to agree with the code.
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*) **reverses U8**: `canon-delta.md` SPEC-001 gains a change to R-16 — "a `choice` field MUST carry its own `options`, **at least one**, whose shape R-53 constrains" — a wording fix, since the host already refuses. `EmptyAlternatives` → R-16; the fixture `R-52-a-choice-field-with-no-alternatives`'s list gains R-16 (the round 1 R-44 addition is dropped). `design.md` §5.2.3 row and rationale, §6 OQ-6, §10; the R-16 follow-up in `notes.md` §Open closes; `slice-012.md` §Surfaces names the R-16 change.
 
-**Outcome:**
+**Outcome:** verified (round 3) — SPEC-001 Change 6 adds *at least one* to R-16 and names the fixture and `canonical.rs::an_empty_alternatives_is_rejected_as_alternatives_never_as_options` (which exists) in the §7 row; `EmptyAlternatives` → R-16 is clause (i); the fixture list gains R-16; `notes.md` closes the follow-up.
 
 ### F-39 — `PipeMissing` → R-45, though its own doc says it is not a backend failure
 
@@ -1248,7 +1253,7 @@ write/wait/read failures are not the backend's either.
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `PipeMissing` → **host**, **R-37** — the host asked for the pipe that carries the request R-37 requires it to write and close, and only a host defect removes it; R-37 is the rule the host refused under. R-59's R-45 clause now covers `Io` alone, and is reworded so its subject is the exchange failure no requirement makes a refusal (the host reports it and stays able to invoke the backend again) rather than a "backend failure". `canon-delta.md` R-59; `design.md` §5.2.3 row, *Meaning of the id*, the `Io`/`PipeMissing` rationale, §6 OQ-1.
 
-**Outcome:**
+**Outcome:** verified (round 3) — `PipeMissing` → R-45, host, under clause (iii); Change 7 rewords R-45 to any failure of an exchange whichever side caused it, so R-45 governs it by its letter. The R-45 row edit is F-41 and F-42.
 
 **Response (round 3):** Round 2's repair is reversed (`design-log.md` 2026-09-30, *R-59 reframed; PipeMissing; F-22; round 2's unbriefed repairs*, question 2). `PipeMissing` → R-37 was false: R-37 governs the request the stdin pipe carries, not the presence of a pipe, and the variant is raised for any of the three handles. `PipeMissing` → **R-45**, side host, under R-59's clause for a failure of an exchange that no requirement names; `Io` stays there, side environment. The finding's mechanism — R-45's subject is "backend failure", which neither variant is — is met at the source: `canon-delta.md` SPEC-001 Change 7 rewords R-45 to "No failure of an exchange with the backend, whichever side caused it, may terminate the host, and none may leave it unable to invoke the backend again", a wording fix since `Host` already returns every transport error through one path, and its §7 row states that its witness does not reach `Io` or `PipeMissing`. `canon-delta.md` SPEC-001 Change 1 and Change 7; `design.md` §5.2.3 table, *Meaning of the id* (clause (iii)), the `PipeMissing` and `Io` rationale, §6 OQ-1, §10.
 
@@ -1268,7 +1273,7 @@ does not make the doc true.
 **Disposition:** doc-wrong
 **Response:** Held. (`design-log.md` 2026-09-30, *design review round 2: dispositions*): `design.md` §5.2.1's opportunity note names both routes to an empty command — the public `Command::new` and the public `program`/`arguments` fields — and says the doc is made true only by closing both.
 
-**Outcome:**
+**Outcome:** verified (round 3) — §5.2.1 names both routes, `Command::new` and the public fields.
 
 ### Round 2 — what holds
 
@@ -1309,3 +1314,125 @@ Checked against the artefacts at `ea1108d` and the source, and found sound:
 
 Open after round 2: F-22 (contested), F-34..F-40. Not reached: the plugin
 manifests' validation (unchanged since round 1).
+
+## Round 3
+
+**Round 3** — raiser: the kept raiser, at `cc9f9af`. Outcomes: F-22 and
+F-34..F-40 verified. New findings follow.
+
+### F-41 — The new R-45 §7 sentence says the witness reaches every failure a test can provoke; it does not reach `Spawn`
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-001 Change 7, the sentence added to R-45's §7 row ("Its witness reaches the failures a test can provoke; `Io` and `PipeMissing`, which no test provokes, reach the caller through the same `Host::no_action` path…")
+
+**Expected:** R-45, reworded to any failure of an exchange "whichever side
+caused it", now covers `Spawn` (side configuration). The row names what its
+witness does not reach.
+
+**Observed:** The witness, `failure_matrix.rs::one_host_survives_every_misbehaving_backend_and_still_works`,
+runs `PROTOCOL_MODES` and `TRANSPORT_MODES`; the transport modes are `@hang`,
+`@flood`, `@exit1` and `@garbage`. None is a spawn failure. Yet a spawn failure
+is provoked by a test — `failure_matrix.rs::a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure`
+— just not inside the one-host survival run. So "reaches the failures a test
+can provoke" is false of `Spawn`, and the row names only `Io` and
+`PipeMissing` as unreached. Before the rewording, `Spawn` was arguably no
+*backend* failure and outside R-45; the rewording brings it in.
+
+**Evidence:** `crates/goad-shell/tests/integration/failure_matrix.rs`:
+`TRANSPORT_MODES`, `one_host_survives_every_misbehaving_backend_and_still_works`,
+`a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure`;
+`canon-delta.md` SPEC-001 Change 7.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-42 — Change 7 edits R-45's §7 row and leaves its counts, one of which is already false
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-001 Change 7 (R-45's §7 row "gains, at its end"); the delta's header count rule
+
+**Expected:** The delta's header: "Every count in a passage this delta touches
+is either replaced or justified as exempt" (the class F-13 closed for R-57's
+row).
+
+**Observed:** The row Change 7 extends reads "one `Host`, **nineteen**
+consecutive exchanges … (**thirteen** protocol bodies and **four** transport
+failures), then a successful one". Thirteen and four make seventeen, not
+nineteen, and the test's own comment says "every one of the seventeen":
+`PROTOCOL_MODES` is `[&str; 13]` and `TRANSPORT_MODES` `[&str; 4]`. The
+delta touches the row and neither replaces the counts nor justifies them;
+the stale "nineteen" would be promoted untouched beside the new sentence.
+
+**Evidence:** SPEC-001 §7 R-45 row; `crates/goad-shell/tests/integration/failure_matrix.rs`
+`PROTOCOL_MODES`, `TRANSPORT_MODES` and the comment in
+`one_host_survives_every_misbehaving_backend_and_still_works`; `canon-delta.md`
+header.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-43 — `CleanupFailure::Io` → R-48 rests on reading a failed call as R-48's timed-out observation
+
+**Severity:** nit
+**Location:** `design.md` §5.2.3 rationale "`CleanupFailure::Io` → R-48, environment"; R-59 clauses (i) and (iii)
+
+**Expected:** Each row's id comes from one of R-59's three clauses by its
+letter.
+
+**Observed:** R-59 clause (i) is "the requirement stating the rule the kind
+enforces"; clause (iii) (R-45) is for "a failure of an **exchange** no
+requirement names". `CleanupFailure::Io` is `start_kill` or `wait` failing
+outright. R-48's reporting rule is about "failure to observe cleanup
+**within that interval**" — a bound elapsing, which is `TimedOut`. A failed
+system call is not that, and a cleanup failure is not an exchange failure, so
+neither clause names R-48 by its letter; the design's "the host failed to
+observe cleanup, which is R-48's rule" reads R-48 without its interval.
+Defensible, since R-48 also requires the host to initiate termination and
+wait, and `Io` is those steps failing; the rationale should say that rather
+than lean on the observation clause.
+
+**Evidence:** SPEC-001/R-48; `crates/goad-shell/src/backend/process.rs`
+(`start_kill().map_err(CleanupFailure::Io)`, `wait().await.map_err(CleanupFailure::Io)`);
+`canon-delta.md` R-59; `design.md` §5.2.3.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### Round 3 — what holds
+
+Checked at `cc9f9af`, within the Round 3 brief only:
+
+- **R-59 as reframed, against its letter and every §5.2.3 row.** Scope by
+  channel, with configuration-load and forwarded-envelope refusals excluded in
+  terms. Every row's id falls under one clause: (i) for each kind whose rule a
+  requirement states (R-3, R-10, R-12, R-13, R-14, R-16, R-17, R-18, R-21,
+  R-22, R-23, R-25, R-32, R-40, R-41, R-43, R-48, R-50/R-53, R-52); (ii) for
+  `Json`, `Shape`, `DuplicateKey` and `Spawn`; (iii) for `Io` and
+  `PipeMissing`. `CleanupFailure::Io` is the one strained reading (F-43). Every
+  side fits its definition by its letter: environment now means only an
+  operating-system failure; `TimedOut`, `Timeout`, signalled `ExitStatus` and
+  resource-starved `Spawn` are covered by the declared imprecision, each
+  carrying what shows the other side. The R-53 exception is the only one
+  to one id per kind.
+- **R-45's rewording** makes clause (iii) true by its letter for both
+  variants; `Host::exchange` does return every transport error through
+  `Host::no_action` without reading the variant. P-C is narrower and not
+  contradicted. The row edit carries F-41 and F-42.
+- **Restatements.** `design.md` §1, §5.2.2, §5.2.5, §5.2.6 (`checking.md`),
+  §6 OQ-1/OQ-5/OQ-6, D22, D28 and §10; `canon-delta.md` SPEC-001 Changes 2,
+  5 and 6 and SPEC-004 Changes 1, 3, 4 and 7; `slice-012.md` AC-7 and
+  OQ-2/OQ-8; `notes.md` §Open. Each agrees with R-59's scope, clauses and
+  sides. Where a restatement lists only failures, discarded instructions and
+  cleanup failures (§1, AC-7, SPEC-004 R-11/R-12), it is about what the
+  checker reports, and a refused answer there is the checker's own defect,
+  status 2. That is consistent.
+- **F-22** against §5.2.6: the limit is stated in SPEC-003 §7 R-14's terms, and
+  the derive is an owned candidate.
+
+Open after round 3: F-41, F-42, F-43, all mechanical; none gates.
