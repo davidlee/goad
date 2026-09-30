@@ -340,3 +340,36 @@ other, citing the finding id.
   `slice-012.md`'s consumer jails become a walk capsule, and AC-1's negative
   control is restated for a capsule. The bwrap spike stays as evidence for
   the kit shape and the closure finding.
+
+### 2026-09-30 — design review round 1: dispositions
+
+- **Asked:** 33 findings (`review-design.md` F-1..F-33; F-33 from a Codex
+  second witness, four of whose five findings corroborated the raiser's). A
+  responder draft verified each against the source and grouped twelve into
+  eight decisions:
+  - U1 R-59's meaning: one reading ("the requirement under which the host
+    refused", R-44 where nothing more specific states it); sides by where the
+    cause lies; a declared imprecision (one kind, one side; the refusal carries
+    the value that shows another cause); a closed scope excluding config-load
+    and forwarded-envelope refusals; `Spawn` → R-44; `Io`/`PipeMissing` → R-45.
+  - U2 `goad-check` statuses cut on whether a verdict was delivered (2 = none:
+    pre-exchange, mid-run clock, unwritable report, checker defect); the chain
+    bound is a report observation.
+  - U3 no `--now`; the report says when no view was answered; AC-1 requires at
+    least one view answered; `--now` a follow-up if walks ask.
+  - U4 `goad-walk`'s input stays host-local `git+file:`; AC-1: a walk whose
+    agent read goad's source fails and is re-run.
+  - U5 respond fences checked by JSON type against `Submitted::as_drawn`'s,
+    and `choice` membership; `datetime` spelling stated as unchecked.
+  - U6 fix `goad-emit` to exit 2 on an unwritten answer; `crates/goad-emit`
+    joins the surfaces.
+  - U7 tolerate the membership witness; state its reach and name a mutation
+    that reds.
+  - U8 `EmptyAlternatives` → R-44 under U1 (orchestrator's recommendation,
+    over the draft's R-16 amendment); the R-16 non-empty clause stays the
+    OQ-6 follow-up.
+  - The rest mechanical as drafted; F-26 a follow-up extending FU-7.
+- **Decided:** *"yes"* — every recommendation, U8 the orchestrator's way.
+- **Consequence:** dispositions written into the ledger; a fresh agent repairs
+  `design.md`, `canon-delta.md` and `slice-012.md`; the kept raiser runs
+  round 2.
