@@ -2921,8 +2921,11 @@ VA item otherwise shows a new case can fail):
   PipeMissing; F-22; round 2's unbriefed repairs*). Candidate follow-up, with
   SPEC-003's R-14 case as a second user.
 - **FU-7's citation extends to `goad-check`.** Nothing bills a stratum-3
-  manifest, so `goad-check` linking no renderer is held by its manifest
-  comment and review (design.md §5.5 I-6; review F-26). Extend FU-7 at close.
+  manifest, so `goad-check` linking no renderer is held by
+  `crates/goad-check/Cargo.toml`'s dependency comment (*"No `slint`, so a
+  renderer type is `error[E0433]` here"*) and review (design.md §5.5 I-6;
+  review F-26; PHASE-04/VA-5, and its row R-5 shows the crate edge refusing
+  `use slint as _;`). Extend FU-7 at close.
 - **FU-5's citation extends to whatever `goad-check`'s tests copy.** The
   fence scanner is not a copy: it is shared from `tests/support/`, included by
   `goad-check`'s `kit` target and `goad-shell`'s `integration` target, and it
@@ -2935,3 +2938,10 @@ VA item otherwise shows a new case can fail):
   symbol when it ships, with the file it could not include (plan.md
   PHASE-04/VA-7, PHASE-12/VA-7). Extend FU-5 at close with those names, or
   record that none was copied.
+  **PHASE-04 copied, into `crates/goad-check/tests/binary/statuses.rs`, from
+  `crates/goad-emit/tests/binary/exchange.rs`** (another crate's target,
+  which cannot be included): `check` (of `emit`), `check_with_stdout_full`
+  (of `emit_with_stdout_full`), `code_of`, `stderr_of`, `stdout_of`. No
+  `tests/support/` file was included: the tier spawns only `goad-check`, and
+  uses no symbol of `driving.rs`, `scripting.rs` or `waiting.rs`
+  (PHASE-04/VA-7).

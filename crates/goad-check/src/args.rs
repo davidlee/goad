@@ -1,9 +1,9 @@
 //! The command line, parsed — pure over the argument vector, so the table on
 //! [`parse`] is a set of tests rather than a claim.
 //!
-//! Hand-rolled, as `goad-emit`'s `args.rs` is and for its reason: three flags
-//! and a separator, prior art already in the workspace, and an argument parser
-//! no stratum needs would be paid for in every gate run.
+//! Hand-rolled, as `goad-emit`'s `args.rs` is and for its reason: prior art
+//! already in the workspace, and an argument parser no stratum needs would be
+//! paid for in every gate run.
 
 use std::ffi::OsString;
 use std::path::PathBuf;

@@ -61,8 +61,8 @@ pub(crate) enum StartupFault {
 /// file or the clock. What it decides with what it reads lives in [`args`] and
 /// [`render`].
 ///
-/// Two statuses are reachable until PHASE-12, each a literal: 0, a question
-/// answered, and 2, not judged, through [`not_judged`] alone. 1 and the
+/// Each status reachable until PHASE-12 is a literal: 0, a question answered,
+/// in [`answer`], and 2, not judged, in [`not_judged`] alone. 1 and the
 /// verdict are PHASE-12's (`design.md` §5.2.5).
 fn main() -> ExitCode {
   match args::parse(std::env::args_os()) {
