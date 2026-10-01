@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 | done | 2026-10-01 |
 | PHASE-03 | done | 2026-10-01 |
 | PHASE-04 | done | 2026-10-01 |
-| PHASE-05 | pending | 2026-10-01 |
+| PHASE-05 | in progress | 2026-10-01 |
 | PHASE-06 | pending | 2026-10-01 |
 | PHASE-07 | pending | 2026-10-01 |
 | PHASE-08 | pending | 2026-10-01 |
@@ -4409,57 +4409,85 @@ the three named; `~/dev/oubliette`.
 surface, and EX-8 reads the kit through `goad-walk`. Every new file is `git
 add`ed before any `nix` command reads it.
 
-- [ ] Set PHASE-05 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline`. It must be this sheet's commit, or a
+- [x] Set PHASE-05 to `in progress` in §Status.
+      *Done at 85c3ddc.*
+- [x] Print `git log -1 --oneline`. It must be this sheet's commit, or a
       descendant whose only changes are the PLAN QUESTIONs' resolutions.
+      *`85c3ddc 012 PHASE-05: decisions applied to design, plan and sheet` —
+      the descendant whose only changes are the resolutions. `goad-walk`:
+      `b4bc42f`.*
 - [x] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
       before the tasks they block start (**Findings**; *Decisions applied*,
       above).
 - **1. The kit's shell (EX-2, EX-3)**
-  - [ ] Choose the marker: two unrelated words and a number, in capitals,
+  - [x] Choose the marker: two unrelated words and a number, in capitals,
         which appear nowhere in the repository (`command grep -rnF "<marker>"
         .` over the tracked tree: nothing, exit 1, before writing it).
         Record it here under **Decisions**.
-  - [ ] `kit/skills/goad-backend/SKILL.md`: frontmatter `name:
+        *`QUINCE-BAROMETER-73`; `git grep -nF` over the tracked tree, and
+        `command grep -rnF` over the checkout, found nothing (exit 1) before
+        it was written. Under **Decisions**.*
+  - [x] `kit/skills/goad-backend/SKILL.md`: frontmatter `name:
         goad-backend` and a `description` (when to use it: writing a backend
         for goad); then one body line stating the marker and that it is the
         answer when asked for the goad skill's marker. Nothing else (A-T6).
-  - [ ] `kit/.claude-plugin/plugin.json`: `name` `goad`, `description`,
+        *Frontmatter `name`, `description`; one body line stating the marker.*
+  - [x] `kit/.claude-plugin/plugin.json`: `name` `goad`, `description`,
         `version`, `author`, `license` (§5.2.6). `kit/.codex-plugin/plugin.json`:
         the same, plus `"skills": "./skills/"` and an `interface` block. The
         spike's `stub/kit/*` are the shape. `license` is the repository's
         (`LICENSE`).
-  - [ ] `.claude-plugin/marketplace.json`: `name` `goad`, an `owner`, a
+        *Both written from the stub's shape; `author` David Lee, `license`
+        `MIT` (`LICENSE`); Codex's `interface` is `{displayName: "goad"}`.*
+  - [x] `.claude-plugin/marketplace.json`: `name` `goad`, an `owner`, a
         `description`, `plugins: [{name "goad", source "./kit", description}]`.
         `.agents/plugins/marketplace.json`: `name` `goad`, `plugins: [{name
         "goad", source {source "local", path "./kit"}}]`. A `description` on
         the marketplace and on the entry, so `--strict` has nothing to warn
         about (A-V4).
-  - [ ] Marker placement: `command grep -rnF "<marker>" kit` prints exactly
+        *Both written; each has a `description` on the marketplace and on its
+        entry.*
+  - [x] Marker placement: `command grep -rnF "<marker>" kit` prints exactly
         one line, in `kit/skills/goad-backend/SKILL.md`, at a line number
         greater than the frontmatter's closing `---` (`command grep -n '^---$'
         kit/skills/goad-backend/SKILL.md`). Recorded. Row P-9.
-  - [ ] EX-2 (quoted): *"`kit/.claude-plugin/plugin.json` and
+        *`kit/skills/goad-backend/SKILL.md:6:The goad skill's marker is
+        QUINCE-BAROMETER-73. …` — one line; `^---$` at 1 and 4, so the marker
+        is in the body.*
+  - [x] EX-2 (quoted): *"`kit/.claude-plugin/plugin.json` and
         `kit/.codex-plugin/plugin.json` carry `workspace.package.version`,
         checked against `Cargo.toml` and recorded."* `command grep -n
         '^version' Cargo.toml` and `command grep -Hn '"version"'
         kit/.claude-plugin/plugin.json kit/.codex-plugin/plugin.json`; the
         three values equal, recorded. Row P-10.
-  - [ ] EX-3 (quoted): *"`claude plugin validate kit/` passes."* Run with a
+        *`Cargo.toml:18:version    = "0.1.0"`;
+        `kit/.claude-plugin/plugin.json:4:  "version": "0.1.0",`;
+        `kit/.codex-plugin/plugin.json:4:  "version": "0.1.0",`. Equal.*
+  - [x] EX-3 (quoted): *"`claude plugin validate kit/` passes."* Run with a
         fresh `HOME` (`mktemp -d "$HOME/.cache/goad-p05-validate.XXXXXX"`);
         record exit status and every warning. Rows P-6, P-7.
-  - [ ] (Offered, not a criterion; Findings, *what EX-3 holds*.) `claude
+        *`HOME=~/.cache/goad-p05-validate.YCNhMC`: `Validating plugin
+        manifest: …/kit/.claude-plugin/plugin.json` / `✔ Validation passed`,
+        exit 0, no warning.*
+  - [x] (Offered, not a criterion; Findings, *what EX-3 holds*.) `claude
         plugin validate --strict kit/` and `claude plugin validate --strict
         .` (the root marketplace), both exit 0. Recorded, or recorded as
         skipped.
-  - [ ] `git add` the five new files.
+        *Run. `--strict kit/` exit 0, and `--strict .` (`Validating
+        marketplace manifest: …/.claude-plugin/marketplace.json`) exit 0; no
+        warning on either.*
+  - [x] `git add` the five new files.
+        *Staged before any `nix` command read them.*
 - **2. The flake (EX-1)** — `flake.nix`
-  - [ ] `packages.goad-check` in `goadPackages`, as `goad-emit` is (A-V1):
+  - [x] `packages.goad-check` in `goadPackages`, as `goad-emit` is (A-V1):
         `cargoExtraArgs = "--locked -p goad-check --bin goad-check"`
         (`crane-cargoextraargs-replaces-locked`), `GOAD_REVISION = revision`,
         `meta.mainProgram = "goad-check"`, no wrapper, no `guiLibs`, a one-line
         comment saying why (as `goad-emit`'s).
-  - [ ] `packages.goad-kit`: `lib.fileset.toSource { root = ./.; fileset =
+        In `goadPackages` after `goad-emit`, its recipe with
+        `pname`/`mainProgram` `goad-check`; comment: no renderer to dlopen
+        anything for. `alejandra --check flake.nix` clean.
+  - [x] `packages.goad-kit`: `lib.fileset.toSource { root = ./.; fileset =
         lib.fileset.unions [ ./.claude-plugin/marketplace.json
         ./.agents/plugins/marketplace.json ./kit ]; }`, named `goad-kit`
         (`design.md` §5.2.8; `design-log.md` 2026-10-01, *`goad-kit` is built
@@ -4467,7 +4495,12 @@ add`ed before any `nix` command reads it.
         PHASE-11's control patterns (`*-goad-source`, and the whole-repo
         `-source` copy). It is not a crane derivation and does not join
         `goadPackages`' comment on `doCheck`. Rows P-15, P-16.
-  - [ ] The comments that count the packages, rewritten to name the rule
+        `goad-kit` is `pkgs.runCommandLocal "goad-kit" {}` copying the
+        `lib.fileset.toSource` of the three-path `unions` to `$out`, merged
+        into `packages` beside `goadPackages`. The wrap is **Decisions** D-2:
+        a bare `toSource` is not a flake package. Store path `…-goad-kit`, no
+        references (`nix-store -q --references` prints nothing).
+  - [x] The comments that count the packages, rewritten to name the rule
         rather than a number (`a-count-in-a-comment-is-a-claim-nothing-checks`):
         `cargoArtifacts`' *"shared by both binaries: emit's dependencies are a
         subset of goad's"* (the layer is `--workspace`, so it holds every
@@ -4476,7 +4509,11 @@ add`ed before any `nix` command reads it.
         derivations"*. Admitted by the amended surface (PLAN QUESTION 5).
         The merge comment's *"the three jail packages"* counts `jailPkgs`,
         which this phase does not grow: left.
-  - [ ] EX-1 (quoted, amended): *"`nix build --no-link .#goad-check
+        `cargoArtifacts`: *"shared by every binary package: it holds every
+        workspace member's dependencies"*; *"explicit on every crane
+        derivation here"*; *"`doCheck = false` on every crane derivation above
+        and below"*. The merge comment's *"three jail packages"* left.
+  - [x] EX-1 (quoted, amended): *"`nix build --no-link .#goad-check
         .#goad-kit` succeeds from the bare git form (new files `git add`ed
         first). The built `goad-check --version` prints the flake's revision
         beside the version, as `goad-emit`'s does (`GOAD_REVISION`).
@@ -4487,28 +4524,44 @@ add`ed before any `nix` command reads it.
         `lib.fileset.toSource`*), and holds those three and nothing else."*
         Run `nix build --no-link
         --print-out-paths .#goad-check .#goad-kit`; record both paths. Then:
-    - [ ] `<goad-check path>/bin/goad-check --version`, beside
+        At 85c3ddc + staged:
+        `/nix/store/30a3v3k4ahmwyx03yxbgl2c984khpj8m-goad-check-0.1.0`,
+        `/nix/store/vgz1n5wlp97fp49n3j4ghqm3hs89smcw-goad-kit`.
+    - [x] `<goad-check path>/bin/goad-check --version`, beside
           `<goad-emit path>/bin/goad-emit --version` from the same build;
           both print `0.1.0` and the same revision (`<rev>-dirty` before the
           commit; recorded either way). Row P-2.
-    - [ ] `find "$KIT" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort` prints
+          Both `0.1.0 (85c3ddc-dirty)` (`goad-emit`
+          `/nix/store/kz5f1jzlwpzm8a0z8y6713522a8ybwir-goad-emit-0.1.0`).
+          Clean rebuild in task 6.
+    - [x] `find "$KIT" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort` prints
           exactly `.agents`, `.claude-plugin`, `kit`; `find "$KIT/.agents"
           "$KIT/.claude-plugin" -type f` prints the two `marketplace.json`
           and nothing else; `diff -r "$KIT/kit" kit` exit 0. Rows P-3..P-5.
-    - [ ] `nix derivation show .#goad-check | command grep -c -- '--locked'`
+          `.agents`, `.claude-plugin`, `kit`; the second `find` prints
+          `$KIT/.claude-plugin/marketplace.json` and
+          `$KIT/.agents/plugins/marketplace.json` only; `diff -r "$KIT/kit"
+          kit` exit 0.
+    - [x] `nix derivation show .#goad-check | command grep -c -- '--locked'`
           is at least 1. Row P-1.
-  - [ ] (Offered, not a criterion.) `nix flake check --no-build` exit 0: every
+          2.
+  - [x] (Offered, not a criterion.) `nix flake check --no-build` exit 0: every
         output still evaluates. Recorded, or recorded as skipped.
+        Run: exit 0. It is also what refused the `builtins.path` form (D-2).
 - **3. The `justfile` (EX-7, PL-6)**
-  - [ ] `package`: `nix build --no-link --print-out-paths .#goad .#goad-emit
+  - [x] `package`: `nix build --no-link --print-out-paths .#goad .#goad-emit
         .#goad-check .#goad-kit`. Its comments' *"Build both binaries"* and
         *"the two store paths are printed"* name what is built instead of
         counting it (`a-true-statement-can-go-stale-by-widening`; PHASE-04
         Findings).
-  - [ ] `install`: `cargo install --path crates/goad-check --locked` beside
+        Recipe extended; comments now *"each package's store path is printed"*
+        and *"Build every goad package with nix: the binaries and the kit"*.
+  - [x] `install`: `cargo install --path crates/goad-check --locked` beside
         the other two. Its *"Install both binaries"* comment, likewise. The
         env file's comment stays: it is about the GUI binary's libraries.
-  - [ ] EX-7 (quoted, amended): *"`just package` builds `goad-check` and
+        Added; comment *"Install every goad binary into $CARGO_HOME/bin"*. The
+        env-file comments' *both* are about the two variables: left.
+  - [x] EX-7 (quoted, amended): *"`just package` builds `goad-check` and
         `goad-kit`, and `just install`, run with `CARGO_INSTALL_ROOT` and
         `XDG_CONFIG_HOME` under the executor's scratchpad, installs
         `goad-check` there beside `goad` and `goad-emit` (PL-6). The user's
@@ -4521,8 +4574,16 @@ add`ed before any `nix` command reads it.
         `goad-check`) and that `<scratchpad>/p05-install/config/goad/env` was
         written. Never the plain recipe: it overwrites `~/.cargo/bin` and
         `~/.config/goad/env`. Rows P-13, P-14.
+        `just package` printed `…-goad-0.1.0`, `…kz5f1jzl…-goad-emit-0.1.0`,
+        `…30a3v3k4…-goad-check-0.1.0`, `…vgz1n5wl…-goad-kit`, exit 0.
+        `CARGO_INSTALL_ROOT=<scratchpad>/p05-install/root
+        XDG_CONFIG_HOME=<scratchpad>/p05-install/config just install` in the
+        dev shell: `ls root/bin` is `goad goad-check goad-emit`;
+        `config/goad/env` written, naming `LD_LIBRARY_PATH` and
+        `FONTCONFIG_FILE`. `~/.cargo/bin/goad*` and `~/.config/goad/env` still
+        dated Sep 21: untouched.
 - **4. `README.md`**
-  - [ ] One line pointing backend authors to `kit/` and the plugin install
+  - [x] One line pointing backend authors to `kit/` and the plugin install
         (§5.2.7's row), by the route `design-log.md` 2026-09-27 OQ-6 settled:
         `claude plugin marketplace add davidlee/goad` then `claude plugin
         install goad@goad`; `codex plugin marketplace add davidlee/goad` then
@@ -4530,8 +4591,11 @@ add`ed before any `nix` command reads it.
         `.claude-plugin` and `kit` for Claude and `.agents` and `kit` for
         Codex, since each marketplace file sits outside `kit/`. Nothing in
         this phase runs that route until the push (offered box in task 6).
+        Section *Writing a backend*: one line naming `kit/` and both routes
+        (`claude plugin marketplace add davidlee/goad && claude plugin install
+        goad@goad`; Codex likewise). No `--sparse` hint.
 - **5. Codex's acceptance (VA-1)**
-  - [ ] VA-1 (quoted): *"Codex's manifest, `interface` block included, is
+  - [x] VA-1 (quoted): *"Codex's manifest, `interface` block included, is
         accepted: `codex plugin marketplace add` and `codex plugin add
         goad@goad` against the `goad-kit` store path, with `CODEX_HOME` a
         fresh directory on the host, succeed, and `$CODEX_HOME/plugins/cache/`
@@ -4541,11 +4605,22 @@ add`ed before any `nix` command reads it.
         each command's exit and output; `find "$CODEX_HOME/plugins/cache"
         -mindepth 1 | sort`; then `diff -r "$KIT/kit" <the cached plugin
         directory>` exit 0 (the directory holding `.codex-plugin/`). Rows P-4.
-  - [ ] (Offered, not a criterion; Findings, *the Claude marketplace is read
+        `CODEX_HOME=~/.cache/goad-p05-codex.ua5Bs8`, no warning. `codex plugin
+        marketplace add "$KIT"`: *"Added marketplace `goad` from
+        /nix/store/vgz1n5wl…-goad-kit"*, exit 0. `codex plugin add goad@goad`:
+        *"Added plugin `goad` from marketplace `goad`. Installed plugin root:
+        …/plugins/cache/goad/goad/0.1.0"*, exit 0. The cache holds
+        `goad/goad/0.1.0/{.claude-plugin/plugin.json,
+        .codex-plugin/plugin.json, skills/goad-backend/SKILL.md}` and nothing
+        else; `diff -r "$KIT/kit" …/0.1.0` exit 0.
+  - [x] (Offered, not a criterion; Findings, *the Claude marketplace is read
         by nothing*.) With a fresh `HOME`: `claude plugin marketplace add
         "$KIT"`, `claude plugin install goad@goad`, `claude plugin details
         goad@goad` lists `goad-backend`. Recorded, or recorded as skipped.
         Row P-8.
+        Run, `HOME=~/.cache/goad-p05-claude.poj0XR`: `marketplace add "$KIT"`
+        *"Successfully added marketplace: goad"* exit 0; `install goad@goad`
+        exit 0; `details goad@goad` lists *"Skills (1) goad-backend"*, exit 0.
 - **6. The commit, the push, the lock (EN-3, EX-4, VA-4)**
   - [ ] Commit every goad surface (the five new files, `flake.nix`,
         `justfile`, `README.md`) and this sheet's records so far. That commit
@@ -4751,6 +4826,26 @@ something):
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
 
+- **D-1 — the marker is `QUINCE-BAROMETER-73`.** Absent from the tracked tree
+  and the checkout before it was written (task 1). EX-8's answers are compared
+  against it.
+- **D-2 — `goad-kit` is the `toSource` selection copied into a derivation.**
+  `lib.fileset.toSource` takes no `name` and yields a source path, not a
+  package. Measured: as the bare output, `nix build .#goad-kit` refused it
+  (*"expected flake output attribute 'packages.x86_64-linux.goad-kit' to be a
+  derivation or path but found a set"*); wrapped in `builtins.path { name =
+  "goad-kit"; … }` it built, and `nix flake check --no-build` refused it
+  (*"flake attribute 'packages.x86_64-linux.goad-kit' is not a derivation"*).
+  So `pkgs.runCommandLocal "goad-kit" {} "cp -r ${toSource …} $out"`. The
+  selection and its refusal of a missing or untracked path are `toSource`'s,
+  unchanged (P-15, P-16); the name is the derivation's. The intermediate
+  `…-source` path is not in `goad-kit`'s runtime closure (no references).
+  Within §5.2.8's mechanism, not a change to it; the wording gap is under
+  **Findings**.
+- **D-3 — the README route is one line with both installs inline**, under a
+  new *Writing a backend* heading, not a code block: the sheet asks for one
+  line. No `--sparse` hint.
+
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
      elsewhere, drift from the design, a surprise. Defects in this phase's own
@@ -4868,6 +4963,11 @@ something):
   package` or a consumer, not by `just check`.
 - **Test counts.** At exit the gate's sum is 738, unchanged: this phase adds
   and deletes no test.
+- **§5.2.8 names `toSource` as the package, with a `name`; it is the
+  selection.** `design.md` §5.2.8 and EX-1 read *"`lib.fileset.toSource`,
+  `name = \"goad-kit\"`"*. `toSource` has no `name` argument and is not a
+  derivation (D-2). The property both state, the three paths and nothing
+  else, holds. For audit's design-drift list.
 
 ## Harvest
 

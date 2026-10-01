@@ -22,6 +22,10 @@ is there at once. Answer it and the window goes; the backend has said there is
 nothing more to show. `just run <config>` does the same with a configuration of
 your own.
 
+## Writing a backend
+
+The backend kit is in `kit/`, a plugin for Claude Code and Codex; install it with `claude plugin marketplace add davidlee/goad && claude plugin install goad@goad`, or `codex plugin marketplace add davidlee/goad && codex plugin add goad@goad`.
+
 ## GUI 
 
 The lovely [Slint](https://github.com/slint-ui/slint) builds the GUI.
