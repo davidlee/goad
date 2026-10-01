@@ -765,7 +765,7 @@ developer adds, joins the refused set on that machine only. `flake.nix` sets
 `doCheck = false` on every derivation, so the test runs only in a checkout.
 
 **Disposition:** doc-wrong
-**Response:** I-5's mention rule reads the tracked tree: the test lists tracked paths with `git ls-files` and refuses a mention `<name>/<segment>` only if that path prefix is tracked outside `kit/`; a missing `git` or `.git` fails the test, never skips it. The escaping-`../` half stands. The negative control gains a generic consumer path (`.claude/skills/`) and a backticked `` `.claude-plugin/plugin.json` ``, both accepted. `design-log.md` 2026-10-01, *plan review round 2: I-5 reads the tracked tree*.
+**Response:** I-5's mention rule reads the tracked tree: the test lists tracked paths with `git ls-files` and refuses a mention `<name>/<segment>` only if that path prefix is tracked outside `kit/`; a missing `git` or `.git` fails the test, never skips it. The escaping-`../` half stands. The negative control gains a generic consumer path (`.claude/skills/`) and a backticked `` `.claude-plugin/plugin.json` ``, both accepted. `design-log.md` 2026-10-01, *plan review round 2: I-5 reads the tracked tree*. *(Repair: `design.md` §5.2.6 *The kit stands alone* restates the mention half as `<name>/<segment>` where that prefix starts a path `git ls-files` tracks outside `kit/`, keeps the escaping-`../` half and the boundary character rule, says untracked and ignored entries refuse nothing, and fails on a missing `git` or `.git`; §5.5 I-5 and §9 follow. PHASE-07/VT-5 reads the tracked list, refusing one with nothing under `kit/` or `crates/`, and fails without git; VT-6 refuses an escaping path and `crates/goad-shell/src`, and accepts `.claude/skills/` and `` `.claude-plugin/plugin.json` ``.)*
 
 **Outcome:**
 
@@ -793,7 +793,7 @@ exchange, so its report is the no-view line and the verdict"); §Sequencing
 `an_unspawnable_command_is_reported_against_the_configuration`.
 
 **Disposition:** doc-wrong
-**Response:** Until PHASE-12 a run ends with no verdict: the report's no-view line, a stderr line saying the run is not yet implemented, and status 2. PHASE-12 replaces it with the verdict. Nothing on `main` reports acceptance it did not judge.
+**Response:** Until PHASE-12 a run ends with no verdict: the report's no-view line, a stderr line saying the run is not yet implemented, and status 2. PHASE-12 replaces it with the verdict. Nothing on `main` reports acceptance it did not judge. *(Repair: PHASE-04's objective, EX-3 and EX-4: a run ends with the no-view line, a not-yet-implemented stderr line and status 2, through the one `ExitCode::from(2)`; new PHASE-04/VT-3 `a_run_with_no_exchange_exits_2_with_no_verdict` asserts it. New PHASE-12/EX-6 replaces that end with the verdict and deletes VT-3's case; PHASE-12/EX-4 feeds EX-6's cut. Forced: the verdict line and the 0/1 cut move from PHASE-04 to PHASE-12/EX-6, since in PHASE-04 nothing would call them and the gate's lint refuses dead code. The Overview bullets for PHASE-04 and PHASE-12 and §Sequencing *Why the checker is two phases* say the same.)*
 
 **Outcome:**
 
@@ -820,7 +820,7 @@ id, and body text, with no fence. `design.md` §5.2.6's role table: the
 `toml goad:config` role, whose TOML comments start with `#`.
 
 **Disposition:** doc-wrong
-**Response:** PHASE-08/VT-1 reads headings through the shared scanner (PHASE-07/EX-4), skipping fenced lines; a heading counts for an id only if it names exactly that one requirement id, matching PHASE-07/EX-3. VT-2's control gains a fenced `#` line naming an id that appears nowhere else, which must be reported absent, and a heading naming two ids.
+**Response:** PHASE-08/VT-1 reads headings through the shared scanner (PHASE-07/EX-4), skipping fenced lines; a heading counts for an id only if it names exactly that one requirement id, matching PHASE-07/EX-3. VT-2's control gains a fenced `#` line naming an id that appears nowhere else, which must be reported absent, and a heading naming two ids. *(Repair: PHASE-08/VT-1 reads the reference through the shared scanner, skipping fenced lines, and counts an id only in a heading naming exactly that one requirement id, citing PHASE-07/EX-3; a scanner symbol added for it must be used by both includers. VT-2's control adds `SPEC-001/R-36` only on a `#` line in a fence, and `SPEC-001/R-41` with `SPEC-001/R-42` in one heading, all reported absent.)*
 
 **Outcome:**
 
@@ -843,7 +843,7 @@ MUST tolerate a kind it does not recognise`. PHASE-12/EX-3 prints "the R-56
 line only on its condition".
 
 **Disposition:** doc-wrong
-**Response:** The checker's own R-56 claim id joins VT-1's coverage set, taken from the constant the report prints, not respelled.
+**Response:** The checker's own R-56 claim id joins VT-1's coverage set, taken from the constant the report prints, not respelled. *(Repair: PHASE-08/VT-1's id set adds the checker's R-56 claim, read from the constant PHASE-12/EX-3 prints; PHASE-08's objective and Overview bullet name it. Forced: PHASE-12/EX-3 puts that constant in a `src` module holding nothing else, so the `kit` target can include it by path, since a binary-only crate's items are not reachable from its test targets (as PHASE-12/VT-3). EX-5 needed no change.)*
 
 **Outcome:**
 
@@ -866,7 +866,7 @@ parallel phases' hands, but it moves the writes rather than removing them.
 there.
 
 **Disposition:** doc-wrong
-**Response:** PHASE-01..PHASE-03 run sequentially; the parallel rule for them is dropped. PHASE-11 alone may run beside PHASE-06..PHASE-08, and the orchestrator writes its phase sheet and its `notes.md` §Status row on `main`, so the worktree touches neither.
+**Response:** PHASE-01..PHASE-03 run sequentially; the parallel rule for them is dropped. PHASE-11 alone may run beside PHASE-06..PHASE-08, and the orchestrator writes its phase sheet and its `notes.md` §Status row on `main`, so the worktree touches neither. *(Repair: §Sequencing's parallel paragraph is replaced: PHASE-01..PHASE-03 run in sequence, and the diagram draws them as a chain; PHASE-11 alone may run in parallel, the orchestrator writing its phase sheet and `notes.md` §Status row on `main` from the worktree agent's reports. PHASE-11's notes cite that rule. Forced: PHASE-02/EN-1 and PHASE-03/EN-1, which declared independence for parallel runs, now require PHASE-01 and PHASE-02 done respectively; the diagram's PHASE-04 label reads `status 2` per F-23.)*
 
 **Outcome:**
 
@@ -894,7 +894,7 @@ there.
 `canon-delta.md`); PHASE-05 §Surfaces (the marker); PHASE-08/EX-2.
 
 **Disposition:** doc-wrong
-**Response:** PHASE-12/VA-1 names both expected `AtFault::Backend` hits: the R-56 condition and the probe's claim. PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml`. PHASE-08 removes the PHASE-05 marker as an exit criterion; PHASE-11's load check, if entered after PHASE-08, asks for a fact only the finished `SKILL.md` body states.
+**Response:** PHASE-12/VA-1 names both expected `AtFault::Backend` hits: the R-56 condition and the probe's claim. PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml`. PHASE-08 removes the PHASE-05 marker as an exit criterion; PHASE-11's load check, if entered after PHASE-08, asks for a fact only the finished `SKILL.md` body states. *(Repair: PHASE-12/VA-1 names both expected `AtFault::Backend` hits, the R-56 condition's `fault()` comparison and the probe's claim. PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml`, `[dev-dependencies]` only, a new external dependency still a STOP. New PHASE-08/EX-6 removes PHASE-05's marker. PHASE-11/EX-2 asks for a fact the body states at the pinned revision: PHASE-05's marker before PHASE-08, and a fact only the finished body states if entered after PHASE-08 at a revision holding it.)*
 
 **Outcome:**
 

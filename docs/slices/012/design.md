@@ -730,23 +730,33 @@ as json/toml when its first info word, lowercased, begins `json` or `toml`
   extension at close (`notes.md` §Open).
 
 **The kit stands alone** (I-5; `design-log.md` 2026-10-01, *plan review
-round 1: design-touching dispositions*).
+round 1: design-touching dispositions* and *plan review round 2: I-5 reads
+the tracked tree*).
 `nothing_in_the_kit_names_a_path_outside_it` reads every file under `kit/`,
 refusing an empty set, and fails on either of:
 
 - **an escaping relative path**: a path containing `../` that, resolved
   lexically from the directory of the file that holds it, leaves `kit/`;
-- **a mention of another top-level entry**: `<name>/`, for any entry of the
-  repository root other than `kit`, where the character before `<name>` is
-  not one a path continues through (a letter, a digit, `.`, `_`, `-` or
-  `/`) — so `kit/.claude-plugin/` is not a mention of the root's
+- **a mention of a tracked path outside the kit**: `<name>/<segment>`, where
+  `<segment>` is the whole next path component and that prefix is the start
+  of a path git tracks outside `kit/`, and where the character before
+  `<name>` is not one a path continues through (a letter, a digit, `.`, `_`,
+  `-` or `/`) — so `kit/.claude-plugin/` is not a mention of the root's
   `.claude-plugin`.
 
-The root's entries are read when the test runs, not listed, so a directory
-added to the repository later is covered without an edit; the test refuses an
-entry list that lacks `kit` and `crates`, the sign it read the wrong root. A
-negative control, `a_path_outside_the_kit_is_refused`, holds each half over
-an inline string.
+The tracked paths are read when the test runs, by `git ls-files` at the
+repository root, not listed, so a path added to the repository later is
+covered without an edit, and the result is a property of the tracked tree:
+an untracked or ignored entry of the checkout (`target/`, a local `.claude/`)
+refuses nothing. A missing `git` or `.git` fails the test; it never skips. The
+test refuses a tracked list that holds nothing under `kit/` or under
+`crates/`, the sign it read the wrong root. A mention that names nothing in
+this repository — a consumer's `.claude/skills/`, a backticked
+`` `.claude-plugin/plugin.json` `` — is not refused. A negative control,
+`a_path_outside_the_kit_is_refused`, holds each half over inline strings
+against the tracked list: an escaping relative path and a tracked path such
+as `crates/goad-shell/src` are refused, and `.claude/skills/` and
+`` `.claude-plugin/plugin.json` `` are accepted.
 
 **The examples** (`design-log.md` 2026-09-26, "which behaviours" and
 "example languages"). Each example:
@@ -1047,9 +1057,9 @@ time.
 - I-4: every shipped example passes `goad-check` in the gate with its own
   config and event files.
 - I-5: nothing under `kit/` references a path in this repository outside
-  `kit/`: no relative path escapes it, and no file mentions another
-  top-level entry of the repository, read at test time (§5.2.6, *The kit
-  stands alone*).
+  `kit/`: no relative path escapes it, and no file mentions a path git tracks
+  outside it, read from `git ls-files` at test time (§5.2.6, *The kit stands
+  alone*).
 - I-6: `goad-check` links no renderer. Held by its manifest, whose comment
   argues it as `goad-emit`'s does, and by review; no instrument bills a
   stratum-3 manifest (FU-7; F-26).
@@ -1299,8 +1309,11 @@ Red/green per behaviour. Tests are named by behaviour.
   - `downloads_triage_moves_the_file_it_was_asked_about`: side effect
     asserted;
   - `nothing_in_the_kit_names_a_path_outside_it` (I-5), with its negative
-    control `a_path_outside_the_kit_is_refused` over inline strings: one
-    escaping relative path, one mention of another top-level entry.
+    control `a_path_outside_the_kit_is_refused` over inline strings: an
+    escaping relative path and a tracked path (`crates/goad-shell/src`)
+    refused; a consumer's `.claude/skills/` and a backticked
+    `` `.claude-plugin/plugin.json` `` accepted. No `git` or `.git` fails
+    the test, never skips it.
 - `the_probe_kind_is_none_of_the_host_s_own`.
 
 **Mutation checks** (memory: mutation-check the coverage claim), run once at

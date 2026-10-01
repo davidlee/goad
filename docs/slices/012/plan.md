@@ -33,12 +33,13 @@ and gated; then it is walked.
   are public (§5.2.1); `version_line` has one home (`plan-log.md` PL-7).
 - **PHASE-04 — `goad-check`: the crate and its edges.** The binary, its
   arguments in both forms, the steps before the first exchange, the report
-  writer and the statuses, with every status-2 case in the binary tier
-  (`design.md` §5.2.1, §5.2.5).
+  writer and status 2, with every status-2 case in the binary tier; a run
+  ends with no verdict, status 2, until PHASE-12 (`design.md` §5.2.1,
+  §5.2.5).
 - **PHASE-12 — `goad-check`: the run.** The request plan, answering and
-  chains, the report of every channel with its refusal lines, and the R-56
-  condition, with the binary cases that need a run (`design.md` §5.2.2,
-  §5.2.5, §5.4).
+  chains, the report of every channel with its refusal lines, the R-56
+  condition, and the verdict with statuses 0 and 1, with the binary cases
+  that need a run (`design.md` §5.2.2, §5.2.5, §5.4).
 - **PHASE-05 — packages and the plugin's shell.** The flake exports
   `goad-check` and `goad-kit`; the manifests and a placeholder `SKILL.md`
   exist and validate; both agents load the plugin from its store path on the
@@ -55,7 +56,7 @@ and gated; then it is walked.
   `running.md`; I-5's path test.
 - **PHASE-08 — the rest of the reference, and its coverage.** `scheduling.md`,
   `events.md`, `checking.md`, the finished `SKILL.md`; the coverage test over
-  every requirement a refusal can name.
+  every requirement a refusal can name, and the checker's R-56 claim.
 - **PHASE-09 — the first walks.** One Claude Code walk and one Codex walk,
   measured, verdict-checked, run by a person, read, and every friction item
   dispositioned (`design.md` §5.2.9).
@@ -89,11 +90,14 @@ Canon keeps its old citations until audit promotes the delta.
 ## Sequencing & rationale
 
 ```
-PHASE-01 ─┐
-PHASE-02 ─┼─► PHASE-04 ─► PHASE-12 ─► PHASE-05 ─► PHASE-06 ─► PHASE-07 ─► PHASE-08 ─┬─► PHASE-09 ─► PHASE-10
-PHASE-03 ─┘   (crate,     (the run)   (packages)  (examples)  (fences)    (coverage) │   (walks)     (fix, re-walk)
-              statuses)                   │                                         │
-                                          └─► PHASE-11 (capsule; waits on oubliette)┘
+PHASE-01 ─► PHASE-02 ─► PHASE-03 ─► PHASE-04 ─► PHASE-12 ─┐
+(refusals)  (kinds)     (ground)    (crate,     (the run)  │
+                                    status 2)              │
+┌──────────────────────────────────────────────────────────┘
+└─► PHASE-05 ─► PHASE-06 ─► PHASE-07 ─► PHASE-08 ─┬─► PHASE-09 ─► PHASE-10
+    (packages)  (examples)  (fences)    (coverage) │   (walks)     (fix, re-walk)
+        │                                          │
+        └─► PHASE-11 (capsule; waits on oubliette)─┘
 ```
 
 **Why the host changes come first.** The checker only prints what the host
@@ -103,24 +107,26 @@ answers `requirement()` and `fault()` and each answer prints itself
 (PHASE-02), and until it can build a command by the host's own rule
 (PHASE-03).
 
-**PHASE-01, PHASE-02 and PHASE-03 may run in parallel**, each in its own
-worktree with one writer, merged in order. The default is sequential;
-parallel is the user's call at phase-plan time. Their code surfaces are
-disjoint by file, and `notes.md` and `canon-delta.md` are not: every phase
-writes `notes.md` (the §Status table and its own phase sheet), and each may
-edit `canon-delta.md`'s test names. So a phase run in parallel writes
-neither `notes.md` §Status nor `canon-delta.md`: it records its status
-changes and its test-name changes in its own phase sheet, and the
-orchestrator applies both at merge. The same rule
-binds PHASE-11 when it runs beside PHASE-06..PHASE-08.
+**PHASE-01, PHASE-02 and PHASE-03 run in sequence.** Their code surfaces are
+disjoint by file, but each writes `notes.md` — its §Status row and its own
+phase sheet, both under one heading — and each may edit `canon-delta.md`'s
+test names, so in parallel they would collide in the shared files.
+
+**PHASE-11 alone may run in parallel**, beside PHASE-06..PHASE-08, in its own
+worktree with one writer. The orchestrator writes PHASE-11's phase sheet and
+its `notes.md` §Status row on `main`, from the worktree agent's reports, so
+the worktree touches neither; PHASE-11's surfaces hold no `canon-delta.md`
+edit.
 
 **Why the checker is two phases.** One phase holding the crate, its edges and
 its run does not fit one session with its binary tier. The split is at the
-first exchange. PHASE-04 builds everything decided before it and after the
-last one: the command line, configuration and event files, the report writer
-and the status cut, and every way to status 2. It ends green, with a run that
-makes no exchange. PHASE-12 fills the run: the request plan, the answers, the
-channel lines and the R-56 condition.
+first exchange. PHASE-04 builds everything decided before it: the command
+line, configuration and event files, the report writer and every way to
+status 2. It ends green, with a run that makes no exchange
+and so ends with no verdict, status 2 (PHASE-04/EX-3): `main` never reports
+an acceptance it did not judge, however many sessions PHASE-12 spans.
+PHASE-12 fills the run: the request plan, the answers, the channel lines, the
+R-56 condition, and the verdict with its cut to 0 or 1.
 
 **Why the plugin loads come early, and the capsule splits out** (`design.md`
 §8 R1 and R7, and their mitigations; `plan-log.md` 2026-10-01, *the capsule
@@ -324,7 +330,7 @@ the delegation only); `crates/goad/tests/` (imports of `Stimulus`);
 PL-2); `canon-delta.md` (test names only).
 
 **Entry**
-- EN-1 — PHASE-01's entry holds (this phase does not depend on PHASE-01).
+- EN-1 — PHASE-01 done (PHASE-01..PHASE-03 run in sequence, §Sequencing).
 - EN-2 — `design.md` §5.2.4 says how `view_model::as_drawn` delegates to
   `Submitted::as_drawn`: a `FieldKind` rebuilt from the `DrawnKind`, and a
   private `as_edited` in `view_model.rs` back (`design-log.md` 2026-10-01,
@@ -419,7 +425,7 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 `canon-delta.md` (test names only).
 
 **Entry**
-- EN-1 — PHASE-01's entry holds (independent of PHASE-01 and PHASE-02).
+- EN-1 — PHASE-02 done (PHASE-01..PHASE-03 run in sequence, §Sequencing).
 
 **Exit**
 - EX-1 — `exercisers/` holds `shell/backend.sh`, `typescript/{backend.ts,
@@ -486,9 +492,12 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 
 **Objective:** a headless `goad-check` binary parses both command forms,
 loads its configuration and event files by the host's rules, writes its
-report through the report writer, and exits 0, 1 or 2 as `canon-delta.md`
-SPEC-004 R-11..R-15 state, with every way to status 2 in its binary tier. It
-makes no exchange yet; that is PHASE-12's.
+report through the report writer, and exits 2 on every failure as
+`canon-delta.md` SPEC-004 R-11..R-15 state, with every way to status 2 in its
+binary tier. It makes no
+exchange yet, so it judges nothing and delivers no verdict: until PHASE-12 a
+run ends with status 2. The exchange, the verdict and statuses 0 and 1 are
+PHASE-12's.
 
 **Surfaces:** `crates/goad-check/` (new: `Cargo.toml`, `src/`,
 `tests/binary/` and its bash fixtures); the root `Cargo.toml`'s `members`
@@ -510,15 +519,17 @@ may be included, not edited.
   `--config`), repeatable `--event FILE` through `envelope::normalize`, `-h`,
   `--help`, `--version`. `args.rs` is pure and returns one `Invocation`.
 - EX-3 — the report writer: a `render`-style module owns every line's text,
-  and every stdout line goes through `report::try_line_to`. The verdict line
-  and the no-view line are written here. Until PHASE-12 a run makes no
-  exchange, so its report is the no-view line and the verdict, and no test
-  asserts a status-0 or status-1 verdict.
-- EX-4 — statuses as §5.2.5: a delivered verdict is 0 with no refusal and 1
-  with at least one, cut by one function PHASE-12 feeds; every cause of 2
-  reaches one `ExitCode::from(2)` that reads no cause; `main` returns an
-  `ExitCode` built from literals, one per class; the last stderr line on 1
-  and 2 begins `goad-check: `.
+  and every stdout line goes through `report::try_line_to`. The no-view line
+  is written here. Until PHASE-12 a run makes no exchange, so it ends with no
+  verdict: its report is the no-view line, a stderr line says the run is not
+  yet implemented, and it exits 2. Nothing on `main` reports an acceptance it
+  did not judge. PHASE-12/EX-6 replaces this end with the verdict.
+- EX-4 — status 2 as §5.2.5: every cause of 2, the interim end of EX-3
+  included, reaches one `ExitCode::from(2)` that reads no cause; `main`
+  returns an `ExitCode` built from literals, one per class it can reach; the
+  last stderr line on 2 begins `goad-check: `. The verdict line and the cut
+  to 0 or 1 are PHASE-12's (EX-6): written here, nothing would feed them, and
+  the gate's lint refuses dead code.
 - EX-5 — `crates/goad-check/Cargo.toml` names only strata 1 and 2 and
   workspace dependencies already in the lockfile, with a comment arguing it
   links no renderer, as `goad-emit`'s does (I-6).
@@ -542,6 +553,10 @@ may be included, not edited.
   and `a_report_that_cannot_be_written_exits_2` with its `--help` half
   (PHASE-12/VT-2 adds the run half). Each asserts status 2 and the
   `goad-check: ` prefix on the **last** stderr line.
+- VT-3 — binary tier, the plan's own interim case:
+  `a_run_with_no_exchange_exits_2_with_no_verdict` — a loadable
+  configuration; status 2, stdout the no-view line and no verdict line, the
+  last stderr line beginning `goad-check: `. PHASE-12/EX-6 deletes it.
 - VA-1 — I-1 by the command under *Invariant reads*: no hit outside a comment
   at this phase. Recorded.
 - VA-2 — I-2 by the command under *Invariant reads*; each match found is
@@ -587,7 +602,9 @@ requirement its kind answers, and charges R-56 only on its condition
 (`design.md` §5.2.2, §5.4).
 
 **Surfaces:** `crates/goad-check/src/`; `crates/goad-check/tests/binary/`
-and its bash fixtures; `canon-delta.md` (test paths only). `tests/support/`
+and its bash fixtures; `crates/goad-check/Cargo.toml` (`[dev-dependencies]`
+only, should reading a test backend's request log need one; a new external
+dependency is still a STOP); `canon-delta.md` (test paths only). `tests/support/`
 is read and may be included, not edited.
 
 **Entry**
@@ -609,13 +626,24 @@ is read and may be included, not edited.
   gives it; each refusal line prints its side and `SPEC-001/R-N` through
   `AtFault`'s and `Requirement`'s `Display`; the R-56 line only on its
   condition; stderr verbatim with truncation flagged; the values sent; the
-  chain-bound observation.
-- EX-4 — the run feeds PHASE-04's status cut: at least one refusal on any
+  chain-bound observation. The R-56 claim the line prints is a constant in a
+  `src` module that holds nothing else, so PHASE-08/VT-1 can include that
+  module by path and read the constant: a binary-only crate's items are not
+  reachable from its test targets (VT-3), and an included item left unused
+  fails the includer's build.
+- EX-4 — the run feeds the status cut (EX-6): at least one refusal on any
   channel, a cleanup failure alone included, is 1; none is 0; the chain bound
   changes no status.
 - EX-5 — the checker opens no socket and alters none of the environment it
   passes on (§5.2.1, §5.3): it names no `ingress` item but
   `envelope::normalize`, and sets, removes or clears no environment variable.
+- EX-6 — the verdict replaces PHASE-04/EX-3's interim end: the verdict line,
+  and statuses as §5.2.5 — a delivered verdict is 0 with no refusal and 1
+  with at least one, cut by one function; `main` gains a literal for each, and
+  the last stderr line on 1 begins `goad-check: `. The not-yet-implemented
+  stderr line and its path to 2 are gone, and PHASE-04/VT-3's case is deleted
+  in the commit that turns `a_conforming_backend_is_accepted_and_exits_0`
+  green.
 
 **Verification**
 - VT-1 — binary tier, the run cases §9 names:
@@ -642,7 +670,9 @@ is read and may be included, not edited.
   probe constant (a binary-only crate's constant is not reachable from
   `tests/binary/`), asserting it is none of `Stimulus`'s kinds.
 - VA-1 — I-1 over the finished crate, by the command under *Invariant reads*:
-  the only hit outside a comment is the R-56 probe's claim. Recorded.
+  the only hits outside a comment are the two `AtFault::Backend` uses R-56
+  needs — the condition's comparison of a probe failure's `fault()` (§5.2.2)
+  and the probe's claim. Recorded.
 - VA-2 — I-2 over the finished crate, `src` and `tests`. Recorded.
 - VA-3 — EX-5: `grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
   crates/goad-check/src` finds only the `envelope` import and its call.
@@ -860,11 +890,15 @@ READMEs (fence tags only).
 - VT-3 — `a_jsonc_fence_is_refused`, over an inline string.
 - VT-4 — `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`.
 - VT-5 — `nothing_in_the_kit_names_a_path_outside_it` (I-5): every file under
-  `kit/`, enumerated, refusing an empty set; the repository root's entries
-  read at test time, refusing a list without `kit` and `crates`.
-- VT-6 — `a_path_outside_the_kit_is_refused`, over inline strings: one
-  escaping relative path, and one mention of another top-level entry, each
-  refused.
+  `kit/`, enumerated, refusing an empty set; the tracked paths read at test
+  time by `git ls-files` at the repository root, refusing a list with nothing
+  under `kit/` or under `crates/`. A missing `git` or `.git` fails the test;
+  it never skips.
+- VT-6 — `a_path_outside_the_kit_is_refused`, over inline strings against
+  the tracked list VT-5 reads: an escaping relative path, and a mention of a
+  tracked path outside `kit/` (`crates/goad-shell/src`), each refused; a
+  consumer path that names nothing here (`.claude/skills/`) and a backticked
+  `` `.claude-plugin/plugin.json` ``, each accepted.
 - VT-7 — `round_trip.rs`' `the_readme_s_own_config_loads_and_runs_the_example`
   is green, reading the README's config through the shared scanner.
 - VA-1 — the extractor's count of checked fences is non-zero and equals a
@@ -893,8 +927,8 @@ READMEs (fence tags only).
 
 **Objective:** the reference is complete — `scheduling.md`, `events.md`,
 `checking.md` and the finished `SKILL.md` — and the gate holds that every
-requirement any refusal kind can name is explained in it, at an anchor of its
-own.
+requirement any refusal kind can name, and the R-56 the checker claims, is
+explained in it, at an anchor of its own.
 
 **Surfaces:** `kit/skills/goad-backend/reference/{scheduling.md, events.md,
 checking.md}` (and `protocol.md`, `running.md` for the statement EX-5 names);
@@ -919,18 +953,29 @@ checking.md}` (and `protocol.md`, `running.md` for the statement EX-5 names);
 - EX-5 — the reference says the specs are not shipped, and that every id a
   report prints is explained in the reference itself (§5.2.6, *The
   reference's structure*).
+- EX-6 — the marker line PHASE-05 put in the placeholder `SKILL.md` is gone;
+  no load check after this phase asks for it (PHASE-11/EX-2).
 
 **Verification**
 - VT-1 — `every_requirement_a_refusal_can_name_is_explained_in_the_reference`:
-  one instance per variant (two for `InapplicableKey`), each builder beside an
-  exhaustive match with no `_` arm. It reads every `*.md` under
+  its id set is one instance per variant (two for `InapplicableKey`), each
+  builder beside an exhaustive match with no `_` arm, and the checker's own
+  R-56 claim, taken from the constant the report prints (PHASE-12/EX-3), not
+  respelled. It reads every `*.md` under
   `kit/skills/goad-backend/reference/`, enumerated and not listed, refusing
-  an empty set, and an id counts only in a Markdown heading line; an id
+  an empty set, through the shared scanner (PHASE-07/EX-4), skipping every
+  fenced line. An id counts only in a Markdown heading line that names
+  exactly that one requirement id and no other (PHASE-07/EX-3); an id
   matches only when followed by a non-digit or the end. Seen red before
-  `scheduling.md`, `events.md` and `checking.md` are written.
+  `scheduling.md`, `events.md` and `checking.md` are written. A scanner
+  symbol added for it is used by both includers, or the other's build fails
+  (PHASE-07/EX-4).
 - VT-2 — its negative control over an inline string where `SPEC-001/R-32`
-  appears in a heading, `SPEC-001/R-3` does not appear, and `SPEC-001/R-40`
-  appears only in body text: R-32 is found, and R-3 and R-40 are not.
+  appears in a heading of its own, `SPEC-001/R-3` does not appear,
+  `SPEC-001/R-40` appears only in body text, `SPEC-001/R-36` appears only on
+  a `#` line inside a fenced block, and `SPEC-001/R-41` and `SPEC-001/R-42`
+  appear only together in one heading: R-32 is found, and R-3, R-40, R-36,
+  R-41 and R-42 are not.
 - VA-1 — every reference file read: `scheduling.md` and `events.md` against
   SPEC-001 R-21..R-29, SPEC-002 and SPEC-003; `checking.md` against
   `design.md` §5.2.5 and `canon-delta.md` SPEC-004; and all of them, with
@@ -1070,11 +1115,14 @@ control, the fixed prompt; PL-5).
 - EX-2 — in that capsule, first `claude -p` and `codex exec`, with no plugin,
   each answer a trivial prompt; then `claude -p --plugin-dir "$KIT/kit"`, and
   Codex after `codex plugin marketplace add "$KIT"; codex plugin add
-  goad@goad`, each answer a headless prompt asking for the goad skill's
-  marker with the marker verbatim — the one `SKILL.md`'s body states at the
-  goad revision `goad-walk`'s lock pins, PHASE-05's until PHASE-09 moves it;
-  and the walk script's collection step brings a committed tree back through
-  `capsule-collect`.
+  goad@goad`, each answer a headless prompt asking for a fact `SKILL.md`'s
+  body states, verbatim, at the goad revision `goad-walk`'s lock pins —
+  PHASE-05's until PHASE-09 moves it. At a revision before PHASE-08 the fact
+  is PHASE-05's marker. If this phase is entered after PHASE-08 and the
+  revision it loads holds the finished `SKILL.md`, whose marker PHASE-08/EX-6
+  removed, the fact is one only that finished body states, in neither the
+  frontmatter nor the prompt. And the walk script's
+  collection step brings a committed tree back through `capsule-collect`.
 
 **Verification**
 - VA-1 — the walk script does what `design.md` §5.2.8–§5.2.9 say: `$KIT` from
@@ -1100,5 +1148,7 @@ control, the fixed prompt; PL-5).
   way the kit cannot fix: that is R1 or R7 firing, and the walk's shape is the
   user's.
 - Its code surfaces are disjoint from PHASE-06..PHASE-08's, so it may run
-  beside them, in its own worktree, whenever EN-2 holds — by the rule in
-  §Sequencing for `notes.md`.
+  beside them, in its own worktree, whenever EN-2 holds. By §Sequencing's
+  rule the worktree writes no `notes.md`: the orchestrator writes this
+  phase's sheet and its §Status row on `main`, from the agent's reports —
+  VA-2's finding included.
