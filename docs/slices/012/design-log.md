@@ -562,3 +562,23 @@ other, citing the finding id.
 - **Consequence:** `design.md` §5.2.6 *The kit stands alone*, §5.5 I-5 and §9
   amended; `plan.md` PHASE-07/VT-5, VT-6 repaired. The escaping-`../` half of
   the rule stands.
+
+### 2026-10-01 — `Requirement` is built from named constants (PHASE-01 sheet)
+
+- **Asked:** the PHASE-01 sheet (aba6509, PLAN QUESTION 1) found that
+  §5.2.3's `pub struct Requirement(u16)` has a private field and no
+  constructor, so `goad-shell`'s `requirement()` arms cannot build one.
+  Options: (A) `pub const fn new(u16)` — least code, but any crate can mint
+  any id, the checker included; (B) associated constants in stratum 1,
+  `Requirement::R44` and so on, one per id the host or the checker names.
+  B also lets the checker's R-56 claim be `Requirement::R56`, read by the
+  coverage test as an ordinary dependency, retiring PHASE-12/EX-3's
+  constant-alone-in-a-module included by `#[path]` (F-25's forced change, new
+  precedent).
+- **Recommended:** B, with the R-56 change. The set of ids is canon-shaped
+  vocabulary and lives beside the type; no crate mints an id.
+- **Decided:** *"B, with the change"*.
+- **Consequence:** `design.md` §5.2.3 gains the constants; the R-56 claim
+  names `Requirement::R56`; I-1 and its grep match the constant's spelling as
+  well as `R-N`. `plan.md` PHASE-01, PHASE-08/VT-1, PHASE-12/EX-3 and VA-1,
+  and *Invariant reads* follow.

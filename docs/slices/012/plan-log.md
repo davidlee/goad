@@ -145,3 +145,17 @@ review's Synthesis leaves standing are accepted with it. The user's global
 `core.hooksPath` was raised and checked against I-5: `git ls-files` runs no
 hook, so the rule does not depend on it. PHASE-11 stays gated on oubliette's
 multi-target work and `goad-walk`'s registration, both outside this slice.
+
+### 2026-10-01 — PHASE-01's red-first order (PHASE-01 sheet)
+
+- **Asked:** the PHASE-01 sheet (aba6509, PLAN QUESTION 2): the plan's Notes
+  put the fixture witnesses first, but they call `requirement()` and do not
+  compile without it — a compile failure is not EX-5's red. Proposed order:
+  `Requirement` and stratum 1's `requirement()`, red by VT-1's tables; then
+  the witnesses, red on exactly EX-4's fixtures (EX-5); then the list
+  corrections; then `fault()`, stratum 2 and `AtFault`'s `Display`.
+- **Recommended:** the proposed order; EX-5 holds under it.
+- **Decided:** *"ill take it"*.
+- **Consequence:** PHASE-01's Notes corrected; the sheet's tasks follow.
+  `Requirement`'s constants: `design-log.md` 2026-10-01, *`Requirement` is
+  built from named constants*.
