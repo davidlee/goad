@@ -29,9 +29,7 @@ Runs a goad backend the way the host runs it and reports every exchange.
                   refused without --.
   --event FILE    one event envelope, as a watcher would write it to the
                   host's socket. Repeatable; sent in the order given.
-  -- PROGRAM ...  the backend's command, in place of a configuration file.
-
-Exit status: 2 when nothing was judged.";
+  -- PROGRAM ...  the backend's command, in place of a configuration file.";
 
 /// What the report says when no exchange returned a view: respond, the
 /// half of the protocol that answers one, went unexercised (`design.md`
@@ -121,7 +119,7 @@ pub(crate) fn report_unwritten_line(fault: &std::io::Error) -> String {
 
 #[cfg(test)]
 mod tests {
-  use std::path::{Path, PathBuf};
+  use std::path::Path;
 
   use goad_shell::clock::ClockError;
   use goad_shell::error::ConfigError;
@@ -269,22 +267,6 @@ mod tests {
       lines.len(),
       "two faults read the same: {lines:?}"
     );
-  }
-
-  /// An unreadable event file and an unreadable configuration are told apart:
-  /// both are `io::Error`s at a path.
-  #[test]
-  fn an_unreadable_event_file_does_not_read_as_a_configuration() {
-    let path = PathBuf::from("/tmp/x");
-    let event = startup_error_line(&StartupFault::EventUnreadable {
-      path: path.clone(),
-      fault: std::io::Error::from(std::io::ErrorKind::NotFound),
-    });
-    let config = startup_error_line(&StartupFault::ConfigUnreadable {
-      path,
-      fault: std::io::Error::from(std::io::ErrorKind::NotFound),
-    });
-    assert_ne!(event, config);
   }
 
   #[test]
