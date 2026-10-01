@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-01 |
-| PHASE-02 | in progress | 2026-10-01 |
+| PHASE-02 | done | 2026-10-01 |
 | PHASE-03 | pending | 2026-10-01 |
 | PHASE-04 | pending | 2026-10-01 |
 | PHASE-05 | pending | 2026-10-01 |
@@ -1053,16 +1053,16 @@ on it.
     `self.min`, inside `NumberRange`'s own `impl`. No second
     minimum-or-zero rule.
 - **Refactor**
-  - [ ] EX-7 (PL-3): `DrawnKind::Choice` loses `first` and *"its stale doc
+  - [x] EX-7 (PL-3): `DrawnKind::Choice` loses `first` and *"its stale doc
         goes with it"*. `drawn_form`'s `Choice` arm and its comment (which
         argues for cloning `first`) follow; so does any doc that still says
         the kind carries the first id (`grep -n 'first' view_model.rs`).
-  - [ ] EX-4 (quoted): *"the helper `a_choice` drops `first`, and
+  - [x] EX-4 (quoted): *"the helper `a_choice` drops `first`, and
         `as_drawn_answers_every_kind`'s choice expectation becomes the
         fixture's literal alternative id, `"first"` — not
         `alternatives.first()`"*. Compared through `as_str` (A-V5). No other
         `as_drawn` or `untouched` test changes.
-  - [ ] Docs made true by the move, by symbol: `draft.rs`' module doc
+  - [x] Docs made true by the move, by symbol: `draft.rs`' module doc
         (*"`submitted` is the single application of `SPEC-001/R-57`"*),
         `Edited`'s doc (*"the only thing `submitted` maps"*),
         `draft::submitted`'s doc (the site that breaks on a new protocol kind
@@ -1072,26 +1072,53 @@ on it.
         (`interpret` calls `NumberRange::drawn`); `NumberRange::drawn`'s
         moved doc says *slice 007's* CD-1, not bare `canon-delta.md` CD-1.
         `wire.rs`' `Command` doc still reads true.
-  - [ ] EX-5: `crates/goad/Cargo.toml`'s comment no longer names
+  - [x] EX-5: `crates/goad/Cargo.toml`'s comment no longer names
         `Stimulus::event` among `goad`'s reasons for `serde_json` (A-V11 has
         the reasons that remain).
-  - [ ] Read the diff for a second statement of any value the phase moved:
+  - [x] Read the diff for a second statement of any value the phase moved:
         a kind string, a JSON type choice, an untouched value, `"host"`.
+  - *Done* (040233a). EX-7: `DrawnKind::Choice` is `{ alternatives }`; its
+    doc is one line; `drawn_form`'s `Choice` arm and the comment arguing for
+    `first` are gone. `drawn_form`'s doc paragraph on PHASE-05 said
+    `DrawnKind::Choice` *"carries"* the first id — put in the past tense, the
+    history it is. `view_model.rs`' own `Choice { alternatives, .. }`
+    patterns lost the `..`; `glass.rs`' keep theirs (they compile, and
+    `glass.rs` is imports-only). EX-4: `a_choice` drops `first`;
+    `as_drawn_answers_every_kind`'s choice clause now reads the `Edited::Chosen`
+    out and compares `as_str()` with `"first"`. No other `as_drawn` or
+    `untouched` test changed. Docs: `draft.rs`' module doc, `Edited`'s doc
+    (the match is `Edited::submitted`'s), `draft::submitted`'s doc (two sites
+    break on a new protocol kind: `Submitted::as_drawn` and `drawn_form`),
+    `adjusted`'s callers (`as_edited`, for `as_drawn`, and the slider),
+    `view_model::as_drawn` (*two* call sites; it delegates), `interpret`'s
+    doc (applies `NumberRange::drawn`). `Alternatives::first`'s doc and
+    `#[expect]` reason now cite `Alternatives::new` by symbol, without line
+    numbers or *"twenty lines above"* (the Findings item; a surface file).
+    EX-5: `Cargo.toml`'s comment names `draft::submitted`'s return type,
+    `view_model.rs`' reading of a `group` hint, and `driving.rs`.
+  - **Second-statement read.** `grep -rn
+    'UNIX_EPOCH\|Value::Bool\|Value::from(\|display_with_offset\|unwrap_or(0.0)\|Checked(false)\|Typed(String::new())'
+    crates/*/src`, non-comment hits read: the R-57 and untouched values occur
+    in `canonical.rs` (`NumberRange::drawn`, `Submitted::as_drawn`,
+    `Submitted::to_json`) and in tests only. Others, not this phase's values:
+    `instant.rs`' clock-failure fallback to the epoch; `glass.rs`' on-screen
+    `display_with_offset` of a picked datetime (presentation); ingress and
+    `error.rs` reads of JSON. Kind strings and `"host"`: EX-1, EX-6 records.
 - **Verification**
-  - [ ] EX-3's structural half: `grep -n 'use crate::view_model'
+  - [x] EX-3's structural half: `grep -n 'use crate::view_model'
         crates/goad/src/draft.rs` — no hit; `untouched` still calls
         `as_drawn` for every kind but `datetime`.
-  - [ ] EX-4: `git diff --stat 68f8ec4 -- crates/goad/tests/renderer/fields.rs`
+  - [x] EX-4: `git diff --stat 68f8ec4 -- crates/goad/tests/renderer/fields.rs`
         empty; renderer tier green.
-  - [ ] VA-1 (quoted): *"`cargo test -p goad-semantics` (the gate's stratum-1
+  - [x] VA-1 (quoted): *"`cargo test -p goad-semantics` (the gate's stratum-1
         command) builds the moved code with stratum 1's own features; no
         feature was added to a dependency shared with stratum 1 (POL-001's
         residue)."* Record the command's result and `git diff 68f8ec4 --
         '*Cargo.toml'` (EX-5's comment only).
-  - [ ] VA-2 (quoted): *"If they land in `canonical.rs`, record that no new
+  - [x] VA-2 (quoted): *"If they land in `canonical.rs`, record that no new
         file was created."* `git diff --stat --diff-filter=A 68f8ec4 --
         crates/goad-semantics/src` empty. If not empty, mutation table row 1.
-  - [ ] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Changes 3–4's test names
+  - [x] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Changes 3–4's test names
         resolve."* `grep -c "fn <name>"` in the file each change places it:
         `canonical.rs` — `a_scheduled_stimulus_names_itself_scheduled`,
         `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`,
@@ -1100,14 +1127,32 @@ on it.
         `crates/goad/tests/renderer/fields.rs` — Change 4's cases (A-V10).
         Change 3's `goad-check` names are PHASE-04's and PHASE-12's. A name
         that differs is updated in `canon-delta.md` in the same commit.
-  - [ ] `design.md` §9's PHASE-02 names, by the same grep:
+  - [x] `design.md` §9's PHASE-02 names, by the same grep:
         `an_as_drawn_choice_submits_the_first_alternative`,
         `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`;
         record the siblings' shipped names.
-  - [ ] Optional mutation rows (below); none is a plan criterion.
-  - [ ] `just check` exits 0 on the final commit. Record it.
-  - [ ] §Status: PHASE-02 `done`, with the date.
-  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+  - [x] Optional mutation rows (below); none is a plan criterion.
+  - [x] `just check` exits 0 on the final commit. Record it.
+  - [x] §Status: PHASE-02 `done`, with the date.
+  - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+  - **Records.** EX-3: `grep -n 'use crate::view_model'
+    crates/goad/src/draft.rs` — no hit; `untouched` unchanged, calling
+    `as_drawn` for every kind but `datetime`. EX-4: `git diff --stat 68f8ec4
+    -- crates/goad/tests/renderer/fields.rs` — empty; renderer tier green.
+    VA-1: `cargo test -p goad-semantics` green inside `just check` (lib 46
+    passed, `protocol` tier 7); `git diff 68f8ec4 -- '*Cargo.toml'` is EX-5's
+    comment in `crates/goad/Cargo.toml` and nothing else. VA-2: `git diff
+    --stat --diff-filter=A 68f8ec4 -- crates/goad-semantics/src` — empty; no
+    file created, mutation row 1 not applicable. VA-3: `grep -c "fn <name>()"`
+    is 1 for each: in `canonical.rs`
+    `a_scheduled_stimulus_names_itself_scheduled`,
+    `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`,
+    `every_submitted_kind_writes_the_json_type_r57_names`; in `draft.rs`
+    `the_projection_to_submitted_is_the_identity_on_each_kind`; in
+    `fields.rs` each A-V10 case. `canon-delta.md` needed no change. §9:
+    `an_as_drawn_choice_submits_the_first_alternative` (`canonical.rs`) and
+    `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`
+    (`view_model.rs`) — 1 each; siblings as shipped under Decisions.
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad and back, never `git checkout`/`git stash`; `--no-fail-fast`;
@@ -1116,13 +1161,17 @@ evidence). The plan's VA items name one planted breach, and only
 conditionally; the rows marked optional are offered because no VA item
 otherwise shows a new case can fail.
 
+Each row: `cargo test --workspace --no-fail-fast` on the mutated tree (exit
+101, no compile error), file restored by copying the scratchpad backup back,
+`git status --short` empty after each restore. The tree mutated was 040233a.
+
 | edit | cases it must red | compiled? | redded |
 |---|---|---|---|
-| VA-2, **only if a new file was created under `crates/goad-semantics/src`**: a `std::fs` call planted in that file, in code that compiles (e.g. `let _ = std::fs::metadata(".");` in a function body) | `the_real_stratum_1_source_names_none_of_the_nine`. Compilable as worded: `std::fs` resolves in stratum 1, which is why the scan exists. If no file was created, this row reads *not applicable*, with VA-2's record. | | |
-| optional: `Submitted::to_json`'s `Number` arm writes `Value::String(number.get().to_string())` | `every_submitted_kind_writes_the_json_type_r57_names`; through `draft::submitted`, `an_untouched_field_submits_what_canon_delta_cd_1_states` and the renderer tier's `every_untouched_kind_leaves_the_host_with_the_json_type_r57_names` | | |
-| optional: `Submitted::as_drawn`'s `Choice` arm takes the last alternative (`alternatives.as_slice().last()`, falling back to `first()` to stay total) | `an_as_drawn_choice_submits_the_first_alternative`; `as_drawn_answers_every_kind` after EX-4 — the case EX-4's literal exists to make fail; `an_untouched_field_submits_what_canon_delta_cd_1_states` | | |
-| `NumberRange::drawn` returns `Finite::ZERO`, ignoring the minimum | `an_untouched_number_is_drawn_at_its_minimum_or_zero`; through `interpret`, `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing` | | |
-| optional, expected **not** to red: `as_edited`'s number arm builds `Edited::Adjusted { text: number.get().to_string(), number }`, bypassing `adjusted` | none expected: VT-4's round trip discards the text, and every spelled number in the tests is under 24 characters, where `spelled` and `to_string` agree. Recording it shows EX-3's *"through `adjusted`"* is held by review | | |
+| VA-2, **only if a new file was created under `crates/goad-semantics/src`**: a `std::fs` call planted in that file, in code that compiles (e.g. `let _ = std::fs::metadata(".");` in a function body) | `the_real_stratum_1_source_names_none_of_the_nine`. Compilable as worded: `std::fs` resolves in stratum 1, which is why the scan exists. If no file was created, this row reads *not applicable*, with VA-2's record. | not applicable | not applicable — no file created (VA-2) |
+| optional: `Submitted::to_json`'s `Number` arm writes `Value::String(number.get().to_string())` | `every_submitted_kind_writes_the_json_type_r57_names`; through `draft::submitted`, `an_untouched_field_submits_what_canon_delta_cd_1_states` and the renderer tier's `every_untouched_kind_leaves_the_host_with_the_json_type_r57_names` | yes | all expected, and more: `every_submitted_kind_writes_the_json_type_r57_names`, `an_untouched_field_submits_what_canon_delta_cd_1_states`, `fields::every_untouched_kind_leaves_the_host_with_the_json_type_r57_names`, `fields::every_operated_kind_leaves_the_host_with_the_json_type_r57_names`, `fields::an_unbounded_number_submits_what_was_typed_and_invents_no_range`, `fields::a_number_draws_a_slider_where_one_can_be_operated_and_a_text_field_otherwise`, `fields::a_number_too_long_to_write_out_is_drawn_in_scientific_notation`, `fields::a_numeric_text_the_parse_refuses_is_recorded_and_leaves_the_number_alone`, `numeric_guard::a_present_inside_the_window_does_not_write_a_zero_back_over_a_cleared_field`, `wiring::editing::an_answer_carries_a_value_for_every_drawn_field_of_the_option_it_names` |
+| optional: `Submitted::as_drawn`'s `Choice` arm takes the last alternative (`alternatives.as_slice().last()`, falling back to `first()` to stay total) | `an_as_drawn_choice_submits_the_first_alternative`; `as_drawn_answers_every_kind` after EX-4 — the case EX-4's literal exists to make fail; `an_untouched_field_submits_what_canon_delta_cd_1_states` | yes (`alternatives.as_slice().last().unwrap_or_else(\|\| alternatives.first())`) | all expected — `an_as_drawn_choice_submits_the_first_alternative`, `as_drawn_answers_every_kind`, `an_untouched_field_submits_what_canon_delta_cd_1_states` — and `fields::every_untouched_kind_leaves_the_host_with_the_json_type_r57_names`, `fields::every_operated_kind_leaves_the_host_with_the_json_type_r57_names`, `fields::a_choice_field_draws_a_combo_box_over_the_alternatives_labels`, `fields::choosing_an_alternative_submits_its_id_where_the_field_id_is_the_options_own`, `reassert::a_second_present_corrects_nothing_and_a_widget_the_host_never_heard_from_is_corrected` |
+| `NumberRange::drawn` returns `Finite::ZERO`, ignoring the minimum | `an_untouched_number_is_drawn_at_its_minimum_or_zero`; through `interpret`, `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing` | yes | all expected — `an_untouched_number_is_drawn_at_its_minimum_or_zero`, `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing` — and `an_as_drawn_range_submits_its_minimum_or_zero`, `as_drawn_answers_every_kind`, `an_untouched_field_submits_what_canon_delta_cd_1_states`, `fields::a_number_draws_a_slider_where_one_can_be_operated_and_a_text_field_otherwise`, `fields::a_number_too_long_to_write_out_is_drawn_in_scientific_notation`, `fields::a_numeric_text_the_parse_refuses_is_recorded_and_leaves_the_number_alone` |
+| optional, expected **not** to red: `as_edited`'s number arm builds `Edited::Adjusted { text: number.get().to_string(), number }`, bypassing `adjusted` | none expected: VT-4's round trip discards the text, and every spelled number in the tests is under 24 characters, where `spelled` and `to_string` agree. Recording it shows EX-3's *"through `adjusted`"* is held by review | yes | **one, against expectation:** `fields::a_number_too_long_to_write_out_is_drawn_in_scientific_notation` — the renderer tier draws an untouched number whose `Display` exceeds 24 characters, so `spelled` and `to_string` disagree there. EX-3's *"through `adjusted`"* is held by that case, not by review alone (Findings) |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -1233,15 +1282,36 @@ otherwise shows a new case can fail.
   true; the reserved spelling then has a name the row could cite. Test names
   only are this phase's to edit, so noted for audit.
 
-**Exit — the gate.** *(Executor: record `just check` on the phase's final
-commit.)*
+- **Mutation row 5 redded a case.** The sheet expected none; the renderer
+  tier's `a_number_too_long_to_write_out_is_drawn_in_scientific_notation`
+  went red, because an untouched number past 24 characters is spelled
+  differently by `to_string`. So `as_edited`'s *"through `adjusted`"* is held
+  by a test for long numbers, and by review for the rest.
+- **`dispatch`'s doc in `controller.rs`** says `Stimulus::event`
+  *"hard-codes `source: "host"`"*. Still true of the value, now spelled
+  through `HOST_SOURCE`; left, since `controller.rs` is imports-only. Audit
+  may re-point it.
+- **`envelope.rs`' docs** on `EnvelopeFault::ReservedSource` and `envelope`
+  still spell `source == "host"`; true, and they witness the wire spelling.
+  Left.
+- **`glass.rs`' `DrawnKind::Choice { alternatives, .. }` / `{ .. }`
+  patterns** keep a `..` that now binds nothing. Compiles and lints clean;
+  `glass.rs` is imports-only. A tidy for whoever next edits it.
+- **`Finite`'s doc** moved verbatim, as designed, and still says *"`Edited`
+  and … `wire.rs`'s `Command` above it"* — stratum-3 names in a stratum-1
+  doc, the item above. Unchanged here.
+
+**Exit — the gate.** `just check` exited 0 on the phase's final commit:
+build, both test tiers (679 passed, 0 failed, summed over every `test
+result` line), `deno check`, clippy with no warning, `cargo fmt --all
+--check`.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-01 · PHASE-01 done · the commit after 0f16450 (*012 PHASE-01: verification, sheet and harvest*)
+**Fresh as of:** 2026-10-01 · PHASE-02 done · the commit after 040233a (*012 PHASE-02: refactor — DrawnKind::Choice loses first; docs follow the move*)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1259,6 +1329,13 @@ commit.)*
   `every_discard_fixture_names_a_requirement_in_its_own_list`. `runner.rs`'
   `SCHEDULE` is now `pub(crate)`.
 - EX-4's three corrected `requirement` lists.
+- PHASE-02: in `goad_semantics::protocol::canonical` — `Stimulus` (with
+  `kind`, `event`), `HOST_SOURCE`, `Finite`, `Submitted` (`to_json`, the one
+  R-57 site; `as_drawn`, the one untouched-value policy) and
+  `NumberRange::drawn`. In `goad`: `Edited::submitted` (a projection),
+  `view_model::as_edited` (private), `view_model::as_drawn` delegating;
+  `drawn_number` and `DrawnKind::Choice.first` gone. `envelope.rs` compares
+  against `HOST_SOURCE`.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -1270,6 +1347,15 @@ commit.)*
   optional row).
 - **A `todo!()` stub is a compiling red for a method, not for a `Display`
   impl.** The unused `Formatter` fails `-D unused`; `write!(f, "")` works.
+  Nor for any stub whose parameter it ignores: spell it `_kind` until the
+  body lands (PHASE-02).
+- **A grep criterion over a deleted name also matches new names containing
+  it.** EX-3's `drawn_number` grep caught the new test
+  `an_as_drawn_number_…` and a comment in a file the sheet read as needing
+  no edit. Run the exit grep before naming new tests (PHASE-02).
+- **An "expected not to red" mutation row is a prediction, so run it.**
+  PHASE-02's row 5 redded a renderer case the sheet reasoned could not
+  exist.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
@@ -1277,6 +1363,10 @@ commit.)*
 - **Two `every_protocol_error` builders** (`error.rs` `mod tests`,
   `normalize.rs`). They predate the slice and cannot share across an
   integration target. Audit's call (PHASE-01 Findings).
+- **PHASE-02 left three stale-but-true spellings** in imports-only files:
+  `controller.rs` `dispatch`'s doc (*hard-codes `source: "host"`*),
+  `glass.rs`' `DrawnKind::Choice` patterns' idle `..`, and `Finite`'s doc
+  naming stratum-3 types. Audit's call (PHASE-02 Findings).
 
 - **Brief §21 AC-14 has no home.** The interstitial-journal scenario (brief §18)
   is to be replaced by a better one the user has in mind; neither 012 nor a
