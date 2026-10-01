@@ -327,3 +327,35 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
 - **Decided:** *"yes"*.
 - **Consequence:** the `Cargo.lock` line is accepted and leaves §Open's
   PHASE-12 Findings row; the race is a §Open box; `main` pushed.
+
+### 2026-10-01 — PHASE-05 sheet questions
+
+- **Asked:** the PHASE-05 sheet (a50118a), PLAN QUESTIONs 3–5 (1 and 2 are
+  design: `design-log.md` 2026-10-01, *D24 amended …* and *`goad-kit` is built
+  with `lib.fileset.toSource`*).
+  - **Q3 — `just install` would overwrite the user's install.** EX-7's run
+    writes `~/.cargo/bin/{goad,goad-emit}` and `~/.config/goad/env`.
+    Proposed: the executor runs it with `CARGO_INSTALL_ROOT` and
+    `XDG_CONFIG_HOME` under its scratchpad.
+  - **Q4 — EX-8 cannot run in an agent session.** No agent session holds the
+    Anthropic credential, and `codex login` would write the key into the
+    fresh home EN-2 forbids. Proposed: EX-8 becomes a person-run check —
+    the sheet's drafted bash script, handed over as one command safe under
+    nu (`docs/memory/interactive-shell-is-nu.md`,
+    `docs/memory/hand-over-the-steps-not-the-pointer.md`). EN-2 is likewise
+    the person's.
+  - **Q5 — `flake.nix`'s package-listing comments.** "both binaries" / "all
+    three derivations" go false with `packages.goad-check` and
+    `packages.goad-kit`, but sit outside the surface's parenthesis.
+    Proposed: the surface admits the comments that list the packages.
+- **Also, the sheet's findings, for audit** (`notes.md` §Harvest Open, as
+  boxes): `claude plugin validate kit/` passes a `SKILL.md` with no
+  frontmatter (only `--strict` fails it); a wrong marketplace `source`
+  passes even `--strict`; nothing reads the root Claude marketplace —
+  EX-8 uses `--plugin-dir`, so the README's install route is unchecked;
+  nothing holds the manifest versions between EX-2 and PHASE-10; no
+  criterion pushes `goad-walk`.
+- **Recommended:** each as proposed.
+- **Decided:** *"sure"*.
+- **Consequence:** `plan.md` PHASE-05 (surfaces, EX-7, EX-8, EN-2) amended;
+  the sheet's `[!]` tasks unblocked.

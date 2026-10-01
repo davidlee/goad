@@ -643,3 +643,45 @@ other, citing the finding id.
   outcomes. `plan.md` PHASE-12's surfaces gain
   `crates/goad-semantics/src/protocol/canonical.rs` (`Options::first` and
   its test only); EX-1 and the R-56 criteria follow.
+
+### 2026-10-01 — D24 amended: the walk's goad pin is public; AC-1 is held by detection (PHASE-05 sheet)
+
+- **Asked:** the PHASE-05 sheet (a50118a, PLAN QUESTION 1). D24 reads
+  *"`goad-walk`'s `goad` input is a host-local `git+file:` URL … closes the
+  route whatever the proxy admits"*. `goad-walk` b4bc42f pins
+  `github:davidlee/goad`; goad is public; oubliette's
+  `perimeter/egress-allow.txt` admits `github.com` and
+  `codeload.github.com`. Oubliette builds the target's tool set into the
+  guest image on the host (`docs/contract-target.md`, `toolsPackage`), so the
+  pin moves where the host fetches from, not what the guest holds — but the
+  walking agent's checkout now carries a `flake.nix` naming a reachable
+  public repo, where it named a host path before.
+- **The user's reason for the pin:** *"so that oubliette could reference it
+  in a way that doesn't break it for non-local consumers of that repo"*.
+- **Options:** (a) accept the open route, held by detection; (b) restore
+  `git+file:` — breaks non-local consumers, which the pin exists to serve;
+  (c) a proxy rule refusing goad's repo — an HTTPS proxy sees the host, not
+  the path, so it cannot tell goad from the tarballs `github.com` is
+  admitted for.
+- **Recommended:** (a). PHASE-09/EX-3 already fails and re-runs *"a walk
+  whose agent read goad's source by any route"*, and each walk record carries
+  its fetch attempts and their witness. Nothing tells the walking agent to
+  avoid goad's source: naming it would point the agent at it.
+- **Decided:** *"yeah"*.
+- **Consequence:** `design.md` D24 (and §5.2.8 wherever it argues the closed
+  route) restated: `goad-walk` pins goad from GitHub so non-local consumers
+  work; the route is open; AC-1 is held by PHASE-09/EX-3's transcript read
+  and the fetch-attempt record. The `goad-walk` README sentence the sheet
+  blocked says the same.
+
+### 2026-10-01 — `goad-kit` is built with `lib.fileset.toSource` (PHASE-05 sheet)
+
+- **Asked:** the PHASE-05 sheet (a50118a, PLAN QUESTION 2). The design's
+  `lib.cleanSourceWith` filter for `goad-kit`, measured with goad's pinned
+  nixpkgs, kept `kit` and silently dropped `.claude-plugin/marketplace.json`.
+  `lib.fileset.toSource` with `unions` fails at evaluation on a missing or
+  untracked path.
+- **Recommended:** `lib.fileset.toSource`, `name = "goad-kit"`.
+- **Decided:** *"sure"*.
+- **Consequence:** `design.md` names `lib.fileset.toSource` for `goad-kit`;
+  `plan.md` PHASE-05 and the sheet follow.
