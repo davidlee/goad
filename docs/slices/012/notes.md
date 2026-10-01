@@ -998,8 +998,11 @@ on it.
         `Edited`'s doc (*"the only thing `submitted` maps"*),
         `draft::submitted`'s doc (the site that breaks on a new protocol kind
         is now `Submitted::as_drawn`'s match too, per Change 4); `adjusted`'s
-        doc names its callers as they now are. `wire.rs`' `Command` doc
-        still reads true.
+        doc names its callers as they now are; `view_model::as_drawn`'s doc
+        no longer says `interpret` applies it for the fallback number
+        (`interpret` calls `NumberRange::drawn`); `NumberRange::drawn`'s
+        moved doc says *slice 007's* CD-1, not bare `canon-delta.md` CD-1.
+        `wire.rs`' `Command` doc still reads true.
   - [ ] EX-5: `crates/goad/Cargo.toml`'s comment no longer names
         `Stimulus::event` among `goad`'s reasons for `serde_json` (A-V11 has
         the reasons that remain).
