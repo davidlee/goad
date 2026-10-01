@@ -2787,8 +2787,8 @@ the end: a guard that is green over a crate it never read proves nothing.
         `cargo test --workspace` only. `just -n check` differs from POL-001
         §Compliance's block in the `deno check` line only (`exercisers/` for
         `examples/`), PHASE-03/EX-3's departure. The commits after d8932c3
-        touch `notes.md` only; rerun on the bookkeeping commit, exit 0
-        (report).*
+        touch `notes.md` only; rerun at c263acc: exit 0, 715 passed, 0
+        failed.*
   - [x] §Status: PHASE-04 `done`, with the date.
         *2026-10-01.*
   - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
