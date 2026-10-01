@@ -3035,7 +3035,7 @@ VA item otherwise shows a new case can fail):
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-01 · PHASE-03 done, VH-1 met · 26eac25 (*012 PHASE-03: verification, findings and harvest*)
+**Fresh as of:** 2026-10-01 · PHASE-04 done · c263acc (*012 PHASE-04: verification, decisions, findings and harvest; PHASE-04 done*)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -3066,6 +3066,14 @@ VA item otherwise shows a new case can fail):
   (exit 2 on an unwritten `--help`/`--version`) and
   `render::answer_unwritten_line`; `exercisers/` (was `examples/`), each
   file's header pointing at `kit/`.
+- PHASE-04: `crates/goad-check`, a workspace member between `goad-emit` and
+  `goad-boundary`. `args::parse` (the two forms, `Invocation`, `Request`,
+  `Source`, `UsageError`); `render` (`USAGE`, `NO_VIEW`,
+  `NOT_YET_IMPLEMENTED`, `usage_error_line`, `startup_error_line`,
+  `answer_unwritten_line`, `report_unwritten_line`); `main`'s `prepare`,
+  `StartupFault`, `unjudged_end` (the interim end PHASE-12/EX-6 replaces) and
+  `not_judged` (the one status 2). Binary tier `tests/binary/statuses.rs`
+  with `loadable.toml` and `reserved-source.json`.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -3089,6 +3097,14 @@ VA item otherwise shows a new case can fail):
 - **A history note can trip a path grep.** Writing *"then `examples/`"* into
   a memory file put a hit in EX-2's grep. Name the old path without its
   slash, or not at all (PHASE-03).
+- **I-1's grep reads unit-test fixtures in `src`.** A JSON fixture spelling
+  `"source":"host"` is a hit, though it names a source, not a side. Build
+  the fault, or use `HOST_SOURCE`, instead (PHASE-04, D-7).
+- **A struct that carries values to a later phase is dead code now.** Bind
+  them as `_name` in the function that builds them, and let the later phase
+  change its return (PHASE-04, D-4).
+- **The scaffold's `0 passed` `Running` line is the reach proof for a new
+  test target**, before any case exists (PHASE-04, A-T4).
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
@@ -3098,6 +3114,10 @@ VA item otherwise shows a new case can fail):
   list carries it).
 - **`goad-emit`'s `exchange::emit_with_stdout_full`** is a copy of `goad`'s
   `process::goad_with_stdout_full`, across crates. FU-5's class.
+- **PHASE-04 Findings for PHASE-12's sheet**: fixtures in `src` name
+  `EnvelopeFault` variants or `HOST_SOURCE`, never the `"host"` spelling
+  (I-1); `prepare` returns `()`, and PHASE-12 changes that; PHASE-12 may not
+  add a `[dependencies]` entry PHASE-04 did not use.
 - **PHASE-03 Findings for audit**: `print_usage`'s doc fragment;
   `goad-emit`'s binary-tier doc (*"Every case passes `--socket`"*); EX-8's
   parameter held by review, not a test.
