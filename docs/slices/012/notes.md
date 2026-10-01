@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-01 |
 | PHASE-02 | done | 2026-10-01 |
-| PHASE-03 | in progress | 2026-10-01 |
+| PHASE-03 | done | 2026-10-01 |
 | PHASE-04 | pending | 2026-10-01 |
 | PHASE-05 | pending | 2026-10-01 |
 | PHASE-06 | pending | 2026-10-01 |
@@ -1896,14 +1896,23 @@ paths, so `just check` is never red at a commit.
         PHASE-03 name is the first. A name that differs is updated in
         `canon-delta.md` in the same commit. *Each `grep -c` is 1. No
         `canon-delta.md` edit.*
-  - [ ] `just check` exits 0 on the final commit. Record it.
+  - [x] `just check` exits 0 on the final commit. Record it. *Exit 0 at
+        1c74dec (the rename) and again on the phase's final commit, which
+        changes only this file: build, both test tiers (678 passed, 0 failed,
+        summed over every `test result` line), `deno check
+        exercisers/typescript/backend.ts`, clippy with no warning, `cargo fmt
+        --all --check`. 678 is PHASE-02's 679, less the six `version_line`
+        cases deleted from `goad` and `goad-emit`, plus the three moved to
+        `goad_shell::version`, VT-1 and VT-3.*
   - [ ] VH-1 (quoted): *"a person runs `just demo` on the renamed exerciser
         and sees the window prompt, as before."* Hand the person the command
         block, not a pointer (`docs/memory/hand-over-the-steps-not-the-pointer.md`).
         Record what they saw. Do not launch it from the agent's shell with
-        `&` (`docs/memory/gui-launch-needs-a-pipe.md`).
-  - [ ] §Status: PHASE-03 `done`, with the date.
-  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+        `&` (`docs/memory/gui-launch-needs-a-pipe.md`). *Handed to the
+        orchestrator for the person with the command block; not yet run.
+        Owed (§Harvest *Open*).*
+  - [x] §Status: PHASE-03 `done`, with the date.
+  - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
         §Open gains: *the `justfile`'s `typecheck` departs from POL-001
         §Compliance until audit promotes POL-001 Change 1* (PHASE-10/VA-4
         checks §Open carries every owed item); the `/dev/full` helper copied
@@ -2023,13 +2032,23 @@ the scratchpad backup back, `git status --short` empty after.
 - **A count in canon's neighbourhood.** `deno-run-does-not-typecheck`'s
   *"seventh command"* predates the six-command gate. It is fixed here
   because the sentence is edited for the path (task 4).
+- **`goad`'s `print_usage` doc begins mid-sentence** (*"stdout. The only
+  caller is `--help`"*), as `print_version`'s did. Each lost its opening line
+  at some edit before this slice. `print_version`'s is rewritten here, since
+  its call changed; `print_usage`'s is left. For audit.
+- **`report.rs`' composer list is by example.** Its module doc names
+  `diagnostics` and `render` as where a line is composed; the version line
+  is now composed in `goad_shell::version`. The sentence does not claim to be
+  complete, so it is still true, and EX-8 keeps the file unchanged.
+- **`goad-emit`'s binary-tier doc** (*"Every case passes `--socket`"*,
+  above) now has one more counter-case, VT-1's.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-01 · PHASE-02 done · the commit after 040233a (*012 PHASE-02: refactor — DrawnKind::Choice loses first; docs follow the move*)
+**Fresh as of:** 2026-10-01 · PHASE-03 done (VH-1 owed) · the commit after 1c74dec (*012 PHASE-03: examples/ becomes exercisers/; headers point at kit/*)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -2054,6 +2073,12 @@ the scratchpad backup back, `git status --short` empty after.
   `view_model::as_edited` (private), `view_model::as_drawn` delegating;
   `drawn_number` and `DrawnKind::Choice.first` gone. `envelope.rs` compares
   against `HOST_SOURCE`.
+- PHASE-03: `goad_shell::version::version_line(version, revision)`, the one
+  home of the `--version` line; `goad_shell::config::{positive_duration,
+  Command::from_argv}` public, for `goad-check`; `goad-emit`'s `answer`
+  (exit 2 on an unwritten `--help`/`--version`) and
+  `render::answer_unwritten_line`; `exercisers/` (was `examples/`), each
+  file's header pointing at `kit/`.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -2074,9 +2099,23 @@ the scratchpad backup back, `git status --short` empty after.
 - **An "expected not to red" mutation row is a prediction, so run it.**
   PHASE-02's row 5 redded a renderer case the sheet reasoned could not
   exist.
+- **A history note can trip a path grep.** Writing *"then `examples/`"* into
+  a memory file put a hit in EX-2's grep. Name the old path without its
+  slash, or not at all (PHASE-03).
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **The `justfile`'s `typecheck` departs from POL-001 §Compliance** until
+  audit promotes POL-001 Change 1 (PHASE-03/EX-3; PHASE-10/VA-4 checks this
+  list carries it).
+- **`goad-emit`'s `exchange::emit_with_stdout_full`** is a copy of `goad`'s
+  `process::goad_with_stdout_full`, across crates. FU-5's class.
+- **PHASE-03/VH-1 owed**: a person runs `just demo` on the renamed exerciser
+  and sees the window prompt.
+- **PHASE-03 Findings for audit**: `print_usage`'s doc fragment;
+  `goad-emit`'s binary-tier doc (*"Every case passes `--socket`"*); EX-8's
+  parameter held by review, not a test.
 
 - **Two `every_protocol_error` builders** (`error.rs` `mod tests`,
   `normalize.rs`). They predate the slice and cannot share across an
