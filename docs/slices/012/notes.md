@@ -247,83 +247,106 @@ produces, so the produced error of a fixture can be read off its `expect`
   `SpanFault` (EX-3; R-59 puts them outside its scope).
 - A dependency addition (e.g. a variant-enumerating derive: `notes.md` §Open,
   declined by the user).
-- **PLAN QUESTION 1** (Findings) unanswered when execution starts: how
-  `goad-shell` constructs a `Requirement`.
-- **PLAN QUESTION 2** (Findings) unanswered: the Notes order cannot produce
-  EX-5's red.
+- ~~**PLAN QUESTION 1** (Findings) unanswered when execution starts: how
+  `goad-shell` constructs a `Requirement`.~~ Resolved: see Findings.
+- ~~**PLAN QUESTION 2** (Findings) unanswered: the Notes order cannot produce
+  EX-5's red.~~ Resolved: see Findings.
 
-**Tasks** — in `plan.md` PHASE-01 Notes order (*"write the witness tests, see
-the refusal witness fail on the fixtures EX-4 names (EX-5), correct the lists,
-then the methods"*), with Display last as the brief for this sheet orders it.
-`[!]` marks a step PLAN QUESTION 2 blocks as written.
+**Tasks** — in `plan.md` PHASE-01 Notes order (`plan-log.md` 2026-10-01,
+*PHASE-01's red-first order*), quoted: *"1. `Requirement` with its constants
+(EX-1), its `Display`, and stratum 1's `requirement()` on `ProtocolError`,
+`BoundsError` and `ScheduleError`, red by VT-1's tables first — their
+requirement column; `fault()` does not exist yet. 2. The witnesses (VT-3), red
+on exactly EX-4's fixtures (EX-5). 3. The list corrections (EX-4); the refusal
+witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
+(VT-2), and `AtFault`'s `Display`; VT-1's tables gain their side column."*
 
 - [ ] Set PHASE-01 to `in progress` in §Status.
 - [ ] Print `git log -1 --oneline`; it must be 7b549d4 or a descendant whose
-      only changes since are this sheet.
-- **Witnesses, red**
-  - [!] `normalize.rs`: give `fixtures_of` the fixture's path (A-V4); reach the
-        schedule corpus through `runner.rs` by the narrowest edit (A-V3).
+      only changes since are this sheet and the documents its two PLAN
+      QUESTIONs' resolutions amended (`design.md`, `plan.md`, the two logs).
+- **1. `Requirement`, its constants and stratum 1's `requirement()`, red by
+  VT-1**
+  - [ ] EX-1 (quoted, its `Requirement` half): *"`Requirement`'s field is
+        private, it has no constructor, and it has exactly the associated
+        constants §5.2.3 lists: `R3`, `R10`, `R12`, `R13`, `R14`, `R16`,
+        `R17`, `R18`, `R21`, `R22`, `R23`, `R25`, `R32`, `R40`, `R41`, `R43`,
+        `R44`, `R45`, `R48`, `R50`, `R52`, `R53` — one per id the table
+        answers — and `R56`, for the checker's claim"*. Its `Display` prints
+        `R-N` (A-V7).
+  - [ ] VT-1, requirement column: extend `every_protocol_error` (A-V8);
+        write `every_protocol_error_names_a_requirement_and_a_side` and the
+        bounds and schedule siblings beside `must_name` — each an exhaustive
+        `match` whose expected id is copied from §5.2.3's table, not from the
+        code (*tests-asserting-proxies*), and, quoted, *"spelled as the table
+        spells it (`"R-44"`) and compared with `Requirement`'s `Display`, so a
+        constant whose value disagrees with its name reds it"*. See them red.
+  - [ ] Stratum 1, in `goad_semantics::error`: `requirement()` on
+        `ProtocolError`, `BoundsError`, `ScheduleError` (EX-2), each a total
+        `match` with no `_` arm naming a `Requirement` constant,
+        `InapplicableKey` split on `key`, `Bounds` and `Schedule` delegating.
+        VT-1's requirement column green.
+- **2. Witnesses, red (EX-5)**
+  - [ ] `normalize.rs`: give `fixtures_of` the fixture's path (A-V4); reach
+        the schedule corpus through `runner.rs` by the narrowest edit (A-V3).
         Extract the per-corpus input route (`to_vec` for `PROTOCOL`, `as_str`
         for `PROTOCOL_TEXT`) so the checkers and the witness share it rather
         than repeating it.
-  - [!] Write `every_refusal_fixture_names_a_requirement_in_its_own_list` over
+  - [ ] Write `every_refusal_fixture_names_a_requirement_in_its_own_list` over
         `PROTOCOL` and `PROTOCOL_TEXT`: run `read_response` on each fixture's
         input at its `now`; for each `Err`, its `requirement()`'s display is in
         the fixture's `requirement`; collect every failure with the fixture
         path, the produced variant and id, and the list; fail once naming all.
         Non-vacuity per corpus (VT-3, A-T3).
-  - [!] Write `every_discard_fixture_names_a_requirement_in_its_own_list` over
+  - [ ] Write `every_discard_fixture_names_a_requirement_in_its_own_list` over
         `PROTOCOL`'s `Discarded` items and the schedule corpus's error
         fixtures (`schedule::parse`), the same way; non-vacuity counted for the
         `Discarded` fixtures and the schedule error fixtures separately.
-  - [!] Run with `--no-fail-fast`. **EX-5**: record the refusal witness's
+  - [ ] Run with `--no-fail-fast`. **EX-5**: record the refusal witness's
         failure output below (fixture names, verbatim) and check it is A-V5's
-        set exactly. The discard witness is green (Notes: *"green from its
-        first run; VA-4 is what shows it can fail"*).
-- **List corrections, green**
+        set exactly (A-T1). The discard witness is green (Notes: *"green from
+        its first run; VA-4 is what shows it can fail"*).
+- **3. List corrections, green**
   - [ ] EX-4: `R-17-a-nan-literal-for-a-bound` and
         `R-17-an-infinite-literal-for-a-bound` → `["R-17", "R-44"]`;
         `R-52-a-choice-field-with-no-alternatives` → `["R-52", "R-53",
         "R-16"]`. `requirement` arrays only. Refusal witness green.
   - [ ] `git diff --stat -- tests/fixtures` shows exactly those files (EX-4:
         *"no other fixture list is edited"*).
-- **Methods** (`requirement()` and `fault()`, each a total `match` with no `_`
-  arm; VT tables first, red, then the arms)
-  - [!] Stratum 1, in `goad_semantics::error`: `Requirement`, `AtFault` (EX-1);
-        `requirement()`/`fault()` on `ProtocolError`, `BoundsError`,
-        `ScheduleError` (EX-2), `InapplicableKey` split on `key`, `Bounds` and
-        `Schedule` delegating.
-  - [ ] VT-1: extend `every_protocol_error` (A-V8); write
-        `every_protocol_error_names_a_requirement_and_a_side` and the bounds and
-        schedule siblings beside `must_name` — each an exhaustive `match` whose
-        expected id and side are copied from §5.2.3's table, not from the code
-        (*tests-asserting-proxies*). Expected ids written so a reader sees the
-        table (e.g. compare displays to `"R-44"`), subject to PLAN QUESTION 1.
-  - [!] Stratum 2, in `goad_shell::error`: `requirement()`/`fault()` on
-        `BackendError` (`Protocol` delegating), `CleanupFailure`, `StateError`
-        — blocked on PLAN QUESTION 1.
-  - [ ] VT-2: new `mod tests` with a builder per enum (A-V9) and
-        `every_backend_error_names_a_requirement_and_a_side`, and the cleanup
-        and state siblings, each from §5.2.3.
+- **4. `fault()`, stratum 2, `AtFault`'s `Display`**
+  - [ ] EX-1, its `AtFault` half: `AtFault { Backend, Host, Configuration,
+        Environment }`, whose `Display` is *"a total match printing `backend`,
+        `host`, `configuration`, `environment`"*. VT-1:
+        `every_side_displays_as_the_word_a_report_prints` — *"a table over
+        each `AtFault` variant beside an exhaustive match"* — red, then green.
+  - [ ] VT-1's tables gain their side column, copied from §5.2.3; then
+        `fault()` on `ProtocolError`, `BoundsError`, `ScheduleError` (EX-2),
+        total, no `_` arm, `Bounds` and `Schedule` delegating.
+  - [ ] VT-2: new `mod tests` in `goad_shell::error` with a builder per enum
+        (A-V9) and `every_backend_error_names_a_requirement_and_a_side`, and
+        the cleanup and state siblings, each from §5.2.3, *"expected ids
+        spelled as VT-1's"*. See them red.
+  - [ ] Stratum 2, in `goad_shell::error`: `requirement()`/`fault()` on
+        `BackendError` (`Protocol` delegating), `CleanupFailure`,
+        `StateError`, each arm naming a `Requirement` constant. VT-2 green.
   - [ ] EX-3: `grep -n 'fn requirement\|fn fault'` over
         `crates/goad-semantics/src/error.rs`, `crates/goad-shell/src/error.rs`,
         `crates/goad-shell/src/ingress/envelope.rs`; no hit in an `impl` of
         `ConfigError`, `EnvelopeFault` or `SpanFault`. Record the hits.
-- **Display**
-  - [ ] EX-1: `Requirement` displays as `R-N`; `AtFault`'s `Display` a total
-        `match` printing `backend`, `host`, `configuration`, `environment`.
-  - [ ] VT-1: `every_side_displays_as_the_word_a_report_prints` — *"a table over
-        each `AtFault` variant beside an exhaustive match"*.
 - **Refactor**
   - [ ] Read the diff for duplication between the witnesses and the existing
         corpus tests (the input route, `now` parsing, the walk). Docs on the
         new types cite §5.2.3 and R-59 by name, never by line.
 - **Verification**
   - [ ] VA-1 (quoted): *"the §5.2.3 table and the code agree row for row, read
-        side by side and recorded in the phase sheet"*. Record one line per row
-        under Decisions or a VA-1 block: variant, table id/side, arm id/side.
-        Confirm no `_` arm in any `requirement()`, `fault()` or `AtFault`
-        `Display` match by reading each (A-V10).
+        side by side and recorded in the phase sheet; this is the review the
+        witness's stated reach leaves (F-23). The same read holds
+        `Requirement`'s constants to §5.2.3's list: none missing, none surplus
+        — nothing else holds a surplus constant (§5.2.3)."* Record one line
+        per row under Decisions or a VA-1 block: variant, table id/side, arm
+        id/side; then the constants against §5.2.3's list. Confirm no `_` arm
+        in any `requirement()`, `fault()` or `AtFault` `Display` match by
+        reading each (A-V10).
   - [ ] VA-2: mutation table row 1.
   - [ ] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Change 2's test names
         resolve to the shipped cases."* `grep -n` each name Change 2 cites
@@ -360,7 +383,12 @@ also asserts the arm is expected to red with it and is listed second.
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
 
-- **PLAN QUESTION 1 — how does stratum 2 build a `Requirement`?** `design.md`
+- **PLAN QUESTION 1 — how does stratum 2 build a `Requirement`?**
+  **Resolved:** associated constants in stratum 1, `Requirement::R44` and so
+  on; the field stays private and no crate mints an id; the checker's R-56
+  claim is `Requirement::R56` (`design-log.md` 2026-10-01, *`Requirement` is
+  built from named constants*; `design.md` §5.2.3; `plan.md` PHASE-01/EX-1).
+  The question as raised: `design.md`
   §5.2.3 declares `pub struct Requirement(u16)` with a private field, and
   states no constructor. `goad_shell::error`'s arms (`Spawn` → R-44, `Timeout`
   → R-41, …) are in another crate and cannot write `Requirement(44)`. Neither
@@ -370,7 +398,10 @@ also asserts the arm is expected to red with it and is listed second.
   `goad_semantics::error`; a public field. Each is new public API that
   `goad-check` will also see, and I-1 (*"`goad-check` contains no requirement
   id … except the R-56 probe's"*) bears on which. Not repaired here.
-- **PLAN QUESTION 2 — the Notes order cannot produce EX-5's red.** The Notes
+- **PLAN QUESTION 2 — the Notes order cannot produce EX-5's red.**
+  **Resolved:** the order proposed below was taken, and `plan.md` PHASE-01's
+  Notes now give it (`plan-log.md` 2026-10-01, *PHASE-01's red-first
+  order*); the Tasks follow it. The question as raised: The Notes
   say *"write the witness tests, see the refusal witness fail on the fixtures
   EX-4 names (EX-5), correct the lists, then the methods"*, and the brief for
   this sheet orders Display last. But the witness calls `requirement()` on the

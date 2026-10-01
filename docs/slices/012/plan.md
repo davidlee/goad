@@ -19,9 +19,9 @@ already knows first; then the checker is built on it; then the plugin is stood
 up in a capsule before any prose is written for it; then the kit is written
 and gated; then it is walked.
 
-- **PHASE-01 — refusals name a requirement and a side.** `Requirement`,
-  `AtFault` (each with its `Display`), and total `requirement()`/`fault()` on
-  every taxonomy in strata 1 and 2 (`design.md` §5.2.3). The corpus
+- **PHASE-01 — refusals name a requirement and a side.** `Requirement` and
+  its named constants, `AtFault` (each with its `Display`), and total
+  `requirement()`/`fault()` on every taxonomy in strata 1 and 2 (`design.md` §5.2.3). The corpus
   witnesses, red on the fixtures whose lists §5.2.3 corrects and green after.
 - **PHASE-02 — the host's kinds and R-57 values live in stratum 1.**
   `Stimulus`, `Submitted`, `Finite` and `Submitted::as_drawn` move or are
@@ -177,12 +177,15 @@ one the test read.
 
 **Invariant reads** name their command, and every hit is read and recorded.
 I-1's command reads non-comment code only: `grep -rnE
-'R-[0-9]+|AtFault::|"(backend|host|configuration|environment)"'
+'R-?[0-9]+|AtFault::|"(backend|host|configuration|environment)"'
 crates/goad-check/src | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'`, which
 drops whole-line comments; a hit that remains is read, and a trailing comment
-on a code line is recorded as one. I-2's is every `FieldKind` match in
-`crates/goad-check`, `src` and `tests`, each read for a kind mapped to a JSON
-type or a value.
+on a code line is recorded as one. `R-?[0-9]+` matches an id in every
+spelling I-1 counts: `R-56` in a literal, a bare `R56` constant, and
+`Requirement::R56` (`design.md` §5.5 I-1; `design-log.md` 2026-10-01,
+*`Requirement` is built from named constants*). I-2's is every `FieldKind`
+match in `crates/goad-check`, `src` and `tests`, each read for a kind mapped
+to a JSON type or a value.
 
 ## Coverage
 
@@ -190,7 +193,7 @@ type or a value.
 |----|---------------|
 | AC-1 | PHASE-11/EX-1, EX-2 (the capsule, its negative control, the plugin in it); PHASE-09/EX-3 (each first walk: control passed, verdict 0 with a view answered, no goad source read) and PHASE-09/VH-1 (a person ran each walk's backend); PHASE-10/EX-4 and PHASE-10/VH-1 (each re-walk, the same) |
 | AC-2 | PHASE-07/VT-1 (every json/toml fence in the kit is tagged and checked) with VT-2..VT-4 (its negative controls) and VA-2 (the untag mutation); PHASE-08/EX-1 and VA-2 (the same test over the finished reference, reach proven in a file PHASE-08 writes); PHASE-10/VA-5 (reach for any file the fixes add) |
-| AC-3 | PHASE-12/VT-1 (each refusal reported with side and requirement, from the host's `Outcome`) and PHASE-12/VA-1, VA-2 (I-1, I-2 over the finished crate); PHASE-04/VA-1, VA-2 (the same, before the run); PHASE-01/VT-1, VT-2 (the data it prints, and its printed form) |
+| AC-3 | PHASE-12/VT-1 (each refusal reported with side and requirement, from the host's `Outcome`) and PHASE-12/VA-1, VA-2 (I-1, I-2 over the finished crate); PHASE-04/VA-1, VA-2 (the same, before the run); PHASE-01/VT-1, VT-2 (the data it prints, its printed form, and each `Requirement` constant's value) |
 | AC-4 | PHASE-03/VT-1 (`goad-emit`); PHASE-04/VT-2 (`goad-check`'s status 2) and PHASE-12/VT-1, VT-2 (its statuses 0 and 1, and status 2 mid-run); the statement itself is `canon-delta.md` SPEC-004, **promoted at audit** |
 | AC-5 | PHASE-06/VT-1, VT-2 (each example accepted, having answered a view; the triage side effect) and PHASE-06/VA-3 (each example read against the reference and SPEC-001); PHASE-03/EX-1 (the exercisers renamed and no longer presented as the file to copy) |
 | AC-6 | PHASE-06/VH-1 |
@@ -252,7 +255,13 @@ the discard witness needs the schedule corpus's envelope);
 - EX-1 — `goad_semantics::error` holds `Requirement` (displays as `R-N`) and
   `AtFault { Backend, Host, Configuration, Environment }`, whose `Display` is
   a total match printing `backend`, `host`, `configuration`, `environment`,
-  as `design.md` §5.2.3 gives them.
+  as `design.md` §5.2.3 gives them. `Requirement`'s field is private, it has
+  no constructor, and it has exactly the associated constants §5.2.3 lists:
+  `R3`, `R10`, `R12`, `R13`, `R14`, `R16`, `R17`, `R18`, `R21`, `R22`,
+  `R23`, `R25`, `R32`, `R40`, `R41`, `R43`, `R44`, `R45`, `R48`, `R50`,
+  `R52`, `R53` — one per id the table answers — and `R56`, for the checker's
+  claim (`design-log.md` 2026-10-01, *`Requirement` is built from named
+  constants*). Every `requirement()` arm, in either stratum, names one.
 - EX-2 — `ProtocolError`, `BoundsError` and `ScheduleError` in stratum 1, and
   `BackendError`, `CleanupFailure` and `StateError` in stratum 2, each have
   `requirement()` and `fault()`: total matches with no `_` arm, answering
@@ -271,11 +280,13 @@ the discard witness needs the schedule corpus's envelope);
 - VT-1 — `goad-semantics` `error.rs` tests:
   `every_protocol_error_names_a_requirement_and_a_side` and its bounds and
   schedule siblings, beside `must_name`, each an exhaustive table of §5.2.3's
-  rows; `every_side_displays_as_the_word_a_report_prints`, a table over each
-  `AtFault` variant beside an exhaustive match.
+  rows, each expected id spelled as the table spells it (`"R-44"`) and
+  compared with `Requirement`'s `Display`, so a constant whose value
+  disagrees with its name reds it; `every_side_displays_as_the_word_a_report_prints`,
+  a table over each `AtFault` variant beside an exhaustive match.
 - VT-2 — `goad-shell` `error.rs` tests:
   `every_backend_error_names_a_requirement_and_a_side` and its cleanup and
-  state siblings.
+  state siblings, expected ids spelled as VT-1's.
 - VT-3 — `normalize.rs`:
   `every_refusal_fixture_names_a_requirement_in_its_own_list` over the
   `protocol` and `protocol-text` corpora, and
@@ -289,7 +300,9 @@ the discard witness needs the schedule corpus's envelope);
   is the witness's own.
 - VA-1 — the §5.2.3 table and the code agree row for row, read side by side
   and recorded in the phase sheet; this is the review the witness's stated
-  reach leaves (F-23).
+  reach leaves (F-23). The same read holds `Requirement`'s constants to
+  §5.2.3's list: none missing, none surplus — nothing else holds a surplus
+  constant (§5.2.3).
 - VA-2 — mutation: `NestedHints`' `requirement()` arm R-18 → R-3 reds
   `every_refusal_fixture_names_a_requirement_in_its_own_list`. Recorded.
 - VA-3 — `canon-delta.md` SPEC-001 Change 2's test names resolve to the
@@ -301,12 +314,26 @@ the discard witness needs the schedule corpus's envelope);
   ([R-21, R-25]) — one fixture from each half. Recorded.
 
 **Notes for the implementer**
-- Red first: write the witness tests, see the refusal witness fail on the
-  fixtures EX-4 names (EX-5), correct the lists, then the methods. The
-  discard witness has no list to correct, so it is green from its first run;
-  VA-4 is what shows it can fail. `every_protocol_error` in `error.rs`' tests
-  already builds one of each variant; extend it, do not write a second
+- Red first, in this order (`plan-log.md` 2026-10-01, *PHASE-01's red-first
+  order*). The witnesses call `requirement()` and compare its printed form,
+  so they do not compile without it, and a compile failure is not EX-5's
+  red.
+  1. `Requirement` with its constants (EX-1), its `Display`, and stratum 1's
+     `requirement()` on `ProtocolError`, `BoundsError` and `ScheduleError`,
+     red by VT-1's tables first — their requirement column; `fault()` does
+     not exist yet.
+  2. The witnesses (VT-3), red on exactly EX-4's fixtures (EX-5).
+  3. The list corrections (EX-4); the refusal witness goes green.
+  4. `fault()`, stratum 2's `requirement()` and `fault()` (VT-2), and
+     `AtFault`'s `Display`; VT-1's tables gain their side column.
+
+  The discard witness has no list to correct, so it is green from its first
+  run; VA-4 is what shows it can fail. `every_protocol_error` in `error.rs`'
+  tests already builds one of each variant; extend it, do not write a second
   builder.
+- VA-2's and VA-4's mutations flip an arm to `Requirement::R3`, a constant
+  that exists for `UnsupportedProtocolVersion`, so the mutated build
+  compiles.
 - The `requirement` array is the fixture's claim, not the code's: the
   corrections EX-4 names are the only lists edited to agree with the code
   (`design.md` §5.2.3, *Its reach*).
@@ -558,7 +585,8 @@ may be included, not edited.
   configuration; status 2, stdout the no-view line and no verdict line, the
   last stderr line beginning `goad-check: `. PHASE-12/EX-6 deletes it.
 - VA-1 — I-1 by the command under *Invariant reads*: no hit outside a comment
-  at this phase. Recorded.
+  at this phase, in any of the spellings that command matches; the R-56
+  claim and its `Requirement::R56` are PHASE-12's. Recorded.
 - VA-2 — I-2 by the command under *Invariant reads*; each match found is
   read and recorded.
 - VA-3 — reach: `goad-boundary`'s
@@ -626,11 +654,11 @@ is read and may be included, not edited.
   gives it; each refusal line prints its side and `SPEC-001/R-N` through
   `AtFault`'s and `Requirement`'s `Display`; the R-56 line only on its
   condition; stderr verbatim with truncation flagged; the values sent; the
-  chain-bound observation. The R-56 claim the line prints is a constant in a
-  `src` module that holds nothing else, so PHASE-08/VT-1 can include that
-  module by path and read the constant: a binary-only crate's items are not
-  reachable from its test targets (VT-3), and an included item left unused
-  fails the includer's build.
+  chain-bound observation. The R-56 line's id is `Requirement::R56`, from
+  stratum 1, printed through `Requirement`'s `Display` as every refusal
+  line's is; its text, "a backend MUST tolerate a kind it does not
+  recognise", is the checker's (`design.md` §5.2.2; `design-log.md`
+  2026-10-01, *`Requirement` is built from named constants*).
 - EX-4 — the run feeds the status cut (EX-6): at least one refusal on any
   channel, a cleanup failure alone included, is 1; none is 0; the chain bound
   changes no status.
@@ -656,7 +684,9 @@ is read and may be included, not edited.
   `a_backend_that_returns_no_view_is_accepted_and_says_respond_was_not_exercised`,
   `a_chained_view_is_answered_until_null`,
   `a_chain_past_its_bound_is_reported_and_does_not_change_the_status`,
-  `a_view_answered_carries_exactly_its_options_fields`; and the plan's own:
+  `a_view_answered_carries_exactly_its_options_fields`. The R-56 case
+  asserts the line's `SPEC-001/R-56`, which holds `Requirement::R56`'s value
+  (`design.md` §5.2.3). And the plan's own:
   `a_backend_failing_at_startup_is_still_asked_the_rest` (a backend that
   logs each request's kind and fails the first: the log holds every planned
   kind), and `event_files_are_sent_in_the_order_given` (two `--event` files,
@@ -670,10 +700,13 @@ is read and may be included, not edited.
   probe constant (a binary-only crate's constant is not reachable from
   `tests/binary/`), asserting it is none of `Stimulus`'s kinds.
 - VA-1 — I-1 over the finished crate, by the command under *Invariant reads*:
-  the only hits outside a comment are the R-56 probe's own: the claim
-  constant's `SPEC-001/R-56` (PHASE-12/EX-3), and the two `AtFault::Backend`
-  uses R-56 needs — the condition's comparison of a probe failure's `fault()`
-  (§5.2.2) and the probe's claim. Recorded.
+  the only hits outside a comment are the R-56 probe's own — the claim's
+  `Requirement::R56` (EX-3), and the two `AtFault::Backend` uses R-56 needs:
+  the condition's comparison of a probe failure's `fault()` (§5.2.2) and the
+  probe's claim. Any other spelling of an id, `R-56` and `R56` included, is a
+  hit outside that set. Recorded. This read is also what holds that the
+  claim PHASE-08/VT-1 reads, `Requirement::R56`, is the one the report
+  prints.
 - VA-2 — I-2 over the finished crate, `src` and `tests`. Recorded.
 - VA-3 — EX-5: `grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
   crates/goad-check/src` finds only the `envelope` import and its call.
@@ -961,8 +994,11 @@ checking.md}` (and `protocol.md`, `running.md` for the statement EX-5 names);
 - VT-1 — `every_requirement_a_refusal_can_name_is_explained_in_the_reference`:
   its id set is one instance per variant (two for `InapplicableKey`), each
   builder beside an exhaustive match with no `_` arm, and the checker's own
-  R-56 claim, taken from the constant the report prints (PHASE-12/EX-3), not
-  respelled. It reads every `*.md` under
+  R-56 claim as `Requirement::R56`, read through `goad-semantics`, not
+  respelled. `goad-semantics` is already an ordinary dependency of
+  `goad-check` (`design.md` §5.1; PHASE-04/EX-5), so its test targets reach the constant with
+  no `[dev-dependencies]` entry. That the report's claim names the same
+  constant is PHASE-12/VA-1's expected hit. It reads every `*.md` under
   `kit/skills/goad-backend/reference/`, enumerated and not listed, refusing
   an empty set, through the shared scanner (PHASE-07/EX-4), skipping every
   fenced line. An id counts only in a Markdown heading line that names

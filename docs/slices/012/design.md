@@ -282,7 +282,7 @@ SPEC-001/R-59's sense, and names what R-59 assigns its kind:
 | `failure: Failure::State(e)` | the checker's own defect: it cannot arise unless the checker named a `view_id` wrongly. The run ends with no verdict, status 2, and the line says so (U2). | `e.requirement()`, `e.fault()`, shown in the line |
 | `discarded: Discarded::Schedule{reason, ..}` | a discarded instruction | `reason.requirement()`, `reason.fault()` |
 | `cleanup: Some(c)` | a cleanup failure | `c.requirement()`, `c.fault()` |
-| a failure on the R-56 probe | the failure as above. **Only** when its `fault()` is backend **and** at least one of the three known-kind evaluates made no failure, the report adds "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend (F-3). A backend that fails alike on every kind, or a failure on another side, is not charged with R-56. | the probe and its condition are the checker's; the failure is the host's |
+| a failure on the R-56 probe | the failure as above. **Only** when its `fault()` is backend **and** at least one of the three known-kind evaluates made no failure, the report adds "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend (F-3). A backend that fails alike on every kind, or a failure on another side, is not charged with R-56. | the probe, its condition and the claim's text are the checker's; the claim's id is `Requirement::R56`, from stratum 1 (§5.2.3), printed through `Requirement`'s `Display` like every other line's; the failure is the host's |
 | `stderr` | shown verbatim under the exchange, truncation flagged | — |
 
 #### 5.2.3 `requirement()` and `fault()`
@@ -291,14 +291,45 @@ SPEC-001/R-59's sense, and names what R-59 assigns its kind:
 
 ```rust
 /// A SPEC-001 requirement id. Displays as `R-44`; a report prefixes the spec.
+/// Built only from its associated constants (below).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Requirement(u16);
+
+impl Requirement {
+  pub const R44: Requirement = Requirement(44);
+  // … one per id, listed below
+}
 
 /// The side a refusal's cause lies on (SPEC-001/R-59). Displays as the word a
 /// report prints: `backend`, `host`, `configuration`, `environment`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtFault { Backend, Host, Configuration, Environment }
 ```
+
+**The ids are named constants** (`design-log.md` 2026-10-01, *`Requirement`
+is built from named constants*). `Requirement`'s field stays private and it
+has no constructor: no crate mints an id. Stratum 1 declares one associated
+constant per id, `Requirement::R44` for R-44, beside the type:
+
+- one for each id a row of the table below answers: `R3`, `R10`, `R12`,
+  `R13`, `R14`, `R16`, `R17`, `R18`, `R21`, `R22`, `R23`, `R25`, `R32`,
+  `R40`, `R41`, `R43`, `R44`, `R45`, `R48`, `R50`, `R52`, `R53`;
+- and `R56`, for the checker's R-56 claim (§5.2.2), which is its only use.
+
+The `requirement()` arms of both strata name these constants, and so does the
+checker's claim. What holds the list, and what does not:
+
+- **A constant a row needs and the list lacks** fails to compile at the arm
+  that names it.
+- **A constant's value** is held by the tables of §9 *Stratum 1* and
+  *Stratum 2* (`plan.md` PHASE-01/VT-1, VT-2). Each writes its expected id
+  as this table spells it, `"R-44"`, and compares `Requirement`'s `Display`
+  with it, so `R44` holding 45 reds them. `R56`'s value is held by the binary
+  case that asserts the report's `SPEC-001/R-56` (§9,
+  `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`).
+- **A surplus constant** — one no row answers and the claim does not use — is
+  held by nothing: a `pub` item is never dead code. Review of the list
+  against the table holds it (`plan.md` PHASE-01/VA-1).
 
 Both types print themselves through `Display`, and `AtFault`'s is a total
 `match` with no `_` arm (`design-log.md` 2026-10-01, *plan review round 1:
@@ -674,7 +705,9 @@ spec:
   are left out: bounds, cleanup, renderer subsets. Where they matter, one line
   says what the author observes.
 - **Coverage test**: *every requirement id any taxonomy variant can answer
-  appears in the reference* (F-22).
+  appears in the reference* (F-22), and so does the checker's R-56 claim,
+  read as `Requirement::R56` (§5.2.3) through `goad-semantics`, an ordinary
+  dependency of `goad-check`.
   - `goad-check`'s tests build their own instance of each variant. The
     `every_protocol_error` helper in `goad-semantics`' `error.rs` is private
     to its crate's tests, so it cannot be reused. Each builder sits beside an
@@ -1046,7 +1079,10 @@ time.
 
 **Invariants.**
 - I-1: `goad-check` contains no requirement id or side literal except the R-56
-  probe's, which is the checker's own claim about its own probe.
+  probe's, which is the checker's own claim about its own probe: its id,
+  named as `Requirement::R56` from stratum 1 (§5.2.3) and in no other
+  spelling, and the side its condition compares and its claim names. An id
+  in any spelling — `R-56`, `R56`, `Requirement::R56` — counts.
 - I-2: `goad-check` contains no kind→JSON-type mapping, in its source or its
   tests. Values come from `Submitted`, and the respond-fence check compares
   JSON types with `Submitted::as_drawn`'s rather than reading values back
@@ -1234,7 +1270,9 @@ Red/green per behaviour. Tests are named by behaviour.
 **Stratum 1 (`goad-semantics`)**
 - `error.rs`: `every_protocol_error_names_a_requirement_and_a_side`, and
   likewise for bounds and schedule. These are exhaustive-match tables beside
-  the existing `must_name`. `every_side_displays_as_the_word_a_report_prints`,
+  the existing `must_name`, each expected id spelled as §5.2.3's table
+  spells it and compared with `Requirement`'s `Display`, which holds each
+  constant's value (§5.2.3). `every_side_displays_as_the_word_a_report_prints`,
   over each `AtFault` variant.
 - `tests/protocol/normalize.rs`:
   `every_refusal_fixture_names_a_requirement_in_its_own_list` and
@@ -1248,7 +1286,7 @@ Red/green per behaviour. Tests are named by behaviour.
 
 **Stratum 2 (`goad-shell`)**
 - `error.rs`: `every_backend_error_names_a_requirement_and_a_side`, and
-  likewise for cleanup and state.
+  likewise for cleanup and state, their expected ids spelled the same way.
 
 **Stratum 3 (`goad`)**
 - `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`.
