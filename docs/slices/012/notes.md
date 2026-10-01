@@ -1904,13 +1904,13 @@ paths, so `just check` is never red at a commit.
         --all --check`. 678 is PHASE-02's 679, less the six `version_line`
         cases deleted from `goad` and `goad-emit`, plus the three moved to
         `goad_shell::version`, VT-1 and VT-3.*
-  - [ ] VH-1 (quoted): *"a person runs `just demo` on the renamed exerciser
+  - [x] VH-1 (quoted): *"a person runs `just demo` on the renamed exerciser
         and sees the window prompt, as before."* Hand the person the command
         block, not a pointer (`docs/memory/hand-over-the-steps-not-the-pointer.md`).
         Record what they saw. Do not launch it from the agent's shell with
-        `&` (`docs/memory/gui-launch-needs-a-pipe.md`). *Handed to the
-        orchestrator for the person with the command block; not yet run.
-        Owed (§Harvest *Open*).*
+        `&` (`docs/memory/gui-launch-needs-a-pipe.md`). *Met 2026-10-01 at
+        26eac25: the user ran `just demo` and reported it good — the window
+        showed the demo's prompt, as before.*
   - [x] §Status: PHASE-03 `done`, with the date.
   - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
         §Open gains: *the `justfile`'s `typecheck` departs from POL-001
@@ -2048,7 +2048,7 @@ the scratchpad backup back, `git status --short` empty after.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-01 · PHASE-03 done (VH-1 owed) · the commit after 1c74dec (*012 PHASE-03: examples/ becomes exercisers/; headers point at kit/*)
+**Fresh as of:** 2026-10-01 · PHASE-03 done, VH-1 met · 26eac25 (*012 PHASE-03: verification, findings and harvest*)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -2111,8 +2111,6 @@ the scratchpad backup back, `git status --short` empty after.
   list carries it).
 - **`goad-emit`'s `exchange::emit_with_stdout_full`** is a copy of `goad`'s
   `process::goad_with_stdout_full`, across crates. FU-5's class.
-- **PHASE-03/VH-1 owed**: a person runs `just demo` on the renamed exerciser
-  and sees the window prompt.
 - **PHASE-03 Findings for audit**: `print_usage`'s doc fragment;
   `goad-emit`'s binary-tier doc (*"Every case passes `--socket`"*); EX-8's
   parameter held by review, not a test.
