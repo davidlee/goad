@@ -214,7 +214,7 @@ to a JSON type or a value.
 | `the_projection_to_submitted_is_the_identity_on_each_kind`; `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind` | 02 |
 | `goad-emit`: `an_answer_that_cannot_be_written_exits_2` | 03 |
 | `goad-check` `args.rs` invocation table; `an_unreadable_config_exits_2_and_says_who_spoke`, `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`, `a_report_that_cannot_be_written_exits_2` (its `--help` half), `help_prints_the_usage_block_on_stdout_and_exits_0`, `version_prints_the_package_version_on_stdout_and_exits_0` | 04 |
-| every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own` | 12 |
+| every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own`; `the_first_option_is_the_one_listed_first` | 12 |
 | `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | 06 |
 | `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`; `round_trip.rs`' README case through the shared scanner | 07 |
 | `every_requirement_a_refusal_can_name_is_explained_in_the_reference`, and its R-32/R-3 negative control | 08 |
@@ -693,9 +693,14 @@ requirement its kind answers, and charges R-56 only on its condition
 
 **Surfaces:** `crates/goad-check/src/`; `crates/goad-check/tests/binary/`
 and its bash fixtures; `crates/goad-check/Cargo.toml` (`[dev-dependencies]`
-only, should reading a test backend's request log need one; a new external
-dependency is still a STOP); `canon-delta.md` (test paths only). `tests/support/`
-is read and may be included, not edited.
+only, should reading a test backend's request log need one, and with it the
+comment's "No dev-dependencies" sentence; a new external dependency is still
+a STOP; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q5);
+`crates/goad-semantics/src/protocol/canonical.rs` (`Options::first` and its
+unit test only; `design.md` §5.2.4; `design-log.md` 2026-10-01,
+*`Options::first`; R-56's condition counts `evaluate` outcomes*);
+`canon-delta.md` (test paths only). `tests/support/` is read and may be
+included, not edited.
 
 **Entry**
 - EN-1 — PHASE-04 done.
@@ -706,8 +711,9 @@ is read and may be included, not edited.
   the order given. The probe kind is a `goad-check` constant, and its event's
   source is `HOST_SOURCE`, not a literal. `event.timestamp` and `now` are the
   wall clock at each step. Each view is answered through `Host::respond` with
-  the minted `view_id`, its first option, and `Submitted::as_drawn` for each
-  of that option's fields; chains are followed to `view: null` or a failure,
+  the minted `view_id`, its first option through `Options::first`
+  (`design.md` §5.2.4), and `Submitted::as_drawn` for each of that option's
+  fields; chains are followed to `view: null` or a failure,
   up to the bound of 8 per request.
 - EX-2 — every planned exchange is made whatever an earlier exchange did
   (§5.4); only a clock unreadable mid-run, a report line stdout refuses, or
@@ -715,7 +721,10 @@ is read and may be included, not edited.
 - EX-3 — the report: every channel of every `Outcome` as §5.2.2's table
   gives it; each refusal line prints its side and `SPEC-001/R-N` through
   `AtFault`'s and `Requirement`'s `Display`; the R-56 line only on its
-  condition; stderr verbatim with truncation flagged; the values sent; the
+  condition, which counts `evaluate` outcomes only, the probe's and the three
+  known kinds', a chained `respond` being judged as any other exchange
+  (`design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts
+  `evaluate` outcomes*); stderr verbatim with truncation flagged; the values sent; the
   chain-bound observation. The R-56 line's id is `Requirement::R56`, from
   stratum 1, printed through `Requirement`'s `Display` as every refusal
   line's is; its text, "a backend MUST tolerate a kind it does not
@@ -770,13 +779,15 @@ is read and may be included, not edited.
   claim PHASE-08/VT-1 reads, `Requirement::R56`, is the one the report
   prints.
 - VA-2 — I-2 over the finished crate, `src` and `tests`. Recorded.
-- VA-3 — EX-5: `grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
-  crates/goad-check/src` finds only the `envelope` import and its call.
-  Recorded.
+- VA-3 — EX-5: `command grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket'
+  crates/goad-check/src` finds the `envelope` imports, and nothing else.
+  Recorded (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2).
 - VA-4 — PHASE-04/VA-6's structural read, over `main` as this phase leaves
-  it.
-- VA-5 — mutation: the R-56 condition's "at least one of the known-kind evaluates
-  made no failure" dropped, so any backend-side failure on the
+  it, with one literal per way to a status where PHASE-04/VA-6 reads one per
+  class; still exactly one `ExitCode::from(2)` (`plan-log.md` 2026-10-01,
+  *PHASE-12 sheet questions*, Q3).
+- VA-5 — mutation: the R-56 condition's "at least one of the three
+  known-kind `evaluate`s made no failure" dropped, so any backend-side failure on the
   probe is charged, reds
   `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`.
   Recorded.

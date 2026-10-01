@@ -269,8 +269,9 @@ that cannot be read at any step ends the run with no verdict (§5.2.5).
 - After any `Outcome` that carries a view, the checker answers it through
   `Host::respond`, using the minted `view_id`. The host therefore enforces
   interaction identity (R-32) itself.
-- The answer is **one option**, with a value for exactly that option's fields
-  (R-58), each built as `Submitted` (R-57).
+- The answer is **one option**, the first, through the total `Options::first`
+  (§5.2.4), with a value for exactly that option's fields (R-58), each built
+  as `Submitted` (R-57).
 - A backend may chain views: a respond that returns a new view. The checker
   keeps answering until a respond returns `view: null` or a failure, up to a
   **chain bound of 8** per request. Hitting the bound is reported as a
@@ -287,7 +288,7 @@ SPEC-001/R-59's sense, and names what R-59 assigns its kind:
 | `failure: Failure::State(e)` | the checker's own defect: it cannot arise unless the checker named a `view_id` wrongly. The run ends with no verdict, status 2, and the line says so (U2). | `e.requirement()`, `e.fault()`, shown in the line |
 | `discarded: Discarded::Schedule{reason, ..}` | a discarded instruction | `reason.requirement()`, `reason.fault()` |
 | `cleanup: Some(c)` | a cleanup failure | `c.requirement()`, `c.fault()` |
-| a failure on the R-56 probe | the failure as above. **Only** when its `fault()` is backend **and** at least one of the three known-kind evaluates made no failure, the report adds "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend (F-3). A backend that fails alike on every kind, or a failure on another side, is not charged with R-56. | the probe, its condition and the claim's text are the checker's; the claim's id is `Requirement::R56`, from stratum 1 (§5.2.3), printed through `Requirement`'s `Display` like every other line's; the failure is the host's |
+| a failure on the R-56 probe's `evaluate` | the failure as above. **Only** when its `fault()` is backend **and** at least one of the three known-kind `evaluate`s made no failure, the report adds "SPEC-001/R-56: a backend MUST tolerate a kind it does not recognise", side backend (F-3). The condition counts `evaluate` outcomes only, the probe's and the three known kinds': a `respond` chained from any of them is judged as any other exchange, and neither makes nor clears the condition (`design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes*). A backend that fails alike on every kind, or a failure on another side, is not charged with R-56. | the probe, its condition and the claim's text are the checker's; the claim's id is `Requirement::R56`, from stratum 1 (§5.2.3), printed through `Requirement`'s `Display` like every other line's; the failure is the host's |
 | `stderr` | shown verbatim under the exchange, truncation flagged | — |
 
 #### 5.2.3 `requirement()` and `fault()`
@@ -591,6 +592,15 @@ agree with the code.
     `DrawnKind::Choice.first` then has no job left, and its removal is a
     refactor-step candidate; its doc, which says `.first()` is an `Option`,
     is already stale.
+- **`Options::first(&self) -> &Opt`**, in stratum 1, beside `Options::new`:
+  the first option, which always exists, since `Options::new` refuses the
+  empty list (`EmptyOptions`). It mirrors `Alternatives::first`, its doc's
+  argument and its `expect`, so the checker's answer (§5.2.2) re-derives
+  no non-emptiness and writes no arm that nothing can reach (`design-log.md`
+  2026-10-01, *`Options::first`; R-56's condition counts `evaluate`
+  outcomes*). Its caller is `goad-check`'s answer. Held by a unit test in
+  `canonical.rs`, `the_first_option_is_the_one_listed_first`, over two
+  options.
 - **`NumberRange::drawn(&self) -> Finite`**, in stratum 1, beside
   `NumberRange::min`. This is the number an untouched `number` field is drawn
   showing: its declared minimum, or zero where none was declared. It is the
@@ -1308,7 +1318,8 @@ Red/green per behaviour. Tests are named by behaviour.
   `every_submitted_kind_writes_the_json_type_r57_names`; the moved `draft.rs`
   value tests; `an_as_drawn_choice_submits_the_first_alternative` and siblings
   *(OQ-2 a)*; `an_untouched_number_is_drawn_at_its_minimum_or_zero`, over
-  `NumberRange::drawn` (§5.2.4).
+  `NumberRange::drawn` (§5.2.4); `the_first_option_is_the_one_listed_first`,
+  over `Options::first` (§5.2.4).
 
 **Stratum 2 (`goad-shell`)**
 - `error.rs`: `every_backend_error_names_a_requirement_and_a_side`, and

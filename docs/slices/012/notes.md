@@ -3038,6 +3038,11 @@ second reading. Where it restates a plan criterion it quotes it. It repairs
 nothing: what reads as wrong in the plan is under **Findings** as a PLAN
 QUESTION, and the tasks it blocks are marked `[!]`.
 
+**Every PLAN QUESTION is resolved** (`design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes*, for 1 and 4; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, for 2, 3 and 5),
+and the decisions are applied to `design.md` and `plan.md` in *012 PHASE-12:
+decisions applied to design, plan and sheet*. Every criterion they changed is
+re-quoted below from the amended plan, and no task is `[!]`.
+
 **Objective** (quoted, `plan.md` PHASE-12): *`goad-check` sends the request
 plan, answers every view and follows chains, reports every channel of every
 `Outcome` with the side and requirement its kind answers, and charges R-56
@@ -3069,9 +3074,19 @@ PHASE-04/VT-3's case `a_run_with_no_exchange_exits_2_with_no_verdict`
   committed event file, config or bash backend a binary case reads lives
   here. `tests/binary/loadable.toml`'s comment is in this surface.
 - (quoted) *"`crates/goad-check/Cargo.toml` (`[dev-dependencies]` only,
-  should reading a test backend's request log need one; a new external
-  dependency is still a STOP)"*. The manifest's comment says *"No
-  dev-dependencies"*: PLAN QUESTION 5.
+  should reading a test backend's request log need one, and with it the
+  comment's "No dev-dependencies" sentence; a new external dependency is
+  still a STOP; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q5)"*.
+  The sentence is *"No dev-dependencies: the binary tier spawns the built
+  binary and needs nothing the plain dependencies do not give it."*; it
+  changes only in the commit that adds the entry.
+- (quoted) *"`crates/goad-semantics/src/protocol/canonical.rs`
+  (`Options::first` and its unit test only; `design.md` §5.2.4;
+  `design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts
+  `evaluate` outcomes*)"*. An existing stratum-1 file: the gate's `cargo test
+  -p goad-semantics`, the stratum-1 purity scan (`goad-boundary`'s
+  `purity.rs`, rooted at `crates/goad-semantics/src`), the vocabulary scan,
+  clippy and fmt already reach it, so no reach proof is owed for it (A-V12).
 - (quoted) *"`canon-delta.md` (test paths only)"*.
 - (quoted) *"`tests/support/` is read and may be included, not edited."*
 - `docs/slices/012/notes.md`: this sheet, §Status, §Harvest (§Open's FU-5
@@ -3080,8 +3095,9 @@ PHASE-04/VT-3's case `a_run_with_no_exchange_exits_2_with_no_verdict`
 Not surfaces, and so a STOP if the work seems to need them: any
 `[dependencies]` entry in `crates/goad-check/Cargo.toml` (PHASE-04
 Findings, *PHASE-12 may not add a regular dependency*); any other
-`Cargo.toml`, `[workspace.dependencies]` included; `crates/goad-semantics/`
-(PLAN QUESTION 1 asks for one item there); `crates/goad-shell/`;
+`Cargo.toml`, `[workspace.dependencies]` included; anything in
+`crates/goad-semantics/` but `Options::first` and its unit test in
+`canonical.rs`; `crates/goad-shell/`;
 `crates/goad-emit/`; `tests/support/` and **`tests/backends/`** (a new
 backend script goes under `crates/goad-check/tests/binary/`); any canon
 document; `flake.nix`, the `justfile`, `README.md`; `design.md` and
@@ -3096,14 +3112,17 @@ document; `flake.nix`, the `justfile`, `README.md`; `design.md` and
   replaces, extends or reruns.
 - `docs/slices/012/design.md`: §5.2.1 (the argv form; `--event`); §5.2.2
   whole (the sequence diagram, *The request plan*, *Answering*, *What is
-  judged* and its table); §5.2.3 (the `Requirement` constants and `R56`;
-  *What holds the list*); §5.2.5 whole (the report example, the no-view
+  judged* and its table, the R-56 row's `evaluate`-only condition); §5.2.3
+  (the `Requirement` constants and `R56`; *What holds the list*); §5.2.4's
+  `Options::first` bullet, and the `Alternatives::first` it mirrors; §5.2.5
+  whole (the report example, the no-view
   line, the status table and its bullets); §5.3; §5.4; §5.5 I-1, I-2 and
   *Edges*; §9 *`goad-check`*.
 - `docs/slices/012/design-log.md` 2026-10-01: *`Requirement` is built from
-  named constants*. `plan-log.md` 2026-10-01: *plan review round 2:
-  dispositions* (F-23, F-27); *plan review round 3: close* (F-29); *PHASE-04
-  sheet questions*.
+  named constants*; *`Options::first`; R-56's condition counts `evaluate`
+  outcomes*. `plan-log.md` 2026-10-01: *plan review round 2: dispositions*
+  (F-23, F-27); *plan review round 3: close* (F-29); *PHASE-04 sheet
+  questions*; *PHASE-12 sheet questions*.
 - `docs/slices/012/canon-delta.md`: SPEC-001 Change 3 (R-56's row, its
   `goad-check` paths); SPEC-004 Change 3 (R-11..R-13, R-15), Change 4
   (`goad-check`'s table), Change 5 (the R-14 row and the R-11..R-13 row).
@@ -3132,7 +3151,12 @@ document; `flake.nix`, the `justfile`, `README.md`; `design.md` and
   `Display`s); `goad_semantics::protocol::canonical::{Stimulus, HOST_SOURCE,
   Event, UserResponse, View, Choice, Opt, Options, Fields, Field, Submitted,
   Alternatives}` (`Stimulus::event`, `Submitted::as_drawn`,
-  `Submitted::to_json`, `Alternatives::first` and its doc);
+  `Submitted::to_json`, `Options::new`, `Options::as_slice`,
+  `Alternatives::first`, its doc and its `#[expect]`, which `Options::first`
+  mirrors); `canonical.rs`' `mod tests` (`an_empty_options_is_rejected_and_names_where`
+  and the `Options::new` cases beside it, where `Options::first`'s test goes;
+  `an_as_drawn_choice_submits_the_first_alternative`, the only test that
+  reaches `Alternatives::first`);
   `goad_semantics::protocol::normalize::Discarded` (its `Display`).
 - Test support: `tests/support/scripting.rs` (`backend`, `claim`, `marker`,
   `clear`, `logging_backend`, `invocations`, `scripted`), `driving.rs`
@@ -3154,6 +3178,7 @@ document; `flake.nix`, the `justfile`, `README.md`; `design.md` and
   `clippy-toml-test-exemptions-are-a-hidden-boundary`,
   `timed-test-margins-are-measured-at-the-bound`,
   `tokio-net-arrives-by-feature-unification`,
+  `margin-size-is-not-margin-direction`,
   `wildcard-enum-match-arm-counts-a-named-binding`. The user's memory adds
   *a standing guard may not reach a new file* and *mutation-check the
   coverage claim*: both bind this phase's reach and mutation rows.
@@ -3217,7 +3242,8 @@ named)
   consumer re-deriving non-emptiness at its call site is what it exists to
   stop. `unwrap_used`, `expect_used`, `panic`, `unreachable` and
   `indexing_slicing` are `deny` in `[workspace.lints.clippy]`, exempt only in
-  tests (`clippy.toml`). PLAN QUESTION 1.
+  tests (`clippy.toml`). PLAN QUESTION 1, resolved: `Options::first` in
+  stratum 1 (`design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes*).
 - **A-V7 — `Timestamp` has no `Display`.** `Timestamp::instant()` gives a
   `jiff::Timestamp`, which does. The workspace `jiff` has
   `default-features = false`, so a report that shows a `next_check` in the
@@ -3247,6 +3273,8 @@ named)
   against `CLEANUP_LIMIT`'s 500 ms: `result` `Ok`, `cleanup`
   `Some(TimedOut)`. Load lengthens the grandchild's hold, which is the
   direction that keeps the case red-able (`margin-size-is-not-margin-direction`).
+  **A prediction, read from the header, not run under load** (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, *Also*).
+  The task before the case joins the gate measures it.
 - **A-V10 — the instruments, dry-run at 3299acc under the system `grep`.**
   `command grep` throughout (PHASE-04 A-V10: the agent shell's `grep` is a
   `ugrep` wrapper that recurses unasked and honours ignore files).
@@ -3262,7 +3290,11 @@ named)
     test module's import) and `src/main.rs` `use
     goad_shell::ingress::envelope::{self, EnvelopeFault};`. The call
     `envelope::normalize(&bytes)` does **not** match `ingress::`. PLAN
-    QUESTION 2.
+    QUESTION 2, resolved (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2).
+  - PHASE-12/VA-3 as amended, at 7a30d5c: `command grep -rnE
+    'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket'
+    crates/goad-check/src` prints the same two `envelope` imports, and
+    nothing else, exit 0.
   - PHASE-04/VA-6 (PHASE-12/VA-4): `command grep -rn 'ExitCode'
     crates/goad-check/src` prints the `use`, the signatures of `main`,
     `unjudged_end`, `answer`, `not_judged`, `ExitCode::SUCCESS` in `answer`
@@ -3297,7 +3329,14 @@ named)
     nothing (§Exit, *every fixture has a reader*).
   - *Crate edges / manifest allowlist / stratum-1 purity scan / `cargo test
     -p goad-semantics`*: unchanged from PHASE-04 A-V7; none bills a
-    stratum-3 manifest or source. A `[dev-dependencies]` `serde_json = {
+    stratum-3 manifest or source.
+  - *`canonical.rs`* (for `Options::first` and its test): an existing file.
+    The purity scan walks `crates/goad-semantics/src` (`purity.rs`), `cargo
+    test -p goad-semantics` already runs its `mod tests` (e.g.
+    `an_as_drawn_choice_submits_the_first_alternative`), and the vocabulary
+    scan, clippy and fmt read it through its `mod` declaration. Reach is
+    already proven; the new test's name in the gate's `goad-semantics` test
+    output is the record. A `[dev-dependencies]` `serde_json = {
     workspace = true }` adds no feature, so the residue is untouched.
 - **A-V13 — the interim end's footprint, which EX-6 removes.** Read and
   grepped (`command grep -rn 'PHASE-12\|PHASE-04\|interim\|not yet\|NOT_YET_IMPLEMENTED\|unjudged_end\|never.spawned'
@@ -3345,8 +3384,9 @@ named)
   STOP."* Also any `[dependencies]` entry, and any feature added to a
   dependency shared with stratum 1 (`jiff`, `serde`, `serde_json`), in either
   table (the residue).
-- A file outside **Surfaces**: `crates/goad-semantics/` (PLAN QUESTION 1),
-  `crates/goad-shell/`, `tests/support/`, `tests/backends/`.
+- A file outside **Surfaces**: `crates/goad-semantics/` beyond
+  `Options::first` and its unit test, `crates/goad-shell/`, `tests/support/`,
+  `tests/backends/`.
 - An I-1 hit outside VA-1's allowed set: any requirement-id spelling or side
   literal in `src` other than the one `Requirement::R56` and the two
   `AtFault::Backend` the R-56 condition and claim need (VA-1). This includes
@@ -3365,8 +3405,9 @@ named)
 - A test name differing from `design.md` §9 or `plan.md` VT-1..VT-3. Update
   `canon-delta.md` in the same commit and say so here (*Test names are
   commitments*). Not a STOP, but never silent.
-- The R-56 condition or the chain bound read otherwise than PLAN QUESTION 4
-  and A-T4 settle: the design did not settle it further.
+- The R-56 condition or the chain bound read otherwise than EX-3 (as
+  amended for PLAN QUESTION 4) and A-T4 settle: the design did not settle it
+  further.
 - `git stash`, `git checkout`, `git reset`, or any history rewrite.
 
 **Tasks** — red first. Each new case goes red against code that compiles
@@ -3377,8 +3418,10 @@ before its body lands. Reach is proven as soon as a new file exists.
       descendant whose only changes since are the PLAN QUESTIONs'
       resolutions.
 - [ ] Exit grep first (A-V14). Record any difference.
-- [!] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
-      before the tasks they block start.
+- [x] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
+      before the tasks they block start. Resolved by `design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes* and `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*; applied and
+      re-quoted in *012 PHASE-12: decisions applied to design, plan and
+      sheet*.
 - **1. Test support and fixtures (VA-7)** — `tests/binary/`
   - [ ] Read each `tests/support/` file's whole exported surface and record
         the include decision for each (A-V8 predicts `scripting.rs`
@@ -3409,8 +3452,9 @@ before its body lands. Reach is proven as soon as a new file exists.
         `serde_json = { workspace = true }` `[dev-dependencies]` entry to
         parse it. Record the choice as a decision. `a_view_answered_carries_exactly_its_options_fields`
         reads `response.option` and the key set of `response.values`;
-        parsing is the stronger instrument there. Blocked on PLAN QUESTION 5
-        only if the manifest comment must change.
+        parsing is the stronger instrument there. If the entry is added,
+        the comment's *"No dev-dependencies"* sentence changes in the same
+        commit (Surfaces; PLAN QUESTION 5, resolved).
 - **2. The probe (EX-1, VT-3)** — `src`
   - [ ] The probe kind constant (§5.2.2: `goad-check-unrecognised`) and,
         beside it, VT-3 (quoted): *"`the_probe_kind_is_none_of_the_host_s_own`,
@@ -3498,6 +3542,24 @@ before its body lands. Reach is proven as soon as a new file exists.
         line beginning `goad-check: `."* Use the argv form with a scripted
         conforming backend, not `loadable.toml` (whose command no longer
         exists to spawn), so the only fault in the run is stdout.
+  - [ ] **Before `a_cleanup_failure_alone_exits_1` joins the gate**, rank
+        its fixture's margin by which way load moves it, not by its size
+        (`docs/memory/margin-size-is-not-margin-direction.md`; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, *Also*).
+        The bound is `CLEANUP_LIMIT`'s 500 ms against `@lingers`' `sleep 2`.
+        Write down, for each of the two durations, what load stretches: the
+        `sleep` is wall clock, and so is the cleanup timer, but the host's
+        work between the grandchild's fork and the timer's start is not, and
+        it is spent out of the grandchild's 2 s. State whether load moves the
+        case toward a false green (`cleanup` `None`, status 0) or away from
+        it, and whether A-V9's sentence survives. Then measure at the bound
+        (`docs/memory/timed-test-margins-are-measured-at-the-bound.md`): in a
+        detached `git worktree`, instrument the elapsed time from the
+        exchange's start to the cleanup timeout firing, run the case under
+        oversubscription (busy loops well past the core count; record the
+        loadavg), and record the worst elapsed against 2 s. Remove the
+        instrumentation and the worktree. If load moves it toward failure
+        and the measured slack is thin, the case does not join: record it
+        as a Finding and leave M-21 **unseen**.
   - [ ] Offered (Findings, *EX-3 and EX-4 items no named case reads*): a
         cleanup-only case, `a_cleanup_failure_alone_exits_1` (`@lingers` on
         the first invocation, A-V9: status 1, a line holding `backend` and
@@ -3523,10 +3585,28 @@ before its body lands. Reach is proven as soon as a new file exists.
         `goad-check` constant, and its event's source is `HOST_SOURCE`, not a
         literal. `event.timestamp` and `now` are the wall clock at each step.
         Each view is answered through `Host::respond` with the minted
-        `view_id`, its first option, and `Submitted::as_drawn` for each of
-        that option's fields; chains are followed to `view: null` or a
-        failure, up to the bound of 8 per request."*
-  - [!] The first option (PLAN QUESTION 1).
+        `view_id`, its first option through `Options::first` (`design.md`
+        §5.2.4), and `Submitted::as_drawn` for each of that option's fields;
+        chains are followed to `view: null` or a failure, up to the bound of
+        8 per request."*
+  - [ ] `Options::first`, red: a unit test in `canonical.rs`' `mod tests`,
+        `the_first_option_is_the_one_listed_first` (`design.md` §5.2.4, §9),
+        over two options, asserting the first's id. `Alternatives::first` has
+        no unit test of its own (A-V6; it is reached only through
+        `an_as_drawn_choice_submits_the_first_alternative`), so it goes
+        beside the `Options::new` cases. Red against a compiling stub that
+        returns the last option (`self.0.last().expect(…)`): `cargo test -p
+        goad-semantics --no-fail-fast`, the assertion recorded.
+  - [ ] `Options::first(&self) -> &Opt`, green: beside `Options::as_slice`,
+        mirroring `Alternatives::first` — its doc's argument (non-emptiness
+        is the type's invariant, `Options::new` refuses the empty list with
+        `EmptyOptions`), its `# Panics` section, its `#[expect(clippy::expect_used,
+        reason = …)]` naming `Options::new` and `EmptyOptions`, and
+        `#[must_use]`. Nothing else in `canonical.rs` changes. `cargo test -p
+        goad-semantics`; `cargo clippy --workspace --all-targets -- -D
+        warnings`.
+  - [ ] The answer calls `Options::first`; no `.as_slice().first()` and no
+        `let…else` over the options in `goad-check`.
   - [ ] EX-2 (quoted): *"every planned exchange is made whatever an earlier
         exchange did (§5.4); only a clock unreadable mid-run, a report line
         stdout refuses, or `Failure::State` ends the run early, with no
@@ -3537,15 +3617,23 @@ before its body lands. Reach is proven as soon as a new file exists.
   - [ ] EX-3 (quoted): *"the report: every channel of every `Outcome` as
         §5.2.2's table gives it; each refusal line prints its side and
         `SPEC-001/R-N` through `AtFault`'s and `Requirement`'s `Display`; the
-        R-56 line only on its condition; stderr verbatim with truncation
-        flagged; the values sent; the chain-bound observation. The R-56
+        R-56 line only on its condition, which counts `evaluate` outcomes only, the probe's and the
+        three known kinds', a chained `respond` being judged as any other
+        exchange (`design-log.md` 2026-10-01, *`Options::first`; R-56's
+        condition counts `evaluate` outcomes*); stderr verbatim with
+        truncation flagged; the values sent; the chain-bound observation. The R-56
         line's id is `Requirement::R56`, from stratum 1, printed through
         `Requirement`'s `Display` as every refusal line's is; its text, "a
         backend MUST tolerate a kind it does not recognise", is the
         checker's (`design.md` §5.2.2; `design-log.md` 2026-10-01,
         *`Requirement` is built from named constants*)."* Every line's text
         in `render`; every stdout line through `report::try_line_to`.
-  - [!] The R-56 condition's scope (PLAN QUESTION 4).
+  - [ ] The R-56 condition's inputs (EX-3 as amended; PLAN QUESTION 4,
+        resolved): the probe's `evaluate` `Outcome`'s `failure`, and the
+        three known-kind `evaluate` `Outcome`s' `failure`s. A chained
+        `respond`'s `Outcome`, from the probe's chain or a known kind's, is
+        reported and feeds the status cut as any other, and the condition
+        never reads it. Rows M-36, M-37.
   - [ ] EX-4 (quoted): *"the run feeds the status cut (EX-6): at least one
         refusal on any channel, a cleanup failure alone included, is 1; none
         is 0; the chain bound changes no status."*
@@ -3583,18 +3671,24 @@ before its body lands. Reach is proven as soon as a new file exists.
   - [ ] VA-2 (quoted): *"I-2 over the finished crate, `src` and `tests`.
         Recorded."* `command grep -rn 'FieldKind' crates/goad-check/src
         crates/goad-check/tests`; read each hit.
-  - [!] VA-3 (quoted): *"EX-5: `grep -rnE
-        'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
-        crates/goad-check/src` finds only the `envelope` import and its
-        call. Recorded."* Run as `command grep -rnE …`. Blocked on PLAN
-        QUESTION 2 (the expected hits, and the pattern's reach).
-  - [!] VA-4 (quoted): *"PHASE-04/VA-6's structural read, over `main` as this
-        phase leaves it."* `command grep -rn 'ExitCode' crates/goad-check/src`,
-        then trace every path to 2, 1 and 0. Blocked on PLAN QUESTION 3
-        (*one literal per class*).
+  - [ ] VA-3 (quoted): *"EX-5: `command grep -rnE
+        'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket'
+        crates/goad-check/src` finds the `envelope` imports, and nothing
+        else. Recorded (`plan-log.md` 2026-10-01, *PHASE-12 sheet
+        questions*, Q2)."* Record the output verbatim; then read the one
+        call, `envelope::normalize`, which the pattern does not match, and
+        record that no other `ingress` item is named. Reach row R-4.
+  - [ ] VA-4 (quoted): *"PHASE-04/VA-6's structural read, over `main` as this
+        phase leaves it, with one literal per way to a status where
+        PHASE-04/VA-6 reads one per class; still exactly one
+        `ExitCode::from(2)` (`plan-log.md` 2026-10-01, *PHASE-12 sheet
+        questions*, Q3)."* `command grep -rn 'ExitCode' crates/goad-check/src`,
+        then trace every path to 2, 1 and 0. Expected (Findings, PLAN
+        QUESTION 3): `answer`'s 0, the verdict cut's 0 and 1, `not_judged`'s
+        2.
   - [ ] VA-5 (quoted): *"mutation: the R-56 condition's "at least one of the
-        known-kind evaluates made no failure" dropped, so any backend-side
-        failure on the probe is charged, reds
+        three known-kind `evaluate`s made no failure" dropped, so any
+        backend-side failure on the probe is charged, reds
         `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`.
         Recorded."* Row M-15.
   - [ ] VA-6 (quoted): *"`canon-delta.md` SPEC-001 Change 3's and SPEC-004
@@ -3627,7 +3721,10 @@ before its body lands. Reach is proven as soon as a new file exists.
   - [ ] *Test names are commitments*: `command grep -rc 'fn <name>()'
         crates/goad-check/tests/binary crates/goad-check/src` is 1 for each
         VT-1, VT-2 and VT-3 name, and 0 for
-        `a_run_with_no_exchange_exits_2_with_no_verdict`. Any difference is
+        `a_run_with_no_exchange_exits_2_with_no_verdict`; `command grep -c
+        'fn the_first_option_is_the_one_listed_first()'
+        crates/goad-semantics/src/protocol/canonical.rs` is 1 (`design.md`
+        §9). Any difference is
         updated in `canon-delta.md` in the same commit.
   - [ ] Every bash fixture and event file under `tests/binary/` is named by
         at least one case: `command grep -rn '<file name>'
@@ -3674,6 +3771,10 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
 | R-1 | each new `src/*.rs` module | `let _planted = "habit";` in a function in production code | `cargo test -p goad-boundary --test checks --no-fail-fast` | `vocabulary::no_workspace_member_names_the_users_domain`, naming the new file | | |
 | R-2 | each new `tests/binary/*.rs` file | `fn _planted() { let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new(); }` | `cargo clippy --workspace --all-targets -- -D warnings` | `clippy::disallowed_types` in the `binary` target, naming the new file | | |
 | R-3 | each new `src/*.rs` and `tests/binary/*.rs` | a line re-indented to four spaces | `cargo fmt --all --check` | a diff naming each file | | |
+| R-4 | `crates/goad-check/src/main.rs`, a function in production code | `let _a = std::os::unix::net::UnixStream::connect("");` and `let _b = std::process::Command::new("").envs(std::iter::empty::<(&str, &str)>());` (compiled: `cargo build -p goad-check`) | VA-3's command | both planted lines printed, beside the `envelope` imports (the widened pattern reaches `.envs(` and a socket type; PLAN QUESTION 2) | | |
+
+`canonical.rs` has no reach row: it is an existing file every stratum-1
+instrument already reads (A-V12).
 
 *Behaviour rows*:
 
@@ -3686,7 +3787,7 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
 | M-5 | the run loop | `break` after the first `Outcome` whose `failure` is `Some` | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence | | |
 | M-6 | the probe's `Event` | `source: HOST_SOURCE.to_owned()` → `source: "probe".to_owned()` | `…_still_asked_the_rest`: `"source":"host"` on the probe's request | | |
 | M-7 | the probe constant | its value → `"requested"` | `the_probe_kind_is_none_of_the_host_s_own`: its assertion; `…_still_asked_the_rest`: the kind sequence | | |
-| M-8 | the answer | `.first()` → `.last()` on the options | `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
+| M-8 | the answer | `Options::first()` → the last option (`.as_slice().last()` with an `expect`; `cargo test` compiles it, clippy is not the command) | `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
 | M-9 | the answer | values built from every option's fields (`flat_map`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | | |
 | M-10 | the answer | the first field skipped (`.skip(1)`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | | |
 | M-11 | the chain | answered once, not looped (`if let` for `while let`) | `a_chained_view_is_answered_until_null`: the invocation count | | |
@@ -3712,6 +3813,9 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
 | M-32 | the run loop | `Failure::State` treated as a refusal, run continues | **unseen**: no cooperating case reaches `Failure::State` (A-T2). Held by VA-4's trace | | |
 | M-33 | the clock | `now` read once, before the plan, and reused | **unseen**: nothing asserts a time (R3). Held by review | | |
 | M-34 | the clock | a mid-run `wall_clock` error ignored | **unseen**: headless-unreachable (`canon-delta.md` R-11..R-13 row). Held by VA-4's trace | | |
+| M-35 | `Options::first` (`canonical.rs`) | `.first()` → `.last()` in its body; command `cargo test -p goad-semantics -p goad-check --no-fail-fast` | `the_first_option_is_the_one_listed_first`: the first's id; `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
+| M-36 | the R-56 condition | a failing `respond` in the probe's chain counted as a probe failure | **unseen** by every planned case: none returns a view from the probe's `evaluate`. Held by review of the condition's inputs against EX-3 as amended. A case would see it with the probe answering a view and the respond `@exit1`, known kinds succeeding: no `SPEC-001/R-56` (not planned; offered as M-21's case is) | | |
+| M-37 | the R-56 condition | a known kind counted as having "made a failure" when a `respond` in its chain failed | **unseen** by every planned case: in `…_reported_against_r56` the known kinds' `evaluate`s return no view. Held by review, as M-36. A case would see it with every known kind returning a view whose respond fails, and the probe `@exit1`: `SPEC-001/R-56` present (not planned) | | |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -3740,7 +3844,7 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
   `.iter().take(1)`, which compiles total but silently answers nothing for
   an empty list: the same dead arm, hidden. **Recommendation: (a).** One
   small stratum-1 item, by precedent, and the checker writes no unreachable
-  path. Blocks task 4's first-option box.
+  path. Blocks task 4's first-option box. **Resolved: (a)** (`design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes*).
 - **PLAN QUESTION 2 — VA-3's expected hits are wrong, and its pattern misses
   two routes.** Dry run (A-V10): the command prints the two `envelope`
   imports (`main`'s and `render`'s test module's), and **not** the call,
@@ -3753,7 +3857,10 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
   socket"*. **Recommendation:** expected hits restated as *"the `envelope`
   imports, and nothing else"*, the call held by reading; the pattern
   widened to `'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixListener|UnixStream|UnixDatagram|TcpListener|TcpStream|UdpSocket'`,
-  run as `command grep -rnE`. Blocks VA-3.
+  run as `command grep -rnE`. Blocks VA-3. **Resolved** (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2): the
+  expected hits as recommended; the pattern widened by `\.envs?\(` and
+  `UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket`. The decision
+  does not carry this recommendation's `UnixDatagram`.
 - **PLAN QUESTION 3 — *one literal per class* cannot hold beside EX-6.**
   VA-4 reruns PHASE-04/VA-6, which reads *"one literal per class"*. Status
   0's class (§5.2.5: *accepted*, which also covers `--help` and `--version`
@@ -3763,7 +3870,8 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
   question's answer to a verdict. **Recommendation:** VA-4 reads *one
   literal per way to a status*: `answer`'s 0 (a question answered,
   SPEC-004 R-11's second clause), the cut's 0 and 1, `not_judged`'s 2; one
-  `ExitCode::from(2)` still. Blocks VA-4.
+  `ExitCode::from(2)` still. Blocks VA-4. **Resolved** as recommended (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*,
+  Q3).
 - **PLAN QUESTION 4 — which exchanges the R-56 condition reads.** §5.2.2:
   *"a failure on the R-56 probe … **Only** when its `fault()` is backend
   **and** at least one of the three known-kind evaluates made no failure"*.
@@ -3775,14 +3883,14 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
   three known-kind `evaluate` `Outcome`s only; chained responds are judged as
   any other exchange. A respond answers the backend's own view, not the
   unrecognised kind, and *"evaluates"* already names the known-kind side.
-  Blocks task 4's R-56 box.
+  Blocks task 4's R-56 box. **Resolved** as recommended (`design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes*).
 - **PLAN QUESTION 5 — the manifest comment says *"No dev-dependencies"*.**
   The surfaces admit `Cargo.toml` *"`[dev-dependencies]` only"*. If one is
   added (task 1, reading a request log), the comment above `[dependencies]`
   becomes false, and editing it is outside *"`[dev-dependencies]` only"*.
   **Recommendation:** read the surface as admitting that comment's
   dev-dependencies sentence. Blocks task 1's log-reading box only if a
-  dev-dependency is chosen.
+  dev-dependency is chosen. **Resolved** as recommended (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q5).
 - **The side clause has no planned case** (row M-16). SPEC-001 Change 3
   states it as canon (*"a failure on it whose side is the backend's"*), and
   §5.2.2's table names it. No cooperating backend fails the probe alone on a
