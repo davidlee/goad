@@ -5001,6 +5001,16 @@ something):
   `name = \"goad-kit\"`"*. `toSource` has no `name` argument and is not a
   derivation (D-2). The property both state, the three paths and nothing
   else, holds. For audit's design-drift list.
+- **This phase's code landed in `e4b08d9`, under another commit's message.**
+  A concurrent writer committed `plan-log.md` (*EX-8 and EN-2 take a Claude
+  OAuth token*) while this executor had `flake.nix`, `justfile` and the five
+  kit and marketplace files staged; the commit took the whole index. So
+  `e4b08d9` holds them, and `65e1ea9` holds `README.md` and the sheet. The
+  tree at `65e1ea9` is complete and its build is the one recorded; nothing
+  was lost, and history is not rewritten. *"This phase's goad commit"* stays
+  `65e1ea9`, the first holding every surface. Two writers in one worktree is
+  what the user's memory *one writer per worktree* forbids; for the
+  orchestrator.
 - **Codex reads Claude's marketplace when its own is missing** (P-4). Codex
   0.155.1, given a marketplace root holding `.claude-plugin/marketplace.json`
   and no `.agents/plugins/marketplace.json`, adds the marketplace and installs
