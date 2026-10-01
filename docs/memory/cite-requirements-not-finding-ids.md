@@ -5,7 +5,7 @@ slice 002.
 
 ## The rule
 
-A comment in `src/`, `tests/` or `examples/` that needs to say *why* cites a
+A comment in `src/`, `tests/` or `exercisers/` that needs to say *why* cites a
 spec requirement (`SPEC-001/R-26`), a spec section (`SPEC-001 §6.4`), an ADR, or
 the brief. It does not cite a slice-local review finding (`F-N`) or design
 decision (`D-N`).

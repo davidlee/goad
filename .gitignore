@@ -9,7 +9,7 @@ target/
 .claude/worktrees/
 
 # the demo's ingress socket, and the lock file the host holds beside it —
-# both live in the checkout deliberately (D-17); examples/demo.toml's
+# both live in the checkout deliberately (D-17); exercisers/demo.toml's
 # [ingress] path resolves against the repository root, which `just` sets as
 # goad's working directory. The host unlinks neither on exit (`SPEC-003/R-5`).
 /goad-demo.sock

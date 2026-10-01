@@ -1,13 +1,15 @@
-# A minimal goad backend
+# A host exerciser in TypeScript
 
-`backend.ts` is a complete backend in one file. It needs deno and nothing else —
-no build step, no lockfile, no `node_modules`.
+`backend.ts` is a complete backend in one file, which goad's integration tests
+drive. It exercises the host and is not a template: to write a backend, see
+`kit/`. It needs deno and nothing else — no build step, no lockfile, no
+`node_modules`.
 
-Point a config at it:
+The configuration that runs it, which those tests read from this file:
 
 ```toml
 [backend]
-command = ["deno", "run", "-A", "./examples/typescript/backend.ts"]
+command = ["deno", "run", "-A", "./exercisers/typescript/backend.ts"]
 timeout = "5s"
 
 [schedule]

@@ -1761,15 +1761,16 @@ paths, so `just check` is never red at a commit.
   - [x] `main`'s doc (*"Three exit codes … 2 emit got no usable answer — a
         usage error, …"*) gains the unwritten answer among 2's causes.
 - **4. The rename (EX-1, EX-2, EX-3, VT-2, VA-1, VA-2)** — one commit.
-  - [ ] `git mv examples exercisers`.
-  - [ ] Paths: `exercisers/demo.toml` (`command = ["bash",
+  - [x] `git mv examples exercisers`.
+  - [x] Paths: `exercisers/demo.toml` (`command = ["bash",
         "exercisers/shell/backend.sh"]`); `exercisers/typescript/README.md`'s
         fenced `command` (`./exercisers/typescript/backend.ts`);
         `round_trip.rs`' `include_str!` and `shell_example`'s join;
         `harness::example`'s join; `justfile` `demo` (`run
         "exercisers/demo.toml"`); each moved file's own mentions (Reading
-        list table).
-  - [ ] EX-3 (quoted): *"the `justfile`'s `typecheck` is `deno check
+        list table). *Every site in the Reading list table, and nothing
+        else.*
+  - [x] EX-3 (quoted): *"the `justfile`'s `typecheck` is `deno check
         exercisers/typescript/backend.ts`: `canon-delta.md` POL-001 Change
         1's line less the kit path, which PHASE-06 adds. Its comment is true
         of this step: it names the one exerciser it typechecks and why (`deno
@@ -1778,8 +1779,12 @@ paths, so `just check` is never red at a commit.
         spell the kit example's path: it contains `examples/` and would hit
         EX-2's grep. The `justfile` header's *"Change the policy first, then
         mirror"* stays, and is the rule EX-3's comment says this step
-        departs from.
-  - [ ] EX-1 (quoted): *"each header says it is a host exerciser and points
+        departs from. *The comment names the TypeScript exerciser, why
+        (`deno run` does not typecheck), and the departure from POL-001
+        §Compliance until slice 012's audit promotes POL-001 Change 1, citing
+        `canon-delta.md`. It spells no kit path. The header's *"Change the
+        policy first, then mirror"* is unchanged.*
+  - [x] EX-1 (quoted): *"each header says it is a host exerciser and points
         at `kit/`; every present-tense claim in the exercisers and their
         tests that they are the thing to copy is rewritten — `backend.ts`'
         "Copy this file", `round_trip.rs`' "the file a person copies" and its
@@ -1791,18 +1796,40 @@ paths, so `just check` is never red at a commit.
         PHASE-05; the pointer is to where it will be. The historical
         *"the defect propagated by copying"*
         (`the_shell_example_escapes_the_values_it_carries_into_a_view`'s doc)
-        is true and stays, classed as history (PLAN QUESTION 2).
-  - [ ] The remaining rename sites: `README.md`'s *Try it* paragraph,
+        is true and stays, classed as history (PLAN QUESTION 2). *Headers:
+        `demo.toml`, `backend.sh`, `backend.ts` and the TypeScript README
+        each open by calling the file a host exerciser and point at `kit/`.
+        Rewritten copy claims: `backend.ts`' *"Copy this file. It is meant to
+        be edited"*; `backend.sh`'s *"what a backend author copies from here
+        is the contract"* (now *"what this file exercises"*); `round_trip.rs`'
+        *"the file a person copies"* (`shell_example`'s doc) and *"the one a
+        reader copies"*
+        (`the_readme_s_own_config_loads_and_runs_the_example`'s doc); the
+        README's *"A minimal goad backend … Point a config at it"*. The grep,
+        after:*
+        ```
+        crates/goad-shell/tests/integration/round_trip.rs:241:/// author what a backend looks like, so the defect propagated by copying
+        ```
+        *One hit, `the_shell_example_escapes_the_values_it_carries_into_a_view`'s
+        doc: history, true, stays.*
+  - [x] The remaining rename sites: `README.md`'s *Try it* paragraph,
         `.gitignore`'s comment, `flake.nix`'s `goadShot` comment,
         `docs/roadmap.md`'s sentence, and the four `docs/memory/` files.
         `deno-run-does-not-typecheck` says *"as its seventh command"*. The
         gate is six, and the sentence is edited anyway: name the command
         instead of counting it. `cite-requirements-not-finding-ids` names
         `examples/` as a directory of comments; it becomes `exercisers/`.
-  - [ ] VA-2 (quoted): *"the README's counts touched here are replaced by
+        *Done. `deno-run-does-not-typecheck` now names the `justfile`'s
+        `typecheck` recipe instead of *"its seventh command"*, and calls the
+        file the exerciser.*
+  - [x] VA-2 (quoted): *"the README's counts touched here are replaced by
         names ("the ten-line shell backend")."* Also false (A-V8). Record the
-        before and after.
-  - [ ] VT-2 (quoted): *"`round_trip.rs`'s
+        before and after. *Before: "`examples/demo.toml` and the ten-line
+        shell backend in `examples/shell/backend.sh`". After:
+        "`exercisers/demo.toml` and the shell backend in
+        `exercisers/shell/backend.sh`". `backend.ts`' *"in about eighty
+        lines"* went with its header (EX-1).*
+  - [x] VT-2 (quoted): *"`round_trip.rs`'s
         `the_readme_s_own_config_loads_and_runs_the_example` and `harness.rs`'
         deno cases are green on the new paths."* The cases that read an
         exerciser path: `the_readme_s_own_config_loads_and_runs_the_example`,
@@ -1812,25 +1839,49 @@ paths, so `just check` is never red at a commit.
         `the_shell_example_escapes_the_values_it_carries_into_a_view` and
         `the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers`.
         `cargo test -p goad-shell --test integration --no-fail-fast` green,
-        and `test ! -e examples` (A-T3). Record both.
-  - [ ] EX-2 (quoted): *"`git grep -n 'examples/' -- ':!docs/slices'
+        and `test ! -e examples` (A-T3). Record both. *96 passed, 0 failed;
+        the four named cases each `ok`. `test ! -e examples` true. `just
+        typecheck` checks `exercisers/typescript/backend.ts` clean.*
+  - [x] EX-2 (quoted): *"`git grep -n 'examples/' -- ':!docs/slices'
         ':!docs/brief.md'` finds only POL-001's command block, which audit
         amends."* Record the output.
-  - [ ] VA-1 (quoted): *"`just -n check` prints POL-001 §Compliance's command
+        ```
+        docs/policy/001-the-phase-gate.md:58:deno check examples/typescript/backend.ts
+        ```
+  - [x] VA-1 (quoted): *"`just -n check` prints POL-001 §Compliance's command
         block with its `deno check` line replaced by EX-3's, and no other
-        difference; recorded."* Diff the two and record it.
+        difference; recorded."* Diff the two and record it. *`diff` of
+        §Compliance's fenced block against `just -n check`'s output:*
+        ```
+        4c4
+        < deno check examples/typescript/backend.ts
+        ---
+        > deno check exercisers/typescript/backend.ts
+        ```
+        *No other difference.*
 - **Refactor**
-  - [ ] Read the diff for a second statement of anything moved: a
+  - [x] Read the diff for a second statement of anything moved: a
         `version_line` body, a `/dev/full` spawn beyond the one copy VT-1
-        needs, an `examples/` path.
-  - [ ] `git grep -n -i 'examples' -- exercisers` and the touched docs: no
+        needs, an `examples/` path. *None: one `version_line` body
+        (`goad_shell::version`); one `/dev/full` spawn in `goad-emit`'s tier
+        (`exchange::emit_with_stdout_full`, the copy VT-1 needs); no
+        `examples/` path outside POL-001 (EX-2).*
+  - [x] `git grep -n -i 'examples' -- exercisers` and the touched docs: no
         sentence still reads the exercisers as examples to follow.
         `harness::example` and the `*_example*` test names may stay; renaming
         a canon-cited test (`the_deno_example_completes_a_round_trip`, SPEC-001
-        R-53) is not this phase's.
+        R-53) is not this phase's. *Read over `exercisers`, the touched docs,
+        `harness.rs`, `round_trip.rs` and the `justfile`. Prose that called
+        an exerciser *"the example"* now says *"the exerciser"*
+        (`round_trip.rs`' comments and assertion messages, `harness.rs`'
+        `example` doc and `prompting_event` doc, the `justfile`'s `demo`
+        comment). Kept: the `example` helper and `*_example*` test names;
+        `demo.toml`'s *"a worked example of the wire"* (an illustration of
+        SPEC-003, not a claim about the file); `docs/roadmap.md`'s uses,
+        which name the kit's examples or a brief criterion.*
 - **Verification**
   - [ ] Mutation rows (below).
-  - [ ] **Canon-delta test names:** `grep -c 'fn <name>()'
+  - [x] **Canon-delta test names:** `grep -c 'fn <name>()'
         crates/goad-emit/tests/binary/exchange.rs` is 1 for each name
         SPEC-004 Change 5's R-8..R-10 and R-14 rows place there:
         `an_answer_that_cannot_be_written_exits_2`,
@@ -1843,7 +1894,8 @@ paths, so `just check` is never red at a commit.
         `a_path_with_nothing_listening_exits_2_and_names_the_path`,
         `a_reply_that_breaches_6_3_exits_2_rather_than_1`. `design.md` §9's
         PHASE-03 name is the first. A name that differs is updated in
-        `canon-delta.md` in the same commit.
+        `canon-delta.md` in the same commit. *Each `grep -c` is 1. No
+        `canon-delta.md` edit.*
   - [ ] `just check` exits 0 on the final commit. Record it.
   - [ ] VH-1 (quoted): *"a person runs `just demo` on the renamed exerciser
         and sees the window prompt, as before."* Hand the person the command

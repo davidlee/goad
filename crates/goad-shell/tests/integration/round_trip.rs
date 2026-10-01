@@ -39,11 +39,11 @@ fn answered_at() -> Timestamp {
 }
 
 // ---------------------------------------------------------------------------
-// VT-1 — AC-7, against the deno example
+// VT-1 — AC-7, against the deno exerciser
 // ---------------------------------------------------------------------------
 
-/// The README's own config — the one a reader copies — loads and runs (F-16,
-/// brief §15.2).
+/// The exerciser README's own config loads and runs (F-16, brief §15.2): the
+/// configuration it shows is the one tested, not a second one beside it.
 ///
 /// Its script path is relative to the repository root, which is where a reader
 /// following the README stands. Cargo runs a test binary with the **package**
@@ -52,7 +52,7 @@ fn answered_at() -> Timestamp {
 /// being made wrong for its reader (PHASE-01, `review-plan.md` F-35).
 #[tokio::test]
 async fn the_readme_s_own_config_loads_and_runs_the_example() {
-  let readme = include_str!("../../../../examples/typescript/README.md");
+  let readme = include_str!("../../../../exercisers/typescript/README.md");
   let toml = fenced_block(readme, "toml");
   let mut config =
     Config::parse(toml).unwrap_or_else(|error| panic!("the README's config: {error}"));
@@ -144,7 +144,7 @@ async fn the_deno_example_completes_a_round_trip() {
   assert!(answered.view.is_none(), "{}", describe_outcome(&answered));
   assert_eq!(answered.next_check, instant("2026-08-23T05:14:00Z"));
 
-  // The example reports what it was asked on stderr, which is the one witness
+  // The exerciser reports what it was asked on stderr, which is the one witness
   // to the round trip that is not the host describing itself: the id the caller
   // was given is the id the backend saw.
   assert_eq!(
@@ -220,29 +220,28 @@ async fn the_bash_backend_completes_the_same_round_trip() {
 }
 
 // ---------------------------------------------------------------------------
-// The demo example, against values only a watcher chooses — `review-code.md` F-12
+// The demo exerciser, against values only a watcher chooses — `review-code.md` F-12
 // ---------------------------------------------------------------------------
 
-/// `examples/shell/backend.sh` is the file a person copies to write their own
-/// backend, and the one `just demo` runs.
+/// `exercisers/shell/backend.sh`: the host exerciser `just demo` runs.
 ///
 /// Rooted at the crate for the reason `harness.rs::example` gives: a test
 /// binary's working directory is not something to rely on. `["bash", script]`
-/// is the argument vector `examples/demo.toml` names, so this runs the example
+/// is the argument vector `exercisers/demo.toml` names, so this runs the exerciser
 /// exactly as the demo does.
 fn shell_example() -> Command {
-  let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/shell/backend.sh");
+  let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../exercisers/shell/backend.sh");
   Command::new("bash", vec![script.display().to_string()])
 }
 
 /// `source` and `kind` are the watcher's own words and reach the backend
 /// unexamined (SPEC-001/R-9, SPEC-003/R-11), so they can carry `"` and `\`.
-/// The example interpolated them straight into a JSON string literal, which
+/// The exerciser interpolated them straight into a JSON string literal, which
 /// broke on the first quote — in the one file whose job is to show a watcher
 /// author what a backend looks like, so the defect propagated by copying
 /// (`review-code.md` F-12).
 ///
-/// The discriminator is that the example **answers at all**: the host handles
+/// The discriminator is that the exerciser **answers at all**: the host handles
 /// a backend emitting broken JSON correctly — it is a reported backend failure
 /// and the host stays up — which is exactly why nothing else here caught it.
 /// The view's title is asserted too, so a backend that answered something
@@ -261,12 +260,12 @@ async fn the_shell_example_escapes_the_values_it_carries_into_a_view() {
 
   assert!(
     answered.failure.is_none(),
-    "a quote in `source` must not break the example's own JSON: {}",
+    "a quote in `source` must not break the exerciser's own JSON: {}",
     describe_outcome(&answered)
   );
   assert!(
     choice(&answered).title().starts_with("An event arrived:"),
-    "the example answered the ingested branch: {}",
+    "the exerciser answered the ingested branch: {}",
     choice(&answered).title()
   );
 }
@@ -276,13 +275,13 @@ async fn the_shell_example_escapes_the_values_it_carries_into_a_view() {
 ///
 /// `data` is opaque and carries whatever a watcher put there, so a branch that
 /// matches a substring of the **whole request** lets a watcher choose which
-/// prompt the example shows — or, for `"type":"respond"`, that it shows none at
+/// prompt the exerciser shows — or, for `"type":"respond"`, that it shows none at
 /// all, which is worse, because there is no wrong prompt for a person to
 /// notice. Both literals the file branches on are sent inside `data` here; the
 /// example must answer the ingested branch for both.
 ///
 /// One case for two literals rather than two cases, because it is one rule: a
-/// value the host carries opaquely must not reach the example's control flow.
+/// value the host carries opaquely must not reach the exerciser's control flow.
 #[tokio::test]
 async fn the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers() {
   let mut host = host(shell_example(), TIMEOUT, now());
@@ -307,13 +306,13 @@ async fn the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers() {
     );
     assert!(
       answered.view.is_some(),
-      "`data` of {smuggled} must not decide whether the example shows anything: {}",
+      "`data` of {smuggled} must not decide whether the exerciser shows anything: {}",
       describe_outcome(&answered)
     );
     assert_eq!(
       choice(&answered).title(),
       "An event arrived: w / k",
-      "`data` of {smuggled} must not decide which prompt the example shows"
+      "`data` of {smuggled} must not decide which prompt the exerciser shows"
     );
   }
 }

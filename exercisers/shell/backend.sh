@@ -1,20 +1,22 @@
-# A goad backend in one file of shell, and the one `just demo` runs.
+# A host exerciser: a goad backend in one file of shell, and the one
+# `just demo` runs. It exists to exercise goad, not to be copied; to write a
+# backend, see `kit/`.
 #
 # The protocol is one JSON document in on stdin, one JSON document out on
 # stdout, per process. Nothing here needs a runtime, a package manager, or a
-# shebang: the config names `["bash", "examples/shell/backend.sh"]`, so bash is
+# shebang: the config names `["bash", "exercisers/shell/backend.sh"]`, so bash is
 # the program and this file is its argument. It is bash rather than `sh`
 # deliberately — `${value//from/to}` below is a bash expansion.
 #
-# Unlike `examples/typescript/backend.ts`, this one decides nothing. It prompts
+# Unlike `exercisers/typescript/backend.ts`, this one decides nothing. It prompts
 # every time it is asked to evaluate, which is what makes it a demo: run it and
 # a window is there. A real backend reads its own state and answers `view: null`
 # far more often than not.
 #
 # The form it sends is **protocol-shaped, not renderer-shaped**, and that is the
-# rule rather than an artefact of what the window happens to draw: what a
-# backend author copies from here is the contract, and a renderer that draws a
-# subset of it reports the rest rather than narrowing what may be sent
+# rule rather than an artefact of what the window happens to draw: what this
+# file exercises is the contract, and a renderer that draws a subset of it
+# reports the rest rather than narrowing what may be sent
 # (SPEC-001/R-55). It carries **one field of every kind `R-16` admits**, so
 # `just demo` shows the whole of what a backend may ask for and a person can see
 # every control the renderer draws.
@@ -46,7 +48,7 @@
 request=$(cat)
 
 # Before anything is written, and deliberately **after** the read: the host
-# bounds how long it waits for a reply, and `examples/demo.toml` sets that
+# bounds how long it waits for a reply, and `exercisers/demo.toml` sets that
 # bound to **5s** — so `GOAD_DEMO_DELAY=3` is a window to work in and
 # `GOAD_DEMO_DELAY=6` is the *other* thing this knob is good for: watching a
 # backend get timed out, the refusal land on the diagnostic surface, and the

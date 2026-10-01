@@ -6,9 +6,9 @@ Measured in slice 009.
 
 | backend | measured |
 |---|---|
-| `examples/shell/backend.sh` | ~2.4 ms over 50 spawns |
-| `examples/typescript/backend.ts` | ~12 ms over 10 spawns |
-| ceiling | the configured `backend.timeout` — 5 s in `examples/demo.toml` |
+| `exercisers/shell/backend.sh` | ~2.4 ms over 50 spawns |
+| `exercisers/typescript/backend.ts` | ~12 ms over 10 spawns |
+| ceiling | the configured `backend.timeout` — 5 s in `exercisers/demo.toml` |
 
 That is **three orders of magnitude**, and which end you land on is chosen by
 the backend author, not by the host.

@@ -26,7 +26,7 @@ feature matrix (POL-001). Purity is held by four ADR-001 instruments plus the
 domain-vocabulary scan, plus one residue nothing enforces.
 
 The host renders, keeps time, and — since 2026-09-08 — actually launches:
-`just demo` starts it against `examples/shell/backend.sh` and a window appears.
+`just demo` starts it against `exercisers/shell/backend.sh` and a window appears.
 That fix was a one-line reordering in `main.rs`, and it was needed because
 `slint::set_xdg_app_id` ran before any component existed, so every launch since
 002 had failed. Three slices closed green over it, because nothing in the gate

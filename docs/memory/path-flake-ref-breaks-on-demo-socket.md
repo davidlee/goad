@@ -5,7 +5,7 @@ written; the citation is older than the file).
 
 ## The fact
 
-`just demo` runs goad on `examples/demo.toml`, whose event-ingress socket is a
+`just demo` runs goad on `exercisers/demo.toml`, whose event-ingress socket is a
 **relative** path resolved against the repository root — so a unix socket
 appears in the checkout and stays there. A `path:` flake reference copies the
 whole working tree into the nix store, and copying a unix socket fails. Once the
@@ -17,7 +17,7 @@ tree, and the socket is untracked.
 
 ## Why
 
-`examples/demo.toml`'s comment says the `--socket` argument is not optional
+`exercisers/demo.toml`'s comment says the `--socket` argument is not optional
 because the demo runs on an explicit configuration path rather than the default
 one. The consequence nobody wrote down is where the socket then lives: in the
 working directory, which is the repository root, because `just` sets it there.

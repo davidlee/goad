@@ -77,7 +77,7 @@
     # stop. `grim` inherits WAYLAND_DISPLAY from cage, so it photographs the
     # nested output and never the host's.
     #
-    #   goad-shot [-o out.png] [-s seconds] -- cargo run -- examples/demo.toml
+    #   goad-shot [-o out.png] [-s seconds] -- cargo run -- exercisers/demo.toml
     goadShot = pkgs.writeShellScriptBin "goad-shot" ''
       set -euo pipefail
       out=shot.png

@@ -1,4 +1,6 @@
-// A goad backend, in about eighty lines.
+// A host exerciser: a goad backend in one file of TypeScript, which goad's
+// integration tests drive. It exists to exercise the host, not to be copied;
+// to write a backend, see `kit/`.
 //
 // One process per exchange: the host spawns this, writes one JSON request to
 // stdin, closes it, and reads one JSON response from stdout. Nothing else on
@@ -6,9 +8,9 @@
 // response two documents and the host would reject the pair. Diagnostics go to
 // stderr, which the host captures and reports either way.
 //
-// Copy this file. It is meant to be edited, and the host does not know what
-// this backend is for: it carries the interaction, and every decision below —
-// whether to prompt, what to ask, when to look again — belongs here.
+// The host does not know what this backend is for: it carries the
+// interaction, and every decision below — whether to prompt, what to ask,
+// when to look again — belongs here.
 //
 // `deno run -A` gives this script the full authority of the user running goad,
 // and that is deliberate: a backend is the user's own program, not a sandboxed
@@ -16,7 +18,7 @@
 // security boundary, and `-A` switches them off. Do not read `-A` as a claim
 // that anything is contained; nothing is.
 //
-// `deno run` does not typecheck. `deno check examples/typescript/backend.ts`
+// `deno run` does not typecheck. `deno check exercisers/typescript/backend.ts`
 // does, and goad's own `just check` runs it.
 
 /** RFC 3339, always UTC-normalized by the host. */

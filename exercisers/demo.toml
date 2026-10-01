@@ -1,10 +1,12 @@
-# The configuration `just demo` starts goad with.
+# The configuration `just demo` starts goad with: a host exerciser, like the
+# backend it names. It exercises goad and is not a template; to write a
+# backend, see `kit/`.
 #
 # `command` is an argument vector, never a shell string — goad interposes no
 # shell. Relative paths resolve against goad's working directory, which `just`
 # sets to the repository root.
 [backend]
-command = ["bash", "examples/shell/backend.sh"]
+command = ["bash", "exercisers/shell/backend.sh"]
 timeout = "5s"
 
 # The backend inherits this process's environment, which the demo backend uses

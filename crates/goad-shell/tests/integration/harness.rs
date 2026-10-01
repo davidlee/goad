@@ -170,17 +170,17 @@ pub(crate) fn alive(pid: &str) -> bool {
 // PHASE-08 — a whole host over the real transport, and the invocation witness
 // ---------------------------------------------------------------------------
 
-/// The argument vector for the deno example — `examples/typescript/backend.ts`.
+/// The argument vector for the deno exerciser — `exercisers/typescript/backend.ts`.
 ///
 /// Rooted at the crate for the reason `backend` gives: a test binary's working
-/// directory is not something to rely on. The example's own README uses a
+/// directory is not something to rely on. The exerciser's own README uses a
 /// relative path, which is right for a user's config and wrong here.
 ///
 /// `-A` grants the script the user's full authority, which is what brief §14
 /// says a backend has. It is not a sandbox with a hole in it; there is no
 /// sandbox.
 pub(crate) fn example() -> Command {
-  let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/typescript/backend.ts");
+  let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../exercisers/typescript/backend.ts");
   Command::new(
     "deno",
     vec![
@@ -191,7 +191,7 @@ pub(crate) fn example() -> Command {
   )
 }
 
-/// An event the example backend answers with a view.
+/// An event the exerciser backend answers with a view.
 pub(crate) fn prompting_event(now: Timestamp) -> Event {
   event(now, 90)
 }

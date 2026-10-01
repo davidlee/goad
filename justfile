@@ -32,12 +32,17 @@ test:
 test-stratum1:
   cargo test -p goad-semantics
 
-# The example backend is documentation agents edit (brief §3.7), and `deno run`
-# does not typecheck it — measured at slice 001 PHASE-08, a type error runs to
-# exit 0. So the gate does. deno is in `flake.nix` `projectPkgs`, so AC-1's clean
-# clone in the dev shell still holds.
+# The TypeScript exerciser, the one TypeScript file goad's tests drive, is
+# typechecked here because `deno run` does not — measured at slice 001
+# PHASE-08, a type error runs to exit 0. deno is in `flake.nix` `projectPkgs`,
+# so AC-1's clean clone in the dev shell still holds.
+#
+# This line departs from POL-001 §Compliance's command block, which still names
+# the exerciser's old path, until slice 012's audit promotes POL-001 Change 1
+# (`docs/slices/012/canon-delta.md`): the rename would otherwise break the gate,
+# and canon is not edited mid-slice.
 typecheck:
-  deno check examples/typescript/backend.ts
+  deno check exercisers/typescript/backend.ts
 
 # One column, not two. `tokio` and `toml` are unconditional dependencies of
 # stratum 2 now and absent from stratum 1, so the `shell` feature has nothing
@@ -62,8 +67,8 @@ fmt:
 run config:
   cargo run -p goad --bin goad -- {{config}}
 
-# The example backend that always prompts, so there is a window to look at.
-demo: (run "examples/demo.toml")
+# The shell exerciser, which always prompts, so there is a window to look at.
+demo: (run "exercisers/demo.toml")
 
 # The `--socket` is what earns this recipe its place: emit discovers the host's
 # *default* configuration path only, and `demo` runs on an explicit one, so a
