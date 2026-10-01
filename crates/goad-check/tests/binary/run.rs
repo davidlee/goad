@@ -386,3 +386,71 @@ fn event_files_are_sent_in_the_order_given() {
     ]
   );
 }
+
+/// The first exchange answers and leaves a grandchild holding stderr past the
+/// host's cleanup budget (`@lingers`): the exchange succeeds, and the cleanup
+/// failure alone is a refusal (backend, R-48).
+#[test]
+fn a_cleanup_failure_alone_exits_1() {
+  let (backend, _log) = scripting::scripted("cleanup-alone", &["@lingers"]);
+  let output = check(&against(&backend, &[]));
+
+  let stdout = stdout_of(&output);
+  assert_refused(&output);
+  assert!(
+    a_line_names(&stdout, "backend", "SPEC-001/R-48"),
+    "{stdout}"
+  );
+  assert_eq!(
+    stdout.matches("SPEC-001/").count(),
+    1,
+    "the cleanup failure is the only refusal: {stdout}"
+  );
+}
+
+/// Every exchange floods stderr past the host's bound and then answers: the
+/// report flags each truncation, and a truncation is no refusal.
+#[test]
+fn a_truncated_stderr_is_flagged() {
+  let backend = scripting::backend("floods-stderr-then-answers");
+  let output = check(&against(&backend, &[]));
+
+  let stdout = stdout_of(&output);
+  assert_eq!(code_of(&output), 0, "{}", stderr_of(&output));
+  assert!(
+    stdout.contains("stderr truncated"),
+    "{}",
+    stderr_of(&output)
+  );
+}
+
+/// The probe alone fails, on the configuration's side: the program deletes
+/// itself on its third run, so the probe's spawn fails (`Spawn`). The host's
+/// own kinds made no failure, so only the side clause keeps the probe from
+/// being charged with R-56.
+#[test]
+fn a_probe_failure_on_another_side_is_not_charged_with_r56() {
+  let program = scripting::marker("deletes-itself-program");
+  let log = scripting::marker("deletes-itself-log");
+  std::fs::copy(fixture("deletes-itself-on-its-third-run.sh"), &program)
+    .expect("the fixture must be copyable to the temp directory");
+  let mut permissions = std::fs::metadata(&program)
+    .expect("the copy must exist")
+    .permissions();
+  std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
+  std::fs::set_permissions(&program, permissions).expect("the copy must be made executable");
+  let backend = goad_shell::config::Command::new(
+    program.display().to_string(),
+    vec![log.display().to_string()],
+  );
+  let output = check(&against(&backend, &[]));
+
+  let stdout = stdout_of(&output);
+  assert_refused(&output);
+  assert_eq!(scripting::invocations(&log), 3, "the host's own kinds ran");
+  assert!(
+    a_line_names(&stdout, "configuration", "SPEC-001/R-44"),
+    "{stdout}"
+  );
+  assert!(!stdout.contains("SPEC-001/R-56"), "{stdout}");
+}
