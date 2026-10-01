@@ -12,6 +12,7 @@ use goad_shell::config::Config;
 use goad_shell::error::ConfigError;
 use goad_shell::ingress::client::{self, Answered};
 use goad_shell::report::line_to;
+use goad_shell::version::version_line;
 
 use crate::args::{Invocation, Request};
 
@@ -73,9 +74,13 @@ fn main() -> ExitCode {
       // The revision is read at compile time and never at run time —
       // `crates/goad`'s `run` carries the reasoning, and this is the same
       // rule for the same variable. Handed on unjudged: set-but-empty is
-      // unset, and `render::version_line` is where that is decided and
-      // tested (`review-code.md` F-2).
-      to_stdout(&render::version_line(option_env!("GOAD_REVISION")));
+      // unset, and `goad_shell::version::version_line` is where that is
+      // decided and tested (`review-code.md` F-2). The version is this
+      // binary's own: `env!` expands where it is compiled.
+      to_stdout(&version_line(
+        env!("CARGO_PKG_VERSION"),
+        option_env!("GOAD_REVISION"),
+      ));
       ExitCode::SUCCESS
     }
     Ok(Invocation::Send(request)) => exchange(request),

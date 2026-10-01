@@ -1641,7 +1641,7 @@ paths, so `just check` is never red at a commit.
         goad-shell --all-targets -- -D warnings` green. *20 passed; clippy
         clean.*
 - **2. `version_line` in one home (EX-8, VT-4)**
-  - [ ] EX-8 (quoted): *"`version_line(version, revision)` is defined once,
+  - [x] EX-8 (quoted): *"`version_line(version, revision)` is defined once,
         in a new module `goad_shell::version`, taking the package version as
         a parameter … `goad_shell::report` is unchanged, its "not a
         formatter" module doc still true."* Create
@@ -1650,7 +1650,7 @@ paths, so `just check` is never red at a commit.
         shares), and add `pub mod version;` to `lib.rs` in its alphabetical
         place. `pub`, not `pub(crate)`: a private module's `pub fn` warns
         under `unreachable_pub`, which the gate's `-D warnings` denies.
-  - [ ] In it, `pub fn version_line(version: &str, revision: Option<&str>) ->
+  - [x] In it, `pub fn version_line(version: &str, revision: Option<&str>) ->
         String` with a `todo!()` body (parameters `_version`, `_revision`),
         and the three cases moved from `diagnostics.rs` under their names,
         now passing the version as a literal argument. Red: 3 failed.
@@ -1659,39 +1659,62 @@ paths, so `just check` is never red at a commit.
         both copies carry it (`must_use_candidate` is allowed, so nothing
         else holds it); `module_name_repetitions` is allowed workspace-wide,
         so `version::version_line` passes; `clippy::todo` is denied, so the
-        `todo!()` stub never reaches a commit.
-  - [ ] The body: today's, over `version` instead of
-        `env!("CARGO_PKG_VERSION")`. Green.
-  - [ ] Callers: `diagnostics::print_version` passes `goad`'s
+        `todo!()` stub never reaches a commit. *Red seen: `cargo test -p
+        goad-shell --lib version`, 0 passed, 3 failed, each panicking at the
+        `todo!()` (A-T2 holds).*
+  - [x] The body: today's, over `version` instead of
+        `env!("CARGO_PKG_VERSION")`. Green. *3 passed.*
+  - [x] Callers: `diagnostics::print_version` passes `goad`'s
         `env!("CARGO_PKG_VERSION")`, and `goad-emit`'s `main` passes its own.
         Delete `diagnostics::version_line` and `render::version_line` and
         both sets of their cases. EX-8 (quoted): *"`goad` and `goad-emit`
         call it, and their `--version` output is unchanged."*
-  - [ ] VT-4 (quoted): *"`goad`'s and `goad-emit`'s existing `--version`
+  - [x] VT-4 (quoted): *"`goad`'s and `goad-emit`'s existing `--version`
         cases stay green across the lift."* `cargo test -p goad --test binary`
-        and `cargo test -p goad-emit --no-fail-fast` green.
-  - [ ] EX-8's parameter is invisible to every test (A-V1), so record a read:
+        and `cargo test -p goad-emit --no-fail-fast` green. *`goad` binary
+        tier 8 passed, `version_prints_the_package_version_on_stdout_and_exits_0`
+        among them; `goad-emit` unit 34 passed, binary 9 passed,
+        `exchange::version_prints_the_package_version_on_stdout_and_exits_0`
+        among them.*
+  - [x] EX-8's parameter is invisible to every test (A-V1), so record a read:
         `grep -rn 'CARGO_PKG_VERSION\|GOAD_REVISION' crates/goad-shell/src`
         finds only prose, and each binary's call site passes its own
-        `env!("CARGO_PKG_VERSION")`. Run mutation row 6.
-  - [ ] `report.rs` unchanged: `git diff --stat` over the phase shows no
+        `env!("CARGO_PKG_VERSION")`. Run mutation row 6. *Read: the grep's
+        hits are all in `version.rs`, in `version_line`'s doc and its
+        `mod tests` docs; none is code. `grep -rn 'version_line(' crates`
+        outside `version.rs`: `goad`'s `diagnostics::print_version` passes
+        `env!("CARGO_PKG_VERSION")` and its caller's revision; `goad-emit`'s
+        `main`, `Invocation::Version` arm, passes `env!("CARGO_PKG_VERSION")`
+        and `option_env!("GOAD_REVISION")`. Row 6 recorded below.*
+  - [x] `report.rs` unchanged: `git diff --stat` over the phase shows no
         `crates/goad-shell/src/report.rs`, and its module doc (*"Not a
         formatter … This module owns only the last step"*) stays true.
-        Record it.
-  - [ ] Docs made true, in Surfaces: the moved function's
+        Record it. *`git diff --stat 251f525` names no `report.rs`. Its doc
+        names `diagnostics` and `render` as composers, by example (*"—
+        `crates/goad`'s `diagnostics` for the host, `render` for a
+        command-line binary"*); the version line is now composed in
+        `goad_shell::version`, which the sentence does not list but does not
+        deny. Still true.*
+  - [x] Docs made true, in Surfaces: the moved function's
         doc carries the reasoning both copies held (no placeholder, no
         prefix, *set-but-empty is unset*, the revision a parameter so the
         rule is a test) and says why the version is a parameter too;
         `diagnostics.rs`' module doc; the `Launch::Version` and
         `Invocation::Version` comments, which name `render::version_line` or
         `version_line` as where *set-but-empty* is decided.
-  - [ ] Surfaces (quoted): *"`crates/goad/src/startup.rs` and
+  - [x] Surfaces (quoted): *"`crates/goad/src/startup.rs` and
         `crates/goad/tests/binary/main.rs`, doc-only, for `version_line`'s
         old home"*. `startup.rs`' `arguments` doc table: the `--version` row
         links `goad_shell::version::version_line`.
         `crates/goad/tests/binary/main.rs`' module doc names the unit case's
         new home, `goad_shell::version`. Then `grep -rn
         'diagnostics::version_line\|render::version_line' crates` is empty.
+        *Empty. The `binary/main.rs` module doc names the type in two places
+        (`version_line` rendering it; the stamped branch's real assertion),
+        both now `goad_shell::version`. `cargo doc` over `goad`,
+        `goad-shell` and `goad-emit` with `-D rustdoc::broken_intra_doc_links`
+        reports no broken link (the three warnings it prints are pre-existing
+        private-item links).*
 - **3. `goad-emit`'s unwritten answer (EX-4, VT-1)**
   - [ ] Run the exit grep first (§Harvest *Learned*): `grep -rn
         'an_answer_that_cannot_be_written_exits_2' crates` finds only `goad`'s
@@ -1838,7 +1861,7 @@ the scratchpad backup back, `git status --short` empty after.
 | 3. `config.rs` `signed`: drop `resolved.is_zero() \|\|` | VT-3's `0s` clause; `a_zero_timeout_is_rejected_because_it_fails_every_exchange`; `a_zero_default_poll_is_rejected_because_it_is_a_busy_loop` | | |
 | 4. `positive_duration`'s parameter spelled `_key`, and `signed` called with `"backend.timeout"` | VT-3 only, on its key. The existing configuration cases pass `"backend.timeout"`, so they stay green | | |
 | 5. `render`'s unwritten-answer line drops its `goad-emit: ` prefix | `exchange::an_answer_that_cannot_be_written_exits_2` | | |
-| 6. expected **not** to red: `goad_shell::version::version_line` ignores `_version` and formats `env!("CARGO_PKG_VERSION")` | none expected: `goad-shell`'s version equals both binaries' (A-V1). Recording it shows EX-8's parameter is held by review and task 2's grep, not by a test | | |
+| 6. expected **not** to red: `goad_shell::version::version_line` ignores `_version` and formats `env!("CARGO_PKG_VERSION")` | none expected: `goad-shell`'s version equals both binaries' (A-V1). Recording it shows EX-8's parameter is held by review and task 2's grep, not by a test | yes | none, as predicted: every `test result` line `0 failed`. Restored by copy; `version.rs` matches its backup |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that

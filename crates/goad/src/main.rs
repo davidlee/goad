@@ -58,8 +58,9 @@ fn run() -> Result<Ended, StartupError> {
       // reporting nothing. It is also a macro, so `clippy.toml`'s ban on
       // `std::env::var` is untouched rather than evaded.
       //
-      // Handed on unjudged: set-but-empty is unset, and `version_line` is
-      // where that is decided and tested (`review-code.md` F-2).
+      // Handed on unjudged: set-but-empty is unset, and
+      // `goad_shell::version::version_line` is where that is decided and
+      // tested (`review-code.md` F-2).
       diagnostics::print_version(option_env!("GOAD_REVISION"))
         .map_err(StartupError::AnswerUnwritten)?;
       Ok(Ended::AsAsked)

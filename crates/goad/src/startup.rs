@@ -140,7 +140,7 @@ pub fn listener(configured: Option<&IngressConfig>) -> Result<Ingress, StartupEr
 /// |---|---|
 /// | none | whatever [`goad_shell::config::default_path`] answers, which is where its own table states the XDG rule; `None` ⇒ [`StartupError::NoConfigPath`], whose text names both variables. |
 /// | `-h` or `--help` | the usage block on stdout, exit 0 — its text is §5.4's, and `--help` is its only destination |
-/// | `--version` | [`crate::diagnostics::version_line`] on stdout, exit 0 |
+/// | `--version` | [`goad_shell::version::version_line`] on stdout, exit 0 |
 /// | exactly one, anything else | that path, verbatim; `$XDG_CONFIG_HOME` is not consulted |
 /// | two or more | [`StartupError::Usage`] on stderr, exit 2 — the host does not guess which was meant |
 ///

@@ -11,7 +11,8 @@
 //! startup surface's own outlets, `USAGE` and `print_usage`, and the impure
 //! outlet that 010/PHASE-02 replaced with `report_exit` and its pure half,
 //! `report_exit_line`, before a tray or a window exists; 006/PHASE-03 adds
-//! `version_line` and `print_version`, which answer before one exists too.
+//! `print_version`, which answers before one exists too, over
+//! `goad_shell::version::version_line` since 012/PHASE-03.
 //! The module carries
 //! the arithmetic deny because both halves compute over lengths a backend or a
 //! transport chose (D53, design.md §5.4).
@@ -25,6 +26,7 @@ use goad_shell::backend::transport::Captured;
 use goad_shell::error::CleanupFailure;
 use goad_shell::host::Failure;
 use goad_shell::report::{line_to, try_line_to};
+use goad_shell::version::version_line;
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
 use crate::exit::Ended;
@@ -410,44 +412,19 @@ pub fn print_usage() -> std::io::Result<()> {
   try_line_to(std::io::stdout().lock(), USAGE)
 }
 
-/// The `--version` answer: the package version, and the revision the build
-/// stamped — when it stamped one.
-///
-/// **No placeholder for the unstamped case.** `cargo install` stamps nothing
-/// and a tarball consumer of the flake stamps nothing either; both say
-/// `0.1.0` and stop there. A `(revision unknown)` would be this module
-/// reporting a fact it does not have, which is the one thing every line on
-/// this surface may not do.
-///
-/// No `"goad: "` prefix, unlike [`report_startup_line`]: the prefix is there
-/// because stderr must say who spoke, and a direct answer to a direct
-/// question on stdout need not — `goad-emit`'s `--version` is the precedent.
-/// The revision is taken as an argument rather than read here, so this stays
-/// pure and every branch is a test rather than a build configuration.
-///
-/// **Set-but-empty is unset**, the rule `build.rs` already states for
-/// `SLINT_STYLE`: a flake consumed as a tarball has no revision to stamp and
-/// stamps `""`, which must read as unstamped and not as a revision whose name
-/// is empty. The test is **here**, inside the one function that decides the
-/// line, and not at the call site: a rule spelled at each caller is a rule
-/// the unit tier cannot reach and two transcriptions that can disagree
-/// (`review-code.md` F-2).
-#[must_use]
-pub fn version_line(revision: Option<&str>) -> String {
-  match revision.filter(|revision| !revision.is_empty()) {
-    Some(revision) => format!("{} ({revision})", env!("CARGO_PKG_VERSION")),
-    None => env!("CARGO_PKG_VERSION").to_owned(),
-  }
-}
-
-/// stdout. The only caller is `--version`, and it hands the revision its own
-/// build was stamped with; as with [`print_usage`], the question is answered
-/// only if the line arrived.
+/// [`goad_shell::version::version_line`] on stdout, over this binary's own
+/// package version: `env!` expands where it is compiled, so the version is
+/// read here and not in `goad-shell`. The only caller is `--version`, and it
+/// hands the revision its own build was stamped with; as with
+/// [`print_usage`], the question is answered only if the line arrived.
 ///
 /// # Errors
 /// Standard output's own, when the line could not be written to it.
 pub fn print_version(revision: Option<&str>) -> std::io::Result<()> {
-  try_line_to(std::io::stdout().lock(), &version_line(revision))
+  try_line_to(
+    std::io::stdout().lock(),
+    &version_line(env!("CARGO_PKG_VERSION"), revision),
+  )
 }
 
 /// The exact string `report_exit` writes for a startup failure, via
@@ -663,36 +640,8 @@ fn sample_covered(x: u32, y: u32, i: u32, j: u32, inner_sq: u32) -> bool {
 // this file's own test fixtures.
 #[cfg(test)]
 mod tests {
-  use super::{next_check_line, version_line};
+  use super::next_check_line;
   use goad_semantics::protocol::canonical::Timestamp;
-
-  /// PHASE-03/VT-1, AC-5's rendering half. The **stamped** branch is
-  /// unreachable anywhere else under `cargo test`: nothing in the gate sets
-  /// `GOAD_REVISION`, so the binary tier can only ever see the bare form.
-  /// This case is the real assertion for it, not a proxy for one
-  /// (`docs/memory/tests-asserting-proxies.md`).
-  #[test]
-  fn a_stamped_build_names_its_revision_beside_the_version() {
-    assert_eq!(version_line(Some("08528b5")), "0.1.0 (08528b5)");
-  }
-
-  /// No placeholder. A build that stamped no revision says only what is
-  /// known — `(revision unknown)` would be the host reporting a fact it does
-  /// not have (design.md §4, principle 2).
-  #[test]
-  fn an_unstamped_build_says_only_the_version() {
-    assert_eq!(version_line(None), "0.1.0");
-  }
-
-  /// **Set-but-empty is unset** (`review-code.md` F-2). `flake.nix` stamps
-  /// `self.shortRev or self.dirtyShortRev or ""`, and the third branch is
-  /// what a tarball consumer gets: `GOAD_REVISION=""` reaches `option_env!`
-  /// as `Some("")`, which must read as unstamped. Without the filter this
-  /// prints `0.1.0 ()` — measured, and green everywhere else.
-  #[test]
-  fn a_build_stamped_with_an_empty_revision_is_an_unstamped_build() {
-    assert_eq!(version_line(Some("")), "0.1.0");
-  }
 
   /// Truncated, not rounded to nearest. Half-expand would render
   /// `04:34:14.987Z` as `04:34:15Z` — an instant up to half a second

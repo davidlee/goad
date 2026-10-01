@@ -3,8 +3,8 @@
 //! What this tier holds is the one thing no other tier can see: that `main`
 //! reaches an answer at all, on the stream and with the exit code a caller
 //! reads (`design.md` §9). `arguments` returning `Launch::Version` and
-//! `version_line` rendering it are both held as pure cases one tier down, and
-//! neither says that the two are wired together.
+//! `goad_shell::version::version_line` rendering it are both held as pure
+//! cases one tier down, and neither says that the two are wired together.
 //!
 //! The exit code is the half a pure test cannot reach at all, and
 //! `nix/module.nix` depends on the failure code by value — `exit_codes.rs`
@@ -21,8 +21,8 @@
 //!
 //! What it deliberately does not hold is the **stamped** revision. Nothing in
 //! the gate sets `GOAD_REVISION`, so a process spawned here can only ever see
-//! the bare form; `diagnostics.rs`'s own unit case is the real assertion for
-//! the other branch, and a `starts_with` here would be a weaker case wearing
+//! the bare form; `goad_shell::version`'s own unit case is the real
+//! assertion for the other branch, and a `starts_with` here would be a weaker case wearing
 //! its clothes (`docs/memory/tests-asserting-proxies.md`).
 
 // `#[cfg(test)]` on the declaration, as `goad-emit`'s own binary target

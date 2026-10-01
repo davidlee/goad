@@ -10,3 +10,4 @@ pub mod host;
 pub mod ingress;
 pub mod report;
 pub mod state;
+pub mod version;
