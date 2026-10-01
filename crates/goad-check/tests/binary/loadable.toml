@@ -1,0 +1,9 @@
+# A configuration `Config::load` accepts. Its command is never spawned at
+# PHASE-04: the run makes no exchange yet, and neither `Config::load` nor
+# `Host::new` checks that the program exists.
+[backend]
+command = ["bash", "./never-spawned.sh"]
+timeout = "5s"
+
+[schedule]
+default_poll = "30m"
