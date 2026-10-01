@@ -5,10 +5,10 @@
 //! stratum 1's behalf is invisible here — that is `purity`'s job, and its own
 //! misses are named beside it.
 //!
-//! Three of the workspace's five members carry no allowlist here. `goad` and
-//! `goad-emit` are stratum 3, which may name both strata below it, so there is
-//! nothing for an allowlist to withhold; `goad-boundary` is not a stratum at
-//! all — it is the test-only member that checks the other two. This
+//! Only stratum 1 and stratum 2 carry an allowlist here. `goad`, `goad-emit`
+//! and `goad-check` are stratum 3, which may name both strata below it, so
+//! there is nothing for an allowlist to withhold; `goad-boundary` is not a
+//! stratum at all — it is the test-only member that checks the other two. This
 //! instrument's subjects are exactly the two strata whose value is what they
 //! *cannot* reach, which is how POL-001 §Verification scopes it: an entry "in a
 //! stratum 1 or 2 manifest".

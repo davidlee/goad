@@ -1,0 +1,36 @@
+[package]
+name                 = "goad-check"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+repository.workspace = true
+publish.workspace    = true
+autotests            = false
+
+# Stratum 3, naming only the two strata below it and workspace dependencies
+# already in the lockfile. **No `slint`**, so a renderer type is
+# `error[E0433]` here: this table is what holds `design.md` §5.5 I-6 (the
+# checker links no renderer), with review, because no instrument bills a
+# stratum-3 manifest (`goad-boundary`'s `allowlist.rs`; FU-7).
+#
+# `tokio`, which `goad-emit` does without: `goad-check` drives a `Host`, whose
+# exchanges are `tokio::process` futures, on one current-thread runtime
+# (`design.md` §5.4 *Concurrency*). `rt` is already a workspace feature, so
+# nothing is added to it. `jiff`, for the one value the argv form states
+# rather than reads, `schedule.default_poll`, and with no feature of its own:
+# a feature here unifies into stratum 1's `jiff` under `--workspace`, which is
+# POL-001's residue. No dev-dependencies: the binary tier spawns the built
+# binary and needs nothing the plain dependencies do not give it.
+[dependencies]
+goad-semantics = { workspace = true }
+goad-shell     = { workspace = true }
+jiff           = { workspace = true }
+tokio          = { workspace = true }
+
+[lints]
+workspace = true
+
+# `autotests = false` above, so a target not named here is silently not built.
+[[test]]
+name = "binary"
+path = "tests/binary/main.rs"

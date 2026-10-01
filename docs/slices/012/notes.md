@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | done | 2026-10-01 |
 | PHASE-02 | done | 2026-10-01 |
 | PHASE-03 | done | 2026-10-01 |
-| PHASE-04 | pending | 2026-10-01 |
+| PHASE-04 | in progress | 2026-10-01 |
 | PHASE-05 | pending | 2026-10-01 |
 | PHASE-06 | pending | 2026-10-01 |
 | PHASE-07 | pending | 2026-10-01 |

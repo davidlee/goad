@@ -1808,6 +1808,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "goad-check"
+version = "0.1.0"
+dependencies = [
+ "goad-semantics",
+ "goad-shell",
+ "jiff",
+ "tokio",
+]
+
+[[package]]
 name = "goad-emit"
 version = "0.1.0"
 dependencies = [

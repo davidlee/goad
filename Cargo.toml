@@ -10,6 +10,7 @@ members = [
   "crates/goad-shell",
   "crates/goad",
   "crates/goad-emit",
+  "crates/goad-check",
   "crates/goad-boundary",
 ]
 
