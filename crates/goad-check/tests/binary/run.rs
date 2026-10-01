@@ -3,7 +3,7 @@
 //!
 //! Every backend here is `tests/backends/`' through `scripting`: a scripted
 //! one answers one instruction per invocation, in the plan's order — the
-//! three host kinds' evaluates, the R-56 probe's, then each event file's,
+//! host's own kinds' evaluates, the R-56 probe's, then each event file's,
 //! with each view's responds after the exchange that returned it — and past
 //! its list it behaves.
 use std::path::Path;
