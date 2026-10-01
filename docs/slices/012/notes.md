@@ -4414,7 +4414,8 @@ clean rebuild done; every mutation row runnable before the bump run (P-11 and
 P-12 need the bumped `goad-walk`). `just check` exit 0 at `65e1ea9` with
 this sheet's records: **738 passed, 0 failed** over 33 `test result` lines,
 no warning; `just -n check` differs from POL-001's block in the **Entry**
-line only. Next is EN-3's push,
+line only. Re-run at `2b4a69b` after the orchestrator's warning about
+`e4b08d9`: exit 0, 738 passed, 0 failed, no warning. Next is EN-3's push,
 which is the user's; then the `goad-walk` edits (drafted, **Decisions** D-4),
 the lock, EX-4, VA-4, R-1, P-11, P-12, and EX-8's handover.
 
@@ -4636,10 +4637,14 @@ the lock, EX-4, VA-4, R-1, P-11, P-12, and EX-8's handover.
         is **this phase's goad commit**: record its short hash here. Later
         `notes.md`-only commits do not move the lock (Findings, *which commit
         is "this phase's"*).
-        **This phase's goad commit is `65e1ea9`** (*012 PHASE-05: goad-check
-        and goad-kit packages, the plugin's shell, README route*), holding
-        every goad surface and the sheet's records to task 5. Later commits on
-        `main` are `notes.md` only.
+        *The code surfaces (`flake.nix`, `justfile`, the five kit and
+        marketplace files) are in `e4b08d9`, whose message is the
+        orchestrator's: staged PHASE-05 work swept into the orchestrator's
+        plan-log commit; content as intended (`git diff e4b08d9 HEAD` over
+        them is empty). `README.md` and the sheet are in `65e1ea9` (012
+        PHASE-05: goad-check and goad-kit packages, the plugin's shell, README
+        route), so **this phase's goad commit, the first holding every
+        surface, is `65e1ea9`**. Later commits on `main` are `notes.md` only.*
   - [x] Rebuild from the committed tree: `nix build --no-link
         --print-out-paths .#goad-check`; its `--version` prints the commit's
         `git rev-parse --short=7 HEAD` with no `-dirty`. Recorded.
@@ -5002,12 +5007,16 @@ something):
   derivation (D-2). The property both state, the three paths and nothing
   else, holds. For audit's design-drift list.
 - **This phase's code landed in `e4b08d9`, under another commit's message.**
-  A concurrent writer committed `plan-log.md` (*EX-8 and EN-2 take a Claude
-  OAuth token*) while this executor had `flake.nix`, `justfile` and the five
-  kit and marketplace files staged; the commit took the whole index. So
-  `e4b08d9` holds them, and `65e1ea9` holds `README.md` and the sheet. The
-  tree at `65e1ea9` is complete and its build is the one recorded; nothing
-  was lost, and history is not rewritten. *"This phase's goad commit"* stays
+  Staged PHASE-05 work swept into the orchestrator's plan-log commit
+  (*EX-8 and EN-2 take a Claude OAuth token*); content as intended. The
+  orchestrator confirmed it was its commit. `git show --stat e4b08d9`: the
+  plan-log entry, `flake.nix`, `justfile` and the five kit and marketplace
+  files; `git diff e4b08d9 HEAD` outside `docs/` and `README.md` is empty,
+  so nothing of this phase's code changed after it. `65e1ea9` holds
+  `README.md` and the sheet. The tree at `65e1ea9` is complete and its build
+  is the one recorded; nothing was lost, and history is not rewritten.
+  `just check` re-run after the orchestrator's warning: see **Stopped at the
+  push**. *"This phase's goad commit"* stays
   `65e1ea9`, the first holding every surface. Two writers in one worktree is
   what the user's memory *one writer per worktree* forbids; for the
   orchestrator.
