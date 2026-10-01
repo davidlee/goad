@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | done | 2026-10-01 |
 | PHASE-02 | done | 2026-10-01 |
 | PHASE-03 | done | 2026-10-01 |
-| PHASE-04 | in progress | 2026-10-01 |
+| PHASE-04 | done | 2026-10-01 |
 | PHASE-05 | pending | 2026-10-01 |
 | PHASE-06 | pending | 2026-10-01 |
 | PHASE-07 | pending | 2026-10-01 |
@@ -2368,11 +2368,14 @@ named)
 before its body lands. Reach is proven as soon as the crate exists, not at
 the end: a guard that is green over a crate it never read proves nothing.
 
-- [ ] Set PHASE-04 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline`. It must be this sheet's commit, or a
+- [x] Set PHASE-04 to `in progress` in §Status.
+      *Done in f4e9ccd.*
+- [x] Print `git log -1 --oneline`. It must be this sheet's commit, or a
       descendant whose only changes since are the PLAN QUESTIONs'
       resolutions.
-- [ ] Exit grep first (§Harvest *Learned*): `command grep -rn
+      *`83cf674 012 PHASE-04: decisions applied to design, plan and sheet`:
+      the resolutions' commit, a descendant of this sheet's.*
+- [x] Exit grep first (§Harvest *Learned*): `command grep -rn
       'goad-check\|goad_check' crates --include=*.rs` and `command grep -rn
       'an_unreadable_config_exits_2_and_says_who_spoke\|a_reserved_source_event_file_exits_2\|an_empty_argv_is_a_usage_error\|a_report_that_cannot_be_written_exits_2\|a_run_with_no_exchange_exits_2_with_no_verdict'
       crates`. At 99208da the first finds only `goad-shell`'s `config.rs`
@@ -2380,8 +2383,11 @@ the end: a guard that is green over a crate it never read proves nothing.
       doc), and the second finds nothing. Record any difference. The
       `help_…` and `version_…` names are left out: they are `goad`'s and
       `goad-emit`'s too, by design.
+      *As predicted: the first grep found only `goad-shell`'s `config.rs` docs
+      (`Command::from_argv`, `positive_duration`, the `mod tests` doc), exit
+      0; the second found nothing, exit 1.*
 - **1. The crate exists, and every guard reaches it (EX-5, EX-6, VA-3)**
-  - [ ] `crates/goad-check/Cargo.toml`: workspace package keys,
+  - [x] `crates/goad-check/Cargo.toml`: workspace package keys,
         `autotests = false`, `[lints] workspace = true`, `[[test]] name =
         "binary"`, `path = "tests/binary/main.rs"`. `[dependencies]` holds
         only what this phase uses, each `{ workspace = true }` and with no
@@ -2395,15 +2401,22 @@ the end: a guard that is green over a crate it never read proves nothing.
         arguing it links no renderer, as `goad-emit`'s does (I-6)."* The
         comment says why `tokio` is here when `goad-emit` has none: one
         current-thread runtime drives `Host`.
-  - [ ] Root `Cargo.toml` `members`: `"crates/goad-check"` after
+        *f4e9ccd. `[dependencies]`: `goad-semantics`, `goad-shell`, `jiff`,
+        `tokio`, each `{ workspace = true }`, no feature added; one-line
+        inline tables. `jiff` per Decision D-1.*
+  - [x] Root `Cargo.toml` `members`: `"crates/goad-check"` after
         `"crates/goad-emit"`, before `"crates/goad-boundary"`. `Cargo.lock`
         gains the package entry and nothing else. Check with `git diff
         Cargo.lock`: no version or source line moves.
-  - [ ] A minimal `src/main.rs` that compiles clean: a `//!` doc and a
+        *f4e9ccd. `git diff Cargo.lock`: one added `[[package]]` block,
+        `goad-check` with its four dependencies; no version or source line
+        moved.*
+  - [x] A minimal `src/main.rs` that compiles clean: a `//!` doc and a
         `main` returning `ExitCode::SUCCESS`. A `tests/binary/main.rs` with
         the `#[cfg(test)] mod …;` declaration and its reason, as
         `goad-emit`'s has.
-  - [ ] EX-6 (quoted): *"`allowlist.rs`' module doc names `goad-check`
+        *f4e9ccd; the module is `statuses.rs`.*
+  - [x] EX-6 (quoted): *"`allowlist.rs`' module doc names `goad-check`
         among the stratum-3 members, by name and without a count."* The doc
         now says *"Three of the workspace's five members carry no allowlist
         here. `goad` and `goad-emit` are stratum 3"*. That count is false
@@ -2411,36 +2424,73 @@ the end: a guard that is green over a crate it never read proves nothing.
         that carry no allowlist, with no count. The later sentence about
         `crates/goad-emit`'s freedom from the renderer stays true and is
         left alone (*"member list only"*).
-  - [ ] **Reach, before any behaviour:**
-    - [ ] `cargo test --workspace --no-fail-fast 2>&1 | command grep -n
+        *f4e9ccd. Now: "Only stratum 1 and stratum 2 carry an allowlist here.
+        `goad`, `goad-emit` and `goad-check` are stratum 3, …". No count; the
+        `crates/goad-emit` sentence untouched.*
+  - [x] **Reach, before any behaviour:**
+    - [x] `cargo test --workspace --no-fail-fast 2>&1 | command grep -n
           'Running.*goad_check\|Running tests/binary/main.rs'`: the target's
           `Running` line names `goad-check`'s binary (A-T4). Record it.
-    - [ ] VA-3, vocabulary: see the mutation table, row R-1.
-    - [ ] VA-3, clippy `src`: row R-2. Clippy `tests`: row R-3.
-    - [ ] fmt, `src` and `tests/binary/`: row R-4 (offered by this sheet;
+          *At f4e9ccd's tree: `Running unittests src/main.rs
+          (target/debug/deps/goad_check-420588ca26d5e988)` then `Running
+          tests/binary/main.rs (target/debug/deps/binary-c539832a98b86fdd)`,
+          each `0 passed` (no case yet). A-T4 held.*
+    - [x] VA-3, vocabulary: see the mutation table, row R-1.
+          *Red; table.*
+    - [x] VA-3, clippy `src`: row R-2. Clippy `tests`: row R-3.
+          *Both red; table.*
+    - [x] fmt, `src` and `tests/binary/`: row R-4 (offered by this sheet;
           not a plan criterion).
+          *Red; table.*
 - **2. The command line (EX-1, VT-1)** — `src/args.rs`, pure
-  - [ ] `Invocation` and `UsageError` types, and `parse(argv: impl
+  - [x] `Invocation` and `UsageError` types, and `parse(argv: impl
         Iterator<Item = OsString>) -> Result<Invocation, UsageError>` with a
         `todo!()` body (ignored parameter spelled `_argv`).
-  - [ ] VT-1 (quoted): *"`args.rs` unit tests: the invocation table
+        *Also `Request` and `Source` (the two forms).*
+  - [x] VT-1 (quoted): *"`args.rs` unit tests: the invocation table
         (config form, argv form, `--event` order, `--timeout` with
         `--config` refused, `--timeout` with neither `--config` nor `--`
         refused, `--config` with `--` refused, `--timeout 0s` and `-1s`
         refused, an empty argv and an empty program refused, help,
         version)."* One case per row, named by behaviour. Red: each panics
         at the `todo!()`. Record the count.
-  - [ ] Among those rows, the three refused combinations EX-1 names, each
+        *Red: 25 of 25 panicked at `parse`'s `todo!()`, compiling. Green at c9dd5b4. Names by behaviour; the config form:
+        `no_arguments_is_the_config_form_at_the_default_path`,
+        `config_names_the_file_to_load`; argv form:
+        `the_command_after_the_separator_is_the_argv_form_with_a_five_second_timeout`,
+        `timeout_sets_the_argv_forms_timeout`; order:
+        `events_are_kept_in_the_order_given`; refusals:
+        `a_zero_timeout_is_refused`, `a_negative_timeout_is_refused`,
+        `an_empty_command_is_refused`, `an_empty_program_is_refused`; help and
+        version: `help_is_help_wherever_it_appears_before_the_separator`,
+        `version_is_version`.*
+  - [x] Among those rows, the three refused combinations EX-1 names, each
         asserting a `UsageError`: `--timeout` with `--config`; `--timeout`
         with neither `--config` nor `--` (the default-path config form);
         `--config` with `--`. Red with the rest, at the `todo!()` (PLAN
         QUESTION 5, resolved).
-  - [ ] Rows the sheet adds, from `goad-emit`'s table and §5.2.1: help wins
+        *`a_timeout_with_config_is_refused`,
+        `a_timeout_with_neither_config_nor_a_command_is_refused` (both
+        `UsageError::TimeoutWithoutCommand`, D-2),
+        `config_with_a_command_is_refused` (`ConfigWithCommand`).*
+  - [x] Rows the sheet adds, from `goad-emit`'s table and §5.2.1: help wins
         over version in either order; after `--` every token is the
         command's, `--help` included; an unknown flag; a flag with no value;
         a repeated `--config` or `--timeout`; `--event` repeatable. Also
         `--timeout` absent in the argv form gives the `5s` default.
-  - [ ] The body. EX-1 (quoted): *"the command line of `design.md` §5.2.1:
+        *`help_wins_over_version_in_either_order`,
+        `every_token_after_the_separator_is_the_commands`,
+        `an_unknown_flag_is_refused_naming_it`,
+        `a_flag_with_no_value_is_refused`, `a_repeated_config_is_refused`,
+        `a_repeated_timeout_is_refused`; repeatable `--event` is
+        `events_are_kept_in_the_order_given`; the `5s` default is the
+        argv-form row. Added beyond the sheet (D-5):
+        `a_timeout_that_is_not_a_span_is_refused`,
+        `a_help_token_in_value_position_is_a_value`,
+        `a_bare_argument_before_the_separator_is_refused`,
+        `an_empty_config_or_event_path_is_refused`,
+        `a_command_token_that_is_not_utf8_is_refused`.*
+  - [x] The body. EX-1 (quoted): *"the command line of `design.md` §5.2.1:
         config form (`--config`, else `config::default_path`), argv form
         after `--` through `Command::from_argv`, `--timeout` (default `5s`,
         accepted only in the argv form), repeatable `--event FILE` through
@@ -2456,8 +2506,11 @@ the end: a guard that is green over a crate it never read proves nothing.
         `--timeout`'s value goes through `config::positive_duration` with
         the key `"--timeout"`, and its `ConfigError` becomes a
         `UsageError`. Green.
+        *c9dd5b4. `args.rs` reads no environment; `--timeout` goes through
+        `config::positive_duration(TIMEOUT, …)`, its `ConfigError` carried as
+        `UsageError::Timeout`; the command through `Command::from_argv`.*
 - **3. The lines (EX-3)** — `src/render.rs`, pure
-  - [ ] EX-3 (quoted): *"the report writer: a `render`-style module owns
+  - [x] EX-3 (quoted): *"the report writer: a `render`-style module owns
         every line's text, and every stdout line goes through
         `report::try_line_to`. The no-view line is written here. Until
         PHASE-12 a run makes no exchange, so it ends with no verdict: its
@@ -2465,7 +2518,10 @@ the end: a guard that is green over a crate it never read proves nothing.
         implemented, and it exits 2. Nothing on `main` reports an acceptance
         it did not judge. PHASE-12/EX-6 replaces this end with the
         verdict."*
-  - [ ] `render`: `USAGE`, the usage-error line, a config line naming the
+        *`render.rs` owns every line; `main`'s `unjudged_end` writes
+        `render::NO_VIEW` through `try_line_to`, then
+        `render::NOT_YET_IMPLEMENTED` through `not_judged`.*
+  - [x] `render`: `USAGE`, the usage-error line, a config line naming the
         path (both `ConfigError` arms, as `start` splits them), an event-file
         line naming the path (read failure and `EnvelopeFault`), clock and
         runtime lines, the answer-unwritten line, the no-view line (§5.2.5:
@@ -2475,14 +2531,31 @@ the end: a guard that is green over a crate it never read proves nothing.
         requirement id or a side word as a literal (A-V3, I-1). Unit cases
         over the lines, in the style of `goad-emit`'s `render` `mod tests`.
         Red against `todo!()` bodies first.
+        *Red: 4 cases panicked at the stubs (the `const` cases passed, having
+        no body to stub). Green at c9dd5b4. Lines: `USAGE`,
+        `usage_error_line`, `startup_error_line` (the config arms split as
+        `start` does, the event-file arms, the clock, the runtime, and
+        `NoPath`), `answer_unwritten_line`, `report_unwritten_line` (D-3),
+        `NO_VIEW`, `NOT_YET_IMPLEMENTED`.*
 - **4. The binary tier, red (VT-2, VT-3)** — `tests/binary/`
-  - [ ] Read each `tests/support/` file's whole exported surface (VA-7) and
+  - [x] Read each `tests/support/` file's whole exported surface (VA-7) and
         record the include decision for each (A-V8).
-  - [ ] Helpers: the spawn over `env!("CARGO_BIN_EXE_goad-check")`, the
+        *Read every `pub(crate)` item of `driving.rs` (`CLEANUP_LIMIT`,
+        `DEFAULT_POLL`, `config`, `host`, `host_from`, `quiet_event`, `event`,
+        `instant`, `failure_or_nothing`, `choice`, `answer_first_option`,
+        `presented`), `scripting.rs` (`backend`, `claim`, `marker`, `clear`,
+        `logging_backend`, `invocations`, `scripted`) and `waiting.rs`
+        (`LIVENESS_BOUND`, `within`). The tier spawns only `goad-check` and
+        uses none: none included (A-V8 held).*
+  - [x] Helpers: the spawn over `env!("CARGO_BIN_EXE_goad-check")`, the
         `/dev/full` spawn, `code_of`, `stderr_of`, `stdout_of`, and a
         last-stderr-line reader. Copies of `goad-emit`'s `exchange.rs`, each
         doc saying so.
-  - [ ] VT-2 (quoted): *"binary tier, `tests/binary/`, the status-2 cases
+        *`check`, `check_with_stdout_full`, `code_of`, `stderr_of`,
+        `stdout_of`, each doc naming its `goad-emit` original; plus `fixture`,
+        `assert_not_judged` (status 2, last stderr line prefixed) and
+        `assert_no_report`, which are not copies.*
+  - [x] VT-2 (quoted): *"binary tier, `tests/binary/`, the status-2 cases
         §9 names: `an_unreadable_config_exits_2_and_says_who_spoke`,
         `a_reserved_source_event_file_exits_2`,
         `an_empty_argv_is_a_usage_error`, and
@@ -2501,28 +2574,43 @@ the end: a guard that is green over a crate it never read proves nothing.
         `tests/binary/` with `"source": "host"`, run with `--event` (it must
         reach normalization: give it a loadable `--config` or an argv form,
         so no earlier step fails first); `goad-check --`.
-  - [ ] Each VT-2 status-2 case except
+        *`crates/goad-check/tests/binary/statuses.rs`. Fixtures: `absent.toml`
+        (never created), `loadable.toml`, `reserved-source.json`, run with
+        `--config loadable.toml --event reserved-source.json`.*
+  - [x] Each VT-2 status-2 case except
         `a_report_that_cannot_be_written_exits_2` asserts **stdout is
         empty** (PLAN QUESTION 1, resolved). Without it, each one is green
         against the interim end (rows M-3, M-5).
-  - [ ] VT-3 (quoted): *"binary tier, the plan's own interim case:
+        *`assert_no_report`; M-3 and M-5 red on it.*
+  - [x] VT-3 (quoted): *"binary tier, the plan's own interim case:
         `a_run_with_no_exchange_exits_2_with_no_verdict` — a loadable
         configuration; status 2, stdout the no-view line and no verdict
         line, the last stderr line beginning `goad-check: `. PHASE-12/EX-6
         deletes it."* A committed config under `tests/binary/`, passed with
         `--config`. Assert stdout is **exactly** the no-view line: no
         verdict line, nothing else.
-  - [ ] `help_prints_the_usage_block_on_stdout_and_exits_0` and
+        *`assert_eq!(stdout, "no exchange returned a view, so respond was not
+        exercised\n")`.*
+  - [x] `help_prints_the_usage_block_on_stdout_and_exits_0` and
         `version_prints_the_package_version_on_stdout_and_exits_0`, modelled
         on `goad-emit`'s `exchange.rs` cases of those names: status 0, the
         answer on stdout, stderr empty (PLAN QUESTION 4, resolved).
-  - [ ] Red, against task 1's `main` (A-T3), compiling: each status-2 case
+  - [x] Red, against task 1's `main` (A-T3), compiling: each status-2 case
         fails on status; the `help_…` and `version_…` cases, which that
         `main` already exits 0 for, fail on stdout. `cargo test -p
         goad-check --test binary --no-fail-fast`. Record each failure
         message.
+        *7 of 7 failed. Status cases, `assertion left == right failed, left:
+        0, right: 2` at `assert_not_judged`:
+        `an_unreadable_config_exits_2_and_says_who_spoke`,
+        `a_reserved_source_event_file_exits_2`,
+        `an_empty_argv_is_a_usage_error`,
+        `a_report_that_cannot_be_written_exits_2`,
+        `a_run_with_no_exchange_exits_2_with_no_verdict`. `help_…` failed on
+        `stdout.starts_with("usage: goad-check")`; `version_…` on `left: "",
+        right: "0.1.0"`. A-T3 held.*
 - **5. `main` (EX-4, EX-7, EX-8)**
-  - [ ] EX-7 (quoted): *"the steps before the first exchange, each ending
+  - [x] EX-7 (quoted): *"the steps before the first exchange, each ending
         the run with no verdict, status 2, on failure: the configuration
         loaded, each `--event` file normalized in the order given, the clock
         read, a current-thread runtime and a `Host` built the way `goad`'s
@@ -2533,7 +2621,16 @@ the end: a guard that is green over a crate it never read proves nothing.
         struct literal, with `ingress: None`. `ProcessBackend::new(command,
         timeout)`, then `Host::new(config, backend, now)` (A-V5: the runtime
         is current-thread).
-  - [ ] EX-4 (quoted): *"status 2 as §5.2.5: every cause of 2, the interim
+        *1008cc9. `prepare`: `configuration` (`--config`, else
+        `config::default_path` over `std::env::var_os`, `None` is
+        `StartupFault::NoPath`; the argv form a struct literal with `ingress:
+        None` and `DEFAULT_POLL`), `normalized` (each file read then
+        `envelope::normalize`, in order), `clock::wall_clock`,
+        `Builder::new_current_thread().enable_all().build()`,
+        `ProcessBackend::new(command.clone(), timeout)`, `Host::new(config,
+        backend, now)`. A-T1 held: `_events`, `_runtime`, `_host` raised no
+        lint, and no type or field was built for PHASE-12 (D-4).*
+  - [x] EX-4 (quoted): *"status 2 as §5.2.5: every cause of 2, the interim
         end of EX-3 included, reaches one `ExitCode::from(2)` that reads no
         cause; `main` returns an `ExitCode` built from literals, one per
         class it can reach; the last stderr line on 2 begins `goad-check: `.
@@ -2541,19 +2638,29 @@ the end: a guard that is green over a crate it never read proves nothing.
         written here, nothing would feed them, and the gate's lint refuses
         dead code."* The classes reachable here are 0 (a question answered)
         and 2.
-  - [ ] EX-8 (quoted): *"`--version` prints
+        *`not_judged` is the one `ExitCode::from(2)`; `answer` holds the one
+        `ExitCode::SUCCESS`. VA-6 traces every path.*
+  - [x] EX-8 (quoted): *"`--version` prints
         `goad_shell::version::version_line` with this crate's package
         version and its compilation's `GOAD_REVISION`, as `goad-emit`'s does
         (PHASE-03/EX-8)."* Pass `env!("CARGO_PKG_VERSION")` and
         `option_env!("GOAD_REVISION")` at the call site (A-V12).
-  - [ ] `--help` and `--version` are written through `try_line_to` on
+        *`Invocation::Version` arm:
+        `answer(&version_line(env!("CARGO_PKG_VERSION"),
+        option_env!("GOAD_REVISION")))`. M-13 shows the version case reads
+        it.*
+  - [x] `--help` and `--version` are written through `try_line_to` on
         `std::io::stdout().lock()`. On `Err`, the answer-unwritten line,
         and 2 through the one site.
-  - [ ] Green: VT-1, the render cases, VT-2, VT-3. `cargo test -p
+        *`answer`. M-11 shows the `/dev/full` case reads it.*
+  - [x] Green: VT-1, the render cases, VT-2, VT-3. `cargo test -p
         goad-check --no-fail-fast`, and `cargo clippy -p goad-check
         --all-targets -- -D warnings` clean.
+        *1008cc9: 31 unit, 7 binary passed (30 unit after the refactor,
+        e3b55ee); `cargo clippy --workspace --all-targets -- -D warnings`
+        clean.*
 - **6. Reads and records (VA-1, VA-2, VA-4..VA-7)**
-  - [ ] VA-1 (quoted): *"I-1 by the command under *Invariant reads*: no hit
+  - [x] VA-1 (quoted): *"I-1 by the command under *Invariant reads*: no hit
         outside a comment at this phase, in any of the spellings that
         command matches; the R-56 claim and its `Requirement::R56` are
         PHASE-12's. Recorded."* Run `command grep -rnE
@@ -2561,11 +2668,21 @@ the end: a guard that is green over a crate it never read proves nothing.
         crates/goad-check/src | command grep -vE
         '^[^:]+:[0-9]+:[[:space:]]*//'` (A-V10, A-V11). Read each surviving
         line and class it. Expected: none. Record the output verbatim.
-  - [ ] VA-2 (quoted): *"I-2 by the command under *Invariant reads*; each
+        *First run, at e3b55ee: one hit, `crates/goad-check/src/render.rs:201:
+        br#"{"source":"host",…}"#`, a JSON fixture in `render`'s unit test. A
+        source value, not a side, but a hit outside a comment, which the
+        criterion forbids. Repaired at 35185f5 (D-7): the case names
+        `EnvelopeFault::ReservedSource`. Rerun: the pipeline prints nothing,
+        `PIPESTATUS` `0 1`. The first grep's one hit, all dropped as comments:
+        `crates/goad-check/src/main.rs:176:/// A question's answer, on stdout:
+        status 0 only if it arrived (SPEC-004/R-8's`.*
+  - [x] VA-2 (quoted): *"I-2 by the command under *Invariant reads*; each
         match found is read and recorded."* `command grep -rn 'FieldKind'
         crates/goad-check/src crates/goad-check/tests`. Expected: none.
         Record it.
-  - [ ] VA-6 (quoted): *"R-13 and R-15, structurally: `grep -rn 'ExitCode'
+        *`command grep -rn 'FieldKind' crates/goad-check/src
+        crates/goad-check/tests`: no output, exit 1. No match to read.*
+  - [x] VA-6 (quoted): *"R-13 and R-15, structurally: `grep -rn 'ExitCode'
         crates/goad-check/src` shows the one `ExitCode::from(2)`, reached by
         every status-2 path without reading its cause, and one literal per
         class; read and recorded. Every instrument command this phase
@@ -2574,7 +2691,19 @@ the end: a guard that is green over a crate it never read proves nothing.
         sheet questions*, Q3)."* Run `command grep -rn 'ExitCode'
         crates/goad-check/src`, then trace every path to 2 by reading `main`.
         Name each cause and the call that carries it to the one site.
-  - [ ] VA-4 (quoted): *"`canon-delta.md` SPEC-004 Change 5's R-11..R-13 row
+        *`command grep -rn 'ExitCode' crates/goad-check/src` prints the `use`,
+        the four signatures (`main`, `unjudged_end`, `answer`, `not_judged`),
+        `ExitCode::SUCCESS` in `answer` and `ExitCode::from(2)` in
+        `not_judged`, one each. Every path to 2, read in `main`: a usage error
+        (`main`'s `Err` arm, `not_judged(&render::usage_error_line(…))`);
+        every `StartupFault` (`NoPath`, `ConfigUnreadable`,
+        `ConfigUnparseable`, `EventUnreadable`, `EventRefused`, `Clock`,
+        `Runtime`), returned by `prepare` and passed by `main` to
+        `not_judged(&render::startup_error_line(…))`; an unwritten `--help` or
+        `--version` (`answer`'s `Err` arm); an unwritten report line
+        (`unjudged_end`'s `Err` arm); and the interim end (`unjudged_end`'s
+        `Ok` arm). `not_judged` takes a `&str` and reads nothing else.*
+  - [x] VA-4 (quoted): *"`canon-delta.md` SPEC-004 Change 5's R-11..R-13 row
         gives each `goad-check` case this phase ships its own shipped path
         (`crates/goad-check/tests/binary/<file>.rs::<name>`); PHASE-12's
         cases keep `…::`; the R-14 row is untouched (`plan-log.md`
@@ -2584,57 +2713,105 @@ the end: a guard that is green over a crate it never read proves nothing.
         `a_reserved_source_event_file_exits_2`,
         `a_report_that_cannot_be_written_exits_2` (PLAN QUESTION 6,
         resolved).
-  - [ ] VA-5 (quoted): *"`notes.md` §Open's FU-7 row names
+        *d8932c3: the row's
+        `::an_unreadable_config_exits_2_and_says_who_spoke`,
+        `::a_reserved_source_event_file_exits_2` and
+        `::a_report_that_cannot_be_written_exits_2` each now read
+        `crates/goad-check/tests/binary/statuses.rs::<name>`; PHASE-12's keep
+        `::`; one line changed (`git diff --stat`: 1 insertion, 1 deletion);
+        the R-14 row untouched.*
+  - [x] VA-5 (quoted): *"`notes.md` §Open's FU-7 row names
         `crates/goad-check/Cargo.toml`'s comment as what holds I-6."* Edit
         §Open's *FU-7's citation extends to `goad-check`* bullet.
-  - [ ] VA-7 (quoted): *"shared helpers: the binary tier reads each
+        *d8932c3: the FU-7 bullet quotes the manifest comment and cites row
+        R-5.*
+  - [x] VA-7 (quoted): *"shared helpers: the binary tier reads each
         `tests/support/` file's whole exported surface, and includes each
         file whose every symbol it uses (`design.md` §5.2.6). Each helper it
         copies instead is named by symbol in `notes.md` §Open's FU-5 row,
         with the file it could not include."* Edit §Open's *FU-5's citation
         extends to whatever `goad-check`'s tests copy* bullet, naming each
         copy and its source, `crates/goad-emit/tests/binary/exchange.rs`.
+        *d8932c3: the FU-5 bullet names `check`, `check_with_stdout_full`,
+        `code_of`, `stderr_of`, `stdout_of` and their source, and records no
+        `tests/support/` include.*
 - **Refactor**
-  - [ ] Read the diff for a second statement of anything: a line's text
+  - [x] Read the diff for a second statement of anything: a line's text
         outside `render`, a path to 2 outside the one site, a rule
         `goad-shell` already states (the timeout rule, the empty command,
         the default path) restated here.
-  - [ ] Every doc in the new crate cites by symbol and counts nothing
+        *e3b55ee. Every line's text is in `render`; every 2 goes through
+        `not_judged`; the timeout rule, the empty command and the default path
+        are `goad-shell`'s, called. Two prose restatements remain, by the
+        precedent of `goad-emit`'s `USAGE`: `USAGE` restates `args::parse`'s
+        forms and the `5s` default (its doc names `args::parse` as the
+        authority). Dropped: `render`'s
+        `an_unreadable_event_file_does_not_read_as_a_configuration` (the
+        distinctness check in
+        `every_startup_fault_says_what_failed_and_names_its_file` already
+        holds it), and `USAGE`'s half-true *Exit status* line, which would go
+        stale at PHASE-12.*
+  - [x] Every doc in the new crate cites by symbol and counts nothing
         (CLAUDE.md *Name, never count*).
+        *d8932c3 removed two counts that can grow: `args.rs`' "three flags and
+        a separator" and `main`'s "Two statuses are reachable". Remaining
+        number words name closed sets (the two strata below, the two forms,
+        the two sources `ConfigWithCommand` names) or a test's own fixture.*
 - **Verification**
-  - [ ] Mutation and reach rows (below), each recorded.
-  - [ ] *Test names are commitments*: `command grep -c 'fn <name>()'` over
+  - [x] Mutation and reach rows (below), each recorded.
+        *R-1..R-5 and M-1..M-16 run; every row compiled (R-5 apart, where the
+        compile is the red), every row redded, `git status --short` clean
+        after each restore. Rows that redded more than predicted: Findings.*
+  - [x] *Test names are commitments*: `command grep -c 'fn <name>()'` over
         `crates/goad-check/tests/binary` is 1 for each VT-2 and VT-3 name.
         Any difference is updated in `canon-delta.md` in the same commit.
-  - [ ] (Offered, not a criterion; Findings.) `git add` the new crate, then
+        *`command grep -rc 'fn <name>()' crates/goad-check/tests/binary`: 1,
+        in `statuses.rs`, for each of the four VT-2 status-2 names, both
+        answered names, and VT-3's. No difference; `canon-delta.md` unchanged
+        on names.*
+  - [x] (Offered, not a criterion; Findings.) `git add` the new crate, then
         `nix build --no-link .#goad .#goad-emit` succeeds. crane parses
         every member's manifest, and the gate cannot see a manifest it
         refuses. Record it, or record that it was skipped.
-  - [ ] `just check` exits 0 on the final commit. Record passed and failed,
+        *Run at d8932c3 (the crate committed, so the git input sees it): `nix
+        build --no-link .#goad .#goad-emit` exit 0. crane parsed the new
+        manifest; it builds no `goad-check` output yet (PHASE-05).*
+  - [x] `just check` exits 0 on the final commit. Record passed and failed,
         summed over every `test result` line. The count is 678 plus the
         cases this phase adds.
-  - [ ] §Status: PHASE-04 `done`, with the date.
-  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+        *At d8932c3: exit 0. Build, both test tiers, `deno check
+        exercisers/typescript/backend.ts`, clippy with no warning, `cargo fmt
+        --all --check`. **715 passed, 0 failed**, summed over all 33 `test
+        result` lines: 678 plus this phase's 37 cases (25 `args`, 5 `render`,
+        7 binary-tier), each counted once because `goad-check` runs under
+        `cargo test --workspace` only. `just -n check` differs from POL-001
+        §Compliance's block in the `deno check` line only (`exercisers/` for
+        `examples/`), PHASE-03/EX-3's departure. The commits after d8932c3
+        touch `notes.md` only; rerun on the bookkeeping commit, exit 0
+        (report).*
+  - [x] §Status: PHASE-04 `done`, with the date.
+        *2026-10-01.*
+  - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
 
 **Exit criteria** (quoted in the tasks above; listed here to be ticked)
-- [ ] EX-1
-- [ ] EX-3
-- [ ] EX-4
-- [ ] EX-5
-- [ ] EX-6
-- [ ] EX-7
-- [ ] EX-8
-- [ ] VT-1
-- [ ] VT-2
-- [ ] VT-3
-- [ ] VA-1
-- [ ] VA-2
-- [ ] VA-3
-- [ ] VA-4
-- [ ] VA-5
-- [ ] VA-6
-- [ ] VA-7
-- [ ] `just check` exits 0 on the final commit (§Overview)
+- [x] EX-1 *`args::parse`; VT-1; M-1, M-2, M-3, M-14, M-15.*
+- [x] EX-3 *`render`; `unjudged_end`; VT-3; M-7, M-12.*
+- [x] EX-4 *`not_judged`, the one `ExitCode::from(2)`; VA-6; M-6, M-16.*
+- [x] EX-5 *`crates/goad-check/Cargo.toml`: strata 1 and 2, `jiff` and `tokio` from the workspace, no feature added; the comment argues I-6; R-5.*
+- [x] EX-6 *f4e9ccd; no count.*
+- [x] EX-7 *`prepare`; `a_reserved_source_event_file_exits_2`, `an_unreadable_config_exits_2_and_says_who_spoke`, VT-3; M-5. The clock and runtime faults are headless-unreachable, as canon-delta's R-11..R-13 row says.*
+- [x] EX-8 *`Invocation::Version` arm; M-13.*
+- [x] VT-1 *25 cases, red at `todo!()`, green at c9dd5b4.*
+- [x] VT-2 *Six cases in `statuses.rs`, red 6 of 6 at the scaffold `main`, green at 1008cc9.*
+- [x] VT-3 *`a_run_with_no_exchange_exits_2_with_no_verdict`; red, then green at 1008cc9.*
+- [x] VA-1 *Clean at 35185f5, after one hit repaired (D-7).*
+- [x] VA-2 *No match.*
+- [x] VA-3 *R-1, R-2, R-3 red; R-4 and R-5 offered, red.*
+- [x] VA-4 *d8932c3.*
+- [x] VA-5 *d8932c3.*
+- [x] VA-6 *Recorded and traced.*
+- [x] VA-7 *None included; five copies named in §Open's FU-5 bullet.*
+- [x] `just check` exits 0 on the final commit (§Overview) *715 passed, 0 failed.*
 - VA-3 (quoted, as the reach rows discharge it): *"reach:
   `goad-boundary`'s `no_workspace_member_names_the_users_domain` reads
   `crates/goad-check/src` — a planted domain word in a string literal, in
@@ -2655,6 +2832,11 @@ edit in the *edit* column when it runs. Command for M-rows: `cargo test -p
 goad-check --no-fail-fast`. Run the M-rows marked "expected **not** to red"
 too: they are predictions (§Harvest *Learned*).
 
+*Run at e3b55ee by one script (`mutate.py`, scratchpad): back up the file,
+apply the edit, `cargo test -p goad-check --no-run` (every M-row compiled),
+`cargo test -p goad-check --no-fail-fast`, collect the failing cases,
+restore, `git status --short`. Every M-row exited 101.*
+
 *Reach rows* (VA-3, and what the sheet offers beside it):
 
 | row | file | edit | command | must red | compiled? | result |
@@ -2670,33 +2852,89 @@ VA item otherwise shows a new case can fail):
 
 | row | file | edit | must red | compiled? | result |
 |---|---|---|---|---|---|
-| M-1 | `args.rs`, `parse` | the `--timeout`-with-`--config` refusal returns the config-form `Invocation` instead | VT-1's `--timeout`-with-`--config` row | | |
-| M-2 | `args.rs`, `parse` | `positive_duration(…)` on the `--timeout` value replaced by `positive_duration(…).unwrap_or(Duration::from_secs(5))` | VT-1's `0s` and `-1s` rows | | |
-| M-3 | `args.rs`, `parse` | `Command::from_argv(argv)` replaced by `Some(Command::new(<first or "">, <rest>))` | VT-1's empty-argv and empty-program rows; `an_empty_argv_is_a_usage_error` on its stdout-empty assertion (the run reaches the interim end, which is also 2 with a `goad-check: ` last line, but writes the no-view line) | | |
-| M-4 | `args.rs`, `parse` | the event paths reversed (`.rev()`) before `Invocation` is built | VT-1's `--event` order row | | |
-| M-5 | `main.rs`, event step | a normalization failure is skipped (`filter_map(Result::ok)`-style) rather than ending the run | `a_reserved_source_event_file_exits_2` on its stdout-empty assertion (as M-3) | | |
-| M-6 | `main.rs`, the interim end | returns `ExitCode::SUCCESS` instead of going through the one 2 site | VT-3 on status | | |
-| M-7 | `render.rs`, the not-yet-implemented line | its `goad-check: ` prefix dropped | VT-3 on the last-line assertion | | |
-| M-8 | `render.rs`, the usage-error line | prefix dropped | `an_empty_argv_is_a_usage_error` | | |
-| M-9 | `render.rs`, the config line | prefix dropped | `an_unreadable_config_exits_2_and_says_who_spoke` | | |
-| M-10 | `render.rs`, the event-file line | prefix dropped | `a_reserved_source_event_file_exits_2` | | |
-| M-11 | `main.rs`, the `Help` arm | `report::line_to` (best effort) in place of `try_line_to`, returning `ExitCode::SUCCESS` | `a_report_that_cannot_be_written_exits_2` (`--help`) | | |
-| M-12 | `main.rs`, the interim end | the no-view line not written | VT-3 on stdout | | |
-| M-13 | `main.rs`, the `Version` arm | writes `render::USAGE` in place of `version_line(…)` | `version_prints_the_package_version_on_stdout_and_exits_0` | | |
-| M-14 | `args.rs`, `parse` | the `--timeout`-with-neither-`--config`-nor-`--` refusal returns the default-path config-form `Invocation` instead | VT-1's `--timeout` with neither `--config` nor `--` row | | |
-| M-15 | `args.rs`, `parse` | the `--config`-with-`--` refusal returns the argv-form `Invocation` instead | VT-1's `--config` with `--` row | | |
-| M-16 | `main.rs`, the `Help` arm | after the usage block is written, returns through the one 2 site | `help_prints_the_usage_block_on_stdout_and_exits_0` on status | | |
+| M-1 | `args.rs`, `parse` | `(config, None) => match timeout {` → `(config, None) => match timeout.filter(\|_\| config.is_none()) {` (was: the `--timeout`-with-`--config` refusal returns the config-form `Invocation` instead) | VT-1's `--timeout`-with-`--config` row | yes | **red as predicted**: `args::tests::a_timeout_with_config_is_refused` only. Restored by copy; `git status --short` clean |
+| M-2 | `args.rs`, `parse` | `config::positive_duration(TIMEOUT, text).map_err(UsageError::Timeout)` → `Ok(config::positive_duration(TIMEOUT, text).unwrap_or(DEFAULT_TIMEOUT))` (was: `positive_duration(…)` on the `--timeout` value replaced by `positive_duration(…).unwrap_or(Duration::from_secs(5))`) | VT-1's `0s` and `-1s` rows | yes | **red, beyond the prediction**: `a_zero_timeout_is_refused`, `a_negative_timeout_is_refused`, and `a_timeout_that_is_not_a_span_is_refused` (a row the sheet did not have; Findings). Restored by copy; `git status --short` clean |
+| M-3 | `args.rs`, `parse` | in `program`, `Command::from_argv(argv).ok_or(UsageError::EmptyCommand)` → `{ let mut argv = argv.into_iter(); Ok(Command::new(argv.next().unwrap_or_default(), argv.collect())) }` (was: `Command::from_argv(argv)` replaced by `Some(Command::new(<first or "">, <rest>))`) | VT-1's empty-argv and empty-program rows; `an_empty_argv_is_a_usage_error` on its stdout-empty assertion (the run reaches the interim end, which is also 2 with a `goad-check: ` last line, but writes the no-view line) | yes | **red as predicted**: `an_empty_command_is_refused`, `an_empty_program_is_refused`, and `statuses::an_empty_argv_is_a_usage_error` at `assert_no_report` (stdout not empty). Restored by copy; `git status --short` clean |
+| M-4 | `args.rs`, `parse` | before `Ok(Invocation::Check(Request { source, events }))`, `events.reverse();` (was: the event paths reversed (`.rev()`) before `Invocation` is built) | VT-1's `--event` order row | yes | **red as predicted**: `events_are_kept_in_the_order_given` only. Restored by copy; `git status --short` clean |
+| M-5 | `main.rs`, event step | in `normalized`, `paths.iter().map(\|path\| event(path)).collect()` → `Ok(paths.iter().filter_map(\|path\| event(path).ok()).collect())` (was: a normalization failure is skipped (`filter_map(Result::ok)`-style) rather than ending the run) | `a_reserved_source_event_file_exits_2` on its stdout-empty assertion (as M-3) | yes | **red as predicted**: `statuses::a_reserved_source_event_file_exits_2` only, at `assert_no_report`. Restored by copy; `git status --short` clean |
+| M-6 | `main.rs`, the interim end | in `unjudged_end`, `Ok(()) => not_judged(render::NOT_YET_IMPLEMENTED),` → `Ok(()) => ExitCode::SUCCESS,` (was: returns `ExitCode::SUCCESS` instead of going through the one 2 site) | VT-3 on status | yes | **red as predicted**: `a_run_with_no_exchange_exits_2_with_no_verdict` only, on status (`assert_not_judged`). Restored by copy; `git status --short` clean |
+| M-7 | `render.rs`, the not-yet-implemented line | `NOT_YET_IMPLEMENTED`'s `"goad-check: the exchanges are …` → `"the exchanges are …` (was: its `goad-check: ` prefix dropped) | VT-3 on the last-line assertion | yes | **red, beyond the prediction**: VT-3 on the last-line assertion, and `render::tests::the_interim_end_says_nothing_was_judged_on_stderr`. Restored by copy; `git status --short` clean |
+| M-8 | `render.rs`, the usage-error line | `usage_error_line`'s `EmptyCommand` arm, `"goad-check: the command after -- …` → `"the command after -- …` (was: prefix dropped) | `an_empty_argv_is_a_usage_error` | yes | **red, beyond the prediction**: `an_empty_argv_is_a_usage_error` on the last line, and `render::tests::every_usage_error_says_what_was_wrong_and_reprints_nothing`. Restored by copy; `git status --short` clean |
+| M-9 | `render.rs`, the config line | `startup_error_line`'s `ConfigUnreadable` arm, `format!("goad-check: {} could not be read: {fault}", …)` → `format!("{} could not be read: {fault}", …)` (was: prefix dropped) | `an_unreadable_config_exits_2_and_says_who_spoke` | yes | **red, beyond the prediction**: `an_unreadable_config_exits_2_and_says_who_spoke` on the last line, and `render::tests::every_startup_fault_says_what_failed_and_names_its_file`. Restored by copy; `git status --short` clean |
+| M-10 | `render.rs`, the event-file line | `startup_error_line`'s `EventRefused` arm, `format!("goad-check: event file {}: {fault}", …)` → `format!("event file {}: {fault}", …)` (was: prefix dropped) | `a_reserved_source_event_file_exits_2` | yes | **red, beyond the prediction**: `a_reserved_source_event_file_exits_2` on the last line, and `every_startup_fault_says_what_failed_and_names_its_file`. Restored by copy; `git status --short` clean |
+| M-11 | `main.rs`, the `Help` arm | `Ok(Invocation::Help) => answer(render::USAGE),` → `Ok(Invocation::Help) => { line_to(std::io::stdout().lock(), render::USAGE); ExitCode::SUCCESS }` (was: `report::line_to` (best effort) in place of `try_line_to`, returning `ExitCode::SUCCESS`) | `a_report_that_cannot_be_written_exits_2` (`--help`) | yes | **red as predicted**: `a_report_that_cannot_be_written_exits_2` only, on status. Restored by copy; `git status --short` clean |
+| M-12 | `main.rs`, the interim end | in `unjudged_end`, `match try_line_to(std::io::stdout().lock(), render::NO_VIEW) {` → `match Ok::<(), std::io::Error>(()) {` (was: the no-view line not written) | VT-3 on stdout | yes | **red as predicted**: `a_run_with_no_exchange_exits_2_with_no_verdict` only, on its stdout `assert_eq!`. Restored by copy; `git status --short` clean |
+| M-13 | `main.rs`, the `Version` arm | `Ok(Invocation::Version) => answer(&version_line(…)),` → `Ok(Invocation::Version) => { let _version = version_line(…); answer(render::USAGE) }` (the call kept, so the import compiles) (was: writes `render::USAGE` in place of `version_line(…)`) | `version_prints_the_package_version_on_stdout_and_exits_0` | yes | **red as predicted**: `version_prints_the_package_version_on_stdout_and_exits_0` only. Restored by copy; `git status --short` clean |
+| M-14 | `args.rs`, `parse` | `(config, None) => match timeout {` → `(config, None) => match timeout.filter(\|_\| config.is_some()) {` (was: the `--timeout`-with-neither-`--config`-nor-`--` refusal returns the default-path config-form `Invocation` instead) | VT-1's `--timeout` with neither `--config` nor `--` row | yes | **red as predicted**: `a_timeout_with_neither_config_nor_a_command_is_refused` only. Restored by copy; `git status --short` clean |
+| M-15 | `args.rs`, `parse` | `(Some(_), Some(_)) => return Err(UsageError::ConfigWithCommand),` → `(Some(_), Some(command)) => Source::Argv { command: program(command)?, timeout: timeout.unwrap_or(DEFAULT_TIMEOUT) },` (was: the `--config`-with-`--` refusal returns the argv-form `Invocation` instead) | VT-1's `--config` with `--` row | yes | **red as predicted**: `config_with_a_command_is_refused` only. Restored by copy; `git status --short` clean |
+| M-16 | `main.rs`, the `Help` arm | `Ok(Invocation::Help) => answer(render::USAGE),` → `Ok(Invocation::Help) => { let _answered = answer(render::USAGE); not_judged(render::NOT_YET_IMPLEMENTED) }` (was: after the usage block is written, returns through the one 2 site) | `help_prints_the_usage_block_on_stdout_and_exits_0` on status | yes | **red as predicted**: `help_prints_the_usage_block_on_stdout_and_exits_0` only, on status. Restored by copy; `git status --short` clean |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
 
+- **D-1 — `jiff` is a direct dependency, with no feature (A-V2).**
+  `main`'s `DEFAULT_POLL` is `jiff::SignedDuration::from_mins(30)`, as
+  `tests/support/driving.rs`' `DEFAULT_POLL` spells it. The alternative,
+  `schedule::parse_span("30m")`, needs an `Err` arm that cannot arise, and
+  therefore a path to 2 no test can reach. `jiff` is a workspace dependency
+  already in the lockfile, so EX-5 admits it; no feature is added (A-V6).
+- **D-2 — the two `--timeout` exclusions are one rule and one variant.**
+  `UsageError::TimeoutWithoutCommand` covers `--timeout` with `--config`
+  and `--timeout` with neither. The design gives both one reason (*"a file
+  supplies the timeout, whether named or defaulted"*). Each still has its
+  own VT-1 row, and M-1 and M-14 narrow the rule to one half each, each
+  redding only its own row.
+- **D-3 — `StartupFault` lives in `main.rs`**, as `goad-emit`'s does: it
+  names what `main` reads. A refused report line has its own line,
+  `render::report_unwritten_line`, distinct from `answer_unwritten_line`,
+  because the report is not an answer to a question.
+- **D-4 — the interim end builds no type for PHASE-12.** `prepare` returns
+  `Result<(), StartupFault>`, binding `_events`, `_runtime` and `_host`.
+  A struct carrying them would have fields nothing reads, which is
+  `dead_code` (A-T1). PHASE-12 changes `prepare`'s return.
+- **D-5 — VT-1 has five rows beyond the sheet's list**:
+  `a_timeout_that_is_not_a_span_is_refused`,
+  `a_help_token_in_value_position_is_a_value`,
+  `a_bare_argument_before_the_separator_is_refused`,
+  `an_empty_config_or_event_path_is_refused`,
+  `a_command_token_that_is_not_utf8_is_refused`. Each holds a `parse` arm
+  that otherwise had no case.
+- **D-6 — the binary tier's file is `statuses.rs`**, with its fixtures
+  `loadable.toml` and `reserved-source.json` beside it in `tests/binary/`.
+  `absent.toml` is a path no file is at.
+- **D-7 — `render`'s test names `EnvelopeFault::ReservedSource` directly**
+  rather than normalizing a JSON fixture spelling `"source":"host"`, which
+  was VA-1's one hit (VA-1 record).
+- **D-8 — R-2 and R-3 were run at the scaffold**, before `main` held an
+  `Option` of its own; the R-2 edit makes one
+  (`std::env::args_os().next().unwrap()`). `unwrap_used` and
+  `disallowed_types` fire per site, so the site does not bear on reach.
+
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
      elsewhere, drift from the design, a surprise. Defects in this phase's own
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
+
+- **Executor — five M-rows redded more than predicted, none less.** M-2 also
+  redded `a_timeout_that_is_not_a_span_is_refused` (D-5's row). M-7..M-10
+  each also redded a `render` unit case, which holds the same prefix one
+  tier down. No row redded a case unrelated to its edit, and no predicted
+  case stayed green.
+- **Executor — I-1's command reads unit tests in `src`, and a fixture there
+  is a hit.** VA-1's first run found `"host"` inside a JSON byte string in
+  `render`'s test (D-7). The command cannot tell a source value from a side
+  literal. PHASE-12's tests in `src` will build `Outcome`s and envelopes:
+  its sheet should say a fixture names a variant or `HOST_SOURCE`, never
+  the spelling. `tests/binary/reserved-source.json` spells it, outside the
+  command's reach, and I-1 is about the checker's code, so that is not a
+  breach.
+- **Executor — `cargo test --workspace` at this phase reports 625 passed
+  with the scaffold, while the gate's sum was 678.** Not a discrepancy: the
+  gate also runs `cargo test -p goad-semantics`, whose cases are counted a
+  second time. Recorded so the next reader does not chase it.
 
 - **PLAN QUESTION 1 — resolved (a)**, `plan-log.md` 2026-10-01, *PHASE-04
   sheet questions*, Q1; VT-2 amended. **VT-2's cases cannot tell their cause
