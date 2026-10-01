@@ -4215,11 +4215,17 @@ instrument already reads (A-V12).
   list carries it).
 - **`goad-emit`'s `exchange::emit_with_stdout_full`** is a copy of `goad`'s
   `process::goad_with_stdout_full`, across crates. FU-5's class.
-- **PHASE-12 Findings for audit**: `Cargo.lock`'s one-line change outside
-  the surface list; test names not in `design.md` §9 (three binary-tier, five
+- **PHASE-12 Findings for audit**: test names not in `design.md` §9 (three binary-tier, five
   `render` units); `canon-delta.md` SPEC-001 Change 3's R-56 row citing
   neither scope case nor the side-clause case; A-V9's wrong direction
   sentence (the case joined on a measured margin).
+- [ ] **`a_probe_failure_on_another_side_is_not_charged_with_r56` may race
+  on `Text file busy`**: it copies an executable into a temp directory and
+  the checker execs it directly while other test threads fork. Not
+  observed. Running it through `bash` avoids the race but changes what the
+  case proves (a spawn failure, the configuration's side). Audit decides:
+  accept, serialise, or redesign (`plan-log.md` 2026-10-01, *PHASE-12
+  close: `Cargo.lock`; the `Text file busy` box; the push*).
 - **PHASE-03 Findings for audit**: `print_usage`'s doc fragment;
   `goad-emit`'s binary-tier doc (*"Every case passes `--socket`"*); EX-8's
   parameter held by review, not a test.

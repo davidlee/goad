@@ -308,3 +308,22 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
   R-4 reach row plants `UnixDatagram` too.
   Placed in VT-1 (the run cases), not VT-2 as first written — a
   transcription error, corrected in the commit that moves them.
+
+### 2026-10-01 — PHASE-12 close: `Cargo.lock`; the `Text file busy` box; the push
+
+- **Asked:** after PHASE-12 (a810e27), orchestrator-verified (`just check`
+  0, 738 passed, 0 failed; an own mutation of `run::charges_the_probe`'s
+  side check redded only
+  `a_probe_failure_on_another_side_is_not_charged_with_r56`):
+  - `Cargo.lock` gained one line, `"serde_json"` in `goad-check`'s own
+    dependency list, outside the closed surface list. It is the mechanical
+    consequence of the endorsed dev-dependency (*PHASE-12 sheet questions*,
+    Q5); no package was added. Proposed: accept.
+  - The side-clause case's possible `Text file busy` race. Proposed: a
+    checkbox in `notes.md` §Harvest Open, for audit.
+  - PHASE-05's lock bump needs goad's `main` on `origin`; local `main` was
+    ahead. Proposed: `git push origin main`, no force.
+- **Recommended:** all three.
+- **Decided:** *"yes"*.
+- **Consequence:** the `Cargo.lock` line is accepted and leaves §Open's
+  PHASE-12 Findings row; the race is a §Open box; `main` pushed.
