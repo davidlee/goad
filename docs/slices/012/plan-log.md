@@ -210,3 +210,11 @@ multi-target work and `goad-walk`'s registration, both outside this slice.
 - **Consequence:** `plan.md` PHASE-03 (surfaces, EX-1, EX-8), PHASE-04/EX-8,
   PHASE-05, PHASE-09 and PHASE-10 entry criteria amended; the PHASE-03 sheet
   follows.
+
+### 2026-10-01 — oubliette ready for `goad-walk` (PHASE-11/EN-2)
+
+The user reports oubliette's prerequisites done: `goad-walk` is on GitHub,
+pinning goad from `github:davidlee/goad`, and oubliette can take it as a
+target. PHASE-11/EN-2 is met on the user's word; the phase sheet re-reads it
+against oubliette's `docs/contract-target.md`. PHASE-11 still waits on
+EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
