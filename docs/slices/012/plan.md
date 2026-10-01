@@ -831,9 +831,11 @@ that repository.
 
 **Entry**
 - EN-1 — PHASE-12 done.
-- EN-2 — the person who runs EX-8 has Claude and Codex credentials as API
-  keys in environment variables, available to a session started in a fresh
-  home. Nothing credential-bearing is written into the home, a committed file
+- EN-2 — the person who runs EX-8 has Claude and Codex credentials in
+  environment variables — for Claude, `CLAUDE_CODE_OAUTH_TOKEN` (made by
+  `claude setup-token`) or `ANTHROPIC_API_KEY` — available to a session
+  started in a fresh home (`plan-log.md` 2026-10-01, *EX-8 and EN-2 take a
+  Claude OAuth token*). Nothing credential-bearing is written into the home, a committed file
   or `goad-walk`. The person's, not the executor's: no agent session holds
   the Anthropic credential (`plan-log.md` 2026-10-01, *PHASE-05 sheet
   questions*).
@@ -1254,7 +1256,9 @@ control, the fixed prompt; PL-5).
   including support for more than one target repository, and not this
   slice's.
 - EN-3 — Claude and Codex credentials are available as environment variables
-  for the ssh command that starts a capsule session.
+  for the ssh command that starts a capsule session — for Claude,
+  `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (`plan-log.md`
+  2026-10-01, *EX-8 and EN-2 take a Claude OAuth token*).
 
 **Exit**
 - EX-1 — in a fresh capsule provisioned at `goad-walk`'s `main`, the negative

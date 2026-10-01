@@ -909,12 +909,16 @@ detection* and *`goad-kit` is built with `lib.fileset.toSource`*.)
   "--locked -p goad-check --bin goad-check"`, sharing `cargoArtifacts`, with
   no wrapper and no `guiLibs`, as `goad-emit` has.
 - **`packages.goad-kit`**: a marketplace root, not a plugin root:
-  `lib.fileset.toSource`, `name = "goad-kit"`, over the `unions` of
-  `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json` and
-  `./kit`, and nothing else. A listed path that is missing or untracked fails
-  evaluation; `lib.cleanSourceWith`, measured, dropped
-  `.claude-plugin/marketplace.json` silently (`design-log.md` 2026-10-01,
-  *`goad-kit` is built with `lib.fileset.toSource`*). Codex
+  `pkgs.runCommandLocal "goad-kit"` copying a `lib.fileset.toSource` over
+  the `unions` of `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json` and `./kit`, and nothing else. A listed
+  path that is missing or untracked fails evaluation; `lib.cleanSourceWith`,
+  measured, dropped `.claude-plugin/marketplace.json` silently
+  (`design-log.md` 2026-10-01, *`goad-kit` is built with
+  `lib.fileset.toSource`*). The copy is there because `toSource` yields a
+  source path, not a derivation: `nix build` refuses it bare, and `nix flake
+  check` refuses it wrapped in `builtins.path` (`design-log.md` 2026-10-01,
+  *`goad-kit` is a derivation copying the fileset*). Codex
   installs only from a marketplace root, and copies only `kit/` into its
   cache; Claude loads the plugin root, `"$GOAD_KIT/kit"` (`research.md`
   §"Spike: R1 and R2").

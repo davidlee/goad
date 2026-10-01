@@ -685,3 +685,16 @@ other, citing the finding id.
 - **Decided:** *"sure"*.
 - **Consequence:** `design.md` names `lib.fileset.toSource` for `goad-kit`;
   `plan.md` PHASE-05 and the sheet follow.
+
+### 2026-10-01 — `goad-kit` is a derivation copying the fileset (PHASE-05, D-2)
+
+- **Asked:** PHASE-05's executor (D-2, sheet Findings): §5.2.8 named
+  `lib.fileset.toSource` with a name as the package. `toSource` yields a
+  source path, not a derivation: `nix build` refused it bare, and wrapped in
+  `builtins.path` it built but `nix flake check` refused it as "not a
+  derivation". Shipped: `pkgs.runCommandLocal "goad-kit"` copying the
+  `toSource` selection. The reason `fileset` was chosen holds — P-15 and
+  P-16 (a listed path missing, or untracked) fail evaluation, as predicted.
+- **Recommended:** accept; §5.2.8 follows.
+- **Decided:** *"go ahead"*.
+- **Consequence:** `design.md` §5.2.8's `packages.goad-kit` restated.

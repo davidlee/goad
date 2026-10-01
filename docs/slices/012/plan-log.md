@@ -375,3 +375,13 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
 - **Consequence:** applied to `plan.md` PHASE-05 EN-2/EX-8, PHASE-11's
   credential item, and the PHASE-05 sheet's script **after** PHASE-05's
   executor stops at the push (it holds the sheet now; one writer per file).
+
+### 2026-10-01 — PHASE-05's push (EN-3)
+
+The user pushed goad's `main` to `origin` at 2f1bf47 — the revision
+`goad-walk`'s lock pins (code at 65e1ea9 and e4b08d9; every later commit
+changes only `notes.md`). PHASE-05/EN-3 is met; the orchestrator confirmed
+`origin/main` at 2f1bf47 by `git fetch`. The OAuth change of *EX-8 and EN-2
+take a Claude OAuth token* is applied to `plan.md` PHASE-05/EN-2 and
+PHASE-11/EN-3 in the same commit; the sheet's script follows when PHASE-05's
+executor resumes.
