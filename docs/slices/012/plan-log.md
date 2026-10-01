@@ -98,3 +98,27 @@ ledger (`review-plan.md`).
 - **Decided:** *"yeah go ahead"*.
 - **Consequence:** dispositions in the ledger; a fresh agent repairs
   `plan.md` and `design.md`; the raiser runs round 2.
+
+### 2026-10-01 — plan review round 2: dispositions
+
+- **Asked:** `review-plan.md` round 2 (4981d5f): F-1..F-21 verified; new
+  F-22..F-27, all proposed `doc-wrong`. F-22 changes `design.md` and is
+  recorded in `design-log.md` 2026-10-01, *plan review round 2: I-5 reads the
+  tracked tree*. The rest:
+  - F-23 until PHASE-12 a run ends with no verdict — status 2, a stderr line —
+    so `main` never reports an acceptance it did not judge.
+  - F-24 the coverage test skips fenced lines through the shared scanner; a
+    heading counts only when it names exactly one requirement id; the control
+    gains a fenced `#` case and a two-id heading.
+  - F-25 the checker's R-56 claim id joins the coverage set.
+  - F-26 **supersedes F-12's parallel rule for PHASE-01..PHASE-03**: they run
+    in sequence. PHASE-11 alone may run beside PHASE-06..PHASE-08; the
+    orchestrator writes its phase sheet and status row on `main`.
+  - F-27 PHASE-12/VA-1 names the R-56 condition's `AtFault::Backend` hit;
+    PHASE-12 surfaces gain `crates/goad-check/Cargo.toml`; PHASE-08 removes
+    the PHASE-05 marker, and PHASE-11's load check after that asks for a fact
+    of the finished `SKILL.md` body.
+- **Recommended:** as listed; F-22 option A.
+- **Decided:** *"yes, go ahead"*; F-22 *"A."*
+- **Consequence:** dispositions in the ledger; a fresh agent repairs
+  `plan.md` and `design.md`; round 3 verifies these six repairs only.

@@ -542,3 +542,23 @@ other, citing the finding id.
 - **Consequence:** `design.md` §5.2.3 (`AtFault`), §5.2.4 (the conversion's
   home), §5.2.6 (the scanner; I-5's rule), §5.5 I-5, §9 amended by the repair
   agent; `plan.md` repaired; round 2 verifies.
+
+### 2026-10-01 — plan review round 2: I-5 reads the tracked tree
+
+- **Asked:** plan review round 2 (`review-plan.md` F-22, 4981d5f): I-5's
+  mention rule took its refused names from the repository root's entries at
+  test time — untracked and ignored ones included — so a commit's verdict
+  depended on the checkout, and it refused consumer paths that name nothing
+  here (`.claude/skills/`, `docs/`, a backticked `.claude-plugin/`). No test
+  in the tree calls `git` (orchestrator's grep), so asking git is new
+  precedent. Options: (A) `git ls-files`, refusing `<name>/<segment>` only
+  where that prefix is tracked outside `kit/`; (B) refuse only paths that
+  exist on disk — no git, but still reads ignored entries such as `target/`;
+  (C) a fixed name list in the test — rots when a root entry is added.
+- **Recommended:** A. The only option judged by the committed tree; `git` is
+  in the devshell, and the gate runs only in a checkout (`flake.nix` sets
+  `doCheck = false`). A missing `git` or `.git` fails the test, never skips.
+- **Decided:** *"A."*
+- **Consequence:** `design.md` §5.2.6 *The kit stands alone*, §5.5 I-5 and §9
+  amended; `plan.md` PHASE-07/VT-5, VT-6 repaired. The escaping-`../` half of
+  the rule stands.

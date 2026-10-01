@@ -764,8 +764,8 @@ goad-demo.sock.lock spike-fields target`. Any of these, and any directory a
 developer adds, joins the refused set on that machine only. `flake.nix` sets
 `doCheck = false` on every derivation, so the test runs only in a checkout.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** I-5's mention rule reads the tracked tree: the test lists tracked paths with `git ls-files` and refuses a mention `<name>/<segment>` only if that path prefix is tracked outside `kit/`; a missing `git` or `.git` fails the test, never skips it. The escaping-`../` half stands. The negative control gains a generic consumer path (`.claude/skills/`) and a backticked `` `.claude-plugin/plugin.json` ``, both accepted. `design-log.md` 2026-10-01, *plan review round 2: I-5 reads the tracked tree*.
 
 **Outcome:**
 
@@ -792,8 +792,8 @@ exchange, so its report is the no-view line and the verdict"); §Sequencing
 ("It ends green, with a run that makes no exchange"); PHASE-12/VT-1's
 `an_unspawnable_command_is_reported_against_the_configuration`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** Until PHASE-12 a run ends with no verdict: the report's no-view line, a stderr line saying the run is not yet implemented, and status 2. PHASE-12 replaces it with the verdict. Nothing on `main` reports acceptance it did not judge.
 
 **Outcome:**
 
@@ -819,8 +819,8 @@ naming five ids satisfies the test.
 id, and body text, with no fence. `design.md` §5.2.6's role table: the
 `toml goad:config` role, whose TOML comments start with `#`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** PHASE-08/VT-1 reads headings through the shared scanner (PHASE-07/EX-4), skipping fenced lines; a heading counts for an id only if it names exactly that one requirement id, matching PHASE-07/EX-3. VT-2's control gains a fenced `#` line naming an id that appears nowhere else, which must be reported absent, and a heading naming two ids.
 
 **Outcome:**
 
@@ -842,8 +842,8 @@ the reference. EX-5's statement is then held for R-56 only by VA-1's reading.
 MUST tolerate a kind it does not recognise`. PHASE-12/EX-3 prints "the R-56
 line only on its condition".
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The checker's own R-56 claim id joins VT-1's coverage set, taken from the constant the report prints, not respelled.
 
 **Outcome:**
 
@@ -865,8 +865,8 @@ parallel phases' hands, but it moves the writes rather than removing them.
 — <name>`, and nothing after it but `## Harvest`, so every new sheet lands
 there.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** PHASE-01..PHASE-03 run sequentially; the parallel rule for them is dropped. PHASE-11 alone may run beside PHASE-06..PHASE-08, and the orchestrator writes its phase sheet and its `notes.md` §Status row on `main`, so the worktree touches neither.
 
 **Outcome:**
 
@@ -893,8 +893,8 @@ there.
 **Evidence:** `plan.md` PHASE-12 §Surfaces (`src/`, `tests/binary/`,
 `canon-delta.md`); PHASE-05 §Surfaces (the marker); PHASE-08/EX-2.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** PHASE-12/VA-1 names both expected `AtFault::Backend` hits: the R-56 condition and the probe's claim. PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml`. PHASE-08 removes the PHASE-05 marker as an exit criterion; PHASE-11's load check, if entered after PHASE-08, asks for a fact only the finished `SKILL.md` body states.
 
 **Outcome:**
 
