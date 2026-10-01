@@ -123,7 +123,7 @@ mod tests {
 
   use goad_shell::clock::ClockError;
   use goad_shell::error::ConfigError;
-  use goad_shell::ingress::envelope::normalize;
+  use goad_shell::ingress::envelope::EnvelopeFault;
 
   use super::{
     NOT_YET_IMPLEMENTED, USAGE, answer_unwritten_line, report_unwritten_line, startup_error_line,
@@ -197,10 +197,6 @@ mod tests {
   fn every_startup_fault_says_what_failed_and_names_its_file() {
     let config = Path::new("/home/someone/.config/goad/config.toml");
     let event = Path::new("/home/someone/events/woke.json");
-    let reserved = normalize(
-      br#"{"source":"host","kind":"woke","timestamp":"2026-10-01T09:00:00+10:00","data":null}"#,
-    )
-    .expect_err("the reserved source is refused");
     let cases: [(StartupFault, Option<&Path>, &str); 7] = [
       (
         StartupFault::NoPath,
@@ -234,7 +230,7 @@ mod tests {
       (
         StartupFault::EventRefused {
           path: event.to_owned(),
-          fault: reserved,
+          fault: EnvelopeFault::ReservedSource,
         },
         Some(event),
         "is reserved",
