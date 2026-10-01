@@ -7,8 +7,8 @@
 //! clock, a file or a socket — stratum 3, but the pure half of it.
 
 use goad_semantics::protocol::canonical::{
-  AlternativeId, Alternatives, Content, Field, FieldId, FieldKind, Finite, NumberRange, Opt,
-  OptionId, Submitted, View,
+  Alternatives, Content, Field, FieldId, FieldKind, Finite, NumberRange, Opt, OptionId, Submitted,
+  View,
 };
 use slint::StyledText;
 
@@ -113,19 +113,8 @@ pub enum DrawnKind {
   Boolean,
   Text,
   Number(NumberRange),
-  /// The alternatives in declared order, **and the first one's id beside
-  /// them**.
-  ///
-  /// The duplication is the point. One alternative always exists, because
-  /// `Alternatives::new` rejects an empty list — but that is a fact about the
-  /// protocol and is invisible to the compiler: `.first()` is an `Option`,
-  /// `unwrap_used` / `expect_used` / `indexing_slicing` are `deny` crate-wide,
-  /// and `AlternativeId::new` is `pub(super)` so there is no fallback id to
-  /// construct. Cloning the id once, where the kind is built, makes `as_drawn`
-  /// and every display site total with no lint exception anywhere
-  /// (`prototype-notes.md` P-2).
+  /// The alternatives in declared order.
   Choice {
-    first: AlternativeId,
     alternatives: Alternatives,
   },
   DateTime,
@@ -294,9 +283,9 @@ fn heading_of(key: Option<&str>) -> Option<String> {
 /// write `DrawnKind::Boolean` as a constant, true because `boolean` was the
 /// only kind that reached it. With two kinds drawn it has to choose, and a
 /// *second* total function beside `undrawn_form` would have to answer for the
-/// three kinds still reported undrawn: `DrawnKind::Choice` carries the first
-/// alternative's id, `Alternatives` offers only `as_slice`, `.first()` is an
-/// `Option`, and `AlternativeId::new` is `pub(super)` — so there is no id to
+/// three kinds still reported undrawn: `DrawnKind::Choice` carried the first
+/// alternative's id, `Alternatives` offered only `as_slice`, `.first()` was an
+/// `Option`, and `AlternativeId::new` is `pub(super)` — so there was no id to
 /// fall back to. Every way out of that is either a lie in the type or a field
 /// that sorts nowhere and is dropped, which is the one thing `I-2` and `R-20`
 /// forbid. A `Result` has exactly one arm per kind, no unreachable arm, and no
@@ -327,19 +316,7 @@ fn drawn_form(kind: &FieldKind) -> Result<DrawnKind, FieldForm> {
     FieldKind::Text => Ok(DrawnKind::Text),
     FieldKind::DateTime => Ok(DrawnKind::DateTime),
     FieldKind::Number(range) => Ok(DrawnKind::Number(*range)),
-    // The first alternative's id, cloned beside the list here — the one site
-    // that has an `Alternatives` in hand, which is what makes `as_drawn` and
-    // every display site total (`DrawnKind::Choice`, `prototype-notes.md` P-2).
-    //
-    // **`Alternatives::first` is why this is a total expression rather than an
-    // exception.** Non-emptiness is that type's invariant and it now exposes
-    // it, so the argument sits beside the `new` that enforces it instead of
-    // being re-derived here — which is what `design.md` §5.2 asked for and
-    // could not have while the empty case still had the dead
-    // `Err(FieldForm::Choice)` arm to fall into. `crates/goad` carries no lint
-    // exception for this at all (`plan-log.md`, 2026-09-20).
     FieldKind::Choice { alternatives } => Ok(DrawnKind::Choice {
-      first: alternatives.first().id().clone(),
       alternatives: alternatives.clone(),
     }),
   }
@@ -630,8 +607,9 @@ pub fn slider_bounds(range: &NumberRange) -> Option<(f32, f32)> {
 /// An `Adjusted` built from the number alone, spelling the text beside it.
 ///
 /// Every site that produces one **without a person having typed** comes
-/// through here — `as_drawn`, and a `Slider`'s `AdjustedValue` — so the format
-/// rule has one application rather than one per site (design.md §5.2).
+/// through here — `as_edited`, for `as_drawn`, and a `Slider`'s
+/// `AdjustedValue` — so the format rule has one application rather than one
+/// per site (design.md §5.2).
 fn adjusted(number: Finite) -> Edited {
   Edited::Adjusted {
     text: spelled(number.get()),
@@ -640,7 +618,8 @@ fn adjusted(number: Finite) -> Edited {
 }
 
 /// What the draft would hold for a value stratum 1 decided, so `as_drawn` can
-/// answer in `Edited` without deciding anything itself (design.md §5.2.4).
+/// answer in `Edited` without deciding anything itself (slice 012 `design.md`
+/// §5.2.4).
 ///
 /// Private and beside [`adjusted`], not a crate-wide `From`: `as_drawn` is its
 /// only caller, and `draft.rs` imports nothing from here. A number is spelled
@@ -671,10 +650,14 @@ fn held_number(held: Option<&Edited>) -> Option<Finite> {
 /// What the wire carries for a field nobody has touched — what the widget is
 /// drawn showing, so the screen and the wire agree (§4's P-3, §7 D1).
 ///
-/// **Three call sites, and `glass.rs` is deliberately not one of them.**
+/// It decides nothing: stratum 1's `Submitted::as_drawn` is the one statement
+/// of the untouched-value policy, and this rebuilds the canonical `FieldKind`
+/// from the drawn one, asks it, and answers in the draft's terms through
+/// `as_edited` (slice 012 `design.md` §5.2.4).
+///
+/// **Two call sites, and `glass.rs` is deliberately not one of them.**
 /// `controller::answer` applies it because `R-58` forbids omitting a value for
-/// a drawn field; `interpret` applies it to supply the number a numeric text
-/// falls back to; [`untouched`] applies it for the four kinds whose screen and
+/// a drawn field; [`untouched`] applies it for the four kinds whose screen and
 /// wire agree. Keeping the glass out is what makes the `datetime` epoch a fact
 /// about the wire rather than a fact about the screen — a button reading
 /// `1970-01-01T00:00:00+00:00` would be the host showing a person an answer
@@ -687,7 +670,7 @@ pub fn as_drawn(kind: &DrawnKind) -> Edited {
     DrawnKind::Boolean => FieldKind::Boolean,
     DrawnKind::Text => FieldKind::Text,
     DrawnKind::Number(range) => FieldKind::Number(*range),
-    DrawnKind::Choice { alternatives, .. } => FieldKind::Choice {
+    DrawnKind::Choice { alternatives } => FieldKind::Choice {
       alternatives: alternatives.clone(),
     },
     DrawnKind::DateTime => FieldKind::DateTime,
@@ -736,9 +719,10 @@ pub fn untouched(kind: &DrawnKind) -> Option<Edited> {
 /// draft — or, for an untouched field, the minimum it was drawn showing —
 /// knows (design.md §5.2, §7 D25).
 ///
-/// `held` is an `Option` and this applies `as_drawn`'s rule itself, so every
-/// caller passes `state_of(…)` straight through rather than writing
-/// `unwrap_or_else(|| as_drawn(kind))` at each site.
+/// `held` is an `Option` and this applies the drawn number's rule,
+/// `NumberRange::drawn`, itself, so every caller passes `state_of(…)` straight
+/// through rather than writing `unwrap_or_else(|| as_drawn(kind))` at each
+/// site.
 ///
 /// **The `None` surface is all three of its cases, and there is no fourth:**
 ///
@@ -807,7 +791,7 @@ pub fn interpret(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind) -
         None
       }
     },
-    DrawnKind::Choice { alternatives, .. } => match reported {
+    DrawnKind::Choice { alternatives } => match reported {
       // Case 1: an index no alternative has. `AlternativeId::new` is
       // `pub(super)`, so the id this produces was necessarily cloned off the
       // view the backend sent (§5.5 I-D, §7 D12).
@@ -984,7 +968,6 @@ mod tests {
       panic!("the fixture declares a choice");
     };
     DrawnKind::Choice {
-      first: alternatives.as_slice()[0].id().clone(),
       alternatives: alternatives.clone(),
     }
   }
@@ -1025,12 +1008,12 @@ mod tests {
       },
       "no declared bound falls back to zero"
     );
-    let DrawnKind::Choice { first, .. } = a_choice() else {
-      panic!("the fixture is a choice");
+    let Edited::Chosen(chosen) = as_drawn(&a_choice()) else {
+      panic!("a choice is drawn chosen");
     };
     assert_eq!(
-      as_drawn(&a_choice()),
-      Edited::Chosen(first),
+      chosen.as_str(),
+      "first",
       "the first alternative in declared order"
     );
     assert_eq!(
@@ -1048,7 +1031,7 @@ mod tests {
   /// kept — which is why the round trip starts here.
   #[test]
   fn as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind() {
-    let DrawnKind::Choice { alternatives, .. } = a_choice() else {
+    let DrawnKind::Choice { alternatives } = a_choice() else {
       panic!("the fixture is a choice");
     };
     let each_kind = [

@@ -3,7 +3,8 @@
 //!
 //! A module of its own rather than a map inside `reception.rs` because it has
 //! rules of its own — absent means as-drawn, keys are (option, field) pairs,
-//! and `submitted` is the single application of `SPEC-001/R-57`. Pure: no
+//! and `submitted` is where a held value meets `SPEC-001/R-57`, through
+//! stratum 1's `Submitted`, which alone decides the JSON type. Pure: no
 //! clock, no file, no socket, and no Slint type. Stratum 3, and the pure half
 //! of it.
 //!
@@ -20,9 +21,9 @@ use jiff::tz::Offset;
 
 /// What the draft holds, and the only thing `submitted` maps.
 ///
-/// One variant per drawn field kind, and the `submitted` match below is what
-/// makes adding a sixth a decision about what it puts on the wire rather than
-/// an omission (design.md §5.2).
+/// One variant per drawn field kind, and the match in [`Edited::submitted`] is
+/// what makes adding a sixth a decision about what it puts on the wire rather
+/// than an omission (design.md §5.2).
 ///
 /// **No `Eq`**, because `Adjusted` carries a `Finite` and the leaf declines it
 /// — see `Finite`'s own doc for why a hand-written impl anywhere in this
@@ -159,18 +160,20 @@ impl Draft {
   }
 }
 
-/// `SPEC-001/R-57`, in one total match: one site turns a widget's state into a
-/// submitted value, so the mapping cannot drift apart across the codebase.
+/// `SPEC-001/R-57`, applied to what the draft holds: the projection
+/// [`Edited::submitted`], then `Submitted::to_json`, the one site that decides
+/// a JSON type. Nothing in this crate decides one.
 ///
 /// It is **not** the compiler's guard against the *protocol* growing a kind.
-/// `Edited` is host-local; a sixth `FieldKind` leaves this match exhaustive.
-/// The site that breaks is `view_model::drawn_form`, which matches the
-/// canonical `FieldKind` and must sort the new kind into drawn or reported.
-/// Reported is no longer somewhere it can simply go: every kind draws, so
-/// `FieldForm` is uninhabited and the destination has to be **re-created** —
-/// a variant given back — before a new kind can be sent there. What this match
-/// guards is the *host* growing a drawn kind without deciding what it
-/// submits.
+/// `Edited` is host-local; a sixth `FieldKind` leaves `Edited::submitted`'s
+/// match exhaustive. Two sites break, both matching the canonical
+/// `FieldKind`: `Submitted::as_drawn`, which must decide what the new kind
+/// submits untouched, and `view_model::drawn_form`, which must sort it into
+/// drawn or reported. Reported is no longer somewhere it can simply go: every
+/// kind draws, so `FieldForm` is uninhabited and the destination has to be
+/// **re-created** — a variant given back — before a new kind can be sent
+/// there. What `Edited::submitted`'s match guards is the *host* growing a
+/// drawn kind without deciding what it submits.
 pub(crate) fn submitted(edited: &Edited) -> serde_json::Value {
   edited.submitted().to_json()
 }

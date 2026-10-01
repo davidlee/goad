@@ -10,8 +10,9 @@ autotests            = false
 # `crates/goad` names `jiff` and `serde_json` directly — a transitive
 # dependency is not in the extern prelude. `diagnostics.rs` rounds with
 # `jiff::TimestampRound` (`clock.rs` did too, until 005 lifted it to stratum
-# 2); `view_model.rs`'s `Undrawn`/`Stimulus::event` path and
-# `tests/support/driving.rs` (included into `renderer`) need `serde_json`.
+# 2); `draft::submitted`'s return type, `view_model.rs`'s reading of a
+# `group` hint and `tests/support/driving.rs` (included into `renderer`) need
+# `serde_json`.
 # Both are already in `[workspace.dependencies]` for other members, so this
 # adds nothing to the graph (design.md §5.1, F-4).
 #
