@@ -3488,7 +3488,12 @@ before its body lands. Reach is proven as soon as a new file exists.
         that logs each request's kind and fails the first: the log holds
         every planned kind), and `event_files_are_sent_in_the_order_given`
         (two `--event` files, the backend's log holds their kinds in the
-        order given). The non-zero cases SPEC-004/R-14's row names assert
+        order given). And the R-56 condition's scope, `evaluate` outcomes only
+        (`plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases;
+        `UnixDatagram` in VA-3*): `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (the probe's `evaluate` answers a view
+        whose `respond` fails, the known kinds succeed; no `SPEC-001/R-56`)
+        and `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known kind's view's `respond` fails, the probe's
+        `evaluate` fails; `SPEC-001/R-56` present). The non-zero cases SPEC-004/R-14's row names assert
         the `goad-check: ` prefix on the **last** stderr line."*
   - [ ] What each case must assert so that it is not a proxy
         (`tests-asserting-proxies`). Status alone, or status plus the
@@ -3540,18 +3545,7 @@ before its body lands. Reach is proven as soon as a new file exists.
     - `event_files_are_sent_in_the_order_given`: two event files; the log's
       last two evaluates carry their kinds in the order given, **after** the
       probe (M-3, M-4).
-  - [ ] VT-2 (quoted): *"`a_report_that_cannot_be_written_exits_2` gains its
-        run half: a run with stdout on `/dev/full` exits 2, the last stderr
-        line beginning `goad-check: `. And the R-56 condition's scope,
-        `evaluate` outcomes only (`plan-log.md` 2026-10-01, *PHASE-12: R-56's
-        scope gets cases; `UnixDatagram` in VA-3*): `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (the probe's
-        `evaluate` answers a view whose `respond` fails, the known kinds
-        succeed; no `SPEC-001/R-56`) and `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known kind's view's
-        `respond` fails, the probe's `evaluate` fails; `SPEC-001/R-56`
-        present)."* For the run half, use the argv form with a scripted
-        conforming backend, not `loadable.toml` (whose command no longer
-        exists to spawn), so the only fault in the run is stdout.
-  - [ ] `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`, red first. Setup: `scripting::scripted` alone, with
+  - [ ] `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (VT-1), red first. Setup: `scripting::scripted` alone, with
         `answers-as-instructed.sh` — no new fixture. Its instructions are
         per invocation, a response body or a sentinel, and the plan fixes
         the invocation order (EX-1): the three known kinds' `evaluate`s
@@ -3563,7 +3557,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         reported as any other exchange's); **no** `SPEC-001/R-56` anywhere on
         stdout; the invocation count, exactly (five, so a respond was made:
         without it the case is green with no chain at all). Row M-36.
-  - [ ] `a_known_kind_s_chain_failure_does_not_excuse_the_probe`, red first. Setup: `scripting::scripted` alone, as above: each
+  - [ ] `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (VT-1), red first. Setup: `scripting::scripted` alone, as above: each
         known kind's `evaluate` answers that view and its `respond` is
         `@exit1`, then the probe's `evaluate` is `@exit1`. **Every** known
         kind's chain fails, not one: the condition needs only one known kind
@@ -3571,6 +3565,11 @@ before its body lands. Reach is proven as soon as a new file exists.
         status 1; one stdout line holds both `backend` and the literal
         `SPEC-001/R-56`; the invocation count, exactly (seven: every chain's
         respond was made). Row M-37.
+  - [ ] VT-2 (quoted): *"`a_report_that_cannot_be_written_exits_2` gains its
+        run half: a run with stdout on `/dev/full` exits 2, the last stderr
+        line beginning `goad-check: `."* Use the argv form with a scripted
+        conforming backend, not `loadable.toml` (whose command no longer
+        exists to spawn), so the only fault in the run is stdout.
   - [ ] **Before `a_cleanup_failure_alone_exits_1` joins the gate**, rank
         its fixture's margin by which way load moves it, not by its size
         (`docs/memory/margin-size-is-not-margin-direction.md`; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, *Also*).

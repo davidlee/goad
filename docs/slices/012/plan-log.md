@@ -306,3 +306,5 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
 - **Consequence:** `design.md` §9 and `plan.md` PHASE-12 (VT-2, VA-3,
   §Coverage) amended; the sheet's M-36 and M-37 become seen, and its
   R-4 reach row plants `UnixDatagram` too.
+  Placed in VT-1 (the run cases), not VT-2 as first written — a
+  transcription error, corrected in the commit that moves them.

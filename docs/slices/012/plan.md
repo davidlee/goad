@@ -761,16 +761,17 @@ included, not edited.
   `a_backend_failing_at_startup_is_still_asked_the_rest` (a backend that
   logs each request's kind and fails the first: the log holds every planned
   kind), and `event_files_are_sent_in_the_order_given` (two `--event` files,
-  the backend's log holds their kinds in the order given). The non-zero cases
-  SPEC-004/R-14's row names assert the `goad-check: ` prefix on the **last**
+  the backend's log holds their kinds in the order given). And the R-56 condition's scope, `evaluate` outcomes only
+  (`plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases;
+  `UnixDatagram` in VA-3*): `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (the probe's `evaluate` answers a view whose
+  `respond` fails, the known kinds succeed; no `SPEC-001/R-56`) and `a_known_kind_s_chain_failure_does_not_excuse_the_probe`
+  (each known kind's view's `respond` fails, the probe's `evaluate` fails;
+  `SPEC-001/R-56` present). The non-zero
+  cases SPEC-004/R-14's row names assert the `goad-check: ` prefix on the **last**
   stderr line.
 - VT-2 — `a_report_that_cannot_be_written_exits_2` gains its run half: a run
   with stdout on `/dev/full` exits 2, the last stderr line beginning
-  `goad-check: `. And the R-56 condition's scope, `evaluate` outcomes only
-  (`plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases; `UnixDatagram` in VA-3*): `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (the probe's `evaluate` answers a view whose `respond` fails,
-  the known kinds succeed; no `SPEC-001/R-56`) and `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known kind's
-  view's `respond` fails, the probe's `evaluate` fails; `SPEC-001/R-56`
-  present).
+  `goad-check: `.
 - VT-3 — `the_probe_kind_is_none_of_the_host_s_own`, a unit test beside the
   probe constant (a binary-only crate's constant is not reachable from
   `tests/binary/`), asserting it is none of `Stimulus`'s kinds.
