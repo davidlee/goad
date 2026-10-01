@@ -593,6 +593,523 @@ arm, which is not a `_` arm.
 **Exit — the gate.** `just check` exited 0 at the tree committed as the
 phase's final commit (see §Harvest *Fresh as of*).
 
+### PHASE-02 — the host's kinds and R-57 values live in stratum 1
+
+**Written by a phase-sheet agent, not the executor**, at 68f8ec4 (*012
+PHASE-01: verification, sheet and harvest*). This sheet is the plan's second
+reading. Where it restates a plan criterion it quotes it. It repairs nothing:
+what reads as wrong in the plan is under **Findings** as a PLAN QUESTION, and
+the tasks it blocks are marked `[!]`.
+
+**Objective** (quoted, `plan.md` PHASE-02): *`Stimulus`, `Submitted`,
+`Finite` and the as-drawn value per kind each have one encoding, in
+`goad_semantics::protocol::canonical`, and `goad` names no kind string and
+decides no submitted value's JSON type.*
+
+**Entry**
+- **EN-1** (quoted): *"PHASE-01 done (PHASE-01..PHASE-03 run in sequence,
+  §Sequencing)."* **Discharged 2026-10-01 at 68f8ec4.** §Status has PHASE-01
+  `done`. `just check` exited 0: build, both test tiers (659 passed, 0
+  failed, summed over every `test result` line; PHASE-01's exit count),
+  `deno check`, clippy with no warning, `cargo fmt --all --check`.
+- **EN-2** (quoted): *"`design.md` §5.2.4 says how `view_model::as_drawn`
+  delegates to `Submitted::as_drawn`: a `FieldKind` rebuilt from the
+  `DrawnKind`, and a private `as_edited` in `view_model.rs` back."*
+  **Discharged.** §5.2.4's `Submitted::as_drawn` bullet says it, citing
+  `design-log.md` 2026-10-01 *plan review round 1: design-touching
+  dispositions* (F-11), which supersedes G1's placement in `draft.rs`.
+
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- `crates/goad-semantics/src/protocol/canonical.rs`
+- `crates/goad/src/wire.rs`, `crates/goad/src/draft.rs`,
+  `crates/goad/src/view_model.rs`
+- `crates/goad/src/controller.rs`, `crates/goad/src/install.rs`,
+  `crates/goad/src/main.rs`, `crates/goad/src/glass.rs` — *"imports and the
+  delegation only"*. `glass.rs` needs no edit as far as this reading finds
+  (A-V9).
+- `crates/goad/tests/` — *"imports of `Stimulus`"*.
+- `crates/goad/Cargo.toml` — *"its dependency comment only"*.
+- `crates/goad-shell/src/ingress/envelope.rs` — *"`HOST_SOURCE`,
+  `plan-log.md` PL-2"*.
+- `docs/slices/012/canon-delta.md` — *"test names only"*.
+- `docs/slices/012/notes.md` — this sheet, §Status, §Harvest (bookkeeping, by
+  `docs/AGENTS.md` §Execute).
+
+Not surfaces, and so a STOP if the work seems to need them:
+`crates/goad-semantics/Cargo.toml` (no dependency or feature changes),
+`crates/goad/src/lib.rs`, `crates/goad/tests/renderer/fields.rs` (EX-4: green
+*unchanged*), any `crates/goad-boundary` file, and any canon document.
+
+**Reading list** (by symbol; `grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md` — §Overview's first paragraph (`just check` is
+  every phase's last exit); *Test names are commitments*; *Mutation evidence*
+  and *Invariant reads* under §Sequencing & rationale; §PHASE-02 whole.
+- `docs/slices/012/design.md` §5.2.4 whole; §5.5 I-2 (the checker reads
+  values from `Submitted`, never maps a kind) and the edge *"A `number` field
+  declaring `max: -10` and no `min` is answered with `0`"*; §9 *Stratum 1*
+  `canonical.rs` bullet and *Stratum 3* whole.
+- `docs/slices/012/design-log.md` 2026-10-01 *two gaps the plan draft found
+  (G1, G2)* — G1 only; and *plan review round 1: design-touching
+  dispositions* — F-11 only.
+- `docs/slices/012/plan-log.md` 2026-10-01 *placements the plan draft put to
+  the user*, PL-2 and PL-3; *plan review round 1: dispositions*, F-9 and F-10
+  (the origins of EX-6's scope and EX-4's literal).
+- `docs/slices/012/canon-delta.md` SPEC-001 Change 3 (R-56's row) and Change
+  4 (R-57's row) — the test names VA-3 resolves.
+- `docs/specs/001-host-backend-protocol.md` §7, rows R-56, R-57 — today's
+  citations. They stay until audit promotes the delta.
+- Prior art: `docs/memory/` — *negative-control-must-compile*,
+  *tests-asserting-proxies*, *mutation-check-the-coverage-claim*. PHASE-01's
+  §Harvest *Learned*: a `todo!()` body is a compiling red for a method.
+
+*The moved and touched symbols, every definition and caller.* Found by
+`grep -rn --include=*.rs -w '<symbol>' crates` for each type, and `grep -rnw
+--include=*.rs '<fn>' crates` for each function, at 68f8ec4; each hit read.
+
+- **`Stimulus`** — defined in `crates/goad/src/wire.rs`, with `Stimulus::kind`
+  and `Stimulus::event` (whose doc cites `canonical.rs` by line, EX-5). Unit
+  tests in `wire.rs`' `mod tests`: `a_scheduled_stimulus_names_itself_scheduled`,
+  `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`; that
+  module's `use super::{…, Stimulus, …}` and its `instant` helper and
+  `serde_json::Value` import serve only these two.
+  Callers in `src`: `main.rs` (`use goad::wire::{…, Stimulus, …}`;
+  `Stimulus::Startup` in `start`), `install.rs` (`use crate::wire::{…}`;
+  `Stimulus::Requested` in `install`), `controller.rs` (`use crate::wire::{…,
+  Stimulus}`; `Stimulus::Scheduled` in `serve`; doc comments on `dispatch`
+  and in `serve`). `wire.rs` itself: `Command::Evaluate(Stimulus)`.
+  Callers in `crates/goad/tests/`, each importing `goad::wire::{…, Stimulus,
+  …}`: `event_loop_answer/answer.rs`, `event_loop_drain/drain.rs`,
+  `event_loop_full/full.rs`, `event_loop_schedule/scheduling.rs`,
+  `renderer/ingress.rs`, `renderer/scheduling.rs`, `renderer/wiring.rs` (its
+  top-level import, and the nested test modules' own `use goad::wire::{…}`
+  lines; one nested module takes it through `use super::{…}`, which follows
+  the top-level import). No other crate names it.
+- **`Submitted`** — no occurrence today. New.
+- **`Finite`** — defined in `crates/goad/src/draft.rs` (`Finite::ZERO`,
+  `Finite::new`, `Finite::get`, and the doc on why it has no `Eq`); its test
+  `a_finite_refuses_every_number_json_cannot_carry` in `draft.rs`' `mod
+  tests`. Callers: `view_model.rs` (`use crate::draft::{Edited, Finite,
+  Reported}`; `drawn_number`, `adjusted`, `held_number`, `interpret`; the
+  test module's import and its `finite` helper); `wire.rs` (the doc on
+  `Command` only). `glass.rs` reads `Edited::Adjusted { number, .. }` and
+  calls `number.get()` without naming the type.
+- **`Edited`** — defined in `draft.rs`, mapped by `draft::submitted`, held by
+  `Draft::state_of` / `Draft::record`. Callers: `view_model.rs` (`adjusted`,
+  `held_number`, `as_drawn`, `untouched`, `interpret`, tests); `glass.rs`
+  (`use crate::draft::Edited`; `overlaid`, `field_value`); `controller.rs`
+  (via `as_drawn` and `submitted` in `answer`); `wire.rs` (docs only).
+- **`DrawnKind`** — defined in `view_model.rs`, built only by `drawn_form`
+  (whose `Choice` arm clones `alternatives.first().id()` into `first`, with a
+  comment that EX-7 makes stale). Matched in `view_model.rs` by `as_drawn`
+  (the only reader of `first`), `untouched`, `interpret` (`Choice {
+  alternatives, .. }`), and the tests (`a_choice` builds `first` by
+  `alternatives.as_slice()[0]`; `as_drawn_answers_every_kind` destructures
+  it). Matched in `glass.rs` by `markup_kind`, `slider_bounds_of`,
+  `alternatives_of` — each with `Choice { .. }` or `Choice { alternatives, ..
+  }`, so none breaks when `first` goes. `lib.rs` names it in a comment only.
+- **`view_model::as_drawn`** — callers: `controller.rs` `answer` (`state_of(…)
+  .unwrap_or_else(|| as_drawn(&field.kind))`); `view_model::untouched`; tests
+  `as_drawn_answers_every_kind` and
+  `an_untouched_field_submits_what_canon_delta_cd_1_states`.
+- **`adjusted`** (private, `view_model.rs`) — callers: `as_drawn`'s number arm,
+  and `interpret`'s `Reported::AdjustedValue` arm. Its doc names both, and
+  must stay true (EX-3).
+- **`spelled`** (private, `view_model.rs`) — callers: `adjusted`; test
+  `a_number_spells_short_and_re_parses_to_the_number_it_came_from` and its
+  round-trip sibling.
+- **`draft::submitted`** (`pub(crate)`) — callers: `controller.rs` `answer`;
+  `draft.rs` tests `a_boolean_field_submits_a_json_boolean`,
+  `each_kind_submits_the_json_type_r_57_names`,
+  `a_picked_datetime_submits_the_offset_it_was_picked_in`; `view_model.rs`
+  test `an_untouched_field_submits_what_canon_delta_cd_1_states`.
+- **`drawn_number`** (private, `view_model.rs`, not named by the brief but
+  part of the untouched policy) — callers: `as_drawn`'s number arm, and
+  `interpret`'s `Reported::AdjustedText` fallback. See PLAN QUESTION 2.
+- **`HOST_SOURCE`'s literals** — `grep -rn '"host"' crates/*/src`:
+  production code: `Stimulus::event` (`wire.rs`); `envelope.rs`' `envelope`
+  (`if source == "host"`); **`AtFault`'s `Display` in
+  `goad_semantics::error`** (`Self::Host => "host"`, a side, not a source —
+  PLAN QUESTION 1). Comments: `envelope.rs` (`EnvelopeFault::ReservedSource`'s
+  doc, `envelope`'s doc), `goad-shell/src/ingress/mod.rs`, `goad-emit/src/args.rs`,
+  `controller.rs` (`dispatch`'s doc). Tests: `canonical.rs`
+  (`an_evaluate_serializes_to_the_spec_s_wire_form`,
+  `every_request_kind_carries_the_version_and_a_discriminant`), `envelope.rs`
+  (`a_reserved_source_is_refused_with_every_other_field_valid`), `wire.rs`
+  (the moving Stimulus test), `goad_semantics::error`'s `mod tests` (the
+  `AtFault` table).
+- **Kind literals** — `grep -rn '"startup"\|"requested"\|"scheduled"'
+  crates/*/src`: in `crates/goad/src`, only `wire.rs` (`Stimulus`'s doc,
+  `Stimulus::kind`, the two moving tests). Elsewhere, `canonical.rs`' request
+  serialization tests only.
+- `crates/goad-semantics/src/protocol/canonical.rs`: `Event` (where
+  `Stimulus` lands beside); `FieldKind`, `NumberRange` (`min`, `max`),
+  `Alternatives::first` and its doc and `#[expect]` reason (both cite
+  `Alternatives::new` by line — see Findings), `AlternativeId::new`
+  (`pub(super)`: minted only inside `protocol`), `Timestamp`; the
+  module-level `#![deny(clippy::arithmetic_side_effects)]`; the test
+  module's helpers `alternative`, `instant`, `json`.
+- `crates/goad-boundary/tests/checks/purity.rs`:
+  `the_real_stratum_1_source_names_none_of_the_nine` (VA-2's reach);
+  `structure.rs`: `wire_rs_names_tokio_spawn_only_after_its_cfg_test_line`
+  and `the_subject_directories_are_found_and_are_not_empty` (A-V8).
+
+**Assumptions — verified now** (at 68f8ec4, by reading and grep; nothing was
+run but `just check`)
+- **A-V1 — no move makes a stratum-1 type name stratum 2 or 3 (ADR-001).**
+  `Stimulus` names `Event`, `Timestamp`, `serde_json::Value`. `Submitted`
+  names `bool`, `String`, `Finite`, `AlternativeId`, `Timestamp`,
+  `jiff::tz::Offset`. `Finite` names `f64`. `Submitted::as_drawn` reads
+  `FieldKind`, `NumberRange`, `Alternatives::first`. `HOST_SOURCE` is a
+  `&str`. Every one is stratum 1 or a stratum-1 dependency. The arrows that
+  remain point down: `goad` (3) names `Stimulus`, `Submitted`, `Finite`;
+  `envelope.rs` (2) names `HOST_SOURCE` and already imports
+  `goad_semantics::protocol::canonical::{Event, Timestamp}`. The one upward
+  reference is prose: see Findings, *`Finite`'s doc names stratum 3*.
+- **A-V2 — no feature is needed (VA-1, POL-001's residue).** Stratum 1 takes
+  `jiff` with `default-features = false` (workspace `Cargo.toml`). Read in the
+  locked `jiff` 0.2.35 source: `Timestamp::display_with_offset`,
+  `tz::Offset`, `Offset::constant`, `Offset::UTC`,
+  `Timestamp::UNIX_EPOCH` carry no `cfg` gate. `serde_json::Value::from(f64)`
+  is unconditional. `canonical.rs` already formats a `Timestamp` through
+  `Display` (`impl Serialize for Timestamp`).
+- **A-V3 — `goad-boundary`'s instruments reach the new code.** The purity
+  scan's `Scan` in `the_real_stratum_1_source_names_none_of_the_nine` walks
+  `crates/goad-semantics/src` recursively, excluding only directories named
+  `tests` and `target`; `canonical.rs` is under it and already scanned. The
+  vocabulary scan walks every workspace member. The manifest allowlist's
+  `STRATUM_1` is `jiff`, `serde`, `serde_json`, and no manifest changes. The
+  crate edge is Cargo resolution. `cargo test -p goad-semantics` is in the
+  gate. Landing in `canonical.rs` (EX-1, EX-2 name it) creates no file, so
+  VA-2's planted-breach arm does not fire.
+- **A-V4 — `FieldKind` can be rebuilt in `goad`.** It is a `pub enum` with no
+  `#[non_exhaustive]`, so `FieldKind::Number(range)` and `FieldKind::Choice {
+  alternatives }` are constructible outside the crate. `NumberRange` is
+  `Copy`; `Alternatives` is `Clone`.
+- **A-V5 — `goad` cannot mint an `AlternativeId`.** `AlternativeId::new` is
+  `pub(super)`. So EX-4's literal expectation (`"first"`) must be compared
+  through `AlternativeId::as_str` (or `submitted` to JSON), not by
+  constructing `Edited::Chosen(AlternativeId)`. VT-3 and VT-4 in `goad` take
+  their ids off a normalized view, as `draft.rs`' `an_alternative_id` and
+  `view_model.rs`' `a_choice` already do. Inside `canonical.rs`' `mod tests`
+  the moved value tests can mint one (`alternative`).
+- **A-V6 — `draft.rs` imports nothing from `view_model` today** (its `use`
+  lines: `goad_semantics::protocol::canonical`, `jiff::tz::Offset`). EX-3
+  holds it.
+- **A-V7 — EX-1's literal rule is satisfiable.** Every `"startup"`,
+  `"requested"`, `"scheduled"` in `crates/goad/src` is in `wire.rs`, in what
+  moves (Kind literals above).
+- **A-V8 — `goad-boundary`'s structure checks survive the move.**
+  `wire_rs_names_tokio_spawn_only_after_its_cfg_test_line` needs `wire.rs` to
+  name `tokio::spawn` after its `#[cfg(test)]`: it is in
+  `stopped_does_not_resolve_until_stop_is_called`, which stays.
+  `the_subject_directories_are_found_and_are_not_empty`'s floor for
+  `crates/goad/src` is 1000 production lines against roughly 1900 measured;
+  the move takes out well under a hundred.
+- **A-V9 — `glass.rs` needs no edit.** It names `Edited` and `DrawnKind` but
+  not `Stimulus`, `Finite` or `first`; its `DrawnKind::Choice` patterns use
+  `..`.
+- **A-V10 — `fields.rs` holds the canon-cited R-57/R-58 cases**
+  (`every_untouched_kind_leaves_the_host_with_the_json_type_r57_names`,
+  `every_operated_kind_leaves_the_host_with_the_json_type_r57_names`,
+  `an_untouched_datetime_reads_not_set_on_screen_and_submits_the_epoch`,
+  `choosing_an_alternative_submits_its_id_where_the_field_id_is_the_options_own`,
+  `an_unbounded_number_submits_what_was_typed_and_invents_no_range`,
+  `a_field_id_shared_by_two_options_is_two_keys_and_only_the_answered_ones_are_sent`),
+  each found once by `grep -c "fn <name>"`. It imports no `Stimulus`, so
+  EX-4's *unchanged* means no diff to the file at all.
+- **A-V11 — `goad` still needs `serde_json` after the move** (EX-5 rewrites
+  the comment, it does not drop the dependency): `draft::submitted` returns
+  `serde_json::Value`; `view_model.rs`' `Run::of` matches
+  `serde_json::Value::String` on a hint; the tests build documents with
+  `serde_json::json!`.
+
+**Assumptions — first tested by this phase**
+- **A-T1 — the moved tests compile unchanged in `canonical.rs`.** Lints are
+  workspace-wide, so the same `clippy.toml` test allowances apply; the
+  module's own `arithmetic_side_effects` deny is the one difference.
+- **A-T2 — every new case can be made red by a compiling stub** (`todo!()` in
+  `Submitted::to_json`, `Submitted::as_drawn`, `Edited::submitted`,
+  `as_edited`), per PHASE-01's *Learned*. The moved cases have no red: a move
+  of a passing case is green on arrival, and the move is the refactor of
+  existing behaviour, not new behaviour. The tasks record each moved case as
+  *moved, green*.
+- **A-T3 — the renderer tier sees no change** (EX-4): the delegated
+  `view_model::as_drawn` returns, for every `DrawnKind`, the `Edited` it
+  returns today, including `Adjusted`'s text spelled by `spelled`.
+- **A-T4 — `Stimulus` needs no `Serialize`/`Eq` beyond its derives today**
+  (`Debug, Clone, Copy, PartialEq, Eq`), and `Submitted` needs `Debug,
+  Clone, PartialEq` (no `Eq`: it carries a `Finite`).
+
+**STOP conditions** (consult the user; do not improvise)
+- From `plan.md` PHASE-02 Notes (quoted): *"`clippy::pub_use` is denied:
+  `goad` imports from `goad_semantics`, no re-export."* A `pub use` anywhere
+  to keep an old path alive is a STOP.
+- (quoted) *"`DrawnKind` is deliberately not `FieldKind` (its own doc, D10).
+  Do not make it one."* Replacing `DrawnKind` with `FieldKind`, or carrying a
+  `FieldKind` inside it, is a STOP.
+- (quoted) *"`DrawnKind::Choice.first` goes in the refactor step, after the
+  delegation is green (PL-3)."* Removing it before is an ordering breach, not
+  a STOP; record it.
+- From `design.md` §5.2.4: `as_edited` is private to `view_model.rs` and
+  *"not a crate-wide `From` impl"*. A `From<Submitted> for Edited`, or the
+  conversion anywhere but beside `adjusted`, is a STOP.
+- `draft.rs` gaining any `use crate::view_model` (EX-3).
+- Any dependency or feature change, in any manifest (VA-1; POL-001's
+  residue). A clippy or compile error that seems to need one is a STOP.
+- A new file under `crates/goad-semantics/src`. EX-1 and EX-2 name
+  `canonical.rs`; VA-2's reach proof then applies, but the placement itself
+  departs from the plan.
+- `crates/goad/tests/renderer/fields.rs` needing any edit, or any
+  renderer-tier case going red (EX-4). That is a behaviour change.
+- A test name differing from `design.md` §9 or `canon-delta.md`: update
+  `canon-delta.md` in the same commit and say so here (*Test names are
+  commitments*). Not a STOP, but never silent.
+- A file outside **Surfaces**.
+- [!] **PLAN QUESTION 1** unanswered when EX-6's grep is recorded.
+- [!] **PLAN QUESTION 2** unanswered when the delegation task starts.
+- [!] **PLAN QUESTION 3** unanswered when the value tests move.
+
+**Tasks** — the plan gives no red-first order for this phase beyond PL-3's
+placement of EX-7. The order below makes every new case red by a compiling
+stub before its body (A-T2), and puts each move before the code that depends
+on it.
+
+- [ ] Set PHASE-02 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline`; it must be 68f8ec4 or a descendant whose
+      only changes since are this sheet and whatever the PLAN QUESTIONs'
+      resolutions amended.
+- **1. `Stimulus` and `HOST_SOURCE` (EX-1, EX-5, EX-6, VT-1)**
+  - [ ] Move `Stimulus`, `Stimulus::kind`, `Stimulus::event` into
+        `canonical.rs` beside `Event` (in the *Outbound: requests* section,
+        after `Alternatives`, so no line citation above it moves — Findings).
+        EX-1 (quoted): *"`kind` and `event` unchanged"*. `Stimulus::event`'s
+        doc cites `Event` by symbol, not `canonical.rs:490-497` (EX-5).
+  - [ ] VT-1: move `a_scheduled_stimulus_names_itself_scheduled` and
+        `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`
+        *"verbatim"* into `canonical.rs`' `mod tests` (its `instant` helper
+        has the same shape). Drop `wire.rs`' now-unused test imports. Moved,
+        green (A-T2).
+  - [ ] Every caller imports `goad_semantics::protocol::canonical::Stimulus`:
+        `main.rs`, `install.rs`, `controller.rs`, and the test files
+        listed in the reading list. `wire.rs` drops `Event`, `Timestamp` and
+        `serde_json::Value` from its production imports if nothing else uses
+        them.
+  - [ ] EX-6: `pub const HOST_SOURCE: &str` beside `Stimulus`;
+        `Stimulus::event` writes `HOST_SOURCE.to_owned()`; `envelope.rs`'
+        `envelope` compares `source == HOST_SOURCE`. Tests keep `"host"`
+        (quoted: *"they witness the wire spelling, and are not a second
+        encoding of it"*).
+  - [ ] EX-1's grep: `grep -rn '"startup"\|"requested"\|"scheduled"'
+        crates/goad/src` — no hit. Record it.
+  - [!] EX-6's grep (quoted command): `grep -rn '"host"' crates/*/src`, each
+        hit read and recorded as a comment or a test. **It cannot come out
+        as worded** — PLAN QUESTION 1. Record every hit regardless.
+- **2. `Finite` and `Submitted::to_json` (EX-2, VT-2's value half)**
+  - [ ] Move `Finite` into `canonical.rs` *"unchanged, together with its doc
+        on why it has no `Eq`"* (`design.md` §5.2.4; see Findings on that
+        doc). `goad`'s users import it from `goad_semantics`.
+  - [ ] Declare `Submitted` — quoted: *"`Boolean(bool)`, `Text(String)`,
+        `Number(Finite)`, `Choice(AlternativeId)`, and `DateTime { instant:
+        Timestamp, offset: Offset }`"* — and `Submitted::to_json(&self) ->
+        serde_json::Value` with a `todo!()` body.
+  - [!] Move `draft.rs`' value tests into `canonical.rs` against
+        `Submitted`, and write `every_submitted_kind_writes_the_json_type_r57_names`
+        — which of the moved cases it is, if any, is PLAN QUESTION 3.
+        `a_finite_refuses_every_number_json_cannot_carry` moves with
+        `Finite` and is green on arrival. See the rest red against the stub.
+  - [ ] `Submitted::to_json`'s body is today's `draft::submitted` body over
+        `Submitted` (`design.md` §5.2.4), its comments moved with their
+        arms. Green.
+- **3. The projection (EX-2, VT-3)**
+  - [ ] `Edited::submitted(&self) -> Submitted` with a `todo!()` body; write
+        `the_projection_to_submitted_is_the_identity_on_each_kind` in
+        `draft.rs` — each `Edited` variant against the `Submitted` it
+        projects to, `Adjusted`'s text dropped (ids off `an_alternative_id`,
+        A-V5). Red.
+  - [ ] Implement it, deciding no JSON type. `draft::submitted` becomes
+        (quoted) *"`edited.submitted().to_json()`"*. Green; renderer tier
+        green.
+- **4. `Submitted::as_drawn` (EX-3's first half, VT-2's as-drawn half)**
+  - [ ] `Submitted::as_drawn(&FieldKind) -> Submitted` with a `todo!()`
+        body; write `an_as_drawn_choice_submits_the_first_alternative` and a
+        sibling per kind (quoted: *"including the `number` min-or-zero and
+        `datetime` epoch cases"*; the `max: -10`, no-`min` case is §5.5's
+        edge and belongs here). Each expectation is a literal from the
+        fixture or §5.2.4's list, never the expression the code computes
+        (*tests-asserting-proxies*). Red.
+  - [ ] Implement: *"`false`, `""`, the minimum or `0`, the first
+        alternative, and the epoch at `+00:00`"*, the choice arm over
+        `Alternatives::first` (F-25). Green.
+- **5. The delegation (EX-3, VT-4)**
+  - [ ] Private `as_edited(Submitted) -> Edited` beside `adjusted`, with a
+        `todo!()` body; write
+        `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`
+        in `view_model.rs`' tests. Red.
+  - [ ] Implement, spelling a number *"through `adjusted`"*. Green.
+  - [ ] `view_model::as_drawn` keeps its signature and delegates: rebuild the
+        `FieldKind` from the `DrawnKind`, call `Submitted::as_drawn`, convert
+        through `as_edited`. `as_drawn_answers_every_kind`,
+        `an_untouched_field_submits_what_canon_delta_cd_1_states` and the
+        renderer tier green unchanged.
+  - [!] `interpret`'s untouched-number fallback, and with it
+        `drawn_number` — PLAN QUESTION 2.
+- **Refactor**
+  - [ ] EX-7 (PL-3): `DrawnKind::Choice` loses `first` and *"its stale doc
+        goes with it"*. `drawn_form`'s `Choice` arm and its comment (which
+        argues for cloning `first`) follow; so does any doc that still says
+        the kind carries the first id (`grep -n 'first' view_model.rs`).
+  - [ ] EX-4 (quoted): *"the helper `a_choice` drops `first`, and
+        `as_drawn_answers_every_kind`'s choice expectation becomes the
+        fixture's literal alternative id, `"first"` — not
+        `alternatives.first()`"*. Compared through `as_str` (A-V5). No other
+        `as_drawn` or `untouched` test changes.
+  - [ ] Docs made true by the move, by symbol: `draft.rs`' module doc
+        (*"`submitted` is the single application of `SPEC-001/R-57`"*),
+        `Edited`'s doc (*"the only thing `submitted` maps"*),
+        `draft::submitted`'s doc (the site that breaks on a new protocol kind
+        is now `Submitted::as_drawn`'s match too, per Change 4); `adjusted`'s
+        doc names its callers as they now are. `wire.rs`' `Command` doc
+        still reads true.
+  - [ ] EX-5: `crates/goad/Cargo.toml`'s comment no longer names
+        `Stimulus::event` among `goad`'s reasons for `serde_json` (A-V11 has
+        the reasons that remain).
+  - [ ] Read the diff for a second statement of any value the phase moved:
+        a kind string, a JSON type choice, an untouched value, `"host"`.
+- **Verification**
+  - [ ] EX-3's structural half: `grep -n 'use crate::view_model'
+        crates/goad/src/draft.rs` — no hit; `untouched` still calls
+        `as_drawn` for every kind but `datetime`.
+  - [ ] EX-4: `git diff --stat 68f8ec4 -- crates/goad/tests/renderer/fields.rs`
+        empty; renderer tier green.
+  - [ ] VA-1 (quoted): *"`cargo test -p goad-semantics` (the gate's stratum-1
+        command) builds the moved code with stratum 1's own features; no
+        feature was added to a dependency shared with stratum 1 (POL-001's
+        residue)."* Record the command's result and `git diff 68f8ec4 --
+        '*Cargo.toml'` (EX-5's comment only).
+  - [ ] VA-2 (quoted): *"If they land in `canonical.rs`, record that no new
+        file was created."* `git diff --stat --diff-filter=A 68f8ec4 --
+        crates/goad-semantics/src` empty. If not empty, mutation table row 1.
+  - [ ] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Changes 3–4's test names
+        resolve."* `grep -c "fn <name>"` in the file each change places it:
+        `canonical.rs` — `a_scheduled_stimulus_names_itself_scheduled`,
+        `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`,
+        `every_submitted_kind_writes_the_json_type_r57_names`; `draft.rs` —
+        `the_projection_to_submitted_is_the_identity_on_each_kind`;
+        `crates/goad/tests/renderer/fields.rs` — Change 4's cases (A-V10).
+        Change 3's `goad-check` names are PHASE-04's and PHASE-12's. A name
+        that differs is updated in `canon-delta.md` in the same commit.
+  - [ ] `design.md` §9's PHASE-02 names, by the same grep:
+        `an_as_drawn_choice_submits_the_first_alternative`,
+        `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`;
+        record the siblings' shipped names.
+  - [ ] Optional mutation rows (below); none is a plan criterion.
+  - [ ] `just check` exits 0 on the final commit. Record it.
+  - [ ] §Status: PHASE-02 `done`, with the date.
+  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad and back, never `git checkout`/`git stash`; `--no-fail-fast`;
+`git status` clean after each restore; a mutation that does not compile is not
+evidence). The plan's VA items name one planted breach, and only
+conditionally; the rows marked optional are offered because no VA item
+otherwise shows a new case can fail.
+
+| edit | cases it must red | compiled? | redded |
+|---|---|---|---|
+| VA-2, **only if a new file was created under `crates/goad-semantics/src`**: a `std::fs` call planted in that file, in code that compiles (e.g. `let _ = std::fs::metadata(".");` in a function body) | `the_real_stratum_1_source_names_none_of_the_nine`. Compilable as worded: `std::fs` resolves in stratum 1, which is why the scan exists. If no file was created, this row reads *not applicable*, with VA-2's record. | | |
+| optional: `Submitted::to_json`'s `Number` arm writes `Value::String(number.get().to_string())` | `every_submitted_kind_writes_the_json_type_r57_names`; through `draft::submitted`, `an_untouched_field_submits_what_canon_delta_cd_1_states` and the renderer tier's `every_untouched_kind_leaves_the_host_with_the_json_type_r57_names` | | |
+| optional: `Submitted::as_drawn`'s `Choice` arm takes the last alternative (`alternatives.as_slice().last()`, falling back to `first()` to stay total) | `an_as_drawn_choice_submits_the_first_alternative`; `as_drawn_answers_every_kind` after EX-4 — the case EX-4's literal exists to make fail; `an_untouched_field_submits_what_canon_delta_cd_1_states` | | |
+| optional, expected **not** to red: `as_edited`'s number arm builds `Edited::Adjusted { text: number.get().to_string(), number }`, bypassing `adjusted` | none expected: VT-4's round trip discards the text, and every spelled number in the tests is under 24 characters, where `spelled` and `to_string` agree. Recording it shows EX-3's *"through `adjusted`"* is held by review | | |
+
+**Decisions taken during execution**
+<!-- Small and local: how, within what the design already settled. A choice that
+     changes the design is not one of these — stop, consult the user, and record
+     it in `design-log.md`. -->
+
+**Findings**
+<!-- Things noticed in passing that are not this phase's job: a defect
+     elsewhere, drift from the design, a surprise. Defects in this phase's own
+     work get fixed, not recorded. These feed the audit; the ones that outlive
+     the slice become Follow-ups. -->
+
+- **PLAN QUESTION 1 — EX-6's `"host"` rule cannot be met as worded.** EX-6
+  says *"Outside comments and `#[cfg(test)]` modules, no `"host"` string
+  literal remains in `crates/*/src` … each hit read and recorded as a comment
+  or a test."* Production hits remain by construction, and none is a
+  comment or a test:
+  - `HOST_SOURCE`'s own definition, `pub const HOST_SOURCE: &str = "host";`,
+    which EX-6 itself creates.
+  - `AtFault`'s `Display` in `goad_semantics::error` (`Self::Host =>
+    "host"`), which PHASE-01/EX-1 requires. It is the side word a report
+    prints, not the reserved source, and routing it through `HOST_SOURCE`
+    would couple two meanings that happen to share a spelling.
+  Review F-9 scoped the rule before PHASE-01 added `AtFault`'s `Display`,
+  and did not consider the constant's own line. Options: (a) EX-6 records
+  each hit as a comment, a test, *`HOST_SOURCE`'s definition*, or *`AtFault`'s
+  side word*, and nothing else; (b) (a) without the `AtFault` exception, by
+  changing `AtFault`'s printed form — a PHASE-01 and §5.2.3 change, not
+  recommended. **Recommendation: (a).** PHASE-12's I-1 grep is over
+  `crates/goad-check/src` only and is unaffected.
+- **PLAN QUESTION 2 — `interpret` restates the untouched number.**
+  EX-3 says *"`Submitted::as_drawn` is the one statement of the untouched-value
+  policy"*. `drawn_number` (min-or-zero, with the doc that states the
+  `max: -10` consequence) has two callers: `as_drawn`'s number arm, which the
+  delegation replaces, and `interpret`'s `Reported::AdjustedText` fallback for
+  an untouched field (*"the number it was drawn showing"*, held by
+  `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing`). If
+  `drawn_number` stays for `interpret`, the policy is stated twice; neither
+  the design nor the plan names it. Options:
+  (a) `interpret` derives the fallback from `as_drawn(kind)` through
+  `held_number`, with a `Finite::ZERO` default for the `None` the types cannot
+  rule out but that cannot occur; `drawn_number` is deleted. No new API; the
+  dead default follows `drawn_number`'s own precedent (*"a total expression is
+  cheaper than an argument"*), and no behaviour reads it.
+  (b) Stratum 1 exposes the number half as one public function (e.g. on
+  `NumberRange` or `Finite`) that `Submitted::as_drawn`'s number arm and
+  `interpret` both call. Total, no dead default, but new stratum-1 API that
+  §5.2.4 does not list — a design change.
+  (c) Keep `drawn_number` for `interpret` and narrow EX-3 to *what is
+  submitted*. Two statements of one rule.
+  **Recommendation: (a)** — no design change, one statement, and
+  `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing`
+  holds it unchanged.
+- **PLAN QUESTION 3 — is `every_submitted_kind_writes_the_json_type_r57_names`
+  a new case or the moved `each_kind_submits_the_json_type_r_57_names`?**
+  VT-2 names both *"`every_submitted_kind_writes_the_json_type_r57_names`"*
+  and *"`draft.rs`' value tests moved … and the rest of that group"*. The rest
+  of that group is `each_kind_submits_the_json_type_r_57_names`, which
+  asserts the JSON type of every kind but `boolean`; `canon-delta.md` Change 4 cites only
+  the new name. Moving both would assert the same types twice. Options:
+  (a) the moved case is renamed `every_submitted_kind_writes_the_json_type_r57_names`
+  and gains the `boolean` clause so *every* is true;
+  `a_boolean_field_submits_a_json_boolean` moves verbatim as the
+  both-directions case SPEC-001's row has cited; (b) both, as worded.
+  **Recommendation: (a)** — the name canon will cite covers every variant,
+  and nothing is asserted twice. A test-name decision, so the user's.
+- **`Finite`'s doc names stratum 3.** It argues the private field from
+  *"`Controller::edit` is public"*, and the missing `Eq` from the derives on
+  `Edited` and `wire.rs`' `Command`. §5.2.4 says it moves *"unchanged,
+  together with its doc"*. In `canonical.rs` that is a stratum-1 doc citing
+  stratum-3 symbols. No instrument reads it (the crate edge is Cargo
+  resolution), and the argument stays true. The executor may keep it verbatim
+  as designed; noted for audit, with the alternative of restating the reasons
+  as *both writers* (the renderer and the checker).
+- **Line citations in `canonical.rs` already break the symbol rule.**
+  `Alternatives::first`'s doc and its `#[expect]` reason cite
+  `Alternatives::new` as *":361"*, *":362-364"* and *"twenty lines above"*;
+  `Stimulus::event`'s doc cites *"`canonical.rs:490-497`"*, already wrong
+  (`Event` has moved since). EX-5 covers the second. Placing the new items
+  after `Alternatives` keeps the first set from rotting further; converting
+  them to symbol citations is in a surface file and is the refactor step's
+  call.
+- **`canon-delta.md` Change 3 does not mention `HOST_SOURCE`.** Its emission
+  sentence becomes *"`Stimulus::event` the one place it is built"*, still
+  true; the reserved spelling then has a name the row could cite. Test names
+  only are this phase's to edit, so noted for audit.
+
+**Exit — the gate.** *(Executor: record `just check` on the phase's final
+commit.)*
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
