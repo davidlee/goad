@@ -1306,6 +1306,564 @@ build, both test tiers (679 passed, 0 failed, summed over every `test
 result` line), `deno check`, clippy with no warning, `cargo fmt --all
 --check`.
 
+### PHASE-03 — the ground the checker stands on
+
+**Written by a phase-sheet agent, not the executor**, at 1e86bde (*012
+PHASE-02: verification, mutation evidence and harvest*). This sheet is the
+plan's second reading. Where it restates a plan criterion it quotes it. It
+repairs nothing: what reads as wrong in the plan is under **Findings** as a
+PLAN QUESTION, and the tasks it blocks are marked `[!]`.
+
+**Objective** (quoted, `plan.md` PHASE-03): *the exercisers are renamed and
+no longer read as the file to copy, `goad-emit` exits 2 when its answer
+cannot be written, and `config::Command::from_argv` is public.*
+
+The objective names three of the phase's four parts. The fourth,
+`version_line` in one home (EX-8, `plan-log.md` PL-7), is as binding.
+
+**Entry**
+- **EN-1** (quoted): *"PHASE-02 done (PHASE-01..PHASE-03 run in sequence,
+  §Sequencing)."* **Discharged 2026-10-01 at 1e86bde.** §Status has PHASE-02
+  `done`. `just check` exited 0: build, both test tiers (679 passed, 0
+  failed, summed over every `test result` line; PHASE-02's exit count),
+  `deno check`, clippy with no warning, `cargo fmt --all --check`. `just -n
+  check` printed POL-001 §Compliance's block verbatim (the VA-1 baseline).
+
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- `examples/` → `exercisers/` (`git mv`): `shell/backend.sh`,
+  `typescript/{backend.ts,README.md}`, `demo.toml`. The moved files'
+  contents are surfaces: EX-1 rewrites each header, and EX-2 needs their
+  own `examples/` mentions gone.
+- Every site in `design.md` §5.2.7's rename table except POL-001 (audit) and
+  README's kit line (PHASE-05): `exercisers/demo.toml`,
+  `exercisers/typescript/README.md`, `justfile` (`typecheck`, `demo`),
+  `crates/goad-shell/tests/integration/{harness.rs, round_trip.rs}`,
+  `README.md` (the `just demo` paragraph), `.gitignore` and `flake.nix`
+  (comments), `docs/roadmap.md`, and the `docs/memory/` files the table names
+  (`a-backend-exchange-has-no-useful-duration`, `deno-run-does-not-typecheck`,
+  `path-flake-ref-breaks-on-demo-socket`, `cite-requirements-not-finding-ids`).
+- `crates/goad-emit/src/main.rs`, `crates/goad-emit/tests/binary/exchange.rs`.
+- `crates/goad-shell/src/config.rs`: *"`from_argv`'s and `unsigned`'s
+  visibility, and the `Command` doc, PL-1"*.
+- `version_line`'s homes: *"`crates/goad-shell/src/report.rs`,
+  `crates/goad/src/diagnostics.rs`, `crates/goad-emit/src/render.rs` and
+  their callers, PL-7"*. The callers are `goad`'s `diagnostics::print_version`
+  (in `diagnostics.rs`) and `goad-emit`'s `main`. `goad`'s `main.rs` names
+  `version_line` in a comment only; it calls `print_version`, which stays.
+- `docs/slices/012/canon-delta.md` — *"test names only"*.
+- `docs/slices/012/notes.md` — this sheet, §Status, §Harvest (bookkeeping,
+  `docs/AGENTS.md` §Execute).
+
+Not surfaces, and so a STOP if the work seems to need them: any canon
+document, POL-001 included; `docs/brief.md`; closed slices' docs; any
+`Cargo.toml`; `crates/goad-shell/src/lib.rs`; `tests/support/`;
+`crates/goad-emit/tests/binary/main.rs`; `crates/goad/tests/binary/process.rs`;
+and, pending **PLAN QUESTION 1**, `crates/goad/src/startup.rs` and
+`crates/goad/tests/binary/main.rs`.
+
+**Reading list** (by symbol; `grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md` — §Overview's first paragraph (`just check` is
+  every phase's last exit); *Owed to audit and close* (POL-001 Change 1 ends
+  EX-3's departure); *Test names are commitments*; *Mutation evidence* and
+  *Invariant reads* under §Sequencing & rationale; §PHASE-03 whole. I-1 and
+  I-2 read `crates/goad-check`, which does not exist yet: neither applies here.
+- `docs/slices/012/design.md` §5.2.1 (the *Argv form* bullet, its
+  *Opportunity* sub-bullet, and the `--timeout` sub-bullet); §5.2.5's last
+  paragraph, *`goad-emit`'s unwritten answer*; §5.2.7 whole; §9 *`goad-emit`*
+  and *Shared test support*.
+- `docs/slices/012/design-log.md` 2026-10-01 *two gaps the plan draft found
+  (G1, G2)* — G2 only.
+- `docs/slices/012/plan-log.md` 2026-10-01 *placements the plan draft put to
+  the user*, PL-1, PL-4 and PL-7; *plan review round 1: dispositions*, F-17
+  (supersedes PL-4's rationale: the recipe departs from POL-001 §Statement
+  mid-slice because canon is not edited mid-slice).
+- `docs/slices/012/canon-delta.md` SPEC-004 Change 3 (R-8..R-10, R-14),
+  Change 5 (the R-8..R-10 and R-14 rows, which name
+  `exchange.rs::an_answer_that_cannot_be_written_exits_2` and the existing
+  `help_…` and `version_…` cases); POL-001 Change 1 (the line the recipe
+  will carry, less the kit path).
+- `docs/policy/001-the-phase-gate.md` §Statement and §Compliance.
+- Prior art: `crates/goad/tests/binary/exit_codes.rs`
+  `an_answer_that_cannot_be_written_exits_2` (VT-1's model) and
+  `crates/goad/tests/binary/process.rs` `goad_with_stdout_full` (the
+  `/dev/full` spawn); `goad`'s `run` (`main.rs`), whose `Launch::Help` and
+  `Launch::Version` arms map a write failure to
+  `StartupError::AnswerUnwritten`; `goad_shell::report::{line_to,
+  try_line_to}` and their docs. `docs/memory/` — *negative-control-must-compile*,
+  *tests-asserting-proxies*, *mutation-check-the-coverage-claim*,
+  *gui-launch-needs-a-pipe*, *hand-over-the-steps-not-the-pointer*. §Harvest
+  *Learned*: a `todo!()` stub is a compiling red for a method, with ignored
+  parameters spelled `_name`; run an exit grep before naming new tests.
+
+*The rename's referencing sites.* Found at 1e86bde by `git grep -n
+'examples/' -- ':!docs/slices' ':!docs/brief.md'` (EX-2's own command), then
+`git grep -n 'examples/' -- docs/slices/012` and `git grep -n 'examples' --
+':!docs/slices' ':!docs/brief.md'` for the bare word. Each hit read.
+
+| site (by symbol or passage) | in Surfaces? |
+|---|---|
+| `examples/demo.toml`: `[backend] command` | yes (the moved file) |
+| `examples/shell/backend.sh`: the header (*"the config names `["bash", "examples/shell/backend.sh"]`"*; *"Unlike `examples/typescript/backend.ts`"*) and the comment above the `GOAD_DEMO_DELAY` sleep (*"`examples/demo.toml` sets that bound"*) | yes (the moved file) |
+| `examples/typescript/README.md`: the fenced `toml` block's `command` | yes |
+| `examples/typescript/backend.ts`: the header's *"`deno check examples/typescript/backend.ts`"* | yes (the moved file) |
+| `justfile`: `typecheck`'s command; `demo`'s argument | yes |
+| `crates/goad-shell/tests/integration/harness.rs`: `example`'s doc and its `CARGO_MANIFEST_DIR` join | yes |
+| `crates/goad-shell/tests/integration/round_trip.rs`: `the_readme_s_own_config_loads_and_runs_the_example`'s `include_str!`; `shell_example`'s doc and its `CARGO_MANIFEST_DIR` join | yes |
+| `README.md`: the *Try it* paragraph under `just demo` | yes |
+| `.gitignore`: the comment above `/goad-demo.sock` | yes |
+| `flake.nix`: the `goadShot` usage comment | yes |
+| `docs/roadmap.md`: the *"`just demo` starts it against …"* sentence | yes |
+| `docs/memory/a-backend-exchange-has-no-useful-duration.md`: *The fact* table | yes |
+| `docs/memory/deno-run-does-not-typecheck.md`: *Why it matters here* | yes |
+| `docs/memory/path-flake-ref-breaks-on-demo-socket.md`: *The fact* and *Why* | yes |
+| `docs/memory/cite-requirements-not-finding-ids.md`: *The rule* (`examples/` as a directory) | yes |
+| `docs/policy/001-the-phase-gate.md` §Compliance's `deno check` line | **no** — audit's (POL-001 Change 1); EX-2's one expected hit |
+| `docs/brief.md` | excluded by EX-2's pathspec; unchanged (§5.2.7) |
+| `docs/slices/012/` — `slice-012.md`, `design.md`, `design-log.md`, `plan.md`, `canon-delta.md`, `research.md`, `review-design.md`, `review-plan.md`, `notes.md` (`git grep -l`) | excluded by EX-2's pathspec; records or working authority, not edited for the rename |
+| bare word, no path: `round_trip.rs`' test `the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers`; `docs/roadmap.md` *"the examples (moved, not copied)"*; doc prose in `normalize.rs`, `wire.rs`, a SPEC-001 sentence, a fixture's description, one memory file | not rename sites: none names the directory |
+
+No other tracked file names the directory: no `include_str!` or `env!` path
+outside the two integration files, nothing under `nix/`, no deno
+configuration.
+
+*`version_line`'s sites.* `grep -rn 'version_line\|GOAD_REVISION\|CARGO_PKG_VERSION'
+crates --include=*.rs`, each hit read:
+- Definitions: `goad::diagnostics::version_line` (`pub`, `#[must_use]`) and
+  `goad-emit`'s `render::version_line` (`pub(crate)`, `#[must_use]`). Same
+  body: `revision.filter(non-empty)`, then `"{version} ({revision})"` or the
+  bare version, the version from `env!("CARGO_PKG_VERSION")`.
+- Unit tests, the same three names in each file's `mod tests`:
+  `a_stamped_build_names_its_revision_beside_the_version`,
+  `an_unstamped_build_says_only_the_version`,
+  `a_build_stamped_with_an_empty_revision_is_an_unstamped_build`.
+- Callers: `diagnostics::print_version` (passes `revision` through, writes
+  with `try_line_to`); `goad-emit`'s `main`, `Invocation::Version` arm
+  (`option_env!("GOAD_REVISION")`, written with `to_stdout`).
+- Prose naming it: `diagnostics.rs`' module doc (*"006/PHASE-03 adds
+  `version_line` and `print_version`"*); `goad`'s `run` (`main.rs`) comment
+  in `Launch::Version`; `goad-emit` `main`'s comment in `Invocation::Version`;
+  `render::version_line`'s doc (*"the two are separate because stratum 3 has
+  two binaries and no shared crate"* — the claim the lift ends); **outside
+  Surfaces:** `goad`'s `startup.rs` `arguments` doc table (an intra-doc link
+  to `crate::diagnostics::version_line`) and
+  `crates/goad/tests/binary/main.rs`' module doc (*"`diagnostics.rs`'s own
+  unit case is the real assertion"*). PLAN QUESTION 1.
+- Binary cases (VT-4): `goad`'s
+  `version::version_prints_the_package_version_on_stdout_and_exits_0`
+  (`crates/goad/tests/binary/version.rs`) and `goad-emit`'s
+  `exchange::version_prints_the_package_version_on_stdout_and_exits_0`. Each
+  compares stdout with the test crate's own `env!("CARGO_PKG_VERSION")`.
+- No canon document cites any of the above (`grep` over `docs/specs`,
+  `docs/policy`, `docs/adr`, `docs/memory`, `docs/follow-ups.md`).
+
+*`config.rs`.* `Command` (its doc, `Command::new`, private `from_argv`);
+`Config::parse` (the only caller of `from_argv` and `unsigned`); `signed`
+(the grammar and positivity check) and `unsigned` (`signed`, then the
+conversion to `std::time::Duration`); `mod tests`
+`a_zero_timeout_is_rejected_because_it_fails_every_exchange`,
+`a_negative_duration_is_rejected_as_non_positive`,
+`an_empty_command_is_rejected_because_there_is_nothing_to_spawn`.
+`goad_shell::error::ConfigError::{Duration, NonPositive}`.
+
+*`goad-emit`.* `main` (its `Invocation::Help` and `Invocation::Version` arms;
+`to_stdout`, `to_stderr`); `render::USAGE`; `render`'s `*_line` functions and
+the `goad-emit: ` prefix they begin with; `exchange.rs`' module doc (*"the
+nine cases"*) and its helpers `emit`, `code_of`, `stderr_of`, `stdout_of`.
+
+**Assumptions — verified now** (at 1e86bde, by reading, grep, and the runs
+named)
+- **A-V1 — `env!("CARGO_PKG_VERSION")` expands in the crate that compiles
+  it** (PL-7). A `version_line` in `goad-shell` reading it would print
+  `goad-shell`'s version. Every member takes `version.workspace = true`, so
+  today that is `0.1.0` for all of them, the same as both binaries'. EX-8's
+  parameter is therefore correct and **no test can see it missing**
+  (Findings; mutation row 6).
+- **A-V2 — `GOAD_REVISION` is read only at the binaries' call sites**, by
+  `option_env!` at compile time: `goad`'s `run`, `Launch::Version` arm, and
+  `goad-emit`'s `main`, `Invocation::Version` arm. `flake.nix` stamps it on
+  each binary's crane derivation (`GOAD_REVISION = revision`, `revision =
+  self.shortRev or self.dirtyShortRev or ""`). Nothing in the gate sets it,
+  so every test sees `None`. *Set-but-empty is unset* is decided inside
+  `version_line` (the `filter`), and its test moves with it. The lift
+  leaves both reads where they are and passes them in, as today.
+- **A-V3 — `goad-emit` ignores a failed answer today.** Both arms write
+  through `to_stdout`, which is `report::line_to` (best effort), and return
+  `ExitCode::SUCCESS`. Measured on the gate's debug build:
+  `goad-emit --help > /dev/full` and `goad-emit --version > /dev/full` each
+  exit 0 with empty stderr. `goad --version > /dev/full` exits 2 with `goad:
+  the answer could not be written to standard output: No space left on
+  device (os error 28)`. So VT-1 is red against today's `main` on its status
+  assertion, in code that compiles.
+- **A-V4 — `config::unsigned` and `from_argv` can be made public as
+  `positive_duration` and `from_argv` without breaking a caller.** `grep -rnw
+  'from_argv\|unsigned\|positive_duration' crates --include=*.rs`: only
+  `config.rs`, where `Config::parse` calls both. No test calls either
+  directly; no other crate names them; no canon cites them. `config` is a
+  `pub mod` of `goad-shell`'s `lib.rs`, so `unreachable_pub` does not fire.
+  `unsigned` takes `key: &'static str`, which the literal `"--timeout"`
+  satisfies. Lint consequence: `clippy::pedantic` is denied workspace-wide,
+  so a `pub fn` returning `Result` needs a `# Errors` section
+  (`missing_errors_doc`); `from_argv` returns `Option` and needs none;
+  `must_use_candidate` is allowed.
+- **A-V5 — `Command::new` and the public fields stay open** (PL-1): built
+  directly by tests in `goad` (`renderer/table.rs`, `event_loop/closing.rs`),
+  `goad-shell` (`integration/transport.rs`, `harness.rs`, `round_trip.rs`,
+  `failure_matrix.rs`) and by `from_argv`.
+- **A-V6 — the rename's path semantics.**
+  - Cargo: the root manifest is virtual (no `[package]`), so a root
+    `examples/` is no package's auto-discovered examples directory. No target
+    changes.
+  - `flake.nix`: `src` keeps `craneLib.filterCargoSources` plus `.slint` and
+    `assets/`. `examples/demo.toml` passes that filter as a `.toml`, but no
+    derivation reads it and every derivation has `doCheck = false`. Only the
+    `goadShot` comment names the path.
+  - `justfile`: `typecheck` and `demo` (Reading list table).
+  - deno: no `deno.json` or lock file is tracked (`git ls-files`).
+    `backend.ts` imports nothing, so `deno check` depends only on its own
+    path.
+  - `goad-shell` integration: `include_str!("../../../../examples/…")` is
+    relative to `round_trip.rs` and resolved at compile time, so a stale path
+    is a compile error. `harness::example` and `round_trip::shell_example`
+    join `CARGO_MANIFEST_DIR` with `../../examples/…` at run time, so a stale
+    path is a failed spawn. The README's fenced `command` is relative to the
+    workspace root and rebased by `rooted_at_the_workspace`.
+  - `.gitignore`: a comment only. Its patterns are `/goad-demo.sock` and
+    `/goad-demo.sock.lock`, from `demo.toml`'s `[ingress] path`, which does
+    not change.
+  - `goad-boundary`: every scan walks `workspace.members` (`members::members`)
+    or a named crate path. `examples/` is in neither, so no instrument's reach
+    changes.
+- **A-V7 — VT-1 has a model and a helper to copy.** `exit_codes.rs`'
+  `an_answer_that_cannot_be_written_exits_2` loops over `["--help",
+  "--version"]` with `goad_with_stdout_full`, asserting status 2 and a stderr
+  prefix. `goad-emit`'s binary tier has no `/dev/full` spawn. Its helpers
+  live in `exchange.rs`, and `goad`'s `process.rs` cannot be included from
+  another crate's target without a `tests/support/` move, which is not a
+  surface. So VT-1 copies the helper into `exchange.rs` (FU-5's class,
+  Findings).
+- **A-V8 — the README's "ten-line shell backend" is a count, and false**:
+  `backend.sh` is about two hundred lines. `backend.ts`' header says *"in about
+  eighty lines"* (it is about two hundred too). VA-2 covers the first; EX-1's
+  header rewrite drops the second.
+
+**Assumptions — first tested by this phase**
+- **A-T1 — `goad-emit` on `/dev/full` fails through `try_line_to`** as `goad`
+  does: the same function, over `std::io::stdout().lock()`.
+- **A-T2 — the lifted `version_line`'s cases go red against a `todo!()`
+  body** with its parameters spelled `_version`, `_revision` (§Harvest
+  *Learned*).
+- **A-T3 — VT-2's cases going green on the new paths proves they read them.**
+  After `git mv`, nothing exists at `examples/`, so a green case cannot have
+  read the old path. VT-2 has no red of its own: the rename changes no
+  behaviour, and between the move and the path edit `round_trip.rs` does not
+  compile (`include_str!`). A compile failure is not a red.
+- **A-T4 — VT-3 has no red against the unmutated tree.** `positive_duration`
+  is `unsigned` renamed. Its refusals exist today, so the new case is green
+  on arrival. Mutation rows 3 and 4 are its evidence that it can fail.
+
+**STOP conditions** (consult the user; do not improvise)
+- From `plan.md` PHASE-03 Notes (quoted): *"`docs/brief.md` and closed
+  slices' docs are not edited (§5.2.7)."* Any edit to either is a STOP.
+- (quoted) *"The TypeScript exerciser stays; `harness.rs` and `round_trip.rs`
+  drive it."* Retiring or deleting it is a STOP.
+- Any canon edit, POL-001's block included. EX-3's departure is the plan's
+  answer to the gate breaking (F-17).
+- The kit path in the `justfile` (PHASE-06's), or README's kit line
+  (PHASE-05's).
+- `version_line` reading the build environment itself (`env!`,
+  `option_env!`) inside `goad-shell`, or a second definition left behind,
+  including a forwarding wrapper (EX-8: *"defined once"*).
+- Closing `Command::new` or `Command`'s public fields (PL-1 leaves them open).
+- Any change to what `positive_duration` accepts or refuses. It is `unsigned`
+  renamed and made public.
+- Any dependency or feature change, in any manifest. `goad-emit` already
+  depends on `goad-shell`.
+- Any existing `goad-emit`, `goad` or `goad-shell` case going red other than
+  through the moved `version_line` tests' own red step. In particular `help_…`
+  and `version_…` stay green unchanged in both binaries (VT-4).
+- A file outside **Surfaces**, including the two PLAN QUESTION 1 names while
+  it is open.
+- A test name differing from `design.md` §9 or `canon-delta.md` SPEC-004
+  Change 5. Update `canon-delta.md` in the same commit and say so here (VT-1;
+  *Test names are commitments*). Not a STOP, but never silent.
+- `git stash`, `git checkout`, `git reset`, or any history rewrite.
+
+**Tasks** — the plan gives no red-first order. In the order below, each new
+case goes red against code that compiles before its body lands. VT-2 and VT-3
+have no honest red (A-T3, A-T4). The rename lands in one commit with its
+paths, so `just check` is never red at a commit.
+
+- [ ] Set PHASE-03 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline`. It must be this sheet's commit or a
+      descendant whose only changes since are the PLAN QUESTIONs'
+      resolutions.
+- **1. `config.rs` (EX-5, EX-6, EX-7, VT-3)**
+  - [ ] Rename `unsigned` to `positive_duration` and make it `pub`, with
+        `Config::parse` calling it. Its doc names its two callers, the
+        configuration's `backend.timeout` and `goad-check`'s `--timeout`
+        (EX-6, quoted: *"its doc naming `goad-check`'s `--timeout` as its
+        second caller (`design-log.md` 2026-10-01, G2)"*), and gains `#
+        Errors` (A-V4). No behaviour change.
+  - [ ] VT-3 (quoted): *"`config.rs` unit tests: `positive_duration` refuses
+        `0s` and `-1s` under the key it is given."* Use a key no
+        configuration line uses (e.g. `"--timeout"`), and assert
+        `ConfigError::NonPositive { key }` with that literal for each.
+        Green on arrival (A-T4); record it, and record mutation rows 3 and 4
+        as its red.
+  - [ ] EX-5 (quoted): *"`config::Command::from_argv` is `pub`, with its doc
+        naming the checker's argv form as its second caller."* Keep its
+        *`None` for the empty vector and for an empty program* sentence.
+  - [ ] EX-7 (quoted): *"`config::Command`'s doc names the routes that hold
+        the empty command out (`Config::parse`, `from_argv`) and no longer
+        claims it is unrepresentable (PL-1)."* Say what still admits one
+        (`Command::new`, the public fields), since §5.2.1 *Opportunity*
+        names them.
+  - [ ] `cargo test -p goad-shell --lib config` and `cargo clippy -p
+        goad-shell --all-targets -- -D warnings` green.
+- **2. `version_line` in one home (EX-8, VT-4)**
+  - [ ] In `goad_shell::report`, `pub fn version_line(version: &str,
+        revision: Option<&str>) -> String` with a `todo!()` body (parameters
+        `_version`, `_revision`), and the three cases moved from
+        `diagnostics.rs` under their names, now passing the version as a
+        literal argument. Red: 3 failed.
+  - [ ] The body: today's, over `version` instead of
+        `env!("CARGO_PKG_VERSION")`. Green.
+  - [ ] Callers: `diagnostics::print_version` passes `goad`'s
+        `env!("CARGO_PKG_VERSION")`, and `goad-emit`'s `main` passes its own.
+        Delete `diagnostics::version_line` and `render::version_line` and
+        both sets of their cases. EX-8 (quoted): *"`goad` and `goad-emit`
+        call it, and their `--version` output is unchanged."*
+  - [ ] VT-4 (quoted): *"`goad`'s and `goad-emit`'s existing `--version`
+        cases stay green across the lift."* `cargo test -p goad --test binary`
+        and `cargo test -p goad-emit --no-fail-fast` green.
+  - [ ] EX-8's parameter is invisible to every test (A-V1), so record a read:
+        `grep -rn 'CARGO_PKG_VERSION\|GOAD_REVISION' crates/goad-shell/src`
+        finds only prose, and each binary's call site passes its own
+        `env!("CARGO_PKG_VERSION")`. Run mutation row 6.
+  - [ ] Docs made true, in Surfaces: `report.rs`' module doc (*"Not a
+        formatter … This module owns only the last step"* is false once it
+        composes the `--version` line; see Findings); the moved function's
+        doc carries the reasoning both copies held (no placeholder, no
+        prefix, *set-but-empty is unset*, the revision a parameter so the
+        rule is a test) and says why the version is a parameter too;
+        `diagnostics.rs`' module doc; the `Launch::Version` and
+        `Invocation::Version` comments, which name `render::version_line` or
+        `version_line` as where *set-but-empty* is decided.
+  - [!] `startup.rs`' `arguments` doc table and
+        `crates/goad/tests/binary/main.rs`' module doc — blocked on **PLAN
+        QUESTION 1**.
+- **3. `goad-emit`'s unwritten answer (EX-4, VT-1)**
+  - [ ] Run the exit grep first (§Harvest *Learned*): `grep -rn
+        'an_answer_that_cannot_be_written_exits_2' crates` finds only `goad`'s
+        `exit_codes.rs` case and the doc in
+        `crates/goad/tests/renderer/startup.rs` that cites it.
+  - [ ] VT-1 in `exchange.rs` (quoted): *"`an_answer_that_cannot_be_written_exits_2`
+        (`--help` and `--version`, stdout on `/dev/full`; status 2; the last
+        stderr line begins `goad-emit: `), modelled on `goad`'s
+        `exit_codes.rs` case of the same name; seen red before `main.rs`
+        changes."* Add an `emit_with_stdout_full` helper beside `emit` (A-V7).
+        Assert on the **last** line of stderr, as canon-delta's R-14 row
+        says, not on `starts_with` over the whole stream. Red: status 0 on
+        each question (A-V3). Record the failure message.
+  - [ ] The stderr line is composed in `render`, beside its siblings,
+        beginning `goad-emit: ` and interpolating the `io::Error` as its
+        siblings interpolate theirs (`format!`, `{fault}`). Spell it as `goad`'s
+        `StartupError::AnswerUnwritten` reads (*"the answer could not be
+        written to standard output: …"*). One rule for the edge (§5.2.5).
+  - [ ] `main`'s `Invocation::Help` and `Invocation::Version` arms write
+        through `report::try_line_to` on `std::io::stdout().lock()`. On `Err`,
+        write the line through `to_stderr` and return `ExitCode::from(2)`.
+        EX-4 (quoted): *"an unwritten answer exits 2 with a `goad-emit: …`
+        line on stderr."* `to_stdout` then has no caller; delete it rather
+        than leave `dead_code`. Green: VT-1, and every other `exchange.rs`
+        case unchanged.
+  - [ ] Not a `StartupFault` variant: that type is *why the envelope never
+        left*, and a question sends no envelope. A local decision; record it.
+  - [ ] `exchange.rs`' module doc says *"the nine cases"*. Replace the count
+        with what the file holds (*"the spawn helpers, the fake listener, and
+        the cases"*). Name, never count.
+  - [ ] `main`'s doc (*"Three exit codes … 2 emit got no usable answer — a
+        usage error, …"*) gains the unwritten answer among 2's causes.
+- **4. The rename (EX-1, EX-2, EX-3, VT-2, VA-1, VA-2)** — one commit.
+  - [ ] `git mv examples exercisers`.
+  - [ ] Paths: `exercisers/demo.toml` (`command = ["bash",
+        "exercisers/shell/backend.sh"]`); `exercisers/typescript/README.md`'s
+        fenced `command` (`./exercisers/typescript/backend.ts`);
+        `round_trip.rs`' `include_str!` and `shell_example`'s join;
+        `harness::example`'s join; `justfile` `demo` (`run
+        "exercisers/demo.toml"`); each moved file's own mentions (Reading
+        list table).
+  - [ ] EX-3 (quoted): *"the `justfile`'s `typecheck` is `deno check
+        exercisers/typescript/backend.ts`: `canon-delta.md` POL-001 Change
+        1's line less the kit path, which PHASE-06 adds. Its comment is true
+        of this step: it names the one exerciser it typechecks and why (`deno
+        run` does not), and says the recipe departs from POL-001's command
+        block until audit promotes POL-001 Change 1."* The comment must not
+        spell the kit example's path: it contains `examples/` and would hit
+        EX-2's grep. The `justfile` header's *"Change the policy first, then
+        mirror"* stays, and is the rule EX-3's comment says this step
+        departs from.
+  - [ ] EX-1 (quoted): *"each header says it is a host exerciser and points
+        at `kit/`; `backend.ts`' "Copy this file" and `round_trip.rs`'s "the
+        file a person copies" are gone."* `kit/` does not exist until
+        PHASE-05; the pointer is to where it will be. The other copy claims
+        are **PLAN QUESTION 2**.
+  - [ ] The remaining rename sites: `README.md`'s *Try it* paragraph,
+        `.gitignore`'s comment, `flake.nix`'s `goadShot` comment,
+        `docs/roadmap.md`'s sentence, and the four `docs/memory/` files.
+        `deno-run-does-not-typecheck` says *"as its seventh command"*. The
+        gate is six, and the sentence is edited anyway: name the command
+        instead of counting it. `cite-requirements-not-finding-ids` names
+        `examples/` as a directory of comments; it becomes `exercisers/`.
+  - [ ] VA-2 (quoted): *"the README's counts touched here are replaced by
+        names ("the ten-line shell backend")."* Also false (A-V8). Record the
+        before and after.
+  - [ ] VT-2 (quoted): *"`round_trip.rs`'s
+        `the_readme_s_own_config_loads_and_runs_the_example` and `harness.rs`'
+        deno cases are green on the new paths."* The cases that read an
+        exerciser path: `the_readme_s_own_config_loads_and_runs_the_example`,
+        `the_deno_example_completes_a_round_trip` (through
+        `harness::example`), and `round_trip.rs`' shell cases through
+        `shell_example`:
+        `the_shell_example_escapes_the_values_it_carries_into_a_view` and
+        `the_shell_examples_branch_is_the_hosts_to_decide_and_not_a_watchers`.
+        `cargo test -p goad-shell --test integration --no-fail-fast` green,
+        and `test ! -e examples` (A-T3). Record both.
+  - [ ] EX-2 (quoted): *"`git grep -n 'examples/' -- ':!docs/slices'
+        ':!docs/brief.md'` finds only POL-001's command block, which audit
+        amends."* Record the output.
+  - [ ] VA-1 (quoted): *"`just -n check` prints POL-001 §Compliance's command
+        block with its `deno check` line replaced by EX-3's, and no other
+        difference; recorded."* Diff the two and record it.
+- **Refactor**
+  - [ ] Read the diff for a second statement of anything moved: a
+        `version_line` body, a `/dev/full` spawn beyond the one copy VT-1
+        needs, an `examples/` path.
+  - [ ] `git grep -n -i 'examples' -- exercisers` and the touched docs: no
+        sentence still reads the exercisers as examples to follow.
+        `harness::example` and the `*_example*` test names may stay; renaming
+        a canon-cited test (`the_deno_example_completes_a_round_trip`, SPEC-001
+        R-53) is not this phase's.
+- **Verification**
+  - [ ] Mutation rows (below).
+  - [ ] **Canon-delta test names:** `grep -c 'fn <name>()'
+        crates/goad-emit/tests/binary/exchange.rs` is 1 for each name
+        SPEC-004 Change 5's R-8..R-10 and R-14 rows place there:
+        `an_answer_that_cannot_be_written_exits_2`,
+        `help_prints_the_usage_block_on_stdout_and_exits_0`,
+        `version_prints_the_package_version_on_stdout_and_exits_0`,
+        `an_accepted_envelope_exits_0_and_says_nothing`,
+        `a_refusal_exits_1_with_the_reason_token_on_stderr`,
+        `a_too_soon_refusal_also_shows_retry_after_ms`,
+        `a_usage_error_exits_2_before_anything_is_opened`,
+        `a_path_with_nothing_listening_exits_2_and_names_the_path`,
+        `a_reply_that_breaches_6_3_exits_2_rather_than_1`. `design.md` §9's
+        PHASE-03 name is the first. A name that differs is updated in
+        `canon-delta.md` in the same commit.
+  - [ ] `just check` exits 0 on the final commit. Record it.
+  - [ ] VH-1 (quoted): *"a person runs `just demo` on the renamed exerciser
+        and sees the window prompt, as before."* Hand the person the command
+        block, not a pointer (`docs/memory/hand-over-the-steps-not-the-pointer.md`).
+        Record what they saw. Do not launch it from the agent's shell with
+        `&` (`docs/memory/gui-launch-needs-a-pipe.md`).
+  - [ ] §Status: PHASE-03 `done`, with the date.
+  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+        §Open gains: *the `justfile`'s `typecheck` departs from POL-001
+        §Compliance until audit promotes POL-001 Change 1* (PHASE-10/VA-4
+        checks §Open carries every owed item); the `/dev/full` helper copied
+        into `exchange.rs`, by symbol, for FU-5; and whatever Findings
+        outlive the phase.
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad and back, never `git checkout` or `git stash`; `--no-fail-fast`;
+`git status` clean after each restore; a mutation that does not compile is
+not evidence). PHASE-03's VA items (VA-1, VA-2) are reads, not mutations, and
+the plan names no mutation for this phase. Every row below is offered
+because no VA item otherwise shows a new case can fail. Each row: `cargo test
+--workspace --no-fail-fast` on the mutated tree, the file restored by copying
+the scratchpad backup back, `git status --short` empty after.
+
+| edit | cases it must red | compiled? | redded |
+|---|---|---|---|
+| 1. `goad-emit` `main`, `Invocation::Help` arm: `match try_line_to(std::io::stdout().lock(), render::USAGE) { Ok(()) \| Err(_) => ExitCode::SUCCESS }` | `exchange::an_answer_that_cannot_be_written_exits_2` (its `--help` iteration) | | |
+| 2. The same for the `Invocation::Version` arm | `exchange::an_answer_that_cannot_be_written_exits_2` (its `--version` iteration). With row 1, shows each question is held, not only the first | | |
+| 3. `config.rs` `signed`: drop `resolved.is_zero() \|\|` | VT-3's `0s` clause; `a_zero_timeout_is_rejected_because_it_fails_every_exchange`; `a_zero_default_poll_is_rejected_because_it_is_a_busy_loop` | | |
+| 4. `positive_duration`'s parameter spelled `_key`, and `signed` called with `"backend.timeout"` | VT-3 only, on its key. The existing configuration cases pass `"backend.timeout"`, so they stay green | | |
+| 5. `render`'s unwritten-answer line drops its `goad-emit: ` prefix | `exchange::an_answer_that_cannot_be_written_exits_2` | | |
+| 6. expected **not** to red: the lifted `version_line` ignores `_version` and formats `env!("CARGO_PKG_VERSION")` | none expected: `goad-shell`'s version equals both binaries' (A-V1). Recording it shows EX-8's parameter is held by review and task 2's grep, not by a test | | |
+
+**Decisions taken during execution**
+<!-- Small and local: how, within what the design already settled. A choice that
+     changes the design is not one of these — stop, consult the user, and record
+     it in `design-log.md`. -->
+
+**Findings**
+<!-- Things noticed in passing that are not this phase's job: a defect
+     elsewhere, drift from the design, a surprise. Defects in this phase's own
+     work get fixed, not recorded. These feed the audit; the ones that outlive
+     the slice become Follow-ups. -->
+
+- **PLAN QUESTION 1 — two docs outside Surfaces name `version_line`'s old
+  home.** EX-8 deletes `diagnostics::version_line`. Two files name it and
+  are not *"their callers"*:
+  - `crates/goad/src/startup.rs`, `arguments`' doc table: the `--version`
+    row links `` [`crate::diagnostics::version_line`] ``. That becomes a
+    broken intra-doc link. The gate runs no `cargo doc`, so nothing reds.
+  - `crates/goad/tests/binary/main.rs`' module doc: *"`diagnostics.rs`'s own
+    unit case is the real assertion for the other branch"*. The case moves
+    to `goad_shell::report`.
+  Options: (a) add both to Surfaces as doc-only edits; (b) leave both stale
+  and record them for audit; (c) keep a `diagnostics::version_line` that
+  forwards to the lifted one. That is a second public name for one rule,
+  contrary to EX-8's *"defined once"*. **Recommendation: (a).** Each is one
+  line, and the stale form is a false statement in the tree from this commit
+  on.
+- **PLAN QUESTION 2 — EX-1 names two copy claims; the exercisers carry
+  more.** `git grep -n -i 'cop\(y\|ies\)' -- examples
+  crates/goad-shell/tests/integration/round_trip.rs README.md` finds, beyond
+  EX-1's two:
+  - `round_trip.rs`, `the_readme_s_own_config_loads_and_runs_the_example`'s
+    doc: *"The README's own config — the one a reader copies"*;
+  - `backend.sh`'s header: *"what a backend author copies from here is the
+    contract"*;
+  - `round_trip.rs`, `the_shell_example_escapes_the_values_it_carries_into_a_view`'s
+    doc: *"the defect propagated by copying"*, which is history and true.
+  The TypeScript README also opens *"A minimal goad backend … Point a config
+  at it"*, an invitation without the word. Every one is in a surface file.
+  Options: (a) read EX-1 as its objective does, *"no longer read as the file
+  to copy"*: rewrite every present-tense copy claim and the README's
+  opening, leave the historical one, and record `git grep -n -i
+  'cop\(y\|ies\)' -- exercisers
+  crates/goad-shell/tests/integration/round_trip.rs README.md` with each
+  remaining hit classed; (b) EX-1 literally, only the two it names.
+  **Recommendation: (a).** AC-5's half here is that the exercisers stop
+  presenting themselves as the thing to copy. (b) would leave the
+  `backend.sh` header saying so.
+- **`report.rs` stops being "not a formatter".** Its module doc says what a
+  line *says* belongs to whoever composed it, and the module owns only the
+  last step. PL-7 places a composer there. EX-8 is executable as written,
+  and the doc is in Surfaces, so task 2 rewrites it. A design note for audit:
+  the module's single responsibility becomes *the edge every binary shares*
+  rather than *the sink*. A separate `goad_shell::version` module would keep
+  the old sentence true. That would be a new file and a `lib.rs` edit, so a
+  plan change, and is not proposed here.
+- **EX-8's parameter has no test.** Every member is `0.1.0` from the
+  workspace, so `goad-shell`'s `env!("CARGO_PKG_VERSION")` equals each
+  binary's, and VT-4 stays green if the lift reads its own. Held by review,
+  task 2's grep and mutation row 6. A version split across members would
+  make VT-4 a real witness. None is planned.
+- **VT-1 copies a spawn helper across crates.** `goad`'s
+  `process::goad_with_stdout_full` cannot be included by `goad-emit`'s
+  target without moving it to `tests/support/`, which is not a surface. The
+  copy is FU-5's class; §Open names it when it ships.
+- **`goad-emit`'s binary-tier doc is already false.**
+  `crates/goad-emit/tests/binary/main.rs` says *"Every case passes
+  `--socket`"*. The `--help` and `--version` cases do not, and VT-1 adds
+  another. Not a surface; for audit.
+- **A count in canon's neighbourhood.** `deno-run-does-not-typecheck`'s
+  *"seventh command"* predates the six-command gate. It is fixed here
+  because the sentence is edited for the path (task 4).
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
