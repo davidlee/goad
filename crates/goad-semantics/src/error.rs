@@ -434,7 +434,7 @@ impl std::error::Error for SpanFault {}
 
 #[cfg(test)]
 mod tests {
-  use super::{AtFault, BoundsError, ProtocolError, Requirement, ScheduleError};
+  use super::{AtFault, BoundsError, ProtocolError, ScheduleError};
 
   /// The values a variant's `Display` must name.
   ///
@@ -522,20 +522,6 @@ mod tests {
       ScheduleError::TimeOfDay { .. } => ("R-21", AtFault::Backend),
       ScheduleError::CalendarUnit { .. } => ("R-23", AtFault::Backend),
     }
-  }
-
-  /// One row's assertion: the id by its printed form, the side by value.
-  fn assert_row(
-    error: &impl std::fmt::Display,
-    answered: (Requirement, AtFault),
-    row: (&str, AtFault),
-  ) {
-    let (requirement, side) = answered;
-    assert_eq!(
-      (requirement.to_string().as_str(), side),
-      row,
-      "`{error}` disagrees with its row"
-    );
   }
 
   fn assert_names(error: &impl std::fmt::Display, values: &[String]) {
@@ -695,10 +681,10 @@ mod tests {
   #[test]
   fn every_protocol_error_names_a_requirement_and_a_side() {
     for error in every_protocol_error() {
-      assert_row(
-        &error,
-        (error.requirement(), error.fault()),
+      assert_eq!(
+        (error.requirement().to_string().as_str(), error.fault()),
         protocol_row(&error),
+        "`{error}` disagrees with its row"
       );
     }
   }
@@ -706,10 +692,10 @@ mod tests {
   #[test]
   fn every_bounds_error_names_a_requirement_and_a_side() {
     for error in every_bounds_error() {
-      assert_row(
-        &error,
-        (error.requirement(), error.fault()),
+      assert_eq!(
+        (error.requirement().to_string().as_str(), error.fault()),
         bounds_row(&error),
+        "`{error}` disagrees with its row"
       );
     }
   }
@@ -717,10 +703,10 @@ mod tests {
   #[test]
   fn every_schedule_error_names_a_requirement_and_a_side() {
     for error in every_schedule_error() {
-      assert_row(
-        &error,
-        (error.requirement(), error.fault()),
+      assert_eq!(
+        (error.requirement().to_string().as_str(), error.fault()),
         schedule_row(&error),
+        "`{error}` disagrees with its row"
       );
     }
   }

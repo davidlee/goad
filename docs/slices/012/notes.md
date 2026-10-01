@@ -352,20 +352,33 @@ witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
         total, no `_` arm, `Bounds` and `Schedule` delegating.
         *Done.* `every_side_displays_as_the_word_a_report_prints` red against
         a `Display` writing `""` (`left: "" right: "backend"`), then green.
-        The three tables, given their side column (`assert_row` compares
+        The three tables, given their side column (each `assert_eq!`s
         `(id display, side)` with the row), red against `todo!()` bodies,
         then green.
-  - [ ] VT-2: new `mod tests` in `goad_shell::error` with a builder per enum
+  - [x] VT-2: new `mod tests` in `goad_shell::error` with a builder per enum
         (A-V9) and `every_backend_error_names_a_requirement_and_a_side`, and
         the cleanup and state siblings, each from §5.2.3, *"expected ids
         spelled as VT-1's"*. See them red.
-  - [ ] Stratum 2, in `goad_shell::error`: `requirement()`/`fault()` on
+  - [x] Stratum 2, in `goad_shell::error`: `requirement()`/`fault()` on
         `BackendError` (`Protocol` delegating), `CleanupFailure`,
         `StateError`, each arm naming a `Requirement` constant. VT-2 green.
-  - [ ] EX-3: `grep -n 'fn requirement\|fn fault'` over
+        *Done.* VT-2's three tables red against `todo!()` bodies ("not yet
+        implemented", all three), then green. `every_backend_error` carries
+        `ExitStatus` with and without a code, and `Protocol` wrapping two
+        errors with different answers (`MissingField`, `NestedHints`), so the
+        delegating row is seen to follow the inner error rather than a fixed
+        answer.
+  - [x] EX-3: `grep -n 'fn requirement\|fn fault'` over
         `crates/goad-semantics/src/error.rs`, `crates/goad-shell/src/error.rs`,
         `crates/goad-shell/src/ingress/envelope.rs`; no hit in an `impl` of
         `ConfigError`, `EnvelopeFault` or `SpanFault`. Record the hits.
+        *Done.* Hits: `impl ProtocolError`, `impl BoundsError`,
+        `impl ScheduleError` in stratum 1, and `impl BackendError`,
+        `impl CleanupFailure`, `impl StateError` in stratum 2 — a
+        `requirement` and a `fault` in each. The one other hit is
+        `envelope.rs`' `fn fault(bytes: &str) -> EnvelopeFault`, a free
+        helper inside its `mod tests`, not a method. None on `ConfigError`,
+        `EnvelopeFault` or `SpanFault`.
 - **Refactor**
   - [ ] Read the diff for duplication between the witnesses and the existing
         corpus tests (the input route, `now` parsing, the walk). Docs on the

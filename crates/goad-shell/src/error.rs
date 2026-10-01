@@ -11,7 +11,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use goad_semantics::error::{ProtocolError, SpanFault};
+use goad_semantics::error::{AtFault, ProtocolError, Requirement, SpanFault};
 use goad_semantics::protocol::canonical::ViewId;
 
 /// Why an exchange produced no response body.
@@ -134,6 +134,74 @@ pub enum ConfigError {
   EmptyPath { key: &'static str },
 }
 
+impl BackendError {
+  /// The requirement this kind of refusal names (SPEC-001/R-59; `design.md`
+  /// §5.2.3). `Io` names R-45: no requirement names the failure itself, and
+  /// R-45 governs what the host does with it.
+  #[must_use]
+  pub fn requirement(&self) -> Requirement {
+    match self {
+      Self::Spawn(_) => Requirement::R44,
+      Self::Timeout { .. } => Requirement::R41,
+      Self::ExitStatus { .. } => Requirement::R40,
+      Self::OutputTooLarge { .. } => Requirement::R43,
+      Self::PipeMissing | Self::Io(_) => Requirement::R45,
+      Self::Protocol(inner) => inner.requirement(),
+    }
+  }
+
+  /// The side this kind of refusal's cause lies on (SPEC-001/R-59).
+  #[must_use]
+  pub fn fault(&self) -> AtFault {
+    match self {
+      Self::Spawn(_) => AtFault::Configuration,
+      Self::Timeout { .. } | Self::ExitStatus { .. } | Self::OutputTooLarge { .. } => {
+        AtFault::Backend
+      }
+      Self::PipeMissing => AtFault::Host,
+      Self::Io(_) => AtFault::Environment,
+      Self::Protocol(inner) => inner.fault(),
+    }
+  }
+}
+
+impl CleanupFailure {
+  /// The requirement this kind of refusal names (SPEC-001/R-59).
+  #[must_use]
+  pub fn requirement(&self) -> Requirement {
+    match self {
+      Self::TimedOut { .. } | Self::Io(_) => Requirement::R48,
+    }
+  }
+
+  /// The side this kind of refusal's cause lies on (SPEC-001/R-59).
+  #[must_use]
+  pub fn fault(&self) -> AtFault {
+    match self {
+      Self::TimedOut { .. } => AtFault::Backend,
+      Self::Io(_) => AtFault::Environment,
+    }
+  }
+}
+
+impl StateError {
+  /// The requirement this kind of refusal names (SPEC-001/R-59).
+  #[must_use]
+  pub fn requirement(&self) -> Requirement {
+    match self {
+      Self::NoOutstandingView { .. } | Self::StaleViewId { .. } => Requirement::R32,
+    }
+  }
+
+  /// The side this kind of refusal's cause lies on (SPEC-001/R-59).
+  #[must_use]
+  pub fn fault(&self) -> AtFault {
+    match self {
+      Self::NoOutstandingView { .. } | Self::StaleViewId { .. } => AtFault::Host,
+    }
+  }
+}
+
 impl fmt::Display for StateError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
@@ -242,6 +310,126 @@ impl std::error::Error for CleanupFailure {
     match self {
       Self::Io(inner) => Some(inner),
       Self::TimedOut { .. } => None,
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::time::Duration;
+
+  use goad_semantics::error::{AtFault, ProtocolError};
+  use goad_semantics::protocol::canonical::ViewId;
+
+  use super::{BackendError, CleanupFailure, StateError};
+
+  /// `design.md` §5.2.3's table, row for row, spelled as the table spells it
+  /// and as stratum 1's tables do. Copied from the table, not from the code.
+  /// Exhaustive, so a new variant has no row until one is decided. `Protocol`
+  /// delegates: its row is whatever the wrapped error answers.
+  fn backend_row(error: &BackendError) -> (String, AtFault) {
+    match error {
+      BackendError::Spawn(_) => ("R-44".to_owned(), AtFault::Configuration),
+      BackendError::Timeout { .. } => ("R-41".to_owned(), AtFault::Backend),
+      BackendError::ExitStatus { .. } => ("R-40".to_owned(), AtFault::Backend),
+      BackendError::OutputTooLarge { .. } => ("R-43".to_owned(), AtFault::Backend),
+      BackendError::PipeMissing => ("R-45".to_owned(), AtFault::Host),
+      BackendError::Io(_) => ("R-45".to_owned(), AtFault::Environment),
+      BackendError::Protocol(inner) => (inner.requirement().to_string(), inner.fault()),
+    }
+  }
+
+  fn cleanup_row(error: &CleanupFailure) -> (String, AtFault) {
+    match error {
+      CleanupFailure::TimedOut { .. } => ("R-48".to_owned(), AtFault::Backend),
+      CleanupFailure::Io(_) => ("R-48".to_owned(), AtFault::Environment),
+    }
+  }
+
+  fn state_row(error: &StateError) -> (String, AtFault) {
+    match error {
+      StateError::NoOutstandingView { .. } | StateError::StaleViewId { .. } => {
+        ("R-32".to_owned(), AtFault::Host)
+      }
+    }
+  }
+
+  fn io_error() -> std::io::Error {
+    std::io::Error::other("refused")
+  }
+
+  /// One instance per row, and more where one row covers distinct shapes:
+  /// `ExitStatus` with and without a code, and `Protocol` wrapping two errors
+  /// whose answers differ, so the delegation is seen to follow the inner one.
+  fn every_backend_error() -> Vec<BackendError> {
+    vec![
+      BackendError::Spawn(io_error()),
+      BackendError::Timeout {
+        after: Duration::from_secs(5),
+      },
+      BackendError::ExitStatus { code: Some(1) },
+      BackendError::ExitStatus { code: None },
+      BackendError::OutputTooLarge { limit: 1024 },
+      BackendError::PipeMissing,
+      BackendError::Io(io_error()),
+      BackendError::Protocol(ProtocolError::MissingField { field: "view" }),
+      BackendError::Protocol(ProtocolError::NestedHints {
+        at: "view.options[0].fields[0]".to_owned(),
+      }),
+    ]
+  }
+
+  fn every_cleanup_failure() -> Vec<CleanupFailure> {
+    vec![
+      CleanupFailure::TimedOut {
+        after: Duration::from_secs(2),
+      },
+      CleanupFailure::Io(io_error()),
+    ]
+  }
+
+  fn every_state_error() -> Vec<StateError> {
+    vec![
+      StateError::NoOutstandingView {
+        named: ViewId::new("v-1"),
+      },
+      StateError::StaleViewId {
+        named: ViewId::new("v-1"),
+        outstanding: ViewId::new("v-2"),
+      },
+    ]
+  }
+
+  #[test]
+  fn every_backend_error_names_a_requirement_and_a_side() {
+    for error in every_backend_error() {
+      assert_eq!(
+        (error.requirement().to_string(), error.fault()),
+        backend_row(&error),
+        "`{error}` disagrees with its row"
+      );
+    }
+  }
+
+  #[test]
+  fn every_cleanup_failure_names_a_requirement_and_a_side() {
+    for error in every_cleanup_failure() {
+      assert_eq!(
+        (error.requirement().to_string(), error.fault()),
+        cleanup_row(&error),
+        "`{error}` disagrees with its row"
+      );
+    }
+  }
+
+  #[test]
+  fn every_state_error_names_a_requirement_and_a_side() {
+    for error in every_state_error() {
+      assert_eq!(
+        (error.requirement().to_string(), error.fault()),
+        state_row(&error),
+        "`{error}` disagrees with its row"
+      );
     }
   }
 }
