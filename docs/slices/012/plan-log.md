@@ -218,3 +218,38 @@ pinning goad from `github:davidlee/goad`, and oubliette can take it as a
 target. PHASE-11/EN-2 is met on the user's word; the phase sheet re-reads it
 against oubliette's `docs/contract-target.md`. PHASE-11 still waits on
 EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
+
+### 2026-10-01 — PHASE-04 sheet questions
+
+- **Asked:** the PHASE-04 sheet (da7ccc9), PLAN QUESTIONs 1–4 and 6
+  (question 5 is a design change: `design-log.md` 2026-10-01, *`goad-check`'s
+  flag exclusions*).
+  - **Q1 — VT-2's cases cannot tell their cause from the interim end.** Each
+    asserts only status 2 and the `goad-check: ` last stderr line, which
+    EX-3's interim end also produces; a bad `--event` file or an empty argv
+    let through stays green. Proposed: each VT-2 case except
+    `a_report_that_cannot_be_written_exits_2` also asserts stdout is empty
+    (true at PHASE-12 too — each fails before the first report line).
+  - **Q2 — VA-3's tests half cannot red.** `clippy.toml` sets
+    `allow-unwrap-in-tests`; measured, a planted `.unwrap()` exits 0 and a
+    planted `std::collections::HashMap` exits 101 (`disallowed_types`).
+    Proposed: the tests half plants `HashMap`.
+  - **Q3 — VA-6's grep has no `-r`.** System `grep` on a directory says "Is a
+    directory" and exits 2 (orchestrator re-measured); the agent shell's
+    `grep` is a ugrep wrapper that recurses, so an agent sees it work.
+    Proposed: `grep -rn`, and every recorded instrument command run as
+    `command grep`.
+  - **Q4 — nothing holds `--help`/`--version` exiting 0, nor EX-8 at the
+    binary.** `goad` and `goad-emit` each have both. Proposed: VT-2 gains
+    `help_prints_the_usage_block_on_stdout_and_exits_0` and
+    `version_prints_the_package_version_on_stdout_and_exits_0`.
+  - **Q6 — VA-4 has no single path to re-point.** `canon-delta.md` SPEC-004
+    Change 5's R-11..R-13 row prefixes cases of both phases with one
+    `crates/goad-check/tests/binary/…`. Proposed: each case PHASE-04 ships
+    gets its shipped path; PHASE-12's cases keep `…::`; the R-14 row is
+    untouched.
+- **Recommended:** each as proposed (orchestrator checked Q2's `clippy.toml`
+  keys, Q3's grep, Q4's existing tests, Q6's row against the tree).
+- **Decided:** *"endorse all six"*.
+- **Consequence:** `plan.md` PHASE-04 VT-2, VA-3, VA-4, VA-6 amended; the
+  PHASE-04 sheet's `[!]` tasks unblocked.

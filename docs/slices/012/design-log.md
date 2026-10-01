@@ -601,3 +601,18 @@ other, citing the finding id.
 - **Consequence:** `design.md` §5.2.4 names `NumberRange::drawn`; `plan.md`
   PHASE-02 (EX-3, VT-2) follows; `drawn_number`'s doc (the `max: -10`
   consequence and CD-1) moves with the rule.
+
+### 2026-10-01 — `goad-check`'s flag exclusions, stated whole (PHASE-04 sheet)
+
+- **Asked:** the PHASE-04 sheet (da7ccc9, PLAN QUESTION 5): §5.2.1 refuses
+  `--timeout` with `--config` but says nothing of `--timeout` in the
+  default-path config form (no `--config`, no `--`), nor of `--config`
+  together with `--`.
+- **Recommended:** both are usage errors, status 2. The first for §5.2.1's
+  own reason — a file supplies the timeout whether named or defaulted. The
+  second because it names two configuration sources, and an ambiguous
+  request fails rather than being guessed at.
+- **Decided:** *"endorse all six"*.
+- **Consequence:** `design.md` §5.2.1 states the rule as: `--timeout` only in
+  the argv form; `--config` and `--` exclude each other. `plan.md`
+  PHASE-04/EX-1 and VT-1 gain a row for each.
