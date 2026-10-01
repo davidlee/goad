@@ -12,7 +12,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-02 | done | 2026-10-01 |
 | PHASE-03 | done | 2026-10-01 |
 | PHASE-04 | done | 2026-10-01 |
-| PHASE-05 | in progress | 2026-10-01 |
+| PHASE-05 | done | 2026-10-01 |
 | PHASE-06 | pending | 2026-10-01 |
 | PHASE-07 | pending | 2026-10-01 |
 | PHASE-08 | pending | 2026-10-01 |
@@ -4145,17 +4145,21 @@ green as it is at entry.
   > deno check exercisers/typescript/backend.ts
   ```
   This is PHASE-03/EX-3's departure, which audit ends (POL-001 Change 1).
-- **EN-2** (quoted, amended twice): *"the person who runs EX-8 has Claude and
-  Codex credentials in environment variables — for Claude,
+- **EN-2** (quoted, amended three times): *"the person who runs EX-8 has
+  Claude and Codex credentials in environment variables — for Claude,
   `CLAUDE_CODE_OAUTH_TOKEN` (made by `claude setup-token`) or
   `ANTHROPIC_API_KEY` — available to a session started in a fresh home
-  (`plan-log.md` 2026-10-01, *EX-8 and EN-2 take a Claude OAuth token*).
-  Nothing credential-bearing is written into the home, a committed file or
-  `goad-walk`. The person's, not the executor's: no agent session holds the
-  Anthropic credential (`plan-log.md` 2026-10-01, *PHASE-05 sheet
-  questions*)."* **The person's.** EX-8's script refuses to start without
-  `OPENAI_API_KEY` and one of the two Claude credentials, and its bare
-  prompts are the check. At sheet
+  (`plan-log.md` 2026-10-01, *EX-8 and EN-2 take a Claude OAuth token*). A
+  Codex login that is a file (`~/.codex/auth.json`) is copied into the
+  scratch home for the run and deleted on exit; the key scan after shows it
+  gone (`plan-log.md` 2026-10-01, *EX-8 run on the host, Codex by a
+  temporary login copy*). Nothing credential-bearing is written into the
+  home, a committed file or `goad-walk`. The person's, not the executor's:
+  no agent session holds the Anthropic credential (`plan-log.md`
+  2026-10-01, *PHASE-05 sheet questions*)."* **Discharged 2026-10-01 by the
+  person**: Claude by `CLAUDE_CODE_OAUTH_TOKEN`, Codex by the temporary
+  `auth.json` copy; both bare prompts answered (task 7). The copy is gone
+  and no file in the home holds its strings (task 7's key scan). At sheet
   time, checked by name only, values never printed (`[ -n "${VAR:-}" ]`), in
   the sheet agent's environment: `OPENAI_API_KEY` set; `ANTHROPIC_API_KEY`,
   `CODEX_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` unset (PLAN QUESTION 4).
@@ -4413,15 +4417,11 @@ the three named; `~/dev/oubliette`.
 surface, and EX-8 reads the kit through `goad-walk`. Every new file is `git
 add`ed before any `nix` command reads it.
 
-**Hand-over** (2026-10-01). Every box the executor can meet is met: tasks
-1–6, VA-1, VA-4 with R-1, EX-1–EX-4, EX-7, EN-3, every mutation row. `goad`'s
-lock target `2f1bf47` is pushed and pinned by `goad-walk` `c5efa16`. **Open,
-and the reason §Status is not `done`:** EX-8 and EN-2 (the person's, by the
-command block under **Verification (human) — EX-8**), then task 7's second
-box (the executor's key grep over the fresh home, R-2, and the home's
-removal), then §Status. `just check` on the final commit: see **Close**.
-(Earlier, *Stopped at the push*: `just check` exit 0 at `65e1ea9`, 738
-passed; re-run at `2b4a69b`, the same.)
+**Closed** (2026-10-01). Every box met. EX-8 was run by the person on the
+host by the as-run block under **Verification (human) — EX-8**, and the key
+scan over its scratch home found nothing (task 7). Earlier, at the stop
+before the push: `just check` exit 0 at `65e1ea9`, 738 passed, and again at
+`2b4a69b`.
 
 - [x] Set PHASE-05 to `in progress` in §Status.
       *Done at 85c3ddc.*
@@ -4755,7 +4755,7 @@ passed; re-run at `2b4a69b`, the same.)
         set is built before EX-8 and by nix, and holds no credential by
         construction.
 - **7. The loads (EX-8, run by a person)**
-  - [ ] **VH — EX-8** (quoted, amended): *"run by a person, from the script
+  - [x] **VH — EX-8** (quoted, amended): *"run by a person, from the script
         the phase sheet drafts, handed over as one command safe under nu, its
         log read back into the sheet by the executor (`plan-log.md`
         2026-10-01, *PHASE-05 sheet questions*): on the host, in a fresh home
@@ -4774,9 +4774,41 @@ passed; re-run at `2b4a69b`, the same.)
         is done. The executor then reads `~/.cache/goad-p05-ex8.log` and
         records each answer here verbatim, against the marker under
         **Decisions**. The executor never holds a key.
-  - [ ] After EX-8, the fresh home holds no key: the VA-4 grep over the
+        *Run by the person on the host, 2026-10-01, from `/home/david/dev/goad`
+        (the devshell's bare `claude` and `codex`), by the block under
+        **Verification (human) — EX-8** as run. `~/.cache/goad-p05-ex8.log`,
+        62 lines: `KIT=/nix/store/vgz1n5wl…-goad-kit
+        HOME=~/.cache/goad-p05-home.N1h5WW WORK=~/.cache/goad-p05-work.epNtNU`.
+        `== bare: claude` → `READY`. `== bare: codex` (Codex v0.155.1, model
+        `gpt-6-astra`, sandbox read-only) → `READY`. `== plugin: claude` →
+        `QUINCE-BAROMETER-73`. `== plugin: codex setup`: marketplace added from
+        the kit's store path, plugin installed at
+        `$H/.codex/plugins/cache/goad/goad/0.1.0`. `== plugin: codex`: Codex ran
+        `cat …/plugins/cache/goad/goad/0.1.0/skills/goad-backend/SKILL.md`,
+        whose output in the log is the placeholder's frontmatter and marker
+        line, then answered `QUINCE-BAROMETER-73`. Every answer equals
+        **Decisions** D-1's marker, and neither prompt contains it. The log
+        ends `== done; log at …` and `== auth.json copy removed`. A-T5 holds:
+        Codex's transcript shows the model reading the skill's body, R1's
+        "the model reads the skill" half; Claude's `-p` output shows the
+        answer only, not how it was reached.*
+  - [x] After EX-8, the fresh home holds no key: the VA-4 grep over the
         fresh home prints nothing (R-2 for reach). Then the home and working
         directory are removed, and that is recorded.
+        *Over `~/.cache/goad-p05-home.N1h5WW` and `…-work.epNtNU` (257 files),
+        no value printed. Patterns, from a pipe: every string value of 20 or
+        more characters with no space in the real `~/.codex/auth.json`, whole
+        and its last 16 characters, plus this session's `OPENAI_API_KEY` the
+        same way (12 patterns). `find -name 'auth.json*'`: nothing. `cmp -s`
+        against the real `auth.json`, over every file of its size: nothing.
+        `command grep -rlF -f <(patterns)`: nothing, exit 1. Reach: the same
+        patterns over the real `~/.codex/auth.json` list it, exit 0; R-2's
+        planted `PLANTED-CANARY` file listed alone, then deleted. Also no file
+        named `*credential*`, `*token*` or `*auth*`, and no `sk-ant-` token
+        shape (`grep -rlE`), exit 1. The Claude OAuth token itself never
+        reached this session, so it is not among the patterns (EN-2). Then
+        both directories removed (`ls -d ~/.cache/goad-p05-*` lists only the
+        log); the log removed once this sheet recorded it.*
 - **Close**
   - [x] Mutation rows (below), each recorded with what went red, that the
         mutated file **evaluated or built** (a mutation nix refuses to
@@ -4791,7 +4823,8 @@ passed; re-run at `2b4a69b`, the same.)
         *Exit 0 on the final tree (this commit's, `notes.md` aside): 738 passed,
         0 failed over 33 `test result` lines, no warning; `just -n check` diff
         unchanged from **Entry**.*
-  - [ ] §Status: PHASE-05 `done`, with the date.
+  - [x] §Status: PHASE-05 `done`, with the date.
+        *2026-10-01, every box met.*
   - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
         §Open: the *"Both binaries"* note leaves if the comments were
         rewritten; any offered box skipped is a row.
@@ -4816,21 +4849,31 @@ executor after the OAuth amendment, under nu 0.115.1 (`nu -n`, stubs first on
 step in order, exit 0; a grep for either planted value over the fresh homes
 found nothing.
 
+**The block below is the one that ran** (2026-10-01; `plan-log.md`
+2026-10-01, *EX-8 run on the host, Codex by a temporary login copy*). The
+person's Codex login is a file, not a key, so the orchestrator's host
+variant drops the `OPENAI_API_KEY` check, copies `~/.codex/auth.json` (mode
+600) into the scratch home's `CODEX_HOME`, and deletes it by `trap … EXIT`;
+otherwise it is the executor's OAuth version, whose re-check is described above. It ran from `/home/david/dev/goad`, whose
+devshell supplies bare `claude` and `codex`.
+
 ```nu
 bash -c r#'
-# PHASE-05/EX-8. Run on the host, with OPENAI_API_KEY and, for Claude,
-# CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`) or ANTHROPIC_API_KEY set.
+# PHASE-05/EX-8, on the host. Claude by CLAUDE_CODE_OAUTH_TOKEN; Codex by a
+# copy of ~/.codex/auth.json in the scratch home, deleted on exit.
 set -euo pipefail
-: "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
-[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}${ANTHROPIC_API_KEY:-}" ] || { echo "set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY" >&2; exit 1; }
+[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}${ANTHROPIC_API_KEY:-}" ] || { echo "set CLAUDE_CODE_OAUTH_TOKEN" >&2; exit 1; }
+[ -f "$HOME/.codex/auth.json" ] || { echo "no ~/.codex/auth.json" >&2; exit 1; }
 log="$HOME/.cache/goad-p05-ex8.log"
 exec > >(tee "$log") 2>&1
 KIT=$(nix build --no-link --print-out-paths /home/david/dev/goad-walk#goad-kit)
 H=$(mktemp -d "$HOME/.cache/goad-p05-home.XXXXXX")
 W=$(mktemp -d "$HOME/.cache/goad-p05-work.XXXXXX")
+mkdir -p "$H/.codex"
+install -m 600 "$HOME/.codex/auth.json" "$H/.codex/auth.json"
+trap 'rm -f "$H/.codex/auth.json"; echo "== auth.json copy removed"' EXIT
 cd "$W"
 export HOME="$H" CODEX_HOME="$H/.codex"
-mkdir -p "$CODEX_HOME"
 echo "KIT=$KIT HOME=$H WORK=$W"
 ask='Reply with the single word READY and nothing else.'
 echo "== bare: claude";  claude -p "$ask"
@@ -4841,7 +4884,7 @@ echo "== plugin: codex setup"
 codex plugin marketplace add "$KIT"
 codex plugin add goad@goad
 echo "== plugin: codex"; codex exec --skip-git-repo-check "$want"
-echo "== done; log at $log; home $H and work $W are left for the key grep"
+echo "== done; log at $log"
 '#
 ```
 
@@ -4859,7 +4902,7 @@ fails on authentication, the first thing to try is `CODEX_API_KEY` set from
 - [x] EX-3
 - [x] EX-4
 - [x] EX-7
-- [ ] EX-8 (run by a person: task 7's VH)
+- [x] EX-8 (run by a person: task 7's VH)
 - [x] VA-1
 - [x] VA-4
 - [x] EN-3 (before the bump)
@@ -4902,7 +4945,7 @@ something):
 | row | instrument | plant | must find | result |
 |---|---|---|---|---|
 | R-1 | VA-4's grep over `nix path-info -r "$TOOLS"` | none planted: the marker added to the pattern list | `…-goad-kit/kit/skills/goad-backend/SKILL.md`, which shows the grep walks into `goad-kit` in the closure | VA-4's patterns plus `QUINCE-BAROMETER-73`: `/nix/store/vgz1n5wl…-goad-kit/kit/skills/goad-backend/SKILL.md` and nothing else, exit 0. The grep walks into `goad-kit` in the closure |
-| R-2 | the same grep over the fresh home after EX-8 | a file in the fresh home holding `PLANTED-CANARY`, added to the pattern list | that file and no other; then deleted | |
+| R-2 | the same grep over the fresh home after EX-8 | a file in the fresh home holding `PLANTED-CANARY`, added to the pattern list | that file and no other; then deleted || `~/.cache/goad-p05-home.N1h5WW/canary.txt` and nothing else, exit 0; deleted. A second reach: the `auth.json`-derived patterns list the real `~/.codex/auth.json` |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -5102,9 +5145,9 @@ something):
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-01 · PHASE-05 at hand-over (every executor box met
-but those after EX-8) · goad code at `65e1ea9`, pushed as `2f1bf47`;
-`goad-walk` at `c5efa16`. PHASE-12's harvest below is unchanged.
+**Fresh as of:** 2026-10-01 · PHASE-05 done · goad code at `65e1ea9`,
+pushed as `2f1bf47`; `goad-walk` at `c5efa16`. PHASE-12's harvest below is
+unchanged.
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -5214,6 +5257,12 @@ but those after EX-8) · goad code at `65e1ea9`, pushed as `2f1bf47`;
 - **A nu stub test needs `nu -n`.** The user's nu config prepends profile
   paths to `PATH`, so stubs placed first are shadowed by the real `nix`
   (PHASE-05, the EX-8 re-check).
+- **A Codex login can be a file, not a key.** An OAuth `~/.codex/auth.json`
+  reaches a fresh `CODEX_HOME` only as a copy; EX-8 copied it for the run and
+  removed it by `trap`, and the key scan read its strings from the real file
+  (PHASE-05 task 7).
+- **`claude -p` prints the answer, not the route to it.** Only Codex's
+  transcript showed the skill's body being read (PHASE-05 EX-8).
 - **A commit by another writer takes the whole index**, staged work of a
   phase included (PHASE-05, `e4b08d9`). Stage only at the moment of commit.
 
@@ -5251,9 +5300,6 @@ but those after EX-8) · goad code at `65e1ea9`, pushed as `2f1bf47`;
 - [ ] **Nothing holds the plugin manifests' versions between PHASE-05/EX-2 and
   PHASE-10** (PHASE-05 Findings, row P-10; `plan-log.md` 2026-10-01, *PHASE-05
   sheet questions*).
-- [ ] **PHASE-05 after EX-8**: EX-8 and EN-2 (the person's), then the
-  executor's key grep over the fresh home with its R-2 reach row, and the
-  home's removal; then §Status `done`.
 - [ ] **Codex may not need `.agents/plugins/marketplace.json`** (PHASE-05
   Findings, P-4). Audit: keep it as designed, or say why.
 - [ ] **VA-4 cannot cover the person's Claude credential**: no agent session
