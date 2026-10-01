@@ -575,6 +575,93 @@ pub struct UserResponse {
   pub values: BTreeMap<FieldId, serde_json::Value>,
 }
 
+/// A finite `f64`, and the only number this host can put on the wire.
+///
+/// Private field, fallible constructor: the only way to hold one is to have
+/// checked it. `serde_json::Value::from(f64)` turns `NaN` and both infinities
+/// into JSON `null`, which `SPEC-001/R-57` does not admit, and
+/// `Controller::edit` is public — so the rule has to be a property of the type
+/// rather than a convention every construction site remembers (§5.5 I-G,
+/// §7 D24).
+///
+/// **It derives no `Eq`, and the absence is load-bearing.**
+/// `impl Eq for Finite {}` is *sound* — the newtype excludes `NaN`, the one
+/// `f64` that stops `PartialEq` being an equivalence — and on its own it
+/// restores the `Eq` derives on `Edited` and on `wire.rs`'s `Command` above
+/// it, under `-D warnings`, with nothing to warn anybody. It was written, it
+/// compiled, and it was deleted on measurement (`prototype-notes.md` P-8).
+/// The only thing it could buy is an `Eq` on `Edited` that §5.2 removes
+/// deliberately, and an impl asserting a subtle property nothing consumes is
+/// a claim nobody checks. The rule is stated here, at the leaf, because that
+/// is the door the trap was actually reached through.
+///
+/// `Clone` and `Copy` are not part of that argument and are not a way back to
+/// it: `Edited` is `Clone`, and `get(self)` takes the value.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct Finite(f64);
+
+impl Finite {
+  /// What an as-drawn `number` falls back to where no bound was declared.
+  /// A constant rather than a checked call, because zero is finite by
+  /// inspection and a total expression is cheaper than an argument about why
+  /// an `expect` is unreachable (§5.2).
+  pub const ZERO: Self = Self(0.0);
+
+  /// `None` for `NaN` and for both infinities — exactly the `f64`s JSON
+  /// cannot carry.
+  #[must_use]
+  pub fn new(value: f64) -> Option<Self> {
+    value.is_finite().then_some(Self(value))
+  }
+
+  #[must_use]
+  pub fn get(self) -> f64 {
+    self.0
+  }
+}
+
+/// What one drawn field submits — one variant per [`FieldKind`] — before it is
+/// written as JSON.
+///
+/// **No `Eq`**, because `Number` carries a [`Finite`], and the leaf declines
+/// it on purpose (its own doc says why).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Submitted {
+  Boolean(bool),
+  Text(String),
+  Number(Finite),
+  Choice(AlternativeId),
+  DateTime {
+    instant: Timestamp,
+    offset: jiff::tz::Offset,
+  },
+}
+
+impl Submitted {
+  /// `SPEC-001/R-57`, in one total match: the one site that decides a
+  /// submitted value's JSON type, so the mapping cannot drift apart across
+  /// the workspace.
+  #[must_use]
+  pub fn to_json(&self) -> serde_json::Value {
+    match self {
+      Self::Boolean(value) => serde_json::Value::Bool(*value),
+      Self::Text(text) => serde_json::Value::String(text.clone()),
+      // `Finite` is what makes this arm total — `Value::from(f64)` answers
+      // `null` for a non-finite, which `R-57` does not admit, and a non-finite
+      // cannot be held here at all (§5.5 I-G).
+      Self::Number(number) => serde_json::Value::from(number.get()),
+      Self::Choice(alternative) => serde_json::Value::String(alternative.as_str().to_owned()),
+      // One `display_with_offset` call, which is also why an untouched
+      // `datetime` submits `+00:00` rather than `Z` (§7 D3): jiff reads `Z` as
+      // "the offset is unknown", and a second code path for the untouched case
+      // was the price of saying so.
+      Self::DateTime { instant, offset } => {
+        serde_json::Value::String(instant.instant().display_with_offset(*offset).to_string())
+      }
+    }
+  }
+}
+
 /// The version field and the discriminant, in one shape.
 ///
 /// `protocol` is written on every request (R-1) and is not part of either
@@ -633,12 +720,13 @@ impl Serialize for Request {
 mod tests {
   use std::collections::BTreeMap;
 
+  use jiff::tz::Offset;
   use serde_json::Value;
 
   use super::{
     Alternative, AlternativeId, Alternatives, Evaluate, Event, Field, FieldId, FieldKind, Fields,
-    Hints, NumberRange, Opt, OptionId, Options, Request, Respond, Stimulus, Timestamp,
-    UserResponse, ViewId,
+    Finite, Hints, NumberRange, Opt, OptionId, Options, Request, Respond, Stimulus, Submitted,
+    Timestamp, UserResponse, ViewId,
   };
   use crate::error::{BoundsError, ProtocolError};
 
@@ -901,5 +989,98 @@ mod tests {
     assert_eq!(event.kind, "scheduled");
     assert_eq!(event.timestamp, now);
     assert_eq!(event.data, Value::Null);
+  }
+
+  // -- the submitted values: `SPEC-001/R-57` -------------------------------
+
+  /// `SPEC-001/R-57`'s `boolean` clause, at the one site that applies it.
+  /// This is the test that requirement's `SPEC-001` §7 row will name.
+  #[test]
+  fn a_boolean_field_submits_a_json_boolean() {
+    assert_eq!(
+      Submitted::Boolean(true).to_json(),
+      serde_json::Value::Bool(true)
+    );
+    assert_eq!(
+      Submitted::Boolean(false).to_json(),
+      serde_json::Value::Bool(false)
+    );
+  }
+
+  /// The three `f64`s JSON cannot carry, refused at the only fallible
+  /// constructor there is.
+  ///
+  /// **There is no other way to hold one**, and that is a property of the
+  /// declaration rather than of this case: the field is private, so `new` and
+  /// `ZERO` are the whole constructible surface and a non-finite submitted
+  /// number is unrepresentable rather than merely unwritten (§5.5 I-G, §7
+  /// D24). What a case can assert is the refusal, and that the surface it
+  /// leaves open is finite.
+  #[test]
+  fn a_finite_refuses_every_number_json_cannot_carry() {
+    assert_eq!(Finite::new(f64::NAN), None, "NaN");
+    assert_eq!(Finite::new(f64::INFINITY), None, "+inf");
+    assert_eq!(Finite::new(f64::NEG_INFINITY), None, "-inf");
+
+    assert_eq!(Finite::new(1.5).map(Finite::get), Some(1.5));
+    assert_eq!(Finite::new(f64::MAX).map(Finite::get), Some(f64::MAX));
+    assert_eq!(Finite::ZERO.get(), 0.0);
+  }
+
+  /// `SPEC-001/R-57` for every `Submitted` variant, at the one site that
+  /// applies it (§5.5 I-C): the JSON *type* is what each assertion is about.
+  /// The `boolean` clause is here too, so *every* is true; the case above
+  /// holds it in both directions.
+  #[test]
+  fn every_submitted_kind_writes_the_json_type_r57_names() {
+    assert_eq!(
+      Submitted::Boolean(true).to_json(),
+      serde_json::Value::Bool(true),
+      "boolean writes a JSON boolean"
+    );
+
+    assert_eq!(
+      Submitted::Text("typed".to_owned()).to_json(),
+      serde_json::Value::String("typed".to_owned()),
+      "text writes a JSON string"
+    );
+
+    assert_eq!(
+      Submitted::Number(Finite::new(1.5).expect("1.5 is finite")).to_json(),
+      json("1.5"),
+      "number writes a JSON number"
+    );
+
+    assert_eq!(
+      Submitted::Choice(alternative("first").id).to_json(),
+      serde_json::Value::String("first".to_owned()),
+      "choice writes the alternative's id, as a string"
+    );
+
+    assert_eq!(
+      Submitted::DateTime {
+        instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
+        offset: Offset::UTC,
+      }
+      .to_json(),
+      serde_json::Value::String("1970-01-01T00:00:00+00:00".to_owned()),
+      "datetime writes RFC 3339 with an explicit offset — and this spelling \
+       is the one slice 007's `canon-delta.md` CD-1 states for an untouched field"
+    );
+  }
+
+  /// The offset is the person's, not UTC (§7 D4): the same instant carried at
+  /// `-05:00` submits the same moment spelled in that offset. Beside the case
+  /// above so that neither arm can pass by hard-coding the other's answer.
+  #[test]
+  fn a_picked_datetime_submits_the_offset_it_was_picked_in() {
+    assert_eq!(
+      Submitted::DateTime {
+        instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
+        offset: Offset::constant(-5),
+      }
+      .to_json(),
+      serde_json::Value::String("1969-12-31T19:00:00-05:00".to_owned())
+    );
   }
 }

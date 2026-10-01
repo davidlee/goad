@@ -943,14 +943,14 @@ on it.
     Nothing else. `dispatch`'s doc says `Stimulus::event` *"hard-codes
     `source: "host"`"*; still true of the value, so left (Findings).
 - **2. `Finite` and `Submitted::to_json` (EX-2, VT-2's value half)**
-  - [ ] Move `Finite` into `canonical.rs` *"unchanged, together with its doc
+  - [x] Move `Finite` into `canonical.rs` *"unchanged, together with its doc
         on why it has no `Eq`"* (`design.md` §5.2.4; see Findings on that
         doc). `goad`'s users import it from `goad_semantics`.
-  - [ ] Declare `Submitted` — quoted: *"`Boolean(bool)`, `Text(String)`,
+  - [x] Declare `Submitted` — quoted: *"`Boolean(bool)`, `Text(String)`,
         `Number(Finite)`, `Choice(AlternativeId)`, and `DateTime { instant:
         Timestamp, offset: Offset }`"* — and `Submitted::to_json(&self) ->
         serde_json::Value` with a `todo!()` body.
-  - [ ] Move `draft.rs`' value tests into `canonical.rs` against
+  - [x] Move `draft.rs`' value tests into `canonical.rs` against
         `Submitted` (VT-2, as amended by PLAN QUESTION 3's resolution,
         quoted): *"`each_kind_submits_the_json_type_r_57_names` moved as
         `every_submitted_kind_writes_the_json_type_r57_names`, gaining the
@@ -960,16 +960,16 @@ on it.
         `a_picked_datetime_submits_the_offset_it_was_picked_in` move as
         named. `a_finite_refuses_every_number_json_cannot_carry` moves with
         `Finite` and is green on arrival. See the rest red against the stub.
-  - [ ] `Submitted::to_json`'s body is today's `draft::submitted` body over
+  - [x] `Submitted::to_json`'s body is today's `draft::submitted` body over
         `Submitted` (`design.md` §5.2.4), its comments moved with their
         arms. Green.
 - **3. The projection (EX-2, VT-3)**
-  - [ ] `Edited::submitted(&self) -> Submitted` with a `todo!()` body; write
+  - [x] `Edited::submitted(&self) -> Submitted` with a `todo!()` body; write
         `the_projection_to_submitted_is_the_identity_on_each_kind` in
         `draft.rs` — each `Edited` variant against the `Submitted` it
         projects to, `Adjusted`'s text dropped (ids off `an_alternative_id`,
         A-V5). Red.
-  - [ ] Implement it, deciding no JSON type. `draft::submitted` becomes
+  - [x] Implement it, deciding no JSON type. `draft::submitted` becomes
         (quoted) *"`edited.submitted().to_json()`"*. Green; renderer tier
         green.
 - **4. `Submitted::as_drawn` (EX-3's first half, VT-2's as-drawn half)**

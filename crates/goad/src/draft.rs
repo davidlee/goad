@@ -13,53 +13,10 @@
 //! enumerate what is held is what makes that a property of the type rather
 //! than a convention (`SPEC-001/R-58`, design.md §5.1).
 
-use goad_semantics::protocol::canonical::{AlternativeId, FieldId, OptionId, Timestamp};
+use goad_semantics::protocol::canonical::{
+  AlternativeId, FieldId, Finite, OptionId, Submitted, Timestamp,
+};
 use jiff::tz::Offset;
-
-/// A finite `f64`, and the only number this host can put on the wire.
-///
-/// Private field, fallible constructor: the only way to hold one is to have
-/// checked it. `serde_json::Value::from(f64)` turns `NaN` and both infinities
-/// into JSON `null`, which `SPEC-001/R-57` does not admit, and
-/// `Controller::edit` is public — so the rule has to be a property of the type
-/// rather than a convention every construction site remembers (§5.5 I-G,
-/// §7 D24).
-///
-/// **It derives no `Eq`, and the absence is load-bearing.**
-/// `impl Eq for Finite {}` is *sound* — the newtype excludes `NaN`, the one
-/// `f64` that stops `PartialEq` being an equivalence — and on its own it
-/// restores the `Eq` derives on `Edited` and on `wire.rs`'s `Command` above
-/// it, under `-D warnings`, with nothing to warn anybody. It was written, it
-/// compiled, and it was deleted on measurement (`prototype-notes.md` P-8).
-/// The only thing it could buy is an `Eq` on `Edited` that §5.2 removes
-/// deliberately, and an impl asserting a subtle property nothing consumes is
-/// a claim nobody checks. The rule is stated here, at the leaf, because that
-/// is the door the trap was actually reached through.
-///
-/// `Clone` and `Copy` are not part of that argument and are not a way back to
-/// it: `Edited` is `Clone`, and `get(self)` takes the value.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct Finite(f64);
-
-impl Finite {
-  /// What an as-drawn `number` falls back to where no bound was declared.
-  /// A constant rather than a checked call, because zero is finite by
-  /// inspection and a total expression is cheaper than an argument about why
-  /// an `expect` is unreachable (§5.2).
-  pub const ZERO: Self = Self(0.0);
-
-  /// `None` for `NaN` and for both infinities — exactly the `f64`s JSON
-  /// cannot carry.
-  #[must_use]
-  pub fn new(value: f64) -> Option<Self> {
-    value.is_finite().then_some(Self(value))
-  }
-
-  #[must_use]
-  pub fn get(self) -> f64 {
-    self.0
-  }
-}
 
 /// What the draft holds, and the only thing `submitted` maps.
 ///
@@ -94,6 +51,27 @@ pub enum Edited {
   Chosen(AlternativeId),
   /// `R-57`: RFC 3339, carrying the offset the person picked in (§7 D4).
   Picked { instant: Timestamp, offset: Offset },
+}
+
+impl Edited {
+  /// What this field submits, as stratum 1 names it: a projection, one
+  /// variant onto its counterpart, that decides no JSON type.
+  /// `Submitted::to_json` decides that.
+  #[must_use]
+  pub fn submitted(&self) -> Submitted {
+    match self {
+      Self::Checked(value) => Submitted::Boolean(*value),
+      Self::Typed(text) => Submitted::Text(text.clone()),
+      // The number, and never the text beside it: the text is what the widget
+      // displays and §5.2 keeps it off the wire.
+      Self::Adjusted { number, .. } => Submitted::Number(*number),
+      Self::Chosen(alternative) => Submitted::Choice(alternative.clone()),
+      Self::Picked { instant, offset } => Submitted::DateTime {
+        instant: *instant,
+        offset: *offset,
+      },
+    }
+  }
 }
 
 /// What a widget reported, in the widget's own terms — the most a Slint
@@ -194,24 +172,7 @@ impl Draft {
 /// guards is the *host* growing a drawn kind without deciding what it
 /// submits.
 pub(crate) fn submitted(edited: &Edited) -> serde_json::Value {
-  match edited {
-    Edited::Checked(value) => serde_json::Value::Bool(*value),
-    Edited::Typed(text) => serde_json::Value::String(text.clone()),
-    // The number, and never the text beside it: the text is what the widget
-    // displays and §5.2 keeps it off the wire. `Finite` is what makes this
-    // arm total — `Value::from(f64)` answers `null` for a non-finite, which
-    // `R-57` does not admit, and a non-finite cannot be held here at all
-    // (§5.5 I-G).
-    Edited::Adjusted { number, .. } => serde_json::Value::from(number.get()),
-    Edited::Chosen(alternative) => serde_json::Value::String(alternative.as_str().to_owned()),
-    // One `display_with_offset` call, which is also why an untouched
-    // `datetime` submits `+00:00` rather than `Z` (§7 D3): jiff reads `Z` as
-    // "the offset is unknown", and a second code path for the untouched case
-    // was the price of saying so.
-    Edited::Picked { instant, offset } => {
-      serde_json::Value::String(instant.instant().display_with_offset(*offset).to_string())
-    }
-  }
+  edited.submitted().to_json()
 }
 
 // The crate-external `tests/renderer/` tiers cannot reach a `pub(crate)`
@@ -222,12 +183,12 @@ pub(crate) fn submitted(edited: &Edited) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
   use goad_semantics::protocol::canonical::{
-    AlternativeId, FieldId, FieldKind, Opt, OptionId, Timestamp, View,
+    AlternativeId, FieldId, FieldKind, Finite, Opt, OptionId, Submitted, Timestamp, View,
   };
   use goad_semantics::protocol::normalize::read_response;
   use jiff::tz::Offset;
 
-  use super::{Draft, Edited, Finite, submitted};
+  use super::{Draft, Edited};
 
   /// No id in this module is minted, and none can be: `OptionId::new`,
   /// `FieldId::new` and `AlternativeId::new` are all `pub(super)` in
@@ -361,88 +322,45 @@ mod tests {
     );
   }
 
-  /// VT-2 — `SPEC-001/R-57`'s `boolean` clause, at the one site that applies
-  /// it. This is the test that requirement's `SPEC-001` §7 row will name.
+  /// VT-3 — `Edited::submitted` is the identity on each kind: every variant
+  /// lands on its counterpart carrying the same value, and an `Adjusted`'s
+  /// text — the widget's, never the wire's — is the one thing dropped. Each
+  /// expectation is built from the literal the `Edited` was built from, not
+  /// from the `Edited` itself.
   #[test]
-  fn a_boolean_field_submits_a_json_boolean() {
+  fn the_projection_to_submitted_is_the_identity_on_each_kind() {
+    assert_eq!(Edited::Checked(true).submitted(), Submitted::Boolean(true));
     assert_eq!(
-      submitted(&Edited::Checked(true)),
-      serde_json::Value::Bool(true)
+      Edited::Typed("typed".to_owned()).submitted(),
+      Submitted::Text("typed".to_owned())
     );
     assert_eq!(
-      submitted(&Edited::Checked(false)),
-      serde_json::Value::Bool(false)
-    );
-  }
-
-  /// PHASE-02/VT-1 — the three `f64`s JSON cannot carry, refused at the only
-  /// fallible constructor there is.
-  ///
-  /// **There is no other way to hold one**, and that is a property of the
-  /// declaration rather than of this case: the field is private, so `new` and
-  /// `ZERO` are the whole constructible surface and a non-finite submitted
-  /// number is unrepresentable rather than merely unwritten (§5.5 I-G, §7
-  /// D24). What a case can assert is the refusal, and that the surface it
-  /// leaves open is finite.
-  #[test]
-  fn a_finite_refuses_every_number_json_cannot_carry() {
-    assert_eq!(Finite::new(f64::NAN), None, "NaN");
-    assert_eq!(Finite::new(f64::INFINITY), None, "+inf");
-    assert_eq!(Finite::new(f64::NEG_INFINITY), None, "-inf");
-
-    assert_eq!(Finite::new(1.5).map(Finite::get), Some(1.5));
-    assert_eq!(Finite::new(f64::MAX).map(Finite::get), Some(f64::MAX));
-    assert_eq!(Finite::ZERO.get(), 0.0);
-  }
-
-  /// PHASE-02/VT-2 — `SPEC-001/R-57` for all five kinds, at the one site that
-  /// applies it (§5.5 I-C). The `boolean` clause is the case above; this is
-  /// the other four, and the JSON *type* is what each assertion is about.
-  #[test]
-  fn each_kind_submits_the_json_type_r_57_names() {
-    assert_eq!(
-      submitted(&Edited::Typed("typed".to_owned())),
-      serde_json::Value::String("typed".to_owned()),
-      "text submits a JSON string"
-    );
-
-    assert_eq!(
-      submitted(&Edited::Adjusted {
+      Edited::Adjusted {
         number: Finite::new(1.5).expect("1.5 is finite"),
-        text: "not this".to_owned(),
-      }),
-      serde_json::json!(1.5),
-      "number submits the number, and never the text beside it"
+        text: "1.50".to_owned(),
+      }
+      .submitted(),
+      Submitted::Number(Finite::new(1.5).expect("1.5 is finite")),
+      "the number, and never the text beside it"
     );
-
     assert_eq!(
-      submitted(&Edited::Chosen(an_alternative_id())),
-      serde_json::Value::String("first".to_owned()),
-      "choice submits the alternative's id, as a string"
+      Edited::Chosen(an_alternative_id()).submitted(),
+      Submitted::Choice(an_alternative_id())
     );
-
+    let Submitted::Choice(chosen) = Edited::Chosen(an_alternative_id()).submitted() else {
+      panic!("a chosen alternative projects to a choice");
+    };
+    assert_eq!(chosen.as_str(), "first", "the fixture's own id");
     assert_eq!(
-      submitted(&Edited::Picked {
-        instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
-        offset: Offset::UTC,
-      }),
-      serde_json::Value::String("1970-01-01T00:00:00+00:00".to_owned()),
-      "datetime submits RFC 3339 with an explicit offset — and this spelling \
-       is the one `canon-delta.md` CD-1 states for an untouched field"
-    );
-  }
-
-  /// The offset is the person's, not UTC (§7 D4): the same instant carried at
-  /// `-05:00` submits the same moment spelled in that offset. Beside the case
-  /// above so that neither arm can pass by hard-coding the other's answer.
-  #[test]
-  fn a_picked_datetime_submits_the_offset_it_was_picked_in() {
-    assert_eq!(
-      submitted(&Edited::Picked {
+      Edited::Picked {
         instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
         offset: Offset::constant(-5),
-      }),
-      serde_json::Value::String("1969-12-31T19:00:00-05:00".to_owned())
+      }
+      .submitted(),
+      Submitted::DateTime {
+        instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
+        offset: Offset::constant(-5),
+      }
     );
   }
 }

@@ -7,13 +7,13 @@
 //! clock, a file or a socket — stratum 3, but the pure half of it.
 
 use goad_semantics::protocol::canonical::{
-  AlternativeId, Alternatives, Content, Field, FieldId, FieldKind, NumberRange, Opt, OptionId,
-  Timestamp, View,
+  AlternativeId, Alternatives, Content, Field, FieldId, FieldKind, Finite, NumberRange, Opt,
+  OptionId, Timestamp, View,
 };
 use jiff::tz::Offset;
 use slint::StyledText;
 
-use crate::draft::{Edited, Finite, Reported};
+use crate::draft::{Edited, Reported};
 
 /// A canonical view, mapped to what this renderer draws.
 #[derive(Debug)]
@@ -851,11 +851,11 @@ pub fn interpret(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind) -
 // `goad-semantics/src/schedule.rs` already use.
 #[cfg(test)]
 mod tests {
-  use goad_semantics::protocol::canonical::{FieldKind, NumberRange, Timestamp, View};
+  use goad_semantics::protocol::canonical::{FieldKind, Finite, NumberRange, Timestamp, View};
   use goad_semantics::protocol::normalize::read_response;
   use jiff::tz::Offset;
 
-  use crate::draft::{Edited, Finite, Reported, submitted};
+  use crate::draft::{Edited, Reported, submitted};
 
   use super::{
     DrawnKind, Undrawn, as_drawn, drawn_form, exact_f32, interpret, present, slider_bounds, spelled,
