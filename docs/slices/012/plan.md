@@ -670,9 +670,10 @@ is read and may be included, not edited.
   probe constant (a binary-only crate's constant is not reachable from
   `tests/binary/`), asserting it is none of `Stimulus`'s kinds.
 - VA-1 — I-1 over the finished crate, by the command under *Invariant reads*:
-  the only hits outside a comment are the two `AtFault::Backend` uses R-56
-  needs — the condition's comparison of a probe failure's `fault()` (§5.2.2)
-  and the probe's claim. Recorded.
+  the only hits outside a comment are the R-56 probe's own: the claim
+  constant's `SPEC-001/R-56` (PHASE-12/EX-3), and the two `AtFault::Backend`
+  uses R-56 needs — the condition's comparison of a probe failure's `fault()`
+  (§5.2.2) and the probe's claim. Recorded.
 - VA-2 — I-2 over the finished crate, `src` and `tests`. Recorded.
 - VA-3 — EX-5: `grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
   crates/goad-check/src` finds only the `envelope` import and its call.
@@ -967,9 +968,12 @@ checking.md}` (and `protocol.md`, `running.md` for the statement EX-5 names);
   fenced line. An id counts only in a Markdown heading line that names
   exactly that one requirement id and no other (PHASE-07/EX-3); an id
   matches only when followed by a non-digit or the end. Seen red before
-  `scheduling.md`, `events.md` and `checking.md` are written. A scanner
-  symbol added for it is used by both includers, or the other's build fails
-  (PHASE-07/EX-4).
+  `scheduling.md`, `events.md` and `checking.md` are written. It adds no
+  symbol to the scanner: fenced lines are found from what the scanner already
+  returns — for instance, each fence's text removed before headings are read.
+  If PHASE-07's scanner returns nothing that allows this, STOP: a new symbol
+  must be used by both includers (PHASE-07/EX-4), and neither
+  `tests/support/` nor `round_trip.rs` is this phase's surface.
 - VT-2 — its negative control over an inline string where `SPEC-001/R-32`
   appears in a heading of its own, `SPEC-001/R-3` does not appear,
   `SPEC-001/R-40` appears only in body text, `SPEC-001/R-36` appears only on

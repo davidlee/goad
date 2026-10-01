@@ -122,3 +122,17 @@ ledger (`review-plan.md`).
 - **Decided:** *"yes, go ahead"*; F-22 *"A."*
 - **Consequence:** dispositions in the ledger; a fresh agent repairs
   `plan.md` and `design.md`; round 3 verifies these six repairs only.
+
+### 2026-10-01 — plan review round 3: close
+
+- **Asked:** round 3 (e4e3dc1) verified F-22..F-27 and raised two minors,
+  both introduced by round 2's repairs: F-28 (PHASE-08/VT-1 allowed a new
+  scanner symbol outside its surfaces) and F-29 (PHASE-12/VA-1 left out the
+  R-56 constant's own hit). Proposed: both `doc-wrong`; the orchestrator
+  repairs them and verifies them mechanically instead of a round 4, though
+  the agreed stop (two rounds with no plan defect) was not reached — the
+  trend runs seven majors, then none, then two minors made by the repairs.
+- **Recommended:** as proposed.
+- **Decided:** *"yeah"*.
+- **Consequence:** `plan.md` PHASE-08/VT-1 and PHASE-12/VA-1 repaired;
+  `review-plan.md` resolved with its Synthesis.

@@ -4,7 +4,7 @@
 `design.md` and `canon-delta.md` at the same commit
 **Reviewer:** fresh agent (Opus), raiser; the orchestrator responds
 **Opened:** 2026-10-01
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -921,10 +921,10 @@ outside fences from what the scanner already returns.
 `crates/goad-check/tests/kit/`. PHASE-07 §Surfaces holds `tests/support/` and
 `round_trip.rs`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** PHASE-08/VT-1 adds no scanner symbol; it finds fenced lines from what the scanner already returns, and STOPs if PHASE-07's scanner returns nothing that allows it. *(Repair: PHASE-08/VT-1's closing sentence replaced; surfaces unchanged.)*
 
-**Outcome:**
+**Outcome:** verified (orchestrator, mechanical) — PHASE-08/VT-1 adds no scanner symbol and STOPs if the scanner's returns cannot locate fences; PHASE-08 §Surfaces unchanged, and no other PHASE-08 text names a scanner change.
 
 ### F-29 — PHASE-12/VA-1 now lists only the `AtFault::Backend` hits, and leaves out the R-56 claim's own `R-[0-9]+` hit
 
@@ -945,13 +945,62 @@ excludes it, so VA-1 fails on the code PHASE-12/EX-3 asks for.
 crates/goad-check/src`. PHASE-12/EX-3: "The R-56 claim the line prints is a
 constant in a `src` module that holds nothing else".
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** PHASE-12/VA-1 names the claim constant's `SPEC-001/R-56` beside the two `AtFault::Backend` hits. *(Repair: PHASE-12/VA-1 reworded.)*
 
-**Outcome:**
+**Outcome:** verified (orchestrator, mechanical) — PHASE-12/VA-1 names the claim constant's `SPEC-001/R-56` and both `AtFault::Backend` uses; PHASE-04/VA-1 (no hit) stands, the constant arriving at PHASE-12/EX-3.
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+The plan review closes with every finding, F-1..F-29, verified, none
+withdrawn, none contested, no blocker raised. Three rounds by the raiser, then
+a mechanical close: round 1 raised seven majors; round 2 none, and verified
+every round-1 repair; round 3 raised only two minors, both introduced by
+round 2's repairs. The agreed stop — two rounds with no plan defect
+(`plan-log.md` 2026-10-01, *placements the plan draft put to the user*) — was
+not reached; by user decision the trend ended the rounds instead, and the
+orchestrator repaired F-28 and F-29 and verified them directly
+(`plan-log.md` 2026-10-01, *plan review round 3: close*). Every finding was
+`doc-wrong` — the plan, or the design it plans, was the defect; no code was
+read as wrong.
+
+**What it changed.**
+- *The design*, by user decision (`design-log.md` 2026-10-01, both *plan
+  review* entries): `AtFault` gains a printed form in stratum 1 (F-4); the
+  `as_drawn` round trip goes through a private `as_edited` beside `adjusted`,
+  replacing an unbuildable `From` impl (F-11); the fence scanner is shared
+  from `tests/support/`, not written twice (F-18); I-5 gained a rule and a
+  negative control (F-6), and then a rule judged by the tracked tree rather
+  than the checkout (F-22).
+- *The phases*: the checker split into PHASE-04 (the crate and its edges) and
+  PHASE-12 (the run) (F-13); until PHASE-12 a run ends with status 2 and no
+  verdict, so `main` never reports an acceptance it did not judge (F-23);
+  PHASE-01..PHASE-03 run in sequence, and only PHASE-11 may run beside
+  others, its sheet and status written by the orchestrator (F-12, F-26).
+- *The walks*: a fresh home gets credentials, and its load check asks a fact
+  only the skill's body states (F-1, F-2, F-27); PHASE-09 owns the lock bump
+  (F-3).
+- *The guards*: reach re-proven wherever a later phase adds kit files (F-5);
+  the discard witness has a red step and a mutation (F-7); the coverage test
+  reads headings outside fences, one id per heading, including the checker's
+  own R-56 claim (F-16, F-24, F-25); I-1's read names every expected hit
+  (F-8, F-29).
+- *Policy*: the recipe's departure from POL-001 §Statement mid-slice is
+  stated and bounded by audit (F-17).
+
+**What it confirmed**: the phase order — the checker and kit before the
+walks, the capsule before PHASE-09; every AC and §9 test owned by a criterion;
+the AC-6 and AC-1 person-runs as VH items.
+
+**Risks left standing.**
+- I-5 now runs `git` in a gate test, new precedent here; the gate runs only
+  in a checkout (`flake.nix`, `doCheck = false`), and a missing `git` fails
+  rather than skips.
+- PHASE-12/EX-3's R-56 constant sits alone in a `src` module that the
+  coverage test includes by path — new precedent, forced by `goad-check`
+  being binary-only.
+- PHASE-08/VT-1 depends on PHASE-07's scanner returning enough to locate
+  fences; if it does not, PHASE-08 STOPs.
+- PHASE-11 waits on oubliette's multi-target work, which is outside this
+  slice; R7 (the walk's venue) fires as early as oubliette allows, not before
+  the kit's prose.
