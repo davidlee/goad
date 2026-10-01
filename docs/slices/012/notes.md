@@ -1186,6 +1186,8 @@ Each row: `cargo test --workspace --no-fail-fast` on the mutated tree (exit
   home. One comment word; no code. Taken as within the surface, since the
   file is listed and the edit is what an exit criterion requires; flagged for
   the orchestrator in case it reads as a STOP.
+  **Accepted by the user:** `plan-log.md` 2026-10-01, *PHASE-02's `glass.rs`
+  comment; PHASE-03 sheet questions; the push before a lock bump*.
 - **Sibling names** for `an_as_drawn_choice_submits_the_first_alternative`:
   `an_as_drawn_boolean_submits_false`,
   `an_as_drawn_text_submits_the_empty_string`,
@@ -1345,21 +1347,29 @@ The objective names three of the phase's four parts. The fourth,
 - `crates/goad-emit/src/main.rs`, `crates/goad-emit/tests/binary/exchange.rs`.
 - `crates/goad-shell/src/config.rs`: *"`from_argv`'s and `unsigned`'s
   visibility, and the `Command` doc, PL-1"*.
-- `version_line`'s homes: *"`crates/goad-shell/src/report.rs`,
+- `version_line`'s homes: *"`crates/goad-shell/src/version.rs`, new, and
+  `crates/goad-shell/src/lib.rs`, its `mod` line only;
   `crates/goad/src/diagnostics.rs`, `crates/goad-emit/src/render.rs` and
-  their callers, PL-7"*. The callers are `goad`'s `diagnostics::print_version`
-  (in `diagnostics.rs`) and `goad-emit`'s `main`. `goad`'s `main.rs` names
+  their callers; PL-7, its placement amended by"* `plan-log.md` 2026-10-01,
+  *PHASE-02's `glass.rs` comment; PHASE-03 sheet questions; the push before
+  a lock bump*. `crates/goad-shell/src/report.rs` is no longer a surface: it
+  was one for this alone, and EX-8 leaves it unchanged. The callers are
+  `goad`'s `diagnostics::print_version` (in `diagnostics.rs`) and
+  `goad-emit`'s `main`. `goad`'s `main.rs` names
   `version_line` in a comment only; it calls `print_version`, which stays.
+- *"`crates/goad/src/startup.rs` and `crates/goad/tests/binary/main.rs`,
+  doc-only, for `version_line`'s old home"* (PLAN QUESTION 1, resolved).
 - `docs/slices/012/canon-delta.md` — *"test names only"*.
 - `docs/slices/012/notes.md` — this sheet, §Status, §Harvest (bookkeeping,
   `docs/AGENTS.md` §Execute).
 
 Not surfaces, and so a STOP if the work seems to need them: any canon
 document, POL-001 included; `docs/brief.md`; closed slices' docs; any
-`Cargo.toml`; `crates/goad-shell/src/lib.rs`; `tests/support/`;
+`Cargo.toml`; `crates/goad-shell/src/lib.rs` beyond its `mod` line;
+`crates/goad-shell/src/report.rs`; `tests/support/`;
 `crates/goad-emit/tests/binary/main.rs`; `crates/goad/tests/binary/process.rs`;
-and, pending **PLAN QUESTION 1**, `crates/goad/src/startup.rs` and
-`crates/goad/tests/binary/main.rs`.
+and any edit to `crates/goad/src/startup.rs` or
+`crates/goad/tests/binary/main.rs` that is not to a doc.
 
 **Reading list** (by symbol; `grep -n` then `sed -n`, not whole files)
 - `docs/slices/012/plan.md` — §Overview's first paragraph (`just check` is
@@ -1376,7 +1386,10 @@ and, pending **PLAN QUESTION 1**, `crates/goad/src/startup.rs` and
 - `docs/slices/012/plan-log.md` 2026-10-01 *placements the plan draft put to
   the user*, PL-1, PL-4 and PL-7; *plan review round 1: dispositions*, F-17
   (supersedes PL-4's rationale: the recipe departs from POL-001 §Statement
-  mid-slice because canon is not edited mid-slice).
+  mid-slice because canon is not edited mid-slice); *PHASE-02's `glass.rs`
+  comment; PHASE-03 sheet questions; the push before a lock bump* (PLAN
+  QUESTIONs 1 and 2 resolved; PL-7's placement moved to
+  `goad_shell::version`).
 - `docs/slices/012/canon-delta.md` SPEC-004 Change 3 (R-8..R-10, R-14),
   Change 5 (the R-8..R-10 and R-14 rows, which name
   `exchange.rs::an_answer_that_cannot_be_written_exits_2` and the existing
@@ -1389,7 +1402,9 @@ and, pending **PLAN QUESTION 1**, `crates/goad/src/startup.rs` and
   `/dev/full` spawn); `goad`'s `run` (`main.rs`), whose `Launch::Help` and
   `Launch::Version` arms map a write failure to
   `StartupError::AnswerUnwritten`; `goad_shell::report::{line_to,
-  try_line_to}` and their docs. `docs/memory/` — *negative-control-must-compile*,
+  try_line_to}` and their docs, and `report.rs`' module doc (*"Not a
+  formatter"*), which EX-8 keeps true; `goad-shell`'s `lib.rs` module list,
+  where `pub mod version;` joins. `docs/memory/` — *negative-control-must-compile*,
   *tests-asserting-proxies*, *mutation-check-the-coverage-claim*,
   *gui-launch-needs-a-pipe*, *hand-over-the-steps-not-the-pointer*. §Harvest
   *Learned*: a `todo!()` stub is a compiling red for a method, with ignored
@@ -1443,11 +1458,11 @@ crates --include=*.rs`, each hit read:
   `version_line` and `print_version`"*); `goad`'s `run` (`main.rs`) comment
   in `Launch::Version`; `goad-emit` `main`'s comment in `Invocation::Version`;
   `render::version_line`'s doc (*"the two are separate because stratum 3 has
-  two binaries and no shared crate"* — the claim the lift ends); **outside
-  Surfaces:** `goad`'s `startup.rs` `arguments` doc table (an intra-doc link
-  to `crate::diagnostics::version_line`) and
-  `crates/goad/tests/binary/main.rs`' module doc (*"`diagnostics.rs`'s own
-  unit case is the real assertion"*). PLAN QUESTION 1.
+  two binaries and no shared crate"* — the claim the lift ends); **in
+  Surfaces, doc-only, since PLAN QUESTION 1's resolution:** `goad`'s
+  `startup.rs` `arguments` doc table (an intra-doc link to
+  `crate::diagnostics::version_line`) and `crates/goad/tests/binary/main.rs`'
+  module doc (*"`diagnostics.rs`'s own unit case is the real assertion"*).
 - Binary cases (VT-4): `goad`'s
   `version::version_prints_the_package_version_on_stdout_and_exits_0`
   (`crates/goad/tests/binary/version.rs`) and `goad-emit`'s
@@ -1621,11 +1636,25 @@ paths, so `just check` is never red at a commit.
   - [ ] `cargo test -p goad-shell --lib config` and `cargo clippy -p
         goad-shell --all-targets -- -D warnings` green.
 - **2. `version_line` in one home (EX-8, VT-4)**
-  - [ ] In `goad_shell::report`, `pub fn version_line(version: &str,
-        revision: Option<&str>) -> String` with a `todo!()` body (parameters
-        `_version`, `_revision`), and the three cases moved from
-        `diagnostics.rs` under their names, now passing the version as a
-        literal argument. Red: 3 failed.
+  - [ ] EX-8 (quoted): *"`version_line(version, revision)` is defined once,
+        in a new module `goad_shell::version`, taking the package version as
+        a parameter … `goad_shell::report` is unchanged, its "not a
+        formatter" module doc still true."* Create
+        `crates/goad-shell/src/version.rs` with a `//!` module doc (what the
+        module owns: the `--version` line's text, which every binary
+        shares), and add `pub mod version;` to `lib.rs` in its alphabetical
+        place. `pub`, not `pub(crate)`: a private module's `pub fn` warns
+        under `unreachable_pub`, which the gate's `-D warnings` denies.
+  - [ ] In it, `pub fn version_line(version: &str, revision: Option<&str>) ->
+        String` with a `todo!()` body (parameters `_version`, `_revision`),
+        and the three cases moved from `diagnostics.rs` under their names,
+        now passing the version as a literal argument. Red: 3 failed.
+        Lints: it returns `String`, not `Result`, so `clippy::pedantic`'s
+        `missing_errors_doc` asks for no `# Errors`; keep `#[must_use]`, as
+        both copies carry it (`must_use_candidate` is allowed, so nothing
+        else holds it); `module_name_repetitions` is allowed workspace-wide,
+        so `version::version_line` passes; `clippy::todo` is denied, so the
+        `todo!()` stub never reaches a commit.
   - [ ] The body: today's, over `version` instead of
         `env!("CARGO_PKG_VERSION")`. Green.
   - [ ] Callers: `diagnostics::print_version` passes `goad`'s
@@ -1640,18 +1669,24 @@ paths, so `just check` is never red at a commit.
         `grep -rn 'CARGO_PKG_VERSION\|GOAD_REVISION' crates/goad-shell/src`
         finds only prose, and each binary's call site passes its own
         `env!("CARGO_PKG_VERSION")`. Run mutation row 6.
-  - [ ] Docs made true, in Surfaces: `report.rs`' module doc (*"Not a
-        formatter … This module owns only the last step"* is false once it
-        composes the `--version` line; see Findings); the moved function's
+  - [ ] `report.rs` unchanged: `git diff --stat` over the phase shows no
+        `crates/goad-shell/src/report.rs`, and its module doc (*"Not a
+        formatter … This module owns only the last step"*) stays true.
+        Record it.
+  - [ ] Docs made true, in Surfaces: the moved function's
         doc carries the reasoning both copies held (no placeholder, no
         prefix, *set-but-empty is unset*, the revision a parameter so the
         rule is a test) and says why the version is a parameter too;
         `diagnostics.rs`' module doc; the `Launch::Version` and
         `Invocation::Version` comments, which name `render::version_line` or
         `version_line` as where *set-but-empty* is decided.
-  - [!] `startup.rs`' `arguments` doc table and
-        `crates/goad/tests/binary/main.rs`' module doc — blocked on **PLAN
-        QUESTION 1**.
+  - [ ] Surfaces (quoted): *"`crates/goad/src/startup.rs` and
+        `crates/goad/tests/binary/main.rs`, doc-only, for `version_line`'s
+        old home"*. `startup.rs`' `arguments` doc table: the `--version` row
+        links `goad_shell::version::version_line`.
+        `crates/goad/tests/binary/main.rs`' module doc names the unit case's
+        new home, `goad_shell::version`. Then `grep -rn
+        'diagnostics::version_line\|render::version_line' crates` is empty.
 - **3. `goad-emit`'s unwritten answer (EX-4, VT-1)**
   - [ ] Run the exit grep first (§Harvest *Learned*): `grep -rn
         'an_answer_that_cannot_be_written_exits_2' crates` finds only `goad`'s
@@ -1704,10 +1739,18 @@ paths, so `just check` is never red at a commit.
         mirror"* stays, and is the rule EX-3's comment says this step
         departs from.
   - [ ] EX-1 (quoted): *"each header says it is a host exerciser and points
-        at `kit/`; `backend.ts`' "Copy this file" and `round_trip.rs`'s "the
-        file a person copies" are gone."* `kit/` does not exist until
-        PHASE-05; the pointer is to where it will be. The other copy claims
-        are **PLAN QUESTION 2**.
+        at `kit/`; every present-tense claim in the exercisers and their
+        tests that they are the thing to copy is rewritten — `backend.ts`'
+        "Copy this file", `round_trip.rs`' "the file a person copies" and its
+        `the_readme_s_own_config_loads_and_runs_the_example` doc,
+        `backend.sh`'s header, and the TypeScript README's opening among them
+        — and `git grep -n -i 'cop\(y\|ies\)' -- exercisers
+        crates/goad-shell/tests/integration/round_trip.rs README.md` is
+        recorded, each remaining hit classed."* `kit/` does not exist until
+        PHASE-05; the pointer is to where it will be. The historical
+        *"the defect propagated by copying"*
+        (`the_shell_example_escapes_the_values_it_carries_into_a_view`'s doc)
+        is true and stays, classed as history (PLAN QUESTION 2).
   - [ ] The remaining rename sites: `README.md`'s *Try it* paragraph,
         `.gitignore`'s comment, `flake.nix`'s `goadShot` comment,
         `docs/roadmap.md`'s sentence, and the four `docs/memory/` files.
@@ -1790,7 +1833,7 @@ the scratchpad backup back, `git status --short` empty after.
 | 3. `config.rs` `signed`: drop `resolved.is_zero() \|\|` | VT-3's `0s` clause; `a_zero_timeout_is_rejected_because_it_fails_every_exchange`; `a_zero_default_poll_is_rejected_because_it_is_a_busy_loop` | | |
 | 4. `positive_duration`'s parameter spelled `_key`, and `signed` called with `"backend.timeout"` | VT-3 only, on its key. The existing configuration cases pass `"backend.timeout"`, so they stay green | | |
 | 5. `render`'s unwritten-answer line drops its `goad-emit: ` prefix | `exchange::an_answer_that_cannot_be_written_exits_2` | | |
-| 6. expected **not** to red: the lifted `version_line` ignores `_version` and formats `env!("CARGO_PKG_VERSION")` | none expected: `goad-shell`'s version equals both binaries' (A-V1). Recording it shows EX-8's parameter is held by review and task 2's grep, not by a test | | |
+| 6. expected **not** to red: `goad_shell::version::version_line` ignores `_version` and formats `env!("CARGO_PKG_VERSION")` | none expected: `goad-shell`'s version equals both binaries' (A-V1). Recording it shows EX-8's parameter is held by review and task 2's grep, not by a test | | |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -1818,6 +1861,9 @@ the scratchpad backup back, `git status --short` empty after.
   contrary to EX-8's *"defined once"*. **Recommendation: (a).** Each is one
   line, and the stale form is a false statement in the tree from this commit
   on.
+  **Resolved: (a)** — `plan-log.md` 2026-10-01, *PHASE-02's `glass.rs`
+  comment; PHASE-03 sheet questions; the push before a lock bump*; `plan.md`
+  PHASE-03's Surfaces amended.
 - **PLAN QUESTION 2 — EX-1 names two copy claims; the exercisers carry
   more.** `git grep -n -i 'cop\(y\|ies\)' -- examples
   crates/goad-shell/tests/integration/round_trip.rs README.md` finds, beyond
@@ -1839,6 +1885,9 @@ the scratchpad backup back, `git status --short` empty after.
   **Recommendation: (a).** AC-5's half here is that the exercisers stop
   presenting themselves as the thing to copy. (b) would leave the
   `backend.sh` header saying so.
+  **Resolved: (a)** — `plan-log.md` 2026-10-01, *PHASE-02's `glass.rs`
+  comment; PHASE-03 sheet questions; the push before a lock bump*; `plan.md`
+  PHASE-03/EX-1 amended.
 - **`report.rs` stops being "not a formatter".** Its module doc says what a
   line *says* belongs to whoever composed it, and the module owns only the
   last step. PL-7 places a composer there. EX-8 is executable as written,
@@ -1847,6 +1896,9 @@ the scratchpad backup back, `git status --short` empty after.
   rather than *the sink*. A separate `goad_shell::version` module would keep
   the old sentence true. That would be a new file and a `lib.rs` edit, so a
   plan change, and is not proposed here.
+  **Resolved:** the orchestrator raised it; `goad_shell::version` adopted
+  (`plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment; PHASE-03 sheet
+  questions; the push before a lock bump*); `plan.md` PHASE-03/EX-8 amended.
 - **EX-8's parameter has no test.** Every member is `0.1.0` from the
   workspace, so `goad-shell`'s `env!("CARGO_PKG_VERSION")` equals each
   binary's, and VT-4 stays green if the lift reads its own. Held by review,

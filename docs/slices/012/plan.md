@@ -31,7 +31,8 @@ and gated; then it is walked.
 - **PHASE-03 — the ground the checker stands on.** `examples/` becomes
   `exercisers/` (`design.md` §5.2.7); `goad-emit`'s unwritten answer exits 2
   (§5.2.5); `config::Command::from_argv` and `config::positive_duration`
-  are public (§5.2.1); `version_line` has one home (`plan-log.md` PL-7).
+  are public (§5.2.1); `version_line` has one home, `goad_shell::version`
+  (`plan-log.md` PL-7, its placement amended 2026-10-01).
 - **PHASE-04 — `goad-check`: the crate and its edges.** The binary, its
   arguments in both forms, the steps before the first exchange, the report
   writer and status 2, with every status-2 case in the binary tier; a run
@@ -470,9 +471,14 @@ table names; `crates/goad-emit/src/main.rs`,
 `crates/goad-emit/tests/binary/exchange.rs`;
 `crates/goad-shell/src/config.rs` (`from_argv`'s and `unsigned`'s
 visibility, and the `Command` doc, PL-1); `version_line`'s homes
-(`crates/goad-shell/src/report.rs`, `crates/goad/src/diagnostics.rs`,
-`crates/goad-emit/src/render.rs` and their callers, PL-7);
-`canon-delta.md` (test names only).
+(`crates/goad-shell/src/version.rs`, new, and `crates/goad-shell/src/lib.rs`,
+its `mod` line only; `crates/goad/src/diagnostics.rs`,
+`crates/goad-emit/src/render.rs` and their callers; PL-7, its placement
+amended by `plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment;
+PHASE-03 sheet questions; the push before a lock bump*);
+`crates/goad/src/startup.rs` and
+`crates/goad/tests/binary/main.rs`, doc-only, for `version_line`'s old home
+(the same entry); `canon-delta.md` (test names only).
 
 **Entry**
 - EN-1 — PHASE-02 done (PHASE-01..PHASE-03 run in sequence, §Sequencing).
@@ -480,8 +486,16 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 **Exit**
 - EX-1 — `exercisers/` holds `shell/backend.sh`, `typescript/{backend.ts,
   README.md}` and `demo.toml`; each header says it is a host exerciser and
-  points at `kit/`; `backend.ts`' "Copy this file" and `round_trip.rs`'s "the
-  file a person copies" are gone.
+  points at `kit/`; every present-tense claim in the exercisers and their
+  tests that they are the thing to copy is rewritten — `backend.ts`' "Copy
+  this file", `round_trip.rs`' "the file a person copies" and its
+  `the_readme_s_own_config_loads_and_runs_the_example` doc, `backend.sh`'s
+  header, and the TypeScript README's opening among them — and `git grep -n
+  -i 'cop\(y\|ies\)' -- exercisers
+  crates/goad-shell/tests/integration/round_trip.rs README.md` is recorded,
+  each remaining hit classed (`plan-log.md` 2026-10-01, *PHASE-02's
+  `glass.rs` comment; PHASE-03 sheet questions; the push before a lock
+  bump*).
 - EX-2 — `git grep -n 'examples/' -- ':!docs/slices' ':!docs/brief.md'` finds
   only POL-001's command block, which audit amends.
 - EX-3 — the `justfile`'s `typecheck` is `deno check
@@ -505,10 +519,14 @@ visibility, and the `Command` doc, PL-1); `version_line`'s homes
 - EX-7 — `config::Command`'s doc names the routes that hold the empty command
   out (`Config::parse`, `from_argv`) and no longer claims it is
   unrepresentable (PL-1).
-- EX-8 — `version_line` is defined once, in `goad_shell::report`, taking the
-  package version as a parameter: `env!("CARGO_PKG_VERSION")` expands in the
-  crate that compiles it, so each binary passes its own. `goad` and
-  `goad-emit` call it, and their `--version` output is unchanged (PL-7).
+- EX-8 — `version_line(version, revision)` is defined once, in a new module
+  `goad_shell::version`, taking the package version as a parameter:
+  `env!("CARGO_PKG_VERSION")` expands in the crate that compiles it, so each
+  binary passes its own. `goad` and `goad-emit` call it, and their
+  `--version` output is unchanged. `goad_shell::report` is unchanged, its
+  "not a formatter" module doc still true (PL-7, its placement amended by
+  `plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment; PHASE-03
+  sheet questions; the push before a lock bump*).
 
 **Verification**
 - VT-1 — `goad-emit` binary tier: `an_answer_that_cannot_be_written_exits_2`
@@ -589,7 +607,7 @@ may be included, not edited.
   verdict, status 2, on failure: the configuration loaded, each `--event`
   file normalized in the order given, the clock read, a current-thread
   runtime and a `Host` built the way `goad`'s `main.rs` `start` builds them.
-- EX-8 — `--version` prints `goad_shell::report::version_line` with this
+- EX-8 — `--version` prints `goad_shell::version::version_line` with this
   crate's package version and its compilation's `GOAD_REVISION`, as
   `goad-emit`'s does (PHASE-03/EX-8).
 
@@ -777,6 +795,11 @@ that repository.
   environment variables to a session started in a fresh home. Nothing
   credential-bearing is written into the home, a committed file or
   `goad-walk`.
+- [ ] EN-3 — goad's `main` pushed to `origin` at or past the revision the lock
+  will pin (`plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment;
+  PHASE-03 sheet questions; the push before a lock bump*). The revision is
+  this phase's own (EX-4), so the item is checked before the bump, not at
+  entry.
 
 **Exit**
 - EX-1 — `nix build --no-link .#goad-check .#goad-kit` succeeds from the bare
@@ -1068,6 +1091,9 @@ transcripts stay in the quarantine and `goad-walk`, outside this repository.
 **Entry**
 - EN-1 — PHASE-08 done, on `main`.
 - EN-2 — PHASE-11 done.
+- [ ] EN-3 — goad's `main` pushed to `origin` at or past the revision the lock
+  will pin (`plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment;
+  PHASE-03 sheet questions; the push before a lock bump*).
 
 **Exit**
 - EX-1 — before each walk, in its capsule, the negative control passed.
@@ -1116,6 +1142,11 @@ walk/}`; `~/dev/goad-walk/flake.lock`, committed in that repository.
 
 **Entry**
 - EN-1 — PHASE-09 done; its kit-fix rows are the work list.
+- [ ] EN-2 — goad's `main` pushed to `origin` at or past the revision the lock
+  will pin (`plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment;
+  PHASE-03 sheet questions; the push before a lock bump*). The revision is
+  the fixed one (EX-3), so the item is checked before the bump, not at
+  entry.
 
 **Exit**
 - EX-1 — each kit-fix row cites the commit that fixed it; no fix touches the
