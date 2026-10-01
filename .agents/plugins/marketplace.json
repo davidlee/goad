@@ -1,0 +1,11 @@
+{
+  "name": "goad",
+  "description": "The goad backend kit.",
+  "plugins": [
+    {
+      "name": "goad",
+      "source": { "source": "local", "path": "./kit" },
+      "description": "Write and check a backend for goad, the desktop intervention shell."
+    }
+  ]
+}

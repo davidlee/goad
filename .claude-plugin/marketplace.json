@@ -1,0 +1,12 @@
+{
+  "name": "goad",
+  "owner": { "name": "David Lee" },
+  "description": "The goad backend kit.",
+  "plugins": [
+    {
+      "name": "goad",
+      "source": "./kit",
+      "description": "Write and check a backend for goad, the desktop intervention shell."
+    }
+  ]
+}

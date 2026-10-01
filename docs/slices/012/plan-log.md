@@ -359,3 +359,19 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
 - **Decided:** *"sure"*.
 - **Consequence:** `plan.md` PHASE-05 (surfaces, EX-7, EX-8, EN-2) amended;
   the sheet's `[!]` tasks unblocked.
+
+### 2026-10-01 — EX-8 and EN-2 take a Claude OAuth token
+
+- **Asked:** the EX-8 person-run script (PHASE-05 sheet, as applied in
+  85c3ddc) requires `ANTHROPIC_API_KEY`, and EN-2 says "API keys". A fresh
+  home has no Claude login, so a person who signs in by OAuth stops at the
+  script's authentication check.
+- **The user signs in by OAuth.**
+- **Recommended:** the script and EN-2 accept `CLAUDE_CODE_OAUTH_TOKEN`
+  (made by `claude setup-token`) in place of `ANTHROPIC_API_KEY`, passed by
+  environment, never written into the fresh home. The same holds for
+  PHASE-11's capsule credentials (its EN-3).
+- **Decided:** *"oauth"*.
+- **Consequence:** applied to `plan.md` PHASE-05 EN-2/EX-8, PHASE-11's
+  credential item, and the PHASE-05 sheet's script **after** PHASE-05's
+  executor stops at the push (it holds the sheet now; one writer per file).

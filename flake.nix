@@ -247,11 +247,11 @@
         name = "goad-source";
       };
 
-    # One dependency layer over `--workspace`, shared by both binaries: emit's
-    # dependencies are a subset of goad's, so a second layer would rebuild what
-    # this one already holds.
+    # One dependency layer over `--workspace`, shared by every binary package:
+    # it holds every workspace member's dependencies, so a second layer would
+    # rebuild what this one already holds.
     cargoArtifacts = craneLib.buildDepsOnly {
-      # `pname` and `version` are explicit on all three derivations here: the
+      # `pname` and `version` are explicit on every crane derivation here: the
       # workspace root is a virtual manifest with no `[package]`, so crane's
       # `crateNameFromCargoToml` has nothing to read.
       pname = "goad-deps";
@@ -269,7 +269,7 @@
     # than a guess (design.md §5.2(c), A1).
     revision = self.shortRev or self.dirtyShortRev or "";
 
-    # `doCheck = false` on all three derivations above and below, and not as an
+    # `doCheck = false` on every crane derivation above and below, and not as an
     # economy — do not reach for `doCheck = true` here. The nix sandbox has no
     # tzdb (six `instant.rs` cases fail on it), no session bus and no writable
     # font cache, and `event_loop_schedule` still fails on timing once both are
@@ -315,13 +315,46 @@
         GOAD_REVISION = revision;
         meta.mainProgram = "goad-emit";
       };
+
+      # No wrapper and no `guiLibs`, as `goad-emit`: the checker drives a
+      # backend over pipes and has no renderer to dlopen anything for.
+      goad-check = craneLib.buildPackage {
+        pname = "goad-check";
+        version = workspaceVersion;
+        inherit src cargoArtifacts;
+        cargoExtraArgs = "--locked -p goad-check --bin goad-check";
+        nativeBuildInputs = [pkgs.pkg-config];
+        doCheck = false;
+        GOAD_REVISION = revision;
+        meta.mainProgram = "goad-check";
+      };
     };
+
+    # The plugin's marketplace root, not its plugin root: Codex installs only
+    # from a marketplace and copies only `kit/` into its cache, and Claude loads
+    # `$out/kit` (design.md §5.2.8). A fileset, not `cleanSourceWith`: a listed
+    # path that is missing, or untracked in a git-input flake, fails evaluation
+    # rather than being dropped in silence. Not a crane derivation.
+    #
+    # Copied into a derivation: `toSource` yields a source path, and a flake's
+    # `packages` holds derivations (`nix flake check` refuses the bare path).
+    goad-kit = pkgs.runCommandLocal "goad-kit" {} ''
+      cp -r ${lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./.claude-plugin/marketplace.json
+          ./.agents/plugins/marketplace.json
+          ./kit
+        ];
+      }} $out
+    '';
   in {
     # A merge, not a replacement: the three jail packages stay exported, and
     # losing one is a regression nothing in the gate would see.
     packages.${system} =
       jailPkgs
       // goadPackages
+      // {inherit goad-kit;}
       // {default = goadPackages.goad;};
 
     # Not under `${system}`, unlike `packages` and `devShells` above: a

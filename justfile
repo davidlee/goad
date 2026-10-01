@@ -91,12 +91,12 @@ emit source kind:
 # is invisible to it.** `git add` a new file before building, or the build is of
 # a tree that does not contain it.
 #
-# `--no-link` so that no `result` symlink lands in the checkout; the two store
-# paths are printed instead.
+# `--no-link` so that no `result` symlink lands in the checkout; each package's
+# store path is printed instead.
 
-# Build both binaries with nix. Not part of `check`.
+# Build every goad package with nix: the binaries and the kit. Not part of `check`.
 package:
-  nix build --no-link --print-out-paths .#goad .#goad-emit
+  nix build --no-link --print-out-paths .#goad .#goad-emit .#goad-check .#goad-kit
 
 # Not in the gate: it installs outside the repository.
 #
@@ -123,11 +123,12 @@ package:
 # empty, and an env file naming two empty values is the same silent breakage
 # written down.
 
-# Install both binaries into $CARGO_HOME/bin, with the environment they need.
+# Install every goad binary into $CARGO_HOME/bin, with the environment they need.
 install:
   : "${LD_LIBRARY_PATH:?run this in the dev shell: both vars come from flake.nix}" "${FONTCONFIG_FILE:?}"
   cargo install --path crates/goad --locked
   cargo install --path crates/goad-emit --locked
+  cargo install --path crates/goad-check --locked
   mkdir -p ${XDG_CONFIG_HOME:-$HOME/.config}/goad
   printf 'LD_LIBRARY_PATH=%s\nFONTCONFIG_FILE=%s\n' "$LD_LIBRARY_PATH" "$FONTCONFIG_FILE" \
     > ${XDG_CONFIG_HOME:-$HOME/.config}/goad/env

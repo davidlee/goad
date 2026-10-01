@@ -1,0 +1,9 @@
+{
+  "name": "goad",
+  "description": "Write and check a backend for goad, the desktop intervention shell.",
+  "version": "0.1.0",
+  "author": { "name": "David Lee" },
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": { "displayName": "goad" }
+}
