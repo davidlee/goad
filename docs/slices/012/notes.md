@@ -342,14 +342,19 @@ witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
         *Done.* Three files, one line each, the `requirement` line only;
         the refusal witness green.
 - **4. `fault()`, stratum 2, `AtFault`'s `Display`**
-  - [ ] EX-1, its `AtFault` half: `AtFault { Backend, Host, Configuration,
+  - [x] EX-1, its `AtFault` half: `AtFault { Backend, Host, Configuration,
         Environment }`, whose `Display` is *"a total match printing `backend`,
         `host`, `configuration`, `environment`"*. VT-1:
         `every_side_displays_as_the_word_a_report_prints` — *"a table over
         each `AtFault` variant beside an exhaustive match"* — red, then green.
-  - [ ] VT-1's tables gain their side column, copied from §5.2.3; then
+  - [x] VT-1's tables gain their side column, copied from §5.2.3; then
         `fault()` on `ProtocolError`, `BoundsError`, `ScheduleError` (EX-2),
         total, no `_` arm, `Bounds` and `Schedule` delegating.
+        *Done.* `every_side_displays_as_the_word_a_report_prints` red against
+        a `Display` writing `""` (`left: "" right: "backend"`), then green.
+        The three tables, given their side column (`assert_row` compares
+        `(id display, side)` with the row), red against `todo!()` bodies,
+        then green.
   - [ ] VT-2: new `mod tests` in `goad_shell::error` with a builder per enum
         (A-V9) and `every_backend_error_names_a_requirement_and_a_side`, and
         the cleanup and state siblings, each from §5.2.3, *"expected ids

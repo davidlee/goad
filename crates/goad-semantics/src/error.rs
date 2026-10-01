@@ -55,6 +55,39 @@ impl fmt::Display for Requirement {
   }
 }
 
+/// The side a refusal's cause lies on (SPEC-001/R-59; `design.md` §5.2.3).
+/// One per kind of refusal, never per instance: a kind whose cause can lie on
+/// another side keeps its one, and its refusal carries what lets a reader see
+/// the other.
+///
+/// Named for *who*; a `…Fault` in this workspace names a reason.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtFault {
+  /// In what the backend sent or did.
+  Backend,
+  /// On the host's side of the seam: its own code, or whoever answered
+  /// through it.
+  Host,
+  /// In the user's configuration, which named something the host could not
+  /// use.
+  Configuration,
+  /// In the operating system, which failed the host.
+  Environment,
+}
+
+/// The word a report prints. A total match, so a report prints a side and
+/// never maps one.
+impl fmt::Display for AtFault {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str(match self {
+      Self::Backend => "backend",
+      Self::Host => "host",
+      Self::Configuration => "configuration",
+      Self::Environment => "environment",
+    })
+  }
+}
+
 /// The name a diagnostic gives a JSON value's type. `&'static str` by
 /// construction, so a message names a type and never formats the offending
 /// value. The one such table in the workspace: `NotAString` reports it and
@@ -218,6 +251,28 @@ impl ProtocolError {
       Self::Schedule(inner) => inner.requirement(),
     }
   }
+
+  /// The side this kind of refusal's cause lies on (SPEC-001/R-59).
+  #[must_use]
+  pub fn fault(&self) -> AtFault {
+    match self {
+      Self::Json(_)
+      | Self::Shape(_)
+      | Self::DuplicateKey { .. }
+      | Self::NestedHints { .. }
+      | Self::UnsupportedProtocolVersion { .. }
+      | Self::UnsupportedPrimitive { .. }
+      | Self::InapplicableKey { .. }
+      | Self::MissingField { .. }
+      | Self::EmptyOptions { .. }
+      | Self::DuplicateOptionId { .. }
+      | Self::DuplicateFieldId { .. }
+      | Self::DuplicateAlternativeId { .. }
+      | Self::EmptyAlternatives { .. } => AtFault::Backend,
+      Self::Bounds(inner) => inner.fault(),
+      Self::Schedule(inner) => inner.fault(),
+    }
+  }
 }
 
 impl BoundsError {
@@ -226,6 +281,14 @@ impl BoundsError {
   pub fn requirement(&self) -> Requirement {
     match self {
       Self::NotFinite { .. } | Self::Inverted { .. } => Requirement::R17,
+    }
+  }
+
+  /// The side this kind of refusal's cause lies on (SPEC-001/R-59).
+  #[must_use]
+  pub fn fault(&self) -> AtFault {
+    match self {
+      Self::NotFinite { .. } | Self::Inverted { .. } => AtFault::Backend,
     }
   }
 }
@@ -241,6 +304,19 @@ impl ScheduleError {
       Self::MissingOffset { .. } => Requirement::R22,
       Self::TimeOfDay { .. } => Requirement::R21,
       Self::CalendarUnit { .. } => Requirement::R23,
+    }
+  }
+
+  /// The side this kind of refusal's cause lies on (SPEC-001/R-59).
+  #[must_use]
+  pub fn fault(&self) -> AtFault {
+    match self {
+      Self::NotAString { .. }
+      | Self::MissingOffset { .. }
+      | Self::TimeOfDay { .. }
+      | Self::CalendarUnit { .. }
+      | Self::OutOfRange { .. }
+      | Self::Unparseable { .. } => AtFault::Backend,
     }
   }
 }
@@ -358,7 +434,7 @@ impl std::error::Error for SpanFault {}
 
 #[cfg(test)]
 mod tests {
-  use super::{BoundsError, ProtocolError, ScheduleError};
+  use super::{AtFault, BoundsError, ProtocolError, Requirement, ScheduleError};
 
   /// The values a variant's `Display` must name.
   ///
@@ -409,43 +485,57 @@ mod tests {
   /// as the table spells it. Copied from the table, not from the code, so a
   /// constant whose value disagrees with its name reds the test that reads it.
   /// Exhaustive, so a new variant has no row until one is decided.
-  fn protocol_row(error: &ProtocolError) -> String {
+  fn protocol_row(error: &ProtocolError) -> (&'static str, AtFault) {
     match error {
       ProtocolError::Json(_) | ProtocolError::Shape(_) | ProtocolError::DuplicateKey { .. } => {
-        "R-44".to_owned()
+        ("R-44", AtFault::Backend)
       }
-      ProtocolError::NestedHints { .. } => "R-18".to_owned(),
-      ProtocolError::UnsupportedProtocolVersion { .. } => "R-3".to_owned(),
-      ProtocolError::UnsupportedPrimitive { .. } => "R-12".to_owned(),
-      ProtocolError::InapplicableKey { key: "fields", .. } => "R-53".to_owned(),
-      ProtocolError::InapplicableKey { .. } => "R-50".to_owned(),
-      ProtocolError::MissingField { .. } => "R-10".to_owned(),
-      ProtocolError::EmptyOptions { .. } => "R-13".to_owned(),
-      ProtocolError::DuplicateOptionId { .. } => "R-14".to_owned(),
+      ProtocolError::NestedHints { .. } => ("R-18", AtFault::Backend),
+      ProtocolError::UnsupportedProtocolVersion { .. } => ("R-3", AtFault::Backend),
+      ProtocolError::UnsupportedPrimitive { .. } => ("R-12", AtFault::Backend),
+      ProtocolError::InapplicableKey { key: "fields", .. } => ("R-53", AtFault::Backend),
+      ProtocolError::InapplicableKey { .. } => ("R-50", AtFault::Backend),
+      ProtocolError::MissingField { .. } => ("R-10", AtFault::Backend),
+      ProtocolError::EmptyOptions { .. } => ("R-13", AtFault::Backend),
+      ProtocolError::DuplicateOptionId { .. } => ("R-14", AtFault::Backend),
       ProtocolError::DuplicateFieldId { .. } | ProtocolError::DuplicateAlternativeId { .. } => {
-        "R-52".to_owned()
+        ("R-52", AtFault::Backend)
       }
-      ProtocolError::EmptyAlternatives { .. } => "R-16".to_owned(),
+      ProtocolError::EmptyAlternatives { .. } => ("R-16", AtFault::Backend),
       ProtocolError::Bounds(inner) => bounds_row(inner),
       ProtocolError::Schedule(inner) => schedule_row(inner),
     }
   }
 
-  fn bounds_row(error: &BoundsError) -> String {
+  fn bounds_row(error: &BoundsError) -> (&'static str, AtFault) {
     match error {
-      BoundsError::NotFinite { .. } | BoundsError::Inverted { .. } => "R-17".to_owned(),
+      BoundsError::NotFinite { .. } | BoundsError::Inverted { .. } => ("R-17", AtFault::Backend),
     }
   }
 
-  fn schedule_row(error: &ScheduleError) -> String {
+  fn schedule_row(error: &ScheduleError) -> (&'static str, AtFault) {
     match error {
       ScheduleError::NotAString { .. }
       | ScheduleError::OutOfRange { .. }
-      | ScheduleError::Unparseable { .. } => "R-25".to_owned(),
-      ScheduleError::MissingOffset { .. } => "R-22".to_owned(),
-      ScheduleError::TimeOfDay { .. } => "R-21".to_owned(),
-      ScheduleError::CalendarUnit { .. } => "R-23".to_owned(),
+      | ScheduleError::Unparseable { .. } => ("R-25", AtFault::Backend),
+      ScheduleError::MissingOffset { .. } => ("R-22", AtFault::Backend),
+      ScheduleError::TimeOfDay { .. } => ("R-21", AtFault::Backend),
+      ScheduleError::CalendarUnit { .. } => ("R-23", AtFault::Backend),
     }
+  }
+
+  /// One row's assertion: the id by its printed form, the side by value.
+  fn assert_row(
+    error: &impl std::fmt::Display,
+    answered: (Requirement, AtFault),
+    row: (&str, AtFault),
+  ) {
+    let (requirement, side) = answered;
+    assert_eq!(
+      (requirement.to_string().as_str(), side),
+      row,
+      "`{error}` disagrees with its row"
+    );
   }
 
   fn assert_names(error: &impl std::fmt::Display, values: &[String]) {
@@ -605,10 +695,10 @@ mod tests {
   #[test]
   fn every_protocol_error_names_a_requirement_and_a_side() {
     for error in every_protocol_error() {
-      assert_eq!(
-        error.requirement().to_string(),
+      assert_row(
+        &error,
+        (error.requirement(), error.fault()),
         protocol_row(&error),
-        "`{error}`"
       );
     }
   }
@@ -616,10 +706,10 @@ mod tests {
   #[test]
   fn every_bounds_error_names_a_requirement_and_a_side() {
     for error in every_bounds_error() {
-      assert_eq!(
-        error.requirement().to_string(),
+      assert_row(
+        &error,
+        (error.requirement(), error.fault()),
         bounds_row(&error),
-        "`{error}`"
       );
     }
   }
@@ -627,11 +717,34 @@ mod tests {
   #[test]
   fn every_schedule_error_names_a_requirement_and_a_side() {
     for error in every_schedule_error() {
-      assert_eq!(
-        error.requirement().to_string(),
+      assert_row(
+        &error,
+        (error.requirement(), error.fault()),
         schedule_row(&error),
-        "`{error}`"
       );
+    }
+  }
+
+  /// The word each side prints, from `design.md` §5.2.3. Exhaustive, so a new
+  /// side has no word until one is decided.
+  fn word(side: AtFault) -> &'static str {
+    match side {
+      AtFault::Backend => "backend",
+      AtFault::Host => "host",
+      AtFault::Configuration => "configuration",
+      AtFault::Environment => "environment",
+    }
+  }
+
+  #[test]
+  fn every_side_displays_as_the_word_a_report_prints() {
+    for side in [
+      AtFault::Backend,
+      AtFault::Host,
+      AtFault::Configuration,
+      AtFault::Environment,
+    ] {
+      assert_eq!(side.to_string(), word(side));
     }
   }
 
