@@ -1203,7 +1203,7 @@ mod tests {
   /// The minimum, or zero — `NumberRange::drawn`'s rule, reached through the
   /// kind — including §5.5's edge: a `max`-only range below zero submits `0`.
   #[test]
-  fn an_as_drawn_number_submits_its_minimum_or_zero() {
+  fn an_as_drawn_range_submits_its_minimum_or_zero() {
     assert!(
       same(
         number_of(&Submitted::as_drawn(&a_number(Some(2.5), Some(10.0)))),

@@ -8,9 +8,8 @@
 
 use goad_semantics::protocol::canonical::{
   AlternativeId, Alternatives, Content, Field, FieldId, FieldKind, Finite, NumberRange, Opt,
-  OptionId, Timestamp, View,
+  OptionId, Submitted, View,
 };
-use jiff::tz::Offset;
 use slint::StyledText;
 
 use crate::draft::{Edited, Reported};
@@ -628,24 +627,6 @@ pub fn slider_bounds(range: &NumberRange) -> Option<(f32, f32)> {
   (minimum + step > minimum && maximum - step < maximum).then_some((minimum, maximum))
 }
 
-/// The number a `number` field is drawn showing: its declared minimum, or zero
-/// where none was declared.
-///
-/// `R-17` already guarantees a declared bound is finite, so `Finite::new`
-/// cannot refuse one. It is still the constructor that is called, falling back
-/// to `ZERO`, because a total expression is cheaper than an argument about why
-/// an `expect` is unreachable (design.md §5.2).
-///
-/// A range carrying only a `max` is legal, so this can answer a number above
-/// that maximum — `max: -10` and no `min` is drawn showing, and submits, `0`.
-/// Not a defect: `R-35` puts the judgement of whether an answer is acceptable
-/// in the backend, and `R-58` requires a value for every drawn field. It is a
-/// consequence a backend author cannot discover from `R-58`, which is why
-/// `canon-delta.md` CD-1 states it.
-fn drawn_number(range: &NumberRange) -> Finite {
-  Finite::new(range.min().unwrap_or(0.0)).unwrap_or(Finite::ZERO)
-}
-
 /// An `Adjusted` built from the number alone, spelling the text beside it.
 ///
 /// Every site that produces one **without a person having typed** comes
@@ -655,6 +636,22 @@ fn adjusted(number: Finite) -> Edited {
   Edited::Adjusted {
     text: spelled(number.get()),
     number,
+  }
+}
+
+/// What the draft would hold for a value stratum 1 decided, so `as_drawn` can
+/// answer in `Edited` without deciding anything itself (design.md §5.2.4).
+///
+/// Private and beside [`adjusted`], not a crate-wide `From`: `as_drawn` is its
+/// only caller, and `draft.rs` imports nothing from here. A number is spelled
+/// through [`adjusted`], so this decides no value and no spelling.
+fn as_edited(submitted: Submitted) -> Edited {
+  match submitted {
+    Submitted::Boolean(value) => Edited::Checked(value),
+    Submitted::Text(text) => Edited::Typed(text),
+    Submitted::Number(number) => adjusted(number),
+    Submitted::Choice(alternative) => Edited::Chosen(alternative),
+    Submitted::DateTime { instant, offset } => Edited::Picked { instant, offset },
   }
 }
 
@@ -686,22 +683,16 @@ fn held_number(held: Option<&Edited>) -> Option<Finite> {
 /// is said.
 #[must_use]
 pub fn as_drawn(kind: &DrawnKind) -> Edited {
-  match kind {
-    DrawnKind::Boolean => Edited::Checked(false),
-    DrawnKind::Text => Edited::Typed(String::new()),
-    DrawnKind::Number(range) => adjusted(drawn_number(range)),
-    // The first alternative's id, cloned off the kind rather than read out of
-    // the list — which is the whole reason the kind carries it.
-    DrawnKind::Choice { first, .. } => Edited::Chosen(first.clone()),
-    // `+00:00` rather than `Z`, because it falls out of the same
-    // `display_with_offset` call as every other datetime and a second code
-    // path for the untouched case was the worse trade (§7 D3). The sentinel a
-    // backend would recognise is the 1970, not the offset.
-    DrawnKind::DateTime => Edited::Picked {
-      instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
-      offset: Offset::UTC,
+  let declared = match kind {
+    DrawnKind::Boolean => FieldKind::Boolean,
+    DrawnKind::Text => FieldKind::Text,
+    DrawnKind::Number(range) => FieldKind::Number(*range),
+    DrawnKind::Choice { alternatives, .. } => FieldKind::Choice {
+      alternatives: alternatives.clone(),
     },
-  }
+    DrawnKind::DateTime => FieldKind::DateTime,
+  };
+  as_edited(Submitted::as_drawn(&declared))
 }
 
 /// What an untouched field **shows**, where that is one of the draft's values
@@ -804,7 +795,7 @@ pub fn interpret(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind) -
           .ok()
           .and_then(Finite::new)
           .or_else(|| held_number(held))
-          .unwrap_or_else(|| drawn_number(range)),
+          .unwrap_or_else(|| range.drawn()),
         text: text.clone(),
       }),
       // A `Slider` has nothing to display, so the host's own spelling of the
@@ -851,14 +842,17 @@ pub fn interpret(reported: &Reported, held: Option<&Edited>, kind: &DrawnKind) -
 // `goad-semantics/src/schedule.rs` already use.
 #[cfg(test)]
 mod tests {
-  use goad_semantics::protocol::canonical::{FieldKind, Finite, NumberRange, Timestamp, View};
+  use goad_semantics::protocol::canonical::{
+    FieldKind, Finite, NumberRange, Submitted, Timestamp, View,
+  };
   use goad_semantics::protocol::normalize::read_response;
   use jiff::tz::Offset;
 
   use crate::draft::{Edited, Reported, submitted};
 
   use super::{
-    DrawnKind, Undrawn, as_drawn, drawn_form, exact_f32, interpret, present, slider_bounds, spelled,
+    DrawnKind, Undrawn, as_drawn, as_edited, drawn_form, exact_f32, interpret, present,
+    slider_bounds, spelled,
   };
 
   /// The view a document normalizes to, for a unit that needs a real
@@ -1046,6 +1040,30 @@ mod tests {
         offset: Offset::UTC,
       }
     );
+  }
+
+  /// VT-4 — `Submitted` → `Edited` → `Submitted` over each kind: `as_edited`
+  /// decides no value, so what it was given is what projects back. The other
+  /// direction is not an identity — a typed spelling such as `2.50` is not
+  /// kept — which is why the round trip starts here.
+  #[test]
+  fn as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind() {
+    let DrawnKind::Choice { alternatives, .. } = a_choice() else {
+      panic!("the fixture is a choice");
+    };
+    let each_kind = [
+      Submitted::Boolean(true),
+      Submitted::Text("typed".to_owned()),
+      Submitted::Number(finite(2.5)),
+      Submitted::Choice(alternatives.as_slice()[1].id().clone()),
+      Submitted::DateTime {
+        instant: epoch(),
+        offset: Offset::constant(-5),
+      },
+    ];
+    for submitted in each_kind {
+      assert_eq!(as_edited(submitted.clone()).submitted(), submitted);
+    }
   }
 
   /// PHASE-02/VT-3, the wire half — `canon-delta.md` CD-1 in one case: what

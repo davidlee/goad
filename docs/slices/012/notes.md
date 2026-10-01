@@ -1008,17 +1008,17 @@ on it.
     `instant("1970-01-01T00:00:00Z")`. The datetime arm's comment moved from
     `view_model::as_drawn`.
 - **5. The delegation (EX-3, VT-4)**
-  - [ ] Private `as_edited(Submitted) -> Edited` beside `adjusted`, with a
+  - [x] Private `as_edited(Submitted) -> Edited` beside `adjusted`, with a
         `todo!()` body; write
         `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`
         in `view_model.rs`' tests. Red.
-  - [ ] Implement, spelling a number *"through `adjusted`"*. Green.
-  - [ ] `view_model::as_drawn` keeps its signature and delegates: rebuild the
+  - [x] Implement, spelling a number *"through `adjusted`"*. Green.
+  - [x] `view_model::as_drawn` keeps its signature and delegates: rebuild the
         `FieldKind` from the `DrawnKind`, call `Submitted::as_drawn`, convert
         through `as_edited`. `as_drawn_answers_every_kind`,
         `an_untouched_field_submits_what_canon_delta_cd_1_states` and the
         renderer tier green unchanged.
-  - [ ] `interpret`'s untouched-number fallback calls `NumberRange::drawn`,
+  - [x] `interpret`'s untouched-number fallback calls `NumberRange::drawn`,
         and `drawn_number` is deleted (EX-3 as amended by PLAN QUESTION 2's
         resolution, quoted: *"`NumberRange::drawn` is the one statement of
         the drawn number — its minimum, or zero — called by
@@ -1026,9 +1026,32 @@ on it.
         untouched fallback; `view_model::drawn_number` is gone"*).
         `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing`
         green unchanged.
-  - [ ] EX-3's greps (quoted): *"`grep -rn 'drawn_number' crates` finds
+  - [x] EX-3's greps (quoted): *"`grep -rn 'drawn_number' crates` finds
         nothing; `grep -rn 'min()' crates/*/src`, each hit read and
         recorded, finds no second minimum-or-zero rule"*. Record each hit.
+  - *Done.* `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`
+    red against `as_edited`'s stub (`not yet implemented`; 1 of 13 in `-p
+    goad --lib view_model`), green with the body; its `Number` arm calls
+    `adjusted`. `view_model::as_drawn` rebuilds the `FieldKind` and delegates;
+    `interpret` calls `range.drawn()`; `drawn_number` deleted, with
+    `view_model.rs`' now-unused `Timestamp` and `jiff::tz::Offset` imports.
+    `cargo test -p goad --no-fail-fast` green throughout, with
+    `as_drawn_answers_every_kind`,
+    `an_untouched_field_submits_what_canon_delta_cd_1_states`,
+    `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing` and
+    the renderer tier unchanged.
+  - **EX-3 record.** `grep -rn 'drawn_number' crates` first found two hits
+    this reading did not foresee: the new sibling
+    `an_as_drawn_number_submits_its_minimum_or_zero` (*as_drawn_number* is a
+    substring), renamed `an_as_drawn_range_submits_its_minimum_or_zero`; and
+    a comment in `glass.rs`' `field_value` (*"the same trade
+    `view_model::drawn_number` takes"*), re-pointed at `NumberRange::drawn`
+    (Decisions). Then no hit. `grep -rn 'min()' crates/*/src`: `canonical.rs`
+    `a_range_with_one_bound_or_none_is_accepted` — a test;
+    `view_model::slider_bounds` (`exact_f32(range.min()?)?`) — reads the
+    minimum and defaults nothing. `NumberRange::drawn` reads the field
+    `self.min`, inside `NumberRange`'s own `impl`. No second
+    minimum-or-zero rule.
 - **Refactor**
   - [ ] EX-7 (PL-3): `DrawnKind::Choice` loses `first` and *"its stale doc
         goes with it"*. `drawn_form`'s `Choice` arm and its comment (which
@@ -1105,6 +1128,23 @@ otherwise shows a new case can fail.
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
+
+- **`glass.rs`' one comment edit.** `glass.rs` is a surface for *"imports and
+  the delegation only"*, and A-V9 found it needed no edit. EX-3's
+  `drawn_number` grep found a comment in `field_value` naming the deleted
+  function. EX-3 requires no hit, and a comment naming a deleted symbol is
+  false, so it now names `NumberRange::drawn` — the same trade, at its new
+  home. One comment word; no code. Taken as within the surface, since the
+  file is listed and the edit is what an exit criterion requires; flagged for
+  the orchestrator in case it reads as a STOP.
+- **Sibling names** for `an_as_drawn_choice_submits_the_first_alternative`:
+  `an_as_drawn_boolean_submits_false`,
+  `an_as_drawn_text_submits_the_empty_string`,
+  `an_as_drawn_range_submits_its_minimum_or_zero` (*range*, not *number*,
+  so EX-3's `drawn_number` grep stays empty),
+  `an_as_drawn_datetime_submits_the_epoch_at_utc`.
+- **`Edited::submitted` is `pub`**, like `Edited` itself; **`HOST_SOURCE`'s
+  doc cites `SPEC-001/R-56`.**
 
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect

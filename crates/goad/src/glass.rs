@@ -657,7 +657,7 @@ fn field_value(
     //
     // `exact_f32` answering `None` under a drawn slider is therefore
     // unreachable, and the slot is left at its default rather than argued
-    // about — the same trade `view_model::drawn_number` takes.
+    // about — the same trade `NumberRange::drawn` takes.
     //
     // **Nothing else reads this slot.** §5.2's comparand table gave the
     // numeric text control's guard one exception that consulted it — *the
