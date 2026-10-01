@@ -19,7 +19,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
 | PHASE-11 | pending | 2026-10-01 |
-| PHASE-12 | in progress | 2026-10-01 |
+| PHASE-12 | done | 2026-10-01 |
 
 ## Phase sheets
 
@@ -3416,42 +3416,42 @@ named)
 **Tasks** — red first. Each new case goes red against code that compiles
 before its body lands. Reach is proven as soon as a new file exists.
 
-- [ ] Set PHASE-12 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline`. It must be this sheet's commit, or a
+- [x] Set PHASE-12 to `in progress` in §Status.
+- [x] Print `git log -1 --oneline`. It must be this sheet's commit, or a
       descendant whose only changes since are the PLAN QUESTIONs'
       resolutions.
-- [ ] Exit grep first (A-V14). Record any difference.
+- [x] Exit grep first (A-V14). Record any difference.
 - [x] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
       before the tasks they block start. Resolved by `design-log.md` 2026-10-01, *`Options::first`; R-56's condition counts `evaluate` outcomes* and `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*; applied and
       re-quoted in *012 PHASE-12: decisions applied to design, plan and
       sheet*.
 - **1. Test support and fixtures (VA-7)** — `tests/binary/`
-  - [ ] Read each `tests/support/` file's whole exported surface and record
+  - [x] Read each `tests/support/` file's whole exported surface and record
         the include decision for each (A-V8 predicts `scripting.rs`
         included, `driving.rs` and `waiting.rs` not).
-  - [ ] If included: `#[cfg(test)] #[path =
+  - [x] If included: `#[cfg(test)] #[path =
         "../../../../tests/support/scripting.rs"] mod scripting;` in
         `tests/binary/main.rs`, with the reason, as
         `crates/goad-shell/tests/integration/main.rs` gives it.
-  - [ ] The new cases' file(s) declared in `tests/binary/main.rs`. If the
+  - [x] The new cases' file(s) declared in `tests/binary/main.rs`. If the
         spawn helpers in `statuses.rs` are shared with a new file, move them
         to one helper module in `tests/binary/` rather than copy them. If a
         PHASE-04 case changes file, `canon-delta.md`'s
         `crates/goad-check/tests/binary/statuses.rs::…` paths change in the
         same commit.
-  - [ ] **Reach, before any behaviour**: `cargo test -p goad-check --test
+  - [x] **Reach, before any behaviour**: `cargo test -p goad-check --test
         binary --no-fail-fast 2>&1 | command grep -n 'Running\|test result'`
         shows the target, and its case count rises when the first new case
         lands (A-V12). Rows R-1..R-3.
-  - [ ] Bash fixtures as needed under `tests/binary/`, each with a header
+  - [x] Bash fixtures as needed under `tests/binary/`, each with a header
         saying what it does and which case runs it. Reading requests:
         `logs-the-request-then-answers.sh` already logs raw requests (A-V8).
         Committed event files for `event_files_are_sent_in_the_order_given`:
         two envelopes, distinct kinds, `source` not `"host"`.
-  - [ ] `loadable.toml`'s comment rewritten: a run now spawns its command.
+  - [x] `loadable.toml`'s comment rewritten: a run now spawns its command.
         Its only reader after EX-6 is `a_reserved_source_event_file_exits_2`,
         which fails at normalization, before any spawn. Say that.
-  - [ ] Reading a request log: substring on the exact serialized key, or a
+  - [x] Reading a request log: substring on the exact serialized key, or a
         `serde_json = { workspace = true }` `[dev-dependencies]` entry to
         parse it. Record the choice as a decision. `a_view_answered_carries_exactly_its_options_fields`
         reads `response.option` and the key set of `response.values`;
@@ -3459,7 +3459,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         the comment's *"No dev-dependencies"* sentence changes in the same
         commit (Surfaces; PLAN QUESTION 5, resolved).
 - **2. The probe (EX-1, VT-3)** — `src`
-  - [ ] The probe kind constant (§5.2.2: `goad-check-unrecognised`) and,
+  - [x] The probe kind constant (§5.2.2: `goad-check-unrecognised`) and,
         beside it, VT-3 (quoted): *"`the_probe_kind_is_none_of_the_host_s_own`,
         a unit test beside the probe constant (a binary-only crate's
         constant is not reachable from `tests/binary/`), asserting it is
@@ -3468,10 +3468,10 @@ before its body lands. Reach is proven as soon as a new file exists.
         compile there rather than going unchecked
         (`wildcard-enum-match-arm-counts-a-named-binding`). Red first against
         a constant equal to `Stimulus::Startup.kind()`, then green.
-  - [ ] The probe's `Event` is built with `source: HOST_SOURCE.to_owned()` and
+  - [x] The probe's `Event` is built with `source: HOST_SOURCE.to_owned()` and
         `data: Default::default()` (A-V5), never a `"host"` literal (I-1).
 - **3. The binary tier, red (VT-1, VT-2)**
-  - [ ] VT-1 (quoted): *"binary tier, the run cases §9 names:
+  - [x] VT-1 (quoted): *"binary tier, the run cases §9 names:
         `a_conforming_backend_is_accepted_and_exits_0`,
         `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`,
         `a_refused_view_is_reported_with_its_requirement_and_the_backend_side`,
@@ -3495,7 +3495,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         and `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known kind's view's `respond` fails, the probe's
         `evaluate` fails; `SPEC-001/R-56` present). The non-zero cases SPEC-004/R-14's row names assert
         the `goad-check: ` prefix on the **last** stderr line."*
-  - [ ] What each case must assert so that it is not a proxy
+  - [x] What each case must assert so that it is not a proxy
         (`tests-asserting-proxies`). Status alone, or status plus the
         prefix, survives most regressions here: each case below names the
         assertion the mutation table leans on.
@@ -3545,7 +3545,7 @@ before its body lands. Reach is proven as soon as a new file exists.
     - `event_files_are_sent_in_the_order_given`: two event files; the log's
       last two evaluates carry their kinds in the order given, **after** the
       probe (M-3, M-4).
-  - [ ] `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (VT-1), red first. Setup: `scripting::scripted` alone, with
+  - [x] `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (VT-1), red first. Setup: `scripting::scripted` alone, with
         `answers-as-instructed.sh` — no new fixture. Its instructions are
         per invocation, a response body or a sentinel, and the plan fixes
         the invocation order (EX-1): the three known kinds' `evaluate`s
@@ -3557,7 +3557,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         reported as any other exchange's); **no** `SPEC-001/R-56` anywhere on
         stdout; the invocation count, exactly (five, so a respond was made:
         without it the case is green with no chain at all). Row M-36.
-  - [ ] `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (VT-1), red first. Setup: `scripting::scripted` alone, as above: each
+  - [x] `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (VT-1), red first. Setup: `scripting::scripted` alone, as above: each
         known kind's `evaluate` answers that view and its `respond` is
         `@exit1`, then the probe's `evaluate` is `@exit1`. **Every** known
         kind's chain fails, not one: the condition needs only one known kind
@@ -3565,12 +3565,12 @@ before its body lands. Reach is proven as soon as a new file exists.
         status 1; one stdout line holds both `backend` and the literal
         `SPEC-001/R-56`; the invocation count, exactly (seven: every chain's
         respond was made). Row M-37.
-  - [ ] VT-2 (quoted): *"`a_report_that_cannot_be_written_exits_2` gains its
+  - [x] VT-2 (quoted): *"`a_report_that_cannot_be_written_exits_2` gains its
         run half: a run with stdout on `/dev/full` exits 2, the last stderr
         line beginning `goad-check: `."* Use the argv form with a scripted
         conforming backend, not `loadable.toml` (whose command no longer
         exists to spawn), so the only fault in the run is stdout.
-  - [ ] **Before `a_cleanup_failure_alone_exits_1` joins the gate**, rank
+  - [x] **Before `a_cleanup_failure_alone_exits_1` joins the gate**, rank
         its fixture's margin by which way load moves it, not by its size
         (`docs/memory/margin-size-is-not-margin-direction.md`; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, *Also*).
         The bound is `CLEANUP_LIMIT`'s 500 ms against `@lingers`' `sleep 2`.
@@ -3588,7 +3588,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         instrumentation and the worktree. If load moves it toward failure
         and the measured slack is thin, the case does not join: record it
         as a Finding and leave M-21 **unseen**.
-  - [ ] Offered (Findings, *EX-3 and EX-4 items no named case reads*): a
+  - [x] Offered (Findings, *EX-3 and EX-4 items no named case reads*): a
         cleanup-only case, `a_cleanup_failure_alone_exits_1` (`@lingers` on
         the first invocation, A-V9: status 1, a line holding `backend` and
         `SPEC-001/R-48`), and a truncation case, `a_truncated_stderr_is_flagged`,
@@ -3596,18 +3596,18 @@ before its body lands. Reach is proven as soon as a new file exists.
         `floods-stderr-then-answers.sh` first; the report marks the
         truncation). Each is a sheet row, not a plan criterion; record
         whether it was added.
-  - [ ] Offered (Findings, *the side clause*): a case where the probe alone
+  - [x] Offered (Findings, *the side clause*): a case where the probe alone
         fails on a side other than the backend's, e.g.
         `a_probe_failure_on_another_side_is_not_charged_with_r56`: a copy of
         a fixture script, made executable at a `scripting::marker` path,
         that deletes itself on its third run, so the probe's spawn fails
         (`Spawn`, configuration). Spike it first; record whether it held.
-  - [ ] Red, against the stubbed run (A-T3), compiling: `cargo test -p
+  - [x] Red, against the stubbed run (A-T3), compiling: `cargo test -p
         goad-check --test binary --no-fail-fast`. Record each failure and
         its assertion.
 - **4. The run (EX-1..EX-6)** — `src`
-  - [ ] `prepare` returns what it built (A-T1).
-  - [ ] EX-1 (quoted): *"the request plan of §5.2.2 in order:
+  - [x] `prepare` returns what it built (A-T1).
+  - [x] EX-1 (quoted): *"the request plan of §5.2.2 in order:
         `Stimulus::Startup`, `Requested`, `Scheduled`, the R-56 probe, then
         each `--event` envelope in the order given. The probe kind is a
         `goad-check` constant, and its event's source is `HOST_SOURCE`, not a
@@ -3617,7 +3617,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         §5.2.4), and `Submitted::as_drawn` for each of that option's fields;
         chains are followed to `view: null` or a failure, up to the bound of
         8 per request."*
-  - [ ] `Options::first`, red: a unit test in `canonical.rs`' `mod tests`,
+  - [x] `Options::first`, red: a unit test in `canonical.rs`' `mod tests`,
         `the_first_option_is_the_one_listed_first` (`design.md` §5.2.4, §9),
         over two options, asserting the first's id. `Alternatives::first` has
         no unit test of its own (A-V6; it is reached only through
@@ -3625,7 +3625,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         beside the `Options::new` cases. Red against a compiling stub that
         returns the last option (`self.0.last().expect(…)`): `cargo test -p
         goad-semantics --no-fail-fast`, the assertion recorded.
-  - [ ] `Options::first(&self) -> &Opt`, green: beside `Options::as_slice`,
+  - [x] `Options::first(&self) -> &Opt`, green: beside `Options::as_slice`,
         mirroring `Alternatives::first` — its doc's argument (non-emptiness
         is the type's invariant, `Options::new` refuses the empty list with
         `EmptyOptions`), its `# Panics` section, its `#[expect(clippy::expect_used,
@@ -3633,16 +3633,16 @@ before its body lands. Reach is proven as soon as a new file exists.
         `#[must_use]`. Nothing else in `canonical.rs` changes. `cargo test -p
         goad-semantics`; `cargo clippy --workspace --all-targets -- -D
         warnings`.
-  - [ ] The answer calls `Options::first`; no `.as_slice().first()` and no
+  - [x] The answer calls `Options::first`; no `.as_slice().first()` and no
         `let…else` over the options in `goad-check`.
-  - [ ] EX-2 (quoted): *"every planned exchange is made whatever an earlier
+  - [x] EX-2 (quoted): *"every planned exchange is made whatever an earlier
         exchange did (§5.4); only a clock unreadable mid-run, a report line
         stdout refuses, or `Failure::State` ends the run early, with no
         verdict, status 2."* Each early end goes through `not_judged` with a
         `render` line: a mid-run clock line, and a `Failure::State` line
         printing the error's `fault()`, `requirement()` and `Display` (the
         §5.2.2 table's State row).
-  - [ ] EX-3 (quoted): *"the report: every channel of every `Outcome` as
+  - [x] EX-3 (quoted): *"the report: every channel of every `Outcome` as
         §5.2.2's table gives it; each refusal line prints its side and
         `SPEC-001/R-N` through `AtFault`'s and `Requirement`'s `Display`; the
         R-56 line only on its condition, which counts `evaluate` outcomes only, the probe's and the
@@ -3656,37 +3656,37 @@ before its body lands. Reach is proven as soon as a new file exists.
         checker's (`design.md` §5.2.2; `design-log.md` 2026-10-01,
         *`Requirement` is built from named constants*)."* Every line's text
         in `render`; every stdout line through `report::try_line_to`.
-  - [ ] The R-56 condition's inputs (EX-3 as amended; PLAN QUESTION 4,
+  - [x] The R-56 condition's inputs (EX-3 as amended; PLAN QUESTION 4,
         resolved): the probe's `evaluate` `Outcome`'s `failure`, and the
         three known-kind `evaluate` `Outcome`s' `failure`s. A chained
         `respond`'s `Outcome`, from the probe's chain or a known kind's, is
         reported and feeds the status cut as any other, and the condition
         never reads it. Rows M-36, M-37.
-  - [ ] EX-4 (quoted): *"the run feeds the status cut (EX-6): at least one
+  - [x] EX-4 (quoted): *"the run feeds the status cut (EX-6): at least one
         refusal on any channel, a cleanup failure alone included, is 1; none
         is 0; the chain bound changes no status."*
-  - [ ] EX-5 (quoted): *"the checker opens no socket and alters none of the
+  - [x] EX-5 (quoted): *"the checker opens no socket and alters none of the
         environment it passes on (§5.2.1, §5.3): it names no `ingress` item
         but `envelope::normalize`, and sets, removes or clears no environment
         variable."*
-  - [ ] EX-6 (quoted): *"the verdict replaces PHASE-04/EX-3's interim end:
+  - [x] EX-6 (quoted): *"the verdict replaces PHASE-04/EX-3's interim end:
         the verdict line, and statuses as §5.2.5 — a delivered verdict is 0
         with no refusal and 1 with at least one, cut by one function; `main`
         gains a literal for each, and the last stderr line on 1 begins
         `goad-check: `. The not-yet-implemented stderr line and its path to 2
         are gone, and PHASE-04/VT-3's case is deleted in the commit that
         turns `a_conforming_backend_is_accepted_and_exits_0` green."*
-  - [ ] In that same commit: `unjudged_end`, `render::NOT_YET_IMPLEMENTED`,
+  - [x] In that same commit: `unjudged_end`, `render::NOT_YET_IMPLEMENTED`,
         `render`'s `the_interim_end_says_nothing_was_judged_on_stderr`, and
         `a_run_with_no_exchange_exits_2_with_no_verdict` deleted. Rerun
         A-V13's grep: every remaining hit read and either true or rewritten.
-  - [ ] `render` unit cases for the new lines, red against `todo!()` bodies
+  - [x] `render` unit cases for the new lines, red against `todo!()` bodies
         first, holding shape only (A-V11).
-  - [ ] Green: VT-1, VT-2, VT-3, the render cases, every PHASE-04 case.
+  - [x] Green: VT-1, VT-2, VT-3, the render cases, every PHASE-04 case.
         `cargo test -p goad-check --no-fail-fast`; `cargo clippy --workspace
         --all-targets -- -D warnings` clean.
 - **5. Reads and records (VA-1..VA-7)**
-  - [ ] VA-1 (quoted): *"I-1 over the finished crate, by the command under
+  - [x] VA-1 (quoted): *"I-1 over the finished crate, by the command under
         *Invariant reads*: the only hits outside a comment are the R-56
         probe's own — the claim's `Requirement::R56` (EX-3), and the two
         `AtFault::Backend` uses R-56 needs: the condition's comparison of a
@@ -3696,10 +3696,10 @@ before its body lands. Reach is proven as soon as a new file exists.
         PHASE-08/VT-1 reads, `Requirement::R56`, is the one the report
         prints."* Run A-V10's I-1 command; read each surviving line; record
         the output verbatim. Expected: exactly those three.
-  - [ ] VA-2 (quoted): *"I-2 over the finished crate, `src` and `tests`.
+  - [x] VA-2 (quoted): *"I-2 over the finished crate, `src` and `tests`.
         Recorded."* `command grep -rn 'FieldKind' crates/goad-check/src
         crates/goad-check/tests`; read each hit.
-  - [ ] VA-3 (quoted): *"EX-5: `command grep -rnE
+  - [x] VA-3 (quoted): *"EX-5: `command grep -rnE
         'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|UnixDatagram|TcpStream|TcpListener|UdpSocket'
         crates/goad-check/src` finds the `envelope` imports, and nothing
         else. Recorded (`plan-log.md` 2026-10-01, *PHASE-12 sheet
@@ -3707,7 +3707,7 @@ before its body lands. Reach is proven as soon as a new file exists.
         gets cases; `UnixDatagram` in VA-3*)."* Record the output verbatim; then read the one
         call, `envelope::normalize`, which the pattern does not match, and
         record that no other `ingress` item is named. Reach row R-4.
-  - [ ] VA-4 (quoted): *"PHASE-04/VA-6's structural read, over `main` as this
+  - [x] VA-4 (quoted): *"PHASE-04/VA-6's structural read, over `main` as this
         phase leaves it, with one literal per way to a status where
         PHASE-04/VA-6 reads one per class; still exactly one
         `ExitCode::from(2)` (`plan-log.md` 2026-10-01, *PHASE-12 sheet
@@ -3715,12 +3715,12 @@ before its body lands. Reach is proven as soon as a new file exists.
         then trace every path to 2, 1 and 0. Expected (Findings, PLAN
         QUESTION 3): `answer`'s 0, the verdict cut's 0 and 1, `not_judged`'s
         2.
-  - [ ] VA-5 (quoted): *"mutation: the R-56 condition's "at least one of the
+  - [x] VA-5 (quoted): *"mutation: the R-56 condition's "at least one of the
         three known-kind `evaluate`s made no failure" dropped, so any
         backend-side failure on the probe is charged, reds
         `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`.
         Recorded."* Row M-15.
-  - [ ] VA-6 (quoted): *"`canon-delta.md` SPEC-001 Change 3's and SPEC-004
+  - [x] VA-6 (quoted): *"`canon-delta.md` SPEC-001 Change 3's and SPEC-004
         Change 5's `goad-check` test paths, for the cases this phase ships,
         are re-pointed from `…` to the shipped files."* Note: SPEC-001 Change
         3 lists `::the_probe_kind_is_none_of_the_host_s_own` under a
@@ -3730,24 +3730,24 @@ before its body lands. Reach is proven as soon as a new file exists.
         is PHASE-06's and keeps `…`. The R-14 row spells no `…` and is
         untouched (as PHASE-04/VA-4). `git diff --stat` on `canon-delta.md`
         recorded.
-  - [ ] VA-7 (quoted): *"as PHASE-04/VA-7, for any helper this phase
+  - [x] VA-7 (quoted): *"as PHASE-04/VA-7, for any helper this phase
         adds."* Edit §Open's FU-5 bullet: the `tests/support/` file(s)
         included, and each helper copied instead, by symbol, with its
         source.
 - **Refactor**
-  - [ ] Read the diff for a second statement of anything: a line's text
+  - [x] Read the diff for a second statement of anything: a line's text
         outside `render`; a path to 2 outside `not_judged`; a refusal's side
         or id spelled rather than printed; a rule `goad-shell` or
         `goad-semantics` already states (the as-drawn value, the view_id
         check, a fault's side) restated here.
-  - [ ] Every doc in the crate cites by symbol and counts nothing that can
+  - [x] Every doc in the crate cites by symbol and counts nothing that can
         grow (CLAUDE.md *Name, never count*). The chain bound is a constant
         with one name.
 - **Verification**
-  - [ ] Mutation and reach rows (below), each recorded with the assertion
+  - [x] Mutation and reach rows (below), each recorded with the assertion
         that went red, not only the case
         (`a-mutation-can-red-the-right-case-on-the-wrong-assertion`).
-  - [ ] *Test names are commitments*: `command grep -rc 'fn <name>()'
+  - [x] *Test names are commitments*: `command grep -rc 'fn <name>()'
         crates/goad-check/tests/binary crates/goad-check/src` is 1 for each
         VT-1, VT-2 and VT-3 name, and 0 for
         `a_run_with_no_exchange_exits_2_with_no_verdict`; `command grep -c
@@ -3755,33 +3755,33 @@ before its body lands. Reach is proven as soon as a new file exists.
         crates/goad-semantics/src/protocol/canonical.rs` is 1 (`design.md`
         §9). Any difference is
         updated in `canon-delta.md` in the same commit.
-  - [ ] Every bash fixture and event file under `tests/binary/` is named by
+  - [x] Every bash fixture and event file under `tests/binary/` is named by
         at least one case: `command grep -rn '<file name>'
         crates/goad-check/tests/binary --include=*.rs` per file (A-T5).
-  - [ ] `just check` exits 0 on the final commit. Record passed and failed,
+  - [x] `just check` exits 0 on the final commit. Record passed and failed,
         summed over every `test result` line: 715, less the two deleted
         cases, plus this phase's.
-  - [ ] §Status: PHASE-12 `done`, with the date.
-  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+  - [x] §Status: PHASE-12 `done`, with the date.
+  - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
 
 **Exit criteria** (quoted in the tasks above; listed here to be ticked)
-- [ ] EX-1
-- [ ] EX-2
-- [ ] EX-3
-- [ ] EX-4
-- [ ] EX-5
-- [ ] EX-6
-- [ ] VT-1
-- [ ] VT-2
-- [ ] VT-3
-- [ ] VA-1
-- [ ] VA-2
-- [ ] VA-3
-- [ ] VA-4
-- [ ] VA-5
-- [ ] VA-6
-- [ ] VA-7
-- [ ] `just check` exits 0 on the final commit (§Overview).
+- [x] EX-1 *`run::plan` (host kinds, `Planned::Probe`, each `Planned::Given` in order); `Planned::event` builds the probe from `HOST_SOURCE` and `PROBE_KIND`; `now()` reads `clock::wall_clock` per request and per respond; `run::answer` uses `Options::first` and `Submitted::as_drawn`; `follow` answers with the minted `view_id` up to `run::CHAIN_BOUND`. Held by `a_backend_failing_at_startup_is_still_asked_the_rest`, `event_files_are_sent_in_the_order_given`, `a_view_answered_carries_exactly_its_options_fields`, the chain cases (M-1..M-12, M-17, M-35).*
+- [x] EX-2 *`exchanges` makes every planned exchange; only a `RunFault` (`Clock`, `ReportUnwritten`, `State`) ends it, through `run_fault_line` and `not_judged`. M-5 red; M-32, M-34 unseen as predicted, held by VA-4's trace.*
+- [x] EX-3 *`render::exchange_lines` writes every channel; `refusal_line` prints side and id through `AtFault`'s and `Requirement`'s `Display`; `probe_claim_line` names `Requirement::R56` on `run::charges_the_probe`, which reads evaluates only; stderr line by line with truncation flagged; `respond_line` writes the values sent; `chain_bound_line`. Every stdout line through `emit` (`try_line_to`). M-14..M-16, M-18, M-22, M-24..M-26, M-31, M-36, M-37 red.*
+- [x] EX-4 *`Tally::record` counts an exchange refused on any channel (`Judged::refused`); `verdict` cuts at `> 0`; the bound adds nothing. M-13, M-19, M-20, M-21 red.*
+- [x] EX-5 *VA-3 below: the `envelope` imports alone; the one call is `envelope::normalize` in `event`. R-4 shows the pattern reaching `UnixStream`, `UnixDatagram` and `.envs(`.*
+- [x] EX-6 *`verdict` holds 0 and 1; `not_judged` the one 2. `unjudged_end`, `NOT_YET_IMPLEMENTED`, `the_interim_end_says_nothing_was_judged_on_stderr` and `a_run_with_no_exchange_exits_2_with_no_verdict` deleted in 139e968, the commit that turned `a_conforming_backend_is_accepted_and_exits_0` green. A-V13's grep rerun: only `loadable.toml`'s `never-spawned`, its comment rewritten to say a run spawns it. M-29 red on every status-1 case's last stderr line.*
+- [x] VT-1 *every name in `crates/goad-check/tests/binary/run.rs`, `fn` count 1 each; red against the stubbed run (status 101), then green.*
+- [x] VT-2 *`statuses.rs::a_report_that_cannot_be_written_exits_2` runs `--help` and a scripted conforming run on `/dev/full`: status 2, last stderr line `goad-check: `. M-30 red.*
+- [x] VT-3 *`crates/goad-check/src/run.rs::the_probe_kind_is_none_of_the_host_s_own`, over `every_stimulus` (a `match` with no `_` arm); red against `"startup"`, then green. M-7 red.*
+- [x] VA-1 *two lines, three uses, all allowed (Verification records).*
+- [x] VA-2 *no output, exit 1.*
+- [x] VA-3 *the two `envelope` imports, exit 0; nothing else.*
+- [x] VA-4 *one literal per way to a status (Verification records); one `ExitCode::from(2)`.*
+- [x] VA-5 *M-15 red `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56` on its no-`SPEC-001/R-56` assertion.*
+- [x] VA-6 *`git diff --stat docs/slices/012/canon-delta.md`: 1 file, 2 insertions, 2 deletions. SPEC-001 Change 3 → `tests/binary/run.rs` and `src/run.rs::the_probe_kind_is_none_of_the_host_s_own`; SPEC-004 Change 5's R-11..R-13 row → `tests/binary/run.rs`. `tests/kit/…` (PHASE-06) and the R-14 row untouched.*
+- [x] VA-7 *§Open's FU-5 bullet extended: `scripting.rs` included whole, nothing new copied.*
+- [x] `just check` exits 0 on the final commit (§Overview) *exit 0; 738 passed, 0 failed, summed over 33 `test result` lines (Verification records).*
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad and back, never `git checkout` or `git stash`; `--no-fail-fast`;
@@ -3797,10 +3797,10 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
 
 | row | file | edit | command | must red | compiled? | result |
 |---|---|---|---|---|---|---|
-| R-1 | each new `src/*.rs` module | `let _planted = "habit";` in a function in production code | `cargo test -p goad-boundary --test checks --no-fail-fast` | `vocabulary::no_workspace_member_names_the_users_domain`, naming the new file | | |
-| R-2 | each new `tests/binary/*.rs` file | `fn _planted() { let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new(); }` | `cargo clippy --workspace --all-targets -- -D warnings` | `clippy::disallowed_types` in the `binary` target, naming the new file | | |
-| R-3 | each new `src/*.rs` and `tests/binary/*.rs` | a line re-indented to four spaces | `cargo fmt --all --check` | a diff naming each file | | |
-| R-4 | `crates/goad-check/src/main.rs`, a function in production code | `let _a = std::os::unix::net::UnixStream::connect("");`, `let _c = std::os::unix::net::UnixDatagram::unbound();` and `let _b = std::process::Command::new("").envs(std::iter::empty::<(&str, &str)>());` (compiled: `cargo build -p goad-check`) | VA-3's command | every planted line printed, beside the `envelope` imports (the widened pattern reaches `.envs(`, `UnixStream` and `UnixDatagram`; PLAN QUESTION 2) | | |
+| R-1 | each new `src/*.rs` module | `let _planted = "habit";` in a function in production code | `cargo test -p goad-boundary --test checks --no-fail-fast` | `vocabulary::no_workspace_member_names_the_users_domain`, naming the new file | yes | `let _planted = "habit";` first in `run::plan`. `vocabulary::no_workspace_member_names_the_users_domain` FAILED, `crates/goad-check/src/run.rs:61: forbidden token habit`. Restored. |
+| R-2 | each new `tests/binary/*.rs` file | `fn _planted() { let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new(); }` | `cargo clippy --workspace --all-targets -- -D warnings` | `clippy::disallowed_types` in the `binary` target, naming the new file | yes | planted at the end of `process.rs` and of `run.rs`; clippy exit 101, `disallowed type std::collections::HashMap` twice in each file. Restored. |
+| R-3 | each new `src/*.rs` and `tests/binary/*.rs` | a line re-indented to four spaces | `cargo fmt --all --check` | a diff naming each file | yes | the first two-space line of `src/run.rs`, `tests/binary/process.rs`, `tests/binary/run.rs` to four; `fmt --check` exit 1, `Diff in` each of the three. Restored. |
+| R-4 | `crates/goad-check/src/main.rs`, a function in production code | `let _a = std::os::unix::net::UnixStream::connect("");`, `let _c = std::os::unix::net::UnixDatagram::unbound();` and `let _b = std::process::Command::new("").envs(std::iter::empty::<(&str, &str)>());` (compiled: `cargo build -p goad-check`) | VA-3's command | every planted line printed, beside the `envelope` imports (the widened pattern reaches `.envs(`, `UnixStream` and `UnixDatagram`; PLAN QUESTION 2) | yes (`cargo build -p goad-check -v`: rustc ran on `goad_check`, Finished) | planted first in `now`; VA-3 printed the two imports and all three planted lines, exit 0. Restored. |
 
 `canonical.rs` has no reach row: it is an existing file every stratum-1
 instrument already reads (A-V12).
@@ -3809,47 +3809,176 @@ instrument already reads (A-V12).
 
 | row | file / symbol | edit | must red (case: assertion) | compiled? | result |
 |---|---|---|---|---|---|
-| M-1 | the plan | the probe dropped from the plan | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence; `…_reported_against_r56`: status 1 and the `SPEC-001/R-56` line | | |
-| M-2 | the plan | `Requested` and `Scheduled` swapped | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind **sequence** (a set comparison would stay green) | | |
-| M-3 | the event step of the run | the events iterated `.rev()` | `event_files_are_sent_in_the_order_given`: the order | | |
-| M-4 | the plan | the events sent before the host's own evaluates | `event_files_are_sent_in_the_order_given`: the events after the probe; `…_still_asked_the_rest`: the first four kinds | | |
-| M-5 | the run loop | `break` after the first `Outcome` whose `failure` is `Some` | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence | | |
-| M-6 | the probe's `Event` | `source: HOST_SOURCE.to_owned()` → `source: "probe".to_owned()` | `…_still_asked_the_rest`: `"source":"host"` on the probe's request | | |
-| M-7 | the probe constant | its value → `"requested"` | `the_probe_kind_is_none_of_the_host_s_own`: its assertion; `…_still_asked_the_rest`: the kind sequence | | |
-| M-8 | the answer | `Options::first()` → the last option (`.as_slice().last()` with an `expect`; `cargo test` compiles it, clippy is not the command) | `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
-| M-9 | the answer | values built from every option's fields (`flat_map`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | | |
-| M-10 | the answer | the first field skipped (`.skip(1)`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | | |
-| M-11 | the chain | answered once, not looped (`if let` for `while let`) | `a_chained_view_is_answered_until_null`: the invocation count | | |
-| M-12 | the chain bound | 8 → 9 | `a_chain_past_its_bound_…`: the invocation count, and the observation line. Without the count, unseen (the 9th respond returns `null` and status is 0 either way) | | |
-| M-13 | the status cut | the bound counted as a refusal | `a_chain_past_its_bound_…`: status 0 | | |
-| M-14 | `render`, the bound's line | not written | `a_chain_past_its_bound_…`: the observation line | | |
-| M-15 | the R-56 condition | the "at least one known-kind evaluate made no failure" clause dropped (VA-5) | `…_identically_on_every_kind_is_not_charged_with_r56`: no `SPEC-001/R-56` | | |
-| M-16 | the R-56 condition | the `fault()` comparison with `AtFault::Backend` dropped | **unseen** by every planned case: only `Spawn` gives a non-backend probe failure, and it fails every kind, so the other clause already refuses (A-V3). Seen only by the offered side-clause case; else held by VA-1's read of the two `AtFault::Backend` and by review | | |
-| M-17 | the chain | each respond passes the **previous** link's `view_id` (kept by `clone`) | `a_chained_view_is_answered_until_null`: status (`Failure::State` → 2) | | |
-| M-18 | the R-56 claim | `Requirement::R56` → `Requirement::R53` | `…_reported_against_r56`: the literal `SPEC-001/R-56` | | |
-| M-19 | the status cut | `> 0` → `> 1` (or its spelling's equivalent) | `a_discarded_next_check_is_reported_and_exits_1`: status, **if** it has exactly one refusal | | |
-| M-20 | the refusal count | `discarded` not counted | `a_discarded_next_check_is_reported_and_exits_1`: status | | |
-| M-21 | the refusal count | `cleanup` not counted | the offered `a_cleanup_failure_alone_exits_1`: status. Else **unseen**; held by review | | |
-| M-22 | `render`, a refusal line | the side omitted | `a_refused_view_…`: `backend` on the line; `an_unspawnable_…`: `configuration` | | |
-| M-24 | the report | the outcome's `stderr` not written | `…_reported_against_r56`: the stderr text (the sheet's assertion; Findings) | | |
-| M-25 | the report | `truncated` ignored | the offered `a_truncated_stderr_is_flagged`. Else **unseen**; held by review | | |
-| M-26 | the report | the values sent not written | **unseen** unless a case asserts them in the report (Findings) | | |
-| M-27 | the report | the no-view line written unconditionally | `a_conforming_backend_is_accepted_and_exits_0`: no no-view line | | |
-| M-28 | the report | the no-view line never written | `…_returns_no_view_…`: the no-view line | | |
-| M-29 | `render`, the status-1 summary | its `goad-check: ` prefix dropped | `a_discarded_next_check_is_reported_and_exits_1`: the last stderr line | | |
-| M-30 | the report writer | one report line through `line_to` (best effort) | `a_report_that_cannot_be_written_exits_2`, run half: status 2 | | |
-| M-31 | the R-56 line | its condition replaced by `true`, so it is written even when the probe succeeds | `a_conforming_backend_is_accepted_and_exits_0`: no `SPEC-001/R-56` (and status 0, if the claim feeds the count) | | |
-| M-32 | the run loop | `Failure::State` treated as a refusal, run continues | **unseen**: no cooperating case reaches `Failure::State` (A-T2). Held by VA-4's trace | | |
-| M-33 | the clock | `now` read once, before the plan, and reused | **unseen**: nothing asserts a time (R3). Held by review | | |
-| M-34 | the clock | a mid-run `wall_clock` error ignored | **unseen**: headless-unreachable (`canon-delta.md` R-11..R-13 row). Held by VA-4's trace | | |
-| M-35 | `Options::first` (`canonical.rs`) | `.first()` → `.last()` in its body; command `cargo test -p goad-semantics -p goad-check --no-fail-fast` | `the_first_option_is_the_one_listed_first`: the first's id; `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
-| M-36 | the R-56 condition | a failing `respond` in the probe's chain counted as a probe failure | `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`: no `SPEC-001/R-56` | | |
-| M-37 | the R-56 condition | a known kind counted as having "made a failure" when a `respond` in its chain failed | `a_known_kind_s_chain_failure_does_not_excuse_the_probe`: the `SPEC-001/R-56` line | | |
+| M-1 | the plan | the probe dropped from the plan | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence; `…_reported_against_r56`: status 1 and the `SPEC-001/R-56` line | yes | `Planned::Probe,` removed from the array; `Planned::Probe` kept constructed by `.chain(std::iter::empty::<Planned>().chain([Planned::Probe].into_iter().filter(\|_\| false)))` (the `unused` deny). Red: `…_still_asked_the_rest` the kind sequence; `…_reported_against_r56` status 1; and every case asserting an invocation count or the probe's kind. **As predicted.** |
+| M-2 | the plan | `Requested` and `Scheduled` swapped | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind **sequence** (a set comparison would stay green) | yes | the `Requested` and `Scheduled` lines swapped. Red: `…_still_asked_the_rest` and `event_files_…` the kind sequence. **As predicted.** |
+| M-3 | the event step of the run | the events iterated `.rev()` | `event_files_are_sent_in_the_order_given`: the order | yes | `.chain(given.into_iter().rev().map(Planned::Given))`. Red: `event_files_…` the sequence (`second-given` first). **As predicted.** |
+| M-4 | the plan | the events sent before the host's own evaluates | `event_files_are_sent_in_the_order_given`: the events after the probe; `…_still_asked_the_rest`: the first four kinds | yes | `given.into_iter().map(Planned::Given).chain([…])`. Red: `event_files_…` the sequence (given first). `…_still_asked_the_rest` stays green: it passes no event file. **Differs in reach only**: its second clause cannot red (no event there). |
+| M-5 | the run loop | `break` after the first `Outcome` whose `failure` is `Some` | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence | yes | `let stop = judged.failure.is_some();` after the evaluate, `if stop { break; }` after `follow`. Red: `…_still_asked_the_rest` the sequence (`["startup"]`). **As predicted.** |
+| M-6 | the probe's `Event` | `source: HOST_SOURCE.to_owned()` → `source: "probe".to_owned()` | `…_still_asked_the_rest`: `"source":"host"` on the probe's request | yes | `source: { let _ = HOST_SOURCE; "probe".to_owned() },`. Red: `…_still_asked_the_rest` the `source` assertion on the probe's request. **As predicted.** |
+| M-7 | the probe constant | its value → `"requested"` | `the_probe_kind_is_none_of_the_host_s_own`: its assertion; `…_still_asked_the_rest`: the kind sequence | yes | `PROBE_KIND` = `"requested"`. Red: `the_probe_kind_is_none_of_the_host_s_own` (`Requested`); `…_still_asked_the_rest`, `event_files_…` the sequence. **As predicted.** |
+| M-8 | the answer | `Options::first()` → the last option (`.as_slice().last()` with an `expect`; `cargo test` compiles it, clippy is not the command) | `a_view_answered_carries_exactly_its_options_fields`: `option` | yes | `choice.options().as_slice().last().expect("non-empty")`. Red: `…_options_fields` `option` (`"skipped"`). **As predicted.** |
+| M-9 | the answer | values built from every option's fields (`flat_map`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | yes | `values: choice.options().as_slice().iter().flat_map(\|option\| option.fields().as_slice())…`. Red: `…_options_fields` the key set (`reason` included). **As predicted.** |
+| M-10 | the answer | the first field skipped (`.skip(1)`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | yes | `.skip(1)` before `.map(\|field\| …)` in `run::answer`. Red: `…_options_fields` the key set (`["note"]`); `render`'s `a_respond_line_names_the_option_and_each_field_sent`. **As predicted**, plus the render case. |
+| M-11 | the chain | answered once, not looped (`if let` for `while let`) | `a_chained_view_is_answered_until_null`: the invocation count | yes | `for _ in 0..1 {` in `follow`. Red: `a_chained_view_…` the count (5 for 6); `a_chain_past_…` the count (8 for 12). **As predicted.** |
+| M-12 | the chain bound | 8 → 9 | `a_chain_past_its_bound_…`: the invocation count, and the observation line. Without the count, unseen (the 9th respond returns `null` and status is 0 either way) | yes | `CHAIN_BOUND: usize = 9`. Red: `a_chain_past_…` the count (13 for 12). **As predicted.** |
+| M-13 | the status cut | the bound counted as a refusal | `a_chain_past_its_bound_…`: status 0 | yes | `tally.refused = tally.refused.saturating_add(1);` beside the bound's line. Red: `a_chain_past_…` status 0. **As predicted.** |
+| M-14 | `render`, the bound's line | not written | `a_chain_past_its_bound_…`: the observation line | yes | `emit(&render::chain_bound_line())?;` → `let _unwritten = render::chain_bound_line();`. Red: `a_chain_past_…` the observation line. **As predicted.** |
+| M-15 | the R-56 condition | the "at least one known-kind evaluate made no failure" clause dropped (VA-5) | `…_identically_on_every_kind_is_not_charged_with_r56`: no `SPEC-001/R-56` | yes | `(a_host_kind_made_no_failure \|\| true) && probe…` in `charges_the_probe`. Red: `…_identically_on_every_kind_…` no `SPEC-001/R-56`. **As predicted.** |
+| M-16 | the R-56 condition | the `fault()` comparison with `AtFault::Backend` dropped | **unseen** by every planned case: only `Spawn` gives a non-backend probe failure, and it fails every kind, so the other clause already refuses (A-V3). Seen only by the offered side-clause case; else held by VA-1's read of the two `AtFault::Backend` and by review | yes | `failure.fault() == AtFault::Backend \|\| true`. Red: the offered `a_probe_failure_on_another_side_is_not_charged_with_r56`, no `SPEC-001/R-56`. **Seen**, by the offered case the sheet names; no planned case reds, as predicted. |
+| M-17 | the chain | each respond passes the **previous** link's `view_id` (kept by `clone`) | `a_chained_view_is_answered_until_null`: status (`Failure::State` → 2) | yes | `let mut first = None;` before the loop, `let view_id = first.get_or_insert(view_id).clone();` before the respond. Red: `a_chained_view_…` status (2); `a_chain_past_…` status. **As predicted.** |
+| M-18 | the R-56 claim | `Requirement::R56` → `Requirement::R53` | `…_reported_against_r56`: the literal `SPEC-001/R-56` | yes | `Requirement::R56` → `Requirement::R53` in `probe_claim_line`. Red: `…_reported_against_r56` and `a_known_kind_s_chain_failure_…` the `SPEC-001/R-56` line. **As predicted.** |
+| M-19 | the status cut | `> 0` → `> 1` (or its spelling's equivalent) | `a_discarded_next_check_is_reported_and_exits_1`: status, **if** it has exactly one refusal | yes | `if refused > 1 {` in `verdict`. Red: `a_discarded_next_check_…` status 1, and every status-1 case with one refused exchange. **As predicted.** |
+| M-20 | the refusal count | `discarded` not counted | `a_discarded_next_check_is_reported_and_exits_1`: status | yes | `Judged::refused` without `!self.discarded.is_empty()`. Red: `a_discarded_next_check_…` status. **As predicted.** |
+| M-21 | the refusal count | `cleanup` not counted | the offered `a_cleanup_failure_alone_exits_1`: status. Else **unseen**; held by review | yes | `Judged::refused` without `self.cleanup.is_some()`. Red: the offered `a_cleanup_failure_alone_exits_1` status. **Seen**, by the offered case. |
+| M-22 | `render`, a refusal line | the side omitted | `a_refused_view_…`: `backend` on the line; `an_unspawnable_…`: `configuration` | yes | `refusal_line`'s body → `{ let _side = side; format!("  REFUSED  SPEC-001/{requirement}  {what}") }`. **First run differed**: `a_refused_view_…` and `…_reported_against_r56` stayed green, because `BackendError`'s `Display` says `backend` on the same line (Findings). `a_line_names` fixed in 63db06f; rerun: red `a_refused_view_…` its side assertion, `an_unspawnable_…` `configuration`, and every case naming a side. |
+| M-24 | the report | the outcome's `stderr` not written | `…_reported_against_r56`: the stderr text (the sheet's assertion; Findings) | yes | the `lines.extend(… "  stderr: {line}" …)` block removed from `exchange_lines`. Red: `…_reported_against_r56` the stderr text; `render`'s `the_backend_s_stderr_is_shown_…`. **As predicted**, plus the render case. |
+| M-25 | the report | `truncated` ignored | the offered `a_truncated_stderr_is_flagged`. Else **unseen**; held by review | yes | `if false && judged.stderr.truncated {`. Red: the offered `a_truncated_stderr_is_flagged`; `render`'s `the_backend_s_stderr_is_shown_…`. **Seen**, by the offered case and a render case. |
+| M-26 | the report | the values sent not written | **unseen** unless a case asserts them in the report (Findings) | yes | `.map(\|(_field, _value)\| String::new())` in `respond_line`. Red: `…_options_fields` the values line (D-8); `render`'s `a_respond_line_names_…`. **Seen**, where the sheet predicted unseen: D-8 put the assertion in. |
+| M-27 | the report | the no-view line written unconditionally | `a_conforming_backend_is_accepted_and_exits_0`: no no-view line | yes | `if true \|\| !tally.viewed {`. Red: `a_conforming_…` no no-view line. **As predicted.** |
+| M-28 | the report | the no-view line never written | `…_returns_no_view_…`: the no-view line | yes | `if false && !tally.viewed {`. Red: `…_returns_no_view_…` the no-view line. **As predicted.** |
+| M-29 | `render`, the status-1 summary | its `goad-check: ` prefix dropped | `a_discarded_next_check_is_reported_and_exits_1`: the last stderr line | yes | `"{refused} exchange(s) refused; the report…"` (prefix dropped). Red: `a_discarded_next_check_…` the last stderr line, every status-1 case, and `render`'s `the_verdict_and_the_status_1_line_…`. **As predicted.** |
+| M-30 | the report writer | one report line through `line_to` (best effort) | `a_report_that_cannot_be_written_exits_2`, run half: status 2 | yes | `emit` → `line_to(…); if false { return Err(RunFault::ReportUnwritten(std::io::Error::other("never"))); } Ok(())`: **every** report line best effort, since one line alone is unseen (the first line written already fails). Red: `a_report_that_cannot_be_written_exits_2` status (0 for 2). **As predicted.** |
+| M-31 | the R-56 line | its condition replaced by `true`, so it is written even when the probe succeeds | `a_conforming_backend_is_accepted_and_exits_0`: no `SPEC-001/R-56` (and status 0, if the claim feeds the count) | yes | `Planned::Probe => true \|\| run::charges_the_probe(…)`. Red: `a_conforming_…` no `SPEC-001/R-56`; every case asserting no claim. Status unchanged: the claim does not feed the count (D-2). **As predicted.** |
+| M-32 | the run loop | `Failure::State` treated as a refusal, run continues | **unseen**: no cooperating case reaches `Failure::State` (A-T2). Held by VA-4's trace | yes | `Some(Failure::State(_error)) => None,` in `run::judged`. Nothing red. **Unseen, as predicted**; held by VA-4's trace. |
+| M-33 | the clock | `now` read once, before the plan, and reused | **unseen**: nothing asserts a time (R3). Held by review | yes | `now` cached in a `static OnceLock<Timestamp>`. Nothing red. **Unseen, as predicted**; held by review. |
+| M-34 | the clock | a mid-run `wall_clock` error ignored | **unseen**: headless-unreachable (`canon-delta.md` R-11..R-13 row). Held by VA-4's trace | yes | `now` → `if false { return Err(RunFault::Clock(ClockError::BeforeEpoch)); } Ok(clock::wall_clock().unwrap_or(Timestamp::new(jiff::Timestamp::UNIX_EPOCH)))`. Nothing red. **Unseen, as predicted**; held by VA-4's trace. |
+| M-35 | `Options::first` (`canonical.rs`) | `.first()` → `.last()` in its body; command `cargo test -p goad-semantics -p goad-check --no-fail-fast` | `the_first_option_is_the_one_listed_first`: the first's id; `a_view_answered_carries_exactly_its_options_fields`: `option` | yes | `.first()` → `.last()` in `Options::first`. Red: `the_first_option_is_the_one_listed_first` (`"second"`); `…_options_fields` `option`. **As predicted.** |
+| M-36 | the R-56 condition | a failing `respond` in the probe's chain counted as a probe failure | `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`: no `SPEC-001/R-56` | yes | after `follow`, `if matches!(planned, Planned::Probe) && a_host_kind_made_no_failure && tally.refused > refused_before { emit(&render::probe_claim_line())?; }`. Red: `a_failure_in_the_probe_s_chain_…` no `SPEC-001/R-56`. **As predicted.** |
+| M-37 | the R-56 condition | a known kind counted as having "made a failure" when a `respond` in its chain failed | `a_known_kind_s_chain_failure_does_not_excuse_the_probe`: the `SPEC-001/R-56` line | yes | the `Host` arm sets nothing; after `follow`, `a_host_kind_made_no_failure \|= evaluate_clean && tally.refused == refused_before`. Red: `a_known_kind_s_chain_failure_…` the `SPEC-001/R-56` line. **As predicted.** |
+
+**Verification records** (executed 2026-10-01; the code at 0fafad7)
+- `git log -1 --oneline` at start: `238f26c 012 PHASE-12: R-56 scope cases
+  belong to VT-1`. Exit grep (A-V14): no output, exit 1.
+- **Red runs.** `the_first_option_is_the_one_listed_first` against a stub
+  returning `self.0.last()`: `left: "second"`, `right: "first"`.
+  `the_probe_kind_is_none_of_the_host_s_own` against `PROBE_KIND = "startup"`:
+  `assertion left != right failed: Startup`. The binary tier against `run`
+  stubbed `todo!()`: 15 FAILED, each on its status assertion, `left: 101`
+  (the 14 cases of `tests/binary/run.rs` then, and VT-2's run half); the five
+  PHASE-04 cases still passing. The five `render` unit cases against bodies
+  returning `String::new()` / `Vec::new()`: all five FAILED. The three
+  offered cases were written after the run was green; their reds are M-16,
+  M-21 and M-25.
+- **VA-1** (A-V10's I-1 command): `crates/goad-check/src/render.rs:130:
+  refusal_line(AtFault::Backend, Requirement::R56, &PROBE_CLAIM)` and
+  `crates/goad-check/src/run.rs:156: .is_some_and(|failure| failure.fault()
+  == AtFault::Backend)`; `PIPESTATUS 0 0`. Two lines carrying the three
+  allowed uses: the claim's side and id (`render::probe_claim_line`), and the
+  condition's comparison (`run::charges_the_probe`). Nothing else.
+- **VA-2**: `command grep -rn 'FieldKind' crates/goad-check/src
+  crates/goad-check/tests`: no output, exit 1.
+- **VA-3**: `src/render.rs:260: use goad_shell::ingress::envelope::EnvelopeFault;`
+  (the test module) and `src/main.rs:20: use
+  goad_shell::ingress::envelope::{self, EnvelopeFault};`, exit 0, nothing
+  else. `command grep -rn 'envelope::' crates/goad-check/src` adds two doc
+  lines and the one call, `envelope::normalize(&bytes)` in `event`: no other
+  `ingress` item is named.
+- **VA-4**: `command grep -rn 'ExitCode' crates/goad-check/src`: the `use`;
+  the signatures of `main`, `run`, `verdict`, `answer`, `not_judged`;
+  `ExitCode::from(1)` and `ExitCode::SUCCESS` in `verdict`;
+  `ExitCode::SUCCESS` in `answer`; `ExitCode::from(2)` in `not_judged`.
+  Traced: `main` reaches `not_judged` (usage error, `StartupFault`),
+  `answer` (0, or `not_judged` on an unwritten answer) or `run`; `run`
+  reaches `not_judged` on any `RunFault` (from `exchanges` or `deliver`) or
+  `verdict` (0 or 1). One literal per way to a status; one
+  `ExitCode::from(2)`.
+- **Test names**: `command grep -rh 'fn <name>()'` over
+  `crates/goad-check/tests/binary` and `crates/goad-check/src` is 1 for each
+  VT-1, VT-2 and VT-3 name, 0 for
+  `a_run_with_no_exchange_exits_2_with_no_verdict`;
+  `the_first_option_is_the_one_listed_first` is 1 in `canonical.rs`.
+- **Fixture readers**: `first-given.json`, `second-given.json` and
+  `deletes-itself-on-its-third-run.sh` are named in `tests/binary/run.rs`;
+  `loadable.toml` and `reserved-source.json` in `statuses.rs`.
+- **Mutation rows**: every row compiled, ran with `--no-fail-fast`, was
+  restored from a scratchpad copy, and `git diff --quiet` held on the file.
+  All rows were rerun at 63db06f, after the M-22 repair; the table's results
+  are that run's.
+- **`just check`** at 0fafad7: exit 0. **738 passed, 0 failed**, summed over
+  33 `test result` lines. Expected: 715, less the two deleted cases, plus 24
+  new — 17 binary-tier (`run.rs`' 14 VT-1 cases and the three offered), 6
+  `goad-check` unit (VT-3 and five `render` cases), and
+  `the_first_option_is_the_one_listed_first` — which is 737; the 738th is
+  that last case counted twice, since the gate runs `goad-semantics`' unit
+  target under both `cargo test --workspace` and `cargo test -p
+  goad-semantics` (its `... ok` line appears twice in the log). `just -n
+  check` against POL-001 §Compliance's block: `4c4`, `deno check
+  examples/typescript/backend.ts` → `deno check
+  exercisers/typescript/backend.ts`, the one line expected.
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
+
+- **D-1 — a pure `src/run.rs`.** The plan (`Planned`, `plan`), `PROBE_KIND`,
+  `CHAIN_BOUND`, the answer (`answer`), `Judged` (an `Outcome` whose failure
+  is the backend's; `judged` returns `Failure::State` as the error), the R-56
+  condition (`charges_the_probe`) and the tally (`Tally`). `main` drives the
+  exchanges and writes; `render` words every line. `main` stays the one
+  impure file.
+- **D-2 — the verdict counts exchanges refused**, as §5.2.5's example
+  (*"verdict: 1 exchange refused"*): an exchange with a refusal on any
+  channel counts once. The R-56 claim is a line, not a count; the probe's own
+  failure already counts.
+- **D-3 — the chain bound, as A-T4 reads it.** `follow` runs at most
+  `CHAIN_BOUND` responds; a view still returned by the last is left
+  unanswered and `chain_bound_line` is written. Held by the exact count in
+  `a_chain_past_its_bound_…` (12: four evaluates and eight responds).
+- **D-4 — the request log is parsed.** `serde_json = { workspace = true }` in
+  `[dev-dependencies]`, and the manifest comment's *"No dev-dependencies"*
+  sentence replaced, in 139e968 (PLAN QUESTION 5).
+- **D-5 — the probe's `data` is `Default::default()`, under
+  `#[expect(clippy::default_trait_access, reason = …)]` on `Planned::event`.**
+  Clippy asks for `Value::default()`, which names `serde_json` in `src`, a
+  crate `goad-check` does not depend on (A-V5; PHASE-04 Findings).
+- **D-6 — I-1's *any spelling* covers identifiers.** A first draft named the
+  claim's text `R56_CLAIM`, which I-1's pattern hit. Renamed `PROBE_CLAIM`;
+  the lowercase `r56_line` and `charged_with_r56` became `probe_claim_line`
+  and `charges_the_probe`, though the case-sensitive pattern misses them.
+- **D-7 — stderr is shown through `String::from_utf8_lossy`**, one report
+  line per stderr line, prefixed `  stderr: `. A non-UTF-8 byte is replaced,
+  not shown raw: the report is text.
+- **D-8 — the values sent are asserted by field.**
+  `a_view_answered_carries_exactly_its_options_fields` also requires a report
+  line naming both its fields' ids, which writes no value per kind (I-2), and
+  makes M-26 seen.
+- **D-9 — the spawn helpers moved** to `tests/binary/process.rs`, shared by
+  `statuses.rs` and `run.rs`. `check` and `check_with_stdout_full` take
+  `&[impl AsRef<OsStr>]`, so a case passes `against`'s `Vec<String>`.
+  No PHASE-04 case changed file, so no `statuses.rs::` path in
+  `canon-delta.md` moved.
+- **D-10 — `a_cleanup_failure_alone_exits_1` joins the gate.** *Direction*:
+  the grandchild's `sleep 2` runs from its fork; the 500 ms timer starts once
+  the host has the body and the child's exit. A false green (`cleanup`
+  `None`, status 0) needs fork-to-timer-start over 1.5 s. Load stretches that
+  interval — the host's and the script's CPU work, and a late timer wake,
+  since `tokio::time::timeout` polls the inner future first — so **load moves
+  the case toward a false green**. Only the sleeper's own exit latency moves
+  it away. A-V9's *"Load lengthens the grandchild's hold, which is the
+  direction that keeps the case red-able"* does not survive (Findings).
+  *Measured at the bound* in a detached worktree, `ProcessBackend::exchange`
+  instrumented from before the spawn to the timer's start and its
+  resolution, the binary run against `@lingers` 30 times per load: at rest,
+  start-to-timer 2.2–3.1 ms; at 128 busy loops on 32 cores (131 runnable,
+  1-min loadavg 38.24 and rising), worst 34.0 ms; at 256 (262 runnable,
+  loadavg 133.21), worst **139.2 ms**, resolution at 644 ms. 90 of 90 under
+  load timed out. The worst measured is about a tenth of the 1.5 s a false
+  green needs. Worktree and instrumentation removed.
+- **D-11 — the offered cases were added.** `a_cleanup_failure_alone_exits_1`
+  (`@lingers`, D-10); `a_truncated_stderr_is_flagged`, through
+  `scripting::backend("floods-stderr-then-answers")`, so no new fixture;
+  `a_probe_failure_on_another_side_is_not_charged_with_r56`, whose spike
+  held: the copy of `deletes-itself-on-its-third-run.sh`, run as the program
+  itself, makes the probe's spawn fail as `Spawn` (configuration, R-44).
+  M-16, M-21, M-25 are seen by them.
+- **D-12 — `render`'s unit cases** (shape only, A-V11):
+  `a_refusal_line_carries_the_failure_s_own_words_under_its_spec`,
+  `the_backend_s_stderr_is_shown_line_by_line_and_its_truncation_flagged`,
+  `a_respond_line_names_the_option_and_each_field_sent` (its view built
+  through `read_response`, the path the host runs),
+  `the_verdict_and_the_status_1_line_tell_accepted_from_refused`,
+  `every_run_fault_says_nothing_was_judged_and_what_stopped_it`.
 
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
@@ -3942,13 +4071,48 @@ instrument already reads (A-V12).
   `the_interim_end_says_nothing_was_judged_on_stderr`, plus this phase's
   cases. `goad-check`'s cases are counted once (they run under `cargo test
   --workspace` only; PHASE-04 Findings).
+- **`Cargo.lock` changed, and is not on the closed surface list.** D-4's
+  endorsed `[dev-dependencies]` entry adds one line, `"serde_json"`, to
+  `goad-check`'s own dependency list in the lockfile; no package is added.
+  Treated as part of the endorsed change rather than a STOP. Audit's call
+  whether the surface list should have named it.
+- **M-22's first run differed from prediction**: the side omitted from every
+  refusal line left `a_refused_view_…` and `…_reported_against_r56` green,
+  because the host's `Display` puts `backend` on the line whatever side it
+  names (*"backend response rejected: …"*, *"backend exited with status 1"*).
+  A defect in this phase's own helper, `a_line_names`, which matched the side
+  anywhere on the line: fixed in 63db06f to read the side only before the id.
+  The class: a substring assertion on a line that also carries a lower
+  stratum's free text can be satisfied by that text.
+- **M-4 reds one of its two predicted cases.**
+  `a_backend_failing_at_startup_is_still_asked_the_rest` passes no event
+  file, so *"the events before the host's own"* cannot change its sequence;
+  `event_files_are_sent_in_the_order_given` holds M-4 alone.
+- **A-V9's direction sentence is wrong** (D-10). Load moves the cleanup case
+  toward a false green, not away from it. The case joins on a measured
+  margin, not on direction.
+- **Test names not in `design.md` §9**, shipped here, for audit (not added to
+  design): `a_cleanup_failure_alone_exits_1`, `a_truncated_stderr_is_flagged`,
+  `a_probe_failure_on_another_side_is_not_charged_with_r56` (binary tier),
+  and D-12's five `render` unit cases.
+- **`canon-delta.md` SPEC-001 Change 3's R-56 row cites neither of the scope
+  cases** (`a_failure_in_the_probe_s_chain_is_not_charged_with_r56`,
+  `a_known_kind_s_chain_failure_does_not_excuse_the_probe`) **nor the side
+  clause's** (`a_probe_failure_on_another_side_is_not_charged_with_r56`),
+  though it states the side clause as canon. VA-6 re-points paths only, so
+  they were not added. Audit's call.
+- **`a_probe_failure_on_another_side_is_not_charged_with_r56` writes an
+  executable into the temp directory, and the checker runs it.** A
+  `Text file busy` race is possible in principle if another test thread
+  forks while the copy's write handle is open; `std::fs::copy` closes it
+  before returning and the spawn is a grandchild's, later. Not observed.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-01 · PHASE-04 done · c263acc (*012 PHASE-04: verification, decisions, findings and harvest; PHASE-04 done*)
+**Fresh as of:** 2026-10-01 · PHASE-12 done · code at 0fafad7 (*012 PHASE-12: the run cases' doc names the host's kinds rather than counting them*); this harvest in the commit after
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -3987,6 +4151,18 @@ instrument already reads (A-V12).
   `StartupFault`, `unjudged_end` (the interim end PHASE-12/EX-6 replaces) and
   `not_judged` (the one status 2). Binary tier `tests/binary/statuses.rs`
   with `loadable.toml` and `reserved-source.json`.
+- PHASE-12: `Options::first` in `goad_semantics::protocol::canonical`.
+  `goad-check`'s run: `src/run.rs` (`PROBE_KIND`, `CHAIN_BOUND`, `Planned`,
+  `plan`, `answer`, `Judged`, `judged`, `charges_the_probe`, `Tally`);
+  `main`'s `Prepared`, `RunFault`, `run`, `exchanges`, `follow`, `report`,
+  `deliver`, `verdict` (the cut), `emit`, `now`; `render`'s
+  `evaluate_line`, `respond_line`, `exchange_lines`, `probe_claim_line`,
+  `chain_bound_line`, `verdict_line`, `refused_line`, `run_fault_line`. The
+  interim end is gone. Binary tier: `tests/binary/process.rs` (the shared
+  spawn helpers), `tests/binary/run.rs`, `scripting.rs` included, fixtures
+  `first-given.json`, `second-given.json`,
+  `deletes-itself-on-its-third-run.sh`. `serde_json` in `goad-check`'s
+  `[dev-dependencies]`.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -4018,6 +4194,18 @@ instrument already reads (A-V12).
   change its return (PHASE-04, D-4).
 - **The scaffold's `0 passed` `Running` line is the reach proof for a new
   test target**, before any case exists (PHASE-04, A-T4).
+- **A side asserted as a substring of a refusal line can be supplied by the
+  host's own text on that line.** `BackendError`'s `Display` says `backend`
+  whatever side the line names; M-22 stayed green until the side was read
+  only before the id (PHASE-12 Findings).
+- **A margin's direction can be argued wrong from a fixture's header.** A-V9
+  read `@lingers`' longer hold as the safe direction; the interval load
+  stretches is the one before the timer starts, which moves toward a false
+  green. Measure it (PHASE-12 D-10).
+- **A mutation that removes an enum variant's only construction does not
+  compile** under the workspace's `unused` deny. Keep it constructed on a
+  path that never runs (`filter(|_| false)`, `if false { return Err(…) }`) —
+  PHASE-12's M-1, M-30, M-34.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
@@ -4027,10 +4215,11 @@ instrument already reads (A-V12).
   list carries it).
 - **`goad-emit`'s `exchange::emit_with_stdout_full`** is a copy of `goad`'s
   `process::goad_with_stdout_full`, across crates. FU-5's class.
-- **PHASE-04 Findings for PHASE-12's sheet**: fixtures in `src` name
-  `EnvelopeFault` variants or `HOST_SOURCE`, never the `"host"` spelling
-  (I-1); `prepare` returns `()`, and PHASE-12 changes that; PHASE-12 may not
-  add a `[dependencies]` entry PHASE-04 did not use.
+- **PHASE-12 Findings for audit**: `Cargo.lock`'s one-line change outside
+  the surface list; test names not in `design.md` §9 (three binary-tier, five
+  `render` units); `canon-delta.md` SPEC-001 Change 3's R-56 row citing
+  neither scope case nor the side-clause case; A-V9's wrong direction
+  sentence (the case joined on a measured margin).
 - **PHASE-03 Findings for audit**: `print_usage`'s doc fragment;
   `goad-emit`'s binary-tier doc (*"Every case passes `--socket`"*); EX-8's
   parameter held by review, not a test.
@@ -4116,3 +4305,12 @@ instrument already reads (A-V12).
   `tests/support/` file was included: the tier spawns only `goad-check`, and
   uses no symbol of `driving.rs`, `scripting.rs` or `waiting.rs`
   (PHASE-04/VA-7).
+  **PHASE-12 included `tests/support/scripting.rs` whole** in the binary
+  target (`tests/binary/main.rs`), and not `driving.rs` (it composes a `Host`
+  in-process, which this tier never does) or `waiting.rs` (nothing here
+  polls). It moved PHASE-04's five copies, unchanged, from `statuses.rs` to
+  `crates/goad-check/tests/binary/process.rs`, shared by `statuses.rs` and
+  `run.rs`, and **copied nothing new**: `process.rs`' `against` and
+  `assert_last_stderr_line_is_the_checker_s`, and `run.rs`' `logging`,
+  `requests` and `evaluated_kinds`, are this target's own (`logging` wraps
+  `scripting::logging_backend`) (PHASE-12/VA-7).
