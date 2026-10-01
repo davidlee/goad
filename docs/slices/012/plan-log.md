@@ -282,3 +282,27 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
 - **Decided:** *"yes"*.
 - **Consequence:** `plan.md` PHASE-12 VA-3 and VA-4, and its surfaces'
   manifest clause, amended; the PHASE-12 sheet's `[!]` tasks unblocked.
+
+### 2026-10-01 — PHASE-12: R-56's scope gets cases; `UnixDatagram` in VA-3
+
+- **Asked:** after the PHASE-12 decisions were applied (370614d):
+  - The sheet's mutation rows M-36 (a failing `respond` in the probe's chain
+    counted as a probe failure) and M-37 (a known kind counted as failed
+    when a `respond` in its chain failed) are unseen by every planned case,
+    so `design-log.md` 2026-10-01, *`Options::first`; R-56's condition
+    counts `evaluate` outcomes*, Q4, would rest on review alone. Proposed:
+    two binary-tier cases, named in `design.md` §9 and PHASE-12/VT-2:
+    `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (probe's
+    `evaluate` answers a view whose `respond` fails, known kinds succeed;
+    no `SPEC-001/R-56`) and
+    `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known
+    kind's view `respond` fails, the probe's `evaluate` fails;
+    `SPEC-001/R-56` present).
+  - The *PHASE-12 sheet questions* entry's Q2 pattern omitted
+    `UnixDatagram`, which the sheet had recommended — an omission in the
+    orchestrator's transcription, not a decision. Proposed: add it.
+- **Recommended:** both.
+- **Decided:** *"yes to both"*.
+- **Consequence:** `design.md` §9 and `plan.md` PHASE-12 (VT-2, VA-3,
+  §Coverage) amended; the sheet's M-36 and M-37 become seen, and its
+  R-4 reach row plants `UnixDatagram` too.
