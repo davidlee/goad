@@ -8,7 +8,7 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | in progress | 2026-10-01 |
+| PHASE-01 | done | 2026-10-01 |
 | PHASE-02 | pending | 2026-10-01 |
 | PHASE-03 | pending | 2026-10-01 |
 | PHASE-04 | pending | 2026-10-01 |
@@ -380,11 +380,21 @@ witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
         helper inside its `mod tests`, not a method. None on `ConfigError`,
         `EnvelopeFault` or `SpanFault`.
 - **Refactor**
-  - [ ] Read the diff for duplication between the witnesses and the existing
+  - [x] Read the diff for duplication between the witnesses and the existing
         corpus tests (the input route, `now` parsing, the walk). Docs on the
         new types cite §5.2.3 and R-59 by name, never by line.
+        *Done.* The input route is one function per corpus (`wire_value`,
+        `document_text`, typed `Route`), shared by `check_protocol`,
+        `check_protocol_text` and the refusal witness. The walk is the one
+        `fixtures_of`. The remaining duplication is `now_of`, which repeats
+        `Corpus::run_case`'s `now` parse in one expression: see Decisions.
+        Both strata's tables first went through an `assert_row` helper;
+        clippy's `needless_pass_by_value` objected in stratum 2, and a
+        direct `assert_eq!` of `(id display, side)` against the row was
+        less code in both, so the helper went. `BackendError::requirement`'s
+        doc named only `Io` for R-45; it now names `PipeMissing` too.
 - **Verification**
-  - [ ] VA-1 (quoted): *"the §5.2.3 table and the code agree row for row, read
+  - [x] VA-1 (quoted): *"the §5.2.3 table and the code agree row for row, read
         side by side and recorded in the phase sheet; this is the review the
         witness's stated reach leaves (F-23). The same read holds
         `Requirement`'s constants to §5.2.3's list: none missing, none surplus
@@ -392,19 +402,35 @@ witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
         per row under Decisions or a VA-1 block: variant, table id/side, arm
         id/side; then the constants against §5.2.3's list. Confirm no `_` arm
         in any `requirement()`, `fault()` or `AtFault` `Display` match by
-        reading each (A-V10).
-  - [ ] VA-2: mutation table row 1.
-  - [ ] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Change 2's test names
+        reading each (A-V10). *Done:* see the VA-1 block below.
+  - [x] VA-2: mutation table row 1.
+  - [x] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Change 2's test names
         resolve to the shipped cases."* `grep -n` each name Change 2 cites
         (`every_protocol_error_names_a_requirement_and_a_side`, its bounds and
         schedule siblings, `every_backend_error_names_a_requirement_and_a_side`
         and its cleanup and state siblings, both witnesses) in the file Change 2
         places it. A name or file that differs is updated in `canon-delta.md` in
         the same commit and noted here (*Test names are commitments*).
-  - [ ] VA-4: mutation table row 2.
-  - [ ] `just check` exits 0 on the final commit. Record it.
-  - [ ] §Status: PHASE-01 `done`, with the date.
-  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+        *Done, no edit.* Change 2 cites
+        `crates/goad-semantics/src/error.rs::tests::every_protocol_error_names_a_requirement_and_a_side`,
+        `crates/goad-shell/src/error.rs::tests::every_backend_error_names_a_requirement_and_a_side`,
+        `normalize.rs::every_refusal_fixture_names_a_requirement_in_its_own_list`
+        and `::every_discard_fixture_names_a_requirement_in_its_own_list`,
+        and the siblings by description only. `grep -c "fn <name>"` finds each
+        once in the file Change 2 places it; the siblings shipped as
+        `every_bounds_error_…`, `every_schedule_error_…` (stratum 1) and
+        `every_cleanup_failure_…`, `every_state_error_…` (stratum 2), with
+        the suffix `_names_a_requirement_and_a_side`. Nothing in
+        `canon-delta.md` changed.
+  - [x] VA-4: mutation table row 2.
+  - [x] `just check` exits 0 on the final commit. Record it.
+        *Exit 0* (see *Exit — the gate* below for the commit): build, both
+        test tiers (659 passed, 0 failed, summed over every `test result`
+        line: EN-1's 644, plus the nine new cases in `--workspace` and the
+        six stratum-1 ones again under `-p goad-semantics`), `deno check`,
+        clippy with no warning, `cargo fmt --all --check`.
+  - [x] §Status: PHASE-01 `done`, with the date.
+  - [x] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad and back, never `git checkout`/`git stash`; `--no-fail-fast`;
@@ -414,14 +440,42 @@ also asserts the arm is expected to red with it and is listed second.
 
 | edit | cases it must red | compiled? | redded |
 |---|---|---|---|
-| VA-2: `ProtocolError::requirement()`'s `NestedHints` arm R-18 → R-3 | `every_refusal_fixture_names_a_requirement_in_its_own_list`, naming `protocol/R-18-a-nested-hints-object`; also `every_protocol_error_names_a_requirement_and_a_side`. The discard witness stays green. | | |
-| VA-4: `ScheduleError::requirement()`'s `NotAString` arm R-25 → R-3 | `every_discard_fixture_names_a_requirement_in_its_own_list`, its one failure naming both `protocol/R-25-next-check-of-the-wrong-type` and `schedule/R-25-not-a-string`; also the schedule sibling of `every_protocol_error_names_a_requirement_and_a_side`. The refusal witness stays green (A-T4). | | |
-| optional (A-T3): a witness's corpus root pointed at a missing directory | that witness, by its non-vacuity guard | | |
+| VA-2: `ProtocolError::requirement()`'s `NestedHints` arm R-18 → R-3 | `every_refusal_fixture_names_a_requirement_in_its_own_list`, naming `protocol/R-18-a-nested-hints-object`; also `every_protocol_error_names_a_requirement_and_a_side`. The discard witness stays green. | yes | `cargo test -p goad-semantics --no-fail-fast`: exactly `every_protocol_error_names_a_requirement_and_a_side` (lib, 33/1) and `every_refusal_fixture_names_a_requirement_in_its_own_list` (protocol, 6/1), whose one line is `…/tests/fixtures/protocol/R-18-a-nested-hints-object.json: {"NestedHints":{"at":"view.options[0].fields[0]"}} names R-3, outside ["R-18", "R-47"]`. Discard witness green. Restored by copy; `git diff` on the file empty. |
+| VA-4: `ScheduleError::requirement()`'s `NotAString` arm R-25 → R-3 | `every_discard_fixture_names_a_requirement_in_its_own_list`, its one failure naming both `protocol/R-25-next-check-of-the-wrong-type` and `schedule/R-25-not-a-string`; also the schedule sibling of `every_protocol_error_names_a_requirement_and_a_side`. The refusal witness stays green (A-T4). | yes — `NotAString` split out of the R-25 or-pattern into its own `=> Requirement::R3` arm | exactly `every_schedule_error_names_a_requirement_and_a_side` (lib, 33/1) and `every_discard_fixture_names_a_requirement_in_its_own_list` (protocol, 6/1), one failure of two lines: `…/protocol/R-25-next-check-of-the-wrong-type.json: NotAString names R-3, outside ["R-25", "R-51"]` and `…/schedule/R-25-not-a-string.json: NotAString names R-3, outside ["R-21", "R-25"]`. Refusal witness green (A-T4 holds), and so is `every_protocol_error_names_a_requirement_and_a_side`, whose `Schedule` instance is `Unparseable`. Restored; diff empty. |
+| optional (A-T3): a witness's corpus root pointed at a missing directory | that witness, by its non-vacuity guard | yes — `SCHEDULE.root` pointed at `../../tests/fixtures`, which exists and holds no `.json` file. A *missing* directory makes `fixtures_of` panic on the read before any guard runs, so it would not test the guard. | `every_discard_fixture_names_a_requirement_in_its_own_list` with `../../tests/fixtures: no schedule error fixture read — renamed, emptied, or misspelled`, and `every_scheduling_fixture_states_what_the_protocol_does` by `Corpus::run`'s guard. Restored; diff empty. |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
+
+- **The schedule corpus is reached by `SCHEDULE` → `pub(crate)`** (A-V3's
+  first option), then `fixtures_of(&SCHEDULE)`. That is one visibility change
+  in `runner.rs`, with a doc line saying why. Exposing `read_envelope` and
+  `fixture_paths` would have opened two functions and the `Fault` type.
+- **`fixtures_of` returns `(PathBuf, Value)` and sorts by path**, so a
+  witness's failure lists fixtures in the same order every run. Its two older
+  callers ignore the path.
+- **The input route is a `Route = fn(&Value) -> Result<Vec<u8>, String>`**,
+  one per protocol corpus (`wire_value`, `document_text`). The checkers keep
+  their `fn(&Fixture)` shape, which `Corpus` needs.
+- **`now_of` parses `now` a second time**, outside the runner. Sharing it
+  with `Corpus::run_case` would mean exposing a parse helper from `runner.rs`
+  for one expression. The witnesses read fixtures the corpus tests have
+  already held well-formed, so `now_of` `expect`s instead of reporting a
+  `Malformed` fault.
+- **The refusal witness counts refusals, not fixtures**, for its per-corpus
+  guard, and the discard witness counts discards and schedule errors. A
+  corpus of fixtures that are all accepted would still be a vacuous witness.
+- **A row's side is compared by value (`AtFault`), its id by `Display`.**
+  `AtFault`'s printed word is held once, by
+  `every_side_displays_as_the_word_a_report_prints`.
+- **Compiling reds used `todo!()` bodies** for `requirement()` and `fault()`,
+  and `write!(f, "")` for `AtFault`'s `Display`; `todo!()` there tripped
+  `unused_variables` on `f` and would not compile.
+- **Commit 7451420 is red by design.** It records EX-5 with the witness
+  failing, and a4087f5 makes it green. No history was rewritten; the next
+  phase starts from a green HEAD.
 
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
@@ -468,24 +522,118 @@ also asserts the arm is expected to red with it and is listed second.
   integration target, which cannot reach `error.rs`' `#[cfg(test)]` one). The
   plan's *"do not write a second builder"* is about `error.rs`; this one
   predates the slice and serves `every_reachable_error_in_the_taxonomy_is_named_by_a_fixture`.
-  Not this phase's to merge; noted for audit.
+  Not this phase's to merge; noted for audit. It was not extended with an
+  `InapplicableKey { key: "fields" }` instance: that test checks tags, and
+  one `InapplicableKey` covers the tag.
+- **VT-2's `Protocol` row asserts delegation, not an id.** Stratum 2 cannot
+  see stratum 1's private tables, so `backend_row`'s `Protocol(inner)` arm
+  expects `(inner.requirement(), inner.fault())`. Two `Protocol` instances
+  with different answers keep a hard-coded arm from passing. That the
+  inner answers are right is VT-1's job.
+- **`every_protocol_error_names_a_requirement_and_a_side` does not see a
+  `NotAString` flip.** Its one `Schedule` instance is `Unparseable`, so
+  VA-4's mutation reds the schedule sibling and the discard witness, not the
+  protocol table. This is as the mutation table predicted, and it is
+  sufficient: `Schedule` delegates, and `schedule_row` is exhaustive.
+
+**VA-1 — §5.2.3's table against the code, row by row** (read side by side at
+the final commit; `requirement()` / `fault()` arm as written)
+
+| taxonomy | variant | table id / side | arm id / side |
+|---|---|---|---|
+| `ProtocolError` | `Json` | R-44 / backend | `R44` / `Backend` |
+| | `Shape` | R-44 / backend | `R44` / `Backend` |
+| | `DuplicateKey` | R-44 / backend | `R44` / `Backend` |
+| | `NestedHints` | R-18 / backend | `R18` / `Backend` |
+| | `UnsupportedProtocolVersion` | R-3 / backend | `R3` / `Backend` |
+| | `UnsupportedPrimitive` | R-12 / backend | `R12` / `Backend` |
+| | `InapplicableKey`, `key == "fields"` | R-53 / backend | `R53` / `Backend` |
+| | `InapplicableKey`, otherwise | R-50 / backend | `R50` / `Backend` |
+| | `MissingField` | R-10 / backend | `R10` / `Backend` |
+| | `EmptyOptions` | R-13 / backend | `R13` / `Backend` |
+| | `DuplicateOptionId` | R-14 / backend | `R14` / `Backend` |
+| | `DuplicateFieldId` | R-52 / backend | `R52` / `Backend` |
+| | `DuplicateAlternativeId` | R-52 / backend | `R52` / `Backend` |
+| | `EmptyAlternatives` | R-16 / backend | `R16` / `Backend` |
+| | `Bounds(b)` | `b.requirement()` / `b.fault()` | `inner.requirement()` / `inner.fault()` |
+| | `Schedule(s)` | `s.requirement()` / `s.fault()` | `inner.requirement()` / `inner.fault()` |
+| `BoundsError` | `NotFinite` | R-17 / backend | `R17` / `Backend` |
+| | `Inverted` | R-17 / backend | `R17` / `Backend` |
+| `ScheduleError` | `NotAString` | R-25 / backend | `R25` / `Backend` |
+| | `MissingOffset` | R-22 / backend | `R22` / `Backend` |
+| | `TimeOfDay` | R-21 / backend | `R21` / `Backend` |
+| | `CalendarUnit` | R-23 / backend | `R23` / `Backend` |
+| | `OutOfRange` | R-25 / backend | `R25` / `Backend` |
+| | `Unparseable` | R-25 / backend | `R25` / `Backend` |
+| `BackendError` | `Spawn` | R-44 / configuration | `R44` / `Configuration` |
+| | `Timeout` | R-41 / backend | `R41` / `Backend` |
+| | `ExitStatus` | R-40 / backend | `R40` / `Backend` |
+| | `OutputTooLarge` | R-43 / backend | `R43` / `Backend` |
+| | `PipeMissing` | R-45 / host | `R45` / `Host` |
+| | `Io` | R-45 / environment | `R45` / `Environment` |
+| | `Protocol(p)` | `p.requirement()` / `p.fault()` | `inner.requirement()` / `inner.fault()` |
+| `CleanupFailure` | `TimedOut` | R-48 / backend | `R48` / `Backend` |
+| | `Io` | R-48 / environment | `R48` / `Environment` |
+| `StateError` | `NoOutstandingView` | R-32 / host | `R32` / `Host` |
+| | `StaleViewId` | R-32 / host | `R32` / `Host` |
+
+Every row agrees, and every variant of the six enums has a row (A-V1 holds at
+the final commit). **Constants:** `impl Requirement` declares `R3`, `R10`,
+`R12`, `R13`, `R14`, `R16`, `R17`, `R18`, `R21`, `R22`, `R23`, `R25`, `R32`,
+`R40`, `R41`, `R43`, `R44`, `R45`, `R48`, `R50`, `R52`, `R53`, `R56`. That is
+§5.2.3's list and `R56`: none missing, none surplus. Each id the table
+answers is named by at least one arm above, and `R56` by none, as its doc
+says. **No `_` arm:** read in each `requirement()` and `fault()` of the six
+impls and in `AtFault`'s `Display`. `InapplicableKey` is one arm with an `if`
+on `key`, so the match stays total over variants. The tests' row functions
+(`protocol_row` and the rest) are exhaustive too. `protocol_row` splits
+`InapplicableKey` with a `key: "fields"` pattern followed by the general
+arm, which is not a `_` arm.
+
+**Exit — the gate.** `just check` exited 0 at the tree committed as the
+phase's final commit (see §Harvest *Fresh as of*).
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** <yyyy-mm-dd> · <phase or stage> · <commit>
+**Fresh as of:** 2026-10-01 · PHASE-01 done · the commit after 0f16450 (*012 PHASE-01: verification, sheet and harvest*)
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+
+- `goad_semantics::error::{Requirement, AtFault}`. `Requirement` is built
+  from associated constants only (§5.2.3's list and `R56`) and displays
+  `R-N`. `AtFault` displays as the word a report prints.
+- `requirement()` / `fault()` on `ProtocolError`, `BoundsError`,
+  `ScheduleError` (stratum 1) and `BackendError`, `CleanupFailure`,
+  `StateError` (stratum 2). Each is a total match answering §5.2.3.
+- Tables `every_*_names_a_requirement_and_a_side` (six), and
+  `every_side_displays_as_the_word_a_report_prints`.
+- Corpus witnesses in `normalize.rs`:
+  `every_refusal_fixture_names_a_requirement_in_its_own_list` and
+  `every_discard_fixture_names_a_requirement_in_its_own_list`. `runner.rs`'
+  `SCHEDULE` is now `pub(crate)`.
+- EX-4's three corrected `requirement` lists.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
 
+- **A missing corpus directory does not reach a witness's vacuity guard.**
+  `fixtures_of` panics on the read first. A guard's mutation must point at
+  a directory that exists and is empty of fixtures (PHASE-01 mutation table,
+  optional row).
+- **A `todo!()` stub is a compiling red for a method, not for a `Display`
+  impl.** The unused `Formatter` fails `-D unused`; `write!(f, "")` works.
+
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+- **Two `every_protocol_error` builders** (`error.rs` `mod tests`,
+  `normalize.rs`). They predate the slice and cannot share across an
+  integration target. Audit's call (PHASE-01 Findings).
 
 - **Brief §21 AC-14 has no home.** The interstitial-journal scenario (brief §18)
   is to be replaced by a better one the user has in mind; neither 012 nor a

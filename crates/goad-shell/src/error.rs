@@ -136,8 +136,8 @@ pub enum ConfigError {
 
 impl BackendError {
   /// The requirement this kind of refusal names (SPEC-001/R-59; `design.md`
-  /// §5.2.3). `Io` names R-45: no requirement names the failure itself, and
-  /// R-45 governs what the host does with it.
+  /// §5.2.3). `PipeMissing` and `Io` name R-45: no requirement names either
+  /// failure, and R-45 governs what the host does with one.
   #[must_use]
   pub fn requirement(&self) -> Requirement {
     match self {
