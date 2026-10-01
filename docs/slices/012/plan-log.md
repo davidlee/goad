@@ -179,3 +179,34 @@ multi-target work and `goad-walk`'s registration, both outside this slice.
 - **Decided:** *"yes"*.
 - **Consequence:** `plan.md` PHASE-02 EX-3, EX-6, VT-2 amended; the sheet's
   blocked tasks unblocked.
+
+### 2026-10-01 — PHASE-02's `glass.rs` comment; PHASE-03 sheet questions; the push before a lock bump
+
+- **Asked:**
+  - **PHASE-02's `glass.rs` edit.** PHASE-02 (1e86bde) changed one comment in
+    `glass.rs` — whose surface was imports and the delegation only — from
+    `view_model::drawn_number` to `NumberRange::drawn`, because EX-3 required
+    `grep -rn 'drawn_number' crates` to come back empty. Proposed: accept it.
+  - **PHASE-03 sheet (1b5639f), PLAN QUESTION 1.** EX-8 deletes
+    `diagnostics::version_line`; `startup.rs`' doc table on `arguments`
+    links to it and `goad`'s `tests/binary/main.rs` module doc names it.
+    Proposed: both join PHASE-03's surfaces, doc-only.
+  - **PLAN QUESTION 2.** The exercisers carry present-tense "copy this"
+    claims beyond EX-1's two (`round_trip.rs`'
+    `the_readme_s_own_config_loads_and_runs_the_example` doc, `backend.sh`'s
+    header, the TypeScript README's opening). Proposed: EX-1 read as its
+    Objective reads — every present-tense claim rewritten, the grep recorded.
+  - **PL-7's home** (orchestrator, from the sheet's finding):
+    `goad_shell::report`'s module doc says it is "not a formatter" — what a
+    line says belongs to its composer. Proposed: `version_line(version,
+    revision)` lives in a module of its own, `goad_shell::version`, and
+    `report` stays as its doc says. Supersedes PL-7's placement only.
+  - **The push before a lock bump.** `goad-walk` now pins goad from
+    `github:davidlee/goad`, so a lock bump can pin only a pushed commit.
+    Proposed: PHASE-05, PHASE-09 and PHASE-10 each gain an entry checklist
+    item, "goad's `main` pushed to `origin`", before their lock bump.
+- **Recommended:** each as proposed.
+- **Decided:** *"yeah I'll take your recommendations on all the above"*.
+- **Consequence:** `plan.md` PHASE-03 (surfaces, EX-1, EX-8), PHASE-04/EX-8,
+  PHASE-05, PHASE-09 and PHASE-10 entry criteria amended; the PHASE-03 sheet
+  follows.
