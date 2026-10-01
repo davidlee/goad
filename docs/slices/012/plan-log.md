@@ -406,3 +406,20 @@ executor resumes.
 - **Consequence:** `plan.md` PHASE-05/EN-2 restated; the sheet's EX-8
   block replaced by the script as run; the executor reads the log back and
   runs the key scan over the scratch home.
+
+### 2026-10-01 — PHASE-11: Codex in the capsule
+
+- **Asked:** running EX-8 surfaced that the capsule has no Codex:
+  oubliette's `agents` fragment (`fragments.nix`) installs `llm.claude-code`
+  and `llm.pi` only. PHASE-11/EX-2 and PHASE-09's Codex walks need `codex
+  exec` in the capsule. And the user's Codex login is OAuth, a file
+  (`~/.codex/auth.json`), so EN-3's "environment variables" does not reach
+  it.
+- **Recommended:** `llm.codex` in oubliette's `agents` fragment beside
+  `llm.claude-code` (not verified that `llm-agents` exports it) — agent
+  programs are oubliette's to provide; `goad-walk`'s tool set holds what
+  the walk uses. Both as PHASE-11 entry items.
+- **Decided:** *"yes"*; on the login: *"codex login - I'll sort that out"*.
+- **Consequence:** `plan.md` PHASE-11 gains EN-4 (Codex on the capsule's
+  PATH, oubliette-side) and EN-5 (the user provides the Codex login in the
+  capsule session); EN-3 points to EN-5 for Codex.

@@ -1261,7 +1261,15 @@ control, the fixed prompt; PL-5).
 - EN-3 — Claude and Codex credentials are available as environment variables
   for the ssh command that starts a capsule session — for Claude,
   `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (`plan-log.md`
-  2026-10-01, *EX-8 and EN-2 take a Claude OAuth token*).
+  2026-10-01, *EX-8 and EN-2 take a Claude OAuth token*). Codex's login is
+  the user's to provide in the capsule (EN-5).
+- EN-4 — `codex` is on the capsule's PATH: oubliette's `agents` fragment
+  (`fragments.nix`) provides `llm.codex` beside `llm.claude-code`, from the
+  same `llm-agents` input, not `goad-walk`'s tool set. Oubliette-side work,
+  as EN-2 (`plan-log.md` 2026-10-01, *PHASE-11: Codex in the capsule*).
+- EN-5 — the user has provided a Codex login inside the capsule session. Its
+  route is the user's; the sheet checks it holds before EX-2 (the same
+  entry).
 
 **Exit**
 - EX-1 — in a fresh capsule provisioned at `goad-walk`'s `main`, the negative
