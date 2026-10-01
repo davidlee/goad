@@ -3030,6 +3030,781 @@ VA item otherwise shows a new case can fail):
   comments say *"both binaries"*. PHASE-05 owns those files (PL-6). For
   PHASE-05's sheet.
 
+### PHASE-12 — `goad-check`: the run
+
+**Written by a phase-sheet agent, not the executor**, at 3299acc (*012
+PHASE-04: the gate's rerun, recorded in the sheet*). This sheet is the plan's
+second reading. Where it restates a plan criterion it quotes it. It repairs
+nothing: what reads as wrong in the plan is under **Findings** as a PLAN
+QUESTION, and the tasks it blocks are marked `[!]`.
+
+**Objective** (quoted, `plan.md` PHASE-12): *`goad-check` sends the request
+plan, answers every view and follows chains, reports every channel of every
+`Outcome` with the side and requirement its kind answers, and charges R-56
+only on its condition (`design.md` §5.2.2, §5.4).*
+
+PHASE-12 replaces PHASE-04's interim end (PHASE-04/EX-3) and deletes
+PHASE-04/VT-3's case `a_run_with_no_exchange_exits_2_with_no_verdict`
+(PHASE-12/EX-6). Every other PHASE-04 case stays and must stay green.
+
+**Entry**
+- **EN-1** (quoted): *"PHASE-04 done."* **Discharged 2026-10-01 at 3299acc.**
+  §Status has PHASE-04 `done`. `just check` exited **0**: build, both test
+  tiers (**715 passed, 0 failed**, summed over all 33 `test result` lines),
+  `deno check exercisers/typescript/backend.ts`, clippy with no warning,
+  `cargo fmt --all --check`. `just -n check` differs from POL-001
+  §Compliance's command block in one line only (`diff` of the block against
+  the recipe's output):
+  ```
+  4c4
+  < deno check examples/typescript/backend.ts
+  ---
+  > deno check exercisers/typescript/backend.ts
+  ```
+  This is PHASE-03/EX-3's departure, which audit ends (POL-001 Change 1).
+
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- (quoted) *"`crates/goad-check/src/`"*.
+- (quoted) *"`crates/goad-check/tests/binary/` and its bash fixtures"*. A
+  committed event file, config or bash backend a binary case reads lives
+  here. `tests/binary/loadable.toml`'s comment is in this surface.
+- (quoted) *"`crates/goad-check/Cargo.toml` (`[dev-dependencies]` only,
+  should reading a test backend's request log need one; a new external
+  dependency is still a STOP)"*. The manifest's comment says *"No
+  dev-dependencies"*: PLAN QUESTION 5.
+- (quoted) *"`canon-delta.md` (test paths only)"*.
+- (quoted) *"`tests/support/` is read and may be included, not edited."*
+- `docs/slices/012/notes.md`: this sheet, §Status, §Harvest (§Open's FU-5
+  row, for VA-7). Bookkeeping (`docs/AGENTS.md` §Execute).
+
+Not surfaces, and so a STOP if the work seems to need them: any
+`[dependencies]` entry in `crates/goad-check/Cargo.toml` (PHASE-04
+Findings, *PHASE-12 may not add a regular dependency*); any other
+`Cargo.toml`, `[workspace.dependencies]` included; `crates/goad-semantics/`
+(PLAN QUESTION 1 asks for one item there); `crates/goad-shell/`;
+`crates/goad-emit/`; `tests/support/` and **`tests/backends/`** (a new
+backend script goes under `crates/goad-check/tests/binary/`); any canon
+document; `flake.nix`, the `justfile`, `README.md`; `design.md` and
+`plan.md`.
+
+**Reading list** (by symbol; `command grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md`: §Overview's first paragraph; *Owed to audit and
+  close*; *Test names are commitments*; §Sequencing & rationale, *Why the
+  checker is two phases*, *Mutation evidence* and *Invariant reads*;
+  §Coverage (AC-3, AC-4 rows; the §9 test table's `12` row); §PHASE-12
+  whole; §PHASE-04's EX-3, EX-4, VT-2, VT-3, VA-6 and VA-7, which this phase
+  replaces, extends or reruns.
+- `docs/slices/012/design.md`: §5.2.1 (the argv form; `--event`); §5.2.2
+  whole (the sequence diagram, *The request plan*, *Answering*, *What is
+  judged* and its table); §5.2.3 (the `Requirement` constants and `R56`;
+  *What holds the list*); §5.2.5 whole (the report example, the no-view
+  line, the status table and its bullets); §5.3; §5.4; §5.5 I-1, I-2 and
+  *Edges*; §9 *`goad-check`*.
+- `docs/slices/012/design-log.md` 2026-10-01: *`Requirement` is built from
+  named constants*. `plan-log.md` 2026-10-01: *plan review round 2:
+  dispositions* (F-23, F-27); *plan review round 3: close* (F-29); *PHASE-04
+  sheet questions*.
+- `docs/slices/012/canon-delta.md`: SPEC-001 Change 3 (R-56's row, its
+  `goad-check` paths); SPEC-004 Change 3 (R-11..R-13, R-15), Change 4
+  (`goad-check`'s table), Change 5 (the R-14 row and the R-11..R-13 row).
+- Canon: `docs/specs/001-host-backend-protocol.md` R-32, R-56..R-59 and §7's
+  R-56 row; `docs/specs/004-process-exit-status.md` §3 (P-B, P-C), §5;
+  `docs/policy/001-the-phase-gate.md` §Compliance, §Verification;
+  `docs/adr/001-one-way-strata.md`;
+  `docs/adr/003-the-host-splits-into-a-workspace-of-strata.md`.
+- This sheet's predecessor, `### PHASE-04` above: its Decisions D-1..D-8,
+  its Findings, its mutation tables (the format to follow).
+- The shipped crate: `crates/goad-check/src/main.rs` (`main`, `prepare`,
+  `configuration`, `normalized`, `event`, `unjudged_end`, `answer`,
+  `not_judged`, `StartupFault`, `DEFAULT_POLL`); `src/render.rs` (`NO_VIEW`,
+  `NOT_YET_IMPLEMENTED`, `report_unwritten_line`, its `mod tests`);
+  `src/args.rs` (`Invocation`, `Request`, `Source`);
+  `tests/binary/main.rs`; `tests/binary/statuses.rs` (`fixture`, `check`,
+  `check_with_stdout_full`, `code_of`, `stderr_of`, `stdout_of`,
+  `assert_not_judged`, `assert_no_report`, every case);
+  `tests/binary/loadable.toml`; `Cargo.toml` and its comment.
+- Stratum 2: `goad_shell::host::{Host, Outcome, Presented, Failure}`
+  (`Host::evaluate`, `Host::respond`, the `Outcome` fields' docs);
+  `goad_shell::backend::transport::Captured`; `goad_shell::error::{BackendError,
+  CleanupFailure, StateError}` and each one's `requirement`, `fault`,
+  `Display`; `goad_shell::clock::wall_clock`; `goad_shell::report::try_line_to`.
+- Stratum 1: `goad_semantics::error::{Requirement, AtFault}` (`R56`, both
+  `Display`s); `goad_semantics::protocol::canonical::{Stimulus, HOST_SOURCE,
+  Event, UserResponse, View, Choice, Opt, Options, Fields, Field, Submitted,
+  Alternatives}` (`Stimulus::event`, `Submitted::as_drawn`,
+  `Submitted::to_json`, `Alternatives::first` and its doc);
+  `goad_semantics::protocol::normalize::Discarded` (its `Display`).
+- Test support: `tests/support/scripting.rs` (`backend`, `claim`, `marker`,
+  `clear`, `logging_backend`, `invocations`, `scripted`), `driving.rs`
+  (`answer_first_option`: the shape to mirror, not to include), `waiting.rs`;
+  `tests/backends/answers-as-instructed.sh` (its sentinels, `@exit1`,
+  `@garbage`, `@lingers`; its default past the list) and
+  `tests/backends/logs-the-request-then-answers.sh`;
+  `tests/backends/leaves-a-grandchild-holding-stderr.sh`'s header.
+- Prior art: `crates/goad-shell/tests/integration/main.rs` (how a target
+  `#[path]`-includes `scripting.rs`, with `#[cfg(test)]` and why).
+- `docs/memory/`: `tests-asserting-proxies` (→ `a-green-test-can-assert-a-proxy`),
+  `a-mutation-can-red-the-right-case-on-the-wrong-assertion`,
+  `negative-control-must-compile`, `verify-the-proposed-instrument`,
+  `a-check-that-compares-two-derived-things-holds-nothing`,
+  `a-substring-scan-and-a-word-boundary-scan-are-different-instruments`,
+  `shared-test-helper-lives-at-workspace-root-via-path`,
+  `cargo-test-cwd-is-package-root-not-workspace-root`,
+  `autotests-false-hides-an-undeclared-test-target`,
+  `clippy-toml-test-exemptions-are-a-hidden-boundary`,
+  `timed-test-margins-are-measured-at-the-bound`,
+  `tokio-net-arrives-by-feature-unification`,
+  `wildcard-enum-match-arm-counts-a-named-binding`. The user's memory adds
+  *a standing guard may not reach a new file* and *mutation-check the
+  coverage claim*: both bind this phase's reach and mutation rows.
+- §Harvest *Learned* and *Open*: I-1's grep reads unit-test fixtures in
+  `src`; a struct carrying values to a later phase is dead code; run the
+  exit grep before naming new tests; PHASE-04's three notes for this sheet.
+
+**Assumptions — verified now** (at 3299acc, by reading, grep, and the runs
+named)
+- **A-V1 — the exchange API is what the plan names.** Read:
+  `Host::evaluate(&mut self, now: Timestamp, event: Event) -> Outcome` and
+  `Host::respond(&mut self, now: Timestamp, view_id: ViewId, answer:
+  UserResponse) -> Outcome`, both `async`. `Outcome` has `pub` fields `view:
+  Option<Presented>`, `next_check: Timestamp`, `discarded: Vec<Discarded>`,
+  `stderr: Captured`, `failure: Option<Failure>`, `cleanup:
+  Option<CleanupFailure>`. `Presented { view_id, view }`, both `pub`.
+  `Failure::{Backend(BackendError), State(StateError)}`, with a `Display`.
+  `Captured { bytes: Vec<u8>, truncated: bool }`, `pub`, in
+  `goad_shell::backend::transport` (a `pub mod`). `respond` checks the
+  `view_id` against host state before the transport (`State::verify`) and
+  returns `Failure::State` without spawning: the R-32 check EX-1 relies on.
+- **A-V2 — every channel's kind answers `requirement()` and `fault()`.**
+  Read: `BackendError`, `CleanupFailure`, `StateError` (stratum 2) and
+  `ProtocolError`, `BoundsError`, `ScheduleError` (stratum 1) each have both,
+  total. `BackendError::Protocol(inner)` delegates to `inner`. `Discarded`
+  has one variant, `Schedule { raw, reason: ScheduleError }`, and a
+  `Display`; matching `Discarded::Schedule { reason, .. }` does not name
+  `serde_json`. `Requirement` displays `R-N`; `AtFault` displays `backend`,
+  `host`, `configuration`, `environment` through a total `match`.
+- **A-V3 — the side each planned case provokes.** Read from the `fault()`
+  arms: `BackendError::Spawn` is `Configuration`, R-44
+  (`an_unspawnable_command_is_reported_against_the_configuration`);
+  `ExitStatus` is `Backend`, R-40 (`@exit1`); `Protocol(Json)` is `Backend`,
+  R-44 (`@garbage`); `ProtocolError::EmptyOptions` is `Backend`, R-13 (a
+  view with `"options":[]`); every `ScheduleError` is `Backend`, R-21..R-25
+  (a discarded `next_check`); `CleanupFailure::TimedOut` is `Backend`, R-48.
+  **Every `ProtocolError`, `BoundsError` and `ScheduleError` arm is
+  `Backend`.** The only non-backend `failure` sides are `Spawn`
+  (configuration), `PipeMissing` (host) and `Io` (environment). This bears on
+  the R-56 condition's side clause (Findings, *the side clause*).
+- **A-V4 — `Requirement::R56` exists in stratum 1.** `pub const R56:
+  Requirement = Requirement(56);` in `goad_semantics::error`. Its value is held
+  by nothing yet: §5.2.3 gives that to
+  `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`,
+  which must assert the literal `SPEC-001/R-56`.
+- **A-V5 — the probe's `Event` can be built with no `serde_json` in
+  `[dependencies]`.** `Event` has four `pub` fields; `data` is a
+  `serde_json::Value`. `serde_json::Value: Default` (`Null`; read in the
+  registry source, `serde_json` 1.0.150 and 1.0.151), so `Event { source:
+  HOST_SOURCE.to_owned(), kind: <probe>.to_owned(), timestamp: now, data:
+  Default::default() }` names no `serde_json`, and `data` is `null` as
+  `Stimulus::event` builds it (§5.2.2). The values map
+  (`UserResponse.values: BTreeMap<FieldId, serde_json::Value>`) is built by
+  `.collect()` from `(field.id().clone(),
+  Submitted::as_drawn(field.kind()).to_json())`, and a value is printed
+  through `serde_json::Value`'s `Display`: neither names the crate. So PHASE-04's
+  `[dependencies]` (`goad-semantics`, `goad-shell`, `jiff`, `tokio`) suffice.
+- **A-V6 — `Options` has no total `first()`.** `Options::as_slice() ->
+  &[Opt]`; `.first()` on it is an `Option`. `Alternatives::first` exists,
+  with an `#[expect(clippy::expect_used)]` and a doc arguing that every
+  consumer re-deriving non-emptiness at its call site is what it exists to
+  stop. `unwrap_used`, `expect_used`, `panic`, `unreachable` and
+  `indexing_slicing` are `deny` in `[workspace.lints.clippy]`, exempt only in
+  tests (`clippy.toml`). PLAN QUESTION 1.
+- **A-V7 — `Timestamp` has no `Display`.** `Timestamp::instant()` gives a
+  `jiff::Timestamp`, which does. The workspace `jiff` has
+  `default-features = false`, so a report that shows a `next_check` in the
+  system zone would need a feature: adding one to `jiff` is the residue
+  (PHASE-04 A-V6) and a STOP. The report's format is free (§5.2.5), so the
+  instant in UTC is enough.
+- **A-V8 — test support at this phase.** `scripting.rs`' `scripted(case,
+  instructions)` returns a `goad_shell::config::Command` running
+  `tests/backends/answers-as-instructed.sh` with an invocation log at argv[2]
+  and one instruction per invocation; past the list it answers
+  `{"view":null,"next_check":"45 minutes"}`, which a conforming backend
+  needs. `logging_backend("logs-the-request-then-answers", case)` logs each
+  **raw request**, one per line, so a case reads `event.kind` and `"type"`
+  off it; past its list it answers `{"view":null}`. `invocations(log)` counts
+  lines. `Command`'s `program` and `arguments` are `pub`, so a case passes
+  them after `--`. `backend` roots at `CARGO_MANIFEST_DIR/../../tests/backends`,
+  which resolves from `crates/goad-check` as from any member. Using `scripted`
+  and `invocations` reaches every item of `scripting.rs` (`scripted` →
+  `logging_backend` → `marker` → `claim`, `clear`; `backend`), so the file
+  can be included whole under `dead_code` (VA-7). `driving.rs` composes a
+  `Host` in-process and the binary tier never does: not included.
+  `waiting.rs` polls; nothing here polls: not included. This is a
+  prediction; VA-7 is the read.
+- **A-V9 — a cleanup failure alone is provocable.** `@lingers` (the
+  behaviour of `leaves-a-grandchild-holding-stderr.sh`, whose header says
+  so) answers `{"view":null}` and leaves a grandchild holding stderr for 2 s
+  against `CLEANUP_LIMIT`'s 500 ms: `result` `Ok`, `cleanup`
+  `Some(TimedOut)`. Load lengthens the grandchild's hold, which is the
+  direction that keeps the case red-able (`margin-size-is-not-margin-direction`).
+- **A-V10 — the instruments, dry-run at 3299acc under the system `grep`.**
+  `command grep` throughout (PHASE-04 A-V10: the agent shell's `grep` is a
+  `ugrep` wrapper that recurses unasked and honours ignore files).
+  - I-1: `command grep -rnE 'R-?[0-9]+|AtFault::|"(backend|host|configuration|environment)"'
+    crates/goad-check/src | command grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'`:
+    no output, `PIPESTATUS` `0 1`.
+  - I-2: `command grep -rn 'FieldKind' crates/goad-check/src
+    crates/goad-check/tests`: no output, exit 1.
+  - PHASE-12/VA-3, as the plan writes it but run as `command grep`:
+    `command grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
+    crates/goad-check/src` prints two lines, exit 0:
+    `src/render.rs` `use goad_shell::ingress::envelope::EnvelopeFault;` (the
+    test module's import) and `src/main.rs` `use
+    goad_shell::ingress::envelope::{self, EnvelopeFault};`. The call
+    `envelope::normalize(&bytes)` does **not** match `ingress::`. PLAN
+    QUESTION 2.
+  - PHASE-04/VA-6 (PHASE-12/VA-4): `command grep -rn 'ExitCode'
+    crates/goad-check/src` prints the `use`, the signatures of `main`,
+    `unjudged_end`, `answer`, `not_judged`, `ExitCode::SUCCESS` in `answer`
+    and `ExitCode::from(2)` in `not_judged`.
+- **A-V11 — what I-1 forbids in this phase's own unit tests.** The command
+  reads all of `src`, `#[cfg(test)]` modules included (PHASE-04 D-7). So a
+  `render` unit test may not write `AtFault::Backend`, `Requirement::R40`,
+  `"R-40"`, `"SPEC-001/R-13"` or `"backend"` as a literal. A unit test that
+  instead compares a line with `format!("{} SPEC-001/{}", e.fault(),
+  e.requirement())` compares two derived things and holds nothing
+  (`a-check-that-compares-two-derived-things-holds-nothing`). **The value of
+  each side and id is asserted in the binary tier**, under `tests/`, outside
+  I-1's reach, as literals. `render`'s units may hold shape only (prefix,
+  that a refusal line carries the fault's `Display`). The only `AtFault::`
+  and `Requirement::` spellings in `src` are VA-1's three.
+- **A-V12 — guard reach for what this phase adds** (read from each
+  instrument, as PHASE-04 A-V7):
+  - *Vocabulary scan* (`goad-boundary`'s `domain_scan`): walks every `.rs`
+    under `crates/goad-check` **excluding `tests/` and `target/`**. A new
+    `src/*.rs` module is reached with no change; a report string is read
+    (strings are scanned; `site`, `goal` are among `DOMAIN`'s words, so a
+    phrase such as *"call site"* is a breach). Nothing under `tests/binary/`
+    is reached, and no `.sh`, `.json` or `.toml` is read anywhere.
+  - *I-1, I-2, VA-3*: `-r` over `src` (I-2 also `tests`), so a new module
+    or test file is reached by the command with no change.
+  - *Clippy* and *fmt*: reach a file only through a `mod` declaration. A new
+    `tests/binary/*.rs` not named in `tests/binary/main.rs` is neither
+    compiled, linted nor formatted, and its cases do not run. An included
+    `tests/support/scripting.rs` is linted under this target too.
+  - *Bash fixtures*: no instrument in the gate reads them. The case that
+    runs a fixture is what holds it; a fixture no case runs is held by
+    nothing (§Exit, *every fixture has a reader*).
+  - *Crate edges / manifest allowlist / stratum-1 purity scan / `cargo test
+    -p goad-semantics`*: unchanged from PHASE-04 A-V7; none bills a
+    stratum-3 manifest or source. A `[dev-dependencies]` `serde_json = {
+    workspace = true }` adds no feature, so the residue is untouched.
+- **A-V13 — the interim end's footprint, which EX-6 removes.** Read and
+  grepped (`command grep -rn 'PHASE-12\|PHASE-04\|interim\|not yet\|NOT_YET_IMPLEMENTED\|unjudged_end\|never.spawned'
+  crates/goad-check`): `render::NOT_YET_IMPLEMENTED` and its unit test
+  `the_interim_end_says_nothing_was_judged_on_stderr`; `render::NO_VIEW`'s
+  doc (*"Until PHASE-12 no exchange is made"*); `main`'s doc (*"Each status
+  reachable until PHASE-12"*), `prepare`'s doc (*"built and not yet used"*)
+  and its `_events`, `_runtime`, `_host`; `unjudged_end`; `statuses.rs`'
+  `assert_no_report` doc (*"the interim end"*),
+  `a_report_that_cannot_be_written_exits_2`'s doc (*"PHASE-12/VT-2 adds the
+  run half"*) and `a_run_with_no_exchange_exits_2_with_no_verdict`;
+  `loadable.toml`'s comment (*"never spawned at PHASE-04"*), and its command
+  `bash ./never-spawned.sh`, which a run now spawns.
+- **A-V14 — exit grep for the names this phase ships.** `command grep -rn
+  'goad-check-unrecognised\|a_conforming_backend_is_accepted_and_exits_0\|a_backend_failing_at_startup_is_still_asked_the_rest\|event_files_are_sent_in_the_order_given\|the_probe_kind_is_none'
+  crates tests`: nothing, exit 1.
+
+**Assumptions — first tested by this phase**
+- **A-T1 — the run fits one current-thread `block_on`.** `prepare` returns
+  what it built (D-4 said PHASE-12 changes its return), and the run is one
+  `runtime.block_on(async { … })` over the plan, each exchange awaited in
+  turn (§5.4 *Concurrency*). A struct carrying the runtime, the host and the
+  events is now read, so it is no longer dead code.
+- **A-T2 — a fabricated respond is the only cooperating route to
+  `Failure::State`, and the checker never makes one.** `ViewId` has no
+  public constructor, so the checker can only pass back an id it was given.
+  An id from an earlier link of a chain is stale (R-33) and would yield
+  `Failure::State`: that is mutation M-17, not a test.
+- **A-T3 — the binary tier can see each new case red against code that
+  compiles.** With the run stubbed (`todo!()` in the run function, ignored
+  parameters spelled `_name`, §Harvest *Learned*), every run case fails, on
+  the panic's status 101.
+- **A-T4 — the chain bound reads as at most 8 responds per planned request.**
+  §5.2.2: *"keeps answering until a respond returns `view: null` or a
+  failure, up to a chain bound of 8 per request"*. The bound is hit when the
+  eighth respond's `Outcome` carries a view; that view is left unanswered
+  and the observation is reported. The executor records this as a decision.
+  The case asserts the invocation count, which makes the reading testable
+  (row M-12).
+- **A-T5 — every new bash fixture is run by a case.** Nothing else holds it
+  (A-V12).
+
+**STOP conditions** (consult the user; do not improvise)
+- From `plan.md` PHASE-12 Notes (quoted): *"A new external dependency is a
+  STOP."* Also any `[dependencies]` entry, and any feature added to a
+  dependency shared with stratum 1 (`jiff`, `serde`, `serde_json`), in either
+  table (the residue).
+- A file outside **Surfaces**: `crates/goad-semantics/` (PLAN QUESTION 1),
+  `crates/goad-shell/`, `tests/support/`, `tests/backends/`.
+- An I-1 hit outside VA-1's allowed set: any requirement-id spelling or side
+  literal in `src` other than the one `Requirement::R56` and the two
+  `AtFault::Backend` the R-56 condition and claim need (VA-1). This includes
+  unit tests in `src` (A-V11).
+- Any mapping from a field kind to a JSON type or value, in `src` or `tests`
+  (I-2). Values come from `Submitted::as_drawn` and `Submitted::to_json`.
+- A second `ExitCode::from(2)`, a 2 that reads its cause, or a status other
+  than 0, 1, 2 (EX-6; SPEC-004 R-15 in `canon-delta.md`).
+- A planned exchange skipped because of what an earlier one returned, or a
+  run ended early for any reason but a clock unreadable mid-run, a report
+  line stdout refuses, or `Failure::State` (EX-2).
+- The checker opening a socket, naming an `ingress` item but
+  `envelope::normalize`, or setting, removing or clearing an environment
+  variable (EX-5).
+- A domain word in `crates/goad-check/src` (A-V12).
+- A test name differing from `design.md` §9 or `plan.md` VT-1..VT-3. Update
+  `canon-delta.md` in the same commit and say so here (*Test names are
+  commitments*). Not a STOP, but never silent.
+- The R-56 condition or the chain bound read otherwise than PLAN QUESTION 4
+  and A-T4 settle: the design did not settle it further.
+- `git stash`, `git checkout`, `git reset`, or any history rewrite.
+
+**Tasks** — red first. Each new case goes red against code that compiles
+before its body lands. Reach is proven as soon as a new file exists.
+
+- [ ] Set PHASE-12 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline`. It must be this sheet's commit, or a
+      descendant whose only changes since are the PLAN QUESTIONs'
+      resolutions.
+- [ ] Exit grep first (A-V14). Record any difference.
+- [!] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
+      before the tasks they block start.
+- **1. Test support and fixtures (VA-7)** — `tests/binary/`
+  - [ ] Read each `tests/support/` file's whole exported surface and record
+        the include decision for each (A-V8 predicts `scripting.rs`
+        included, `driving.rs` and `waiting.rs` not).
+  - [ ] If included: `#[cfg(test)] #[path =
+        "../../../../tests/support/scripting.rs"] mod scripting;` in
+        `tests/binary/main.rs`, with the reason, as
+        `crates/goad-shell/tests/integration/main.rs` gives it.
+  - [ ] The new cases' file(s) declared in `tests/binary/main.rs`. If the
+        spawn helpers in `statuses.rs` are shared with a new file, move them
+        to one helper module in `tests/binary/` rather than copy them. If a
+        PHASE-04 case changes file, `canon-delta.md`'s
+        `crates/goad-check/tests/binary/statuses.rs::…` paths change in the
+        same commit.
+  - [ ] **Reach, before any behaviour**: `cargo test -p goad-check --test
+        binary --no-fail-fast 2>&1 | command grep -n 'Running\|test result'`
+        shows the target, and its case count rises when the first new case
+        lands (A-V12). Rows R-1..R-3.
+  - [ ] Bash fixtures as needed under `tests/binary/`, each with a header
+        saying what it does and which case runs it. Reading requests:
+        `logs-the-request-then-answers.sh` already logs raw requests (A-V8).
+        Committed event files for `event_files_are_sent_in_the_order_given`:
+        two envelopes, distinct kinds, `source` not `"host"`.
+  - [ ] `loadable.toml`'s comment rewritten: a run now spawns its command.
+        Its only reader after EX-6 is `a_reserved_source_event_file_exits_2`,
+        which fails at normalization, before any spawn. Say that.
+  - [ ] Reading a request log: substring on the exact serialized key, or a
+        `serde_json = { workspace = true }` `[dev-dependencies]` entry to
+        parse it. Record the choice as a decision. `a_view_answered_carries_exactly_its_options_fields`
+        reads `response.option` and the key set of `response.values`;
+        parsing is the stronger instrument there. Blocked on PLAN QUESTION 5
+        only if the manifest comment must change.
+- **2. The probe (EX-1, VT-3)** — `src`
+  - [ ] The probe kind constant (§5.2.2: `goad-check-unrecognised`) and,
+        beside it, VT-3 (quoted): *"`the_probe_kind_is_none_of_the_host_s_own`,
+        a unit test beside the probe constant (a binary-only crate's
+        constant is not reachable from `tests/binary/`), asserting it is
+        none of `Stimulus`'s kinds."* Offered: enumerate the variants
+        through a `match` with no `_` arm, so a fourth `Stimulus` fails to
+        compile there rather than going unchecked
+        (`wildcard-enum-match-arm-counts-a-named-binding`). Red first against
+        a constant equal to `Stimulus::Startup.kind()`, then green.
+  - [ ] The probe's `Event` is built with `source: HOST_SOURCE.to_owned()` and
+        `data: Default::default()` (A-V5), never a `"host"` literal (I-1).
+- **3. The binary tier, red (VT-1, VT-2)**
+  - [ ] VT-1 (quoted): *"binary tier, the run cases §9 names:
+        `a_conforming_backend_is_accepted_and_exits_0`,
+        `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`,
+        `a_refused_view_is_reported_with_its_requirement_and_the_backend_side`,
+        `a_discarded_next_check_is_reported_and_exits_1`,
+        `an_unspawnable_command_is_reported_against_the_configuration`,
+        `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`,
+        `a_backend_that_returns_no_view_is_accepted_and_says_respond_was_not_exercised`,
+        `a_chained_view_is_answered_until_null`,
+        `a_chain_past_its_bound_is_reported_and_does_not_change_the_status`,
+        `a_view_answered_carries_exactly_its_options_fields`. The R-56 case
+        asserts the line's `SPEC-001/R-56`, which holds `Requirement::R56`'s
+        value (`design.md` §5.2.3). And the plan's own:
+        `a_backend_failing_at_startup_is_still_asked_the_rest` (a backend
+        that logs each request's kind and fails the first: the log holds
+        every planned kind), and `event_files_are_sent_in_the_order_given`
+        (two `--event` files, the backend's log holds their kinds in the
+        order given). The non-zero cases SPEC-004/R-14's row names assert
+        the `goad-check: ` prefix on the **last** stderr line."*
+  - [ ] What each case must assert so that it is not a proxy
+        (`tests-asserting-proxies`). Status alone, or status plus the
+        prefix, survives most regressions here: each case below names the
+        assertion the mutation table leans on.
+    - `a_conforming_backend_is_accepted_and_exits_0`: status 0; a view is
+      returned and answered, so stdout has a verdict line and **not**
+      `render`'s no-view line; **no** `SPEC-001/R-56` (M-31); stderr empty
+      (AC-1's shape, §9).
+    - `…_reported_against_r56`: known kinds answered, the probe
+      `@exit1`; status 1; one stdout line holds both `backend` and the
+      literal `SPEC-001/R-56`; the failure's own line holds `backend` and
+      `SPEC-001/R-40`; the backend's stderr text (*"that answer is not to
+      be trusted"*) appears verbatim in the report (EX-3, *stderr
+      verbatim*; Findings).
+    - `a_refused_view_is_reported_with_its_requirement_and_the_backend_side`:
+      a view with `"options":[]`; status 1; one line holds `backend` and
+      `SPEC-001/R-13`.
+    - `a_discarded_next_check_is_reported_and_exits_1`: **exactly one**
+      refusal in the run (so M-19 is seen); status 1; a line holds
+      `backend` and the `ScheduleError` arm's id, as a literal; last stderr
+      line begins `goad-check: ` (R-14's row).
+    - `an_unspawnable_command_is_reported_against_the_configuration`: `--
+      <a path no file is at>`; status 1; a line holds `configuration` and
+      `SPEC-001/R-44`; **no** line holds `SPEC-001/R-56`.
+    - `…_identically_on_every_kind_is_not_charged_with_r56`: every
+      invocation `@exit1`; status 1; refusal lines present; **no**
+      `SPEC-001/R-56` anywhere on stdout.
+    - `…_returns_no_view_…`: status 0; stdout carries `render`'s no-view
+      line, last before the verdict.
+    - `a_chained_view_is_answered_until_null`: two views then `null`; the
+      invocation count equals the planned evaluates plus the chain's
+      responds, exactly; status 0.
+    - `a_chain_past_its_bound_…`: a view on every answer for one request;
+      status 0; the bound's observation line; **the invocation count,
+      exactly** (A-T4; without it, M-12 is unseen).
+    - `a_view_answered_carries_exactly_its_options_fields`: a view whose
+      first option has fields of two kinds and whose second option has a
+      field of its own; the respond request in the log has `option` equal
+      to the first option's id and `values`' keys equal to exactly the
+      first option's field ids. No expected value is written per kind in
+      the test (I-2 reads `tests`).
+    - `a_backend_failing_at_startup_is_still_asked_the_rest`: the first
+      invocation fails; the log's `event.kind`s are **the exact sequence**
+      `startup`, `requested`, `scheduled`, then the probe kind, each with
+      `"source":"host"` (EX-1 says *in order*; a set comparison misses
+      M-2). Spell the three host kinds through `Stimulus::kind`, which the
+      target can name.
+    - `event_files_are_sent_in_the_order_given`: two event files; the log's
+      last two evaluates carry their kinds in the order given, **after** the
+      probe (M-3, M-4).
+  - [ ] VT-2 (quoted): *"`a_report_that_cannot_be_written_exits_2` gains its
+        run half: a run with stdout on `/dev/full` exits 2, the last stderr
+        line beginning `goad-check: `."* Use the argv form with a scripted
+        conforming backend, not `loadable.toml` (whose command no longer
+        exists to spawn), so the only fault in the run is stdout.
+  - [ ] Offered (Findings, *EX-3 and EX-4 items no named case reads*): a
+        cleanup-only case, `a_cleanup_failure_alone_exits_1` (`@lingers` on
+        the first invocation, A-V9: status 1, a line holding `backend` and
+        `SPEC-001/R-48`), and a truncation case, `a_truncated_stderr_is_flagged`,
+        with a fixture that writes past the stderr cap (read
+        `floods-stderr-then-answers.sh` first; the report marks the
+        truncation). Each is a sheet row, not a plan criterion; record
+        whether it was added.
+  - [ ] Offered (Findings, *the side clause*): a case where the probe alone
+        fails on a side other than the backend's, e.g.
+        `a_probe_failure_on_another_side_is_not_charged_with_r56`: a copy of
+        a fixture script, made executable at a `scripting::marker` path,
+        that deletes itself on its third run, so the probe's spawn fails
+        (`Spawn`, configuration). Spike it first; record whether it held.
+  - [ ] Red, against the stubbed run (A-T3), compiling: `cargo test -p
+        goad-check --test binary --no-fail-fast`. Record each failure and
+        its assertion.
+- **4. The run (EX-1..EX-6)** — `src`
+  - [ ] `prepare` returns what it built (A-T1).
+  - [ ] EX-1 (quoted): *"the request plan of §5.2.2 in order:
+        `Stimulus::Startup`, `Requested`, `Scheduled`, the R-56 probe, then
+        each `--event` envelope in the order given. The probe kind is a
+        `goad-check` constant, and its event's source is `HOST_SOURCE`, not a
+        literal. `event.timestamp` and `now` are the wall clock at each step.
+        Each view is answered through `Host::respond` with the minted
+        `view_id`, its first option, and `Submitted::as_drawn` for each of
+        that option's fields; chains are followed to `view: null` or a
+        failure, up to the bound of 8 per request."*
+  - [!] The first option (PLAN QUESTION 1).
+  - [ ] EX-2 (quoted): *"every planned exchange is made whatever an earlier
+        exchange did (§5.4); only a clock unreadable mid-run, a report line
+        stdout refuses, or `Failure::State` ends the run early, with no
+        verdict, status 2."* Each early end goes through `not_judged` with a
+        `render` line: a mid-run clock line, and a `Failure::State` line
+        printing the error's `fault()`, `requirement()` and `Display` (the
+        §5.2.2 table's State row).
+  - [ ] EX-3 (quoted): *"the report: every channel of every `Outcome` as
+        §5.2.2's table gives it; each refusal line prints its side and
+        `SPEC-001/R-N` through `AtFault`'s and `Requirement`'s `Display`; the
+        R-56 line only on its condition; stderr verbatim with truncation
+        flagged; the values sent; the chain-bound observation. The R-56
+        line's id is `Requirement::R56`, from stratum 1, printed through
+        `Requirement`'s `Display` as every refusal line's is; its text, "a
+        backend MUST tolerate a kind it does not recognise", is the
+        checker's (`design.md` §5.2.2; `design-log.md` 2026-10-01,
+        *`Requirement` is built from named constants*)."* Every line's text
+        in `render`; every stdout line through `report::try_line_to`.
+  - [!] The R-56 condition's scope (PLAN QUESTION 4).
+  - [ ] EX-4 (quoted): *"the run feeds the status cut (EX-6): at least one
+        refusal on any channel, a cleanup failure alone included, is 1; none
+        is 0; the chain bound changes no status."*
+  - [ ] EX-5 (quoted): *"the checker opens no socket and alters none of the
+        environment it passes on (§5.2.1, §5.3): it names no `ingress` item
+        but `envelope::normalize`, and sets, removes or clears no environment
+        variable."*
+  - [ ] EX-6 (quoted): *"the verdict replaces PHASE-04/EX-3's interim end:
+        the verdict line, and statuses as §5.2.5 — a delivered verdict is 0
+        with no refusal and 1 with at least one, cut by one function; `main`
+        gains a literal for each, and the last stderr line on 1 begins
+        `goad-check: `. The not-yet-implemented stderr line and its path to 2
+        are gone, and PHASE-04/VT-3's case is deleted in the commit that
+        turns `a_conforming_backend_is_accepted_and_exits_0` green."*
+  - [ ] In that same commit: `unjudged_end`, `render::NOT_YET_IMPLEMENTED`,
+        `render`'s `the_interim_end_says_nothing_was_judged_on_stderr`, and
+        `a_run_with_no_exchange_exits_2_with_no_verdict` deleted. Rerun
+        A-V13's grep: every remaining hit read and either true or rewritten.
+  - [ ] `render` unit cases for the new lines, red against `todo!()` bodies
+        first, holding shape only (A-V11).
+  - [ ] Green: VT-1, VT-2, VT-3, the render cases, every PHASE-04 case.
+        `cargo test -p goad-check --no-fail-fast`; `cargo clippy --workspace
+        --all-targets -- -D warnings` clean.
+- **5. Reads and records (VA-1..VA-7)**
+  - [ ] VA-1 (quoted): *"I-1 over the finished crate, by the command under
+        *Invariant reads*: the only hits outside a comment are the R-56
+        probe's own — the claim's `Requirement::R56` (EX-3), and the two
+        `AtFault::Backend` uses R-56 needs: the condition's comparison of a
+        probe failure's `fault()` (§5.2.2) and the probe's claim. Any other
+        spelling of an id, `R-56` and `R56` included, is a hit outside that
+        set. Recorded. This read is also what holds that the claim
+        PHASE-08/VT-1 reads, `Requirement::R56`, is the one the report
+        prints."* Run A-V10's I-1 command; read each surviving line; record
+        the output verbatim. Expected: exactly those three.
+  - [ ] VA-2 (quoted): *"I-2 over the finished crate, `src` and `tests`.
+        Recorded."* `command grep -rn 'FieldKind' crates/goad-check/src
+        crates/goad-check/tests`; read each hit.
+  - [!] VA-3 (quoted): *"EX-5: `grep -rnE
+        'ingress::|set_var|remove_var|env_clear|env_remove|\.env\('
+        crates/goad-check/src` finds only the `envelope` import and its
+        call. Recorded."* Run as `command grep -rnE …`. Blocked on PLAN
+        QUESTION 2 (the expected hits, and the pattern's reach).
+  - [!] VA-4 (quoted): *"PHASE-04/VA-6's structural read, over `main` as this
+        phase leaves it."* `command grep -rn 'ExitCode' crates/goad-check/src`,
+        then trace every path to 2, 1 and 0. Blocked on PLAN QUESTION 3
+        (*one literal per class*).
+  - [ ] VA-5 (quoted): *"mutation: the R-56 condition's "at least one of the
+        known-kind evaluates made no failure" dropped, so any backend-side
+        failure on the probe is charged, reds
+        `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`.
+        Recorded."* Row M-15.
+  - [ ] VA-6 (quoted): *"`canon-delta.md` SPEC-001 Change 3's and SPEC-004
+        Change 5's `goad-check` test paths, for the cases this phase ships,
+        are re-pointed from `…` to the shipped files."* Note: SPEC-001 Change
+        3 lists `::the_probe_kind_is_none_of_the_host_s_own` under a
+        `crates/goad-check/tests/binary/…` prefix, but VT-3 ships it in
+        `src`: it gets its own `crates/goad-check/src/<file>.rs::` path.
+        `crates/goad-check/tests/kit/…::each_shipped_example_is_accepted_by_the_checker`
+        is PHASE-06's and keeps `…`. The R-14 row spells no `…` and is
+        untouched (as PHASE-04/VA-4). `git diff --stat` on `canon-delta.md`
+        recorded.
+  - [ ] VA-7 (quoted): *"as PHASE-04/VA-7, for any helper this phase
+        adds."* Edit §Open's FU-5 bullet: the `tests/support/` file(s)
+        included, and each helper copied instead, by symbol, with its
+        source.
+- **Refactor**
+  - [ ] Read the diff for a second statement of anything: a line's text
+        outside `render`; a path to 2 outside `not_judged`; a refusal's side
+        or id spelled rather than printed; a rule `goad-shell` or
+        `goad-semantics` already states (the as-drawn value, the view_id
+        check, a fault's side) restated here.
+  - [ ] Every doc in the crate cites by symbol and counts nothing that can
+        grow (CLAUDE.md *Name, never count*). The chain bound is a constant
+        with one name.
+- **Verification**
+  - [ ] Mutation and reach rows (below), each recorded with the assertion
+        that went red, not only the case
+        (`a-mutation-can-red-the-right-case-on-the-wrong-assertion`).
+  - [ ] *Test names are commitments*: `command grep -rc 'fn <name>()'
+        crates/goad-check/tests/binary crates/goad-check/src` is 1 for each
+        VT-1, VT-2 and VT-3 name, and 0 for
+        `a_run_with_no_exchange_exits_2_with_no_verdict`. Any difference is
+        updated in `canon-delta.md` in the same commit.
+  - [ ] Every bash fixture and event file under `tests/binary/` is named by
+        at least one case: `command grep -rn '<file name>'
+        crates/goad-check/tests/binary --include=*.rs` per file (A-T5).
+  - [ ] `just check` exits 0 on the final commit. Record passed and failed,
+        summed over every `test result` line: 715, less the two deleted
+        cases, plus this phase's.
+  - [ ] §Status: PHASE-12 `done`, with the date.
+  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+
+**Exit criteria** (quoted in the tasks above; listed here to be ticked)
+- [ ] EX-1
+- [ ] EX-2
+- [ ] EX-3
+- [ ] EX-4
+- [ ] EX-5
+- [ ] EX-6
+- [ ] VT-1
+- [ ] VT-2
+- [ ] VT-3
+- [ ] VA-1
+- [ ] VA-2
+- [ ] VA-3
+- [ ] VA-4
+- [ ] VA-5
+- [ ] VA-6
+- [ ] VA-7
+- [ ] `just check` exits 0 on the final commit (§Overview).
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad and back, never `git checkout` or `git stash`; `--no-fail-fast`;
+`git status --short` clean after each restore; a mutation that does not
+compile is not evidence). The edits name code that does not exist yet: each
+row names the symbol or behaviour it will touch, and the executor quotes the
+exact edit when it runs. Command for M-rows: `cargo test -p goad-check
+--no-fail-fast`. *Must red* names the case **and the assertion**. Rows marked
+**unseen** are predictions that nothing reds; run them anyway (§Harvest
+*Learned*) and record what holds the property instead.
+
+*Reach rows* (A-V12; offered, as PHASE-04's R-4 was):
+
+| row | file | edit | command | must red | compiled? | result |
+|---|---|---|---|---|---|---|
+| R-1 | each new `src/*.rs` module | `let _planted = "habit";` in a function in production code | `cargo test -p goad-boundary --test checks --no-fail-fast` | `vocabulary::no_workspace_member_names_the_users_domain`, naming the new file | | |
+| R-2 | each new `tests/binary/*.rs` file | `fn _planted() { let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new(); }` | `cargo clippy --workspace --all-targets -- -D warnings` | `clippy::disallowed_types` in the `binary` target, naming the new file | | |
+| R-3 | each new `src/*.rs` and `tests/binary/*.rs` | a line re-indented to four spaces | `cargo fmt --all --check` | a diff naming each file | | |
+
+*Behaviour rows*:
+
+| row | file / symbol | edit | must red (case: assertion) | compiled? | result |
+|---|---|---|---|---|---|
+| M-1 | the plan | the probe dropped from the plan | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence; `…_reported_against_r56`: status 1 and the `SPEC-001/R-56` line | | |
+| M-2 | the plan | `Requested` and `Scheduled` swapped | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind **sequence** (a set comparison would stay green) | | |
+| M-3 | the event step of the run | the events iterated `.rev()` | `event_files_are_sent_in_the_order_given`: the order | | |
+| M-4 | the plan | the events sent before the host's own evaluates | `event_files_are_sent_in_the_order_given`: the events after the probe; `…_still_asked_the_rest`: the first four kinds | | |
+| M-5 | the run loop | `break` after the first `Outcome` whose `failure` is `Some` | `a_backend_failing_at_startup_is_still_asked_the_rest`: the kind sequence | | |
+| M-6 | the probe's `Event` | `source: HOST_SOURCE.to_owned()` → `source: "probe".to_owned()` | `…_still_asked_the_rest`: `"source":"host"` on the probe's request | | |
+| M-7 | the probe constant | its value → `"requested"` | `the_probe_kind_is_none_of_the_host_s_own`: its assertion; `…_still_asked_the_rest`: the kind sequence | | |
+| M-8 | the answer | `.first()` → `.last()` on the options | `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
+| M-9 | the answer | values built from every option's fields (`flat_map`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | | |
+| M-10 | the answer | the first field skipped (`.skip(1)`) | `a_view_answered_carries_exactly_its_options_fields`: the key set | | |
+| M-11 | the chain | answered once, not looped (`if let` for `while let`) | `a_chained_view_is_answered_until_null`: the invocation count | | |
+| M-12 | the chain bound | 8 → 9 | `a_chain_past_its_bound_…`: the invocation count, and the observation line. Without the count, unseen (the 9th respond returns `null` and status is 0 either way) | | |
+| M-13 | the status cut | the bound counted as a refusal | `a_chain_past_its_bound_…`: status 0 | | |
+| M-14 | `render`, the bound's line | not written | `a_chain_past_its_bound_…`: the observation line | | |
+| M-15 | the R-56 condition | the "at least one known-kind evaluate made no failure" clause dropped (VA-5) | `…_identically_on_every_kind_is_not_charged_with_r56`: no `SPEC-001/R-56` | | |
+| M-16 | the R-56 condition | the `fault()` comparison with `AtFault::Backend` dropped | **unseen** by every planned case: only `Spawn` gives a non-backend probe failure, and it fails every kind, so the other clause already refuses (A-V3). Seen only by the offered side-clause case; else held by VA-1's read of the two `AtFault::Backend` and by review | | |
+| M-17 | the chain | each respond passes the **previous** link's `view_id` (kept by `clone`) | `a_chained_view_is_answered_until_null`: status (`Failure::State` → 2) | | |
+| M-18 | the R-56 claim | `Requirement::R56` → `Requirement::R53` | `…_reported_against_r56`: the literal `SPEC-001/R-56` | | |
+| M-19 | the status cut | `> 0` → `> 1` (or its spelling's equivalent) | `a_discarded_next_check_is_reported_and_exits_1`: status, **if** it has exactly one refusal | | |
+| M-20 | the refusal count | `discarded` not counted | `a_discarded_next_check_is_reported_and_exits_1`: status | | |
+| M-21 | the refusal count | `cleanup` not counted | the offered `a_cleanup_failure_alone_exits_1`: status. Else **unseen**; held by review | | |
+| M-22 | `render`, a refusal line | the side omitted | `a_refused_view_…`: `backend` on the line; `an_unspawnable_…`: `configuration` | | |
+| M-24 | the report | the outcome's `stderr` not written | `…_reported_against_r56`: the stderr text (the sheet's assertion; Findings) | | |
+| M-25 | the report | `truncated` ignored | the offered `a_truncated_stderr_is_flagged`. Else **unseen**; held by review | | |
+| M-26 | the report | the values sent not written | **unseen** unless a case asserts them in the report (Findings) | | |
+| M-27 | the report | the no-view line written unconditionally | `a_conforming_backend_is_accepted_and_exits_0`: no no-view line | | |
+| M-28 | the report | the no-view line never written | `…_returns_no_view_…`: the no-view line | | |
+| M-29 | `render`, the status-1 summary | its `goad-check: ` prefix dropped | `a_discarded_next_check_is_reported_and_exits_1`: the last stderr line | | |
+| M-30 | the report writer | one report line through `line_to` (best effort) | `a_report_that_cannot_be_written_exits_2`, run half: status 2 | | |
+| M-31 | the R-56 line | its condition replaced by `true`, so it is written even when the probe succeeds | `a_conforming_backend_is_accepted_and_exits_0`: no `SPEC-001/R-56` (and status 0, if the claim feeds the count) | | |
+| M-32 | the run loop | `Failure::State` treated as a refusal, run continues | **unseen**: no cooperating case reaches `Failure::State` (A-T2). Held by VA-4's trace | | |
+| M-33 | the clock | `now` read once, before the plan, and reused | **unseen**: nothing asserts a time (R3). Held by review | | |
+| M-34 | the clock | a mid-run `wall_clock` error ignored | **unseen**: headless-unreachable (`canon-delta.md` R-11..R-13 row). Held by VA-4's trace | | |
+
+**Decisions taken during execution**
+<!-- Small and local: how, within what the design already settled. A choice that
+     changes the design is not one of these — stop, consult the user, and record
+     it in `design-log.md`. -->
+
+**Findings**
+<!-- Things noticed in passing that are not this phase's job: a defect
+     elsewhere, drift from the design, a surprise. Defects in this phase's own
+     work get fixed, not recorded. These feed the audit; the ones that outlive
+     the slice become Follow-ups. -->
+
+- **PLAN QUESTION 1 — answering the first option needs a total `first()`
+  that `Options` lacks.** EX-1 answers with *"its first option"*. `Options`
+  offers only `as_slice()`, whose `.first()` is an `Option`, and every
+  panicking escape is denied outside tests (A-V6). Checked:
+  `Alternatives::first` is the precedent, and its doc argues that every
+  consumer re-deriving non-emptiness at its call site is the defect;
+  `goad`'s `draft.rs` and `driving.rs`' `answer_first_option` each use
+  `.first()` with an `expect`, in test code. Options: (a) amend PHASE-12's
+  surfaces to admit `Options::first` in
+  `crates/goad-semantics/src/protocol/canonical.rs`, a copy of
+  `Alternatives::first`'s shape and argument, with a unit test; (b) a `let
+  Some(option) = … else { … }` in `goad-check`, an arm no test can reach,
+  whose report line is a decision the design never took; (c)
+  `.iter().take(1)`, which compiles total but silently answers nothing for
+  an empty list: the same dead arm, hidden. **Recommendation: (a).** One
+  small stratum-1 item, by precedent, and the checker writes no unreachable
+  path. Blocks task 4's first-option box.
+- **PLAN QUESTION 2 — VA-3's expected hits are wrong, and its pattern misses
+  two routes.** Dry run (A-V10): the command prints the two `envelope`
+  imports (`main`'s and `render`'s test module's), and **not** the call,
+  `envelope::normalize(&bytes)`, which does not contain `ingress::`. So
+  *"finds only the `envelope` import and its call"* cannot be met as
+  written. Separately, `\.env\(` does not match `.envs(`, and nothing in
+  the pattern sees a socket opened outside `ingress` (`std::os::unix::net`,
+  or `tokio::net`, which is reachable by feature unification,
+  `tokio-net-arrives-by-feature-unification`). EX-5 says *"opens no
+  socket"*. **Recommendation:** expected hits restated as *"the `envelope`
+  imports, and nothing else"*, the call held by reading; the pattern
+  widened to `'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixListener|UnixStream|UnixDatagram|TcpListener|TcpStream|UdpSocket'`,
+  run as `command grep -rnE`. Blocks VA-3.
+- **PLAN QUESTION 3 — *one literal per class* cannot hold beside EX-6.**
+  VA-4 reruns PHASE-04/VA-6, which reads *"one literal per class"*. Status
+  0's class (§5.2.5: *accepted*, which also covers `--help` and `--version`
+  answered) already has `answer`'s `ExitCode::SUCCESS`, and EX-6 says
+  *"`main` gains a literal for each"* of 0 and 1. So class 0 gets two
+  literal sites. Routing `answer` through the verdict cut would couple a
+  question's answer to a verdict. **Recommendation:** VA-4 reads *one
+  literal per way to a status*: `answer`'s 0 (a question answered,
+  SPEC-004 R-11's second clause), the cut's 0 and 1, `not_judged`'s 2; one
+  `ExitCode::from(2)` still. Blocks VA-4.
+- **PLAN QUESTION 4 — which exchanges the R-56 condition reads.** §5.2.2:
+  *"a failure on the R-56 probe … **Only** when its `fault()` is backend
+  **and** at least one of the three known-kind evaluates made no failure"*.
+  The probe's evaluate can return a view, and its chain's responds can fail;
+  a known kind's evaluate can succeed and its chain fail. The design does not
+  say whether a chained respond's failure is *"a failure on the R-56 probe"*,
+  nor whether a known kind *"made no failure"* when its chain did.
+  **Recommendation:** the probe's own `evaluate` `Outcome` only, and the
+  three known-kind `evaluate` `Outcome`s only; chained responds are judged as
+  any other exchange. A respond answers the backend's own view, not the
+  unrecognised kind, and *"evaluates"* already names the known-kind side.
+  Blocks task 4's R-56 box.
+- **PLAN QUESTION 5 — the manifest comment says *"No dev-dependencies"*.**
+  The surfaces admit `Cargo.toml` *"`[dev-dependencies]` only"*. If one is
+  added (task 1, reading a request log), the comment above `[dependencies]`
+  becomes false, and editing it is outside *"`[dev-dependencies]` only"*.
+  **Recommendation:** read the surface as admitting that comment's
+  dev-dependencies sentence. Blocks task 1's log-reading box only if a
+  dev-dependency is chosen.
+- **The side clause has no planned case** (row M-16). SPEC-001 Change 3
+  states it as canon (*"a failure on it whose side is the backend's"*), and
+  §5.2.2's table names it. No cooperating backend fails the probe alone on a
+  non-backend side, because `Spawn` fails every kind (A-V3). The sheet offers
+  a self-deleting-program case. Without it, VA-1's read and review hold it.
+- **EX-3 and EX-4 items no named case reads.** *"stderr verbatim"* (M-24):
+  the sheet puts the assertion in the R-56 case. *"truncation flagged"*
+  (M-25), *"a cleanup failure alone"* is 1 (M-21): offered cases. *"the
+  values sent"* (M-26): no case; the executor may assert them in
+  `a_view_answered_carries_exactly_its_options_fields`' report. EX-1's
+  *"the wall clock at each step"* (M-33) is unseen by design (R3).
+- **`loadable.toml`'s command, `bash ./never-spawned.sh`, is spawned once a
+  run makes exchanges.** It stays safe only because its last reader,
+  `a_reserved_source_event_file_exits_2`, fails before any spawn. A future
+  case reusing it would run `bash` on a missing script (status 127,
+  `ExitStatus`, a refusal). The task rewrites the comment to say so.
+- **Test counts.** At exit the gate's sum is 715 less
+  `a_run_with_no_exchange_exits_2_with_no_verdict` and
+  `the_interim_end_says_nothing_was_judged_on_stderr`, plus this phase's
+  cases. `goad-check`'s cases are counted once (they run under `cargo test
+  --workspace` only; PHASE-04 Findings).
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
