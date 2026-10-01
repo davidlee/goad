@@ -344,6 +344,35 @@ impl Options {
   pub fn as_slice(&self) -> &[Opt] {
     &self.0
   }
+
+  /// The first option, which always exists.
+  ///
+  /// **Non-emptiness is this type's invariant, so this is where it is
+  /// exposed**, as [`Alternatives::first`] exposes its own. [`Options::new`]
+  /// is the only constructor and it returns `EmptyOptions` for an empty list,
+  /// so a value of this type has at least one member and `self.0.first()`
+  /// cannot be `None`. A consumer that answers a view with its first option
+  /// would otherwise re-derive that argument at its own call site, or write
+  /// an arm for the empty list that nothing can reach.
+  ///
+  /// # Panics
+  ///
+  /// It does not. `missing_panics_doc` reads the `expect` below rather than
+  /// the invariant above it: the only path to a `Self` is [`Options::new`],
+  /// and it refuses the empty list before one is built.
+  #[expect(
+    clippy::expect_used,
+    reason = "`Options::new` is the only constructor and returns `EmptyOptions` for an empty \
+              list, so `self.0` has at least one member; the guarantee is in that constructor \
+              and is checkable there"
+  )]
+  #[must_use]
+  pub fn first(&self) -> &Opt {
+    self
+      .0
+      .first()
+      .expect("`Options::new` refuses an empty list")
+  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -825,6 +854,16 @@ mod tests {
       matches!(&error, ProtocolError::EmptyOptions { at } if at.as_str() == AT),
       "{error}"
     );
+  }
+
+  #[test]
+  fn the_first_option_is_the_one_listed_first() {
+    let options = Options::new(
+      vec![opt("first", no_fields()), opt("second", no_fields())],
+      AT,
+    )
+    .unwrap();
+    assert_eq!(options.first().id().as_str(), "first");
   }
 
   #[test]
