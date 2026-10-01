@@ -295,25 +295,43 @@ witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
         `bounds_row`, `schedule_row` in `error.rs`' `mod tests`, each an
         exhaustive match returning the table's spelling.
 - **2. Witnesses, red (EX-5)**
-  - [ ] `normalize.rs`: give `fixtures_of` the fixture's path (A-V4); reach
+  - [x] `normalize.rs`: give `fixtures_of` the fixture's path (A-V4); reach
         the schedule corpus through `runner.rs` by the narrowest edit (A-V3).
         Extract the per-corpus input route (`to_vec` for `PROTOCOL`, `as_str`
         for `PROTOCOL_TEXT`) so the checkers and the witness share it rather
         than repeating it.
-  - [ ] Write `every_refusal_fixture_names_a_requirement_in_its_own_list` over
+  - [x] Write `every_refusal_fixture_names_a_requirement_in_its_own_list` over
         `PROTOCOL` and `PROTOCOL_TEXT`: run `read_response` on each fixture's
         input at its `now`; for each `Err`, its `requirement()`'s display is in
         the fixture's `requirement`; collect every failure with the fixture
         path, the produced variant and id, and the list; fail once naming all.
         Non-vacuity per corpus (VT-3, A-T3).
-  - [ ] Write `every_discard_fixture_names_a_requirement_in_its_own_list` over
+  - [x] Write `every_discard_fixture_names_a_requirement_in_its_own_list` over
         `PROTOCOL`'s `Discarded` items and the schedule corpus's error
         fixtures (`schedule::parse`), the same way; non-vacuity counted for the
         `Discarded` fixtures and the schedule error fixtures separately.
-  - [ ] Run with `--no-fail-fast`. **EX-5**: record the refusal witness's
+  - [x] Run with `--no-fail-fast`. **EX-5**: record the refusal witness's
         failure output below (fixture names, verbatim) and check it is A-V5's
         set exactly (A-T1). The discard witness is green (Notes: *"green from
         its first run; VA-4 is what shows it can fail"*).
+
+        **EX-5 — recorded at the first run, before any list was edited.**
+        `cargo test -p goad-semantics --test protocol --no-fail-fast`: 6
+        passed, 1 failed. The failure, verbatim (paths absolute in the
+        output; the crate-root prefix
+        `/home/david/dev/goad/crates/goad-semantics/../../` trimmed here):
+
+        ```
+        tests/fixtures/protocol/R-52-a-choice-field-with-no-alternatives.json: {"EmptyAlternatives":{"at":"view.options[0].fields[0].options"}} names R-16, outside ["R-52", "R-53"]
+        tests/fixtures/protocol-text/R-17-a-nan-literal-for-a-bound.json: {"Json":null} names R-44, outside ["R-17"]
+        tests/fixtures/protocol-text/R-17-an-infinite-literal-for-a-bound.json: {"Json":null} names R-44, outside ["R-17"]
+        ```
+
+        Exactly A-V5's set, no more and no fewer: A-T1 holds, no STOP.
+        `every_discard_fixture_names_a_requirement_in_its_own_list` green
+        from its first run. A-T2 holds by construction: both witnesses push
+        every failure, the non-vacuity ones included, into one list and
+        assert once.
 - **3. List corrections, green**
   - [ ] EX-4: `R-17-a-nan-literal-for-a-bound` and
         `R-17-an-infinite-literal-for-a-bound` → `["R-17", "R-44"]`;

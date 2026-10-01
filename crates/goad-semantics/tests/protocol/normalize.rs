@@ -26,15 +26,18 @@
 //! the assertion *is* the empty list: R-51 turns on `null` producing no discard,
 //! and a corpus where silence is the default would assert it nowhere.
 
+use std::path::{Path, PathBuf};
+
 use serde_json::{Value, json};
 
-use goad_semantics::error::{BoundsError, ProtocolError, ScheduleError};
+use goad_semantics::error::{BoundsError, ProtocolError, Requirement, ScheduleError};
 use goad_semantics::protocol::canonical::{
-  Alternative, Choice, Content, Field, FieldKind, NumberRange, Opt, Response, View,
+  Alternative, Choice, Content, Field, FieldKind, NumberRange, Opt, Response, Timestamp, View,
 };
 use goad_semantics::protocol::normalize::{Discarded, Normalized, read_response};
+use goad_semantics::schedule;
 
-use crate::runner::{Corpus, Fixture, assert_corpus, outcome_tag, schedule_error_name};
+use crate::runner::{Corpus, Fixture, SCHEDULE, assert_corpus, outcome_tag, schedule_error_name};
 
 // ---------------------------------------------------------------------------
 // The canonical value, rendered back to JSON
@@ -242,24 +245,41 @@ fn compare(
   }
 }
 
+/// How a corpus's `input` becomes the bytes `read_response` reads. Each
+/// protocol corpus has one; its checker and the witnesses below share it, so
+/// the witnesses run the path the corpus asserts against.
+type Route = fn(&Value) -> Result<Vec<u8>, String>;
+
 /// `input` is the wire response as a JSON value — what a backend emits. It is
 /// serialized back to bytes and handed to `read_response`, which is the path
 /// the host runs: a corpus that wrapped the steps differently would be
 /// asserting against a path nothing runs (`design.md` §5.2, *Host*).
-fn check_protocol(fixture: &Fixture<'_>) -> Result<(), String> {
-  let bytes = serde_json::to_vec(fixture.input).map_err(|error| error.to_string())?;
-  compare(read_response(&bytes, fixture.now), fixture.expect)
+fn wire_value(input: &Value) -> Result<Vec<u8>, String> {
+  serde_json::to_vec(input).map_err(|error| error.to_string())
 }
 
 /// `input` is a JSON **string** holding the document text verbatim, for what a
 /// `serde_json::Value` cannot carry: the two numeric literals JSON has no
 /// spelling for, and a duplicate key, which a `Value` has already collapsed.
-fn check_protocol_text(fixture: &Fixture<'_>) -> Result<(), String> {
-  let text = fixture
-    .input
+fn document_text(input: &Value) -> Result<Vec<u8>, String> {
+  input
     .as_str()
-    .ok_or_else(|| "`input` is not a string of document text".to_owned())?;
-  compare(read_response(text.as_bytes(), fixture.now), fixture.expect)
+    .map(|text| text.as_bytes().to_vec())
+    .ok_or_else(|| "`input` is not a string of document text".to_owned())
+}
+
+fn check_protocol(fixture: &Fixture<'_>) -> Result<(), String> {
+  compare(
+    read_response(&wire_value(fixture.input)?, fixture.now),
+    fixture.expect,
+  )
+}
+
+fn check_protocol_text(fixture: &Fixture<'_>) -> Result<(), String> {
+  compare(
+    read_response(&document_text(fixture.input)?, fixture.now),
+    fixture.expect,
+  )
 }
 
 const PROTOCOL: Corpus = Corpus {
@@ -373,11 +393,12 @@ fn sole_tag(value: &Value) -> Option<String> {
   outcome_tag(value).ok().map(|(tag, _)| tag.to_owned())
 }
 
-/// Every fixture in a corpus, as the JSON it is. Reading the corpus back is a
-/// different job from running it, so it does not go through `Corpus::run`; it is
-/// one walk regardless, shared by the two coverage tests below.
-fn fixtures_of(corpus: &Corpus) -> Vec<Value> {
-  let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(corpus.root);
+/// Every fixture in a corpus, with its path, as the JSON it is. Reading the
+/// corpus back is a different job from running it, so it does not go through
+/// `Corpus::run`; it is one walk regardless, shared by the coverage tests and
+/// the witnesses below. Sorted, so a failure reads the same way twice.
+fn fixtures_of(corpus: &Corpus) -> Vec<(PathBuf, Value)> {
+  let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(corpus.root);
   let entries = std::fs::read_dir(&root)
     .unwrap_or_else(|error| panic!("{}: could not be read: {error}", root.display()));
   let mut fixtures = Vec::new();
@@ -387,8 +408,9 @@ fn fixtures_of(corpus: &Corpus) -> Vec<Value> {
       continue;
     }
     let text = std::fs::read_to_string(&path).expect("a fixture");
-    fixtures.push(serde_json::from_str(&text).expect("a fixture"));
+    fixtures.push((path, serde_json::from_str(&text).expect("a fixture")));
   }
+  fixtures.sort_by(|(left, _), (right, _)| left.cmp(right));
   fixtures
 }
 
@@ -398,7 +420,7 @@ fn tags_named_by_fixtures() -> (Vec<String>, Vec<String>) {
   let mut errors = Vec::new();
   let mut bounds = Vec::new();
   for corpus in [&PROTOCOL, &PROTOCOL_TEXT] {
-    for fixture in fixtures_of(corpus) {
+    for (_, fixture) in fixtures_of(corpus) {
       let Some(error) = fixture.get("expect").and_then(|expect| expect.get("error")) else {
         continue;
       };
@@ -452,7 +474,7 @@ fn every_reachable_error_in_the_taxonomy_is_named_by_a_fixture() {
 #[test]
 fn a_schedule_failure_is_named_by_a_fixture_as_a_discard() {
   let mut reasons = Vec::new();
-  for fixture in fixtures_of(&PROTOCOL) {
+  for (_, fixture) in fixtures_of(&PROTOCOL) {
     let discarded = fixture
       .get("expect")
       .and_then(|expect| expect.get("accepted"))
@@ -473,4 +495,123 @@ fn a_schedule_failure_is_named_by_a_fixture_as_a_discard() {
     "no fixture shows a scheduling failure surviving as a discard, which is the whole of P2's \
      granularity rule for this field"
   );
+}
+
+// ---------------------------------------------------------------------------
+// VT-3: every refusal names a requirement in its fixture's own list
+// ---------------------------------------------------------------------------
+//
+// SPEC-001/R-59 fixes the requirement each kind of refusal names; `design.md`
+// §5.2.3's table states it. The tables in `error.rs` hold the code to the
+// table. These hold the table to the corpus, whose `requirement` lists were
+// written independently of it: a kind whose answer is outside the list of a
+// fixture that produces it is a wrong row, or a wrong list.
+//
+// **Its reach** (§5.2.3, F-23): an answer moved to another id the same list
+// holds passes. Every schedule error fixture lists R-25, for one. Review of the
+// table holds that.
+//
+// Each witness collects every failure, with the fixture's path, before it
+// fails, and guards its own vacuity per corpus: it does not run through
+// `Corpus::run`, so `assert_corpus`'s guard does not cover it.
+
+/// The fixture's `now`, as the runner reads it.
+fn now_of(fixture: &Value) -> Timestamp {
+  let now = fixture["now"].as_str().expect("`now` is a string");
+  Timestamp::new(now.parse().expect("`now` is an RFC 3339 instant"))
+}
+
+/// The fixture's `requirement` list.
+fn requirements_of(fixture: &Value) -> Vec<&str> {
+  fixture["requirement"]
+    .as_array()
+    .expect("`requirement` is an array")
+    .iter()
+    .map(|id| id.as_str().expect("each `requirement` is a string"))
+    .collect()
+}
+
+/// `None` when the fixture's list holds `named`; otherwise the failure line.
+fn outside_its_list(
+  path: &Path,
+  fixture: &Value,
+  kind: &str,
+  named: Requirement,
+) -> Option<String> {
+  let list = requirements_of(fixture);
+  let named = named.to_string();
+  (!list.contains(&named.as_str()))
+    .then(|| format!("{}: {kind} names {named}, outside {list:?}", path.display()))
+}
+
+/// A corpus a witness read no instance of has stopped being witnessed.
+fn vacuous(what: &str, root: &str, count: usize) -> Option<String> {
+  (count == 0).then(|| format!("{root}: no {what} read — renamed, emptied, or misspelled"))
+}
+
+#[test]
+fn every_refusal_fixture_names_a_requirement_in_its_own_list() {
+  let mut failures = Vec::new();
+  let corpora: [(&Corpus, Route); 2] = [(&PROTOCOL, wire_value), (&PROTOCOL_TEXT, document_text)];
+  for (corpus, route) in corpora {
+    let mut refusals = 0_usize;
+    for (path, fixture) in fixtures_of(corpus) {
+      let bytes = route(&fixture["input"]).expect("a routable `input`");
+      let Err(error) = read_response(&bytes, now_of(&fixture)) else {
+        continue;
+      };
+      refusals += 1;
+      let kind = render_error(&error).to_string();
+      failures.extend(outside_its_list(
+        &path,
+        &fixture,
+        &kind,
+        error.requirement(),
+      ));
+    }
+    failures.extend(vacuous("refusal fixture", corpus.root, refusals));
+  }
+  assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn every_discard_fixture_names_a_requirement_in_its_own_list() {
+  let mut failures = Vec::new();
+
+  let mut discards = 0_usize;
+  for (path, fixture) in fixtures_of(&PROTOCOL) {
+    let bytes = wire_value(&fixture["input"]).expect("a routable `input`");
+    let Ok(normalized) = read_response(&bytes, now_of(&fixture)) else {
+      continue;
+    };
+    for item in &normalized.discarded {
+      let Discarded::Schedule { reason, .. } = item;
+      discards += 1;
+      let kind = schedule_error_name(reason);
+      failures.extend(outside_its_list(
+        &path,
+        &fixture,
+        kind,
+        reason.requirement(),
+      ));
+    }
+  }
+  failures.extend(vacuous("discard", PROTOCOL.root, discards));
+
+  let mut schedule_errors = 0_usize;
+  for (path, fixture) in fixtures_of(&SCHEDULE) {
+    let Err(error) = schedule::parse(&fixture["input"], now_of(&fixture)) else {
+      continue;
+    };
+    schedule_errors += 1;
+    let kind = schedule_error_name(&error);
+    failures.extend(outside_its_list(&path, &fixture, kind, error.requirement()));
+  }
+  failures.extend(vacuous(
+    "schedule error fixture",
+    SCHEDULE.root,
+    schedule_errors,
+  ));
+
+  assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

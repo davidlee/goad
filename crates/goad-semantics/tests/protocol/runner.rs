@@ -328,7 +328,9 @@ fn check_schedule(fixture: &Fixture<'_>) -> Result<(), String> {
   }
 }
 
-const SCHEDULE: Corpus = Corpus {
+/// `pub(crate)` for the discard witness in `normalize.rs`, which reads this
+/// corpus's error fixtures back against their `requirement` lists.
+pub(crate) const SCHEDULE: Corpus = Corpus {
   root: "../../tests/fixtures/schedule",
   check: check_schedule,
 };
