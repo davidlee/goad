@@ -333,12 +333,14 @@ witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
         every failure, the non-vacuity ones included, into one list and
         assert once.
 - **3. List corrections, green**
-  - [ ] EX-4: `R-17-a-nan-literal-for-a-bound` and
+  - [x] EX-4: `R-17-a-nan-literal-for-a-bound` and
         `R-17-an-infinite-literal-for-a-bound` → `["R-17", "R-44"]`;
         `R-52-a-choice-field-with-no-alternatives` → `["R-52", "R-53",
         "R-16"]`. `requirement` arrays only. Refusal witness green.
-  - [ ] `git diff --stat -- tests/fixtures` shows exactly those files (EX-4:
+  - [x] `git diff --stat -- tests/fixtures` shows exactly those files (EX-4:
         *"no other fixture list is edited"*).
+        *Done.* Three files, one line each, the `requirement` line only;
+        the refusal witness green.
 - **4. `fault()`, stratum 2, `AtFault`'s `Display`**
   - [ ] EX-1, its `AtFault` half: `AtFault { Backend, Host, Configuration,
         Environment }`, whose `Display` is *"a total match printing `backend`,
