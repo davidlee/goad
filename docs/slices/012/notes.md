@@ -2050,6 +2050,8 @@ PHASE-03: VH-1 met — just demo shows the prompt after the rename*). This
 sheet is the plan's second reading. Where it restates a plan criterion it
 quotes it. It repairs nothing: what reads as wrong in the plan is under
 **Findings** as a PLAN QUESTION, and the tasks it blocks are marked `[!]`.
+Every PLAN QUESTION is now resolved (Findings), the amended criteria are
+re-quoted below, and no task is blocked.
 
 **Objective** (quoted, `plan.md` PHASE-04): *a headless `goad-check` binary
 parses both command forms, loads its configuration and event files by the
@@ -2271,7 +2273,7 @@ named)
     std::collections::HashMap<u8, u8> = std::collections::HashMap::new();`
     at the same site: exit **101**, *"use of a disallowed type
     `std::collections::HashMap`"*. Restored by copy; `git status --short`
-    empty. PLAN QUESTION 2.
+    empty. PLAN QUESTION 2 (resolved: the `tests` half plants `HashMap`).
   - *fmt* (`cargo fmt --all --check`): reaches each target's module tree.
     A file under `tests/binary/` that no `mod` names is neither compiled
     nor formatted.
@@ -2300,7 +2302,7 @@ named)
   a directory without `-r` prints *"Is a directory"* and exits 2 (measured:
   `command grep -n 'ExitCode' crates/goad-emit/src`). Run every recorded
   instrument as `command grep …`, so the record is what a person's shell
-  would print. PLAN QUESTION 3.
+  would print. PLAN QUESTION 3 (resolved: VA-6 now says so).
 - **A-V11 — I-1's command, dry run.** `command grep -rnE
   'R-?[0-9]+|AtFault::|"(backend|host|configuration|environment)"'
   crates/goad-emit/src | command grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'`
@@ -2375,7 +2377,9 @@ the end: a guard that is green over a crate it never read proves nothing.
       'an_unreadable_config_exits_2_and_says_who_spoke\|a_reserved_source_event_file_exits_2\|an_empty_argv_is_a_usage_error\|a_report_that_cannot_be_written_exits_2\|a_run_with_no_exchange_exits_2_with_no_verdict'
       crates`. At 99208da the first finds only `goad-shell`'s `config.rs`
       docs (`Command::from_argv`, `positive_duration`, and a `mod tests`
-      doc), and the second finds nothing. Record any difference.
+      doc), and the second finds nothing. Record any difference. The
+      `help_…` and `version_…` names are left out: they are `goad`'s and
+      `goad-emit`'s too, by design.
 - **1. The crate exists, and every guard reaches it (EX-5, EX-6, VA-3)**
   - [ ] `crates/goad-check/Cargo.toml`: workspace package keys,
         `autotests = false`, `[lints] workspace = true`, `[[test]] name =
@@ -2412,8 +2416,7 @@ the end: a guard that is green over a crate it never read proves nothing.
           'Running.*goad_check\|Running tests/binary/main.rs'`: the target's
           `Running` line names `goad-check`'s binary (A-T4). Record it.
     - [ ] VA-3, vocabulary: see the mutation table, row R-1.
-    - [ ] VA-3, clippy `src`: row R-2. Clippy `tests`: row R-3 `[!]`
-          (PLAN QUESTION 2).
+    - [ ] VA-3, clippy `src`: row R-2. Clippy `tests`: row R-3.
     - [ ] fmt, `src` and `tests/binary/`: row R-4 (offered by this sheet;
           not a plan criterion).
 - **2. The command line (EX-1, VT-1)** — `src/args.rs`, pure
@@ -2422,12 +2425,16 @@ the end: a guard that is green over a crate it never read proves nothing.
         `todo!()` body (ignored parameter spelled `_argv`).
   - [ ] VT-1 (quoted): *"`args.rs` unit tests: the invocation table
         (config form, argv form, `--event` order, `--timeout` with
-        `--config` refused, `--timeout 0s` and `-1s` refused, an empty argv
-        and an empty program refused, help, version)."* One case per row,
-        named by behaviour. Red: each panics at the `todo!()`. Record the
-        count.
-  - [ ] `[!]` The two form-exclusion rows: `--timeout` with no `--` and no
-        `--config`, and `--config` together with `--` (PLAN QUESTION 5).
+        `--config` refused, `--timeout` with neither `--config` nor `--`
+        refused, `--config` with `--` refused, `--timeout 0s` and `-1s`
+        refused, an empty argv and an empty program refused, help,
+        version)."* One case per row, named by behaviour. Red: each panics
+        at the `todo!()`. Record the count.
+  - [ ] Among those rows, the three refused combinations EX-1 names, each
+        asserting a `UsageError`: `--timeout` with `--config`; `--timeout`
+        with neither `--config` nor `--` (the default-path config form);
+        `--config` with `--`. Red with the rest, at the `todo!()` (PLAN
+        QUESTION 5, resolved).
   - [ ] Rows the sheet adds, from `goad-emit`'s table and §5.2.1: help wins
         over version in either order; after `--` every token is the
         command's, `--help` included; an unknown flag; a flag with no value;
@@ -2436,10 +2443,14 @@ the end: a guard that is green over a crate it never read proves nothing.
   - [ ] The body. EX-1 (quoted): *"the command line of `design.md` §5.2.1:
         config form (`--config`, else `config::default_path`), argv form
         after `--` through `Command::from_argv`, `--timeout` (default `5s`,
-        a usage error with `--config`), repeatable `--event FILE` through
-        `envelope::normalize`, `-h`, `--help`, `--version`. `args.rs` is
-        pure and returns one `Invocation`."* `args.rs` does not read the
-        environment. `default_path` is applied in `main`, where the
+        accepted only in the argv form), repeatable `--event FILE` through
+        `envelope::normalize`, `-h`, `--help`, `--version`. `--config` and
+        `--` exclude each other. Each refused combination — `--timeout`
+        with `--config`, `--timeout` with neither `--config` nor `--`,
+        `--config` with `--` — is a usage error, status 2 (`design-log.md`
+        2026-10-01, *`goad-check`'s flag exclusions, stated whole*).
+        `args.rs` is pure and returns one `Invocation`."* `args.rs` does
+        not read the environment. `default_path` is applied in `main`, where the
         environment is read (§5.2.1, last bullet). `args.rs` carries the
         event *paths*; `main` reads and normalizes them (EX-7).
         `--timeout`'s value goes through `config::positive_duration` with
@@ -2477,14 +2488,23 @@ the end: a guard that is green over a crate it never read proves nothing.
         `an_empty_argv_is_a_usage_error`, and
         `a_report_that_cannot_be_written_exits_2` with its `--help` half
         (PHASE-12/VT-2 adds the run half). Each asserts status 2 and the
-        `goad-check: ` prefix on the **last** stderr line."* Fixtures: a
+        `goad-check: ` prefix on the **last** stderr line. Each but
+        `a_report_that_cannot_be_written_exits_2` also asserts stdout is
+        empty: each fails before the first report line, at PHASE-12 too, and
+        without it the interim end of EX-3 would pass it. And the two
+        answered cases §9 names,
+        `help_prints_the_usage_block_on_stdout_and_exits_0` and
+        `version_prints_the_package_version_on_stdout_and_exits_0`, as
+        `goad`'s and `goad-emit`'s (`plan-log.md` 2026-10-01, *PHASE-04 sheet
+        questions*, Q1, Q4)."* Fixtures: a
         nonexistent `--config` path; a committed event file under
         `tests/binary/` with `"source": "host"`, run with `--event` (it must
         reach normalization: give it a loadable `--config` or an argv form,
         so no earlier step fails first); `goad-check --`.
-  - [ ] `[!]` Each VT-2 case except the `/dev/full` one also asserts
-        **stdout is empty** (PLAN QUESTION 1). Without it, each one is green
-        against the interim end.
+  - [ ] Each VT-2 status-2 case except
+        `a_report_that_cannot_be_written_exits_2` asserts **stdout is
+        empty** (PLAN QUESTION 1, resolved). Without it, each one is green
+        against the interim end (rows M-3, M-5).
   - [ ] VT-3 (quoted): *"binary tier, the plan's own interim case:
         `a_run_with_no_exchange_exits_2_with_no_verdict` — a loadable
         configuration; status 2, stdout the no-view line and no verdict
@@ -2492,12 +2512,15 @@ the end: a guard that is green over a crate it never read proves nothing.
         deletes it."* A committed config under `tests/binary/`, passed with
         `--config`. Assert stdout is **exactly** the no-view line: no
         verdict line, nothing else.
-  - [ ] `[!]` `help_prints_the_usage_block_on_stdout_and_exits_0` and
-        `version_prints_the_package_version_on_stdout_and_exits_0`, the
-        names `goad` and `goad-emit` use (PLAN QUESTION 4).
-  - [ ] Red, against task 1's `main` (A-T3): each case fails on status,
-        compiling. `cargo test -p goad-check --test binary --no-fail-fast`.
-        Record each failure message.
+  - [ ] `help_prints_the_usage_block_on_stdout_and_exits_0` and
+        `version_prints_the_package_version_on_stdout_and_exits_0`, modelled
+        on `goad-emit`'s `exchange.rs` cases of those names: status 0, the
+        answer on stdout, stderr empty (PLAN QUESTION 4, resolved).
+  - [ ] Red, against task 1's `main` (A-T3), compiling: each status-2 case
+        fails on status; the `help_…` and `version_…` cases, which that
+        `main` already exits 0 for, fail on stdout. `cargo test -p
+        goad-check --test binary --no-fail-fast`. Record each failure
+        message.
 - **5. `main` (EX-4, EX-7, EX-8)**
   - [ ] EX-7 (quoted): *"the steps before the first exchange, each ending
         the run with no verdict, status 2, on failure: the configuration
@@ -2542,16 +2565,25 @@ the end: a guard that is green over a crate it never read proves nothing.
         match found is read and recorded."* `command grep -rn 'FieldKind'
         crates/goad-check/src crates/goad-check/tests`. Expected: none.
         Record it.
-  - [ ] VA-6 (quoted): *"R-13 and R-15, structurally: `grep -n 'ExitCode'
+  - [ ] VA-6 (quoted): *"R-13 and R-15, structurally: `grep -rn 'ExitCode'
         crates/goad-check/src` shows the one `ExitCode::from(2)`, reached by
         every status-2 path without reading its cause, and one literal per
-        class; read and recorded."* `[!]` The command as written fails on a
-        directory (PLAN QUESTION 3). Run `command grep -rn 'ExitCode'
+        class; read and recorded. Every instrument command this phase
+        records is run as `command grep`, the system `grep`, so the record
+        is what a person's shell prints (`plan-log.md` 2026-10-01, *PHASE-04
+        sheet questions*, Q3)."* Run `command grep -rn 'ExitCode'
         crates/goad-check/src`, then trace every path to 2 by reading `main`.
         Name each cause and the call that carries it to the one site.
-  - [ ] `[!]` VA-4 (quoted): *"`canon-delta.md` SPEC-004 Change 5's
-        `goad-check` test paths, for the cases this phase ships, are
-        re-pointed from `…` to the shipped files."* (PLAN QUESTION 6.)
+  - [ ] VA-4 (quoted): *"`canon-delta.md` SPEC-004 Change 5's R-11..R-13 row
+        gives each `goad-check` case this phase ships its own shipped path
+        (`crates/goad-check/tests/binary/<file>.rs::<name>`); PHASE-12's
+        cases keep `…::`; the R-14 row is untouched (`plan-log.md`
+        2026-10-01, *PHASE-04 sheet questions*, Q6)."* The cases that row
+        names and this phase ships:
+        `an_unreadable_config_exits_2_and_says_who_spoke`,
+        `a_reserved_source_event_file_exits_2`,
+        `a_report_that_cannot_be_written_exits_2` (PLAN QUESTION 6,
+        resolved).
   - [ ] VA-5 (quoted): *"`notes.md` §Open's FU-7 row names
         `crates/goad-check/Cargo.toml`'s comment as what holds I-6."* Edit
         §Open's *FU-7's citation extends to `goad-check`* bullet.
@@ -2598,17 +2630,20 @@ the end: a guard that is green over a crate it never read proves nothing.
 - [ ] VA-1
 - [ ] VA-2
 - [ ] VA-3
-- [ ] VA-4 `[!]`
+- [ ] VA-4
 - [ ] VA-5
-- [ ] VA-6 `[!]`
+- [ ] VA-6
 - [ ] VA-7
 - [ ] `just check` exits 0 on the final commit (§Overview)
 - VA-3 (quoted, as the reach rows discharge it): *"reach:
   `goad-boundary`'s `no_workspace_member_names_the_users_domain` reads
   `crates/goad-check/src` — a planted domain word in a string literal, in
   code that compiles, reds it; restored. Clippy reaches the crate's `src`
-  and `tests` — a planted `.unwrap()` in each reds `cargo clippy --workspace
-  --all-targets -- -D warnings`; restored. Both recorded."*
+  and `tests` — a planted `.unwrap()` in `src`, and a planted
+  `std::collections::HashMap` in `tests` (`clippy.toml`'s
+  `allow-unwrap-in-tests` exempts an `.unwrap()` there; `disallowed_types`
+  is never test-exempt), each reds `cargo clippy --workspace --all-targets
+  -- -D warnings`; restored. Both recorded."*
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad and back, never `git checkout` or `git stash`; `--no-fail-fast`;
@@ -2626,7 +2661,7 @@ too: they are predictions (§Harvest *Learned*).
 |---|---|---|---|---|---|---|
 | R-1 | `crates/goad-check/src/main.rs` (production code, not a test module) | a string literal holding a `DOMAIN` word, e.g. `let _planted = "habit";` | `cargo test -p goad-boundary --test checks --no-fail-fast` | `vocabulary::no_workspace_member_names_the_users_domain`, naming the file | | |
 | R-2 | `crates/goad-check/src/main.rs`, production code | an `Option` or `Result` already in hand gets `.unwrap()` in place of its handling | `cargo clippy --workspace --all-targets -- -D warnings` | `clippy::unwrap_used` at that line | | |
-| R-3 `[!]` | a `crates/goad-check/tests/binary/` helper | as VA-3 is written: `.expect(…)` → `.unwrap()`. Predicted **not** to red (A-V7, measured on `goad-emit`). If PLAN QUESTION 2 is resolved (a), add a second row: `let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new();` | as R-2 | as written: nothing. Second row: `clippy::disallowed_types` in the `binary` target | | |
+| R-3 | a `crates/goad-check/tests/binary/` helper | `let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new();` (VA-3; an `.unwrap()` here is exempt, A-V7) | as R-2 | `clippy::disallowed_types` in the `binary` target | | |
 | R-4 | one file in `src`, one in `tests/binary/` | a line re-indented to four spaces | `cargo fmt --all --check` | a diff naming each file | | |
 | R-5 | `crates/goad-check/src/main.rs` | `use slint as _;` | `cargo build -p goad-check` | `error[E0432]`/`E0433`: the crate edge holds I-6 at the source. Here the compile failure is the instrument's red | n/a (the red is the compile) | |
 
@@ -2637,9 +2672,9 @@ VA item otherwise shows a new case can fail):
 |---|---|---|---|---|---|
 | M-1 | `args.rs`, `parse` | the `--timeout`-with-`--config` refusal returns the config-form `Invocation` instead | VT-1's `--timeout`-with-`--config` row | | |
 | M-2 | `args.rs`, `parse` | `positive_duration(…)` on the `--timeout` value replaced by `positive_duration(…).unwrap_or(Duration::from_secs(5))` | VT-1's `0s` and `-1s` rows | | |
-| M-3 | `args.rs`, `parse` | `Command::from_argv(argv)` replaced by `Some(Command::new(<first or "">, <rest>))` | VT-1's empty-argv and empty-program rows. `an_empty_argv_is_a_usage_error`: expected **not** to red as VT-2 is written, since the run reaches the interim end, which is also 2 with a `goad-check: ` last line. With PLAN QUESTION 1 (a): reds on stdout | | |
+| M-3 | `args.rs`, `parse` | `Command::from_argv(argv)` replaced by `Some(Command::new(<first or "">, <rest>))` | VT-1's empty-argv and empty-program rows; `an_empty_argv_is_a_usage_error` on its stdout-empty assertion (the run reaches the interim end, which is also 2 with a `goad-check: ` last line, but writes the no-view line) | | |
 | M-4 | `args.rs`, `parse` | the event paths reversed (`.rev()`) before `Invocation` is built | VT-1's `--event` order row | | |
-| M-5 | `main.rs`, event step | a normalization failure is skipped (`filter_map(Result::ok)`-style) rather than ending the run | `a_reserved_source_event_file_exits_2`: expected **not** to red as VT-2 is written (as M-3). With PLAN QUESTION 1 (a): reds on stdout | | |
+| M-5 | `main.rs`, event step | a normalization failure is skipped (`filter_map(Result::ok)`-style) rather than ending the run | `a_reserved_source_event_file_exits_2` on its stdout-empty assertion (as M-3) | | |
 | M-6 | `main.rs`, the interim end | returns `ExitCode::SUCCESS` instead of going through the one 2 site | VT-3 on status | | |
 | M-7 | `render.rs`, the not-yet-implemented line | its `goad-check: ` prefix dropped | VT-3 on the last-line assertion | | |
 | M-8 | `render.rs`, the usage-error line | prefix dropped | `an_empty_argv_is_a_usage_error` | | |
@@ -2647,7 +2682,10 @@ VA item otherwise shows a new case can fail):
 | M-10 | `render.rs`, the event-file line | prefix dropped | `a_reserved_source_event_file_exits_2` | | |
 | M-11 | `main.rs`, the `Help` arm | `report::line_to` (best effort) in place of `try_line_to`, returning `ExitCode::SUCCESS` | `a_report_that_cannot_be_written_exits_2` (`--help`) | | |
 | M-12 | `main.rs`, the interim end | the no-view line not written | VT-3 on stdout | | |
-| M-13 | `main.rs`, the `Version` arm | writes `render::USAGE` in place of `version_line(…)` | expected **not** to red unless PLAN QUESTION 4 (a) adds the `version_…` case; then that case | | |
+| M-13 | `main.rs`, the `Version` arm | writes `render::USAGE` in place of `version_line(…)` | `version_prints_the_package_version_on_stdout_and_exits_0` | | |
+| M-14 | `args.rs`, `parse` | the `--timeout`-with-neither-`--config`-nor-`--` refusal returns the default-path config-form `Invocation` instead | VT-1's `--timeout` with neither `--config` nor `--` row | | |
+| M-15 | `args.rs`, `parse` | the `--config`-with-`--` refusal returns the argv-form `Invocation` instead | VT-1's `--config` with `--` row | | |
+| M-16 | `main.rs`, the `Help` arm | after the usage block is written, returns through the one 2 site | `help_prints_the_usage_block_on_stdout_and_exits_0` on status | | |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -2660,71 +2698,78 @@ VA item otherwise shows a new case can fail):
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
 
-- **PLAN QUESTION 1 — VT-2's cases cannot tell their cause from the
-  interim end.** Each case asserts *"status 2 and the `goad-check: ` prefix
-  on the **last** stderr line"*. Until PHASE-12, a run that gets past every
-  pre-exchange step also ends with status 2 and a `goad-check: ` last line
-  (EX-3). So a regression that lets a bad event file or an empty argv
+- **PLAN QUESTION 1 — resolved (a)**, `plan-log.md` 2026-10-01, *PHASE-04
+  sheet questions*, Q1; VT-2 amended. **VT-2's cases cannot tell their cause
+  from the interim end.** Each case asserts *"status 2 and the `goad-check: `
+  prefix on the **last** stderr line"*. Until PHASE-12, a run that gets past
+  every pre-exchange step also ends with status 2 and a `goad-check: ` last
+  line (EX-3). So a regression that lets a bad event file or an empty argv
   *through* leaves `a_reserved_source_event_file_exits_2` and
   `an_empty_argv_is_a_usage_error` green (mutation rows M-3, M-5). This is
   `docs/memory/tests-asserting-proxies.md`'s shape. Checked: canon-delta's
   R-14 row has these cases hold the prefix only, so the plan inherited it.
-  Options: (a) each VT-2 case, except the `/dev/full` one, also asserts
-  stdout is empty. A failure before the first exchange writes no report
-  line, and that stays true at PHASE-12. (b) Each asserts the last stderr
-  line is not the not-yet-implemented line. That is weaker, and false once
-  PHASE-12 deletes the line. (c) Accept it: PHASE-12 removes the interim
-  end, and the cases become witnesses then. **Recommendation: (a).** It is
-  one assertion per case and holds in both phases. Blocks task 4's
-  `[!]` box.
-- **PLAN QUESTION 2 — VA-3's `tests` half cannot red.** `clippy.toml` sets
-  `allow-unwrap-in-tests = true`. The binary tier is a `#[cfg(test)]`
-  module (it must be, for `tests_outside_test_module`), so a planted
-  `.unwrap()` there is exempt. Measured on `goad-emit`'s
+  Options: (a) each VT-2 case, except the `/dev/full` one, also asserts stdout
+  is empty. A failure before the first exchange writes no report line, and
+  that stays true at PHASE-12. (b) Each asserts the last stderr line is not
+  the not-yet-implemented line. That is weaker, and false once PHASE-12
+  deletes the line. (c) Accept it: PHASE-12 removes the interim end, and the
+  cases become witnesses then. **Recommendation: (a).** It is one assertion
+  per case and holds in both phases. Blocked task 4's `[!]` box.
+- **PLAN QUESTION 2 — resolved (a), `HashMap`**, `plan-log.md` 2026-10-01,
+  *PHASE-04 sheet questions*, Q2; VA-3 amended. **VA-3's `tests` half cannot
+  red.** `clippy.toml` sets `allow-unwrap-in-tests = true`. The binary tier is
+  a `#[cfg(test)]` module (it must be, for `tests_outside_test_module`), so a
+  planted `.unwrap()` there is exempt. Measured on `goad-emit`'s
   `exchange::code_of`: clippy exit 0 with `.unwrap()`; exit 101 with a
   `HashMap` (A-V7). Options: (a) plant a lint that is never test-exempt: a
   `std::collections::HashMap` (`disallowed_types`, measured) or `dbg!`
-  (`docs/memory/clippy-toml-test-exemptions-are-a-hidden-boundary.md`);
-  (b) keep `.unwrap()` and record that it does not red, leaving clippy's
-  reach into `tests` unproven. **Recommendation: (a), with `HashMap`**: it
-  is measured, and the `src` half keeps `.unwrap()`. Blocks row R-3.
-- **PLAN QUESTION 3 — VA-6's command fails as written.** `grep -n
-  'ExitCode' crates/goad-check/src` without `-r` exits 2 with *"Is a
-  directory"* under the system `grep` (measured on `goad-emit/src`). In the
-  agent's shell `grep` is a `ugrep` wrapper that recurses unasked and
-  honours ignore files, so an agent would see it work and a person would
-  not (A-V10). **Recommendation:** `grep -rn`, and every instrument command
-  in the plan recorded as run by `command grep`. The same applies to
-  PHASE-12/VA-3's `grep -rnE`, which is already recursive but would differ
-  under `--ignore-files` only if an ignored file sat in `src`. Blocks VA-6's
-  `[!]`.
-- **PLAN QUESTION 4 — nothing in the binary tier holds a written answer
-  exiting 0.** R-11 makes a question answered status 0. VT-1 holds parsing
-  only. `a_report_that_cannot_be_written_exits_2` holds 2 when the answer is
-  refused, never 0 when it is written. So a `main` that answered `--help`
-  and exited 2 would pass PHASE-04. EX-8's `version_line` call also has no
-  case (row M-13). `goad` and `goad-emit` each have
+  (`docs/memory/clippy-toml-test-exemptions-are-a-hidden-boundary.md`); (b)
+  keep `.unwrap()` and record that it does not red, leaving clippy's reach
+  into `tests` unproven. **Recommendation: (a), with `HashMap`**: it is
+  measured, and the `src` half keeps `.unwrap()`. Blocked row R-3.
+- **PLAN QUESTION 3 — resolved as recommended**, `plan-log.md` 2026-10-01,
+  *PHASE-04 sheet questions*, Q3; VA-6 amended. PHASE-12/VA-3 was not amended
+  (outside PHASE-04). **VA-6's command fails as written.** `grep -n 'ExitCode'
+  crates/goad-check/src` without `-r` exits 2 with *"Is a directory"* under
+  the system `grep` (measured on `goad-emit/src`). In the agent's shell `grep`
+  is a `ugrep` wrapper that recurses unasked and honours ignore files, so an
+  agent would see it work and a person would not (A-V10). **Recommendation:**
+  `grep -rn`, and every instrument command in the plan recorded as run by
+  `command grep`. The same applies to PHASE-12/VA-3's `grep -rnE`, which is
+  already recursive but would differ under `--ignore-files` only if an ignored
+  file sat in `src`. Blocked VA-6's `[!]`.
+- **PLAN QUESTION 4 — resolved as recommended**, `plan-log.md` 2026-10-01,
+  *PHASE-04 sheet questions*, Q4; VT-2 and `design.md` §9 amended. **Nothing
+  in the binary tier holds a written answer exiting 0.** R-11 makes a question
+  answered status 0. VT-1 holds parsing only.
+  `a_report_that_cannot_be_written_exits_2` holds 2 when the answer is
+  refused, never 0 when it is written. So a `main` that answered `--help` and
+  exited 2 would pass PHASE-04. EX-8's `version_line` call also has no case
+  (row M-13). `goad` and `goad-emit` each have
   `help_prints_the_usage_block_on_stdout_and_exits_0` and
-  `version_prints_the_package_version_on_stdout_and_exits_0`. **Recommendation:**
-  add both to PHASE-04/VT-2 under those names. Whether canon-delta's R-11
-  row cites them is audit's call (VA-4 is *"test paths only"*). Blocks
-  task 4's `[!]` box.
-- **PLAN QUESTION 5 — the forms' exclusion is half-stated.** EX-1 and VT-1
-  refuse `--timeout` with `--config`. Neither says what happens with
-  `--timeout` and no `--` (the default-path config form), or with
-  `--config` and `--` together. §5.2.1's synopsis admits neither, and its
-  reason (*"the file already states the timeout"*) covers the default-path
-  file too. **Recommendation:** both are usage errors, and each gets a VT-1
-  row. Blocks task 2's `[!]` box.
-- **PLAN QUESTION 6 — VA-4's re-pointing has no single target.**
-  canon-delta SPEC-004 Change 5's R-11..R-13 row gives one prefix,
-  `crates/goad-check/tests/binary/…`, for cases of both phases. PHASE-04
-  ships two of its names whole and one in half
+  `version_prints_the_package_version_on_stdout_and_exits_0`.
+  **Recommendation:** add both to PHASE-04/VT-2 under those names. Whether
+  canon-delta's R-11 row cites them is audit's call (VA-4 is *"test paths
+  only"*). Blocked task 4's `[!]` box.
+- **PLAN QUESTION 5 — resolved as recommended**, `design-log.md` 2026-10-01,
+  *`goad-check`'s flag exclusions, stated whole*; `design.md` §5.2.1, EX-1 and
+  VT-1 amended. **The forms' exclusion is half-stated.** EX-1 and VT-1 refuse
+  `--timeout` with `--config`. Neither says what happens with `--timeout` and
+  no `--` (the default-path config form), or with `--config` and `--`
+  together. §5.2.1's synopsis admits neither, and its reason (*"the file
+  already states the timeout"*) covers the default-path file too.
+  **Recommendation:** both are usage errors, and each gets a VT-1 row. Blocked
+  task 2's `[!]` box.
+- **PLAN QUESTION 6 — resolved as recommended**, `plan-log.md` 2026-10-01,
+  *PHASE-04 sheet questions*, Q6; VA-4 amended. **VA-4's re-pointing has no
+  single target.** canon-delta SPEC-004 Change 5's R-11..R-13 row gives one
+  prefix, `crates/goad-check/tests/binary/…`, for cases of both phases.
+  PHASE-04 ships two of its names whole and one in half
   (`a_report_that_cannot_be_written_exits_2`). The R-14 row names
   `goad-check`'s cases without a path, as it does `goad-emit`'s.
-  **Recommendation:** in the R-11..R-13 row, give each case this phase
-  ships its own path (`crates/goad-check/tests/binary/<file>.rs::name`),
-  leave `…::` on PHASE-12's, and leave the R-14 row alone. Blocks VA-4.
+  **Recommendation:** in the R-11..R-13 row, give each case this phase ships
+  its own path (`crates/goad-check/tests/binary/<file>.rs::name`), leave `…::`
+  on PHASE-12's, and leave the R-14 row alone. Blocked VA-4.
 - **The `VT-3` id was reused.** F-13's repair removed PHASE-04/VT-3, then
   F-23's repair added a new PHASE-04/VT-3. `plan.md`'s header says ids are
   immutable and edits append. `review-plan.md` entries before F-23 that

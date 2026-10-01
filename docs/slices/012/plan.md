@@ -213,7 +213,7 @@ to a JSON type or a value.
 | the moved `Stimulus` tests; `every_submitted_kind_writes_the_json_type_r57_names`; the moved `draft.rs` value tests; `an_as_drawn_choice_submits_the_first_alternative` and siblings | 02 |
 | `the_projection_to_submitted_is_the_identity_on_each_kind`; `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind` | 02 |
 | `goad-emit`: `an_answer_that_cannot_be_written_exits_2` | 03 |
-| `goad-check` `args.rs` invocation table; `an_unreadable_config_exits_2_and_says_who_spoke`, `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`, `a_report_that_cannot_be_written_exits_2` (its `--help` half) | 04 |
+| `goad-check` `args.rs` invocation table; `an_unreadable_config_exits_2_and_says_who_spoke`, `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`, `a_report_that_cannot_be_written_exits_2` (its `--help` half), `help_prints_the_usage_block_on_stdout_and_exits_0`, `version_prints_the_package_version_on_stdout_and_exits_0` | 04 |
 | every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own` | 12 |
 | `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | 06 |
 | `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`; `round_trip.rs`' README case through the shared scanner | 07 |
@@ -583,9 +583,13 @@ may be included, not edited.
 **Exit**
 - EX-1 — the command line of `design.md` §5.2.1: config form (`--config`,
   else `config::default_path`), argv form after `--` through
-  `Command::from_argv`, `--timeout` (default `5s`, a usage error with
-  `--config`), repeatable `--event FILE` through `envelope::normalize`, `-h`,
-  `--help`, `--version`. `args.rs` is pure and returns one `Invocation`.
+  `Command::from_argv`, `--timeout` (default `5s`, accepted only in the argv
+  form), repeatable `--event FILE` through `envelope::normalize`, `-h`,
+  `--help`, `--version`. `--config` and `--` exclude each other. Each refused
+  combination — `--timeout` with `--config`, `--timeout` with neither
+  `--config` nor `--`, `--config` with `--` — is a usage error, status 2
+  (`design-log.md` 2026-10-01, *`goad-check`'s flag exclusions, stated
+  whole*). `args.rs` is pure and returns one `Invocation`.
 - EX-3 — the report writer: a `render`-style module owns every line's text,
   and every stdout line goes through `report::try_line_to`. The no-view line
   is written here. Until PHASE-12 a run makes no exchange, so it ends with no
@@ -613,14 +617,23 @@ may be included, not edited.
 
 **Verification**
 - VT-1 — `args.rs` unit tests: the invocation table (config form, argv form,
-  `--event` order, `--timeout` with `--config` refused, `--timeout 0s` and
-  `-1s` refused, an empty argv and an empty program refused, help, version).
+  `--event` order, `--timeout` with `--config` refused, `--timeout` with
+  neither `--config` nor `--` refused, `--config` with `--` refused,
+  `--timeout 0s` and `-1s` refused, an empty argv and an empty program
+  refused, help, version).
 - VT-2 — binary tier, `tests/binary/`, the status-2 cases §9 names:
   `an_unreadable_config_exits_2_and_says_who_spoke`,
   `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`,
   and `a_report_that_cannot_be_written_exits_2` with its `--help` half
   (PHASE-12/VT-2 adds the run half). Each asserts status 2 and the
-  `goad-check: ` prefix on the **last** stderr line.
+  `goad-check: ` prefix on the **last** stderr line. Each but
+  `a_report_that_cannot_be_written_exits_2` also asserts stdout is empty:
+  each fails before the first report line, at PHASE-12 too, and without it
+  the interim end of EX-3 would pass it. And the two answered cases §9
+  names, `help_prints_the_usage_block_on_stdout_and_exits_0` and
+  `version_prints_the_package_version_on_stdout_and_exits_0`, as `goad`'s
+  and `goad-emit`'s (`plan-log.md` 2026-10-01, *PHASE-04 sheet questions*,
+  Q1, Q4).
 - VT-3 — binary tier, the plan's own interim case:
   `a_run_with_no_exchange_exits_2_with_no_verdict` — a loadable
   configuration; status 2, stdout the no-view line and no verdict line, the
@@ -634,15 +647,23 @@ may be included, not edited.
   `no_workspace_member_names_the_users_domain` reads `crates/goad-check/src`
   — a planted domain word in a string literal, in code that compiles, reds it;
   restored. Clippy reaches the crate's `src` and `tests` — a planted
-  `.unwrap()` in each reds `cargo clippy --workspace --all-targets -- -D
-  warnings`; restored. Both recorded.
-- VA-4 — `canon-delta.md` SPEC-004 Change 5's `goad-check` test paths, for
-  the cases this phase ships, are re-pointed from `…` to the shipped files.
+  `.unwrap()` in `src`, and a planted `std::collections::HashMap` in `tests`
+  (`clippy.toml`'s `allow-unwrap-in-tests` exempts an `.unwrap()` there;
+  `disallowed_types` is never test-exempt), each reds `cargo clippy
+  --workspace --all-targets -- -D warnings`; restored. Both recorded.
+- VA-4 — `canon-delta.md` SPEC-004 Change 5's R-11..R-13 row gives each
+  `goad-check` case this phase ships its own shipped path
+  (`crates/goad-check/tests/binary/<file>.rs::<name>`); PHASE-12's cases keep
+  `…::`; the R-14 row is untouched (`plan-log.md` 2026-10-01, *PHASE-04 sheet
+  questions*, Q6).
 - VA-5 — `notes.md` §Open's FU-7 row names `crates/goad-check/Cargo.toml`'s
   comment as what holds I-6.
-- VA-6 — R-13 and R-15, structurally: `grep -n 'ExitCode' crates/goad-check/src`
+- VA-6 — R-13 and R-15, structurally: `grep -rn 'ExitCode' crates/goad-check/src`
   shows the one `ExitCode::from(2)`, reached by every status-2 path without
-  reading its cause, and one literal per class; read and recorded.
+  reading its cause, and one literal per class; read and recorded. Every
+  instrument command this phase records is run as `command grep`, the
+  system `grep`, so the record is what a person's shell prints (`plan-log.md`
+  2026-10-01, *PHASE-04 sheet questions*, Q3).
 - VA-7 — shared helpers: the binary tier reads each `tests/support/` file's
   whole exported surface, and includes each file whose every symbol it uses
   (`design.md` §5.2.6). Each helper it copies instead is named by symbol in

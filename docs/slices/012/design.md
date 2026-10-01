@@ -207,8 +207,13 @@ goad-check --version
     `exercisers/demo.toml` uses.
   - `schedule.default_poll` is the fixed value `30m`. It only affects how the
     report shows a resolved next check when none was sent.
-  - `--timeout` together with `--config` is a usage error: the file already
-    states the timeout.
+  - `--timeout` is accepted only in the argv form. With `--config`, or with
+    neither `--config` nor `--`, it is a usage error, status 2: a file
+    supplies the timeout, whether named or defaulted (`design-log.md`
+    2026-10-01, *`goad-check`'s flag exclusions, stated whole*).
+- **`--config` and `--` exclude each other.** Together they name two
+  configuration sources, and an ambiguous request fails rather than being
+  guessed at: a usage error, status 2 (the same entry).
 - **`--event FILE`**, repeatable, in order. Each file holds one SPEC-003
   envelope, the bytes a watcher would write to the socket. Each is read
   through `envelope::normalize`, so a `source: "host"` envelope is refused
@@ -1333,7 +1338,8 @@ Red/green per behaviour. Tests are named by behaviour.
 
 **`goad-check`**
 - Unit, in `args.rs`: the invocation table (config form, argv form, `--event`
-  order, `--timeout` with `--config` refused, help, version).
+  order, `--timeout` with `--config` refused, `--timeout` with neither
+  `--config` nor `--` refused, `--config` with `--` refused, help, version).
 - Binary tier (`tests/binary/`, `CARGO_BIN_EXE_goad-check`):
   - `a_conforming_backend_is_accepted_and_exits_0`;
   - `a_backend_that_fails_on_an_unrecognised_host_kind_is_reported_against_r56`;
@@ -1349,6 +1355,10 @@ Red/green per behaviour. Tests are named by behaviour.
   - `an_empty_argv_is_a_usage_error` (F-33);
   - `a_report_that_cannot_be_written_exits_2` (U2): the run, and `--help`,
     with stdout on a device that refuses every write;
+  - `help_prints_the_usage_block_on_stdout_and_exits_0` and
+    `version_prints_the_package_version_on_stdout_and_exits_0`, the names
+    `goad` and `goad-emit` use (`plan-log.md` 2026-10-01, *PHASE-04 sheet
+    questions*, Q4);
   - `a_chained_view_is_answered_until_null`;
   - `a_chain_past_its_bound_is_reported_and_does_not_change_the_status` (U2);
   - `a_view_answered_carries_exactly_its_options_fields`.
