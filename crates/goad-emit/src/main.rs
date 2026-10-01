@@ -11,7 +11,7 @@ use goad_shell::clock::{self, ClockError};
 use goad_shell::config::Config;
 use goad_shell::error::ConfigError;
 use goad_shell::ingress::client::{self, Answered};
-use goad_shell::report::line_to;
+use goad_shell::report::{line_to, try_line_to};
 use goad_shell::version::version_line;
 
 use crate::args::{Invocation, Request};
@@ -57,7 +57,8 @@ pub(crate) enum StartupFault {
 /// Three exit codes, and they are about **who was wrong** (005/D-4): 0 the
 /// host took it, 1 the host refused it and said why, 2 emit got no usable
 /// answer — a usage error, a configuration that names no socket, a path
-/// nothing is listening at, or a reply `SPEC-003` §6.3 does not admit.
+/// nothing is listening at, or a reply `SPEC-003` §6.3 does not admit — or
+/// gave none: a `--help` or `--version` answer standard output refused.
 /// `std::process::exit` is a `disallowed-method`, so `main` returns an
 /// [`ExitCode`] and every path returns through it.
 fn main() -> ExitCode {
@@ -66,10 +67,7 @@ fn main() -> ExitCode {
       to_stderr(&render::usage_error_line(&error));
       ExitCode::from(2)
     }
-    Ok(Invocation::Help) => {
-      to_stdout(render::USAGE);
-      ExitCode::SUCCESS
-    }
+    Ok(Invocation::Help) => answer(render::USAGE),
     Ok(Invocation::Version) => {
       // The revision is read at compile time and never at run time —
       // `crates/goad`'s `run` carries the reasoning, and this is the same
@@ -77,11 +75,10 @@ fn main() -> ExitCode {
       // unset, and `goad_shell::version::version_line` is where that is
       // decided and tested (`review-code.md` F-2). The version is this
       // binary's own: `env!` expands where it is compiled.
-      to_stdout(&version_line(
+      answer(&version_line(
         env!("CARGO_PKG_VERSION"),
         option_env!("GOAD_REVISION"),
-      ));
-      ExitCode::SUCCESS
+      ))
     }
     Ok(Invocation::Send(request)) => exchange(request),
   }
@@ -164,14 +161,25 @@ fn envelope(request: Request, now: Timestamp) -> Event {
   }
 }
 
-/// `print_stdout` and `print_stderr` are denied workspace-wide, and
-/// `report::line_to` is what 005 lifted to stratum 2 so that a second binary
-/// could write a line without a second answer to *what happens when the sink
-/// fails*. Both outlets are one line; nothing here formats.
-fn to_stdout(line: &str) {
-  line_to(std::io::stdout().lock(), line);
+/// A question's answer, on stdout: exit 0 only if it arrived (SPEC-004/R-8's
+/// *only if*). A refused write is 2, with its line on stderr. Not a
+/// `StartupFault`: that type is why the envelope never left, and a question
+/// sends no envelope.
+fn answer(line: &str) -> ExitCode {
+  match try_line_to(std::io::stdout().lock(), line) {
+    Ok(()) => ExitCode::SUCCESS,
+    Err(fault) => {
+      to_stderr(&render::answer_unwritten_line(&fault));
+      ExitCode::from(2)
+    }
+  }
 }
 
+/// `print_stdout` and `print_stderr` are denied workspace-wide, so both
+/// streams go through `goad_shell::report`, which 005 lifted to stratum 2 so
+/// that a second binary could write a line without a second answer to *what
+/// happens when the sink fails*. Stdout is [`answer`]'s. This is stderr, best
+/// effort: a fault's line has nowhere left to go. Nothing here formats.
 fn to_stderr(line: &str) {
   line_to(std::io::stderr().lock(), line);
 }

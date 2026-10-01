@@ -1,4 +1,4 @@
-//! The fake listener, the spawn helper, and the nine cases.
+//! The spawn helpers, the fake listener, and the cases.
 use std::io::{BufRead as _, Write as _};
 use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
@@ -54,6 +54,23 @@ fn emit(arguments: &[&str]) -> Output {
     .expect("the built binary must be runnable")
 }
 
+/// The same spawn with standard output on `/dev/full`, where every write
+/// fails (`ENOSPC`), so a case can see what the process does when its answer
+/// cannot be written. Linux's device; the gate runs nowhere else. A copy of
+/// `goad`'s `process::goad_with_stdout_full`: one test target cannot include
+/// another crate's helper without a shared support module.
+fn emit_with_stdout_full(arguments: &[&str]) -> Output {
+  let full = std::fs::OpenOptions::new()
+    .write(true)
+    .open("/dev/full")
+    .expect("/dev/full must be openable for writing");
+  std::process::Command::new(env!("CARGO_BIN_EXE_goad-emit"))
+    .args(arguments)
+    .stdout(full)
+    .output()
+    .expect("the built binary must be runnable")
+}
+
 fn code_of(output: &Output) -> i32 {
   output
     .status
@@ -92,6 +109,24 @@ fn version_prints_the_package_version_on_stdout_and_exits_0() {
   assert_eq!(code_of(&output), 0, "{}", stderr_of(&output));
   assert_eq!(stdout_of(&output).trim_end(), env!("CARGO_PKG_VERSION"));
   assert!(output.stderr.is_empty(), "{}", stderr_of(&output));
+}
+
+/// 012/PHASE-03/VT-1, SPEC-004/R-8's *only if*: a question whose answer
+/// never reached standard output was not answered, so it is not exit 0. It
+/// is 2, with a `goad-emit: ` line last on stderr — the rule `goad`'s
+/// `exit_codes::an_answer_that_cannot_be_written_exits_2` holds for the host.
+/// Both questions, and at this tier: only a spawn can put the process's own
+/// stdout on a device that refuses it.
+#[test]
+fn an_answer_that_cannot_be_written_exits_2() {
+  for question in ["--help", "--version"] {
+    let output = emit_with_stdout_full(&[question]);
+    let stderr = stderr_of(&output);
+
+    assert_eq!(code_of(&output), 2, "{question}: {stderr}");
+    let last = stderr.lines().last().unwrap_or_default();
+    assert!(last.starts_with("goad-emit: "), "{question}: {stderr}");
+  }
 }
 
 /// PHASE-04/VT-1, AC-1. Exit 0, and **nothing on either stream**: a cron job

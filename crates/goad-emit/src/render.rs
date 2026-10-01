@@ -168,6 +168,15 @@ pub(crate) fn startup_error_line(error: &StartupFault) -> String {
   }
 }
 
+/// A `--help` or `--version` answer that standard output refused. The
+/// question went unanswered, so this is a fault, on stderr, in the words
+/// `crates/goad`'s `StartupError::AnswerUnwritten` uses for the host: one
+/// rule for the edge across the binaries (`design.md` §5.2.5).
+#[must_use]
+pub(crate) fn answer_unwritten_line(fault: &std::io::Error) -> String {
+  format!("goad-emit: the answer could not be written to standard output: {fault}")
+}
+
 #[cfg(test)]
 mod tests {
   use std::path::Path;
