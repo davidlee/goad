@@ -582,3 +582,22 @@ other, citing the finding id.
   names `Requirement::R56`; I-1 and its grep match the constant's spelling as
   well as `R-N`. `plan.md` PHASE-01, PHASE-08/VT-1, PHASE-12/EX-3 and VA-1,
   and *Invariant reads* follow.
+
+### 2026-10-01 — the drawn number has one home: `NumberRange::drawn` (PHASE-02 sheet)
+
+- **Asked:** the PHASE-02 sheet (ccefdaa, PLAN QUESTION 2): `view_model::drawn_number`
+  (minimum or zero) has two callers — `as_drawn`, which §5.2.4 delegates to
+  `Submitted::as_drawn`, and `interpret`'s fallback for unparseable text on an
+  untouched number field. Delegating only the first states the rule twice.
+  Options: (a) `interpret` reads the number back out of `as_drawn(kind)`,
+  with an unreachable default arm; (b) stratum 1 gains
+  `NumberRange::drawn(&self) -> Finite`, called by `Submitted::as_drawn`'s
+  number arm and by `interpret`, and `drawn_number` is deleted; (c) keep
+  `drawn_number`, stating the rule twice.
+- **Recommended:** (b) — the sheet recommended (a); the orchestrator
+  recommended (b): one home, named for what it is, no unreachable arm, on a
+  type that already lives in stratum 1. New public API, so a design change.
+- **Decided:** *"yes"* to (b).
+- **Consequence:** `design.md` §5.2.4 names `NumberRange::drawn`; `plan.md`
+  PHASE-02 (EX-3, VT-2) follows; `drawn_number`'s doc (the `max: -10`
+  consequence and CD-1) moves with the rule.

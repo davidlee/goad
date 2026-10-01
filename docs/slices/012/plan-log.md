@@ -159,3 +159,23 @@ multi-target work and `goad-walk`'s registration, both outside this slice.
 - **Consequence:** PHASE-01's Notes corrected; the sheet's tasks follow.
   `Requirement`'s constants: `design-log.md` 2026-10-01, *`Requirement` is
   built from named constants*.
+
+### 2026-10-01 — PHASE-02 sheet questions
+
+- **Asked:** the PHASE-02 sheet (ccefdaa) raised three PLAN QUESTIONs.
+  - **1 — EX-6's `"host"` rule.** Two non-test literals remain by
+    construction: `HOST_SOURCE`'s own definition, and `AtFault::Host`'s
+    printed word, which PHASE-01 added after F-9 scoped the rule. Same
+    spelling, different meanings. Proposed: EX-6 admits exactly those two,
+    each read and recorded; `AtFault` is not routed through `HOST_SOURCE`.
+  - **2 — the drawn number.** `design-log.md` 2026-10-01, *the drawn number
+    has one home: `NumberRange::drawn`*.
+  - **3 — VT-2's overlapping names.** The moved
+    `each_kind_submits_the_json_type_r_57_names` becomes
+    `every_submitted_kind_writes_the_json_type_r57_names` (the name
+    `canon-delta.md` already cites) and gains the boolean clause; no
+    second case asserting the same types.
+- **Recommended:** 1 as proposed; 2 (b); 3 as proposed.
+- **Decided:** *"yes"*.
+- **Consequence:** `plan.md` PHASE-02 EX-3, EX-6, VT-2 amended; the sheet's
+  blocked tasks unblocked.
