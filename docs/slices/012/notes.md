@@ -1716,36 +1716,49 @@ paths, so `just check` is never red at a commit.
         reports no broken link (the three warnings it prints are pre-existing
         private-item links).*
 - **3. `goad-emit`'s unwritten answer (EX-4, VT-1)**
-  - [ ] Run the exit grep first (§Harvest *Learned*): `grep -rn
+  - [x] Run the exit grep first (§Harvest *Learned*): `grep -rn
         'an_answer_that_cannot_be_written_exits_2' crates` finds only `goad`'s
         `exit_codes.rs` case and the doc in
-        `crates/goad/tests/renderer/startup.rs` that cites it.
-  - [ ] VT-1 in `exchange.rs` (quoted): *"`an_answer_that_cannot_be_written_exits_2`
+        `crates/goad/tests/renderer/startup.rs` that cites it. *As stated:
+        `goad`'s `exit_codes.rs` definition and the `renderer/startup.rs`
+        doc citing it; nothing else.*
+  - [x] VT-1 in `exchange.rs` (quoted): *"`an_answer_that_cannot_be_written_exits_2`
         (`--help` and `--version`, stdout on `/dev/full`; status 2; the last
         stderr line begins `goad-emit: `), modelled on `goad`'s
         `exit_codes.rs` case of the same name; seen red before `main.rs`
         changes."* Add an `emit_with_stdout_full` helper beside `emit` (A-V7).
         Assert on the **last** line of stderr, as canon-delta's R-14 row
         says, not on `starts_with` over the whole stream. Red: status 0 on
-        each question (A-V3). Record the failure message.
-  - [ ] The stderr line is composed in `render`, beside its siblings,
+        each question (A-V3). Record the failure message. *Red, compiling,
+        before `main.rs` changed: `assertion left == right failed: --help:`,
+        `left: 0`, `right: 2`, empty stderr; 9 passed, 1 failed. The loop
+        stops at `--help`; mutation row 2 shows the `--version` iteration
+        reds on its own.*
+  - [x] The stderr line is composed in `render`, beside its siblings,
         beginning `goad-emit: ` and interpolating the `io::Error` as its
         siblings interpolate theirs (`format!`, `{fault}`). Spell it as `goad`'s
         `StartupError::AnswerUnwritten` reads (*"the answer could not be
         written to standard output: …"*). One rule for the edge (§5.2.5).
-  - [ ] `main`'s `Invocation::Help` and `Invocation::Version` arms write
+        *`render::answer_unwritten_line`. Observed: `goad-emit --help >
+        /dev/full` and `--version > /dev/full` each print `goad-emit: the
+        answer could not be written to standard output: No space left on
+        device (os error 28)` and exit 2.*
+  - [x] `main`'s `Invocation::Help` and `Invocation::Version` arms write
         through `report::try_line_to` on `std::io::stdout().lock()`. On `Err`,
         write the line through `to_stderr` and return `ExitCode::from(2)`.
         EX-4 (quoted): *"an unwritten answer exits 2 with a `goad-emit: …`
         line on stderr."* `to_stdout` then has no caller; delete it rather
         than leave `dead_code`. Green: VT-1, and every other `exchange.rs`
-        case unchanged.
-  - [ ] Not a `StartupFault` variant: that type is *why the envelope never
+        case unchanged. *Both arms call one private `answer(line) ->
+        ExitCode` (D-1); `to_stdout` deleted. `goad-emit` unit 34 passed,
+        binary 10 passed.*
+  - [x] Not a `StartupFault` variant: that type is *why the envelope never
         left*, and a question sends no envelope. A local decision; record it.
-  - [ ] `exchange.rs`' module doc says *"the nine cases"*. Replace the count
+        *D-2, and in `answer`'s doc.*
+  - [x] `exchange.rs`' module doc says *"the nine cases"*. Replace the count
         with what the file holds (*"the spawn helpers, the fake listener, and
         the cases"*). Name, never count.
-  - [ ] `main`'s doc (*"Three exit codes … 2 emit got no usable answer — a
+  - [x] `main`'s doc (*"Three exit codes … 2 emit got no usable answer — a
         usage error, …"*) gains the unwritten answer among 2's causes.
 - **4. The rename (EX-1, EX-2, EX-3, VT-2, VA-1, VA-2)** — one commit.
   - [ ] `git mv examples exercisers`.
@@ -1856,17 +1869,32 @@ the scratchpad backup back, `git status --short` empty after.
 
 | edit | cases it must red | compiled? | redded |
 |---|---|---|---|
-| 1. `goad-emit` `main`, `Invocation::Help` arm: `match try_line_to(std::io::stdout().lock(), render::USAGE) { Ok(()) \| Err(_) => ExitCode::SUCCESS }` | `exchange::an_answer_that_cannot_be_written_exits_2` (its `--help` iteration) | | |
-| 2. The same for the `Invocation::Version` arm | `exchange::an_answer_that_cannot_be_written_exits_2` (its `--version` iteration). With row 1, shows each question is held, not only the first | | |
-| 3. `config.rs` `signed`: drop `resolved.is_zero() \|\|` | VT-3's `0s` clause; `a_zero_timeout_is_rejected_because_it_fails_every_exchange`; `a_zero_default_poll_is_rejected_because_it_is_a_busy_loop` | | |
-| 4. `positive_duration`'s parameter spelled `_key`, and `signed` called with `"backend.timeout"` | VT-3 only, on its key. The existing configuration cases pass `"backend.timeout"`, so they stay green | | |
-| 5. `render`'s unwritten-answer line drops its `goad-emit: ` prefix | `exchange::an_answer_that_cannot_be_written_exits_2` | | |
+| 1. `goad-emit` `main`, `Invocation::Help` arm: `match try_line_to(std::io::stdout().lock(), render::USAGE) { Ok(()) \| Err(_) => ExitCode::SUCCESS }` | `exchange::an_answer_that_cannot_be_written_exits_2` (its `--help` iteration) | yes | `exchange::an_answer_that_cannot_be_written_exits_2` alone, *"--help: left: 0, right: 2"*; every other `test result` `0 failed`. Restored by copy. Run before the task's commit, so `git status` showed the task's own edits; the file matched its backup |
+| 2. The same for the `Invocation::Version` arm | `exchange::an_answer_that_cannot_be_written_exits_2` (its `--version` iteration). With row 1, shows each question is held, not only the first | yes | `exchange::an_answer_that_cannot_be_written_exits_2` alone, *"--version: left: 0, right: 2"*: the `--help` iteration passed first. Restored; `git status --short` empty |
+| 3. `config.rs` `signed`: drop `resolved.is_zero() \|\|` | VT-3's `0s` clause; `a_zero_timeout_is_rejected_because_it_fails_every_exchange`; `a_zero_default_poll_is_rejected_because_it_is_a_busy_loop` | yes | the three named, and no other; VT-3's message *"0s was not refused as non-positive under its key: Ok(0ns)"*. Restored; `git status --short` empty |
+| 4. `positive_duration`'s parameter spelled `_key`, and `signed` called with `"backend.timeout"` | VT-3 only, on its key. The existing configuration cases pass `"backend.timeout"`, so they stay green | yes | VT-3 alone: *"0s was not refused as non-positive under its key: Err(NonPositive { key: "backend.timeout" })"*. Restored; `git status --short` empty |
+| 5. `render`'s unwritten-answer line drops its `goad-emit: ` prefix | `exchange::an_answer_that_cannot_be_written_exits_2` | yes | that case alone, on its last-line assertion: *"--help: the answer could not be written to standard output: No space left on device (os error 28)"*. Restored; `git status --short` empty |
 | 6. expected **not** to red: `goad_shell::version::version_line` ignores `_version` and formats `env!("CARGO_PKG_VERSION")` | none expected: `goad-shell`'s version equals both binaries' (A-V1). Recording it shows EX-8's parameter is held by review and task 2's grep, not by a test | yes | none, as predicted: every `test result` line `0 failed`. Restored by copy; `version.rs` matches its backup |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
      changes the design is not one of these — stop, consult the user, and record
      it in `design-log.md`. -->
+
+- **D-1 — one `answer` in `goad-emit`'s `main`.** Both question arms call a
+  private `answer(line) -> ExitCode`: `try_line_to` on stdout, 0 on `Ok`, and
+  on `Err` the `render::answer_unwritten_line` through `to_stderr` and 2. The
+  sheet's two-arm wording would have spelled the `Err` branch twice. The
+  mutation rows replace an arm's `answer(…)` call with the stated `match`,
+  which compiles.
+- **D-2 — not a `StartupFault` variant**, as the sheet says: that type is why
+  the envelope never left, and a question sends no envelope. Said in
+  `answer`'s doc.
+- **D-3 — VT-3's name** is
+  `positive_duration_refuses_a_zero_and_a_negative_span_under_the_key_it_is_given`.
+  No document commits one.
+- **D-4 — `version.rs`' doc cites `crates/goad`'s `build.rs`** for the
+  *set-but-empty* rule, not a bare `build.rs`: `goad-shell` has none.
 
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
