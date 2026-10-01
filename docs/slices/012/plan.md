@@ -25,7 +25,8 @@ and gated; then it is walked.
   witnesses, red on the fixtures whose lists §5.2.3 corrects and green after.
 - **PHASE-02 — the host's kinds and R-57 values live in stratum 1.**
   `Stimulus`, `Submitted`, `Finite` and `Submitted::as_drawn` move or are
-  lifted to `goad_semantics::protocol::canonical`; `goad` delegates
+  lifted to `goad_semantics::protocol::canonical`, with
+  `NumberRange::drawn` the one home of the drawn number; `goad` delegates
   (`design.md` §5.2.4).
 - **PHASE-03 — the ground the checker stands on.** `examples/` becomes
   `exercisers/` (`design.md` §5.2.7); `goad-emit`'s unwritten answer exits 2
@@ -354,7 +355,10 @@ kind each have one encoding, in `goad_semantics::protocol::canonical`, and
 the delegation only); `crates/goad/tests/` (imports of `Stimulus`);
 `crates/goad/Cargo.toml` (its dependency comment only);
 `crates/goad-shell/src/ingress/envelope.rs` (`HOST_SOURCE`, `plan-log.md`
-PL-2); `canon-delta.md` (test names only).
+PL-2); `canon-delta.md` (test names only). `NumberRange::drawn` and its test
+land in `canonical.rs`, and `drawn_number` leaves `view_model.rs`, both
+listed. `goad_semantics::error` (`AtFault::Host`'s word) is read for EX-6,
+not edited.
 
 **Entry**
 - EN-1 — PHASE-01 done (PHASE-01..PHASE-03 run in sequence, §Sequencing).
@@ -377,13 +381,26 @@ PL-2); `canon-delta.md` (test names only).
   private `as_edited` beside `adjusted` that spells a number through
   `adjusted`, so `adjusted`'s doc stays true; `draft.rs` still imports nothing
   from `view_model`; and `view_model::untouched` still shows what `as_drawn`
-  submits (P-3).
+  submits (P-3). `NumberRange::drawn` is the one statement of the drawn
+  number — its minimum, or zero — called by `Submitted::as_drawn`'s number arm
+  and by `view_model::interpret`'s untouched fallback; `view_model::drawn_number`
+  is gone, and its doc (the `max: -10` consequence, the pointer to slice 007's CD-1) is on
+  `NumberRange::drawn` (`design.md` §5.2.4; `design-log.md` 2026-10-01, *the
+  drawn number has one home: `NumberRange::drawn`*). `grep -rn 'drawn_number'
+  crates` finds nothing; `grep -rn 'min()' crates/*/src`, each hit read and
+  recorded, finds no second minimum-or-zero rule — outside tests and
+  `NumberRange`'s own `impl`, the only reader of the minimum is
+  `view_model::slider_bounds`, which defaults nothing.
 - EX-6 — `HOST_SOURCE` is a `pub const` beside `Stimulus`; `Stimulus::event`
   and `envelope.rs`' `ReservedSource` check both name it. Outside comments and
-  `#[cfg(test)]` modules, no `"host"` string literal remains in
-  `crates/*/src`: `grep -rn '"host"' crates/*/src`, each hit read and
-  recorded as a comment or a test (PL-2). Tests keep the literal: they witness
-  the wire spelling, and are not a second encoding of it.
+  `#[cfg(test)]` modules, exactly two `"host"` string literals remain in
+  `crates/*/src`: `HOST_SOURCE`'s own definition, and `AtFault::Host`'s
+  printed word in `AtFault`'s `Display` — a side, not the reserved source, so
+  it is not routed through `HOST_SOURCE`. `grep -rn '"host"' crates/*/src`,
+  each hit read and recorded as a comment, a test, `HOST_SOURCE`'s definition
+  or `AtFault::Host`'s word, and nothing else (PL-2; `plan-log.md` 2026-10-01,
+  *PHASE-02 sheet questions*, 1). Tests keep the literal: they witness the
+  wire spelling, and are not a second encoding of it.
 - EX-7 — `DrawnKind::Choice` has no `first`; its stale doc goes with it
   (PL-3).
 - EX-4 — `goad`'s renderer tier is green unchanged: `fields.rs`'s R-57/R-58
@@ -401,13 +418,19 @@ PL-2); `canon-delta.md` (test names only).
 - VT-1 — `canonical.rs` tests: `a_scheduled_stimulus_names_itself_scheduled`
   and `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`,
   moved verbatim.
-- VT-2 — `canonical.rs`: `every_submitted_kind_writes_the_json_type_r57_names`;
-  `draft.rs`' value tests moved against `Submitted`
+- VT-2 — `canonical.rs`: `draft.rs`' value tests moved against `Submitted`
   (`a_boolean_field_submits_a_json_boolean`,
   `a_finite_refuses_every_number_json_cannot_carry`,
-  `a_picked_datetime_submits_the_offset_it_was_picked_in` and the rest of that
-  group); `an_as_drawn_choice_submits_the_first_alternative` and a sibling per
-  kind, including the `number` min-or-zero and `datetime` epoch cases.
+  `a_picked_datetime_submits_the_offset_it_was_picked_in`), and
+  `each_kind_submits_the_json_type_r_57_names` moved as
+  `every_submitted_kind_writes_the_json_type_r57_names`, gaining the
+  `boolean` clause so it covers every `Submitted` variant — one case, not a
+  second asserting the same types (`plan-log.md` 2026-10-01, *PHASE-02 sheet
+  questions*, 3); `an_untouched_number_is_drawn_at_its_minimum_or_zero`, over
+  `NumberRange::drawn` (a declared minimum, no bounds, and `max: -10` with no
+  `min`); `an_as_drawn_choice_submits_the_first_alternative` and a sibling per
+  kind, including the `number` case (the minimum, or zero, through
+  `NumberRange::drawn`) and the `datetime` epoch case.
 - VT-3 — `draft.rs`: `the_projection_to_submitted_is_the_identity_on_each_kind`.
 - VT-4 — `view_model.rs`:
   `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`, the

@@ -865,9 +865,13 @@ run but `just check`)
   `canon-delta.md` in the same commit and say so here (*Test names are
   commitments*). Not a STOP, but never silent.
 - A file outside **Surfaces**.
-- [!] **PLAN QUESTION 1** unanswered when EX-6's grep is recorded.
-- [!] **PLAN QUESTION 2** unanswered when the delegation task starts.
-- [!] **PLAN QUESTION 3** unanswered when the value tests move.
+- ~~**PLAN QUESTION 1** unanswered when EX-6's grep is recorded.~~
+  Resolved: `plan-log.md` 2026-10-01, *PHASE-02 sheet questions*, 1.
+- ~~**PLAN QUESTION 2** unanswered when the delegation task starts.~~
+  Resolved: `design-log.md` 2026-10-01, *the drawn number has one home:
+  `NumberRange::drawn`*.
+- ~~**PLAN QUESTION 3** unanswered when the value tests move.~~
+  Resolved: `plan-log.md` 2026-10-01, *PHASE-02 sheet questions*, 3.
 
 **Tasks** — the plan gives no red-first order for this phase beyond PL-3's
 placement of EX-7. The order below makes every new case red by a compiling
@@ -901,9 +905,12 @@ on it.
         encoding of it"*).
   - [ ] EX-1's grep: `grep -rn '"startup"\|"requested"\|"scheduled"'
         crates/goad/src` — no hit. Record it.
-  - [!] EX-6's grep (quoted command): `grep -rn '"host"' crates/*/src`, each
-        hit read and recorded as a comment or a test. **It cannot come out
-        as worded** — PLAN QUESTION 1. Record every hit regardless.
+  - [ ] EX-6's grep (quoted, as amended by PLAN QUESTION 1's resolution):
+        *"`grep -rn '"host"' crates/*/src`, each hit read and recorded as a
+        comment, a test, `HOST_SOURCE`'s definition or `AtFault::Host`'s
+        word, and nothing else"*. Record every hit with its class.
+        `AtFault`'s `Display` keeps its literal; it is not routed through
+        `HOST_SOURCE`.
 - **2. `Finite` and `Submitted::to_json` (EX-2, VT-2's value half)**
   - [ ] Move `Finite` into `canonical.rs` *"unchanged, together with its doc
         on why it has no `Eq`"* (`design.md` §5.2.4; see Findings on that
@@ -912,10 +919,15 @@ on it.
         `Number(Finite)`, `Choice(AlternativeId)`, and `DateTime { instant:
         Timestamp, offset: Offset }`"* — and `Submitted::to_json(&self) ->
         serde_json::Value` with a `todo!()` body.
-  - [!] Move `draft.rs`' value tests into `canonical.rs` against
-        `Submitted`, and write `every_submitted_kind_writes_the_json_type_r57_names`
-        — which of the moved cases it is, if any, is PLAN QUESTION 3.
-        `a_finite_refuses_every_number_json_cannot_carry` moves with
+  - [ ] Move `draft.rs`' value tests into `canonical.rs` against
+        `Submitted` (VT-2, as amended by PLAN QUESTION 3's resolution,
+        quoted): *"`each_kind_submits_the_json_type_r_57_names` moved as
+        `every_submitted_kind_writes_the_json_type_r57_names`, gaining the
+        `boolean` clause so it covers every `Submitted` variant — one case,
+        not a second asserting the same types"*.
+        `a_boolean_field_submits_a_json_boolean` and
+        `a_picked_datetime_submits_the_offset_it_was_picked_in` move as
+        named. `a_finite_refuses_every_number_json_cannot_carry` moves with
         `Finite` and is green on arrival. See the rest red against the stub.
   - [ ] `Submitted::to_json`'s body is today's `draft::submitted` body over
         `Submitted` (`design.md` §5.2.4), its comments moved with their
@@ -930,16 +942,25 @@ on it.
         (quoted) *"`edited.submitted().to_json()`"*. Green; renderer tier
         green.
 - **4. `Submitted::as_drawn` (EX-3's first half, VT-2's as-drawn half)**
+  - [ ] `NumberRange::drawn(&self) -> Finite` with a `todo!()` body; write
+        `an_untouched_number_is_drawn_at_its_minimum_or_zero` in
+        `canonical.rs` (VT-2, quoted: *"a declared minimum, no bounds, and
+        `max: -10` with no `min`"*), each expectation a literal. Red.
+        Implement it as `drawn_number`'s body, and move `drawn_number`'s doc
+        onto it (the `max: -10` consequence, the CD-1 pointer; `design.md`
+        §5.2.4). Green.
   - [ ] `Submitted::as_drawn(&FieldKind) -> Submitted` with a `todo!()`
         body; write `an_as_drawn_choice_submits_the_first_alternative` and a
-        sibling per kind (quoted: *"including the `number` min-or-zero and
-        `datetime` epoch cases"*; the `max: -10`, no-`min` case is §5.5's
+        sibling per kind (quoted, VT-2 as amended: *"including the `number`
+        case (the minimum, or zero, through `NumberRange::drawn`) and the
+        `datetime` epoch case"*; the `max: -10`, no-`min` case is §5.5's
         edge and belongs here). Each expectation is a literal from the
         fixture or §5.2.4's list, never the expression the code computes
         (*tests-asserting-proxies*). Red.
   - [ ] Implement: *"`false`, `""`, the minimum or `0`, the first
-        alternative, and the epoch at `+00:00`"*, the choice arm over
-        `Alternatives::first` (F-25). Green.
+        alternative, and the epoch at `+00:00`"*, the number arm calling
+        `NumberRange::drawn`, the choice arm over `Alternatives::first`
+        (F-25). Green.
 - **5. The delegation (EX-3, VT-4)**
   - [ ] Private `as_edited(Submitted) -> Edited` beside `adjusted`, with a
         `todo!()` body; write
@@ -951,8 +972,17 @@ on it.
         through `as_edited`. `as_drawn_answers_every_kind`,
         `an_untouched_field_submits_what_canon_delta_cd_1_states` and the
         renderer tier green unchanged.
-  - [!] `interpret`'s untouched-number fallback, and with it
-        `drawn_number` — PLAN QUESTION 2.
+  - [ ] `interpret`'s untouched-number fallback calls `NumberRange::drawn`,
+        and `drawn_number` is deleted (EX-3 as amended by PLAN QUESTION 2's
+        resolution, quoted: *"`NumberRange::drawn` is the one statement of
+        the drawn number — its minimum, or zero — called by
+        `Submitted::as_drawn`'s number arm and by `view_model::interpret`'s
+        untouched fallback; `view_model::drawn_number` is gone"*).
+        `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing`
+        green unchanged.
+  - [ ] EX-3's greps (quoted): *"`grep -rn 'drawn_number' crates` finds
+        nothing; `grep -rn 'min()' crates/*/src`, each hit read and
+        recorded, finds no second minimum-or-zero rule"*. Record each hit.
 - **Refactor**
   - [ ] EX-7 (PL-3): `DrawnKind::Choice` loses `first` and *"its stale doc
         goes with it"*. `drawn_form`'s `Choice` arm and its comment (which
@@ -1019,6 +1049,7 @@ otherwise shows a new case can fail.
 | VA-2, **only if a new file was created under `crates/goad-semantics/src`**: a `std::fs` call planted in that file, in code that compiles (e.g. `let _ = std::fs::metadata(".");` in a function body) | `the_real_stratum_1_source_names_none_of_the_nine`. Compilable as worded: `std::fs` resolves in stratum 1, which is why the scan exists. If no file was created, this row reads *not applicable*, with VA-2's record. | | |
 | optional: `Submitted::to_json`'s `Number` arm writes `Value::String(number.get().to_string())` | `every_submitted_kind_writes_the_json_type_r57_names`; through `draft::submitted`, `an_untouched_field_submits_what_canon_delta_cd_1_states` and the renderer tier's `every_untouched_kind_leaves_the_host_with_the_json_type_r57_names` | | |
 | optional: `Submitted::as_drawn`'s `Choice` arm takes the last alternative (`alternatives.as_slice().last()`, falling back to `first()` to stay total) | `an_as_drawn_choice_submits_the_first_alternative`; `as_drawn_answers_every_kind` after EX-4 — the case EX-4's literal exists to make fail; `an_untouched_field_submits_what_canon_delta_cd_1_states` | | |
+| `NumberRange::drawn` returns `Finite::ZERO`, ignoring the minimum | `an_untouched_number_is_drawn_at_its_minimum_or_zero`; through `interpret`, `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing` | | |
 | optional, expected **not** to red: `as_edited`'s number arm builds `Edited::Adjusted { text: number.get().to_string(), number }`, bypassing `adjusted` | none expected: VT-4's round trip discards the text, and every spelled number in the tests is under 24 characters, where `spelled` and `to_string` agree. Recording it shows EX-3's *"through `adjusted`"* is held by review | | |
 
 **Decisions taken during execution**
@@ -1032,7 +1063,9 @@ otherwise shows a new case can fail.
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
 
-- **PLAN QUESTION 1 — EX-6's `"host"` rule cannot be met as worded.** EX-6
+- **PLAN QUESTION 1 — EX-6's `"host"` rule cannot be met as worded.**
+  **Resolved** as recommended, (a): `plan-log.md` 2026-10-01, *PHASE-02
+  sheet questions*, 1; `plan.md` EX-6 amended. As raised: EX-6
   says *"Outside comments and `#[cfg(test)]` modules, no `"host"` string
   literal remains in `crates/*/src` … each hit read and recorded as a comment
   or a test."* Production hits remain by construction, and none is a
@@ -1051,8 +1084,11 @@ otherwise shows a new case can fail.
   recommended. **Recommendation: (a).** PHASE-12's I-1 grep is over
   `crates/goad-check/src` only and is unaffected.
 - **PLAN QUESTION 2 — `interpret` restates the untouched number.**
-  EX-3 says *"`Submitted::as_drawn` is the one statement of the untouched-value
-  policy"*. `drawn_number` (min-or-zero, with the doc that states the
+  **Resolved** as (b), not the recommended (a): `NumberRange::drawn`
+  (`design-log.md` 2026-10-01, *the drawn number has one home:
+  `NumberRange::drawn`*); `design.md` §5.2.4 and `plan.md` EX-3, VT-2
+  amended. As raised: EX-3 says *"`Submitted::as_drawn` is the one
+  statement of the untouched-value policy"*. `drawn_number` (min-or-zero, with the doc that states the
   `max: -10` consequence) has two callers: `as_drawn`'s number arm, which the
   delegation replaces, and `interpret`'s `Reported::AdjustedText` fallback for
   an untouched field (*"the number it was drawn showing"*, held by
@@ -1075,8 +1111,9 @@ otherwise shows a new case can fail.
   holds it unchanged.
 - **PLAN QUESTION 3 — is `every_submitted_kind_writes_the_json_type_r57_names`
   a new case or the moved `each_kind_submits_the_json_type_r_57_names`?**
-  VT-2 names both *"`every_submitted_kind_writes_the_json_type_r57_names`"*
-  and *"`draft.rs`' value tests moved … and the rest of that group"*. The rest
+  **Resolved** as recommended, (a): `plan-log.md` 2026-10-01, *PHASE-02
+  sheet questions*, 3; `plan.md` VT-2 amended. As raised: VT-2 names both
+  *"`every_submitted_kind_writes_the_json_type_r57_names`"* and *"`draft.rs`' value tests moved … and the rest of that group"*. The rest
   of that group is `each_kind_submits_the_json_type_r_57_names`, which
   asserts the JSON type of every kind but `boolean`; `canon-delta.md` Change 4 cites only
   the new name. Moving both would assert the same types twice. Options:

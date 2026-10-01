@@ -586,6 +586,26 @@ agree with the code.
     `DrawnKind::Choice.first` then has no job left, and its removal is a
     refactor-step candidate; its doc, which says `.first()` is an `Option`,
     is already stale.
+- **`NumberRange::drawn(&self) -> Finite`**, in stratum 1, beside
+  `NumberRange::min`. This is the number an untouched `number` field is drawn
+  showing: its declared minimum, or zero where none was declared. It is the
+  one statement of that rule (`design-log.md` 2026-10-01, *the drawn number
+  has one home: `NumberRange::drawn`*).
+  - It has two callers: `Submitted::as_drawn`'s number arm, and
+    `view_model::interpret`'s fallback for a text that does not parse on a
+    field nobody has touched. `view_model::drawn_number` is deleted.
+  - Its doc moves with the rule from `drawn_number`: a range carrying only a
+    `max` is legal, so `max: -10` and no `min` is drawn showing, and submits,
+    `0` (§5.5). That is not a defect — R-35 puts acceptability in the
+    backend, and R-58 requires a value for every drawn field — and it is why
+    slice 007's `canon-delta.md` CD-1 (the JSON type of a submitted field
+    value) states it.
+  - Held by a unit test in `canonical.rs`,
+    `an_untouched_number_is_drawn_at_its_minimum_or_zero`, over a declared
+    minimum, no bounds, and `max: -10` with no `min`; and, through
+    `interpret`, by `view_model.rs`'
+    `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing`,
+    unchanged.
 - **Opportunity, not required:** the reserved source `"host"` is spelled in
   `Stimulus::event` and again in `envelope.rs`'s `ReservedSource` check. A
   `pub const HOST_SOURCE` beside `Stimulus` would make it one encoding. It is
@@ -1282,7 +1302,8 @@ Red/green per behaviour. Tests are named by behaviour.
 - `canonical.rs`: the moved `Stimulus` tests;
   `every_submitted_kind_writes_the_json_type_r57_names`; the moved `draft.rs`
   value tests; `an_as_drawn_choice_submits_the_first_alternative` and siblings
-  *(OQ-2 a)*.
+  *(OQ-2 a)*; `an_untouched_number_is_drawn_at_its_minimum_or_zero`, over
+  `NumberRange::drawn` (§5.2.4).
 
 **Stratum 2 (`goad-shell`)**
 - `error.rs`: `every_backend_error_names_a_requirement_and_a_side`, and
@@ -1293,7 +1314,9 @@ Red/green per behaviour. Tests are named by behaviour.
 - `view_model.rs`:
   `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind`, the
   round trip `Submitted` → `Edited` → `Submitted` through the private
-  `as_edited` (§5.2.4).
+  `as_edited` (§5.2.4);
+  `an_untouched_numeric_field_falls_back_to_what_it_was_drawn_showing`,
+  unchanged, now over `NumberRange::drawn`.
 - The existing renderer-tier R-57/R-58 tests stay green unchanged.
 
 **Shared test support** (§5.2.6)
