@@ -8,7 +8,7 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending | 2026-10-01 |
+| PHASE-01 | in progress | 2026-10-01 |
 | PHASE-02 | pending | 2026-10-01 |
 | PHASE-03 | pending | 2026-10-01 |
 | PHASE-04 | pending | 2026-10-01 |
@@ -261,31 +261,39 @@ on exactly EX-4's fixtures (EX-5). 3. The list corrections (EX-4); the refusal
 witness goes green. 4. `fault()`, stratum 2's `requirement()` and `fault()`
 (VT-2), and `AtFault`'s `Display`; VT-1's tables gain their side column."*
 
-- [ ] Set PHASE-01 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline`; it must be 7b549d4 or a descendant whose
+- [x] Set PHASE-01 to `in progress` in §Status.
+- [x] Print `git log -1 --oneline`; it must be 7b549d4 or a descendant whose
       only changes since are this sheet and the documents its two PLAN
       QUESTIONs' resolutions amended (`design.md`, `plan.md`, the two logs).
+      *7bd5cf4 012: Requirement constants; R-56 from stratum 1; PHASE-01
+      order* — descendants since 7b549d4 touch only `notes.md`, `design.md`,
+      `plan.md`, `design-log.md`, `plan-log.md`.
 - **1. `Requirement`, its constants and stratum 1's `requirement()`, red by
   VT-1**
-  - [ ] EX-1 (quoted, its `Requirement` half): *"`Requirement`'s field is
+  - [x] EX-1 (quoted, its `Requirement` half): *"`Requirement`'s field is
         private, it has no constructor, and it has exactly the associated
         constants §5.2.3 lists: `R3`, `R10`, `R12`, `R13`, `R14`, `R16`,
         `R17`, `R18`, `R21`, `R22`, `R23`, `R25`, `R32`, `R40`, `R41`, `R43`,
         `R44`, `R45`, `R48`, `R50`, `R52`, `R53` — one per id the table
         answers — and `R56`, for the checker's claim"*. Its `Display` prints
         `R-N` (A-V7).
-  - [ ] VT-1, requirement column: extend `every_protocol_error` (A-V8);
+  - [x] VT-1, requirement column: extend `every_protocol_error` (A-V8);
         write `every_protocol_error_names_a_requirement_and_a_side` and the
         bounds and schedule siblings beside `must_name` — each an exhaustive
         `match` whose expected id is copied from §5.2.3's table, not from the
         code (*tests-asserting-proxies*), and, quoted, *"spelled as the table
         spells it (`"R-44"`) and compared with `Requirement`'s `Display`, so a
         constant whose value disagrees with its name reds it"*. See them red.
-  - [ ] Stratum 1, in `goad_semantics::error`: `requirement()` on
+  - [x] Stratum 1, in `goad_semantics::error`: `requirement()` on
         `ProtocolError`, `BoundsError`, `ScheduleError` (EX-2), each a total
         `match` with no `_` arm naming a `Requirement` constant,
         `InapplicableKey` split on `key`, `Bounds` and `Schedule` delegating.
         VT-1's requirement column green.
+        *Done.* Red: the three tables compiled against `todo!()` bodies and
+        failed by panic (a compiling red, *negative-control-must-compile*);
+        green with the arms. The expected ids live in `protocol_row`,
+        `bounds_row`, `schedule_row` in `error.rs`' `mod tests`, each an
+        exhaustive match returning the table's spelling.
 - **2. Witnesses, red (EX-5)**
   - [ ] `normalize.rs`: give `fixtures_of` the fixture's path (A-V4); reach
         the schedule corpus through `runner.rs` by the narrowest edit (A-V3).

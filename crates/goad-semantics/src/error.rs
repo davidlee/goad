@@ -11,6 +11,50 @@
 
 use std::fmt;
 
+/// A SPEC-001 requirement id: the one a refusal names (SPEC-001/R-59). Displays
+/// as `R-44`; a report prefixes the spec.
+///
+/// Built only from the associated constants below: the field is private and
+/// there is no constructor, so no crate mints an id. The list is `design.md`
+/// §5.2.3's — one per id its table answers, and `R56` for the checker's claim.
+/// Nothing but review holds a surplus constant: a `pub` item is never dead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Requirement(u16);
+
+impl Requirement {
+  pub const R3: Requirement = Requirement(3);
+  pub const R10: Requirement = Requirement(10);
+  pub const R12: Requirement = Requirement(12);
+  pub const R13: Requirement = Requirement(13);
+  pub const R14: Requirement = Requirement(14);
+  pub const R16: Requirement = Requirement(16);
+  pub const R17: Requirement = Requirement(17);
+  pub const R18: Requirement = Requirement(18);
+  pub const R21: Requirement = Requirement(21);
+  pub const R22: Requirement = Requirement(22);
+  pub const R23: Requirement = Requirement(23);
+  pub const R25: Requirement = Requirement(25);
+  pub const R32: Requirement = Requirement(32);
+  pub const R40: Requirement = Requirement(40);
+  pub const R41: Requirement = Requirement(41);
+  pub const R43: Requirement = Requirement(43);
+  pub const R44: Requirement = Requirement(44);
+  pub const R45: Requirement = Requirement(45);
+  pub const R48: Requirement = Requirement(48);
+  pub const R50: Requirement = Requirement(50);
+  pub const R52: Requirement = Requirement(52);
+  pub const R53: Requirement = Requirement(53);
+  /// The checker's claim against a backend that fails on a kind it does not
+  /// recognise. No taxonomy arm answers it.
+  pub const R56: Requirement = Requirement(56);
+}
+
+impl fmt::Display for Requirement {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "R-{}", self.0)
+  }
+}
+
 /// The name a diagnostic gives a JSON value's type. `&'static str` by
 /// construction, so a message names a type and never formats the offending
 /// value. The one such table in the workspace: `NotAString` reports it and
@@ -145,6 +189,60 @@ pub enum SpanFault {
   CalendarUnit(jiff::Error),
   /// Not a span at all, or one whose magnitude the grammar's unit bound refuses.
   Unparseable(jiff::Error),
+}
+
+impl ProtocolError {
+  /// The requirement this kind of refusal names (SPEC-001/R-59; `design.md`
+  /// §5.2.3). Fixed by the kind, never by the instance — except
+  /// `InapplicableKey`, whose `fields` case is R-53's own refusal.
+  #[must_use]
+  pub fn requirement(&self) -> Requirement {
+    match self {
+      Self::Json(_) | Self::Shape(_) | Self::DuplicateKey { .. } => Requirement::R44,
+      Self::NestedHints { .. } => Requirement::R18,
+      Self::UnsupportedProtocolVersion { .. } => Requirement::R3,
+      Self::UnsupportedPrimitive { .. } => Requirement::R12,
+      Self::InapplicableKey { key, .. } => {
+        if *key == "fields" {
+          Requirement::R53
+        } else {
+          Requirement::R50
+        }
+      }
+      Self::MissingField { .. } => Requirement::R10,
+      Self::EmptyOptions { .. } => Requirement::R13,
+      Self::DuplicateOptionId { .. } => Requirement::R14,
+      Self::DuplicateFieldId { .. } | Self::DuplicateAlternativeId { .. } => Requirement::R52,
+      Self::EmptyAlternatives { .. } => Requirement::R16,
+      Self::Bounds(inner) => inner.requirement(),
+      Self::Schedule(inner) => inner.requirement(),
+    }
+  }
+}
+
+impl BoundsError {
+  /// The requirement this kind of refusal names (SPEC-001/R-59).
+  #[must_use]
+  pub fn requirement(&self) -> Requirement {
+    match self {
+      Self::NotFinite { .. } | Self::Inverted { .. } => Requirement::R17,
+    }
+  }
+}
+
+impl ScheduleError {
+  /// The requirement this kind of refusal names (SPEC-001/R-59).
+  #[must_use]
+  pub fn requirement(&self) -> Requirement {
+    match self {
+      Self::NotAString { .. } | Self::OutOfRange { .. } | Self::Unparseable { .. } => {
+        Requirement::R25
+      }
+      Self::MissingOffset { .. } => Requirement::R22,
+      Self::TimeOfDay { .. } => Requirement::R21,
+      Self::CalendarUnit { .. } => Requirement::R23,
+    }
+  }
 }
 
 impl fmt::Display for ProtocolError {
@@ -307,6 +405,49 @@ mod tests {
     }
   }
 
+  /// `design.md` §5.2.3's table, row for row: the id each kind names, spelled
+  /// as the table spells it. Copied from the table, not from the code, so a
+  /// constant whose value disagrees with its name reds the test that reads it.
+  /// Exhaustive, so a new variant has no row until one is decided.
+  fn protocol_row(error: &ProtocolError) -> String {
+    match error {
+      ProtocolError::Json(_) | ProtocolError::Shape(_) | ProtocolError::DuplicateKey { .. } => {
+        "R-44".to_owned()
+      }
+      ProtocolError::NestedHints { .. } => "R-18".to_owned(),
+      ProtocolError::UnsupportedProtocolVersion { .. } => "R-3".to_owned(),
+      ProtocolError::UnsupportedPrimitive { .. } => "R-12".to_owned(),
+      ProtocolError::InapplicableKey { key: "fields", .. } => "R-53".to_owned(),
+      ProtocolError::InapplicableKey { .. } => "R-50".to_owned(),
+      ProtocolError::MissingField { .. } => "R-10".to_owned(),
+      ProtocolError::EmptyOptions { .. } => "R-13".to_owned(),
+      ProtocolError::DuplicateOptionId { .. } => "R-14".to_owned(),
+      ProtocolError::DuplicateFieldId { .. } | ProtocolError::DuplicateAlternativeId { .. } => {
+        "R-52".to_owned()
+      }
+      ProtocolError::EmptyAlternatives { .. } => "R-16".to_owned(),
+      ProtocolError::Bounds(inner) => bounds_row(inner),
+      ProtocolError::Schedule(inner) => schedule_row(inner),
+    }
+  }
+
+  fn bounds_row(error: &BoundsError) -> String {
+    match error {
+      BoundsError::NotFinite { .. } | BoundsError::Inverted { .. } => "R-17".to_owned(),
+    }
+  }
+
+  fn schedule_row(error: &ScheduleError) -> String {
+    match error {
+      ScheduleError::NotAString { .. }
+      | ScheduleError::OutOfRange { .. }
+      | ScheduleError::Unparseable { .. } => "R-25".to_owned(),
+      ScheduleError::MissingOffset { .. } => "R-22".to_owned(),
+      ScheduleError::TimeOfDay { .. } => "R-21".to_owned(),
+      ScheduleError::CalendarUnit { .. } => "R-23".to_owned(),
+    }
+  }
+
   fn assert_names(error: &impl std::fmt::Display, values: &[String]) {
     let rendered = error.to_string();
     for value in values {
@@ -347,7 +488,9 @@ mod tests {
     ));
   }
 
-  /// One instance per `ProtocolError` variant, in `design.md` §5.2's order.
+  /// One instance per row of `design.md` §5.2.3's table, in §5.2's order:
+  /// one per `ProtocolError` variant, and `InapplicableKey` once for each of
+  /// its two rows.
   fn every_protocol_error() -> Vec<ProtocolError> {
     vec![
       ProtocolError::Json(json_error()),
@@ -367,6 +510,11 @@ mod tests {
         key: "min",
         kind: "text".to_owned(),
         at: "$.view.fields[1]".to_owned(),
+      },
+      ProtocolError::InapplicableKey {
+        key: "fields",
+        kind: "choice".to_owned(),
+        at: "$.view.fields[2].alternatives[0]".to_owned(),
       },
       ProtocolError::MissingField {
         field: "protocol_version",
@@ -451,6 +599,39 @@ mod tests {
   fn every_schedule_error_display_names_what_it_carries() {
     for error in every_schedule_error() {
       assert_names(&error, &schedule_must_name(&error));
+    }
+  }
+
+  #[test]
+  fn every_protocol_error_names_a_requirement_and_a_side() {
+    for error in every_protocol_error() {
+      assert_eq!(
+        error.requirement().to_string(),
+        protocol_row(&error),
+        "`{error}`"
+      );
+    }
+  }
+
+  #[test]
+  fn every_bounds_error_names_a_requirement_and_a_side() {
+    for error in every_bounds_error() {
+      assert_eq!(
+        error.requirement().to_string(),
+        bounds_row(&error),
+        "`{error}`"
+      );
+    }
+  }
+
+  #[test]
+  fn every_schedule_error_names_a_requirement_and_a_side() {
+    for error in every_schedule_error() {
+      assert_eq!(
+        error.requirement().to_string(),
+        schedule_row(&error),
+        "`{error}`"
+      );
     }
   }
 
