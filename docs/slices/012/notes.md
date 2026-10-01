@@ -4409,6 +4409,15 @@ the three named; `~/dev/oubliette`.
 surface, and EX-8 reads the kit through `goad-walk`. Every new file is `git
 add`ed before any `nix` command reads it.
 
+**Stopped at the push** (2026-10-01). Tasks 1–5 done; task 6's commit and
+clean rebuild done; every mutation row runnable before the bump run (P-11 and
+P-12 need the bumped `goad-walk`). `just check` exit 0 at `65e1ea9` with
+this sheet's records: **738 passed, 0 failed** over 33 `test result` lines,
+no warning; `just -n check` differs from POL-001's block in the **Entry**
+line only. Next is EN-3's push,
+which is the user's; then the `goad-walk` edits (drafted, **Decisions** D-4),
+the lock, EX-4, VA-4, R-1, P-11, P-12, and EX-8's handover.
+
 - [x] Set PHASE-05 to `in progress` in §Status.
       *Done at 85c3ddc.*
 - [x] Print `git log -1 --oneline`. It must be this sheet's commit, or a
@@ -4622,14 +4631,20 @@ add`ed before any `nix` command reads it.
         *"Successfully added marketplace: goad"* exit 0; `install goad@goad`
         exit 0; `details goad@goad` lists *"Skills (1) goad-backend"*, exit 0.
 - **6. The commit, the push, the lock (EN-3, EX-4, VA-4)**
-  - [ ] Commit every goad surface (the five new files, `flake.nix`,
+  - [x] Commit every goad surface (the five new files, `flake.nix`,
         `justfile`, `README.md`) and this sheet's records so far. That commit
         is **this phase's goad commit**: record its short hash here. Later
         `notes.md`-only commits do not move the lock (Findings, *which commit
         is "this phase's"*).
-  - [ ] Rebuild from the committed tree: `nix build --no-link
+        **This phase's goad commit is `65e1ea9`** (*012 PHASE-05: goad-check
+        and goad-kit packages, the plugin's shell, README route*), holding
+        every goad surface and the sheet's records to task 5. Later commits on
+        `main` are `notes.md` only.
+  - [x] Rebuild from the committed tree: `nix build --no-link
         --print-out-paths .#goad-check`; its `--version` prints the commit's
         `git rev-parse --short=7 HEAD` with no `-dirty`. Recorded.
+        `goad-check --version` → `0.1.0 (65e1ea9)`, and `goad-emit` the same;
+        `git rev-parse --short=7 HEAD` → `65e1ea9`. No `-dirty`.
   - [ ] EN-3: ask the user for `git push origin main` (no force). Then `git
         fetch origin` and `git rev-list --count origin/main..main` is `0`,
         with `git rev-parse --short origin/main` recorded. Check this box
@@ -4771,13 +4786,13 @@ fails on authentication, the first thing to try is `CODEX_API_KEY` set from
 `OPENAI_API_KEY` in the environment (A-T4), never `codex login`.
 
 **Exit criteria** (quoted in the tasks above; listed here to be ticked)
-- [ ] EX-1
-- [ ] EX-2
-- [ ] EX-3
+- [x] EX-1
+- [x] EX-2
+- [x] EX-3
 - [ ] EX-4
-- [ ] EX-7
+- [x] EX-7
 - [ ] EX-8 (run by a person: task 7's VH)
-- [ ] VA-1
+- [x] VA-1
 - [ ] VA-4
 - [ ] EN-3 (before the bump)
 - [ ] `just check` exits 0 on the final commit (§Overview).
@@ -4795,22 +4810,22 @@ spike's stub at sheet time (A-V4); re-run them on the real files.
 
 | row | file / symbol | edit | instrument | must red | evaluated? | result |
 |---|---|---|---|---|---|---|
-| P-1 | `flake.nix` `goad-check`'s `cargoExtraArgs` | `"--locked -p goad-check --bin goad-check"` → `"-p goad-check --bin goad-check"` | `nix derivation show .#goad-check \| command grep -c -- '--locked'` | count 0 (a build stays green: the lock is consistent) | | |
-| P-2 | `flake.nix` `goad-check` | `GOAD_REVISION = revision;` removed | `nix build --no-link --print-out-paths .#goad-check`, then `--version` | the version line carries no revision; `goad-emit`'s still does | | |
-| P-3 | `goad-kit`'s selection | `./docs/specs` added to it | EX-1's top-level `find` | `docs` in the listing | | |
-| P-4 | `goad-kit`'s `unions` | `./.agents/plugins/marketplace.json` dropped from the list | EX-1's `find`; VA-1's `codex plugin marketplace add "$KIT"` | `.agents` missing; Codex: *"marketplace root does not contain a supported manifest"* (spike). nix evaluates it: a dropped element is not a missing path | | |
-| P-5 | `goad-kit`'s selection | `.claude-plugin/marketplace.json` dropped | EX-1's `find` | `.claude-plugin` missing. **Unseen by EX-8** (`--plugin-dir` reads no marketplace); seen by the offered Claude marketplace load | | |
-| P-6 | `kit/.claude-plugin/plugin.json` | `"version": "0.1.0"` → `"version": 1` | `claude plugin validate kit/` | exit 1, *"version: Invalid input"* | | |
-| P-7 | `SKILL.md` | the frontmatter block removed | `claude plugin validate kit/`; `--strict` | **unseen** by EX-3 (exit 0, a warning); `--strict` exit 1 | | |
-| P-8 | `.claude-plugin/marketplace.json` | `"source": "./kit"` → `"source": "./nope"` | `claude plugin validate .` and `--strict .`; the offered `claude plugin marketplace add "$KIT"` + `install` | **unseen** by validate, strict or not (A-V4); the offered load fails (prediction) | | |
-| P-9 | `kit/.claude-plugin/plugin.json` | the marker appended to `description` | task 1's marker grep | two files listed. EX-8 stays green: this is what the grep holds and EX-8 cannot | | |
-| P-10 | `kit/.codex-plugin/plugin.json` | `"version"` → `"0.1.1"` | EX-2's three-way read | the values differ. **Unseen by every instrument after this phase**: nothing in the gate compares them (Findings) | | |
-| P-11 | `~/dev/goad-walk/flake.nix` | `pkgs.jq` dropped from the tool set | `nix-store --query --references "$TOOLS"` | no `jq` reference | | |
-| P-12 | `~/dev/goad-walk/flake.nix` | the `goad-kit` re-export removed | `nix build … /home/david/dev/goad-walk#goad-kit` | evaluation error naming the missing attribute | | |
-| P-13 | `justfile` `package` | `.#goad-check` dropped | `just package` | no `goad-check` path printed | | |
-| P-14 | `justfile` `install` | the `crates/goad-check` line dropped | `just install` with EX-7's scratch `CARGO_INSTALL_ROOT` and `XDG_CONFIG_HOME` | no `goad-check` in `<scratchpad>/p05-install/root/bin` | | |
-| P-15 | `.agents/plugins/marketplace.json` (listed in `goad-kit`'s `unions`) | the file moved to the scratchpad, so the path is absent from the tree | `nix build --no-link .#goad-kit` | evaluation fails, naming the path as one that does not exist (A-V5) | | |
-| P-16 | `goad-kit`'s `unions` | `./kit/untracked` added to the list, the file created and not `git add`ed | `nix build --no-link .#goad-kit` | evaluation fails, naming the path: a git-input flake does not see an untracked file. Restore removes the file and the element | | |
+| P-1 | `flake.nix` `goad-check`'s `cargoExtraArgs` | `"--locked -p goad-check --bin goad-check"` → `"-p goad-check --bin goad-check"` | `nix derivation show .#goad-check \| command grep -c -- '--locked'` | count 0 (a build stays green: the lock is consistent) | yes: `nix eval .#goad-check.drvPath` → `…94hg3qqv…-goad-check-0.1.0.drv` | count **0** (unmutated: 2). As predicted. Restored; `git status --short` clean |
+| P-2 | `flake.nix` `goad-check` | `GOAD_REVISION = revision;` removed | `nix build --no-link --print-out-paths .#goad-check`, then `--version` | the version line carries no revision; `goad-emit`'s still does | yes: built `…s19n6x98…-goad-check-0.1.0` | `goad-check --version` → `0.1.0`; `goad-emit` from the same build → `0.1.0 (65e1ea9-dirty)`. As predicted. Restored; clean |
+| P-3 | `goad-kit`'s selection | `./docs/specs` added to it | EX-1's top-level `find` | `docs` in the listing | yes: built `…fqmq9qcl…-goad-kit` | listing `.agents .claude-plugin docs kit`. As predicted. Restored; clean |
+| P-4 | `goad-kit`'s `unions` | `./.agents/plugins/marketplace.json` dropped from the list | EX-1's `find`; VA-1's `codex plugin marketplace add "$KIT"` | `.agents` missing; Codex: *"marketplace root does not contain a supported manifest"* (spike). nix evaluates it: a dropped element is not a missing path | yes: built `…vk58d0m9…-goad-kit` | listing `.claude-plugin kit`: `.agents` missing, as predicted. **Codex differs**: `codex plugin marketplace add` on that path exit 0 (*"Added marketplace `goad`"*), and `codex plugin add goad@goad` exit 0. Codex 0.155.1 falls back to `.claude-plugin/marketplace.json`; with neither file (a scratch copy of `kit/` alone) it refuses, *"marketplace root does not contain a supported manifest"*, exit 1. Under **Findings**. Restored; clean |
+| P-5 | `goad-kit`'s selection | `.claude-plugin/marketplace.json` dropped | EX-1's `find` | `.claude-plugin` missing. **Unseen by EX-8** (`--plugin-dir` reads no marketplace); seen by the offered Claude marketplace load | yes: built `…kw755r0l…-goad-kit` | listing `.agents kit`, as predicted. Offered load: `claude plugin marketplace add` exit 1, *"Marketplace file not found at …/.claude-plugin/marketplace.json"*. Restored; clean |
+| P-6 | `kit/.claude-plugin/plugin.json` | `"version": "0.1.0"` → `"version": 1` | `claude plugin validate kit/` | exit 1, *"version: Invalid input"* | yes: the CLI parsed it and named the planted field | `validate kit/` exit 1, *"version: Invalid input"*. As predicted. Restored; clean |
+| P-7 | `SKILL.md` | the frontmatter block removed | `claude plugin validate kit/`; `--strict` | **unseen** by EX-3 (exit 0, a warning); `--strict` exit 1 | yes: *"Validating skill: …/SKILL.md"* | `validate kit/` exit 0, *"No frontmatter block found"* warning (**unseen**, as predicted); `--strict` exit 1. Restored; clean |
+| P-8 | `.claude-plugin/marketplace.json` | `"source": "./kit"` → `"source": "./nope"` | `claude plugin validate .` and `--strict .`; the offered `claude plugin marketplace add "$KIT"` + `install` | **unseen** by validate, strict or not (A-V4); the offered load fails (prediction) | yes: built `…h45gbsq2…-goad-kit` holding `./nope` | `validate .` and `--strict .` both exit 0 (**unseen**, as predicted). Offered load: `marketplace add` exit 0, `install goad@goad` exit 1, *"Source path does not exist: …-goad-kit/nope"* — fails at install, not add. Restored; clean |
+| P-9 | `kit/.claude-plugin/plugin.json` | the marker appended to `description` | task 1's marker grep | two files listed. EX-8 stays green: this is what the grep holds and EX-8 cannot | n/a (a grep) | two lines: `SKILL.md:6` and `kit/.claude-plugin/plugin.json:3`. As predicted. Restored; clean |
+| P-10 | `kit/.codex-plugin/plugin.json` | `"version"` → `"0.1.1"` | EX-2's three-way read | the values differ. **Unseen by every instrument after this phase**: nothing in the gate compares them (Findings) | n/a (a read) | `Cargo.toml` `0.1.0`, Claude `0.1.0`, Codex `0.1.1`: differ. As predicted; nothing else reads it. Restored; clean |
+| P-11 | `~/dev/goad-walk/flake.nix` | `pkgs.jq` dropped from the tool set | `nix-store --query --references "$TOOLS"` | no `jq` reference |  | **not run: after the bump** (needs the `goad-walk` flake that names `g.goad-check`) |
+| P-12 | `~/dev/goad-walk/flake.nix` | the `goad-kit` re-export removed | `nix build … /home/david/dev/goad-walk#goad-kit` | evaluation error naming the missing attribute |  | **not run: after the bump** (as P-11) |
+| P-13 | `justfile` `package` | `.#goad-check` dropped | `just package` | no `goad-check` path printed | yes: `just package` built | printed `goad`, `goad-emit`, `goad-kit` paths; no `goad-check`. As predicted. Restored; clean |
+| P-14 | `justfile` `install` | the `crates/goad-check` line dropped | `just install` with EX-7's scratch `CARGO_INSTALL_ROOT` and `XDG_CONFIG_HOME` | no `goad-check` in `<scratchpad>/p05-install/root/bin` | yes: `just install` exit 0 | `<scratchpad>/mut/p14/root/bin` is `goad goad-emit`; no `goad-check`. As predicted. Restored; clean |
+| P-15 | `.agents/plugins/marketplace.json` (listed in `goad-kit`'s `unions`) | the file moved to the scratchpad, so the path is absent from the tree | `nix build --no-link .#goad-kit` | evaluation fails, naming the path as one that does not exist (A-V5) | the planted refusal is the evaluation error | `nix build .#goad-kit`: *"lib.fileset.unions: Element 1 (…-source/.agents/plugins/marketplace.json) is a path that does not exist."* As predicted. File moved back; clean |
+| P-16 | `goad-kit`'s `unions` | `./kit/untracked` added to the list, the file created and not `git add`ed | `nix build --no-link .#goad-kit` | evaluation fails, naming the path: a git-input flake does not see an untracked file. Restore removes the file and the element | the planted refusal is the evaluation error | *"lib.fileset.unions: Element 3 (…-source/kit/untracked) is a path that does not exist."* As predicted. File removed, flake restored; clean |
 
 *Reach rows* (positive controls for the greps that must print nothing; an
 empty result proves nothing until the same command is seen to find
@@ -4845,6 +4860,24 @@ something):
 - **D-3 — the README route is one line with both installs inline**, under a
   new *Writing a backend* heading, not a code block: the sheet asks for one
   line. No `--sparse` hint.
+- **D-4 — the `goad-walk` edits are drafted, not applied**, in the executor's
+  scratchpad (`goad-walk-draft/{flake.nix,README.md}`), because the new flake
+  names `g.goad-check`, which the current lock's goad does not export:
+  committing it before the bump would leave `goad-walk`'s `main` unbuildable.
+  The draft drops `pending`, the null filter and the stub comment; the tool
+  set is `[g.goad g.goad-emit g.goad-check g.goad-kit pkgs.ruby pkgs.jq]`;
+  `inherit (g) goad-kit` unconditionally. The header comment loses *"so a
+  walking agent sees the kit and the binaries and nothing else of goad"*: it
+  is in the agent's clone and is false since D24's amendment, the same
+  reasoning the README box gives. The README names the tool set and states
+  the GitHub pin and its reason, and nothing about goad's source.
+  Pre-checked without touching the lock (a copy of `goad-walk`'s lock in the
+  scratchpad, `--no-write-lock-file --override-input goad
+  git+file:///home/david/dev/goad?rev=<65e1ea9>`): the tool set built,
+  references `goad-check`, `goad-emit`, `goad`, `jq` (`-bin`, `-man`),
+  `ruby`, `goad-kit` and nothing else; its `goad-check --version` printed
+  `0.1.0 (65e1ea9)`; `goad-walk`'s `flake.lock` byte-identical afterwards.
+  This is not EX-4: EX-4 is read on the real lock.
 
 **Findings**
 <!-- Things noticed in passing that are not this phase's job: a defect
@@ -4968,6 +5001,17 @@ something):
   `name = \"goad-kit\"`"*. `toSource` has no `name` argument and is not a
   derivation (D-2). The property both state, the three paths and nothing
   else, holds. For audit's design-drift list.
+- **Codex reads Claude's marketplace when its own is missing** (P-4). Codex
+  0.155.1, given a marketplace root holding `.claude-plugin/marketplace.json`
+  and no `.agents/plugins/marketplace.json`, adds the marketplace and installs
+  `goad@goad`; with neither it refuses. So nothing outside EX-1's `find`
+  sees a `goad-kit` without the Codex file, and the spike's *"marketplace
+  root does not contain a supported manifest"* is the both-missing case only.
+  Not a defect in this phase: `.agents/plugins/marketplace.json` is the
+  design's (§5.2.6), and `lib.fileset.toSource` refuses its absence at
+  evaluation (P-15), which holds the property regardless. Whether Codex
+  needs the file at all is for audit (`research.md` §"Spike: R1 and R2"
+  named it as required).
 
 ## Harvest
 
