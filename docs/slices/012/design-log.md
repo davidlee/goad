@@ -616,3 +616,30 @@ other, citing the finding id.
 - **Consequence:** `design.md` §5.2.1 states the rule as: `--timeout` only in
   the argv form; `--config` and `--` exclude each other. `plan.md`
   PHASE-04/EX-1 and VT-1 gain a row for each.
+
+### 2026-10-01 — `Options::first`; R-56's condition counts `evaluate` outcomes (PHASE-12 sheet)
+
+- **Asked:** the PHASE-12 sheet (5bc6e20):
+  - **PLAN QUESTION 1.** EX-1 answers a view with "its first option", but
+    `Options` offers only `as_slice()`, whose `.first()` is an `Option`, and
+    every panicking exit is denied outside tests. `Options::new` already
+    refuses the empty list (`ProtocolError::EmptyOptions`), as
+    `Alternatives::new` does, and `Alternatives::first` is the precedent for
+    a total accessor. Options: (a) `Options::first` in stratum 1
+    (`protocol/canonical.rs`), mirroring `Alternatives::first`; (b) a
+    `let…else` arm in `goad-check` that no test can reach.
+  - **PLAN QUESTION 4.** §5.2's R-56 row charges a probe failure only when
+    "at least one of the three known-kind evaluates made no failure". It
+    does not say whether a view chained from an evaluate, and its
+    `respond`s, belong to that evaluate.
+- **Recommended:** (a) — new public stratum-1 API, so a design change; the
+  file joins PHASE-12's surfaces. For Q4: only the `evaluate` outcomes
+  count, the probe's and the three known kinds'; a chained `respond` is
+  judged as any other exchange. The condition stays about kind tolerance,
+  which is what R-56 is.
+- **Decided:** *"yes"*.
+- **Consequence:** `design.md` names `Options::first` (beside
+  `Alternatives::first`) and states R-56's condition over `evaluate`
+  outcomes. `plan.md` PHASE-12's surfaces gain
+  `crates/goad-semantics/src/protocol/canonical.rs` (`Options::first` and
+  its test only); EX-1 and the R-56 criteria follow.

@@ -253,3 +253,32 @@ EN-1 (PHASE-05 done) and EN-3 (credentials for the capsule session).
 - **Decided:** *"endorse all six"*.
 - **Consequence:** `plan.md` PHASE-04 VT-2, VA-3, VA-4, VA-6 amended; the
   PHASE-04 sheet's `[!]` tasks unblocked.
+
+### 2026-10-01 — PHASE-12 sheet questions
+
+- **Asked:** the PHASE-12 sheet (5bc6e20), PLAN QUESTIONs 2, 3 and 5
+  (1 and 4 are design: `design-log.md` 2026-10-01, *`Options::first`;
+  R-56's condition counts `evaluate` outcomes*).
+  - **Q2 — VA-3's expected result is wrong.** Run as written (orchestrator
+    re-ran it), the grep finds the two `envelope` imports — `main.rs`'s and
+    `render.rs`' test module's — and never the call, since
+    `envelope::normalize` does not contain `ingress::`. The pattern also
+    misses `.envs(` and any socket opened outside `ingress`. Proposed: the
+    expected hits are "the `envelope` imports, and nothing else"; the
+    pattern widens to `\.envs?\(` and `UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket`.
+  - **Q3 — VA-4's "one literal per class".** `answer` already returns
+    `ExitCode::SUCCESS` for `--help`/`--version`, and EX-6 adds a second
+    for the verdict cut. Proposed: VA-4 reads "one literal per way to a
+    status"; still exactly one `ExitCode::from(2)`.
+  - **Q5 — the manifest's "No dev-dependencies" sentence.** The surface
+    allows only `[dev-dependencies]`; adding one falsifies the comment.
+    Proposed: that one sentence of the comment may change with it.
+- **Also:** the sheet's proposed `a_cleanup_failure_alone_exits_1` rests on a
+  fixture's 500 ms against 2 s margin, read from the header, not run under
+  load. It gains a task box: rank the margin by which way load moves it
+  (`docs/memory/margin-size-is-not-margin-direction.md`) before the case
+  joins the gate.
+- **Recommended:** each as proposed.
+- **Decided:** *"yes"*.
+- **Consequence:** `plan.md` PHASE-12 VA-3 and VA-4, and its surfaces'
+  manifest clause, amended; the PHASE-12 sheet's `[!]` tasks unblocked.
