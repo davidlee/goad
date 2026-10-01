@@ -490,6 +490,26 @@ impl NumberRange {
   pub fn max(self) -> Option<f64> {
     self.max
   }
+
+  /// The number a `number` field is drawn showing, and submits untouched: its
+  /// declared minimum, or zero where none was declared. The one statement of
+  /// that rule.
+  ///
+  /// `R-17` already guarantees a declared bound is finite, so `Finite::new`
+  /// cannot refuse one. It is still the constructor that is called, falling back
+  /// to `ZERO`, because a total expression is cheaper than an argument about why
+  /// an `expect` is unreachable (design.md §5.2).
+  ///
+  /// A range carrying only a `max` is legal, so this can answer a number above
+  /// that maximum — `max: -10` and no `min` is drawn showing, and submits, `0`.
+  /// Not a defect: `R-35` puts the judgement of whether an answer is acceptable
+  /// in the backend, and `R-58` requires a value for every drawn field. It is a
+  /// consequence a backend author cannot discover from `R-58`, which is why
+  /// slice 007's `canon-delta.md` CD-1 states it.
+  #[must_use]
+  pub fn drawn(&self) -> Finite {
+    Finite::new(self.min.unwrap_or(0.0)).unwrap_or(Finite::ZERO)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -638,6 +658,33 @@ pub enum Submitted {
 }
 
 impl Submitted {
+  /// What a field nobody touched submits: what it is drawn showing, so the
+  /// screen and the wire agree (P-3) — `false`, `""`, the minimum or `0`, the
+  /// first alternative, and the epoch at `+00:00`. The one statement of the
+  /// untouched-value policy, and `SPEC-001/R-58` is why there is one: a drawn
+  /// field may not be omitted.
+  ///
+  /// It matches the canonical [`FieldKind`] with no `_` arm, so a new protocol
+  /// kind is a compile error here: adding one is a decision about what it
+  /// submits untouched, not an omission.
+  #[must_use]
+  pub fn as_drawn(kind: &FieldKind) -> Self {
+    match kind {
+      FieldKind::Boolean => Self::Boolean(false),
+      FieldKind::Text => Self::Text(String::new()),
+      FieldKind::Number(range) => Self::Number(range.drawn()),
+      FieldKind::Choice { alternatives } => Self::Choice(alternatives.first().id().clone()),
+      // `+00:00` rather than `Z`, because it falls out of the same
+      // `display_with_offset` call as every other datetime and a second code
+      // path for the untouched case was the worse trade (§7 D3). The sentinel
+      // a backend would recognise is the 1970, not the offset.
+      FieldKind::DateTime => Self::DateTime {
+        instant: Timestamp::new(jiff::Timestamp::UNIX_EPOCH),
+        offset: jiff::tz::Offset::UTC,
+      },
+    }
+  }
+
   /// `SPEC-001/R-57`, in one total match: the one site that decides a
   /// submitted value's JSON type, so the mapping cannot drift apart across
   /// the workspace.
@@ -1081,6 +1128,112 @@ mod tests {
       }
       .to_json(),
       serde_json::Value::String("1969-12-31T19:00:00-05:00".to_owned())
+    );
+  }
+
+  // -- the drawn number ----------------------------------------------------
+
+  /// The number an untouched `number` field is drawn showing, and submits:
+  /// its declared minimum, or zero where none was declared — and zero for a
+  /// `max`-only range, though that may exceed its maximum (§5.5).
+  #[test]
+  fn an_untouched_number_is_drawn_at_its_minimum_or_zero() {
+    let declared = NumberRange::new(Some(2.5), Some(10.0)).unwrap();
+    assert!(same(declared.drawn().get(), 2.5), "the declared minimum");
+
+    let unbounded = NumberRange::new(None, None).unwrap();
+    assert!(
+      same(unbounded.drawn().get(), 0.0),
+      "no bound falls back to zero"
+    );
+
+    let below_zero = NumberRange::new(None, Some(-10.0)).unwrap();
+    assert!(
+      same(below_zero.drawn().get(), 0.0),
+      "a `max`-only range is drawn at zero, above its own maximum"
+    );
+  }
+
+  // -- what an untouched field submits -------------------------------------
+
+  /// A `FieldKind::Number` over `min` and `max`, which the fixture states are
+  /// legal.
+  fn a_number(min: Option<f64>, max: Option<f64>) -> FieldKind {
+    FieldKind::Number(NumberRange::new(min, max).unwrap())
+  }
+
+  /// The number an as-drawn `Submitted` carries, for a fixture that must be
+  /// one.
+  fn number_of(submitted: &Submitted) -> f64 {
+    let Submitted::Number(number) = submitted else {
+      panic!("a `number` field submits a number, not {submitted:?}");
+    };
+    number.get()
+  }
+
+  #[test]
+  fn an_as_drawn_choice_submits_the_first_alternative() {
+    let kind = FieldKind::Choice {
+      alternatives: Alternatives::new(vec![alternative("first"), alternative("second")], AT)
+        .unwrap(),
+    };
+    assert_eq!(
+      Submitted::as_drawn(&kind),
+      Submitted::Choice(AlternativeId::new("first")),
+      "the first alternative in declared order"
+    );
+  }
+
+  #[test]
+  fn an_as_drawn_boolean_submits_false() {
+    assert_eq!(
+      Submitted::as_drawn(&FieldKind::Boolean),
+      Submitted::Boolean(false)
+    );
+  }
+
+  #[test]
+  fn an_as_drawn_text_submits_the_empty_string() {
+    assert_eq!(
+      Submitted::as_drawn(&FieldKind::Text),
+      Submitted::Text(String::new())
+    );
+  }
+
+  /// The minimum, or zero — `NumberRange::drawn`'s rule, reached through the
+  /// kind — including §5.5's edge: a `max`-only range below zero submits `0`.
+  #[test]
+  fn an_as_drawn_number_submits_its_minimum_or_zero() {
+    assert!(
+      same(
+        number_of(&Submitted::as_drawn(&a_number(Some(2.5), Some(10.0)))),
+        2.5
+      ),
+      "the declared minimum"
+    );
+    assert!(
+      same(number_of(&Submitted::as_drawn(&a_number(None, None))), 0.0),
+      "no bound falls back to zero"
+    );
+    assert!(
+      same(
+        number_of(&Submitted::as_drawn(&a_number(None, Some(-10.0)))),
+        0.0
+      ),
+      "a `max: -10` range with no `min` submits zero, above its own maximum"
+    );
+  }
+
+  /// No neutral value exists, so the host submits one nobody would pick: the
+  /// epoch, at an explicit `+00:00`.
+  #[test]
+  fn an_as_drawn_datetime_submits_the_epoch_at_utc() {
+    assert_eq!(
+      Submitted::as_drawn(&FieldKind::DateTime),
+      Submitted::DateTime {
+        instant: instant("1970-01-01T00:00:00Z"),
+        offset: Offset::UTC,
+      }
     );
   }
 }

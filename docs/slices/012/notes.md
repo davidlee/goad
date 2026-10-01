@@ -973,14 +973,14 @@ on it.
         (quoted) *"`edited.submitted().to_json()`"*. Green; renderer tier
         green.
 - **4. `Submitted::as_drawn` (EX-3's first half, VT-2's as-drawn half)**
-  - [ ] `NumberRange::drawn(&self) -> Finite` with a `todo!()` body; write
+  - [x] `NumberRange::drawn(&self) -> Finite` with a `todo!()` body; write
         `an_untouched_number_is_drawn_at_its_minimum_or_zero` in
         `canonical.rs` (VT-2, quoted: *"a declared minimum, no bounds, and
         `max: -10` with no `min`"*), each expectation a literal. Red.
         Implement it as `drawn_number`'s body, and move `drawn_number`'s doc
         onto it (the `max: -10` consequence, the CD-1 pointer; `design.md`
         §5.2.4). Green.
-  - [ ] `Submitted::as_drawn(&FieldKind) -> Submitted` with a `todo!()`
+  - [x] `Submitted::as_drawn(&FieldKind) -> Submitted` with a `todo!()`
         body; write `an_as_drawn_choice_submits_the_first_alternative` and a
         sibling per kind (quoted, VT-2 as amended: *"including the `number`
         case (the minimum, or zero, through `NumberRange::drawn`) and the
@@ -988,10 +988,25 @@ on it.
         edge and belongs here). Each expectation is a literal from the
         fixture or §5.2.4's list, never the expression the code computes
         (*tests-asserting-proxies*). Red.
-  - [ ] Implement: *"`false`, `""`, the minimum or `0`, the first
+  - [x] Implement: *"`false`, `""`, the minimum or `0`, the first
         alternative, and the epoch at `+00:00`"*, the number arm calling
         `NumberRange::drawn`, the choice arm over `Alternatives::first`
         (F-25). Green.
+  - *Done.* `an_untouched_number_is_drawn_at_its_minimum_or_zero` red against
+    `NumberRange::drawn`'s stub (1 of 20 failed), green with
+    `drawn_number`'s body over `self.min`. Its doc moved, CD-1 now *slice
+    007's*. `Submitted::as_drawn`'s cases red against its stub (the stub's
+    parameter spelled `_kind`, since an unused one fails `-D unused`):
+    `an_as_drawn_choice_submits_the_first_alternative`,
+    `an_as_drawn_boolean_submits_false`,
+    `an_as_drawn_text_submits_the_empty_string`,
+    `an_as_drawn_number_submits_its_minimum_or_zero` (the minimum, no bounds,
+    and `max: -10` with no `min`),
+    `an_as_drawn_datetime_submits_the_epoch_at_utc` — 5 of 25 failed; green
+    with the body. Every expectation a literal: the choice's is
+    `AlternativeId::new("first")`, minted in-module; the epoch's is
+    `instant("1970-01-01T00:00:00Z")`. The datetime arm's comment moved from
+    `view_model::as_drawn`.
 - **5. The delegation (EX-3, VT-4)**
   - [ ] Private `as_edited(Submitted) -> Edited` beside `adjusted`, with a
         `todo!()` body; write
