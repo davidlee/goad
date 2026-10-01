@@ -1,6 +1,7 @@
 # Slice 012: the backend author's kit
 
-**Stage:** plan
+**Stage:** phase — plan accepted 2026-10-01 (`plan-log.md`), after plan
+review (`review-plan.md`, resolved); progress in `notes.md` §Status
 **Tier:** 2 (full) — a new binary, the checker, enters SPEC-004's scope, and
 whatever the checker reports may need canon of its own.
 **Depends on:** —

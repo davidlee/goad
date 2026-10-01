@@ -136,3 +136,12 @@ ledger (`review-plan.md`).
 - **Decided:** *"yeah"*.
 - **Consequence:** `plan.md` PHASE-08/VT-1 and PHASE-12/VA-1 repaired;
   `review-plan.md` resolved with its Synthesis.
+
+### 2026-10-01 — plan accepted
+
+The user accepted `plan.md` as committed at 717e57f, with PL-1..PL-7 standing
+as amended by the plan review, and `review-plan.md` resolved. The risks the
+review's Synthesis leaves standing are accepted with it. The user's global
+`core.hooksPath` was raised and checked against I-5: `git ls-files` runs no
+hook, so the rule does not depend on it. PHASE-11 stays gated on oubliette's
+multi-target work and `goad-walk`'s registration, both outside this slice.
