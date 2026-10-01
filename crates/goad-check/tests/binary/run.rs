@@ -36,13 +36,17 @@ const NO_VIEW: &str = "no exchange returned a view, so respond was not exercised
 /// The R-56 probe's kind, as the backend receives it (`design.md` §5.2.2).
 const PROBE: &str = "goad-check-unrecognised";
 
-/// A line naming both `side` and `requirement` — a refusal line, or the R-56
-/// claim. A line, not the whole report: two lines each naming one would
+/// A line naming `side` as a word **before** `requirement` — a refusal line,
+/// or the R-56 claim. Before, because the text after the id is the host's own
+/// `Display`, which can say `backend` whatever side the line names; and a
+/// line, not the whole report, because two lines each naming one would
 /// otherwise pass.
 fn a_line_names(stdout: &str, side: &str, requirement: &str) -> bool {
-  stdout
-    .lines()
-    .any(|line| line.contains(side) && line.contains(requirement))
+  stdout.lines().any(|line| {
+    line
+      .split_once(requirement)
+      .is_some_and(|(before, _)| before.split_whitespace().any(|word| word == side))
+  })
 }
 
 fn assert_refused(output: &Output) {
