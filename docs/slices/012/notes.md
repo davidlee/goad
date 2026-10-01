@@ -27,20 +27,327 @@ after the slice closes is lifted into the Harvest section.
      execution. Disposable detail — it exists to get one agent through one
      phase. -->
 
-### PHASE-01 — <name>
+### PHASE-01 — refusals name a requirement and a side
 
-**Objective:** <copied from plan.md>
+**Written by a phase-sheet agent, not the executor**, at 7b549d4 (*012: plan
+accepted*). This sheet is the plan's second reading. Where it restates a plan
+criterion it quotes it. It repairs nothing: what reads as wrong in the plan is
+under **Findings** as a PLAN QUESTION, and the tasks it blocks are marked `[!]`.
 
-**Reading list**
-<!-- path:line references, the design sections that bind, prior art. -->
+**Objective** (quoted, `plan.md` PHASE-01): *every refusal kind the host can
+report answers, by a total match, the requirement and the side SPEC-001/R-59
+(`canon-delta.md` SPEC-001 Change 1) assigns it, each prints itself, and the
+fixture corpus witnesses the protocol and schedule answers.*
 
-**Assumptions & STOP conditions**
-<!-- What is being taken on faith, and the specific conditions under which the
-     agent must stop and consult the user rather than improvise. -->
+**Entry — EN-1** (quoted): *`design.md` and `canon-delta.md` approved
+(`design-log.md` 2026-09-30, *the design as a whole, after review*); `just
+check` green at HEAD.*
+- **Discharged 2026-10-01 at 7b549d4.** `just check` exited 0: build, both
+  test tiers (644 passed, 0 failed, summed over every `test result` line),
+  `deno check`, `cargo clippy --workspace --all-targets -- -D warnings` with no
+  warning, `cargo fmt --all --check`. The approval half is the design-log
+  entry the criterion names.
 
-**Tasks**
-<!-- [ ] todo · [~] in progress · [x] done · [!] blocked -->
-- [ ]
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- `crates/goad-semantics/src/error.rs`
+- `crates/goad-semantics/tests/protocol/normalize.rs`
+- `crates/goad-semantics/tests/protocol/runner.rs` — *"only if the discard
+  witness needs the schedule corpus's envelope"*. It does: see *Assumptions,
+  verified now*, A-V3.
+- `tests/fixtures/protocol-text/R-17-a-nan-literal-for-a-bound.json`,
+  `tests/fixtures/protocol-text/R-17-an-infinite-literal-for-a-bound.json`,
+  `tests/fixtures/protocol/R-52-a-choice-field-with-no-alternatives.json` —
+  *"their `requirement` arrays only"*.
+- `crates/goad-shell/src/error.rs`
+- `docs/slices/012/canon-delta.md` — *"test names only"*.
+- `docs/slices/012/notes.md` — this sheet, §Status, §Harvest (bookkeeping, by
+  `docs/AGENTS.md` §Execute).
+
+**Reading list** (by symbol; `grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md` — §Overview's first paragraph (`just check` is
+  every phase's last exit); *Test names are commitments*; *Mutation evidence*
+  under §Sequencing & rationale; §PHASE-01 whole.
+- `docs/slices/012/design.md` §5.2.3 whole: the two type declarations,
+  *Meaning of the id*, **the table**, the rationale bullets, *The witness*,
+  *Its reach*. §5.5 A-1 (`normalize_alternative` is the only raiser of
+  `InapplicableKey { key: "fields" }`). §9 *Stratum 1*, *Stratum 2*, and the
+  first bullet of *Mutation checks*.
+- `docs/slices/012/canon-delta.md` SPEC-001 Change 1 (R-59 as it will be
+  stated) and Change 2 (R-59's §7 row, which names the test cases).
+- `crates/goad-semantics/src/error.rs`: `ProtocolError`, `BoundsError`,
+  `ScheduleError` (the taxonomies this phase adds methods to); `SpanFault`
+  (EX-3: gets neither method); `impl From<serde_json::Error> for
+  ProtocolError` (why `Json` cannot tell R-17 from R-38). In `mod tests`:
+  `must_name` and its siblings `bounds_must_name`, `schedule_must_name` (the
+  exhaustive-match pattern VT-1's tables sit beside); the builders
+  `every_protocol_error`, `every_bounds_error`, `every_schedule_error` (the
+  plan: *"extend it, do not write a second builder"*); `assert_names`.
+- `crates/goad-shell/src/error.rs`: `BackendError`, `CleanupFailure`,
+  `StateError` (methods added); `ConfigError` (EX-3: neither). The file has no
+  `mod tests` today; VT-2 creates it.
+- `crates/goad-shell/src/ingress/envelope.rs`: `EnvelopeFault` (EX-3:
+  neither; read only, not a surface).
+- `crates/goad-semantics/tests/protocol/runner.rs`: `Envelope` (where a
+  fixture's `requirement` array is typed: `Vec<String>` of `"R-N"` strings,
+  `deny_unknown_fields`, and `read_envelope` refuses an empty array);
+  `Fixture`, `Corpus`, `Corpus::run` (its vacuity guard), `fixture_paths`,
+  `read_envelope`, `outcome_tag`, `assert_corpus`; `schedule_error_name`;
+  `check_schedule`; `SCHEDULE` (private `const`).
+- `crates/goad-semantics/tests/protocol/normalize.rs`: `render_error`,
+  `render_discarded`, `compare`, `check_protocol` (input is a JSON value,
+  serialized with `serde_json::to_vec`), `check_protocol_text` (input is a
+  JSON string of document text), `PROTOCOL`, `PROTOCOL_TEXT`, `fixtures_of`,
+  `tags_named_by_fixtures`,
+  `every_reachable_error_in_the_taxonomy_is_named_by_a_fixture` (VT-3's
+  witnesses sit beside it), `a_schedule_failure_is_named_by_a_fixture_as_a_discard`
+  (the existing walk over `Discarded` fixtures), and this file's own
+  `every_protocol_error` builder (see Findings).
+- `crates/goad-semantics/src/protocol/normalize.rs`: `read_response` (the
+  path both witnesses must run), `Normalized`, `Discarded::Schedule { raw,
+  reason }`, `inapplicable` and its `"fields"` call in
+  `normalize_alternative`.
+- `crates/goad-semantics/src/schedule.rs`: `parse` (what `check_schedule`
+  runs; the discard witness runs the same).
+- Prior art: `docs/memory/` — *negative-control-must-compile*,
+  *tests-asserting-proxies*, *mutation-check-the-coverage-claim*.
+
+**How a fixture carries its `requirement`.** Every fixture in
+`tests/fixtures/{protocol,protocol-text,schedule}/` is one JSON object with
+`requirement` (array of `"R-N"` strings), `description`, `now` (RFC 3339),
+`input`, `expect`. `expect` is a single-key object: `{"error": …}` or
+`{"accepted": {"canonical": …, "discarded": [ … ]}}` in the protocol corpora;
+`{"error": "<ScheduleError variant>"}` or `{"instant": …}` in the schedule
+corpus. The existing corpus tests hold that each `expect` is what the code
+produces, so the produced error of a fixture can be read off its `expect`
+(A-V5 below relies on this).
+
+**Assumptions — verified now** (at 7b549d4, by reading; nothing was run but
+`just check`)
+- **A-V1 — every §5.2.3 row maps to a real variant, and every variant has a
+  row.** Read `ProtocolError`, `BoundsError`, `ScheduleError` in
+  `goad_semantics::error` and `BackendError`, `CleanupFailure`, `StateError`
+  in `goad_shell::error` against the table, variant by variant: each table
+  variant exists with that name, and no variant of those enums lacks a row.
+  `InapplicableKey`'s `key` is `&'static str`, so the split on `"fields"` is a
+  string compare in the arm. `ExitStatus { code: Option<i32> }` is one variant
+  (one row), whatever `code` holds.
+- **A-V2 — A-1 holds today.** `grep -rn 'inapplicable(' crates/goad-semantics/src`:
+  the only call passing `"fields"` is in `normalize_alternative`; the others
+  pass `"min"`, `"max"`, `"options"`. `MissingField`'s only raise site is
+  the missing `view` in `normalize_response` (`grep -rn MissingField`), as the
+  table's rationale states.
+- **A-V3 — the corpora reachable from `normalize.rs`.** `PROTOCOL` and
+  `PROTOCOL_TEXT` are `const`s in `normalize.rs`, and `fixtures_of(&Corpus)`
+  enumerates either as raw `serde_json::Value`s, so `requirement`, `now` and
+  `input` are readable without `runner.rs`' `Envelope`. **The schedule corpus
+  is not reachable**: `SCHEDULE` is a private `const` in `runner.rs`, and
+  `check_schedule` hides its outcome. So the discard witness needs `runner.rs`,
+  and the plan's conditional surface is engaged. The narrowest edits are
+  `SCHEDULE` to `pub(crate)` (then `fixtures_of(&SCHEDULE)`), or
+  `fixture_paths`/`read_envelope` to `pub(crate)` (then the typed `Envelope`,
+  which also parses `now` once). Which is the executor's local decision; a
+  second `Corpus` naming the schedule directory in `normalize.rs` is a
+  parallel copy and is not one of the options.
+- **A-V4 — `fixtures_of` drops the path.** It returns `Vec<Value>`. VA-4
+  requires the failure to *name* `protocol/R-25-next-check-of-the-wrong-type`
+  and `schedule/R-25-not-a-string`, so the witnesses need each fixture's path:
+  `fixtures_of` returns path and value, and its existing callers
+  (`tags_named_by_fixtures`, `a_schedule_failure_is_named_by_a_fixture_as_a_discard`)
+  ignore the path. Both are in `normalize.rs`.
+- **A-V5 — the predicted red set is exactly EX-4's fixtures.** Each error
+  fixture's `expect` tag (held equal to the produced error by
+  `every_protocol_fixture_states_what_a_wire_document_means`,
+  `what_a_json_value_cannot_carry_is_refused_from_the_document_text` and
+  `every_scheduling_fixture_states_what_the_protocol_does`, green at EN-1),
+  mapped through §5.2.3, against its own list. Read with `jq` over `protocol/`,
+  `protocol-text/` and `schedule/`. Only the rows that differ from "id in list" are noted here; every
+  other error fixture's id is in its list.
+
+  | corpus / fixture | produced | §5.2.3 id | list today | witness |
+  |---|---|---|---|---|
+  | `protocol-text/R-17-a-nan-literal-for-a-bound` | `Json` | R-44 | [R-17] | **red** |
+  | `protocol-text/R-17-an-infinite-literal-for-a-bound` | `Json` | R-44 | [R-17] | **red** |
+  | `protocol/R-52-a-choice-field-with-no-alternatives` | `EmptyAlternatives` | R-16 | [R-52, R-53] | **red** |
+
+  The rest, for the record: every `Shape` fixture lists R-44; each
+  `UnsupportedPrimitive` fixture lists R-12; `EmptyOptions` [R-13];
+  `DuplicateOptionId` [R-14, R-52]; `Bounds(Inverted)` [R-17]; `NestedHints`
+  [R-18, R-47]; `UnsupportedProtocolVersion` [R-3]; `MissingField` [R-10];
+  `InapplicableKey` with `min`/`options` [R-50] and with `fields` [R-53];
+  `DuplicateAlternativeId` [R-52, R-53]; `DuplicateFieldId` [R-52];
+  `DuplicateKey` [R-44] and [R-52, R-44]. **Discard side, green from the first
+  run:** the only `Discarded` fixture, `protocol/R-25-next-check-of-the-wrong-type`
+  (`NotAString`, R-25, list [R-25, R-51]); `protocol-text/` has no accepted
+  fixture. Schedule errors: `TimeOfDay` fixtures [R-21, R-25], `MissingOffset`
+  [R-22, R-25], `CalendarUnit` [R-23, R-25], `Unparseable` and `OutOfRange`
+  [R-25], `NotAString` [R-21, R-25] — each contains its id.
+- **A-V6 — VA-2 and VA-4 are reachable mutations.** `NestedHints` → R-3:
+  the only `NestedHints` fixture, `protocol/R-18-a-nested-hints-object`, lists
+  [R-18, R-47], so R-3 is outside it. `NotAString` → R-3: neither
+  `protocol/R-25-next-check-of-the-wrong-type` [R-25, R-51] nor
+  `schedule/R-25-not-a-string` [R-21, R-25] lists R-3.
+- **A-V7 — `Requirement`'s printed form matches the fixtures'.** Every
+  `requirement` entry is spelled `R-N` (no zero padding, no `SPEC-001/`
+  prefix), which is EX-1's display. Comparing the produced id's `Display` to the
+  list's strings is therefore exact.
+- **A-V8 — the existing builder has one `InapplicableKey`, with `key: "min"`.**
+  VT-1's *"exhaustive table of §5.2.3's rows"* has two `InapplicableKey` rows,
+  so `every_protocol_error` gains an `InapplicableKey { key: "fields", .. }`
+  instance. Its doc (*"One instance per `ProtocolError` variant"*) then needs
+  rewording to "per row". The other tests over it
+  (`every_protocol_error_display_names_what_it_carries`,
+  `the_taxonomy_implements_error_and_wrapping_variants_expose_their_source`)
+  hold for any extra instance.
+- **A-V9 — stratum 2 has no builder.** `goad_shell::error` has no `mod tests`;
+  VT-2's tables need one instance per row of `BackendError` (with a
+  `Protocol(p)` delegating row), `CleanupFailure`, `StateError`.
+  `std::io::Error` and `ViewId` are constructible in a test (`ViewId` from
+  `goad_semantics::protocol::canonical`).
+- **A-V10 — lint posture.** `clippy::all` and `unwrap_used`/`expect_used`/
+  `panic`/`indexing_slicing` are `deny` workspace-wide, relaxed in tests by
+  `clippy.toml`'s `allow-*-in-tests`. Nothing denies a `_` arm, so *"no `_`
+  arm"* is held by review (VA-1), not by a lint.
+
+**Assumptions — first tested by this phase**
+- **A-T1 — the refusal witness reds on exactly A-V5's set**, no more and no
+  fewer, once the methods it calls exist (EX-5). A different set is a STOP.
+- **A-T2 — the discard witness reports every failure, across both halves,
+  before it fails.** VA-4 requires one failure to name a fixture from each
+  half; a witness that panics on the first, or that runs the halves as two
+  `assert`s, cannot. The same for the refusal witness and EX-5's set.
+- **A-T3 — each witness's per-corpus non-vacuity guard** (VT-3: *"it asserts
+  it read at least one fixture from each corpus it covers, counted per corpus,
+  and for the discard witness the `Discarded` fixtures and the schedule error
+  fixtures separately"*) fails when its directory is empty or renamed. The
+  plan asks for no mutation of it; one is cheap (point a root at a missing
+  directory), and is offered in the mutation table as optional.
+- **A-T4 — `ProtocolError::Schedule` delegation never fires in the refusal
+  witness.** `Schedule` is never an `Err` (`normalize.rs`' block comment above
+  `every_protocol_error`), so the witness reaches `ScheduleError::requirement()`
+  only through `Discarded::Schedule { reason }` and `schedule::parse`.
+
+**STOP conditions** (consult the user; do not improvise)
+- From `plan.md` PHASE-01 Notes (quoted): *"STOP if any other fixture's
+  produced error falls outside its own list: that is a §5.2.3 row the design
+  got wrong, not a list to edit."* Concretely: the EX-5 red set differs from
+  A-V5's.
+- From the same Notes and `design.md` §5.2.3 *Its reach*: *"the corrections
+  EX-4 names are the only lists edited to agree with the code"*. Editing any
+  other fixture, or any field of these but `requirement`, is a STOP.
+- `design.md` §5.5 A-1: a second raiser of `InapplicableKey { key: "fields" }`
+  appears. The witness would fail; the row is the design's.
+- Any variant found with no §5.2.3 row, or a row with no variant (A-V1 says
+  none today; the tree can move).
+- A §5.2.3 row that cannot be written as a total match with no `_` arm.
+- A file outside **Surfaces**, including any reporter, `goad`'s renderer or
+  the diagnostics surface (`notes.md` §Open: *"`goad`'s own reporters do not
+  carry R-59's side and requirement"* is a candidate follow-up, not this
+  phase).
+- Adding `requirement()` or `fault()` to `ConfigError`, `EnvelopeFault` or
+  `SpanFault` (EX-3; R-59 puts them outside its scope).
+- A dependency addition (e.g. a variant-enumerating derive: `notes.md` §Open,
+  declined by the user).
+- **PLAN QUESTION 1** (Findings) unanswered when execution starts: how
+  `goad-shell` constructs a `Requirement`.
+- **PLAN QUESTION 2** (Findings) unanswered: the Notes order cannot produce
+  EX-5's red.
+
+**Tasks** — in `plan.md` PHASE-01 Notes order (*"write the witness tests, see
+the refusal witness fail on the fixtures EX-4 names (EX-5), correct the lists,
+then the methods"*), with Display last as the brief for this sheet orders it.
+`[!]` marks a step PLAN QUESTION 2 blocks as written.
+
+- [ ] Set PHASE-01 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline`; it must be 7b549d4 or a descendant whose
+      only changes since are this sheet.
+- **Witnesses, red**
+  - [!] `normalize.rs`: give `fixtures_of` the fixture's path (A-V4); reach the
+        schedule corpus through `runner.rs` by the narrowest edit (A-V3).
+        Extract the per-corpus input route (`to_vec` for `PROTOCOL`, `as_str`
+        for `PROTOCOL_TEXT`) so the checkers and the witness share it rather
+        than repeating it.
+  - [!] Write `every_refusal_fixture_names_a_requirement_in_its_own_list` over
+        `PROTOCOL` and `PROTOCOL_TEXT`: run `read_response` on each fixture's
+        input at its `now`; for each `Err`, its `requirement()`'s display is in
+        the fixture's `requirement`; collect every failure with the fixture
+        path, the produced variant and id, and the list; fail once naming all.
+        Non-vacuity per corpus (VT-3, A-T3).
+  - [!] Write `every_discard_fixture_names_a_requirement_in_its_own_list` over
+        `PROTOCOL`'s `Discarded` items and the schedule corpus's error
+        fixtures (`schedule::parse`), the same way; non-vacuity counted for the
+        `Discarded` fixtures and the schedule error fixtures separately.
+  - [!] Run with `--no-fail-fast`. **EX-5**: record the refusal witness's
+        failure output below (fixture names, verbatim) and check it is A-V5's
+        set exactly. The discard witness is green (Notes: *"green from its
+        first run; VA-4 is what shows it can fail"*).
+- **List corrections, green**
+  - [ ] EX-4: `R-17-a-nan-literal-for-a-bound` and
+        `R-17-an-infinite-literal-for-a-bound` → `["R-17", "R-44"]`;
+        `R-52-a-choice-field-with-no-alternatives` → `["R-52", "R-53",
+        "R-16"]`. `requirement` arrays only. Refusal witness green.
+  - [ ] `git diff --stat -- tests/fixtures` shows exactly those files (EX-4:
+        *"no other fixture list is edited"*).
+- **Methods** (`requirement()` and `fault()`, each a total `match` with no `_`
+  arm; VT tables first, red, then the arms)
+  - [!] Stratum 1, in `goad_semantics::error`: `Requirement`, `AtFault` (EX-1);
+        `requirement()`/`fault()` on `ProtocolError`, `BoundsError`,
+        `ScheduleError` (EX-2), `InapplicableKey` split on `key`, `Bounds` and
+        `Schedule` delegating.
+  - [ ] VT-1: extend `every_protocol_error` (A-V8); write
+        `every_protocol_error_names_a_requirement_and_a_side` and the bounds and
+        schedule siblings beside `must_name` — each an exhaustive `match` whose
+        expected id and side are copied from §5.2.3's table, not from the code
+        (*tests-asserting-proxies*). Expected ids written so a reader sees the
+        table (e.g. compare displays to `"R-44"`), subject to PLAN QUESTION 1.
+  - [!] Stratum 2, in `goad_shell::error`: `requirement()`/`fault()` on
+        `BackendError` (`Protocol` delegating), `CleanupFailure`, `StateError`
+        — blocked on PLAN QUESTION 1.
+  - [ ] VT-2: new `mod tests` with a builder per enum (A-V9) and
+        `every_backend_error_names_a_requirement_and_a_side`, and the cleanup
+        and state siblings, each from §5.2.3.
+  - [ ] EX-3: `grep -n 'fn requirement\|fn fault'` over
+        `crates/goad-semantics/src/error.rs`, `crates/goad-shell/src/error.rs`,
+        `crates/goad-shell/src/ingress/envelope.rs`; no hit in an `impl` of
+        `ConfigError`, `EnvelopeFault` or `SpanFault`. Record the hits.
+- **Display**
+  - [ ] EX-1: `Requirement` displays as `R-N`; `AtFault`'s `Display` a total
+        `match` printing `backend`, `host`, `configuration`, `environment`.
+  - [ ] VT-1: `every_side_displays_as_the_word_a_report_prints` — *"a table over
+        each `AtFault` variant beside an exhaustive match"*.
+- **Refactor**
+  - [ ] Read the diff for duplication between the witnesses and the existing
+        corpus tests (the input route, `now` parsing, the walk). Docs on the
+        new types cite §5.2.3 and R-59 by name, never by line.
+- **Verification**
+  - [ ] VA-1 (quoted): *"the §5.2.3 table and the code agree row for row, read
+        side by side and recorded in the phase sheet"*. Record one line per row
+        under Decisions or a VA-1 block: variant, table id/side, arm id/side.
+        Confirm no `_` arm in any `requirement()`, `fault()` or `AtFault`
+        `Display` match by reading each (A-V10).
+  - [ ] VA-2: mutation table row 1.
+  - [ ] VA-3 (quoted): *"`canon-delta.md` SPEC-001 Change 2's test names
+        resolve to the shipped cases."* `grep -n` each name Change 2 cites
+        (`every_protocol_error_names_a_requirement_and_a_side`, its bounds and
+        schedule siblings, `every_backend_error_names_a_requirement_and_a_side`
+        and its cleanup and state siblings, both witnesses) in the file Change 2
+        places it. A name or file that differs is updated in `canon-delta.md` in
+        the same commit and noted here (*Test names are commitments*).
+  - [ ] VA-4: mutation table row 2.
+  - [ ] `just check` exits 0 on the final commit. Record it.
+  - [ ] §Status: PHASE-01 `done`, with the date.
+  - [ ] Harvest updated in place (*Fresh as of*, Produced, Learned, Open).
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad and back, never `git checkout`/`git stash`; `--no-fail-fast`;
+`git status` clean after each restore; a mutation that does not compile is not
+evidence). "Cases it must red" names the plan's case first; the VT table that
+also asserts the arm is expected to red with it and is listed second.
+
+| edit | cases it must red | compiled? | redded |
+|---|---|---|---|
+| VA-2: `ProtocolError::requirement()`'s `NestedHints` arm R-18 → R-3 | `every_refusal_fixture_names_a_requirement_in_its_own_list`, naming `protocol/R-18-a-nested-hints-object`; also `every_protocol_error_names_a_requirement_and_a_side`. The discard witness stays green. | | |
+| VA-4: `ScheduleError::requirement()`'s `NotAString` arm R-25 → R-3 | `every_discard_fixture_names_a_requirement_in_its_own_list`, its one failure naming both `protocol/R-25-next-check-of-the-wrong-type` and `schedule/R-25-not-a-string`; also the schedule sibling of `every_protocol_error_names_a_requirement_and_a_side`. The refusal witness stays green (A-T4). | | |
+| optional (A-T3): a witness's corpus root pointed at a missing directory | that witness, by its non-vacuity guard | | |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -52,6 +359,39 @@ after the slice closes is lifted into the Harvest section.
      elsewhere, drift from the design, a surprise. Defects in this phase's own
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
+
+- **PLAN QUESTION 1 — how does stratum 2 build a `Requirement`?** `design.md`
+  §5.2.3 declares `pub struct Requirement(u16)` with a private field, and
+  states no constructor. `goad_shell::error`'s arms (`Spawn` → R-44, `Timeout`
+  → R-41, …) are in another crate and cannot write `Requirement(44)`. Neither
+  the design, the plan nor either review ledger settles it (`grep -n
+  'Requirement('` over the slice's documents finds only the declaration).
+  Candidates: a `pub const fn` constructor; named constants in
+  `goad_semantics::error`; a public field. Each is new public API that
+  `goad-check` will also see, and I-1 (*"`goad-check` contains no requirement
+  id … except the R-56 probe's"*) bears on which. Not repaired here.
+- **PLAN QUESTION 2 — the Notes order cannot produce EX-5's red.** The Notes
+  say *"write the witness tests, see the refusal witness fail on the fixtures
+  EX-4 names (EX-5), correct the lists, then the methods"*, and the brief for
+  this sheet orders Display last. But the witness calls `requirement()` on the
+  produced error and compares its printed form with the fixture's strings, so
+  it does not compile until `Requirement`, its `Display`, and `requirement()`
+  on `ProtocolError`, `BoundsError` and `ScheduleError` exist — and a compile
+  failure is not a red (*negative-control-must-compile*). A stub cannot stand
+  in: `todo!()` or a constant reds nearly every fixture, not EX-5's set. EX-5's
+  red is on exactly A-V5's fixtures only when the stratum-1 arms already answer
+  §5.2.3, which is what `design.md` §5.2.3 assumes (*"Today the witness fails on
+  … That failure is the red step, and the list corrections are the green
+  one"*). An executable order would be: `Requirement` with its `Display`, and
+  stratum-1 `requirement()` driven red by VT-1's tables → witnesses red on
+  A-V5's set (EX-5) → list corrections → `fault()`, stratum 2, `AtFault`'s
+  `Display`. That is a reordering of the plan, so it is the user's to endorse,
+  not this sheet's to make.
+- **A second `every_protocol_error` builder exists**, in `normalize.rs` (an
+  integration target, which cannot reach `error.rs`' `#[cfg(test)]` one). The
+  plan's *"do not write a second builder"* is about `error.rs`; this one
+  predates the slice and serves `every_reachable_error_in_the_taxonomy_is_named_by_a_fixture`.
+  Not this phase's to merge; noted for audit.
 
 ## Harvest
 
