@@ -835,7 +835,10 @@ that repository.
   environment variables — for Claude, `CLAUDE_CODE_OAUTH_TOKEN` (made by
   `claude setup-token`) or `ANTHROPIC_API_KEY` — available to a session
   started in a fresh home (`plan-log.md` 2026-10-01, *EX-8 and EN-2 take a
-  Claude OAuth token*). Nothing credential-bearing is written into the home, a committed file
+  Claude OAuth token*). A Codex login that is a file (`~/.codex/auth.json`)
+  is copied into the scratch home for the run and deleted on exit; the key
+  scan after shows it gone (`plan-log.md` 2026-10-01, *EX-8 run on the
+  host, Codex by a temporary login copy*). Nothing credential-bearing is written into the home, a committed file
   or `goad-walk`. The person's, not the executor's: no agent session holds
   the Anthropic credential (`plan-log.md` 2026-10-01, *PHASE-05 sheet
   questions*).

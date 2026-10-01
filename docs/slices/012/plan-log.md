@@ -385,3 +385,24 @@ changes only `notes.md`). PHASE-05/EN-3 is met; the orchestrator confirmed
 take a Claude OAuth token* is applied to `plan.md` PHASE-05/EN-2 and
 PHASE-11/EN-3 in the same commit; the sheet's script follows when PHASE-05's
 executor resumes.
+
+### 2026-10-01 — EX-8 run on the host, Codex by a temporary login copy
+
+- **Asked:** the user's Codex login is OAuth too: a file,
+  `~/.codex/auth.json`, not an environment variable, so a fresh home has
+  none. Proposed: EX-8's script copies `auth.json` (mode 600) into the
+  scratch home's `CODEX_HOME` and deletes it on exit by `trap`; Claude by
+  `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`. Run on the host from
+  `/home/david/dev/goad`, whose devshell supplies bare `claude` and `codex`
+  (nix-direnv). This amends EN-2's "nothing credential-bearing is written
+  into the home": a copy exists for the run only, and the key scan after
+  proves it gone.
+- **Decided:** the user ran it, 2026-10-01.
+- **Result:** both bare prompts answered `READY`; both plugin prompts
+  answered the marker verbatim; Codex's transcript shows it reading
+  `skills/goad-backend/SKILL.md` from its plugin cache — R1's "the model
+  reading the skill" half; the trap printed the copy's removal. Log at
+  `~/.cache/goad-p05-ex8.log`.
+- **Consequence:** `plan.md` PHASE-05/EN-2 restated; the sheet's EX-8
+  block replaced by the script as run; the executor reads the log back and
+  runs the key scan over the scratch home.
