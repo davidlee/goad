@@ -150,12 +150,12 @@ at that commit.
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-22 | minor | | |
-| F-23 | minor | | |
-| F-24 | minor | | |
-| F-25 | minor | | |
-| F-26 | minor | | |
-| F-27 | nit | | |
+| F-22 | minor | | verified |
+| F-23 | minor | | verified |
+| F-24 | minor | | verified |
+| F-25 | minor | | verified |
+| F-26 | minor | | verified |
+| F-27 | nit | | verified |
 
 ### F-1 — PHASE-05/EX-8 asks two agents to answer a prompt from a fresh home, and nothing gives them credentials there
 
@@ -767,7 +767,7 @@ developer adds, joins the refused set on that machine only. `flake.nix` sets
 **Disposition:** doc-wrong
 **Response:** I-5's mention rule reads the tracked tree: the test lists tracked paths with `git ls-files` and refuses a mention `<name>/<segment>` only if that path prefix is tracked outside `kit/`; a missing `git` or `.git` fails the test, never skips it. The escaping-`../` half stands. The negative control gains a generic consumer path (`.claude/skills/`) and a backticked `` `.claude-plugin/plugin.json` ``, both accepted. `design-log.md` 2026-10-01, *plan review round 2: I-5 reads the tracked tree*. *(Repair: `design.md` §5.2.6 *The kit stands alone* restates the mention half as `<name>/<segment>` where that prefix starts a path `git ls-files` tracks outside `kit/`, keeps the escaping-`../` half and the boundary character rule, says untracked and ignored entries refuse nothing, and fails on a missing `git` or `.git`; §5.5 I-5 and §9 follow. PHASE-07/VT-5 reads the tracked list, refusing one with nothing under `kit/` or `crates/`, and fails without git; VT-6 refuses an escaping path and `crates/goad-shell/src`, and accepts `.claude/skills/` and `` `.claude-plugin/plugin.json` ``.)*
 
-**Outcome:**
+**Outcome:** verified — `design.md` §5.2.6 *The kit stands alone* now refuses `<name>/<segment>` only where that prefix starts a path `git ls-files` tracks outside `kit/`, and fails rather than skips without `git` or `.git`; §5.5 I-5 and §9 follow. PHASE-07/VT-5 reads the tracked list, and VT-6 refuses `crates/goad-shell/src` and accepts `.claude/skills/` and `` `.claude-plugin/plugin.json` ``. Checked against the tree: no `.claude/` path is tracked, and `.claude-plugin/plugin.json` starts no tracked path outside `kit/`, so both cases are accepted for the reason the rule gives.
 
 ### F-23 — Between PHASE-04 and PHASE-12, `main` carries a checker that accepts every backend without running it
 
@@ -795,7 +795,7 @@ exchange, so its report is the no-view line and the verdict"); §Sequencing
 **Disposition:** doc-wrong
 **Response:** Until PHASE-12 a run ends with no verdict: the report's no-view line, a stderr line saying the run is not yet implemented, and status 2. PHASE-12 replaces it with the verdict. Nothing on `main` reports acceptance it did not judge. *(Repair: PHASE-04's objective, EX-3 and EX-4: a run ends with the no-view line, a not-yet-implemented stderr line and status 2, through the one `ExitCode::from(2)`; new PHASE-04/VT-3 `a_run_with_no_exchange_exits_2_with_no_verdict` asserts it. New PHASE-12/EX-6 replaces that end with the verdict and deletes VT-3's case; PHASE-12/EX-4 feeds EX-6's cut. Forced: the verdict line and the 0/1 cut move from PHASE-04 to PHASE-12/EX-6, since in PHASE-04 nothing would call them and the gate's lint refuses dead code. The Overview bullets for PHASE-04 and PHASE-12 and §Sequencing *Why the checker is two phases* say the same.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-04's objective, EX-3, EX-4 and new VT-3 (`a_run_with_no_exchange_exits_2_with_no_verdict`) end an exchange-less run with status 2 through the one `ExitCode::from(2)`. PHASE-12/EX-6 replaces that end and deletes the case. The Overview, the diagram and §Sequencing say the same. Moving the verdict line and the 0/1 cut into PHASE-12 is consistent: in PHASE-04 nothing would call them.
 
 ### F-24 — PHASE-08/VT-1 counts an id in "a Markdown heading line", and a `#` comment inside a fenced block reads as one
 
@@ -822,7 +822,7 @@ id, and body text, with no fence. `design.md` §5.2.6's role table: the
 **Disposition:** doc-wrong
 **Response:** PHASE-08/VT-1 reads headings through the shared scanner (PHASE-07/EX-4), skipping fenced lines; a heading counts for an id only if it names exactly that one requirement id, matching PHASE-07/EX-3. VT-2's control gains a fenced `#` line naming an id that appears nowhere else, which must be reported absent, and a heading naming two ids. *(Repair: PHASE-08/VT-1 reads the reference through the shared scanner, skipping fenced lines, and counts an id only in a heading naming exactly that one requirement id, citing PHASE-07/EX-3; a scanner symbol added for it must be used by both includers. VT-2's control adds `SPEC-001/R-36` only on a `#` line in a fence, and `SPEC-001/R-41` with `SPEC-001/R-42` in one heading, all reported absent.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-08/VT-1 skips fenced lines through the shared scanner and counts an id only in a heading naming that id alone. VT-2 adds a fenced `#` line (R-36) and a heading with two ids (R-41, R-42), both reported absent. The repair's provision for a new scanner symbol has no surface in PHASE-08, which is F-28.
 
 ### F-25 — The coverage test's id set omits R-56, which the checker's own report prints
 
@@ -845,7 +845,7 @@ line only on its condition".
 **Disposition:** doc-wrong
 **Response:** The checker's own R-56 claim id joins VT-1's coverage set, taken from the constant the report prints, not respelled. *(Repair: PHASE-08/VT-1's id set adds the checker's R-56 claim, read from the constant PHASE-12/EX-3 prints; PHASE-08's objective and Overview bullet name it. Forced: PHASE-12/EX-3 puts that constant in a `src` module holding nothing else, so the `kit` target can include it by path, since a binary-only crate's items are not reachable from its test targets (as PHASE-12/VT-3). EX-5 needed no change.)*
 
-**Outcome:**
+**Outcome:** verified — PHASE-08/VT-1's id set adds the checker's R-56 claim, read from the constant PHASE-12/EX-3 places alone in a `src` module that the `kit` target includes by path. That route reaches a binary-only crate's item, as PHASE-12/VT-3's note explains.
 
 ### F-26 — The parallel rule still has every parallel phase append a phase sheet at one place in `notes.md`
 
@@ -868,7 +868,7 @@ there.
 **Disposition:** doc-wrong
 **Response:** PHASE-01..PHASE-03 run sequentially; the parallel rule for them is dropped. PHASE-11 alone may run beside PHASE-06..PHASE-08, and the orchestrator writes its phase sheet and its `notes.md` §Status row on `main`, so the worktree touches neither. *(Repair: §Sequencing's parallel paragraph is replaced: PHASE-01..PHASE-03 run in sequence, and the diagram draws them as a chain; PHASE-11 alone may run in parallel, the orchestrator writing its phase sheet and `notes.md` §Status row on `main` from the worktree agent's reports. PHASE-11's notes cite that rule. Forced: PHASE-02/EN-1 and PHASE-03/EN-1, which declared independence for parallel runs, now require PHASE-01 and PHASE-02 done respectively; the diagram's PHASE-04 label reads `status 2` per F-23.)*
 
-**Outcome:**
+**Outcome:** verified — §Sequencing runs PHASE-01..PHASE-03 in sequence, the diagram draws them as a chain, and PHASE-02/EN-1 and PHASE-03/EN-1 now require the phase before. PHASE-11 alone runs in parallel, and the orchestrator writes its sheet and §Status row on `main`. A grep for `parallel` in `plan.md`, `notes.md` and `design.md` finds no other rule left over.
 
 ### F-27 — Loose ends in the repaired criteria
 
@@ -895,6 +895,58 @@ there.
 
 **Disposition:** doc-wrong
 **Response:** PHASE-12/VA-1 names both expected `AtFault::Backend` hits: the R-56 condition and the probe's claim. PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml`. PHASE-08 removes the PHASE-05 marker as an exit criterion; PHASE-11's load check, if entered after PHASE-08, asks for a fact only the finished `SKILL.md` body states. *(Repair: PHASE-12/VA-1 names both expected `AtFault::Backend` hits, the R-56 condition's `fault()` comparison and the probe's claim. PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml`, `[dev-dependencies]` only, a new external dependency still a STOP. New PHASE-08/EX-6 removes PHASE-05's marker. PHASE-11/EX-2 asks for a fact the body states at the pinned revision: PHASE-05's marker before PHASE-08, and a fact only the finished body states if entered after PHASE-08 at a revision holding it.)*
+
+**Outcome:** verified — PHASE-12/VA-1 names the condition's `AtFault::Backend` hit; PHASE-12 §Surfaces gains `crates/goad-check/Cargo.toml` (`[dev-dependencies]` only); PHASE-08/EX-6 removes the marker; PHASE-11/EX-2 asks for a fact the body states at the pinned revision. VA-1's rewording now omits the R-56 literal's own hit, which is F-29.
+
+### F-28 — PHASE-08/VT-1 allows a new symbol in the shared scanner, and PHASE-08's surfaces hold neither the scanner nor its other includer
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-08/VT-1, PHASE-08 §Surfaces; PHASE-07/EX-4
+
+**Expected:** A phase can do what its criteria allow it to do within its
+declared surfaces.
+**Observed:** F-24's repair says "a scanner symbol added for it is used by both
+includers, or the other's build fails (PHASE-07/EX-4)". Adding a symbol means
+editing `tests/support/`'s scanner file, and keeping `goad-shell`'s build
+green means `crates/goad-shell/tests/integration/round_trip.rs` must use it.
+PHASE-08's surfaces list neither. The rule also has `round_trip.rs`, which
+reads one fenced TOML block, call a function it has no need of only to keep
+`dead_code` quiet. That is the coupling
+`docs/memory/shared-test-helper-lives-at-workspace-root-via-path.md` warns
+against: "a shared helper carrying a symbol only one caller uses is a coupling
+nobody asked for". The route the repair leaves open is a surface breach, and
+the route it should name is that the kit test works out which lines are
+outside fences from what the scanner already returns.
+**Evidence:** `plan.md` PHASE-08 §Surfaces: `reference/{…}`, `SKILL.md`,
+`crates/goad-check/tests/kit/`. PHASE-07 §Surfaces holds `tests/support/` and
+`round_trip.rs`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-29 — PHASE-12/VA-1 now lists only the `AtFault::Backend` hits, and leaves out the R-56 claim's own `R-[0-9]+` hit
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-12/VA-1, PHASE-12/EX-3; §Sequencing *Invariant reads*
+
+**Expected:** An invariant read that the intended code passes as written.
+**Observed:** F-27's repair rewrote VA-1 as: "the only hits outside a comment
+are the two `AtFault::Backend` uses R-56 needs — the condition's comparison
+… and the probe's claim". I-1's command also greps `R-[0-9]+`. The probe's
+claim text, `SPEC-001/R-56 …`, is a string constant in its own `src` module
+(PHASE-12/EX-3, as F-25's repair placed it), so it is a non-comment hit that
+is not an `AtFault::Backend` use. Round 2's wording, "the only hit outside a
+comment is the R-56 probe's claim", admitted that hit. The new wording
+excludes it, so VA-1 fails on the code PHASE-12/EX-3 asks for.
+**Evidence:** *Invariant reads*: `grep -rnE
+'R-[0-9]+|AtFault::|"(backend|host|configuration|environment)"'
+crates/goad-check/src`. PHASE-12/EX-3: "The R-56 claim the line prints is a
+constant in a `src` module that holds nothing else".
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
