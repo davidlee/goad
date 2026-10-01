@@ -7,8 +7,15 @@
 //! words that say which requirement or side a fault concerns are the host's,
 //! not this crate's (`design.md` §5.5 I-1).
 
-use crate::StartupFault;
+use std::fmt::Display;
+
+use goad_semantics::error::{AtFault, Requirement};
+use goad_semantics::protocol::canonical::{UserResponse, View};
+use goad_semantics::protocol::normalize::Discarded;
+
 use crate::args::UsageError;
+use crate::run::{CHAIN_BOUND, Judged};
+use crate::{RunFault, StartupFault};
 
 /// One `const`, no trailing newline: `report`'s `writeln!` supplies it.
 ///
@@ -31,15 +38,142 @@ Runs a goad backend the way the host runs it and reports every exchange.
                   host's socket. Repeatable; sent in the order given.
   -- PROGRAM ...  the backend's command, in place of a configuration file.";
 
-/// What the report says when no exchange returned a view: respond, the
-/// half of the protocol that answers one, went unexercised (`design.md`
-/// §5.2.5). Until PHASE-12 no exchange is made, so this is the whole report.
+/// What the report says, last before the verdict, when no exchange returned
+/// a view: respond, the half of the protocol that answers one, went
+/// unexercised (`design.md` §5.2.5).
 pub(crate) const NO_VIEW: &str = "no exchange returned a view, so respond was not exercised";
 
-/// The interim end of a run: everything before the first exchange succeeded,
-/// and there is no exchange yet, so nothing was judged. PHASE-12 deletes it.
-pub(crate) const NOT_YET_IMPLEMENTED: &str =
-  "goad-check: the exchanges are not yet implemented, so nothing was judged";
+/// The checker's own claim against its probe, beside the failure the host
+/// reported (`design.md` §5.2.2).
+const PROBE_CLAIM: &str = "a backend MUST tolerate a kind it does not recognise";
+
+/// The heading of one planned request's evaluate.
+#[must_use]
+pub(crate) fn evaluate_line(kind: &str) -> String {
+  format!("evaluate {kind}")
+}
+
+/// The heading of a respond in a chain: the option answered and the values
+/// sent, by field, so a backend that refuses them is not silently blamed
+/// (`design.md` §5.5 *Edges*).
+#[must_use]
+pub(crate) fn respond_line(answer: &UserResponse) -> String {
+  let values: Vec<String> = answer
+    .values
+    .iter()
+    .map(|(field, value)| format!("{}={value}", field.as_str()))
+    .collect();
+  if values.is_empty() {
+    format!("  respond {} with no values", answer.option.as_str())
+  } else {
+    format!(
+      "  respond {} with {}",
+      answer.option.as_str(),
+      values.join(" ")
+    )
+  }
+}
+
+/// Every channel of one exchange's outcome, as `design.md` §5.2.2's table
+/// gives it: what came back, each refusal, and the backend's stderr.
+#[must_use]
+pub(crate) fn exchange_lines(judged: &Judged) -> Vec<String> {
+  let next_check = judged.next_check.instant();
+  let mut lines = vec![match &judged.view {
+    Some(presented) => match &presented.view {
+      View::Choice(choice) => format!(
+        "  view {}: {:?} · next check {next_check}",
+        presented.view_id.as_str(),
+        choice.title()
+      ),
+    },
+    None => format!("  view: null · next check {next_check}"),
+  }];
+  lines.extend(
+    judged
+      .failure
+      .iter()
+      .map(|failure| refusal_line(failure.fault(), failure.requirement(), failure)),
+  );
+  lines.extend(judged.discarded.iter().map(|discard| match discard {
+    Discarded::Schedule { reason, .. } => {
+      refusal_line(reason.fault(), reason.requirement(), discard)
+    }
+  }));
+  lines.extend(
+    judged
+      .cleanup
+      .iter()
+      .map(|cleanup| refusal_line(cleanup.fault(), cleanup.requirement(), cleanup)),
+  );
+  lines.extend(
+    String::from_utf8_lossy(&judged.stderr.bytes)
+      .lines()
+      .map(|line| format!("  stderr: {line}")),
+  );
+  if judged.stderr.truncated {
+    lines.push("  stderr truncated: the host kept only its first part".to_owned());
+  }
+  lines
+}
+
+/// A refusal, naming its side and requirement through their own `Display`s,
+/// never spelling either (`design.md` §5.5 I-1).
+fn refusal_line(side: AtFault, requirement: Requirement, what: &dyn Display) -> String {
+  format!("  REFUSED  {side}  SPEC-001/{requirement}  {what}")
+}
+
+/// The claim R-56's condition makes, as a refusal line: its id is stratum
+/// 1's, and its text and side are the checker's own (`design.md` §5.2.2).
+#[must_use]
+pub(crate) fn probe_claim_line() -> String {
+  refusal_line(AtFault::Backend, Requirement::R56, &PROBE_CLAIM)
+}
+
+/// The chain bound reached: an observation, not a refusal (`design.md`
+/// §5.2.2).
+#[must_use]
+pub(crate) fn chain_bound_line() -> String {
+  format!(
+    "  chain bound of {CHAIN_BOUND} responds reached: the last view was left unanswered, \
+     which is an observation and not a refusal"
+  )
+}
+
+/// The report's last line.
+#[must_use]
+pub(crate) fn verdict_line(refused: usize) -> String {
+  match refused {
+    0 => "verdict: accepted, no exchange refused".to_owned(),
+    refused => format!("verdict: refused, {refused} exchange(s) refused"),
+  }
+}
+
+/// The last stderr line of a run refused (SPEC-004's stderr line).
+#[must_use]
+pub(crate) fn refused_line(refused: usize) -> String {
+  format!(
+    "goad-check: {refused} exchange(s) refused; the report on standard output names each \
+     refusal's side and requirement"
+  )
+}
+
+/// Why a run that had begun its exchanges delivered no verdict.
+#[must_use]
+pub(crate) fn run_fault_line(fault: &RunFault) -> String {
+  match fault {
+    RunFault::Clock(fault) => {
+      format!("goad-check: the clock could not be read mid-run, so nothing was judged: {fault}")
+    }
+    RunFault::ReportUnwritten(fault) => report_unwritten_line(fault),
+    RunFault::State(error) => format!(
+      "goad-check: the checker answered a view the host was not holding, which is the \
+       checker's own defect, so nothing was judged: {} SPEC-001/{} {error}",
+      error.fault(),
+      error.requirement()
+    ),
+  }
+}
 
 /// A usage error, naming what was wrong and not reprinting the usage block:
 /// `--help` is where the page lives.
@@ -125,12 +259,19 @@ mod tests {
   use goad_shell::error::ConfigError;
   use goad_shell::ingress::envelope::EnvelopeFault;
 
+  use goad_semantics::protocol::canonical::{Timestamp, ViewId};
+  use goad_semantics::protocol::normalize::read_response;
+  use goad_shell::backend::transport::Captured;
+  use goad_shell::error::{BackendError, StateError};
+
   use super::{
-    NOT_YET_IMPLEMENTED, USAGE, answer_unwritten_line, report_unwritten_line, startup_error_line,
-    usage_error_line,
+    USAGE, answer_unwritten_line, chain_bound_line, exchange_lines, refused_line,
+    report_unwritten_line, respond_line, run_fault_line, startup_error_line, usage_error_line,
+    verdict_line,
   };
-  use crate::StartupFault;
   use crate::args::UsageError;
+  use crate::run::{CHAIN_BOUND, Judged, answer};
+  use crate::{RunFault, StartupFault};
 
   const PREFIX: &str = "goad-check: ";
 
@@ -281,10 +422,100 @@ mod tests {
     );
   }
 
+  fn epoch() -> Timestamp {
+    Timestamp::new(jiff::Timestamp::UNIX_EPOCH)
+  }
+
+  /// An exchange that returned nothing, with `failure` and `stderr` given.
+  fn judged(failure: Option<BackendError>, stderr: Captured) -> Judged {
+    Judged {
+      view: None,
+      next_check: epoch(),
+      discarded: Vec::new(),
+      stderr,
+      failure,
+      cleanup: None,
+    }
+  }
+
+  /// Shape only: the side and the id are the host's `Display`s, and their
+  /// values are asserted as literals in the binary tier (I-1 reads `src`).
   #[test]
-  fn the_interim_end_says_nothing_was_judged_on_stderr() {
-    assert!(NOT_YET_IMPLEMENTED.starts_with(PREFIX));
-    assert!(NOT_YET_IMPLEMENTED.contains("nothing was judged"));
+  fn a_refusal_line_carries_the_failure_s_own_words_under_its_spec() {
+    let failure = BackendError::ExitStatus { code: Some(1) };
+    let said = failure.to_string();
+    let lines = exchange_lines(&judged(Some(failure), Captured::default()));
+
+    let refusals: Vec<&String> = lines
+      .iter()
+      .filter(|line| line.contains("SPEC-001/"))
+      .collect();
+    assert_eq!(refusals.len(), 1, "{lines:?}");
+    assert!(
+      refusals.iter().all(|line| line.contains(&said)),
+      "{lines:?}"
+    );
+  }
+
+  #[test]
+  fn the_backend_s_stderr_is_shown_line_by_line_and_its_truncation_flagged() {
+    let stderr = Captured {
+      bytes: b"first said\nsecond said\n".to_vec(),
+      truncated: true,
+    };
+    let lines = exchange_lines(&judged(None, stderr)).join("\n");
+
+    assert!(lines.contains("first said"), "{lines}");
+    assert!(lines.contains("second said"), "{lines}");
+    assert!(lines.contains("truncated"), "{lines}");
+    let untruncated = exchange_lines(&judged(None, Captured::default())).join("\n");
+    assert!(!untruncated.contains("truncated"), "{untruncated}");
+  }
+
+  /// The values sent, by field: the answer is built from a view the way the
+  /// run builds it.
+  #[test]
+  fn a_respond_line_names_the_option_and_each_field_sent() {
+    let bytes = br#"{"view":{"kind":"choice","title":"Asked","options":[{"id":"chosen","label":"C",
+      "fields":[{"id":"first_field","kind":"text","label":"F"},
+      {"id":"second_field","kind":"boolean","label":"S"}]}]}}"#;
+    let response = read_response(bytes, epoch()).expect("a view the host accepts");
+    let view = response.value.view().expect("the response carries a view");
+    let line = respond_line(&answer(view));
+
+    assert!(line.contains("chosen"), "{line}");
+    assert!(line.contains("first_field="), "{line}");
+    assert!(line.contains("second_field="), "{line}");
+  }
+
+  #[test]
+  fn the_verdict_and_the_status_1_line_tell_accepted_from_refused() {
+    assert!(verdict_line(0).starts_with("verdict: accepted"));
+    assert!(verdict_line(2).starts_with("verdict: refused"));
+    assert!(verdict_line(2).contains('2'));
+    assert!(refused_line(2).starts_with(PREFIX));
+    assert!(chain_bound_line().contains(&CHAIN_BOUND.to_string()));
+  }
+
+  #[test]
+  fn every_run_fault_says_nothing_was_judged_and_what_stopped_it() {
+    let state = StateError::NoOutstandingView {
+      named: ViewId::new("answered"),
+    };
+    let said = state.to_string();
+    let cases = [
+      (RunFault::Clock(ClockError::BeforeEpoch), "clock".to_owned()),
+      (
+        RunFault::ReportUnwritten(refused()),
+        "the report could not be written".to_owned(),
+      ),
+      (RunFault::State(state), said),
+    ];
+    for (fault, stopped) in cases {
+      let line = run_fault_line(&fault);
+      assert!(line.starts_with(PREFIX), "{line}");
+      assert!(line.contains(&stopped), "{line} must say {stopped}");
+    }
   }
 
   #[test]

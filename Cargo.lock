@@ -1814,6 +1814,7 @@ dependencies = [
  "goad-semantics",
  "goad-shell",
  "jiff",
+ "serde_json",
  "tokio",
 ]
 

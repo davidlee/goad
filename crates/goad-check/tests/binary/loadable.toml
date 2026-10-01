@@ -1,6 +1,9 @@
-# A configuration `Config::load` accepts. Its command is never spawned at
-# PHASE-04: the run makes no exchange yet, and neither `Config::load` nor
-# `Host::new` checks that the program exists.
+# A configuration `Config::load` accepts. A run spawns its command, and
+# `./never-spawned.sh` does not exist, so a run against this file would spawn
+# `bash` on a missing script and be refused. Its one reader,
+# `a_reserved_source_event_file_exits_2`, fails at normalizing its event file,
+# before any exchange; a case that runs this configuration needs one of its
+# own.
 [backend]
 command = ["bash", "./never-spawned.sh"]
 timeout = "5s"

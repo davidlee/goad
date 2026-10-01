@@ -1,74 +1,13 @@
-//! The spawn helpers and the cases.
-//!
-//! The helpers are copies of `goad-emit`'s
-//! `crates/goad-emit/tests/binary/exchange.rs` (`emit`,
-//! `emit_with_stdout_full`, `code_of`, `stderr_of`, `stdout_of`): one test
-//! target cannot include another crate's helper, and no `tests/support/` file
-//! holds them (FU-5).
-use std::path::PathBuf;
+//! The cases for each status a run can end on before or without its
+//! exchanges, and the edges a run shares with them.
+use crate::process::{
+  against, assert_not_judged, check, check_with_stdout_full, code_of, fixture, stderr_of, stdout_of,
+};
+use crate::scripting;
 use std::process::Output;
 
-/// Begins every line `goad-check` writes to stderr (SPEC-004's stderr line).
-const PREFIX: &str = "goad-check: ";
-
-/// A file committed beside this target, by an absolute path: a test's working
-/// directory is the package root, which is not something to rely on.
-fn fixture(name: &str) -> PathBuf {
-  PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    .join("tests/binary")
-    .join(name)
-}
-
-/// The built binary, not `cargo run`. A copy of `goad-emit`'s `emit`.
-fn check(arguments: &[&str]) -> Output {
-  std::process::Command::new(env!("CARGO_BIN_EXE_goad-check"))
-    .args(arguments)
-    .output()
-    .expect("the built binary must be runnable")
-}
-
-/// The same spawn with standard output on `/dev/full`, where every write
-/// fails. A copy of `goad-emit`'s `emit_with_stdout_full`.
-fn check_with_stdout_full(arguments: &[&str]) -> Output {
-  let full = std::fs::OpenOptions::new()
-    .write(true)
-    .open("/dev/full")
-    .expect("/dev/full must be openable for writing");
-  std::process::Command::new(env!("CARGO_BIN_EXE_goad-check"))
-    .args(arguments)
-    .stdout(full)
-    .output()
-    .expect("the built binary must be runnable")
-}
-
-/// A copy of `goad-emit`'s `code_of`.
-fn code_of(output: &Output) -> i32 {
-  output
-    .status
-    .code()
-    .expect("the binary must exit rather than be signalled")
-}
-
-/// A copy of `goad-emit`'s `stderr_of`.
-fn stderr_of(output: &Output) -> String {
-  String::from_utf8(output.stderr.clone()).expect("goad-check writes UTF-8")
-}
-
-/// A copy of `goad-emit`'s `stdout_of`.
-fn stdout_of(output: &Output) -> String {
-  String::from_utf8(output.stdout.clone()).expect("goad-check writes UTF-8")
-}
-
-/// Status 2, not judged, with SPEC-004's line **last** on stderr.
-fn assert_not_judged(output: &Output) {
-  let stderr = stderr_of(output);
-  assert_eq!(code_of(output), 2, "{stderr}");
-  let last = stderr.lines().last().unwrap_or_default();
-  assert!(last.starts_with(PREFIX), "the last stderr line: {stderr}");
-}
-
-/// A failure before the first exchange writes no report line, at PHASE-12
-/// too. Without this a case is green against the interim end, which is also
+/// A failure before the first exchange writes no report line. Without this a
+/// case is green against a run that reported and then failed, which is also
 /// status 2 with a `goad-check: ` line last.
 fn assert_no_report(output: &Output) {
   assert!(output.stdout.is_empty(), "{}", stdout_of(output));
@@ -133,26 +72,14 @@ fn an_empty_argv_is_a_usage_error() {
   assert_no_report(&output);
 }
 
-/// The `--help` half; PHASE-12/VT-2 adds the run half. A question whose
-/// answer never reached stdout was not answered, so it is not status 0.
+/// A question whose answer never reached stdout was not answered, and a run
+/// whose report never reached stdout delivered no verdict: neither is status
+/// 0 or 1. The run half uses a conforming backend, so stdout is the only
+/// fault in it.
 #[test]
 fn a_report_that_cannot_be_written_exits_2() {
-  let output = check_with_stdout_full(&["--help"]);
+  assert_not_judged(&check_with_stdout_full(&["--help"]));
 
-  assert_not_judged(&output);
-}
-
-/// The interim end: every step before the first exchange succeeds, no
-/// exchange is made, and nothing is judged. The report is the no-view line
-/// alone, with no verdict line. PHASE-12/EX-6 deletes this case.
-#[test]
-fn a_run_with_no_exchange_exits_2_with_no_verdict() {
-  let config = fixture("loadable.toml");
-  let output = check(&["--config", &config.to_string_lossy()]);
-
-  assert_not_judged(&output);
-  assert_eq!(
-    stdout_of(&output),
-    "no exchange returned a view, so respond was not exercised\n"
-  );
+  let (backend, _log) = scripting::scripted("report-unwritten", &[]);
+  assert_not_judged(&check_with_stdout_full(&against(&backend, &[])));
 }

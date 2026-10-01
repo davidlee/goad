@@ -19,13 +19,19 @@ autotests            = false
 # nothing is added to it. `jiff`, for the one value the argv form states
 # rather than reads, `schedule.default_poll`, and with no feature of its own:
 # a feature here unifies into stratum 1's `jiff` under `--workspace`, which is
-# POL-001's residue. No dev-dependencies: the binary tier spawns the built
-# binary and needs nothing the plain dependencies do not give it.
+# POL-001's residue.
 [dependencies]
 goad-semantics = { workspace = true }
 goad-shell     = { workspace = true }
 jiff           = { workspace = true }
 tokio          = { workspace = true }
+
+# `serde_json`, for the binary tier alone: a case reads the requests a
+# logging backend received by parsing them, not by matching substrings of
+# their serialization. The workspace entry, with no feature of its own, so
+# nothing unifies into stratum 1's.
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true
