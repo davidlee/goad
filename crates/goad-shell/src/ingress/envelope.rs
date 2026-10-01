@@ -14,7 +14,7 @@
 use std::fmt;
 
 use goad_semantics::error::{ProtocolError, json_type_name};
-use goad_semantics::protocol::canonical::{Event, Timestamp};
+use goad_semantics::protocol::canonical::{Event, HOST_SOURCE, Timestamp};
 use goad_semantics::protocol::wire::reject_duplicate_keys;
 
 /// The four keys `SPEC-003` §6.2 admits, and none beside them.
@@ -144,7 +144,7 @@ fn envelope(
   if source.is_empty() {
     return Err(EnvelopeFault::Empty { key: "source" });
   }
-  if source == "host" {
+  if source == HOST_SOURCE {
     return Err(EnvelopeFault::ReservedSource);
   }
   if kind.is_empty() {

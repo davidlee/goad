@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-01 |
-| PHASE-02 | pending | 2026-10-01 |
+| PHASE-02 | in progress | 2026-10-01 |
 | PHASE-03 | pending | 2026-10-01 |
 | PHASE-04 | pending | 2026-10-01 |
 | PHASE-05 | pending | 2026-10-01 |
@@ -878,39 +878,70 @@ placement of EX-7. The order below makes every new case red by a compiling
 stub before its body (A-T2), and puts each move before the code that depends
 on it.
 
-- [ ] Set PHASE-02 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline`; it must be 68f8ec4 or a descendant whose
+- [x] Set PHASE-02 to `in progress` in §Status.
+- [x] Print `git log -1 --oneline`; it must be 68f8ec4 or a descendant whose
       only changes since are this sheet and whatever the PLAN QUESTIONs'
       resolutions amended.
 - **1. `Stimulus` and `HOST_SOURCE` (EX-1, EX-5, EX-6, VT-1)**
-  - [ ] Move `Stimulus`, `Stimulus::kind`, `Stimulus::event` into
+  - [x] Move `Stimulus`, `Stimulus::kind`, `Stimulus::event` into
         `canonical.rs` beside `Event` (in the *Outbound: requests* section,
         after `Alternatives`, so no line citation above it moves — Findings).
         EX-1 (quoted): *"`kind` and `event` unchanged"*. `Stimulus::event`'s
         doc cites `Event` by symbol, not `canonical.rs:490-497` (EX-5).
-  - [ ] VT-1: move `a_scheduled_stimulus_names_itself_scheduled` and
+  - [x] VT-1: move `a_scheduled_stimulus_names_itself_scheduled` and
         `a_scheduled_stimulus_s_event_carries_the_three_normative_fields`
         *"verbatim"* into `canonical.rs`' `mod tests` (its `instant` helper
         has the same shape). Drop `wire.rs`' now-unused test imports. Moved,
         green (A-T2).
-  - [ ] Every caller imports `goad_semantics::protocol::canonical::Stimulus`:
+  - [x] Every caller imports `goad_semantics::protocol::canonical::Stimulus`:
         `main.rs`, `install.rs`, `controller.rs`, and the test files
         listed in the reading list. `wire.rs` drops `Event`, `Timestamp` and
         `serde_json::Value` from its production imports if nothing else uses
         them.
-  - [ ] EX-6: `pub const HOST_SOURCE: &str` beside `Stimulus`;
+  - [x] EX-6: `pub const HOST_SOURCE: &str` beside `Stimulus`;
         `Stimulus::event` writes `HOST_SOURCE.to_owned()`; `envelope.rs`'
         `envelope` compares `source == HOST_SOURCE`. Tests keep `"host"`
         (quoted: *"they witness the wire spelling, and are not a second
         encoding of it"*).
-  - [ ] EX-1's grep: `grep -rn '"startup"\|"requested"\|"scheduled"'
+  - [x] EX-1's grep: `grep -rn '"startup"\|"requested"\|"scheduled"'
         crates/goad/src` — no hit. Record it.
-  - [ ] EX-6's grep (quoted, as amended by PLAN QUESTION 1's resolution):
+  - [x] EX-6's grep (quoted, as amended by PLAN QUESTION 1's resolution):
         *"`grep -rn '"host"' crates/*/src`, each hit read and recorded as a
         comment, a test, `HOST_SOURCE`'s definition or `AtFault::Host`'s
         word, and nothing else"*. Record every hit with its class.
         `AtFault`'s `Display` keeps its literal; it is not routed through
         `HOST_SOURCE`.
+  - *Done.* `git log -1` printed `0ef7fff` at start. VT-1's two cases moved
+    verbatim, green on arrival (`cargo test -p goad-semantics stimulus`: 2
+    passed). `wire.rs` lost `Event`, `Timestamp`, `serde_json::Value` from
+    production imports and `Timestamp`, `Value`, `instant` from its tests.
+    `canonical.rs`' test module gained `use serde_json::Value` for the moved
+    case. Callers import `goad_semantics::protocol::canonical::Stimulus`;
+    where a file already imported from `canonical`, the name joined that
+    line (`controller.rs`, `answer.rs`, `drain.rs`, `full.rs`, `scheduling.rs`
+    under `renderer/`, and `wiring.rs`' nested module holding
+    `FieldId, UserResponse`). `wiring.rs`' nested `use super::{…, Stimulus,
+    …}` follows the top-level import unchanged.
+  - **EX-1 record:** `grep -rn '"startup"\|"requested"\|"scheduled"'
+    crates/goad/src` — no hit.
+  - **EX-6 record:** `grep -rn '"host"' crates/*/src`, each hit read:
+    - `canonical.rs` `HOST_SOURCE` — **`HOST_SOURCE`'s definition**.
+    - `canonical.rs` `an_evaluate_serializes_to_the_spec_s_wire_form` (two
+      hits), `every_request_kind_carries_the_version_and_a_discriminant`,
+      `a_scheduled_stimulus_s_event_carries_the_three_normative_fields` —
+      **tests** (inside `mod tests`).
+    - `goad_semantics::error` `AtFault`'s `Display` (`Self::Host => "host"`)
+      — **`AtFault::Host`'s word**.
+    - `goad_semantics::error` `every_side_displays_as_the_word_a_report_prints`
+      (`AtFault::Host => "host"`) — **test**.
+    - `envelope.rs` `EnvelopeFault::ReservedSource`'s doc, `envelope`'s doc,
+      the `VT-9` section comment in `mod tests` — **comments**;
+      `a_reserved_source_is_refused_with_every_other_field_valid` — **test**.
+    - `goad-shell/src/ingress/mod.rs` (a doc on the refusal cases),
+      `goad-emit/src/args.rs` (a doc on value meaning), `controller.rs`
+      `dispatch`'s doc — **comments**.
+    Nothing else. `dispatch`'s doc says `Stimulus::event` *"hard-codes
+    `source: "host"`"*; still true of the value, so left (Findings).
 - **2. `Finite` and `Submitted::to_json` (EX-2, VT-2's value half)**
   - [ ] Move `Finite` into `canonical.rs` *"unchanged, together with its doc
         on why it has no `Eq`"* (`design.md` §5.2.4; see Findings on that

@@ -528,6 +528,46 @@ pub struct Event {
   pub data: serde_json::Value,
 }
 
+/// The `Event.source` the host writes on every evaluation it originates
+/// (`SPEC-001/R-56`), and the one the ingress refuses from anyone else. One
+/// spelling, so the two cannot drift apart.
+pub const HOST_SOURCE: &str = "host";
+
+/// Why an evaluation is being asked for. The variants are the `Event.kind`
+/// strings one for one (design.md §6, OQ-7): `"startup"`, `"requested"`,
+/// `"scheduled"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stimulus {
+  Startup,
+  Requested,
+  Scheduled,
+}
+
+impl Stimulus {
+  /// `"startup"` | `"requested"` | `"scheduled"`. The host's own vocabulary,
+  /// naming a stimulus and never a domain.
+  #[must_use]
+  pub fn kind(self) -> &'static str {
+    match self {
+      Self::Startup => "startup",
+      Self::Requested => "requested",
+      Self::Scheduled => "scheduled",
+    }
+  }
+
+  /// The whole envelope, so the loop builds no `Event` by hand: every field
+  /// of [`Event`] is `pub`, so no accessor is owed.
+  #[must_use]
+  pub fn event(self, now: Timestamp) -> Event {
+    Event {
+      source: HOST_SOURCE.to_owned(),
+      kind: self.kind().to_owned(),
+      timestamp: now,
+      data: serde_json::Value::Null,
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct UserResponse {
   pub option: OptionId,
@@ -593,9 +633,12 @@ impl Serialize for Request {
 mod tests {
   use std::collections::BTreeMap;
 
+  use serde_json::Value;
+
   use super::{
     Alternative, AlternativeId, Alternatives, Evaluate, Event, Field, FieldId, FieldKind, Fields,
-    Hints, NumberRange, Opt, OptionId, Options, Request, Respond, Timestamp, UserResponse, ViewId,
+    Hints, NumberRange, Opt, OptionId, Options, Request, Respond, Stimulus, Timestamp,
+    UserResponse, ViewId,
   };
   use crate::error::{BoundsError, ProtocolError};
 
@@ -841,5 +884,22 @@ mod tests {
         Some(discriminant)
       );
     }
+  }
+
+  // -- the stimulus kinds --------------------------------------------------
+
+  #[test]
+  fn a_scheduled_stimulus_names_itself_scheduled() {
+    assert_eq!(Stimulus::Scheduled.kind(), "scheduled");
+  }
+
+  #[test]
+  fn a_scheduled_stimulus_s_event_carries_the_three_normative_fields() {
+    let now = instant("2026-08-23T04:12:00Z");
+    let event = Stimulus::Scheduled.event(now);
+    assert_eq!(event.source, "host");
+    assert_eq!(event.kind, "scheduled");
+    assert_eq!(event.timestamp, now);
+    assert_eq!(event.data, Value::Null);
   }
 }

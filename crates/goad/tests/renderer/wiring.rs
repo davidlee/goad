@@ -16,7 +16,8 @@ use goad::controller::{Controller, Exchanged, Surface};
 use goad::diagnostics::{BUSY_NOTICE, Refused};
 use goad::generated::PromptWindow;
 use goad::glass::Glass;
-use goad::wire::{Cancel, Command, Notice, Stimulus, Wire};
+use goad::wire::{Cancel, Command, Notice, Wire};
+use goad_semantics::protocol::canonical::Stimulus;
 use i_slint_backend_testing::ElementHandle;
 use slint::ComponentHandle;
 use tokio::sync::mpsc;
@@ -936,7 +937,8 @@ mod body_content {
 mod interaction {
   use goad::controller::{Controller, Ending, Exchanged, Shift, serve};
   use goad::glass::Glass;
-  use goad::wire::{Cancel, Command, Notice, Stimulus};
+  use goad::wire::{Cancel, Command, Notice};
+  use goad_semantics::protocol::canonical::Stimulus;
   use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;
@@ -1222,8 +1224,8 @@ mod editing {
   use goad::draft::Reported;
   use goad::generated::PromptWindow;
   use goad::glass::Glass;
-  use goad::wire::{Cancel, Command, Notice, PendingEdit, Stimulus};
-  use goad_semantics::protocol::canonical::{FieldId, UserResponse};
+  use goad::wire::{Cancel, Command, Notice, PendingEdit};
+  use goad_semantics::protocol::canonical::{FieldId, Stimulus, UserResponse};
   use goad_shell::ingress::Ingress;
   use slint::{ComponentHandle, Model};
   use tokio::sync::mpsc;
@@ -2088,7 +2090,8 @@ mod editing {
 /// and fail in production.
 mod serving {
   use goad::controller::{Controller, Ending, serve};
-  use goad::wire::{Cancel, Command, Notice, Stimulus};
+  use goad::wire::{Cancel, Command, Notice};
+  use goad_semantics::protocol::canonical::Stimulus;
   use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
 
@@ -2145,7 +2148,8 @@ mod cancellation {
   use std::time::{Duration, Instant};
 
   use goad::controller::{Controller, Ending, serve};
-  use goad::wire::{Cancel, Command, Notice, Stimulus};
+  use goad::wire::{Cancel, Command, Notice};
+  use goad_semantics::protocol::canonical::Stimulus;
   use goad_shell::ingress::Ingress;
   use tokio::sync::mpsc;
   use tokio::task::LocalSet;

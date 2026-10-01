@@ -11,8 +11,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use goad::controller::{Controller, Ending, serve};
-use goad::wire::{Cancel, Command, Notice, Stimulus};
-use goad_semantics::protocol::canonical::Timestamp;
+use goad::wire::{Cancel, Command, Notice};
+use goad_semantics::protocol::canonical::{Stimulus, Timestamp};
 use goad_shell::clock::ClockError;
 use goad_shell::config::{BackendConfig, Command as ShellCommand, Config, ScheduleConfig};
 use goad_shell::ingress::Ingress;

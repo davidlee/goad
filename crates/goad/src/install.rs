@@ -8,6 +8,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use goad_semantics::protocol::canonical::Stimulus;
 use slint::platform::WindowEvent;
 use slint::{CloseRequestResponse, ComponentHandle, Weak};
 
@@ -16,7 +17,7 @@ use crate::draft::Reported;
 use crate::generated::{FieldEdit, Kind, PromptWindow, Tray};
 use crate::instant;
 use crate::pending::Debounce;
-use crate::wire::{Command, Stimulus, Wire};
+use crate::wire::{Command, Wire};
 use crate::zoom::Zoom;
 
 /// One function, seven installations, each owning its own `Wire` clone and

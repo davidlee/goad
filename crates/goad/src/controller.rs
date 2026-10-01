@@ -12,7 +12,7 @@ use goad_shell::ingress::{Answer, Arrival, Ingress, Refusal, UnavailableCause};
 use tokio::select;
 use tokio::sync::mpsc;
 
-use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId};
+use goad_semantics::protocol::canonical::{Event, Stimulus, Timestamp, UserResponse, ViewId};
 use goad_semantics::schedule::wait_for;
 
 use crate::diagnostics::{Diagnostics, Refused};
@@ -20,7 +20,7 @@ use crate::draft::{Reported, submitted};
 use crate::glass::Glass;
 use crate::reception::{Prepared, Received, receive};
 use crate::view_model::{PresentationField, PresentationOption, as_drawn, interpret};
-use crate::wire::{Cancel, Command, Notice, PendingEdit, Stimulus};
+use crate::wire::{Cancel, Command, Notice, PendingEdit};
 use goad_shell::clock::Clock;
 
 /// What the person is looking at. One window, three states, **one value** —
