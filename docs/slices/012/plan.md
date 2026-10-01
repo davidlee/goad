@@ -227,7 +227,8 @@ PHASE-12/VA-5; an example made silent — PHASE-06/VA-5. Its *outside the
 gate* checks: `claude plugin validate` — PHASE-05/EX-3, PHASE-08/EX-4,
 PHASE-10/EX-2; `nix build` and `goad-walk`'s tool set — PHASE-05/EX-1, EX-4;
 the negative control — PHASE-11/EX-1 and before every walk. Its *observed by
-a person* runs: PHASE-03/VH-1 (`just demo`), PHASE-06/VH-1..VH-3,
+a person* runs: PHASE-03/VH-1 (`just demo`), PHASE-05/EX-8 (the plugin loads
+on the host), PHASE-06/VH-1..VH-3,
 PHASE-09/VH-1, PHASE-10/VH-1; the capsule session — PHASE-11/VH-1.
 
 ---
@@ -816,7 +817,9 @@ manifests exist and validate; both agents, on the host in a fresh home, load
 the plugin from its store path and read the skill's body; and `goad-walk`
 builds the full tool set.
 
-**Surfaces:** `flake.nix` (`packages.goad-check`, `packages.goad-kit`);
+**Surfaces:** `flake.nix` (`packages.goad-check`, `packages.goad-kit`, and
+the comments that list the packages; `plan-log.md` 2026-10-01, *PHASE-05 sheet
+questions*);
 `.claude-plugin/marketplace.json`; `.agents/plugins/marketplace.json`;
 `kit/.claude-plugin/plugin.json`; `kit/.codex-plugin/plugin.json`;
 `kit/skills/goad-backend/SKILL.md` (a placeholder: frontmatter, and a body
@@ -828,10 +831,12 @@ that repository.
 
 **Entry**
 - EN-1 — PHASE-12 done.
-- EN-2 — Claude and Codex credentials are available as API keys in
-  environment variables to a session started in a fresh home. Nothing
-  credential-bearing is written into the home, a committed file or
-  `goad-walk`.
+- EN-2 — the person who runs EX-8 has Claude and Codex credentials as API
+  keys in environment variables, available to a session started in a fresh
+  home. Nothing credential-bearing is written into the home, a committed file
+  or `goad-walk`. The person's, not the executor's: no agent session holds
+  the Anthropic credential (`plan-log.md` 2026-10-01, *PHASE-05 sheet
+  questions*).
 - [ ] EN-3 — goad's `main` pushed to `origin` at or past the revision the lock
   will pin (`plan-log.md` 2026-10-01, *PHASE-02's `glass.rs` comment;
   PHASE-03 sheet questions; the push before a lock bump*). The revision is
@@ -842,21 +847,35 @@ that repository.
 - EX-1 — `nix build --no-link .#goad-check .#goad-kit` succeeds from the bare
   git form (new files `git add`ed first). The built `goad-check --version`
   prints the flake's revision beside the version, as `goad-emit`'s does
-  (`GOAD_REVISION`). `goad-kit` holds `.claude-plugin/marketplace.json`,
-  `.agents/plugins/marketplace.json` and `kit/`, and nothing else.
+  (`GOAD_REVISION`). `goad-kit` is `lib.fileset.toSource`, `name =
+  "goad-kit"`, over the `unions` of `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json` and `./kit` (`design.md` §5.2.8;
+  `design-log.md` 2026-10-01, *`goad-kit` is built with
+  `lib.fileset.toSource`*), and holds those three and nothing else.
 - EX-2 — `kit/.claude-plugin/plugin.json` and `kit/.codex-plugin/plugin.json`
   carry `workspace.package.version`, checked against `Cargo.toml` and
   recorded.
 - EX-3 — `claude plugin validate kit/` passes.
 - EX-4 — `goad-walk`'s tool set is `goad-check`, `goad-emit`, `goad`,
   `goad-kit`, `ruby` and `jq`, with `goad-kit` re-exported, its stubs for
-  `goad-check` and `goad-kit` gone, its README current, its `flake.lock`
+  `goad-check` and `goad-kit` gone, its README current — the tool set named,
+  the stub paragraph and the claim that the agent never sees goad's source
+  gone, and goad's GitHub pin stated with its reason, so that consumers off
+  this host can evaluate the flake (`design.md` D24; `design-log.md`
+  2026-10-01, *D24 amended: the walk's goad pin is public; AC-1 is held by
+  detection*) — its `flake.lock`
   pinned to this phase's goad commit and committed to its `main`, and it
   builds.
 - EX-7 — `just package` builds `goad-check` and `goad-kit`, and `just
-  install` installs `goad-check` (PL-6).
-- EX-8 — on the host, in a fresh home that has held no session, from an
-  empty working directory, `$KIT` being `goad-walk#goad-kit`'s store path:
+  install`, run with `CARGO_INSTALL_ROOT` and `XDG_CONFIG_HOME` under the
+  executor's scratchpad, installs `goad-check` there beside `goad` and
+  `goad-emit` (PL-6). The user's install is not touched (`plan-log.md`
+  2026-10-01, *PHASE-05 sheet questions*).
+- EX-8 — run by a person, from the script the phase sheet drafts, handed
+  over as one command safe under nu, its log read back into the sheet by the
+  executor (`plan-log.md` 2026-10-01, *PHASE-05 sheet questions*): on the
+  host, in a fresh home that has held no session, from an empty working
+  directory, `$KIT` being `goad-walk#goad-kit`'s store path:
   first `claude -p` and `codex exec`, with no plugin, each answer a trivial
   prompt, which shows the credentials reach the session; then `claude -p
   --plugin-dir "$KIT/kit"`, and Codex after `codex plugin marketplace add

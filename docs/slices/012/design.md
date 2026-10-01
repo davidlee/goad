@@ -901,14 +901,20 @@ Stale counts found while tracing, to be fixed where they are touched:
 
 #### 5.2.8 Flake
 
-(`design-log.md` 2026-09-26, OQ-3 isolation; 2026-09-27, OQ-6, OQ-7; 2026-09-30.)
+(`design-log.md` 2026-09-26, OQ-3 isolation; 2026-09-27, OQ-6, OQ-7; 2026-09-30;
+2026-10-01, *D24 amended: the walk's goad pin is public; AC-1 is held by
+detection* and *`goad-kit` is built with `lib.fileset.toSource`*.)
 
 - **`packages.goad-check`**: `craneLib.buildPackage` with `cargoExtraArgs =
   "--locked -p goad-check --bin goad-check"`, sharing `cargoArtifacts`, with
   no wrapper and no `guiLibs`, as `goad-emit` has.
 - **`packages.goad-kit`**: a marketplace root, not a plugin root:
-  `lib.cleanSourceWith` over `.claude-plugin/marketplace.json`,
-  `.agents/plugins/marketplace.json` and `./kit`, and nothing else. Codex
+  `lib.fileset.toSource`, `name = "goad-kit"`, over the `unions` of
+  `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json` and
+  `./kit`, and nothing else. A listed path that is missing or untracked fails
+  evaluation; `lib.cleanSourceWith`, measured, dropped
+  `.claude-plugin/marketplace.json` silently (`design-log.md` 2026-10-01,
+  *`goad-kit` is built with `lib.fileset.toSource`*). Codex
   installs only from a marketplace root, and copies only `kit/` into its
   cache; Claude loads the plugin root, `"$GOAD_KIT/kit"` (`research.md`
   §"Spike: R1 and R2").
@@ -925,18 +931,28 @@ target, so the target cannot be this repository:
 
 ```
 ~/dev/goad-walk/        its own git repo, a sibling; the capsule clones only this
-  flake.nix             inputs.goad (git+file:///…/goad, host-local)
+  flake.nix             inputs.goad (github:davidlee/goad, public)
                         → packages.<system>.default: a tool set of
                         goad-check, goad-emit, goad, goad-kit, ruby, jq;
                         packages.<system>.goad-kit re-exported
   README.md             one paragraph: what this repo is for
 ```
 
-- **`inputs.goad` is a host-local `git+file:` URL** (U4; F-18), the form
-  memory `path-flake-ref-breaks-on-demo-socket` recommends. The guest
-  receives `goad-walk`'s clone, `flake.lock` included, so the lock is readable
-  there; it names a path that does not exist in the guest. The route from the
-  lock to goad's source is closed structurally, whatever the proxy admits.
+- **`inputs.goad` is `github:davidlee/goad`**, so that consumers of
+  `goad-walk` other than this host can evaluate it (`design-log.md`
+  2026-10-01, *D24 amended: the walk's goad pin is public; AC-1 is held by
+  detection*, superseding U4's host-local `git+file:` URL). Oubliette builds
+  the tool set into the guest image on the host, so the pin moves where the
+  host fetches from, not what the guest holds. But the guest receives
+  `goad-walk`'s clone, `flake.nix` and `flake.lock` included, and they name a
+  public repository the proxy can reach: `github.com` and
+  `codeload.github.com` are on its allowlist, and an HTTPS proxy sees the
+  host, not the path, so no rule can refuse goad's repository alone. **The
+  route from the walk to goad's source is open.** AC-1 is held by detection:
+  the transcript read fails a walk whose agent read goad's source by any
+  route, and each walk record carries its fetch attempts and their witness.
+  Nothing tells the walking agent to avoid goad's source; naming it would
+  point the agent at it.
 - **Registered with oubliette as a target**, per its target contract
   (`docs/contract-target.md` there: a git repo on the host exporting one tool
   package). The registration is oubliette-side configuration, not goad code.
@@ -1056,7 +1072,8 @@ agent's `ISSUES.md` is copied to `docs/slices/012/walks/<agent>-<n>-ISSUES.md`.
 **The transcript read.** A fresh agent reads each transcript and tags each
 friction item as *retried*, *guessed*, *read outside the kit*, *network fetch*
 or *checker confusion*, citing the event index. A walk whose agent read goad's
-source — by any route — **fails AC-1** and is re-run (U4; F-18); it is not
+source — by any route — **fails AC-1** and is re-run (U4; F-18; the route
+is open, §5.2.8); it is not
 merely friction. Each item from either source
 becomes a row in `walks.md` with a disposition:
 
@@ -1277,7 +1294,7 @@ changes the slice's shape.
 | D21 | walk in an oubliette capsule whose target is a sibling repo, `goad-walk` | bwrap consumer jails with a walk-home bind | a fresh home and credentials without a jail-library change; the capsule clones its target, so the target cannot be this repo | 2026-09-30 |
 | D22 | R-59's scope is what the host reports on the channels of an exchange or answer; its id is the requirement stating the rule the kind enforces, R-44 where the kind cannot tell which more specific rule an instance broke or R-44's list alone names it, R-45 for a failure of an exchange no requirement names; sides by where the cause lies; one side per kind, imprecision declared | "broken" for backend/configuration and "left undischarged" for host/environment; the table as the only definition; a scope listing other requirements' items | the two readings fit almost no row; a table-only definition leaves AC-7 unfalsifiable; the listed scope missed kinds each required by their own requirement | 2026-09-30 U1; round 2 (F-34, F-35, F-39); round 3, *R-59 reframed* |
 | D23 | no `--now`; the report says when no view was returned; AC-1 needs a view answered | a `--now` flag | new surface that strains R-7's "current instant", and reaches only backends that read `now` | 2026-09-30 U3 |
-| D24 | `goad-walk`'s `goad` input is a host-local `git+file:` URL; reading goad's source fails AC-1 | the proxy refusing the forge | closes the route whatever the proxy admits | 2026-09-30 U4 |
+| D24 | `goad-walk`'s `goad` input is `github:davidlee/goad`; the route to goad's source is open; reading goad's source by any route fails AC-1, held by the transcript read and the fetch-attempt record | a host-local `git+file:` URL; the proxy refusing goad's repository | `git+file:` breaks `goad-walk` for non-local consumers, which the pin exists to serve; an HTTPS proxy sees the host, not the path, so it cannot tell goad from the tarballs `github.com` is admitted for | 2026-09-30 U4; 2026-10-01, *D24 amended: the walk's goad pin is public; AC-1 is held by detection* |
 | D25 | respond fences held by a JSON-type oracle against `Submitted::as_drawn` | a stratum-1 `Submitted::from_json`; as-drawn-only examples | no reader nobody else uses; examples that teach real values | 2026-09-30 U5 |
 | D26 | `goad-emit` exits 2 on an unwritten answer | weaken SPEC-004/R-8 for `goad-emit` | one rule for the edge across all three binaries | 2026-09-30 U6 |
 | D27 | the corpus witness is membership, its reach stated | an exact id key per fixture | written with the code it witnesses, it stops being independent | 2026-09-30 U7 |

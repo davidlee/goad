@@ -4115,6 +4115,11 @@ This sheet is the plan's second reading. Where it restates a plan criterion it
 quotes it. It repairs nothing: what reads as wrong in the plan is under
 **Findings** as a PLAN QUESTION, and the tasks it blocks are marked `[!]`.
 
+**Decisions applied** after 05237cd: every PLAN QUESTION is resolved (each
+cites its log entry under **Findings**), `design.md` and `plan.md` are
+amended, every changed criterion below is re-quoted from the amended plan,
+and no task is blocked.
+
 **Objective** (quoted, `plan.md` PHASE-05): *"the flake exports `goad-check`
 and `goad-kit`; the plugin's manifests exist and validate; both agents, on the
 host in a fresh home, load the plugin from its store path and read the skill's
@@ -4140,14 +4145,16 @@ green as it is at entry.
   > deno check exercisers/typescript/backend.ts
   ```
   This is PHASE-03/EX-3's departure, which audit ends (POL-001 Change 1).
-- **EN-2** (quoted): *"Claude and Codex credentials are available as API keys
-  in environment variables to a session started in a fresh home. Nothing
-  credential-bearing is written into the home, a committed file or
-  `goad-walk`."* **Not discharged.** Checked by name only, values never
-  printed (`[ -n "${VAR:-}" ]`), in the sheet agent's environment:
-  `OPENAI_API_KEY` set; `ANTHROPIC_API_KEY`, `CODEX_API_KEY` and
-  `CLAUDE_CODE_OAUTH_TOKEN` unset. So EX-8 cannot run in an agent session like
-  this one (PLAN QUESTION 4).
+- **EN-2** (quoted, amended): *"the person who runs EX-8 has Claude and Codex
+  credentials as API keys in environment variables, available to a session
+  started in a fresh home. Nothing credential-bearing is written into the
+  home, a committed file or `goad-walk`. The person's, not the executor's: no
+  agent session holds the Anthropic credential (`plan-log.md` 2026-10-01,
+  *PHASE-05 sheet questions*)."* **The person's.** EX-8's script refuses to
+  start without both keys, and its bare prompts are the check. At sheet
+  time, checked by name only, values never printed (`[ -n "${VAR:-}" ]`), in
+  the sheet agent's environment: `OPENAI_API_KEY` set; `ANTHROPIC_API_KEY`,
+  `CODEX_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` unset (PLAN QUESTION 4).
 - **EN-3** (quoted): *"goad's `main` pushed to `origin` at or past the
   revision the lock will pin (`plan-log.md` 2026-10-01, *PHASE-02's
   `glass.rs` comment; PHASE-03 sheet questions; the push before a lock
@@ -4158,9 +4165,9 @@ green as it is at entry.
   the bump (task 6). The sheet agent pushed nothing.
 
 **Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
-- (quoted) *"`flake.nix` (`packages.goad-check`, `packages.goad-kit`)"*. The
-  comments that count the packages are outside the parenthesis (PLAN
-  QUESTION 5).
+- (quoted, amended) *"`flake.nix` (`packages.goad-check`, `packages.goad-kit`,
+  and the comments that list the packages; `plan-log.md` 2026-10-01, *PHASE-05
+  sheet questions*)"* (PLAN QUESTION 5).
 - (quoted) *"`.claude-plugin/marketplace.json`; `.agents/plugins/marketplace.json`;
   `kit/.claude-plugin/plugin.json`; `kit/.codex-plugin/plugin.json`"*. All
   new. None is ignored (`git check-ignore -v` on each path: no output,
@@ -4203,13 +4210,14 @@ the three named; `~/dev/oubliette`.
   prior art.
 - `docs/slices/012/design-log.md` 2026-09-27, *OQ-6: where the plugin lives,
   and how it is installed* (the README's install route); 2026-09-30's U4
-  (D24).
+  (D24); 2026-10-01, *D24 amended: the walk's goad pin is public; AC-1 is
+  held by detection* and *`goad-kit` is built with `lib.fileset.toSource`*.
 - `docs/slices/012/plan-log.md` 2026-10-01: *placements the plan draft put to
   the user* (PL-6); *the capsule splits out of PHASE-05*; *plan review round
   1: dispositions* (F-1, F-2, F-3); *plan review round 2* (F-27); *PHASE-02's
   `glass.rs` comment; PHASE-03 sheet questions; the push before a lock bump*;
   *oubliette ready for `goad-walk`*; *PHASE-12 close: `Cargo.lock`; the
-  `Text file busy` box; the push*.
+  `Text file busy` box; the push*; *PHASE-05 sheet questions*.
 - `docs/slices/012/review-plan.md` F-1, F-2, F-3.
 - `flake.nix`: `craneLib`, `workspaceVersion`, `src`, `cargoArtifacts`,
   `revision`, `goadPackages` (`goad`, `goad-emit`), the `packages.${system}`
@@ -4291,7 +4299,8 @@ the three named; `~/dev/oubliette`.
     paths… ]; }` **fails at evaluation**: *"Element 1 (…/.agents/plugins/marketplace.json)
     is a path that does not exist."*
 
-  The design names `lib.cleanSourceWith` (PLAN QUESTION 2).
+  The design named `lib.cleanSourceWith`; it now names `lib.fileset.toSource`
+  (PLAN QUESTION 2, resolved).
 - **A-V6 — `goad-walk` today.** HEAD `b4bc42f` (*update goad flake input to
   point at github*), clean, `main` level with `origin/main` after `git fetch`.
   `inputs.goad.url = "github:davidlee/goad"` (the `git+file:` line is
@@ -4310,7 +4319,8 @@ the three named; `~/dev/oubliette`.
   `^codeload\.github\.com$`. Oubliette provisions a capsule by pushing from
   the target's host `path` (`contract-target.md`), so `goad-walk` need not
   be pushed to GitHub for PHASE-11. This sheet did not read whether oubliette
-  builds the tool set on the host or in the guest.
+  builds the tool set on the host or in the guest; the decision did: on the
+  host (PLAN QUESTION 1, resolved).
 - **A-V8 — nothing in the gate reads a file this phase adds or edits** (guard
   reach, read from each instrument):
   - *Vocabulary scan* (`goad-boundary`'s `domain_scan`): `extensions: &["rs",
@@ -4402,8 +4412,9 @@ add`ed before any `nix` command reads it.
 - [ ] Set PHASE-05 to `in progress` in §Status.
 - [ ] Print `git log -1 --oneline`. It must be this sheet's commit, or a
       descendant whose only changes are the PLAN QUESTIONs' resolutions.
-- [!] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
-      before the tasks they block start.
+- [x] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
+      before the tasks they block start (**Findings**; *Decisions applied*,
+      above).
 - **1. The kit's shell (EX-2, EX-3)**
   - [ ] Choose the marker: two unrelated words and a number, in capitals,
         which appear nowhere in the repository (`command grep -rnF "<marker>"
@@ -4448,26 +4459,33 @@ add`ed before any `nix` command reads it.
         (`crane-cargoextraargs-replaces-locked`), `GOAD_REVISION = revision`,
         `meta.mainProgram = "goad-check"`, no wrapper, no `guiLibs`, a one-line
         comment saying why (as `goad-emit`'s).
-  - [!] `packages.goad-kit`: the three paths and nothing else, named
-        `goad-kit` so its store path matches none of PHASE-11's control
-        patterns (`*-goad-source`, and the whole-repo `-source` copy).
-        Mechanism blocked on PLAN QUESTION 2. It is not a crane derivation and
-        does not join `goadPackages`' comment on `doCheck`.
-  - [!] The comments that count the packages, rewritten to name the rule
+  - [ ] `packages.goad-kit`: `lib.fileset.toSource { root = ./.; fileset =
+        lib.fileset.unions [ ./.claude-plugin/marketplace.json
+        ./.agents/plugins/marketplace.json ./kit ]; }`, named `goad-kit`
+        (`design.md` §5.2.8; `design-log.md` 2026-10-01, *`goad-kit` is built
+        with `lib.fileset.toSource`*), so its store path matches none of
+        PHASE-11's control patterns (`*-goad-source`, and the whole-repo
+        `-source` copy). It is not a crane derivation and does not join
+        `goadPackages`' comment on `doCheck`. Rows P-15, P-16.
+  - [ ] The comments that count the packages, rewritten to name the rule
         rather than a number (`a-count-in-a-comment-is-a-claim-nothing-checks`):
         `cargoArtifacts`' *"shared by both binaries: emit's dependencies are a
         subset of goad's"* (the layer is `--workspace`, so it holds every
         member's dependencies), *"`pname` and `version` are explicit on all
         three derivations here"*, *"`doCheck = false` on all three
-        derivations"*. Blocked on PLAN QUESTION 5. The merge comment's
-        *"the three jail packages"* counts `jailPkgs`, which this phase does
-        not grow: left.
-  - [ ] EX-1 (quoted): *"`nix build --no-link .#goad-check .#goad-kit`
-        succeeds from the bare git form (new files `git add`ed first). The
-        built `goad-check --version` prints the flake's revision beside the
-        version, as `goad-emit`'s does (`GOAD_REVISION`). `goad-kit` holds
-        `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`
-        and `kit/`, and nothing else."* Run `nix build --no-link
+        derivations"*. Admitted by the amended surface (PLAN QUESTION 5).
+        The merge comment's *"the three jail packages"* counts `jailPkgs`,
+        which this phase does not grow: left.
+  - [ ] EX-1 (quoted, amended): *"`nix build --no-link .#goad-check
+        .#goad-kit` succeeds from the bare git form (new files `git add`ed
+        first). The built `goad-check --version` prints the flake's revision
+        beside the version, as `goad-emit`'s does (`GOAD_REVISION`).
+        `goad-kit` is `lib.fileset.toSource`, `name = "goad-kit"`, over the
+        `unions` of `.claude-plugin/marketplace.json`,
+        `.agents/plugins/marketplace.json` and `./kit` (`design.md` §5.2.8;
+        `design-log.md` 2026-10-01, *`goad-kit` is built with
+        `lib.fileset.toSource`*), and holds those three and nothing else."*
+        Run `nix build --no-link
         --print-out-paths .#goad-check .#goad-kit`; record both paths. Then:
     - [ ] `<goad-check path>/bin/goad-check --version`, beside
           `<goad-emit path>/bin/goad-emit --version` from the same build;
@@ -4490,10 +4508,19 @@ add`ed before any `nix` command reads it.
   - [ ] `install`: `cargo install --path crates/goad-check --locked` beside
         the other two. Its *"Install both binaries"* comment, likewise. The
         env file's comment stays: it is about the GUI binary's libraries.
-  - [!] EX-7 (quoted): *"`just package` builds `goad-check` and `goad-kit`,
-        and `just install` installs `goad-check` (PL-6)."* `just package`:
-        record the printed paths, one per package. `just install`: blocked on
-        PLAN QUESTION 3 (where it installs). Rows P-13, P-14.
+  - [ ] EX-7 (quoted, amended): *"`just package` builds `goad-check` and
+        `goad-kit`, and `just install`, run with `CARGO_INSTALL_ROOT` and
+        `XDG_CONFIG_HOME` under the executor's scratchpad, installs
+        `goad-check` there beside `goad` and `goad-emit` (PL-6). The user's
+        install is not touched (`plan-log.md` 2026-10-01, *PHASE-05 sheet
+        questions*)."* `just package`: record the printed paths, one per
+        package. `just install`, in the dev shell, as
+        `CARGO_INSTALL_ROOT=<scratchpad>/p05-install/root
+        XDG_CONFIG_HOME=<scratchpad>/p05-install/config just install`; record
+        `ls <scratchpad>/p05-install/root/bin` (`goad`, `goad-emit`,
+        `goad-check`) and that `<scratchpad>/p05-install/config/goad/env` was
+        written. Never the plain recipe: it overwrites `~/.cargo/bin` and
+        `~/.config/goad/env`. Rows P-13, P-14.
 - **4. `README.md`**
   - [ ] One line pointing backend authors to `kit/` and the plugin install
         (§5.2.7's row), by the route `design-log.md` 2026-09-27 OQ-6 settled:
@@ -4541,19 +4568,31 @@ add`ed before any `nix` command reads it.
         tool set `[g.goad g.goad-emit g.goad-check g.goad-kit pkgs.ruby
         pkgs.jq]`; `goad-kit` re-exported unconditionally (`inherit (g)
         goad-kit`). The `# Stub until…` comment goes.
-  - [!] `~/dev/goad-walk/README.md` current: the stub paragraph goes; the
-        tool set is named. Its sentence *"A capsule clones this repo, so the
-        agent never sees goad's source"* is blocked on PLAN QUESTION 1.
+  - [ ] `~/dev/goad-walk/README.md` current, per EX-4: the stub paragraph
+        goes; the tool set is named. Its sentence *"A capsule clones this
+        repo, so the agent never sees goad's source"* goes, false since the
+        pin moved to GitHub; a sentence states that goad is pinned from GitHub
+        so that consumers off this host can evaluate the flake (`design.md`
+        D24; `design-log.md` 2026-10-01, *D24 amended: the walk's goad pin is
+        public; AC-1 is held by detection*). The README is in the walking
+        agent's clone, so it says nothing telling the agent where goad's
+        source is or to avoid it: naming it would point the agent at it (same
+        entry).
   - [ ] Lock: in `~/dev/goad-walk`, `nix flake update goad`. Then `nix eval
         --raw --expr '(builtins.fromJSON (builtins.readFile
         /home/david/dev/goad-walk/flake.lock)).nodes.goad.locked.rev'`
         equals `git rev-parse` of this phase's goad commit, or of a
         descendant whose only changes since are `notes.md`. Recorded.
-  - [ ] EX-4 (quoted): *"`goad-walk`'s tool set is `goad-check`,
+  - [ ] EX-4 (quoted, amended): *"`goad-walk`'s tool set is `goad-check`,
         `goad-emit`, `goad`, `goad-kit`, `ruby` and `jq`, with `goad-kit`
         re-exported, its stubs for `goad-check` and `goad-kit` gone, its
-        README current, its `flake.lock` pinned to this phase's goad commit
-        and committed to its `main`, and it builds."*
+        README current — the tool set named, the stub paragraph and the claim
+        that the agent never sees goad's source gone, and goad's GitHub pin
+        stated with its reason, so that consumers off this host can evaluate
+        the flake (`design.md` D24; `design-log.md` 2026-10-01, *D24 amended:
+        the walk's goad pin is public; AC-1 is held by detection*) — its
+        `flake.lock` pinned to this phase's goad commit and committed to its
+        `main`, and it builds."*
     - [ ] `TOOLS=$(nix build --no-link --print-out-paths
           /home/david/dev/goad-walk)`; `nix-store --query --references
           "$TOOLS"` lists a store path for each of the six, and nothing
@@ -4576,18 +4615,26 @@ add`ed before any `nix` command reads it.
         | tail -c 17; done) <paths>` prints nothing, for each key set in the
         session (each whole, and its last 16 characters). Patterns come from a
         pipe, never argv. Record which keys were set. Reach: row R-1.
-- **7. The loads (EX-8)**
-  - [!] EX-8 (quoted): *"on the host, in a fresh home that has held no
-        session, from an empty working directory, `$KIT` being
-        `goad-walk#goad-kit`'s store path: first `claude -p` and `codex
+- **7. The loads (EX-8, run by a person)**
+  - [ ] **VH — EX-8** (quoted, amended): *"run by a person, from the script
+        the phase sheet drafts, handed over as one command safe under nu, its
+        log read back into the sheet by the executor (`plan-log.md`
+        2026-10-01, *PHASE-05 sheet questions*): on the host, in a fresh home
+        that has held no session, from an empty working directory, `$KIT`
+        being `goad-walk#goad-kit`'s store path: first `claude -p` and `codex
         exec`, with no plugin, each answer a trivial prompt, which shows the
         credentials reach the session; then `claude -p --plugin-dir
         "$KIT/kit"`, and Codex after `codex plugin marketplace add "$KIT";
         codex plugin add goad@goad`, each answer a headless prompt asking for
         the goad skill's marker with the marker `SKILL.md`'s body states,
-        verbatim. The prompt does not contain the marker."* Who runs it, and
-        how the keys reach it: PLAN QUESTION 4. The draft script under
-        **Handover** is the recommendation; record each answer verbatim.
+        verbatim. The prompt does not contain the marker. (R1, as far as the
+        host reaches it; `plan-log.md` 2026-10-01, *the capsule splits
+        out*.)"* After EX-4's commit in `goad-walk`, the executor pastes the
+        command block under **Verification (human) — EX-8** into chat,
+        whole, with its *Look for* lines; the person runs it and says when it
+        is done. The executor then reads `~/.cache/goad-p05-ex8.log` and
+        records each answer here verbatim, against the marker under
+        **Decisions**. The executor never holds a key.
   - [ ] After EX-8, the fresh home holds no key: the VA-4 grep over the
         fresh home prints nothing (R-2 for reach). Then the home and working
         directory are removed, and that is recorded.
@@ -4604,16 +4651,20 @@ add`ed before any `nix` command reads it.
         §Open: the *"Both binaries"* note leaves if the comments were
         rewritten; any offered box skipped is a row.
 
-**Handover — EX-8, if PLAN QUESTION 4 resolves to a person-run step**
+**Verification (human) — EX-8** (PLAN QUESTION 4, resolved: `plan-log.md`
+2026-10-01, *PHASE-05 sheet questions*)
 
-The executor writes this as `ex8.sh` in its scratchpad and pastes the one
-line to run into chat. The marker is not in the script: the person and the
-executor compare each answer against **Decisions**. The user's interactive shell is nu, so the
-handover is a single command, `bash <path>/ex8.sh`, with no redirection or
-`&&`; the script tees its own log.
+The person runs the block below, pasted whole into their interactive shell,
+which is nu. It is one command: `bash -c` over a nu raw string (`r#'…'#`),
+which holds the script's quotes, `$` and newlines unchanged, so nothing in it
+is read by nu. The script tees its own log. The marker is not in it: the
+executor compares each answer against **Decisions**. Checked when the
+decisions were applied, under nu 0.115.1 with `nix`, `claude` and `codex`
+stubbed on `PATH`: it parses, runs every step in order and exits 0, and
+without the keys it stops at the first check, exit 1.
 
-```bash
-#!/usr/bin/env bash
+```nu
+bash -c r#'
 # PHASE-05/EX-8. Run on the host, with ANTHROPIC_API_KEY and OPENAI_API_KEY set.
 set -euo pipefail
 : "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}" "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
@@ -4636,6 +4687,7 @@ codex plugin marketplace add "$KIT"
 codex plugin add goad@goad
 echo "== plugin: codex"; codex exec --skip-git-repo-check "$want"
 echo "== done; log at $log; home $H and work $W are left for the key grep"
+'#
 ```
 
 Look for: each bare prompt answers `READY` (if not, stop — authentication,
@@ -4649,7 +4701,7 @@ fails on authentication, the first thing to try is `CODEX_API_KEY` set from
 - [ ] EX-3
 - [ ] EX-4
 - [ ] EX-7
-- [ ] EX-8
+- [ ] EX-8 (run by a person: task 7's VH)
 - [ ] VA-1
 - [ ] VA-4
 - [ ] EN-3 (before the bump)
@@ -4671,7 +4723,7 @@ spike's stub at sheet time (A-V4); re-run them on the real files.
 | P-1 | `flake.nix` `goad-check`'s `cargoExtraArgs` | `"--locked -p goad-check --bin goad-check"` → `"-p goad-check --bin goad-check"` | `nix derivation show .#goad-check \| command grep -c -- '--locked'` | count 0 (a build stays green: the lock is consistent) | | |
 | P-2 | `flake.nix` `goad-check` | `GOAD_REVISION = revision;` removed | `nix build --no-link --print-out-paths .#goad-check`, then `--version` | the version line carries no revision; `goad-emit`'s still does | | |
 | P-3 | `goad-kit`'s selection | `./docs/specs` added to it | EX-1's top-level `find` | `docs` in the listing | | |
-| P-4 | `goad-kit`'s selection | `.agents/plugins/marketplace.json` dropped | EX-1's `find`; VA-1's `codex plugin marketplace add "$KIT"` | `.agents` missing; Codex: *"marketplace root does not contain a supported manifest"* (spike). Under `cleanSourceWith`, nix evaluates it silently (A-V5); under `lib.fileset` the edit is a dropped element, which also evaluates | | |
+| P-4 | `goad-kit`'s `unions` | `./.agents/plugins/marketplace.json` dropped from the list | EX-1's `find`; VA-1's `codex plugin marketplace add "$KIT"` | `.agents` missing; Codex: *"marketplace root does not contain a supported manifest"* (spike). nix evaluates it: a dropped element is not a missing path | | |
 | P-5 | `goad-kit`'s selection | `.claude-plugin/marketplace.json` dropped | EX-1's `find` | `.claude-plugin` missing. **Unseen by EX-8** (`--plugin-dir` reads no marketplace); seen by the offered Claude marketplace load | | |
 | P-6 | `kit/.claude-plugin/plugin.json` | `"version": "0.1.0"` → `"version": 1` | `claude plugin validate kit/` | exit 1, *"version: Invalid input"* | | |
 | P-7 | `SKILL.md` | the frontmatter block removed | `claude plugin validate kit/`; `--strict` | **unseen** by EX-3 (exit 0, a warning); `--strict` exit 1 | | |
@@ -4681,7 +4733,9 @@ spike's stub at sheet time (A-V4); re-run them on the real files.
 | P-11 | `~/dev/goad-walk/flake.nix` | `pkgs.jq` dropped from the tool set | `nix-store --query --references "$TOOLS"` | no `jq` reference | | |
 | P-12 | `~/dev/goad-walk/flake.nix` | the `goad-kit` re-export removed | `nix build … /home/david/dev/goad-walk#goad-kit` | evaluation error naming the missing attribute | | |
 | P-13 | `justfile` `package` | `.#goad-check` dropped | `just package` | no `goad-check` path printed | | |
-| P-14 | `justfile` `install` | the `crates/goad-check` line dropped | `just install` (as PLAN QUESTION 3 resolves) | no `goad-check` in the install root's `bin` | | |
+| P-14 | `justfile` `install` | the `crates/goad-check` line dropped | `just install` with EX-7's scratch `CARGO_INSTALL_ROOT` and `XDG_CONFIG_HOME` | no `goad-check` in `<scratchpad>/p05-install/root/bin` | | |
+| P-15 | `.agents/plugins/marketplace.json` (listed in `goad-kit`'s `unions`) | the file moved to the scratchpad, so the path is absent from the tree | `nix build --no-link .#goad-kit` | evaluation fails, naming the path as one that does not exist (A-V5) | | |
+| P-16 | `goad-kit`'s `unions` | `./kit/untracked` added to the list, the file created and not `git add`ed | `nix build --no-link .#goad-kit` | evaluation fails, naming the path: a git-input flake does not see an untracked file. Restore removes the file and the element | | |
 
 *Reach rows* (positive controls for the greps that must print nothing; an
 empty result proves nothing until the same command is seen to find
@@ -4725,6 +4779,11 @@ something):
   builds the tool set on the host (not read here), which also drops EN-3's
   push. Blocks the README box in task 6 only. PHASE-11's sheet needs it
   settled.
+  **Resolved:** (a) — `design-log.md` 2026-10-01, *D24 amended: the walk's
+  goad pin is public; AC-1 is held by detection*. The GitHub pin stands, the
+  route is open, and AC-1 is held by PHASE-09/EX-3's transcript read and the
+  fetch-attempt record; `design.md` §5.2.8 and D24 amended; EX-4 and the
+  README box re-quoted.
 - **PLAN QUESTION 2 — `lib.cleanSourceWith` drops files silently;
   `lib.fileset.toSource` refuses.** §5.2.8 names `lib.cleanSourceWith` for
   `goad-kit`. Measured (A-V5): a filter written to admit the three paths
@@ -4739,6 +4798,9 @@ something):
   `name = "goad-kit"`, `design.md` §5.2.8 amended to name it; the property
   (*"the three paths, and nothing else"*) is the design's and does not
   change. Blocks the `goad-kit` box in task 2.
+  **Resolved:** as recommended — `design-log.md` 2026-10-01, *`goad-kit` is
+  built with `lib.fileset.toSource`*. `design.md` §5.2.8 and EX-1 amended;
+  rows P-15, P-16 added.
 - **PLAN QUESTION 3 — EX-7 has `just install` write outside the
   repository.** The recipe runs `cargo install` into `$CARGO_HOME/bin` (here
   `~/.cargo/bin`, on `PATH`), overwriting the user's `goad` and `goad-emit`,
@@ -4749,6 +4811,8 @@ something):
   `ls <scratch>/root/bin` holding `goad`, `goad-emit` and `goad-check` and the
   env file written; or the user runs the plain recipe. Blocks EX-7's
   `install` half.
+  **Resolved:** the scratch run, as recommended — `plan-log.md` 2026-10-01,
+  *PHASE-05 sheet questions*. EX-7 re-quoted.
 - **PLAN QUESTION 4 — who runs EX-8, and how the keys reach it.** EX-8 is an
   exit criterion, not a VH item, so the plan reads as the executor's. EN-2 is
   not met in an agent session (Entry: `ANTHROPIC_API_KEY` unset), and A-T4
@@ -4758,6 +4822,10 @@ something):
   clean-up stay the executor's. Alternatively the user exports
   `ANTHROPIC_API_KEY` into the executor's session; that puts the key in an
   agent's environment, which is the user's call. Blocks EX-8.
+  **Resolved:** person-run, as recommended — `plan-log.md` 2026-10-01,
+  *PHASE-05 sheet questions*. EN-2 and EX-8 re-quoted; task 7 is a VH item,
+  and **Handover** is now **Verification (human) — EX-8**, the script as a
+  nu-safe command block.
 - **PLAN QUESTION 5 — the stale package counts sit outside the flake
   surface's parenthesis.** PHASE-04's sheet assigned *"both binaries"* in
   `flake.nix` and the `justfile` to this phase (Findings, *"Both binaries"
@@ -4769,6 +4837,8 @@ something):
   surface as admitting the comments that enumerate the packages, rewritten
   to name the rule (`a-true-statement-can-go-stale-by-widening`: amend in
   the phase that makes the doc stale). Blocks that box in task 2.
+  **Resolved:** as recommended — `plan-log.md` 2026-10-01, *PHASE-05 sheet
+  questions*. The surface re-quoted.
 - **What EX-3 holds.** `claude plugin validate kit/` exits 0 on a `SKILL.md`
   with no frontmatter (A-V4), and nothing validates the root
   `.claude-plugin/marketplace.json` under EX-3, whose `source` no validation
@@ -4918,6 +4988,22 @@ something):
   case proves (a spawn failure, the configuration's side). Audit decides:
   accept, serialise, or redesign (`plan-log.md` 2026-10-01, *PHASE-12
   close: `Cargo.lock`; the `Text file busy` box; the push*).
+- [ ] **`claude plugin validate kit/` passes a `SKILL.md` with no
+  frontmatter**; only `--strict` fails it (PHASE-05 A-V4, Findings *What
+  EX-3 holds*; `plan-log.md` 2026-10-01, *PHASE-05 sheet questions*).
+- [ ] **A wrong marketplace `source` passes `claude plugin validate`, even
+  `--strict`** (PHASE-05 A-V4, row P-8; `plan-log.md` 2026-10-01, *PHASE-05
+  sheet questions*).
+- [ ] **Nothing reads the root Claude marketplace**: EX-8 loads by
+  `--plugin-dir`, so the README's install route is unchecked (PHASE-05
+  Findings *The Claude marketplace is read by nothing in the plan*;
+  `plan-log.md` 2026-10-01, *PHASE-05 sheet questions*).
+- [ ] **Nothing holds the plugin manifests' versions between PHASE-05/EX-2 and
+  PHASE-10** (PHASE-05 Findings, row P-10; `plan-log.md` 2026-10-01, *PHASE-05
+  sheet questions*).
+- [ ] **No criterion pushes `goad-walk`** (PHASE-05 Findings *`goad-walk` is
+  never pushed by a criterion*; `plan-log.md` 2026-10-01, *PHASE-05 sheet
+  questions*).
 - **PHASE-03 Findings for audit**: `print_usage`'s doc fragment;
   `goad-emit`'s binary-tier doc (*"Every case passes `--socket`"*); EX-8's
   parameter held by review, not a test.
