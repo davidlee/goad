@@ -214,7 +214,7 @@ to a JSON type or a value.
 | `the_projection_to_submitted_is_the_identity_on_each_kind`; `as_edited_projects_back_to_the_submitted_it_was_given_on_each_kind` | 02 |
 | `goad-emit`: `an_answer_that_cannot_be_written_exits_2` | 03 |
 | `goad-check` `args.rs` invocation table; `an_unreadable_config_exits_2_and_says_who_spoke`, `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`, `a_report_that_cannot_be_written_exits_2` (its `--help` half), `help_prints_the_usage_block_on_stdout_and_exits_0`, `version_prints_the_package_version_on_stdout_and_exits_0` | 04 |
-| every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own`; `the_first_option_is_the_one_listed_first` | 12 |
+| every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own`; `the_first_option_is_the_one_listed_first`; `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`; `a_known_kind_s_chain_failure_does_not_excuse_the_probe` | 12 |
 | `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | 06 |
 | `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`; `round_trip.rs`' README case through the shared scanner | 07 |
 | `every_requirement_a_refusal_can_name_is_explained_in_the_reference`, and its R-32/R-3 negative control | 08 |
@@ -766,7 +766,11 @@ included, not edited.
   stderr line.
 - VT-2 — `a_report_that_cannot_be_written_exits_2` gains its run half: a run
   with stdout on `/dev/full` exits 2, the last stderr line beginning
-  `goad-check: `.
+  `goad-check: `. And the R-56 condition's scope, `evaluate` outcomes only
+  (`plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases; `UnixDatagram` in VA-3*): `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (the probe's `evaluate` answers a view whose `respond` fails,
+  the known kinds succeed; no `SPEC-001/R-56`) and `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known kind's
+  view's `respond` fails, the probe's `evaluate` fails; `SPEC-001/R-56`
+  present).
 - VT-3 — `the_probe_kind_is_none_of_the_host_s_own`, a unit test beside the
   probe constant (a binary-only crate's constant is not reachable from
   `tests/binary/`), asserting it is none of `Stimulus`'s kinds.
@@ -779,9 +783,9 @@ included, not edited.
   claim PHASE-08/VT-1 reads, `Requirement::R56`, is the one the report
   prints.
 - VA-2 — I-2 over the finished crate, `src` and `tests`. Recorded.
-- VA-3 — EX-5: `command grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket'
+- VA-3 — EX-5: `command grep -rnE 'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|UnixDatagram|TcpStream|TcpListener|UdpSocket'
   crates/goad-check/src` finds the `envelope` imports, and nothing else.
-  Recorded (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2).
+  Recorded (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2; `plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases; `UnixDatagram` in VA-3*).
 - VA-4 — PHASE-04/VA-6's structural read, over `main` as this phase leaves
   it, with one literal per way to a status where PHASE-04/VA-6 reads one per
   class; still exactly one `ExitCode::from(2)` (`plan-log.md` 2026-10-01,

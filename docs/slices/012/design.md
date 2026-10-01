@@ -1359,6 +1359,8 @@ Red/green per behaviour. Tests are named by behaviour.
   - `an_unspawnable_command_is_reported_against_the_configuration`;
   - `a_backend_failing_identically_on_every_kind_is_not_charged_with_r56`
     (F-3);
+  - `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` and `a_known_kind_s_chain_failure_does_not_excuse_the_probe`, the R-56 condition's scope: only `evaluate` outcomes
+    count (§5.2.2; `plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases; `UnixDatagram` in VA-3*);
   - `a_backend_that_returns_no_view_is_accepted_and_says_respond_was_not_exercised`
     (U3);
   - `an_unreadable_config_exits_2_and_says_who_spoke`;

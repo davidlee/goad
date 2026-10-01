@@ -3118,6 +3118,8 @@ document; `flake.nix`, the `justfile`, `README.md`; `design.md` and
   whole (the report example, the no-view
   line, the status table and its bullets); §5.3; §5.4; §5.5 I-1, I-2 and
   *Edges*; §9 *`goad-check`*.
+- `plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases;
+  `UnixDatagram` in VA-3*.
 - `docs/slices/012/design-log.md` 2026-10-01: *`Requirement` is built from
   named constants*; *`Options::first`; R-56's condition counts `evaluate`
   outcomes*. `plan-log.md` 2026-10-01: *plan review round 2: dispositions*
@@ -3291,8 +3293,9 @@ named)
     goad_shell::ingress::envelope::{self, EnvelopeFault};`. The call
     `envelope::normalize(&bytes)` does **not** match `ingress::`. PLAN
     QUESTION 2, resolved (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2).
-  - PHASE-12/VA-3 as amended, at 7a30d5c: `command grep -rnE
-    'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket'
+  - PHASE-12/VA-3 as amended, at bc80a3d (`UnixDatagram` included):
+    `command grep -rnE
+    'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|UnixDatagram|TcpStream|TcpListener|UdpSocket'
     crates/goad-check/src` prints the same two `envelope` imports, and
     nothing else, exit 0.
   - PHASE-04/VA-6 (PHASE-12/VA-4): `command grep -rn 'ExitCode'
@@ -3539,9 +3542,35 @@ before its body lands. Reach is proven as soon as a new file exists.
       probe (M-3, M-4).
   - [ ] VT-2 (quoted): *"`a_report_that_cannot_be_written_exits_2` gains its
         run half: a run with stdout on `/dev/full` exits 2, the last stderr
-        line beginning `goad-check: `."* Use the argv form with a scripted
+        line beginning `goad-check: `. And the R-56 condition's scope,
+        `evaluate` outcomes only (`plan-log.md` 2026-10-01, *PHASE-12: R-56's
+        scope gets cases; `UnixDatagram` in VA-3*): `a_failure_in_the_probe_s_chain_is_not_charged_with_r56` (the probe's
+        `evaluate` answers a view whose `respond` fails, the known kinds
+        succeed; no `SPEC-001/R-56`) and `a_known_kind_s_chain_failure_does_not_excuse_the_probe` (each known kind's view's
+        `respond` fails, the probe's `evaluate` fails; `SPEC-001/R-56`
+        present)."* For the run half, use the argv form with a scripted
         conforming backend, not `loadable.toml` (whose command no longer
         exists to spawn), so the only fault in the run is stdout.
+  - [ ] `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`, red first. Setup: `scripting::scripted` alone, with
+        `answers-as-instructed.sh` — no new fixture. Its instructions are
+        per invocation, a response body or a sentinel, and the plan fixes
+        the invocation order (EX-1): the three known kinds' `evaluate`s
+        answer `{"view":null,"next_check":"45 minutes"}`; the probe's
+        `evaluate` answers a view with one option and no fields (the
+        `@slow-view` body's shape, without the delay); its `respond` is
+        `@exit1`; past the list the script behaves. Assert: status 1; a line
+        holding `backend` and `SPEC-001/R-40` (the respond's failure,
+        reported as any other exchange's); **no** `SPEC-001/R-56` anywhere on
+        stdout; the invocation count, exactly (five, so a respond was made:
+        without it the case is green with no chain at all). Row M-36.
+  - [ ] `a_known_kind_s_chain_failure_does_not_excuse_the_probe`, red first. Setup: `scripting::scripted` alone, as above: each
+        known kind's `evaluate` answers that view and its `respond` is
+        `@exit1`, then the probe's `evaluate` is `@exit1`. **Every** known
+        kind's chain fails, not one: the condition needs only one known kind
+        clean, so a single failing chain leaves the mutation green. Assert:
+        status 1; one stdout line holds both `backend` and the literal
+        `SPEC-001/R-56`; the invocation count, exactly (seven: every chain's
+        respond was made). Row M-37.
   - [ ] **Before `a_cleanup_failure_alone_exits_1` joins the gate**, rank
         its fixture's margin by which way load moves it, not by its size
         (`docs/memory/margin-size-is-not-margin-direction.md`; `plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, *Also*).
@@ -3672,10 +3701,11 @@ before its body lands. Reach is proven as soon as a new file exists.
         Recorded."* `command grep -rn 'FieldKind' crates/goad-check/src
         crates/goad-check/tests`; read each hit.
   - [ ] VA-3 (quoted): *"EX-5: `command grep -rnE
-        'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket'
+        'ingress::|set_var|remove_var|env_clear|env_remove|\.envs?\(|UnixStream|UnixListener|UnixDatagram|TcpStream|TcpListener|UdpSocket'
         crates/goad-check/src` finds the `envelope` imports, and nothing
         else. Recorded (`plan-log.md` 2026-10-01, *PHASE-12 sheet
-        questions*, Q2)."* Record the output verbatim; then read the one
+        questions*, Q2; `plan-log.md` 2026-10-01, *PHASE-12: R-56's scope
+        gets cases; `UnixDatagram` in VA-3*)."* Record the output verbatim; then read the one
         call, `envelope::normalize`, which the pattern does not match, and
         record that no other `ingress` item is named. Reach row R-4.
   - [ ] VA-4 (quoted): *"PHASE-04/VA-6's structural read, over `main` as this
@@ -3771,7 +3801,7 @@ exact edit when it runs. Command for M-rows: `cargo test -p goad-check
 | R-1 | each new `src/*.rs` module | `let _planted = "habit";` in a function in production code | `cargo test -p goad-boundary --test checks --no-fail-fast` | `vocabulary::no_workspace_member_names_the_users_domain`, naming the new file | | |
 | R-2 | each new `tests/binary/*.rs` file | `fn _planted() { let _planted: std::collections::HashMap<u8, u8> = std::collections::HashMap::new(); }` | `cargo clippy --workspace --all-targets -- -D warnings` | `clippy::disallowed_types` in the `binary` target, naming the new file | | |
 | R-3 | each new `src/*.rs` and `tests/binary/*.rs` | a line re-indented to four spaces | `cargo fmt --all --check` | a diff naming each file | | |
-| R-4 | `crates/goad-check/src/main.rs`, a function in production code | `let _a = std::os::unix::net::UnixStream::connect("");` and `let _b = std::process::Command::new("").envs(std::iter::empty::<(&str, &str)>());` (compiled: `cargo build -p goad-check`) | VA-3's command | both planted lines printed, beside the `envelope` imports (the widened pattern reaches `.envs(` and a socket type; PLAN QUESTION 2) | | |
+| R-4 | `crates/goad-check/src/main.rs`, a function in production code | `let _a = std::os::unix::net::UnixStream::connect("");`, `let _c = std::os::unix::net::UnixDatagram::unbound();` and `let _b = std::process::Command::new("").envs(std::iter::empty::<(&str, &str)>());` (compiled: `cargo build -p goad-check`) | VA-3's command | every planted line printed, beside the `envelope` imports (the widened pattern reaches `.envs(`, `UnixStream` and `UnixDatagram`; PLAN QUESTION 2) | | |
 
 `canonical.rs` has no reach row: it is an existing file every stratum-1
 instrument already reads (A-V12).
@@ -3814,8 +3844,8 @@ instrument already reads (A-V12).
 | M-33 | the clock | `now` read once, before the plan, and reused | **unseen**: nothing asserts a time (R3). Held by review | | |
 | M-34 | the clock | a mid-run `wall_clock` error ignored | **unseen**: headless-unreachable (`canon-delta.md` R-11..R-13 row). Held by VA-4's trace | | |
 | M-35 | `Options::first` (`canonical.rs`) | `.first()` → `.last()` in its body; command `cargo test -p goad-semantics -p goad-check --no-fail-fast` | `the_first_option_is_the_one_listed_first`: the first's id; `a_view_answered_carries_exactly_its_options_fields`: `option` | | |
-| M-36 | the R-56 condition | a failing `respond` in the probe's chain counted as a probe failure | **unseen** by every planned case: none returns a view from the probe's `evaluate`. Held by review of the condition's inputs against EX-3 as amended. A case would see it with the probe answering a view and the respond `@exit1`, known kinds succeeding: no `SPEC-001/R-56` (not planned; offered as M-21's case is) | | |
-| M-37 | the R-56 condition | a known kind counted as having "made a failure" when a `respond` in its chain failed | **unseen** by every planned case: in `…_reported_against_r56` the known kinds' `evaluate`s return no view. Held by review, as M-36. A case would see it with every known kind returning a view whose respond fails, and the probe `@exit1`: `SPEC-001/R-56` present (not planned) | | |
+| M-36 | the R-56 condition | a failing `respond` in the probe's chain counted as a probe failure | `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`: no `SPEC-001/R-56` | | |
+| M-37 | the R-56 condition | a known kind counted as having "made a failure" when a `respond` in its chain failed | `a_known_kind_s_chain_failure_does_not_excuse_the_probe`: the `SPEC-001/R-56` line | | |
 
 **Decisions taken during execution**
 <!-- Small and local: how, within what the design already settled. A choice that
@@ -3860,7 +3890,8 @@ instrument already reads (A-V12).
   run as `command grep -rnE`. Blocks VA-3. **Resolved** (`plan-log.md` 2026-10-01, *PHASE-12 sheet questions*, Q2): the
   expected hits as recommended; the pattern widened by `\.envs?\(` and
   `UnixStream|UnixListener|TcpStream|TcpListener|UdpSocket`. The decision
-  does not carry this recommendation's `UnixDatagram`.
+  as first logged omitted this recommendation's `UnixDatagram`, a
+  transcription slip; **resolved**: it joins the pattern (`plan-log.md` 2026-10-01, *PHASE-12: R-56's scope gets cases; `UnixDatagram` in VA-3*).
 - **PLAN QUESTION 3 — *one literal per class* cannot hold beside EX-6.**
   VA-4 reruns PHASE-04/VA-6, which reads *"one literal per class"*. Status
   0's class (§5.2.5: *accepted*, which also covers `--help` and `--version`
