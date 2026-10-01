@@ -16,7 +16,7 @@ use goad_shell::backend::process::ProcessBackend;
 use goad_shell::clock::{self, ClockError};
 use goad_shell::config::{self, BackendConfig, Config, ScheduleConfig};
 use goad_shell::error::{ConfigError, StateError};
-use goad_shell::host::{Host, Presented};
+use goad_shell::host::{Host, Outcome, Presented};
 use goad_shell::ingress::envelope::{self, EnvelopeFault};
 use goad_shell::report::{line_to, try_line_to};
 use goad_shell::version::version_line;
@@ -138,12 +138,12 @@ fn run(prepared: Prepared) -> ExitCode {
     runtime,
     mut host,
   } = prepared;
-  match runtime.block_on(exchanges(&mut host, events)) {
+  let delivered = runtime
+    .block_on(exchanges(&mut host, events))
+    .and_then(|tally| deliver(&tally).map(|()| tally.refused));
+  match delivered {
     Err(fault) => not_judged(&render::run_fault_line(&fault)),
-    Ok(tally) => match deliver(&tally) {
-      Err(fault) => not_judged(&render::run_fault_line(&fault)),
-      Ok(()) => verdict(tally.refused),
-    },
+    Ok(refused) => verdict(refused),
   }
 }
 
@@ -249,7 +249,7 @@ fn verdict(refused: usize) -> ExitCode {
 /// # Errors
 ///
 /// `Failure::State`, as a [`RunFault`].
-fn judged(outcome: goad_shell::host::Outcome) -> Result<Judged, RunFault> {
+fn judged(outcome: Outcome) -> Result<Judged, RunFault> {
   run::judged(outcome).map_err(RunFault::State)
 }
 
