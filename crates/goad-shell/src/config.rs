@@ -75,9 +75,14 @@ pub struct BackendConfig {
 /// An argument vector, never a shell string: no quoting rules and no injection
 /// surface, and it is what makes `["bash", "./backend.sh"]` work without a
 /// shebang (R-36). Split rather than kept as one `Vec` so that the empty
-/// command — the one argv with nothing to spawn — is not representable past
-/// this boundary, and the transport has no `else` arm to report it in the
-/// backend's voice (F-3).
+/// command — the one argv with nothing to spawn — has a type to be refused
+/// at, and the transport has no `else` arm to report it in the backend's voice
+/// (F-3).
+///
+/// The routes from an argv hold the empty command out: `Config::parse` and
+/// `from_argv`, which the first calls. The type does not: `Command::new` and
+/// the public fields take any program, the empty one included, and their
+/// callers are tests and `from_argv` (`plan-log.md` 2026-10-01, PL-1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command {
   pub program: String,
@@ -92,10 +97,15 @@ impl Command {
     }
   }
 
+  /// The command an argument vector names, by the host's one rule for an
+  /// empty one. Its callers are `Config::parse`, over `backend.command`, and
+  /// `goad-check`'s argv form, over everything after `--`, so the checker
+  /// refuses the command the host would refuse at load.
+  ///
   /// `None` for the empty vector and for an empty program, which are the two
   /// spellings of `EmptyCommand`'s case: neither names anything to spawn
   /// (F-41).
-  fn from_argv(argv: Vec<String>) -> Option<Self> {
+  pub fn from_argv(argv: Vec<String>) -> Option<Self> {
     let mut argv = argv.into_iter();
     let program = argv.next().filter(|program| !program.is_empty())?;
     Some(Self::new(program, argv.collect()))
@@ -192,7 +202,7 @@ impl Config {
     Ok(Self {
       backend: BackendConfig {
         command,
-        timeout: unsigned("backend.timeout", &file.backend.timeout)?,
+        timeout: positive_duration("backend.timeout", &file.backend.timeout)?,
       },
       schedule: ScheduleConfig {
         default_poll: signed("schedule.default_poll", &file.schedule.default_poll)?,
@@ -237,13 +247,24 @@ fn signed(key: &'static str, raw: &str) -> Result<jiff::SignedDuration, ConfigEr
   Ok(resolved)
 }
 
-/// The same, for the one value whose consumer is tokio rather than jiff.
+/// The same, for a value whose consumer is tokio rather than jiff: the host's
+/// one rule for a usable timeout.
+///
+/// Its callers are `Config::parse`, over `backend.timeout`, and
+/// `goad-check`'s `--timeout`, so the checker refuses the timeout the host
+/// would refuse at load (`design-log.md` 2026-10-01, G2). `key` names the
+/// value in the refusal.
 ///
 /// `std::time::Duration` holds every non-negative `SignedDuration`, so after the
 /// positivity check the conversion can fail only for a value that check has
 /// already refused — which is why its failure is reported as that refusal and
 /// not as a second error nothing can reach.
-fn unsigned(key: &'static str, raw: &str) -> Result<std::time::Duration, ConfigError> {
+///
+/// # Errors
+///
+/// `Duration` if `raw` is not a span in the product's grammar; `NonPositive`
+/// if it is zero or negative.
+pub fn positive_duration(key: &'static str, raw: &str) -> Result<std::time::Duration, ConfigError> {
   let resolved = signed(key, raw)?;
   std::time::Duration::try_from(resolved).or(Err(ConfigError::NonPositive { key }))
 }
@@ -422,6 +443,19 @@ default_poll = "30m"
       "a zero default poll was not rejected as such: {}",
       rejection(&text)
     );
+  }
+
+  /// `goad-check`'s `--timeout` is judged by this rule under its own key,
+  /// which no configuration line uses (`design-log.md` 2026-10-01, G2).
+  #[test]
+  fn positive_duration_refuses_a_zero_and_a_negative_span_under_the_key_it_is_given() {
+    for raw in ["0s", "-1s"] {
+      let refused = super::positive_duration("--timeout", raw);
+      assert!(
+        matches!(refused, Err(ConfigError::NonPositive { key: "--timeout" })),
+        "{raw} was not refused as non-positive under its key: {refused:?}"
+      );
+    }
   }
 
   // ---- VT-1: the fourth value, `[ingress]` ----

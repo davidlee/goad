@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-01 |
 | PHASE-02 | done | 2026-10-01 |
-| PHASE-03 | pending | 2026-10-01 |
+| PHASE-03 | in progress | 2026-10-01 |
 | PHASE-04 | pending | 2026-10-01 |
 | PHASE-05 | pending | 2026-10-01 |
 | PHASE-06 | pending | 2026-10-01 |
@@ -1608,33 +1608,38 @@ case goes red against code that compiles before its body lands. VT-2 and VT-3
 have no honest red (A-T3, A-T4). The rename lands in one commit with its
 paths, so `just check` is never red at a commit.
 
-- [ ] Set PHASE-03 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline`. It must be this sheet's commit or a
+- [x] Set PHASE-03 to `in progress` in §Status.
+- [x] Print `git log -1 --oneline`. It must be this sheet's commit or a
       descendant whose only changes since are the PLAN QUESTIONs'
-      resolutions.
+      resolutions. *251f525 012: PHASE-03 amended — goad_shell::version; copy
+      claims; push before lock bump.*
 - **1. `config.rs` (EX-5, EX-6, EX-7, VT-3)**
-  - [ ] Rename `unsigned` to `positive_duration` and make it `pub`, with
+  - [x] Rename `unsigned` to `positive_duration` and make it `pub`, with
         `Config::parse` calling it. Its doc names its two callers, the
         configuration's `backend.timeout` and `goad-check`'s `--timeout`
         (EX-6, quoted: *"its doc naming `goad-check`'s `--timeout` as its
         second caller (`design-log.md` 2026-10-01, G2)"*), and gains `#
         Errors` (A-V4). No behaviour change.
-  - [ ] VT-3 (quoted): *"`config.rs` unit tests: `positive_duration` refuses
+  - [x] VT-3 (quoted): *"`config.rs` unit tests: `positive_duration` refuses
         `0s` and `-1s` under the key it is given."* Use a key no
         configuration line uses (e.g. `"--timeout"`), and assert
         `ConfigError::NonPositive { key }` with that literal for each.
         Green on arrival (A-T4); record it, and record mutation rows 3 and 4
-        as its red.
-  - [ ] EX-5 (quoted): *"`config::Command::from_argv` is `pub`, with its doc
+        as its red. *Shipped as
+        `positive_duration_refuses_a_zero_and_a_negative_span_under_the_key_it_is_given`
+        (no name is committed for it in `design.md` §9 or `canon-delta.md`).
+        Green on arrival, as predicted; its red is mutation rows 3 and 4.*
+  - [x] EX-5 (quoted): *"`config::Command::from_argv` is `pub`, with its doc
         naming the checker's argv form as its second caller."* Keep its
         *`None` for the empty vector and for an empty program* sentence.
-  - [ ] EX-7 (quoted): *"`config::Command`'s doc names the routes that hold
+  - [x] EX-7 (quoted): *"`config::Command`'s doc names the routes that hold
         the empty command out (`Config::parse`, `from_argv`) and no longer
         claims it is unrepresentable (PL-1)."* Say what still admits one
         (`Command::new`, the public fields), since §5.2.1 *Opportunity*
         names them.
-  - [ ] `cargo test -p goad-shell --lib config` and `cargo clippy -p
-        goad-shell --all-targets -- -D warnings` green.
+  - [x] `cargo test -p goad-shell --lib config` and `cargo clippy -p
+        goad-shell --all-targets -- -D warnings` green. *20 passed; clippy
+        clean.*
 - **2. `version_line` in one home (EX-8, VT-4)**
   - [ ] EX-8 (quoted): *"`version_line(version, revision)` is defined once,
         in a new module `goad_shell::version`, taking the package version as
