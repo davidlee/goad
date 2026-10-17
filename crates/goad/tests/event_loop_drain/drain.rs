@@ -226,8 +226,7 @@ fn line_edit_described(window: &PromptWindow, description: &str) -> Option<Eleme
 fn shown(window: &PromptWindow, field: &str) -> String {
   line_edit_described(window, field)
     .and_then(|element| element.accessible_value())
-    .map(|value| value.to_string())
-    .unwrap_or_default()
+    .map_or_default(|value| value.to_string())
 }
 
 /// Click one element at its own centre — the three events

@@ -74,13 +74,11 @@ pub(crate) fn refused_line(answered: &Answered) -> String {
       retry_after_ms,
       detail,
     } => {
-      let advice = retry_after_ms
-        .map(|milliseconds| format!(" retry_after_ms={milliseconds}"))
-        .unwrap_or_default();
+      let advice =
+        retry_after_ms.map_or_default(|milliseconds| format!(" retry_after_ms={milliseconds}"));
       let detail = detail
         .as_ref()
-        .map(|detail| format!(" ({detail})"))
-        .unwrap_or_default();
+        .map_or_default(|detail| format!(" ({detail})"));
       format!("goad-emit: refused: {reason}{advice}{detail}")
     }
   }

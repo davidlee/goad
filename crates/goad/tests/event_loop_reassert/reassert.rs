@@ -95,8 +95,7 @@ fn combo_box(window: &PromptWindow) -> ElementHandle {
 fn shown(window: &PromptWindow) -> String {
   combo_box(window)
     .accessible_value()
-    .map(|value| value.to_string())
-    .unwrap_or_default()
+    .map_or_default(|value| value.to_string())
 }
 
 /// One key, pressed and released on whatever holds focus.

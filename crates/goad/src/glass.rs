@@ -314,7 +314,7 @@ impl Glass for SlintGlass {
       .window
       .set_diagnostic_lines(ModelRc::from(Rc::clone(&self.diagnostics)));
 
-    let next_check = frame.next_check.map(next_check_line).unwrap_or_default();
+    let next_check = frame.next_check.map_or_default(next_check_line);
     self.window.set_next_check(next_check.into());
 
     let notice = if frame.notice { BUSY_NOTICE } else { "" };
