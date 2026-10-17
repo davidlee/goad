@@ -5140,6 +5140,752 @@ something):
   needs the file at all is for audit (`research.md` §"Spike: R1 and R2"
   named it as required).
 
+### PHASE-06 — the examples
+
+**Written by a phase-sheet agent, not the executor**, at 250b8ed (*012
+PHASE-11: entry gains Codex in the capsule (EN-4) and the user's Codex login
+(EN-5)*). This sheet is the plan's second reading. Where it restates a plan
+criterion it quotes it; where it narrows one it says so and why. It repairs
+nothing: what reads as wrong in the plan or design is under **Findings** as a
+PLAN QUESTION, and the tasks it blocks are marked `[!]`.
+
+**Objective** (quoted, `plan.md` PHASE-06): *"the kit ships the focus check,
+Downloads triage and breadcrumbs examples of `design.md` §5.2.6, each
+accepted by `goad-check` in the gate with its own config and event files,
+having answered a view, and a person has seen each run."*
+
+This phase writes three small backends (Python, bash + `jq`, TypeScript under
+deno), their configs, event files and READMEs, and one new test target,
+`kit`, in `goad-check`. It is the first phase whose gate run spawns
+interpreters other than `bash` and `deno`.
+
+```
+kit/skills/goad-backend/examples/<example>/   (enumerated, never listed)
+        │ copied to  $TMPDIR/goad-kit-<case>-<example>-<pid>/
+        ▼
+goad-check --config config.toml [--event events/<f>.json]...
+   cwd = the copy · inherited XDG_* removed · HOME, XDG_* temporary
+        │ spawns, per exchange
+        ▼
+python3 backend.py │ bash backend.sh (+ jq) │ deno run … backend.ts
+        │
+report on stdout ── VT-1: exit 0 ∧ a "  respond " line ∧ no NO_VIEW line
+                 └─ VT-2 (triage only): the file moved to the as-drawn target
+```
+
+**Entry**
+- **EN-1** (quoted): *"PHASE-05 done. The devshell is reloaded after
+  `flake.nix` changes."* First half **discharged at sheet time**: §Status has
+  PHASE-05 `done` (2026-10-01). Gate at 250b8ed, in the sheet agent's shell
+  (not a reloaded devshell): see **EN-1 record** below. Second half is a
+  task (task 2), not an entry check, and it is **`[!]` on PLAN QUESTION 2**:
+  the index holds a staged `flake.lock` that is the user's, and a reload
+  reads it.
+
+**EN-1 record** (sheet agent, 250b8ed, `just check` in the agent shell):
+**RED.** `just check` exit **101**, at `lint`: build, both test tiers
+(**738 passed, 0 failed**, summed over all 33 `test result` lines) and
+`deno check exercisers/typescript/backend.ts` passed; then `cargo clippy
+--workspace --all-targets -- -D warnings` failed with two errors in
+`crates/goad-emit/src/render.rs` (the `retry_after_ms` and the following
+`.map(…).unwrap_or_default()`): *"called `map(_).unwrap_or_default()` on an
+`Option` value"*, `clippy::map_unwrap_or` via `-D clippy::pedantic`, help
+*"use `map_or_default`"*. Cargo stops at the first crate that fails, so
+other members may hold more. The shell's toolchain is `rustc 1.100.0-beta.5
+(8ea38001b 2026-10-13)`, a store path dated 2026-10-14 — newer than
+PHASE-05's green gate (2026-10-01). The shell is a direnv devshell
+(`IN_NIX_SHELL=impure`), and a git-input flake reads the working tree's
+`flake.lock`, which is the staged one; so the inference is that the staged
+lock's toolchain brought the lint. Not re-run on the committed lock (that
+would mean restoring `flake.lock`, which is the user's). **EN-1 is not met:
+PLAN QUESTION 2.** Log:
+`/tmp/claude-1000/-home-david-dev-goad/d1f8b237-7c10-46f1-b88b-830cd437a3f6/scratchpad/p06-gate.log`
+(scratch, not durable; the lines above are the record).
+
+`just -n check` against POL-001 §Compliance's block differs in the
+`deno check` line only (`exercisers/` vs the block's `examples/`), as
+PHASE-05/EN-1 recorded. This phase changes that line again (EX-3).
+
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- (quoted) *"`kit/skills/goad-backend/examples/` (new: `focus-check/`,
+  `downloads-triage/`, `breadcrumbs/`, as §5.2.6's tree lists them)"*. The
+  tree, exactly: `focus-check/{backend.py, config.toml, README.md}`;
+  `downloads-triage/{backend.sh, watch.sh, config.toml,
+  events/file-arrived.json, README.md}`; `breadcrumbs/{backend.ts,
+  chpwd.zsh, config.toml, events/changed-directory.json, README.md}`. A file
+  beyond these is a STOP.
+- (quoted) *"`crates/goad-check/tests/kit/` (new target) and
+  `crates/goad-check/Cargo.toml` (its `[[test]]`)"*.
+- (quoted) *"`flake.nix` (`python3` and `jq` in `projectPkgs`)"*.
+- (quoted) *"`justfile` (`typecheck`'s kit path, and its comment)"*.
+- (quoted) *"`canon-delta.md` (test paths only)"* — SPEC-001 Change 3's kit
+  path (VA-4) and nothing else.
+- `docs/slices/012/notes.md`: this sheet, §Status, §Harvest (§Open's FU-5
+  bullet). Bookkeeping (`docs/AGENTS.md` §Execute).
+
+Not surfaces, and so a STOP if the work seems to need them: `.gitignore`
+(PLAN QUESTION 1 may add it); `flake.lock`, staged or not (PLAN QUESTION 2);
+`SKILL.md` (PHASE-08 removes the marker; this phase does not list the
+examples in it); `kit/skills/goad-backend/reference/`; `tests/support/`
+(PHASE-07's scanner); `crates/goad-check/tests/binary/`, `src/`; any canon
+document; `design.md`, `plan.md`; `exercisers/`; `README.md`.
+
+**Reading list** (by symbol; `command grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md` §PHASE-06 whole; §Sequencing & rationale,
+  *Mutation evidence* and *Invariant reads*; §Coverage's AC-5 and AC-6 rows
+  and the *mutation checks* paragraph after the §9 table.
+- `docs/slices/012/design.md` §5.2.6: *The examples* (the bullets and the
+  table), *How a config names its backend*, *How an event names its file*,
+  the closing deno line; *The tagged-fence convention* (its table: the roles
+  a README's json/toml fence may carry); *The kit stands alone* (I-5, which
+  PHASE-07 runs over every file this phase writes); *It is shared, not
+  second* and the bullet after it (what `goad-check`'s targets may include
+  and what they copy). §5.2.7's `justfile typecheck` row. §9's *Kit tier*
+  bullets for the two test names.
+- `docs/slices/012/canon-delta.md` POL-001 Change 1 (the line); SPEC-001
+  Change 3 (the replacement sentence ending
+  `crates/goad-check/tests/kit/…::each_shipped_example_is_accepted_by_the_checker`).
+- `docs/specs/001-host-backend-protocol.md` §3 rows R-33, R-56, R-57, R-58
+  (for VA-3); `docs/specs/003-host-event-ingress.md` (the envelope an event
+  file is: `source`, `kind`, `timestamp` with offset, `data`; the reserved
+  source; R-2 and R-4 for PLAN QUESTION 1).
+- `crates/goad-check/src/run.rs`: `plan` (the order: `startup`, `requested`,
+  `scheduled`, the probe, then each event file), `PROBE_KIND`, `answer` (the
+  first option, each field `Submitted::as_drawn`), `CHAIN_BOUND`.
+  `crates/goad-check/src/render.rs`: `respond_line` (begins `"  respond "`),
+  `exchange_lines` (backend stderr is shown as `"  stderr: …"`), `NO_VIEW`.
+  `crates/goad-semantics/src/protocol/canonical.rs` `Submitted::as_drawn`.
+- `crates/goad-check/tests/binary/main.rs` (the `#[cfg(test)]` and `#[path]`
+  conventions and why), `process.rs` (`code_of`, `stdout_of`, `stderr_of`),
+  `run.rs` (`NO_VIEW`'s copy, `report_of`). `crates/goad-check/Cargo.toml`
+  (`autotests = false`; the `[[test]]` comment).
+- `tests/support/scripting.rs`: `claim`'s doc (the temp-path class, the
+  pid-last rule, F-23) — for the helper this phase mints.
+- `crates/goad-boundary/tests/checks/vocabulary.rs` `domain_scan` (A-V7).
+- `exercisers/demo.toml` (the `[ingress]` precedent, D-17) and
+  `.gitignore`'s socket lines; `crates/goad/src/startup.rs` `listener` (no
+  `[ingress]`, no socket).
+- `crates/goad-emit/src/render.rs` `USAGE`: emit takes `--source`, `--kind`,
+  `--data`, `--socket`, **not an envelope file**; without `--socket` it reads
+  only the default configuration path.
+- `clippy.toml` (`allow-*-in-tests`; `std::env::var` is disallowed — use
+  `std::env::vars_os`).
+- `docs/memory/`: `deno-run-does-not-typecheck`,
+  `path-flake-ref-breaks-on-demo-socket`,
+  `cargo-test-cwd-is-package-root-not-workspace-root`,
+  `shared-test-helper-lives-at-workspace-root-via-path`,
+  `a-backend-exchange-has-no-useful-duration`. The user's memory adds *a
+  standing guard may not reach a new file*, *negative control must compile*,
+  *tests asserting proxies*, *hand over the steps, not the pointer*,
+  *interactive shell is nu*, *a deferred step needs a checklist box*.
+
+**Assumptions — verified now** (at 250b8ed, by reading and the runs named)
+- **A-V1 — no package build runs `cargo test`** (item 1 of the brief).
+  `flake.nix`: every crane derivation (`cargoArtifacts`, `goad`, `goad-emit`,
+  `goad-check`) has `doCheck = false`, under a comment that forbids
+  `doCheck = true` and says why; the flake has no `checks` output; `goad-kit`
+  is `runCommandLocal` copying a fileset. So a `kit` target spawning
+  `python3`/`jq`/`deno`/`bash` changes **no** nix build. What it changes is
+  what the **gate** needs on `PATH`: hence `python3` and `jq` in
+  `projectPkgs`. Side effect to expect: `projectPkgs` is also every jail's
+  `extraPkgs` (`mkJail`), so the reload rebuilds `jailed-claude`,
+  `jailed-codex` and `jailed-pi`, and jailed agents gain both tools — which
+  a jailed `just check` now needs.
+- **A-V2 — what the checker sends** (item 3). `run::plan` sends `startup`,
+  `requested`, `scheduled`, then the probe (`source` `"host"`, `kind`
+  `"goad-check-unrecognised"`, `data` null), then each `--event` file's
+  envelope as normalized. Each view is answered by `run::answer`: **its first
+  option**, every field of that option at `Submitted::as_drawn` — `text` →
+  `""`, `choice` → the **first** alternative's id, `boolean` → `false`,
+  `number` → the range's drawn value, `datetime` →
+  `"1970-01-01T00:00:00+00:00"`. A chain is answered until a respond returns
+  `view: null`, up to `CHAIN_BOUND` responds; past it is an observation, not
+  a refusal (status unchanged). So, in the gate:
+
+  | example | speaks on | first option answered | what follows |
+  |---|---|---|---|
+  | focus check | `requested` (fresh state: no focus, so it asks for one) | the ask's first option, its `text` field `""` | `""` is *no answer* (Decisions D-1): no focus set, `view: null`. `scheduled` and the probe: no block, silent |
+  | Downloads triage | the event file (queue head) | *Move*, its `choice` field at the first alternative, which this sheet fixes as **Documents** (D-2) | the move is attempted, queue empty, `view: null` |
+  | breadcrumbs | the event file | the note option, its `text` field `""` | `""` stores no note (D-1); `to` has none, `view: null` |
+
+  Every example reaches a view **at any hour** (plan Notes): none of the three
+  triggers above reads the clock. **VT-2's "as-drawn target"** is the
+  directory of the first alternative of *Move*'s `choice` field: under D-2,
+  `$XDG_DOCUMENTS_DIR`.
+- **A-V3 — the report's lines.** `respond_line` begins with exactly two
+  spaces and `respond `; backend stderr is shown as `"  stderr: …"`, so a
+  backend cannot forge a respond line. `NO_VIEW` is one whole line. So VT-1's
+  view assertion is: some line `starts_with("  respond ")`, and no line equals
+  `NO_VIEW` — the binary tier's own form (`run.rs`'s copy of `NO_VIEW`).
+- **A-V4 — the backend inherits the checker's environment and working
+  directory.** `ProcessBackend::exchange` (`crates/goad-shell/src/backend/process.rs`)
+  sets neither `env_clear`, `envs` nor `current_dir`. So VT-1 sets both on the
+  checker's `Command` and the backend sees them.
+- **A-V5 — the tools today, in the agent shell** (item 5). `deno` 2.9.7 from
+  the store; `bash` from the store; `python3` is
+  `~/.local/bin/python3 → uv's cpython 3.12.10`; `jq` is
+  `~/.nix-profile/bin/jq`; `zsh` from the nix profile; **no `inotifywait`**;
+  `goad` and `goad-emit` on `PATH` are `~/.cargo/bin` installs dated Sep 21
+  (stale); no `goad-check` on `PATH`. So a gate green in the agent shell
+  proves nothing about the devshell: python3 and jq come from outside it.
+  Measured in the scratchpad: under `env -i PATH=… HOME=<tmp>`, uv's
+  python3 runs; a deno script with no imports, run as `deno run --allow-read
+  --allow-write --allow-env=HOME,XDG_STATE_HOME`, exits 0, needs no network,
+  and writes its cache under `$HOME/.cache/deno`; without `--allow-env` it
+  exits 1 with *"NotCapable: Requires env access to \"XDG_STATE_HOME\""*.
+  The devshell's python3 (nixpkgs, 3.14.x at the unstaged lock) differs from
+  uv's 3.12: an example must run on both, so nothing newer than 3.10's
+  standard library.
+- **A-V6 — sockets and git** (PLAN QUESTION 1). In a scratch repository, a
+  bound unix socket `goad.sock` and a regular file `goad.sock.lock`:
+  `git status --short --untracked-files=all` lists **only**
+  `?? goad.sock.lock`. Git does not list the socket; `open(2)` on a socket
+  fails (ENXIO), so `std::fs::copy` of a directory holding one fails.
+  `.gitignore` ignores only `/goad-demo.sock` and its lock;
+  `git check-ignore` on `kit/skills/goad-backend/examples/downloads-triage/goad.sock`
+  exit 1.
+- **A-V7 — standing instruments and the new files** (item 7).
+  - *Vocabulary scan* (`goad-boundary` `domain_scan`): roots at workspace
+    members, `extensions: &["rs", "slint"]`, `excluded_dirs: &["tests",
+    "target"]`. It reaches **neither** `crates/goad-check/tests/kit/`
+    (excluded by name) **nor** `kit/` (not a member, and no `.rs`). By
+    design: an example's words are its backend's domain, which the
+    invariant leaves to backends, and a test target is not host
+    functionality. `DOMAIN` is `habit, streak, journal, site, goal,
+    reminder, compliance`; *focus*, *downloads*, *triage*, *breadcrumbs*
+    are not in it. No reach proof: nothing should reach.
+  - *Clippy* (`--workspace --all-targets -D warnings`) and *fmt*
+    (`cargo fmt --all --check`): reach the new target **only once its
+    `[[test]]` is declared** (`autotests = false`: an undeclared target is
+    silently not built). Reach proofs R-3, R-4.
+  - *`deno check`*: reaches `breadcrumbs/backend.ts` once `typecheck`
+    names it (EX-3). Reach proof R-5.
+  - *No instrument* reads `backend.py`, `backend.sh`, `watch.sh`,
+    `chpwd.zsh` or any README but VT-1/VT-2 (the first two) and, from
+    PHASE-07, the fence and I-5 tests (READMEs and every file). `shellcheck`
+    and a Python linter are not in the devshell and are not added. VA-3 is
+    the reading that covers them.
+  - *I-5* and *the fence test* do not exist until PHASE-07 (A-T5).
+- **A-V8 — tracked top-level names** (for the I-5 self-check, task 1):
+  `git ls-files | cut -d/ -f1 | sort -u` → `.agents AGENTS.md assets
+  Cargo.lock Cargo.toml CLAUDE.md .claude-plugin clippy.toml crates docs
+  exercisers flake.lock flake.nix .gitignore justfile kit LICENSE nix
+  README.md rustfmt.toml scratchpad tests`. A README that writes
+  `tests/…`, `docs/…`, `crates/…`, `nix/…`, `scratchpad/…` or
+  `exercisers/…` will fail PHASE-07's I-5.
+- **A-V9 — `goad-emit` takes no envelope file.** Its `USAGE`: `--source S
+  --kind K [--data JSON] [--socket PATH]`. A README's *"with `goad-emit` and
+  the example's event file"* is therefore a translation the README spells
+  out: source, kind and `data` read from the file, the timestamp the
+  emitter's own.
+- **A-V10 — without `[ingress]` the host binds no socket**
+  (`startup::listener`: `None => Ingress::none()`). So an event-driven
+  example's config needs `[ingress]` for `goad-emit` or `watch.sh` to reach
+  a host at all (PLAN QUESTION 1). The checker ignores `[ingress]`.
+
+**Assumptions — first tested by this phase**
+- **A-T1 — the three interpreters run under the gate's temporary
+  environment** with inherited `XDG_*` removed (VT-1), from the devshell's
+  `PATH` (task 2's resolve check).
+- **A-T2 — deno runs `backend.ts` within the config's timeout on a cold
+  cache** under `cargo test`'s parallel load. The timeout is generous
+  (`"30s"`, D-3); no test asserts a duration (R3).
+- **A-T3 — the triage backend tolerates an absent file** (D-4), so VT-1
+  passes without creating it, and VT-2 is what holds the move.
+- **A-T4 — VA-2 and VA-5 red VT-1 for the example mutated and no other**,
+  because VT-1 collects every example's verdict before it fails.
+- **A-T5 — the READMEs satisfy PHASE-07's fence convention and I-5 in
+  advance.** Not testable until PHASE-07; task 1's self-checks are greps, not
+  the tests.
+
+**STOP conditions** (consult the user; do not improvise)
+- A file outside **Surfaces**, including `.gitignore` before PLAN QUESTION 1
+  is decided, `flake.lock`, `SKILL.md`, and any example file beyond the tree.
+- Any PLAN QUESTION unresolved when a task it blocks is reached.
+- The staged `flake.lock` committed, unstaged, restored or otherwise touched
+  by you. **Commit with `git commit -m … -- <paths>`** (the `--` form), and
+  `git show --stat HEAD` after: only your paths. If `git diff --cached
+  --name-only` shows a path you did not stage, it is someone else's; leave it.
+- The gate reds, after the reload, in a file this phase does not touch (a new
+  toolchain's lint, a nixpkgs bump): that is PLAN QUESTION 2 firing, not this
+  phase's to fix.
+- A dependency: any crate in `[dev-dependencies]` beyond `serde_json` (no
+  `tempfile`), any nixpkgs package beyond `python3` and `jq`, any import in
+  `backend.ts`, any non-stdlib Python module, any tool in `backend.sh` beyond
+  POSIX utilities, `bash` and `jq`.
+- An example that cannot speak in the gate without reading the clock or a
+  file VT-1 does not create (plan Notes).
+- VT-1 needing an example-specific branch (a name, a file it creates for one
+  example). VT-1 is the same for every directory; VT-2 is the triage case.
+- A `path:` flake reference; any lock-changing nix command.
+- `git stash`, `git checkout`, `git reset`, `git rebase`, `--amend`, or any
+  history rewrite. Mutations are copied to the scratchpad and copied back.
+- Another writer in this worktree (memory *one writer per worktree*;
+  PHASE-11 may run beside this phase, `plan-log.md` F-26).
+
+**Decisions applied by this sheet** (inside the design's latitude; the
+executor may overturn one only by recording why under **Decisions taken
+during execution**)
+- **D-1 — an untouched `text` field is no answer.** The checker, and a person
+  who presses an option without typing, submit `""` (A-V2; SPEC-001 R-57,
+  R-58's *"a backend that needs unanswered to be distinguishable … MUST NOT
+  send the field"*). Focus check: `""` for a focus sets none, and the respond
+  returns `view: null` (not the ask again, which would chain to
+  `CHAIN_BOUND`); `""` as a progress note logs no note. Breadcrumbs: `""`
+  stores no note. Each README says so.
+- **D-2 — *Move*'s first alternative is Documents** (`$XDG_DOCUMENTS_DIR`,
+  default `~/Documents`). §5.2.6 names `$XDG_DOCUMENTS_DIR` first (*"moves
+  into `$XDG_DOCUMENTS_DIR` etc."*) and leaves the order open; VT-2 needs it
+  fixed. *Move* is the view's first option and *Leave it* the second. The
+  other alternatives are the executor's, each read from its standard
+  `XDG_*_DIR` variable with the `~/<Name>` default, never from
+  `user-dirs.dirs` (no invented knobs; §5.2.6). The README says so: this
+  host's `~/.config/user-dirs.dirs` exists and its variables are not
+  exported, so here every default applies.
+- **D-3 — every `config.toml` has `timeout = "30s"`** and
+  `default_poll = "30m"`. Generous (plan Notes, R3); 30 s is also tolerable
+  for a person's host.
+- **D-4 — VT-1 does not create the triage file; the backend tolerates its
+  absence** (item 4 of the brief). On a respond whose file is no longer under
+  `$XDG_DOWNLOAD_DIR`, the triage backend writes one diagnostic line to
+  stderr, drops the head of the queue, and answers the next head's view or
+  `view: null` — exit 0. That is the real case too: a person can move or
+  delete a download before answering. VT-1's letter stands (exit 0, a respond
+  line, no `NO_VIEW` line); its genericity stands (no example-specific
+  setup); VT-2 creates the file and holds the move. A stderr line is shown in
+  the report and is not a refusal (`Judged::refused`).
+- **D-5 — VT-1's environment: every inherited `XDG_*` removed, then set.**
+  VT-1 reads *"`HOME` and `XDG_*` temporary"*. Setting a few and inheriting
+  the rest would let an example read the developer's real
+  `XDG_DOCUMENTS_DIR` (and move a file into it). So the spawn helper
+  `env_remove`s every variable from `std::env::vars_os()` whose name starts
+  `XDG_`, then sets `HOME=<copy-root>/home`,
+  `XDG_STATE_HOME=<copy-root>/state`,
+  `XDG_DOWNLOAD_DIR=<copy-root>/downloads`,
+  `XDG_DOCUMENTS_DIR=<copy-root>/documents` — the last two deliberately not
+  the `~/<Name>` defaults, so VT-2 proves the variable is read. Everything
+  else defaults under the temporary `HOME`. `PATH` is inherited (the
+  interpreters). A narrowing of how, not of what: VT-1's letter is met
+  strictly.
+- **D-6 — the `kit` target's shape** (item 2 of the brief).
+  `crates/goad-check/tests/kit/main.rs` declares `#[cfg(test)] mod
+  examples;` (the `#[cfg(test)]` reason as `tests/binary/main.rs` gives it);
+  `examples.rs` holds both cases and their helpers. PHASE-07 adds its own
+  modules beside it. **Nothing is `#[path]`-included**: `tests/binary/process.rs`
+  holds `fixture`, `against`, `check`, `check_with_stdout_full`,
+  `assert_not_judged` this target does not use (`dead_code` under
+  `-D warnings`), and `tests/support/scripting.rs` likewise. So it copies,
+  by symbol: `code_of`, `stdout_of`, `stderr_of` (from
+  `tests/binary/process.rs`), and the `NO_VIEW` text (a third copy, after
+  `render::NO_VIEW` and `tests/binary/run.rs`). Its spawn is its own, not a
+  copy: it sets `current_dir` and the environment. Each copy's doc comment
+  names what it copies; §Open's FU-5 bullet names each at phase end. The
+  `NO_VIEW` copy is a proxy that goes stale if `render` rewords it (the
+  binary tier carries the same risk); the respond-line half does not depend
+  on it.
+- **D-7 — the temporary directory.** One helper,
+  `std::env::temp_dir().join(format!("goad-kit-{case}-{example}-{pid}"))`,
+  removed if present at handout and left after (so a failure can be read),
+  pid **last** (`claim`'s F-23 rule: it cannot end `.sock`). It is a helper
+  of `scripting.rs` `claim`'s class and is **unheld** by `claim`, for the
+  reason `claim`'s doc gives `goad-emit`'s two (the include costs
+  `dead_code`); the two cases pass distinct `case` literals. Named in
+  §Open's FU-5 bullet with the copies.
+- **D-8 — the copy.** Directories and regular files, recursively; a unix
+  socket is skipped by type, with a comment naming why (a host run in the
+  example's directory leaves one: A-V6; PLAN QUESTION 1); anything else
+  (a symlink) panics naming the path.
+
+**Tasks** — order matters: the devshell first, so every later run uses the
+tools the gate will. Every new file is `git add`ed before any `nix` command
+reads it (nothing here builds a nix package, but `nix develop` reads the git
+tree).
+
+- [ ] Set PHASE-06 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline`. It must be this sheet's commit, or a
+      descendant whose only changes are the PLAN QUESTIONs' resolutions.
+- [ ] Every PLAN QUESTION resolved, and the amended criteria re-quoted here
+      before the tasks they block start.
+- **1. The examples (EX-1, EX-2)** — each written to §5.2.6's table and
+      bullets, D-1..D-4, and SPEC-001 R-56/R-57/R-58/R-33.
+  - [ ] Common to all three (EX-1, quoted): *"silent unless it has a reason
+        to speak; an unrecognised host kind treated as `scheduled`; state
+        under `$XDG_STATE_HOME/<example>/`; diagnostics on stderr; standard
+        library only, plus `jq` for the shell example; `command` relative to
+        its own directory."* Concretely: `<example>` is the directory name;
+        `$XDG_STATE_HOME` defaults to `~/.local/state`, and the state
+        directory is created on first write; host kinds are read **under
+        `source == "host"` only** (R-56): `startup`, `requested`,
+        `scheduled` by name, any other host kind as `scheduled`; a forwarded
+        event is matched on the example's own `source` **and** `kind`, and
+        any other forwarded event is silent; stdout carries exactly the one
+        response; the request is read whole from stdin. `next_check`: focus
+        check's is the block's end as an absolute instant with an offset when
+        a block is running; the others may omit it.
+  - [ ] `focus-check/`: `backend.py` (stdlib, ≤ 3.10 features, A-V5),
+        `config.toml` (`command = ["python3", "backend.py"]`, D-3),
+        `README.md`. Speaks on `requested` (focus set: the choice titled
+        with it — *continue for 10 min* with a `text` progress note, *switch
+        focus to ___* with a `text` field, *take a quick break*; none set:
+        asks for one) and on `scheduled` once the block has ended. State
+        `state.json`, `log.jsonl`. D-1.
+  - [!] `downloads-triage/` (PLAN QUESTION 1 for `config.toml`'s
+        `[ingress]` and `watch.sh`'s socket): `backend.sh` (bash + `jq`),
+        `watch.sh` (`inotifywait -m` on `$XDG_DOWNLOAD_DIR`, default
+        `~/Downloads`; emits the **basename**; calls `goad-emit`),
+        `config.toml` (`command = ["bash", "backend.sh"]`, D-3),
+        `events/file-arrived.json` (a SPEC-003 envelope: its own `source`,
+        `kind` `file-arrived`, a `timestamp` with offset, `data` `{"name":
+        "<basename>"}`), `README.md`. Queue in `queue.json`; each respond
+        handles the head and returns the next head's view while the queue is
+        not empty (R-33); *Move* first, its `choice` field's first
+        alternative Documents (D-2); *Leave it* second; absent file per D-4;
+        the target directory created if missing; a name collision at the
+        target is not overwritten (stderr, file left) — record the rule
+        chosen under **Decisions**.
+  - [!] `breadcrumbs/` (PLAN QUESTION 1 for `config.toml`'s `[ingress]`):
+        `backend.ts` (no imports, §5.2.6), `chpwd.zsh` (a zsh `chpwd` hook
+        emitting `{from, to}` with JSON-safe escaping of both paths),
+        `config.toml` (`command = ["deno", "run", "--allow-read",
+        "--allow-write", "--allow-env=HOME,XDG_STATE_HOME", "backend.ts"]`,
+        A-V5, D-3), `events/changed-directory.json` (envelope, `kind`
+        `changed-directory`, `data` `{"from": …, "to": …}`), `README.md`.
+        `notes.json` keyed by directory; asks *"Where were you in
+        `from`?"* with a `text` note; on respond stores it (D-1) and, if `to`
+        has a note, returns a view showing it (*Thanks* / *Clear*; *Clear*
+        deletes it).
+  - [ ] EX-2 (quoted): *"each README says how to see the example in under a
+        minute from its directory, and how to run it from anywhere else."*
+        From its directory: `goad-check --config config.toml` (with
+        `--event events/<f>.json` for the event-driven two), then `goad
+        config.toml` and **Check now**, or `goad-emit` with the event file's
+        `source`, `kind` and `data` (A-V9). From anywhere else: copy the
+        directory out and make `command` absolute (§5.2.6) — and the
+        `[ingress]` path, per PLAN QUESTION 1. Each README states its
+        state files, its environment variables, D-1, and (triage) D-2/D-4.
+  - [ ] Fences (plan Notes, quoted): *"A README's `json` and `toml` blocks
+        follow the tagged-fence convention (§5.2.6) now; PHASE-07's test will
+        hold them."* Roles: `toml goad:config`, `json goad:envelope`,
+        `json goad:response`, `json goad:request` (respond: ids from the
+        nearest preceding view-carrying `goad:response`). Any other JSON is
+        a `text` fence. Self-check (a grep, not the test):
+        `command grep -rnE '^\s*(```|~~~)\s*(json|toml|jsonc|json5|JSON|TOML)' kit/skills/goad-backend/examples`
+        — every hit carries `goad:` and a role from the table. Recorded.
+        Then each `toml goad:config` block is identical to its
+        `config.toml` (`diff`), and each `json goad:envelope` block is
+        accepted by `goad-check --config config.toml --event <block saved to
+        the scratchpad>` (exit 0 or 1, never 2). Recorded.
+  - [ ] I-5 self-check (A-T5; a grep, not the test): no `../` anywhere under
+        `examples/` (`command grep -rnF '../' kit/skills/goad-backend/examples`
+        → nothing, exit 1), and no mention of a tracked top-level name from
+        A-V8 as `<name>/` preceded by a non-path character:
+        `command grep -rnE '(^|[^A-Za-z0-9._/-])(crates|docs|exercisers|tests|nix|scratchpad|assets)/' kit/skills/goad-backend/examples`
+        → nothing, exit 1. Recorded.
+  - [ ] By hand, before the test exists, each example in the scratchpad
+        (copied, D-5's environment spelled with `env -u`/`env VAR=…`):
+        `goad-check --config config.toml [--event …]` via `cargo run -q -p
+        goad-check --` from the copy; record each report's verdict line and
+        its respond line(s).
+  - [ ] `git add` the example files.
+- **2. The devshell (EN-1's second half)** — `flake.nix`
+  - [!] (PLAN QUESTION 2) `projectPkgs` gains `pkgs.python3 pkgs.jq` beside
+        `pkgs.deno pkgs.socat`, with a one-line comment: the kit examples'
+        interpreters, which the `kit` test tier spawns. `alejandra --check
+        flake.nix` clean.
+  - [!] Reload: every gate run from here on is `nix develop --command just
+        …` from the repository root (the bare git form — never `path:`;
+        `goad-demo.sock` is in the checkout). The agent's own shell keeps its
+        old `PATH` (A-V5). Record:
+        `nix develop --command bash -c 'command -v python3 jq deno bash'` —
+        each a `/nix/store/…` path. Offered, not a criterion:
+        `nix develop --ignore-environment --keep HOME --command bash -c
+        'command -v python3 jq deno bash'`, the same four from the devshell
+        alone (AC-1's clean clone).
+- **3. The `kit` target (VT-1, VT-2)** — red first.
+  - [ ] `crates/goad-check/Cargo.toml`: `[[test]] name = "kit"`, `path =
+        "tests/kit/main.rs"`, after `binary`, with a comment in the existing
+        style (what the tier holds; `autotests = false` means undeclared is
+        unbuilt).
+  - [ ] `tests/kit/main.rs`: module doc (the kit tier: what the kit ships,
+        run as a person would, `design.md` §9); `#[cfg(test)] mod examples;`.
+        `tests/kit/examples.rs`: D-5..D-8's helpers, then the two cases.
+  - [ ] **Red**: write VT-1 and VT-2 before task 1's examples exist, or
+        with them moved to the scratchpad. VT-1 reds on its empty-set
+        refusal; VT-2 reds because `downloads-triage` is missing. Record both
+        failure texts. (VT-1 reads the filesystem, not git, so `git add`
+        does not change what it sees.)
+  - [ ] VT-1 (quoted): *"`kit` tier: `each_shipped_example_is_accepted_by_the_checker`
+        — every directory under `kit/skills/goad-backend/examples/`,
+        enumerated and not listed, refusing an empty set; each copied to a
+        temporary directory, the checker started there in the config form
+        with the example's event files, `HOME` and `XDG_*` temporary. Each run
+        exits 0 **and** its report shows at least one view answered: it holds
+        a respond line and not the no-view line."* Concretely: the examples
+        root is `CARGO_MANIFEST_DIR/../../kit/skills/goad-backend/examples`
+        (`cargo-test-cwd-is-package-root-not-workspace-root`); directories
+        only, sorted; `assert!(!examples.is_empty(), …)`; event files are
+        `<copy>/events/*.json` sorted, passed as relative paths; argv
+        `--config config.toml --event events/<f>.json …` to
+        `CARGO_BIN_EXE_goad-check`; D-5's environment. **Every example's
+        verdict is collected, then one assertion fails naming each failed
+        example with its exit code, report and stderr** (A-T4). A missing
+        interpreter fails; it never skips.
+  - [ ] VT-2 (quoted): *"`downloads_triage_moves_the_file_it_was_asked_about`:
+        the file the event names, created under the temporary
+        `XDG_DOWNLOAD_DIR`, is moved to the as-drawn target."* Concretely:
+        copy `downloads-triage`; read `data.name` from its event file with
+        `serde_json`; write that file under `<copy-root>/downloads` with
+        content unique to the case; run as VT-1 does; assert exit 0, the
+        file absent from `downloads`, and present under
+        `<copy-root>/documents` (D-2, D-5) with the same content.
+  - [ ] Green: `nix develop --command cargo test -p goad-check --test kit
+        --no-fail-fast`; both pass. Record the `test result` line.
+  - [ ] Refactor: the spawn and the copy are the only helpers both cases
+        use; nothing in `examples.rs` names an example but VT-2. Record what
+        changed, or that nothing did.
+- **4. The `justfile` (EX-3, VA-1)**
+  - [ ] EX-3 (quoted): *"the `justfile`'s `typecheck` is exactly
+        `canon-delta.md` POL-001 Change 1's line. Its comment is true of this
+        step: one exerciser and one kit example, both typechecked because
+        `deno run` does not, as §5.2.7 says, and the departure from POL-001's
+        block still named until audit."* The line:
+        `deno check exercisers/typescript/backend.ts kit/skills/goad-backend/examples/breadcrumbs/backend.ts`.
+        The comment's *"the one TypeScript file goad's tests drive"* goes
+        (the `kit` tier drives a second, through `goad-check`); its
+        departure paragraph stays, now naming both paths.
+  - [ ] VA-1 (quoted): *"`just -n check` prints POL-001 §Compliance's
+        command block with its `deno check` line replaced by EX-3's, and no
+        other difference."* `diff` of the block (with the line substituted)
+        against `just -n check 2>&1`: exit 0. Recorded.
+- **5. Canon delta (VA-4)**
+  - [ ] VA-4 (quoted): *"`canon-delta.md` SPEC-001 Change 3's kit-tier path
+        for `each_shipped_example_is_accepted_by_the_checker` is re-pointed to
+        the shipped file."* `crates/goad-check/tests/kit/…::` →
+        `crates/goad-check/tests/kit/examples.rs::`. Nothing else in the file.
+        `git diff --stat docs/slices/012/canon-delta.md`: one line changed.
+- **6. The gate and the evidence**
+  - [ ] `nix develop --command just check` exit 0. Record the summed passed
+        count over every `test result` line: the entry count plus 2.
+  - [ ] Mutation and reach rows (below), each recorded.
+  - [ ] VA-3 (quoted): *"each example is read against SPEC-001 R-56, R-57,
+        R-58 and R-33 and against its README; findings go in the phase
+        sheet."* One block per example under **Findings**, per requirement:
+        where the example meets it (by symbol), or the finding. Plus: R-56's
+        source qualifier (A-V2, task 1), D-1 against R-58, R-33 for triage's
+        chain, the envelope against SPEC-003.
+  - [ ] Commit the code surfaces and this sheet's records with `git commit
+        -m "012 PHASE-06: …" -- <paths>`; `git show --stat HEAD` lists only
+        them (STOP conditions).
+- **7. Verification (human) — VH-1..VH-3** — the person's; the executor
+  leaves these boxes open and hands over the blocks below, pasted, not
+  pointed at (memory *hand over the steps, not the pointer*).
+  - [ ] VH-1 (quoted): *"AC-6: a person runs `goad-check --config
+        config.toml` in each example's directory, and against a broken
+        backend (one of PHASE-12's refusing fixtures), and sees each report —
+        sides, requirements, the verdict line and the status."*
+  - [!] VH-2 (quoted; PLAN QUESTION 1): *"a person runs `goad config.toml`
+        in each example's directory and sees each example ask its question,
+        from **Check now** or with `goad-emit` and the example's event
+        file."*
+  - [!] VH-3 (quoted; PLAN QUESTION 1): *"A-4: a person runs `watch.sh`
+        (with `inotify-tools` from `nix shell nixpkgs#inotify-tools`, since
+        the devshell has none) against a running host, drops a file into the
+        watched directory, and sees the triage view."*
+- **8. Close**
+  - [ ] §Open's FU-5 bullet extended: `code_of`, `stdout_of`, `stderr_of`,
+        the `NO_VIEW` text (copied into `crates/goad-check/tests/kit/examples.rs`
+        from `crates/goad-check/tests/binary/process.rs` and `run.rs`, which
+        it cannot include whole) and D-7's unheld temp-directory helper.
+  - [ ] Forward to PHASE-07 under **Findings**: the socket the host leaves
+        in an example directory (A-V6), which a filesystem walk of `kit/`
+        meets.
+  - [ ] §Harvest updated; PHASE-06 `done` once every box but VH-1..VH-3 is
+        met, the human boxes listed as owed (memory *a deferred step needs a
+        checklist box*).
+
+**Verification (human) — the hand-over blocks** (nushell: the person's
+interactive shell; no bash syntax). Run from the repository root, in the
+devshell. `goad`, `goad-emit` and `goad-check` are run through `cargo run`
+because the installed copies are stale (A-V5). The examples write state; the
+blocks point every variable an example reads at a scratch directory, so the
+person's own Downloads, Documents and state are untouched. `HOME` and
+`XDG_RUNTIME_DIR` are left alone: the window needs them.
+
+*Shell 1, once:*
+```nu
+cd ~/dev/goad
+nix develop --command nu
+```
+
+*VH-1 — the reports* (shell 1):
+```nu
+let ex = ($env.PWD | path join kit skills goad-backend examples)
+let scratch = (mktemp -d)
+let vars = {
+  XDG_STATE_HOME: ($scratch | path join state)
+  XDG_DOWNLOAD_DIR: ($scratch | path join downloads)
+  XDG_DOCUMENTS_DIR: ($scratch | path join documents)
+}
+cargo build -q -p goad-check -p goad-emit -p goad
+let bin = ($env.PWD | path join target debug)
+print $scratch
+with-env $vars { cd ($ex | path join focus-check); ^($bin | path join goad-check) --config config.toml; print $"status ($env.LAST_EXIT_CODE)" }
+with-env $vars { cd ($ex | path join downloads-triage); ^($bin | path join goad-check) --config config.toml --event events/file-arrived.json; print $"status ($env.LAST_EXIT_CODE)" }
+with-env $vars { cd ($ex | path join breadcrumbs); ^($bin | path join goad-check) --config config.toml --event events/changed-directory.json; print $"status ($env.LAST_EXIT_CODE)" }
+^($bin | path join goad-check) -- bash tests/backends/exits-zero-with-unparseable-stdout.sh; print $"status ($env.LAST_EXIT_CODE)"
+```
+Expect: three reports ending `verdict: accepted, no exchange refused`, each
+with a `respond` line, status 0; the last with `REFUSED  backend
+SPEC-001/R-…` lines, `verdict: refused, …`, status 1.
+
+*VH-2 — each example asks its question* (shell 1 runs the host; shell 2
+emits). Focus check, from **Check now**:
+```nu
+with-env $vars { cd ($ex | path join focus-check); ^($bin | path join goad) config.toml }
+```
+Triage and breadcrumbs, host in shell 1 (one at a time; close the window
+before the next):
+```nu
+with-env $vars { cd ($ex | path join downloads-triage); ^($bin | path join goad) config.toml }
+```
+then in shell 2 (a second terminal: `cd ~/dev/goad`, `nix develop --command
+nu`, then the `let ex`, `let vars` and `let bin` lines above, with
+`let scratch = '<the path shell 1 printed>'` in place of `mktemp`):
+```nu
+cd ($ex | path join downloads-triage)
+let e = (open events/file-arrived.json)
+mkdir ($vars.XDG_DOWNLOAD_DIR)
+touch ($vars.XDG_DOWNLOAD_DIR | path join $e.data.name)
+^($bin | path join goad-emit) --socket SOCKET --source $e.source --kind $e.kind --data ($e.data | to json --raw)
+```
+and the same for `breadcrumbs` with `events/changed-directory.json`.
+`SOCKET` is filled in once PLAN QUESTION 1 is decided. Expect: the triage
+view (*Where does … go?*, *Move* / *Leave it*); on *Move* → Documents, the
+file under the scratch `documents`; the breadcrumbs view (*Where were you in
+…?*).
+
+*VH-3 — `watch.sh`* (host as VH-2's triage in shell 1; shell 2):
+```nu
+cd ($ex | path join downloads-triage)
+mkdir ($vars.XDG_DOWNLOAD_DIR)
+with-env $vars { nix shell nixpkgs#inotify-tools --command bash watch.sh WATCH_ARGS }
+```
+then in a third terminal (set up as shell 2):
+```nu
+"dropped" | save ($vars.XDG_DOWNLOAD_DIR | path join dropped.txt)
+```
+Expect: the triage view naming `dropped.txt`. `WATCH_ARGS` per PLAN
+QUESTION 1. The executor completes `SOCKET` and `WATCH_ARGS` once decided,
+and runs every line it can (VH-1 headless) itself first.
+
+**Exit criteria** (quoted in the tasks above; listed here to be ticked)
+- [ ] EX-1
+- [ ] EX-2
+- [ ] EX-3
+- [ ] VT-1
+- [ ] VT-2
+- [ ] VA-1
+- [ ] VA-2
+- [ ] VA-3
+- [ ] VA-4
+- [ ] VA-5
+- [ ] VH-1 (person)
+- [ ] VH-2 (person)
+- [ ] VH-3 (person)
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad, edit, run with `--no-fail-fast`, copy back; `git status --short`
+clean after each restore). A script or Markdown mutation has no build: its
+row records that the mutated file was the one the test read (the failure
+names the example, and the report shows the mutated behaviour). Instrument
+for VT rows: `nix develop --command cargo test -p goad-check --test kit
+--no-fail-fast`.
+
+| row | file / symbol | edit | must red | must stay green | compiled? / file read | redded | restored |
+|---|---|---|---|---|---|---|---|
+| M-1 (VA-2) | `focus-check/backend.py`, the branch treating an unrecognised host kind as `scheduled` | the branch replaced by `sys.exit(1)` | `each_shipped_example_is_accepted_by_the_checker`, naming `focus-check` only: exit 1, a `REFUSED  backend  SPEC-001/R-56` line | `downloads_triage_moves_the_file_it_was_asked_about` | | | |
+| M-2 (VA-5) | `breadcrumbs/backend.ts`, the dispatch | every request answered `{"view":null}` | VT-1, naming `breadcrumbs` only, with **exit 0** and the `NO_VIEW` line quoted from its report | VT-2 | | | |
+| M-3 (offered) | `downloads-triage/backend.sh`, the move | `mv` → `cp` | VT-2 (file still in `downloads`) | VT-1 — which cannot see a move; VT-2 is what holds it | | | |
+| M-4 (offered) | `downloads-triage/backend.sh`, the Documents target | `$XDG_DOCUMENTS_DIR` ignored, default `~/Documents` only | VT-2 (file under `<copy-root>/home/Documents`, not `documents`) | VT-1 | | | |
+
+**Reach proofs** (the same rules)
+
+| row | instrument | plant | must find | result | restored |
+|---|---|---|---|---|---|
+| R-1 | VT-1's enumeration | an empty directory `examples/planted/` | VT-1 red naming `planted` (status 2: no `config.toml`); the three others pass | | |
+| R-2 | VT-1's empty-set refusal | the three example directories moved to the scratchpad, `examples/` left empty | VT-1 red with its empty-set message — not a pass, not a `read_dir` error | | |
+| R-3 | clippy over the new target | an unused `fn planted() {}` in `tests/kit/examples.rs` | `cargo clippy --workspace --all-targets -- -D warnings` fails naming the file (`dead_code`) | | |
+| R-4 | fmt over the new target | one line of `tests/kit/examples.rs` misindented | `cargo fmt --all --check` prints a diff naming the file | | |
+| R-5 | EX-3's `deno check` | `const planted: number = "x";` in `breadcrumbs/backend.ts` | `just typecheck` exit 1 naming the file; VT-1 on the same plant stays **green** (`deno-run-does-not-typecheck`: the reason the line exists) | | |
+| R-6 | the target is built | none: a read | `cargo test --workspace` output shows `Running tests/kit/main.rs` and both case names | | n/a |
+
+**Decisions taken during execution**
+
+(none yet)
+
+**Findings**
+
+- **PLAN QUESTION 1 — where an event-driven example's socket goes.** Blocks
+  the triage and breadcrumbs `config.toml`, `watch.sh`, the READMEs' event
+  route, VH-2 and VH-3. A host binds no socket without `[ingress]` (A-V10),
+  and `goad-emit` reads only the default configuration's (A-V9), so the
+  event route §5.2.6 promises needs `[ingress]` in the example's config, and
+  the design does not say where. `Config` expands nothing, so the path is
+  relative to the host's working directory (the example's) or absolute.
+  - (a) `path = "./goad.sock"`, the demo's precedent (D-17), consistent with
+    `command`. Costs: a host run in the checkout leaves `goad.sock` (which
+    git does not list, and `std::fs::copy` cannot open) and
+    `goad.sock.lock` (which `git status` shows, A-V6) in the example's
+    directory; `.gitignore` needs a pattern for both (not a surface); VT-1's
+    copy skips sockets (D-8); PHASE-07's walks of `kit/` meet them; a host
+    started in a read-only copy (the `goad-kit` store path) cannot bind —
+    which the README's "copy it out" route already avoids. `goad-emit
+    --socket ./goad.sock` and `bash watch.sh --socket ./goad.sock` from the
+    example's directory, `watch.sh` passing its arguments to `goad-emit`.
+  - (b) no `[ingress]`; the README says to add one. The minute-long event
+    route then needs the reader to edit the file first, against EX-2.
+  - (c) an absolute path under `/tmp`, e.g. `/tmp/goad-downloads-triage.sock`:
+    works from any directory and leaves nothing in the checkout; the socket
+    is owner-only (SPEC-003/R-2), but a fixed name in a shared directory can
+    be squatted by another user, and the host then refuses to start (R-4).
+
+  **Recommendation: (a)**, with the surfaces amended to admit `.gitignore`
+  (`kit/skills/goad-backend/examples/*/goad.sock` and `….sock.lock`, under a
+  comment citing D-17), and `watch.sh` forwarding `"$@"` to `goad-emit` (an
+  argument, not an invented knob). Hand-over: `SOCKET` = `./goad.sock`,
+  `WATCH_ARGS` = `--socket ./goad.sock`.
+
+- **PLAN QUESTION 2 — the gate is red at entry, and the staged `flake.lock`
+  is the likely cause.** The index holds a staged `flake.lock` (the user's)
+  that moves `nixpkgs`, `pub` and other inputs. A git-input flake reads the
+  working tree, so the devshell — this agent's, and the reload EN-1 requires
+  — is built **from that lock**. It has already fired: the sheet agent's
+  `just check` is red at `lint`, `clippy::map_unwrap_or` twice in
+  `crates/goad-emit/src/render.rs`, under `rustc 1.100.0-beta.5` dated
+  2026-10-13 (EN-1 record). That file is outside this phase's surfaces, and
+  so would be any further lint the new toolchain raises. Options: (i) the
+  user drops or holds the lock change until after PHASE-06; (ii) the user
+  lands it with a separate toolchain-repair commit (the two `map_or_default`
+  rewrites, and whatever a `cargo clippy --keep-going` pass finds) before
+  PHASE-06. **Recommendation: (ii) if the lock bump is wanted now** (it
+  probably serves PHASE-11's capsule), as its own commit, not this phase's;
+  else (i). Either way the executor records `nix develop --command just
+  check` green at entry, before touching `flake.nix`, so a later red is
+  attributable, and never stages, commits or restores `flake.lock`. Blocks
+  entry and task 2.
+
+- **Observation, not a question — `goad-emit` and "the example's event
+  file".** §5.2.6 and VH-2 say *"with `goad-emit` and the example's event
+  file"*; emit takes no file (A-V9). The READMEs translate (`source`,
+  `kind`, `data` from the file; the timestamp is emit's). For audit's
+  design-drift list if the wording is to change; nothing blocks.
+
+- **Observation — this host's user directories live only in
+  `user-dirs.dirs`.** The examples read the environment (D-2); here none of
+  the `XDG_*_DIR` variables is exported, so the defaults apply. The triage
+  README says so; a reader who wants their configured directories exports
+  them.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
