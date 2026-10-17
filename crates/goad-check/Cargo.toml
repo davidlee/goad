@@ -40,3 +40,9 @@ workspace = true
 [[test]]
 name = "binary"
 path = "tests/binary/main.rs"
+
+# The kit tier: what `kit/` ships, run under the built checker (`design.md`
+# §9). Undeclared would be unbuilt, `autotests = false` above.
+[[test]]
+name = "kit"
+path = "tests/kit/main.rs"

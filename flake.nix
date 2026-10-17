@@ -132,6 +132,7 @@
     projectPkgs =
       devToolPkgs
       ++ [pkgs.deno pkgs.socat]
+      ++ [pkgs.python3 pkgs.jq] # the kit examples' interpreters, spawned by the `kit` test tier
       ++ [pkgs.nodejs_latest] # for pi
       ++ [goadHeadless goadShot pkgs.cage pkgs.grim]
       ++ guiLibs

@@ -1,0 +1,12 @@
+# `command` and the socket are relative to this directory: run goad and
+# goad-check from here.
+[backend]
+command = ["deno", "run", "--allow-read", "--allow-write", "--allow-env=HOME,XDG_STATE_HOME", "backend.ts"]
+timeout = "30s"
+
+[schedule]
+default_poll = "30m"
+
+# Where a running goad listens for events, for chpwd.zsh and goad-emit.
+[ingress]
+path = "./goad.sock"

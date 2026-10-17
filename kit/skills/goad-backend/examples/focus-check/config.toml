@@ -1,0 +1,7 @@
+# `command` is relative to this directory: run goad and goad-check from here.
+[backend]
+command = ["python3", "backend.py"]
+timeout = "30s"
+
+[schedule]
+default_poll = "30m"

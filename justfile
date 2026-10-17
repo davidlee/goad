@@ -32,17 +32,17 @@ test:
 test-stratum1:
   cargo test -p goad-semantics
 
-# The TypeScript exerciser, the one TypeScript file goad's tests drive, is
-# typechecked here because `deno run` does not — measured at slice 001
-# PHASE-08, a type error runs to exit 0. deno is in `flake.nix` `projectPkgs`,
-# so AC-1's clean clone in the dev shell still holds.
+# The TypeScript exerciser and the kit's TypeScript example are typechecked
+# here because `deno run` does not — measured at slice 001 PHASE-08, a type
+# error runs to exit 0. deno is in `flake.nix` `projectPkgs`, so AC-1's clean
+# clone in the dev shell still holds.
 #
 # This line departs from POL-001 §Compliance's command block, which still names
-# the exerciser's old path, until slice 012's audit promotes POL-001 Change 1
-# (`docs/slices/012/canon-delta.md`): the rename would otherwise break the gate,
-# and canon is not edited mid-slice.
+# the exerciser's old path and not the example, until slice 012's audit promotes
+# POL-001 Change 1 (`docs/slices/012/canon-delta.md`): the rename would
+# otherwise break the gate, and canon is not edited mid-slice.
 typecheck:
-  deno check exercisers/typescript/backend.ts
+  deno check exercisers/typescript/backend.ts kit/skills/goad-backend/examples/breadcrumbs/backend.ts
 
 # One column, not two. `tokio` and `toml` are unconditional dependencies of
 # stratum 2 now and absent from stratum 1, so the `shell` feature has nothing

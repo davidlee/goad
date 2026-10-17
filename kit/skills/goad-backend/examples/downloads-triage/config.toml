@@ -1,0 +1,12 @@
+# `command` and the socket are relative to this directory: run goad and
+# goad-check from here.
+[backend]
+command = ["bash", "backend.sh"]
+timeout = "30s"
+
+[schedule]
+default_poll = "30m"
+
+# Where a running goad listens for events, for watch.sh and goad-emit.
+[ingress]
+path = "./goad.sock"
