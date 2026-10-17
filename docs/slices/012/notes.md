@@ -5721,7 +5721,7 @@ tree).
   - [x] Forward to PHASE-07 under **Findings**: the socket the host leaves
         in an example directory (A-V6), which a filesystem walk of `kit/`
         meets.
-  - [ ] §Harvest updated; PHASE-06 `done` once every box but VH-1..VH-3 is
+  - [x] §Harvest updated; PHASE-06 `done` once every box but VH-1..VH-3 is
         met, the human boxes listed as owed (memory *a deferred step needs a
         checklist box*).
 
