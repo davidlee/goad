@@ -861,6 +861,12 @@ temporary directory.
     README says to copy the directory out and make `command` absolute;
   - the gate test copies the example to a temporary directory and starts the
     checker with that directory as its working directory.
+- **Where an event-driven example's socket goes** (`plan-log.md`
+  2026-10-17, *PHASE-06 sheet questions*). The triage and breadcrumbs configs
+  carry `[ingress] path = "./goad.sock"`, relative to the example's
+  directory as `command` is, after the demo's (D-17); `.gitignore` keeps the
+  socket and its lock file out of the checkout's status, and `watch.sh`
+  passes its arguments through to `goad-emit` (`--socket ./goad.sock`).
 - **How an event names its file.** The triage event carries a file **name**,
   which the backend resolves under `$XDG_DOWNLOAD_DIR`; `watch.sh` emits the
   basename. So the static event file works under the gate's temporary

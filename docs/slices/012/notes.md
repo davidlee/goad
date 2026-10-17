@@ -5149,6 +5149,12 @@ criterion it quotes it; where it narrows one it says so and why. It repairs
 nothing: what reads as wrong in the plan or design is under **Findings** as a
 PLAN QUESTION, and the tasks it blocks are marked `[!]`.
 
+**Decisions applied** after 37c201a: both PLAN QUESTIONs are resolved
+(`plan-log.md` 2026-10-17, *PHASE-06 sheet questions*; each cites it under
+**Findings**). `plan.md` PHASE-06's Surfaces gain `.gitignore`, re-quoted
+below; `design.md` §5.2.6 gains *Where an event-driven example's socket
+goes*. No other criterion changed, and no task is blocked.
+
 **Objective** (quoted, `plan.md` PHASE-06): *"the kit ships the focus check,
 Downloads triage and breadcrumbs examples of `design.md` §5.2.6, each
 accepted by `goad-check` in the gate with its own config and event files,
@@ -5175,14 +5181,20 @@ report on stdout ── VT-1: exit 0 ∧ a "  respond " line ∧ no NO_VIEW line
 
 **Entry**
 - **EN-1** (quoted): *"PHASE-05 done. The devshell is reloaded after
-  `flake.nix` changes."* First half **discharged at sheet time**: §Status has
-  PHASE-05 `done` (2026-10-01). Gate at 250b8ed, in the sheet agent's shell
-  (not a reloaded devshell): see **EN-1 record** below. Second half is a
-  task (task 2), not an entry check, and it is **`[!]` on PLAN QUESTION 2**:
-  the index holds a staged `flake.lock` that is the user's, and a reload
-  reads it.
+  `flake.nix` changes."* First half **discharged 2026-10-17 at 7a21826**
+  (*flake.lock: bump nixpkgs and crane; map_or_default for the new clippy*,
+  the orchestrator's, PLAN QUESTION 2): §Status has PHASE-05 `done`, and
+  `just check` in the sheet agent's devshell (`rustc 1.100.0-beta.5
+  (8ea38001b 2026-10-13)`, the landed lock's) exited **0**: build, both test
+  tiers (**738 passed, 0 failed**, summed over all 33 `test result` lines),
+  `deno check exercisers/typescript/backend.ts`, clippy with no warning (no
+  `warning` line in the log), `cargo fmt --all --check`. The red run at
+  250b8ed is kept below as the record of what PLAN QUESTION 2 was about.
+  The second half is task 2. The executor re-runs the gate as
+  `nix develop --command just check` before touching `flake.nix`.
 
-**EN-1 record** (sheet agent, 250b8ed, `just check` in the agent shell):
+**EN-1 record, superseded** (sheet agent, 250b8ed, `just check` in the agent
+shell, under the then-staged lock):
 **RED.** `just check` exit **101**, at `lint`: build, both test tiers
 (**738 passed, 0 failed**, summed over all 33 `test result` lines) and
 `deno check exercisers/typescript/backend.ts` passed; then `cargo clippy
@@ -5197,8 +5209,8 @@ PHASE-05's green gate (2026-10-01). The shell is a direnv devshell
 (`IN_NIX_SHELL=impure`), and a git-input flake reads the working tree's
 `flake.lock`, which is the staged one; so the inference is that the staged
 lock's toolchain brought the lint. Not re-run on the committed lock (that
-would mean restoring `flake.lock`, which is the user's). **EN-1 is not met:
-PLAN QUESTION 2.** Log:
+would mean restoring `flake.lock`, which is the user's). **EN-1 was not met
+then: PLAN QUESTION 2, since resolved (7a21826, green above).** Log:
 `/tmp/claude-1000/-home-david-dev-goad/d1f8b237-7c10-46f1-b88b-830cd437a3f6/scratchpad/p06-gate.log`
 (scratch, not durable; the lines above are the record).
 
@@ -5220,11 +5232,16 @@ PHASE-05/EN-1 recorded. This phase changes that line again (EX-3).
 - (quoted) *"`justfile` (`typecheck`'s kit path, and its comment)"*.
 - (quoted) *"`canon-delta.md` (test paths only)"* — SPEC-001 Change 3's kit
   path (VA-4) and nothing else.
+- (quoted, amended) *"`.gitignore` (the socket an event-driven example's
+  host binds in its directory, and its lock file; `plan-log.md` 2026-10-17,
+  *PHASE-06 sheet questions*)"*. Two patterns,
+  `/kit/skills/goad-backend/examples/*/goad.sock` and
+  `/kit/skills/goad-backend/examples/*/goad.sock.lock`, under a comment in
+  the demo lines' style citing D-17; nothing else in the file.
 - `docs/slices/012/notes.md`: this sheet, §Status, §Harvest (§Open's FU-5
   bullet). Bookkeeping (`docs/AGENTS.md` §Execute).
 
-Not surfaces, and so a STOP if the work seems to need them: `.gitignore`
-(PLAN QUESTION 1 may add it); `flake.lock`, staged or not (PLAN QUESTION 2);
+Not surfaces, and so a STOP if the work seems to need them: `flake.lock`;
 `SKILL.md` (PHASE-08 removes the marker; this phase does not list the
 examples in it); `kit/skills/goad-backend/reference/`; `tests/support/`
 (PHASE-07's scanner); `crates/goad-check/tests/binary/`, `src/`; any canon
@@ -5399,15 +5416,14 @@ document; `design.md`, `plan.md`; `exercisers/`; `README.md`.
   the tests.
 
 **STOP conditions** (consult the user; do not improvise)
-- A file outside **Surfaces**, including `.gitignore` before PLAN QUESTION 1
-  is decided, `flake.lock`, `SKILL.md`, and any example file beyond the tree.
+- A file outside **Surfaces**, including `flake.lock`, `SKILL.md`, and any example file beyond the tree.
 - Any PLAN QUESTION unresolved when a task it blocks is reached.
 - The staged `flake.lock` committed, unstaged, restored or otherwise touched
   by you. **Commit with `git commit -m … -- <paths>`** (the `--` form), and
   `git show --stat HEAD` after: only your paths. If `git diff --cached
   --name-only` shows a path you did not stage, it is someone else's; leave it.
 - The gate reds, after the reload, in a file this phase does not touch (a new
-  toolchain's lint, a nixpkgs bump): that is PLAN QUESTION 2 firing, not this
+  toolchain's lint, a nixpkgs bump): PLAN QUESTION 2's class, not this
   phase's to fix.
 - A dependency: any crate in `[dev-dependencies]` beyond `serde_json` (no
   `tempfile`), any nixpkgs package beyond `python3` and `jq`, any import in
@@ -5529,11 +5545,13 @@ tree).
         focus to ___* with a `text` field, *take a quick break*; none set:
         asks for one) and on `scheduled` once the block has ended. State
         `state.json`, `log.jsonl`. D-1.
-  - [!] `downloads-triage/` (PLAN QUESTION 1 for `config.toml`'s
-        `[ingress]` and `watch.sh`'s socket): `backend.sh` (bash + `jq`),
+  - [ ] `downloads-triage/`: `backend.sh` (bash + `jq`),
         `watch.sh` (`inotifywait -m` on `$XDG_DOWNLOAD_DIR`, default
-        `~/Downloads`; emits the **basename**; calls `goad-emit`),
-        `config.toml` (`command = ["bash", "backend.sh"]`, D-3),
+        `~/Downloads`; emits the **basename**; calls `goad-emit`, passing
+        its own arguments through, so `bash watch.sh --socket ./goad.sock`
+        reaches the example's host — PLAN QUESTION 1),
+        `config.toml` (`command = ["bash", "backend.sh"]`, D-3;
+        `[ingress] path = "./goad.sock"`, PLAN QUESTION 1),
         `events/file-arrived.json` (a SPEC-003 envelope: its own `source`,
         `kind` `file-arrived`, a `timestamp` with offset, `data` `{"name":
         "<basename>"}`), `README.md`. Queue in `queue.json`; each respond
@@ -5543,12 +5561,11 @@ tree).
         the target directory created if missing; a name collision at the
         target is not overwritten (stderr, file left) — record the rule
         chosen under **Decisions**.
-  - [!] `breadcrumbs/` (PLAN QUESTION 1 for `config.toml`'s `[ingress]`):
-        `backend.ts` (no imports, §5.2.6), `chpwd.zsh` (a zsh `chpwd` hook
+  - [ ] `breadcrumbs/`: `backend.ts` (no imports, §5.2.6), `chpwd.zsh` (a zsh `chpwd` hook
         emitting `{from, to}` with JSON-safe escaping of both paths),
         `config.toml` (`command = ["deno", "run", "--allow-read",
         "--allow-write", "--allow-env=HOME,XDG_STATE_HOME", "backend.ts"]`,
-        A-V5, D-3), `events/changed-directory.json` (envelope, `kind`
+        A-V5, D-3; `[ingress] path = "./goad.sock"`, PLAN QUESTION 1), `events/changed-directory.json` (envelope, `kind`
         `changed-directory`, `data` `{"from": …, "to": …}`), `README.md`.
         `notes.json` keyed by directory; asks *"Where were you in
         `from`?"* with a `text` note; on respond stores it (D-1) and, if `to`
@@ -5560,8 +5577,9 @@ tree).
         `--event events/<f>.json` for the event-driven two), then `goad
         config.toml` and **Check now**, or `goad-emit` with the event file's
         `source`, `kind` and `data` (A-V9). From anywhere else: copy the
-        directory out and make `command` absolute (§5.2.6) — and the
-        `[ingress]` path, per PLAN QUESTION 1. Each README states its
+        directory out and make `command` absolute (§5.2.6) — and, for the
+        event-driven two, the `[ingress]` path; `goad-emit --socket
+        ./goad.sock` from the example's directory (PLAN QUESTION 1). Each README states its
         state files, its environment variables, D-1, and (triage) D-2/D-4.
   - [ ] Fences (plan Notes, quoted): *"A README's `json` and `toml` blocks
         follow the tagged-fence convention (§5.2.6) now; PHASE-07's test will
@@ -5586,13 +5604,17 @@ tree).
         `goad-check --config config.toml [--event …]` via `cargo run -q -p
         goad-check --` from the copy; record each report's verdict line and
         its respond line(s).
-  - [ ] `git add` the example files.
+  - [ ] `.gitignore`: the two patterns and comment (Surfaces). Check: after
+        a host has run in `downloads-triage/` (VH-2, or by hand),
+        `git status --short` lists nothing under `kit/`. Recorded, or
+        recorded as owed to VH-2.
+  - [ ] `git add` the example files and `.gitignore`.
 - **2. The devshell (EN-1's second half)** — `flake.nix`
-  - [!] (PLAN QUESTION 2) `projectPkgs` gains `pkgs.python3 pkgs.jq` beside
+  - [ ] `projectPkgs` gains `pkgs.python3 pkgs.jq` beside
         `pkgs.deno pkgs.socat`, with a one-line comment: the kit examples'
         interpreters, which the `kit` test tier spawns. `alejandra --check
         flake.nix` clean.
-  - [!] Reload: every gate run from here on is `nix develop --command just
+  - [ ] Reload: every gate run from here on is `nix develop --command just
         …` from the repository root (the bare git form — never `path:`;
         `goad-demo.sock` is in the checkout). The agent's own shell keeps its
         old `PATH` (A-V5). Record:
@@ -5683,11 +5705,11 @@ tree).
         config.toml` in each example's directory, and against a broken
         backend (one of PHASE-12's refusing fixtures), and sees each report —
         sides, requirements, the verdict line and the status."*
-  - [!] VH-2 (quoted; PLAN QUESTION 1): *"a person runs `goad config.toml`
+  - [ ] VH-2 (quoted): *"a person runs `goad config.toml`
         in each example's directory and sees each example ask its question,
         from **Check now** or with `goad-emit` and the example's event
         file."*
-  - [!] VH-3 (quoted; PLAN QUESTION 1): *"A-4: a person runs `watch.sh`
+  - [ ] VH-3 (quoted): *"A-4: a person runs `watch.sh`
         (with `inotify-tools` from `nix shell nixpkgs#inotify-tools`, since
         the devshell has none) against a running host, drops a file into the
         watched directory, and sees the triage view."*
@@ -5756,10 +5778,10 @@ cd ($ex | path join downloads-triage)
 let e = (open events/file-arrived.json)
 mkdir ($vars.XDG_DOWNLOAD_DIR)
 touch ($vars.XDG_DOWNLOAD_DIR | path join $e.data.name)
-^($bin | path join goad-emit) --socket SOCKET --source $e.source --kind $e.kind --data ($e.data | to json --raw)
+^($bin | path join goad-emit) --socket ./goad.sock --source $e.source --kind $e.kind --data ($e.data | to json --raw)
 ```
 and the same for `breadcrumbs` with `events/changed-directory.json`.
-`SOCKET` is filled in once PLAN QUESTION 1 is decided. Expect: the triage
+Expect: the triage
 view (*Where does … go?*, *Move* / *Leave it*); on *Move* → Documents, the
 file under the scratch `documents`; the breadcrumbs view (*Where were you in
 …?*).
@@ -5768,15 +5790,15 @@ file under the scratch `documents`; the breadcrumbs view (*Where were you in
 ```nu
 cd ($ex | path join downloads-triage)
 mkdir ($vars.XDG_DOWNLOAD_DIR)
-with-env $vars { nix shell nixpkgs#inotify-tools --command bash watch.sh WATCH_ARGS }
+with-env $vars { nix shell nixpkgs#inotify-tools --command bash watch.sh --socket ./goad.sock }
 ```
 then in a third terminal (set up as shell 2):
 ```nu
 "dropped" | save ($vars.XDG_DOWNLOAD_DIR | path join dropped.txt)
 ```
-Expect: the triage view naming `dropped.txt`. `WATCH_ARGS` per PLAN
-QUESTION 1. The executor completes `SOCKET` and `WATCH_ARGS` once decided,
-and runs every line it can (VH-1 headless) itself first.
+Expect: the triage view naming `dropped.txt`. Afterwards, `git status
+--short` lists nothing under `kit/` (the `.gitignore` patterns). The executor
+runs every line it can (VH-1 headless) itself first.
 
 **Exit criteria** (quoted in the tasks above; listed here to be ticked)
 - [ ] EX-1
@@ -5852,8 +5874,10 @@ for VT rows: `nix develop --command cargo test -p goad-check --test kit
   **Recommendation: (a)**, with the surfaces amended to admit `.gitignore`
   (`kit/skills/goad-backend/examples/*/goad.sock` and `….sock.lock`, under a
   comment citing D-17), and `watch.sh` forwarding `"$@"` to `goad-emit` (an
-  argument, not an invented knob). Hand-over: `SOCKET` = `./goad.sock`,
-  `WATCH_ARGS` = `--socket ./goad.sock`.
+  argument, not an invented knob). Hand-over: `--socket ./goad.sock`.
+  **Resolved 2026-10-17: as recommended** (`plan-log.md` 2026-10-17,
+  *PHASE-06 sheet questions*; `plan.md` PHASE-06 Surfaces and `design.md`
+  §5.2.6 amended).
 
 - **PLAN QUESTION 2 — the gate is red at entry, and the staged `flake.lock`
   is the likely cause.** The index holds a staged `flake.lock` (the user's)
@@ -5873,6 +5897,13 @@ for VT rows: `nix develop --command cargo test -p goad-check --test kit
   check` green at entry, before touching `flake.nix`, so a later red is
   attributable, and never stages, commits or restores `flake.lock`. Blocks
   entry and task 2.
+  **Resolved 2026-10-17: landed with a lint fix** at 7a21826 by the
+  orchestrator — five `map(..).unwrap_or_default()` sites became
+  `map_or_default` (`goad-emit` `render.rs` twice, `goad` `glass.rs`, the
+  `shown` helpers in `goad`'s `event_loop_busy`, `event_loop_drain` and
+  `event_loop_reassert` tests); `just check` 0 under the new toolchain,
+  re-run by the sheet agent (EN-1). `plan-log.md` 2026-10-17, *PHASE-06
+  sheet questions*.
 
 - **Observation, not a question — `goad-emit` and "the example's event
   file".** §5.2.6 and VH-2 say *"with `goad-emit` and the example's event

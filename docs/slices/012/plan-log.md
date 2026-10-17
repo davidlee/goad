@@ -423,3 +423,31 @@ executor resumes.
 - **Consequence:** `plan.md` PHASE-11 gains EN-4 (Codex on the capsule's
   PATH, oubliette-side) and EN-5 (the user provides the Codex login in the
   capsule session); EN-3 points to EN-5 for Codex.
+
+### 2026-10-17 — PHASE-06 sheet questions
+
+- **Asked** (`notes.md` PHASE-06 sheet, PLAN QUESTIONs 1 and 2):
+  1. An event-driven example's config needs `[ingress]`: without it the host
+     binds no socket (`startup::listener`), and `goad-emit` reads only the
+     default configuration's, so §5.2.6's event route cannot reach a host
+     started on the example's config. The design did not say where the
+     socket goes. Options: `./goad.sock` in the example's directory (the
+     demo's D-17); no `[ingress]`, the README saying to add one; an absolute
+     `/tmp` path.
+  2. The sheet agent's `just check` at 250b8ed was red at `lint`
+     (`clippy::map_unwrap_or` in `crates/goad-emit/src/render.rs`) under
+     `rustc 1.100.0-beta.5`, which the user's staged `flake.lock` brought in;
+     PHASE-06's reload would build its devshell from that lock.
+- **Recommended:** 1, `path = "./goad.sock"`, `.gitignore` joining
+  PHASE-06's surfaces for the socket and its lock file, `watch.sh` passing
+  its arguments through to `goad-emit`. 2, land the lock with a separate
+  lint-fix commit before PHASE-06.
+- **Decided:** 1, as recommended. 2, landed by the orchestrator at `7a21826`
+  (*flake.lock: bump nixpkgs and crane; map_or_default for the new clippy*):
+  five `map(..).unwrap_or_default()` sites became `map_or_default`
+  (`goad-emit` `render.rs` twice, `goad` `glass.rs`, and the `shown` helpers
+  in `goad`'s `event_loop_busy`, `event_loop_drain` and
+  `event_loop_reassert` tests).
+- **Consequence:** `plan.md` PHASE-06's Surfaces gain `.gitignore`;
+  `design.md` §5.2.6's examples gain a line on where the socket goes; the
+  sheet's `[!]` tasks are unblocked and EN-1 is discharged at `7a21826`.

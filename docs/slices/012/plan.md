@@ -924,7 +924,9 @@ has seen each run.
 `crates/goad-check/tests/kit/` (new target) and `crates/goad-check/Cargo.toml`
 (its `[[test]]`); `flake.nix` (`python3` and `jq` in `projectPkgs`);
 `justfile` (`typecheck`'s kit path, and its comment); `canon-delta.md` (test
-paths only).
+paths only); `.gitignore` (the socket an event-driven example's host binds in
+its directory, and its lock file; `plan-log.md` 2026-10-17, *PHASE-06 sheet
+questions*).
 
 **Entry**
 - EN-1 — PHASE-05 done. The devshell is reloaded after `flake.nix` changes.
