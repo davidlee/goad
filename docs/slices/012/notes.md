@@ -13,7 +13,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-03 | done | 2026-10-01 |
 | PHASE-04 | done | 2026-10-01 |
 | PHASE-05 | done | 2026-10-01 |
-| PHASE-06 | done (VH-1..VH-3 owed to the person) | 2026-10-17 |
+| PHASE-06 | done | 2026-10-18 |
 | PHASE-07 | pending | 2026-10-01 |
 | PHASE-08 | pending | 2026-10-01 |
 | PHASE-09 | pending | 2026-10-01 |
