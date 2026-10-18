@@ -3,7 +3,8 @@
 //! What this tier holds is what `kit/` ships: each example is started in a
 //! copy of its own directory, under the built checker, in a temporary
 //! environment; every `json` and `toml` fence in its Markdown goes through
-//! the host's own doors; and nothing in it names a path outside it
+//! the host's own doors; nothing in it names a path outside it; and every
+//! requirement a refusal can name is explained in the reference
 //! (`design.md` §9, §5.2.6).
 
 // `#[cfg(test)]` on the declarations, for the reason `tests/binary/main.rs`
@@ -15,6 +16,9 @@
 #[cfg(test)]
 #[path = "../../../../tests/support/fences.rs"]
 mod fences;
+
+#[cfg(test)]
+mod coverage;
 
 #[cfg(test)]
 mod examples;

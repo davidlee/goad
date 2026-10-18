@@ -15,7 +15,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-05 | done | 2026-10-01 |
 | PHASE-06 | done | 2026-10-18 |
 | PHASE-07 | done | 2026-10-18 |
-| PHASE-08 | pending | 2026-10-01 |
+| PHASE-08 | in progress | 2026-10-18 |
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
 | PHASE-11 | pending | 2026-10-01 |
@@ -7309,18 +7309,21 @@ during execution**)
 turns it green; then the prose it does not depend on; then `SKILL.md`. Red
 first for every test.
 
-- [ ] Set PHASE-08 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline` (this sheet's commit, or a descendant whose
+- [x] Set PHASE-08 to `in progress` in §Status.
+- [x] Print `git log -1 --oneline` (this sheet's commit, or a descendant whose
       only changes resolve its PLAN QUESTION) and `git status --short` (clean;
       the ignored socket pairs under the examples are not listed).
+      **Done 2026-10-18**: `272feb9 012 PHASE-08: PLAN QUESTION 1 resolved —
+      VT-2 named`; `git status --short` empty.
 - [x] PLAN QUESTION 1 resolved (2026-10-18, as recommended); VT-2's
       amended criterion is re-quoted in task 1.
 - **1. The coverage machinery and its control (VT-2)** — `coverage.rs`
-  - [ ] `main.rs`: `#[cfg(test)] mod coverage;` in alphabetical place; the
+  - [x] `main.rs`: `#[cfg(test)] mod coverage;` in alphabetical place; the
         module doc's list gains *"every requirement a refusal can name is
         explained in the reference"*.
-  - [ ] The six match/builder pairs and `required()` (D-1, D-2). Compile.
-  - [ ] **Red**: VT-2 (quoted, amended): *"`a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`,
+  - [x] The six match/builder pairs and `required()` (D-1, D-2). Compile.
+        Each `*_variant` returns `String`, not `&'static str` (X-1).
+  - [x] **Red**: VT-2 (quoted, amended): *"`a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`,
         its negative control over an inline string
         where `SPEC-001/R-32` appears in a heading of its own, `SPEC-001/R-3`
         does not appear, `SPEC-001/R-40` appears only in body text,
@@ -7333,9 +7336,18 @@ first for every test.
         occurrence in the text (fences, body and all): it compiles and reds
         on R-40, R-36, R-41, R-42 (R-3 is held by D-4's equality even in the
         stub; M-2 is its mutation). Record the failure text.
-  - [ ] `heading_ids` per D-3, D-4, D-5. VT-2 green. Record the result line.
+        **Red, as predicted** (stub `ids(markdown).into_iter().collect()`;
+        the `fences` import commented out for the run, `unused` being
+        denied): `SPEC-001/R-40 (in body text only) was found`,
+        `SPEC-001/R-36 (in a fence only) was found`, `SPEC-001/R-41 (in a
+        heading with another id) was found`, `SPEC-001/R-42 (in a heading
+        with another id) was found`. R-32 found, R-3 not.
+  - [x] `heading_ids` per D-3, D-4, D-5. VT-2 green. Record the result line.
+        `test coverage::a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence
+        ... ok`. clippy (`-p goad-check --all-targets -- -D warnings`) and
+        `cargo fmt --all` clean.
 - **2. VT-1, red**
-  - [ ] **Red**: VT-1 (quoted): *"`every_requirement_a_refusal_can_name_is_explained_in_the_reference`:
+  - [x] **Red**: VT-1 (quoted): *"`every_requirement_a_refusal_can_name_is_explained_in_the_reference`:
         its id set is one instance per variant (two for `InapplicableKey`),
         each builder beside an exhaustive match with no `_` arm, and the
         checker's own R-56 claim as `Requirement::R56`, read through
@@ -7351,8 +7363,16 @@ first for every test.
         `SPEC-001/R-21`, `R-22`, `R-23`, `R-25`, each with its variants
         (A-V1). Record the failure text; any other id missing is a finding
         before going on.
+        **Red on exactly the four** (`10 passed; 1 failed`): `SPEC-001/R-21
+        (BackendError::Protocol(ProtocolError::Schedule(ScheduleError::TimeOfDay)),
+        ProtocolError::Schedule(ScheduleError::TimeOfDay),
+        ScheduleError::TimeOfDay) has no heading of its own under
+        reference/`; likewise `SPEC-001/R-22` (`…MissingOffset`),
+        `SPEC-001/R-23` (`…CalendarUnit`), `SPEC-001/R-25` (`…NotAString`,
+        `…OutOfRange`, `…Unparseable`, each also through both wrappers). No
+        other id.
 - **3. `scheduling.md`** (EX-3's sibling; VA-1)
-  - [ ] Organised by task (for example *Say when to check again*, *What the
+  - [x] Organised by task (for example *Say when to check again*, *What the
         host does with it*, *When the value is wrong*). States, each under
         its heading, `SPEC-001/R-21`, `R-22`, `R-23`, `R-25` (VT-1's four),
         and the other R-21..R-29 rules an author relies on — R-24, R-26,
@@ -7368,9 +7388,24 @@ first for every test.
         where a rule is stated. `default_poll` points at `running.md`'s
         config section. D-8's fences, each through its door (A-T2). No path
         outside the kit.
-  - [ ] VT-1 green; PHASE-07/VT-1 green over the new file. Record both
+        **Written** with sections *Say when to check again*, *When the value
+        is wrong*, *What the host does with it*. SPEC-001 headings: R-21,
+        R-22, R-23, R-24, R-28, R-25, R-26, R-29 (R-27, *always a concrete
+        instant*, is folded into R-26's *exactly one instant*, no heading:
+        X-2). SPEC-002 headings: R-1, R-7, R-3, R-4, R-11; R-9 (one exchange
+        at a time) one line, no id; R-2, R-5, R-6, R-8, R-10 not stated
+        (host-internal; R-5's and R-6's observable halves are in R-4's
+        paragraph). A-T2 held: every planned fence passed its door first
+        time (R-21 `"18:00"`, R-22 offsetless, R-23 `"1 month"`, R-25 `45`
+        and `"tomorrow morning"`); `OutOfRange` is not shown.
+  - [x] VT-1 green; PHASE-07/VT-1 green over the new file. Record both
         result lines and the new checked-fence count (VA-1 of PHASE-07's
         kind: by role).
+        `test coverage::every_requirement_a_refusal_can_name_is_explained_in_the_reference
+        ... ok`; `test tagged::every_json_and_toml_fence_in_the_kit_is_tagged_and_checked
+        ... ok`, `23 json and toml fences checked` (16 at entry + 7 in
+        `scheduling.md`: 2 `goad:response`, 5 `goad:response discarded`
+        — R-21, R-22, R-23, R-25 ×2). Kit target `11 passed`.
 - **4. `events.md`**
   - [ ] Organised by task (for example *Forward an event*, *What the host
         replies*, *What your backend receives*). From SPEC-003, what a writer
@@ -7577,7 +7612,16 @@ files, by design (A-V9).
 
 **Decisions taken during execution**
 
-(none yet)
+- **X-1 — each `*_variant` returns `String`** (D-2 said `&'static str`). A
+  wrapper arm names its inner variant
+  (`BackendError::Protocol(ProtocolError::Schedule(ScheduleError::TimeOfDay))`),
+  and `InapplicableKey`'s arm names its key, so VT-1's failure says which
+  path answers a missing id rather than `ProtocolError::Schedule` for all
+  six scheduling variants. A composed name cannot be `'static`.
+- **X-2 — SPEC-001/R-27 has no heading.** *"Always a concrete instant"* is
+  what R-26's list says by construction (*"the host holds exactly one
+  instant"*); a heading of its own would restate it. VT-1 does not require
+  it.
 
 **Findings**
 
