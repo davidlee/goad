@@ -474,3 +474,18 @@ executor resumes.
   kit tier names it, and its I-5 control gains the two cases.
   `canon-delta.md` names none of PHASE-07's tests and is unchanged. The
   sheet's `[!]` boxes are unblocked.
+
+### 2026-10-18 — PHASE-08 sheet question
+
+- **Asked** (`notes.md` PHASE-08 sheet, PLAN QUESTION 1): VT-2, the coverage
+  test's negative control, has no name — `plan.md` calls it *"its negative
+  control"*, and `design.md` §9 *"a negative control over an inline
+  string"* — while *Test names are commitments* binds the names §9 gives.
+  Folding it into VT-1 as private asserts would conflate their mutations.
+- **Recommended:** a separate case,
+  `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`.
+- **Decided:** as recommended.
+- **Consequence:** `plan.md` PHASE-08's VT-2 and §Coverage's §9 row for 08
+  name the case; `design.md` §9's kit tier names it. `canon-delta.md` names
+  none of PHASE-08's tests and is unchanged. The sheet's VT-2 box is
+  unblocked.

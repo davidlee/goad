@@ -217,7 +217,7 @@ to a JSON type or a value.
 | every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own`; `the_first_option_is_the_one_listed_first`; `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`; `a_known_kind_s_chain_failure_does_not_excuse_the_probe` | 12 |
 | `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | 06 |
 | `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`, `each_role_refuses_what_its_door_refuses`; `round_trip.rs`' README case through the shared scanner | 07 |
-| `every_requirement_a_refusal_can_name_is_explained_in_the_reference`, and its R-32/R-3 negative control | 08 |
+| `every_requirement_a_refusal_can_name_is_explained_in_the_reference`, and its R-32/R-3 negative control `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence` | 08 |
 
 `design.md` §9's mutation checks: `NestedHints` flipped to R-3 — PHASE-01/VA-2;
 an example exits 1 on the probe — PHASE-06/VA-2; one fence untagged —
@@ -1132,7 +1132,8 @@ checking.md}` (and `protocol.md`, `running.md` for the statement EX-5 names);
   If PHASE-07's scanner returns nothing that allows this, STOP: a new symbol
   must be used by both includers (PHASE-07/EX-4), and neither
   `tests/support/` nor `round_trip.rs` is this phase's surface.
-- VT-2 — its negative control over an inline string where `SPEC-001/R-32`
+- VT-2 — `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`,
+  its negative control over an inline string where `SPEC-001/R-32`
   appears in a heading of its own, `SPEC-001/R-3` does not appear,
   `SPEC-001/R-40` appears only in body text, `SPEC-001/R-36` appears only on
   a `#` line inside a fenced block, and `SPEC-001/R-41` and `SPEC-001/R-42`

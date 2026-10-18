@@ -6935,6 +6935,13 @@ it narrows or specifies one it says so and why. It repairs nothing: what reads
 as wrong in the plan or design is under **Findings** as a PLAN QUESTION, and
 the tasks it blocks are marked `[!]`.
 
+**Decisions applied** after 23983ef: PLAN QUESTION 1 is resolved, as
+recommended (`plan-log.md` 2026-10-18, *PHASE-08 sheet question*).
+`plan.md` PHASE-08's VT-2 now names
+`a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`, re-quoted
+in task 1; `design.md` §9's kit tier and the plan's §Coverage row name it. No
+other criterion changed, and no task is blocked.
+
 **Objective** (quoted, `plan.md` PHASE-08): *"the reference is complete —
 `scheduling.md`, `events.md`, `checking.md` and the finished `SKILL.md` — and
 the gate holds that every requirement any refusal kind can name, and the R-56
@@ -7306,20 +7313,21 @@ first for every test.
 - [ ] Print `git log -1 --oneline` (this sheet's commit, or a descendant whose
       only changes resolve its PLAN QUESTION) and `git status --short` (clean;
       the ignored socket pairs under the examples are not listed).
-- [ ] PLAN QUESTION 1 resolved, or the recommended name taken as the
-      default it proposes; record which before task 1's VT-2 box.
+- [x] PLAN QUESTION 1 resolved (2026-10-18, as recommended); VT-2's
+      amended criterion is re-quoted in task 1.
 - **1. The coverage machinery and its control (VT-2)** — `coverage.rs`
   - [ ] `main.rs`: `#[cfg(test)] mod coverage;` in alphabetical place; the
         module doc's list gains *"every requirement a refusal can name is
         explained in the reference"*.
   - [ ] The six match/builder pairs and `required()` (D-1, D-2). Compile.
-  - [ ] **Red**: VT-2 (quoted): *"its negative control over an inline string
+  - [ ] **Red**: VT-2 (quoted, amended): *"`a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`,
+        its negative control over an inline string
         where `SPEC-001/R-32` appears in a heading of its own, `SPEC-001/R-3`
         does not appear, `SPEC-001/R-40` appears only in body text,
         `SPEC-001/R-36` appears only on a `#` line inside a fenced block, and
         `SPEC-001/R-41` and `SPEC-001/R-42` appear only together in one
         heading: R-32 is found, and R-3, R-40, R-36, R-41 and R-42 are
-        not."* Name per PLAN QUESTION 1. All six assertions collected before
+        not."* All six assertions collected before
         one `assert!` (PHASE-07 X-8), so a mutation shows every case it
         flips. Written against `heading_ids` stubbed to return every id
         occurrence in the text (fences, body and all): it compiles and reds
@@ -7510,7 +7518,7 @@ first for every test.
         reference files; the finished `SKILL.md`); Learned; Open — the
         third copy of the six builders, beside *Two `every_protocol_error`
         builders* (A-V2); D-7's canon-delta ids in `checking.md`, for
-        promotion; the PLAN QUESTION 1 name for audit if not in §9; and the
+        promotion; and the
         PHASE-06 VH-1 row marked discharged by `checking.md` (D-10), the
         triage README half left to the walks.
   - [ ] PHASE-08 `done` in §Status.
@@ -7584,9 +7592,8 @@ files, by design (A-V9).
   fail on two causes). *Recommendation:* a separate `#[test]` named
   `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`, added to
   §9's kit tier and the plan's Coverage row by the orchestrator in
-  `plan-log.md`, as PHASE-07's VT-8 was. **Blocks** only the name in task 1's
-  VT-2 box: the executor may write the test under the recommended name and
-  rename it if the user chooses another.
+  `plan-log.md`, as PHASE-07's VT-8 was. **Resolved 2026-10-18: as
+  recommended** (`plan-log.md` 2026-10-18, *PHASE-08 sheet question*).
 - **Observation — the `SPEC-001/` prefix is spelled in the test.** No public
   constant carries it (`render`'s `refusal_line` formats it inline in a
   binary crate). D-1 names it once in `coverage.rs`; the binary tier's

@@ -1417,7 +1417,9 @@ Red/green per behaviour. Tests are named by behaviour.
     (`plan-log.md` 2026-10-18, *PHASE-07 sheet question*);
   - `every_requirement_a_refusal_can_name_is_explained_in_the_reference`,
     with a negative control over an inline string where `SPEC-001/R-32`
-    appears and `SPEC-001/R-3` does not (F-22);
+    appears and `SPEC-001/R-3` does not (F-22),
+    `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`
+    (`plan-log.md` 2026-10-18, *PHASE-08 sheet question*);
   - `each_shipped_example_is_accepted_by_the_checker`: config form, the
     example's event files, temp `HOME`/`XDG_*`;
   - `downloads_triage_moves_the_file_it_was_asked_about`: side effect
