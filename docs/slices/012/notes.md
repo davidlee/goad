@@ -5701,7 +5701,7 @@ tree).
 - **7. Verification (human) — VH-1..VH-3** — the person's; the executor
   leaves these boxes open and hands over the blocks below, pasted, not
   pointed at (memory *hand over the steps, not the pointer*).
-  - [ ] VH-1 (quoted): *"AC-6: a person runs `goad-check --config
+  - [x] VH-1 (quoted): *"AC-6: a person runs `goad-check --config
         config.toml` in each example's directory, and against a broken
         backend (one of PHASE-12's refusing fixtures), and sees each report —
         sides, requirements, the verdict line and the status."*
@@ -5811,7 +5811,7 @@ runs every line it can (VH-1 headless) itself first.
 - [x] VA-3
 - [x] VA-4
 - [x] VA-5
-- [ ] VH-1 (person)
+- [x] VH-1 (person) — run by the user 2026-10-18; see **Findings** *VH-1, the person's run*
 - [ ] VH-2 (person)
 - [ ] VH-3 (person)
 
@@ -5898,6 +5898,29 @@ for VT rows: `nix develop --command cargo test -p goad-check --test kit
 
 **Findings**
 
+- **VH-1, the person's run** (2026-10-18; the user, the hand-over block,
+  scratch `XDG_*`). Each example's report ends `verdict: accepted, no
+  exchange refused`, status 0, with one `respond` line: focus-check
+  `respond set with focus=""`, downloads-triage `respond move with
+  destination="documents"`, breadcrumbs `respond note with note=""`. The
+  refusing fixture `exits-zero-with-unparseable-stdout.sh`: four `REFUSED
+  backend SPEC-001/R-44` lines, the backend's stderr under each, the
+  `NO_VIEW` line, `verdict: refused, 4 exchange(s) refused`, and the
+  checker's stderr line last. Three observations, raised and not triaged:
+  - *The hand-over block's last `status` print did not run*: in nu a
+    non-zero external exit aborts the rest of the line. The status was
+    still shown by the checker's own stderr line. A block defect, not
+    goad's. Later hand-over blocks wrap a call whose status they print in
+    `do -i { … }`, or read `complete`'s `exit_code`.
+  - *A refused exchange prints `view: null · next check …` above its
+    `REFUSED` line.* That is what the host kept, but it reads as though the
+    backend answered "no view" and was refused anyway. A candidate for
+    PHASE-08's `checking.md` (how to read a report) or for report wording.
+    The walks would tag it *checker confusion*.
+  - *Triage's gate run reports a move, then `invoice.pdf is no longer in
+    …`* on stderr: D-4 working as intended (VT-1 creates no file). Correct,
+    but it reads as a failure to a person following the README's
+    `goad-check` route. A candidate for the README to say so.
 - **VA-3 — the examples read against SPEC-001 R-56, R-57, R-58, R-33 and
   their READMEs.** No defect found.
   - *focus-check* (`backend.py`): R-56 — `evaluate` reads `kind` only under
