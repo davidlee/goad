@@ -20,6 +20,9 @@ mod fences;
 mod examples;
 
 #[cfg(test)]
+mod standalone;
+
+#[cfg(test)]
 mod tagged;
 
 #[cfg(test)]

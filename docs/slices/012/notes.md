@@ -6544,7 +6544,7 @@ then the gate, then the prose the gate reads. Red first for every test.
         passed; 0 failed; 0 ignored; 0 measured; 0 filtered out` (PHASE-06's
         2 + VT-1..VT-4, VT-8).
 - **4. I-5 (EX-5; VT-5, VT-6)** — `standalone.rs`
-  - [ ] EX-5 (quoted): *"I-5 holds by §5.2.6's rule, *The kit stands
+  - [x] EX-5 (quoted): *"I-5 holds by §5.2.6's rule, *The kit stands
         alone*."* The tracked list: `git ls-files` with `current_dir` the
         repository root (`CARGO_MANIFEST_DIR/../..`), not the test's cwd
         (A-V5); a spawn failure or a non-zero status **fails** naming it,
@@ -6562,7 +6562,12 @@ then the gate, then the prose the gate reads. Red first for every test.
           `<name>/<segment>` is a tracked path outside `kit/` or the start of
           one followed by `/` — a whole component, so `crates/goad-s` is not
           `crates/goad-shell`.
-  - [ ] **Red**: VT-6 (quoted): *"`a_path_outside_the_kit_is_refused`, over
+        - **As built** (`standalone.rs`): the trimmed set is `AROUND` —
+          `"` `'` `` ` `` `(` `)` `[` `]` `{` `}` `<` `>` `,` `;`. Not `.`:
+          a first draft trimmed `.` and `:` too, and `.` stripped the `..` off
+          `../`, so the escaping case went unseen (VT-6 stayed red; X-6). A
+          token starting `/` is absolute and not resolved.
+  - [x] **Red**: VT-6 (quoted): *"`a_path_outside_the_kit_is_refused`, over
         inline strings against the tracked list VT-5 reads: an escaping
         relative path, and a mention of a tracked path outside `kit/`
         (`crates/goad-shell/src`), each refused; a consumer path that names
@@ -6570,19 +6575,29 @@ then the gate, then the prose the gate reads. Red first for every test.
         `` `.claude-plugin/plugin.json` ``, each accepted."* Red against a
         checker that refuses nothing; record. The inline strings are checked
         as though they sat in `kit/skills/goad-backend/reference/` (record
-        the notional path).
-  - [ ] VT-6's amended tail (quoted): *"a tracked path continued from
+        the notional path). **Red, recorded** against `breaches` returning
+        nothing: `a_path_outside_the_kit_is_refused ... FAILED`, `see
+        ../../../../crates/goad-shell/src: []`; VT-5 green (vacuously).
+        Notional path: `REFERENCE`, `kit/skills/goad-backend/reference`.
+        VT-6 also holds one accepted escaping twin,
+        `../examples/focus-check/README.md` (resolves inside the kit), so the
+        escaping half is held on both sides.
+  - [x] VT-6's amended tail (quoted): *"a tracked path continued from
         another (`/elsewhere/crates/goad-shell/src`) and a partial component
         (`crates/goad-s`), each accepted."* Both in VT-6, beside its four
         plan cases.
-  - [ ] VT-5 (quoted): *"`nothing_in_the_kit_names_a_path_outside_it` (I-5):
+  - [x] VT-5 (quoted): *"`nothing_in_the_kit_names_a_path_outside_it` (I-5):
         every file under `kit/`, enumerated, refusing an empty set; the
         tracked paths read at test time by `git ls-files` at the repository
         root, refusing a list with nothing under `kit/` or under `crates/`. A
         missing `git` or `.git` fails the test; it never skips."* Every breach
         over every file is collected, then one failure names each (file,
         line, the text, which half). Green over today's kit (A-V5), with the
-        two sockets present (A-V6) — record that they were.
+        two sockets present (A-V6) — record that they were. **Green**: `test
+        result: ok. 2 passed` (VT-5, VT-6), with
+        `breadcrumbs/goad.sock` and `downloads-triage/goad.sock` present
+        (`ls -l`: `srw-------`). Run in the main checkout, not a linked
+        worktree (A-T2).
 - **5. The reference (EX-3)** — `kit/skills/goad-backend/reference/`
   - [ ] EX-3 (quoted): *"`protocol.md` and `running.md` state only what an
         author must do or may rely on, organised by task, each rule citing
@@ -6757,6 +6772,10 @@ files, by design (A-V8).
   and `UnknownOption` are refusals the plan's VT-8 list does not name; each
   has a VT-8 row. A respond's view is updated by any response fence
   `read_response` accepts with a view, whatever its tag.
+- **X-6 — I-5's first draft trimmed `.` and `:`** from a token's ends; `.`
+  ate the `..` of a leading `../`, and VT-6's escaping case stayed red with
+  the half implemented. Both dropped from `AROUND`. Caught by VT-6, which is
+  what it is for.
 - **X-5 — the inline config needs `[schedule] default_poll`** and
   `[backend] timeout`: `Config::parse` refuses a file without either
   (`missing field`). Recorded for `running.md`, which says so.
