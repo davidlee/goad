@@ -14,6 +14,7 @@ use crate::driving::{
   answer_first_option, choice, config, host, host_from, instant, presented, quiet_event,
 };
 use crate::fake::{Calls, FakeBackend, answering};
+use crate::fences::fences;
 use crate::harness::{describe_outcome, example, prompting_event, state_error, stderr_of};
 use crate::scripting::{invocations, logging_backend};
 use goad_semantics::protocol::canonical::{Event, Timestamp, UserResponse, ViewId};
@@ -53,9 +54,12 @@ fn answered_at() -> Timestamp {
 #[tokio::test]
 async fn the_readme_s_own_config_loads_and_runs_the_example() {
   let readme = include_str!("../../../../exercisers/typescript/README.md");
-  let toml = fenced_block(readme, "toml");
-  let mut config =
-    Config::parse(toml).unwrap_or_else(|error| panic!("the README's config: {error}"));
+  let fence = fences(readme)
+    .into_iter()
+    .find(|fence| fence.info.split_whitespace().next() == Some("toml"))
+    .expect("the exerciser README has a toml fence");
+  let mut config = Config::parse(&readme[fence.body])
+    .unwrap_or_else(|error| panic!("the README's config: {error}"));
   config.backend.command = rooted_at_the_workspace(config.backend.command);
   let mut host = host_from(config, now());
 
@@ -80,19 +84,6 @@ fn rooted_at_the_workspace(mut command: Command) -> Command {
     })
     .collect();
   command
-}
-
-/// The body of the first fenced code block tagged with `language`.
-fn fenced_block<'a>(markdown: &'a str, language: &str) -> &'a str {
-  let opening = format!("```{language}\n");
-  let start = markdown
-    .find(&opening)
-    .unwrap_or_else(|| panic!("no ```{language} block in the document"))
-    .saturating_add(opening.len());
-  let length = markdown[start..]
-    .find("```")
-    .expect("an unterminated fence");
-  &markdown[start..start.saturating_add(length)]
 }
 
 /// The round trip, end to end: nothing to show, then a choice, then an answer

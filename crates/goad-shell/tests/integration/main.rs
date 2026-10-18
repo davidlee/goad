@@ -17,6 +17,12 @@ mod driving;
 #[path = "../../../../tests/support/scripting.rs"]
 mod scripting;
 
+// The fence scanner, shared with `goad-check`'s `kit` target (slice 012
+// PHASE-07): `round_trip.rs` reads a README's config through it.
+#[cfg(test)]
+#[path = "../../../../tests/support/fences.rs"]
+mod fences;
+
 #[cfg(test)]
 mod harness;
 

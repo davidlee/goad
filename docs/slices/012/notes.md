@@ -14,7 +14,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-04 | done | 2026-10-01 |
 | PHASE-05 | done | 2026-10-01 |
 | PHASE-06 | done | 2026-10-18 |
-| PHASE-07 | pending | 2026-10-01 |
+| PHASE-07 | in progress | 2026-10-18 |
 | PHASE-08 | pending | 2026-10-01 |
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
@@ -6403,42 +6403,52 @@ during execution**)
 **Tasks** — order matters: the scanner first, red, then its second includer,
 then the gate, then the prose the gate reads. Red first for every test.
 
-- [ ] Set PHASE-07 to `in progress` in §Status.
-- [ ] Print `git log -1 --oneline` (this sheet's commit, or a descendant
+- [x] Set PHASE-07 to `in progress` in §Status.
+- [x] Print `git log -1 --oneline` (this sheet's commit, or a descendant
       whose only changes resolve its PLAN QUESTIONs) and `git status
       --short` (clean but for the two ignored socket pairs, which `git
-      status` does not list).
-- [ ] Every PLAN QUESTION resolved, and any amended criterion re-quoted
-      here before the task it blocks.
+      status` does not list). **Done:** `fa9c6c1 012 PHASE-07: PLAN QUESTION
+      1 resolved — VT-8 and two VT-6 cases`; `git status --short` empty.
+- [x] Every PLAN QUESTION resolved, and any amended criterion re-quoted
+      here before the task it blocks. (PLAN QUESTION 1, resolved at
+      fa9c6c1; VT-8 and VT-6's tail are quoted in tasks 3 and 4.)
 - **1. The shared scanner (EX-1's scanner, EX-4)**
-  - [ ] `crates/goad-check/tests/kit/main.rs`: `#[cfg(test)] #[path =
+  - [x] `crates/goad-check/tests/kit/main.rs`: `#[cfg(test)] #[path =
         "../../../../tests/support/fences.rs"] mod fences;`, and `#[cfg(test)]
         mod tagged;`. Its comment *"Nothing here is `#[path]`-included"*
         becomes true again: the scanner is included, and why (shared with
         `goad-shell`'s `integration` target, every symbol used by both).
-  - [ ] **Red**: in `tagged.rs`, the scanner's own cases over inline strings
+  - [x] **Red**: in `tagged.rs`, the scanner's own cases over inline strings
         (unnamed in §9, so private helpers' asserts inside VT-2/VT-3, not new
         `#[test]`s — *test names are commitments*): write VT-2 and VT-3
         (D-10) against a `fences.rs` holding only D-1's signatures with an
         empty body (`Vec::new()`). Both compile and red. Record both failure
-        texts.
-  - [ ] `tests/support/fences.rs`: D-1, D-2. Module doc: what it is, the two
+        texts. **Red, recorded:** both `FAILED`, each `one checked fence,
+        one refusal; got 0: None, None` (`refused`'s panic), `test result:
+        FAILED. 0 passed; 2 failed`. After the scanner, both still red on
+        their positive twins only (`got 1: [(3, UnknownRole)]`: the role
+        checks did not exist yet), green once they did.
+  - [x] `tests/support/fences.rs`: D-1, D-2. Module doc: what it is, the two
         includers, the every-symbol rule and the memory it cites, and that it
         replaced `round_trip.rs`' `fenced_block`.
 - **2. The second includer (EX-4, VT-7)**
-  - [ ] `crates/goad-shell/tests/integration/main.rs`: `#[cfg(test)] #[path =
+  - [x] `crates/goad-shell/tests/integration/main.rs`: `#[cfg(test)] #[path =
         "../../../../tests/support/fences.rs"] mod fences;` beside the two
         existing `#[path]` declarations, with a one-line comment in their
         style.
-  - [ ] `round_trip.rs`: `fenced_block` deleted; the case per D-6. VT-7
+  - [x] `round_trip.rs`: `fenced_block` deleted; the case per D-6. VT-7
         (quoted): *"`round_trip.rs`' `the_readme_s_own_config_loads_and_runs_the_example`
         is green, reading the README's config through the shared scanner."*
         `nix develop --command cargo test -p goad-shell --test integration
         the_readme_s_own_config -- --nocapture`; record the result line.
-  - [ ] `nix develop --command cargo clippy -p goad-shell -p goad-check
-        --all-targets -- -D warnings`: clean (A-T1).
+        **Green:** `test round_trip::the_readme_s_own_config_loads_and_runs_the_example
+        ... ok`, `test result: ok. 1 passed; 0 failed; 0 ignored; 0
+        measured; 95 filtered out`.
+  - [x] `nix develop --command cargo clippy -p goad-shell -p goad-check
+        --all-targets -- -D warnings`: clean (A-T1). First run red on two
+        doc lines naming `CommonMark` unbackticked (`doc_markdown`), fixed.
 - **3. The fence gate (EX-1, EX-2; VT-1..VT-4)** — `tagged.rs`
-  - [ ] EX-1 (quoted): *"a block whose first info word, lowercased, begins
+  - [x] EX-1 (quoted): *"a block whose first info word, lowercased, begins
         `json` or `toml` fails unless that word is exactly `json` or `toml`
         with a known `goad:` role. VT-1 reads every `*.md` under `kit/`,
         enumerated and not listed, refusing an empty set."* Roles, exactly
@@ -6447,7 +6457,7 @@ then the gate, then the prose the gate reads. Red first for every test.
         `json goad:request`; `json goad:envelope`; `toml goad:config`.
         Anything else after `json`/`toml` is `UnknownRole` (D-3). Fences in
         other languages, and with no info string, are not checked.
-  - [ ] EX-2 (quoted): *"responses through `read_response` (accepted,
+  - [x] EX-2 (quoted): *"responses through `read_response` (accepted,
         refused by id, discarded by id); evaluate requests by framing;
         respond requests by framing, R-58's field set and the JSON-type
         oracle over `Submitted::as_drawn`; envelopes through
@@ -6479,22 +6489,32 @@ then the gate, then the prose the gate reads. Red first for every test.
           tests too."* — no `match` on `Submitted`, no kind→type table.
         - `goad:envelope` — `envelope::normalize(body.as_bytes())` is `Ok`.
         - `goad:config` — `Config::parse(body)` is `Ok`.
-  - [ ] **Red**: VT-1 (quoted): *"`every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`."*
+  - [x] **Red**: VT-1 (quoted): *"`every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`."*
         Written before any role check exists (every json/toml fence refused
         `UnknownRole`, or the checks stubbed to refuse): it reds over the
         five README fences. Record the text. Then green over today's kit, and
         record the printed count (5, by role: 3 config, 2 envelope).
-  - [ ] VT-2 (quoted): *"`an_untagged_json_fence_is_refused`, over an
+        **Red, recorded** (classification real, every role refused
+        `UnknownRole`): `5 json and toml fences checked`, then `fences
+        refused:` naming `breadcrumbs/README.md:17`, `:41`,
+        `downloads-triage/README.md:18`, `:50`, `focus-check/README.md:29`,
+        each `UnknownRole`. **Green** with the role checks: `5 json and toml
+        fences checked`.
+  - [x] VT-2 (quoted): *"`an_untagged_json_fence_is_refused`, over an
         inline string."* — D-10. VT-3 (quoted): *"`a_jsonc_fence_is_refused`,
-        over an inline string."* — D-10.
-  - [ ] **Red, then green**: VT-4 (quoted):
+        over an inline string."* — D-10. Green. VT-2 also holds one accepted
+        case for M-9: an untagged ```` ```json ```` fence inside a `~~~text`
+        fence is content (Decisions, X-2).
+  - [x] **Red, then green**: VT-4 (quoted):
         *"`a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`."*
         An inline document: a `goad:response` fence with a view whose option
         draws a `boolean` field, then a `goad:request` respond fence answering
         it with `"yes"` — refused, the oracle's type variant; its positive
         twin answers `false` and is accepted. Red first against an oracle that
-        accepts every value.
-  - [ ] **Red, then green**: VT-8 (quoted, amended): *"`each_role_refuses_what_its_door_refuses`,
+        accepts every value. **Red, recorded** (X-1: a scratch copy whose
+        door checks accept everything): `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused
+        ... FAILED`. Green restored.
+  - [x] **Red, then green**: VT-8 (quoted, amended): *"`each_role_refuses_what_its_door_refuses`,
         over inline strings: one row per refusal the fence gate makes beyond
         VT-2..VT-4 — an unknown role; a json role on a `toml` fence; `refused
         R-N` and `discarded R-N` with the wrong id, and `discarded R-N` with no
@@ -6508,9 +6528,21 @@ then the gate, then the prose the gate reads. Red first for every test.
         `R-N` words in rows are taken from `Requirement` constants'
         `to_string()` where a row needs a real id, or written as test data —
         I-1 binds `src` only. Red first against role checks that accept
-        everything; record which rows redded.
-  - [ ] Green: `nix develop --command cargo test -p goad-check --test kit
-        --no-fail-fast`. Record the `test result` line.
+        everything; record which rows redded. **Red, recorded** (X-1's
+        scratch copy): 16 of 19 rows redded, each `refused []` — every
+        door-dependent row: response tagged accepted but refused; tagged
+        refused but accepted; refused R-N wrong id; discarded R-N wrong id;
+        discarded with no discard; plain carrying a discard; evaluate
+        framing; a request of neither type; respond framing; no preceding
+        view; unknown option; missing drawn field; undrawn field; choice
+        outside alternatives; envelope refused; config refused. The three
+        classification rows (unknown role, a json role on `toml`, a toml role
+        on `json`) stayed green, as they must: the stub left classification
+        real. M-10, M-13, M-14 below each red a named row on its own.
+  - [x] Green: `nix develop --command cargo test -p goad-check --test kit
+        --no-fail-fast`. Record the `test result` line. `test result: ok. 7
+        passed; 0 failed; 0 ignored; 0 measured; 0 filtered out` (PHASE-06's
+        2 + VT-1..VT-4, VT-8).
 - **4. I-5 (EX-5; VT-5, VT-6)** — `standalone.rs`
   - [ ] EX-5 (quoted): *"I-5 holds by §5.2.6's rule, *The kit stands
         alone*."* The tracked list: `git ls-files` with `current_dir` the
@@ -6699,7 +6731,35 @@ files, by design (A-V8).
 
 **Decisions taken during execution**
 
-(none yet)
+- **X-1 — VT-4 and VT-8 redded by a scratch stub, not by order.** The role
+  checks were written in one pass before VT-4 and VT-8 (VT-1's red already
+  stood against a stub refusing every role). Their red was then taken
+  honestly the other way: a scratch copy of `tagged.rs` with one line after
+  `check`'s `outcome` turning every non-classification refusal into `Ok`,
+  run with `--no-fail-fast`, copied back; `git status` clean of it after.
+  Results in tasks 3's VT-4 and VT-8 boxes.
+- **X-2 — VT-2 holds one more accepted case**: an untagged json fence shown
+  inside a `~~~text` fence is content, not a fence. It is D-2's
+  same-character closer rule, and without it M-9 reds nothing (no JSON body
+  can hold a backtick fence line). A private assert inside VT-2, no new
+  test name.
+- **X-3 — `Refusal` implements `Display`, read by every message.** Its
+  fields are diagnostic only; a derived `Debug` is ignored by `dead_code`, so
+  fields read only through `{:?}` fail clippy (`field 0 is never read`).
+  `Display` is the text a breach prints. `Debug` stays derived for the
+  helpers' panic text.
+- **X-4 — D-3's variants as built**: `Untagged`, `Misspelt`,
+  `UnknownRole`, `WrongLanguage`; `ResponseRefused`, `ResponseAccepted`,
+  `WrongRequirement`, `WrongDiscards` (`read_response`'s door);
+  `MalformedRequest`, `FramingDiffers`, `NoPrecedingView`,
+  `UnknownOption`, `FieldSet`, `WrongJsonType`, `NotAnAlternative` (the
+  request checks); `EnvelopeRefused`, `ConfigRefused`. `MalformedRequest`
+  and `UnknownOption` are refusals the plan's VT-8 list does not name; each
+  has a VT-8 row. A respond's view is updated by any response fence
+  `read_response` accepts with a view, whatever its tag.
+- **X-5 — the inline config needs `[schedule] default_poll`** and
+  `[backend] timeout`: `Config::parse` refuses a file without either
+  (`missing field`). Recorded for `running.md`, which says so.
 
 **Findings**
 
