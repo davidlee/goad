@@ -1412,6 +1412,9 @@ Red/green per behaviour. Tests are named by behaviour.
     negative controls over inline strings: `an_untagged_json_fence_is_refused`
     and `a_jsonc_fence_is_refused` (F-24);
   - `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused` (U5);
+  - `each_role_refuses_what_its_door_refuses`: one inline row per other
+    refusal the fence gate makes, each beside a positive twin
+    (`plan-log.md` 2026-10-18, *PHASE-07 sheet question*);
   - `every_requirement_a_refusal_can_name_is_explained_in_the_reference`,
     with a negative control over an inline string where `SPEC-001/R-32`
     appears and `SPEC-001/R-3` does not (F-22);
@@ -1423,7 +1426,9 @@ Red/green per behaviour. Tests are named by behaviour.
     control `a_path_outside_the_kit_is_refused` over inline strings: an
     escaping relative path and a tracked path (`crates/goad-shell/src`)
     refused; a consumer's `.claude/skills/` and a backticked
-    `` `.claude-plugin/plugin.json` `` accepted. No `git` or `.git` fails
+    `` `.claude-plugin/plugin.json` `` accepted, and so are
+    `/elsewhere/crates/goad-shell/src` and `crates/goad-s` (the
+    preceding-character and whole-component rules). No `git` or `.git` fails
     the test, never skips it.
 - `the_probe_kind_is_none_of_the_host_s_own`.
 

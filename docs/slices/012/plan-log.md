@@ -451,3 +451,26 @@ executor resumes.
 - **Consequence:** `plan.md` PHASE-06's Surfaces gain `.gitignore`;
   `design.md` §5.2.6's examples gain a line on where the socket goes; the
   sheet's `[!]` tasks are unblocked and EN-1 is discharged at `7a21826`.
+
+### 2026-10-18 — PHASE-07 sheet question
+
+- **Asked** (`notes.md` PHASE-07 sheet, PLAN QUESTION 1): VT-1 runs every
+  fence role's check over passing content only, so a check weakened to accept
+  everything stays green; only a negative control holds a refusal. The plan
+  named three (VT-2, VT-3, VT-4) and VT-6 for I-5. Held by none: an unknown
+  role; a json role on a `toml` fence; `refused R-N` and `discarded R-N` with
+  the wrong id or count; a plain `goad:response` carrying a discard; the
+  evaluate and respond framing; a respond with no preceding view; R-58's
+  field set; a `choice` value outside its alternatives; an envelope or config
+  its door refuses. In I-5, the preceding-character rule and the
+  whole-component rule.
+- **Recommended:** one table-driven negative control,
+  `each_role_refuses_what_its_door_refuses`, one inline row per refusal, each
+  asserting its refusal kind beside a positive twin; and two accepted VT-6
+  cases, `/elsewhere/crates/goad-shell/src` and `crates/goad-s`.
+- **Decided:** as recommended.
+- **Consequence:** `plan.md` PHASE-07 gains VT-8 and VT-6's two accepted
+  cases, and §Coverage's §9 row for 07 names the new case; `design.md` §9's
+  kit tier names it, and its I-5 control gains the two cases.
+  `canon-delta.md` names none of PHASE-07's tests and is unchanged. The
+  sheet's `[!]` boxes are unblocked.

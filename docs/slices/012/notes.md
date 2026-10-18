@@ -6049,6 +6049,12 @@ and why. It repairs nothing: what reads as wrong in the plan or design is
 under **Findings** as a PLAN QUESTION, and the tasks it blocks are marked
 `[!]`.
 
+**Decisions applied** after 8b7ffef: PLAN QUESTION 1 is resolved, as
+recommended (`plan-log.md` 2026-10-18, *PHASE-07 sheet question*).
+`plan.md` PHASE-07 gains VT-8 and two accepted VT-6 cases, re-quoted in
+tasks 3 and 4; `design.md` §9's kit tier names VT-8 and the two cases. No
+other criterion changed, and no task is blocked.
+
 **Objective** (quoted, `plan.md` PHASE-07): *"every `json` and `toml` fence
 in the kit is tagged and checked by the gate through the host's own doors, by
 a fence scanner the workspace shares; the kit names no path outside itself;
@@ -6488,8 +6494,21 @@ then the gate, then the prose the gate reads. Red first for every test.
         it with `"yes"` — refused, the oracle's type variant; its positive
         twin answers `false` and is accepted. Red first against an oracle that
         accepts every value.
-  - [!] PLAN QUESTION 1: the role checks' other refusals (below) — the named
-        negative controls it recommends, if endorsed.
+  - [ ] **Red, then green**: VT-8 (quoted, amended): *"`each_role_refuses_what_its_door_refuses`,
+        over inline strings: one row per refusal the fence gate makes beyond
+        VT-2..VT-4 — an unknown role; a json role on a `toml` fence; `refused
+        R-N` and `discarded R-N` with the wrong id, and `discarded R-N` with no
+        discard; a plain `goad:response` carrying a discard; an evaluate and a
+        respond whose framing differs; a respond with no preceding view; a
+        respond missing a drawn field, and one carrying an undrawn one (R-58);
+        a `choice` value outside its alternatives; an envelope and a config
+        their doors refuse — each asserting its refusal kind, beside a positive
+        twin accepted."* One table of rows (inline document, expected D-3
+        variant), every row's failures collected before one assertion. The
+        `R-N` words in rows are taken from `Requirement` constants'
+        `to_string()` where a row needs a real id, or written as test data —
+        I-1 binds `src` only. Red first against role checks that accept
+        everything; record which rows redded.
   - [ ] Green: `nix develop --command cargo test -p goad-check --test kit
         --no-fail-fast`. Record the `test result` line.
 - **4. I-5 (EX-5; VT-5, VT-6)** — `standalone.rs`
@@ -6520,7 +6539,10 @@ then the gate, then the prose the gate reads. Red first for every test.
         checker that refuses nothing; record. The inline strings are checked
         as though they sat in `kit/skills/goad-backend/reference/` (record
         the notional path).
-  - [!] PLAN QUESTION 1's two further accepted cases for VT-6, if endorsed.
+  - [ ] VT-6's amended tail (quoted): *"a tracked path continued from
+        another (`/elsewhere/crates/goad-shell/src`) and a partial component
+        (`crates/goad-s`), each accepted."* Both in VT-6, beside its four
+        plan cases.
   - [ ] VT-5 (quoted): *"`nothing_in_the_kit_names_a_path_outside_it` (I-5):
         every file under `kit/`, enumerated, refusing an empty set; the
         tracked paths read at test time by `git ls-files` at the repository
@@ -6580,8 +6602,8 @@ then the gate, then the prose the gate reads. Red first for every test.
         heading's id against its §4 row; A-V3's offset; R-30 (a backend sends
         no `view_id`); R-58's *"MUST NOT send the field"* direction; the
         D-8 line. The PHASE-06 VH-1 report-reading observations are **not**
-        this phase's (they are `checking.md`'s, PHASE-08): at close, add one
-        §Open row pointing PHASE-08 at them (**Findings**).
+        this phase's (they are `checking.md`'s, PHASE-08; §Open carries
+        them).
   - [ ] VA-4 (quoted): *"`notes.md` §Open's FU-5 row names the shared
         scanner's file and symbol, and says it replaced `round_trip.rs`'
         `fenced_block` rather than copying it."* Append to the existing
@@ -6624,6 +6646,7 @@ then the gate, then the prose the gate reads. Red first for every test.
 - [ ] VT-5
 - [ ] VT-6
 - [ ] VT-7
+- [ ] VT-8
 - [ ] VA-1
 - [ ] VA-2
 - [ ] VA-3
@@ -6648,10 +6671,12 @@ Instrument, unless the row says otherwise: `nix develop --command cargo test
 | M-6 | `standalone.rs`, the mention half | it refuses nothing | VT-6 (`crates/goad-shell/src`) | VT-5 | | | |
 | M-7 | `standalone.rs`, the `git ls-files` spawn | `current_dir` removed (cwd = `crates/goad-check`) | VT-5 and VT-6, on the wrong-root refusal | VT-1..VT-4 | | | |
 | M-8 | `fences.rs` `fences` | returns `Vec::new()` | VT-1 (D-5's zero count); VT-7 under `cargo test -p goad-shell --test integration the_readme_s_own_config` | — | | | |
+| M-13 | `tagged.rs`, the R-58 field-set check | removed | VT-8 (missing and undrawn rows) | VT-4 |
+| M-14 | `tagged.rs`, the `choice` membership check | removed | VT-8 (its alternatives row) | VT-4 |
 | M-9 | `fences.rs`, the closer | a closer of a **different** character accepted | VT-2's tilde case, or record that nothing reds | — | | | |
-| M-10 (offered) | `tagged.rs`, `refused R-N` | the id comparison dropped | **expected green** unless PLAN QUESTION 1's control lands: record which | — | | | |
-| M-11 (offered) | `standalone.rs`, the preceding-character rule | dropped | **expected green** unless PLAN QUESTION 1's accepted case lands | — | | | |
-| M-12 (offered) | `standalone.rs`, the whole-component rule | `<name>/<segment>` matched as a string prefix | **expected green** unless PLAN QUESTION 1's accepted case lands | — | | | |
+| M-10 | `tagged.rs`, `refused R-N` | the id comparison dropped | VT-8 (its wrong-id row) | VT-1 | | | |
+| M-11 | `standalone.rs`, the preceding-character rule | dropped | VT-6 (`/elsewhere/crates/goad-shell/src`) | VT-5 | | | |
+| M-12 | `standalone.rs`, the whole-component rule | `<name>/<segment>` matched as a string prefix | VT-6 (`crates/goad-s`) | VT-5 | | | |
 
 **Reach proofs** (the same rules)
 
@@ -6667,7 +6692,7 @@ Instrument, unless the row says otherwise: `nix develop --command cargo test
 | R-8 | clippy over the new kit modules | an unused `fn planted() {}` in `tagged.rs` | clippy red naming `tagged.rs` | | |
 | R-9 | fmt over `fences.rs` | one line misindented | `cargo fmt --all --check` prints `Diff in …/tests/support/fences.rs` for each includer (A-V8) | | |
 | R-10 | fmt over the new kit modules | one line of `standalone.rs` misindented | `Diff in …/tests/kit/standalone.rs` | | |
-| R-11 | the cases are built | none: a read | `cargo test --workspace` shows `Running tests/kit/main.rs` with VT-1..VT-6 by name, and `Running tests/integration/main.rs` with VT-7 | | n/a |
+| R-11 | the cases are built | none: a read | `cargo test --workspace` shows `Running tests/kit/main.rs` with VT-1..VT-6 and VT-8 by name, and `Running tests/integration/main.rs` with VT-7 | | n/a |
 
 The vocabulary scan and `deno check` have no row: neither reaches these
 files, by design (A-V8).
@@ -6679,8 +6704,9 @@ files, by design (A-V8).
 **Findings**
 
 - **PLAN QUESTION 1 — most of the role checks' refusals are held by no
-  negative control.** Blocks only the two `[!]` boxes; everything else
-  proceeds. VT-1 runs every role check over **passing** content, so a check
+  negative control.** **Resolved 2026-10-18: as recommended**
+  (`plan-log.md` 2026-10-18, *PHASE-07 sheet question*; VT-8 and VT-6's two
+  cases in tasks 3 and 4). VT-1 runs every role check over **passing** content, so a check
   weakened to accept everything stays green; only a negative control holds
   a refusal. The plan names three (VT-2 untagged, VT-3 `jsonc`, VT-4 a wrong
   JSON type) and VT-6 for I-5. Held by nothing, as planned: an unknown role;
@@ -6716,10 +6742,9 @@ files, by design (A-V8).
 - **Observation — the PHASE-06 VH-1 report-reading items** (*a refused
   exchange prints `view: null · next check …` above its `REFUSED` line*;
   triage's *no longer in …* stderr under the gate route) are `checking.md`'s
-  and the README's, not this phase's, and untouched here. They sit only in
-  PHASE-06's **Findings**: §Harvest's Open list does not carry them (checked:
-  its only VH-1 row is *VH-1..VH-3 are the person's*). The PHASE-08 sheet
-  should read them from there; the executor adds an Open row at close.
+  and the README's, not this phase's, and untouched here. At 8b7ffef they sat
+  only in PHASE-06's **Findings**; §Open gained a row for them on 2026-10-18
+  (the orchestrator's instruction), for PHASE-08.
 
 ## Harvest
 
@@ -6870,6 +6895,12 @@ unchanged.
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
 - **VH-1..VH-3 are the person's** (PHASE-06 task 7, blocks in its sheet).
+- **Report reading, for PHASE-08's `checking.md`** (PHASE-06 Findings, *VH-1,
+  the person's run*): a refused exchange prints `view: null · next check …`
+  above its `REFUSED` line, which reads as though the backend answered "no
+  view" and was refused anyway; and triage's gate route reports a move, then
+  `… is no longer in …` on stderr (D-4, correct), which reads as a failure.
+  Candidates for `checking.md`, the triage README, or report wording.
 - **The two-file chain, *Clear* and the post-block view are held by no test**
   (PHASE-06 Findings, VA-3). Candidate: a second event file for triage.
 

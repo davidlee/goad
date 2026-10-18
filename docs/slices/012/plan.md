@@ -216,7 +216,7 @@ to a JSON type or a value.
 | `goad-check` `args.rs` invocation table; `an_unreadable_config_exits_2_and_says_who_spoke`, `a_reserved_source_event_file_exits_2`, `an_empty_argv_is_a_usage_error`, `a_report_that_cannot_be_written_exits_2` (its `--help` half), `help_prints_the_usage_block_on_stdout_and_exits_0`, `version_prints_the_package_version_on_stdout_and_exits_0` | 04 |
 | every other `goad-check` binary-tier case in §9; `a_report_that_cannot_be_written_exits_2`'s run half; `the_probe_kind_is_none_of_the_host_s_own`; `the_first_option_is_the_one_listed_first`; `a_failure_in_the_probe_s_chain_is_not_charged_with_r56`; `a_known_kind_s_chain_failure_does_not_excuse_the_probe` | 12 |
 | `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | 06 |
-| `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`; `round_trip.rs`' README case through the shared scanner | 07 |
+| `every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`, `an_untagged_json_fence_is_refused`, `a_jsonc_fence_is_refused`, `a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`, `nothing_in_the_kit_names_a_path_outside_it`, `a_path_outside_the_kit_is_refused`, `each_role_refuses_what_its_door_refuses`; `round_trip.rs`' README case through the shared scanner | 07 |
 | `every_requirement_a_refusal_can_name_is_explained_in_the_reference`, and its R-32/R-3 negative control | 08 |
 
 `design.md` §9's mutation checks: `NestedHints` flipped to R-3 — PHASE-01/VA-2;
@@ -1041,9 +1041,22 @@ READMEs (fence tags only).
   the tracked list VT-5 reads: an escaping relative path, and a mention of a
   tracked path outside `kit/` (`crates/goad-shell/src`), each refused; a
   consumer path that names nothing here (`.claude/skills/`) and a backticked
-  `` `.claude-plugin/plugin.json` ``, each accepted.
+  `` `.claude-plugin/plugin.json` ``, each accepted; a tracked path continued
+  from another (`/elsewhere/crates/goad-shell/src`) and a partial component
+  (`crates/goad-s`), each accepted (`plan-log.md` 2026-10-18, *PHASE-07 sheet
+  question*).
 - VT-7 — `round_trip.rs`' `the_readme_s_own_config_loads_and_runs_the_example`
   is green, reading the README's config through the shared scanner.
+- VT-8 — `each_role_refuses_what_its_door_refuses`, over inline strings: one
+  row per refusal the fence gate makes beyond VT-2..VT-4 — an unknown role;
+  a json role on a `toml` fence; `refused R-N` and `discarded R-N` with the
+  wrong id, and `discarded R-N` with no discard; a plain `goad:response`
+  carrying a discard; an evaluate and a respond whose framing differs; a
+  respond with no preceding view; a respond missing a drawn field, and one
+  carrying an undrawn one (R-58); a `choice` value outside its alternatives;
+  an envelope and a config their doors refuse — each asserting its refusal
+  kind, beside a positive twin accepted (`plan-log.md` 2026-10-18, *PHASE-07
+  sheet question*).
 - VA-1 — the extractor's count of checked fences is non-zero and equals a
   count taken by hand over the kit, recorded.
 - VA-2 — mutation: one fence in `protocol.md` untagged reds VT-1. Recorded.
