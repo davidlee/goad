@@ -143,28 +143,7 @@
       ++ guiLibs
       ++ [jailLib.agentsByName.claude jailLib.agentsByName.codex];
 
-    # API keys reach the jail over a file descriptor, never over argv.
-    #
-    # jail.nix's stock forwarding (`passApiKeysFromEnv`, on by default) expands
-    # `--setenv VAR "$VAR"` onto the bwrap command line, and /proc/<pid>/cmdline
-    # is world-readable — every local process, including the nixbld uids running
-    # arbitrary upstream build scripts, could read the keys in plaintext for as
-    # long as a jail ran. `bwrap --args FD` parses NUL-separated arguments from a
-    # descriptor instead, so the keys travel down an anonymous pipe.
-    #
-    # The fd number is a literal, not `{FD}<`-allocated: bash expands a command's
-    # words before performing its redirections, so `--args "$FD"` on the same
-    # line as `{FD}< <(…)` would expand to empty. 21 clears bash's floor of 10.
-    apiKeyNames = ["OPENAI_API_KEY" "ANTHROPIC_API_KEY"];
-    apiKeyArgsFd = "21";
-    apiKeysViaFd = jailLib.combinators.unsafe-add-raw-args (
-      "--args ${apiKeyArgsFd} ${apiKeyArgsFd}< <(printf '%s\\0'"
-      + lib.concatMapStrings (var: " --setenv ${var} \"\${${var}:-}\"") apiKeyNames
-      + ")"
-    );
-
     jailEnvOptions = with jailLib.combinators; [
-      apiKeysViaFd
       (set-env "LD_LIBRARY_PATH" (lib.makeLibraryPath guiLibs))
       # Claude Code auto-detects its Bash-tool shell from $SHELL and falls back
       # to "first working zsh, then bash" — so a jailed agent lands on the jail's
@@ -192,12 +171,17 @@
       (set-env "XDG_RUNTIME_DIR" "/tmp/xdg-runtime")
     ];
 
+    # Every jail reaches models through the local LLM gateway with the
+    # shared `pi` key (~/.config/llm-gateway/keys/pi); no provider key
+    # enters a jail.
+    gateway = jailLib.gatewayClient "pi";
+
     mkJail = maker: args:
       maker ({
           profile = "specDev";
           extraPkgs = projectPkgs;
           extraOptions = jailEnvOptions;
-          passApiKeysFromEnv = false; # replaced by apiKeysViaFd above
+          inherit gateway;
         }
         // args);
 
