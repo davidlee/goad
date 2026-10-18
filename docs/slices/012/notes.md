@@ -15,7 +15,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-05 | done | 2026-10-01 |
 | PHASE-06 | done | 2026-10-18 |
 | PHASE-07 | done | 2026-10-18 |
-| PHASE-08 | in progress | 2026-10-18 |
+| PHASE-08 | done | 2026-10-18 |
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
 | PHASE-11 | pending | 2026-10-01 |
@@ -7407,7 +7407,7 @@ first for every test.
         `scheduling.md`: 2 `goad:response`, 5 `goad:response discarded`
         — R-21, R-22, R-23, R-25 ×2). Kit target `11 passed`.
 - **4. `events.md`**
-  - [ ] Organised by task (for example *Forward an event*, *What the host
+  - [x] Organised by task (for example *Forward an event*, *What the host
         replies*, *What your backend receives*). From SPEC-003, what a writer
         and a backend author must do or may rely on: the socket exists only
         when `[ingress] path` is configured (R-1); one envelope per
@@ -7424,9 +7424,22 @@ first for every test.
         observes. `goad-emit`'s invocation and its statuses (SPEC-004
         `goad-emit` rows, canon-delta Change 3) and `goad-check --event`,
         pointing at `checking.md`. D-8's fences. No path outside the kit.
-  - [ ] VT-1 and PHASE-07/VT-1, VT-5 green. Record.
+        **Written** (commit `031513e`): *Forward an event* (SPEC-003/R-1 —
+        with R-2..R-5 as one line each on what a writer sees: owner-only,
+        a dead goad's socket replaced, a live one's or a non-socket path
+        stopping startup; R-9, R-10, R-13, R-6 — with R-7's bounds, 64 KiB
+        and half a second, as one line), *Send it with `goad-emit`*
+        (invocation from its `USAGE`; SPEC-004/R-8, R-9, R-10: X-3), *What
+        the host replies* (R-8; R-14 with §6.3's closed set as a table and
+        `retry_after_ms`; R-12), *What your backend receives* (R-11, with
+        SPEC-001/R-7 cross-referenced), *Check it* (`goad-check --event`).
+        Fences: one `json goad:envelope`, one `json goad:request` (the
+        evaluate that envelope becomes, timestamp in UTC), the replies as
+        `text` (X-6), the invocations as `sh`.
+  - [x] VT-1 and PHASE-07/VT-1, VT-5 green. Record.
+        Kit target `11 passed`; `25 json and toml fences checked` (+2).
 - **5. `checking.md`** (EX-3)
-  - [ ] EX-3 (quoted): *"`checking.md` explains the checker's forms and what
+  - [x] EX-3 (quoted): *"`checking.md` explains the checker's forms and what
         it sends, the four sides in R-59's terms, where else to look for each
         kind with a declared imprecision, that a run mutates real state (and
         the `XDG_*` advice), that a relative `command` resolves against the
@@ -7475,19 +7488,37 @@ first for every test.
           does not let a reader infer (canon-delta SPEC-004 Change 4's
           table): 0 is not *correct*, 1 is not *the backend's fault*. The
           chain bound and `NO_VIEW` are observations, not statuses.
-  - [ ] VT-1 and PHASE-07/VT-1, VT-5 green. Record.
+        **Written** (commit `031513e`): *Run it* (forms, exclusions,
+        defaults, `[ingress]` ignored, the relative-`command` paragraph
+        pointing at *Name your command*), *A check runs your backend for
+        real*, *What it sends*, *Read the report*, `SPEC-001/R-59`, *When
+        the R-56 claim is made*, *Read the exit status* with
+        `SPEC-004/R-11`, `R-12`, `R-13`. The report sample is a real run
+        (`goad-check -- probe.sh`, a scratch backend refusing in three
+        ways), trimmed of its `scheduled` block with the verdict count
+        adjusted to match — not reconstructed from `render`. D-10's two
+        readings are under *Read the report* (the view line; `respond` and
+        `stderr:`). No `toml` / `json` fence (a config is in `running.md`,
+        an envelope in `events.md`).
+  - [x] VT-1 and PHASE-07/VT-1, VT-5 green. Record. Kit target `11
+        passed`; `25 json and toml fences checked` (unchanged).
 - **6. `SKILL.md` (EX-2, EX-6)**
-  - [ ] The body per D-9; the marker line deleted.
-  - [ ] EX-2 (quoted): *"`SKILL.md` routes and does not teach: when to use
+  - [x] The body per D-9; the marker line deleted. Frontmatter unchanged
+        (in `git show 031513e`'s diff of `SKILL.md` the frontmatter lines
+        are context).
+  - [x] EX-2 (quoted): *"`SKILL.md` routes and does not teach: when to use
         it, the loop, how to get the binaries, one pointer per reference file
         by the question it answers, one line per example; no wire example of
         its own."* `command grep -nE '^ {0,3}(```|~~~)' kit/skills/goad-backend/SKILL.md`
         → no `json` / `toml` opener; record the hits.
-  - [ ] EX-6 (quoted): *"the marker line PHASE-05 put in the placeholder
+        **Hits**: lines 28 and 34 open `sh` fences (30 and 36 close them):
+        the two install commands; no `json` / `toml`.
+  - [x] EX-6 (quoted): *"the marker line PHASE-05 put in the placeholder
         `SKILL.md` is gone; no load check after this phase asks for it
         (PHASE-11/EX-2)."* `git grep -n QUINCE -- kit docs/slices/012/walk`
         → nothing (PHASE-05's record in `notes.md` remains: history).
-  - [ ] **The fact PHASE-11 will ask for** (PHASE-11/EX-2: *"a fact only that
+        **Ran**: no output, exit 1.
+  - [x] **The fact PHASE-11 will ask for** (PHASE-11/EX-2: *"a fact only that
         finished body states, in neither the frontmatter nor the prompt"*).
         Choose one short phrase of the finished body that a model could not
         guess — for example the exact `cargo install --git …` line — and
@@ -7495,31 +7526,49 @@ first for every test.
         only, not in its frontmatter. Record it under **Findings** as
         *PHASE-11's fact*, quoted, with the grep, so the orchestrator writes it
         into PHASE-11's sheet. If no phrase is unique, record that instead of
-        inventing one.
-  - [ ] PHASE-07/VT-1 and VT-5 green over the new `SKILL.md`. Record.
+        inventing one. **Recorded** under Findings, *PHASE-11's fact*.
+  - [x] PHASE-07/VT-1 and VT-5 green over the new `SKILL.md`. Record.
+        Kit target `11 passed`; reach shown by R-3 and R-5.
 - **7. Refactor**
-  - [ ] `tree.rs` gains the skill root (`root().join("skills/goad-backend")`)
+  - [x] `tree.rs` gains the skill root (`root().join("skills/goad-backend")`)
         if both `examples.rs`' `examples_root` and `coverage.rs`' reference
         directory then read from it and code goes; record what changed, or
         why nothing did. `coverage.rs` and `tagged.rs` share nothing they
         would duplicate (record any helper that is).
-  - [ ] Read `coverage.rs` against D-2: every match beside its builder, no
+        **Nothing changed** (X-4): a `tree::skill()` would shorten two
+        `join` literals (`examples_root`, VT-1's `dir`) and remove no code.
+        The one shared idiom, the `.md` extension filter, is also in
+        `tagged.rs`' VT-1, which is not this phase's surface: two copies of
+        one `filter` closure, recorded, not factored.
+  - [x] Read `coverage.rs` against D-2: every match beside its builder, no
         `_` arm (`command grep -n '_ =>' crates/goad-check/tests/kit/coverage.rs`
         → nothing), the limit comment present.
+        **Read**: each `*_variant` immediately followed by its `every_*`;
+        `grep -n '_ =>'` → nothing (exit 1); no `allow` / `expect`; the
+        limit comment above `protocol_variant`.
 - **8. Evidence**
-  - [ ] EX-1 (quoted): *"PHASE-07/VT-1 is green over the finished kit, and
+  - [x] EX-1 (quoted): *"PHASE-07/VT-1 is green over the finished kit, and
         VA-2 shows it read a file this phase wrote."* — the green result line
-        and row R-1.
-  - [ ] EX-4 (quoted): *"`claude plugin validate kit/` passes, and the
+        and row R-1. `test tagged::every_json_and_toml_fence_in_the_kit_is_tagged_and_checked
+        ... ok`, `25 json and toml fences checked`; R-1 red naming
+        `scheduling.md:69`.
+  - [x] EX-4 (quoted): *"`claude plugin validate kit/` passes, and the
         manifests' versions still match."* `nix develop --command claude
         plugin validate kit/` → `✔ Validation passed`; `command grep -n
         '"version"' kit/.claude-plugin/plugin.json kit/.codex-plugin/plugin.json`
         and `command grep -n '^version' Cargo.toml` → all `0.1.0`. Record.
-  - [ ] EX-5 (quoted): *"the reference says the specs are not shipped, and
+        `✔ Validation passed` (exit 0); `kit/.claude-plugin/plugin.json:4`
+        and `kit/.codex-plugin/plugin.json:4` `"version": "0.1.0"`;
+        `Cargo.toml:18` `version    = "0.1.0"`.
+  - [x] EX-5 (quoted): *"the reference says the specs are not shipped, and
         that every id a report prints is explained in the reference itself
         (§5.2.6, *The reference's structure*)."* Quote the sentence (A-V5)
         and its file; VT-1 green is what makes it true.
-  - [ ] VA-1 (quoted): *"every reference file read: `scheduling.md` and
+        `protocol.md`, opening: *"The specifications those ids come from are
+        not shipped: each id a report can print is explained in this
+        reference, under a heading of its own."* `SKILL.md` repeats the
+        second half. No edit to `protocol.md` or `running.md`.
+  - [x] VA-1 (quoted): *"every reference file read: `scheduling.md` and
         `events.md` against SPEC-001 R-21..R-29, SPEC-002 and SPEC-003;
         `checking.md` against `design.md` §5.2.5 and `canon-delta.md`
         SPEC-004; and all of them, with `protocol.md` and `running.md`, for
@@ -7534,45 +7583,51 @@ first for every test.
         (`command grep -noE '\]\([^)#]+' …`, each target `ls`ed); each id
         VT-1 requires has exactly one heading across the reference (`command
         grep -nE '^#+ .*SPEC-001/R-[0-9]+' reference/*.md`, PHASE-07 D-7).
-  - [ ] VA-2 (quoted): *"reach: an untagged `json` fence planted in
+        **Done**: Findings, *VA-1*.
+  - [x] VA-2 (quoted): *"reach: an untagged `json` fence planted in
         `scheduling.md` reds PHASE-07/VT-1; restored. Recorded."* — row R-1.
-  - [ ] VA-3 (quoted): *"I-2 over `crates/goad-check`'s tests as this phase
+  - [x] VA-3 (quoted): *"I-2 over `crates/goad-check`'s tests as this phase
         leaves them (the matches beside the coverage builders), by the command
         under *Invariant reads*. Recorded."* `command grep -rn 'FieldKind'
         crates/goad-check`; each hit read for a kind mapped to a JSON type or
         a value. Expected unchanged from PHASE-07/VA-6: two hits, `tagged.rs`'
         `use` and `respond`'s `if let FieldKind::Choice { alternatives }`;
         `coverage.rs`' matches are over error taxonomies and name no
-        `FieldKind`.
-  - [ ] Mutation and reach rows (below), each recorded.
-  - [ ] `nix develop --command just check` exit 0. Record the summed passed
+        `FieldKind`. **Ran**: two hits, `tagged.rs`' `use` and `respond`'s
+        `if let FieldKind::Choice { alternatives }` (reads alternatives'
+        ids; maps no kind to a JSON type). Unchanged from PHASE-07/VA-6; I-2
+        holds.
+  - [x] Mutation and reach rows (below), each recorded.
+  - [x] `nix develop --command just check` exit 0. Record the summed passed
         count: the entry count (747) plus this phase's new cases (VT-1,
-        VT-2).
+        VT-2). **Exit 0** at `031513e` (the bookkeeping commit changes only
+        this file): **749 passed, 0 failed**, summed over 34 `test result`
+        lines; no `warning` line in the log.
 - **9. Close**
-  - [ ] §Harvest updated: Produced (`coverage.rs` and its symbols; the three
+  - [x] §Harvest updated: Produced (`coverage.rs` and its symbols; the three
         reference files; the finished `SKILL.md`); Learned; Open — the
         third copy of the six builders, beside *Two `every_protocol_error`
         builders* (A-V2); D-7's canon-delta ids in `checking.md`, for
         promotion; and the
         PHASE-06 VH-1 row marked discharged by `checking.md` (D-10), the
         triage README half left to the walks.
-  - [ ] PHASE-08 `done` in §Status.
-  - [ ] Commit the surfaces and this sheet's records with `git commit -m
+  - [x] PHASE-08 `done` in §Status.
+  - [x] Commit the surfaces and this sheet's records with `git commit -m
         "012 PHASE-08: …" -- <paths>`; `git show --stat HEAD` lists only
         them.
 
 **Exit criteria** (quoted in the tasks above; listed here to be ticked)
-- [ ] EX-1
-- [ ] EX-2
-- [ ] EX-3
-- [ ] EX-4
-- [ ] EX-5
-- [ ] EX-6
-- [ ] VT-1
-- [ ] VT-2
-- [ ] VA-1
-- [ ] VA-2
-- [ ] VA-3
+- [x] EX-1
+- [x] EX-2
+- [x] EX-3
+- [x] EX-4
+- [x] EX-5
+- [x] EX-6
+- [x] VT-1
+- [x] VT-2
+- [x] VA-1
+- [x] VA-2
+- [x] VA-3
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad, edit, run with `--no-fail-fast`, copy back; `git status --short`
@@ -7583,29 +7638,29 @@ Instrument, unless the row says otherwise: `nix develop --command cargo test
 
 | row | file / symbol | edit | must red | must stay green | compiled? / file read | redded | restored |
 |---|---|---|---|---|---|---|---|
-| M-1 (the id removed) | `reference/scheduling.md`, the `SPEC-001/R-21` heading | the heading line demoted to body text (`#` prefix removed) | VT-1, naming `SPEC-001/R-21` and `ScheduleError::TimeOfDay`, and no other id | VT-2; PHASE-07's cases | | | |
-| M-2 | `coverage.rs`, D-4's equality | an id compared as a prefix (`starts_with`) of the heading's id | VT-2 (R-3 found inside R-32's heading) | VT-1 | | | |
-| M-3 | `coverage.rs`, D-5's skip | fenced lines not skipped | VT-2 (R-36 found) | VT-1 | | | |
-| M-4 | `coverage.rs`, D-3's heading test | every line read, heading or not | VT-2 (R-40 found) | VT-1 | | | |
-| M-5 | `coverage.rs`, D-4's "exactly one" | a heading contributes every id it holds | VT-2 (R-41 and R-42 found) | VT-1 | | | |
-| M-6 | `coverage.rs`, VT-1's file filter | `.md` → `.mdx` (an empty set) | VT-1, on the empty-set refusal naming `reference/` | VT-2 | | | |
-| M-7 | `reference/protocol.md`, the `SPEC-001/R-56` heading | demoted to body text | VT-1, naming `SPEC-001/R-56` and *the checker's R-56 claim* — the `Requirement::R56` entry is what holds it | VT-2 | | | |
-| M-8 | `coverage.rs`, `every_protocol_error` | the `InapplicableKey { key: "fields", … }` instance removed | **nothing expected**: R-53 stays required by no instance and VT-1 stays green. This is the design's declared limit (compile gate plus review), run so the record shows it rather than asserts it | — | | | |
-| M-9 | `reference/running.md`, the `SPEC-001/R-41` heading | `SPEC-001/R-41` → `SPEC-001/R-41 and SPEC-001/R-42` in the heading line | VT-1, naming `SPEC-001/R-41` and `BackendError::Timeout` (a heading with two ids counts for neither, in a real file) | VT-2 | | | |
+| M-1 (the id removed) | `reference/scheduling.md`, the `SPEC-001/R-21` heading | the heading line demoted to body text (`#` prefix removed) | VT-1, naming `SPEC-001/R-21` and `ScheduleError::TimeOfDay`, and no other id | VT-2; PHASE-07's cases | yes (Markdown: `scheduling.md` read) | VT-1 only, naming `SPEC-001/R-21` with `ScheduleError::TimeOfDay` (and its two wrapper paths), no other id; `10 passed; 1 failed` | yes |
+| M-2 | `coverage.rs`, D-4's equality | an id compared as a prefix (`starts_with`) of the heading's id | VT-2 (R-3 found inside R-32's heading) | VT-1 | yes | VT-2 only: `SPEC-001/R-3 (absent, but a prefix of R-32) was found`; VT-1 green. Applied at both lookups (X-5) | yes |
+| M-3 | `coverage.rs`, D-5's skip | fenced lines not skipped | VT-2 (R-36 found) | VT-1 | yes, at the second attempt: the first (the `any` deleted) left `start` unused and failed to compile under `-D unused`; rewritten as `… && false` | VT-2 only: `SPEC-001/R-36 (in a fence only) was found`; VT-1 green | yes |
+| M-4 | `coverage.rs`, D-3's heading test | every line read, heading or not | VT-2 (R-40 found) | VT-1 | yes (`!(is_heading(line) \|\| true)`) | VT-2 only: `SPEC-001/R-40 (in body text only) was found`; VT-1 green | yes |
+| M-5 | `coverage.rs`, D-4's "exactly one" | a heading contributes every id it holds | VT-2 (R-41 and R-42 found) | VT-1 | yes (`found.extend(ids(line))`) | VT-2 only: `SPEC-001/R-41 …` and `SPEC-001/R-42 (in a heading with another id) was found`; VT-1 green | yes |
+| M-6 | `coverage.rs`, VT-1's file filter | `.md` → `.mdx` (an empty set) | VT-1, on the empty-set refusal naming `reference/` | VT-2 | yes | VT-1 only: `reference/ holds no Markdown: …/kit/skills/goad-backend/reference`; VT-2 green | yes |
+| M-7 | `reference/protocol.md`, the `SPEC-001/R-56` heading | demoted to body text | VT-1, naming `SPEC-001/R-56` and *the checker's R-56 claim* — the `Requirement::R56` entry is what holds it | VT-2 | yes (`protocol.md` read). The first run was invalid: it ran M-6's stale binary (Findings, *restored mtime*); rerun | VT-1 only: `SPEC-001/R-56 (the checker's R-56 claim) has no heading of its own under reference/` | yes |
+| M-8 | `coverage.rs`, `every_protocol_error` | the `InapplicableKey { key: "fields", … }` instance removed | **nothing expected**: R-53 stays required by no instance and VT-1 stays green. This is the design's declared limit (compile gate plus review), run so the record shows it rather than asserts it | — | yes | **nothing**, as predicted: `11 passed`. R-53 is then answered by no instance and VT-1 does not see it: the declared limit, shown | yes |
+| M-9 | `reference/running.md`, the `SPEC-001/R-41` heading | `SPEC-001/R-41` → `SPEC-001/R-41 and SPEC-001/R-42` in the heading line | VT-1, naming `SPEC-001/R-41` and `BackendError::Timeout` (a heading with two ids counts for neither, in a real file) | VT-2 | yes (`running.md` read). The first run used M-8's stale binary; rerun, same result | VT-1 only: `SPEC-001/R-41 (BackendError::Timeout) has no heading of its own under reference/` | yes |
 
 **Reach proofs** (the same rules)
 
 | row | instrument | plant | must find | result | restored |
 |---|---|---|---|---|---|
-| R-1 (VA-2) | PHASE-07/VT-1 over `scheduling.md` | an untagged ```` ```json ```` fence holding `{"view": null}` | PHASE-07/VT-1 red naming `scheduling.md` and the line, `untagged` | | |
-| R-2 | PHASE-07/VT-1 over `checking.md` and `events.md` | a `jsonc` fence in `checking.md`; separately, `json goad:nonesuch` in `events.md` | red naming `checking.md`, `misspelt`; red naming `events.md`, `UnknownRole` | | |
-| R-3 | PHASE-07/VT-1 over `SKILL.md` | an untagged ```` ```json ```` fence in `SKILL.md` | red naming `SKILL.md` | | |
-| R-4 | PHASE-07/VT-5 (I-5) over `checking.md` | `crates/goad-shell/src` in body text | VT-5 red naming `checking.md`, `Mention` | | |
-| R-5 | PHASE-07/VT-5's escaping half over `SKILL.md` | `../../../crates/goad-check/src` (from `kit/skills/goad-backend/`, three `../` reach the repository root; count it before trusting a green — PHASE-07's R-4) | VT-5 red naming `SKILL.md`, `Escaping` | | |
-| R-6 | VT-1's enumeration | M-1's demotion, plus a new `reference/planted.md` holding `### SPEC-001/R-21 — planted` | VT-1 **green** (the new file is read), then red naming `SPEC-001/R-21` once `planted.md` is removed with M-1 still applied | | removed; M-1 restored |
-| R-7 | clippy over `coverage.rs` | an unused `fn planted() {}` | `nix develop --command cargo clippy -p goad-check --all-targets -- -D warnings`: `function planted is never used`, naming `coverage.rs` | | |
-| R-8 | fmt over `coverage.rs` | one line misindented | `cargo fmt --all --check`: `Diff in …/tests/kit/coverage.rs` | | |
-| R-9 | the compile gate (design §5.2.6, *Its limit*) | in a scratch copy of `crates/goad-semantics/src/error.rs`, a `BoundsError::Planted` variant, with an arm added to every match in `goad-semantics` and `goad-shell` the compiler names until both build (each recorded) | `nix develop --command cargo test -p goad-check --test kit --no-run`: `error[E0004]` naming `coverage.rs`' `BoundsError` match — and no error at `every_bounds_error`, which is the limit | | every scratch-edited file copied back; `git status --short` clean |
+| R-1 (VA-2) | PHASE-07/VT-1 over `scheduling.md` | an untagged ```` ```json ```` fence holding `{"view": null}` | PHASE-07/VT-1 red naming `scheduling.md` and the line, `untagged` | red: `…/reference/scheduling.md:69: untagged: add its goad: role`; `26 json and toml fences checked` | yes |
+| R-2 | PHASE-07/VT-1 over `checking.md` and `events.md` | a `jsonc` fence in `checking.md`; separately, `json goad:nonesuch` in `events.md` | red naming `checking.md`, `misspelt`; red naming `events.md`, `UnknownRole` | red: `checking.md:49: misspelt: …`; separately red: `events.md:88: not a role of the convention` (`UnknownRole`'s display) | yes, each |
+| R-3 | PHASE-07/VT-1 over `SKILL.md` | an untagged ```` ```json ```` fence in `SKILL.md` | red naming `SKILL.md` | red: `SKILL.md:38: untagged: add its goad: role` | yes |
+| R-4 | PHASE-07/VT-5 (I-5) over `checking.md` | `crates/goad-shell/src` in body text | VT-5 red naming `checking.md`, `Mention` | red: `kit/skills/goad-backend/reference/checking.md:49: Mention crates/goad-shell` | yes |
+| R-5 | PHASE-07/VT-5's escaping half over `SKILL.md` | `../../../crates/goad-check/src` (from `kit/skills/goad-backend/`, three `../` reach the repository root; count it before trusting a green — PHASE-07's R-4) | VT-5 red naming `SKILL.md`, `Escaping` | three `../` counted and `ls -d`ed (resolves to `crates/goad-check/src`); red: `kit/skills/goad-backend/SKILL.md:38: Escaping ../../../crates/goad-check/src.` | yes |
+| R-6 | VT-1's enumeration | M-1's demotion, plus a new `reference/planted.md` holding `### SPEC-001/R-21 — planted` | VT-1 **green** (the new file is read), then red naming `SPEC-001/R-21` once `planted.md` is removed with M-1 still applied | with `planted.md`: VT-1 **green** (`11 passed`), so the new file was read; `planted.md` removed, M-1 kept: VT-1 red naming `SPEC-001/R-21` | removed; M-1 restored; clean |
+| R-7 | clippy over `coverage.rs` | an unused `fn planted() {}` | `nix develop --command cargo clippy -p goad-check --all-targets -- -D warnings`: `function planted is never used`, naming `coverage.rs` | `error: function planted is never used --> crates/goad-check/tests/kit/coverage.rs:23:4` | yes |
+| R-8 | fmt over `coverage.rs` | one line misindented | `cargo fmt --all --check`: `Diff in …/tests/kit/coverage.rs` | `Diff in /home/david/dev/goad/crates/goad-check/tests/kit/coverage.rs:344:` | yes |
+| R-9 | the compile gate (design §5.2.6, *Its limit*) | in a scratch copy of `crates/goad-semantics/src/error.rs`, a `BoundsError::Planted` variant, with an arm added to every match in `goad-semantics` and `goad-shell` the compiler names until both build (each recorded) | `nix develop --command cargo test -p goad-check --test kit --no-run`: `error[E0004]` naming `coverage.rs`' `BoundsError` match — and no error at `every_bounds_error`, which is the limit | `goad-semantics/src/error.rs` alone was edited: the variant, plus arms in `BoundsError::requirement`, `::fault` and its `Display` — the three matches the compiler named; `goad-shell` then built with no edit (it matches no `BoundsError`). Instrument: one error, `error[E0004]: non-exhaustive patterns: &BoundsError::Planted not covered --> crates/goad-check/tests/kit/coverage.rs:110:9` (`bounds_variant`'s match); **no error at `every_bounds_error`** — the limit. `goad-semantics`' own test targets also stop building on it (`normalize.rs`' match, two in `error.rs` `mod tests`); the instrument does not compile them | every scratch-edited file copied back; `git status --short` clean |
 
 The vocabulary scan and `deno check` have no row: neither reaches these
 files, by design (A-V9).
@@ -7622,6 +7677,18 @@ files, by design (A-V9).
   what R-26's list says by construction (*"the host holds exactly one
   instant"*); a heading of its own would restate it. VT-1 does not require
   it.
+- **X-3 — `goad-emit`'s statuses are headed `SPEC-004/R-8`, `R-9`, `R-10`**
+  in `events.md`, as `checking.md`'s are `SPEC-004/R-11..R-13` (D-7). Like
+  those, the ids are `canon-delta.md`'s (SPEC-004 Change 3), not yet canon,
+  so §Open's promotion row names them too. VT-1 does not require them.
+- **X-4 — no `tree::skill()`** (task 7): it would remove no code.
+- **X-5 — M-2 mutates both lookups.** The comparison is spelled at VT-2's
+  filter and VT-1's; mutating VT-2's alone would keep VT-1 green by not
+  touching it. With both mutated VT-1 stays green because a prefix match
+  only widens what it finds.
+- **X-6 — the event reply is shown as `text`.** No `goad:` role reads a
+  SPEC-003 reply (D-8 names none), so a `json` fence would be refused as
+  an unknown role; `text` is the design's form for JSON no door checks.
 
 **Findings**
 
@@ -7649,15 +7716,78 @@ files, by design (A-V9).
   them. Task 9 adds the §Open row.
 - **Observation — PHASE-07's forward is confirmed** (A-V1): VT-1 is red on
   the four scheduling ids only.
+- **PHASE-11's fact** (for the orchestrator to write into PHASE-11's sheet):
+  the exact line *"`cargo install --git https://github.com/davidlee/goad
+  goad-check goad-emit`"*. `command grep -rnF 'cargo install --git
+  https://github.com/davidlee/goad goad-check goad-emit' kit` →
+  `kit/skills/goad-backend/SKILL.md:35:` only, in the body (the frontmatter
+  is lines 1–4). An equally unique second candidate: *"`nix profile install
+  github:davidlee/goad#goad-check github:davidlee/goad#goad-emit`"*
+  (`SKILL.md:29`).
+- **Finding — a restored file's old mtime ran a row on the previous row's
+  mutant.** The mutation helper restored with `shutil.copy2`, which keeps
+  the backup's mtime; cargo then judged the restored `coverage.rs` older
+  than the mutant build and did not rebuild, so M-7 ran M-6's `.mdx` binary
+  (an empty-set refusal, not R-56) and M-9 ran M-8's. Caught because M-7's
+  output named the wrong cause. The helper now restores with `copyfile`
+  and touches the file; both rows were rerun. M-1..M-6 and M-8 each wrote
+  the file they mutated, so each rebuilt. It bites on a Markdown row run
+  after a Rust row.
+- **Observation — no reply-timing claim.** A sentence that the reply
+  *"never waits for your backend"* was drafted and removed: `goad-emit`'s
+  `USAGE` says the host answers *"when it has judged the event, and takes
+  as long as that takes"*, and SPEC-003 does not order the judgement
+  before the exchange. `events.md` claims nothing either way.
+- **VA-1 — each file read** (2026-10-18, at `031513e`).
+  - *`scheduling.md`* against SPEC-001 R-21..R-29 and SPEC-002 §4: each
+    heading's id matches its row (R-21 forms, trim, time of day; R-22;
+    R-23; R-24; R-28; R-25's six ways; R-26's resolution and consumption;
+    R-29; SPEC-002 R-1, R-7, R-3, R-4 with R-5's and R-6's observable
+    halves, R-11). Each *"discarded under R-N"* claim has a checked fence:
+    R-21 (`"18:00"`), R-22, R-23, R-25 (`45`, `"tomorrow morning"`). The
+    unitless `"18"` → R-25 sentence is R-21's row's own example and the
+    corpus's `R-25-unitless-integer`; not fenced. Host-internal: SPEC-002
+    R-9 one line; timer, clock failure, cancellation absent.
+  - *`events.md`* against SPEC-003 §4 and §6.2–6.3: R-1, R-6, R-8..R-14
+    stated; R-2..R-5 and R-7 at one line each as a writer observes them;
+    R-15, R-16 absent (host-internal). The reasons table matches §6.3 row
+    for row; `unavailable`'s *ingress stopped* cause is omitted, since it
+    never reaches a writer. `goad-emit`'s flags and default path against
+    its `USAGE`; its refusal line against its `refused_line`
+    (`goad-emit: refused: <reason>[ retry_after_ms=N][ (detail)]`); its
+    statuses against canon-delta SPEC-004 Changes 3–4.
+  - *`checking.md`* against design §5.2.1, §5.2.2, §5.2.5 and canon-delta
+    SPEC-001 Change 1, SPEC-004 Changes 3–4: forms, exclusions, default
+    `5s`, `[ingress]` ignored, request plan and probe kind
+    (`run::PROBE_KIND`), answering (`Submitted::as_drawn`'s values, chain
+    bound 8), the four sides in R-59's terms with the declared
+    imprecision's four places to look, R-56's condition, statuses and what
+    each does not let a reader infer. Line forms against `render`:
+    `evaluate_line`, `exchange_lines`, `respond_line`, `refusal_line`,
+    `probe_claim_line`, `chain_bound_line`, `NO_VIEW`, `verdict_line`, the
+    stderr `refused_line`; the sample is a real run's output.
+  - *`SKILL.md`*: install route against `flake.nix` (`goadPackages` holds
+    `goad-check` and `goad-emit`, merged into `packages.${system}`), the
+    crates' `[package] name`s, and `origin` (`github.com:davidlee/goad`).
+    Not run (A-T4). Example lines against each README and source:
+    focus-check's `next_check` is an instant (`end.isoformat`), so the
+    draft's *"as a span"* was corrected before commit.
+  - *`protocol.md`, `running.md`*: unchanged; host-internal rules appear
+    only as one line on what the author observes (R-39, R-43, R-48).
+  - *Links*: 36 relative links across `SKILL.md` and `reference/*.md`; each
+    target exists. *One home per id*: heading ids across `reference/*.md`
+    through `sort | uniq -d` → nothing. Headings with an id: `protocol.md`
+    32, `running.md` 13, `scheduling.md` 13, `events.md` 12, `checking.md`
+    4.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-18 · PHASE-07 done · PHASE-06 done · goad code at `65e1ea9`,
-pushed as `2f1bf47`; `goad-walk` at `c5efa16`. PHASE-12's harvest below is
-unchanged.
+**Fresh as of:** 2026-10-18 · PHASE-08 done · PHASE-07 done · PHASE-06 done ·
+goad code at `031513e` (unpushed; `2f1bf47` is the last push); `goad-walk` at
+`c5efa16`. PHASE-12's harvest below is unchanged.
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -7735,10 +7865,22 @@ unchanged.
   `a_path_outside_the_kit_is_refused`,
   `nothing_in_the_kit_names_a_path_outside_it`); `examples.rs` walks through
   `tree.rs`. `kit/skills/goad-backend/reference/{protocol.md, running.md}`.
+- PHASE-08: `crates/goad-check/tests/kit/coverage.rs` — six
+  `*_variant` / `every_*` pairs, `required`, `heading_ids`, `ids`,
+  `is_heading`, `SPEC`; `every_requirement_a_refusal_can_name_is_explained_in_the_reference`
+  (VT-1) and `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`
+  (VT-2). `kit/skills/goad-backend/reference/{scheduling.md, events.md,
+  checking.md}`; the finished `SKILL.md` (marker gone). PHASE-11's fact is in
+  PHASE-08 Findings.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+
+- **Restoring a mutated file with its old mtime skips the rebuild.**
+  `shutil.copy2` (and `cp -p`) keep the backup's mtime, so cargo runs the
+  next row on the last row's mutant; a Markdown row after a Rust row is
+  where it shows (PHASE-08 Findings). Restore without metadata, or touch.
 
 - **A missing corpus directory does not reach a witness's vacuity guard.**
   `fixtures_of` panics on the read first. A guard's mutation must point at
@@ -7818,6 +7960,14 @@ unchanged.
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
+- **`checking.md` and `events.md` head rules with ids only `canon-delta.md`
+  holds**: `SPEC-001/R-59`, and `SPEC-004/R-8`, `R-9`, `R-10`, `R-11`,
+  `R-12`, `R-13` (PHASE-08 D-7, X-3). Promotion at audit must keep those
+  numbers, or update both files.
+- **A third copy of the six error builders** — `coverage.rs`' `every_*`,
+  beside `goad_semantics::error`'s and `goad_shell::error`'s private ones
+  (PHASE-08 A-V2); see *Two `every_protocol_error` builders* below.
+
 - **PHASE-07 for audit**: I-5's walk reads ignored files under `kit/` (the
   two `goad.sock.lock`s), not only the tracked tree the design names
   (PHASE-07 Findings, *Observation*); M-13 reds VT-8 by a panic in
@@ -7828,6 +7978,9 @@ unchanged.
   view" and was refused anyway; and triage's gate route reports a move, then
   `… is no longer in …` on stderr (D-4, correct), which reads as a failure.
   Candidates for `checking.md`, the triage README, or report wording.
+  **`checking.md` half discharged by PHASE-08** (D-10: *Read the report*
+  explains both); the triage README and report wording are left to the
+  walks (PHASE-10).
 - **The two-file chain, *Clear* and the post-block view are held by no test**
   (PHASE-06 Findings, VA-3). Candidate: a second event file for triage.
 
