@@ -129,10 +129,15 @@
       git
     ];
 
-    projectPkgs =
+    # What a build and test run needs with no display: the oubliette room's
+    # tool set (`packages.dev-tools`).
+    headlessPkgs =
       devToolPkgs
       ++ [pkgs.deno pkgs.socat]
-      ++ [pkgs.python3 pkgs.jq] # the kit examples' interpreters, spawned by the `kit` test tier
+      ++ [pkgs.python3 pkgs.jq]; # the kit examples' interpreters, spawned by the `kit` test tier
+
+    projectPkgs =
+      headlessPkgs
       ++ [pkgs.nodejs_latest] # for pi
       ++ [goadHeadless goadShot pkgs.cage pkgs.grim]
       ++ guiLibs
@@ -356,7 +361,16 @@
       jailPkgs
       // goadPackages
       // {inherit goad-kit;}
-      // {default = goadPackages.goad;};
+      // {
+        default = goadPackages.goad;
+        # One closure, so the VM and the devshell can't drift. No agents: the
+        # room supplies them.
+        dev-tools = pkgs.buildEnv {
+          name = "goad-dev-tools";
+          paths = headlessPkgs;
+          ignoreCollisions = true;
+        };
+      };
 
     # Not under `${system}`, unlike `packages` and `devShells` above: a
     # home-manager module is a function of the consumer's own module arguments,
