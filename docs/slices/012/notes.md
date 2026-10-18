@@ -5705,7 +5705,7 @@ tree).
         config.toml` in each example's directory, and against a broken
         backend (one of PHASE-12's refusing fixtures), and sees each report —
         sides, requirements, the verdict line and the status."*
-  - [ ] VH-2 (quoted): *"a person runs `goad config.toml`
+  - [x] VH-2 (quoted): *"a person runs `goad config.toml`
         in each example's directory and sees each example ask its question,
         from **Check now** or with `goad-emit` and the example's event
         file."*
@@ -5812,7 +5812,7 @@ runs every line it can (VH-1 headless) itself first.
 - [x] VA-4
 - [x] VA-5
 - [x] VH-1 (person) — run by the user 2026-10-18; see **Findings** *VH-1, the person's run*
-- [ ] VH-2 (person)
+- [x] VH-2 (person) — run by the user 2026-10-18; see **Findings** *VH-2, the person's run*
 - [ ] VH-3 (person)
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
@@ -5921,6 +5921,17 @@ for VT rows: `nix develop --command cargo test -p goad-check --test kit
     …`* on stderr: D-4 working as intended (VT-1 creates no file). Correct,
     but it reads as a failure to a person following the README's
     `goad-check` route. A candidate for the README to say so.
+- **VH-2, the person's run** (2026-10-18; the user, from the walkthrough in
+  chat, scratch `XDG_*`, hosts from `target/debug`). Focus check, from
+  **Check now**: *What are you focusing on?*, then the check-in on the focus
+  given. Downloads triage: `goad-emit --socket ./goad.sock` with the
+  `file-arrived` data, the file created first; *Where does invoice.pdf go?*;
+  **Move** → Documents put `invoice.pdf` under the scratch `documents`.
+  Breadcrumbs: *Where were you in /home/me/work?* took a note; the reverse
+  `changed-directory` asked about `/home/me/play`, then chained to *Back in
+  /home/me/work* showing the note, with **Thanks** and **Clear** (R-33's
+  chain, seen). After it, `git status --short` lists nothing; the triage
+  directory's `goad.sock.lock` is listed only by `--ignored`.
 - **VA-3 — the examples read against SPEC-001 R-56, R-57, R-58, R-33 and
   their READMEs.** No defect found.
   - *focus-check* (`backend.py`): R-56 — `evaluate` reads `kind` only under
