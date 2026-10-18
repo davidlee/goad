@@ -14,7 +14,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-04 | done | 2026-10-01 |
 | PHASE-05 | done | 2026-10-01 |
 | PHASE-06 | done | 2026-10-18 |
-| PHASE-07 | in progress | 2026-10-18 |
+| PHASE-07 | done | 2026-10-18 |
 | PHASE-08 | pending | 2026-10-01 |
 | PHASE-09 | pending | 2026-10-01 |
 | PHASE-10 | pending | 2026-10-01 |
@@ -6599,14 +6599,14 @@ then the gate, then the prose the gate reads. Red first for every test.
         (`ls -l`: `srw-------`). Run in the main checkout, not a linked
         worktree (A-T2).
 - **5. The reference (EX-3)** — `kit/skills/goad-backend/reference/`
-  - [ ] EX-3 (quoted): *"`protocol.md` and `running.md` state only what an
+  - [x] EX-3 (quoted): *"`protocol.md` and `running.md` state only what an
         author must do or may rely on, organised by task, each rule citing
         its id as a report prints it (`SPEC-001/R-13`), each id in a heading
         line of its own — the anchor PHASE-08's coverage test reads."* D-7,
         D-8. Plan Note (quoted): *"Fragments are shown whole or as `text`
         (§5.2.6)."* Every `json`/`toml` fence is tagged with a role (VT-1
         reads it the moment the file exists).
-  - [ ] `protocol.md` — tasks such as *answer a request*, *show a view*,
+  - [x] `protocol.md` — tasks such as *answer a request*, *show a view*,
         *ask for values*, *what the host sends back*, *when an answer is
         refused*; holds A-V7's `protocol.md` row, plus the other SPEC-001
         rules an author needs from §Envelope and versioning, §Requests,
@@ -6616,8 +6616,16 @@ then the gate, then the prose the gate reads. Red first for every test.
         may rely on, recorded). Host-internal rules — bounds, cleanup,
         renderer subsets (R-55) — at most one line each saying what the
         author observes. A-V3's offset rule in prose. D-9's fences. No path
-        outside the kit, no link to `docs/specs/`.
-  - [ ] `running.md` — tasks such as *name your command*, *read a request,
+        outside the kit, no link to `docs/specs/`. **Done.** Tasks (h2):
+        *Read the request*, *Write the response*, *Show a choice*, *Ask for
+        values*, *The answer*. Stated, one h3 each: R-6, R-1, R-7, R-56,
+        R-9; R-10, R-11, R-51, R-2, R-3, R-4, R-44, R-20; R-13, R-12, R-14,
+        R-52, R-19; R-15, R-16, R-17, R-50, R-53, R-18; R-8, R-57, R-58,
+        R-35, R-30, R-31, R-33, R-32. Left out as host-internal or subsumed:
+        R-5 (R-4 says it from the author's side), R-34, R-46, R-47, R-55
+        (one line, no id: X-7). R-25 is a body cross-reference to
+        `scheduling.md`.
+  - [x] `running.md` — tasks such as *name your command*, *read a request,
         write one response*, *use stderr*, *finish in time*, *exit*, *write
         the config file*; holds A-V7's `running.md` row, plus R-36..R-39,
         R-42, R-49, R-54 as the executor selects, the `[backend]`,
@@ -6626,24 +6634,45 @@ then the gate, then the prose the gate reads. Red first for every test.
         relative-`command` rule (§5.2.6, *How a config names its backend*),
         and, in one line each, what a person sees when `goad config.toml`
         cannot start (SPEC-004 R-3, R-4) — no bound or cleanup-limit value.
-  - [ ] `nix develop --command cargo test -p goad-check --test kit
+        **Done.** Tasks: *Name your command* (R-36; R-44 by cross-reference,
+        D-8), *Read one request, write one response* (R-37, R-38), *Use
+        stderr* (R-42, R-39, R-43), *Finish in time* (R-41, R-48), *Exit*
+        (R-40, R-49, R-45), *Write the config file* (a `toml goad:config`
+        fence with all three sections, a key table, `SPEC-004/R-3`,
+        `SPEC-004/R-4`). R-54 is one clause in R-48's section, no id.
+        `[ingress]` points at `events.md`, stating nothing of SPEC-003.
+  - [x] `nix develop --command cargo test -p goad-check --test kit
         --no-fail-fast`: VT-1 and VT-5 green over the two new files; record
         the new checked count by role (VA-1).
+        **Green**: `9 passed`; `16 json and toml fences checked` (by role in
+        VA-1).
 - **6. Refactor**
-  - [ ] `examples.rs`'s `examples` and `copy_tree` use `tree.rs`'s root and
+  - [x] `examples.rs`'s `examples` and `copy_tree` use `tree.rs`'s root and
         walk where that removes code (the copy is "for each walked file,
         create its parent and copy it"); record what changed, or why nothing
         did. Nothing in `tagged.rs` or `standalone.rs` names a kit file.
-  - [ ] Every symbol in `tests/support/fences.rs` used by both includers
+        **Done:** `copy_tree` is now "for each `tree::files` file, create its
+        parent and copy" (its own socket-skipping walk gone; the one walk is
+        `tree::files`); a new `examples_root` (`tree::root()` joined with the
+        examples' path) serves `examples` and the triage case, which named
+        `CARGO_MANIFEST_DIR` twice. `standalone.rs`' `REFERENCE` is a
+        notional directory, not a file it reads.
+  - [x] Every symbol in `tests/support/fences.rs` used by both includers Held: `Fence`, its
+        `info` and `body`, and `fences` (clippy clean on both; R-7).
         (clippy, R-7); `fences.rs` holds the scanner and nothing else.
 - **7. Evidence**
-  - [ ] VA-1 (quoted): *"the extractor's count of checked fences is non-zero
+  - [x] VA-1 (quoted): *"the extractor's count of checked fences is non-zero
         and equals a count taken by hand over the kit, recorded."* By hand:
         `command grep -rnE '^ {0,3}(```|~~~)\s*(json|toml)' -i kit` (each hit
-        read), tabulated by role, against VT-1's printed count.
-  - [ ] VA-2 (quoted): *"mutation: one fence in `protocol.md` untagged reds
+        read), tabulated by role, against VT-1's printed count. **Equal, 16**:
+        `toml goad:config` 4 (three READMEs, `running.md`); `json
+        goad:envelope` 2 (two READMEs); `json goad:response` 2; `refused`
+        5 (R-3, R-12, R-13, R-44, R-50); `discarded R-25` 1; `json
+        goad:request` 2 (evaluate, respond) — the last four all
+        `protocol.md`. VT-1 printed `16 json and toml fences checked`.
+  - [x] VA-2 (quoted): *"mutation: one fence in `protocol.md` untagged reds
         VT-1. Recorded."* — row M-1.
-  - [ ] VA-3 (quoted): *"`protocol.md` and `running.md` read against
+  - [x] VA-3 (quoted): *"`protocol.md` and `running.md` read against
         SPEC-001 §4 and §6: nothing contradicts it, and nothing host-internal
         is taught. Recorded."* One block per file under **Findings**: each
         heading's id against its §4 row; A-V3's offset; R-30 (a backend sends
@@ -6651,55 +6680,68 @@ then the gate, then the prose the gate reads. Red first for every test.
         D-8 line. The PHASE-06 VH-1 report-reading observations are **not**
         this phase's (they are `checking.md`'s, PHASE-08; §Open carries
         them).
-  - [ ] VA-4 (quoted): *"`notes.md` §Open's FU-5 row names the shared
+  - [x] VA-4 (quoted): *"`notes.md` §Open's FU-5 row names the shared
         scanner's file and symbol, and says it replaced `round_trip.rs`'
         `fenced_block` rather than copying it."* Append to the existing
         *FU-5's citation extends …* bullet: **PHASE-07**: `fences` and
         `Fence` in `tests/support/fences.rs`, included by `goad-check`'s
         `kit` and `goad-shell`'s `integration` targets, replacing
         `round_trip.rs`' `fenced_block`; nothing copied — or name each copy.
-  - [ ] VA-5 (quoted): *"reach: a relative path escaping `kit/`, planted in
+  - [x] VA-5 (quoted): Redded with five `../`, not
+        the sheet's four (Findings, *R-4's plant*). *"reach: a relative path escaping `kit/`, planted in
         an example README, reds VT-5; restored. Recorded."* — row R-4.
-  - [ ] VA-6 (quoted): *"I-2 over `crates/goad-check`'s tests as this phase
+  - [x] VA-6 (quoted): *"I-2 over `crates/goad-check`'s tests as this phase
         leaves them (the respond oracle), by the command under *Invariant
         reads*. Recorded."* `command grep -rn 'FieldKind' crates/goad-check`;
         each hit read for a kind mapped to a JSON type or a value. Expected:
         the oracle's `FieldKind::Choice { alternatives }` pattern (it reads
-        alternatives, maps no kind to a type) and its `use`.
-  - [ ] A-V7's line held: `command grep -nE '^#+ .*SPEC-001/R-[0-9]+'
+        alternatives, maps no kind to a type) and its `use`. **As expected**:
+        two hits, `tagged.rs`' `use` and `respond`'s `if let
+        FieldKind::Choice { alternatives } = field.kind()`, which reads
+        alternative ids only. The JSON type comes from
+        `Submitted::as_drawn(field.kind()).to_json()` by `discriminant`; no
+        `match` on `Submitted`.
+  - [x] A-V7's line held: `command grep -nE '^#+ .*SPEC-001/R-[0-9]+'
         kit/skills/goad-backend/reference/*.md` — each heading names one id;
         every id of the `protocol.md` and `running.md` rows appears exactly
         once; the scheduling four do not. Record the list PHASE-08's VT-1
-        will find missing (expected: R-21, R-22, R-23, R-25).
-  - [ ] Mutation and reach rows (below), each recorded.
-  - [ ] `nix develop --command just check` exit 0. Record the summed
+        will find missing (expected: R-21, R-22, R-23, R-25). **Held**: no
+        heading names two ids; each of the 19 ids of the two rows has
+        exactly one heading; R-21, R-22, R-23, R-25 have none — the list
+        PHASE-08's VT-1 will find missing. (SPEC-004/R-3 and R-4 have a
+        heading each in `running.md`.)
+  - [x] Mutation and reach rows (below), each recorded.
+  - [x] `nix develop --command just check` exit 0. Record the summed
         passed count: the entry count (740) plus this phase's new cases.
+        **Exit 0**, **747 passed, 0 failed** over 34 `test result` lines
+        (740 + VT-1..VT-6, VT-8); the only `warning` line is nix's *Git
+        tree is dirty*. Run in the main checkout (A-T2).
 - **8. Close**
-  - [ ] §Harvest updated (Produced, Learned, Open); PHASE-07 `done`.
-  - [ ] Commit the surfaces and this sheet's records with `git commit -m
+  - [x] §Harvest updated (Produced, Learned, Open); PHASE-07 `done`.
+  - [x] Commit the surfaces and this sheet's records with `git commit -m
         "012 PHASE-07: …" -- <paths>`; `git show --stat HEAD` lists only
         them.
 
 **Exit criteria** (quoted in the tasks above; listed here to be ticked)
-- [ ] EX-1
-- [ ] EX-2
-- [ ] EX-3
-- [ ] EX-4
-- [ ] EX-5
-- [ ] VT-1
-- [ ] VT-2
-- [ ] VT-3
-- [ ] VT-4
-- [ ] VT-5
-- [ ] VT-6
-- [ ] VT-7
-- [ ] VT-8
-- [ ] VA-1
-- [ ] VA-2
-- [ ] VA-3
-- [ ] VA-4
-- [ ] VA-5
-- [ ] VA-6
+- [x] EX-1
+- [x] EX-2
+- [x] EX-3
+- [x] EX-4
+- [x] EX-5
+- [x] VT-1
+- [x] VT-2
+- [x] VT-3
+- [x] VT-4
+- [x] VT-5
+- [x] VT-6
+- [x] VT-7
+- [x] VT-8
+- [x] VA-1
+- [x] VA-2
+- [x] VA-3
+- [x] VA-4
+- [x] VA-5
+- [x] VA-6
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad, edit, run with `--no-fail-fast`, copy back; `git status --short`
@@ -6710,36 +6752,36 @@ Instrument, unless the row says otherwise: `nix develop --command cargo test
 
 | row | file / symbol | edit | must red | must stay green | compiled? / file read | redded | restored |
 |---|---|---|---|---|---|---|---|
-| M-1 (VA-2) | `reference/protocol.md`, one `json goad:…` fence | its `goad:` word removed | VT-1, naming `protocol.md` and the line, `Untagged` | VT-2..VT-6 | | | |
-| M-2 | `fences.rs` `fences` | only `` ` `` recognised as a fence character | VT-2 (its tilde case) | VT-1 over today's kit (no tilde fence) | | | |
-| M-3 | `tagged.rs`, the json/toml test | the first word compared without lowercasing | VT-3 (`JSON goad:response`) | VT-1 | | | |
-| M-4 | `tagged.rs`, the respond oracle | the JSON-type comparison always true | VT-4 | VT-1 | | | |
-| M-5 | `standalone.rs`, the escaping half | it refuses nothing | VT-6 (its escaping case) | VT-5 | | | |
-| M-6 | `standalone.rs`, the mention half | it refuses nothing | VT-6 (`crates/goad-shell/src`) | VT-5 | | | |
-| M-7 | `standalone.rs`, the `git ls-files` spawn | `current_dir` removed (cwd = `crates/goad-check`) | VT-5 and VT-6, on the wrong-root refusal | VT-1..VT-4 | | | |
-| M-8 | `fences.rs` `fences` | returns `Vec::new()` | VT-1 (D-5's zero count); VT-7 under `cargo test -p goad-shell --test integration the_readme_s_own_config` | — | | | |
-| M-13 | `tagged.rs`, the R-58 field-set check | removed | VT-8 (missing and undrawn rows) | VT-4 |
-| M-14 | `tagged.rs`, the `choice` membership check | removed | VT-8 (its alternatives row) | VT-4 |
-| M-9 | `fences.rs`, the closer | a closer of a **different** character accepted | VT-2's tilde case, or record that nothing reds | — | | | |
-| M-10 | `tagged.rs`, `refused R-N` | the id comparison dropped | VT-8 (its wrong-id row) | VT-1 | | | |
-| M-11 | `standalone.rs`, the preceding-character rule | dropped | VT-6 (`/elsewhere/crates/goad-shell/src`) | VT-5 | | | |
-| M-12 | `standalone.rs`, the whole-component rule | `<name>/<segment>` matched as a string prefix | VT-6 (`crates/goad-s`) | VT-5 | | | |
+| M-1 (VA-2) | `reference/protocol.md`, one `json goad:…` fence | its `goad:` word removed | VT-1, naming `protocol.md` and the line, `Untagged` | VT-2..VT-6 | Markdown; the failure names `protocol.md:86: untagged` (the `{"view": null}` fence) | VT-1 only | yes |
+| M-2 | `fences.rs` `fences` | only `` ` `` recognised as a fence character | VT-2 (its tilde case) | VT-1 over today's kit (no tilde fence) | yes | VT-2 only (`got 0`) | yes |
+| M-3 | `tagged.rs`, the json/toml test | the first word compared without lowercasing | VT-3 (`JSON goad:response`) | VT-1 | yes | VT-3 only (`got 0`: `JSON` unseen) | yes |
+| M-4 | `tagged.rs`, the respond oracle | the JSON-type comparison always true | VT-4 | VT-1 | yes | VT-4 only | yes |
+| M-5 | `standalone.rs`, the escaping half | it refuses nothing | VT-6 (its escaping case) | VT-5 | yes | VT-6 only, `see ../../../../crates/goad-shell/src: []` | yes |
+| M-6 | `standalone.rs`, the mention half | it refuses nothing | VT-6 (`crates/goad-shell/src`) | VT-5 | yes | VT-6 only, `see crates/goad-shell/src: []` | yes |
+| M-7 | `standalone.rs`, the `git ls-files` spawn | `current_dir` removed (cwd = `crates/goad-check`) | VT-5 and VT-6, on the wrong-root refusal | VT-1..VT-4 | yes | VT-5 and VT-6, each `listed nothing under kit/ or crates/: the wrong root?` | yes |
+| M-8 | `fences.rs` `fences` | returns `Vec::new()` | VT-1 (D-5's zero count); VT-7 under `cargo test -p goad-shell --test integration the_readme_s_own_config` | — | yes | VT-1 (`0 json and toml fences checked`, `no json or toml fence found in [...]`), and VT-2..VT-4, VT-8; VT-7 (`the exerciser README has a toml fence`) | yes |
+| M-13 | `tagged.rs`, the R-58 field-set check | removed | VT-8 (missing and undrawn rows) | VT-4 | yes | VT-8, by a panic in `respond` at the missing row (`no entry found for key`: the index the check guards), so the undrawn row's own verdict is not printed (Findings) | yes |
+| M-14 | `tagged.rs`, the `choice` membership check | removed | VT-8 (its alternatives row) | VT-4 | yes | VT-8 only, row *a choice value outside its alternatives* | yes |
+| M-9 | `fences.rs`, the closer | a closer of a **different** character accepted | VT-2's tilde case, or record that nothing reds | — | yes | VT-2 only, on X-2's nested case (`got 0: []`) | yes |
+| M-10 | `tagged.rs`, `refused R-N` | the id comparison dropped | VT-8 (its wrong-id row) | VT-1 | yes | VT-8 only, row *refused R-N with the wrong id* | yes |
+| M-11 | `standalone.rs`, the preceding-character rule | dropped | VT-6 (`/elsewhere/crates/goad-shell/src`) | VT-5 | yes | VT-6 only: `in /elsewhere/crates/goad-shell/src` refused, and the escaping case gains a `Mention` (X-8) | yes |
+| M-12 | `standalone.rs`, the whole-component rule | `<name>/<segment>` matched as a string prefix | VT-6 (`crates/goad-s`) | VT-5 | yes | VT-6 only, `not crates/goad-s` refused | yes |
 
 **Reach proofs** (the same rules)
 
 | row | instrument | plant | must find | result | restored |
 |---|---|---|---|---|---|
-| R-1 | VT-1's enumeration | a new `kit/skills/goad-backend/planted.md` holding an untagged ```` ```json ```` fence | VT-1 red naming `planted.md` alone | | |
-| R-2 | VT-1 over `running.md` | a `jsonc` fence in `running.md` | VT-1 red naming `running.md`, `Misspelt` | | |
-| R-3 | VT-5 over every file, not only `*.md` | `# see crates/goad-shell/src` in `focus-check/backend.py` | VT-5 red naming `backend.py`, the mention half | | |
-| R-4 (VA-5) | VT-5's escaping half | `../../../../crates/goad-shell/src` in `downloads-triage/README.md` | VT-5 red naming the README, the escaping half | | |
-| R-5 | VT-5 over new Markdown | `crates/goad-shell/src` in `protocol.md` body text | VT-5 red naming `protocol.md` | | |
-| R-6 | the walk's socket skip | none: a read. If no socket is left under `examples/` at run time, bind one in the scratch with `python3 -c` into `breadcrumbs/` and remove it after | VT-1 and VT-5 green with a socket present; `ls -l` shows `s` | | n/a |
-| R-7 | clippy over `fences.rs`, both includers | `pub(crate) fn planted() {}` in `tests/support/fences.rs` | `nix develop --command cargo clippy -p goad-check --all-targets -- -D warnings` **and** the same for `-p goad-shell` (run separately: cargo stops at the first failing crate): each `function planted is never used` | | |
-| R-8 | clippy over the new kit modules | an unused `fn planted() {}` in `tagged.rs` | clippy red naming `tagged.rs` | | |
-| R-9 | fmt over `fences.rs` | one line misindented | `cargo fmt --all --check` prints `Diff in …/tests/support/fences.rs` for each includer (A-V8) | | |
-| R-10 | fmt over the new kit modules | one line of `standalone.rs` misindented | `Diff in …/tests/kit/standalone.rs` | | |
-| R-11 | the cases are built | none: a read | `cargo test --workspace` shows `Running tests/kit/main.rs` with VT-1..VT-6 and VT-8 by name, and `Running tests/integration/main.rs` with VT-7 | | n/a |
+| R-1 | VT-1's enumeration | a new `kit/skills/goad-backend/planted.md` holding an untagged ```` ```json ```` fence | VT-1 red naming `planted.md` alone | red: `planted.md:3: untagged`, nothing else | removed |
+| R-2 | VT-1 over `running.md` | a `jsonc` fence in `running.md` | VT-1 red naming `running.md`, `Misspelt` | red: `running.md:133: misspelt` | yes |
+| R-3 | VT-5 over every file, not only `*.md` | `# see crates/goad-shell/src` in `focus-check/backend.py` | VT-5 red naming `backend.py`, the mention half | red: `focus-check/backend.py:181: Mention crates/goad-shell` | yes |
+| R-4 (VA-5) | VT-5's escaping half | `../../../../crates/goad-shell/src` in `downloads-triage/README.md` | VT-5 red naming the README, the escaping half | the sheet's four `../` stayed **green**, correctly: from `examples/downloads-triage/` four climbs land on `kit/`. Five: red, `downloads-triage/README.md:96: Escaping ../../../../../crates/goad-shell/src` | yes |
+| R-5 | VT-5 over new Markdown | `crates/goad-shell/src` in `protocol.md` body text | VT-5 red naming `protocol.md` | red: `protocol.md:324: Mention crates/goad-shell` | yes |
+| R-6 | the walk's socket skip | none: a read. If no socket is left under `examples/` at run time, bind one in the scratch with `python3 -c` into `breadcrumbs/` and remove it after | VT-1 and VT-5 green with a socket present; `ls -l` shows `s` | green with `breadcrumbs/goad.sock` and `downloads-triage/goad.sock` both `srw-------` | n/a |
+| R-7 | clippy over `fences.rs`, both includers | `pub(crate) fn planted() {}` in `tests/support/fences.rs` | `nix develop --command cargo clippy -p goad-check --all-targets -- -D warnings` **and** the same for `-p goad-shell` (run separately: cargo stops at the first failing crate): each `function planted is never used` | both: `function planted is never used`, at `tests/kit/../../../../tests/support/fences.rs:87` and `tests/integration/../../../../tests/support/fences.rs:87` | yes |
+| R-8 | clippy over the new kit modules | an unused `fn planted() {}` in `tagged.rs` | clippy red naming `tagged.rs` | red: `function planted is never used`, `tagged.rs:716` | yes |
+| R-9 | fmt over `fences.rs` | one line misindented | `cargo fmt --all --check` prints `Diff in …/tests/support/fences.rs` for each includer (A-V8) | two `Diff in …/tests/support/fences.rs:35`, via `tests/kit/` and `tests/integration/` | yes |
+| R-10 | fmt over the new kit modules | one line of `standalone.rs` misindented | `Diff in …/tests/kit/standalone.rs` | `Diff in …/tests/kit/standalone.rs:46` | yes |
+| R-11 | the cases are built | none: a read | `cargo test --workspace` shows `Running tests/kit/main.rs` with VT-1..VT-6 and VT-8 by name, and `Running tests/integration/main.rs` with VT-7 | the gate log shows both `Running` lines, each of the seven kit cases `... ok` by name, and `round_trip::the_readme_s_own_config_loads_and_runs_the_example ... ok` | n/a |
 
 The vocabulary scan and `deno check` have no row: neither reaches these
 files, by design (A-V8).
@@ -6776,12 +6818,71 @@ files, by design (A-V8).
   ate the `..` of a leading `../`, and VT-6's escaping case stayed red with
   the half implemented. Both dropped from `AROUND`. Caught by VT-6, which is
   what it is for.
+- **X-7 — renderer subsets are one line with no id.** `protocol.md`'s
+  *Show a choice* says goad may not draw every form or kind, leaves out what
+  it cannot, reports it, and shows the rest. R-55 is host-internal (§5.2.6:
+  *"one line says what the author observes"*); citing it would make it a
+  stated rule owing a heading. Likewise R-54 is one clause in R-48's section.
+  `SPEC-004/R-3` and `R-4` do get headings: they are what a person sees, and
+  D-7 puts every stated rule under its id.
+- **X-8 — VT-6 collects every case before one assertion**, as VT-8 does.
+  First written as one `assert!` per case, it stopped at the first failure,
+  so M-11 redded on the escaping case (which gains a `Mention` when the
+  preceding-character rule goes) and never reached
+  `/elsewhere/crates/goad-shell/src`, the case the row names. Collected, M-11
+  shows both. No case changed.
 - **X-5 — the inline config needs `[schedule] default_poll`** and
   `[backend] timeout`: `Config::parse` refuses a file without either
   (`missing field`). Recorded for `running.md`, which says so.
 
 **Findings**
 
+- **R-4's plant, as the sheet wrote it, does not escape** (VA-5). From
+  `kit/skills/goad-backend/examples/downloads-triage/`, four `../` land on
+  `kit/` itself, so `../../../../crates/goad-shell/src` resolves to
+  `kit/crates/goad-shell/src` — inside the kit, by the lexical rule — and
+  VT-5 stayed green, correctly. Five `../` escape and red it. The checker is
+  right and the sheet's depth was off by one; no code change. (The mention
+  half cannot catch it either: `crates` follows a `/`.)
+- **M-13 reds by a panic, not by its rows.** With the R-58 check removed, the
+  *missing* row reaches `respond`'s `values[field.id()]` index on an absent
+  key, `serde_json::Map`'s index panics (`no entry found for key`), and VT-8
+  fails as a whole before printing its row list. Red, so the row holds; but
+  the undrawn row's own verdict is unseen under this mutation. Making
+  `respond` total there (a `get`, refusing the absent key) would only serve
+  the mutation; left as is.
+- **VA-3 — `protocol.md` against SPEC-001 §4 and §6.** Each h3's id read
+  against its §4 row: no contradiction found. A-V3: R-7's section says the
+  host writes UTC with `Z` and a backend must parse any offset (§6.1:
+  *"RFC 3339 with an explicit offset"*). R-30: *"A `view_id` in your response
+  is ignored"*. R-58's direction: *"If you need to tell an unanswered field
+  from `false` or `""`, do not send that field"* — the backend omits the field
+  from its view, as R-58's *"MUST NOT send the field"* means; the untouched
+  values are given as *"what this host sends, not a promise"* (§6.2, *"This
+  is descriptive, not a sentinel"*). D-8: R-44's section ends with the
+  unspawnable-command line, on the configuration's side, pointing at
+  `running.md`'s *Name your command*. Host-internal content taught: none —
+  no bound, cleanup limit or renderer list; R-55 is X-7's one line. Wording
+  repaired during the read: R-56's `goad-check` claim now says *"while at
+  least one of the host's own kinds succeeds"* (`run.rs`
+  `charges_the_probe`'s condition), not *"the host's own kinds succeed"*;
+  R-20's section no longer says the host *"never shows a view with a part
+  missing"*, which X-7's renderer line contradicts — it now says a part the
+  host cannot read is never dropped while the rest is accepted, which is
+  R-20's normalization claim.
+- **VA-3 — `running.md` against SPEC-001 §4, §6.4, SPEC-004.** R-36..R-43,
+  R-48, R-49, R-40, R-45 each read against its row: no contradiction. R-41
+  and R-43 state no value (the timeout is the config's; bounds unnamed).
+  R-45's section names the host's or environment's side, matching
+  `BackendError::fault` for `PipeMissing` and `Io`. The config keys are
+  `Config::parse`'s `File` exactly: `[backend] command, timeout` and
+  `[schedule] default_poll` required, `[ingress] path` optional, unknown keys
+  refused (`deny_unknown_fields`). The default path is `goad`'s `USAGE`
+  text. `SPEC-004/R-4`'s section first said the line names *"the file or the
+  socket path"*; R-4 promises only the binary and what happened, so that
+  clause was cut. The spans the prose names, `"30s"`, `"30m"` and `"45
+  minutes"`, each appear in a checked fence (an untested `"2h"` was
+  replaced).
 - **PLAN QUESTION 1 — most of the role checks' refusals are held by no
   negative control.** **Resolved 2026-10-18: as recommended**
   (`plan-log.md` 2026-10-18, *PHASE-07 sheet question*; VT-8 and VT-6's two
@@ -6830,7 +6931,7 @@ files, by design (A-V8).
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-17 · PHASE-06 done bar VH-1..VH-3 · PHASE-05 done · goad code at `65e1ea9`,
+**Fresh as of:** 2026-10-18 · PHASE-07 done · PHASE-06 done · goad code at `65e1ea9`,
 pushed as `2f1bf47`; `goad-walk` at `c5efa16`. PHASE-12's harvest below is
 unchanged.
 
@@ -6901,6 +7002,15 @@ unchanged.
   `python3` and `jq` in `projectPkgs`; `typecheck` over the breadcrumbs
   backend; two `.gitignore` socket patterns; `canon-delta.md` SPEC-001
   Change 3's kit path re-pointed.
+- PHASE-07: `tests/support/fences.rs` (`Fence { info, body }`, `fences`),
+  included by `goad-check`'s `kit` and `goad-shell`'s `integration` targets;
+  `round_trip.rs`' `fenced_block` gone. In `crates/goad-check/tests/kit/`:
+  `tree.rs` (`root`, `files`, `text`), `tagged.rs` (the fence gate: `Refusal`,
+  `check`; VT-1..VT-4, `each_role_refuses_what_its_door_refuses`),
+  `standalone.rs` (I-5: `tracked_outside`, `breaches`;
+  `a_path_outside_the_kit_is_refused`,
+  `nothing_in_the_kit_names_a_path_outside_it`); `examples.rs` walks through
+  `tree.rs`. `kit/skills/goad-backend/reference/{protocol.md, running.md}`.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -6970,10 +7080,24 @@ unchanged.
   fractions**; the devshell's is 3.14 and the agent shell's 3.12, so
   `focus-check` parses instants itself (PHASE-06).
 
+- **A sheet's planted path can be off by one directory.** R-4's four `../`
+  from an example's directory land on `kit/`, not outside it; the checker
+  was right and the plant wrong. Count the plant's depth before trusting a
+  green (PHASE-07 Findings).
+- **A per-case `assert!` loop hides the case a mutation row names.** M-11
+  redded VT-6 on an earlier case and never reached its own; collecting every
+  case before one assertion shows them all (PHASE-07 X-8).
+- **A derived `Debug` does not count as reading a field.** A diagnostic enum
+  whose fields only reach messages through `{:?}` fails `dead_code`; a
+  `Display` that reads each field is the message and the fix (PHASE-07 X-3).
+
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
-- **VH-1..VH-3 are the person's** (PHASE-06 task 7, blocks in its sheet).
+- **PHASE-07 for audit**: I-5's walk reads ignored files under `kit/` (the
+  two `goad.sock.lock`s), not only the tracked tree the design names
+  (PHASE-07 Findings, *Observation*); M-13 reds VT-8 by a panic in
+  `respond`, not by its rows (PHASE-07 Findings).
 - **Report reading, for PHASE-08's `checking.md`** (PHASE-06 Findings, *VH-1,
   the person's run*): a refused exchange prints `view: null · next check …`
   above its `REFUSED` line, which reads as though the backend answered "no
@@ -7126,3 +7250,6 @@ unchanged.
   not use (`dead_code`). Its `handout` is a temp-directory helper of
   `tests/support/scripting.rs` `claim`'s class, unheld by `claim` for the
   reason `claim`'s doc gives `goad-emit`'s two (PHASE-06/D-7).
+  **PHASE-07**: `fences` and `Fence` in `tests/support/fences.rs`, included
+  by `goad-check`'s `kit` and `goad-shell`'s `integration` targets,
+  replacing `round_trip.rs`' `fenced_block`; nothing copied (PHASE-07/VA-4).

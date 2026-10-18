@@ -161,7 +161,7 @@ const REFERENCE: &str = "kit/skills/goad-backend/reference";
 fn a_path_outside_the_kit_is_refused() {
   let tracked = tracked_outside();
   let check = |text: &str| breaches(text, Path::new(REFERENCE), &tracked);
-  for (text, half, breaking) in [
+  let refused = [
     (
       "see ../../../../crates/goad-shell/src",
       Half::Escaping,
@@ -172,22 +172,30 @@ fn a_path_outside_the_kit_is_refused() {
       Half::Mention,
       "crates/goad-shell",
     ),
-  ] {
-    assert!(
-      matches!(check(text).as_slice(), [found] if found.line == 1 && found.half == half && found.text == breaking),
-      "{text}: {:?}",
-      check(text)
-    );
-  }
-  for text in [
+  ]
+  .into_iter()
+  .filter(|(text, half, breaking)| {
+    !matches!(check(text).as_slice(), [found] if found.line == 1 && found.half == *half && found.text == *breaking)
+  });
+  let accepted = [
     "see ../examples/focus-check/README.md",
     "install into .claude/skills/",
     "the manifest, `.claude-plugin/plugin.json`",
     "in /elsewhere/crates/goad-shell/src",
     "not crates/goad-s",
-  ] {
-    assert!(check(text).is_empty(), "{text}: {:?}", check(text));
-  }
+  ]
+  .into_iter()
+  .filter(|text| !check(text).is_empty());
+  let complaints: Vec<String> = refused
+    .map(|(text, ..)| text)
+    .chain(accepted)
+    .map(|text| format!("{text}: {:?}", check(text)))
+    .collect();
+  assert!(
+    complaints.is_empty(),
+    "cases not held:\n{}",
+    complaints.join("\n")
+  );
 }
 
 #[test]

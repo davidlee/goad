@@ -117,7 +117,7 @@ path = "./goad.sock"
 | `ingress.path` | no | where goad listens for forwarded events ([events.md](events.md)); relative to the directory goad is started in |
 
 A span is written as `next_check`'s relative form is, such as `"30s"`,
-`"45 minutes"` or `"2h"`. A key goad does not read is an error, not ignored.
+`"30m"` or `"45 minutes"`. A key goad does not read is an error, not ignored.
 
 ### SPEC-004/R-3 — goad exits 2 when it cannot start
 
